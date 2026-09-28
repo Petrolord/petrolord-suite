@@ -7,7 +7,7 @@
 
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Database, Loader2, Map as MapIcon, CircleDot, ClipboardList, HelpCircle } from 'lucide-react';
+import { Database, Loader2, Map as MapIcon, CircleDot, ClipboardList, HelpCircle, Table2 } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -16,6 +16,7 @@ import WellsTree from './WellsTree';
 import WellsMap from './WellsMap';
 import WellDetail from './WellDetail';
 import InventoryView from './InventoryView';
+import TopsSheetView from './TopsSheetView';
 import LasImportDialog from './LasImportDialog';
 import AddWellDialog from './AddWellDialog';
 import DeleteWellDialog from './DeleteWellDialog';
@@ -36,7 +37,7 @@ export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/d
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState(null);
   const [busyId, setBusyId] = useState(null);     // well with an in-flight action
-  const [view, setView] = useState('map');        // 'map' | 'detail' | 'inventory'
+  const [view, setView] = useState('map');        // 'map' | 'detail' | 'inventory' | 'tops'
   const [status, setStatus] = useState('Ready.');
   const [lasOpen, setLasOpen] = useState(false);
   const [packageOpen, setPackageOpen] = useState(false);
@@ -181,6 +182,18 @@ export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/d
         </button>
         <button
           type="button"
+          data-testid="wdm-view-tops"
+          title="Every top of every well in one sheet: filter, edit, rename across wells, paste from Excel"
+          className={`flex items-center gap-1 px-2 py-1 text-xs rounded border
+            ${view === 'tops'
+              ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text'
+              : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
+          onClick={() => setView('tops')}
+        >
+          <Table2 className="w-3.5 h-3.5" /> Tops sheet
+        </button>
+        <button
+          type="button"
           data-testid="wdm-view-detail"
           disabled={!selected}
           className={`flex items-center gap-1 px-2 py-1 text-xs rounded border disabled:opacity-40
@@ -232,6 +245,8 @@ export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/d
     <div className="h-full min-h-0 overflow-auto">
       {view === 'inventory' ? (
         <InventoryView backend={backend} wells={filtered} unit={unit} onOpen={select} onStatus={setStatus} reloadKey={wells} />
+      ) : view === 'tops' ? (
+        <TopsSheetView backend={backend} wells={filtered} unit={unit} onStatus={setStatus} onChanged={onWellChanged} reloadKey={wells} />
       ) : view === 'map' || !selected ? (
         <div className="p-3">
           <WellsMap wells={list} selectedId={selectedId} onSelect={select} />

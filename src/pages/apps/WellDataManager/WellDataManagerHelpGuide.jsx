@@ -173,6 +173,19 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
             Edit opens a grid: row edits keep each top's id, so Well Correlation keeps its picks. Replace from paste
             reads a table copied from Excel or a Petrel export; a header such as MD (ft) sets the unit.
           </Para>
+          <SubHeading>The tops sheet (every well at once)</SubHeading>
+          <Para>
+            Tops sheet (ribbon) lists every top of every well you can see, with MD, TVD and TVDSS in the display unit.
+            The chips above the table count the wells that carry each top name (hover one to see the wells that do
+            not) and filter the table. On your own wells the name and MD are editable in place; Save writes only the
+            rows you changed and keeps each top's id.
+          </Para>
+          <Para>
+            Rename changes one top name on every well you own. A well that already has the new name keeps both tops as
+            they are and is named in the status bar, and read-only wells are counted. Paste from Excel takes rows of
+            well (name or UWI), top name and MD: a top the well already has moves, a new name is added, and every line
+            that cannot be used says why (no such well, read-only, not a number, repeated).
+          </Para>
         </GuideSection>
 
         <GuideSection id="survey">
