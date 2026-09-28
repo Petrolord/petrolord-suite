@@ -3,8 +3,9 @@
 One visual family for Suite, NextGen and HSE, taken from the 2026-09
 homepages (petrol-green ink, gold, ivory paper; Cormorant Garamond, Public
 Sans, IBM Plex Mono). Application consoles are **light by default**; **dark is
-a per-user choice**. Since the rollout (waves 0 to 7) every Suite page sits
-in a theme scope.
+a per-user choice**. Since the rollout (waves 0 to 7, complete on
+2026-09-28; tracker in `DesignSystem-Rollout.md` section 6) every Suite page
+sits in a theme scope.
 
 Audit, pilots and open decisions: `docs/scope/DesignSystem-PLAN.md`.
 
@@ -201,6 +202,11 @@ one, so a new page outside `/dashboard` must open a scope (see above).
 
 Class overrides still win (tailwind-merge), so a page must not add its own
 `bg-slate-*`, `text-white` and similar classes over a themed piece.
+
+There is no typography plugin, so `prose` classes do nothing. Style article
+HTML with explicit role classes (`[&_h2]:text-xl`, `[&_a]:text-pl-primary-text`
+and so on), as the NPV and PM help viewers and the ReservoirCalc Pro
+documentation do.
 
 ### The cold-load loaders
 

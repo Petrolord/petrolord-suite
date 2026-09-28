@@ -169,7 +169,10 @@ const DocumentationHub = ({ open, onOpenChange }) => {
             </Button>
           </div>
           <ScrollArea className="flex-1 p-6">
-            <div className="prose prose-invert max-w-none">
+            {/* Explicit role classes: the Suite has no typography plugin, so the
+                old prose classes did nothing. Headings, paragraphs and lists are
+                styled by DocParts; this covers the bare inline tags. */}
+            <div className="max-w-none text-sm leading-relaxed text-pl-text [&_strong]:font-semibold [&_strong]:text-pl-text [&_a]:text-pl-primary-text [&_a]:underline" data-testid="rcp-docs-article">
               <ActiveComponent />
             </div>
           </ScrollArea>

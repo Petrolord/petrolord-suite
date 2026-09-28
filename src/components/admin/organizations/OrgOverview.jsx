@@ -8,17 +8,31 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import UpgradeSuiteButton from '@/components/UpgradeSuiteButton';
+import { subscriptionRowsOf } from './OrgSubscription';
 
+/**
+ * Admin organisation detail, Overview tab.
+ *
+ * W8. With no subscription on record this tab used to invent one: a 10 seat
+ * limit, an "Active" status and a "Free Tier" plan. It now reads the
+ * subscriptions rows the detail page loaded (the same helper as the
+ * Subscription tab, W7F) and says plainly when there is none.
+ */
 const OrgOverview = ({ orgUsers }) => {
   const { selectedOrg } = useAdminOrg();
   const navigate = useNavigate();
-  const subscription = selectedOrg?.subscription || {};
+  const rows = subscriptionRowsOf(selectedOrg);
+  const subscription = rows.find((r) => String(r.status || '').toLowerCase() === 'active') || rows[0] || null;
 
   const activeUsers = orgUsers ? orgUsers.length : 0;
-  const userLimit = subscription.user_limit || 10;
-  const usagePercent = Math.min(100, Math.round((activeUsers / userLimit) * 100));
-  const planName = subscription.quote_details?.planName || subscription.tier || 'Free Tier';
-  
+  const userLimit = Number(subscription?.user_limit);
+  const hasUserLimit = Number.isFinite(userLimit) && userLimit > 0;
+  const usagePercent = hasUserLimit ? Math.min(100, Math.round((activeUsers / userLimit) * 100)) : null;
+  const planName = subscription ? (subscription.quote_details?.planName || subscription.tier || 'Plan not recorded') : 'No subscription';
+  const status = subscription?.status || null;
+  const amount = Number(subscription?.amount);
+  const hasAmount = subscription?.amount !== null && subscription?.amount !== undefined && Number.isFinite(amount);
+
   const subscribedModules = selectedOrg.subscribed_modules || [];
 
   return (
@@ -32,8 +46,10 @@ const OrgOverview = ({ orgUsers }) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-pl-text">{activeUsers}</div>
-            <div className="text-xs text-pl-muted mt-1">
-              {activeUsers} / {userLimit} seats used ({usagePercent}%)
+            <div className="text-xs text-pl-muted mt-1" data-testid="org-overview-seats">
+              {hasUserLimit
+                ? `${activeUsers} / ${userLimit} seats used (${usagePercent}%)`
+                : subscription ? 'No seat limit recorded' : 'No subscription sets a seat limit'}
             </div>
           </CardContent>
         </Card>
@@ -44,11 +60,20 @@ const OrgOverview = ({ orgUsers }) => {
             <CreditCard className="h-4 w-4 text-pl-muted" aria-hidden="true" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-pl-text capitalize truncate">{planName}</div>
+            <div
+              className={subscription ? 'text-2xl font-bold text-pl-text capitalize truncate' : 'text-2xl font-bold text-pl-muted truncate'}
+              data-testid="org-overview-plan"
+            >
+              {planName}
+            </div>
             <div className="flex justify-between items-center mt-1">
-                <div className="text-xs text-pl-muted flex items-center">
-                <span className={`w-2 h-2 rounded-full mr-2 ${subscription.status === 'active' ? 'bg-pl-success' : 'bg-pl-warning'}`}></span>
-                {subscription.status || 'Active'}
+                <div className="text-xs text-pl-muted flex items-center" data-testid="org-overview-status">
+                {status ? (
+                  <>
+                    <span className={`w-2 h-2 rounded-full mr-2 ${String(status).toLowerCase() === 'active' ? 'bg-pl-success' : 'bg-pl-warning'}`}></span>
+                    {status}
+                  </>
+                ) : (subscription ? 'Status not recorded' : 'None on record')}
                 </div>
                 <Button 
                     variant="link" 
@@ -78,8 +103,10 @@ const OrgOverview = ({ orgUsers }) => {
             <Activity className="h-4 w-4 text-pl-muted" aria-hidden="true" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-pl-text">{formatCurrency(subscription.amount || 0)}</div>
-            <p className="text-xs text-pl-muted mt-1">Recurring revenue</p>
+            <div className={hasAmount ? 'text-2xl font-bold text-pl-text' : 'text-2xl font-bold text-pl-muted'} data-testid="org-overview-mrr">
+              {hasAmount ? formatCurrency(amount) : 'Not recorded'}
+            </div>
+            <p className="text-xs text-pl-muted mt-1">{subscription ? 'Recurring revenue' : 'No subscription on record'}</p>
           </CardContent>
         </Card>
       </div>

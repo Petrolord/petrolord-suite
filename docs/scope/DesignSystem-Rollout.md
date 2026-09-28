@@ -534,6 +534,11 @@ keep the wrap in the last session.
 
 ## 4. Per-app recipe
 
+This is the recipe the waves followed. Since 7A and 7B a page under
+`/dashboard` sits in the dashboard scope already, and the per-batch
+`src/design/rollout/` files, `useThemeClass`, `useStudioTheme` and the
+legacy DOM pins are gone. For new work follow `DesignSystem.md` section 6.
+
 The checklist is `DesignSystem.md` section 6; the concrete steps and traps
 are in `DesignSystem-example-EPE.md`. In short, per app:
 
@@ -717,17 +722,61 @@ deleted once these pages are themed too. Options for the owner:
 
 Waves 1 to 6 are 36 sessions for 126 VRR, an average of 3.5 per session.
 
-Tracker (the coordinator fills it after each merge):
+Tracker (every batch merged; the inventory plan itself is #755):
 
 | batch | PR | merged | staging walk |
 |---|---|---|---|
-| 0A | | | |
-| 0B | | | |
-| 0C | | | |
-| 1A to 1E | | | |
-| 2A to 2F | | | |
-| 3A to 3F | | | |
-| 4A to 4F | | | |
-| 5A to 5F | | | |
-| 6A to 6G | | | |
-| 7A, 7B | | | |
+| 0A | #758 | 2026-09-28 | open |
+| 0B | #756 | 2026-09-28 | open |
+| 0C | #757 | 2026-09-28 | open |
+| 1A | #759 | 2026-09-28 | open |
+| 1B | #762 | 2026-09-28 | open |
+| 1C | #760 | 2026-09-28 | open |
+| 1D | #761 | 2026-09-28 | open |
+| 1E | #763 | 2026-09-28 | open |
+| 2A | #764 | 2026-09-28 | open |
+| 2B | #765 | 2026-09-28 | open |
+| 2C | #766 | 2026-09-28 | open |
+| 2D | #768 | 2026-09-28 | open |
+| 2E | #771 | 2026-09-28 | open |
+| 2F | #772 | 2026-09-28 | open |
+| 3A | #770 | 2026-09-28 | open |
+| 3B | #773 | 2026-09-28 | open |
+| 3C | #775 | 2026-09-28 | open |
+| 3D | #774 | 2026-09-28 | open |
+| 3E | #777 | 2026-09-28 | open |
+| 3F | #776 | 2026-09-28 | open |
+| 4A | #783 | 2026-09-28 | open |
+| 4B | #779 | 2026-09-28 | open |
+| 4C | #781 | 2026-09-28 | open |
+| 4D | #782 | 2026-09-28 | open |
+| 4E | #788 | 2026-09-28 | open |
+| 4F | #786 | 2026-09-28 | open |
+| 5A | #785 | 2026-09-28 | open |
+| 5B | #784 | 2026-09-28 | open |
+| 5C | #789 | 2026-09-28 | open |
+| 5D | #790 | 2026-09-28 | open |
+| 5E | #793 | 2026-09-28 | open |
+| 5F | #791 | 2026-09-28 | open |
+| 6A | #794 | 2026-09-28 | open |
+| 6B | #798 | 2026-09-28 | open |
+| 6C | #797 | 2026-09-28 | open |
+| 6D | #799 | 2026-09-28 | open |
+| 6E | #800 | 2026-09-28 | open |
+| 6F | #792 | 2026-09-28 | open |
+| 6G | #795 | 2026-09-28 | open |
+| 7A | #802 | 2026-09-28 | open |
+| 7B | #804 | 2026-09-28 | open |
+| 7C | #801 | 2026-09-28 | open |
+| 7F (functional defects from the cleanup list) | #803 | 2026-09-28 | open |
+| W8 post-rollout sweep (dead files, Overview empty state, ReservoirCalc Pro docs) | this branch, `chore/ds-w8` | | |
+
+**Programme complete (2026-09-28).** Waves 0 to 7 are merged: every
+dashboard app, platform page, signed-in page and public or auth page renders
+inside one design-system scope (light by default, dark per user through the
+header toggle). The ui kit, Studio kit and shared kits carry role classes
+only; `useThemeClass`, the per-batch `src/design/rollout/` files, the
+`THEMED_HUBS` list and the legacy test fixture are gone. Charts stay white
+(`data-canvas="chart"`) and the seismic, 3D and map canvases stay dark
+(`data-canvas="dark"`). The W8 sweep deleted the unreachable files that still
+carried legacy classes. The staging walks per batch stay with the owner.
