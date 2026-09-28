@@ -37,6 +37,9 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { generateQuotePDF } from '@/utils/quotePdfGenerator';
 import { isValidUUID } from '@/lib/utils';
 import { resolveUserOrgId } from '@/lib/orgContext';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
+import { AccountScope, accountCallout } from '@/components/account/accountChrome';
 
 const QuoteBuilder = () => {
   const navigate = useNavigate();
@@ -294,7 +297,7 @@ const QuoteBuilder = () => {
   const getModuleVisuals = (slug) => {
     const match = appCategories.find(c => c.id === slug);
     if (match) return { icon: match.icon, color: match.color };
-    return { icon: Database, color: 'text-slate-400' };
+    return { icon: Database, color: 'text-pl-muted' };
   };
 
   // ------------------------------------------------------------------
@@ -619,10 +622,10 @@ const QuoteBuilder = () => {
   // ------------------------------------------------------------------
   if (isLoadingCatalog) {
       return (
-        <div className="flex items-center justify-center h-screen bg-slate-950">
+        <div className="flex items-center justify-center h-screen">
             <div className="text-center">
-                <Loader2 className="w-10 h-10 animate-spin text-[#D4AF37] mx-auto mb-4"/>
-                <p className="text-slate-400">{loadingStatus}</p>
+                <Loader2 className="w-10 h-10 animate-spin text-pl-primary-text mx-auto mb-4" aria-hidden="true"/>
+                <p className="text-pl-muted">{loadingStatus}</p>
             </div>
         </div>
       );
@@ -630,17 +633,17 @@ const QuoteBuilder = () => {
 
   if (catalogError) {
       return (
-        <div className="flex items-center justify-center h-screen bg-slate-950 p-6">
+        <div className="flex items-center justify-center h-screen p-6">
             <div className="text-center max-w-md">
-                <div className="bg-red-500/10 p-6 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-                    <AlertTriangle className="w-10 h-10 text-red-500"/>
+                <div className="bg-pl-danger-bg p-6 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                    <AlertTriangle className="w-10 h-10 text-pl-danger-text" aria-hidden="true"/>
                 </div>
-                <h2 className="text-2xl font-bold text-white mb-2">Catalog Unavailable</h2>
-                <p className="text-slate-400 mb-6">{catalogError}</p>
-                <div className="bg-slate-900 p-4 rounded text-left text-xs font-mono text-slate-500 mb-6 overflow-auto max-h-40">
+                <h2 className="text-2xl font-bold text-pl-text mb-2">Catalog Unavailable</h2>
+                <p className="text-pl-muted mb-6">{catalogError}</p>
+                <div className="bg-pl-sunken border border-pl-border p-4 rounded-md text-left text-xs font-pl-mono text-pl-muted mb-6 overflow-auto max-h-40">
                     {JSON.stringify(debugInfo.logs.slice(-3), null, 2)}
                 </div>
-                <Button onClick={() => window.location.reload()} variant="outline" className="border-slate-700 text-white hover:bg-slate-800">
+                <Button onClick={() => window.location.reload()} variant="outline">
                     Retry Connection
                 </Button>
             </div>
@@ -649,7 +652,7 @@ const QuoteBuilder = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-[#D4AF37]/30 pb-20">
+    <div className="min-h-screen text-pl-text pb-20">
       
       <ContactSalesModal 
         open={showContactSales} 
@@ -659,38 +662,41 @@ const QuoteBuilder = () => {
       />
 
       {/* --- Top Navigation --- */}
-      <div className="sticky top-0 z-40 w-full bg-slate-950/80 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="text-slate-400 hover:text-white">
+      <div className="sticky top-0 z-40 w-full bg-pl-surface/95 backdrop-blur border-b border-pl-border px-4 py-3 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} aria-label="Back to dashboard">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-white">Quote: {quoteId}</h1>
-              <Badge variant="outline" className="border-slate-700 text-slate-400 font-normal">Draft</Badge>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-pl-accent-text">Upgrade</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-bold text-pl-text">Quote: <span className="font-pl-mono">{quoteId}</span></h1>
+              <Badge variant="neutral" className="font-normal">Draft</Badge>
             </div>
-            <p className="text-xs text-slate-500">Configure your subscription package.</p>
+            <p className="text-xs text-pl-muted">Configure your subscription package.</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Button 
             onClick={handleSaveQuote} 
             disabled={generating}
-            className="bg-[#D4AF37] hover:bg-[#B5902B] text-black font-bold shadow-lg shadow-[#D4AF37]/20"
+            variant="accent"
+            className="font-bold shadow-pl-sm"
           >
             {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : <Save className="w-4 h-4 mr-2"/>}
             Generate & Pay
           </Button>
+          <ThemeToggle />
         </div>
       </div>
 
-      <div className="max-w-[1600px] mx-auto p-6 md:p-8 grid grid-cols-12 gap-8">
+      <div className="max-w-[1600px] mx-auto px-4 py-6 sm:px-6 md:p-8 grid grid-cols-12 gap-6 md:gap-8">
         
         {/* --- LEFT CONFIGURATION PANEL --- */}
-        <div className="col-span-12 lg:col-span-8 space-y-8">
+        <div className="col-span-12 lg:col-span-8 space-y-8 min-w-0">
           
           <Tabs defaultValue="config" className="w-full">
-            <TabsList className="bg-slate-900 border border-slate-800 p-1 rounded-lg mb-6">
+            <TabsList className="mb-6">
               <TabsTrigger value="config">Configuration</TabsTrigger>
               <TabsTrigger value="details">Details & Terms</TabsTrigger>
             </TabsList>
@@ -699,28 +705,28 @@ const QuoteBuilder = () => {
               
               {/* 1. Billing & Commitment */}
               <section>
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-[#D4AF37]"/> Billing Period & Commitment
+                <h3 className="text-lg font-semibold text-pl-text mb-4 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-pl-muted" aria-hidden="true"/> Billing Period & Commitment
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-2">
                   {BILLING_PERIODS.map((period) => (
                     <div 
                       key={period.id}
                       onClick={() => setBillingPeriod(period.id)}
                       className={`relative cursor-pointer p-4 rounded-xl border-2 transition-all duration-200 
                         ${billingPeriod === period.id 
-                          ? 'bg-[#D4AF37]/10 border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.15)]' 
-                          : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}
+                          ? 'bg-pl-primary/10 border-pl-primary shadow-pl-sm' 
+                          : 'bg-pl-surface border-pl-border hover:border-pl-border-strong'}`}
                     >
                       {period.discount > 0 && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-slate-950 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-pl-accent text-pl-accent-fg text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
                           SAVE {period.discount * 100}%
                         </div>
                       )}
-                      <div className={`text-center font-bold ${billingPeriod === period.id ? 'text-[#D4AF37]' : 'text-slate-300'}`}>
+                      <div className={`text-center font-bold ${billingPeriod === period.id ? 'text-pl-primary-text' : 'text-pl-text'}`}>
                         {period.name}
                       </div>
-                      <div className="text-center text-xs text-slate-500 mt-1">{period.label}</div>
+                      <div className="text-center text-xs text-pl-muted mt-1">{period.label}</div>
                     </div>
                   ))}
                 </div>
@@ -728,7 +734,7 @@ const QuoteBuilder = () => {
 
               {/* 2. Service Tier */}
               <section>
-                <h3 className="text-lg font-semibold text-white mb-4">Service Tier</h3>
+                <h3 className="text-lg font-semibold text-pl-text mb-4">Service Tier</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {TIERS.map((tier) => (
                     <div 
@@ -736,15 +742,15 @@ const QuoteBuilder = () => {
                       onClick={() => setServiceTier(tier.id)}
                       className={`relative cursor-pointer p-5 rounded-xl border-2 transition-all duration-200 flex flex-col justify-between h-full
                         ${serviceTier === tier.id 
-                          ? 'bg-slate-800 border-green-500 shadow-md' 
-                          : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}
+                          ? 'bg-pl-primary/10 border-pl-primary shadow-pl-sm' 
+                          : 'bg-pl-surface border-pl-border hover:border-pl-border-strong'}`}
                     >
                       <div>
                         <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-bold text-lg text-white">{tier.name}</h4>
-                          {serviceTier === tier.id && <CheckCircle className="w-5 h-5 text-green-500"/>}
+                          <h4 className="font-bold text-lg text-pl-text">{tier.name}</h4>
+                          {serviceTier === tier.id && <CheckCircle className="w-5 h-5 text-pl-primary-text" aria-label="Selected"/>}
                         </div>
-                        <p className="text-xs text-slate-400 mb-4">{tier.description}</p>
+                        <p className="text-xs text-pl-muted mb-4">{tier.description}</p>
                       </div>
                     </div>
                   ))}
@@ -753,9 +759,9 @@ const QuoteBuilder = () => {
 
               {/* 3. Modules & Applications */}
               <section>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white">Modules & Applications</h3>
-                  <div className="text-xs text-slate-500 border border-slate-800 px-3 py-1 rounded-full">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                  <h3 className="text-lg font-semibold text-pl-text">Modules & Applications</h3>
+                  <div className="text-xs text-pl-muted border border-pl-border bg-pl-sunken px-3 py-1 rounded-full">
                     {selectedModules.length} Modules, {selectedApps.length} Apps Selected
                   </div>
                 </div>
@@ -764,9 +770,9 @@ const QuoteBuilder = () => {
                 {systemWarnings.length > 0 && (
                     <div className="mb-6 space-y-2">
                         {systemWarnings.map((warn, idx) => (
-                            <div key={idx} className="p-3 border border-red-500/20 bg-red-500/10 rounded-lg text-red-200 text-sm flex items-center justify-between gap-2">
+                            <div key={idx} className={`${accountCallout('danger')} flex items-center justify-between gap-2`}>
                                 <div className="flex items-center gap-2">
-                                    <AlertTriangle className="w-4 h-4 text-red-500 shrink-0"/>
+                                    <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden="true"/>
                                     <span>{warn}</span>
                                 </div>
                             </div>
@@ -776,8 +782,8 @@ const QuoteBuilder = () => {
 
                 <div className="space-y-4">
                   {Object.keys(appsGroupedByModule).length === 0 && (
-                      <div className="p-4 border border-yellow-500/20 bg-yellow-500/10 rounded-lg text-yellow-200 text-sm flex items-center gap-2">
-                          <AlertTriangle className="w-4 h-4"/>
+                      <div className={`${accountCallout('warning')} flex items-center gap-2`}>
+                          <AlertTriangle className="w-4 h-4" aria-hidden="true"/>
                           <span>No applications found in the catalog.</span>
                       </div>
                   )}
@@ -796,28 +802,28 @@ const QuoteBuilder = () => {
                       : selectedAppsInModule.reduce((acc, app) => acc + (app.price || 0), 0);
 
                     return (
-                      <div key={moduleGroup.id} className={`bg-slate-900 border rounded-xl overflow-hidden transition-all duration-300 ${isEmpty ? 'border-slate-800 opacity-70' : 'border-slate-800 hover:border-slate-700'}`}>
+                      <div key={moduleGroup.id} className={`bg-pl-surface border rounded-xl overflow-hidden transition-all duration-300 ${isEmpty ? 'border-pl-border opacity-70' : 'border-pl-border hover:border-pl-border-strong'}`}>
                         {/* Module Header */}
-                        <div className={`p-4 flex items-center justify-between ${isModuleSelected ? 'bg-slate-800/50' : ''}`}>
-                          <div className="flex items-center gap-4">
+                        <div className={`p-4 flex items-center justify-between gap-3 ${isModuleSelected ? 'bg-pl-primary/10' : ''}`}>
+                          <div className="flex min-w-0 items-center gap-4">
                             <Checkbox 
                               checked={isModuleSelected}
                               onCheckedChange={(checked) => handleModuleCheck(moduleGroup.id, checked)}
                               disabled={isEmpty}
-                              className="data-[state=checked]:bg-[#D4AF37] data-[state=checked]:text-black border-slate-600"
+                              aria-label={`Select the whole ${moduleGroup.name} module`}
                             />
-                            <div className="cursor-pointer flex-1" onClick={() => !isEmpty && toggleModuleExpansion(moduleGroup.id)}>
+                            <div className="cursor-pointer flex-1 min-w-0" onClick={() => !isEmpty && toggleModuleExpansion(moduleGroup.id)}>
                               <div className="flex items-center gap-2">
-                                <Icon className={`w-5 h-5 ${isModuleSelected ? 'text-[#D4AF37]' : 'text-slate-500'}`} />
-                                <h4 className={`font-bold text-base ${isModuleSelected ? 'text-white' : 'text-slate-300'}`}>
+                                <Icon className={`w-5 h-5 shrink-0 ${isModuleSelected ? 'text-pl-primary-text' : 'text-pl-muted'}`} aria-hidden="true" />
+                                <h4 className="font-bold text-base text-pl-text">
                                   {moduleGroup.name}
                                 </h4>
-                                {isEmpty ? null : (isExpanded ? <ChevronDown className="w-4 h-4 text-slate-600"/> : <ChevronRight className="w-4 h-4 text-slate-600"/>)}
+                                {isEmpty ? null : (isExpanded ? <ChevronDown className="w-4 h-4 text-pl-muted" aria-hidden="true"/> : <ChevronRight className="w-4 h-4 text-pl-muted" aria-hidden="true"/>)}
                               </div>
                             </div>
                           </div>
-                          <div className="text-right">
-                             <div className={currentModuleCost > 0 ? "text-[#D4AF37] font-bold" : "text-slate-500 text-sm"}>
+                          <div className="text-right shrink-0">
+                             <div className={currentModuleCost > 0 ? "text-pl-text font-bold font-pl-mono tabular-nums" : "text-pl-muted text-sm"}>
                                 {isEmpty ? "No Apps Available" : (currentModuleCost > 0 ? formatCurrency(currentModuleCost) : "Select Apps")}
                              </div>
                           </div>
@@ -830,7 +836,7 @@ const QuoteBuilder = () => {
                               initial={{ height: 0, opacity: 0 }}
                               animate={{ height: 'auto', opacity: 1 }}
                               exit={{ height: 0, opacity: 0 }}
-                              className="border-t border-slate-800 bg-slate-950/30"
+                              className="border-t border-pl-border bg-pl-sunken/50"
                             >
                               <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {moduleGroup.apps.map(app => {
@@ -843,46 +849,49 @@ const QuoteBuilder = () => {
                                         key={app.id} 
                                         className={`flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer
                                           ${isComingSoon 
-                                             ? 'bg-slate-900/50 border-slate-800 cursor-not-allowed opacity-60' 
-                                             : (isAppSelected ? 'bg-slate-800 border-slate-600' : 'bg-transparent border-slate-800 hover:border-slate-700')}
+                                             ? 'bg-pl-sunken border-pl-border cursor-not-allowed opacity-60' 
+                                             : (isAppSelected ? 'bg-pl-raised border-pl-primary' : 'bg-pl-surface border-pl-border hover:border-pl-border-strong')}
                                         `}
                                         onClick={() => !isComingSoon && handleAppCheck(moduleGroup.id, app.id, !isAppSelected)}
                                       >
                                         <Checkbox 
                                           checked={isAppSelected} 
                                           disabled={isComingSoon}
-                                          className={`mt-1 ${isComingSoon ? 'opacity-50 border-slate-700' : 'data-[state=checked]:bg-blue-600 border-slate-600'}`}
+                                          className={`mt-1 ${isComingSoon ? 'opacity-50' : ''}`}
+                                          aria-label={`Select ${app.name}`}
                                         />
-                                        <div className="flex-1">
-                                          <div className="flex justify-between items-start">
-                                            <span className={`text-sm font-medium ${isComingSoon ? 'text-slate-500' : (isAppSelected ? 'text-white' : 'text-slate-400')}`}>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex justify-between items-start gap-2">
+                                            <span className={`text-sm font-medium ${isComingSoon ? 'text-pl-muted' : 'text-pl-text'}`}>
                                               {app.name}
                                               {/* Badge Logic */}
                                               {isComingSoon ? (
-                                                  <Badge variant="secondary" className="ml-2 text-[9px] h-4 px-1 bg-slate-800 text-slate-500 border-slate-700">Coming Soon</Badge>
+                                                  <Badge variant="neutral" className="ml-2 text-[9px] h-4 px-1">Coming Soon</Badge>
                                               ) : (app.status && (
-                                                  <Badge variant="outline" className={`ml-2 text-[9px] h-4 px-1 border-slate-600 ${app.status === 'active' || app.status === 'Active' ? 'text-green-500' : 'text-yellow-500'}`}>
+                                                  <Badge variant={app.status === 'active' || app.status === 'Active' ? 'success' : 'warning'} className="ml-2 text-[9px] h-4 px-1">
                                                       {app.status}
                                                   </Badge>
                                               ))}
                                             </span>
-                                            <span className={`text-xs whitespace-nowrap ${isComingSoon ? 'text-slate-600' : 'text-slate-500'}`}>{formatCurrency(app.price)}/mo license</span>
+                                            <span className="text-xs whitespace-nowrap font-pl-mono tabular-nums text-pl-muted">{formatCurrency(app.price)}/mo license</span>
                                           </div>
-                                          <p className={`text-[10px] line-clamp-1 mt-0.5 ${isComingSoon ? 'text-slate-600' : 'text-slate-500'}`}>{app.description || 'No description available'}</p>
+                                          <p className="text-[10px] line-clamp-1 mt-0.5 text-pl-muted">{app.description || 'No description available'}</p>
                                           {isAppSelected && !isComingSoon && (() => {
                                             const n = appSeats[app.id] || 1;
                                             return (
-                                              <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-700/60" onClick={(e) => e.stopPropagation()}>
-                                                <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                              <div className="flex items-center justify-between mt-2 pt-2 border-t border-pl-border" onClick={(e) => e.stopPropagation()}>
+                                                <span className="text-[10px] text-pl-muted flex items-center gap-1">
                                                   <Users className="w-3 h-3"/> + Seats · {formatCurrency(appSeatCost(app.slug, n))}/mo
                                                 </span>
                                                 <div className="flex items-center gap-1.5">
                                                   <button type="button" onClick={(e) => { e.stopPropagation(); setSeatsFor(app.id, n - 1); }}
                                                     disabled={n <= 1}
-                                                    className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-40 flex items-center justify-center text-white">−</button>
-                                                  <span className="w-6 text-center text-xs font-bold text-[#D4AF37]">{n}</span>
+                                                    aria-label={`Fewer seats for ${app.name}`}
+                                                    className="w-5 h-5 rounded border border-pl-border-strong bg-pl-surface hover:bg-pl-sunken disabled:opacity-40 flex items-center justify-center text-pl-text">−</button>
+                                                  <span className="w-6 text-center text-xs font-bold font-pl-mono tabular-nums text-pl-text">{n}</span>
                                                   <button type="button" onClick={(e) => { e.stopPropagation(); setSeatsFor(app.id, n + 1); }}
-                                                    className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-white">+</button>
+                                                    aria-label={`More seats for ${app.name}`}
+                                                    className="w-5 h-5 rounded border border-pl-border-strong bg-pl-surface hover:bg-pl-sunken flex items-center justify-center text-pl-text">+</button>
                                                 </div>
                                               </div>
                                             );
@@ -898,7 +907,7 @@ const QuoteBuilder = () => {
                                                   <TooltipTrigger asChild>
                                                       <div>{AppContent}</div> 
                                                   </TooltipTrigger>
-                                                  <TooltipContent className="bg-slate-800 border-slate-700 text-slate-300 text-xs">
+                                                  <TooltipContent className="text-xs">
                                                       <p>This app will be available soon</p>
                                                   </TooltipContent>
                                               </Tooltip>
@@ -919,27 +928,27 @@ const QuoteBuilder = () => {
               </section>
 
               {/* 4. Infrastructure */}
-              <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-white mb-6">Infrastructure & Users</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+              <section className="bg-pl-surface border border-pl-border rounded-xl p-4 sm:p-6 shadow-pl-sm">
+                <h3 className="text-lg font-semibold text-pl-text mb-6">Infrastructure & Users</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
                   <div>
                     <div className="flex justify-between mb-2">
-                      <Label className="text-slate-300">User Seats</Label>
-                      <span className="text-[#D4AF37] font-bold text-xl">{calculation.totalSeats}</span>
+                      <Label>User Seats</Label>
+                      <span className="text-pl-text font-bold text-xl font-pl-mono tabular-nums">{calculation.totalSeats}</span>
                     </div>
-                    <p className="text-xs text-slate-500 mb-3">
+                    <p className="text-xs text-pl-muted mb-3">
                       Seats are set per app above. Volume tiers: 1–5 ${SEAT_TIERS[0].price}, 6–15 ${SEAT_TIERS[1].price}, 16–40 ${SEAT_TIERS[2].price}, 41+ ${SEAT_TIERS[3].price} /seat·mo; Essentials apps ${ESSENTIALS_SEAT_TIERS[0].price}, ${ESSENTIALS_SEAT_TIERS[1].price}, ${ESSENTIALS_SEAT_TIERS[2].price}, ${ESSENTIALS_SEAT_TIERS[3].price}.
                     </p>
                     <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                       {selectedApps.length === 0 ? (
-                        <p className="text-xs text-slate-600">Select apps to allocate seats.</p>
+                        <p className="text-xs text-pl-muted">Select apps to allocate seats.</p>
                       ) : selectedApps.map(id => {
                         const app = masterApps.find(a => a.id === id);
                         const n = appSeats[id] || 1;
                         return (
-                          <div key={id} className="flex justify-between text-xs text-slate-400">
+                          <div key={id} className="flex justify-between text-xs text-pl-muted">
                             <span className="truncate mr-2">{app?.name || 'App'} · {n} seat{n === 1 ? '' : 's'}</span>
-                            <span className="text-slate-300 shrink-0">{formatCurrency(app ? appSeatCost(app.slug, n) : 0)}/mo</span>
+                            <span className="text-pl-text shrink-0 font-pl-mono tabular-nums">{formatCurrency(app ? appSeatCost(app.slug, n) : 0)}/mo</span>
                           </div>
                         );
                       })}
@@ -948,19 +957,20 @@ const QuoteBuilder = () => {
 
                   <div>
                     <div className="flex justify-between mb-4">
-                      <Label className="text-slate-300">Cloud Storage</Label>
-                      <span className="text-[#D4AF37] font-bold text-xl">{storageGB} GB</span>
+                      <Label>Cloud Storage</Label>
+                      <span className="text-pl-text font-bold text-xl font-pl-mono tabular-nums">{storageGB} GB</span>
                     </div>
                     <Slider
                       value={[storageGB]}
                       onValueChange={(val) => setStorageGB(val[0])}
                       min={10} max={5000} step={10}
                       className="my-6"
+                      aria-label="Cloud storage in GB"
                     />
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-pl-muted">
                       First 10 GB free, then ${STORAGE_GB_PRICE}/GB·mo.
                       {storageGB > 10 ? (
-                        <> {storageGB - 10} GB billable = <span className="text-slate-300">{formatCurrency(calculation.storageCost)}/mo</span>.</>
+                        <> {storageGB - 10} GB billable = <span className="text-pl-text font-pl-mono tabular-nums">{formatCurrency(calculation.storageCost)}/mo</span>.</>
                       ) : (
                         <> Currently within free allowance.</>
                       )}
@@ -972,15 +982,15 @@ const QuoteBuilder = () => {
             </TabsContent>
             
             <TabsContent value="details">
-              <Card className="bg-slate-900 border-slate-800 p-6">
+              <Card className="p-4 sm:p-6">
                 <div className="space-y-4">
                   <div>
                     <Label>Quote Reference</Label>
-                    <Input value={quoteId} disabled className="bg-slate-950 border-slate-700"/>
+                    <Input value={quoteId} disabled className="font-pl-mono"/>
                   </div>
                   <div>
                     <Label>Organization</Label>
-                    <Input value={user?.user_metadata?.organization_name || 'My Organization'} disabled className="bg-slate-950 border-slate-700 opacity-60"/>
+                    <Input value={user?.user_metadata?.organization_name || 'My Organization'} disabled/>
                   </div>
                 </div>
               </Card>
@@ -990,82 +1000,82 @@ const QuoteBuilder = () => {
         </div>
 
         {/* --- RIGHT SUMMARY PANEL (STICKY) --- */}
-        <div className="col-span-12 lg:col-span-4">
+        <div className="col-span-12 lg:col-span-4 min-w-0">
           <div className="sticky top-24 space-y-6">
-            <Card className="bg-slate-900 border-slate-800 shadow-2xl overflow-hidden relative">
-              <div className="absolute top-0 left-0 w-full h-1 bg-[#D4AF37]" />
-              <div className="p-6 space-y-6">
+            <Card className="shadow-pl-md overflow-hidden relative">
+              <div className="absolute top-0 left-0 w-full h-1 bg-pl-accent" aria-hidden="true" />
+              <div className="p-4 sm:p-6 space-y-6">
                 
                 <div>
-                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-green-500"/> Quote Summary
+                  <h3 className="text-xl font-bold text-pl-text flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-pl-muted" aria-hidden="true"/> Quote Summary
                   </h3>
-                  <p className="text-slate-400 text-sm mt-1">{calculation.period.name} Billing</p>
+                  <p className="text-pl-muted text-sm mt-1">{calculation.period.name} Billing</p>
                 </div>
 
                 {/* Big Price Display */}
-                <div className="bg-slate-950 rounded-lg p-4 text-center border border-slate-800">
-                  <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Total Due</div>
-                  <div className="text-4xl font-extrabold text-white">
+                <div className="bg-pl-sunken rounded-lg p-4 text-center border border-pl-border">
+                  <div className="text-xs text-pl-muted uppercase tracking-wider mb-1">Total Due</div>
+                  <div className="text-3xl sm:text-4xl font-extrabold font-pl-mono tabular-nums text-pl-text break-words">
                     {formatCurrency(calculation.grandTotal)}
                   </div>
                   {calculation.period.discount > 0 && (
-                    <div className="text-xs text-green-500 mt-2 font-medium flex justify-center items-center gap-1">
-                      <CheckCircle className="w-3 h-3"/> Savings: {formatCurrency((calculation.monthlySubtotal - calculation.monthlyNet) * calculation.period.months)}
+                    <div className="text-xs text-pl-text mt-2 font-medium flex justify-center items-center gap-1">
+                      <CheckCircle className="w-3 h-3 text-pl-primary-text" aria-hidden="true"/> Savings: {formatCurrency((calculation.monthlySubtotal - calculation.monthlyNet) * calculation.period.months)}
                     </div>
                   )}
                 </div>
 
                 {/* Recurring (monthly) charges — every line item, fully itemized */}
-                <div className="space-y-2.5 text-sm border-t border-slate-800 pt-4">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Recurring charges (per month)</div>
+                <div className="space-y-2.5 text-sm border-t border-pl-border pt-4">
+                  <div className="text-[10px] text-pl-muted uppercase tracking-wider mb-1">Recurring charges (per month)</div>
                   {calculation.breakdown.filter(i => i.type !== 'discount').map((item, idx) => (
                     <div key={idx} className={item.indent ? 'pl-3' : ''}>
-                      <div className="flex justify-between text-slate-300">
+                      <div className="flex justify-between gap-2 text-pl-text">
                         <span className="truncate max-w-[210px]">{item.item}</span>
-                        <span className="shrink-0 tabular-nums">{formatCurrency(item.cost)}/mo</span>
+                        <span className="shrink-0 font-pl-mono tabular-nums">{formatCurrency(item.cost)}/mo</span>
                       </div>
                       {item.note && (
-                        <div className="text-[10px] text-slate-500">{item.note}</div>
+                        <div className="text-[10px] text-pl-muted">{item.note}</div>
                       )}
                     </div>
                   ))}
                   {calculation.bridgeDiscountVal > 0 && bridgeInfo && (
-                    <div className="flex justify-between text-green-400">
+                    <div className="flex justify-between gap-2 text-pl-text">
                       <span className="truncate max-w-[210px]">NextGen Expert Bridge ({bridgeInfo.discount_pct}% off {bridgeInfo.suite_module})</span>
-                      <span className="shrink-0 tabular-nums">−{formatCurrency(calculation.bridgeDiscountVal)}/mo</span>
+                      <span className="shrink-0 font-pl-mono tabular-nums">−{formatCurrency(calculation.bridgeDiscountVal)}/mo</span>
                     </div>
                   )}
                   {calculation.promoDiscountVal > 0 && promoInfo && (
-                    <div className="flex justify-between text-green-400">
+                    <div className="flex justify-between gap-2 text-pl-text">
                       <span className="truncate max-w-[210px]">Promo {promoInfo.code} ({promoInfo.percent}% off{promoInfo.scope === 'all' ? '' : ` ${promoInfo.scope}`})</span>
-                      <span className="shrink-0 tabular-nums">−{formatCurrency(calculation.promoDiscountVal)}/mo</span>
+                      <span className="shrink-0 font-pl-mono tabular-nums">−{formatCurrency(calculation.promoDiscountVal)}/mo</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-slate-200 font-semibold pt-2 border-t border-slate-800/60">
+                  <div className="flex justify-between gap-2 text-pl-text font-semibold pt-2 border-t border-pl-border">
                     <span>Monthly Subtotal</span>
-                    <span className="tabular-nums">{formatCurrency(calculation.monthlySubtotal)}/mo</span>
+                    <span className="font-pl-mono tabular-nums">{formatCurrency(calculation.monthlySubtotal)}/mo</span>
                   </div>
                 </div>
 
                 {/* NextGen Expert bridge code */}
-                <div className="space-y-2 border-t border-slate-800 pt-4">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">NextGen Expert code</div>
+                <div className="space-y-2 border-t border-pl-border pt-4">
+                  <div className="text-[10px] text-pl-muted uppercase tracking-wider">NextGen Expert code</div>
                   {bridgeInfo ? (
-                    <div className="bg-green-500/10 border border-green-700/40 rounded-lg p-3 text-sm">
-                      <div className="flex items-center gap-2 text-green-400 font-medium">
-                        <CheckCircle className="w-4 h-4 shrink-0"/>
+                    <div className={accountCallout('success')}>
+                      <div className="flex items-center gap-2 font-medium">
+                        <CheckCircle className="w-4 h-4 shrink-0" aria-hidden="true"/>
                         <span className="truncate">{bridgeInfo.code}</span>
                       </div>
-                      <p className="text-xs text-slate-400 mt-1">
+                      <p className="text-xs text-pl-text mt-1">
                         {bridgeInfo.discount_pct}% off the {bridgeInfo.suite_module} module for {bridgeInfo.holder} (cert {bridgeInfo.certificate_number}).
                       </p>
                       {calculation.bridgeDiscountVal <= 0 && (
-                        <p className="text-xs text-amber-400 mt-1">
+                        <p className="text-xs text-pl-warning-text mt-1">
                           Add a {bridgeInfo.suite_module} app to the quote to use this code.
                         </p>
                       )}
-                      <Button variant="ghost" size="sm" onClick={handleClearBridgeCode} className="text-slate-500 hover:text-white h-7 px-2 mt-1 text-xs">
+                      <Button variant="ghost" size="sm" onClick={handleClearBridgeCode} className="h-7 px-2 mt-1 text-xs">
                         Remove code
                       </Button>
                     </div>
@@ -1076,19 +1086,19 @@ const QuoteBuilder = () => {
                           value={bridgeCode}
                           onChange={(e) => { setBridgeCode(e.target.value); setBridgeError(null); }}
                           placeholder="PLB-XXXXXXXXXX"
-                          className="bg-slate-950 border-slate-700 h-9 text-sm font-mono"
+                          className="h-9 text-sm font-pl-mono"
                         />
                         <Button
                           onClick={handleCheckBridgeCode}
                           disabled={bridgeChecking || !bridgeCode.trim()}
                           variant="outline"
-                          className="h-9 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 shrink-0"
+                          className="h-9 shrink-0"
                         >
                           {bridgeChecking ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Apply'}
                         </Button>
                       </div>
-                      {bridgeError && <p className="text-xs text-red-400">{bridgeError}</p>}
-                      <p className="text-[10px] text-slate-500">
+                      {bridgeError && <p className="text-xs text-pl-danger-text" role="alert">{bridgeError}</p>}
+                      <p className="text-[10px] text-pl-muted">
                         Earned an Expert certificate at NextGen Academy? Your discount code is on your certificates page.
                       </p>
                     </>
@@ -1096,23 +1106,23 @@ const QuoteBuilder = () => {
                 </div>
 
                 {/* Suite promo code */}
-                <div className="space-y-2 border-t border-slate-800 pt-4">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">Promo code</div>
+                <div className="space-y-2 border-t border-pl-border pt-4">
+                  <div className="text-[10px] text-pl-muted uppercase tracking-wider">Promo code</div>
                   {promoInfo ? (
-                    <div className="bg-green-500/10 border border-green-700/40 rounded-lg p-3 text-sm">
-                      <div className="flex items-center gap-2 text-green-400 font-medium">
-                        <CheckCircle className="w-4 h-4 shrink-0"/>
+                    <div className={accountCallout('success')}>
+                      <div className="flex items-center gap-2 font-medium">
+                        <CheckCircle className="w-4 h-4 shrink-0" aria-hidden="true"/>
                         <span className="truncate">{promoInfo.code}</span>
                       </div>
-                      <p className="text-xs text-slate-400 mt-1">
+                      <p className="text-xs text-pl-text mt-1">
                         {promoInfo.percent}% off {promoInfo.scope === 'all' ? 'your subscription' : `the ${promoInfo.scope} module`}.
                       </p>
                       {promoInfo.scope !== 'all' && calculation.promoDiscountVal <= 0 && (
-                        <p className="text-xs text-amber-400 mt-1">
+                        <p className="text-xs text-pl-warning-text mt-1">
                           Add a {promoInfo.scope} app to the quote to use this code.
                         </p>
                       )}
-                      <Button variant="ghost" size="sm" onClick={handleClearPromoCode} className="text-slate-500 hover:text-white h-7 px-2 mt-1 text-xs">
+                      <Button variant="ghost" size="sm" onClick={handleClearPromoCode} className="h-7 px-2 mt-1 text-xs">
                         Remove code
                       </Button>
                     </div>
@@ -1123,18 +1133,18 @@ const QuoteBuilder = () => {
                           value={promoCode}
                           onChange={(e) => { setPromoCode(e.target.value); setPromoError(null); }}
                           placeholder="e.g. FOUNDING50"
-                          className="bg-slate-950 border-slate-700 h-9 text-sm font-mono"
+                          className="h-9 text-sm font-pl-mono"
                         />
                         <Button
                           onClick={handleCheckPromoCode}
                           disabled={promoChecking || !promoCode.trim()}
                           variant="outline"
-                          className="h-9 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 shrink-0"
+                          className="h-9 shrink-0"
                         >
                           {promoChecking ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Apply'}
                         </Button>
                       </div>
-                      {promoError && <p className="text-xs text-red-400">{promoError}</p>}
+                      {promoError && <p className="text-xs text-pl-danger-text" role="alert">{promoError}</p>}
                     </>
                   )}
                 </div>
@@ -1143,8 +1153,8 @@ const QuoteBuilder = () => {
                     from anyone who is not a platform super admin, so this input is
                     hidden for customers rather than failing at submit. */}
                 {isSuperAdmin && (
-                  <div className="flex items-center justify-between gap-3 text-sm border-t border-slate-800 pt-4">
-                    <label htmlFor="sales-discount" className="text-slate-300">Sales discount (%)</label>
+                  <div className="flex items-center justify-between gap-3 text-sm border-t border-pl-border pt-4">
+                    <label htmlFor="sales-discount" className="text-pl-text">Sales discount (%)</label>
                     <input
                       id="sales-discount"
                       type="number"
@@ -1152,50 +1162,50 @@ const QuoteBuilder = () => {
                       max="100"
                       value={manualDiscount}
                       onChange={(e) => setManualDiscount(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
-                      className="w-20 rounded-md bg-slate-900 border border-slate-700 px-2 py-1 text-right text-slate-100"
+                      className={`${COMPACT_FIELD_THEMED} !w-20 text-right text-sm font-pl-mono tabular-nums`}
                     />
                   </div>
                 )}
 
                 {/* Discounts (applied to the monthly subtotal) */}
                 {(calculation.periodDiscountVal > 0 || calculation.manualDiscountVal > 0) && (
-                  <div className="space-y-2 text-sm border-t border-slate-800 pt-4">
+                  <div className="space-y-2 text-sm border-t border-pl-border pt-4">
                     {calculation.periodDiscountVal > 0 && (
-                      <div className="flex justify-between text-green-400">
+                      <div className="flex justify-between gap-2 text-pl-text">
                         <span>Term Discount ({calculation.period.name})</span>
-                        <span className="tabular-nums">−{formatCurrency(calculation.periodDiscountVal)}/mo</span>
+                        <span className="font-pl-mono tabular-nums">−{formatCurrency(calculation.periodDiscountVal)}/mo</span>
                       </div>
                     )}
                     {calculation.manualDiscountVal > 0 && (
-                      <div className="flex justify-between text-green-400">
+                      <div className="flex justify-between gap-2 text-pl-text">
                         <span>Special Discount ({manualDiscount}%)</span>
-                        <span className="tabular-nums">−{formatCurrency(calculation.manualDiscountVal)}/mo</span>
+                        <span className="font-pl-mono tabular-nums">−{formatCurrency(calculation.manualDiscountVal)}/mo</span>
                       </div>
                     )}
-                    <div className="flex justify-between text-slate-200 font-semibold pt-2 border-t border-slate-800/60">
+                    <div className="flex justify-between gap-2 text-pl-text font-semibold pt-2 border-t border-pl-border">
                       <span>Net Monthly</span>
-                      <span className="tabular-nums">{formatCurrency(calculation.monthlyNet)}/mo</span>
+                      <span className="font-pl-mono tabular-nums">{formatCurrency(calculation.monthlyNet)}/mo</span>
                     </div>
                   </div>
                 )}
 
                 {/* Billing term → VAT → Total chain */}
-                <div className="space-y-2 border-t border-slate-800 pt-4">
+                <div className="space-y-2 border-t border-pl-border pt-4">
                   {calculation.period.months > 1 && (
-                    <div className="flex justify-between text-slate-400 text-sm">
+                    <div className="flex justify-between gap-2 text-pl-muted text-sm">
                       <span>Billing Term ({calculation.monthlyNet > 0 ? `${formatCurrency(calculation.monthlyNet)} × ${calculation.period.months} mo` : `${calculation.period.months} mo`})</span>
-                      <span className="tabular-nums">{formatCurrency(calculation.billingCycleTotal)}</span>
+                      <span className="font-pl-mono tabular-nums">{formatCurrency(calculation.billingCycleTotal)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-slate-400 text-sm">
+                  <div className="flex justify-between gap-2 text-pl-muted text-sm">
                     <span>VAT ({VAT_RATE * 100}%)</span>
-                    <span className="tabular-nums">{formatCurrency(calculation.vat)}</span>
+                    <span className="font-pl-mono tabular-nums">{formatCurrency(calculation.vat)}</span>
                   </div>
-                  <div className="flex justify-between text-[#D4AF37] font-bold text-xl pt-2 border-t border-slate-800/50">
+                  <div className="flex justify-between gap-2 text-pl-text font-bold text-xl pt-2 border-t-2 border-pl-border-strong">
                     <span>Total Due</span>
-                    <span className="tabular-nums">{formatCurrency(calculation.grandTotal)}</span>
+                    <span className="font-pl-mono tabular-nums">{formatCurrency(calculation.grandTotal)}</span>
                   </div>
-                  <p className="text-[10px] text-slate-500 pt-1">
+                  <p className="text-[10px] text-pl-muted pt-1">
                     Total billed once for the full {calculation.period.name.toLowerCase()} term, VAT included.
                   </p>
                 </div>
@@ -1204,12 +1214,12 @@ const QuoteBuilder = () => {
             </Card>
 
             <div className="flex flex-col gap-3">
-              <Button onClick={handleSaveQuote} disabled={generating} className="w-full h-12 bg-[#D4AF37] hover:bg-[#B5902B] text-black font-bold text-lg">
+              <Button onClick={handleSaveQuote} disabled={generating} variant="accent" className="w-full h-12 font-bold text-lg">
                 {generating ? <Loader2 className="animate-spin mr-2"/> : "Generate & Pay"}
               </Button>
               <Button 
                 variant="outline" 
-                className="w-full border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800"
+                className="w-full"
                 onClick={() => setShowContactSales(true)}
               >
                 <Mail className="w-4 h-4 mr-2"/> Contact Sales
@@ -1228,17 +1238,17 @@ const ContactSalesModal = ({ open, onOpenChange, onSubmit, defaultEmail, quoteId
     
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-slate-900 border-slate-700 text-white">
+            <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Contact Sales</DialogTitle>
-                    <DialogDescription className="text-slate-400">
+                    <DialogDescription>
                         Have questions about Quote #{quoteId}? Send us a message.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
                     <div>
                         <Label>Email</Label>
-                        <Input value={defaultEmail} disabled className="bg-slate-950 border-slate-700 opacity-60"/>
+                        <Input value={defaultEmail} disabled/>
                     </div>
                     <div>
                         <Label>Message</Label>
@@ -1246,17 +1256,25 @@ const ContactSalesModal = ({ open, onOpenChange, onSubmit, defaultEmail, quoteId
                             value={message} 
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder="I have a question about enterprise features..."
-                            className="bg-slate-950 border-slate-700 h-32"
+                            className="h-32"
                         />
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-700 text-slate-400">Cancel</Button>
-                    <Button onClick={() => onSubmit(message)} className="bg-lime-600 hover:bg-lime-700 text-white">Send Message</Button>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={() => onSubmit(message)}>Send Message</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
     );
 };
 
-export default QuoteBuilder;
+// Design system rollout batch 1E: the page wraps itself in <ThemedApp>, so
+// the loading, error and quote screens all follow the user's theme.
+const QuoteBuilderPage = () => (
+  <AccountScope testId="quote-builder-theme-scope">
+    <QuoteBuilder />
+  </AccountScope>
+);
+
+export default QuoteBuilderPage;

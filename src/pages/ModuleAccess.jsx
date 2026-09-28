@@ -3,18 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { 
-  ArrowLeft, ShieldCheck, Lock, Calendar, Box, RefreshCw, AlertCircle, Users
+  ShieldCheck, Lock, Calendar, Box, RefreshCw, AlertCircle, Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { appCategories } from '@/data/applications';
+import { AccountScope, AccountPage, AccountHeader, accountEmpty } from '@/components/account/accountChrome';
 
 // Helper for normalizing IDs
 const normalizeId = (id) => id ? id.toLowerCase().trim().replace(/&/g, 'and').replace(/\s+/g, '-') : '';
 
-export default function ModuleAccess() {
+function ModuleAccessPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { organization } = useAuth();
@@ -143,47 +144,44 @@ export default function ModuleAccess() {
     // Simulate delay for feel
     setTimeout(() => {
         setSyncing(false);
-        toast({ title: "Sync Complete", description: "Subscriptions and access rights refreshed.", className: "bg-green-600 text-white" });
+        toast({ title: "Sync Complete", description: "Subscriptions and access rights refreshed." });
     }, 800);
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        
+    <AccountPage>
+
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="text-slate-400 hover:text-white">
-                    <ArrowLeft className="w-5 h-5" />
+        <AccountHeader
+            eyebrow="Billing"
+            title="App & Seat Management"
+            description="Manage licenses and user assignments per application."
+            backTo="/dashboard"
+            backLabel="Back to dashboard"
+            actions={
+                <Button onClick={handleSync} disabled={syncing} variant="outline">
+                    <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`}/>
+                    {syncing ? 'Syncing...' : 'Sync Data'}
                 </Button>
-                <div>
-                    <h1 className="text-3xl font-bold">App & Seat Management</h1>
-                    <p className="text-slate-400">Manage licenses and user assignments per application.</p>
-                </div>
-            </div>
-            <Button onClick={handleSync} disabled={syncing} variant="outline" className="border-slate-700 hover:bg-slate-800">
-                <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`}/>
-                {syncing ? 'Syncing...' : 'Sync Data'}
-            </Button>
-        </div>
+            }
+        />
 
         <div className="space-y-8">
-            
+
             {/* Active Licenses Section */}
             <section>
-                <h2 className="text-xl font-semibold flex items-center gap-2 mb-4">
-                    <Box className="w-5 h-5 text-lime-400"/> Active Licenses
+                <h2 className="text-xl font-semibold text-pl-text flex items-center gap-2 mb-4">
+                    <Box className="w-5 h-5 text-pl-muted" aria-hidden="true"/> Active Licenses
                 </h2>
-                
+
                 {loading ? (
-                    <div className="p-8 text-center text-slate-500 bg-slate-900 rounded-lg border border-slate-800">Loading module data...</div>
+                    <div className={accountEmpty}>Loading module data...</div>
                 ) : activeLicenses.length === 0 ? (
-                    <Card className="bg-slate-900 border-slate-800 border-dashed">
+                    <Card className="border-dashed">
                         <CardContent className="p-8 text-center">
-                            <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-2"/>
-                            <p className="text-slate-400 mb-4">No active subscriptions found.</p>
-                            <Button className="bg-lime-600 hover:bg-lime-700 text-white" onClick={() => navigate('/dashboard/upgrade')}>
+                            <AlertCircle className="w-8 h-8 text-pl-muted mx-auto mb-2" aria-hidden="true"/>
+                            <p className="text-pl-muted mb-4">No active subscriptions found.</p>
+                            <Button onClick={() => navigate('/dashboard/upgrade')}>
                                 Purchase Modules
                             </Button>
                         </CardContent>
@@ -194,37 +192,36 @@ export default function ModuleAccess() {
                             const used = mod.seats_used || 0;
                             const total = mod.seats_allocated; // Can be -1 for unlimited
                             const isUnlimited = total === -1 || total === null;
-                            
+
                             // Determine type
                             const isBundle = !mod.app_id || mod.app_id.includes('module');
 
                             return (
-                                <Card key={mod.id} className="bg-slate-900 border-slate-800 hover:border-slate-700 transition-colors">
+                                <Card key={mod.id} className="transition-colors hover:border-pl-border-strong">
                                     <CardContent className="p-6 flex flex-col md:flex-row justify-between items-center gap-6">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-3 mb-1">
-                                                <h3 className="font-bold text-lg text-white">{mod.display_name}</h3>
-                                                <Badge className="bg-green-500/20 text-green-400 border-green-500/50 hover:bg-green-500/30">Active</Badge>
+                                        <div className="flex-1 min-w-0 w-full">
+                                            <div className="flex flex-wrap items-center gap-3 mb-1">
+                                                <h3 className="font-bold text-lg text-pl-text">{mod.display_name}</h3>
+                                                <Badge variant="success">Active</Badge>
                                             </div>
-                                            <div className="text-sm text-slate-400 flex items-center gap-4">
-                                                <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> Expires: {mod.expiry_date ? new Date(mod.expiry_date).toLocaleDateString() : 'Never'}</span>
-                                                <span className="text-slate-600">|</span>
+                                            <div className="text-sm text-pl-muted flex flex-wrap items-center gap-x-4 gap-y-1">
+                                                <span className="flex items-center gap-1"><Calendar className="w-3 h-3" aria-hidden="true"/> Expires: {mod.expiry_date ? new Date(mod.expiry_date).toLocaleDateString() : 'Never'}</span>
+                                                <span className="text-pl-border-strong" aria-hidden="true">|</span>
                                                 <span className="flex items-center gap-1">Type: {isBundle ? 'Module Bundle' : 'Single App'}</span>
                                             </div>
                                         </div>
 
                                         <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
                                             <div className="text-right">
-                                                <div className="text-2xl font-bold text-white flex items-center justify-end gap-2">
-                                                    {used} <span className="text-slate-500 text-lg font-normal">/ {isUnlimited ? '∞' : total}</span>
+                                                <div className="text-2xl font-bold font-pl-mono tabular-nums text-pl-text flex items-center justify-end gap-2">
+                                                    {used} <span className="text-pl-muted text-lg font-normal">/ {isUnlimited ? '∞' : total}</span>
                                                 </div>
-                                                <p className="text-xs text-slate-400 flex items-center gap-1 justify-end">
-                                                    <Users className="w-3 h-3"/> Seats Used
+                                                <p className="text-xs text-pl-muted flex items-center gap-1 justify-end">
+                                                    <Users className="w-3 h-3" aria-hidden="true"/> Seats Used
                                                 </p>
                                             </div>
                                             <Button
                                                 variant="outline"
-                                                className="border-slate-700 hover:bg-slate-800"
                                                 onClick={() => navigate('/dashboard/seats')}
                                             >
                                                 Manage Seats
@@ -240,10 +237,10 @@ export default function ModuleAccess() {
 
             {/* Overview / Availability Matrix */}
             <section>
-                <h2 className="text-xl font-semibold flex items-center gap-2 mb-4">
-                    <ShieldCheck className="w-5 h-5 text-blue-400"/> Availability Overview
+                <h2 className="text-xl font-semibold text-pl-text flex items-center gap-2 mb-4">
+                    <ShieldCheck className="w-5 h-5 text-pl-muted" aria-hidden="true"/> Availability Overview
                 </h2>
-                <Card className="bg-slate-900 border-slate-800">
+                <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base">Module Status</CardTitle>
                         <CardDescription>Status of core modules based on your active subscriptions.</CardDescription>
@@ -251,16 +248,18 @@ export default function ModuleAccess() {
                     <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
                         {appCategories.filter(c => c.id !== 'hse').map(cat => {
                             // Check if any license belongs to this module (UUID or Slug match)
-                            const active = activeLicenses.some(l => 
-                                (l.module_id && l.module_id.toLowerCase() === cat.id) || 
+                            const active = activeLicenses.some(l =>
+                                (l.module_id && l.module_id.toLowerCase() === cat.id) ||
                                 (l.module_name && l.module_name.toLowerCase() === cat.name.toLowerCase()) ||
                                 (l.module_uuid && l.module_uuid === cat.id) // Assuming cat.id might track to UUID in some contexts, mostly it's slug
                             );
-                            
+
                             return (
-                                <div key={cat.id} className={`p-3 rounded border flex items-center justify-between ${active ? 'bg-slate-950 border-green-900/30' : 'bg-slate-950/50 border-slate-800 opacity-60'}`}>
+                                <div key={cat.id} className={`p-3 rounded-md border flex items-center justify-between gap-2 ${active ? 'bg-pl-success-bg border-pl-success/40 text-pl-success-text' : 'bg-pl-sunken border-pl-border text-pl-muted'}`}>
                                     <span className="font-medium text-sm">{cat.name}</span>
-                                    {active ? <ShieldCheck className="w-4 h-4 text-green-500"/> : <Lock className="w-4 h-4 text-slate-600"/>}
+                                    {active
+                                        ? <ShieldCheck className="w-4 h-4" aria-label="Active"/>
+                                        : <Lock className="w-4 h-4" aria-label="Not subscribed"/>}
                                 </div>
                             );
                         })}
@@ -269,7 +268,15 @@ export default function ModuleAccess() {
             </section>
 
         </div>
-      </div>
-    </div>
+    </AccountPage>
+  );
+}
+
+// Design system rollout batch 1E: the page wraps itself in <ThemedApp>.
+export default function ModuleAccess() {
+  return (
+    <AccountScope testId="module-access-theme-scope">
+      <ModuleAccessPage />
+    </AccountScope>
   );
 }

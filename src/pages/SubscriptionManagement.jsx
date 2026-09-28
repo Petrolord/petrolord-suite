@@ -11,8 +11,9 @@ import {
 } from "@/components/ui/table";
 import ReassignSeatModal from '@/components/ReassignSeatModal';
 import { getUserOrgRow } from '@/lib/orgContext';
+import { AccountScope, AccountPage, AccountHeader, accountEmpty } from '@/components/account/accountChrome';
 
-export default function SubscriptionManagement() {
+function SubscriptionManagementPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -94,14 +95,17 @@ export default function SubscriptionManagement() {
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-6 bg-slate-950 min-h-screen text-white">
-      <h1 className="text-3xl font-bold text-white mb-1">App & Seat Management</h1>
-      <p className="text-slate-400 mb-6">Manage licenses and user assignments per application.</p>
+    <AccountPage>
+      <AccountHeader
+        eyebrow="Billing"
+        title="App & Seat Management"
+        description="Manage licenses and user assignments per application."
+      />
 
       {loading ? (
-          <div className="flex justify-center p-12"><Loader2 className="animate-spin text-teal-500" /></div>
+          <div className="flex justify-center p-12"><Loader2 className="animate-spin text-pl-primary-text" aria-label="Loading subscriptions" /></div>
       ) : apps.length === 0 ? (
-          <div className="text-center p-12 text-slate-500">No active subscriptions found.</div>
+          <div className={accountEmpty}>No active subscriptions found.</div>
       ) : (
           <div className="grid gap-6">
               {apps.map(app => {
@@ -110,21 +114,21 @@ export default function SubscriptionManagement() {
                   const isExpanded = expandedApp === appId;
 
                   return (
-                      <Card key={app.id} className="bg-slate-900 border-slate-800">
+                      <Card key={app.id}>
                           <CardHeader className="pb-3">
-                              <div className="flex justify-between items-center">
-                                  <div>
-                                      <CardTitle className="text-xl text-white">{app.module_name}</CardTitle>
-                                      <CardDescription className="text-slate-400">
+                              <div className="flex flex-wrap justify-between items-center gap-4">
+                                  <div className="min-w-0">
+                                      <CardTitle className="text-xl">{app.module_name}</CardTitle>
+                                      <CardDescription>
                                           Expires: {new Date(app.expiry_date).toLocaleDateString()}
                                       </CardDescription>
                                   </div>
                                   <div className="flex items-center gap-4">
                                       <div className="text-right">
-                                          <div className="text-2xl font-bold text-white">
+                                          <div className="text-2xl font-bold font-pl-mono tabular-nums text-pl-text">
                                               {details ? `${details.used_seats} / ${details.total_seats}` : `${app.current_seats_used || '?'} / ${app.seats_allocated}`}
                                           </div>
-                                          <div className="text-xs text-slate-500">Seats Used</div>
+                                          <div className="text-xs text-pl-muted">Seats Used</div>
                                       </div>
                                       <Button variant={isExpanded ? "secondary" : "outline"} onClick={() => toggleAppDetails(app)}>
                                           {isExpanded ? "Hide Details" : "Manage Seats"}
@@ -136,30 +140,30 @@ export default function SubscriptionManagement() {
                               <CardContent>
                                   <div className="mb-4 flex justify-end">
                                       {/* Add Seat Button Placeholder */}
-                                      <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-white" disabled>
+                                      <Button size="sm" disabled>
                                           <UserPlus className="w-4 h-4 mr-2" /> Add Member (Coming Soon)
                                       </Button>
                                   </div>
                                   <Table>
                                       <TableHeader>
-                                          <TableRow className="border-slate-800">
-                                              <TableHead className="text-slate-400">Seat #</TableHead>
-                                              <TableHead className="text-slate-400">User</TableHead>
-                                              <TableHead className="text-slate-400">Type</TableHead>
-                                              <TableHead className="text-slate-400">Status</TableHead>
-                                              <TableHead className="text-right text-slate-400">Actions</TableHead>
+                                          <TableRow>
+                                              <TableHead>Seat #</TableHead>
+                                              <TableHead>User</TableHead>
+                                              <TableHead>Type</TableHead>
+                                              <TableHead>Status</TableHead>
+                                              <TableHead className="text-right">Actions</TableHead>
                                           </TableRow>
                                       </TableHeader>
                                       <TableBody>
                                           {details.assignments.map(seat => (
-                                              <TableRow key={seat.id} className="border-slate-800 hover:bg-slate-800/50">
-                                                  <TableCell className="font-mono text-slate-500">#{seat.seat_number}</TableCell>
-                                                  <TableCell className="font-medium text-white">{seat.user_name || 'Unknown'}</TableCell>
+                                              <TableRow key={seat.id}>
+                                                  <TableCell className="font-pl-mono tabular-nums text-pl-muted">#{seat.seat_number}</TableCell>
+                                                  <TableCell className="font-medium">{seat.user_name || 'Unknown'}</TableCell>
                                                   <TableCell>
-                                                      {seat.is_admin_seat ? <Badge variant="outline" className="border-amber-500 text-amber-500">Admin Seat</Badge> : <Badge variant="outline" className="border-slate-600 text-slate-400">Member</Badge>}
+                                                      {seat.is_admin_seat ? <Badge variant="accent">Admin Seat</Badge> : <Badge variant="neutral">Member</Badge>}
                                                   </TableCell>
                                                   <TableCell>
-                                                      {seat.is_locked ? <span className="flex items-center text-xs text-rose-400"><Lock className="w-3 h-3 mr-1"/> Locked</span> : <span className="flex items-center text-xs text-green-400"><Shield className="w-3 h-3 mr-1"/> Active</span>}
+                                                      {seat.is_locked ? <Badge variant="danger"><Lock className="w-3 h-3 mr-1"/> Locked</Badge> : <Badge variant="success"><Shield className="w-3 h-3 mr-1"/> Active</Badge>}
                                                   </TableCell>
                                                   <TableCell className="text-right">
                                                       {seat.can_reassign && seat.user_id === user.id && (
@@ -171,7 +175,7 @@ export default function SubscriptionManagement() {
                                                           />
                                                       )}
                                                       {!seat.is_admin_seat && (
-                                                          <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-500 hover:bg-rose-900/20" onClick={() => handleRemoveSeat(seat.id, app.organization_id)}>
+                                                          <Button size="icon" variant="ghost" className="h-8 w-8 text-pl-danger-text hover:bg-pl-danger-bg hover:text-pl-danger-text" aria-label="Revoke access" onClick={() => handleRemoveSeat(seat.id, app.organization_id)}>
                                                               <Trash2 className="w-4 h-4" />
                                                           </Button>
                                                       )}
@@ -187,6 +191,15 @@ export default function SubscriptionManagement() {
               })}
           </div>
       )}
-    </div>
+    </AccountPage>
+  );
+}
+
+// Design system rollout batch 1E: the page wraps itself in <ThemedApp>.
+export default function SubscriptionManagement() {
+  return (
+    <AccountScope testId="subscriptions-theme-scope">
+      <SubscriptionManagementPage />
+    </AccountScope>
   );
 }
