@@ -24,10 +24,10 @@ const SeparatorResultsCard = ({ separator }) => {
   const { stages, totals } = separator;
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base text-white">Separator train</CardTitle>
-        <p className="text-xs text-slate-400">
+        <CardTitle className="text-base text-pl-text">Separator train</CardTitle>
+        <p className="text-xs text-pl-muted">
           Black-oil staged-liberation approximation: gas is partitioned across stages by the
           correlation GOR at each stage&apos;s P&nbsp;&amp;&nbsp;T. Not a compositional (EOS) flash.
         </p>
@@ -50,30 +50,30 @@ const SeparatorResultsCard = ({ separator }) => {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="border-slate-800 hover:bg-transparent">
-                <TableHead className="text-lime-300">Stage</TableHead>
-                <TableHead className="text-lime-300 text-right">P (psia)</TableHead>
-                <TableHead className="text-lime-300 text-right">T (°F)</TableHead>
-                <TableHead className="text-lime-300 text-right">Rs out (scf/STB)</TableHead>
-                <TableHead className="text-lime-300 text-right">Gas liberated (scf/STB)</TableHead>
-                <TableHead className="text-lime-300 text-right">Gas rate (Mscf/d)</TableHead>
+              <TableRow className="border-pl-border hover:bg-transparent">
+                <TableHead>Stage</TableHead>
+                <TableHead className="text-right">P (psia)</TableHead>
+                <TableHead className="text-right">T (°F)</TableHead>
+                <TableHead className="text-right">Rs out (scf/STB)</TableHead>
+                <TableHead className="text-right">Gas liberated (scf/STB)</TableHead>
+                <TableHead className="text-right">Gas rate (Mscf/d)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {stages.map((s) => (
-                <TableRow key={s.index} className="border-slate-800">
-                  <TableCell className="text-white">{s.name}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-300">{fmt(s.pressure, 0)}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-300">{fmt(s.temperature, 0)}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-300">{fmt(s.rs_out)}</TableCell>
-                  <TableCell className="text-right font-mono text-amber-300">{fmt(s.gas_liberated)}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-300">{fmt(s.gas_rate)}</TableCell>
+                <TableRow key={s.index} className="border-pl-border">
+                  <TableCell className="text-pl-text">{s.name}</TableCell>
+                  <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">{fmt(s.pressure, 0)}</TableCell>
+                  <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">{fmt(s.temperature, 0)}</TableCell>
+                  <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">{fmt(s.rs_out)}</TableCell>
+                  <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">{fmt(s.gas_liberated)}</TableCell>
+                  <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">{fmt(s.gas_rate)}</TableCell>
                 </TableRow>
               ))}
-              <TableRow className="border-t-2 border-lime-400 font-semibold hover:bg-transparent">
-                <TableCell className="text-white" colSpan={4}>Total surface GOR</TableCell>
-                <TableCell className="text-right font-mono text-lime-300">{fmt(totals.total_gor)}</TableCell>
-                <TableCell className="text-right font-mono text-lime-300">{fmt(totals.total_gas_rate)}</TableCell>
+              <TableRow className="border-t-2 border-t-pl-border-strong font-semibold hover:bg-transparent">
+                <TableCell className="text-pl-text" colSpan={4}>Total surface GOR</TableCell>
+                <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">{fmt(totals.total_gor)}</TableCell>
+                <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">{fmt(totals.total_gas_rate)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -85,7 +85,7 @@ const SeparatorResultsCard = ({ separator }) => {
           <TotIt label="Bo (single stage)" value={`${fmt(totals.bo_single_stage, 3)} rb/STB`} />
           <TotIt label="Bo (multistage, approx)" value={`${fmt(totals.bo_multistage_approx, 3)} rb/STB`} />
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-pl-muted">
           Stock-tank oil basis {fmt(totals.stock_tank_oil_rate, 0)} STB/d (reporting basis for gas rates, not a deliverability estimate).
           Multistage Bo is an approximation illustrating the staging benefit; per-stage oil volumes are not reported from black-oil correlations.
         </p>
@@ -95,9 +95,9 @@ const SeparatorResultsCard = ({ separator }) => {
 };
 
 const TotIt = ({ label, value }) => (
-  <div className="rounded-lg border border-slate-700 bg-slate-800/40 px-3 py-2">
-    <div className="text-[11px] uppercase tracking-wide text-slate-500">{label}</div>
-    <div className="text-base font-bold text-white mt-0.5">{value}</div>
+  <div className="rounded-lg border border-pl-border bg-pl-sunken px-3 py-2">
+    <div className="text-[11px] uppercase tracking-wide text-pl-muted">{label}</div>
+    <div className="text-base font-bold text-pl-text mt-0.5">{value}</div>
   </div>
 );
 

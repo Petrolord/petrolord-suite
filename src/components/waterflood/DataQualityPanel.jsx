@@ -12,43 +12,43 @@ const DataQualityPanel = ({ data }) => {
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6"
+      className="bg-pl-surface border border-pl-border rounded-xl p-6 shadow-pl-sm"
     >
-      <h2 className="text-2xl font-bold text-white mb-4">Data Quality Summary</h2>
+      <h2 className="text-2xl font-bold text-pl-text mb-4">Data Quality Summary</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white/5 p-4 rounded-lg flex items-center space-x-3">
-          <Database className="w-8 h-8 text-blue-300" />
+        <div className="bg-pl-sunken p-4 rounded-lg flex items-center space-x-3">
+          <Database className="w-8 h-8 text-pl-muted" aria-hidden="true" />
           <div>
-            <p className="text-sm text-blue-200">Rows In / Out</p>
-            <p className="text-xl font-bold text-white">{rows_in} / {rows_out}</p>
+            <p className="text-sm text-pl-muted">Rows In / Out</p>
+            <p className="text-lg font-semibold font-pl-mono tabular-nums text-pl-text">{rows_in} / {rows_out}</p>
           </div>
         </div>
-        <div className="bg-white/5 p-4 rounded-lg flex items-center space-x-3">
-          <AlertCircle className="w-8 h-8 text-yellow-300" />
+        <div className="bg-pl-sunken p-4 rounded-lg flex items-center space-x-3">
+          <AlertCircle className="w-8 h-8 text-pl-muted" aria-hidden="true" />
           <div>
-            <p className="text-sm text-yellow-200">Duplicates Removed</p>
-            <p className="text-xl font-bold text-white">{duplicates_removed}</p>
+            <p className="text-sm text-pl-muted">Duplicates Removed</p>
+            <p className="text-lg font-semibold font-pl-mono tabular-nums text-pl-text">{duplicates_removed}</p>
           </div>
         </div>
-        <div className="bg-white/5 p-4 rounded-lg flex items-center space-x-3">
-          <AlertCircle className="w-8 h-8 text-orange-300" />
+        <div className="bg-pl-sunken p-4 rounded-lg flex items-center space-x-3">
+          <AlertCircle className="w-8 h-8 text-pl-muted" aria-hidden="true" />
           <div>
-            <p className="text-sm text-orange-200">Negatives Zeroed</p>
-            <p className="text-xl font-bold text-white">{negatives_zeroed}</p>
+            <p className="text-sm text-pl-muted">Negatives Zeroed</p>
+            <p className="text-lg font-semibold font-pl-mono tabular-nums text-pl-text">{negatives_zeroed}</p>
           </div>
         </div>
-        <div className="bg-white/5 p-4 rounded-lg flex items-center space-x-3">
-          <Check className="w-8 h-8 text-green-300" />
+        <div className="bg-pl-sunken p-4 rounded-lg flex items-center space-x-3">
+          <Check className="w-8 h-8 text-pl-muted" aria-hidden="true" />
           <div>
-            <p className="text-sm text-green-200">Other Issues</p>
-            <p className="text-xl font-bold text-white">{issues?.length || 0}</p>
+            <p className="text-sm text-pl-muted">Other Issues</p>
+            <p className="text-lg font-semibold font-pl-mono tabular-nums text-pl-text">{issues?.length || 0}</p>
           </div>
         </div>
       </div>
       {issues && issues.length > 0 && (
-        <div className="mt-4 bg-yellow-500/10 p-4 rounded-lg border border-yellow-500/30">
-          <h3 className="font-semibold text-yellow-200 mb-2">Data Issues Found:</h3>
-          <ul className="list-disc list-inside text-yellow-300 text-sm space-y-1">
+        <div className="mt-4 bg-pl-warning-bg p-4 rounded-lg border border-pl-warning/40">
+          <h3 className="font-semibold text-pl-warning-text mb-2">Data Issues Found:</h3>
+          <ul className="list-disc list-inside text-pl-warning-text text-sm space-y-1">
             {issues.map((issue, index) => <li key={index}>{issue}</li>)}
           </ul>
         </div>

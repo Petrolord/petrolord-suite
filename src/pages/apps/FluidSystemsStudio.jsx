@@ -22,8 +22,12 @@ import { FluidStudioHelpContent } from '@/components/fluidstudio/FluidStudioHelp
 import { useFluidStudioProjects } from '@/components/fluidstudio/useFluidStudioProjects';
 import { analyzeFluidSystem, sampleFluidStudioData } from '@/utils/fluidStudioCalculations';
 import { runEosFlash, runEosSeparator, runEosPvtTable } from '@/utils/fluidstudio/eosAnalysis';
+import { ThemedApp } from '@/design/ThemeProvider';
 
-const FluidSystemsStudio = () => {
+// Design system rollout batch 1D (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
+
+const FluidSystemsStudioContent = () => {
   const [inputs, setInputs] = useState(sampleFluidStudioData);
 
   const {
@@ -125,14 +129,14 @@ const FluidSystemsStudio = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-slate-400 hover:text-white"
+              className="h-8 w-8 text-pl-muted hover:text-pl-text"
               title="Load the sample fluid"
               onClick={loadSample}
             >
               <Beaker size={18} />
             </Button>
             <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Fluid Systems & Flow Behavior Studio Guide"
               description="Black-oil and compositional PVT, blending, separator train and flow-assurance screening: how it works and how to read it."
@@ -163,4 +167,10 @@ const FluidSystemsStudio = () => {
   );
 };
 
-export default FluidSystemsStudio;
+export default function FluidSystemsStudio() {
+  return (
+    <ThemedApp data-testid="fluid-theme-scope">
+      <FluidSystemsStudioContent />
+    </ThemedApp>
+  );
+}

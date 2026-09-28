@@ -3,8 +3,8 @@
 // dashes (owner copy rule).
 import React from 'react';
 
-const H = ({ children }) => <h4 className="text-sm font-semibold text-slate-200 mt-5 mb-1.5">{children}</h4>;
-const P = ({ children }) => <p className="text-xs text-slate-400 leading-relaxed">{children}</p>;
+const H = ({ children }) => <h4 className="text-sm font-semibold text-pl-text mt-5 mb-1.5">{children}</h4>;
+const P = ({ children }) => <p className="text-xs text-pl-muted leading-relaxed">{children}</p>;
 
 const ScalHelpContent = () => (
   <div className="pb-8">

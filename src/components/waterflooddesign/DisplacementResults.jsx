@@ -15,10 +15,10 @@ const tooltipProps = { contentStyle: TOOLTIP_STYLE, labelStyle: { color: CHART_C
 const legendProps = { wrapperStyle: { fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText } };
 
 const TONE = {
-  good: 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10',
-  info: 'text-sky-400 border-sky-500/40 bg-sky-500/10',
-  warn: 'text-amber-400 border-amber-500/40 bg-amber-500/10',
-  neutral: 'text-slate-400 border-slate-600/40 bg-slate-700/20',
+  good: 'text-pl-success-text border-pl-success/40 bg-pl-success-bg',
+  info: 'text-pl-info-text border-pl-info/40 bg-pl-info-bg',
+  warn: 'text-pl-warning-text border-pl-warning/40 bg-pl-warning-bg',
+  neutral: 'text-pl-muted border-pl-border bg-pl-sunken',
 };
 
 const DisplacementResults = () => {
@@ -48,7 +48,7 @@ const DisplacementResults = () => {
 
   if (!displacement) {
     return (
-      <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300 px-4 py-3 text-sm">
+      <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text px-4 py-3 text-sm">
         {displacementSpec.error || 'Enter valid displacement inputs.'}
       </div>
     );
@@ -119,7 +119,7 @@ const DisplacementResults = () => {
         </LineChart>
       </ChartCard>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-pl-muted">
         1-D Buckley-Leverett displacement, capillary pressure neglected. Front saturation from the Welge tangent to fw from (Swc, 0);
         PV injected at breakthrough = 1 / fw′(Swf). With the dip term on, fw carries the field-unit gravity correction (updip positive).
       </p>

@@ -41,17 +41,17 @@ const ChartsPanel = ({ dailySeries, vrrSeries }) => {
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6"
+      className="bg-pl-surface border border-pl-border rounded-xl p-6 shadow-pl-sm"
     >
-      <h2 className="text-2xl font-bold text-white mb-6">Performance Trends</h2>
+      <h2 className="text-2xl font-bold text-pl-text mb-6">Performance Trends</h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg p-4">
+        <div data-canvas="chart" className="bg-white rounded-lg p-4">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-base font-semibold text-slate-800">Rates &amp; Water Cut</h3>
             <div className="flex items-center space-x-2">
               <Checkbox id="smooth-toggle" checked={showSmoothed} onCheckedChange={setShowSmoothed} />
-              <Label htmlFor="smooth-toggle" className="text-sm text-slate-600">Smoothed</Label>
+              <Label htmlFor="smooth-toggle" className="text-sm text-pl-muted">Smoothed</Label>
             </div>
           </div>
           <ChartFrame height={320}>
@@ -72,7 +72,7 @@ const ChartsPanel = ({ dailySeries, vrrSeries }) => {
           </ChartFrame>
         </div>
 
-        <div className="bg-white rounded-lg p-4">
+        <div data-canvas="chart" className="bg-white rounded-lg p-4">
           <h3 className="text-base font-semibold text-slate-800 mb-2">Voidage Replacement Ratio (VRR)</h3>
           <ChartFrame height={320}>
             <LineChart data={vrrData} margin={CHART_MARGINS.legend}>

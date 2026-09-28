@@ -26,31 +26,31 @@ const PatternResponsePanel = ({ data }) => {
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6"
+      className="bg-pl-surface border border-pl-border rounded-xl p-6 shadow-pl-sm"
     >
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-white">Pattern Response</h2>
-        <Button onClick={handleExport} variant="outline" size="sm" className="border-cyan-400/50 text-cyan-300 hover:bg-cyan-500/20">
+        <h2 className="text-2xl font-bold text-pl-text">Pattern Response</h2>
+        <Button onClick={handleExport} variant="outline" size="sm">
           <Download className="w-4 h-4 mr-2" /> Export CSV
         </Button>
       </div>
       <div className="max-h-96 overflow-y-auto">
         <Table>
-          <TableHeader className="sticky top-0 bg-slate-900/80 backdrop-blur-sm">
+          <TableHeader className="sticky top-0 bg-pl-surface backdrop-blur-sm">
             <TableRow>
-              <TableHead className="text-lime-300">Injector</TableHead>
-              <TableHead className="text-lime-300">Producer</TableHead>
-              <TableHead className="text-lime-300 text-right">Lag (days)</TableHead>
-              <TableHead className="text-lime-300 text-right">Correlation</TableHead>
+              <TableHead>Injector</TableHead>
+              <TableHead>Producer</TableHead>
+              <TableHead className="text-right">Lag (days)</TableHead>
+              <TableHead className="text-right">Correlation</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedData.slice(0, 25).map((row, index) => (
-              <TableRow key={index} className="border-slate-800">
-                <TableCell className="font-mono">{row.injector}</TableCell>
-                <TableCell className="font-mono">{row.producer}</TableCell>
-                <TableCell className="text-right font-mono">{row.lag_days}</TableCell>
-                <TableCell className="text-right font-mono">{row.corr.toFixed(3)}</TableCell>
+              <TableRow key={index} className="border-pl-border">
+                <TableCell className="font-pl-mono tabular-nums">{row.injector}</TableCell>
+                <TableCell className="font-pl-mono tabular-nums">{row.producer}</TableCell>
+                <TableCell className="text-right font-pl-mono tabular-nums">{row.lag_days}</TableCell>
+                <TableCell className="text-right font-pl-mono tabular-nums">{row.corr.toFixed(3)}</TableCell>
               </TableRow>
             ))}
           </TableBody>

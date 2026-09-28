@@ -47,7 +47,7 @@ const ScenarioCompare = () => {
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300 px-4 py-3 text-sm">
+      <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text px-4 py-3 text-sm">
         Nothing to compare yet: enter a valid working case and snapshot scenarios from the right rail.
       </div>
     );
@@ -55,12 +55,12 @@ const ScenarioCompare = () => {
 
   return (
     <div className="space-y-4 overflow-y-auto">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2"><CardTitle className="text-base">Scenario comparison</CardTitle></CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow className="border-slate-800">
+              <TableRow className="border-pl-border">
                 <TableHead>Scenario</TableHead>
                 <TableHead>M</TableHead>
                 <TableHead>Swf</TableHead>
@@ -71,7 +71,7 @@ const ScenarioCompare = () => {
             </TableHeader>
             <TableBody>
               {rows.map((r, idx) => (
-                <TableRow key={r.id} className="border-slate-800">
+                <TableRow key={r.id} className="border-pl-border">
                   <TableCell>
                     <span className="inline-block w-2.5 h-2.5 rounded-full mr-2" style={{ background: SCENARIO_COLORS[idx % SCENARIO_COLORS.length] }} />
                     {r.name}
@@ -111,7 +111,7 @@ const ScenarioCompare = () => {
         </LineChart>
       </ChartCard>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-pl-muted">
         Every scenario is recomputed live from its stored inputs through the shared displacement engine; nothing is cached.
         Apply a scenario from the right rail to bring it back into the working case.
       </p>
