@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatBudgetMillions, budgetFromMillionsInput } from '../formatBudget';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,7 +74,7 @@ const AppraisalProjectWizard = ({ open, onOpenChange, onProjectCreated, userId }
           description: formData.description,
           start_date: formData.startDate,
           end_date: calculateEndDate().toISOString(),
-          baseline_budget: parseFloat(formData.budget) * 1000000, 
+          baseline_budget: budgetFromMillionsInput(formData.budget), 
           company_name: 'Appraisal Operations Co.', 
           project_type: 'Appraisal',
           stage: 'Appraisal Planning',
@@ -325,7 +326,7 @@ const AppraisalProjectWizard = ({ open, onOpenChange, onProjectCreated, userId }
                             <span className="text-pl-muted">Name:</span> <span className="text-pl-text">{formData.name}</span>
                             <span className="text-pl-muted">Asset:</span> <span className="text-pl-text">{formData.asset}</span>
                             <span className="text-pl-muted">Wells:</span> <span className="text-pl-text">{formData.wellCount} ({formData.wellType})</span>
-                            <span className="text-pl-muted">Budget:</span> <span className="text-pl-text">${formData.budget}M</span>
+                            <span className="text-pl-muted">Budget:</span> <span className="text-pl-text">{formatBudgetMillions(budgetFromMillionsInput(formData.budget))}</span>
                             <span className="text-pl-muted">Type:</span> <span className="text-pl-text">Appraisal</span>
                         </div>
                     </div>

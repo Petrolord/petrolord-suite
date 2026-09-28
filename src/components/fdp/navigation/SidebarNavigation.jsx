@@ -44,9 +44,12 @@ const NavItem = ({ id, icon: Icon, label, collapsed, isActive, onClick, count })
     </button>
 );
 
-const SidebarNavigation = () => {
+// W7F: the phone sheet always shows labels (forceExpanded), whatever the
+// desktop rail's collapsed flag says.
+const SidebarNavigation = ({ forceExpanded = false }) => {
     const { state, actions } = useFDP();
-    const { activeTab, sidebarCollapsed } = state.navigation;
+    const { activeTab } = state.navigation;
+    const sidebarCollapsed = forceExpanded ? false : state.navigation.sidebarCollapsed;
     const completeness = calculateCompleteness(state);
 
     const navItems = [

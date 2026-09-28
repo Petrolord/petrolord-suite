@@ -84,7 +84,7 @@ const OrgAccess = ({ users }) => {
     toast({
       variant: 'destructive',
       title: 'Superseded',
-      description: 'Per-user app grants moved to seat assignment — use Seat Management.',
+      description: 'Per-user app grants moved to seat assignment. Use Seat Management.',
     });
   };
 

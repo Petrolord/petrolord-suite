@@ -1,67 +1,71 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import { useAdminOrg } from '@/contexts/AdminOrganizationContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
-import { 
-  CreditCard, HardDrive, Users, Layers, Calendar, 
-  AlertTriangle, CheckCircle, Settings, FileText, Download,
-  ExternalLink, Copy
-} from 'lucide-react';
-import PricingConfigurator from './components/PricingConfigurator';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { CreditCard, ExternalLink, Copy, CheckCircle, Send, Users } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { formatCurrency, formatDate } from '@/utils/adminHelpers';
+import { formatDate } from '@/utils/adminHelpers';
 
-const OrgSubscription = () => {
-  const { selectedOrg, updateOrganization } = useAdminOrg();
+/**
+ * Admin organisation detail, Subscription tab.
+ *
+ * W7F. This tab used to invent a plan when the organisation had none
+ * ("growth" tier, $1,899 a month, 10 seats), print 8 seats and 124 GB used
+ * for every organisation, and list three made-up October 2023 invoices. Its
+ * "Modify Plan" button wrote a `subscription` field on organizations, which
+ * is not a column, so nothing it showed or saved was real. It now lists the
+ * organisation's subscriptions rows as the detail page loaded them, counts
+ * seats from the members the page loaded, and says so when there are no
+ * rows. Plans change through a paid quote, so the plan editor is gone and
+ * the tab links to Send Quote.
+ */
+
+/** The subscription rows the page loaded, whichever shape they came in. */
+export const subscriptionRowsOf = (org) => {
+  if (!org) return [];
+  const raw = Array.isArray(org.subscriptionRows)
+    ? org.subscriptionRows
+    : Array.isArray(org.subscription)
+      ? org.subscription
+      : org.subscription ? [org.subscription] : [];
+  return raw.filter((r) => r && typeof r === 'object' && Object.keys(r).length > 0);
+};
+
+const moneyOf = (amount, currency) => {
+  const n = Number(amount);
+  if (amount === null || amount === undefined || !Number.isFinite(n)) return 'Not recorded';
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(n);
+  } catch {
+    return `${n.toFixed(2)} ${currency || ''}`.trim();
+  }
+};
+
+const statusVariant = (status) => {
+  switch (String(status || '').toLowerCase()) {
+    case 'active': return 'success';
+    case 'expired':
+    case 'cancelled':
+    case 'canceled':
+    case 'suspended': return 'danger';
+    case 'pending': return 'warning';
+    default: return 'neutral';
+  }
+};
+
+const listOf = (v) => (Array.isArray(v) ? v : []);
+
+const OrgSubscription = ({ memberCount }) => {
+  const { selectedOrg } = useAdminOrg();
   const { toast } = useToast();
-  const [isManageOpen, setIsManageOpen] = useState(false);
-  
-  // Mock existing subscription if not present
-  const subscription = selectedOrg?.subscription || {
-    status: 'active',
-    modules: ['geoscience', 'reservoir'],
-    apps: [],
-    user_limit: 10,
-    storage_limit: 500,
-    tier: 'growth',
-    current_period_end: new Date(Date.now() + 86400000 * 15).toISOString(),
-    amount: 1899
-  };
-
-  const subscribedModules = selectedOrg.subscribed_modules || ['hse_free'];
-
-  const handleUpdateSubscription = async (newConfig) => {
-    // In real app: Call API to update subscription, handle Stripe, etc.
-    const updatedSub = {
-      ...subscription,
-      modules: newConfig.modules,
-      apps: newConfig.apps,
-      user_limit: newConfig.userCount,
-      storage_limit: newConfig.storageGB,
-      tier: newConfig.tierId,
-      amount: newConfig.calculated.monthlyTotal
-    };
-
-    // Also update organization subscribed_modules logic if needed
-    // Typically subscription drives subscribed_modules
-    
-    await updateOrganization(selectedOrg.id, { subscription: updatedSub });
-    toast({ title: 'Subscription Updated', description: 'Changes have been applied successfully.' });
-    setIsManageOpen(false);
-  };
-
-  // Initial config for the builder based on current sub
-  const currentConfig = {
-    modules: subscription.modules || [],
-    apps: subscription.apps || [],
-    userCount: subscription.user_limit || 5,
-    storageGB: subscription.storage_limit || 100,
-    tierId: subscription.tier || 'starter',
-    customDiscount: 0 
-  };
+  const rows = subscriptionRowsOf(selectedOrg);
+  const active = rows.find((r) => String(r.status || '').toLowerCase() === 'active');
+  const seatLimit = Number(active?.user_limit);
+  const hasSeatLimit = Number.isFinite(seatLimit) && seatLimit > 0;
+  const subscribedModules = listOf(selectedOrg?.subscribed_modules);
 
   const copyLoginLink = () => {
     navigator.clipboard.writeText('https://petrolord.com/login');
@@ -70,29 +74,107 @@ const OrgSubscription = () => {
 
   return (
     <div className="space-y-6 h-full overflow-y-auto pr-2">
-      {/* Status Banner */}
-      <div className="bg-pl-sunken border border-pl-border rounded-lg p-4 sm:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col sm:flex-row gap-3 justify-between sm:items-center">
         <div>
-          <div className="flex flex-wrap items-center gap-3 mb-2">
-            <h2 className="text-2xl font-bold text-pl-text">Current Plan</h2>
-            <Badge variant={subscription.status === 'active' ? 'success' : 'warning'} className="uppercase tracking-wider text-xs">
-              {subscription.status}
-            </Badge>
-            <Badge variant="neutral" className="capitalize">
-              {subscription.tier} Tier
-            </Badge>
-          </div>
-          <p className="text-pl-muted flex flex-wrap items-center gap-4 text-sm">
-            <span className="flex items-center"><Calendar className="h-3 w-3 mr-1" /> Renews: {formatDate(subscription.current_period_end)}</span>
-            <span className="flex items-center"><CreditCard className="h-3 w-3 mr-1" /> {formatCurrency(subscription.amount)}/mo</span>
+          <h2 className="text-lg font-semibold text-pl-text flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-pl-muted" aria-hidden="true" /> Subscriptions
+          </h2>
+          <p className="text-sm text-pl-muted">Plans change through a paid quote.</p>
+        </div>
+        {selectedOrg?.id ? (
+          <Button asChild variant="outline">
+            <Link to={`/admin/organizations/${selectedOrg.id}/send-quote`}>
+              <Send className="h-4 w-4 mr-2" aria-hidden="true" /> Send Quote
+            </Link>
+          </Button>
+        ) : null}
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="border border-dashed border-pl-border rounded-md p-8 text-center" data-testid="org-subscription-empty">
+          <p className="text-pl-text font-medium">No subscription on record</p>
+          <p className="text-sm text-pl-muted mt-1">
+            This organisation has no subscriptions rows. One is created when a quote is paid and verified.
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <Button variant="outline">Payment Method</Button>
-          <Button onClick={() => setIsManageOpen(true)}>
-            <Settings className="h-4 w-4 mr-2" /> Modify Plan
-          </Button>
+      ) : (
+        <div className="border border-pl-border rounded-md overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Status</TableHead>
+                <TableHead>Modules</TableHead>
+                <TableHead>Term</TableHead>
+                <TableHead>Start</TableHead>
+                <TableHead>End</TableHead>
+                <TableHead>Seats</TableHead>
+                <TableHead>Quote total</TableHead>
+                <TableHead>Payment</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r, i) => {
+                const modules = listOf(r.modules).length ? listOf(r.modules) : listOf(r.quote_details?.modules);
+                return (
+                  <TableRow key={r.id || i}>
+                    <TableCell>
+                      <Badge variant={statusVariant(r.status)} className="capitalize">{r.status || 'unknown'}</Badge>
+                    </TableCell>
+                    <TableCell className="text-pl-text">
+                      {modules.length ? modules.join(', ') : <span className="text-pl-muted">None listed</span>}
+                    </TableCell>
+                    <TableCell className="text-pl-muted whitespace-nowrap">{r.term || r.billing_period || r.quote_details?.billing_term || 'Not recorded'}</TableCell>
+                    <TableCell className="text-pl-muted whitespace-nowrap">{r.start_date ? formatDate(r.start_date) : 'Not recorded'}</TableCell>
+                    <TableCell className="text-pl-muted whitespace-nowrap">{r.end_date ? formatDate(r.end_date) : 'Not recorded'}</TableCell>
+                    <TableCell className="font-pl-mono tabular-nums text-pl-text">{r.user_limit ?? r.quote_details?.seats ?? 'Not recorded'}</TableCell>
+                    <TableCell className="font-pl-mono tabular-nums text-pl-text whitespace-nowrap">
+                      {moneyOf(r.quote_details?.total_amount, r.quote_details?.currency)}
+                    </TableCell>
+                    <TableCell className="text-pl-muted">{r.payment_status || 'Not recorded'}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <h3 className="text-sm font-bold text-pl-muted uppercase mb-2 flex items-center gap-2">
+              <Users className="h-4 w-4" aria-hidden="true" /> Seat usage
+            </h3>
+            <p className="text-pl-text" data-testid="org-subscription-seats">
+              {typeof memberCount === 'number' ? (
+                <>
+                  <span className="text-2xl font-bold font-pl-mono tabular-nums">{memberCount}</span>{' '}
+                  <span className="text-sm text-pl-muted">
+                    {hasSeatLimit ? `members of ${seatLimit} seats on the active subscription` : 'members; no active subscription sets a seat limit'}
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm text-pl-muted">
+                  {hasSeatLimit ? `${seatLimit} seats on the active subscription` : 'No active subscription sets a seat limit'}
+                </span>
+              )}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <h3 className="text-sm font-bold text-pl-muted uppercase mb-2">Subscribed modules</h3>
+            {subscribedModules.length ? (
+              <div className="flex flex-wrap gap-2">
+                {subscribedModules.map((m) => (
+                  <Badge key={m} variant="neutral" className="capitalize">{m === 'hse_free' ? 'HSE (Free)' : m}</Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-pl-muted">None recorded on the organisation.</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Unified Login Info */}
@@ -121,151 +203,6 @@ const OrgSubscription = () => {
           </div>
         </CardContent>
       </Card>
-
-      {/* Usage & Limits Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Modules */}
-        <Card className="md:col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center">
-              <Layers className="h-5 w-5 mr-2 text-pl-muted" aria-hidden="true" /> Enabled Modules
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <span className="text-xs font-bold text-pl-muted uppercase">Active Subscriptions</span>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {subscribedModules.map(m => (
-                    <Badge key={m} variant="neutral" className="capitalize">
-                      {m === 'hse_free' ? 'HSE (Free)' : m}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Users */}
-        <Card className="md:col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center">
-              <Users className="h-5 w-5 mr-2 text-pl-muted" aria-hidden="true" /> Seat Usage
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="mt-2">
-              <div className="flex justify-between mb-2">
-                <span className="text-2xl font-bold font-pl-mono tabular-nums text-pl-text">8</span>
-                <span className="text-sm text-pl-muted pt-2">of {subscription.user_limit} seats</span>
-              </div>
-              <div className="h-2 w-full bg-pl-sunken rounded-full overflow-hidden">
-                <div className="h-full bg-pl-primary w-[80%] rounded-full" />
-              </div>
-              <p className="text-xs text-pl-muted mt-3">
-                2 seats remaining. Upgrade plan to add more users.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Storage */}
-        <Card className="md:col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center">
-              <HardDrive className="h-5 w-5 mr-2 text-pl-muted" aria-hidden="true" /> Data Storage
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="mt-2">
-              <div className="flex justify-between mb-2">
-                <span className="text-2xl font-bold font-pl-mono tabular-nums text-pl-text">124<span className="text-sm font-normal text-pl-muted">GB</span></span>
-                <span className="text-sm text-pl-muted pt-2">of {subscription.storage_limit} GB</span>
-              </div>
-              <div className="h-2 w-full bg-pl-sunken rounded-full overflow-hidden">
-                <div className="h-full bg-pl-primary w-[25%] rounded-full" />
-              </div>
-              <p className="text-xs text-pl-muted mt-3">
-                Healthy usage level.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Invoice History */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-bold text-pl-text flex items-center gap-2">
-          <FileText className="h-5 w-5 text-pl-muted" aria-hidden="true" /> Invoice History
-        </h3>
-        <div className="border border-pl-border rounded-md overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-pl-sunken text-pl-muted border-b border-pl-border">
-              <tr>
-                <th className="p-4 font-medium">Date</th>
-                <th className="p-4 font-medium">Invoice #</th>
-                <th className="p-4 font-medium">Amount</th>
-                <th className="p-4 font-medium">Status</th>
-                <th className="p-4 text-right font-medium">Download</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-pl-border">
-              {[1,2,3].map(i => (
-                <tr key={i} className="hover:bg-pl-sunken/60 transition-colors">
-                  <td className="p-4 text-pl-text whitespace-nowrap">Oct 01, 2023</td>
-                  <td className="p-4 text-pl-muted font-pl-mono">INV-2023-{100+i}</td>
-                  <td className="p-4 text-pl-text font-pl-mono tabular-nums">$1,899.00</td>
-                  <td className="p-4"><Badge variant="success">Paid</Badge></td>
-                  <td className="p-4 text-right">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Download invoice"><Download className="h-4 w-4" aria-hidden="true" /></Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Modification Dialog */}
-      <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
-        <DialogContent className="max-w-[90vw] w-[1200px] h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Modify Subscription</DialogTitle>
-            <DialogDescription>Update modules, add apps, or change capacity limits.</DialogDescription>
-          </DialogHeader>
-          
-          <div className="flex-1 overflow-hidden py-4">
-            <SubscriptionModifier 
-              initialConfig={currentConfig} 
-              onSave={handleUpdateSubscription}
-              onCancel={() => setIsManageOpen(false)}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
-// Wrapper for the configurator to handle save state
-const SubscriptionModifier = ({ initialConfig, onSave, onCancel }) => {
-  const [config, setConfig] = useState(initialConfig);
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-hidden">
-        <PricingConfigurator 
-          initialConfig={initialConfig} 
-          onChange={setConfig}
-        />
-      </div>
-      <div className="mt-auto pt-4 border-t border-pl-border flex justify-end gap-3">
-        <Button variant="ghost" onClick={onCancel}>Cancel</Button>
-        <Button onClick={() => onSave(config)}>
-          Confirm Changes
-        </Button>
-      </div>
     </div>
   );
 };

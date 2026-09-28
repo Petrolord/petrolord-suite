@@ -673,8 +673,11 @@ describe('D5: the AI Evaluation Studio', () => {
     expect(all.indexOf(USERCAP)).toBeGreaterThan(all.indexOf(TILE));
     const row = log().split('\n').find((l) => l.includes(USERCAP));
     expect(row).toBeTruthy();
-    // held when written; the owner applied it on 2026-09-26 (production column)
-    expect(row).toMatch(/NOT APPLIED \(owner-run\) \| (NOT APPLIED \(owner-run\)|\*\*APPLIED 2026-09-26\*\*[^|]*) \|$/);
+    // Held when written. The owner applied it on 2026-09-26 and logged both
+    // columns in plain text with no bold ("APPLIED 2026-09-26 (owner; shared
+    // DB)"), so each column is either held or an owner-applied date (W7F).
+    const status = String.raw`(?:NOT APPLIED \(owner-run\)|\*{0,2}APPLIED 2026-09-(?:2[6-9]|30)\*{0,2}[^|]*)`;
+    expect(row).toMatch(new RegExp(`\\| ${status} \\| ${status} \\|$`));
     expect(row).toMatch(/apply this migration FIRST, then redeploy/);
   });
 

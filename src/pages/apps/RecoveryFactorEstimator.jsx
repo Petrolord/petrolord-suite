@@ -34,7 +34,6 @@ const RfEstimatorContent = () => {
   const leftPanel = (
     <div className="space-y-6">
       <section>
-        <SectionLabel>Project</SectionLabel>
         <StudioProjectManager
           projects={projects}
           currentProjectId={currentProjectId}

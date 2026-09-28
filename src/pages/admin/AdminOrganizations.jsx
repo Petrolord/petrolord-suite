@@ -113,7 +113,7 @@ function AdminOrganizationsPage() {
     try {
       const { error } = await supabase.rpc('delete_organization', { org_id_to_delete: orgId });
       if (error) throw error;
-      toast({ title: "Success", description: "Organization deleted successfully.", className: "bg-green-600 text-white" });
+      toast({ title: "Success", description: "Organization deleted successfully." });
       setOrganizations(organizations.filter(o => o.id !== orgId));
     } catch (error) {
         console.error('Delete error:', error);

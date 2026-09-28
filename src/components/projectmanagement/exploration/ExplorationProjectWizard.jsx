@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatBudgetMillions, budgetFromMillionsInput } from '../formatBudget';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,7 +72,7 @@ const ExplorationProjectWizard = ({ open, onOpenChange, onProjectCreated, userId
           description: formData.description,
           start_date: formData.startDate,
           end_date: calculateEndDate().toISOString(),
-          baseline_budget: parseFloat(formData.budget) * 1000000, // Assuming input is in Millions
+          baseline_budget: budgetFromMillionsInput(formData.budget), // input is in millions
           company_name: 'Exploration Co.', // Default or derived
           project_type: 'Exploration',
           stage: 'Prospecting',
@@ -334,7 +335,7 @@ const ExplorationProjectWizard = ({ open, onOpenChange, onProjectCreated, userId
                             <span className="text-pl-muted">Project Name:</span> <span className="text-pl-text">{formData.name}</span>
                             <span className="text-pl-muted">Asset / Block:</span> <span className="text-pl-text">{formData.asset}</span>
                             <span className="text-pl-muted">Start Date:</span> <span className="text-pl-text">{formData.startDate}</span>
-                            <span className="text-pl-muted">Budget:</span> <span className="text-pl-text">${formData.budget}M</span>
+                            <span className="text-pl-muted">Budget:</span> <span className="text-pl-text">{formatBudgetMillions(budgetFromMillionsInput(formData.budget))}</span>
                             <span className="text-pl-muted">Type:</span> <span className="text-pl-text">Exploration (Standard)</span>
                         </div>
                     </div>

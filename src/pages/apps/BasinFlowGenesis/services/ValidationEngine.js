@@ -31,18 +31,24 @@ export class ValidationEngine {
             return { isValid: false, errors, warnings };
         }
 
-        let prevAge = null;
         layers.forEach((layer, index) => {
             if (!layer.name) errors.push(`Layer ${index + 1}: Missing name.`);
             if (layer.thickness <= 0) errors.push(`Layer '${layer.name || index+1}': Thickness must be positive.`);
             if (layer.ageStart <= layer.ageEnd) errors.push(`Layer '${layer.name || index+1}': Start age (${layer.ageStart} Ma) must be older than End age (${layer.ageEnd} Ma).`);
-            
-            // Continuity check (optional warning)
-            if (prevAge !== null && Math.abs(layer.ageStart - prevAge) > 0.1) {
-                warnings.push(`Gap or overlap detected between layer '${layer.name}' and previous layer.`);
-            }
-            prevAge = layer.ageEnd;
         });
+
+        // Continuity check (optional warning). W7F: this compared each
+        // layer's start age with the previous row's end age, which only
+        // holds for oldest-first lists. The templates and the engine list
+        // stratigraphy youngest first, so every template warned of a gap at
+        // every boundary. The check now runs in age order, oldest first,
+        // whatever order the rows are in.
+        const byAge = [...layers].sort((a, b) => Number(b.ageStart) - Number(a.ageStart));
+        for (let i = 1; i < byAge.length; i++) {
+            if (Math.abs(Number(byAge[i].ageStart) - Number(byAge[i - 1].ageEnd)) > 0.1) {
+                warnings.push(`Gap or overlap detected between layer '${byAge[i].name}' and the layer below it.`);
+            }
+        }
 
         return { isValid: errors.length === 0, errors, warnings };
     }

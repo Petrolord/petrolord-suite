@@ -29,6 +29,9 @@ jest.mock('@/lib/customSupabaseClient', () => {
         { id: 'p1', paystack_reference: 'PSK-001', amount: 1899, currency: 'USD', status: 'completed', created_at: '2026-09-03T10:00:00Z' },
         { id: 'p2', paystack_reference: 'PSK-002', amount: 1899, currency: 'USD', status: 'failed', created_at: '2026-09-04T10:00:00Z' },
       ],
+      quotes: [
+        { id: 'qq1', quote_id: 'PL-Q-0077', organization_id: 'o1', status: 'PENDING', total_amount: 2500, currency: 'USD', billing_term: 'annual', created_at: '2026-09-06T10:00:00Z', validity_period: '2026-10-06T10:00:00Z' },
+      ],
       audit_logs: [{ id: 'a1', action: 'org.updated', actor_id: 'abcdef123456', details: { field: 'name' }, created_at: '2026-09-05T10:00:00Z' }],
       suite_promo_codes: [
         { id: 'c1', code: 'FOUNDING50', percent: 50, scope: 'all', redeemed_count: 2, max_redemptions: 10, expires_at: null, notes: 'founders', active: true },
@@ -152,45 +155,38 @@ describe('W6F pages, statuses, tabs and dialogs', () => {
     expectDialogInScope(dialog);
   });
 
-  it('subscription tab modify dialog is themed', async () => {
+  // W7F: the subscription tab lists the real subscriptions rows and has no
+  // plan editor (it wrote a column that does not exist); the quotes tab reads
+  // the quotes table and sends new quotes through the Send Quote page.
+  // Negative control: on the old tabs the invented storage figure, invoices
+  // and mock quotes are found and the real quote is not.
+  it('subscription tab shows the loaded rows and nothing invented', async () => {
     renderAccountPage(OrgDetail, { ...detailOpts, auth: superAdmin });
     await screen.findByText('Total Members');
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'subscription' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Modify Plan/ }));
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Modify Subscription')).toBeInTheDocument();
-    expectDialogInScope(dialog);
+    await screen.findByText('Unified Login Information');
+    expect(screen.getByText('active')).toBeInTheDocument();
+    expect(screen.getByTestId('org-subscription-seats')).toHaveTextContent('2 members of 10 seats');
+    expect(screen.queryByText(/INV-2023/)).toBeNull();
+    expect(screen.queryByText('124')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Modify Plan/ })).toBeNull();
+    expect(screen.getByRole('link', { name: /Send Quote/ })).toHaveAttribute('href', '/admin/organizations/o1/send-quote');
+    expectNoLegacyChrome();
   });
 
-  it('quotes tab editor, preview, email and delete dialogs are themed', async () => {
+  it('quotes tab reads the quotes table and links to Send Quote', async () => {
     renderAccountPage(OrgDetail, { ...detailOpts, auth: superAdmin });
     await screen.findByText('Total Members');
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'quotes' }));
-    await screen.findByText('Quote Management');
-    expect(screen.getByText('draft')).toBeInTheDocument();
-    expect(screen.getByText('sent')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /New Quote/ }));
-    let dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Estimate Summary')).toBeInTheDocument();
-    expectDialogInScope(dialog);
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'Preview' })[0]);
-    const preview = await screen.findByRole('dialog', { name: 'Quote preview' });
-    expect(within(preview).getByText('PROPOSAL')).toBeInTheDocument();
+    await screen.findByText('PL-Q-0077');
+    expect(supabase.from).toHaveBeenCalledWith('quotes');
+    expect(screen.getByText('$2,500.00')).toBeInTheDocument();
+    expect(screen.queryByText(/QT-2023/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /New Quote/ })).toBeNull();
+    expect(screen.getByRole('link', { name: /Open quote PL-Q-0077/ })).toHaveAttribute('href', '/dashboard/quote/PL-Q-0077');
+    const links = screen.getAllByRole('link', { name: /Send Quote/ });
+    expect(links[links.length - 1]).toHaveAttribute('href', '/admin/organizations/o1/send-quote');
     expectNoLegacyChrome();
-    fireEvent.click(within(preview).getByRole('button', { name: 'Close preview' }));
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'Send Email' })[0]);
-    dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByLabelText('Recipient Email')).toBeInTheDocument();
-    expectDialogInScope(dialog);
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
-    const alert = await screen.findByRole('alertdialog');
-    expectDialogInScope(alert);
   });
 
   it('send quote keeps its estimate and the send action', async () => {

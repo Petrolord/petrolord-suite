@@ -25,6 +25,8 @@ const APPS = {
   blending: lazy(() => import('@/pages/apps/ProductBlendingOptimizer')),
   'refinery-planning': lazy(() => import('@/pages/apps/RefineryPlanningStudio')),
   'terminal-depot': lazy(() => import('@/pages/apps/TerminalDepotStudio')),
+  // W7F: Materials & Spares was the one downstream studio missing here.
+  'materials-spares': lazy(() => import('@/pages/apps/MaterialsSparesPlanner')),
   // Wave 7 (reservoir and ML)
   eor: lazy(() => import('@/pages/apps/EorScreeningTool')),
   'recovery-factor': lazy(() => import('@/pages/apps/RecoveryFactorEstimator')),
@@ -78,6 +80,7 @@ const SEEDS = {
   blending: () => ({ saved_blend_optimizer_projects: [] }),
   'refinery-planning': () => ({ saved_refinery_plan_projects: [] }),
   'terminal-depot': () => ({ saved_terminal_projects: [] }),
+  'materials-spares': () => ({ scm_materials_projects: [] }),
   afe: () => ({
     projects: [{ id: 'proj-h1', user_id: U, name: 'Harness Well H-1', created_at: TS }],
     afes: [{

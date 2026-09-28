@@ -25,16 +25,20 @@ const GanttChart = ({ activities }) => {
         curr = addDays(curr, 30); // Approx monthly headers
     }
 
+    // W7F: at 390 px the 300 px sticky activity column filled the whole
+    // scroller, so no bar was ever in view. On a phone the column is 140 px;
+    // the timeline (40 px a day) scrolls sideways inside this card and the
+    // page itself never scrolls.
     // Design system rollout 6B: the Gantt is a chart, so it sits on the white
     // chart card in both themes (ChartPanel pins the light roles inside it).
     return (
         <ChartPanel className="overflow-hidden p-0">
             <div>
-                <div className="w-full h-[500px] overflow-auto">
+                <div className="w-full max-w-full h-[500px] overflow-auto" data-testid="fdp-gantt-scroller">
                     <div className="relative" style={{ width: `${chartWidth + 300}px` }}>
                         {/* Header */}
                         <div className="flex h-10 bg-pl-sunken border-b border-pl-border sticky top-0 z-10">
-                            <div className="w-[300px] flex-shrink-0 p-2 border-r border-pl-border font-semibold text-pl-text text-sm sticky left-0 bg-pl-sunken z-20">
+                            <div className="w-[140px] sm:w-[300px] flex-shrink-0 p-2 border-r border-pl-border font-semibold text-pl-text text-sm sticky left-0 bg-pl-sunken z-20">
                                 Activity
                             </div>
                             <div className="flex-1 relative">
@@ -59,7 +63,7 @@ const GanttChart = ({ activities }) => {
 
                                 return (
                                     <div key={activity.id} className="flex h-12 border-b border-pl-border hover:bg-pl-sunken/60 transition-colors group">
-                                        <div className="w-[300px] flex-shrink-0 p-3 border-r border-pl-border flex items-center justify-between sticky left-0 bg-pl-chart-surface z-10 group-hover:bg-pl-sunken">
+                                        <div className="w-[140px] sm:w-[300px] flex-shrink-0 p-3 border-r border-pl-border flex items-center justify-between sticky left-0 bg-pl-chart-surface z-10 group-hover:bg-pl-sunken">
                                             <span className="text-sm font-medium text-pl-text truncate mr-2">{activity.name}</span>
                                             <span className="text-[10px] text-pl-muted">{activity.progress}%</span>
                                         </div>

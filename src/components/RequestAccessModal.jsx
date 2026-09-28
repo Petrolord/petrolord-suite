@@ -45,7 +45,7 @@ export default function RequestAccessModal({ appId, appName, moduleId, trigger, 
         if (error || data?.error) throw new Error(error?.message || data?.error);
 
         setSuccess(true);
-        toast({ title: "Request Sent", description: "Admins have been notified.", className: "bg-green-600 text-white" });
+        toast({ title: "Request Sent", description: "Admins have been notified." });
         setTimeout(() => setIsOpen(false), 2000);
 
     } catch (err) {

@@ -14,7 +14,6 @@ import StudioHeader from '@/components/studio/StudioHeader';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
-import { SectionLabel } from '@/components/waterflooddesign/primitives';
 import FluidStudioInput from '@/components/fluidstudio/FluidStudioInput';
 import FluidStudioResults from '@/components/fluidstudio/FluidStudioResults';
 import FluidStudioEmptyState from '@/components/fluidstudio/FluidStudioEmptyState';
@@ -93,7 +92,6 @@ const FluidSystemsStudioContent = () => {
   const leftPanel = (
     <div className="space-y-6">
       <section>
-        <SectionLabel>Project</SectionLabel>
         <StudioProjectManager
           projects={projects}
           currentProjectId={currentProjectId}

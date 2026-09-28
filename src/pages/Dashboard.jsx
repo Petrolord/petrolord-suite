@@ -100,7 +100,7 @@ export default function Dashboard() {
           if (!organization?.id) {
               if (isSuperAdmin) {
                   await refresh();
-                  toast({ title: "Sync Successful", description: "Dashboard entitlements refreshed (Super Admin Mode).", className: "bg-green-600 text-white" });
+                  toast({ title: "Sync Successful", description: "Dashboard entitlements refreshed (Super Admin Mode)." });
                   setSyncing(false);
                   return;
               }
@@ -115,7 +115,7 @@ export default function Dashboard() {
 
           await refresh();
           
-          toast({ title: "Sync Successful", description: "Dashboard entitlements refreshed.", className: "bg-green-600 text-white" });
+          toast({ title: "Sync Successful", description: "Dashboard entitlements refreshed." });
       } catch (err) {
           console.error("Sync failed:", err);
           toast({ title: "Sync Failed", description: "Could not refresh data.", variant: "destructive" });

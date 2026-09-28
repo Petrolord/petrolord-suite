@@ -54,8 +54,7 @@ const BookDemoModal = ({ isOpen, onClose }) => {
       toast({
         title: "Demo Request Received!",
         description: "We'll be in touch shortly (within 24 hours) to schedule your demo.",
-        duration: 5000,
-        className: "bg-green-600 text-white border-green-700"
+        duration: 5000
       });
       
       reset();
