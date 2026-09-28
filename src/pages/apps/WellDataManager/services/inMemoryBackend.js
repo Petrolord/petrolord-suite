@@ -11,6 +11,7 @@
 import { wellNameClashMessage, validateStoredCheckshotsShape } from '@/lib/wellsRegistry';
 import { parseLas } from '../engine/lasParse';
 import { prepareLasForRegistry } from '../engine/lasIndex';
+import { prepareTextChannels } from '../engine/lasTextChannels';
 
 const DEV_USER = 'user-dev';
 const DEV_ORG = 'org-dev';
@@ -371,6 +372,8 @@ export function makeInMemoryBackend(opts = {}) {
       const text = await file.text();
       const parsed = parseLas(text);
       const { prep, notes, suggestedHeader } = prepareLasForRegistry(parsed, { sourceFile: file.name || null });
+      const text3 = prepareTextChannels(text, parsed, prep, { sourceFile: file.name || null });
+      prep.textLogs = text3.logs;
       return {
         meta: {
           version: parsed.version,
@@ -385,6 +388,7 @@ export function makeInMemoryBackend(opts = {}) {
           // LAS 3.0 (2026-09-03): what the reader left out, for the import preview
           delimiter: parsed.delimiter || 'space',
           skippedCurves: parsed.skippedCurves || [],
+          textSkipped: text3.skipped,
           ignoredSections: parsed.ignoredSections || [],
           curves: parsed.curves.map(({ data, ...rest }) => rest),
         },

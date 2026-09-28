@@ -158,6 +158,14 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
             A Tops block imports as tops (a new well takes them all, an existing well keeps the names it has); core,
             lithology, facies and environment blocks import as interval logs. Other blocks are named in the preview.
           </Para>
+          <Para>
+            Text channels in the log data ({'{S}'} columns such as a lithology code) import as coded curves: 1, 2, 3 in
+            order of first appearance, with the code table kept on the curve (hover its coded text badge). Date-time
+            channels ({'{DT}'}, {'{D}'}, {'{T}'}) import as seconds after the first stamp; a stamp with no time zone is
+            read as UTC and the preview says so. A column with more than 250 different values is free text and is not
+            stored. Codes are never interpolated, so into a well whose depth grid differs from the file's these
+            channels are not offered, and the preview says why.
+          </Para>
         </GuideSection>
 
         <GuideSection id="batch">
