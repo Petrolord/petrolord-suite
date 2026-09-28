@@ -38,14 +38,14 @@ const SubsurfaceModule = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Subsurface & Reserves</h2>
-                    <p className="text-slate-400">Characterize the reservoir, estimate reserves, and define geomechanical constraints.</p>
+                    <h2 className="text-2xl font-bold text-pl-text">Subsurface & Reserves</h2>
+                    <p className="text-pl-muted">Characterize the reservoir, estimate reserves, and define geomechanical constraints.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleLoadExample} className="border-slate-700 text-slate-300">
+                    <Button variant="outline" onClick={handleLoadExample} className="border-pl-border text-pl-text">
                         <RefreshCw className="w-4 h-4 mr-2" /> Load example
                     </Button>
-                    <Button variant="outline" className="border-slate-700 text-slate-300">
+                    <Button variant="outline" className="border-pl-border text-pl-text">
                         <Upload className="w-4 h-4 mr-2" /> Import LAS/Excel
                     </Button>
                 </div>

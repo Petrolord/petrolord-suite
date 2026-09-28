@@ -1,8 +1,9 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
+import { ChartPanel } from '@/components/ui/chart-panel';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 
 /**
@@ -17,13 +18,13 @@ import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/uti
 const SensitivityAnalysis = ({ economics }) => {
     if (!economics?.available) {
         return (
-            <Card className="bg-slate-900 border-slate-800">
+            <Card>
                 <CardContent className="p-6">
-                    <div className="flex items-center text-amber-400 text-sm font-medium mb-2">
+                    <div className="flex items-center text-pl-warning-text text-sm font-medium mb-2">
                         <AlertTriangle className="w-4 h-4 mr-2" />
                         No sensitivity yet
                     </div>
-                    <p className="text-sm text-slate-300">
+                    <p className="text-sm text-pl-text">
                         The sweep runs on this plan's own case. It appears once the plan has the
                         cost, production and price the NPV needs.
                     </p>
@@ -42,11 +43,7 @@ const SensitivityAnalysis = ({ economics }) => {
         .sort((a, b) => (b.max - b.min) - (a.max - a.min));
 
     return (
-        <Card className="bg-slate-900 border-slate-800">
-            <CardHeader>
-                <CardTitle className="text-white text-sm">NPV Sensitivity (Tornado Chart)</CardTitle>
-            </CardHeader>
-            <CardContent>
+        <ChartPanel title="NPV Sensitivity (Tornado Chart)">
                 <ChartFrame height={300}>
                         <BarChart
                             layout="vertical"
@@ -75,12 +72,11 @@ const SensitivityAnalysis = ({ economics }) => {
                             </Bar>
                         </BarChart>
                     </ChartFrame>
-                <p className="text-xs text-slate-500 text-center mt-4">
+                <p className="text-xs text-pl-muted text-center mt-4">
                     Change in NPV ($MM) against this plan's base case (${base.toFixed(1)}MM), each
                     driver swept plus and minus 30 percent.
                 </p>
-            </CardContent>
-        </Card>
+        </ChartPanel>
     );
 };
 

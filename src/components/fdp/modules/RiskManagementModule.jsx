@@ -88,14 +88,14 @@ const RiskManagementModule = () => {
         <div className="space-y-6 p-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Integrated Risk Management</h2>
-                    <p className="text-slate-400">Consolidated view of technical, commercial, and HSE risks across the project.</p>
+                    <h2 className="text-2xl font-bold text-pl-text">Integrated Risk Management</h2>
+                    <p className="text-pl-muted">Consolidated view of technical, commercial, and HSE risks across the project.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" className="border-slate-700 text-slate-300">
+                    <Button variant="outline" className="border-pl-border text-pl-text">
                         <Download className="w-4 h-4 mr-2" /> Export Register
                     </Button>
-                    <Button onClick={handleCreate} className="bg-red-600 hover:bg-red-700">
+                    <Button onClick={handleCreate}>
                         <Plus className="w-4 h-4 mr-2" /> Add Project Risk
                     </Button>
                 </div>
@@ -147,7 +147,7 @@ const RiskManagementModule = () => {
                     </AlertDialogHeader>
                     <div className="flex justify-end gap-2">
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
+                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90">
                             Delete
                         </AlertDialogAction>
                     </div>

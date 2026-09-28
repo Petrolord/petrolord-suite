@@ -39,10 +39,10 @@ const ConceptForm = ({ initialData, onSave, onCancel }) => {
     };
 
     return (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                    <Lightbulb className="w-5 h-5 mr-2 text-yellow-400" />
+                <CardTitle className="text-pl-text flex items-center">
+                    <Lightbulb className="w-5 h-5 mr-2 text-pl-muted" />
                     {initialData ? 'Edit Concept' : 'New Development Concept'}
                 </CardTitle>
             </CardHeader>
@@ -56,7 +56,6 @@ const ConceptForm = ({ initialData, onSave, onCancel }) => {
                                 onChange={(e) => handleChange('name', e.target.value)} 
                                 placeholder="e.g., FPSO + Subsea Tie-back"
                                 required
-                                className="bg-slate-800 border-slate-700"
                             />
                         </div>
                         <div className="space-y-2">
@@ -65,7 +64,7 @@ const ConceptForm = ({ initialData, onSave, onCancel }) => {
                                 value={formData.facilityType} 
                                 onValueChange={(v) => handleChange('facilityType', v)}
                             >
-                                <SelectTrigger className="bg-slate-800 border-slate-700">
+                                <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -85,7 +84,7 @@ const ConceptForm = ({ initialData, onSave, onCancel }) => {
                             value={formData.description} 
                             onChange={(e) => handleChange('description', e.target.value)} 
                             placeholder="Describe the concept strategy..."
-                            className="bg-slate-800 border-slate-700 min-h-[100px]"
+                            className="min-h-[100px]"
                         />
                     </div>
 
@@ -96,7 +95,7 @@ const ConceptForm = ({ initialData, onSave, onCancel }) => {
                                 value={formData.driveMechanism} 
                                 onValueChange={(v) => handleChange('driveMechanism', v)}
                             >
-                                <SelectTrigger className="bg-slate-800 border-slate-700">
+                                <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -113,7 +112,6 @@ const ConceptForm = ({ initialData, onSave, onCancel }) => {
                                 type="number"
                                 value={formData.wellCount} 
                                 onChange={(e) => handleChange('wellCount', parseInt(e.target.value))} 
-                                className="bg-slate-800 border-slate-700"
                             />
                         </div>
                         <div className="space-y-2">
@@ -122,38 +120,37 @@ const ConceptForm = ({ initialData, onSave, onCancel }) => {
                                 type="number"
                                 value={formData.peakProduction} 
                                 onChange={(e) => handleChange('peakProduction', parseFloat(e.target.value))} 
-                                className="bg-slate-800 border-slate-700"
                             />
                         </div>
                     </div>
 
-                    <div className="p-4 bg-slate-800/50 rounded border border-slate-700">
-                        <h4 className="text-sm font-bold text-slate-300 mb-3 uppercase">Cost Estimates (MM$)</h4>
+                    <div className="p-4 bg-pl-sunken rounded border border-pl-border">
+                        <h4 className="text-sm font-bold text-pl-text mb-3 uppercase">Cost Estimates (MM$)</h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div>
                                 <Label className="text-xs">Drilling CAPEX</Label>
-                                <Input type="number" value={formData.drillingCapex} onChange={(e) => handleChange('drillingCapex', parseFloat(e.target.value))} className="bg-slate-900 border-slate-700 h-8" />
+                                <Input type="number" value={formData.drillingCapex} onChange={(e) => handleChange('drillingCapex', parseFloat(e.target.value))} className="h-8" />
                             </div>
                             <div>
                                 <Label className="text-xs">Facilities CAPEX</Label>
-                                <Input type="number" value={formData.facilitiesCapex} onChange={(e) => handleChange('facilitiesCapex', parseFloat(e.target.value))} className="bg-slate-900 border-slate-700 h-8" />
+                                <Input type="number" value={formData.facilitiesCapex} onChange={(e) => handleChange('facilitiesCapex', parseFloat(e.target.value))} className="h-8" />
                             </div>
                             <div>
                                 <Label className="text-xs">Subsea CAPEX</Label>
-                                <Input type="number" value={formData.subseaCapex} onChange={(e) => handleChange('subseaCapex', parseFloat(e.target.value))} className="bg-slate-900 border-slate-700 h-8" />
+                                <Input type="number" value={formData.subseaCapex} onChange={(e) => handleChange('subseaCapex', parseFloat(e.target.value))} className="h-8" />
                             </div>
                             <div>
                                 <Label className="text-xs">Annual OPEX</Label>
-                                <Input type="number" value={formData.opex} onChange={(e) => handleChange('opex', parseFloat(e.target.value))} className="bg-slate-900 border-slate-700 h-8" />
+                                <Input type="number" value={formData.opex} onChange={(e) => handleChange('opex', parseFloat(e.target.value))} className="h-8" />
                             </div>
                         </div>
                     </div>
 
                     <div className="flex justify-end gap-2 pt-4">
-                        <Button type="button" variant="ghost" onClick={onCancel} className="text-slate-400 hover:text-white">
+                        <Button type="button" variant="ghost" onClick={onCancel} className="text-pl-muted hover:text-pl-text">
                             <X className="w-4 h-4 mr-2" /> Cancel
                         </Button>
-                        <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
+                        <Button type="submit" className="">
                             <Save className="w-4 h-4 mr-2" /> Save Concept
                         </Button>
                     </div>

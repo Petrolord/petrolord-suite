@@ -75,16 +75,16 @@ const CostModule = () => {
         <div className="space-y-6 p-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Cost & Economics</h2>
-                    <p className="text-slate-400">Manage budget, estimate CAPEX/OPEX, and analyze economic viability.</p>
+                    <h2 className="text-2xl font-bold text-pl-text">Cost & Economics</h2>
+                    <p className="text-pl-muted">Manage budget, estimate CAPEX/OPEX, and analyze economic viability.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleLoadExample} className="border-slate-700 text-slate-300">
+                    <Button variant="outline" onClick={handleLoadExample} className="border-pl-border text-pl-text">
                         <Download className="w-4 h-4 mr-2" /> Load example
                     </Button>
                     <Button 
                         onClick={handleCreate} 
-                        className="bg-green-600 hover:bg-green-700"
+                        className=""
                     >
                         <Plus className="w-4 h-4 mr-2" /> Add Cost Item
                     </Button>
@@ -128,7 +128,7 @@ const CostModule = () => {
                     </AlertDialogHeader>
                     <div className="flex justify-end gap-2">
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
+                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90">
                             Delete
                         </AlertDialogAction>
                     </div>

@@ -16,7 +16,7 @@ import { AlertTriangle } from 'lucide-react';
  * figure carries the unit its own arithmetic produces.
  */
 const FacilitiesCapacityAnalysis = ({ facility, peakOilBpd, gorScfPerBbl }) => {
-    if (!facility) return <div className="text-slate-500 p-4">Select a facility to view capacity analysis.</div>;
+    if (!facility) return <div className="text-pl-muted p-4">Select a facility to view capacity analysis.</div>;
 
     const capacity = calculateFacilityCapacity(facility);
     const peakGasMscfd = peakOilBpd && gorScfPerBbl ? (peakOilBpd * gorScfPerBbl) / 1000 : null;
@@ -33,45 +33,45 @@ const FacilitiesCapacityAnalysis = ({ facility, peakOilBpd, gorScfPerBbl }) => {
 
     const Bar = ({ percent, colour }) => (
         <>
-            <div className="mt-2 w-full bg-slate-800 h-1 rounded-full overflow-hidden">
+            <div className="mt-2 w-full bg-pl-sunken h-1 rounded-full overflow-hidden">
                 <div className={`${colour} h-full`} style={{ width: `${Math.min(percent, 100)}%` }} />
             </div>
-            <div className="text-xs text-right mt-1 text-slate-400">{percent}% of capacity</div>
+            <div className="text-xs text-right mt-1 text-pl-muted">{percent}% of capacity</div>
         </>
     );
 
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="bg-slate-900 border-slate-800">
+                <Card>
                     <CardContent className="p-4">
-                        <div className="text-xs text-slate-400 uppercase">Oil Capacity</div>
-                        <div className="text-2xl font-bold text-white">
-                            {capacity.oilCapacity.toLocaleString()} <span className="text-xs text-slate-500">bpd</span>
+                        <div className="text-xs text-pl-muted uppercase">Oil Capacity</div>
+                        <div className="text-2xl font-bold text-pl-text">
+                            {capacity.oilCapacity.toLocaleString()} <span className="text-xs text-pl-muted">bpd</span>
                         </div>
                         {oilUtilisation === null
-                            ? <div className="text-xs text-slate-500 mt-2">No peak rate on the concept yet</div>
-                            : <Bar percent={oilUtilisation} colour="bg-green-500" />}
+                            ? <div className="text-xs text-pl-muted mt-2">No peak rate on the concept yet</div>
+                            : <Bar percent={oilUtilisation} colour="bg-pl-primary" />}
                     </CardContent>
                 </Card>
-                <Card className="bg-slate-900 border-slate-800">
+                <Card>
                     <CardContent className="p-4">
-                        <div className="text-xs text-slate-400 uppercase">Gas Capacity</div>
-                        <div className="text-2xl font-bold text-white">
-                            {capacity.gasCapacity.toLocaleString()} <span className="text-xs text-slate-500">Mscf/d</span>
+                        <div className="text-xs text-pl-muted uppercase">Gas Capacity</div>
+                        <div className="text-2xl font-bold text-pl-text">
+                            {capacity.gasCapacity.toLocaleString()} <span className="text-xs text-pl-muted">Mscf/d</span>
                         </div>
                         {gasUtilisation === null
-                            ? <div className="text-xs text-slate-500 mt-2">No gas-oil ratio on the plan yet</div>
-                            : <Bar percent={gasUtilisation} colour="bg-blue-500" />}
+                            ? <div className="text-xs text-pl-muted mt-2">No gas-oil ratio on the plan yet</div>
+                            : <Bar percent={gasUtilisation} colour="bg-pl-primary" />}
                     </CardContent>
                 </Card>
-                <Card className="bg-slate-900 border-slate-800">
+                <Card>
                     <CardContent className="p-4">
-                        <div className="text-xs text-slate-400 uppercase">Water Handling</div>
-                        <div className="text-2xl font-bold text-white">
-                            {capacity.waterHandling.toLocaleString()} <span className="text-xs text-slate-500">bpd</span>
+                        <div className="text-xs text-pl-muted uppercase">Water Handling</div>
+                        <div className="text-2xl font-bold text-pl-text">
+                            {capacity.waterHandling.toLocaleString()} <span className="text-xs text-pl-muted">bpd</span>
                         </div>
-                        <div className="text-xs text-slate-500 mt-2">
+                        <div className="text-xs text-pl-muted mt-2">
                             The plan carries no produced water forecast, so there is nothing to measure
                             this against.
                         </div>
@@ -79,7 +79,7 @@ const FacilitiesCapacityAnalysis = ({ facility, peakOilBpd, gorScfPerBbl }) => {
                 </Card>
             </div>
 
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-pl-muted">
                 Oil capacity is the nameplate entered on the facility; gas capacity is 1,500 scf per
                 barrel of that nameplate. Utilisation is against
                 {peakOilBpd
@@ -87,26 +87,26 @@ const FacilitiesCapacityAnalysis = ({ facility, peakOilBpd, gorScfPerBbl }) => {
                     : ' the plan\'s own peak rate, once a concept carries one.'}
             </p>
 
-            <Card className="bg-slate-900 border-slate-800">
+            <Card>
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-white flex items-center">
-                        <AlertTriangle className="w-4 h-4 mr-2 text-yellow-500" />
+                    <CardTitle className="text-sm font-medium text-pl-text flex items-center">
+                        <AlertTriangle className="w-4 h-4 mr-2 text-pl-warning-text" />
                         Identified Bottlenecks (Peak Production)
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     {!peakOilBpd ? (
-                        <p className="text-sm text-slate-400">
+                        <p className="text-sm text-pl-muted">
                             Enter a peak production rate on a concept to check this facility against it.
                         </p>
                     ) : bottlenecks.length > 0 ? (
-                        <ul className="list-disc list-inside space-y-1 text-sm text-slate-300">
+                        <ul className="list-disc list-inside space-y-1 text-sm text-pl-text">
                             {bottlenecks.map((b, i) => (
-                                <li key={i} className="text-red-300">{b}</li>
+                                <li key={i} className="text-pl-danger-text">{b}</li>
                             ))}
                         </ul>
                     ) : (
-                        <p className="text-sm text-green-400">No bottleneck at this plan's peak rate.</p>
+                        <p className="text-sm text-pl-success-text">No bottleneck at this plan's peak rate.</p>
                     )}
                 </CardContent>
             </Card>

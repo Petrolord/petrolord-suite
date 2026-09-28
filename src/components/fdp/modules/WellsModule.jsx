@@ -85,16 +85,16 @@ const WellsModule = () => {
         <div className="space-y-6 p-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Wells & Drilling</h2>
-                    <p className="text-slate-400">Design well trajectories, schedule drilling campaigns, and manage risks.</p>
+                    <h2 className="text-2xl font-bold text-pl-text">Wells & Drilling</h2>
+                    <p className="text-pl-muted">Design well trajectories, schedule drilling campaigns, and manage risks.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleLoadExample} className="border-slate-700 text-slate-300">
+                    <Button variant="outline" onClick={handleLoadExample} className="border-pl-border text-pl-text">
                         <Download className="w-4 h-4 mr-2" /> Load example
                     </Button>
                     <Button 
                         onClick={handleCreate} 
-                        className="bg-blue-600 hover:bg-blue-700"
+                        className=""
                     >
                         <Plus className="w-4 h-4 mr-2" /> Add Well
                     </Button>
@@ -118,24 +118,24 @@ const WellsModule = () => {
                             carried and nothing ever read. */}
                         <div className="flex flex-col sm:flex-row gap-4 mb-4">
                             <div className="space-y-1">
-                                <label className="text-xs text-slate-400 uppercase tracking-wider">Rigs</label>
+                                <label className="text-xs text-pl-muted uppercase tracking-wider">Rigs</label>
                                 <Input
                                     type="number"
                                     min="1"
                                     value={rigCount}
                                     onChange={(e) => actions.updateWells({ rigs: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-                                    className="bg-slate-900 border-slate-800 w-28"
+                                    className="w-28"
                                 />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs text-slate-400 uppercase tracking-wider">Rig rate (USD/day)</label>
+                                <label className="text-xs text-pl-muted uppercase tracking-wider">Rig rate (USD/day)</label>
                                 <Input
                                     type="number"
                                     min="0"
                                     step="1000"
                                     value={rigRate}
                                     onChange={(e) => actions.updateWells({ rigRate: parseFloat(e.target.value) || 0 })}
-                                    className="bg-slate-900 border-slate-800 w-40"
+                                    className="w-40"
                                 />
                             </div>
                         </div>
@@ -165,7 +165,7 @@ const WellsModule = () => {
                     </AlertDialogHeader>
                     <div className="flex justify-end gap-2">
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
+                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90">
                             Delete
                         </AlertDialogAction>
                     </div>
