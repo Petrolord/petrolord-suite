@@ -205,3 +205,7 @@ themes.
   provider, adapted primitives, shell pieces, specimen, docs, tests). Pilots
   not started. Next: owner decisions above, then pilot PRs in the order EPE,
   hubs, DCA, VRR/Studio kit, Seismolord.
+- 2026-09-27: pilot 2, Decline Curve Analysis, on `feat/ds-pilot-dca`. The
+  Studio kit shell gained scope-only theming on the way (inert outside a
+  scope, proven by `src/components/studio/__tests__/studioKitOptIn.test.jsx`),
+  which the Studio kit pilot can build on.
