@@ -2,7 +2,6 @@ import React from 'react';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useDsTheme } from '@/design/themeContext';
 
 // Design system: merged over the legacy classes only inside an opted-in
 // scope. A 4px corner keeps the box square where --radius grows to 12px.
@@ -11,7 +10,6 @@ const THEMED =
   + 'data-[state=checked]:border-pl-primary data-[state=checked]:bg-pl-primary data-[state=checked]:text-pl-primary-fg';
 
 const Checkbox = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
     <CheckboxPrimitive.Root
       ref={ref}

@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
-import { useStudioTheme } from './studioTheme';
 
 // Design system: inside a <ThemedApp> scope the adapted Select, Button and
 // Dialog supply the theme; the legacy slate overrides apply only outside one.
@@ -29,7 +28,6 @@ const StudioProjectManager = ({
 }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
-  const { ds, tc } = useStudioTheme();
   const outlineBtn = '';
 
   const handleCreate = () => {

@@ -5,7 +5,6 @@
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
-import { useThemeClass } from '@/design/themeClass';
 import {
   formatFull, formatMoneyMM, pickPrecision, FULL_PRECISION_DECIMALS, MONEY_MM_DECIMALS,
 } from '@/lib/fullPrecision';
@@ -45,7 +44,6 @@ export function useFullPrecision() {
 // (pinned in src/design/__tests__/uiLegacyDom.test.jsx).
 export function FullPrecisionToggle({ app, className, tone = 'dark' }) {
   const ctx = useContext(FullPrecisionContext);
-  const tc = useThemeClass();
   if (!ctx) return null;
   const { full, setFull } = ctx;
   const id = `full-precision-${app || 'app'}`;
@@ -71,7 +69,6 @@ export function FullPrecisionToggle({ app, className, tone = 'dark' }) {
 // says which mode it was taken in.
 export function FullPrecisionNote({ className }) {
   const { full } = useFullPrecision();
-  const tc = useThemeClass();
   if (!full) return null;
   return (
     <p className={cn('text-[11px] text-pl-warning-text', className)} data-testid="full-precision-note">

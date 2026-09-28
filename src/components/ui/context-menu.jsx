@@ -3,7 +3,7 @@ import * as ContextMenuPrimitive from "@radix-ui/react-context-menu"
 import { Check, ChevronRight, Circle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { useDsTheme, usePortalThemeProps } from "@/design/themeContext"
+import { usePortalThemeProps } from "@/design/themeContext";
 
 // Design system: merged over the legacy classes only inside an opted-in
 // scope (tailwind-merge swaps the colours), the same roles as the dropdown
@@ -30,7 +30,6 @@ const ContextMenuSub = ContextMenuPrimitive.Sub
 const ContextMenuRadioGroup = ContextMenuPrimitive.RadioGroup
 
 const ContextMenuSubTrigger = React.forwardRef(({ className, inset, children, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <ContextMenuPrimitive.SubTrigger
       ref={ref}
@@ -51,7 +50,6 @@ ContextMenuSubTrigger.displayName =
   ContextMenuPrimitive.SubTrigger.displayName
 
 const ContextMenuSubContent = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   const portalProps = usePortalThemeProps()
   return (
     <ContextMenuPrimitive.SubContent
@@ -70,7 +68,6 @@ ContextMenuSubContent.displayName =
   ContextMenuPrimitive.SubContent.displayName
 
 const ContextMenuContent = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   const portalProps = usePortalThemeProps()
   return (
     <ContextMenuPrimitive.Portal>
@@ -90,7 +87,6 @@ const ContextMenuContent = React.forwardRef(({ className, ...props }, ref) => {
 ContextMenuContent.displayName = ContextMenuPrimitive.Content.displayName
 
 const ContextMenuItem = React.forwardRef(({ className, inset, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <ContextMenuPrimitive.Item
       ref={ref}
@@ -107,7 +103,6 @@ const ContextMenuItem = React.forwardRef(({ className, inset, ...props }, ref) =
 ContextMenuItem.displayName = ContextMenuPrimitive.Item.displayName
 
 const ContextMenuCheckboxItem = React.forwardRef(({ className, children, checked, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
   <ContextMenuPrimitive.CheckboxItem
     ref={ref}
@@ -132,7 +127,6 @@ ContextMenuCheckboxItem.displayName =
   ContextMenuPrimitive.CheckboxItem.displayName
 
 const ContextMenuRadioItem = React.forwardRef(({ className, children, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
   <ContextMenuPrimitive.RadioItem
     ref={ref}
@@ -155,7 +149,6 @@ const ContextMenuRadioItem = React.forwardRef(({ className, children, ...props }
 ContextMenuRadioItem.displayName = ContextMenuPrimitive.RadioItem.displayName
 
 const ContextMenuLabel = React.forwardRef(({ className, inset, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <ContextMenuPrimitive.Label
       ref={ref}
@@ -172,7 +165,6 @@ const ContextMenuLabel = React.forwardRef(({ className, inset, ...props }, ref) 
 ContextMenuLabel.displayName = ContextMenuPrimitive.Label.displayName
 
 const ContextMenuSeparator = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <ContextMenuPrimitive.Separator
       ref={ref}
@@ -187,7 +179,6 @@ const ContextMenuShortcut = ({
   className,
   ...props
 }) => {
-  const ds = useDsTheme()
   return (
     <span
       className={cn("ml-auto text-xs tracking-widest text-slate-400", THEMED.shortcut, className)}

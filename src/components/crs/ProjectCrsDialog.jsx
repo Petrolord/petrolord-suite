@@ -13,38 +13,7 @@ import {
   getProjectCrs, setProjectCrs, countCrsTaggedData, addCustomDef,
 } from '@/lib/crs/settingsService';
 import { reprojectProjectData } from '@/lib/crs/reprojectProject';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system: themed class strings for tc() (see src/design/themeClass.js).
-// Outside an opted-in scope tc() returns the legacy string unchanged.
-const THEMED_CLASSES = {
-  "bg-slate-900 border-slate-700 text-slate-200 max-w-lg":
-    "bg-pl-sunken border-pl-border text-pl-text max-w-lg",
-  "flex items-center text-white":
-    "flex items-center text-pl-text",
-  "w-5 h-5 mr-2 text-cyan-400":
-    "w-5 h-5 mr-2 text-pl-primary-text",
-  "text-slate-400":
-    "text-pl-muted",
-  "flex items-center text-slate-400 text-sm py-4":
-    "flex items-center text-pl-muted text-sm py-4",
-  "text-slate-300":
-    "text-pl-text",
-  "rounded-lg border border-amber-700/50 bg-amber-950/20 p-3 text-sm text-amber-300 flex items-start":
-    "rounded-lg border border-pl-warning/50 bg-pl-warning-bg p-3 text-sm text-pl-warning-text flex items-start",
-  "border-amber-700/60 text-amber-300 hover:bg-amber-500/10":
-    "border-pl-warning/60 text-pl-warning-text hover:bg-pl-warning-bg",
-  "flex items-center text-sm text-cyan-300":
-    "flex items-center text-sm text-pl-primary-text",
-  "rounded-lg border border-emerald-700/50 bg-emerald-950/20 p-3 text-sm text-emerald-300 space-y-1":
-    "rounded-lg border border-pl-success/50 bg-pl-success-bg p-3 text-sm text-pl-success-text space-y-1",
-  "text-amber-300":
-    "text-pl-warning-text",
-  "bg-cyan-600 hover:bg-cyan-500 text-white":
-    "bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg",
-  "bg-amber-600 hover:bg-amber-500 text-white":
-    "bg-pl-warning-bg hover:bg-pl-warning text-pl-text",
-};
 
 /**
  * View and set the Project CRS (Petrel model): the one system all
@@ -55,7 +24,6 @@ const THEMED_CLASSES = {
  *   onChanged?: (p: {tag: string, name: ?string}) => void}} p
  */
 export default function ProjectCrsDialog({ open, onOpenChange, onChanged }) {
-  const tc = useThemeClass(THEMED_CLASSES);
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

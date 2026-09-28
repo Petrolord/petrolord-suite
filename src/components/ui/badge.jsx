@@ -2,7 +2,6 @@ import * as React from "react"
 import { cva } from "class-variance-authority";
 
 import { cn } from "@/lib/utils"
-import { useDsTheme } from "@/design/themeContext"
 
 const badgeVariants = cva(
   "inline-flex items-center rounded-full border border-slate-200 px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 dark:border-slate-800 dark:focus:ring-slate-300",
@@ -60,7 +59,6 @@ function Badge({
   variant,
   ...props
 }) {
-  const ds = useDsTheme()
   const variants = themedBadgeVariants
   return (<div className={cn(variants({ variant }), className)} {...props} />);
 }

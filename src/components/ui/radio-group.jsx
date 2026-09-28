@@ -3,7 +3,6 @@ import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
 import { Circle } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import { useThemeClass } from '@/design/themeClass';
 
 const RadioGroup = React.forwardRef(({ className, ...props }, ref) => {
   return <RadioGroupPrimitive.Root className={cn('grid gap-2', className)} {...props} ref={ref} />;
@@ -14,7 +13,6 @@ RadioGroup.displayName = RadioGroupPrimitive.Root.displayName;
 // when chosen); outside one the legacy string, byte for byte (pinned in
 // uiLegacyDom.test.jsx).
 const RadioGroupItem = React.forwardRef(({ className, ...props }, ref) => {
-  const tc = useThemeClass();
   return (
     <RadioGroupPrimitive.Item
       ref={ref}

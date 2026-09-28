@@ -1,12 +1,10 @@
 import React from 'react';
 import * as SeparatorPrimitive from '@radix-ui/react-separator';
 import { cn } from '@/lib/utils';
-import { useDsTheme } from '@/design/themeContext';
 
 const Separator = React.forwardRef(
   ({ className, orientation = 'horizontal', decorative = true, ...props }, ref) => {
     // Design system: the hairline role inside an opted-in scope.
-    const ds = useDsTheme();
     return (
       <SeparatorPrimitive.Root
         ref={ref}

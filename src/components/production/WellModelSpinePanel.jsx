@@ -13,14 +13,12 @@ import React from 'react';
 import { Download, Upload, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { describeWellModel } from '@/utils/production/wellModel';
-import { useThemeClass } from '@/design/themeClass';
 
 const WellModelSpinePanel = ({
   wellName, savedModel, isDirty, onLoad, onSave, busy,
 }) => {
   // Design system (rollout W0B): roles inside an opted-in app; outside a
   // <ThemedApp> scope tc() returns the legacy strings unchanged.
-  const tc = useThemeClass();
   const note = 'text-[11px] text-pl-muted';
   if (!wellName) {
     return (

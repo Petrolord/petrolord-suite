@@ -9,44 +9,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Upload, Trash2, Loader2, Save } from 'lucide-react';
 import { CORE_IMAGE_MAX_BYTES } from '@/lib/stratRegistry';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system (W0C): themed strings for tc(); outside an opted-in scope
-// tc() returns the legacy string unchanged.
-// The core strip is an image track: a dark canvas in both themes.
-const THEMED_CLASSES = {
-  "bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-xs text-slate-100":
-    "bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus disabled:opacity-60",
-  "flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40":
-    "flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken disabled:opacity-40",
-  "text-slate-400 text-xs":
-    "text-pl-muted text-xs",
-  "flex items-center gap-1 text-slate-400":
-    "flex items-center gap-1 text-pl-muted",
-  "text-slate-500":
-    "text-pl-muted",
-  "text-[10px] text-slate-500 mb-0.5":
-    "text-[10px] text-pl-muted mb-0.5",
-  "text-[10px] text-slate-500 mt-0.5":
-    "text-[10px] text-pl-muted mt-0.5",
-  "relative bg-slate-950 border border-slate-800 rounded":
-    "relative bg-pl-sunken border border-pl-border rounded",
-  "absolute left-0 right-0 bg-slate-800":
-    "absolute left-0 right-0 bg-pl-raised",
-  "text-left font-medium text-slate-500 pr-3 pb-1":
-    "text-left font-medium text-pl-muted pr-3 pb-1",
-  "w-12 h-12 object-cover rounded border border-slate-800":
-    "w-12 h-12 object-cover rounded border border-pl-border",
-  "w-12 h-12 rounded bg-slate-800":
-    "w-12 h-12 rounded bg-pl-sunken",
-  "pr-3 py-0.5 text-slate-500":
-    "pr-3 py-0.5 text-pl-muted",
-  "text-slate-500 hover:text-red-400":
-    "text-pl-muted hover:text-pl-danger-text",
-};
 
-const cellCls = 'bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-xs text-slate-100';
-const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40';
+const cellCls = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus disabled:opacity-60';
+const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken disabled:opacity-40';
 
 /** Read an image file's pixel size in the browser; null when it cannot be decoded. */
 function imageSize(file) {
@@ -74,9 +40,8 @@ function imageSize(file) {
  * @param {string} [p.testIdPrefix]
  */
 export default function CoreImagesPanel({ well, images, canEdit = true, onUpload, onUpdate, onDelete, urlOf, onStatus, testIdPrefix = 'wdm-core' }) {
-  const tc = useThemeClass(THEMED_CLASSES);
-  const cell = tc(cellCls);
-  const btn = tc(btnCls);
+  const cell = cellCls;
+  const btn = btnCls;
   const [file, setFile] = useState(null);
   const [top, setTop] = useState('');
   const [base, setBase] = useState('');

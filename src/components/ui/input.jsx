@@ -1,13 +1,11 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { useDsTheme } from '@/design/themeContext';
 
 // Design system: FIELD_THEMED is merged over the legacy classes only inside
 // an opted-in scope (tailwind-merge replaces the colour classes).
 export const FIELD_THEMED = 'border-pl-border-strong bg-pl-surface text-pl-text ring-offset-pl-bg placeholder:text-pl-muted focus-visible:ring-pl-focus';
 
 const Input = React.forwardRef(({ className, type, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
     <input
       type={type}

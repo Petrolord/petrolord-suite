@@ -2,13 +2,12 @@
 // (generalized from DCANotifications; pairs with useStudioNotifications).
 import React from 'react';
 import { X } from 'lucide-react';
-import { useStudioTheme, THEMED_TONE } from './studioTheme';
+import { THEMED_TONE } from './studioTheme';
 
 // Design system: status roles inside a <ThemedApp> scope, legacy classes outside.
 const THEMED_NOTE = { error: THEMED_TONE.danger, success: THEMED_TONE.good, warning: THEMED_TONE.warn };
 
 const StudioNotifications = ({ notifications = [], onDismiss }) => {
-  const { ds } = useStudioTheme();
   if (notifications.length === 0) return null;
 
   return (

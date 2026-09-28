@@ -34,38 +34,7 @@ import { placeWellLocation, placeDeviation } from '@/lib/crs/wellPlacement';
 import { normalizeTag, isTransformableTag, UNKNOWN } from '@/lib/crs/tags';
 import ColumnMapper from './ColumnMapper';
 import { CheckshotConventionRow, MdUnitSelect, CHECKSHOT_FIELD_LABELS } from './PasteReplacePanel';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system: themed class strings for tc() (see src/design/themeClass.js).
-// Outside an opted-in scope tc() returns the legacy string unchanged.
-const THEMED_CLASSES = {
-  "rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs":
-    "rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs",
-  "text-xs text-slate-400 flex items-center gap-1":
-    "text-xs text-pl-muted flex items-center gap-1",
-  "rounded border border-slate-800 bg-slate-950/40 p-2 space-y-2":
-    "rounded border border-pl-border bg-pl-sunken/40 p-2 space-y-2",
-  "flex items-center gap-2 text-xs text-slate-400":
-    "flex items-center gap-2 text-xs text-pl-muted",
-  "border-cyan-500/60 text-cyan-300":
-    "border-pl-primary/60 text-pl-primary-text",
-  "border-slate-700 text-slate-400":
-    "border-pl-border text-pl-muted",
-  "ml-auto text-slate-500":
-    "ml-auto text-pl-muted",
-  "text-xs text-slate-400 flex items-center gap-1 col-span-2":
-    "text-xs text-pl-muted flex items-center gap-1 col-span-2",
-  "ml-auto text-xs text-slate-400 cursor-pointer hover:text-slate-200":
-    "ml-auto text-xs text-pl-muted cursor-pointer hover:text-pl-text",
-  "flex flex-wrap items-center gap-3 text-xs text-slate-400":
-    "flex flex-wrap items-center gap-3 text-xs text-pl-muted",
-  "text-[11px] text-slate-500":
-    "text-[11px] text-pl-muted",
-  "text-xs text-red-400":
-    "text-xs text-pl-danger-text",
-  "bg-cyan-600 hover:bg-cyan-500 text-white":
-    "bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg",
-};
 
 const TABS = [
   { key: 'deviation', label: 'Deviation', fields: ['md', 'inc', 'azi'] },
@@ -73,7 +42,7 @@ const TABS = [
   { key: 'checkshots', label: 'Checkshots', fields: ['depth', 'time'] },
 ];
 
-const INPUT_CLS = 'rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
+const INPUT_CLS = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 
 /** One import tab's parse + mapping state, derived from its text. */
 function useTabData(text, fields, mapOverride) {
@@ -107,8 +76,7 @@ const unitLabel = (u) => (u === 'ft' ? 'ft' : 'm');
  *   UNKNOWN placement
  */
 export default function WellImport({ onSave, crsContext }) {
-  const tc = useThemeClass(THEMED_CLASSES);
-  const inputCls = tc(INPUT_CLS);
+  const inputCls = INPUT_CLS;
   const [head, setHead] = useState({ name: '', uwi: '', x: '', y: '', kb: '0', td: '' });
   const [headUnit, setHeadUnit] = useState('m');           // KB and TD as typed
   const [tab, setTab] = useState('deviation');

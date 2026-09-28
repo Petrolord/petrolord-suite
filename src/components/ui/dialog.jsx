@@ -3,7 +3,7 @@ import * as React from "react"
     import { X } from "lucide-react"
 
     import { cn } from "@/lib/utils"
-    import { useDsTheme, usePortalThemeProps } from "@/design/themeContext"
+    import { usePortalThemeProps } from "@/design/themeContext";
 
 // Design system: overlay classes merged over the legacy ones only inside an
 // opted-in <ThemedApp> scope (tailwind-merge swaps the colours). Portal
@@ -24,7 +24,6 @@ const THEMED = {
     const DialogClose = DialogPrimitive.Close
 
     const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   const portalProps = usePortalThemeProps();
   return (
       <DialogPrimitive.Overlay
@@ -40,7 +39,6 @@ const THEMED = {
     DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
     const DialogContent = React.forwardRef(({ className, children, ...props }, ref) => {
-  const ds = useDsTheme();
   const portalProps = usePortalThemeProps();
   return (
       <DialogPortal>
@@ -86,7 +84,6 @@ const THEMED = {
     DialogFooter.displayName = "DialogFooter"
 
     const DialogTitle = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
       <DialogPrimitive.Title
         ref={ref}
@@ -97,7 +94,6 @@ const THEMED = {
     DialogTitle.displayName = DialogPrimitive.Title.displayName
 
     const DialogDescription = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
       <DialogPrimitive.Description
         ref={ref}

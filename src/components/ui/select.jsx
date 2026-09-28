@@ -3,7 +3,7 @@ import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { useDsTheme, usePortalThemeProps } from "@/design/themeContext"
+import { usePortalThemeProps } from "@/design/themeContext";
 
 // Design system: overlay classes merged over the legacy ones only inside an
 // opted-in <ThemedApp> scope (tailwind-merge swaps the colours). Portal
@@ -23,7 +23,6 @@ const SelectGroup = SelectPrimitive.Group
 const SelectValue = SelectPrimitive.Value
 
 const SelectTrigger = React.forwardRef(({ className, children, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
   <SelectPrimitive.Trigger
     ref={ref}
@@ -43,7 +42,6 @@ const SelectTrigger = React.forwardRef(({ className, children, ...props }, ref) 
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 
 const SelectContent = React.forwardRef(({ className, children, position = "popper", ...props }, ref) => {
-  const ds = useDsTheme();
   const portalProps = usePortalThemeProps();
   return (
   <SelectPrimitive.Portal>
@@ -75,7 +73,6 @@ const SelectContent = React.forwardRef(({ className, children, position = "poppe
 SelectContent.displayName = SelectPrimitive.Content.displayName;
 
 const SelectLabel = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
   <SelectPrimitive.Label
     ref={ref}
@@ -87,7 +84,6 @@ const SelectLabel = React.forwardRef(({ className, ...props }, ref) => {
 SelectLabel.displayName = SelectPrimitive.Label.displayName;
 
 const SelectItem = React.forwardRef(({ className, children, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
   <SelectPrimitive.Item
     ref={ref}
@@ -110,7 +106,6 @@ const SelectItem = React.forwardRef(({ className, children, ...props }, ref) => 
 SelectItem.displayName = SelectPrimitive.Item.displayName;
 
 const SelectSeparator = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
   <SelectPrimitive.Separator
     ref={ref}

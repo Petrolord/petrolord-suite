@@ -16,31 +16,10 @@ import { validateIntervals, sortIntervals, thicknessByCode } from '@/lib/stratig
 import { MOTIFS, SYSTEMS_TRACTS, STACKING_PATTERNS } from '@/lib/stratigraphy/vocabulary';
 import { buildIntervals } from '@/lib/wellImport';
 import PasteReplacePanel from './PasteReplacePanel';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system (W0C): themed strings for tc(); outside an opted-in scope
-// tc() returns the legacy string unchanged.
-const THEMED_CLASSES = {
-  "bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-xs text-slate-100":
-    "bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus disabled:opacity-60",
-  "flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40":
-    "flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken disabled:opacity-40",
-  "border-cyan-500/60 text-cyan-300":
-    "border-pl-primary text-pl-primary-text",
-  "flex items-center gap-1 text-slate-400":
-    "flex items-center gap-1 text-pl-muted",
-  "text-slate-500":
-    "text-pl-muted",
-  "text-red-300 space-y-0.5":
-    "text-pl-danger-text space-y-0.5",
-  "text-left font-medium text-slate-500 pr-3 pb-1":
-    "text-left font-medium text-pl-muted pr-3 pb-1",
-  "text-slate-500 hover:text-red-400":
-    "text-pl-muted hover:text-pl-danger-text",
-};
 
-const cellCls = 'bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-xs text-slate-100';
-const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40';
+const cellCls = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus disabled:opacity-60';
+const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken disabled:opacity-40';
 
 /** Kinds this editor offers (systems tracts and biozones arrive with ST2 and ST3). */
 export const EDITABLE_KINDS = INTERVAL_KINDS.filter((k) => ['lithology', 'core_description', 'facies', 'electrofacies', 'environment', 'motif', 'systems_tract', 'biozone_interval'].includes(k.code));
@@ -84,9 +63,8 @@ const toInterval = (r, kind) => {
  * @param {string} [p.initialKind]
  */
 export default function IntervalsEditor({ well, intervals, canEdit = true, onReplace, onStatus, testIdPrefix = 'wdm-intervals', initialKind = 'lithology' }) {
-  const tc = useThemeClass(THEMED_CLASSES);
-  const cell = tc(cellCls);
-  const btn = tc(btnCls);
+  const cell = cellCls;
+  const btn = btnCls;
   const [kind, setKind] = useState(initialKind);
   const [rows, setRows] = useState([]);
   const [problems, setProblems] = useState([]);

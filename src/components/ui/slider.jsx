@@ -2,7 +2,6 @@ import React from "react"
 import * as SliderPrimitive from "@radix-ui/react-slider"
 
 import { cn } from "@/lib/utils"
-import { useDsTheme } from "@/design/themeContext"
 
 // Design system: track, range and thumb on theme roles inside an opted-in
 // scope; the legacy lime slider outside one, byte for byte.
@@ -13,7 +12,6 @@ const THEMED = {
 }
 
 const Slider = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <SliderPrimitive.Root
       ref={ref}

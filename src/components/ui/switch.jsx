@@ -2,7 +2,6 @@ import React from 'react';
 import * as SwitchPrimitives from '@radix-ui/react-switch';
 
 import { cn } from '@/lib/utils';
-import { useDsTheme } from '@/design/themeContext';
 
 // Design system: full themed strings used only inside an opted-in scope;
 // outside one the legacy classes render byte for byte. `thumbClassName`
@@ -15,7 +14,6 @@ const THEMED_THUMB =
   'pointer-events-none block h-5 w-5 rounded-full bg-pl-surface shadow-pl-sm ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0';
 
 const Switch = React.forwardRef(({ className, thumbClassName, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
     <SwitchPrimitives.Root
       className={cn(

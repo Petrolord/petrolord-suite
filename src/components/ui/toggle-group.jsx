@@ -3,7 +3,6 @@ import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group"
 import { cva } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
-import { useDsTheme } from "@/design/themeContext"
 import { themedToggleVariants } from "@/components/ui/toggle"
 
 const ToggleGroupContext = React.createContext({
@@ -50,7 +49,6 @@ const toggleGroupItemVariants = cva(
 const ToggleGroupItem = React.forwardRef(({ className, children, variant, size, ...props }, ref) => {
   const context = React.useContext(ToggleGroupContext)
   // Design system: the Toggle's themed variants inside an opted-in scope.
-  const ds = useDsTheme()
   const variants = themedToggleVariants
 
   return (

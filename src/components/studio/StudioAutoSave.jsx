@@ -4,13 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { Save, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useStudioTheme } from './studioTheme';
 
 // Design system: theme roles inside a <ThemedApp> scope, legacy classes outside.
 
 const StudioAutoSave = ({ isSaving, saveError, lastSaveTime, onSave, disabled = false }) => {
   const [timeAgo, setTimeAgo] = useState('Just now');
-  const { tc } = useStudioTheme();
 
   useEffect(() => {
     setTimeAgo('Just now');

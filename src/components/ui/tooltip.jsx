@@ -2,7 +2,7 @@ import * as React from "react"
     import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 
     import { cn } from "@/lib/utils"
-    import { useDsTheme, usePortalThemeProps } from "@/design/themeContext"
+    import { usePortalThemeProps } from "@/design/themeContext";
 
 // Design system: overlay classes merged over the legacy ones only inside an
 // opted-in <ThemedApp> scope (tailwind-merge swaps the colours). Portal
@@ -18,7 +18,6 @@ const THEMED = {
     const TooltipTrigger = TooltipPrimitive.Trigger
 
     const TooltipContent = React.forwardRef(({ className, sideOffset = 4, ...props }, ref) => {
-  const ds = useDsTheme();
   const portalProps = usePortalThemeProps();
   return (
       <TooltipPrimitive.Content

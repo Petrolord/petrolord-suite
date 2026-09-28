@@ -2,13 +2,11 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Hammer, ArrowLeft, Construction } from 'lucide-react';
-import { useThemeClass } from '@/design/themeClass';
 
 const ComingSoon = ({ appName = "Application" }) => {
   const navigate = useNavigate();
   // Design system: theme roles inside an opted-in app (a hub); the legacy
   // screen byte for byte everywhere else.
-  const tc = useThemeClass();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">

@@ -12,7 +12,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { HelpCircle, BookOpen } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useStudioTheme } from './studioTheme';
 
 // Design system: inside a <ThemedApp> scope the drawer (a portal; the ui
 // SheetContent carries the scope attribute) uses theme roles; outside one it
@@ -25,7 +24,6 @@ const StudioHelp = ({
   triggerTitle = 'Documentation',
   children,
 }) => {
-  const { ds, tc } = useStudioTheme();
   return (
     <Sheet>
       <SheetTrigger asChild>

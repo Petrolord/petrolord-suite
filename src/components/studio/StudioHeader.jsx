@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useDsTheme } from '@/design/themeContext';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 // Design system: inside an opted-in <ThemedApp> scope the header uses theme
@@ -25,7 +24,6 @@ const StudioHeader = ({
   children,
 }) => {
   const navigate = useNavigate();
-  const ds = useDsTheme();
 
   return (
     <div className="flex items-center gap-1 sm:gap-2 2xl:gap-4 w-full min-w-0">

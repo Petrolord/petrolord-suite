@@ -4,29 +4,12 @@
 // Enter confirms, Escape cancels, an empty name is refused inline.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system (W0C): themed strings for tc(); outside an opted-in scope
-// tc() returns the legacy string unchanged. The popover is a small raised
-// menu; on white log paper (data-canvas) it resolves to the light roles.
-const THEMED_CLASSES = {
-  'absolute z-20 rounded border border-slate-300 bg-white shadow-lg p-2 text-xs w-56':
-    'absolute z-20 rounded border border-pl-border bg-pl-raised text-pl-text shadow-pl-md p-2 text-xs w-56',
-  'text-slate-600 mb-1': 'text-pl-muted mb-1',
-  'w-full rounded border border-slate-300 px-1.5 py-1 text-slate-900':
-    'w-full rounded border border-pl-border-strong bg-pl-surface px-1.5 py-1 text-pl-text',
-  'text-red-600 mt-1': 'text-pl-danger-text mt-1',
-  'px-2 py-0.5 rounded border border-slate-300 text-slate-700':
-    'px-2 py-0.5 rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken',
-  'px-2 py-0.5 rounded bg-cyan-600 text-white':
-    'px-2 py-0.5 rounded bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg',
-};
 
 export default function TopNamePopover({
   x, y, title = 'Name', defaultValue = '', names = [], placeholder = 'Top name',
   onConfirm, onCancel, testIdPrefix = 'petro-top',
 }) {
-  const tc = useThemeClass(THEMED_CLASSES);
   const [value, setValue] = useState(defaultValue);
   const [error, setError] = useState(null);
   const inputRef = useRef(null);

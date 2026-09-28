@@ -1,6 +1,5 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { useDsTheme } from '@/design/themeContext';
 
 // A titled white card for a chart. It carries data-canvas="chart", which
 // inside an opted-in scope pins the light roles, so the title, the border
@@ -29,7 +28,6 @@ const LOOK = {
 const ChartPanel = React.forwardRef(({
   title, subtitle, actions, as: Comp = 'section', className, bodyClassName, children, ...props
 }, ref) => {
-  const ds = useDsTheme();
   const look = LOOK.themed;
   const hasHead = title || subtitle || actions;
   return (

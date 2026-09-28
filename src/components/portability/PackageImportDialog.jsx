@@ -13,91 +13,14 @@ import { Loader2, PackageOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { makeSupabaseSink } from '@/lib/portability/supabaseSink';
 import { preflightPackage, executeImport, importPackage } from '@/lib/portability/importPackage';
 import { signatureMessage } from '@/lib/portability/signing';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system (W0C): themed strings for tc(); outside an opted-in scope
-// tc() returns the legacy string unchanged.
-// Buttons and the dialog panel take the themed ui defaults (the legacy
-// overrides drop inside a scope); the Dialog carries the scope to its portal.
-const THEMED_CLASSES = {
-  "accent-cyan-500":
-    "accent-pl-primary",
-  "block text-xs text-slate-400":
-    "block text-xs text-pl-muted",
-  "flex items-center gap-2 text-xs text-slate-400 py-2":
-    "flex items-center gap-2 text-xs text-pl-muted py-2",
-  "max-w-lg bg-slate-900 border-slate-700 text-slate-200":
-    "max-w-lg",
-  "text-slate-400 grid grid-cols-2 gap-x-3":
-    "text-pl-muted grid grid-cols-2 gap-x-3",
-  "text-slate-400":
-    "text-pl-muted",
-  "text-slate-500":
-    "text-pl-muted",
-  "w-3.5 h-3.5 animate-spin text-cyan-400":
-    "w-3.5 h-3.5 animate-spin text-pl-primary-text",
-  "w-4 h-4 text-cyan-400":
-    "w-4 h-4 text-pl-primary-text",
-  "rounded border border-slate-700 bg-slate-950/40 px-2 py-1.5 text-xs space-y-1":
-    "rounded border border-pl-border bg-pl-sunken px-2 py-1.5 text-xs space-y-1",
-  "bg-emerald-500/20 text-emerald-300":
-    "bg-pl-success-bg text-pl-success-text",
-  "bg-slate-700/60 text-slate-300":
-    "bg-pl-sunken text-pl-muted",
-  "bg-amber-500/20 text-amber-300":
-    "bg-pl-warning-bg text-pl-warning-text",
-  "bg-red-500/20 text-red-300":
-    "bg-pl-danger-bg text-pl-danger-text",
-  "text-emerald-300":
-    "text-pl-success-text",
-  "text-red-300":
-    "text-pl-danger-text",
-  "text-slate-300":
-    "text-pl-text",
-  "mt-1 block w-full text-xs text-slate-300 file:mr-2 file:rounded file:border-0 file:bg-slate-800 file:px-2 file:py-1 file:text-xs file:text-cyan-300":
-    "mt-1 block w-full text-xs text-pl-text file:mr-2 file:rounded file:border file:border-pl-border-strong file:bg-pl-surface file:px-2 file:py-1 file:text-xs file:text-pl-primary-text",
-  "rounded border border-red-700/60 bg-red-950/40 px-2 py-1.5 text-xs text-red-300 space-y-1":
-    "rounded border border-pl-danger bg-pl-danger-bg px-2 py-1.5 text-xs text-pl-danger-text space-y-1",
-  "rounded bg-red-900/60 px-1 text-[10px] uppercase tracking-wider text-red-200 shrink-0":
-    "rounded bg-pl-danger px-1 text-[10px] uppercase tracking-wider text-pl-danger-fg shrink-0",
-  "h-6 text-xs border-red-700/60 text-red-200":
-    "h-6 text-xs border-pl-danger text-pl-danger-text",
-  "rounded border border-slate-700 bg-slate-950/40 px-2 py-1.5 text-xs space-y-1.5":
-    "rounded border border-pl-border bg-pl-sunken px-2 py-1.5 text-xs space-y-1.5",
-  "text-slate-200 font-medium":
-    "text-pl-text font-medium",
-  "text-emerald-300/90":
-    "text-pl-success-text",
-  "text-slate-400 flex items-start gap-2":
-    "text-pl-muted flex items-start gap-2",
-  "list-disc pl-4 text-amber-300/90":
-    "list-disc pl-4 text-pl-warning-text",
-  "list-disc pl-4 text-slate-400":
-    "list-disc pl-4 text-pl-muted",
-  "text-slate-500 uppercase tracking-wider text-[10px]":
-    "text-pl-muted uppercase tracking-wider text-[10px]",
-  "flex items-center gap-2 text-slate-300":
-    "flex items-center gap-2 text-pl-text",
-  "text-[10px] text-slate-500":
-    "text-[10px] text-pl-muted",
-  "flex items-center gap-2 text-xs text-slate-400":
-    "flex items-center gap-2 text-xs text-pl-muted",
-  "text-slate-200":
-    "text-pl-text",
-  "border-t border-slate-800 pt-1.5":
-    "border-t border-pl-border pt-1.5",
-  "flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200":
-    "flex items-center gap-1 text-xs text-pl-muted hover:text-pl-text",
-  "ml-auto text-slate-500":
-    "ml-auto text-pl-muted",
-};
 
 const SIGNATURE_TAG = {
-  valid: ['signed', 'bg-emerald-500/20 text-emerald-300'],
-  unsigned: ['unsigned', 'bg-slate-700/60 text-slate-300'],
-  'unknown-key': ['unknown key', 'bg-amber-500/20 text-amber-300'],
-  invalid: ['altered', 'bg-red-500/20 text-red-300'],
-  unsupported: ['unchecked', 'bg-amber-500/20 text-amber-300'],
+  valid: ['signed', 'bg-pl-success-bg text-pl-success-text'],
+  unsigned: ['unsigned', 'bg-pl-sunken text-pl-muted'],
+  'unknown-key': ['unknown key', 'bg-pl-warning-bg text-pl-warning-text'],
+  invalid: ['altered', 'bg-pl-danger-bg text-pl-danger-text'],
+  unsupported: ['unchecked', 'bg-pl-warning-bg text-pl-warning-text'],
 };
 
 async function fileBytes(file) {
@@ -118,7 +41,6 @@ const fmtDate = (iso) => {
 
 export default function PackageImportDialog({ open, onOpenChange, onImported, onStatus }) {
   const sink = useMemo(() => makeSupabaseSink(), []);
-  const tc = useThemeClass(THEMED_CLASSES);
   const [phase, setPhase] = useState('pick'); // pick | checking | review | running | done
   const [fileName, setFileName] = useState('');
   const [bytes, setBytes] = useState(null);
@@ -308,7 +230,7 @@ export default function PackageImportDialog({ open, onOpenChange, onImported, on
                 const [label, cls] = SIGNATURE_TAG[sig.status] || SIGNATURE_TAG.unsigned;
                 return (
                   <div className="text-pl-muted flex items-start gap-2" data-testid="pld-import-signature">
-                    <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${tc(cls)}`}>{label}</span>
+                    <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${cls}`}>{label}</span>
                     <span>{signatureMessage(sig)}</span>
                   </div>
                 );
@@ -335,7 +257,7 @@ export default function PackageImportDialog({ open, onOpenChange, onImported, on
                   <input type="radio" name="pld-scope" data-testid="pld-import-scope-private" checked={!shareWithOrg} disabled={busy} onChange={() => changeScope(false)} className="accent-pl-primary" />
                   Private (only me)
                 </label>
-                <label className={`flex items-center gap-2 ${tc(hasOrg ? 'text-slate-300' : 'text-slate-500')}`}>
+                <label className={`flex items-center gap-2 ${hasOrg ? 'text-pl-text' : 'text-pl-muted'}`}>
                   <input type="radio" name="pld-scope" data-testid="pld-import-scope-org" checked={shareWithOrg} disabled={busy || !hasOrg} onChange={() => changeScope(true)} className="accent-pl-primary" />
                   Share with my organization
                   {!hasOrg ? <span className="text-[10px] text-pl-muted">(you are not in an organization)</span> : null}
@@ -383,7 +305,7 @@ export default function PackageImportDialog({ open, onOpenChange, onImported, on
                     {jobs.map((j) => (
                       <li key={j.id} className="flex items-center gap-2 text-pl-text">
                         <span className="truncate">{j.package_name || j.package_id}</span>
-                        <span className={`text-[10px] uppercase ${tc(j.status === 'done' ? 'text-emerald-300' : j.status === 'failed' ? 'text-red-300' : 'text-slate-400')}`}>{j.status}</span>
+                        <span className={`text-[10px] uppercase ${j.status === 'done' ? 'text-pl-success-text' : j.status === 'failed' ? 'text-pl-danger-text' : 'text-pl-muted'}`}>{j.status}</span>
                         <span className="text-pl-muted">{j.rows_written}/{j.rows_planned} rows</span>
                         <span className="ml-auto text-pl-muted">{fmtDate(j.created_at)}</span>
                       </li>

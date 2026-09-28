@@ -1,11 +1,9 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
-import { useDsTheme } from "@/design/themeContext"
 import { FIELD_THEMED } from "@/components/ui/input"
 
 const Textarea = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     (<textarea
       className={cn(

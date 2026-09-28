@@ -2,7 +2,7 @@ import React from 'react';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronRight, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useDsTheme, usePortalThemeProps } from '@/design/themeContext';
+import { usePortalThemeProps } from '@/design/themeContext';
 
 // Design system: overlay classes merged over the legacy ones only inside an
 // opted-in <ThemedApp> scope (tailwind-merge swaps the colours). Portal
@@ -27,7 +27,6 @@ const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 
 const DropdownMenuSubTrigger = React.forwardRef(({ className, inset, children, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
   <DropdownMenuPrimitive.SubTrigger
     ref={ref}
@@ -46,7 +45,6 @@ const DropdownMenuSubTrigger = React.forwardRef(({ className, inset, children, .
 DropdownMenuSubTrigger.displayName = DropdownMenuPrimitive.SubTrigger.displayName;
 
 const DropdownMenuSubContent = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   const portalProps = usePortalThemeProps();
   return (
   <DropdownMenuPrimitive.SubContent
@@ -63,7 +61,6 @@ const DropdownMenuSubContent = React.forwardRef(({ className, ...props }, ref) =
 DropdownMenuSubContent.displayName = DropdownMenuPrimitive.SubContent.displayName;
 
 const DropdownMenuContent = React.forwardRef(({ className, sideOffset = 4, ...props }, ref) => {
-  const ds = useDsTheme();
   const portalProps = usePortalThemeProps();
   return (
   <DropdownMenuPrimitive.Portal>
@@ -83,7 +80,6 @@ const DropdownMenuContent = React.forwardRef(({ className, sideOffset = 4, ...pr
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 
 const DropdownMenuItem = React.forwardRef(({ className, inset, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
   <DropdownMenuPrimitive.Item
     ref={ref}
@@ -99,7 +95,6 @@ const DropdownMenuItem = React.forwardRef(({ className, inset, ...props }, ref) 
 DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName;
 
 const DropdownMenuCheckboxItem = React.forwardRef(({ className, children, checked, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
@@ -122,7 +117,6 @@ const DropdownMenuCheckboxItem = React.forwardRef(({ className, children, checke
 DropdownMenuCheckboxItem.displayName = DropdownMenuPrimitive.CheckboxItem.displayName;
 
 const DropdownMenuRadioItem = React.forwardRef(({ className, children, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
@@ -144,7 +138,6 @@ const DropdownMenuRadioItem = React.forwardRef(({ className, children, ...props 
 DropdownMenuRadioItem.displayName = DropdownMenuPrimitive.RadioItem.displayName;
 
 const DropdownMenuLabel = React.forwardRef(({ className, inset, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
   <DropdownMenuPrimitive.Label
     ref={ref}
@@ -156,7 +149,6 @@ const DropdownMenuLabel = React.forwardRef(({ className, inset, ...props }, ref)
 DropdownMenuLabel.displayName = DropdownMenuPrimitive.Label.displayName;
 
 const DropdownMenuSeparator = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
   <DropdownMenuPrimitive.Separator
     ref={ref}

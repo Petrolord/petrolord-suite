@@ -19,14 +19,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { useThemeClass } from '@/design/themeClass';
 
 // Design system (rollout W0B): inside an opted-in app the panel drops its
 // dark console overrides so the adapted Input, Select and Textarea theme
 // themselves, and its own text uses roles. Outside a <ThemedApp> scope
 // tc() returns the legacy strings unchanged.
 const Field = ({ label, hint, children }) => {
-  const tc = useThemeClass();
   return (
     <div className="space-y-1">
       <Label className="text-xs text-pl-muted">{label}</Label>
@@ -55,7 +53,6 @@ const WellModelPanel = ({
   completionNote = null,
 }) => {
   const { well, inflow, fluid, completion = {} } = inputs;
-  const tc = useThemeClass();
   const trigger = 'h-9 text-left [&>span]:truncate';
   const menu = undefined;
   const section = 'border-t border-pl-border pt-3 space-y-3';

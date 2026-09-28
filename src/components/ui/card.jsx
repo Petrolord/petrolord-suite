@@ -1,20 +1,12 @@
 import React from "react";
 import { cn } from "@/lib/utils";
-import { useDsTheme } from "@/design/themeContext";
 
-// Design system: inside an opted-in <ThemedApp> scope the card uses the
-// theme roles; everywhere else the legacy dark classes render unchanged.
-const LEGACY = {
-  card: "rounded-lg border border-slate-700 bg-slate-800/30 text-slate-100 shadow-sm backdrop-blur-sm",
-  description: "text-sm text-slate-400",
-};
 const THEMED = {
   card: "rounded-lg border border-pl-border bg-pl-surface text-pl-text shadow-pl-sm",
   description: "text-sm text-pl-muted",
 };
 
 const Card = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
     <div
       ref={ref}
@@ -40,7 +32,6 @@ const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
 CardTitle.displayName = "CardTitle";
 
 const CardDescription = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
     <p
       ref={ref}

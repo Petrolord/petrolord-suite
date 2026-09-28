@@ -5,70 +5,7 @@ import { Button } from '@/components/ui/button';
 import { CRS_CATALOG, catalogGet, crsDisplayName, validateCustomDefinition } from '@/lib/crs';
 import { normalizeTag, LOCAL, UNKNOWN } from '@/lib/crs/tags';
 import { browseGroups, searchResults, UTM_GROUP_KEY } from './crsBrowse';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system: themed class strings for tc() (see src/design/themeClass.js).
-// Outside an opted-in scope tc() returns the legacy string unchanged.
-const THEMED_CLASSES = {
-  "w-full text-left px-3 py-1.5 hover:bg-slate-800 text-sm flex items-center":
-    "w-full text-left px-3 py-1.5 hover:bg-pl-sunken text-sm flex items-center",
-  "text-slate-200":
-    "text-pl-text",
-  "ml-2 text-slate-500":
-    "ml-2 text-pl-muted",
-  "ml-auto text-xs text-slate-600":
-    "ml-auto text-xs text-pl-muted",
-  "w-3.5 h-3.5 ml-2 text-emerald-400":
-    "w-3.5 h-3.5 ml-2 text-pl-success-text",
-  "w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm text-left disabled:opacity-50":
-    "w-full rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm text-left disabled:opacity-50",
-  "absolute z-50 mt-1 w-full rounded-md border border-slate-700 bg-slate-950 shadow-xl max-h-80 overflow-y-auto":
-    "absolute z-50 mt-1 w-full rounded-md border border-pl-border-strong bg-pl-surface shadow-xl max-h-80 overflow-y-auto",
-  "p-2 sticky top-0 bg-slate-950 border-b border-slate-800":
-    "p-2 sticky top-0 bg-pl-surface border-b border-pl-border",
-  "w-3.5 h-3.5 absolute left-2 top-2.5 text-slate-500":
-    "w-3.5 h-3.5 absolute left-2 top-2.5 text-pl-muted",
-  "pl-7 h-8 bg-slate-900 border-slate-700 text-slate-200 text-sm":
-    "pl-7 h-8 bg-pl-sunken border-pl-border text-pl-text text-sm",
-  "border-b border-slate-800":
-    "border-b border-pl-border",
-  "px-3 pt-2 text-xs text-slate-500":
-    "px-3 pt-2 text-xs text-pl-muted",
-  "w-full text-left px-3 py-1.5 hover:bg-slate-800 text-sm":
-    "w-full text-left px-3 py-1.5 hover:bg-pl-sunken text-sm",
-  "text-cyan-300":
-    "text-pl-primary-text",
-  "text-xs text-slate-500 truncate":
-    "text-xs text-pl-muted truncate",
-  "px-3 pt-2 pb-1 text-xs text-slate-500":
-    "px-3 pt-2 pb-1 text-xs text-pl-muted",
-  "w-full text-left px-3 pt-2 pb-1 text-xs font-medium uppercase tracking-wide text-slate-400 hover:text-slate-200 flex items-center":
-    "w-full text-left px-3 pt-2 pb-1 text-xs font-medium uppercase tracking-wide text-pl-muted hover:text-pl-text flex items-center",
-  "ml-2 normal-case tracking-normal font-normal text-slate-600":
-    "ml-2 normal-case tracking-normal font-normal text-pl-muted",
-  "px-3 pt-2 pb-1 text-xs font-medium uppercase tracking-wide text-slate-400":
-    "px-3 pt-2 pb-1 text-xs font-medium uppercase tracking-wide text-pl-muted",
-  "border-t border-slate-800 p-2 space-y-1":
-    "border-t border-pl-border p-2 space-y-1",
-  "w-full text-left px-1 py-1 hover:bg-slate-800 text-sm text-slate-300":
-    "w-full text-left px-1 py-1 hover:bg-pl-sunken text-sm text-pl-text",
-  "text-slate-500":
-    "text-pl-muted",
-  "w-full text-left px-1 py-1 hover:bg-slate-800 text-sm text-slate-400":
-    "w-full text-left px-1 py-1 hover:bg-pl-sunken text-sm text-pl-muted",
-  "w-full text-left px-1 py-1 hover:bg-slate-800 text-sm text-amber-300":
-    "w-full text-left px-1 py-1 hover:bg-pl-sunken text-sm text-pl-warning-text",
-  "w-full text-left px-1 py-1 hover:bg-slate-800 text-sm text-cyan-400 flex items-center":
-    "w-full text-left px-1 py-1 hover:bg-pl-sunken text-sm text-pl-primary-text flex items-center",
-  "h-8 bg-slate-900 border-slate-700 text-slate-200 text-sm":
-    "h-8 bg-pl-sunken border-pl-border text-pl-text text-sm",
-  "w-full rounded-md bg-slate-900 border border-slate-700 text-slate-200 p-2 text-xs font-mono":
-    "w-full rounded-md bg-pl-sunken border border-pl-border text-pl-text p-2 text-xs font-mono",
-  "text-xs text-red-400":
-    "text-xs text-pl-danger-text",
-  "bg-cyan-600 hover:bg-cyan-500 text-white":
-    "bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg",
-};
 
 /**
  * Searchable CRS picker over the curated catalog, with sentinel options
@@ -95,7 +32,6 @@ const THEMED_CLASSES = {
 export default function CrsPicker({
   value, onChange, customDefs = {}, suggestions = [], disabled, allowSentinels = true,
 }) {
-  const tc = useThemeClass(THEMED_CLASSES);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);

@@ -2,7 +2,7 @@ import React from 'react';
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 import { cn } from "@/lib/utils";
 import { buttonVariants, themedButtonVariants } from "@/components/ui/button";
-import { useDsTheme, usePortalThemeProps } from "@/design/themeContext";
+import { usePortalThemeProps } from "@/design/themeContext";
 
 // Design system: merged over the legacy classes only inside an opted-in
 // scope. Overlay and content render in a portal, so both carry
@@ -23,7 +23,6 @@ const AlertDialogPortal = ({ className, ...props }) => (
 AlertDialogPortal.displayName = AlertDialogPrimitive.Portal.displayName;
 
 const AlertDialogOverlay = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   const portalProps = usePortalThemeProps();
   return (
     <AlertDialogPrimitive.Overlay
@@ -41,7 +40,6 @@ const AlertDialogOverlay = React.forwardRef(({ className, ...props }, ref) => {
 AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName;
 
 const AlertDialogContent = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   const portalProps = usePortalThemeProps();
   return (
     <AlertDialogPortal>
@@ -78,7 +76,6 @@ const AlertDialogFooter = ({ className, ...props }) => (
 AlertDialogFooter.displayName = "AlertDialogFooter";
 
 const AlertDialogTitle = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
     <AlertDialogPrimitive.Title ref={ref} className={cn("text-lg font-semibold text-white", THEMED.title, className)} {...props} />
   );
@@ -86,7 +83,6 @@ const AlertDialogTitle = React.forwardRef(({ className, ...props }, ref) => {
 AlertDialogTitle.displayName = AlertDialogPrimitive.Title.displayName;
 
 const AlertDialogDescription = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   return (
     <AlertDialogPrimitive.Description
       ref={ref}
@@ -98,14 +94,12 @@ const AlertDialogDescription = React.forwardRef(({ className, ...props }, ref) =
 AlertDialogDescription.displayName = AlertDialogPrimitive.Description.displayName;
 
 const AlertDialogAction = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   const variants = themedButtonVariants;
   return <AlertDialogPrimitive.Action ref={ref} className={cn(variants(), className)} {...props} />;
 });
 AlertDialogAction.displayName = AlertDialogPrimitive.Action.displayName;
 
 const AlertDialogCancel = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme();
   const variants = themedButtonVariants;
   return (
     <AlertDialogPrimitive.Cancel

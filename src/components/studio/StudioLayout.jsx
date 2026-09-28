@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, X } from 'lucide-react';
 import StudioNotifications from './StudioNotifications';
 import StudioLoadingOverlay from './StudioLoadingOverlay';
-import { useStudioTheme } from './studioTheme';
 
 // Phone widths: the themed rails start closed (they overlay the page there).
 const isNarrow = () => {
@@ -42,7 +41,6 @@ const StudioLayout = ({
   rightWidthClass = 'w-96',
   className,
 }) => {
-  const { ds, tc } = useStudioTheme();
   const [leftOpen, setLeftOpen] = useState(() => (isNarrow() ? false : defaultLeftOpen));
   const [rightOpen, setRightOpen] = useState(() => (isNarrow() ? false : defaultRightOpen));
   const rail = (side) => `flex-shrink-0 ${side === 'left' ? 'border-r' : 'border-l'} border-pl-border bg-pl-surface transition-all duration-300 ease-in-out flex flex-col z-30 max-md:absolute max-md:inset-y-0 ${side === 'left' ? 'max-md:left-0 max-md:z-40' : 'max-md:right-0'} max-md:max-w-[85vw] max-md:shadow-pl-lg`;

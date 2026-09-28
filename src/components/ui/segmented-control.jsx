@@ -1,6 +1,5 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { useDsTheme } from '@/design/themeContext';
 
 // A row of mutually exclusive choices (fiscal regime, results view, units).
 // Each option is a button with aria-pressed, inside a labelled group, so a
@@ -34,7 +33,6 @@ const SIZES = { sm: 'h-7 px-2.5 text-xs', md: 'h-9 px-3.5 text-sm' };
 const SegmentedControl = React.forwardRef(({
   options = [], value, onValueChange, label, size = 'md', className, itemClassName, ...props
 }, ref) => {
-  const ds = useDsTheme();
   const look = LOOK.themed;
   return (
     <div ref={ref} role="group" aria-label={label} className={cn(look.group, className)} {...props}>

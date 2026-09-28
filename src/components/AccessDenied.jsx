@@ -4,14 +4,12 @@ import { Lock, ShoppingCart, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useThemeClass } from '@/design/themeClass';
 
 const AccessDenied = ({ moduleId, appName, debugInfo }) => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = React.useState(false);
   // Design system: theme roles when rendered inside an opted-in app (a hub
   // or a pilot's route); the legacy screen byte for byte everywhere else.
-  const tc = useThemeClass();
 
   // Log debug info on mount
   useEffect(() => {

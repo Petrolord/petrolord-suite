@@ -1,7 +1,6 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
-import { useDsTheme } from "@/design/themeContext"
 
 // Design system: the legacy classes already read the shadcn variables, which
 // an opted-in scope re-points; the extra THEMED classes add the header well,
@@ -24,7 +23,6 @@ const Table = React.forwardRef(({ className, ...props }, ref) => (
 Table.displayName = "Table"
 
 const TableHeader = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   return <thead ref={ref} className={cn("[&_tr]:border-b", THEMED.header, className)} {...props} />
 })
 TableHeader.displayName = "TableHeader"
@@ -46,7 +44,6 @@ const TableFooter = React.forwardRef(({ className, ...props }, ref) => (
 TableFooter.displayName = "TableFooter"
 
 const TableRow = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <tr
       ref={ref}
@@ -61,7 +58,6 @@ const TableRow = React.forwardRef(({ className, ...props }, ref) => {
 TableRow.displayName = "TableRow"
 
 const TableHead = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <th
       ref={ref}
@@ -76,7 +72,6 @@ const TableHead = React.forwardRef(({ className, ...props }, ref) => {
 TableHead.displayName = "TableHead"
 
 const TableCell = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <td
       ref={ref}

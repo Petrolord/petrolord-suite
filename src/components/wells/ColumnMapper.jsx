@@ -6,28 +6,9 @@
 // `well-import-rowcount`).
 
 import React from 'react';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system: themed class strings for tc() (see src/design/themeClass.js).
-// Outside an opted-in scope tc() returns the legacy string unchanged.
-const THEMED_CLASSES = {
-  "rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs":
-    "rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs",
-  "text-xs text-slate-400 flex items-center gap-1":
-    "text-xs text-pl-muted flex items-center gap-1",
-  "text-xs text-slate-500":
-    "text-xs text-pl-muted",
-  "text-xs text-slate-300 font-mono":
-    "text-xs text-pl-text font-mono",
-  "pr-4 text-left font-medium text-slate-500":
-    "pr-4 text-left font-medium text-pl-muted",
-  "pr-4 text-left font-medium text-cyan-700":
-    "pr-4 text-left font-medium text-pl-primary-text",
-  "pr-4 whitespace-nowrap text-cyan-700":
-    "pr-4 whitespace-nowrap text-pl-primary-text",
-};
 
-const INPUT_CLS = 'rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
+const INPUT_CLS = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 
 /**
  * @param {Object} p
@@ -42,8 +23,7 @@ const INPUT_CLS = 'rounded-md bg-slate-950 border border-slate-700 text-slate-20
  * @param {string} [p.testIdPrefix='well']
  */
 export default function ColumnMapper({ parsed, fields, labels, map, onMap, nCols, extraColumns = [], testIdPrefix = 'well' }) {
-  const tc = useThemeClass(THEMED_CLASSES);
-  const inputCls = tc(INPUT_CLS);
+  const inputCls = INPUT_CLS;
   const previewRows = parsed.rows.slice(0, 6);
   return (
     <>

@@ -4,7 +4,7 @@ import { cva } from "class-variance-authority"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { useDsTheme, usePortalThemeProps } from "@/design/themeContext"
+import { usePortalThemeProps } from "@/design/themeContext";
 
 // Design system: merged over the legacy classes only inside an opted-in
 // scope. The overlay and the panel render in a portal, outside the scope
@@ -32,7 +32,6 @@ const SheetPortal = ({
 SheetPortal.displayName = SheetPrimitive.Portal.displayName
 
 const SheetOverlay = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   const portalProps = usePortalThemeProps()
   return (
     <SheetPrimitive.Overlay
@@ -68,7 +67,6 @@ const sheetVariants = cva(
 )
 
 const SheetContent = React.forwardRef(({ side = "right", className, children, ...props }, ref) => {
-  const ds = useDsTheme()
   const portalProps = usePortalThemeProps()
   const closeLegacy = "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary"
   return (
@@ -112,7 +110,6 @@ const SheetFooter = ({
 SheetFooter.displayName = "SheetFooter"
 
 const SheetTitle = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <SheetPrimitive.Title
       ref={ref}
@@ -123,7 +120,6 @@ const SheetTitle = React.forwardRef(({ className, ...props }, ref) => {
 SheetTitle.displayName = SheetPrimitive.Title.displayName
 
 const SheetDescription = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <SheetPrimitive.Description
       ref={ref}

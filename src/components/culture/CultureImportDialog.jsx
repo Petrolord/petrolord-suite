@@ -23,38 +23,7 @@ import {
   parseGeoJSON, parseShapefile, reprojectFeatures, featuresBBox, geometryTypeOf,
 } from '@/lib/cultureImport';
 import { saveCulture } from '@/lib/cultureRegistry';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system: themed class strings for tc() (see src/design/themeClass.js).
-// Outside an opted-in scope tc() returns the legacy string unchanged.
-const THEMED_CLASSES = {
-  "mt-1 block w-full text-xs text-slate-300 file:mr-3 file:rounded-md file:border file:border-slate-700 file:bg-slate-900 file:px-3 file:py-1.5 file:text-xs file:text-slate-200":
-    "mt-1 block w-full text-xs text-pl-text file:mr-3 file:rounded-md file:border file:border-pl-border-strong file:bg-pl-sunken file:px-3 file:py-1.5 file:text-xs file:text-pl-text",
-  "border-white":
-    "border-pl-text",
-  "flex items-center text-white":
-    "flex items-center text-pl-text",
-  "w-5 h-5 mr-2 text-cyan-400":
-    "w-5 h-5 mr-2 text-pl-primary-text",
-  "text-xs text-slate-400":
-    "text-xs text-pl-muted",
-  "flex items-center gap-2 text-cyan-300 text-xs":
-    "flex items-center gap-2 text-pl-primary-text text-xs",
-  "rounded-md border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-300":
-    "rounded-md border border-pl-border bg-pl-sunken/60 p-2 text-xs text-pl-text",
-  "text-amber-400":
-    "text-pl-warning-text",
-  "mt-1 text-slate-500":
-    "mt-1 text-pl-muted",
-  "text-slate-400":
-    "text-pl-muted",
-  "mt-1 text-[11px] text-slate-500":
-    "mt-1 text-[11px] text-pl-muted",
-  "mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 text-sm":
-    "mt-1 w-full rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-2 py-1 text-sm",
-  "mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 text-sm disabled:opacity-40":
-    "mt-1 w-full rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-2 py-1 text-sm disabled:opacity-40",
-};
 
 const KINDS = [
   { key: 'license_block', label: 'License blocks' },
@@ -77,7 +46,6 @@ const summarize = (features) => {
 };
 
 export default function CultureImportDialog({ open, onOpenChange, onImported }) {
-  const tc = useThemeClass(THEMED_CLASSES);
   const { toast } = useToast();
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);

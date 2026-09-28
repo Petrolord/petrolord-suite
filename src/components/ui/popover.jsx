@@ -2,7 +2,7 @@ import React from "react"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 
 import { cn } from "@/lib/utils"
-import { useDsTheme, usePortalThemeProps } from "@/design/themeContext"
+import { usePortalThemeProps } from "@/design/themeContext";
 
 // Design system: overlay classes merged over the legacy ones only inside an
 // opted-in <ThemedApp> scope (tailwind-merge swaps the colours). Portal
@@ -16,7 +16,6 @@ const Popover = PopoverPrimitive.Root
 const PopoverTrigger = PopoverPrimitive.Trigger
 
 const PopoverContent = React.forwardRef(({ className, align = "center", sideOffset = 4, ...props }, ref) => {
-  const ds = useDsTheme();
   const portalProps = usePortalThemeProps();
   return (
   <PopoverPrimitive.Portal>

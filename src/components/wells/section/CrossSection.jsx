@@ -30,20 +30,11 @@ import { computeStretch, invertShift } from '@/lib/stratigraphy/stretch';
 import { hitTopAt } from '@/components/wells/hitTest';
 import { topColor } from '@/components/wells/topColors';
 import { depthLabel } from '@/components/wells/depthModes';
-import { useThemeClass } from '@/design/themeClass';
 import TopNamePopover from '@/components/wells/TopNamePopover';
 import DepthNavigator from '@/components/wells/DepthNavigator';
 import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
 import { trackPlotPng } from '@/components/wells/plotPng';
 
-// Design system (W0C): themed strings for tc(); outside an opted-in scope
-// tc() returns the legacy string unchanged.
-// The drawing area is printed-log paper, white in both themes
-// (data-canvas="chart"), so everything drawn on it keeps its plotting colours.
-const THEMED_CLASSES = {
-  "absolute bottom-1 right-2 text-[10px] text-slate-500 pointer-events-none":
-    "absolute bottom-1 right-2 text-[10px] text-pl-muted pointer-events-none",
-};
 
 export const AXIS_W = 56;      // depth axis gutter (TrackViewer)
 export const WELL_H = 26;      // well name band above the track headers
@@ -100,7 +91,6 @@ const CrossSection = forwardRef(function CrossSection({
   view: viewProp, onViewChange,
 }, exportRef) {
   const wrapRef = useRef(null);
-  const tc = useThemeClass(THEMED_CLASSES);
   const canvasRef = useRef(null);
   const staticRef = useRef(null);
   const [size, setSize] = useState({ w: 0, h: 0 });

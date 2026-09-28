@@ -2,12 +2,10 @@ import * as React from "react"
 import * as ProgressPrimitive from "@radix-ui/react-progress"
 
 import { cn } from "@/lib/utils"
-import { useDsTheme } from "@/design/themeContext"
 
 // Design system: a hairline track and a solid primary bar inside an opted-in
 // scope (no gradient); the legacy lime bar outside one, byte for byte.
 const Progress = React.forwardRef(({ className, value, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <ProgressPrimitive.Root
       ref={ref}

@@ -12,62 +12,10 @@ import {
   activeTemplate, updateTemplate, newId, applySourceScale,
   INPUT_SOURCES, OUTPUT_SOURCES, PROBABILISTIC_SOURCES, MINERAL_FIXED_SOURCES, isMineralSource, THRESHOLD_PARAMS, STRIP_SOURCES,
 } from './layout/layoutSchema';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system (W0C): themed strings for tc(); outside an opted-in scope
-// tc() returns the legacy string unchanged.
-// Curve and fill colours are data (the swatches) and stay as chosen.
-const THEMED_CLASSES = {
-  "rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs w-full":
-    "rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus",
-  "rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-[11px]":
-    "rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-[11px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus",
-  "p-2 space-y-1.5 text-xs border-t border-slate-800/60":
-    "p-2 space-y-1.5 text-xs text-pl-text border-t border-pl-border",
-  "text-[10px] uppercase tracking-wider text-slate-500":
-    "text-[10px] uppercase tracking-wider text-pl-muted",
-  "flex-1 px-1.5 py-0.5 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10":
-    "flex-1 px-1.5 py-0.5 rounded border border-pl-primary text-pl-primary-text hover:bg-pl-sunken",
-  "flex-1 px-1.5 py-0.5 rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40":
-    "flex-1 px-1.5 py-0.5 rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken disabled:opacity-40",
-  "flex-1 px-1.5 py-0.5 rounded border border-red-900/60 text-red-300 hover:bg-red-500/10 disabled:opacity-40":
-    "flex-1 px-1.5 py-0.5 rounded border border-pl-danger text-pl-danger-text hover:bg-pl-danger-bg disabled:opacity-40",
-  "text-[10px] text-slate-500":
-    "text-[10px] text-pl-muted",
-  "rounded border border-slate-800":
-    "rounded border border-pl-border",
-  "text-slate-400":
-    "text-pl-muted",
-  "truncate text-slate-300":
-    "truncate text-pl-text",
-  "text-slate-600 text-[10px]":
-    "text-pl-muted text-[10px]",
-  "text-slate-500 hover:text-slate-200":
-    "text-pl-muted hover:text-pl-text",
-  "text-slate-500 hover:text-red-400":
-    "text-pl-muted hover:text-pl-danger-text",
-  "px-1.5 pb-1.5 space-y-1 border-t border-slate-800/60 pt-1":
-    "px-1.5 pb-1.5 space-y-1 border-t border-pl-border pt-1",
-  "text-slate-500 w-9":
-    "text-pl-muted w-9",
-  "text-[10px] text-slate-500 pt-0.5":
-    "text-[10px] text-pl-muted pt-0.5",
-  "w-6 h-5 rounded border border-slate-700 bg-transparent":
-    "w-6 h-5 rounded border border-pl-border-strong bg-transparent",
-  "flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 hover:bg-slate-800":
-    "flex items-center gap-1 px-1.5 py-0.5 rounded border border-pl-border-strong text-pl-muted hover:bg-pl-sunken hover:text-pl-text",
-  "flex items-center gap-0.5 text-slate-500":
-    "flex items-center gap-0.5 text-pl-muted",
-  "text-slate-400 hover:text-slate-200":
-    "text-pl-muted hover:text-pl-text",
-  "flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 hover:bg-slate-800 disabled:opacity-40":
-    "flex items-center gap-1 px-1.5 py-0.5 rounded border border-pl-border-strong text-pl-muted hover:bg-pl-sunken hover:text-pl-text disabled:opacity-40",
-  "flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800":
-    "flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken",
-};
 
-const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs w-full';
-const miniCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-[11px]';
+const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus';
+const miniCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-[11px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus';
 const SOURCES = [...INPUT_SOURCES, ...OUTPUT_SOURCES];
 
 // Numeric text box that lets a person type a number the way people type
@@ -110,9 +58,8 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
     .filter((m) => m && !/^(DEPT|DEPTH|MD)(:\d+)?$/i.test(m))
     .map((m) => `log:${m}`), [logSources]);
   const tpl = activeTemplate(layouts);
-  const tc = useThemeClass(THEMED_CLASSES);
-  const inp = tc(inputCls);
-  const mini = tc(miniCls);
+  const inp = inputCls;
+  const mini = miniCls;
   const [openTrack, setOpenTrack] = useState(null); // track id
 
   useEffect(() => {
