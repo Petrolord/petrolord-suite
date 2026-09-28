@@ -10,7 +10,7 @@ import { useDsTheme } from '@/design/themeContext';
  */
 const ThemeToggle = React.forwardRef(({ className, ...props }, ref) => {
   const ds = useDsTheme();
-  if (!ds) return null;
+  if (!ds || ds.fixed) return null;
   const isDark = ds.theme === 'dark';
   const label = isDark ? 'Switch to light theme' : 'Switch to dark theme';
   return (

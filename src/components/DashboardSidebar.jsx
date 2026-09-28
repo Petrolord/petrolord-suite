@@ -39,12 +39,13 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+import { FixedTheme } from '@/design/ThemeProvider';
 
 // Design system, lead decision 1 (2026-09-27): the dashboard sidebar stays
 // a dark brand rail in the homepage ink green in both themes. The root
-// carries data-pl-theme="dark" as a fixed scope (no provider, no toggle),
-// so the pl-* roles below resolve to the dark ink palette whatever the
-// page next to it uses. Status colours only for status; gold for eyebrows.
+// carries data-pl-theme="dark" inside a FixedTheme (no storage, no toggle),
+// so the pl-* roles below, and the log-out dialog's portal, resolve to the
+// dark ink palette whatever the page next to it uses. Status colours only for status; gold for eyebrows.
 const ITEM = 'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus';
 
 const SidebarItem = ({ icon: Icon, label, to, exact = false, disabled = false, onNavigate }) => {
@@ -100,6 +101,7 @@ const DashboardSidebar = ({ onNavigate, className }) => {
   }, [isSuperAdmin, isImpersonating]);
 
   return (
+    <FixedTheme theme="dark">
     <nav
       data-pl-theme="dark"
       data-testid="dashboard-sidebar-rail"
@@ -223,7 +225,7 @@ const DashboardSidebar = ({ onNavigate, className }) => {
               <span className="flex-1 min-w-0 text-left truncate">Log out</span>
             </button>
           </AlertDialogTrigger>
-          <AlertDialogContent data-pl-theme="dark" className="bg-pl-raised border-pl-border text-pl-text shadow-pl-lg">
+          <AlertDialogContent className="bg-pl-raised border-pl-border text-pl-text shadow-pl-lg">
             <AlertDialogHeader>
               <AlertDialogTitle>Log out of Petrolord Suite?</AlertDialogTitle>
               <AlertDialogDescription className="text-pl-muted">
@@ -242,6 +244,7 @@ const DashboardSidebar = ({ onNavigate, className }) => {
         </AlertDialog>
       </div>
     </nav>
+    </FixedTheme>
   );
 };
 

@@ -9,7 +9,7 @@ import { ApplicationProvider, useApplication } from '@/context/ApplicationContex
 import SidebarVisibilityController from '@/components/layout/SidebarVisibilityController';
 import { DashboardScope } from '@/design/DashboardScope';
 import { ThemedLoadingScreen } from '@/design/coldLoad';
-import { readLastTheme } from '@/design/ThemeProvider';
+import { FixedTheme, readLastTheme } from '@/design/ThemeProvider';
 import { DEFAULT_THEME } from '@/design/tokens';
 
 // Inner layout component that consumes the Application Context
@@ -70,12 +70,14 @@ const DashboardLayoutInner = () => {
                     </div>
                 )}
                 {!isInApplication && (
+                    <FixedTheme theme="dark">
                     <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-                        <SheetContent side="left" data-pl-theme="dark" className="w-64 max-w-[85vw] border-pl-border p-0 md:hidden">
+                        <SheetContent side="left" className="w-64 max-w-[85vw] border-pl-border p-0 md:hidden">
                             <SheetTitle className="sr-only">Dashboard navigation</SheetTitle>
                             <DashboardSidebar className="w-full border-r-0" onNavigate={() => setMobileNavOpen(false)} />
                         </SheetContent>
                     </Sheet>
+                    </FixedTheme>
                 )}
                 <DashboardScope>
                     <OrgClosureBanner />

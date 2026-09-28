@@ -174,6 +174,24 @@ export function ThemedApp({ as: Comp = 'div', className = '', userId, defaultThe
 }
 
 // Layout effect so the toaster follows the page from the first paint.
+const noop = () => {};
+const FIXED_VALUES = Object.fromEntries(
+  THEME_NAMES.map((t) => [t, Object.freeze({ theme: t, setTheme: noop, toggleTheme: noop, fixed: true })]),
+);
+
+/**
+ * A fixed theme for a piece of frame that is not a page: the dashboard's
+ * ink rail and its phone drawer (lead decision 1). It provides the theme
+ * context (so the ui pieces inside, and their portals, carry
+ * data-pl-theme) with no storage, no toggle (ThemeToggle renders nothing
+ * here) and no page background. Put the data-pl-theme attribute on the
+ * frame element yourself, as the rail does.
+ */
+export function FixedTheme({ theme = 'dark', children }) {
+  const value = FIXED_VALUES[theme] || FIXED_VALUES.dark;
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
 const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 function ThemedRoot({ as: Comp, className, children, ...rest }) {

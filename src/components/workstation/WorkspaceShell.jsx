@@ -14,16 +14,8 @@ import React, { useEffect, useRef } from 'react';
 import {
   ResizablePanelGroup, ResizablePanel, ResizableHandle,
 } from '@/components/ui/resizable';
-import { useDsTheme } from '@/design/themeContext';
 
-// Design system (pilot 4, Seismolord): inside an opted-in <ThemedApp> scope
-// the shell uses the theme roles; every workstation that has not migrated
-// keeps the legacy classes byte for byte
-// (src/components/workstation/__tests__/sharedShellsOptIn.test.jsx).
-const LEGACY = {
-  root: 'h-full min-h-0 overflow-auto bg-slate-950',
-  handle: 'w-1 bg-slate-800/80 hover:bg-cyan-700/60 transition-colors',
-};
+// Design system roles.
 const THEMED = {
   root: 'h-full min-h-0 overflow-auto bg-pl-bg',
   handle: 'w-1 bg-pl-border hover:bg-pl-primary/40 transition-colors',
@@ -51,7 +43,7 @@ export default function WorkspaceShell({
   autoSaveId = 'seismolord.workspace.v1', minWidth = 1100, dockDefaultSize = 0,
 }) {
   const dockRef = useRef(null);
-  const cls = useDsTheme() ? THEMED : LEGACY;
+  const cls = THEMED;
 
   useEffect(() => {
     const panel = dockRef.current;

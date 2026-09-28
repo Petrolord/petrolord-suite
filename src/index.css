@@ -3,59 +3,47 @@
 @tailwind utilities;
 
 @layer base {
-  :root, .dark {
-    /* Petrolord Dark Premium Theme */
-    --background: 210 25% 8%;
-    --foreground: 214 32% 91%;
-
-    --secondary-background: 225 28% 14%;
-    
-    --card: 219 25% 18%;
-    --card-foreground: 214 32% 91%;
-
-    --popover: 219 25% 18%;
-    --popover-foreground: 214 32% 91%;
-
-    --border: 218 23% 23%;
-    
-    --input: 225 28% 14%;
-    --input-foreground: 214 32% 91%;
-    
-    --ring: 217 91% 60%;
-
-    --primary: 217 91% 60%;
+  /* Defaults for the few pages outside a theme scope (the homepage, which
+     paints its own paper look in Home.css, redirects and loaders). They are
+     the light scope's values of the shadcn variables, so a stray shadcn
+     class reads as the light theme. Inside a scope src/design/theme.css
+     supplies every variable (design system batch 7B retired the old
+     "Dark Premium" globals); tokens.test.js keeps the two in step. */
+  :root {
+    --background: 214.3 13.2% 89.6%;
+    --foreground: 148 27.3% 10.8%;
+    --secondary-background: 213.3 13% 86.5%;
+    --card: 216 16.1% 93.9%;
+    --card-foreground: 148 27.3% 10.8%;
+    --popover: 210 16.7% 97.6%;
+    --popover-foreground: 148 27.3% 10.8%;
+    --border: 212.3 12.1% 79%;
+    --input: 211.4 8.7% 47.3%;
+    --input-foreground: 148 27.3% 10.8%;
+    --ring: 42.1 63.3% 33.1%;
+    --primary: 145 39% 30.2%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 221 83% 53%;
-
-    --secondary: 225 28% 14%;
-    --secondary-foreground: 214 32% 91%;
-
-    --muted: 214 20% 69%;
-    --muted-foreground: 214 20% 69%;
-
-    --accent: 217 91% 60%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 84% 60%;
+    --primary-hover: 145.6 42.9% 24.7%;
+    --secondary: 213.3 13% 86.5%;
+    --secondary-foreground: 148 27.3% 10.8%;
+    --muted: 213.3 13% 86.5%;
+    --muted-foreground: 210 11.5% 34.1%;
+    --accent: 213.3 13% 86.5%;
+    --accent-foreground: 148 27.3% 10.8%;
+    --destructive: 4.2 76.5% 40%;
     --destructive-foreground: 0 0% 100%;
-
-    --success: 160 84% 39%;
+    --success: 146.1 60.5% 29.8%;
     --success-foreground: 0 0% 100%;
-
-    --warning: 38 92% 50%;
+    --warning: 34.8 100% 28%;
     --warning-foreground: 0 0% 100%;
-    
-    --info: 189 94% 43%;
+    --info: 211.5 70.6% 38.6%;
     --info-foreground: 0 0% 100%;
-
-    --radius: 0.5rem;
-
-    /* Chart specific colors */
-    --chart-1: 217 91% 60%; /* Blue */
-    --chart-2: 160 84% 39%; /* Emerald */
-    --chart-3: 38 92% 50%;  /* Amber */
-    --chart-4: 0 84% 60%;   /* Red */
-    --chart-5: 270 60% 60%; /* Purple */
+    --chart-1: 221.2 83.2% 53.3%;
+    --chart-2: 161.4 93.5% 30.4%;
+    --chart-3: 32.1 94.6% 43.7%;
+    --chart-4: 0 72.2% 50.6%;
+    --chart-5: 262.1 83.3% 57.8%;
+    --radius: 0.75rem;
   }
 }
 
@@ -65,7 +53,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   }
 }
 

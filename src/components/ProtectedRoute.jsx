@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { Loader2 } from 'lucide-react';
 import { useHSEAccess } from '@/hooks/useHSEAccess';
 import { useSuiteAccess } from '@/hooks/useSuiteAccess';
 import AccessDenied from '@/components/AccessDenied';
+import { AccountScope } from '@/components/account/accountChrome';
 import { coldLoadTheme, ThemedLoadingScreen } from '@/design/coldLoad';
 
 const ProtectedRoute = ({ children, requiredPermission, requiredRole, appContext = 'suite' }) => {
@@ -14,14 +14,9 @@ const ProtectedRoute = ({ children, requiredPermission, requiredRole, appContext
   const { can: canHSE } = useHSEAccess();
 
   if (loading) {
-    // Design system: opted-in paths paint the device's last theme.
-    const theme = coldLoadTheme(location.pathname);
-    if (theme) return <ThemedLoadingScreen theme={theme} />;
-    return (
-      <div className="flex items-center justify-center h-screen bg-slate-950 text-white">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-      </div>
-    );
+    // Design system: the themed loader in the theme the page will open in
+    // (light where no scope follows).
+    return <ThemedLoadingScreen theme={coldLoadTheme(location.pathname) || 'light'} />;
   }
 
   if (!user) {
@@ -35,11 +30,14 @@ const ProtectedRoute = ({ children, requiredPermission, requiredRole, appContext
       if (location.pathname.startsWith('/dashboard')) {
         console.warn(`Attempted Org Dashboard Access: Super Admin (user_id: ${user.id}) cannot access org dashboard route: ${location.pathname}`);
       }
+      // /super-admin sits outside the dashboard scope: AccountScope opens one.
       return (
-        <AccessDenied
-          message="You do not have the required role to access this page. Only Super Administrators can view this content."
-          requiredRole={requiredRole}
-        />
+        <AccountScope testId="protected-route-denied">
+          <AccessDenied
+            message="You do not have the required role to access this page. Only Super Administrators can view this content."
+            requiredRole={requiredRole}
+          />
+        </AccountScope>
       );
     }
     // If it's a super admin route and they are super admin, proceed
@@ -54,10 +52,12 @@ const ProtectedRoute = ({ children, requiredPermission, requiredRole, appContext
 
     if (!hasPermission) {
       return (
-        <AccessDenied 
-          message={`You do not have permission to access this resource (${requiredPermission}).`}
-          requiredPermission={requiredPermission}
-        />
+        <AccountScope testId="protected-route-denied">
+          <AccessDenied
+            message={`You do not have permission to access this resource (${requiredPermission}).`}
+            requiredPermission={requiredPermission}
+          />
+        </AccountScope>
       );
     }
   }
