@@ -872,15 +872,15 @@ const DesignTab = () => {
                 )}
 
                 <div className="flex-1 bg-pl-surface rounded-lg border border-pl-border flex flex-col overflow-hidden relative">
-                    <div className="flex items-center justify-between p-2 border-b border-pl-border bg-pl-surface z-10 absolute top-0 left-0 right-0">
-                        <div className="flex bg-pl-sunken rounded p-1">
+                    <div className="flex items-center justify-between gap-2 overflow-x-auto p-2 border-b border-pl-border bg-pl-surface z-10 absolute top-0 left-0 right-0">
+                        <div className="flex shrink-0 bg-pl-sunken rounded p-1">
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('section')} className={`h-7 px-3 text-xs ${viewMode === 'section' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><Activity className="w-3 h-3 mr-1" /> Section</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('plots')} className={`h-7 px-3 text-xs ${viewMode === 'plots' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><LayoutGrid className="w-3 h-3 mr-1" /> Plots</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('plan')} className={`h-7 px-3 text-xs ${viewMode === 'plan' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`} data-testid="view-plan" title="Plan editor: one row per section, edit the defining values in place"><TableProperties className="w-3 h-3 mr-1" /> Plan</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('table')} className={`h-7 px-3 text-xs ${viewMode === 'table' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><TableIcon className="w-3 h-3 mr-1" /> Survey</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('3d')} className={`h-7 px-3 text-xs ${viewMode === '3d' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`} data-testid="view-3d"><Box className="w-3 h-3 mr-1" /> 3D</Button>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex shrink-0 items-center gap-2">
                             {(viewMode === 'section' || viewMode === 'plots') && (
                                 <Button size="sm" variant="ghost" onClick={() => setShowTargets((v) => !v)}
                                     className={`h-7 px-2 text-xs ${showTargets ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-muted'}`}

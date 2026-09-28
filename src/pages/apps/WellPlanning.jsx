@@ -169,11 +169,11 @@ const WellPlanningContent = () => {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-pl-bg text-pl-text">
+    <div className="flex h-screen flex-col overflow-hidden bg-pl-bg text-pl-text md:flex-row">
       <Helmet><title>Well Design Studio | Petrolord</title></Helmet>
 
       {/* LEFT: tree */}
-      <div className="flex w-72 shrink-0 flex-col border-r border-pl-border bg-pl-surface">
+      <div className="flex max-h-[35vh] w-full shrink-0 flex-col border-b border-pl-border bg-pl-surface md:max-h-none md:w-72 md:border-b-0 md:border-r">
         <div className="flex h-14 items-center gap-2 border-b border-pl-border px-4">
           <div className="rounded-lg bg-pl-primary p-1.5">
             <Waypoints className="h-5 w-5 text-pl-primary-fg" />
@@ -204,7 +204,7 @@ const WellPlanningContent = () => {
       {/* RIGHT: workspace */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-pl-border bg-pl-surface px-4">
-          <nav className="flex items-center text-xs text-pl-muted">
+          <nav className="flex min-w-0 items-center overflow-hidden whitespace-nowrap text-xs text-pl-muted">
             <Link to="/dashboard" className="transition-colors hover:text-pl-text"><Home className="h-3 w-3" /></Link>
             <ChevronRight className="mx-1 h-3 w-3 opacity-50" />
             <Link to="/dashboard/drilling" className="transition-colors hover:text-pl-text">Drilling</Link>
