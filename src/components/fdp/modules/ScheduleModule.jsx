@@ -82,7 +82,7 @@ const ScheduleModule = () => {
                     <h2 className="text-2xl font-bold text-pl-text">Project Schedule</h2>
                     <p className="text-pl-muted">Manage timeline, critical path, and milestones.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 shrink-0">
                     <Button variant="outline" onClick={handleLoadExample}>
                         <Download className="w-4 h-4 mr-2" /> Load example
                     </Button>

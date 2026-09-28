@@ -76,7 +76,7 @@ const ConceptModule = () => {
                     <h2 className="text-2xl font-bold text-pl-text">Development Concepts</h2>
                     <p className="text-pl-muted">Define and evaluate different technical solutions.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 shrink-0">
                     <Button 
                         variant={view === 'compare' ? 'secondary' : 'outline'} 
                         onClick={() => setView('compare')}

@@ -74,7 +74,7 @@ const ScenarioModule = () => {
                     <h2 className="text-2xl font-bold text-pl-text">Scenario Planning</h2>
                     <p className="text-pl-muted">Evaluate economic viability under different conditions.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 shrink-0">
                     <Button 
                         variant={view === 'form' ? 'secondary' : 'default'}
                         onClick={handleCreate} 

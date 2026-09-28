@@ -37,7 +37,7 @@ const FieldOverviewModule = () => {
                     <h2 className="text-2xl font-bold text-pl-text">Field Overview</h2>
                     <p className="text-pl-muted">Define the core parameters and constraints of the development.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 shrink-0">
                     <Button variant="outline" onClick={handleLoadExample}>
                         <RefreshCw className="w-4 h-4 mr-2" /> Load example
                     </Button>

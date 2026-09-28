@@ -78,7 +78,7 @@ const CostModule = () => {
                     <h2 className="text-2xl font-bold text-pl-text">Cost & Economics</h2>
                     <p className="text-pl-muted">Manage budget, estimate CAPEX/OPEX, and analyze economic viability.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 shrink-0">
                     <Button variant="outline" onClick={handleLoadExample}>
                         <Download className="w-4 h-4 mr-2" /> Load example
                     </Button>
