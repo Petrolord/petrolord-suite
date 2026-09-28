@@ -19,10 +19,10 @@ import { useIntervention } from '@/contexts/InterventionPlannerContext';
 import { Field, Stat, fmt } from './fields';
 
 const MECH_STYLE = {
-  channelling: 'text-amber-400',
-  coning: 'text-rose-400',
-  displacement: 'text-sky-400',
-  indeterminate: 'text-slate-400',
+  channelling: 'text-pl-warning-text',
+  coning: 'text-pl-danger-text',
+  displacement: 'text-pl-info-text',
+  indeterminate: 'text-pl-muted',
 };
 
 const DiagnosticPanel = () => {
@@ -38,10 +38,10 @@ const DiagnosticPanel = () => {
   const ratioLabel = isGor ? 'Gas-oil ratio' : 'Water-oil ratio';
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <Activity className="w-4 h-4 text-cyan-400" /> The diagnostic
+          <Activity className="w-4 h-4 text-pl-muted" /> The diagnostic
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -51,8 +51,8 @@ const DiagnosticPanel = () => {
               value={inputs.diagnostic.ratio}
               onValueChange={(v) => setSection('diagnostic', 'ratio', v)}
             >
-              <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
                 <SelectItem value="wor">Water-oil ratio</SelectItem>
                 <SelectItem value="gor">Gas-oil ratio</SelectItem>
               </SelectContent>
@@ -66,8 +66,8 @@ const DiagnosticPanel = () => {
               value={String(inputs.diagnostic.lateFraction)}
               onValueChange={(v) => setSection('diagnostic', 'lateFraction', v)}
             >
-              <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
                 <SelectItem value="0.3">Last 30 percent</SelectItem>
                 <SelectItem value="0.5">Last half</SelectItem>
                 <SelectItem value="0.7">Last 70 percent</SelectItem>
@@ -77,10 +77,10 @@ const DiagnosticPanel = () => {
           </Field>
         </div>
 
-        {historyLoading && <p className="text-sm text-slate-500">Loading the production history...</p>}
+        {historyLoading && <p className="text-sm text-pl-muted">Loading the production history...</p>}
 
         {!historyLoading && !history.length && (
-          <p className="text-sm text-slate-500 py-4">
+          <p className="text-sm text-pl-muted py-4">
             No production history is linked. Pick a field and a well on the spine. Without a history
             there is no diagnosis, and without a diagnosis the water treatments are refused rather
             than guessed at, which is the point of this studio.
@@ -88,7 +88,7 @@ const DiagnosticPanel = () => {
         )}
 
         {diagnosis && !diagnosis.ok && diagnosis.error && (
-          <p className="text-[12px] text-amber-300 flex items-start gap-1.5">
+          <p className="text-[12px] text-pl-warning-text flex items-start gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
             <span>{diagnosis.error}</span>
           </p>
@@ -100,7 +100,7 @@ const DiagnosticPanel = () => {
               <Stat
                 label="Mechanism"
                 value={diagnosis.mechanism.label}
-                accent={MECH_STYLE[diagnosis.mechanism.id] || 'text-slate-100'}
+                accent={MECH_STYLE[diagnosis.mechanism.id] || 'text-pl-text'}
                 hint={diagnosis.mechanism.treatable ? 'A squeeze has something to seal' : 'Not fixable by a squeeze'}
               />
               <Stat
@@ -116,18 +116,18 @@ const DiagnosticPanel = () => {
               <Stat
                 label="Confidence"
                 value={diagnosis.confidence || '--'}
-                accent={diagnosis.confidence === 'high' ? 'text-emerald-400'
-                  : diagnosis.confidence === 'low' ? 'text-amber-400' : 'text-slate-100'}
+                accent={diagnosis.confidence === 'high' ? 'text-pl-success-text'
+                  : diagnosis.confidence === 'low' ? 'text-pl-warning-text' : 'text-pl-text'}
               />
             </div>
 
-            <div className="rounded border border-slate-800 bg-slate-950/50 p-3 space-y-2">
-              <p className="text-[12px] text-slate-300">{diagnosis.mechanism.note}</p>
+            <div className="rounded border border-pl-border bg-pl-sunken p-3 space-y-2">
+              <p className="text-[12px] text-pl-text">{diagnosis.mechanism.note}</p>
               {(diagnosis.notes || []).map((n) => (
-                <p key={n} className="text-[11px] text-slate-500">{n}</p>
+                <p key={n} className="text-[11px] text-pl-muted">{n}</p>
               ))}
               {diagnosis.droppedShutInDays > 0 && (
-                <p className="text-[11px] text-slate-600">
+                <p className="text-[11px] text-pl-muted">
                   {diagnosis.droppedShutInDays} shut-in day
                   {diagnosis.droppedShutInDays === 1 ? '' : 's'} dropped: a day with no oil has
                   nothing to say about the mechanism, and an infinite ratio would poison the
@@ -135,14 +135,14 @@ const DiagnosticPanel = () => {
                 </p>
               )}
               {diagnosis.edgesDropped > 0 && (
-                <p className="text-[11px] text-slate-600">
+                <p className="text-[11px] text-pl-muted">
                   The first and last {diagnosis.edgesDropped} derivative points are set aside. The
                   Bourdet formula needs a neighbour on both sides; at the ends it has one, and those
                   one-sided estimates are badly biased on a curving response.
                 </p>
               )}
               {diagnosis.spikesRemoved > 0 && (
-                <p className="text-[11px] text-slate-600">
+                <p className="text-[11px] text-pl-muted">
                   {diagnosis.spikesRemoved} outlier
                   {diagnosis.spikesRemoved === 1 ? '' : 's'} trimmed from the history.
                 </p>
@@ -197,7 +197,7 @@ const DiagnosticPanel = () => {
                 </ComposedChart>
               </ChartFrame>
             )}
-            <p className="text-[11px] text-slate-600">
+            <p className="text-[11px] text-pl-muted">
               Both curves are shown because the ratio alone cannot separate coning from channelling:
               both climb. It is the derivative that carries the distinction, climbing steeply for
               channelling and falling for coning. This is a reading of the same two things Chan

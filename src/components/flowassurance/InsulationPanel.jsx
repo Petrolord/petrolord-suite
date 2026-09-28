@@ -16,10 +16,10 @@ import { useFlowAssurance } from '@/contexts/FlowAssuranceContext';
 import { Field, NumberInput, Stat, Row, fmt } from './fields';
 
 const StaleNote = ({ onRerun }) => (
-  <div className="flex items-center gap-2 text-[11px] text-amber-400 mb-2">
+  <div className="flex items-center gap-2 text-[11px] text-pl-warning-text mb-2">
     <RefreshCw className="w-3 h-3" />
     Inputs changed since this ran.
-    <button type="button" className="underline hover:text-amber-300" onClick={onRerun}>
+    <button type="button" className="underline hover:text-pl-text" onClick={onRerun}>
       Run again
     </button>
   </div>
@@ -32,15 +32,15 @@ const InsulationPanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Thermometer className="w-4 h-4 text-amber-400" /> Thermal performance
+            <Thermometer className="w-4 h-4 text-pl-muted" /> Thermal performance
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {!firstLeg ? (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-pl-muted">
               No pipe leg is running. Enable a flowline and give it a length.
             </p>
           ) : (
@@ -64,7 +64,7 @@ const InsulationPanel = () => {
                   hint={firstLeg.ntu > 3
                     ? 'Thermally long: the line arrives at ambient whatever it started at'
                     : 'Thermally short: the inlet temperature still matters at the far end'}
-                  accent={firstLeg.ntu > 3 ? 'text-amber-400' : 'text-emerald-400'}
+                  accent={firstLeg.ntu > 3 ? 'text-pl-warning-text' : 'text-pl-success-text'}
                 />
                 <Stat
                   label="Pressure drop"
@@ -73,7 +73,7 @@ const InsulationPanel = () => {
                   hint="Marched at the temperature the thermal model puts the line at"
                 />
               </div>
-              <p className="text-[11px] text-slate-600">
+              <p className="text-[11px] text-pl-muted">
                 The pressure and the temperature are marched TOGETHER, not overlaid: every gradient
                 is evaluated at the local pressure and the local temperature, so viscosity and gas
                 solubility see the temperature the line is actually at.
@@ -81,7 +81,7 @@ const InsulationPanel = () => {
             </>
           )}
 
-          <div className="border-t border-slate-800 pt-3 space-y-2">
+          <div className="border-t border-pl-border pt-3 space-y-2">
             <Field
               label="Target arrival temperature (F)"
               hint="The U it would take is inverted from the same energy balance the profile integrates, so the two cannot disagree."
@@ -99,19 +99,19 @@ const InsulationPanel = () => {
                   <Row
                     label="This line"
                     value={target.met ? 'Meets it' : 'Does not meet it'}
-                    accent={target.met ? 'text-emerald-400' : 'text-amber-400'}
+                    accent={target.met ? 'text-pl-success-text' : 'text-pl-warning-text'}
                     hint={`At U = ${fmt(target.currentU, 3)}`}
                   />
                 </>
               ) : (
-                <p className="text-[11px] text-amber-300">{target.reason}</p>
+                <p className="text-[11px] text-pl-warning-text">{target.reason}</p>
               )
             )}
           </div>
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">How much insulation is enough</CardTitle>
         </CardHeader>
@@ -120,19 +120,19 @@ const InsulationPanel = () => {
             <Play className="w-3.5 h-3.5 mr-1" /> Sweep insulation
           </Button>
           {!sweep ? (
-            <p className="text-sm text-slate-500 py-4">
+            <p className="text-sm text-pl-muted py-4">
               Each point is a full coupled march of the line, so this runs when you ask for it.
             </p>
           ) : (
             <>
               {sweepStale && <StaleNote onRerun={runSweep} />}
               {sweep.breakEvenU != null ? (
-                <p className="text-[11px] text-emerald-400">
+                <p className="text-[11px] text-pl-success-text">
                   The arrival leaves the hydrate region at about U = {fmt(sweep.breakEvenU, 2)}{' '}
                   Btu/hr-ft2-F. This line is at {fmt(firstLeg?.u.uBtuHrFt2F, 2)}.
                 </p>
               ) : (
-                <p className="text-[11px] text-amber-300">
+                <p className="text-[11px] text-pl-warning-text">
                   No insulation level in this range gets the arrival out of the hydrate region.
                   That is a heating or a dosing problem, not an insulation one.
                 </p>

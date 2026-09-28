@@ -17,10 +17,10 @@ const PlungerPanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <ArrowUpCircle className="w-4 h-4 text-sky-400" /> Would a plunger lift this well
+            <ArrowUpCircle className="w-4 h-4 text-pl-muted" /> Would a plunger lift this well
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -46,23 +46,23 @@ const PlungerPanel = () => {
           </div>
 
           {!plunger ? (
-            <p className="text-sm text-slate-500 py-6 text-center">
+            <p className="text-sm text-pl-muted py-6 text-center">
               The analysis has to run first: the plunger screening uses this well's depth, tubing
               and column temperatures.
             </p>
           ) : !plunger.ok ? (
-            <div className="rounded-md border border-amber-900/60 bg-amber-950/30 p-3">
-              <ul className="text-[11px] text-amber-200/80 space-y-1 list-disc pl-4">
+            <div className="rounded-md border border-pl-warning/40 bg-pl-warning-bg p-3">
+              <ul className="text-[11px] text-pl-warning-text space-y-1 list-disc pl-4">
                 {plunger.errors.map((e) => <li key={e}>{e}</li>)}
               </ul>
             </div>
           ) : (
             <>
               <div className={`rounded-md border p-3 ${plunger.design.feasible
-                ? 'border-emerald-900/60 bg-emerald-950/20'
-                : 'border-amber-900/60 bg-amber-950/20'}`}
+                ? 'border-pl-success/40 bg-pl-success-bg'
+                : 'border-pl-warning/40 bg-pl-warning-bg'}`}
               >
-                <p className={`text-sm font-semibold flex items-center gap-2 ${plunger.design.feasible ? 'text-emerald-400' : 'text-amber-300'}`}>
+                <p className={`text-sm font-semibold flex items-center gap-2 ${plunger.design.feasible ? 'text-pl-success-text' : 'text-pl-warning-text'}`}>
                   {plunger.design.feasible
                     ? <CheckCircle2 className="w-4 h-4" />
                     : <AlertTriangle className="w-4 h-4" />}
@@ -72,12 +72,12 @@ const PlungerPanel = () => {
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 border-t border-slate-800 pt-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 border-t border-pl-border pt-4">
                 <Stat
                   label="Pressure needed"
                   value={fmt(plunger.design.lift.requiredPsia)}
                   unit="psia"
-                  accent={plunger.design.pressureOk ? 'text-emerald-400' : 'text-red-400'}
+                  accent={plunger.design.pressureOk ? 'text-pl-success-text' : 'text-pl-danger-text'}
                   hint="to move the plunger and its slug"
                 />
                 <Stat
@@ -100,8 +100,8 @@ const PlungerPanel = () => {
                 />
               </div>
 
-              <div className="border-t border-slate-800 pt-4">
-                <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">
+              <div className="border-t border-pl-border pt-4">
+                <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold mb-2">
                   The gas-liquid ratio test
                 </p>
                 <Row
@@ -119,7 +119,7 @@ const PlungerPanel = () => {
                   hint="400 scf per barrel per 1,000 ft. Reported for comparison; not used to decide."
                 />
                 {plunger.design.ruleOfThumbAgrees === false && (
-                  <p className="text-[11px] text-amber-300 pt-2">
+                  <p className="text-[11px] text-pl-warning-text pt-2">
                     The rule of thumb and the physics disagree on this well. A well sitting between
                     the two numbers is exactly where a screening heuristic misleads, which is why
                     both are shown.
@@ -127,8 +127,8 @@ const PlungerPanel = () => {
                 )}
               </div>
 
-              <div className="border-t border-slate-800 pt-4">
-                <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">
+              <div className="border-t border-pl-border pt-4">
+                <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold mb-2">
                   The lift balance, term by term
                 </p>
                 <Row label="Line pressure" value={`${fmt(plunger.design.lift.terms.linePressurePsia)} psi`} />
@@ -138,7 +138,7 @@ const PlungerPanel = () => {
                 <Row label="Friction" value={`${fmt(plunger.design.lift.terms.frictionPsi)} psi`} />
               </div>
 
-              <div className="border-t border-slate-800 pt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="border-t border-pl-border pt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Stat label="Rise" value={fmt(plunger.design.timing.riseMin, 1)} unit="min" hint={`over ${fmt(model.tvdMax)} ft`} />
                 <Stat label="Fall" value={fmt(plunger.design.timing.fallMin, 1)} unit="min" />
                 <Stat label="Cycle" value={fmt(plunger.design.timing.totalMin, 1)} unit="min" />
@@ -146,10 +146,10 @@ const PlungerPanel = () => {
               </div>
 
               {plunger.design.warnings.length > 0 && (
-                <ul className="space-y-2 border-t border-slate-800 pt-4">
+                <ul className="space-y-2 border-t border-pl-border pt-4">
                   {plunger.design.warnings.map((w) => (
-                    <li key={w.code} className="text-sm text-amber-100/80 flex gap-2">
-                      <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-400" />
+                    <li key={w.code} className="text-sm text-pl-warning-text flex gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-pl-warning-text" />
                       <span>{w.message}</span>
                     </li>
                   ))}

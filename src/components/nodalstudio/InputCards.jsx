@@ -11,7 +11,7 @@ import { CORRELATIONS } from '@/utils/nodal/correlations/index';
 import { Field, UnitField, SectionLabel } from './primitives';
 
 const InputCard = ({ title, children }) => (
-  <Card className="bg-slate-900 border-slate-800">
+  <Card>
     <CardHeader className="pb-2"><CardTitle className="text-sm">{title}</CardTitle></CardHeader>
     <CardContent className="space-y-3">{children}</CardContent>
   </Card>
@@ -19,9 +19,9 @@ const InputCard = ({ title, children }) => (
 
 const SelectField = ({ label, value, onChange, options }) => (
   <div className="space-y-1">
-    <Label className="text-xs text-slate-400">{label}</Label>
+    <Label className="text-xs text-pl-muted">{label}</Label>
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
       <SelectContent>
         {options.map((o) => (
           <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -170,12 +170,12 @@ export const WellCard = () => {
         <UnitField kind="length" system={unitSystem} label="Node depth (MD = TVD)" value={well.depthFt} onChange={(v) => setWellField('depthFt', v)} />
       ) : (
         <div className="space-y-1">
-          <Label className="text-xs text-slate-400">Survey rows: md, inc, azi <span className="text-slate-600">(ft, deg)</span></Label>
+          <Label className="text-xs text-pl-muted">Survey rows: md, inc, azi <span className="text-pl-muted">(ft, deg)</span></Label>
           <Textarea
             value={well.surveyText}
             onChange={(e) => setWellField('surveyText', e.target.value)}
             rows={5}
-            className="bg-slate-800 border-slate-700 font-mono text-xs"
+            className="font-mono text-xs"
           />
         </div>
       )}

@@ -31,13 +31,13 @@ const ChokesResults = () => {
           <Kpi title="Temperature at bean" value={fmtU('temperature', g.tDnF, unitSystem, fmt.f1)} unit={unitLabel('temperature', unitSystem)} />
         </div>
         {g.tDnF < 32 && (
-          <div className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 px-4 py-3 text-sm">
+          <div className="rounded-lg border border-pl-info/40 bg-pl-info-bg text-pl-info-text px-4 py-3 text-sm">
             The gas cools below freezing across the bean. Check hydrate conditions; heating may be
             needed to prevent icing.
           </div>
         )}
         {g.regime === 'sonic' && (
-          <div className="text-xs text-slate-400">
+          <div className="text-xs text-pl-muted">
             Flow is choked: the rate is independent of downstream pressure until the ratio rises
             above the critical value.
           </div>
@@ -57,7 +57,7 @@ const ChokesResults = () => {
       </div>
 
       {!l.valid && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300 px-4 py-3 text-sm">
+        <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text px-4 py-3 text-sm">
           The downstream to wellhead ratio is above 0.55, so critical flow is not assured and the
           Gilbert family reads are lower bounds. A subcritical model (Sachdeva or Perkins class)
           belongs to a later phase.
@@ -65,17 +65,17 @@ const ChokesResults = () => {
       )}
 
       <SectionLabel>All correlations at these conditions</SectionLabel>
-      <div className="text-xs text-slate-300 space-y-1 max-w-md">
+      <div className="text-xs text-pl-text space-y-1 max-w-md">
         {l.allCorrelations.map((c) => (
-          <div key={c.id} className="flex justify-between border-b border-slate-800 py-1">
-            <span className="text-slate-400">{NAMES[c.id]}</span>
+          <div key={c.id} className="flex justify-between border-b border-pl-border py-1">
+            <span className="text-pl-muted">{NAMES[c.id]}</span>
             <span>
               {fmtU('pressure', c.pwh, unitSystem, fmt.int)} {unitLabel('pressure', unitSystem)}
             </span>
           </div>
         ))}
       </div>
-      <div className="text-xs text-slate-500">
+      <div className="text-xs text-pl-muted">
         Convention: wellhead pressure in psia, rate in gross liquid, GLR in scf/STB, bean in 64ths
         of an inch. Valid for critical (sonic) flow.
       </div>

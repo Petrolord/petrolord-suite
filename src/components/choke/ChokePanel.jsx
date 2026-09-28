@@ -28,8 +28,8 @@ const ChokePanel = () => {
       </Field>
 
       {isGas ? (
-        <div className="border-t border-slate-800 pt-3 space-y-3">
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Gas</p>
+        <div className="border-t border-pl-border pt-3 space-y-3">
+          <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Gas</p>
           <Field label="Gas gravity (air = 1)"><NumberInput section="choke" name="gasSg" step="0.01" /></Field>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Heat capacity ratio k"><NumberInput section="choke" name="k" step="0.01" /></Field>
@@ -38,14 +38,14 @@ const ChokePanel = () => {
           <Field label="Hydrate margin wanted (F)" hint="How far above the screening hydrate temperature you want to stay.">
             <NumberInput section="choke" name="hydrateMarginF" />
           </Field>
-          <p className="text-[11px] text-slate-600">
+          <p className="text-[11px] text-pl-muted">
             The gas choke carries its own critical ratio from the heat capacity ratio, so sonic and
             subsonic are decided thermodynamically rather than by a rule of thumb.
           </p>
         </div>
       ) : (
-        <div className="border-t border-slate-800 pt-3 space-y-3">
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Produced fluid</p>
+        <div className="border-t border-pl-border pt-3 space-y-3">
+          <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Produced fluid</p>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Gas-liquid ratio (scf/bbl liquid)"><NumberInput section="choke" name="glr" /></Field>
             <Field label="Water cut (%)"><NumberInput section="choke" name="wctPct" /></Field>
@@ -58,8 +58,8 @@ const ChokePanel = () => {
               value={inputs.choke.correlation}
               onValueChange={(v) => setSection('choke', 'correlation', v)}
             >
-              <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
                 {Object.entries(chokeCoeffs).map(([id, k]) => (
                   <SelectItem key={id} value={id}>
                     {id.charAt(0).toUpperCase() + id.slice(1)} (c {k.c}, m {k.m}, n {k.n})
@@ -76,10 +76,10 @@ const ChokePanel = () => {
               disabled={!fitted?.ok}
             />
             <div>
-              <Label htmlFor="useFitted" className="text-xs text-slate-400">
+              <Label htmlFor="useFitted" className="text-xs text-pl-muted">
                 Use the coefficients fitted to this well
               </Label>
-              <p className="text-[11px] text-slate-600">
+              <p className="text-[11px] text-pl-muted">
                 {fitted?.ok
                   ? `c ${fitted.c.toFixed(2)}, m ${fitted.m.toFixed(3)}, n ${fitted.n.toFixed(3)} from ${fitted.points.length} test${fitted.points.length === 1 ? '' : 's'}.`
                   : 'Fit one on the Coefficients tab first.'}
@@ -89,16 +89,16 @@ const ChokePanel = () => {
         </div>
       )}
 
-      <div className="border-t border-slate-800 pt-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Flowline</p>
+      <div className="border-t border-pl-border pt-3 space-y-3">
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Flowline</p>
         <Field label="Inside diameter (in)"><NumberInput section="wellhead" name="flowlineIdIn" step="0.01" /></Field>
         <Field
           label="Erosional service"
           hint="RP 14E is explicit that its own C values are conservative and allows higher where the fluid is clean and corrosion is controlled."
         >
           <Select value={inputs.wellhead.cPreset} onValueChange={applyCPreset}>
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
               {erosionalPresets.map((p) => (
                 <SelectItem key={p.id} value={p.id}>{p.label} (C = {p.c})</SelectItem>
               ))}

@@ -39,9 +39,9 @@ const CoefficientsPanel = () => {
 
   if (model?.phase === 'gas') {
     return (
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardContent className="py-8">
-          <p className="text-sm text-slate-500 text-center">
+          <p className="text-sm text-pl-muted text-center">
             Coefficient fitting is for the Gilbert-family multiphase correlations. A gas well runs
             on the single-phase gas choke, whose discharge coefficient is the one number to tune and
             sits on the Operating Point inputs.
@@ -53,13 +53,13 @@ const CoefficientsPanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
             <span className="flex items-center gap-2">
-              <Sigma className="w-4 h-4 text-sky-400" /> Fit the correlation to this well
+              <Sigma className="w-4 h-4 text-pl-muted" /> Fit the correlation to this well
             </span>
-            <span className="block text-xs font-normal text-slate-500 mt-0.5">
+            <span className="block text-xs font-normal text-pl-muted mt-0.5">
               From the well tests on the production spine. A test needs a rate, a gas-liquid ratio,
               a bean size and a tubing head pressure to be usable.
             </span>
@@ -72,8 +72,8 @@ const CoefficientsPanel = () => {
               hint="Fitting all three needs at least three tests that vary in both gas-liquid ratio and bean size."
             >
               <Select value={inputs.fit.mode} onValueChange={(v) => setSection('fit', 'mode', v)}>
-                <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
                   <SelectItem value="all">All three coefficients</SelectItem>
                   <SelectItem value="cOnly">The leading constant only</SelectItem>
                 </SelectContent>
@@ -82,8 +82,8 @@ const CoefficientsPanel = () => {
             {inputs.fit.mode === 'cOnly' && (
               <Field label="Hold the exponents at">
                 <Select value={inputs.fit.fixedSet} onValueChange={(v) => setSection('fit', 'fixedSet', v)}>
-                  <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
                     {Object.entries(chokeCoeffs).map(([id, k]) => (
                       <SelectItem key={id} value={id}>
                         {id.charAt(0).toUpperCase() + id.slice(1)} (m {k.m}, n {k.n})
@@ -100,15 +100,15 @@ const CoefficientsPanel = () => {
           </div>
 
           {!chokePoints.length && (
-            <p className="text-sm text-slate-500 py-4 text-center">
+            <p className="text-sm text-pl-muted py-4 text-center">
               No usable well tests on the spine. Link a field on the Well Model tab; tests import
               through the Surveillance Studio.
             </p>
           )}
 
           {fitted && !fitted.ok && (
-            <div className="rounded-md border border-amber-900/60 bg-amber-950/30 p-3">
-              <p className="text-[11px] text-amber-200/90 flex items-start gap-2">
+            <div className="rounded-md border border-pl-warning/40 bg-pl-warning-bg p-3">
+              <p className="text-[11px] text-pl-warning-text flex items-start gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" /> {fitted.error}
               </p>
             </div>
@@ -116,7 +116,7 @@ const CoefficientsPanel = () => {
 
           {fitted?.ok && (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 border-t border-slate-800 pt-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 border-t border-pl-border pt-4">
                 <Stat label="c" value={fmt(fitted.c, 3)} hint="leading constant" />
                 <Stat label="m" value={fmt(fitted.m, 4)} hint="gas-liquid ratio exponent" />
                 <Stat label="n" value={fmt(fitted.n, 4)} hint="bean exponent" />
@@ -124,13 +124,13 @@ const CoefficientsPanel = () => {
                   label="Misses by"
                   value={fmt(fitted.rmsePct, 1)}
                   unit="%"
-                  accent={fitted.rmsePct > 15 ? 'text-amber-300' : 'text-emerald-400'}
+                  accent={fitted.rmsePct > 15 ? 'text-pl-warning-text' : 'text-pl-success-text'}
                 />
                 <Stat label="R squared" value={fmt(fitted.r2, 4)} />
               </div>
 
-              <div className="border-t border-slate-800 pt-4">
-                <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">
+              <div className="border-t border-pl-border pt-4">
+                <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold mb-2">
                   Against the published sets
                 </p>
                 {Object.entries(chokeCoeffs).map(([id, k]) => (
@@ -144,10 +144,10 @@ const CoefficientsPanel = () => {
               </div>
 
               {fitted.warnings.length > 0 && (
-                <ul className="space-y-2 border-t border-slate-800 pt-4">
+                <ul className="space-y-2 border-t border-pl-border pt-4">
                   {fitted.warnings.map((w) => (
-                    <li key={w.code} className="text-sm text-amber-100/80 flex gap-2">
-                      <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-400" />
+                    <li key={w.code} className="text-sm text-pl-warning-text flex gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-pl-warning-text" />
                       <span>{w.message}</span>
                     </li>
                   ))}
@@ -203,7 +203,7 @@ const CoefficientsPanel = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                    <tr className="text-[10px] uppercase tracking-wider text-pl-muted border-b border-pl-border bg-pl-sunken">
                       <th className="text-left font-semibold px-3 py-2">Test</th>
                       <th className="text-right font-semibold px-3 py-2">Bean</th>
                       <th className="text-right font-semibold px-3 py-2">Liquid (bbl/d)</th>
@@ -215,14 +215,14 @@ const CoefficientsPanel = () => {
                   </thead>
                   <tbody>
                     {fitted.residuals.map((r) => (
-                      <tr key={r.id || `${r.date}-${r.s64}`} className="border-b border-slate-800/60 last:border-0">
-                        <td className="px-3 py-2 whitespace-nowrap text-slate-300">{r.date || '--'}</td>
-                        <td className="px-3 py-2 text-right tabular-nums text-slate-300">{r.s64}/64</td>
-                        <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(r.q)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(r.glr)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(r.pwh)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(r.predictedPwh)}</td>
-                        <td className={`px-3 py-2 text-right tabular-nums ${Math.abs(r.errorPct) > 15 ? 'text-amber-300' : 'text-slate-300'}`}>
+                      <tr key={r.id || `${r.date}-${r.s64}`} className="border-b border-pl-border last:border-0">
+                        <td className="px-3 py-2 whitespace-nowrap text-pl-text">{r.date || '--'}</td>
+                        <td className="px-3 py-2 text-right font-pl-mono tabular-nums text-pl-text">{r.s64}/64</td>
+                        <td className="px-3 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(r.q)}</td>
+                        <td className="px-3 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(r.glr)}</td>
+                        <td className="px-3 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(r.pwh)}</td>
+                        <td className="px-3 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(r.predictedPwh)}</td>
+                        <td className={`px-3 py-2 text-right font-pl-mono tabular-nums ${Math.abs(r.errorPct) > 15 ? 'text-pl-warning-text' : 'text-pl-text'}`}>
                           {fmt(Math.abs(r.errorPct) < 0.05 ? 0 : r.errorPct, 1)} %
                         </td>
                       </tr>

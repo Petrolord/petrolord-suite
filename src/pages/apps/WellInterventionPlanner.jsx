@@ -31,6 +31,10 @@ import ScreeningPanel from '@/components/intervention/ScreeningPanel';
 import UpliftPanel from '@/components/intervention/UpliftPanel';
 import SummaryPanel from '@/components/intervention/SummaryPanel';
 import InterventionHelpContent from '@/components/intervention/InterventionHelpGuide';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 2D (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'diagnosis', label: 'Diagnosis' },
@@ -39,7 +43,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const InterventionContent = () => {
@@ -120,7 +124,6 @@ const InterventionContent = () => {
             backTo="/dashboard/production"
             backTitle="Back to Production Operations"
             icon={Wrench}
-            iconGradientClass="from-amber-600 to-orange-700"
             title="Well Intervention Planner"
             tabs={TABS}
             activeTab={activeTab}
@@ -133,7 +136,7 @@ const InterventionContent = () => {
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Well Intervention Guide"
               description="Why the diagnosis has to come first, and what it rules out."
@@ -156,8 +159,10 @@ const InterventionContent = () => {
 
 export default function WellInterventionPlanner() {
   return (
-    <InterventionPlannerProvider>
-      <InterventionContent />
-    </InterventionPlannerProvider>
+    <ThemedApp data-testid="intervention-theme-scope">
+      <InterventionPlannerProvider>
+        <InterventionContent />
+      </InterventionPlannerProvider>
+    </ThemedApp>
   );
 }

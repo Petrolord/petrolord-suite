@@ -23,10 +23,10 @@ import { Field, NumberInput, fmt, Stat } from './fields';
 const COLOR = { rate: '#059669', critical: '#dc2626', crossing: '#d97706' };
 
 const StaleNote = ({ onRerun }) => (
-  <div className="flex items-center gap-2 text-[11px] text-amber-400 mb-2">
+  <div className="flex items-center gap-2 text-[11px] text-pl-warning-text mb-2">
     <RefreshCw className="w-3 h-3" />
     Inputs changed since this ran.
-    <button type="button" className="underline hover:text-amber-300" onClick={onRerun}>
+    <button type="button" className="underline hover:text-pl-text" onClick={onRerun}>
       Run again
     </button>
   </div>
@@ -44,12 +44,12 @@ const ForecastPanel = () => {
     })), [forecast]);
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <CalendarClock className="w-4 h-4 text-emerald-400" /> When this well will load
+          <CalendarClock className="w-4 h-4 text-pl-muted" /> When this well will load
           {result && (
-            <span className="text-xs font-normal text-slate-500">
+            <span className="text-xs font-normal text-pl-muted">
               from {fmt(result.whp)} psia at the wellhead
             </span>
           )}
@@ -66,7 +66,7 @@ const ForecastPanel = () => {
         </div>
 
         {!forecast ? (
-          <p className="text-sm text-slate-500 py-6 text-center">
+          <p className="text-sm text-pl-muted py-6 text-center">
             Each point is a full nodal solve and a marched gas column at that reservoir pressure, so
             it runs when you ask for it. The deliverability coefficients are held: this is the same
             well, depleted, not a different one.
@@ -79,7 +79,7 @@ const ForecastPanel = () => {
                 label="Starts loading at"
                 value={forecast.crossingPrPsia ? fmt(forecast.crossingPrPsia) : 'not in range'}
                 unit={forecast.crossingPrPsia ? 'psia' : ''}
-                accent={forecast.crossingPrPsia ? 'text-amber-300' : 'text-emerald-400'}
+                accent={forecast.crossingPrPsia ? 'text-pl-warning-text' : 'text-pl-success-text'}
                 hint={forecast.crossingPrPsia
                   ? 'reservoir pressure where the rate falls to the critical rate'
                   : 'the well stays above its critical rate across this whole range'}
@@ -151,7 +151,7 @@ const ForecastPanel = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                  <tr className="text-[10px] uppercase tracking-wider text-pl-muted border-b border-pl-border bg-pl-sunken">
                     <th className="text-left font-semibold px-3 py-2">Reservoir (psia)</th>
                     <th className="text-right font-semibold px-3 py-2">Deliverability (Mscf/d)</th>
                     <th className="text-right font-semibold px-3 py-2">Critical (Mscf/d)</th>
@@ -161,18 +161,18 @@ const ForecastPanel = () => {
                 </thead>
                 <tbody>
                   {forecast.points.map((p) => (
-                    <tr key={p.prPsia} className="border-b border-slate-800/60 last:border-0">
-                      <td className="px-3 py-2 text-slate-200">{fmt(p.prPsia)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-300">
+                    <tr key={p.prPsia} className="border-b border-pl-border last:border-0">
+                      <td className="px-3 py-2 text-pl-text">{fmt(p.prPsia)}</td>
+                      <td className="px-3 py-2 text-right font-pl-mono tabular-nums text-pl-text">
                         {p.qMscfd == null ? '--' : fmt(p.qMscfd)}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-300">
+                      <td className="px-3 py-2 text-right font-pl-mono tabular-nums text-pl-text">
                         {p.criticalMscfd == null ? '--' : fmt(p.criticalMscfd)}
                       </td>
-                      <td className={`px-3 py-2 text-right tabular-nums ${p.loaded ? 'text-red-400' : 'text-emerald-400'}`}>
+                      <td className={`px-3 py-2 text-right font-pl-mono tabular-nums ${p.loaded ? 'text-pl-danger-text' : 'text-pl-success-text'}`}>
                         {p.marginPct == null ? '--' : `${fmt(p.marginPct)} %`}
                       </td>
-                      <td className={`px-3 py-2 text-[11px] ${p.loaded ? 'text-red-400' : 'text-emerald-400'}`}>
+                      <td className={`px-3 py-2 text-[11px] ${p.loaded ? 'text-pl-danger-text' : 'text-pl-success-text'}`}>
                         {p.reason || (p.loaded ? 'Loading' : 'Unloaded')}
                       </td>
                     </tr>

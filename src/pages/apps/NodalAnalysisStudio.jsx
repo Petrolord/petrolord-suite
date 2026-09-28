@@ -19,6 +19,10 @@ import { SensitivityResults, GasLiftResults } from '@/components/nodalstudio/Swe
 import ChokesResults from '@/components/nodalstudio/ChokesResults';
 import NASHelpContent from '@/components/nodalstudio/NASHelpContent';
 import { SectionLabel } from '@/components/nodalstudio/primitives';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 2D (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'system', label: 'System' },
@@ -46,21 +50,21 @@ const StatusRail = () => {
       <SectionLabel>Model status</SectionLabel>
       <div className="space-y-2 text-xs">
         {items.map((it) => (
-          <div key={it.label} className="flex items-start justify-between gap-2 border-b border-slate-800 pb-2">
-            <span className="text-slate-400">{it.label}</span>
-            <span className={it.ok ? 'text-emerald-400' : 'text-amber-400'}>
+          <div key={it.label} className="flex items-start justify-between gap-2 border-b border-pl-border pb-2">
+            <span className="text-pl-muted">{it.label}</span>
+            <span className={it.ok ? 'text-pl-success-text' : 'text-pl-warning-text'}>
               {it.ok ? 'Ready' : it.note || 'Incomplete'}
             </span>
           </div>
         ))}
         <div className="flex items-start justify-between gap-2 pb-1">
-          <span className="text-slate-400">System</span>
-          <span className={system?.status === 'flowing' ? 'text-emerald-400' : 'text-amber-400'}>
+          <span className="text-pl-muted">System</span>
+          <span className={system?.status === 'flowing' ? 'text-pl-success-text' : 'text-pl-warning-text'}>
             {system?.status === 'flowing' ? 'Flowing' : system?.status || 'Pending'}
           </span>
         </div>
       </div>
-      <div className="text-[11px] text-slate-500 leading-relaxed">
+      <div className="text-[11px] text-pl-muted leading-relaxed">
         Engine tier: oracle validated with armed literature anchors. See the documentation drawer
         for the validation map.
       </div>
@@ -165,7 +169,6 @@ const NodalStudioContent = () => {
             backTo="/dashboard/production"
             backTitle="Production"
             icon={Activity}
-            iconGradientClass="from-cyan-600 to-blue-600"
             title="Nodal Analysis Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -181,7 +184,7 @@ const NodalStudioContent = () => {
               onSave={manualSave}
               disabled={!currentProjectId}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1" />
+            <div className="h-4 w-[1px] bg-pl-border mx-1" />
             <StudioHelp
               title="Nodal Analysis Studio"
               description="How the system solve, correlations and screenings work."
@@ -203,8 +206,10 @@ const NodalStudioContent = () => {
 
 export default function NodalAnalysisStudio() {
   return (
-    <NodalAnalysisStudioProvider>
-      <NodalStudioContent />
-    </NodalAnalysisStudioProvider>
+    <ThemedApp data-testid="nodal-theme-scope">
+      <NodalAnalysisStudioProvider>
+        <NodalStudioContent />
+      </NodalAnalysisStudioProvider>
+    </ThemedApp>
   );
 }

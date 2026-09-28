@@ -1791,3 +1791,32 @@ the header toggle (`docs/scope/DesignSystem-Rollout.md`, batch 2B).
 - Theme tests: `src/pages/apps/__tests__/Production{Surveillance,Allocation,Network}Studio.theme.test.jsx`
   (shared `describeAppTheme` checks plus a walk through every tab with data
   loaded, the dialogs and the help drawer). No calculation changed.
+
+## Design system rollout batch 2D (2026-09-28, branch `feat/ds-w2d`)
+
+Flow Assurance Studio, Choke & Wellhead Performance Studio, Gas Well
+Performance Studio and Well Intervention Planner (and Nodal Analysis
+Studio, see `NodalAnalysisStudio-STATUS.md`) wrap themselves in
+`<ThemedApp>` (test ids `flowassurance-theme-scope`, `choke-theme-scope`,
+`gaswell-theme-scope`, `intervention-theme-scope`): grey panel light by
+default, dark by the header toggle, remembered per user.
+
+- Own files (`components/flowassurance`, `choke`, `gaswell`,
+  `intervention` and the four page files) use theme roles only. The dark
+  overrides on the adapted Card, Input and Select are gone; status colour
+  (critical flow, hydrate and wax exposure, loading margin, erosion,
+  screening verdicts, Chan mechanisms, warnings) goes through the status
+  roles; decorative icon colours and the header gradients are removed;
+  numbers use the mono face; table headers sit on the sunken role.
+- Charts (IPR and gas column, choke envelope and coefficient fit,
+  hydrate phase plot and profile, insulation sweep, cooldown, Chan
+  diagnostic, uplift profile) keep the white `ChartFrame` standard in
+  both themes.
+- The shared `production/WellModelPanel` and `WellModelSpinePanel` were
+  already scope-aware (W0B); no shared file changed.
+- Cold-load prefixes in `src/design/rollout/w2d.js`. Tests:
+  `src/pages/apps/__tests__/<App>.theme.test.jsx` (standard four, every
+  header tab, the documentation drawer). The existing smoke, context and
+  engine suites pass unchanged.
+
+No engine or calculation change.
