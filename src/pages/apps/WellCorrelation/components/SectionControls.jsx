@@ -11,6 +11,7 @@ import LayoutPanel from '@/components/wells/LayoutPanel';
 import { topColor } from '@/components/wells/topColors';
 import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
 import { DEPTH_REF_LABEL } from '../engine/sectionFrame';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const selCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const inputCls = selCls;
@@ -225,13 +226,13 @@ export default function SectionControls({
             <>
               <select className={selCls} value={zonePair?.[0] || ''} data-testid="corr-zone-top"
                 onChange={(e) => onZonePair(e.target.value ? [e.target.value, zonePair?.[1] || topNames[1] || ''] : null)}>
-                <option value="">—</option>
+                <option value="">{EMPTY_VALUE}</option>
                 {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
               <span className="text-pl-muted">to</span>
               <select className={selCls} value={zonePair?.[1] || ''} data-testid="corr-zone-base"
                 onChange={(e) => onZonePair(zonePair?.[0] && e.target.value ? [zonePair[0], e.target.value] : zonePair)}>
-                <option value="">—</option>
+                <option value="">{EMPTY_VALUE}</option>
                 {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </>

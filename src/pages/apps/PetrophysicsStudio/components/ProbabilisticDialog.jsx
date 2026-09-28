@@ -19,8 +19,9 @@ import {
   DIST_TYPES, DIST_FIELDS, DRAW_CHOICES, defaultUncertainty, entryProblem, specForEngine, probabilisticCsv, BEST_CASE_NOTE,
 } from '../services/probabilistic';
 import { OUTCOME_LABELS, EXCEEDANCE_DEFINITION, parameterPercentileLabel } from '@/lib/percentileConventions';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
-const fmt = (v, d = 3) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toFixed(d));
+const fmt = (v, d = 3) => (v === null || v === undefined || Number.isNaN(v) ? EMPTY_VALUE : Number(v).toFixed(d));
 const cellCls = 'w-full min-w-[3.5rem] rounded bg-pl-surface border px-1 py-0.5 text-xs text-pl-text';
 const selCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs';
 

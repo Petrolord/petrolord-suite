@@ -5,6 +5,7 @@ import { CHART_COLORS, CHART_TYPOGRAPHY, PINNED_TOOLTIP_PROPS, LEGEND_PROPS, XAX
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { unitLabel, fromOilfield } from '@/utils/welltest/units';
 import { ChartCard, Kpi, LINE, WarningBanner, fmt, fmtU } from './primitives';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
 // Pinned to the top-right corner of the plot (owner directive 2026-09-08).
@@ -58,7 +59,7 @@ const DataResults = () => {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <Kpi title="Gauge points" value={fmt.int(gaugeRows.length)} />
         <Kpi title="Points used" value={fmt.int(prepared.points.length)} accent />
-        <Kpi title="Time span" value={prepared.points.length ? `${fmt.sig3(prepared.points[0].time)} to ${fmt.sig3(prepared.points[prepared.points.length - 1].time)}` : '—'} unit="hr" />
+        <Kpi title="Time span" value={prepared.points.length ? `${fmt.sig3(prepared.points[0].time)} to ${fmt.sig3(prepared.points[prepared.points.length - 1].time)}` : EMPTY_VALUE} unit="hr" />
         <Kpi title="pwf at shut-in" value={fmtU('pressure', prepared.pwfShutIn, unitSystem, fmt.f1)} unit={unitLabel('pressure', unitSystem)} />
       </div>
 

@@ -4,6 +4,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { fmtSF, nToKN, paToMPa } from '../../services/ctRun';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // Packer loading per operating case: the engine total tubing-to-packer
 // force against the packer rating.
@@ -32,7 +33,7 @@ const PackerLoadsTable = ({ cases, ratingN }) => {
             <TableCell className="py-1 text-xs text-right font-pl-mono tabular-nums text-pl-muted">{paToMPa(c.dPiPa).toFixed(1)}</TableCell>
             <TableCell className="py-1 text-xs text-right font-pl-mono tabular-nums text-pl-muted">{paToMPa(c.dPoPa).toFixed(1)}</TableCell>
             <TableCell className="py-1 text-xs text-right font-pl-mono tabular-nums text-pl-text">{nToKN(c.loads.forces.totalN).toFixed(1)}</TableCell>
-            <TableCell className="py-1 text-xs text-right font-pl-mono tabular-nums text-pl-muted">{ratingN != null ? Math.round(nToKN(ratingN)) : '—'}</TableCell>
+            <TableCell className="py-1 text-xs text-right font-pl-mono tabular-nums text-pl-muted">{ratingN != null ? Math.round(nToKN(ratingN)) : EMPTY_VALUE}</TableCell>
             <TableCell className={`py-1 text-xs text-center font-pl-mono tabular-nums font-bold ${c.loads.packer.sf != null && c.loads.packer.sf < 1.2 ? 'text-pl-danger-text' : 'text-pl-success-text'}`}>
               {fmtSF(c.loads.packer.sf)}
             </TableCell>

@@ -30,6 +30,7 @@ import { computeInflux, sampleAquiferData } from '@/utils/aquiferInfluxCalculati
 import { useMaterialBalanceStudio } from '@/contexts/MaterialBalanceStudioContext';
 import { upsertCaseDefaultConfig, updateCase } from '@/pages/apps/reservoir-balance/lib/api';
 import { mapScreeningToAquiferParams } from '@/pages/apps/reservoir-balance/lib/aquiferScreeningMapping';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const METHODS = [
   { code: 'veh', label: 'van Everdingen-Hurst', blurb: 'Rigorous constant-terminal-pressure superposition for a radial (edge) aquifer. The reference method.' },
@@ -57,9 +58,9 @@ const s = (o) => Object.fromEntries(
   Object.entries(o).map(([k, v]) => [k, v == null ? '' : String(v)]),
 );
 
-const fmtWe = (v) => (v == null || !Number.isFinite(v) ? '—' : `${(v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 3 })} MMrb`);
-const fmtRate = (v) => (v == null || !Number.isFinite(v) ? '—' : `${v.toLocaleString('en-US', { maximumFractionDigits: 0 })} rb/d`);
-const fmtNum = (v, d = 0) => (v == null || !Number.isFinite(v) ? '—' : v.toLocaleString('en-US', { maximumFractionDigits: d }));
+const fmtWe = (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : `${(v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 3 })} MMrb`);
+const fmtRate = (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : `${v.toLocaleString('en-US', { maximumFractionDigits: 0 })} rb/d`);
+const fmtNum = (v, d = 0) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : v.toLocaleString('en-US', { maximumFractionDigits: d }));
 
 // Aquifer strength is a classification, so it reads in the text colour
 // (the design system keeps colour for status); "none" is muted.
@@ -224,7 +225,7 @@ const AquiferScreening = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi title="Cumulative Influx We" value={fmtWe(result.cumulativeWe)} accent />
         <Kpi title="Latest Influx Rate" value={fmtRate(result.rate)} />
-        <Kpi title="Aquifer Strength" value={cls.label || '—'} valueClass={LEVEL_COLOR[cls.level] || 'text-pl-text'} word />
+        <Kpi title="Aquifer Strength" value={cls.label || EMPTY_VALUE} valueClass={LEVEL_COLOR[cls.level] || 'text-pl-text'} word />
         <Kpi title={method === 'fetkovich' ? 'Encroachable Water Wei' : 'Final tD'}
           value={method === 'fetkovich' ? fmtWe(result.Wei) : fmtNum(finalTD, 1)} />
       </div>

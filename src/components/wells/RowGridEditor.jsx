@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const cellCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-24';
 
@@ -38,7 +39,7 @@ export default function RowGridEditor({ columns, rows, onChange, testIdPrefix, c
               {columns.map((c) => (
                 <td key={c.key} className="pr-3 py-0.5">
                   {c.readOnly ? (
-                    <span className="text-pl-muted font-mono" data-testid={`${testIdPrefix}-cell-${ri}-${c.key}`}>{r[c.key] ?? '—'}</span>
+                    <span className="text-pl-muted font-mono" data-testid={`${testIdPrefix}-cell-${ri}-${c.key}`}>{r[c.key] ?? EMPTY_VALUE}</span>
                   ) : c.type === 'select' ? (
                     <select
                       className={cellCls}

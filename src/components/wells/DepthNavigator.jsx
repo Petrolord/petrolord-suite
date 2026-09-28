@@ -15,6 +15,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   resolveView, panBy, zoomAbout, dragEdge, centerOn, stepPan, hitNav, navYOf, navDOf, decimateProfile, MIN_SPAN_M,
 } from './depthNavMath';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 
 const THEMES = {
@@ -52,7 +53,7 @@ export default function DepthNavigator({
   const F = depthUnit === 'ft' ? 1 / M_PER_FT : 1;
   const label = (d) => {
     const v = tvdLookup ? tvdLookup(d) : d;
-    return Number.isFinite(v) ? (v * F).toFixed(0) : '—';
+    return Number.isFinite(v) ? (v * F).toFixed(0) : EMPTY_VALUE;
   };
 
   const prof = useMemo(() => {

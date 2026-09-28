@@ -22,6 +22,7 @@ import {
 import {
   FORMATION_OPTIONS, screenAllMethods, sampleEorScreeningData,
 } from '@/utils/eorScreeningCalculations';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // R4 (Reservoir-ROADMAP.md): honest replacement for the archived EOR
 // Designer shell. Pure client-side screening on the published Taber,
@@ -231,7 +232,7 @@ function EorScreeningContent() {
                                   <tr key={v.criterion} className="border-b border-pl-border text-pl-text">
                                     <td className="py-1.5 pr-3 text-pl-text">{v.criterion}</td>
                                     <td className="py-1.5 pr-3">{v.required}{v.preferred != null ? ` (typical ${v.preferred})` : ''}</td>
-                                    <td className="py-1.5 pr-3">{v.actual != null ? `${v.actual}${v.unit ? ` ${v.unit}` : ''}` : '—'}</td>
+                                    <td className="py-1.5 pr-3">{v.actual != null ? `${v.actual}${v.unit ? ` ${v.unit}` : ''}` : EMPTY_VALUE}</td>
                                     <td className="py-1.5">
                                       <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] ${meta.chip}`}>
                                         <IconEl size={11} /> {v.status === 'na' ? 'not scored' : v.status}

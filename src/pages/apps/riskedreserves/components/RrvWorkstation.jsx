@@ -16,11 +16,12 @@ import ExpectationChart from './ExpectationChart';
 import {
   fromRcpProspect, blankProspect, inputProblem, loadProspects, saveProspects, valuationCsv,
 } from '../services/rrvStore';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const cell = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus';
 const btn = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40';
-const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? '—' : v.toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d }));
-const pct = (v) => (v == null || !Number.isFinite(v) ? '—' : `${(v * 100).toFixed(1)}%`);
+const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : v.toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d }));
+const pct = (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : `${(v * 100).toFixed(1)}%`);
 
 const FIELDS = [
   ['pg', 'Pg', 'Geological chance of success (0 to 1), from the risking in ReservoirCalc Pro'],
@@ -121,7 +122,7 @@ function RrvWorkstationContent({ backend }) {
                         <input className={`${cell} text-right font-pl-mono tabular-nums`} value={p[k]} inputMode="decimal" onChange={(e) => patch(p.id, k, e.target.value)} data-testid={`rrv-${k}-${p.name}`} />
                       </td>
                     ))}
-                    <td className="px-2 py-1 text-right font-pl-mono tabular-nums" data-testid={`rrv-pc-${p.name}`}>{pv ? pct(pv.pc) : '—'}</td>
+                    <td className="px-2 py-1 text-right font-pl-mono tabular-nums" data-testid={`rrv-pc-${p.name}`}>{pv ? pct(pv.pc) : EMPTY_VALUE}</td>
                     <td className={`px-2 py-1 text-right font-pl-mono font-semibold tabular-nums ${pv && pv.emv < 0 ? 'text-pl-danger-text' : 'text-pl-success-text'}`} data-testid={`rrv-emv-${p.name}`}>
                       {pv ? fmt(pv.emv) : <span className="text-pl-warning-text font-normal" title={problem}>check inputs</span>}
                     </td>
@@ -158,10 +159,10 @@ function RrvWorkstationContent({ backend }) {
                 ['Chance of at least the MEFS if it works', pct(v.pCommercialGivenSuccess)],
                 ['Commercial chance Pc', pct(v.pc)],
                 ['Success-case mean (lognormal)', `${fmt(v.successCase.mean)} MMbbl`],
-                ['Swanson mean (check)', v.successCase.swansonMean != null ? `${fmt(v.successCase.swansonMean)} MMbbl` : '—'],
+                ['Swanson mean (check)', v.successCase.swansonMean != null ? `${fmt(v.successCase.swansonMean)} MMbbl` : EMPTY_VALUE],
                 ['Risked mean (Pg x mean)', `${fmt(v.riskedMean)} MMbbl`],
-                ['Mean if commercial', v.meanIfCommercial != null ? `${fmt(v.meanIfCommercial)} MMbbl` : '—'],
-                ['NPV if commercial', v.npvIfCommercial != null ? `${fmt(v.npvIfCommercial)} $MM` : '—'],
+                ['Mean if commercial', v.meanIfCommercial != null ? `${fmt(v.meanIfCommercial)} MMbbl` : EMPTY_VALUE],
+                ['NPV if commercial', v.npvIfCommercial != null ? `${fmt(v.npvIfCommercial)} $MM` : EMPTY_VALUE],
                 ['EMV after the well', `${fmt(v.emv)} $MM`],
                 ['Break-even Pg', v.breakEvenPg != null ? pct(v.breakEvenPg) : 'not reachable'],
               ].map(([k, val]) => (

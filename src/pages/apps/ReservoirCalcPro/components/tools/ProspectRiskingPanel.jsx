@@ -16,10 +16,11 @@ import { Trash2, Plus, Layers } from 'lucide-react';
 import { RISK_FACTORS, chanceOfSuccess, riskProspect, portfolioRollup } from '../../services/ProspectRiskEngine';
 import { VOLUME_UNITS } from '../../services/prospectVolumes';
 import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const inputCls = COMPACT_FIELD_THEMED;
-const fmt = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toLocaleString(undefined, { maximumFractionDigits: d }));
-const pct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—');
+const fmt = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? EMPTY_VALUE : Number(v).toLocaleString(undefined, { maximumFractionDigits: d }));
+const pct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : EMPTY_VALUE);
 
 const DEFAULT_FACTORS = { trap: 0.6, reservoir: 0.7, charge: 0.8, seal: 0.7 };
 

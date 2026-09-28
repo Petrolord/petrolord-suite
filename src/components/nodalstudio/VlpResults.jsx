@@ -7,6 +7,7 @@ import { useNodalStudio } from '@/contexts/NodalAnalysisStudioContext';
 import { CORRELATIONS } from '@/utils/nodal/correlations/index';
 import { ChartCard, Kpi, WarningBanner, LINE, fmtU, fmt } from './primitives';
 import { unitLabel, fromOilfield } from '@/utils/nodal/units';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const axisProps = {
   stroke: CHART_COLORS.axisLine,
@@ -46,7 +47,7 @@ const VlpResults = () => {
     ? completion.outflow === 'gray'
       ? 'Gray (wet gas)'
       : 'Cullender-Smith (dry gas)'
-    : CORRELATIONS[vlpSpec?.vlp?.correlation]?.label || '—';
+    : CORRELATIONS[vlpSpec?.vlp?.correlation]?.label || EMPTY_VALUE;
 
   return (
     <div className="space-y-4">

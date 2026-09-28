@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle2, AlertTriangle, XCircle, Wind } from 'lucide-react';
 import { fmtSF, nToKN } from '../../services/ctRun';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // Summary across the tubing operating cases: worst total force, worst
 // packer SF, buckling flags, and the API RP 14E erosional velocity.
@@ -45,7 +46,7 @@ const TubingDesignSummary = ({ tubingResult }) => {
             <div className="text-[10px] text-pl-muted">
               Worst packer force
               <span data-testid="ct-tubing-total-force" className="text-pl-text font-pl-mono tabular-nums font-bold block text-xs">
-                {worstForce != null ? `${nToKN(worstForce).toFixed(1)} kN` : '—'}
+                {worstForce != null ? `${nToKN(worstForce).toFixed(1)} kN` : EMPTY_VALUE}
               </span>
             </div>
             <div className="text-[10px] text-pl-muted">

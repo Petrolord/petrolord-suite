@@ -33,6 +33,7 @@ import {
 import {
   LEGACY_NOTICE, frameworkLabel, frameworkBadge, piaRefusal, piaRowColumnsPresent, piaCellValue,
 } from '@/pages/apps/epe/epePiaCompliance';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // Design system: KPI tiles carry no decorative colour (rule 3).
 const KpiCard = ({ icon: Icon, title, value }) => (
@@ -71,7 +72,7 @@ const TabBar = ({ tabs, active, onChange }) => (
 
 // Format a USD number as $XXX.XM or $X.XB depending on magnitude
 const fmtCompact = (n) => {
-  if (n == null || isNaN(n)) return '—';
+  if (n == null || isNaN(n)) return EMPTY_VALUE;
   const abs = Math.abs(n);
   if (abs >= 1e9) return `${n < 0 ? '-' : ''}${(abs / 1e9).toFixed(2)}B`;
   if (abs >= 1e6) return `${n < 0 ? '-' : ''}${(abs / 1e6).toFixed(1)}M`;
@@ -891,9 +892,9 @@ const YearByYearTable = ({ results }) => {
 
   // Build row definitions (label, accessor, formatter)
   const rows = [
-    { label: 'Oil (bbl)',          get: (r) => r.oil_bbl || 0,         fmt: (v) => v ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—' },
-    { label: 'Gas (Mscf)',         get: (r) => r.gas_mscf || 0,        fmt: (v) => v ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—' },
-    { label: 'Condensate (bbl)',   get: (r) => r.condensate_bbl || 0,  fmt: (v) => v ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—' },
+    { label: 'Oil (bbl)',          get: (r) => r.oil_bbl || 0,         fmt: (v) => v ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : EMPTY_VALUE },
+    { label: 'Gas (Mscf)',         get: (r) => r.gas_mscf || 0,        fmt: (v) => v ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : EMPTY_VALUE },
+    { label: 'Condensate (bbl)',   get: (r) => r.condensate_bbl || 0,  fmt: (v) => v ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : EMPTY_VALUE },
     { label: 'Gross Revenue',      get: (r) => r.gross_revenue ?? r.revenue ?? 0,  fmt: fmtCompact },
     { label: 'Royalty',            get: (r) => r.royalty || 0,         fmt: fmtCompact },
     { label: 'OPEX',               get: (r) => r.opex || 0,            fmt: fmtCompact },
@@ -913,19 +914,19 @@ const YearByYearTable = ({ results }) => {
     // Engines 3.12.0 (EC7): the default path's royalty split, rates and the
     // framework of each year. Legacy and older runs carry none of them.
     if (cf.some((r) => r.liquids_production_royalty !== undefined)) {
-      const pct = (v) => (v == null ? '—' : `${(Number(v) * 100).toFixed(3)}%`);
+      const pct = (v) => (v == null ? EMPTY_VALUE : `${(Number(v) * 100).toFixed(3)}%`);
       const royaltyAt = rows.findIndex((x) => x.label === 'Royalty') + 1;
       rows.splice(royaltyAt, 0,
         { label: '  Production royalty, crude and condensate', get: (r) => r.liquids_production_royalty || 0, fmt: fmtCompact },
         { label: '  Gas and NGL royalty', get: (r) => r.gas_royalty || 0, fmt: fmtCompact },
         { label: '  Royalty by price', get: (r) => r.price_royalty || 0, fmt: fmtCompact },
-        { label: '  Royalty daily rate (bopd)', get: (r) => r.royalty_liquids_bopd, fmt: (v) => (v == null ? '—' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })) },
+        { label: '  Royalty daily rate (bopd)', get: (r) => r.royalty_liquids_bopd, fmt: (v) => (v == null ? EMPTY_VALUE : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })) },
         { label: '  Production royalty rate', get: (r) => r.royalty_rate_liquids, fmt: pct },
       );
       rows.push(
         { label: 'HCT rate', get: (r) => r.hct_rate, fmt: pct },
-        { label: 'TET rate', get: (r) => r.tet_rate_pct, fmt: (v) => (v == null ? '—' : `${Number(v)}%`) },
-        { label: 'Framework', get: (r) => r.fiscal_framework, fmt: (v) => (v === 'nta_2025' ? 'NTA 2025' : v === 'pia_only' ? 'PIA 2021' : '—') },
+        { label: 'TET rate', get: (r) => r.tet_rate_pct, fmt: (v) => (v == null ? EMPTY_VALUE : `${Number(v)}%`) },
+        { label: 'Framework', get: (r) => r.fiscal_framework, fmt: (v) => (v === 'nta_2025' ? 'NTA 2025' : v === 'pia_only' ? 'PIA 2021' : EMPTY_VALUE) },
       );
     }
   } else {
@@ -1436,14 +1437,14 @@ const EpeResultsViewer = () => {
 
   // Tooltip formatter — short currency display (USD millions)
   const fmtMillions = (n) => {
-    if (n == null || isNaN(n)) return '—';
+    if (n == null || isNaN(n)) return EMPTY_VALUE;
     const m = n / 1_000_000;
     return `$${m.toFixed(1)}M`;
   };
 
   // Wave F: compact NGN display for the flat-FX mirror KPIs (plain N prefix).
   const fmtNgn = (n) => {
-    if (n == null || isNaN(n)) return '—';
+    if (n == null || isNaN(n)) return EMPTY_VALUE;
     const abs = Math.abs(n);
     const sign = n < 0 ? '-' : '';
     if (abs >= 1e12) return `${sign}N${(abs / 1e12).toFixed(2)}tn`;
@@ -1547,17 +1548,17 @@ if (loading) {
                 <KpiCard
                   icon={Receipt}
                   title="Total Revenue"
-                  value={results.kpis.total_revenue !== undefined ? formatCurrency(results.kpis.total_revenue) : '—'}
+                  value={results.kpis.total_revenue !== undefined ? formatCurrency(results.kpis.total_revenue) : EMPTY_VALUE}
                 />
                 <KpiCard
                   icon={Wallet}
                   title="Total CAPEX"
-                  value={results.kpis.total_capex !== undefined ? formatCurrency(results.kpis.total_capex) : '—'}
+                  value={results.kpis.total_capex !== undefined ? formatCurrency(results.kpis.total_capex) : EMPTY_VALUE}
                 />
                 <KpiCard
                   icon={Landmark}
                   title="Total Tax"
-                  value={results.kpis.total_tax !== undefined ? formatCurrency(results.kpis.total_tax) : '—'}
+                  value={results.kpis.total_tax !== undefined ? formatCurrency(results.kpis.total_tax) : EMPTY_VALUE}
                 />
               </div>
 

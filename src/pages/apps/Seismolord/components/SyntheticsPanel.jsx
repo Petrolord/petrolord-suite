@@ -30,6 +30,7 @@ import {
   rotateConstantPhase, estimatePhaseRotation, windowedTieQc,
 } from '../engine/tieWarp';
 import { effectiveCheckshots } from '../services/wellsService';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 
@@ -873,7 +874,7 @@ export default function SyntheticsPanel({
           Well
           <select className={inputCls} value={wellId} onChange={(e) => pickWell(e.target.value)}
             data-testid="synth-well">
-            <option value="">—</option>
+            <option value="">{EMPTY_VALUE}</option>
             {sonicWells.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
         </label>

@@ -4,6 +4,7 @@
 // thickness is stated in depth.
 
 import { test, expect } from '@playwright/test';
+import { EMPTY_VALUE } from '../src/lib/emptyValue.js';
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
@@ -16,7 +17,7 @@ test('T1-001/002: depth increases down the log plot; gas Vp is computed', async 
   const tick = async (t) => (await page.locator('.recharts-cartesian-axis-tick-value', { hasText: new RegExp(`^${t}$`) }).first().boundingBox()).y;
   expect(await tick('2020')).toBeLessThan(await tick('2040'));
   const gasRow = page.locator('tr', { hasText: 'B (substitute)' });
-  await expect(gasRow).not.toContainText('—');
+  await expect(gasRow).not.toContainText(EMPTY_VALUE);
 });
 
 test('T1-E1: fluid replacement AVO shows the lower rock with fluid B', async ({ page }) => {

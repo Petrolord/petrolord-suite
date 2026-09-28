@@ -9,6 +9,7 @@ import { Loader2, Ruler, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { buildTiePoints, fitWellTie, calibrationProvenance } from '../engine/wellTie';
 import { describeVelocity } from '../engine/velocityModel';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 
@@ -130,7 +131,7 @@ export default function WellTiePanel({
               onChange={(e) => setPairs((p) => ({ ...p, [name]: e.target.value }))}
               data-testid={`welltie-pair-${name}`}
             >
-              <option value="">—</option>
+              <option value="">{EMPTY_VALUE}</option>
               {(horizons || []).map((h) => (
                 <option key={h.id} value={h.id}>{h.name}</option>
               ))}

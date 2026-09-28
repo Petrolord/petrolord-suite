@@ -3,6 +3,7 @@ import React from 'react';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { unitLabel, fromOilfield } from '@/utils/welltest/units';
 import { SectionLabel, fmt, fmtU } from './primitives';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const Row = ({ label, value }) => (
   <div className="flex justify-between text-xs py-1 border-b border-pl-border last:border-0">
@@ -26,8 +27,8 @@ const DiagnosticsRail = ({ activeTab }) => {
       <section>
         <SectionLabel>Test</SectionLabel>
         <Row label="Type" value={isBuildup ? 'Buildup' : 'Drawdown'} />
-        <Row label="Gauge points" value={gaugeRows.length || '—'} />
-        <Row label="Used" value={prepared.points.length || '—'} />
+        <Row label="Gauge points" value={gaugeRows.length || EMPTY_VALUE} />
+        <Row label="Used" value={prepared.points.length || EMPTY_VALUE} />
         {isBuildup && <Row label="tp (hr)" value={fmt.f1(configSpec.config?.tp)} />}
         {isBuildup && <Row label={`pwf at shut-in (${uL('pressure')})`} value={fmtU('pressure', prepared.pwfShutIn, unitSystem, fmt.f1)} />}
         {Number.isFinite(flowPeriods.equivalentTp) && <Row label="Equivalent tp (hr)" value={fmt.f1(flowPeriods.equivalentTp)} />}

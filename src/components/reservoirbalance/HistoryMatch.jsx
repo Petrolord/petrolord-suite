@@ -28,9 +28,10 @@ import {
   applicableParameters,
   buildHistoryMatchRequest,
 } from '@/pages/apps/reservoir-balance/lib/historyMatchParams';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const fmtValue = (key, v) => {
-  if (v == null || !Number.isFinite(v)) return '—';
+  if (v == null || !Number.isFinite(v)) return EMPTY_VALUE;
   if (key === 'ogip_scf') return `${(v / 1e9).toLocaleString('en-US', { maximumFractionDigits: 2 })} Bcf`;
   if (key === 'stoiip_stb') return `${(v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 2 })} MM STB`;
   if (key === 'aquifer_w_rb') return `${(v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 1 })} MM rb`;
@@ -38,7 +39,7 @@ const fmtValue = (key, v) => {
   return v.toLocaleString('en-US', { maximumFractionDigits: v >= 100 ? 0 : 2 });
 };
 
-const fmtPsi = (v) => (v == null || !Number.isFinite(v) ? '—' : `${v.toLocaleString('en-US', { maximumFractionDigits: 1 })} psi`);
+const fmtPsi = (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : `${v.toLocaleString('en-US', { maximumFractionDigits: 1 })} psi`);
 
 const Kpi = ({ label, value, hint }) => (
   <div className="border border-pl-border rounded-md p-3 bg-pl-sunken">
@@ -260,7 +261,7 @@ const HistoryMatch = () => {
                       <td className="py-1.5 pl-3 text-right font-mono text-pl-muted">
                         {p.ci95_low != null && p.ci95_high != null
                           ? `${fmtValue(p.key, p.ci95_low)} to ${fmtValue(p.key, p.ci95_high)}`
-                          : '—'}
+                          : EMPTY_VALUE}
                       </td>
                     </tr>
                   ))}

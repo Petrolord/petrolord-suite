@@ -4,6 +4,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { nToKN, paToMPa } from '../../services/ctRun';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // The Lubinski force breakdown per operating case: piston, ballooning,
 // thermal, total, length change and buckling state.
@@ -56,7 +57,7 @@ const TubingDetailedResultsTable = ({ cases }) => {
                   {b.state}
                 </TableCell>
                 <TableCell className="py-1 text-center text-pl-muted">
-                  {c.loads.packer.strokeOk == null ? '—' : (c.loads.packer.strokeOk ? 'ok' : 'exceeded')}
+                  {c.loads.packer.strokeOk == null ? EMPTY_VALUE : (c.loads.packer.strokeOk ? 'ok' : 'exceeded')}
                 </TableCell>
                 <TableCell className="py-1 text-center">
                   <Badge variant={statusVariant(c.status)} className="text-[9px] h-4 px-1 py-0">

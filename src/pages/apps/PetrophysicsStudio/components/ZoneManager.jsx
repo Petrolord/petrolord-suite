@@ -8,9 +8,10 @@ import React, { useMemo, useState } from 'react';
 import { Trash2, Plus, Loader2, UploadCloud, Crosshair, Layers } from 'lucide-react';
 import { toDisplay, fromDisplay, depthLabel } from '../viewer/depthModes';
 import { validateZoneWindow, planZoneFromTops, planZonesBetweenConsecutiveTops } from '../services/zonePlanner';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
-const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toFixed(d));
+const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? EMPTY_VALUE : Number(v).toFixed(d));
 
 /** @param {'m'|'ft'} [p.depthUnit] display unit for depths typed and shown
  *  here (PT2); storage stays metres MD

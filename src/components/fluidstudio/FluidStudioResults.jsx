@@ -16,6 +16,7 @@ import CompositionalSeparatorCard from '@/components/fluidstudio/CompositionalSe
 import LabTuningCard from '@/components/fluidstudio/LabTuningCard';
 import EosPvtTableCard from '@/components/fluidstudio/EosPvtTableCard';
 import PhaseEnvelopeCard from '@/components/fluidstudio/PhaseEnvelopeCard';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const KPICard = ({ title, value, unit, icon: Icon }) => (
   <Card>
@@ -30,7 +31,7 @@ const KPICard = ({ title, value, unit, icon: Icon }) => (
   </Card>
 );
 
-const fmt = (v, d = 0) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toFixed(d));
+const fmt = (v, d = 0) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toFixed(d));
 
 // Export the row-oriented PVT table as CSV.
 const exportPvtCsv = (table) => {

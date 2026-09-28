@@ -3,6 +3,7 @@ import HeatmapCanvas from './HeatmapCanvas';
 import { getInterpolator, gridExtent } from '../../services/colorUtils';
 import { generateContours } from '../../services/ContourGenerator';
 import { Loader2, Palette, Layers, Waves, Tag, Grid2x2 } from 'lucide-react';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // Curated colour scales exposed in the viewer (keys must exist in colorUtils).
 const COLOR_SCALES = ['Earth', 'Viridis', 'Turbo', 'RdYlBu', 'YlGnBu', 'Blues', 'Hot'];
@@ -249,7 +250,7 @@ const ContourMapViewer = ({
                     <div><span className="text-pl-muted">Y </span>{fmtCoord(hover.y)}</div>
                     <div className="text-pl-info-text">
                         <span className="text-pl-muted">Z </span>
-                        {hover.value == null ? '—' : hover.value.toFixed(Math.abs(hover.value) >= 100 ? 1 : 3)} {unit}
+                        {hover.value == null ? EMPTY_VALUE : hover.value.toFixed(Math.abs(hover.value) >= 100 ? 1 : 3)} {unit}
                     </div>
                 </div>
             )}

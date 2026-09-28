@@ -18,6 +18,7 @@ import {
 import { CONFIG_SECTIONS, labelForConfigKey, unitForConfigKey, formatConfigValue } from './epeConfigLabels';
 import { AppHeader } from '@/components/ui/app-shell';
 import { epePage, epePanel, epeTile, epeH2, epeH3, epeNum, epeNumCell, epeCallout } from './epeUi';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // Wave D (audit 4.6): comparison is capped so the table and chart stay
 // readable; six runs also matches the series palette below.
@@ -183,9 +184,9 @@ const EpeRunComparison = () => {
       fmt: (v) => (typeof v === 'number' ? `${v.toFixed(2)} years` : (v ?? 'N/A')),
       delta: 'years',
     },
-    { label: 'Breakeven oil price', get: (k) => k?.breakeven_oil_price_usd_bbl, num: (k) => k?.breakeven_oil_price_usd_bbl, fmt: (v) => v != null ? `$${Number(v).toFixed(1)}/bbl` : '—', delta: 'usdbbl' },
-    { label: 'Government take', get: (k) => k?.government_take_pct, num: (k) => k?.government_take_pct, fmt: (v) => v != null ? `${Number(v).toFixed(1)}%` : '—', delta: 'pp' },
-    { label: 'Government take (discounted)', get: (k) => k?.government_take_pct_discounted, num: (k) => k?.government_take_pct_discounted, fmt: (v) => v != null ? `${Number(v).toFixed(1)}%` : '—', delta: 'pp' },
+    { label: 'Breakeven oil price', get: (k) => k?.breakeven_oil_price_usd_bbl, num: (k) => k?.breakeven_oil_price_usd_bbl, fmt: (v) => v != null ? `$${Number(v).toFixed(1)}/bbl` : EMPTY_VALUE, delta: 'usdbbl' },
+    { label: 'Government take', get: (k) => k?.government_take_pct, num: (k) => k?.government_take_pct, fmt: (v) => v != null ? `${Number(v).toFixed(1)}%` : EMPTY_VALUE, delta: 'pp' },
+    { label: 'Government take (discounted)', get: (k) => k?.government_take_pct_discounted, num: (k) => k?.government_take_pct_discounted, fmt: (v) => v != null ? `${Number(v).toFixed(1)}%` : EMPTY_VALUE, delta: 'pp' },
     { label: 'Total revenue', get: (k) => k?.total_revenue, num: (k) => k?.total_revenue, fmt: formatCurrency, delta: 'currency' },
     { label: 'Total CAPEX', get: (k) => k?.total_capex, num: (k) => k?.total_capex, fmt: formatCurrency, delta: 'currency' },
     { label: 'Total OPEX', get: (k) => k?.total_opex, num: (k) => k?.total_opex, fmt: formatCurrency, delta: 'currency' },
@@ -429,11 +430,11 @@ const EpeRunComparison = () => {
                 {/* What differs between the configs (the old table showed
                     results with no way to see WHY they differ) */}
                 {[
-                  ['Fiscal regime', (r) => formatConfigValue('fiscal_regime', r.config?.fiscal_regime) ?? '—'],
-                  ['Oil price', (r) => r.config?.oil_price_usd_bbl != null ? `$${r.config.oil_price_usd_bbl}/bbl` : '—'],
-                  ['Gas price', (r) => r.config?.gas_price_usd_mscf != null ? `$${r.config.gas_price_usd_mscf}/mscf` : '—'],
-                  ['Discount rate', (r) => r.config?.discount_rate_pct != null ? `${r.config.discount_rate_pct}%` : '—'],
-                  ['Base year / PV basis', (r) => r.config ? `${r.config.base_year ?? '—'} / ${r.config.present_value_basis ?? '—'}` : '—'],
+                  ['Fiscal regime', (r) => formatConfigValue('fiscal_regime', r.config?.fiscal_regime) ?? EMPTY_VALUE],
+                  ['Oil price', (r) => r.config?.oil_price_usd_bbl != null ? `$${r.config.oil_price_usd_bbl}/bbl` : EMPTY_VALUE],
+                  ['Gas price', (r) => r.config?.gas_price_usd_mscf != null ? `$${r.config.gas_price_usd_mscf}/mscf` : EMPTY_VALUE],
+                  ['Discount rate', (r) => r.config?.discount_rate_pct != null ? `${r.config.discount_rate_pct}%` : EMPTY_VALUE],
+                  ['Base year / PV basis', (r) => r.config ? `${r.config.base_year ?? EMPTY_VALUE} / ${r.config.present_value_basis ?? EMPTY_VALUE}` : EMPTY_VALUE],
                 ].map(([label, get]) => (
                   <TableRow key={label}>
                     <TableCell className="text-pl-muted text-sm">{label}</TableCell>

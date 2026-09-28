@@ -11,6 +11,7 @@ import {
     SlideShell, HeroTile, Panel, StatCell, Chip,
     fmtDec, OIL, GAS, SLATE,
 } from './slideParts';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // Rasterise an inline <svg> element to a PNG data URL so it can be embedded in the
 // branded PDF. Renders at the SVG's viewBox size × 2 for a crisp result; resolves
@@ -116,7 +117,7 @@ const ProbabilisticSlide = () => {
     const reservoir = state.reservoirName || 'Reservoir 1';
     const dateStr = new Date().toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     const iterations = probResults.stats.iterations || (isGas ? probResults.raw?.giip?.length : probResults.raw?.stooip?.length) || 0;
-    const ratio = Number.isFinite(stats.p10 / stats.p90) ? (stats.p10 / stats.p90).toFixed(2) : '—';
+    const ratio = Number.isFinite(stats.p10 / stats.p90) ? (stats.p10 / stats.p90).toFixed(2) : EMPTY_VALUE;
 
     const sens = [...(probResults.stats.sensitivity || [])].sort((a, b) => b.contribution - a.contribution).slice(0, 5);
     const maxContrib = sens.length ? Math.max(...sens.map((s) => s.contribution)) : 1;

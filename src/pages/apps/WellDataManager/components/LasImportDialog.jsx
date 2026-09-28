@@ -25,6 +25,7 @@ import useCrsContext from '@/components/crs/useCrsContext';
 import { placeWellLocation } from '@/lib/crs/wellPlacement';
 import { UNKNOWN } from '@/lib/crs/tags';
 import { intervalsFromLasBlocks } from '../engine/lasBlocks';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs w-full';
 const thCls = 'text-left font-medium text-pl-muted pr-3 pb-1';
@@ -362,7 +363,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                         <tr key={l.mnemonic} data-testid={`wdm-las-curve-${l.mnemonic}`}>
                           <td className={tdCls}>
                             {i === 0 ? (
-                              <span title="The depth curve always imports" className="text-pl-muted">—</span>
+                              <span title="The depth curve always imports" className="text-pl-muted">{EMPTY_VALUE}</span>
                             ) : (
                               <input
                                 type="checkbox"
@@ -388,7 +389,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                           </td>
                           {target !== 'new' && (
                             <td className={tdCls}>
-                              {i === 0 ? '—' : (() => {
+                              {i === 0 ? EMPTY_VALUE : (() => {
                                 const clash = clashFor(names[l.mnemonic] ?? l.mnemonic, existing.logs);
                                 if (!clash) return <span className="text-pl-muted">new</span>;
                                 return (
@@ -410,7 +411,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                           <td className={tdCls}>
                             {l.converted
                               ? <span className="text-pl-success-text">{l.sourceUnit} → {l.unit}</span>
-                              : l.unit || '—'}
+                              : l.unit || EMPTY_VALUE}
                             {unknownUnit && (
                               <span
                                 className="ml-1 rounded bg-pl-warning-bg text-pl-warning-text px-1 text-[10px]"
@@ -420,7 +421,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                               </span>
                             )}
                           </td>
-                          <td className={`${tdCls} text-pl-muted`}>{l.kind || '—'}</td>
+                          <td className={`${tdCls} text-pl-muted`}>{l.kind || EMPTY_VALUE}</td>
                           <td className={tdCls}>{l.nullCount}</td>
                         </tr>
                       );

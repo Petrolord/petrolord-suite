@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useSimStudio } from '@/contexts/SimStudioContext';
 import { fmtElapsed } from '@/components/simstudio/resultAdapters';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const STATUS_TONE = {
   queued: 'text-pl-info-text bg-pl-info-bg border-pl-info/40',
@@ -81,8 +82,8 @@ const RunPanel = () => {
                     <TableCell className="text-xs text-pl-muted">{new Date(r.queued_at).toLocaleString()}</TableCell>
                     <TableCell><StatusBadge status={r.status} /></TableCell>
                     <TableCell className="text-xs font-mono text-pl-text">{fmtElapsed(r.elapsed_seconds)}</TableCell>
-                    <TableCell className="text-xs font-mono text-pl-muted">{r.report_steps ?? '—'}</TableCell>
-                    <TableCell className="text-xs text-pl-muted">{r.failure_stage || '—'}</TableCell>
+                    <TableCell className="text-xs font-mono text-pl-muted">{r.report_steps ?? EMPTY_VALUE}</TableCell>
+                    <TableCell className="text-xs text-pl-muted">{r.failure_stage || EMPTY_VALUE}</TableCell>
                     <TableCell className="text-right">
                       {(r.status === 'queued' || r.status === 'running') && !r.cancel_requested && (
                         <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-pl-danger-text"

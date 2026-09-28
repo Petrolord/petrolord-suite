@@ -24,6 +24,7 @@ import {
   makeDepthFrame, toStoredCheckshots, fromStoredCheckshots, rebaseStoredCheckshots,
   makeCheckshotProvenance, LEGACY_CHECKSHOT_PROVENANCE, PETREL_CHECKSHOT_CONVENTION, M_PER_FT,
 } from '../engine/checkshots';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const TABS = ['Header', 'Logs', 'Tops', 'Intervals', 'Core', 'Deviation', 'Checkshots'];
 
@@ -41,12 +42,12 @@ function Field({ label, children }) {
   return (
     <div>
       <div className="text-[11px] uppercase tracking-wider text-pl-muted">{label}</div>
-      <div className="text-sm text-pl-text">{children ?? '—'}</div>
+      <div className="text-sm text-pl-text">{children ?? EMPTY_VALUE}</div>
     </div>
   );
 }
 
-const fmt = (v, digits = 1) => (Number.isFinite(v) ? Number(v).toFixed(digits) : '—');
+const fmt = (v, digits = 1) => (Number.isFinite(v) ? Number(v).toFixed(digits) : EMPTY_VALUE);
 
 const REF_LABEL = { md: 'MD', tvd: 'TVD', tvdss: 'TVDSS' };
 const btnCls = 'px-2 py-0.5 rounded border text-xs border-pl-border text-pl-text hover:bg-pl-sunken';
@@ -571,12 +572,12 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                         <td className={`${tdCls} text-pl-text`} title={log.description || ''}>
                           {log.mnemonic}
                         </td>
-                        <td className={tdCls}>{log.unit || '—'}</td>
+                        <td className={tdCls}>{log.unit || EMPTY_VALUE}</td>
                         <td className={tdCls}>{fmt(log.start_md_m)} – {fmt(log.stop_md_m)}</td>
                         <td className={tdCls}>{log.step_m == null ? 'irregular' : fmt(log.step_m, 3)}</td>
                         <td className={tdCls}>{log.n_samples}</td>
                         <td className={tdCls}>{log.null_count}</td>
-                        <td className={`${tdCls} text-pl-muted`}>{log.source_file || '—'}</td>
+                        <td className={`${tdCls} text-pl-muted`}>{log.source_file || EMPTY_VALUE}</td>
                         <td className={tdCls}>
                           {well.is_own && (
                             <button
@@ -666,10 +667,10 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                         {displayLabel(normalizeSurfaceType(t.surface_type), scheme, { kind: 'surface', short: true }).label}
                         {displayLabel(normalizeSurfaceType(t.surface_type), scheme, { kind: 'surface' }).fallback ? <span className="ml-1 text-[10px] text-pl-warning-text" title="No Exxon term; Catuneanu name shown">C</span> : null}
                       </td>
-                      <td className={tdCls}>{units.find((u) => u.id === t.unit_id)?.name || '—'}</td>
-                      <td className={tdCls}>{t.confidence || '—'}</td>
-                      <td className={tdCls}>{t.age_ma == null ? '—' : t.age_ma}</td>
-                      <td className={tdCls}>{t.interpreter || '—'}</td>
+                      <td className={tdCls}>{units.find((u) => u.id === t.unit_id)?.name || EMPTY_VALUE}</td>
+                      <td className={tdCls}>{t.confidence || EMPTY_VALUE}</td>
+                      <td className={tdCls}>{t.age_ma == null ? EMPTY_VALUE : t.age_ma}</td>
+                      <td className={tdCls}>{t.interpreter || EMPTY_VALUE}</td>
                       <td className={tdCls}>
                         <Link to={mapTopHref(t.name, [], appPath(MAPPING_ID, appPaths))} className="text-pl-primary-text hover:text-pl-primary-text-hover"
                           title="Map this top in Mapping & Surface Studio (TVDSS structure map across every well carrying it)" data-testid={`wdm-map-top-${t.name}`}>

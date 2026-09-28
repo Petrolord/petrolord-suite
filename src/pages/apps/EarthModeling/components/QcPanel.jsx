@@ -8,6 +8,7 @@ import React from 'react';
 import { fmtVolume, volumeUnitLabel, fmtDepth } from '../services/units';
 import { describeProvenance } from '../services/propertyKriging';
 import { hasFluids } from '../services/modelBuild';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const th = 'px-2 py-1 text-left text-[10px] uppercase tracking-wider text-pl-muted font-medium';
 const td = 'px-2 py-1 text-xs text-pl-text whitespace-nowrap';
@@ -102,10 +103,10 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
                 <td className={td}>{fmtDepth(t.md, u, 1)}</td>
                 <td className={td}>{fmtDepth(t.tvdss, u, 2)}</td>
                 <td className={td}>{t.surfaceZ === null ? 'off grid' : fmtDepth(t.surfaceZ, u, 2)}</td>
-                {built.adjustment && <td className={td}>{t.residualBeforeM === undefined || t.residualBeforeM === null ? '—' : fmtDepth(t.residualBeforeM, u, 2)}</td>}
+                {built.adjustment && <td className={td}>{t.residualBeforeM === undefined || t.residualBeforeM === null ? EMPTY_VALUE : fmtDepth(t.residualBeforeM, u, 2)}</td>}
                 <td className={`${td} ${t.residualM !== null && Math.abs(t.residualM) > 10 ? 'text-pl-warning-text' : ''}`}
                   data-testid={`em-tie-${t.well}-${t.top}`}>
-                  {t.residualM === null ? '—' : fmtDepth(t.residualM, u, 2)}
+                  {t.residualM === null ? EMPTY_VALUE : fmtDepth(t.residualM, u, 2)}
                 </td>
               </tr>
             ))}

@@ -49,6 +49,7 @@ import ValidationTierBadge from '@/components/reservoirbalance/ValidationTierBad
 import NewCaseDialog, { fluidSystemDisplay } from '@/components/reservoirbalance/NewCaseDialog';
 import MbsHelpContent from '@/components/reservoirbalance/MbsHelpContent';
 import { mapWellTestIntake } from './lib/wellTestIntake';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const TABS = [
   { value: 'data', label: 'Data' },
@@ -62,7 +63,7 @@ const TABS = [
 ];
 
 function formatNumber(n, opts = {}) {
-  if (n === null || n === undefined || Number.isNaN(n)) return '—';
+  if (n === null || n === undefined || Number.isNaN(n)) return EMPTY_VALUE;
   const { decimals = 2 } = opts;
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: decimals });
 }
@@ -79,7 +80,7 @@ const DriveIndex = ({ label, value }) => (
   <div className="border rounded-md p-3">
     <p className="text-xs text-muted-foreground">{label}</p>
     <p className="text-base font-semibold mt-1 font-pl-mono tabular-nums">
-      {value === null || value === undefined ? '—' : value.toFixed(3)}
+      {value === null || value === undefined ? EMPTY_VALUE : value.toFixed(3)}
     </p>
   </div>
 );
@@ -113,7 +114,7 @@ const CaseSummary = ({ onEdit }) => {
         <span className="text-pl-text text-right">{formatNumber(caseData.initial_water_saturation, { decimals: 3 })}</span>
         <span className="text-pl-muted">Bubble point</span>
         <span className="text-pl-text text-right">
-          {caseData.bubble_point_psia ? `${formatNumber(caseData.bubble_point_psia)} psia` : '—'}
+          {caseData.bubble_point_psia ? `${formatNumber(caseData.bubble_point_psia)} psia` : EMPTY_VALUE}
         </span>
         <span className="text-pl-muted">Data rows</span>
         <span className="text-pl-text text-right">{caseData.production_data?.length ?? 0}</span>

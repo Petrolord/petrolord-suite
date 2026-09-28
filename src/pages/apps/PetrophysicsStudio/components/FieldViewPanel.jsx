@@ -15,11 +15,12 @@ import { computeFlattening, allTopNames } from '../engine/section';
 import { depthLabel } from '../viewer/depthModes';
 import { activeTemplate } from '../layout/layoutSchema';
 import { resolveTracks } from '../layout/resolveTracks';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const MAX_WELLS = 8;
 const FIELD_SOURCES = new Set(['input:GR', 'output:PHIE', 'output:PHIT', 'output:SW', 'output:PAY']);
-const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toFixed(d));
+const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? EMPTY_VALUE : Number(v).toFixed(d));
 
 export default function FieldViewPanel({
   depthUnit = 'm',
@@ -199,7 +200,7 @@ export default function FieldViewPanel({
                     <td key={fieldWells[i].id} className="px-2 py-1">
                       {s
                         ? `net ${depthLabel(s.net_m, depthUnit)} · N/G ${fmt(s.ntg, 2)} · φ ${fmt(s.phi_avg, 3)} · Sw ${fmt(s.sw_avg, 3)}`
-                        : '—'}
+                        : EMPTY_VALUE}
                     </td>
                   ))}
                 </tr>

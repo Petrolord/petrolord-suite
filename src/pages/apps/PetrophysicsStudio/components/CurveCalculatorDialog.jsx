@@ -13,9 +13,10 @@ import { Button } from '@/components/ui/button';
 import { evalCurve, curveStats, normalizeMnemonic, CALC_EXAMPLES, CALC_FUNCTIONS } from '../services/curveCalc';
 import { nextFreeName } from '@/lib/curveNames';
 import { PIPELINE_VERSION } from '../engine/pipeline';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
-const fmt = (v, d = 4) => (Number.isFinite(v) ? String(Number(v.toFixed(d))) : '—');
+const fmt = (v, d = 4) => (Number.isFinite(v) ? String(Number(v.toFixed(d))) : EMPTY_VALUE);
 
 export default function CurveCalculatorDialog({
   open, onOpenChange, wellData, outputs, backend, projectId, onSaved, onStatus, canSave = true,

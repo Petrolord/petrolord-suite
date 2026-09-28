@@ -1,4 +1,5 @@
 import React from 'react';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 /*
  * Shared building blocks for the presentation-ready "result slides".
@@ -14,14 +15,14 @@ export const GAS = { key: 'gas', main: '#b45309', soft: '#fffbeb', line: '#fde68
 export const SLATE = { main: '#334155', soft: '#f8fafc', line: '#e2e8f0', text: '#475569' };
 
 export const fmtInt = (v) =>
-    Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—';
+    Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : EMPTY_VALUE;
 
 export const fmtDec = (v, d = 2) =>
-    Number.isFinite(v) ? v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d }) : '—';
+    Number.isFinite(v) ? v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d }) : EMPTY_VALUE;
 
 // Big headline number scaled to millions/billions for the hero tiles.
-export const scaleMM = (v) => (Number.isFinite(v) ? (v / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—');
-export const scaleB = (v) => (Number.isFinite(v) ? (v / 1e9).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '—');
+export const scaleMM = (v) => (Number.isFinite(v) ? (v / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : EMPTY_VALUE);
+export const scaleB = (v) => (Number.isFinite(v) ? (v / 1e9).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : EMPTY_VALUE);
 
 export const Chip = ({ children, tone = 'slate' }) => {
     const tones = {

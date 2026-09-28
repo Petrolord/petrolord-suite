@@ -6,6 +6,7 @@ import { OILFIELD } from '@/utils/welltest/models/modelCatalog';
 import { unitLabel, fromOilfield } from '@/utils/welltest/units';
 import { ChartCard, Kpi, WarningBanner, fmt } from './primitives';
 import LogLogChart from './LogLogChart';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // Regime rows are labels, so they share one neutral look (colour is kept
 // for status in the design system).
@@ -59,7 +60,7 @@ const DiagnosticsResults = () => {
         <Kpi title="Diagnostic points" value={fmt.int(loglog.length)} />
         <Kpi title="Regimes detected" value={fmt.int(regimes.length)} />
         <Kpi title="Radial plateau kh" value={fmt.sig3(plateauKh)} unit="md·ft" accent={plateauKh != null} />
-        <Kpi title="Plateau k" value={reservoirSpec.reservoir && plateauKh != null ? fmt.sig3(plateauKh / reservoirSpec.reservoir.h) : '—'} unit="md" />
+        <Kpi title="Plateau k" value={reservoirSpec.reservoir && plateauKh != null ? fmt.sig3(plateauKh / reservoirSpec.reservoir.h) : EMPTY_VALUE} unit="md" />
       </div>
 
       <ChartCard title="Log-log diagnostic plot" height={360}>

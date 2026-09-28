@@ -8,6 +8,7 @@
 // the other. Sample indexing and every computation stay MD either way.
 
 import { makeDepthFrame } from '../../../packages/engines/engines/welldata/checkshots';
+import { EMPTY_VALUE } from '../../lib/emptyValue.js';
 
 // ---- display units (PT0, 2026-09-03) -------------------------------------
 // Internal depths are metres MD; only labels and typed values convert.
@@ -20,7 +21,7 @@ export const toDisplay = (mdM, unit) => (unit === 'ft' ? mdM / M_PER_FT : mdM);
 export const fromDisplay = (v, unit) => (unit === 'ft' ? v * M_PER_FT : v);
 /** "2040.0 m" / "6692.9 ft". */
 export const depthLabel = (mdM, unit = 'm', digits = 1) => (
-  Number.isFinite(mdM) ? `${toDisplay(mdM, unit).toFixed(digits)} ${unit === 'ft' ? 'ft' : 'm'}` : '—'
+  Number.isFinite(mdM) ? `${toDisplay(mdM, unit).toFixed(digits)} ${unit === 'ft' ? 'ft' : 'm'}` : EMPTY_VALUE
 );
 
 /**

@@ -39,6 +39,7 @@ import {
   UNITS_KEY, PRESSURE_UNITS, DEPTH_UNITS, readUnits, depthFromDisplay, tidyDepth,
   fmtPressure, fmtDepth, emwReferenceDepthM, emwDatumLabel, isEmw, prognosisCsv,
 } from '../services/units';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 
@@ -505,7 +506,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
           selectedId={selectedId}
           selectedModelId={seismicModel?.id || null}
           loadingId={loadingId}
-          curveStatus={curves ? `DT ${curves.units.DT || '—'} · RHOB ${curves.units.RHOB || 'absent'}` : null}
+          curveStatus={curves ? `DT ${curves.units.DT || EMPTY_VALUE} · RHOB ${curves.units.RHOB || 'absent'}` : null}
           onSelect={select}
           onSelectModel={selectVelocityModel}
         />
