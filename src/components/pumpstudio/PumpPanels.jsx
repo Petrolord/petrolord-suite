@@ -15,14 +15,14 @@ import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput } from './fields';
 
 export const PumpInputs = () => (
   <div className="space-y-4">
-    <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Fluid</p>
+    <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Fluid</p>
     <div className="grid grid-cols-3 gap-2">
       <Field label="SG"><NumberInput section="fluid" name="sg" step="0.01" /></Field>
       <Field label="Visc (cSt)"><NumberInput section="fluid" name="viscosityCSt" step="0.1" /></Field>
       <Field label="Pv (psia)"><NumberInput section="fluid" name="vapourPressurePsia" step="0.1" /></Field>
     </div>
 
-    <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">System</p>
+    <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">System</p>
     <Field label="Static head (ft)" hint="Lift plus any pressure the discharge is working against.">
       <NumberInput section="system" name="staticHeadFt" />
     </Field>
@@ -33,7 +33,7 @@ export const PumpInputs = () => (
       </Field>
     </div>
 
-    <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Pump curve</p>
+    <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Pump curve</p>
     <div className="grid grid-cols-2 gap-2">
       <Field label="Q1 (gpm)"><NumberInput section="pump" name="q1" /></Field>
       <Field label="H1 (ft)"><NumberInput section="pump" name="h1" /></Field>
@@ -53,7 +53,7 @@ export const PumpInputs = () => (
       <Field label="Speed (rpm)"><NumberInput section="pump" name="speedRpm" /></Field>
     </div>
 
-    <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Suction</p>
+    <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Suction</p>
     <Field label="Suction pressure (psia)" hint="Atmospheric is 14.7; a pressurised vessel is more.">
       <NumberInput section="suction" name="suctionPressurePsia" step="0.1" />
     </Field>
@@ -64,7 +64,7 @@ export const PumpInputs = () => (
       <Field label="Suction friction (ft)"><NumberInput section="suction" name="suctionFrictionFt" step="0.1" /></Field>
     </div>
 
-    <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Changes</p>
+    <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Changes</p>
     <div className="grid grid-cols-2 gap-2">
       <Field label="Speed ratio"><NumberInput section="changes" name="speedRatio" step="0.01" /></Field>
       <Field label="Trim ratio" hint="Impeller diameter as a fraction of full.">
@@ -98,18 +98,18 @@ export const DutyResults = () => {
   }
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Where the pump and the system meet</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Where the pump and the system meet</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Stat label="Duty flow" value={show(fmt(duty.qGpm, 0), duty.qGpm)} unit="gpm" accent="text-emerald-400" />
+            <Stat label="Duty flow" value={show(fmt(duty.qGpm, 0), duty.qGpm)} unit="gpm" accent="text-pl-text" />
             <Stat label="Duty head" value={show(fmt(duty.headFt, 0), duty.headFt)} unit="ft" />
             {!power.error && (
               <>
                 <Stat label="Brake power" value={show(fmt(power.brakeHp, 1), power.brakeHp)} unit="bhp"
                   hint={`${show(fmt(power.hydraulicHp, 1), power.hydraulicHp)} hydraulic hp`} />
                 {power.motorError
-                  ? <Stat label="Motor input" value="--" unit="kW" accent="text-amber-400"
+                  ? <Stat label="Motor input" value="--" unit="kW" accent="text-pl-warning-text"
                     hint="not computed: see the note below" />
                   : <Stat label="Motor input" value={show(fmt(power.motorInputKw, 1), power.motorInputKw)} unit="kW" />}
               </>
@@ -124,13 +124,13 @@ export const DutyResults = () => {
           {!region.error && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <Stat label="Of best efficiency flow" value={fmt(region.percentOfBep, 0)} unit="%"
-                accent={region.preferred ? 'text-emerald-400' : 'text-amber-400'} />
+                accent={region.preferred ? 'text-pl-success-text' : 'text-pl-warning-text'} />
               <Stat label="Operating region" value={region.region} />
             </div>
           )}
           {region?.note && <WarnNote>{region.note}</WarnNote>}
           {!configured.error && (configured.nPar > 1 || configured.nSer > 1) && (
-            <p className="text-[12px] text-slate-500">
+            <p className="text-[12px] text-pl-muted">
               {configured.nPar > 1 && `${configured.nPar} pumps in parallel. `}
               {configured.nSer > 1 && `${configured.nSer} pumps in series. `}
               The duty above is the combined one; the operating region is judged per machine,
@@ -138,7 +138,7 @@ export const DutyResults = () => {
             </p>
           )}
           {curve.warning && <WarnNote>{curve.warning}</WarnNote>}
-          <p className="text-[12px] text-slate-500">
+          <p className="text-[12px] text-pl-muted">
             This is a solved intersection, not an assumed duty. Change the system, the trim or the
             speed and the point moves, which is the only way the knock-on questions stay honest.
             {' '}
@@ -159,8 +159,8 @@ export const CurveChart = () => {
   if (chart.error) return null;
   const tick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Pump against system</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Pump against system</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <ChartFrame height={320} exportFilename="pump-system-curves">
           <ComposedChart data={chart.rows} margin={{ top: 8, right: 30, bottom: 24, left: 8 }}>
@@ -179,7 +179,7 @@ export const CurveChart = () => {
             )}
           </ComposedChart>
         </ChartFrame>
-        <p className="text-[12px] text-slate-500">
+        <p className="text-[12px] text-pl-muted">
           The marked point is the only flow at which the pump makes exactly the head the system
           demands. Everywhere else one exceeds the other and the flow accelerates or decays until
           it arrives here.
@@ -194,8 +194,8 @@ export const NpshResults = () => {
   const { show } = useFullPrecision();
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Suction margin</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Suction margin</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {npsh.error ? <ErrorNote>{npsh.error}</ErrorNote> : (
             <>
@@ -203,12 +203,12 @@ export const NpshResults = () => {
                 <Stat label="NPSH available" value={fmt(npsh.npshaFt, 1)} unit="ft"
                   hint={`${fmt(npsh.pressureHeadFt, 1)} ft of it from pressure`} />
                 <Stat label="Margin over required" value={fmt(npsh.check?.marginFt, 1)} unit="ft"
-                  accent={npsh.check?.pass ? 'text-emerald-400'
-                    : (npsh.check?.severity === 'cavitating' ? 'text-red-400' : 'text-amber-400')} />
+                  accent={npsh.check?.pass ? 'text-pl-success-text'
+                    : (npsh.check?.severity === 'cavitating' ? 'text-pl-danger-text' : 'text-pl-warning-text')} />
                 <Stat label="Customary margin" value={fmt(npsh.check?.requiredMarginFt, 1)} unit="ft"
                   hint="the larger of 3 ft and 35 percent of required" />
                 <Stat label="Verdict" value={npsh.check?.severity || '--'}
-                  accent={npsh.check?.pass ? 'text-emerald-400' : 'text-amber-400'} />
+                  accent={npsh.check?.pass ? 'text-pl-success-text' : 'text-pl-warning-text'} />
               </div>
               {npsh.warning && <WarnNote>{npsh.warning}</WarnNote>}
               {npsh.check?.note && <WarnNote>{npsh.check.note}</WarnNote>}
@@ -217,8 +217,8 @@ export const NpshResults = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Viscosity</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Viscosity</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {viscosity.error ? <ErrorNote>{viscosity.error}</ErrorNote> : (
             <>
@@ -227,11 +227,11 @@ export const NpshResults = () => {
                 <Stat label="Flow factor" value={fmt(viscosity.cQ, 3)} />
                 <Stat label="Head factor" value={fmt(viscosity.cH, 3)} />
                 <Stat label="Efficiency factor" value={fmt(viscosity.cEta, 3)}
-                  accent={viscosity.cEta < 0.7 ? 'text-amber-400' : 'text-emerald-400'} />
+                  accent={viscosity.cEta < 0.7 ? 'text-pl-warning-text' : 'text-pl-success-text'} />
               </div>
-              {viscosity.note && <p className="text-[12px] text-slate-500">{viscosity.note}</p>}
+              {viscosity.note && <p className="text-[12px] text-pl-muted">{viscosity.note}</p>}
               {viscosity.warning && <WarnNote>{viscosity.warning}</WarnNote>}
-              <p className="text-[12px] text-slate-500">
+              <p className="text-[12px] text-pl-muted">
                 A catalogue curve is a water curve. On anything heavier the pump delivers less flow
                 at less head and considerably less efficiency, and the factors above are what the
                 Hydraulic Institute method says that costs.
@@ -242,8 +242,8 @@ export const NpshResults = () => {
       </Card>
 
       {changeEffect && (
-        <Card className="bg-slate-900/60 border-slate-800">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">What a change would buy</CardTitle></CardHeader>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">What a change would buy</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {changeEffect.error ? <ErrorNote>{changeEffect.error}</ErrorNote> : (
               <>
@@ -251,7 +251,7 @@ export const NpshResults = () => {
                   <Stat label="Duty flow before" value={show(fmt(changeEffect.before.qGpm, 0), changeEffect.before.qGpm)} unit="gpm"
                     hint={`${show(fmt(changeEffect.before.headFt, 0), changeEffect.before.headFt)} ft, ${show(fmt(changeEffect.before.brakeHp, 1), changeEffect.before.brakeHp)} bhp`} />
                   <Stat label="Duty flow after" value={show(fmt(changeEffect.after.qGpm, 0), changeEffect.after.qGpm)} unit="gpm"
-                    accent="text-emerald-400"
+                    accent="text-pl-text"
                     hint={`${show(fmt(changeEffect.after.headFt, 0), changeEffect.after.headFt)} ft, ${show(fmt(changeEffect.after.brakeHp, 1), changeEffect.after.brakeHp)} bhp`} />
                   <Stat label="Change in flow"
                     value={fmt(((changeEffect.after.qGpm / changeEffect.before.qGpm) - 1) * 100, 1)}
@@ -272,7 +272,7 @@ export const NpshResults = () => {
                 </div>
                 {changeEffect.trimWarning && <WarnNote>{changeEffect.trimWarning}</WarnNote>}
                 {changeEffect.speedWarning && <WarnNote>{changeEffect.speedWarning}</WarnNote>}
-                <p className="text-[12px] text-slate-500">
+                <p className="text-[12px] text-pl-muted">
                   Two different numbers sit above and they answer two different questions. The duty
                   after the change is a fresh crossing of the changed pump curve with the system,
                   because the machine changed and the piping did not. The affinity and trim laws
@@ -280,7 +280,7 @@ export const NpshResults = () => {
                   on the pump curve without sitting on the system curve, so no pump ever runs there.
                   Size on the crossing.
                 </p>
-                <p className="text-[12px] text-slate-500">
+                <p className="text-[12px] text-pl-muted">
                   A trim under-delivers what the affinity laws promise, because a cut impeller no
                   longer matches its casing, and the shortfall grows with the depth of the cut. A
                   speed change does follow the laws, which is why a variable speed drive is usually

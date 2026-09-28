@@ -26,7 +26,7 @@ export const SweeteningInputs = () => {
       </div>
       <Field label="Amine">
         <Select value={inputs.amine.amineId} onValueChange={(v) => setSection('amine', 'amineId', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             {amines.map((a) => (
               <SelectItem key={a.id} value={a.id}>{a.id} (typical {a.wtPctTypical} wt %, rich to {a.maxLoading})</SelectItem>
@@ -67,8 +67,8 @@ export const SweeteningResults = () => {
   const wrongLiquid = Number.isFinite(s.liquidAsked) && Number.isFinite(s.liquidUsed)
     && Math.abs(s.liquidUsed - s.liquidAsked) > 1e-6 * s.liquidAsked;
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Amine unit</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Amine unit</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Stat label="Acid gas picked up" value={fmt(s.acidMolesDay, 0)} unit="lbmol/day" />
@@ -81,7 +81,7 @@ export const SweeteningResults = () => {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <Stat label="Contactor diameter"
             value={s.contactor?.error ? '--' : fmt(s.contactor.diameterFt, 1)} unit="ft"
-            accent={s.contactor?.error ? 'text-amber-400' : accentFor(s.contactor?.diameterFt)}
+            accent={s.contactor?.error ? 'text-pl-warning-text' : accentFor(s.contactor?.diameterFt)}
             hint={s.contactor?.error
               || `Souders-Brown at z = ${fmt(s.contactor?.z, 3)}, against a liquid at ${fmt(s.liquidUsed, 1)} lb/ft3`} />
         </div>
@@ -93,7 +93,7 @@ export const SweeteningResults = () => {
         )}
         {s.zWarning && <WarnNote>{s.zWarning}</WarnNote>}
         {s.warning && <WarnNote>{s.warning}</WarnNote>}
-        <p className="text-[12px] text-slate-500">
+        <p className="text-[12px] text-pl-muted">
           A mole balance sets the circulation floor; real absorber performance (selectivity,
           approach to equilibrium, stage efficiency) needs rate-based simulation. Treat this as
           the screening bound it is.
@@ -125,8 +125,8 @@ export const DewpointResults = () => {
   if (d.error) return <ErrorNote>{d.error}</ErrorNote>;
   const broken = nonFiniteNote(d.nonFinite);
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Joule-Thomson screening</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Joule-Thomson screening</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Stat label="JT coefficient at the inlet" value={show(fmt(d.muFPerPsi * 100, 1), d.muFPerPsi * 100)} unit="F/100 psi"
@@ -143,7 +143,7 @@ export const DewpointResults = () => {
               hint="the cooling divided by the pressure drop, which is the coefficient the march actually delivered" />
           )}
           {d.dropError ? (
-            <Stat label="Drop" value="--" hint={d.dropError} accent="text-amber-400" />
+            <Stat label="Drop" value="--" hint={d.dropError} accent="text-pl-warning-text" />
           ) : (
             <>
               <Stat label="Cooling across the drop" value={show(fmt(d.dropF, 1), d.dropF)} unit="F"
@@ -152,7 +152,7 @@ export const DewpointResults = () => {
                 accent={accentFor(d.t2F)} />
               <Stat label="Water the cold gas can hold"
                 value={d.waterAtOutlet?.error ? '--' : show(fmt(d.waterAtOutlet.lbPerMMscf, 1), d.waterAtOutlet.lbPerMMscf)} unit="lb/MMscf"
-                accent={d.waterAtOutlet?.error ? 'text-amber-400' : accentFor(d.waterAtOutlet?.lbPerMMscf)}
+                accent={d.waterAtOutlet?.error ? 'text-pl-warning-text' : accentFor(d.waterAtOutlet?.lbPerMMscf)}
                 hint={d.waterAtOutlet?.error || 'anything above this condenses at the cold spot'} />
             </>
           )}
@@ -160,7 +160,7 @@ export const DewpointResults = () => {
         {broken && <ErrorNote>{broken}</ErrorNote>}
         {d.warning && <WarnNote>{d.warning}</WarnNote>}
         {d.zWarning && <WarnNote>{d.zWarning}</WarnNote>}
-        <p className="text-[12px] text-slate-500">
+        <p className="text-[12px] text-pl-muted">
           A JT drop is where hydrates form: the cold spot sits right where free water appears.
           Screen the hydrate margin in the Production module's Flow Assurance Studio, which owns
           that question.

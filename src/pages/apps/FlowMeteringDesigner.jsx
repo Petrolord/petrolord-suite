@@ -15,6 +15,10 @@ import { MeterStudioProvider, useMeter } from '@/contexts/MeterStudioContext';
 import { RunInputs, FlowResults, UncertaintyResults } from '@/components/meterstudio/MeterPanels';
 import MeterHelpContent from '@/components/meterstudio/MeterHelpGuide';
 import { fmt, Row } from '@/components/meterstudio/fields';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'flow', label: 'Flow & Plate' },
@@ -22,7 +26,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const Summary = () => {
@@ -114,7 +118,6 @@ const StudioContent = () => {
             backTo="/dashboard/facilities"
             backTitle="Back to Facilities Engineering"
             icon={Gauge}
-            iconGradientClass="from-violet-600 to-indigo-700"
             title="Flow Metering Designer"
             tabs={TABS}
             activeTab={activeTab}
@@ -127,7 +130,7 @@ const StudioContent = () => {
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Flow Metering Guide"
               description="Why the discharge coefficient is not 0.61, why turndown limits an orifice run to about three to one, and why the uncertainty budget is the study."
@@ -148,9 +151,11 @@ const StudioContent = () => {
 };
 
 const FlowMeteringDesigner = () => (
-  <MeterStudioProvider>
-    <StudioContent />
-  </MeterStudioProvider>
+  <ThemedApp data-testid="meter-theme-scope">
+    <MeterStudioProvider>
+      <StudioContent />
+    </MeterStudioProvider>
+  </ThemedApp>
 );
 
 export default FlowMeteringDesigner;

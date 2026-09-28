@@ -19,7 +19,7 @@ export const DehydrationInputs = () => {
       <Field label="Gas temperature (F)"><NumberInput section="teg" name="tF" /></Field>
       <Field label="Inlet water content">
         <Select value={t.inletMode} onValueChange={(v) => setSection('teg', 'inletMode', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="saturated">Water saturated at line conditions</SelectItem>
             <SelectItem value="typed">Type it (lb/MMscf)</SelectItem>
@@ -71,8 +71,8 @@ export const DehydrationResults = () => {
   const broken = nonFiniteNote(d.nonFinite);
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Water balance</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Water balance</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat label="Inlet water" value={fmt(d.inletLbMMscf, 1)} unit="lb/MMscf"
@@ -99,23 +99,23 @@ export const DehydrationResults = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Absorber</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Absorber</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat label="Removal the spec demands" value={fmt(d.removalNeeded * 100, 1)} unit="%" />
             <Stat label="Stages the spec demands"
               value={d.stagesNeeded?.error ? 'unreachable' : fmt(d.stagesNeeded.stages, 1)}
-              accent={d.stagesNeeded?.error ? 'text-red-400' : 'text-slate-100'}
+              accent={d.stagesNeeded?.error ? 'text-pl-danger-text' : 'text-pl-text'}
               hint={d.stagesNeeded?.error || 'Kremser at the stated absorption factor'} />
             <Stat label="Removal at the stated stages"
               value={d.fractionAtStagesError ? 'unreachable' : fmt(d.fractionAtStages * 100, 1)}
               unit={d.fractionAtStagesError ? '' : '%'}
-              accent={d.fractionAtStagesError ? 'text-amber-400' : accentFor(d.fractionAtStages)}
+              accent={d.fractionAtStagesError ? 'text-pl-warning-text' : accentFor(d.fractionAtStages)}
               hint={d.fractionAtStagesError || 'Kremser at the stated stages and absorption factor'} />
             <Stat label="Contactor diameter"
               value={d.contactor?.error ? '--' : fmt(d.contactor.diameterFt, 1)} unit="ft"
-              accent={d.contactor?.error ? 'text-amber-400' : accentFor(d.contactor?.diameterFt)}
+              accent={d.contactor?.error ? 'text-pl-warning-text' : accentFor(d.contactor?.diameterFt)}
               hint={d.contactor?.error
                 || `Souders-Brown at z = ${fmt(d.contactor?.z, 3)}, against a liquid at ${fmt(d.liquidUsed, 1)} lb/ft3`} />
           </div>

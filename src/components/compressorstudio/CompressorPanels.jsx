@@ -28,7 +28,7 @@ export const DutyInputs = () => (
       </Field>
     </div>
 
-    <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Machine</p>
+    <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold pt-2">Machine</p>
     <div className="grid grid-cols-2 gap-2">
       <Field label="Polytropic efficiency" hint="0.72 to 0.82 typical. This is NOT the isentropic efficiency.">
         <NumberInput section="machine" name="polytropicEfficiency" step="0.01" />
@@ -46,7 +46,7 @@ export const DutyInputs = () => (
       <Field label="Gas Cp (Btu/lb F)"><NumberInput section="machine" name="cpBtuLbF" step="0.01" /></Field>
     </div>
 
-    <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Driver</p>
+    <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold pt-2">Driver</p>
     <div className="grid grid-cols-2 gap-2">
       <Field label="Heat rate (Btu/hp-hr)" hint="Gas engine about 8000; a good turbine lower.">
         <NumberInput section="driver" name="heatRateBtuHpHr" />
@@ -65,12 +65,12 @@ export const TrainResults = () => {
   if (train.error) return <ErrorNote>{train.error}</ErrorNote>;
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">The machine</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">The machine</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat label="Stages" value={String(train.stages.length)}
-              accent="text-emerald-400" hint={`set by ${train.governedBy}`} />
+              accent="text-pl-text" hint={`set by ${train.governedBy}`} />
             <Stat label="Ratio per stage" value={fmt(train.ratioPerStage, 2)}
               hint={`overall ${fmt(train.overallRatio, 2)}`} />
             <Stat label="Brake power" value={show(fmt(train.totalBrakeHp, 0), train.totalBrakeHp)} unit="bhp"
@@ -83,7 +83,7 @@ export const TrainResults = () => {
             <Stat label="Inlet volume" value={fmt(acfm, 0)} unit="acfm"
               hint="what the machine screen turns on" />
           </div>
-          <p className="text-[12px] text-slate-500">
+          <p className="text-[12px] text-pl-muted">
             The stage count is the larger of what the ratio limit demands and what the discharge
             temperature demands. Here the {train.governedBy} governed. A ratio rule alone
             under-stages a hot or high-k gas, which is how a machine ends up running its valves
@@ -92,13 +92,13 @@ export const TrainResults = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Stage by stage</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Stage by stage</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                <tr className="text-left text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
                   <th className="py-2 pr-3">Stage</th>
                   <th className="py-2 pr-3">Suction (psia)</th>
                   <th className="py-2 pr-3">Discharge (psia)</th>
@@ -111,17 +111,17 @@ export const TrainResults = () => {
               </thead>
               <tbody>
                 {train.stages.map((s) => (
-                  <tr key={s.stage} className="border-b border-slate-800/60">
-                    <td className="py-1.5 pr-3 text-slate-300">{s.stage}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{fmt(s.pSuctionPsia, 0)}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{fmt(s.pDischargePsia, 0)}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{fmt(s.tSuctionF, 0)}</td>
-                    <td className={`py-1.5 pr-3 tabular-nums ${s.warning ? 'text-amber-400' : ''}`}>
+                  <tr key={s.stage} className="border-b border-pl-border">
+                    <td className="py-1.5 pr-3 text-pl-text">{s.stage}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{fmt(s.pSuctionPsia, 0)}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{fmt(s.pDischargePsia, 0)}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{fmt(s.tSuctionF, 0)}</td>
+                    <td className={`py-1.5 pr-3 font-pl-mono tabular-nums ${s.warning ? 'text-pl-warning-text' : ''}`}>
                       {fmt(s.tDischargeF, 0)}
                     </td>
-                    <td className="py-1.5 pr-3 tabular-nums">{fmt(s.zAvg, 4)}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{show(fmt(s.gasHp, 0), s.gasHp)}</td>
-                    <td className="py-1.5 tabular-nums">{s.coolingBtuHr ? fmt(s.coolingBtuHr / 1e6, 2) : '--'}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{fmt(s.zAvg, 4)}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{show(fmt(s.gasHp, 0), s.gasHp)}</td>
+                    <td className="py-1.5 font-pl-mono tabular-nums">{s.coolingBtuHr ? fmt(s.coolingBtuHr / 1e6, 2) : '--'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -147,8 +147,8 @@ export const TrainResults = () => {
       </Card>
 
       {!firstStage.error && (
-        <Card className="bg-slate-900/60 border-slate-800">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Head, both ways</CardTitle></CardHeader>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Head, both ways</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Stat label="Polytropic head" value={show(fmt(firstStage.headPolyFtLbfLbm, 0), firstStage.headPolyFtLbfLbm)} unit="ft lbf/lbm" />
@@ -157,7 +157,7 @@ export const TrainResults = () => {
               <Stat label="Isentropic efficiency" value={fmt(firstStage.isentropicEfficiency, 3)}
                 hint="always the lower of the two for compression" />
             </div>
-            <p className="text-[12px] text-slate-500">
+            <p className="text-[12px] text-pl-muted">
               Two idealisations of the same stage, shown together so neither gets quoted as the
               other. They give the same shaft power, because the actual work is the actual work;
               what differs is the reference path. The polytropic exponent carries the efficiency
@@ -178,19 +178,19 @@ export const ScreenResults = () => {
   if (screen.error) return <ErrorNote>{screen.error}</ErrorNote>;
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Reciprocating or centrifugal</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Reciprocating or centrifugal</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <Stat label="Inlet volume" value={fmt(screen.acfm, 0)} unit="acfm" />
             <Stat label="Overall ratio" value={fmt(train.overallRatio, 2)} />
             <Stat label="Indication" value={screen.recommendation}
-              accent={screen.recommendation === 'either' ? 'text-slate-300' : 'text-emerald-400'} />
+              accent="text-pl-text" />
           </div>
-          <ul className="space-y-1 list-disc list-inside text-[12px] text-slate-400">
+          <ul className="space-y-1 list-disc list-inside text-[12px] text-pl-muted">
             {screen.reasons.map((r) => <li key={r}>{r}</li>)}
           </ul>
-          <p className="text-[12px] text-slate-500">
+          <p className="text-[12px] text-pl-muted">
             This screens on the published selection criteria only: inlet volume, pressure ratio and
             power. Availability, footprint, maintenance philosophy and what the site already runs
             decide the rest, and no calculation settles those.
@@ -198,8 +198,8 @@ export const ScreenResults = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Driver fuel</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Driver fuel</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {fuel.error ? <ErrorNote>{fuel.error}</ErrorNote> : (
             <>
@@ -230,8 +230,8 @@ export const SweepChart = () => {
   const tick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Power against discharge pressure</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Power against discharge pressure</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <ChartFrame height={300} exportFilename="compressor-power-sweep">
             <ComposedChart data={data} margin={{ top: 8, right: 40, bottom: 8, left: 20 }}>
@@ -252,7 +252,7 @@ export const SweepChart = () => {
               <Line yAxisId="hp" dataKey="bhp" name="Brake power (bhp)" stroke="#059669" strokeWidth={2} dot />
             </ComposedChart>
           </ChartFrame>
-          <p className="text-[12px] text-slate-500">
+          <p className="text-[12px] text-pl-muted">
             Power climbs smoothly with discharge pressure, but the stage count climbs in steps, and
             each step is a machine, a cooler and a foundation. The cheap discharge pressure sits just
             below a step.
@@ -260,13 +260,13 @@ export const SweepChart = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Sweep detail</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Sweep detail</CardTitle></CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                <tr className="text-left text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
                   <th className="py-2 pr-3">Discharge (psig)</th>
                   <th className="py-2 pr-3">Ratio</th>
                   <th className="py-2 pr-3">Stages</th>
@@ -278,14 +278,14 @@ export const SweepChart = () => {
               </thead>
               <tbody>
                 {sweep.rows.map((r) => (
-                  <tr key={r.pDischargePsig} className="border-b border-slate-800/60">
-                    <td className="py-1.5 pr-3 text-slate-300">{fmt(r.pDischargePsig)}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{r.error ? '--' : fmt(r.overallRatio, 2)}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{r.error ? '--' : r.stages}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{r.error ? '--' : fmt(r.totalBrakeHp, 0)}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{r.error ? '--' : fmt(r.finalDischargeF, 0)}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{r.error ? '--' : fmt(r.coolingMMBtuHr, 2)}</td>
-                    <td className="py-1.5 tabular-nums">{r.error ? '--' : fmt(r.fuelMMscfd, 3)}</td>
+                  <tr key={r.pDischargePsig} className="border-b border-pl-border">
+                    <td className="py-1.5 pr-3 text-pl-text">{fmt(r.pDischargePsig)}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{r.error ? '--' : fmt(r.overallRatio, 2)}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{r.error ? '--' : r.stages}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{r.error ? '--' : fmt(r.totalBrakeHp, 0)}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{r.error ? '--' : fmt(r.finalDischargeF, 0)}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{r.error ? '--' : fmt(r.coolingMMBtuHr, 2)}</td>
+                    <td className="py-1.5 font-pl-mono tabular-nums">{r.error ? '--' : fmt(r.fuelMMscfd, 3)}</td>
                   </tr>
                 ))}
               </tbody>

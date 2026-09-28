@@ -13,7 +13,7 @@ export const SlugInputs = () => {
       <ExampleCaseNote />
       <Field label="Catcher type">
         <Select value={s.mode} onValueChange={(v) => setSection('slug', 'mode', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="vessel">Vessel type</SelectItem>
             <SelectItem value="finger">Finger (harp) type</SelectItem>
@@ -43,7 +43,7 @@ export const SlugInputs = () => {
             <Field label="Number of fingers"><NumberInput section="slug" name="nFingers" step="1" /></Field>
           </div>
           <Field label="Fill fraction"><NumberInput section="slug" name="fingerFill" step="0.05" /></Field>
-          <p className="text-[11px] text-slate-600">
+          <p className="text-[11px] text-pl-muted">
             Pipe is cheaper than vessel per unit volume and needs no vessel code stamp, which is why
             large slugs are caught in a harp of parallel fingers rather than one enormous drum.
           </p>
@@ -58,9 +58,9 @@ export const SlugResults = () => {
   if (slug.error) return <ErrorNote>{slug.error}</ErrorNote>;
   const finger = inputs.slug.mode === 'finger';
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm text-slate-300">
+        <CardTitle className="text-sm text-pl-text">
           {finger ? 'Finger slug catcher' : 'Vessel slug catcher'}
         </CardTitle>
       </CardHeader>

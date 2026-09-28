@@ -21,6 +21,10 @@ import {
 import BlowdownPanel, { BlowdownInputs } from '@/components/reliefstudio/BlowdownPanel';
 import SummaryPanel from '@/components/reliefstudio/SummaryPanel';
 import ReliefHelpContent from '@/components/reliefstudio/ReliefHelpGuide';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'psv', label: 'PSV Sizing' },
@@ -30,7 +34,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const StudioContent = () => {
@@ -117,7 +121,6 @@ const StudioContent = () => {
             backTo="/dashboard/facilities"
             backTitle="Back to Facilities Engineering"
             icon={ShieldAlert}
-            iconGradientClass="from-red-600 to-orange-700"
             title="Relief & Flare Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -127,12 +130,12 @@ const StudioContent = () => {
         headerActions={
           <>
             <FullPrecisionToggle app="relief-flare-studio" />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Relief & Flare Guide"
               description="Which branch of API 520 you are on, what the fire case actually chains, and what is typed rather than computed."
@@ -153,11 +156,13 @@ const StudioContent = () => {
 };
 
 const ReliefBlowdownSizer = () => (
-  <ReliefStudioProvider>
-    <FullPrecisionProvider>
-      <StudioContent />
-    </FullPrecisionProvider>
-  </ReliefStudioProvider>
+  <ThemedApp data-testid="relief-theme-scope">
+    <ReliefStudioProvider>
+      <FullPrecisionProvider>
+        <StudioContent />
+      </FullPrecisionProvider>
+    </ReliefStudioProvider>
+  </ThemedApp>
 );
 
 export default ReliefBlowdownSizer;

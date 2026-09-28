@@ -5,6 +5,25 @@ Status: **SHIPPED 2026-08-29** (branch feat/facilities-f2)
 Slug: `relief-blowdown-sizer` (kept — it carries entitlements; the
 tile RENAMES via the HELD migration 20260829550000).
 
+## Design system rollout, batch 5B (2026-09-28)
+
+The studio opens on the Petrolord design system: light grey panel by
+default, dark as a per-user choice from the header toggle, which stays
+visible at phone width.
+
+- Scope: `ThemedApp` inside `src/pages/apps/ReliefBlowdownSizer.jsx`; App.jsx unchanged. Cold-load
+  prefix `/dashboard/apps/facilities/relief-blowdown-sizer` in
+  `src/design/rollout/w5b.js`.
+- Cards, inputs and selects use the adapted primitives without colour
+  overrides; the header tile is the primary fill (the icon gradient is
+  gone); numbers are in the mono face. Relief adequacy stays a status: radiation over the allowable reads danger, a KO drum outside its L/D band or a blowdown over 15 minutes reads warning, inside reads success. The API 526 orifice ladder marks the selected letter like the `selected` badge. The blowdown chart stays on the white `ChartFrame`.
+- Test: `src/pages/apps/__tests__/ReliefBlowdownSizer.theme.test.jsx` (light by default, toggle to
+  dark and back stored per user, no legacy colour outside canvases with a
+  negative control, the route registered, every header tab in both
+  themes, the documentation drawer inside the scope). Existing tests pass
+  unchanged.
+- No engine or calculation change.
+
 ## What shipped
 
 - **Engine** (`@petrolord/engines` PR #78, vendored, shim at

@@ -9,6 +9,25 @@ the no-revival doctrine. That shell was fifty lines of static HTML
 printing `Power: 1250 hp` as a literal string, and it is not the
 ancestor of anything.
 
+## Design system rollout, batch 5B (2026-09-28)
+
+The studio opens on the Petrolord design system: light grey panel by
+default, dark as a per-user choice from the header toggle, which stays
+visible at phone width.
+
+- Scope: `ThemedApp` inside `src/pages/apps/CompressorStationDesigner.jsx`; App.jsx unchanged. Cold-load
+  prefix `/dashboard/apps/facilities/compressor-station-designer` in
+  `src/design/rollout/w5b.js`.
+- Cards, inputs and selects use the adapted primitives without colour
+  overrides; the header tile is the primary fill (the icon gradient is
+  gone); numbers are in the mono face. A stage over its limits reads on the warning role; the decorative green on the stage count and the machine indication is gone. The power sweep chart stays on the white `ChartFrame` (`data-canvas="chart"`).
+- Test: `src/pages/apps/__tests__/CompressorStationDesigner.theme.test.jsx` (light by default, toggle to
+  dark and back stored per user, no legacy colour outside canvases with a
+  negative control, the route registered, every header tab in both
+  themes, the documentation drawer inside the scope). Existing tests pass
+  unchanged.
+- No engine or calculation change.
+
 ## What shipped
 
 Engine (`@petrolord/engines` PR #85, vendored, shim at
