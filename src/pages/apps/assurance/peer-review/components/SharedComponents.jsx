@@ -22,7 +22,7 @@ export const ConfirmDelete = ({
         <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
         <AlertDialogAction
           disabled={busy}
-          className="bg-[hsl(var(--destructive))] text-white hover:bg-[hsl(var(--destructive))]/90"
+          className="bg-[hsl(var(--destructive))] text-[hsl(var(--destructive-foreground))] hover:bg-[hsl(var(--destructive))]/90"
           onClick={(e) => { e.preventDefault(); onConfirm(); }}
         >
           {confirmLabel}
