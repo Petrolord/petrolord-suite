@@ -1,7 +1,7 @@
 # Seismolord — STATUS
 
 Design system: pilot 4 migrated 2026-09-28, PR #751 (light by default, dark per user; seismic, map, 3D and synthetics canvases stay dark in both themes).
-Design system grey tone experiment (2026-09-28, `feat/ds-grey-tones`): on staging and dev only, a shade picker beside the ribbon's theme toggle switches the light theme between off-white and three light greys (`toneExperiment.jsx`); production keeps off-white. See docs/scope/DesignSystem-PLAN.md, "Grey tone experiment".
+Design system grey tone experiment (2026-09-28): concluded. The owner chose grey panel, now the default light theme for Seismolord and every design-system scope (`feat/ds-grey-panel-default`); the staging shade picker (`toneExperiment.jsx`) is removed and the ribbon keeps its light/dark toggle. See docs/scope/DesignSystem-PLAN.md, "Grey tone experiment".
 
 Last updated: 2026-09-23 (Dip azimuth from grid north, fast spectral decomposition; new attributes: edge, chaos, dip, azimuth, curvature, spectral decomposition, RAI; fault picking upgrade: noisy data, Fault likelihood volume, volume inputs; Tops to Horizons: well tops to a named horizon framework, automatic fault picking; large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
 

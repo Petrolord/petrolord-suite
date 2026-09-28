@@ -4,7 +4,7 @@
 // for any app that has not opted in: the global :root/.dark variables in
 // src/index.css keep driving the 100+ legacy dark consoles untouched.
 import {
-  THEMES, LIGHT_TONES, SHADOWS, FONTS, SHADCN_ALIASES, CHART_SERIES, CHART_SURFACE, CANVAS_RADIUS,
+  THEMES, SHADOWS, FONTS, SHADCN_ALIASES, CHART_SERIES, CHART_SURFACE, CANVAS_RADIUS,
   hexToHslTriplet, hexToRgbChannels,
 } from './tokens.js';
 
@@ -17,29 +17,6 @@ export const DARK_SELECTORS = [
   '[data-pl-theme="dark"]',
   '[data-pl-theme] [data-canvas="dark"]',
 ];
-
-// A light tone re-declares only the roles it overrides plus the shadcn
-// aliases fed by them. The selectors need both attributes, so a tone is inert
-// in the dark theme and on a scope without data-pl-tone. Dark canvases inside
-// a toned scope still match DARK_SELECTORS and re-declare every role, so they
-// stay pixel-identical.
-export function toneSelectors(tone) {
-  const scope = `[data-pl-theme="light"][data-pl-tone="${tone}"]`;
-  return [scope, `${scope} [data-canvas="light"]`, `${scope} [data-canvas="chart"]`];
-}
-
-function toneBlock(tone) {
-  const over = LIGHT_TONES[tone];
-  const roles = { ...THEMES.light, ...over };
-  const lines = [];
-  for (const [role, hex] of Object.entries(over)) {
-    lines.push(`  --pl-${role}: ${hexToRgbChannels(hex)};`);
-  }
-  for (const [shadcn, role] of Object.entries(SHADCN_ALIASES)) {
-    if (role in over) lines.push(`  --${shadcn}: ${hexToHslTriplet(roles[role])};`);
-  }
-  return lines.join('\n');
-}
 
 function themeBlock(name) {
   const roles = THEMES[name];
@@ -75,13 +52,6 @@ export function renderThemeCss() {
     themeBlock('light'),
     '}',
     '',
-    ...Object.keys(LIGHT_TONES).flatMap((tone) => [
-      `/* light tone "${tone}" (grey tone experiment, owner 2026-09-28) */`,
-      `${toneSelectors(tone).join(',\n')} {`,
-      toneBlock(tone),
-      '}',
-      '',
-    ]),
     `${DARK_SELECTORS.join(',\n')} {`,
     themeBlock('dark'),
     '}',

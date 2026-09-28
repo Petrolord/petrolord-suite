@@ -245,7 +245,17 @@ The pilots' combined needs, built once in `src/design` and
   non-pilot proofs (`optInScope`, `hubScope`) mount Waterflood Design
   Studio
 
-### Grey tone experiment (owner, 2026-09-28)
+### Grey tone experiment (owner, 2026-09-28): CONCLUDED, grey panel chosen
+**Decision (owner, 2026-09-28):** after trying the four shades on staging
+in Seismolord: "Grey panel is it!" The grey-panel values are now the
+base light theme of the design system (`THEMES.light` in `tokens.js`) for
+every scope, branch `feat/ds-grey-panel-default`. The experiment is retired:
+`LIGHT_TONES`, the `tone` prop, `data-pl-tone`, the Seismolord shade picker
+(`toneExperiment.jsx`) and `src/lib/devBuildFlag.js` with its jest mapping
+are removed. No role needed adjusting for contrast: every light pair in
+`CONTRAST_PAIRS` passes AA with the grey-panel values. The record of the
+experiment follows for reference.
+
 Owner feedback on the live pilots: "The new looks are really awesome ...
 However, I was expecting light grey for the apps consoles and not off white.
 Let us try light grey please. Experiment it on Seismolord and let me provide
@@ -258,7 +268,7 @@ untouched. Every tone passes the full `CONTRAST_PAIRS` AA contract
 (`tokens.test.js`). All greys are neutral or very slightly cool (the
 off-white has a green tint).
 
-| role | off-white (current) | grey-soft | grey-panel | grey-classic |
+| role | off-white (before) | grey-soft | grey-panel | grey-classic |
 |---|---|---|---|---|
 | bg (page) | `#F2F4EF` | `#E6E9EC` | `#E1E4E8` | `#D8DCE1` |
 | surface (panels, cards) | `#FFFFFF` | `#FFFFFF` | `#EDEFF2` | `#E2E5E9` |
@@ -299,9 +309,7 @@ petrolord.com renders no picker, reads no stored tone and keeps today's
 off-white (tests: `toneExperiment.production.test.jsx` and
 `toneExperiment.staging.test.jsx`).
 
-Next: the owner picks a tone (or none). The chosen values then replace the
-light theme's neutral roles for every scope, and the picker and the
-experiment gate are removed.
+Outcome: the owner chose grey panel (see the decision above).
 
 ### Rollout waves (from the pilot 5 estimate)
 The pilot 5 survey sized the remaining Studio-kit apps as **15 small,

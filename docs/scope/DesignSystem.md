@@ -39,16 +39,21 @@ Use roles, never hues. Tailwind classes are `bg-pl-<role>`,
 `text-pl-<role>`, `border-pl-<role>`, `ring-pl-<role>` (alpha works:
 `bg-pl-surface/90`).
 
+The light neutrals are the **grey panel** set (owner decision, 2026-09-28):
+a grey page, lighter grey panels and near-white menus and dialogs. Primary,
+accent, text and status colours come from the brand pack, and chart cards
+stay white. The homepages keep their own paper look (`Home.css`).
+
 | role | light | dark | use |
 |---|---|---|---|
-| `bg` | `#F2F4EF` paper | `#07140E` | page canvas |
-| `surface` | `#FFFFFF` | `#0C1F16` ink | cards, panels, table bodies |
-| `raised` | `#FFFFFF` | `#12301F` | dialogs, popovers, menus (with shadow) |
-| `sunken` | `#E7EBE3` | `#0A1A12` | tab rails, table headers, hover fills |
-| `border` | `#D5DCD2` | `#24402F` | hairlines |
-| `border-strong` | `#7D8B82` | `#5F7D6B` | input and control outlines (3:1) |
+| `bg` | `#E1E4E8` | `#07140E` | page canvas |
+| `surface` | `#EDEFF2` | `#0C1F16` ink | cards, panels, table bodies |
+| `raised` | `#F8F9FA` | `#12301F` | dialogs, popovers, menus (with shadow) |
+| `sunken` | `#D8DCE1` | `#0A1A12` | tab rails, table headers, hover fills |
+| `border` | `#C3C9D0` | `#24402F` | hairlines |
+| `border-strong` | `#6E7883` | `#5F7D6B` | input and control outlines (3:1) |
 | `text` | `#14231B` | `#EEF2EC` | body text |
-| `muted` | `#56655C` | `#A9B8AE` | secondary text, labels, units |
+| `muted` | `#4D5761` | `#A9B8AE` | secondary text, labels, units |
 | `primary` / `primary-fg` | `#2F6B48` / white | `#7CC49A` / `#07140E` | main action |
 | `primary-hover` | `#245A3B` | `#94D2AD` | |
 | `primary-text` | `#2F6B48` | `#8FD0AA` | links, active icons |
