@@ -385,6 +385,15 @@ its escape sequence; the runtime string is identical.
 plus the page smoke test; `production-validation` 8/8 active; full Suite
 jest 315/3968 and `npm run build` green.
 
+**Design system (rollout batch 2C, 2026-09-28, branch `feat/ds-w2c`).**
+The page wraps itself in `<ThemedApp>` (test id `gaslift-theme-scope`): grey panel
+light by default, dark by the header toggle, remembered per user. Its
+own components use theme roles only; status colour only through the
+status roles; charts keep the white chart standard in both themes.
+Cold-load prefix in `src/design/rollout/w2c.js`. Test:
+`src/pages/apps/__tests__/GasLiftDesignStudio.theme.test.jsx`. No engine or
+calculation change.
+
 ## Next: P5 — ESP Design Studio
 
 Correct total dynamic head from the IPR intake pressure through the
@@ -535,6 +544,15 @@ be consumed by P3 and P6 to be worth anything. Doing it inside P5 would
 mean changing two shipped studios from a third one's branch. It stays
 open as its own piece of work, and it is now duplicated in two studios
 rather than one, which is the cost of deferring it again.
+
+**Design system (rollout batch 2C, 2026-09-28, branch `feat/ds-w2c`).**
+The page wraps itself in `<ThemedApp>` (test id `esp-theme-scope`): grey panel
+light by default, dark by the header toggle, remembered per user. Its
+own components use theme roles only; status colour only through the
+status roles; charts keep the white chart standard in both themes.
+Cold-load prefix in `src/design/rollout/w2c.js`. Test:
+`src/pages/apps/__tests__/EspDesignStudio.theme.test.jsx`. No engine or
+calculation change.
 
 ## P6 — Rod Pump Design Studio (BUILT 2026-08-28)
 
@@ -691,6 +709,15 @@ declined it and recorded the cost, and P6 built the same local
 `buildWellModel` a third time before the owner called it. It was done
 as its own phase immediately after this one, before P7 could make it a
 fourth. See the P6.5 section below.
+
+**Design system (rollout batch 2C, 2026-09-28, branch `feat/ds-w2c`).**
+The page wraps itself in `<ThemedApp>` (test id `rodpump-theme-scope`): grey panel
+light by default, dark by the header toggle, remembered per user. Its
+own components use theme roles only; status colour only through the
+status roles; charts keep the white chart standard in both themes.
+Cold-load prefix in `src/design/rollout/w2c.js`. Test:
+`src/pages/apps/__tests__/RodPumpDesignStudio.theme.test.jsx`. No engine or
+calculation change.
 
 ## P6.5 — the shared per-well model record (BUILT 2026-08-28)
 
@@ -1157,6 +1184,16 @@ methods from screened to designed). 25/25 active gates.
 **Verification:** 44 P9 gates (22 advisor + 22 across the touched
 studios) plus the page smoke test; full Suite jest 333/4341 and
 `npm run build` green.
+
+**Design system (rollout batch 2C, 2026-09-28, branch `feat/ds-w2c`).**
+The page wraps itself in `<ThemedApp>` (test id `liftadvisor-theme-scope`): grey panel
+light by default, dark by the header toggle, remembered per user. Its
+own components use theme roles only; status colour only through the
+status roles; charts keep the white chart standard in both themes.
+The `artificial-lift-designer` alias route is registered too.
+Cold-load prefix in `src/design/rollout/w2c.js`. Test:
+`src/pages/apps/__tests__/ArtificialLiftAdvisor.theme.test.jsx`. No engine or
+calculation change.
 
 ## P10 — Flow Assurance Studio (BUILT 2026-08-28)
 
