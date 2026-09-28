@@ -107,8 +107,9 @@ grey panel by default, dark as a per-user choice from the ribbon toggle
 - Charts stay white (`data-canvas="chart"` on the chart frames) in both
   themes. The studio has no schematic or 3D view, so no dark canvas.
 - The drilling kit (`TorqueDragStudio/components` Explorer,
-  WellboreDetails, GeometryNotice) is unchanged: it is scope-aware since
-  W0B and still has unmigrated consumers.
+  WellboreDetails, GeometryNotice) is on theme roles only: with this
+  batch every one of its eleven consumers wraps itself in `ThemedApp`, so
+  the W0B legacy branch and its legacy-DOM snapshots were removed.
 - The workstation stays desktop-targeted: below 1100 px the workspace
   scrolls inside its frame, with no page-level sideways scroll.
 - Test: `GeomechanicsStudio/__tests__/GeomechanicsStudio.theme.test.jsx` (the shared four checks, every ribbon tab with a run and
