@@ -93,6 +93,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
   const [plotted, setPlotted] = useState([]);   // log ids ticked for the tracks
   const [tracks, setTracks] = useState([]);     // [{log, data}] resolved curves
   const [curveBusy, setCurveBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null); // WDM-U1-006: log id awaiting a second click
   const curveCache = useRef(new Map());         // log id -> Float32Array
 
   const refreshChildren = useCallback(async () => {
@@ -131,6 +132,9 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
   // never transforms anything, so the label states the frame plainly.
   const crsTag = crsPatch?.crs ?? well.crs;
   const crsLabel = crsTag || 'CRS not assigned';
+  // WDM-U1-011: the coordinates are in the CRS's own unit (xy_unit), which
+  // is feet for a state-plane well; the label never assumes metres
+  const xyUnitLabel = well.xy_unit || 'm';
 
   const entered = useMemo(() => conventionOf(well), [well]);
   const csDisplay = csView || entered;
@@ -138,6 +142,15 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
   const csRows = useMemo(() => {
     try { return fromStoredCheckshots(well.checkshots || [], csDisplay, frame); } catch (e) { return []; }
   }, [well.checkshots, csDisplay, frame]);
+  // WDM-U1-010: tops read in MD, TVD and TVDSS side by side, through the
+  // same survey + KB frame the checkshots use (Petrel's well tops table)
+  const topDepths = useMemo(() => {
+    const out = new Map();
+    for (const t of tops || []) {
+      try { out.set(t.id, frame.mdToPosition(Number(t.md_m))); } catch (e) { out.set(t.id, null); }
+    }
+    return out;
+  }, [tops, frame]);
   const frameNote = frame.isVertical
     ? 'No deviation survey: the well is treated as vertical (MD = TVD, TVDSS = MD - KB).'
     : `Converting through the ${frame.stations.length}-station survey and KB ${fmt(well.kb_m)} m${frame.assumedVerticalToFirstStation ? ' (vertical above the first station)' : ''}.`;
@@ -420,14 +433,14 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
         {tab === 'Header' && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-3 max-w-2xl">
             <Field label="UWI">{well.uwi}</Field>
-            <Field label={`Surface X (m, ${crsLabel})`}>
+            <Field label={`Surface X (${xyUnitLabel}, ${crsLabel})`}>
               {editor?.tab === 'Header' ? (
                 <input className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-32"
                   value={editor.fields.x} onChange={(e) => setEditor((ed) => ({ ...ed, fields: { ...ed.fields, x: e.target.value } }))}
                   data-testid="wdm-header-x" placeholder="blank = not set" />
               ) : fmt(well.surface_x)}
             </Field>
-            <Field label={`Surface Y (m, ${crsLabel})`}>
+            <Field label={`Surface Y (${xyUnitLabel}, ${crsLabel})`}>
               {editor?.tab === 'Header' ? (
                 <input className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-32"
                   value={editor.fields.y} onChange={(e) => setEditor((ed) => ({ ...ed, fields: { ...ed.fields, y: e.target.value } }))}
@@ -579,15 +592,24 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                         <td className={tdCls}>{log.null_count}</td>
                         <td className={`${tdCls} text-pl-muted`}>{log.source_file || EMPTY_VALUE}</td>
                         <td className={tdCls}>
-                          {well.is_own && (
+                          {well.is_own && confirmDelete !== log.id && (
                             <button
                               type="button"
                               title={`Delete log ${log.mnemonic}`}
                               className="text-pl-muted hover:text-pl-danger-text"
-                              onClick={() => deleteLog(log)}
+                              onClick={() => setConfirmDelete(log.id)}
+                              data-testid={`wdm-log-delete-${log.mnemonic}`}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
+                          )}
+                          {well.is_own && confirmDelete === log.id && (
+                            <span className="inline-flex items-center gap-1" data-testid={`wdm-log-confirm-${log.mnemonic}`}>
+                              <span className="text-pl-danger-text">Delete {log.mnemonic} and its samples?</span>
+                              <button type="button" className="px-1.5 rounded bg-pl-danger text-pl-danger-fg" onClick={() => { setConfirmDelete(null); deleteLog(log); }}
+                                data-testid={`wdm-log-delete-yes-${log.mnemonic}`}>Delete</button>
+                              <button type="button" className={btnCls} onClick={() => setConfirmDelete(null)}>Keep</button>
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -650,6 +672,8 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                   <tr>
                     <th className={thCls}>Top</th>
                     <th className={thCls}>MD (m)</th>
+                    <th className={thCls} title="True vertical depth below KB, through the deviation survey">TVD (m)</th>
+                    <th className={thCls} title="True vertical depth below datum (TVD minus KB)">TVDSS (m)</th>
                     <th className={thCls}>Type</th>
                     <th className={thCls}>Unit</th>
                     <th className={thCls}>Confidence</th>
@@ -663,6 +687,8 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                     <tr key={t.id} data-testid="wdm-top-row">
                       <td className={`${tdCls} text-pl-text`}>{t.name}</td>
                       <td className={tdCls}>{fmt(t.md_m)}</td>
+                      <td className={tdCls} data-testid={`wdm-top-tvd-${t.name}`}>{fmt(topDepths.get(t.id)?.tvd)}{topDepths.get(t.id)?.extrapolated ? ' †' : ''}</td>
+                      <td className={tdCls} data-testid={`wdm-top-tvdss-${t.name}`}>{fmt(topDepths.get(t.id)?.tvdss)}{topDepths.get(t.id)?.extrapolated ? ' †' : ''}</td>
                       <td className={tdCls} data-testid={`wdm-top-type-${t.name}`} title={displayLabel(normalizeSurfaceType(t.surface_type), scheme, { kind: 'surface' }).label}>
                         {displayLabel(normalizeSurfaceType(t.surface_type), scheme, { kind: 'surface', short: true }).label}
                         {displayLabel(normalizeSurfaceType(t.surface_type), scheme, { kind: 'surface' }).fallback ? <span className="ml-1 text-[10px] text-pl-warning-text" title="No Exxon term; Catuneanu name shown">C</span> : null}
