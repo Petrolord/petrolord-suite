@@ -103,3 +103,31 @@ Element names are readable, and a failing zone states its fix. See
    takeoff total.
 6. Save, duplicate, reload round-trip; save a run into the immutable
    history; open the Economics cross-link.
+
+## Design system rollout, batch 3C (2026-09-28)
+
+The studio, its help guide and the dev harness (`/dev/well-integrity`)
+now open on the Petrolord design system: light grey panel by default,
+dark as a per-user choice from the ribbon toggle (beside Help).
+
+- Scope: `ThemedApp` inside `WellIntegrityPAStudio.jsx`,
+  `WellIntegrityPAHelpGuide.jsx` and `WellIntegrityPAHarness.jsx`; App.jsx
+  unchanged. Cold-load prefix `/dashboard/apps/drilling/well-integrity-pa`
+  in `src/design/rollout/w3c.js` (covers `/help`).
+- Own classes moved to `pl-*` roles across the ribbon and the four tabs;
+  native selects use the themed field roles. Status on the status roles:
+  PASS / WARN / FAIL, envelope status and element dots. The traffic-light
+  category keeps four steps with the word always printed: green and
+  yellow as success and warning tints, orange as a solid warning fill,
+  red as a solid danger fill.
+- Canvas: the annulus allowable-pressure chart is white
+  `data-canvas="chart"` in both themes.
+- Phone width: the workstation keeps its 1100 px minimum and scrolls
+  inside its own frame; the ribbon stays on one line and scrolls sideways.
+  No page-level sideways scroll at 390 px. Explorer and wellbore details
+  come from the shared drilling kit, already scope-aware since W0B (#756);
+  no shared file changed in this batch.
+- No calculation change. Existing suites pass unchanged; new
+  `__tests__/WellIntegrityPAStudio.theme.test.jsx` (the shared four checks
+  for the studio and the help guide, every tab and annulus in light and
+  dark, the plug editor, the harness scope).
