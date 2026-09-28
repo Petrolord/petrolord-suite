@@ -53,10 +53,10 @@ export default function ZoneParamTable({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-auto bg-slate-900 border-slate-700 text-slate-200" data-testid="petro-zone-table">
+      <DialogContent className="max-w-[95vw] w-auto" data-testid="petro-zone-table">
         <DialogHeader>
           <DialogTitle>Zone parameter table</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             One column per zone. A highlighted cell differs from Global and becomes that zone&apos;s
             override on Apply; set it back to the global value to remove the override. Greyed cells
             do not apply under that zone&apos;s models.
@@ -74,7 +74,7 @@ export default function ZoneParamTable({
           columnHeader={(c) => (
             <div className="flex items-center gap-1 mt-0.5">
               <select
-                className="rounded bg-slate-950 border border-slate-700 text-slate-400 px-1 py-0.5 text-[10px]"
+                className="rounded bg-pl-surface border border-pl-border-strong text-pl-muted px-1 py-0.5 text-[10px]"
                 value=""
                 data-testid={`petro-zt-copy-${c.name}`}
                 title="Copy another zone's values into this column (Global clears every override)"
@@ -91,14 +91,13 @@ export default function ZoneParamTable({
         />
 
         <DialogFooter className="flex items-center gap-2">
-          <span className="mr-auto text-[11px] text-slate-500" data-testid="petro-zone-table-summary">
+          <span className="mr-auto text-[11px] text-pl-muted" data-testid="petro-zone-table-summary">
             {invalidCount ? `${invalidCount} cell(s) are not numbers` : `${Object.values(patches).reduce((s, p) => s + Object.keys(p).length, 0)} override(s) on Apply`}
           </span>
-          <Button variant="outline" className="border-slate-700 text-slate-300" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
           <Button
             data-testid="petro-zone-table-apply"
             disabled={!dirty || invalidCount > 0}
-            className="bg-cyan-700 hover:bg-cyan-600 text-white"
             onClick={apply}
           >
             Apply to zones

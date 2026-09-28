@@ -18,7 +18,7 @@ import { rwArps, rwFromSsp, rweToRwProblem, rwToRweProblem, rweBand, rwFromSalin
 import { RW_METHOD_LABELS } from '../services/paramFields';
 import { cToF } from '../engine/temperature';
 
-const inputCls = 'w-24 rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
+const inputCls = 'w-24 rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const num = (v) => Number(v);
 const fmt = (v, d = 6) => (Number.isFinite(v) ? String(Number(v.toFixed(d))) : '—');
 
@@ -92,17 +92,17 @@ export default function RwToolsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-slate-200" data-testid="petro-rwtools-dialog">
+      <DialogContent className="max-w-md" data-testid="petro-rwtools-dialog">
         <DialogHeader>
           <DialogTitle>Rw tools</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Temperatures in °C; the SP and Arps formulas run in °F internally.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2 text-xs">
-          <div className="rounded border border-slate-800 p-2 space-y-1.5" data-testid="petro-rw-sp-card">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">SP route (Bateman-Konen)</div>
+          <div className="rounded border border-pl-border p-2 space-y-1.5" data-testid="petro-rw-sp-card">
+            <div className="text-[10px] uppercase tracking-wider text-pl-muted">SP route (Bateman-Konen)</div>
             <div className="flex items-center gap-2 flex-wrap">
               <label className="flex items-center gap-1">SSP (mV)
                 <input className={inputCls} data-testid="petro-rw-ssp" value={sp.ssp}
@@ -123,25 +123,25 @@ export default function RwToolsDialog({
             </div>
             {spOut && (
               <div className="space-y-1" data-testid="petro-rw-sp-chain">
-                <div className="flex items-center gap-3 flex-wrap text-slate-400">
+                <div className="flex items-center gap-3 flex-wrap text-pl-muted">
                   <span>K = {fmt(spOut.k, 2)}</span>
                   <span>Rmf at FT = {fmt(spOut.rmfAtT)}</span>
                   <span data-testid="petro-rw-sp-rmfe">
                     Rmfe = {fmt(spOut.rmfe)}
                     {spOut.rmfeRule && (
-                      <span className="text-slate-500"> ({spOut.rmfeRule === 'x0.85' ? 'by 0.85 Rmf' : 'by the Bateman-Konen inverse'})</span>
+                      <span className="text-pl-muted"> ({spOut.rmfeRule === 'x0.85' ? 'by 0.85 Rmf' : 'by the Bateman-Konen inverse'})</span>
                     )}
                   </span>
                   <span data-testid="petro-rw-sp-result">Rwe = {fmt(spOut.rwe)}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-slate-200" data-testid="petro-rw-sp-rw">
+                  <span className="text-pl-text" data-testid="petro-rw-sp-rw">
                     Rw = {fmt(spOut.rw)}
-                    <span className="text-slate-500"> (Rw from Rwe by Bateman-Konen 1977)</span>
+                    <span className="text-pl-muted"> (Rw from Rwe by Bateman-Konen 1977)</span>
                   </span>
                   <button type="button" data-testid="petro-rw-sp-apply"
                     disabled={!Number.isFinite(spOut.rw)}
-                    className="ml-auto px-2 py-0.5 rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="ml-auto px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40 disabled:cursor-not-allowed"
                     onClick={() => applyRw(spOut.rw, spOut.tC, 'SP route', 'sp-bateman-konen', {
                       inputs: { ssp: num(sp.ssp), rmf: num(sp.rmf), rmfTempC: spOut.rmfTC, tempC: spOut.tC },
                       rmfe: spOut.rmfe, rmfeRule: spOut.rmfeRule, rwe: spOut.rwe,
@@ -151,13 +151,13 @@ export default function RwToolsDialog({
                   </button>
                 </div>
                 {spOut.problem && (
-                  <p className="text-[10px] text-amber-300/90" data-testid="petro-rw-sp-problem">
+                  <p className="text-[10px] text-pl-warning-text" data-testid="petro-rw-sp-problem">
                     Refused: {spOut.problem} Nothing is applied.
                   </p>
                 )}
               </div>
             )}
-            <p className="text-[10px] text-slate-500 leading-snug">
+            <p className="text-[10px] text-pl-muted leading-snug">
               Rmf goes to formation temperature by Arps, then to Rmfe (0.85 Rmf when Rmf at 75 °F is above
               0.1 ohm·m, otherwise the chart inverse); Rwe comes from SSP and K; Rw from Rwe by the Bateman
               and Konen (1977) fit to chart SP-2. The fit is applied only where chart SP-2 allows it: 75 to
@@ -169,8 +169,8 @@ export default function RwToolsDialog({
             </p>
           </div>
 
-          <div className="rounded border border-slate-800 p-2 space-y-1.5">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">Arps temperature converter</div>
+          <div className="rounded border border-pl-border p-2 space-y-1.5">
+            <div className="text-[10px] uppercase tracking-wider text-pl-muted">Arps temperature converter</div>
             <div className="flex items-center gap-2 flex-wrap">
               <label className="flex items-center gap-1">Rw
                 <input className={inputCls} data-testid="petro-rw-arps-rw" value={arps.rw1}
@@ -187,9 +187,9 @@ export default function RwToolsDialog({
             </div>
             {arpsOut && (
               <div className="flex items-center gap-3">
-                <span className="text-slate-200" data-testid="petro-rw-arps-result">Rw = {fmt(arpsOut.rw2)}</span>
+                <span className="text-pl-text" data-testid="petro-rw-arps-result">Rw = {fmt(arpsOut.rw2)}</span>
                 <button type="button" data-testid="petro-rw-arps-apply"
-                  className="ml-auto px-2 py-0.5 rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10"
+                  className="ml-auto px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
                   onClick={() => applyRw(arpsOut.rw2, arpsOut.t2, 'Arps conversion', 'arps', { inputs: { rw1: num(arps.rw1), t1C: num(arps.t1C) } })}
                 >
                   Apply as Rw
@@ -198,8 +198,8 @@ export default function RwToolsDialog({
             )}
           </div>
 
-          <div className="rounded border border-slate-800 p-2 space-y-1.5" data-testid="petro-rw-salinity-card">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">Rw from salinity</div>
+          <div className="rounded border border-pl-border p-2 space-y-1.5" data-testid="petro-rw-salinity-card">
+            <div className="text-[10px] uppercase tracking-wider text-pl-muted">Rw from salinity</div>
             <div className="flex items-center gap-2 flex-wrap">
               <label className="flex items-center gap-1">NaCl (ppm)
                 <input className={inputCls} data-testid="petro-rw-sal-ppm" value={sal.ppm}
@@ -212,9 +212,9 @@ export default function RwToolsDialog({
             </div>
             {salOut && Number.isFinite(salOut.rw) && (
               <div className="flex items-center gap-3">
-                <span className="text-slate-200" data-testid="petro-rw-sal-result">Rw = {fmt(salOut.rw)} at {salOut.tC} °C</span>
+                <span className="text-pl-text" data-testid="petro-rw-sal-result">Rw = {fmt(salOut.rw)} at {salOut.tC} °C</span>
                 <button type="button" data-testid="petro-rw-sal-apply"
-                  className="ml-auto px-2 py-0.5 rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10"
+                  className="ml-auto px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
                   onClick={() => applyRw(salOut.rw, salOut.tC, `salinity of ${salOut.ppm} ppm NaCl`, 'salinity', { inputs: { ppm: salOut.ppm } })}
                 >
                   Apply as Rw
@@ -222,25 +222,25 @@ export default function RwToolsDialog({
               </div>
             )}
             {Number.isFinite(impliedPpm) && (
-              <p className="text-[10px] text-slate-400" data-testid="petro-rw-sal-implied">
+              <p className="text-[10px] text-pl-muted" data-testid="petro-rw-sal-implied">
                 Your current Rw of {fmt(currentRw)} at {currentRwTempC} °C implies about {Math.round(impliedPpm / 100) * 100} ppm NaCl.
               </p>
             )}
-            <p className="text-[10px] text-slate-500 leading-snug">
+            <p className="text-[10px] text-pl-muted leading-snug">
               Bateman and Konen (1977) fit to the Gen-9 chart, Rw at 75 °F = 0.0123 + 3647.5 / ppm^0.955,
               then Arps to the formation temperature: within about 10 percent of the chart from 1,000 to
               300,000 ppm. For waters that are not NaCl, enter the NaCl-equivalent salinity.
             </p>
           </div>
 
-          <p className="text-[10px] text-slate-500">
+          <p className="text-[10px] text-pl-muted">
             A fourth route: fit the water line on the Pickett plot (Crossplots view) and
             apply m and Rw from the fit.
           </p>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" className="border-slate-700 text-slate-300" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Close
           </Button>
         </DialogFooter>

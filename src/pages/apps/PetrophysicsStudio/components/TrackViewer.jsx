@@ -646,7 +646,7 @@ const TrackViewer = forwardRef(function TrackViewer({
         testId="petro-depth-nav"
       />
     )}
-    <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden">
+    <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden bg-white" data-canvas="chart">
       <canvas
         ref={canvasRef}
         className="cursor-crosshair"

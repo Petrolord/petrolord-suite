@@ -16,9 +16,9 @@ import {
   applyTies, buildShiftLog, dsName, isDsName, shiftLogFor, shiftOfLog, shiftTracks, verifyStoredShift,
 } from '../services/depthShift';
 
-const selCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs max-w-full';
-const inputCls = 'w-20 rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-[11px] font-mono';
-const btnCls = 'inline-flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:text-slate-100 hover:border-slate-500 disabled:opacity-40 disabled:cursor-not-allowed';
+const selCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs max-w-full';
+const inputCls = 'w-20 rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-[11px] font-mono';
+const btnCls = 'inline-flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:text-pl-text hover:border-pl-border-strong disabled:opacity-40 disabled:cursor-not-allowed';
 
 const TIE_TRACKS = { ref: 0, target: 1 };
 const toTies = (pairs) => pairs.map(([refMd, targetMd]) => ({ refMd, targetMd }));
@@ -182,8 +182,8 @@ export default function DepthShiftPanel({
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  if (!wellData || !depth) return <p className="p-3 text-xs text-slate-500">Open a well first.</p>;
-  if (mnemonics.length < 2) return <p className="p-3 text-xs text-slate-500">Depth shifting needs at least two curves on the well.</p>;
+  if (!wellData || !depth) return <p className="p-3 text-xs text-pl-muted">Open a well first.</p>;
+  if (mnemonics.length < 2) return <p className="p-3 text-xs text-pl-muted">Depth shifting needs at least two curves on the well.</p>;
 
   const storedShift = shiftOfLog(existing);
   const lastEdit = storedShift?.edits?.length ? storedShift.edits[storedShift.edits.length - 1] : null;
@@ -206,23 +206,23 @@ export default function DepthShiftPanel({
           isOwn={isOwn}
         />
       </div>
-      <div className="w-72 shrink-0 border-l border-slate-800/60 bg-slate-900/60 overflow-auto p-2 space-y-2 text-xs" data-testid="petro-shift-side">
-        <div className="text-[10px] uppercase tracking-wider text-slate-500">Depth shift (tie points)</div>
+      <div className="w-72 shrink-0 border-l border-pl-border bg-pl-surface overflow-auto p-2 space-y-2 text-xs" data-testid="petro-shift-side">
+        <div className="text-[10px] uppercase tracking-wider text-pl-muted">Depth shift (tie points)</div>
         <label className="block">
-          <span className="text-slate-400">Reference curve</span>
+          <span className="text-pl-muted">Reference curve</span>
           <select className={`${selCls} w-full mt-0.5`} data-testid="petro-shift-ref" value={refKey} onChange={(e) => setRefKey(e.target.value)}>
             {mnemonics.filter((m) => m !== srcKey).map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         </label>
         <label className="block">
-          <span className="text-slate-400">Curve to shift</span>
+          <span className="text-pl-muted">Curve to shift</span>
           <select className={`${selCls} w-full mt-0.5`} data-testid="petro-shift-src" value={srcKey}
             onChange={(e) => { setSrcKey(e.target.value); if (refKey === e.target.value) setRefKey(mnemonics.find((m) => m !== e.target.value) || ''); }}>
             {sources.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         </label>
         <div className="flex flex-wrap gap-1">
-          <button type="button" data-testid="petro-shift-place" className={`${btnCls} ${placing ? 'border-cyan-500/60 text-cyan-300' : ''}`}
+          <button type="button" data-testid="petro-shift-place" className={`${btnCls} ${placing ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : ''}`}
             onClick={() => { setPlacing((p) => !p); setPending(null); }}>
             <MousePointerClick className="w-3 h-3" /> {placing ? 'Placing ties (Esc to stop)' : 'Place ties'}
           </button>
@@ -232,30 +232,30 @@ export default function DepthShiftPanel({
           <button type="button" data-testid="petro-shift-reset" className={btnCls} disabled={busy || (!pairs.length && !existing)} onClick={resetToRaw}>
             <RotateCcw className="w-3 h-3" /> Reset to raw
           </button>
-          <button type="button" data-testid="petro-shift-save" className={`${btnCls} border-emerald-700/60 text-emerald-300`} disabled={busy || !pairs.length || !applied?.ok || !isOwn} onClick={save}>
+          <button type="button" data-testid="petro-shift-save" className={`${btnCls} border-pl-primary/60 text-pl-primary-text`} disabled={busy || !pairs.length || !applied?.ok || !isOwn} onClick={save}>
             <Save className="w-3 h-3" /> Save {dsName(srcKey)}
           </button>
         </div>
         {placing && (
-          <p className="text-[10px] text-cyan-300/90">
+          <p className="text-[10px] text-pl-primary-text">
             {pending ? `Reference ${pending.refMd} m picked: click ${srcKey} at the matching depth.` : 'Click the reference curve at a feature, then the target curve at the same feature.'}
           </p>
         )}
-        {problem && <p className="text-[10px] text-amber-300/90" data-testid="petro-shift-problem">Refused: {problem}</p>}
+        {problem && <p className="text-[10px] text-pl-warning-text" data-testid="petro-shift-problem">Refused: {problem}</p>}
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Tie points ({pairs.length})</div>
-          {!pairs.length && <p className="text-[10px] text-slate-500">None: the curve reads as raw. Place ties on the tracks or type them here.</p>}
+          <div className="text-[10px] uppercase tracking-wider text-pl-muted mb-1">Tie points ({pairs.length})</div>
+          {!pairs.length && <p className="text-[10px] text-pl-muted">None: the curve reads as raw. Place ties on the tracks or type them here.</p>}
           <table className="w-full text-[11px]" data-testid="petro-shift-pairs">
             {pairs.length > 0 && (
-              <thead><tr className="text-slate-500"><th className="text-left font-normal">#</th><th className="text-left font-normal">Ref (m)</th><th className="text-left font-normal">Target (m)</th><th /></tr></thead>
+              <thead><tr className="text-pl-muted"><th className="text-left font-normal">#</th><th className="text-left font-normal">Ref (m)</th><th className="text-left font-normal">Target (m)</th><th /></tr></thead>
             )}
             <tbody>
               {pairs.map(([r, t], i) => (
                 <tr key={i} data-testid="petro-shift-pair">
-                  <td className="text-slate-500">{i + 1}</td>
+                  <td className="text-pl-muted">{i + 1}</td>
                   <td><input className={inputCls} value={cellValue(i, 'ref', r)} onChange={(e) => setDrafts((d) => ({ ...d, [`${i}-ref`]: e.target.value }))} onBlur={(e) => editPair(i, 'ref', e.target.value)} /></td>
                   <td><input className={inputCls} value={cellValue(i, 'target', t)} onChange={(e) => setDrafts((d) => ({ ...d, [`${i}-target`]: e.target.value }))} onBlur={(e) => editPair(i, 'target', e.target.value)} /></td>
-                  <td><button type="button" title="Delete tie" className="text-slate-500 hover:text-red-300" onClick={() => removePair(i)}><Trash2 className="w-3 h-3" /></button></td>
+                  <td><button type="button" title="Delete tie" className="text-pl-muted hover:text-pl-danger-text" onClick={() => removePair(i)}><Trash2 className="w-3 h-3" /></button></td>
                 </tr>
               ))}
             </tbody>
@@ -274,20 +274,20 @@ export default function DepthShiftPanel({
             Add a tie
           </button>
         </div>
-        <p className="text-[10px] text-slate-500 leading-snug">
+        <p className="text-[10px] text-pl-muted leading-snug">
           Between ties the shift is linear; beyond the outermost ties it is constant. Resampling is
           linear between the two raw samples on either side of the requested depth (the same as the
           block shift); a null on either side stays null. Positive shift moves the curve deeper.
         </p>
         {storedShift && (
-          <div className="rounded border border-slate-800 p-1.5 space-y-0.5" data-testid="petro-shift-stored">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">Saved {existing.mnemonic}</div>
-            <p className="text-[10px] text-slate-400">
+          <div className="rounded border border-pl-border p-1.5 space-y-0.5" data-testid="petro-shift-stored">
+            <div className="text-[10px] uppercase tracking-wider text-pl-muted">Saved {existing.mnemonic}</div>
+            <p className="text-[10px] text-pl-muted">
               {storedShift.pairs.length} tie{storedShift.pairs.length === 1 ? '' : 's'} against {storedShift.reference?.mnemonic}; {storedShift.edits?.length || 0} edit{(storedShift.edits?.length || 0) === 1 ? '' : 's'}
               {lastEdit ? `, last by ${lastEdit.by || 'unknown'} on ${String(lastEdit.at).slice(0, 10)}` : ''}.
             </p>
             {verification && (
-              <p className={`text-[10px] ${verification.mismatches === 0 ? 'text-slate-500' : 'text-amber-300/90'}`} data-testid="petro-shift-verify">
+              <p className={`text-[10px] ${verification.mismatches === 0 ? 'text-pl-muted' : 'text-pl-warning-text'}`} data-testid="petro-shift-verify">
                 {verification.ok
                   ? (verification.mismatches === 0
                     ? 'Re-applying the stored ties to the raw curve reproduces the saved samples.'

@@ -43,10 +43,10 @@ export default function BatchRunDialog({ open, onOpenChange, wells, runBatch }) 
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="max-w-lg bg-slate-900 border-slate-700 text-slate-200" data-testid="petro-batch-dialog">
+      <DialogContent className="max-w-lg" data-testid="petro-batch-dialog">
         <DialogHeader>
           <DialogTitle>Batch run with current parameters</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Computes and publishes with the parameter set now applied. Only wells you own can be written.
           </DialogDescription>
         </DialogHeader>
@@ -63,9 +63,9 @@ export default function BatchRunDialog({ open, onOpenChange, wells, runBatch }) 
                   disabled={running}
                   onChange={() => toggle(w.id)}
                 />
-                <span className="text-slate-200">{w.name}</span>
+                <span className="text-pl-text">{w.name}</span>
                 {r && (
-                  <span className={`ml-auto inline-flex items-center gap-1 ${r.ok ? 'text-emerald-400' : 'text-red-400'}`}
+                  <span className={`ml-auto inline-flex items-center gap-1 ${r.ok ? 'text-pl-success-text' : 'text-pl-danger-text'}`}
                     data-testid={`petro-batch-result-${w.name}`}
                   >
                     {r.ok ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
@@ -75,16 +75,15 @@ export default function BatchRunDialog({ open, onOpenChange, wells, runBatch }) 
               </label>
             );
           })}
-          {!ownWells.length && <p className="text-xs text-slate-500">No wells you own to batch.</p>}
+          {!ownWells.length && <p className="text-xs text-pl-muted">No wells you own to batch.</p>}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" className="border-slate-700 text-slate-300" onClick={() => close(false)}>
+          <Button variant="outline" size="sm" onClick={() => close(false)}>
             {results ? 'Close' : 'Cancel'}
           </Button>
           <Button
             size="sm"
-            className="bg-cyan-600 hover:bg-cyan-500 text-white"
             disabled={running || !picked.size}
             data-testid="petro-batch-run"
             onClick={run}
