@@ -15,23 +15,23 @@ const DrillingRiskAssessment = ({ risks = [] }) => {
     });
 
     return (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-medium text-white flex items-center">
-                    <AlertTriangle className="w-5 h-5 mr-2 text-yellow-500" />
+                <CardTitle className="text-lg font-medium text-pl-text flex items-center">
+                    <AlertTriangle className="w-5 h-5 mr-2 text-pl-muted" />
                     Drilling Risks
                 </CardTitle>
             </CardHeader>
             <CardContent>
                 {drillingRisks.length === 0 ? (
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-pl-muted">
                         No drilling risks in this plan's register yet. Log them on the Risk Management
                         tab and they appear here.
                     </p>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
-                            <thead className="bg-slate-800 text-slate-400">
+                            <thead className="bg-pl-sunken text-xs uppercase tracking-wide text-pl-muted">
                                 <tr>
                                     <th className="p-3">Risk</th>
                                     <th className="p-3">Probability</th>
@@ -39,13 +39,13 @@ const DrillingRiskAssessment = ({ risks = [] }) => {
                                     <th className="p-3">Mitigation</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-800">
+                            <tbody className="divide-y divide-pl-border">
                                 {drillingRisks.map((risk) => (
-                                    <tr key={risk.id} className="hover:bg-slate-800/30">
-                                        <td className="p-3 text-white font-medium">{risk.name || risk.description || 'Unnamed risk'}</td>
-                                        <td className="p-3 text-slate-300">{risk.probability ?? '-'}</td>
-                                        <td className="p-3 text-slate-300">{risk.impact ?? '-'}</td>
-                                        <td className="p-3 text-slate-400">
+                                    <tr key={risk.id} className="hover:bg-pl-sunken/60">
+                                        <td className="p-3 text-pl-text font-medium">{risk.name || risk.description || 'Unnamed risk'}</td>
+                                        <td className="p-3 font-pl-mono tabular-nums text-pl-text">{risk.probability ?? '-'}</td>
+                                        <td className="p-3 font-pl-mono tabular-nums text-pl-text">{risk.impact ?? '-'}</td>
+                                        <td className="p-3 text-pl-muted">
                                             {risk.mitigation || risk.mitigationStrategy || 'None recorded'}
                                         </td>
                                     </tr>

@@ -3,17 +3,24 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ShieldAlert, AlertTriangle, CheckCircle2, Activity } from 'lucide-react';
 import { calculateRiskMatrix, calculateComplianceScore } from '@/utils/fdp/hseCalculations';
 
-const StatCard = ({ title, value, subtitle, icon: Icon, colorClass }) => (
-    <Card className="bg-slate-900 border-slate-800">
+// Design system rollout 6B: the icon takes a status role only where the
+// tile reports a status; the other icons are neutral.
+const ICON_TONE = {
+    danger: 'bg-pl-danger-bg text-pl-danger-text',
+    neutral: 'bg-pl-sunken text-pl-muted',
+};
+
+const StatCard = ({ title, value, subtitle, icon: Icon, tone = 'neutral' }) => (
+    <Card>
         <CardContent className="p-6">
             <div className="flex justify-between items-start">
                 <div>
-                    <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">{title}</p>
-                    <h3 className="text-3xl font-bold text-white mt-2">{value}</h3>
-                    {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
+                    <p className="text-sm font-medium text-pl-muted uppercase tracking-wider">{title}</p>
+                    <h3 className="text-3xl font-bold text-pl-text mt-2">{value}</h3>
+                    {subtitle && <p className="text-xs text-pl-muted mt-1">{subtitle}</p>}
                 </div>
-                <div className={`p-3 rounded-lg ${colorClass} bg-opacity-10`}>
-                    <Icon className={`w-6 h-6 ${colorClass.replace('bg-', 'text-')}`} />
+                <div className={`p-3 rounded-lg ${ICON_TONE[tone]}`}>
+                    <Icon className="w-6 h-6" />
                 </div>
             </div>
         </CardContent>
@@ -36,21 +43,19 @@ const HSEOverview = ({ data }) => {
                 value={matrix.critical + matrix.high} 
                 subtitle={`${matrix.critical} critical, ${matrix.total} identified${matrix.unscored ? `, ${matrix.unscored} unscored` : ''}`}
                 icon={AlertTriangle}
-                colorClass="bg-red-500"
+                tone={matrix.critical + matrix.high > 0 ? 'danger' : 'neutral'}
             />
             <StatCard 
                 title="System Status" 
                 value={safetySystem ? "Active" : "Pending"} 
                 subtitle={safetySystem || "No standard selected"}
                 icon={ShieldAlert}
-                colorClass="bg-green-500"
             />
             <StatCard 
                 title="KPIs Tracked" 
                 value={kpis.length} 
                 subtitle="Performance metrics"
                 icon={Activity}
-                colorClass="bg-blue-500"
             />
             {/* EC6-0: this tile read 94% on every plan, an empty one included,
                 under the caption "Est. based on inputs". It counts the checklist
@@ -62,7 +67,6 @@ const HSEOverview = ({ data }) => {
                     ? `${checklist.filter((c) => c.status === 'Compliant').length} of ${checklist.length} items compliant`
                     : 'Add compliance items to score this'}
                 icon={CheckCircle2}
-                colorClass="bg-purple-500"
             />
         </div>
     );

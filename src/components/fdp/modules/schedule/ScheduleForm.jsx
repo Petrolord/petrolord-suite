@@ -68,10 +68,10 @@ const ScheduleForm = ({ initialData, onSave, onCancel, activities = [] }) => {
     };
 
     return (
-        <Card className="bg-slate-900 border-slate-800 max-w-2xl mx-auto">
+        <Card className="max-w-2xl mx-auto">
             <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                    <CalendarIcon className="w-5 h-5 mr-2 text-purple-400" />
+                <CardTitle className="text-pl-text flex items-center">
+                    <CalendarIcon className="w-5 h-5 mr-2 text-pl-muted" />
                     {initialData ? 'Edit Activity' : 'New Activity'}
                 </CardTitle>
             </CardHeader>
@@ -85,7 +85,6 @@ const ScheduleForm = ({ initialData, onSave, onCancel, activities = [] }) => {
                                 onChange={(e) => handleChange('name', e.target.value)} 
                                 placeholder="e.g., FEED Study"
                                 required
-                                className="bg-slate-800 border-slate-700"
                             />
                         </div>
                         <div className="space-y-2">
@@ -94,7 +93,7 @@ const ScheduleForm = ({ initialData, onSave, onCancel, activities = [] }) => {
                                 value={formData.type} 
                                 onValueChange={(v) => handleChange('type', v)}
                             >
-                                <SelectTrigger className="bg-slate-800 border-slate-700">
+                                <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -117,7 +116,6 @@ const ScheduleForm = ({ initialData, onSave, onCancel, activities = [] }) => {
                                 type="date"
                                 value={formData.start} 
                                 onChange={(e) => handleChange('start', e.target.value)} 
-                                className="bg-slate-800 border-slate-700"
                             />
                         </div>
                         <div className="space-y-2">
@@ -126,7 +124,6 @@ const ScheduleForm = ({ initialData, onSave, onCancel, activities = [] }) => {
                                 type="date"
                                 value={formData.end} 
                                 onChange={(e) => handleChange('end', e.target.value)} 
-                                className="bg-slate-800 border-slate-700"
                             />
                         </div>
                         <div className="space-y-2">
@@ -135,7 +132,7 @@ const ScheduleForm = ({ initialData, onSave, onCancel, activities = [] }) => {
                                 type="number"
                                 value={formData.duration} 
                                 readOnly
-                                className="bg-slate-900 border-slate-800 text-slate-400 cursor-not-allowed"
+                                className="bg-pl-sunken text-pl-muted cursor-not-allowed"
                             />
                         </div>
                     </div>
@@ -143,29 +140,29 @@ const ScheduleForm = ({ initialData, onSave, onCancel, activities = [] }) => {
                     <div className="space-y-2">
                         <Label>Must finish first (predecessors)</Label>
                         {others.length === 0 ? (
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-pl-muted">
                                 This is the only activity in the plan, so it has nothing to wait for.
                             </p>
                         ) : (
-                            <div className="max-h-40 overflow-y-auto rounded border border-slate-700 bg-slate-800 p-2 space-y-1">
+                            <div className="max-h-40 overflow-y-auto rounded border border-pl-border bg-pl-sunken p-2 space-y-1">
                                 {others.map((a) => {
                                     const checked = (formData.dependencies || []).some((d) => String(d) === String(a.id));
                                     return (
-                                        <label key={a.id} className="flex items-center gap-2 text-sm text-slate-200 cursor-pointer">
+                                        <label key={a.id} className="flex items-center gap-2 text-sm text-pl-text cursor-pointer">
                                             <input
                                                 type="checkbox"
                                                 checked={checked}
                                                 onChange={() => togglePredecessor(a.id)}
-                                                className="accent-purple-500"
+                                                className="accent-pl-primary"
                                             />
                                             <span>{a.name || a.id}</span>
-                                            <span className="text-xs text-slate-500">{Number(a.duration) || 0}d</span>
+                                            <span className="text-xs text-pl-muted">{Number(a.duration) || 0}d</span>
                                         </label>
                                     );
                                 })}
                             </div>
                         )}
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-pl-muted">
                             Finish to start. The critical path is computed from these links.
                         </p>
                     </div>
@@ -181,15 +178,15 @@ const ScheduleForm = ({ initialData, onSave, onCancel, activities = [] }) => {
                                 onChange={(e) => handleChange('progress', parseInt(e.target.value))}
                                 className="flex-1"
                             />
-                            <span className="w-12 text-right font-mono text-white">{formData.progress}%</span>
+                            <span className="w-12 text-right font-pl-mono tabular-nums text-pl-text">{formData.progress}%</span>
                         </div>
                     </div>
 
                     <div className="flex justify-end gap-2 pt-4">
-                        <Button type="button" variant="ghost" onClick={onCancel} className="text-slate-400 hover:text-white">
+                        <Button type="button" variant="ghost" onClick={onCancel} className="text-pl-muted hover:text-pl-text">
                             <X className="w-4 h-4 mr-2" /> Cancel
                         </Button>
-                        <Button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white">
+                        <Button type="submit">
                             <Save className="w-4 h-4 mr-2" /> Save Activity
                         </Button>
                     </div>

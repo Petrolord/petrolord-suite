@@ -4,11 +4,9 @@
  * The app wraps itself in <ThemedApp> (6A), so the whole app is in scope
  * from 6A on. 6A converted the shell (layout, navigation, modes), the module
  * pages in modules/*.jsx and the community, concepts, cost, facilities and
- * field-overview subtrees. 6B converts the files in PENDING_6B_FILES below.
- *
- * FOR 6B: when your files are on theme roles, delete PENDING_6B_FILES and
- * PENDING_6B_ALLOW, move the 6B tabs into CONVERTED_TABS and check that the
- * static source check below covers the whole components/fdp tree.
+ * field-overview subtrees. 6B converted the rest (generation, hse, risk,
+ * scenarios, schedule, subsurface and wells), so every tab and the whole
+ * components/fdp source tree are checked with no allow-list.
  */
 import fs from 'fs';
 import path from 'path';
@@ -38,34 +36,15 @@ import FDPAccelerator from '@/pages/apps/FDPAccelerator';
 const FDP = path.resolve(__dirname, '..');
 const ROUTE = '/dashboard/apps/economics/fdp-accelerator';
 
-// The files 6B converts (subtrees under components/fdp/modules).
-const PENDING_6B_DIRS = ['generation', 'hse', 'risk', 'scenarios', 'schedule', 'subsurface', 'wells'];
-const PENDING_6B_FILES = PENDING_6B_DIRS.flatMap((d) => fs.readdirSync(path.join(FDP, 'modules', d))
-  .filter((f) => f.endsWith('.jsx'))
-  .map((f) => path.join('modules', d, f)));
-
-// Every legacy colour token those files still carry, plus the text- twin of
-// each bg- token (two of them build an icon colour with
-// colorClass.replace('bg-', 'text-')). Used only on the 6B tabs, so the 6A
-// chrome around them is still checked for anything else.
-const PENDING_6B_TOKENS = PENDING_6B_FILES.flatMap((f) => fs
-  .readFileSync(path.join(FDP, f), 'utf8')
-  .split(/[\s"'`{}()]+/)
-  .filter((t) => t && hasLegacyChrome(t)));
-const PENDING_6B_ALLOW = [...new Set([
-  ...PENDING_6B_TOKENS,
-  ...PENDING_6B_TOKENS.filter((t) => t.startsWith('bg-')).map((t) => t.replace('bg-', 'text-')),
-])];
-
-// Sidebar label -> converted in 6A.
-const CONVERTED_TABS = ['Field Overview', 'Concepts', 'Facilities', 'Economics', 'Community'];
-const PENDING_6B_TABS = ['Subsurface', 'Scenarios', 'Wells & Drilling', 'Schedule', 'HSE', 'Risk Management', 'Documents'];
+// Sidebar label, every tab of the app.
+const TABS = [
+  'Field Overview', 'Subsurface', 'Concepts', 'Scenarios', 'Wells & Drilling', 'Facilities',
+  'Economics', 'Schedule', 'HSE', 'Community', 'Risk Management', 'Documents',
+];
 
 const mount = () => render(<MemoryRouter><FDPAccelerator /></MemoryRouter>);
 const ready = () => screen.findByText('Saved plan');
 
-// The opening screen (Field Overview) renders no 6B file, so the standard
-// checks run with no allow-list at all.
 describeAppTheme({
   name: 'FDP Accelerator',
   route: ROUTE,
@@ -84,37 +63,74 @@ describe('FDP Accelerator tabs inside the scope', () => {
     if (!button) throw new Error(`No sidebar button "${label}"`);
     fireEvent.click(button);
   };
-
-  it.each(CONVERTED_TABS)('the 6A tab "%s" has no legacy colour, light and dark', async (label) => {
-    mount();
-    await ready();
-    openTab(label);
+  const clickIfPresent = (name) => {
+    const button = screen.queryAllByRole('button').find((b) => b.textContent.trim() === name);
+    if (button) fireEvent.click(button);
+    return Boolean(button);
+  };
+  const bothThemes = () => {
     expectNoLegacyChrome();
     fireEvent.click(screen.getByTestId('theme-toggle'));
     expectNoLegacyChrome();
-  });
+    fireEvent.click(screen.getByTestId('theme-toggle'));
+  };
 
-  it.each(PENDING_6B_TABS)('the tab "%s" adds nothing beyond its pending 6B files', async (label) => {
+  it.each(TABS)('the empty tab "%s" has no legacy colour, light and dark', async (label) => {
     mount();
     await ready();
     openTab(label);
-    expectNoLegacyChrome({ allow: PENDING_6B_ALLOW });
+    bothThemes();
   });
 
-  it('the 6A source files carry no legacy colour token', () => {
+  it('a plan with every example loaded has no legacy colour on any tab, light and dark', async () => {
+    mount();
+    await ready();
+    // Fill the plan so the tables, cards, charts and registers render rows.
+    const loaded = TABS.filter((label) => {
+      openTab(label);
+      return clickIfPresent('Load example');
+    });
+    expect(loaded).toEqual(expect.arrayContaining(['Subsurface', 'Wells & Drilling', 'Schedule', 'HSE']));
+    TABS.forEach((label) => {
+      openTab(label);
+      // open the sections that start closed
+      ['Response Planning', 'Activity List'].forEach((title) => {
+        const header = screen.queryAllByText(title).find((el) => el.closest('button'));
+        if (header) fireEvent.click(header.closest('button'));
+      });
+      bothThemes();
+    });
+    openTab('Schedule');
+    expect(clickIfPresent('List')).toBe(true);
+    bothThemes();
+  });
+
+  it.each([
+    ['Scenarios', 'New Scenario'], ['Wells & Drilling', 'Add Well'], ['Schedule', 'Add Activity'],
+    ['HSE', 'Add Risk'], ['Risk Management', 'Add Project Risk'],
+  ])('the "%s" form has no legacy colour, light and dark', async (label, action) => {
+    mount();
+    await ready();
+    openTab(label);
+    expect(clickIfPresent(action)).toBe(true);
+    bothThemes();
+  });
+
+  it('the components/fdp source tree carries no legacy colour token', () => {
     const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
       const p = path.join(dir, e.name);
       if (e.isDirectory()) return e.name === '__tests__' ? [] : walk(p);
-      return e.name.endsWith('.jsx') ? [path.relative(FDP, p)] : [];
+      return /\.jsx?$/.test(e.name) ? [path.relative(FDP, p)] : [];
     });
-    const pending = new Set(PENDING_6B_FILES);
-    const offenders = walk(FDP)
-      .filter((f) => !pending.has(f))
+    const files = walk(FDP);
+    const offenders = files
       .flatMap((f) => fs.readFileSync(path.join(FDP, f), 'utf8')
         .split(/[\s"'`{}()]+/)
         .filter((t) => t && hasLegacyChrome(t))
         .map((t) => `${f}: ${t}`));
     expect(offenders).toEqual([]);
-    expect(PENDING_6B_FILES.length).toBeGreaterThan(0);
+    // the 6B subtrees are in the walk
+    ['generation', 'hse', 'risk', 'scenarios', 'schedule', 'subsurface', 'wells']
+      .forEach((d) => expect(files.some((f) => f.startsWith(path.join('modules', d)))).toBe(true));
   });
 });

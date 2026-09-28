@@ -1,10 +1,16 @@
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from '@/components/ui/badge';
+import { NumericTable, NumTh, NumRow, RowLabel, NumCell, NUMERIC_TABLE } from '@/components/ui/numeric-table';
 import { Edit2, Trash2, Copy, CheckCircle, Circle } from 'lucide-react';
 import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { formatFull } from '@/lib/fullPrecision';
+
+// Design system rollout 6B: the inventory carries the well costs, so it sits
+// in the NumericTable recipe (sticky well names, mono right-aligned depths
+// and costs, strong rule above the campaign total). The figures and their
+// formatting are unchanged.
+const TEXT_CELL = 'whitespace-nowrap border-b border-pl-border px-3 py-2 text-left text-xs';
 
 const WellInventory = ({ wells, onEdit, onDelete, onDuplicate }) => {
     // W3 (D3): with Full precision on, each well cost prints to the USD and a
@@ -12,86 +18,77 @@ const WellInventory = ({ wells, onEdit, onDelete, onDuplicate }) => {
     const { full } = useFullPrecision();
     if (wells.length === 0) {
         return (
-            <div className="text-center py-12 bg-slate-900/50 border border-dashed border-slate-800 rounded-lg">
-                <p className="text-slate-500 mb-2">No wells defined yet.</p>
-                <p className="text-sm text-slate-600">Add wells to build your drilling schedule.</p>
+            <div className="text-center py-12 bg-pl-surface border border-dashed border-pl-border rounded-lg">
+                <p className="text-pl-muted mb-2">No wells defined yet.</p>
+                <p className="text-sm text-pl-muted">Add wells to build your drilling schedule.</p>
             </div>
         );
     }
 
     return (
-        <Card className="bg-slate-900 border-slate-800">
-            <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                    <Table>
-                        <TableHeader className="bg-slate-800/50">
-                            <TableRow className="border-slate-800">
-                                <TableHead className="text-slate-300">Well Name</TableHead>
-                                <TableHead className="text-slate-300">Type</TableHead>
-                                <TableHead className="text-slate-300">Trajectory</TableHead>
-                                <TableHead className="text-slate-300 text-right">MD (ft)</TableHead>
-                                <TableHead className="text-slate-300 text-right">{full ? 'Est. Cost (USD)' : 'Est. Cost ($MM)'}</TableHead>
-                                <TableHead className="text-slate-300">Status</TableHead>
-                                <TableHead className="text-right w-[120px]">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {wells.map((well) => (
-                                <TableRow key={well.id} className="border-slate-800 hover:bg-slate-800/30">
-                                    <TableCell className="font-medium text-white">{well.name}</TableCell>
-                                    <TableCell>
-                                        <span className={`text-xs px-2 py-1 rounded-full border ${
-                                            well.type.includes('Producer') 
-                                                ? 'bg-green-950 border-green-800 text-green-400' 
-                                                : well.type.includes('Injector') 
-                                                    ? 'bg-blue-950 border-blue-800 text-blue-400'
-                                                    : 'bg-slate-800 border-slate-700 text-slate-400'
-                                        }`}>
-                                            {well.type}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="text-slate-400">{well.trajectory}</TableCell>
-                                    <TableCell className="text-right font-mono text-slate-300">{well.md?.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right font-mono text-slate-300">{full ? formatFull(well.cost, 0) : (well.cost / 1000000).toFixed(1)}</TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center">
-                                            {well.status === 'Completed' ? (
-                                                <CheckCircle className="w-3 h-3 mr-2 text-green-500" />
-                                            ) : (
-                                                <Circle className="w-3 h-3 mr-2 text-yellow-500" />
-                                            )}
-                                            <span className="text-slate-400">{well.status}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex justify-end gap-1">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-white" onClick={() => onDuplicate(well)}>
-                                                <Copy className="w-3.5 h-3.5" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-white" onClick={() => onEdit(well)}>
-                                                <Edit2 className="w-3.5 h-3.5" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-red-400" onClick={() => onDelete(well.id)}>
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {full && (
-                                <TableRow className="border-slate-800" data-testid="well-campaign-total">
-                                    <TableCell className="font-medium text-white" colSpan={4}>Campaign total</TableCell>
-                                    <TableCell className="text-right font-mono text-white">
-                                        {formatFull(wells.reduce((sum, w) => sum + (Number(w.cost) || 0), 0), 0)}
-                                    </TableCell>
-                                    <TableCell colSpan={2} />
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </CardContent>
-        </Card>
+        <NumericTable>
+            <thead>
+                <tr>
+                    <NumTh sticky>Well Name</NumTh>
+                    <NumTh>Type</NumTh>
+                    <NumTh>Trajectory</NumTh>
+                    <NumTh numeric>MD (ft)</NumTh>
+                    <NumTh numeric>{full ? 'Est. Cost (USD)' : 'Est. Cost ($MM)'}</NumTh>
+                    <NumTh>Status</NumTh>
+                    <NumTh className="w-[120px] text-right">Actions</NumTh>
+                </tr>
+            </thead>
+            <tbody>
+                {wells.map((well) => (
+                    <NumRow key={well.id}>
+                        <RowLabel>{well.name}</RowLabel>
+                        <td className={TEXT_CELL}>
+                            <Badge variant="neutral">
+                                {well.type}
+                            </Badge>
+                        </td>
+                        <td className={`${TEXT_CELL} text-pl-muted`}>{well.trajectory}</td>
+                        <NumCell value={well.md} signed={false}>{well.md?.toLocaleString()}</NumCell>
+                        <NumCell value={well.cost} signed={false}>
+                            {full ? formatFull(well.cost, 0) : (well.cost / 1000000).toFixed(1)}
+                        </NumCell>
+                        <td className={TEXT_CELL}>
+                            <div className="flex items-center">
+                                {well.status === 'Completed' ? (
+                                    <CheckCircle className="w-3 h-3 mr-2 text-pl-success-text" />
+                                ) : (
+                                    <Circle className="w-3 h-3 mr-2 text-pl-warning-text" />
+                                )}
+                                <span className="text-pl-muted">{well.status}</span>
+                            </div>
+                        </td>
+                        <td className="border-b border-pl-border px-3 py-1 text-right">
+                            <div className="flex justify-end gap-1">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-pl-muted hover:text-pl-text" onClick={() => onDuplicate(well)}>
+                                    <Copy className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-pl-muted hover:text-pl-text" onClick={() => onEdit(well)}>
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-pl-muted hover:text-pl-danger-text" onClick={() => onDelete(well.id)}>
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                            </div>
+                        </td>
+                    </NumRow>
+                ))}
+                {full && (
+                    <tr data-testid="well-campaign-total">
+                        <RowLabel total>Campaign total</RowLabel>
+                        <td colSpan={3} className={`${NUMERIC_TABLE.total} border-b border-pl-border`} />
+                        <NumCell total signed={false}>
+                            {formatFull(wells.reduce((sum, w) => sum + (Number(w.cost) || 0), 0), 0)}
+                        </NumCell>
+                        <td colSpan={2} className={`${NUMERIC_TABLE.total} border-b border-pl-border`} />
+                    </tr>
+                )}
+            </tbody>
+        </NumericTable>
     );
 };
 
