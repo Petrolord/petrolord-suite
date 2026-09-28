@@ -21,6 +21,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 import { WellPlanningStoreProvider, useWellPlanningStore } from './well-planning/state/WellPlanningStore';
 import { WellPlanningProvider } from './well-planning/contexts/WellPlanningContext';
@@ -65,7 +67,7 @@ const WellPlanningContent = () => {
         selectSite(s.id);
       }
       await refreshSites();
-      toast({ title: 'Site saved', className: 'bg-green-600 text-white' });
+      toast({ title: 'Site saved' });
     } catch (e) { fail('Site save failed')(e); throw e; }
   };
 
@@ -77,7 +79,7 @@ const WellPlanningContent = () => {
       } else {
         if (!organization?.id) throw new Error('You are not a member of an organization.');
         await wpApi.shareSite(s.id, organization.id);
-        toast({ title: 'Site shared', description: `${s.name} is visible to your organization (read-only).`, className: 'bg-green-600 text-white' });
+        toast({ title: 'Site shared', description: `${s.name} is visible to your organization (read-only).` });
       }
       await refreshSites();
     } catch (e) { fail('Share failed')(e); }
@@ -94,7 +96,7 @@ const WellPlanningContent = () => {
         selectWellbore(s.id, w.id);
       }
       await refreshWellbores(s.id);
-      toast({ title: 'Wellbore saved', className: 'bg-green-600 text-white' });
+      toast({ title: 'Wellbore saved' });
     } catch (e) { fail('Wellbore save failed')(e); throw e; }
   };
 
@@ -123,7 +125,7 @@ const WellPlanningContent = () => {
       const nd = await wpApi.saveDesignRevision(d, user.id);
       await refreshDesigns(d.wellbore_id);
       selectDesign(selection.siteId, d.wellbore_id, nd.id);
-      toast({ title: 'Revision created', description: `${nd.name} r${nd.revision} (draft).`, className: 'bg-green-600 text-white' });
+      toast({ title: 'Revision created', description: `${nd.name} r${nd.revision} (draft).` });
     } catch (e) { fail('Revision failed')(e); }
   };
 
@@ -131,7 +133,7 @@ const WellPlanningContent = () => {
     try {
       await wpApi.setDefinitiveDesign(d.id, d.wellbore_id);
       await refreshDesigns(d.wellbore_id);
-      toast({ title: 'Definitive plan set', description: `${d.name} r${d.revision} is now the definitive design for this wellbore.`, className: 'bg-green-600 text-white' });
+      toast({ title: 'Definitive plan set', description: `${d.name} r${d.revision} is now the definitive design for this wellbore.` });
     } catch (e) { fail('Could not set definitive')(e); }
   };
 
@@ -157,28 +159,28 @@ const WellPlanningContent = () => {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-950">
+      <div className="flex h-screen items-center justify-center bg-pl-bg">
         <div className="flex flex-col items-center space-y-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-[#4CAF50]" />
-          <p className="font-medium text-slate-400">Loading Well Design Studio...</p>
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-pl-primary" />
+          <p className="font-medium text-pl-muted">Loading Well Design Studio...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950 text-white">
+    <div className="flex h-screen flex-col overflow-hidden bg-pl-bg text-pl-text md:flex-row">
       <Helmet><title>Well Design Studio | Petrolord</title></Helmet>
 
       {/* LEFT: tree */}
-      <div className="flex w-72 shrink-0 flex-col border-r border-slate-800 bg-slate-900">
-        <div className="flex h-14 items-center gap-2 border-b border-slate-800 px-4">
-          <div className="rounded-lg bg-gradient-to-br from-[#FFC107] to-[#FFA000] p-1.5">
-            <Waypoints className="h-5 w-5 text-slate-900" />
+      <div className="flex max-h-[35vh] w-full shrink-0 flex-col border-b border-pl-border bg-pl-surface md:max-h-none md:w-72 md:border-b-0 md:border-r">
+        <div className="flex h-14 items-center gap-2 border-b border-pl-border px-4">
+          <div className="rounded-lg bg-pl-primary p-1.5">
+            <Waypoints className="h-5 w-5 text-pl-primary-fg" />
           </div>
           <div>
-            <h1 className="text-sm font-bold leading-tight text-white">Well Design Studio</h1>
-            <p className="text-[10px] text-slate-500">Trajectory design and anti-collision</p>
+            <h1 className="text-sm font-bold leading-tight text-pl-text">Well Design Studio</h1>
+            <p className="text-[10px] text-pl-muted">Trajectory design and anti-collision</p>
           </div>
         </div>
         <SiteTree
@@ -201,35 +203,36 @@ const WellPlanningContent = () => {
 
       {/* RIGHT: workspace */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900 px-4">
-          <nav className="flex items-center text-xs text-slate-500">
-            <Link to="/dashboard" className="transition-colors hover:text-white"><Home className="h-3 w-3" /></Link>
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-pl-border bg-pl-surface px-4">
+          <nav className="flex min-w-0 items-center overflow-hidden whitespace-nowrap text-xs text-pl-muted">
+            <Link to="/dashboard" className="transition-colors hover:text-pl-text"><Home className="h-3 w-3" /></Link>
             <ChevronRight className="mx-1 h-3 w-3 opacity-50" />
-            <Link to="/dashboard/drilling" className="transition-colors hover:text-white">Drilling</Link>
+            <Link to="/dashboard/drilling" className="transition-colors hover:text-pl-text">Drilling</Link>
             <ChevronRight className="mx-1 h-3 w-3 opacity-50" />
-            <span className="font-medium text-[#4CAF50]">Well Design Studio</span>
-            {site && (<><ChevronRight className="mx-1 h-3 w-3 opacity-50" /><span className="text-slate-300">{site.name}</span></>)}
-            {wellbore && (<><ChevronRight className="mx-1 h-3 w-3 opacity-50" /><span className="text-slate-300">{wellbore.name}</span></>)}
-            {design && (<><ChevronRight className="mx-1 h-3 w-3 opacity-50" /><span className="text-slate-200">{design.name} r{design.revision}</span></>)}
+            <span className="font-medium text-pl-primary-text">Well Design Studio</span>
+            {site && (<><ChevronRight className="mx-1 h-3 w-3 opacity-50" /><span className="text-pl-text">{site.name}</span></>)}
+            {wellbore && (<><ChevronRight className="mx-1 h-3 w-3 opacity-50" /><span className="text-pl-text">{wellbore.name}</span></>)}
+            {design && (<><ChevronRight className="mx-1 h-3 w-3 opacity-50" /><span className="text-pl-text">{design.name} r{design.revision}</span></>)}
           </nav>
           <div className="flex items-center gap-2">
             {site?.crs && (
-              <span className="rounded-full border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400">
+              <span className="rounded-full border border-pl-border bg-pl-sunken px-2 py-0.5 text-[10px] text-pl-muted">
                 {site.crs}
                 {siteDatumTransform(site) ? ` via ${siteDatumTransform(site)}` : ''}
               </span>
             )}
             <Link to="/dashboard/apps/drilling/well-planning/help"
-              className="flex items-center gap-1 rounded-full border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 transition-colors hover:border-lime-600 hover:text-lime-300"
+              className="flex items-center gap-1 rounded-full border border-pl-border bg-pl-sunken px-2 py-0.5 text-[10px] text-pl-text transition-colors hover:border-pl-primary hover:text-pl-primary-text"
               title="Open the Well Design Studio help guide">
               <HelpCircle className="h-3 w-3" /> Help
             </Link>
+            <ThemeToggle className="h-8 w-8" />
           </div>
         </header>
 
         <div className="min-h-0 flex-1 overflow-auto p-4">
           <Tabs defaultValue="design" className="h-full">
-            <TabsList className="bg-slate-900 border border-slate-800">
+            <TabsList className="h-auto flex-wrap">
               <TabsTrigger value="design" className="text-xs"><Ruler className="mr-1 h-3.5 w-3.5" /> Design</TabsTrigger>
               <TabsTrigger value="targets" className="text-xs"><Target className="mr-1 h-3.5 w-3.5" /> Targets</TabsTrigger>
               <TabsTrigger value="surveys" className="text-xs"><Compass className="mr-1 h-3.5 w-3.5" /> Surveys</TabsTrigger>
@@ -266,20 +269,20 @@ const WellPlanningContent = () => {
 
       {nameDialog && (
         <Dialog open onOpenChange={(o) => { if (!o) setNameDialog(null); }}>
-          <DialogContent className="bg-slate-900 border-slate-700 text-white">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{nameDialog.kind === 'newDesign' ? 'New design' : 'Rename design'}</DialogTitle>
               {nameDialog.kind === 'newDesign' && (
-                <DialogDescription className="text-slate-400">A design is one versioned trajectory plan for {nameDialog.wellbore?.name}.</DialogDescription>
+                <DialogDescription className="text-pl-muted">A design is one versioned trajectory plan for {nameDialog.wellbore?.name}.</DialogDescription>
               )}
             </DialogHeader>
             <div>
               <Label className="text-xs">Design name</Label>
-              <Input value={nameValue} onChange={(e) => setNameValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleNameDialogSave(); }} className="bg-slate-800 border-slate-700 h-9" autoFocus />
+              <Input value={nameValue} onChange={(e) => setNameValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleNameDialogSave(); }} className="h-9" autoFocus />
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setNameDialog(null)} className="border-slate-600 text-slate-300">Cancel</Button>
-              <Button onClick={handleNameDialogSave} disabled={!nameValue.trim()} className="bg-[#4CAF50] hover:bg-[#43a047] text-white">Save</Button>
+              <Button variant="outline" onClick={() => setNameDialog(null)}>Cancel</Button>
+              <Button onClick={handleNameDialogSave} disabled={!nameValue.trim()}>Save</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -287,14 +290,14 @@ const WellPlanningContent = () => {
 
       {confirm && (
         <AlertDialog open onOpenChange={(o) => { if (!o) setConfirm(null); }}>
-          <AlertDialogContent className="bg-slate-900 border-slate-700 text-white">
+          <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>{confirm.title}</AlertDialogTitle>
-              <AlertDialogDescription className="text-slate-400">{confirm.body}</AlertDialogDescription>
+              <AlertDialogDescription className="text-pl-muted">{confirm.body}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel className="border-slate-600 bg-transparent text-slate-300">Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => { confirm.action(); setConfirm(null); }} className="bg-red-600 text-white hover:bg-red-700">Delete</AlertDialogAction>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { confirm.action(); setConfirm(null); }} className="bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90">Delete</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -312,10 +315,15 @@ const WellPlanningWithDraft = () => {
   );
 };
 
+// Design system rollout batch 3A: the studio opens light and follows the
+// user's theme choice from the header toggle. The route element in App.jsx
+// is unchanged, so the dev harness and the route share this one scope.
 const WellPlanning = () => (
-  <WellPlanningStoreProvider>
-    <WellPlanningWithDraft />
-  </WellPlanningStoreProvider>
+  <ThemedApp data-testid="wds-theme-scope">
+    <WellPlanningStoreProvider>
+      <WellPlanningWithDraft />
+    </WellPlanningStoreProvider>
+  </ThemedApp>
 );
 
 export default WellPlanning;

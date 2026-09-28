@@ -1,10 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, ArrowLeft, HelpCircle } from 'lucide-react';
+import { BarChart3, HelpCircle } from 'lucide-react';
+import { AppHeader } from '@/components/ui/app-shell';
+import { ThemedApp } from '@/design/ThemeProvider';
 import InputPanel from '@/components/npv/InputPanel';
 import ResultsPanel from '@/components/npv/ResultsPanel';
 import EmptyState from '@/components/npv/EmptyState';
@@ -40,7 +40,7 @@ export const stateFromPayload = (payload) => {
   };
 };
 
-const NpvScenarioBuilder = () => {
+const NpvScenarioBuilderContent = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
@@ -136,64 +136,51 @@ const NpvScenarioBuilder = () => {
       </Helmet>
       
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="p-4 md:p-6 h-screen flex flex-col overflow-hidden bg-slate-950 text-white">
-        {/* Header Section */}
-        <div className="flex-shrink-0 mb-4 flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-800 pb-4 gap-4">
-            <div>
-                <div className="flex items-center space-x-4 mb-2">
-                    <Link to="/dashboard/economics">
-                    <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white pl-0">
-                        <ArrowLeft className="w-4 h-4 mr-2" /> Back
-                    </Button>
-                    </Link>
-                </div>
-                <div className="flex items-center space-x-3">
-                    <div className="bg-gradient-to-r from-green-500 to-lime-500 p-2 rounded-xl shadow-lg shadow-lime-900/20">
-                        <BarChart3 className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                        <h1 className="text-xl font-bold text-white tracking-tight">NPV Scenario Builder</h1>
-                        <p className="text-slate-400 text-xs">Scenario and risk-based project valuation</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex items-end gap-3">
-                <FullPrecisionToggle app="npv-scenario-builder" className="pb-2" />
-                <div className="w-56">
-                    <StudioProjectManager
-                        label="Saved scenario"
-                        projects={persistence.projects}
-                        currentProjectId={persistence.currentProjectId}
-                        onCreate={persistence.createProject}
-                        onOpen={persistence.openProject}
-                        onDelete={persistence.deleteProject}
-                        confirmDeleteMessage="Delete this scenario and its saved inputs? This cannot be undone."
-                    />
-                </div>
-                <StudioAutoSave
-                    isSaving={persistence.isSaving}
-                    saveError={persistence.saveError}
-                    lastSaveTime={persistence.lastSaveTime}
-                    onSave={persistence.manualSave}
-                    disabled={!persistence.currentProjectId}
+      <div className="min-h-screen lg:h-screen flex flex-col lg:overflow-hidden">
+        <AppHeader
+          backTo="/dashboard/economics"
+          backLabel="Back to Economics"
+          icon={BarChart3}
+          title="NPV Scenario Builder"
+          subtitle="Scenario and risk-based project valuation"
+          actions={(
+            <>
+              <FullPrecisionToggle app="npv-scenario-builder" />
+              <div className="w-full sm:w-56">
+                <StudioProjectManager
+                  label="Saved scenario"
+                  projects={persistence.projects}
+                  currentProjectId={persistence.currentProjectId}
+                  onCreate={persistence.createProject}
+                  onOpen={persistence.openProject}
+                  onDelete={persistence.deleteProject}
+                  confirmDeleteMessage="Delete this scenario and its saved inputs? This cannot be undone."
                 />
-                <Button variant="ghost" size="sm" onClick={() => setIsHelpOpen(true)} className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20">
-                    <HelpCircle className="w-5 h-5 mr-2" /> Help & Training
-                </Button>
-            </div>
-        </div>
+              </div>
+              <StudioAutoSave
+                isSaving={persistence.isSaving}
+                saveError={persistence.saveError}
+                lastSaveTime={persistence.lastSaveTime}
+                onSave={persistence.manualSave}
+                disabled={!persistence.currentProjectId}
+              />
+              <Button variant="outline" size="sm" onClick={() => setIsHelpOpen(true)}>
+                <HelpCircle className="w-4 h-4 mr-2" /> Help & Training
+              </Button>
+            </>
+          )}
+        />
 
         {/* Main Content Area */}
-        <div className="flex-grow overflow-hidden">
-            <div className="flex flex-col lg:flex-row gap-6 h-full">
+        <div className="flex-grow min-h-0 p-4 md:p-6 lg:overflow-hidden">
+            <div className="flex flex-col lg:flex-row gap-6 lg:h-full">
                 {/* Left Input Panel */}
-                <div className="lg:w-1/3 xl:w-[30%] bg-slate-900 border border-slate-800 rounded-xl p-4 overflow-hidden flex flex-col shadow-xl">
+                <div className="lg:w-1/3 xl:w-[30%] bg-pl-surface border border-pl-border rounded-xl p-4 lg:overflow-hidden flex flex-col shadow-pl-sm">
                     <InputPanel onCalculate={handleCalculate} loading={loading} state={state} setState={setState} />
                 </div>
 
                 {/* Right Results Panel */}
-                <div className="lg:w-2/3 xl:w-[70%] flex flex-col overflow-hidden">
+                <div className="lg:w-2/3 xl:w-[70%] min-w-0 flex flex-col lg:overflow-hidden">
                     {results ? (
                     <ResultsPanel results={results} onRerunRisk={handleRerunRisk} riskRunning={riskRunning} />
                     ) : (
@@ -209,5 +196,15 @@ const NpvScenarioBuilder = () => {
     </FullPrecisionProvider>
   );
 };
+
+// Design system rollout batch 2E (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// switches it to dark per user. The cash-flow, sensitivity and risk charts
+// keep the white chart standard.
+const NpvScenarioBuilder = () => (
+  <ThemedApp className="min-h-screen" data-testid="npv-theme-scope">
+    <NpvScenarioBuilderContent />
+  </ThemedApp>
+);
 
 export default NpvScenarioBuilder;

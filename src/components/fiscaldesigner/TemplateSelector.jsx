@@ -33,29 +33,29 @@ import React from 'react';
     const TemplateSelector = ({ isOpen, onOpenChange, onSelectTemplate }) => {
       return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-          <DialogContent className="sm:max-w-[625px] bg-gray-900 border-gray-700 text-white">
+          <DialogContent className="sm:max-w-[625px]">
             <DialogHeader>
-              <DialogTitle className="text-2xl text-lime-300">Fiscal Regime Templates</DialogTitle>
-              <DialogDescription className="text-gray-400">
+              <DialogTitle className="text-2xl">Fiscal Regime Templates</DialogTitle>
+              <DialogDescription>
                 Select a country template to quickly load a common fiscal regime. You can edit it afterward.
               </DialogDescription>
             </DialogHeader>
             <ScrollArea className="h-[400px] w-full pr-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {fiscalTemplates.map((template, index) => (
-                  <div key={index} className="bg-white/5 p-4 rounded-lg border border-white/10 flex flex-col justify-between">
+                  <div key={index} className="bg-pl-surface p-4 rounded-lg border border-pl-border flex flex-col justify-between">
                     <div>
-                      <h3 className="font-semibold text-white text-lg">{template.name}</h3>
-                      <p className="text-sm text-gray-400 mt-1">{template.description}</p>
+                      <h3 className="font-semibold text-pl-text text-lg">{template.name}</h3>
+                      <p className="text-sm text-pl-muted mt-1">{template.description}</p>
                       <ul className="mt-2 space-y-0.5" data-testid="template-terms">
                         {templateTermsSummary(template.regime).map((line) => (
-                          <li key={line} className="text-xs text-lime-200/80">{line}</li>
+                          <li key={line} className="text-xs text-pl-muted">{line}</li>
                         ))}
                       </ul>
                     </div>
                     <Button 
                       onClick={() => onSelectTemplate(template)} 
-                      className="mt-4 w-full bg-purple-600 hover:bg-purple-700"
+                      className="mt-4 w-full"
                     >
                       Apply Template
                     </Button>

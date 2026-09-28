@@ -49,20 +49,20 @@ const HelpSystem = ({ open, onOpenChange }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-950 border-slate-800 text-white max-w-5xl h-[80vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent className="max-w-5xl h-[80vh] flex flex-col p-0 overflow-hidden">
         
         {/* Header & Search */}
-        <div className="p-6 border-b border-slate-800 bg-slate-900">
+        <div className="p-6 pr-12 border-b border-pl-border bg-pl-surface">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <DialogTitle className="flex items-center gap-2 text-xl">
-              <HelpCircle className="w-6 h-6 text-blue-400" />
+              <HelpCircle className="w-6 h-6 text-pl-primary-text" aria-hidden="true" />
               NPV Scenario Builder Help Center
             </DialogTitle>
             <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-pl-muted" aria-hidden="true" />
               <Input 
                 placeholder="Search guides, terms, and tutorials..." 
-                className="pl-9 bg-slate-800 border-slate-700 focus:border-blue-500"
+                className="pl-9"
                 value={searchQuery}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -74,7 +74,7 @@ const HelpSystem = ({ open, onOpenChange }) => {
         <div className="flex-1 flex overflow-hidden">
           
           {/* Sidebar Navigation */}
-          <div className="w-64 bg-slate-900 border-r border-slate-800 hidden md:flex flex-col p-4 space-y-2">
+          <div className="w-64 bg-pl-surface border-r border-pl-border hidden md:flex flex-col p-4 space-y-2">
             <Button 
               variant={activeTab === 'articles' ? "secondary" : "ghost"} 
               className="justify-start w-full" 
@@ -104,35 +104,35 @@ const HelpSystem = ({ open, onOpenChange }) => {
               <FileText className="w-4 h-4 mr-2" /> Glossary
             </Button>
             
-            <div className="mt-auto pt-4 border-t border-slate-800">
-              <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+            <div className="mt-auto pt-4 border-t border-pl-border">
+              <Button className="w-full">
                 <Mail className="w-4 h-4 mr-2" /> Contact Support
               </Button>
             </div>
           </div>
 
           {/* Content Pane */}
-          <div className="flex-1 p-6 overflow-y-auto bg-slate-950">
+          <div className="flex-1 p-6 overflow-y-auto bg-pl-raised">
             
             {/* Search Results Overlay */}
             {searchQuery ? (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-slate-200">Search Results for "{searchQuery}"</h3>
+                <h3 className="text-lg font-semibold text-pl-text">Search Results for "{searchQuery}"</h3>
                 {searchResults.length > 0 ? (
                   <div className="grid gap-2">
                     {searchResults.map(article => (
                       <div 
                         key={article.id} 
-                        className="p-4 bg-slate-900 border border-slate-800 rounded-lg hover:border-blue-500 cursor-pointer"
+                        className="p-4 bg-pl-surface border border-pl-border rounded-lg hover:border-pl-border-strong cursor-pointer"
                         onClick={() => { setActiveArticle(article); setSearchTerm(''); setActiveTab('articles'); }}
                       >
-                        <h4 className="font-bold text-blue-400">{article.title}</h4>
-                        <p className="text-xs text-slate-500 mt-1">In {HELP_CATEGORIES.find(c => c.id === article.categoryId)?.title}</p>
+                        <h4 className="font-semibold text-pl-primary-text">{article.title}</h4>
+                        <p className="text-xs text-pl-muted mt-1">In {HELP_CATEGORIES.find(c => c.id === article.categoryId)?.title}</p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-slate-500">No results found.</p>
+                  <p className="text-pl-muted">No results found.</p>
                 )}
               </div>
             ) : (
@@ -150,19 +150,19 @@ const HelpSystem = ({ open, onOpenChange }) => {
 
                     {activeCategory && !activeArticle && (
                       <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-sm text-slate-400 mb-4 cursor-pointer hover:text-white" onClick={handleBackToCategories}>
+                        <div className="flex items-center gap-2 text-sm text-pl-muted mb-4 cursor-pointer hover:text-pl-text" onClick={handleBackToCategories}>
                           <span>&larr; Back to Categories</span>
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-4">{HELP_CATEGORIES.find(c => c.id === activeCategory)?.title}</h2>
+                        <h2 className="text-2xl font-bold text-pl-text mb-4">{HELP_CATEGORIES.find(c => c.id === activeCategory)?.title}</h2>
                         <div className="grid gap-3">
                           {categoryArticles.map(article => (
                             <div 
                               key={article.id}
-                              className="p-4 bg-slate-900 border border-slate-800 rounded-lg hover:bg-slate-800 cursor-pointer flex justify-between items-center group"
+                              className="p-4 bg-pl-surface border border-pl-border rounded-lg hover:bg-pl-sunken cursor-pointer flex justify-between items-center group"
                               onClick={() => handleArticleClick(article)}
                             >
-                              <span className="text-slate-200 font-medium group-hover:text-blue-400 transition-colors">{article.title}</span>
-                              <ChevronRight className="w-4 h-4 text-slate-600" />
+                              <span className="text-pl-text font-medium group-hover:text-pl-primary-text transition-colors">{article.title}</span>
+                              <ChevronRight className="w-4 h-4 text-pl-muted" />
                             </div>
                           ))}
                         </div>
@@ -178,7 +178,7 @@ const HelpSystem = ({ open, onOpenChange }) => {
                 {/* Other Tabs */}
                 {activeTab === 'tutorials' && (
                   <div className="space-y-6">
-                    <h2 className="text-2xl font-bold text-white">Training Videos</h2>
+                    <h2 className="text-2xl font-bold text-pl-text">Training Videos</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {VIDEOS.map(t => <TutorialCard key={t.id} tutorial={t} />)}
                     </div>
@@ -187,14 +187,14 @@ const HelpSystem = ({ open, onOpenChange }) => {
 
                 {activeTab === 'faq' && (
                   <div className="space-y-6">
-                    <h2 className="text-2xl font-bold text-white">Frequently Asked Questions</h2>
+                    <h2 className="text-2xl font-bold text-pl-text">Frequently Asked Questions</h2>
                     <FAQSection faqs={FAQS} />
                   </div>
                 )}
 
                 {activeTab === 'glossary' && (
                   <div className="space-y-6">
-                    <h2 className="text-2xl font-bold text-white">Economic Glossary</h2>
+                    <h2 className="text-2xl font-bold text-pl-text">Economic Glossary</h2>
                     <GlossarySection terms={GLOSSARY} />
                   </div>
                 )}

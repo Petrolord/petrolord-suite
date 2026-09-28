@@ -51,21 +51,21 @@ const MonteCarloSettings = ({ risk, onRun, running = false }) => {
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-3" data-testid="npv-mc-settings">
-      <p className="text-xs text-slate-400">
+    <div className="bg-pl-surface border border-pl-border rounded-lg p-4 space-y-3 shadow-pl-sm" data-testid="npv-mc-settings">
+      <p className="text-xs text-pl-muted">
         Monte Carlo settings. Each range draws one factor per iteration, uniform on 1 plus or minus the range.
       </p>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
         {FIELDS.map(([key, label]) => (
           <div key={key} className="space-y-1">
-            <Label htmlFor={`npv-mc-${key}`} className="text-[11px] text-slate-400">{label}</Label>
+            <Label htmlFor={`npv-mc-${key}`} className="text-[11px] text-pl-muted">{label}</Label>
             <Input
               id={`npv-mc-${key}`}
               type="number"
               step="any"
               value={form[key]}
               onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-              className="h-8 bg-slate-800 border-slate-700 text-white"
+              className="h-8 font-pl-mono tabular-nums"
             />
           </div>
         ))}
@@ -79,13 +79,12 @@ const MonteCarloSettings = ({ risk, onRun, running = false }) => {
           variant="outline"
           disabled={!risk?.allValues?.length}
           onClick={exportSample}
-          className="border-slate-700 text-slate-300"
           data-testid="npv-export-sorted-sample"
         >
           <Download className="w-3 h-3 mr-2" /> Export sorted sample
         </Button>
       </div>
-      <p className="text-[11px] text-slate-500">
+      <p className="text-[11px] text-pl-muted">
         The export lists every iteration's NPV in million USD, sorted from lowest to highest, with its rank.
       </p>
     </div>

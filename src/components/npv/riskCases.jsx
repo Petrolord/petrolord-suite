@@ -29,7 +29,7 @@ export const casesAscending = (cases) => cases.every((c, i) => i === 0 || c.valu
 
 export const RiskCaseCards = ({ risk, formatValue = (v) => String(v), unit = null }) => (
   <div>
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       {riskCases(risk).map((c) => (
         <div
           key={c.key}
@@ -37,19 +37,19 @@ export const RiskCaseCards = ({ risk, formatValue = (v) => String(v), unit = nul
           data-case={c.key}
           data-value={risk ? c.value : ''}
           title={EXCEEDANCE_DEFINITION}
-          className="bg-slate-800/50 p-4 rounded border border-slate-700 text-center"
+          className="bg-pl-surface p-4 rounded-lg border border-pl-border text-center shadow-pl-sm"
         >
-          <p className="text-xs text-slate-500">{c.label}</p>
-          <p className="text-lg font-bold text-white">
+          <p className="text-xs text-pl-muted">{c.label}</p>
+          <p className="text-lg font-semibold font-pl-mono tabular-nums text-pl-text">
             <span>{risk ? formatValue(c.value) : '-'}</span>
-            {risk && unit ? <span className="text-xs font-normal text-slate-500"> {unit}</span> : null}
+            {risk && unit ? <span className="text-xs font-normal font-pl-sans text-pl-muted"> {unit}</span> : null}
           </p>
         </div>
       ))}
     </div>
-    <p className="text-[11px] text-slate-400 mt-2">{EXCEEDANCE_DEFINITION}</p>
+    <p className="text-[11px] text-pl-muted mt-2">{EXCEEDANCE_DEFINITION}</p>
     {risk && risk.seed !== undefined && risk.seed !== null && (
-      <p className="text-[11px] text-slate-400" data-testid="npv-risk-seed">
+      <p className="text-[11px] text-pl-muted" data-testid="npv-risk-seed">
         Run seed {risk.seed}: the same inputs and seed reproduce this result.
       </p>
     )}

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import { Label } from '@/components/ui/label';
+    import { NativeSelect } from '@/components/ui/native-select';
     import CollapsibleSection from './CollapsibleSection';
     import RegimeCard from './RegimeCard';
     import TemplateSelector from './TemplateSelector';
@@ -116,86 +117,86 @@ import React, { useState, useEffect } from 'react';
           />
           <form onSubmit={handleSubmit} className="space-y-4">
             <CollapsibleSection title="Project Basis" icon={<FileText />} defaultOpen={true}>
-              <div><Label className="text-lime-300">Project Name</Label><Input value={projectInputs.name} onChange={(e) => handleProjectInputChange(['name'], e.target.value)} className="bg-white/5 border-white/20"/></div>
+              <div><Label>Project Name</Label><Input value={projectInputs.name} onChange={(e) => handleProjectInputChange(['name'], e.target.value)}/></div>
               
               <div className="pt-2">
-                <h4 className="text-md font-semibold text-white mb-2">Production Profiles</h4>
+                <h4 className="text-base font-semibold text-pl-text mb-2">Production Profiles</h4>
                 {/* headers with units (Fiscal T1-002): the placeholders vanished once a
                     value was typed, and the gas rate is Mcf/d in the engine */}
-                <div className="grid grid-cols-3 gap-2 mb-1 text-[11px] text-slate-400">
+                <div className="grid grid-cols-3 gap-2 mb-1 text-[11px] text-pl-muted">
                   <span />
                   <span>Initial rate</span>
                   <span>Decline (%/yr)</span>
                 </div>
                 {['oil', 'gas', 'ngl'].map(type => (
                   <div key={type} className="grid grid-cols-3 gap-2 mb-2 items-center">
-                    <Label className="text-lime-300" data-testid={`fis-prod-label-${type}`}>{{ oil: 'Oil (bopd)', gas: 'Gas (Mcf/d)', ngl: 'NGL (bbl/d)' }[type]}</Label>
-                    <Input placeholder="Initial Rate" type="number" value={projectInputs.production[type].initial} onChange={(e) => handleProjectInputChange(['production', type, 'initial'], Number(e.target.value))} className="bg-white/5 border-white/20"/>
-                    <Input placeholder="Decline %" type="number" value={projectInputs.production[type].decline} onChange={(e) => handleProjectInputChange(['production', type, 'decline'], Number(e.target.value))} className="bg-white/5 border-white/20"/>
+                    <Label data-testid={`fis-prod-label-${type}`}>{{ oil: 'Oil (bopd)', gas: 'Gas (Mcf/d)', ngl: 'NGL (bbl/d)' }[type]}</Label>
+                    <Input placeholder="Initial Rate" type="number" value={projectInputs.production[type].initial} onChange={(e) => handleProjectInputChange(['production', type, 'initial'], Number(e.target.value))} className="font-pl-mono tabular-nums"/>
+                    <Input placeholder="Decline %" type="number" value={projectInputs.production[type].decline} onChange={(e) => handleProjectInputChange(['production', type, 'decline'], Number(e.target.value))} className="font-pl-mono tabular-nums"/>
                   </div>
                 ))}
               </div>
 
               <div className="pt-2">
-                <h4 className="text-md font-semibold text-white mb-2">Cost Breakdown ($MM)</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <h4 className="text-base font-semibold text-pl-text mb-2">Cost Breakdown ($MM)</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-lime-300">CAPEX - Drilling</Label>
-                    <Input type="number" value={projectInputs.costs.capex.drilling} onChange={(e) => handleProjectInputChange(['costs', 'capex', 'drilling'], Number(e.target.value))} className="bg-white/5 border-white/20"/>
+                    <Label>CAPEX - Drilling</Label>
+                    <Input type="number" value={projectInputs.costs.capex.drilling} onChange={(e) => handleProjectInputChange(['costs', 'capex', 'drilling'], Number(e.target.value))} className="font-pl-mono tabular-nums"/>
                   </div>
                   <div>
-                    <Label className="text-lime-300">CAPEX - Facilities</Label>
-                    <Input type="number" value={projectInputs.costs.capex.facilities} onChange={(e) => handleProjectInputChange(['costs', 'capex', 'facilities'], Number(e.target.value))} className="bg-white/5 border-white/20"/>
+                    <Label>CAPEX - Facilities</Label>
+                    <Input type="number" value={projectInputs.costs.capex.facilities} onChange={(e) => handleProjectInputChange(['costs', 'capex', 'facilities'], Number(e.target.value))} className="font-pl-mono tabular-nums"/>
                   </div>
                   <div>
-                    <Label className="text-lime-300">CAPEX - Subsea</Label>
-                    <Input type="number" value={projectInputs.costs.capex.subsea} onChange={(e) => handleProjectInputChange(['costs', 'capex', 'subsea'], Number(e.target.value))} className="bg-white/5 border-white/20"/>
+                    <Label>CAPEX - Subsea</Label>
+                    <Input type="number" value={projectInputs.costs.capex.subsea} onChange={(e) => handleProjectInputChange(['costs', 'capex', 'subsea'], Number(e.target.value))} className="font-pl-mono tabular-nums"/>
                   </div>
                   <div>
-                    <Label className="text-lime-300">OPEX - Fixed ($MM/yr)</Label>
-                    <Input type="number" value={projectInputs.costs.opex.fixed} onChange={(e) => handleProjectInputChange(['costs', 'opex', 'fixed'], Number(e.target.value))} className="bg-white/5 border-white/20"/>
+                    <Label>OPEX - Fixed ($MM/yr)</Label>
+                    <Input type="number" value={projectInputs.costs.opex.fixed} onChange={(e) => handleProjectInputChange(['costs', 'opex', 'fixed'], Number(e.target.value))} className="font-pl-mono tabular-nums"/>
                   </div>
                   <div>
-                    <Label className="text-lime-300">OPEX - Variable ($/boe)</Label>
-                    <Input type="number" value={projectInputs.costs.opex.variable} onChange={(e) => handleProjectInputChange(['costs', 'opex', 'variable'], Number(e.target.value))} className="bg-white/5 border-white/20"/>
+                    <Label>OPEX - Variable ($/boe)</Label>
+                    <Input type="number" value={projectInputs.costs.opex.variable} onChange={(e) => handleProjectInputChange(['costs', 'opex', 'variable'], Number(e.target.value))} className="font-pl-mono tabular-nums"/>
                   </div>
                 </div>
               </div>
 
               <div className="pt-2">
-                <h4 className="text-md font-semibold text-white mb-2">Price Deck</h4>
-                <div className="grid grid-cols-4 gap-2 mb-1 text-[11px] text-slate-400" data-testid="fis-price-headers">
+                <h4 className="text-base font-semibold text-pl-text mb-2">Price Deck</h4>
+                <div className="grid grid-cols-4 gap-2 mb-1 text-[11px] text-pl-muted" data-testid="fis-price-headers">
                   <span>From year</span><span>Oil ($/bbl)</span><span>Gas ($/Mcf)</span><span>NGL ($/bbl)</span>
                 </div>
                 <div className="space-y-2">
                   {projectInputs.prices.map((pricePoint, index) => (
                     <div key={index} className="grid grid-cols-4 gap-2 items-center">
-                      <Input placeholder="Year" type="number" value={pricePoint.year} onChange={(e) => handlePriceDeckChange(index, 'year', e.target.value)} className="bg-white/5 border-white/20"/>
-                      <Input placeholder="Oil ($/bbl)" type="number" value={pricePoint.oil} onChange={(e) => handlePriceDeckChange(index, 'oil', e.target.value)} className="bg-white/5 border-white/20"/>
-                      <Input placeholder="Gas ($/mcf)" type="number" value={pricePoint.gas} onChange={(e) => handlePriceDeckChange(index, 'gas', e.target.value)} className="bg-white/5 border-white/20"/>
-                      <Input placeholder="NGL ($/bbl)" type="number" value={pricePoint.ngl} onChange={(e) => handlePriceDeckChange(index, 'ngl', e.target.value)} className="bg-white/5 border-white/20"/>
+                      <Input placeholder="Year" type="number" value={pricePoint.year} onChange={(e) => handlePriceDeckChange(index, 'year', e.target.value)} className="font-pl-mono tabular-nums"/>
+                      <Input placeholder="Oil ($/bbl)" type="number" value={pricePoint.oil} onChange={(e) => handlePriceDeckChange(index, 'oil', e.target.value)} className="font-pl-mono tabular-nums"/>
+                      <Input placeholder="Gas ($/mcf)" type="number" value={pricePoint.gas} onChange={(e) => handlePriceDeckChange(index, 'gas', e.target.value)} className="font-pl-mono tabular-nums"/>
+                      <Input placeholder="NGL ($/bbl)" type="number" value={pricePoint.ngl} onChange={(e) => handlePriceDeckChange(index, 'ngl', e.target.value)} className="font-pl-mono tabular-nums"/>
                     </div>
                   ))}
                 </div>
               </div>
               
               <div className="pt-2">
-                  <Label className="text-lime-300">Discount Rate (%)</Label>
-                  <Input type="number" value={projectInputs.discountRate} onChange={(e) => handleProjectInputChange(['discountRate'], Number(e.target.value))} className="bg-white/5 border-white/20"/>
+                  <Label>Discount Rate (%)</Label>
+                  <Input type="number" value={projectInputs.discountRate} onChange={(e) => handleProjectInputChange(['discountRate'], Number(e.target.value))} className="font-pl-mono tabular-nums"/>
               </div>
 
             </CollapsibleSection>
 
             <CollapsibleSection title="Fiscal Regime Definition" icon={<DollarSign />} defaultOpen={true}>
               <div className="flex items-center gap-2 mb-4">
-                  <select value={activeRegimeId} onChange={(e) => setActiveRegimeId(Number(e.target.value))} className="w-full bg-white/5 border border-white/20 rounded-md p-2 text-white">
+                  <NativeSelect aria-label="Fiscal regime" value={activeRegimeId} onChange={(e) => setActiveRegimeId(Number(e.target.value))} className="w-full min-w-0">
                       {regimes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                  <Button type="button" size="icon" onClick={handleAddRegime} className="bg-purple-600 hover:bg-purple-700"><Plus className="w-4 h-4"/></Button>
-                  <Button type="button" size="icon" onClick={handleDuplicateRegime} className="bg-blue-600 hover:bg-blue-700"><Copy className="w-4 h-4"/></Button>
-                  <Button type="button" size="icon" onClick={handleDeleteRegime} disabled={regimes.length <= 1} className="bg-red-600 hover:bg-red-700"><Trash2 className="w-4 h-4"/></Button>
+                  </NativeSelect>
+                  <Button type="button" size="icon" variant="outline" onClick={handleAddRegime} aria-label="Add regime" title="Add regime" className="shrink-0"><Plus className="w-4 h-4"/></Button>
+                  <Button type="button" size="icon" variant="outline" onClick={handleDuplicateRegime} aria-label="Duplicate regime" title="Duplicate regime" className="shrink-0"><Copy className="w-4 h-4"/></Button>
+                  <Button type="button" size="icon" variant="outline" onClick={handleDeleteRegime} disabled={regimes.length <= 1} aria-label="Delete regime" title="Delete regime" className="shrink-0 text-pl-danger-text hover:text-pl-danger-text"><Trash2 className="w-4 h-4"/></Button>
               </div>
-              <Button type="button" onClick={() => setTemplateSelectorOpen(true)} className="w-full mb-4 bg-teal-600 hover:bg-teal-700">
+              <Button type="button" variant="outline" onClick={() => setTemplateSelectorOpen(true)} className="w-full mb-4">
                 <Library className="w-4 h-4 mr-2" />
                 Load Template
               </Button>
@@ -203,8 +204,8 @@ import React, { useState, useEffect } from 'react';
             </CollapsibleSection>
 
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-              <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-3 text-lg">
-                {loading ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div> : <GitCompare className="w-5 h-5 mr-2" />}
+              <Button type="submit" disabled={loading} className="w-full font-semibold py-3 text-lg">
+                {loading ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current mr-2"></div> : <GitCompare className="w-5 h-5 mr-2" />}
                 Run Comparison
               </Button>
             </motion.div>

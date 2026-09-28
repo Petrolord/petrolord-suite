@@ -22,7 +22,7 @@ import {
 } from '../services/reportPack';
 import { getSurveyProgram, listAcRuns } from '../services/wpApi';
 
-const CARD = 'flex flex-col gap-2 rounded-lg border border-slate-800 bg-slate-900 p-4';
+const CARD = 'flex flex-col gap-2 rounded-lg border border-pl-border bg-pl-surface p-4';
 
 const ReportsTab = () => {
   const { site, wellbore, design, targets: siteTargets } = useWellPlanningStore();
@@ -112,7 +112,7 @@ const ReportsTab = () => {
 
   if (!design) {
     return (
-      <div className="flex h-[50vh] items-center justify-center text-sm text-slate-500">
+      <div className="flex h-[50vh] items-center justify-center text-sm text-pl-muted">
         Select a design in the tree to generate reports.
       </div>
     );
@@ -120,22 +120,22 @@ const ReportsTab = () => {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-pl-muted">
         Reports render from the design's saved trajectory ({stations ? `${stations.length} stations` : 'none — save the design first'})
         {magRef ? ` with ISCWSA MWD Rev4 uncertainty (${magRef.source === 'cache' ? 'cached' : 'live'} geomagnetics)` : '; no geomagnetic reference, so EOU overlays are omitted'}.
       </p>
 
       <div className={CARD}>
         <div className="flex items-center gap-2">
-          <MapIcon className="h-4 w-4 text-lime-400" />
-          <h3 className="text-sm font-bold text-white">Wall plot</h3>
+          <MapIcon className="h-4 w-4 text-pl-primary-text" />
+          <h3 className="text-sm font-bold text-pl-text">Wall plot</h3>
         </div>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-pl-muted">
           A4 landscape: well header block, plan and section views with 2σ EOU overlays,
           key stations, targets. Vector graphics — crisp at print scale.
         </p>
         <Button onClick={handleWallPlot} disabled={!stations || busy != null}
-          className="h-8 w-fit bg-lime-600 hover:bg-lime-700 text-white text-xs" data-testid="report-wallplot">
+          className="h-8 w-fit text-xs" data-testid="report-wallplot">
           {busy === 'wallplot' ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <FileText className="mr-1 h-3.5 w-3.5" />}
           Generate wall plot PDF
         </Button>
@@ -143,15 +143,15 @@ const ReportsTab = () => {
 
       <div className={CARD}>
         <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-lime-400" />
-          <h3 className="text-sm font-bold text-white">Survey listing</h3>
+          <FileText className="h-4 w-4 text-pl-primary-text" />
+          <h3 className="text-sm font-bold text-pl-text">Survey listing</h3>
         </div>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-pl-muted">
           Portrait: full station listing (MD, inc, grid azimuth, TVD, TVDSS, N/E, DLS, VS)
           with the well header and TD/QC summary.
         </p>
         <Button onClick={handleListing} disabled={!stations || busy != null}
-          className="h-8 w-fit bg-lime-600 hover:bg-lime-700 text-white text-xs" data-testid="report-listing">
+          className="h-8 w-fit text-xs" data-testid="report-listing">
           {busy === 'listing' ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <FileText className="mr-1 h-3.5 w-3.5" />}
           Generate survey listing PDF
         </Button>
@@ -159,20 +159,20 @@ const ReportsTab = () => {
 
       <div className={CARD}>
         <div className="flex items-center gap-2">
-          <Shield className="h-4 w-4 text-lime-400" />
-          <h3 className="text-sm font-bold text-white">Anti-collision report</h3>
+          <Shield className="h-4 w-4 text-pl-primary-text" />
+          <h3 className="text-sm font-bold text-pl-text">Anti-collision report</h3>
         </div>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-pl-muted">
           From a saved separation scan: rule parameters, per-offset minimum SF,
           vector SF ladder, and every station below the review threshold.
         </p>
         {acRuns.length > 0 ? (
           <div className="flex items-end gap-2">
             <div className="flex-1">
-              <Label className="text-[10px] text-slate-500">Saved run</Label>
+              <Label className="text-[10px] text-pl-muted">Saved run</Label>
               <Select value={acRunId ?? ''} onValueChange={setAcRunId}>
-                <SelectTrigger className="h-8 mt-1 bg-slate-800 border-slate-700 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-slate-800 text-white">
+                <SelectTrigger className="h-8 mt-1 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
                   {acRuns.map((r) => (
                     <SelectItem key={r.id} value={r.id} className="text-xs">
                       {new Date(r.created_at).toLocaleString()} — {(r.summary?.status || '').toUpperCase()}, min SF {r.summary?.overallMinSf ?? '—'} ({r.summary?.offsetCount} offsets)
@@ -182,13 +182,13 @@ const ReportsTab = () => {
               </Select>
             </div>
             <Button onClick={handleAcReport} disabled={!acRunId || busy != null}
-              className="h-8 bg-lime-600 hover:bg-lime-700 text-white text-xs" data-testid="report-ac">
+              className="h-8 text-xs" data-testid="report-ac">
               {busy === 'ac' ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Shield className="mr-1 h-3.5 w-3.5" />}
               Generate AC report PDF
             </Button>
           </div>
         ) : (
-          <p className="text-[10px] text-slate-500">
+          <p className="text-[10px] text-pl-muted">
             No saved runs for this design — run and save a scan on the Anti-Collision tab first.
           </p>
         )}

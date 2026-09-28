@@ -387,7 +387,6 @@ const DesignTab = () => {
                 description: hasDefinitive
                     ? `${design.name} r${design.revision} updated.`
                     : `${design.name} r${design.revision} updated. It is a draft: the other Drilling studios will use it as the latest plan; Set definitive (design menu in the tree) makes it the plan of record.`,
-                className: 'bg-green-600 text-white',
             });
         } catch (e) {
             toast({ variant: 'destructive', title: 'Save failed', description: e.message });
@@ -694,7 +693,7 @@ const DesignTab = () => {
 
     if (!design) {
         return (
-            <div className="flex h-[50vh] items-center justify-center text-sm text-slate-500">
+            <div className="flex h-[50vh] items-center justify-center text-sm text-pl-muted">
                 Select a design in the tree, or create one from a wellbore's menu.
             </div>
         );
@@ -704,13 +703,13 @@ const DesignTab = () => {
 
     return (
         <div className="flex flex-col lg:flex-row h-[calc(100vh-140px)] gap-4">
-            <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="w-full lg:w-[400px] flex flex-col bg-slate-900 border-r border-slate-800 rounded-lg overflow-hidden shrink-0">
-                <div className="p-4 border-b border-slate-800 bg-slate-900 z-10 flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-white flex items-center">
-                        <Activity className="w-5 h-5 mr-2 text-lime-400" />
-                        {design.name} <span className="ml-2 text-xs font-normal text-slate-500">r{design.revision} {design.status !== 'draft' ? `(${design.status})` : ''}</span>
+            <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="w-full lg:w-[400px] flex flex-col bg-pl-surface border-r border-pl-border rounded-lg overflow-hidden shrink-0">
+                <div className="p-4 border-b border-pl-border bg-pl-surface z-10 flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-pl-text flex items-center">
+                        <Activity className="w-5 h-5 mr-2 text-pl-primary-text" />
+                        {design.name} <span className="ml-2 text-xs font-normal text-pl-muted">r{design.revision} {design.status !== 'draft' ? `(${design.status})` : ''}</span>
                     </h2>
-                    <Button size="sm" onClick={handleSaveDesign} disabled={saving || readOnly || !stations} title={readOnly ? 'Definitive and archived designs are read-only; duplicate as a new revision to edit.' : 'Save design'} className="h-7 bg-[#4CAF50] hover:bg-[#43a047] text-white text-xs">
+                    <Button size="sm" onClick={handleSaveDesign} disabled={saving || readOnly || !stations} title={readOnly ? 'Definitive and archived designs are read-only; duplicate as a new revision to edit.' : 'Save design'} className="h-7 text-xs">
                         {saving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />} Save
                     </Button>
                 </div>
@@ -718,60 +717,60 @@ const DesignTab = () => {
                 <ScrollArea className="flex-1 p-4">
                     <div className="space-y-6">
                         {readOnly && (
-                            <div className="rounded-md border border-amber-800/50 bg-amber-900/15 px-3 py-2 text-xs text-amber-300">
+                            <div className="rounded-md border border-pl-warning/40 bg-pl-warning-bg px-3 py-2 text-xs text-pl-warning-text">
                                 This design is {design.status}. Duplicate it as a new revision from the tree to make changes.
                             </div>
                         )}
-                        <div className="space-y-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
-                            <Label className="text-slate-400 text-xs uppercase font-bold">Design Settings</Label>
+                        <div className="space-y-3 p-3 bg-pl-sunken rounded-lg border border-pl-border">
+                            <Label className="text-pl-muted text-xs uppercase font-bold">Design Settings</Label>
                             <div className="grid grid-cols-3 gap-2 mt-2">
-                                <div><Label className="text-[10px]">Station every ({mdUnit})</Label><Input type="number" min="1" step="1" value={constraints.stationInterval ?? defaultStationInterval} data-testid="design-station-interval" title="Survey listing interval: a station is emitted every this many depth units along holds and curves (the trajectory itself does not change)" onChange={e => { setConstraints({ ...constraints, stationInterval: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, stationInterval: e.target.value } }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
-                                <div><Label className="text-[10px]">Max DLS (/{mdUnit === 'ft' ? '100ft' : '30m'})</Label><Input type="number" value={constraints.maxDLS} onChange={e => { setConstraints({ ...constraints, maxDLS: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, maxDLS: e.target.value } }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
-                                <div><Label className="text-[10px]">Vertical tol (m)</Label><Input type="number" min="0" max={MAX_VERTICAL_TOLERANCE_M} step="0.1" value={constraints.verticalTolM ?? DEFAULT_VERTICAL_TOLERANCE_M} data-testid="design-vertical-tolerance" title="A target within this horizontal distance of straight below the design end is designed as a vertical hold, with every design method" onChange={e => { setConstraints({ ...constraints, verticalTolM: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, verticalTolM: e.target.value } }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
-                                <div><Label className="text-[10px]">KO Azi (deg {aziRef})</Label><Input type="number" value={kickoffAzi} onChange={e => { setKickoffAzi(e.target.value); updateTrajectoryDraft({ kickoffAzi: parseFloat(e.target.value) || 0 }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
+                                <div><Label className="text-[10px]">Station every ({mdUnit})</Label><Input type="number" min="1" step="1" value={constraints.stationInterval ?? defaultStationInterval} data-testid="design-station-interval" title="Survey listing interval: a station is emitted every this many depth units along holds and curves (the trajectory itself does not change)" onChange={e => { setConstraints({ ...constraints, stationInterval: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, stationInterval: e.target.value } }); }} className="h-7 text-xs" disabled={readOnly} /></div>
+                                <div><Label className="text-[10px]">Max DLS (/{mdUnit === 'ft' ? '100ft' : '30m'})</Label><Input type="number" value={constraints.maxDLS} onChange={e => { setConstraints({ ...constraints, maxDLS: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, maxDLS: e.target.value } }); }} className="h-7 text-xs" disabled={readOnly} /></div>
+                                <div><Label className="text-[10px]">Vertical tol (m)</Label><Input type="number" min="0" max={MAX_VERTICAL_TOLERANCE_M} step="0.1" value={constraints.verticalTolM ?? DEFAULT_VERTICAL_TOLERANCE_M} data-testid="design-vertical-tolerance" title="A target within this horizontal distance of straight below the design end is designed as a vertical hold, with every design method" onChange={e => { setConstraints({ ...constraints, verticalTolM: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, verticalTolM: e.target.value } }); }} className="h-7 text-xs" disabled={readOnly} /></div>
+                                <div><Label className="text-[10px]">KO Azi (deg {aziRef})</Label><Input type="number" value={kickoffAzi} onChange={e => { setKickoffAzi(e.target.value); updateTrajectoryDraft({ kickoffAzi: parseFloat(e.target.value) || 0 }); }} className="h-7 text-xs" disabled={readOnly} /></div>
                                 <div className="flex items-end">
                                     {!readOnly && (
-                                        <Button size="sm" onClick={() => setSolverOpen(true)} className="h-7 w-full bg-lime-600 hover:bg-lime-700 text-white text-xs" data-testid="open-solver">
+                                        <Button size="sm" onClick={() => setSolverOpen(true)} className="h-7 w-full text-xs" data-testid="open-solver">
                                             <Wand2 className="mr-1 h-3 w-3" /> Design methods
                                         </Button>
                                     )}
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 pt-1">
-                                <Button size="sm" variant="outline" onClick={() => setProgramOpen(true)} className="h-7 flex-1 border-slate-700 text-slate-300 text-xs" data-testid="open-survey-program">
+                                <Button size="sm" variant="outline" onClick={() => setProgramOpen(true)} className="h-7 flex-1 text-xs" data-testid="open-survey-program">
                                     Survey program{programIntervals ? ` (${programIntervals.length})` : ''}
                                 </Button>
                                 <Button size="sm" variant="outline" onClick={() => setShowEou((v) => !v)}
-                                    className={`h-7 flex-1 border-slate-700 text-xs ${showEou ? 'text-sky-300' : 'text-slate-500'}`}
+                                    className={`h-7 flex-1 text-xs ${showEou ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-muted'}`}
                                     title={magRef ? 'Ellipse-of-uncertainty overlay (ISCWSA MWD Rev4, 2 sigma)' : 'Needs a geomagnetic reference: re-save the wellbore with a transformable site CRS.'}>
                                     EOU {showEou && uncertainty ? 'on (2σ)' : 'off'}
                                 </Button>
                             </div>
                             {showEou && !magRef && (
-                                <p className="text-[10px] text-amber-400">
+                                <p className="text-[10px] text-pl-warning-text">
                                     Uncertainty needs a geomagnetic reference. Re-save the wellbore (with a transformable site CRS) to cache its magnetic model.
                                 </p>
                             )}
-                            <p className="text-[10px] text-slate-500">
+                            <p className="text-[10px] text-pl-muted">
                                 Wellhead {Number.isFinite(wellbore?.head_x) ? `${wellbore.head_x.toFixed(1)} E, ${wellbore.head_y.toFixed(1)} N` : 'not set'}
                                 {Number.isFinite(wellbore?.grid_convergence_deg) ? ` | convergence ${Number(wellbore.grid_convergence_deg).toFixed(3)} deg` : ''}
                                 {Number.isFinite(wellbore?.mag_declination_deg) ? ` | declination ${Number(wellbore.mag_declination_deg).toFixed(3)} deg` : ''}
                                 {` | KB ${kbUser.toFixed(1)} ${depthUnitLabel}`}
                             </p>
                             {aziRefWarning && (
-                                <p className="text-[10px] text-amber-400">{aziRefWarning}</p>
+                                <p className="text-[10px] text-pl-warning-text">{aziRefWarning}</p>
                             )}
                         </div>
 
                         {(
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
-                                    <Label className="text-slate-400 text-xs uppercase font-bold">Segments</Label>
+                                    <Label className="text-pl-muted text-xs uppercase font-bold">Segments</Label>
                                     {!readOnly && (
                                         <div className="flex items-center gap-1">
-                                            <Button size="sm" variant="ghost" onClick={() => stepHistory('undo')} disabled={!planHistory.past.length} className="h-6 w-6 p-0 hover:bg-slate-800" title="Undo (Ctrl+Z)" data-testid="segments-undo"><Undo2 className="w-3.5 h-3.5 text-slate-300" /></Button>
-                                            <Button size="sm" variant="ghost" onClick={() => stepHistory('redo')} disabled={!planHistory.future.length} className="h-6 w-6 p-0 hover:bg-slate-800" title="Redo (Ctrl+Shift+Z)" data-testid="segments-redo"><Redo2 className="w-3.5 h-3.5 text-slate-300" /></Button>
-                                            <Button size="sm" variant="ghost" onClick={addSegment} className="h-6 w-6 p-0 hover:bg-slate-800" title="Add a segment"><Plus className="w-4 h-4 text-lime-400" /></Button>
+                                            <Button size="sm" variant="ghost" onClick={() => stepHistory('undo')} disabled={!planHistory.past.length} className="h-6 w-6 p-0 hover:bg-pl-sunken" title="Undo (Ctrl+Z)" data-testid="segments-undo"><Undo2 className="w-3.5 h-3.5 text-pl-text" /></Button>
+                                            <Button size="sm" variant="ghost" onClick={() => stepHistory('redo')} disabled={!planHistory.future.length} className="h-6 w-6 p-0 hover:bg-pl-sunken" title="Redo (Ctrl+Shift+Z)" data-testid="segments-redo"><Redo2 className="w-3.5 h-3.5 text-pl-text" /></Button>
+                                            <Button size="sm" variant="ghost" onClick={addSegment} className="h-6 w-6 p-0 hover:bg-pl-sunken" title="Add a segment"><Plus className="w-4 h-4 text-pl-primary-text" /></Button>
                                         </div>
                                     )}
                                 </div>
@@ -783,32 +782,32 @@ const DesignTab = () => {
                                                 {segments.map((seg, index) => (
                                                     <Draggable key={seg.id || index} draggableId={String(seg.id || index)} index={index} isDragDisabled={readOnly}>
                                                         {(dragProvided) => (
-                                                            <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} className="bg-slate-800 border border-slate-700 rounded p-2 text-xs group">
+                                                            <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} className="bg-pl-sunken border border-pl-border rounded p-2 text-xs group">
                                                                 <div className="flex items-center gap-2 mb-2">
-                                                                    <div {...dragProvided.dragHandleProps} className="cursor-grab text-slate-600 hover:text-slate-400"><GripVertical className="w-4 h-4" /></div>
-                                                                    <span className="font-bold text-lime-400">#{index + 1}</span>
+                                                                    <div {...dragProvided.dragHandleProps} className="cursor-grab text-pl-muted hover:text-pl-text"><GripVertical className="w-4 h-4" /></div>
+                                                                    <span className="font-bold text-pl-primary-text">#{index + 1}</span>
                                                                     <Select value={seg.type} onValueChange={(v) => handleTypeChange(index, v)} disabled={readOnly}>
-                                                                        <SelectTrigger className="h-6 w-24 bg-slate-900 border-none text-[10px]"><SelectValue /></SelectTrigger>
-                                                                        <SelectContent className="bg-slate-800">{SEGMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t === 'Build' ? 'Build' : SEGMENT_TYPE_LABELS[t]}</SelectItem>)}</SelectContent>
+                                                                        <SelectTrigger className="h-6 w-24 bg-pl-surface border-none text-[10px]"><SelectValue /></SelectTrigger>
+                                                                        <SelectContent>{SEGMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t === 'Build' ? 'Build' : SEGMENT_TYPE_LABELS[t]}</SelectItem>)}</SelectContent>
                                                                     </Select>
-                                                                    {seg.note && <span className="truncate rounded bg-lime-900/40 px-1.5 py-0.5 text-[10px] text-lime-300" data-testid="segment-note" title={seg.note}>{seg.note}</span>}
-                                                                    {!readOnly && <Button variant="ghost" size="icon" onClick={() => removeSegment(index)} className="ml-auto h-5 w-5 text-slate-600 hover:text-red-400"><Trash2 className="w-3 h-3" /></Button>}
+                                                                    {seg.note && <span className="truncate rounded bg-pl-primary/10 px-1.5 py-0.5 text-[10px] text-pl-primary-text" data-testid="segment-note" title={seg.note}>{seg.note}</span>}
+                                                                    {!readOnly && <Button variant="ghost" size="icon" onClick={() => removeSegment(index)} className="ml-auto h-5 w-5 text-pl-muted hover:text-pl-danger-text"><Trash2 className="w-3 h-3" /></Button>}
                                                                 </div>
                                                                 <div className="grid grid-cols-2 gap-2 pl-6">
                                                                     {seg.type === 'IncAziMD' ? (
                                                                         <>
-                                                                            <div className="flex items-center justify-between"><span className="text-slate-500">MD:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.md ?? ''} onChange={(e) => updateSegment(index, 'md', e.target.value)} disabled={readOnly} data-testid={`seg-${index}-md`} /></div>
-                                                                            <div className="flex items-center justify-between"><span className="text-slate-500">Inc:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.inc ?? ''} onChange={(e) => updateSegment(index, 'inc', e.target.value)} disabled={readOnly} data-testid={`seg-${index}-inc`} /></div>
-                                                                            <div className="flex items-center justify-between"><span className="text-slate-500">Azi:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.azi ?? ''} onChange={(e) => updateSegment(index, 'azi', e.target.value)} disabled={readOnly} data-testid={`seg-${index}-azi`} title={`Azimuth in the wellbore's ${aziRef} reference`} /></div>
+                                                                            <div className="flex items-center justify-between"><span className="text-pl-muted">MD:</span><Input type="number" className="h-6 w-16 text-right px-1 text-[10px]" value={seg.md ?? ''} onChange={(e) => updateSegment(index, 'md', e.target.value)} disabled={readOnly} data-testid={`seg-${index}-md`} /></div>
+                                                                            <div className="flex items-center justify-between"><span className="text-pl-muted">Inc:</span><Input type="number" className="h-6 w-16 text-right px-1 text-[10px]" value={seg.inc ?? ''} onChange={(e) => updateSegment(index, 'inc', e.target.value)} disabled={readOnly} data-testid={`seg-${index}-inc`} /></div>
+                                                                            <div className="flex items-center justify-between"><span className="text-pl-muted">Azi:</span><Input type="number" className="h-6 w-16 text-right px-1 text-[10px]" value={seg.azi ?? ''} onChange={(e) => updateSegment(index, 'azi', e.target.value)} disabled={readOnly} data-testid={`seg-${index}-azi`} title={`Azimuth in the wellbore's ${aziRef} reference`} /></div>
                                                                         </>
                                                                     ) : (
-                                                                    <div className="flex items-center justify-between"><span className="text-slate-500">Len:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.length} onChange={(e) => updateSegment(index, 'length', e.target.value)} disabled={readOnly} /></div>
+                                                                    <div className="flex items-center justify-between"><span className="text-pl-muted">Len:</span><Input type="number" className="h-6 w-16 text-right px-1 text-[10px]" value={seg.length} onChange={(e) => updateSegment(index, 'length', e.target.value)} disabled={readOnly} /></div>
                                                                     )}
-                                                                    {(seg.type === 'Build' || seg.type === 'Turn') && <div className="flex items-center justify-between"><span className="text-slate-500">{seg.type === 'Turn' ? 'TR' : 'BR'}:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.type === 'Turn' ? seg.turnRate : seg.buildRate} onChange={(e) => updateSegment(index, seg.type === 'Turn' ? 'turnRate' : 'buildRate', e.target.value)} disabled={readOnly} /></div>}
+                                                                    {(seg.type === 'Build' || seg.type === 'Turn') && <div className="flex items-center justify-between"><span className="text-pl-muted">{seg.type === 'Turn' ? 'TR' : 'BR'}:</span><Input type="number" className="h-6 w-16 text-right px-1 text-[10px]" value={seg.type === 'Turn' ? seg.turnRate : seg.buildRate} onChange={(e) => updateSegment(index, seg.type === 'Turn' ? 'turnRate' : 'buildRate', e.target.value)} disabled={readOnly} /></div>}
                                                                     {seg.type === 'ToolfaceArc' && (
                                                                         <>
-                                                                            <div className="flex items-center justify-between"><span className="text-slate-500">DLS:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.dls} onChange={(e) => updateSegment(index, 'dls', e.target.value)} disabled={readOnly} /></div>
-                                                                            <div className="flex items-center justify-between"><span className="text-slate-500">TF:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.toolface} onChange={(e) => updateSegment(index, 'toolface', e.target.value)} disabled={readOnly} /></div>
+                                                                            <div className="flex items-center justify-between"><span className="text-pl-muted">DLS:</span><Input type="number" className="h-6 w-16 text-right px-1 text-[10px]" value={seg.dls} onChange={(e) => updateSegment(index, 'dls', e.target.value)} disabled={readOnly} /></div>
+                                                                            <div className="flex items-center justify-between"><span className="text-pl-muted">TF:</span><Input type="number" className="h-6 w-16 text-right px-1 text-[10px]" value={seg.toolface} onChange={(e) => updateSegment(index, 'toolface', e.target.value)} disabled={readOnly} /></div>
                                                                         </>
                                                                     )}
                                                                 </div>
@@ -831,12 +830,12 @@ const DesignTab = () => {
                 <TrajectoryKPIs summary={planSummary} qc={qaResult} depthUnit={depthUnitLabel} />
 
                 {compileError && (
-                    <div className="flex items-center gap-2 rounded-lg border border-red-900/40 bg-red-900/15 px-3 py-2 text-xs text-red-300">
+                    <div className="flex items-center gap-2 rounded-lg border border-pl-danger/40 bg-pl-danger-bg px-3 py-2 text-xs text-pl-danger-text">
                         <AlertCircle className="h-4 w-4 shrink-0" /> {compileError}
                     </div>
                 )}
                 {showTargets && targetProblems.length > 0 && (
-                    <div className="rounded-lg border border-amber-800/50 bg-amber-900/15 px-3 py-2 text-xs text-amber-300" data-testid="design-target-problems">
+                    <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg px-3 py-2 text-xs text-pl-warning-text" data-testid="design-target-problems">
                         <div className="flex items-center gap-2 font-medium">
                             <AlertCircle className="h-4 w-4 shrink-0" />
                             {targetProblems.length === (siteTargets || []).length
@@ -853,7 +852,7 @@ const DesignTab = () => {
                 )}
 
                 {showOffsets && offsetViews && offsetView && (
-                    <div className="rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-xs text-slate-300" data-testid="design-offset-notes">
+                    <div className="rounded-lg border border-pl-border bg-pl-sunken px-3 py-2 text-xs text-pl-text" data-testid="design-offset-notes">
                         <div>
                             {offsetView.wells.length === 0
                                 ? 'No offset wells to draw.'
@@ -865,33 +864,33 @@ const DesignTab = () => {
                             {offsetView.missing > 0 && ` ${offsetView.missing} selected offset${offsetView.missing === 1 ? ' is' : 's are'} no longer available.`}
                         </div>
                         {[...offsetView.notes, ...offsetView.problems, ...(offsetView.eouNote ? [offsetView.eouNote] : [])].map((n) => (
-                            <div key={n} className="mt-0.5 flex items-start gap-1 text-amber-300">
+                            <div key={n} className="mt-0.5 flex items-start gap-1 text-pl-warning-text">
                                 <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" /> {n}
                             </div>
                         ))}
                     </div>
                 )}
 
-                <div className="flex-1 bg-slate-900 rounded-lg border border-slate-800 flex flex-col overflow-hidden relative">
-                    <div className="flex items-center justify-between p-2 border-b border-slate-800 bg-slate-900/90 backdrop-blur z-10 absolute top-0 left-0 right-0">
-                        <div className="flex bg-slate-800 rounded p-1">
-                            <Button variant="ghost" size="sm" onClick={() => setViewMode('section')} className={`h-7 px-3 text-xs ${viewMode === 'section' ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}><Activity className="w-3 h-3 mr-1" /> Section</Button>
-                            <Button variant="ghost" size="sm" onClick={() => setViewMode('plots')} className={`h-7 px-3 text-xs ${viewMode === 'plots' ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}><LayoutGrid className="w-3 h-3 mr-1" /> Plots</Button>
-                            <Button variant="ghost" size="sm" onClick={() => setViewMode('plan')} className={`h-7 px-3 text-xs ${viewMode === 'plan' ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`} data-testid="view-plan" title="Plan editor: one row per section, edit the defining values in place"><TableProperties className="w-3 h-3 mr-1" /> Plan</Button>
-                            <Button variant="ghost" size="sm" onClick={() => setViewMode('table')} className={`h-7 px-3 text-xs ${viewMode === 'table' ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}><TableIcon className="w-3 h-3 mr-1" /> Survey</Button>
-                            <Button variant="ghost" size="sm" onClick={() => setViewMode('3d')} className={`h-7 px-3 text-xs ${viewMode === '3d' ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`} data-testid="view-3d"><Box className="w-3 h-3 mr-1" /> 3D</Button>
+                <div className="flex-1 bg-pl-surface rounded-lg border border-pl-border flex flex-col overflow-hidden relative">
+                    <div className="flex items-center justify-between gap-2 overflow-x-auto p-2 border-b border-pl-border bg-pl-surface z-10 absolute top-0 left-0 right-0">
+                        <div className="flex shrink-0 bg-pl-sunken rounded p-1">
+                            <Button variant="ghost" size="sm" onClick={() => setViewMode('section')} className={`h-7 px-3 text-xs ${viewMode === 'section' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><Activity className="w-3 h-3 mr-1" /> Section</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setViewMode('plots')} className={`h-7 px-3 text-xs ${viewMode === 'plots' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><LayoutGrid className="w-3 h-3 mr-1" /> Plots</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setViewMode('plan')} className={`h-7 px-3 text-xs ${viewMode === 'plan' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`} data-testid="view-plan" title="Plan editor: one row per section, edit the defining values in place"><TableProperties className="w-3 h-3 mr-1" /> Plan</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setViewMode('table')} className={`h-7 px-3 text-xs ${viewMode === 'table' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><TableIcon className="w-3 h-3 mr-1" /> Survey</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setViewMode('3d')} className={`h-7 px-3 text-xs ${viewMode === '3d' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`} data-testid="view-3d"><Box className="w-3 h-3 mr-1" /> 3D</Button>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex shrink-0 items-center gap-2">
                             {(viewMode === 'section' || viewMode === 'plots') && (
                                 <Button size="sm" variant="ghost" onClick={() => setShowTargets((v) => !v)}
-                                    className={`h-7 px-2 text-xs ${showTargets ? 'bg-slate-700 text-amber-300' : 'text-slate-400'}`}
+                                    className={`h-7 px-2 text-xs ${showTargets ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-muted'}`}
                                     title="Show site targets on the section and plan views">
                                     <Target className="w-3 h-3 mr-1" /> Targets
                                 </Button>
                             )}
                             {(viewMode === 'section' || viewMode === 'plots') && (
                                 <Button size="sm" variant="ghost" onClick={() => setShowOffsets((v) => !v)}
-                                    className={`h-7 px-2 text-xs ${showOffsets ? 'bg-slate-700 text-indigo-300' : 'text-slate-400'}`}
+                                    className={`h-7 px-2 text-xs ${showOffsets ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-muted'}`}
                                     data-testid="toggle-offsets"
                                     title="Show offset wells on the section and plan views: the offsets ticked on the Anti-collision tab, else the last saved anti-collision run, else this site's other wellbores and nearby registry wells">
                                     {offsetLoad?.loading && showOffsets
@@ -901,7 +900,7 @@ const DesignTab = () => {
                             )}
                             {(viewMode === 'section' || viewMode === 'plots') && (
                                 <Button size="sm" variant="ghost" onClick={() => setShowDlsColor((v) => !v)}
-                                    className={`h-7 px-2 text-xs ${showDlsColor ? 'bg-slate-700 text-lime-300' : 'text-slate-400'}`}
+                                    className={`h-7 px-2 text-xs ${showDlsColor ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-muted'}`}
                                     data-testid="toggle-dls-colour"
                                     title="Colour the path by dogleg severity on the section and plan views; segments above the design's Max DLS are flagged in red">
                                     DLS colour
@@ -909,18 +908,18 @@ const DesignTab = () => {
                             )}
                             {viewMode === 'section' && (
                                 <Button size="sm" variant="ghost" onClick={() => setShowPpfg((v) => !v)}
-                                    className={`h-7 px-2 text-xs ${showPpfg ? 'bg-slate-700 text-sky-300' : 'text-slate-400'}`}
+                                    className={`h-7 px-2 text-xs ${showPpfg ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-muted'}`}
                                     title={wellbore?.geo_well_id ? 'Pore/frac mud window from the bridged registry well' : 'Needs a bridged registry well with a published PPFG prognosis (publish this design, then run Pore Pressure Studio on it).'}>
                                     PPFG
                                 </Button>
                             )}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button size="sm" disabled={!planRows} className="h-7 bg-lime-600 hover:bg-lime-700 text-white text-xs" data-testid="export-menu">
+                                    <Button size="sm" disabled={!planRows} className="h-7 text-xs" data-testid="export-menu">
                                         <Download className="w-3 h-3 mr-1" /> Export
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent className="bg-slate-800 text-white border-slate-700">
+                                <DropdownMenuContent>
                                     <DropdownMenuItem className="text-xs" onClick={handleExportCsv}>Survey CSV ({depthUnitLabel}, quick)</DropdownMenuItem>
                                     <DropdownMenuItem className="text-xs" onClick={() => handleExport('json')}>Trajectory contract (JSON)</DropdownMenuItem>
                                     <DropdownMenuItem className="text-xs" onClick={() => handleExport('csv')}>Trajectory CSV (m, full)</DropdownMenuItem>
@@ -930,8 +929,8 @@ const DesignTab = () => {
                             </DropdownMenu>
                             <Button size="sm" onClick={() => setPublishOpen(true)}
                                 disabled={!Array.isArray(design?.stations) || design.stations.length < 2}
-                                title={Array.isArray(design?.stations) && design.stations.length >= 2 ? 'Publish this design to the geo_wells registry (Seismolord, correlation, petrophysics)' : 'Save the design first — publishing uses the saved station cache.'}
-                                className="h-7 bg-sky-700 hover:bg-sky-600 text-white text-xs" data-testid="open-publish">
+                                title={Array.isArray(design?.stations) && design.stations.length >= 2 ? 'Publish this design to the geo_wells registry (Seismolord, correlation, petrophysics)' : 'Save the design first: publishing uses the saved station cache.'}
+                                variant="outline" className="h-7 text-xs" data-testid="open-publish">
                                 <Share2 className="w-3 h-3 mr-1" /> Publish
                             </Button>
                         </div>
@@ -939,19 +938,19 @@ const DesignTab = () => {
 
                     <div className="flex-1 pt-12 relative">
                         {viewMode === 'section' && planRows && (
-                            <div className="flex h-full w-full bg-white">
+                            <div className="flex h-full w-full bg-white" data-canvas="chart">
                                 <div className="min-w-0 flex-1">
                                     <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={sectionOverlays} targets={showTargets ? sectionTargets : []} exaggeration={sectionEx} onExaggerationChange={setSectionEx} dlsScale={dlsScale} />
                                 </div>
                                 {showPpfg && (
                                     <div className="w-[340px] shrink-0 border-l border-slate-200">
                                         {ppfg === 'loading' && (
-                                            <div className="flex h-full items-center justify-center text-xs text-slate-500">
+                                            <div className="flex h-full items-center justify-center text-xs text-pl-muted">
                                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading PPFG curves…
                                             </div>
                                         )}
                                         {ppfg === 'none' && (
-                                            <div className="flex h-full items-center justify-center p-4 text-center text-xs text-slate-500">
+                                            <div className="flex h-full items-center justify-center p-4 text-center text-xs text-pl-muted">
                                                 {wellbore?.geo_well_id
                                                     ? 'No PPFG prognosis on the bridged registry well. Run Pore Pressure Studio on it and publish the PP/FP curves.'
                                                     : 'No bridged registry well. Publish this design first, then run Pore Pressure Studio on the published well.'}
@@ -975,7 +974,7 @@ const DesignTab = () => {
                         )}
 
                         {viewMode === 'plots' && planRows && (
-                            <div className="grid grid-cols-2 grid-rows-2 gap-px bg-slate-800 h-full w-full">
+                            <div className="grid grid-cols-2 grid-rows-2 gap-px bg-pl-border h-full w-full">
                                 <PlanViewChart rows={planRows} targets={showTargets ? chartTargets : []} slots={chartSlots} leaseLines={chartLeaseLines} unit={depthUnitLabel} ellipses={[...(uncertainty?.ellipses || []), ...offsetPlanEllipses]} extraPaths={offsetPlanPaths} dlsScale={dlsScale} />
                                 <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={sectionOverlays} targets={showTargets ? sectionTargets : []} exaggeration={sectionEx} onExaggerationChange={setSectionEx} dlsScale={dlsScale} />
                                 <InclinationPanel rows={planRows} unit={depthUnitLabel} />
@@ -984,7 +983,7 @@ const DesignTab = () => {
                         )}
 
                         {viewMode === 'plan' && (
-                            <div className="absolute inset-0 top-12 bg-slate-900">
+                            <div className="absolute inset-0 top-12 bg-pl-surface">
                                 <PlanEditorTable
                                     rows={planTableRows}
                                     readOnly={readOnly}
@@ -1003,31 +1002,31 @@ const DesignTab = () => {
                         )}
 
                         {viewMode === 'table' && planRows && (
-                            <div className="absolute inset-0 top-12 overflow-auto bg-slate-900" data-testid="design-survey-table">
+                            <div className="absolute inset-0 top-12 overflow-auto bg-pl-surface" data-testid="design-survey-table">
                                 <Table>
-                                    <TableHeader className="bg-slate-800 sticky top-0">
-                                        <TableRow className="border-slate-700">
-                                            <TableHead className="text-slate-300">MD ({depthUnitLabel})</TableHead>
-                                            <TableHead className="text-slate-300">Inc (deg)</TableHead>
-                                            <TableHead className="text-slate-300">Azi grid (deg)</TableHead>
-                                            <TableHead className="text-slate-300">TVD ({depthUnitLabel})</TableHead>
-                                            <TableHead className="text-slate-300">North ({depthUnitLabel})</TableHead>
-                                            <TableHead className="text-slate-300">East ({depthUnitLabel})</TableHead>
-                                            <TableHead className="text-slate-300">VS ({depthUnitLabel})</TableHead>
-                                            <TableHead className="text-slate-300">DLS (/{mdUnit === 'ft' ? '100ft' : '30m'})</TableHead>
+                                    <TableHeader className="bg-pl-sunken sticky top-0">
+                                        <TableRow className="border-pl-border">
+                                            <TableHead className="text-pl-text">MD ({depthUnitLabel})</TableHead>
+                                            <TableHead className="text-pl-text">Inc (deg)</TableHead>
+                                            <TableHead className="text-pl-text">Azi grid (deg)</TableHead>
+                                            <TableHead className="text-pl-text">TVD ({depthUnitLabel})</TableHead>
+                                            <TableHead className="text-pl-text">North ({depthUnitLabel})</TableHead>
+                                            <TableHead className="text-pl-text">East ({depthUnitLabel})</TableHead>
+                                            <TableHead className="text-pl-text">VS ({depthUnitLabel})</TableHead>
+                                            <TableHead className="text-pl-text">DLS (/{mdUnit === 'ft' ? '100ft' : '30m'})</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {planRows.map((s, i) => (
-                                            <TableRow key={i} className="border-slate-800 hover:bg-slate-800/50">
-                                                <TableCell className="font-mono text-lime-400">{s.md.toFixed(2)}</TableCell>
-                                                <TableCell className="font-mono text-slate-300">{s.inc.toFixed(2)}</TableCell>
-                                                <TableCell className="font-mono text-slate-300">{s.azi.toFixed(2)}</TableCell>
-                                                <TableCell className="font-mono text-slate-300">{s.tvd.toFixed(2)}</TableCell>
-                                                <TableCell className="font-mono text-slate-400">{s.n.toFixed(2)}</TableCell>
-                                                <TableCell className="font-mono text-slate-400">{s.e.toFixed(2)}</TableCell>
-                                                <TableCell className="font-mono text-slate-400">{s.vs.toFixed(2)}</TableCell>
-                                                <TableCell className="font-mono text-slate-400">{(mdUnit === 'ft' ? s.dls100ft : s.dls30m).toFixed(2)}</TableCell>
+                                            <TableRow key={i} className="border-pl-border hover:bg-pl-sunken">
+                                                <TableCell className="font-mono text-pl-primary-text">{s.md.toFixed(2)}</TableCell>
+                                                <TableCell className="font-mono text-pl-text">{s.inc.toFixed(2)}</TableCell>
+                                                <TableCell className="font-mono text-pl-text">{s.azi.toFixed(2)}</TableCell>
+                                                <TableCell className="font-mono text-pl-text">{s.tvd.toFixed(2)}</TableCell>
+                                                <TableCell className="font-mono text-pl-muted">{s.n.toFixed(2)}</TableCell>
+                                                <TableCell className="font-mono text-pl-muted">{s.e.toFixed(2)}</TableCell>
+                                                <TableCell className="font-mono text-pl-muted">{s.vs.toFixed(2)}</TableCell>
+                                                <TableCell className="font-mono text-pl-muted">{(mdUnit === 'ft' ? s.dls100ft : s.dls30m).toFixed(2)}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
