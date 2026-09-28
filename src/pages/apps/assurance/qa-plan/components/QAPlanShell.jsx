@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AssuranceHelp from '@/components/assurance/AssuranceHelp';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export const BASE = '/dashboard/apps/assurance/qa-plan';
 
@@ -39,7 +40,7 @@ export const QAPlanShell = ({
   ];
 
   return (
-    <div className="flex flex-col h-full bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
+    <div className="flex flex-1 flex-col h-full bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       <div className="flex-none border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-6 py-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-4 min-w-0">
           <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/assurance')}
@@ -53,6 +54,7 @@ export const QAPlanShell = ({
         </div>
         <div className="flex flex-wrap gap-2">
           <AssuranceHelp appKey="quality" />
+          <ThemeToggle />
           {actions}
           <Button variant="outline" onClick={() => navigate(`${BASE}/ncr-register?raise=1`)}>
             <FileWarning className="w-4 h-4 mr-2" /> Raise NCR

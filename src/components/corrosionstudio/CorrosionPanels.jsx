@@ -44,7 +44,7 @@ export const ConditionInputs = () => {
         <NumberInput section="conditions" name="ph" step="0.1" />
       </Field>
 
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Flow</p>
+      <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold pt-2">Flow</p>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Velocity (ft/s)"><NumberInput section="flow" name="velocityFtS" step="0.1" /></Field>
         <Field label="Line ID (in)"><NumberInput section="flow" name="idIn" step="0.1" /></Field>
@@ -55,7 +55,7 @@ export const ConditionInputs = () => {
       </div>
       <Field label="Wetting regime" hint="An oil-wet wall does not corrode. That is a regime, not a multiplier.">
         <Select value={inputs.flow.flowRegime} onValueChange={(v) => setSection('flow', 'flowRegime', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="waterWet">Water wet (continuous water film)</SelectItem>
             <SelectItem value="intermittent">Intermittent (scaled by water cut)</SelectItem>
@@ -72,7 +72,7 @@ export const ConditionInputs = () => {
         <NumberInput section="flow" name="waterCutPct" />
       </Field>
 
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Inhibition</p>
+      <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold pt-2">Inhibition</p>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Efficiency (%)" hint="The datasheet number.">
           <NumberInput section="mitigation" name="inhibitorEfficiencyPct" step="0.1" />
@@ -119,19 +119,19 @@ export const RateResults = () => {
         </ErrorNote>
       )}
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Predicted rate</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Predicted rate</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat label="Corrosion rate" value={fmt(r.rateMmYr, 3)} unit="mm/yr"
-              accent={withheld ? 'text-slate-100' : (CATEGORY_ACCENT[result.category] || 'text-slate-100')}
+              accent={withheld ? 'text-pl-text' : (CATEGORY_ACCENT[result.category] || 'text-pl-text')}
               hint={`${fmt(result.rateMpy, 1)} mpy, ${result.category || 'not graded'}`} />
             <Stat label="Uninhibited" value={fmt(r.uninhibitedMmYr, 3)} unit="mm/yr"
               hint={`${fmt(result.uninhibitedMpy, 1)} mpy, what the line does with no inhibitor at all`} />
             <Stat label="Effective inhibition"
               value={r.effectiveInhibitionPct === null ? 'not defined' : fmt(r.effectiveInhibitionPct, 1)}
               unit={r.effectiveInhibitionPct === null ? '' : '%'}
-              accent={r.warning ? 'text-amber-400' : 'text-emerald-400'}
+              accent={r.warning ? 'text-pl-warning-text' : 'text-pl-success-text'}
               hint={r.effectiveInhibitionPct === null
                 ? 'there is no rate for an inhibitor to act on here'
                 : `the datasheet figure is ${fmt(r.inhibitorShortfallPp + r.effectiveInhibitionPct, 1)} %`} />
@@ -141,25 +141,25 @@ export const RateResults = () => {
                 : 'reaction kinetics or the rate mass transfer can supply'} />
           </div>
           {result.binding && (
-            <div className="rounded-md border border-slate-700 bg-slate-800/40 px-3 py-2 text-[12px] text-slate-300">
-              <span className="uppercase tracking-wider text-slate-500">Binding constraint</span>
-              <span className="mx-2 text-slate-100 font-semibold">{result.binding.what}</span>
+            <div className="rounded-md border border-pl-border bg-pl-sunken px-3 py-2 text-[12px] text-pl-text">
+              <span className="uppercase tracking-wider text-pl-muted">Binding constraint</span>
+              <span className="mx-2 text-pl-text font-semibold">{result.binding.what}</span>
               {result.binding.valueLabel && (
-                <span className="text-slate-400">({result.binding.valueLabel})</span>
+                <span className="text-pl-muted">({result.binding.valueLabel})</span>
               )}
-              <p className="mt-1 text-slate-400">{result.binding.why}</p>
+              <p className="mt-1 text-pl-muted">{result.binding.why}</p>
             </div>
           )}
           {r.warning && <WarnNote>{r.warning}</WarnNote>}
           {(result.notes || []).map((n) => (
-            <p key={n.slice(0, 40)} className="text-[12px] text-slate-500">{readable(n)}</p>
+            <p key={n.slice(0, 40)} className="text-[12px] text-pl-muted">{readable(n)}</p>
           ))}
           {(result.clamps || []).map((c) => <WarnNote key={c}>{c}</WarnNote>)}
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Where the number comes from</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Where the number comes from</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat label="CO2 fugacity" value={fmt(r.fco2Bar, 3)} unit="bar"
@@ -185,13 +185,13 @@ export const RateResults = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Wall shear and the inhibitor film</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Wall shear and the inhibitor film</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat label="Wall shear stress" value={fmt(result.shear.tauPa, 1)} unit="Pa"
-              accent={result.shear.filmRisk === 'high' ? 'text-red-400'
-                : (result.shear.filmRisk === 'moderate' ? 'text-yellow-400' : 'text-emerald-400')} />
+              accent={result.shear.filmRisk === 'high' ? 'text-pl-danger-text'
+                : (result.shear.filmRisk === 'moderate' ? 'text-pl-warning-text' : 'text-pl-success-text')} />
             <Stat label="Film risk" value={result.shear.filmRisk}
               hint={`the stripping threshold used here is ${fmt(result.shear.filmStripThresholdPa, 0)} Pa and it is not sourced in the engine`} />
             <Stat label="Reynolds" value={fmt(result.shear.reynolds, 0)}
@@ -224,8 +224,8 @@ export const SweepChart = () => {
   const tick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
   const strip = velocitySweep.strippingVelocityFtS;
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Rate against velocity</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Rate against velocity</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         {data.length === 0 ? <ErrorNote>No swept velocity produced a rate.</ErrorNote> : (
           <ChartFrame height={300} exportFilename="corrosion-velocity-sweep">
@@ -261,14 +261,14 @@ export const SweepChart = () => {
           </ErrorNote>
         )}
         {velocitySweep.allZero ? (
-          <p className="text-[12px] text-slate-500">
+          <p className="text-[12px] text-pl-muted">
             Every swept velocity gives a rate of zero, because the wetting regime is
             {' '}{velocitySweep.flowRegime === 'oilWet' ? 'oil wet and the water wetting factor is zero' : 'set so that no water reaches the wall'}.
             That is an assumption in the input rather than a result, and it is the largest single
             lever in this model.
           </p>
         ) : (
-          <p className="text-[12px] text-slate-500">
+          <p className="text-[12px] text-pl-muted">
             The rate rises with velocity because mass transfer feeds the reaction faster, and it
             saturates where the kinetics take over. A model with a flat multiplier instead of a
             transfer term cannot draw this curve at all, which is why the same fluid in a bigger
@@ -287,14 +287,14 @@ export const SourResults = () => {
   const g = result.regime;
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">H2S screening threshold</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">H2S screening threshold</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <Stat label="H2S partial pressure" value={fmt(s.ph2sPsia, 3)} unit="psia"
               hint={`${readable(String(Number(s.ph2sBar.toPrecision(3))))} bar`} />
             <Stat label="Against the threshold" value={s.sour ? 'above' : 'below'}
-              accent={s.sour ? 'text-amber-400' : 'text-emerald-400'}
+              accent={s.sour ? 'text-pl-warning-text' : 'text-pl-success-text'}
               hint={`the threshold used here is ${fmt(s.thresholdBar, 4)} bar, which is ${fmt(s.thresholdPsia, 4)} psia`} />
             <Stat label="Decades above the threshold"
               value={s.decadesAboveThreshold === null ? '--' : fmt(s.decadesAboveThreshold, 2)} />
@@ -317,21 +317,21 @@ export const SourResults = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Which film governs</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Which film governs</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <Stat label="H2S to CO2 ratio" value={g.ratio === null ? '--' : fmt(g.ratio, 5)}
               hint="both are partial pressures, so the ratio is the ratio of the mole fractions" />
             <Stat label="Regime" value={g.regime}
-              accent={g.regime === 'sulphide' ? 'text-amber-400' : 'text-slate-100'} />
+              accent={g.regime === 'sulphide' ? 'text-pl-warning-text' : 'text-pl-text'} />
             <Stat label="Does the CO2 rate model apply"
               value={g.rateApplies === null ? 'not known' : (g.rateApplies ? 'yes' : 'no')}
-              accent={g.rateApplies === false ? 'text-red-400' : 'text-slate-100'}
+              accent={g.rateApplies === false ? 'text-pl-danger-text' : 'text-pl-text'}
               hint={g.rateIsUpperBound ? 'as an upper bound only' : undefined} />
           </div>
-          <p className="text-[12px] text-slate-500">{readable(g.note)}</p>
-          <p className="text-[12px] text-slate-500">
+          <p className="text-[12px] text-pl-muted">{readable(g.note)}</p>
+          <p className="text-[12px] text-pl-muted">
             The two ratios that set these bands are not sourced in the engine. When the regime is
             sulphide the studio stops grading the rate and stops reporting a remaining life, and
             what is left on the rate tab is a stated upper bound.
@@ -359,8 +359,8 @@ export const IntegrityResults = () => {
   const unbounded = l.remainingYears === null;
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Allowance and remaining life</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Allowance and remaining life</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat label="Allowance left" value={fmt(l.remainingMm / 25.4, 4)} unit="in"
@@ -368,19 +368,19 @@ export const IntegrityResults = () => {
             <Stat label="Remaining life"
               value={unbounded ? 'not computed' : fmt(l.remainingYears, 1)}
               unit={unbounded ? '' : 'years'}
-              accent={l.meetsDesignLife === false ? 'text-red-400'
-                : (l.meetsDesignLife === true ? 'text-emerald-400' : 'text-slate-100')}
+              accent={l.meetsDesignLife === false ? 'text-pl-danger-text'
+                : (l.meetsDesignLife === true ? 'text-pl-success-text' : 'text-pl-text')}
               hint={`at ${fmt(result.rateMpy, 1)} mpy`} />
             <Stat label="Allowance the design life needs"
               value={l.requiredAllowanceMm === null ? '--' : fmt(l.requiredAllowanceMm / 25.4, 4)} unit="in" />
             <Stat label="Verdict"
               value={l.meetsDesignLife === null ? 'not assessed' : (l.meetsDesignLife ? 'MEETS' : 'SHORT')}
-              accent={l.meetsDesignLife === false ? 'text-red-400'
-                : (l.meetsDesignLife === true ? 'text-emerald-400' : 'text-slate-100')}
+              accent={l.meetsDesignLife === false ? 'text-pl-danger-text'
+                : (l.meetsDesignLife === true ? 'text-pl-success-text' : 'text-pl-text')}
               hint={l.shortfallMm > 0 ? `short by ${fmt(l.shortfallMm / 25.4, 4)} in` : undefined} />
           </div>
           {l.note && <WarnNote>{l.note}</WarnNote>}
-          <p className="text-[12px] text-slate-500">
+          <p className="text-[12px] text-pl-muted">
             Remaining life is the allowance divided by the rate the mitigation actually delivers,
             not the datasheet rate. If the inhibitor availability is the thing failing the design
             life, fixing the injection system is cheaper than upgrading the metallurgy.

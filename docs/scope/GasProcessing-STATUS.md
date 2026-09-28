@@ -6,6 +6,25 @@ Slug: `gas-treating-dehydration` (kept — it carries entitlements; the
 tile RENAMES via the HELD migration 20260829570000).
 Scope: one app, three units (owner decision F#1).
 
+## Design system rollout, batch 5B (2026-09-28)
+
+The studio opens on the Petrolord design system: light grey panel by
+default, dark as a per-user choice from the header toggle, which stays
+visible at phone width.
+
+- Scope: `ThemedApp` inside `src/pages/apps/GasTreatingDehydration.jsx`; App.jsx unchanged. Cold-load
+  prefix `/dashboard/apps/facilities/gas-treating-dehydration` in
+  `src/design/rollout/w5b.js`.
+- Cards, inputs and selects use the adapted primitives without colour
+  overrides; the header tile is the primary fill (the icon gradient is
+  gone); numbers are in the mono face. A broken (non-finite) result and an out-of-range input read on the warning role, a failed stage count on danger. Charts stay on the white `ChartFrame`.
+- Test: `src/pages/apps/__tests__/GasTreatingDehydration.theme.test.jsx` (light by default, toggle to
+  dark and back stored per user, no legacy colour outside canvases with a
+  negative control, the route registered, every header tab in both
+  themes, the documentation drawer inside the scope). Existing tests pass
+  unchanged, except the `accentFor` class-string assertion in `src/contexts/__tests__/gasProcessingContext.test.jsx`, updated to the role classes (behaviour unchanged).
+- No engine or calculation change.
+
 ## What shipped
 
 - **Engine** (`@petrolord/engines` PR #79, vendored, shim at

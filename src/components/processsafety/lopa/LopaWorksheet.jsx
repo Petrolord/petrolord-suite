@@ -26,12 +26,12 @@ const ProbabilityList = ({ title, listKey, hint }) => {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-200">{title}</h3>
-        <Button size="sm" variant="outline" onClick={() => addListRow(listKey)} className="h-7 border-slate-700 text-xs">
+        <h3 className="text-sm font-semibold text-pl-text">{title}</h3>
+        <Button size="sm" variant="outline" onClick={() => addListRow(listKey)} className="h-7 text-xs">
           <PlusCircle className="mr-1 h-3.5 w-3.5" /> Add
         </Button>
       </div>
-      {rows.length === 0 ? <p className="text-xs text-slate-500">None entered. {hint}</p> : null}
+      {rows.length === 0 ? <p className="text-xs text-pl-muted">None entered. {hint}</p> : null}
       {rows.map((r) => (
         <div key={r.id} className="grid grid-cols-[1fr_8rem_2rem] items-end gap-2">
           <TextField label="Description" value={r.name} onChange={(v) => setListRow(listKey, r.id, { name: v })} />
@@ -39,7 +39,7 @@ const ProbabilityList = ({ title, listKey, hint }) => {
           <Button
             variant="ghost" size="icon" title="Remove"
             onClick={() => removeListRow(listKey, r.id)}
-            className="h-8 w-8 text-slate-500 hover:text-red-400"
+            className="h-8 w-8 text-pl-muted hover:text-pl-danger-text"
           >
             <Trash2 size={14} />
           </Button>
@@ -60,8 +60,8 @@ const IplTable = () => {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-200">Independent protection layers</h3>
-        <Button size="sm" variant="outline" onClick={() => addListRow('ipls')} className="h-7 border-slate-700 text-xs">
+        <h3 className="text-sm font-semibold text-pl-text">Independent protection layers</h3>
+        <Button size="sm" variant="outline" onClick={() => addListRow('ipls')} className="h-7 text-xs">
           <PlusCircle className="mr-1 h-3.5 w-3.5" /> Add IPL
         </Button>
       </div>
@@ -70,26 +70,26 @@ const IplTable = () => {
         other credited layer) and is not flagged unauditable. Each layer is credited once. Do not list the
         SIF being sized here: it is verified on the next tab and closes the loop against the TMEL.
       </Note>
-      {(active.ipls || []).length === 0 ? <p className="text-xs text-slate-500">No layers entered.</p> : null}
+      {(active.ipls || []).length === 0 ? <p className="text-xs text-pl-muted">No layers entered.</p> : null}
       <div className="space-y-2">
         {(active.ipls || []).map((ipl) => {
           const key = (ipl.name || '').trim().toLowerCase();
           const reason = notCredited.get(key);
           const isCredited = credited.has(key);
           return (
-            <div key={ipl.id} className="rounded-lg border border-slate-800 bg-slate-900/60 p-2" data-testid="ipl-row">
+            <div key={ipl.id} className="rounded-lg border border-pl-border bg-pl-surface p-2" data-testid="ipl-row">
               <div className="grid grid-cols-[1fr_7rem_2rem] items-end gap-2">
                 <TextField label="Layer" value={ipl.name} onChange={(v) => setListRow('ipls', ipl.id, { name: v })} />
                 <NumField label="PFD" unit="-" value={ipl.pfd} onChange={(v) => setListRow('ipls', ipl.id, { pfd: v })} />
                 <Button
                   variant="ghost" size="icon" title="Remove this layer"
                   onClick={() => removeListRow('ipls', ipl.id)}
-                  className="h-8 w-8 text-slate-500 hover:text-red-400"
+                  className="h-8 w-8 text-pl-muted hover:text-pl-danger-text"
                 >
                   <Trash2 size={14} />
                 </Button>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-slate-300">
+              <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-pl-text">
                 <label className="flex items-center gap-2">
                   <Checkbox
                     checked={ipl.independent === true}
@@ -106,8 +106,8 @@ const IplTable = () => {
                   />
                   Auditable
                 </label>
-                {isCredited ? <span className="text-emerald-300">Credited</span> : null}
-                {reason ? <span className="text-amber-200" data-testid="not-credited-reason">Not credited: {plainReason(reason)}</span> : null}
+                {isCredited ? <span className="text-pl-success-text">Credited</span> : null}
+                {reason ? <span className="text-pl-warning-text" data-testid="not-credited-reason">Not credited: {plainReason(reason)}</span> : null}
               </div>
             </div>
           );
@@ -123,7 +123,7 @@ const Results = () => {
   if (lopa?.error) {
     return (
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-slate-200">Result</h3>
+        <h3 className="text-sm font-semibold text-pl-text">Result</h3>
         <EngineError result={lopa} />
       </div>
     );
@@ -132,11 +132,11 @@ const Results = () => {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-sm font-semibold text-slate-200">Result</h3>
+        <h3 className="text-sm font-semibold text-pl-text">Result</h3>
         <OutcomeBadge outcome={withoutSif.outcome} testId="lopa-outcome" />
       </div>
-      <p className="text-sm text-slate-200" data-testid="lopa-outcome-text">{OUTCOME_TEXT[withoutSif.outcome]}</p>
-      {withoutSif.note ? <p className="text-xs text-fuchsia-200">{withoutSif.note}</p> : null}
+      <p className="text-sm text-pl-text" data-testid="lopa-outcome-text">{OUTCOME_TEXT[withoutSif.outcome]}</p>
+      {withoutSif.note ? <p className="text-xs text-pl-danger-text">{withoutSif.note}</p> : null}
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
         <Stat label="Unmitigated frequency" unit="/yr" value={formatSci(withoutSif.unmitigatedFrequencyPerYr)} />
         <Stat label="Product of credited IPL PFDs" unit="-" value={formatSci(withoutSif.iplProduct)} />
@@ -206,7 +206,7 @@ const LopaWorksheet = () => {
         hint="Probability of ignition, of personnel present, of a fatal injury, as your method uses them."
       />
       <IplTable />
-      <div className="border-t border-slate-800 pt-4">
+      <div className="border-t border-pl-border pt-4">
         <Results />
       </div>
     </div>

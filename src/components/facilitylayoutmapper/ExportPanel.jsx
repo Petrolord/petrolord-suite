@@ -248,21 +248,21 @@ const ExportPanel = ({ layers, spacingInputs = DEFAULT_SPACING_INPUTS }) => {
 
   return (
     <div className="space-y-3 p-1">
-      <h3 className="text-sm font-semibold text-slate-400 mb-2 px-1">CAD & GIS</h3>
-      <Button onClick={() => handleExport('svg')} className="w-full justify-start bg-slate-800 hover:bg-slate-700 text-white">
+      <h3 className="text-sm font-semibold text-pl-muted mb-2 px-1">CAD & GIS</h3>
+      <Button onClick={() => handleExport('svg')} variant="secondary" className="w-full justify-start">
         <Image className="w-4 h-4 mr-2" /> Export as SVG
       </Button>
-      <Button onClick={() => handleExport('dxf')} className="w-full justify-start bg-slate-800 hover:bg-slate-700 text-white">
+      <Button onClick={() => handleExport('dxf')} variant="secondary" className="w-full justify-start">
         <FileDown className="w-4 h-4 mr-2" /> Export as DXF
       </Button>
-       <Button onClick={() => handleExport('kml')} className="w-full justify-start bg-slate-800 hover:bg-slate-700 text-white">
+       <Button onClick={() => handleExport('kml')} variant="secondary" className="w-full justify-start">
         <Globe className="w-4 h-4 mr-2" /> Export as KML
       </Button>
-       <Button onClick={() => handleExport('geojson')} className="w-full justify-start bg-slate-800 hover:bg-slate-700 text-white">
+       <Button onClick={() => handleExport('geojson')} variant="secondary" className="w-full justify-start">
         <FileJson className="w-4 h-4 mr-2" /> Export as GeoJSON
       </Button>
-      <h3 className="text-sm font-semibold text-slate-400 pt-3 mb-2 px-1">Documents</h3>
-      <Button onClick={() => handleExport('pdf')} className="w-full justify-start bg-slate-800 hover:bg-slate-700 text-white">
+      <h3 className="text-sm font-semibold text-pl-muted pt-3 mb-2 px-1">Documents</h3>
+      <Button onClick={() => handleExport('pdf')} variant="secondary" className="w-full justify-start">
         <FileText className="w-4 h-4 mr-2" /> Export as PDF
       </Button>
     </div>

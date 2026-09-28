@@ -41,8 +41,8 @@ export const DrumResults = () => {
   const { drum } = useRelief();
   if (drum.error) return <ErrorNote>{drum.error}</ErrorNote>;
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Knockout drum (horizontal)</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Knockout drum (horizontal)</CardTitle></CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Stat label="Dropout velocity" value={fmt(drum.udFtS, 2)} unit="ft/s"
@@ -51,10 +51,10 @@ export const DrumResults = () => {
             hint={`vapor area ${fmt(drum.areaVaporFt2, 1)} ft2`} />
           <Stat label="Required length" value={fmt(drum.requiredLengthFt, 1)} unit="ft" />
           <Stat label="L/D" value={fmt(drum.ld, 2)}
-            accent={drum.ld > 6 || drum.ld < 2 ? 'text-amber-400' : 'text-emerald-400'} />
+            accent={drum.ld > 6 || drum.ld < 2 ? 'text-pl-warning-text' : 'text-pl-success-text'} />
         </div>
         {drum.note && <WarnNote>{drum.note}</WarnNote>}
-        <p className="text-[12px] text-slate-500">
+        <p className="text-[12px] text-pl-muted">
           The droplet must fall {fmt(drum.fallFt, 1)} ft, the depth of the vapor space above a
           liquid level {fmt(drum.liquidDepthFt, 1)} ft deep, before the gas carries it the length of
           the drum. Raise the level and the vapor space shrinks twice over, in the area the gas
@@ -83,7 +83,7 @@ export const RadiationInputs = () => {
       <Field label="Distance to check (m)"><NumberInput section="radiation" name="distanceM" /></Field>
       <Field label="Allowable intensity">
         <Select value={inputs.radiation.allowableKwM2} onValueChange={(v) => setSection('radiation', 'allowableKwM2', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             {radiationLevels.map((l) => (
               <SelectItem key={l.kWm2} value={String(l.kWm2)}>{l.kWm2} kW/m2: {l.label}</SelectItem>
@@ -101,18 +101,18 @@ export const RadiationResults = () => {
   const allowable = parseFloat(inputs.radiation.allowableKwM2);
   const over = radiation.kWm2 > allowable;
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Flare radiation (API 521 point source)</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Flare radiation (API 521 point source)</CardTitle></CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Stat label="Heat release" value={fmt(radiation.qKw / 1000, 1)} unit="MW" />
           <Stat label="At the stated distance" value={fmt(radiation.kWm2, 2)} unit="kW/m2"
-            accent={over ? 'text-red-400' : 'text-emerald-400'}
+            accent={over ? 'text-pl-danger-text' : 'text-pl-success-text'}
             hint={over ? 'above the allowable' : 'inside the allowable'} />
           <Stat label="Distance the allowable demands" value={fmt(radiation.requiredDistanceM, 0)} unit="m"
             hint={radiation.setbackError || 'the same model inverted; a stack height or a sterile radius buys this'} />
         </div>
-        <p className="text-[12px] text-slate-500">
+        <p className="text-[12px] text-pl-muted">
           The point-source model ignores flame length and wind tilt, so treat it as a screening
           answer for a first stack height. A detail design near the limits needs a flame-shape
           model.

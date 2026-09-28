@@ -53,10 +53,10 @@ const GasRelease = () => {
         <NumField label="Ambient pressure" unit="bar absolute" value={g.ambientPressureBar} onChange={(v) => set({ ambientPressureBar: v })} error={refused(r, 'ambientPressurePa')} />
       </Grid>
       <Result result={r}>
-        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-200">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-pl-text">
           <span>Flow regime</span>
           <StateBadge state={r.regime} testId="gas-regime" />
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-pl-muted">
             Choked when Pa/P0 is at or below the critical ratio (exactly at it counts as choked).
           </span>
         </div>

@@ -96,11 +96,11 @@ export const WaterInputs = () => {
         </Field>
       </div>
 
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Train</p>
+      <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold pt-2">Train</p>
       {['primary', 'secondary', 'tertiary'].map((stage) => (
         <Field key={stage} label={`${stage.charAt(0).toUpperCase()}${stage.slice(1)}`}>
           <Select value={inputs.train[stage]} onValueChange={(v) => setSection('train', stage, v)}>
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
             <SelectContent>
               {STAGE_OPTIONS[stage].map((k) => (
                 <SelectItem key={k} value={k}>
@@ -130,7 +130,7 @@ export const EquipmentInputs = () => {
     <div className="space-y-4">
       {uses('api') && (
         <>
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">API basin</p>
+          <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">API basin</p>
           <div className="grid grid-cols-3 gap-2">
             <Field label="Length (m)"><NumberInput section="api" name="lengthM" step="0.5" /></Field>
             <Field label="Width (m)"><NumberInput section="api" name="widthM" step="0.1" /></Field>
@@ -143,7 +143,7 @@ export const EquipmentInputs = () => {
       )}
       {uses('cpi') && (
         <>
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Plate pack</p>
+          <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Plate pack</p>
           <div className="grid grid-cols-3 gap-2">
             <Field label="Plate area (m2)"><NumberInput section="cpi" name="plateAreaM2" step="0.1" /></Field>
             <Field label="Plates"><NumberInput section="cpi" name="nPlates" step="1" /></Field>
@@ -153,7 +153,7 @@ export const EquipmentInputs = () => {
       )}
       {uses('hydrocyclone') && (
         <>
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Hydrocyclone</p>
+          <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Hydrocyclone</p>
           <div className="grid grid-cols-3 gap-2">
             <Field label="Liners"><NumberInput section="hydrocyclone" name="nLiners" step="1" /></Field>
             <Field label="Liner bore (mm)"><NumberInput section="hydrocyclone" name="linerDiameterMm" step="1" /></Field>
@@ -171,7 +171,7 @@ export const EquipmentInputs = () => {
       )}
       {(uses('igf') || uses('daf')) && (
         <>
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Flotation</p>
+          <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Flotation</p>
           <div className="grid grid-cols-3 gap-2">
             <Field label="Cell volume (m3)"><NumberInput section="flotation" name="cellVolumeM3" step="0.5" /></Field>
             <Field label="Cells"><NumberInput section="flotation" name="nCells" step="1" /></Field>
@@ -193,7 +193,7 @@ export const EquipmentInputs = () => {
               </Button>
             ))}
           </div>
-          <p className="text-[11px] text-slate-600">
+          <p className="text-[11px] text-pl-muted">
             These two boxes are the whole difference between induced and dissolved gas flotation.
             Dissolved gas makes far finer bubbles and releases much less gas, and both effects are
             in the answer.
@@ -202,7 +202,7 @@ export const EquipmentInputs = () => {
       )}
       {(uses('nutshell') || uses('media')) && (
         <>
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Filter</p>
+          <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Filter</p>
           <div className="grid grid-cols-3 gap-2">
             <Field label="Bed area (m2)" hint="A bigger bed loads the media more slowly, which lifts the capture per metre and sharpens the cut. Below 1 m/h of loading the studio stops answering and says so: the filter coefficient is declared at 10 m/h and there is no calibration that far under it.">
               <NumberInput section="filter" name="areaM2" step="0.5" />
@@ -231,8 +231,8 @@ export const FluidCard = () => {
   const { fluid } = useProducedWater();
   if (fluid.error) return <ErrorNote>{fluid.error}</ErrorNote>;
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">The water itself</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">The water itself</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Stat label="Water viscosity" value={fmt(fluid.muCp, 3)} unit="cp"
@@ -240,7 +240,7 @@ export const FluidCard = () => {
           <Stat label="Water density" value={fmt(fluid.rhoWater, 1)} unit="kg/m3" />
           <Stat label="Oil density" value={fmt(fluid.rhoOil, 1)} unit="kg/m3" />
           <Stat label="Density difference" value={fmt(fluid.deltaRho, 1)} unit="kg/m3"
-            accent={fluid.deltaRho < 60 ? 'text-amber-400' : 'text-emerald-400'}
+            accent={fluid.deltaRho < 60 ? 'text-pl-warning-text' : 'text-pl-success-text'}
             hint="the whole driving force for gravity separation" />
         </div>
         {fluid.deltaRho < 60 && (
@@ -264,12 +264,12 @@ export const DeviceDetail = () => {
   const { devices, inputs } = useProducedWater();
   if (devices.error || !devices.list?.length) return null;
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Inside each device</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Inside each device</CardTitle></CardHeader>
       <CardContent className="space-y-4">
         {devices.list.map((d, i) => (
           <div key={`${d.key}-${i}`} className="space-y-0.5">
-            <p className="text-[11px] uppercase tracking-wider text-slate-500">{d.name}</p>
+            <p className="text-[11px] uppercase tracking-wider text-pl-muted">{d.name}</p>
             {d.error && <ErrorNote>{d.error}</ErrorNote>}
             {!d.error && (d.key === 'api' || d.key === 'cpi') && (
               <>
@@ -347,13 +347,13 @@ export const TrainResults = () => {
           {result.verdictWithheldReason}
         </ErrorNote>
       )}
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Treated water</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Treated water</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat label="Outlet oil in water" value={fmt(result.outletOiwPpm, 1)} unit="ppm"
-              accent={result.meetsSpec === false ? 'text-red-400'
-                : (result.meetsSpec === true ? 'text-emerald-400' : 'text-slate-100')}
+              accent={result.meetsSpec === false ? 'text-pl-danger-text'
+                : (result.meetsSpec === true ? 'text-pl-success-text' : 'text-pl-text')}
               hint={result.complete ? undefined : result.overallRemovalBasis} />
             <Stat label="Overall removal" value={fmt(result.overallRemovalPct, 1)} unit="%"
               hint={result.overallRemovalBasis} />
@@ -361,7 +361,7 @@ export const TrainResults = () => {
               hint={`in at ${fmt(result.inletMedianMicron, 1)} um, measured the same way`} />
             <Stat label="Against spec"
               value={withheld ? '--' : (result.meetsSpec ? 'MEETS' : 'FAILS')}
-              accent={withheld ? 'text-slate-400' : (result.meetsSpec ? 'text-emerald-400' : 'text-red-400')}
+              accent={withheld ? 'text-pl-muted' : (result.meetsSpec ? 'text-pl-success-text' : 'text-pl-danger-text')}
               hint={Number.isFinite(result.marginPpm)
                 ? `${result.marginPpm >= 0 ? 'margin' : 'over'} ${fmt(Math.abs(result.marginPpm), 1)} ppm`
                 : undefined} />
@@ -376,7 +376,7 @@ export const TrainResults = () => {
           )}
           {/* The engine note ends "pass dissolvedOilFloorPpm to apply your
               own", an argument this screen has no input for (PWT-T1-001). */}
-          <p className="text-[11px] text-slate-600">
+          <p className="text-[11px] text-pl-muted">
             This is the dispersed oil the devices can catch. Produced water also carries dissolved and
             soluble oil that none of these devices removes, so there is a floor under any outlet this
             train reports, and this studio does not know its value. Take a dissolved-oil analysis of
@@ -385,13 +385,13 @@ export const TrainResults = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Stage by stage</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Stage by stage</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                <tr className="text-left text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
                   <th className="py-2 pr-3">Device</th>
                   <th className="py-2 pr-3">Cut size d50c (um)</th>
                   <th className="py-2 pr-3">Removal (%)</th>
@@ -401,12 +401,12 @@ export const TrainResults = () => {
               </thead>
               <tbody>
                 {result.stages.map((s, i) => (
-                  <tr key={`${s.name}-${i}`} className={`border-b border-slate-800/60 ${s.ran ? '' : 'bg-red-950/20'}`}>
-                    <td className="py-1.5 pr-3 text-slate-300">{s.name || 'device'}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{s.ran ? fmt(s.d50cMicron, 1) : 'did not run'}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{s.ran ? fmt(s.removalPct, 1) : '--'}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{s.ran ? fmt(s.outletOiwPpm, 1) : '--'}</td>
-                    <td className="py-1.5 tabular-nums">{s.ran ? fmt(s.outletMedianMicron, 1) : '--'}</td>
+                  <tr key={`${s.name}-${i}`} className={`border-b border-pl-border ${s.ran ? '' : 'bg-pl-danger-bg'}`}>
+                    <td className="py-1.5 pr-3 text-pl-text">{s.name || 'device'}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{s.ran ? fmt(s.d50cMicron, 1) : 'did not run'}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{s.ran ? fmt(s.removalPct, 1) : '--'}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{s.ran ? fmt(s.outletOiwPpm, 1) : '--'}</td>
+                    <td className="py-1.5 font-pl-mono tabular-nums">{s.ran ? fmt(s.outletMedianMicron, 1) : '--'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -415,7 +415,7 @@ export const TrainResults = () => {
           {result.stages.filter((s) => s.warning || s.error).map((s, i) => (
             <WarnNote key={`${s.name}-${i}`}>{s.name}: {s.warning || s.error}</WarnNote>
           ))}
-          <p className="text-[12px] text-slate-500">
+          <p className="text-[12px] text-pl-muted">
             Each device removes the droplets it can catch and passes on the ones it cannot, so the
             median falls down the train and every stage faces harder water than the one before it.
             That is why three devices that each remove ninety percent of THEIR inlet do not together
@@ -437,8 +437,8 @@ export const DistributionChart = () => {
   const tick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
   const cuts = result.error ? [] : result.stages.filter((s) => s.ran);
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Inlet droplets against the cut sizes</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Inlet droplets against the cut sizes</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <ChartFrame height={300} exportFilename="droplet-distribution">
           <ComposedChart data={data} margin={{ top: 8, right: 30, bottom: 8, left: 24 }}>
@@ -461,7 +461,7 @@ export const DistributionChart = () => {
             ))}
           </ComposedChart>
         </ChartFrame>
-        <p className="text-[12px] text-slate-500">
+        <p className="text-[12px] text-pl-muted">
           Everything to the left of a device&apos;s cut line is what that device mostly misses. A
           train whose cut lines all sit to the right of the bulk of the oil volume will not meet its
           spec however many stages it has, which is the picture behind the numbers. The bars are the

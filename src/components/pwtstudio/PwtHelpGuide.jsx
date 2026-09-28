@@ -63,11 +63,11 @@ const PwtHelpContent = () => (
       <AccordionItem key={item.id} value={item.id}>
         <AccordionTrigger className="text-sm text-left">
           <span className="flex items-center gap-2">
-            <item.icon className="w-4 h-4 text-emerald-400 shrink-0" />
+            <item.icon className="w-4 h-4 text-pl-muted shrink-0" />
             {item.title}
           </span>
         </AccordionTrigger>
-        <AccordionContent className="text-sm text-slate-400 leading-relaxed">
+        <AccordionContent className="text-sm text-pl-muted leading-relaxed">
           {item.content}
         </AccordionContent>
       </AccordionItem>

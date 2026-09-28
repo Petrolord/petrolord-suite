@@ -61,7 +61,7 @@ const ConsequenceChart = ({
   const yDomain = logY ? decadeDomain(ys) : [0, 'auto'];
   const xDomain = logX ? decadeDomain(data.map((d) => d[xKey])) : [(lo) => Math.floor(lo / 50) * 50, (hi) => Math.ceil(hi / 50) * 50];
   return (
-    <div className="relative h-80 rounded-lg bg-white p-2" data-testid={testId}>
+    <div data-canvas="chart" className="relative h-80 rounded-lg bg-white p-2" data-testid={testId}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={CHART_MARGINS.legend}>
           <CartesianGrid {...GRID_STYLE} />

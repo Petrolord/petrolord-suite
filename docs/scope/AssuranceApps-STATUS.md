@@ -24,8 +24,9 @@ from pilot 1 (2026-09-27, `feat/ds-pilot-hubs`): light by default, dark by
 choice, tiers as status badges, chart on `data-canvas="chart"`, help drawer
 themed inside the hub. Rollout batch W4E (2026-09-28) moved five of the
 nine apps onto it: Risk Register, Regulatory Compliance, ISO Compliance,
-Lessons Learned and Audit & Findings Manager (section 3p). Document
-Control, Peer Review, Management of Change and the QA Plan follow in W4F.
+Lessons Learned and Audit & Findings Manager (section 3q); W4F moved
+Document Control, Peer Review, Management of Change and the QA Plan
+(section 3p).
 
 The launch was ONE owner-run script:
 `tools/validation/assurance/assurance-launch-apply.sh schema` (now 16
@@ -1760,7 +1761,21 @@ differs only in VENDOR.json and VENDOR.manifest.
 - Help updated for all three. All 70 assurance suites pass (3731 tests)
   under UTC, Africa/Lagos and Pacific/Pago_Pago; the build passes.
 
-## 3p. Design system rollout W4E, 2026-09-28
+## 3p. Design system rollout w4f, 2026-09-28: Document Control, Peer Review, MOC, QA Plan
+
+The four registers open in the grey panel light theme with a header toggle
+to dark. Each wraps itself in `<ThemedApp>` inside its own shell
+(`DocControlShell`, `PeerReviewShell`, `MOCPageShell`; QA Plan once in
+`QAPlanPageShell` around its nested routes). They were built on the shadcn
+tokens, which the scope re-points, so their pages kept their classes. Two
+changes: the destructive confirm button text uses the destructive
+foreground token (was `text-white`), and the white dashboard and report
+chart wrappers carry `data-canvas="chart"`. Status badges keep reading
+their colour from the status tokens beside the status word. No shared
+assurance file changed. Theme test (every page, light and dark, seeded
+data): `src/pages/apps/assurance/__tests__/assuranceW4f.theme.test.jsx`.
+
+## 3q. Design system rollout W4E, 2026-09-28
 
 Five apps open in the grey-panel light theme by default, and the header
 toggle switches each to dark and back (stored per user). No data or

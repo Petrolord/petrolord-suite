@@ -22,6 +22,8 @@ jest.mock('@/lib/customSupabaseClient', () => ({
 }));
 jest.mock('@/contexts/SupabaseAuthContext', () => ({
   useAuth: () => ({ organization: { id: 'org-1' }, user: { id: mockUserId } }),
+  // ThemedApp (design system rollout w4f) reads AuthContext.
+  AuthContext: require('react').createContext(null),
 }));
 jest.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
 

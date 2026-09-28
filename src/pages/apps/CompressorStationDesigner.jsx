@@ -19,6 +19,10 @@ import {
 } from '@/components/compressorstudio/CompressorPanels';
 import CompressorHelpContent from '@/components/compressorstudio/CompressorHelpGuide';
 import { fmt, Row } from '@/components/compressorstudio/fields';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'train', label: 'Staging & Power' },
@@ -27,7 +31,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const Summary = () => {
@@ -111,7 +115,6 @@ const StudioContent = () => {
             backTo="/dashboard/facilities"
             backTitle="Back to Facilities Engineering"
             icon={Wind}
-            iconGradientClass="from-violet-600 to-purple-700"
             title="Compressor Station Designer"
             tabs={TABS}
             activeTab={activeTab}
@@ -121,12 +124,12 @@ const StudioContent = () => {
         headerActions={
           <>
             <FullPrecisionToggle app="compressor-station-designer" />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Compressor Sizing Guide"
               description="What really sets the stage count, why polytropic is not isentropic, and what the machine screen can and cannot settle."
@@ -147,11 +150,13 @@ const StudioContent = () => {
 };
 
 const CompressorStationDesigner = () => (
-  <CompressorStudioProvider>
-    <FullPrecisionProvider>
-      <StudioContent />
-    </FullPrecisionProvider>
-  </CompressorStudioProvider>
+  <ThemedApp data-testid="compressor-theme-scope">
+    <CompressorStudioProvider>
+      <FullPrecisionProvider>
+        <StudioContent />
+      </FullPrecisionProvider>
+    </CompressorStudioProvider>
+  </ThemedApp>
 );
 
 export default CompressorStationDesigner;

@@ -27,14 +27,21 @@ import {
 
 const TABS = ['Header', 'Logs', 'Tops', 'Intervals', 'Core', 'Deviation', 'Checkshots'];
 
-const thCls = 'text-left font-medium text-slate-500 pr-4 pb-1';
-const tdCls = 'pr-4 py-0.5 text-slate-300 whitespace-nowrap';
+// Paste-replace field lists, hoisted so every render hands PasteReplacePanel
+// the same array (a fresh literal per render used to re-parse and re-emit
+// onParsed without end).
+const TOPS_PASTE_FIELDS = ['name', 'md'];
+const DEVIATION_PASTE_FIELDS = ['md', 'inc', 'azi'];
+const CHECKSHOT_PASTE_FIELDS = ['depth', 'time'];
+
+const thCls = 'text-left font-medium text-pl-muted pr-4 pb-1';
+const tdCls = 'pr-4 py-0.5 text-pl-text whitespace-nowrap';
 
 function Field({ label, children }) {
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-wider text-slate-500">{label}</div>
-      <div className="text-sm text-slate-200">{children ?? '—'}</div>
+      <div className="text-[11px] uppercase tracking-wider text-pl-muted">{label}</div>
+      <div className="text-sm text-pl-text">{children ?? '—'}</div>
     </div>
   );
 }
@@ -42,8 +49,8 @@ function Field({ label, children }) {
 const fmt = (v, digits = 1) => (Number.isFinite(v) ? Number(v).toFixed(digits) : '—');
 
 const REF_LABEL = { md: 'MD', tvd: 'TVD', tvdss: 'TVDSS' };
-const btnCls = 'px-2 py-0.5 rounded border text-xs border-slate-700 text-slate-300 hover:bg-slate-800';
-const primaryCls = 'px-2 py-0.5 rounded text-xs bg-cyan-600 hover:bg-cyan-500 text-white';
+const btnCls = 'px-2 py-0.5 rounded border text-xs border-pl-border text-pl-text hover:bg-pl-sunken';
+const primaryCls = 'px-2 py-0.5 rounded text-xs bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg';
 const numCell = (v, d = 2) => (Number.isFinite(v) ? String(Number(v.toFixed(d))) : '');
 
 /** Convention a stored table was entered in (legacy rows: TVDSS/TWT/m). */
@@ -364,11 +371,11 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
   return (
     <div className="h-full min-h-0 flex flex-col" data-testid="wdm-detail">
       <div className="flex items-center gap-2 px-3 pt-2">
-        <h2 className="text-sm font-semibold text-slate-100" data-testid="wdm-detail-name">
+        <h2 className="text-sm font-semibold text-pl-text" data-testid="wdm-detail-name">
           {well.name}
         </h2>
         <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px]
-          ${shared ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-700/60 text-slate-400'}`}
+          ${shared ? 'bg-pl-primary/10 text-pl-primary-text' : 'bg-pl-sunken text-pl-muted'}`}
         >
           {shared ? <Building2 className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
           {shared ? (well.is_own ? 'shared with org' : 'org well (read-only)') : 'private'}
@@ -376,7 +383,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
         <OpenInAppMenu wellIds={[well.id]} paths={appPaths} testIdPrefix="wdm-detail" className="ml-auto" />
       </div>
 
-      <div className="flex items-center gap-1 px-3 pt-2 border-b border-slate-800/60">
+      <div className="flex items-center gap-1 px-3 pt-2 border-b border-pl-border">
         {TABS.map((t) => (
           <button
             key={t}
@@ -384,8 +391,8 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
             data-testid={`wdm-detail-tab-${t.toLowerCase()}`}
             className={`px-2.5 py-1 text-xs rounded-t border-b-2 -mb-px
               ${tab === t
-                ? 'border-cyan-400 text-cyan-300'
-                : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+                ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text'
+                : 'border-transparent text-pl-muted hover:text-pl-text'}`}
             onClick={() => setTab(t)}
           >
             {t}
@@ -398,7 +405,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
         {canEdit && tab !== 'Logs' && tab !== 'Intervals' && tab !== 'Core' && !editor && (
           <button
             type="button"
-            className="ml-auto mr-2 flex items-center gap-1 px-2 py-0.5 rounded border border-slate-700 text-xs text-slate-300 hover:bg-slate-800"
+            className="ml-auto mr-2 flex items-center gap-1 px-2 py-0.5 rounded border border-pl-border text-xs text-pl-text hover:bg-pl-sunken"
             onClick={() => startEdit(tab)}
             data-testid={`wdm-edit-${tab.toLowerCase()}`}
             title="Edit this well's data (owner only)"
@@ -414,14 +421,14 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
             <Field label="UWI">{well.uwi}</Field>
             <Field label={`Surface X (m, ${crsLabel})`}>
               {editor?.tab === 'Header' ? (
-                <input className="rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs w-32"
+                <input className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-32"
                   value={editor.fields.x} onChange={(e) => setEditor((ed) => ({ ...ed, fields: { ...ed.fields, x: e.target.value } }))}
                   data-testid="wdm-header-x" placeholder="blank = not set" />
               ) : fmt(well.surface_x)}
             </Field>
             <Field label={`Surface Y (m, ${crsLabel})`}>
               {editor?.tab === 'Header' ? (
-                <input className="rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs w-32"
+                <input className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-32"
                   value={editor.fields.y} onChange={(e) => setEditor((ed) => ({ ...ed, fields: { ...ed.fields, y: e.target.value } }))}
                   data-testid="wdm-header-y" placeholder="blank = not set" />
               ) : fmt(well.surface_y)}
@@ -429,10 +436,10 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
             <Field label="KB (m)">
               {editor?.tab === 'Header' ? (
                 <span className="flex items-center gap-1">
-                  <input className="rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs w-24"
+                  <input className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-24"
                     value={editor.fields.kb} onChange={(e) => setEditor((ed) => ({ ...ed, fields: { ...ed.fields, kb: e.target.value } }))}
                     data-testid="wdm-header-kb" />
-                  <select className="rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-xs" value={editor.fields.unit}
+                  <select className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs" value={editor.fields.unit}
                     onChange={(e) => setEditor((ed) => ({ ...ed, fields: { ...ed.fields, unit: e.target.value } }))} data-testid="wdm-header-unit">
                     <option value="m">m</option>
                     <option value="ft">ft</option>
@@ -442,7 +449,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
             </Field>
             <Field label="TD (m MD)">
               {editor?.tab === 'Header' ? (
-                <input className="rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs w-24"
+                <input className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-24"
                   value={editor.fields.td} onChange={(e) => setEditor((ed) => ({ ...ed, fields: { ...ed.fields, td: e.target.value } }))}
                   data-testid="wdm-header-td" placeholder="blank = last station" />
               ) : fmt(well.td_md_m)}
@@ -453,7 +460,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                 {crsTag == null && (
                   <button
                     type="button"
-                    className="text-cyan-400 hover:underline"
+                    className="text-pl-primary-text hover:underline"
                     onClick={() => setAssigningCrs((a) => !a)}
                   >
                     Assign CRS…
@@ -462,7 +469,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
               </span>
               {assigningCrs && (
                 <div className="mt-1 max-w-xs">
-                  <div className="text-slate-500 mb-1">
+                  <div className="text-pl-muted mb-1">
                     Declares what the stored coordinates already are. Nothing is transformed.
                   </div>
                   <CrsPicker
@@ -491,7 +498,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
             </Field>
             <Field label="Status">
               {/* Mapping T1 (MAP-T1-015): drives the map well symbols */}
-              <select className="rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-xs"
+              <select className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs"
                 data-testid="wdm-header-status" value={statusValue ?? well.status ?? ''} disabled={well.is_own === false}
                 title="Well status: maps post the matching well symbol"
                 onChange={async (e) => {
@@ -517,7 +524,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
             <Field label="Checkshot pairs">{(well.checkshots || []).length}</Field>
             {editor?.tab === 'Header' && (
               <div className="col-span-2 md:col-span-3 space-y-1">
-                {editor.error && <div className="text-xs text-red-400" data-testid="wdm-header-error">{editor.error}</div>}
+                {editor.error && <div className="text-xs text-pl-danger-text" data-testid="wdm-header-error">{editor.error}</div>}
                 <div className="flex gap-2">
                   <button type="button" className={primaryCls} disabled={editor.busy} onClick={() => saveEditor()} data-testid="wdm-header-save">Save header</button>
                   <button type="button" className={btnCls} onClick={() => setEditor(null)}>Cancel</button>
@@ -528,10 +535,10 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
         )}
 
         {tab === 'Logs' && (
-          logs === null ? <Loader2 className="w-4 h-4 animate-spin text-slate-500" /> : (
+          logs === null ? <Loader2 className="w-4 h-4 animate-spin text-pl-muted" /> : (
             <div className="space-y-3">
               {!logs.length && (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-pl-muted">
                   No logs on this well yet. Use Import LAS to add curves.
                 </p>
               )}
@@ -561,7 +568,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                             onChange={() => togglePlot(log.id)}
                           />
                         </td>
-                        <td className={`${tdCls} text-slate-100`} title={log.description || ''}>
+                        <td className={`${tdCls} text-pl-text`} title={log.description || ''}>
                           {log.mnemonic}
                         </td>
                         <td className={tdCls}>{log.unit || '—'}</td>
@@ -569,13 +576,13 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                         <td className={tdCls}>{log.step_m == null ? 'irregular' : fmt(log.step_m, 3)}</td>
                         <td className={tdCls}>{log.n_samples}</td>
                         <td className={tdCls}>{log.null_count}</td>
-                        <td className={`${tdCls} text-slate-500`}>{log.source_file || '—'}</td>
+                        <td className={`${tdCls} text-pl-muted`}>{log.source_file || '—'}</td>
                         <td className={tdCls}>
                           {well.is_own && (
                             <button
                               type="button"
                               title={`Delete log ${log.mnemonic}`}
-                              className="text-slate-500 hover:text-red-400"
+                              className="text-pl-muted hover:text-pl-danger-text"
                               onClick={() => deleteLog(log)}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -590,7 +597,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
               {logs.length > 0 && (
                 <div>
                   {curveBusy && (
-                    <div className="text-xs text-slate-500 mb-1">
+                    <div className="text-xs text-pl-muted mb-1">
                       <Loader2 className="w-3.5 h-3.5 animate-spin inline mr-1" />
                       loading curves…
                     </div>
@@ -604,12 +611,12 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
 
         {tab === 'Tops' && editor?.tab === 'Tops' && (
           <div className="space-y-2 max-w-2xl" data-testid="wdm-tops-editor">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <button type="button" className={`${btnCls} ${editor.mode === 'grid' ? 'border-cyan-500/60 text-cyan-300' : ''}`}
+            <div className="flex items-center gap-2 text-xs text-pl-muted">
+              <button type="button" className={`${btnCls} ${editor.mode === 'grid' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : ''}`}
                 onClick={() => setEditor((ed) => ({ ...ed, mode: 'grid', error: null }))}>Edit rows</button>
-              <button type="button" className={`${btnCls} ${editor.mode === 'paste' ? 'border-cyan-500/60 text-cyan-300' : ''}`}
+              <button type="button" className={`${btnCls} ${editor.mode === 'paste' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : ''}`}
                 onClick={() => setEditor((ed) => ({ ...ed, mode: 'paste', error: null }))} data-testid="wdm-tops-paste-toggle">Replace from paste</button>
-              {editor.mode === 'paste' && <span className="text-amber-300/90">Replacing regenerates every top id; Well Correlation reads them fresh.</span>}
+              {editor.mode === 'paste' && <span className="text-pl-warning-text">Replacing regenerates every top id; Well Correlation reads them fresh.</span>}
             </div>
             {editor.mode === 'grid' ? (
               <RowGridEditor testIdPrefix="wdm-tops" rows={editor.rows}
@@ -623,11 +630,11 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                   { key: 'interpreter', label: 'Interpreter', type: 'text' },
                 ]} />
             ) : (
-              <PasteReplacePanel kind="tops" fields={['name', 'md']} labels={{ name: 'Top name', md: `MD (${editor.conv.mdUnit})` }}
+              <PasteReplacePanel kind="tops" fields={TOPS_PASTE_FIELDS} labels={{ name: 'Top name', md: `MD (${editor.conv.mdUnit})` }}
                 convention={editor.conv} onConvention={(c) => setEditor((ed) => ({ ...ed, conv: c }))}
                 onParsed={(pasted) => setEditor((ed) => ({ ...ed, pasted }))} testIdPrefix="wdm-tops" />
             )}
-            {editor.error && <div className="text-xs text-red-400" data-testid="wdm-tops-error">{editor.error}</div>}
+            {editor.error && <div className="text-xs text-pl-danger-text" data-testid="wdm-tops-error">{editor.error}</div>}
             <div className="flex gap-2">
               <button type="button" className={primaryCls} disabled={editor.busy} onClick={() => saveEditor()} data-testid="wdm-tops-save">Save tops</button>
               <button type="button" className={btnCls} onClick={() => setEditor(null)}>Cancel</button>
@@ -635,7 +642,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
           </div>
         )}
         {tab === 'Tops' && editor?.tab !== 'Tops' && (
-          tops === null ? <Loader2 className="w-4 h-4 animate-spin text-slate-500" /> : (
+          tops === null ? <Loader2 className="w-4 h-4 animate-spin text-pl-muted" /> : (
             tops.length ? (
               <table className="text-xs" data-testid="wdm-tops-table">
                 <thead>
@@ -653,18 +660,18 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                 <tbody>
                   {tops.map((t) => (
                     <tr key={t.id} data-testid="wdm-top-row">
-                      <td className={`${tdCls} text-slate-100`}>{t.name}</td>
+                      <td className={`${tdCls} text-pl-text`}>{t.name}</td>
                       <td className={tdCls}>{fmt(t.md_m)}</td>
                       <td className={tdCls} data-testid={`wdm-top-type-${t.name}`} title={displayLabel(normalizeSurfaceType(t.surface_type), scheme, { kind: 'surface' }).label}>
                         {displayLabel(normalizeSurfaceType(t.surface_type), scheme, { kind: 'surface', short: true }).label}
-                        {displayLabel(normalizeSurfaceType(t.surface_type), scheme, { kind: 'surface' }).fallback ? <span className="ml-1 text-[10px] text-amber-300" title="No Exxon term; Catuneanu name shown">C</span> : null}
+                        {displayLabel(normalizeSurfaceType(t.surface_type), scheme, { kind: 'surface' }).fallback ? <span className="ml-1 text-[10px] text-pl-warning-text" title="No Exxon term; Catuneanu name shown">C</span> : null}
                       </td>
                       <td className={tdCls}>{units.find((u) => u.id === t.unit_id)?.name || '—'}</td>
                       <td className={tdCls}>{t.confidence || '—'}</td>
                       <td className={tdCls}>{t.age_ma == null ? '—' : t.age_ma}</td>
                       <td className={tdCls}>{t.interpreter || '—'}</td>
                       <td className={tdCls}>
-                        <Link to={mapTopHref(t.name, [], appPath(MAPPING_ID, appPaths))} className="text-cyan-300 hover:text-amber-300"
+                        <Link to={mapTopHref(t.name, [], appPath(MAPPING_ID, appPaths))} className="text-pl-primary-text hover:text-pl-primary-text-hover"
                           title="Map this top in Mapping & Surface Studio (TVDSS structure map across every well carrying it)" data-testid={`wdm-map-top-${t.name}`}>
                           Map this top
                         </Link>
@@ -673,7 +680,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                   ))}
                 </tbody>
               </table>
-            ) : <p className="text-xs text-slate-500">No tops on this well.</p>
+            ) : <p className="text-xs text-pl-muted">No tops on this well.</p>
           )
         )}
 
@@ -696,10 +703,10 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
 
         {tab === 'Deviation' && editor?.tab === 'Deviation' && (
           <div className="space-y-2 max-w-2xl" data-testid="wdm-deviation-editor">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <button type="button" className={`${btnCls} ${editor.mode === 'grid' ? 'border-cyan-500/60 text-cyan-300' : ''}`}
+            <div className="flex items-center gap-2 text-xs text-pl-muted">
+              <button type="button" className={`${btnCls} ${editor.mode === 'grid' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : ''}`}
                 onClick={() => setEditor((ed) => ({ ...ed, mode: 'grid', error: null }))}>Edit stations</button>
-              <button type="button" className={`${btnCls} ${editor.mode === 'paste' ? 'border-cyan-500/60 text-cyan-300' : ''}`}
+              <button type="button" className={`${btnCls} ${editor.mode === 'paste' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : ''}`}
                 onClick={() => setEditor((ed) => ({ ...ed, mode: 'paste', error: null }))} data-testid="wdm-deviation-paste-toggle">Replace from paste</button>
               <span>Azimuths are stored against grid north; paste grid azimuths here or import through Add well for a true or magnetic reference.</span>
             </div>
@@ -708,18 +715,18 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                 onChange={(rows) => setEditor((ed) => ({ ...ed, rows }))}
                 columns={[{ key: 'md', label: 'MD (m)', type: 'number' }, { key: 'inc', label: 'Inc (°)', type: 'number' }, { key: 'azi', label: 'Azi (°)', type: 'number' }]} />
             ) : (
-              <PasteReplacePanel kind="deviation" fields={['md', 'inc', 'azi']} labels={{ md: `MD (${editor.conv.mdUnit})`, inc: 'Inclination (°)', azi: 'Azimuth (°)' }}
+              <PasteReplacePanel kind="deviation" fields={DEVIATION_PASTE_FIELDS} labels={{ md: `MD (${editor.conv.mdUnit})`, inc: 'Inclination (°)', azi: 'Azimuth (°)' }}
                 convention={editor.conv} onConvention={(c) => setEditor((ed) => ({ ...ed, conv: c }))}
                 onParsed={(pasted) => setEditor((ed) => ({ ...ed, pasted }))} testIdPrefix="wdm-deviation" />
             )}
             {(well.checkshots || []).length > 0 && (
-              <div className="text-[11px] text-slate-500">
+              <div className="text-[11px] text-pl-muted">
                 {well.checkshots_provenance?.units_in?.depth_ref === 'md'
                   ? 'The checkshot table was entered as MD; saving re-derives its TVDSS through the new survey.'
                   : 'The checkshot table keeps its TVDSS; only its MD readout follows the new survey.'}
               </div>
             )}
-            {editor.error && <div className="text-xs text-red-400" data-testid="wdm-deviation-error">{editor.error}</div>}
+            {editor.error && <div className="text-xs text-pl-danger-text" data-testid="wdm-deviation-error">{editor.error}</div>}
             <div className="flex gap-2">
               <button type="button" className={primaryCls} disabled={editor.busy} onClick={() => saveEditor()} data-testid="wdm-deviation-save">Save survey</button>
               <button type="button" className={btnCls} onClick={() => setEditor(null)}>Cancel</button>
@@ -747,7 +754,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
               </tbody>
             </table>
           ) : (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-pl-muted">
               No deviation survey — this well is treated as vertical
               {well.td_md_m ? ` to TD ${fmt(well.td_md_m)} m` : ''}.
             </p>
@@ -756,10 +763,10 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
 
         {tab === 'Checkshots' && editor?.tab === 'Checkshots' && (
           <div className="space-y-2 max-w-3xl" data-testid="wdm-checkshots-editor">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <button type="button" className={`${btnCls} ${editor.mode === 'grid' ? 'border-cyan-500/60 text-cyan-300' : ''}`}
+            <div className="flex items-center gap-2 text-xs text-pl-muted">
+              <button type="button" className={`${btnCls} ${editor.mode === 'grid' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : ''}`}
                 onClick={() => setEditor((ed) => ({ ...ed, mode: 'grid', error: null }))}>Edit rows</button>
-              <button type="button" className={`${btnCls} ${editor.mode === 'paste' ? 'border-cyan-500/60 text-cyan-300' : ''}`}
+              <button type="button" className={`${btnCls} ${editor.mode === 'paste' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : ''}`}
                 onClick={() => setEditor((ed) => ({ ...ed, mode: 'paste', error: null }))} data-testid="wdm-checkshots-paste-toggle">Replace from paste</button>
             </div>
             {editor.mode === 'grid' ? (
@@ -773,13 +780,13 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                   ]} />
               </>
             ) : (
-              <PasteReplacePanel kind="checkshots" fields={['depth', 'time']}
+              <PasteReplacePanel kind="checkshots" fields={CHECKSHOT_PASTE_FIELDS}
                 labels={{ depth: `Depth (${REF_LABEL[editor.conv.depthRef]}, ${editor.conv.depthUnit})`, time: `Time (${editor.conv.time === 'owt' ? 'OWT' : 'TWT'}, ms)` }}
                 convention={editor.conv} onConvention={(c) => setEditor((ed) => ({ ...ed, conv: c }))}
                 onParsed={(pasted) => setEditor((ed) => ({ ...ed, pasted }))} testIdPrefix="wdm-checkshots" />
             )}
-            <div className="text-[11px] text-slate-500">{frameNote}</div>
-            {editor.error && <div className="text-xs text-red-400" data-testid="wdm-checkshots-error">{editor.error}</div>}
+            <div className="text-[11px] text-pl-muted">{frameNote}</div>
+            {editor.error && <div className="text-xs text-pl-danger-text" data-testid="wdm-checkshots-error">{editor.error}</div>}
             <div className="flex gap-2">
               <button type="button" className={primaryCls} disabled={editor.busy} onClick={() => saveEditor()} data-testid="wdm-checkshots-save">Save checkshots</button>
               <button type="button" className={btnCls} onClick={() => setEditor(null)}>Cancel</button>
@@ -789,27 +796,27 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
         {tab === 'Checkshots' && editor?.tab !== 'Checkshots' && (
           (well.checkshots || []).length ? (
             <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-pl-muted">
                 <span>
                   Entered as {REF_LABEL[entered.depthRef]} {entered.depthUnit} / {entered.time === 'owt' ? 'one-way' : 'two-way'} time
                   {well.checkshots_provenance ? '' : ' (no record: legacy table, assumed TVDSS / TWT)'}.
                 </span>
                 <span className="ml-auto">View as</span>
-                <select className="rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-xs" value={csDisplay.depthRef}
+                <select className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs" value={csDisplay.depthRef}
                   onChange={(e) => setCsView({ ...csDisplay, depthRef: e.target.value })} data-testid="wdm-cs-view-depthref">
                   <option value="md">MD</option><option value="tvd">TVD</option><option value="tvdss">TVDSS</option>
                 </select>
-                <select className="rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-xs" value={csDisplay.depthUnit}
+                <select className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs" value={csDisplay.depthUnit}
                   onChange={(e) => setCsView({ ...csDisplay, depthUnit: e.target.value })} data-testid="wdm-cs-view-unit">
                   <option value="m">m</option><option value="ft">ft</option>
                 </select>
-                <select className="rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-xs" value={csDisplay.time}
+                <select className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs" value={csDisplay.time}
                   onChange={(e) => setCsView({ ...csDisplay, time: e.target.value })} data-testid="wdm-cs-view-time">
                   <option value="owt">OWT</option><option value="twt">TWT</option>
                 </select>
               </div>
               {well.checkshots_derived?.rows?.length >= 2 && (
-                <div className="text-[11px] text-amber-300/90" data-testid="wdm-cs-derived-note">
+                <div className="text-[11px] text-pl-warning-text" data-testid="wdm-cs-derived-note">
                   Seismolord currently uses a tie-derived time-depth set for this well; edits here apply once that set is cleared in Seismolord.
                 </div>
               )}
@@ -818,8 +825,8 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                   <tr>
                     <th className={thCls}>{REF_LABEL[csDisplay.depthRef]} ({csDisplay.depthUnit})</th>
                     <th className={thCls}>{csDisplay.time === 'owt' ? 'OWT' : 'TWT'} (ms)</th>
-                    <th className={`${thCls} text-slate-600`}>stored TVDSS (m)</th>
-                    <th className={`${thCls} text-slate-600`}>stored TWT (ms)</th>
+                    <th className={`${thCls} text-pl-muted`}>stored TVDSS (m)</th>
+                    <th className={`${thCls} text-pl-muted`}>stored TWT (ms)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -828,17 +835,17 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                     <tr key={i} data-testid="wdm-cs-row">
                       <td className={tdCls}>{fmt(c.depth, 2)}{c.ambiguous ? ' *' : ''}{c.extrapolated ? ' †' : ''}</td>
                       <td className={tdCls}>{fmt(c.time, 1)}</td>
-                      <td className={`${tdCls} text-slate-500`}>{fmt(c.tvdss_m, 2)}</td>
-                      <td className={`${tdCls} text-slate-500`}>{fmt(c.twt_ms, 1)}</td>
+                      <td className={`${tdCls} text-pl-muted`}>{fmt(c.tvdss_m, 2)}</td>
+                      <td className={`${tdCls} text-pl-muted`}>{fmt(c.twt_ms, 1)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               {csRows.some((c) => c.ambiguous || c.extrapolated) && (
-                <div className="text-[11px] text-slate-500">* reached at more than one MD along this well (shallowest shown) · † beyond the last survey station (extrapolated)</div>
+                <div className="text-[11px] text-pl-muted">* reached at more than one MD along this well (shallowest shown) · † beyond the last survey station (extrapolated)</div>
               )}
             </div>
-          ) : <p className="text-xs text-slate-500">No checkshots on this well.</p>
+          ) : <p className="text-xs text-pl-muted">No checkshots on this well.</p>
         )}
       </div>
     </div>

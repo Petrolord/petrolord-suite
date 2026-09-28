@@ -7,6 +7,7 @@
 // WellWorkstation on makeRegistryBackend.
 
 import React, { useMemo } from 'react';
+import { ThemedApp } from '@/design/ThemeProvider';
 import WellWorkstation from './components/WellWorkstation';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
 import { DEV_APP_PATHS } from '@/components/wells/appLinks';
@@ -14,8 +15,8 @@ import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 export default function WellDataManagerHarness() {
   const backend = useMemo(() => makeInMemoryBackend({ worker: true }), []);
   return (
-    <div className="h-screen w-full overflow-hidden">
+    <ThemedApp className="h-screen w-full overflow-hidden" data-testid="wdm-theme-scope">
       <WellWorkstation backend={backend} appPaths={DEV_APP_PATHS} />
-    </div>
+    </ThemedApp>
   );
 }

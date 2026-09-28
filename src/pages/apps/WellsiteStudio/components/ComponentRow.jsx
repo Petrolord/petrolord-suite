@@ -55,11 +55,11 @@ export default function ComponentRow({ index, component, onChange, mode, profile
 
   const firstError = Object.values(errors).find(Boolean);
   return (
-    <div className={`rounded border px-2 py-1.5 ${changed && changed.size ? 'border-cyan-700/60' : 'border-slate-800'} bg-slate-900/40`} data-testid={`${testIdPrefix}-comp-${index}`}>
+    <div className={`rounded border px-2 py-1.5 ${changed && changed.size ? 'border-pl-primary/60' : 'border-pl-border'} bg-pl-surface`} data-testid={`${testIdPrefix}-comp-${index}`}>
       <div className="flex items-end gap-2 flex-wrap">
-        <span className="text-[10px] text-slate-500 w-4">{index + 1}</span>
+        <span className="text-[10px] text-pl-muted w-4">{index + 1}</span>
         {fields.map((a) => (
-          <label key={a.key} className="text-[10px] text-slate-400">
+          <label key={a.key} className="text-[10px] text-pl-muted">
             {a.label}
             <input
               ref={(el) => { refs.current[a.key] = el; }}
@@ -70,15 +70,15 @@ export default function ComponentRow({ index, component, onChange, mode, profile
               onKeyDown={(e) => keyDown(e, a.key)}
               data-testid={`${testIdPrefix}-comp-${index}-${a.key}`}
               data-changed={changed && changed.has(a.key) ? '1' : undefined}
-              className={`block bg-slate-950 border rounded px-1.5 py-0.5 text-xs text-slate-100 ${errors[a.key] ? 'border-amber-500' : changed && changed.has(a.key) ? 'border-cyan-500/70' : 'border-slate-700'} ${a.key === 'percent' ? 'w-14' : a.multi ? 'w-40' : 'w-24'}`}
+              className={`block bg-pl-surface border rounded px-1.5 py-0.5 text-xs text-pl-text ${errors[a.key] ? 'border-pl-warning' : changed && changed.has(a.key) ? 'border-pl-primary' : 'border-pl-border-strong'} ${a.key === 'percent' ? 'w-14' : a.multi ? 'w-40' : 'w-24'}`}
             />
           </label>
         ))}
         {onRemove && (
-          <button type="button" className="text-[11px] text-slate-500 hover:text-red-400 pb-1" onClick={onRemove} data-testid={`${testIdPrefix}-comp-${index}-remove`} title="Remove this component (Ctrl+Backspace on an empty lithology)">remove</button>
+          <button type="button" className="text-[11px] text-pl-muted hover:text-pl-danger-text pb-1" onClick={onRemove} data-testid={`${testIdPrefix}-comp-${index}-remove`} title="Remove this component (Ctrl+Backspace on an empty lithology)">remove</button>
         )}
       </div>
-      {firstError && <div className="text-[11px] text-amber-400 mt-1" data-testid={`${testIdPrefix}-comp-${index}-error`}>{firstError}</div>}
+      {firstError && <div className="text-[11px] text-pl-warning-text mt-1" data-testid={`${testIdPrefix}-comp-${index}-error`}>{firstError}</div>}
     </div>
   );
 }

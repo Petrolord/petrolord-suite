@@ -127,3 +127,39 @@ panel follow it:
   now `shortfallFraction` on every violation.
 - `poolFireSetbackM` carries `setbackStatus`, so a radius that lies
   inside the pool edge says why the edge setback is zero.
+
+## 2026-09-28: design system rollout W5A (light default, dark per user)
+
+The page wraps itself in `ThemedApp` (App.jsx is untouched), so the app
+opens on the grey panel light theme; a theme toggle now sits beside the
+help guide in the sidebar header and switches to dark and back, stored per
+user. The route prefix `/dashboard/apps/facilities/facility-layout-mapper`
+is registered in `src/design/rollout/w5a.js` for the themed cold-load
+loaders.
+
+- Chrome on roles: the sidebar, its accordion sections, the equipment
+  palette (the picked tool is the primary fill), custom icons, precision
+  placement, properties, the save and load dialogs and the export buttons
+  moved to `pl-*` roles. The dark overrides on the adapted Input, Select,
+  Dialog and Button went, and the teal buttons are the standard primary
+  and secondary buttons. The decorative gradient behind the page and the
+  app icon went.
+- Status colour only for status: the safety spacing verdict (fail as
+  danger, incomplete or nothing checked as warning, all pass as success),
+  the shortfalls and the setback notes.
+- The map is a canvas: the plot plan is drawn on a street basemap whose
+  tiles are light in both themes, so it sits on `data-canvas="light"`
+  and the coordinate readout and the equipment markers keep the light
+  roles over it in either theme. The pipeline stroke colours are map
+  drawing and did not change. The canvas is its own stacking context
+  (`relative z-0`), which also fixes a defect on main: Leaflet's panes
+  (z-index 400) covered the save, load and help dialogs.
+- Phones: the sidebar stacks above the map (half the screen at most) and
+  the map takes the rest; no sideways page scroll at 390 px.
+- Exports: the SVG, DXF, KML, GeoJSON and PDF files are unchanged.
+- Tests: new `src/pages/apps/__tests__/FacilityLayoutMapper.theme.test.jsx`
+  (the shared `describeAppTheme` checks, the light map canvas, every
+  sidebar section with a tool picked, the placement tabs, the save and
+  load dialogs and the help drawer; Leaflet and the export libraries are
+  stubbed in jsdom). No calculation change; the existing suites pass
+  unchanged.

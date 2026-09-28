@@ -219,7 +219,7 @@ export default function MOCReports() {
               <CardTitle className="text-lg">Changes by stage</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+              <div data-canvas="chart" className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={stageData} margin={CHART_MARGINS.compact}>
                     <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -244,7 +244,7 @@ export default function MOCReports() {
               <CardTitle className="text-lg">Changes by category</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+              <div data-canvas="chart" className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={categoryData} layout="vertical" margin={CHART_MARGINS.compact}>
                     <CartesianGrid {...GRID_STYLE} horizontal={false} />
@@ -266,7 +266,7 @@ export default function MOCReports() {
             <CardTitle className="text-lg">Risk by stage</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="relative h-[340px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+            <div data-canvas="chart" className="relative h-[340px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={riskByStage} margin={CHART_MARGINS.legend}>
                   <CartesianGrid {...GRID_STYLE} vertical={false} />

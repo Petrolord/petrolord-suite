@@ -104,51 +104,51 @@ export default function SectionExplorer({
   const availableWells = wells.filter((w) => !order.includes(w.id));
 
   return (
-    <div className="h-full min-h-0 flex flex-col bg-slate-900/60" data-testid="corr-explorer">
-      <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800/60">
+    <div className="h-full min-h-0 flex flex-col bg-pl-surface" data-testid="corr-explorer">
+      <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
         Section path — click wells to order
       </div>
-      <canvas ref={canvasRef} data-testid="corr-map" className="cursor-pointer border-b border-slate-800/60" onClick={pick} />
-      <div className="px-2.5 py-1 text-[11px] uppercase tracking-wider text-slate-500">
+      <canvas ref={canvasRef} data-testid="corr-map" data-canvas="dark" className="cursor-pointer border-b border-pl-border" onClick={pick} />
+      <div className="px-2.5 py-1 text-[11px] uppercase tracking-wider text-pl-muted">
         In section <span data-testid="corr-order-count">{order.length}</span> / {wells.length}
       </div>
       <ScrollArea className="flex-1 min-h-0">
         {orderedWells.map((w, i) => (
           <div key={w.id} data-testid="corr-order-row" data-well-name={w.name}
-            className="flex items-center gap-1 pl-2.5 pr-1.5 py-[3px] text-[13px] text-slate-300">
-            <span className="w-4 text-cyan-300 text-xs">{i + 1}</span>
-            {w.organization_id ? <Building2 className="w-3 h-3 text-emerald-300" /> : <Lock className="w-3 h-3 text-slate-500" />}
+            className="flex items-center gap-1 pl-2.5 pr-1.5 py-[3px] text-[13px] text-pl-text">
+            <span className="w-4 text-pl-primary-text text-xs">{i + 1}</span>
+            {w.organization_id ? <Building2 className="w-3 h-3 text-pl-muted" /> : <Lock className="w-3 h-3 text-pl-muted" />}
             <span className="truncate">{w.name}</span>
-            <div className="ml-auto flex items-center gap-0.5 text-slate-500">
+            <div className="ml-auto flex items-center gap-0.5 text-pl-muted">
               {w.is_own && (
                 <Link
                   to={wellDataManagerHref(w.id, 'tops', wellDataManagerPath)}
                   title="Edit this well's header, survey, checkshots and tops in Well Data Manager"
                   data-testid={`corr-edit-well-data-${w.name}`}
-                  className="hover:text-cyan-300"
+                  className="hover:text-pl-primary-text-hover"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                 </Link>
               )}
-              <button type="button" title="Move up" disabled={i === 0} className="disabled:opacity-30 hover:text-slate-200" onClick={() => onMove(w.id, -1)}><ArrowUp className="w-3.5 h-3.5" /></button>
-              <button type="button" title="Move down" disabled={i === orderedWells.length - 1} className="disabled:opacity-30 hover:text-slate-200" onClick={() => onMove(w.id, 1)}><ArrowDown className="w-3.5 h-3.5" /></button>
-              <button type="button" title="Remove" className="hover:text-red-400" data-testid={`corr-remove-${w.name}`} onClick={() => onRemove(w.id)}><X className="w-3.5 h-3.5" /></button>
+              <button type="button" title="Move up" disabled={i === 0} className="disabled:opacity-30 hover:text-pl-text" onClick={() => onMove(w.id, -1)}><ArrowUp className="w-3.5 h-3.5" /></button>
+              <button type="button" title="Move down" disabled={i === orderedWells.length - 1} className="disabled:opacity-30 hover:text-pl-text" onClick={() => onMove(w.id, 1)}><ArrowDown className="w-3.5 h-3.5" /></button>
+              <button type="button" title="Remove" className="hover:text-pl-danger-text" data-testid={`corr-remove-${w.name}`} onClick={() => onRemove(w.id)}><X className="w-3.5 h-3.5" /></button>
             </div>
           </div>
         ))}
-        {!order.length && <p className="px-3 py-2 text-xs text-slate-600 leading-snug">Click wells on the map (or the list below) to add them to the cross-section in order.</p>}
+        {!order.length && <p className="px-3 py-2 text-xs text-pl-muted leading-snug">Click wells on the map (or the list below) to add them to the cross-section in order.</p>}
 
         {availableWells.length > 0 && (
           <>
-            <div className="px-2.5 pt-2 pb-1 text-[11px] uppercase tracking-wider text-slate-500 border-t border-slate-800/60">
+            <div className="px-2.5 pt-2 pb-1 text-[11px] uppercase tracking-wider text-pl-muted border-t border-pl-border">
               Available
             </div>
             {availableWells.map((w) => (
               <button key={w.id} type="button" data-testid={`corr-add-${w.name}`}
-                className="w-full flex items-center gap-1.5 pl-2.5 pr-2 py-[3px] text-[13px] text-slate-400 hover:bg-slate-800/70"
+                className="w-full flex items-center gap-1.5 pl-2.5 pr-2 py-[3px] text-[13px] text-pl-muted hover:bg-pl-sunken"
                 onClick={() => onToggle(w.id)}>
-                <Plus className="w-3 h-3 text-slate-500" />
-                {w.organization_id ? <Building2 className="w-3 h-3 text-emerald-300" /> : <Lock className="w-3 h-3 text-slate-500" />}
+                <Plus className="w-3 h-3 text-pl-muted" />
+                {w.organization_id ? <Building2 className="w-3 h-3 text-pl-muted" /> : <Lock className="w-3 h-3 text-pl-muted" />}
                 <span className="truncate">{w.name}</span>
               </button>
             ))}

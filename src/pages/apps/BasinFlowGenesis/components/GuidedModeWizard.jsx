@@ -16,6 +16,7 @@ import { ValidationEngine } from '../services/ValidationEngine';
 import SimulationRunDialog from './common/SimulationRunDialog';
 import ResultsDashboard from './ResultsDashboard';
 import UnitsBar from './common/UnitsBar';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Link } from 'react-router-dom';
 import { useBasinFlow } from '../contexts/BasinFlowContext';
 import { appPath } from '@/components/wells/appLinks';
@@ -85,17 +86,18 @@ const GuidedModeWizard = () => {
     }
 
     return (
-        <div className="flex flex-col lg:flex-row h-full bg-slate-950 text-slate-200 overflow-hidden relative">
+        <div className="flex flex-col lg:flex-row h-full bg-pl-bg text-pl-text overflow-hidden relative">
              {/* Help Button Floating or Fixed */}
             <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
                 <UnitsBar />
-                <Link to={helpHref} data-testid="bf-wizard-help" title="Open the help guide" className="text-slate-400 hover:text-white bg-slate-900/50 backdrop-blur">
+                <Link to={helpHref} data-testid="bf-wizard-help" title="Open the help guide" className="text-pl-muted hover:text-pl-text">
                     <HelpCircle className="w-5 h-5" />
                 </Link>
+                <ThemeToggle className="h-8 w-8" />
             </div>
 
             {/* Sidebar */}
-            <div className="w-full lg:w-64 border-b lg:border-b-0 lg:border-r border-slate-800 bg-slate-900 p-4 lg:p-6 flex lg:flex-col shrink-0 overflow-x-auto lg:overflow-visible">
+            <div className="w-full lg:w-64 border-b lg:border-b-0 lg:border-r border-pl-border bg-pl-surface p-4 lg:p-6 flex lg:flex-col shrink-0 overflow-x-auto lg:overflow-visible">
                 <div className="hidden lg:block h-full">
                     <WorkflowGuide 
                         steps={steps} 
@@ -107,7 +109,7 @@ const GuidedModeWizard = () => {
                 {/* Mobile Progress */}
                 <div className="lg:hidden w-full flex items-center justify-between">
                     <span className="font-bold">Step {currentStep}: {steps[currentStep-1]?.title}</span>
-                    <span className="text-xs text-slate-500">{Math.round(progressPercentage)}%</span>
+                    <span className="text-xs text-pl-muted">{Math.round(progressPercentage)}%</span>
                 </div>
             </div>
 
@@ -115,7 +117,7 @@ const GuidedModeWizard = () => {
             <div className="flex-1 flex flex-col w-full min-w-0 h-full overflow-hidden">
                 {isDndReady ? (
                     <DragDropContext onDragEnd={onDragEnd}>
-                        <div className="flex-1 p-4 lg:p-8 overflow-y-auto custom-scrollbar bg-slate-950">
+                        <div className="flex-1 p-4 lg:p-8 lg:pt-16 overflow-y-auto custom-scrollbar bg-pl-bg">
                             <div className="max-w-5xl mx-auto h-full flex flex-col">
                                  <div className="flex-1">
                                     <StepContent step={currentStep} />
@@ -129,14 +131,14 @@ const GuidedModeWizard = () => {
                     </DragDropContext>
                 ) : (
                     <div className="flex-1 flex items-center justify-center">
-                        <div className="text-slate-500">Loading...</div>
+                        <div className="text-pl-muted">Loading...</div>
                     </div>
                 )}
 
                 {/* Error Banner from Context (Global Errors) */}
                 {stepError && (
                     <div className="px-4 lg:px-8 pb-4 shrink-0">
-                         <div className="bg-red-900/20 border border-red-900/50 text-red-300 p-3 rounded-lg flex items-center gap-2 text-sm animate-in slide-in-from-bottom-2 max-w-5xl mx-auto w-full">
+                         <div className="bg-pl-danger-bg border border-pl-danger/40 text-pl-danger-text p-3 rounded-lg flex items-center gap-2 text-sm animate-in slide-in-from-bottom-2 max-w-5xl mx-auto w-full">
                             <AlertCircle className="w-4 h-4 shrink-0" />
                             <span>{stepError}</span>
                         </div>
@@ -144,12 +146,12 @@ const GuidedModeWizard = () => {
                 )}
 
                 {/* Footer Navigation */}
-                <div className="p-4 lg:p-6 border-t border-slate-800 flex justify-between items-center bg-slate-900 shrink-0">
+                <div className="p-4 lg:p-6 border-t border-pl-border flex justify-between items-center bg-pl-surface shrink-0">
                     <Button 
                         variant="ghost" 
                         onClick={prevStep} 
                         disabled={currentStep === 1}
-                        className="text-slate-400 hover:text-white"
+                        className="text-pl-muted hover:text-pl-text"
                     >
                         <ArrowLeft className="w-4 h-4 mr-2" /> Back
                     </Button>
@@ -157,7 +159,7 @@ const GuidedModeWizard = () => {
                     {currentStep < totalSteps && (
                         <Button 
                             onClick={handleNext} 
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white w-32 shadow-lg shadow-emerald-900/20"
+                            className="w-32"
                         >
                             Next <ArrowRight className="w-4 h-4 ml-2" />
                         </Button>

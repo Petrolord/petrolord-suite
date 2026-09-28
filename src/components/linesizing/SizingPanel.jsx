@@ -39,11 +39,11 @@ const ResultCards = () => {
             hint="the friction term alone, before fittings and elevation" />
         )}
         <Stat label="Velocity" value={fmt(sizing.vFtS, 2)} unit="ft/s"
-          accent={sizing.vFtS > sizing.maxVFtS ? 'text-amber-400' : 'text-slate-100'}
+          accent={sizing.vFtS > sizing.maxVFtS ? 'text-pl-warning-text' : 'text-pl-text'}
           hint={`limit ${fmt(sizing.maxVFtS, 0)} ft/s`} />
         <Stat label="Friction factor" value={show(fmt(sizing.f, 4), sizing.f, 10)} hint={sizing.regime} />
         <Stat label="RP 14E status" value={sizing.exceeded ? 'EXCEEDED' : 'OK'}
-          accent={sizing.exceeded ? 'text-red-400' : 'text-emerald-400'}
+          accent={sizing.exceeded ? 'text-pl-danger-text' : 'text-pl-success-text'}
           hint={`erosional ${fmt(sizing.erosionalFtS, 1)} ft/s`} />
       </div>
     );
@@ -58,8 +58,8 @@ const ResultCards = () => {
         <Stat label="RP 14E status"
           value={sizing.erosionalError ? '--' : (sizing.exceeded ? 'EXCEEDED' : 'OK')}
           accent={sizing.erosionalError
-            ? 'text-slate-100'
-            : (sizing.exceeded ? 'text-red-400' : 'text-emerald-400')}
+            ? 'text-pl-text'
+            : (sizing.exceeded ? 'text-pl-danger-text' : 'text-pl-success-text')}
           hint={sizing.erosionalError
             ? sizing.erosionalError
             : `ratio ${fmt(sizing.ratio, 2)}: ${fmt(sizing.bindingVFtS, 1)} of `
@@ -76,14 +76,14 @@ const ResultCards = () => {
       <Stat label="Pressure drop" value={fmt(sizing.dpTotalPsi, 1)} unit="psi"
         hint={sizing.steps ? `Beggs & Brill marched in ${sizing.steps} steps` : undefined} />
       <Stat label="Flow pattern" value={patternLabel[sizing.pattern] || sizing.pattern}
-        accent={sizing.pattern === 'intermittent' ? 'text-amber-400' : 'text-slate-100'}
+        accent={sizing.pattern === 'intermittent' ? 'text-pl-warning-text' : 'text-pl-text'}
         hint={sizing.outletPattern && sizing.outletPattern !== sizing.pattern
           ? `at the inlet; ${patternLabel[sizing.outletPattern] || sizing.outletPattern} at the outlet`
           : 'holds the length of the line'} />
       <Stat label="Liquid holdup" value={fmt(sizing.holdup, 3)}
         hint={`no-slip ${fmt(sizing.lambdaL, 3)}`} />
       <Stat label="RP 14E status" value={sizing.exceeded ? 'EXCEEDED' : 'OK'}
-        accent={sizing.exceeded ? 'text-red-400' : 'text-emerald-400'}
+        accent={sizing.exceeded ? 'text-pl-danger-text' : 'text-pl-success-text'}
         hint={sizing.bindsAtInlet === false
           ? `ratio ${fmt(sizing.ratio, 2)}: ${fmt(sizing.bindingVFtS, 1)} of ${fmt(sizing.erosionalFtS, 1)} ft/s `
             + `at the fastest point, ${fmt(sizing.bindingAtFt, 0)} ft along `
@@ -133,7 +133,7 @@ const SweepTable = () => {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+          <tr className="text-left text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
             <th className="py-2 pr-3">Size</th>
             <th className="py-2 pr-3">Bore (in)</th>
             <th className="py-2 pr-3">dP (psi)</th>
@@ -144,27 +144,27 @@ const SweepTable = () => {
         </thead>
         <tbody>
           {sweep.rows.map((r) => (
-            <tr key={r.label} className={`border-b border-slate-800/60 ${sweep.recommended?.label === r.label ? 'bg-emerald-900/20' : ''}`}>
-              <td className="py-1.5 pr-3 text-slate-300">{r.label}</td>
-              <td className="py-1.5 pr-3 tabular-nums">{fmt(r.idIn, 3)}</td>
-              <td className={`py-1.5 pr-3 tabular-nums ${r.overDp ? 'text-amber-400' : ''}`}>{Number.isFinite(r.dpPsi) ? fmt(r.dpPsi, 1) : r.note || '--'}</td>
-              <td className="py-1.5 pr-3 tabular-nums">{fmt(r.vFtS, 2)}</td>
-              <td className="py-1.5 pr-3 tabular-nums">{fmt(r.erosionalFtS, 1)}</td>
-              <td className={`py-1.5 font-semibold ${r.pass ? 'text-emerald-400' : 'text-amber-400'}`}>
+            <tr key={r.label} className={`border-b border-pl-border ${sweep.recommended?.label === r.label ? 'bg-pl-success-bg' : ''}`}>
+              <td className="py-1.5 pr-3 text-pl-text">{r.label}</td>
+              <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{fmt(r.idIn, 3)}</td>
+              <td className={`py-1.5 pr-3 font-pl-mono tabular-nums ${r.overDp ? 'text-pl-warning-text' : ''}`}>{Number.isFinite(r.dpPsi) ? fmt(r.dpPsi, 1) : r.note || '--'}</td>
+              <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{fmt(r.vFtS, 2)}</td>
+              <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{fmt(r.erosionalFtS, 1)}</td>
+              <td className={`py-1.5 font-semibold ${r.pass ? 'text-pl-success-text' : 'text-pl-warning-text'}`}>
                 {r.pass ? (sweep.recommended?.label === r.label ? 'RECOMMENDED' : 'passes') : failReasons(r)}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="text-[11px] text-slate-600 mt-2">
+      <p className="text-[11px] text-pl-muted mt-2">
         The recommendation is the smallest bore that passes every stated limit, which is not
         always the first passing row above: the schedule table runs by nominal size, and a
         heavier schedule of the same nominal size is a smaller bore. Ties break on the thinner
         wall. It is a hydraulic recommendation only; wall thickness is its own check on the
         Wall tab.
       </p>
-      <p className="text-[11px] text-slate-600 mt-1">
+      <p className="text-[11px] text-pl-muted mt-1">
         On a gas or multiphase line the velocity shown is the fastest point along the line,
         which is where the RP 14E check is made. The gas expands as the pressure falls, so the
         fluid runs fastest near the outlet, and a limit checked at the inlet or at the average
@@ -176,12 +176,12 @@ const SweepTable = () => {
 
 const SizingPanel = () => (
   <div className="space-y-4">
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Selected line</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Selected line</CardTitle></CardHeader>
       <CardContent><ResultCards /></CardContent>
     </Card>
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Every schedule bore, same line</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Every schedule bore, same line</CardTitle></CardHeader>
       <CardContent className="space-y-4">
         <SweepChart />
         <SweepTable />

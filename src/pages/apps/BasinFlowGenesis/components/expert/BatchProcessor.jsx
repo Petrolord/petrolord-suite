@@ -58,32 +58,32 @@ const BatchProcessor = () => {
     };
 
     return (
-        <div className="h-full grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 bg-slate-950 overflow-y-auto">
+        <div className="h-full grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 bg-pl-bg overflow-y-auto">
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-white">Batch Simulation</h2>
+                    <h2 className="text-xl font-bold text-pl-text">Batch Simulation</h2>
                     <Button variant="outline" size="sm" onClick={handleSelectAll} className="text-xs">
                         {selectedWells.length === mwState.wells.length ? "Deselect All" : "Select All"}
                     </Button>
                 </div>
 
-                <Card className="bg-slate-900 border-slate-800 flex-1">
+                <Card className="flex-1">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm text-slate-400">Available Wells ({mwState.wells.length})</CardTitle>
+                        <CardTitle className="text-sm text-pl-muted">Available Wells ({mwState.wells.length})</CardTitle>
                     </CardHeader>
                     <ScrollArea className="h-[400px]">
                         <div className="p-2 space-y-1">
                             {mwState.wells.map(well => (
                                 <div 
                                     key={well.id} 
-                                    className={`flex items-center space-x-3 p-3 rounded border transition-colors cursor-pointer ${selectedWells.includes(well.id) ? 'bg-indigo-900/20 border-indigo-500/50' : 'bg-slate-950 border-slate-800 hover:border-slate-700'}`}
+                                    className={`flex items-center space-x-3 p-3 rounded border transition-colors cursor-pointer ${selectedWells.includes(well.id) ? 'bg-pl-sunken border-pl-primary/50' : 'bg-pl-surface border-pl-border hover:border-pl-border-strong'}`}
                                     onClick={() => handleToggleWell(well.id)}
                                 >
                                     <Checkbox checked={selectedWells.includes(well.id)} />
                                     <div className="flex-1">
-                                        <div className="text-sm font-medium text-white">{well.name}</div>
-                                        <div className="text-xs text-slate-500 flex gap-2">
-                                            <span className={`capitalize ${well.status === 'calibrated' ? 'text-emerald-500' : ''}`}>{well.status}</span>
+                                        <div className="text-sm font-medium text-pl-text">{well.name}</div>
+                                        <div className="text-xs text-pl-muted flex gap-2">
+                                            <span className={`capitalize ${well.status === 'calibrated' ? 'text-pl-success-text' : ''}`}>{well.status}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -93,7 +93,7 @@ const BatchProcessor = () => {
                 </Card>
 
                 <Button 
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white h-12 text-lg"
+                    className="w-full h-12 text-lg"
                     onClick={handleRunBatch}
                     disabled={isRunning || selectedWells.length === 0}
                 >
@@ -104,10 +104,10 @@ const BatchProcessor = () => {
 
             <div className="space-y-6">
                 <div>
-                    <h2 className="text-xl font-bold text-white mb-2">Results</h2>
+                    <h2 className="text-xl font-bold text-pl-text mb-2">Results</h2>
                     {isRunning && (
-                        <div className="space-y-2 bg-slate-900 p-4 rounded border border-slate-800">
-                            <div className="flex justify-between text-sm text-slate-300">
+                        <div className="space-y-2 bg-pl-surface p-4 rounded border border-pl-border">
+                            <div className="flex justify-between text-sm text-pl-text">
                                 <span>Processing: {progress.current || '...'}</span>
                                 <span>{progress.completed}/{progress.total}</span>
                             </div>
@@ -117,25 +117,25 @@ const BatchProcessor = () => {
                 </div>
 
                 {results && (
-                    <Card className="bg-slate-900 border-slate-800">
+                    <Card>
                         <ScrollArea className="h-[500px]">
                             <div className="p-4 space-y-2">
                                 {results.map((res, i) => {
                                     const wellName = mwState.wellDataMap[res.wellId]?.name || 'Unknown Well';
                                     return (
-                                        <div key={i} className="p-3 bg-slate-950 rounded border border-slate-800 flex justify-between items-center">
+                                        <div key={i} className="p-3 bg-pl-surface rounded border border-pl-border flex justify-between items-center">
                                             <div className="flex items-center gap-3">
-                                                {res.status === 'success' ? <CheckCircle className="w-5 h-5 text-emerald-500"/> : <XCircle className="w-5 h-5 text-red-500"/>}
+                                                {res.status === 'success' ? <CheckCircle className="w-5 h-5 text-pl-success-text"/> : <XCircle className="w-5 h-5 text-pl-danger-text"/>}
                                                 <div>
-                                                    <div className="text-sm font-medium text-white">{wellName}</div>
+                                                    <div className="text-sm font-medium text-pl-text">{wellName}</div>
                                                     {res.status === 'success' ? (
-                                                        <div className="text-xs text-slate-500">Max Ro: {res.maxRo.toFixed(2)}% | Max Temp: {res.maxTemp.toFixed(0)}°C</div>
+                                                        <div className="text-xs text-pl-muted">Max Ro: {res.maxRo.toFixed(2)}% | Max Temp: {res.maxTemp.toFixed(0)}°C</div>
                                                     ) : (
-                                                        <div className="text-xs text-red-400">{res.error}</div>
+                                                        <div className="text-xs text-pl-danger-text">{res.error}</div>
                                                     )}
                                                 </div>
                                             </div>
-                                            {res.status === 'success' && <Badge variant="outline" className="border-emerald-500/30 text-emerald-400">Success</Badge>}
+                                            {res.status === 'success' && <Badge variant="success">Success</Badge>}
                                         </div>
                                     );
                                 })}
@@ -145,7 +145,7 @@ const BatchProcessor = () => {
                 )}
                 
                 {!results && !isRunning && (
-                    <div className="h-[400px] flex flex-col items-center justify-center text-slate-600 border-2 border-dashed border-slate-800 rounded-lg">
+                    <div className="h-[400px] flex flex-col items-center justify-center text-pl-muted border-2 border-dashed border-pl-border rounded-lg">
                         <Layers className="w-12 h-12 mb-4 opacity-20" />
                         <p>Run a batch to view results summary here.</p>
                     </div>

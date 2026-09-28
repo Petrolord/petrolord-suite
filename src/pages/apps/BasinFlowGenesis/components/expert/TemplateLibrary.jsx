@@ -38,37 +38,38 @@ const TemplateLibrary = () => {
     };
 
     return (
-        <div className="h-full p-6 bg-slate-950 overflow-y-auto">
+        <div className="h-full p-6 bg-pl-bg overflow-y-auto">
             <div className="max-w-5xl mx-auto">
                 <div className="mb-8">
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <BookOpen className="w-6 h-6 text-emerald-400" /> Template Library
+                    <h2 className="text-2xl font-bold text-pl-text flex items-center gap-2">
+                        <BookOpen className="w-6 h-6 text-pl-muted" /> Template Library
                     </h2>
-                    <p className="text-slate-400">Standard basin configurations to jumpstart your modeling.</p>
+                    <p className="text-pl-muted">Standard basin configurations to jumpstart your modeling.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {BasinTemplates.map(t => (
-                        <Card key={t.id} className="bg-slate-900 border-slate-800 hover:border-slate-700 transition-all group">
-                            <div className="h-32 bg-slate-800 bg-cover bg-center" style={{ backgroundImage: `url(${t.image})` }} />
+                        <Card key={t.id} className="hover:border-pl-border-strong transition-all group">
+                            <div className="h-32 bg-pl-sunken bg-cover bg-center" style={{ backgroundImage: `url(${t.image})` }} />
                             <CardHeader>
-                                <CardTitle className="text-lg text-white group-hover:text-emerald-400 transition-colors">
+                                <CardTitle className="text-lg text-pl-text group-hover:text-pl-primary-text transition-colors">
                                     {t.name}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-sm text-slate-400 mb-4 line-clamp-3 min-h-[3rem]">
+                                <p className="text-sm text-pl-muted mb-4 line-clamp-3 min-h-[3rem]">
                                     {t.description}
                                 </p>
                                 <div className="flex flex-wrap gap-2 mb-6">
                                     {t.useCases.slice(0,2).map((u, i) => (
-                                        <span key={i} className="text-[10px] bg-slate-950 px-2 py-1 rounded text-slate-500 border border-slate-800">
+                                        <span key={i} className="text-[10px] bg-pl-sunken px-2 py-1 rounded text-pl-muted border border-pl-border">
                                             {u}
                                         </span>
                                     ))}
                                 </div>
                                 <Button 
-                                    className="w-full bg-slate-800 hover:bg-emerald-600 hover:text-white text-slate-300 transition-all"
+                                    variant="outline"
+                                    className="w-full transition-all"
                                     onClick={() => handleApplyTemplate(t)}
                                 >
                                     Use Template <ArrowRight className="w-4 h-4 ml-2" />
@@ -78,12 +79,12 @@ const TemplateLibrary = () => {
                     ))}
                     
                     {/* Custom Template Placeholder */}
-                    <Card className="bg-slate-950 border-2 border-dashed border-slate-800 flex flex-col items-center justify-center min-h-[300px] hover:bg-slate-900/50 transition-colors cursor-pointer group">
-                        <div className="p-4 bg-slate-900 rounded-full mb-4 group-hover:scale-110 transition-transform">
-                            <Copy className="w-6 h-6 text-slate-500" />
+                    <Card className="border-2 border-dashed flex flex-col items-center justify-center min-h-[300px] hover:bg-pl-sunken transition-colors cursor-pointer group">
+                        <div className="p-4 bg-pl-surface rounded-full mb-4 group-hover:scale-110 transition-transform">
+                            <Copy className="w-6 h-6 text-pl-muted" />
                         </div>
-                        <h3 className="text-slate-400 font-medium">Save Current as Template</h3>
-                        <p className="text-xs text-slate-600 mt-2 max-w-[200px] text-center">
+                        <h3 className="text-pl-muted font-medium">Save Current as Template</h3>
+                        <p className="text-xs text-pl-muted mt-2 max-w-[200px] text-center">
                             Create a custom template from your active project state.
                         </p>
                     </Card>

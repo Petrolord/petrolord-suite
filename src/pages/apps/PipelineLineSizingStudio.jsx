@@ -26,6 +26,7 @@ import PiggingPanel, { PiggingInputs } from '@/components/linesizing/PiggingPane
 import SummaryPanel from '@/components/linesizing/SummaryPanel';
 import LineSizingHelpContent from '@/components/linesizing/LineSizingHelpGuide';
 import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'sizing', label: 'Line Sizing' },
@@ -35,7 +36,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const StudioContent = () => {
@@ -138,7 +139,6 @@ const StudioContent = () => {
             backTo="/dashboard/facilities"
             backTitle="Back to Facilities Engineering"
             icon={Ruler}
-            iconGradientClass="from-blue-600 to-indigo-700"
             title="Pipeline & Line Sizing Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -148,12 +148,12 @@ const StudioContent = () => {
         headerActions={
           <>
             <FullPrecisionToggle app="line-sizing-studio" />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Pipeline & Line Sizing Guide"
               description="Which equation fits which line, what the limits mean, and where a single-line tool honestly stops."
@@ -173,12 +173,17 @@ const StudioContent = () => {
   );
 };
 
+// Design system rollout batch 5A (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class in its own files is a
+// theme role.
 const PipelineLineSizingStudio = () => (
-  <LineSizingProvider>
-    <FullPrecisionProvider>
-      <StudioContent />
-    </FullPrecisionProvider>
-  </LineSizingProvider>
+  <ThemedApp data-testid="linesizing-theme-scope">
+    <LineSizingProvider>
+      <FullPrecisionProvider>
+        <StudioContent />
+      </FullPrecisionProvider>
+    </LineSizingProvider>
+  </ThemedApp>
 );
 
 export default PipelineLineSizingStudio;

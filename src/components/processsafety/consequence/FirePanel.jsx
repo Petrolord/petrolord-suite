@@ -42,7 +42,7 @@ const FireInputs = () => {
         </Grid>
         {f.burningMethod === 'babrauskas' ? (
           <Grid cols="md:grid-cols-4">
-            <label className="flex items-center gap-2 text-xs text-slate-300 md:col-span-4">
+            <label className="flex items-center gap-2 text-xs text-pl-text md:col-span-4">
               <input type="checkbox" checked={f.customBurning} onChange={(ev) => set({ customBurning: ev.target.checked })} />
               Give the two coefficients myself instead of a Table 6.5 fuel
             </label>
@@ -154,7 +154,7 @@ const HeatFluxDistance = () => {
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <StateBadge state={r.state} testId="fire-distance-state" />
-            <span className="text-sm text-slate-200">{HEAT_DISTANCE_STATE_TEXT[r.state]}</span>
+            <span className="text-sm text-pl-text">{HEAT_DISTANCE_STATE_TEXT[r.state]}</span>
           </div>
           {r.state === 'REACHED' ? (
             <Grid cols="md:grid-cols-4">

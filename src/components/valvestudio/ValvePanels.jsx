@@ -22,17 +22,17 @@ const travelValue = (state, pct) => {
 };
 
 const STATE_ACCENT = (state, alarm) => {
-  if (state === 'beyond the valve') return 'text-red-400';
-  if (state === 'not given') return 'text-slate-500';
-  return alarm ? 'text-red-400' : 'text-slate-100';
+  if (state === 'beyond the valve') return 'text-pl-danger-text';
+  if (state === 'not given') return 'text-pl-muted';
+  return alarm ? 'text-pl-danger-text' : 'text-pl-text';
 };
 
 const REGIME_ACCENT = {
-  stable: 'text-emerald-400',
-  'incipient cavitation': 'text-yellow-400',
-  cavitating: 'text-orange-400',
-  'choked, cavitating': 'text-red-400',
-  flashing: 'text-red-400',
+  stable: 'text-pl-success-text',
+  'incipient cavitation': 'text-pl-warning-text',
+  cavitating: 'text-pl-warning-text',
+  'choked, cavitating': 'text-pl-danger-text',
+  flashing: 'text-pl-danger-text',
 };
 
 export const ServiceInputs = () => {
@@ -41,7 +41,7 @@ export const ServiceInputs = () => {
     <div className="space-y-4">
       <Field label="Service">
         <Select value={inputs.service.phase} onValueChange={(v) => setSection('service', 'phase', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="liquid">Liquid</SelectItem>
             <SelectItem value="gas">Gas or vapour</SelectItem>
@@ -50,7 +50,7 @@ export const ServiceInputs = () => {
       </Field>
       <Field label="Valve style" hint="Sets the recovery factor and terminal ratio. These are this engine's stated table values, no standard in this package supplies them, and certified vendor trim data always replaces them.">
         <Select value={inputs.service.styleId} onValueChange={(v) => setSection('service', 'styleId', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             {styles.map((s) => (
               <SelectItem key={s.id} value={s.id}>{s.label} (FL {s.fl}, xT {s.xt})</SelectItem>
@@ -65,7 +65,7 @@ export const ServiceInputs = () => {
 
       {isLiquid ? (
         <>
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Liquid</p>
+          <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold pt-2">Liquid</p>
           <div className="grid grid-cols-3 gap-2">
             <Field label="Min (gpm)"><NumberInput section="liquid" name="qMinGpm" /></Field>
             <Field label="Normal"><NumberInput section="liquid" name="qNormGpm" /></Field>
@@ -79,7 +79,7 @@ export const ServiceInputs = () => {
         </>
       ) : (
         <>
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Gas</p>
+          <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold pt-2">Gas</p>
           <div className="grid grid-cols-3 gap-2">
             <Field label="Min (scfh)"><NumberInput section="gas" name="qMinScfh" compact /></Field>
             <Field label="Normal"><NumberInput section="gas" name="qNormScfh" compact /></Field>
@@ -96,14 +96,14 @@ export const ServiceInputs = () => {
         </>
       )}
 
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Valve</p>
+      <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold pt-2">Valve</p>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Rated Cv"><NumberInput section="valve" name="cvRated" /></Field>
         <Field label="Rangeability"><NumberInput section="valve" name="rangeability" /></Field>
       </div>
       <Field label="Characteristic">
         <Select value={inputs.valve.characteristic} onValueChange={(v) => setSection('valve', 'characteristic', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="equalPercentage">Equal percentage</SelectItem>
             <SelectItem value="linear">Linear</SelectItem>
@@ -123,7 +123,7 @@ export const ServiceInputs = () => {
       </div>
       <Field label="Erosional C factor">
         <Select value={inputs.valve.erosionalCPreset} onValueChange={(v) => setSection('valve', 'erosionalCPreset', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             {EROSIONAL_PRESETS.map((x) => (
               <SelectItem key={x.id} value={x.id}>{x.label} (C {x.c})</SelectItem>
@@ -140,13 +140,13 @@ export const SizingResults = () => {
   const anyChoked = cases.some((c) => !c.error && c.choked);
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Cv at each flow</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Cv at each flow</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                <tr className="text-left text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
                   <th className="py-2 pr-3">Case</th>
                   <th className="py-2 pr-3">Flow</th>
                   <th className="py-2 pr-3">Required Cv</th>
@@ -168,26 +168,26 @@ export const SizingResults = () => {
               </thead>
               <tbody>
                 {cases.map((c) => (
-                  <tr key={c.label} className="border-b border-slate-800/60">
-                    <td className="py-1.5 pr-3 text-slate-300">{c.label}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{fmt(c.flow, 0)}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{c.error ? '--' : fmt(c.cv, 2)}</td>
+                  <tr key={c.label} className="border-b border-pl-border">
+                    <td className="py-1.5 pr-3 text-pl-text">{c.label}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{fmt(c.flow, 0)}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{c.error ? '--' : fmt(c.cv, 2)}</td>
                     {isLiquid ? (
                       <>
-                        <td className="py-1.5 pr-3 tabular-nums">{c.error ? '--' : fmt(c.dpAllowablePsi, 1)}</td>
-                        <td className="py-1.5 pr-3 tabular-nums">
+                        <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{c.error ? '--' : fmt(c.dpAllowablePsi, 1)}</td>
+                        <td className="py-1.5 pr-3 font-pl-mono tabular-nums">
                           {c.error ? '--' : (Number.isFinite(c.sigma) ? fmt(c.sigma, 2) : 'n/a')}
                         </td>
-                        <td className={`py-1.5 font-semibold ${REGIME_ACCENT[c.regime] || 'text-slate-300'}`}>
+                        <td className={`py-1.5 font-semibold ${REGIME_ACCENT[c.regime] || 'text-pl-text'}`}>
                           {c.error ? 'error' : c.regime}
                         </td>
                       </>
                     ) : (
                       <>
-                        <td className="py-1.5 pr-3 tabular-nums">{c.error ? '--' : fmt(c.x, 3)}</td>
-                        <td className="py-1.5 pr-3 tabular-nums">{c.error ? '--' : fmt(c.xChoked, 3)}</td>
-                        <td className="py-1.5 pr-3 tabular-nums">{c.error ? '--' : fmt(c.y, 3)}</td>
-                        <td className={`py-1.5 font-semibold ${c.choked ? 'text-red-400' : 'text-emerald-400'}`}>
+                        <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{c.error ? '--' : fmt(c.x, 3)}</td>
+                        <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{c.error ? '--' : fmt(c.xChoked, 3)}</td>
+                        <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{c.error ? '--' : fmt(c.y, 3)}</td>
+                        <td className={`py-1.5 font-semibold ${c.choked ? 'text-pl-danger-text' : 'text-pl-success-text'}`}>
                           {c.error ? 'error' : (c.choked ? 'yes' : 'no')}
                         </td>
                       </>
@@ -203,7 +203,7 @@ export const SizingResults = () => {
           {cases.filter((c) => c.error).map((c) => (
             <ErrorNote key={c.label}>{c.label}: {c.error}</ErrorNote>
           ))}
-          <p className="text-[12px] text-slate-500">
+          <p className="text-[12px] text-pl-muted">
             {anyChoked
               ? 'At least one case is choked. Past that point the extra pressure drop does nothing at all, so the allowable drop has been used for sizing. Sizing on the full stated drop would have undersized the valve, which is the classic way a control valve ends up unable to pass its own design case.'
               : isLiquid
@@ -213,8 +213,8 @@ export const SizingResults = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Body velocity limit</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Body velocity limit</CardTitle></CardHeader>
         <CardContent>
           {erosional.error ? <ErrorNote>{erosional.error}</ErrorNote> : (
             <>
@@ -225,7 +225,7 @@ export const SizingResults = () => {
                 <Stat label="Erosional velocity" value={fmt(erosional.erosionalFtS, 1)} unit="ft/s"
                   hint={`API RP 14E at C = ${erosional.cFactor}`} />
                 <Stat label="Of the limit" value={fmt(erosional.ratio * 100, 0)} unit="%"
-                  accent={erosional.exceeded ? 'text-red-400' : 'text-emerald-400'}
+                  accent={erosional.exceeded ? 'text-pl-danger-text' : 'text-pl-success-text'}
                   hint={erosional.exceeded ? 'over the limit' : `${fmt(erosional.marginPct, 0)} percent margin`} />
               </div>
               {erosional.exceeded && (
@@ -236,7 +236,7 @@ export const SizingResults = () => {
                   downstream line, or a C factor you can justify for a clean inhibited service.
                 </WarnNote>
               )}
-              <p className="text-[12px] text-slate-500 mt-3">
+              <p className="text-[12px] text-pl-muted mt-3">
                 The same RP 14E limit the line sizing studio uses, applied at the valve outlet
                 where the fluid has expanded and is moving fastest. The velocity is the in-situ
                 rate of the maximum case through the outlet bore you state, so the check has two
@@ -255,33 +255,33 @@ export const ControlResults = () => {
   const travelWarnings = travel.warnings || [];
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Authority and characteristic</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Authority and characteristic</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {authority.error ? <ErrorNote>{authority.error}</ErrorNote> : (
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Stat label="Valve authority" value={fmt(authority.authority, 3)}
-                  accent={authority.verdict === 'good' ? 'text-emerald-400'
-                    : (authority.verdict === 'poor' ? 'text-red-400' : 'text-yellow-400')}
+                  accent={authority.verdict === 'good' ? 'text-pl-success-text'
+                    : (authority.verdict === 'poor' ? 'text-pl-danger-text' : 'text-pl-warning-text')}
                   hint={authority.verdict} />
                 <Stat label="Recommended characteristic"
                   value={authority.recommendation?.characteristicLabel || '--'}
-                  accent={authority.recommendationApplied ? 'text-emerald-400' : 'text-amber-400'}
+                  accent={authority.recommendationApplied ? 'text-pl-success-text' : 'text-pl-warning-text'}
                   hint={authority.recommendationApplied ? 'this is the trim selected' : 'not the trim selected'} />
               </div>
               {authority.note && <WarnNote>{authority.note}</WarnNote>}
               {authority.disagreement && <WarnNote>{authority.disagreement}</WarnNote>}
               {authority.recommendation?.reason && (
-                <p className="text-[12px] text-slate-500 first-letter:uppercase">{authority.recommendation.reason}</p>
+                <p className="text-[12px] text-pl-muted first-letter:uppercase">{authority.recommendation.reason}</p>
               )}
             </>
           )}
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Travel at each flow</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Travel at each flow</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {travel.error ? <ErrorNote>{travel.error}</ErrorNote> : (
             <>
@@ -298,12 +298,12 @@ export const ControlResults = () => {
                   accent={STATE_ACCENT(travel.maxState, false)} />
                 <Stat label="Verdict"
                   value={travel.pass === null ? 'NO VERDICT' : (travel.pass ? 'WORKABLE' : 'CHECK')}
-                  accent={travel.pass === null ? 'text-slate-400' : (travel.pass ? 'text-emerald-400' : 'text-amber-400')}
+                  accent={travel.pass === null ? 'text-pl-muted' : (travel.pass ? 'text-pl-success-text' : 'text-pl-warning-text')}
                   hint={`${travel.checksPerformed} of ${travel.checksPossible} checks ran`} />
               </div>
               {travel.passWithheldReason && <WarnNote>{travel.passWithheldReason}</WarnNote>}
               {travelWarnings.map((w) => <WarnNote key={w}>{w}</WarnNote>)}
-              <p className="text-[12px] text-slate-500">
+              <p className="text-[12px] text-pl-muted">
                 A valve sized only for the maximum can sit almost on its seat at turndown, where the
                 characteristic collapses and the loop cannot control. That failure never shows in a
                 single-point Cv calculation, which is why this studio sizes at three flows.
@@ -314,14 +314,14 @@ export const ControlResults = () => {
       </Card>
 
       {!isLiquid && noise && noise.error && (
-        <Card className="bg-slate-900/60 border-slate-800">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Aerodynamic noise indication</CardTitle></CardHeader>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Aerodynamic noise indication</CardTitle></CardHeader>
           <CardContent><ErrorNote>{noise.error}</ErrorNote></CardContent>
         </Card>
       )}
       {!isLiquid && noise && !noise.error && (
-        <Card className="bg-slate-900/60 border-slate-800">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Aerodynamic noise indication</CardTitle></CardHeader>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Aerodynamic noise indication</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Stat label="Pressure ratio" value={fmt(noise.pressureRatio, 2)} />
@@ -329,13 +329,13 @@ export const ControlResults = () => {
                 hint="the quantity the band is held down or raised by" />
               <Stat label="Mass flow" value={fmt(noise.massFlowLbHr, 0)} unit="lb/hr" />
               <Stat label="Band" value={noise.band}
-                accent={noise.band === 'severe' ? 'text-red-400'
-                  : (noise.band === 'high' ? 'text-orange-400' : 'text-emerald-400')}
+                accent={noise.band === 'severe' ? 'text-pl-danger-text'
+                  : (noise.band === 'high' ? 'text-pl-warning-text' : 'text-pl-success-text')}
                 hint={noise.band === noise.ratioBand ? 'from the pressure ratio' : `the ratio alone said ${noise.ratioBand}`} />
             </div>
-            {noise.powerEffect && <p className="text-[12px] text-amber-400/80">{noise.powerEffect}</p>}
+            {noise.powerEffect && <p className="text-[12px] text-pl-warning-text">{noise.powerEffect}</p>}
             {noise.warning && <WarnNote>{noise.warning}</WarnNote>}
-            <p className="text-[12px] text-slate-500 first-letter:uppercase">{noise.note}</p>
+            <p className="text-[12px] text-pl-muted first-letter:uppercase">{noise.note}</p>
           </CardContent>
         </Card>
       )}

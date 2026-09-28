@@ -70,7 +70,7 @@ const FireFields = () => {
     <>
       <Field label="Vessel orientation">
         <Select value={inputs.fire.orientation} onValueChange={(v) => setSection('fire', 'orientation', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="horizontal">Horizontal</SelectItem>
             <SelectItem value="vertical">Vertical</SelectItem>
@@ -84,7 +84,7 @@ const FireFields = () => {
       </div>
       <Field label="Drainage and firefighting">
         <Select value={inputs.fire.adequateDrainage} onValueChange={(v) => setSection('fire', 'adequateDrainage', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="yes">Adequate (Q = 21000 F A^0.82)</SelectItem>
             <SelectItem value="no">Not adequate (Q = 34500 F A^0.82)</SelectItem>
@@ -124,7 +124,7 @@ const PsvInputsPanel = () => {
     <div className="space-y-4">
       <Field label="Scenario">
         <Select value={inputs.scenario} onValueChange={setScenario}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="gas">Gas / vapor</SelectItem>
             <SelectItem value="liquid">Liquid</SelectItem>

@@ -21,7 +21,7 @@ const Cellish = ({
     type="text" inputMode="decimal" value={value ?? ''} placeholder={placeholder} aria-label={label}
     aria-invalid={error ? 'true' : undefined} data-testid={testId}
     onChange={(e) => onChange(e.target.value)}
-    className={`h-8 bg-slate-950 font-mono text-sm ${error ? 'border-red-500/70' : 'border-slate-700'}`}
+    className={`h-8 font-mono text-sm ${error ? 'border-pl-danger' : ''}`}
   />
 );
 
@@ -30,7 +30,7 @@ const MiniSelect = ({
 }) => (
   <select
     aria-label={label} data-testid={testId} value={value} onChange={(e) => onChange(e.target.value)}
-    className="h-8 w-full rounded-md border border-slate-700 bg-slate-950 px-1 text-xs text-slate-100"
+    className="h-8 w-full rounded-md border border-pl-border-strong bg-pl-surface px-1 text-xs text-pl-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus"
   >
     {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
   </select>
@@ -56,7 +56,7 @@ const Scenarios = () => {
     <Panel title="Scenarios" testId="register-scenarios">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[56rem] text-xs">
-          <thead className="text-left text-slate-400">
+          <thead className="text-left text-pl-muted">
             <tr>
               <th className="py-1 pr-2">Name</th>
               <th className="py-1 pr-2">Frequency from</th>
@@ -72,9 +72,9 @@ const Scenarios = () => {
               const f = freqs[i];
               const set = (patch) => updateScenario(s.id, patch);
               return (
-                <tr key={s.id} className="border-t border-slate-800 align-top" data-testid={`scenario-${i}`}>
+                <tr key={s.id} className="border-t border-pl-border align-top" data-testid={`scenario-${i}`}>
                   <td className="py-1 pr-2">
-                    <Input value={s.name} aria-label={`Scenario ${i + 1} name`} onChange={(e) => set({ name: e.target.value })} className="h-8 border-slate-700 bg-slate-950 text-sm" />
+                    <Input value={s.name} aria-label={`Scenario ${i + 1} name`} onChange={(e) => set({ name: e.target.value })} className="h-8 text-sm" />
                   </td>
                   <td className="py-1 pr-2">
                     <MiniSelect label={`Scenario ${i + 1} frequency from`} value={s.frequencySource} options={FREQUENCY_SOURCES} onChange={(v) => set({ frequencySource: v })} testId={`scenario-${i}-freq-source`} />
@@ -87,7 +87,7 @@ const Scenarios = () => {
                           options={EVENT_TREE_OUTCOMES.map((o) => ({ id: o, label: o }))}
                           onChange={(v) => set({ outcome: v })} testId={`scenario-${i}-outcome`}
                         />
-                        <div className="font-mono text-sky-200" data-testid={`scenario-${i}-freq`} title="Carried over from the event tree">
+                        <div className="font-mono text-pl-info-text" data-testid={`scenario-${i}-freq`} title="Carried over from the event tree">
                           {f.refusal ? 'n/a' : formatSci(f.value, 4)}
                         </div>
                       </div>
@@ -97,7 +97,7 @@ const Scenarios = () => {
                         onChange={(v) => set({ frequencyPerYr: v })} testId={`scenario-${i}-freq-input`}
                       />
                     )}
-                    {f.refusal ? <div role="alert" className="mt-1 text-[11px] text-red-300">{f.refusal.error}</div> : null}
+                    {f.refusal ? <div role="alert" className="mt-1 text-[11px] text-pl-danger-text">{f.refusal.error}</div> : null}
                   </td>
                   <td className="py-1 pr-2">
                     <Cellish label={`Scenario ${i + 1} expected deaths`} value={s.fatalities} onChange={(v) => set({ fatalities: v })} testId={`scenario-${i}-n-input`} />
@@ -108,7 +108,7 @@ const Scenarios = () => {
                   <td className="py-1 pr-2">
                     {s.effect === 'fire' ? (
                       <Cellish label={`Scenario ${i + 1} fire duration`} value={s.fireDurationS} onChange={(v) => set({ fireDurationS: v })} testId={`scenario-${i}-duration-input`} />
-                    ) : <span className="text-slate-600">n/a</span>}
+                    ) : <span className="text-pl-muted">n/a</span>}
                   </td>
                   <td className="py-1">
                     <RemoveButton label={`Remove scenario ${scenarioLabel(s, i)}`} onClick={() => removeScenario(s.id)} />
@@ -119,7 +119,7 @@ const Scenarios = () => {
           </tbody>
         </table>
       </div>
-      <Button type="button" size="sm" variant="outline" onClick={addScenario} className="border-slate-700 bg-slate-900 text-slate-200" data-testid="add-scenario">
+      <Button type="button" size="sm" variant="outline" onClick={addScenario} data-testid="add-scenario">
         <Plus className="mr-1 h-4 w-4" /> Add scenario
       </Button>
       <Note>
@@ -139,7 +139,7 @@ const Locations = () => {
     <Panel title="Locations" testId="register-locations">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[48rem] text-xs">
-          <thead className="text-left text-slate-400">
+          <thead className="text-left text-pl-muted">
             <tr>
               <th className="py-1 pr-2">Name</th>
               <th className="py-1 pr-2">Judged against</th>
@@ -153,9 +153,9 @@ const Locations = () => {
             {study.locations.map((l, j) => {
               const set = (patch) => updateLocation(l.id, patch);
               return (
-                <tr key={l.id} className="border-t border-slate-800" data-testid={`location-${j}`}>
+                <tr key={l.id} className="border-t border-pl-border" data-testid={`location-${j}`}>
                   <td className="py-1 pr-2">
-                    <Input value={l.name} aria-label={`Location ${j + 1} name`} onChange={(e) => set({ name: e.target.value })} className="h-8 border-slate-700 bg-slate-950 text-sm" />
+                    <Input value={l.name} aria-label={`Location ${j + 1} name`} onChange={(e) => set({ name: e.target.value })} className="h-8 text-sm" />
                   </td>
                   <td className="py-1 pr-2">
                     <MiniSelect label={`Location ${j + 1} criterion`} value={l.criterion} options={IR_CRITERIA} onChange={(v) => set({ criterion: v })} testId={`location-${j}-criterion`} />
@@ -178,7 +178,7 @@ const Locations = () => {
           </tbody>
         </table>
       </div>
-      <Button type="button" size="sm" variant="outline" onClick={addLocation} className="border-slate-700 bg-slate-900 text-slate-200" data-testid="add-location">
+      <Button type="button" size="sm" variant="outline" onClick={addLocation} data-testid="add-location">
         <Plus className="mr-1 h-4 w-4" /> Add location
       </Button>
       <Note>
@@ -212,7 +212,7 @@ const CellEditor = ({ scenario, location, i, j }) => {
     input = (
       <div className="space-y-1">
         {scenario.effect === 'fire' ? (
-          <label className="flex items-center gap-1 text-[11px] text-slate-400">
+          <label className="flex items-center gap-1 text-[11px] text-pl-muted">
             <input type="checkbox" checked={Boolean(cell.inFlame)} onChange={(e) => set({ inFlame: e.target.checked })} aria-label={`${label}, in the flame envelope`} />
             in the flame
           </label>
@@ -227,15 +227,15 @@ const CellEditor = ({ scenario, location, i, j }) => {
     );
   }
   return (
-    <td className="min-w-[10rem] border-l border-slate-800 px-2 py-1 align-top" data-testid={tid}>
+    <td className="min-w-[10rem] border-l border-pl-border px-2 py-1 align-top" data-testid={tid}>
       <MiniSelect label={`${label}, probability from`} value={cell.mode} options={PD_MODES} onChange={(v) => set({ mode: v })} testId={`${tid}-mode`} />
       <div className="mt-1">{input}</div>
       {result?.error ? (
-        <div role="alert" className="mt-1 text-[11px] text-red-300">{result.error}</div>
+        <div role="alert" className="mt-1 text-[11px] text-pl-danger-text">{result.error}</div>
       ) : (
-        <div className="mt-1 font-mono text-[11px] text-slate-300">
-          Pd <span data-testid={`${tid}-pd`} className="text-white">{formatSci(result?.probabilityOfDeath, 4)}</span>
-          {!result?.typed && result?.exposureTimeUsedS ? <span className="text-slate-500"> ({result.exposureTimeUsedS} s)</span> : null}
+        <div className="mt-1 font-mono text-[11px] text-pl-text">
+          Pd <span data-testid={`${tid}-pd`} className="text-pl-text">{formatSci(result?.probabilityOfDeath, 4)}</span>
+          {!result?.typed && result?.exposureTimeUsedS ? <span className="text-pl-muted"> ({result.exposureTimeUsedS} s)</span> : null}
         </div>
       )}
     </td>
@@ -255,18 +255,18 @@ const Matrix = () => {
     <Panel title="Probability of death at each location" testId="register-matrix">
       <div className="overflow-x-auto">
         <table className="text-xs">
-          <thead className="text-left text-slate-400">
+          <thead className="text-left text-pl-muted">
             <tr>
               <th className="py-1 pr-2">Scenario</th>
-              {study.locations.map((l, j) => <th key={l.id} className="border-l border-slate-800 px-2 py-1">{locationLabel(l, j)}</th>)}
+              {study.locations.map((l, j) => <th key={l.id} className="border-l border-pl-border px-2 py-1">{locationLabel(l, j)}</th>)}
             </tr>
           </thead>
           <tbody>
             {study.scenarios.map((s, i) => (
-              <tr key={s.id} className="border-t border-slate-800">
-                <td className="py-1 pr-2 align-top text-slate-300">
+              <tr key={s.id} className="border-t border-pl-border">
+                <td className="py-1 pr-2 align-top text-pl-text">
                   {scenarioLabel(s, i)}
-                  <div className="text-[10px] text-slate-500">{s.effect}</div>
+                  <div className="text-[10px] text-pl-muted">{s.effect}</div>
                 </td>
                 {study.locations.map((l, j) => <CellEditor key={l.id} scenario={s} location={l} i={i} j={j} />)}
               </tr>

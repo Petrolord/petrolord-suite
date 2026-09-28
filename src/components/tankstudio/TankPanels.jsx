@@ -32,7 +32,7 @@ export const TankInputs = () => {
         </Field>
       </div>
 
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Venting</p>
+      <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold pt-2">Venting</p>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Fill rate (bbl/hr)"><NumberInput section="venting" name="fillBblPerHr" /></Field>
         <Field label="Draw rate (bbl/hr)"><NumberInput section="venting" name="drawBblPerHr" /></Field>
@@ -40,7 +40,7 @@ export const TankInputs = () => {
       <div className="grid grid-cols-2 gap-2">
         <Field label="High volatility">
           <Select value={inputs.venting.highVolatility} onValueChange={(v) => setSection('venting', 'highVolatility', v)}>
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="no">No</SelectItem>
               <SelectItem value="yes">Yes</SelectItem>
@@ -49,7 +49,7 @@ export const TankInputs = () => {
         </Field>
         <Field label="Insulated">
           <Select value={inputs.venting.insulated} onValueChange={(v) => setSection('venting', 'insulated', v)}>
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="no">No</SelectItem>
               <SelectItem value="yes">Yes</SelectItem>
@@ -66,13 +66,13 @@ export const TankInputs = () => {
         </Field>
       </div>
 
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Losses</p>
-      <div className="rounded-md border border-slate-800 bg-slate-900/40 px-3 py-2">
-        <p className="text-[11px] uppercase tracking-wider text-slate-500">Vapour space</p>
-        <p className="text-sm font-semibold text-slate-100 tabular-nums">
-          {fmt(vapourSpaceHeightFt, 1)} <span className="text-xs font-normal text-slate-500">ft</span>
+      <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold pt-2">Losses</p>
+      <div className="rounded-md border border-pl-border bg-pl-sunken px-3 py-2">
+        <p className="text-[11px] uppercase tracking-wider text-pl-muted">Vapour space</p>
+        <p className="text-sm font-semibold text-pl-text font-pl-mono tabular-nums">
+          {fmt(vapourSpaceHeightFt, 1)} <span className="text-xs font-normal text-pl-muted">ft</span>
         </p>
-        <p className="text-[11px] text-slate-600 mt-0.5">
+        <p className="text-[11px] text-pl-muted mt-0.5">
           The shell height less the design liquid level, so the geometry above and the losses
           below cannot contradict each other.
         </p>
@@ -111,8 +111,8 @@ export const ShellResults = () => {
   const anyTestGoverned = shell.testGovernedCount > 0;
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Capacity</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Capacity</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat label="Nominal" value={fmt(capacity.nominalBbl, 0)} unit="bbl" />
@@ -125,13 +125,13 @@ export const ShellResults = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Shell courses (API 650, one-foot method)</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Shell courses (API 650, one-foot method)</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                <tr className="text-left text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
                   <th className="py-2 pr-3">Course</th>
                   <th className="py-2 pr-3">From (ft)</th>
                   <th className="py-2 pr-3">Head (ft)</th>
@@ -143,14 +143,14 @@ export const ShellResults = () => {
               </thead>
               <tbody>
                 {shell.courses.map((c) => (
-                  <tr key={c.course} className="border-b border-slate-800/60">
-                    <td className="py-1.5 pr-3 text-slate-300">{c.course}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{fmt(c.bottomFt, 0)}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{fmt(c.headFt, 1)}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{fmt(c.tDesignIn, 4)}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{fmt(c.tTestIn, 4)}</td>
-                    <td className="py-1.5 pr-3 tabular-nums font-semibold">{fmt(c.requiredIn, 4)}</td>
-                    <td className={`py-1.5 ${c.governing === 'hydrostatic test' ? 'text-amber-400' : 'text-slate-400'}`}>
+                  <tr key={c.course} className="border-b border-pl-border">
+                    <td className="py-1.5 pr-3 text-pl-text">{c.course}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{fmt(c.bottomFt, 0)}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{fmt(c.headFt, 1)}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{fmt(c.tDesignIn, 4)}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{fmt(c.tTestIn, 4)}</td>
+                    <td className="py-1.5 pr-3 font-pl-mono tabular-nums font-semibold">{fmt(c.requiredIn, 4)}</td>
+                    <td className={`py-1.5 ${c.governing === 'hydrostatic test' ? 'text-pl-warning-text' : 'text-pl-muted'}`}>
                       {c.governing}
                     </td>
                   </tr>
@@ -163,14 +163,14 @@ export const ShellResults = () => {
               hint={shell.governingReason} />
             <Stat label="Thickest" value={fmt(shell.thickestRequiredIn, 4)} unit="in" />
             <Stat label="Water test governs" value={`${shell.testGovernedCount} of ${shell.count}`}
-              accent={shell.testGovernedCount > 0 ? 'text-amber-400' : 'text-slate-100'} />
+              accent={shell.testGovernedCount > 0 ? 'text-pl-warning-text' : 'text-pl-text'} />
             <Stat label="Minimum plate in force" value={fmt(shell.minimumThicknessIn, 4)} unit="in"
               hint={`governs ${shell.minimumGovernedCount} of ${shell.count}`} />
           </div>
-          <p className="text-[12px] text-slate-500">
+          <p className="text-[12px] text-pl-muted">
             {shell.courses[0].minimumThicknessBasis}
           </p>
-          <p className="text-[12px] text-slate-500 first-letter:uppercase">{plain(shell.courses[0].methodNote)}</p>
+          <p className="text-[12px] text-pl-muted first-letter:uppercase">{plain(shell.courses[0].methodNote)}</p>
           {anyTestGoverned && (
             <WarnNote>
               The hydrostatic test governs at least one course. A light product does not stress the
@@ -188,8 +188,8 @@ export const VentingResults = () => {
   const { venting, fire } = useTank();
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Normal venting (API 2000)</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Normal venting (API 2000)</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {venting.error ? <ErrorNote>{venting.error}</ErrorNote> : (
             <>
@@ -199,20 +199,20 @@ export const VentingResults = () => {
                 <Stat label="Inbreathing (vacuum)" value={fmt(venting.inbreathingScfh, 0)} unit="scfh"
                   hint={`${fmt(venting.movement.inbreathingScfh, 0)} from drawing`} />
                 <Stat label="Governing case" value={venting.governing}
-                  accent={venting.governing.startsWith('vacuum') ? 'text-amber-400' : 'text-slate-100'} />
+                  accent={venting.governing.startsWith('vacuum') ? 'text-pl-warning-text' : 'text-pl-text'} />
                 <Stat label="Thermal inbreathing" value={fmt(venting.thermal.inbreathingScfh, 0)} unit="scfh" />
               </div>
               {venting.warning && <WarnNote>{plain(venting.warning)}</WarnNote>}
               {venting.thermalWarning && <WarnNote>{plain(venting.thermalWarning)}</WarnNote>}
-              {venting.thermal.note && <p className="text-[12px] text-slate-500 first-letter:uppercase">{plain(venting.thermal.note)}</p>}
-              <p className="text-[12px] text-slate-500 first-letter:uppercase">{plain(venting.thermal.basis)}</p>
+              {venting.thermal.note && <p className="text-[12px] text-pl-muted first-letter:uppercase">{plain(venting.thermal.note)}</p>}
+              <p className="text-[12px] text-pl-muted first-letter:uppercase">{plain(venting.thermal.basis)}</p>
             </>
           )}
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Emergency (fire) venting</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Emergency (fire) venting</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {fire.error ? <ErrorNote>{fire.error}</ErrorNote> : (
             <>
@@ -221,12 +221,12 @@ export const VentingResults = () => {
                   hint={`counted to ${fmt(fire.effectiveHeightFt, 0)} ft`} />
                 <Stat label="Heat input" value={fmt(fire.qBtuHr / 1e6, 2)} unit="MMBtu/hr"
                   hint={`band: ${fire.band}`} />
-                <Stat label="Required vent" value="withheld" accent="text-amber-400"
+                <Stat label="Required vent" value="withheld" accent="text-pl-warning-text"
                   hint="see below" />
               </div>
               {fire.ventWithheld && <WarnNote>{plain(fire.ventWithheldReason)}</WarnNote>}
               {fire.warning && <WarnNote>{plain(fire.warning)}</WarnNote>}
-              {fire.note && <p className="text-[12px] text-slate-500 first-letter:uppercase">{plain(fire.note)}</p>}
+              {fire.note && <p className="text-[12px] text-pl-muted first-letter:uppercase">{plain(fire.note)}</p>}
             </>
           )}
         </CardContent>
@@ -239,8 +239,8 @@ export const LossResults = () => {
   const { losses } = useTank();
   if (losses.error) return <ErrorNote>{losses.error}</ErrorNote>;
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Evaporative losses</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Evaporative losses</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Stat label="Standing loss" value={fmt(losses.standingLossLbYr, 0)} unit="lb/yr"
@@ -248,11 +248,11 @@ export const LossResults = () => {
           <Stat label="Working loss" value={fmt(losses.workingLossLbYr, 0)} unit="lb/yr"
             hint="from filling and emptying" />
           <Stat label="Total" value={fmt(losses.totalLossShortTonsYr, 1)} unit="short tons/yr"
-            accent="text-amber-400" />
+            accent="text-pl-text" />
           <Stat label="With control"
             value={losses.control.error ? '--' : fmt(losses.control.remainingLbYr / 2000, 1)}
             unit="short tons/yr"
-            accent="text-emerald-400"
+            accent="text-pl-text"
             hint={losses.control.error ? 'no control efficiency stated' : `${fmt(losses.control.savedLbYr / 2000, 1)} short tons/yr saved`} />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -262,9 +262,9 @@ export const LossResults = () => {
           <Stat label="Vapour density" value={fmt(losses.vapourDensityLbFt3, 5)} unit="lb/ft3" />
         </div>
         {losses.control.error && <ErrorNote>{losses.control.error}</ErrorNote>}
-        <p className="text-[12px] text-slate-500 first-letter:uppercase">{plain(losses.note)}</p>
-        <p className="text-[12px] text-slate-500 first-letter:uppercase">{plain(losses.turnoverFactorNote)}</p>
-        {losses.control.note && <p className="text-[12px] text-slate-500 first-letter:uppercase">{plain(losses.control.note)}</p>}
+        <p className="text-[12px] text-pl-muted first-letter:uppercase">{plain(losses.note)}</p>
+        <p className="text-[12px] text-pl-muted first-letter:uppercase">{plain(losses.turnoverFactorNote)}</p>
+        {losses.control.note && <p className="text-[12px] text-pl-muted first-letter:uppercase">{plain(losses.control.note)}</p>}
       </CardContent>
     </Card>
   );

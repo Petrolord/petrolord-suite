@@ -43,7 +43,7 @@ const DistanceToConcentration = () => {
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <StateBadge state={r.state} testId="plume-distance-state" />
-              <span className="text-sm text-slate-200">{DISTANCE_STATE_TEXT[r.state]}</span>
+              <span className="text-sm text-pl-text">{DISTANCE_STATE_TEXT[r.state]}</span>
             </div>
             <Grid cols="md:grid-cols-4">
               <Stat label="Near root" unit="m" value={r.nearDistanceM === null ? 'none' : formatSci(r.nearDistanceM)} testId="plume-near" />
@@ -107,9 +107,9 @@ const DispersionPanel = () => {
         </Grid>
         {e.rate.error ? <EngineError result={e.rate} /> : (
           <>
-            <h4 className="pt-1 text-xs font-semibold text-slate-300">On the centreline (y = 0) at x and z</h4>
+            <h4 className="pt-1 text-xs font-semibold text-pl-text">On the centreline (y = 0) at x and z</h4>
             <Concentration label="Centreline concentration" result={e.centreline} testId="centreline" />
-            <h4 className="pt-1 text-xs font-semibold text-slate-300">At the receptor (x, y, z)</h4>
+            <h4 className="pt-1 text-xs font-semibold text-pl-text">At the receptor (x, y, z)</h4>
             <Concentration label="Receptor concentration" result={e.receptor} testId="receptor" />
           </>
         )}

@@ -10,6 +10,7 @@ import SimulationRunDialog from './common/SimulationRunDialog';
 import ExportDialog from './common/ExportDialog'; 
 import UnitsBar from './common/UnitsBar';
 import { useToast } from '@/components/ui/use-toast';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import { appPath, wellDataManagerHref, WELL_DATA_MANAGER_ID } from '@/components/wells/appLinks';
 
@@ -79,7 +80,7 @@ const ExpertModePanel = () => {
              toast({
                 title: "Warning",
                 description: "Simulation proceeding with warnings: " + validation.warnings[0],
-                className: "bg-amber-900/50 border-amber-500/50 text-amber-200"
+                className: "bg-pl-warning-bg border-pl-warning/40 text-pl-warning-text"
             });
         }
 
@@ -108,44 +109,47 @@ const ExpertModePanel = () => {
 
     return (
         <>
-            <div className="h-full flex flex-col bg-slate-950 overflow-hidden">
+            <div className="h-full flex flex-col bg-pl-bg overflow-hidden">
                 {/* Header */}
-                <div className="h-14 border-b border-slate-800 flex items-center justify-between px-4 bg-slate-900 shadow-sm shrink-0 z-20">
+                <div className="h-14 border-b border-pl-border flex items-center justify-between px-4 bg-pl-surface shadow-sm shrink-0 z-20">
                     <div className="flex items-center gap-4 overflow-hidden">
-                        <Button variant="ghost" size="sm" onClick={() => dispatch({ type: 'SET_MODE', payload: null })} className="shrink-0">
-                            <ArrowLeft className="w-4 h-4 mr-2" /> Home
+                        <Button variant="ghost" size="sm" onClick={() => dispatch({ type: 'SET_MODE', payload: null })} className="shrink-0" aria-label="Home">
+                            <ArrowLeft className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Home</span>
                         </Button>
-                        <div className="h-6 w-px bg-slate-700 shrink-0" />
-                        <h1 className="font-semibold text-white truncate hidden md:block">Expert Mode Workspace</h1>
+                        <div className="h-6 w-px bg-pl-border shrink-0" />
+                        <h1 className="font-semibold text-pl-text truncate hidden md:block">Expert Mode Workspace</h1>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                         <UnitsBar className="hidden md:flex" />
-                        <div className="h-6 w-px bg-slate-700 hidden md:block" />
+                        <div className="h-6 w-px bg-pl-border hidden md:block" />
                         {tiedWellId && (
                             <Link
                                 to={wellDataManagerHref(tiedWellId, 'tops', appPath(WELL_DATA_MANAGER_ID, appPaths))}
                                 data-testid="bf-open-wdm"
                                 title={`Open ${state.settings?.registryWellName || 'the tied well'} in Well Data Manager on its tops`}
-                                className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-800"
+                                className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-muted hover:text-pl-text hover:bg-pl-sunken"
                             >
                                 <Database className="w-3.5 h-3.5" /> Well data
                             </Link>
                         )}
-                        <OpenInAppMenu wellIds={tiedWellId ? [tiedWellId] : []} paths={appPaths} testIdPrefix="bf" />
+                        <div className="hidden sm:block">
+                            <OpenInAppMenu wellIds={tiedWellId ? [tiedWellId] : []} paths={appPaths} testIdPrefix="bf" />
+                        </div>
                         <Link
                             to={helpHref}
                             data-testid="bf-help"
                             title="Open the help guide (F1)"
-                            className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-800 mr-1"
+                            className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-muted hover:text-pl-text hover:bg-pl-sunken mr-1"
                         >
                             <HelpCircle className="w-3.5 h-3.5" /> Help
                         </Link>
+                        <ThemeToggle className="h-8 w-8" />
 
-                        <Button variant="ghost" size="sm" onClick={() => setShowMultiWell(!showMultiWell)} className={`hidden md:flex ${showMultiWell ? 'bg-slate-800' : ''}`}>
-                            {showMultiWell ? <ChevronLeft className="w-4 h-4 mr-2"/> : <ChevronRight className="w-4 h-4 mr-2"/>}
-                            {showMultiWell ? 'Hide Wells' : 'Show Wells'}
+                        <Button variant="ghost" size="sm" onClick={() => setShowMultiWell(!showMultiWell)} className={`flex ${showMultiWell ? 'bg-pl-sunken' : ''}`} aria-label={showMultiWell ? 'Hide Wells' : 'Show Wells'} data-testid="bf-toggle-wells">
+                            {showMultiWell ? <ChevronLeft className="w-4 h-4 md:mr-2"/> : <ChevronRight className="w-4 h-4 md:mr-2"/>}
+                            <span className="hidden md:inline">{showMultiWell ? 'Hide Wells' : 'Show Wells'}</span>
                         </Button>
-                        <div className="h-6 w-px bg-slate-700 mx-2 hidden md:block" />
+                        <div className="h-6 w-px bg-pl-border mx-2 hidden md:block" />
                         
                         <Button variant="outline" size="sm" onClick={() => setIsExportDialogOpen(true)} className="hidden sm:flex" data-testid="bf-export">
                             <Download className="w-4 h-4 mr-2" /> Export
@@ -162,7 +166,7 @@ const ExpertModePanel = () => {
                         </Button>
                         <Button 
                             onClick={handleRunClick} 
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[100px]"
+                            className="min-w-[100px]"
                             data-testid="bf-simulate"
                         >
                             <Play className="w-4 h-4 mr-2" /> Simulate
@@ -173,7 +177,7 @@ const ExpertModePanel = () => {
                 {/* Main Workspace */}
                 <div className="flex-1 overflow-hidden flex relative w-full">
                     {/* Multi-Well Sidebar */}
-                    <div className={`shrink-0 h-full transition-all duration-300 border-r border-slate-800 bg-slate-900 relative z-10 ${showMultiWell ? 'w-72 translate-x-0' : 'w-0 -translate-x-full opacity-0 overflow-hidden'}`}>
+                    <div className={`shrink-0 h-full transition-all duration-300 border-r border-pl-border bg-pl-surface relative z-10 ${showMultiWell ? 'w-72 translate-x-0' : 'w-0 -translate-x-full opacity-0 overflow-hidden'}`}>
                         <div className="w-72 h-full">
                             <MultiWellManager />
                         </div>
@@ -182,36 +186,36 @@ const ExpertModePanel = () => {
                     {isDndReady ? (
                         <DragDropContext onDragEnd={onDragEnd}>
                             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col h-full overflow-hidden min-w-0 w-full">
-                                <div className="px-0 md:px-4 bg-slate-900 border-b border-slate-800 shrink-0">
+                                <div className="px-0 md:px-4 bg-pl-surface border-b border-pl-border shrink-0">
                                     <TabsList className="h-10 bg-transparent w-full justify-start overflow-x-auto no-scrollbar rounded-none">
-                                        <TabsTrigger value="properties" data-testid="bf-tab-properties" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
+                                        <TabsTrigger value="properties" data-testid="bf-tab-properties" className="data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none px-3 md:px-4 flex-shrink-0">
                                             <Layers className="w-4 h-4 mr-2" /> Properties
                                         </TabsTrigger>
-                                        <TabsTrigger value="calibration" data-testid="bf-tab-calibration" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
+                                        <TabsTrigger value="calibration" data-testid="bf-tab-calibration" className="data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none px-3 md:px-4 flex-shrink-0">
                                             <Database className="w-4 h-4 mr-2" /> Calibration
                                         </TabsTrigger>
-                                        <TabsTrigger value="scenarios" data-testid="bf-tab-scenarios" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
+                                        <TabsTrigger value="scenarios" data-testid="bf-tab-scenarios" className="data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none px-3 md:px-4 flex-shrink-0">
                                             <GitBranch className="w-4 h-4 mr-2" /> Scenarios
                                         </TabsTrigger>
-                                        <TabsTrigger value="sensitivity" data-testid="bf-tab-sensitivity" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
+                                        <TabsTrigger value="sensitivity" data-testid="bf-tab-sensitivity" className="data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none px-3 md:px-4 flex-shrink-0">
                                             <Activity className="w-4 h-4 mr-2" /> Sensitivity
                                         </TabsTrigger>
-                                        <TabsTrigger value="results" data-testid="bf-tab-results" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
+                                        <TabsTrigger value="results" data-testid="bf-tab-results" className="data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none px-3 md:px-4 flex-shrink-0">
                                             <BarChart2 className="w-4 h-4 mr-2" /> Analysis
                                         </TabsTrigger>
-                                        <TabsTrigger value="templates" data-testid="bf-tab-templates" className="data-[state=active]:border-b-2 data-[state=active]:border-teal-500 rounded-none px-3 md:px-4 flex-shrink-0 text-teal-400">
+                                        <TabsTrigger value="templates" data-testid="bf-tab-templates" className="data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none px-3 md:px-4 flex-shrink-0">
                                             <BookOpen className="w-4 h-4 mr-2" /> Templates
                                         </TabsTrigger>
-                                        <TabsTrigger value="batch" data-testid="bf-tab-batch" className="data-[state=active]:border-b-2 data-[state=active]:border-pink-500 rounded-none px-3 md:px-4 flex-shrink-0 text-pink-400">
+                                        <TabsTrigger value="batch" data-testid="bf-tab-batch" className="data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none px-3 md:px-4 flex-shrink-0">
                                             <Layout className="w-4 h-4 mr-2" /> Batch
                                         </TabsTrigger>
-                                        <TabsTrigger value="import" data-testid="bf-tab-import" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
+                                        <TabsTrigger value="import" data-testid="bf-tab-import" className="data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none px-3 md:px-4 flex-shrink-0">
                                             <Upload className="w-4 h-4 mr-2" /> Import
                                         </TabsTrigger>
                                     </TabsList>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto bg-slate-950 scroll-smooth relative w-full">
+                                <div className="flex-1 overflow-y-auto bg-pl-bg scroll-smooth relative w-full">
                                     <TabsContent value="properties" className="h-full m-0 p-0 data-[state=inactive]:hidden">
                                         <LayerPropertyEditor />
                                     </TabsContent>
@@ -247,7 +251,7 @@ const ExpertModePanel = () => {
                             </Tabs>
                         </DragDropContext>
                     ) : (
-                        <div className="flex items-center justify-center h-full w-full text-slate-500">Loading...</div>
+                        <div className="flex items-center justify-center h-full w-full text-pl-muted">Loading...</div>
                     )}
                 </div>
             </div>

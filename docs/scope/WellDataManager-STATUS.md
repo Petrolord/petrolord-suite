@@ -300,3 +300,52 @@ app's — Petrophysics links here to edit a header.
 The Tops tab table gains a Map column (`wdm-map-top-<name>`) linking to
 Mapping & Surface Studio on that top; the Open-in menus' Mapping entry
 now opens the map posting the chosen wells (`?wells=`).
+
+## 2026-09-28: design system rollout W4A (light default, dark per user)
+
+The page and the `/dev/well-data-manager` harness wrap themselves in
+`ThemedApp`, so the app opens light and a new ribbon toggle switches to
+dark and back, stored per user. The route prefix
+`/dashboard/apps/geoscience/well-data-manager` is registered in
+`src/design/rollout/w4a.js`.
+
+- Chrome on roles: the ribbon, wells tree, detail tabs and editors,
+  status bar and the LAS import, add well and delete dialogs moved from
+  slate and cyan to `pl-*` roles; overrides on `DialogContent`,
+  `AlertDialogContent` and `Button` were removed so the themed defaults
+  apply. Errors use danger, LAS notes and clashes warning.
+- The well map stays a dark canvas (`data-canvas="dark"`; its caption
+  still names the amber and green dots) and the log tracks stay white
+  chart paper (`data-canvas="chart"`). Core photographs, intervals and
+  the package dialogs are the scope-aware wells kit and portability
+  dialogs from W0C.
+- Known issue (fixed 2026-09-28, see below): in paste mode (Tops, Deviation,
+  Checkshots "Replace from paste") the shared `PasteReplacePanel`
+  receives a new `fields` array each render and its effect sets editor
+  state every render, so the panel re-renders without end (jsdom hangs;
+  the browser keeps working but spins).
+- Tests: new `__tests__/WellDataManager.theme.test.jsx` (shared checks,
+  an owned well on every tab and grid editor, dark, five dialogs). No
+  LAS, registry or calculation change.
+
+## 2026-09-28: replace-from-paste no longer re-renders without end
+
+The W4A known issue is fixed at the root, in two places:
+
+- `WellDetail` hands `PasteReplacePanel` module-constant field lists
+  (`TOPS_PASTE_FIELDS`, `DEVIATION_PASTE_FIELDS`,
+  `CHECKSHOT_PASTE_FIELDS`) in place of a fresh array literal per render.
+- `PasteReplacePanel` memoizes its parse on `fields.join('|')`, so a caller
+  that still passes a fresh literal re-parses and emits `onParsed` only
+  when the text, the field names or the column mapping change. The other
+  caller (`IntervalsEditor`, already hoisted) behaves identically;
+  `WellImport` uses only the named exports.
+- A new Checkshots editor on a well with no checkshots opens straight into
+  paste mode, so that editor was stuck on open, before any paste.
+- Tests: new `__tests__/pasteReplace.test.jsx` pastes into Tops, Deviation
+  and Checkshots, asserts bounded panel renders and `onParsed` calls, that
+  the mapper previews the parsed rows, and that Save writes them; a probe
+  caller with a fresh literal each render also settles. Negative controls:
+  both files at origin/main, and the panel alone at origin/main, hang
+  ("Maximum update depth exceeded"; killed at the timeout). The theme test
+  now also checks each editor's paste mode. No parsing or saved-data change.

@@ -357,7 +357,7 @@ export default function QAReports() {
                   No quality plans yet.
                 </p>
               ) : (
-                <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+                <div data-canvas="chart" className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={planStatusData} margin={CHART_MARGINS.compact}>
                       <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -388,7 +388,7 @@ export default function QAReports() {
                   No non-conformances have been raised.
                 </p>
               ) : (
-                <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+                <div data-canvas="chart" className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={departmentData} layout="vertical" margin={CHART_MARGINS.compact}>
                       <CartesianGrid {...GRID_STYLE} horizontal={false} />
@@ -426,7 +426,7 @@ export default function QAReports() {
                 root cause recorded.
               </p>
             ) : (
-              <div className="relative h-[340px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+              <div data-canvas="chart" className="relative h-[340px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={rootCauseData} layout="vertical" margin={CHART_MARGINS.compact}>
                     <CartesianGrid {...GRID_STYLE} horizontal={false} />

@@ -10,6 +10,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Database, Loader2, Map as MapIcon, CircleDot } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import WellsTree from './WellsTree';
 import WellsMap from './WellsMap';
@@ -137,19 +138,19 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
   };
 
   const ribbon = (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
       <ModuleHomeLink module="geoscience" testId="wdm-home" />
-      <Database className="w-4 h-4 text-cyan-400" />
-      <span className="text-sm font-semibold text-slate-100">Well Data Manager</span>
-      <span className="text-[11px] text-slate-500">shared subsurface well registry</span>
+      <Database className="w-4 h-4 text-pl-primary-text" />
+      <span className="text-sm font-semibold text-pl-text">Well Data Manager</span>
+      <span className="text-[11px] text-pl-muted">shared subsurface well registry</span>
       <div className="ml-auto flex items-center gap-1">
         <button
           type="button"
           data-testid="wdm-view-map"
           className={`flex items-center gap-1 px-2 py-1 text-xs rounded border
             ${view === 'map'
-              ? 'border-cyan-500/60 text-cyan-300'
-              : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+              ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text'
+              : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
           onClick={() => setView('map')}
         >
           <MapIcon className="w-3.5 h-3.5" /> Map
@@ -160,21 +161,22 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
           disabled={!selected}
           className={`flex items-center gap-1 px-2 py-1 text-xs rounded border disabled:opacity-40
             ${view === 'detail'
-              ? 'border-cyan-500/60 text-cyan-300'
-              : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+              ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text'
+              : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
           onClick={() => setView('detail')}
         >
           <CircleDot className="w-3.5 h-3.5" /> {selected ? selected.name : 'Well'}
         </button>
         <OpenInAppMenu wellIds={selectedId ? [selectedId] : []} paths={appPaths} testIdPrefix="wdm" disabled={!selected} />
+        <ThemeToggle />
       </div>
     </div>
   );
 
   const statusBar = (
     <div
-      className="flex items-center gap-3 px-3 py-1 bg-slate-900 border-t border-slate-800
-        text-[11px] text-slate-400"
+      className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border
+        text-[11px] text-pl-muted"
       data-testid="wdm-status"
     >
       <span data-testid="wdm-status-message" className="truncate">{status}</span>
@@ -182,12 +184,12 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
         {list.length} well{list.length === 1 ? '' : 's'}
         {orgId === null ? ' · no organization' : ''}
       </span>
-      <span className="whitespace-nowrap text-slate-600">SI internal (m)</span>
+      <span className="whitespace-nowrap text-pl-muted">SI internal (m)</span>
     </div>
   );
 
   const center = wells === null ? (
-    <div className="h-full flex items-center justify-center text-slate-500 text-sm">
+    <div className="h-full flex items-center justify-center text-pl-muted text-sm">
       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading wells…
     </div>
   ) : (

@@ -26,9 +26,9 @@ const fmt = (v, d = 0) => (Number.isFinite(v)
 
 const Field = ({ label, hint, children }) => (
   <div className="space-y-1">
-    <Label className="text-xs text-slate-400">{label}</Label>
+    <Label className="text-xs text-pl-muted">{label}</Label>
     {children}
-    {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
+    {hint && <p className="text-[11px] text-pl-muted">{hint}</p>}
   </div>
 );
 
@@ -43,7 +43,7 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
       <Input type="number" step={step} value={inputs[name] ?? ''}
         aria-label={SPACING_INPUT_LABELS[name]}
         onChange={(e) => set(name, e.target.value)}
-        className="h-8 bg-slate-800 border-slate-700" />
+        className="h-8" />
     </Field>
   );
 
@@ -64,21 +64,21 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
         : `All ${result.checked} checks pass.`)
       : `${result.violations?.length} of ${result.checked} checks fail.`);
   const statusClass = result.pass === false
-    ? 'border-red-700/50 bg-red-950/30 text-red-300'
+    ? 'border-pl-danger/40 bg-pl-danger-bg text-pl-danger-text'
     : (nothingChecked || incomplete
-      ? 'border-amber-700/50 bg-amber-950/30 text-amber-300'
-      : 'border-emerald-700/50 bg-emerald-950/30 text-emerald-300');
+      ? 'border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text'
+      : 'border-pl-success/40 bg-pl-success-bg text-pl-success-text');
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
-        <ShieldAlert className="w-4 h-4 text-amber-400" />
+      <div className="flex items-center gap-2 text-sm font-semibold text-pl-text">
+        <ShieldAlert className="w-4 h-4 text-pl-muted" />
         Safety spacing
       </div>
 
-      <div className="space-y-3 border-b border-slate-700/50 pb-4">
+      <div className="space-y-3 border-b border-pl-border pb-4">
         <div className="flex items-center justify-between">
-          <Label className="text-xs text-slate-400">Flare radiation setback</Label>
+          <Label className="text-xs text-pl-muted">Flare radiation setback</Label>
           <Switch checked={Boolean(inputs.flareEnabled)} aria-label="Flare radiation setback"
             onCheckedChange={(v) => set('flareEnabled', v)} />
         </div>
@@ -94,7 +94,7 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
         )}
 
         <div className="flex items-center justify-between">
-          <Label className="text-xs text-slate-400">Tank pool fire setback</Label>
+          <Label className="text-xs text-pl-muted">Tank pool fire setback</Label>
           <Switch checked={Boolean(inputs.poolEnabled)} aria-label="Tank pool fire setback"
             onCheckedChange={(v) => set('poolEnabled', v)} />
         </div>
@@ -109,14 +109,14 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
             {NumField({ name: 'poolAllowableKwM2', step: '0.01', hint: LEVELS_HINT })}
           </>
         )}
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           Initial values are an example case. They are saved with the layout when you save it.
         </p>
       </div>
 
       {result.error ? (
-        <div className="flex gap-2 text-[12px] text-slate-400">
-          <Info className="w-4 h-4 shrink-0 text-slate-500" />
+        <div className="flex gap-2 text-[12px] text-pl-muted">
+          <Info className="w-4 h-4 shrink-0 text-pl-muted" />
           {result.error}
         </div>
       ) : (
@@ -129,7 +129,7 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
           </div>
 
           {incomplete && incompleteReasons(result).length > 0 && (
-            <p className="text-[11px] text-amber-300/80" data-testid="incomplete-reasons">
+            <p className="text-[11px] text-pl-warning-text" data-testid="incomplete-reasons">
               Check incomplete: {incompleteReasons(result).join('; ')}.
             </p>
           )}
@@ -137,21 +137,21 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
           {result.sourceErrors.length > 0 && (
             <div className="space-y-1">
               {result.sourceErrors.map((e) => (
-                <p key={e.source} className="text-[12px] text-amber-300">{e.message}</p>
+                <p key={e.source} className="text-[12px] text-pl-warning-text">{e.message}</p>
               ))}
             </div>
           )}
 
           {result.sources.length > 0 && (
             <div className="space-y-1">
-              <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Computed setbacks</p>
+              <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Computed setbacks</p>
               {result.sources.map((s) => (
-                <div key={`${s.id}-${s.kind}`} className="text-[12px] text-slate-400">
-                  {s.label}: <span className="text-slate-200 font-semibold tabular-nums">
+                <div key={`${s.id}-${s.kind}`} className="text-[12px] text-pl-muted">
+                  {s.label}: <span className="text-pl-text font-semibold font-pl-mono tabular-nums">
                     {fmt(s.setbackM, 1)} m
                   </span> ({fmt(toFeet(s.setbackM), 0)} ft)
                   {s.kind === 'pool' && (
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-pl-muted">
                       Checked centre to centre. From the pool edge this is {fmt(s.setbackFromEdgeM, 1)} m
                       {s.detail?.setbackStatus === 'within-pool-edge'
                         ? ', because the computed radius lies inside the pool edge'
@@ -159,7 +159,7 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
                     </p>
                   )}
                   {s.detail?.note && (
-                    <p className="text-[11px] text-yellow-400/80 mt-0.5">{s.detail.note}</p>
+                    <p className="text-[11px] text-pl-warning-text mt-0.5">{s.detail.note}</p>
                   )}
                 </div>
               ))}
@@ -168,8 +168,8 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
 
           {result.violations.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Too close</p>
-              <div className="text-[11px] text-slate-400 space-y-0.5" data-testid="worst-rankings">
+              <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Too close</p>
+              <div className="text-[11px] text-pl-muted space-y-0.5" data-testid="worst-rankings">
                 {result.worstAbsolute && (
                   <p>
                     Largest shortfall: {result.worstAbsolute.aName} to {result.worstAbsolute.bName},
@@ -187,21 +187,21 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
               </div>
               {result.violations.slice(0, 12).map((v, i) => (
                 // eslint-disable-next-line react/no-array-index-key
-                <div key={i} className="rounded border border-slate-700/60 bg-slate-800/40 px-2 py-1.5">
-                  <p className="text-[12px] text-slate-200">
+                <div key={i} className="rounded border border-pl-border bg-pl-sunken px-2 py-1.5">
+                  <p className="text-[12px] text-pl-text">
                     {v.aName} to {v.bName}
                   </p>
-                  <p className="text-[11px] text-slate-400 tabular-nums">
+                  <p className="text-[11px] text-pl-muted font-pl-mono tabular-nums">
                     {fmt(v.actualM, 1)} m apart, needs {fmt(v.requiredM, v.kind === 'radiation' ? 1 : 0)} m
-                    <span className="text-red-400"> (short {show(fmt(v.shortfallM, 1), v.shortfallM)} m, {full ? `fraction ${formatFull(v.shortfallFraction)}` : `${fmt(v.shortfallFraction * 100, 0)} percent`})</span>
+                    <span className="text-pl-danger-text"> (short {show(fmt(v.shortfallM, 1), v.shortfallM)} m, {full ? `fraction ${formatFull(v.shortfallFraction)}` : `${fmt(v.shortfallFraction * 100, 0)} percent`})</span>
                   </p>
-                  <p className="text-[10px] text-slate-600">
+                  <p className="text-[10px] text-pl-muted">
                     {v.kind === 'radiation' ? (v.label || 'radiation setback') : 'spacing table'}
                   </p>
                 </div>
               ))}
               {result.violations.length > 12 && (
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-pl-muted">
                   and {result.violations.length - 12} more.
                 </p>
               )}
@@ -209,14 +209,14 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
           )}
 
           {result.skipped.length > 0 && (
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-pl-muted">
               Not checked: {describeSkipped(result.skipped)}. Pipe runs have no single position,
               custom icons have no class the table knows, and an item with no position on the map
               cannot be measured, so judging any of them would invent a rule you never set.
             </p>
           )}
 
-          <p className="text-[11px] text-slate-600">
+          <p className="text-[11px] text-pl-muted">
             All distances are measured centre to centre between icon positions. Table spacings are
             customary onshore production figures that have not yet been verified against the published literature.
             The radiation setbacks are computed from the duty you stated with a point-source model,

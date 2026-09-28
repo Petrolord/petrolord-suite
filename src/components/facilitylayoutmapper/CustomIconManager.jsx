@@ -62,27 +62,25 @@ const CustomIconManager = ({ onAddCustomIcon }) => {
   return (
     <div className="space-y-4 p-2">
       <div className="space-y-2">
-        <Label htmlFor="icon-name" className="text-slate-300">Icon Name</Label>
+        <Label htmlFor="icon-name">Icon Name</Label>
         <Input
           id="icon-name"
           placeholder="e.g., Custom Valve"
           value={iconName}
-          onChange={(e) => setIconName(e.target.value)}
-          className="bg-slate-700 border-slate-500 text-white placeholder:text-slate-400"
-        />
+          onChange={(e) => setIconName(e.target.value)}        />
       </div>
       <div className="space-y-2">
-        <Label className="text-slate-300">Icon File (SVG or PNG)</Label>
+        <Label>Icon File (SVG or PNG)</Label>
         <div
           {...getRootProps()}
           className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors
-            ${isDragActive ? 'border-teal-400 bg-teal-900/20' : 'border-slate-600 hover:border-slate-500'}`}
+            ${isDragActive ? 'border-pl-primary bg-pl-sunken' : 'border-pl-border-strong hover:border-pl-primary'}`}
         >
           <input {...getInputProps()} />
           {preview ? (
             <img src={preview} alt="Icon preview" className="h-12 w-12 object-contain" />
           ) : (
-            <div className="text-center text-slate-400">
+            <div className="text-center text-pl-muted">
               <UploadCloud className="w-8 h-8 mx-auto mb-2" />
               {isDragActive ? (
                 <p>Drop the file here...</p>
@@ -93,7 +91,7 @@ const CustomIconManager = ({ onAddCustomIcon }) => {
           )}
         </div>
       </div>
-      <Button onClick={handleAddIcon} className="w-full bg-teal-600 hover:bg-teal-500 text-white">
+      <Button onClick={handleAddIcon} className="w-full">
         <ImagePlus className="w-4 h-4 mr-2" /> Add to Toolbar
       </Button>
     </div>

@@ -34,7 +34,7 @@ const SensitivityChart = ({ rows, required }) => {
   const hi = 10 ** Math.ceil(Math.log10(Math.max(...values)));
   const tickStyle = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText };
   return (
-    <div className="relative h-80 rounded-lg bg-white p-2" data-testid="sensitivity-chart">
+    <div data-canvas="chart" className="relative h-80 rounded-lg bg-white p-2" data-testid="sensitivity-chart">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={CHART_MARGINS.legend}>
           <CartesianGrid {...GRID_STYLE} />
@@ -82,8 +82,8 @@ const LongestInterval = ({ subsystemId }) => {
   const result = target.error ? null : longestInterval(active, subsystemId, target.target);
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-slate-200">Longest proof test interval for a target</h3>
-      <div className="flex flex-wrap items-end gap-4 text-sm text-slate-200">
+      <h3 className="text-sm font-semibold text-pl-text">Longest proof test interval for a target</h3>
+      <div className="flex flex-wrap items-end gap-4 text-sm text-pl-text">
         <label className="flex items-center gap-2">
           <input
             type="radio" name="target-mode" checked={mode === 'share'}
@@ -117,8 +117,8 @@ const LongestInterval = ({ subsystemId }) => {
       {result && !result.error ? (
         <div className="space-y-2" data-testid="interval-result">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded border border-slate-600 px-2 py-0.5 font-mono text-xs text-slate-200" data-testid="interval-state">{result.state}</span>
-            <span className="text-sm text-slate-200">{INTERVAL_STATE_TEXT[result.state]}</span>
+            <span className="rounded border border-pl-border-strong px-2 py-0.5 font-mono text-xs text-pl-text" data-testid="interval-state">{result.state}</span>
+            <span className="text-sm text-pl-text">{INTERVAL_STATE_TEXT[result.state]}</span>
           </div>
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
             <Stat label="Target PFDavg" unit="-" value={formatSci(target.target)} />
@@ -129,7 +129,7 @@ const LongestInterval = ({ subsystemId }) => {
             {Number.isFinite(result.floorPfdAvg) ? <Stat label="Interval independent floor" unit="-" value={formatSci(result.floorPfdAvg)} emphasis /> : null}
           </div>
           <Warnings warnings={result.warnings} />
-          {result.basis?.method ? <p className="text-[11px] text-slate-500">Engine basis: {result.basis.method}.</p> : null}
+          {result.basis?.method ? <p className="text-[11px] text-pl-muted">Engine basis: {result.basis.method}.</p> : null}
         </div>
       ) : null}
     </div>
@@ -156,12 +156,12 @@ const ProofTestPanel = () => {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end gap-4">
         <div>
-          <Label className="text-[11px] text-slate-400">Subsystem to vary</Label>
+          <Label className="text-[11px] text-pl-muted">Subsystem to vary</Label>
           <select
             aria-label="Subsystem to vary"
             value={chosenId || ''}
             onChange={(e) => setSensitivity({ subsystemId: e.target.value })}
-            className="block h-8 rounded-md border border-slate-700 bg-slate-950 px-2 text-sm text-slate-100"
+            className="block h-8 rounded-md border border-pl-border-strong bg-pl-surface px-2 text-sm text-pl-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus"
           >
             {subs.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.architecture})</option>)}
           </select>
@@ -173,7 +173,7 @@ const ProofTestPanel = () => {
           className="min-w-[18rem] flex-1"
         />
       </div>
-      {parsed.bad.length ? <p className="text-xs text-amber-200">Ignored because they are not positive numbers of months: {parsed.bad.join(', ')}</p> : null}
+      {parsed.bad.length ? <p className="text-xs text-pl-warning-text">Ignored because they are not positive numbers of months: {parsed.bad.join(', ')}</p> : null}
       <Note>
         One month is taken as 730 h (8760 h a year over twelve). Every other input of every subsystem is
         held as entered on the SIF verification tab. The dashed grey lines are the decade band edges
@@ -183,12 +183,12 @@ const ProofTestPanel = () => {
         <>
           <SensitivityChart rows={series.rows} required={required} />
           {series.rows.some((r) => r.sifError) ? (
-            <p className="text-xs text-amber-200">The SIF total is missing where another subsystem has an input the engine refused.</p>
+            <p className="text-xs text-pl-warning-text">The SIF total is missing where another subsystem has an input the engine refused.</p>
           ) : null}
           <Warnings warnings={lambdaWarnings} />
           <div className="overflow-x-auto">
             <table className="min-w-full text-xs" data-testid="sensitivity-table">
-              <thead className="text-slate-400">
+              <thead className="text-pl-muted">
                 <tr>
                   <th className="px-2 py-1 text-left">T1 (h)</th>
                   <th className="px-2 py-1 text-left">T1 (yr)</th>
@@ -196,9 +196,9 @@ const ProofTestPanel = () => {
                   <th className="px-2 py-1 text-left">SIF PFDavg (-)</th>
                 </tr>
               </thead>
-              <tbody className="font-mono text-slate-200">
+              <tbody className="font-mono text-pl-text">
                 {series.rows.map((r) => (
-                  <tr key={r.hours} className="border-t border-slate-800">
+                  <tr key={r.hours} className="border-t border-pl-border">
                     <td className="px-2 py-1">{Number(r.hours.toPrecision(6))}</td>
                     <td className="px-2 py-1">{Number(r.years.toPrecision(3))}</td>
                     <td className="px-2 py-1">{formatSci(r.subsystemPfd)}</td>
@@ -210,7 +210,7 @@ const ProofTestPanel = () => {
           </div>
         </>
       )}
-      <div className="border-t border-slate-800 pt-4">
+      <div className="border-t border-pl-border pt-4">
         {chosenId ? <LongestInterval subsystemId={chosenId} /> : null}
       </div>
     </div>

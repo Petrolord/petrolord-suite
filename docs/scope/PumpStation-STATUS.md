@@ -7,6 +7,25 @@ of the F0-retired `compressor-pump-pack`, which printed
 `Head: 450 ft` and `NPSHa: 12 ft` as literal strings and stays
 Archived with its route redirecting.
 
+## Design system rollout, batch 5B (2026-09-28)
+
+The studio opens on the Petrolord design system: light grey panel by
+default, dark as a per-user choice from the header toggle, which stays
+visible at phone width.
+
+- Scope: `ThemedApp` inside `src/pages/apps/PumpStationDesigner.jsx`; App.jsx unchanged. Cold-load
+  prefix `/dashboard/apps/facilities/pump-station-designer` in
+  `src/design/rollout/w5b.js`.
+- Cards, inputs and selects use the adapted primitives without colour
+  overrides; the header tile is the primary fill (the icon gradient is
+  gone); numbers are in the mono face. NPSH margin (adequate, marginal, cavitating), the operating region and the viscosity correction read on the success, warning and danger roles; the decorative green on the duty flow is gone. The pump and system curve chart stays on the white `ChartFrame`.
+- Test: `src/pages/apps/__tests__/PumpStationDesigner.theme.test.jsx` (light by default, toggle to
+  dark and back stored per user, no legacy colour outside canvases with a
+  negative control, the route registered, every header tab in both
+  themes, the documentation drawer inside the scope). Existing tests pass
+  unchanged.
+- No engine or calculation change.
+
 ## The organising idea
 
 A pump has no operating point until it is connected to something. The
