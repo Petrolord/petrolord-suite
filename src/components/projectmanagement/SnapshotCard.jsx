@@ -63,7 +63,7 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
             </div>
             <div className="mt-1">
                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold font-pl-mono tabular-nums text-pl-text">
+                  <span className={`font-bold text-pl-text ${percentComplete === null || Number.isNaN(percentComplete) ? 'text-xl' : 'text-3xl font-pl-mono tabular-nums'}`}>
                     {percentComplete === null || Number.isNaN(percentComplete) ? 'Not measured' : `${Math.round(percentComplete)}%`}
                   </span>
                   <span className="text-sm text-pl-muted">

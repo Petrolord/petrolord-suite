@@ -186,7 +186,8 @@ const AppraisalProjectWizard = ({ open, onOpenChange, onProjectCreated, userId }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 text-white sm:max-w-[700px] h-[80vh] flex flex-col">
+      {/* Interim (rollout 6C): a dark island until this file moves to theme roles; remove data-pl-theme then. */}
+      <DialogContent data-pl-theme="dark" className="bg-slate-900 border-slate-700 text-white sm:max-w-[700px] h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Activity className="w-6 h-6 text-amber-400" />

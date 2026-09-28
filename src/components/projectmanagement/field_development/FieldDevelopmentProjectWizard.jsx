@@ -187,7 +187,8 @@ const FieldDevelopmentProjectWizard = ({ open, onOpenChange, onProjectCreated, u
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 text-white sm:max-w-[750px] h-[85vh] flex flex-col">
+      {/* Interim (rollout 6C): a dark island until this file moves to theme roles; remove data-pl-theme then. */}
+      <DialogContent data-pl-theme="dark" className="bg-slate-900 border-slate-700 text-white sm:max-w-[750px] h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Factory className="w-6 h-6 text-cyan-400" />

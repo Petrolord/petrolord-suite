@@ -133,7 +133,8 @@ const DeliverableManager = ({ project, deliverables = [], onUpdate }) => {
         </div>
 
         <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
-            <DialogContent className="bg-slate-900 border-slate-700 text-white">
+            {/* Interim (rollout 6C): a dark island until this file moves to theme roles; remove data-pl-theme then. */}
+            <DialogContent data-pl-theme="dark" className="bg-slate-900 border-slate-700 text-white">
                 <DialogHeader>
                     <DialogTitle>Register Deliverable</DialogTitle>
                 </DialogHeader>

@@ -49,7 +49,8 @@ const HelpGuide = ({ open, onOpenChange }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-950 border-slate-800 text-white max-w-5xl h-[80vh] flex flex-col p-0 overflow-hidden">
+      {/* Interim (rollout 6C): a dark island until this file moves to theme roles; remove data-pl-theme then. */}
+      <DialogContent data-pl-theme="dark" className="bg-slate-950 border-slate-800 text-white max-w-5xl h-[80vh] flex flex-col p-0 overflow-hidden">
         
         {/* Header & Search */}
         <div className="p-6 border-b border-slate-800 bg-slate-900">
