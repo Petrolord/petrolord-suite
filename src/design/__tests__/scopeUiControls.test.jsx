@@ -177,7 +177,7 @@ describe('new shared pieces', () => {
     );
     expect(screen.getByLabelText('legacy').className).toMatch(/\bbg-slate-800\b/);
     expect(screen.getByLabelText('themed').className).toMatch(/\bborder-pl-border-strong\b/);
-    expect(screen.getByLabelText('cell').className).toMatch(/\bh-8\b.*\btext-xs\b/);
+    expect(screen.getByLabelText('cell').className).toMatch(/\bpy-1\b.*\btext-xs\b/);
   });
 
   it('ChartPanel is a titled white chart canvas', () => {

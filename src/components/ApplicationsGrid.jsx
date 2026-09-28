@@ -26,7 +26,7 @@ export default function ApplicationsGrid({ moduleFilter, searchQuery }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" aria-busy="true">
             <span className="sr-only" role="status">Loading applications</span>
             {[1,2,3,4].map(i => (
-                <Skeleton key={i} className="h-48 rounded-xl bg-pl-sunken" />
+                <Skeleton key={i} className="h-48 rounded-xl" />
             ))}
         </div>
       );

@@ -4,8 +4,8 @@ import { useDsTheme } from '@/design/themeContext';
 
 // Native <select> and dense-table field styles. A native select keeps the
 // platform picker (good on phones and for long unit lists); these classes
-// match it to the themed Input. The compact size is for editor tables where
-// a 40px field would double the row height.
+// match it to the themed Input. The compact size (text-xs, 4px by 8px padding)
+// is for editor tables where a 40px field would double the row height.
 //
 // Inside an opted-in scope the theme roles apply; outside one the legacy
 // dark console look that the ui Input uses.
@@ -16,7 +16,7 @@ export const NATIVE_SELECT_THEMED =
   + 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus disabled:cursor-not-allowed disabled:opacity-50';
 
 export const COMPACT_FIELD_THEMED =
-  'h-8 w-full rounded border border-pl-border-strong bg-pl-surface px-2 py-1 text-xs text-pl-text '
+  'w-full rounded border border-pl-border-strong bg-pl-surface px-2 py-1 text-xs text-pl-text '
   + 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus disabled:cursor-not-allowed disabled:opacity-50';
 
 const NATIVE_SELECT_LEGACY =
@@ -24,7 +24,7 @@ const NATIVE_SELECT_LEGACY =
   + 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50';
 
 const COMPACT_FIELD_LEGACY =
-  'h-8 w-full rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-50 '
+  'w-full rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-50 '
   + 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50';
 
 /** The class string for the current scope: nativeFieldClass(ds, 'select' | 'compact'). */

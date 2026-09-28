@@ -3,7 +3,6 @@ import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CHECKBOX_THEMED } from './dsClasses';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Layers, Plus, Users, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -51,7 +50,7 @@ const DCAWellGrouping = () => {
           ) : (
             candidates.map(w => (
               <label key={w.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-pl-sunken cursor-pointer">
-                <Checkbox checked={selectedIds.includes(w.id)} onCheckedChange={() => toggleWell(w.id)} className={CHECKBOX_THEMED} />
+                <Checkbox checked={selectedIds.includes(w.id)} onCheckedChange={() => toggleWell(w.id)} />
                 <span className="text-xs text-pl-text truncate">{w.name}</span>
                 <span className="text-[10px] text-pl-muted ml-auto capitalize">{w.type}</span>
               </label>

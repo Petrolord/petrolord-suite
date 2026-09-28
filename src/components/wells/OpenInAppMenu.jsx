@@ -10,7 +10,7 @@ import { ExternalLink, ChevronDown } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent, ContextMenuItem } from '@/components/workstation/themedContextMenu';
+import { ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent, ContextMenuItem } from '@/components/ui/context-menu';
 import { WELL_APPS, buildOpenInHref } from './appLinks';
 import { useThemeClass } from '@/design/themeClass';
 

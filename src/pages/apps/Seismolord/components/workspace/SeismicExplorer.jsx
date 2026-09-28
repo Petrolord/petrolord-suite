@@ -22,7 +22,7 @@ import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem,
   ContextMenuSeparator, ContextMenuSub, ContextMenuSubTrigger,
   ContextMenuSubContent,
-} from '@/components/workstation/themedContextMenu';
+} from '@/components/ui/context-menu';
 import { SURFACE_EXPORT_FORMATS } from '../../services/surfacesService';
 import StorageMeter from '../StorageMeter';
 import WellDrawBadge, { wellRowTitle } from './WellDrawBadge';

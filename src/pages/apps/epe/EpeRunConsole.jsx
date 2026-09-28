@@ -14,7 +14,7 @@ import { payloadEscalators, followsInflation, simpleEscalators } from '@/pages/a
 import { labelForConfigKey } from '@/pages/apps/epe/epeConfigLabels';
 import { AppHeader } from '@/components/ui/app-shell';
 import {
-  epePage, epePanel, epeSelect, epeCellInput, epeCheckbox, epeNativeCheck, epePill,
+  epePage, epePanel, epeSelect, epeCellInput, epeNativeCheck, epePill,
   epeCallout, epeBadge, epeTh, epeThNum, epeNum,
 } from './epeUi';
 import {
@@ -1068,7 +1068,6 @@ const EpeRunConsole = () => {
                 id="apply_economic_limit"
                 checked={config.apply_economic_limit === true}
                 onCheckedChange={(v) => setConfig((p) => ({ ...p, apply_economic_limit: v === true }))}
-                className={epeCheckbox}
               />
               <Label htmlFor="apply_economic_limit" className="text-pl-text text-sm cursor-pointer">
                 Apply economic limit test
@@ -1433,7 +1432,7 @@ const EpeRunConsole = () => {
                           id="pia_legacy_pre_audit"
                           checked={legacy}
                           onCheckedChange={(v) => { setConfig((p) => ({ ...p, pia_legacy_pre_audit: v === true })); setEngineRefusal(null); }}
-                          className={`${epeCheckbox} mt-0.5`}
+                          className="mt-0.5"
                         />
                         <div>
                           <Label htmlFor="pia_legacy_pre_audit" className="text-pl-text text-sm cursor-pointer">{LEGACY_TOGGLE_LABEL}</Label>
@@ -1538,7 +1537,6 @@ const EpeRunConsole = () => {
                       id="pia_marginal_field_pre_2021"
                       checked={config.pia_marginal_field_pre_2021}
                       onCheckedChange={(v) => setConfig((p) => ({ ...p, pia_marginal_field_pre_2021: v }))}
-                      className={epeCheckbox}
                     />
                     <Label htmlFor="pia_marginal_field_pre_2021" className="text-pl-text text-xs cursor-pointer">
                       Marginal field declared before Jan 1, 2021 (15% HCT rate, PIA s.94(1))
@@ -1665,7 +1663,7 @@ const EpeRunConsole = () => {
                             id="pia_cit_company_gas_operations"
                             checked={config.pia_cit_company_gas_operations === true}
                             onCheckedChange={(v) => setConfig((p) => ({ ...p, pia_cit_company_gas_operations: v === true }))}
-                            className={`${epeCheckbox} mt-0.5`}
+                            className="mt-0.5"
                           />
                           <div>
                             <Label htmlFor="pia_cit_company_gas_operations" className="text-pl-text text-xs cursor-pointer">
@@ -1926,7 +1924,6 @@ const EpeRunConsole = () => {
                               id="pia_apply_minimum_etr"
                               checked={config.pia_apply_minimum_etr === true}
                               onCheckedChange={(v) => setConfig((p) => ({ ...p, pia_apply_minimum_etr: v === true }))}
-                              className={epeCheckbox}
                             />
                             <Label htmlFor="pia_apply_minimum_etr" className="text-pl-text text-sm cursor-pointer">
                               Apply minimum effective tax rate (NTA s.57)
@@ -1965,7 +1962,6 @@ const EpeRunConsole = () => {
                 id="saveAsScenario"
                 checked={saveAsScenario}
                 onCheckedChange={setSaveAsScenario}
-                className={epeCheckbox}
               />
               <Label htmlFor="saveAsScenario" className="text-pl-text text-sm cursor-pointer">
                 Save as reusable scenario

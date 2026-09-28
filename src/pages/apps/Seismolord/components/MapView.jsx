@@ -28,7 +28,7 @@ import {
 import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem,
   ContextMenuLabel, ContextMenuSeparator,
-} from '@/components/workstation/themedContextMenu';
+} from '@/components/ui/context-menu';
 import { ViewTransform } from '../viewer/viewTransform';
 import {
   drawAxes, drawScaleBar, drawNorthArrow, drawColorbar, surveySpacing, northScreenDir,
