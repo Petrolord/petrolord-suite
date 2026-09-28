@@ -17,11 +17,16 @@ import { subscriptionRowsOf } from './OrgSubscription';
  * limit, an "Active" status and a "Free Tier" plan. It now reads the
  * subscriptions rows the detail page loaded (the same helper as the
  * Subscription tab, W7F) and says plainly when there is none.
+ *
+ * W9. The third KPI card was a hard-coded "Healthy / System operational" that
+ * checked nothing. It now counts the active subscriptions rows OrgDetail
+ * already loads, with the total on record and the organisation's created date.
  */
 const OrgOverview = ({ orgUsers }) => {
   const { selectedOrg } = useAdminOrg();
   const navigate = useNavigate();
   const rows = subscriptionRowsOf(selectedOrg);
+  const activeSubscriptions = rows.filter((r) => String(r.status || '').toLowerCase() === 'active').length;
   const subscription = rows.find((r) => String(r.status || '').toLowerCase() === 'active') || rows[0] || null;
 
   const activeUsers = orgUsers ? orgUsers.length : 0;
@@ -88,12 +93,15 @@ const OrgOverview = ({ orgUsers }) => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-pl-muted">Health Status</CardTitle>
-            <CheckCircle className="h-4 w-4 text-pl-success-text" aria-hidden="true" />
+            <CardTitle className="text-sm font-medium text-pl-muted">Active Subscriptions</CardTitle>
+            <CheckCircle className="h-4 w-4 text-pl-muted" aria-hidden="true" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-pl-success-text">Healthy</div>
-            <p className="text-xs text-pl-muted mt-1">System operational</p>
+            <div className="text-2xl font-bold text-pl-text" data-testid="org-overview-active-subs">{activeSubscriptions}</div>
+            <p className="text-xs text-pl-muted mt-1" data-testid="org-overview-subs-detail">
+              {rows.length === 1 ? '1 subscription on record' : `${rows.length} subscriptions on record`}
+              {selectedOrg.created_at ? `. Created ${formatDate(selectedOrg.created_at)}` : ''}
+            </p>
           </CardContent>
         </Card>
 

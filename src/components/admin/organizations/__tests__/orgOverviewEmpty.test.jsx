@@ -54,3 +54,33 @@ test('a row without a seat limit or plan says so', () => {
   expect(screen.getByTestId('org-overview-seats')).toHaveTextContent('No seat limit recorded');
   expect(screen.getByTestId('org-overview-mrr')).toHaveTextContent('Not recorded');
 });
+
+// W9: the third card was a hard-coded "Healthy / System operational". It now
+// reports facts OrgDetail already loads. Negative control: on the old tab this
+// test fails (it prints "Healthy" and has neither test id).
+test('the third card counts active subscriptions and carries no invented health claim', () => {
+  mockOrg = {
+    id: 'o1',
+    name: 'Acme',
+    created_at: '2026-03-04T10:00:00Z',
+    subscriptionRows: [
+      { id: 's0', status: 'expired' },
+      { id: 's1', status: 'active' },
+      { id: 's2', status: 'Active' },
+    ],
+    subscribed_modules: [],
+  };
+  renderTab();
+  expect(screen.queryByText('Healthy')).toBeNull();
+  expect(screen.queryByText(/System operational/i)).toBeNull();
+  expect(screen.getByTestId('org-overview-active-subs')).toHaveTextContent('2');
+  expect(screen.getByTestId('org-overview-subs-detail')).toHaveTextContent('3 subscriptions on record. Created Mar 4, 2026');
+});
+
+test('with no subscriptions the third card reads zero', () => {
+  mockOrg = { id: 'o1', name: 'Acme', subscriptionRows: [], subscribed_modules: [] };
+  renderTab();
+  expect(screen.getByTestId('org-overview-active-subs')).toHaveTextContent('0');
+  expect(screen.getByTestId('org-overview-subs-detail')).toHaveTextContent('0 subscriptions on record');
+  expect(screen.queryByText('Healthy')).toBeNull();
+});
