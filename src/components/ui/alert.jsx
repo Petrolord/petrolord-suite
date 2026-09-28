@@ -2,6 +2,7 @@ import React from "react"
 import { cva } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
+import { useDsTheme } from "@/design/themeContext"
 
 const alertVariants = cva(
   "relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground",
@@ -19,14 +20,39 @@ const alertVariants = cva(
   }
 )
 
-const Alert = React.forwardRef(({ className, variant, ...props }, ref) => (
-  <div
-    ref={ref}
-    role="alert"
-    className={cn(alertVariants({ variant }), className)}
-    {...props}
-  />
-))
+// Design system: theme-role variants used only inside an opted-in scope.
+// The status variants carry meaning; pair them with a title or icon.
+const themedAlertVariants = cva(
+  "relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4",
+  {
+    variants: {
+      variant: {
+        default: "border-pl-border bg-pl-surface text-pl-text [&>svg]:text-pl-muted",
+        destructive: "border-pl-danger/40 bg-pl-danger-bg text-pl-danger-text [&>svg]:text-pl-danger-text",
+        danger: "border-pl-danger/40 bg-pl-danger-bg text-pl-danger-text [&>svg]:text-pl-danger-text",
+        warning: "border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text [&>svg]:text-pl-warning-text",
+        success: "border-pl-success/40 bg-pl-success-bg text-pl-success-text [&>svg]:text-pl-success-text",
+        info: "border-pl-info/40 bg-pl-info-bg text-pl-info-text [&>svg]:text-pl-info-text",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+const Alert = React.forwardRef(({ className, variant, ...props }, ref) => {
+  const ds = useDsTheme()
+  const variants = ds ? themedAlertVariants : alertVariants
+  return (
+    <div
+      ref={ref}
+      role="alert"
+      className={cn(variants({ variant }), className)}
+      {...props}
+    />
+  )
+})
 Alert.displayName = "Alert"
 
 const AlertTitle = React.forwardRef(({ className, ...props }, ref) => (
@@ -47,4 +73,4 @@ const AlertDescription = React.forwardRef(({ className, ...props }, ref) => (
 ))
 AlertDescription.displayName = "AlertDescription"
 
-export { Alert, AlertTitle, AlertDescription }
+export { Alert, AlertTitle, AlertDescription, alertVariants, themedAlertVariants }

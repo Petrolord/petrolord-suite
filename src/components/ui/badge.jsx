@@ -16,6 +16,8 @@ const badgeVariants = cva(
         destructive:
           "border-transparent bg-red-500 text-slate-50 hover:bg-red-500/80 dark:bg-red-900 dark:text-slate-50 dark:hover:bg-red-900/80",
         outline: "text-slate-950 dark:text-slate-50",
+        neutral: "border-slate-700 bg-slate-800 text-slate-300",
+        selected: "border-transparent bg-slate-200 text-slate-900",
       },
     },
     defaultVariants: {
@@ -41,6 +43,10 @@ const themedBadgeVariants = cva(
         warning: "border-transparent bg-pl-warning-bg text-pl-warning-text",
         danger: "border-transparent bg-pl-danger-bg text-pl-danger-text",
         info: "border-transparent bg-pl-info-bg text-pl-info-text",
+        // not a status: counts, tags, "draft", an item's kind
+        neutral: "border-pl-border bg-pl-sunken text-pl-muted",
+        // the chosen chip in a set of filter or choice chips
+        selected: "border-pl-primary bg-pl-primary/10 text-pl-primary-text",
       },
     },
     defaultVariants: {

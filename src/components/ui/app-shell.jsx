@@ -32,7 +32,11 @@ const AppHeader = ({
         className
       )}
     >
-      <div className="flex min-h-[56px] items-center gap-3 px-4 py-2 sm:px-6">
+      {/* On phones the row wraps: when the actions do not fit beside a 10rem
+          title they drop to the next line and wrap among themselves, and a
+          children slot (tabs) takes its own full-width line, so nothing
+          scrolls the page sideways at 390px. */}
+      <div className="flex min-h-[56px] flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 sm:flex-nowrap sm:px-6">
         {backTo && (
           <button
             type="button"
@@ -49,15 +53,25 @@ const AppHeader = ({
             <Icon className="h-4 w-4" aria-hidden="true" />
           </span>
         )}
-        <div className="min-w-0">
+        <div className="min-w-[10rem] flex-1 sm:min-w-0 sm:flex-initial">
           {eyebrow && (
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-pl-accent-text">{eyebrow}</p>
           )}
           <h1 className="truncate text-lg font-semibold leading-tight text-pl-text">{title}</h1>
           {subtitle && <p className="truncate text-xs text-pl-muted">{subtitle}</p>}
         </div>
-        {children && <div className="ml-2 flex min-w-0 flex-1 items-center">{children}</div>}
-        <div className={cn('flex shrink-0 items-center gap-2', !children && 'ml-auto')}>
+        {children && (
+          <div className="order-last flex w-full min-w-0 items-center overflow-x-auto sm:order-none sm:ml-2 sm:w-auto sm:flex-1">
+            {children}
+          </div>
+        )}
+        <div
+          data-slot="app-header-actions"
+          className={cn(
+            'ml-auto flex max-w-full flex-wrap items-center justify-end gap-2 sm:shrink-0 sm:flex-nowrap',
+            children && 'sm:ml-0'
+          )}
+        >
           {actions}
           {showThemeToggle && <ThemeToggle />}
         </div>
