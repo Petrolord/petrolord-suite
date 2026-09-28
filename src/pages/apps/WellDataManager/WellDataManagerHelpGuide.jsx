@@ -30,6 +30,7 @@ export const HELP_SECTIONS = [
   { id: 'batch', icon: Files, title: 'Batch LAS import' },
   { id: 'merge', icon: GitMerge, title: 'A LAS into an existing well' },
   { id: 'tops', icon: Crosshair, title: 'Tops' },
+  { id: 'zones', icon: Layers, title: 'Zones and computed curves' },
   { id: 'survey', icon: Compass, title: 'Deviation survey' },
   { id: 'checkshots', icon: Clock, title: 'Checkshots' },
   { id: 'inventory', icon: ClipboardList, title: 'Inventory and QC flags' },
@@ -213,6 +214,20 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
             they are and is named in the status bar, and read-only wells are counted. Paste from Excel takes rows of
             well (name or UWI), top name and MD: a top the well already has moves, a new name is added, and every line
             that cannot be used says why (no such well, read-only, not a number, repeated).
+          </Para>
+        </GuideSection>
+
+        <GuideSection id="zones">
+          <SectionHeading icon={Layers}>Zones and computed curves</SectionHeading>
+          <Para>
+            The Zones tab shows the zones Petrophysics Studio defined on the well, with the summary it published for
+            each: gross and net thickness in the display unit, net to gross, and the net-weighted average porosity,
+            water saturation and shale volume, the permeability, the date and the interpretation. A zone that was never
+            published says so. Zones are read-only here; Open in Petrophysics Studio edits them.
+          </Para>
+          <Para>
+            In the Logs table a curve Petrophysics Studio computed carries a computed badge, and a curve traced from a
+            scanned image a digitized badge. Hover the badge for the operation, the interpretation and the inputs.
           </Para>
         </GuideSection>
 

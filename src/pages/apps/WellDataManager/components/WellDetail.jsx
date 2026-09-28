@@ -10,6 +10,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, Trash2, Building2, Lock, Pencil, Download } from 'lucide-react';
 import LogTracks from './LogTracks';
 import ExportDialog from './ExportDialog';
+import ZonesPanel from './ZonesPanel';
+import { curveOrigin } from '../engine/provenance';
 import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import { mapTopHref, appPath, MAPPING_ID } from '@/components/wells/appLinks';
 import CrsBadge from '@/components/crs/CrsBadge';
@@ -31,7 +33,7 @@ import { fmtDepth, editCell, parseDisplayed, unitText, toDisp } from '../engine/
 import { bottomUpLogs, orientForDisplay, planReorient } from '../engine/reorient';
 import { isDepthAlias } from '../engine/lasIndex';
 
-const TABS = ['Header', 'Logs', 'Tops', 'Intervals', 'Core', 'Deviation', 'Checkshots'];
+const TABS = ['Header', 'Logs', 'Tops', 'Zones', 'Intervals', 'Core', 'Deviation', 'Checkshots'];
 
 // Paste-replace field lists, hoisted so every render hands PasteReplacePanel
 // the same array (a fresh literal per render used to re-parse and re-emit
@@ -89,6 +91,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
   const [units, setUnits] = useState([]);       // stratigraphic column (ST0), for the Unit column
   const [intervals, setIntervals] = useState([]);   // ST1 interval logs of the well
   const [coreImages, setCoreImages] = useState([]); // ST1 core photos of the well
+  const [zones, setZones] = useState(null);        // WDM-U2-008: Petrophysics zones (read-only here)
   const [scheme] = useScheme();
   const [logs, setLogs] = useState(null);
   // Legacy wells carry no structured CRS; Assign CRS patches the row
@@ -106,13 +109,16 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
   const refreshChildren = useCallback(async () => {
     setTops(null);
     setLogs(null);
+    setZones(null);
     try {
-      const [t, l, u, iv, ci] = await Promise.all([
+      const [t, l, u, iv, ci, zs] = await Promise.all([
         backend.listTops(well.id), backend.listLogs(well.id),
         backend.listUnits ? backend.listUnits().catch(() => []) : Promise.resolve([]),
         backend.listIntervals ? backend.listIntervals(well.id).catch(() => []) : Promise.resolve([]),
         backend.listCoreImages ? backend.listCoreImages(well.id).catch(() => []) : Promise.resolve([]),
+        backend.listZones ? backend.listZones(well.id).catch(() => []) : Promise.resolve([]),
       ]);
+      setZones(zs || []);
       setTops(t);
       setUnits(u || []);
       setIntervals(iv || []);
@@ -122,6 +128,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
       onStatus(e.message);
       setTops([]);
       setLogs([]);
+      setZones([]);
     }
   }, [backend, well.id, onStatus]);
 
@@ -461,9 +468,10 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
             {t === 'Tops' && tops ? ` (${tops.length})` : ''}
             {t === 'Intervals' && intervals.length ? ` (${intervals.length})` : ''}
             {t === 'Core' && coreImages.length ? ` (${coreImages.length})` : ''}
+            {t === 'Zones' && zones?.length ? ` (${zones.length})` : ''}
           </button>
         ))}
-        {canEdit && tab !== 'Logs' && tab !== 'Intervals' && tab !== 'Core' && !editor && (
+        {canEdit && tab !== 'Logs' && tab !== 'Zones' && tab !== 'Intervals' && tab !== 'Core' && !editor && (
           <button
             type="button"
             className="ml-auto mr-2 flex items-center gap-1 px-2 py-0.5 rounded border border-pl-border text-xs text-pl-text hover:bg-pl-sunken"
@@ -670,6 +678,14 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                         </td>
                         <td className={`${tdCls} text-pl-text`} title={log.description || ''}>
                           {log.mnemonic}
+                          {(() => {
+                            // WDM-U2-008: a computed or digitized curve says so
+                            const o = curveOrigin(log);
+                            return o ? (
+                              <span className={`ml-1 rounded px-1 text-[10px] ${o.kind === 'computed' ? 'bg-pl-primary/10 text-pl-primary-text' : 'bg-pl-warning-bg text-pl-warning-text'}`}
+                                title={o.title} data-testid={`wdm-log-origin-${log.mnemonic}`}>{o.label}</span>
+                            ) : null;
+                          })()}
                         </td>
                         <td className={tdCls}>{log.unit || EMPTY_VALUE}</td>
                         <td className={tdCls}>{fmtDepth(log.start_md_m, unit)} – {fmtDepth(log.stop_md_m, unit)}</td>
@@ -805,6 +821,10 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
               </div>
             ) : <p className="text-xs text-pl-muted">No tops on this well.</p>
           )
+        )}
+
+        {tab === 'Zones' && (
+          <ZonesPanel zones={zones} well={well} tops={tops || []} unit={unit} appPaths={appPaths} />
         )}
 
         {tab === 'Intervals' && (

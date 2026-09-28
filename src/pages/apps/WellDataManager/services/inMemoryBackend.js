@@ -27,6 +27,7 @@ export function makeInMemoryBackend(opts = {}) {
   const intervalsByWell = new Map();   // ST1 interval logs
   const coreImagesByWell = new Map();  // ST1 core photos (metadata only; the harness shows a placeholder)
   const logsByWell = new Map();
+  const zonesByWell = new Map();       // Petrophysics zones (U2-008: WDM reads them)
   const curveStore = new Map(); // storage_path -> Float32Array
 
   if (opts.seedSharedWell !== false) {
@@ -70,10 +71,11 @@ export function makeInMemoryBackend(opts = {}) {
   // rows exactly as an older release stored them. `samples` on a log row
   // becomes its curve object; is_own defaults to the dev user's ownership.
   if (opts.seedRows) {
-    const { wells: sw = [], tops: st = {}, logs: sl = {} } = opts.seedRows;
+    const { wells: sw = [], tops: st = {}, logs: sl = {}, zones: sz = {} } = opts.seedRows;
     for (const w of sw) {
       wells.push({ ...w, is_own: w.is_own ?? (w.user_id === DEV_USER) });
       topsByWell.set(w.id, [...(st[w.id] || [])].map((t) => ({ well_id: w.id, ...t })));
+      zonesByWell.set(w.id, [...(sz[w.id] || [])].map((z) => ({ well_id: w.id, properties: {}, ...z })));
       logsByWell.set(w.id, (sl[w.id] || []).map(({ samples, ...row }) => {
         const r = { well_id: w.id, ...row };
         if (samples) curveStore.set(r.storage_path, Float32Array.from(samples, (v) => (v === null ? Number.NaN : v)));
@@ -300,6 +302,9 @@ export function makeInMemoryBackend(opts = {}) {
     },
 
     async listLogs(wellId) { return [...(logsByWell.get(wellId) || [])]; },
+
+    /** Petrophysics zones of a well, top-down (same shape as wellsRegistry.listZones). */
+    async listZones(wellId) { return [...(zonesByWell.get(wellId) || [])].sort((a, b) => a.top_md_m - b.top_md_m).map((z) => ({ ...z })); },
 
     // registry-wide reads (U2-005 / U2-006), same shape as wellsRegistry
     async listAllLogMeta() { return [...logsByWell.values()].flat().map((l) => ({ ...l })); },
