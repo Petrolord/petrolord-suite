@@ -5,6 +5,24 @@ Supply Chain SC3 (catalogue programme, owner 2026-09-27 "continue non-stop"; pla
 engine first (petrolord-engines PR #281, merged 3e058f2), then this Suite app, then
 the NextGen course "Materials, Spares & Inventory Management" (`materials`).
 
+## Design system rollout, batch 5D (2026-09-28)
+
+The app opens on the Petrolord design system: light grey panel by default,
+dark as a per-user choice from the header toggle, which stays visible at
+phone width.
+
+- Scope: `ThemedApp` inside `src/pages/apps/MaterialsSparesPlanner.jsx`; App.jsx unchanged.
+  The header is `AppHeader` (back, title, saved study, save, help, toggle).
+  Cold-load prefix `/dashboard/apps/midstream-downstream/materials-spares-planner` in
+  `src/design/rollout/w5d.js`.
+- Engine outputs, reasons and refusals print exactly as before (refusals on the warning role, word for word). Every result table is a NumericTable ledger (register, criticality, ABC by annual value, discount bands, insurance spares, lead-time statistics, slow-moving write-downs); the chosen spares row is marked with the word "chosen" beside its success tint. Criticality classes show as their labels; class colour stays inside the charts, which keep the white chart standard.
+- Test: `src/pages/apps/__tests__/MaterialsSparesPlanner.theme.test.jsx` (light by default,
+  toggle to dark and back stored per user, no legacy colour outside canvases
+  with a negative control, the route registered, every tab in both themes,
+  the documentation drawer and the new-study dialog inside the scope).
+  Existing tests pass unchanged.
+- No engine or calculation change.
+
 ## State (2026-09-27): built, on branch `feat/materials-spares-planner`, NOT live
 
 | item | value |
