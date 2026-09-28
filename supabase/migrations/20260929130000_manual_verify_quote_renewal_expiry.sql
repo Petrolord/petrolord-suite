@@ -1,36 +1,61 @@
 -- =============================================================================
--- manual_verify_quote: a paid renewal re-points held rows at the new quote
+-- manual_verify_quote: paid quotes set their own end dates (renewals stack,
+-- top-ups never shorten, a re-run never wipes or re-stacks)
 -- -----------------------------------------------------------------------------
--- HELD: owner + second-engineer review (payment path). NOT YET APPLIED.
+-- OWNER-APPROVED 2026-09-28 (payment path; lead recommendations). NOT YET APPLIED.
+-- Apply BEFORE deploying the edge functions changed on fix/renewal-expiry-sync
+-- (they call the 3-argument form created here).
 --
 -- Defect (found 2026-09-28, after PR #767 routed Renew through quote-and-pay):
--- the two ON CONFLICT branches below updated an org's EXISTING purchased_modules
--- rows without touching quote_id, and set expiry_date = quotes.expiry_date,
--- which generate-quote never writes (always NULL). The payment finalizers then
--- set the real end date only on rows WHERE quote_id = <the paid quote>, so for
--- an app or module the org already held:
---   * quote_id stayed on the OLD quote, so the expiry sync missed the row, and
---   * expiry_date was overwritten with NULL, which the entitlement readers
---     (usePurchasedModules, get-user-entitlements) treat as "never expires".
--- A paid renewal therefore turned held rows into perpetual grants instead of
--- extending them to the new end date. The same NULL overwrite fires whenever
--- the RPC runs a second time for one quote (e.g. the Paystack webhook landing
--- after the redirect verify), wiping an end date that was already set.
+-- the two ON CONFLICT branches updated an org's EXISTING purchased_modules rows
+-- without touching quote_id and set expiry_date = quotes.expiry_date, which
+-- generate-quote never writes (always NULL). The finalizers then set the end
+-- date only on rows WHERE quote_id = <the paid quote>, so a paid renewal left
+-- held rows on the old quote with expiry NULL ("never expires" to
+-- usePurchasedModules and get-user-entitlements), and any second RPC run for a
+-- quote (the Paystack webhook after the verify page) wiped a set end date.
 --
--- Change vs 20260613141000 (the live definition, byte-compared 2026-09-28):
--- in both ON CONFLICT ... DO UPDATE branches only,
---   + quote_id    = EXCLUDED.quote_id
---   ~ expiry_date = COALESCE(EXCLUDED.expiry_date, purchased_modules.expiry_date)
--- so the finalizer's "WHERE quote_id = <paid quote>" sync now reaches renewed
--- rows, and a NULL quote expiry never erases a known end date. Everything else
--- is unchanged. CREATE OR REPLACE keeps the existing owner and grants.
+-- Rules (owner decision 2026-09-28). This function is now the ONLY place that
+-- sets purchased_modules.expiry_date for a paid quote, on every rail (Paystack
+-- verify page, Paystack webhook, Stripe, bank transfer); the finalizers no
+-- longer run their own "UPDATE ... SET expiry_date" sync.
+--   term   = quotes.billing_period, else quotes.billing_term, in months
+--            (monthly 1, quarterly 3, annual/yearly 12, 2year 24, 3year 36;
+--            anything else 12), the same table as _shared/billing-term.ts.
+--   paid   = p_paid_at, else quotes.payment_verified_at, else now().
+--   App row, first purchase:                  paid + term.
+--   App row held, current end in the future:  current end + term (stacks;
+--                                             no days lost).
+--   App row held, expired or NULL end:        paid + term.
+--   App row already on THIS quote (re-run):   unchanged (a NULL end is filled
+--                                             with paid + term), so a second
+--                                             run never stacks twice.
+--   Module row (container):                   the later of its current end and
+--                                             the end just set on the quote's
+--                                             app in that module; a shorter
+--                                             top-up never moves it earlier.
+-- Month arithmetic is done in UTC and clamps to the month end (Jan 31 + 1
+-- month = Feb 28/29), as addMonths() does in TypeScript.
+-- The result jsonb gains expiry_date (the latest end set on this quote's app
+-- rows), paid_at and term_months; finalizers use expiry_date as the
+-- subscriptions.end_date so the subscription row and the entitlements agree.
+--
+-- Objects:
+--   * manual_verify_quote(text, uuid, timestamptz): new, does the work.
+--     New functions inherit the public-schema default ACL (anon and
+--     authenticated EXECUTE), so EXECUTE is revoked from PUBLIC, anon and
+--     authenticated and granted to service_role, matching 20260929130100.
+--   * manual_verify_quote(text, uuid): CREATE OR REPLACE (keeps the owner and
+--     the service_role-only ACL applied by 20260929130100) as a wrapper with
+--     p_paid_at NULL, for any caller still on the two-argument form.
 -- Idempotent; no transaction lines of its own.
 -- =============================================================================
 
-CREATE OR REPLACE FUNCTION public.manual_verify_quote(p_quote_id text, p_organization_id uuid)
+CREATE OR REPLACE FUNCTION public.manual_verify_quote(p_quote_id text, p_organization_id uuid, p_paid_at timestamptz)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path = public, pg_temp
 AS $function$
 DECLARE
     v_quote record;
@@ -43,6 +68,12 @@ DECLARE
     v_app_name text;
     v_app_id_ref text;
     v_result jsonb := '{"status": "success", "processed": [], "skipped": []}'::jsonb;
+    v_paid timestamptz;
+    v_months int;
+    v_term text;
+    v_new_end timestamptz;
+    v_row_end timestamptz;
+    v_latest_end timestamptz;
     v_mapping jsonb := '{
         "geoscience": "f44a23a1-c0e0-4ed1-8961-91b3c6c2f091",
         "reservoir": "59fea9fb-ce7f-4534-b523-d4c0f8126032",
@@ -66,6 +97,21 @@ BEGIN
             'quote_id', p_quote_id
         );
     END IF;
+
+    -- 1b. Paid date and term. The term table mirrors _shared/billing-term.ts:
+    -- a stored billing_period wins over billing_term; unknown counts as annual.
+    v_paid := COALESCE(p_paid_at, v_quote.payment_verified_at, NOW());
+    v_term := lower(btrim(COALESCE(v_quote.billing_period, '')));
+    IF v_term NOT IN ('monthly','quarterly','annual','yearly','2year','3year') THEN
+        v_term := lower(btrim(COALESCE(v_quote.billing_term, '')));
+    END IF;
+    v_months := CASE v_term
+        WHEN 'monthly' THEN 1 WHEN 'quarterly' THEN 3
+        WHEN 'annual' THEN 12 WHEN 'yearly' THEN 12
+        WHEN '2year' THEN 24 WHEN '3year' THEN 36
+        ELSE 12 END;
+    -- End of a term bought on the paid date (UTC month arithmetic).
+    v_new_end := ((v_paid AT TIME ZONE 'UTC') + make_interval(months => v_months)) AT TIME ZONE 'UTC';
 
     -- 2. Loop through Purchased Apps
     IF v_quote.apps IS NULL OR jsonb_array_length(v_quote.apps) = 0 THEN
@@ -125,15 +171,29 @@ BEGIN
                 COALESCE(v_module_uuid::text, v_module_slug),
                 v_app_uuid::text, v_app_uuid, v_module_uuid,
                 v_app_record.module, v_seats, 'active', v_quote.id,
-                NOW(), v_quote.expiry_date, 'active'
+                NOW(), v_new_end, 'active'
             )
-            -- A held app (renewal): re-point it at this quote so the paid-quote
-            -- expiry sync reaches it; never replace a known end date with NULL.
+            -- A held app: re-point it at this quote and set its end date.
+            --   same quote already applied (re-run): keep the end date;
+            --   current end in the future: stack the term on it;
+            --   expired or NULL: paid date + term.
             ON CONFLICT (organization_id, app_id) DO UPDATE SET
                 seats_allocated = EXCLUDED.seats_allocated,
                 status = 'active',
                 quote_id = EXCLUDED.quote_id,
-                expiry_date = COALESCE(EXCLUDED.expiry_date, public.purchased_modules.expiry_date);
+                expiry_date = CASE
+                    WHEN public.purchased_modules.quote_id IS NOT DISTINCT FROM EXCLUDED.quote_id
+                        THEN COALESCE(public.purchased_modules.expiry_date, EXCLUDED.expiry_date)
+                    WHEN public.purchased_modules.expiry_date > v_paid
+                        THEN ((public.purchased_modules.expiry_date AT TIME ZONE 'UTC')
+                              + make_interval(months => v_months)) AT TIME ZONE 'UTC'
+                    ELSE GREATEST(EXCLUDED.expiry_date, public.purchased_modules.expiry_date)
+                END
+            RETURNING expiry_date INTO v_row_end;
+
+            IF v_latest_end IS NULL OR v_row_end > v_latest_end THEN
+                v_latest_end := v_row_end;
+            END IF;
 
             -- 4. Upsert Parent Module (Module Level) if applicable
             IF v_module_uuid IS NOT NULL THEN
@@ -144,12 +204,14 @@ BEGIN
                 ) VALUES (
                     p_organization_id, v_module_uuid::text, v_module_uuid, v_module_slug,
                     v_seats, 'active', v_quote.id,
-                    NOW(), v_quote.expiry_date, 'active'
+                    NOW(), v_row_end, 'active'
                 )
+                -- The module row ends with its latest app: the later of its
+                -- current end and the end just set on this app. Never earlier.
                 ON CONFLICT (organization_id, module_id) WHERE app_id IS NULL DO UPDATE SET
                     status = 'active',
                     quote_id = EXCLUDED.quote_id,
-                    expiry_date = COALESCE(EXCLUDED.expiry_date, public.purchased_modules.expiry_date);
+                    expiry_date = GREATEST(public.purchased_modules.expiry_date, EXCLUDED.expiry_date);
             END IF;
 
             -- NOTE: No seat rows are created here. Seats are assigned on demand by
@@ -177,9 +239,43 @@ BEGIN
     SET status = 'ENTITLEMENTS_CREATED', updated_at = NOW()
     WHERE id = v_quote.id;
 
+    v_result := v_result || jsonb_build_object(
+        'expiry_date', v_latest_end,
+        'paid_at', v_paid,
+        'term_months', v_months
+    );
+
     RETURN v_result;
 EXCEPTION WHEN OTHERS THEN
     RAISE WARNING 'Error in manual_verify_quote: %', SQLERRM;
     RETURN jsonb_build_object('status', 'error', 'message', SQLERRM);
 END;
 $function$;
+
+-- Two-argument form: kept for callers not yet redeployed. Same rules, with the
+-- paid date taken from quotes.payment_verified_at (else now()).
+CREATE OR REPLACE FUNCTION public.manual_verify_quote(p_quote_id text, p_organization_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path = public, pg_temp
+AS $function$
+BEGIN
+    RETURN public.manual_verify_quote(p_quote_id, p_organization_id, NULL::timestamptz);
+END;
+$function$;
+
+-- The new overload would otherwise inherit the schema default ACL (anon and
+-- authenticated EXECUTE). Provisioning is service-role only (20260929130100).
+REVOKE EXECUTE ON FUNCTION public.manual_verify_quote(text, uuid, timestamptz) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.manual_verify_quote(text, uuid, timestamptz) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.manual_verify_quote(text, uuid, timestamptz) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.manual_verify_quote(text, uuid, timestamptz) TO service_role;
+-- Re-assert the two-argument ACL too (no-op when 20260929130100 is applied).
+REVOKE EXECUTE ON FUNCTION public.manual_verify_quote(text, uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.manual_verify_quote(text, uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.manual_verify_quote(text, uuid) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.manual_verify_quote(text, uuid) TO service_role;
+
+-- PostgREST: pick up the new overload.
+NOTIFY pgrst, 'reload schema';
