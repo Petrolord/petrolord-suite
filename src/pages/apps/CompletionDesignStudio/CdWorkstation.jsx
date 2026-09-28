@@ -225,20 +225,20 @@ export default function CdWorkstation({ backend }) {
   const banner = res?.kpis?.banner ?? (runError ? 'UNKNOWN' : null);
 
   const ribbon = (
-    <div className="flex h-11 items-center gap-3 border-b border-pl-border bg-pl-surface px-3">
-      <Link to="/dashboard/drilling" className="flex items-center gap-1 text-xs text-pl-muted hover:text-pl-text">
+    <div className="flex h-11 items-center gap-3 overflow-x-auto border-b border-pl-border bg-pl-surface px-3">
+      <Link to="/dashboard/drilling" className="flex shrink-0 items-center gap-1 text-xs text-pl-muted hover:text-pl-text">
         <Home className="h-3.5 w-3.5" /> Drilling
       </Link>
-      <span className="text-sm font-semibold text-pl-text">Completion Design Studio</span>
-      <div className="ml-2 flex gap-1">
+      <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-pl-text">Completion Design Studio</span>
+      <div className="ml-2 flex shrink-0 gap-1">
         {TABS.map((t) => (
           <button key={t.id} type="button" onClick={() => setTab(t.id)} data-testid={`cd-tab-${t.id}`}
-            className={`rounded px-2.5 py-1 text-xs ${tab === t.id ? 'bg-pl-primary/10 font-medium text-pl-primary-text' : 'text-pl-muted hover:bg-pl-sunken hover:text-pl-text'}`}>
+            className={`whitespace-nowrap rounded px-2.5 py-1 text-xs ${tab === t.id ? 'bg-pl-primary/10 font-medium text-pl-primary-text' : 'text-pl-muted hover:bg-pl-sunken hover:text-pl-text'}`}>
             {t.label}
           </button>
         ))}
       </div>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-2">
         {banner && (
           <span className={`rounded px-2 py-0.5 text-[11px] font-semibold ${BANNER_CLASSES[banner]}`} data-testid="cd-banner">
             {banner}
