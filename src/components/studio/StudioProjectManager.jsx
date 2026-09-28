@@ -6,6 +6,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { useDsTheme } from '@/design/themeContext';
+
+// Inside an opted-in <ThemedApp> scope the adapted Select, Button, Dialog and
+// Input carry the theme, so the legacy colour overrides are dropped there;
+// outside one every class string is exactly as before.
+const LEGACY = {
+  label: 'text-xs font-medium text-slate-400 uppercase',
+  trigger: 'flex-1 min-w-0 bg-slate-800 border-slate-700 [&>span]:truncate',
+  content: 'bg-slate-800 border-slate-700 text-slate-100',
+  button: 'bg-slate-800 border-slate-700',
+  dialog: 'bg-slate-900 border-slate-700 text-slate-100',
+  del: 'bg-slate-800 border-slate-700 text-slate-500 hover:text-red-400',
+};
+const THEMED = {
+  label: 'text-xs font-medium text-pl-muted uppercase',
+  trigger: 'flex-1 min-w-0 [&>span]:truncate',
+  content: undefined,
+  button: undefined,
+  dialog: undefined,
+  del: 'text-pl-muted hover:text-pl-danger-text',
+};
 
 const StudioProjectManager = ({
   projects = [],
@@ -24,6 +45,8 @@ const StudioProjectManager = ({
   onRequestCreate,
 }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const ds = useDsTheme();
+  const k = ds ? THEMED : LEGACY;
   const [newProjectName, setNewProjectName] = useState('');
 
   const handleCreate = () => {
@@ -36,13 +59,13 @@ const StudioProjectManager = ({
 
   return (
     <div className="space-y-2">
-      <label className="text-xs font-medium text-slate-400 uppercase">{label}</label>
+      <label className={k.label}>{label}</label>
       <div className="flex gap-2">
         <Select value={currentProjectId || ''} onValueChange={onOpen}>
-          <SelectTrigger className="flex-1 min-w-0 bg-slate-800 border-slate-700 [&>span]:truncate">
+          <SelectTrigger className={k.trigger} {...(ds ? { 'aria-label': label } : {})}>
             <SelectValue placeholder={`Select ${noun}`} />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectContent className={k.content}>
             {projects.length === 0 ? (
               <SelectItem value="none" disabled>{`No ${noun}s yet`}</SelectItem>
             ) : (
@@ -56,7 +79,7 @@ const StudioProjectManager = ({
         {onRequestCreate ? (
           <Button
             variant="outline" size="icon"
-            className="bg-slate-800 border-slate-700"
+            className={k.button}
             title={`Create new ${noun}`}
             onClick={onRequestCreate}
           >
@@ -65,11 +88,11 @@ const StudioProjectManager = ({
         ) : (
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="icon" className="bg-slate-800 border-slate-700" title={`Create new ${noun}`}>
+            <Button variant="outline" size="icon" className={k.button} title={`Create new ${noun}`} {...(ds ? { 'aria-label': `Create new ${noun}` } : {})}>
               <Plus size={16} />
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-slate-900 border-slate-700 text-slate-100">
+          <DialogContent className={k.dialog}>
             <DialogHeader>
               <DialogTitle>{`Create new ${noun}`}</DialogTitle>
             </DialogHeader>
@@ -79,7 +102,7 @@ const StudioProjectManager = ({
                 value={newProjectName}
                 onChange={(e) => setNewProjectName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
-                className="bg-slate-800 border-slate-700"
+                className={k.button}
               />
             </div>
             <DialogFooter>
@@ -92,8 +115,9 @@ const StudioProjectManager = ({
         {currentProjectId && (
           <Button
             variant="outline" size="icon"
-            className="bg-slate-800 border-slate-700 text-slate-500 hover:text-red-400"
+            className={k.del}
             title={`Delete current ${noun}`}
+            {...(ds ? { 'aria-label': `Delete current ${noun}` } : {})}
             onClick={() => {
               if (window.confirm(confirmDeleteMessage)) {
                 onDelete(currentProjectId);
