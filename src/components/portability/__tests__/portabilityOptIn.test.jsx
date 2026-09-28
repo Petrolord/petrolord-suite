@@ -55,12 +55,10 @@ jest.mock('@/lib/portability/importPackage', () => ({
   importPackage: jest.fn(),
 }));
 
-/* eslint-disable import/first */
 import { ThemedApp } from '@/design/ThemeProvider';
 import PackageImportDialog from '@/components/portability/PackageImportDialog';
 import PackageExportDialog from '@/components/portability/PackageExportDialog';
 import SigningSummary from '@/components/portability/SigningSummary';
-/* eslint-enable import/first */
 
 beforeAll(() => {
   global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };

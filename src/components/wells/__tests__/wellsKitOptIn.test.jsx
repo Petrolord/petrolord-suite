@@ -15,7 +15,6 @@ import { render, fireEvent, act } from '@testing-library/react';
 
 jest.mock('@/lib/customSupabaseClient', () => ({ supabase: {} }));
 
-/* eslint-disable import/first */
 import { ThemedApp } from '@/design/ThemeProvider';
 import LayoutPanel from '@/components/wells/LayoutPanel';
 import TopNamePopover from '@/components/wells/TopNamePopover';
@@ -24,7 +23,6 @@ import CrossSection from '@/components/wells/section/CrossSection';
 import CoreImagesPanel from '@/components/wells/CoreImagesPanel';
 import IntervalsEditor from '@/components/wells/IntervalsEditor';
 import { buildDefaultLayouts } from '@/components/wells/layout/layoutSchema';
-/* eslint-enable import/first */
 
 beforeAll(() => {
   global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
