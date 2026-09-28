@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
+import { epeCallout, epeCellInput, epeNativeCheck } from '@/pages/apps/epe/epeUi';
 
 // ----------------------------------------------------------------------------
 // Helpers
@@ -164,7 +165,7 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, exist
     const expectedKeyword = FILENAME_KEYWORD[dataType];
     if (expectedKeyword && !file.name.toLowerCase().includes(expectedKeyword)) {
       setFilenameWarning(
-        `Filename does not contain "${expectedKeyword}". The system routes files by name — this might be misclassified. You can continue anyway, but consider renaming.`
+        `Filename does not contain "${expectedKeyword}". The system routes files by name, so this file might be misclassified. You can continue, and renaming the file is safer.`
       );
     } else {
       setFilenameWarning(null);
@@ -386,27 +387,27 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, exist
   const dropzoneClasses = `p-6 border-2 border-dashed rounded-lg transition-colors ${
     stage !== 'IDLE' ? 'cursor-default' : 'cursor-pointer'
   } ${
-    isDragActive ? 'border-cyan-400 bg-slate-800' : 'border-slate-600 hover:border-cyan-500'
+    isDragActive ? 'border-pl-primary bg-pl-sunken' : 'border-pl-border-strong hover:border-pl-primary'
   }`;
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-1">
+    <div className="bg-pl-surface border border-pl-border rounded-xl p-1">
       <div {...getRootProps()} className={dropzoneClasses}>
         {stage === 'IDLE' && (
           <>
             <input {...getInputProps()} />
-            <div className="flex flex-col items-center justify-center text-center text-slate-400 py-4">
-              <UploadCloud className="w-10 h-10 mb-3 text-cyan-400" />
-              <p className="text-sm font-medium">
+            <div className="flex flex-col items-center justify-center text-center text-pl-muted py-4">
+              <UploadCloud className="w-10 h-10 mb-3 text-pl-primary-text" aria-hidden="true" />
+              <p className="text-sm font-medium text-pl-text">
                 Drop {DATA_TYPE_LABEL[dataType]} CSV here, or click to browse
               </p>
-              <p className="text-xs text-slate-500 mt-2">
-                Filename should contain "<span className="font-mono">{FILENAME_KEYWORD[dataType]}</span>" • Max {MAX_FILE_SIZE_MB} MB
+              <p className="text-xs text-pl-muted mt-2">
+                Filename should contain "<span className="font-pl-mono">{FILENAME_KEYWORD[dataType]}</span>" • Max {MAX_FILE_SIZE_MB} MB
               </p>
               <button
                 type="button"
                 onClick={handleDownloadTemplate}
-                className="mt-3 inline-flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 underline underline-offset-2"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs text-pl-primary-text hover:text-pl-primary-hover underline underline-offset-2"
               >
                 <Download className="w-3.5 h-3.5" />
                 Download template CSV
@@ -421,21 +422,21 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, exist
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="text-slate-200"
+              className="text-pl-text"
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <FileSpreadsheet className="w-6 h-6 text-cyan-400" />
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <FileSpreadsheet className="w-6 h-6 text-pl-primary-text" />
                   <div>
-                    <p className="font-medium text-white text-sm">{selectedFile.name}</p>
-                    <p className="text-xs text-slate-400">
+                    <p className="font-medium text-pl-text text-sm break-all">{selectedFile.name}</p>
+                    <p className="text-xs text-pl-muted">
                       {previewData.columns.length} columns • {previewData.previewRowCount}+ rows • {formatBytes(previewData.fileSize)}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={handleCancelPreview}
-                  className="text-slate-400 hover:text-white p-1"
+                  className="text-pl-muted hover:text-pl-text p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus"
                   type="button"
                 >
                   <X className="w-4 h-4" />
@@ -443,23 +444,23 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, exist
               </div>
 
               {filenameWarning && (
-                <div className="mb-3 flex items-start gap-2 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-yellow-200 text-xs">
+                <div className={`${epeCallout('warning')} mb-3 flex items-start gap-2 p-2 text-xs`} role="note">
                   <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span>{filenameWarning}</span>
                 </div>
               )}
 
-              <div className="overflow-x-auto bg-slate-900/50 rounded border border-white/10">
+              <div className="overflow-x-auto bg-pl-surface rounded border border-pl-border">
                 <table className="text-xs w-full">
-                  <thead className="bg-slate-800">
+                  <thead className="bg-pl-sunken">
                     <tr>
                       {previewData.columns.slice(0, 8).map((c) => (
-                        <th key={c} className="px-2 py-1 text-left text-cyan-300 font-mono whitespace-nowrap">
+                        <th key={c} className="px-2 py-1 text-left text-pl-muted font-pl-mono font-semibold whitespace-nowrap">
                           {c}
                         </th>
                       ))}
                       {previewData.columns.length > 8 && (
-                        <th className="px-2 py-1 text-left text-slate-500">
+                        <th className="px-2 py-1 text-left text-pl-muted">
                           + {previewData.columns.length - 8} more
                         </th>
                       )}
@@ -467,14 +468,14 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, exist
                   </thead>
                   <tbody>
                     {previewData.rows.map((row, i) => (
-                      <tr key={i} className="border-t border-white/5">
+                      <tr key={i} className="border-t border-pl-border">
                         {previewData.columns.slice(0, 8).map((c) => (
-                          <td key={c} className="px-2 py-1 text-slate-300 whitespace-nowrap max-w-32 overflow-hidden text-ellipsis">
+                          <td key={c} className="px-2 py-1 text-pl-text font-pl-mono tabular-nums whitespace-nowrap max-w-32 overflow-hidden text-ellipsis">
                             {row[c] !== undefined && row[c] !== null ? String(row[c]) : ''}
                           </td>
                         ))}
                         {previewData.columns.length > 8 && (
-                          <td className="px-2 py-1 text-slate-500">…</td>
+                          <td className="px-2 py-1 text-pl-muted">…</td>
                         )}
                       </tr>
                     ))}
@@ -483,12 +484,12 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, exist
               </div>
 
               {isProduction && (
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-pl-text">
                   <span>Scenario tag</span>
                   <select
                     value={scenarioTag}
                     onChange={(e) => setScenarioTag(e.target.value)}
-                    className="bg-gray-800 border border-slate-600 rounded px-2 py-1 text-xs text-white"
+                    className={`${epeCellInput} w-auto`}
                   >
                     <option value="">Base</option>
                     {SCENARIO_PRESETS.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -499,39 +500,38 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, exist
                       value={customTag}
                       onChange={(e) => setCustomTag(e.target.value)}
                       placeholder="e.g. 2C"
-                      className="bg-gray-800 border border-slate-600 rounded px-2 py-1 text-xs text-white w-24"
+                      className={`${epeCellInput} w-24 text-right tabular-nums`}
                     />
                   )}
-                  <span className="text-slate-500">
+                  <span className="text-pl-muted">
                     Runs price one scenario at a time; untagged files are the Base scenario.
                   </span>
                 </div>
               )}
 
               {replaceableCount > 0 && (
-                <label className="mt-3 flex items-start gap-2 p-2 bg-slate-900/60 border border-white/10 rounded text-xs text-slate-300 cursor-pointer">
+                <label className="mt-3 flex items-start gap-2 p-2 bg-pl-sunken border border-pl-border rounded text-xs text-pl-text cursor-pointer">
                   <input
                     type="checkbox"
                     checked={replaceExisting}
                     onChange={(e) => setReplaceExisting(e.target.checked)}
-                    className="mt-0.5 accent-cyan-500"
+                    className={`mt-0.5 ${epeNativeCheck}`}
                   />
                   <span>
                     Replace the {replaceableCount} existing file{replaceableCount > 1 ? 's' : ''}
                     {isProduction ? ` in the ${effectiveScenario || 'Base'} scenario` : ' in this slot'} (recommended).
-                    Untick only if this file adds to the existing data rather than revising it; the engine sums every {isProduction ? 'same-scenario file' : 'file in the slot'}.
+                    Untick only if this file adds to the existing data and does not revise it; the engine sums every {isProduction ? 'same-scenario file' : 'file in the slot'}.
                   </span>
                 </label>
               )}
 
-              <div className="flex justify-end gap-2 mt-4">
+              <div className="flex flex-wrap justify-end gap-2 mt-4">
                 <Button variant="outline" size="sm" onClick={handleCancelPreview} type="button">
                   Cancel
                 </Button>
                 <Button
                   size="sm"
                   onClick={handleConfirmUpload}
-                  className="bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600"
                   type="button"
                 >
                   Confirm Upload
@@ -544,20 +544,20 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, exist
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col items-center text-center py-6 text-slate-300"
+              className="flex flex-col items-center text-center py-6 text-pl-text"
             >
-              <Loader2 className="w-10 h-10 mb-3 animate-spin text-cyan-400" />
-              <p className="text-sm font-medium text-white">
+              <Loader2 className="w-10 h-10 mb-3 animate-spin text-pl-primary-text" />
+              <p className="text-sm font-medium text-pl-text">
                 {stage === 'UPLOADING' ? 'Uploading file…' : 'Parsing and saving rows…'}
               </p>
-              <p className="text-xs text-slate-400 mt-1">{selectedFile?.name}</p>
-              <div className="w-full max-w-sm mt-3 bg-slate-700 rounded-full h-1.5 overflow-hidden">
+              <p className="text-xs text-pl-muted mt-1">{selectedFile?.name}</p>
+              <div className="w-full max-w-sm mt-3 bg-pl-sunken rounded-full h-1.5 overflow-hidden">
                 <div
-                  className="h-1.5 bg-gradient-to-r from-green-500 to-cyan-500 transition-all duration-200"
+                  className="h-1.5 bg-pl-primary transition-all duration-200"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <p className="text-xs text-slate-500 mt-1">{progress}%</p>
+              <p className="text-xs text-pl-muted mt-1">{progress}%</p>
             </motion.div>
           )}
 
@@ -567,9 +567,9 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, exist
               animate={{ opacity: 1, scale: 1 }}
               className="flex flex-col items-center text-center py-4"
             >
-              <CheckCircle2 className="w-10 h-10 mb-2 text-green-400" />
-              <p className="text-sm font-medium text-white">Imported {successInfo.rowCount} rows</p>
-              <p className="text-xs text-slate-400 mt-0.5">{successInfo.fileName}</p>
+              <CheckCircle2 className="w-10 h-10 mb-2 text-pl-success-text" />
+              <p className="text-sm font-medium text-pl-text">Imported {successInfo.rowCount} rows</p>
+              <p className="text-xs text-pl-muted mt-0.5">{successInfo.fileName}</p>
               <Button
                 variant="outline"
                 size="sm"
@@ -588,9 +588,9 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, exist
               animate={{ opacity: 1 }}
               className="flex flex-col items-center text-center py-4"
             >
-              <XCircle className="w-10 h-10 mb-2 text-red-400" />
-              <p className="text-sm font-medium text-white">Upload failed</p>
-              <p className="text-xs text-red-300 mt-1 max-w-md break-words">{errorMessage}</p>
+              <XCircle className="w-10 h-10 mb-2 text-pl-danger-text" />
+              <p className="text-sm font-medium text-pl-text">Upload failed</p>
+              <p className="text-xs text-pl-danger-text mt-1 max-w-md break-words">{errorMessage}</p>
               <Button
                 variant="outline"
                 size="sm"

@@ -14,7 +14,7 @@ shim (edits to engine math go to Petrolord/petrolord-engines, not here).
   help drawer use theme roles; charts stay on the white chart standard
   (`data-canvas="chart"`) in both themes. The Studio kit pieces DCA uses
   (layout, autosave, help, project manager, notifications, busy overlay)
-  switch only inside a scope; `studioKitOptIn.test.jsx` proves the other
+  switch only inside a scope (pilot 5 kit, `useStudioTheme()`); `studioKitOptIn.test.jsx` and `studioKitLegacyDom.test.jsx` prove the other
   Studio apps render byte for byte as before. Unmounted legacy panels
   (DCASegmentsPanel, DCAForecastSettings, DCAParametersPanel, DCAKPICards,
   DCADataQuality, ResultsPanel) were left untouched.

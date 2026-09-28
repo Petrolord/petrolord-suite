@@ -127,7 +127,9 @@ user moves between the app's pages.
 `ThemedApp` renders a `div` with `data-pl-theme="light|dark"` (the CSS
 scope) and `data-pl-root` (page background), reads the signed-in user from
 `AuthContext` (no throw outside the provider) and provides the theme to
-everything below. Then:
+everything below. While the session is still restoring (loading, no
+user yet) it paints the last theme this device resolved
+(`petrolord.theme.v1.last`), so a dark user sees no light first frame. Then:
 
 - The adapted primitives switch automatically: `Card`, `Tabs`, `Table`,
   `Input`, `Textarea`, `Label`, `Button` (adds `variant="accent"`), `Badge`

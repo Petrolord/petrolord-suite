@@ -4,23 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { Save, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useDsTheme } from '@/design/themeContext';
+import { useStudioTheme } from './studioTheme';
 
-// Theme roles inside an opted-in <ThemedApp> scope; legacy classes outside.
-const THEMED = {
-  button: 'h-8 px-2 text-xs text-pl-muted hover:text-pl-text gap-2',
-  // the status word hides on a phone (the icon stays, the tooltip and the
-  // accessible name still carry it)
-  label: 'max-sm:sr-only',
-  saving: 'animate-spin text-pl-info-text',
-  failed: 'text-pl-danger-text',
-  saved: 'text-pl-success-text',
-  hint: 'text-[10px] text-pl-muted pt-1',
-};
+// Design system: theme roles inside a <ThemedApp> scope, legacy classes outside.
 
 const StudioAutoSave = ({ isSaving, saveError, lastSaveTime, onSave, disabled = false }) => {
   const [timeAgo, setTimeAgo] = useState('Just now');
-  const ds = useDsTheme();
+  const { tc } = useStudioTheme();
 
   useEffect(() => {
     setTimeAgo('Just now');
@@ -34,43 +24,43 @@ const StudioAutoSave = ({ isSaving, saveError, lastSaveTime, onSave, disabled = 
   }, [lastSaveTime]);
 
   return (
-    <div className={ds ? 'flex items-center gap-2 sm:px-2' : 'flex items-center gap-2 px-2'}>
+    <div className="flex items-center gap-2 px-2">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
-              className={ds ? THEMED.button : 'h-8 px-2 text-xs text-slate-400 hover:text-white gap-2'}
+              className={tc('h-8 px-2 text-xs text-slate-400 hover:text-white gap-2', 'h-8 px-2 text-xs gap-2')}
               onClick={onSave}
               disabled={isSaving || disabled}
             >
               {isSaving ? (
                 <>
-                  <Loader2 size={14} className={ds ? THEMED.saving : 'animate-spin text-blue-400'} />
-                  <span className={ds ? THEMED.label : undefined}>Saving...</span>
+                  <Loader2 size={14} className={tc('animate-spin text-blue-400', 'animate-spin text-pl-info-text')} />
+                  <span>Saving...</span>
                 </>
               ) : saveError ? (
                 <>
-                  <AlertCircle size={14} className={ds ? THEMED.failed : 'text-red-400'} />
-                  <span className={ds ? `${THEMED.failed} ${THEMED.label}` : 'text-red-400'}>Save Failed</span>
+                  <AlertCircle size={14} className={tc('text-red-400', 'text-pl-danger-text')} />
+                  <span className={tc('text-red-400', 'text-pl-danger-text')}>Save Failed</span>
                 </>
               ) : lastSaveTime ? (
                 <>
-                  <CheckCircle2 size={14} className={ds ? THEMED.saved : 'text-emerald-400'} />
-                  <span className={ds ? THEMED.label : undefined}>Saved {timeAgo}</span>
+                  <CheckCircle2 size={14} className={tc('text-emerald-400', 'text-pl-success-text')} />
+                  <span>Saved {timeAgo}</span>
                 </>
               ) : (
                 <>
                   <Save size={14} />
-                  <span className={ds ? THEMED.label : undefined}>Save</span>
+                  <span>Save</span>
                 </>
               )}
             </Button>
           </TooltipTrigger>
           <TooltipContent>
             {saveError ? saveError : `Last saved: ${lastSaveTime ? lastSaveTime.toLocaleTimeString() : 'Never'}`}
-            <div className={ds ? THEMED.hint : 'text-[10px] text-slate-400 pt-1'}>Click to save manually</div>
+            <div className={tc('text-[10px] text-slate-400 pt-1', 'text-[10px] opacity-80 pt-1')}>Click to save manually</div>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

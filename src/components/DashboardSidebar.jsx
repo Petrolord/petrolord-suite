@@ -40,11 +40,18 @@ import {
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 
-const SidebarItem = ({ icon: Icon, label, to, exact = false, disabled = false }) => {
+// Design system, lead decision 1 (2026-09-27): the dashboard sidebar stays
+// a dark brand rail in the homepage ink green in both themes. The root
+// carries data-pl-theme="dark" as a fixed scope (no provider, no toggle),
+// so the pl-* roles below resolve to the dark ink palette whatever the
+// page next to it uses. Status colours only for status; gold for eyebrows.
+const ITEM = 'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus';
+
+const SidebarItem = ({ icon: Icon, label, to, exact = false, disabled = false, onNavigate }) => {
   if (disabled) {
       return (
-        <div className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 cursor-not-allowed opacity-50">
-            <Icon className="h-4 w-4" />
+        <div className={cn(ITEM, 'text-pl-muted cursor-not-allowed opacity-60')} aria-disabled="true">
+            <Icon className="h-4 w-4" aria-hidden="true" />
             <span>{label}</span>
         </div>
       )
@@ -53,22 +60,29 @@ const SidebarItem = ({ icon: Icon, label, to, exact = false, disabled = false })
     <NavLink
       to={to}
       end={exact}
+      onClick={onNavigate}
       className={({ isActive }) =>
         cn(
-          "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+          ITEM,
           isActive
-            ? "bg-slate-800 text-white"
-            : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+            ? "bg-pl-raised text-pl-text shadow-[inset_3px_0_0_rgb(var(--pl-accent))]"
+            : "text-pl-muted hover:text-pl-text hover:bg-pl-raised/60"
         )
       }
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-4 w-4" aria-hidden="true" />
       <span>{label}</span>
     </NavLink>
   );
 };
 
-const DashboardSidebar = () => {
+const SectionLabel = ({ children }) => (
+  <div className="pt-4 pb-2">
+    <p className="px-3 text-[11px] font-semibold text-pl-accent-text uppercase tracking-[0.14em]">{children}</p>
+  </div>
+);
+
+const DashboardSidebar = ({ onNavigate, className }) => {
   const { can: canSuite } = useSuiteAccess();
   const { can: canHSE } = useHSEAccess();
   const { isSuperAdmin, actualUser, signOut } = useAuth();
@@ -86,22 +100,27 @@ const DashboardSidebar = () => {
   }, [isSuperAdmin, isImpersonating]);
 
   return (
-    <div className="w-64 bg-slate-950 border-r border-slate-800 h-full flex flex-col">
+    <nav
+      data-pl-theme="dark"
+      data-testid="dashboard-sidebar-rail"
+      aria-label="Dashboard"
+      className={cn("w-64 bg-pl-surface border-r border-pl-border h-full flex flex-col overflow-y-auto font-pl-sans", className)}
+    >
       <div className="p-6">
-        <Link to="/" className="flex items-center gap-2 mb-8 group" title="Go to home page">
+        <Link to="/" onClick={onNavigate} className="flex items-center gap-2 mb-8 group rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus" title="Go to home page">
           <img
             src="/petrolord-icon.png"
             alt="Petrolord"
             className="h-8 w-8 rounded-lg object-contain shrink-0"
           />
           <div>
-            <h1 className="text-white font-bold text-sm tracking-tight group-hover:text-[#D4AF37] transition-colors">Petrolord Suite</h1>
-            <span className="text-slate-500 text-xs">Enterprise Edition</span>
+            <p className="text-pl-text font-bold text-sm tracking-tight group-hover:text-pl-accent-text transition-colors">Petrolord Suite</p>
+            <span className="text-pl-muted text-xs">Enterprise Edition</span>
           </div>
         </Link>
 
         {isImpersonating && (
-            <div className="mb-4 p-3 bg-amber-900/20 border border-amber-700/50 rounded-lg text-amber-500 text-xs">
+            <div className="mb-4 p-3 bg-pl-warning-bg border border-pl-warning/40 rounded-lg text-pl-warning-text text-xs" role="status">
                 <p className="font-bold mb-2">Impersonation Mode</p>
                 <Button 
                     size="sm" 
@@ -116,34 +135,30 @@ const DashboardSidebar = () => {
 
         <div className="space-y-1">
           {/* Always show Dashboard link */}
-          <SidebarItem icon={LayoutDashboard} label="Dashboard" to="/dashboard" exact />
+          <SidebarItem icon={LayoutDashboard} label="Dashboard" to="/dashboard" onNavigate={onNavigate} exact />
           
           {/* Super Admin Console - Visible ONLY for Super Admins (Not in Impersonation Mode) */}
           {isSuperAdmin && !isImpersonating && (
             <>
-              <div className="pt-4 pb-2">
-                <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Platform Admin</p>
-              </div>
-              <SidebarItem icon={Monitor} label="Super Admin Console" to="/super-admin" />
+              <SectionLabel>Platform Admin</SectionLabel>
+              <SidebarItem icon={Monitor} label="Super Admin Console" to="/super-admin" onNavigate={onNavigate} />
             </>
           )}
 
           {/* Module Links */}
-          <div className="pt-4 pb-2">
-            <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Modules</p>
-          </div>
-          <SidebarItem icon={Layers} label="Geoscience" to="/dashboard/geoscience" />
-          <SidebarItem icon={Reservoir} label="Reservoir" to="/dashboard/reservoir" />
-          <SidebarItem icon={Anchor} label="Drilling" to="/dashboard/drilling" />
-          <SidebarItem icon={Zap} label="Production" to="/dashboard/production" />
-          <SidebarItem icon={DollarSign} label="Economics" to="/dashboard/economics" />
-          <SidebarItem icon={Factory} label="Facilities" to="/dashboard/facilities" />
-          <SidebarItem icon={ShieldCheck} label="Assurance" to="/dashboard/assurance" />
-          <SidebarItem icon={Container} label="Midstream & Downstream" to="/dashboard/midstream-downstream" />
-          <SidebarItem icon={Flame} label="Process Safety" to="/dashboard/process-safety" />
-          <SidebarItem icon={ScatterChart} label="Data & AI" to="/dashboard/data-ai" />
+          <SectionLabel>Modules</SectionLabel>
+          <SidebarItem icon={Layers} label="Geoscience" to="/dashboard/geoscience" onNavigate={onNavigate} />
+          <SidebarItem icon={Reservoir} label="Reservoir" to="/dashboard/reservoir" onNavigate={onNavigate} />
+          <SidebarItem icon={Anchor} label="Drilling" to="/dashboard/drilling" onNavigate={onNavigate} />
+          <SidebarItem icon={Zap} label="Production" to="/dashboard/production" onNavigate={onNavigate} />
+          <SidebarItem icon={DollarSign} label="Economics" to="/dashboard/economics" onNavigate={onNavigate} />
+          <SidebarItem icon={Factory} label="Facilities" to="/dashboard/facilities" onNavigate={onNavigate} />
+          <SidebarItem icon={ShieldCheck} label="Assurance" to="/dashboard/assurance" onNavigate={onNavigate} />
+          <SidebarItem icon={Container} label="Midstream & Downstream" to="/dashboard/midstream-downstream" onNavigate={onNavigate} />
+          <SidebarItem icon={Flame} label="Process Safety" to="/dashboard/process-safety" onNavigate={onNavigate} />
+          <SidebarItem icon={ScatterChart} label="Data & AI" to="/dashboard/data-ai" onNavigate={onNavigate} />
           
-          <SidebarItem icon={HardHat} label="HSE Portal" to="/hse" />
+          <SidebarItem icon={HardHat} label="HSE Portal" to="/hse" onNavigate={onNavigate} />
 
           {/* Admin Section - Disable sensitive areas if Impersonating */}
           {/* Shown to super admins too: they administer their OWN org here
@@ -151,35 +166,33 @@ const DashboardSidebar = () => {
               Items still gate on the caller's role in their org via canSuite. */}
           {(
             <>
-              <div className="pt-4 pb-2">
-                <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Organization Administration</p>
-              </div>
+              <SectionLabel>Organization Administration</SectionLabel>
               
               {canSuite(SUITE_PERMISSIONS.MANAGE_USERS) && (
                 <>
-                  <SidebarItem icon={Users} label="Employees" to="/dashboard/employees" disabled={isImpersonating} />
-                  <SidebarItem icon={Users} label="Team Management" to="/dashboard/teams" disabled={isImpersonating} />
+                  <SidebarItem icon={Users} label="Employees" to="/dashboard/employees" onNavigate={onNavigate} disabled={isImpersonating} />
+                  <SidebarItem icon={Users} label="Team Management" to="/dashboard/teams" onNavigate={onNavigate} disabled={isImpersonating} />
                 </>
               )}
               
               {canSuite(SUITE_PERMISSIONS.MANAGE_APP_ACCESS) && (
-                <SidebarItem icon={ShieldCheck} label="Access Control" to="/dashboard/modules" disabled={isImpersonating} />
+                <SidebarItem icon={ShieldCheck} label="Access Control" to="/dashboard/modules" onNavigate={onNavigate} disabled={isImpersonating} />
               )}
 
               {canSuite(SUITE_PERMISSIONS.MANAGE_BILLING) && (
-                <SidebarItem icon={CreditCard} label="Billing" to="/dashboard/subscriptions" disabled={isImpersonating} />
+                <SidebarItem icon={CreditCard} label="Billing" to="/dashboard/subscriptions" onNavigate={onNavigate} disabled={isImpersonating} />
               )}
               
               {canSuite(SUITE_PERMISSIONS.VIEW_ANALYTICS) && (
-                <SidebarItem icon={BarChart} label="Analytics" to="/dashboard/analytics" />
+                <SidebarItem icon={BarChart} label="Analytics" to="/dashboard/analytics" onNavigate={onNavigate} />
               )}
 
               {canSuite(SUITE_PERMISSIONS.MANAGE_ORGANIZATION) && (
-                <SidebarItem icon={DatabaseBackup} label="Data Export" to="/dashboard/data-export" disabled={isImpersonating} />
+                <SidebarItem icon={DatabaseBackup} label="Data Export" to="/dashboard/data-export" onNavigate={onNavigate} disabled={isImpersonating} />
               )}
 
               {canSuite(SUITE_PERMISSIONS.MANAGE_ORGANIZATION) && (
-                <SidebarItem icon={Settings} label="Settings" to="/admin/center" disabled={isImpersonating} />
+                <SidebarItem icon={Settings} label="Settings" to="/admin/center" onNavigate={onNavigate} disabled={isImpersonating} />
               )}
             </>
           )}
@@ -187,14 +200,14 @@ const DashboardSidebar = () => {
       </div>
       
       {/* User Profile Link + Logout (always visible) */}
-      <div className="mt-auto p-4 border-t border-slate-800 space-y-1">
-        <NavLink to="/profile" className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
-          <div className="h-8 w-8 rounded-full bg-slate-800 flex items-center justify-center">
-            <Users className="h-4 w-4" />
+      <div className="mt-auto p-4 border-t border-pl-border space-y-1">
+        <NavLink to="/profile" onClick={onNavigate} className={cn(ITEM, "text-pl-muted hover:text-pl-text hover:bg-pl-raised/60")}>
+          <div className="h-8 w-8 rounded-full bg-pl-raised flex items-center justify-center">
+            <Users className="h-4 w-4" aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white text-xs font-medium truncate">My Profile</p>
-            <p className="text-slate-500 text-[10px] truncate">View account</p>
+            <p className="text-pl-text text-xs font-medium truncate">My Profile</p>
+            <p className="text-pl-muted text-[11px] truncate">View account</p>
           </div>
         </NavLink>
 
@@ -202,33 +215,33 @@ const DashboardSidebar = () => {
           <AlertDialogTrigger asChild>
             <button
               type="button"
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-400 hover:text-red-400 hover:bg-red-950/30 transition-colors"
+              className={cn(ITEM, "w-full text-pl-muted hover:text-pl-danger-text hover:bg-pl-danger-bg")}
             >
-              <div className="h-8 w-8 rounded-full bg-slate-800 flex items-center justify-center">
-                <LogOut className="h-4 w-4" />
+              <div className="h-8 w-8 rounded-full bg-pl-raised flex items-center justify-center">
+                <LogOut className="h-4 w-4" aria-hidden="true" />
               </div>
               <span className="flex-1 min-w-0 text-left truncate">Log out</span>
             </button>
           </AlertDialogTrigger>
-          <AlertDialogContent className="bg-slate-900 border-slate-700 text-white">
+          <AlertDialogContent data-pl-theme="dark" className="bg-pl-raised border-pl-border text-pl-text shadow-pl-lg">
             <AlertDialogHeader>
               <AlertDialogTitle>Log out of Petrolord Suite?</AlertDialogTitle>
-              <AlertDialogDescription className="text-slate-400">
+              <AlertDialogDescription className="text-pl-muted">
                 You'll be returned to the login screen and will need to sign in again to continue.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">
+              <AlertDialogCancel className="bg-transparent border-pl-border-strong text-pl-text hover:bg-pl-sunken hover:text-pl-text focus-visible:ring-pl-focus">
                 Cancel
               </AlertDialogCancel>
-              <AlertDialogAction onClick={handleLogout} className="bg-red-600 hover:bg-red-700 text-white">
+              <AlertDialogAction onClick={handleLogout} className="bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90 focus-visible:ring-pl-focus">
                 Log out
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </div>
+    </nav>
   );
 };
 
