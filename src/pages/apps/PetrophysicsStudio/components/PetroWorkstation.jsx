@@ -49,8 +49,8 @@ import { useStudioPrefs, SPLIT_DEFAULT, SPLIT_MIN_PERCENT } from '../services/st
 import FieldViewPanel from './FieldViewPanel';
 import { useWellCurvesCache } from '../hooks/useWellCurvesCache';
 import {
-  computeWellZoned, zoneSummary, DEFAULT_PARAMS, PIPELINE_VERSION,
-  preparePublishLogs, zonePropertiesSnapshot,
+  computeWellZoned, DEFAULT_PARAMS, PIPELINE_VERSION,
+  preparePublishLogs,
 } from '../engine/pipeline';
 import { faciesCurve } from '../engine/crossplot';
 import { intervalsFromRuns } from '@/lib/stratigraphy/intervals';
@@ -61,6 +61,7 @@ import { nameKey, digitizedCurveName } from '@/lib/curveNames';
 import { resolveTracks, sourceStatus } from '../layout/resolveTracks';
 import { migrationStatusLine, applyDeliberateNone, provenanceOf } from '../services/projectState';
 import { mapLogs } from '../services/curveMap';
+import { zoneReports, zonePublishProperties } from '../services/zoneAverages';
 import { depthLabel, DEPTH_TRACK_KEYS, DEPTH_TRACK_TITLE } from '../viewer/depthModes';
 
 /** @param {string} [p.wellDataManagerPath] route of the Well Data Manager
@@ -441,15 +442,12 @@ export default function PetroWorkstation({
     }
   };
 
+  // PETRO-U1: pore-volume weighted Sw, net reservoir and TVT beside the
+  // engine's summary, each zone on its OWN merged parameters
   const summaries = useMemo(() => {
     if (!wellData || !computed) return {};
-    const out = {};
-    for (const z of zones) {
-      const merged = { ...params, ...(zoneParams[z.id] || {}) };
-      out[z.id] = zoneSummary(wellData.curves, computed.outputs, merged, z);
-    }
-    return out;
-  }, [wellData, computed, params, zones, zoneParams]);
+    return zoneReports({ curves: wellData.curves, outputs: computed.outputs, params, zones, zoneParams, well: selected });
+  }, [wellData, computed, params, zones, zoneParams, selected]);
 
   // PT9c: every zone's patch at once (the zone table's Apply)
   const applyZonePatches = useCallback((patches) => {
@@ -615,14 +613,13 @@ export default function PetroWorkstation({
 
   const publishZone = async (zone) => {
     try {
-      const summary = zoneSummary(wellData.curves, computed.outputs, params, zone);
-      if (!summary) { setStatus('Compute curves before publishing a zone summary.'); return; }
-      const props = zonePropertiesSnapshot(summary, { ...params, ...(zoneParams[zone.id] || {}) }, {
-        projectId, interpretationName: projectName, publishedAt: new Date().toISOString(),
+      // PETRO-U1-003: the published numbers are the zone's own (its
+      // override cutoffs included), the same ones the zone card shows
+      const props = zonePublishProperties({
+        curves: wellData.curves, outputs: computed.outputs, params, zoneParams, zone, well: selected,
+        meta: { projectId, interpretationName: projectName, publishedAt: new Date().toISOString() },
       });
-      // publishZone REPLACES properties, so carry the PT8 top provenance
-      // forward or the zone stops following the tops it was cut from
-      if (zone.properties?.from_tops) props.from_tops = zone.properties.from_tops;
+      if (!props) { setStatus('Compute curves before publishing a zone summary.'); return; }
       await backend.publishZone(zone, props);
       setStatus(`Published ${zone.name} summary.`);
       await refreshZones(zone.well_id);

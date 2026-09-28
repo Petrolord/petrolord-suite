@@ -10,7 +10,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import MultiWellTracks from './MultiWellTracks';
-import { computeWellZoned, zoneSummary } from '../engine/pipeline';
+import { computeWellZoned } from '../engine/pipeline';
+import { zoneReport, verticalSampleThickness } from '../services/zoneAverages';
 import { computeFlattening, allTopNames } from '../engine/section';
 import { depthLabel } from '../viewer/depthModes';
 import { activeTemplate } from '../layout/layoutSchema';
@@ -92,6 +93,7 @@ export default function FieldViewPanel({
       return {
         id,
         name: wells.find((w) => w.id === id)?.name || id,
+        well: wells.find((w) => w.id === id) || null,
         curves,
         outputs,
         tops,
@@ -134,7 +136,7 @@ export default function FieldViewPanel({
         const z = w.zones.find((x) => x.name.trim().toLowerCase() === key);
         if (!z) return null;
         const merged = { ...params, ...(zoneParams[z.id] || {}) };
-        return zoneSummary(w.curves, w.outputs, merged, z);
+        return zoneReport(w.curves, w.outputs, merged, z, { vth: verticalSampleThickness(w.curves.DEPT, w.well) });
       }),
     }));
   }, [fieldWells, params, zoneParams]);
