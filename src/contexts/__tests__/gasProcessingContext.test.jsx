@@ -201,11 +201,14 @@ describe('fmt tells an absent value from a broken one (F-U3)', () => {
     expect(fmt(0, 0)).toBe('0');
   });
 
+  // Class strings updated for design system rollout batch 5B: the page is
+  // themed, so the plain value reads text-pl-text and a broken one takes the
+  // warning status role. The behaviour under test is unchanged.
   it('colours a broken value and leaves an absent one alone', () => {
-    expect(accentFor(12)).toBe('text-slate-100');
-    expect(accentFor(undefined)).toBe('text-slate-100');
-    expect(accentFor(NaN)).toBe('text-amber-400');
-    expect(accentFor(Infinity)).toBe('text-amber-400');
+    expect(accentFor(12)).toBe('text-pl-text');
+    expect(accentFor(undefined)).toBe('text-pl-text');
+    expect(accentFor(NaN)).toBe('text-pl-warning-text');
+    expect(accentFor(Infinity)).toBe('text-pl-warning-text');
   });
 
   it('names the results that came back broken', () => {
