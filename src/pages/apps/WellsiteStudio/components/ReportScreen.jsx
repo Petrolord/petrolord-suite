@@ -48,26 +48,26 @@ export default function ReportScreen({ kind, backend, well, data, tourCfg, nowMs
   const exportPdf = async () => { try { const { exportReportPdf } = await import('../services/wsExport'); await exportReportPdf(model, { unit, offsetMin, signoffs: signoffRows }); onStatus?.('PDF exported.'); } catch (e) { onStatus?.(e.message); } };
   const exportDocx = async () => { try { const { exportReportDocx } = await import('../services/wsExport'); await exportReportDocx(model, { unit, offsetMin, signoffs: signoffRows }); onStatus?.('DOCX exported.'); } catch (e) { onStatus?.(e.message); } };
 
-  if (model.error) return <div className="p-4 text-xs text-amber-400" data-testid="ws-report-error">{model.error}</div>;
+  if (model.error) return <div className="p-4 text-xs text-pl-warning-text" data-testid="ws-report-error">{model.error}</div>;
   return (
     <div className="p-4 space-y-4" data-testid={`ws-${kind}`}>
       <div className="flex items-center gap-3 flex-wrap">
-        <h2 className="text-sm font-semibold text-slate-100">{kind === 'handover' ? 'Shift handover' : 'Daily geological report'}</h2>
+        <h2 className="text-sm font-semibold text-pl-text">{kind === 'handover' ? 'Shift handover' : 'Daily geological report'}</h2>
         {kind === 'handover' ? (
           <div className="flex gap-1 text-[11px]">
-            {[['last', 'Tour just ended'], ['current', 'Current tour so far']].map(([k, l]) => <button key={k} type="button" data-testid={`ws-${kind}-period-${k}`} onClick={() => setWhich(k)} className={`px-2 py-0.5 rounded border ${which === k ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}>{l}</button>)}
+            {[['last', 'Tour just ended'], ['current', 'Current tour so far']].map(([k, l]) => <button key={k} type="button" data-testid={`ws-${kind}-period-${k}`} onClick={() => setWhich(k)} className={`px-2 py-0.5 rounded border ${which === k ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}>{l}</button>)}
           </div>
         ) : (
           <div className="flex gap-1 text-[11px] items-center">
-            <button type="button" data-testid="ws-daily-prev" onClick={() => setDayOffset((d) => d + 1)} className="px-2 py-0.5 rounded border border-slate-700 text-slate-400">previous day</button>
-            <span className="text-slate-300" data-testid="ws-daily-date">{period.dateLabel}</span>
-            <button type="button" data-testid="ws-daily-next" disabled={dayOffset === 0} onClick={() => setDayOffset((d) => Math.max(0, d - 1))} className="px-2 py-0.5 rounded border border-slate-700 text-slate-400 disabled:opacity-40">next day</button>
+            <button type="button" data-testid="ws-daily-prev" onClick={() => setDayOffset((d) => d + 1)} className="px-2 py-0.5 rounded border border-pl-border text-pl-muted">previous day</button>
+            <span className="text-pl-text" data-testid="ws-daily-date">{period.dateLabel}</span>
+            <button type="button" data-testid="ws-daily-next" disabled={dayOffset === 0} onClick={() => setDayOffset((d) => Math.max(0, d - 1))} className="px-2 py-0.5 rounded border border-pl-border text-pl-muted disabled:opacity-40">next day</button>
           </div>
         )}
-        <span className="text-[11px] text-slate-500" data-testid={`ws-${kind}-period`}>{periodText(model, offsetMin)}</span>
-        <label className="text-[11px] text-slate-400 flex items-center gap-1 ml-auto"><input type="checkbox" checked={showSources} onChange={(e) => setShowSources(e.target.checked)} data-testid={`ws-${kind}-sources`} /> show sources</label>
+        <span className="text-[11px] text-pl-muted" data-testid={`ws-${kind}-period`}>{periodText(model, offsetMin)}</span>
+        <label className="text-[11px] text-pl-muted flex items-center gap-1 ml-auto"><input type="checkbox" checked={showSources} onChange={(e) => setShowSources(e.target.checked)} data-testid={`ws-${kind}-sources`} /> show sources</label>
       </div>
-      <div className="text-[11px] text-slate-500" data-testid={`ws-${kind}-meta`}>
+      <div className="text-[11px] text-pl-muted" data-testid={`ws-${kind}-meta`}>
         Generated {toRigLocal(Date.parse(model.generated_at), offsetMin).hhmm} rig time from {model.counts.records_in_period} record(s) in the period; template {model.template.name} v{model.template.version}; {citedIds(model).length} record(s) cited.
         {latest ? ` Recorded version ${latest.version_no}${chainSignoffs.length ? `, signed ${chainSignoffs.length} time(s)` : ''}.` : ' Not yet recorded.'}
         {' '}Facts here come from the well record; to change one, correct its record and this regenerates.

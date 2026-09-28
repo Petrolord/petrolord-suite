@@ -38,16 +38,16 @@ export default function WellSetup({ backend, onCreated, onStatus, initialGeoId =
     } catch (e) { onStatus?.(e.message); } finally { setBusy(false); }
   };
 
-  const inp = 'bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 w-full';
+  const inp = 'bg-pl-surface border border-pl-border-strong rounded px-2 py-1 text-xs text-pl-text w-full';
   return (
     <div className="p-4 max-w-xl space-y-3" data-testid="ws-setup">
-      <h2 className="text-sm font-semibold text-slate-100">Start a live well</h2>
-      <p className="text-xs text-slate-400">Pick the registry well (Well Data Manager). The record created here is shared with everyone you add as a member, and works offline once it has been opened on this device.</p>
-      {!online && <div className="text-xs text-amber-400" data-testid="ws-setup-offline">A connection is needed to start a well.</div>}
+      <h2 className="text-sm font-semibold text-pl-text">Start a live well</h2>
+      <p className="text-xs text-pl-muted">Pick the registry well (Well Data Manager). The record created here is shared with everyone you add as a member, and works offline once it has been opened on this device.</p>
+      {!online && <div className="text-xs text-pl-warning-text" data-testid="ws-setup-offline">A connection is needed to start a well.</div>}
       {initialGeoId && registry && (registry.some((w) => w.id === initialGeoId)
-        ? <div className="text-xs text-cyan-300" data-testid="ws-setup-from-registry">{registry.find((w) => w.id === initialGeoId).name} has no live well yet. Check the header below and create it.</div>
-        : <div className="text-xs text-amber-400" data-testid="ws-setup-unknown-well">The well sent from Well Data Manager is not in the registry you can see. Choose a well below.</div>)}
-      <label className="block text-xs text-slate-300">Registry well
+        ? <div className="text-xs text-pl-info-text" data-testid="ws-setup-from-registry">{registry.find((w) => w.id === initialGeoId).name} has no live well yet. Check the header below and create it.</div>
+        : <div className="text-xs text-pl-warning-text" data-testid="ws-setup-unknown-well">The well sent from Well Data Manager is not in the registry you can see. Choose a well below.</div>)}
+      <label className="block text-xs text-pl-text">Registry well
         <select value={geoId} onChange={(e) => setGeoId(e.target.value)} data-testid="ws-setup-well" className={inp}>
           <option value="">{registry ? 'choose a well' : 'loading wells'}</option>
           {(registry || []).map((w) => <option key={w.id} value={w.id}>{w.name}{Number.isFinite(w.kb_m) ? ` (KB ${w.kb_m} m)` : ''}</option>)}
@@ -55,17 +55,17 @@ export default function WellSetup({ backend, onCreated, onStatus, initialGeoId =
       </label>
       <div className="grid grid-cols-2 gap-2">
         {[['field', 'Field'], ['operator', 'Operator'], ['rig', 'Rig'], ['country', 'Country']].map(([k, label]) => (
-          <label key={k} className="block text-xs text-slate-300">{label}
+          <label key={k} className="block text-xs text-pl-text">{label}
             <input value={header[k]} onChange={(e) => setHeader({ ...header, [k]: e.target.value })} data-testid={`ws-setup-${k}`} className={inp} />
           </label>
         ))}
-        <label className="block text-xs text-slate-300">Ground level above MSL (m)
+        <label className="block text-xs text-pl-text">Ground level above MSL (m)
           <input type="number" step="any" value={header.gl_elev_m} onChange={(e) => setHeader({ ...header, gl_elev_m: e.target.value })} data-testid="ws-setup-gl" className={inp} />
         </label>
-        <label className="block text-xs text-slate-300">RT above KB (m, 0 when RT is KB)
+        <label className="block text-xs text-pl-text">RT above KB (m, 0 when RT is KB)
           <input type="number" step="any" value={header.rt_offset_m} onChange={(e) => setHeader({ ...header, rt_offset_m: e.target.value })} data-testid="ws-setup-rt" className={inp} />
         </label>
-        <label className="block text-xs text-slate-300">Rig local offset from UTC (minutes)
+        <label className="block text-xs text-pl-text">Rig local offset from UTC (minutes)
           <input type="number" step="1" value={offset} onChange={(e) => setOffset(e.target.value)} data-testid="ws-setup-offset" className={inp} />
         </label>
       </div>

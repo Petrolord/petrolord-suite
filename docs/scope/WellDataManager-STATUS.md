@@ -300,3 +300,30 @@ app's — Petrophysics links here to edit a header.
 The Tops tab table gains a Map column (`wdm-map-top-<name>`) linking to
 Mapping & Surface Studio on that top; the Open-in menus' Mapping entry
 now opens the map posting the chosen wells (`?wells=`).
+
+## 2026-09-28: design system rollout W4A (light default, dark per user)
+
+The page and the `/dev/well-data-manager` harness wrap themselves in
+`ThemedApp`, so the app opens light and a new ribbon toggle switches to
+dark and back, stored per user. The route prefix
+`/dashboard/apps/geoscience/well-data-manager` is registered in
+`src/design/rollout/w4a.js`.
+
+- Chrome on roles: the ribbon, wells tree, detail tabs and editors,
+  status bar and the LAS import, add well and delete dialogs moved from
+  slate and cyan to `pl-*` roles; overrides on `DialogContent`,
+  `AlertDialogContent` and `Button` were removed so the themed defaults
+  apply. Errors use danger, LAS notes and clashes warning.
+- The well map stays a dark canvas (`data-canvas="dark"`; its caption
+  still names the amber and green dots) and the log tracks stay white
+  chart paper (`data-canvas="chart"`). Core photographs, intervals and
+  the package dialogs are the scope-aware wells kit and portability
+  dialogs from W0C.
+- Known issue, unchanged here: in paste mode (Tops, Deviation,
+  Checkshots "Replace from paste") the shared `PasteReplacePanel`
+  receives a new `fields` array each render and its effect sets editor
+  state every render, so the panel re-renders without end (jsdom hangs;
+  the browser keeps working but spins).
+- Tests: new `__tests__/WellDataManager.theme.test.jsx` (shared checks,
+  an owned well on every tab and grid editor, dark, five dialogs). No
+  LAS, registry or calculation change.

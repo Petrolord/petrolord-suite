@@ -25,11 +25,11 @@ function Row({ well, selected, busy, appPaths, onSelect, onShareToggle, onDelete
       title={well.uwi ? `UWI ${well.uwi}` : well.name}
       className={`group flex items-center gap-1.5 pl-2.5 pr-2 py-[3px] text-[13px]
         cursor-pointer select-none min-w-0
-        ${selected ? 'bg-cyan-500/10 text-cyan-200' : 'text-slate-300 hover:bg-slate-800/70'}`}
+        ${selected ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-text hover:bg-pl-sunken'}`}
       onClick={() => onSelect(well.id)}
       onKeyDown={(e) => { if (e.key === 'Enter') onSelect(well.id); }}
     >
-      <CircleDot className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+      <CircleDot className="w-3.5 h-3.5 shrink-0 text-pl-muted" />
       <span className="truncate min-w-0">{well.name}</span>
       <span
         data-testid="wdm-well-badge"
@@ -37,12 +37,12 @@ function Row({ well, selected, busy, appPaths, onSelect, onShareToggle, onDelete
           ? `Shared with the organization${well.is_own ? '' : ' (read-only for you)'}`
           : 'Private: only you can see this well'}
         className={`ml-1 shrink-0 inline-flex items-center gap-0.5 rounded px-1 text-[10px]
-          ${shared ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-700/60 text-slate-400'}`}
+          ${shared ? 'bg-pl-primary/10 text-pl-primary-text' : 'bg-pl-sunken text-pl-muted'}`}
       >
         {shared ? <Building2 className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
         {shared ? 'org' : 'private'}
       </span>
-      <span className="ml-auto shrink-0 pl-2 text-[11px] text-slate-500 whitespace-nowrap">
+      <span className="ml-auto shrink-0 pl-2 text-[11px] text-pl-muted whitespace-nowrap">
         {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" />
           : (well.td_md_m ? `TD ${Math.round(well.td_md_m)} m` : '')}
       </span>
@@ -63,7 +63,7 @@ function Row({ well, selected, busy, appPaths, onSelect, onShareToggle, onDelete
               {shared ? 'Stop sharing with organization' : 'Share with organization'}
             </ContextMenuItem>
             <ContextMenuSeparator />
-            <ContextMenuItem className="text-red-400" onSelect={() => onDelete(well)}>
+            <ContextMenuItem className="text-pl-danger-text" onSelect={() => onDelete(well)}>
               <Trash2 className="w-4 h-4 mr-2" />
               Delete well…
             </ContextMenuItem>
@@ -84,14 +84,14 @@ export default function WellsTree({
   onSelect, onShareToggle, onDelete, onImportLas, onAddWell, onExportPackage, onImportPackage,
 }) {
   return (
-    <div className="h-full min-h-0 flex flex-col bg-slate-900/60" data-testid="wdm-tree">
-      <div className="p-1.5 border-b border-slate-800/60 space-y-1.5">
+    <div className="h-full min-h-0 flex flex-col bg-pl-surface" data-testid="wdm-tree">
+      <div className="p-1.5 border-b border-pl-border space-y-1.5">
         <div className="flex items-center gap-1">
           <div className="relative flex-1">
-            <Search className="w-3.5 h-3.5 absolute left-1.5 top-1.5 text-slate-500" />
+            <Search className="w-3.5 h-3.5 absolute left-1.5 top-1.5 text-pl-muted" />
             <input
               data-testid="wdm-tree-search"
-              className="w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200
+              className="w-full rounded-md bg-pl-surface border border-pl-border-strong text-pl-text
                 pl-6 pr-1.5 py-1 text-xs"
               placeholder="Search wells…"
               value={search}
@@ -104,7 +104,7 @@ export default function WellsTree({
             type="button"
             data-testid="wdm-open-las"
             className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-xs rounded
-              border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10"
+              border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
             onClick={onImportLas}
           >
             <Upload className="w-3.5 h-3.5" /> Import LAS…
@@ -113,7 +113,7 @@ export default function WellsTree({
             type="button"
             data-testid="wdm-open-manual"
             className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-xs rounded
-              border border-slate-700 text-slate-300 hover:bg-slate-800"
+              border border-pl-border text-pl-text hover:bg-pl-sunken"
             onClick={onAddWell}
           >
             <Plus className="w-3.5 h-3.5" /> Add well…
@@ -123,7 +123,7 @@ export default function WellsTree({
             data-testid="wdm-open-package"
             title="Export the selected wells as a portable Petrolord Project Package (.pld)"
             className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-xs rounded
-              border border-slate-700 text-slate-300 hover:bg-slate-800"
+              border border-pl-border text-pl-text hover:bg-pl-sunken"
             onClick={onExportPackage}
           >
             <Package className="w-3.5 h-3.5" /> Export package
@@ -133,14 +133,14 @@ export default function WellsTree({
             data-testid="wdm-open-import"
             title="Import a Petrolord Project Package (.pld) as an independent copy"
             className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-xs rounded
-              border border-slate-700 text-slate-300 hover:bg-slate-800"
+              border border-pl-border text-pl-text hover:bg-pl-sunken"
             onClick={onImportPackage}
           >
             <PackageOpen className="w-3.5 h-3.5" /> Import package
           </button>
         </div>
       </div>
-      <div className="px-2.5 py-1 text-[11px] uppercase tracking-wider text-slate-500">
+      <div className="px-2.5 py-1 text-[11px] uppercase tracking-wider text-pl-muted">
         Wells <span data-testid="wdm-well-count">{wells.length}</span>
         {total !== wells.length ? ` of ${total}` : ''}
       </div>
@@ -158,7 +158,7 @@ export default function WellsTree({
           />
         ))}
         {!wells.length && (
-          <p className="px-3 py-2 text-xs text-slate-600 leading-snug">
+          <p className="px-3 py-2 text-xs text-pl-muted leading-snug">
             {total
               ? 'No well matches the search.'
               : 'No wells yet. Import a LAS file or add a well manually. Org members\' shared wells appear here too.'}

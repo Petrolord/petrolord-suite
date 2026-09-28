@@ -36,12 +36,12 @@ export default function AddWellDialog({ open, onOpenChange, backend, onDone }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-2xl bg-slate-900 border-slate-700 text-slate-200"
+        className="max-w-2xl"
         data-testid="wdm-add-dialog"
       >
         <DialogHeader>
           <DialogTitle>Add well</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription>
             Header plus optional pasted deviation survey, tops and checkshots (SI units).
           </DialogDescription>
         </DialogHeader>
