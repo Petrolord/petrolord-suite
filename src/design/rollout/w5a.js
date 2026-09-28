@@ -12,4 +12,5 @@ export default [
   '/dashboard/apps/facilities/heat-exchanger-sizer',
   // Pipeline & Line Sizing Studio keeps its original slug.
   '/dashboard/apps/facilities/facility-network-hydraulics',
+  '/dashboard/apps/facilities/facility-layout-mapper',
 ];

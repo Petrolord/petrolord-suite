@@ -35,7 +35,7 @@ const MouseCoordinates = () => {
 
   return (
     <div className="leaflet-bottom leaflet-left">
-      <div className="leaflet-control leaflet-bar bg-slate-800/80 text-white p-2 text-sm backdrop-blur-sm border border-slate-700">
+      <div className="leaflet-control leaflet-bar bg-pl-raised/90 text-pl-text font-pl-mono tabular-nums p-2 text-sm backdrop-blur-sm border border-pl-border">
         <div>Lat: {position.lat.toFixed(6)}, Lng: {position.lng.toFixed(6)}</div>
         <div>X: {utmCoords.x.toFixed(2)}m, Y: {utmCoords.y.toFixed(2)}m (UTM Zone {utmCoords.zone})</div>
       </div>
@@ -160,12 +160,12 @@ const MapPanel = ({ activeTool, layers, setLayers, onPlaceItem, onSelectLayer, i
         } else {
             const IconComponent = iconMap[layerData.iconName];
             if (!IconComponent) return; // Skip if icon is not found
-            const iconElement = React.createElement(IconComponent, { className: "w-5 h-5 text-teal-300" });
+            const iconElement = React.createElement(IconComponent, { className: "w-5 h-5 text-pl-primary-text" });
             iconMarkup = renderToStaticMarkup(iconElement);
         }
         
         const customIcon = new L.DivIcon({
-          html: `<div class="p-1.5 bg-slate-800 rounded-full border-2 border-teal-400 shadow-lg">${iconMarkup}</div>`,
+          html: `<div class="p-1.5 bg-pl-raised rounded-full border-2 border-pl-primary shadow-pl-md">${iconMarkup}</div>`,
           className: 'bg-transparent',
           iconSize: [32, 32],
           iconAnchor: [16, 16],
@@ -206,33 +206,40 @@ const MapPanel = ({ activeTool, layers, setLayers, onPlaceItem, onSelectLayer, i
   // `ref`. With the old prop mapRef never filled, so the layer effect
   // returned early and nothing placed was ever drawn (FLM-T1-003). The
   // state mirror re-runs that effect once the map exists.
+  //
+  // Design system (batch 5A): the plot plan is drawn on a street basemap
+  // whose tiles are light in both themes, so the map sits on a light
+  // canvas. The coordinate readout, equipment markers and draw toolbar
+  // on top of it keep the light roles whatever theme the page is in.
   return (
-    <MapContainer ref={(m) => { if (m && mapRef.current !== m) { mapRef.current = m; setMapReady(true); } }} center={[29.7604, -95.3698]} zoom={13} className="w-full h-full" style={{backgroundColor: '#f0f0f0'}}>
-      {/* CARTO's basemaps now answer every tile with "API KEY REQUIRED"
-          (FLM-T1-001), which left this map blank on every domain. The
-          OpenStreetMap standard tiles are what the Well Spacing map uses. */}
-      <TileLayer
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        maxZoom={19}
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      />
-      <FeatureGroup ref={featureGroupRef}>
-        <EditControl
-          position="topright"
-          onCreated={onCreated}
-          onEdited={onEdited}
-          onDeleted={onDeleted}
-          draw={drawOptions}
-          edit={{
-            featureGroup: featureGroupRef.current,
-            remove: true,
-          }}
+    <div data-canvas="light" className="w-full h-full">
+      <MapContainer ref={(m) => { if (m && mapRef.current !== m) { mapRef.current = m; setMapReady(true); } }} center={[29.7604, -95.3698]} zoom={13} className="w-full h-full" style={{backgroundColor: '#f0f0f0'}}>
+        {/* CARTO's basemaps now answer every tile with "API KEY REQUIRED"
+            (FLM-T1-001), which left this map blank on every domain. The
+            OpenStreetMap standard tiles are what the Well Spacing map uses. */}
+        <TileLayer
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maxZoom={19}
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
-      </FeatureGroup>
-      <ScaleControl position="bottomright" imperial={false} />
-      <MouseCoordinates />
-      <MapClickHandler activeTool={activeTool} onMapClick={onPlaceItem} />
-    </MapContainer>
+        <FeatureGroup ref={featureGroupRef}>
+          <EditControl
+            position="topright"
+            onCreated={onCreated}
+            onEdited={onEdited}
+            onDeleted={onDeleted}
+            draw={drawOptions}
+            edit={{
+              featureGroup: featureGroupRef.current,
+              remove: true,
+            }}
+          />
+        </FeatureGroup>
+        <ScaleControl position="bottomright" imperial={false} />
+        <MouseCoordinates />
+        <MapClickHandler activeTool={activeTool} onMapClick={onPlaceItem} />
+      </MapContainer>
+    </div>
   );
 };
 

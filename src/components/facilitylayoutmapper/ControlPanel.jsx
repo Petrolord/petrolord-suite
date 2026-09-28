@@ -12,46 +12,46 @@ const ControlPanel = ({ activeTool, setActiveTool, layers, setLayers, onPlaceIte
 
   return (
     <Accordion type="single" collapsible defaultValue="item-1" className="w-full">
-       <AccordionItem value="item-project" className="border-slate-700">
-        <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-white">Project</AccordionTrigger>
+       <AccordionItem value="item-project" className="border-pl-border">
+        <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-pl-text">Project</AccordionTrigger>
         <AccordionContent className="px-4 pt-2">
           <ProjectPanel layers={layers} spacingInputs={spacingInputs} onLoadLayout={onLoadLayout} />
         </AccordionContent>
       </AccordionItem>
-      <AccordionItem value="item-1" className="border-slate-700">
-        <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-white">Equipment</AccordionTrigger>
+      <AccordionItem value="item-1" className="border-pl-border">
+        <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-pl-text">Equipment</AccordionTrigger>
         <AccordionContent className="px-4">
           <IconToolbar activeTool={activeTool} setActiveTool={setActiveTool} customIcons={customIcons} />
         </AccordionContent>
       </AccordionItem>
-      <AccordionItem value="item-custom-icons" className="border-slate-700">
-        <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-white">Custom Icons</AccordionTrigger>
+      <AccordionItem value="item-custom-icons" className="border-pl-border">
+        <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-pl-text">Custom Icons</AccordionTrigger>
         <AccordionContent className="px-4 pt-2">
           <CustomIconManager onAddCustomIcon={onAddCustomIcon} />
         </AccordionContent>
       </AccordionItem>
-      <AccordionItem value="item-2" className="border-slate-700">
-        <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-white">Precision Placement</AccordionTrigger>
+      <AccordionItem value="item-2" className="border-pl-border">
+        <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-pl-text">Precision Placement</AccordionTrigger>
         <AccordionContent className="px-4 pt-2">
             <PlacementTools onPlaceItem={onPlaceItem} layers={layers} activeTool={activeTool} />
         </AccordionContent>
       </AccordionItem>
-      <AccordionItem value="item-3" className="border-slate-700">
-        <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-white">Properties</AccordionTrigger>
+      <AccordionItem value="item-3" className="border-pl-border">
+        <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-pl-text">Properties</AccordionTrigger>
         <AccordionContent className="px-4 pt-2">
             <PropertiesEditor selectedLayer={selectedLayer} onUpdateLayer={onUpdateLayer} />
         </AccordionContent>
       </AccordionItem>
       {/* Facilities F8: the safety distances the tile has always advertised,
           finally computed (table spacings plus radiation setbacks from duty). */}
-      <AccordionItem value="item-spacing" className="border-slate-700">
-        <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-white">Safety Spacing</AccordionTrigger>
+      <AccordionItem value="item-spacing" className="border-pl-border">
+        <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-pl-text">Safety Spacing</AccordionTrigger>
         <AccordionContent className="px-4 pt-2">
           <SpacingPanel layers={layers} inputs={spacingInputs} onChange={onSpacingInputsChange} />
         </AccordionContent>
       </AccordionItem>
-      <AccordionItem value="item-4" className="border-slate-700">
-        <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-white">Export</AccordionTrigger>
+      <AccordionItem value="item-4" className="border-pl-border">
+        <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-pl-text">Export</AccordionTrigger>
         <AccordionContent className="px-4 pt-2">
           <ExportPanel layers={layers} spacingInputs={spacingInputs} />
         </AccordionContent>
