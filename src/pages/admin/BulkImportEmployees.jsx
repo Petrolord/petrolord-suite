@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Upload, FileText, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Progress } from '@/components/ui/progress';
+import { AccountScope, AccountPage, AccountHeader } from '@/components/account/accountChrome';
 
-export default function BulkImportEmployees() {
+function BulkImportEmployeesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [file, setFile] = useState(null);
@@ -82,64 +83,64 @@ export default function BulkImportEmployees() {
   };
 
   return (
-    <div className="p-6 md:p-8 bg-slate-950 min-h-screen text-white space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2"><Upload className="w-8 h-8 text-green-400"/> Bulk Import Employees</h1>
-            <p className="text-slate-400">Add multiple team members at once via CSV.</p>
-        </div>
-        <Button variant="outline" onClick={downloadTemplate}><FileText className="w-4 h-4 mr-2"/> Download Template</Button>
-      </div>
+    <AccountPage>
+      <AccountHeader
+        eyebrow="Administration"
+        icon={Upload}
+        title="Bulk Import Employees"
+        description="Add multiple team members at once via CSV."
+        actions={<Button variant="outline" onClick={downloadTemplate}><FileText className="w-4 h-4 mr-2"/> Download Template</Button>}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardHeader>
                 <CardTitle>Upload CSV</CardTitle>
                 <CardDescription>Select a .csv file containing employee details.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="border-2 border-dashed border-slate-700 rounded-lg p-8 flex flex-col items-center justify-center text-slate-400 hover:border-slate-500 hover:text-slate-300 transition-colors cursor-pointer relative">
+                <div className="border-2 border-dashed border-pl-border-strong rounded-lg p-8 flex flex-col items-center justify-center text-pl-muted bg-pl-sunken/40 hover:border-pl-primary hover:text-pl-text transition-colors cursor-pointer relative">
                     <input type="file" accept=".csv" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
-                    <Upload className="w-10 h-10 mb-2" />
-                    <p>{file ? file.name : "Click or drag file here"}</p>
+                    <Upload className="w-10 h-10 mb-2" aria-hidden="true" />
+                    <p className="break-all text-center">{file ? file.name : "Click or drag file here"}</p>
                 </div>
-                <Button className="w-full bg-blue-600 text-white" disabled={!file || uploading} onClick={startImport}>
+                <Button className="w-full" disabled={!file || uploading} onClick={startImport}>
                     {uploading ? <RefreshCw className="w-4 h-4 animate-spin mr-2"/> : "Start Import"}
                 </Button>
             </CardContent>
         </Card>
 
         {jobStatus && (
-            <Card className="bg-slate-900 border-slate-800">
+            <Card>
                 <CardHeader>
                     <CardTitle>Import Status</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-sm text-pl-text">
                             <span>Progress</span>
-                            <span>{progress}%</span>
+                            <span className="font-pl-mono tabular-nums">{progress}%</span>
                         </div>
                         <Progress value={progress} className="h-2" />
                     </div>
 
                     {results && (
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-green-900/20 p-4 rounded border border-green-900/50">
-                                <p className="text-green-400 text-xs uppercase">Success</p>
-                                <p className="text-2xl font-bold text-green-300">{results.processed}</p>
+                            <div className="bg-pl-success-bg p-4 rounded border border-pl-success/40">
+                                <p className="text-pl-success-text text-xs uppercase flex items-center gap-1"><CheckCircle className="w-3 h-3" aria-hidden="true"/> Success</p>
+                                <p className="text-2xl font-bold font-pl-mono tabular-nums text-pl-success-text">{results.processed}</p>
                             </div>
-                            <div className="bg-red-900/20 p-4 rounded border border-red-900/50">
-                                <p className="text-red-400 text-xs uppercase">Failed</p>
-                                <p className="text-2xl font-bold text-red-300">{results.failed}</p>
+                            <div className="bg-pl-danger-bg p-4 rounded border border-pl-danger/40">
+                                <p className="text-pl-danger-text text-xs uppercase flex items-center gap-1"><AlertTriangle className="w-3 h-3" aria-hidden="true"/> Failed</p>
+                                <p className="text-2xl font-bold font-pl-mono tabular-nums text-pl-danger-text">{results.failed}</p>
                             </div>
                         </div>
                     )}
 
                     {results?.errors?.length > 0 && (
-                        <div className="bg-slate-950 p-4 rounded border border-slate-800 max-h-48 overflow-auto">
-                            <p className="text-red-400 text-sm font-bold mb-2">Errors:</p>
-                            <ul className="text-xs text-red-300 space-y-1">
+                        <div className="bg-pl-sunken p-4 rounded border border-pl-border max-h-48 overflow-auto">
+                            <p className="text-pl-danger-text text-sm font-bold mb-2">Errors:</p>
+                            <ul className="text-xs text-pl-danger-text space-y-1">
                                 {results.errors.map((err, i) => (
                                     <li key={i}>Row {err.row}: {err.error}</li>
                                 ))}
@@ -150,6 +151,14 @@ export default function BulkImportEmployees() {
             </Card>
         )}
       </div>
-    </div>
+    </AccountPage>
+  );
+}
+
+export default function BulkImportEmployees() {
+  return (
+    <AccountScope testId="bulk-import-theme-scope">
+      <BulkImportEmployeesPage />
+    </AccountScope>
   );
 }
