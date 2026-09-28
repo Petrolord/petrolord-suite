@@ -17,6 +17,7 @@ import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Code,
   Formula, Callout, Step, Table,
 } from '@/components/helpguide/HelpGuideLayout';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const sections = [
   { id: 'overview', icon: BookOpen, title: 'What this does' },
@@ -30,7 +31,7 @@ const sections = [
   { id: 'pitfalls', icon: AlertTriangle, title: 'Pitfalls' },
 ];
 
-const ForecastScenarioHubHelpGuide = () => (
+const ForecastScenarioHubHelpGuideContent = () => (
   <HelpGuideShell
     title="Forecast Scenario Hub Help Guide"
     subtitle="Comparing multi-case Arps forecasts and handing the profile to Economics"
@@ -268,6 +269,14 @@ const ForecastScenarioHubHelpGuide = () => (
       </Para>
     </GuideSection>
   </HelpGuideShell>
+);
+
+// Design system rollout batch 2A: the guide follows the same per-user theme
+// as Forecast Scenario Hub itself, so the look does not flip between the two pages.
+const ForecastScenarioHubHelpGuide = () => (
+  <ThemedApp className="min-h-screen" data-testid="fsh-help-root">
+    <ForecastScenarioHubHelpGuideContent />
+  </ThemedApp>
 );
 
 export default ForecastScenarioHubHelpGuide;
