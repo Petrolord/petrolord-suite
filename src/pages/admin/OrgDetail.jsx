@@ -121,7 +121,7 @@ const OrgDetailPage = () => {
                 title={(
                     <span className="flex flex-wrap items-center gap-3">
                         {org.name}
-                        <Badge variant={org.suite_status === 'ACTIVE' ? 'success' : 'neutral'}>
+                        <Badge variant={org.suite_status === 'ACTIVE' ? 'success' : org.suite_status === 'PENDING_VERIFICATION' ? 'info' : 'warning'}>
                             {org.suite_status || 'UNKNOWN'}
                         </Badge>
                     </span>
@@ -178,7 +178,7 @@ const OrgDetailPage = () => {
                     </TabsContent>
                     
                     <TabsContent value="quotes" className="mt-0 focus-visible:outline-none">
-                        <Card className={`${tabCard} h-[700px]`}>
+                        <Card className={`${tabCard} md:h-[700px]`}>
                             <OrgQuotes />
                         </Card>
                     </TabsContent>
