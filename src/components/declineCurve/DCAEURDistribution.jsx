@@ -17,7 +17,7 @@ import {
 const DCAEURDistribution = ({ distribution, selectedStream }) => {
   if (!distribution || distribution.length === 0) {
     return (
-      <div className="h-24 flex items-center justify-center text-slate-500 text-xs">
+      <div className="h-24 flex items-center justify-center text-pl-muted text-xs">
         No distribution data
       </div>
     );
@@ -42,7 +42,7 @@ const DCAEURDistribution = ({ distribution, selectedStream }) => {
   };
 
   return (
-    <div className="relative h-64 bg-white rounded-md p-1">
+    <div data-canvas="chart" className="relative h-64 bg-pl-chart-surface rounded-md p-1">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={histogramData} margin={{ top: 8, right: 12, left: 4, bottom: 16 }}>
           <CartesianGrid {...GRID_STYLE} vertical={false} />

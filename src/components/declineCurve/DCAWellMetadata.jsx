@@ -26,11 +26,11 @@ const DCAWellMetadata = () => {
     });
   };
 
-  if (!currentWell) return <div className="text-slate-500 text-xs italic p-4">Select a well to edit metadata</div>;
+  if (!currentWell) return <div className="text-pl-muted text-xs italic p-4">Select a well to edit metadata</div>;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 text-slate-400 mb-2">
+      <div className="flex items-center gap-2 text-pl-muted mb-2">
         <Info size={14} />
         <span className="text-xs font-medium uppercase tracking-wider">Metadata</span>
       </div>
@@ -41,7 +41,7 @@ const DCAWellMetadata = () => {
           value={tags} 
           onChange={(e) => setTags(e.target.value)} 
           placeholder="e.g. HZ, Pad A, Gas Lift"
-          className="h-8 bg-slate-800 border-slate-700 text-xs"
+          className="h-8 text-xs"
         />
       </div>
 
@@ -51,11 +51,11 @@ const DCAWellMetadata = () => {
           value={notes} 
           onChange={(e) => setNotes(e.target.value)} 
           placeholder="Engineering comments..."
-          className="min-h-[80px] bg-slate-800 border-slate-700 text-xs resize-none"
+          className="min-h-[80px] text-xs resize-none"
         />
       </div>
 
-      <Button onClick={handleSave} size="sm" variant="secondary" className="w-full h-7 text-xs bg-slate-700 hover:bg-slate-600">
+      <Button onClick={handleSave} size="sm" variant="secondary" className="w-full h-7 text-xs">
         Save Metadata
       </Button>
     </div>

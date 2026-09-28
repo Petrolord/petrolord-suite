@@ -32,6 +32,7 @@ import DCAWellMetadata from '@/components/declineCurve/DCAWellMetadata';
 import DCAHelpContent from '@/components/declineCurve/DCAHelpContent';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'analysis', label: 'Single Well Analysis' },
@@ -39,11 +40,25 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[11px] font-semibold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
+
+// On a phone the two rails would leave no room for the plot, so they start
+// closed below the lg breakpoint (the header buttons open them). Desktop is
+// unchanged. Read once at mount; no matchMedia (tests, old browsers) = open.
+const railsStartOpen = () => {
+  try {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true;
+    const mq = window.matchMedia('(min-width: 1024px)');
+    return mq ? !!mq.matches : true;
+  } catch {
+    return true;
+  }
+};
 
 const DeclineCurveContent = () => {
   const [activeTab, setActiveTab] = useState('analysis');
+  const [railsOpenByDefault] = useState(railsStartOpen);
   const [resultsTab, setResultsTab] = useState('fit');
   const {
     projects, currentProjectId, createProject, openProject, deleteProject,
@@ -71,7 +86,7 @@ const DeclineCurveContent = () => {
         </div>
       </section>
 
-      <Separator className="bg-slate-800" />
+      <Separator className="bg-pl-border" />
 
       <section>
         <SectionLabel>Analysis</SectionLabel>
@@ -79,7 +94,7 @@ const DeclineCurveContent = () => {
         <DCAModelFitting />
       </section>
 
-      <Separator className="bg-slate-800" />
+      <Separator className="bg-pl-border" />
 
       <section>
         <SectionLabel>Forecasting</SectionLabel>
@@ -91,7 +106,7 @@ const DeclineCurveContent = () => {
       <section>
         <DCAWellGrouping />
       </section>
-      <Separator className="bg-slate-800" />
+      <Separator className="bg-pl-border" />
       <section>
         <DCAWellFilters />
       </section>
@@ -103,26 +118,26 @@ const DeclineCurveContent = () => {
       <section>
         <DCAWellMetadata />
       </section>
-      <Separator className="bg-slate-800" />
+      <Separator className="bg-pl-border" />
       <section>
         <SectionLabel>Scenarios</SectionLabel>
         <DCAScenarioBuilder />
       </section>
 
-      <Separator className="bg-slate-800" />
+      <Separator className="bg-pl-border" />
 
       <section>
         <DCAScenarioComparison />
       </section>
 
-      <Separator className="bg-slate-800" />
+      <Separator className="bg-pl-border" />
 
       <section>
         <SectionLabel>Diagnostics</SectionLabel>
         <DCAFitDiagnostics />
       </section>
 
-      <Separator className="bg-slate-800" />
+      <Separator className="bg-pl-border" />
 
       <section>
         <DCAIntegrationPanel />
@@ -194,7 +209,7 @@ const DeclineCurveContent = () => {
         headerActions={
           <>
             <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="hidden sm:block h-4 w-[1px] bg-pl-border mx-1" aria-hidden="true"></div>
             <StudioHelp
               title="DCA User Guide"
               description="Complete guide to Decline Curve Analysis in Petrolord Suite: single-well fitting, type curves, probabilistic forecasting, and scenarios."
@@ -210,16 +225,23 @@ const DeclineCurveContent = () => {
         busyMessage={isFitting ? 'Fitting Model...' : isForecasting ? 'Generating Forecast...' : null}
         notifications={notifications}
         onDismissNotification={removeNotification}
+        defaultLeftOpen={railsOpenByDefault}
+        defaultRightOpen={railsOpenByDefault}
       />
     </>
   );
 };
 
+// Design system pilot 2: the whole app sits in one opted-in theme scope
+// (light by default, dark by the user's choice from the header toggle). The
+// scope wraps the page itself so the route and the /dev/dca harness share it.
 const DeclineCurveAnalysisPage = () => {
   return (
-    <DeclineCurveProvider>
-      <DeclineCurveContent />
-    </DeclineCurveProvider>
+    <ThemedApp data-testid="dca-theme-scope">
+      <DeclineCurveProvider>
+        <DeclineCurveContent />
+      </DeclineCurveProvider>
+    </ThemedApp>
   );
 };
 
