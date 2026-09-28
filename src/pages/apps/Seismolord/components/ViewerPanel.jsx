@@ -1,6 +1,7 @@
 import { Link as RouterLink } from 'react-router-dom';
 import { HelpCircle as HelpIcon } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { ToneShadePicker } from '../toneExperiment';
 import { getDepthUnit as getAccountDepthUnit } from '@/lib/crs/settingsService';
 import { appPath as appRoutePath } from '@/components/wells/appLinks';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -3470,6 +3471,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
           <Bot className="w-4 h-4" />
         </button>
         <ThemeToggle className="h-7 w-7 ml-1" />
+        <ToneShadePicker />
         </>
       )}
       tabs={[
