@@ -103,28 +103,28 @@ const ProjectPanel = ({ layers, spacingInputs, onLoadLayout }) => {
     <div className="space-y-3">
       <Dialog>
         <DialogTrigger asChild>
-          <Button className="w-full justify-start bg-slate-800 hover:bg-slate-700 text-white">
+          <Button variant="secondary" className="w-full justify-start">
             <Save className="w-4 h-4 mr-2" /> Save Project
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[425px] bg-slate-900 border-slate-700 text-white">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Save Layout</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="project-name" className="text-right text-white">Project Name</Label>
+              <Label htmlFor="project-name" className="text-right">Project Name</Label>
               <Input
                 id="project-name"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                className="col-span-3 bg-slate-800 border-slate-600 text-white"
+                className="col-span-3"
               />
             </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button onClick={handleSave} className="bg-teal-600 hover:bg-teal-700 text-white">Save</Button>
+              <Button onClick={handleSave}>Save</Button>
             </DialogClose>
           </DialogFooter>
         </DialogContent>
@@ -132,36 +132,36 @@ const ProjectPanel = ({ layers, spacingInputs, onLoadLayout }) => {
       
       <Dialog open={isLoadDialogOpen} onOpenChange={setIsLoadDialogOpen}>
         <DialogTrigger asChild>
-          <Button onClick={fetchProjects} className="w-full justify-start bg-slate-800 hover:bg-slate-700 text-white">
+          <Button onClick={fetchProjects} variant="secondary" className="w-full justify-start">
             <FolderOpen className="w-4 h-4 mr-2" /> Load Project
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md bg-slate-900 border-slate-700 text-white">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Load Layout</DialogTitle>
           </DialogHeader>
           {isLoading ? (
             <div className="flex justify-center items-center h-40">
-                <Loader2 className="h-8 w-8 animate-spin text-teal-400" />
+                <Loader2 className="h-8 w-8 animate-spin text-pl-primary-text" />
             </div>
           ) : savedProjects.length > 0 ? (
             <div className="max-h-80 overflow-y-auto space-y-2 pr-2">
                 {savedProjects.map(p => (
-                    <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-slate-800 hover:bg-slate-700/50">
+                    <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-pl-sunken hover:bg-pl-border">
                         <div className="flex-grow cursor-pointer" onClick={() => handleLoad(p.id)}>
-                            <p className="font-semibold text-white">{p.project_name}</p>
-                            <p className="text-xs text-slate-400">
+                            <p className="font-semibold text-pl-text">{p.project_name}</p>
+                            <p className="text-xs text-pl-muted">
                                 Saved on: {new Date(p.created_at).toLocaleDateString()}
                             </p>
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)} className="text-red-500 hover:bg-red-500/10 hover:text-red-400">
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)} className="text-pl-danger-text hover:bg-pl-danger-bg hover:text-pl-danger-text">
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     </div>
                 ))}
             </div>
           ) : (
-            <p className="text-slate-400 text-center py-8">No saved projects found.</p>
+            <p className="text-pl-muted text-center py-8">No saved projects found.</p>
           )}
         </DialogContent>
       </Dialog>

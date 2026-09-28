@@ -12,6 +12,8 @@ import LayoutMapperHelpGuide from '@/components/facilitylayoutmapper/LayoutMappe
 import { nextEquipmentTag } from '@/utils/facilities/layoutTags';
 import { DEFAULT_SPACING_INPUTS, normaliseSpacingInputs } from '@/utils/facilities/layoutSpacing';
 import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const iconMap = {
   'Wellhead': CircleDot,
@@ -93,67 +95,73 @@ const FacilityLayoutMapper = () => {
   };
 
 
+  // Design system rollout batch 5A (docs/scope/DesignSystem-Rollout.md): the
+  // page wraps itself in <ThemedApp>; the panels use theme roles and the
+  // map sits on a light canvas (MapPanel).
   return (
-    <FullPrecisionProvider>
-      <Helmet>
-        <title>Facility Layout Mapper - Petrolord</title>
-        <meta name="description" content="Draw scaled field layouts and schematics with standard oil & gas icons." />
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
-      </Helmet>
-      <div className="flex h-screen bg-gradient-to-br from-slate-900 to-indigo-900/50 text-white overflow-hidden">
-        <motion.aside
-          initial={{ x: -320 }}
-          animate={{ x: 0 }}
-          transition={{ duration: 0.5, ease: "easeInOut" }}
-          className="w-80 bg-slate-900/80 backdrop-blur-sm border-r border-slate-700/50 flex flex-col"
-        >
-          <div className="p-4 border-b border-slate-700/50">
-            <div className="flex items-center space-x-3">
-              <div className="bg-gradient-to-r from-teal-500 to-cyan-500 p-2 rounded-lg">
-                <Map className="w-6 h-6 text-white" />
+    <ThemedApp data-testid="layoutmapper-theme-scope">
+      <FullPrecisionProvider>
+        <Helmet>
+          <title>Facility Layout Mapper - Petrolord</title>
+          <meta name="description" content="Draw scaled field layouts and schematics with standard oil & gas icons." />
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+        </Helmet>
+        <div className="flex flex-col md:flex-row h-screen bg-pl-bg text-pl-text overflow-hidden">
+          <motion.aside
+            initial={{ x: -320 }}
+            animate={{ x: 0 }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+            className="w-full md:w-80 max-h-[50vh] md:max-h-none shrink-0 bg-pl-surface border-b md:border-b-0 md:border-r border-pl-border flex flex-col"
+          >
+            <div className="p-4 border-b border-pl-border">
+              <div className="flex items-center space-x-3">
+                <div className="bg-pl-primary text-pl-primary-fg p-2 rounded-lg">
+                  <Map className="w-6 h-6" />
+                </div>
+                <h1 className="text-xl font-bold">Layout Mapper</h1>
+                <div className="ml-auto flex items-center gap-1">
+                  <LayoutMapperHelpGuide />
+                  <ThemeToggle className="h-8 w-8" />
+                </div>
               </div>
-              <h1 className="text-xl font-bold">Layout Mapper</h1>
-              <div className="ml-auto">
-                <LayoutMapperHelpGuide />
-              </div>
+              <FullPrecisionToggle app="facility-layout-mapper" className="mt-3" />
             </div>
-            <FullPrecisionToggle app="facility-layout-mapper" className="mt-3" />
-          </div>
-          <div className="flex-grow overflow-y-auto">
-            <ControlPanel
+            <div className="flex-grow overflow-y-auto">
+              <ControlPanel
+                activeTool={activeTool}
+                setActiveTool={setActiveTool}
+                layers={layers}
+                setLayers={setLayers}
+                onPlaceItem={handlePlaceItem}
+                selectedLayer={selectedLayer}
+                onUpdateLayer={handleUpdateLayer}
+                onLoadLayout={handleLoadLayout}
+                customIcons={customIcons}
+                onAddCustomIcon={handleAddCustomIcon}
+                spacingInputs={spacingInputs}
+                onSpacingInputsChange={setSpacingInputs}
+              />
+            </div>
+             <div className="p-4 border-t border-pl-border">
+               <Button variant="secondary" onClick={() => navigate('/dashboard/facilities')} className="w-full">
+                 Back to Facilities
+               </Button>
+             </div>
+          </motion.aside>
+
+          <main className="flex-1 min-h-0 flex flex-col">
+            <MapPanel
               activeTool={activeTool}
-              setActiveTool={setActiveTool}
               layers={layers}
               setLayers={setLayers}
               onPlaceItem={handlePlaceItem}
-              selectedLayer={selectedLayer}
-              onUpdateLayer={handleUpdateLayer}
-              onLoadLayout={handleLoadLayout}
-              customIcons={customIcons}
-              onAddCustomIcon={handleAddCustomIcon}
-              spacingInputs={spacingInputs}
-              onSpacingInputsChange={setSpacingInputs}
+              onSelectLayer={handleSelectLayer}
+              iconMap={iconMap}
             />
-          </div>
-           <div className="p-4 border-t border-slate-700/50">
-             <Button onClick={() => navigate('/dashboard/facilities')} className="w-full bg-white/10 hover:bg-white/20 text-white">
-               Back to Facilities
-             </Button>
-           </div>
-        </motion.aside>
-
-        <main className="flex-1 flex flex-col">
-          <MapPanel
-            activeTool={activeTool}
-            layers={layers}
-            setLayers={setLayers}
-            onPlaceItem={handlePlaceItem}
-            onSelectLayer={handleSelectLayer}
-            iconMap={iconMap}
-          />
-        </main>
-      </div>
-    </FullPrecisionProvider>
+          </main>
+        </div>
+      </FullPrecisionProvider>
+    </ThemedApp>
   );
 };
 

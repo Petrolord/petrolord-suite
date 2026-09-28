@@ -19,22 +19,27 @@ export const getRiskBandColor = (band) => {
   return hit ? `hsl(var(${hit.cssVar}))` : 'hsl(var(--muted))';
 };
 
+// Band colours are status, on the design-system status roles (the Risk
+// Register, their only user, sits in a ThemedApp scope). Four ordered
+// bands on four fills: the two upper bands solid, the two lower tinted, so
+// the order reads in light and dark; the band word or score always sits
+// beside the colour.
 const BAND_CLASSES = Object.freeze({
-  Critical: 'bg-red-500/10 text-red-500 border-red-500/20',
-  High: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
-  Medium: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-  Low: 'bg-green-500/10 text-green-500 border-green-500/20',
-  [NO_BAND]: 'bg-slate-500/10 text-slate-500 border-slate-500/20',
+  Critical: 'bg-pl-danger text-pl-danger-fg border-pl-danger',
+  High: 'bg-pl-warning text-pl-warning-fg border-pl-warning',
+  Medium: 'bg-pl-warning-bg text-pl-warning-text border-pl-warning/50',
+  Low: 'bg-pl-success-bg text-pl-success-text border-pl-success/50',
+  [NO_BAND]: 'bg-pl-sunken text-pl-muted border-pl-border',
 });
 
 export const getRiskBandClasses = (score) => BAND_CLASSES[getRiskBand(score)];
 
 const CELL_CLASSES = Object.freeze({
-  Critical: 'bg-red-500/90 hover:bg-red-500',
-  High: 'bg-orange-500/90 hover:bg-orange-500',
-  Medium: 'bg-yellow-500/90 hover:bg-yellow-500',
-  Low: 'bg-green-500/90 hover:bg-green-500',
-  [NO_BAND]: 'bg-slate-500/90',
+  Critical: 'bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90',
+  High: 'bg-pl-warning text-pl-warning-fg hover:bg-pl-warning/90',
+  Medium: 'bg-pl-warning-bg text-pl-warning-text border border-pl-warning/50 hover:bg-pl-warning/25',
+  Low: 'bg-pl-success-bg text-pl-success-text border border-pl-success/50 hover:bg-pl-success/25',
+  [NO_BAND]: 'bg-pl-sunken text-pl-muted',
 });
 
 /** Heatmap cell fill for a band name, for a legend swatch (ASC-0). */

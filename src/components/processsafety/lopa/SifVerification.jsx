@@ -30,17 +30,17 @@ const SubsystemCard = ({ sub, evaluated }) => {
   const roleLabel = SUBSYSTEM_ROLES.find((x) => x.id === sub.role)?.label || sub.role;
   const redundant = REDUNDANT.has(sub.architecture);
   return (
-    <div className="space-y-3 rounded-lg border border-slate-800 bg-slate-900/60 p-3" data-testid={`subsystem-${sub.role}`}>
+    <div className="space-y-3 rounded-lg border border-pl-border bg-pl-surface p-3" data-testid={`subsystem-${sub.role}`}>
       <div className="flex flex-wrap items-end gap-2">
-        <div className="text-[11px] uppercase tracking-wide text-lime-300">{roleLabel}</div>
+        <div className="text-[11px] uppercase tracking-wide text-pl-primary-text">{roleLabel}</div>
         <TextField label="Name" value={sub.name} onChange={set('name')} className="min-w-[12rem] flex-1" />
         <div>
-          <Label className="text-[11px] text-slate-400">Architecture</Label>
+          <Label className="text-[11px] text-pl-muted">Architecture</Label>
           <select
             aria-label={`${roleLabel} architecture`}
             value={sub.architecture}
             onChange={(e) => setSubsystem(sub.id, { architecture: e.target.value })}
-            className="block h-8 rounded-md border border-slate-700 bg-slate-950 px-2 text-sm text-slate-100"
+            className="block h-8 rounded-md border border-pl-border-strong bg-pl-surface px-2 text-sm text-pl-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus"
           >
             {ARCHITECTURES.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
@@ -61,12 +61,12 @@ const SubsystemCard = ({ sub, evaluated }) => {
         />
         <div>
           <NumField label="Proof test interval T1" unit="h" value={sub.proofTestIntervalHours} onChange={set('proofTestIntervalHours')} error={field === 'proofTestIntervalHours'} />
-          <div className="mt-0.5 text-[10px] text-slate-500">{yearsOf(sub.proofTestIntervalHours)}</div>
+          <div className="mt-0.5 text-[10px] text-pl-muted">{yearsOf(sub.proofTestIntervalHours)}</div>
         </div>
         <NumField label="Proof test coverage" unit="fraction, 0 to 1" value={sub.proofTestCoverage} onChange={set('proofTestCoverage')} placeholder="1" error={field === 'proofTestCoverage'} />
         <div>
           <NumField label="Lifetime T2" unit="h" value={sub.lifetimeHours} onChange={set('lifetimeHours')} placeholder="needed if coverage < 1" error={field === 'lifetimeHours'} />
-          <div className="mt-0.5 text-[10px] text-slate-500">{yearsOf(sub.lifetimeHours)}</div>
+          <div className="mt-0.5 text-[10px] text-pl-muted">{yearsOf(sub.lifetimeHours)}</div>
         </div>
       </div>
       {r?.error ? <EngineError result={r} /> : (
@@ -102,7 +102,7 @@ const Verdict = () => {
         />
       </div>
       {verdict ? (
-        <div data-testid="sif-verdict" className={`rounded-lg border p-3 text-sm ${verdict.kind === 'meets' || verdict.kind === 'not-required' ? 'border-emerald-500/50 bg-emerald-950/30 text-emerald-100' : 'border-red-500/50 bg-red-950/30 text-red-100'}`}>
+        <div data-testid="sif-verdict" className={`rounded-lg border p-3 text-sm ${verdict.kind === 'meets' || verdict.kind === 'not-required' ? 'border-pl-success/40 bg-pl-success-bg text-pl-success-text' : 'border-pl-danger/40 bg-pl-danger-bg text-pl-danger-text'}`}>
           {verdict.kind === 'not-required' ? 'The scenario needs no SIF. The credited layers alone meet the TMEL.' : null}
           {verdict.kind === 'redesign' ? `The scenario is ${LOPA_OUTCOME.BEYOND_SIL3}: no SIF verification resolves it. ${withoutSif.note || ''}` : null}
           {verdict.kind === 'meets' || verdict.kind === 'short' ? (
@@ -130,7 +130,7 @@ const SifVerification = () => {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-4">
-        <label className="flex items-center gap-2 text-sm text-slate-200">
+        <label className="flex items-center gap-2 text-sm text-pl-text">
           <Switch
             checked={enabled}
             onCheckedChange={(c) => setSif({ enabled: c === true })}
@@ -148,8 +148,8 @@ const SifVerification = () => {
       {(active.sif?.subsystems || []).map((sub) => (
         <SubsystemCard key={sub.id} sub={sub} evaluated={byId.get(sub.id)} />
       ))}
-      <div className="border-t border-slate-800 pt-4">
-        <h3 className="mb-2 text-sm font-semibold text-slate-200">SIF against the scenario</h3>
+      <div className="border-t border-pl-border pt-4">
+        <h3 className="mb-2 text-sm font-semibold text-pl-text">SIF against the scenario</h3>
         {enabled ? <Verdict /> : (
           <Note>Attach the SIF to this scenario to total its subsystems and check it against the required SIL, the required PFDavg and the TMEL.</Note>
         )}

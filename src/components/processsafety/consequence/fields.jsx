@@ -17,13 +17,13 @@ export const SelectField = ({
   label, value, onChange, options, testId, className = '',
 }) => (
   <div className={className}>
-    <Label className="text-[11px] text-slate-400">{label}</Label>
+    <Label className="text-[11px] text-pl-muted">{label}</Label>
     <select
       aria-label={label}
       data-testid={testId}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-8 w-full rounded-md border border-slate-700 bg-slate-950 px-2 text-sm text-slate-100"
+      className="h-8 w-full rounded-md border border-pl-border-strong bg-pl-surface px-2 text-sm text-pl-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus"
     >
       {options.map((o) => (typeof o === 'string'
         ? <option key={o} value={o}>{o}</option>
@@ -43,30 +43,30 @@ export const LinkedValue = ({
   label, unit, value, from, testId,
 }) => (
   <div>
-    <Label className="text-[11px] text-slate-400">
-      {label}{unit ? <span className="text-slate-500"> ({unit})</span> : null}
+    <Label className="text-[11px] text-pl-muted">
+      {label}{unit ? <span className="text-pl-muted"> ({unit})</span> : null}
     </Label>
     <div
       data-testid={testId}
-      className="flex h-8 items-center gap-2 rounded-md border border-sky-700/60 bg-sky-950/30 px-2 font-mono text-sm text-sky-100"
+      className="flex h-8 items-center gap-2 rounded-md border border-pl-info/40 bg-pl-info-bg px-2 font-mono text-sm text-pl-info-text"
       title={`Carried over from ${from}`}
     >
-      <Link2 className="h-3.5 w-3.5 flex-shrink-0 text-sky-300" />
+      <Link2 className="h-3.5 w-3.5 flex-shrink-0 text-pl-info-text" />
       <span className="truncate">{value}</span>
     </div>
-    <div className="mt-0.5 text-[10px] text-sky-300/80">from {from}</div>
+    <div className="mt-0.5 text-[10px] text-pl-info-text">from {from}</div>
   </div>
 );
 
 /** The engine's state word, shown exactly as the engine names it. */
 export const StateBadge = ({ state, testId }) => {
   const tone = {
-    REACHED: 'border-emerald-500/50 bg-emerald-950/40 text-emerald-200',
-    NOT_REACHED: 'border-sky-500/50 bg-sky-950/40 text-sky-200',
-    BEYOND_SEARCH_RANGE: 'border-amber-500/50 bg-amber-950/30 text-amber-100',
-    CHOKED: 'border-orange-500/50 bg-orange-950/30 text-orange-100',
-    SUBSONIC: 'border-sky-500/50 bg-sky-950/40 text-sky-200',
-  }[state] || 'border-slate-600 text-slate-300';
+    REACHED: 'border-pl-success/40 bg-pl-success-bg text-pl-success-text',
+    NOT_REACHED: 'border-pl-info/40 bg-pl-info-bg text-pl-info-text',
+    BEYOND_SEARCH_RANGE: 'border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text',
+    CHOKED: 'border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text',
+    SUBSONIC: 'border-pl-info/40 bg-pl-info-bg text-pl-info-text',
+  }[state] || 'border-pl-border-strong text-pl-text';
   return (
     <span data-testid={testId} className={`inline-block rounded border px-2 py-0.5 font-mono text-xs ${tone}`}>
       {state}
@@ -75,8 +75,8 @@ export const StateBadge = ({ state, testId }) => {
 };
 
 export const Panel = ({ title, children, testId }) => (
-  <section data-testid={testId} className="space-y-3 rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-    {title ? <h3 className="text-sm font-semibold text-slate-200">{title}</h3> : null}
+  <section data-testid={testId} className="space-y-3 rounded-lg border border-pl-border bg-pl-surface p-4">
+    {title ? <h3 className="text-sm font-semibold text-pl-text">{title}</h3> : null}
     {children}
   </section>
 );

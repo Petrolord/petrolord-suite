@@ -13,6 +13,7 @@ import {
 import {
   Callout, Code, Formula, GuideSection, HelpGuideShell, Para, SectionHeading, Step, SubHeading, Table,
 } from '@/components/helpguide/HelpGuideLayout';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { LOPA_STUDIO_ROUTE } from '@/utils/processSafety/lopaStudy';
 
 export const LOPA_GUIDE_SECTIONS = [
@@ -26,7 +27,7 @@ export const LOPA_GUIDE_SECTIONS = [
   { id: 'validation', icon: CheckCircle2, title: 'How the engine was validated' },
 ];
 
-const LopaSilStudioHelpGuide = () => (
+const LopaSilStudioHelpGuideContent = () => (
   <HelpGuideShell
     title="LOPA & SIL Studio Help Guide"
     subtitle="Layers of protection analysis, SIL determination and SIF verification, low demand mode"
@@ -245,6 +246,12 @@ const LopaSilStudioHelpGuide = () => (
       </Callout>
     </GuideSection>
   </HelpGuideShell>
+);
+
+const LopaSilStudioHelpGuide = () => (
+  <ThemedApp className="min-h-screen" data-testid="lopa-help-theme-scope">
+    <LopaSilStudioHelpGuideContent />
+  </ThemedApp>
 );
 
 export default LopaSilStudioHelpGuide;

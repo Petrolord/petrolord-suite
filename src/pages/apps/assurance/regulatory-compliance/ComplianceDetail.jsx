@@ -172,7 +172,7 @@ export default function ComplianceDetail() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Evidence</CardTitle>
           {hasAs3Schema && !filing ? (
-            <Button size="sm" className="bg-[hsl(var(--warning))] text-white hover:bg-[hsl(var(--warning))]/90 border-0"
+            <Button size="sm"
               onClick={() => setFiling({ submitted_date: toDateOnlyString(new Date()), reference: '', notes: '', period_label: '' })}>
               <FileCheck className="w-4 h-4 mr-2" /> Record a filing
             </Button>
@@ -215,7 +215,7 @@ export default function ComplianceDetail() {
                     Cancel
                   </Button>
                   <Button type="submit" disabled={saving}
-                    className="bg-[hsl(var(--warning))] text-white hover:bg-[hsl(var(--warning))]/90 border-0">
+                   >
                     {saving ? 'Recording...' : 'Record filing'}
                   </Button>
                 </div>

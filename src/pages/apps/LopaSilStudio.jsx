@@ -10,6 +10,8 @@ import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, BookOpen, ShieldHalf } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -31,27 +33,27 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex h-full flex-col bg-slate-950 text-white">
-        <header className="flex-shrink-0 border-b border-slate-800 px-4 py-3">
+      <div className="flex h-full flex-col bg-pl-bg text-pl-text">
+        <header className="flex-shrink-0 border-b border-pl-border bg-pl-surface px-4 py-3">
           <Link to="/dashboard/process-safety">
-            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-slate-400 hover:text-white">
+            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-pl-muted hover:text-pl-text">
               <ArrowLeft className="mr-2 h-4 w-4" /> Process Safety
             </Button>
           </Link>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-gradient-to-r from-red-500 to-amber-500 p-2 shadow-lg">
-                <ShieldHalf className="h-6 w-6 text-white" />
+              <div className="rounded-xl bg-pl-primary p-2 text-pl-primary-fg shadow-pl-sm">
+                <ShieldHalf className="h-6 w-6" aria-hidden="true" />
               </div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight">LOPA &amp; SIL Studio</h1>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-pl-muted">
                   How often a scenario gets through its layers, how much risk reduction is still missing,
                   and whether the safety function you propose supplies it.
                 </p>
               </div>
             </div>
-            <div className="flex items-end gap-3">
+            <div className="flex flex-wrap items-end gap-3">
               <div className="w-52">
                 <StudioProjectManager
                   label="Saved study"
@@ -71,27 +73,28 @@ const Workspace = () => {
                 disabled={!persistence.currentProjectId}
               />
               <Link to={`${LOPA_STUDIO_ROUTE}/help`} title="Documentation">
-                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
+                <Button variant="ghost" size="sm" className="text-pl-muted hover:text-pl-text">
                   <BookOpen className="mr-1 h-4 w-4" /> Help guide
                 </Button>
               </Link>
+              <ThemeToggle />
             </div>
           </div>
           {orgId ? null : (
-            <p className="mt-2 text-xs text-amber-200">
+            <p className="mt-2 text-xs text-pl-warning-text">
               Studies are saved to your organization. Without one you can work here, and saving is unavailable.
             </p>
           )}
         </header>
 
-        <div className="flex flex-1 overflow-hidden">
-          <aside className="w-full overflow-y-auto border-r border-slate-800 bg-slate-900/40 p-4 md:w-1/3 xl:w-1/4">
+        <div className="flex flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
+          <aside className="w-full flex-shrink-0 border-b border-pl-border bg-pl-surface p-4 md:w-1/3 md:overflow-y-auto md:border-b-0 md:border-r xl:w-1/4">
             <ScenarioRail />
           </aside>
-          <main className="flex-1 space-y-4 overflow-y-auto p-4">
+          <main className="min-w-0 flex-1 space-y-4 p-4 md:overflow-y-auto">
             <ScopeNotice />
             <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="border border-slate-800 bg-slate-900">
+              <TabsList className="h-auto flex-wrap">
                 <TabsTrigger value="lopa">LOPA worksheet</TabsTrigger>
                 <TabsTrigger value="sif">SIF verification</TabsTrigger>
                 <TabsTrigger value="proof">Proof test interval</TabsTrigger>
@@ -114,7 +117,7 @@ const Workspace = () => {
 };
 
 const LopaSilStudio = () => (
-  <>
+  <ThemedApp className="h-full min-h-screen" data-testid="lopa-theme-scope">
     <Helmet>
       <title>LOPA &amp; SIL Studio - Petrolord Suite</title>
       <meta
@@ -125,7 +128,7 @@ const LopaSilStudio = () => (
     <LopaStudioProvider>
       <Workspace />
     </LopaStudioProvider>
-  </>
+  </ThemedApp>
 );
 
 export default LopaSilStudio;

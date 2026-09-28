@@ -14,21 +14,19 @@ export const RiskScoreBadge = ({ score, className = "" }) => {
   );
 };
 
-export const RiskStatusBadge = ({ status, className = "" }) => {
-  let colorClass = "bg-slate-500/10 text-slate-500 border-slate-500/20";
-  
-  switch (status) {
-    case 'Draft': colorClass = 'bg-slate-500/10 text-slate-500 border-slate-500/20'; break;
-    case 'Open': colorClass = 'bg-blue-500/10 text-blue-500 border-blue-500/20'; break;
-    case 'Under Review': colorClass = 'bg-purple-500/10 text-purple-500 border-purple-500/20'; break;
-    case 'Mitigated': colorClass = 'bg-green-500/10 text-green-500 border-green-500/20'; break;
-    case 'Closed': colorClass = 'bg-slate-800 text-slate-400 border-slate-700'; break;
-    case 'Realized': colorClass = 'bg-red-500/10 text-red-500 border-red-500/20'; break;
-  }
-
-  return (
-    <Badge variant="outline" className={`font-medium ${colorClass} ${className}`}>
-      {status}
-    </Badge>
-  );
+// Status on the design-system Badge variants: colour for meaning only,
+// with the status word always in the badge.
+const STATUS_VARIANT = {
+  Draft: 'neutral',
+  Open: 'info',
+  'Under Review': 'warning',
+  Mitigated: 'success',
+  Closed: 'secondary',
+  Realized: 'danger',
 };
+
+export const RiskStatusBadge = ({ status, className = "" }) => (
+  <Badge variant={STATUS_VARIANT[status] || 'neutral'} className={`font-medium ${className}`}>
+    {status}
+  </Badge>
+);

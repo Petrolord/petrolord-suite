@@ -140,6 +140,17 @@ counting one app (the one that works), as DS1 did.
   pricing, nine-module marketing, MIGRATIONS rows),
   `midstreamDownstreamRegistration.test.js` and `modulePricing.test.js`.
 
+## Design system (rollout w4f, 2026-09-28)
+
+LOPA & SIL Studio and its help guide wrap themselves in `<ThemedApp>` (`lopa-theme-scope`), open
+in the grey panel light theme and switch to dark with the header toggle.
+The panels, fields, tables and native selects are on the `pl-*` roles and
+the gradient icon tile is the primary tile. The SIL outcome badge keeps its word and its tone: no SIF required success, below SIL1 info, SIL1 warning, SIL2 warning with a solid border, SIL3 danger, beyond SIL3 a solid danger fill. The SIF verdict box is success or danger beside its sentence. The proof test sensitivity chart stays white (`data-canvas="chart"`). The scenario rail now stacks above the worksheet below the `md` width, so the page no longer squeezes the worksheet beside a full-width rail on a phone (layout only).
+`components/processsafety/lopa/shared.jsx` and `consequence/fields.jsx`
+are used only by the three studios, so they moved straight to roles. No
+engine or calculation change. Theme test:
+`src/pages/apps/__tests__/ProcessSafetyStudios.theme.test.jsx`.
+
 ## Owner steps, in order
 
 1. Apply the PS0 seed `20260919200000` with the upload that ships the PS0

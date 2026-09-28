@@ -11,6 +11,8 @@ import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -41,27 +43,27 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex h-full flex-col bg-slate-950 text-white">
-        <header className="flex-shrink-0 border-b border-slate-800 px-4 py-3">
+      <div className="flex h-full flex-col bg-pl-bg text-pl-text">
+        <header className="flex-shrink-0 border-b border-pl-border bg-pl-surface px-4 py-3">
           <Link to="/dashboard/process-safety">
-            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-slate-400 hover:text-white">
+            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-pl-muted hover:text-pl-text">
               <ArrowLeft className="mr-2 h-4 w-4" /> Process Safety
             </Button>
           </Link>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-gradient-to-r from-red-500 to-amber-500 p-2 shadow-lg">
-                <AlertTriangle className="h-6 w-6 text-white" />
+              <div className="rounded-xl bg-pl-primary p-2 text-pl-primary-fg shadow-pl-sm">
+                <AlertTriangle className="h-6 w-6" aria-hidden="true" />
               </div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight">Consequence Modelling Studio</h1>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-pl-muted">
                   How much is released, where it goes, how hot a pool fire burns, how hard a blast pushes, and
                   what each does to a person.
                 </p>
               </div>
             </div>
-            <div className="flex items-end gap-3">
+            <div className="flex flex-wrap items-end gap-3">
               <div className="w-52">
                 <StudioProjectManager
                   label="Saved study"
@@ -81,14 +83,15 @@ const Workspace = () => {
                 disabled={!persistence.currentProjectId}
               />
               <Link to={`${CONSEQUENCE_STUDIO_ROUTE}/help`} title="Documentation">
-                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
+                <Button variant="ghost" size="sm" className="text-pl-muted hover:text-pl-text">
                   <BookOpen className="mr-1 h-4 w-4" /> Help guide
                 </Button>
               </Link>
+              <ThemeToggle />
             </div>
           </div>
           {orgId ? null : (
-            <p className="mt-2 text-xs text-amber-200">
+            <p className="mt-2 text-xs text-pl-warning-text">
               Studies are saved to your organization. Without one you can work here, and saving is unavailable.
             </p>
           )}
@@ -97,7 +100,7 @@ const Workspace = () => {
         <main className="flex-1 space-y-4 overflow-y-auto p-4">
           <ConsequenceScopeNotice />
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="border border-slate-800 bg-slate-900">
+            <TabsList className="h-auto flex-wrap">
               {TABS.map((t) => <TabsTrigger key={t.id} value={t.id}>{t.label}</TabsTrigger>)}
             </TabsList>
             {TABS.map(({ id, Panel }) => (
@@ -113,7 +116,7 @@ const Workspace = () => {
 };
 
 const ConsequenceModellingStudio = () => (
-  <>
+  <ThemedApp className="h-full min-h-screen" data-testid="consequence-theme-scope">
     <Helmet>
       <title>Consequence Modelling Studio - Petrolord Suite</title>
       <meta
@@ -124,7 +127,7 @@ const ConsequenceModellingStudio = () => (
     <ConsequenceStudioProvider>
       <Workspace />
     </ConsequenceStudioProvider>
-  </>
+  </ThemedApp>
 );
 
 export default ConsequenceModellingStudio;

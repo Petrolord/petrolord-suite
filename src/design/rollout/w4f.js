@@ -6,4 +6,12 @@
 // '/dashboard/apps/reservoir/material-balance-studio'); every sub-path
 // under a prefix is themed too. Only this batch edits this file; the
 // rollout index aggregates it (docs/scope/DesignSystem.md section 4).
-export default [];
+export default [
+  '/dashboard/apps/assurance/document-control',
+  '/dashboard/apps/assurance/peer-review-manager',
+  '/dashboard/apps/assurance/management-of-change',
+  '/dashboard/apps/assurance/qa-plan',
+  '/dashboard/apps/process-safety/lopa-sil-studio',
+  '/dashboard/apps/process-safety/consequence-studio',
+  '/dashboard/apps/process-safety/qra-studio',
+];

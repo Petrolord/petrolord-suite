@@ -50,20 +50,20 @@ const NewRiskPage = () => {
   return (
     <RiskRegisterShell>
       <div className="p-6 max-w-3xl mx-auto space-y-6 animate-in fade-in duration-300">
-        <div className="flex items-center gap-4 border-b border-slate-800 pb-4">
+        <div className="flex items-center gap-4 border-b border-pl-border pb-4">
             {/* Back Button leading to Risk Register Dashboard */}
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={handleBack} 
-              className="text-slate-400 hover:text-white bg-slate-900/50 hover:bg-red-500/20 rounded-full"
+              className="text-pl-muted hover:text-pl-text hover:bg-pl-sunken rounded-full"
               title="Return to Risk Register"
             >
                 <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
-                <h2 className="text-2xl font-bold text-white">Log New Risk</h2>
-                <p className="text-sm text-slate-400">Record a new risk into the corporate register.</p>
+                <h2 className="text-2xl font-bold text-pl-text">Log New Risk</h2>
+                <p className="text-sm text-pl-muted">Record a new risk into the corporate register.</p>
             </div>
         </div>
 

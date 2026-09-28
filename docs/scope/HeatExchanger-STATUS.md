@@ -130,3 +130,25 @@ of the inlet and the outlet.
 - A hot stream on the tube side needs the held cooling exponent, so the
   studio offers a typed hi instead.
 - Tile rename migration 20260829590000, still HELD for the prod upload.
+
+## 2026-09-28: design system rollout W5A (light default, dark per user)
+
+The page wraps itself in `ThemedApp` (App.jsx is untouched), so the studio
+opens on the grey panel light theme and the header toggle switches to dark
+and back, stored per user. The route prefix `/dashboard/apps/facilities/heat-exchanger-sizer` is registered in
+`src/design/rollout/w5a.js` for the themed cold-load loaders.
+
+- Chrome on roles: the kit header themes itself (the decorative icon
+  gradient prop went); the app's own cards, inputs, selects, tables and
+  notes moved to `pl-*` roles, with the dark overrides on the adapted
+  Card, Input and Select removed. Help guide icons lost their decorative
+  colour.
+- Status colour only for status: the F factor, the rated duty against the design duty, the hot-day capacity (info when capacity is to spare) and the design outlet check use the status roles.
+- Numbers: `Stat` and `Row` values take the mono face when they are a
+  number (with an optional unit or percentage); worded values (a regime,
+  a verdict, a description) stay in the text face.
+- Charts: unchanged, on the white `ChartFrame` in both themes.
+- Tests: new `src/pages/apps/__tests__/HeatExchangerSizer.theme.test.jsx` (the
+  shared `describeAppTheme` checks, every header tab and the
+  documentation drawer). No calculation, engine or export change; the
+  existing suites pass unchanged.

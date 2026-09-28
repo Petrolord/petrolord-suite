@@ -160,6 +160,17 @@ repository, neither blocking:
   over every PS3 user-facing file.
 - Registration: `processSafetyRegistration.test.js` PS3 block.
 
+## Design system (rollout w4f, 2026-09-28)
+
+QRA Studio and its help guide wrap themselves in `<ThemedApp>` (`qra-theme-scope`), open
+in the grey panel light theme and switch to dark with the header toggle.
+The panels, fields, tables and native selects are on the `pl-*` roles and
+the gradient icon tile is the primary tile. ALARP bands (UNACCEPTABLE danger, TOLERABLE warning, BROADLY ACCEPTABLE success), F-N states and the cost-benefit verdict keep their words beside the tone. The F-N, transect and ALARP charts stay white (`data-canvas="chart"`) with their band fills unchanged.
+`components/processsafety/lopa/shared.jsx` and `consequence/fields.jsx`
+are used only by the three studios, so they moved straight to roles. No
+engine or calculation change. Theme test:
+`src/pages/apps/__tests__/ProcessSafetyStudios.theme.test.jsx`.
+
 ## Owner steps, in order
 
 1. Apply `20260921100000_ps3_qra_studies.sql` (not deploy-gated).
