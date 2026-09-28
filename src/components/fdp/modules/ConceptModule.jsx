@@ -87,7 +87,6 @@ const ConceptModule = () => {
                     <Button 
                         variant={view === 'form' ? 'secondary' : 'default'}
                         onClick={handleCreate} 
-                        className=""
                     >
                         <Plus className="w-4 h-4 mr-2" /> New Concept
                     </Button>

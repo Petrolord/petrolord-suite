@@ -26,7 +26,7 @@ const StrategicObjectives = ({ objectives = [], onChange }) => {
                     <Target className="w-5 h-5 mr-2 text-pl-muted" />
                     Strategic Objectives
                 </CardTitle>
-                <Button size="sm" variant="outline" onClick={addObjective} className="border-pl-border hover:bg-pl-sunken">
+                <Button size="sm" variant="outline" onClick={addObjective}>
                     <Plus className="w-4 h-4 mr-2" /> Add
                 </Button>
             </CardHeader>

@@ -83,7 +83,7 @@ const ScheduleModule = () => {
                     <p className="text-pl-muted">Manage timeline, critical path, and milestones.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleLoadExample} className="border-pl-border text-pl-text">
+                    <Button variant="outline" onClick={handleLoadExample}>
                         <Download className="w-4 h-4 mr-2" /> Load example
                     </Button>
                     <div className="flex bg-pl-sunken rounded-md border border-pl-border p-1">

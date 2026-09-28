@@ -101,7 +101,7 @@ const FacilitiesModule = () => {
                     <p className="text-pl-muted">Define processing capacity, cost estimations, and flow assurance strategies.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleLoadExample} className="border-pl-border text-pl-text">
+                    <Button variant="outline" onClick={handleLoadExample}>
                         <Download className="w-4 h-4 mr-2" /> Load example
                     </Button>
                     <Button 

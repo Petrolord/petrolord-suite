@@ -82,7 +82,7 @@ const HSEModule = () => {
                     <p className="text-pl-muted">Manage health, safety, environment, and regulatory compliance.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleLoadExample} className="border-pl-border text-pl-text">
+                    <Button variant="outline" onClick={handleLoadExample}>
                         <Download className="w-4 h-4 mr-2" /> Load example
                     </Button>
                     <Button onClick={handleCreate}>

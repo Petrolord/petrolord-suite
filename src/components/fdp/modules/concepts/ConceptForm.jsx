@@ -150,7 +150,7 @@ const ConceptForm = ({ initialData, onSave, onCancel }) => {
                         <Button type="button" variant="ghost" onClick={onCancel} className="text-pl-muted hover:text-pl-text">
                             <X className="w-4 h-4 mr-2" /> Cancel
                         </Button>
-                        <Button type="submit" className="">
+                        <Button type="submit">
                             <Save className="w-4 h-4 mr-2" /> Save Concept
                         </Button>
                     </div>

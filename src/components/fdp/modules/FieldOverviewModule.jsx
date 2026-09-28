@@ -38,10 +38,10 @@ const FieldOverviewModule = () => {
                     <p className="text-pl-muted">Define the core parameters and constraints of the development.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleLoadExample} className="border-pl-border text-pl-text">
+                    <Button variant="outline" onClick={handleLoadExample}>
                         <RefreshCw className="w-4 h-4 mr-2" /> Load example
                     </Button>
-                    <Button variant="outline" className="border-pl-border text-pl-text">
+                    <Button variant="outline">
                         <Upload className="w-4 h-4 mr-2" /> Import File
                     </Button>
                 </div>

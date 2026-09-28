@@ -20,7 +20,7 @@ const FDPGenerationModule = () => {
                     <p className="text-pl-muted">Compile, validate, and export the final Field Development Plan.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button className="">
+                    <Button>
                         <FileText className="w-4 h-4 mr-2" /> Preview Document
                     </Button>
                 </div>

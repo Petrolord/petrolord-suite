@@ -92,7 +92,7 @@ const RiskManagementModule = () => {
                     <p className="text-pl-muted">Consolidated view of technical, commercial, and HSE risks across the project.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" className="border-pl-border text-pl-text">
+                    <Button variant="outline">
                         <Download className="w-4 h-4 mr-2" /> Export Register
                     </Button>
                     <Button onClick={handleCreate}>
