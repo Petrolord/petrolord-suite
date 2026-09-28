@@ -214,7 +214,6 @@ const ChokePerformanceStudio = lazy(() => import('@/pages/apps/ChokePerformanceS
 const FlowAssuranceStudio = lazy(() => import('@/pages/apps/FlowAssuranceStudio'));
 const ProductionNetworkStudio = lazy(() => import('@/pages/apps/ProductionNetworkStudio'));
 const WellInterventionPlanner = lazy(() => import('@/pages/apps/WellInterventionPlanner'));
-const GeoscienceHub = lazy(() => import('@/pages/apps/GeoscienceHub'));
 const CasingTubingDesignPro = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingDesignPro'));
 const CasingTubingHelpGuide = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingHelpGuide'));
 const CasingTubingHarness = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingHarness'));
@@ -561,7 +560,8 @@ function App() {
                                 <Route path="facilities/*" element={<Navigate to="/dashboard/facilities" replace />} />
                                 <Route path="assurance/*" element={<Navigate to="/dashboard/assurance" replace />} />
                                 
-                                <Route path="apps/geoscience/hub" element={<ProtectedAppRoute appId="geoscience-hub" appName="Geoscience Hub"><GeoscienceHub /></ProtectedAppRoute>} />
+                                {/* WDM-U2-015: the legacy Geoscience Hub is retired; old links land on the module dashboard */}
+                                <Route path="apps/geoscience/hub" element={<Navigate to="/dashboard/geoscience" replace />} />
                                 <Route path="apps/geoscience/quickvol" element={<ProtectedAppRoute appId="reservoircalc-pro" appName="QuickVol"><ReservoirCalcPro /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/reservoircalc-pro" element={<ProtectedAppRoute appId="reservoircalc-pro" appName="ReservoirCalc Pro"><ReservoirCalcPro /></ProtectedAppRoute>} />
                                 {/* Well Correlation (G3) replaces the mock Well Correlation Tool;
