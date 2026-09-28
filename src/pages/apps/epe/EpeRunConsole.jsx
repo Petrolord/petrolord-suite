@@ -1139,7 +1139,7 @@ const EpeRunConsole = () => {
                   }
                   setShowAdvancedEscalation((v) => !v);
                 }}
-                className="rounded text-xs text-pl-primary-text underline underline-offset-2 hover:text-pl-primary-hover"
+                className="rounded text-xs text-pl-primary-text underline underline-offset-2 hover:text-pl-primary-text-hover"
               >
                 {showAdvancedEscalation ? 'Use simple inflation' : 'Customize per stream'}
               </button>
@@ -1621,7 +1621,7 @@ const EpeRunConsole = () => {
                     <button
                       type="button"
                       onClick={() => setShowPiaAdvancedRates((v) => !v)}
-                      className="rounded text-xs text-pl-primary-text underline underline-offset-2 hover:text-pl-primary-hover"
+                      className="rounded text-xs text-pl-primary-text underline underline-offset-2 hover:text-pl-primary-text-hover"
                     >
                       {showPiaAdvancedRates ? 'Hide overrides' : 'Customize rates'}
                     </button>
@@ -1684,7 +1684,7 @@ const EpeRunConsole = () => {
                     <button
                       type="button"
                       onClick={() => setShowPiaAdvancedLevies((v) => !v)}
-                      className="rounded text-xs text-pl-primary-text underline underline-offset-2 hover:text-pl-primary-hover"
+                      className="rounded text-xs text-pl-primary-text underline underline-offset-2 hover:text-pl-primary-text-hover"
                     >
                       {showPiaAdvancedLevies ? 'Hide overrides' : 'Customize levies'}
                     </button>
