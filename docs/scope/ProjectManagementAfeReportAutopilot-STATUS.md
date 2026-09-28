@@ -282,3 +282,38 @@ Tests: `src/pages/apps/__tests__/ProjectManagementPro.theme.test.jsx`
 (describeAppTheme plus strict checks on every 6C view in light and dark,
 and allow-listed checks on the analytics tab, an exploration dashboard and
 the integrations tab). Existing suites pass unchanged.
+
+## 2026-09-28: Project Management Pro on the design system, session 6E of 3 (rollout w6e)
+
+Converted in 6E, all under `src/components/projectmanagement/`:
+`exploration/`, `field_development/`, `help/`, `integrations/` and
+`smallprojects/` (dashboards, managers, wizards). No data, calculation or
+behaviour change; `src/design/rollout/w6e.js` stays empty (the route is in
+`w6c.js`).
+
+- Stage-type dashboards (exploration, field development, the five small
+  project types): summary cards, tab rows, stage, gate, task and
+  deliverable tables on theme roles. Status only through status badges with
+  their word: stage Complete, Active, Pending; gate and task Done; deliverable
+  Approved, Under Review, Draft; risk scores carry their band (High, Medium,
+  Low) from the shared `scoreBand`; the CPI card reads "Within budget" or
+  "Over budget" beside its value.
+- The risk profile donuts are `ChartPanel`s (white in both themes) with the
+  chartTheme tooltip and `ChartLogo`; their legend words name each colour.
+- The project wizards, help centre and deliverable dialog lose the interim
+  `data-pl-theme="dark"` and follow the user's theme; the stepper uses the
+  primary role. The help pieces match the NPV help centre (the PM copy
+  drops the decorative tutorial thumbnail colours).
+- Integration panels: planning-aid tags as neutral badges, decorative icon
+  tints removed.
+
+Tests: the theme test's `PENDING_6E` is empty. A strict 6E block checks the
+integrations tab and every exploration dashboard tab (light and dark), the
+help centre (articles, videos, FAQ, glossary) and the exploration and field
+development wizards, and mounts the field development dashboard, a small
+project dashboard and a small project wizard in the scope in light and
+dark. Negative control: with the old PPFG panel and small project wizards
+the 6E strict checks fail.
+
+Left open (not design): a wizard created without a budget shows `$NaNM` on
+the exploration budget card (pre-existing, formatting only).
