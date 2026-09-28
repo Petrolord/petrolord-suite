@@ -26,9 +26,9 @@ import { useToast } from '@/components/ui/use-toast';
 import { createCase, updateCase } from '@/pages/apps/reservoir-balance/lib/api';
 
 export const FLUID_SYSTEM_OPTIONS = [
-  { value: 'oil', label: 'Oil reservoir', icon: Droplet, color: 'text-green-500' },
-  { value: 'gas', label: 'Gas reservoir', icon: Wind, color: 'text-blue-500' },
-  { value: 'oil_with_gas_cap', label: 'Oil with gas cap', icon: Layers, color: 'text-purple-500' },
+  { value: 'oil', label: 'Oil reservoir', icon: Droplet, color: 'text-pl-primary-text' },
+  { value: 'gas', label: 'Gas reservoir', icon: Wind, color: 'text-pl-primary-text' },
+  { value: 'oil_with_gas_cap', label: 'Oil with gas cap', icon: Layers, color: 'text-pl-primary-text' },
 ];
 
 export function fluidSystemDisplay(value) {
@@ -36,7 +36,7 @@ export function fluidSystemDisplay(value) {
     value,
     label: value,
     icon: Droplet,
-    color: 'text-gray-500',
+    color: 'text-pl-muted',
   };
 }
 

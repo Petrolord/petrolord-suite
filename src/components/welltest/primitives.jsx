@@ -1,6 +1,7 @@
 // Small shared primitives for the Well Test Analysis Studio panels.
-// Mirrors the waterflooddesign primitives so the studios stay visually
-// identical; chart colors tuned for the white Petrolord chart background.
+// Design system (rollout batch 1A): the app wraps itself in <ThemedApp>, so
+// every class here is a theme role; cards and inputs use the adapted ui
+// defaults. Chart colors stay tuned for the white Petrolord chart background.
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -39,13 +40,13 @@ export const LINE = {
 };
 
 export const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-accent-text uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 export const Field = ({ label, value, onChange, placeholder, suffix }) => (
   <div className="space-y-1">
-    <Label className="text-xs text-slate-400">{label}{suffix ? <span className="text-slate-600 ml-1">({suffix})</span> : null}</Label>
-    <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9 bg-slate-800 border-slate-700" />
+    <Label className="text-xs text-pl-muted">{label}{suffix ? <span className="text-pl-muted ml-1">({suffix})</span> : null}</Label>
+    <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9" />
   </div>
 );
 
@@ -72,16 +73,16 @@ export const valueWithUnit = (kind, v, system, digits = fmt.f2) => {
 };
 
 export const Kpi = ({ title, value, unit, accent }) => (
-  <Card className={`bg-slate-900 border-slate-800 ${accent ? 'ring-1 ring-cyan-500/30' : ''}`}>
+  <Card className={accent ? 'border-pl-primary/60 ring-1 ring-pl-primary/30' : undefined}>
     <CardContent className="p-3">
-      <div className="text-[11px] uppercase tracking-wide text-slate-500 leading-tight">{title}</div>
-      <div className="text-xl font-bold mt-1">{value}{unit ? <span className="text-xs text-slate-500 ml-1">{unit}</span> : null}</div>
+      <div className="text-[11px] uppercase tracking-wide text-pl-muted leading-tight">{title}</div>
+      <div className="text-xl font-semibold mt-1 font-pl-mono tabular-nums text-pl-text">{value}{unit ? <span className="font-pl-sans text-xs font-normal text-pl-muted ml-1">{unit}</span> : null}</div>
     </CardContent>
   </Card>
 );
 
 export const ChartCard = ({ title, height = 264, children }) => (
-  <Card className="bg-slate-900 border-slate-800">
+  <Card>
     <CardHeader className="pb-2"><CardTitle className="text-base">{title}</CardTitle></CardHeader>
     <CardContent className="p-0">
       <ChartFrame height={height}>{children}</ChartFrame>
@@ -92,7 +93,7 @@ export const ChartCard = ({ title, height = 264, children }) => (
 export const WarningBanner = ({ warnings }) => {
   if (!warnings || warnings.length === 0) return null;
   return (
-    <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300 px-4 py-3 text-xs space-y-1">
+    <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text px-4 py-3 text-xs space-y-1">
       {warnings.map((w, i) => <div key={i}>{w}</div>)}
     </div>
   );

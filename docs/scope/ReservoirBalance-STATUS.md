@@ -760,3 +760,35 @@ clip; picker says "case"; Havlena-Odeh box shows the intercept. New
 `/dev/material-balance-studio` harness: in-memory rb_* tables seeded with
 Ahmed Example 11-3 and the canonical engine behind a calculate-mbal
 stand-in; first e2e.
+
+## 2026-09-28: design system rollout, batch 1A (branch `feat/ds-w1a`)
+
+The studio opts in to the Petrolord design system (plan of record
+`docs/scope/DesignSystem-Rollout.md`). No engine, calculation, save path or
+export change.
+
+- `ReservoirBalance.jsx` wraps itself in `<ThemedApp data-testid="mbal-theme-scope">`,
+  so every slug App.jsx mounts it under (and the dev harness) opens light and
+  the header toggle switches it to dark per user. The four route prefixes
+  (`material-balance-studio`, `reservoir-balance`, `reservoir-balance-pro`,
+  `reservoir-balance-surveillance`) are registered in `src/design/rollout/w1a.js`.
+- Own files moved to theme roles (`src/components/reservoirbalance/*` apart
+  from the unused `LoadProjectDialog.jsx`): cards, inputs, selects and the
+  help tooltip use the adapted ui defaults; lime, sky and cyan decoration
+  gone; status boxes (warnings, errors, the pot-aquifer note, the benchmark
+  tier badge) use the status roles; the aquifer and run segments and the
+  screening method row are `SegmentedControl`s (buttons with `aria-pressed`).
+- Charts: the five diagnostic plot cards and the PVT property visualizer are
+  white chart cards (`data-canvas="chart"`, `bg-pl-chart-surface`) in both
+  themes, so the PNG exports are unchanged; the chart styling itself is not
+  touched.
+- Fixed while looking: the PVT source and correlation selects showed the
+  option description inside a fixed-height trigger (text spilled over the
+  border); the trigger now shows the label only, the description stays under
+  the field. The Data Hub header buttons no longer wrap their labels.
+- Test: `src/pages/apps/reservoir-balance/__tests__/ReservoirBalance.theme.test.jsx`
+  (the shared `describeAppTheme` checks, then the seeded Ahmed 11-3 case on
+  the harness: every tab before and after a run, both segments, the help
+  drawer and the edit-case dialog, the plot cards white in dark).
+- Screenshots: harness at 1440 and 390 in light, plus dark at 1440 (PVT, Run,
+  Plots); no sideways page scroll.

@@ -62,7 +62,7 @@ const ReportTab = () => {
         </CardHeader>
         <CardContent>
           {!hasResult ? (
-            <p className="text-sm text-slate-400 flex items-center gap-2">
+            <p className="text-sm text-pl-muted flex items-center gap-2">
               <Info className="h-4 w-4" />
               Run the engine on the Run tab first. The report always describes a computed result, never stored numbers.
             </p>
@@ -74,7 +74,7 @@ const ReportTab = () => {
               <Button variant="outline" onClick={onCsv}>
                 <FileSpreadsheet className="mr-2 h-4 w-4" /> Export series CSV
               </Button>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-pl-muted">
                 Latest run: {(lastResult.drive_mechanism ?? '').replace(/_/g, ' ')}
                 {hm ? ' with pressure history match' : ''}.
               </p>

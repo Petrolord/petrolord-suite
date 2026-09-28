@@ -30,6 +30,7 @@ import ReportResults from '@/components/welltest/ReportResults';
 import DiagnosticsRail from '@/components/welltest/DiagnosticsRail';
 import WTSHelpContent from '@/components/welltest/WTSHelpContent';
 import { SectionLabel } from '@/components/welltest/primitives';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'data', label: 'Data' },
@@ -120,7 +121,6 @@ const WellTestStudioContent = () => {
             backTo="/dashboard/reservoir"
             backTitle="Back to Reservoir Management"
             icon={Activity}
-            iconGradientClass="from-orange-600 to-rose-600"
             title="Well Test Analysis Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -130,7 +130,7 @@ const WellTestStudioContent = () => {
         headerActions={
           <>
             <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Well Test Analysis Studio Guide"
               description="From gauge data to a matched model: diagnostics, regression and straight-line analyses."
@@ -151,10 +151,15 @@ const WellTestStudioContent = () => {
   );
 };
 
+// Design system rollout batch 1A (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// switches it to dark per user. Charts keep the white chart standard.
 export default function WellTestAnalysisStudio() {
   return (
-    <WellTestStudioProvider>
-      <WellTestStudioContent />
-    </WellTestStudioProvider>
+    <ThemedApp data-testid="wts-theme-scope">
+      <WellTestStudioProvider>
+        <WellTestStudioContent />
+      </WellTestStudioProvider>
+    </ThemedApp>
   );
 }

@@ -64,9 +64,9 @@ const SpecializedResults = () => {
 
   if (!prepared.points.length) {
     return (
-      <div className="rounded-lg border border-slate-700 bg-slate-900 px-6 py-10 text-center">
-        <p className="text-slate-300 font-medium">No analysis data yet.</p>
-        <p className="text-sm text-slate-500 mt-1">Load gauge data on the Data tab first.</p>
+      <div className="rounded-lg border border-pl-border bg-pl-surface px-6 py-10 text-center">
+        <p className="text-pl-text font-medium">No analysis data yet.</p>
+        <p className="text-sm text-pl-muted mt-1">Load gauge data on the Data tab first.</p>
       </div>
     );
   }
@@ -118,23 +118,23 @@ const SpecializedResults = () => {
       </ChartCard>
 
       {multiRateResult && (
-        <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Multi-rate superposition (Odeh-Jones)</p>
+        <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
+          <p className="text-xs font-semibold text-pl-muted uppercase tracking-wider mb-2">Multi-rate superposition (Odeh-Jones)</p>
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
             <Kpi title="Permeability k" value={fmt.sig3(multiRateResult.k)} unit="md" accent />
             <Kpi title="Skin" value={fmt.f2(multiRateResult.skin)} />
             <Kpi title="Slope m'" value={fmt.sig3(fromOilfield(slopeKind, multiRateResult.mPrime, unitSystem))} unit={`${unitLabel(slopeKind, unitSystem)} per rate`} />
             <Kpi title="Fit r²" value={fmt.f3(multiRateResult.r2)} />
           </div>
-          <p className="text-[11px] text-slate-500 mt-2">
+          <p className="text-[11px] text-pl-muted mt-2">
             Rate-normalized drawdown against the superposition time function of the entered rate history ({multiRateResult.n} points).
           </p>
         </div>
       )}
 
       {isGas && (
-        <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+        <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
+          <p className="text-xs font-semibold text-pl-muted uppercase tracking-wider mb-2">
             Gas deliverability ({deliverabilityInputs.method === 'pseudo-pressure' ? 'pseudo-pressure' : 'pressure-squared'})
           </p>
           {deliverabilityResult ? (
@@ -156,7 +156,7 @@ const SpecializedResults = () => {
               )}
             </div>
           ) : (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-pl-muted">
               Enter at least two flow-after-flow points (rate and stabilized pwf) in the left rail to compute the Rawlins-Schellhardt and LIT deliverability and the AOF.
             </p>
           )}
@@ -164,8 +164,8 @@ const SpecializedResults = () => {
       )}
 
       {!isBuildup && !isGas && (
-        <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Pseudo-steady state (Cartesian)</p>
+        <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
+          <p className="text-xs font-semibold text-pl-muted uppercase tracking-wider mb-2">Pseudo-steady state (Cartesian)</p>
           {pssResult ? (
             <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
               <Kpi title="Slope m*" value={fmtU('pssSlope', pssResult.mStar, unitSystem, fmt.f3)} unit={unitLabel('pssSlope', unitSystem)} />
@@ -173,7 +173,7 @@ const SpecializedResults = () => {
               <Kpi title="Fit r²" value={fmt.f3(pssResult.r2)} />
             </div>
           ) : (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-pl-muted">
               Set a PSS window over the late-time linear decline (only meaningful once the closed system is felt).
             </p>
           )}

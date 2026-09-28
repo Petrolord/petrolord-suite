@@ -41,24 +41,24 @@ import {
 const TIER_DEFINITIONS = {
   benchmark_verified: {
     label: 'Benchmark verified',
-    classes: 'bg-lime-900/30 border-lime-700/50 text-lime-300',
-    iconClasses: 'text-lime-400',
+    classes: 'bg-pl-success-bg border-pl-success/40 text-pl-success-text',
+    iconClasses: 'text-pl-success-text',
     Icon: CheckCircle2,
     defaultTooltip:
       'Implementation has been tested against a published worked example and matches within the stated tolerance. The reference case is recorded for traceability.',
   },
   published_method: {
     label: 'Published method',
-    classes: 'bg-slate-800/60 border-slate-600/60 text-slate-300',
-    iconClasses: 'text-slate-400',
+    classes: 'bg-pl-sunken border-pl-border text-pl-text',
+    iconClasses: 'text-pl-muted',
     Icon: Info,
     defaultTooltip:
       'Implementation follows a recognized peer-reviewed or industry-standard formulation. The workflow includes documented assumptions, internal checks, and calculation traceability.',
   },
   engineering_basis: {
     label: 'Engineering basis',
-    classes: 'bg-slate-800/60 border-slate-600/60 text-slate-300',
-    iconClasses: 'text-slate-400',
+    classes: 'bg-pl-sunken border-pl-border text-pl-text',
+    iconClasses: 'text-pl-muted',
     Icon: Info,
     defaultTooltip:
       'Implementation follows established reservoir engineering principles where a suitable public worked example is not available. The method is documented, traceable, and ready for engineering use within stated assumptions.',
@@ -121,14 +121,14 @@ const ValidationTierBadge = ({
         <TooltipContent
           side="top"
           align="start"
-          className="max-w-sm bg-slate-900 border-slate-700 text-slate-200 leading-relaxed"
+          className="max-w-sm leading-relaxed"
         >
-          <p className="text-xs font-semibold mb-1 text-slate-100">
+          <p className="text-xs font-semibold mb-1 text-pl-text">
             {def.label}
           </p>
-          <p className="text-xs text-slate-300">{tooltipBody}</p>
+          <p className="text-xs text-pl-text">{tooltipBody}</p>
           {showToleranceLine && (
-            <p className="text-[10px] text-slate-400 mt-1.5 font-mono">
+            <p className="text-[10px] text-pl-muted mt-1.5 font-mono">
               Measured tolerance: {tolerancePct.toFixed(2)}%
             </p>
           )}
