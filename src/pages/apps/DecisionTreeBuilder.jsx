@@ -1,11 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import {
-  ArrowLeft, GitMerge, Save, FolderOpen, Trash2, Download, FilePlus2,
+  GitMerge, Save, FolderOpen, Trash2, Download, FilePlus2,
 } from 'lucide-react';
 import { rollback } from '@/lib/decisionTree';
 import { TEMPLATES } from '@/components/decisiontree/templates';
@@ -15,6 +14,10 @@ import DecisionTreeHelpGuide from '@/components/decisiontree/DecisionTreeHelpGui
 import { firstMoveLabel, isIndifferentFirstMove } from '@/components/decisiontree/firstMoveLabel';
 import { FullPrecisionProvider, FullPrecisionToggle, useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { AppHeader } from '@/components/ui/app-shell';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 
 // Decision Tree Builder (D3, docs/scope/Economics-ROADMAP.md): multi-stage
 // EMV decision trees on the canonical src/lib/decisionTree.js engine. The
@@ -30,10 +33,10 @@ const fmtMM = (v) => (Number.isFinite(v) ? `${v.toLocaleString(undefined, { maxi
 // no digit grouping; off, fmtMM as before.
 const fmtMMFull = (v) => (Number.isFinite(v) ? `${formatFull(v, MONEY_MM_DECIMALS)} $MM` : 'N/A');
 
-const KpiCard = ({ title, value, accent }) => (
-  <div className="bg-white/5 p-4 rounded-lg">
-    <p className="text-xs text-slate-300 uppercase tracking-wide">{title}</p>
-    <p className={`text-xl font-bold mt-1 ${accent || 'text-white'}`}>{value}</p>
+const KpiCard = ({ title, value, words = false }) => (
+  <div className="rounded-lg border border-pl-border bg-pl-surface p-4 shadow-pl-sm">
+    <p className="text-xs font-medium uppercase tracking-wide text-pl-muted">{title}</p>
+    <p className={`mt-1 text-xl font-semibold text-pl-text ${words ? '' : 'font-pl-mono tabular-nums'}`}>{value}</p>
   </div>
 );
 
@@ -159,61 +162,57 @@ const DecisionTreeBuilderInner = () => {
         <title>Decision Tree Builder - Petrolord Suite</title>
         <meta name="description" content="Multi-stage decision trees with EMV rollback for petroleum investment decisions." />
       </Helmet>
-      <div className="p-4 md:p-6 min-h-screen bg-slate-950 text-white">
-        {/* Header */}
-        <div className="mb-4 border-b border-slate-800 pb-4">
-          <Link to="/dashboard/economics">
-            <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white pl-0 mb-2">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Back
-            </Button>
-          </Link>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div className="flex items-center space-x-3">
-              <div className="bg-gradient-to-r from-sky-500 to-indigo-500 p-2 rounded-xl shadow-lg">
-                <GitMerge className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">Decision Tree Builder</h1>
-                <p className="text-slate-400 text-xs">Multi-stage EMV decision analysis. Values in $MM.</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <FullPrecisionToggle app="decision-tree-builder" className="mr-2" />
-              <DecisionTreeHelpGuide />
-              <select
-                onChange={(e) => { if (TEMPLATES[e.target.value]) { setTree(TEMPLATES[e.target.value].build()); } e.target.value = ''; }}
-                defaultValue=""
-                className="px-2 py-1.5 rounded bg-slate-800 border border-slate-600 text-sm"
-              >
-                <option value="" disabled>New from template...</option>
-                {Object.entries(TEMPLATES).map(([key, t]) => <option key={key} value={key}>{t.name}</option>)}
-              </select>
-              <input
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                className="px-2 py-1.5 rounded bg-slate-800 border border-slate-600 text-sm w-48"
-                placeholder="Project name"
-              />
-              <Button size="sm" onClick={saveProject} className="bg-lime-600 hover:bg-lime-500 text-white"><Save className="w-4 h-4 mr-1" /> Save</Button>
-              <Button size="sm" variant="outline" onClick={() => setShowProjects((s) => !s)} className="border-slate-600 text-slate-200"><FolderOpen className="w-4 h-4 mr-1" /> Open</Button>
-              <Button size="sm" variant="outline" onClick={exportJson} className="border-slate-600 text-slate-200"><Download className="w-4 h-4 mr-1" /> JSON</Button>
-              <Button size="sm" variant="outline" onClick={() => importRef.current?.click()} className="border-slate-600 text-slate-200"><FilePlus2 className="w-4 h-4 mr-1" /> Import</Button>
-              <input ref={importRef} type="file" accept=".json" className="hidden" onChange={(e) => e.target.files?.[0] && importJson(e.target.files[0])} />
-            </div>
-          </div>
+      <AppHeader
+        title="Decision Tree Builder"
+        eyebrow="Economics"
+        subtitle="Multi-stage EMV decision analysis. Values in $MM."
+        icon={GitMerge}
+        backTo="/dashboard/economics"
+        backLabel="Back"
+        actions={(
+          <>
+            <FullPrecisionToggle app="decision-tree-builder" />
+            <DecisionTreeHelpGuide />
+          </>
+        )}
+      />
+      <div className="mx-auto w-full max-w-[1600px] px-4 py-4 text-pl-text sm:px-6">
+        {/* Toolbar */}
+        <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-pl-border pb-4">
+          <NativeSelect
+            onChange={(e) => { if (TEMPLATES[e.target.value]) { setTree(TEMPLATES[e.target.value].build()); } e.target.value = ''; }}
+            defaultValue=""
+            aria-label="New from template"
+            className="h-9 w-full sm:w-56"
+          >
+            <option value="" disabled>New from template...</option>
+            {Object.entries(TEMPLATES).map(([key, t]) => <option key={key} value={key}>{t.name}</option>)}
+          </NativeSelect>
+          <Input
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value)}
+            className="h-9 w-full sm:w-48"
+            placeholder="Project name"
+            aria-label="Project name"
+          />
+          <Button size="sm" onClick={saveProject}><Save className="w-4 h-4 mr-1" /> Save</Button>
+          <Button size="sm" variant="outline" onClick={() => setShowProjects((s) => !s)}><FolderOpen className="w-4 h-4 mr-1" /> Open</Button>
+          <Button size="sm" variant="outline" onClick={exportJson}><Download className="w-4 h-4 mr-1" /> JSON</Button>
+          <Button size="sm" variant="outline" onClick={() => importRef.current?.click()}><FilePlus2 className="w-4 h-4 mr-1" /> Import</Button>
+          <input ref={importRef} type="file" accept=".json" className="hidden" onChange={(e) => e.target.files?.[0] && importJson(e.target.files[0])} />
         </div>
 
         {/* Saved projects */}
         {showProjects && (
-          <div className="mb-4 bg-white/5 rounded-lg p-4">
-            <h3 className="text-sm font-semibold mb-2">Saved decisions</h3>
-            {projects.length === 0 && <p className="text-xs text-slate-400">No saved decisions yet.</p>}
+          <div className="mb-4 rounded-lg border border-pl-border bg-pl-surface p-4 shadow-pl-sm">
+            <h3 className="mb-2 text-sm font-semibold text-pl-text">Saved decisions</h3>
+            {projects.length === 0 && <p className="text-xs text-pl-muted">No saved decisions yet.</p>}
             {projects.map((p) => (
-              <div key={p.id} className="flex items-center justify-between py-1 border-b border-white/5 text-sm">
-                <button type="button" className="text-sky-300 hover:text-sky-200" onClick={() => loadProject(p.id)}>{p.project_name}</button>
-                <div className="flex items-center gap-3 text-xs text-slate-500">
+              <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-pl-border py-1 text-sm">
+                <button type="button" className="text-pl-primary-text hover:text-pl-primary-text-hover hover:underline" onClick={() => loadProject(p.id)}>{p.project_name}</button>
+                <div className="flex items-center gap-3 text-xs text-pl-muted">
                   {new Date(p.updated_at).toLocaleString()}
-                  <button type="button" onClick={() => deleteProject(p.id)} className="hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button type="button" onClick={() => deleteProject(p.id)} aria-label="Delete saved decision" title="Delete" className="hover:text-pl-danger-text"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
             ))}
@@ -221,9 +220,9 @@ const DecisionTreeBuilderInner = () => {
         )}
 
         {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <KpiCard title="Optimal EMV" value={root ? money(root.emv) : 'N/A'} accent="text-lime-300" />
-          <KpiCard title="Recommended first move" value={firstMoveLabel(root)} accent="text-sky-300" />
+        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+          <KpiCard title="Optimal EMV" value={root ? money(root.emv) : 'N/A'} />
+          <KpiCard title="Recommended first move" value={firstMoveLabel(root)} words />
           <KpiCard
             title="Next best alternative"
             value={root?.type === 'decision' && root.branches.length > 1
@@ -243,16 +242,16 @@ const DecisionTreeBuilderInner = () => {
         </div>
 
         {analysis.error && (
-          <div className="mb-4 bg-red-900/30 border border-red-500/40 rounded-lg p-3 text-sm text-red-200">
+          <div role="alert" className="mb-4 rounded-lg border border-pl-danger/40 bg-pl-danger-bg p-3 text-sm text-pl-danger-text">
             {analysis.error}
           </div>
         )}
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* Editor */}
-          <div className="bg-white/5 rounded-lg p-4 overflow-x-auto">
-            <h3 className="text-sm font-semibold mb-2">Tree structure</h3>
-            <p className="text-xs text-slate-400 mb-3">
+          <div className="overflow-x-auto rounded-lg border border-pl-border bg-pl-surface p-4 shadow-pl-sm">
+            <h3 className="mb-2 text-sm font-semibold text-pl-text">Tree structure</h3>
+            <p className="text-xs text-pl-muted mb-3">
               Decisions pick their best branch; chance branches need probabilities that sum to 1. Branch costs are cash out when that branch is taken. Outcome payoffs are $MM, typed directly or linked to a saved EPE Monte Carlo run (the tree then uses its mean NPV, the EMV basis).
             </p>
             <TreeNodeEditor node={tree} onChange={setTree} onLinkMcRun={openMcPicker} />
@@ -260,36 +259,36 @@ const DecisionTreeBuilderInner = () => {
 
           {/* Diagram */}
           <div>
-            <h3 className="text-sm font-semibold mb-2">Rolled-back tree</h3>
+            <h3 className="mb-2 text-sm font-semibold text-pl-text">Rolled-back tree</h3>
             {root
               ? <TreeDiagram annotated={root} />
-              : <div className="bg-white/5 rounded-lg p-6 text-sm text-slate-400">Fix the highlighted input error to see the tree.</div>}
+              : <div className="rounded-lg border border-pl-border bg-pl-surface p-6 text-sm text-pl-muted">Fix the highlighted input error to see the tree.</div>}
           </div>
         </div>
 
         {/* MC run picker */}
         {mcPicker && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setMcPicker(null)}>
-            <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 w-full max-w-lg max-h-[70vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-sm font-semibold mb-3">Link an EPE Monte Carlo run</h3>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setMcPicker(null)}>
+            <div role="dialog" aria-modal="true" aria-label="Link an EPE Monte Carlo run" className="w-full max-w-lg max-h-[70vh] overflow-y-auto rounded-xl border border-pl-border bg-pl-raised p-5 text-pl-text shadow-pl-lg" onClick={(e) => e.stopPropagation()}>
+              <h3 className="mb-3 text-sm font-semibold">Link an EPE Monte Carlo run</h3>
               {(mcRuns || []).length === 0 && (
-                <p className="text-xs text-slate-400">No saved Monte Carlo runs. Run one from an EPE result's Risk tab first.</p>
+                <p className="text-xs text-pl-muted">No saved Monte Carlo runs. Run one from an EPE result's Risk tab first.</p>
               )}
               {(mcRuns || []).map((run) => (
                 <button
                   key={run.id}
                   type="button"
                   onClick={() => pickMcRun(run)}
-                  className="w-full text-left py-2 px-3 rounded hover:bg-slate-800 border-b border-white/5"
+                  className="w-full text-left py-2 px-3 rounded hover:bg-pl-sunken border-b border-pl-border"
                 >
-                  <span className="text-sm text-sky-300">{run.epe_run_configs?.config_name || 'EPE run'}</span>
-                  <span className="block text-xs text-slate-400">
+                  <span className="text-sm text-pl-primary-text">{run.epe_run_configs?.config_name || 'EPE run'}</span>
+                  <span className="block text-xs text-pl-muted">
                     NPV mean {(run.results?.npv?.mean / 1e6).toFixed(1)} $MM, P90 {(run.results?.npv?.p90 / 1e6).toFixed(1)} / P10 {(run.results?.npv?.p10 / 1e6).toFixed(1)} · {new Date(run.created_at).toLocaleString()}
                   </span>
                 </button>
               ))}
               <div className="mt-3 text-right">
-                <Button size="sm" variant="outline" className="border-slate-600 text-slate-200" onClick={() => setMcPicker(null)}>Cancel</Button>
+                <Button size="sm" variant="outline" onClick={() => setMcPicker(null)}>Cancel</Button>
               </div>
             </div>
           </div>
@@ -300,9 +299,11 @@ const DecisionTreeBuilderInner = () => {
 };
 
 const DecisionTreeBuilder = () => (
-  <FullPrecisionProvider>
-    <DecisionTreeBuilderInner />
-  </FullPrecisionProvider>
+  <ThemedApp className="min-h-screen" data-testid="dtb-theme-scope">
+    <FullPrecisionProvider>
+      <DecisionTreeBuilderInner />
+    </FullPrecisionProvider>
+  </ThemedApp>
 );
 
 export default DecisionTreeBuilder;
