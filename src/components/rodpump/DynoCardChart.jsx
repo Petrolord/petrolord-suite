@@ -92,11 +92,11 @@ const DynoCardChart = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
             Surface card
-            <span className="block text-xs font-normal text-slate-500 mt-0.5">
+            <span className="block text-xs font-normal text-pl-muted mt-0.5">
               What a dynamometer on the polished rod would draw at {fmt(design.spm, 1)} strokes a
               minute. The area it encloses is the work done per stroke:{' '}
               {fmt(design.cardAreaInLb)} in-lb, which is {fmt(design.prhp, 2)} hp at this speed.
@@ -116,11 +116,11 @@ const DynoCardChart = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
             Downhole card
-            <span className="block text-xs font-normal text-slate-500 mt-0.5">
+            <span className="block text-xs font-normal text-pl-muted mt-0.5">
               What the pump is doing. The two vertical sides are the load transfers: the plunger
               stands still while the rod string stretches at the bottom of the stroke and relaxes at
               the top, which is exactly why the plunger travels{' '}

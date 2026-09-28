@@ -17,8 +17,8 @@ const RodStringPanel = () => {
     <div className="space-y-4">
       <Field label="Rod grade">
         <Select value={inputs.rods.gradeId} onValueChange={(v) => setSection('rods', 'gradeId', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
             {rodGrades.map((g) => (
               <SelectItem key={g.id} value={g.id}>
                 {g.label} ({g.minTensilePsi.toLocaleString()} psi minimum tensile)
@@ -43,18 +43,18 @@ const RodStringPanel = () => {
           rows={5}
           value={inputs.rods.sectionsText}
           onChange={(e) => setSection('rods', 'sectionsText', e.target.value)}
-          className="bg-slate-800 border-slate-700 font-mono text-xs"
+          className="font-pl-mono text-xs"
         />
       </Field>
 
-      <div className="rounded-md border border-slate-800 bg-slate-950/40 p-2 space-y-2">
-        <p className="text-[11px] text-slate-500">
+      <div className="rounded-md border border-pl-border bg-pl-sunken p-2 space-y-2">
+        <p className="text-[11px] text-pl-muted">
           Propose lengths for these sizes so every section carries the same peak stress:
         </p>
         <div className="flex gap-2">
           <Select value={taperSizes} onValueChange={setTaperSizes}>
-            <SelectTrigger className="h-8 bg-slate-800 border-slate-700 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
               <SelectItem value="7/8">7/8 only</SelectItem>
               <SelectItem value="7/8,3/4">7/8 and 3/4</SelectItem>
               <SelectItem value="1,7/8,3/4">1, 7/8 and 3/4</SelectItem>
@@ -71,30 +71,30 @@ const RodStringPanel = () => {
       </div>
 
       {string?.ok && (
-        <div className="border-t border-slate-800 pt-3 space-y-1">
-          <p className="text-[11px] text-slate-500">
+        <div className="border-t border-pl-border pt-3 space-y-1">
+          <p className="text-[11px] text-pl-muted">
             {string.sections.length} section{string.sections.length === 1 ? '' : 's'},{' '}
             {Math.round(string.lengthFt).toLocaleString()} ft,{' '}
             {Math.round(string.weightAirLb).toLocaleString()} lb in air and{' '}
             {Math.round(string.weightFluidLb).toLocaleString()} lb buoyed.
           </p>
-          <p className="text-[11px] text-slate-600">
+          <p className="text-[11px] text-pl-muted">
             Stiffness {string.krLbPerIn.toFixed(1)} lb/in. Available sizes:{' '}
             {rodSizes.map((r) => r.label).join(', ')}.
           </p>
         </div>
       )}
       {string && !string.ok && (
-        <div className="rounded-md border border-amber-900/60 bg-amber-950/30 p-2">
-          <ul className="text-[11px] text-amber-200/80 space-y-1 list-disc pl-4">
+        <div className="rounded-md border border-pl-warning/40 bg-pl-warning-bg p-2">
+          <ul className="text-[11px] text-pl-warning-text space-y-1 list-disc pl-4">
             {string.errors.map((e) => <li key={e}>{e}</li>)}
           </ul>
         </div>
       )}
       {string?.warnings?.length > 0 && (
-        <div className="rounded-md border border-amber-900/60 bg-amber-950/30 p-2">
+        <div className="rounded-md border border-pl-warning/40 bg-pl-warning-bg p-2">
           {string.warnings.map((w) => (
-            <p key={w.code} className="text-[11px] text-amber-200/80">{w.message}</p>
+            <p key={w.code} className="text-[11px] text-pl-warning-text">{w.message}</p>
           ))}
         </div>
       )}

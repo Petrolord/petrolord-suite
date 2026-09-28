@@ -34,6 +34,10 @@ import ElectricalPanel from '@/components/esp/ElectricalPanel';
 import DiagnosticsPanel from '@/components/esp/DiagnosticsPanel';
 import EspWarningsPanel from '@/components/esp/WarningsPanel';
 import EspHelpContent from '@/components/esp/EspHelpGuide';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 2C (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'design', label: 'Design' },
@@ -45,7 +49,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const EspContent = () => {
@@ -158,7 +162,6 @@ const EspContent = () => {
             backTo="/dashboard/production"
             backTitle="Back to Production Operations"
             icon={Waves}
-            iconGradientClass="from-sky-600 to-blue-700"
             title="ESP Design Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -171,7 +174,7 @@ const EspContent = () => {
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="ESP Design Studio Guide"
               description="How the head, the staging, the gas handling and the electrical side are worked out."
@@ -194,8 +197,10 @@ const EspContent = () => {
 
 export default function EspDesignStudio() {
   return (
-    <EspDesignProvider>
-      <EspContent />
-    </EspDesignProvider>
+    <ThemedApp data-testid="esp-theme-scope">
+      <EspDesignProvider>
+        <EspContent />
+      </EspDesignProvider>
+    </ThemedApp>
   );
 }

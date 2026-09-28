@@ -18,10 +18,10 @@ import { fmt } from './fields';
 const COLOR = { max: '#dc2626', min: '#2563eb' };
 
 const loadingAccent = (pct) => {
-  if (!Number.isFinite(pct)) return 'text-slate-400';
-  if (pct > 100) return 'text-red-400';
-  if (pct > 90) return 'text-amber-300';
-  return 'text-emerald-400';
+  if (!Number.isFinite(pct)) return 'text-pl-muted';
+  if (pct > 100) return 'text-pl-danger-text';
+  if (pct > 90) return 'text-pl-warning-text';
+  return 'text-pl-success-text';
 };
 
 const RodStressPanel = () => {
@@ -38,11 +38,11 @@ const RodStressPanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
             The taper, section by section
-            <span className="block text-xs font-normal text-slate-500 mt-0.5">
+            <span className="block text-xs font-normal text-pl-muted mt-0.5">
               {string.grade.label}, minimum tensile{' '}
               {string.grade.minTensilePsi.toLocaleString()} psi, at a service factor of{' '}
               {design.stresses[0] ? fmt(design.stresses[0].allowablePsi / (string.grade.minTensilePsi / 4 + 0.5625 * design.stresses[0].minStressPsi), 2) : '--'}.
@@ -55,7 +55,7 @@ const RodStressPanel = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                <tr className="text-[10px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
                   <th className="text-left font-semibold px-2 py-2">Section</th>
                   <th className="text-right font-semibold px-2 py-2">Top depth (ft)</th>
                   <th className="text-right font-semibold px-2 py-2">Area (in2)</th>
@@ -68,15 +68,15 @@ const RodStressPanel = () => {
               </thead>
               <tbody>
                 {design.stresses.map((s) => (
-                  <tr key={s.label} className="border-b border-slate-800/60 last:border-0">
-                    <td className="px-2 py-2 text-slate-200">{s.label} in</td>
-                    <td className="px-2 py-2 text-right tabular-nums text-slate-300">{fmt(s.topDepthFt)}</td>
-                    <td className="px-2 py-2 text-right tabular-nums text-slate-300">{fmt(s.areaIn2, 3)}</td>
-                    <td className="px-2 py-2 text-right tabular-nums text-slate-300">{fmt(s.maxLoadLb)}</td>
-                    <td className="px-2 py-2 text-right tabular-nums text-slate-300">{fmt(s.maxStressPsi)}</td>
-                    <td className="px-2 py-2 text-right tabular-nums text-slate-300">{fmt(s.minStressPsi)}</td>
-                    <td className="px-2 py-2 text-right tabular-nums text-slate-300">{fmt(s.allowablePsi)}</td>
-                    <td className={`px-2 py-2 text-right tabular-nums font-semibold ${loadingAccent(s.loadingPct)}`}>
+                  <tr key={s.label} className="border-b border-pl-border last:border-0">
+                    <td className="px-2 py-2 text-pl-text">{s.label} in</td>
+                    <td className="px-2 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(s.topDepthFt)}</td>
+                    <td className="px-2 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(s.areaIn2, 3)}</td>
+                    <td className="px-2 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(s.maxLoadLb)}</td>
+                    <td className="px-2 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(s.maxStressPsi)}</td>
+                    <td className="px-2 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(s.minStressPsi)}</td>
+                    <td className="px-2 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(s.allowablePsi)}</td>
+                    <td className={`px-2 py-2 text-right font-pl-mono tabular-nums font-semibold ${loadingAccent(s.loadingPct)}`}>
                       {fmt(s.loadingPct, 1)} %
                     </td>
                   </tr>
@@ -87,11 +87,11 @@ const RodStressPanel = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
             Tension down the string
-            <span className="block text-xs font-normal text-slate-500 mt-0.5">
+            <span className="block text-xs font-normal text-pl-muted mt-0.5">
               The most and least the rods carry at each depth over a full stroke. The load sheds
               going down because each section carries less rod weight below it; the steps are the
               taper changes.

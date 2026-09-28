@@ -28,8 +28,8 @@ const DutyPanel = () => (
       <NumberInput section="duty" name="annulusGradPsiPerFt" step="0.01" />
     </Field>
 
-    <div className="border-t border-slate-800 pt-3 space-y-3">
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Pump</p>
+    <div className="border-t border-pl-border pt-3 space-y-3">
+      <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Pump</p>
       <Field
         label="Gas anchor efficiency (%)"
         hint="Free gas the anchor sends up the annulus instead of into the barrel. A vendor or measured number: no separator efficiency is correlated here."

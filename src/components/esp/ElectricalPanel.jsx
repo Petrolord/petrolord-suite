@@ -12,13 +12,13 @@ const fmt = (v, digits = 0) => (Number.isFinite(v)
   ? v.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })
   : '--');
 
-const Stat = ({ label, value, unit, hint, accent = 'text-slate-100' }) => (
+const Stat = ({ label, value, unit, hint, accent = 'text-pl-text' }) => (
   <div>
-    <p className="text-[11px] uppercase tracking-wider text-slate-500">{label}</p>
-    <p className={`text-lg font-semibold tabular-nums ${accent}`}>
-      {value} {unit && <span className="text-xs font-normal text-slate-500">{unit}</span>}
+    <p className="text-[11px] uppercase tracking-wider text-pl-muted">{label}</p>
+    <p className={`text-lg font-semibold font-pl-mono tabular-nums ${accent}`}>
+      {value} {unit && <span className="text-xs font-normal text-pl-muted">{unit}</span>}
     </p>
-    {hint && <p className="text-[11px] text-slate-600 mt-0.5">{hint}</p>}
+    {hint && <p className="text-[11px] text-pl-muted mt-0.5">{hint}</p>}
   </div>
 );
 
@@ -31,10 +31,10 @@ const ElectricalPanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400" /> Motor and surface power
+            <Zap className="w-4 h-4 text-pl-muted" /> Motor and surface power
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -50,8 +50,8 @@ const ElectricalPanel = () => {
               value={sized.motorLoad ? fmt(sized.motorLoad.loadFraction * 100) : '--'}
               unit="%"
               accent={sized.motorLoad && sized.motorLoad.loadFraction > 1
-                ? 'text-red-400'
-                : (sized.motorLoad && sized.motorLoad.loadFraction < 0.5 ? 'text-amber-300' : 'text-emerald-400')}
+                ? 'text-pl-danger-text'
+                : (sized.motorLoad && sized.motorLoad.loadFraction < 0.5 ? 'text-pl-warning-text' : 'text-pl-success-text')}
             />
             <Stat
               label="Motor current"
@@ -68,17 +68,17 @@ const ElectricalPanel = () => {
           </div>
 
           {req?.estimateWeakBelowHalfLoad && (
-            <p className="text-[11px] text-amber-300">
+            <p className="text-[11px] text-pl-warning-text">
               Below about half load the real current flattens out toward the magnetising current, so
               the current above is an estimate rather than a reading off the nameplate scaling.
             </p>
           )}
 
-          <div className="border-t border-slate-800 pt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="border-t border-pl-border pt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat
               label="Selected cable"
               value={chosen ? chosen.label : 'none'}
-              accent={chosen ? 'text-emerald-400' : 'text-red-400'}
+              accent={chosen ? 'text-pl-success-text' : 'text-pl-danger-text'}
               hint={`over ${fmt(Number(inputs.motor.cableLengthFt))} ft at ${fmt(Number(inputs.motor.cableTempF))} F`}
             />
             <Stat
@@ -103,11 +103,11 @@ const ElectricalPanel = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
             Cable candidates
-            <span className="block text-xs font-normal text-slate-500 mt-0.5">
+            <span className="block text-xs font-normal text-pl-muted mt-0.5">
               Smallest conductor first. Resistance is the published copper value corrected to the
               cable temperature; ampacity belongs to the insulation system and is a manufacturer
               number, so it is not assumed and only the drop limit is applied here.
@@ -118,7 +118,7 @@ const ElectricalPanel = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                <tr className="text-[10px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
                   <th className="text-left font-semibold px-4 py-2">Conductor</th>
                   <th className="text-right font-semibold px-4 py-2">Ohms / 1000 ft</th>
                   <th className="text-right font-semibold px-4 py-2">Drop (V)</th>
@@ -132,29 +132,29 @@ const ElectricalPanel = () => {
                 {electrical.candidates.map((c) => (
                   <tr
                     key={c.cable.awg}
-                    className={`border-b border-slate-800/60 last:border-0 ${
-                      chosen && c.cable.awg === chosen.awg ? 'bg-emerald-950/20' : ''
+                    className={`border-b border-pl-border last:border-0 ${
+                      chosen && c.cable.awg === chosen.awg ? 'bg-pl-success-bg' : ''
                     }`}
                   >
-                    <td className="px-4 py-2 text-slate-200">
+                    <td className="px-4 py-2 text-pl-text">
                       {c.cable.label}
                       {chosen && c.cable.awg === chosen.awg && (
-                        <span className="ml-2 text-[10px] uppercase tracking-wider text-emerald-400">
+                        <span className="ml-2 text-[10px] uppercase tracking-wider text-pl-success-text">
                           selected
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-300">
+                    <td className="px-4 py-2 text-right font-pl-mono tabular-nums text-pl-text">
                       {c.requirement.resistanceOhmsPer1000Ft.toFixed(4)}
                     </td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-300">{fmt(c.requirement.dropV, 1)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-300">{fmt(c.requirement.dropPct, 2)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-300">{fmt(c.requirement.surfaceVolts)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-300">{fmt(c.requirement.lossKw, 2)}</td>
+                    <td className="px-4 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(c.requirement.dropV, 1)}</td>
+                    <td className="px-4 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(c.requirement.dropPct, 2)}</td>
+                    <td className="px-4 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(c.requirement.surfaceVolts)}</td>
+                    <td className="px-4 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(c.requirement.lossKw, 2)}</td>
                     <td className="px-4 py-2 text-center">
                       {c.dropOk
-                        ? <Check className="w-4 h-4 text-emerald-400 inline" />
-                        : <X className="w-4 h-4 text-red-400 inline" />}
+                        ? <Check className="w-4 h-4 text-pl-success-text inline" />
+                        : <X className="w-4 h-4 text-pl-danger-text inline" />}
                     </td>
                   </tr>
                 ))}
