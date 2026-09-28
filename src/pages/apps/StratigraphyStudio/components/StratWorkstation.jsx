@@ -142,12 +142,12 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   const unitTopName = (unitId) => tops.find((t) => t.unit_id === unitId)?.name || null;
 
   const ribbon = (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
       <ModuleHomeLink module="geoscience" testId="strat-home" />
       <Layers className="w-4 h-4 text-pl-primary-text" />
-      <span className="text-sm font-semibold text-pl-text">Stratigraphy Studio</span>
-      <span className="text-[11px] text-pl-muted">the stratigraphic framework on the shared well registry</span>
-      <div className="flex items-center gap-1 ml-4">
+      <span className="text-sm font-semibold text-pl-text whitespace-nowrap">Stratigraphy Studio</span>
+      <span className="hidden 2xl:inline text-[11px] text-pl-muted">the stratigraphic framework on the shared well registry</span>
+      <div className="flex flex-wrap items-center gap-1 ml-4">
         {VIEWS.map((v) => (
           <button key={v.id} type="button" data-testid={`strat-view-${v.id}`}
             className={`flex items-center gap-1 px-2 py-1 text-xs rounded border ${view === v.id ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:bg-pl-sunken'}`}

@@ -366,12 +366,12 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   };
 
   const ribbon = (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
       <ModuleHomeLink module="geoscience" />
       <Mountain className="w-4 h-4 text-pl-primary-text" />
-      <span className="text-sm font-semibold text-pl-text">Earth Modeling</span>
-      <span className="text-[11px] text-pl-muted">layer-cake framework on the shared registry</span>
-      <div className="ml-4 flex items-center gap-1">
+      <span className="text-sm font-semibold text-pl-text whitespace-nowrap">Earth Modeling</span>
+      <span className="hidden 2xl:inline text-[11px] text-pl-muted">layer-cake framework on the shared registry</span>
+      <div className="ml-4 flex flex-wrap items-center gap-1">
         <button type="button" data-testid="em-view-map" className={viewBtn(view === 'map')} onClick={() => setView('map')}>
           <MapIcon className="w-3.5 h-3.5" /> Map
         </button>
@@ -385,7 +385,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           <Box className="w-3.5 h-3.5" /> 3D
         </button>
       </div>
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex flex-wrap items-center gap-1">
         <button type="button" data-testid="em-depth-unit"
           className="px-2 py-1 text-[11px] rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
           title="Depth display unit (feet or metres), the account's Geoscience setting. The model computes in metres."

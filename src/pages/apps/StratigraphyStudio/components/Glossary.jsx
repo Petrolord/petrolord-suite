@@ -8,9 +8,11 @@ import React, { useMemo } from 'react';
 import { legend } from '@/lib/stratigraphy/vocabulary';
 
 /** A short line drawn with the surface type's dash pattern and width. */
-export function StyleSwatch({ style, colour = '#e2e8f0', width = 64 }) {
+// design system (W4B): the line takes the text colour by default, so it
+// reads on the light and the dark panel alike
+export function StyleSwatch({ style, colour = 'currentColor', width = 64 }) {
   return (
-    <svg width={width} height={10} className="shrink-0" aria-hidden="true">
+    <svg width={width} height={10} className="shrink-0 text-pl-text" aria-hidden="true">
       <line x1={0} y1={5} x2={width} y2={5} stroke={colour} strokeWidth={style.width} strokeDasharray={style.dash.length ? style.dash.join(' ') : undefined} />
     </svg>
   );
