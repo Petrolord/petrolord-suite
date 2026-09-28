@@ -31,13 +31,13 @@ const AXIS_LINE = { stroke: CHART_COLORS.axisLine, strokeWidth: 1 };
 
 function FluidRow({ id, label, fluid, error, units }) {
   return (
-    <tr className="border-t border-slate-800">
-      <td className="py-1 pr-2 text-slate-300">{label}</td>
+    <tr className="border-t border-pl-border">
+      <td className="py-1 pr-2 text-pl-text">{label}</td>
       {error ? (
-        <td colSpan={4} className="py-1 text-amber-400" data-testid={`rp-fluid-${id}-error`}>{error}</td>
+        <td colSpan={4} className="py-1 text-pl-warning-text" data-testid={`rp-fluid-${id}-error`}>{error}</td>
       ) : (
         <>
-          <td className="py-1 pr-2 text-slate-400">{fluid.label}</td>
+          <td className="py-1 pr-2 text-pl-muted">{fluid.label}</td>
           <td className="py-1 pr-2 text-right" data-testid={`rp-fluid-${id}-rho`}>{fmtDensity(fluid.rho, units.density, 2)}</td>
           <td className="py-1 pr-2 text-right" data-testid={`rp-fluid-${id}-k`}>{gpa(fluid.k)}</td>
           <td className="py-1 text-right">{fmtVelocity(fluid.vp || (fluid.k > 0 && fluid.rho > 0 ? Math.sqrt(fluid.k / fluid.rho) : NaN), units.velocity, 2)}</td>
@@ -106,29 +106,29 @@ export default function FluidsPanel({
   return (
     <div className="h-full min-h-0 overflow-y-auto p-3 space-y-3" data-testid="rp-fluids-panel">
       <div className="flex items-center gap-2">
-        <span className="text-[12px] text-slate-400">Zone</span>
+        <span className="text-[12px] text-pl-muted">Zone</span>
         <select
           data-testid="rp-zone-select"
           value={zone?.id || ''}
           onChange={(e) => setZoneId(e.target.value)}
-          className="bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-[12px] text-slate-100"
+          className="bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-[12px] text-pl-text"
         >
           {zones.map((z) => (
             <option key={z.id} value={z.id}>{`${z.name} (${tidyDepth(z.top_md_m, zU)}–${tidyDepth(z.base_md_m, zU)} ${zU})`}</option>
           ))}
         </select>
         {!zones.length && (
-          <span className="text-[12px] text-slate-500">no zones on this well — add them in Petrophysics Studio</span>
+          <span className="text-[12px] text-pl-muted">no zones on this well — add them in Petrophysics Studio</span>
         )}
       </div>
 
-      <div className="rounded border border-slate-800 p-2">
-        <div className="text-[11px] uppercase tracking-wider text-slate-500 mb-1">
+      <div className="rounded border border-pl-border p-2">
+        <div className="text-[11px] uppercase tracking-wider text-pl-muted mb-1">
           Pore fluids (Batzle-Wang 1992 at {scenario.conditions.tC} °C / {scenario.conditions.pMPa} MPa)
         </div>
-        <table className="w-full text-[12px] text-slate-200">
+        <table className="w-full text-[12px] text-pl-text">
           <thead>
-            <tr className="text-slate-500 text-left">
+            <tr className="text-pl-muted text-left">
               <th className="font-normal">Fluid</th>
               <th className="font-normal">Mix</th>
               <th className="font-normal text-right">{densityLabel(dU)}</th>
@@ -144,14 +144,14 @@ export default function FluidsPanel({
       </div>
 
       {result?.error && (
-        <p className="text-[12px] text-amber-400" data-testid="rp-sub-error">{result.error}</p>
+        <p className="text-[12px] text-pl-warning-text" data-testid="rp-sub-error">{result.error}</p>
       )}
 
       {result && !result.error && (
         <>
-          <div className="rounded border border-slate-800 p-2">
+          <div className="rounded border border-pl-border p-2">
             <div className="flex items-center gap-2 mb-1">
-              <div className="text-[11px] uppercase tracking-wider text-slate-500">
+              <div className="text-[11px] uppercase tracking-wider text-pl-muted">
                 Gassmann substitution A → B · {zone.name} · K_min {gpa(result.kmin)} GPa ·{' '}
                 {result.sub.done} samples{result.sub.skipped ? ` (${result.sub.skipped} skipped)` : ''}
               </div>
@@ -162,7 +162,7 @@ export default function FluidsPanel({
                   disabled={publishing || !result.sub.done}
                   title="Write VP_SUB, VS_SUB and RHOB_SUB to this well in the registry: the in-situ log outside the zone, the substituted case inside. Overwrites only this project's previous publish."
                   className="ml-auto flex items-center gap-1 px-2 py-0.5 text-xs rounded border
-                    border-emerald-700 text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-40"
+                    border-pl-primary text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40"
                   onClick={() => onPublish(result, zone)}
                 >
                   {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
@@ -171,13 +171,13 @@ export default function FluidsPanel({
               )}
             </div>
             {result.sub.firstError && (
-              <p className="text-[12px] text-amber-400 mb-1" data-testid="rp-sub-sample-error">
+              <p className="text-[12px] text-pl-warning-text mb-1" data-testid="rp-sub-sample-error">
                 skipped samples: {result.sub.firstError}
               </p>
             )}
-            <table className="w-full text-[12px] text-slate-200">
+            <table className="w-full text-[12px] text-pl-text">
               <thead>
-                <tr className="text-slate-500 text-left">
+                <tr className="text-pl-muted text-left">
                   <th className="font-normal">Interval mean</th>
                   <th className="font-normal text-right">{velocityLabel(vU).replace('Velocity', 'Vp').replace('Slowness', 'DTp')}</th>
                   <th className="font-normal text-right">{velocityLabel(vU).replace('Velocity', 'Vs').replace('Slowness', 'DTs')}</th>
@@ -185,14 +185,14 @@ export default function FluidsPanel({
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-t border-slate-800">
-                  <td className="py-1 text-slate-300">before (A)</td>
+                <tr className="border-t border-pl-border">
+                  <td className="py-1 text-pl-text">before (A)</td>
                   <td className="py-1 text-right" data-testid="rp-sub-before-vp">{fmtVelocity(result.before.vp, vU, 2)}</td>
                   <td className="py-1 text-right" data-testid="rp-sub-before-vs">{fmtVelocity(result.before.vs, vU, 2)}</td>
                   <td className="py-1 text-right" data-testid="rp-sub-before-rho">{fmtDensity(result.before.rho, dU, 2)}</td>
                 </tr>
-                <tr className="border-t border-slate-800">
-                  <td className="py-1 text-slate-300">after (B)</td>
+                <tr className="border-t border-pl-border">
+                  <td className="py-1 text-pl-text">after (B)</td>
                   <td className="py-1 text-right" data-testid="rp-sub-after-vp">{fmtVelocity(result.after.vp, vU, 2)}</td>
                   <td className="py-1 text-right" data-testid="rp-sub-after-vs">{fmtVelocity(result.after.vs, vU, 2)}</td>
                   <td className="py-1 text-right" data-testid="rp-sub-after-rho">{fmtDensity(result.after.rho, dU, 2)}</td>
@@ -201,7 +201,7 @@ export default function FluidsPanel({
             </table>
           </div>
 
-          <div className="bg-white rounded-lg p-3 relative" style={{ height: 420 }}>
+          <div className="bg-white rounded-lg p-3 relative" data-canvas="chart" style={{ height: 420 }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} layout="vertical" margin={CHART_MARGINS.legend}>
                 <CartesianGrid {...GRID_STYLE} />

@@ -123,13 +123,13 @@ const InputPanel = ({ onGenerate, loading, templates, formState, setFormState })
   return (
     <form onSubmit={handleSubmit} className="space-y-4 h-full flex flex-col">
       <div className="flex-grow space-y-4 pr-2 overflow-y-auto">
-        <h2 className="text-2xl font-bold text-white mb-2">Report Autopilot Setup</h2>
+        <h2 className="text-2xl font-bold text-pl-text mb-2">Report Autopilot Setup</h2>
         
         <CollapsibleSection title="Report Type" icon={<FileText />} defaultOpen>
           <div className="space-y-4">
             <label htmlFor="report_template">Select Report Template</label>
             <Select onValueChange={handleTemplateChange} value={formState.report_type_id} disabled={!templates?.types?.length}>
-              <SelectTrigger id="report_template" className="w-full bg-slate-800 border-slate-600">
+              <SelectTrigger id="report_template" className="w-full">
                 <SelectValue placeholder="Select a report type..." />
               </SelectTrigger>
               <SelectContent>
@@ -163,7 +163,7 @@ const InputPanel = ({ onGenerate, loading, templates, formState, setFormState })
                 average rate of penetration of 150 ft/hr and 5 percent
                 non-productive time, so a report generated without clearing
                 them stated two invented measurements as fact. */}
-            <p className="text-xs text-slate-400 mb-2">
+            <p className="text-xs text-pl-muted mb-2">
                 Measured values only. Every figure here is passed to the model as a reported
                 fact and will appear in the report as one.
             </p>
@@ -171,25 +171,25 @@ const InputPanel = ({ onGenerate, loading, templates, formState, setFormState })
               <div key={index} className="flex items-center gap-2 mb-2">
                 <Input aria-label="Measured quantity" title="Measured quantity, for example Average ROP" placeholder="Quantity, e.g. ROP" value={kpi.key} onChange={e => handleKpiChange(index, 'key', e.target.value)} />
                 <Input aria-label="Measured value" placeholder="Value" value={kpi.value} onChange={e => handleKpiChange(index, 'value', e.target.value)} />
-                <Button type="button" variant="ghost" size="icon" onClick={() => removeKpi(index)}><MinusCircle className="h-5 w-5 text-red-400" /></Button>
+                <Button type="button" variant="ghost" size="icon" onClick={() => removeKpi(index)}><MinusCircle className="h-5 w-5 text-pl-danger-text" /></Button>
               </div>
             ))}
-            <Button type="button" variant="outline" size="sm" onClick={addKpi} className="w-full mt-1 border-lime-400 text-lime-400"><PlusCircle className="h-4 w-4 mr-2" />Add KPI</Button>
+            <Button type="button" variant="outline" size="sm" onClick={addKpi} className="w-full mt-1"><PlusCircle className="h-4 w-4 mr-2" />Add KPI</Button>
           </div>
           <div className="mt-4"><label htmlFor="notes">Notes</label><Textarea id="notes" value={formState.notes} onChange={e => handleInputChange('notes', e.target.value)} placeholder="Additional context or notes for the AI..." /></div>
         </CollapsibleSection>
 
         <CollapsibleSection title="Supporting Documents" icon={<FileUp />}>
-          <div {...getRootProps()} className="p-6 border-2 border-dashed border-slate-600 rounded-lg text-center cursor-pointer hover:border-lime-400 transition-colors">
+          <div {...getRootProps()} className="p-6 border-2 border-dashed border-pl-border-strong rounded-lg text-center cursor-pointer hover:border-pl-primary transition-colors">
             <input {...getInputProps()} />
             {isDragActive ? <p>Drop the files here</p> : (
               <>
                 <p>Drag text or CSV files here, or click to choose.</p>
-                <p className="mt-1 text-xs text-slate-400">TXT, CSV, TSV, MD, JSON and LOG are read and given to the writer as data. PDFs and spreadsheets are not read yet; paste their figures into the notes.</p>
+                <p className="mt-1 text-xs text-pl-muted">TXT, CSV, TSV, MD, JSON and LOG are read and given to the writer as data. PDFs and spreadsheets are not read yet; paste their figures into the notes.</p>
               </>
             )}
           </div>
-          <ul className="mt-2 text-sm text-slate-300">
+          <ul className="mt-2 text-sm text-pl-text">
             {uploadedFiles.map(file => <li key={file.path}>{file.path} - {(file.size / 1024).toFixed(2)} KB</li>)}
           </ul>
         </CollapsibleSection>
@@ -218,7 +218,7 @@ const InputPanel = ({ onGenerate, loading, templates, formState, setFormState })
             <div>
               <label htmlFor="max_pages">Max Pages</label>
               <Input id="max_pages" type="number" min="1" value={formState.max_pages} onChange={e => handleInputChange('max_pages', Number(e.target.value))} />
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-pl-muted mt-1">
                 Shared across the sections you pick: the whole document is held to about this
                 many pages. It used to bound each section against a third of the page budget,
                 so twelve detailed sections came to roughly sixteen pages whatever this said.
@@ -231,8 +231,8 @@ const InputPanel = ({ onGenerate, loading, templates, formState, setFormState })
         </CollapsibleSection>
       </div>
 
-      <div className="pt-4 border-t border-slate-700">
-        <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold py-3 text-lg">
+      <div className="pt-4 border-t border-pl-border">
+        <Button type="submit" disabled={loading} className="w-full h-12 font-semibold text-base">
           {loading ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <Bot className="w-5 h-5 mr-2" />}
           Generate Report
         </Button>

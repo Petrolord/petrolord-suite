@@ -14,11 +14,11 @@ import {
 // there is no download link from a service to hold on to.
 const PreviewPanel = ({ reportData, onExport, exporting }) => {
   return (
-    <div className="h-full flex flex-col bg-slate-900/50 rounded-xl border border-white/10 p-4">
-      <div className="pb-4 border-b border-white/10 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white">Generated Report Preview</h2>
+    <div className="h-full flex flex-col bg-pl-surface rounded-xl border border-pl-border p-4">
+      <div className="pb-4 border-b border-pl-border flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-bold text-pl-text">Generated Report Preview</h2>
         <div className="flex items-center gap-2">
-          <Button onClick={onExport} disabled={exporting || !reportData} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={onExport} disabled={exporting || !reportData}>
             {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
             Export DOCX
           </Button>
@@ -28,10 +28,10 @@ const PreviewPanel = ({ reportData, onExport, exporting }) => {
       <div className="flex-grow mt-4 space-y-3 overflow-y-auto pr-2">
         <Accordion type="single" collapsible defaultValue="item-0" className="w-full">
             {reportData?.sections?.map((section, index) => (
-              <AccordionItem value={`item-${index}`} key={index} className="border border-slate-700 rounded-lg bg-slate-800/50 mb-2 px-2">
-                  <AccordionTrigger className="font-semibold text-lime-300">{section.title}</AccordionTrigger>
+              <AccordionItem value={`item-${index}`} key={index} className="border border-pl-border rounded-lg bg-pl-raised mb-2 px-2">
+                  <AccordionTrigger className="font-semibold text-pl-text">{section.title}</AccordionTrigger>
                   <AccordionContent>
-                      <div className="p-4 border-t border-slate-700 text-slate-300 prose prose-invert max-w-none prose-p:my-2">
+                      <div className="p-4 border-t border-pl-border text-pl-text leading-relaxed space-y-2 max-w-none">
                         {section.content.split('\n').map((paragraph, pIndex) => (
                           <div key={pIndex}>{paragraph}</div>
                         ))}
@@ -42,11 +42,11 @@ const PreviewPanel = ({ reportData, onExport, exporting }) => {
         </Accordion>
       </div>
 
-       <div className="mt-4 p-3 bg-gradient-to-r from-blue-500/10 to-violet-500/10 rounded-lg border border-blue-400/30 flex items-center gap-3">
-          <Bot className="w-8 h-8 text-blue-300 flex-shrink-0" />
+       <div className="mt-4 p-3 bg-pl-info-bg rounded-lg border border-pl-info flex items-center gap-3">
+          <Bot className="w-8 h-8 text-pl-info-text flex-shrink-0" />
           <div>
-            <p className="font-semibold text-white">This is an AI-generated draft.</p>
-            <p className="text-sm text-slate-400">Please review all content for accuracy and completeness before distribution.</p>
+            <p className="font-semibold text-pl-text">This is an AI-generated draft.</p>
+            <p className="text-sm text-pl-muted">Please review all content for accuracy and completeness before distribution.</p>
           </div>
         </div>
     </div>

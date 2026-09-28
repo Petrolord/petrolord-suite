@@ -6,4 +6,12 @@
 // '/dashboard/apps/reservoir/material-balance-studio'); every sub-path
 // under a prefix is themed too. Only this batch edits this file; the
 // rollout index aggregates it (docs/scope/DesignSystem.md section 4).
-export default [];
+export default [
+  '/dashboard/apps/geoscience/rock-physics-studio',
+  '/dashboard/apps/geoscience/contour-map-digitizer',
+  '/dashboard/apps/geoscience/hub',
+  '/dashboard/apps/economics/report-autopilot',
+  '/dashboard/apps/economics/technical-report-autopilot',
+  '/dashboard/apps/economics-project-management/technical-report-autopilot',
+  '/dashboard/apps/economic/technical-report-autopilot',
+];
