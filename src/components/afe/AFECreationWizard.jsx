@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
+import { NativeSelect } from '@/components/ui/native-select';
 
 // EC5-0 (owner decision 2026-09-14): the AFE window. The schedule index and
 // the S-curve are measured against start_date and end_date, which the live
@@ -81,16 +82,16 @@ const AFECreationWizard = ({ open, onOpenChange, projects, onSuccess }) => {
             <>
               <div>
                 <Label>Project Link</Label>
-                <select 
-                  className="w-full bg-pl-sunken border border-pl-border rounded p-2 text-sm text-pl-text"
+                <NativeSelect
+                  aria-label="Project Link"
                   value={formData.project_id}
                   onChange={e => handleChange('project_id', e.target.value)}
                 >
                   <option value="">Select Project...</option>
                   {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                </NativeSelect>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <Label>AFE Number</Label>
                   <Input value={formData.afe_number} onChange={e => handleChange('afe_number', e.target.value)} placeholder="AFE-2024-001" />
@@ -105,7 +106,7 @@ const AFECreationWizard = ({ open, onOpenChange, projects, onSuccess }) => {
 
           {step === 2 && (
             <>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <Label>Currency</Label>
                   <Select value={formData.currency} onValueChange={val => handleChange('currency', val)}>
@@ -133,7 +134,7 @@ const AFECreationWizard = ({ open, onOpenChange, projects, onSuccess }) => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="afe-start-date">Start date</Label>
                   <Input id="afe-start-date" type="date" value={formData.start_date} onChange={e => handleChange('start_date', e.target.value)} />
@@ -153,7 +154,7 @@ const AFECreationWizard = ({ open, onOpenChange, projects, onSuccess }) => {
 
           {step === 3 && (
             <>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <Label>Operator Share (%)</Label>
                   <Input type="number" value={formData.operator_share} onChange={e => handleChange('operator_share', parseFloat(e.target.value))} />
@@ -163,7 +164,7 @@ const AFECreationWizard = ({ open, onOpenChange, projects, onSuccess }) => {
                   <Input type="number" value={100 - formData.operator_share} disabled className="opacity-50" />
                 </div>
               </div>
-              <div className="bg-pl-sunken p-4 rounded text-sm text-pl-text">
+              <div className="bg-pl-sunken/60 border border-pl-border p-4 rounded text-sm text-pl-text">
                 <p><strong>Summary:</strong></p>
                 <p>AFE: {formData.afe_number} - {formData.afe_name}</p>
                 <p>Budget: {formData.budget} {formData.currency}</p>
@@ -177,9 +178,9 @@ const AFECreationWizard = ({ open, onOpenChange, projects, onSuccess }) => {
         <DialogFooter>
           {step > 1 && <Button variant="ghost" onClick={() => setStep(step - 1)}>Back</Button>}
           {step < 3 ? (
-            <Button onClick={handleNext} className="bg-pl-info">Next</Button>
+            <Button onClick={handleNext}>Next</Button>
           ) : (
-            <Button onClick={handleSubmit} className="bg-pl-success">Create AFE</Button>
+            <Button onClick={handleSubmit}>Create AFE</Button>
           )}
         </DialogFooter>
       </DialogContent>

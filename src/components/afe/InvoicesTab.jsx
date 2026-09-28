@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { NumericTable, NumTh, NumRow, NumCell } from '@/components/ui/numeric-table';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -54,85 +55,82 @@ const InvoicesTab = ({ afeId, invoices, costItems, onRefresh }) => {
   };
 
   return (
-    <div className="space-y-4 bg-pl-surface p-4 rounded border border-pl-border">
-      <div className="flex justify-between items-center">
-        <div className="flex gap-4">
+    <div className="space-y-4 rounded-lg border border-pl-border bg-pl-surface p-4 shadow-pl-sm">
+      <div className="flex flex-wrap justify-between items-center gap-3">
+        <div className="flex flex-wrap gap-4">
             <div>
                 <p className="text-xs text-pl-muted">Total Invoiced</p>
-                <p className="text-lg font-bold text-pl-text">${invoices.reduce((sum, i) => sum + Number(i.amount), 0).toLocaleString()}</p>
+                <p className="text-lg font-semibold font-pl-mono tabular-nums text-pl-text">${invoices.reduce((sum, i) => sum + Number(i.amount), 0).toLocaleString()}</p>
             </div>
             <div>
                 <p className="text-xs text-pl-muted">Pending Approval</p>
-                <p className="text-lg font-bold text-pl-warning-text">${invoices.filter(i => i.status === 'Received').reduce((sum, i) => sum + Number(i.amount), 0).toLocaleString()}</p>
+                <p className="text-lg font-semibold font-pl-mono tabular-nums text-pl-text">${invoices.filter(i => i.status === 'Received').reduce((sum, i) => sum + Number(i.amount), 0).toLocaleString()}</p>
             </div>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="bg-pl-success hover:bg-pl-success-bg">
+        <Button onClick={() => setIsDialogOpen(true)}>
           <FilePlus2 className="w-4 h-4 mr-2" /> Log Invoice
         </Button>
       </div>
 
-      <Table>
-        <TableHeader className="bg-pl-surface">
-          <TableRow>
-            <TableHead className="text-pl-text">Date</TableHead>
-            <TableHead className="text-pl-text">Vendor</TableHead>
-            <TableHead className="text-pl-text">Invoice #</TableHead>
-            <TableHead className="text-pl-text">Linked Item</TableHead>
-            <TableHead className="text-right text-pl-text">Amount</TableHead>
-            <TableHead className="text-center text-pl-text">Match Check</TableHead>
-            <TableHead className="text-center text-pl-text">Status</TableHead>
-            <TableHead className="text-center text-pl-text">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+      <NumericTable className="p-0" data-testid="afe-invoice-table">
+        <thead>
+          <tr>
+            <NumTh>Date</NumTh>
+            <NumTh>Vendor</NumTh>
+            <NumTh>Invoice #</NumTh>
+            <NumTh>Linked Item</NumTh>
+            <NumTh numeric>Amount</NumTh>
+            <NumTh className="text-center">Match Check</NumTh>
+            <NumTh className="text-center">Status</NumTh>
+            <NumTh className="text-center">Actions</NumTh>
+          </tr>
+        </thead>
+        <tbody>
           {invoices.map(inv => {
             const item = costItems.find(c => c.id === inv.cost_item_id);
             const isOverBudget = item && (Number(item.actual) > Number(item.budget));
             
             return (
-              <TableRow key={inv.id} className="border-b border-pl-border hover:bg-pl-sunken">
-                <TableCell className="whitespace-nowrap text-pl-muted">{inv.invoice_date}</TableCell>
-                <TableCell className="text-pl-text font-medium">{inv.vendor}</TableCell>
-                <TableCell className="text-pl-text">{inv.invoice_number}</TableCell>
-                <TableCell className="text-pl-muted text-xs">
+              <NumRow key={inv.id}>
+                <td className="border-b border-pl-border px-3 py-2 whitespace-nowrap font-pl-mono text-xs tabular-nums text-pl-muted">{inv.invoice_date}</td>
+                <td className="border-b border-pl-border px-3 py-2 font-medium text-pl-text">{inv.vendor}</td>
+                <td className="border-b border-pl-border px-3 py-2 text-pl-text">{inv.invoice_number}</td>
+                <td className="border-b border-pl-border px-3 py-2 text-xs text-pl-muted">
                     {item ? `${item.code} - ${item.description.substring(0,20)}...` : 'Unknown'}
-                </TableCell>
-                <TableCell className="text-right text-pl-text font-mono">${inv.amount.toLocaleString()}</TableCell>
-                <TableCell className="text-center">
+                </td>
+                <NumCell value={Number(inv.amount)}>${inv.amount.toLocaleString()}</NumCell>
+                <td className="border-b border-pl-border px-3 py-2 text-center">
                     {isOverBudget ? (
-                        <Badge variant="outline" className="bg-pl-danger-bg border-pl-danger/40 text-pl-danger-text text-[10px]">
+                        <Badge variant="danger" className="text-[10px]">
                             Over Budget
                         </Badge>
                     ) : (
-                        <Badge variant="outline" className="bg-pl-success-bg border-pl-success/40 text-pl-success-text text-[10px]">
+                        <Badge variant="success" className="text-[10px]">
                             Matched
                         </Badge>
                     )}
-                </TableCell>
-                <TableCell className="text-center">
-                  <Badge variant="outline" className={`
-                    ${inv.status === 'Approved' ? 'text-pl-success-text border-pl-success/40' : 
-                      inv.status === 'Rejected' ? 'text-pl-danger-text border-pl-danger/40' : 'text-pl-warning-text border-pl-warning/40'}
-                  `}>
+                </td>
+                <td className="border-b border-pl-border px-3 py-2 text-center">
+                  <Badge variant={inv.status === 'Approved' ? 'success' : inv.status === 'Rejected' ? 'danger' : 'warning'}>
                     {inv.status}
                   </Badge>
-                </TableCell>
-                <TableCell className="text-center">
+                </td>
+                <td className="border-b border-pl-border px-3 py-2 text-center">
                   {inv.status === 'Received' && (
                     <div className="flex justify-center gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => handleStatusChange(inv.id, 'Approved')} className="text-pl-success-text hover:bg-pl-success-bg"><CheckCircle className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleStatusChange(inv.id, 'Rejected')} className="text-pl-danger-text hover:bg-pl-danger-bg"><XCircle className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" aria-label="Approve invoice" title="Approve" onClick={() => handleStatusChange(inv.id, 'Approved')} className="text-pl-success-text hover:bg-pl-success-bg"><CheckCircle className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" aria-label="Reject invoice" title="Reject" onClick={() => handleStatusChange(inv.id, 'Rejected')} className="text-pl-danger-text hover:bg-pl-danger-bg"><XCircle className="w-4 h-4" /></Button>
                     </div>
                   )}
-                </TableCell>
-              </TableRow>
+                </td>
+              </NumRow>
             );
           })}
           {invoices.length === 0 && (
-            <TableRow><TableCell colSpan={8} className="text-center py-8 text-pl-muted">No invoices logged.</TableCell></TableRow>
+            <tr><td colSpan={8} className="text-center py-8 text-pl-muted">No invoices logged.</td></tr>
           )}
-        </TableBody>
-      </Table>
+        </tbody>
+      </NumericTable>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
@@ -140,17 +138,17 @@ const InvoicesTab = ({ afeId, invoices, costItems, onRefresh }) => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label>Cost Item (Three-Way Match)</Label>
-              <select 
-                className="w-full bg-pl-sunken border border-pl-border rounded p-2 text-sm"
+              <NativeSelect
+                aria-label="Cost Item (Three-Way Match)"
                 value={formData.cost_item_id}
                 onChange={e => setFormData({...formData, cost_item_id: e.target.value})}
                 required
               >
                 <option value="">Select Item...</option>
                 {costItems.map(c => <option key={c.id} value={c.id}>{c.code} - {c.description} (Budget: ${c.budget})</option>)}
-              </select>
+              </NativeSelect>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label>Vendor</Label>
                 <Input value={formData.vendor} onChange={e => setFormData({...formData, vendor: e.target.value})} required />
@@ -160,7 +158,7 @@ const InvoicesTab = ({ afeId, invoices, costItems, onRefresh }) => {
                 <Input value={formData.invoice_number} onChange={e => setFormData({...formData, invoice_number: e.target.value})} required />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label>Amount ($)</Label>
                 <Input type="number" value={formData.amount} onChange={e => setFormData({...formData, amount: parseFloat(e.target.value)})} required />
@@ -170,14 +168,14 @@ const InvoicesTab = ({ afeId, invoices, costItems, onRefresh }) => {
                 <Input type="date" value={formData.invoice_date} onChange={e => setFormData({...formData, invoice_date: e.target.value})} required />
               </div>
             </div>
-            <div className="bg-pl-sunken p-3 rounded flex items-center gap-3 border border-dashed border-pl-border cursor-pointer hover:bg-pl-sunken">
+            <div className="bg-pl-sunken/60 p-3 rounded flex items-center gap-3 border border-dashed border-pl-border-strong cursor-pointer hover:bg-pl-sunken">
                 <FileText className="w-6 h-6 text-pl-muted" />
                 <div className="text-xs text-pl-muted">
                     Attach PDF Invoice (Simulated upload)
                 </div>
             </div>
             <DialogFooter>
-              <Button type="submit" className="bg-pl-success">Submit Invoice</Button>
+              <Button type="submit">Submit Invoice</Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { NumericTable, NumTh, NumRow, NumCell } from '@/components/ui/numeric-table';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -45,58 +45,58 @@ const BudgetChangesTab = ({ afeId, changes, currentBudget, onRefresh }) => {
   };
 
   return (
-    <div className="space-y-4 bg-pl-surface p-4 rounded border border-pl-border">
-      <div className="flex justify-between items-center">
+    <div className="space-y-4 rounded-lg border border-pl-border bg-pl-surface p-4 shadow-pl-sm">
+      <div className="flex flex-wrap justify-between items-center gap-3">
         <div>
-          <h3 className="text-lg font-bold text-pl-text">Change Control Log</h3>
-          <p className="text-xs text-pl-muted">Current Approved Budget: <span className="text-pl-primary-text font-mono">${currentBudget.toLocaleString()}</span></p>
+          <h3 className="text-lg font-semibold text-pl-text">Change Control Log</h3>
+          <p className="text-xs text-pl-muted">Current Approved Budget: <span className="font-pl-mono tabular-nums text-pl-text">${currentBudget.toLocaleString()}</span></p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="bg-purple-600 hover:bg-purple-700">
+        <Button onClick={() => setIsDialogOpen(true)}>
           <History className="w-4 h-4 mr-2" /> Request Change
         </Button>
       </div>
 
-      <Table>
-        <TableHeader className="bg-pl-surface">
-          <TableRow>
-            <TableHead className="text-pl-text">Date</TableHead>
-            <TableHead className="text-pl-text">Description</TableHead>
-            <TableHead className="text-pl-text">Reason</TableHead>
-            <TableHead className="text-right text-pl-text">Amount</TableHead>
-            <TableHead className="text-center text-pl-text">Status</TableHead>
-            <TableHead className="text-center text-pl-text">Action</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+      <NumericTable className="p-0" data-testid="afe-changes-table">
+        <thead>
+          <tr>
+            <NumTh>Date</NumTh>
+            <NumTh>Description</NumTh>
+            <NumTh>Reason</NumTh>
+            <NumTh numeric>Amount</NumTh>
+            <NumTh className="text-center">Status</NumTh>
+            <NumTh className="text-center">Action</NumTh>
+          </tr>
+        </thead>
+        <tbody>
           {changes.map(change => (
-            <TableRow key={change.id} className="border-b border-pl-border">
-              <TableCell className="text-pl-muted">{new Date(change.created_at).toLocaleDateString()}</TableCell>
-              <TableCell className="text-pl-text">{change.description}</TableCell>
-              <TableCell className="text-pl-muted text-sm">{change.reason}</TableCell>
-              <TableCell className={`text-right font-mono ${change.amount >= 0 ? 'text-pl-success-text' : 'text-pl-danger-text'}`}>
+            <NumRow key={change.id}>
+              <td className="border-b border-pl-border px-3 py-2 whitespace-nowrap font-pl-mono text-xs tabular-nums text-pl-muted">{new Date(change.created_at).toLocaleDateString()}</td>
+              <td className="border-b border-pl-border px-3 py-2 text-pl-text">{change.description}</td>
+              <td className="border-b border-pl-border px-3 py-2 text-sm text-pl-muted">{change.reason}</td>
+              <NumCell value={Number(change.amount)}>
                 {change.amount > 0 ? '+' : ''}{Number(change.amount).toLocaleString()}
-              </TableCell>
-              <TableCell className="text-center">
-                <Badge variant="outline" className={
-                  change.status === 'Approved' ? 'text-pl-success-text border-pl-success/40' : 
-                  change.status === 'Rejected' ? 'text-pl-danger-text border-pl-danger/40' : 'text-pl-warning-text border-pl-warning/40'
+              </NumCell>
+              <td className="border-b border-pl-border px-3 py-2 text-center">
+                <Badge variant={
+                  change.status === 'Approved' ? 'success' :
+                  change.status === 'Rejected' ? 'danger' : 'warning'
                 }>{change.status}</Badge>
-              </TableCell>
-              <TableCell className="text-center">
+              </td>
+              <td className="border-b border-pl-border px-3 py-2 text-center">
                 {change.status === 'Pending' && (
                   <div className="flex justify-center gap-2">
-                    <Button size="icon" variant="ghost" onClick={() => handleAction(change, 'Approved')} className="text-pl-success-text hover:bg-pl-success-bg"><CheckCircle className="w-4 h-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => handleAction(change, 'Rejected')} className="text-pl-danger-text hover:bg-pl-danger-bg"><XCircle className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" aria-label="Approve change" title="Approve" onClick={() => handleAction(change, 'Approved')} className="text-pl-success-text hover:bg-pl-success-bg"><CheckCircle className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" aria-label="Reject change" title="Reject" onClick={() => handleAction(change, 'Rejected')} className="text-pl-danger-text hover:bg-pl-danger-bg"><XCircle className="w-4 h-4" /></Button>
                   </div>
                 )}
-              </TableCell>
-            </TableRow>
+              </td>
+            </NumRow>
           ))}
           {changes.length === 0 && (
-            <TableRow><TableCell colSpan={6} className="text-center py-8 text-pl-muted">No changes recorded.</TableCell></TableRow>
+            <tr><td colSpan={6} className="text-center py-8 text-pl-muted">No changes recorded.</td></tr>
           )}
-        </TableBody>
-      </Table>
+        </tbody>
+      </NumericTable>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
@@ -115,7 +115,7 @@ const BudgetChangesTab = ({ afeId, changes, currentBudget, onRefresh }) => {
               <Input value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} required />
             </div>
             <DialogFooter>
-              <Button type="submit" className="bg-purple-600">Submit Request</Button>
+              <Button type="submit">Submit Request</Button>
             </DialogFooter>
           </form>
         </DialogContent>

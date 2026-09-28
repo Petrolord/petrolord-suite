@@ -51,7 +51,7 @@ export const spiTile = (afe, metrics, full = false) => {
   return {
     value: full ? formatFull(metrics.spi, FULL_PRECISION_DECIMALS) : metrics.spi.toFixed(2),
     subtext: metrics.spi >= 1 ? 'Ahead of Schedule' : 'Behind Schedule',
-    colorClass: metrics.spi >= 1 ? 'text-pl-success-text bg-pl-success' : 'text-pl-danger-text bg-pl-danger',
+    colorClass: metrics.spi >= 1 ? 'text-pl-success-text bg-pl-success-bg' : 'text-pl-danger-text bg-pl-danger-bg',
   };
 };
 
@@ -69,7 +69,7 @@ export const cpiTile = (metrics, full = false) => {
   return {
     value: full ? formatFull(metrics.cpi, FULL_PRECISION_DECIMALS) : metrics.cpi.toFixed(2),
     subtext: metrics.cpi >= 1 ? 'Under Budget' : 'Over Budget',
-    colorClass: metrics.cpi >= 1 ? 'text-pl-success-text bg-pl-success' : 'text-pl-danger-text bg-pl-danger',
+    colorClass: metrics.cpi >= 1 ? 'text-pl-success-text bg-pl-success-bg' : 'text-pl-danger-text bg-pl-danger-bg',
   };
 };
 
@@ -97,16 +97,18 @@ export const eacTrendPct = (metrics) => (metrics.totalBudget > 0
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
-const KPICard = ({ title, value, subtext, icon: Icon, colorClass, trend }) => (
+// Tile icons are neutral; only the CPI and SPI verdicts carry a status
+// colour (their colorClass), always beside the words that say it.
+const KPICard = ({ title, value, subtext, icon: Icon, colorClass = NEUTRAL_TILE, trend }) => (
   <Card className="transition-colors">
     <CardContent className="p-5">
-      <div className="flex justify-between items-start">
-        <div>
+      <div className="flex justify-between items-start gap-2">
+        <div className="min-w-0">
           <p className="text-xs font-medium text-pl-muted uppercase tracking-wider">{title}</p>
-          <h3 className="text-xl font-bold text-pl-text mt-1">{value}</h3>
+          <h3 className="text-xl font-semibold font-pl-mono tabular-nums text-pl-text mt-1">{value}</h3>
         </div>
-        <div className={`p-2 rounded-lg bg-opacity-10 ${colorClass}`}>
-          <Icon className="w-5 h-5" />
+        <div className={`p-2 rounded-lg ${colorClass}`}>
+          <Icon className="w-5 h-5" aria-hidden="true" />
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between">
@@ -207,7 +209,7 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
         </div>
       ) : null}
 
-      <div className="flex items-center gap-2 text-xs text-pl-muted">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-pl-muted">
         <label htmlFor="afe-as-of" className="font-medium">As of</label>
         <input
           id="afe-as-of"
@@ -215,7 +217,7 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
           data-testid="afe-as-of"
           value={asOfInput}
           onChange={(e) => setAsOfInput(e.target.value)}
-          className="h-8 rounded border border-pl-border bg-pl-surface px-2 text-pl-text"
+          className="h-8 rounded border border-pl-border-strong bg-pl-surface px-2 text-pl-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus"
         />
         <span>Planned value, SPI and the S-curve are measured at this date.</span>
       </div>
@@ -227,28 +229,24 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
           value={currencyFormatter(metrics.totalBudget)} 
           subtext="Original + Approved Changes"
           icon={DollarSign}
-          colorClass="text-pl-info-text bg-pl-info"
         />
         <KPICard 
           title="Commitments" 
           value={currencyFormatter(metrics.totalCommitments)} 
           subtext="Open POs + Contracts"
           icon={Activity}
-          colorClass="text-pl-warning-text bg-pl-warning"
         />
         <KPICard 
           title="Actual Cost (VOWD)" 
           value={currencyFormatter(metrics.totalActuals)} 
           subtext={`${metrics.percentSpent.toFixed(1)}% of Budget`}
           icon={BarChart2}
-          colorClass="text-pl-primary-text bg-purple-400"
         />
         <KPICard 
           title="EAC (Forecast)" 
           value={currencyFormatter(metrics.totalForecast)} 
           subtext={forecastFlagText(metrics) || `Variance: ${currencyFormatter(metrics.variance)}`}
           icon={TrendingUp}
-          colorClass="text-pl-primary-text bg-pl-primary"
           trend={eacTrendPct(metrics)}
         />
         <KPICard
@@ -272,13 +270,13 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
         {/* S-Curve */}
         <Card className="lg:col-span-2">
             <CardHeader>
-                <CardTitle className="text-sm font-medium text-pl-text flex justify-between">
+                <CardTitle className="text-sm font-medium text-pl-text flex flex-wrap justify-between gap-1">
                     <span>Cumulative Spend (S-Curve)</span>
                     <span className="text-pl-muted text-xs font-normal">Planned vs Actual vs Forecast</span>
                 </CardTitle>
             </CardHeader>
             <CardContent className="h-[350px]">
-                <div className="relative h-full w-full rounded-md bg-white p-2">
+                <div data-canvas="chart" className="relative h-full w-full rounded-md bg-pl-chart-surface p-2">
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={sCurveData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                         <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -311,7 +309,7 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
                 <CardTitle className="text-sm font-medium text-pl-text">Cost Distribution</CardTitle>
             </CardHeader>
             <CardContent className="h-[350px]">
-                <div className="relative h-full w-full rounded-md bg-white p-2">
+                <div data-canvas="chart" className="relative h-full w-full rounded-md bg-pl-chart-surface p-2">
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
@@ -346,7 +344,7 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
                 <CardTitle className="text-sm font-medium text-pl-text">Budget vs Actual by Category</CardTitle>
             </CardHeader>
             <CardContent className="h-[300px]">
-                <div className="relative h-full w-full rounded-md bg-white p-2">
+                <div data-canvas="chart" className="relative h-full w-full rounded-md bg-pl-chart-surface p-2">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={categoryData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                         <CartesianGrid {...GRID_STYLE} horizontal={false} />
@@ -375,12 +373,12 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
                 <div className="space-y-4">
                     {topVariances.map((item, idx) => (
                         <div key={idx} className="flex items-center justify-between border-b border-pl-border pb-2 last:border-0">
-                            <div className="flex-1">
+                            <div className="min-w-0 flex-1">
                                 <p className="text-sm font-medium text-pl-text truncate">{item.description || item.code}</p>
                                 <p className="text-xs text-pl-muted">{item.category} • {item.vendor || 'No Vendor'}</p>
                             </div>
                             <div className="text-right">
-                                <p className={`text-sm font-mono font-bold ${item.varianceVal >= 0 ? 'text-pl-success-text' : 'text-pl-danger-text'}`}>
+                                <p className={`text-sm font-pl-mono tabular-nums font-semibold ${item.varianceVal >= 0 ? 'text-pl-success-text' : 'text-pl-danger-text'}`}>
                                     {item.varianceVal > 0 ? '+' : ''}{currencyFormatter(item.varianceVal)}
                                 </p>
                                 <p className="text-xs text-pl-muted">Var</p>

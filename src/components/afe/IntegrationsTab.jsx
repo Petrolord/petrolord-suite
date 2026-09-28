@@ -15,7 +15,7 @@ const IntegrationsTab = ({ afe }) => (
       <div className="p-3 bg-pl-sunken rounded-lg">
         <Link2 className="w-6 h-6 text-pl-muted" />
       </div>
-      <h3 className="text-lg font-bold text-pl-text">No integrations are connected</h3>
+      <h3 className="text-lg font-semibold text-pl-text">No integrations are connected</h3>
       <p className="text-sm text-pl-muted max-w-xl">
         No integrations are connected for AFE {afe?.afe_number || 'this AFE'}. Nothing here syncs with
         schedules, technical apps or drilling reports. Enter cost items, invoices and budget changes in
