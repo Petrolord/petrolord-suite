@@ -108,7 +108,7 @@ function RockPhysicsStudioHelpGuideContent() {
           ['Depth', DEPTH_UNITS.join(', ')],
         ]} />
         <Para>
-          A slowness choice shows sonic transit time instead of velocity: the column heads read DTp and DTs, and a
+          A slowness choice shows sonic transit time in place of velocity: the column heads read DTp and DTs, and a
           faster rock has a smaller number.
         </Para>
       </GuideSection>

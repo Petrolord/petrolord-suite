@@ -151,7 +151,7 @@ const WellIntegrityPAHelpGuideContent = () => {
                 trajectory, and every saved run lands in an immutable history.
               </Para>
               <Callout tone="warn" title="What it is not">
-                It is a planning and verification tool, not an operational procedure or a
+                It is a planning and verification tool. It is not an operational procedure or a
                 regulatory submission. The envelope drawing, slurry design, and the verification
                 records (tags, pressure tests, bond logs) stay with the responsible engineer.
               </Callout>
@@ -206,7 +206,7 @@ const WellIntegrityPAHelpGuideContent = () => {
                 An element serving both envelopes is a common well barrier element. It is flagged
                 as a warning: sharing is acceptable only by deliberate, documented acceptance.
               </Para>
-              <Callout tone="info" title="Status only, not geometry">
+              <Callout tone="info" title="Status checks only">
                 The studio checks statuses and rules. It does not verify that your elements
                 geometrically close around the source; that is the envelope drawing, and it stays
                 with you.
@@ -297,7 +297,7 @@ const WellIntegrityPAHelpGuideContent = () => {
               <Para>
                 A heavy annulus fluid against a light backup can consume the whole factored
                 limit at depth. That is the arithmetic telling you the element allows no
-                sustained surface pressure; fix the fluid or the element, not the number.
+                sustained surface pressure; fix the fluid or the element and leave the number alone.
               </Para>
               <SubHeading>The secondary plug fails a zone even though it is long enough</SubHeading>
               <Para>

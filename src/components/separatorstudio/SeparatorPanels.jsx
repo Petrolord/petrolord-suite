@@ -121,7 +121,7 @@ const ConditionsCard = () => {
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Stat label="z-factor" value={fmt(conditions.z, 4)}
-            hint="from the validated correlation, not assumed" />
+            hint="from the validated correlation, with nothing assumed" />
           <Stat label="Gas density" value={show(fmt(conditions.rhoGas, 3), conditions.rhoGas)} unit="lb/ft3" />
           <Stat label="Liquid density" value={fmt(conditions.rhoLiquid, 2)} unit="lb/ft3"
             hint="oil at the separator temperature and water, at their production split" />

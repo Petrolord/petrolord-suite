@@ -188,7 +188,7 @@ export default function BasinFlowHelpGuide() {
         <SubHeading>No generation shows</SubHeading>
         <Para>Check that a layer is marked as a source with TOC and HI above zero, and that it reached the oil window on the maturity plot.</Para>
         <SubHeading>The imported layers have odd ages</SubHeading>
-        <Para>Tops files carry depths, not ages. The ages are placeholders flagged on the cards until you type them.</Para>
+        <Para>Tops files carry depths and no ages. The ages are placeholders flagged on the cards until you type them.</Para>
       </GuideSection>
 
       <GuideSection id="glossary">

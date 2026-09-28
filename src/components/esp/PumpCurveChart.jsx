@@ -43,7 +43,7 @@ const PumpCurveChart = () => {
           <span className="block text-xs font-normal text-pl-muted mt-0.5">
             {curve.source === 'vendor'
               ? `Fitted through ${curve.points.length} points off the vendor curve, published at ${fmt(curve.refHz)} Hz.`
-              : `${curve.label}. A model shape with named parameters, not a manufacturer's pump.`}
+              : `${curve.label}. A model shape with named parameters. It is not a manufacturer's pump.`}
           </span>
         </CardTitle>
       </CardHeader>

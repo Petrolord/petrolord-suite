@@ -30,7 +30,7 @@ const SubsurfaceModule = () => {
             geomech: ex.geomech,
             pressureTemp: ex.pressureTemp,
         });
-        toast({ title: 'Example loaded', description: `${EXAMPLE_LABEL}. Illustrative figures, not your project's.` });
+        toast({ title: 'Example loaded', description: `${EXAMPLE_LABEL}. The figures are illustrative and do not describe your project.` });
     };
 
     return (

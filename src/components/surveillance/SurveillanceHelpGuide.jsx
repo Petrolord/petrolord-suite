@@ -26,7 +26,7 @@ const helpContent = [
     icon: Database,
     title: 'Importing production data',
     content:
-      'The Data tab takes two CSV shapes: a daily (or monthly) ledger of one row per well per date, and well tests of one row per test. Column names are matched against a wide alias table, units auto-scale from the header (Mscf, MMscf, Bscf, bbl, Mbbl), and every row that is skipped or adjusted is listed in the import report. Nothing fails silently. Volumes are stored as stb and Mscf. Re-importing a corrected file overwrites the same well-dates in place rather than duplicating them, and monthly rows land on the first of their month. Download the template if you want the exact canonical schema.',
+      'The Data tab takes two CSV shapes: a daily (or monthly) ledger of one row per well per date, and well tests of one row per test. Column names are matched against a wide alias table, units auto-scale from the header (Mscf, MMscf, Bscf, bbl, Mbbl), and every row that is skipped or adjusted is listed in the import report. Nothing fails silently. Volumes are stored as stb and Mscf. Re-importing a corrected file overwrites the same well-dates in place and does not duplicate them, and monthly rows land on the first of their month. Download the template if you want the exact canonical schema.',
   },
   {
     id: 'wells',
@@ -40,14 +40,14 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Exception surveillance',
     content:
-      'The Overview tab compares each well against its own recent baseline and flags shut-ins, rate drops, injection drops, watercut rises, GOR rises, downtime and stale data. Windows anchor on the latest date in the field ledger, never on today, so a historical dataset surveils honestly. On monthly data the windows widen automatically rather than compare a single month against a single day. Wells whose baseline rate is below the minimum rate setting skip the ratio checks, which keeps marginal wells from generating noise. Every threshold is yours to set in the left rail and travels with the saved project, so two engineers can surveil the same field with different triggers.',
+      'The Overview tab compares each well against its own recent baseline and flags shut-ins, rate drops, injection drops, watercut rises, GOR rises, downtime and stale data. Windows anchor on the latest date in the field ledger and ignore the current date, so a historical dataset surveils honestly. On monthly data the windows widen automatically so a single month is not compared against a single day. Wells whose baseline rate is below the minimum rate setting skip the ratio checks, which keeps marginal wells from generating noise. Every threshold is yours to set in the left rail and travels with the saved project, so two engineers can surveil the same field with different triggers.',
   },
   {
     id: 'trends',
     icon: LineChart,
     title: 'Trends',
     content:
-      'Plot the field total or a single well: oil, water and gas rates, watercut and GOR, or injection. Gas rides the right axis so it never flattens the liquid lines. Smoothing averages over real elapsed days rather than a point count, so daily and monthly ledgers behave the same. On a well view you can switch to producing-day rates, which divide volumes by hours on stream; days with zero hours are shut in and drop out rather than reading as zero rate. Any chart downloads as a PNG from the button in its corner.',
+      'Plot the field total or a single well: oil, water and gas rates, watercut and GOR, or injection. Gas rides the right axis so it never flattens the liquid lines. Smoothing averages over real elapsed days and does not count points, so daily and monthly ledgers behave the same. On a well view you can switch to producing-day rates, which divide volumes by hours on stream; days with zero hours are shut in and drop out. They do not read as zero rate. Any chart downloads as a PNG from the button in its corner.',
   },
   {
     id: 'deferments',
@@ -61,7 +61,7 @@ const helpContent = [
     icon: TrendingDown,
     title: 'Decline overlay',
     content:
-      'The Decline tab fits a well through the same Arps engine the DCA Studio uses, on a semi-log rate plot with the forecast extended past the history. It is a surveillance sanity check: is this well still on its trend, or has it stepped off it? Under three usable points there is no fit and the studio says so instead of drawing a curve. Segmented fits, type curves and probabilistic EUR belong in the DCA Studio, which is one click away from that tab.',
+      'The Decline tab fits a well through the same Arps engine the DCA Studio uses, on a semi-log rate plot with the forecast extended past the history. It is a surveillance sanity check: is this well still on its trend, or has it stepped off it? Under three usable points there is no fit and the studio says so and draws no curve. Segmented fits, type curves and probabilistic EUR belong in the DCA Studio, which is one click away from that tab.',
   },
   {
     id: 'projects',

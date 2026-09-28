@@ -97,7 +97,7 @@ const DCAHelpContent = () => {
             <ul className="text-xs space-y-1 list-disc pl-4">
               <li>Only the streams present in your CSV are offered.</li>
               <li>Each stream carries its own fit and its own forecast, so a gas fit is never overwritten by refitting oil.</li>
-              <li><strong className="text-pl-text">The fit belongs to the stream rather than to the well.</strong> Switching wells leaves the previous well's fit, diagnostics, KPI cards and forecast on screen, now shown against the new well. Re-fit immediately after every well change, and treat any result you did not just generate as belonging to the previous well.</li>
+              <li><strong className="text-pl-text">The fit belongs to the stream and does not follow the well.</strong> Switching wells leaves the previous well's fit, diagnostics, KPI cards and forecast on screen, now shown against the new well. Re-fit immediately after every well change, and treat any result you did not just generate as belonging to the previous well.</li>
               <li>Switching streams re-renders the charts against that stream's units.</li>
             </ul>
             <div className="bg-pl-sunken p-3 rounded border border-pl-border">
@@ -301,7 +301,7 @@ const DCAHelpContent = () => {
               </p>
               <ul className="text-xs space-y-1 list-disc pl-4">
                 <li><strong>Well grouping</strong> saves a named set of wells, for example a pad, a horizon or a completion vintage, and makes it selectable as a unit.</li>
-                <li><strong>Well filters</strong> narrow the list by the metadata you recorded, so you can assemble a population by field, reservoir or well type rather than by name.</li>
+                <li><strong>Well filters</strong> narrow the list by the metadata you recorded, so you can assemble a population by field, reservoir or well type as well as by name.</li>
                 <li><strong>Group rollup</strong> sums the member wells into a single group profile and forecasts that, which is the quickest route to a pad or field level outlook.</li>
               </ul>
             </div>

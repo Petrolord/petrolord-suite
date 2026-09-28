@@ -40,7 +40,7 @@ const ChokePanel = () => {
           </Field>
           <p className="text-[11px] text-pl-muted">
             The gas choke carries its own critical ratio from the heat capacity ratio, so sonic and
-            subsonic are decided thermodynamically rather than by a rule of thumb.
+            subsonic are decided thermodynamically with no rule of thumb.
           </p>
         </div>
       ) : (

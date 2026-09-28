@@ -146,7 +146,7 @@ const SweepPanel = () => {
               </table>
             </div>
             <p className="text-[11px] text-pl-muted">
-              The rate per psi is read off the curve rather than quoted as a constant, because it is
+              The rate per psi is read off the curve. It is not quoted as a constant, because it is
               not one. It steepens wherever a well that had been held off the header comes back on,
               and those steps are the interesting part.
             </p>

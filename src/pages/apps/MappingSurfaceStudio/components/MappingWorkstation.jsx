@@ -1370,7 +1370,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
               <button type="button" data-testid="map-grv-run" disabled={!displayGrid} className="px-2 py-1 rounded border border-pl-primary/50 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40" onClick={() => runGrv()}>GRV</button>
             </div>
             <button type="button" data-testid="map-grv-pick" disabled={!displayGrid || grvContact === ''}
-              title="Click a closure on the map to measure that one instead of the highest"
+              title="Click a closure on the map to measure that one in place of the highest"
               className="w-full px-2 py-0.5 text-[11px] rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
               onClick={() => { setDrawMode('grvpick'); setStatus('Click inside the closure to measure.'); }}>
               {drawMode === 'grvpick' ? 'Click a closure on the map…' : 'Pick a closure on the map'}

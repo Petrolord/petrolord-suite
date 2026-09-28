@@ -40,7 +40,7 @@ const TdhPanel = () => {
           Total dynamic head
           <span className="block text-xs font-normal text-pl-muted mt-0.5">
             The pressure the pump has to add, in feet of the fluid it is pumping. Both pressures are
-            computed, not assumed: the intake off the inflow, the discharge off a flowing traverse.
+            computed from the model with none assumed: the intake off the inflow, the discharge off a flowing traverse.
           </span>
         </CardTitle>
       </CardHeader>

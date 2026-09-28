@@ -19,7 +19,7 @@ const helpContent = [
     icon: Target,
     title: 'The point of injection',
     content:
-      'Pressure across, depth down. The injection line is the real-gas casing gas column falling from the surface injection pressure; it is computed with local temperature and compressibility at every step, not a flat rule of thumb. The flowing gradient is the lifted tubing traverse drawn down from the wellhead at the design rate. Where the injection line, less the transfer differential, meets the flowing gradient is the deepest point gas can be put in. Raise the operating pressure and the point goes deeper; raise the wellhead pressure or the design rate and it comes back up.',
+      'Pressure across, depth down. The injection line is the real-gas casing gas column falling from the surface injection pressure; it is computed with local temperature and compressibility at every step, with no flat rule of thumb. The flowing gradient is the lifted tubing traverse drawn down from the wellhead at the design rate. Where the injection line, less the transfer differential, meets the flowing gradient is the deepest point gas can be put in. Raise the operating pressure and the point goes deeper; raise the wellhead pressure or the design rate and it comes back up.',
   },
   {
     id: 'spacing',
@@ -33,7 +33,7 @@ const helpContent = [
     icon: Wrench,
     title: 'Valve settings and the test rack',
     content:
-      'A bellows valve is a nitrogen dome acting on a stem and port. It opens when the casing pressure (an injection-operated valve) or the tubing pressure (a production-operated valve) overcomes the dome, and closes when the pressure on the bellows falls back to the dome pressure. The difference between those two is the valve spread, which grows with the port-to-bellows area ratio R. The shop sets a valve on a bench at 60 F, so the dome charge is converted between valve temperature and bench temperature by the fixed-volume real-gas nitrogen relation, not the linear rule printed in older manuals. The number the shop dials is the test rack opening pressure in the valve sheet.',
+      'A bellows valve is a nitrogen dome acting on a stem and port. It opens when the casing pressure (an injection-operated valve) or the tubing pressure (a production-operated valve) overcomes the dome, and closes when the pressure on the bellows falls back to the dome pressure. The difference between those two is the valve spread, which grows with the port-to-bellows area ratio R. The shop sets a valve on a bench at 60 F, so the dome charge is converted between valve temperature and bench temperature by the fixed-volume real-gas nitrogen relation. The linear rule printed in older manuals is not used. The number the shop dials is the test rack opening pressure in the valve sheet.',
   },
   {
     id: 'unloading',
@@ -47,21 +47,21 @@ const helpContent = [
     icon: TrendingUp,
     title: 'Performance and how much gas to buy',
     content:
-      'The response curve solves a full nodal operating point at each injection rate, with the string marched in two segments: the native gas-oil ratio below the injection point and the lifted ratio above it. Added gas first lightens the column and the rate rises, then friction from the extra gas takes over and the rate flattens and falls. The maximum-rate point is the top of that curve; the economic point is where the incremental response drops below the stb per Mscf you set, which is normally the number worth designing to. Each point is a full solve, so the curve runs when you ask for it rather than on every keystroke.',
+      'The response curve solves a full nodal operating point at each injection rate, with the string marched in two segments: the native gas-oil ratio below the injection point and the lifted ratio above it. Added gas first lightens the column and the rate rises, then friction from the extra gas takes over and the rate flattens and falls. The maximum-rate point is the top of that curve; the economic point is where the incremental response drops below the stb per Mscf you set, which is normally the number worth designing to. Each point is a full solve, so the curve runs only when you ask for it.',
   },
   {
     id: 'link',
     icon: Link2,
     title: 'Linking to the production spine',
     content:
-      'A design can be attached to a well on the po_* production spine. The link stores ids only, and picking a well lets you apply its latest valid test to the design rate, water cut, wellhead pressure and gas-oil ratio rather than retyping them. Water cut and gas-oil ratio are computed from the test rates, so they always match the test they came from. Nothing about the link changes the design math, and a design works perfectly well with no link at all.',
+      'A design can be attached to a well on the po_* production spine. The link stores ids only, and picking a well lets you apply its latest valid test to the design rate, water cut, wellhead pressure and gas-oil ratio with no retyping. Water cut and gas-oil ratio are computed from the test rates, so they always match the test they came from. Nothing about the link changes the design math, and a design works perfectly well with no link at all.',
   },
   {
     id: 'limits',
     icon: AlertTriangle,
     title: 'What this does not do',
     content:
-      'The valve geometry shipped here is the generic 1 inch and 1.5 inch bellows the literature works in, not a vendor catalog: bellows area and R vary by manufacturer, so set every valve from the sheet for the valve actually run. Throughput is Thornhill-Craver, the industry convention for what a port passes, which is known to be optimistic for a valve whose stem restricts the flow. The design is for continuous lift; intermittent lift, chamber lift and plunger-assisted lift are not covered. Dual-string and annular-flow installations are out of scope.',
+      'The valve geometry shipped here is the generic 1 inch and 1.5 inch bellows the literature works in. It is no vendor catalog: bellows area and R vary by manufacturer, so set every valve from the sheet for the valve actually run. Throughput is Thornhill-Craver, the industry convention for what a port passes, which is known to be optimistic for a valve whose stem restricts the flow. The design is for continuous lift; intermittent lift, chamber lift and plunger-assisted lift are not covered. Dual-string and annular-flow installations are out of scope.',
   },
   {
     id: 'projects',

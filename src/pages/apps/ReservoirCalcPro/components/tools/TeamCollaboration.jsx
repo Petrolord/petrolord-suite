@@ -26,7 +26,7 @@ const TeamCollaboration = () => {
 
     const shareWorkspace = () => {
         exportWorkspace();
-        toast({ title: 'Workspace exported', description: 'Send the .json file to a colleague — they open it via Projects → Import.' });
+        toast({ title: 'Workspace exported', description: 'Send the .json file to a colleague. They open it via Projects, then Import.' });
     };
 
     return (
@@ -50,7 +50,7 @@ const TeamCollaboration = () => {
                 <CardHeader className="pb-2"><CardTitle className="text-pl-text text-sm flex items-center gap-2"><Share2 className="w-4 h-4 text-pl-muted" /> Share this workspace</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                     <p className="text-xs text-pl-muted">
-                        Export the current model as a self-contained file — it carries the inputs, imported surfaces, AOIs,
+                        Export the current model as a self-contained file. It carries the inputs, imported surfaces, AOIs,
                         deterministic &amp; Monte Carlo results, and the full audit trail. A colleague imports it from the
                         <span className="text-pl-text"> Projects</span> panel to continue exactly where you left off.
                     </p>

@@ -54,7 +54,7 @@ export default function FieldViewPanel({
           ]);
           if (!live) return;
           if (!curves.DEPT) {
-            onStatus(`${wells.find((w) => w.id === id)?.name || id} has no depth curve — skipped.`);
+            onStatus(`${wells.find((w) => w.id === id)?.name || id} has no depth curve, so it was skipped.`);
             setPickedIds((ids) => ids.filter((x) => x !== id));
             continue;
           }

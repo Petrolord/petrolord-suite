@@ -48,15 +48,15 @@ const NASHelpContent = () => (
       </p>
       <p>
         Fancher-Brown deliberately reads low. Industry practice keeps it as a quality-control
-        envelope, not a design tool.
+        envelope. It is not a design tool.
       </p>
     </Section>
 
     <Section icon={SlidersHorizontal} title="Sensitivity">
       <p>
         Sweep wellhead pressure, tubing size, water cut, producing GOR or reservoir pressure. Every
-        value re-solves the full system, so the chart shows true operating rates, not shifted
-        curves.
+        value re-solves the full system, so the chart shows true operating rates. The curves are not simply
+        shifted.
       </p>
     </Section>
 

@@ -23,7 +23,7 @@ const helpContent = [
     icon: FolderOpen,
     title: 'Saved studies and auto-save',
     content:
-      'Use the Saved study selector at the top of the left rail to create a study. Once one is open, your decision, outcomes and information scenario auto-save about ten seconds after each change, and the save indicator shows when the last save happened. Click it to save immediately. Results are recomputed from the inputs on demand rather than stored.',
+      'Use the Saved study selector at the top of the left rail to create a study. Once one is open, your decision, outcomes and information scenario auto-save about ten seconds after each change, and the save indicator shows when the last save happened. Click it to save immediately. Results are recomputed from the inputs on demand and are not stored.',
   },
   {
     id: 'decision',
@@ -58,7 +58,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Assumptions and limits',
     content:
-      'The tool ranks by expected monetary value, which is risk neutral. A company that cannot survive the dry-hole case should not take an EMV-positive gamble on that basis alone, and utility weighting is outside this app. One information source is evaluated at a time, so a sequenced programme (survey, then appraisal well, then development) needs the Decision Tree Builder. Payoffs are point values rather than distributions; where the upside itself is uncertain, value the outcomes in the NPV Scenario Builder or Petroleum Economics Studio first and bring the results here.',
+      'The tool ranks by expected monetary value, which is risk neutral. A company that cannot survive the dry-hole case should not take an EMV-positive gamble on that basis alone, and utility weighting is outside this app. One information source is evaluated at a time, so a sequenced programme (survey, then appraisal well, then development) needs the Decision Tree Builder. Payoffs are point values with no distribution; where the upside itself is uncertain, value the outcomes in the NPV Scenario Builder or Petroleum Economics Studio first and bring the results here.',
   },
 ];
 

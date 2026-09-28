@@ -76,7 +76,7 @@ const DiagnosticsPanel = () => {
               <p className="text-[11px] text-pl-muted">
                 Loading the design's own predicted card and diagnosing it should give back the pump
                 behaviour the design assumed. The two solvers share no code, so agreeing is a real
-                check rather than a restatement.
+                check and more than a restatement.
               </p>
               <p className="text-[11px] text-pl-muted">
                 {measuredCard.length} sample{measuredCard.length === 1 ? '' : 's'} read.
@@ -122,8 +122,8 @@ const DiagnosticsPanel = () => {
                 />
               </div>
               <p className="text-[11px] text-pl-muted">
-                The fluid load is taken from the plateaus rather than the extremes of the computed
-                card. A Fourier series truncated at a sharp load transfer overshoots at the corners,
+                The fluid load is taken from the plateaus of the computed card. The extremes of the
+                card are not used. A Fourier series truncated at a sharp load transfer overshoots at the corners,
                 which is the Gibbs phenomenon, named for the same Gibbs whose solution this is.
               </p>
             </>

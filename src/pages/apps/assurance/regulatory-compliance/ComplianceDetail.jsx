@@ -206,7 +206,7 @@ export default function ComplianceDetail() {
               <div className="md:col-span-2 flex items-center justify-between gap-4 flex-wrap">
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">
                   {nextDue
-                    ? `This will roll the next due date to ${showDate(nextDue)}, counted from the date that was due rather than from today.`
+                    ? `This will roll the next due date to ${showDate(nextDue)}, counted from the date that was due. It is not counted from today.`
                     : 'This obligation has no repeating schedule, so the due date will be left as it is.'}
                 </p>
                 <div className="flex gap-2">
@@ -248,7 +248,7 @@ export default function ComplianceDetail() {
                   Expired and a Draft lifecycle. */}
               Nothing has been filed against this obligation yet.
               {status === STATUS.ON_TRACK
-                ? ' That is why it reads On track rather than Compliant.'
+                ? ' That is why it reads On track. It does not yet read Compliant.'
                 : ''}
             </p>
           )}

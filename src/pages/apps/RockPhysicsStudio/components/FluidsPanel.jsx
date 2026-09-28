@@ -118,7 +118,7 @@ export default function FluidsPanel({
           ))}
         </select>
         {!zones.length && (
-          <span className="text-[12px] text-pl-muted">no zones on this well — add them in Petrophysics Studio</span>
+          <span className="text-[12px] text-pl-muted">no zones on this well. Add them in Petrophysics Studio.</span>
         )}
       </div>
 

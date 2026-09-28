@@ -212,7 +212,7 @@ export default function WellImport({ onSave, crsContext }) {
     if (tdMdM !== null && headUnit === 'ft') tdMdM *= M_PER_FT;
     if (!payloads.deviation.length) {
       if (tdMdM === null) {
-        throw new Error('A well without a deviation survey is vertical — enter its TD.');
+        throw new Error('A well without a deviation survey is vertical: enter its TD.');
       }
     } else if (tdMdM === null) {
       tdMdM = payloads.deviation[payloads.deviation.length - 1].md;

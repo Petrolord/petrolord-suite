@@ -108,7 +108,7 @@ const StudioContent = () => {
         <title>Flow Metering Designer | Petrolord Suite</title>
         <meta
           name="description"
-          content="Orifice meter run sizing with the Reader-Harris/Gallagher discharge coefficient computed rather than assumed, plate bore solved for a target flow, permanent pressure loss, straight-run requirements by beta and upstream fitting, and a full uncertainty budget that names which term to spend money improving."
+          content="Orifice meter run sizing with the Reader-Harris/Gallagher discharge coefficient computed from the published equation, plate bore solved for a target flow, permanent pressure loss, straight-run requirements by beta and upstream fitting, and a full uncertainty budget that names which term to spend money improving."
         />
       </Helmet>
       <StudioLayout

@@ -30,7 +30,7 @@ const RiskRegisterDashboardPage = ({ onDrillDown }) => {
                       <h3 className="text-lg font-semibold text-pl-text">The register could not be loaded</h3>
                       <p className="text-sm text-pl-muted">{error}</p>
                       <p className="text-xs text-pl-muted">
-                          Nothing is shown rather than an empty register, because an
+                          Nothing is shown here. An empty register would mislead, because an
                           empty register and a broken one are not the same thing.
                       </p>
                   </CardContent>

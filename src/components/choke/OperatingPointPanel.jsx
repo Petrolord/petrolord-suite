@@ -22,7 +22,7 @@ const OperatingPointPanel = () => {
             </span>
             <span className="block text-xs font-normal text-pl-muted mt-0.5">
               The choke sets the wellhead pressure, the tubing carries it down, and the inflow
-              closes it. The bean is a constraint in the nodal solve rather than a number applied
+              closes it. The bean is a constraint inside the nodal solve. It is not a number applied
               afterwards.
             </span>
           </CardTitle>
@@ -36,7 +36,7 @@ const OperatingPointPanel = () => {
               {solved.critical ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
               {solved.critical
                 ? `Critical flow: the bean is setting the rate at ${fmt(solved.q)} ${rateUnit}.`
-                : `${isGas ? 'Subsonic' : 'Subcritical'}: the line pressure is setting the rate, not the bean.`}
+                : `${isGas ? 'Subsonic' : 'Subcritical'}: the line pressure is setting the rate and the bean is not.`}
             </p>
             <p className="text-[11px] text-pl-muted mt-1">
               {isGas
@@ -84,7 +84,7 @@ const OperatingPointPanel = () => {
               hint={isGas
                 ? 'Sonic and subsonic branches, with the critical ratio from the heat capacity ratio'
                 : (result.usingFitted
-                  ? 'Coefficients fitted to the well\'s own tests rather than a published set'
+                  ? 'Coefficients fitted to the well\'s own tests. No published set is used'
                   : 'A published coefficient set. Fitting to this well\'s tests is better if there are any.')}
             />
             {isGas && <Row label="Flow regime" value={solved.regime} />}

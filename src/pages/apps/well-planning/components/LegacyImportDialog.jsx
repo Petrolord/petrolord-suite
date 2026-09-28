@@ -41,7 +41,7 @@ const LegacyImportDialog = ({ open, onOpenChange, userId, onImported }) => {
         <DialogHeader>
           <DialogTitle>Import legacy Well Planning data</DialogTitle>
           <DialogDescription className="text-pl-muted">
-            Brings your wells and targets from the previous version of this app into a new site. Your legacy data is read, never changed.
+            Brings your wells and targets from the previous version of this app into a new site. Your legacy data is read and left unchanged.
           </DialogDescription>
         </DialogHeader>
 

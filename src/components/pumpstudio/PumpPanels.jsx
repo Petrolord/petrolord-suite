@@ -139,14 +139,14 @@ export const DutyResults = () => {
           )}
           {curve.warning && <WarnNote>{curve.warning}</WarnNote>}
           <p className="text-[12px] text-pl-muted">
-            This is a solved intersection, not an assumed duty. Change the system, the trim or the
+            This is a solved intersection with no assumed duty. Change the system, the trim or the
             speed and the point moves, which is the only way the knock-on questions stay honest.
             {' '}
             {Number.isFinite(curve.rSquared)
               ? `Curve fit quality: R squared ${fmt(curve.rSquared, 4)}.`
               : 'Curve fit quality cannot be scored on these points: all four catalogue heads are '
                 + 'the same, so there is no spread for a fit to explain and R squared is undefined '
-                + 'rather than perfect. Type the vendor heads at four different flows.'}
+                + 'and is not perfect. Type the vendor heads at four different flows.'}
           </p>
         </CardContent>
       </Card>
@@ -267,7 +267,7 @@ export const NpshResults = () => {
                     hint={`${fmt(changeEffect.shortfallPct, 1)} percent short of ideal`} />
                   <Stat label="Old duty, moved onto the new curve"
                     value={show(fmt(changeEffect.onCurve.qGpm, 0), changeEffect.onCurve.qGpm)} unit="gpm"
-                    hint={`${show(fmt(changeEffect.onCurve.headFt, 0), changeEffect.onCurve.headFt)} ft. On the pump curve, not on the system curve.`} />
+                    hint={`${show(fmt(changeEffect.onCurve.headFt, 0), changeEffect.onCurve.headFt)} ft, read on the pump curve.`} />
                   <Stat label="Trim depth" value={fmt(changeEffect.trimPercent, 1)} unit="%" />
                 </div>
                 {changeEffect.trimWarning && <WarnNote>{changeEffect.trimWarning}</WarnNote>}

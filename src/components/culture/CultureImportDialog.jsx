@@ -233,7 +233,7 @@ export default function CultureImportDialog({ open, onOpenChange, onImported }) 
                 )}
                 {parsed.prjText && (
                   <div className="mt-1 text-pl-muted">
-                    <span className="text-pl-muted">.prj says (evidence, not trusted): </span>
+                    <span className="text-pl-muted">.prj says (evidence only, untrusted): </span>
                     <span className="font-mono break-all">{parsed.prjText.slice(0, 160)}</span>
                   </div>
                 )}

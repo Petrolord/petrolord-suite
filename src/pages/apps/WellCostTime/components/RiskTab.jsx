@@ -164,7 +164,7 @@ export default function RiskTab({ caseDraft, onCaseChange, res, mc, onRunMc, run
           </div>
           <div className="mt-1 text-[10px] text-pl-muted">
             The probabilistic total is the base cost; the risk model replaces the deterministic
-            contingency line rather than stacking on top of it.
+            contingency line, so the two do not stack.
           </div>
         </Card>
 

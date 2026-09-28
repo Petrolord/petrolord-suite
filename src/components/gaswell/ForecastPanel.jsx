@@ -69,7 +69,7 @@ const ForecastPanel = () => {
           <p className="text-sm text-pl-muted py-6 text-center">
             Each point is a full nodal solve and a marched gas column at that reservoir pressure, so
             it runs when you ask for it. The deliverability coefficients are held: this is the same
-            well, depleted, not a different one.
+            well, depleted. It is not a different well.
           </p>
         ) : (
           <>

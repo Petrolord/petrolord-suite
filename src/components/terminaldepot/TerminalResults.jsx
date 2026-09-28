@@ -57,7 +57,7 @@ const TerminalResults = () => {
         <h3 className="text-sm font-semibold text-pl-text mb-1">Gain and loss trend</h3>
         <p className="text-[11px] text-pl-muted mb-2">
           One day&apos;s gain is noise. A run in one direction is a finding, and separating the two
-          is the reason to trend rather than to look at today&apos;s number.
+          is the reason to trend the data and look past today&apos;s number.
         </p>
         <ChartFrame height={260} exportFilename="terminal-gain-loss">
           <LineChart data={chartRows} margin={{ top: 12, right: 24, left: 16, bottom: 28 }}>

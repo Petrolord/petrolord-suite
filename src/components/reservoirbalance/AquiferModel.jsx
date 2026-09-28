@@ -84,13 +84,13 @@ const AQUIFER_MODEL_OPTIONS = [
     value: 'pot',
     label: 'Pot aquifer',
     description:
-      'Small bounded aquifer with instantaneous pressure communication (Pletcher Eq. 12). Aquifer water-in-place (W) is estimated automatically by regression — no manual entry. Best for high-permeability reservoirs with bounded aquifer (faulting, pinchout).',
+      'Small bounded aquifer with instantaneous pressure communication (Pletcher Eq. 12). Aquifer water-in-place (W) is estimated automatically by regression, with no manual entry. Best for high-permeability reservoirs with bounded aquifer (faulting, pinchout).',
   },
   {
     value: 'fetkovich',
     label: 'Fetkovich',
     description:
-      'Time-dependent aquifer with productivity-index marching scheme (Fetkovich 1971). Suitable for finite aquifers where flow is rate-limited rather than instantaneous. Requires W and J as user inputs.',
+      'Time-dependent aquifer with productivity-index marching scheme (Fetkovich 1971). Suitable for finite aquifers where flow is rate-limited. Requires W and J as user inputs.',
   },
   {
     value: 'carter_tracy',

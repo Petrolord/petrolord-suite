@@ -98,7 +98,7 @@ export default function WellTiePanel({
   if (!velocityModel) {
     return (
       <p className="text-xs text-pl-muted">
-        Save a velocity model first — calibration adjusts the CURRENT model’s
+        Save a velocity model first: calibration adjusts the CURRENT model’s
         velocities to match the well tops.
       </p>
     );
@@ -106,7 +106,7 @@ export default function WellTiePanel({
   if (!topNames.length) {
     return (
       <p className="text-xs text-pl-muted">
-        No tops on the visible wells — import tops (Wells panel) and toggle
+        No tops on the visible wells. Import tops (Wells panel) and toggle
         those wells visible to calibrate against them.
       </p>
     );
@@ -161,14 +161,14 @@ export default function WellTiePanel({
           <div className="text-xs text-pl-text">
             Proposed: <span data-testid="welltie-model">{describeVelocity(result.model)}</span>
             <span className="text-pl-muted" data-testid="welltie-rms">
-              {` — RMS ${result.rmsBeforeM.toFixed(1)} m → ${result.rmsAfterM.toFixed(1)} m`}
+              {`, RMS ${result.rmsBeforeM.toFixed(1)} m → ${result.rmsAfterM.toFixed(1)} m`}
               {` (${result.residuals.length} ties)`}
             </span>
             {result.fittedLayers.some((f) => !f) && (
               <span className="text-pl-warning-text">
                 {' '}· layers {result.fittedLayers
                   .map((f, i) => (!f ? i + 1 : null)).filter(Boolean).join(', ')}
-                {' '}not sampled by any tie — their V0 kept
+                {' '}not sampled by any tie, so their V0 is kept
               </span>
             )}
           </div>

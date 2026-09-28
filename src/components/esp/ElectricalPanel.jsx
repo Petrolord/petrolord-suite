@@ -70,7 +70,7 @@ const ElectricalPanel = () => {
           {req?.estimateWeakBelowHalfLoad && (
             <p className="text-[11px] text-pl-warning-text">
               Below about half load the real current flattens out toward the magnetising current, so
-              the current above is an estimate rather than a reading off the nameplate scaling.
+              the current above is an estimate and is no longer a reading off the nameplate scaling.
             </p>
           )}
 

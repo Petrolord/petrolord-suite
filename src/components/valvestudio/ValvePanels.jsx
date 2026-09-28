@@ -240,7 +240,7 @@ export const SizingResults = () => {
                 The same RP 14E limit the line sizing studio uses, applied at the valve outlet
                 where the fluid has expanded and is moving fastest. The velocity is the in-situ
                 rate of the maximum case through the outlet bore you state, so the check has two
-                numbers to compare rather than one.
+                numbers to compare.
               </p>
             </>
           )}

@@ -76,7 +76,7 @@ const ResultsPanel = ({
             models no interference between wells. Under that assumption total field volume barely
             changes with spacing while capex falls as wells are removed, so NPV rises with spacing and
             the highest NPV is simply the widest spacing that divides your area with least waste. That
-            is arithmetic rather than an engineering recommendation, so no optimum is nominated here.
+            is arithmetic and does not amount to an engineering recommendation, so no optimum is nominated here.
           </p>
           <p className="text-pl-warning-text text-sm">
             Use the table as spacing economics: for each case it gives you the well count, the capital,

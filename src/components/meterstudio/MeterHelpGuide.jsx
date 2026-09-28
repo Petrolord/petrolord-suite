@@ -16,35 +16,35 @@ const helpContent = [
     icon: Sigma,
     title: 'The discharge coefficient is not 0.61',
     content:
-      'The Reader-Harris/Gallagher equation gives the discharge coefficient as a function of the beta ratio, the Reynolds number and the tapping arrangement, and across the practical range of beta and Reynolds number together it spans about seven percent. At a single beta, which is what the chart draws, it moves rather less, and the caption under the chart gives the figure for the run you have typed. Either way it is many times the uncertainty anybody disputes in a measurement argument, so it is worth computing rather than assuming. One limit travels with it: the published lower Reynolds limit of the correlation varies with beta and bore, this package does not carry it, and the left-hand end of the chart is therefore an extrapolation rather than a validated point.',
+      'The Reader-Harris/Gallagher equation gives the discharge coefficient as a function of the beta ratio, the Reynolds number and the tapping arrangement, and across the practical range of beta and Reynolds number together it spans about seven percent. At a single beta, which is what the chart draws, it moves somewhat less, and the caption under the chart gives the figure for the run you have typed. Either way it is many times the uncertainty anybody disputes in a measurement argument, so it is worth computing. Assuming it is not good enough. One limit travels with it: the published lower Reynolds limit of the correlation varies with beta and bore, this package does not carry it, and the left-hand end of the chart is therefore an extrapolation. It is not a validated point.',
   },
   {
     id: 'uncertainty',
     icon: Scale,
     title: 'The uncertainty budget is the point',
     content:
-      'Every input carries an uncertainty, and the flow equation gives each one a sensitivity: the bore enters squared and again through the beta term, the differential and the density enter as square roots, the coefficient enters directly. The studio propagates them all and names the dominant term, because that is the actionable part. Which term leads is a result rather than a rule: at the top of the transmitter span the coefficient\'s own uncertainty usually leads, and the differential transmitter takes over as the reading falls down the span. The differential term in the budget is the transmitter\'s own contribution, computed from the reading and the span you typed, not a separate figure that could disagree with the card beside it. Knowing which term leads is the difference between spending money well and spending it for comfort, and when the top two are too close to separate the studio says so instead of naming a winner.',
+      'Every input carries an uncertainty, and the flow equation gives each one a sensitivity: the bore enters squared and again through the beta term, the differential and the density enter as square roots, the coefficient enters directly. The studio propagates them all and names the dominant term, because that is the actionable part. Which term leads is a result of the calculation. It is no fixed rule: at the top of the transmitter span the coefficient\'s own uncertainty usually leads, and the differential transmitter takes over as the reading falls down the span. The differential term in the budget is the transmitter\'s own contribution, computed from the reading and the span you typed. It is never a separate figure that could disagree with the card beside it. Knowing which term leads is the difference between spending money well and spending it for comfort, and when the top two are too close to separate the studio says so and names no winner.',
   },
   {
     id: 'turndown',
     icon: TrendingDown,
     title: 'Turndown, and the most misunderstood thing in gas measurement',
     content:
-      'A differential transmitter is accurate to a fixed fraction of its SPAN. As the reading falls, that fixed absolute error becomes a larger and larger fraction of the reading. At ten to one DIFFERENTIAL turndown a transmitter quoted at 0.075 percent of span contributes 0.75 percent of reading, which swamps everything else in the budget. This single fact is why an orifice run has a usable FLOW turndown of about three to one, and why the answer to a wide flow range is a second transmitter on a lower span or a different meter type, not a better plate. Read the two turndowns carefully, because they are constantly swapped: flow goes as the square root of the differential, so a three to one flow turndown is a nine to one differential turndown, and the studio reports both by name.',
+      'A differential transmitter is accurate to a fixed fraction of its SPAN. As the reading falls, that fixed absolute error becomes a larger and larger fraction of the reading. At ten to one DIFFERENTIAL turndown a transmitter quoted at 0.075 percent of span contributes 0.75 percent of reading, which swamps everything else in the budget. This single fact is why an orifice run has a usable FLOW turndown of about three to one, and why the answer to a wide flow range is a second transmitter on a lower span or a different meter type. A better plate does not help. Read the two turndowns carefully, because they are constantly swapped: flow goes as the square root of the differential, so a three to one flow turndown is a nine to one differential turndown, and the studio reports both by name.',
   },
   {
     id: 'run',
     icon: Ruler,
     title: 'The meter run itself',
     content:
-      'An orifice measures correctly only in a fully developed, swirl-free profile, which is why the standards specify straight lengths upstream and downstream that depend on the beta ratio and on what fitting is upstream. Two elbows in different planes are the worst case by a wide margin because they induce swirl that takes a very long run to decay. Those requirements are published table values rather than a calculation, the studio says so, and a flow conditioner shortens them substantially.',
+      'An orifice measures correctly only in a fully developed, swirl-free profile, which is why the standards specify straight lengths upstream and downstream that depend on the beta ratio and on what fitting is upstream. Two elbows in different planes are the worst case by a wide margin because they induce swirl that takes a very long run to decay. Those requirements are published table values and do not come from a calculation, the studio says so, and a flow conditioner shortens them substantially.',
   },
   {
     id: 'limits',
     icon: AlertTriangle,
     title: 'What this does not do',
     content:
-      'No AGA-8 compressibility (bring your own density), no ultrasonic or Coriolis meter models, no proving calculations beyond applying a meter factor, and no wet-gas correction. The orifice correlation is published for a beta between 0.1 and 0.75 and the studio refuses to pretend outside it. Use this to specify a run and argue about its uncertainty, not to replace a measurement engineer.',
+      'No AGA-8 compressibility (bring your own density), no ultrasonic or Coriolis meter models, no proving calculations beyond applying a meter factor, and no wet-gas correction. The orifice correlation is published for a beta between 0.1 and 0.75 and the studio refuses to pretend outside it. Use this to specify a run and argue about its uncertainty. It does not replace a measurement engineer.',
   },
 ];
 

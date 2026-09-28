@@ -88,7 +88,7 @@ const FlowAssuranceCard = ({ fa }) => {
         <p className="text-xs text-pl-muted">
           Points left of the hydrate curve (colder than T<sub>hyd</sub> at their pressure) are inside the hydrate region and shown in red.
           Motiee validity ~0.55–1.0 gas SG, ±5–8 °F, no H₂S/CO₂/inhibitor/salt correction. AOP needs SARA/compositional data (not
-          computable here); WAT is populated only from a measured value or a labeled wax-content screening estimate, never fabricated from API.
+          computable here); WAT is populated only from a measured value or a labeled wax-content screening estimate. It is never fabricated from API.
         </p>
       </CardContent>
     </Card>

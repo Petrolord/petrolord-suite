@@ -53,7 +53,7 @@ export const ConditionInputs = () => {
         <Field label="Density (lb/ft3)"><NumberInput section="flow" name="densityLbFt3" step="0.1" /></Field>
         <Field label="Viscosity (cp)"><NumberInput section="flow" name="viscosityCp" step="0.1" /></Field>
       </div>
-      <Field label="Wetting regime" hint="An oil-wet wall does not corrode. That is a regime, not a multiplier.">
+      <Field label="Wetting regime" hint="An oil-wet wall does not corrode. That is a regime, and it works as a switch with no multiplier.">
         <Select value={inputs.flow.flowRegime} onValueChange={(v) => setSection('flow', 'flowRegime', v)}>
           <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -250,8 +250,8 @@ export const SweepChart = () => {
           <WarnNote>
             At {fmt(strip, 1)} ft/s and above the wall shear passes the threshold at which this
             studio takes the inhibitor film to be stripped, so the inhibitor credit is removed and
-            the green line joins the orange one. That step is the film going, not the chemistry
-            changing.
+            the green line joins the orange one. That step is the film going. The chemistry has
+            not changed.
           </WarnNote>
         )}
         {refused.length > 0 && (
@@ -264,13 +264,13 @@ export const SweepChart = () => {
           <p className="text-[12px] text-pl-muted">
             Every swept velocity gives a rate of zero, because the wetting regime is
             {' '}{velocitySweep.flowRegime === 'oilWet' ? 'oil wet and the water wetting factor is zero' : 'set so that no water reaches the wall'}.
-            That is an assumption in the input rather than a result, and it is the largest single
+            That is an assumption in the input and it is not a result. It is also the largest single
             lever in this model.
           </p>
         ) : (
           <p className="text-[12px] text-pl-muted">
             The rate rises with velocity because mass transfer feeds the reaction faster, and it
-            saturates where the kinetics take over. A model with a flat multiplier instead of a
+            saturates where the kinetics take over. A model with a flat multiplier and no
             transfer term cannot draw this curve at all, which is why the same fluid in a bigger
             line used to look identical.
           </p>
@@ -304,9 +304,9 @@ export const SourResults = () => {
             <p className="mt-1">
               It used to. It drew severity regions from the H2S partial pressure and the pH, gave
               them a standard's name, and printed material guidance against each one. That curve
-              was written here rather than read from the standard, and it has been withdrawn
-              instead of adjusted. Nothing replaces it: a region and a material choice need the
-              standard itself, not this screen.
+              was written here and was never read from the standard, so it has been withdrawn
+              outright. Nothing replaces it: a region and a material choice need the
+              standard itself, which this screen cannot stand in for.
             </p>
             <p className="mt-1">
               The threshold above is a screening comparison only, and the value of the threshold is

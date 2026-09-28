@@ -12,28 +12,28 @@ const helpContent = [
     icon: BookOpen,
     title: 'What allocation is for',
     content:
-      'A facility meters one commingled stream, so the volumes booked against each well are an allocation, not a measurement. This studio distributes the metered total across the wells in proportion to what each was capable of producing: its latest valid well test, scaled by the hours it was actually on. Theoretical rate times uptime gives each well its share; the metered total divided by the sum of those shares is the allocation factor; every well is then credited with its share times that factor.',
+      'A facility meters one commingled stream, so the volumes booked against each well are an allocation. They are not a measurement. This studio distributes the metered total across the wells in proportion to what each was capable of producing: its latest valid well test, scaled by the hours it was actually on. Theoretical rate times uptime gives each well its share; the metered total divided by the sum of those shares is the allocation factor; every well is then credited with its share times that factor.',
   },
   {
     id: 'totals',
     icon: Gauge,
     title: 'Metered totals: where allocation starts',
     content:
-      'The Data tab takes the facility, separator or export meter reading, one row per date with no well column. It is deliberately a different data class from the per-well ledger, which in a commingled field is itself an allocation. Column names are alias-matched, units auto-scale from the header, and re-importing a corrected meter file overwrites the same dates rather than duplicating them. You can also type a single date in by hand.',
+      'The Data tab takes the facility, separator or export meter reading, one row per date with no well column. It is deliberately a different data class from the per-well ledger, which in a commingled field is itself an allocation. Column names are alias-matched, units auto-scale from the header, and re-importing a corrected meter file overwrites the same dates and does not duplicate them. You can also type a single date in by hand.',
   },
   {
     id: 'tests',
     icon: ShieldCheck,
     title: 'Well test QC',
     content:
-      'Allocation is only as good as the tests behind it, so every test is checked against data the spine already holds: the well’s own test history (an oil rate far off its median is flagged), the daily ledger on the test date (compared on a producing-day basis, so a part-day well is judged fairly), the ledger watercut, the test duration, and whether it recorded any flow at all. Accepting or rejecting a test writes the QC flag to the spine, so the verdict holds everywhere, not just in this session. A rejected test carries no well, and the next valid test before it takes over.',
+      'Allocation is only as good as the tests behind it, so every test is checked against data the spine already holds: the well’s own test history (an oil rate far off its median is flagged), the daily ledger on the test date (compared on a producing-day basis, so a part-day well is judged fairly), the ledger watercut, the test duration, and whether it recorded any flow at all. Accepting or rejecting a test writes the QC flag to the spine, so the verdict holds everywhere and outlasts this session. A rejected test carries no well, and the next valid test before it takes over.',
   },
   {
     id: 'basis',
     icon: Layers,
     title: 'Choosing the basis',
     content:
-      'Well test times uptime is the standard basis: each well is carried by the test in force on that date, scaled by hours on stream. Prorate the wells own meters is for fields where each well is metered and the job is reconciling those meters to the facility total. Either way, a well with no basis takes no allocation and the run says so rather than inventing a rate for it. A test stops carrying its well once it is older than the validity you set, which is what stops a stale test from quietly propping up a well that has changed.',
+      'Well test times uptime is the standard basis: each well is carried by the test in force on that date, scaled by hours on stream. Prorate the wells own meters is for fields where each well is metered and the job is reconciling those meters to the facility total. Either way, a well with no basis takes no allocation and the run says so. It does not invent a rate for it. A test stops carrying its well once it is older than the validity you set, which is what stops a stale test from quietly propping up a well that has changed.',
   },
   {
     id: 'factors',
@@ -54,7 +54,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'The two write-backs',
     content:
-      'Save factors writes one row per well per month to the spine, where the next run and every downstream app can read it. Book to ledger writes the allocated volumes into the daily production ledger, stamped as allocation, which overwrites the production rows for those wells and dates. Both are deliberate actions behind a confirmation, never a side effect of running an allocation, because booking replaces whatever measurement was there before.',
+      'Save factors writes one row per well per month to the spine, where the next run and every downstream app can read it. Book to ledger writes the allocated volumes into the daily production ledger, stamped as allocation, which overwrites the production rows for those wells and dates. Both are deliberate actions behind a confirmation. Running an allocation does not trigger either one, because booking replaces whatever measurement was there before.',
   },
   {
     id: 'projects',

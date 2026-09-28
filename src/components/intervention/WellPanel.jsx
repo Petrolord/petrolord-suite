@@ -27,7 +27,7 @@ const WellPanel = () => {
         {Number.isFinite(skinFloor) && (
           <p className={`text-[11px] ${skin <= skinFloor ? 'text-pl-danger-text' : 'text-pl-muted'}`}>
             This geometry cannot carry a skin below {fmt(skinFloor, 1)}: at that value the
-            productivity index goes infinite, which is the equation running out rather than a very
+            productivity index goes infinite, which is the equation running out. It does not mean a very
             good well. Real treatments reach about -3 to -5 on acid and -5 to -6 on a fracture.
           </p>
         )}
@@ -49,7 +49,7 @@ const WellPanel = () => {
         </Field>
         <Field
           label="Expected gas-oil ratio (scf/stb)"
-          hint="What the fluid should be producing. A ratio well above it is a gas problem rather than solution gas. Blank uses the fluid model's."
+          hint="What the fluid should be producing. A ratio well above it is a gas problem and is not solution gas. Blank uses the fluid model's."
         >
           <NumberInput section="well" name="expectedGor" />
         </Field>
@@ -118,7 +118,7 @@ const WellPanel = () => {
           showCompletion
           depthLabel="Perforation depth (ft TVD)"
           depthHint="The node depth. The well is solved between here and the wellhead, before and after."
-          fluidNote="The water cut and gas-oil ratio the well is on today live with the plan, not in the shared record: they are what the well was doing on the day."
+          fluidNote="The water cut and gas-oil ratio the well is on today live with the plan and stay out of the shared record: they are what the well was doing on the day."
         />
       </div>
     </div>

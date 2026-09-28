@@ -101,7 +101,7 @@ const ChanDiagnosticsPanel = ({ chan }) => {
           Late-time WOR′ log–log slope ={' '}
           <span className="font-pl-mono tabular-nums">{selected.lateSlope != null ? selected.lateSlope.toFixed(2) : 'n/a'}</span>
           {' '}(≥ 0.4 channeling-like, ≤ 0 coning/normal-like). This is an indicative reading of the
-          derivative trend — confirm the mechanism with completion, geology and pressure data.
+          derivative trend. Confirm the mechanism with completion, geology and pressure data.
         </p>
       </div>
     </motion.div>

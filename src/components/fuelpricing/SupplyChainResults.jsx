@@ -39,7 +39,7 @@ const SupplyChainResults = () => {
         ) : (
           <>
             <p className="text-[11px] text-pl-muted mb-2">
-              Trips per truck are derived from the cycle, not assumed. It is the cycle that decides
+              Trips per truck are derived from the cycle, so nothing is assumed. It is the cycle that decides
               how the fixed costs spread, which is why a slow lane carries more capital cost per
               trip than a fast one of the same length.
             </p>
@@ -79,7 +79,7 @@ const SupplyChainResults = () => {
           <>
             <p className="text-[11px] text-pl-muted mb-2">
               Fleet size rounds up, because a fraction of a truck does not exist. The spare that
-              rounding buys is shown rather than buried: it is the argument for whether the last
+              rounding buys is shown in the open: it is the argument for whether the last
               truck should be owned or hired.
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

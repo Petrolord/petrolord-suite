@@ -57,7 +57,7 @@ const HydratePanel = () => {
             />
           </div>
           <p className="text-[11px] text-pl-muted">
-            The worst station is ranked by SUBCOOLING, not by temperature. A cold low-pressure
+            The worst station is ranked by SUBCOOLING. Temperature alone does not rank it. A cold low-pressure
             arrival can be perfectly safe while a warmer high-pressure spool is not, and ranking by
             temperature picks the wrong one.
           </p>

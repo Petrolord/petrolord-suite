@@ -78,7 +78,7 @@ const PublishDialog = ({
           </DialogTitle>
           <DialogDescription className="text-pl-muted">
             {bridged
-              ? `Updates the bridged registry well "${bridged.name}" in place (same id — Seismolord, correlation and petrophysics keep their references).`
+              ? `Updates the bridged registry well "${bridged.name}" in place (same id, so Seismolord, correlation and petrophysics keep their references).`
               : 'Creates a registry well for this wellbore and remembers the bridge; later publishes update the same row.'}
           </DialogDescription>
         </DialogHeader>

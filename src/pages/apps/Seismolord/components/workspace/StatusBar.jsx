@@ -117,7 +117,7 @@ export default function StatusBar({
         {sliceMs != null && (
           <span
             className="tabular-nums"
-            title="Slice assembly time — amplitudes render from stored float32;
+            title="Slice assembly time: amplitudes render from stored float32;
               colormap, gain, polarity and balance are shader-only"
           >
             slice {sliceMs.toFixed(0)} ms
@@ -128,7 +128,7 @@ export default function StatusBar({
           className="flex items-center gap-1.5 hover:text-pl-text"
           onClick={backend.check}
           title={backend.state === 'checking' ? 'Checking seismolord-engine…'
-            : `seismolord-engine: ${backend.detail || backend.state} — click to re-check`}
+            : `seismolord-engine: ${backend.detail || backend.state}. Click to re-check`}
         >
           <span className={`w-2 h-2 rounded-full ${BACKEND_DOT[backend.state] || BACKEND_DOT.error}`} />
           engine

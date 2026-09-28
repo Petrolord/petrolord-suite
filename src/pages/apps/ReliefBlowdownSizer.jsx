@@ -137,7 +137,7 @@ const StudioContent = () => {
             <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Relief & Flare Guide"
-              description="Which branch of API 520 you are on, what the fire case actually chains, and what is typed rather than computed."
+              description="Which branch of API 520 you are on, what the fire case actually chains, and which values are typed and which are computed."
               triggerTitle="Relief documentation"
             >
               <ReliefHelpContent />

@@ -26,7 +26,7 @@ import {
 } from '@/utils/dataAi/evalAssist';
 import { ASSIST_MAX_PASSAGES } from '@/utils/dataAi/evalWorkflows';
 
-const STATUS = { ok: 'cited and retrieved', notRetrieved: 'cited, not retrieved', unknown: 'not a passage of the corpus' };
+const STATUS = { ok: 'cited and retrieved', notRetrieved: 'cited but not retrieved', unknown: 'not a passage of the corpus' };
 
 const ClaimsTable = ({ claims, testId }) => (
   <Grid
@@ -66,8 +66,7 @@ const Helper = () => {
       <Note>
         This sends one query and the passages the current retrieval settings return for it (at most {ASSIST_MAX_PASSAGES}) to a
         hosted language model, which is told to answer only from those passages and cite passage ids. The answer is then scored by
-        the same deterministic groundedness check as the answers above. It is model output: it is not graded, not saved with the run
-        and not written to the report. Calls are metered per organization. {HELPER_DAILY_CAP_TEXT}
+        the same deterministic groundedness check as the answers above. It is model output: it is not graded, saved with the run or written to the report. Calls are metered per organization. {HELPER_DAILY_CAP_TEXT}
       </Note>
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-80">
@@ -87,7 +86,7 @@ const Helper = () => {
       ) : null}
       {state.phase === 'done' ? (
         <div className="space-y-2 rounded border border-pl-warning/40 bg-pl-warning-bg p-2" data-testid="assist-result">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-pl-warning-text">Model output, not graded</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-pl-warning-text">Model output (ungraded)</p>
           <p className="text-xs text-pl-text" data-testid="assist-answer">{state.reply.answer}</p>
           <p className="text-[11px] text-pl-muted">
             Cited: {state.reply.citations.join(', ') || 'nothing'}. Passages given: {state.ctx.retrieved.join(', ')}

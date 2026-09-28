@@ -18,7 +18,7 @@ export const TankInputs = () => {
         <Field label="Design liquid level (ft)"><NumberInput section="tank" name="liquidLevelFt" /></Field>
         <Field label="Course height (ft)"><NumberInput section="tank" name="courseHeightFt" /></Field>
       </div>
-      <Field label="Product SG" hint="A light product makes the water test govern the shell, not the product.">
+      <Field label="Product SG" hint="A light product makes the water test govern the shell thickness, so the product load does not.">
         <NumberInput section="tank" name="sg" step="0.01" />
       </Field>
       <div className="grid grid-cols-2 gap-2">
@@ -58,7 +58,7 @@ export const TankInputs = () => {
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Latitude factor" hint="Multiplier on the thermal rate. This engine's stated choice, not a value read from a standard.">
+        <Field label="Latitude factor" hint="Multiplier on the thermal rate. This is the engine's stated choice. No standard supplies the value.">
           <NumberInput section="venting" name="latitudeFactor" step="0.05" />
         </Field>
         <Field label="Env factor F" hint="A credit for drainage, insulation or a water spray. Between 0 and 1.">

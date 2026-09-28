@@ -96,7 +96,7 @@ const DeclinePanel = () => {
             <div className="h-72 flex items-center justify-center text-pl-muted text-sm px-8 text-center">
               Not enough usable points to fit a decline for this well and stream
               ({dcaResult.fitSeries.length} positive rate{dcaResult.fitSeries.length === 1 ? '' : 's'}; three are the minimum).
-              No curve is drawn rather than a fabricated one.
+              No curve is drawn, because a fabricated one would mislead.
             </div>
           ) : chartData.length ? (
             <ChartFrame height={360} exportFilename={`decline-${wellName || 'well'}`}>
@@ -175,7 +175,7 @@ const DeclinePanel = () => {
               <Stat label="Points fitted" value={fmt(dcaResult.fitSeries.length)} />
             </div>
             <p className="text-[11px] text-pl-muted">
-              Forecast volume is the forecast horizon only, not cumulative production to date, and
+              Forecast volume covers the forecast horizon only. It excludes cumulative production to date, and
               it stops at the economic limit when one is set. Segmented fits, type curves and
               probabilistic EUR live in the DCA Studio.
               <a

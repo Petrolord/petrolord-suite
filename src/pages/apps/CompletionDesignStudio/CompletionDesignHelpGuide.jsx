@@ -203,15 +203,14 @@ const CompletionDesignHelpGuideContent = () => {
               <Para>
                 The clearance basis is the exposed wellbore: for every depth the engine takes the smallest inner string
                 covering it, so a 7 inch liner inside 9-5/8 inch casing correctly controls everything below the hanger.
-                Drift diameters follow the API 5CT standard deductions per size class, computed from the catalog ID, never
-                typed in.
+                Drift diameters follow the API 5CT standard deductions per size class, computed from the catalog ID with nothing typed in.
               </Para>
               <Para>
-                A component's run-in check is the whole journey, not the destination: its OD is compared against the
+                A component's run-in check is the whole journey down the hole: its OD is compared against the
                 minimum drift of every casing interval above its final depth. The table names the controlling section, so
                 a FAIL tells you immediately whether the problem is the liner or the wear-prone top joint.
               </Para>
-              <Callout tone="info" title="Snapshots, not links">
+              <Callout tone="info" title="Snapshots with no live links">
                 Snapshotting a Casing and Tubing case copies its casing program into this case. Later edits over there do
                 not silently move your clearance basis; re-snapshot when the casing design changes.
               </Callout>
@@ -245,7 +244,7 @@ const CompletionDesignHelpGuideContent = () => {
               <Para>
                 Capacities integrate the actual IDs per interval in measured depth: string capacity, annulus above the
                 packer against the exposed casing, the rathole below, and closed-end displacement for running. Uncased
-                intervals are skipped with a visible warning rather than silently zeroed.
+                intervals are skipped with a visible warning and are not silently zeroed.
               </Para>
               <SubHeading>Seal space-out</SubHeading>
               <Para>
@@ -264,7 +263,7 @@ const CompletionDesignHelpGuideContent = () => {
                 bottomhole pressure each size demands and its friction share. Smaller tubing burns pressure in friction;
                 oversized tubing risks liquid loading at low rates. The screen makes the trade visible in one table.
               </Para>
-              <Callout tone="warn" title="A screen, not a match">
+              <Callout tone="warn" title="An outflow screen only">
                 Whether the reservoir can deliver the demanded pressure is an inflow question. Match the operating point in
                 Nodal Analysis Studio; this table deliberately stops at the outflow side.
               </Callout>

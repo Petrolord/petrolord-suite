@@ -152,7 +152,7 @@ const StudioContent = () => {
         <title>Heat Exchanger &amp; Cooling Studio | Petrolord Suite</title>
         <meta
           name="description"
-          content="Shell-and-tube thermal design with the LMTD correction factor computed from its published closed form rather than typed, the overall coefficient assembled from its named resistances, tube-side film by Dittus-Boelter, TEMA-style bundle geometry, effectiveness-NTU rating, and air-cooler sizing with the hot-day capacity derate."
+          content="Shell-and-tube thermal design with the LMTD correction factor computed from its published closed form with nothing typed, the overall coefficient assembled from its named resistances, tube-side film by Dittus-Boelter, TEMA-style bundle geometry, effectiveness-NTU rating, and air-cooler sizing with the hot-day capacity derate."
         />
       </Helmet>
       <StudioLayout
@@ -178,7 +178,7 @@ const StudioContent = () => {
             <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Heat Exchanger Guide"
-              description="Why F is computed rather than typed, what the controlling resistance tells you, and where the studio refuses to answer."
+              description="Why F is computed and never typed, what the controlling resistance tells you, and where the studio refuses to answer."
               triggerTitle="Heat exchanger documentation"
             >
               <HeatExchangerHelpContent />

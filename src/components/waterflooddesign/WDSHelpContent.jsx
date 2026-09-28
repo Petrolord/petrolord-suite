@@ -68,7 +68,7 @@ const WDSHelpContent = () => (
       </p>
       <p>
         Physically invalid samples (for example a sampled Swc and Sor that leave no mobile saturation window) are
-        rejected and counted rather than silently clamped; a high rejection rate means the distributions are too wide.
+        rejected and counted, with none silently clamped; a high rejection rate means the distributions are too wide.
         Results are not saved with the project and go stale when any input changes.
       </p>
     </Section>
@@ -83,8 +83,7 @@ const WDSHelpContent = () => (
         injection recommendations.
       </p>
       <p>
-        Diagnostics that need data your file does not carry state exactly what is missing instead of showing empty
-        charts. Uploaded history saves with the project.
+        Diagnostics that need data your file does not carry state exactly what is missing and show no empty charts. Uploaded history saves with the project.
       </p>
     </Section>
 

@@ -148,7 +148,7 @@ const HydraulicsHelpGuideContent = () => {
                 Studio; the drillstring can be imported from a T&D case with one click.
               </Para>
               <Callout tone="info" title="One geometry, many apps">
-                Hole and casing sections live on the wellbore, not in this app. Edit them in
+                Hole and casing sections live on the wellbore and are kept outside this app. Edit them in
                 either studio; both read the same rows.
               </Callout>
             </Section>

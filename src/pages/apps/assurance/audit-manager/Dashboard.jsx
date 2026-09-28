@@ -153,7 +153,7 @@ export default function Dashboard() {
               <div>
                 <CardTitle className="text-lg">Programme delivery</CardTitle>
                 <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-                  Counted from audits reported, not from audits planned.
+                  Counted from audits reported. Planned audits are left out.
                 </p>
               </div>
               <Button size="sm" variant="outline" onClick={() => navigate(`${BASE}/programmes`)}>
@@ -235,8 +235,8 @@ export default function Dashboard() {
             <CardHeader className="border-b border-[hsl(var(--border))] pb-4">
               <CardTitle className="text-lg">Checklist answers</CardTitle>
               <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-                Across every audit. &quot;Not examined&quot; is counted rather than
-                left out of the picture.
+                Across every audit. &quot;Not examined&quot; is counted and
+                stays in the picture.
               </p>
             </CardHeader>
             <CardContent className="p-6">

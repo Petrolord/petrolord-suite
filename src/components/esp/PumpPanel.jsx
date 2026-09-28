@@ -78,7 +78,7 @@ const PumpPanel = () => {
         <>
           <Field
             label="Curve points"
-            hint='One point per line: rate, head, efficiency. Efficiency is optional; a fourth column is brake power per stage. Lines that do not parse are dropped rather than guessed at.'
+            hint='One point per line: rate, head, efficiency. Efficiency is optional; a fourth column is brake power per stage. Lines that do not parse are dropped; the app does not guess at them.'
           >
             <Textarea
               rows={7}

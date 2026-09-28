@@ -106,7 +106,7 @@ export default function WellExplorer({
                           </select>
                         ) : (
                           <span className={log ? 'text-pl-text' : 'text-pl-muted'}>
-                            {log ? ` · ${log.mnemonic}${log.unit ? ` (${log.unit})` : ''}` : ' — not in this well'}
+                            {log ? ` · ${log.mnemonic}${log.unit ? ` (${log.unit})` : ''}` : ' (not in this well)'}
                           </span>
                         )}
                       </div>

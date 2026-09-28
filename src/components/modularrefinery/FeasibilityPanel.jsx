@@ -50,7 +50,7 @@ const FeasibilityPanel = () => {
         </Select>
         <p className="text-[11px] text-pl-warning-text mt-2">
           Crude supply is what actually decides these projects, so it sits here beside the capacity
-          rather than in an appendix. These are named futures, not probabilities: attaching an
+          and is not left to an appendix. These are named futures with no probabilities: attaching an
           invented likelihood to each would not be honest.
         </p>
       </div>
@@ -75,7 +75,7 @@ const FeasibilityPanel = () => {
         </div>
         <p className="text-[11px] text-pl-muted mt-2">
           Replace the reference point with a vendor quotation for a real study. The exponents are
-          here rather than buried because the difference between them is the entire argument for or
+          shown here because the difference between them is the entire argument for or
           against a modular project.
         </p>
       </div>

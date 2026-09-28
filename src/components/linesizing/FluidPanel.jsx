@@ -64,7 +64,7 @@ const GasFields = () => {
       </div>
       <Field
         label="Flow equation"
-        hint="Weymouth undersizes long lines and Panhandle flatters short ones; they are different fits, not one truth."
+        hint="Weymouth undersizes long lines and Panhandle flatters short ones; they are different fits and none of them is the one truth."
       >
         <Select value={inputs.gas.equation} onValueChange={(v) => setSection('gas', 'equation', v)}>
           <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>

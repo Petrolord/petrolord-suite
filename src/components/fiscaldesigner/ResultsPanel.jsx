@@ -275,7 +275,7 @@ const ResultsPanel = ({ results }) => {
           )}
           <p className="text-[12px] text-pl-muted mt-4">
             Every line above is computed from this comparison. A conclusion the numbers do not
-            support is left out rather than stated.
+            support is left out.
           </p>
         </TabsContent>
       </Tabs>

@@ -108,7 +108,7 @@ const UtilitiesResults = () => {
         <h3 className="text-sm font-semibold text-pl-text mb-1">The savings register</h3>
         <p className="text-[11px] text-pl-muted mb-2">
           Money and carbon from the same energy, in the same run, so the two cannot disagree. The
-          abatement cost per tonne is handed on for the Carbon Studio to rank rather than ranked
+          abatement cost per tonne is handed on for the Carbon Studio to rank; it is not ranked
           here. Every row is valued as fuel at the ledger price, so a trap repair here is the steam's
           boiler fuel (steam energy over boiler efficiency) and can differ from the trap card's cost,
           which prices the steam at your steam cost per tonne.

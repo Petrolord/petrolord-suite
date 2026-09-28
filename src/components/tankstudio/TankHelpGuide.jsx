@@ -23,7 +23,7 @@ const helpContent = [
     icon: Wind,
     title: 'Venting is what actually destroys tanks',
     content:
-      'A large atmospheric tank is a thin-walled vessel designed for a few inches of water column. It has to breathe out when it is filled or warmed and breathe in when it is emptied or cooled, and the inbreathing case is the dangerous one: a cold rainstorm falling on a hot tank that is being drawn down will collapse it if the vacuum vent cannot pass air in fast enough. The studio computes both directions from the thermal and liquid-movement components, and names which governs, rather than sizing for pressure and assuming vacuum follows.',
+      'A large atmospheric tank is a thin-walled vessel designed for a few inches of water column. It has to breathe out when it is filled or warmed and breathe in when it is emptied or cooled, and the inbreathing case is the dangerous one: a cold rainstorm falling on a hot tank that is being drawn down will collapse it if the vacuum vent cannot pass air in fast enough. The studio computes both directions from the thermal and liquid-movement components, and names which governs. It does not size for pressure and assume vacuum follows.',
   },
   {
     id: 'fire',
@@ -37,7 +37,7 @@ const helpContent = [
     icon: Droplets,
     title: 'Losses are money and emissions at once',
     content:
-      'Standing loss is the tank breathing daily whether or not anyone uses it, driven by the vapour space, the true vapour pressure and the temperature swing. The vapour space is the shell above the design liquid level rather than a separate number you type, so the geometry and the losses cannot contradict each other. Working loss is the vapour pushed out each time the tank is filled. The same arithmetic answers the money question and the emissions one, and control equipment is quantified by the efficiency you give it: an internal floating roof customarily saves sixty to ninety percent and a vapour recovery unit ninety to ninety-eight. Those are equipment and operating figures, so they are typed here rather than assumed.',
+      'Standing loss is the tank breathing daily whether or not anyone uses it, driven by the vapour space, the true vapour pressure and the temperature swing. The vapour space is the shell above the design liquid level. It is not a separate number you type, so the geometry and the losses cannot contradict each other. Working loss is the vapour pushed out each time the tank is filled. The same arithmetic answers the money question and the emissions one, and control equipment is quantified by the efficiency you give it: an internal floating roof customarily saves sixty to ninety percent and a vapour recovery unit ninety to ninety-eight. Those are equipment and operating figures, so they are typed here. Nothing is assumed for them.',
   },
   {
     id: 'limits',

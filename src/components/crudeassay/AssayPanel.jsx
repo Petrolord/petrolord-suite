@@ -132,7 +132,7 @@ const AssayPanel = () => {
       </div>
       <p className="text-[11px] text-pl-muted">
         Volumes are normalised, so they need not sum to 100. The two crudes loaded here are
-        illustrative starting figures, not published assay sheets; replace them with the seller&apos;s
+        illustrative starting figures. They are not published assay sheets; replace them with the seller&apos;s
         assay.
       </p>
       {inputs.crudes.map((c) => <CrudeCard key={c.id} crude={c} />)}

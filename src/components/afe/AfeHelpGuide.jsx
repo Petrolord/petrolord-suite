@@ -36,21 +36,21 @@ const helpContent = [
     icon: Gauge,
     title: 'How the forecast and the indexes are worked out',
     content:
-      'Where you have entered a forecast above zero for a line, that is used. Where you have not, the forecast is the greater of the budget and what is already spent plus committed, because a forecast below money already gone is not a forecast. That is the one estimate at completion rule, and the dashboard, the cost breakdown, the top variances and the reports all use it. Leaving the forecast blank when you edit a line keeps the rule in charge. Variance is the budget less that forecast, so a negative variance is an overrun. Earned value is each line\'s budget times its progress, and progress cannot be negative. The cost index is earned value over actual cost, so above one means you are getting more work for the money than planned. The numbers are worked out as of today. The schedule index is earned value over planned value, where planned value is the budget times the share of the window elapsed by today. That is a simplification: it assumes the budget was meant to be spent evenly across the window, so read it as a rough flag rather than a proper planned-value curve. Before or on the start day there is no planned value, so the index reads Not started and gives no verdict.',
+      'Where you have entered a forecast above zero for a line, that is used. Where you have not, the forecast is the greater of the budget and what is already spent plus committed, because a forecast below money already gone is not a forecast. That is the one estimate at completion rule, and the dashboard, the cost breakdown, the top variances and the reports all use it. Leaving the forecast blank when you edit a line keeps the rule in charge. Variance is the budget less that forecast, so a negative variance is an overrun. Earned value is each line\'s budget times its progress, and progress cannot be negative. The cost index is earned value over actual cost, so above one means you are getting more work for the money than planned. The numbers are worked out as of today. The schedule index is earned value over planned value, where planned value is the budget times the share of the window elapsed by today. That is a simplification: it assumes the budget was meant to be spent evenly across the window, so read it as a rough flag. It is not a proper planned-value curve. Before or on the start day there is no planned value, so the index reads Not started and gives no verdict.',
   },
   {
     id: 'invoices',
     icon: Receipt,
     title: 'Invoices and the S curve',
     content:
-      'Invoices are the record of what has actually been billed, and they drive the actual line on the S curve, which accumulates them by date against the planned spend from the start date to the end date. A gap between the two lines is worth reading before it is worth explaining: early it usually means invoicing lag rather than underspend.',
+      'Invoices are the record of what has actually been billed, and they drive the actual line on the S curve, which accumulates them by date against the planned spend from the start date to the end date. A gap between the two lines is worth reading before it is worth explaining: early on it usually means invoicing lag and seldom means underspend.',
   },
   {
     id: 'changes',
     icon: History,
     title: 'Budget changes',
     content:
-      'Supplements and transfers are recorded rather than applied silently, so the AFE keeps its history: what was originally approved, what changed, and why. That trail is what an audit asks for.',
+      'Supplements and transfers are recorded openly and are never applied silently, so the AFE keeps its history: what was originally approved, what changed, and why. That trail is what an audit asks for.',
   },
   {
     id: 'partners',
@@ -64,7 +64,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Limits',
     content:
-      'This is cost control, not accounting: it does not post to a ledger, reconcile with an ERP or handle tax. There is no live link to a finance system, so invoices and actuals are entered here. The Integrations tab connects to nothing yet and says so. The schedule index is the time-based approximation described above. Currency is per AFE with no conversion, so keep one AFE in one currency.',
+      'This is cost control. It is not accounting: it does not post to a ledger, reconcile with an ERP or handle tax. There is no live link to a finance system, so invoices and actuals are entered here. The Integrations tab connects to nothing yet and says so. The schedule index is the time-based approximation described above. Currency is per AFE with no conversion, so keep one AFE in one currency.',
   },
 ];
 

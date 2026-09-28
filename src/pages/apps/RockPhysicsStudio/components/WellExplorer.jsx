@@ -53,7 +53,7 @@ export default function WellExplorer({
                         : <Minus className="w-3 h-3 text-pl-muted" />}
                       <span className={log ? 'text-pl-text' : 'text-pl-muted'}>
                         {key}
-                        {log ? ` · ${log.mnemonic}${log.unit ? ` (${log.unit})` : ''}` : ' — not in this well'}
+                        {log ? ` · ${log.mnemonic}${log.unit ? ` (${log.unit})` : ''}` : ': not in this well'}
                       </span>
                     </div>
                   ))}

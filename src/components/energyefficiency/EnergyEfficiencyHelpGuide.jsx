@@ -12,7 +12,7 @@ const helpContent = [
     icon: BookOpen,
     title: 'What this studio does',
     content:
-      'It finds energy a plant is throwing away and prices it twice: in money and in tonnes of CO2, from the same energy in the same run. That is the module\'s carbon doctrine turned into arithmetic rather than a separate ESG spreadsheet reconciled once a year. Fired-heater efficiency, excess-air tuning, steam trap losses, condensate return, energy intensity and heat-integration targets all end up on one register.',
+      'It finds energy a plant is throwing away and prices it twice: in money and in tonnes of CO2, from the same energy in the same run. That is the module\'s carbon doctrine turned into arithmetic, with no separate ESG spreadsheet reconciled once a year. Fired-heater efficiency, excess-air tuning, steam trap losses, condensate return, energy intensity and heat-integration targets all end up on one register.',
   },
   {
     id: 'projects',
@@ -31,23 +31,23 @@ const helpContent = [
   {
     id: 'stoich',
     icon: Flame,
-    title: 'Combustion from your fuel analysis, not from a chart',
+    title: 'Combustion from your fuel analysis',
     content:
-      'Air required, flue gas produced and the excess air implied by a measured stack oxygen all come from the carbon, hydrogen, oxygen and sulfur in the fuel and the oxygen content of air. It is an atom balance and nothing more. Inerts in the fuel are carried through to the flue gas, which matters: a fuel gas with thirty percent inerts has a very different flue gas from one without, and the nitrogen still has to be heated up the stack. The excess air is solved from the oxygen reading rather than taken from the usual shortcut formula, and the test that guards it puts the oxygen back and checks it comes out the same.',
+      'Air required, flue gas produced and the excess air implied by a measured stack oxygen all come from the carbon, hydrogen, oxygen and sulfur in the fuel and the oxygen content of air. It is an atom balance and nothing more. Inerts in the fuel are carried through to the flue gas, which matters: a fuel gas with thirty percent inerts has a very different flue gas from one without, and the nitrogen still has to be heated up the stack. The excess air is solved from the oxygen reading and does not use the usual shortcut formula, and the test that guards it puts the oxygen back and checks it comes out the same.',
   },
   {
     id: 'refusals',
     icon: AlertTriangle,
     title: 'What this app will not supply',
     content:
-      'The radiation and convection loss, because it comes off a published chart against surface area and firing rate. The minimum safe stack oxygen, because below some excess air a burner makes carbon monoxide and where that point sits depends on the burner, the fuel and the draught control: the app will not recommend a setpoint you have not declared reachable, and it says so rather than quietly clamping. And the discharge coefficient for a failed trap, because it depends on the orifice and on how the trap failed, and a default would put a spurious precision on a figure that is already an estimate. The isentropic exponent of the steam at the trap is asked for too: about 1.135 for dry saturated steam and about 1.3 superheated, which moves the loss by five percent. A trap\'s fuel needs the boiler efficiency, which is never taken as 100 percent, and blank hours in service are not read as a full year. The unburned and other loss is a flue gas measurement: leave it blank and it stays absent, the efficiency is reported without it, and the panel says so, because a zero typed in for you would raise the efficiency by whatever the stack is really losing.',
+      'The radiation and convection loss, because it comes off a published chart against surface area and firing rate. The minimum safe stack oxygen, because below some excess air a burner makes carbon monoxide and where that point sits depends on the burner, the fuel and the draught control: the app will not recommend a setpoint you have not declared reachable, and it says so and does not quietly clamp. And the discharge coefficient for a failed trap, because it depends on the orifice and on how the trap failed, and a default would put a spurious precision on a figure that is already an estimate. The isentropic exponent of the steam at the trap is asked for too: about 1.135 for dry saturated steam and about 1.3 superheated, which moves the loss by five percent. A trap\'s fuel needs the boiler efficiency, which is never taken as 100 percent, and blank hours in service are not read as a full year. The unburned and other loss is a flue gas measurement: leave it blank and it stays absent, the efficiency is reported without it, and the panel says so, because a zero typed in for you would raise the efficiency by whatever the stack is really losing.',
   },
   {
     id: 'saving',
     icon: Gauge,
     title: 'Why the fuel saving is a ratio and not a difference',
     content:
-      'Fuel is duty divided by efficiency, so tuning a heater from one efficiency to another saves the gap divided by the TARGET efficiency, not the gap divided by a hundred. Because the target is below a hundred, subtracting the efficiency percentages understates the saving. It is the safer of the two errors and it is still an error: it is how a tuning project gets turned down on a business case that was never right.',
+      'Fuel is duty divided by efficiency, so tuning a heater from one efficiency to another saves the gap divided by the TARGET efficiency. The gap divided by a hundred is the wrong figure. Because the target is below a hundred, subtracting the efficiency percentages understates the saving. It is the safer of the two errors and it is still an error: it is how a tuning project gets turned down on a business case that was never right.',
   },
   {
     id: 'steam',
@@ -68,7 +68,7 @@ const helpContent = [
     icon: GitMerge,
     title: 'Pinch targets, and why the pinch is a constraint',
     content:
-      'The minimum hot and cold utility for a set of streams is a result, not a correlation, and the Problem Table Algorithm that finds it is short enough to write correctly. Every temperature is shifted by half the minimum approach - hot streams down, cold streams up - so that any exchange feasible in shifted space is feasible in real space. The surplus is cascaded down the temperature intervals; the most negative point is the heat that must come in from a hot utility, and the point that becomes zero once it is added is the pinch. Above the pinch the process needs heat and below it needs cooling, so heat carried across the pinch costs twice: one unit more hot utility and one unit more cold utility. Where one utility comes out at zero the app reports a threshold problem rather than inventing a pinch that is not there.',
+      'The minimum hot and cold utility for a set of streams is computed exactly with no correlation, and the Problem Table Algorithm that finds it is short enough to write correctly. Every temperature is shifted by half the minimum approach - hot streams down, cold streams up - so that any exchange feasible in shifted space is feasible in real space. The surplus is cascaded down the temperature intervals; the most negative point is the heat that must come in from a hot utility, and the point that becomes zero once it is added is the pinch. Above the pinch the process needs heat and below it needs cooling, so heat carried across the pinch costs twice: one unit more hot utility and one unit more cold utility. Where one utility comes out at zero the app reports a threshold problem and does not invent a pinch that is not there.',
   },
   {
     id: 'ledger',

@@ -44,7 +44,7 @@ const FireInputs = () => {
           <Grid cols="md:grid-cols-4">
             <label className="flex items-center gap-2 text-xs text-pl-text md:col-span-4">
               <input type="checkbox" checked={f.customBurning} onChange={(ev) => set({ customBurning: ev.target.checked })} />
-              Give the two coefficients myself instead of a Table 6.5 fuel
+              Give the two coefficients myself (no Table 6.5 fuel)
             </label>
             {f.customBurning ? (
               <>

@@ -35,7 +35,7 @@ const helpContent = [
     icon: Coins,
     title: 'How a project is valued',
     content:
-      'Risked expected value is the chance of success times the success case value, less the chance of failure times what failure costs you. Success value and risk are kept separate rather than blended into one number, which is the same convention the prospect risking engine in ReservoirCalc Pro uses, so a risked portfolio value and a risked prospect value mean the same thing across the Suite. A project whose risked value is negative is never forced into the portfolio: leaving capital unspent is always allowed.',
+      'Risked expected value is the chance of success times the success case value, less the chance of failure times what failure costs you. Success value and risk are kept as two separate numbers, which is the same convention the prospect risking engine in ReservoirCalc Pro uses, so a risked portfolio value and a risked prospect value mean the same thing across the Suite. A project whose risked value is negative is never forced into the portfolio: leaving capital unspent is always allowed.',
   },
   {
     id: 'optimizer',
@@ -70,7 +70,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Assumptions and limits',
     content:
-      'Correlation is one average figure rather than a matrix, which is as much precision as a screening tool can honestly ask for; a portfolio whose projects are correlated in very different degrees needs more than this. The risk cards are a sample: another seed gives slightly different figures, which is why the seed is shown. Funding is all or nothing, so a project that could be phased or farmed down needs to be entered as separate candidates. Capital is the only constraint, so rig availability, people and schedule are yours to check. The values you enter should come from a real valuation: build them in Petroleum Economics Studio or the NPV Scenario Builder rather than typing an estimate straight in.',
+      'Correlation is one average figure with no full matrix, which is as much precision as a screening tool can honestly ask for; a portfolio whose projects are correlated in very different degrees needs more than this. The risk cards are a sample: another seed gives slightly different figures, which is why the seed is shown. Funding is all or nothing, so a project that could be phased or farmed down needs to be entered as separate candidates. Capital is the only constraint, so rig availability, people and schedule are yours to check. The values you enter should come from a real valuation: build them in Petroleum Economics Studio or the NPV Scenario Builder and avoid typing an estimate straight in.',
   },
 ];
 

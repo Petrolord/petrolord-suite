@@ -217,7 +217,7 @@ export default function SeismolordHelpGuide() {
           ['Sweetness', 'Envelope over the square root of frequency: clean sands in shale.'],
           ['RMS amplitude', 'Windowed energy (window length in ms).'],
           ['AGC amplitude', 'Balanced amplitudes for picking (window length in ms).'],
-          ['Relative acoustic impedance', 'The trace integrated, with its slow trend (Trend window, ms) removed: layers instead of interfaces, so sand bodies read as blocks.'],
+          ['Relative acoustic impedance', 'The trace integrated, with its slow trend (Trend window, ms) removed: it shows layers where the input shows interfaces, so sand bodies read as blocks.'],
           ['Spectral decomposition', 'Amplitude at one frequency (Hz) in a moving window (ms), the whole volume. Thin beds tune at a frequency set by their thickness; compare a low, a middle and a high frequency.'],
           ['Variance (discontinuity)', 'Faults and channel edges light up; vertical window in ms and trace radius. Dip steering (ms) aligns the neighbouring traces first so dipping reflectors stay dark; use it for a volume that will feed Detect faults.'],
           ['Fault likelihood', 'The automatic fault picker\'s own measure, 0 to 1: dip-steered variance sharpened along each lineament. Detect faults can start from it and then runs fastest.'],
@@ -371,7 +371,7 @@ export default function SeismolordHelpGuide() {
       <GuideSection id="pitfalls">
         <SectionHeading icon={AlertTriangle}>Pitfalls and FAQ</SectionHeading>
         <SubHeading>The wells do not land on the survey</SubHeading>
-        <Para>The volume's CRS or the project CRS is unset or wrong. Both are declared, never guessed; fix them in the status bar and the volume settings.</Para>
+        <Para>The volume's CRS or the project CRS is unset or wrong. Both must be declared and neither is guessed; fix them in the status bar and the volume settings.</Para>
         <SubHeading>A well is on the map but not on the sections</SubHeading>
         <Para>Look for the warning on the well's explorer row. Most often the well has no checkshots and the volume has no velocity model, so it has no time-depth relationship; add checkshots or a time-depth table in Well Data Manager. A deviated well may also pass further from the section than the Well projection distance.</Para>
         <SubHeading>The section says the slice did not load</SubHeading>
@@ -381,13 +381,13 @@ export default function SeismolordHelpGuide() {
         <SubHeading>The picks look one sample off after a tie</SubHeading>
         <Para>Picks live in time; the tie changes the well's time-depth relation, so the well moves, the picks do not.</Para>
         <SubHeading>An export opens flipped in another program</SubHeading>
-        <Para>CPS-3 and ZMAP+ are column-major, north to south, and depth is negative down. The export dialog states the convention; match the reader's expectations rather than editing the file.</Para>
+        <Para>CPS-3 and ZMAP+ are column-major, north to south, and depth is negative down. The export dialog states the convention; match the reader's expectations and leave the file unedited.</Para>
       </GuideSection>
 
       <GuideSection id="glossary">
         <SectionHeading icon={BookMarked}>Glossary</SectionHeading>
         <Table headers={['Term', 'Meaning']} rows={[
-          ['Brick', 'A 64 by 64 by 64 block of float32 samples; volumes are read brick by brick, never whole.'],
+          ['Brick', 'A 64 by 64 by 64 block of float32 samples; volumes are read brick by brick and are not loaded whole.'],
           ['Lattice', 'The inline, crossline, sample grid of a volume; picks are stored on it.'],
           ['Traverse', 'An arbitrary polyline section through the volume.'],
           ['Time-depth relation', 'The checkshot or tie-derived pairs that convert a well between time and depth.'],

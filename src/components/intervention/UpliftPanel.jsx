@@ -231,7 +231,7 @@ const UpliftPanel = () => {
               The uplift DECLINES, and the rate it declines at is an input with no default. An
               intervention modelled as a permanent step change is an intervention that always pays,
               which is the commonest way a workover case is oversold. The discounting is the Suite's
-              canonical screening economics, imported rather than rewritten, so it uses the same
+              canonical screening economics, imported as it is, so it uses the same
               mid-year convention as every other screening number in the platform.
             </p>
           </CardContent>

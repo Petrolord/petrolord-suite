@@ -171,7 +171,7 @@ const LoadsPanel = () => {
             </p>
             <p className="text-[11px] text-pl-muted mb-2">
               These are how a rod-pump answer is read, and they are the groups API RP 11L is plotted
-              against. The numbers beside them came out of the wave equation rather than off a chart.
+              against. The numbers beside them came out of the wave equation. None was read off a chart.
             </p>
             <Row label="N / N0" value={fmt(groups.nOverN0, 3)} hint="Speed against the string's natural frequency" />
             <Row label="N / N0'" value={fmt(groups.nOverNPrime, 3)} hint="Against the tapered-string frequency" />

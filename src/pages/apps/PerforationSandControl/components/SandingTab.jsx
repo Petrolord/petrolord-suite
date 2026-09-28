@@ -59,7 +59,7 @@ export default function SandingTab({
           <div className="mt-2 text-[10px] text-pl-muted">
             Kirsch hoop stress at the cavity wall vs effective strength; onset when the flowing
             pressure drops below the critical pwf. Worst-case tunnel azimuth for the perf-tunnel
-            geometry. This is a screening criterion, not a sand-rate prediction.
+            geometry. This is a screening criterion. It does not predict a sand rate.
           </div>
         </Card>
 
@@ -80,7 +80,7 @@ export default function SandingTab({
                 Drawdown margin <span className={`float-right font-mono font-semibold ${sanding.governing.cdpPa < 0 ? 'text-pl-danger-text' : ''}`} data-testid="ps-gov-cdp">{(sanding.governing.cdpPa / 1e6).toFixed(2)} MPa</span>
               </div>
               {sanding.governing.cdpPa < 0 && (
-                <div className="mt-1 text-[10px] text-pl-danger-text">Sanding indicated at any drawdown: plan sand control, not sand avoidance.</div>
+                <div className="mt-1 text-[10px] text-pl-danger-text">Sanding indicated at any drawdown: plan for sand control, since sand avoidance will not work.</div>
               )}
             </div>
           )}

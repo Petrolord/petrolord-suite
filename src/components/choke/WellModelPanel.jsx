@@ -72,7 +72,7 @@ const WellModelPanel = () => {
         showCompletion
         depthLabel="Perforation depth (ft TVD)"
         depthHint="The node depth, entered once. The tubing is marched between here and the wellhead."
-        fluidNote="The gas-liquid ratio the choke correlation uses is a producing condition and lives with the choke inputs, not here."
+        fluidNote="The gas-liquid ratio the choke correlation uses is a producing condition so it lives with the choke inputs."
       />
       {isGas && <GasInflowFields />}
     </div>

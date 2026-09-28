@@ -64,7 +64,7 @@ const ReportTab = () => {
           {!hasResult ? (
             <p className="text-sm text-pl-muted flex items-center gap-2">
               <Info className="h-4 w-4" />
-              Run the engine on the Run tab first. The report always describes a computed result, never stored numbers.
+              Run the engine on the Run tab first. The report always describes a computed result. It does not show stored numbers.
             </p>
           ) : (
             <div className="flex flex-wrap items-center gap-3">

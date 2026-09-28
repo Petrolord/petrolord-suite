@@ -286,7 +286,7 @@ export default function SurfacesExplorer({
               <input type="checkbox" data-testid="map-vg-detrend" checked={variogram.detrend !== false} onChange={(e) => onVariogram({ ...variogram, detrend: e.target.checked })} /> remove the trend first
             </label>
             {variance && (
-              <label className="flex items-center gap-1 text-[10px] text-pl-muted" title="Show the kriging variance instead of the surface">
+              <label className="flex items-center gap-1 text-[10px] text-pl-muted" title="Show the kriging variance in place of the surface">
                 <input type="checkbox" data-testid="map-vg-variance" checked={variance.shown} onChange={(e) => variance.onToggle(e.target.checked)} /> show the variance map
               </label>
             )}
@@ -300,7 +300,7 @@ export default function SurfacesExplorer({
               {TENSION_LEVELS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
             <select className={`${selCls} flex-1`} value={tensionOpts.smoothing} data-testid="map-smoothing"
-              title="Smoothing lets the map miss noisy well values instead of bending through each one"
+              title="Smoothing lets the map miss noisy well values so it does not bend through each one"
               onChange={(e) => onTensionOpts({ ...tensionOpts, smoothing: Number(e.target.value) })}>
               {SMOOTHING_LEVELS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>

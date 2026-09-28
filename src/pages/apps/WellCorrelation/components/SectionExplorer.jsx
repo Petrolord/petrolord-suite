@@ -106,7 +106,7 @@ export default function SectionExplorer({
   return (
     <div className="h-full min-h-0 flex flex-col bg-pl-surface" data-testid="corr-explorer">
       <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
-        Section path — click wells to order
+        Section path: click wells to order
       </div>
       <canvas ref={canvasRef} data-testid="corr-map" data-canvas="dark" className="cursor-pointer border-b border-pl-border" onClick={pick} />
       <div className="px-2.5 py-1 text-[11px] uppercase tracking-wider text-pl-muted">

@@ -310,7 +310,7 @@ const CasingTubingHelpGuide = () => {
                 this browser and restores them the next time the case opens, with an amber note
                 under the Save button and a Discard link. A reload or a closed tab also asks
                 before leaving. Saving still writes the case to the database, which is what other
-                devices and teammates see; the mirror is a safety net, not the record.
+                devices and teammates see; the mirror is only a safety net.
               </p>
               <SubHeading>Reading the schematic</SubHeading>
               <p className="text-pl-text leading-relaxed">

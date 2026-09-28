@@ -45,7 +45,7 @@ const SummaryPanel = () => {
             <Row
               label="Ruled out"
               value={String(blocked)}
-              hint="By the diagnosis, not by a score"
+              hint="Ruled out by the diagnosis alone, with no score"
               accent={blocked ? 'text-pl-danger-text' : 'text-pl-text'}
             />
             <Row

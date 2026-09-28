@@ -58,7 +58,7 @@ const ScreeningResults = () => {
       <div>
         <h3 className="text-sm font-semibold text-pl-text mb-1">Screening</h3>
         <p className="text-[11px] text-pl-muted mb-2">
-          A requirement with no limit set is reported as unchecked rather than passed, because an
+          A requirement with no limit set is reported as unchecked and is not treated as passed, because an
           unset limit is not a satisfied one. A failure names which requirement failed and by how
           much, since &quot;not feasible&quot; is not an answer anybody can act on.
         </p>

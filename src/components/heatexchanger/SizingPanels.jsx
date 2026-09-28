@@ -174,7 +174,7 @@ export const SizingResults = () => {
               <Stat label="F correction"
                 value={thermal.fError ? 'unreachable' : show(fmt(thermal.f, 3), thermal.f)}
                 accent={thermal.fError ? 'text-pl-danger-text' : (thermal.f < 0.8 ? 'text-pl-warning-text' : 'text-pl-success-text')}
-                hint="computed from the published closed form rather than read off a chart" />
+                hint="computed from the published closed form with no chart reading" />
               <Stat label="Corrected LMTD"
                 value={thermal.fError ? '--' : fmt(thermal.lmtdF * thermal.f, 1)} unit="F" />
               {full && !thermal.fError && Number.isFinite(thermal.fResult?.p1) && (

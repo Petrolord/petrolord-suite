@@ -231,7 +231,7 @@ export default function ZoneManager({
       )}
       {!isOwn && (
         <p className="text-[10px] text-pl-muted">
-          Org-shared well — zones are read-only for you.
+          Org-shared well. Zones are read-only for you.
         </p>
       )}
     </div>

@@ -774,8 +774,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                         <>
                           Leave blank only if you intend to solve for m in a history match.
                           This case is flagged as having a gas cap, and a run with no m uses
-                          m = 0, which is the undersaturated material balance rather than a
-                          small gas cap: the gas cap drive disappears and the OOIP is the
+                          m = 0, which is the undersaturated material balance with no gas cap at all: the gas cap drive disappears and the OOIP is the
                           no-gas-cap answer.
                         </>
                       )}
@@ -1268,7 +1267,7 @@ const PvtPrefillCard = ({ caseData, form, isGas, onGenerated }) => {
         </CardTitle>
         <p className="text-[11px] text-pl-muted mt-0.5">
           Generates the table with the Fluid Systems Studio black-oil engine at this case&apos;s temperature and
-          gravity, so you start from a consistent grid instead of an empty editor. Generated values are correlation
+          gravity, so the editor starts filled with a consistent grid. Generated values are correlation
           estimates; overwrite them with measured lab data wherever you have it.
         </p>
       </CardHeader>
@@ -1444,8 +1443,7 @@ const LabTableEditor = ({
         <div className="px-4 py-3 bg-pl-sunken border-t border-pl-border">
           <p className="text-[10px] text-pl-muted leading-snug">
             <Info className="inline w-3 h-3 mr-1 -mt-0.5 text-pl-info-text" />
-            Pressure is required for every row. Other columns are optional —
-            the engine uses whichever values you supply and falls through to
+            Pressure is required for every row. Other columns are optional: the engine uses whichever values you supply and falls through to
             correlations for missing fields. Rows are sorted ascending by
             pressure on save. Pressures outside the table's range at run time
             fall through to correlations for those timesteps.

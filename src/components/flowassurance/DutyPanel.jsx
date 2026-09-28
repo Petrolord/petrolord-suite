@@ -48,7 +48,7 @@ const DutyPanel = () => {
         </Field>
         <Field
           label="Joule-Thomson coefficient (F per psi)"
-          hint="A flash property, not a constant. Roughly 0.02 to 0.08 for natural gas; near zero, occasionally slightly negative, for a liquid. Nothing here guesses it for you, because it is the single number that decides whether the wellhead sits inside the hydrate region."
+          hint="A flash property that varies with conditions. Roughly 0.02 to 0.08 for natural gas; near zero, occasionally slightly negative, for a liquid. Nothing here guesses it for you, because it is the single number that decides whether the wellhead sits inside the hydrate region."
         >
           <NumberInput section="choke" name="jtCoeffFPerPsi" step="0.001" />
         </Field>

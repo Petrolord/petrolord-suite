@@ -64,8 +64,8 @@ const EorScreeningHelpGuideContent = () => (
         on that reservoir. The button under the input card reloads it after you have made edits.
       </Step>
       <Step n={2} title="Enter your reservoir">
-        Type over the eight fields. Every one is optional. A field you leave blank is not
-        scored rather than assumed, which is important and is covered in detail below.
+        Type over the eight fields. Every one is optional. A field you leave blank is left out
+        of the score and nothing is assumed for it, which is important and is covered in detail below.
       </Step>
       <Step n={3} title="Read the ranking bar chart">
         Methods are sorted with qualified ones first, then by score. Green bars qualify on
@@ -94,7 +94,7 @@ const EorScreeningHelpGuideContent = () => (
         rows={[
           ['Oil gravity', 'degrees API', '32', 'Every method. The single most discriminating input.'],
           ['Oil viscosity', 'cp', '2', 'Every method. Note polymer flooding uses a two sided window.'],
-          ['Oil saturation', 'percent PV', '45', 'Every method. This is saturation at the start of the EOR process, not initial oil saturation.'],
+          ['Oil saturation', 'percent PV', '45', 'Every method. This is saturation at the start of the EOR process. It is not the initial oil saturation.'],
           ['Net thickness', 'ft', '40', 'Scored only for in-situ combustion and steam flooding. Advisory for the gas methods.'],
           ['Average permeability', 'md', '25', 'Chemical and thermal methods. Not critical for any gas method.'],
           ['Depth', 'ft', '5200', 'Every method. Gas methods need a minimum depth, chemical and thermal a maximum.'],
@@ -114,7 +114,7 @@ const EorScreeningHelpGuideContent = () => (
         empty once a value is set, so formation is always scored. That matters because
         choosing Carbonate screens out both chemical methods and both thermal methods on
         formation alone. If your formation is genuinely uncertain, read the verdict tables
-        rather than the qualification badges.
+        and give them more weight than the qualification badges.
       </Callout>
     </GuideSection>
 
@@ -139,7 +139,7 @@ const EorScreeningHelpGuideContent = () => (
       <Para>
         For all four gas methods, permeability and temperature are not critical, and net
         thickness is never scored. What the thickness row says varies by method, because the
-        paper's guidance there is about geometry and dip rather than a number.
+        paper's guidance there is about geometry and dip. It gives no number.
       </Para>
       <Table
         headers={['Method', 'What the thickness row reads']}
@@ -168,7 +168,7 @@ const EorScreeningHelpGuideContent = () => (
         Both chemical methods require sandstone and fail on carbonate. Both score all seven of
         their criteria, so they are the hardest methods to qualify.
       </Para>
-      <Callout tone="info" title="Polymer viscosity is a window, not a ceiling">
+      <Callout tone="info" title="Polymer viscosity is a window with a floor and a ceiling">
         Polymer flooding requires viscosity between 10 and 150 cp. Oil below 10 cp fails, and
         that is deliberate in the source: oil that thin does not need mobility control, so
         polymer is not the right tool even though it would flow perfectly well.
@@ -211,7 +211,7 @@ const EorScreeningHelpGuideContent = () => (
       <Callout tone="danger" title="Unscored criteria inflate the score">
         Because unscored criteria leave the denominator, a reservoir with most fields blank can
         show methods at 100 percent and "Qualified" on the strength of a single criterion. That
-        is a statement about how little you entered, not about how good the method is. Before
+        is a statement about how little you entered. It says nothing about how good the method is. Before
         trusting a qualification, open the row and count how many criteria actually carry a
         pass or fail verdict.
       </Callout>
@@ -230,13 +230,13 @@ const EorScreeningHelpGuideContent = () => (
       <Para>
         Only four criteria are scored for immiscible gas and all four are loose. It will sit
         near the top of the ranking for most reservoirs. Read that as the method being hard to
-        rule out, rather than as the method being recommended.
+        rule out. It does not mean the method is recommended.
       </Para>
       <SubHeading>The percentages are not comparable across methods</SubHeading>
       <Para>
         A method with four scored criteria and one with eight both report a percentage on the
-        same bar chart, but they are fractions of different denominators. Compare the verdict
-        tables rather than the bar lengths when two methods are close.
+        same bar chart, but they are fractions of different denominators. When two methods are close,
+        compare the verdict tables and set the bar lengths aside.
       </Para>
       <SubHeading>Net thickness is displayed for every method and used by two</SubHeading>
       <Para>
@@ -269,8 +269,8 @@ const EorScreeningHelpGuideContent = () => (
       <Para>
         The paper is a survey of projects operating in the mid 1990s. Its limits reflect the
         technology and economics of that period. CO2 practice in particular has moved on since
-        publication, so treat a marginal CO2 result as a prompt to look at recent analogues
-        rather than as a closed question.
+        publication, so treat a marginal CO2 result as a prompt to look at recent analogues.
+        It does not settle the question.
       </Para>
       <Para>
         This app replaced an earlier EOR Designer tile that promised flood design it did not

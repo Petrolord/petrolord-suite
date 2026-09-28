@@ -63,7 +63,7 @@ const ForecastScenarioHubHelpGuideContent = () => (
       <SectionHeading icon={Zap}>Quick start</SectionHeading>
       <Step n={1} title="Start from the three shipped cases">
         The app opens with Base, High (infill support) and Low (no workovers) already
-        populated. Edit those rather than starting from empty, because every field is a plain
+        populated. Edit those in preference to starting from empty, because every field is a plain
         number box with no guidance on screen.
       </Step>
       <Step n={2} title="Set the five parameters per case">
@@ -73,7 +73,7 @@ const ForecastScenarioHubHelpGuideContent = () => (
       <Step n={3} title="Set the three economics inputs">
         Price, opex and discount rate sit in their own card and apply to every case at once.
       </Step>
-      <Step n={4} title="Read the comparison table, not just the chart">
+      <Step n={4} title="Read the comparison table as well as the chart">
         The chart shows shape. The table carries the ranking numbers, and each row has an
         Annual CSV button that exports that case's yearly profile.
       </Step>
@@ -129,7 +129,7 @@ const ForecastScenarioHubHelpGuideContent = () => (
       <Formula>q(t) = qi / (1 + Di · t)  for b = 1</Formula>
       <Formula>q(t) = qi / (1 + b · Di · t)^(1/b)  otherwise</Formula>
       <Para>
-        Cumulative production is the running sum of daily rates rather than an analytical
+        Cumulative production is the running sum of daily rates. It is not an analytical
         integral, so it carries a small numerical difference from the closed form. Measured
         against the analytic result on the three shipped cases, that difference is under 0.03
         percent, which is far below the uncertainty in any of your inputs. The forecast stops on
@@ -173,7 +173,7 @@ const ForecastScenarioHubHelpGuideContent = () => (
           ['EUR (MMbbl)', 'Cumulative to the economic limit.', 'Marked "50 yr max life" when the limit is further out or disabled.'],
           ['Time to limit (yr)', 'When the rate crosses the economic limit.', 'Marked "past horizon" when that is after the horizon; "> 50" when beyond the maximum life; "No limit" when the limit is zero.'],
           ['Indicative NPV ($MM)', 'Ranking number only. See the next section.', 'Never includes capex, so it is positive whenever price exceeds opex.'],
-          ['Handoff', 'Annual CSV export for that case.', 'The year column is a sequence starting at 1, not a calendar year.'],
+          ['Handoff', 'Annual CSV export for that case.', 'The year column is a sequence starting at 1. It is not a calendar year.'],
         ]}
       />
       <Callout tone="info" title="Horizon and economic life are separate">
@@ -213,7 +213,7 @@ const ForecastScenarioHubHelpGuideContent = () => (
         The Annual CSV button on each table row writes two columns, <Code>year</Code> and
         <Code> production_bbl</Code>, one row per year of that case's horizon. The year column
         counts from 1, so mapping it onto calendar years is done by whoever consumes it. Years
-        after the economic limit are written as zero rather than omitted.
+        after the economic limit are written as zero. They are not omitted.
       </Para>
       <SubHeading>The direct import into Petroleum Economics Studio</SubHeading>
       <Para>
@@ -225,7 +225,7 @@ const ForecastScenarioHubHelpGuideContent = () => (
       </Para>
       <Para>
         Two things to know about that route. The set must be saved first, because the import
-        reads saved sets rather than what is currently on your screen. And the first production
+        reads saved sets. It does not read what is currently on your screen. And the first production
         year you choose there is what turns this app's year 1 into a calendar year.
       </Para>
     </GuideSection>
@@ -257,7 +257,7 @@ const ForecastScenarioHubHelpGuideContent = () => (
       <SubHeading>Cases cannot be seeded from a fit</SubHeading>
       <Para>
         There is no inbound handoff from Decline Curve Analysis. Parameters from a fit have to
-        be typed in here. When you do that, take qi and Di from the fit rather than from the
+        be typed in here. When you do that, take qi and Di from the fit. Do not take them from the
         raw data, and remember the decline convention above.
       </Para>
       <SubHeading>The economics card has no capex box for a reason</SubHeading>

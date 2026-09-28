@@ -31,7 +31,7 @@ const ActualsPanel = () => {
         <h3 className="text-sm font-semibold text-pl-text mb-1">Record what happened</h3>
         <p className="text-[11px] text-pl-muted mb-3">
           An actual is the same shape as a plan event, which is the whole point: the variance below
-          is a subtraction rather than a reconciliation exercise.
+          is a plain subtraction with no reconciliation exercise.
         </p>
         <div className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
           <div className="md:col-span-2">
@@ -167,7 +167,7 @@ const ActualsPanel = () => {
         {inputs.actuals.length > 0 && reconciliation.unmatched.length > 0 && (
           <p className="text-[11px] text-pl-warning-text mt-2">
             {reconciliation.unmatched.length} movement(s) appear in one ledger and not the other, so
-            they are listed as unmatched rather than folded into a price effect. An unplanned cargo
+            they are listed as unmatched and kept out of the price effect. An unplanned cargo
             is not the price of anything.
           </p>
         )}

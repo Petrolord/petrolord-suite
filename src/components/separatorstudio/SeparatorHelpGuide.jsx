@@ -18,14 +18,14 @@ const helpContent = [
     icon: Wind,
     title: 'The K value and the gas load',
     content:
-      'Gas capacity comes from the Souders-Brown relation: the gas may not rise faster than a droplet falls. The K in it depends on the vessel orientation and the mist extractor, and it derates with pressure, which the studio applies from the published rule. Below a floor the derating stops meaning anything and the studio says so rather than quietly extrapolating. A vendor K always wins if you type one. The gas density behind all of this comes from the validated compressibility correlation at your conditions, not a fixed number. The oil density is taken at the separator temperature: its 60 degF value from the API gravity, corrected with the API crude-oil expansion (a 32 API oil is about 3.6 percent lighter at 140 degF). Water gravity is used as you enter it.',
+      'Gas capacity comes from the Souders-Brown relation: the gas may not rise faster than a droplet falls. The K in it depends on the vessel orientation and the mist extractor, and it derates with pressure, which the studio applies from the published rule. Below a floor the derating stops meaning anything and the studio says so and does not quietly extrapolate. A vendor K always wins if you type one. The gas density behind all of this comes from the validated compressibility correlation at your conditions. It is not a fixed number. The oil density is taken at the separator temperature: its 60 degF value from the API gravity, corrected with the API crude-oil expansion (a 32 API oil is about 3.6 percent lighter at 140 degF). Water gravity is used as you enter it.',
   },
   {
     id: 'geometry',
     icon: Layers,
     title: 'Horizontal geometry, exactly',
     content:
-      'A horizontal vessel at half level is not the only case, and the gas space at any other level is a circular segment, not a simple fraction. The studio computes the liquid and gas areas by exact segment geometry at whatever level you set, so raising the level to buy retention time correctly costs you gas area, and the trade-off is visible instead of hidden in an assumption.',
+      'A horizontal vessel at half level is not the only case, and the gas space at any other level is a circular segment. It is not a simple fraction. The studio computes the liquid and gas areas by exact segment geometry at whatever level you set, so raising the level to buy retention time correctly costs you gas area, and the trade-off stays visible and is never hidden in an assumption.',
   },
   {
     id: 'lengths',
@@ -46,7 +46,7 @@ const helpContent = [
     icon: Ruler,
     title: 'The L/D family',
     content:
-      'Rather than pin one slenderness, the studio sizes every candidate diameter you give it and shows the family with the L/D of each. The customary band is three to four for a two-phase horizontal separator, three to five for a three-phase one (the extra length buys the oil-water retention) and two to four for a vertical one, and the band fields switch to the band for the new type when you change the vessel type (unless you have edited them). The selected vessel is the smallest candidate that both works and sits inside the band, where working means it carries the gas and, on a three-phase vessel, passes both droplet checks. Each row says which of those it fails. When nothing qualifies, the studio selects nothing and says whether no candidate works at all or whether the ones that work are all outside the band. A vessel outside the band still separates; it is just an awkward thing to build, ship and support, and seeing the whole family makes that a choice rather than an accident.',
+      'The studio does not pin one slenderness. It sizes every candidate diameter you give it and shows the family with the L/D of each. The customary band is three to four for a two-phase horizontal separator, three to five for a three-phase one (the extra length buys the oil-water retention) and two to four for a vertical one, and the band fields switch to the band for the new type when you change the vessel type (unless you have edited them). The selected vessel is the smallest candidate that both works and sits inside the band, where working means it carries the gas and, on a three-phase vessel, passes both droplet checks. Each row says which of those it fails. When nothing qualifies, the studio selects nothing and says whether no candidate works at all or whether the ones that work are all outside the band. A vessel outside the band still separates; it is just an awkward thing to build, ship and support, and seeing the whole family makes that a choice and never an accident.',
   },
   {
     id: 'inputs',
@@ -60,7 +60,7 @@ const helpContent = [
     icon: Waves,
     title: 'Slug catchers',
     content:
-      'A slug catcher holds the liquid a line delivers in one burst, so the volume it must hold comes from the line, not from this studio: the Pipeline and Line Sizing Studio computes it from the pipe volume and the holdup. Give the studio that number and it sizes either a vessel with freeboard for the gas, or a harp of parallel fingers. Fingers are how large slugs are actually caught, because pipe is cheaper per unit volume than a vessel and does not need a vessel code stamp.',
+      'A slug catcher holds the liquid a line delivers in one burst, so the volume it must hold comes from the line. This studio does not compute it: the Pipeline and Line Sizing Studio computes it from the pipe volume and the holdup. Give the studio that number and it sizes either a vessel with freeboard for the gas, or a harp of parallel fingers. Fingers are how large slugs are actually caught, because pipe is cheaper per unit volume than a vessel and does not need a vessel code stamp.',
   },
   {
     id: 'limits',

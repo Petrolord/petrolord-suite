@@ -620,7 +620,7 @@ export default function ExportPanel({
                 <div className="flex items-center gap-2">
                   <Label
                     className="text-pl-text text-sm"
-                    title="Nodes farther than this from any pick stay null — with fault blocking on, this bounds how far a block extrapolates toward the fault"
+                    title="Nodes farther than this from any pick stay null. With fault blocking on, this bounds how far a block extrapolates toward the fault"
                   >
                     Max extrap. (m, 0=2×cell)
                   </Label>
@@ -703,7 +703,7 @@ export default function ExportPanel({
                 ? 'Amplitude export extracts the seismic attribute along the horizon '
                   + '(parabolic value at the sub-sample pick, or a windowed statistic '
                   + 'with nulls excluded) at bin resolution, then bilinearly resamples '
-                  + 'it onto the export grid — no TPS fit, so amplitude detail is '
+                  + 'it onto the export grid with no TPS fit, so amplitude detail is '
                   + 'preserved. Values keep their physical sign and unit (raw '
                   + 'amplitude); nulls are 1.0E+30 (Irap writes its own 9999900 '
                   + 'sentinel); grid bodies follow the same column-major, '

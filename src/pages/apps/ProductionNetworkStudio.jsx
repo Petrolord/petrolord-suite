@@ -115,7 +115,7 @@ const NetworkContent = () => {
         <title>Production Network Studio | Petrolord Suite</title>
         <meta
           name="description"
-          content="Solve a gathering system as one system: every well's inflow met against its own tubing, every flowline and trunk on the validated two-phase traverse, and nodal mass balance driven to zero by Newton. Reports what each well makes in the network against what it would make alone through the same lines, so the backpressure the wells put on each other is a number rather than an impression."
+          content="Solve a gathering system as one system: every well's inflow met against its own tubing, every flowline and trunk on the validated two-phase traverse, and nodal mass balance driven to zero by Newton. Reports what each well makes in the network against what it would make alone through the same lines, so the backpressure the wells put on each other is a number and no longer an impression."
         />
       </Helmet>
       <StudioLayout

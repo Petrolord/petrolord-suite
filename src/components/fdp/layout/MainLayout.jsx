@@ -103,8 +103,8 @@ const RightPanel = () => {
                             <div className="bg-pl-success-bg border border-pl-success/40 rounded p-3 flex items-start">
                                 <CheckCircle2 className="w-4 h-4 text-pl-success-text mt-0.5 mr-2 shrink-0" />
                                 <p className="text-xs text-pl-success-text">
-                                    Every section has data in it. That says the plan is complete, not that it
-                                    is right; review each tab before you generate the document.
+                                    Every section has data in it. That says the plan is complete. It does not say that it
+                                    is right, so review each tab before you generate the document.
                                 </p>
                             </div>
                         ) : (

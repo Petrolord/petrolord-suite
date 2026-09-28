@@ -22,28 +22,28 @@ const helpContent = [
     icon: GitMerge,
     title: 'Building the tree',
     content:
-      'There are three kinds of node. A decision node is a choice you control, drawn as a square, and its value is the best of its branches. A chance node is an event you do not control, drawn as a circle, and its branches carry probabilities that must sum to one. A terminal node carries a payoff. Branches can carry a cost, which is subtracted as you pass along them, so a drilling cost sits on the drill branch rather than being netted off every outcome by hand. Start from a template and reshape it: the shipped templates cover drill or farm out, and value of information.',
+      'There are three kinds of node. A decision node is a choice you control, drawn as a square, and its value is the best of its branches. A chance node is an event you do not control, drawn as a circle, and its branches carry probabilities that must sum to one. A terminal node carries a payoff. Branches can carry a cost, which is subtracted as you pass along them, so a drilling cost sits on the drill branch and is not netted off every outcome by hand. Start from a template and reshape it: the shipped templates cover drill or farm out, and value of information.',
   },
   {
     id: 'rollback',
     icon: Sigma,
     title: 'How the tree is solved',
     content:
-      'The tree is solved by rolling back from the terminal nodes. A chance node takes the probability weighted average of its branches; a decision node takes the best branch and records which one. Repeating that back to the root gives the expected monetary value of the whole decision and, more usefully, the policy: which branch to take at every decision node, including the ones you have not reached yet. Probabilities that do not sum to one are reported as an error rather than silently normalized, because a tree whose chances do not add up is not a model of anything.',
+      'The tree is solved by rolling back from the terminal nodes. A chance node takes the probability weighted average of its branches; a decision node takes the best branch and records which one. Repeating that back to the root gives the expected monetary value of the whole decision and, more usefully, the policy: which branch to take at every decision node, including the ones you have not reached yet. Probabilities that do not sum to one are reported as an error and are not silently normalized, because a tree whose chances do not add up is not a model of anything.',
   },
   {
     id: 'voi',
     icon: Layers,
     title: 'The value of information template',
     content:
-      'The information template builds the classic buy-a-survey-first tree from what you actually know: your prior probabilities on the outcomes, and how reliable the signal is, meaning the chance of each reading given each true state. Posteriors and reading frequencies are then derived rather than typed, so they cannot contradict your priors. That is the difference between this and the standalone VOI Analyzer, which takes those numbers as separate inputs and has to check them for consistency afterwards.',
+      'The information template builds the classic buy-a-survey-first tree from what you actually know: your prior probabilities on the outcomes, and how reliable the signal is, meaning the chance of each reading given each true state. Posteriors and reading frequencies are then derived from those inputs with nothing typed by hand, so they cannot contradict your priors. That is the difference between this and the standalone VOI Analyzer, which takes those numbers as separate inputs and has to check them for consistency afterwards.',
   },
   {
     id: 'link',
     icon: Link2,
     title: 'Linking payoffs to real valuations',
     content:
-      'A terminal payoff can be linked to a saved Petroleum Economics Studio Monte Carlo run instead of being typed. The tree then sits on a full fiscal probabilistic valuation rather than on a number someone remembered. The link stores a copy of the mean and percentiles of that run in the tree at the moment you link it, and the tree is solved on that stored mean. Nothing reads the run again afterwards, so if the valuation is rerun, relink the payoff to the new run and save the tree to bring the new numbers in. This is the chain the module is built around: volumes, forecast, fiscal valuation, then decision.',
+      'A terminal payoff can be linked to a saved Petroleum Economics Studio Monte Carlo run so nobody has to type it. The tree then sits on a full fiscal probabilistic valuation. A number someone remembered plays no part. The link stores a copy of the mean and percentiles of that run in the tree at the moment you link it, and the tree is solved on that stored mean. Nothing reads the run again afterwards, so if the valuation is rerun, relink the payoff to the new run and save the tree to bring the new numbers in. This is the chain the module is built around: volumes, forecast, fiscal valuation, then decision.',
   },
   {
     id: 'projects',

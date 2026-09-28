@@ -12,7 +12,7 @@ const helpContent = [
     icon: BookOpen,
     title: 'Built for a terminal with a dip tape',
     content:
-      'Terminal automation systems assume mass flow meters on every arm, automatic tank gauging and a historian. Most terminals in the markets this Suite serves have a dip tape, a strapping table and a spreadsheet. That is not a lesser case waiting to be upgraded into the real product; it is the case this app is built for, and instrumented data is the upgrade path rather than the entry ticket. So everything here starts from a dip: a number a person read off a tape at a time they wrote down.',
+      'Terminal automation systems assume mass flow meters on every arm, automatic tank gauging and a historian. Most terminals in the markets this Suite serves have a dip tape, a strapping table and a spreadsheet. That is not a lesser case waiting to be upgraded into the real product; it is the case this app is built for, and instrumented data is the upgrade path. It is not the entry ticket. So everything here starts from a dip: a number a person read off a tape at a time they wrote down.',
   },
   {
     id: 'projects',
@@ -26,7 +26,7 @@ const helpContent = [
     icon: Ruler,
     title: 'Dips, strapping tables and free water',
     content:
-      'A dip height becomes a volume through the tank\'s strapping table, interpolated linearly between entries, which is what every terminal does by hand. Above the last entry the app refuses rather than extrapolating, because extrapolating a strapping table invents capacity the tank does not have. Free water sits under the product and is subtracted, because it is not product: that subtraction is the difference between a stock figure and a stock figure that is right.',
+      'A dip height becomes a volume through the tank\'s strapping table, interpolated linearly between entries, which is what every terminal does by hand. Above the last entry the app refuses to extrapolate, because extrapolating a strapping table invents capacity the tank does not have. Free water sits under the product and is subtracted, because it is not product: that subtraction is the difference between a stock figure and a stock figure that is right.',
   },
   {
     id: 'vcf',
@@ -47,14 +47,14 @@ const helpContent = [
     icon: TrendingDown,
     title: 'Trending gain and loss',
     content:
-      'One day\'s gain is noise. A run of days in the same direction is a finding. Separating the two is the reason to trend rather than to stare at today\'s number, and the app will say when a run has gone on long enough to be worth investigating: a drifting meter, a passing valve, or a temperature effect that is not being corrected.',
+      'One day\'s gain is noise. A run of days in the same direction is a finding. Separating the two is the reason to trend the data and look past today\'s number, and the app will say when a run has gone on long enough to be worth investigating: a drifting meter, a passing valve, or a temperature effect that is not being corrected.',
   },
   {
     id: 'rack',
     icon: Truck,
-    title: 'The loading rack is a queue, not a capacity',
+    title: 'The loading rack is a queue',
     content:
-      'Trucks arrive irregularly and take varying times to load, which is exactly the case simple capacity arithmetic gets wrong. A rack at 85 percent utilisation does not have 15 percent spare, it has a queue, and the wait grows sharply as utilisation climbs. This is modelled as a multi-server queue, derived from first principles rather than read from a chart. When the rack genuinely cannot keep up the app says so plainly rather than reporting an average waiting time, because with arrivals above capacity the queue grows without limit and no average exists.',
+      'Trucks arrive irregularly and take varying times to load, which is exactly the case simple capacity arithmetic gets wrong. A rack at 85 percent utilisation does not have 15 percent spare, it has a queue, and the wait grows sharply as utilisation climbs. This is modelled as a multi-server queue, derived from first principles with no chart. When the rack genuinely cannot keep up the app says so plainly and reports no average waiting time, because with arrivals above capacity the queue grows without limit and no average exists.',
   },
   {
     id: 'farm',
@@ -68,14 +68,14 @@ const helpContent = [
     icon: Leaf,
     title: 'Money and carbon from the same volumes',
     content:
-      'A terminal\'s emissions come from the same movements and losses its economics already describe, so both are computed from one set of volumes rather than assembled separately and reconciled later. The emission factor is an input rather than a shipped constant: factors are published, versioned data, and a terminal that has not supplied one gets its money answer and a stated absence on the carbon side rather than an invented number.',
+      'A terminal\'s emissions come from the same movements and losses its economics already describe, so both are computed from one set of volumes, with nothing assembled separately and reconciled later. The emission factor is an input with no shipped constant: factors are published, versioned data, and a terminal that has not supplied one gets its money answer and a stated absence on the carbon side with no invented number.',
   },
   {
     id: 'limits',
     icon: AlertTriangle,
     title: 'Limits',
     content:
-      'This is stock and throughput accounting, not custody transfer certification: the numbers here are as good as the dips, the strapping table and the correction you supply. Evaporation and breathing losses are entered as known losses here rather than predicted; the Facilities Storage Tank studio computes them from tank geometry and duty. The queue model assumes arrivals that are random rather than appointment-booked, which is the harder and more common case. And one product density is used for the carbon conversion, so a terminal with very different products should read that figure per product rather than in aggregate.',
+      'This is stock and throughput accounting. It is not custody transfer certification: the numbers here are as good as the dips, the strapping table and the correction you supply. Evaporation and breathing losses are entered as known losses here and are not predicted; the Facilities Storage Tank studio computes them from tank geometry and duty. The queue model assumes arrivals that are random with no appointment booking, which is the harder and more common case. And one product density is used for the carbon conversion, so a terminal with very different products should read that figure product by product.',
   },
 ];
 

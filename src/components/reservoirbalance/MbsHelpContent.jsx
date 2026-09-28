@@ -20,7 +20,7 @@ const MbsHelpContent = () => (
     <P>
       A case holds one reservoir study: fluid system (oil, gas, or oil with a gas cap), initial pressure, temperature
       and water saturation. Cases live in your account database; everything you save on the tabs is stored with the
-      case and results are recomputed by the engine on demand, never replayed from stored numbers.
+      case and results are recomputed by the engine on demand. They are not replayed from stored numbers.
     </P>
 
     <H>2. Data</H>
@@ -37,7 +37,7 @@ const MbsHelpContent = () => (
     </P>
     <P>
       A regression needs at least two rows in total, counting the initial state, which means one observed pressure
-      below initial. A history match needs at least three. Those are floors rather than targets; more history gives a
+      below initial. A history match needs at least three. Those are floors to clear; more history gives a
       far more trustworthy line.
     </P>
 
@@ -52,12 +52,12 @@ const MbsHelpContent = () => (
     <P>
       Each correlation was published for a particular range of gravity, temperature, pressure and gas gravity. When
       your inputs fall outside the range its author validated, the tab says so and names the property concerned. That
-      is a caution rather than a block: you can still run, but a result built on an extrapolated correlation deserves
+      is a caution and does not block you: you can still run, but a result built on an extrapolated correlation deserves
       a second look.
     </P>
     <P>
       Working from a laboratory table, Prefill from correlations fills the table with correlated values at your
-      pressures so you have a starting grid to paste your measured numbers over, instead of typing every row from
+      pressures so you have a starting grid to paste your measured numbers over, so you do not type every row from
       blank.
     </P>
 
@@ -69,7 +69,7 @@ const MbsHelpContent = () => (
       defaults water viscosity from the McCain correlation and the reservoir radius from area when you leave them
       blank; every defaulted value is named in the run warnings. Each aquifer model carries its validation tier badge
       here on the configuration itself, so you can see what a choice is backed by before you commit a run to it
-      rather than only afterwards on the result.
+      as well as afterwards on the result.
     </P>
     <P>
       Screening is the absorbed Aquifer Influx Calculator: it computes a We history entirely in the browser by
@@ -84,7 +84,7 @@ const MbsHelpContent = () => (
       Expect the screen and the engine to differ slightly on Carter-Tracy with a finite aquifer. The browser screen
       evaluates the bounded-circle dimensionless pressure directly, while the server engine blends the
       infinite-acting solution into the pseudo-steady-state one across the transition. Both are legitimate and the
-      difference is small, so treat a modest gap as normal rather than as a sign that one of them is wrong. Where
+      difference is small, so treat a modest gap as normal. It is not a sign that one of them is wrong. Where
       they disagree, the engine result is the one your tier badge and your report are built on.
     </P>
 
@@ -94,14 +94,14 @@ const MbsHelpContent = () => (
       gas) on the server engine and reports OOIP or OGIP, aquifer size where applicable, the regression quality, and
       the drive index decomposition (depletion, gas cap, water and compressibility drives). Those indices are
       fractions of the hydrocarbon voidage the reservoir had to replace, so water you have produced is netted inside
-      the water drive index rather than counted in the denominator. That makes them sum to one by construction, and a
-      sum that drifts off one points at an inconsistent solution or inconsistent inputs rather than at rounding. A
+      the water drive index and is not counted in the denominator. That makes them sum to one by construction, and a
+      sum that drifts off one points at an inconsistent solution or inconsistent inputs. Rounding does not explain it. A
       negative water drive index is meaningful too: it says you produced more water than the aquifer supplied, so
       expansion energy had to make up the difference. Engine warnings surface anything the run had to assume or found
       suspicious.
     </P>
     <P>
-      Two warnings mean the answer cannot be used at all rather than that it needs care: an oil or gas in place at or
+      Two warnings mean the answer cannot be used at all, which is more than a call for care: an oil or gas in place at or
       below zero, and a negative pot aquifer volume. Both come from a regression line whose intercept landed on the
       wrong side of zero, and a high regression quality does not rescue either one, because points can sit on a
       straight line about the wrong model. Check the aquifer model first (a real aquifer analysed as none bends the
@@ -137,7 +137,7 @@ const MbsHelpContent = () => (
     </P>
     <P>
       The Cole plot is the gas aquifer diagnostic and the Campbell plot is its oil counterpart, so you see whichever
-      one matches your fluid system rather than both. They are read the same way: a flat trend points to depletion
+      one matches your fluid system. They are read the same way: a flat trend points to depletion
       with no significant aquifer, while a rising trend points to water influx, and the steeper it rises the stronger
       the support. Either is the fastest check on whether an aquifer belongs in the model at all, before you spend
       time choosing between Fetkovich and Carter-Tracy.

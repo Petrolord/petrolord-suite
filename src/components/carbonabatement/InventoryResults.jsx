@@ -126,7 +126,7 @@ const InventoryResults = () => {
         {inventory.blockedLines.length > 0 && (
           <p className="text-[11px] text-pl-warning-text mt-2 flex items-start gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden="true" />
-            A blocked line is left out of the total rather than counted as zero, because those are
+            A blocked line is left out of the total and is not counted as zero, because those are
             different statements.
           </p>
         )}

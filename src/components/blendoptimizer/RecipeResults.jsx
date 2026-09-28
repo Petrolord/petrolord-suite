@@ -58,7 +58,7 @@ const RecipeResults = () => {
             <h3 className="font-semibold">No recipe meets these specifications</h3>
             <p className="text-sm mt-2">{result.error}</p>
             <p className="text-sm mt-2">
-              That is a real answer about the problem, not a failure to solve it. Either a limit has
+              That is a real answer about the problem, and the solver did its job. Either a limit has
               to move or the pool needs a component that can reach it.
             </p>
           </div>
@@ -156,7 +156,7 @@ const RecipeResults = () => {
             <p className="text-xs">
               {result.skippedSpecs.map((s) => s.name).join(', ')} could not be applied: not every
               component carries the property. The recipe above does not guarantee them, and it says so
-              rather than appearing to meet a specification nobody checked.
+              openly so it cannot appear to meet a specification nobody checked.
             </p>
           </div>
         )}

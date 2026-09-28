@@ -59,7 +59,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Assumptions and limitations',
     content:
-      "This is a screening tool, not a substitute for reservoir simulation or a full reserves study. Analog ranges are broad and field-specific; correlations were derived from limited datasets and can be well off for any single reservoir. Recovery also depends on the development plan, well count, secondary and tertiary recovery, and economics. None of those are captured here, so treat the output as an early-stage estimate to be refined.",
+      "This is a screening tool. It does not replace reservoir simulation or a full reserves study. Analog ranges are broad and field-specific; correlations were derived from limited datasets and can be well off for any single reservoir. Recovery also depends on the development plan, well count, secondary and tertiary recovery, and economics. None of those are captured here, so treat the output as an early-stage estimate to be refined.",
   },
 ];
 

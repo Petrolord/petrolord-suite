@@ -107,7 +107,7 @@ export const FlowResults = () => {
             <Stat label="Mass flow" value={fmt(flow.massLbHr, 0)} unit="lb/hr" />
             <Stat label="Beta ratio" value={fmt(flow.beta, 4)} />
             <Stat label="Discharge coefficient" value={fmt(flow.cd, 5)}
-              hint="Reader-Harris/Gallagher, not a constant 0.61" />
+              hint="Reader-Harris/Gallagher equation, no constant 0.61" />
             <Stat label="Pipe Reynolds" value={fmt(flow.reynolds, 0)} />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -167,7 +167,7 @@ export const FlowResults = () => {
               the Reynolds range drawn here, and it moves several times that across the beta range
               as well. Either figure is many times the uncertainty anybody argues about in a
               custody transfer dispute, which is why the published equation is worth computing
-              rather than assuming 0.61.
+              and a flat 0.61 is not worth assuming.
             </p>
             <p className="text-[12px] text-pl-muted first-letter:uppercase">{cdCurve.reynoldsBasis}</p>
           </CardContent>
@@ -213,7 +213,7 @@ export const UncertaintyResults = () => {
             <Stat label="Runner up" value={uncertainty.runnerUp}
               hint={`${fmt(uncertainty.runnerUpShareOfVariancePct, 1)} percent`} />
             <Stat label="Differential term" value={fmt(uncertainty.differentialUncertaintyPct, 3)} unit="%"
-              hint="from the transmitter, not typed" />
+              hint="from the transmitter, with no typed figure" />
           </div>
           <p className="text-[12px] text-pl-muted first-letter:uppercase">{uncertainty.differentialUncertaintySource}</p>
           <ChartFrame height={260} exportFilename="uncertainty-budget">
@@ -234,8 +234,8 @@ export const UncertaintyResults = () => {
             spend money on improving. Which term that is depends on where the run sits in its
             span: at the top of the span the discharge coefficient's own uncertainty usually leads,
             and the differential transmitter takes over as the reading falls. The chart above is
-            the answer for this run rather than a rule of thumb, and the differential term in it
-            is the transmitter's own contribution rather than a separate typed figure.
+            the answer for this run and is no rule of thumb, and the differential term in it
+            is the transmitter's own contribution with no separate typed figure.
           </p>
         </CardContent>
       </Card>

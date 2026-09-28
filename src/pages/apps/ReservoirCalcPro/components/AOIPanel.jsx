@@ -72,7 +72,7 @@ const AOIPanel = () => {
                         </Button>
                         {!hasSurface && (
                             <p className="text-[10px] text-pl-warning-text mt-2 leading-tight">
-                                Select a top surface in the Surfaces tab first — AOIs are drawn on the 2D structure map.
+                                Select a top surface in the Surfaces tab first. AOIs are drawn on the 2D structure map.
                             </p>
                         )}
                     </>

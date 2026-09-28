@@ -45,14 +45,14 @@ const CarbonInputs = () => {
       </Group>
 
       <Group title="Combustion"
-        note="CO2 comes from the carbon in the fuel, not from a factor: every carbon atom into the burner leaves as CO2. It is conservation of mass and needs no source document.">
+        note="CO2 comes from the carbon in the fuel and needs no factor: every carbon atom into the burner leaves as CO2. It is conservation of mass and needs no source document.">
         <Cell label="Fuel burned" unit="kmol/yr" value={inputs.combustion.fuelKmolPerYear} onChange={(v) => setSection('combustion', { fuelKmolPerYear: v })} />
         <Cell label="Carbon per kmol" value={inputs.combustion.carbonPerKmolFuel} onChange={(v) => setSection('combustion', { carbonPerKmolFuel: v })} />
         <Cell label="Destruction efficiency" unit="fraction" value={inputs.combustion.destructionEfficiencyFraction} onChange={(v) => setSection('combustion', { destructionEfficiencyFraction: v })} />
       </Group>
 
       <Group title="Flaring"
-        note="A flare's destruction efficiency is the whole answer and it is contested, so it is asked for rather than assumed. Carbon that escapes is counted as methane.">
+        note="A flare's destruction efficiency is the whole answer and it is contested, so it is asked for and never assumed. Carbon that escapes is counted as methane.">
         <Cell label="Gas flared" unit="kmol/yr" value={inputs.flare.fuelKmolPerYear} onChange={(v) => setSection('flare', { fuelKmolPerYear: v })} />
         <Cell label="Carbon per kmol" value={inputs.flare.carbonPerKmolFuel} onChange={(v) => setSection('flare', { carbonPerKmolFuel: v })} />
         <Cell label="Destruction efficiency" unit="fraction" value={inputs.flare.destructionEfficiencyFraction} placeholder="required" onChange={(v) => setSection('flare', { destructionEfficiencyFraction: v })} />

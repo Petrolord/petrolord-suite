@@ -72,7 +72,7 @@ const WellModelPanel = () => {
         showCompletion
         depthLabel="Perforation depth (ft TVD)"
         depthHint="The node depth, entered once. The trace starts here."
-        fluidNote="The flowing temperature profile here is what the wellbore leg of the trace uses. It is an input, the same one every other production studio sees, not a wellbore heat-transfer solution: the thermal model in this studio governs the flowline."
+        fluidNote="The flowing temperature profile here is what the wellbore leg of the trace uses. It is an input, the same one every other production studio sees. It is not a wellbore heat-transfer solution: the thermal model in this studio governs the flowline."
       />
       {isGas && <GasInflowFields />}
     </div>

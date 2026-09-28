@@ -23,7 +23,7 @@ const RecommendationsPanel = ({ data, note }) => {
     >
       <h2 className="text-2xl font-bold text-pl-text mb-1">Injector Recommendations</h2>
       <p className="text-pl-muted text-sm mb-4">
-        Field-level VRR balance{note ? ` — ${note}` : ''} These target overall voidage replacement, not per-pattern geometry.
+        Field-level VRR balance{note ? `: ${note}` : '.'} These target overall voidage replacement. Per-pattern geometry is outside their scope.
       </p>
       <div className="max-h-96 overflow-y-auto">
         <Table>

@@ -159,7 +159,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
         if (head.x.trim() === '' || head.y.trim() === ''
           || !Number.isFinite(surfaceX) || !Number.isFinite(surfaceY)) {
           throw new Error('Surface X and Y must be world coordinates in metres '
-            + '(LAS files rarely carry them — enter them here).');
+            + '(LAS files rarely carry them, so enter them here).');
         }
         const kbM = head.kb.trim() === '' ? 0 : Number(head.kb);
         if (!Number.isFinite(kbM)) throw new Error('KB must be a number (metres above datum).');
@@ -194,7 +194,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
       let toSave = logs;
       let note = '';
       if (target !== 'new') {
-        if (existing.busy || existing.wellId !== target) throw new Error('Still reading the target well — try again in a moment.');
+        if (existing.busy || existing.wellId !== target) throw new Error('Still reading the target well. Try again in a moment.');
         const plan = planMerge({
           prepLogs: parsed.prep.logs, keep, names, onClash,
           existingLogs: existing.logs, existingDepth: existing.depth,
@@ -241,7 +241,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
         <DialogHeader>
           <DialogTitle>Import LAS logs</DialogTitle>
           <DialogDescription>
-            LAS 1.2, 2.0 and 3.0 — curves convert to SI on import (factors recorded in provenance).
+            LAS 1.2, 2.0 and 3.0. Curves convert to SI on import (factors recorded in provenance).
           </DialogDescription>
         </DialogHeader>
 
@@ -414,7 +414,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                             {unknownUnit && (
                               <span
                                 className="ml-1 rounded bg-pl-warning-bg text-pl-warning-text px-1 text-[10px]"
-                                title="Unit not recognised — imported unchanged, no conversion applied"
+                                title="Unit not recognised: imported unchanged, with no conversion applied"
                               >
                                 as-is
                               </span>
@@ -437,7 +437,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                     onChange={setHeadField('uwi')} />
                   <input className={inputCls} placeholder="Surface X (m) *" value={head.x}
                     onChange={setHeadField('x')} data-testid="wdm-las-x"
-                    title="LAS files rarely carry surface coordinates — enter world metres" />
+                    title="LAS files rarely carry surface coordinates, so enter world metres" />
                   <input className={inputCls} placeholder="Surface Y (m) *" value={head.y}
                     onChange={setHeadField('y')} data-testid="wdm-las-y" />
                   <input className={inputCls} placeholder="KB m above datum" value={head.kb}

@@ -42,7 +42,7 @@ const ConversionResults = () => {
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-sm font-semibold text-pl-text mb-1">Per kilometre, not per unit sold</h3>
+        <h3 className="text-sm font-semibold text-pl-text mb-1">Compared per kilometre travelled</h3>
         <p className="text-[11px] text-pl-muted mb-2">
           Litres against kilograms is meaningless. The comparison has to be per unit of useful
           energy, or better still per kilometre, which is what the customer actually buys. The new
@@ -93,7 +93,7 @@ const ConversionResults = () => {
           </p>
           <p className="text-[11px] text-pl-muted mt-0.5">
             {c.carbonNote
-              || 'A cheaper fuel per kilometre can still emit more. The two are separate questions and this reports them separately rather than assuming the switch is green because it is cheap.'}
+              || 'A cheaper fuel per kilometre can still emit more. The two are separate questions and this reports them separately. It does not assume the switch is green because it is cheap.'}
           </p>
         </div>
       </div>

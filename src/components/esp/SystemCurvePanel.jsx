@@ -119,8 +119,8 @@ const SystemCurvePanel = () => {
 
               {!operating && (
                 <p className="text-[11px] text-pl-warning-text pb-2">
-                  The two curves do not cross inside the rate range. That is a real answer, not a
-                  failure to converge: this stack is either too small to lift the well at any rate
+                  The two curves do not cross inside the rate range. That is a real answer and
+                  not a failure to converge: this stack is either too small to lift the well at any rate
                   it can pass, or big enough that the inflow runs out first. Change the stage count
                   by moving the design rate, or change the drive frequency.
                 </p>

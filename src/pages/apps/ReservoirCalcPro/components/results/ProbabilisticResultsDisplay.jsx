@@ -217,7 +217,7 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                     <Activity className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                     <span>
                         Monte Carlo P50 is {diffBaseP50.toFixed(0)}% {stats.p50 >= baseVal ? 'above' : 'below'} the deterministic base case ({(baseVal / denom).toFixed(2)} {unitLabel}).
-                        A gap is expected — the P50 of a product of distributions rarely equals the product of the base-case inputs.
+                        A gap is expected: the P50 of a product of distributions rarely equals the product of the base-case inputs.
                         {diffBaseP50 > 40 && ' A large gap can indicate off-centre input distributions worth reviewing.'}
                     </span>
                 </div>

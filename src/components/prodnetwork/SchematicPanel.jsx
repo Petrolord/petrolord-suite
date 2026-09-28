@@ -163,7 +163,7 @@ const SchematicPanel = () => {
         </div>
         <p className="text-[11px] text-pl-muted mt-2">
           Laid out by depth from the delivery point, because a gathering system flows one way and
-          its arrangement is a fact about the topology rather than something worth dragging into
+          its arrangement is a fact about the topology. It is not something worth dragging into
           place. Click a node to edit it.
           {bottleneckId && ' The amber line is burning the most pressure per pound of fluid (oil, water and gas) it moves.'}
         </p>

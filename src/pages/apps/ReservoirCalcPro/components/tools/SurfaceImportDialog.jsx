@@ -140,7 +140,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
     }).join('\n');
     const normalizeHandoff = (text, domain) => {
         if (domain !== 'depth_ft') return { text, xyUnit: 'm', warning: domain === 'twt_ms'
-            ? 'This is a two-way-time (ms) surface, not depth — volumetric results will not be meaningful.'
+            ? 'This is a two-way-time (ms) surface. It is not depth, so volumetric results will not be meaningful.'
             : null };
         return { text: rescaleXyToFeet(text), xyUnit: 'ft', warning: null };
     };
@@ -166,7 +166,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
             }));
             toast({
                 title: 'Surface loaded from Seismolord',
-                description: warning ? `${row.name} — ${warning}` : row.name,
+                description: warning ? `${row.name}: ${warning}` : row.name,
                 ...(warning ? { variant: 'destructive' } : {}),
             });
         } catch (e) {

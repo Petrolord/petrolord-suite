@@ -236,10 +236,10 @@ const AntiCollisionTab = () => {
                 <SelectTrigger className="h-8 mt-1 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="plan" className="text-xs">
-                    Plan — {design.name} r{design.revision}
+                    Plan: {design.name} r{design.revision}
                   </SelectItem>
                   <SelectItem value="composite" className="text-xs" disabled={composite.length < 2}>
-                    Actual — definitive composite{composite.length < 2 ? ' (none)' : ''}
+                    Actual: definitive composite{composite.length < 2 ? ' (none)' : ''}
                   </SelectItem>
                 </SelectContent>
               </Select>

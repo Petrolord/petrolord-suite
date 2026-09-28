@@ -224,7 +224,7 @@ const LopaSilStudioHelpGuideContent = () => (
       <SectionHeading icon={CheckCircle2}>How the engine was validated</SectionHeading>
       <Para>
         The engine is <Code>engines/hse/lopa.js</Code> in petrolord-engines, vendored into the Suite.
-        Its gate runs 91 tests. An independent Python oracle (standard library only, never calling
+        Its gate runs 91 tests. An independent Python oracle (standard library only, with no call into
         the JavaScript) checks every coefficient in exact rationals to 1e-12 relative and decides
         every SIL boundary exactly. A second route averages the time dependent unavailability by
         quadrature, and the Annex B result is never below it (it is the conservative first order

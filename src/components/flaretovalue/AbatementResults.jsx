@@ -58,8 +58,8 @@ const AbatementResults = () => {
         {a.combustionEfficiencyNote && <p className="text-[11px] text-pl-warning-text mt-1">{a.combustionEfficiencyNote}</p>}
         {a.methaneShareOfFlareCo2e !== null && a.methaneShareOfFlareCo2e > 0.25 && (
           <p className="text-[11px] text-pl-warning-text mt-2">
-            Most of this flare&apos;s impact is the methane it fails to burn, not the CO2 it does.
-            That is why the destruction efficiency is asked for rather than assumed.
+            Most of this flare&apos;s impact is the methane it fails to burn. The CO2 from what it does burn is the smaller part.
+            That is why the destruction efficiency is an input with no assumed value.
           </p>
         )}
       </div>

@@ -141,7 +141,7 @@ export default function ProgramTab({
               </div>
             )}
             <div className="mt-2 text-[10px] text-pl-muted">
-              A planning checklist in the well programme tradition, not an operational procedure;
+              A planning checklist in the well programme tradition. It is not an operational procedure;
               verification (tag, pressure test, logs) is stated per step and recorded by operations.
             </div>
           </Card>

@@ -177,7 +177,7 @@ export default function ViewerWindows({ windows, defaultOpen, focus, fill }) {
         <div className="rounded-lg border border-pl-border bg-pl-sunken/60 p-8
           text-center text-sm text-pl-muted"
         >
-          All windows are closed — open one from the Windows menu above.
+          All windows are closed. Open one from the Windows menu above.
         </div>
       )}
 

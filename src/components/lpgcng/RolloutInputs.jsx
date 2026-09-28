@@ -122,7 +122,7 @@ const RolloutInputs = () => {
       </Group>
 
       <Group title="The conversion case"
-        note="Leave the new fuel's consumption blank to derive it from energy equivalence; the efficiency ratio is then the assumption doing the work, so it is on screen rather than buried.">
+        note="Leave the new fuel's consumption blank to derive it from energy equivalence; the efficiency ratio is then the assumption doing the work, so it is on screen where you can see it.">
         <Cell label="Annual distance" unit="km" value={inputs.conversion.annualDistanceKm} onChange={(v) => setConversion({ annualDistanceKm: v })} />
         <Cell label="Efficiency ratio" value={inputs.conversion.efficiencyRatio} onChange={(v) => setConversion({ efficiencyRatio: v })} />
         <Cell label="Base use" unit="/100km" value={inputs.conversion.baseConsumptionPer100Km} onChange={(v) => setConversion({ baseConsumptionPer100Km: v })} />

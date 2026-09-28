@@ -164,8 +164,8 @@ export default function InterpretationTab({
           onChange={(e) => setSnapWindow(Number(e.target.value))}
           disabled={!manifest}
           title={snapMode === 'ncc'
-            ? 'Correlation lag search (samples) — how far the event may move trace to trace'
-            : 'Search half-window (samples) for snapping and tracking — wider follows rougher events but can jump reflectors'}
+            ? 'Correlation lag search (samples): how far the event may move trace to trace'
+            : 'Search half-window (samples) for snapping and tracking. Wider follows rougher events but can jump reflectors'}
         >
           {[2, 3, 5, 8, 12].map((w) => (
             <option key={w} value={String(w)}>{`±${w}`}</option>
@@ -177,7 +177,7 @@ export default function InterpretationTab({
             value={String(corrThreshold)}
             onChange={(e) => setCorrThreshold(Number(e.target.value))}
             disabled={!manifest}
-            title="Minimum correlation coefficient to accept a pick — the coefficient is stored as the pick's confidence"
+            title="Minimum correlation coefficient to accept a pick. The coefficient is stored as the pick's confidence"
           >
             {THRESHOLD_OPTIONS.map((t) => (
               <option key={t} value={String(t)}>{t.toFixed(1)}</option>
@@ -368,8 +368,8 @@ export default function InterpretationTab({
           onClick={openVelocity}
           disabled={!manifest}
           title={velocityModel
-            ? `${describeVelocity(velocityModel)} — drives depth maps and depth exports`
-            : 'Not set — depth maps and model-based exports unavailable'}
+            ? `${describeVelocity(velocityModel)}. Drives depth maps and depth exports`
+            : 'Not set. Depth maps and model-based exports are unavailable'}
         />
       </RibbonGroup>
       {setTerminationKind && (

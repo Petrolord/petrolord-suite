@@ -65,7 +65,7 @@ const DutyPanel = () => (
         <Field label="Gas handler limit (% GVF)"><NumberInput name="gvfHandlerMaxPct" /></Field>
       </div>
       <p className="text-[11px] text-pl-muted">
-        These two are operating guidance, not a correlation, which is why they are editable: below
+        These two are operating guidance and do not come from a correlation, which is why they are editable: below
         the first a standard stage copes, between them a gas handler is normal, above the second the
         gas has to come out ahead of the pump.
       </p>

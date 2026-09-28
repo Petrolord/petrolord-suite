@@ -544,7 +544,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     }
     if (velLayers.length === 0) return null;
     if (velLayers.length < 2) {
-      throw new Error('A layer cake needs at least two layers — use the single-function model instead.');
+      throw new Error('A layer cake needs at least two layers. Use the single-function model.');
     }
     const bounded = velLayers.slice(0, -1);
     if (bounded.some((l) => !l.baseHorizonId)) {
@@ -1251,7 +1251,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
 
   const onDeleteProject = async (p) => {
     // eslint-disable-next-line no-alert
-    if (!window.confirm(`Delete project "${p.name}"? Its volumes stay — they return to the flat list.`)) return;
+    if (!window.confirm(`Delete project "${p.name}"? Its volumes stay and return to the flat list.`)) return;
     try {
       await deleteProject(p);
       setVolumesRefresh((k) => k + 1);
@@ -1634,7 +1634,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
       const traceData = await assembleTrace(getBrick, geom, ilIdx, xlIdx);
       const hit = snapPick(traceData, sample, { mode: eventSnapMode, window: snapWindow });
       if (!hit) {
-        toast({ title: 'No event found', description: 'No event of the selected snap kind near that click — try closer to one.' });
+        toast({ title: 'No event found', description: 'No event of the selected snap kind near that click. Try closer to one.' });
         return;
       }
       setSeedPick({ ilIdx, xlIdx, sample: hit.sample });
@@ -2041,7 +2041,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     if (!s) return;
     const { grid, filled } = fillHorizonHoles(s.grid, geom.nIl, geom.nXl);
     if (!filled) {
-      toast({ title: 'No interior holes', description: 'Every null region touches the survey edge — nothing to fill.' });
+      toast({ title: 'No interior holes', description: 'Every null region touches the survey edge, so there is nothing to fill.' });
       return;
     }
     const cells = [];
@@ -3100,7 +3100,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     if (!path) {
       toast({
         title: 'Traverse too short',
-        description: 'The line covers fewer than two traces — draw a longer path across the survey.',
+        description: 'The line covers fewer than two traces. Draw a longer path across the survey.',
       });
       return;
     }
@@ -3217,7 +3217,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
   const saveTraverseAs = async () => {
     if (!traverse || !volume || !manifest) return;
     if (volumeReadOnly) {
-      toast({ title: 'Read-only volume', description: 'Named traverses are owner-only on a shared volume — draw and view freely, saving is disabled.' });
+      toast({ title: 'Read-only volume', description: 'Named traverses are owner-only on a shared volume. Draw and view freely; saving is disabled.' });
       return;
     }
     // eslint-disable-next-line no-alert
@@ -3997,7 +3997,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                       disabled={!manifest || (!savedTraverses.length && !traverse)}
                       title="Saved traverse lines on this volume"
                     >
-                      <option value="">— drawn line —</option>
+                      <option value="">(drawn line)</option>
                       {savedTraverses.map((s) => (
                         <option key={s.id} value={s.id}>{s.name}</option>
                       ))}

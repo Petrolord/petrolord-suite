@@ -107,8 +107,7 @@ const PlanResults = () => {
         <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
           <h3 className="text-sm font-semibold text-pl-text mb-1">What another barrel of each stream is worth</h3>
           <p className="text-[11px] text-pl-muted mb-2">
-            The marginal value from the plan. It is the reason to solve this rather than fill in a
-            spreadsheet: it prices a debottleneck before anyone spends on one. A stream worth nothing
+            The marginal value from the plan. It is the reason a solver beats a spreadsheet here: it prices a debottleneck before anyone spends on one. A stream worth nothing
             at the margin is one nobody has a home for.
           </p>
           <table className="w-full text-sm">
