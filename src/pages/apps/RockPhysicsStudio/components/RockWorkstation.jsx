@@ -26,6 +26,8 @@ import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import { appPath, wellDataManagerHref, WELL_DATA_MANAGER_ID } from '@/components/wells/appLinks';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import WellExplorer from './WellExplorer';
 import RockParamsPanel from './RockParamsPanel';
@@ -50,7 +52,7 @@ export { DEFAULT_AVO, DEFAULT_WEDGE } from '../services/defaults';
 const RP_ID = 'rock-physics-studio';
 
 /** @param {Object<string,string>} [p.appPaths] route overrides for the launchers (harness) */
-export default function RockWorkstation({ backend, appPaths = {} }) {
+function RockWorkstationContent({ backend, appPaths = {} }) {
   const [wells, setWells] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
@@ -195,7 +197,7 @@ export default function RockWorkstation({ backend, appPaths = {} }) {
       title={title}
       value={units[key]}
       onChange={(e) => setUnit(key, e.target.value)}
-      className="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-[11px] text-slate-200"
+      className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-[11px] text-pl-text"
     >
       {options.map((o) => (typeof o === 'string'
         ? <option key={o} value={o}>{o}</option>
@@ -209,7 +211,7 @@ export default function RockWorkstation({ backend, appPaths = {} }) {
       data-testid={`rp-view-${key}`}
       disabled={disabled}
       className={`px-2 py-1 text-xs rounded border disabled:opacity-40
-        ${view === key ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+        ${view === key ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border-strong text-pl-muted hover:text-pl-text'}`}
       onClick={() => setView(key)}
     >
       {label}
@@ -217,11 +219,11 @@ export default function RockWorkstation({ backend, appPaths = {} }) {
   );
 
   const ribbon = (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
       <ModuleHomeLink module="geoscience" />
-      <Waves className="w-4 h-4 text-cyan-400" />
-      <span className="text-sm font-semibold text-slate-100">Rock Physics Studio</span>
-      <span className="text-[11px] text-slate-500">fluid substitution, AVO and tuning on the shared well registry</span>
+      <Waves className="w-4 h-4 text-pl-primary-text" />
+      <span className="text-sm font-semibold text-pl-text">Rock Physics Studio</span>
+      <span className="text-[11px] text-pl-muted">fluid substitution, AVO and tuning on the shared well registry</span>
       <div className="ml-4 flex items-center gap-1">
         {viewButton('fluids', 'Fluids & Gassmann')}
         {viewButton('avo', 'AVO')}
@@ -231,7 +233,7 @@ export default function RockWorkstation({ backend, appPaths = {} }) {
         <span
           data-testid="rp-vs-badge"
           title="This well has no shear log — Vs is estimated with Greenberg-Castagna on the VSH sand/shale split"
-          className="rounded px-1.5 py-0.5 bg-amber-500/15 border border-amber-600/50 text-amber-300 text-[11px]"
+          className="rounded px-1.5 py-0.5 bg-pl-warning-bg border border-pl-warning text-pl-warning-text text-[11px]"
         >
           Vs estimated
         </span>
@@ -242,7 +244,7 @@ export default function RockWorkstation({ backend, appPaths = {} }) {
             to={wellDataManagerHref(selected.id, 'logs', appPath(WELL_DATA_MANAGER_ID, appPaths))}
             data-testid="rp-open-wdm"
             title="Open this well in Well Data Manager on its logs (published curves are listed there)"
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-800"
+            className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border-strong text-pl-text hover:text-pl-text hover:bg-pl-sunken"
           >
             <Database className="w-3.5 h-3.5" /> Well data
           </Link>
@@ -252,21 +254,21 @@ export default function RockWorkstation({ backend, appPaths = {} }) {
           to={`${appPath(RP_ID, appPaths)}/help`}
           data-testid="rp-help"
           title="Open the Rock Physics Studio help guide"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-800"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border-strong text-pl-text hover:text-pl-text hover:bg-pl-sunken"
         >
           <HelpCircle className="w-3.5 h-3.5" /> Help
         </Link>
-        <span className="w-px h-4 bg-slate-800 mx-1" />
-        <span className="text-[11px] text-slate-500 mr-1">Units</span>
+        <span className="w-px h-4 bg-pl-border mx-1" />
+        <span className="text-[11px] text-pl-muted mr-1">Units</span>
         {unitSelect('velocity', VELOCITY_UNITS, 'Velocity or sonic slowness display unit (the engine stays in m/s)')}
         {unitSelect('density', DENSITY_UNITS, 'Density display unit (the engine stays in kg/m3)')}
         {unitSelect('depth', DEPTH_UNITS, 'Depth display unit; defaults to your Geoscience depth setting')}
-        <span className="w-px h-4 bg-slate-800 mx-1" />
+        <span className="w-px h-4 bg-pl-border mx-1" />
         <button
           type="button"
           data-testid="rp-save-project"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-slate-700 text-slate-300 hover:bg-slate-800"
+            border-pl-border-strong text-pl-text hover:bg-pl-sunken"
           onClick={saveProject}
         >
           {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
@@ -276,27 +278,28 @@ export default function RockWorkstation({ backend, appPaths = {} }) {
           type="button"
           data-testid="rp-toggle-dock"
           className={`px-2 py-1 text-xs rounded border
-            ${dockOpen ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
+            ${dockOpen ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border-strong text-pl-muted'}`}
           onClick={() => setDockOpen((v) => !v)}
         >
           Scenario & rock
         </button>
+        <ThemeToggle className="h-7 w-7" />
       </div>
     </div>
   );
 
   const statusBar = (
-    <div className="flex items-center gap-3 px-3 py-1 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400">
+    <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="rp-status" className="truncate">{status}</span>
       <span className="ml-auto whitespace-nowrap">
         {selected ? `${selected.name} · ${model ? `${model.n} samples` : '…'}` : `${wells?.length ?? '…'} wells`}
       </span>
-      <span className="whitespace-nowrap text-slate-600" title="Every stored and computed value is SI; the unit selectors only change the display">SI internal (m/s · kg/m³ · Pa)</span>
+      <span className="whitespace-nowrap text-pl-muted" title="Every stored and computed value is SI; the unit selectors only change the display">SI internal (m/s · kg/m³ · Pa)</span>
     </div>
   );
 
   const needsWell = (
-    <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="rp-empty">
+    <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="rp-empty">
       {!wells ? (
         <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry wells…</>
       ) : selectedId && !wellData ? (
@@ -345,7 +348,7 @@ export default function RockWorkstation({ backend, appPaths = {} }) {
       )}
       center={center}
       dock={(
-        <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60">
+        <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
           <RockParamsPanel scenario={scenario} rock={rock} onApply={applyParams} />
         </ScrollArea>
       )}
@@ -353,5 +356,18 @@ export default function RockWorkstation({ backend, appPaths = {} }) {
       onDockOpenChange={setDockOpen}
       statusBar={statusBar}
     />
+  );
+}
+
+// Design system rollout batch 4D: Rock Physics Studio opens light and
+// follows the user's theme choice from the ribbon toggle. The route page
+// and the /dev harness both mount this component, so they share the one
+// scope. The wedge synthetic stays on its dark canvas; charts stay white.
+/** @param {Object<string,string>} [p.appPaths] route overrides for the launchers (harness) */
+export default function RockWorkstation(props) {
+  return (
+    <ThemedApp className="h-full" data-testid="rp-theme-scope">
+      <RockWorkstationContent {...props} />
+    </ThemedApp>
   );
 }

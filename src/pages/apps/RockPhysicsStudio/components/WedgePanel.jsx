@@ -121,7 +121,7 @@ function drawWedge(canvas, panel) {
 
 function NumField({ id, label, value, onChange }) {
   return (
-    <label className="flex items-center gap-1 text-[12px] text-slate-300">
+    <label className="flex items-center gap-1 text-[12px] text-pl-text">
       {label}
       <input
         data-testid={`rp-wedge-${id}`}
@@ -129,8 +129,8 @@ function NumField({ id, label, value, onChange }) {
         step="any"
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-16 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-right
-          text-slate-100 focus:outline-none focus:border-cyan-600"
+        className="w-16 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-right
+          text-pl-text focus:outline-none focus:border-pl-focus"
       />
     </label>
   );
@@ -174,11 +174,11 @@ export default function WedgePanel({ wedge, onWedgeChange, units = null }) {
         <NumField id="max" label="max thickness (ms)" value={wedge.maxThicknessMs} onChange={(v) => patch({ maxThicknessMs: v })} />
         <NumField id="vp" label="wedge Vp (m/s)" value={vpW} onChange={(v) => patch({ vpWedge: v })} />
         {result && !result.error && (
-          <span className="ml-auto text-[13px] text-slate-200">
+          <span className="ml-auto text-[13px] text-pl-text">
             tuning thickness{' '}
             <b data-testid="rp-wedge-tuning">{result.tuningMs}</b> ms
             {Number.isFinite(tuningDepthM(result.tuningMs, vpW)) && (
-              <span className="text-slate-400" data-testid="rp-wedge-tuning-depth">
+              <span className="text-pl-muted" data-testid="rp-wedge-tuning-depth">
                 {' '}(about {(zU === 'ft' ? tuningDepthM(result.tuningMs, vpW) / 0.3048 : tuningDepthM(result.tuningMs, vpW)).toFixed(1)} {zU} at {vpW} m/s; thickness of maximum constructive interference)
               </span>
             )}
@@ -186,18 +186,18 @@ export default function WedgePanel({ wedge, onWedgeChange, units = null }) {
         )}
       </div>
 
-      {result?.error && <p className="text-[12px] text-amber-400" data-testid="rp-wedge-error">{result.error}</p>}
+      {result?.error && <p className="text-[12px] text-pl-warning-text" data-testid="rp-wedge-error">{result.error}</p>}
 
       {result && !result.error && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 items-start">
-          <div className="rounded border border-slate-800 overflow-auto" data-testid="rp-wedge-canvas">
+          <div className="rounded-pl-canvas border border-pl-border overflow-auto bg-pl-bg" data-canvas="dark" data-testid="rp-wedge-canvas">
             <canvas ref={canvasRef} />
-            <div className="px-2 py-1 text-[11px] text-slate-500">
+            <div className="px-2 py-1 text-[11px] text-pl-muted">
               thickness (ms) across · TWT (ms) down · amber = wedge top/base
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-3 relative" style={{ height: 320 }}>
+          <div className="bg-white rounded-lg p-3 relative" data-canvas="chart" style={{ height: 320 }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={result.tuning} margin={CHART_MARGINS.standard}>
                 <CartesianGrid {...GRID_STYLE} />
