@@ -242,3 +242,43 @@ telling them what to change rather than an outage banner.
 - Only screen chrome changed. The generation call, `reportAutopilotDocx.js`
   and the templates are untouched, so the exported DOCX is the same.
   Theme test: `src/pages/apps/__tests__/TechnicalReportAutopilot.theme.test.jsx`.
+
+## 2026-09-28: Project Management Pro on the design system, session 6C of 3 (rollout w6c)
+
+The app now wraps itself in `ThemedApp` (`data-testid="pmp-theme-scope"`)
+and registers `/dashboard/apps/economics/project-management-pro` in
+`src/design/rollout/w6c.js`, so the whole app opens light with the header
+toggle for dark. No data, calculation or behaviour change.
+
+Converted in 6C (page shell plus every top-level
+`src/components/projectmanagement/*.jsx` the app renders):
+
+- `AppHeader` with the As of date, Full precision, Portfolio and Save
+  actions (they wrap on phones); the project panel stacks above the
+  dashboard below `lg`.
+- Portfolio overview, executive summary, filters, grid and list views (list
+  scrolls inside its card), project dashboard tabs (wrap on phones), WBS,
+  Kanban, stage tracker, snapshot card, resources, risks and issues, and the
+  task, milestone, risk, issue, resource, progress and template dialogs.
+- Status only through status roles, each with its word: RAG status, task
+  status (Completed, Delayed, in progress), priority, Kanban column edges,
+  risk score bands (High, Medium, Low as a title and in the risk form).
+  Decorative colour (rainbow "New project" buttons, icon tints) removed.
+- Charts stay white: the Gantt sits in `data-canvas="chart"` with a named
+  legend for its bar colours; the capacity, progress and EVM charts are
+  `ChartPanel`s on `chartTheme` with `ChartLogo`; the risk matrix is a white
+  chart canvas; the weekly report stays a white printable page.
+
+Still legacy, for 6D and 6E (listed in the theme test's `PENDING_6D` and
+`PENDING_6E`, which feed its allow-list): `analytics/`, `reports/`,
+`appraisal/`, `brownfield/`, `decommissioning/` (6D); `exploration/`,
+`field_development/`, `help/`, `integrations/`, `smallprojects/` (6E).
+They render readably inside the light scope as dark cards. Their dialogs
+(the project wizards, help guide, deliverable manager, report builder) carry
+an interim `data-pl-theme="dark"` so their labels read; remove it when the
+file converts.
+
+Tests: `src/pages/apps/__tests__/ProjectManagementPro.theme.test.jsx`
+(describeAppTheme plus strict checks on every 6C view in light and dark,
+and allow-listed checks on the analytics tab, an exploration dashboard and
+the integrations tab). Existing suites pass unchanged.
