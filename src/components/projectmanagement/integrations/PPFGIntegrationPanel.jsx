@@ -41,19 +41,19 @@ const PPFGIntegrationPanel = ({ project, onRefresh }) => {
   };
 
   return (
-    <Card className="bg-slate-900/50 border-slate-800">
+    <Card>
         <CardHeader className="pb-3">
             <div className="flex justify-between items-start">
                 <div>
-                    <CardTitle className="text-base flex items-center gap-2 text-white">
-                        <Activity className="w-5 h-5 text-blue-400" />
+                    <CardTitle className="text-base flex items-center gap-2 text-pl-text">
+                        <Activity className="w-5 h-5 text-pl-primary-text" aria-hidden="true" />
                         Pore Pressure (PPFG) Integration
                     </CardTitle>
-                    <CardDescription className="text-slate-400">
+                    <CardDescription className="text-pl-muted">
                         Add pore-pressure planning items to this project. There is no live link to the app yet, so nothing is read from it.
                     </CardDescription>
                 </div>
-                <Badge variant="outline" className="text-slate-400 border-slate-700">
+                <Badge variant="neutral">
                     Planning aid
                 </Badge>
             </div>
@@ -61,21 +61,21 @@ const PPFGIntegrationPanel = ({ project, onRefresh }) => {
         <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-                <div className="p-3 bg-slate-800/50 rounded border border-slate-700 flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-slate-300 font-medium text-sm">
-                        <FileText className="w-4 h-4 text-blue-400" /> Deliverables
+                <div className="p-3 bg-pl-sunken rounded border border-pl-border flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-pl-text font-medium text-sm">
+                        <FileText className="w-4 h-4 text-pl-muted" aria-hidden="true" /> Deliverables
                     </div>
-                    <p className="text-xs text-slate-500">Create a draft prognosis deliverable to fill in and track.</p>
+                    <p className="text-xs text-pl-muted">Create a draft prognosis deliverable to fill in and track.</p>
                     <Button size="sm" variant="secondary" onClick={handleCreateDeliverable} disabled={loading} className="w-full mt-auto">
                         Add draft deliverable
                     </Button>
                 </div>
 
-                 <div className="p-3 bg-slate-800/50 rounded border border-slate-700 flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-slate-300 font-medium text-sm">
-                        <RefreshCw className="w-4 h-4 text-purple-400" /> Workflows
+                 <div className="p-3 bg-pl-sunken rounded border border-pl-border flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-pl-text font-medium text-sm">
+                        <RefreshCw className="w-4 h-4 text-pl-muted" aria-hidden="true" /> Workflows
                     </div>
-                    <p className="text-xs text-slate-500">Add the standard calibration and update tasks.</p>
+                    <p className="text-xs text-pl-muted">Add the standard calibration and update tasks.</p>
                     <Button size="sm" variant="secondary" onClick={handleCreateTasks} disabled={loading} className="w-full mt-auto">
                         Create Tasks
                     </Button>
