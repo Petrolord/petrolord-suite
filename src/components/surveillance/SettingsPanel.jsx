@@ -30,7 +30,7 @@ const SettingsPanel = () => {
     <div className="space-y-3">
       {FIELDS.map(({ key, label, hint }) => (
         <div key={key} className="space-y-1">
-          <Label className="text-xs text-slate-400">{label}</Label>
+          <Label className="text-xs text-pl-muted">{label}</Label>
           <Input
             type="number"
             value={inputs.settings[key] ?? ''}
@@ -38,12 +38,12 @@ const SettingsPanel = () => {
               const n = parseFloat(e.target.value);
               setSettingsField(key, Number.isFinite(n) ? n : e.target.value);
             }}
-            className="h-9 bg-slate-800 border-slate-700"
+            className="h-9"
           />
-          {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
+          {hint && <p className="text-[11px] text-pl-muted">{hint}</p>}
         </div>
       ))}
-      <Button variant="ghost" size="sm" className="text-xs text-slate-400" onClick={resetAll}>
+      <Button variant="ghost" size="sm" className="text-xs text-pl-muted" onClick={resetAll}>
         <RotateCcw size={12} className="mr-1" /> Reset to defaults
       </Button>
     </div>

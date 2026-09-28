@@ -20,7 +20,7 @@ const QcSettingsPanel = () => {
     <div className="space-y-3">
       {FIELDS.map(({ key, label }) => (
         <div key={key} className="space-y-1">
-          <Label className="text-xs text-slate-400">{label}</Label>
+          <Label className="text-xs text-pl-muted">{label}</Label>
           <Input
             type="number"
             value={inputs.qc[key] ?? ''}
@@ -28,17 +28,17 @@ const QcSettingsPanel = () => {
               const n = parseFloat(e.target.value);
               setQcField(key, Number.isFinite(n) ? n : e.target.value);
             }}
-            className="h-9 bg-slate-800 border-slate-700"
+            className="h-9"
           />
         </div>
       ))}
       <Button
-        variant="ghost" size="sm" className="text-xs text-slate-400"
+        variant="ghost" size="sm" className="text-xs text-pl-muted"
         onClick={() => Object.entries(DEFAULT_TEST_QC_SETTINGS).forEach(([k, v]) => setQcField(k, v))}
       >
         <RotateCcw size={12} className="mr-1" /> Reset to defaults
       </Button>
-      <p className="text-[11px] text-slate-500 leading-relaxed">
+      <p className="text-[11px] text-pl-muted leading-relaxed">
         Every check runs against data the spine already holds: the well's own test history and the
         daily ledger on the test date. Rejecting a test excludes it from allocation.
       </p>

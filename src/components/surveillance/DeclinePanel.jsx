@@ -21,12 +21,12 @@ const fmt = (v, digits = 0) => (Number.isFinite(v)
   : '--');
 
 const Stat = ({ label, value, unit, hint }) => (
-  <div className="bg-slate-800/60 border border-slate-700/60 rounded px-3 py-2" title={hint}>
-    <div className="text-[10px] uppercase tracking-wider text-slate-500">{label}</div>
-    <div className="text-base font-semibold text-slate-100">
-      {value} {unit && <span className="text-xs font-normal text-slate-500">{unit}</span>}
+  <div className="bg-pl-sunken border border-pl-border rounded px-3 py-2" title={hint}>
+    <div className="text-[10px] uppercase tracking-wider text-pl-muted">{label}</div>
+    <div className="text-base font-semibold font-pl-mono tabular-nums text-pl-text">
+      {value} {unit && <span className="font-pl-sans text-xs font-normal text-pl-muted">{unit}</span>}
     </div>
-    {hint && <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">{hint}</div>}
+    {hint && <div className="text-[10px] text-pl-muted mt-0.5 leading-snug">{hint}</div>}
   </div>
 );
 
@@ -53,8 +53,8 @@ const DeclinePanel = () => {
 
   if (!currentField) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="py-10 text-center text-slate-500 text-sm">
+      <Card>
+        <CardContent className="py-10 text-center text-pl-muted text-sm">
           Select a field in the left rail to fit a decline.
         </CardContent>
       </Card>
@@ -77,23 +77,23 @@ const DeclinePanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <TrendingDown className="w-4 h-4 text-red-400" />
+            <TrendingDown className="w-4 h-4 text-pl-muted" />
             {wellName ? `${wellName} decline` : 'Decline overlay'}
-            <span className="text-xs font-normal text-slate-500">
+            <span className="text-xs font-normal text-pl-muted">
               {streamDef.label} ({streamDef.unit}), {dca.basis === 'producing' ? 'producing-day' : 'calendar-day'} basis
             </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {!dca.wellId ? (
-            <div className="h-72 flex items-center justify-center text-slate-500 text-sm">
+            <div className="h-72 flex items-center justify-center text-pl-muted text-sm">
               Pick a well in the left rail.
             </div>
           ) : dcaResult?.insufficient ? (
-            <div className="h-72 flex items-center justify-center text-slate-500 text-sm px-8 text-center">
+            <div className="h-72 flex items-center justify-center text-pl-muted text-sm px-8 text-center">
               Not enough usable points to fit a decline for this well and stream
               ({dcaResult.fitSeries.length} positive rate{dcaResult.fitSeries.length === 1 ? '' : 's'}; three are the minimum).
               No curve is drawn rather than a fabricated one.
@@ -135,7 +135,7 @@ const DeclinePanel = () => {
               </ComposedChart>
             </ChartFrame>
           ) : (
-            <div className="h-72 flex items-center justify-center text-slate-500 text-sm">
+            <div className="h-72 flex items-center justify-center text-pl-muted text-sm">
               No fit for this selection.
             </div>
           )}
@@ -143,7 +143,7 @@ const DeclinePanel = () => {
       </Card>
 
       {params && (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Fit</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -174,13 +174,13 @@ const DeclinePanel = () => {
               />
               <Stat label="Points fitted" value={fmt(dcaResult.fitSeries.length)} />
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-pl-muted">
               Forecast volume is the forecast horizon only, not cumulative production to date, and
               it stops at the economic limit when one is set. Segmented fits, type curves and
               probabilistic EUR live in the DCA Studio.
               <a
                 href="/dashboard/apps/reservoir/decline-curve-analysis"
-                className="ml-1 text-sky-400 hover:underline inline-flex items-center gap-1"
+                className="ml-1 text-pl-primary-text hover:text-pl-primary-text-hover hover:underline inline-flex items-center gap-1"
               >
                 Open DCA Studio <ExternalLink size={11} />
               </a>

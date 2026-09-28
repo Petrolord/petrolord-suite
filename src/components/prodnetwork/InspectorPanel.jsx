@@ -31,10 +31,10 @@ const WellInspector = ({ node }) => {
             value={node.spineWellId || ''}
             onValueChange={(v) => loadWellFromSpine(node.id, v)}
           >
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700">
+            <SelectTrigger className="h-9">
               <SelectValue placeholder="Not linked" />
             </SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectContent>
               {spineWells.map((w) => (<SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>))}
             </SelectContent>
           </Select>
@@ -42,18 +42,18 @@ const WellInspector = ({ node }) => {
       )}
 
       {solved && (
-        <div className="rounded border border-slate-800 bg-slate-950/50 p-3 space-y-1">
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+        <div className="rounded border border-pl-border bg-pl-sunken p-3 space-y-1">
+          <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">
             In this network
           </p>
-          <p className="text-lg font-semibold tabular-nums text-emerald-400">
-            {fmt(solved.qoStbd)} <span className="text-xs font-normal text-slate-500">stb/d</span>
+          <p className="text-lg font-semibold font-pl-mono tabular-nums text-pl-text">
+            {fmt(solved.qoStbd)} <span className="text-xs font-normal text-pl-muted">stb/d</span>
           </p>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-pl-muted">
             at {fmt(solved.whpPsia)} psia wellhead
           </p>
           {Number.isFinite(solved.qoAloneStbd) && (
-            <p className="text-[11px] text-amber-400">
+            <p className="text-[11px] text-pl-warning-text">
               On its own against the same separator it would make {fmt(solved.qoAloneStbd)} stb/d.
               The other wells are costing it {fmt(solved.qoAloneStbd - solved.qoStbd)} stb/d,{' '}
               {fmt(solved.lostFraction * 100, 1)} percent.
@@ -63,7 +63,7 @@ const WellInspector = ({ node }) => {
       )}
 
       <div className="space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">
           Producing conditions
         </p>
         {isGas ? (
@@ -85,7 +85,7 @@ const WellInspector = ({ node }) => {
             </Field>
           </div>
         )}
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           What the well is flowing today, so it stays with the network rather than going into the
           shared record. The wellhead pressure is NOT here: in a network nobody sets it, the
           network does.
@@ -94,11 +94,11 @@ const WellInspector = ({ node }) => {
 
       {problems.length > 0 && (
         <div className="space-y-1">
-          {problems.map((p) => (<p key={p} className="text-[11px] text-rose-400">{p}</p>))}
+          {problems.map((p) => (<p key={p} className="text-[11px] text-pl-danger-text">{p}</p>))}
         </div>
       )}
 
-      <div className="border-t border-slate-800 pt-3">
+      <div className="border-t border-pl-border pt-3">
         <SharedWellModelPanel
           inputs={node.model}
           setSection={(section, key, value) => setNodeModel(node.id, section, key, value)}
@@ -134,7 +134,7 @@ const JunctionInspector = ({ node }) => {
     <div className="space-y-3">
       <Field label="Name"><Text value={node.label} onChange={(v) => setNode(node.id, 'label', v)} /></Field>
       {Number.isFinite(p) && (
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-pl-muted">
           Solved at {fmt(p)} psia. Nothing is entered here: a header's pressure is a result, and it
           is the result every well on it is fighting.
         </p>
@@ -180,8 +180,8 @@ const BranchInspector = ({ branch }) => {
             value={branch.npsPick}
             onValueChange={(v) => applySchedule(branch.id, v, branch.schedulePick)}
           >
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
               {[...new Set(pipeSchedule.map((r) => r.nps))].map((n) => (
                 <SelectItem key={n} value={String(n)}>{n} inch</SelectItem>
               ))}
@@ -193,8 +193,8 @@ const BranchInspector = ({ branch }) => {
             value={branch.schedulePick}
             onValueChange={(v) => applySchedule(branch.id, branch.npsPick, v)}
           >
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
               {[...new Set(pipeSchedule.map((r) => r.schedule))].map((s) => (
                 <SelectItem key={s} value={s}>Schedule {s}</SelectItem>
               ))}
@@ -217,17 +217,17 @@ const BranchInspector = ({ branch }) => {
           <Num value={branch.tempF} onChange={(v) => setBranch(branch.id, 'tempF', v)} />
         </Field>
       </div>
-      <p className="text-[11px] text-slate-600">
+      <p className="text-[11px] text-pl-muted">
         The line temperature is an input here. Solving the thermal profile is what the Flow
         Assurance Studio does, on one line at a time and in far more detail than a network solve
         needs; taking a number from there and typing it here is the honest way round.
       </p>
 
-      <div className="border-t border-slate-800 pt-3 grid grid-cols-2 gap-2">
+      <div className="border-t border-pl-border pt-3 grid grid-cols-2 gap-2">
         <Field label="Grade">
           <Select value={branch.gradeId} onValueChange={(v) => setBranch(branch.id, 'gradeId', v)}>
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
               {grades.map((g) => (<SelectItem key={g.id} value={g.id}>{g.label}</SelectItem>))}
             </SelectContent>
           </Select>
@@ -237,7 +237,7 @@ const BranchInspector = ({ branch }) => {
         </Field>
       </div>
       {Number.isFinite(mawp) && (
-        <p className={`text-[11px] ${Number.isFinite(upstream) && upstream > mawp ? 'text-rose-400' : 'text-slate-500'}`}>
+        <p className={`text-[11px] ${Number.isFinite(upstream) && upstream > mawp ? 'text-pl-danger-text' : 'text-pl-muted'}`}>
           Barlow allows {fmt(mawp)} psi on this wall at that design factor.
           {Number.isFinite(upstream) && upstream > mawp
             ? ` The solved upstream pressure is ${fmt(upstream)} psia, which is over it.`
@@ -246,13 +246,13 @@ const BranchInspector = ({ branch }) => {
       )}
 
       {solved && (
-        <div className="border-t border-slate-800 pt-3 space-y-1">
-          <p className="text-[11px] text-slate-500">
+        <div className="border-t border-pl-border pt-3 space-y-1">
+          <p className="text-[11px] text-pl-muted">
             Carrying {fmt(solved.stream.qoStbd)} stb/d oil and {fmt(solved.stream.qwStbd)} stb/d
             water for {fmt(solved.dpPsi)} psi.
           </p>
           {solved.wctPct != null && (
-            <p className="text-[11px] text-slate-600">
+            <p className="text-[11px] text-pl-muted">
               Water cut in the line: {fmt(solved.wctPct, 1)} percent, which is the rate-weighted mix
               of whatever feeds it and not the average of their water cuts.
             </p>
@@ -270,7 +270,7 @@ const InspectorPanel = () => {
 
   if (!node && !branch) {
     return (
-      <p className="text-[11px] text-slate-600">
+      <p className="text-[11px] text-pl-muted">
         Pick a node or a line, on the drawing or in the list above.
       </p>
     );

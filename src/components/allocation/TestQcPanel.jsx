@@ -13,9 +13,9 @@ import { useAllocation } from '@/contexts/ProductionAllocationContext';
 const fmt = (v) => (Number.isFinite(v) ? Math.round(v).toLocaleString() : '--');
 
 const SEVERITY_STYLE = {
-  high: 'text-red-300 bg-red-500/10 border-red-500/40',
-  medium: 'text-amber-300 bg-amber-500/10 border-amber-500/40',
-  info: 'text-slate-300 bg-slate-800/60 border-slate-700/60',
+  high: 'text-pl-danger-text bg-pl-danger-bg border-pl-danger/40',
+  medium: 'text-pl-warning-text bg-pl-warning-bg border-pl-warning/40',
+  info: 'text-pl-text bg-pl-sunken border-pl-border',
 };
 
 const TestQcPanel = () => {
@@ -39,8 +39,8 @@ const TestQcPanel = () => {
 
   if (!currentField) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="py-10 text-center text-slate-500 text-sm">
+      <Card>
+        <CardContent className="py-10 text-center text-pl-muted text-sm">
           Select a field in the left rail to review its well tests.
         </CardContent>
       </Card>
@@ -48,11 +48,11 @@ const TestQcPanel = () => {
   }
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2 flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-sky-400" /> Well test QC
-          <span className="text-xs font-normal text-slate-500">
+          <ShieldCheck className="w-4 h-4 text-pl-muted" /> Well test QC
+          <span className="text-xs font-normal text-pl-muted">
             {counts.flagged} flagged of {counts.all}, {counts.rejected} rejected
           </span>
         </CardTitle>
@@ -77,12 +77,12 @@ const TestQcPanel = () => {
       </CardHeader>
       <CardContent>
         {tests.length === 0 ? (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-pl-muted">
             No well tests in this field yet. Import them on the Data tab, or from the Surveillance
             Studio; both write the same spine table.
           </p>
         ) : shown.length === 0 ? (
-          <p className="text-sm text-slate-500">No tests match this filter.</p>
+          <p className="text-sm text-pl-muted">No tests match this filter.</p>
         ) : (
           <div className="space-y-1.5 max-h-[32rem] overflow-y-auto pr-1">
             {shown.map((t) => {
@@ -91,25 +91,25 @@ const TestQcPanel = () => {
               return (
                 <div
                   key={t.id}
-                  className={`border rounded px-3 py-2 ${qc ? SEVERITY_STYLE[qc.severity] : 'border-slate-800 bg-slate-900'} ${rejected ? 'opacity-60' : ''}`}
+                  className={`border rounded px-3 py-2 ${qc ? SEVERITY_STYLE[qc.severity] : 'border-pl-border bg-pl-surface'} ${rejected ? 'opacity-60' : ''}`}
                 >
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap text-sm">
-                        <span className="font-semibold text-slate-100">{t.well?.name || 'Unknown well'}</span>
-                        <span className="text-slate-400">{t.test_date}</span>
+                        <span className="font-semibold text-pl-text">{t.well?.name || 'Unknown well'}</span>
+                        <span className="text-pl-muted">{t.test_date}</span>
                         {rejected && (
-                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-500/20 text-red-300">
+                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-pl-danger-bg text-pl-danger-text">
                             rejected
                           </span>
                         )}
                         {!qc && !rejected && (
-                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
+                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-pl-success-bg text-pl-success-text">
                             clean
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-slate-400 mt-0.5">
+                      <div className="text-xs text-pl-muted mt-0.5">
                         {fmt(t.oil_rate_stbd)} stb/d oil, {fmt(t.water_rate_stbd)} stb/d water,
                         {' '}{fmt(t.gas_rate_mscfd)} Mscf/d gas
                         {Number.isFinite(t.duration_hours) ? `, ${t.duration_hours} h` : ''}
@@ -134,21 +134,21 @@ const TestQcPanel = () => {
                       <div className="flex items-center gap-1 shrink-0">
                         {rejected ? (
                           <Button
-                            variant="ghost" size="sm" className="h-7 px-2 text-xs text-emerald-400"
+                            variant="ghost" size="sm" className="h-7 px-2 text-xs text-pl-primary-text"
                             onClick={() => setTestValid(t.id, true)}
                           >
                             <CheckCircle2 size={14} className="mr-1" /> Accept
                           </Button>
                         ) : (
                           <Button
-                            variant="ghost" size="sm" className="h-7 px-2 text-xs text-amber-400"
+                            variant="ghost" size="sm" className="h-7 px-2 text-xs text-pl-muted hover:text-pl-warning-text"
                             onClick={() => setTestValid(t.id, false)}
                           >
                             <XCircle size={14} className="mr-1" /> Reject
                           </Button>
                         )}
                         <Button
-                          variant="ghost" size="sm" className="h-7 px-2 text-slate-500 hover:text-red-400"
+                          variant="ghost" size="sm" className="h-7 px-2 text-pl-muted hover:text-pl-danger-text"
                           title="Delete this test"
                           onClick={() => {
                             if (window.confirm('Delete this well test?')) removeTest(t.id);
@@ -165,7 +165,7 @@ const TestQcPanel = () => {
           </div>
         )}
 
-        <p className="mt-3 text-[11px] text-slate-500">
+        <p className="mt-3 text-[11px] text-pl-muted">
           A rejected test carries no well in the allocation, and the next valid test before it takes
           over. If every test for a well is rejected, that well takes no allocation and the run says
           so rather than inventing a rate for it.

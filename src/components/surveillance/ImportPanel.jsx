@@ -30,7 +30,7 @@ const ReportBlock = ({ report }) => {
   const hasProblems = report.skipped.length > 0 || report.warnings.length > 0;
   if (!hasProblems) return null;
   return (
-    <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded px-3 py-2 space-y-1">
+    <div className="text-xs text-pl-warning-text bg-pl-warning-bg border border-pl-warning/40 rounded px-3 py-2 space-y-1">
       <div className="flex items-center gap-2 font-semibold"><FileWarning className="w-4 h-4" /> Import report</div>
       {report.warnings.map((w, i) => <div key={`w${i}`}>{w}</div>)}
       {report.skipped.slice(0, 8).map((s, i) => <div key={`s${i}`}>Row {s.row}: {s.reason}</div>)}
@@ -57,14 +57,14 @@ const Dropzone = ({ onText, disabled, title, hint }) => {
     <div
       {...getRootProps()}
       className={`border-2 border-dashed rounded-lg p-5 text-center transition-colors ${
-        disabled ? 'border-slate-800 opacity-50 cursor-not-allowed'
-          : isDragActive ? 'border-sky-500 bg-sky-500/10 cursor-pointer' : 'border-slate-700 hover:border-slate-500 cursor-pointer'
+        disabled ? 'border-pl-border opacity-50 cursor-not-allowed'
+          : isDragActive ? 'border-pl-info bg-pl-info-bg cursor-pointer' : 'border-pl-border hover:border-pl-border-strong cursor-pointer'
       }`}
     >
       <input {...getInputProps()} />
-      <Upload className="w-5 h-5 mx-auto text-slate-500 mb-2" />
-      <p className="text-sm text-slate-400">{title}</p>
-      <p className="text-xs text-slate-600 mt-1">{hint}</p>
+      <Upload className="w-5 h-5 mx-auto text-pl-muted mb-2" />
+      <p className="text-sm text-pl-muted">{title}</p>
+      <p className="text-xs text-pl-muted mt-1">{hint}</p>
     </div>
   );
 };
@@ -100,28 +100,28 @@ const ImportPanel = () => {
   };
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <Database className="w-4 h-4 text-sky-400" /> Production data
+          <Database className="w-4 h-4 text-pl-muted" /> Production data
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {!currentField && (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-pl-muted">
             Select or create a field in the left rail first. Fields hold the wells, the daily
             ledger, well tests and deferments, and every other production app reads the same data.
           </p>
         )}
         {currentField && !canEditField && (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-pl-muted">
             This field is shared with you read-only. Only its owner can import data.
           </p>
         )}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <h4 className="text-sm font-semibold text-slate-200">Daily production ledger</h4>
+            <h4 className="text-sm font-semibold text-pl-text">Daily production ledger</h4>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled={disabled}
                 onClick={() => handleDaily(dailyProductionTemplateCSV())}>
@@ -144,7 +144,7 @@ const ImportPanel = () => {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <h4 className="text-sm font-semibold text-slate-200">Well tests</h4>
+            <h4 className="text-sm font-semibold text-pl-text">Well tests</h4>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled={disabled}
                 onClick={() => handleTests(wellTestTemplateCSV())}>
@@ -166,7 +166,7 @@ const ImportPanel = () => {
         </div>
 
         {currentField && ledgerRows.length > 0 && (
-          <div className="flex items-start gap-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded px-3 py-2">
+          <div className="flex items-start gap-2 text-xs text-pl-success-text bg-pl-success-bg border border-pl-success/40 rounded px-3 py-2">
             <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
             <span>
               {ledgerRows.length.toLocaleString()} ledger rows across {wells.length} well{wells.length === 1 ? '' : 's'} in
