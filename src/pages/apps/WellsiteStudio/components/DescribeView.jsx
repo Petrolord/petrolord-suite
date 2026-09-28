@@ -142,17 +142,17 @@ export default function DescribeView({ backend, well, ctx, descriptions, sample 
   return (
     <div className="p-4 space-y-4" data-testid="ws-describe" onKeyDown={(e) => { if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && onKey(e, null)) e.preventDefault(); }}>
       <div className="flex items-center gap-3 flex-wrap">
-        <h2 className="text-sm font-semibold text-slate-100">Describe cuttings{sample ? <span className="text-cyan-300" data-testid="ws-desc-sample"> sample {sample.sample_no}</span> : null}</h2>
+        <h2 className="text-sm font-semibold text-pl-text">Describe cuttings{sample ? <span className="text-pl-muted" data-testid="ws-desc-sample"> sample {sample.sample_no}</span> : null}</h2>
         <div className="flex items-center gap-1 text-[11px]">
           {['quick', 'full'].map((m) => (
-            <button key={m} type="button" data-testid={`ws-desc-mode-${m}`} onClick={() => setMode2(m)} className={`px-2 py-0.5 rounded border ${mode === m ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}>{m}</button>
+            <button key={m} type="button" data-testid={`ws-desc-mode-${m}`} onClick={() => setMode2(m)} className={`px-2 py-0.5 rounded border ${mode === m ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}>{m}</button>
           ))}
-          <span className="text-slate-500 ml-2">F2 mode, Tab or Enter next field, Ctrl+Enter add component, Ctrl+D copy previous, Alt+n component n, Ctrl+S save, Esc discard</span>
+          <span className="text-pl-muted ml-2">F2 mode, Tab or Enter next field, Ctrl+Enter add component, Ctrl+D copy previous, Alt+n component n, Ctrl+S save, Esc discard</span>
         </div>
       </div>
       <div className="flex items-start gap-6 flex-wrap">
-        <div><div className="text-[10px] text-slate-500">Top</div><DepthEntry value={top} onChange={setTop} kind="lagged_sample" ctx={ctx} compact testIdPrefix="ws-desc-top" /></div>
-        <div><div className="text-[10px] text-slate-500">Base</div><DepthEntry value={base} onChange={setBase} kind="lagged_sample" ctx={ctx} compact testIdPrefix="ws-desc-base" /></div>
+        <div><div className="text-[10px] text-pl-muted">Top</div><DepthEntry value={top} onChange={setTop} kind="lagged_sample" ctx={ctx} compact testIdPrefix="ws-desc-top" /></div>
+        <div><div className="text-[10px] text-pl-muted">Base</div><DepthEntry value={base} onChange={setBase} kind="lagged_sample" ctx={ctx} compact testIdPrefix="ws-desc-base" /></div>
         <div className="pt-3">
           <Button size="sm" variant="outline" onClick={doCopyPrevious} disabled={!prevDesc} data-testid="ws-desc-copy-prev" title="Ctrl+D">Copy previous</Button>
         </div>
@@ -165,34 +165,34 @@ export default function DescribeView({ backend, well, ctx, descriptions, sample 
         ))}
         <div className="flex items-center gap-3">
           <Button size="sm" variant="outline" onClick={addComponent} data-testid="ws-desc-add" title="Ctrl+Enter">Add component</Button>
-          <span className={`text-[11px] ${Math.abs(sum - 100) <= 5 ? 'text-slate-400' : 'text-amber-400'}`} data-testid="ws-desc-sum">{sum}% of 100</span>
+          <span className={`text-[11px] ${Math.abs(sum - 100) <= 5 ? 'text-pl-muted' : 'text-pl-warning-text'}`} data-testid="ws-desc-sum">{sum}% of 100</span>
         </div>
       </div>
-      <label className="block text-[11px] text-slate-400">Comment
-        <input value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => { if (onKey(e, null)) e.preventDefault(); }} data-testid="ws-desc-comment" className="block w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100" />
+      <label className="block text-[11px] text-pl-muted">Comment
+        <input value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => { if (onKey(e, null)) e.preventDefault(); }} data-testid="ws-desc-comment" className="block w-full bg-pl-surface border border-pl-border-strong rounded px-2 py-1 text-xs text-pl-text" />
       </label>
-      <div className="rounded border border-slate-800 bg-slate-900/60 p-2 space-y-1">
-        <div className="text-[10px] uppercase tracking-wide text-slate-500">{profile.name} abbreviation</div>
-        <div className="text-xs text-cyan-200 font-mono" data-testid="ws-desc-abbrev">{abbrev.text || ''}</div>
-        {abbrev.fallbacks.length > 0 && <div className="text-[10px] text-amber-400" data-testid="ws-desc-fallbacks">{abbrev.fallbacks.length} term(s) shown from the Petrolord default because the operator profile has no entry.</div>}
-        <div className="text-[10px] uppercase tracking-wide text-slate-500 pt-1">Narrative</div>
-        <div className="text-xs text-slate-300" data-testid="ws-desc-narrative">{narr.text}</div>
+      <div className="rounded border border-pl-border bg-pl-surface p-2 space-y-1">
+        <div className="text-[10px] uppercase tracking-wide text-pl-muted">{profile.name} abbreviation</div>
+        <div className="text-xs text-pl-text font-pl-mono" data-testid="ws-desc-abbrev">{abbrev.text || ''}</div>
+        {abbrev.fallbacks.length > 0 && <div className="text-[10px] text-pl-warning-text" data-testid="ws-desc-fallbacks">{abbrev.fallbacks.length} term(s) shown from the Petrolord default because the operator profile has no entry.</div>}
+        <div className="text-[10px] uppercase tracking-wide text-pl-muted pt-1">Narrative</div>
+        <div className="text-xs text-pl-text" data-testid="ws-desc-narrative">{narr.text}</div>
       </div>
-      {(saveError || (!validation.ok && components.some((c) => c.lithology))) && <div className="text-[11px] text-amber-400" data-testid="ws-desc-error">{saveError || validation.errors[0]}</div>}
+      {(saveError || (!validation.ok && components.some((c) => c.lithology))) && <div className="text-[11px] text-pl-warning-text" data-testid="ws-desc-error">{saveError || validation.errors[0]}</div>}
       <div className="flex items-center gap-2">
         <Button size="sm" onClick={save} data-testid="ws-desc-save" title="Ctrl+S">Save description</Button>
         <Button size="sm" variant="ghost" onClick={reset} data-testid="ws-desc-discard" title="Esc">Discard</Button>
-        {copiedFrom && <span className="text-[11px] text-slate-500" data-testid="ws-desc-copied">copied from the previous description, {changed.length} field(s) changed</span>}
+        {copiedFrom && <span className="text-[11px] text-pl-muted" data-testid="ws-desc-copied">copied from the previous description, {changed.length} field(s) changed</span>}
       </div>
       <section>
-        <h3 className="text-xs font-semibold text-slate-200 mb-1">Recent descriptions</h3>
-        <table className="text-xs text-slate-300 w-full">
+        <h3 className="text-xs font-semibold text-pl-text mb-1">Recent descriptions</h3>
+        <table className="text-xs text-pl-text w-full">
           <tbody>
             {[...descriptions].reverse().slice(0, 12).map((d) => (
               <tr key={d.id} data-testid={`ws-desc-row-${d.id}`} className="align-top">
-                <td className="pr-3 whitespace-nowrap text-slate-500">{local(d.occurred_at)}</td>
+                <td className="pr-3 whitespace-nowrap text-pl-muted">{local(d.occurred_at)}</td>
                 <td className="pr-3 whitespace-nowrap">{fmtDepth(d.md_calc_m, unit)} to {fmtDepth(d.md2_calc_m, unit)}</td>
-                <td className="font-mono text-cyan-200/80">{abbreviate(descriptionOf(d), profile).text}</td>
+                <td className="font-pl-mono text-pl-text">{abbreviate(descriptionOf(d), profile).text}</td>
               </tr>
             ))}
           </tbody>

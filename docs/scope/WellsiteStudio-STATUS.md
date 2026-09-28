@@ -410,3 +410,31 @@ Ekene Alpha platform rig: setup sheet, a time-ordered shift log with the
 Lag panel readout after every entry, 19 samples with descriptions in the
 live vocabulary, three shows, observations, and the Ekene Sand called at
 the 1635.1 m drilling break.
+
+## 2026-09-28: design system rollout W4A (light default, dark per user)
+
+The Studio, its help guide and the `/dev/wellsite-studio` harness each
+wrap themselves in `ThemedApp` (App.jsx is untouched), so the app opens
+on the grey panel light theme and a new toggle at the right of the
+ribbon switches to dark and back, stored per user. The route prefix
+`/dashboard/apps/geoscience/wellsite-studio` (the help guide is a
+sub-path) is registered in `src/design/rollout/w4a.js`.
+
+- Chrome on roles: the ribbon, live wells list, every view (Live,
+  Samples, Describe, Shows, Observations, Photos, Tops, Timeline,
+  Handover, Report, Config, New well), the lag and approach dock, the
+  sync drawer and pill, the conflict resolver, members and sign-off moved
+  from slate and cyan to `pl-*` roles. Selected views and chips use the
+  primary tint; overdue samples, open events, conflicts, unresolved
+  vocabulary and validation messages use the warning role; rejected sync
+  entries use danger. Computed outputs (pump and booster rates, the
+  abbreviation, show summary) read as body text.
+- The ribbon wraps (at 1280 wide the view buttons take a second row),
+  so the toggle and dock button stay on screen.
+- `src/components/wells/RowGridEditor.jsx` is batch-local (only this
+  app and Well Data Manager use it) and moved straight to roles.
+- Tests: new `__tests__/WellsiteStudio.theme.test.jsx` (shared
+  `describeAppTheme` checks on the real workstation with the local
+  database and fake transport, every view light and dark, a competing
+  top call with the resolver, the sync drawer, the help guide). No
+  record, lag, sync or report logic changed.

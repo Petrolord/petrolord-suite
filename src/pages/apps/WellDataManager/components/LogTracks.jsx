@@ -147,7 +147,7 @@ export default function LogTracks({ tracks, height = 420 }) {
   }, [tracks, height]);
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto" data-canvas="chart">
       <canvas ref={canvasRef} data-testid="wdm-log-tracks" className="rounded border border-slate-300 bg-white" />
     </div>
   );

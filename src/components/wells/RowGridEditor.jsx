@@ -6,7 +6,7 @@
 import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 
-const cellCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs w-24';
+const cellCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-24';
 
 /**
  * @param {Object} p
@@ -26,7 +26,7 @@ export default function RowGridEditor({ columns, rows, onChange, testIdPrefix, c
       <table className="text-xs">
         <thead>
           <tr>
-            {columns.map((c) => <th key={c.key} className="text-left font-medium text-slate-500 pr-3 pb-1">{c.label}</th>)}
+            {columns.map((c) => <th key={c.key} className="text-left font-medium text-pl-muted pr-3 pb-1">{c.label}</th>)}
             {canAddRemove && <th />}
           </tr>
         </thead>
@@ -38,7 +38,7 @@ export default function RowGridEditor({ columns, rows, onChange, testIdPrefix, c
               {columns.map((c) => (
                 <td key={c.key} className="pr-3 py-0.5">
                   {c.readOnly ? (
-                    <span className="text-slate-500 font-mono" data-testid={`${testIdPrefix}-cell-${ri}-${c.key}`}>{r[c.key] ?? '—'}</span>
+                    <span className="text-pl-muted font-mono" data-testid={`${testIdPrefix}-cell-${ri}-${c.key}`}>{r[c.key] ?? '—'}</span>
                   ) : c.type === 'select' ? (
                     <select
                       className={cellCls}
@@ -64,7 +64,7 @@ export default function RowGridEditor({ columns, rows, onChange, testIdPrefix, c
               ))}
               {canAddRemove && (
                 <td>
-                  <button type="button" className="text-slate-500 hover:text-red-400" title="Remove row"
+                  <button type="button" className="text-pl-muted hover:text-pl-danger-text" title="Remove row"
                     onClick={() => delRow(ri)} data-testid={`${testIdPrefix}-del-${ri}`}
                   >
                     <Trash2 className="w-3 h-3" />
@@ -77,7 +77,7 @@ export default function RowGridEditor({ columns, rows, onChange, testIdPrefix, c
       </table>
       {canAddRemove && (
         <button type="button" data-testid={`${testIdPrefix}-add`}
-          className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 hover:bg-slate-800 text-xs"
+          className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-pl-border text-pl-muted hover:bg-pl-sunken text-xs"
           onClick={addRow}
         >
           <Plus className="w-3 h-3" /> Row

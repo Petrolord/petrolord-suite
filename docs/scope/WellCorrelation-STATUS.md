@@ -160,3 +160,21 @@ control offers "Stretch between two tops" and a Ghost curve section
 draws one well's first track on another column at a chosen shift. Two
 wave 3 follow-ups (ghost curve, a second flattening) are closed by ST2;
 horizon flattening and the TWT reference stay open.
+
+## 2026-09-28: design system rollout W4A (light default, dark per user)
+
+The page, its help guide and the `/dev/well-correlation` harness each
+wrap themselves in `ThemedApp`, so the app opens light and a new ribbon
+toggle switches to dark and back, stored per user. The route prefix
+`/dashboard/apps/geoscience/well-correlation` is registered in
+`src/design/rollout/w4a.js`.
+
+- Chrome on roles: the ribbon, section explorer, controls dock and
+  status bar moved from slate and cyan to `pl-*` roles; rename and delete
+  keep their meaning through the primary and danger roles.
+- The path map stays a dark canvas (`data-canvas="dark"`); the
+  cross-section is the shared wells kit and stays white log paper
+  (`data-canvas="chart"`) in both themes.
+- Tests: new `__tests__/WellCorrelation.theme.test.jsx` (shared checks,
+  an empty and a three-well section, dark, the help guide). No section,
+  tops or export change.

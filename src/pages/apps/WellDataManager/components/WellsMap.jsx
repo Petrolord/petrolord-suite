@@ -129,10 +129,11 @@ export default function WellsMap({ wells, selectedId, onSelect, height = 480 }) 
       <canvas
         ref={canvasRef}
         data-testid="wdm-map"
-        className="rounded border border-slate-800 cursor-pointer"
+        data-canvas="dark"
+        className="rounded-pl-canvas border border-pl-border cursor-pointer"
         onClick={pick}
       />
-      <p className="mt-1 text-[11px] text-slate-500">
+      <p className="mt-1 text-[11px] text-pl-muted">
         Surface locations (world metres). Amber = private, green = org-shared; click a well to open it.
       </p>
     </div>
