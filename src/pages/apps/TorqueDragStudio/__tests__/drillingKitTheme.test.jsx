@@ -14,6 +14,7 @@ import { MemoryRouter } from 'react-router-dom';
 import WellboreDetails from '../components/WellboreDetails';
 import Explorer from '../components/Explorer';
 import GeometryNotice from '../components/GeometryNotice';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const stations = Array.from({ length: 11 }, (_, i) => ({ md: i * 100, inc: Math.min(60, i * 6), azi: 90 }));
 const WELLBORE = {
@@ -63,6 +64,51 @@ describe('outside a scope the drilling kit renders exactly as on main', () => {
       openSurvey();
       expect(document.body.innerHTML).toMatchSnapshot();
       expect(document.body.innerHTML).not.toMatch(/-pl-|data-pl-theme/);
+    });
+  }
+});
+
+// Inside a scope: every legacy console colour in these files is gone.
+const LEGACY = /\b(?:bg|text|border)-(?:slate|cyan|amber|red|lime)-\d|text-white\b/;
+const renderThemed = (Scene, theme) => {
+  window.localStorage.clear();
+  const utils = render(
+    <MemoryRouter>
+      <ThemedApp userId="w0b" defaultTheme={theme}><Scene /></ThemedApp>
+    </MemoryRouter>,
+  );
+  openSurvey();
+  return utils;
+};
+
+describe('inside a scope the drilling kit uses theme roles', () => {
+  test('negative control: the legacy render does carry console colours', () => {
+    const Scene = drillingScenes['Explorer full selection'];
+    render(<MemoryRouter><Scene /></MemoryRouter>);
+    openSurvey();
+    expect(document.body.innerHTML).toMatch(LEGACY);
+  });
+
+  for (const theme of ['light', 'dark']) {
+    for (const [name, Scene] of Object.entries(drillingScenes)) {
+      test(`${theme}: ${name}`, () => {
+        const { container } = renderThemed(Scene, theme);
+        expect(container.querySelector('[data-pl-theme]')).toHaveAttribute('data-pl-theme', theme);
+        expect(container.innerHTML).not.toMatch(LEGACY);
+      });
+    }
+
+    test(`${theme}: status tones and selection map to roles`, () => {
+      renderThemed(drillingScenes['Explorer full selection'], theme);
+      expect(document.querySelector('[data-testid="hyd-traj-info"]').className).toMatch(/bg-pl-warning-bg text-pl-warning-text/);
+      expect(document.querySelector('[data-testid="hyd-wellbore-Lad"]').className).toMatch(/text-pl-primary-text/);
+      expect(document.querySelector('[data-testid="hyd-survey-table"] thead').className).toMatch(/bg-pl-sunken/);
+      cleanup();
+      renderThemed(drillingScenes['GeometryNotice none'], theme);
+      expect(document.querySelector('[data-testid="td-geometry-notice"]').className).toMatch(/bg-pl-danger-bg text-pl-danger-text/);
+      cleanup();
+      renderThemed(drillingScenes['WellboreDetails actual'], theme);
+      expect(document.querySelector('[data-testid="td-traj-info"]').className).toMatch(/text-pl-info-text/);
     });
   }
 });

@@ -19,14 +19,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { useThemeClass } from '@/design/themeClass';
 
-const Field = ({ label, hint, children }) => (
-  <div className="space-y-1">
-    <Label className="text-xs text-slate-400">{label}</Label>
-    {children}
-    {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
-  </div>
-);
+// Design system (rollout W0B): inside an opted-in app the panel drops its
+// dark console overrides so the adapted Input, Select and Textarea theme
+// themselves, and its own text uses roles. Outside a <ThemedApp> scope
+// tc() returns the legacy strings unchanged.
+const Field = ({ label, hint, children }) => {
+  const tc = useThemeClass();
+  return (
+    <div className="space-y-1">
+      <Label className={tc('text-xs text-slate-400', 'text-xs text-pl-muted')}>{label}</Label>
+      {children}
+      {hint && <p className={tc('text-[11px] text-slate-600', 'text-[11px] text-pl-muted')}>{hint}</p>}
+    </div>
+  );
+};
 
 /**
  * @param {object} inputs      the studio's inputs (well, fluid, inflow, completion)
@@ -47,13 +55,19 @@ const WellModelPanel = ({
   completionNote = null,
 }) => {
   const { well, inflow, fluid, completion = {} } = inputs;
+  const tc = useThemeClass();
+  const trigger = tc('h-9 bg-slate-800 border-slate-700 text-left [&>span]:truncate', 'h-9 text-left [&>span]:truncate');
+  const menu = tc('bg-slate-800 border-slate-700 text-slate-100', undefined);
+  const section = tc('border-t border-slate-800 pt-3 space-y-3', 'border-t border-pl-border pt-3 space-y-3');
+  const sectionTitle = tc('text-[10px] uppercase tracking-widest text-slate-500 font-bold', 'text-[10px] uppercase tracking-widest text-pl-muted font-bold');
+  const note = tc('text-[11px] text-slate-600', 'text-[11px] text-pl-muted');
   const NumberInput = ({ section, name, step = 'any' }) => (
     <Input
       type="number"
       step={step}
       value={inputs[section]?.[name] ?? ''}
       onChange={(e) => setSection(section, name, e.target.value)}
-      className="h-9 bg-slate-800 border-slate-700"
+      className={tc('h-9 bg-slate-800 border-slate-700', 'h-9')}
     />
   );
 
@@ -61,8 +75,8 @@ const WellModelPanel = ({
     <div className="space-y-4">
       <Field label="Trajectory">
         <Select value={well.mode} onValueChange={(v) => setSection('well', 'mode', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700 text-left [&>span]:truncate"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectTrigger className={trigger}><SelectValue /></SelectTrigger>
+          <SelectContent className={menu}>
             <SelectItem value="vertical">Vertical</SelectItem>
             <SelectItem value="deviated">Deviated survey</SelectItem>
           </SelectContent>
@@ -82,7 +96,7 @@ const WellModelPanel = ({
             rows={4}
             value={well.surveyText}
             onChange={(e) => setSection('well', 'surveyText', e.target.value)}
-            className="bg-slate-800 border-slate-700 font-mono text-xs"
+            className={tc('bg-slate-800 border-slate-700 font-mono text-xs', 'font-pl-mono text-xs')}
           />
         </Field>
       )}
@@ -92,23 +106,23 @@ const WellModelPanel = ({
         <Field label="Bottomhole temp (F)"><NumberInput section="well" name="bhtF" /></Field>
       </div>
 
-      <div className="border-t border-slate-800 pt-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Fluid</p>
+      <div className={section}>
+        <p className={sectionTitle}>Fluid</p>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Oil API"><NumberInput section="fluid" name="api" /></Field>
           <Field label="Gas gravity"><NumberInput section="fluid" name="gasSg" step="0.01" /></Field>
           <Field label="Producing GOR (scf/stb)"><NumberInput section="fluid" name="gor" /></Field>
           <Field label="Salinity (ppm)"><NumberInput section="fluid" name="salinityPpm" /></Field>
         </div>
-        {fluidNote && <p className="text-[11px] text-slate-600">{fluidNote}</p>}
+        {fluidNote && <p className={note}>{fluidNote}</p>}
       </div>
 
-      <div className="border-t border-slate-800 pt-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Inflow</p>
+      <div className={section}>
+        <p className={sectionTitle}>Inflow</p>
         <Field label="IPR model">
           <Select value={inflow.model} onValueChange={(v) => setSection('inflow', 'model', v)}>
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700 text-left [&>span]:truncate"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectTrigger className={trigger}><SelectValue /></SelectTrigger>
+            <SelectContent className={menu}>
               <SelectItem value="composite">Composite (Vogel below bubble point)</SelectItem>
               <SelectItem value="pi">Straight-line productivity index</SelectItem>
               <SelectItem value="vogel">Vogel</SelectItem>
@@ -121,8 +135,8 @@ const WellModelPanel = ({
         </div>
         <Field label="Calibration">
           <Select value={inflow.calMode} onValueChange={(v) => setSection('inflow', 'calMode', v)}>
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700 text-left [&>span]:truncate"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectTrigger className={trigger}><SelectValue /></SelectTrigger>
+            <SelectContent className={menu}>
               <SelectItem value="pi">Productivity index</SelectItem>
               {/* Absolute open flow calibrates a Vogel inflow and only a
                   Vogel inflow: the others are defined by a productivity
@@ -142,7 +156,7 @@ const WellModelPanel = ({
           <Field label="Qmax (stb/d)"><NumberInput section="inflow" name="qmax" /></Field>
         )}
         {inflow.calMode === 'qmax' && inflow.model !== 'vogel' && (
-          <p className="text-[11px] text-amber-300">
+          <p className={tc('text-[11px] text-amber-300', 'text-[11px] text-pl-warning-text')}>
             Absolute open flow calibrates a Vogel inflow. Pick a productivity index or a production
             test for this model, or change the model to Vogel.
           </p>
@@ -156,8 +170,8 @@ const WellModelPanel = ({
       </div>
 
       {showCompletion && (
-        <div className="border-t border-slate-800 pt-3 space-y-3">
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Completion</p>
+        <div className={section}>
+          <p className={sectionTitle}>Completion</p>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Tubing ID (in)"><NumberInput section="completion" name="idIn" step="0.001" /></Field>
             <Field label="Casing ID (in)"><NumberInput section="completion" name="casingIdIn" step="0.001" /></Field>
@@ -169,8 +183,8 @@ const WellModelPanel = ({
               value={completion.correlation}
               onValueChange={(v) => setSection('completion', 'correlation', v)}
             >
-              <SelectTrigger className="h-9 bg-slate-800 border-slate-700 text-left [&>span]:truncate"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+              <SelectTrigger className={trigger}><SelectValue /></SelectTrigger>
+              <SelectContent className={menu}>
                 <SelectItem value="beggsBrill">Beggs and Brill (Payne)</SelectItem>
                 <SelectItem value="hagedornBrown">Modified Hagedorn-Brown</SelectItem>
                 <SelectItem value="gray">Gray</SelectItem>
@@ -178,7 +192,7 @@ const WellModelPanel = ({
               </SelectContent>
             </Select>
           </Field>
-          {completionNote && <p className="text-[11px] text-slate-600">{completionNote}</p>}
+          {completionNote && <p className={note}>{completionNote}</p>}
         </div>
       )}
     </div>

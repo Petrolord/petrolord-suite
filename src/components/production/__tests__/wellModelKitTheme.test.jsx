@@ -12,6 +12,7 @@ import '@testing-library/jest-dom';
 import { render, fireEvent, cleanup, act } from '@testing-library/react';
 import WellModelPanel from '@/components/production/WellModelPanel';
 import WellModelSpinePanel from '@/components/production/WellModelSpinePanel';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 beforeAll(() => {
   global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
@@ -64,6 +65,48 @@ describe('outside a scope the production kit renders exactly as on main', () => 
       await openFirstSelect();
       expect(document.body.innerHTML).toMatchSnapshot('first select open');
       expect(document.body.innerHTML).not.toMatch(/-pl-|data-pl-theme/);
+    });
+  }
+});
+
+// Inside a scope: every legacy console colour in these files is gone, the
+// open select menu included (it is portalled, so check document.body).
+const LEGACY = /\b(?:bg|text|border)-(?:slate|amber|emerald)-\d|text-white\b/;
+const renderThemed = async (Scene, theme) => {
+  window.localStorage.clear();
+  const utils = render(<ThemedApp userId="w0b" defaultTheme={theme}><Scene /></ThemedApp>);
+  await openFirstSelect();
+  return utils;
+};
+
+describe('inside a scope the production kit uses theme roles', () => {
+  test('negative control: the legacy render does carry console colours', async () => {
+    const Scene = productionScenes['WellModelPanel vertical, PI, completion'];
+    render(<Scene />);
+    await openFirstSelect();
+    expect(document.body.innerHTML).toMatch(LEGACY);
+  });
+
+  for (const theme of ['light', 'dark']) {
+    for (const [name, Scene] of Object.entries(productionScenes)) {
+      test(`${theme}: ${name}`, async () => {
+        const { container } = await renderThemed(Scene, theme);
+        expect(container.querySelector('[data-pl-theme]')).toHaveAttribute('data-pl-theme', theme);
+        expect(document.body.innerHTML).not.toMatch(LEGACY);
+      });
+    }
+
+    test(`${theme}: fields, menus and status use roles`, async () => {
+      await renderThemed(productionScenes['WellModelPanel qmax on a non-Vogel model (warning)'], theme);
+      expect(document.body.innerHTML).toMatch(/text-pl-warning-text/);
+      expect(document.body.innerHTML).toMatch(/border-pl-border/);
+      const listbox = document.querySelector('[role="listbox"]');
+      expect(listbox).not.toBeNull();
+      // the menu takes the adapted Select's raised surface and the scope attribute
+      expect(listbox.closest('[data-pl-theme]')).toHaveAttribute('data-pl-theme', theme);
+      cleanup();
+      await renderThemed(productionScenes['WellModelSpinePanel saved, matches'], theme);
+      expect(document.body.innerHTML).toMatch(/text-pl-success/);
     });
   }
 });
