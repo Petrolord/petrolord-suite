@@ -1,6 +1,6 @@
 # Seismolord — STATUS
 
-Design system: pilot 4 migrated 2026-09-28 (light by default, dark per user; seismic, map, 3D and synthetics canvases stay dark in both themes).
+Design system: pilot 4 migrated 2026-09-28, PR #751 (light by default, dark per user; seismic, map, 3D and synthetics canvases stay dark in both themes).
 
 Last updated: 2026-09-23 (Dip azimuth from grid north, fast spectral decomposition; new attributes: edge, chaos, dip, azimuth, curvature, spectral decomposition, RAI; fault picking upgrade: noisy data, Fault likelihood volume, volume inputs; Tops to Horizons: well tops to a named horizon framework, automatic fault picking; large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
 

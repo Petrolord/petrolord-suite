@@ -250,7 +250,7 @@ themes.
   stay white via `data-canvas="chart"`. `studioKitLegacyDom.test.jsx` adds a
   whole-kit DOM fixture from pre-pilot main (tag, class, aria-label) as a
   second proof that other Studio apps are unchanged.
-- 2026-09-28: pilot 4, Seismolord, on `feat/ds-pilot-seismolord`. The dark
+- 2026-09-28: pilot 4, Seismolord, on `feat/ds-pilot-seismolord` (PR #751). The dark
   canvas pilot: section, map, 3D and synthetics canvases carry
   `data-canvas="dark"` and keep their legacy classes and pixels (2D canvas
   buffers hash-identical to main in both themes, WebGL screenshots identical
