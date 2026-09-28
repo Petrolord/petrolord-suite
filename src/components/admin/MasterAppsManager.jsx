@@ -30,7 +30,7 @@ export default function MasterAppsManager() {
     if (newVal) {
         const { success, error } = await logAppBuild(app.id, app.app_name, 'tested', desc);
         if (success) {
-            toast({ title: "Updated", description: "App marked as functional and logged.", className: "bg-green-600 text-white" });
+            toast({ title: "Updated", description: "App marked as functional and logged." });
             refresh();
         } else {
             toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -52,7 +52,7 @@ export default function MasterAppsManager() {
     if (newVal) {
          const { success, error } = await logAppBuild(app.id, app.app_name, 'created', desc);
          if (success) {
-            toast({ title: "Updated", description: "App marked as built and logged.", className: "bg-blue-600 text-white" });
+            toast({ title: "Updated", description: "App marked as built and logged." });
             refresh();
          }
     } else {
@@ -70,7 +70,6 @@ export default function MasterAppsManager() {
       toast({ 
         title: "Status Updated", 
         description: `App status changed to ${newStatus}.`,
-        className: "bg-green-600 text-white"
       });
     }
   };
@@ -92,89 +91,89 @@ export default function MasterAppsManager() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
         <div>
-          <h2 className="text-2xl font-bold text-white">Master App Registry</h2>
-          <p className="text-slate-400 text-sm">
+          <h2 className="text-2xl font-bold text-pl-text">Master App Registry</h2>
+          <p className="text-pl-muted text-sm">
             Global control center for application visibility, build status, and functionality.
             <br/>
-            <span className="text-amber-500 font-medium text-xs">Super Admin Mode: You are viewing ALL {totalCount} records.</span>
+            <span className="text-pl-warning-text font-medium text-xs">Super Admin Mode: You are viewing ALL {totalCount} records.</span>
           </p>
         </div>
-        <div className="flex gap-4">
-          <Card className="bg-slate-900 border-slate-800 py-2 px-4">
+        <div className="flex flex-wrap gap-4">
+          <Card className="py-2 px-4">
              <div className="flex items-center gap-2">
-                <Hammer className="text-blue-500 w-4 h-4"/>
-                <span className="text-xl font-bold text-white">{builtCount}</span>
-                <span className="text-xs text-slate-500 uppercase">Built</span>
+                <Hammer className="text-pl-muted w-4 h-4" aria-hidden="true"/>
+                <span className="text-xl font-bold font-pl-mono tabular-nums text-pl-text">{builtCount}</span>
+                <span className="text-xs text-pl-muted uppercase">Built</span>
              </div>
           </Card>
-          <Card className="bg-slate-900 border-slate-800 py-2 px-4">
+          <Card className="py-2 px-4">
              <div className="flex items-center gap-2">
-                <CheckCircle2 className="text-green-500 w-4 h-4"/>
-                <span className="text-xl font-bold text-white">{functionalCount}</span>
-                <span className="text-xs text-slate-500 uppercase">Functional</span>
+                <CheckCircle2 className="text-pl-success-text w-4 h-4" aria-hidden="true"/>
+                <span className="text-xl font-bold font-pl-mono tabular-nums text-pl-text">{functionalCount}</span>
+                <span className="text-xs text-pl-muted uppercase">Functional</span>
              </div>
           </Card>
         </div>
       </div>
 
-      <div className="flex gap-4 items-center bg-slate-900 p-4 rounded-lg border border-slate-800">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center bg-pl-surface p-4 rounded-lg border border-pl-border">
         <div className="relative flex-1">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-pl-muted" aria-hidden="true" />
             <Input 
                 placeholder="Search apps..." 
-                className="pl-8 bg-slate-950 border-slate-800"
+                className="pl-8"
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
             />
         </div>
         <Select value={filterModule} onValueChange={setFilterModule}>
-            <SelectTrigger className="w-[180px] bg-slate-950 border-slate-800">
+            <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter Module" />
             </SelectTrigger>
-            <SelectContent className="bg-slate-900 border-slate-800 text-white">
+            <SelectContent>
                 <SelectItem value="all">All Modules</SelectItem>
                 {modules.map(m => (
                     <SelectItem key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)}</SelectItem>
                 ))}
             </SelectContent>
         </Select>
-        <Button variant="outline" onClick={refresh} className="border-slate-700 hover:bg-slate-800">
+        <Button variant="outline" onClick={refresh}>
             Refresh
         </Button>
       </div>
 
-      <div className="rounded-md border border-slate-800 bg-slate-900 overflow-hidden">
+      <div className="rounded-md border border-pl-border bg-pl-surface overflow-hidden">
         <Table>
-          <TableHeader className="bg-slate-950">
-            <TableRow className="border-slate-800 hover:bg-slate-950">
-              <TableHead className="text-slate-400 w-[250px]">App Name</TableHead>
-              <TableHead className="text-slate-400">Module</TableHead>
-              <TableHead className="text-slate-400">Status</TableHead>
-              <TableHead className="text-slate-400 text-center">Is Built</TableHead>
-              <TableHead className="text-slate-400 text-center">Is Functional</TableHead>
-              <TableHead className="text-slate-400 text-right">Updated</TableHead>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[250px]">App Name</TableHead>
+              <TableHead>Module</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-center">Is Built</TableHead>
+              <TableHead className="text-center">Is Functional</TableHead>
+              <TableHead className="text-right">Updated</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
                 <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-slate-500">Loading registry...</TableCell>
+                    <TableCell colSpan={6} className="text-center py-8 text-pl-muted">Loading registry...</TableCell>
                 </TableRow>
             ) : filteredApps.length === 0 ? (
                 <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-slate-500">No apps found.</TableCell>
+                    <TableCell colSpan={6} className="text-center py-8 text-pl-muted">No apps found.</TableCell>
                 </TableRow>
             ) : (
                 filteredApps.map((app) => (
-                  <TableRow key={app.id} className={`border-slate-800 hover:bg-slate-800/50 ${!app.is_functional ? 'bg-red-950/10' : ''} ${!app.is_built ? 'opacity-70' : ''}`}>
-                    <TableCell className="font-medium text-slate-200">
+                  <TableRow key={app.id} className={`${!app.is_functional ? 'bg-pl-danger-bg/40' : ''} ${!app.is_built ? 'opacity-70' : ''}`}>
+                    <TableCell className="font-medium text-pl-text">
                         <div className="flex flex-col">
                             <span>{app.app_name}</span>
-                            {!app.is_built && <span className="text-[10px] text-amber-500">Pending Development</span>}
+                            {!app.is_built && <span className="text-[10px] text-pl-warning-text">Pending Development</span>}
                         </div>
                     </TableCell>
                     <TableCell>
-                        <Badge variant="secondary" className="bg-slate-800 text-slate-400 capitalize">
+                        <Badge variant="neutral" className="capitalize">
                             {app.module}
                         </Badge>
                     </TableCell>
@@ -183,10 +182,10 @@ export default function MasterAppsManager() {
                             defaultValue={app.status} 
                             onValueChange={(val) => handleStatusChange(app, val)}
                         >
-                            <SelectTrigger className="h-7 w-[130px] bg-slate-950 border-slate-800 text-xs">
+                            <SelectTrigger className="h-7 w-[130px] text-xs">
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                            <SelectContent>
                                 <SelectItem value="Active">Active</SelectItem>
                                 <SelectItem value="Coming Soon">Coming Soon</SelectItem>
                                 <SelectItem value="Maintenance">Maintenance</SelectItem>
@@ -199,9 +198,8 @@ export default function MasterAppsManager() {
                             <Switch 
                                 checked={app.is_built}
                                 onCheckedChange={() => handleToggleBuilt(app)}
-                                className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-slate-700"
                             />
-                            <span className="text-[10px] text-slate-500">{app.is_built ? 'Yes' : 'No'}</span>
+                            <span className="text-[10px] text-pl-muted">{app.is_built ? 'Yes' : 'No'}</span>
                         </div>
                     </TableCell>
                     <TableCell className="text-center">
@@ -209,12 +207,11 @@ export default function MasterAppsManager() {
                             <Switch 
                                 checked={app.is_functional}
                                 onCheckedChange={() => handleToggleFunctional(app)}
-                                className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-slate-700"
                             />
-                            <span className="text-[10px] text-slate-500">{app.is_functional ? 'Yes' : 'No'}</span>
+                            <span className="text-[10px] text-pl-muted">{app.is_functional ? 'Yes' : 'No'}</span>
                         </div>
                     </TableCell>
-                    <TableCell className="text-xs text-slate-500 text-right">
+                    <TableCell className="text-xs text-pl-muted text-right">
                         {new Date(app.updated_at).toLocaleDateString()}
                     </TableCell>
                   </TableRow>

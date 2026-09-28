@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info, CheckCircle } from "lucide-react";
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { AccountScope } from '@/components/account/accountChrome';
 
 const Profile = () => {
   const { user, loading: authLoading, setProfileSetupComplete } = useAuth();
@@ -113,8 +115,8 @@ const Profile = () => {
 
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-900 text-white">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-lime-400"></div>
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-pl-primary" role="status" aria-label="Loading"></div>
       </div>
     );
   }
@@ -127,24 +129,25 @@ const Profile = () => {
           <Helmet>
             <title>Profile Complete - Petrolord Suite</title>
           </Helmet>
-          <div className="flex items-center justify-center min-h-screen bg-slate-900 p-4">
-            <Card className="w-full max-w-md bg-slate-800 border-slate-700 text-white">
+          <div className="flex items-center justify-center min-h-screen p-4">
+            <Card className="w-full max-w-md">
               <CardHeader>
                 <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle className="h-8 w-8 text-lime-400" />
-                    <CardTitle className="text-2xl font-bold text-lime-400">You're All Set!</CardTitle>
+                    <CheckCircle className="h-8 w-8 shrink-0 text-pl-success-text" aria-hidden="true" />
+                    <CardTitle className="flex-1 text-2xl font-bold text-pl-text">You're All Set!</CardTitle>
+                    <ThemeToggle />
                 </div>
-                <CardDescription className="text-slate-400">
+                <CardDescription>
                   Your profile is complete. You can now access the dashboard.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                  <p className="text-slate-300 mb-4">
+                  <p className="text-pl-text mb-4">
                       We detected that your profile information is already saved.
                   </p>
                   <Button 
                     onClick={handleBackToDashboard} 
-                    className="w-full bg-lime-400 text-slate-900 hover:bg-lime-500 font-bold"
+                    className="w-full font-bold"
                   >
                     Go to Dashboard
                   </Button>
@@ -161,43 +164,45 @@ const Profile = () => {
         <title>{isOnboarding ? 'Complete Your Profile' : 'My Profile'} - Petrolord Suite</title>
         <meta name="description" content="Manage your Petrolord Suite profile and account settings." />
       </Helmet>
-      <div className="flex items-center justify-center min-h-screen bg-slate-900 p-4">
-        <Card className="w-full max-w-md bg-slate-800 border-slate-700 text-white">
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-3xl font-bold text-lime-400">{isOnboarding ? 'Complete Your Profile' : 'My Profile'}</CardTitle>
-            <CardDescription className="text-slate-400">
+            <div className="flex items-start justify-between gap-3">
+              <CardTitle className="text-3xl font-bold text-pl-text">{isOnboarding ? 'Complete Your Profile' : 'My Profile'}</CardTitle>
+              <ThemeToggle />
+            </div>
+            <CardDescription>
               {isOnboarding ? 'Set up your display name and password to get started.' : 'Manage your account settings.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {isOnboarding && (
-              <Alert className="mb-6 bg-slate-700 border-slate-600">
-                <Info className="h-4 w-4 text-lime-400" />
-                <AlertTitle className="text-white">Welcome to Petrolord!</AlertTitle>
-                <AlertDescription className="text-slate-300">
+              <Alert variant="info" className="mb-6">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Welcome to Petrolord!</AlertTitle>
+                <AlertDescription>
                   Please set up your profile to continue to the dashboard.
                 </AlertDescription>
               </Alert>
             )}
             <form onSubmit={handleUpdateProfile} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-300">Email</Label>
-                <Input id="email" type="email" value={user?.email || ''} disabled className="bg-slate-700 border-slate-600 text-slate-300" />
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" value={user?.email || ''} disabled />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="displayName" className="text-slate-300">Display Name</Label>
+                <Label htmlFor="displayName">Display Name</Label>
                 <Input
                   id="displayName"
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="bg-slate-700 border-slate-600 text-white"
                   required
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-slate-300">
+                <Label htmlFor="password">
                   {isOnboarding ? 'Set New Password' : 'Change Password (Optional)'}
                 </Label>
                 <Input
@@ -206,12 +211,11 @@ const Profile = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="bg-slate-700 border-slate-600 text-white"
                   required={isOnboarding}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-slate-300">
+                <Label htmlFor="confirmPassword">
                   {isOnboarding ? 'Confirm New Password' : 'Confirm Change'}
                 </Label>
                 <Input
@@ -220,18 +224,17 @@ const Profile = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="bg-slate-700 border-slate-600 text-white"
                   required={isOnboarding || password.length > 0}
                 />
               </div>
               
-               <Button type="submit" className="w-full bg-lime-400 text-slate-900 hover:bg-lime-500 font-semibold" disabled={loading}>
+               <Button type="submit" className="w-full font-semibold" disabled={loading}>
                 {loading ? 'Saving...' : 'Save Changes'}
               </Button>
             </form>
           </CardContent>
           <CardFooter className="flex justify-center">
-            <Button variant="link" onClick={handleBackToDashboard} className="text-slate-400 hover:text-white">
+            <Button variant="link" onClick={handleBackToDashboard}>
               Back to Dashboard
             </Button>
           </CardFooter>
@@ -241,4 +244,10 @@ const Profile = () => {
   );
 };
 
-export default Profile;
+const ProfilePage = () => (
+  <AccountScope testId="profile-theme-scope">
+    <Profile />
+  </AccountScope>
+);
+
+export default ProfilePage;

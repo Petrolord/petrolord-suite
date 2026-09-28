@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { ArrowRight, Activity, AlertTriangle, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
 
 const MobileDashboard = () => {
   const { user } = useAuth();
@@ -35,28 +36,28 @@ const MobileDashboard = () => {
     <div className="p-4 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-bold text-white">Hello, {user?.user_metadata?.full_name?.split(' ')[0] || 'User'}</h1>
-          <p className="text-sm text-slate-400">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+          <h1 className="text-xl font-bold text-pl-text">Hello, {user?.user_metadata?.full_name?.split(' ')[0] || 'User'}</h1>
+          <p className="text-sm text-pl-muted">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
         </div>
-        <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
+        <div className="h-10 w-10 rounded-full bg-pl-primary flex items-center justify-center text-pl-primary-fg font-bold">
             {user?.email?.[0].toUpperCase()}
         </div>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3">
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardContent className="p-4 flex flex-col items-center text-center">
-                <Activity className="w-6 h-6 text-blue-400 mb-2" />
-                <span className="text-2xl font-bold text-white">{stats.projects}</span>
-                <span className="text-xs text-slate-500">Active Projects</span>
+                <Activity className="w-6 h-6 text-pl-muted mb-2" aria-hidden="true" />
+                <span className="text-2xl font-bold font-pl-mono tabular-nums text-pl-text">{stats.projects}</span>
+                <span className="text-xs text-pl-muted">Active Projects</span>
             </CardContent>
         </Card>
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardContent className="p-4 flex flex-col items-center text-center">
-                <AlertTriangle className="w-6 h-6 text-red-400 mb-2" />
-                <span className="text-2xl font-bold text-white">{stats.risks}</span>
-                <span className="text-xs text-slate-500">Open Risks</span>
+                <AlertTriangle className="w-6 h-6 text-pl-muted mb-2" aria-hidden="true" />
+                <span className="text-2xl font-bold font-pl-mono tabular-nums text-pl-text">{stats.risks}</span>
+                <span className="text-xs text-pl-muted">Open Risks</span>
             </CardContent>
         </Card>
       </div>
@@ -64,26 +65,26 @@ const MobileDashboard = () => {
       {/* Recent Projects */}
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-            <h2 className="font-bold text-white">Recent Projects</h2>
-            <Link to="/mobile/projects" className="text-xs text-blue-400 flex items-center">View All <ArrowRight className="w-3 h-3 ml-1"/></Link>
+            <h2 className="font-bold text-pl-text">Recent Projects</h2>
+            <Link to="/mobile/projects" className="text-xs text-pl-primary-text hover:text-pl-primary-text-hover flex items-center">View All <ArrowRight className="w-3 h-3 ml-1"/></Link>
         </div>
         {recentProjects.map(p => (
             <Link to={`/mobile/projects/${p.id}`} key={p.id}>
-                <Card className="bg-slate-900 border-slate-800 mb-3 hover:bg-slate-800 transition-colors">
+                <Card className="mb-3 hover:bg-pl-sunken transition-colors">
                     <CardContent className="p-4">
                         <div className="flex justify-between items-start mb-2">
-                            <h3 className="font-semibold text-slate-200">{p.name}</h3>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                                p.status === 'Green' ? 'bg-green-900/50 text-green-400' : 
-                                p.status === 'Amber' ? 'bg-yellow-900/50 text-yellow-400' : 'bg-red-900/50 text-red-400'
-                            }`}>{p.status}</span>
+                            <h3 className="font-semibold text-pl-text">{p.name}</h3>
+                            <Badge variant={
+                                p.status === 'Green' ? 'success' :
+                                p.status === 'Amber' ? 'warning' : 'danger'
+                            } className="px-2 py-0.5 text-[10px]">{p.status}</Badge>
                         </div>
-                        <div className="flex justify-between text-xs text-slate-500 mb-2">
+                        <div className="flex justify-between text-xs text-pl-muted mb-2">
                             <span>{p.stage}</span>
                             <span>{p.percent_complete}%</span>
                         </div>
-                        <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-500" style={{ width: `${p.percent_complete}%` }} />
+                        <div className="h-1 bg-pl-sunken rounded-full overflow-hidden">
+                            <div className="h-full bg-pl-primary" style={{ width: `${p.percent_complete}%` }} />
                         </div>
                     </CardContent>
                 </Card>
@@ -93,10 +94,10 @@ const MobileDashboard = () => {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
-        <Button className="w-full bg-blue-600 hover:bg-blue-700" asChild>
+        <Button className="w-full" asChild>
             <Link to="/mobile/tasks">My Tasks</Link>
         </Button>
-        <Button variant="outline" className="w-full border-slate-700 text-slate-300" asChild>
+        <Button variant="outline" className="w-full" asChild>
             <Link to="/mobile/notifications">Notifications</Link>
         </Button>
       </div>

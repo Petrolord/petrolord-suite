@@ -60,13 +60,13 @@ export default function AdminModuleAccessDiagnostics() {
       fetchData();
   }, [user]);
 
-  if (!user) return <div className="p-8 text-white">Please log in.</div>;
+  if (!user) return <div className="p-8 text-pl-text">Please log in.</div>;
 
   return (
-    <div className="p-8 bg-slate-950 min-h-screen text-white">
-        <div className="flex justify-between items-center mb-8">
+    <div className="text-pl-text">
+        <div className="flex flex-wrap justify-between items-center gap-3 mb-8">
             <h1 className="text-2xl font-bold flex items-center gap-2">
-                <ShieldAlert className="text-red-500"/> Module Access Diagnostics
+                <ShieldAlert className="text-pl-primary-text" aria-hidden="true"/> Module Access Diagnostics
             </h1>
             <Button onClick={fetchData} disabled={loading}>
                 <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`}/> Refresh
@@ -76,49 +76,49 @@ export default function AdminModuleAccessDiagnostics() {
         <div className="grid gap-6">
             
             {/* Organization Overview */}
-            <Card className="bg-slate-900 border-slate-800">
+            <Card>
                 <CardHeader><CardTitle>Organization Overview</CardTitle></CardHeader>
-                <CardContent className="grid grid-cols-2 gap-4">
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <div className="text-slate-400 text-sm">Org Name</div>
+                        <div className="text-pl-muted text-sm">Org Name</div>
                         <div className="text-xl font-bold">{data.org?.name}</div>
                     </div>
                     <div>
-                        <div className="text-slate-400 text-sm">Org ID</div>
-                        <div className="font-mono text-sm text-slate-300">{data.org?.id}</div>
+                        <div className="text-pl-muted text-sm">Org ID</div>
+                        <div className="font-pl-mono text-sm text-pl-text break-all">{data.org?.id}</div>
                     </div>
                     <div>
-                        <div className="text-slate-400 text-sm">Total Members</div>
+                        <div className="text-pl-muted text-sm">Total Members</div>
                         <div className="text-xl font-bold">{data.userCount}</div>
                     </div>
                 </CardContent>
             </Card>
 
             {/* Subscription Table */}
-            <Card className="bg-slate-900 border-slate-800">
+            <Card>
                 <CardHeader><CardTitle>Main Subscription Record (Source of Truth)</CardTitle></CardHeader>
                 <CardContent>
                     {data.subscription ? (
-                        <div className="grid grid-cols-4 gap-4 p-4 bg-slate-950 rounded border border-slate-800">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-pl-sunken rounded border border-pl-border">
                             <div>
-                                <div className="text-slate-500 text-xs">Status</div>
-                                <Badge className="bg-green-600">{data.subscription.status}</Badge>
+                                <div className="text-pl-muted text-xs">Status</div>
+                                <Badge variant="success">{data.subscription.status}</Badge>
                             </div>
                             <div>
-                                <div className="text-slate-500 text-xs">User Limit (Seats)</div>
-                                <div className="text-2xl text-lime-400 font-bold">{data.subscription.user_limit}</div>
+                                <div className="text-pl-muted text-xs">User Limit (Seats)</div>
+                                <div className="text-2xl font-pl-mono tabular-nums text-pl-text font-bold">{data.subscription.user_limit}</div>
                             </div>
                             <div>
-                                <div className="text-slate-500 text-xs">Term</div>
+                                <div className="text-pl-muted text-xs">Term</div>
                                 <div className="capitalize">{data.subscription.term}</div>
                             </div>
                             <div>
-                                <div className="text-slate-500 text-xs">Modules Array</div>
-                                <div className="text-xs">{JSON.stringify(data.subscription.modules)}</div>
+                                <div className="text-pl-muted text-xs">Modules Array</div>
+                                <div className="text-xs font-pl-mono break-all">{JSON.stringify(data.subscription.modules)}</div>
                             </div>
                         </div>
                     ) : (
-                        <div className="text-red-400 p-4 border border-red-900 bg-red-900/10 rounded">
+                        <div role="alert" className="text-pl-danger-text p-4 border border-pl-danger/40 bg-pl-danger-bg rounded">
                             No Active Subscription Record Found!
                         </div>
                     )}
@@ -126,7 +126,7 @@ export default function AdminModuleAccessDiagnostics() {
             </Card>
 
             {/* Purchased Modules Table */}
-            <Card className="bg-slate-900 border-slate-800">
+            <Card>
                 <CardHeader><CardTitle>Purchased Modules (Granular Access)</CardTitle></CardHeader>
                 <CardContent>
                     <Table>
@@ -143,20 +143,20 @@ export default function AdminModuleAccessDiagnostics() {
                                 const isConsistent = data.subscription && pm.seats_allocated === data.subscription.user_limit;
                                 return (
                                     <TableRow key={pm.id}>
-                                        <TableCell className="font-mono">{pm.module_id}</TableCell>
-                                        <TableCell className="font-bold text-lg">{pm.seats_allocated}</TableCell>
+                                        <TableCell className="font-pl-mono">{pm.module_id}</TableCell>
+                                        <TableCell className="font-bold text-lg font-pl-mono tabular-nums">{pm.seats_allocated}</TableCell>
                                         <TableCell><Badge variant="outline">{pm.status}</Badge></TableCell>
                                         <TableCell>
                                             {isConsistent ? 
-                                                <span className="text-green-500 flex items-center text-xs"><CheckCircle className="w-3 h-3 mr-1"/> Matches Sub</span> :
-                                                <span className="text-red-500 flex items-center text-xs"><XCircle className="w-3 h-3 mr-1"/> Mismatch</span>
+                                                <span className="text-pl-success-text flex items-center text-xs"><CheckCircle className="w-3 h-3 mr-1"/> Matches Sub</span> :
+                                                <span className="text-pl-danger-text flex items-center text-xs"><XCircle className="w-3 h-3 mr-1"/> Mismatch</span>
                                             }
                                         </TableCell>
                                     </TableRow>
                                 )
                             })}
                             {data.purchasedModules.length === 0 && (
-                                <TableRow><TableCell colSpan={4} className="text-center text-slate-500">No purchased modules found.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={4} className="text-center text-pl-muted">No purchased modules found.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>

@@ -4,6 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 const MobileTasks = () => {
   const { user } = useAuth();
@@ -47,11 +48,11 @@ const MobileTasks = () => {
   });
 
   return (
-    <div className="p-4 space-y-4 bg-slate-950 min-h-full pb-24">
-        <h1 className="text-lg font-bold text-white">Tasks</h1>
+    <div className="p-4 space-y-4 min-h-full pb-24">
+        <h1 className="text-lg font-bold text-pl-text">Tasks</h1>
         
         <Tabs defaultValue="all" onValueChange={setFilter} className="w-full">
-            <TabsList className="w-full bg-slate-900">
+            <TabsList className="w-full">
                 <TabsTrigger value="all" className="flex-1">All</TabsTrigger>
                 <TabsTrigger value="todo" className="flex-1">To Do</TabsTrigger>
                 <TabsTrigger value="done" className="flex-1">Done</TabsTrigger>
@@ -60,26 +61,26 @@ const MobileTasks = () => {
 
         <div className="space-y-2 mt-4">
             {filteredTasks.map(task => (
-                <div key={task.id} className="flex items-start space-x-3 p-3 bg-slate-900 border border-slate-800 rounded-lg">
+                <div key={task.id} className="flex items-start space-x-3 p-3 bg-pl-surface border border-pl-border rounded-lg">
                     <Checkbox 
                         checked={task.status === 'Done'} 
                         onCheckedChange={() => toggleTask(task.id, task.status)}
-                        className="mt-1 border-slate-600 data-[state=checked]:bg-blue-600"
+                        className="mt-1"
                     />
                     <div className="flex-1">
-                        <p className={`text-sm font-medium ${task.status === 'Done' ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+                        <p className={`text-sm font-medium ${task.status === 'Done' ? 'text-pl-muted line-through' : 'text-pl-text'}`}>
                             {task.name}
                         </p>
-                        <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
+                        <div className="flex items-center gap-2 mt-1 text-xs text-pl-muted">
                             <Calendar className="w-3 h-3" />
                             <span>{new Date(task.planned_end_date).toLocaleDateString()}</span>
-                            {task.project_id && <span className="ml-auto text-[10px] bg-slate-800 px-1.5 rounded border border-slate-700">Proj</span>}
+                            {task.project_id && <Badge variant="neutral" className="ml-auto px-1.5 py-0 text-[10px]">Proj</Badge>}
                         </div>
                     </div>
                 </div>
             ))}
             {filteredTasks.length === 0 && (
-                <div className="text-center text-slate-500 mt-10 py-10">No tasks in this view.</div>
+                <div className="text-center text-pl-muted mt-10 py-10">No tasks in this view.</div>
             )}
         </div>
     </div>
