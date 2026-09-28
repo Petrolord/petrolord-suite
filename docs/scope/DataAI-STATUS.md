@@ -906,3 +906,26 @@ D1 `dataqc` NextGen course (slug `dataqc`, path_order 66) on the D1 engine and a
   `frozenHoursKey`); the Charts tab axes were wrapped components and never
   drew (factories now, guard test `wrappedAxes.test.js`); harness
   `/dev/data-quality-studio`.
+
+## 2026-09-28: Design system rollout w5f (all five studios)
+
+- Data Quality Studio, ML Workbench, Electrofacies Studio, Production
+  Forecasting ML Workbench and AI Evaluation Studio, with their help
+  guides, wrap themselves in `<ThemedApp>` (scopes `dataqc`, `mlwb`,
+  `facies`, `forecastml`, `aieval` plus `-help`). They open in the grey
+  panel light theme and switch to dark with the header toggle.
+- Page chrome, the data rail, panels, fields, tables and native selects are
+  on the `pl-*` roles; the gradient icon tile is the primary tile. The
+  scope is a flex column, so the rail and page background reach the bottom
+  of the window.
+- Status colour only for status: engine refusals danger, stale and
+  not-converged notes warning, busy bars info. The language-model helper
+  result keeps its "Model output, not graded" label on a warning panel.
+- Charts stay white (`data-canvas="chart"`), class colours and series
+  unchanged. Confusion matrices and heat-style tables are plain numeric
+  tables on the panel roles, every count printed.
+- `components/dataai/quality/shared.jsx` is used only by these five apps,
+  so it moved straight to roles. No engine, ENGINE_COMMIT pin or
+  calculation change. Routes in `src/design/rollout/w5f.js`. Theme test:
+  `src/pages/apps/__tests__/DataAiStudios.theme.test.jsx` (tabs in light
+  and dark, saved-run dialog, help guides, result states on test data).
