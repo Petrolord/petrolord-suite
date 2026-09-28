@@ -12,11 +12,11 @@ const num = (v) => {
   const x = parseFloat(v);
   return Number.isFinite(x) ? x : 0;
 };
-const cell = 'h-8 bg-slate-950 border-slate-700 text-xs text-slate-200';
+const cell = 'h-8 text-xs';
 
 function Param({ label, value, onChange, testId, width = 'w-24' }) {
   return (
-    <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-slate-500">
+    <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-pl-muted">
       {label}
       <Input type="number" step="any" className={`${cell} ${width} text-right`} value={value}
         onChange={(e) => onChange(num(e.target.value))} data-testid={testId} />
@@ -47,10 +47,10 @@ export default function InputsTab({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
-      <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">Log source</h3>
+      <div className="rounded-lg border border-pl-border bg-pl-surface p-3">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-pl-text">Log source</h3>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-slate-500">
+          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-pl-muted">
             Registry well
             <Select value={source.geoWellId || ''} onValueChange={(id) => setSource({ geoWellId: id })}>
               <SelectTrigger className={`${cell} w-56`} data-testid="gm-geowell"><SelectValue placeholder="pick a well" /></SelectTrigger>
@@ -59,7 +59,7 @@ export default function InputsTab({
               </SelectContent>
             </Select>
           </label>
-          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-slate-500">
+          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-pl-muted">
             Pore pressure source
             <Select value={source.ppSource || 'hydrostatic'} onValueChange={(v) => setSource({ ppSource: v })}>
               <SelectTrigger className={`${cell} w-56`} data-testid="gm-ppsource"><SelectValue /></SelectTrigger>
@@ -70,15 +70,15 @@ export default function InputsTab({
               </SelectContent>
             </Select>
           </label>
-          <Button size="sm" className="h-8 bg-lime-500 text-slate-900 hover:bg-lime-600" onClick={onLoadCurves} disabled={loading || !source.geoWellId} data-testid="gm-load">
+          <Button size="sm" className="h-8" onClick={onLoadCurves} disabled={loading || !source.geoWellId} data-testid="gm-load">
             <Database className="mr-1 h-3.5 w-3.5" /> {loading ? 'Loading…' : 'Load curves'}
           </Button>
-          {error && <span className="text-xs text-red-400">{error}</span>}
+          {error && <span className="text-xs text-pl-danger-text">{error}</span>}
         </div>
         {curveStatus && (
           <div className="mt-2 flex flex-wrap gap-2 text-[10px]" data-testid="gm-curve-status">
             {Object.entries(curveStatus).map(([k, ok]) => (
-              <span key={k} className={`rounded px-1.5 py-0.5 ${ok ? 'bg-lime-900/50 text-lime-300' : 'bg-slate-800 text-slate-500'}`}>
+              <span key={k} className={`rounded px-1.5 py-0.5 ${ok ? 'bg-pl-primary/10 text-pl-primary-text' : 'bg-pl-sunken text-pl-muted'}`}>
                 {k}: {ok ? 'found' : 'missing'}
               </span>
             ))}
@@ -86,9 +86,9 @@ export default function InputsTab({
         )}
       </div>
 
-      <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+      <div className="rounded-lg border border-pl-border bg-pl-surface p-3">
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-300">Geomechanical parameters</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-pl-text">Geomechanical parameters</h3>
           <Select value={params.lithology || ''} onValueChange={applySeed}>
             <SelectTrigger className={`${cell} w-40`}><SelectValue placeholder="lithology seed" /></SelectTrigger>
             <SelectContent>
@@ -111,7 +111,7 @@ export default function InputsTab({
             onChange={(v) => setParams({ ePa: v > 0 ? v * 1e9 : null })} />
           <Param label="SHmax azimuth (deg)" value={params.shmaxAzimuthDeg ?? 0}
             onChange={(v) => setParams({ shmaxAzimuthDeg: v })} testId="gm-shazi" />
-          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-slate-500">
+          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-pl-muted">
             Regime
             <Select value={params.regime || 'NF'} onValueChange={(v) => setParams({ regime: v })}>
               <SelectTrigger className={`${cell} w-24`}><SelectValue /></SelectTrigger>
@@ -122,7 +122,7 @@ export default function InputsTab({
               </SelectContent>
             </Select>
           </label>
-          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-slate-500">
+          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-pl-muted">
             UCS correlation
             <Select value={params.ucs?.correlation || 'horsrud'}
               onValueChange={(v) => setParams({ ucs: { ...(params.ucs || {}), correlation: v } })}>

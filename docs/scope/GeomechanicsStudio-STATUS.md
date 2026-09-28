@@ -89,3 +89,29 @@ supersedes the D0-archived Wellbore Stability Analyzer. Built 2026-08-27
   and poroelastic wall effects, anisotropy, image-log calibration, 3D
   MEM, salt creep.
 - D6 (Casing & Tubing Design Studio upgrade) is next in roadmap order.
+
+## Design system rollout, batch 3E (2026-09-28)
+
+Geomechanics & Wellbore Stability Studio and its help guide open on the Petrolord design system: light
+grey panel by default, dark as a per-user choice from the ribbon toggle
+(beside Help).
+
+- Scope: `ThemedApp` inside `GmWorkstation.jsx` (so the route page and the
+  `/dev/geomechanics` harness share it) and `GeomechanicsHelpGuide.jsx`; App.jsx unchanged.
+  Cold-load prefix `/dashboard/apps/drilling/geomechanics-studio` in `src/design/rollout/w3e.js`
+  (covers `/help`).
+- Own classes moved to `pl-*` roles: ribbon, tabs, status bar, panels,
+  KPI tiles, tables and fields. The primary action is the default Button
+  (lime fills gone); warnings, errors and the curve-status status marks use the
+  status roles only; numbers read in the mono face.
+- Charts stay white (`data-canvas="chart"` on the chart frames) in both
+  themes. The studio has no schematic or 3D view, so no dark canvas.
+- The drilling kit (`TorqueDragStudio/components` Explorer,
+  WellboreDetails, GeometryNotice) is on theme roles only: with this
+  batch every one of its eleven consumers wraps itself in `ThemedApp`, so
+  the W0B legacy branch and its legacy-DOM snapshots were removed.
+- The workstation stays desktop-targeted: below 1100 px the workspace
+  scrolls inside its frame, with no page-level sideways scroll.
+- Test: `GeomechanicsStudio/__tests__/GeomechanicsStudio.theme.test.jsx` (the shared four checks, every ribbon tab with a run and
+  its charts, a dark-first open, the help guide). No engine or calculation
+  change.

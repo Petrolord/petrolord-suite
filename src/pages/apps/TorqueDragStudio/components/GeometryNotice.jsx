@@ -10,7 +10,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Info } from 'lucide-react';
-import { useThemeClass } from '@/design/themeClass';
 
 export function geometrySourceOf(geometryRow) {
   if (!geometryRow) return 'loading';
@@ -27,16 +26,16 @@ export function geometryStatusText(geometryRow) {
 }
 
 export default function GeometryNotice({ geometryRow, testPrefix = 'td', showTorqueDragLink = true }) {
-  // Design system (rollout W0B): status roles inside an opted-in app; outside
-  // a <ThemedApp> scope tc() returns the legacy strings unchanged.
-  const tc = useThemeClass();
+  // Design system: status roles only. Every studio that mounts the notice
+  // wraps itself in <ThemedApp> since rollout batch 3E, so the legacy
+  // branch from W0B is gone.
   const source = geometrySourceOf(geometryRow);
   if (source === 'loading' || source === 'geometry' || !geometryRow?.note) return null;
   const none = source === 'none';
-  const link = tc('underline hover:text-white', 'underline hover:text-pl-text');
+  const link = 'underline hover:text-pl-text';
   return (
     <div
-      className={`flex items-start gap-2 border-b px-3 py-1.5 text-[11px] ${none ? tc('border-red-900/60 bg-red-950/40 text-red-200', 'border-pl-danger/40 bg-pl-danger-bg text-pl-danger-text') : tc('border-amber-900/60 bg-amber-950/30 text-amber-200', 'border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text')}`}
+      className={`flex items-start gap-2 border-b px-3 py-1.5 text-[11px] ${none ? 'border-pl-danger/40 bg-pl-danger-bg text-pl-danger-text' : 'border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text'}`}
       data-testid={`${testPrefix}-geometry-notice`} data-source={source}
     >
       {none ? <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />}

@@ -42,32 +42,32 @@ export default function SensitivityTab({ stations, caseDraft, geometryRow, depth
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
       <div className="flex items-center gap-2">
         <Select value={operation} onValueChange={setOperation}>
-          <SelectTrigger className="h-8 w-48 bg-slate-950 border-slate-700 text-xs text-slate-200"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-8 w-48 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             {OPERATIONS.map((op) => <SelectItem key={op} value={op}>{OP_LABELS[op] || op}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button size="sm" className="h-8 bg-lime-500 text-slate-900 hover:bg-lime-600" onClick={sweep} disabled={busy} data-testid="td-sweep">
+        <Button size="sm" className="h-8" onClick={sweep} disabled={busy} data-testid="td-sweep">
           <Grid3X3 className="mr-1 h-3.5 w-3.5" /> {busy ? 'Sweeping…' : 'Sweep friction factors'}
         </Button>
-        {error && <span className="text-xs text-red-400">{error}</span>}
+        {error && <span className="text-xs text-pl-danger-text">{error}</span>}
       </div>
       {rows && (
-        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-          <div className="mb-2 text-[10px] uppercase tracking-wide text-slate-500">
+        <div className="rounded-lg border border-pl-border bg-pl-surface p-3">
+          <div className="mb-2 text-[10px] uppercase tracking-wide text-pl-muted">
             {showTorque ? `Surface torque (${torqueLabel(depthUnit)})` : `Hookload (${forceLabel(depthUnit)})`}. Rows: FF cased, columns: FF open
           </div>
-          <table className="text-xs text-slate-300" data-testid="td-sweep-table">
+          <table className="font-pl-mono text-xs tabular-nums text-pl-text" data-testid="td-sweep-table">
             <thead>
               <tr>
-                <th className="p-1 pr-3 text-left text-[10px] text-slate-500">cased \ open</th>
-                {SWEEP.map((o) => <th key={o} className="p-1 px-3 text-right text-[10px] text-slate-500">{o.toFixed(2)}</th>)}
+                <th className="p-1 pr-3 text-left text-[10px] text-pl-muted">cased \ open</th>
+                {SWEEP.map((o) => <th key={o} className="p-1 px-3 text-right text-[10px] text-pl-muted">{o.toFixed(2)}</th>)}
               </tr>
             </thead>
             <tbody>
               {SWEEP.map((c) => (
-                <tr key={c} className="border-t border-slate-800">
-                  <td className="p-1 pr-3 text-[10px] text-slate-500">{c.toFixed(2)}</td>
+                <tr key={c} className="border-t border-pl-border">
+                  <td className="p-1 pr-3 text-[10px] text-pl-muted">{c.toFixed(2)}</td>
                   {SWEEP.map((o) => {
                     const r = rows.find((x) => x.cased === c && x.open === o);
                     return <td key={o} className="p-1 px-3 text-right">{r ? cellValue(r) : '--'}</td>;

@@ -17,7 +17,7 @@ const axisProps = {
 
 function Frame({ title, testId, children }) {
   return (
-    <div className="bg-white relative flex h-full w-full min-h-0 min-w-0 flex-col rounded-md overflow-hidden" data-testid={testId}>
+    <div className="bg-white relative flex h-full w-full min-h-0 min-w-0 flex-col rounded-md overflow-hidden" data-canvas="chart" data-testid={testId}>
       <div className="px-3 pt-2 text-[11px] font-semibold text-slate-700">{title}</div>
       <div className="min-h-0 flex-1">{children}</div>
       <ChartLogo style={{ height: 36 }} />
@@ -134,7 +134,7 @@ export function MudWindowChart({ window: win, depthUnit }) {
       </ResponsiveContainer>
     </Frame>
     {clipped ? (
-      <p className="mt-1 text-[10px] text-slate-500" data-testid="gm-window-clipped">
+      <p className="mt-1 text-[10px] text-pl-muted" data-testid="gm-window-clipped">
         Near surface the fracture initiation (and collapse) values run beyond {xMax.toFixed(1)} {emwLabel(depthUnit)} and are clipped at the axis edge; the CSV carries every value.
       </p>
     ) : null}

@@ -6,6 +6,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Home, HelpCircle, Save } from 'lucide-react';
@@ -40,7 +42,7 @@ function defaultCase(wellboreId, designId, geoWellId) {
   };
 }
 
-export default function GmWorkstation({ backend }) {
+function GmWorkstationContent({ backend }) {
   const { toast } = useToast();
   const [sites, setSites] = useState(null);
   const [siteId, setSiteId] = useState(null);
@@ -255,15 +257,15 @@ export default function GmWorkstation({ backend }) {
   };
 
   const ribbon = (
-    <div className="flex h-11 items-center gap-3 border-b border-slate-800 bg-slate-900/80 px-3">
-      <Link to="/dashboard/drilling" className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200">
+    <div className="flex h-11 items-center gap-3 border-b border-pl-border bg-pl-surface px-3">
+      <Link to="/dashboard/drilling" className="flex items-center gap-1 text-xs text-pl-muted hover:text-pl-text">
         <Home className="h-3.5 w-3.5" /> Drilling
       </Link>
-      <span className="text-sm font-semibold text-slate-100">Geomechanics & Wellbore Stability Studio</span>
+      <span className="text-sm font-semibold text-pl-text">Geomechanics & Wellbore Stability Studio</span>
       <div className="ml-2 flex gap-1">
         {TABS.map((t) => (
           <button key={t.id} type="button" onClick={() => setTab(t.id)} data-testid={`gm-tab-${t.id}`}
-            className={`rounded px-2.5 py-1 text-xs ${tab === t.id ? 'bg-lime-500/20 text-lime-300' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}>
+            className={`rounded px-2.5 py-1 text-xs ${tab === t.id ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-muted hover:bg-pl-sunken hover:text-pl-text'}`}>
             {t.label}
           </button>
         ))}
@@ -274,15 +276,16 @@ export default function GmWorkstation({ backend }) {
             <Save className="mr-1 h-3 w-3" /> Save case
           </Button>
         )}
-        <Link to="/dashboard/apps/drilling/geomechanics-studio/help" className="flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-[11px] text-cyan-300 hover:bg-slate-700">
+        <Link to="/dashboard/apps/drilling/geomechanics-studio/help" className="flex items-center gap-1 rounded border border-pl-border bg-pl-sunken px-2 py-1 text-[11px] text-pl-text hover:border-pl-primary hover:text-pl-primary-text">
           <HelpCircle className="h-3 w-3" /> Help
         </Link>
+        <ThemeToggle className="h-7 w-7" />
       </div>
     </div>
   );
 
   const statusBar = (
-    <div className="flex h-6 items-center gap-4 border-t border-slate-800 bg-slate-900/80 px-3 text-[10px] text-slate-500">
+    <div className="flex h-6 items-center gap-4 border-t border-pl-border bg-pl-surface px-3 text-[10px] text-pl-muted">
       <span>{GM_ENGINE_VERSION}</span>
       <span data-testid="gm-status-wellbore">{wellbore ? `${wellbore.name} (${depthUnit})` : 'no wellbore'}</span>
       <span>{curves ? 'curves loaded' : 'no curves'}</span>
@@ -291,11 +294,11 @@ export default function GmWorkstation({ backend }) {
   );
 
   const center = !caseDraft ? (
-    <div className="flex h-full items-center justify-center text-sm text-slate-500" data-testid="gm-empty">
+    <div className="flex h-full items-center justify-center text-sm text-pl-muted" data-testid="gm-empty">
       {wellboreId ? 'Create a MEM case from the explorer.' : 'Pick a site and wellbore.'}
     </div>
   ) : (
-    <div className="h-full min-h-0 bg-slate-950">
+    <div className="h-full min-h-0 bg-pl-bg">
       {tab === 'inputs' && (
         <InputsTab caseDraft={caseDraft} onCaseChange={onCaseChange}
           geoWells={geoWells} curveStatus={curves?.status ?? null}
@@ -334,5 +337,16 @@ export default function GmWorkstation({ backend }) {
       autoSaveId="geomechanics-studio.workspace.v1"
       minWidth={1100}
     />
+  );
+}
+
+// Design system rollout batch 3E: Geomechanics & Wellbore Stability Studio
+// opens light and follows the user's theme choice from the ribbon toggle. The route page and the /dev
+// harness both mount this component, so they share the one scope.
+export default function GmWorkstation(props) {
+  return (
+    <ThemedApp className="h-full" data-testid="gm-theme-scope">
+      <GmWorkstationContent {...props} />
+    </ThemedApp>
   );
 }

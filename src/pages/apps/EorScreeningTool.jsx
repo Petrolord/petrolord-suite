@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import ChartFrame from '@/components/charts/ChartFrame';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
@@ -37,9 +39,9 @@ const FIELDS = [
 ];
 
 const STATUS_META = {
-  pass: { icon: CheckCircle2, cls: 'text-emerald-600', chip: 'bg-emerald-500/15 text-emerald-300 border-emerald-600/40' },
-  fail: { icon: XCircle, cls: 'text-red-600', chip: 'bg-red-500/15 text-red-300 border-red-600/40' },
-  na: { icon: MinusCircle, cls: 'text-slate-400', chip: 'bg-slate-500/15 text-slate-400 border-slate-600/40' },
+  pass: { icon: CheckCircle2, cls: 'text-pl-success-text', chip: 'bg-pl-success-bg text-pl-success-text border-pl-success/40' },
+  fail: { icon: XCircle, cls: 'text-pl-danger-text', chip: 'bg-pl-danger-bg text-pl-danger-text border-pl-danger/40' },
+  na: { icon: MinusCircle, cls: 'text-pl-muted', chip: 'bg-pl-sunken text-pl-muted border-pl-border' },
 };
 
 const num = (v) => {
@@ -47,7 +49,7 @@ const num = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
-export default function EorScreeningTool() {
+function EorScreeningContent() {
   const sample = useMemo(() => sampleEorScreeningData(), []);
   const [form, setForm] = useState(() =>
     Object.fromEntries(Object.entries(sample).map(([k, v]) => [k, String(v)])));
@@ -83,25 +85,26 @@ export default function EorScreeningTool() {
       </Helmet>
       <div className="p-4 md:p-8 h-full flex flex-col">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-6">
-          <div className="flex items-center space-x-4 mb-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-4">
             <Link to="/dashboard/reservoir">
-              <Button variant="outline" size="sm" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
+              <Button variant="outline" size="sm">
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back to Reservoir Management
               </Button>
             </Link>
             <Link to="/dashboard/apps/reservoir/eor-screening/help">
-              <Button variant="outline" size="sm" className="border-cyan-400/50 text-cyan-200 hover:bg-cyan-500/20">
+              <Button variant="outline" size="sm">
                 <HelpCircle className="w-4 h-4 mr-2" /> Help guide
               </Button>
             </Link>
+            <ThemeToggle className="ml-auto" />
           </div>
           <div className="flex items-center space-x-4">
-            <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-3 rounded-xl">
-              <FlaskConical className="w-8 h-8 text-white" />
+            <div className="bg-pl-primary p-3 rounded-xl shrink-0">
+              <FlaskConical className="w-8 h-8 text-pl-primary-fg" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-4xl font-bold text-white">EOR Screening</h1>
-              <p className="text-lime-200 text-md md:text-lg">
+              <h1 className="text-2xl md:text-4xl font-bold text-pl-text">EOR Screening</h1>
+              <p className="text-pl-muted text-md md:text-lg">
                 Technical screening on the published Taber, Martin &amp; Seright (1997) criteria
               </p>
             </div>
@@ -110,26 +113,26 @@ export default function EorScreeningTool() {
 
         <div className="flex flex-col xl:flex-row gap-6 flex-grow min-h-0">
           {/* Inputs */}
-          <Card className="bg-slate-900/70 border-slate-800 xl:w-80 shrink-0 h-fit">
+          <Card className="xl:w-80 shrink-0 h-fit">
             <CardHeader className="pb-3">
-              <CardTitle className="text-white text-base flex items-center gap-2">
-                <Beaker className="w-4 h-4 text-lime-300" /> Reservoir &amp; fluid
+              <CardTitle className="text-pl-text text-base flex items-center gap-2">
+                <Beaker className="w-4 h-4 text-pl-primary-text" /> Reservoir &amp; fluid
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {FIELDS.map((f) => (
                 <div key={f.key} className="space-y-1">
-                  <Label className="text-xs text-slate-400">{f.label} ({f.unit})</Label>
+                  <Label className="text-xs text-pl-muted">{f.label} ({f.unit})</Label>
                   <Input
                     type="number" step="any" value={form[f.key] ?? ''} onChange={set(f.key)}
-                    className="h-8 bg-slate-800 border-slate-700 text-sm text-slate-100"
+                    className="h-8 text-sm"
                   />
                 </div>
               ))}
               <div className="space-y-1">
-                <Label className="text-xs text-slate-400">Formation</Label>
+                <Label className="text-xs text-pl-muted">Formation</Label>
                 <Select value={form.formation} onValueChange={(v) => setForm((f) => ({ ...f, formation: v }))}>
-                  <SelectTrigger className="h-8 bg-slate-800 border-slate-700 text-sm">
+                  <SelectTrigger className="h-8 text-sm">
                     <SelectValue placeholder="Select formation" />
                   </SelectTrigger>
                   <SelectContent>
@@ -141,14 +144,14 @@ export default function EorScreeningTool() {
               </div>
               <Button
                 variant="outline" size="sm"
-                className="w-full border-slate-700 text-slate-300"
+                className="w-full"
                 title="A West-Texas-style carbonate CO2 candidate"
                 onClick={() => setForm(Object.fromEntries(Object.entries(sample).map(([k, v]) => [k, String(v)])))}
               >
                 {/* Senior test T1: the longer label wrapped over the button's edge at 1366. */}
                 Load a sample CO2 candidate
               </Button>
-              <p className="text-[11px] text-slate-500 flex gap-1.5">
+              <p className="text-[11px] text-pl-muted flex gap-1.5">
                 <Info size={13} className="shrink-0 mt-0.5" />
                 Screening shortlists candidate methods; it does not design or predict recovery.
                 Blank inputs leave criteria unscored rather than assumed.
@@ -158,17 +161,17 @@ export default function EorScreeningTool() {
 
           {/* Results */}
           <div className="flex-1 min-w-0 space-y-4">
-            <Card className="bg-slate-900/70 border-slate-800">
+            <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-white text-base">
+                <CardTitle className="text-pl-text text-base">
                   Method ranking
-                  <span className="ml-2 text-xs font-normal text-slate-400">
+                  <span className="ml-2 text-xs font-normal text-pl-muted">
                     {qualified.length} of {results.length} methods qualify on every screened criterion
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="bg-white rounded-lg p-3">
+                <div className="bg-white rounded-lg p-3" data-canvas="chart">
                   <ChartFrame height={280}>
                     <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 40, left: 8, bottom: 4 }}>
                       <CartesianGrid {...GRID_STYLE} horizontal={false} />
@@ -191,32 +194,30 @@ export default function EorScreeningTool() {
               {results.map((r) => {
                 const open = expanded === r.id;
                 return (
-                  <Card key={r.id} className={`bg-slate-900/70 border ${r.qualified ? 'border-emerald-700/50' : 'border-slate-800'}`}>
+                  <Card key={r.id} className={r.qualified ? 'border-pl-success/40' : undefined}>
                     <button
                       type="button"
                       className="w-full text-left px-4 py-3 flex items-center gap-3"
                       onClick={() => setExpanded(open ? null : r.id)}
                     >
                       {r.qualified
-                        ? <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
-                        : <XCircle size={18} className="text-slate-500 shrink-0" />}
+                        ? <CheckCircle2 size={18} className="text-pl-success-text shrink-0" />
+                        : <XCircle size={18} className="text-pl-muted shrink-0" />}
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm text-slate-100 font-medium truncate">{r.name}</div>
-                        <div className="text-[11px] text-slate-500">{r.group} · {r.passes}/{r.applicable} screened criteria met</div>
+                        <div className="text-sm text-pl-text font-medium truncate">{r.name}</div>
+                        <div className="text-[11px] text-pl-muted">{r.group} · {r.passes}/{r.applicable} screened criteria met</div>
                       </div>
-                      <Badge variant="outline" className={r.qualified
-                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-600/40'
-                        : 'bg-slate-500/15 text-slate-400 border-slate-600/40'}>
+                      <Badge variant={r.qualified ? 'success' : 'neutral'}>
                         {r.qualified ? 'Qualified' : 'Screened out'}
                       </Badge>
                     </button>
                     {open && (
                       <CardContent className="pt-0 pb-4">
-                        <div className="text-[11px] text-slate-500 mb-2">Oil composition guide: {r.composition}</div>
+                        <div className="text-[11px] text-pl-muted mb-2">Oil composition guide: {r.composition}</div>
                         <div className="overflow-x-auto">
                           <table className="w-full text-xs">
                             <thead>
-                              <tr className="text-left text-slate-500 border-b border-slate-800">
+                              <tr className="text-left text-pl-muted border-b border-pl-border">
                                 <th className="py-1.5 pr-3">Criterion</th>
                                 <th className="py-1.5 pr-3">Required (Taber et al. 1997)</th>
                                 <th className="py-1.5 pr-3">This reservoir</th>
@@ -228,8 +229,8 @@ export default function EorScreeningTool() {
                                 const meta = STATUS_META[v.status];
                                 const IconEl = meta.icon;
                                 return (
-                                  <tr key={v.criterion} className="border-b border-slate-800/60 text-slate-300">
-                                    <td className="py-1.5 pr-3 text-slate-200">{v.criterion}</td>
+                                  <tr key={v.criterion} className="border-b border-pl-border text-pl-text">
+                                    <td className="py-1.5 pr-3 text-pl-text">{v.criterion}</td>
                                     <td className="py-1.5 pr-3">{v.required}{v.preferred != null ? ` (typical ${v.preferred})` : ''}</td>
                                     <td className="py-1.5 pr-3">{v.actual != null ? `${v.actual}${v.unit ? ` ${v.unit}` : ''}` : '—'}</td>
                                     <td className="py-1.5">
@@ -250,7 +251,7 @@ export default function EorScreeningTool() {
               })}
             </div>
 
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-pl-muted">
               Criteria per Taber, Martin &amp; Seright, "EOR Screening Criteria Revisited", SPE Reservoir
               Engineering (1997). "Typical" values are the paper's current-project averages and are shown
               for context only; qualification uses the hard limits.
@@ -259,5 +260,15 @@ export default function EorScreeningTool() {
         </div>
       </div>
     </>
+  );
+}
+
+// Design system rollout batch 3E: the page opens light and follows the
+// user's theme choice from the header toggle.
+export default function EorScreeningTool() {
+  return (
+    <ThemedApp className="min-h-full" data-testid="eor-theme-scope">
+      <EorScreeningContent />
+    </ThemedApp>
   );
 }
