@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartPanel } from '@/components/ui/chart-panel';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, Cell } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
@@ -54,7 +54,7 @@ const BudgetAnalytics = ({ projects, financialData }) => {
 
     const NothingYet = ({ what }) => (
         <div className="h-full flex items-center justify-center text-center px-6">
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-pl-muted">
                 No progress updates carry {what} yet. File a progress update on a project and it
                 appears here; nothing on this panel is assumed.
             </p>
@@ -65,11 +65,10 @@ const BudgetAnalytics = ({ projects, financialData }) => {
         <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
-                    <Card className="bg-slate-900 border-slate-800 h-full">
-                        <CardHeader><CardTitle className="text-sm text-slate-300">Reported Cost by Month (Portfolio)</CardTitle></CardHeader>
-                        <CardContent className="h-[350px]">
+                    <ChartPanel title="Reported Cost by Month (Portfolio)" className="h-full">
+                        <div className="h-[350px]">
                             {trendData.length === 0 ? <NothingYet what="a cost figure" /> : (
-                            <div className="relative h-full w-full rounded-md bg-white p-2">
+                            <div className="relative h-full w-full">
 <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                     <defs>
@@ -95,15 +94,14 @@ const BudgetAnalytics = ({ projects, financialData }) => {
 <ChartLogo />
 </div>
                             )}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </ChartPanel>
                 </div>
                 <div>
-                    <Card className="bg-slate-900 border-slate-800 h-full">
-                        <CardHeader><CardTitle className="text-sm text-slate-300">Cost Variance % (Latest Update)</CardTitle></CardHeader>
-                        <CardContent className="h-[350px]">
+                    <ChartPanel title="Cost Variance % (Latest Update)" className="h-full">
+                        <div className="h-[350px]">
                             {varianceData.length === 0 ? <NothingYet what="a planned value to compare against" /> : (
-                            <div className="relative h-full w-full rounded-md bg-white p-2">
+                            <div className="relative h-full w-full">
 <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={varianceData} layout="vertical" margin={{ left: 20 }}>
                                     <CartesianGrid {...GRID_STYLE} horizontal={false} />
@@ -120,8 +118,8 @@ const BudgetAnalytics = ({ projects, financialData }) => {
 <ChartLogo />
 </div>
                             )}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </ChartPanel>
                 </div>
             </div>
         </div>
