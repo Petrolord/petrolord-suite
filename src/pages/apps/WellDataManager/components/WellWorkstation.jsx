@@ -110,8 +110,11 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
     }
   };
 
-  const onImported = async ({ wellId, nLogs, fileName, note }) => {
-    setStatus(`Imported ${nLogs} log${nLogs === 1 ? '' : 's'} from ${fileName}${note ? ` (${note})` : ''}.`);
+  const onImported = async ({ wellId, nLogs, nCurves, fileName, note }) => {
+    // WDM-U1-015: count curves the way the import preview did (depth apart)
+    const n = nCurves ?? nLogs;
+    const depthNote = nCurves != null && nLogs > nCurves ? ' and the depth index' : '';
+    setStatus(`Imported ${n} curve${n === 1 ? '' : 's'}${depthNote} from ${fileName}${note ? ` (${note})` : ''}.`);
     await refresh();
     select(wellId);
     setDetailNonce((n) => n + 1);
