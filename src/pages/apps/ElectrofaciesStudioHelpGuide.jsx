@@ -13,6 +13,7 @@ import {
 import {
   Callout, Code, Formula, GuideSection, HelpGuideShell, Para, SectionHeading, Step, SubHeading, Table,
 } from '@/components/helpguide/HelpGuideLayout';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { ELECTROFACIES_ROUTE } from '@/utils/dataAi/faciesStudy';
 import {
   MAX_ROWS, MAX_KNN_TRAIN_ROWS, ELBOW_SAMPLE_ROWS, SILHOUETTE_MAX_ROWS, AGGLOMERATIVE_MAX_ROWS,
@@ -35,7 +36,7 @@ export const FACIES_GUIDE_SECTIONS = [
   { id: 'validation', icon: CheckCircle2, title: 'How the engine was validated' },
 ];
 
-const ElectrofaciesStudioHelpGuide = () => (
+const ElectrofaciesStudioHelpGuideContent = () => (
   <HelpGuideShell
     title="Electrofacies Studio Help Guide"
     subtitle="Clustering and classification of well logs, compared with core facies"
@@ -325,6 +326,12 @@ const ElectrofaciesStudioHelpGuide = () => (
       </Para>
     </GuideSection>
   </HelpGuideShell>
+);
+
+const ElectrofaciesStudioHelpGuide = () => (
+  <ThemedApp className="min-h-screen" data-testid="facies-help-theme-scope">
+    <ElectrofaciesStudioHelpGuideContent />
+  </ThemedApp>
 );
 
 export default ElectrofaciesStudioHelpGuide;

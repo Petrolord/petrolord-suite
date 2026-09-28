@@ -28,10 +28,10 @@ const OrgAudit = () => {
 
   return (
     <div className="space-y-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-md">
+      <div className="border border-pl-border rounded-md overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow className="border-slate-800">
+            <TableRow>
               <TableHead>Action</TableHead>
               <TableHead>User</TableHead>
               <TableHead>Details</TableHead>
@@ -42,14 +42,14 @@ const OrgAudit = () => {
             {loading ? (
               <TableRow><TableCell colSpan={4} className="text-center h-20">Loading audit logs...</TableCell></TableRow>
             ) : logs.length === 0 ? (
-              <TableRow><TableCell colSpan={4} className="text-center h-20 text-slate-500">No audit logs found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={4} className="text-center h-20 text-pl-muted">No audit logs found.</TableCell></TableRow>
             ) : (
               logs.map(log => (
-                <TableRow key={log.id} className="border-slate-800">
-                  <TableCell className="font-mono text-xs text-blue-400">{log.action}</TableCell>
-                  <TableCell className="text-xs text-slate-400">{log.actor_id?.substring(0,8)}...</TableCell>
-                  <TableCell className="text-xs text-slate-300 max-w-xs truncate">{JSON.stringify(log.details)}</TableCell>
-                  <TableCell className="text-xs text-slate-500">{formatDate(log.created_at)}</TableCell>
+                <TableRow key={log.id}>
+                  <TableCell className="font-pl-mono text-xs text-pl-text">{log.action}</TableCell>
+                  <TableCell className="text-xs text-pl-muted">{log.actor_id?.substring(0,8)}...</TableCell>
+                  <TableCell className="text-xs text-pl-text max-w-xs truncate">{JSON.stringify(log.details)}</TableCell>
+                  <TableCell className="text-xs text-pl-muted">{formatDate(log.created_at)}</TableCell>
                 </TableRow>
               ))
             )}

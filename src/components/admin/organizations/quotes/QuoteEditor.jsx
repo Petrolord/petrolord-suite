@@ -78,43 +78,44 @@ const QuoteEditor = ({ initialQuote, onChange }) => {
     <div className="flex flex-col md:flex-row gap-6 p-4 h-full overflow-hidden">
       {/* Configuration */}
       <div className="flex-1 space-y-6 overflow-y-auto pr-2">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Quote Name</Label>
+            <Label htmlFor="quote-name">Quote Name</Label>
             <Input 
+              id="quote-name"
               value={quote.name || ''} 
               onChange={(e) => handleChange('name', e.target.value)} 
-              className="bg-slate-900 border-slate-700"
               placeholder="e.g. Enterprise Upgrade Q4"
             />
           </div>
           <div className="space-y-2">
-            <Label>Seats (Users)</Label>
+            <Label htmlFor="quote-seats">Seats (Users)</Label>
             <Input 
+              id="quote-seats"
               type="number"
               min="1"
               value={userCount} 
               onChange={(e) => { setManualOverride(false); setUserCount(parseInt(e.target.value) || 0); }} 
-              className="bg-slate-900 border-slate-700"
+              className="font-pl-mono tabular-nums"
             />
           </div>
         </div>
 
-        <Separator className="bg-slate-800" />
+        <Separator />
 
         <div className="space-y-3">
           <Label className="text-base font-semibold">Select Modules</Label>
           <div className="grid grid-cols-1 gap-3">
             {MODULES.map(mod => (
-              <Card key={mod.id} className={`p-3 border transition-colors cursor-pointer flex items-center justify-between ${selectedModules.includes(mod.id) ? 'bg-blue-900/20 border-blue-500' : 'bg-slate-900 border-slate-800 hover:border-slate-600'}`} onClick={() => toggleModule(mod.id)}>
+              <Card key={mod.id} className={`p-3 border transition-colors cursor-pointer flex items-center justify-between ${selectedModules.includes(mod.id) ? 'bg-pl-primary/10 border-pl-primary' : 'hover:border-pl-border-strong'}`} onClick={() => toggleModule(mod.id)}>
                 <div className="flex items-center gap-3">
                   <Checkbox checked={selectedModules.includes(mod.id)} onCheckedChange={() => toggleModule(mod.id)} />
                   <div>
-                    <div className="font-medium text-slate-200">{mod.name}</div>
-                    <div className="text-xs text-slate-500">{mod.description}</div>
+                    <div className="font-medium text-pl-text">{mod.name}</div>
+                    <div className="text-xs text-pl-muted">{mod.description}</div>
                   </div>
                 </div>
-                <Badge variant="outline" className="bg-slate-950 border-slate-700 text-slate-300">
+                <Badge variant="neutral" className="font-pl-mono tabular-nums whitespace-nowrap">
                   {formatCurrency(mod.price)}/mo
                 </Badge>
               </Card>
@@ -123,50 +124,52 @@ const QuoteEditor = ({ initialQuote, onChange }) => {
         </div>
 
         <div className="space-y-2">
-          <Label>Terms & Conditions</Label>
+          <Label htmlFor="quote-terms">Terms & Conditions</Label>
           <Textarea 
+            id="quote-terms"
             value={quote.terms || ''} 
             onChange={(e) => handleChange('terms', e.target.value)} 
-            className="bg-slate-900 border-slate-700 min-h-[100px]"
+            className="min-h-[100px]"
             placeholder="Standard terms apply..."
           />
         </div>
       </div>
 
       {/* Summary */}
-      <Card className="w-full md:w-80 bg-slate-900 border-slate-800 p-6 h-fit shrink-0">
-        <h3 className="text-lg font-bold text-white mb-4">Estimate Summary</h3>
+      <Card className="w-full md:w-80 bg-pl-sunken p-6 h-fit shrink-0">
+        <h3 className="text-lg font-bold text-pl-text mb-4">Estimate Summary</h3>
         <div className="space-y-3 text-sm">
-          <div className="flex justify-between text-slate-400">
+          <div className="flex justify-between text-pl-muted">
             <span>Modules Selected</span>
-            <span className="text-white">{selectedModules.length}</span>
+            <span className="text-pl-text font-pl-mono tabular-nums">{selectedModules.length}</span>
           </div>
-          <div className="flex justify-between text-slate-400">
+          <div className="flex justify-between text-pl-muted">
             <span>User Seats</span>
-            <span className="text-white">{userCount}</span>
+            <span className="text-pl-text font-pl-mono tabular-nums">{userCount}</span>
           </div>
-          <Separator className="bg-slate-800 my-2" />
+          <Separator className="my-2" />
           <div className="flex justify-between items-center">
-            <span className="font-semibold text-slate-200">Estimated Total</span>
+            <span className="font-semibold text-pl-text">Estimated Total</span>
             <div className="text-right">
-               <div className="text-2xl font-bold text-[#D4AF37]">{formatCurrency(quote.amount || 0)}</div>
-               <div className="text-xs text-slate-500">per month</div>
+               <div className="text-2xl font-bold font-pl-mono tabular-nums text-pl-text">{formatCurrency(quote.amount || 0)}</div>
+               <div className="text-xs text-pl-muted">per month</div>
             </div>
           </div>
           
           {manualOverride && (
-             <div className="mt-2 text-xs text-amber-500 bg-amber-900/20 p-2 rounded">
+             <div className="mt-2 text-xs text-pl-warning-text bg-pl-warning-bg border border-pl-warning/40 p-2 rounded" role="status">
                * Manual price override active
              </div>
           )}
 
           <div className="mt-4">
-             <Label className="text-xs text-slate-500 uppercase">Override Price</Label>
+             <Label htmlFor="quote-override" className="text-xs text-pl-muted uppercase">Override Price</Label>
              <Input 
+                id="quote-override"
                 type="number"
                 value={quote.amount || 0} 
                 onChange={(e) => handleAmountChange(parseFloat(e.target.value))} 
-                className="bg-slate-950 border-slate-700 mt-1"
+                className="font-pl-mono tabular-nums mt-1"
               />
           </div>
         </div>

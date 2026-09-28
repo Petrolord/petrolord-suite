@@ -13,11 +13,11 @@ const Field = ({ label, value, onChange, unit, step = 'any' }) => {
   const id = useId();
   return (
     <div>
-      <Label htmlFor={id} className="text-[11px] text-slate-400">{label}{unit ? ` (${unit})` : ''}</Label>
+      <Label htmlFor={id} className="text-[11px] text-pl-muted">{label}{unit ? ` (${unit})` : ''}</Label>
       <Input
         id={id} type="number" step={step} value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-8 bg-slate-950 border-slate-700 text-sm px-2 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="h-8 text-sm px-2 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
     </div>
   );
@@ -28,17 +28,17 @@ const CrudeCard = ({ crude }) => {
   const fraction = (blend.fractions || []).find((f) => f.id === crude.id);
 
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 space-y-3">
+    <div className="rounded-lg border border-pl-border bg-pl-raised p-3 space-y-3">
       <div className="flex items-center gap-2">
         <Input
           value={crude.name}
           onChange={(e) => setCrude(crude.id, { name: e.target.value })}
-          className="h-8 bg-slate-950 border-slate-700 text-sm font-medium"
+          className="h-8 text-sm font-medium"
         />
         <Button
           variant="ghost" size="icon" title="Remove this crude"
           onClick={() => removeCrude(crude.id)}
-          className="h-8 w-8 text-slate-500 hover:text-red-400"
+          className="h-8 w-8 text-pl-muted hover:text-pl-danger-text"
         >
           <Trash2 size={15} />
         </Button>
@@ -56,7 +56,7 @@ const CrudeCard = ({ crude }) => {
       </div>
 
       <details className="group">
-        <summary className="cursor-pointer text-[11px] text-slate-400 hover:text-slate-200">
+        <summary className="cursor-pointer text-[11px] text-pl-muted hover:text-pl-text">
           SARA analysis (optional, and it changes the stability screen)
         </summary>
         <div className="grid grid-cols-4 gap-2 mt-2">
@@ -69,14 +69,14 @@ const CrudeCard = ({ crude }) => {
             />
           ))}
         </div>
-        <p className="text-[11px] text-slate-500 mt-2">
+        <p className="text-[11px] text-pl-muted mt-2">
           With SARA on every crude the stability screen uses the colloidal instability index. Without
           it, the screen falls back to gravity contrast, which is a heuristic and says so.
         </p>
       </details>
 
       <details>
-        <summary className="cursor-pointer text-[11px] text-slate-400 hover:text-slate-200">
+        <summary className="cursor-pointer text-[11px] text-pl-muted hover:text-pl-text">
           TBP distillation curve
         </summary>
         <div className="mt-2 space-y-1">
@@ -87,23 +87,23 @@ const CrudeCard = ({ crude }) => {
                 onChange={(e) => setCrude(crude.id, {
                   curve: crude.curve.map((p, k) => (k === i ? { ...p, volumePercent: Number(e.target.value) } : p)),
                 })}
-                className="h-7 bg-slate-950 border-slate-700 text-xs"
+                className="h-7 text-xs"
               />
               <Input
                 type="number" value={point.temperatureF}
                 onChange={(e) => setCrude(crude.id, {
                   curve: crude.curve.map((p, k) => (k === i ? { ...p, temperatureF: Number(e.target.value) } : p)),
                 })}
-                className="h-7 bg-slate-950 border-slate-700 text-xs"
+                className="h-7 text-xs"
               />
             </div>
           ))}
-          <p className="text-[11px] text-slate-500">Volume percent distilled, and temperature in degrees F.</p>
+          <p className="text-[11px] text-pl-muted">Volume percent distilled, and temperature in degrees F.</p>
         </div>
       </details>
 
       {crude.placeholderCurve && (
-        <p className="text-[11px] text-amber-300" data-testid="crude-placeholder-note">
+        <p className="text-[11px] text-pl-warning-text" data-testid="crude-placeholder-note">
           Starting figures are placeholders, and the distillation curve is a copy of the first
           example crude, so its line sits on top of that one. Enter this crude's assay and TBP
           curve, then give it a volume.
@@ -111,7 +111,7 @@ const CrudeCard = ({ crude }) => {
       )}
 
       {fraction && (
-        <p className="text-[11px] text-slate-400">
+        <p className="text-[11px] text-pl-muted">
           {(fraction.volumeFraction * 100).toFixed(1)}% by volume,
           {' '}{(fraction.massFraction * 100).toFixed(1)}% by mass.
         </p>
@@ -125,12 +125,12 @@ const AssayPanel = () => {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white">Crudes in the blend</h2>
-        <Button variant="outline" size="sm" onClick={addCrude} className="h-7 border-slate-700 text-slate-300">
+        <h2 className="text-sm font-semibold text-pl-text">Crudes in the blend</h2>
+        <Button variant="outline" size="sm" onClick={addCrude} className="h-7">
           <PlusCircle size={14} className="mr-1" /> Add crude
         </Button>
       </div>
-      <p className="text-[11px] text-slate-500">
+      <p className="text-[11px] text-pl-muted">
         Volumes are normalised, so they need not sum to 100. The two crudes loaded here are
         illustrative starting figures, not published assay sheets; replace them with the seller&apos;s
         assay.

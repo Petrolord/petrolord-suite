@@ -5,6 +5,57 @@ Current prices and rules as of the 2026-09 pricing review (owner-approved
 history of how module pricing came to have one source of truth follows in
 the 2026-08-30 sections below.
 
+## 2026-09-28: platform admin organisation pages and promo codes on the design system (rollout 6F)
+
+Admin organizations (`/admin/organizations`), organization detail with its
+seven tabs (`/admin/organizations/:orgId`), edit, send quote and Promo codes
+(`/admin/promo-codes`) wrap themselves in `ThemedApp` (shared `AccountScope`,
+`AccountPage`, `AccountHeader` from `src/components/account/accountChrome.jsx`,
+imported unchanged) and open on the grey panel with a light/dark toggle in
+the header. Routes are registered in `src/design/rollout/w6f.js`.
+
+- Money and record paths are classes only. No function that prices
+  (`calculatePrice` on send quote, the QuoteEditor total, the
+  PricingConfigurator estimate), sends a quote, verifies or rejects a bank
+  transfer, deletes an organisation, saves an organisation, changes a
+  member role, invites, or creates or toggles a promo code changed.
+  PromoCodes keeps its share link (`/dashboard/upgrade?promo=CODE`) and help
+  text word for word; `getQuoteRoute`, `modulePricing` and
+  `midstreamDownstreamRegistration` pass unchanged.
+- Status colour only for status: suite and HSE status, payment status,
+  quote status, subscription status, HSE access, the invoice Paid badge,
+  health and the unbuilt-app Dev tag. Decorative icon colours (blue, lime,
+  purple, orange, gold) are gone; the main send-quote action is the brand
+  accent button.
+- Shared file: `src/components/UpgradeSuiteButton.jsx` is also used by the
+  dashboard hub, which is not migrated. It now picks its classes with
+  `useThemeClass`: outside a scope it renders byte for byte what it did
+  (pinned by `src/components/__tests__/UpgradeSuiteButton.legacyDom.test.jsx`
+  against the DOM captured from main); inside a scope it is
+  `bg-pl-accent text-pl-accent-fg` with no inline hex.
+- The quote preview overlay is a paper document, so it sits in
+  `data-canvas="light"` and stays white in both themes.
+- Tests: `src/pages/__tests__/W6fAdminOrgPages.theme.test.jsx`
+  (describeAppTheme per page, plus every detail tab, the verify and delete
+  dialogs, invite, modify plan, quote editor, preview, email and delete
+  dialogs, the send-quote estimate and the promo share link).
+- Checked at 1440 and 390 wide in light, and in dark at 1440, from a private
+  preview server with stand-in data: no sideways page scroll (wide tables
+  scroll inside their card).
+
+Found on the way, left as they are:
+
+- The success toasts in `handleDeleteOrg`, OrgEdit `handleSave` and
+  `handleSendQuote` pass `className: "bg-green-600 text-white"`; they sit in
+  functions that write to the database, so they were not touched. The
+  toaster takes the page theme apart from that override.
+- The verify-payment dialog has no `DialogDescription`, and the delete
+  dialog nests a list inside `DialogDescription` (a `<p>`), which React warns
+  about. Both predate this batch.
+- OrgSubscription, OrgQuotes and the send-quote price model are still mock
+  or placeholder data (seat usage 8, storage 124 GB, invoice rows, sample
+  quotes, fixed per-user and per-app prices).
+
 ## 2026-09-28: Get a quote goes to the working quote-and-pay flow
 
 Found in the 3F rollout. `src/pages/GetQuote.jsx` (the old configurator at

@@ -21,17 +21,17 @@ export const BusyBar = () => {
   if (!busy) return null;
   const pct = busy.total ? Math.round((100 * busy.done) / busy.total) : null;
   return (
-    <div className="flex items-center gap-3 rounded border border-sky-800 bg-sky-950/40 p-2 text-xs text-sky-100" role="status" data-testid="busy-bar">
+    <div className="flex items-center gap-3 rounded border border-pl-info/40 bg-pl-info-bg p-2 text-xs text-pl-info-text" role="status" data-testid="busy-bar">
       <span>
         Running {JOB_NAMES[busy.job] || busy.job}
         {busy.total ? `: ${busy.phase ? `${busy.phase}, ` : ''}${busy.done.toLocaleString('en-US')} of ${busy.total.toLocaleString('en-US')}` : ' in the background'}
       </span>
       {pct !== null ? (
-        <div className="h-1.5 w-40 overflow-hidden rounded bg-slate-800">
-          <div className="h-full bg-sky-500" style={{ width: `${pct}%` }} />
+        <div className="h-1.5 w-40 overflow-hidden rounded bg-pl-sunken">
+          <div className="h-full bg-pl-primary" style={{ width: `${pct}%` }} />
         </div>
       ) : null}
-      <Button size="sm" variant="ghost" className="h-6 text-sky-200" onClick={cancelJob}>Cancel</Button>
+      <Button size="sm" variant="ghost" className="h-6 text-pl-info-text" onClick={cancelJob}>Cancel</Button>
     </div>
   );
 };
@@ -66,17 +66,17 @@ export const Grid = ({
   headers, rows, testId, caption,
 }) => (
   <div className="overflow-x-auto">
-    <table className="w-full text-left text-xs text-slate-200" data-testid={testId}>
-      {caption ? <caption className="mb-1 text-left text-[11px] text-slate-400">{caption}</caption> : null}
+    <table className="w-full text-left text-xs text-pl-text" data-testid={testId}>
+      {caption ? <caption className="mb-1 text-left text-[11px] text-pl-muted">{caption}</caption> : null}
       <thead>
-        <tr className="border-b border-slate-700 text-slate-400">
+        <tr className="border-b border-pl-border-strong text-pl-muted">
           {headers.map((h) => <th key={h} className="px-2 py-1 font-medium">{h}</th>)}
         </tr>
       </thead>
       <tbody>
         {rows.map((r, i) => (
            
-          <tr key={i} className="border-b border-slate-800">
+          <tr key={i} className="border-b border-pl-border">
             {r.map((c, j) => (
                
               <td key={j} className="px-2 py-1 font-mono">{typeof c === 'number' ? dn(c) : c}</td>
@@ -119,10 +119,10 @@ export const CoreComparison = ({ compare, testId = 'core-compare' }) => {
   if (m.error) return <EngineError result={m} prefix="Matching" />;
   return (
     <div className="space-y-2" data-testid={testId}>
-      <p className="text-xs text-slate-200" data-testid={`${testId}-mode`}>
+      <p className="text-xs text-pl-text" data-testid={`${testId}-mode`}>
         Matching ran {compare.modeText}. {compare.rows.toLocaleString('en-US')} cored rows compared.
       </p>
-      <p className="text-xs text-slate-200">
+      <p className="text-xs text-pl-text">
         Adjusted Rand index <span className="font-mono" data-testid={`${testId}-ari`}>{dn(m.ari)}</span>
         {' '}(independent of the matching; 1 is the same partition, about 0 is chance).
         Accuracy after matching <span className="font-mono" data-testid={`${testId}-accuracy`}>{dn(m.report.accuracy)}</span>

@@ -38,18 +38,18 @@ export const Scorecard = ({ run }) => {
     <div className="space-y-2" data-testid="scorecard">
       <div className="flex flex-wrap items-baseline gap-4">
         <div>
-          <div className="text-[11px] text-slate-400">Weighted score</div>
-          <div className="font-mono text-2xl text-white" data-testid="score-total">{sc.total.toFixed(4)}</div>
+          <div className="text-[11px] text-pl-muted">Weighted score</div>
+          <div className="font-mono text-2xl text-pl-text" data-testid="score-total">{sc.total.toFixed(4)}</div>
         </div>
-        <div className="text-xs text-slate-300">Weakest dimension: <span className="font-medium" data-testid="score-weakest">{dimensionLabel(sc.weakest)}</span></div>
+        <div className="text-xs text-pl-text">Weakest dimension: <span className="font-medium" data-testid="score-weakest">{dimensionLabel(sc.weakest)}</span></div>
       </div>
       <table className="w-full text-xs">
-        <thead className="text-left text-slate-400">
+        <thead className="text-left text-pl-muted">
           <tr><th className="py-1">Dimension</th><th>Checked</th><th>Failed</th><th>Weight</th><th>Score</th><th>Contribution</th></tr>
         </thead>
-        <tbody className="font-mono text-slate-200">
+        <tbody className="font-mono text-pl-text">
           {sc.dimensions.map((d) => (
-            <tr key={d.name} className="border-t border-slate-800" data-testid={`score-${d.name}`}>
+            <tr key={d.name} className="border-t border-pl-border" data-testid={`score-${d.name}`}>
               <td className="py-1 font-sans">{dimensionLabel(d.name)}</td>
               <td>{d.checked}</td>
               <td>{d.failed}</td>
@@ -60,8 +60,8 @@ export const Scorecard = ({ run }) => {
           ))}
         </tbody>
       </table>
-      <details className="text-[11px] text-slate-400">
-        <summary className="cursor-pointer hover:text-slate-200">How the dimensions are counted</summary>
+      <details className="text-[11px] text-pl-muted">
+        <summary className="cursor-pointer hover:text-pl-text">How the dimensions are counted</summary>
         <ul className="mt-1 list-disc space-y-0.5 pl-4">
           {SCORE_BASIS.map((t) => <li key={t}>{t}</li>)}
           <li>{sc.basis.weights}; {sc.basis.tieBreak}.</li>
@@ -94,24 +94,24 @@ export const FlagTable = ({ run }) => {
         <SelectField label="Dimension" value={dim} onChange={(v) => { setDim(v); setPage(0); }} emptyLabel="All" options={facets.dims.map((d) => ({ value: d, label: d }))} className="w-40" />
         <SelectField label="Method" value={method} onChange={(v) => { setMethod(v); setPage(0); }} emptyLabel="All" options={facets.methods.map((d) => ({ value: d, label: d }))} className="w-40" />
         <SelectField label="Channel" value={channel} onChange={(v) => { setChannel(v); setPage(0); }} emptyLabel="All" options={facets.channels.map((d) => ({ value: d, label: d }))} className="w-40" />
-        <span className="text-xs text-slate-400" data-testid="flag-count">{rows.length} of {run.flags.length} flags</span>
+        <span className="text-xs text-pl-muted" data-testid="flag-count">{rows.length} of {run.flags.length} flags</span>
       </div>
-      <div className="max-h-[28rem] overflow-auto rounded border border-slate-800">
+      <div className="max-h-[28rem] overflow-auto rounded border border-pl-border">
         <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-slate-900 text-left text-slate-400">
+          <thead className="sticky top-0 bg-pl-sunken text-left text-pl-muted">
             <tr><th className="px-2 py-1">Dimension</th><th>Method</th><th>Channel</th><th title="Counted from 0, the numbering the reasons use (entry 57 is the 58th value)">Entry</th><th>At</th><th>Rule</th><th>Value</th><th>Previous</th><th>Reason</th></tr>
           </thead>
-          <tbody className="text-slate-200">
+          <tbody className="text-pl-text">
             {shown.map((f, i) => {
               const fig = flagFigures(f);
               return (
-                <tr key={`${f.method}-${f.channel}-${f.index}-${i}`} className="border-t border-slate-800 align-top" data-testid="flag-row">
+                <tr key={`${f.method}-${f.channel}-${f.index}-${i}`} className="border-t border-pl-border align-top" data-testid="flag-row">
                   <td className="px-2 py-1">{f.dimension}</td>
                   <td>{f.method}</td>
                   <td className="whitespace-nowrap pr-2">{f.channel}</td>
                   <td className="font-mono" data-testid="flag-entry">{Number.isInteger(f.index) ? f.index : ''}</td>
                   <td className="font-mono whitespace-nowrap pr-2">{f.at}</td>
-                  <td className="font-mono text-sky-300 whitespace-nowrap pr-2">{f.rule}</td>
+                  <td className="font-mono text-pl-primary-text whitespace-nowrap pr-2">{f.rule}</td>
                   <td className="font-mono" data-testid="flag-value">{fig.value}</td>
                   <td className="font-mono" data-testid="flag-previous">{fig.previous}</td>
                   <td data-testid="flag-reason" title={f.reason}>{displayReason(f.reason)}</td>
@@ -122,10 +122,10 @@ export const FlagTable = ({ run }) => {
         </table>
       </div>
       {pages > 1 ? (
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <button type="button" disabled={page === 0} onClick={() => setPage((p) => p - 1)} className="rounded bg-slate-800 px-2 py-0.5 disabled:opacity-40">Previous</button>
+        <div className="flex items-center gap-2 text-xs text-pl-muted">
+          <button type="button" disabled={page === 0} onClick={() => setPage((p) => p - 1)} className="rounded bg-pl-sunken px-2 py-0.5 disabled:opacity-40">Previous</button>
           <span>Page {page + 1} of {pages}</span>
-          <button type="button" disabled={page >= pages - 1} onClick={() => setPage((p) => p + 1)} className="rounded bg-slate-800 px-2 py-0.5 disabled:opacity-40">Next</button>
+          <button type="button" disabled={page >= pages - 1} onClick={() => setPage((p) => p + 1)} className="rounded bg-pl-sunken px-2 py-0.5 disabled:opacity-40">Next</button>
         </div>
       ) : null}
     </div>
@@ -153,14 +153,14 @@ const CheckList = ({ run }) => {
     <div className="space-y-2">
       {refused.length ? (
         <div className="space-y-1" data-testid="refused-checks">
-          <p className="text-xs text-amber-200">{refused.length} check{refused.length === 1 ? ' was' : 's were'} refused by the engine and did not count:</p>
+          <p className="text-xs text-pl-warning-text">{refused.length} check{refused.length === 1 ? ' was' : 's were'} refused by the engine and did not count:</p>
           {refused.map((r, i) => (
             <EngineError key={i} result={r.result} prefix={`${r.method}${r.channel ? ` on ${r.channel}` : ''}`} />
           ))}
         </div>
       ) : null}
-      <details className="text-[11px] text-slate-400">
-        <summary className="cursor-pointer hover:text-slate-200">{ran.length} checks ran</summary>
+      <details className="text-[11px] text-pl-muted">
+        <summary className="cursor-pointer hover:text-pl-text">{ran.length} checks ran</summary>
         <ul className="mt-1 space-y-0.5">
           {ran.map((r, i) => (
             <li key={i}>

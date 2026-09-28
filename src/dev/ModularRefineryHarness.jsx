@@ -7,5 +7,5 @@ import InMemorySupabase, { createStore } from './InMemorySupabase';
 const db = createStore({ saved_modular_refinery_projects: [] });
 
 export default function ModularRefineryHarness() {
-  return <InMemorySupabase db={db}><div className="min-h-screen bg-slate-950 text-slate-100"><ModularRefineryFeasibility /></div></InMemorySupabase>;
+  return <InMemorySupabase db={db}><div className="min-h-screen"><ModularRefineryFeasibility /></div></InMemorySupabase>;
 }

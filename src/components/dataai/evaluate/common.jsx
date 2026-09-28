@@ -26,9 +26,9 @@ export const BusyBar = () => {
   const { busy, cancelJob } = useEvaluation();
   if (!busy) return null;
   return (
-    <div className="flex items-center gap-3 rounded border border-sky-800 bg-sky-950/40 p-2 text-xs text-sky-100" role="status" data-testid="busy-bar">
+    <div className="flex items-center gap-3 rounded border border-pl-info/40 bg-pl-info-bg p-2 text-xs text-pl-info-text" role="status" data-testid="busy-bar">
       <span>Running {JOB_NAMES[busy.job] || busy.job} in the background</span>
-      <Button size="sm" variant="ghost" className="h-6 text-sky-200" onClick={cancelJob}>Cancel</Button>
+      <Button size="sm" variant="ghost" className="h-6 text-pl-info-text" onClick={cancelJob}>Cancel</Button>
     </div>
   );
 };
@@ -61,16 +61,16 @@ export const Grid = ({
   headers, rows, testId, caption, maxHeight,
 }) => (
   <div className={`overflow-x-auto ${maxHeight ? `${maxHeight} overflow-y-auto` : ''}`}>
-    <table className="w-full text-left text-xs text-slate-200" data-testid={testId}>
-      {caption ? <caption className="mb-1 text-left text-[11px] text-slate-400">{caption}</caption> : null}
+    <table className="w-full text-left text-xs text-pl-text" data-testid={testId}>
+      {caption ? <caption className="mb-1 text-left text-[11px] text-pl-muted">{caption}</caption> : null}
       <thead>
-        <tr className="border-b border-slate-700 text-slate-400">
+        <tr className="border-b border-pl-border-strong text-pl-muted">
           {headers.map((h, i) => <th key={`${i}-${h}`} className="px-2 py-1 font-medium">{h}</th>)}
         </tr>
       </thead>
       <tbody>
         {rows.map((r, i) => (
-          <tr key={i} className="border-b border-slate-800 align-top">
+          <tr key={i} className="border-b border-pl-border align-top">
             {r.map((c, j) => (
               <td key={j} className="px-2 py-1 font-mono">{typeof c === 'number' ? dn(c) : c}</td>
             ))}
@@ -88,12 +88,12 @@ export const metricCell = (v) => (v === null || v === undefined ? 'undefined' : 
 export const Basis = ({ basis, testId }) => {
   if (!basis) return null;
   return (
-    <details className="rounded border border-slate-800 p-2 text-[11px] text-slate-400" data-testid={testId}>
-      <summary className="cursor-pointer text-slate-300">How the engine computed this</summary>
+    <details className="rounded border border-pl-border p-2 text-[11px] text-pl-muted" data-testid={testId}>
+      <summary className="cursor-pointer text-pl-text">How the engine computed this</summary>
       <dl className="mt-1 space-y-1">
         {Object.entries(basis).map(([k, v]) => (
           <div key={k}>
-            <dt className="inline font-semibold text-slate-300">{k}: </dt>
+            <dt className="inline font-semibold text-pl-text">{k}: </dt>
             <dd className="inline">{typeof v === 'string' ? v : JSON.stringify(v)}</dd>
           </div>
         ))}

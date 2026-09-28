@@ -5,11 +5,15 @@ import {
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
+  NumTh, NumRow, RowLabel, NumCell,
+} from '@/components/ui/numeric-table';
+import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
 } from '@/utils/chartTheme';
 import { useMaterialsSpares } from '@/contexts/MaterialsSparesContext';
 import { fillFromItem, fmtNum } from '@/utils/supplychain/materialsAdapters';
 import {
+  Ledger, TextCell,
   Basis, ItemFill, Note, NumField, Panel, ResultGate, Stat,
 } from './common';
 
@@ -51,7 +55,7 @@ const SparesResults = () => {
               <Stat label="Mean orders outstanding" value={fmtNum(r.meanOutstanding, 6)} testId="spares-mean" />
             </div>
             {r.atSearchLimit ? <Note tone="warn" testId="spares-limit">The cheapest option is at the largest number considered, so a larger stock may cost less. Raise the largest number of spares.</Note> : null}
-            <div className="overflow-hidden rounded-lg border border-slate-700">
+            <div className="overflow-hidden rounded-lg border border-pl-border">
               <ChartFrame height={240} exportFilename="insurance-spares">
                 <ComposedChart data={data} margin={{ top: 16, right: 20, left: 10, bottom: 8 }}>
                   <CartesianGrid {...GRID_STYLE} />
@@ -65,22 +69,25 @@ const SparesResults = () => {
                 </ComposedChart>
               </ChartFrame>
             </div>
-            <table className="w-full text-xs">
-              <thead className="text-left text-slate-400"><tr><th className="p-1">Spares</th><th className="p-1 text-right">P(no shortage)</th><th className="p-1 text-right">Fill rate</th><th className="p-1 text-right">Expected units down</th><th className="p-1 text-right">Holding</th><th className="p-1 text-right">Downtime</th><th className="p-1 text-right">Total</th></tr></thead>
+            <Ledger>
+              <thead><tr><NumTh sticky>Spares</NumTh><NumTh numeric>P(no shortage)</NumTh><NumTh numeric>Fill rate</NumTh><NumTh numeric>Expected units down</NumTh><NumTh numeric>Holding</NumTh><NumTh numeric>Downtime</NumTh><NumTh numeric>Total</NumTh></tr></thead>
               <tbody>
                 {r.options.map((o) => (
-                  <tr key={o.spares} className={`border-t border-slate-800 ${o.spares === r.spares ? 'text-emerald-300' : 'text-slate-200'}`} data-testid={`spares-row-${o.spares}`}>
-                    <td className="p-1">{o.spares}</td>
-                    <td className="p-1 text-right font-mono">{fmtNum(o.probabilityNoShortage, 6)}</td>
-                    <td className="p-1 text-right font-mono">{fmtNum(o.fillRate, 6)}</td>
-                    <td className="p-1 text-right font-mono">{fmtNum(o.expectedUnitsDown, 6)}</td>
-                    <td className="p-1 text-right font-mono">{fmtNum(o.holdingCost, 2)}</td>
-                    <td className="p-1 text-right font-mono">{fmtNum(o.downtimeCost, 2)}</td>
-                    <td className="p-1 text-right font-mono" data-testid={`spares-total-${o.spares}`}>{fmtNum(o.totalCost, 2)}</td>
-                  </tr>
+                  <NumRow key={o.spares} className={o.spares === r.spares ? 'bg-pl-success-bg font-semibold' : undefined} data-testid={`spares-row-${o.spares}`}>
+                    <RowLabel>
+                      {o.spares}
+                      {o.spares === r.spares ? <span className="ml-1.5 font-normal text-pl-success-text">chosen</span> : null}
+                    </RowLabel>
+                    <NumCell>{fmtNum(o.probabilityNoShortage, 6)}</NumCell>
+                    <NumCell>{fmtNum(o.fillRate, 6)}</NumCell>
+                    <NumCell>{fmtNum(o.expectedUnitsDown, 6)}</NumCell>
+                    <NumCell>{fmtNum(o.holdingCost, 2)}</NumCell>
+                    <NumCell>{fmtNum(o.downtimeCost, 2)}</NumCell>
+                    <NumCell data-testid={`spares-total-${o.spares}`}>{fmtNum(o.totalCost, 2)}</NumCell>
+                  </NumRow>
                 ))}
               </tbody>
-            </table>
+            </Ledger>
             <Basis reason={r.reason} basis={r.basis} testId="spares-basis" />
           </Panel>
         );

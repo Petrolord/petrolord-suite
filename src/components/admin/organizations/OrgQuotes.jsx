@@ -131,34 +131,35 @@ const OrgQuotes = () => {
   // --- Helpers ---
 
   const getStatusBadge = (status) => {
-    const styles = {
-      draft: "bg-slate-800 text-slate-400 border-slate-700",
-      sent: "bg-blue-900/20 text-blue-400 border-blue-800",
-      accepted: "bg-green-900/20 text-green-400 border-green-800",
-      rejected: "bg-red-900/20 text-red-400 border-red-800",
-      expired: "bg-orange-900/20 text-orange-400 border-orange-800"
+    // Status colour travels with the status word (Badge status variants).
+    const variants = {
+      draft: 'neutral',
+      sent: 'info',
+      accepted: 'success',
+      rejected: 'danger',
+      expired: 'warning'
     };
-    return <Badge variant="outline" className={styles[status] || ""}>{status}</Badge>;
+    return <Badge variant={variants[status] || 'neutral'} className="capitalize">{status}</Badge>;
   };
 
   return (
     <div className="space-y-6 h-full flex flex-col">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row gap-3 justify-between sm:items-center">
         <div>
-          <h3 className="text-lg font-semibold text-white">Quote Management</h3>
-          <p className="text-sm text-slate-400">Create and track custom pricing proposals.</p>
+          <h3 className="text-lg font-semibold text-pl-text">Quote Management</h3>
+          <p className="text-sm text-pl-muted">Create and track custom pricing proposals.</p>
         </div>
-        <Button onClick={handleNewQuote} className="bg-[#4CAF50] hover:bg-[#388E3C] text-white">
+        <Button onClick={handleNewQuote}>
           <PlusCircle className="h-4 w-4 mr-2" /> New Quote
         </Button>
       </div>
 
       {/* Quote Table */}
-      <div className="border border-slate-800 rounded-md bg-slate-900/50 flex-1 overflow-auto">
+      <div className="border border-pl-border rounded-md flex-1 overflow-auto">
         <Table>
           <TableHeader>
-            <TableRow className="border-slate-800 hover:bg-slate-900">
+            <TableRow>
               <TableHead>Quote ID</TableHead>
               <TableHead>Description</TableHead>
               <TableHead>Date</TableHead>
@@ -171,39 +172,39 @@ const OrgQuotes = () => {
           <TableBody>
             {quotes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center h-32 text-slate-500">No quotes found.</TableCell>
+                <TableCell colSpan={7} className="text-center h-32 text-pl-muted">No quotes found.</TableCell>
               </TableRow>
             ) : (
               quotes.map((quote) => (
-                <TableRow key={quote.id} className="border-slate-800 hover:bg-slate-800/50">
-                  <TableCell className="font-mono text-slate-300">{quote.id}</TableCell>
-                  <TableCell className="font-medium text-slate-200">{quote.name}</TableCell>
-                  <TableCell className="text-slate-400">{formatDate(quote.date)}</TableCell>
-                  <TableCell className="text-slate-400">{formatDate(quote.expiryDate)}</TableCell>
-                  <TableCell className="text-slate-200">{formatCurrency(quote.amount)}</TableCell>
+                <TableRow key={quote.id}>
+                  <TableCell className="font-pl-mono text-pl-text whitespace-nowrap">{quote.id}</TableCell>
+                  <TableCell className="font-medium text-pl-text">{quote.name}</TableCell>
+                  <TableCell className="text-pl-muted whitespace-nowrap">{formatDate(quote.date)}</TableCell>
+                  <TableCell className="text-pl-muted whitespace-nowrap">{formatDate(quote.expiryDate)}</TableCell>
+                  <TableCell className="font-pl-mono tabular-nums text-pl-text">{formatCurrency(quote.amount)}</TableCell>
                   <TableCell>{getStatusBadge(quote.status)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" title="Preview" onClick={() => setPreviewingQuote(quote)}>
+                      <Button variant="ghost" size="icon" title="Preview" aria-label="Preview" onClick={() => setPreviewingQuote(quote)}>
                         <Eye className="h-4 w-4" />
                       </Button>
                       
                       {quote.status === 'draft' && (
-                        <Button variant="ghost" size="icon" title="Edit" onClick={() => handleEdit(quote)}>
+                        <Button variant="ghost" size="icon" title="Edit" aria-label="Edit" onClick={() => handleEdit(quote)}>
                           <Edit2 className="h-4 w-4" />
                         </Button>
                       )}
 
-                      <Button variant="ghost" size="icon" title="Send Email" onClick={() => setEmailingQuote(quote)}>
-                        <Send className="h-4 w-4 text-blue-400" />
+                      <Button variant="ghost" size="icon" title="Send Email" aria-label="Send Email" onClick={() => setEmailingQuote(quote)}>
+                        <Send className="h-4 w-4" />
                       </Button>
 
-                      <Button variant="ghost" size="icon" title="Download PDF" onClick={() => handleDownloadPDF(quote)} disabled={isGeneratingPdf}>
+                      <Button variant="ghost" size="icon" title="Download PDF" aria-label="Download PDF" onClick={() => handleDownloadPDF(quote)} disabled={isGeneratingPdf}>
                         <FileDown className="h-4 w-4" />
                       </Button>
 
                       {quote.status === 'draft' && (
-                        <Button variant="ghost" size="icon" title="Delete" className="hover:text-red-400 hover:bg-red-950/30" onClick={() => handleDeleteClick(quote.id)}>
+                        <Button variant="ghost" size="icon" title="Delete" aria-label="Delete" className="text-pl-danger-text hover:text-pl-danger-text hover:bg-pl-danger-bg" onClick={() => handleDeleteClick(quote.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       )}
@@ -220,7 +221,7 @@ const OrgQuotes = () => {
 
       {/* Editor Dialog */}
       <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
-        <DialogContent className="bg-slate-950 border-slate-800 text-slate-100 max-w-[95vw] w-[1200px] h-[90vh] flex flex-col">
+        <DialogContent className="max-w-[95vw] w-[1200px] h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{editingQuote?.id ? `Edit Quote: ${editingQuote.id}` : 'New Quote'}</DialogTitle>
             <DialogDescription>Configure pricing, details, and terms.</DialogDescription>
@@ -233,9 +234,9 @@ const OrgQuotes = () => {
             />
           </div>
 
-          <DialogFooter className="mt-auto pt-4 border-t border-slate-800">
+          <DialogFooter className="mt-auto pt-4 border-t border-pl-border">
             <Button variant="ghost" onClick={() => setIsEditorOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveQuote} className="bg-[#4CAF50] hover:bg-[#388E3C] text-white">
+            <Button onClick={handleSaveQuote}>
               Save Quote
             </Button>
           </DialogFooter>
@@ -244,7 +245,7 @@ const OrgQuotes = () => {
 
       {/* Preview Dialog (Full Screen Overlay) */}
       {previewingQuote && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm p-4 md:p-10 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm p-4 md:p-10 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Quote preview">
           <div className="w-full max-w-5xl h-full bg-transparent">
             <QuotePreview 
               quote={previewingQuote} 
@@ -265,16 +266,16 @@ const OrgQuotes = () => {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!quoteToDelete} onOpenChange={(open) => !open && setQuoteToDelete(null)}>
-        <AlertDialogContent className="bg-slate-900 border-slate-800 text-slate-100">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
+            <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the quote.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 text-white border-none">Delete</AlertDialogAction>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90 border-none">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

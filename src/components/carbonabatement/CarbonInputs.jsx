@@ -12,19 +12,19 @@ const Cell = ({ label, value, onChange, unit, placeholder, type = 'number' }) =>
   const text = `${label}${unit ? ` (${unit})` : ''}`;
   return (
     <div>
-      <Label htmlFor={id} className="text-[10px] text-slate-400">{text}</Label>
+      <Label htmlFor={id} className="text-[10px] text-pl-muted">{text}</Label>
       <Input id={id} type={type} step={type === 'number' ? 'any' : undefined}
         value={value ?? ''} placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="h-7 bg-slate-950 border-slate-700 text-xs" />
+        className="h-7 text-xs" />
     </div>
   );
 };
 
 const Group = ({ title, children, note }) => (
   <div>
-    <h2 className="text-sm font-semibold text-white mb-1">{title}</h2>
-    {note && <p className="text-[10px] text-slate-500 mb-1.5">{note}</p>}
+    <h2 className="text-sm font-semibold text-pl-text mb-1">{title}</h2>
+    {note && <p className="text-[10px] text-pl-muted mb-1.5">{note}</p>}
     <div className="grid grid-cols-2 gap-2">{children}</div>
   </div>
 );
@@ -59,14 +59,14 @@ const CarbonInputs = () => {
       </Group>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-1">Factor-based sources</h2>
-        <p className="text-[10px] text-slate-500 mb-1.5">
+        <h2 className="text-sm font-semibold text-pl-text mb-1">Factor-based sources</h2>
+        <p className="text-[10px] text-pl-muted mb-1.5">
           A factor without its source and version is not an auditable number. The inventory is
           still computed without them; it is marked not reportable and says which lines are why.
         </p>
         {inputs.lines.map((l) => (
-          <div key={l.id} className="rounded border border-slate-800 bg-slate-900/60 p-2 mb-2">
-            <p className="text-[11px] text-slate-300 mb-1.5">{`${l.label} (Scope ${l.scope}, ${l.gas})`}</p>
+          <div key={l.id} className="rounded-lg border border-pl-border p-2 mb-2">
+            <p className="text-[11px] text-pl-text mb-1.5">{`${l.label} (Scope ${l.scope}, ${l.gas})`}</p>
             <div className="grid grid-cols-2 gap-2">
               <Cell label="Activity" unit={l.activityUnit} value={l.activity} onChange={(v) => setLine(l.id, { activity: v })} />
               <Cell label="Factor" unit={l.factorUnit} value={l.factorValue} placeholder="required" onChange={(v) => setLine(l.id, { factorValue: v })} />
@@ -93,22 +93,22 @@ const CarbonInputs = () => {
 
       <div>
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-sm font-semibold text-white">Abatement measures</h2>
-          <Button size="sm" variant="outline" className="h-6 text-[11px] border-slate-700" onClick={addMeasure}>
+          <h2 className="text-sm font-semibold text-pl-text">Abatement measures</h2>
+          <Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={addMeasure}>
             <Plus className="w-3 h-3 mr-1" /> Measure
           </Button>
         </div>
-        <p className="text-[10px] text-slate-500 mb-1.5">
+        <p className="text-[10px] text-pl-muted mb-1.5">
           Two measures acting on the same source do not abate twice. Name what each one acts on and
           the curve will say where they interact.
         </p>
         {inputs.measures.map((m) => (
-          <div key={m.id} className="rounded border border-slate-800 bg-slate-900/60 p-2 mb-2">
+          <div key={m.id} className="rounded-lg border border-pl-border p-2 mb-2">
             <div className="flex items-center gap-1 mb-1.5">
               <Input value={m.label} aria-label={`Measure name ${m.label}`}
                 onChange={(e) => setMeasure(m.id, { label: e.target.value })}
-                className="h-7 bg-slate-950 border-slate-700 text-xs" />
-              <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-500 hover:text-red-400"
+                className="h-7 text-xs" />
+              <Button size="icon" variant="ghost" className="h-7 w-7 text-pl-muted hover:text-pl-danger-text"
                 aria-label={`Remove ${m.label}`} onClick={() => removeMeasure(m.id)}>
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>

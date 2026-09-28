@@ -149,3 +149,22 @@ DS3, the Refinery Planning & Scheduling Studio: the same LP kernel at
 configuration scale, on the shared stream model built at DS0, carrying
 the plan, the schedule and the actuals in one data model so variance is
 a subtraction rather than a reconciliation project.
+
+## Design system rollout (w5e, 2026-09-28)
+
+The page wraps itself in `ThemedApp`: grey panel light by default, dark by
+the user's choice in the header toggle. AppHeader (with the theme toggle,
+the saved-study selector, save, the Full precision switch and the
+documentation drawer) replaces the bespoke header. The pool, specification
+and component cards move to theme roles. A specification's state keeps its
+word with a tone (not applied warning, binding info, slack neutral). What
+the blend achieves, the quality giveaway and the shadow prices are
+NumericTables; the no-recipe and skipped-spec boxes are warning. The recipe
+chart stays white in ChartFrame.
+No calculation change; the existing suites pass unchanged. Route `/dashboard/apps/midstream-downstream/product-blending-optimizer`
+is registered in `src/design/rollout/w5e.js` for the cold-load loaders.
+Theme test: `src/pages/apps/__tests__/ProductBlendingOptimizer.theme.test.jsx` (the standard
+four checks plus the recipe in light and dark, the open template select, the no-recipe warning and the help guide). Screens checked in light at 1440 and 390 (no
+sideways page scroll) and dark at 1440 on a private dev server; the phone
+layout now stacks the input rail above the results (before, the rail took
+the full width and squeezed the results out of view).

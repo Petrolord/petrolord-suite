@@ -24,7 +24,7 @@ const tick = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisT
 const axisLabel = (value, extra = {}) => ({ value, fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize, ...extra });
 
 const Frame = ({ children, testId, height = 'h-72' }) => (
-  <div className={`relative ${height} rounded-lg bg-white p-2`} data-testid={testId}>
+  <div className={`relative ${height} rounded-lg bg-white p-2`} data-canvas="chart" data-testid={testId}>
     <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>
     <ChartLogo />
   </div>
@@ -86,10 +86,10 @@ const ControlCharts = ({ run }) => {
   const cu = c.cusum;
   return (
     <div className="space-y-3">
-      <p className="text-xs text-slate-300" data-testid="chart-window">{c.channel}, entries {c.start} to {c.start + c.values.length - 1} (counted from 0).</p>
+      <p className="text-xs text-pl-text" data-testid="chart-window">{c.channel}, entries {c.start} to {c.start + c.values.length - 1} (counted from 0).</p>
       {ind ? (ind.error ? <EngineError result={ind} prefix="Individuals chart" /> : (
         <>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-pl-muted">
             Individuals: centre {fmt(ind.centre)}, sigma {fmt(ind.sigma)} (MRbar {fmt(ind.mrBar)} / 1.128), limits {fmt(ind.lcl)} to {fmt(ind.ucl)}; {ind.outOfControl.length} samples out of control.
           </p>
           <Frame testId="individuals-chart">
@@ -121,7 +121,7 @@ const ControlCharts = ({ run }) => {
       )) : null}
       {ew ? (ew.error ? <EngineError result={ew} prefix="EWMA chart" /> : (
         <>
-          <p className="text-xs text-slate-400">EWMA from EWMA_0 = {fmt(ew.start)}, {ew.basis.limits} limits, {ew.flags.length} signals.</p>
+          <p className="text-xs text-pl-muted">EWMA from EWMA_0 = {fmt(ew.start)}, {ew.basis.limits} limits, {ew.flags.length} signals.</p>
           <Frame testId="ewma-chart">
             <ComposedChart data={ew.points.map((p, j) => ({ x: x(j), e: p.ewma, u: p.ucl, l: p.lcl }))} margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
@@ -138,7 +138,7 @@ const ControlCharts = ({ run }) => {
       )) : null}
       {cu ? (cu.error ? <EngineError result={cu} prefix="CUSUM chart" /> : (
         <>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-pl-muted">
             Tabular CUSUM, k = {fmt(cu.kData)} and h = {fmt(cu.hData)} in data units. First upward signal {cu.firstSignalHigh === null ? 'none' : `at entry ${c.start + cu.firstSignalHigh}`}; first downward signal {cu.firstSignalLow === null ? 'none' : `at entry ${c.start + cu.firstSignalLow}`}.
           </p>
           <Frame testId="cusum-chart">
@@ -167,7 +167,7 @@ const MahalanobisChart = ({ dataset, run }) => {
   const data = r.d2.map((d, i) => ({ x: indexLabel(dataset, i), d, out: d !== null && d > r.cutoff ? d : null }));
   return (
     <div className="space-y-2">
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-pl-muted">
         {m.channels.join(' + ')}: {r.n} complete rows, {r.skippedRows.length} skipped for a missing value, cutoff {fmt(r.cutoff)} (chi-square {fmt(r.level)} quantile on {r.p} degrees of freedom), {r.flags.length} rows beyond it.
       </p>
       <Frame testId="mahalanobis-chart">

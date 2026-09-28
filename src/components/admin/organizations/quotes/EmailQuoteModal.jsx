@@ -23,24 +23,24 @@ const EmailQuoteModal = ({ isOpen, onClose, quote, organization }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-slate-900 border-slate-800 text-slate-100">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Send Quote: {quote?.id}</DialogTitle>
           <DialogDescription>Email this proposal to the client.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label>Recipient Email</Label>
-            <Input value={email} onChange={(e) => setEmail(e.target.value)} className="bg-slate-950 border-slate-700" />
+            <Label htmlFor="quote-email-to">Recipient Email</Label>
+            <Input id="quote-email-to" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>Message</Label>
-            <Textarea value={message} onChange={(e) => setMessage(e.target.value)} className="bg-slate-950 border-slate-700 h-32" />
+            <Label htmlFor="quote-email-message">Message</Label>
+            <Textarea id="quote-email-message" value={message} onChange={(e) => setMessage(e.target.value)} className="h-32" />
           </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSend} disabled={sending} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={handleSend} disabled={sending}>
             {sending ? 'Sending...' : 'Send Email'}
           </Button>
         </DialogFooter>

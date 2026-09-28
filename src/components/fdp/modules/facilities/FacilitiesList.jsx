@@ -7,25 +7,25 @@ import { Edit2, Trash2, Copy, CheckCircle } from 'lucide-react';
 const FacilitiesList = ({ facilities, onEdit, onDelete, onDuplicate, selectedId, onSelect }) => {
     if (!facilities || facilities.length === 0) {
         return (
-            <div className="text-center py-12 bg-slate-900/50 border border-dashed border-slate-800 rounded-lg">
-                <p className="text-slate-500 mb-2">No facilities defined yet.</p>
-                <p className="text-sm text-slate-600">Create a facility concept to start engineering.</p>
+            <div className="text-center py-12 bg-pl-surface border border-dashed border-pl-border rounded-lg">
+                <p className="text-pl-muted mb-2">No facilities defined yet.</p>
+                <p className="text-sm text-pl-muted">Create a facility concept to start engineering.</p>
             </div>
         );
     }
 
     return (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardContent className="p-0">
                 <div className="overflow-x-auto">
                     <Table>
-                        <TableHeader className="bg-slate-800/50">
-                            <TableRow className="border-slate-800">
-                                <TableHead className="text-slate-300 w-[50px]">Sel</TableHead>
-                                <TableHead className="text-slate-300">Facility Name</TableHead>
-                                <TableHead className="text-slate-300">Type</TableHead>
-                                <TableHead className="text-slate-300 text-right">Oil Cap (bpd)</TableHead>
-                                <TableHead className="text-slate-300 text-right">CAPEX ($MM)</TableHead>
+                        <TableHeader className="bg-pl-sunken">
+                            <TableRow className="border-pl-border">
+                                <TableHead className="w-[50px]">Sel</TableHead>
+                                <TableHead>Facility Name</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead className="text-right">Oil Cap (bpd)</TableHead>
+                                <TableHead className="text-right">CAPEX ($MM)</TableHead>
                                 <TableHead className="text-right w-[120px]">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -33,29 +33,29 @@ const FacilitiesList = ({ facilities, onEdit, onDelete, onDuplicate, selectedId,
                             {facilities.map((facility) => (
                                 <TableRow 
                                     key={facility.id} 
-                                    className={`border-slate-800 hover:bg-slate-800/30 cursor-pointer ${selectedId === facility.id ? 'bg-slate-800/50' : ''}`}
+                                    className={`border-pl-border hover:bg-pl-sunken/60 cursor-pointer ${selectedId === facility.id ? 'bg-pl-sunken' : ''}`}
                                     onClick={() => onSelect(facility.id)}
                                 >
                                     <TableCell>
-                                        {selectedId === facility.id && <CheckCircle className="w-4 h-4 text-orange-500" />}
+                                        {selectedId === facility.id && <CheckCircle className="w-4 h-4 text-pl-primary-text" />}
                                     </TableCell>
-                                    <TableCell className="font-medium text-white">{facility.name}</TableCell>
+                                    <TableCell className="font-medium text-pl-text">{facility.name}</TableCell>
                                     <TableCell>
-                                        <span className="text-xs px-2 py-1 rounded-full border bg-slate-800 border-slate-700 text-slate-400">
+                                        <span className="text-xs px-2 py-1 rounded-full border bg-pl-sunken border-pl-border text-pl-muted">
                                             {facility.type}
                                         </span>
                                     </TableCell>
-                                    <TableCell className="text-right font-mono text-slate-300">{facility.nameplateCapacity?.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right font-mono text-orange-400">{facility.capex}</TableCell>
+                                    <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">{facility.nameplateCapacity?.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">{facility.capex}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-1" onClick={e => e.stopPropagation()}>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-white" onClick={() => onDuplicate(facility)}>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-pl-muted hover:text-pl-text" onClick={() => onDuplicate(facility)}>
                                                 <Copy className="w-3.5 h-3.5" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-white" onClick={() => onEdit(facility)}>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-pl-muted hover:text-pl-text" onClick={() => onEdit(facility)}>
                                                 <Edit2 className="w-3.5 h-3.5" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-red-400" onClick={() => onDelete(facility.id)}>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-pl-muted hover:text-pl-danger-text" onClick={() => onDelete(facility.id)}>
                                                 <Trash2 className="w-3.5 h-3.5" />
                                             </Button>
                                         </div>

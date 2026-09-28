@@ -73,7 +73,7 @@ const MetricsPanel = () => {
           <StaleNote job="metrics" />
           {e.error ? <EngineError result={e} /> : (
             <>
-              <p className="text-xs text-slate-300" data-testid="metrics-line">
+              <p className="text-xs text-pl-text" data-testid="metrics-line">
                 k {e.k}; relevant at grade {e.relevantGrade} or more; {e.gain} gain; means over {e.nIncluded} of {e.nQueries} judged queries.
               </p>
               <Grid testId="means-table" headers={['Metric', 'Value']} rows={MEAN_ROWS.map(([k, label]) => [label, metricCell(e.mean[k])])} />

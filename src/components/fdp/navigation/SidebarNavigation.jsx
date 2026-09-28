@@ -24,18 +24,18 @@ const NavItem = ({ id, icon: Icon, label, collapsed, isActive, onClick, count })
         className={cn(
             "w-full flex items-center gap-3 p-3 rounded-md transition-colors duration-200 mb-1 group relative",
             isActive 
-                ? "bg-blue-600 text-white shadow-md shadow-blue-900/20" 
-                : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                ? "bg-pl-primary text-pl-primary-fg shadow-pl-sm"
+                : "text-pl-muted hover:bg-pl-sunken hover:text-pl-text"
         )}
         title={collapsed ? label : undefined}
     >
-        <Icon className={cn("w-5 h-5 flex-shrink-0", isActive ? "text-white" : "text-slate-400 group-hover:text-white")} />
+        <Icon className={cn("w-5 h-5 flex-shrink-0", isActive ? "text-pl-primary-fg" : "text-pl-muted group-hover:text-pl-text")} />
         
         {!collapsed && (
             <div className="flex-1 text-left flex justify-between items-center">
                 <span className="text-sm font-medium truncate">{label}</span>
                 {count !== undefined && (
-                    <span className="text-[10px] bg-slate-950/50 px-1.5 py-0.5 rounded-full text-slate-400">
+                    <span className="text-[10px] bg-pl-sunken px-1.5 py-0.5 rounded-full text-pl-muted">
                         {count}
                     </span>
                 )}
@@ -86,12 +86,12 @@ const SidebarNavigation = () => {
                         empty ones included, and called itself Data Quality. It is
                         the plan's own completeness score now, which counts the
                         sections that have something in them and says so. */}
-                    <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
-                        <p className="text-xs text-slate-400 mb-1">Sections with data</p>
-                        <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden mb-1">
-                            <div className="bg-green-500 h-full" style={{ width: `${completeness.score}%` }}></div>
+                    <div className="bg-pl-sunken rounded-lg p-3 border border-pl-border">
+                        <p className="text-xs text-pl-muted mb-1">Sections with data</p>
+                        <div className="w-full bg-pl-surface h-1.5 rounded-full overflow-hidden mb-1">
+                            <div className="bg-pl-primary h-full" style={{ width: `${completeness.score}%` }}></div>
                         </div>
-                        <p className="text-[10px] text-right text-green-400">
+                        <p className="text-[10px] text-right text-pl-muted">
                             {completeness.score}% of {completeness.breakdown.length} sections
                         </p>
                     </div>

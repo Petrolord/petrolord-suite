@@ -94,11 +94,11 @@ export const LpgCngHelpContent = () => (
         <AccordionItem value={item.id} key={item.id}>
           <AccordionTrigger className="text-base hover:no-underline">
             <div className="flex items-center">
-              <Icon className="w-5 h-5 mr-3 text-lime-400" />
+              <Icon className="w-5 h-5 mr-3 text-pl-primary-text" />
               {item.title}
             </div>
           </AccordionTrigger>
-          <AccordionContent className="text-slate-300 pl-8 leading-relaxed">
+          <AccordionContent className="text-pl-text pl-8 leading-relaxed">
             {item.content}
           </AccordionContent>
         </AccordionItem>

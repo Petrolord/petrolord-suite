@@ -2,6 +2,7 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import {
   useFlareToValue, GAS_REFERENCE_NOTE, ROUTE_TEMPLATE_NOTE,
 } from '@/contexts/FlareToValueContext';
@@ -15,20 +16,20 @@ const Cell = ({ label, value, onChange, unit, placeholder, type = 'number', scop
   const text = `${label}${unit ? ` (${unit})` : ''}`;
   return (
     <div>
-      <Label htmlFor={id} className="text-[10px] text-slate-400">{text}</Label>
+      <Label htmlFor={id} className="text-[10px] text-pl-muted">{text}</Label>
       <Input id={id} type={type} step={type === 'number' ? 'any' : undefined}
         aria-label={scope ? `${scope} ${text}` : undefined}
         value={value ?? ''} placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="h-7 bg-slate-950 border-slate-700 text-xs" />
+        className="h-7 text-xs" />
     </div>
   );
 };
 
 const Group = ({ title, children, note }) => (
   <div>
-    <h2 className="text-sm font-semibold text-white mb-1">{title}</h2>
-    {note && <p className="text-[10px] text-slate-500 mb-1.5">{note}</p>}
+    <h2 className="text-sm font-semibold text-pl-text mb-1">{title}</h2>
+    {note && <p className="text-[10px] text-pl-muted mb-1.5">{note}</p>}
     <div className="grid grid-cols-2 gap-2">{children}</div>
   </div>
 );
@@ -64,11 +65,11 @@ const FlareInputs = () => {
       </Group>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-1">The routes</h2>
-        <p className="text-[10px] text-slate-500 mb-1.5">{ROUTE_TEMPLATE_NOTE}</p>
+        <h2 className="text-sm font-semibold text-pl-text mb-1">The routes</h2>
+        <p className="text-[10px] text-pl-muted mb-1.5">{ROUTE_TEMPLATE_NOTE}</p>
         {inputs.routes.map((r) => (
-          <div key={r.id} className="rounded border border-slate-800 bg-slate-900/60 p-2 mb-2">
-            <p className="text-[11px] font-medium text-slate-200 mb-1.5">{r.label}</p>
+          <div key={r.id} className="rounded-lg border border-pl-border p-2 mb-2">
+            <p className="text-[11px] font-medium text-pl-text mb-1.5">{r.label}</p>
             <div className="grid grid-cols-2 gap-2">
               {r.requirements.map((q) => (
                 <Cell key={q.key} scope={r.label} label={q.label.charAt(0).toUpperCase() + q.label.slice(1)} unit={q.unit}
@@ -92,12 +93,12 @@ const FlareInputs = () => {
         <Cell label="Credit prices" type="text" value={inputs.credits.prices} onChange={(v) => setSection('credits', { prices: v })} />
         <Cell label="Hurdle margin" unit="/yr" value={inputs.credits.hurdleMarginPerYear} onChange={(v) => setSection('credits', { hurdleMarginPerYear: v })} />
         <div>
-          <Label htmlFor="fv-route" className="text-[10px] text-slate-400">Route the credits apply to</Label>
-          <select id="fv-route" value={inputs.credits.appliesToRouteId}
+          <Label htmlFor="fv-route" className="text-[10px] text-pl-muted">Route the credits apply to</Label>
+          <NativeSelect compact id="fv-route" value={inputs.credits.appliesToRouteId}
             onChange={(e) => setSection('credits', { appliesToRouteId: e.target.value })}
-            className="h-7 w-full rounded bg-slate-950 border border-slate-700 text-xs px-2 text-white">
+            className="h-7">
             {inputs.routes.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-          </select>
+          </NativeSelect>
         </div>
       </Group>
     </div>

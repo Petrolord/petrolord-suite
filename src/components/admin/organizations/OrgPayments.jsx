@@ -33,12 +33,13 @@ const OrgPayments = () => {
     setLoading(false);
   };
 
-  const getStatusColor = (status) => {
+  // Status colour travels with the status word (Badge status variants).
+  const getStatusVariant = (status) => {
     switch (status?.toLowerCase()) {
-      case 'completed': return 'bg-green-500/20 text-green-400 border-green-500/50';
-      case 'failed': return 'bg-red-500/20 text-red-400 border-red-500/50';
-      case 'pending': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
-      default: return 'bg-slate-500/20 text-slate-400 border-slate-500/50';
+      case 'completed': return 'success';
+      case 'failed': return 'danger';
+      case 'pending': return 'warning';
+      default: return 'neutral';
     }
   };
 
@@ -50,31 +51,32 @@ const OrgPayments = () => {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-lg border border-slate-800">
-        <div className="relative w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+      <div className="flex flex-col sm:flex-row gap-3 justify-between sm:items-center bg-pl-sunken p-4 rounded-lg border border-pl-border">
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-pl-muted" aria-hidden="true" />
           <Input 
             placeholder="Search payments..." 
-            className="pl-9 bg-slate-950 border-slate-700"
+            className="pl-9"
+            aria-label="Search payments"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="border-slate-700">
+          <Button variant="outline">
             <Filter className="h-4 w-4 mr-2" /> Filter
           </Button>
-          <Button variant="outline" className="border-slate-700">
+          <Button variant="outline">
             <Download className="h-4 w-4 mr-2" /> Export CSV
           </Button>
         </div>
       </div>
 
       {/* Table */}
-      <div className="border border-slate-800 rounded-md bg-slate-900/50 overflow-hidden">
+      <div className="border border-pl-border rounded-md overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow className="border-slate-800 hover:bg-slate-900">
+            <TableRow>
               <TableHead>Date</TableHead>
               <TableHead>Invoice / Ref</TableHead>
               <TableHead>Amount</TableHead>
@@ -87,22 +89,22 @@ const OrgPayments = () => {
             {loading ? (
               <TableRow><TableCell colSpan={6} className="text-center h-32">Loading payments...</TableCell></TableRow>
             ) : filteredPayments.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center h-32 text-slate-500">No payment history.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center h-32 text-pl-muted">No payment history.</TableCell></TableRow>
             ) : (
               filteredPayments.map((payment) => (
-                <TableRow key={payment.id} className="border-slate-800 hover:bg-slate-800/50">
-                  <TableCell className="text-slate-300">
+                <TableRow key={payment.id}>
+                  <TableCell className="text-pl-text whitespace-nowrap">
                     {formatDate(payment.paid_at || payment.created_at)}
                   </TableCell>
                   <TableCell>
-                    <div className="font-mono text-xs text-slate-400">{payment.paystack_reference}</div>
+                    <div className="font-pl-mono text-xs text-pl-muted">{payment.paystack_reference}</div>
                   </TableCell>
-                  <TableCell className="font-medium text-slate-200">
+                  <TableCell className="font-medium font-pl-mono tabular-nums text-pl-text">
                     {formatCurrency(payment.amount, payment.currency)}
                   </TableCell>
-                  <TableCell className="capitalize text-slate-400">{payment.payment_method || 'Card'}</TableCell>
+                  <TableCell className="capitalize text-pl-muted">{payment.payment_method || 'Card'}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={getStatusColor(payment.status)}>
+                    <Badge variant={getStatusVariant(payment.status)}>
                       {payment.status}
                     </Badge>
                   </TableCell>
@@ -111,7 +113,7 @@ const OrgPayments = () => {
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm">Actions</Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800">
+                      <DropdownMenuContent align="end">
                         <DropdownMenuItem>
                           <Download className="h-4 w-4 mr-2" /> Download Invoice
                         </DropdownMenuItem>
@@ -119,7 +121,7 @@ const OrgPayments = () => {
                           <ExternalLink className="h-4 w-4 mr-2" /> View Details
                         </DropdownMenuItem>
                         {payment.status === 'COMPLETED' && (
-                          <DropdownMenuItem className="text-red-400">
+                          <DropdownMenuItem className="text-pl-danger-text">
                             <RotateCcw className="h-4 w-4 mr-2" /> Issue Refund
                           </DropdownMenuItem>
                         )}

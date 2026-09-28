@@ -34,14 +34,14 @@ const FieldOverviewModule = () => {
             {/* Header / Actions */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Field Overview</h2>
-                    <p className="text-slate-400">Define the core parameters and constraints of the development.</p>
+                    <h2 className="text-2xl font-bold text-pl-text">Field Overview</h2>
+                    <p className="text-pl-muted">Define the core parameters and constraints of the development.</p>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleLoadExample} className="border-slate-700 text-slate-300">
+                <div className="flex flex-wrap gap-2 shrink-0">
+                    <Button variant="outline" onClick={handleLoadExample}>
                         <RefreshCw className="w-4 h-4 mr-2" /> Load example
                     </Button>
-                    <Button variant="outline" className="border-slate-700 text-slate-300">
+                    <Button variant="outline">
                         <Upload className="w-4 h-4 mr-2" /> Import File
                     </Button>
                 </div>
@@ -49,11 +49,11 @@ const FieldOverviewModule = () => {
 
             {/* Validation Status Banner */}
             {dataManagement.validationStatus && !dataManagement.validationStatus.isValid && (
-                <div className="bg-red-900/20 border border-red-800 rounded-md p-4 flex items-start">
-                    <AlertTriangle className="w-5 h-5 text-red-500 mr-3 mt-0.5" />
+                <div className="bg-pl-danger-bg border border-pl-danger/40 rounded-md p-4 flex items-start">
+                    <AlertTriangle className="w-5 h-5 text-pl-danger-text mr-3 mt-0.5" />
                     <div>
-                        <h4 className="text-red-400 font-medium">Data Validation Issues</h4>
-                        <ul className="list-disc list-inside text-sm text-red-300/80 mt-1">
+                        <h4 className="text-pl-danger-text font-medium">Data Validation Issues</h4>
+                        <ul className="list-disc list-inside text-sm text-pl-danger-text mt-1">
                             {dataManagement.validationStatus.errors.map((err, i) => <li key={i}>{err}</li>)}
                         </ul>
                     </div>
@@ -101,9 +101,9 @@ const FieldOverviewModule = () => {
                         "Reservoir Sim Last sync: 2d ago" against a hardcoded list
                         that contacted nothing. The help guide already said there
                         is no live connection. */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-                        <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-2">Data Sources</h4>
-                        <p className="text-xs text-slate-500">
+                    <div className="bg-pl-surface border border-pl-border rounded-lg p-4">
+                        <h4 className="text-sm font-medium text-pl-muted uppercase tracking-wider mb-2">Data Sources</h4>
+                        <p className="text-xs text-pl-muted">
                             Everything in this plan is what you entered or loaded as an example. The
                             studio holds no live link to the other Suite apps; bring their numbers in
                             yourself and they stay yours.

@@ -169,3 +169,30 @@ real and stay.
   scroller so the Gantt no longer slides under the rail; concept and
   scenario on the Still to do list; the reserves check shown beside the
   NPV; charts on the white standard; harness `/dev/fdp-accelerator`.
+
+## 2026-09-28: design system rollout 6A (session 1 of 2)
+
+- The app wraps itself in `ThemedApp` (`src/pages/apps/FDPAccelerator.jsx`,
+  test id `fdp-theme-scope`), so the whole app and the `/dev/fdp-accelerator`
+  harness open light, with the per-user dark choice in the top bar
+  (`ThemeToggle` beside the help guide). Route registered in
+  `src/design/rollout/w6a.js`.
+- On theme roles in 6A: the layout, top bar, sidebar, Plan status rail and
+  status bar; Guided and Expert modes; every module page in `modules/*.jsx`
+  (headings, action rows, dialogs); and the community, concepts, cost,
+  facilities and field-overview subtrees. Decorative icon colours went;
+  status colour stays only for sign and severity (NPV sign, IRR hurdle,
+  bottlenecks, risk severity, warnings).
+- Charts: the cash flow and tornado cards are `ChartPanel` (white in both
+  themes). Money tables: the cost breakdown and the concept comparison use
+  `NumericTable`. The field location map is a `data-canvas="dark"` canvas.
+- No calculation, state or export change: `services/fdp/*` and
+  `utils/fdp/*` are untouched, so the generated FDP document is the same.
+- 6B converts the generation, hse, risk, scenarios, schedule, subsurface and
+  wells subtrees. Until then those panels render as dark cards inside the
+  light page (readable; 6B themes them). The theme test
+  (`src/components/fdp/__tests__/FDPAccelerator.theme.test.jsx`) lists them
+  in `PENDING_6B_FILES`; 6B deletes that list and its allow set.
+- Left open (pre-existing layout issues): at phone width the fixed
+  256px sidebar and 320px Plan status rail leave no room for the main
+  column; the top bar's "Saved plan" label is clipped by the 64px bar.

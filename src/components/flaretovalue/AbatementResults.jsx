@@ -6,19 +6,23 @@ import {
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { NumericTable, NumTh, NumRow, NumCell } from '@/components/ui/numeric-table';
 import { useFlareToValue } from '@/contexts/FlareToValueContext';
 
 const fmt = (v, dp = 1) => (Number.isFinite(v)
   ? v.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })
   : 'not available');
 
-const Stat = ({ label, value, hint }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
-    <p className="text-[10px] uppercase tracking-wide text-slate-500">{label}</p>
-    <p className="text-lg font-semibold text-white">{value}</p>
-    {hint && <p className="text-[11px] text-slate-500 mt-0.5">{hint}</p>}
+// KPI tile in theme roles; numbers in the mono face, words in the sans.
+const Stat = ({ label, value, hint, mono = true }) => (
+  <div className="rounded-lg border border-pl-border bg-pl-surface p-3 shadow-pl-sm">
+    <p className="text-[10px] uppercase tracking-wide text-pl-muted">{label}</p>
+    <p className={`text-lg font-semibold text-pl-text break-words ${mono ? 'font-pl-mono tabular-nums' : ''}`}>{value}</p>
+    {hint && <p className="text-[11px] text-pl-muted mt-0.5">{hint}</p>}
   </div>
 );
+
+const WARNING_CALLOUT = 'rounded-lg border border-pl-warning/40 bg-pl-warning-bg p-4 flex items-start gap-3 text-pl-warning-text';
 
 const AbatementResults = () => {
   const { flareAbatement: a, creditCase } = useFlareToValue();
@@ -27,9 +31,9 @@ const AbatementResults = () => {
 
   if (a.error) {
     return (
-      <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 flex items-start gap-3">
-        <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
-        <p className="text-sm text-amber-100">{a.error}</p>
+      <div className={WARNING_CALLOUT}>
+        <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />
+        <p className="text-sm">{a.error}</p>
       </div>
     );
   }
@@ -37,23 +41,23 @@ const AbatementResults = () => {
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">What the flare emits</h3>
-        <p className="text-[11px] text-slate-500 mb-2">
+        <h3 className="text-sm font-semibold text-pl-text mb-1">What the flare emits</h3>
+        <p className="text-[11px] text-pl-muted mb-2">
           Computed from the gas analysis: the hydrocarbon carbon that burns, the CO2 already in the gas, and the methane that escapes. This is the flare&apos;s own footprint,
           which is a different question from what recovering it would abate.
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Stat label="CO2 burned" value={`${fmt(a.flareCo2Tonnes, 0)} t/yr`} />
           <Stat label="Methane slipped" value={`${fmt(a.flareCh4Tonnes, 0)} t/yr`} />
-          <Stat label="Total" value={a.flareCo2eTonnes === null ? 'needs a methane GWP' : `${fmt(a.flareCo2eTonnes, 0)} tCO2e/yr`} />
+          <Stat label="Total" value={a.flareCo2eTonnes === null ? 'needs a methane GWP' : `${fmt(a.flareCo2eTonnes, 0)} tCO2e/yr`} mono={a.flareCo2eTonnes !== null} />
           <Stat label="Methane share"
             value={a.methaneShareOfFlareCo2e === null ? '-' : `${fmt(a.methaneShareOfFlareCo2e * 100, 0)}%`}
             hint="of the flare's CO2e" />
         </div>
-        <p className="text-[11px] text-slate-500 mt-2">{a.basis}</p>
-        {a.combustionEfficiencyNote && <p className="text-[11px] text-amber-300 mt-1">{a.combustionEfficiencyNote}</p>}
+        <p className="text-[11px] text-pl-muted mt-2">{a.basis}</p>
+        {a.combustionEfficiencyNote && <p className="text-[11px] text-pl-warning-text mt-1">{a.combustionEfficiencyNote}</p>}
         {a.methaneShareOfFlareCo2e !== null && a.methaneShareOfFlareCo2e > 0.25 && (
-          <p className="text-[11px] text-amber-300 mt-2">
+          <p className="text-[11px] text-pl-warning-text mt-2">
             Most of this flare&apos;s impact is the methane it fails to burn, not the CO2 it does.
             That is why the destruction efficiency is asked for rather than assumed.
           </p>
@@ -62,45 +66,45 @@ const AbatementResults = () => {
 
       <div className={`rounded-lg border p-4 flex items-start gap-3 ${
         net !== null
-          ? 'border-emerald-800/60 bg-emerald-950/30'
-          : 'border-amber-800/60 bg-amber-950/30'}`}
+          ? 'border-pl-success/40 bg-pl-success-bg text-pl-success-text'
+          : 'border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text'}`}
       >
         {net !== null
-          ? <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" />
-          : <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />}
+          ? <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />
+          : <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />}
         <div>
-          <p className="font-semibold text-white">
+          <p className="font-semibold">
             {net !== null
               ? `${fmt(net, 0)} tCO2e a year abated against "${a.counterfactualLabel}"`
               : 'No abatement reported'}
           </p>
-          <p className="text-sm text-slate-300 mt-1">
+          <p className="text-sm mt-1">
             {net !== null
               ? `The flare emitted ${fmt(a.flareCo2eTonnes, 0)} tCO2e, of which recovering ${fmt(a.recoveryFraction * 100, 0)} percent avoids ${fmt(a.avoidedFlareCo2eTonnes, 0)}; the product will emit ${fmt(a.productCombustionTonnesCo2ePerYear, 0)} and displaces ${fmt(a.displacedFuelTonnesCo2ePerYear, 0)}. The abatement is the difference, and it is neither reliably above nor below the flare's own figure.`
               : (a.warning || 'No abatement is reported until every input it rests on is given.')}
           </p>
           {net === null && a.blockedBy && (
-            <p className="text-sm text-amber-200 mt-1">{`Blocked by: ${a.blockedBy}.`}</p>
+            <p className="text-sm mt-1">{`Blocked by: ${a.blockedBy}.`}</p>
           )}
         </div>
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-          <Leaf className="w-4 h-4 text-emerald-400" /> Does it need carbon credits?
+        <h3 className="text-sm font-semibold text-pl-text mb-1 flex items-center gap-2">
+          <Leaf className="w-4 h-4 text-pl-muted" aria-hidden="true" /> Does it need carbon credits?
         </h3>
         {creditCase.error ? (
-          <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
-            <p className="text-sm text-amber-100">{creditCase.error}</p>
+          <div className={WARNING_CALLOUT}>
+            <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />
+            <p className="text-sm">{creditCase.error}</p>
           </div>
         ) : (
           <>
-            <p className={`text-sm mb-2 ${creditCase.standsAloneWithoutCredits ? 'text-emerald-300' : 'text-amber-300'}`}>
+            <p className={`text-sm mb-2 ${creditCase.standsAloneWithoutCredits ? 'text-pl-success-text' : 'text-pl-warning-text'}`}>
               {creditCase.verdict}
             </p>
             {creditCase.breakevenCreditPrice !== null && creditCase.breakevenCreditPrice > 0 && (
-              <p className="text-[11px] text-slate-400 mb-2">
+              <p className="text-[11px] text-pl-muted mb-2">
                 {`Breakeven credit price ${fmt(creditCase.breakevenCreditPrice, 2)} per tonne. ${creditCase.lowestTestedClearingPrice === null ? 'No price tested reaches it.' : `The lowest price tested that clears is ${fmt(creditCase.lowestTestedClearingPrice, 2)}.`}`}
               </p>
             )}
@@ -121,30 +125,30 @@ const AbatementResults = () => {
                 <Line type="monotone" dataKey="totalMarginPerYear" name="Margin with credits" stroke="#059669" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ChartFrame>
-            <div className="overflow-x-auto rounded border border-slate-800 mt-3">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-900/80 text-slate-400">
-                  <tr>
-                    <th className="text-right px-2 py-1.5">Credit price</th>
-                    <th className="text-right px-2 py-1.5">Credit revenue/yr</th>
-                    <th className="text-right px-2 py-1.5">Total margin/yr</th>
-                    <th className="text-left px-2 py-1.5">Clears the hurdle</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {creditCase.points.map((p) => (
-                    <tr key={p.creditPrice}>
-                      <td className="px-2 py-1 text-right text-slate-300">{fmt(p.creditPrice, 0)}</td>
-                      <td className="px-2 py-1 text-right text-slate-300">{fmt(p.creditRevenuePerYear, 0)}</td>
-                      <td className="px-2 py-1 text-right text-white">{fmt(p.totalMarginPerYear, 0)}</td>
-                      <td className={`px-2 py-1 ${p.clearsHurdle ? 'text-emerald-300' : 'text-red-300'}`}>
-                        {p.clearsHurdle === null ? '-' : p.clearsHurdle ? 'yes' : 'no'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {/* The credit sensitivity is money, so it reads as a ledger; the
+                hurdle answer keeps its word beside the status tone. */}
+            <NumericTable className="mt-3">
+              <thead>
+                <tr>
+                  <NumTh numeric>Credit price</NumTh>
+                  <NumTh numeric>Credit revenue/yr</NumTh>
+                  <NumTh numeric>Total margin/yr</NumTh>
+                  <NumTh>Clears the hurdle</NumTh>
+                </tr>
+              </thead>
+              <tbody>
+                {creditCase.points.map((p) => (
+                  <NumRow key={p.creditPrice}>
+                    <NumCell value={p.creditPrice}>{fmt(p.creditPrice, 0)}</NumCell>
+                    <NumCell value={p.creditRevenuePerYear}>{fmt(p.creditRevenuePerYear, 0)}</NumCell>
+                    <NumCell value={p.totalMarginPerYear}>{fmt(p.totalMarginPerYear, 0)}</NumCell>
+                    <td className={`border-b border-pl-border px-3 py-2 text-xs ${p.clearsHurdle === null ? 'text-pl-muted' : p.clearsHurdle ? 'text-pl-success-text' : 'text-pl-danger-text'}`}>
+                      {p.clearsHurdle === null ? '-' : p.clearsHurdle ? 'yes' : 'no'}
+                    </td>
+                  </NumRow>
+                ))}
+              </tbody>
+            </NumericTable>
           </>
         )}
       </div>

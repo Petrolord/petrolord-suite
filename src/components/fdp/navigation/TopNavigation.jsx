@@ -19,6 +19,7 @@ import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import FdpHelpGuide from '@/components/fdp/FdpHelpGuide';
 import { FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 const TopNavigation = () => {
     const { state, actions, persistence } = useFDP();
@@ -27,13 +28,13 @@ const TopNavigation = () => {
     const { name, mode } = state.meta;
 
     return (
-        <header className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4">
+        <header className="h-16 bg-pl-surface border-b border-pl-border flex items-center justify-between px-4">
             <div className="flex items-center space-x-4">
                 <Button 
                     variant="ghost" 
                     size="icon" 
                     onClick={actions.toggleSidebar}
-                    className="text-slate-400 hover:text-white hover:bg-slate-800"
+                    className="text-pl-muted hover:text-pl-text hover:bg-pl-sunken"
                 >
                     <Menu className="w-5 h-5" />
                 </Button>
@@ -43,17 +44,17 @@ const TopNavigation = () => {
                         variant="ghost" 
                         size="sm" 
                         onClick={() => navigate('/dashboard')}
-                        className="text-slate-400 hover:text-white mr-2"
+                        className="text-pl-muted hover:text-pl-text mr-2"
                     >
                         <ChevronLeft className="w-4 h-4 mr-1" />
                         Hub
                     </Button>
-                    <div className="h-6 w-px bg-slate-700 mx-2"></div>
+                    <div className="h-6 w-px bg-pl-border mx-2"></div>
                     <div>
-                        <h1 className="text-white font-semibold text-sm">{name}</h1>
+                        <h1 className="text-pl-text font-semibold text-sm">{name}</h1>
                         <div className="flex items-center space-x-2">
-                            <span className="text-xs text-slate-400">FDP Accelerator</span>
-                            <span className="text-xs bg-teal-500/20 text-teal-400 px-1.5 py-0.5 rounded border border-teal-500/30 uppercase tracking-wide font-bold" style={{ fontSize: '0.65rem' }}>
+                            <span className="text-xs text-pl-muted">FDP Accelerator</span>
+                            <span className="text-xs bg-pl-sunken text-pl-muted px-1.5 py-0.5 rounded border border-pl-border uppercase tracking-wide font-bold" style={{ fontSize: '0.65rem' }}>
                                 {mode}
                             </span>
                         </div>
@@ -62,16 +63,18 @@ const TopNavigation = () => {
             </div>
 
             <div className="flex items-center space-x-2">
-                <div className="hidden md:flex bg-slate-800 rounded-lg p-1 border border-slate-700 mr-4">
+                <div className="hidden md:flex bg-pl-sunken rounded-lg p-1 border border-pl-border mr-4">
                     <button 
                         onClick={() => actions.setMode('guided')}
-                        className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${mode === 'guided' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                        aria-pressed={mode === 'guided'}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${mode === 'guided' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted hover:text-pl-text'}`}
                     >
                         Guided
                     </button>
                     <button 
                         onClick={() => actions.setMode('expert')}
-                        className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${mode === 'expert' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                        aria-pressed={mode === 'expert'}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${mode === 'expert' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted hover:text-pl-text'}`}
                     >
                         Expert
                     </button>
@@ -100,7 +103,7 @@ const TopNavigation = () => {
                 <Button
                     variant="outline" size="sm"
                     onClick={() => actions.setActiveTab('documents')}
-                    className="hidden sm:flex border-slate-700 text-slate-300 hover:bg-slate-800"
+                    className="hidden sm:flex"
                 >
                     <Download className="w-4 h-4 mr-2" />
                     Export
@@ -108,14 +111,15 @@ const TopNavigation = () => {
 
                 <FullPrecisionToggle app="fdp-accelerator" className="mr-2" />
                 <FdpHelpGuide />
+                <ThemeToggle />
 
-                <div className="h-6 w-px bg-slate-700 mx-2"></div>
+                <div className="h-6 w-px bg-pl-border mx-2"></div>
                 
                 <Button 
                     variant="ghost" 
                     size="icon" 
                     onClick={actions.toggleRightPanel}
-                    className={`text-slate-400 hover:text-white hover:bg-slate-800 ${rightPanelOpen ? 'bg-slate-800 text-white' : ''}`}
+                    className={`text-pl-muted hover:text-pl-text hover:bg-pl-sunken ${rightPanelOpen ? 'bg-pl-sunken text-pl-text' : ''}`}
                 >
                     {rightPanelOpen ? <PanelRightClose className="w-5 h-5" /> : <PanelRightOpen className="w-5 h-5" />}
                 </Button>

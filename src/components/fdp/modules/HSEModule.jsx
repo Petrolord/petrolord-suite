@@ -78,14 +78,14 @@ const HSEModule = () => {
         <div className="space-y-6 p-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">HSE Management</h2>
-                    <p className="text-slate-400">Manage health, safety, environment, and regulatory compliance.</p>
+                    <h2 className="text-2xl font-bold text-pl-text">HSE Management</h2>
+                    <p className="text-pl-muted">Manage health, safety, environment, and regulatory compliance.</p>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleLoadExample} className="border-slate-700 text-slate-300">
+                <div className="flex flex-wrap gap-2 shrink-0">
+                    <Button variant="outline" onClick={handleLoadExample}>
                         <Download className="w-4 h-4 mr-2" /> Load example
                     </Button>
-                    <Button onClick={handleCreate} className="bg-yellow-600 hover:bg-yellow-700">
+                    <Button onClick={handleCreate}>
                         <Plus className="w-4 h-4 mr-2" /> Add Risk
                     </Button>
                 </div>
@@ -114,29 +114,27 @@ const HSEModule = () => {
                     <CollapsibleSection title="Management Systems & Policy">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <label className="text-sm text-slate-300">HSE Policy Statement</label>
+                                <label className="text-sm text-pl-text">HSE Policy Statement</label>
                                 <Textarea 
                                     value={hseData.policy}
                                     onChange={(e) => actions.updateHSE({ policy: e.target.value })}
-                                    className="bg-slate-800 border-slate-700 min-h-[100px]"
+                                    className="min-h-[100px]"
                                     placeholder="Enter policy summary..."
                                 />
                             </div>
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <label className="text-sm text-slate-300">Safety Standard</label>
+                                    <label className="text-sm text-pl-text">Safety Standard</label>
                                     <Input 
                                         value={hseData.safetySystem}
                                         onChange={(e) => actions.updateHSE({ safetySystem: e.target.value })}
-                                        className="bg-slate-800 border-slate-700"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-sm text-slate-300">Environmental Standard</label>
+                                    <label className="text-sm text-pl-text">Environmental Standard</label>
                                     <Input 
                                         value={hseData.envSystem}
                                         onChange={(e) => actions.updateHSE({ envSystem: e.target.value })}
-                                        className="bg-slate-800 border-slate-700"
                                     />
                                 </div>
                             </div>
@@ -155,7 +153,7 @@ const HSEModule = () => {
                     </AlertDialogHeader>
                     <div className="flex justify-end gap-2">
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
+                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90">
                             Delete
                         </AlertDialogAction>
                     </div>

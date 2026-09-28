@@ -6,6 +6,24 @@ Status: **SHIPPED 2026-08-29** (branch feat/downstream-ds1)
 The Midstream & Downstream module's first application, and the first of
 its ten tiles to leave Coming Soon.
 
+## Design system rollout, batch 5D (2026-09-28)
+
+The app opens on the Petrolord design system: light grey panel by default,
+dark as a per-user choice from the header toggle, which stays visible at
+phone width.
+
+- Scope: `ThemedApp` inside `src/pages/apps/CrudeAssayBlendingStudio.jsx`; App.jsx unchanged.
+  The header is `AppHeader` (back, title, saved study, save, help, toggle).
+  Cold-load prefix `/dashboard/apps/midstream-downstream/crude-assay-blending-studio` in
+  `src/design/rollout/w5d.js`.
+- The cut table (prices and value per barrel of crude) and the netback breakdown are NumericTable ledgers, with the netback as the total row; the marker differential keeps success or danger text beside its sign. Stability verdicts keep their status roles with their words; the decorative lime on the netback figures is gone. The distillation and yield charts keep the white chart standard.
+- Test: `src/pages/apps/__tests__/CrudeAssayBlendingStudio.theme.test.jsx` (light by default,
+  toggle to dark and back stored per user, no legacy colour outside canvases
+  with a negative control, the route registered, every tab in both themes,
+  the documentation drawer and the new-study dialog inside the scope).
+  Existing tests pass unchanged.
+- No engine or calculation change.
+
 ## What it answers
 
 Four questions about a barrel: what it turns into when you distil it,

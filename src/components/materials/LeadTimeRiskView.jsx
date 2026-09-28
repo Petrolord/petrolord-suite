@@ -7,12 +7,16 @@ import {
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
+  NumTh, NumRow, RowLabel, NumCell,
+} from '@/components/ui/numeric-table';
+import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
 import { OUTCOME_LABELS, OUTCOME_ORDER } from '@/lib/percentileConventions';
 import { useMaterialsSpares } from '@/contexts/MaterialsSparesContext';
 import { fmtNum } from '@/utils/supplychain/materialsAdapters';
 import {
+  Ledger, TextCell,
   Basis, ItemFill, Note, NumField, Panel, ResultGate, SelectField, Stat,
 } from './common';
 
@@ -25,7 +29,7 @@ export const pLabel = (k) => `${OUTCOME_LABELS[k]} (${P_READING[k]})`;
 const DistField = ({
   title, mode, fixed, tri, onMode, onFixed, onTri, testId, unit,
 }) => (
-  <div className="space-y-2 rounded-md border border-slate-800 p-2">
+  <div className="space-y-2 rounded-md border border-pl-border p-2">
     <SelectField
       label={title}
       testId={`${testId}-mode`}
@@ -98,22 +102,22 @@ const LeadTimeResults = () => {
               <Stat label="Expected units short a cycle" value={fmtNum(r.expectedShortPerCycle, 6)} testId="lt-short" />
               <Stat label="Reorder point for the stated service level" value={r.reorderPointForService === null ? 'no service level stated' : fmtNum(r.reorderPointForService, 4)} testId="lt-rop-service" />
             </div>
-            <table className="w-full text-xs">
-              <thead className="text-left text-slate-400">
-                <tr><th className="p-1">Statistic</th><th className="p-1 text-right">Lead time (days)</th><th className="p-1 text-right">Lead-time demand (units)</th></tr>
+            <Ledger>
+              <thead>
+                <tr><NumTh sticky>Statistic</NumTh><NumTh numeric>Lead time (days)</NumTh><NumTh numeric>Lead-time demand (units)</NumTh></tr>
               </thead>
               <tbody>
                 {['mean', ...OUTCOME_ORDER, 'min', 'max'].map((k) => (
-                  <tr key={k} className="border-t border-slate-800 text-slate-200" data-testid={`lt-row-${k}`}>
-                    <td className="p-1">{OUTCOME_LABELS[k] ? pLabel(k) : k === 'mean' ? 'Mean' : k === 'min' ? 'Smallest draw' : 'Largest draw'}</td>
-                    <td className="p-1 text-right font-mono" data-testid={`lt-stat-days-${k}`}>{fmtNum(r.leadTime[k], 4)}</td>
-                    <td className="p-1 text-right font-mono" data-testid={`lt-stat-ltd-${k}`}>{fmtNum(r.leadTimeDemand[k], 4)}</td>
-                  </tr>
+                  <NumRow key={k} data-testid={`lt-row-${k}`}>
+                    <RowLabel>{OUTCOME_LABELS[k] ? pLabel(k) : k === 'mean' ? 'Mean' : k === 'min' ? 'Smallest draw' : 'Largest draw'}</RowLabel>
+                    <NumCell data-testid={`lt-stat-days-${k}`}>{fmtNum(r.leadTime[k], 4)}</NumCell>
+                    <NumCell data-testid={`lt-stat-ltd-${k}`}>{fmtNum(r.leadTimeDemand[k], 4)}</NumCell>
+                  </NumRow>
                 ))}
               </tbody>
-            </table>
+            </Ledger>
             <Note testId="lt-definition">{r.percentileDefinition} For a lead time or a demand, P90 is therefore the low figure and the stockout risk sits at the P10 end.</Note>
-            <div className="overflow-hidden rounded-lg border border-slate-700">
+            <div className="overflow-hidden rounded-lg border border-pl-border">
               <ChartFrame height={200} exportFilename="lead-time-demand">
                 <BarChart data={data} margin={{ top: 16, right: 20, left: 10, bottom: 8 }}>
                   <CartesianGrid {...GRID_STYLE} />

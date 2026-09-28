@@ -11,10 +11,10 @@ const FieldInformation = ({ data, onChange }) => {
     };
 
     return (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-medium text-white flex items-center">
-                    <Info className="w-5 h-5 mr-2 text-blue-400" />
+                <CardTitle className="text-lg font-medium text-pl-text flex items-center">
+                    <Info className="w-5 h-5 mr-2 text-pl-muted" />
                     Field Information
                 </CardTitle>
             </CardHeader>
@@ -24,7 +24,6 @@ const FieldInformation = ({ data, onChange }) => {
                     <Input 
                         value={data.fieldName || ''} 
                         onChange={(e) => handleChange('fieldName', e.target.value)}
-                        className="bg-slate-800 border-slate-700"
                     />
                 </div>
                 <div className="space-y-2">
@@ -32,7 +31,6 @@ const FieldInformation = ({ data, onChange }) => {
                     <Input 
                         value={data.country || ''} 
                         onChange={(e) => handleChange('country', e.target.value)}
-                        className="bg-slate-800 border-slate-700"
                     />
                 </div>
                 <div className="space-y-2">
@@ -40,16 +38,15 @@ const FieldInformation = ({ data, onChange }) => {
                     <Input 
                         value={data.operator || ''} 
                         onChange={(e) => handleChange('operator', e.target.value)}
-                        className="bg-slate-800 border-slate-700"
                     />
                 </div>
                 <div className="space-y-2">
                     <Label>Asset Type</Label>
                     <Select value={data.assetType} onValueChange={(v) => handleChange('assetType', v)}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700">
+                        <SelectTrigger>
                             <SelectValue placeholder="Select type" />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                        <SelectContent>
                             <SelectItem value="Onshore">Onshore</SelectItem>
                             <SelectItem value="Offshore">Offshore</SelectItem>
                             <SelectItem value="Subsea">Subsea</SelectItem>
@@ -63,7 +60,6 @@ const FieldInformation = ({ data, onChange }) => {
                         type="number"
                         value={data.waterDepth || ''} 
                         onChange={(e) => handleChange('waterDepth', parseFloat(e.target.value))}
-                        className="bg-slate-800 border-slate-700"
                     />
                 </div>
                 <div className="space-y-2">
@@ -72,16 +68,15 @@ const FieldInformation = ({ data, onChange }) => {
                         type="number"
                         value={data.fieldArea || ''} 
                         onChange={(e) => handleChange('fieldArea', parseFloat(e.target.value))}
-                        className="bg-slate-800 border-slate-700"
                     />
                 </div>
                 <div className="space-y-2">
                     <Label>Project Status</Label>
                     <Select value={data.status} onValueChange={(v) => handleChange('status', v)}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700">
+                        <SelectTrigger>
                             <SelectValue placeholder="Select status" />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                        <SelectContent>
                             <SelectItem value="Exploration">Exploration</SelectItem>
                             <SelectItem value="Appraisal">Appraisal</SelectItem>
                             <SelectItem value="Development">Development</SelectItem>

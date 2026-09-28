@@ -13,6 +13,7 @@ import {
 import {
   Callout, Code, Formula, GuideSection, HelpGuideShell, Para, SectionHeading, Step, SubHeading, Table,
 } from '@/components/helpguide/HelpGuideLayout';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { QC_STUDIO_ROUTE } from '@/utils/dataAi/qcRun';
 
 export const QC_GUIDE_SECTIONS = [
@@ -31,7 +32,7 @@ export const QC_GUIDE_SECTIONS = [
   { id: 'validation', icon: CheckCircle2, title: 'How the engine was validated' },
 ];
 
-const DataQualityStudioHelpGuide = () => (
+const DataQualityStudioHelpGuideContent = () => (
   <HelpGuideShell
     title="Data Quality Studio Help Guide"
     subtitle="Completeness, validity, consistency, uniqueness, outliers and control charts on oilfield data"
@@ -354,6 +355,12 @@ const DataQualityStudioHelpGuide = () => (
       </Para>
     </GuideSection>
   </HelpGuideShell>
+);
+
+const DataQualityStudioHelpGuide = () => (
+  <ThemedApp className="min-h-screen" data-testid="dataqc-help-theme-scope">
+    <DataQualityStudioHelpGuideContent />
+  </ThemedApp>
 );
 
 export default DataQualityStudioHelpGuide;

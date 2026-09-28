@@ -7,11 +7,11 @@ const QuotePreview = ({ quote, organization, onClose }) => {
   return (
     <div className="h-full flex flex-col">
       <div className="flex justify-end mb-4">
-        <Button variant="ghost" onClick={onClose} className="text-white hover:bg-slate-800">
-          <X className="h-6 w-6" />
+        <Button variant="outline" onClick={onClose} aria-label="Close preview">
+          <X className="h-6 w-6" aria-hidden="true" />
         </Button>
       </div>
-      <Card className="flex-1 bg-white text-slate-900 p-8 overflow-auto">
+      <Card data-canvas="light" className="flex-1 bg-white text-slate-900 p-4 sm:p-8 overflow-auto">
         <div className="max-w-3xl mx-auto">
           <div className="border-b pb-4 mb-4 flex justify-between">
             <h1 className="text-2xl font-bold">PROPOSAL</h1>
