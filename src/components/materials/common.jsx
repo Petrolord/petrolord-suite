@@ -199,5 +199,5 @@ export const Ledger = ({ className, ...props }) => (
 
 /** A text cell in a ledger row (names, classes, bands, reasons): left aligned, sans, wrapping. */
 export const TextCell = ({ muted = false, className, ...props }) => (
-  <td className={cn(NUMERIC_TABLE.cell, 'whitespace-normal text-left font-pl-sans', muted ? 'text-pl-muted' : 'text-pl-text', className)} {...props} />
+  <td className={cn(NUMERIC_TABLE.cell, 'min-w-[10rem] whitespace-normal text-left font-pl-sans', muted ? 'text-pl-muted' : 'text-pl-text', className)} {...props} />
 );
