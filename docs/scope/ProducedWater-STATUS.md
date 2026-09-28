@@ -7,6 +7,25 @@ Tile: the HELD migration 20260829650000 both RENAMES and **ACTIVATES**
 it. F0 deliberately left this tile Coming Soon because the app existed
 but its engine was invented; F7 is what earns the Active status.
 
+## Design system rollout, batch 5B (2026-09-28)
+
+The studio opens on the Petrolord design system: light grey panel by
+default, dark as a per-user choice from the header toggle, which stays
+visible at phone width.
+
+- Scope: `ThemedApp` inside `src/pages/apps/ProducedWaterTreatment.jsx`; App.jsx unchanged. Cold-load
+  prefix `/dashboard/apps/facilities/produced-water-treatment` in
+  `src/design/rollout/w5b.js`.
+- Cards, inputs and selects use the adapted primitives without colour
+  overrides; the header tile is the primary fill (the icon gradient is
+  gone); numbers are in the mono face. Meets or misses the discharge spec reads on the success and danger roles, a small density difference on warning, and a stage that did not run takes the danger background. Charts stay on the white `ChartFrame`.
+- Test: `src/pages/apps/__tests__/ProducedWaterTreatment.theme.test.jsx` (light by default, toggle to
+  dark and back stored per user, no legacy colour outside canvases with a
+  negative control, the route registered, every header tab in both
+  themes, the documentation drawer inside the scope). Existing tests pass
+  unchanged.
+- No engine or calculation change.
+
 ## What the predecessor was
 
 `usePwtCalculations.js`: a `TECH_DB` of fixed removal efficiencies

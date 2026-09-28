@@ -6,6 +6,25 @@ Slug: `separator-slug-catcher-designer` (kept — it carries
 entitlements; the tile RENAMES via the HELD migration
 20260829610000).
 
+## Design system rollout, batch 5B (2026-09-28)
+
+The studio opens on the Petrolord design system: light grey panel by
+default, dark as a per-user choice from the header toggle, which stays
+visible at phone width.
+
+- Scope: `ThemedApp` inside `src/pages/apps/SeparatorSlugCatcherDesigner.jsx`; App.jsx unchanged. Cold-load
+  prefix `/dashboard/apps/facilities/separator-slug-catcher-designer` in
+  `src/design/rollout/w5b.js`.
+- Cards, inputs and selects use the adapted primitives without colour
+  overrides; the header tile is the primary fill (the icon gradient is
+  gone); numbers are in the mono face. Sizing checks keep their meaning on the status roles: an L/D inside the band and the preferred diameter on success, outside the band on warning, infeasible sizes and droplet carryover on danger; the preferred row of the L/D family takes the success background. The example-case note is on the info role. No equipment sketch in this studio.
+- Test: `src/pages/apps/__tests__/SeparatorSlugCatcherDesigner.theme.test.jsx` (light by default, toggle to
+  dark and back stored per user, no legacy colour outside canvases with a
+  negative control, the route registered, every header tab in both
+  themes, the documentation drawer inside the scope). Existing tests pass
+  unchanged.
+- No engine or calculation change.
+
 ## What the predecessor got wrong, and what replaced it
 
 | Predecessor | Now |
