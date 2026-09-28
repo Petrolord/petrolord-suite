@@ -4,13 +4,13 @@ import { Check, X, AlertCircle } from 'lucide-react';
 import { planReservesP50 } from '@/utils/fdp/fdpCalculations';
 
 const DataItem = ({ label, value, status }) => (
-    <div className="flex items-center justify-between py-2 border-b border-slate-800 last:border-0">
-        <span className="text-sm text-slate-300">{label}</span>
+    <div className="flex items-center justify-between py-2 border-b border-pl-border last:border-0">
+        <span className="text-sm text-pl-text">{label}</span>
         <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 font-mono">{value || '-'}</span>
-            {status === 'ok' && <Check className="w-4 h-4 text-green-500" />}
-            {status === 'missing' && <X className="w-4 h-4 text-red-500" />}
-            {status === 'warning' && <AlertCircle className="w-4 h-4 text-yellow-500" />}
+            <span className="text-xs text-pl-muted font-mono">{value || '-'}</span>
+            {status === 'ok' && <Check className="w-4 h-4 text-pl-success-text" />}
+            {status === 'missing' && <X className="w-4 h-4 text-pl-danger-text" />}
+            {status === 'warning' && <AlertCircle className="w-4 h-4 text-pl-warning-text" />}
         </div>
     </div>
 );
@@ -28,27 +28,27 @@ const FDPDataCompilation = ({ state }) => {
 
     return (
         <div className="space-y-4">
-            <Card className="bg-slate-900 border-slate-800">
+            <Card>
                 <CardContent className="p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4">Compiled Data Points</h3>
+                    <h3 className="text-lg font-semibold text-pl-text mb-4">Compiled Data Points</h3>
                     
                     <div className="space-y-6">
                         <div>
-                            <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">General & Subsurface</h4>
+                            <h4 className="text-xs font-bold text-pl-muted uppercase mb-2">General & Subsurface</h4>
                             <DataItem label="Project Name" value={state.fieldData?.fieldName} status={state.fieldData?.fieldName ? 'ok' : 'missing'} />
                             <DataItem label="Reserves (P50)" value={reservesLabel} status={oilP50 > 0 || gasP50 > 0 ? 'ok' : 'missing'} />
                             <DataItem label="Fluid Type" value={state.subsurface?.fluidProps?.type} status={'ok'} />
                         </div>
 
                         <div>
-                            <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Development Plan</h4>
+                            <h4 className="text-xs font-bold text-pl-muted uppercase mb-2">Development Plan</h4>
                             <DataItem label="Selected Concept" value={state.concepts?.list?.find(c=>c.id===state.concepts.selectedId)?.name || 'None'} status={state.concepts?.selectedId ? 'ok' : 'warning'} />
                             <DataItem label="Well Count" value={state.wells?.list?.length} status={state.wells?.list?.length > 0 ? 'ok' : 'warning'} />
                             <DataItem label="Facilities" value={state.facilities?.list?.length} status={state.facilities?.list?.length > 0 ? 'ok' : 'warning'} />
                         </div>
 
                         <div>
-                            <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Economics & Risk</h4>
+                            <h4 className="text-xs font-bold text-pl-muted uppercase mb-2">Economics & Risk</h4>
                             <DataItem label="CAPEX Estimate" value={`$${state.economics?.capex ?? 0}M`} status={state.economics?.capex > 0 ? 'ok' : 'missing'} />
                             <DataItem
                                 label="NPV"

@@ -47,43 +47,43 @@ const ReservesTable = ({ reserves = [], onChange }) => {
     }
 
     return (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                <CardTitle className="text-lg font-medium text-white flex items-center">
-                    <Database className="w-5 h-5 mr-2 text-blue-400" />
+                <CardTitle className="text-lg font-medium text-pl-text flex items-center">
+                    <Database className="w-5 h-5 mr-2 text-pl-muted" />
                     Reserves Breakdown (MMbbl/Bcf)
                 </CardTitle>
-                <Button size="sm" variant="outline" onClick={addRow} className="border-slate-700 hover:bg-slate-800">
+                <Button size="sm" variant="outline" onClick={addRow}>
                     <Plus className="w-4 h-4 mr-2" /> Add Reservoir
                 </Button>
             </CardHeader>
             <CardContent>
                 <div className="overflow-x-auto">
                     <Table>
-                        <TableHeader className="bg-slate-800/50">
+                        <TableHeader className="bg-pl-sunken">
                             <TableRow>
-                                <TableHead className="text-slate-300">Reservoir Name</TableHead>
-                                <TableHead className="text-slate-300">Fluid Type</TableHead>
-                                <TableHead className="text-slate-300 text-right">P90 (Low)</TableHead>
-                                <TableHead className="text-slate-300 text-right">P50 (Best)</TableHead>
-                                <TableHead className="text-slate-300 text-right">P10 (High)</TableHead>
-                                <TableHead className="text-slate-300 text-right">Rec. Factor</TableHead>
+                                <TableHead>Reservoir Name</TableHead>
+                                <TableHead>Fluid Type</TableHead>
+                                <TableHead className="text-right">P90 (Low)</TableHead>
+                                <TableHead className="text-right">P50 (Best)</TableHead>
+                                <TableHead className="text-right">P10 (High)</TableHead>
+                                <TableHead className="text-right">Rec. Factor</TableHead>
                                 <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {reserves.map((row) => (
-                                <TableRow key={row.id} className="border-slate-800">
+                                <TableRow key={row.id} className="border-pl-border">
                                     <TableCell>
                                         <Input 
                                             value={row.name} 
                                             onChange={(e) => updateRow(row.id, 'name', e.target.value)}
-                                            className="h-8 min-w-[150px] bg-transparent border-slate-700"
+                                            className="h-8 min-w-[150px]"
                                         />
                                     </TableCell>
                                     <TableCell>
                                         <Select value={row.fluid} onValueChange={(v) => updateRow(row.id, 'fluid', v)}>
-                                            <SelectTrigger className="h-8 min-w-[110px] bg-transparent border-slate-700">
+                                            <SelectTrigger className="h-8 min-w-[110px]">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -98,7 +98,7 @@ const ReservesTable = ({ reserves = [], onChange }) => {
                                             type="number"
                                             value={row.p90} 
                                             onChange={(e) => updateRow(row.id, 'p90', e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                                            className="h-8 min-w-[88px] bg-transparent border-slate-700 text-right"
+                                            className="h-8 min-w-[88px] text-right font-pl-mono tabular-nums"
                                         />
                                     </TableCell>
                                     <TableCell>
@@ -106,7 +106,7 @@ const ReservesTable = ({ reserves = [], onChange }) => {
                                             type="number"
                                             value={row.p50} 
                                             onChange={(e) => updateRow(row.id, 'p50', e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                                            className="h-8 min-w-[88px] bg-transparent border-slate-700 text-right font-medium text-blue-400"
+                                            className="h-8 min-w-[88px] text-right font-pl-mono tabular-nums font-semibold"
                                         />
                                     </TableCell>
                                     <TableCell>
@@ -114,7 +114,7 @@ const ReservesTable = ({ reserves = [], onChange }) => {
                                             type="number"
                                             value={row.p10} 
                                             onChange={(e) => updateRow(row.id, 'p10', e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                                            className="h-8 min-w-[88px] bg-transparent border-slate-700 text-right"
+                                            className="h-8 min-w-[88px] text-right font-pl-mono tabular-nums"
                                         />
                                     </TableCell>
                                     <TableCell>
@@ -122,13 +122,13 @@ const ReservesTable = ({ reserves = [], onChange }) => {
                                             type="number"
                                             value={row.rf} 
                                             onChange={(e) => updateRow(row.id, 'rf', e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                                            className="h-8 min-w-[88px] bg-transparent border-slate-700 text-right"
+                                            className="h-8 min-w-[88px] text-right font-pl-mono tabular-nums"
                                             step="0.01"
                                             max="1"
                                         />
                                     </TableCell>
                                     <TableCell>
-                                        <Button variant="ghost" size="icon" onClick={() => deleteRow(row.id)} className="h-8 w-8 hover:text-red-400">
+                                        <Button variant="ghost" size="icon" onClick={() => deleteRow(row.id)} className="h-8 w-8 text-pl-muted hover:text-pl-danger-text">
                                             <Trash2 className="w-4 h-4" />
                                         </Button>
                                     </TableCell>
@@ -138,13 +138,13 @@ const ReservesTable = ({ reserves = [], onChange }) => {
                             {totals && totals.fluids.map((fluid) => {
                                 const t = totals.byFluid[fluid];
                                 return (
-                                    <TableRow key={fluid} className="bg-slate-800/30 font-bold border-t-2 border-slate-700">
-                                        <TableCell colSpan={2} className="text-right text-slate-400">
+                                    <TableRow key={fluid} className="bg-pl-sunken font-bold border-t-2 border-pl-border-strong">
+                                        <TableCell colSpan={2} className="text-right text-pl-muted">
                                             Total {fluid} ({t.units}):
                                         </TableCell>
-                                        <TableCell className="text-right text-slate-400">{t.p90Sum.toFixed(1)}</TableCell>
-                                        <TableCell className="text-right text-blue-400">{t.p50Sum.toFixed(1)}</TableCell>
-                                        <TableCell className="text-right text-slate-400">{t.p10Sum.toFixed(1)}</TableCell>
+                                        <TableCell className="text-right font-pl-mono tabular-nums text-pl-muted">{t.p90Sum.toFixed(1)}</TableCell>
+                                        <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">{t.p50Sum.toFixed(1)}</TableCell>
+                                        <TableCell className="text-right font-pl-mono tabular-nums text-pl-muted">{t.p10Sum.toFixed(1)}</TableCell>
                                         <TableCell colSpan={2}></TableCell>
                                     </TableRow>
                                 );
@@ -153,10 +153,10 @@ const ReservesTable = ({ reserves = [], onChange }) => {
                     </Table>
                 </div>
                 {totalsError ? (
-                    <p className="text-xs text-amber-300 mt-3">{totalsError}</p>
+                    <p className="text-xs text-pl-warning-text mt-3">{totalsError}</p>
                 ) : null}
                 {totals && totals.fluids.length ? (
-                    <p className="text-xs text-slate-500 mt-3">{totals.percentileNote}</p>
+                    <p className="text-xs text-pl-muted mt-3">{totals.percentileNote}</p>
                 ) : null}
             </CardContent>
         </Card>

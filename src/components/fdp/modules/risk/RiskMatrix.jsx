@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartPanel } from '@/components/ui/chart-panel';
 import { RiskIntegrationService } from '@/services/fdp/RiskIntegrationService';
 import { getRiskLevel } from '@/data/fdp/RiskManagementModel';
 
@@ -14,28 +14,29 @@ const RiskMatrix = ({ risks }) => {
     // 12 High, 6 Medium). They used to colour on 15, 8 and 4, so the cell
     // for a score of 12 was orange while the register called the same risk
     // High and the HSE tab called it Medium.
+    // Design system rollout 6B: the heat map is a chart, so it sits on the
+    // white chart card in both themes, in the same four colours as the
+    // severity bar chart on the overview. Dark ink on the lighter cells keeps
+    // the counts readable.
     const CELL_COLOUR = {
-        Critical: 'bg-red-600 hover:bg-red-500',
-        High: 'bg-orange-500 hover:bg-orange-400',
-        Medium: 'bg-yellow-500 hover:bg-yellow-400',
-        Low: 'bg-green-500 hover:bg-green-400',
+        Critical: { backgroundColor: '#dc2626', color: '#ffffff' },
+        High: { backgroundColor: '#f97316', color: '#0f172a' },
+        Medium: { backgroundColor: '#eab308', color: '#0f172a' },
+        Low: { backgroundColor: '#22c55e', color: '#0f172a' },
     };
 
-    const getCellColor = (r, c) => {
+    const getCellStyle = (r, c) => {
         // r is row (0=Almost Certain, 4=Rare), c is col (0=Negligible)
         const score = (5 - r) * (c + 1);
         return CELL_COLOUR[getRiskLevel(score).level];
     };
 
     return (
-        <Card className="bg-slate-900 border-slate-800">
-            <CardHeader>
-                <CardTitle className="text-white text-sm">Risk Heat Map</CardTitle>
-            </CardHeader>
-            <CardContent className="flex justify-center p-6">
+        <ChartPanel title="Risk Heat Map" bodyClassName="overflow-x-auto">
+            <div className="mx-auto min-w-max w-fit p-2 pl-14">
                 <div className="relative">
                     {/* Y Axis Label */}
-                    <div className="absolute -left-12 top-1/2 -translate-y-1/2 -rotate-90 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    <div className="absolute -left-12 top-1/2 -translate-y-1/2 -rotate-90 text-xs font-bold text-pl-muted uppercase tracking-widest">
                         Probability
                     </div>
 
@@ -43,7 +44,7 @@ const RiskMatrix = ({ risks }) => {
                         {/* Y Axis Ticks */}
                         <div className="flex flex-col justify-between py-4 text-right pr-2">
                             {probabilities.map(p => (
-                                <div key={p} className="h-16 flex items-center justify-end text-xs text-slate-400 font-medium">{p}</div>
+                                <div key={p} className="h-16 flex items-center justify-end text-xs text-pl-muted font-medium">{p}</div>
                             ))}
                         </div>
 
@@ -55,7 +56,8 @@ const RiskMatrix = ({ risks }) => {
                                         {row.map((count, cIdx) => (
                                             <div 
                                                 key={cIdx} 
-                                                className={`w-24 h-16 rounded flex items-center justify-center text-white font-bold text-lg shadow-sm transition-colors cursor-pointer ${getCellColor(rIdx, cIdx)}`}
+                                                className="w-16 sm:w-24 h-16 rounded flex items-center justify-center font-bold text-lg shadow-sm transition cursor-pointer hover:brightness-110"
+                                                style={getCellStyle(rIdx, cIdx)}
                                                 title={`${probabilities[rIdx]} / ${impacts[cIdx]}`}
                                             >
                                                 {count > 0 ? count : ''}
@@ -68,19 +70,19 @@ const RiskMatrix = ({ risks }) => {
                             {/* X Axis Ticks */}
                             <div className="grid grid-cols-5 gap-1 text-center pt-2">
                                 {impacts.map(i => (
-                                    <div key={i} className="text-xs text-slate-400 font-medium w-24">{i}</div>
+                                    <div key={i} className="text-xs text-pl-muted font-medium w-16 sm:w-24">{i}</div>
                                 ))}
                             </div>
                         </div>
                     </div>
 
                     {/* X Axis Label */}
-                    <div className="text-center mt-4 text-xs font-bold text-slate-400 uppercase tracking-widest pl-24">
+                    <div className="text-center mt-4 text-xs font-bold text-pl-muted uppercase tracking-widest pl-24">
                         Impact (Consequence)
                     </div>
                 </div>
-            </CardContent>
-        </Card>
+            </div>
+        </ChartPanel>
     );
 };
 

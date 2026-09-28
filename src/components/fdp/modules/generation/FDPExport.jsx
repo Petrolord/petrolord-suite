@@ -6,13 +6,13 @@ import { FDPExportService } from '@/services/fdp/FDPExportService';
 import { useToast } from '@/components/ui/use-toast';
 
 const ExportOption = ({ title, icon: Icon, description, onClick, loading }) => (
-    <Card className="bg-slate-800 border-slate-700 hover:border-slate-600 cursor-pointer transition-all hover:bg-slate-800/80" onClick={onClick}>
+    <Card className="cursor-pointer transition-all hover:border-pl-border-strong hover:bg-pl-sunken" onClick={onClick}>
         <CardContent className="p-6 flex flex-col items-center text-center">
-            <div className="p-4 rounded-full bg-slate-900 mb-4">
-                {loading ? <div className="animate-spin w-6 h-6 border-2 border-slate-500 border-t-white rounded-full" /> : <Icon className="w-6 h-6 text-blue-400" />}
+            <div className="p-4 rounded-full bg-pl-sunken mb-4">
+                {loading ? <div className="animate-spin w-6 h-6 border-2 border-pl-border border-t-pl-primary rounded-full" /> : <Icon className="w-6 h-6 text-pl-primary-text" />}
             </div>
-            <h3 className="font-bold text-white mb-1">{title}</h3>
-            <p className="text-xs text-slate-400">{description}</p>
+            <h3 className="font-bold text-pl-text mb-1">{title}</h3>
+            <p className="text-xs text-pl-muted">{description}</p>
         </CardContent>
     </Card>
 );
@@ -100,7 +100,7 @@ const FDPExport = ({ state }) => {
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4">
                 <ExportOption 
                     title="Full PDF Report" 
                     icon={FileText} 
@@ -128,7 +128,7 @@ const FDPExport = ({ state }) => {
             {/* EC6-0: "Share Live Link" offered a Generate Link button with no
                 handler behind it. There is no sharing in this studio; exporting a
                 file and sending it is the whole story. */}
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-pl-muted">
                 Exports are written in your browser from the plan in front of you. Nothing is
                 uploaded, and there is no share link.
             </p>

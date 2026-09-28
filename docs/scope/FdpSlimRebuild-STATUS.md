@@ -196,3 +196,29 @@ real and stay.
 - Left open (pre-existing layout issues): at phone width the fixed
   256px sidebar and 320px Plan status rail leave no room for the main
   column; the top bar's "Saved plan" label is clipped by the 64px bar.
+
+## 2026-09-28: design system rollout 6B (session 2 of 2)
+
+- The rest of the app is on theme roles: the generation (Documents), hse,
+  risk, scenarios, schedule, subsurface and wells subtrees (24 files). The
+  whole FDP Accelerator is now themed; nothing renders dark in the light page.
+- Status colour only for status: validation errors and warnings, module
+  complete, data quality, risk bands (register scores, badges, the HSE score
+  pill), scenario NPV sign and IRR hurdle, critical activities, incomplete
+  scenarios. Decorative icon and KPI colours are neutral. The risk band
+  colour is mapped in the screens; `getRiskLevel` and the engines are
+  untouched.
+- Charts white (`ChartPanel`): the risk severity bar chart, the risk heat
+  map (same four colours as the severity chart), the schedule Gantt and the
+  drilling sequence. Money table: the well inventory uses `NumericTable`
+  (same figures, same Full precision campaign total).
+- Layout: the risk register and heat map stack below 2xl (the heat map was
+  cut off in a third-width column); the heat map scrolls inside its card on
+  phones; the export tiles wrap in their half-width card.
+- No calculation, state or export change: `services/fdp/*` (including
+  `FDPExportService`), `utils/fdp/*`, `data/fdp/*` and `FDPContext` are
+  untouched, so the generated FDP documents are the same.
+- The theme test has no allow-list: all 12 tabs empty and with every
+  example loaded, the five add forms, light and dark, plus a static check
+  over the whole `components/fdp` tree (.js and .jsx). A negative control
+  (two original 6B files restored) fails it.
