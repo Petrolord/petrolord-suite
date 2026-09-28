@@ -21,8 +21,8 @@ const Toggle = ({ id, label, hint }) => {
         onCheckedChange={(v) => setSection('facility', id, !!v)}
       />
       <div>
-        <Label htmlFor={id} className="text-xs text-slate-400">{label}</Label>
-        {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
+        <Label htmlFor={id} className="text-xs text-pl-muted">{label}</Label>
+        {hint && <p className="text-[11px] text-pl-muted">{hint}</p>}
       </div>
     </div>
   );
@@ -50,11 +50,11 @@ const DutyPanel = () => {
         <Field label="Wellhead pressure (psia)"><NumberInput section="duty" name="whp" /></Field>
       </div>
 
-      <div className="border-t border-slate-800 pt-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+      <div className="border-t border-pl-border pt-3 space-y-3">
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">
           The facility
         </p>
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           None of this belongs to the well, so none of it is written to the shared well record. A
           compressor is a facility; a target rate is a decision.
         </p>
@@ -66,8 +66,8 @@ const DutyPanel = () => {
       </div>
 
       {inputs.facility.gasAvailable && (
-        <div className="border-t border-slate-800 pt-3 space-y-3">
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+        <div className="border-t border-pl-border pt-3 space-y-3">
+          <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">
             Injection gas
           </p>
           <div className="grid grid-cols-2 gap-2">
@@ -78,11 +78,11 @@ const DutyPanel = () => {
         </div>
       )}
 
-      <div className="border-t border-slate-800 pt-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+      <div className="border-t border-pl-border pt-3 space-y-3">
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">
           Equipment assumptions
         </p>
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           A screening-grade pass has to choose equipment before it can design anything. These are
           the defaults it starts from; every result names what it actually used, and the studio
           links design the thing properly.

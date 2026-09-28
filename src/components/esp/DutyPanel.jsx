@@ -8,9 +8,9 @@ import { useEsp } from '@/contexts/EspDesignContext';
 
 const Field = ({ label, hint, children }) => (
   <div className="space-y-1">
-    <Label className="text-xs text-slate-400">{label}</Label>
+    <Label className="text-xs text-pl-muted">{label}</Label>
     {children}
-    {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
+    {hint && <p className="text-[11px] text-pl-muted">{hint}</p>}
   </div>
 );
 
@@ -22,7 +22,7 @@ const NumberInput = ({ name, step = 'any' }) => {
       step={step}
       value={inputs.duty[name] ?? ''}
       onChange={(e) => setSection('duty', name, e.target.value)}
-      className="h-9 bg-slate-800 border-slate-700"
+      className="h-9"
     />
   );
 };
@@ -52,8 +52,8 @@ const DutyPanel = () => (
       <NumberInput name="annulusGradPsiPerFt" step="0.01" />
     </Field>
 
-    <div className="border-t border-slate-800 pt-3 space-y-3">
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Gas handling</p>
+    <div className="border-t border-pl-border pt-3 space-y-3">
+      <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Gas handling</p>
       <Field
         label="Intake separator efficiency (%)"
         hint="A vendor or measured number. No separator efficiency is correlated here."
@@ -64,7 +64,7 @@ const DutyPanel = () => (
         <Field label="Standard stage limit (% GVF)"><NumberInput name="gvfStandardMaxPct" /></Field>
         <Field label="Gas handler limit (% GVF)"><NumberInput name="gvfHandlerMaxPct" /></Field>
       </div>
-      <p className="text-[11px] text-slate-600">
+      <p className="text-[11px] text-pl-muted">
         These two are operating guidance, not a correlation, which is why they are editable: below
         the first a standard stage copes, between them a gas handler is normal, above the second the
         gas has to come out ahead of the pump.

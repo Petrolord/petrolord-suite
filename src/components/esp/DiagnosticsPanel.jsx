@@ -22,26 +22,26 @@ const Field = ({ label, name, hint, placeholder }) => {
   const { inputs, setSection } = useEsp();
   return (
     <div className="space-y-1">
-      <Label className="text-xs text-slate-400">{label}</Label>
+      <Label className="text-xs text-pl-muted">{label}</Label>
       <Input
         type="number"
         value={inputs.diagnostics[name] ?? ''}
         placeholder={placeholder}
         onChange={(e) => setSection('diagnostics', name, e.target.value)}
-        className="h-9 bg-slate-800 border-slate-700"
+        className="h-9"
       />
-      {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
+      {hint && <p className="text-[11px] text-pl-muted">{hint}</p>}
     </div>
   );
 };
 
-const Stat = ({ label, value, unit, hint, accent = 'text-slate-100' }) => (
+const Stat = ({ label, value, unit, hint, accent = 'text-pl-text' }) => (
   <div>
-    <p className="text-[11px] uppercase tracking-wider text-slate-500">{label}</p>
-    <p className={`text-lg font-semibold tabular-nums ${accent}`}>
-      {value} {unit && <span className="text-xs font-normal text-slate-500">{unit}</span>}
+    <p className="text-[11px] uppercase tracking-wider text-pl-muted">{label}</p>
+    <p className={`text-lg font-semibold font-pl-mono tabular-nums ${accent}`}>
+      {value} {unit && <span className="text-xs font-normal text-pl-muted">{unit}</span>}
     </p>
-    {hint && <p className="text-[11px] text-slate-600 mt-0.5">{hint}</p>}
+    {hint && <p className="text-[11px] text-pl-muted mt-0.5">{hint}</p>}
   </div>
 );
 
@@ -50,16 +50,16 @@ const DiagnosticsPanel = () => {
 
   const ratio = diagnosis?.headRatio;
   const ratioAccent = !Number.isFinite(ratio)
-    ? 'text-slate-100'
-    : (ratio < 0.85 ? 'text-red-400' : (ratio > 1.15 ? 'text-amber-300' : 'text-emerald-400'));
+    ? 'text-pl-text'
+    : (ratio < 0.85 ? 'text-pl-danger-text' : (ratio > 1.15 ? 'text-pl-warning-text' : 'text-pl-success-text'));
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Stethoscope className="w-4 h-4 text-sky-400" /> What the installation is doing
-            <span className="text-xs font-normal text-slate-500">
+            <Stethoscope className="w-4 h-4 text-pl-muted" /> What the installation is doing
+            <span className="text-xs font-normal text-pl-muted">
               read against the curve on the Pump Curve tab
             </span>
           </CardTitle>
@@ -77,24 +77,24 @@ const DiagnosticsPanel = () => {
               placeholder={design ? String(design.sized.stages) : ''}
             />
           </div>
-          <p className="text-[11px] text-slate-600">
+          <p className="text-[11px] text-pl-muted">
             The rate is the in-situ rate through the pump, which is what the curve is drawn against.
             Leave the stage count blank to use the {design ? fmt(design.sized.stages) : ''} stages
             this design sized; type a number to check the string that is actually in the hole.
           </p>
 
           {!design ? (
-            <p className="text-sm text-slate-500 py-6 text-center">
+            <p className="text-sm text-pl-muted py-6 text-center">
               The design has to run first: the diagnosis is read against its stage curve and the
               fluid gradient at the intake.
             </p>
           ) : !diagnosis ? (
-            <p className="text-sm text-slate-500 py-6 text-center">
+            <p className="text-sm text-pl-muted py-6 text-center">
               Enter a rate and both pressures to compare the installation with its curve.
             </p>
           ) : (
             <>
-              <div className="border-t border-slate-800 pt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="border-t border-pl-border pt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Stat
                   label="Head it is making"
                   value={fmt(diagnosis.actualHeadFt)}
@@ -124,16 +124,16 @@ const DiagnosticsPanel = () => {
               </div>
 
               {diagnosis.flags.length > 0 ? (
-                <ul className="space-y-2 border-t border-slate-800 pt-4">
+                <ul className="space-y-2 border-t border-pl-border pt-4">
                   {diagnosis.flags.map((f, i) => (
-                    <li key={`${f.code}-${i}`} className="text-sm text-amber-100/80 flex gap-2">
-                      <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-400" />
+                    <li key={`${f.code}-${i}`} className="text-sm text-pl-warning-text flex gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-pl-warning-text" />
                       <span>{f.message}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-[11px] text-emerald-400 border-t border-slate-800 pt-4">
+                <p className="text-[11px] text-pl-success-text border-t border-pl-border pt-4">
                   The installation is on its curve and inside the recommended range.
                 </p>
               )}

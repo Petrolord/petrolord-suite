@@ -36,11 +36,11 @@ const PumpCurveChart = () => {
   const bandHi = curve.qMax * ratio;
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">
           {fmt(design.sized.stages)} stages at {fmt(design.hz)} Hz
-          <span className="block text-xs font-normal text-slate-500 mt-0.5">
+          <span className="block text-xs font-normal text-pl-muted mt-0.5">
             {curve.source === 'vendor'
               ? `Fitted through ${curve.points.length} points off the vendor curve, published at ${fmt(curve.refHz)} Hz.`
               : `${curve.label}. A model shape with named parameters, not a manufacturer's pump.`}

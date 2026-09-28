@@ -28,8 +28,8 @@ const UnitPanel = () => {
           value={String(u.plungerDIn)}
           onValueChange={(v) => setSection('unit', 'plungerDIn', v)}
         >
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
             {plungerSizes.map((d) => (
               <SelectItem key={d} value={String(d)}>{d} in</SelectItem>
             ))}
@@ -45,14 +45,14 @@ const UnitPanel = () => {
           value={u.unitDesignation}
           onChange={(e) => setSection('unit', 'unitDesignation', e.target.value)}
           placeholder="C-228D-200-74"
-          className="h-9 bg-slate-800 border-slate-700"
+          className="h-9"
         />
       </Field>
 
       <Field label="Beam geometry">
         <Select value={u.unitSource} onValueChange={(v) => setSection('unit', 'unitSource', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
             <SelectItem value="generic">Generic conventional, scaled to the stroke</SelectItem>
             <SelectItem value="dimensions">Dimensions off the unit drawing</SelectItem>
           </SelectContent>
@@ -60,7 +60,7 @@ const UnitPanel = () => {
       </Field>
 
       {u.unitSource === 'generic' ? (
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           A self-consistent conventional four-bar that achieves the stroke above. It is not any
           manufacturer's unit and carries no dimensions from one. For a real design, enter the
           measurements from the unit's own drawing.
@@ -75,7 +75,7 @@ const UnitPanel = () => {
             <Field label="Crank behind saddle"><NumberInput section="unit" name="crankBehindIn" /></Field>
             <Field label="Crank below saddle"><NumberInput section="unit" name="crankBelowIn" /></Field>
           </div>
-          <p className="text-[11px] text-slate-600">
+          <p className="text-[11px] text-pl-muted">
             All in inches. The stroke is then whatever this linkage actually produces, which is the
             point of entering it.
           </p>
@@ -83,22 +83,22 @@ const UnitPanel = () => {
       )}
 
       {unit && !unit.ok && (
-        <div className="rounded-md border border-amber-900/60 bg-amber-950/30 p-2">
-          <p className="text-[11px] text-amber-300 flex items-start gap-1">
+        <div className="rounded-md border border-pl-warning/40 bg-pl-warning-bg p-2">
+          <p className="text-[11px] text-pl-warning-text flex items-start gap-1">
             <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" /> {unit.error}
           </p>
         </div>
       )}
       {unit?.ok && (
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           This linkage gives a {show(unit.kin.strokeIn.toFixed(1), unit.kin.strokeIn)} in stroke and spends{' '}
           {(unit.kin.upstrokeFraction * 100).toFixed(1)} percent of each revolution on the upstroke.
           A conventional unit is never the even 50 percent a sine wave would give.
         </p>
       )}
 
-      <div className="border-t border-slate-800 pt-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Solver</p>
+      <div className="border-t border-pl-border pt-3 space-y-3">
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Solver</p>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Structural unbalance (lb)"><NumberInput section="unit" name="structuralUnbalanceLb" /></Field>
           <Field label="Crank offset (deg)"><NumberInput section="unit" name="crankOffsetDeg" /></Field>

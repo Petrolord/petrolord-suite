@@ -54,15 +54,15 @@ const InjectionPanel = () => {
     <div className="space-y-3">
       {rows.map(({ key, label, hint, step }) => (
         <div key={key} className="space-y-1">
-          <Label className="text-xs text-slate-400">{label}</Label>
+          <Label className="text-xs text-pl-muted">{label}</Label>
           <Input
             type="number"
             step={step || 'any'}
             value={inputs.injection[key] ?? ''}
             onChange={(e) => setSection('injection', key, e.target.value)}
-            className="h-9 bg-slate-800 border-slate-700"
+            className="h-9"
           />
-          {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
+          {hint && <p className="text-[11px] text-pl-muted">{hint}</p>}
         </div>
       ))}
     </div>
