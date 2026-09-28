@@ -10,7 +10,7 @@ export const COLLAPSE_NOTE = 'Collapse derating for the worn wall is not compute
 export default function WearTab({ wear, depthUnit }) {
   if (!wear) {
     return (
-      <div className="p-6 text-sm text-slate-400" data-testid="td-wear-empty">
+      <div className="p-6 text-sm text-pl-muted" data-testid="td-wear-empty">
         No wear result. Run an analysis with a rotating operation, a cased
         section in the geometry, and rotating hours in the wear schedule.
       </div>
@@ -19,37 +19,37 @@ export default function WearTab({ wear, depthUnit }) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4 text-xs">
-        <div className="rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
-          <div className="text-[9px] uppercase text-slate-500">Max wear depth</div>
-          <div className="text-sm font-semibold text-slate-100" data-testid="td-wear-depth">
+        <div className="rounded-md border border-pl-border bg-pl-surface px-3 py-2">
+          <div className="text-[9px] uppercase text-pl-muted">Max wear depth</div>
+          <div className="font-pl-mono text-sm font-semibold tabular-nums text-pl-text" data-testid="td-wear-depth">
             {(wear.summary.maxWearDepthM * 1000).toFixed(2)} mm
           </div>
         </div>
-        <div className="rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
-          <div className="text-[9px] uppercase text-slate-500">Max wall loss</div>
-          <div className="text-sm font-semibold text-slate-100">{wear.summary.maxWallLossPct.toFixed(1)} %</div>
+        <div className="rounded-md border border-pl-border bg-pl-surface px-3 py-2">
+          <div className="text-[9px] uppercase text-pl-muted">Max wall loss</div>
+          <div className="font-pl-mono text-sm font-semibold tabular-nums text-pl-text">{wear.summary.maxWallLossPct.toFixed(1)} %</div>
         </div>
-        <div className="rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
-          <div className="text-[9px] uppercase text-slate-500">Min remaining wall</div>
-          <div className="text-sm font-semibold text-slate-100">{(wear.summary.minRemainingWallM * 1000).toFixed(2)} mm</div>
+        <div className="rounded-md border border-pl-border bg-pl-surface px-3 py-2">
+          <div className="text-[9px] uppercase text-pl-muted">Min remaining wall</div>
+          <div className="font-pl-mono text-sm font-semibold tabular-nums text-pl-text">{(wear.summary.minRemainingWallM * 1000).toFixed(2)} mm</div>
         </div>
-        <div className="rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
-          <div className="text-[9px] uppercase text-slate-500">Worst interval</div>
-          <div className="text-sm font-semibold text-slate-100">
+        <div className="rounded-md border border-pl-border bg-pl-surface px-3 py-2">
+          <div className="text-[9px] uppercase text-pl-muted">Worst interval</div>
+          <div className="font-pl-mono text-sm font-semibold tabular-nums text-pl-text">
             {depthOut(wear.summary.worstFromMd, depthUnit).toFixed(0)}–{depthOut(wear.summary.worstToMd, depthUnit).toFixed(0)} {depthLabel(depthUnit)}
           </div>
         </div>
       </div>
       {/* TD-T1-002: the engine's note points at "the D6 casing upgrade", which
           has shipped as Casing & Tubing Studio */}
-      <div className="text-[10px] text-slate-500" data-testid="td-collapse-note">{COLLAPSE_NOTE}</div>
+      <div className="text-[10px] text-pl-muted" data-testid="td-collapse-note">{COLLAPSE_NOTE}</div>
       <div className="min-h-0 flex-1" style={{ minHeight: 380 }}>
         <WearChart wear={wear} depthUnit={depthUnit} />
       </div>
-      <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-        <table className="w-full text-xs text-slate-300">
+      <div className="rounded-lg border border-pl-border bg-pl-surface p-3">
+        <table className="w-full font-pl-mono text-xs tabular-nums text-pl-text">
           <thead>
-            <tr className="text-[10px] uppercase text-slate-500">
+            <tr className="text-[10px] uppercase text-pl-muted">
               <th className="p-1 text-right">From ({depthLabel(depthUnit)})</th>
               <th className="p-1 text-right">To ({depthLabel(depthUnit)})</th>
               <th className="p-1 text-right">Side force (kN)</th>
@@ -60,7 +60,7 @@ export default function WearTab({ wear, depthUnit }) {
           </thead>
           <tbody>
             {wear.rows.map((r, i) => (
-              <tr key={i} className="border-t border-slate-800">
+              <tr key={i} className="border-t border-pl-border">
                 <td className="p-1 text-right">{depthOut(r.fromMd, depthUnit).toFixed(0)}</td>
                 <td className="p-1 text-right">{depthOut(r.toMd, depthUnit).toFixed(0)}</td>
                 <td className="p-1 text-right">{(r.sideForceN / 1e3).toFixed(2)}</td>

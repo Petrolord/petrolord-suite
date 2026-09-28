@@ -9,8 +9,8 @@ import { depthDisp, depthStore, depthLabel } from '../services/stRun';
 import { WidthProfileChart } from '../charts/StCharts';
 
 const Card = ({ title, children, testId }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/40" data-testid={testId}>
-    <div className="border-b border-slate-800 px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</div>
+  <div className="rounded border border-pl-border bg-pl-surface" data-testid={testId}>
+    <div className="border-b border-pl-border px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-pl-muted">{title}</div>
     <div className="p-2">{children}</div>
   </div>
 );
@@ -21,7 +21,7 @@ const num = (v) => {
 };
 
 const Field = ({ label, value, onChange, step = 1, testId }) => (
-  <label className="flex items-center justify-between gap-2 text-xs text-slate-300">
+  <label className="flex items-center justify-between gap-2 text-xs text-pl-text">
     <span>{label}</span>
     <Input className="h-7 w-24 text-right text-xs" type="number" step={step} value={value}
       data-testid={testId} onChange={(e) => onChange(num(e.target.value))} />
@@ -40,7 +40,7 @@ export default function FracDesignTab({ caseDraft, onCaseChange, res, depthUnit 
     <div className="grid gap-3 p-3 xl:grid-cols-2">
       <div className="flex flex-col gap-3">
         <Card title={`Treatment interval (MD, ${unit}) + rock context`} testId="st-rock-card">
-          <div className="flex items-center gap-2 text-xs text-slate-300">
+          <div className="flex items-center gap-2 text-xs text-pl-text">
             <span>Top</span>
             <Input className="h-7 w-24 text-xs" type="number" data-testid="st-interval-top"
               value={Math.round(depthDisp(caseDraft.interval.topMdM, depthUnit))}
@@ -51,10 +51,10 @@ export default function FracDesignTab({ caseDraft, onCaseChange, res, depthUnit 
               onChange={(e) => onCaseChange((d) => { d.interval.bottomMdM = depthStore(num(e.target.value), depthUnit); })} />
           </div>
           {rock && (
-            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-slate-800 pt-2 text-xs text-slate-300">
-              <div>Closure (SHMIN) <span className="float-right font-mono" data-testid="st-closure">{MPa(rock.closurePa)} MPa</span></div>
-              <div>Reservoir p (PP) <span className="float-right font-mono" data-testid="st-pres">{MPa(rock.pResPa)} MPa</span></div>
-              <div className="col-span-2 text-[10px] text-slate-500">
+            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-pl-border pt-2 text-xs text-pl-text">
+              <div>Closure (SHMIN) <span className="float-right font-pl-mono tabular-nums" data-testid="st-closure">{MPa(rock.closurePa)} MPa</span></div>
+              <div>Reservoir p (PP) <span className="float-right font-pl-mono tabular-nums" data-testid="st-pres">{MPa(rock.pResPa)} MPa</span></div>
+              <div className="col-span-2 text-[10px] text-pl-muted">
                 {rock.source === 'published'
                   ? `From the published gm-1.0.0/pp-1.0.0 curves at ${Math.round(rock.midTvdM)} m TVD.`
                   : rock.source === 'manual'
@@ -81,12 +81,12 @@ export default function FracDesignTab({ caseDraft, onCaseChange, res, depthUnit 
               onChange={(v) => onCaseChange((d) => { d.frac.hfM = v; })} />
           </div>
           {res && (
-            <div className="mt-2 border-t border-slate-800 pt-2 text-xs text-slate-300">
-              Plane strain E' <span className="float-right font-mono">{(res.ePrimePa / 1e9).toFixed(2)} GPa</span>
+            <div className="mt-2 border-t border-pl-border pt-2 text-xs text-pl-text">
+              Plane strain E' <span className="float-right font-pl-mono tabular-nums">{(res.ePrimePa / 1e9).toFixed(2)} GPa</span>
             </div>
           )}
           {rock?.intervalTvdM > 0 && f.hfM < rock.intervalTvdM && (
-            <div className="mt-1 text-[10px] text-amber-300" data-testid="st-height-coverage">
+            <div className="mt-1 text-[10px] text-pl-warning-text" data-testid="st-height-coverage">
               The frac height of {Math.round(f.hfM)} m covers {Math.round((100 * f.hfM) / rock.intervalTvdM)}% of the
               interval's {Math.round(rock.intervalTvdM)} m vertical thickness, so part of the perforated interval
               is left unstimulated. Raise the height if the barriers allow it, or stage the treatment.
@@ -99,18 +99,18 @@ export default function FracDesignTab({ caseDraft, onCaseChange, res, depthUnit 
             {['pkn', 'kgd'].map((m) => (
               <button key={m} type="button" data-testid={`st-model-${m}`}
                 onClick={() => onCaseChange((d) => { d.frac.model = m; })}
-                className={`rounded px-3 py-1 text-xs uppercase ${f.model === m ? 'bg-lime-500/20 text-lime-300' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}`}>
+                className={`rounded px-3 py-1 text-xs uppercase ${f.model === m ? 'bg-pl-primary/10 text-pl-primary-text' : 'bg-pl-sunken text-pl-muted hover:text-pl-text'}`}>
                 {m}
               </button>
             ))}
           </div>
           {geo && (
-            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-300">
-              <div>Max width <span className="float-right font-mono" data-testid="st-wmax">{(geo.wMaxM * 1000).toFixed(2)} mm</span></div>
-              <div>Average width <span className="float-right font-mono">{(geo.wAvgM * 1000).toFixed(2)} mm</span></div>
-              <div>Net pressure <span className="float-right font-mono" data-testid="st-pnet">{MPa(geo.pNetPa)} MPa</span></div>
-              <div>BH treating p <span className="float-right font-mono" data-testid="st-bhtp">{MPa(geo.bhtpPa)} MPa</span></div>
-              <div className="col-span-2 text-[10px] text-slate-500">
+            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-pl-text">
+              <div>Max width <span className="float-right font-pl-mono tabular-nums" data-testid="st-wmax">{(geo.wMaxM * 1000).toFixed(2)} mm</span></div>
+              <div>Average width <span className="float-right font-pl-mono tabular-nums">{(geo.wAvgM * 1000).toFixed(2)} mm</span></div>
+              <div>Net pressure <span className="float-right font-pl-mono tabular-nums" data-testid="st-pnet">{MPa(geo.pNetPa)} MPa</span></div>
+              <div>BH treating p <span className="float-right font-pl-mono tabular-nums" data-testid="st-bhtp">{MPa(geo.bhtpPa)} MPa</span></div>
+              <div className="col-span-2 text-[10px] text-pl-muted">
                 Newtonian 2D widths at the target half-length; hydrostatic and pipe or perforation
                 friction are not included here.
               </div>

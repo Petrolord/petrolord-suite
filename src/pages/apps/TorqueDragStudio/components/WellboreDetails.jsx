@@ -9,24 +9,15 @@
 import React, { useMemo, useState } from 'react';
 import { computeActualTable } from '../../well-planning/services/surveyUtils';
 import { trajectorySummary } from '../../well-planning/services/trajectorySource';
-import { useThemeClass } from '@/design/themeClass';
 
 const FT = 0.3048;
 const disp = (m, unit) => (Number.isFinite(m) ? (unit === 'ft' ? m / FT : m) : NaN);
 const fmt = (m, unit, digits = 0) => (Number.isFinite(m) ? `${disp(m, unit).toFixed(digits)} ${unit}` : 'n/a');
 
+// Trajectory source tones on the status roles. Every studio that mounts
+// this block wraps itself in <ThemedApp> since rollout batch 3E, so the
+// legacy branch from W0B is gone.
 const TONE = {
-  definitive: 'border-slate-700 text-slate-300',
-  actual: 'border-cyan-500/50 text-cyan-300',
-  draft: 'border-amber-500/50 text-amber-300',
-  registry: 'border-cyan-500/50 text-cyan-300',
-  none: 'border-red-500/50 text-red-300',
-};
-
-// Design system (rollout W0B): the same tones as status roles inside an
-// opted-in app. Outside a <ThemedApp> scope tc() returns the legacy
-// strings above and everything below unchanged.
-const TONE_THEMED = {
   definitive: 'border-pl-border text-pl-text',
   actual: 'border-pl-info/50 bg-pl-info-bg text-pl-info-text',
   draft: 'border-pl-warning/50 bg-pl-warning-bg text-pl-warning-text',
@@ -37,7 +28,6 @@ const toneKey = (source) => (TONE[source] ? source : 'none');
 
 export default function WellboreDetails({ trajectory, wellbore: wellboreIn = null, testPrefix = 'td', maxRows = 400 }) {
   const wellbore = trajectory?.wellbore || wellboreIn;
-  const tc = useThemeClass();
   const [open, setOpen] = useState(false);
   const stations = useMemo(() => (Array.isArray(trajectory?.stations) ? trajectory.stations : []), [trajectory]);
   const unit = wellbore?.depth_unit === 'ft' ? 'ft' : 'm';
@@ -55,12 +45,12 @@ export default function WellboreDetails({ trajectory, wellbore: wellboreIn = nul
     try { const t = computeActualTable(stations, { kbM: Number(wellbore?.kb_elev_m) || 0 }); const last = t && t[t.length - 1]; return last ? Number(last.tvd) : NaN; } catch { return NaN; }
   }, [stations, wellbore]);
   if (!wellbore) return null;
-  const LABEL = tc('text-slate-500', 'text-pl-muted');
-  const VALUE = tc('text-slate-200', 'text-pl-text');
+  const LABEL = 'text-pl-muted';
+  const VALUE = 'text-pl-text';
 
   return (
-    <div className={tc('mt-3 space-y-2 border-t border-slate-800 pt-2 text-[10px] text-slate-400', 'mt-3 space-y-2 border-t border-pl-border pt-2 text-[10px] text-pl-muted')} data-testid={`${testPrefix}-wellbore-details`}>
-      <div className={`rounded border px-2 py-1 ${tc(TONE[toneKey(source)], TONE_THEMED[toneKey(source)])}`} data-testid={`${testPrefix}-traj-info`} data-source={source}>
+    <div className="mt-3 space-y-2 border-t border-pl-border pt-2 text-[10px] text-pl-muted" data-testid={`${testPrefix}-wellbore-details`}>
+      <div className={`rounded border px-2 py-1 ${TONE[toneKey(source)]}`} data-testid={`${testPrefix}-traj-info`} data-source={source}>
         <div className="font-semibold">Trajectory: {label}</div>
         {trajectory?.note ? <div className="mt-0.5 text-[10px] opacity-90" data-testid={`${testPrefix}-traj-note`}>{trajectory.note}</div> : null}
       </div>
@@ -82,29 +72,29 @@ export default function WellboreDetails({ trajectory, wellbore: wellboreIn = nul
         </>)}
       </div>
       {stations.length >= 2 && (
-        <button type="button" onClick={() => setOpen((v) => !v)} data-testid={`${testPrefix}-survey-toggle`} className={tc('text-cyan-300 hover:underline', 'text-pl-primary-text hover:underline')}>
+        <button type="button" onClick={() => setOpen((v) => !v)} data-testid={`${testPrefix}-survey-toggle`} className="text-pl-primary-text hover:underline">
           {open ? 'Hide survey listing' : 'Show survey listing'}
         </button>
       )}
       {open && table && (
-        <div className={tc('max-h-64 overflow-auto rounded border border-slate-800', 'max-h-64 overflow-auto rounded border border-pl-border bg-pl-surface')} data-testid={`${testPrefix}-survey-table`}>
+        <div className="max-h-64 overflow-auto rounded border border-pl-border bg-pl-surface" data-testid={`${testPrefix}-survey-table`}>
           <table className="w-full text-[10px]">
-            <thead className={tc('sticky top-0 bg-slate-900 text-slate-500', 'sticky top-0 bg-pl-sunken text-pl-muted')}>
+            <thead className="sticky top-0 bg-pl-sunken text-pl-muted">
               <tr><th className="px-1 text-left">MD ({unit})</th><th className="px-1 text-right">Inc</th><th className="px-1 text-right">Azi</th><th className="px-1 text-right">TVD ({unit})</th><th className="px-1 text-right">DLS ({unit === 'ft' ? '°/100ft' : '°/30m'})</th></tr>
             </thead>
             <tbody>
               {table.slice(0, maxRows).map((r, i) => (
-                <tr key={i} className={tc('text-slate-300', 'text-pl-text')}>
-                  <td className="px-1 font-mono">{disp(r.md, unit).toFixed(unit === 'ft' ? 0 : 1)}</td>
-                  <td className="px-1 text-right font-mono">{Number(r.inc).toFixed(1)}</td>
-                  <td className="px-1 text-right font-mono">{Number(r.azi).toFixed(1)}</td>
-                  <td className="px-1 text-right font-mono">{disp(r.tvd, unit).toFixed(unit === 'ft' ? 0 : 1)}</td>
-                  <td className="px-1 text-right font-mono">{Number.isFinite(Number(unit === 'ft' ? r.dls100ft : r.dls30m)) ? Number(unit === 'ft' ? r.dls100ft : r.dls30m).toFixed(2) : ''}</td>
+                <tr key={i} className="text-pl-text">
+                  <td className="px-1 font-pl-mono tabular-nums">{disp(r.md, unit).toFixed(unit === 'ft' ? 0 : 1)}</td>
+                  <td className="px-1 text-right font-pl-mono tabular-nums">{Number(r.inc).toFixed(1)}</td>
+                  <td className="px-1 text-right font-pl-mono tabular-nums">{Number(r.azi).toFixed(1)}</td>
+                  <td className="px-1 text-right font-pl-mono tabular-nums">{disp(r.tvd, unit).toFixed(unit === 'ft' ? 0 : 1)}</td>
+                  <td className="px-1 text-right font-pl-mono tabular-nums">{Number.isFinite(Number(unit === 'ft' ? r.dls100ft : r.dls30m)) ? Number(unit === 'ft' ? r.dls100ft : r.dls30m).toFixed(2) : ''}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {table.length > maxRows && <div className={tc('px-1 py-0.5 text-slate-500', 'px-1 py-0.5 text-pl-muted')}>{table.length - maxRows} more stations not listed.</div>}
+          {table.length > maxRows && <div className="px-1 py-0.5 text-pl-muted">{table.length - maxRows} more stations not listed.</div>}
         </div>
       )}
     </div>

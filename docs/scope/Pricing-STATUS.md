@@ -5,6 +5,43 @@ Current prices and rules as of the 2026-09 pricing review (owner-approved
 history of how module pricing came to have one source of truth follows in
 the 2026-08-30 sections below.
 
+## 2026-09-28: quote and organisation admin pages on the design system (rollout 3F)
+
+Get quote (`/dashboard/get-quote`), Quote dashboard (`/dashboard/quote/:quoteId`),
+Audit logs, Teams, Bulk import and App analytics wrap themselves in
+`ThemedApp` (shared `AccountScope`, `AccountPage`, `AccountHeader` from
+`src/components/account/accountChrome.jsx`, imported unchanged) and open on
+the grey panel with a light/dark toggle in the header. Routes are registered
+in `src/design/rollout/w3f.js`.
+
+- Money paths are classes only. No function that prices, verifies a promo,
+  calls `generate-quote`, `get-active-apps`, `verify-paystack-payment`,
+  `verify-bank-transfer` or `create-stripe-checkout`, or writes to the
+  database changed; `quotePricingParity`, `modulePricing` and
+  `midstreamDownstreamRegistration` pass unchanged. `appCategories` is left
+  as it is.
+- Status colour only for status: quote status badge (warning, info,
+  success, danger), payment verified, unlocked access, import success and
+  failure counts, member status, promo errors. Pay buttons, prices, the
+  total and discount lines are primary or plain text; the gold top rule on
+  the Total Due card is the brand accent.
+- Tests: `src/pages/__tests__/W3fAdminPages.theme.test.jsx` (describeAppTheme
+  per page, plus the audit log dialog, the transfer proof dialog and a walk
+  through the configurator steps).
+- Checked at 1440 and 390 wide in light, and in dark at 1440, from a private
+  preview server with stand-in data: no sideways page scroll (wide tables
+  scroll inside their card).
+
+Found on the way, left as they are:
+
+- `appCategories` in `src/data/applications.js` is an empty list, so step 1
+  of Get quote lists no modules and Next stays disabled (the same root cause
+  as the empty Module access overview noted under 1E).
+- The "Payment Confirmed" toast in `QuoteDashboard.runVerification` (the
+  Paystack verify path) still passes a green `className`, so it stays green
+  in the themed toaster.
+- App analytics shows fixed placeholder figures (124 users, 450 sessions).
+
 ## 2026-09-28: account page fixes (renewals, access requests, availability)
 
 Fixes three of the defects found in rollout 1E (below). Owner decision
