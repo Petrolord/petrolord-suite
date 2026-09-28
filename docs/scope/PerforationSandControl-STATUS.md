@@ -104,3 +104,29 @@ layout and label fixes. See `docs/testing/PerforationSandControl-T1.md`.
    UCS or raise the interval to see the margin shrink.
 7. Save, duplicate, reload round-trip; save a run and see it in the
    immutable history.
+
+## Design system rollout, batch 3D (2026-09-28)
+
+The studio, its help guide and the dev harness (`/dev/perforation-sand-control`) now open on the
+Petrolord design system: light grey panel by default, dark as a per-user
+choice from the ribbon toggle (beside Help).
+
+- Scope: `ThemedApp` inside `PerforationSandControlStudio.jsx`, `PerforationSandControlHelpGuide.jsx` and `PerforationSandControlHarness.jsx`; App.jsx
+  unchanged. Cold-load prefix `/dashboard/apps/drilling/perforation-sand-control` in `src/design/rollout/w3d.js`
+  (covers `/help`).
+- Own classes moved to `pl-*` roles across the ribbon, the four tabs (Interval & Sand, Perforating, Sand Control, Sanding) and the status bar. The dark overrides on
+  the adapted Input and SelectTrigger are gone; the run buttons are the
+  default primary Button; the active tab uses the primary tint; KPI values
+  use the mono face.
+- Status colour only for status: the PASS / WARN / FAIL banner and gun clearance pills, the sanding margin, the run error box and the engine warnings. Decorative lime, cyan and
+  gradient accents are gone.
+- Charts (particle size distribution and sanding onset) stay on the white chart card in both themes and carry
+  `data-canvas="chart"`. The app draws no schematic, so no dark canvas.
+- Shared drilling kit (Explorer, GeometryNotice, WellboreDetails from
+  Torque & Drag) untouched: it is scope-aware since W0B.
+- Phone width: no sideways page scroll; the workstation keeps its 1100px
+  minimum and scrolls inside the shell, as before. The help guide stacks.
+- Tests: `__tests__/PerforationSandControlStudio.theme.test.jsx` (describeAppTheme for the studio and the help
+  guide, a dark walk through every tab and run with the legacy-chrome
+  check, chart cards white, harness scope). Existing suites unchanged.
+- No engine, calculation or export change.

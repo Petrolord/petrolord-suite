@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import WCWorkstation from './WCWorkstation';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { makeWpBackend } from './services/wpBackend';
 
 // Well Control Studio (Drilling D3): well volumes and strokes, kill sheets
@@ -20,9 +21,9 @@ export default function WellControlStudio() {
           content="Kill sheets, kick tolerance and MAASP on your planned wells: volumes and strokes, wait-and-weight and driller's method schedules, validated against independent oracles."
         />
       </Helmet>
-      <div className="h-screen w-full overflow-hidden">
+      <ThemedApp className="h-screen w-full overflow-hidden" data-testid="wc-theme-scope">
         <WCWorkstation backend={backend} />
-      </div>
+      </ThemedApp>
     </>
   );
 }

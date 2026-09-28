@@ -8,13 +8,14 @@
 
 import React, { useMemo } from 'react';
 import CmtWorkstation from './CmtWorkstation';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
 
 export default function CementingHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
-    <div className="h-screen w-full overflow-hidden">
+    <ThemedApp className="h-screen w-full overflow-hidden" data-testid="cmt-theme-scope">
       <CmtWorkstation backend={backend} />
-    </div>
+    </ThemedApp>
   );
 }
