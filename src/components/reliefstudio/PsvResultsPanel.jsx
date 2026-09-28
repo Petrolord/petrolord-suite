@@ -15,8 +15,8 @@ const OrificeLadder = ({ selected }) => {
         <span
           key={l}
           className={`px-2 py-1 rounded text-xs font-semibold ${l === selected
-            ? 'bg-emerald-600 text-white'
-            : 'bg-slate-800 text-slate-500'}`}
+            ? 'border border-pl-primary bg-pl-primary/10 text-pl-primary-text'
+            : 'border border-pl-border bg-pl-sunken text-pl-muted'}`}
         >
           {l}
         </span>
@@ -32,16 +32,16 @@ const PsvResultsPanel = () => {
   const o = psv.orifice;
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Required orifice</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Required orifice</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat label="Required area" value={show(fmt(psv.areaIn2, 3), psv.areaIn2)} unit="in2" />
             {o.error ? (
-              <Stat label="Selection" value={`${fmt(o.multipleOfT, 0)} x T`} accent="text-amber-400" hint={o.error} />
+              <Stat label="Selection" value={`${fmt(o.multipleOfT, 0)} x T`} accent="text-pl-warning-text" hint={o.error} />
             ) : (
               <>
-                <Stat label="API 526 orifice" value={o.orifice} accent="text-emerald-400" hint={`${fmt(o.areaIn2, 3)} in2`} />
+                <Stat label="API 526 orifice" value={o.orifice} accent="text-pl-text" hint={`${fmt(o.areaIn2, 3)} in2`} />
                 <Stat label="Margin" value={fmt((o.margin - 1) * 100, 0)} unit="%" hint="orifice area over required" />
               </>
             )}
@@ -57,19 +57,19 @@ const PsvResultsPanel = () => {
           )}
           {!o.error && <OrificeLadder selected={o.orifice} />}
           {psv.scenario === 'gas' && (
-            <p className="text-[12px] text-slate-500">
+            <p className="text-[12px] text-pl-muted">
               {psv.critical
                 ? 'Critical flow: the nozzle is choked and the back pressure does not set the rate.'
                 : 'Subcritical flow: sized with the F2 factor; the back pressure is in the equation itself.'}
             </p>
           )}
           {psv.scenario === 'liquid' && Number.isFinite(psv.kv) && psv.kv < 1 && (
-            <p className="text-[12px] text-slate-500">
+            <p className="text-[12px] text-pl-muted">
               Viscosity correction Kv = {fmt(psv.kv, 3)} at Reynolds {fmt(psv.reynolds, 0)}, iterated with the area.
             </p>
           )}
           {psv.scenario === 'steam' && psv.kn > 1 && (
-            <p className="text-[12px] text-slate-500">Napier correction KN = {fmt(psv.kn, 3)} (above 1500 psia).</p>
+            <p className="text-[12px] text-pl-muted">Napier correction KN = {fmt(psv.kn, 3)} (above 1500 psia).</p>
           )}
           {psv.warning && <WarnNote>{psv.warning}</WarnNote>}
           {psv.loadWarning && <WarnNote>{psv.loadWarning}</WarnNote>}
@@ -77,8 +77,8 @@ const PsvResultsPanel = () => {
       </Card>
 
       {psv.scenario === 'fire' && (
-        <Card className="bg-slate-900/60 border-slate-800">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Fire duty chain</CardTitle></CardHeader>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Fire duty chain</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <Stat label="Wetted area" value={fmt(psv.wettedFt2, 0)} unit="ft2"

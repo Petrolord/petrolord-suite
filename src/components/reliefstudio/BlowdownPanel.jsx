@@ -46,12 +46,12 @@ const BlowdownPanel = () => {
   }));
   const tick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Adiabatic depressuring</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Adiabatic depressuring</CardTitle></CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <Stat label="Time to end pressure" value={fmt(r.timeS / 60, 1)} unit="min"
-            accent={r.timeS > 900 ? 'text-amber-400' : 'text-emerald-400'}
+            accent={r.timeS > 900 ? 'text-pl-warning-text' : 'text-pl-success-text'}
             hint={r.timeS > 900 ? 'above the customary 15 minutes' : 'inside the customary 15 minutes'} />
           <Stat label="Final temperature" value={fmt(r.finalTR - 459.67, 0)} unit="F"
             hint="adiabatic bound; real vessels chill less but the metal question starts here" />

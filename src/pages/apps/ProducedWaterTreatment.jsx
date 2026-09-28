@@ -18,6 +18,10 @@ import {
 } from '@/components/pwtstudio/PwtPanels';
 import PwtHelpContent from '@/components/pwtstudio/PwtHelpGuide';
 import { fmt, Row } from '@/components/pwtstudio/fields';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'train', label: 'Treatment Train' },
@@ -25,7 +29,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const Summary = () => {
@@ -132,7 +136,6 @@ const StudioContent = () => {
             backTo="/dashboard/facilities"
             backTitle="Back to Facilities Engineering"
             icon={Droplets}
-            iconGradientClass="from-cyan-600 to-blue-700"
             title="Produced Water Treatment Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -145,7 +148,7 @@ const StudioContent = () => {
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Produced Water Guide"
               description="Why oil in water is a distribution, why three good devices do not multiply, and where temperature and salinity come in."
@@ -166,9 +169,11 @@ const StudioContent = () => {
 };
 
 const ProducedWaterTreatment = () => (
-  <ProducedWaterProvider>
-    <StudioContent />
-  </ProducedWaterProvider>
+  <ThemedApp data-testid="pwt-theme-scope">
+    <ProducedWaterProvider>
+      <StudioContent />
+    </ProducedWaterProvider>
+  </ThemedApp>
 );
 
 export default ProducedWaterTreatment;

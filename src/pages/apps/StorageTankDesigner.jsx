@@ -14,6 +14,10 @@ import { TankStudioProvider, useTank } from '@/contexts/TankStudioContext';
 import { TankInputs, ShellResults, VentingResults, LossResults } from '@/components/tankstudio/TankPanels';
 import TankHelpContent from '@/components/tankstudio/TankHelpGuide';
 import { fmt, Row } from '@/components/tankstudio/fields';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'shell', label: 'Shell' },
@@ -22,7 +26,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const Summary = () => {
@@ -116,7 +120,6 @@ const StudioContent = () => {
             backTo="/dashboard/facilities"
             backTitle="Back to Facilities Engineering"
             icon={Container}
-            iconGradientClass="from-sky-600 to-cyan-700"
             title="Storage Tank & Venting Designer"
             tabs={TABS}
             activeTab={activeTab}
@@ -129,7 +132,7 @@ const StudioContent = () => {
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Storage Tank Guide"
               description="Why the water test can govern the shell, why the vacuum case is the one that destroys tanks, and what the loss numbers are actually worth."
@@ -150,9 +153,11 @@ const StudioContent = () => {
 };
 
 const StorageTankDesigner = () => (
-  <TankStudioProvider>
-    <StudioContent />
-  </TankStudioProvider>
+  <ThemedApp data-testid="tank-theme-scope">
+    <TankStudioProvider>
+      <StudioContent />
+    </TankStudioProvider>
+  </ThemedApp>
 );
 
 export default StorageTankDesigner;

@@ -18,6 +18,10 @@ import {
 import PumpHelpContent from '@/components/pumpstudio/PumpHelpGuide';
 import { fmt, Row } from '@/components/pumpstudio/fields';
 import { FullPrecisionProvider, FullPrecisionToggle, useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'duty', label: 'Duty Point' },
@@ -25,7 +29,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const Summary = () => {
@@ -119,7 +123,6 @@ const StudioContent = () => {
             backTo="/dashboard/facilities"
             backTitle="Back to Facilities Engineering"
             icon={Gauge}
-            iconGradientClass="from-emerald-600 to-teal-700"
             title="Pump Station Designer"
             tabs={TABS}
             activeTab={activeTab}
@@ -129,12 +132,12 @@ const StudioContent = () => {
         headerActions={
           <>
             <FullPrecisionToggle app="pump-station-designer" />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Pump Selection Guide"
               description="Why a pump has no duty point on its own, why NPSH margin is not the same as adequacy, and why two pumps are not twice one pump."
@@ -155,11 +158,13 @@ const StudioContent = () => {
 };
 
 const PumpStationDesigner = () => (
-  <PumpStudioProvider>
-    <FullPrecisionProvider>
-      <StudioContent />
-    </FullPrecisionProvider>
-  </PumpStudioProvider>
+  <ThemedApp data-testid="pump-theme-scope">
+    <PumpStudioProvider>
+      <FullPrecisionProvider>
+        <StudioContent />
+      </FullPrecisionProvider>
+    </PumpStudioProvider>
+  </ThemedApp>
 );
 
 export default PumpStationDesigner;
