@@ -515,6 +515,35 @@ export async function deleteLog(log) {
   if (error) throw new Error(`Could not delete log: ${error.message}`);
 }
 
+/**
+ * Rewrite one stored curve in place (same log id and storage path) with
+ * new samples and a metadata patch: the WDM-U2-010 reorient of curves an
+ * earlier release stored bottom-up. Owner-only (storage and row RLS). The
+ * object is replaced first; if the row update then fails, the original
+ * samples are put back so object and row never disagree.
+ * @param {Object} log registry row @param {Float32Array} data @param {Object} patch
+ */
+export async function rewriteLogSamples(log, data, patch, { original = null } = {}) {
+  if (data.length !== Number(log.n_samples)) {
+    throw new Error(`Curve ${log.mnemonic}: ${data.length} samples, the row says ${log.n_samples}.`);
+  }
+  const blob = (arr) => new Blob([Float32Array.from(arr).buffer], { type: 'application/octet-stream' });
+  const { error: upError } = await supabase.storage.from(BUCKET)
+    .update(log.storage_path, blob(data), { contentType: 'application/octet-stream', upsert: true });
+  if (upError) throw new Error(`Could not rewrite curve ${log.mnemonic}: ${upError.message}`);
+  const { data: rows, error } = await supabase.from('geo_wells_logs')
+    .update(patch).eq('id', log.id).select();
+  if (error || !rows || !rows.length) {
+    if (original) {
+      await supabase.storage.from(BUCKET)
+        .update(log.storage_path, blob(original), { contentType: 'application/octet-stream', upsert: true }).catch(() => {});
+    }
+    throw new Error(error ? `Could not update log ${log.mnemonic}: ${error.message}`
+      : 'Only the owner can change logs (org sharing is read-only).');
+  }
+  return rows[0];
+}
+
 /** Fetch one curve's samples. Works for org-shared wells too — the
  *  storage read policy resolves the owning well from the path. */
 export async function downloadCurve(log) {

@@ -289,6 +289,12 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
             The message names the reason: a TVD, TVDSS or time index, a malformed row with its line number, or a
             comma used as the decimal mark. Export the logs against MD with a point decimal and import again.
           </Para>
+          <SubHeading>The Logs tab says curves were stored bottom-up</SubHeading>
+          <Para>
+            A release before September 2026 stored files logged bottom-up as they came, with depth decreasing. The quick
+            view already shows them with depth increasing; Reorient (owner only) reverses them in place so every app
+            reads them that way. The curves keep their ids, so Petrophysics and Well Correlation still find them.
+          </Para>
           <SubHeading>A well is missing from the map</SubHeading>
           <Para>It has no surface location. The map caption counts such wells; the inventory flags them.</Para>
           <SubHeading>My checkshot depths are negative</SubHeading>

@@ -341,6 +341,17 @@ export function makeInMemoryBackend(opts = {}) {
       if (i >= 0) arr.splice(i, 1);
     },
 
+    /** WDM-U2-010: same contract as wellsRegistry.rewriteLogSamples. */
+    async rewriteLogSamples(log, data, patch) {
+      ownWell(log.well_id, 'change logs of');
+      if (data.length !== Number(log.n_samples)) throw new Error(`Curve ${log.mnemonic}: ${data.length} samples, the row says ${log.n_samples}.`);
+      const row = (logsByWell.get(log.well_id) || []).find((l) => l.id === log.id);
+      if (!row) throw new Error('Log not found.');
+      curveStore.set(row.storage_path, Float32Array.from(data));
+      Object.assign(row, patch);
+      return { ...row };
+    },
+
     async downloadCurve(log) {
       const data = curveStore.get(log.storage_path);
       if (!data) throw new Error(`Curve ${log.mnemonic}: no object at ${log.storage_path}.`);

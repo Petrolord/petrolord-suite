@@ -28,6 +28,8 @@ import {
 } from '../engine/checkshots';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { fmtDepth, editCell, parseDisplayed, unitText, toDisp } from '../engine/displayUnits';
+import { bottomUpLogs, orientForDisplay, planReorient } from '../engine/reorient';
+import { isDepthAlias } from '../engine/lasIndex';
 
 const TABS = ['Header', 'Logs', 'Tops', 'Intervals', 'Core', 'Deviation', 'Checkshots'];
 
@@ -352,13 +354,23 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
       setCurveBusy(true);
       try {
         const resolved = [];
-        for (const log of wanted) {
+        const get = async (log) => {
           let data = curveCache.current.get(log.id);
           if (!data) {
             data = await backend.downloadCurve(log);
             curveCache.current.set(log.id, data);
           }
-          resolved.push({ log, data });
+          return data;
+        };
+        // WDM-U2-010: a curve an earlier release stored bottom-up is shown
+        // reoriented (depth increasing) even before the owner repairs it
+        const depthLog = logs.find((l) => isDepthAlias(l.mnemonic));
+        for (const log of wanted) {
+          const data = await get(log);
+          const up = bottomUpLogs([log]).length > 0;
+          const depthData = up && depthLog ? await get(depthLog) : null;
+          const o = orientForDisplay(log, data, depthData);
+          resolved.push({ log: o.log, data: o.data });
         }
         if (!cancelled) setTracks(resolved);
       } catch (e) {
@@ -386,6 +398,29 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
   };
 
   const shared = !!well.organization_id;
+  const upLogs = bottomUpLogs(logs || []);
+  const [reorientBusy, setReorientBusy] = useState(false);
+
+  // WDM-U2-010: reverse, in place, the curves an earlier release stored
+  // bottom-up (same log ids; the step comes from the reversed depth curve)
+  const reorient = async () => {
+    setReorientBusy(true);
+    try {
+      const dataById = new Map();
+      for (const l of upLogs) dataById.set(l.id, curveCache.current.get(l.id) || await backend.downloadCurve(l));
+      const plan = planReorient(logs, dataById);
+      for (const w of plan.writes) await backend.rewriteLogSamples(w.log, w.data, w.patch, { original: dataById.get(w.log.id) });
+      for (const w of plan.writes) curveCache.current.delete(w.log.id);
+      onStatus(`Reoriented ${plan.writes.length} curve${plan.writes.length === 1 ? '' : 's'}: depth now increases, ${fmtDepth(plan.startMdM, unit, 2)} to ${fmtDepth(plan.stopMdM, unit, 2)} ${u}`
+        + `${plan.stepM != null ? `, step ${fmtDepth(plan.stepM, unit, 4)} ${u}` : ', irregular step'}.`);
+      await refreshChildren();
+      if (onWellChanged) await onWellChanged(well);
+    } catch (e) {
+      onStatus(e.message);
+    } finally {
+      setReorientBusy(false);
+    }
+  };
 
   return (
     <div className="h-full min-h-0 flex flex-col" data-testid="wdm-detail">
@@ -592,6 +627,20 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                 <p className="text-xs text-pl-muted">
                   No logs on this well yet. Use Import LAS to add curves.
                 </p>
+              )}
+              {upLogs.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 rounded border border-pl-warning/60 bg-pl-warning-bg px-2 py-1 text-xs text-pl-warning-text" data-testid="wdm-bottom-up-note">
+                  <span>
+                    {upLogs.length} curve{upLogs.length === 1 ? ' was' : 's were'} stored bottom-up by an earlier release ({upLogs.map((l) => l.mnemonic).join(', ')}).
+                    The quick view shows them with depth increasing; other apps read them by sample until they are reoriented.
+                  </span>
+                  {well.is_own ? (
+                    <button type="button" className={primaryCls} disabled={reorientBusy} onClick={reorient} data-testid="wdm-reorient"
+                      title="Reverse these curves in place so depth increases (same log ids; nothing else changes)">
+                      {reorientBusy ? 'Reorienting…' : 'Reorient'}
+                    </button>
+                  ) : <span className="text-pl-muted">Only the owner can reorient them.</span>}
+                </div>
               )}
               {logs.length > 0 && (
                 <table className="text-xs" data-testid="wdm-logs-table">
