@@ -47,7 +47,7 @@ const TOKEN = /(^|\s)([a-z-]+:|\[[^\]]+\]:)*(bg|text|border|ring|ring-offset|sha
 // The scenes whose every element is an adapted ui piece. The toaster needs
 // an active scope and is covered in toasterTheme.test.jsx; the loader
 // scenes are path-driven (coldLoad.test.jsx).
-const UI_SCENES = ['controls', 'accordion', 'scrollArea', 'alert', 'sheetRight', 'sheetLeft', 'alertDialog', 'contextMenu', 'accessDenied', 'comingSoon', 'protectedRouteDenied'];
+const UI_SCENES = ['controls', 'accordion', 'scrollArea', 'alert', 'sheetRight', 'sheetLeft', 'alertDialog', 'contextMenu', 'accessDenied', 'comingSoon', 'protectedRouteDenied', 'wave0a'];
 
 async function renderScoped(name, theme = 'light') {
   const Scene = SCENES[name];
@@ -76,6 +76,21 @@ describe('inside a scope every adapted scene uses theme roles only', () => {
     const surfaces = [...document.querySelectorAll(sel)];
     expect(surfaces.length).toBeGreaterThan(0);
     surfaces.forEach((el) => expect(el).toHaveAttribute('data-pl-theme', 'dark'));
+  });
+
+  it('Wave 0A: avatar fallback, radio items and the FullPrecision label and note use roles', async () => {
+    await renderScoped('wave0a');
+    screen.getAllByText(/^(AT|PM)$/).forEach((f) => expect(f.className).toMatch(/\bbg-pl-sunken\b/));
+    expect(screen.getByText('PM').className).toMatch(/\btext-xs\b/); // the caller's override still wins
+    const radios = screen.getAllByRole('radio');
+    expect(radios).toHaveLength(3);
+    radios.forEach((r) => {
+      expect(r.className).toMatch(/\bborder-pl-border-strong\b/);
+      expect(r.className).toMatch(/data-\[state=checked\]:border-pl-primary/);
+    });
+    // both tones give the same role inside a scope
+    screen.getAllByText('Full precision', { selector: 'label' }).forEach((l) => expect(l.className).toMatch(/\btext-pl-muted\b/));
+    expect(screen.getByTestId('full-precision-note').className).toMatch(/\btext-pl-warning-text\b/);
   });
 
   it('the context submenu is themed and scoped too', async () => {

@@ -2,6 +2,11 @@
 // Facilities or Process Safety studio on the in-memory Supabase double, so
 // projects save and reopen without auth or a database. One store per page
 // load; tables are created on first use.
+//
+// Design-system rollout (Wave 0A): the harness adds no colours and no theme
+// scope of its own. Each app paints itself exactly as on its real route (an
+// unmigrated app on the body's legacy dark background, a migrated one inside
+// the ThemedApp it wraps itself in), so no rollout batch edits this file.
 import React, { lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import InMemorySupabase, { createStore } from './InMemorySupabase';
@@ -35,7 +40,7 @@ export default function FacilitiesHarness() {
   return (
     <InMemorySupabase db={db}>
       <DevAuth>
-        <div className="min-h-screen bg-slate-950 text-slate-100">
+        <div className="min-h-screen">
           <Suspense fallback={<div className="p-6 text-slate-400">Loading...</div>}><App /></Suspense>
         </div>
       </DevAuth>

@@ -20,6 +20,7 @@ import AuthGuard from '@/components/AuthGuard';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { isThemedPath, coldLoadTheme, THEMED_HUBS } from '@/design/coldLoad';
 import { LAST_THEME_KEY } from '@/design/ThemeProvider';
+import { LEGACY_FIXTURE_PATH } from '@/design/testing/LegacyAppFixture';
 
 afterEach(() => {
   cleanup();
@@ -42,9 +43,10 @@ describe('isThemedPath', () => {
   ])('%s is themed', (p) => expect(isThemedPath(p)).toBe(true));
 
   it.each([
-    '/', '/login', '/dashboard/upgrade', '/dashboard/employees', '/dashboard/reservoir-x',
-    '/dashboard/apps/reservoir/waterflood-design-studio', '/dashboard/apps/economics/epe-suite',
-    '/dashboard/apps/geoscience/seismolord-legacy', '/super-admin', undefined,
+    // paths no rollout batch registers (batch paths are checked in rolloutFiles.test.js)
+    '/', '/login', '/dashboard/reservoir-x', '/dashboard/apps', '/dashboard/apps/economics',
+    LEGACY_FIXTURE_PATH, `${LEGACY_FIXTURE_PATH}/help`, '/dashboard/apps/economics/epe-suite',
+    '/dashboard/apps/geoscience/seismolord-legacy', undefined,
   ])('%s is not themed', (p) => expect(isThemedPath(p)).toBe(false));
 });
 
@@ -72,7 +74,7 @@ describe('the loaders', () => {
 
   it('elsewhere the legacy loaders stay, whatever the device key says', () => {
     window.localStorage.setItem(LAST_THEME_KEY, 'light');
-    render(loading(<AuthGuard><p>app</p></AuthGuard>, '/dashboard/apps/reservoir/waterflood-design-studio'));
+    render(loading(<AuthGuard><p>app</p></AuthGuard>, LEGACY_FIXTURE_PATH));
     expect(screen.queryByTestId('themed-loading')).toBeNull();
     expect(document.querySelector('.bg-slate-900')).not.toBeNull();
     expect(document.querySelector('[data-pl-theme]')).toBeNull();

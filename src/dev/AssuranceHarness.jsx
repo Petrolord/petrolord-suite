@@ -5,6 +5,11 @@
 // the harness). The outer router's location context is reset so React
 // Router accepts the nesting. One organization and one member; every table
 // starts empty, and the code-number RPCs are stood in.
+//
+// Design-system rollout (Wave 0A): the harness adds no colours and no theme
+// scope of its own. Each app paints itself exactly as on its real route (an
+// unmigrated app on the body's legacy dark background, a migrated one inside
+// the ThemedApp it wraps itself in), so no rollout batch edits this file.
 import React, { lazy, Suspense } from 'react';
 import {
   MemoryRouter, Routes, Route, useParams, UNSAFE_LocationContext, UNSAFE_RouteContext,
@@ -220,7 +225,7 @@ export default function AssuranceHarness() {
         <UNSAFE_LocationContext.Provider value={null}>
           <UNSAFE_RouteContext.Provider value={{ outlet: null, matches: [], isDataRoute: false }}>
             <MemoryRouter initialEntries={[`${B}/${START[app]}`]}>
-              <div className="min-h-screen bg-slate-950 text-slate-100">
+              <div className="min-h-screen">
                 <Suspense fallback={<div className="p-6 text-slate-400">Loading...</div>}>
                   <Routes>
                     <Route path={`${B}/risk-register`} element={<RiskRegister />} />

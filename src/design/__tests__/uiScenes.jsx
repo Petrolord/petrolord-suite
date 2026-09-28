@@ -1,7 +1,8 @@
 // Scenes shared by uiLegacyDom.test.jsx (outside a scope, pinned to main)
 // and scopeUiControls.test.jsx (inside a scope). Not a test file itself.
-// The loader scenes use a path that has not opted in (Waterflood Design
-// Studio): on pilot paths the loaders are themed on purpose (coldLoad.test.jsx).
+// The loader scenes use a path no batch registers (the test-only legacy
+// fixture's path): on themed paths the loaders are themed on purpose
+// (coldLoad.test.jsx).
 import React from 'react';
 import { fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -34,6 +35,10 @@ import AuthGuard from '@/components/AuthGuard';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Toaster } from '@/components/ui/sonner';
 import { toast as sonnerToast } from 'sonner';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { FullPrecisionProvider, FullPrecisionToggle, FullPrecisionNote } from '@/components/fullprecision/FullPrecision';
+import { LEGACY_FIXTURE_PATH } from '@/design/testing/LegacyAppFixture';
 
 // Every scene renders outside any scope. The same scenes are reused by
 // scopeUiControls.test.jsx inside a scope.
@@ -141,15 +146,32 @@ export const SCENES = {
   comingSoon: () => <MemoryRouter><ComingSoon appName="Thing" /></MemoryRouter>,
   authGuardLoadingOther: () => (
     <AuthContext.Provider value={{ loading: true, user: null }}>
-      <MemoryRouter initialEntries={['/dashboard/apps/reservoir/waterflood-design-studio']}><AuthGuard><p>app</p></AuthGuard></MemoryRouter>
+      <MemoryRouter initialEntries={[LEGACY_FIXTURE_PATH]}><AuthGuard><p>app</p></AuthGuard></MemoryRouter>
     </AuthContext.Provider>
   ),
   protectedRouteLoading: () => (
     <AuthContext.Provider value={{ loading: true, user: null }}>
-      <MemoryRouter initialEntries={['/dashboard/apps/reservoir/waterflood-design-studio']}><ProtectedRoute><p>app</p></ProtectedRoute></MemoryRouter>
+      <MemoryRouter initialEntries={[LEGACY_FIXTURE_PATH]}><ProtectedRoute><p>app</p></ProtectedRoute></MemoryRouter>
     </AuthContext.Provider>
   ),
   toaster: () => <Toaster richColors closeButton />,
+  // Wave 0A: avatar, radio group and the FullPrecision toggle and note
+  wave0a: () => (
+    <div>
+      <Avatar><AvatarImage src="" alt="" /><AvatarFallback>AT</AvatarFallback></Avatar>
+      <Avatar className="h-6 w-6"><AvatarFallback className="text-xs">PM</AvatarFallback></Avatar>
+      <RadioGroup defaultValue="a" aria-label="choice">
+        <RadioGroupItem value="a" aria-label="first" />
+        <RadioGroupItem value="b" aria-label="second" />
+        <RadioGroupItem value="c" aria-label="third" disabled />
+      </RadioGroup>
+      <FullPrecisionProvider initial>
+        <FullPrecisionToggle app="scene" />
+        <FullPrecisionToggle app="scene-light" tone="light" />
+        <FullPrecisionNote />
+      </FullPrecisionProvider>
+    </div>
+  ),
   protectedRouteDenied: () => (
     <AuthContext.Provider value={{ loading: false, user: { id: 'u' }, isSuperAdmin: false }}>
       <MemoryRouter initialEntries={['/dashboard/x']}><ProtectedRoute requiredPermission="p"><p>app</p></ProtectedRoute></MemoryRouter>

@@ -18,7 +18,10 @@ Audit, pilots and open decisions: `docs/scope/DesignSystem-PLAN.md`.
 | `src/design/themeContext.js` | `useDsTheme`, `usePortalThemeProps` (no dependencies) |
 | `src/design/themeClass.js` | `useThemeClass`, the one opt-in helper for shared components (section 4) |
 | `src/design/activeTheme.js` | the theme of the opted-in app on screen, for the root toaster |
-| `src/design/coldLoad.jsx` | pilot paths, `coldLoadTheme`, `ThemedLoadingScreen` for the cold-load loaders |
+| `src/design/coldLoad.jsx` | hub list, `isThemedPath`, `coldLoadTheme`, `ThemedLoadingScreen` for the cold-load loaders |
+| `src/design/rollout/<batch>.js` | cold-load route prefixes, one file per rollout batch (`pilots.js`, `w1a.js` ... `w6g.js`), aggregated by `rollout/index.js` |
+| `src/design/testing/themeAssertions.js` | test only: the shared app theme-test helpers (section 4) |
+| `src/design/testing/LegacyAppFixture.jsx` | test only: the unmigrated-app stand-in for the opt-in proofs |
 | `src/components/ui/theme-toggle.jsx` | `ThemeToggle` |
 | `src/components/ui/app-shell.jsx` | `AppHeader`, `PageContainer`, `PageSection`, `DisplayHeading` |
 | `src/components/ui/stat-tile.jsx` | `StatTile` |
@@ -161,8 +164,9 @@ user yet) it paints the last theme this device resolved
   `Popover`, `Tooltip`, `DropdownMenu`, `Checkbox`, `Switch`, `Accordion`,
   `ScrollArea`, `Sheet`, `Slider`, `Progress`, `Alert` (adds status
   variants), `Separator`, `ContextMenu`, `AlertDialog`, `Skeleton`,
-  `Toggle`, `ToggleGroup`, `StudioHeader` (shows the toggle), and the
-  full-page `AccessDenied` and `ComingSoon` screens.
+  `Toggle`, `ToggleGroup`, `Avatar`, `RadioGroup`, the `FullPrecision`
+  toggle and note, `StudioHeader` (shows the toggle), and the full-page
+  `AccessDenied` and `ComingSoon` screens.
 - Put `<ThemeToggle />` in the header, or use `AppHeader`, which has it.
 - Portal content (dialog, sheet and alert-dialog overlays and panels,
   menus and submenus, selects, popovers, tooltips) carries the scope
@@ -201,6 +205,74 @@ themed strings out literally so Tailwind generates them. The Studio kit's
 `useStudioTheme()` returns the same picker (plus `ds`). Pin the legacy DOM
 of any shared component you adapt (see `uiLegacyDom.test.jsx` and
 `studioKitLegacyDom.test.jsx`).
+
+### Register the route for the cold-load loaders
+
+Before the session restores, the loaders outside any scope (AuthGuard,
+ProtectedRoute, the root PageLoader) paint the user's last theme only on
+paths `isThemedPath()` knows. Each rollout batch lists its route prefixes in
+its own file and edits nothing else:
+
+```js
+// src/design/rollout/w1a.js
+export default [
+  '/dashboard/apps/reservoir/material-balance-studio',
+  '/dashboard/apps/reservoir/well-test-analysis-studio',
+];
+```
+
+A prefix covers its sub-paths (`/help`, `/cases/42`). A page outside
+`/dashboard` uses its absolute path (`/profile`). `rollout/index.js` already
+imports every batch file, so a batch never touches it, `coldLoad.jsx` or
+another batch's file. `rolloutFiles.test.js` checks that each prefix is well
+formed, starts a route in `App.jsx` and is registered once.
+
+### The app theme test
+
+Every migrated app gets `__tests__/<App>.theme.test.jsx` built on the shared
+helpers in `src/design/testing/themeAssertions.js` (test only; never import
+it from app code):
+
+```jsx
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { describeAppTheme, expectNoLegacyChrome } from '@/design/testing/themeAssertions';
+import ReservoirBalance from '@/pages/apps/reservoir-balance/ReservoirBalance';
+
+describeAppTheme({
+  name: 'Material Balance Studio',
+  route: '/dashboard/apps/reservoir/material-balance-studio',
+  renderApp: () => render(<MemoryRouter><ReservoirBalance /></MemoryRouter>),
+  ready: () => screen.findByText('Material Balance Studio'),
+  scopeTestId: 'mbal-theme-scope',
+  // userId: 'u1' when the test provides an AuthContext user (default null, the anon key)
+  // allow: ['text-red-600'] only for a deliberate legacy token, with the reason
+});
+```
+
+`describeAppTheme` adds the four standard checks: opens light in the scope;
+the header toggle goes to dark and back and stores the choice under the
+user's key; no legacy console colour under any `[data-pl-theme]` element
+(portals included) outside `data-canvas` regions, with a planted negative
+control; and `isThemedPath(route)` is true. It installs the jsdom shims and
+clears storage before each test. For further states (tabs, dialogs,
+results), call the pieces in the app's own tests:
+
+| helper | checks |
+|---|---|
+| `expectNoLegacyChrome({ root?, allow? })` | no legacy class under a scope, outside `data-canvas` |
+| `legacyChromeClasses({ root?, allow? })` | the offending class strings (for a custom assertion) |
+| `expectNegativeControl(scope, { allow? })` | a planted `bg-slate-900 text-white` is found, one inside `data-canvas` is not |
+| `expectLightByDefault(scope)`, `expectToggleRoundTrip(scope, { userId? })` | the theme checks on their own |
+| `expectThemedPath(route)` | the route is registered |
+| `getScopeRoot(testId?)`, `installDomShims()`, `hasLegacyChrome(cls)` | utilities |
+
+A legacy token is any Tailwind palette colour on a colour utility (with any
+variant), `text-white`, solid `bg-black`, translucent `bg-white/`, gradients
+and hex colours. Tokens under `dark:` are ignored (the Suite never sets
+`.dark`), and so are translucent black scrims. The unmigrated-app proof in
+`optInScope.test.jsx` and `hubScope.test.jsx` mounts the test-only
+`LegacyAppFixture`, so no batch moves it.
 
 ## 5. Components
 
@@ -251,11 +323,9 @@ of any shared component you adapt (see `uiLegacyDom.test.jsx` and
 8. Typography: Public Sans default, mono for numeric columns, serif only for
    the page title if used.
 9. Copy pass on every string touched (section 3, rule 5).
-10. Tests: app tests still pass; add a render test inside `ThemedApp` for the
-    main page. If the app was the non-pilot proof in
-    `src/design/__tests__/optInScope.test.jsx` or `hubScope.test.jsx`
-    (Waterflood Design Studio since 2026-09-28), move that proof to another
-    app. Add the route to `THEMED_APP_PREFIXES` in `src/design/coldLoad.jsx`.
+10. Tests: app tests still pass; add the app theme test with
+    `describeAppTheme` (section 4). Register the route in the batch's own
+    `src/design/rollout/<batch>.js`.
 11. Staging walk in light and dark (and the phone width), then update the
     app's `docs/scope/<App>-STATUS.md` and the pilot table in
     `DesignSystem-PLAN.md`.
