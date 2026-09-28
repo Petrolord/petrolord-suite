@@ -37,6 +37,7 @@ jest.mock('recharts', () => {
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import ModularRefineryFeasibility from '@/pages/apps/ModularRefineryFeasibility';
 
@@ -48,6 +49,10 @@ const renderApp = () => render(
   </AuthContext.Provider>,
 );
 const ready = () => screen.findByText('-$97.4MM');
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: 'u1' });
 
 describeAppTheme({
   name: 'Modular Refinery Feasibility Studio',

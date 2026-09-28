@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Helmet } from 'react-helmet';
 import CorrelationWorkstation from './components/CorrelationWorkstation';
 import { makeRegistryBackend } from './services/registryBackend';
@@ -23,9 +22,9 @@ export default function WellCorrelation() {
         />
       </Helmet>
 
-      <ThemedApp className="h-screen w-full overflow-hidden" data-testid="corr-theme-scope">
+      <div className="h-screen w-full overflow-hidden" data-testid="corr-theme-scope">
         <CorrelationWorkstation backend={backend} />
-      </ThemedApp>
+      </div>
     </>
   );
 }

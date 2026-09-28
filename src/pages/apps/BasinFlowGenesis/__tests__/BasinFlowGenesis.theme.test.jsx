@@ -22,6 +22,7 @@ import { MemoryRouter } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, expectLightByDefault, expectNegativeControl,
   expectThemedPath, installDomShims, getScopeRoot,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { themeStorageKey } from '@/design/ThemeProvider';
 import BasinFlowGenesis from '../BasinFlowGenesis';
@@ -44,6 +45,10 @@ beforeAll(() => {
   installDomShims();
   jest.spyOn(window.HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null);
 });
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'BasinFlow Genesis',
@@ -153,7 +158,7 @@ describe('BasinFlow Genesis themed states', () => {
 
   test('the help guide shares the scope and opens light', () => {
     render(<MemoryRouter><BasinFlowHelpGuide /></MemoryRouter>);
-    const scope = screen.getByTestId('bf-help-theme-scope');
+    const scope = getScopeRoot('bf-help-theme-scope');
     expectLightByDefault(scope);
     expectNoLegacyChrome();
     expectThemedPath(`${ROUTE}/help`);

@@ -1,10 +1,15 @@
-// Dev-only harness (/dev/hubs/<page>; design-system pilot 1): the real
-// DashboardLayout, sidebar, landing and module hubs on the in-memory
-// Supabase double, so the hubs can be walked and screenshotted in light and
-// dark without an account. <page> is "landing", a hub slug (geoscience,
-// data-ai ...) or "wds", the unmigrated Waterflood Design Studio opened
-// from a hub, for the opt-in check. The pages run in a nested MemoryRouter
-// that starts at the real /dashboard path. Never in production builds.
+// Dev-only harness (/dev/hubs/<page>; design-system pilot 1, extended in
+// batch 7A): the real DashboardLayout, sidebar, landing and module hubs on
+// the in-memory Supabase double, so the dashboard can be walked and
+// screenshotted in light and dark without an account. <page> is "landing",
+// a hub slug (geoscience, data-ai ...), or one of the apps opened from a
+// hub behind the real ProtectedAppRoute: "wds" (Waterflood Design Studio),
+// "mbal" (Material Balance Studio), "epe" (Petroleum Economics Studio),
+// "separator" (Separator & Slug Catcher Studio), "help" (the Stratigraphy
+// Studio help guide) and "denied" (an app without a licence, so the
+// access-restricted state). Everything sits in DashboardLayout's one theme
+// scope. The pages run in a nested MemoryRouter that starts at the real
+// /dashboard path. Never in production builds.
 import React, { lazy, Suspense } from 'react';
 import {
   MemoryRouter, Routes, Route, useParams, UNSAFE_LocationContext, UNSAFE_RouteContext,
@@ -14,6 +19,7 @@ import DevAuth from './DevAuth';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import HubScope from '@/components/hubs/HubScope';
 import AppRoute from '@/components/AppRoute';
+import ProtectedAppRoute from '@/components/ProtectedAppRoute';
 import Dashboard from '@/pages/Dashboard';
 
 const GeoscienceAnalytics = lazy(() => import('@/pages/dashboard/GeoscienceAnalytics'));
@@ -27,6 +33,11 @@ const ProcessSafetyHub = lazy(() => import('@/pages/dashboard/ProcessSafetyHub')
 const DataAiHub = lazy(() => import('@/pages/dashboard/DataAiHub'));
 const AssuranceHub = lazy(() => import('@/pages/dashboard/AssuranceHub'));
 const WaterfloodDesignStudio = lazy(() => import('@/pages/apps/WaterfloodDesignStudio'));
+const ReservoirBalance = lazy(() => import('@/pages/apps/reservoir-balance/ReservoirBalance'));
+const EpeCaseList = lazy(() => import('@/pages/apps/epe/EpeCaseList'));
+const SeparatorSlugCatcherDesigner = lazy(() => import('@/pages/apps/SeparatorSlugCatcherDesigner'));
+const StratigraphyHelpGuide = lazy(() => import('@/pages/apps/StratigraphyStudio/StratigraphyHelpGuide'));
+const PetrophysicsStudio = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudio'));
 
 const ORG = { id: '00000000-0000-4000-8000-000000000001', name: 'Harness Energy' };
 const USER = { ...DEV_USER, user_metadata: { full_name: 'Ada Harness', role: 'admin' } };
@@ -74,8 +85,27 @@ const seed = () => ({
   org_closure_requests: [],
 });
 
-const START = { landing: '/dashboard', wds: '/dashboard/apps/reservoir/waterflood-design-studio' };
+const START = {
+  landing: '/dashboard',
+  wds: '/dashboard/apps/reservoir/waterflood-design-studio',
+  mbal: '/dashboard/apps/reservoir/material-balance-studio',
+  epe: '/dashboard/apps/economics/epe/cases',
+  separator: '/dashboard/apps/facilities/separator-slug-catcher-designer',
+  help: '/dashboard/apps/geoscience/stratigraphy-studio/help',
+  denied: '/dashboard/apps/geoscience/petrophysics-studio',
+};
 const hubRoute = (slug, Hub) => <Route path={slug} element={<AppRoute appName={slug}><Hub /></AppRoute>} />;
+// An app route as App.jsx wires it, behind the entitlement guard.
+const appRoute = (path, appId, name, App) => (
+  <Route path={path} element={<ProtectedAppRoute appId={appId} appName={name}><App /></ProtectedAppRoute>} />
+);
+
+// The entitlement edge function stand-in: every app with a seat opens, the
+// rest show the access-restricted state.
+const LICENSED = ['waterflood-design-studio', 'material-balance-studio', 'epe-suite', 'separator-slug-catcher-designer'];
+const FUNCTIONS = {
+  'get-user-entitlements': async () => ({ data: { accessible_app_ids: LICENSED, entitlements: [] }, error: null }),
+};
 
 let store = null;
 
@@ -84,7 +114,7 @@ export default function HubsHarness() {
   if (!store) store = createStore(seed());
   const start = START[page] || `/dashboard/${page}`;
   return (
-    <InMemorySupabase db={store} user={USER}>
+    <InMemorySupabase db={store} user={USER} functions={FUNCTIONS}>
       <DevAuth user={USER} organization={ORG}>
         <UNSAFE_LocationContext.Provider value={null}>
           <UNSAFE_RouteContext.Provider value={{ outlet: null, matches: [], isDataRoute: false }}>
@@ -105,7 +135,12 @@ export default function HubsHarness() {
                       {hubRoute('data-ai', DataAiHub)}
                       {hubRoute('assurance', AssuranceHub)}
                     </Route>
-                    <Route path="apps/reservoir/waterflood-design-studio" element={<WaterfloodDesignStudio />} />
+                    {appRoute('apps/reservoir/waterflood-design-studio', 'waterflood-design-studio', 'Waterflood Design Studio', WaterfloodDesignStudio)}
+                    {appRoute('apps/reservoir/material-balance-studio', 'material-balance-studio', 'Material Balance Studio', ReservoirBalance)}
+                    {appRoute('apps/economics/epe/cases', 'epe-suite', 'Petroleum Economics Studio', EpeCaseList)}
+                    {appRoute('apps/facilities/separator-slug-catcher-designer', 'separator-slug-catcher-designer', 'Separator & Slug Catcher Studio', SeparatorSlugCatcherDesigner)}
+                    {appRoute('apps/geoscience/petrophysics-studio', 'petrophysics-studio', 'Petrophysics Studio', PetrophysicsStudio)}
+                    <Route path="apps/geoscience/stratigraphy-studio/help" element={<StratigraphyHelpGuide />} />
                   </Route>
                   <Route path="*" element={<div className="p-6 text-amber-300">Left the hubs (a link outside the harness).</div>} />
                 </Routes>

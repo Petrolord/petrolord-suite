@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Helmet } from 'react-helmet';
 import WellWorkstation from './components/WellWorkstation';
 import { makeRegistryBackend } from './services/registryBackend';
@@ -23,9 +22,9 @@ export default function WellDataManager() {
         />
       </Helmet>
 
-      <ThemedApp className="h-screen w-full overflow-hidden" data-testid="wdm-theme-scope">
+      <div className="h-screen w-full overflow-hidden" data-testid="wdm-theme-scope">
         <WellWorkstation backend={backend} />
-      </ThemedApp>
+      </div>
     </>
   );
 }

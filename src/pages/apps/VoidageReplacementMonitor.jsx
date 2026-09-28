@@ -26,7 +26,6 @@ import PatternManagerPanel from '@/components/vrrmonitor/PatternManagerPanel';
 import AllocationMatrixEditor from '@/components/vrrmonitor/AllocationMatrixEditor';
 import PatternResultsPanel from '@/components/vrrmonitor/PatternResultsPanel';
 import VrrHelpContent from '@/components/reservoir/VrrHelpGuide';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'data', label: 'Data & PVT' },
@@ -172,10 +171,10 @@ const VrrMonitorContent = () => {
 
 export default function VoidageReplacementMonitor() {
   return (
-    <ThemedApp data-testid="vrr-theme-scope">
+    <div data-testid="vrr-theme-scope">
       <VrrMonitorProvider>
         <VrrMonitorContent />
       </VrrMonitorProvider>
-    </ThemedApp>
+    </div>
   );
 }

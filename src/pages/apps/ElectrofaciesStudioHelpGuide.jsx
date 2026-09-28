@@ -13,7 +13,6 @@ import {
 import {
   Callout, Code, Formula, GuideSection, HelpGuideShell, Para, SectionHeading, Step, SubHeading, Table,
 } from '@/components/helpguide/HelpGuideLayout';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ELECTROFACIES_ROUTE } from '@/utils/dataAi/faciesStudy';
 import {
   MAX_ROWS, MAX_KNN_TRAIN_ROWS, ELBOW_SAMPLE_ROWS, SILHOUETTE_MAX_ROWS, AGGLOMERATIVE_MAX_ROWS,
@@ -329,9 +328,9 @@ const ElectrofaciesStudioHelpGuideContent = () => (
 );
 
 const ElectrofaciesStudioHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="facies-help-theme-scope">
+  <div className="min-h-screen" data-testid="facies-help-theme-scope">
     <ElectrofaciesStudioHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default ElectrofaciesStudioHelpGuide;

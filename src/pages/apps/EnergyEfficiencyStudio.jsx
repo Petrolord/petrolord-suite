@@ -6,7 +6,6 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Gauge } from 'lucide-react';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -86,7 +85,7 @@ const Workspace = () => {
 // Design system rollout batch 5C (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
 const EnergyEfficiencyStudio = () => (
-  <ThemedApp data-testid="energy-efficiency-theme-scope" className="h-full">
+  <div data-testid="energy-efficiency-theme-scope" className="h-full">
     <Helmet>
       <title>Energy &amp; Utilities Efficiency Studio - Petrolord Suite</title>
       <meta name="description" content="Fired-heater efficiency by the indirect stack-loss method, excess-air optimisation, steam system screening, energy intensity and pinch heat-integration targets." />
@@ -96,7 +95,7 @@ const EnergyEfficiencyStudio = () => (
         <Workspace />
       </FullPrecisionProvider>
     </EnergyEfficiencyProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default EnergyEfficiencyStudio;

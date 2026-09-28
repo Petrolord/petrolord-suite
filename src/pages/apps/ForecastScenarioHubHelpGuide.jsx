@@ -17,7 +17,6 @@ import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Code,
   Formula, Callout, Step, Table,
 } from '@/components/helpguide/HelpGuideLayout';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const sections = [
   { id: 'overview', icon: BookOpen, title: 'What this does' },
@@ -274,9 +273,9 @@ const ForecastScenarioHubHelpGuideContent = () => (
 // Design system rollout batch 2A: the guide follows the same per-user theme
 // as Forecast Scenario Hub itself, so the look does not flip between the two pages.
 const ForecastScenarioHubHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="fsh-help-root">
+  <div className="min-h-screen" data-testid="fsh-help-root">
     <ForecastScenarioHubHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default ForecastScenarioHubHelpGuide;

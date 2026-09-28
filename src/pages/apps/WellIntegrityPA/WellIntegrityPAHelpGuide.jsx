@@ -6,7 +6,6 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   ArrowLeft, BookOpen, Zap, ShieldCheck, Gauge, Layers, ListChecks,
@@ -344,9 +343,9 @@ const WellIntegrityPAHelpGuideContent = () => {
 // Design system rollout batch 3C: the guide follows the same per-user theme
 // as the Well Integrity & P&A Studio itself, so the look does not flip between the two pages.
 const WellIntegrityPAHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="wi-help-theme-scope">
+  <div className="min-h-screen" data-testid="wi-help-theme-scope">
     <WellIntegrityPAHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default WellIntegrityPAHelpGuide;

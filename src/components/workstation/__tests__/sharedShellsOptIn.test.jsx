@@ -19,19 +19,9 @@ import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import StratigraphyHelpGuide from '@/pages/apps/StratigraphyStudio/StratigraphyHelpGuide';
 
-// Stratigraphy Studio wraps its own help guide in ThemedApp since design
-// system rollout W4B. This proof needs the guide's unscoped render, so here
-// that one wrapper renders its children bare; the layout and the guide
-// content (what the snapshot pins) are unchanged, and every other
-// ThemedApp (the scoped test below) is the real one.
-jest.mock('@/design/ThemeProvider', () => {
-  const actual = jest.requireActual('@/design/ThemeProvider');
-  const R = jest.requireActual('react');
-  const ThemedApp = (props) => (props['data-testid'] === 'strat-help-theme-scope'
-    ? R.createElement(R.Fragment, null, props.children)
-    : R.createElement(actual.ThemedApp, props));
-  return { ...actual, ThemedApp };
-});
+// Since batch 7A the Stratigraphy help guide has no scope of its own (the
+// dashboard's one scope themes it), so rendered alone it is unscoped; its
+// root element is a plain wrapper, and the snapshot pins what is inside it.
 
 beforeAll(() => {
   global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
@@ -73,7 +63,7 @@ describe('outside a scope the shared shells render exactly as on main', () => {
 
   test('a real non-pilot help guide (Stratigraphy Studio)', () => {
     const { container } = render(<MemoryRouter><StratigraphyHelpGuide /></MemoryRouter>);
-    expect(stableHtml(container)).toMatchSnapshot();
+    expect(stableHtml(container.querySelector('[data-testid="strat-help-theme-scope"]'))).toMatchSnapshot();
     expect(container.innerHTML).not.toMatch(/-pl-|data-pl-theme/);
   });
 });

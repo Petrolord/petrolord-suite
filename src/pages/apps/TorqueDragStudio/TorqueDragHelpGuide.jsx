@@ -7,7 +7,6 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   ArrowLeft, BookOpen, Zap, Cable, Layers, Gauge, LineChart, Disc3,
@@ -373,9 +372,9 @@ const TorqueDragHelpGuideContent = () => {
 // Design system rollout batch 3E: the guide follows the same per-user theme
 // as Torque & Drag Studio itself, so the look does not flip between the two pages.
 const TorqueDragHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="td-help-theme-scope">
+  <div className="min-h-screen" data-testid="td-help-theme-scope">
     <TorqueDragHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default TorqueDragHelpGuide;

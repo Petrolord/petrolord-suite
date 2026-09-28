@@ -15,6 +15,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, hasLegacyChrome, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 
 jest.mock('@/lib/customSupabaseClient', () => ({
@@ -44,6 +45,10 @@ const TABS = [
 
 const mount = () => render(<MemoryRouter><FDPAccelerator /></MemoryRouter>);
 const ready = () => screen.findByText('Saved plan');
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'FDP Accelerator',

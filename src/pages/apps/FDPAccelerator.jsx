@@ -5,7 +5,6 @@ import { Helmet } from 'react-helmet';
 import { FullPrecisionProvider } from '@/components/fullprecision/FullPrecision';
 import ExpertMode from '@/components/fdp/modes/ExpertMode';
 import GuidedMode from '@/components/fdp/modes/GuidedMode';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const ContentRouter = () => {
     const { state } = useFDP();
@@ -23,7 +22,7 @@ const ContentRouter = () => {
 // whole app (and its dev harness) opens light with the per-user dark choice.
 const FDPAccelerator = () => {
     return (
-      <ThemedApp data-testid="fdp-theme-scope">
+      <div data-testid="fdp-theme-scope">
         <FDPProvider>
           {/* W3 (D3): the Full precision switch prints well costs to the USD
               and the facility estimate in $MM at 4 decimals. */}
@@ -37,7 +36,7 @@ const FDPAccelerator = () => {
             </MainLayout>
           </FullPrecisionProvider>
         </FDPProvider>
-      </ThemedApp>
+      </div>
     );
 };
 

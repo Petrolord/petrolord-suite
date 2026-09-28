@@ -1,7 +1,7 @@
 /**
  * Design system rollout, Project Management Pro, session 6C of 3 (6C, 6D,
- * 6E). The app wraps itself in <ThemedApp> (see ProjectManagementPro.jsx),
- * so the whole app is in the scope from 6C on. 6C moved the page shell and
+ * 6E). The whole app is in the scope from 6C on (since 7A the dashboard's
+ * one scope, which installDashboardScope gives every render here). 6C moved the page shell and
  * the top-level components/projectmanagement/*.jsx files to theme roles;
  * the subfolders are converted in 6D and 6E.
  *
@@ -106,10 +106,11 @@ jest.mock('@/lib/customSupabaseClient', () => {
 
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims, hasLegacyChrome,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import ProjectManagementPro from '@/pages/apps/ProjectManagementPro';
-import { ThemedApp } from '@/design/ThemeProvider';
+import { themeStorageKey } from '@/design/ThemeProvider';
 import FieldDevelopmentProjectDashboard from '@/components/projectmanagement/field_development/FieldDevelopmentProjectDashboard';
 import { WorkoverProjectDashboard } from '@/components/projectmanagement/smallprojects/SmallProjectDashboards';
 import { WorkoverProjectWizard } from '@/components/projectmanagement/smallprojects/SmallProjectWizards';
@@ -148,6 +149,10 @@ const SCOPE = 'pmp-theme-scope';
 // The project views mount a Gantt, several recharts and dialogs; allow time
 // when the suite runs beside others.
 jest.setTimeout(30000);
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: 'u1' });
 
 describeAppTheme({
   name: 'Project Management Pro',
@@ -425,10 +430,12 @@ describe('Project Management Pro theme, 6E views (strict)', () => {
     for (const theme of ['light', 'dark']) {
       for (const [text, view] of views) {
         try { window.localStorage.clear(); } catch { /* storage unavailable */ }
+        // the dashboard scope (installDashboardScope above) opens in the user's stored theme
+        try { window.localStorage.setItem(themeStorageKey('u1'), theme); } catch { /* storage unavailable */ }
         const { unmount } = render(
           <MemoryRouter>
             <AuthContext.Provider value={{ user: USER, session: null, loading: false }}>
-              <ThemedApp defaultTheme={theme} data-testid="pmp-6e-scope">{view}</ThemedApp>
+              <div data-testid="pmp-6e-scope">{view}</div>
             </AuthContext.Provider>
           </MemoryRouter>,
         );

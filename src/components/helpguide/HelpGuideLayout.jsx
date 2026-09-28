@@ -17,6 +17,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, BookOpen } from 'lucide-react';
 import { buildLabel } from '@/lib/platformBuild';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useDsTheme } from '@/design/themeContext';
 
 // Design system (pilot 4, Seismolord): inside an opted-in <ThemedApp> scope
@@ -237,6 +238,8 @@ export const HelpGuideShell = ({
               <h1 className={c.h1}>{title}</h1>
               {subtitle ? <p className={c.subtitle}>{subtitle}</p> : null}
             </div>
+            {/* the light/dark switch of the dashboard scope (renders nothing outside a scope) */}
+            <ThemeToggle className="!ml-auto" />
           </div>
         </motion.div>
 

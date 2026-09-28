@@ -18,6 +18,7 @@ import {
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, installDomShims, expectThemedPath, getScopeRoot,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { themeStorageKey } from '@/design/ThemeProvider';
 import { makeFakeSupabase } from '../../assurance/shared/__tests__/fakeSupabase';
@@ -65,6 +66,10 @@ const seed = () => ({
   ],
   saved_reports: [],
 });
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 beforeAll(installDomShims);
 beforeEach(() => {

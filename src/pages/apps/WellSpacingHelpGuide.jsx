@@ -18,7 +18,6 @@ import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Code,
   Formula, Callout, Step, Table,
 } from '@/components/helpguide/HelpGuideLayout';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const sections = [
   { id: 'overview', icon: BookOpen, title: 'What this does' },
@@ -297,9 +296,9 @@ const WellSpacingHelpGuideContent = () => (
 // Design system rollout batch 2A: the guide follows the same per-user theme
 // as Well Spacing Optimizer itself, so the look does not flip between the two pages.
 const WellSpacingHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="wso-help-root">
+  <div className="min-h-screen" data-testid="wso-help-root">
     <WellSpacingHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default WellSpacingHelpGuide;

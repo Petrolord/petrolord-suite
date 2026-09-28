@@ -27,7 +27,6 @@ import UnloadingPanel from '@/components/gaslift/UnloadingPanel';
 import InjectionPointPanel from '@/components/gaslift/InjectionPointPanel';
 import PerformancePanel from '@/components/gaslift/PerformancePanel';
 import GasLiftHelpContent from '@/components/gaslift/GasLiftHelpGuide';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 2C (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -175,10 +174,10 @@ const GasLiftContent = () => {
 
 export default function GasLiftDesignStudio() {
   return (
-    <ThemedApp data-testid="gaslift-theme-scope">
+    <div data-testid="gaslift-theme-scope">
       <GasLiftDesignProvider>
         <GasLiftContent />
       </GasLiftDesignProvider>
-    </ThemedApp>
+    </div>
   );
 }

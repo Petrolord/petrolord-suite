@@ -8,7 +8,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describeAppTheme, expectNoLegacyChrome, installDomShims } from '@/design/testing/themeAssertions';
+import { describeAppTheme, expectNoLegacyChrome, installDomShims, installDashboardScope } from '@/design/testing/themeAssertions';
 
 jest.mock('@/lib/customSupabaseClient', () => ({
   supabase: {
@@ -40,6 +40,10 @@ const TITLE = 'Fluid Systems & Flow Behavior Studio';
 const inputTab = (name) => screen.getAllByRole('tab', { name })[0];
 const resultTab = (name) => { const all = screen.getAllByRole('tab', { name }); return all[all.length - 1]; };
 const renderApp = () => render(<MemoryRouter><FluidSystemsStudio /></MemoryRouter>);
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Fluid Systems Studio',

@@ -5,6 +5,8 @@
  *  - the workspace chrome (ribbon, explorer, context menus) uses theme
  *    roles, with no dark console colours left;
  *  - the help guide shares the scope so the theme holds across pages.
+ * Since batch 7A the page has no scope of its own; it mounts in the
+ * dashboard's one scope (DashboardScope), as DashboardLayout gives it.
  * The seismic, map and 3D canvases keep their classes and pixels (see the
  * data-canvas regions in SliceView, CubeView and MapView); the pixel proof
  * is the before/after screenshot comparison described in the PR.
@@ -14,6 +16,8 @@ import '@testing-library/jest-dom';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemedApp, themeStorageKey } from '@/design/ThemeProvider';
+import { DashboardScope } from '@/design/DashboardScope';
+import { getScopeRoot } from '@/design/testing/themeAssertions';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import Ribbon from '@/pages/apps/Seismolord/components/workspace/Ribbon';
 import SeismicExplorer from '@/pages/apps/Seismolord/components/workspace/SeismicExplorer';
@@ -47,19 +51,22 @@ if (typeof global.DOMRect === 'undefined') {
 
 beforeEach(() => { try { localStorage.clear(); } catch { /* ignore */ } });
 
+// The page as its /dashboard route mounts it, inside the dashboard scope.
+const mountPage = () => render(<MemoryRouter><DashboardScope><Seismolord /></DashboardScope></MemoryRouter>);
+
 const LEGACY_CONSOLE = /\b(bg|text|border)-(slate|cyan|lime)-\d{2,3}\b|\btext-white\b/;
 
 describe('Seismolord design system scope', () => {
   test('the page root carries the theme scope, light by default', () => {
-    render(<MemoryRouter><Seismolord /></MemoryRouter>);
-    const root = screen.getByTestId('seismolord-root');
+    mountPage();
+    const root = getScopeRoot('seismolord-root');
     expect(root).toHaveAttribute('data-pl-theme', 'light');
     expect(root).toHaveAttribute('data-pl-root');
   });
 
   test('the ribbon toggle switches light and dark and remembers the choice', () => {
-    render(<MemoryRouter><Seismolord /></MemoryRouter>);
-    const root = screen.getByTestId('seismolord-root');
+    mountPage();
+    const root = getScopeRoot('seismolord-root');
     const toggle = screen.getByTestId('theme-toggle');
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
 
@@ -75,8 +82,8 @@ describe('Seismolord design system scope', () => {
 
   test('a returning dark user opens in dark', () => {
     localStorage.setItem(themeStorageKey(null), 'dark');
-    render(<MemoryRouter><Seismolord /></MemoryRouter>);
-    expect(screen.getByTestId('seismolord-root')).toHaveAttribute('data-pl-theme', 'dark');
+    mountPage();
+    expect(getScopeRoot('seismolord-root')).toHaveAttribute('data-pl-theme', 'dark');
   });
 
   test('ribbon chrome uses theme roles inside the scope', () => {
@@ -124,7 +131,7 @@ describe('Seismolord design system scope', () => {
   });
 
   test('the help guide shares the scope', () => {
-    render(<MemoryRouter><SeismolordHelpGuide /></MemoryRouter>);
-    expect(screen.getByTestId('seismolord-help-root')).toHaveAttribute('data-pl-theme', 'light');
+    render(<MemoryRouter><DashboardScope><SeismolordHelpGuide /></DashboardScope></MemoryRouter>);
+    expect(getScopeRoot('seismolord-help-root')).toHaveAttribute('data-pl-theme', 'light');
   });
 });

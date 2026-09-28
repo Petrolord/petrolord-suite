@@ -15,6 +15,7 @@ import { MemoryRouter } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, expectLightByDefault, expectNegativeControl,
   expectThemedPath, installDomShims, getScopeRoot,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { themeStorageKey } from '@/design/ThemeProvider';
 import StratigraphyStudio from '../StratigraphyStudio';
@@ -34,6 +35,10 @@ beforeAll(() => {
   installDomShims();
   jest.spyOn(window.HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null);
 });
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Stratigraphy Studio',
@@ -83,7 +88,7 @@ describe('Stratigraphy Studio themed states', () => {
 
   test('the help guide shares the scope and opens light', () => {
     render(<MemoryRouter><StratigraphyHelpGuide /></MemoryRouter>);
-    const scope = screen.getByTestId('strat-help-theme-scope');
+    const scope = getScopeRoot('strat-help-theme-scope');
     expectLightByDefault(scope);
     expectNoLegacyChrome();
     expectThemedPath(`${ROUTE}/help`);

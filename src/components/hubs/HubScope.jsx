@@ -1,17 +1,12 @@
-// Design-system scope for the dashboard landing and the ten module hubs
-// (pilot 1, docs/scope/DesignSystem-PLAN.md section 3).
+// Layout route for the dashboard landing and the ten module hubs.
 //
-// A pathless layout route in App.jsx renders this around exactly those
-// routes, so they opt in together and the theme does not flip while the
-// user moves between hubs. The applications opened from a hub are sibling
-// routes under /dashboard, outside this element, so an app keeps its own
-// look until it opts in itself (hubScope.test.jsx proves it).
-//
-// The lazy hubs suspend inside the scope, so their loading state follows
-// the theme and the sidebar stays in place while a hub loads.
+// Since batch 7A the design-system scope is DashboardLayout's single
+// ThemedApp (src/design/DashboardScope.jsx), which covers every page under
+// /dashboard. This element keeps the hubs' own Suspense boundary, so a lazy
+// hub's loading state follows the theme and the sidebar stays in place
+// while a hub loads.
 import React, { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 export function HubLoading() {
   return (
@@ -24,10 +19,10 @@ export function HubLoading() {
 
 export default function HubScope() {
   return (
-    <ThemedApp className="min-h-screen" data-testid="hub-scope">
+    <div className="min-h-screen" data-testid="hub-scope">
       <Suspense fallback={<HubLoading />}>
         <Outlet />
       </Suspense>
-    </ThemedApp>
+    </div>
   );
 }

@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import StratWorkstation from './components/StratWorkstation';
 import { makeRegistryBackend } from './services/registryBackend';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Stratigraphy Studio (Geoscience G9, ST0): the stratigraphic framework
 // on the shared well registry. Stratigraphic column (group, formation,
@@ -23,9 +22,9 @@ export default function StratigraphyStudio() {
           content="Stratigraphic framework on the shared well registry: a stratigraphic column with ages and colours, typed sequence-stratigraphic surfaces on the shared tops (Catuneanu, with Exxon terminology as a display option), and a glossary. Types written here draw in Well Correlation, Petrophysics Studio and Well Data Manager at once."
         />
       </Helmet>
-      <ThemedApp className="h-screen w-full overflow-hidden" data-testid="strat-theme-scope">
+      <div className="h-screen w-full overflow-hidden" data-testid="strat-theme-scope">
         <StratWorkstation backend={backend} />
-      </ThemedApp>
+      </div>
     </>
   );
 }

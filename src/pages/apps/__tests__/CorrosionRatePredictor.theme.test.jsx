@@ -8,7 +8,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describeAppTheme, expectNoLegacyChrome, installDomShims } from '@/design/testing/themeAssertions';
+import { describeAppTheme, expectNoLegacyChrome, installDomShims, installDashboardScope } from '@/design/testing/themeAssertions';
 
 jest.mock('@/lib/customSupabaseClient', () => ({
   supabase: {
@@ -25,6 +25,10 @@ import CorrosionRatePredictor from '@/pages/apps/CorrosionRatePredictor';
 
 const TITLE = 'Corrosion & Integrity Studio';
 const renderApp = () => render(<MemoryRouter><CorrosionRatePredictor /></MemoryRouter>);
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: TITLE,

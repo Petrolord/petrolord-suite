@@ -36,6 +36,7 @@ jest.mock('recharts', () => {
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import CarbonAbatementStudio from '@/pages/apps/CarbonAbatementStudio';
 
@@ -50,6 +51,10 @@ const ready = () => screen.findByText(/Computed but NOT reportable/i);
 const openTab = async (name) => {
   fireEvent.mouseDown(await screen.findByRole('tab', { name }), { button: 0 });
 };
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: 'u1' });
 
 describeAppTheme({
   name: 'Carbon Footprint & Abatement Studio',

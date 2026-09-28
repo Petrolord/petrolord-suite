@@ -53,6 +53,7 @@ jest.mock('d3-scale-chromatic', () => {
 
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import ReservoirCalcPro, { ReservoirCalcProContent } from '../ReservoirCalcPro';
@@ -75,6 +76,10 @@ const renderApp = () => render(
 // generous waits: the suite runs beside the heavy engine tests in CI
 const WAIT = { timeout: 5000 };
 const ready = () => screen.findByText('ReservoirCalc Pro', {}, WAIT);
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: USER_ID });
 
 describeAppTheme({
   name: 'ReservoirCalc Pro',

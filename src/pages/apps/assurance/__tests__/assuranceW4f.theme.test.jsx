@@ -17,6 +17,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { makeSchemaFake } from '../shared/__tests__/fakeSupabaseSchema';
 import { createFakeSupabase } from './fakeSupabase';
@@ -117,6 +118,10 @@ const TABLES = () => ({
 // which the peer review audit trail pages with.
 const seed = () => makeSchemaFake(TABLES());
 const seedPlain = () => ({ client: createFakeSupabase(TABLES()) });
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 beforeAll(installDomShims);
 beforeEach(() => { mockDb = seed(); });

@@ -8,14 +8,13 @@
 
 import React, { useMemo } from 'react';
 import WCWorkstation from './WCWorkstation';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
 
 export default function WellControlHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
-    <ThemedApp className="h-screen w-full overflow-hidden" data-testid="wc-theme-scope">
+    <div className="h-screen w-full overflow-hidden" data-testid="wc-theme-scope">
       <WCWorkstation backend={backend} />
-    </ThemedApp>
+    </div>
   );
 }

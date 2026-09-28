@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 export const BASE = '/dashboard/apps/assurance/management-of-change';
 
@@ -42,7 +41,7 @@ export const MOCPageShell = ({ children, title = "Management of Change", descrip
 
 
   return (
-    <ThemedApp className="h-screen w-full" data-testid="moc-theme-scope">
+    <div className="h-screen w-full" data-testid="moc-theme-scope">
     <div className="flex h-screen w-full bg-[hsl(var(--background))] overflow-hidden text-[hsl(var(--foreground))]">
       
       {/* Left Sidebar */}
@@ -136,7 +135,7 @@ export const MOCPageShell = ({ children, title = "Management of Change", descrip
         })}
       </div>
     </div>
-    </ThemedApp>
+    </div>
   );
 };
 

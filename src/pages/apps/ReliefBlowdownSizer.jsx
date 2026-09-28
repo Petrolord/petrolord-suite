@@ -21,7 +21,6 @@ import {
 import BlowdownPanel, { BlowdownInputs } from '@/components/reliefstudio/BlowdownPanel';
 import SummaryPanel from '@/components/reliefstudio/SummaryPanel';
 import ReliefHelpContent from '@/components/reliefstudio/ReliefHelpGuide';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -156,13 +155,13 @@ const StudioContent = () => {
 };
 
 const ReliefBlowdownSizer = () => (
-  <ThemedApp data-testid="relief-theme-scope">
+  <div data-testid="relief-theme-scope">
     <ReliefStudioProvider>
       <FullPrecisionProvider>
         <StudioContent />
       </FullPrecisionProvider>
     </ReliefStudioProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default ReliefBlowdownSizer;

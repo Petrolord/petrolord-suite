@@ -13,7 +13,6 @@ import {
 import {
   Callout, Code, Formula, GuideSection, HelpGuideShell, Para, SectionHeading, Step, SubHeading, Table,
 } from '@/components/helpguide/HelpGuideLayout';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { LOPA_STUDIO_ROUTE } from '@/utils/processSafety/lopaStudy';
 
 export const LOPA_GUIDE_SECTIONS = [
@@ -249,9 +248,9 @@ const LopaSilStudioHelpGuideContent = () => (
 );
 
 const LopaSilStudioHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="lopa-help-theme-scope">
+  <div className="min-h-screen" data-testid="lopa-help-theme-scope">
     <LopaSilStudioHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default LopaSilStudioHelpGuide;

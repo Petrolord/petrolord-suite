@@ -12,6 +12,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, expectThemedPath, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import EorScreeningTool from '@/pages/apps/EorScreeningTool';
 import EorScreeningHelpGuide from '@/pages/apps/EorScreeningHelpGuide';
@@ -19,6 +20,10 @@ import EorScreeningHelpGuide from '@/pages/apps/EorScreeningHelpGuide';
 const ROUTE = '/dashboard/apps/reservoir/eor-screening';
 const renderApp = () => render(<MemoryRouter><EorScreeningTool /></MemoryRouter>);
 const ready = () => screen.findByText('Method ranking');
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'EOR Screening',

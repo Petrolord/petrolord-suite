@@ -13,6 +13,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, installDomShims, expectThemedPath,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import CasingTubingHarness from '../CasingTubingHarness';
 import CasingTubingHelpGuide from '../CasingTubingHelpGuide';
@@ -24,6 +25,10 @@ const ROUTE = '/dashboard/apps/drilling/casing-tubing-design-pro';
 // golden site, wellbore and design case and selects them.
 const renderStudio = () => render(<MemoryRouter><CasingTubingHarness /></MemoryRouter>);
 const caseLoaded = () => screen.findByRole('tab', { name: /Casing Design/ }, { timeout: 10000 });
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: STUDIO,

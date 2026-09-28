@@ -12,12 +12,19 @@
 //   4. isThemedPath(<route>) is true, so the cold-load loaders paint the
 //      user's theme on that route.
 //
+// Since batch 7A a page under /dashboard no longer wraps itself in
+// <ThemedApp>: DashboardLayout's one scope (DashboardScope) themes it. For a
+// /dashboard route describeAppTheme therefore mounts the app inside that
+// same DashboardScope (installDashboardScope), so the checks are unchanged.
+//
 // Uses the jest globals (expect, describe, it); never import this file from
 // application code.
+import React from 'react';
 import '@testing-library/jest-dom';
 import { fireEvent } from '@testing-library/react';
-import { isThemedPath } from '../coldLoad.jsx';
+import { isThemedPath, DASHBOARD_PREFIX } from '../coldLoad.jsx';
 import { themeStorageKey } from '../ThemeProvider.jsx';
+import { DashboardScope, DASHBOARD_SCOPE_TEST_ID } from '../DashboardScope.jsx';
 
 // One class token (variants such as hover: or md: included) that paints a
 // legacy console colour: any Tailwind palette colour on a colour utility,
@@ -70,14 +77,59 @@ export function legacyChromeClasses({ root = document.body, allow = [] } = {}) {
   return out;
 }
 
-/** The app's scope root: by test id, else the first [data-pl-root]. */
+/**
+ * The app's scope root: by test id, else the first [data-pl-root]. An app
+ * under /dashboard keeps its old scope test id on its own root element,
+ * which since batch 7A sits inside the dashboard scope; the scope root is
+ * then the nearest [data-pl-root] around it.
+ */
 export function getScopeRoot(scopeTestId) {
-  const el = scopeTestId
+  let el = scopeTestId
     ? document.querySelector(`[data-testid="${scopeTestId}"]`)
     : document.querySelector('[data-pl-root]');
-  if (!el) throw new Error(`No design-system scope root found${scopeTestId ? ` (data-testid="${scopeTestId}")` : ''}: is the app wrapped in <ThemedApp>?`);
+  if (el && !el.hasAttribute('data-pl-root')) el = el.closest('[data-pl-root]');
+  if (!el) throw new Error(`No design-system scope root found${scopeTestId ? ` (data-testid="${scopeTestId}")` : ''}: is the app mounted inside a scope (installDashboardScope for a /dashboard page)?`);
   return el;
 }
+
+// The render function every test file calls lives on RTL's pure module
+// (@testing-library/react re-exports it through a getter), so replacing it
+// there reaches `render` as imported by the test file.
+const rtlPure = () => require('@testing-library/react/pure'); // eslint-disable-line global-require
+
+/**
+ * Mount every render() in the current describe block (or the whole file,
+ * when called at the top level) inside the dashboard's one scope, as
+ * DashboardLayout does in the app. The scope sits inside any `wrapper` the
+ * test passes and survives rerender(). `userId` is the user the scope keys
+ * the stored choice to (null is the anonymous key). describeAppTheme calls
+ * this for a /dashboard route; call it yourself for further tests of a
+ * dashboard page in the same file that need the scope.
+ */
+export function installDashboardScope({ userId = null } = {}) {
+  let original = null;
+  beforeEach(() => {
+    const pure = rtlPure();
+    if (pure.render.plDashboardScope) return;
+    original = pure.render;
+    const scoped = (ui, options = {}) => {
+      const Outer = options.wrapper;
+      const Wrapper = ({ children }) => {
+        const inner = React.createElement(DashboardScope, { userId }, children);
+        return Outer ? React.createElement(Outer, null, inner) : inner;
+      };
+      return original(ui, { ...options, wrapper: Wrapper });
+    };
+    scoped.plDashboardScope = true;
+    pure.render = scoped;
+  });
+  afterEach(() => {
+    if (original) rtlPure().render = original;
+    original = null;
+  });
+}
+
+export { DASHBOARD_SCOPE_TEST_ID };
 
 /** 1. The app opens light inside a [data-pl-root] scope. */
 export function expectLightByDefault(scope = getScopeRoot()) {
@@ -179,8 +231,12 @@ export function installDomShims() {
  *     scopeTestId: 'mbal-theme-scope',
  *   });
  *
- * renderApp mounts the app as its route does (the app wraps itself in
- * ThemedApp); ready (optional, may be async) waits for the first screen.
+ * renderApp mounts the app as its route does; for a /dashboard route the
+ * render happens inside the dashboard scope (installDashboardScope, for
+ * the four standard tests only), and a page outside
+ * /dashboard opens its own scope. ready (optional, may be async) waits for
+ * the first screen. scopeTestId (optional) is the app's root test id; the
+ * checks run on the scope around it.
  * userId (default null) is the user the scope resolves, for the storage
  * key; allow lists deliberate legacy tokens. Further states (tabs, dialogs,
  * results) go in the app's own tests with expectNoLegacyChrome().
@@ -188,7 +244,10 @@ export function installDomShims() {
 export function describeAppTheme({
   name, route, renderApp, ready, scopeTestId, userId = null, allow = [],
 }) {
+  const onDashboard = typeof route === 'string'
+    && (route === DASHBOARD_PREFIX || route.startsWith(`${DASHBOARD_PREFIX}/`));
   describe(`${name} on the design system`, () => {
+    if (onDashboard) installDashboardScope({ userId });
     beforeAll(installDomShims);
     beforeEach(() => {
       try { window.localStorage.clear(); } catch { /* storage unavailable */ }

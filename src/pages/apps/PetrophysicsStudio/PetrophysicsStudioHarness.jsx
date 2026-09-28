@@ -8,15 +8,14 @@
 // tile) mounts the same PetroWorkstation on makeRegistryBackend.
 
 import React, { useMemo } from 'react';
-import { ThemedApp } from '@/design/ThemeProvider';
 import PetroWorkstation from './components/PetroWorkstation';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
 
 export default function PetrophysicsStudioHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
-    <ThemedApp className="h-screen w-full overflow-hidden" data-testid="petro-theme-scope">
+    <div className="h-screen w-full overflow-hidden" data-testid="petro-theme-scope">
       <PetroWorkstation backend={backend} wellDataManagerPath="/dev/well-data-manager" wellCorrelationPath="/dev/well-correlation" mappingPath="/dev/mapping-surface-studio" />
-    </ThemedApp>
+    </div>
   );
 }

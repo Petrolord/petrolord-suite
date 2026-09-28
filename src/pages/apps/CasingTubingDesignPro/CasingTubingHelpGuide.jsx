@@ -4,7 +4,6 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import {
   ArrowLeft, BookOpen, Zap, Database, Layers, Briefcase, Activity, Ruler,
   BadgeCheck, AlertTriangle, BookMarked, Cylinder,
@@ -90,7 +89,7 @@ const CasingTubingHelpGuide = () => {
   };
 
   return (
-    <ThemedApp data-testid="ct-help-theme-scope" className="min-h-screen">
+    <div data-testid="ct-help-theme-scope" className="min-h-screen">
       <Helmet>
         <title>Casing & Tubing Design Studio Help Guide - Petrolord Suite</title>
         <meta name="description" content="Guide to the Casing & Tubing Design Studio: API 5C3 ratings, load cases, tubing-packer forces." />
@@ -364,7 +363,7 @@ const CasingTubingHelpGuide = () => {
           </main>
         </div>
       </div>
-    </ThemedApp>
+    </div>
   );
 };
 

@@ -26,7 +26,6 @@ import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import { appPath, wellDataManagerHref, WELL_DATA_MANAGER_ID } from '@/components/wells/appLinks';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import WellExplorer from './WellExplorer';
@@ -366,8 +365,8 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
 /** @param {Object<string,string>} [p.appPaths] route overrides for the launchers (harness) */
 export default function RockWorkstation(props) {
   return (
-    <ThemedApp className="h-full" data-testid="rp-theme-scope">
+    <div className="h-full" data-testid="rp-theme-scope">
       <RockWorkstationContent {...props} />
-    </ThemedApp>
+    </div>
   );
 }

@@ -30,7 +30,6 @@ import SpeedSweepPanel from '@/components/rodpump/SpeedSweepPanel';
 import DiagnosticsPanel from '@/components/rodpump/DiagnosticsPanel';
 import RodWarningsPanel from '@/components/rodpump/WarningsPanel';
 import RodPumpHelpContent from '@/components/rodpump/RodPumpHelpGuide';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 2C (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -199,12 +198,12 @@ const RodPumpContent = () => {
 
 export default function RodPumpDesignStudio() {
   return (
-    <ThemedApp data-testid="rodpump-theme-scope">
+    <div data-testid="rodpump-theme-scope">
       <RodPumpDesignProvider>
         <FullPrecisionProvider>
           <RodPumpContent />
         </FullPrecisionProvider>
       </RodPumpDesignProvider>
-    </ThemedApp>
+    </div>
   );
 }

@@ -7,7 +7,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describeAppTheme, expectNoLegacyChrome, installDomShims } from '@/design/testing/themeAssertions';
+import { describeAppTheme, expectNoLegacyChrome, installDomShims, installDashboardScope } from '@/design/testing/themeAssertions';
 
 jest.mock('@/lib/customSupabaseClient', () => ({
   supabase: {
@@ -32,6 +32,10 @@ import RodPumpDesignStudio from '@/pages/apps/RodPumpDesignStudio';
 const TITLE = 'Rod Pump Design Studio';
 const renderApp = () => render(<MemoryRouter><RodPumpDesignStudio /></MemoryRouter>);
 const openTab = (name) => fireEvent.mouseDown(screen.getByRole('tab', { name }));
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: TITLE,

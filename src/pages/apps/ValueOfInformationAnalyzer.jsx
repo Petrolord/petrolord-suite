@@ -14,7 +14,6 @@ import ResultsPanel from '@/components/voianalyzer/ResultsPanel';
 import EmptyState from '@/components/voianalyzer/EmptyState';
 import VoiHelpGuide from '@/components/voianalyzer/VoiHelpGuide';
 import { GitMerge } from 'lucide-react';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { AppHeader } from '@/components/ui/app-shell';
 
 const TABLE = 'saved_voi_projects';
@@ -112,7 +111,7 @@ const ValueOfInformationAnalyzer = () => {
   }, [toast]);
 
   return (
-    <ThemedApp className="flex min-h-screen flex-col" data-testid="voi-theme-scope">
+    <div className="flex min-h-screen flex-col" data-testid="voi-theme-scope">
       <Helmet>
         <title>Value of Information Analyzer - Petrolord Suite</title>
         <meta name="description" content="Advanced Value of Information (VOI) analysis for oil and gas projects." />
@@ -180,7 +179,7 @@ const ValueOfInformationAnalyzer = () => {
           )}
         </div>
       </div>
-    </ThemedApp>
+    </div>
   );
 };
 

@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import PPWorkstation from './components/PPWorkstation';
 import { makeRegistryBackend } from './services/registryBackend';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Pore Pressure Studio (Geoscience, G7 follow-on): oracle-validated
 // Eaton / Bowers pore-pressure and fracture-gradient prognosis on the
@@ -24,9 +23,9 @@ export default function PorePressureStudio() {
         />
       </Helmet>
 
-      <ThemedApp className="h-screen w-full overflow-hidden" data-testid="pp-theme-scope">
+      <div className="h-screen w-full overflow-hidden" data-testid="pp-theme-scope">
         <PPWorkstation backend={backend} />
-      </ThemedApp>
+      </div>
     </>
   );
 }

@@ -6,7 +6,6 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Fuel } from 'lucide-react';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -85,7 +84,7 @@ const Workspace = () => {
 // Design system rollout batch 5C (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
 const FuelPricingStudio = () => (
-  <ThemedApp data-testid="fuel-pricing-theme-scope" className="h-full">
+  <div data-testid="fuel-pricing-theme-scope" className="h-full">
     <Helmet>
       <title>Fuel Pricing &amp; Supply Chain Studio - Petrolord Suite</title>
       <meta name="description" content="Import-parity landed cost, pump-price build-up and margin waterfall, depot-to-station trucking economics and station throughput sizing." />
@@ -93,7 +92,7 @@ const FuelPricingStudio = () => (
     <FuelPricingProvider>
       <Workspace />
     </FuelPricingProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default FuelPricingStudio;

@@ -14,6 +14,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, expectThemedPath, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { themeStorageKey } from '@/design/ThemeProvider';
 import StimulationDesignerStudio from '../StimulationDesignerStudio';
@@ -34,6 +35,10 @@ jest.mock('recharts', () => {
 const ROUTE = '/dashboard/apps/drilling/stimulation-designer';
 const renderApp = () => render(<MemoryRouter initialEntries={[ROUTE]}><StimulationDesignerStudio /></MemoryRouter>);
 const designed = () => screen.findByTestId('st-width-chart', {}, { timeout: 5000 });
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Stimulation Designer',

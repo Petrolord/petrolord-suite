@@ -10,7 +10,6 @@ import {
 import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Callout, Step, Table,
 } from '@/components/helpguide/HelpGuideLayout';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { HeatFlowPresets } from './data/HeatFlowPresets';
 import { ErosionPresets } from './data/ErosionPresets';
 import { DEPTH_UNITS, TEMP_UNITS } from './services/units';
@@ -35,7 +34,7 @@ export const HELP_SECTIONS = [
 
 export default function BasinFlowHelpGuide() {
   return (
-    <ThemedApp className="min-h-screen" data-testid="bf-help-theme-scope">
+    <div className="min-h-screen" data-testid="bf-help-theme-scope">
     <HelpGuideShell
       title="Basin & Charge Modeling Help Guide"
       subtitle="1D burial, thermal, maturity and charge history on oracle-validated engines, in Guided and Expert mode"
@@ -204,6 +203,6 @@ export default function BasinFlowHelpGuide() {
         ]} />
       </GuideSection>
     </HelpGuideShell>
-    </ThemedApp>
+    </div>
   );
 }

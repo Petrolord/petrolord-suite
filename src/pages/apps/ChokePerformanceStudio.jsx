@@ -25,7 +25,6 @@ import EnvelopePanel from '@/components/choke/EnvelopePanel';
 import CoefficientsPanel from '@/components/choke/CoefficientsPanel';
 import ChokeWarningsPanel from '@/components/choke/WarningsPanel';
 import ChokeHelpContent from '@/components/choke/ChokeHelpGuide';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 2D (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -174,10 +173,10 @@ const ChokeContent = () => {
 
 export default function ChokePerformanceStudio() {
   return (
-    <ThemedApp data-testid="choke-theme-scope">
+    <div data-testid="choke-theme-scope">
       <ChokePerformanceProvider>
         <ChokeContent />
       </ChokePerformanceProvider>
-    </ThemedApp>
+    </div>
   );
 }

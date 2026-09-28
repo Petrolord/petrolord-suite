@@ -13,6 +13,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { themeStorageKey } from '@/design/ThemeProvider';
 import ContourMapDigitizer from '../ContourMapDigitizer';
@@ -76,6 +77,10 @@ HTMLCanvasElement.prototype.getContext = () => ({
 
 const ROUTE = '/dashboard/apps/geoscience/contour-map-digitizer';
 const renderApp = () => render(<MemoryRouter initialEntries={[ROUTE]}><ContourMapDigitizer /></MemoryRouter>);
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Contour Map Digitizer',

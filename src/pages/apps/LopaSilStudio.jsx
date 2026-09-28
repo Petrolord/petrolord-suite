@@ -11,7 +11,6 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, BookOpen, ShieldHalf } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -117,7 +116,7 @@ const Workspace = () => {
 };
 
 const LopaSilStudio = () => (
-  <ThemedApp className="h-full min-h-screen" data-testid="lopa-theme-scope">
+  <div className="h-full min-h-screen" data-testid="lopa-theme-scope">
     <Helmet>
       <title>LOPA &amp; SIL Studio - Petrolord Suite</title>
       <meta
@@ -128,7 +127,7 @@ const LopaSilStudio = () => (
     <LopaStudioProvider>
       <Workspace />
     </LopaStudioProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default LopaSilStudio;

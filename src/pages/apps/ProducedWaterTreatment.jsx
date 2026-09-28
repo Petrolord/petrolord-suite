@@ -18,7 +18,6 @@ import {
 } from '@/components/pwtstudio/PwtPanels';
 import PwtHelpContent from '@/components/pwtstudio/PwtHelpGuide';
 import { fmt, Row } from '@/components/pwtstudio/fields';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -169,11 +168,11 @@ const StudioContent = () => {
 };
 
 const ProducedWaterTreatment = () => (
-  <ThemedApp data-testid="pwt-theme-scope">
+  <div data-testid="pwt-theme-scope">
     <ProducedWaterProvider>
       <StudioContent />
     </ProducedWaterProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default ProducedWaterTreatment;

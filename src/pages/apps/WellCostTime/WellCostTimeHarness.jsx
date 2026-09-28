@@ -8,17 +8,16 @@
 // WctWorkstation on makeWpBackend.
 
 import React, { useMemo } from 'react';
-import { ThemedApp } from '@/design/ThemeProvider';
 import WctWorkstation from './WctWorkstation';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
 
 export default function WellCostTimeHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
-    <ThemedApp data-testid="wct-harness-theme-scope">
+    <div data-testid="wct-harness-theme-scope">
       <div className="h-screen w-full overflow-hidden">
         <WctWorkstation backend={backend} />
       </div>
-    </ThemedApp>
+    </div>
   );
 }

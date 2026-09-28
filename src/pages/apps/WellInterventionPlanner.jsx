@@ -31,7 +31,6 @@ import ScreeningPanel from '@/components/intervention/ScreeningPanel';
 import UpliftPanel from '@/components/intervention/UpliftPanel';
 import SummaryPanel from '@/components/intervention/SummaryPanel';
 import InterventionHelpContent from '@/components/intervention/InterventionHelpGuide';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 2D (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -159,10 +158,10 @@ const InterventionContent = () => {
 
 export default function WellInterventionPlanner() {
   return (
-    <ThemedApp data-testid="intervention-theme-scope">
+    <div data-testid="intervention-theme-scope">
       <InterventionPlannerProvider>
         <InterventionContent />
       </InterventionPlannerProvider>
-    </ThemedApp>
+    </div>
   );
 }

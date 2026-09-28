@@ -14,6 +14,7 @@ import { MemoryRouter } from 'react-router-dom';
 
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import DecisionStudioHarness from '@/components/decisionstudio/harness/DecisionStudioHarness';
@@ -28,6 +29,10 @@ const renderApp = () => render(
   </MemoryRouter>,
 );
 const ready = () => screen.findByText('Compare economics cases (pick up to 4)');
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Decision Studio',

@@ -14,7 +14,6 @@ import StudioHeader from '@/components/studio/StudioHeader';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
-import { ThemedApp } from '@/design/ThemeProvider';
 import {
   ProductionAllocationProvider, useAllocation,
 } from '@/contexts/ProductionAllocationContext';
@@ -170,10 +169,10 @@ const AllocationContent = () => {
 // switches it to dark per user. Charts keep the white chart standard.
 export default function ProductionAllocationStudio() {
   return (
-    <ThemedApp data-testid="allocation-theme-scope">
+    <div data-testid="allocation-theme-scope">
       <ProductionAllocationProvider>
         <AllocationContent />
       </ProductionAllocationProvider>
-    </ThemedApp>
+    </div>
   );
 }

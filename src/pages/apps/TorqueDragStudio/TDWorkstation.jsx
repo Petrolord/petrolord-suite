@@ -6,7 +6,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -310,8 +309,8 @@ function TDWorkstationContent({ backend }) {
 // harness both mount this component, so they share the one scope.
 export default function TDWorkstation(props) {
   return (
-    <ThemedApp className="h-full" data-testid="td-theme-scope">
+    <div className="h-full" data-testid="td-theme-scope">
       <TDWorkstationContent {...props} />
-    </ThemedApp>
+    </div>
   );
 }

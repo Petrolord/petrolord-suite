@@ -1,8 +1,9 @@
 /**
  * Design system pilot 3 (docs/scope/DesignSystem-example-EPE.md): every EPE
- * route sits inside one ThemedApp scope, the app opens light, the header
- * toggle switches it to dark and back, and no legacy dark-console class is
- * left inside the migrated pages.
+ * route sits inside one ThemedApp scope (since batch 7A the dashboard's
+ * one scope in DashboardLayout), the app opens light, the header toggle
+ * switches it to dark and back, and no legacy dark-console class is left
+ * inside the migrated pages.
  */
 import React from 'react';
 import fs from 'fs';
@@ -33,15 +34,16 @@ jest.mock('@/lib/customSupabaseClient', () => ({
 }));
 
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
-import { ThemedApp, themeStorageKey } from '@/design/ThemeProvider';
+import { themeStorageKey } from '@/design/ThemeProvider';
+import { DashboardScope } from '@/design/DashboardScope';
 import EpeCaseList from '../EpeCaseList';
 
-// The same layout route App.jsx gives the EPE pages.
+// The scope DashboardLayout gives every /dashboard page.
 const mount = () => render(
   <AuthContext.Provider value={{ user: { id: 'u1' } }}>
     <MemoryRouter initialEntries={['/dashboard/apps/economics/epe/cases']}>
       <Routes>
-        <Route element={<ThemedApp className="min-h-screen"><Outlet /></ThemedApp>}>
+        <Route element={<DashboardScope><Outlet /></DashboardScope>}>
           <Route path="/dashboard/apps/economics/epe/cases" element={<EpeCaseList />} />
         </Route>
       </Routes>
@@ -79,14 +81,14 @@ describe('Petroleum Economics Studio on the design system', () => {
     expect(screen.getByRole('button', { name: 'Back to Economics' })).toBeInTheDocument();
   });
 
-  it('wraps every EPE route in App.jsx in the one ThemedApp layout route', () => {
+  it('puts every EPE route under /dashboard, inside the one dashboard scope, with no scope of its own', () => {
     const app = fs.readFileSync(path.resolve(__dirname, '../../../../App.jsx'), 'utf8');
-    const start = app.indexOf('<Route element={<ThemedApp className="min-h-screen"><Outlet /></ThemedApp>}>');
+    const start = app.indexOf('<Route path="/dashboard" element={');
     expect(start).toBeGreaterThan(-1);
-    const end = app.indexOf('</Route>', start);
-    const scoped = app.slice(start, end);
+    const dashboard = app.slice(start, app.indexOf('import.meta.env.DEV', start));
     const epeRoutes = app.match(/<Route path="apps\/economics\/epe\/[^"]+" element={<ProtectedAppRoute/g) || [];
     expect(epeRoutes.length).toBe(8);
-    epeRoutes.forEach((r) => expect(scoped).toContain(r));
+    epeRoutes.forEach((r) => expect(dashboard).toContain(r));
+    expect(dashboard).not.toMatch(/<ThemedApp\b/);
   });
 });

@@ -14,6 +14,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, expectThemedPath, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { themeStorageKey } from '@/design/ThemeProvider';
 import TorqueDragStudio from '../TorqueDragStudio';
@@ -34,6 +35,10 @@ jest.mock('recharts', () => {
 const ROUTE = '/dashboard/apps/drilling/torque-drag-studio';
 const renderApp = () => render(<MemoryRouter initialEntries={[ROUTE]}><TorqueDragStudio /></MemoryRouter>);
 const caseLoaded = () => screen.findByTestId('td-fill-to-td');
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Torque & Drag Studio',

@@ -61,11 +61,16 @@ jest.mock('@/lib/customSupabaseClient', () => ({
 
 import {
   describeAppTheme, expectNoLegacyChrome, expectThemedPath, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import ReservoirSimulationStudio from '@/pages/apps/ReservoirSimulationStudio';
 
 const renderApp = () => render(<MemoryRouter><ReservoirSimulationStudio /></MemoryRouter>);
 const ready = () => screen.findByText('SPE1 demo');
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Reservoir Simulation Studio',

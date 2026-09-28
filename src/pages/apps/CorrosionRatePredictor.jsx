@@ -17,7 +17,6 @@ import {
 } from '@/components/corrosionstudio/CorrosionPanels';
 import CorrosionHelpContent from '@/components/corrosionstudio/CorrosionHelpGuide';
 import { fmt, Row } from '@/components/corrosionstudio/fields';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'rate', label: 'Corrosion Rate' },
@@ -190,11 +189,11 @@ const StudioContent = () => {
 // page wraps itself in <ThemedApp>, so every class in its own files is a
 // theme role.
 const CorrosionRatePredictor = () => (
-  <ThemedApp data-testid="corrosion-theme-scope">
+  <div data-testid="corrosion-theme-scope">
     <CorrosionStudioProvider>
       <StudioContent />
     </CorrosionStudioProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default CorrosionRatePredictor;

@@ -14,7 +14,6 @@ import { REPORT_TEMPLATES, selectedSectionsFor } from '@/data/reportAutopilotTem
 import { buildDocxBlob, docxFileName } from '@/utils/reportAutopilotDocx';
 import { saveAs } from 'file-saver';
 import ReportAutopilotHelpGuide from '@/components/reportautopilot/ReportAutopilotHelpGuide';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 window.addEventListener("error", e => console.error("GlobalError:", e.error || e.message));
@@ -360,8 +359,8 @@ function TechnicalReportAutopilotPageInner() {
 // exported DOCX is built exactly as before.
 export default function TechnicalReportAutopilotPage(){
   return (
-    <ThemedApp className="h-full" data-testid="trp-theme-scope">
+    <div className="h-full" data-testid="trp-theme-scope">
       <ErrorBoundary><TechnicalReportAutopilotPageInner/></ErrorBoundary>
-    </ThemedApp>
+    </div>
   );
 }

@@ -21,7 +21,6 @@ import ReportingEngine from '@/components/afe/ReportingEngine';
 import IntegrationsTab from '@/components/afe/IntegrationsTab';
 import AfeHelpGuide from '@/components/afe/AfeHelpGuide';
 import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { AppHeader } from '@/components/ui/app-shell';
 
 const AfeCostControlManagerInner = () => {
@@ -263,11 +262,11 @@ const AfeCostControlManagerInner = () => {
 
 // W3 (D3): the Full precision switch prints CPI and SPI at 6 decimals.
 const AfeCostControlManager = () => (
-  <ThemedApp className="min-h-screen" data-testid="afe-theme-scope">
+  <div className="min-h-screen" data-testid="afe-theme-scope">
     <FullPrecisionProvider>
       <AfeCostControlManagerInner />
     </FullPrecisionProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default AfeCostControlManager;

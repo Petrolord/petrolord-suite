@@ -5,7 +5,6 @@
 
 import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { compileSegments } from './engine/segmentCompiler';
 import { solveSlant, solveHorizontalLanding } from './engine/profileDesign';
@@ -207,7 +206,7 @@ const WellDesignHarness = () => {
   };
 
   return (
-    <ThemedApp className="min-h-screen" data-testid="wds-harness-theme-scope">
+    <div className="min-h-screen" data-testid="wds-harness-theme-scope">
     <div className="min-h-screen bg-pl-bg p-4 text-pl-text">
       <h1 className="mb-2 text-sm font-bold">Well Design Studio harness</h1>
       <div className="mb-3 flex gap-2">
@@ -275,7 +274,7 @@ const WellDesignHarness = () => {
         onApply={applySolution}
       />
     </div>
-    </ThemedApp>
+    </div>
   );
 };
 
