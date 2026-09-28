@@ -7,14 +7,14 @@
 [data-pl-theme] [data-canvas="light"],
 [data-pl-theme] [data-canvas="chart"] {
   /* roles as "R G B" channels for rgb(var(--pl-x) / <alpha>) */
-  --pl-bg: 242 244 239;
-  --pl-surface: 255 255 255;
-  --pl-raised: 255 255 255;
-  --pl-sunken: 231 235 227;
-  --pl-border: 213 220 210;
-  --pl-border-strong: 125 139 130;
+  --pl-bg: 225 228 232;
+  --pl-surface: 237 239 242;
+  --pl-raised: 248 249 250;
+  --pl-sunken: 216 220 225;
+  --pl-border: 195 201 208;
+  --pl-border-strong: 110 120 131;
   --pl-text: 20 35 27;
-  --pl-muted: 86 101 92;
+  --pl-muted: 77 87 97;
   --pl-primary: 47 107 72;
   --pl-primary-hover: 36 90 59;
   --pl-primary-fg: 255 255 255;
@@ -48,25 +48,25 @@
   --pl-font-sans: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --pl-font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   /* the shadcn variables from src/index.css, re-pointed inside the scope */
-  --background: 84 18.5% 94.7%;
+  --background: 214.3 13.2% 89.6%;
   --foreground: 148 27.3% 10.8%;
-  --secondary-background: 90 16.7% 90.6%;
-  --card: 0 0% 100%;
+  --secondary-background: 213.3 13% 86.5%;
+  --card: 216 16.1% 93.9%;
   --card-foreground: 148 27.3% 10.8%;
-  --popover: 0 0% 100%;
+  --popover: 210 16.7% 97.6%;
   --popover-foreground: 148 27.3% 10.8%;
-  --border: 102 12.5% 84.3%;
-  --input: 141.4 5.7% 51.8%;
+  --border: 212.3 12.1% 79%;
+  --input: 211.4 8.7% 47.3%;
   --input-foreground: 148 27.3% 10.8%;
   --ring: 42.1 63.3% 33.1%;
   --primary: 145 39% 30.2%;
   --primary-foreground: 0 0% 100%;
   --primary-hover: 145.6 42.9% 24.7%;
-  --secondary: 90 16.7% 90.6%;
+  --secondary: 213.3 13% 86.5%;
   --secondary-foreground: 148 27.3% 10.8%;
-  --muted: 90 16.7% 90.6%;
-  --muted-foreground: 144 8% 36.7%;
-  --accent: 90 16.7% 90.6%;
+  --muted: 213.3 13% 86.5%;
+  --muted-foreground: 210 11.5% 34.1%;
+  --accent: 213.3 13% 86.5%;
   --accent-foreground: 148 27.3% 10.8%;
   --destructive: 4.2 76.5% 40%;
   --destructive-foreground: 0 0% 100%;
@@ -84,75 +84,6 @@
   --radius: 0.75rem;
   --pl-radius-canvas: 0.5rem;
   color-scheme: light;
-}
-
-/* light tone "grey-soft" (grey tone experiment, owner 2026-09-28) */
-[data-pl-theme="light"][data-pl-tone="grey-soft"],
-[data-pl-theme="light"][data-pl-tone="grey-soft"] [data-canvas="light"],
-[data-pl-theme="light"][data-pl-tone="grey-soft"] [data-canvas="chart"] {
-  --pl-bg: 230 233 236;
-  --pl-surface: 255 255 255;
-  --pl-raised: 255 255 255;
-  --pl-sunken: 220 224 228;
-  --pl-border: 204 210 216;
-  --pl-border-strong: 122 131 140;
-  --pl-muted: 82 92 102;
-  --background: 210 13.6% 91.4%;
-  --secondary-background: 210 12.9% 87.8%;
-  --card: 0 0% 100%;
-  --popover: 0 0% 100%;
-  --border: 210 13.3% 82.4%;
-  --input: 210 7.3% 51.4%;
-  --secondary: 210 12.9% 87.8%;
-  --muted: 210 12.9% 87.8%;
-  --muted-foreground: 210 10.9% 36.1%;
-  --accent: 210 12.9% 87.8%;
-}
-
-/* light tone "grey-panel" (grey tone experiment, owner 2026-09-28) */
-[data-pl-theme="light"][data-pl-tone="grey-panel"],
-[data-pl-theme="light"][data-pl-tone="grey-panel"] [data-canvas="light"],
-[data-pl-theme="light"][data-pl-tone="grey-panel"] [data-canvas="chart"] {
-  --pl-bg: 225 228 232;
-  --pl-surface: 237 239 242;
-  --pl-raised: 248 249 250;
-  --pl-sunken: 216 220 225;
-  --pl-border: 195 201 208;
-  --pl-border-strong: 110 120 131;
-  --pl-muted: 77 87 97;
-  --background: 214.3 13.2% 89.6%;
-  --secondary-background: 213.3 13% 86.5%;
-  --card: 216 16.1% 93.9%;
-  --popover: 210 16.7% 97.6%;
-  --border: 212.3 12.1% 79%;
-  --input: 211.4 8.7% 47.3%;
-  --secondary: 213.3 13% 86.5%;
-  --muted: 213.3 13% 86.5%;
-  --muted-foreground: 210 11.5% 34.1%;
-  --accent: 213.3 13% 86.5%;
-}
-
-/* light tone "grey-classic" (grey tone experiment, owner 2026-09-28) */
-[data-pl-theme="light"][data-pl-tone="grey-classic"],
-[data-pl-theme="light"][data-pl-tone="grey-classic"] [data-canvas="light"],
-[data-pl-theme="light"][data-pl-tone="grey-classic"] [data-canvas="chart"] {
-  --pl-bg: 216 220 225;
-  --pl-surface: 226 229 233;
-  --pl-raised: 243 244 246;
-  --pl-sunken: 202 208 214;
-  --pl-border: 174 181 190;
-  --pl-border-strong: 95 105 115;
-  --pl-muted: 69 78 87;
-  --background: 213.3 13% 86.5%;
-  --secondary-background: 210 12.8% 81.6%;
-  --card: 214.3 13.7% 90%;
-  --popover: 220 14.3% 95.9%;
-  --border: 213.8 11% 71.4%;
-  --input: 210 9.5% 41.2%;
-  --secondary: 210 12.8% 81.6%;
-  --muted: 210 12.8% 81.6%;
-  --muted-foreground: 210 11.5% 30.6%;
-  --accent: 210 12.8% 81.6%;
 }
 
 [data-pl-theme="dark"],

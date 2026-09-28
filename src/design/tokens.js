@@ -4,6 +4,10 @@
 // HSE. The palette comes from the certificate brand pack the two new
 // homepages use (petrol-green ink, gold, ivory paper; see src/pages/Home.css
 // `.suite-home` and NextGen src/pages/LandingPage.css `.ng-home`).
+// The app consoles' light theme uses light grey neutrals ("grey panel",
+// owner decision 2026-09-28): grey page, lighter grey panels, near-white
+// menus. Primary, accent, ink text and status colours keep the brand pack;
+// the homepages keep their own paper look (Home.css, scoped separately).
 //
 // src/design/theme.css is GENERATED from this file by
 // `node scripts/design/build-theme-css.mjs`; src/design/__tests__/tokens.test.js
@@ -43,14 +47,14 @@ export const BRAND = {
 //   focus         focus ring (3:1 against bg and surface)
 export const THEMES = {
   light: {
-    bg: '#F2F4EF',
-    surface: '#FFFFFF',
-    raised: '#FFFFFF',
-    sunken: '#E7EBE3',
-    border: '#D5DCD2',
-    'border-strong': '#7D8B82',
+    bg: '#E1E4E8',
+    surface: '#EDEFF2',
+    raised: '#F8F9FA',
+    sunken: '#D8DCE1',
+    border: '#C3C9D0',
+    'border-strong': '#6E7883',
     text: '#14231B',
-    muted: '#56655C',
+    muted: '#4D5761',
     primary: '#2F6B48',
     'primary-hover': '#245A3B',
     'primary-fg': '#FFFFFF',
@@ -113,54 +117,6 @@ export const THEMES = {
     focus: '#E6D3A0',
   },
 };
-
-// Light-grey TONES of the light theme (owner, 2026-09-28: "light grey for the
-// apps consoles and not off white"). A tone is a partial override of
-// THEMES.light: only the neutral roles (page, panels, rails, borders and the
-// secondary text that sits on them) change; petrol-green primary, gold accent,
-// ink text and the status colours stay. A tone applies only under
-// [data-pl-theme="light"][data-pl-tone="<name>"], so the dark theme, every
-// scope without a tone and everything outside a scope are unchanged.
-// Experiment: Seismolord offers them through a staging-only shade picker.
-export const LIGHT_TONES = {
-  // grey page, white panels and cards: the lightest step away from off-white
-  'grey-soft': {
-    bg: '#E6E9EC',
-    surface: '#FFFFFF',
-    raised: '#FFFFFF',
-    sunken: '#DCE0E4',
-    border: '#CCD2D8',
-    'border-strong': '#7A838C',
-    muted: '#525C66',
-  },
-  // grey page and grey panels, lighter cards and menus
-  'grey-panel': {
-    bg: '#E1E4E8',
-    surface: '#EDEFF2',
-    raised: '#F8F9FA',
-    sunken: '#D8DCE1',
-    border: '#C3C9D0',
-    'border-strong': '#6E7883',
-    muted: '#4D5761',
-  },
-  // the neutral mid-light grey of engineering desktop panels, darker borders
-  'grey-classic': {
-    bg: '#D8DCE1',
-    surface: '#E2E5E9',
-    raised: '#F3F4F6',
-    sunken: '#CAD0D6',
-    border: '#AEB5BE',
-    'border-strong': '#5F6973',
-    muted: '#454E57',
-  },
-};
-
-export const TONE_NAMES = Object.keys(LIGHT_TONES);
-
-/** The full light role map for a tone (THEMES.light when the tone is unknown or empty). */
-export function lightToneRoles(tone) {
-  return { ...THEMES.light, ...(LIGHT_TONES[tone] || {}) };
-}
 
 // The chart standard (white chartTheme + ChartLogo) keeps a white plot in
 // both themes, so a chart surface always takes the light roles.

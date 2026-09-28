@@ -4,7 +4,6 @@
 // workspace today. Copy rule: no em dashes. Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
 import { ThemedApp } from '@/design/ThemeProvider';
-import { useSeismolordTone } from './toneExperiment';
 import {
   BookOpen, Zap, Database, Layers, Activity, GitBranch, CircleDot, Map as MapIcon, Box, Rows, Ruler, Link2, AlertTriangle, BookMarked,
   Waves, Sparkles,
@@ -37,11 +36,9 @@ export const HELP_SECTIONS = [
 
 export default function SeismolordHelpGuide() {
   // design system pilot 4: the guide follows the same per-user theme as
-  // the workspace so it does not flip between the app's pages (and the same
-  // staging-only grey tone, toneExperiment.jsx)
-  const { tone } = useSeismolordTone();
+  // the workspace so it does not flip between the app's pages
   return (
-    <ThemedApp className="min-h-screen" data-testid="seismolord-help-root" tone={tone || undefined}>
+    <ThemedApp className="min-h-screen" data-testid="seismolord-help-root">
     <HelpGuideShell
       title="Seismolord Help Guide"
       subtitle="3D and 2D seismic interpretation in the browser: SEG-Y volumes, horizons, faults, wells and ties, surfaces and the shared registry"
