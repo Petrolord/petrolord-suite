@@ -132,7 +132,7 @@ export default function Register() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground))]" />
             <Input
               placeholder="Search titles, facilities, permit numbers..."
-              className="pl-9 bg-[hsl(var(--background))] border-[hsl(var(--border))] focus-visible:ring-[hsl(var(--warning))] text-[hsl(var(--foreground))]"
+              className="pl-9 bg-[hsl(var(--background))] border-[hsl(var(--border))] focus-visible:ring-pl-focus text-[hsl(var(--foreground))]"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -161,7 +161,7 @@ export default function Register() {
             <Download className="w-4 h-4 mr-2" /> Export CSV
           </Button>
           <Button onClick={() => navigate(`${BASE}/new`)}
-            className="bg-[hsl(var(--warning))] text-white hover:bg-[hsl(var(--warning))]/90 border-0">
+           >
             <Plus className="w-4 h-4 mr-2" /> Add obligation
           </Button>
         </div>
@@ -175,7 +175,7 @@ export default function Register() {
             description="Log the permits, licences and returns this organization is held to, and this register will tell you what falls due and what has lapsed."
             action={(
               <Button onClick={() => navigate(`${BASE}/new`)}
-                className="bg-[hsl(var(--warning))] text-white hover:bg-[hsl(var(--warning))]/90 border-0">
+               >
                 <Plus className="w-4 h-4 mr-2" /> Add the first obligation
               </Button>
             )}

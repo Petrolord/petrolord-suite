@@ -307,7 +307,7 @@ export default function ISOReports() {
                   No findings have been raised.
                 </p>
               ) : (
-                <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+                <div className="relative h-[300px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={findingTypeData} margin={CHART_MARGINS.compact}>
                       <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -338,7 +338,7 @@ export default function ISOReports() {
                   No findings have been raised.
                 </p>
               ) : (
-                <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+                <div className="relative h-[300px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={departmentData} layout="vertical" margin={CHART_MARGINS.compact}>
                       <CartesianGrid {...GRID_STYLE} horizontal={false} />

@@ -145,7 +145,7 @@ export const ReportViewer = () => {
             {data.length === 0 ? (
               <p className="h-[400px] flex items-center justify-center text-slate-500">No data matches the report criteria.</p>
             ) : (
-              <div className="relative h-[420px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+              <div className="relative h-[420px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={CHART_MARGINS.standard}>
                     <CartesianGrid {...GRID_STYLE} vertical={false} />
