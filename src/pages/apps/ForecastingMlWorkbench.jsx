@@ -16,6 +16,8 @@ import {
   ArrowLeft, BookOpen, FileDown, TrendingDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -71,21 +73,21 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex h-full flex-col bg-slate-950 text-white">
-        <header className="flex-shrink-0 border-b border-slate-800 px-4 py-3">
+      <div className="flex h-full flex-col bg-pl-bg text-pl-text">
+        <header className="flex-shrink-0 border-b border-pl-border bg-pl-surface px-4 py-3">
           <Link to="/dashboard/data-ai">
-            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-slate-400 hover:text-white">
+            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-pl-muted hover:text-pl-text">
               <ArrowLeft className="mr-2 h-4 w-4" /> Data &amp; AI
             </Button>
           </Link>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 p-2 shadow-lg">
-                <TrendingDown className="h-6 w-6 text-white" />
+              <div className="rounded-xl bg-pl-primary p-2 text-pl-primary-fg shadow-pl-sm">
+                <TrendingDown className="h-6 w-6" aria-hidden="true" />
               </div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight">Production Forecasting ML Workbench</h1>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-pl-muted">
                   Exponential smoothing (simple, Holt&apos;s linear trend, damped trend) against the Arps decline, with bootstrap
                   intervals and rolling-origin backtests. Every number is computed by the Petrolord forecasting engine.
                 </p>
@@ -110,25 +112,26 @@ const Workspace = () => {
                 onSave={persistence.manualSave}
                 disabled={!persistence.currentProjectId}
               />
-              <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white" disabled={!canExport} onClick={exportCsv} data-testid="export-csv" title={canExport ? 'Report as CSV, every number at full precision' : 'Run a part first'}>
+              <Button variant="ghost" size="sm" className="text-pl-muted hover:text-pl-text" disabled={!canExport} onClick={exportCsv} data-testid="export-csv" title={canExport ? 'Report as CSV, every number at full precision' : 'Run a part first'}>
                 <FileDown className="mr-1 h-4 w-4" /> CSV
               </Button>
               <Link to={`${FORECASTING_ROUTE}/help`} title="Documentation">
-                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
+                <Button variant="ghost" size="sm" className="text-pl-muted hover:text-pl-text">
                   <BookOpen className="mr-1 h-4 w-4" /> Help guide
                 </Button>
               </Link>
+              <ThemeToggle />
             </div>
           </div>
           {orgId ? null : (
-            <p className="mt-2 text-xs text-amber-200">
+            <p className="mt-2 text-xs text-pl-warning-text">
               Forecast runs are saved to your organization. Without one you can work here, and saving is unavailable.
             </p>
           )}
         </header>
 
         <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
-          <aside className="w-full overflow-y-auto border-b border-slate-800 bg-slate-900/40 p-4 md:w-1/3 md:border-b-0 md:border-r xl:w-1/4">
+          <aside className="w-full overflow-y-auto border-b border-pl-border bg-pl-surface p-4 md:w-1/3 md:border-b-0 md:border-r xl:w-1/4">
             <DataPanel />
           </aside>
           <main className="flex-1 space-y-4 overflow-y-auto p-4">
@@ -136,7 +139,7 @@ const Workspace = () => {
             <BusyBar />
             <WellPicker />
             <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="flex-wrap border border-slate-800 bg-slate-900">
+              <TabsList className="h-auto flex-wrap">
                 <TabsTrigger value="fit">Fit and forecast</TabsTrigger>
                 <TabsTrigger value="backtest">Backtest</TabsTrigger>
                 <TabsTrigger value="field">Field comparison</TabsTrigger>
@@ -153,7 +156,7 @@ const Workspace = () => {
 };
 
 const ForecastingMlWorkbench = ({ createWorker }) => (
-  <>
+  <ThemedApp className="h-full min-h-screen" data-testid="forecastml-theme-scope">
     <Helmet>
       <title>Production Forecasting ML Workbench - Petrolord Suite</title>
       <meta
@@ -164,7 +167,7 @@ const ForecastingMlWorkbench = ({ createWorker }) => (
     <ForecastingProvider {...(createWorker ? { createWorker } : {})}>
       <Workspace />
     </ForecastingProvider>
-  </>
+  </ThemedApp>
 );
 
 export default ForecastingMlWorkbench;

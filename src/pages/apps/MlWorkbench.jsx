@@ -17,6 +17,8 @@ import {
   ArrowLeft, BookOpen, BrainCircuit, FileDown, FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -61,21 +63,21 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex h-full flex-col bg-slate-950 text-white">
-        <header className="flex-shrink-0 border-b border-slate-800 px-4 py-3">
+      <div className="flex h-full flex-col bg-pl-bg text-pl-text">
+        <header className="flex-shrink-0 border-b border-pl-border bg-pl-surface px-4 py-3">
           <Link to="/dashboard/data-ai">
-            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-slate-400 hover:text-white">
+            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-pl-muted hover:text-pl-text">
               <ArrowLeft className="mr-2 h-4 w-4" /> Data &amp; AI
             </Button>
           </Link>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 p-2 shadow-lg">
-                <BrainCircuit className="h-6 w-6 text-white" />
+              <div className="rounded-xl bg-pl-primary p-2 text-pl-primary-fg shadow-pl-sm">
+                <BrainCircuit className="h-6 w-6" aria-hidden="true" />
               </div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight">ML Workbench</h1>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-pl-muted">
                   Regression and logistic classification on well data, validated by holding out whole wells.
                   Every fit, split and score is computed by the Petrolord ML engine.
                 </p>
@@ -100,33 +102,34 @@ const Workspace = () => {
                 onSave={persistence.manualSave}
                 disabled={!persistence.currentProjectId}
               />
-              <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white" disabled={!canExport} onClick={exportCsv} data-testid="export-csv" title={canExport ? 'Report as CSV, every number at full precision' : 'Fit and validate first'}>
+              <Button variant="ghost" size="sm" className="text-pl-muted hover:text-pl-text" disabled={!canExport} onClick={exportCsv} data-testid="export-csv" title={canExport ? 'Report as CSV, every number at full precision' : 'Fit and validate first'}>
                 <FileDown className="mr-1 h-4 w-4" /> CSV
               </Button>
-              <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white" disabled={!canExport} onClick={exportPdf} data-testid="export-pdf" title={canExport ? 'Report as PDF' : 'Fit and validate first'}>
+              <Button variant="ghost" size="sm" className="text-pl-muted hover:text-pl-text" disabled={!canExport} onClick={exportPdf} data-testid="export-pdf" title={canExport ? 'Report as PDF' : 'Fit and validate first'}>
                 <FileText className="mr-1 h-4 w-4" /> PDF
               </Button>
               <Link to={`${ML_WORKBENCH_ROUTE}/help`} title="Documentation">
-                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
+                <Button variant="ghost" size="sm" className="text-pl-muted hover:text-pl-text">
                   <BookOpen className="mr-1 h-4 w-4" /> Help guide
                 </Button>
               </Link>
+              <ThemeToggle />
             </div>
           </div>
           {orgId ? null : (
-            <p className="mt-2 text-xs text-amber-200">
+            <p className="mt-2 text-xs text-pl-warning-text">
               ML runs are saved to your organization. Without one you can work here, and saving is unavailable.
             </p>
           )}
         </header>
 
         <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
-          <aside className="w-full overflow-y-auto border-b border-slate-800 bg-slate-900/40 p-4 md:w-1/3 md:border-b-0 md:border-r xl:w-1/4">
+          <aside className="w-full overflow-y-auto border-b border-pl-border bg-pl-surface p-4 md:w-1/3 md:border-b-0 md:border-r xl:w-1/4">
             <DataPanel />
           </aside>
           <main className="flex-1 space-y-4 overflow-y-auto p-4">
             <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="flex-wrap border border-slate-800 bg-slate-900">
+              <TabsList className="h-auto flex-wrap">
                 <TabsTrigger value="model">Model</TabsTrigger>
                 <TabsTrigger value="results">Validation results</TabsTrigger>
                 <TabsTrigger value="diagnostics">Leakage and diagnostics</TabsTrigger>
@@ -145,7 +148,7 @@ const Workspace = () => {
 };
 
 const MlWorkbench = ({ createWorker }) => (
-  <>
+  <ThemedApp className="h-full min-h-screen" data-testid="mlwb-theme-scope">
     <Helmet>
       <title>ML Workbench - Petrolord Suite</title>
       <meta
@@ -156,7 +159,7 @@ const MlWorkbench = ({ createWorker }) => (
     <MlWorkbenchProvider {...(createWorker ? { createWorker } : {})}>
       <Workspace />
     </MlWorkbenchProvider>
-  </>
+  </ThemedApp>
 );
 
 export default MlWorkbench;
