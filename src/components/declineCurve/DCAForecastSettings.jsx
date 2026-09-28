@@ -167,7 +167,7 @@ const DCAForecastSettings = () => {
         </CardContent>
       </Card>
 
-      <Separator className="bg-slate-800" />
+      <Separator />
 
       {/* Monte Carlo Settings */}
       <Card className="bg-slate-900/50 border-slate-800">

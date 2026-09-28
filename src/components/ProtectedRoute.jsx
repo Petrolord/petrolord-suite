@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { useHSEAccess } from '@/hooks/useHSEAccess';
 import { useSuiteAccess } from '@/hooks/useSuiteAccess';
 import AccessDenied from '@/components/AccessDenied';
+import { coldLoadTheme, ThemedLoadingScreen } from '@/design/coldLoad';
 
 const ProtectedRoute = ({ children, requiredPermission, requiredRole, appContext = 'suite' }) => {
   const { user, loading, isSuperAdmin } = useAuth();
@@ -13,6 +14,9 @@ const ProtectedRoute = ({ children, requiredPermission, requiredRole, appContext
   const { can: canHSE } = useHSEAccess();
 
   if (loading) {
+    // Design system: opted-in paths paint the device's last theme.
+    const theme = coldLoadTheme(location.pathname);
+    if (theme) return <ThemedLoadingScreen theme={theme} />;
     return (
       <div className="flex items-center justify-center h-screen bg-slate-950 text-white">
         <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />

@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useVrrMonitor, emptyPeriod } from '@/contexts/VrrMonitorContext';
 import { statusAgainstBand } from './vrrBand';
-import { useStudioTheme, THEMED_TONE_TEXT } from '@/components/studio/studioTheme';
+import { THEMED_TONE_TEXT } from '@/components/studio/studioTheme';
 
 export const COLS = [
   { key: 'label', label: 'Period', unit: '' },
@@ -40,7 +40,6 @@ const PeriodGridPanel = () => {
   } = useVrrMonitor();
   const fileRef = useRef(null);
   const [showPvt, setShowPvt] = useState(false);
-  const { tc } = useStudioTheme();
   const cols = showPvt ? [...COLS, ...PVT_COLS] : COLS;
 
   const exportCsv = () => {
@@ -84,7 +83,7 @@ const PeriodGridPanel = () => {
   };
 
   return (
-    <Card className={tc('bg-slate-900 border-slate-800', undefined)}>
+    <Card>
       <CardHeader className="pb-2 flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="text-base">Production &amp; injection by period</CardTitle>
         <div className="flex flex-wrap gap-2">
@@ -94,7 +93,7 @@ const PeriodGridPanel = () => {
           <Button variant="outline" size="sm" onClick={clearAll}><RotateCcw className="w-4 h-4 mr-1" /> Clear</Button>
           <Button
             variant="outline" size="sm"
-            className={showPvt ? tc('bg-sky-500/10 border-sky-500/40 text-sky-300', 'bg-pl-primary/10 border-pl-primary text-pl-primary-text hover:bg-pl-primary/15') : ''}
+            className={showPvt ? 'bg-pl-primary/10 border-pl-primary text-pl-primary-text hover:bg-pl-primary/15' : ''}
             aria-pressed={showPvt}
             onClick={() => setShowPvt((v) => !v)}
             title="Show per-period Bo/Bw/Bg/Rs override columns"
@@ -108,14 +107,14 @@ const PeriodGridPanel = () => {
       <CardContent className="overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow className={tc('border-slate-800 hover:bg-transparent', 'hover:bg-transparent')}>
+            <TableRow className="hover:bg-transparent">
               {cols.map((c) => (
-                <TableHead key={c.key} className={tc('text-slate-400 whitespace-nowrap', 'whitespace-nowrap')}>
-                  {c.label}{c.unit ? <span className={tc('text-slate-600 ml-1', 'ml-1 normal-case font-normal')}>({c.unit})</span> : null}
+                <TableHead key={c.key} className="whitespace-nowrap">
+                  {c.label}{c.unit ? <span className="ml-1 normal-case font-normal">({c.unit})</span> : null}
                 </TableHead>
               ))}
-              <TableHead className={tc('text-slate-400 text-right whitespace-nowrap', 'text-right whitespace-nowrap')}>Inst. VRR</TableHead>
-              <TableHead className={tc('text-slate-400 text-right whitespace-nowrap', 'text-right whitespace-nowrap')}>Cum. VRR</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Inst. VRR</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Cum. VRR</TableHead>
               <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
@@ -124,24 +123,24 @@ const PeriodGridPanel = () => {
               // Coloured against the user's target band, as the flags are.
               const band = statusAgainstBand(row.instantaneousVRR, targetBand);
               return (
-                <TableRow key={i} className={tc('border-slate-800', undefined)}>
+                <TableRow key={i}>
                   {cols.map((c) => (
                     <TableCell key={c.key} className="p-1">
                       <Input
                         value={inputs.periods[i]?.[c.key] ?? ''}
                         onChange={(e) => updatePeriodCell(i, c.key, e.target.value)}
                         placeholder={c.key === 'label' ? `P${i + 1}` : PVT_COLS.some((pc) => pc.key === c.key) ? 'global' : '0'}
-                        className={tc(`h-8 bg-slate-800 border-slate-700 ${c.key === 'label' ? 'w-24' : 'w-24 text-right'}`, `h-8 font-pl-mono tabular-nums ${c.key === 'label' ? 'w-24' : 'w-24 text-right'}`)}
+                        className={`h-8 font-pl-mono tabular-nums ${c.key === 'label' ? 'w-24' : 'w-24 text-right'}`}
                         aria-label={`${c.label} ${row.label || `P${i + 1}`}`}
                       />
                     </TableCell>
                   ))}
-                  <TableCell className={tc(`text-right font-mono ${band.tone === 'warn' ? 'text-amber-400' : band.tone === 'info' ? 'text-sky-400' : band.tone === 'good' ? 'text-emerald-400' : 'text-slate-500'}`, `text-right font-pl-mono tabular-nums font-semibold ${THEMED_TONE_TEXT[band.tone] || THEMED_TONE_TEXT.neutral}`)} title={tc(undefined, band.label)}>
+                  <TableCell className={`text-right font-pl-mono tabular-nums font-semibold ${THEMED_TONE_TEXT[band.tone] || THEMED_TONE_TEXT.neutral}`} title={band.label}>
                     {fmt(row.instantaneousVRR, 2)}
                   </TableCell>
-                  <TableCell className={tc('text-right font-mono text-slate-300', 'text-right font-pl-mono tabular-nums')}>{fmt(row.cumulativeVRR, 2)}</TableCell>
+                  <TableCell className="text-right font-pl-mono tabular-nums">{fmt(row.cumulativeVRR, 2)}</TableCell>
                   <TableCell className="p-1">
-                    <button onClick={() => removePeriod(i)} className={tc('text-slate-500 hover:text-red-400', 'rounded text-pl-muted hover:text-pl-danger-text')} title="Remove period">
+                    <button onClick={() => removePeriod(i)} className="rounded text-pl-muted hover:text-pl-danger-text" title="Remove period">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </TableCell>
@@ -150,7 +149,7 @@ const PeriodGridPanel = () => {
             })}
           </TableBody>
         </Table>
-        <p className={tc('text-xs text-slate-500 mt-3', 'text-xs text-pl-muted mt-3')}>
+        <p className="text-xs text-pl-muted mt-3">
           Voidage is computed in reservoir barrels. Only free (excess) produced gas adds voidage; solution
           gas (Rs x oil) is already in B<sub>o</sub>. The global fluid-property set applies to every period
           unless a PVT override cell is filled (toggle the PVT overrides columns) or the pressure track is on.

@@ -407,7 +407,7 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, exist
               <button
                 type="button"
                 onClick={handleDownloadTemplate}
-                className="mt-3 inline-flex items-center gap-1.5 text-xs text-pl-primary-text hover:text-pl-primary-hover underline underline-offset-2"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs text-pl-primary-text hover:text-pl-primary-text-hover underline underline-offset-2"
               >
                 <Download className="w-3.5 h-3.5" />
                 Download template CSV

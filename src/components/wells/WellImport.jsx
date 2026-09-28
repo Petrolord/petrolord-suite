@@ -34,9 +34,9 @@ import { placeWellLocation, placeDeviation } from '@/lib/crs/wellPlacement';
 import { normalizeTag, isTransformableTag, UNKNOWN } from '@/lib/crs/tags';
 import ColumnMapper from './ColumnMapper';
 import { CheckshotConventionRow, MdUnitSelect, CHECKSHOT_FIELD_LABELS } from './PasteReplacePanel';
-import { useThemeClass } from '@/lib/themeClass';
+import { useThemeClass } from '@/design/themeClass';
 
-// Design system: themed class strings for tc() (see src/lib/themeClass.js).
+// Design system: themed class strings for tc() (see src/design/themeClass.js).
 // Outside an opted-in scope tc() returns the legacy string unchanged.
 const THEMED_CLASSES = {
   "rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs":

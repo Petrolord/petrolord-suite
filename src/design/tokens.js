@@ -33,7 +33,8 @@ export const BRAND = {
 //   border-strong input and control outlines (3:1 against surface, WCAG 1.4.11)
 //   text / muted  body text and secondary text
 //   primary       the main action fill; primary-fg is text on it;
-//                 primary-text is primary used as text or icon on a surface
+//                 primary-text is primary used as text or icon on a surface;
+//                 primary-text-hover is its hover (links, text buttons)
 //   accent        brand gold fill (highlights, selected pills); accent-fg on it;
 //                 accent-text is gold dark enough to read as text
 //   success, warning, danger, info
@@ -54,6 +55,7 @@ export const THEMES = {
     'primary-hover': '#245A3B',
     'primary-fg': '#FFFFFF',
     'primary-text': '#2F6B48',
+    'primary-text-hover': '#1F4E33',
     accent: '#C8A24E',
     'accent-fg': '#0C1F16',
     'accent-text': '#7A5A12',
@@ -88,6 +90,7 @@ export const THEMES = {
     'primary-hover': '#94D2AD',
     'primary-fg': '#07140E',
     'primary-text': '#8FD0AA',
+    'primary-text-hover': '#B3E2C6',
     accent: '#C8A24E',
     'accent-fg': '#0C1F16',
     'accent-text': '#E6D3A0',
@@ -142,6 +145,10 @@ export const SPACING = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32, 10: 40, 
 
 export const RADII = { sm: 6, md: 8, lg: 12, xl: 16, pill: 999 };
 
+// Canvas frames (seismic sections, maps, 3D viewers) keep the legacy 8px
+// corner inside a scope, where --radius grows to 12px. Class: rounded-pl-canvas.
+export const CANVAS_RADIUS = '0.5rem';
+
 export const SHADOWS = {
   light: {
     sm: '0 1px 2px rgba(12, 31, 22, 0.06)',
@@ -169,6 +176,9 @@ export const CONTRAST_PAIRS = [
   ['primary-fg', 'primary-hover', 4.5],
   ['primary-text', 'surface', 4.5],
   ['primary-text', 'bg', 4.5],
+  ['primary-text-hover', 'surface', 4.5],
+  ['primary-text-hover', 'bg', 4.5],
+  ['primary-text-hover', 'sunken', 4.5],
   ['accent-fg', 'accent', 4.5],
   ['accent-text', 'surface', 4.5],
   ['accent-text', 'bg', 4.5],
@@ -179,6 +189,11 @@ export const CONTRAST_PAIRS = [
   ]),
   // non-text UI (WCAG 1.4.11)
   ['border-strong', 'surface', 3],
+  // checked checkbox, switch track and slider range against the surface
+  ['primary', 'surface', 3],
+  // switch thumb (surface) on its checked (primary) and unchecked
+  // (border-strong) track
+  ['surface', 'border-strong', 3],
   ['focus', 'bg', 3],
   ['focus', 'surface', 3],
 ];

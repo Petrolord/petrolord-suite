@@ -6,7 +6,11 @@
 // same string reads correctly in light and in dark. Keep hues out of this
 // file: status colour goes through the status roles only.
 //
-// See docs/scope/DesignSystem-example-EPE.md for the worked example.
+// See docs/scope/DesignSystem-example-EPE.md for the worked example. The
+// Checkbox now themes itself; the select, dense-cell and signed-number
+// recipes live in the shared ui pieces and are re-exported here.
+import { NATIVE_SELECT_THEMED, COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
+import { signedTone } from '@/components/ui/numeric-table';
 
 /** Page body under the AppHeader. */
 export const epePage = 'mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8';
@@ -34,23 +38,14 @@ export const epeEyebrow = 'text-xs font-semibold uppercase tracking-wide text-pl
 export const epeNum = 'font-pl-mono tabular-nums';
 export const epeNumCell = 'text-right font-pl-mono tabular-nums whitespace-nowrap';
 
-/** Negative money reads in the danger text colour next to its minus sign. */
-export const epeSigned = (v) => (typeof v === 'number' && v < 0 ? 'text-pl-danger-text' : '');
+/** Negative money reads in the danger text colour next to its minus sign (shared: ui/numeric-table). */
+export const epeSigned = signedTone;
 
-/** A native <select>, matched to the themed Input. */
-export const epeSelect =
-  'h-10 w-full rounded-md border border-pl-border-strong bg-pl-surface px-3 text-sm text-pl-text '
-  + 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus disabled:cursor-not-allowed disabled:opacity-50';
+/** A native <select>, matched to the themed Input (shared: ui/native-select). */
+export const epeSelect = NATIVE_SELECT_THEMED;
 
-/** A compact native <input> or <select> inside dense editor tables. */
-export const epeCellInput =
-  'w-full rounded border border-pl-border-strong bg-pl-surface px-2 py-1 text-xs text-pl-text '
-  + 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus';
-
-/** Radix Checkbox from @/components/ui/checkbox (not yet adapted by the lead). */
-export const epeCheckbox =
-  'rounded-[4px] border-pl-border-strong ring-offset-pl-bg focus-visible:ring-pl-focus '
-  + 'data-[state=checked]:border-pl-primary data-[state=checked]:bg-pl-primary data-[state=checked]:text-pl-primary-fg';
+/** A compact native <input> or <select> inside dense editor tables (shared). */
+export const epeCellInput = COMPACT_FIELD_THEMED;
 
 /** Native checkbox and radio. */
 export const epeNativeCheck = 'accent-pl-primary';

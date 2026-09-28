@@ -271,7 +271,7 @@ const DCASegmentsPanel = () => {
         
         {multiSegmentMode && segments && segments.length > 0 && (
           <>
-            <Separator className="bg-slate-800" />
+            <Separator />
             <div className="text-xs text-slate-400">
               <div className="flex items-center gap-1 mb-1">
                 <Move className="w-3 h-3" />

@@ -17,7 +17,7 @@ import {
 } from '@/utils/chartTheme';
 import { CONFIG_SECTIONS, labelForConfigKey, unitForConfigKey, formatConfigValue } from './epeConfigLabels';
 import { AppHeader } from '@/components/ui/app-shell';
-import { epePage, epePanel, epeTile, epeH2, epeH3, epeNum, epeNumCell, epeCheckbox, epeCallout } from './epeUi';
+import { epePage, epePanel, epeTile, epeH2, epeH3, epeNum, epeNumCell, epeCallout } from './epeUi';
 
 // Wave D (audit 4.6): comparison is capped so the table and chart stay
 // readable; six runs also matches the series palette below.
@@ -394,7 +394,6 @@ const EpeRunComparison = () => {
                     id={run.id}
                     checked={selectedRunIds.includes(run.id)}
                     onCheckedChange={() => handleCheckboxChange(run.id)}
-                    className={epeCheckbox}
                   />
                   <label htmlFor={run.id} className="text-pl-text cursor-pointer flex-grow">
                     {run.run_name} <span className="text-xs text-pl-muted">({new Date(run.created_at).toLocaleDateString()})</span>

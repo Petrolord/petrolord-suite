@@ -3,7 +3,6 @@ import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CHECKBOX_THEMED } from './dsClasses';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Filter } from 'lucide-react';
 
@@ -57,7 +56,6 @@ const DCAWellFilters = () => {
           id="dca-filter-hasdata"
           checked={wellFilters.onlyWithData}
           onCheckedChange={(v) => set({ onlyWithData: !!v })}
-          className={CHECKBOX_THEMED}
         />
         <Label htmlFor="dca-filter-hasdata" className="text-xs text-pl-muted">
           Only wells with production data

@@ -7,7 +7,8 @@
  *   2. Mounted through the real DashboardLayout, a hub sits in a light
  *      [data-pl-root] scope with the toggle in its header, and the toggle
  *      switches light and dark.
- *   3. An unmigrated app opened from a hub (Voidage Replacement Monitor)
+ *   3. An unmigrated app opened from a hub (Waterflood Design Studio; it was
+ *      Voidage Replacement Monitor until that became pilot 5)
  *      has no [data-pl-theme] ancestor, no toggle and no pl-* class, and its
  *      markup is identical to the app rendered on its own.
  *   4. The sidebar is a fixed dark ink scope in both themes.
@@ -79,7 +80,7 @@ import ApplicationsGrid from '@/components/ApplicationsGrid';
 // eslint-disable-next-line import/first
 import { ThemedApp } from '@/design/ThemeProvider';
 // eslint-disable-next-line import/first
-import VoidageReplacementMonitor from '@/pages/apps/VoidageReplacementMonitor';
+import WaterfloodDesignStudio from '@/pages/apps/WaterfloodDesignStudio';
 
 beforeAll(() => {
   global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
@@ -106,7 +107,7 @@ const AUTH = {
   signOut: jest.fn(),
 };
 
-const VRR_PATH = '/dashboard/apps/reservoir/voidage-replacement-monitor';
+const APP_PATH = '/dashboard/apps/reservoir/waterflood-design-studio';
 
 function Shell({ at }) {
   return (
@@ -117,7 +118,7 @@ function Shell({ at }) {
             <Route element={<HubScope />}>
               <Route path="data-ai" element={<DataAiHub />} />
             </Route>
-            <Route path="apps/reservoir/voidage-replacement-monitor" element={<VoidageReplacementMonitor />} />
+            <Route path="apps/reservoir/waterflood-design-studio" element={<WaterfloodDesignStudio />} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -183,8 +184,8 @@ describe('a module hub inside the dashboard shell', () => {
 
 describe('an unmigrated app opened from a hub', () => {
   it('has no themed ancestor, no toggle and no pl-* class, and renders exactly as it does alone', async () => {
-    const { unmount } = render(<Shell at={VRR_PATH} />);
-    const title = await screen.findByText('Voidage Replacement Monitor');
+    const { unmount } = render(<Shell at={APP_PATH} />);
+    const title = await screen.findByText('Waterflood Design Studio');
     expect(title.closest('[data-pl-theme]')).toBeNull();
     expect(document.querySelector('[data-pl-root]')).toBeNull();
     expect(screen.queryByTestId('theme-toggle')).toBeNull();
@@ -198,12 +199,12 @@ describe('an unmigrated app opened from a hub', () => {
 
     const alone = render(
       <AuthContext.Provider value={AUTH}>
-        <MemoryRouter initialEntries={[VRR_PATH]}>
-          <VoidageReplacementMonitor />
+        <MemoryRouter initialEntries={[APP_PATH]}>
+          <WaterfloodDesignStudio />
         </MemoryRouter>
       </AuthContext.Provider>,
     );
-    await screen.findByText('Voidage Replacement Monitor');
+    await screen.findByText('Waterflood Design Studio');
     expect(inShell).toBe(normalise(alone.container.innerHTML));
   });
 });
@@ -259,7 +260,9 @@ describe('ApplicationsGrid in both themes', () => {
     mockAppsLoading = true;
     const { container } = grid('light');
     expect(screen.getByRole('status')).toHaveTextContent('Loading applications');
-    expect(container.querySelector('[aria-busy="true"] .bg-pl-sunken')).not.toBeNull();
+    // the shared Skeleton themes itself inside the scope (no local override)
+    const bone = container.querySelector('[aria-busy="true"] .animate-pulse');
+    expect(bone.className).toMatch(/\bbg-pl-border\/70\b/);
     expect(container.innerHTML).not.toMatch(/bg-slate-800\/50/);
   });
 });

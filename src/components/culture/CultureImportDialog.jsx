@@ -23,9 +23,9 @@ import {
   parseGeoJSON, parseShapefile, reprojectFeatures, featuresBBox, geometryTypeOf,
 } from '@/lib/cultureImport';
 import { saveCulture } from '@/lib/cultureRegistry';
-import { useThemeClass } from '@/lib/themeClass';
+import { useThemeClass } from '@/design/themeClass';
 
-// Design system: themed class strings for tc() (see src/lib/themeClass.js).
+// Design system: themed class strings for tc() (see src/design/themeClass.js).
 // Outside an opted-in scope tc() returns the legacy string unchanged.
 const THEMED_CLASSES = {
   "mt-1 block w-full text-xs text-slate-300 file:mr-3 file:rounded-md file:border file:border-slate-700 file:bg-slate-900 file:px-3 file:py-1.5 file:text-xs file:text-slate-200":

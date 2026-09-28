@@ -2,7 +2,7 @@
 // DashboardLayout, sidebar, landing and module hubs on the in-memory
 // Supabase double, so the hubs can be walked and screenshotted in light and
 // dark without an account. <page> is "landing", a hub slug (geoscience,
-// data-ai ...) or "vrr", the unmigrated Voidage Replacement Monitor opened
+// data-ai ...) or "wds", the unmigrated Waterflood Design Studio opened
 // from a hub, for the opt-in check. The pages run in a nested MemoryRouter
 // that starts at the real /dashboard path. Never in production builds.
 import React, { lazy, Suspense } from 'react';
@@ -26,7 +26,7 @@ const MidstreamDownstreamHub = lazy(() => import('@/pages/dashboard/MidstreamDow
 const ProcessSafetyHub = lazy(() => import('@/pages/dashboard/ProcessSafetyHub'));
 const DataAiHub = lazy(() => import('@/pages/dashboard/DataAiHub'));
 const AssuranceHub = lazy(() => import('@/pages/dashboard/AssuranceHub'));
-const VoidageReplacementMonitor = lazy(() => import('@/pages/apps/VoidageReplacementMonitor'));
+const WaterfloodDesignStudio = lazy(() => import('@/pages/apps/WaterfloodDesignStudio'));
 
 const ORG = { id: '00000000-0000-4000-8000-000000000001', name: 'Harness Energy' };
 const USER = { ...DEV_USER, user_metadata: { full_name: 'Ada Harness', role: 'admin' } };
@@ -45,6 +45,7 @@ const MASTER_APPS = [
   app('geo-dev', 'geoscience', 'Rock Physics Studio', { is_built: false }),
   app('decline-curve-analysis', 'reservoir', 'Decline Curve Analysis'),
   app('voidage-replacement-monitor', 'reservoir', 'Voidage Replacement Monitor'),
+  app('waterflood-design-studio', 'reservoir', 'Waterflood Design Studio'),
   app('material-balance-studio', 'reservoir', 'Material Balance Studio'),
   app('eor-screening', 'reservoir', 'EOR Screening', { status: 'Coming Soon' }),
   app('well-design-studio', 'drilling', 'Well Design Studio'),
@@ -59,7 +60,7 @@ const MASTER_APPS = [
 ];
 const MODULES = ['geoscience', 'reservoir', 'drilling', 'production', 'economics', 'facilities',
   'assurance', 'midstream-downstream', 'process-safety', 'data-ai'];
-const SEATS = ['seismolord', 'well-correlation', 'decline-curve-analysis', 'voidage-replacement-monitor',
+const SEATS = ['seismolord', 'well-correlation', 'decline-curve-analysis', 'voidage-replacement-monitor', 'waterflood-design-studio',
   'well-design-studio', 'epe-suite', 'data-quality-studio', 'risk-register'];
 
 const seed = () => ({
@@ -73,7 +74,7 @@ const seed = () => ({
   org_closure_requests: [],
 });
 
-const START = { landing: '/dashboard', vrr: '/dashboard/apps/reservoir/voidage-replacement-monitor' };
+const START = { landing: '/dashboard', wds: '/dashboard/apps/reservoir/waterflood-design-studio' };
 const hubRoute = (slug, Hub) => <Route path={slug} element={<AppRoute appName={slug}><Hub /></AppRoute>} />;
 
 let store = null;
@@ -104,7 +105,7 @@ export default function HubsHarness() {
                       {hubRoute('data-ai', DataAiHub)}
                       {hubRoute('assurance', AssuranceHub)}
                     </Route>
-                    <Route path="apps/reservoir/voidage-replacement-monitor" element={<VoidageReplacementMonitor />} />
+                    <Route path="apps/reservoir/waterflood-design-studio" element={<WaterfloodDesignStudio />} />
                   </Route>
                   <Route path="*" element={<div className="p-6 text-amber-300">Left the hubs (a link outside the harness).</div>} />
                 </Routes>

@@ -45,7 +45,7 @@ import { cn } from '@/lib/utils';
     				outline: 'border border-pl-border-strong bg-pl-surface text-pl-text hover:bg-pl-sunken',
     				secondary: 'border border-pl-border bg-pl-sunken text-pl-text hover:bg-pl-border',
     				ghost: 'text-pl-muted hover:bg-pl-sunken hover:text-pl-text',
-    				link: 'text-pl-primary-text underline-offset-4 hover:underline',
+    				link: 'text-pl-primary-text underline-offset-4 hover:text-pl-primary-text-hover hover:underline',
     				accent: 'bg-pl-accent text-pl-accent-fg hover:bg-pl-accent/90',
     			},
     			size: {

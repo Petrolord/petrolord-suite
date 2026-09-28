@@ -4,7 +4,7 @@
 // src/design/__tests__/tokens.test.js.
 const PL_ROLES = [
   'bg', 'surface', 'raised', 'sunken', 'border', 'border-strong', 'text', 'muted',
-  'primary', 'primary-hover', 'primary-fg', 'primary-text',
+  'primary', 'primary-hover', 'primary-fg', 'primary-text', 'primary-text-hover',
   'accent', 'accent-fg', 'accent-text',
   'success', 'success-fg', 'success-bg', 'success-text',
   'warning', 'warning-fg', 'warning-bg', 'warning-text',
@@ -81,6 +81,8 @@ module.exports = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        // canvas frames keep 8px inside a design-system scope (tokens.js CANVAS_RADIUS)
+        'pl-canvas': "var(--pl-radius-canvas, 0.5rem)",
       },
       keyframes: {
         "accordion-down": {

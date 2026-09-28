@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CHECKBOX_THEMED } from './dsClasses';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Save, Trash2, TrendingUp, BarChart2 } from 'lucide-react';
@@ -150,7 +149,6 @@ const DCATypeCurve = () => {
                         checked={selectedWells.includes(well.id)} 
                         onCheckedChange={() => handleToggleWell(well.id)}
                         id={`well-${well.id}`}
-                        className={CHECKBOX_THEMED}
                       />
                       <span className="text-xs text-pl-text truncate">{well.name}</span>
                     </div>

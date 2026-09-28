@@ -9,14 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
-import { useStudioTheme } from '@/components/studio/studioTheme';
 
 // Line colors tuned for the white Petrolord chart background.
 const LINE = { inst: '#2563eb', cum: '#059669', roll: '#d97706', ref: '#dc2626', band: '#10b981' };
 
 const VrrChartsPanel = () => {
   const { series, rolling, targetBand } = useVrrMonitor();
-  const { tc } = useStudioTheme();
 
   const chartData = useMemo(
     () =>
@@ -33,7 +31,7 @@ const VrrChartsPanel = () => {
   );
 
   return (
-    <Card className={tc('bg-slate-900 border-slate-800', undefined)}>
+    <Card>
       <CardHeader className="pb-2"><CardTitle className="text-base">VRR trend</CardTitle></CardHeader>
       <CardContent className="p-0">
         {chartData.length ? (
@@ -61,7 +59,7 @@ const VrrChartsPanel = () => {
             </LineChart>
           </ChartFrame>
         ) : (
-          <div className={tc('h-72 flex items-center justify-center text-slate-500 text-sm', 'h-72 flex items-center justify-center px-6 text-center text-pl-muted text-sm')}>
+          <div className="h-72 flex items-center justify-center px-6 text-center text-pl-muted text-sm">
             Enter production &amp; injection volumes on the Data tab to see the VRR trend.
           </div>
         )}

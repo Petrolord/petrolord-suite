@@ -219,7 +219,7 @@ export default function MakeSurfaceDialog({
                 {result.action === 'publish' && (
                   <Link
                     to={MAPPING_STUDIO_PATH}
-                    className="ml-2 inline-flex items-center text-pl-primary-text hover:text-pl-primary-text underline"
+                    className="ml-2 inline-flex items-center text-pl-primary-text hover:text-pl-primary-text-hover underline"
                   >
                     Open Mapping &amp; Surface Studio
                     <ExternalLink className="w-3.5 h-3.5 ml-1" />

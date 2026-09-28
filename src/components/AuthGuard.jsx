@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useLocation } from 'react-router-dom';
+import { coldLoadTheme, ThemedLoadingScreen } from '@/design/coldLoad';
 
 const AuthGuard = ({ children }) => {
   const { loading } = useAuth();
@@ -12,6 +13,9 @@ const AuthGuard = ({ children }) => {
   const isPublicRoute = publicRoutes.some(route => location.pathname.startsWith(route));
 
   if (loading && !isPublicRoute) {
+    // Design system: opted-in paths paint the device's last theme.
+    const theme = coldLoadTheme(location.pathname);
+    if (theme) return <ThemedLoadingScreen theme={theme} />;
     return (
       <div className="flex items-center justify-center h-screen bg-slate-900 text-white">
         <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-lime-400"></div>

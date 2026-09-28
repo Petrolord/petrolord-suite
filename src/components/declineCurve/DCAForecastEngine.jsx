@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, TrendingUp, Dices, RefreshCw } from 'lucide-react';
-import { SWITCH_THEMED } from './dsClasses';
 
 const DCAForecastEngine = () => {
   const { 
@@ -45,7 +44,6 @@ const DCAForecastEngine = () => {
               checked={config.probabilisticMode || false}
               onCheckedChange={(checked) => updateForecastConfig('probabilisticMode', checked)}
               disabled={!hasConfidenceIntervals}
-              className={SWITCH_THEMED}
               aria-label="Probabilistic mode"
             />
           </div>
@@ -110,7 +108,7 @@ const DCAForecastEngine = () => {
               <Switch 
                 checked={config.stopAtLimit} 
                 onCheckedChange={(c) => updateForecastConfig('stopAtLimit', c)} 
-                className={`scale-75 ${SWITCH_THEMED}`}
+                className="scale-75"
                 aria-label="Stop at limit"
               />
               <span>Stop at limit</span>

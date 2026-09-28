@@ -4,8 +4,10 @@
  *   1. the shared ui pieces render their legacy class strings byte for byte
  *      outside a <ThemedApp> scope (the strings below are copied from main
  *      before the design system landed);
- *   2. a real non-pilot app (Voidage Replacement Monitor) mounts with its
- *      dark console classes, no themed scope and no pl-* token classes;
+ *   2. a real non-pilot app (Waterflood Design Studio, on the shared Studio
+ *      kit; Voidage Replacement Monitor was the proof until it became pilot
+ *      5) mounts with its dark console classes, no themed scope and no pl-*
+ *      token classes;
  *   3. inside a scope the same pieces switch to theme roles, and portal
  *      content (dialogs, menus) carries the scope attribute itself.
  */
@@ -38,7 +40,14 @@ import { Select, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import StudioHeader from '@/components/studio/StudioHeader';
 import ChartFrame from '@/components/charts/ChartFrame';
-import VoidageReplacementMonitor from '@/pages/apps/VoidageReplacementMonitor';
+import WaterfloodDesignStudio from '@/pages/apps/WaterfloodDesignStudio';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
+import { Alert } from '@/components/ui/alert';
 
 beforeAll(() => {
   global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
@@ -67,6 +76,15 @@ const LEGACY = {
   selectTrigger: 'flex h-10 w-full items-center justify-between gap-2 text-left [&>span]:line-clamp-1 rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-white ring-offset-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:cursor-not-allowed disabled:opacity-50',
   dialogContent: 'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-slate-700 bg-slate-900 p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg',
   studioTitle: 'text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 hidden sm:block min-w-[6rem] truncate',
+  // adapted in the design-system follow-up (strings from main 5940c04bd;
+  // the full DOM of every adapted piece is pinned in uiLegacyDom.test.jsx)
+  checkbox: 'peer h-4 w-4 shrink-0 rounded-sm border border-slate-500 ring-offset-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-cyan-600 data-[state=checked]:text-white data-[state=checked]:border-cyan-600',
+  switch: 'peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-lime-500 data-[state=unchecked]:bg-slate-600 dark:focus-visible:ring-slate-300 dark:focus-visible:ring-offset-slate-950 dark:data-[state=checked]:bg-lime-500 dark:data-[state=unchecked]:bg-slate-600',
+  accordionItem: 'border-b border-slate-700',
+  separator: 'shrink-0 bg-border h-[1px] w-full',
+  skeleton: 'animate-pulse rounded-md bg-slate-100 dark:bg-slate-800',
+  progress: 'relative h-4 w-full overflow-hidden rounded-full bg-secondary',
+  alert: 'relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground bg-background text-foreground',
 };
 
 const TOKEN_CLASS = /(^|\s)([a-z-]+:)*(bg|text|border|ring|ring-offset|shadow|font|placeholder)-pl-/;
@@ -93,6 +111,13 @@ function Kit() {
       </Table>
       <Select><SelectTrigger data-testid="select-trigger"><SelectValue placeholder="pick" /></SelectTrigger></Select>
       <MemoryRouter><StudioHeader title="Studio" tabs={[{ value: 'a', label: 'A' }]} activeTab="a" /></MemoryRouter>
+      <Checkbox data-testid="checkbox" />
+      <Switch data-testid="switch" />
+      <Accordion type="single" collapsible><AccordionItem value="a" data-testid="accordion-item"><AccordionTrigger>t</AccordionTrigger><AccordionContent>c</AccordionContent></AccordionItem></Accordion>
+      <Separator data-testid="separator" />
+      <Skeleton data-testid="skeleton" />
+      <Progress value={10} data-testid="progress" />
+      <Alert data-testid="alert">a</Alert>
     </div>
   );
 }
@@ -105,6 +130,8 @@ describe('outside a scope: legacy output, byte for byte', () => {
     ['label', 'label'], ['button', 'button'], ['button-outline', 'buttonOutline'],
     ['badge', 'badge'], ['thead', 'tableHeader'], ['tr', 'tableRow'], ['th', 'tableHead'],
     ['td', 'tableCell'], ['select-trigger', 'selectTrigger'],
+    ['checkbox', 'checkbox'], ['switch', 'switch'], ['accordion-item', 'accordionItem'],
+    ['separator', 'separator'], ['skeleton', 'skeleton'], ['progress', 'progress'], ['alert', 'alert'],
   ];
   it.each(cases)('%s keeps its legacy classes', (testId, key) => {
     expect(screen.getByTestId(testId).className).toBe(LEGACY[key]);
@@ -135,19 +162,20 @@ describe('outside a scope: legacy output, byte for byte', () => {
 });
 
 describe('a real non-pilot app is unchanged', () => {
-  it('Voidage Replacement Monitor mounts on the dark console with no themed scope', async () => {
+  it('Waterflood Design Studio mounts on the dark console with no themed scope', async () => {
     const { container } = render(
       <MemoryRouter>
-        <VoidageReplacementMonitor />
+        <WaterfloodDesignStudio />
       </MemoryRouter>,
     );
-    expect(await screen.findByText('Voidage Replacement Monitor')).toBeInTheDocument();
+    expect(await screen.findByText('Waterflood Design Studio')).toBeInTheDocument();
     // StudioLayout root keeps the legacy dark console classes
     const root = container.firstElementChild;
     expect(root.className).toMatch(/\bbg-slate-950\b/);
     expect(root.className).toMatch(/\btext-slate-100\b/);
     expect(container.querySelector('[data-pl-theme]')).toBeNull();
     expect(container.querySelector('[data-pl-root]')).toBeNull();
+    expect(document.documentElement).not.toHaveAttribute('data-pl-active-theme');
     expect(screen.queryByTestId('theme-toggle')).not.toBeInTheDocument();
     container.querySelectorAll('[class]').forEach((el) => {
       expect(el.getAttribute('class')).not.toMatch(TOKEN_CLASS);
@@ -162,7 +190,7 @@ describe('inside a scope: theme roles', () => {
   beforeEach(() => render(<ThemedApp userId="t"><Kit /></ThemedApp>));
 
   it('the ui pieces switch to token classes and drop the slate console colours', () => {
-    for (const id of ['card', 'tabs-list', 'tabs-trigger', 'input', 'textarea', 'button', 'button-outline', 'badge', 'select-trigger']) {
+    for (const id of ['card', 'tabs-list', 'tabs-trigger', 'input', 'textarea', 'button', 'button-outline', 'badge', 'select-trigger', 'checkbox', 'switch', 'accordion-item', 'separator', 'skeleton', 'progress', 'alert']) {
       const cls = screen.getByTestId(id).className;
       expect(cls).toMatch(TOKEN_CLASS);
       expect(cls).not.toMatch(/\b(bg|text|border)-slate-\d/);

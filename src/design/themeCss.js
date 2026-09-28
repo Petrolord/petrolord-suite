@@ -4,7 +4,7 @@
 // for any app that has not opted in: the global :root/.dark variables in
 // src/index.css keep driving the 100+ legacy dark consoles untouched.
 import {
-  THEMES, SHADOWS, FONTS, SHADCN_ALIASES, CHART_SERIES, CHART_SURFACE,
+  THEMES, SHADOWS, FONTS, SHADCN_ALIASES, CHART_SERIES, CHART_SURFACE, CANVAS_RADIUS,
   hexToHslTriplet, hexToRgbChannels,
 } from './tokens.js';
 
@@ -36,6 +36,7 @@ function themeBlock(name) {
   }
   CHART_SERIES.forEach((hex, i) => lines.push(`  --chart-${i + 1}: ${hexToHslTriplet(hex)};`));
   lines.push('  --radius: 0.75rem;');
+  lines.push(`  --pl-radius-canvas: ${CANVAS_RADIUS};`);
   lines.push(`  color-scheme: ${name};`);
   return lines.join('\n');
 }

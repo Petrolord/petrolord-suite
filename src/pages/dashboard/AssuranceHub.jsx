@@ -390,7 +390,7 @@ export default function AssuranceHub() {
                 )}
                 <div className="mt-auto pt-4">
                   <Button size="sm" variant="ghost" onClick={() => navigate(a.base)}
-                    className="px-2 -ml-2 text-pl-primary-text hover:text-pl-primary-text">
+                    className="px-2 -ml-2 text-pl-primary-text hover:text-pl-primary-text-hover">
                     Open {a.name} <ArrowRight className="w-4 h-4 ml-1" aria-hidden="true" />
                   </Button>
                 </div>

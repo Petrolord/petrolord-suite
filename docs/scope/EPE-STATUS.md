@@ -7,6 +7,10 @@ branch `feat/ds-pilot-epe`). Every EPE route sits in one `ThemedApp` layout
 route; light by default, dark per user through the header toggle. Recipe and
 lessons: `docs/scope/DesignSystem-example-EPE.md`. No engine, calculation or
 export change.
+2026-09-28 design-system follow-up: `epeCheckbox` removed (the shared
+Checkbox themes itself); `epeSelect`, `epeCellInput` and `epeSigned`
+re-export the shared NativeSelect, compact field and signedTone; links hover
+with `primary-text-hover`; toasts and the cold-load spinner follow the theme.
 
 ## EC7: PIA 2021 / NTA 2025 compliance (2026-09-26)
 

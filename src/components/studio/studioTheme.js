@@ -7,15 +7,16 @@
 // byte. An app opts in at its route; its own components can use the same
 // picker while both looks are still needed.
 import { useDsTheme } from '@/design/themeContext';
+import { themeClassPicker } from '@/design/themeClass';
 
 /**
  * Returns tc(legacy, themed): the legacy class string outside a theme
- * scope, the themed one inside it.
+ * scope, the themed one inside it. A thin wrapper over the shared helper
+ * (src/design/themeClass.js) that also hands back the theme itself.
  */
 export function useStudioTheme() {
   const ds = useDsTheme();
-  const tc = (legacy, themed) => (ds ? themed : legacy);
-  return { ds, tc };
+  return { ds, tc: themeClassPicker(ds) };
 }
 
 // Status chips and banners on theme roles (colour only for status, always

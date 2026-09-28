@@ -86,7 +86,7 @@ const DeclineCurveContent = () => {
         </div>
       </section>
 
-      <Separator className="bg-pl-border" />
+      <Separator />
 
       <section>
         <SectionLabel>Analysis</SectionLabel>
@@ -94,7 +94,7 @@ const DeclineCurveContent = () => {
         <DCAModelFitting />
       </section>
 
-      <Separator className="bg-pl-border" />
+      <Separator />
 
       <section>
         <SectionLabel>Forecasting</SectionLabel>
@@ -106,7 +106,7 @@ const DeclineCurveContent = () => {
       <section>
         <DCAWellGrouping />
       </section>
-      <Separator className="bg-pl-border" />
+      <Separator />
       <section>
         <DCAWellFilters />
       </section>
@@ -118,26 +118,26 @@ const DeclineCurveContent = () => {
       <section>
         <DCAWellMetadata />
       </section>
-      <Separator className="bg-pl-border" />
+      <Separator />
       <section>
         <SectionLabel>Scenarios</SectionLabel>
         <DCAScenarioBuilder />
       </section>
 
-      <Separator className="bg-pl-border" />
+      <Separator />
 
       <section>
         <DCAScenarioComparison />
       </section>
 
-      <Separator className="bg-pl-border" />
+      <Separator />
 
       <section>
         <SectionLabel>Diagnostics</SectionLabel>
         <DCAFitDiagnostics />
       </section>
 
-      <Separator className="bg-pl-border" />
+      <Separator />
 
       <section>
         <DCAIntegrationPanel />

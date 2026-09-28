@@ -1,23 +1,35 @@
 import React from "react"
-    import * as SliderPrimitive from "@radix-ui/react-slider"
+import * as SliderPrimitive from "@radix-ui/react-slider"
 
-    import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils"
+import { useDsTheme } from "@/design/themeContext"
 
-    const Slider = React.forwardRef(({ className, ...props }, ref) => (
-      <SliderPrimitive.Root
-        ref={ref}
-        className={cn(
-          "relative flex w-full touch-none select-none items-center",
-          className
-        )}
-        {...props}
-      >
-        <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-slate-700">
-          <SliderPrimitive.Range className="absolute h-full bg-lime-400" />
-        </SliderPrimitive.Track>
-        <SliderPrimitive.Thumb className="block h-5 w-5 rounded-full border-2 border-lime-400 bg-slate-900 ring-offset-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50" />
-      </SliderPrimitive.Root>
-    ))
-    Slider.displayName = SliderPrimitive.Root.displayName
+// Design system: track, range and thumb on theme roles inside an opted-in
+// scope; the legacy lime slider outside one, byte for byte.
+const THEMED = {
+  track: "relative h-2 w-full grow overflow-hidden rounded-full bg-pl-border",
+  range: "absolute h-full bg-pl-primary",
+  thumb: "block h-5 w-5 rounded-full border-2 border-pl-primary bg-pl-surface shadow-pl-sm ring-offset-pl-bg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+}
 
-    export { Slider }
+const Slider = React.forwardRef(({ className, ...props }, ref) => {
+  const ds = useDsTheme()
+  return (
+    <SliderPrimitive.Root
+      ref={ref}
+      className={cn(
+        "relative flex w-full touch-none select-none items-center",
+        className
+      )}
+      {...props}
+    >
+      <SliderPrimitive.Track className={ds ? THEMED.track : "relative h-2 w-full grow overflow-hidden rounded-full bg-slate-700"}>
+        <SliderPrimitive.Range className={ds ? THEMED.range : "absolute h-full bg-lime-400"} />
+      </SliderPrimitive.Track>
+      <SliderPrimitive.Thumb className={ds ? THEMED.thumb : "block h-5 w-5 rounded-full border-2 border-lime-400 bg-slate-900 ring-offset-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"} />
+    </SliderPrimitive.Root>
+  )
+})
+Slider.displayName = SliderPrimitive.Root.displayName
+
+export { Slider }

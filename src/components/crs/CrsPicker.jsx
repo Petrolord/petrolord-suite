@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { CRS_CATALOG, catalogGet, crsDisplayName, validateCustomDefinition } from '@/lib/crs';
 import { normalizeTag, LOCAL, UNKNOWN } from '@/lib/crs/tags';
 import { browseGroups, searchResults, UTM_GROUP_KEY } from './crsBrowse';
-import { useThemeClass } from '@/lib/themeClass';
+import { useThemeClass } from '@/design/themeClass';
 
-// Design system: themed class strings for tc() (see src/lib/themeClass.js).
+// Design system: themed class strings for tc() (see src/design/themeClass.js).
 // Outside an opted-in scope tc() returns the legacy string unchanged.
 const THEMED_CLASSES = {
   "w-full text-left px-3 py-1.5 hover:bg-slate-800 text-sm flex items-center":

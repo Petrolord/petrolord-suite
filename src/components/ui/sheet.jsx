@@ -4,6 +4,18 @@ import { cva } from "class-variance-authority"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useDsTheme, usePortalThemeProps } from "@/design/themeContext"
+
+// Design system: merged over the legacy classes only inside an opted-in
+// scope. The overlay and the panel render in a portal, outside the scope
+// element, so both carry data-pl-theme themselves.
+const THEMED = {
+  overlay: "bg-black/50 backdrop-blur-none",
+  content: "border-pl-border bg-pl-raised text-pl-text shadow-pl-lg",
+  close: "ring-offset-pl-bg focus:ring-pl-focus data-[state=open]:bg-transparent text-pl-muted hover:text-pl-text",
+  title: "text-pl-text",
+  description: "text-pl-muted",
+}
 
 const Sheet = SheetPrimitive.Root
 
@@ -19,15 +31,21 @@ const SheetPortal = ({
 )
 SheetPortal.displayName = SheetPrimitive.Portal.displayName
 
-const SheetOverlay = React.forwardRef(({ className, ...props }, ref) => (
-  <SheetPrimitive.Overlay
-    className={cn(
-      "fixed inset-0 z-50 bg-background/80 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className
-    )}
-    {...props}
-    ref={ref} />
-))
+const SheetOverlay = React.forwardRef(({ className, ...props }, ref) => {
+  const ds = useDsTheme()
+  const portalProps = usePortalThemeProps()
+  return (
+    <SheetPrimitive.Overlay
+      {...portalProps}
+      className={cn(
+        "fixed inset-0 z-50 bg-background/80 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        ds && THEMED.overlay,
+        className
+      )}
+      {...props}
+      ref={ref} />
+  )
+})
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName
 
 const sheetVariants = cva(
@@ -49,22 +67,28 @@ const sheetVariants = cva(
   }
 )
 
-const SheetContent = React.forwardRef(({ side = "right", className, children, ...props }, ref) => (
-  <SheetPortal>
-    <SheetOverlay />
-    <SheetPrimitive.Content
-      ref={ref}
-      className={cn(sheetVariants({ side }), className)}
-      {...props}>
-      {children}
-      <SheetPrimitive.Close
-        className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </SheetPrimitive.Close>
-    </SheetPrimitive.Content>
-  </SheetPortal>
-))
+const SheetContent = React.forwardRef(({ side = "right", className, children, ...props }, ref) => {
+  const ds = useDsTheme()
+  const portalProps = usePortalThemeProps()
+  const closeLegacy = "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary"
+  return (
+    <SheetPortal>
+      <SheetOverlay />
+      <SheetPrimitive.Content
+        ref={ref}
+        {...portalProps}
+        className={cn(sheetVariants({ side }), ds && THEMED.content, className)}
+        {...props}>
+        {children}
+        <SheetPrimitive.Close
+          className={ds ? cn(closeLegacy, THEMED.close) : closeLegacy}>
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </SheetPrimitive.Close>
+      </SheetPrimitive.Content>
+    </SheetPortal>
+  )
+})
 SheetContent.displayName = SheetPrimitive.Content.displayName
 
 const SheetHeader = ({
@@ -87,20 +111,26 @@ const SheetFooter = ({
 )
 SheetFooter.displayName = "SheetFooter"
 
-const SheetTitle = React.forwardRef(({ className, ...props }, ref) => (
-  <SheetPrimitive.Title
-    ref={ref}
-    className={cn("text-lg font-semibold text-foreground", className)}
-    {...props} />
-))
+const SheetTitle = React.forwardRef(({ className, ...props }, ref) => {
+  const ds = useDsTheme()
+  return (
+    <SheetPrimitive.Title
+      ref={ref}
+      className={cn("text-lg font-semibold text-foreground", ds && THEMED.title, className)}
+      {...props} />
+  )
+})
 SheetTitle.displayName = SheetPrimitive.Title.displayName
 
-const SheetDescription = React.forwardRef(({ className, ...props }, ref) => (
-  <SheetPrimitive.Description
-    ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
-    {...props} />
-))
+const SheetDescription = React.forwardRef(({ className, ...props }, ref) => {
+  const ds = useDsTheme()
+  return (
+    <SheetPrimitive.Description
+      ref={ref}
+      className={cn("text-sm text-muted-foreground", ds && THEMED.description, className)}
+      {...props} />
+  )
+})
 SheetDescription.displayName = SheetPrimitive.Description.displayName
 
 export {

@@ -18,6 +18,10 @@ shim (edits to engine math go to Petrolord/petrolord-engines, not here).
   Studio apps render byte for byte as before. Unmounted legacy panels
   (DCASegmentsPanel, DCAForecastSettings, DCAParametersPanel, DCAKPICards,
   DCADataQuality, ResultsPanel) were left untouched.
+- 2026-09-28, design-system follow-up: `dsClasses.js` removed (Checkbox and
+  Switch theme themselves), stray `bg-slate-800` and `bg-pl-border`
+  Separator overrides removed; toasts and the cold-load spinner follow the
+  theme.
 
 ## History (pointers)
 

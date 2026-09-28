@@ -26,7 +26,7 @@ import PatternManagerPanel from '@/components/vrrmonitor/PatternManagerPanel';
 import AllocationMatrixEditor from '@/components/vrrmonitor/AllocationMatrixEditor';
 import PatternResultsPanel from '@/components/vrrmonitor/PatternResultsPanel';
 import VrrHelpContent from '@/components/reservoir/VrrHelpGuide';
-import { useStudioTheme } from '@/components/studio/studioTheme';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'data', label: 'Data & PVT' },
@@ -35,13 +35,13 @@ const TABS = [
   { value: 'patterns', label: 'Patterns' },
 ];
 
-// Design system pilot 5 (docs/scope/DesignSystem.md): the route wraps this
-// page in <ThemedApp>, so inside it every class below is a theme role; the
-// legacy strings remain for renders outside a scope.
+// Design system pilot 5 (docs/scope/DesignSystem.md): the page wraps itself
+// in <ThemedApp> (below), so every class here is a theme role. It had a
+// legacy branch only while it stood in as the non-pilot proof; that proof
+// now mounts Waterflood Design Studio (src/design/__tests__/optInScope.test.jsx).
 const SectionLabel = ({ children }) => {
-  const { tc } = useStudioTheme();
   return (
-    <h3 className={tc('text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest', 'text-[11px] font-semibold text-pl-accent-text uppercase mb-3 tracking-widest')}>{children}</h3>
+    <h3 className="text-[11px] font-semibold text-pl-accent-text uppercase mb-3 tracking-widest">{children}</h3>
   );
 };
 
@@ -57,7 +57,6 @@ const VrrMonitorContent = () => {
     manualSave, isSaving, saveError, lastSaveTime,
     notifications, removeNotification, isImported,
   } = useVrrMonitor();
-  const { tc } = useStudioTheme();
 
   const leftPanel = (
     <div className="space-y-6">
@@ -151,7 +150,7 @@ const VrrMonitorContent = () => {
         headerActions={
           <>
             <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
-            <div className={tc('h-4 w-[1px] bg-slate-700 mx-1', 'h-4 w-[1px] bg-pl-border mx-1')}></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Voidage Replacement Monitor Guide"
               description="How to track voidage replacement and read the VRR trend."
@@ -173,8 +172,10 @@ const VrrMonitorContent = () => {
 
 export default function VoidageReplacementMonitor() {
   return (
-    <VrrMonitorProvider>
-      <VrrMonitorContent />
-    </VrrMonitorProvider>
+    <ThemedApp data-testid="vrr-theme-scope">
+      <VrrMonitorProvider>
+        <VrrMonitorContent />
+      </VrrMonitorProvider>
+    </ThemedApp>
   );
 }

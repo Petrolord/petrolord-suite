@@ -10,11 +10,11 @@ import { ExternalLink, ChevronDown } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent, ContextMenuItem } from '@/components/workstation/themedContextMenu';
+import { ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent, ContextMenuItem } from '@/components/ui/context-menu';
 import { WELL_APPS, buildOpenInHref } from './appLinks';
-import { useThemeClass } from '@/lib/themeClass';
+import { useThemeClass } from '@/design/themeClass';
 
-// Design system: themed class strings for tc() (see src/lib/themeClass.js).
+// Design system: themed class strings for tc() (see src/design/themeClass.js).
 // Outside an opted-in scope tc() returns the legacy string unchanged.
 const THEMED_CLASSES = {
   "flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700\n            text-slate-300 hover:text-slate-100 hover:bg-slate-800 disabled:opacity-40 ":
