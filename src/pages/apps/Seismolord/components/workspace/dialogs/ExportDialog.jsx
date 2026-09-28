@@ -16,8 +16,8 @@ export default function ExportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center text-white">
-            <Grid3X3 className="w-5 h-5 mr-2 text-cyan-400" />
+          <DialogTitle className="flex items-center text-pl-text">
+            <Grid3X3 className="w-5 h-5 mr-2 text-pl-primary-text" />
             Export surface or picks
           </DialogTitle>
         </DialogHeader>

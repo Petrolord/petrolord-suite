@@ -48,7 +48,7 @@ export function describeImportJob(job) {
 }
 
 const Btn = ({ title, onClick, children }) => (
-  <button type="button" title={title} aria-label={title} onClick={onClick} className="hover:text-slate-100 p-0.5">
+  <button type="button" title={title} aria-label={title} onClick={onClick} className="hover:text-pl-text p-0.5">
     {children}
   </button>
 );
@@ -69,10 +69,10 @@ export default function ImportJobsIndicator() {
         const text = describeImportJob(job);
         const viewable = job.status === V4_STATUS.DISPLAY_READY || job.status === V4_STATUS.READY;
         const busy = job.phase === JOB_PHASE.CONVERTING || job.phase === JOB_PHASE.UPLOADING;
-        const color = job.phase === JOB_PHASE.FAILED ? 'text-red-400'
-          : job.phase === JOB_PHASE.DONE ? 'text-emerald-400'
-            : job.phase === JOB_PHASE.RESUMABLE || job.phase === JOB_PHASE.PAUSED ? 'text-amber-300'
-              : 'text-cyan-300';
+        const color = job.phase === JOB_PHASE.FAILED ? 'text-pl-danger-text'
+          : job.phase === JOB_PHASE.DONE ? 'text-pl-success-text'
+            : job.phase === JOB_PHASE.RESUMABLE || job.phase === JOB_PHASE.PAUSED ? 'text-pl-warning-text'
+              : 'text-pl-primary-text';
         return (
           <span key={job.id} className={`flex items-center gap-1.5 min-w-0 ${color}`} title={text}>
             {busy && <Loader2 className="w-3 h-3 animate-spin shrink-0" />}
@@ -81,7 +81,7 @@ export default function ImportJobsIndicator() {
             {job.phase === JOB_PHASE.FAILED && <XCircle className="w-3 h-3 shrink-0" />}
             <span className="truncate max-w-[340px]">{text}</span>
             {viewable && job.phase !== JOB_PHASE.DONE && (
-              <span className="flex items-center gap-0.5 text-emerald-400" title="The display copy is uploaded: this survey opens from the server now">
+              <span className="flex items-center gap-0.5 text-pl-success-text" title="The display copy is uploaded: this survey opens from the server now">
                 <Eye className="w-3 h-3" />
                 viewable
               </span>

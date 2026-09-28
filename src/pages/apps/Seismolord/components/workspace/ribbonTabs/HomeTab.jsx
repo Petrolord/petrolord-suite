@@ -151,7 +151,7 @@ export default function HomeTab({
           <button
             type="button"
             className={`px-2 py-0.5 text-xs rounded border disabled:opacity-40 ${reverseCmap
-              ? 'border-cyan-500 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
+              ? 'border-pl-primary text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
             onClick={() => setReverseCmap((r) => !r)}
             disabled={!manifest}
             title="Reverse the colormap end for end"
@@ -171,7 +171,7 @@ export default function HomeTab({
           <button
             type="button"
             className={`px-2 py-0.5 text-xs rounded border disabled:opacity-40 ${polarity === 1
-              ? 'border-cyan-500 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
+              ? 'border-pl-primary text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
             onClick={() => setPolarity((p) => -p)}
             disabled={!manifest}
           >
@@ -180,7 +180,7 @@ export default function HomeTab({
           <button
             type="button"
             className={`px-2 py-0.5 text-xs rounded border disabled:opacity-40 ${traceBalance
-              ? 'border-cyan-500 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
+              ? 'border-pl-primary text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
             onClick={() => setTraceBalance((t) => !t)}
             disabled={!manifest}
           >
@@ -222,7 +222,7 @@ export default function HomeTab({
           />
         )}
         {scaleMode === 'manual' && (
-          <label className="flex flex-col gap-0.5 text-[10px] text-slate-500">
+          <label className="flex flex-col gap-0.5 text-[10px] text-pl-muted">
             Clip amplitude
             <input
               type="number"
@@ -232,7 +232,7 @@ export default function HomeTab({
               placeholder="absolute"
               onChange={(e) => setManualClip(Number(e.target.value) || 0)}
               disabled={!manifest}
-              className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs w-24 disabled:opacity-40"
+              className="rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs w-24 disabled:opacity-40"
             />
           </label>
         )}
@@ -240,7 +240,7 @@ export default function HomeTab({
           <button
             type="button"
             className={`px-2 py-0.5 text-xs rounded border disabled:opacity-40 ${agcOn
-              ? 'border-cyan-500 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
+              ? 'border-pl-primary text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
             onClick={() => setAgcOn((a) => !a)}
             disabled={!manifest || isTimeSlice}
             title={isTimeSlice ? 'AGC applies to sections and traverses'

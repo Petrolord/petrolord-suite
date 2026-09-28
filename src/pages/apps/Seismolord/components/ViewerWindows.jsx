@@ -111,8 +111,8 @@ export default function ViewerWindows({ windows, defaultOpen, focus, fill }) {
               key={w.key}
               className={`flex items-center rounded-md border text-xs
                 ${isActive
-                ? 'border-cyan-500/60 bg-cyan-500/10 text-cyan-300'
-                : 'border-slate-700 text-slate-300 hover:bg-slate-800/60'}`}
+                ? 'border-pl-primary/60 bg-pl-primary/10 text-pl-primary-text'
+                : 'border-pl-border text-pl-text hover:bg-pl-sunken/60'}`}
             >
               <button
                 type="button"
@@ -125,7 +125,7 @@ export default function ViewerWindows({ windows, defaultOpen, focus, fill }) {
               </button>
               <button
                 type="button"
-                className="pr-1.5 pl-0.5 py-1.5 text-slate-500 hover:text-red-400"
+                className="pr-1.5 pl-0.5 py-1.5 text-pl-muted hover:text-pl-danger-text"
                 onClick={() => toggleOpen(w.key)}
                 title={`Close ${w.title}`}
               >
@@ -164,7 +164,7 @@ export default function ViewerWindows({ windows, defaultOpen, focus, fill }) {
               variant="outline"
               size="sm"
               title={title}
-              className={layout === key ? 'border-cyan-500/60 text-cyan-300' : ''}
+              className={layout === key ? 'border-pl-primary/60 text-pl-primary-text' : ''}
               onClick={() => setLayout(key)}
             >
               <Icon className="w-4 h-4" />
@@ -174,8 +174,8 @@ export default function ViewerWindows({ windows, defaultOpen, focus, fill }) {
       </div>
 
       {openWindows.length === 0 && (
-        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-8
-          text-center text-sm text-slate-500"
+        <div className="rounded-lg border border-pl-border bg-pl-sunken/60 p-8
+          text-center text-sm text-pl-muted"
         >
           All windows are closed — open one from the Windows menu above.
         </div>

@@ -95,11 +95,11 @@ export default function SessionsDialog({
   const rowLine = (row, restore) => (
     <div
       key={row.id}
-      className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-900/60 px-2 py-1.5"
+      className="flex items-center gap-2 rounded-md border border-pl-border bg-pl-sunken/60 px-2 py-1.5"
     >
       <div className="min-w-0 flex-1">
-        <div className="text-sm text-slate-200 truncate">{row.name}</div>
-        <div className="text-[11px] text-slate-500">{when(row)}</div>
+        <div className="text-sm text-pl-text truncate">{row.name}</div>
+        <div className="text-[11px] text-pl-muted">{when(row)}</div>
       </div>
       <Button
         variant="outline" size="sm" disabled={busyId === row.id}
@@ -112,7 +112,7 @@ export default function SessionsDialog({
         variant="outline" size="sm" disabled={busyId === row.id}
         onClick={() => remove(row)} title="Delete"
       >
-        <Trash2 className="w-4 h-4 text-red-400" />
+        <Trash2 className="w-4 h-4 text-pl-danger-text" />
       </Button>
     </div>
   );
@@ -121,8 +121,8 @@ export default function SessionsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center text-white">
-            <BookMarked className="w-5 h-5 mr-2 text-cyan-400" />
+          <DialogTitle className="flex items-center text-pl-text">
+            <BookMarked className="w-5 h-5 mr-2 text-pl-primary-text" />
             Sessions & bookmarks
           </DialogTitle>
         </DialogHeader>
@@ -130,7 +130,7 @@ export default function SessionsDialog({
         <div className="space-y-4">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <div className="text-xs uppercase tracking-wider text-slate-500">Sessions</div>
+              <div className="text-xs uppercase tracking-wider text-pl-muted">Sessions</div>
               <Button variant="outline" size="sm" onClick={() => saveAs('session', captureSession)}>
                 <Save className="w-4 h-4 mr-1" />
                 Save current…
@@ -139,7 +139,7 @@ export default function SessionsDialog({
             <div className="space-y-1.5">
               {sessions.map((row) => rowLine(row, restoreSession))}
               {!loading && sessions.length === 0 && (
-                <div className="text-xs text-slate-500 px-1">
+                <div className="text-xs text-pl-muted px-1">
                   No saved sessions yet. A session stores the whole workspace:
                   volume, line, display settings, layers, windows, and cameras.
                 </div>
@@ -149,7 +149,7 @@ export default function SessionsDialog({
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <div className="text-xs uppercase tracking-wider text-slate-500">Bookmarks</div>
+              <div className="text-xs uppercase tracking-wider text-pl-muted">Bookmarks</div>
               <Button
                 variant="outline" size="sm"
                 onClick={() => saveAs('bookmark', captureBookmark)}
@@ -163,7 +163,7 @@ export default function SessionsDialog({
             <div className="space-y-1.5">
               {bookmarks.map((row) => rowLine(row, restoreBookmark))}
               {!loading && bookmarks.length === 0 && (
-                <div className="text-xs text-slate-500 px-1">
+                <div className="text-xs text-pl-muted px-1">
                   No bookmarks yet. A bookmark returns to a volume, line, and
                   camera position in one click.
                 </div>
@@ -172,7 +172,7 @@ export default function SessionsDialog({
           </div>
 
           {loading && (
-            <div className="flex justify-center text-cyan-300 py-2">
+            <div className="flex justify-center text-pl-primary-text py-2">
               <Loader2 className="w-5 h-5 animate-spin" />
             </div>
           )}

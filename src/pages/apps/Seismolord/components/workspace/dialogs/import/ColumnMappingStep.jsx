@@ -73,16 +73,16 @@ export default function ColumnMappingStep({
   const complete = mappingComplete(mapping.columns);
 
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 space-y-3" data-testid="sl-import-mapping">
+    <div className="rounded-lg border border-pl-border bg-pl-sunken/60 p-3 space-y-3" data-testid="sl-import-mapping">
       <div className="flex flex-wrap items-end gap-3">
-        <p className="text-sm text-slate-300 flex-1 min-w-[12rem]">
+        <p className="text-sm text-pl-text flex-1 min-w-[12rem]">
           Map the file&apos;s columns. Z plus either X and Y or inline and crossline places each point.
           {kind === 'faults' && ' Without a stick column, a blank line ends each stick.'}
         </p>
         <div>
-          <Label className="text-slate-300 text-xs">Delimiter</Label>
+          <Label className="text-pl-text text-xs">Delimiter</Label>
           <select
-            className="block mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-1.5 text-xs"
+            className="block mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-1.5 text-xs"
             value={mapping.delimiter || 'auto'}
             onChange={(e) => onChange({ ...mapping, delimiter: e.target.value })}
           >
@@ -94,13 +94,13 @@ export default function ColumnMappingStep({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {fields.map((f) => (
           <div key={f.key}>
-            <Label className="text-slate-400 text-xs">
+            <Label className="text-pl-muted text-xs">
               {f.label}{f.required ? ' *' : ''}
             </Label>
             <select
               aria-label={f.label}
               data-testid={`sl-map-${f.key}`}
-              className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-1.5 text-xs"
+              className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-1.5 text-xs"
               value={Number.isInteger(mapping.columns?.[f.key]) ? String(mapping.columns[f.key]) : ''}
               onChange={(e) => setField(f.key, e.target.value)}
             >
@@ -115,8 +115,8 @@ export default function ColumnMappingStep({
 
       {table.rows.length > 0 && (
         <div className="overflow-auto max-h-40">
-          <table className="text-xs text-slate-300">
-            <thead className="text-slate-500">
+          <table className="text-xs text-pl-text">
+            <thead className="text-pl-muted">
               <tr>
                 {Array.from({ length: table.width }, (_, i) => (
                   <th key={i} className="px-2 py-0.5 text-left font-medium whitespace-nowrap">
@@ -128,7 +128,7 @@ export default function ColumnMappingStep({
             <tbody>
               {table.rows.map((r, k) => (
                 // eslint-disable-next-line react/no-array-index-key
-                <tr key={k} className="border-t border-slate-800/60">
+                <tr key={k} className="border-t border-pl-border/60">
                   {Array.from({ length: table.width }, (_, i) => (
                     <td key={i} className="px-2 py-0.5 font-mono whitespace-nowrap">{r[i] ?? ''}</td>
                   ))}
@@ -139,7 +139,7 @@ export default function ColumnMappingStep({
         </div>
       )}
       {!complete && (
-        <p className="text-xs text-amber-300">
+        <p className="text-xs text-pl-warning-text">
           Map Z and either X and Y or inline and crossline to read the file.
         </p>
       )}

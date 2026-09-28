@@ -133,7 +133,7 @@ export default function InterpretationTab({
         />
         {tracking && (
           <>
-            <span className="text-xs text-slate-300 flex items-center whitespace-nowrap">
+            <span className="text-xs text-pl-text flex items-center whitespace-nowrap">
               <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
               {tracking.tracked.toLocaleString()} / {tracking.total.toLocaleString()}
             </span>
@@ -141,7 +141,7 @@ export default function InterpretationTab({
           </>
         )}
         {seedPick && !tracking && (
-          <span className="text-[10px] text-slate-500 max-w-[110px] leading-tight">
+          <span className="text-[10px] text-pl-muted max-w-[110px] leading-tight">
             Seed: IL idx {seedPick.ilIdx}, XL idx {seedPick.xlIdx},
             s {seedPick.sample.toFixed(2)}
           </span>
@@ -393,7 +393,7 @@ export default function InterpretationTab({
             disabled={noSection}
             title="Click the section to place a termination marker; Alt+click removes the nearest one. Markers save with the session."
           />
-          <span className="text-[11px] text-slate-400 self-center" data-testid="sl-term-count">{terminations.length}</span>
+          <span className="text-[11px] text-pl-muted self-center" data-testid="sl-term-count">{terminations.length}</span>
           {terminations.length > 0 && clearTerminations && (
             <RibbonButton icon={Ban} label="Clear" onClick={clearTerminations} title="Remove every termination marker" />
           )}

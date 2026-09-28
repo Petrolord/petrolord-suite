@@ -36,7 +36,7 @@ import { NULL_VALUE } from '../engine/manifest';
 import { horizonColor } from './workspace/interpretationColors';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
-const inputCls = 'rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
+const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 
 /**
  * @param {Object} p
@@ -438,7 +438,7 @@ export default function Line2dPanel({
   return (
     <div className="h-full min-h-0 flex flex-col gap-2 p-1" data-testid="line2d">
       <div className="shrink-0 flex flex-wrap items-center gap-2">
-        <label className="text-xs text-slate-400 flex items-center gap-1">
+        <label className="text-xs text-pl-muted flex items-center gap-1">
           Line
           <select
             className={inputCls}
@@ -462,7 +462,7 @@ export default function Line2dPanel({
           <>
             <Button
               variant="outline" size="sm"
-              className={picking ? 'border-yellow-600 text-yellow-400' : ''}
+              className={picking ? 'border-pl-warning text-pl-warning-text' : ''}
               onClick={() => {
                 setPicking((p) => !p);
                 if (!draft && section) setDraft(new Float32Array(section.height).fill(NULL_F32));
@@ -486,7 +486,7 @@ export default function Line2dPanel({
                   title="Misties and joint mapping join picks across lines by this name"
                   data-testid="line2d-pickname"
                 />
-                <Button size="sm" className="bg-emerald-700 hover:bg-emerald-600 text-white"
+                <Button size="sm" className="bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg"
                   onClick={saveDraft} disabled={!draft || busy} data-testid="line2d-save"
                 >
                   <Save className="w-4 h-4 mr-1" />
@@ -510,22 +510,22 @@ export default function Line2dPanel({
           Misties…
         </Button>
         {line && (line.bulk_shift_ms || 0) !== 0 && (
-          <span className="text-xs text-amber-400" data-testid="line2d-shift">
+          <span className="text-xs text-pl-warning-text" data-testid="line2d-shift">
             {`static ${line.bulk_shift_ms > 0 ? '+' : ''}${line.bulk_shift_ms.toFixed(1)} ms applied`}
           </span>
         )}
-        {busy && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+        {busy && <Loader2 className="w-4 h-4 animate-spin text-pl-muted" />}
       </div>
 
       {(line?.survey_meta?.ingest?.warnings?.length || 0) > 0 && (
-        <div className="text-xs text-amber-300 shrink-0" data-testid="line2d-warnings">
-          <span className="text-amber-400 font-medium">Import warnings: </span>
+        <div className="text-xs text-pl-warning-text shrink-0" data-testid="line2d-warnings">
+          <span className="text-pl-warning-text font-medium">Import warnings: </span>
           {line.survey_meta.ingest.warnings.join(' ')}
         </div>
       )}
-      {error && <div className="text-xs text-red-400 shrink-0" data-testid="line2d-error">{error}</div>}
+      {error && <div className="text-xs text-pl-danger-text shrink-0" data-testid="line2d-error">{error}</div>}
       {!line && !error && (
-        <p className="text-xs text-slate-500 p-2" data-testid="line2d-empty">
+        <p className="text-xs text-pl-muted p-2" data-testid="line2d-empty">
           Import a 2D SEG-Y line or pick one from the list. With a 3D volume open,
           horizons, faults and wells project onto the line automatically.
         </p>
@@ -558,7 +558,7 @@ export default function Line2dPanel({
 
       {/* ---- import dialog ---- */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
-        <DialogContent className="max-w-lg bg-slate-900 border-slate-700 text-slate-200">
+        <DialogContent className="max-w-lg border-pl-border text-pl-text">
           <DialogHeader>
             <DialogTitle>Import 2D line (SEG-Y)</DialogTitle>
           </DialogHeader>
@@ -571,7 +571,7 @@ export default function Line2dPanel({
               className="text-xs"
               data-testid="line2d-file"
             />
-            <label className="flex items-center gap-2 text-xs text-slate-400">
+            <label className="flex items-center gap-2 text-xs text-pl-muted">
               Header mapping
               <select className={inputCls} value={presetKey} onChange={(e) => setPresetKey(e.target.value)}>
                 {MAPPING_2D_PRESETS.map((p) => (
@@ -580,23 +580,23 @@ export default function Line2dPanel({
               </select>
             </label>
             <div>
-              <div className="text-xs text-slate-400 mb-1">
+              <div className="text-xs text-pl-muted mb-1">
                 Coordinate reference system of this file (navigation converts
                 to the Project CRS; the native declaration is kept)
               </div>
               <CrsPicker value={crsTag} onChange={onCrsPick} customDefs={projectCrs?.customDefs || {}} />
             </div>
             {progress && (
-              <div className="text-xs text-slate-400">
+              <div className="text-xs text-pl-muted">
                 {`${progress.phase}: ${progress.done}${progress.total ? ` / ${progress.total}` : ''}`}
               </div>
             )}
-            {error && <div className="text-xs text-red-400">{error}</div>}
+            {error && <div className="text-xs text-pl-danger-text">{error}</div>}
             <div className="flex gap-2">
               <Button
                 onClick={startImport}
                 disabled={!file || busy || !crsTag}
-                className="bg-cyan-600 hover:bg-cyan-500 text-white"
+                className="bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg"
                 data-testid="line2d-start"
               >
                 {busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Play className="w-4 h-4 mr-1" />}
@@ -614,13 +614,13 @@ export default function Line2dPanel({
 
       {/* ---- misties dialog ---- */}
       <Dialog open={mistieOpen} onOpenChange={setMistieOpen}>
-        <DialogContent className="max-w-2xl bg-slate-900 border-slate-700 text-slate-200">
+        <DialogContent className="max-w-2xl border-pl-border text-pl-text">
           <DialogHeader>
             <DialogTitle>Mistie analysis</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">Horizon name</span>
+              <span className="text-xs text-pl-muted">Horizon name</span>
               <input
                 className={`${inputCls} w-44`}
                 list="line2d-mistie-names"
@@ -632,26 +632,26 @@ export default function Line2dPanel({
                 {pickNames.map((n) => <option key={n} value={n} />)}
               </datalist>
               <Button size="sm" onClick={runMisties} disabled={mistieBusy || !mistieName.trim()}
-                className="bg-cyan-600 hover:bg-cyan-500 text-white" data-testid="line2d-mistie-run"
+                className="bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg" data-testid="line2d-mistie-run"
               >
                 {mistieBusy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
                 Analyze
               </Button>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-pl-muted">
               Every imported line carrying this horizon name joins. Shifts are
               least-squares line statics (relative, mean zero) applied
               display-side; stored samples never change.
             </p>
             {mistieResult && (
               <div className="space-y-2" data-testid="line2d-mistie-result">
-                <div className="text-xs text-slate-300">
+                <div className="text-xs text-pl-text">
                   {`${mistieResult.tied} tied crossing(s) of ${mistieResult.crossings} · `}
                   {`RMS ${mistieResult.rmsBeforeMs.toFixed(1)} ms -> ${mistieResult.rmsAfterMs.toFixed(1)} ms`}
                 </div>
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="text-slate-500 text-left">
+                    <tr className="text-pl-muted text-left">
                       <th className="pr-2">Line</th>
                       <th className="pr-2">Shift (ms)</th>
                       <th>Already applied (ms)</th>
@@ -659,7 +659,7 @@ export default function Line2dPanel({
                   </thead>
                   <tbody>
                     {mistieResult.participants.map((p, i) => (
-                      <tr key={p.line.id} className="text-slate-300">
+                      <tr key={p.line.id} className="text-pl-text">
                         <td className="pr-2">{p.line.name}</td>
                         <td className="pr-2 font-mono">{mistieResult.shiftsMs[i].toFixed(1)}</td>
                         <td className="font-mono">{(p.line.bulk_shift_ms || 0).toFixed(1)}</td>
@@ -668,7 +668,7 @@ export default function Line2dPanel({
                   </tbody>
                 </table>
                 <Button size="sm" onClick={applyShifts} disabled={mistieBusy}
-                  className="bg-emerald-700 hover:bg-emerald-600 text-white"
+                  className="bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg"
                   data-testid="line2d-mistie-apply"
                 >
                   Apply shifts to the lines

@@ -99,24 +99,24 @@ export default function MakeSurfaceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg" data-testid="sl-make-surface">
         <DialogHeader>
-          <DialogTitle className="flex items-center text-white">
-            <Mountain className="w-5 h-5 mr-2 text-cyan-400" />
+          <DialogTitle className="flex items-center text-pl-text">
+            <Mountain className="w-5 h-5 mr-2 text-pl-primary-text" />
             Make surface from horizon
           </DialogTitle>
         </DialogHeader>
-        {!volume && <p className="text-sm text-slate-400">Select a volume in the viewer first.</p>}
+        {!volume && <p className="text-sm text-pl-muted">Select a volume in the viewer first.</p>}
         {volume && (
           <div className="space-y-4">
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-pl-muted">
               Grids the horizon&apos;s picks here and saves the surface in the shared registry. No file
               export or re-import is needed.
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
-                <Label className="text-slate-300">Horizon</Label>
+                <Label className="text-pl-text">Horizon</Label>
                 <select
                   data-testid="sl-make-surface-horizon"
-                  className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                  className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
                   value={horizonId}
                   onChange={(e) => setHorizonId(e.target.value)}
                 >
@@ -125,10 +125,10 @@ export default function MakeSurfaceDialog({
                 </select>
               </div>
               <div>
-                <Label className="text-slate-300">Domain</Label>
+                <Label className="text-pl-text">Domain</Label>
                 <select
                   data-testid="sl-make-surface-domain"
-                  className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                  className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
                   value={domain}
                   onChange={(e) => setDomain(e.target.value)}
                 >
@@ -137,10 +137,10 @@ export default function MakeSurfaceDialog({
                 </select>
               </div>
               <div>
-                <Label className="text-slate-300">{model ? 'Velocity (volume model)' : 'Velocity ft/s'}</Label>
+                <Label className="text-pl-text">{model ? 'Velocity (volume model)' : 'Velocity ft/s'}</Label>
                 {model ? (
                   <div
-                    className="mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-400 p-2 text-sm truncate"
+                    className="mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-muted p-2 text-sm truncate"
                     title="Set in the viewer's velocity model controls"
                   >
                     {describeVelocity(model)}
@@ -148,30 +148,30 @@ export default function MakeSurfaceDialog({
                 ) : (
                   <Input
                     type="number" value={velocity} min="1000" step="100"
-                    className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                    className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
                     onChange={(e) => setVelocity(Number(e.target.value))}
                     disabled={domain !== 'depth'}
                   />
                 )}
               </div>
               <div>
-                <Label className="text-slate-300">Cell (m, 0 = bin)</Label>
+                <Label className="text-pl-text">Cell (m, 0 = bin)</Label>
                 <Input
                   type="number" value={cell} min="0" step="5"
-                  className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                  className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
                   onChange={(e) => setCell(Number(e.target.value))}
                 />
               </div>
               {faults.length > 0 && (
                 <label
-                  className="flex items-end gap-2 text-sm text-slate-300 cursor-pointer select-none pb-2"
+                  className="flex items-end gap-2 text-sm text-pl-text cursor-pointer select-none pb-2"
                   title="Interpolation will not cross faults that cut this horizon"
                 >
                   <input
                     type="checkbox"
                     checked={faultAware}
                     onChange={(e) => setFaultAware(e.target.checked)}
-                    className="accent-cyan-500"
+                    className="accent-pl-primary"
                   />
                   {`Fault-aware (${faults.length} fault${faults.length > 1 ? 's' : ''})`}
                 </label>
@@ -183,7 +183,7 @@ export default function MakeSurfaceDialog({
                 data-testid="sl-make-surface-grid"
                 onClick={() => run('grid')}
                 disabled={!horizon || !manifest || Boolean(running)}
-                className="bg-cyan-600 hover:bg-cyan-500 text-white"
+                className="bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg"
                 title="Grid the picks and show the surface in the Map window"
               >
                 {running === 'grid'
@@ -196,7 +196,7 @@ export default function MakeSurfaceDialog({
                 onClick={() => run('publish')}
                 disabled={!horizon || !manifest || Boolean(running)}
                 variant="outline"
-                className="border-cyan-600/60 text-cyan-300 hover:bg-cyan-950/40"
+                className="border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
                 title="Grid the picks and save the surface for Mapping & Surface Studio"
               >
                 {running === 'publish'
@@ -213,13 +213,13 @@ export default function MakeSurfaceDialog({
             </div>
 
             {result && (
-              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-300" data-testid="sl-make-surface-result">
+              <div className="rounded-lg border border-pl-border bg-pl-sunken/60 p-3 text-sm text-pl-text" data-testid="sl-make-surface-result">
                 {`${result.surface?.name || 'Surface'}: ${result.live.toLocaleString()} live nodes, cell ${result.cellM} m, `
                   + `z ${result.zMin?.toFixed(1)} to ${result.zMax?.toFixed(1)}.`}
                 {result.action === 'publish' && (
                   <Link
                     to={MAPPING_STUDIO_PATH}
-                    className="ml-2 inline-flex items-center text-cyan-300 hover:text-cyan-200 underline"
+                    className="ml-2 inline-flex items-center text-pl-primary-text hover:text-pl-primary-text underline"
                   >
                     Open Mapping &amp; Surface Studio
                     <ExternalLink className="w-3.5 h-3.5 ml-1" />
@@ -228,7 +228,7 @@ export default function MakeSurfaceDialog({
               </div>
             )}
             {error && (
-              <div className="flex items-start text-red-400 text-sm" data-testid="sl-make-surface-error">
+              <div className="flex items-start text-pl-danger-text text-sm" data-testid="sl-make-surface-error">
                 <XCircle className="w-4 h-4 mr-2 mt-0.5 shrink-0" />{error}
               </div>
             )}

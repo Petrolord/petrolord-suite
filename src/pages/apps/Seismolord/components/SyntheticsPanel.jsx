@@ -31,7 +31,7 @@ import {
 } from '../engine/tieWarp';
 import { effectiveCheckshots } from '../services/wellsService';
 
-const inputCls = 'rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
+const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 
 const CORRIDOR_HALF = 2;            // ±2 traces around the well
 const MAX_SHIFT_SEARCH_MS = 100;
@@ -851,7 +851,7 @@ export default function SyntheticsPanel({
 
   if (!geom || !dtUs) {
     return (
-      <p className="text-xs text-slate-500 p-2" data-testid="synth-empty">
+      <p className="text-xs text-pl-muted p-2" data-testid="synth-empty">
         Load a seismic volume first — the synthetic is sampled onto its time grid
         and compared against its traces at the well.
       </p>
@@ -859,7 +859,7 @@ export default function SyntheticsPanel({
   }
   if (!logsLoading && !sonicWells.length) {
     return (
-      <p className="text-xs text-slate-500 p-2" data-testid="synth-empty">
+      <p className="text-xs text-pl-muted p-2" data-testid="synth-empty">
         No well has a sonic (DT) curve — import LAS logs in Well Data Manager;
         they appear here through the shared registry.
       </p>
@@ -869,7 +869,7 @@ export default function SyntheticsPanel({
   return (
     <div className="h-full min-h-0 flex flex-col gap-2 p-1" data-testid="synth">
       <div className="shrink-0 flex flex-wrap items-center gap-3">
-        <label className="text-xs text-slate-400 flex items-center gap-1">
+        <label className="text-xs text-pl-muted flex items-center gap-1">
           Well
           <select className={inputCls} value={wellId} onChange={(e) => pickWell(e.target.value)}
             data-testid="synth-well">
@@ -877,7 +877,7 @@ export default function SyntheticsPanel({
             {sonicWells.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
         </label>
-        <label className="text-xs text-slate-400 flex items-center gap-1">
+        <label className="text-xs text-pl-muted flex items-center gap-1">
           Sonic
           <select className={inputCls} value={sonicId} onChange={(e) => setSonicId(e.target.value)}
             disabled={!wellId} data-testid="synth-sonic">
@@ -886,7 +886,7 @@ export default function SyntheticsPanel({
             ))}
           </select>
         </label>
-        <label className="text-xs text-slate-400 flex items-center gap-1">
+        <label className="text-xs text-pl-muted flex items-center gap-1">
           Density
           <select className={inputCls} value={densityId} onChange={(e) => setDensityId(e.target.value)}
             disabled={!wellId} data-testid="synth-density">
@@ -899,12 +899,12 @@ export default function SyntheticsPanel({
       </div>
 
       <div className="shrink-0 flex flex-wrap items-center gap-3">
-        <label className="text-xs text-slate-400 flex items-center gap-1">
-          <input type="radio" className="accent-cyan-500" checked={waveletMode === 'ricker'}
+        <label className="text-xs text-pl-muted flex items-center gap-1">
+          <input type="radio" className="accent-pl-primary" checked={waveletMode === 'ricker'}
             onChange={() => setWaveletMode('ricker')} data-testid="synth-mode-ricker" />
           Ricker
         </label>
-        <label className="text-xs text-slate-400 flex items-center gap-2">
+        <label className="text-xs text-pl-muted flex items-center gap-2">
           <input
             type="range" min={10} max={60} step={1} value={freqHz}
             onChange={(e) => setFreqHz(Number(e.target.value))}
@@ -913,8 +913,8 @@ export default function SyntheticsPanel({
           />
           <span className="font-mono" data-testid="synth-freq-value">{freqHz} Hz</span>
         </label>
-        <label className="text-xs text-slate-400 flex items-center gap-1">
-          <input type="radio" className="accent-cyan-500" checked={waveletMode === 'extracted'}
+        <label className="text-xs text-pl-muted flex items-center gap-1">
+          <input type="radio" className="accent-pl-primary" checked={waveletMode === 'extracted'}
             onChange={() => setWaveletMode('extracted')} disabled={!extracted}
             data-testid="synth-mode-extracted" />
           Extracted
@@ -925,12 +925,12 @@ export default function SyntheticsPanel({
           <Waves className="w-4 h-4 mr-1" />
           Extract from seismic at well
         </Button>
-        <label className="text-xs text-slate-400 flex items-center gap-1">
-          <input type="checkbox" className="accent-cyan-500" checked={segNormal}
+        <label className="text-xs text-pl-muted flex items-center gap-1">
+          <input type="checkbox" className="accent-pl-primary" checked={segNormal}
             onChange={(e) => setSegNormal(e.target.checked)} data-testid="synth-polarity" />
           SEG normal polarity
         </label>
-        <Button size="sm" className="bg-cyan-600 hover:bg-cyan-500 text-white"
+        <Button size="sm" className="bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg"
           onClick={run} disabled={busy || !wellId || !sonicId} data-testid="synth-run"
         >
           {busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Play className="w-4 h-4 mr-1" />}
@@ -938,14 +938,14 @@ export default function SyntheticsPanel({
         </Button>
       </div>
 
-      {error && <div className="text-xs text-red-400 shrink-0" data-testid="synth-error">{error}</div>}
+      {error && <div className="text-xs text-pl-danger-text shrink-0" data-testid="synth-error">{error}</div>}
 
       {view && (
         <>
           <div className="shrink-0 flex flex-wrap items-center gap-3 text-xs">
             <span
               className={`rounded px-1.5 py-0.5 border ${view.result.timeSource === 'checkshots'
-                ? 'border-emerald-700 text-emerald-400' : 'border-sky-700 text-sky-400'}`}
+                ? 'border-pl-success text-pl-success-text' : 'border-pl-info text-pl-info-text'}`}
               data-testid="synth-provenance"
               title="Time-depth source resolved by makeTvdssToTwt — never mixed"
             >
@@ -954,12 +954,12 @@ export default function SyntheticsPanel({
                 : 'velocity model'}`}
             </span>
             {view.constantDensity && (
-              <span className="text-amber-400" data-testid="synth-density-note">
+              <span className="text-pl-warning-text" data-testid="synth-density-note">
                 constant density 2.3 g/cc (no RHOB picked) — RCs reflect velocity contrast only
               </span>
             )}
-            {view.note && <span className="text-slate-500" data-testid="synth-note">{view.note}</span>}
-            <label className="text-slate-400 flex items-center gap-1">
+            {view.note && <span className="text-pl-muted" data-testid="synth-note">{view.note}</span>}
+            <label className="text-pl-muted flex items-center gap-1">
               Bulk shift (ms)
               <input
                 type="number" step={dtMs} className={`${inputCls} w-20`} value={shiftMs}
@@ -975,10 +975,10 @@ export default function SyntheticsPanel({
               Suggest
             </Button>
             {suggestion && !suggestion.none && (
-              <span className="text-slate-300" data-testid="synth-suggest-result">
+              <span className="text-pl-text" data-testid="synth-suggest-result">
                 {`best ${suggestion.lagMs > 0 ? '+' : ''}${suggestion.lagMs.toFixed(0)} ms `}
                 {`(r = ${suggestion.corr.toFixed(2)})`}
-                <Button variant="link" size="sm" className="text-cyan-400 h-auto p-0 ml-1"
+                <Button variant="link" size="sm" className="text-pl-primary-text h-auto p-0 ml-1"
                   onClick={() => setShiftMs(suggestion.lagMs)} data-testid="synth-apply-shift"
                 >
                   apply
@@ -986,11 +986,11 @@ export default function SyntheticsPanel({
               </span>
             )}
             {suggestion?.none && (
-              <span className="text-slate-500" data-testid="synth-suggest-result">
+              <span className="text-pl-muted" data-testid="synth-suggest-result">
                 no usable correlation within ±{MAX_SHIFT_SEARCH_MS} ms
               </span>
             )}
-            <span className="text-slate-600">
+            <span className="text-pl-muted">
               {anchors.length
                 ? 'anchors are display-side until committed below'
                 : 'display-only — the velocity model is not changed'}
@@ -998,11 +998,11 @@ export default function SyntheticsPanel({
           </div>
 
           <div className="shrink-0 flex flex-wrap items-center gap-3 text-xs" data-testid="synth-tie-row">
-            <span className="text-slate-400" title="Double-click on the synthetic/seismic tracks to add an anchor; drag its diamond to stretch; double-click an anchor to remove it">
+            <span className="text-pl-muted" title="Double-click on the synthetic/seismic tracks to add an anchor; drag its diamond to stretch; double-click an anchor to remove it">
               {`Anchors: ${anchors.length}`}
             </span>
             {anchors.length > 0 && (
-              <Button variant="link" size="sm" className="text-slate-400 h-auto p-0"
+              <Button variant="link" size="sm" className="text-pl-muted h-auto p-0"
                 onClick={() => { setAnchors([]); setPhase(null); setPhiApplied(false); }}
                 data-testid="synth-anchors-clear"
               >
@@ -1015,10 +1015,10 @@ export default function SyntheticsPanel({
               Estimate phase
             </Button>
             {phase && (
-              <span className="text-slate-300" data-testid="synth-phase-result">
+              <span className="text-pl-text" data-testid="synth-phase-result">
                 {`${phase.phiDeg.toFixed(0)}° (r ${phase.corr0.toFixed(2)} → ${phase.corr.toFixed(2)})`}
                 <Button variant="link" size="sm"
-                  className={`h-auto p-0 ml-1 ${phiApplied ? 'text-amber-400' : 'text-cyan-400'}`}
+                  className={`h-auto p-0 ml-1 ${phiApplied ? 'text-pl-warning-text' : 'text-pl-primary-text'}`}
                   onClick={() => setPhiApplied((v) => !v)} data-testid="synth-phase-apply"
                 >
                   {phiApplied ? 'remove rotation' : 'apply to display'}
@@ -1026,7 +1026,7 @@ export default function SyntheticsPanel({
               </span>
             )}
             {qcSummary && (
-              <span className="text-slate-400" data-testid="synth-qc-summary"
+              <span className="text-pl-muted" data-testid="synth-qc-summary"
                 title="Windowed correlation of the displayed synthetic vs the centre trace (the colored strip beside the seismic track)"
               >
                 {`tie QC: mean r ${qcSummary.mean.toFixed(2)}, min ${qcSummary.min.toFixed(2)}`}
@@ -1034,7 +1034,7 @@ export default function SyntheticsPanel({
             )}
             {anchors.length > 0 && (
               <>
-                <Button size="sm" variant="outline" className="border-emerald-700 text-emerald-400"
+                <Button size="sm" variant="outline" className="border-pl-success text-pl-success-text"
                   onClick={commitCheckshots}
                   disabled={commitBusy || !onCommitCheckshots}
                   data-testid="synth-commit-checkshots"
@@ -1043,7 +1043,7 @@ export default function SyntheticsPanel({
                   {commitBusy ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : null}
                   Commit to checkshots
                 </Button>
-                <Button size="sm" variant="outline" className="border-sky-700 text-sky-400"
+                <Button size="sm" variant="outline" className="border-pl-info text-pl-info-text"
                   onClick={commitCalibration}
                   disabled={commitBusy || !onApplyVelocity}
                   data-testid="synth-commit-velocity"
@@ -1054,7 +1054,7 @@ export default function SyntheticsPanel({
               </>
             )}
             {view?.derivedCheckshots && (
-              <Button size="sm" variant="outline" className="border-rose-800 text-rose-400"
+              <Button size="sm" variant="outline" className="border-pl-danger text-pl-danger-text"
                 onClick={clearDerivedCheckshots}
                 disabled={commitBusy || !onClearCheckshots}
                 data-testid="synth-clear-checkshots"
@@ -1068,6 +1068,7 @@ export default function SyntheticsPanel({
             <canvas
               ref={canvasRef}
               data-testid="synth-canvas"
+              data-canvas="dark"
               style={{ touchAction: 'none' }}
               onPointerDown={onCanvasPointerDown}
               onPointerMove={onCanvasPointerMove}

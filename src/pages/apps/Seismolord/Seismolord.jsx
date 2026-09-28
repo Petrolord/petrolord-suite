@@ -1,5 +1,6 @@
 import React from 'react';
 import { Helmet } from 'react-helmet';
+import { ThemedApp } from '@/design/ThemeProvider';
 import ViewerPanel from './components/ViewerPanel';
 
 // Seismolord renders as a full-viewport workstation (ribbon / explorer
@@ -7,6 +8,9 @@ import ViewerPanel from './components/ViewerPanel';
 // the workspace controller and owns all state; this page only mounts it.
 // The dashboard chrome hides its sidebar on /apps/ routes, so h-screen
 // here fills the browser window exactly (no page scroll).
+// Design system pilot 4: the page opts in to the Petrolord theme (light by
+// default, dark per user). Panels, trees, dialogs and tables follow it; the
+// seismic, map and 3D canvases stay dark (data-canvas="dark").
 export default function Seismolord() {
   return (
     <>
@@ -18,9 +22,9 @@ export default function Seismolord() {
         />
       </Helmet>
 
-      <div className="h-screen w-full overflow-hidden">
+      <ThemedApp className="h-screen w-full overflow-hidden" data-testid="seismolord-root">
         <ViewerPanel />
-      </div>
+      </ThemedApp>
     </>
   );
 }

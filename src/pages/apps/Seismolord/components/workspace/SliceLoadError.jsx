@@ -15,14 +15,14 @@ export default function SliceLoadError({ error, onRetry }) {
   return (
     <div
       className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 max-w-sm
-        rounded-lg border border-red-900/70 bg-slate-950/95 p-3 text-xs text-slate-300 shadow-lg"
+        rounded-lg border border-pl-danger/70 bg-pl-raised p-3 text-xs text-pl-text shadow-pl-lg"
       role="alert"
       data-testid="sl-slice-error"
     >
       <div className="flex items-start gap-2">
-        <AlertTriangle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+        <AlertTriangle className="w-4 h-4 shrink-0 text-pl-danger-text mt-0.5" />
         <div className="min-w-0">
-          <div className="font-medium text-red-300">The slice did not load</div>
+          <div className="font-medium text-pl-danger-text">The slice did not load</div>
           <div className="mt-0.5 break-words">{error}</div>
         </div>
       </div>
@@ -30,8 +30,8 @@ export default function SliceLoadError({ error, onRetry }) {
         type="button"
         onClick={onRetry}
         data-testid="sl-slice-retry"
-        className="mt-2 inline-flex items-center gap-1 rounded border border-slate-600 px-2 py-1
-          text-slate-200 hover:bg-slate-800"
+        className="mt-2 inline-flex items-center gap-1 rounded border border-pl-border-strong px-2 py-1
+          text-pl-text hover:bg-pl-sunken"
       >
         <RotateCw className="w-3.5 h-3.5" /> Retry
       </button>

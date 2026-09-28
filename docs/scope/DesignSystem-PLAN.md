@@ -158,6 +158,13 @@ rows, so there is no page-view data yet.
    the WebGL slice and cube viewers stay on `data-canvas="dark"` while the
    panels, trees and dialogs around them go light. Real data stored (6
    volumes, 5 horizons). About 650 slate classes.
+   **Migrated 2026-09-28** (branch `feat/ds-pilot-seismolord`): section,
+   map, 3D and synthetics canvases carry `data-canvas="dark"` with their
+   classes and pixels unchanged (2D canvas buffers hash-identical, WebGL
+   screenshots identical apart from the anti-aliased corner pixels);
+   WorkspaceShell, ModuleHomeLink, HelpGuideLayout and the shared CRS, well
+   and culture import forms follow the theme inertly (snapshots from main
+   prove unmigrated apps unchanged). See `Seismolord-STATUS.md`.
 5. **Voidage Replacement Monitor on the Studio kit**
    (`apps/reservoir/voidage-replacement-monitor`). 4 saved projects, and it
    is built on `StudioLayout`/`StudioHeader`, which 33 apps share. Migrating
@@ -243,3 +250,13 @@ themes.
   stay white via `data-canvas="chart"`. `studioKitLegacyDom.test.jsx` adds a
   whole-kit DOM fixture from pre-pilot main (tag, class, aria-label) as a
   second proof that other Studio apps are unchanged.
+- 2026-09-28: pilot 4, Seismolord, on `feat/ds-pilot-seismolord` (PR #751). The dark
+  canvas pilot: section, map, 3D and synthetics canvases carry
+  `data-canvas="dark"` and keep their legacy classes and pixels (2D canvas
+  buffers hash-identical to main in both themes, WebGL screenshots identical
+  apart from the anti-aliased corner pixels; radius pinned at the legacy
+  8px). The workstation shell, module home link, help guide layout and the
+  shared CRS, well and culture import forms follow the theme only inside a
+  scope (`useThemeClass`, `src/lib/themeClass.js`; snapshots from main in
+  `sharedShellsOptIn.test.jsx` and `sharedFormsOptIn.test.jsx`).
+  `themedContextMenu.jsx` stands in until `ui/context-menu` is adapted.

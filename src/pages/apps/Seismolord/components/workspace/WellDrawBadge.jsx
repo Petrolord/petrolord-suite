@@ -14,7 +14,7 @@ export default function WellDrawBadge({ status, wellId }) {
   if (!status || status.drawn) return null;
   return (
     <span
-      className="shrink-0 inline-flex items-center text-amber-400"
+      className="shrink-0 inline-flex items-center text-pl-warning-text"
       title={status.reason}
       aria-label={status.reason}
       role="img"

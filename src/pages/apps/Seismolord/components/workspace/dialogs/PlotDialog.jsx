@@ -21,7 +21,7 @@ import {
 
 const MS_PER_CM_CHOICES = [25, 50, 100, 200, 500];
 
-const selCls = 'mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 text-sm';
+const selCls = 'mt-1 w-full rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-2 py-1 text-sm';
 
 export default function PlotDialog({
   open, onOpenChange, sectionCameraApi, mapCameraApi, volume, crsName,
@@ -155,22 +155,22 @@ export default function PlotDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center text-white">
-            <Printer className="w-5 h-5 mr-2 text-cyan-400" />
+          <DialogTitle className="flex items-center text-pl-text">
+            <Printer className="w-5 h-5 mr-2 text-pl-primary-text" />
             Plot to PDF
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-sm">
           <div className="grid grid-cols-2 gap-2">
             <label className="block">
-              <span className="text-xs text-slate-400">Window</span>
+              <span className="text-xs text-pl-muted">Window</span>
               <select value={source} onChange={(e) => setSource(e.target.value)} className={selCls}>
                 <option value="map">Map (plan view)</option>
                 <option value="section">Section / traverse</option>
               </select>
             </label>
             <label className="block">
-              <span className="text-xs text-slate-400">Paper</span>
+              <span className="text-xs text-pl-muted">Paper</span>
               <select value={paper} onChange={(e) => setPaper(e.target.value)} className={selCls}>
                 {Object.entries(PAPER_SIZES).map(([k, p]) => (
                   <option key={k} value={k}>{p.label}</option>
@@ -178,14 +178,14 @@ export default function PlotDialog({
               </select>
             </label>
             <label className="block">
-              <span className="text-xs text-slate-400">Orientation</span>
+              <span className="text-xs text-pl-muted">Orientation</span>
               <select value={orient} onChange={(e) => setOrient(e.target.value)} className={selCls}>
                 <option value="landscape">Landscape</option>
                 <option value="portrait">Portrait</option>
               </select>
             </label>
             <label className="block">
-              <span className="text-xs text-slate-400">Ground scale</span>
+              <span className="text-xs text-pl-muted">Ground scale</span>
               <select value={String(scale)} onChange={(e) => setScale(Number(e.target.value))} className={selCls}>
                 {(SCALE_CHOICES.includes(scale) ? SCALE_CHOICES
                   : [...SCALE_CHOICES, scale].sort((a, b) => a - b)).map((s) => (
@@ -195,7 +195,7 @@ export default function PlotDialog({
             </label>
             {source === 'section' && (
               <label className="block">
-                <span className="text-xs text-slate-400">Vertical (time)</span>
+                <span className="text-xs text-pl-muted">Vertical (time)</span>
                 <select value={String(msPerCm)} onChange={(e) => setMsPerCm(Number(e.target.value))} className={selCls}>
                   {MS_PER_CM_CHOICES.map((v) => (
                     <option key={v} value={String(v)}>{`${v} ms/cm`}</option>
@@ -204,7 +204,7 @@ export default function PlotDialog({
               </label>
             )}
             <label className="block col-span-2">
-              <span className="text-xs text-slate-400">Plot title</span>
+              <span className="text-xs text-pl-muted">Plot title</span>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -213,7 +213,7 @@ export default function PlotDialog({
               />
             </label>
           </div>
-          <p className="text-[11px] text-slate-500 flex items-start gap-1">
+          <p className="text-[11px] text-pl-muted flex items-start gap-1">
             <FileText className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             The plot is centered on the current view and clipped to the paper
             at the chosen scale. Title block carries volume, CRS, scale,

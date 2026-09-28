@@ -1,5 +1,6 @@
 import { Link as RouterLink } from 'react-router-dom';
 import { HelpCircle as HelpIcon } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { getDepthUnit as getAccountDepthUnit } from '@/lib/crs/settingsService';
 import { appPath as appRoutePath } from '@/components/wells/appLinks';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -3423,7 +3424,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
       corner={(
         <span className="flex items-center gap-2 mr-3 pb-0.5">
           <ModuleHomeLink module="geoscience" testId="sl-home" />
-          <span className="text-sm font-bold text-white">Seismolord</span>
+          <span className="text-sm font-bold text-pl-text">Seismolord</span>
         </span>
       )}
       trailing={(
@@ -3433,7 +3434,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
           data-testid="sl-help"
           data-tour="help"
           title="Open the Seismolord help guide"
-          className="flex items-center gap-1 px-1.5 py-1 text-xs rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+          className="flex items-center gap-1 px-1.5 py-1 text-xs rounded text-pl-muted hover:text-pl-text hover:bg-pl-sunken"
         >
           <HelpIcon className="w-4 h-4" /> Help
         </RouterLink>
@@ -3444,7 +3445,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
           data-tour="start-here"
           onClick={() => openDockPanel('start')}
           className={`flex items-center gap-1 px-1.5 py-1 text-xs rounded ${dockOpen && dockPanel === 'start'
-            ? 'text-cyan-300 bg-cyan-500/10' : 'text-slate-400 hover:text-slate-200'}`}
+            ? 'text-pl-primary-text bg-pl-primary/10' : 'text-pl-muted hover:text-pl-text'}`}
         >
           <Compass className="w-4 h-4" /> Start here
         </button>
@@ -3455,7 +3456,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
           data-tour="toolbox"
           onClick={() => openDockPanel('toolbox')}
           className={`p-1 rounded ${dockOpen && dockPanel === 'toolbox'
-            ? 'text-cyan-300 bg-cyan-500/10' : 'text-slate-400 hover:text-slate-200'}`}
+            ? 'text-pl-primary-text bg-pl-primary/10' : 'text-pl-muted hover:text-pl-text'}`}
         >
           <Wrench className="w-4 h-4" />
         </button>
@@ -3464,10 +3465,11 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
           title="Toggle the interpretation copilot dock"
           onClick={() => openDockPanel('copilot')}
           className={`p-1 rounded ${dockOpen && dockPanel === 'copilot'
-            ? 'text-cyan-300 bg-cyan-500/10' : 'text-slate-400 hover:text-slate-200'}`}
+            ? 'text-pl-primary-text bg-pl-primary/10' : 'text-pl-muted hover:text-pl-text'}`}
         >
           <Bot className="w-4 h-4" />
         </button>
+        <ThemeToggle className="h-7 w-7 ml-1" />
         </>
       )}
       tabs={[
@@ -3786,7 +3788,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
             onClose={() => setDockOpen(false)}
           >
             <div className="h-full min-h-0 flex flex-col">
-              <div className="shrink-0 flex border-b border-slate-800 text-xs" role="tablist">
+              <div className="shrink-0 flex border-b border-pl-border text-xs" role="tablist">
                 {[['start', 'Start here'], ['toolbox', 'Toolbox'], ['copilot', 'Copilot']].map(([k, label]) => (
                   <button
                     key={k}
@@ -3795,7 +3797,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                     aria-selected={dockPanel === k}
                     onClick={() => setDockPanel(k)}
                     className={`flex-1 px-1 py-1 whitespace-nowrap ${dockPanel === k
-                      ? 'text-cyan-300 border-b-2 border-cyan-500' : 'text-slate-400 hover:text-slate-200'}`}
+                      ? 'text-pl-primary-text border-b-2 border-pl-primary' : 'text-pl-muted hover:text-pl-text'}`}
                   >
                     {label}
                   </button>
@@ -3989,7 +3991,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                 <div className="h-full min-h-0 flex flex-col">
                   <div className="shrink-0 flex flex-wrap items-center gap-2 mb-1">
                     <select
-                      className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs max-w-[180px]"
+                      className="rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs max-w-[180px]"
                       value={traverseSavedId || ''}
                       onChange={(e) => selectSavedTraverse(e.target.value)}
                       disabled={!manifest || (!savedTraverses.length && !traverse)}
@@ -4013,7 +4015,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                     </Button>
                     <Button
                       variant="outline" size="sm"
-                      className="text-slate-400 hover:text-red-400"
+                      className="text-pl-muted hover:text-pl-danger-text"
                       onClick={() => deleteSavedTraverse()}
                       disabled={!traverseSavedId || traverseBusy}
                       title="Delete the selected saved traverse (the section stays until replaced)"
@@ -4021,7 +4023,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                       <X className="w-4 h-4" />
                     </Button>
                     {traverse && (
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-pl-muted">
                         {`A → A′: ${traverse.positions.length} traces`}
                         {traverse.lengthM != null
                           && ` · ${(traverse.lengthM / 1000).toFixed(2)} km`}

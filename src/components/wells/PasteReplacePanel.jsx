@@ -7,8 +7,20 @@
 import React, { useMemo, useState } from 'react';
 import { parseDelimited, guessMapping, guessCheckshotConvention } from '@/lib/wellImport';
 import ColumnMapper from './ColumnMapper';
+import { useThemeClass } from '@/lib/themeClass';
 
-const inputCls = 'rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
+// Design system: themed class strings for tc() (see src/lib/themeClass.js).
+// Outside an opted-in scope tc() returns the legacy string unchanged.
+const THEMED_CLASSES = {
+  "rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs":
+    "rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs",
+  "flex flex-wrap items-center gap-2 text-xs text-slate-400":
+    "flex flex-wrap items-center gap-2 text-xs text-pl-muted",
+  "text-xs text-slate-400 flex items-center gap-1":
+    "text-xs text-pl-muted flex items-center gap-1",
+};
+
+const INPUT_CLS = 'rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
 
 export const CHECKSHOT_FIELD_LABELS = (conv) => ({
   depth: `Depth (${{ md: 'MD', tvd: 'TVD', tvdss: 'TVDSS' }[conv.depthRef]}, ${conv.depthUnit})`,
@@ -17,8 +29,10 @@ export const CHECKSHOT_FIELD_LABELS = (conv) => ({
 
 /** Convention selector row shared by the add-well form and the editors. */
 export function CheckshotConventionRow({ conv, onChange, testIdPrefix = 'well-import' }) {
+  const tc = useThemeClass(THEMED_CLASSES);
+  const inputCls = tc(INPUT_CLS);
   return (
-    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400" data-testid={`${testIdPrefix}-cs-convention`}>
+    <div className={tc("flex flex-wrap items-center gap-2 text-xs text-slate-400")} data-testid={`${testIdPrefix}-cs-convention`}>
       Checkshots are
       <select className={inputCls} value={conv.depthRef} onChange={(e) => onChange({ ...conv, depthRef: e.target.value })}
         data-testid={`${testIdPrefix}-cs-depthref`} title="Depth reference of the pasted depth column. Petrel exports MD.">
@@ -44,8 +58,10 @@ export function CheckshotConventionRow({ conv, onChange, testIdPrefix = 'well-im
 
 /** Unit selector for a single MD column (deviation, tops). */
 export function MdUnitSelect({ value, onChange, testId, label = 'MD in' }) {
+  const tc = useThemeClass(THEMED_CLASSES);
+  const inputCls = tc(INPUT_CLS);
   return (
-    <label className="text-xs text-slate-400 flex items-center gap-1">
+    <label className={tc("text-xs text-slate-400 flex items-center gap-1")}>
       {label}
       <select className={inputCls} value={value} onChange={(e) => onChange(e.target.value)} data-testid={testId}>
         <option value="m">metres</option>
@@ -67,6 +83,8 @@ export function MdUnitSelect({ value, onChange, testId, label = 'MD in' }) {
  * @param {string} p.testIdPrefix  e.g. 'wdm-checkshots'
  */
 export default function PasteReplacePanel({ kind, fields, labels, convention, onConvention, onParsed, extraColumns = [], testIdPrefix }) {
+  const tc = useThemeClass(THEMED_CLASSES);
+  const inputCls = tc(INPUT_CLS);
   const [text, setText] = useState('');
   const [mapOverride, setMapOverride] = useState({});
   const [touched, setTouched] = useState(false);

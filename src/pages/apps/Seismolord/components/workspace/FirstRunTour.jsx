@@ -64,7 +64,7 @@ export default function FirstRunTour({ open, onClose, steps = TOUR_STEPS }) {
     <div className="fixed inset-0 z-[60]" data-testid="sl-tour" role="dialog" aria-label="Seismolord tour">
       {rect ? (
         <div
-          className="absolute rounded-md ring-2 ring-cyan-400 pointer-events-none"
+          className="absolute rounded-md ring-2 ring-pl-focus pointer-events-none"
           style={{
             left: Math.max(2, rect.left - 4),
             top: Math.max(2, rect.top - 4),
@@ -73,28 +73,28 @@ export default function FirstRunTour({ open, onClose, steps = TOUR_STEPS }) {
             boxShadow: '0 0 0 9999px rgba(2, 6, 23, 0.6)',
           }}
         />
-      ) : <div className="absolute inset-0 bg-slate-950/60" />}
+      ) : <div className="absolute inset-0 bg-black/60" />}
       <div
-        className="absolute w-80 rounded-lg border border-slate-700 bg-slate-900 p-3 shadow-xl text-sm text-slate-300"
+        className="absolute w-80 rounded-lg border border-pl-border bg-pl-raised p-3 shadow-pl-lg text-sm text-pl-text"
         style={{ left: pos.left, top: pos.top }}
       >
-        <p className="text-[11px] text-slate-500">{`${i + 1} of ${steps.length}`}</p>
-        <h3 className="font-semibold text-slate-100" data-testid="sl-tour-title">{step.title}</h3>
+        <p className="text-[11px] text-pl-muted">{`${i + 1} of ${steps.length}`}</p>
+        <h3 className="font-semibold text-pl-text" data-testid="sl-tour-title">{step.title}</h3>
         <p className="mt-1">{step.body}</p>
         <div className="mt-3 flex items-center gap-2">
-          <button type="button" onClick={finish} className="text-xs text-slate-400 hover:text-slate-200" data-testid="sl-tour-skip">
+          <button type="button" onClick={finish} className="text-xs text-pl-muted hover:text-pl-text" data-testid="sl-tour-skip">
             Skip tour
           </button>
           <div className="ml-auto flex gap-2">
             {i > 0 && (
-              <button type="button" onClick={() => setI(i - 1)} className="px-2 py-1 rounded border border-slate-700 text-xs hover:bg-slate-800">
+              <button type="button" onClick={() => setI(i - 1)} className="px-2 py-1 rounded border border-pl-border text-xs hover:bg-pl-sunken">
                 Back
               </button>
             )}
             <button
               type="button"
               onClick={() => (last ? finish() : setI(i + 1))}
-              className="px-2 py-1 rounded bg-cyan-600 text-white text-xs hover:bg-cyan-500"
+              className="px-2 py-1 rounded bg-pl-primary text-pl-primary-fg text-xs hover:bg-pl-primary-hover"
               data-testid="sl-tour-next"
             >
               {last ? 'Done' : 'Next'}

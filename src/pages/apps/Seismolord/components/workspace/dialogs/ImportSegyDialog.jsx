@@ -33,8 +33,8 @@ export default function ImportSegyDialog({
         onEscapeKeyDown={guard}
       >
         <DialogHeader>
-          <DialogTitle className="flex items-center text-white">
-            <Upload className="w-5 h-5 mr-2 text-cyan-400" />
+          <DialogTitle className="flex items-center text-pl-text">
+            <Upload className="w-5 h-5 mr-2 text-pl-primary-text" />
             Import SEG-Y volume
           </DialogTitle>
         </DialogHeader>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { ThemedApp } from '@/design/ThemeProvider';
 import ViewerPanel from './components/ViewerPanel';
 import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 
@@ -9,9 +10,9 @@ import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 // gracefully when unauthenticated — the tree just renders empty.
 export default function SeismolordWorkspaceHarness() {
   return (
-    <div className="h-screen w-full overflow-hidden bg-slate-950 text-white">
+    <ThemedApp className="h-screen w-full overflow-hidden">
       {/* ?tour runs the first-run tour (e2e); plain visits skip it */}
       <ViewerPanel appPaths={DEV_APP_PATHS} autoTour={new URLSearchParams(window.location.search).has('tour')} />
-    </div>
+    </ThemedApp>
   );
 }

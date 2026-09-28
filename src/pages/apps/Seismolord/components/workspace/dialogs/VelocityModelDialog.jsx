@@ -13,8 +13,8 @@ export default function VelocityModelDialog({ open, onOpenChange, children }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center text-white">
-            <Ruler className="w-5 h-5 mr-2 text-cyan-400" />
+          <DialogTitle className="flex items-center text-pl-text">
+            <Ruler className="w-5 h-5 mr-2 text-pl-primary-text" />
             Velocity model
           </DialogTitle>
         </DialogHeader>

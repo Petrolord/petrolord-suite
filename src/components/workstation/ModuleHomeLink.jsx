@@ -8,6 +8,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Home } from 'lucide-react';
 import { moduleHomePath, MODULE_LABELS } from '@/components/wells/appLinks';
+import { useDsTheme } from '@/design/themeContext';
+
+// Design system: theme roles inside an opted-in <ThemedApp>, the legacy
+// classes byte for byte everywhere else.
+const LEGACY = { link: 'text-slate-400 hover:text-slate-200', sep: 'text-slate-700' };
+const THEMED = { link: 'text-pl-muted hover:text-pl-text', sep: 'text-pl-border-strong' };
 
 /**
  * @param {Object} p
@@ -18,17 +24,18 @@ import { moduleHomePath, MODULE_LABELS } from '@/components/wells/appLinks';
  */
 export default function ModuleHomeLink({ module, label, to, testId, className = '' }) {
   const text = label || MODULE_LABELS[module] || module;
+  const cls = useDsTheme() ? THEMED : LEGACY;
   return (
     <>
       <Link
         to={to || moduleHomePath(module)}
         data-testid={testId || `module-home-${module}`}
         title={`Back to the ${text} dashboard`}
-        className={`flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 whitespace-nowrap ${className}`}
+        className={`flex items-center gap-1 text-xs ${cls.link} whitespace-nowrap ${className}`}
       >
         <Home className="h-3.5 w-3.5" /> {text}
       </Link>
-      <span className="text-slate-700 select-none" aria-hidden="true">|</span>
+      <span className={`${cls.sep} select-none`} aria-hidden="true">|</span>
     </>
   );
 }

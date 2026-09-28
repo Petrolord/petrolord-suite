@@ -11,9 +11,9 @@ import { UNKNOWN } from '@/lib/crs/tags';
 import ImportJobsIndicator from './ImportJobsIndicator';
 
 const BACKEND_DOT = {
-  ok: 'bg-emerald-400',
-  error: 'bg-red-500',
-  checking: 'bg-amber-400 animate-pulse',
+  ok: 'bg-pl-success',
+  error: 'bg-pl-danger',
+  checking: 'bg-pl-warning animate-pulse',
 };
 
 /** Self-contained Project CRS chip: shows the workspace CRS, opens the
@@ -32,7 +32,7 @@ function ProjectCrsChip() {
     <>
       <button
         type="button"
-        className={`flex items-center gap-1 hover:text-slate-200 ${unset ? 'text-amber-300' : ''}`}
+        className={`flex items-center gap-1 hover:text-pl-text ${unset ? 'text-pl-warning-text' : ''}`}
         onClick={() => setOpen(true)}
         title={unset
           ? 'No Project CRS is set. Imports will define it, or set it here.'
@@ -83,24 +83,24 @@ export default function StatusBar({
 
   return (
     <div
-      className="h-7 shrink-0 flex items-center gap-4 px-3 border-t border-slate-800
-        bg-slate-900/80 text-[11px] text-slate-400 whitespace-nowrap overflow-hidden"
+      className="h-7 shrink-0 flex items-center gap-4 px-3 border-t border-pl-border
+        bg-pl-sunken text-[11px] text-pl-muted whitespace-nowrap overflow-hidden"
     >
       <span
         ref={cursorRef}
-        className="tabular-nums text-slate-300 min-w-[260px]"
+        className="tabular-nums text-pl-text min-w-[260px]"
         data-testid="status-cursor"
       />
 
       {tracking && (
-        <span className="flex items-center gap-1.5 text-cyan-300">
+        <span className="flex items-center gap-1.5 text-pl-primary-text">
           <Loader2 className="w-3 h-3 animate-spin" />
           Tracking {tracking.tracked.toLocaleString()} / {tracking.total.toLocaleString()}
         </span>
       )}
 
       {error && (
-        <span className="flex items-center gap-1 text-red-400 truncate max-w-[40%]" title={error}>
+        <span className="flex items-center gap-1 text-pl-danger-text truncate max-w-[40%]" title={error}>
           <XCircle className="w-3 h-3 shrink-0" />
           <span className="truncate">{error}</span>
         </span>
@@ -125,7 +125,7 @@ export default function StatusBar({
         )}
         <button
           type="button"
-          className="flex items-center gap-1.5 hover:text-slate-200"
+          className="flex items-center gap-1.5 hover:text-pl-text"
           onClick={backend.check}
           title={backend.state === 'checking' ? 'Checking seismolord-engine…'
             : `seismolord-engine: ${backend.detail || backend.state} — click to re-check`}

@@ -1020,7 +1020,7 @@ function CubeView({
     <div
       ref={wrapRef}
       data-testid="cube-view"
-      className={`flex flex-col ${isFullscreen ? 'h-screen bg-slate-950 p-2'
+      className={`flex flex-col ${isFullscreen ? 'h-screen bg-pl-bg p-2'
         : fillHeight ? 'h-full min-h-0' : ''}`}
     >
       <div className="flex flex-wrap items-center gap-1 mb-1">
@@ -1121,7 +1121,7 @@ function CubeView({
           <Camera className="w-4 h-4" />
         </Button>
 
-        {busy > 0 && <Loader2 className="w-4 h-4 ml-1 animate-spin text-cyan-300" />}
+        {busy > 0 && <Loader2 className="w-4 h-4 ml-1 animate-spin text-pl-primary-text" />}
 
         <Button variant="outline" size="sm" onClick={toggleFullscreen}
           title="Fullscreen" className="ml-auto"
@@ -1135,7 +1135,10 @@ function CubeView({
         tabIndex={0}
         onKeyDown={onKeyDown}
         data-testid="cube-viewport"
-        className={`relative rounded-lg border overflow-hidden outline-none ${lightBg
+        // design system: the 3D canvas keeps its own background choice
+        // (dark by default, white on request) in both app themes
+        data-canvas={lightBg ? 'light' : 'dark'}
+        className={`relative rounded-[0.5rem] border overflow-hidden outline-none ${lightBg
           ? 'border-slate-300 bg-white' : 'border-slate-800 bg-slate-950'}
           ${fillHeight ? 'flex-1 min-h-0' : ''}`}
         style={fillHeight ? undefined : { height }}
@@ -1175,7 +1178,7 @@ function CubeView({
 
       <div
         ref={readoutRef}
-        className="text-xs text-slate-500 font-mono mt-1 h-5 whitespace-pre overflow-hidden"
+        className="text-xs text-pl-muted font-mono mt-1 h-5 whitespace-pre overflow-hidden"
       >
         drag: rotate · Shift/middle-drag: pan · wheel: zoom · Ctrl/Alt+drag a
         plane: move it · Shift+wheel or arrows: step a plane · click a plane:

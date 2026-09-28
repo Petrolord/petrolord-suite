@@ -63,26 +63,26 @@ export default function DetectFaultsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="sl-detect-faults">
         <DialogHeader>
-          <DialogTitle className="flex items-center text-white">
-            <Sparkles className="w-5 h-5 mr-2 text-cyan-400" />
+          <DialogTitle className="flex items-center text-pl-text">
+            <Sparkles className="w-5 h-5 mr-2 text-pl-primary-text" />
             Detect faults
           </DialogTitle>
         </DialogHeader>
         {!volume || !geom || volume.local ? (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-pl-muted">
             {volume?.local
               ? 'Fault detection reads the uploaded volume. Start the import to convert this survey.'
               : 'Open a converted volume in the viewer first.'}
           </p>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-pl-muted">
               Proposes faults from the seismic itself; no variance volume is needed first. Nothing is saved until
               you tick the faults to keep. Saved faults are ordinary faults: edit them with the stick tools, use them
               as tracking barriers, or delete them.
             </p>
             {busy && (
-              <div className="flex items-center text-xs text-slate-300">
+              <div className="flex items-center text-xs text-pl-text">
                 <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                 {progress ? `${progress.stage} ${progress.done} of ${progress.total}` : 'Working'}
                 <Button size="sm" variant="ghost" className="ml-2" onClick={() => jobRef.current?.cancel()}>
@@ -91,7 +91,7 @@ export default function DetectFaultsDialog({
                 </Button>
               </div>
             )}
-            {error && <p className="text-sm text-rose-300" role="alert">{error}</p>}
+            {error && <p className="text-sm text-pl-danger-text" role="alert">{error}</p>}
             <AutoFaultPicker
               geom={geom}
               dtMs={dtMs}
