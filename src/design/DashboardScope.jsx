@@ -14,7 +14,7 @@
 // dark ink frame in both themes (lead decision 1).
 //
 // The app theme tests mount their app inside this same component through
-// the shared helpers (src/design/testing/themeAssertions.js).
+// the shared test helpers (themeAssertions, installDashboardScope).
 import React from 'react';
 import { ThemedApp } from './ThemeProvider.jsx';
 

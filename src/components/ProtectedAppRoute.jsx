@@ -11,6 +11,9 @@ import { Lock, AlertCircle, ShoppingCart } from 'lucide-react';
  * @param {string} appId - The UUID of the app to check access for.
  * @param {string} appName - Display name for the error message.
  */
+// Design system (batch 7A): every route this guard protects is under
+// /dashboard, inside the one dashboard theme scope (DashboardLayout), so its
+// loading, licence-banner and access-restricted states use theme roles.
 const ProtectedAppRoute = ({ children, appId, appName }) => {
   const { user, isSuperAdmin, loading: authLoading } = useAuth();
   const { 
@@ -36,8 +39,9 @@ const ProtectedAppRoute = ({ children, appId, appName }) => {
 
   if (authLoading || (entLoading && !isSuperAdmin)) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-950">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-lime-400"></div>
+      <div className="flex items-center justify-center h-screen bg-pl-bg" role="status" aria-live="polite">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-pl-border border-t-pl-primary" aria-hidden="true"></div>
+        <span className="sr-only">Loading</span>
       </div>
     );
   }
@@ -57,7 +61,7 @@ const ProtectedAppRoute = ({ children, appId, appName }) => {
     // offline boot on a cached licence (Wellsite Studio WS6): the app opens, the banner says so
     return (
       <>
-        <div className="bg-amber-500/10 border-b border-amber-500/40 text-amber-200 text-[11px] px-3 py-1" data-testid="entitlement-stale">
+        <div className="bg-pl-warning-bg border-b border-pl-warning/40 text-pl-warning-text text-[11px] px-3 py-1" data-testid="entitlement-stale">
           Working from the licence last verified {stampedAt ? new Date(stampedAt).toLocaleDateString() : 'earlier'}; it is checked again when a connection returns.
         </div>
         {children}
@@ -67,29 +71,29 @@ const ProtectedAppRoute = ({ children, appId, appName }) => {
 
   if (!hasAccess) {
     return (
-      <div className="flex items-center justify-center h-full bg-slate-950 p-6 min-h-screen">
-        <Card className="w-full max-w-md bg-slate-900 border-slate-800 shadow-2xl">
+      <div className="flex items-center justify-center h-full bg-pl-bg p-6 min-h-screen">
+        <Card className="w-full max-w-md shadow-pl-lg">
           <CardHeader className="text-center">
-            <div className="mx-auto bg-slate-800 w-16 h-16 rounded-full flex items-center justify-center mb-4">
-              <Lock className="h-8 w-8 text-amber-500" />
+            <div className="mx-auto bg-pl-warning-bg border border-pl-warning/40 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+              <Lock className="h-8 w-8 text-pl-warning-text" aria-hidden="true" />
             </div>
-            <CardTitle className="text-2xl text-white">Access Restricted</CardTitle>
-            <CardDescription className="text-slate-400 mt-2">
+            <CardTitle className="text-2xl text-pl-text">Access Restricted</CardTitle>
+            <CardDescription className="text-pl-muted mt-2">
               You do not have an active license for <strong>{appName || 'this application'}</strong>.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-slate-950 p-4 rounded border border-slate-800 text-sm text-slate-300 flex gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-400 shrink-0" />
+            <div className="bg-pl-info-bg p-4 rounded border border-pl-info/40 text-sm text-pl-info-text flex gap-3">
+              <AlertCircle className="h-5 w-5 text-pl-info-text shrink-0" aria-hidden="true" />
               <p>Your organization needs to purchase a subscription or renew an expired license to access this feature.</p>
             </div>
             
             <div className="grid gap-3">
-              <Button className="w-full bg-lime-500 hover:bg-lime-600 text-slate-900 font-bold" onClick={() => window.location.href = '/dashboard/upgrade'}>
+              <Button className="w-full font-bold" onClick={() => window.location.href = '/dashboard/upgrade'}>
                 <ShoppingCart className="mr-2 h-4 w-4" />
                 Purchase License
               </Button>
-              <Button variant="outline" className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white" onClick={() => window.history.back()}>
+              <Button variant="outline" className="w-full" onClick={() => window.history.back()}>
                 Go Back
               </Button>
             </div>

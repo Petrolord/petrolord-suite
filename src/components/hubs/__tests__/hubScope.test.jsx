@@ -1,18 +1,18 @@
 /**
- * Design-system pilot 1: the dashboard landing and the ten module hubs opt
- * in through one scope (HubScope); nothing else under /dashboard does.
+ * Design-system pilot 1, and since batch 7A the one dashboard scope: the
+ * dashboard landing and the ten module hubs sit in HubScope (their Suspense
+ * layout route), and the theme comes from DashboardLayout's single scope
+ * (DashboardScope) around every /dashboard page.
  *
  *   1. App.jsx wires exactly the landing and the ten hubs inside HubScope,
  *      and no /apps/ route.
- *   2. Mounted through the real DashboardLayout, a hub sits in a light
- *      [data-pl-root] scope with the toggle in its header, and the toggle
+ *   2. Mounted through the real DashboardLayout, a hub sits in the light
+ *      dashboard scope with the toggle in its header, and the toggle
  *      switches light and dark.
- *   3. An unmigrated app opened from a hub (the test-only LegacyAppFixture,
- *      since Wave 0A; a real app was the proof until then and had to move
- *      each time it migrated)
- *      has no [data-pl-theme] ancestor, no toggle and no pl-* class, and its
- *      markup is identical to the app rendered on its own.
- *   4. The sidebar is a fixed dark ink scope in both themes.
+ *   3. A page opened from a hub (the test-only LegacyAppFixture stands in)
+ *      renders inside the same single scope: one [data-pl-root], one toggle.
+ *   4. The sidebar is a fixed dark ink scope in both themes, outside the
+ *      dashboard scope.
  *   5. Cards, status badges, the empty state and the loading state use
  *      theme roles in both themes.
  */
@@ -21,7 +21,7 @@ import fs from 'fs';
 import path from 'path';
 import '@testing-library/jest-dom';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, Outlet } from 'react-router-dom';
 
 jest.mock('@/lib/customSupabaseClient', () => {
   const chain = () => {
@@ -81,7 +81,9 @@ import ApplicationsGrid from '@/components/ApplicationsGrid';
 // eslint-disable-next-line import/first
 import { ThemedApp } from '@/design/ThemeProvider';
 // eslint-disable-next-line import/first
-import LegacyAppFixture, { LEGACY_FIXTURE_PATH, LEGACY_FIXTURE_TITLE } from '@/design/testing/LegacyAppFixture';
+import LegacyAppFixture, { LEGACY_FIXTURE_TITLE } from '@/design/testing/LegacyAppFixture';
+// eslint-disable-next-line import/first
+import { DashboardScope, DASHBOARD_SCOPE_TEST_ID } from '@/design/DashboardScope';
 
 beforeAll(() => {
   global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
@@ -108,7 +110,7 @@ const AUTH = {
   signOut: jest.fn(),
 };
 
-const APP_PATH = LEGACY_FIXTURE_PATH;
+const APP_PATH = '/dashboard/apps/legacy/sample-app';
 
 function Shell({ at }) {
   return (
@@ -127,8 +129,6 @@ function Shell({ at }) {
   );
 }
 
-// Radix and React generate ids per mount; they are not styling.
-const normalise = (html) => html.replace(/(id|aria-controls|aria-labelledby|aria-describedby|for)="[^"]*"/g, '$1=""');
 
 describe('App.jsx wiring', () => {
   const app = fs.readFileSync(path.resolve(__dirname, '../../../App.jsx'), 'utf8');
@@ -145,7 +145,7 @@ describe('App.jsx wiring', () => {
     ]);
   });
 
-  it('keeps every application route outside the scope', () => {
+  it('keeps every application route outside the hubs layout route', () => {
     expect(block).not.toMatch(/path="apps\//);
     expect(app.match(/<HubScope \/>/g)).toHaveLength(1);
   });
@@ -155,7 +155,9 @@ describe('a module hub inside the dashboard shell', () => {
   it('is a light themed scope with the toggle in its header, and the toggle switches the theme', async () => {
     mockApps = [{ id: 'a1', app_name: 'Data Quality Studio', description: 'Checks', module: 'Data & AI', slug: 'data-quality-studio' }];
     render(<Shell at="/dashboard/data-ai" />);
-    const scope = await screen.findByTestId('hub-scope');
+    await screen.findByTestId('hub-scope');
+    const scope = screen.getByTestId(DASHBOARD_SCOPE_TEST_ID);
+    expect(scope).toContainElement(screen.getByTestId('hub-scope'));
     expect(scope).toHaveAttribute('data-pl-theme', 'light');
     expect(scope).toHaveAttribute('data-pl-root');
     const heading = screen.getByRole('heading', { level: 1, name: 'Data & AI' });
@@ -177,36 +179,29 @@ describe('a module hub inside the dashboard shell', () => {
       expect(rail.className).toContain('bg-pl-surface');
       expect(rail.className).not.toMatch(/slate-/);
     });
-    // the sidebar is not inside the hub scope, and the hub is not inside it
+    // the sidebar is not inside the dashboard scope, and the hub is not inside it
     expect(screen.getByTestId('hub-scope').closest('[data-testid="dashboard-sidebar-rail"]')).toBeNull();
+    rails.forEach((rail) => expect(rail.closest(`[data-testid="${DASHBOARD_SCOPE_TEST_ID}"]`)).toBeNull());
     expect(screen.getByTestId('dashboard-mobile-bar')).toHaveAttribute('data-pl-theme', 'dark');
   });
 });
 
-describe('an unmigrated app opened from a hub', () => {
-  it('has no themed ancestor, no toggle and no pl-* class, and renders exactly as it does alone', async () => {
-    const { unmount } = render(<Shell at={APP_PATH} />);
+describe('a page opened from a hub', () => {
+  it('renders inside the same single dashboard scope, and its header toggle switches it', async () => {
+    render(<Shell at={APP_PATH} />);
     const title = await screen.findByText(LEGACY_FIXTURE_TITLE);
-    expect(title.closest('[data-pl-theme]')).toBeNull();
-    expect(document.querySelector('[data-pl-root]')).toBeNull();
-    expect(screen.queryByTestId('theme-toggle')).toBeNull();
+    const scope = screen.getByTestId(DASHBOARD_SCOPE_TEST_ID);
+    expect(document.querySelectorAll('[data-pl-root]')).toHaveLength(1);
+    expect(title.closest('[data-pl-root]')).toBe(scope);
+    expect(scope).toHaveAttribute('data-pl-theme', 'light');
     // the sidebar and the phone bar are not shown inside an application
     expect(screen.queryByTestId('dashboard-sidebar-rail')).toBeNull();
     expect(screen.queryByTestId('dashboard-mobile-bar')).toBeNull();
-    const main = document.querySelector('main');
-    expect(main.innerHTML).not.toMatch(/\b(?:bg|text|border|ring)-pl-/);
-    const inShell = normalise(main.querySelector(':scope > div.min-h-full').innerHTML);
-    unmount();
-
-    const alone = render(
-      <AuthContext.Provider value={AUTH}>
-        <MemoryRouter initialEntries={[APP_PATH]}>
-          <LegacyAppFixture />
-        </MemoryRouter>
-      </AuthContext.Provider>,
-    );
-    await screen.findByText(LEGACY_FIXTURE_TITLE);
-    expect(inShell).toBe(normalise(alone.container.innerHTML));
+    const toggles = screen.getAllByTestId('theme-toggle');
+    expect(toggles).toHaveLength(1);
+    fireEvent.click(toggles[0]);
+    expect(scope).toHaveAttribute('data-pl-theme', 'dark');
+    expect(window.localStorage.getItem('petrolord.theme.v1:u1')).toBe('dark');
   });
 });
 
@@ -275,11 +270,29 @@ describe('first paint on a cold load', () => {
       <AuthContext.Provider value={{ ...AUTH, user: null, loading: true }}>
         <MemoryRouter initialEntries={['/x']}>
           <Routes>
-            <Route element={<HubScope />}><Route path="/x" element={<p>hub</p>} /></Route>
+            <Route element={<DashboardScope><Outlet /></DashboardScope>}>
+              <Route element={<HubScope />}><Route path="/x" element={<p>hub</p>} /></Route>
+            </Route>
           </Routes>
         </MemoryRouter>
       </AuthContext.Provider>,
     );
-    expect(screen.getByTestId('hub-scope')).toHaveAttribute('data-pl-theme', 'dark');
+    expect(screen.getByTestId(DASHBOARD_SCOPE_TEST_ID)).toHaveAttribute('data-pl-theme', 'dark');
+    expect(screen.getByTestId(DASHBOARD_SCOPE_TEST_ID)).toContainElement(screen.getByText('hub'));
+  });
+
+  it('the layout itself paints the themed loader while the session restores', () => {
+    window.localStorage.setItem('petrolord.theme.v1.last', 'dark');
+    render(
+      <AuthContext.Provider value={{ ...AUTH, user: null, loading: true }}>
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes><Route path="/dashboard" element={<DashboardLayout />} /></Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>,
+    );
+    const loader = screen.getByTestId('themed-loading');
+    expect(loader).toHaveAttribute('data-pl-theme', 'dark');
+    expect(loader).toHaveAttribute('role', 'status');
+    expect(document.querySelector('.bg-slate-900, .border-lime-400')).toBeNull();
   });
 });

@@ -233,7 +233,7 @@ export function installDomShims() {
  *
  * renderApp mounts the app as its route does; for a /dashboard route the
  * render happens inside the dashboard scope (installDashboardScope, for
- * every test in the block that calls describeAppTheme), and a page outside
+ * the four standard tests only), and a page outside
  * /dashboard opens its own scope. ready (optional, may be async) waits for
  * the first screen. scopeTestId (optional) is the app's root test id; the
  * checks run on the scope around it.
@@ -244,10 +244,10 @@ export function installDomShims() {
 export function describeAppTheme({
   name, route, renderApp, ready, scopeTestId, userId = null, allow = [],
 }) {
-  if (typeof route === 'string' && (route === DASHBOARD_PREFIX || route.startsWith(`${DASHBOARD_PREFIX}/`))) {
-    installDashboardScope({ userId });
-  }
+  const onDashboard = typeof route === 'string'
+    && (route === DASHBOARD_PREFIX || route.startsWith(`${DASHBOARD_PREFIX}/`));
   describe(`${name} on the design system`, () => {
+    if (onDashboard) installDashboardScope({ userId });
     beforeAll(installDomShims);
     beforeEach(() => {
       try { window.localStorage.clear(); } catch { /* storage unavailable */ }
