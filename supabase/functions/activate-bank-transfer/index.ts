@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
 import { redeemBridgeForQuote } from "../_shared/nextgen-bridge.ts";
+import { subscriptionWindow, provisionedEnd } from "../_shared/billing-term.ts";
 
 // activate-bank-transfer
 // --------------------------------------------------------------------------
@@ -10,8 +11,10 @@ import { redeemBridgeForQuote } from "../_shared/nextgen-bridge.ts";
 //   1. mark the subscription active + paid,
 //   2. mark the quote payment_verified / ACCEPTED,
 //   3. set the organization suite_status = ACTIVE,
-//   4. call manual_verify_quote(text quote_id, uuid org_id) to provision the
-//      purchased modules/apps/seats — the same RPC the Paystack flow uses.
+//   4. call manual_verify_quote(text quote_id, uuid org_id, paid_at) to
+//      provision the purchased modules/apps/seats — the same RPC the Paystack
+//      flow uses. It also sets their end dates (renewals stack on a future
+//      end, top-ups never shorten); the subscription then ends on that date.
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -47,24 +50,28 @@ serve(async (req) => {
     // 2. Load the linked quote (subscriptions.quote_id is the quotes.id uuid;
     //    manual_verify_quote needs the text quote_id, e.g. "Q-123").
     let textQuoteId: string | null = null;
+    // deno-lint-ignore no-explicit-any
+    let quoteRow: any = null;
     if (sub.quote_id) {
       const { data: quote } = await supabase
         .from("quotes")
-        .select("id, quote_id, organization_id")
+        .select("id, quote_id, organization_id, billing_term, billing_period")
         .eq("id", sub.quote_id)
         .maybeSingle();
-      if (quote) textQuoteId = quote.quote_id;
+      if (quote) { textQuoteId = quote.quote_id; quoteRow = quote; }
     }
 
-    // 3. Activate the subscription. Recompute the billing window from today.
-    const billingPeriod =
-      sub.billing_period || (/month/i.test(sub.term || "") ? "monthly" : "annual");
-    const start = new Date();
-    const end = new Date(start);
-    if (billingPeriod === "monthly") end.setMonth(end.getMonth() + 1);
-    else end.setFullYear(end.getFullYear() + 1);
-    const startDate = start.toISOString().slice(0, 10);
-    const endDate = end.toISOString().slice(0, 10);
+    // 3. Activate the subscription. The window starts today (approval is the
+    //    payment date on this rail) and runs for the term paid for, from the
+    //    shared term table the RPC also uses (quarterly = 3 months; before
+    //    2026-09-28 anything not monthly got a year here).
+    const paidAt = new Date().toISOString();
+    const { startDate, end } = subscriptionWindow(
+      paidAt,
+      quoteRow?.billing_term || sub.term,
+      quoteRow?.billing_period || sub.billing_period
+    );
+    let endDate = end.toISOString().slice(0, 10);
 
     const { error: subUpdErr } = await supabase
       .from("subscriptions")
@@ -106,26 +113,29 @@ serve(async (req) => {
     //    re-run provisioning, mirroring the Paystack path's log-and-continue.
     let provisioningWarning: string | null = null;
     if (textQuoteId && orgId) {
-      const { error: rpcErr } = await supabase.rpc("manual_verify_quote", {
+      const { data: rpcResult, error: rpcErr } = await supabase.rpc("manual_verify_quote", {
         p_quote_id: textQuoteId,
-        p_organization_id: orgId
+        p_organization_id: orgId,
+        p_paid_at: paidAt
       });
       if (rpcErr) {
         console.error("Provisioning error:", rpcErr);
         provisioningWarning = rpcErr.message;
-      } else if (sub.quote_id) {
-        // Give this quote's rows (new purchases and renewed held apps, which
-        // manual_verify_quote re-points at this quote) the same end date as
-        // the subscription activated above. Without it they were left NULL
-        // ("never expires"). Best-effort, like the provisioning call.
-        const { error: expErr } = await supabase
-          .from("purchased_modules")
-          .update({ expiry_date: end.toISOString() })
-          .eq("organization_id", orgId)
-          .eq("quote_id", sub.quote_id);
-        if (expErr) {
-          console.error("Expiry sync error:", expErr);
-          provisioningWarning = `Access granted but the end date was not set: ${expErr.message}`;
+      } else {
+        // The RPC set the apps' end dates (a renewal stacks on a future end).
+        // The subscription ends on the same date. No purchased_modules update
+        // here: the RPC is the only place that sets those end dates.
+        const provisioned = provisionedEnd(end, rpcResult).toISOString().slice(0, 10);
+        if (provisioned !== endDate) {
+          endDate = provisioned;
+          const { error: endErr } = await supabase
+            .from("subscriptions")
+            .update({ end_date: endDate, next_renewal_date: endDate, updated_at: new Date().toISOString() })
+            .eq("id", sub.id);
+          if (endErr) {
+            console.error("Subscription end date sync error:", endErr);
+            provisioningWarning = `Access granted but the subscription end date was not updated: ${endErr.message}`;
+          }
         }
       }
     } else {

@@ -3,9 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
 import { redeemBridgeForQuote } from "../_shared/nextgen-bridge.ts";
 import { redeemPromoForQuote } from "../_shared/promo-codes.ts";
-import { isHseQuote, provisionPaidQuote, grantHseWithSuite, suiteSubscriptionModules } from "../_shared/provision-quote.ts";
+import { isHseQuote, provisionPaidQuote, upsertSuiteSubscription } from "../_shared/provision-quote.ts";
 import { loadNgnPerUsd, expectedNgnForQuote, checkPaystackAmount } from "../_shared/paystack-ngn.ts";
-import { subscriptionWindow } from "../_shared/billing-term.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
 
 // Coerce the quote's jsonb `modules` (strings or objects) into a plain text[]
@@ -267,6 +266,7 @@ serve(async (req)=>{
       });
     }
     if (isSuccess) {
+      let rpcResult = null;
       // 1. Call manual_verify_quote to provision access (Legacy/Existing logic support)
       if (orgId && quote_id) {
         // We need to fetch the numeric quote id? Or text? 
@@ -274,10 +274,15 @@ serve(async (req)=>{
         // We assume quote_id passed in body is the text ID (e.g. Q-123)
         // First ensure we have the correct text ID. If `quote_id` is UUID, we need to fetch text ID.
         // The param named `quote_id` in request often comes from URL param which is text ID in previous context.
-        const { error: rpcError } = await supabase.rpc('manual_verify_quote', {
+        // The RPC also sets this quote's entitlement end dates from the paid
+        // date (renewals stack on a future end, top-ups never shorten, a
+        // re-run changes nothing). It is the only place that sets them.
+        const { data: rpcData, error: rpcError } = await supabase.rpc('manual_verify_quote', {
           p_quote_id: quote_id,
-          p_organization_id: orgId
+          p_organization_id: orgId,
+          p_paid_at: paymentDate
         });
+        rpcResult = rpcData;
         if (rpcError) {
           console.error("Provisioning error:", rpcError);
           await supabase.from("payment_audit_log").insert({
@@ -322,65 +327,21 @@ serve(async (req)=>{
         await redeemPromoForQuote(supabase, quote_id, 'paystack');
       }
 
-      // Create/refresh an ACTIVE subscription row + a real expiry. The Paystack
-      // flow previously created no subscription (so Subscription Management read
-      // empty) and manual_verify_quote left purchased_modules.expiry_date NULL.
+      // Create/refresh the ACTIVE subscription row (same helper as the webhook
+      // and Stripe, keyed by org + quote so a second finalizer never adds a
+      // row). Its end date is the one manual_verify_quote set on the apps.
       // Best-effort: a failure here must not undo the payment acknowledgement.
       if (orgId && quoteRow) {
-        try {
-          const term = quoteRow.billing_term || 'annual';
-          const userLimit = quoteRow.user_seats || quoteRow.seats || 1;
-          // The term paid for is the term granted (quarterly = 3 months): shared table.
-          const { billingPeriod, end, startDate, endDate } = subscriptionWindow(paymentDate, term, quoteRow.billing_period);
-
-          const subRow = {
-            organization_id: orgId,
-            quote_id: quoteRow.id, // subscriptions.quote_id is uuid -> quotes.id
-            modules: suiteSubscriptionModules(quoteRow.modules),
-            user_limit: userLimit,
-            term,
-            billing_period: billingPeriod,
-            start_date: startDate,
-            end_date: endDate,
-            next_renewal_date: endDate,
-            renewal_status: 'pending',
-            status: 'active',
-            payment_status: 'COMPLETED',
-            quote_details: {
-              quote_id: quote_id,
-              quote_uuid: quoteRow.id,
-              total_amount: quoteRow.total_amount,
-              currency: quoteRow.currency || 'USD',
-              billing_term: term,
-              apps: quoteRow.apps ?? [],
-              modules: quoteRow.modules ?? [],
-              seats: userLimit,
-              payment_method: 'paystack',
-              paystack_reference: reference
-            },
-            updated_at: new Date().toISOString()
-          };
-
-          const { data: existingSub } = await supabase.from('subscriptions')
-            .select('id').eq('organization_id', orgId).eq('quote_id', quoteRow.id).limit(1).maybeSingle();
-          if (existingSub?.id) {
-            await supabase.from('subscriptions').update(subRow).eq('id', existingSub.id);
-          } else {
-            await supabase.from('subscriptions').insert(subRow);
-          }
-
-          // Give the freshly provisioned entitlements a real end date (they were
-          // provisioned with a NULL expiry by manual_verify_quote).
-          await supabase.from('purchased_modules')
-            .update({ expiry_date: end.toISOString() })
-            .eq('organization_id', orgId)
-            .eq('quote_id', quoteRow.id);
-
-          // HSE rides with the Suite subscription for the same window.
-          await grantHseWithSuite(supabase, orgId, userLimit, '[verify-paystack]');
-        } catch (subErr) {
-          console.error('Subscription/expiry sync failed (non-fatal):', subErr.message);
-        }
+        await upsertSuiteSubscription(supabase, {
+          orgId,
+          quote: quoteRow,
+          quoteTextId: quote_id,
+          paidAt: paymentDate,
+          provider: 'paystack',
+          reference,
+          rpcResult,
+          logPrefix: '[verify-paystack]'
+        });
       }
 
       // --- Task 7: Trigger Notification (best-effort, idempotent) ---
