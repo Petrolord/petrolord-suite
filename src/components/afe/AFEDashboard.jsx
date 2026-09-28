@@ -27,7 +27,7 @@ export const todayIsoDate = (now = new Date()) => {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 };
 
-const NEUTRAL_TILE = 'text-slate-400 bg-slate-400';
+const NEUTRAL_TILE = 'text-pl-muted bg-pl-sunken';
 
 const hasWindow = (afe) => Boolean(afe?.start_date && afe?.end_date)
   && !Number.isNaN(Date.parse(afe.start_date)) && !Number.isNaN(Date.parse(afe.end_date));
@@ -51,7 +51,7 @@ export const spiTile = (afe, metrics, full = false) => {
   return {
     value: full ? formatFull(metrics.spi, FULL_PRECISION_DECIMALS) : metrics.spi.toFixed(2),
     subtext: metrics.spi >= 1 ? 'Ahead of Schedule' : 'Behind Schedule',
-    colorClass: metrics.spi >= 1 ? 'text-green-400 bg-green-400' : 'text-red-400 bg-red-400',
+    colorClass: metrics.spi >= 1 ? 'text-pl-success-text bg-pl-success' : 'text-pl-danger-text bg-pl-danger',
   };
 };
 
@@ -69,7 +69,7 @@ export const cpiTile = (metrics, full = false) => {
   return {
     value: full ? formatFull(metrics.cpi, FULL_PRECISION_DECIMALS) : metrics.cpi.toFixed(2),
     subtext: metrics.cpi >= 1 ? 'Under Budget' : 'Over Budget',
-    colorClass: metrics.cpi >= 1 ? 'text-green-400 bg-green-400' : 'text-red-400 bg-red-400',
+    colorClass: metrics.cpi >= 1 ? 'text-pl-success-text bg-pl-success' : 'text-pl-danger-text bg-pl-danger',
   };
 };
 
@@ -98,21 +98,21 @@ export const eacTrendPct = (metrics) => (metrics.totalBudget > 0
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 const KPICard = ({ title, value, subtext, icon: Icon, colorClass, trend }) => (
-  <Card className="bg-slate-900 border-slate-800 hover:border-slate-700 transition-colors">
+  <Card className="transition-colors">
     <CardContent className="p-5">
       <div className="flex justify-between items-start">
         <div>
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">{title}</p>
-          <h3 className="text-xl font-bold text-white mt-1">{value}</h3>
+          <p className="text-xs font-medium text-pl-muted uppercase tracking-wider">{title}</p>
+          <h3 className="text-xl font-bold text-pl-text mt-1">{value}</h3>
         </div>
         <div className={`p-2 rounded-lg bg-opacity-10 ${colorClass}`}>
           <Icon className="w-5 h-5" />
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between">
-        <span className="text-xs text-slate-500">{subtext}</span>
+        <span className="text-xs text-pl-muted">{subtext}</span>
         {trend && (
-            <span className={`text-xs font-bold ${trend > 0 ? 'text-red-400' : 'text-green-400'}`}>
+            <span className={`text-xs font-bold ${trend > 0 ? 'text-pl-danger-text' : 'text-pl-success-text'}`}>
                 {trend > 0 ? '+' : ''}{trend}%
             </span>
         )}
@@ -178,8 +178,8 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
 
   if (inputError) {
     return (
-      <div role="alert" className="flex items-start gap-2 rounded border border-red-800 bg-red-950/40 p-4 text-sm text-red-200">
-        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-400" />
+      <div role="alert" className="flex items-start gap-2 rounded border border-pl-danger/40 bg-pl-danger-bg p-4 text-sm text-pl-danger-text">
+        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-pl-danger-text" />
         <span>The dashboard cannot be calculated: {inputError}</span>
       </div>
     );
@@ -196,8 +196,8 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
           are off the curve now, and the dashboard asks for their dates
           rather than quietly leaving the money out. */}
       {metrics.undatedInvoices > 0 ? (
-        <div role="status" className="flex items-start gap-2 rounded border border-amber-800 bg-amber-950/40 p-3 text-sm text-amber-100">
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-amber-400" />
+        <div role="status" className="flex items-start gap-2 rounded border border-pl-warning/40 bg-pl-warning-bg p-3 text-sm text-pl-warning-text">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-pl-warning-text" />
           <span>
             {metrics.undatedInvoices} invoice{metrics.undatedInvoices === 1 ? ' has' : 's have'} no
             date, so {metrics.undatedInvoices === 1 ? 'it is' : 'they are'} not on the S-curve.
@@ -207,7 +207,7 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
         </div>
       ) : null}
 
-      <div className="flex items-center gap-2 text-xs text-slate-400">
+      <div className="flex items-center gap-2 text-xs text-pl-muted">
         <label htmlFor="afe-as-of" className="font-medium">As of</label>
         <input
           id="afe-as-of"
@@ -215,7 +215,7 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
           data-testid="afe-as-of"
           value={asOfInput}
           onChange={(e) => setAsOfInput(e.target.value)}
-          className="h-8 rounded border border-slate-700 bg-slate-900 px-2 text-slate-200"
+          className="h-8 rounded border border-pl-border bg-pl-surface px-2 text-pl-text"
         />
         <span>Planned value, SPI and the S-curve are measured at this date.</span>
       </div>
@@ -227,28 +227,28 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
           value={currencyFormatter(metrics.totalBudget)} 
           subtext="Original + Approved Changes"
           icon={DollarSign}
-          colorClass="text-blue-400 bg-blue-400"
+          colorClass="text-pl-info-text bg-pl-info"
         />
         <KPICard 
           title="Commitments" 
           value={currencyFormatter(metrics.totalCommitments)} 
           subtext="Open POs + Contracts"
           icon={Activity}
-          colorClass="text-amber-400 bg-amber-400"
+          colorClass="text-pl-warning-text bg-pl-warning"
         />
         <KPICard 
           title="Actual Cost (VOWD)" 
           value={currencyFormatter(metrics.totalActuals)} 
           subtext={`${metrics.percentSpent.toFixed(1)}% of Budget`}
           icon={BarChart2}
-          colorClass="text-purple-400 bg-purple-400"
+          colorClass="text-pl-primary-text bg-purple-400"
         />
         <KPICard 
           title="EAC (Forecast)" 
           value={currencyFormatter(metrics.totalForecast)} 
           subtext={forecastFlagText(metrics) || `Variance: ${currencyFormatter(metrics.variance)}`}
           icon={TrendingUp}
-          colorClass="text-cyan-400 bg-cyan-400"
+          colorClass="text-pl-primary-text bg-pl-primary"
           trend={eacTrendPct(metrics)}
         />
         <KPICard
@@ -270,11 +270,11 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
       {/* Row 2: Main Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* S-Curve */}
-        <Card className="bg-slate-900 border-slate-800 lg:col-span-2">
+        <Card className="lg:col-span-2">
             <CardHeader>
-                <CardTitle className="text-sm font-medium text-slate-200 flex justify-between">
+                <CardTitle className="text-sm font-medium text-pl-text flex justify-between">
                     <span>Cumulative Spend (S-Curve)</span>
-                    <span className="text-slate-500 text-xs font-normal">Planned vs Actual vs Forecast</span>
+                    <span className="text-pl-muted text-xs font-normal">Planned vs Actual vs Forecast</span>
                 </CardTitle>
             </CardHeader>
             <CardContent className="h-[350px]">
@@ -306,9 +306,9 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
         </Card>
 
         {/* Cost Breakdown Pie */}
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardHeader>
-                <CardTitle className="text-sm font-medium text-slate-200">Cost Distribution</CardTitle>
+                <CardTitle className="text-sm font-medium text-pl-text">Cost Distribution</CardTitle>
             </CardHeader>
             <CardContent className="h-[350px]">
                 <div className="relative h-full w-full rounded-md bg-white p-2">
@@ -341,9 +341,9 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
       {/* Row 3: Breakdown & Variances */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
          {/* Category Bar Chart */}
-         <Card className="bg-slate-900 border-slate-800">
+         <Card>
             <CardHeader>
-                <CardTitle className="text-sm font-medium text-slate-200">Budget vs Actual by Category</CardTitle>
+                <CardTitle className="text-sm font-medium text-pl-text">Budget vs Actual by Category</CardTitle>
             </CardHeader>
             <CardContent className="h-[300px]">
                 <div className="relative h-full w-full rounded-md bg-white p-2">
@@ -367,27 +367,27 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
         </Card>
 
         {/* Top Variances List */}
-        <Card className="bg-slate-900 border-slate-800 flex flex-col">
+        <Card className="flex flex-col">
             <CardHeader>
-                <CardTitle className="text-sm font-medium text-slate-200">Top 5 Cost Variances</CardTitle>
+                <CardTitle className="text-sm font-medium text-pl-text">Top 5 Cost Variances</CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-auto">
                 <div className="space-y-4">
                     {topVariances.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between border-b border-slate-800 pb-2 last:border-0">
+                        <div key={idx} className="flex items-center justify-between border-b border-pl-border pb-2 last:border-0">
                             <div className="flex-1">
-                                <p className="text-sm font-medium text-white truncate">{item.description || item.code}</p>
-                                <p className="text-xs text-slate-500">{item.category} • {item.vendor || 'No Vendor'}</p>
+                                <p className="text-sm font-medium text-pl-text truncate">{item.description || item.code}</p>
+                                <p className="text-xs text-pl-muted">{item.category} • {item.vendor || 'No Vendor'}</p>
                             </div>
                             <div className="text-right">
-                                <p className={`text-sm font-mono font-bold ${item.varianceVal >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                <p className={`text-sm font-mono font-bold ${item.varianceVal >= 0 ? 'text-pl-success-text' : 'text-pl-danger-text'}`}>
                                     {item.varianceVal > 0 ? '+' : ''}{currencyFormatter(item.varianceVal)}
                                 </p>
-                                <p className="text-xs text-slate-500">Var</p>
+                                <p className="text-xs text-pl-muted">Var</p>
                             </div>
                         </div>
                     ))}
-                    {topVariances.length === 0 && <div className="text-center text-slate-500 py-10">No significant variances.</div>}
+                    {topVariances.length === 0 && <div className="text-center text-pl-muted py-10">No significant variances.</div>}
                 </div>
             </CardContent>
         </Card>

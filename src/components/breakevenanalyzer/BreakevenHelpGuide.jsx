@@ -92,7 +92,7 @@ export const BreakevenHelpContent = () => (
         <AccordionItem value={item.id} key={item.id}>
           <AccordionTrigger className="text-base hover:no-underline">
             <div className="flex items-center">
-              <Icon className="w-5 h-5 mr-3 text-pl-primary-text" />
+              <Icon className="w-5 h-5 mr-3 text-pl-muted" />
               {item.title}
             </div>
           </AccordionTrigger>

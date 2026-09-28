@@ -154,7 +154,7 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
   const categories = ['All', ...new Set(costItems.map(i => i.category || 'Uncategorized'))];
 
   return (
-    <div className="space-y-4 bg-slate-900/50 p-4 rounded border border-slate-800">
+    <div className="space-y-4 bg-pl-surface p-4 rounded border border-pl-border">
       <div className="flex flex-wrap justify-between items-center gap-4">
         <div className="flex gap-2">
             {categories.map(cat => (
@@ -173,24 +173,24 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
             <Button variant="outline" size="sm" onClick={handleExport}>
                 <Download className="w-4 h-4 mr-2" /> Excel
             </Button>
-            <Button onClick={() => handleOpenDialog()} size="sm" className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={() => handleOpenDialog()} size="sm" className="bg-pl-info hover:bg-pl-info-bg">
                 <PlusCircle className="w-4 h-4 mr-2" /> Add Item
             </Button>
         </div>
       </div>
 
-      <div className="rounded-md border border-slate-800 overflow-hidden">
+      <div className="rounded-md border border-pl-border overflow-hidden">
         <Table>
-          <TableHeader className="bg-slate-950">
+          <TableHeader className="bg-pl-bg">
             <TableRow>
-              <TableHead className="text-slate-300 w-[80px]">WBS</TableHead>
-              <TableHead className="text-slate-300">Description</TableHead>
-              <TableHead className="text-slate-300">Vendor</TableHead>
-              <TableHead className="text-right text-slate-300">Budget</TableHead>
-              <TableHead className="text-right text-slate-300">Actuals</TableHead>
-              <TableHead className="text-right text-slate-300">Forecast (EAC)</TableHead>
-              <TableHead className="text-right text-slate-300">Variance</TableHead>
-              <TableHead className="text-center text-slate-300 w-[100px]">Progress</TableHead>
+              <TableHead className="text-pl-text w-[80px]">WBS</TableHead>
+              <TableHead className="text-pl-text">Description</TableHead>
+              <TableHead className="text-pl-text">Vendor</TableHead>
+              <TableHead className="text-right text-pl-text">Budget</TableHead>
+              <TableHead className="text-right text-pl-text">Actuals</TableHead>
+              <TableHead className="text-right text-pl-text">Forecast (EAC)</TableHead>
+              <TableHead className="text-right text-pl-text">Variance</TableHead>
+              <TableHead className="text-center text-pl-text w-[100px]">Progress</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -206,35 +206,35 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
                 const progress = Number(item.progress) || 0;
                 
                 return (
-                  <TableRow key={item.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
-                    <TableCell className="font-mono text-xs text-slate-400">{item.wbs_code || item.code}</TableCell>
+                  <TableRow key={item.id} className="border-b border-pl-border hover:bg-pl-sunken">
+                    <TableCell className="font-mono text-xs text-pl-muted">{item.wbs_code || item.code}</TableCell>
                     <TableCell>
-                        <div className="font-medium text-slate-200">{item.description}</div>
-                        <div className="text-[10px] text-slate-500">{item.category}</div>
+                        <div className="font-medium text-pl-text">{item.description}</div>
+                        <div className="text-[10px] text-pl-muted">{item.category}</div>
                     </TableCell>
-                    <TableCell className="text-slate-400 text-sm">{item.vendor || '-'}</TableCell>
-                    <TableCell className="text-right text-blue-400 font-mono">{currencyFormatter(item.budget)}</TableCell>
-                    <TableCell className="text-right text-slate-300 font-mono">{currencyFormatter(item.actual)}</TableCell>
-                    <TableCell className="text-right text-amber-400 font-mono">
+                    <TableCell className="text-pl-muted text-sm">{item.vendor || '-'}</TableCell>
+                    <TableCell className="text-right text-pl-info-text font-mono">{currencyFormatter(item.budget)}</TableCell>
+                    <TableCell className="text-right text-pl-text font-mono">{currencyFormatter(item.actual)}</TableCell>
+                    <TableCell className="text-right text-pl-warning-text font-mono">
                       {currencyFormatter(forecast)}
                       {check.forecastBelowCommitted && (
-                        <span className="block text-[10px] font-sans text-amber-300" data-testid={`below-committed-${item.id}`}>
+                        <span className="block text-[10px] font-sans text-pl-warning-text" data-testid={`below-committed-${item.id}`}>
                           {currencyFormatter(check.forecastBelowCommittedBy)} below spent and committed
                         </span>
                       )}
                       {check.forecastIgnored === 'negative' && (
-                        <span className="block text-[10px] font-sans text-red-300" data-testid={`forecast-ignored-${item.id}`}>
+                        <span className="block text-[10px] font-sans text-pl-danger-text" data-testid={`forecast-ignored-${item.id}`}>
                           negative forecast ignored, standard rule used
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className={`text-right font-mono font-bold ${variance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    <TableCell className={`text-right font-mono font-bold ${variance >= 0 ? 'text-pl-success-text' : 'text-pl-danger-text'}`}>
                       {currencyFormatter(variance)}
                     </TableCell>
                     <TableCell>
                         <div className="flex flex-col gap-1">
                             <Progress value={progress} className="h-1.5" />
-                            <span className="text-[10px] text-slate-400 text-center">{progress}%</span>
+                            <span className="text-[10px] text-pl-muted text-center">{progress}%</span>
                         </div>
                     </TableCell>
                     <TableCell className="text-right">
@@ -242,9 +242,9 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreHorizontal className="w-4 h-4" /></Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-slate-900 border-slate-700 text-white">
+                        <DropdownMenuContent align="end" className="bg-pl-surface border-pl-border text-pl-text">
                             <DropdownMenuItem onClick={() => handleOpenDialog(item)}><Edit className="w-3 h-3 mr-2" /> Edit</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDelete(item.id)} className="text-red-400"><Trash2 className="w-3 h-3 mr-2" /> Delete</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDelete(item.id)} className="text-pl-danger-text"><Trash2 className="w-3 h-3 mr-2" /> Delete</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -253,7 +253,7 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
             })}
             {filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-slate-500">No items found.</TableCell>
+                <TableCell colSpan={9} className="text-center py-8 text-pl-muted">No items found.</TableCell>
               </TableRow>
             )}
           </TableBody>
@@ -261,7 +261,7 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-2xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingItem ? 'Edit Cost Item' : 'New Cost Item'}</DialogTitle>
           </DialogHeader>
@@ -270,7 +270,7 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
               <div>
                 <Label>Category</Label>
                 <select 
-                  className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm"
+                  className="w-full bg-pl-sunken border border-pl-border rounded p-2 text-sm"
                   value={formData.category}
                   onChange={e => setFormData({...formData, category: e.target.value})}
                 >
@@ -279,34 +279,34 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
               </div>
               <div>
                 <Label>WBS Code</Label>
-                <Input value={formData.wbs_code} onChange={e => setFormData({...formData, wbs_code: e.target.value})} className="bg-slate-800 border-slate-700" />
+                <Input value={formData.wbs_code} onChange={e => setFormData({...formData, wbs_code: e.target.value})} />
               </div>
             </div>
             <div>
               <Label>Description</Label>
-              <Input value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="bg-slate-800 border-slate-700" required />
+              <Input value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required />
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label>Budget</Label>
-                <Input type="number" value={formData.budget} onChange={e => setFormData({...formData, budget: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" required />
+                <Input type="number" value={formData.budget} onChange={e => setFormData({...formData, budget: parseFloat(e.target.value)})} required />
               </div>
               <div>
                 <Label>Forecast (EAC)</Label>
-                <Input type="number" min="0" value={formData.forecast} placeholder="Blank uses the standard rule" onChange={e => setFormData({...formData, forecast: e.target.value})} className="bg-slate-800 border-slate-700" />
+                <Input type="number" min="0" value={formData.forecast} placeholder="Blank uses the standard rule" onChange={e => setFormData({...formData, forecast: e.target.value})} />
               </div>
               <div>
                 <Label>% Progress</Label>
-                <Input type="number" min="0" max="100" value={Number.isNaN(formData.progress) ? '' : formData.progress} onChange={e => setFormData({...formData, progress: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" />
-                {progressError && <p role="alert" className="mt-1 text-xs text-red-300">{progressError}</p>}
+                <Input type="number" min="0" max="100" value={Number.isNaN(formData.progress) ? '' : formData.progress} onChange={e => setFormData({...formData, progress: parseFloat(e.target.value)})} />
+                {progressError && <p role="alert" className="mt-1 text-xs text-pl-danger-text">{progressError}</p>}
               </div>
             </div>
             <div>
                 <Label>Vendor (Optional)</Label>
-                <Input value={formData.vendor} onChange={e => setFormData({...formData, vendor: e.target.value})} className="bg-slate-800 border-slate-700" />
+                <Input value={formData.vendor} onChange={e => setFormData({...formData, vendor: e.target.value})} />
             </div>
             <DialogFooter>
-              <Button type="submit" className="bg-blue-600" disabled={Boolean(progressError)}><Save className="w-4 h-4 mr-2" /> Save Item</Button>
+              <Button type="submit" className="bg-pl-info" disabled={Boolean(progressError)}><Save className="w-4 h-4 mr-2" /> Save Item</Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -45,11 +45,11 @@ const BudgetChangesTab = ({ afeId, changes, currentBudget, onRefresh }) => {
   };
 
   return (
-    <div className="space-y-4 bg-slate-900/50 p-4 rounded border border-slate-800">
+    <div className="space-y-4 bg-pl-surface p-4 rounded border border-pl-border">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-bold text-white">Change Control Log</h3>
-          <p className="text-xs text-slate-400">Current Approved Budget: <span className="text-lime-400 font-mono">${currentBudget.toLocaleString()}</span></p>
+          <h3 className="text-lg font-bold text-pl-text">Change Control Log</h3>
+          <p className="text-xs text-pl-muted">Current Approved Budget: <span className="text-pl-primary-text font-mono">${currentBudget.toLocaleString()}</span></p>
         </div>
         <Button onClick={() => setIsDialogOpen(true)} className="bg-purple-600 hover:bg-purple-700">
           <History className="w-4 h-4 mr-2" /> Request Change
@@ -57,62 +57,62 @@ const BudgetChangesTab = ({ afeId, changes, currentBudget, onRefresh }) => {
       </div>
 
       <Table>
-        <TableHeader className="bg-slate-900">
+        <TableHeader className="bg-pl-surface">
           <TableRow>
-            <TableHead className="text-slate-300">Date</TableHead>
-            <TableHead className="text-slate-300">Description</TableHead>
-            <TableHead className="text-slate-300">Reason</TableHead>
-            <TableHead className="text-right text-slate-300">Amount</TableHead>
-            <TableHead className="text-center text-slate-300">Status</TableHead>
-            <TableHead className="text-center text-slate-300">Action</TableHead>
+            <TableHead className="text-pl-text">Date</TableHead>
+            <TableHead className="text-pl-text">Description</TableHead>
+            <TableHead className="text-pl-text">Reason</TableHead>
+            <TableHead className="text-right text-pl-text">Amount</TableHead>
+            <TableHead className="text-center text-pl-text">Status</TableHead>
+            <TableHead className="text-center text-pl-text">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {changes.map(change => (
-            <TableRow key={change.id} className="border-b border-slate-800/50">
-              <TableCell className="text-slate-400">{new Date(change.created_at).toLocaleDateString()}</TableCell>
-              <TableCell className="text-white">{change.description}</TableCell>
-              <TableCell className="text-slate-400 text-sm">{change.reason}</TableCell>
-              <TableCell className={`text-right font-mono ${change.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <TableRow key={change.id} className="border-b border-pl-border">
+              <TableCell className="text-pl-muted">{new Date(change.created_at).toLocaleDateString()}</TableCell>
+              <TableCell className="text-pl-text">{change.description}</TableCell>
+              <TableCell className="text-pl-muted text-sm">{change.reason}</TableCell>
+              <TableCell className={`text-right font-mono ${change.amount >= 0 ? 'text-pl-success-text' : 'text-pl-danger-text'}`}>
                 {change.amount > 0 ? '+' : ''}{Number(change.amount).toLocaleString()}
               </TableCell>
               <TableCell className="text-center">
                 <Badge variant="outline" className={
-                  change.status === 'Approved' ? 'text-green-400 border-green-500/50' : 
-                  change.status === 'Rejected' ? 'text-red-400 border-red-500/50' : 'text-yellow-400 border-yellow-500/50'
+                  change.status === 'Approved' ? 'text-pl-success-text border-pl-success/40' : 
+                  change.status === 'Rejected' ? 'text-pl-danger-text border-pl-danger/40' : 'text-pl-warning-text border-pl-warning/40'
                 }>{change.status}</Badge>
               </TableCell>
               <TableCell className="text-center">
                 {change.status === 'Pending' && (
                   <div className="flex justify-center gap-2">
-                    <Button size="icon" variant="ghost" onClick={() => handleAction(change, 'Approved')} className="text-green-500 hover:bg-green-900/20"><CheckCircle className="w-4 h-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => handleAction(change, 'Rejected')} className="text-red-500 hover:bg-red-900/20"><XCircle className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => handleAction(change, 'Approved')} className="text-pl-success-text hover:bg-pl-success-bg"><CheckCircle className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => handleAction(change, 'Rejected')} className="text-pl-danger-text hover:bg-pl-danger-bg"><XCircle className="w-4 h-4" /></Button>
                   </div>
                 )}
               </TableCell>
             </TableRow>
           ))}
           {changes.length === 0 && (
-            <TableRow><TableCell colSpan={6} className="text-center py-8 text-slate-500">No changes recorded.</TableCell></TableRow>
+            <TableRow><TableCell colSpan={6} className="text-center py-8 text-pl-muted">No changes recorded.</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-slate-900 border-slate-700 text-white">
+        <DialogContent>
           <DialogHeader><DialogTitle>Request Budget Change</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label>Description</Label>
-              <Input value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="bg-slate-800 border-slate-700" required />
+              <Input value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required />
             </div>
             <div>
               <Label>Amount ($)</Label>
-              <Input type="number" value={formData.amount} onChange={e => setFormData({...formData, amount: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" required placeholder="+ for increase, - for decrease" />
+              <Input type="number" value={formData.amount} onChange={e => setFormData({...formData, amount: parseFloat(e.target.value)})} required placeholder="+ for increase, - for decrease" />
             </div>
             <div>
               <Label>Reason / Justification</Label>
-              <Input value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} className="bg-slate-800 border-slate-700" required />
+              <Input value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} required />
             </div>
             <DialogFooter>
               <Button type="submit" className="bg-purple-600">Submit Request</Button>

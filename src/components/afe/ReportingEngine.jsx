@@ -7,21 +7,21 @@ import { itemForecast } from '@/utils/costControlCalculations';
 import { useToast } from '@/components/ui/use-toast';
 
 const ReportCard = ({ title, description, icon: Icon, onGenerate, onExcel }) => (
-    <Card className="bg-slate-900 border-slate-800 hover:border-slate-700 transition-colors">
+    <Card className="transition-colors">
         <CardContent className="p-6 flex flex-col h-full">
             <div className="flex items-start justify-between mb-4">
-                <div className="p-3 bg-slate-800 rounded-lg">
-                    <Icon className="w-6 h-6 text-blue-400" />
+                <div className="p-3 bg-pl-sunken rounded-lg">
+                    <Icon className="w-6 h-6 text-pl-info-text" />
                 </div>
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">{title}</h3>
-            <p className="text-sm text-slate-400 mb-6 flex-1">{description}</p>
+            <h3 className="text-lg font-bold text-pl-text mb-2">{title}</h3>
+            <p className="text-sm text-pl-muted mb-6 flex-1">{description}</p>
             <div className="flex gap-2">
-                <Button onClick={onGenerate} className="flex-1 bg-blue-600 hover:bg-blue-700 text-xs">
+                <Button onClick={onGenerate} className="flex-1 bg-pl-info hover:bg-pl-info-bg text-xs">
                     <Download className="w-3 h-3 mr-2" /> PDF
                 </Button>
                 {onExcel && (
-                    <Button onClick={onExcel} variant="outline" className="flex-1 border-slate-700 text-slate-300 hover:bg-slate-800 text-xs">
+                    <Button onClick={onExcel} variant="outline" className="flex-1 text-xs">
                         <FileSpreadsheet className="w-3 h-3 mr-2" /> Excel
                     </Button>
                 )}
@@ -62,9 +62,9 @@ const ReportingEngine = ({ afe, costItems, partners = [], partnersError = null }
 
   return (
     <div className="space-y-6">
-        <div className="bg-slate-900 p-6 rounded-lg border border-slate-800">
-            <h2 className="text-xl font-bold text-white mb-2">Reporting Engine</h2>
-            <p className="text-slate-400">Generate standard reports, billing statements, and data exports for AFE {afe.afe_number}.</p>
+        <div className="bg-pl-surface p-6 rounded-lg border border-pl-border">
+            <h2 className="text-xl font-bold text-pl-text mb-2">Reporting Engine</h2>
+            <p className="text-pl-muted">Generate standard reports, billing statements, and data exports for AFE {afe.afe_number}.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
