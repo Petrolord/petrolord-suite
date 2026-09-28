@@ -20,8 +20,8 @@ const DeckPanel = () => {
 
   if (!activeCase) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="py-10 text-center text-sm text-slate-500">
+      <Card>
+        <CardContent className="py-10 text-center text-sm text-pl-muted">
           Create or open a case in the left rail to set up a deck.
         </CardContent>
       </Card>
@@ -50,15 +50,15 @@ const DeckPanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Start from an SPE benchmark template</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {TEMPLATES.map((t) => (
-            <div key={t.slug} className={`rounded-lg border p-3 ${activeCase.template_slug === t.slug ? 'border-lime-500/60 bg-lime-500/5' : 'border-slate-700'}`}>
-              <div className="text-sm font-semibold text-slate-200">{t.label}</div>
-              <p className="text-xs text-slate-500 mt-1">{t.blurb}</p>
+            <div key={t.slug} className={`rounded-lg border p-3 ${activeCase.template_slug === t.slug ? 'border-pl-primary/60 bg-pl-primary/10' : 'border-pl-border'}`}>
+              <div className="text-sm font-semibold text-pl-text">{t.label}</div>
+              <p className="text-xs text-pl-muted mt-1">{t.blurb}</p>
               <Button size="sm" variant="outline" className="mt-2 h-7 text-xs" disabled={busy}
                 onClick={() => applyTemplate(t)}>
                 {busy ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <FileText className="w-3 h-3 mr-1" />}
@@ -66,13 +66,13 @@ const DeckPanel = () => {
               </Button>
             </div>
           ))}
-          <p className="md:col-span-2 text-[11px] text-slate-500">
+          <p className="md:col-span-2 text-[11px] text-pl-muted">
             SPE decks are Open Database License (ODbL) datasets from the OPM project (see Help for attribution).
           </p>
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Deck files</CardTitle>
           <div className="flex gap-2">
@@ -84,7 +84,7 @@ const DeckPanel = () => {
               <Upload className="w-3 h-3 mr-1" /> Upload deck files
             </Button>
             {dirty && (
-              <Button size="sm" className="h-7 text-xs bg-lime-600 hover:bg-lime-700" onClick={saveDeck} disabled={saving}>
+              <Button size="sm" className="h-7 text-xs" onClick={saveDeck} disabled={saving}>
                 {saving ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
                 Save deck
               </Button>
@@ -94,7 +94,7 @@ const DeckPanel = () => {
         <CardContent>
           {activeCase.deck_path ? (
             deckLoading ? (
-              <div className="h-40 flex items-center justify-center text-slate-500 text-sm">
+              <div className="h-40 flex items-center justify-center text-pl-muted text-sm">
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Loading deck…
               </div>
             ) : (
@@ -102,16 +102,16 @@ const DeckPanel = () => {
                 value={draft}
                 onChange={(e) => { setDraft(e.target.value); setDirty(true); }}
                 spellCheck={false}
-                className="w-full h-[420px] rounded-md bg-slate-950 border border-slate-800 p-3 font-mono text-xs text-slate-300 leading-relaxed"
+                className="w-full h-[420px] rounded-md border border-pl-border-strong bg-pl-surface p-3 font-mono text-xs text-pl-text leading-relaxed"
                 data-testid="deck-editor"
               />
             )
           ) : (
-            <div className="h-40 flex items-center justify-center text-slate-500 text-sm text-center px-6">
+            <div className="h-40 flex items-center justify-center text-pl-muted text-sm text-center px-6">
               No deck yet. Upload Eclipse-format files (.DATA + includes) or install a template above.
             </div>
           )}
-          <p className="text-[11px] text-slate-500 mt-2">
+          <p className="text-[11px] text-pl-muted mt-2">
             Main deck: <span className="font-mono">{activeCase.deck_path ? activeCase.deck_path.split('/').pop() : '—'}</span>
             {' '}· Limits: 25 MB bundle, 200k cells, 5,000 report steps, 30 min wall clock. PYACTION is not allowed.
           </p>

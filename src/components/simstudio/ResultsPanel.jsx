@@ -66,8 +66,8 @@ const dayTicks = (rows) => {
 };
 
 const VectorChart = ({ title, unit, rows, seriesKeys }) => (
-  <Card className="bg-slate-900 border-slate-800">
-    <CardHeader className="pb-1"><CardTitle className="text-sm">{title} <span className="text-slate-500 font-normal">({unit})</span></CardTitle></CardHeader>
+  <Card>
+    <CardHeader className="pb-1"><CardTitle className="text-sm">{title} <span className="text-pl-muted font-normal">({unit})</span></CardTitle></CardHeader>
     <CardContent className="p-0">
       <ChartFrame height={220}>
         <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: 8 }}>
@@ -127,8 +127,8 @@ const ResultsPanel = () => {
 
   if (!activeCase) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="py-10 text-center text-sm text-slate-500">
+      <Card>
+        <CardContent className="py-10 text-center text-sm text-pl-muted">
           Open a case to see its results.
         </CardContent>
       </Card>
@@ -137,7 +137,7 @@ const ResultsPanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Results</CardTitle>
           <div className="flex items-center gap-2">
@@ -147,7 +147,7 @@ const ResultsPanel = () => {
                 const run = completeRuns.find((r) => r.id === e.target.value);
                 if (run) loadResults(run);
               }}
-              className="h-7 rounded-md bg-slate-800 border border-slate-700 px-2 text-xs"
+              className="h-7 rounded-md border border-pl-border-strong bg-pl-surface px-2 text-xs text-pl-text"
               data-testid="results-run-select">
               <option value="" disabled>{completeRuns.length ? 'Pick a completed run…' : 'No completed runs yet'}</option>
               {completeRuns.map((r) => (
@@ -162,7 +162,7 @@ const ResultsPanel = () => {
           </div>
         </CardHeader>
         {summary && (
-          <CardContent className="pt-0 text-[11px] text-slate-500">
+          <CardContent className="pt-0 text-[11px] text-pl-muted">
             {summary.opm_version} · start {summary.start_date?.slice(0, 10)} · {summary.days?.length} report steps
             · deck sha {String(summary.deck_sha256 || '').slice(0, 12)}
           </CardContent>
@@ -170,8 +170,8 @@ const ResultsPanel = () => {
       </Card>
 
       {!summary ? (
-        <Card className="bg-slate-900 border-slate-800">
-          <CardContent className="py-12 text-center text-sm text-slate-500">
+        <Card>
+          <CardContent className="py-12 text-center text-sm text-pl-muted">
             <BarChart3 className="w-6 h-6 mx-auto mb-2 opacity-60" />
             {completeRuns.length
               ? 'Pick a completed run above to chart its summary vectors.'

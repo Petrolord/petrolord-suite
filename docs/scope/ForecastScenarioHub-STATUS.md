@@ -15,3 +15,17 @@
 - Chart on a years axis keyed by case id; save by name updates; delete
   confirms.
 - Open: modified hyperbolic (terminal decline) for the engines repo.
+
+## 2026-09-28: design system rollout, batch 2A (branch `feat/ds-w2a`)
+
+The hub and its help guide opt in to the Petrolord design system. No engine,
+save or export change.
+
+- `ForecastScenarioHub.jsx` and `ForecastScenarioHubHelpGuide.jsx` wrap
+  themselves in `ThemedApp`; the route prefix (help included) is registered
+  in `src/design/rollout/w2a.js`.
+- The bespoke header is now `AppHeader` (back, title, subtitle, help link,
+  theme toggle). Case cards, economics, the comparison table (mono numbers)
+  and the load dialog use theme roles; the rate chart sits in a white
+  `ChartPanel`. Case colours are unchanged.
+- Test: `src/pages/apps/__tests__/ForecastScenarioHub.theme.test.jsx`.

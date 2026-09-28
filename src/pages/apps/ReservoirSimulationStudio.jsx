@@ -17,6 +17,7 @@ import RunPanel from '@/components/simstudio/RunPanel';
 import ResultsPanel from '@/components/simstudio/ResultsPanel';
 import SimKpiPanel from '@/components/simstudio/SimKpiPanel';
 import SimHelpGuide from '@/components/simstudio/SimHelpGuide';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'deck', label: 'Deck' },
@@ -26,7 +27,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const SimStudioContent = () => {
@@ -54,7 +55,7 @@ const SimStudioContent = () => {
         />
       </section>
       <section>
-        <p className="text-[11px] text-slate-500 leading-relaxed">
+        <p className="text-[11px] text-pl-muted leading-relaxed">
           A case is one Eclipse-format deck plus its run history. The simulation
           itself runs on the platform&apos;s OPM Flow worker; this app never fakes a
           result.
@@ -93,7 +94,6 @@ const SimStudioContent = () => {
             backTo="/dashboard/reservoir"
             backTitle="Back to Reservoir Management"
             icon={Cuboid}
-            iconGradientClass="from-emerald-700 to-lime-600"
             title="Reservoir Simulation Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -119,10 +119,16 @@ const SimStudioContent = () => {
   );
 };
 
+// Design system rollout batch 2A (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// switches it to dark per user. Charts keep the white chart standard; the
+// 3D preview is a dark canvas.
 export default function ReservoirSimulationStudio() {
   return (
-    <SimStudioProvider>
-      <SimStudioContent />
-    </SimStudioProvider>
+    <ThemedApp data-testid="sim-theme-scope">
+      <SimStudioProvider>
+        <SimStudioContent />
+      </SimStudioProvider>
+    </ThemedApp>
   );
 }

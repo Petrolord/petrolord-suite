@@ -35,7 +35,7 @@ const ReservesChartPanel = () => {
   }, [chartData, scale]);
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2"><CardTitle className="text-base">Recoverable reserves range</CardTitle></CardHeader>
       <CardContent className="p-0">
         {chartData.length ? (
@@ -57,11 +57,11 @@ const ReservesChartPanel = () => {
             </BarChart>
           </ChartFrame>
         ) : (
-          <div className="h-64 flex items-center justify-center text-slate-500 text-sm px-6 text-center">
+          <div className="h-64 flex items-center justify-center text-pl-muted text-sm px-6 text-center">
             Enter an in-place volume and pick a method to see the reserves range.
           </div>
         )}
-        <p className="text-xs text-slate-500 px-6 pb-4">
+        <p className="text-xs text-pl-muted px-6 pb-4">
           Y-axis in {phase === 'gas' ? 'Bscf' : 'MMSTB'}. Low/High use the analog band for the selected drive mechanism; Estimate uses the selected method.
         </p>
       </CardContent>

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Target, ArrowLeft, Calculator, TrendingUp, DollarSign, HelpCircle } from 'lucide-react';
+import { Target, HelpCircle } from 'lucide-react';
+import { AppHeader } from '@/components/ui/app-shell';
+import { ThemedApp } from '@/design/ThemeProvider';
 import InputPanel from '@/components/wellspacing/InputPanel';
 import ResultsPanel from '@/components/wellspacing/ResultsPanel';
 import EmptyState from '@/components/wellspacing/EmptyState';
@@ -15,7 +16,7 @@ import {
   generateJSON
 } from '@/utils/wellSpacingCalculations';
 
-const WellSpacingOptimizer = () => {
+const WellSpacingOptimizerContent = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
@@ -154,38 +155,21 @@ const WellSpacingOptimizer = () => {
         <meta name="description" content="Compare well spacing cases on capex, volume, cost per barrel and NPV at a stated recovery factor." />
       </Helmet>
 
-      <div className="p-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-8"
-        >
-          <div className="flex items-center space-x-4 mb-4">
-            <Link to="/dashboard/reservoir">
-              <Button variant="outline" size="sm" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Reservoir
-              </Button>
-            </Link>
+      <AppHeader
+        backTo="/dashboard/reservoir"
+        backLabel="Back to Reservoir"
+        icon={Target}
+        title="Well Spacing Optimizer"
+        subtitle="Compare well spacing cases on capex, volume, cost per barrel and NPV"
+        actions={(
+          <Button asChild variant="outline" size="sm">
             <Link to="/dashboard/apps/reservoir/well-spacing-optimizer/help">
-              <Button variant="outline" size="sm" className="border-cyan-400/50 text-cyan-200 hover:bg-cyan-500/20">
-                <HelpCircle className="w-4 h-4 mr-2" /> Help guide
-              </Button>
+              <HelpCircle className="w-4 h-4 mr-2" /> Help guide
             </Link>
-          </div>
-          
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-3 rounded-xl">
-              <Target className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-white">Well Spacing Optimizer</h1>
-              <p className="text-lime-200 text-lg">Optimize well spacing for maximum NPV and field recovery</p>
-            </div>
-          </div>
-        </motion.div>
-
+          </Button>
+        )}
+      />
+      <div className="p-4 md:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <InputPanel 
             formData={formData}
@@ -212,5 +196,15 @@ const WellSpacingOptimizer = () => {
     </>
   );
 };
+
+// Design system rollout batch 2A (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// switches it to dark per user. The spacing charts keep the white chart
+// standard.
+const WellSpacingOptimizer = () => (
+  <ThemedApp className="min-h-screen" data-testid="wso-theme-scope">
+    <WellSpacingOptimizerContent />
+  </ThemedApp>
+);
 
 export default WellSpacingOptimizer;

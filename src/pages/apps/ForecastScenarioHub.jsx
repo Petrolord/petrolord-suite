@@ -1,9 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
-  GitBranch, ArrowLeft, Plus, Copy, Trash2, Save, FolderOpen, Download, Info, HelpCircle,
+  GitBranch, Plus, Copy, Trash2, Save, FolderOpen, Download, Info, HelpCircle,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -14,6 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
+import { AppHeader } from '@/components/ui/app-shell';
+import { ChartPanel } from '@/components/ui/chart-panel';
+import { ThemedApp } from '@/design/ThemeProvider';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
@@ -37,16 +39,16 @@ const numOr = (v, fallback = 0) => {
 };
 
 const CaseCard = ({ c, color, onChange, onDuplicate, onDelete, deletable }) => (
-  <Card className="bg-slate-900/70 border-slate-800">
+  <Card>
     <CardContent className="p-3 space-y-2">
       <div className="flex items-center gap-2">
         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
         <Input value={c.name} onChange={(e) => onChange({ name: e.target.value })}
-          className="h-7 bg-slate-800 border-slate-700 text-sm font-medium" />
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-white" title="Duplicate case" onClick={onDuplicate}>
+          className="h-7 text-sm font-medium" />
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-pl-muted hover:text-pl-text" title="Duplicate case" onClick={onDuplicate}>
           <Copy size={13} />
         </Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-red-400" title="Delete case"
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-pl-muted hover:text-pl-danger-text" title="Delete case"
           onClick={onDelete} disabled={!deletable}>
           <Trash2 size={13} />
         </Button>
@@ -60,10 +62,10 @@ const CaseCard = ({ c, color, onChange, onDuplicate, onDelete, deletable }) => (
           ['economicLimit', 'Econ limit (bbl/d)'],
         ].map(([key, label]) => (
           <div key={key} className="space-y-0.5">
-            <Label className="text-[10px] text-slate-500">{label}</Label>
+            <Label className="text-[10px] text-pl-muted">{label}</Label>
             <Input type="number" step="any" value={c[key]}
               onChange={(e) => onChange({ [key]: numOr(e.target.value) })}
-              className="h-7 bg-slate-800 border-slate-700 text-xs" />
+              className="h-7 text-xs" />
           </div>
         ))}
       </div>
@@ -71,7 +73,7 @@ const CaseCard = ({ c, color, onChange, onDuplicate, onDelete, deletable }) => (
   </Card>
 );
 
-export default function ForecastScenarioHub() {
+function ForecastScenarioHubContent() {
   const { toast } = useToast();
   const sample = useMemo(() => sampleScenarioCases(), []);
   const [cases, setCases] = useState(sample.cases);
@@ -177,39 +179,29 @@ export default function ForecastScenarioHub() {
         <title>Forecast Scenario Hub - Petrolord Suite</title>
         <meta name="description" content="Compare multi-case Arps production forecast scenarios side by side." />
       </Helmet>
-      <div className="p-4 md:p-8 h-full flex flex-col">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-6">
-          <div className="flex items-center space-x-4 mb-4">
-            <Link to="/dashboard/reservoir">
-              <Button variant="outline" size="sm" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back to Reservoir Management
-              </Button>
-            </Link>
+      <AppHeader
+        backTo="/dashboard/reservoir"
+        backLabel="Back to Reservoir Management"
+        icon={GitBranch}
+        title="Forecast Scenario Hub"
+        subtitle="Multi-case Arps production forecasting, compared side by side"
+        actions={(
+          <Button asChild variant="outline" size="sm">
             <Link to="/dashboard/apps/reservoir/forecast-scenario-hub/help">
-              <Button variant="outline" size="sm" className="border-cyan-400/50 text-cyan-200 hover:bg-cyan-500/20">
-                <HelpCircle className="w-4 h-4 mr-2" /> Help guide
-              </Button>
+              <HelpCircle className="w-4 h-4 mr-2" /> Help guide
             </Link>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-3 rounded-xl">
-              <GitBranch className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-4xl font-bold text-white">Forecast Scenario Hub</h1>
-              <p className="text-lime-200 text-md md:text-lg">Multi-case Arps production forecasting, compared side by side</p>
-            </div>
-          </div>
-        </motion.div>
-
+          </Button>
+        )}
+      />
+      <div className="p-4 md:p-8 flex flex-col">
         <div className="flex flex-col xl:flex-row gap-6 flex-grow min-h-0">
           {/* Cases + economics */}
           <div className="xl:w-96 shrink-0 space-y-3">
             <div className="flex gap-2">
-              <Button size="sm" onClick={addCase} className="bg-emerald-600 hover:bg-emerald-500 h-8">
+              <Button size="sm" onClick={addCase} className="h-8">
                 <Plus size={14} className="mr-1" /> Add case
               </Button>
-              <Button size="sm" variant="outline" className="border-slate-700 text-slate-300 h-8" onClick={() => setLoadOpen(true)}>
+              <Button size="sm" variant="outline" className="h-8" onClick={() => setLoadOpen(true)}>
                 <FolderOpen size={14} className="mr-1" /> Load
               </Button>
             </div>
@@ -221,8 +213,8 @@ export default function ForecastScenarioHub() {
                 deletable={cases.length > 1} />
             ))}
 
-            <Card className="bg-slate-900/70 border-slate-800">
-              <CardHeader className="py-2 px-3"><CardTitle className="text-slate-300 text-xs uppercase tracking-wider">Indicative economics</CardTitle></CardHeader>
+            <Card>
+              <CardHeader className="py-2 px-3"><CardTitle className="text-pl-muted text-xs uppercase tracking-wider">Indicative economics</CardTitle></CardHeader>
               <CardContent className="p-3 pt-0 grid grid-cols-3 gap-2">
                 {[
                   ['pricePerBbl', 'Price ($/bbl)'],
@@ -230,10 +222,10 @@ export default function ForecastScenarioHub() {
                   ['discountRatePct', 'Discount (%)'],
                 ].map(([key, label]) => (
                   <div key={key} className="space-y-0.5">
-                    <Label className="text-[10px] text-slate-500">{label}</Label>
+                    <Label className="text-[10px] text-pl-muted">{label}</Label>
                     <Input type="number" step="any" value={econ[key]}
                       onChange={(e) => setEcon((p) => ({ ...p, [key]: numOr(e.target.value) }))}
-                      className="h-7 bg-slate-800 border-slate-700 text-xs" />
+                      className="h-7 text-xs" />
                   </div>
                 ))}
               </CardContent>
@@ -241,8 +233,8 @@ export default function ForecastScenarioHub() {
 
             <div className="flex gap-2">
               <Input placeholder="Save scenario set as..." value={saveName} onChange={(e) => setSaveName(e.target.value)}
-                className="h-8 bg-slate-800 border-slate-700 text-xs" />
-              <Button size="sm" variant="outline" className="border-slate-700 text-slate-300 h-8 shrink-0" onClick={saveProject} disabled={!saveName.trim()}>
+                className="h-8 text-xs" />
+              <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={saveProject} aria-label="Save scenario set" title="Save scenario set" disabled={!saveName.trim()}>
                 <Save size={14} />
               </Button>
             </div>
@@ -250,10 +242,7 @@ export default function ForecastScenarioHub() {
 
           {/* Comparison */}
           <div className="flex-1 min-w-0 space-y-4">
-            <Card className="bg-slate-900/70 border-slate-800">
-              <CardHeader className="pb-2"><CardTitle className="text-white text-base">Rate profiles</CardTitle></CardHeader>
-              <CardContent>
-                <div className="bg-white rounded-lg p-3">
+            <ChartPanel title="Rate profiles">
                   <ChartFrame height={320}>
                     <LineChart data={chartData} margin={CHART_MARGINS.legend}>
                       <CartesianGrid {...GRID_STYLE} />
@@ -271,17 +260,15 @@ export default function ForecastScenarioHub() {
                       ))}
                     </LineChart>
                   </ChartFrame>
-                </div>
-              </CardContent>
-            </Card>
+            </ChartPanel>
 
-            <Card className="bg-slate-900/70 border-slate-800">
-              <CardHeader className="pb-2"><CardTitle className="text-white text-base">Case comparison</CardTitle></CardHeader>
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Case comparison</CardTitle></CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-left text-slate-500 border-b border-slate-800 text-xs">
+                      <tr className="text-left text-pl-muted border-b border-pl-border text-xs">
                         <th className="py-2 pr-4">Case</th>
                         <th className="py-2 pr-4">Model</th>
                         <th className="py-2 pr-4">Cum @5 yr (MMbbl)</th>
@@ -294,32 +281,32 @@ export default function ForecastScenarioHub() {
                     </thead>
                     <tbody>
                       {summaries.map((s, i) => (
-                        <tr key={s.id} className="border-b border-slate-800/60 text-slate-300">
-                          <td className="py-2 pr-4 text-slate-100 flex items-center gap-2">
+                        <tr key={s.id} className="border-b border-pl-border text-pl-text">
+                          <td className="py-2 pr-4 text-pl-text flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full" style={{ background: CASE_COLORS[i % CASE_COLORS.length] }} />
                             {s.name}
                           </td>
                           {s.error ? (
-                            <td colSpan={7} className="py-2 text-amber-400 text-xs">{s.error}</td>
+                            <td colSpan={7} className="py-2 text-pl-warning-text text-xs">{s.error}</td>
                           ) : (
                             <>
                               <td className="py-2 pr-4">{s.model}</td>
-                              <td className="py-2 pr-4 tabular-nums" data-testid={`fsh-cum5-${s.id}`}>
+                              <td className="py-2 pr-4 font-pl-mono tabular-nums" data-testid={`fsh-cum5-${s.id}`}>
                                 {s.cum5MMbbl.toFixed(2)}
-                                {s.cum5Years < 5 && <span className="block text-[10px] text-slate-500">at {s.cum5Years} yr</span>}
+                                {s.cum5Years < 5 && <span className="block text-[10px] text-pl-muted">at {s.cum5Years} yr</span>}
                               </td>
-                              <td className="py-2 pr-4 tabular-nums" data-testid={`fsh-cumh-${s.id}`}>{s.cumHorizonMMbbl.toFixed(2)}</td>
-                              <td className="py-2 pr-4 tabular-nums" data-testid={`fsh-eur-${s.id}`}>
+                              <td className="py-2 pr-4 font-pl-mono tabular-nums" data-testid={`fsh-cumh-${s.id}`}>{s.cumHorizonMMbbl.toFixed(2)}</td>
+                              <td className="py-2 pr-4 font-pl-mono tabular-nums" data-testid={`fsh-eur-${s.id}`}>
                                 {s.eurMMbbl.toFixed(2)}
-                                {s.eurCapped && <span className="block text-[10px] text-amber-400/90 whitespace-nowrap">{EUR_MAX_YEARS} yr max life</span>}
+                                {s.eurCapped && <span className="block text-[10px] text-pl-warning-text whitespace-nowrap">{EUR_MAX_YEARS} yr max life</span>}
                               </td>
-                              <td className="py-2 pr-4 tabular-nums" data-testid={`fsh-ttl-${s.id}`}>
+                              <td className="py-2 pr-4 font-pl-mono tabular-nums" data-testid={`fsh-ttl-${s.id}`}>
                                 {s.timeToLimitYears != null ? s.timeToLimitYears.toFixed(1) : s.hasLimit ? `> ${EUR_MAX_YEARS}` : 'No limit'}
-                                {s.timeToLimitYears != null && !s.limitInHorizon && <span className="block text-[10px] text-slate-500 whitespace-nowrap">past horizon</span>}
+                                {s.timeToLimitYears != null && !s.limitInHorizon && <span className="block text-[10px] text-pl-muted whitespace-nowrap">past horizon</span>}
                               </td>
-                              <td className="py-2 pr-4 tabular-nums">{s.economics ? s.economics.npv.toFixed(1) : '-'}</td>
+                              <td className="py-2 pr-4 font-pl-mono tabular-nums">{s.economics ? s.economics.npv.toFixed(1) : '-'}</td>
                               <td className="py-2 whitespace-nowrap">
-                                <Button variant="ghost" size="sm" className="h-7 px-2 text-slate-400 hover:text-white"
+                                <Button variant="ghost" size="sm" className="h-7 px-2 text-pl-muted hover:text-pl-text"
                                   onClick={() => exportAnnualCsv(s)} title="Export annual production profile (CSV)">
                                   <Download size={13} className="mr-1" /> Annual CSV
                                 </Button>
@@ -331,13 +318,13 @@ export default function ForecastScenarioHub() {
                     </tbody>
                   </table>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-3 flex gap-1.5">
+                <p className="text-[11px] text-pl-muted mt-3 flex gap-1.5">
                   <Info size={13} className="shrink-0 mt-0.5" />
                   Indicative NPV is flat price minus flat opex at a single discount rate, for ranking cases only.
                   For fiscal terms, taxes and portfolio views, export the annual profile and use NPV Scenario
                   Builder in the Economics module.
                 </p>
-                <p className="text-[11px] text-slate-500 mt-1.5 flex gap-1.5">
+                <p className="text-[11px] text-pl-muted mt-1.5 flex gap-1.5">
                   <Info size={13} className="shrink-0 mt-0.5" />
                   Cum to horizon, the chart, the annual CSV and the indicative NPV cover the horizon. EUR follows the
                   decline on to the economic limit, capped at a {EUR_MAX_YEARS} year maximum life.
@@ -348,23 +335,23 @@ export default function ForecastScenarioHub() {
         </div>
 
         <Dialog open={loadOpen} onOpenChange={(o) => { setLoadOpen(o); setConfirmDelete(null); }}>
-          <DialogContent className="bg-slate-900 border-slate-700 text-slate-100">
+          <DialogContent>
             <DialogHeader><DialogTitle>Saved scenario sets</DialogTitle></DialogHeader>
             <div className="space-y-2 max-h-72 overflow-y-auto py-2">
               {projects.length === 0 ? (
-                <p className="text-sm text-slate-500 italic">No saved scenario sets yet.</p>
+                <p className="text-sm text-pl-muted italic">No saved scenario sets yet.</p>
               ) : projects.map((p) => (
-                <div key={p.id} className="flex items-center gap-2 p-2 rounded border border-slate-700 bg-slate-800">
-                  <button type="button" className="flex-1 text-left text-sm text-slate-200 hover:text-white truncate" onClick={() => loadProject(p.id)}>
+                <div key={p.id} className="flex items-center gap-2 p-2 rounded border border-pl-border bg-pl-sunken">
+                  <button type="button" className="flex-1 text-left text-sm text-pl-text hover:text-pl-primary-text truncate" onClick={() => loadProject(p.id)}>
                     {p.project_name}
-                    <span className="block text-[10px] text-slate-500">{new Date(p.updated_at).toLocaleString()}</span>
+                    <span className="block text-[10px] text-pl-muted">{new Date(p.updated_at).toLocaleString()}</span>
                   </button>
                   {confirmDelete === p.id ? (
                     <Button variant="destructive" size="sm" className="h-7 px-2 text-xs" onClick={() => deleteProject(p.id)}>
                       Delete?
                     </Button>
                   ) : (
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-red-400" title="Delete saved set" onClick={() => deleteProject(p.id)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-pl-muted hover:text-pl-danger-text" title="Delete saved set" onClick={() => deleteProject(p.id)}>
                       <Trash2 size={13} />
                     </Button>
                   )}
@@ -372,11 +359,22 @@ export default function ForecastScenarioHub() {
               ))}
             </div>
             <DialogFooter>
-              <Button variant="outline" className="border-slate-700 text-slate-300" onClick={() => setLoadOpen(false)}>Close</Button>
+              <Button variant="outline" onClick={() => setLoadOpen(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
     </>
+  );
+}
+
+// Design system rollout batch 2A (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// switches it to dark per user. The rate chart keeps the white chart standard.
+export default function ForecastScenarioHub() {
+  return (
+    <ThemedApp className="min-h-screen" data-testid="fsh-theme-scope">
+      <ForecastScenarioHubContent />
+    </ThemedApp>
   );
 }

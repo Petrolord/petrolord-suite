@@ -67,3 +67,15 @@ under-documented the pre-existing engine. Added:
 - The header Sample button.
 
 4 em dashes removed, including two contrastives (owner copy rule).
+
+## 2026-09-28: design system rollout, batch 2A (branch `feat/ds-w2a`)
+
+The estimator opts in to the Petrolord design system. No engine change.
+
+- `RecoveryFactorEstimator.jsx` wraps itself in `<ThemedApp data-testid="rf-theme-scope">`;
+  the route is registered in `src/design/rollout/w2a.js`.
+- `src/components/rfestimator/*` and the help content moved to theme roles:
+  phase, in-place mode and method choices use the primary fill, KPI values
+  are mono, the analog warning uses the warning role, the selected drive row
+  a light primary tint. The reserves chart keeps the white chart standard.
+- Test: `src/pages/apps/__tests__/RecoveryFactorEstimator.theme.test.jsx`.
