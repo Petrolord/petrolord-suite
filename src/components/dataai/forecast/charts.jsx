@@ -29,7 +29,7 @@ const axisLabel = (value, extra = {}) => ({
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export const Frame = ({ children, testId, height = 'h-80' }) => (
-  <div className={`relative ${height} rounded-lg bg-white p-2`} data-testid={testId}>
+  <div className={`relative ${height} rounded-lg bg-white p-2`} data-canvas="chart" data-testid={testId}>
     <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>
     <ChartLogo />
   </div>

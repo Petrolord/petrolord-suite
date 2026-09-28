@@ -15,6 +15,8 @@ import {
   ArrowLeft, BookOpen, FileDown, FileText, Filter,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -54,21 +56,21 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex h-full flex-col bg-slate-950 text-white">
-        <header className="flex-shrink-0 border-b border-slate-800 px-4 py-3">
+      <div className="flex h-full flex-1 flex-col bg-pl-bg text-pl-text">
+        <header className="flex-shrink-0 border-b border-pl-border bg-pl-surface px-4 py-3">
           <Link to="/dashboard/data-ai">
-            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-slate-400 hover:text-white">
+            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-pl-muted hover:text-pl-text">
               <ArrowLeft className="mr-2 h-4 w-4" /> Data &amp; AI
             </Button>
           </Link>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 p-2 shadow-lg">
-                <Filter className="h-6 w-6 text-white" />
+              <div className="rounded-xl bg-pl-primary p-2 text-pl-primary-fg shadow-pl-sm">
+                <Filter className="h-6 w-6" aria-hidden="true" />
               </div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight">Data Quality Studio</h1>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-pl-muted">
                   Completeness, validity, consistency, uniqueness, outliers and control charts on logs and production data.
                   Every flag states the rule that raised it.
                 </p>
@@ -93,33 +95,34 @@ const Workspace = () => {
                 onSave={persistence.manualSave}
                 disabled={!persistence.currentProjectId}
               />
-              <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white" disabled={!canExport} onClick={exportCsv} data-testid="export-csv" title={canExport ? 'QC report as CSV' : 'Run the profile first'}>
+              <Button variant="ghost" size="sm" className="text-pl-muted hover:text-pl-text" disabled={!canExport} onClick={exportCsv} data-testid="export-csv" title={canExport ? 'QC report as CSV' : 'Run the profile first'}>
                 <FileDown className="mr-1 h-4 w-4" /> CSV
               </Button>
-              <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white" disabled={!canExport} onClick={exportPdf} data-testid="export-pdf" title={canExport ? 'QC report as PDF' : 'Run the profile first'}>
+              <Button variant="ghost" size="sm" className="text-pl-muted hover:text-pl-text" disabled={!canExport} onClick={exportPdf} data-testid="export-pdf" title={canExport ? 'QC report as PDF' : 'Run the profile first'}>
                 <FileText className="mr-1 h-4 w-4" /> PDF
               </Button>
               <Link to={`${QC_STUDIO_ROUTE}/help`} title="Documentation">
-                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
+                <Button variant="ghost" size="sm" className="text-pl-muted hover:text-pl-text">
                   <BookOpen className="mr-1 h-4 w-4" /> Help guide
                 </Button>
               </Link>
+              <ThemeToggle />
             </div>
           </div>
           {orgId ? null : (
-            <p className="mt-2 text-xs text-amber-200">
+            <p className="mt-2 text-xs text-pl-warning-text">
               QC runs are saved to your organization. Without one you can work here, and saving is unavailable.
             </p>
           )}
         </header>
 
         <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
-          <aside className="w-full overflow-y-auto border-b border-slate-800 bg-slate-900/40 p-4 md:w-1/3 md:border-b-0 md:border-r xl:w-1/4">
+          <aside className="w-full overflow-y-auto border-b border-pl-border bg-pl-surface p-4 md:w-1/3 md:border-b-0 md:border-r xl:w-1/4">
             <DatasetPanel />
           </aside>
           <main className="flex-1 space-y-4 overflow-y-auto p-4">
             <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="border border-slate-800 bg-slate-900">
+              <TabsList className="h-auto flex-wrap">
                 <TabsTrigger value="profile">QC profile</TabsTrigger>
                 <TabsTrigger value="results">Scorecard and flags</TabsTrigger>
                 <TabsTrigger value="charts">Charts</TabsTrigger>
@@ -136,7 +139,7 @@ const Workspace = () => {
 };
 
 const DataQualityStudio = () => (
-  <>
+  <ThemedApp className="flex h-full min-h-screen flex-col" data-testid="dataqc-theme-scope">
     <Helmet>
       <title>Data Quality Studio - Petrolord Suite</title>
       <meta
@@ -147,7 +150,7 @@ const DataQualityStudio = () => (
     <DataQualityStudioProvider>
       <Workspace />
     </DataQualityStudioProvider>
-  </>
+  </ThemedApp>
 );
 
 export default DataQualityStudio;

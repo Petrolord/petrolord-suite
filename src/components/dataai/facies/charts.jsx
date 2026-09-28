@@ -31,7 +31,7 @@ const axisLabel = (value, extra = {}) => ({
 export const MAX_PLOT_POINTS = 4000;
 
 export const Frame = ({ children, testId, height = 'h-72' }) => (
-  <div className={`relative ${height} rounded-lg bg-white p-2`} data-testid={testId}>
+  <div className={`relative ${height} rounded-lg bg-white p-2`} data-canvas="chart" data-testid={testId}>
     <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>
     <ChartLogo />
   </div>
@@ -180,7 +180,7 @@ export const FaciesTracks = ({
     if (!ticks.length) ticks.push(dMin, dMax);
   }
   return (
-    <div className="relative overflow-x-auto rounded-lg bg-white p-2" data-testid={testId}>
+    <div className="relative overflow-x-auto rounded-lg bg-white p-2" data-canvas="chart" data-testid={testId}>
       <svg width={W} height={H} role="img" aria-label="Facies depth tracks" style={{ fontFamily: 'inherit' }}>
         {ticks.map((t) => (
           <g key={t}>
@@ -225,8 +225,8 @@ export const FaciesTracks = ({
 
 /** Colour chips for the classes of one labelling. */
 export const ClassLegend = ({ name, classes, describe = (c) => String(c), colourIndex }) => (
-  <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
-    <span className="text-slate-400">{name}:</span>
+  <div className="flex flex-wrap items-center gap-2 text-[11px] text-pl-text">
+    <span className="text-pl-muted">{name}:</span>
     {classes.map((c, i) => (
       <span key={String(c)} className="inline-flex items-center gap-1">
         <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: colourOf(colourIndex?.get(c) ?? i) }} />

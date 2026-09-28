@@ -29,7 +29,7 @@ const TaskChoice = () => {
           aria-checked={spec.task === o.id}
           data-testid={`task-${o.id}`}
           onClick={() => updateSpec(['task'], o.id)}
-          className={`rounded px-3 py-1 text-xs ${spec.task === o.id ? 'bg-sky-700 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+          className={`rounded px-3 py-1 text-xs ${spec.task === o.id ? 'bg-pl-primary text-pl-primary-fg' : 'bg-pl-sunken text-pl-text hover:bg-pl-border'}`}
         >
           {o.label}
         </button>
@@ -109,12 +109,12 @@ const DesignSummary = () => {
     c.nonPositiveLog ? `${c.nonPositiveLog.toLocaleString('en-US')} with a zero or negative value in a logged feature` : null,
   ].filter(Boolean);
   return (
-    <div className="space-y-1 text-xs text-slate-300" data-testid="design-summary">
+    <div className="space-y-1 text-xs text-pl-text" data-testid="design-summary">
       <p>
         {design.X.length.toLocaleString('en-US')} rows from {design.wells.length} wells
         ({design.wells.map((w) => `${w.name} ${w.rows}`).join(', ')}); target {design.targetText}; features {design.names.join(', ')}.
       </p>
-      {dropped.length ? <p className="text-slate-400">Left out of {c.total.toLocaleString('en-US')}: {dropped.join('; ')}.</p> : null}
+      {dropped.length ? <p className="text-pl-muted">Left out of {c.total.toLocaleString('en-US')}: {dropped.join('; ')}.</p> : null}
       {design.wells.length < 2 ? <Note tone="warn">Validation holds out whole wells, so it needs rows from two wells or more.</Note> : null}
     </div>
   );
@@ -189,7 +189,7 @@ const SpecPanel = () => {
         </Button>
         {busy ? (
           <>
-            <span className="text-xs text-slate-400" data-testid="busy">
+            <span className="text-xs text-pl-muted" data-testid="busy">
               Running {busy.job}{busy.total ? `, fold ${Math.min(busy.done + 1, busy.total)} of ${busy.total}` : ''}.
             </span>
             <Button size="sm" variant="ghost" onClick={cancelJob}><Square className="mr-1 h-3 w-3" /> Stop</Button>

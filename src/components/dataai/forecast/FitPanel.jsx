@@ -35,7 +35,7 @@ const MethodSpec = () => {
       </Note>
       <div className="grid gap-3 md:grid-cols-3">
         {METHODS.map(({ value: m, label }) => (
-          <div key={m} className="space-y-1 rounded border border-slate-800 p-2">
+          <div key={m} className="space-y-1 rounded border border-pl-border p-2">
             <Toggle label={label} checked={spec.methods[m]} onChange={(v) => updateSpec(['methods', m], v)} testId={`method-${m}`} />
             <div className="flex flex-wrap gap-2">
               {METHOD_PARAMS[m].map((p) => (
@@ -86,7 +86,7 @@ const FitResults = () => {
       />
       {ok.filter(([, r]) => !r.error && r.warnings).map(([m, r]) => r.warnings.map((w) => <Note key={`${m}${w}`} tone="warn" testId={`warning-${m}`}>{METHOD_NAMES[m]}: {w}</Note>))}
       {fit.arps.error ? <EngineError result={fit.arps} prefix="Arps decline" /> : (
-        <p className="text-xs text-slate-200" data-testid="arps-line">
+        <p className="text-xs text-pl-text" data-testid="arps-line">
           Arps decline ({fit.arps.modelType}{fit.arps.requested !== fit.arps.modelType ? `, chosen by ${fit.arps.requested}` : ''}):
           qi <span className="font-mono">{dn(fit.arps.qi)}</span> per step, Di <span className="font-mono">{dn(fit.arps.Di)}</span> per step,
           b <span className="font-mono">{dn(fit.arps.b)}</span>; {fit.arps.nUsed} positive values used, {fit.arps.dropped} zero or negative dropped.
@@ -120,12 +120,12 @@ const IntervalSpec = () => {
         <Toggle label="Report a negative percentile as 0" checked={spec.intervals.nonNegative} onChange={(v) => updateSpec(['intervals', 'nonNegative'], v)} testId="intervals-nonneg" />
         <RunButton job="intervals">Run the bootstrap</RunButton>
       </div>
-      <p className="text-[11px] text-slate-400">The horizon is the forecast horizon h above; the method&apos;s typed parameters are held here too.</p>
+      <p className="text-[11px] text-pl-muted">The horizon is the forecast horizon h above; the method&apos;s typed parameters are held here too.</p>
       {pi ? <StaleNote job="intervals" /> : null}
       {r?.error ? <EngineError result={r} prefix="Intervals" /> : null}
       {r && !r.error ? (
         <>
-          <p className="text-xs text-slate-200" data-testid="intervals-line">
+          <p className="text-xs text-pl-text" data-testid="intervals-line">
             {METHOD_NAMES[pi.method]} on {pi.well}: {r.nSims.toLocaleString('en-US')} paths, seed {r.seed}, {r.poolSize} residuals in the pool;
             {' '}{r.clippedToZero} percentile{r.clippedToZero === 1 ? '' : 's'} reported as 0.
           </p>

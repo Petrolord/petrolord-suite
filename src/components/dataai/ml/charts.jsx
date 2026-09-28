@@ -26,7 +26,7 @@ const axisLabel = (value, extra = {}) => ({ value, fill: CHART_COLORS.axisLabel,
 export const MAX_PLOT_POINTS = 4000;
 
 export const Frame = ({ children, testId, height = 'h-72' }) => (
-  <div className={`relative ${height} rounded-lg bg-white p-2`} data-testid={testId}>
+  <div className={`relative ${height} rounded-lg bg-white p-2`} data-canvas="chart" data-testid={testId}>
     <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>
     <ChartLogo />
   </div>

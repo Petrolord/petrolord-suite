@@ -30,10 +30,10 @@ const LimitEditor = ({ channel, limit, onChange }) => {
   const units = mode === 'definitional' ? definitionalUnits(limit.channel) : [];
   const def = mode === 'definitional' ? DEFINITIONAL_LIMITS[limit.channel]?.[limit.unit] : null;
   return (
-    <div className="grid grid-cols-[6rem_8rem_1fr] items-end gap-2 border-t border-slate-800 pt-2" data-testid={`limit-${channel.key}`}>
-      <div className="text-xs text-slate-200">
+    <div className="grid grid-cols-[6rem_8rem_1fr] items-end gap-2 border-t border-pl-border pt-2" data-testid={`limit-${channel.key}`}>
+      <div className="text-xs text-pl-text">
         {channel.name}
-        <span className="block text-[10px] text-slate-500">{channel.unit || 'no unit'}</span>
+        <span className="block text-[10px] text-pl-muted">{channel.unit || 'no unit'}</span>
       </div>
       <SelectField
         label="Range rule"
@@ -50,14 +50,14 @@ const LimitEditor = ({ channel, limit, onChange }) => {
             options={DEFINITIONAL_CHANNELS.map((q) => ({ value: q, label: q }))}
           />
           <SelectField label="Unit" value={limit.unit} onChange={(u) => onChange({ ...limit, unit: u })} options={units.map((u) => ({ value: u, label: u === 'any' ? 'any unit' : u }))} />
-          {def ? <span className="text-[10px] text-slate-500">{def.note}</span> : null}
+          {def ? <span className="text-[10px] text-pl-muted">{def.note}</span> : null}
         </div>
       ) : null}
       {mode === 'custom' ? (
         <div className="flex flex-wrap items-end gap-2">
           <TextInput label="Minimum" value={limit.min} onChange={(v) => onChange({ ...limit, min: v })} placeholder="none" />
           <TextInput label="Maximum" value={limit.max} onChange={(v) => onChange({ ...limit, max: v })} placeholder="none" />
-          <span className="text-[10px] text-slate-500">{limit.note ? `Suggested: ${limit.note}. ` : ''}Plausibility limits for a tool or a basin are yours to set.</span>
+          <span className="text-[10px] text-pl-muted">{limit.note ? `Suggested: ${limit.note}. ` : ''}Plausibility limits for a tool or a basin are yours to set.</span>
         </div>
       ) : null}
     </div>
@@ -75,11 +75,11 @@ const Baseline = ({ values, onFill }) => {
     onFill(b);
   };
   return (
-    <div className="flex flex-wrap items-end gap-2 rounded border border-slate-800 p-2">
+    <div className="flex flex-wrap items-end gap-2 rounded border border-pl-border p-2">
       <TextInput label="Baseline from entry" value={from} onChange={setFrom} />
       <TextInput label="to entry" value={to} onChange={setTo} placeholder={String(Math.max(0, values.length - 1))} />
       <Button size="sm" variant="secondary" onClick={fill} data-testid="fill-baseline">Fill target and sigma from the baseline</Button>
-      <span className="w-full text-[10px] text-slate-500">
+      <span className="w-full text-[10px] text-pl-muted">
         Target is the baseline&apos;s centre line and sigma its MRbar / 1.128, from the individuals chart on those entries
         (NIST 6.3.2.2). Entries count from 0, as in the flag table. Choose entries you judge in control; the charts then watch the rest against them.
       </span>
@@ -116,7 +116,7 @@ const ProfilePanel = () => {
       </Note>
 
       <Section title="Channels and range rules" testId="section-channels">
-        <p className="text-[11px] text-slate-400">Channels to check (none ticked checks them all).</p>
+        <p className="text-[11px] text-pl-muted">Channels to check (none ticked checks them all).</p>
         <ChannelChecks channels={chans} value={profile.channels} onChange={(v) => set(['channels'], v)} testId="channel-checks" />
         <Note>
           Only definitional limits are suggested: bounds a value cannot cross by definition, such as a fraction in [0, 1] or a
@@ -176,7 +176,7 @@ const ProfilePanel = () => {
         </div>
         <Note>Water cut is checked in [0, 1] and, with oil and water rates, against water / (oil + water) on a liquid basis. Without a water cut channel the ratio is computed and nothing is scored.</Note>
         <div className="space-y-1">
-          <p className="text-[11px] text-slate-400">Phase sum: parts that must add to a total</p>
+          <p className="text-[11px] text-pl-muted">Phase sum: parts that must add to a total</p>
           <ChannelChecks channels={chans} value={cons.phaseSum.partKeys} onChange={(v) => set(['consistency', 'phaseSum', 'partKeys'], v)} />
           <div className="flex flex-wrap items-end gap-3">
             <SelectField label="Total channel" value={cons.phaseSum.totalKey} onChange={(v) => set(['consistency', 'phaseSum', 'totalKey'], v)} emptyLabel="None" options={opts} className="w-40" />
@@ -302,7 +302,7 @@ const ProfilePanel = () => {
           ))}
         </div>
       </Section>
-      {run ? <p className="text-[10px] text-slate-500">Last run: {fmt(run.dataset.n)} samples, {run.flags.length} flags.</p> : null}
+      {run ? <p className="text-[10px] text-pl-muted">Last run: {fmt(run.dataset.n)} samples, {run.flags.length} flags.</p> : null}
     </div>
   );
 };
