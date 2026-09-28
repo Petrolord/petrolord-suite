@@ -283,6 +283,36 @@ Tests: `src/pages/apps/__tests__/ProjectManagementPro.theme.test.jsx`
 and allow-listed checks on the analytics tab, an exploration dashboard and
 the integrations tab). Existing suites pass unchanged.
 
+## 2026-09-28: Project Management Pro on the design system, session 6D of 3 (rollout w6d)
+
+Converted `analytics/`, `reports/AdvancedReportBuilder`, `appraisal/`,
+`brownfield/` and `decommissioning/` to pl-* roles. No data, calculation or
+behaviour change.
+
+- Portfolio analytics tab: KPI cards on roles with neutral icons; every
+  chart (health, projects by type, budget by type, progress by type,
+  reported cost, cost variance, risk heatmap) is a white `ChartPanel` on
+  `chartTheme` with `ChartLogo`. Top risks show score and band word
+  (`scoreBand` from `RisksDashboard`).
+- Appraisal, brownfield and decommissioning dashboards: KPI cards, stage,
+  gate and deliverable tables, well tables, risk register and team lists on
+  roles. Status as Badge variants with words (Complete / In Progress or
+  Active / Pending, Done, Approved / Under Review, Completed / Drilling /
+  Planned, score plus High / Medium / Low). CPI now reads "0.95 over
+  budget" / "1.02 within budget" beside its colour. The Risk Profile pie is a
+  white `ChartPanel`. Targets (uplift, recycling) are plain text.
+- The three project wizards and the report builder follow the user's theme;
+  6C's interim `data-pl-theme="dark"` is removed from all four. Step markers
+  and the timeline bar use the primary role.
+
+Theme test: `PENDING_6D` is empty; the analytics tab (all four views and the
+report builder), the three stage-type dashboards (every tab) and the three
+wizards (every step) have strict checks, light and dark. `PENDING_6E` is
+unchanged for 6E.
+
+Seen while checking (not changed here): a wizard left with no budget saves a
+project whose dashboard shows "$NaNM".
+
 ## 2026-09-28: Project Management Pro on the design system, session 6E of 3 (rollout w6e)
 
 Converted in 6E, all under `src/components/projectmanagement/`:

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartPanel } from '@/components/ui/chart-panel';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
@@ -29,10 +30,8 @@ const ProjectTypeAnalytics = ({ projects }) => {
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="bg-slate-900 border-slate-800">
-                    <CardHeader><CardTitle className="text-sm text-slate-300">Budget Distribution by Type ($MM)</CardTitle></CardHeader>
-                    <CardContent className="h-[300px]">
-                        <div className="relative h-full w-full rounded-md bg-white p-2">
+                <ChartPanel title="Budget Distribution by Type ($MM)">
+                        <div className="relative h-[300px] w-full">
 <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={data}>
                                 <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -43,14 +42,11 @@ const ProjectTypeAnalytics = ({ projects }) => {
                             </BarChart>
                         </ResponsiveContainer>
 <ChartLogo />
-</div>
-                    </CardContent>
-                </Card>
+                        </div>
+                </ChartPanel>
 
-                <Card className="bg-slate-900 border-slate-800">
-                    <CardHeader><CardTitle className="text-sm text-slate-300">Average Progress by Type</CardTitle></CardHeader>
-                    <CardContent className="h-[300px]">
-                        <div className="relative h-full w-full rounded-md bg-white p-2">
+                <ChartPanel title="Average Progress by Type">
+                        <div className="relative h-[300px] w-full">
 <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={data}>
                                 <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -61,23 +57,22 @@ const ProjectTypeAnalytics = ({ projects }) => {
                             </BarChart>
                         </ResponsiveContainer>
 <ChartLogo />
-</div>
-                    </CardContent>
-                </Card>
+                        </div>
+                </ChartPanel>
             </div>
 
-            <Card className="bg-slate-900 border-slate-800">
-                <CardHeader><CardTitle className="text-sm text-slate-300">Detailed Breakdown</CardTitle></CardHeader>
+            <Card>
+                <CardHeader><CardTitle className="text-sm text-pl-text">Detailed Breakdown</CardTitle></CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader><TableRow className="border-b-slate-800"><TableHead className="text-white">Project Type</TableHead><TableHead className="text-right text-white">Count</TableHead><TableHead className="text-right text-white">Total Budget</TableHead><TableHead className="text-right text-white">Avg Progress</TableHead></TableRow></TableHeader>
+                        <TableHeader><TableRow><TableHead>Project Type</TableHead><TableHead className="text-right">Count</TableHead><TableHead className="text-right">Total Budget</TableHead><TableHead className="text-right">Avg Progress</TableHead></TableRow></TableHeader>
                         <TableBody>
                             {data.map((row, i) => (
-                                <TableRow key={i} className="border-b-slate-800 hover:bg-slate-800/50">
-                                    <TableCell className="font-medium text-slate-200">{row.type}</TableCell>
-                                    <TableCell className="text-right text-slate-400">{row.count}</TableCell>
-                                    <TableCell className="text-right text-amber-400 font-mono">${row.budgetMillions}M</TableCell>
-                                    <TableCell className="text-right text-blue-400">{row.avgProgress}%</TableCell>
+                                <TableRow key={i} className="border-b-pl-border hover:bg-pl-sunken/60">
+                                    <TableCell className="font-medium text-pl-text">{row.type}</TableCell>
+                                    <TableCell className="text-right text-pl-muted font-pl-mono tabular-nums">{row.count}</TableCell>
+                                    <TableCell className="text-right text-pl-text font-pl-mono tabular-nums">${row.budgetMillions}M</TableCell>
+                                    <TableCell className="text-right text-pl-text font-pl-mono tabular-nums">{row.avgProgress}%</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
