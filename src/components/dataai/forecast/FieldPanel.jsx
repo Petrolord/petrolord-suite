@@ -22,7 +22,7 @@ const FieldResults = () => {
   return (
     <Section title={`Field comparison over ${f.wells.length} well${f.wells.length === 1 ? '' : 's'}`} testId="field-results">
       <StaleNote job="field" />
-      <p className="text-xs text-slate-200" data-testid="field-line">
+      <p className="text-xs text-pl-text" data-testid="field-line">
         Ranked by {f.rankBy}, MASE lag m = {f.m}, horizon {f.horizon}, {f.refit ? 'refit at every origin' : 'parameters of the first window held'};
         {' '}{f.refused} well{f.refused === 1 ? '' : 's'} refused by the engine.
       </p>
@@ -57,7 +57,7 @@ const FieldPanel = () => (
     <NeedSeries />
     <Section title="Every well, the same backtest" testId="field-spec">
       <BacktestSpec fieldWide />
-      <p className="text-[11px] text-slate-400">
+      <p className="text-[11px] text-pl-muted">
         Runs in the background with a count of wells done. The settings are shared with the Backtest tab; a blank first
         origin is taken per well from its own length.
       </p>

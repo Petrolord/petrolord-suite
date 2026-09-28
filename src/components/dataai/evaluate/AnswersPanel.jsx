@@ -76,9 +76,9 @@ const Helper = () => {
         <Button size="sm" variant="outline" onClick={ask} disabled={state.phase === 'working' || !queryId} data-testid="assist-ask">
           <Bot className="mr-1 h-4 w-4" /> Ask the helper
         </Button>
-        <span className="text-[11px] text-slate-500">Retrieval: {spec.retrieval.method === 'bm25' ? 'BM25' : 'TF-IDF'}, top {spec.retrieval.k || 'engine default'}.</span>
+        <span className="text-[11px] text-pl-muted">Retrieval: {spec.retrieval.method === 'bm25' ? 'BM25' : 'TF-IDF'}, top {spec.retrieval.k || 'engine default'}.</span>
       </div>
-      {state.phase === 'working' ? <p className="text-xs text-slate-400" role="status">Asking the helper.</p> : null}
+      {state.phase === 'working' ? <p className="text-xs text-pl-muted" role="status">Asking the helper.</p> : null}
       {state.phase === 'refused' ? <EngineError result={{ error: state.error }} /> : null}
       {state.phase === 'failed' ? (
         <Note tone="warn" testId={state.kind === 'not-configured' ? 'assist-not-configured' : 'assist-failed'}>
@@ -86,10 +86,10 @@ const Helper = () => {
         </Note>
       ) : null}
       {state.phase === 'done' ? (
-        <div className="space-y-2 rounded border border-amber-700/50 bg-amber-950/10 p-2" data-testid="assist-result">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-300">Model output, not graded</p>
-          <p className="text-xs text-slate-100" data-testid="assist-answer">{state.reply.answer}</p>
-          <p className="text-[11px] text-slate-400">
+        <div className="space-y-2 rounded border border-pl-warning/40 bg-pl-warning-bg p-2" data-testid="assist-result">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-pl-warning-text">Model output, not graded</p>
+          <p className="text-xs text-pl-text" data-testid="assist-answer">{state.reply.answer}</p>
+          <p className="text-[11px] text-pl-muted">
             Cited: {state.reply.citations.join(', ') || 'nothing'}. Passages given: {state.ctx.retrieved.join(', ')}
             {state.ctx.trimmed ? ` (the top ${ASSIST_MAX_PASSAGES} of the retrieval)` : ''}. Model {state.reply.model || 'not stated'}
             {state.reply.reasoningEffort ? ` (reasoning effort ${state.reply.reasoningEffort})` : ''}
@@ -98,7 +98,7 @@ const Helper = () => {
           </p>
           {state.check.error ? <EngineError result={state.check} /> : (
             <>
-              <p className="text-xs text-slate-200" data-testid="assist-grounded">
+              <p className="text-xs text-pl-text" data-testid="assist-grounded">
                 Deterministic check: {state.check.nSupported} of {state.check.nClaims} claims supported
                 {state.check.supportedFraction === null ? ' (no checkable claim)' : ` (${dn(state.check.supportedFraction)})`}.
                 {state.check.flags.length ? ` ${state.check.flags.join('; ')}.` : ''}
@@ -165,7 +165,7 @@ const AnswersPanel = () => {
                 maxHeight="max-h-96"
                 headers={['Query', 'Supported', 'Citations', 'Unsupported claims']}
                 rows={c.perAnswer.map((a) => [
-                  <button type="button" key={a.query} className="text-sky-300 underline" onClick={() => setOpen(open === a.query ? '' : a.query)} data-testid={`answer-${a.query}`}>{a.query}</button>,
+                  <button type="button" key={a.query} className="text-pl-primary-text underline" onClick={() => setOpen(open === a.query ? '' : a.query)} data-testid={`answer-${a.query}`}>{a.query}</button>,
                   `${a.nSupported} / ${a.nClaims}`,
                   a.citations.map((x) => `${x.id} (${STATUS[x.status]})`).join(', ') || 'none',
                   a.claims.filter((x) => !x.supported).map((x) => x.reason).join('; '),
@@ -175,8 +175,8 @@ const AnswersPanel = () => {
                 const a = c.perAnswer.find((x) => x.query === open);
                 const text = dataset.systems.find((s) => s.id === out.system)?.answers.find((x) => x.query === open)?.text;
                 return (
-                  <div className="space-y-1 rounded border border-slate-800 p-2" data-testid="answer-detail">
-                    <p className="text-xs text-slate-200">{open}: {text}</p>
+                  <div className="space-y-1 rounded border border-pl-border p-2" data-testid="answer-detail">
+                    <p className="text-xs text-pl-text">{open}: {text}</p>
                     {a.note ? <Note>{a.note}</Note> : null}
                     {a.flags.length ? <Note tone="warn">{a.flags.join('; ')}.</Note> : null}
                     <ClaimsTable claims={a.claims} testId="claims-table" />

@@ -93,7 +93,7 @@ const CompareResults = () => {
   return (
     <Section title={`Backtest on ${cmp.well}`} testId="compare-results">
       <StaleNote job="compare" />
-      <p className="text-xs text-slate-200" data-testid="compare-line">
+      <p className="text-xs text-pl-text" data-testid="compare-line">
         Origins {c.origins.join(', ')}{cmp.defaulted ? ' (default first origin)' : ''}; horizon {c.horizon}; {c.refit ? 'refit at every origin' : 'parameters of the first window held'}; MASE lag m = {cmp.m}.
         {cmp.held ? <span data-testid="compare-held">{' '}Typed parameters held at every origin: {heldText(cmp.held)}.</span> : null}
         {' '}Ranking by {c.rankBy}: <span className="font-mono" data-testid="compare-ranking">{c.ranking.map((m) => METHOD_NAMES[m]).join(' > ')}</span>
@@ -118,7 +118,7 @@ const CompareResults = () => {
             })];
           })}
         />
-        <p className="text-[11px] text-slate-400" data-testid="origin-params">
+        <p className="text-[11px] text-pl-muted" data-testid="origin-params">
           Parameters at origin {shown}: {c.rows.filter((r) => !r.error).map((r) => {
             const o = r.perOrigin.find((x) => x.origin === shown);
             return `${METHOD_NAMES[r.method]} ${Object.entries(o.params).map(([k, v]) => `${k} ${typeof v === 'number' ? dn(v) : v}`).join(', ')}`;
@@ -134,7 +134,7 @@ const BacktestPanel = () => (
     <NeedSeries />
     <Section title="Rolling-origin backtest against the Arps decline" testId="compare-spec">
       <BacktestSpec />
-      <p className="text-[11px] text-slate-400">Methods and the Arps model are those chosen on the Fit and forecast tab.</p>
+      <p className="text-[11px] text-pl-muted">Methods and the Arps model are those chosen on the Fit and forecast tab.</p>
       <RunButton job="compare">Run the backtest</RunButton>
     </Section>
     <CompareResults />
