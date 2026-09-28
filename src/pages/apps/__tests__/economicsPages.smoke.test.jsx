@@ -46,9 +46,6 @@ jest.mock('@/contexts/SupabaseAuthContext', () => ({
   AuthContext: require('react').createContext(null),
   useAuth: () => ({ user: { id: 'u1', email: 'tester@example.com' }, session: null, loading: false }),
   SupabaseAuthProvider: ({ children }) => children,
-  // Design system rollout (w2f): pages that wrap themselves in <ThemedApp>
-  // read AuthContext for the per-user theme key, so the mock exports it.
-  AuthContext: jest.requireActual('react').createContext(undefined),
 }));
 
 import DecisionStudio from '@/pages/apps/DecisionStudio';
