@@ -23,6 +23,38 @@ import {
   parseGeoJSON, parseShapefile, reprojectFeatures, featuresBBox, geometryTypeOf,
 } from '@/lib/cultureImport';
 import { saveCulture } from '@/lib/cultureRegistry';
+import { useThemeClass } from '@/lib/themeClass';
+
+// Design system: themed class strings for tc() (see src/lib/themeClass.js).
+// Outside an opted-in scope tc() returns the legacy string unchanged.
+const THEMED_CLASSES = {
+  "mt-1 block w-full text-xs text-slate-300 file:mr-3 file:rounded-md file:border file:border-slate-700 file:bg-slate-900 file:px-3 file:py-1.5 file:text-xs file:text-slate-200":
+    "mt-1 block w-full text-xs text-pl-text file:mr-3 file:rounded-md file:border file:border-pl-border-strong file:bg-pl-sunken file:px-3 file:py-1.5 file:text-xs file:text-pl-text",
+  "border-white":
+    "border-pl-text",
+  "flex items-center text-white":
+    "flex items-center text-pl-text",
+  "w-5 h-5 mr-2 text-cyan-400":
+    "w-5 h-5 mr-2 text-pl-primary-text",
+  "text-xs text-slate-400":
+    "text-xs text-pl-muted",
+  "flex items-center gap-2 text-cyan-300 text-xs":
+    "flex items-center gap-2 text-pl-primary-text text-xs",
+  "rounded-md border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-300":
+    "rounded-md border border-pl-border bg-pl-sunken/60 p-2 text-xs text-pl-text",
+  "text-amber-400":
+    "text-pl-warning-text",
+  "mt-1 text-slate-500":
+    "mt-1 text-pl-muted",
+  "text-slate-400":
+    "text-pl-muted",
+  "mt-1 text-[11px] text-slate-500":
+    "mt-1 text-[11px] text-pl-muted",
+  "mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 text-sm":
+    "mt-1 w-full rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-2 py-1 text-sm",
+  "mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 text-sm disabled:opacity-40":
+    "mt-1 w-full rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-2 py-1 text-sm disabled:opacity-40",
+};
 
 const KINDS = [
   { key: 'license_block', label: 'License blocks' },
@@ -45,6 +77,7 @@ const summarize = (features) => {
 };
 
 export default function CultureImportDialog({ open, onOpenChange, onImported }) {
+  const tc = useThemeClass(THEMED_CLASSES);
   const { toast } = useToast();
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -197,15 +230,15 @@ export default function CultureImportDialog({ open, onOpenChange, onImported }) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center text-white">
-            <Globe2 className="w-5 h-5 mr-2 text-cyan-400" />
+          <DialogTitle className={tc("flex items-center text-white")}>
+            <Globe2 className={tc("w-5 h-5 mr-2 text-cyan-400")} />
             Import culture / GIS layer
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3 text-sm">
           <label className="block">
-            <span className="text-xs text-slate-400">
+            <span className={tc("text-xs text-slate-400")}>
               GeoJSON, zipped shapefile, or .shp with its .dbf/.prj
             </span>
             <input
@@ -213,13 +246,11 @@ export default function CultureImportDialog({ open, onOpenChange, onImported }) 
               multiple
               accept=".geojson,.json,.zip,.shp,.dbf,.prj"
               onChange={(e) => handleFiles(e.target.files)}
-              className="mt-1 block w-full text-xs text-slate-300 file:mr-3 file:rounded-md
-                file:border file:border-slate-700 file:bg-slate-900 file:px-3 file:py-1.5
-                file:text-xs file:text-slate-200"
+              className={tc("mt-1 block w-full text-xs text-slate-300 file:mr-3 file:rounded-md file:border file:border-slate-700 file:bg-slate-900 file:px-3 file:py-1.5 file:text-xs file:text-slate-200")}
             />
           </label>
           {parsing && (
-            <div className="flex items-center gap-2 text-cyan-300 text-xs">
+            <div className={tc("flex items-center gap-2 text-cyan-300 text-xs")}>
               <Loader2 className="w-4 h-4 animate-spin" />
               Reading…
             </div>
@@ -227,24 +258,24 @@ export default function CultureImportDialog({ open, onOpenChange, onImported }) 
 
           {parsed && (
             <>
-              <div className="rounded-md border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-300">
+              <div className={tc("rounded-md border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-300")}>
                 <div>{`${parsed.fileName}: ${summarize(parsed.features)}`}</div>
                 {parsed.skipped > 0 && (
-                  <div className="text-amber-400">{`${parsed.skipped} record(s) skipped (empty or unsupported).`}</div>
+                  <div className={tc("text-amber-400")}>{`${parsed.skipped} record(s) skipped (empty or unsupported).`}</div>
                 )}
                 {parsed.prjText && (
-                  <div className="mt-1 text-slate-500">
-                    <span className="text-slate-400">.prj says (evidence, not trusted): </span>
+                  <div className={tc("mt-1 text-slate-500")}>
+                    <span className={tc("text-slate-400")}>.prj says (evidence, not trusted): </span>
                     <span className="font-mono break-all">{parsed.prjText.slice(0, 160)}</span>
                   </div>
                 )}
               </div>
 
               <div>
-                <span className="text-xs text-slate-400">File coordinate system (declare it)</span>
+                <span className={tc("text-xs text-slate-400")}>File coordinate system (declare it)</span>
                 <CrsPicker value={fileTag} onChange={(tag) => setFileTag(tag)} />
                 {project && normalizeTag(project.tag) !== UNKNOWN && (
-                  <p className="mt-1 text-[11px] text-slate-500">
+                  <p className={tc("mt-1 text-[11px] text-slate-500")}>
                     {`Features convert into your Project CRS (${project.name || project.tag}) on import.`}
                   </p>
                 )}
@@ -252,25 +283,25 @@ export default function CultureImportDialog({ open, onOpenChange, onImported }) 
 
               <div className="grid grid-cols-2 gap-2">
                 <label className="block">
-                  <span className="text-xs text-slate-400">Layer name</span>
+                  <span className={tc("text-xs text-slate-400")}>Layer name</span>
                   <input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 text-sm"
+                    className={tc("mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 text-sm")}
                   />
                 </label>
                 <label className="block">
-                  <span className="text-xs text-slate-400">Kind</span>
+                  <span className={tc("text-xs text-slate-400")}>Kind</span>
                   <select
                     value={kind}
                     onChange={(e) => setKind(e.target.value)}
-                    className="mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 text-sm"
+                    className={tc("mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 text-sm")}
                   >
                     {KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-xs text-slate-400">Color</span>
+                  <span className={tc("text-xs text-slate-400")}>Color</span>
                   <div className="mt-1 flex gap-1">
                     {COLORS.map((c) => (
                       <button
@@ -278,19 +309,19 @@ export default function CultureImportDialog({ open, onOpenChange, onImported }) 
                         type="button"
                         aria-label={`color ${c}`}
                         onClick={() => setColor(c)}
-                        className={`w-6 h-6 rounded border-2 ${color === c ? 'border-white' : 'border-transparent'}`}
+                        className={`w-6 h-6 rounded border-2 ${color === c ? tc('border-white') : 'border-transparent'}`}
                         style={{ background: c }}
                       />
                     ))}
                   </div>
                 </label>
                 <label className="block">
-                  <span className="text-xs text-slate-400">Label field</span>
+                  <span className={tc("text-xs text-slate-400")}>Label field</span>
                   <select
                     value={labelField}
                     onChange={(e) => setLabelField(e.target.value)}
                     disabled={!propKeys.length}
-                    className="mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 text-sm disabled:opacity-40"
+                    className={tc("mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 text-sm disabled:opacity-40")}
                   >
                     <option value="">No labels</option>
                     {propKeys.map((k) => <option key={k} value={k}>{k}</option>)}

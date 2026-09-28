@@ -10,8 +10,18 @@ import { ExternalLink, ChevronDown } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent, ContextMenuItem } from '@/components/ui/context-menu';
+import { ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent, ContextMenuItem } from '@/components/workstation/themedContextMenu';
 import { WELL_APPS, buildOpenInHref } from './appLinks';
+import { useThemeClass } from '@/lib/themeClass';
+
+// Design system: themed class strings for tc() (see src/lib/themeClass.js).
+// Outside an opted-in scope tc() returns the legacy string unchanged.
+const THEMED_CLASSES = {
+  "flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700\n            text-slate-300 hover:text-slate-100 hover:bg-slate-800 disabled:opacity-40 ":
+    "flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border\n            text-pl-text hover:text-pl-text hover:bg-pl-sunken disabled:opacity-40 ",
+  "text-[10px] uppercase tracking-wider text-slate-500":
+    "text-[10px] uppercase tracking-wider text-pl-muted",
+};
 
 const itemsFor = (wellIds, paths, exclude) => WELL_APPS
   .filter((app) => !exclude?.includes(app.id))
@@ -26,6 +36,7 @@ const itemsFor = (wellIds, paths, exclude) => WELL_APPS
  * @param {string} p.testIdPrefix e.g. 'wdm' -> `wdm-open-in`, `wdm-open-in-<app>`
  */
 export function OpenInAppMenu({ wellIds, paths, exclude, testIdPrefix, disabled = false, className = '', label = 'Open in' }) {
+  const tc = useThemeClass(THEMED_CLASSES);
   const items = itemsFor(wellIds, paths, exclude);
   const none = disabled || !(wellIds || []).length;
   return (
@@ -36,14 +47,13 @@ export function OpenInAppMenu({ wellIds, paths, exclude, testIdPrefix, disabled 
           data-testid={`${testIdPrefix}-open-in`}
           disabled={none}
           title={none ? 'Select a well first' : 'Open this well in another Geoscience app'}
-          className={`flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700
-            text-slate-300 hover:text-slate-100 hover:bg-slate-800 disabled:opacity-40 ${className}`}
+          className={`${tc("flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700\n            text-slate-300 hover:text-slate-100 hover:bg-slate-800 disabled:opacity-40 ")}${className}`}
         >
           <ExternalLink className="w-3.5 h-3.5" /> {label} <ChevronDown className="w-3 h-3 opacity-70" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
-        <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-slate-500">Geoscience apps</DropdownMenuLabel>
+        <DropdownMenuLabel className={tc("text-[10px] uppercase tracking-wider text-slate-500")}>Geoscience apps</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {items.map(({ app, href }) => (
           <DropdownMenuItem key={app.id} asChild>
