@@ -13,9 +13,9 @@ import {
   getProjectCrs, setProjectCrs, countCrsTaggedData, addCustomDef,
 } from '@/lib/crs/settingsService';
 import { reprojectProjectData } from '@/lib/crs/reprojectProject';
-import { useThemeClass } from '@/lib/themeClass';
+import { useThemeClass } from '@/design/themeClass';
 
-// Design system: themed class strings for tc() (see src/lib/themeClass.js).
+// Design system: themed class strings for tc() (see src/design/themeClass.js).
 // Outside an opted-in scope tc() returns the legacy string unchanged.
 const THEMED_CLASSES = {
   "bg-slate-900 border-slate-700 text-slate-200 max-w-lg":

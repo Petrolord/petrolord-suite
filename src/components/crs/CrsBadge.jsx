@@ -1,9 +1,9 @@
 import React from 'react';
 import { ShieldCheck, ShieldAlert, Grid2X2 } from 'lucide-react';
 import { normalizeTag, LOCAL, UNKNOWN } from '@/lib/crs/tags';
-import { useThemeClass } from '@/lib/themeClass';
+import { useThemeClass } from '@/design/themeClass';
 
-// Design system: themed class strings for tc() (see src/lib/themeClass.js).
+// Design system: themed class strings for tc() (see src/design/themeClass.js).
 // Outside an opted-in scope tc() returns the legacy string unchanged.
 const THEMED_CLASSES = {
   "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-amber-950/60 text-amber-300 border border-amber-700/50 ":
