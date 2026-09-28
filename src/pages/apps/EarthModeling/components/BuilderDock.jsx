@@ -10,9 +10,9 @@ import { DERIVED_KINDS, describeDerived } from '../services/derivedSurfaces';
 import { POPULATION_METHODS } from '../services/modelBuild';
 import { VARIOGRAM_MODELS } from '../services/propertyKriging';
 
-const selCls = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
+const selCls = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 const inCls = selCls;
-const secCls = 'text-[10px] uppercase tracking-wider text-slate-500 pt-2';
+const secCls = 'text-[10px] uppercase tracking-wider text-pl-muted pt-2';
 const btnCls = 'w-full px-2 py-1 rounded border text-xs disabled:opacity-40';
 
 export default function BuilderDock({
@@ -34,7 +34,7 @@ export default function BuilderDock({
   const num = (v) => (v === '' ? '' : Number(v));
 
   return (
-    <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60">
+    <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
       <div className="p-2 space-y-2 text-xs" data-testid="em-builder">
         <div className={secCls}>Model</div>
         <input className={inCls} data-testid="em-model-name" value={definition.name}
@@ -42,14 +42,14 @@ export default function BuilderDock({
 
         <div className={secCls}>Model frame (EM0)</div>
         <div className="flex items-center gap-1">
-          <span className="w-24 text-slate-400">cell size</span>
+          <span className="w-24 text-pl-muted">cell size</span>
           <input className={inCls} data-testid="em-frame-cell" type="number" min="1" step="any" value={definition.frame?.cellM ?? ''}
             placeholder="top surface's cell" title="Model cell size in metres; empty keeps the top surface's cell"
             onChange={(e) => patch({ frame: { ...(definition.frame || {}), cellM: e.target.value } })} />
-          <span className="text-slate-500">m</span>
+          <span className="text-pl-muted">m</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="w-24 text-slate-400">boundary</span>
+          <span className="w-24 text-pl-muted">boundary</span>
           <select className={selCls} data-testid="em-frame-boundary" value={definition.frame?.boundaryId || ''}
             title="Clip the model to a boundary polygon drawn in Mapping & Surface Studio"
             onChange={(e) => patch({ frame: { ...(definition.frame || {}), boundaryId: e.target.value } })}>
@@ -61,7 +61,7 @@ export default function BuilderDock({
         <div className={secCls}>Tie tops (per stacked surface)</div>
         {stackRows.map((s, i) => (
           <div key={s.id} className="flex items-center gap-1">
-            <span className="w-24 truncate text-slate-400">{s.name}</span>
+            <span className="w-24 truncate text-pl-muted">{s.name}</span>
             <select className={selCls} data-testid={`em-top-${i}`} value={definition.topNames[i] || ''}
               onChange={(e) => {
                 const tn = [...definition.topNames];
@@ -73,16 +73,16 @@ export default function BuilderDock({
             </select>
           </div>
         ))}
-        {!stackRows.length && <p className="text-[10px] text-slate-600">Stack surfaces first (explorer).</p>}
+        {!stackRows.length && <p className="text-[10px] text-pl-muted">Stack surfaces first (explorer).</p>}
 
         <div className={secCls}>Derived horizons (EM2)</div>
         {(definition.derived || []).map((d) => (
           <div key={d.id} className="flex items-center gap-1" data-testid={`em-derived-row-${d.name}`}>
-            <span className="truncate flex-1 text-slate-300" title={describeDerived(d, surfaces, depthUnit)}>{d.name}</span>
-            <button type="button" className="px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 hover:text-red-400" title="Remove from the model" onClick={() => onRemoveDerived?.(d.id)}>x</button>
+            <span className="truncate flex-1 text-pl-text" title={describeDerived(d, surfaces, depthUnit)}>{d.name}</span>
+            <button type="button" className="px-1.5 py-0.5 rounded border border-pl-border text-pl-muted hover:text-pl-danger-text" title="Remove from the model" onClick={() => onRemoveDerived?.(d.id)}>x</button>
           </div>
         ))}
-        <div className="space-y-1 rounded border border-slate-800 p-1.5">
+        <div className="space-y-1 rounded border border-pl-border p-1.5">
           <select className={selCls} data-testid="em-derived-kind" value={dv.kind} onChange={(e) => setDv({ ...dv, kind: e.target.value })}>
             {DERIVED_KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
           </select>
@@ -110,24 +110,24 @@ export default function BuilderDock({
           )}
           <div className="flex items-center gap-1">
             <input className={inCls} data-testid="em-derived-name" value={dv.name} placeholder="name (optional)" onChange={(e) => setDv({ ...dv, name: e.target.value })} />
-            <button type="button" data-testid="em-derived-add" className="px-2 py-1 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40"
+            <button type="button" data-testid="em-derived-add" className="px-2 py-1 rounded border border-pl-primary/50 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40"
               disabled={!dv.sourceId} onClick={() => { onAddDerived?.(dv); setDv({ ...dv, name: '' }); }}>Add</button>
           </div>
         </div>
 
         <div className={secCls}>Well adjustment (EM1)</div>
-        <label className="flex items-center gap-1 text-slate-400" title="Warp each tied surface through its tie residuals so it passes through the well tops (Franke-Little correction field, zero beyond the radius)">
+        <label className="flex items-center gap-1 text-pl-muted" title="Warp each tied surface through its tie residuals so it passes through the well tops (Franke-Little correction field, zero beyond the radius)">
           <input type="checkbox" data-testid="em-adjust-on" checked={!!definition.adjust?.enabled}
             onChange={(e) => patch({ adjust: { ...(definition.adjust || {}), enabled: e.target.checked } })} />
           adjust surfaces to the well tops
         </label>
         <div className="flex items-center gap-1">
-          <span className="w-24 text-slate-400">radius</span>
+          <span className="w-24 text-pl-muted">radius</span>
           <input className={inCls} data-testid="em-adjust-radius" type="number" min="1" step="any" value={definition.adjust?.radiusM ?? ''}
             placeholder="3 x median tie spacing" title="Influence radius in metres; empty = three times the median spacing between ties"
             disabled={!definition.adjust?.enabled}
             onChange={(e) => patch({ adjust: { ...(definition.adjust || {}), radiusM: e.target.value } })} />
-          <span className="text-slate-500">m</span>
+          <span className="text-pl-muted">m</span>
         </div>
 
         <div className={secCls}>Zones (between consecutive surfaces)</div>
@@ -154,7 +154,7 @@ export default function BuilderDock({
           return (
             <div key={`fl-${i}`} className="grid grid-cols-4 gap-1" data-testid={`em-fluids-${i}`}
               title="Contacts as depth below datum (positive down) in the display unit; Bo in rm3/sm3 (rb/stb), Bg in rm3/sm3. Blank = not given; with no OWC the whole zone counts as hydrocarbon.">
-              <span className="col-span-4 text-[10px] text-slate-500">{z.name}</span>
+              <span className="col-span-4 text-[10px] text-pl-muted">{z.name}</span>
               <input className={inCls} value={f.goc ?? ''} placeholder={`GOC ${f.unit || depthUnit}`} data-testid={`em-goc-${i}`} onChange={(e) => setF('goc', e.target.value)} />
               <input className={inCls} value={f.owc ?? ''} placeholder={`OWC ${f.unit || depthUnit}`} data-testid={`em-owc-${i}`} onChange={(e) => setF('owc', e.target.value)} />
               <input className={inCls} value={f.bo ?? ''} placeholder="Bo" data-testid={`em-bo-${i}`} onChange={(e) => setF('bo', e.target.value)} />
@@ -166,24 +166,24 @@ export default function BuilderDock({
         <div className={secCls}>Population method</div>
         {['phi', 'sw', 'ntg'].map((prop) => (
           <div key={prop} className="flex items-center gap-1">
-            <span className="w-10 text-slate-400">{prop}</span>
+            <span className="w-10 text-pl-muted">{prop}</span>
             <select className={selCls} data-testid={`em-method-${prop}`} value={definition.methods[prop]}
               onChange={(e) => patch({ methods: { ...definition.methods, [prop]: e.target.value } })}>
               {POPULATION_METHODS.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
             </select>
           </div>
         ))}
-        <p className="text-[10px] text-slate-600">Per fault block; short blocks fall back kriging to trend to constant (recorded in QC).</p>
+        <p className="text-[10px] text-pl-muted">Per fault block; short blocks fall back kriging to trend to constant (recorded in QC).</p>
 
         {(Object.values(definition.methods).includes('krige') || Object.values(definition.methods).includes('okrige')) && (
           <>
             <div className={secCls}>Variogram</div>
             {Object.values(definition.methods).includes('okrige') && (
               <>
-                <label className="flex items-center gap-1 text-slate-400" title="Fit range and sill from the experimental semivariogram of each property's control points (per block)">
+                <label className="flex items-center gap-1 text-pl-muted" title="Fit range and sill from the experimental semivariogram of each property's control points (per block)">
                   <input type="checkbox" data-testid="em-vg-fit" checked={definition.krige.fit !== false} onChange={(e) => patchKrige({ fit: e.target.checked })} /> fit from the wells
                 </label>
-                <label className="flex items-center gap-1 text-slate-400" title="Fit a plane first and krige the residuals, so a regional trend is honoured">
+                <label className="flex items-center gap-1 text-pl-muted" title="Fit a plane first and krige the residuals, so a regional trend is honoured">
                   <input type="checkbox" data-testid="em-vg-detrend" checked={definition.krige.detrend !== false} onChange={(e) => patchKrige({ detrend: e.target.checked })} /> remove the trend first
                 </label>
               </>
@@ -205,17 +205,17 @@ export default function BuilderDock({
 
         <div className={secCls}>Fault polygons</div>
         {!drawing ? (
-          <button type="button" data-testid="em-fault-draw" className={`${btnCls} border-yellow-700/60 text-yellow-300 hover:bg-yellow-500/10`}
+          <button type="button" data-testid="em-fault-draw" className={`${btnCls} border-pl-border text-pl-text hover:bg-pl-sunken`}
             onClick={onStartDraw}>
             Draw fault polygon (click on map)
           </button>
         ) : (
           <div className="space-y-1">
-            <button type="button" data-testid="em-fault-finish" className={`${btnCls} border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10`}
+            <button type="button" data-testid="em-fault-finish" className={`${btnCls} border-pl-border text-pl-primary-text hover:bg-pl-sunken`}
               disabled={pendingCount < 3} onClick={onFinishDraw}>
               Close polygon ({pendingCount} vertices)
             </button>
-            <button type="button" data-testid="em-fault-cancel" className={`${btnCls} border-slate-700 text-slate-400 hover:bg-slate-700/30`}
+            <button type="button" data-testid="em-fault-cancel" className={`${btnCls} border-pl-border text-pl-muted hover:bg-pl-sunken`}
               onClick={onCancelDraw}>
               Cancel drawing
             </button>
@@ -223,14 +223,14 @@ export default function BuilderDock({
         )}
 
         <div className={secCls}>Saved models</div>
-        <button type="button" data-testid="em-save-model" className={`${btnCls} border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10`}
+        <button type="button" data-testid="em-save-model" className={`${btnCls} border-pl-primary/50 text-pl-primary-text hover:bg-pl-primary/10`}
           onClick={onSaveProject}>
           Save model definition
         </button>
         {(projects || []).map((p) => (
           <div key={p.id} className="flex items-center gap-1">
-            <span className="truncate flex-1 text-slate-400">{p.name}</span>
-            <button type="button" className="px-1.5 py-0.5 rounded border border-slate-700 text-slate-300 hover:bg-slate-700/40"
+            <span className="truncate flex-1 text-pl-muted">{p.name}</span>
+            <button type="button" className="px-1.5 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
               onClick={() => onLoadProject(p)}>
               load
             </button>

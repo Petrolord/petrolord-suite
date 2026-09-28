@@ -17,6 +17,7 @@ import {
 import { EXPORT_FORMATS } from './services/surfaceExport';
 import { ARITH_OPS } from './services/arithmetic';
 import { CONTROL_POINT_SKIP_REASONS } from './engine/surface';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const APP_PATH = '/dashboard/apps/geoscience/mapping-surface-studio';
 
@@ -38,8 +39,11 @@ export const HELP_SECTIONS = [
   { id: 'glossary', icon: BookMarked, title: 'Glossary' },
 ];
 
+// Design system rollout W4B: the guide shares the Studio's theme scope, so
+// the user's light or dark choice holds between the app and its guide.
 export default function MappingHelpGuide() {
   return (
+    <ThemedApp className="min-h-screen" data-testid="map-help-theme-scope">
     <HelpGuideShell
       title="Mapping & Surface Studio Help Guide"
       subtitle="Structure maps, attribute maps, surface arithmetic and grid exchange on the shared Geoscience registry"
@@ -393,5 +397,6 @@ export default function MappingHelpGuide() {
         <Para><Code>Mapping & Surface Studio</Code> keeps every number in the registry; this guide describes what the app does today.</Para>
       </GuideSection>
     </HelpGuideShell>
+    </ThemedApp>
   );
 }

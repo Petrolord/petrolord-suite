@@ -10,8 +10,8 @@ export default function WellExplorer({
   curveStatus, onSelect, onSelectModel,
 }) {
   return (
-    <div className="h-full flex flex-col bg-slate-900/60 border-r border-slate-800/60">
-      <div className="px-3 py-2 text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-800/60">
+    <div className="h-full flex flex-col bg-pl-surface border-r border-pl-border">
+      <div className="px-3 py-2 text-[11px] uppercase tracking-wide text-pl-muted border-b border-pl-border">
         Registry wells
       </div>
       <ScrollArea className="flex-1 min-h-0">
@@ -22,26 +22,26 @@ export default function WellExplorer({
                 type="button"
                 data-testid="pp-well-row"
                 className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm
-                  ${w.id === selectedId ? 'bg-cyan-500/10 text-cyan-200' : 'text-slate-300 hover:bg-slate-800/60'}`}
+                  ${w.id === selectedId ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-text hover:bg-pl-sunken'}`}
                 onClick={() => onSelect(w.id)}
               >
                 {loadingId === w.id
-                  ? <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500" />
-                  : <CircleDot className="w-3.5 h-3.5 text-slate-600" />}
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin text-pl-muted" />
+                  : <CircleDot className="w-3.5 h-3.5 text-pl-muted" />}
                 <span className="truncate">{w.name}</span>
                 {!w.is_own && (
-                  <span className="ml-auto text-[10px] text-slate-500">org</span>
+                  <span className="ml-auto text-[10px] text-pl-muted">org</span>
                 )}
               </button>
             </li>
           ))}
           {wells.length === 0 && (
-            <li className="px-3 py-2 text-xs text-slate-500">No wells in the registry.</li>
+            <li className="px-3 py-2 text-xs text-pl-muted">No wells in the registry.</li>
           )}
         </ul>
         {velocityModels.length > 0 && (
           <>
-            <div className="px-3 py-2 text-[11px] uppercase tracking-wide text-slate-500 border-y border-slate-800/60">
+            <div className="px-3 py-2 text-[11px] uppercase tracking-wide text-pl-muted border-y border-pl-border">
               Seismic velocity trends
             </div>
             <ul className="py-1">
@@ -52,12 +52,12 @@ export default function WellExplorer({
                     data-testid="pp-velocity-row"
                     title={m.calibration ? 'Well-tie calibrated in Seismolord' : 'Uncalibrated model'}
                     className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm
-                      ${m.id === selectedModelId ? 'bg-amber-500/10 text-amber-200' : 'text-slate-300 hover:bg-slate-800/60'}`}
+                      ${m.id === selectedModelId ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-text hover:bg-pl-sunken'}`}
                     onClick={() => onSelectModel(m)}
                   >
-                    <CircleDot className="w-3.5 h-3.5 text-slate-600" />
+                    <CircleDot className="w-3.5 h-3.5 text-pl-muted" />
                     <span className="truncate">{m.name}</span>
-                    <span className="ml-auto text-[10px] text-slate-500">v0+kz</span>
+                    <span className="ml-auto text-[10px] text-pl-muted">v0+kz</span>
                   </button>
                 </li>
               ))}
@@ -66,7 +66,7 @@ export default function WellExplorer({
         )}
       </ScrollArea>
       {curveStatus && (
-        <div className="px-3 py-2 border-t border-slate-800/60 text-[11px] text-slate-500" data-testid="pp-curve-status">
+        <div className="px-3 py-2 border-t border-pl-border text-[11px] text-pl-muted" data-testid="pp-curve-status">
           {curveStatus}
         </div>
       )}

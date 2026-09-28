@@ -53,7 +53,7 @@ export default function PrognosisChart({ profile, zBmlM, calibration, units = DE
   if (!profile) return null;
 
   return (
-    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-testid="pp-prognosis-chart">
+    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="pp-prognosis-chart">
       <h3 className="text-center text-sm font-semibold" style={{ color: CHART_COLORS.axisLabel }}>
         Pressure prognosis
       </h3>

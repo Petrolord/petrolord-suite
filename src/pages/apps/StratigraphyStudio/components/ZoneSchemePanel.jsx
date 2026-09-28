@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { FileUp, CalendarClock } from 'lucide-react';
 import { parseZoneSchemeCsv, fillBiozoneAges, loadZoneSchemes, saveZoneSchemes } from '../services/zoneSchemes';
 
-const btnCls = 'flex items-center gap-1 px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40';
+const btnCls = 'flex items-center gap-1 px-2 py-1 rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40';
 
 export default function ZoneSchemePanel({ intervals, canEdit, onReplace, onStatus }) {
   const [zones, setZones] = useState(loadZoneSchemes);
@@ -30,10 +30,10 @@ export default function ZoneSchemePanel({ intervals, canEdit, onReplace, onStatu
     onStatus(`Dated ${filled} biozone interval${filled === 1 ? '' : 's'} from the scheme${unmatched.length ? `; not in the scheme: ${unmatched.slice(0, 3).join(', ')}` : ''}.`);
   };
   return (
-    <div className="mb-3 rounded border border-slate-800 p-2 text-xs text-slate-300 space-y-1" data-testid="strat-zone-scheme">
+    <div className="mb-3 rounded border border-pl-border p-2 text-xs text-pl-text space-y-1" data-testid="strat-zone-scheme">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium">Biozone scheme</span>
-        <span className="text-slate-500" data-testid="strat-zone-scheme-summary">{zones.length ? `${zones.length} zones: ${schemes.join(', ')}` : 'none loaded'}</span>
+        <span className="text-pl-muted" data-testid="strat-zone-scheme-summary">{zones.length ? `${zones.length} zones: ${schemes.join(', ')}` : 'none loaded'}</span>
         <label className={`${btnCls} cursor-pointer ml-auto`}>
           <FileUp className="w-3.5 h-3.5" /> Import scheme (CSV)
           <input type="file" accept=".csv,text/csv" className="hidden" onChange={onFile} data-testid="strat-zone-scheme-file" />
@@ -42,7 +42,7 @@ export default function ZoneSchemePanel({ intervals, canEdit, onReplace, onStatu
           <CalendarClock className="w-3.5 h-3.5" /> Date biozones from the scheme
         </button>
       </div>
-      <p className="text-[10px] text-slate-500">Columns: scheme, zone, top_ma, base_ma, source. Use the calibration your company works to; each dated interval records the source.</p>
+      <p className="text-[10px] text-pl-muted">Columns: scheme, zone, top_ma, base_ma, source. Use the calibration your company works to; each dated interval records the source.</p>
     </div>
   );
 }

@@ -278,7 +278,11 @@ const MapViewport = forwardRef(function MapViewport({
     <div className={`${fill ? 'h-full min-h-0' : ''} w-full flex flex-col`} data-testid={`${p}-wrap`}>
       <div
         ref={wrapRef}
-        className={`relative w-full ${fill ? 'flex-1 min-h-0' : ''} rounded border border-slate-800 overflow-hidden`}
+        // design system (W4B): the map is painted with light ink for a dark
+        // ground, so the viewport stays a dark canvas in both themes; the
+        // zoom buttons and readout inside it keep their dark look
+        data-canvas="dark"
+        className={`relative w-full ${fill ? 'flex-1 min-h-0' : ''} rounded border border-slate-800 bg-slate-950 overflow-hidden`}
         style={fill ? undefined : { height }}
       >
         <canvas
@@ -306,7 +310,7 @@ const MapViewport = forwardRef(function MapViewport({
         />
       </div>
       {range && spec && (
-        <p className="mt-1 text-[11px] text-slate-500 shrink-0" data-testid={`${p}-zrange`}>
+        <p className="mt-1 text-[11px] text-pl-muted shrink-0" data-testid={`${p}-zrange`}>
           {label ? `${label} · ` : ''}z {zFormat(range.zMin)} to {zFormat(range.zMax)}{zUnit ? ` ${zUnit}` : ''} · {spec.nx}×{spec.ny} grid{hint ? ` · ${hint}` : ''}
         </p>
       )}

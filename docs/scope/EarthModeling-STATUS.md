@@ -151,3 +151,31 @@ on top of main's EC7 pin 3778451):
 
 Known limits (after NAPE): vertical fault polygons only (EM-T1-010); Sw
 from a saturation-height function (E2).
+
+## 2026-09-28: design system rollout W4B (light default, dark per user)
+
+The app, its dev harness and its help guide each wrap themselves in
+`ThemedApp` (App.jsx is untouched), so the app opens on the grey panel
+light theme and the ribbon's toggle switches to dark and back, stored per
+user. The route prefix `/dashboard/apps/geoscience/earth-modeling` (the help guide is a sub-path) is
+registered in `src/design/rollout/w4b.js` for the themed cold-load
+loaders.
+
+- Chrome on roles: the ribbon (new theme toggle at the right), the model
+  explorer, the builder dock, the QC and volume tables, the map and
+  section toolbars and the status bar moved to `pl-*` roles. Decorative
+  emerald and amber buttons and fault icons went; residual, no-contact
+  and fallback notes keep the warning role. The sample banner is a
+  warning callout. Three empty-state lines lost their em dashes.
+- Canvases: the map viewport (shared with Mapping, see its STATUS), the
+  section canvas and the 3D viewer are painted for a dark ground and sit
+  in `data-canvas="dark"` with their pixels unchanged. Earth Modeling does
+  not use Seismolord's SliceView, CubeView or MapView (its section, 3D and
+  map views are its own and the shared map kit), so the Seismolord
+  viewers and their literal 8px radius were not touched.
+- Layout: the ribbon wraps on narrower screens and hides its subtitle
+  below 2xl, so "Build model", "Publish layer" and "QC & volumes" keep
+  their labels on one line.
+- Tests: new `src/pages/apps/EarthModeling/__tests__/EarthModeling.theme.test.jsx`
+  (the shared `describeAppTheme` checks on the real workstation, plus the
+  views, the dark theme and the help guide). No calculation, engine, export or plotting change; the existing suites pass unchanged.

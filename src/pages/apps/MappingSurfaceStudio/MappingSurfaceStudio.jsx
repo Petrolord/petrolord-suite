@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import MappingWorkstation from './components/MappingWorkstation';
 import { makeRegistryBackend } from './services/registryBackend';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 // Mapping & Surface Studio (Geoscience G4): gridding, contouring and
 // surface math on the shared well + surface registries. Grid well
@@ -12,6 +13,8 @@ import { makeInMemoryBackend } from './services/inMemoryBackend';
 // ReservoirCalc Pro and others. Full-viewport workstation (the
 // WDM/Petrophysics/Correlation idiom); this page mounts the controller
 // on the real registry backend.
+// Design system rollout W4B: the page opts in to the Petrolord theme (light
+// by default, dark per user through the ribbon toggle).
 export default function MappingSurfaceStudio() {
   // T1 (E4): ?sample=1 opens the studio on built-in sample wells and
   // surfaces held in memory, so a first visit can see a real map in one
@@ -29,9 +32,9 @@ export default function MappingSurfaceStudio() {
         />
       </Helmet>
 
-      <div className="h-screen w-full overflow-hidden flex flex-col">
+      <ThemedApp className="h-screen w-full overflow-hidden flex flex-col" data-testid="map-theme-scope">
         {sample && (
-          <div className="px-3 py-1 text-[11px] bg-amber-500/15 text-amber-200 border-b border-amber-700/40 flex items-center gap-2" data-testid="map-sample-banner">
+          <div className="px-3 py-1 text-[11px] bg-pl-warning-bg text-pl-warning-text border-b border-pl-warning/40 flex items-center gap-2" data-testid="map-sample-banner">
             Sample data: five wells and two surfaces held in this tab. Nothing is saved to your registry.
             <Link to="?" className="ml-auto underline">Back to my data</Link>
           </div>
@@ -39,7 +42,7 @@ export default function MappingSurfaceStudio() {
         <div className="flex-1 min-h-0">
           <MappingWorkstation backend={backend} sample={sample} />
         </div>
-      </div>
+      </ThemedApp>
     </>
   );
 }

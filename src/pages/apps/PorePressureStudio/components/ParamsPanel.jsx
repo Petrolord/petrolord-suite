@@ -15,14 +15,14 @@ import {
 
 function Field({ id, label, value, onChange, step }) {
   return (
-    <label htmlFor={id} className="flex items-center justify-between gap-2 text-xs text-slate-400">
+    <label htmlFor={id} className="flex items-center justify-between gap-2 text-xs text-pl-muted">
       <span>{label}</span>
       <input
         id={id}
         data-testid={id}
         type="number"
         step={step || 'any'}
-        className="w-28 px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 text-right"
+        className="w-28 px-2 py-1 rounded bg-pl-surface border border-pl-border-strong text-pl-text text-right"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -100,18 +100,18 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
 
   return (
     <div className="p-3 flex flex-col gap-3 text-sm">
-      <div className="text-[11px] uppercase tracking-wide text-slate-500">Water column</div>
+      <div className="text-[11px] uppercase tracking-wide text-pl-muted">Water column</div>
       <Field id="pp-param-wd" label={`Water depth (${zU})`} value={d.waterDepthM} onChange={set('waterDepthM')} />
       <Field id="pp-param-rhosw" label={`Seawater ρ (${dU})`} value={d.rhoSeawaterKgM3} onChange={set('rhoSeawaterKgM3')} />
       <Field id="pp-param-rhofl" label={`Pore fluid ρ (${dU})`} value={d.rhoFluidKgM3} onChange={set('rhoFluidKgM3')} />
       <Field id="pp-param-mudline" label={`Mudline at MD (${zU}, RKB)`} value={d.mudlineMdM} onChange={set('mudlineMdM')} />
 
-      <div className="text-[11px] uppercase tracking-wide text-slate-500 mt-1">Normal compaction trend</div>
+      <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Normal compaction trend</div>
       <Field id="pp-param-dtml" label={`dt mudline (${sU})`} value={d.dtMlUsPerM} onChange={set('dtMlUsPerM')} />
       <Field id="pp-param-dtma" label={`dt matrix (${sU})`} value={d.dtMaUsPerM} onChange={set('dtMaUsPerM')} />
       <Field id="pp-param-cnct" label={`c (${cU})`} value={d.cPerM} onChange={set('cPerM')} />
 
-      <div className="text-[11px] uppercase tracking-wide text-slate-500 mt-1">Method</div>
+      <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Method</div>
       <div className="flex gap-1">
         {['eaton', 'bowers'].map((m) => (
           <button
@@ -119,7 +119,7 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
             type="button"
             data-testid={`pp-method-${m}`}
             className={`px-2 py-1 text-xs rounded border capitalize
-              ${d.method === m ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+              ${d.method === m ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
             onClick={() => setD((prev) => ({ ...prev, method: m }))}
           >
             {m}
@@ -138,13 +138,13 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
       )}
       <Field id="pp-param-nu" label="Poisson's ratio ν" value={d.nu} onChange={set('nu')} />
 
-      <div className="text-[11px] uppercase tracking-wide text-slate-500 mt-1">
+      <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">
         Calibration points (z {zU} bml, P {pU})
       </div>
       <textarea
         data-testid="pp-param-cal"
         rows={4}
-        className="w-full px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 text-xs font-mono"
+        className="w-full px-2 py-1 rounded bg-pl-surface border border-pl-border-strong text-pl-text text-xs font-mono"
         placeholder={`one point per line, e.g.\n${pU === 'MPa' && zU === 'm' ? '3000, 34.5' : `depth ${zU}, pressure ${pU}`}`}
         value={d.calText}
         onChange={(e) => set('calText')(e.target.value)}
@@ -153,7 +153,7 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
       <button
         type="button"
         data-testid="pp-apply-params"
-        className="mt-1 px-3 py-1.5 rounded border border-cyan-700 text-cyan-300 hover:bg-cyan-500/10 text-xs"
+        className="mt-1 px-3 py-1.5 rounded border border-pl-primary text-pl-primary-text hover:bg-pl-primary/10 text-xs"
         onClick={apply}
       >
         Apply

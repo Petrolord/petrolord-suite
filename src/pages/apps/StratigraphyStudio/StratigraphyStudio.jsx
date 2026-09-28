@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import StratWorkstation from './components/StratWorkstation';
 import { makeRegistryBackend } from './services/registryBackend';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 // Stratigraphy Studio (Geoscience G9, ST0): the stratigraphic framework
 // on the shared well registry. Stratigraphic column (group, formation,
@@ -9,6 +10,8 @@ import { makeRegistryBackend } from './services/registryBackend';
 // surfaces on the shared tops (Catuneanu stored, Exxon as a display
 // option), glossary. Full-viewport workstation; this page only mounts
 // the controller on the real registry backend.
+// Design system rollout W4B: the page opts in to the Petrolord theme (light
+// by default, dark per user through the ribbon toggle).
 export default function StratigraphyStudio() {
   const backend = useMemo(() => makeRegistryBackend(), []);
   return (
@@ -20,9 +23,9 @@ export default function StratigraphyStudio() {
           content="Stratigraphic framework on the shared well registry: a stratigraphic column with ages and colours, typed sequence-stratigraphic surfaces on the shared tops (Catuneanu, with Exxon terminology as a display option), and a glossary. Types written here draw in Well Correlation, Petrophysics Studio and Well Data Manager at once."
         />
       </Helmet>
-      <div className="h-screen w-full overflow-hidden">
+      <ThemedApp className="h-screen w-full overflow-hidden" data-testid="strat-theme-scope">
         <StratWorkstation backend={backend} />
-      </div>
+      </ThemedApp>
     </>
   );
 }

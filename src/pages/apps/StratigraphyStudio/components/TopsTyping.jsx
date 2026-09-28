@@ -11,8 +11,8 @@ import { SURFACE_TYPES, displayLabel, normalizeSurfaceType, expectedTract, surfa
 import { orderedUnits } from '@/lib/stratigraphy/column';
 import { FallbackBadge, StyleSwatch } from './Glossary';
 
-const cellCls = 'bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-xs text-slate-100';
-const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40';
+const cellCls = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text';
+const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40';
 
 const toRow = (t) => ({
   id: t.id, name: t.name, md_m: t.md_m,
@@ -87,27 +87,27 @@ export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onSta
     return out;
   }, [rows]);
 
-  if (!well) return <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="strat-tops-empty">Pick a well on the left to type its tops.</div>;
+  if (!well) return <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="strat-tops-empty">Pick a well on the left to type its tops.</div>;
 
   return (
     <div className="p-3 space-y-2 text-xs" data-testid="strat-tops-typing">
       <div className="flex items-center gap-2">
-        <span className="text-slate-300 font-medium">{well.name}</span>
-        <span className="text-slate-500">{tops.length} top{tops.length === 1 ? '' : 's'}{canEdit ? '' : ' · shared with you, read-only'}</span>
+        <span className="text-pl-text font-medium">{well.name}</span>
+        <span className="text-pl-muted">{tops.length} top{tops.length === 1 ? '' : 's'}{canEdit ? '' : ' · shared with you, read-only'}</span>
         <div className="ml-auto">
-          <button type="button" className={`${btnCls} ${changed.length ? 'border-cyan-500/60 text-cyan-300' : ''}`} disabled={!canEdit || busy || !changed.length} onClick={save} data-testid="strat-tops-save">
+          <button type="button" className={`${btnCls} ${changed.length ? 'border-pl-primary text-pl-primary-text' : ''}`} disabled={!canEdit || busy || !changed.length} onClick={save} data-testid="strat-tops-save">
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save {changed.length ? `(${changed.length})` : ''}
           </button>
         </div>
       </div>
       {!rows.length ? (
-        <div className="text-slate-500">This well has no tops. Pick them in Well Correlation or Petrophysics Studio, or paste them in Well Data Manager.</div>
+        <div className="text-pl-muted">This well has no tops. Pick them in Well Correlation or Petrophysics Studio, or paste them in Well Data Manager.</div>
       ) : (
         <table className="text-xs">
           <thead>
             <tr>
               {['Top', 'MD (m)', 'Marker', 'Surface type', 'Unit', 'Confidence', 'Age (Ma)', 'Hiatus to (Ma)', 'Scheme / notes', 'Tract below'].map((h) => (
-                <th key={h} className="text-left font-medium text-slate-500 pr-3 pb-1">{h}</th>
+                <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>
               ))}
             </tr>
           </thead>
@@ -117,8 +117,8 @@ export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onSta
               const tract = pairs.get(r.id);
               return (
                 <tr key={r.id} data-testid={`strat-top-row-${r.name}`} data-surface-type={r.surface_type}>
-                  <td className="pr-3 py-0.5 text-slate-100">{r.name}</td>
-                  <td className="pr-3 py-0.5 text-slate-300 font-mono">{Number(r.md_m).toFixed(1)}</td>
+                  <td className="pr-3 py-0.5 text-pl-text">{r.name}</td>
+                  <td className="pr-3 py-0.5 text-pl-text font-mono">{Number(r.md_m).toFixed(1)}</td>
                   <td className="pr-3 py-0.5"><StyleSwatch style={surfaceLineStyle(r.surface_type)} width={40} /></td>
                   <td className="pr-3 py-0.5">
                     <select className={cellCls} style={{ width: 300 }} value={r.surface_type} disabled={!canEdit} onChange={(e) => setCell(r.id, 'surface_type', e.target.value)} data-testid={`strat-top-type-${r.name}`} title={d.label}>
@@ -144,12 +144,12 @@ export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onSta
                   <td className="pr-3 py-0.5">
                     {(r.surface_type === 'SU' || r.surface_type === 'unconformity') ? (
                       <input className={cellCls} style={{ width: 72 }} value={r.hiatus_to_ma} disabled={!canEdit} inputMode="decimal" title="Age of the youngest rock below the unconformity" onChange={(e) => setCell(r.id, 'hiatus_to_ma', e.target.value)} data-testid={`strat-top-hiatus-${r.name}`} />
-                    ) : <span className="text-slate-600">n/a</span>}
+                    ) : <span className="text-pl-muted">n/a</span>}
                   </td>
                   <td className="pr-3 py-0.5">
                     <input className={cellCls} style={{ width: 130 }} value={r.notes} disabled={!canEdit} placeholder={r.surface_type === 'biozone' ? 'scheme: zone' : ''} title={r.surface_type === 'biozone' ? 'Biozonation scheme and zone (ST3)' : 'Notes'} onChange={(e) => setCell(r.id, 'notes', e.target.value)} data-testid={`strat-top-notes-${r.name}`} />
                   </td>
-                  <td className="py-0.5 text-slate-400" data-testid={`strat-top-tract-${r.name}`}>
+                  <td className="py-0.5 text-pl-muted" data-testid={`strat-top-tract-${r.name}`}>
                     {tract ? <>{displayLabel(tract.code, scheme, { kind: 'tract', short: true }).label}{!tract.certain ? ' ?' : ''}{displayLabel(tract.code, scheme, { kind: 'tract' }).fallback && <FallbackBadge code={tract.code} />}</> : ''}
                   </td>
                 </tr>
@@ -158,7 +158,7 @@ export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onSta
           </tbody>
         </table>
       )}
-      <p className="text-slate-500">Types, units, confidence and ages write to the shared tops rows: Well Correlation, Petrophysics Studio and Well Data Manager draw and list them at once. The tract column reads the pair of surfaces above and below; systems tracts are recorded in ST2.</p>
+      <p className="text-pl-muted">Types, units, confidence and ages write to the shared tops rows: Well Correlation, Petrophysics Studio and Well Data Manager draw and list them at once. The tract column reads the pair of surfaces above and below; systems tracts are recorded in ST2.</p>
     </div>
   );
 }

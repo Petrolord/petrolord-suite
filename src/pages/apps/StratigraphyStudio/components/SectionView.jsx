@@ -20,8 +20,8 @@ import { motif as motifOf } from '@/lib/stratigraphy/vocabulary';
 import { appPath, mapNetHref, MAPPING_ID } from '@/components/wells/appLinks';
 
 const TRACT_COLOUR = Object.fromEntries(SYSTEMS_TRACTS.map((t) => [t.code, t.colour]));
-const selCls = 'bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-xs text-slate-100';
-const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40';
+const selCls = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text';
+const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40';
 
 /**
  * @param {Object} p
@@ -130,18 +130,18 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
 
   const typedCount = sectionWells.reduce((s, w) => s + (w.tops || []).filter((t) => normalizeSurfaceType(t.surface_type) !== 'formation_top').length, 0);
 
-  if (!wells) return <div className="h-full flex items-center justify-center text-slate-500 text-sm"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading wells…</div>;
+  if (!wells) return <div className="h-full flex items-center justify-center text-pl-muted text-sm"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading wells…</div>;
   if (!order.length) {
     return (
-      <div className="h-full flex items-center justify-center text-slate-500 text-sm p-6 text-center" data-testid="strat-section-empty">
-        No section yet. Build one in <Link className="text-cyan-300 mx-1" to={appPath('well-correlation', appPaths)}>Well Correlation</Link> and save it; it opens here.
+      <div className="h-full flex items-center justify-center text-pl-muted text-sm p-6 text-center" data-testid="strat-section-empty">
+        No section yet. Build one in <Link className="text-pl-primary-text mx-1" to={appPath('well-correlation', appPaths)}>Well Correlation</Link> and save it; it opens here.
       </div>
     );
   }
 
   const controls = (
-    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-800 text-xs flex-wrap" data-testid="strat-section-controls" data-tract-links={tractPairs.map((x) => x.href).join(' ')}>
-      <label className="flex items-center gap-1 text-slate-400">Datum
+    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-pl-border text-xs flex-wrap" data-testid="strat-section-controls" data-tract-links={tractPairs.map((x) => x.href).join(' ')}>
+      <label className="flex items-center gap-1 text-pl-muted">Datum
         <select className={selCls} value={datum.mode} data-testid="strat-datum-mode"
           onChange={(e) => {
             const m = e.target.value;
@@ -164,18 +164,18 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
           <select className={selCls} value={datum.upperName} data-testid="strat-datum-upper" onChange={(e) => setDatum({ ...datum, upperName: e.target.value })}>
             {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
-          <span className="text-slate-500">to</span>
+          <span className="text-pl-muted">to</span>
           <select className={selCls} value={datum.lowerName} data-testid="strat-datum-lower" onChange={(e) => setDatum({ ...datum, lowerName: e.target.value })}>
             {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </>
       )}
-      <label className="flex items-center gap-1 text-slate-400 ml-2"><input type="checkbox" checked={showTracts} onChange={(e) => setShowTracts(e.target.checked)} data-testid="strat-show-tracts" /> Tracts</label>
-      <label className="flex items-center gap-1 text-slate-400"><input type="checkbox" checked={showMotifs} onChange={(e) => setShowMotifs(e.target.checked)} data-testid="strat-show-motifs" /> Motifs</label>
+      <label className="flex items-center gap-1 text-pl-muted ml-2"><input type="checkbox" checked={showTracts} onChange={(e) => setShowTracts(e.target.checked)} data-testid="strat-show-tracts" /> Tracts</label>
+      <label className="flex items-center gap-1 text-pl-muted"><input type="checkbox" checked={showMotifs} onChange={(e) => setShowMotifs(e.target.checked)} data-testid="strat-show-motifs" /> Motifs</label>
       <button type="button" className={btnCls} disabled={busy || !sectionWells.some((w) => w.is_own)} onClick={recordTracts} data-testid="strat-record-tracts" title="Write the implied systems tracts to the shared intervals of every own well in the section">
         {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} Record tracts
       </button>
-      <label className="flex items-center gap-1 text-slate-400 ml-2">Ghost
+      <label className="flex items-center gap-1 text-pl-muted ml-2">Ghost
         <select className={selCls} value={ghost?.sourceWellId || ''} data-testid="strat-ghost-source" onChange={(e) => setGhost(e.target.value ? { sourceWellId: e.target.value, targetWellId: ghost?.targetWellId || sectionWells.find((w) => w.id !== e.target.value)?.id, shiftM: ghost?.shiftM || 0 } : null)}>
           <option value="">off</option>
           {sectionWells.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -183,16 +183,16 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
       </label>
       {ghost && (
         <>
-          <span className="text-slate-500">on</span>
+          <span className="text-pl-muted">on</span>
           <select className={selCls} value={ghost.targetWellId || ''} data-testid="strat-ghost-target" onChange={(e) => setGhost({ ...ghost, targetWellId: e.target.value })}>
             {sectionWells.filter((w) => w.id !== ghost.sourceWellId).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
           <input type="range" min={-200} max={200} step={1} value={ghost.shiftM || 0} data-testid="strat-ghost-shift" onChange={(e) => setGhost({ ...ghost, shiftM: Number(e.target.value) })} />
-          <span className="text-slate-400 w-12" data-testid="strat-ghost-shift-value">{ghost.shiftM >= 0 ? '+' : ''}{ghost.shiftM || 0} m</span>
+          <span className="text-pl-muted w-12" data-testid="strat-ghost-shift-value">{ghost.shiftM >= 0 ? '+' : ''}{ghost.shiftM || 0} m</span>
         </>
       )}
       {tractPairs.length > 0 && (
-        <label className="flex items-center gap-1 text-slate-400 ml-2">Map net sand
+        <label className="flex items-center gap-1 text-pl-muted ml-2">Map net sand
           <select className={selCls} value="" data-testid="strat-map-tract" title="Open Mapping & Surface Studio on the net sand between a tract's surfaces across the section wells"
             onChange={(e) => { const pair = tractPairs.find((x) => x.key === e.target.value); if (pair) window.location.assign(mapNetHref(pair.upper, pair.lower, order, { path: appPath(MAPPING_ID, appPaths) })); }}>
             <option value="">choose a tract</option>
@@ -200,7 +200,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
           </select>
         </label>
       )}
-      <span className="ml-auto text-slate-500" data-testid="strat-section-summary">{sectionWells.length} wells · {typedCount} typed surfaces</span>
+      <span className="ml-auto text-pl-muted" data-testid="strat-section-summary">{sectionWells.length} wells · {typedCount} typed surfaces</span>
       <button type="button" className={btnCls} onClick={saveView} data-testid="strat-save-view" title="Save the datum and ghost with your stratigraphy project"><Save className="w-3.5 h-3.5" /> Save view</button>
     </div>
   );
@@ -208,9 +208,9 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   if (mode === 'wheeler') {
     return (
       <div className="h-full min-h-0 flex flex-col">
-        <div className="px-3 py-1.5 border-b border-slate-800 text-xs text-slate-400 flex items-center gap-2">
+        <div className="px-3 py-1.5 border-b border-pl-border text-xs text-pl-muted flex items-center gap-2">
           Wheeler chart of the section, time down. Dated surfaces come from the Tops view; an unconformity needs a hiatus end.
-          <span className="ml-auto text-slate-500">{typedCount} typed surfaces</span>
+          <span className="ml-auto text-pl-muted">{typedCount} typed surfaces</span>
         </div>
         <div className="flex-1 min-h-0 overflow-auto p-3">
           <WheelerChart wells={wheelerWells} scheme={scheme} width={Math.max(480, 160 * sectionWells.length + 80)} height={440} testIdPrefix="strat-wheeler" />
