@@ -6,6 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { useStudioTheme } from './studioTheme';
+
+// Design system: inside a <ThemedApp> scope the adapted Select, Button and
+// Dialog supply the theme; the legacy slate overrides apply only outside one.
 
 const StudioProjectManager = ({
   projects = [],
@@ -25,6 +29,8 @@ const StudioProjectManager = ({
 }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const { ds, tc } = useStudioTheme();
+  const outlineBtn = tc('bg-slate-800 border-slate-700', '');
 
   const handleCreate = () => {
     if (newProjectName) {
@@ -36,13 +42,13 @@ const StudioProjectManager = ({
 
   return (
     <div className="space-y-2">
-      <label className="text-xs font-medium text-slate-400 uppercase">{label}</label>
+      <label className={tc('text-xs font-medium text-slate-400 uppercase', 'text-xs font-medium text-pl-muted uppercase')}>{label}</label>
       <div className="flex gap-2">
         <Select value={currentProjectId || ''} onValueChange={onOpen}>
-          <SelectTrigger className="flex-1 min-w-0 bg-slate-800 border-slate-700 [&>span]:truncate">
+          <SelectTrigger className={tc('flex-1 min-w-0 bg-slate-800 border-slate-700 [&>span]:truncate', 'flex-1 min-w-0 [&>span]:truncate')} aria-label={ds ? label : undefined}>
             <SelectValue placeholder={`Select ${noun}`} />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectContent className={tc('bg-slate-800 border-slate-700 text-slate-100', undefined)}>
             {projects.length === 0 ? (
               <SelectItem value="none" disabled>{`No ${noun}s yet`}</SelectItem>
             ) : (
@@ -56,8 +62,9 @@ const StudioProjectManager = ({
         {onRequestCreate ? (
           <Button
             variant="outline" size="icon"
-            className="bg-slate-800 border-slate-700"
+            className={outlineBtn}
             title={`Create new ${noun}`}
+            aria-label={ds ? `Create new ${noun}` : undefined}
             onClick={onRequestCreate}
           >
             <Plus size={16} />
@@ -65,11 +72,11 @@ const StudioProjectManager = ({
         ) : (
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="icon" className="bg-slate-800 border-slate-700" title={`Create new ${noun}`}>
+            <Button variant="outline" size="icon" className={outlineBtn} title={`Create new ${noun}`} aria-label={ds ? `Create new ${noun}` : undefined}>
               <Plus size={16} />
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-slate-900 border-slate-700 text-slate-100">
+          <DialogContent className={tc('bg-slate-900 border-slate-700 text-slate-100', undefined)}>
             <DialogHeader>
               <DialogTitle>{`Create new ${noun}`}</DialogTitle>
             </DialogHeader>
@@ -79,7 +86,8 @@ const StudioProjectManager = ({
                 value={newProjectName}
                 onChange={(e) => setNewProjectName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
-                className="bg-slate-800 border-slate-700"
+                className={tc('bg-slate-800 border-slate-700', undefined)}
+                aria-label={ds ? `${noun[0].toUpperCase()}${noun.slice(1)} name` : undefined}
               />
             </div>
             <DialogFooter>
@@ -92,8 +100,9 @@ const StudioProjectManager = ({
         {currentProjectId && (
           <Button
             variant="outline" size="icon"
-            className="bg-slate-800 border-slate-700 text-slate-500 hover:text-red-400"
+            className={tc('bg-slate-800 border-slate-700 text-slate-500 hover:text-red-400', 'text-pl-muted hover:text-pl-danger-text')}
             title={`Delete current ${noun}`}
+            aria-label={ds ? `Delete current ${noun}` : undefined}
             onClick={() => {
               if (window.confirm(confirmDeleteMessage)) {
                 onDelete(currentProjectId);

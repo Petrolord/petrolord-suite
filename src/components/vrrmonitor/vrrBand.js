@@ -6,7 +6,7 @@
 // stays as a second line, with its dashes turned into plain punctuation.
 import { classifyVRR } from '@/utils/vrrCalculations';
 
-const plain = (s) => String(s || '').replace(/\s+—\s+/g, ': ');
+export const plain = (s) => String(s || '').replace(/\s+—\s+/g, ': ');
 
 export function statusAgainstBand(vrr, band) {
   const screen = classifyVRR(vrr);

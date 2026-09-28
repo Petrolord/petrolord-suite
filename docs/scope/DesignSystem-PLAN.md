@@ -229,3 +229,12 @@ themes.
   provider, adapted primitives, shell pieces, specimen, docs, tests). Pilots
   not started. Next: owner decisions above, then pilot PRs in the order EPE,
   hubs, DCA, VRR/Studio kit, Seismolord.
+- 2026-09-27: pilot 5 (Voidage Replacement Monitor and a theme-aware Studio
+  kit) on `feat/ds-pilot-vrr`. The kit (`src/components/studio/*`) picks its
+  classes with `useStudioTheme()` (`studioTheme.js`): legacy strings byte for
+  byte outside a scope, theme roles inside one; on phones the themed rails
+  float over the page with their own close button and the header wraps.
+  Another Studio-kit app now opts in by wrapping its route in `ThemedApp` and
+  migrating its own panels. The non-pilot proof in `optInScope.test.jsx`
+  still mounts VRR outside a scope (VRR keeps its legacy branch for that);
+  it can move to another app, for example Waterflood Design Studio.
