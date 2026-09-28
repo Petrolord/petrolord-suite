@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Scale, ArrowLeft, Save, FolderOpen, Download } from 'lucide-react';
+import { Scale, Save, FolderOpen, Download } from 'lucide-react';
+import { AppHeader } from '@/components/ui/app-shell';
+import { ThemedApp } from '@/design/ThemeProvider';
 import InputPanel from '@/components/fiscaldesigner/InputPanel';
 import ResultsPanel from '@/components/fiscaldesigner/ResultsPanel';
 import EmptyState from '@/components/fiscaldesigner/EmptyState';
@@ -18,7 +18,7 @@ import LoadProjectDialog from '@/components/fiscaldesigner/LoadProjectDialog';
 import FiscalDesignerHelpGuide from '@/components/fiscaldesigner/FiscalDesignerHelpGuide';
 import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 
-const FiscalRegimeDesigner = () => {
+const FiscalRegimeDesignerContent = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -131,52 +131,42 @@ const FiscalRegimeDesigner = () => {
         <title>Fiscal Regime Designer - Petrolord Suite</title>
         <meta name="description" content="Build, compare, and stress-test petroleum fiscal terms with advanced analytics." />
       </Helmet>
+      <AppHeader
+        backTo="/dashboard/economics"
+        backLabel="Back to Economics"
+        icon={Scale}
+        title="Fiscal Regime Designer"
+        subtitle="Build & Compare Petroleum Fiscal Terms"
+        actions={(
+          <>
+            <FullPrecisionToggle app="fiscal-regime-designer" />
+            <FiscalDesignerHelpGuide />
+          </>
+        )}
+      />
       <div className="p-4 md:p-8 h-full flex flex-col">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-8 flex-shrink-0">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-4">
-                <Link to="/dashboard/economics">
-                <Button variant="outline" size="sm" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back
-                </Button>
-                </Link>
-                <div className="flex items-center space-x-3">
-                    <div className="bg-gradient-to-r from-pink-500 to-fuchsia-500 p-3 rounded-xl">
-                        <Scale className="w-8 h-8 text-white" />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl md:text-4xl font-bold text-white">Fiscal Regime Designer</h1>
-                        <p className="text-lime-200 text-md md:text-lg">Build & Compare Petroleum Fiscal Terms</p>
-                    </div>
-                </div>
-            </div>
-            <div className="flex items-center gap-2">
-                <FullPrecisionToggle app="fiscal-regime-designer" />
-                <FiscalDesignerHelpGuide />
-                <Button onClick={() => setIsLoadDialogOpen(true)} variant="outline" className="text-lime-300 border-lime-400/50 hover:bg-lime-500/20">
-                    <FolderOpen className="w-4 h-4 mr-2" /> Load
-                </Button>
-                <Button onClick={() => { setNewProjectName(projectInputs.name); setIsSaveDialogOpen(true); }} className="bg-blue-600 hover:bg-blue-700">
-                    <Save className="w-4 h-4 mr-2" /> Save
-                </Button>
-                <Button onClick={handleExport} disabled={!results} className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                    <Download className="w-4 h-4 mr-2" /> Export Regime File
-                </Button>
-            </div>
-          </div>
-        </motion.div>
+        <div className="mb-6 flex flex-wrap items-center gap-2">
+          <Button onClick={() => setIsLoadDialogOpen(true)} variant="outline">
+            <FolderOpen className="w-4 h-4 mr-2" /> Load
+          </Button>
+          <Button onClick={() => { setNewProjectName(projectInputs.name); setIsSaveDialogOpen(true); }}>
+            <Save className="w-4 h-4 mr-2" /> Save
+          </Button>
+          <Button onClick={handleExport} disabled={!results} variant="outline">
+            <Download className="w-4 h-4 mr-2" /> Export Regime File
+          </Button>
+        </div>
         <div className="flex-grow flex flex-col lg:flex-row gap-8">
           <div className="lg:w-2/5 flex-shrink-0">
             <InputPanel onRunComparison={handleRunComparison} loading={loading} initialProjectInputs={projectInputs} initialRegimes={regimes} />
           </div>
           <div className="flex-1 min-w-0">
             {loading ? (
-              <div className="flex items-center justify-center h-full bg-white/5 rounded-xl border border-white/10 p-6">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lime-400 mx-auto"></div>
-                  <p className="text-white mt-4 text-lg">Comparing Regimes...</p>
-                  <p className="text-lime-300">Please wait, running complex calculations.</p>
+              <div className="flex items-center justify-center h-full bg-pl-surface rounded-xl border border-pl-border p-6 shadow-pl-sm">
+                <div className="text-center" role="status">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pl-primary mx-auto"></div>
+                  <p className="text-pl-text mt-4 text-lg">Comparing Regimes...</p>
+                  <p className="text-pl-muted">Please wait, running complex calculations.</p>
                 </div>
               </div>
             ) : results ? (
@@ -188,18 +178,18 @@ const FiscalRegimeDesigner = () => {
         </div>
       </div>
       <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
-        <DialogContent className="bg-gray-900 border-gray-700 text-white">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-2xl text-lime-300">Save Project</DialogTitle>
-            <DialogDescription className="text-gray-400">Enter a name for your project to save it for later use.</DialogDescription>
+            <DialogTitle className="text-2xl">Save Project</DialogTitle>
+            <DialogDescription>Enter a name for your project to save it for later use.</DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Label htmlFor="project-name" className="text-lime-300">Project Name</Label>
-            <Input id="project-name" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} className="bg-white/10 border-white/20 mt-2" />
+            <Label htmlFor="project-name">Project Name</Label>
+            <Input id="project-name" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} className="mt-2" />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSaveDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveProject} className="bg-blue-600 hover:bg-blue-700">Save Project</Button>
+            <Button onClick={handleSaveProject}>Save Project</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -211,5 +201,15 @@ const FiscalRegimeDesigner = () => {
     </FullPrecisionProvider>
   );
 };
+
+// Design system rollout batch 2E (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// switches it to dark per user. The comparison charts keep the white chart
+// standard.
+const FiscalRegimeDesigner = () => (
+  <ThemedApp className="min-h-screen" data-testid="fiscal-theme-scope">
+    <FiscalRegimeDesignerContent />
+  </ThemedApp>
+);
 
 export default FiscalRegimeDesigner;
