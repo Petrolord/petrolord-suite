@@ -29,7 +29,6 @@ import ReportPanel from '@/components/welltest/ReportPanel';
 import ReportResults from '@/components/welltest/ReportResults';
 import DiagnosticsRail from '@/components/welltest/DiagnosticsRail';
 import WTSHelpContent from '@/components/welltest/WTSHelpContent';
-import { SectionLabel } from '@/components/welltest/primitives';
 
 const TABS = [
   { value: 'data', label: 'Data' },
