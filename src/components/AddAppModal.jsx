@@ -73,18 +73,18 @@ const AddAppModal = ({ isOpen, onClose, organization, existingAppIds, superAdmin
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-slate-900 text-white border-slate-800">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Add Application to {organization?.name}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-400">Application</label>
+            <label className="text-sm font-medium text-pl-muted">Application</label>
             <Select value={selectedAppId} onValueChange={setSelectedAppId}>
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+              <SelectTrigger>
                 <SelectValue placeholder="Select an application" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700 text-white">
+              <SelectContent>
                 {availableApps.length === 0 ? (
                     <SelectItem value="none" disabled>No more apps available</SelectItem>
                 ) : (
@@ -99,27 +99,26 @@ const AddAppModal = ({ isOpen, onClose, organization, existingAppIds, superAdmin
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-400">Allocated Seats</label>
+            <label className="text-sm font-medium text-pl-muted">Allocated Seats</label>
             <Input 
               type="number" 
               value={seats} 
               onChange={(e) => setSeats(e.target.value)}
               min={1}
               max={1000}
-              className="bg-slate-800 border-slate-700 text-white"
             />
             {seats > 100 && (
-                <p className="text-xs text-amber-500">Warning: High seat count selected.</p>
+                <p className="text-xs text-pl-warning-text">Warning: High seat count selected.</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-400">Status</label>
+            <label className="text-sm font-medium text-pl-muted">Status</label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700 text-white">
+              <SelectContent>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="inactive">Inactive</SelectItem>
                 <SelectItem value="trial">Trial</SelectItem>
@@ -128,8 +127,8 @@ const AddAppModal = ({ isOpen, onClose, organization, existingAppIds, superAdmin
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={loading} className="border-slate-700 text-slate-400">Cancel</Button>
-          <Button onClick={handleAdd} disabled={loading || !selectedAppId} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Button variant="outline" onClick={onClose} disabled={loading} >Cancel</Button>
+          <Button onClick={handleAdd} disabled={loading || !selectedAppId} >
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : null}
             Add App
           </Button>

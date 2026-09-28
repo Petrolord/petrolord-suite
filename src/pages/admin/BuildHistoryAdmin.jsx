@@ -13,12 +13,13 @@ import {
 } from 'lucide-react';
 
 const ActionBadge = ({ action }) => {
+  // Badge variants: status colour with the action word and an icon.
   const styles = {
-    created: "bg-blue-500/20 text-blue-400 border-blue-500/50",
-    updated: "bg-amber-500/20 text-amber-400 border-amber-500/50",
-    fixed: "bg-purple-500/20 text-purple-400 border-purple-500/50",
-    tested: "bg-green-500/20 text-green-400 border-green-500/50",
-    seeded: "bg-slate-500/20 text-slate-400 border-slate-500/50"
+    created: "info",
+    updated: "warning",
+    fixed: "neutral",
+    tested: "success",
+    seeded: "neutral"
   };
   
   const icons = {
@@ -32,7 +33,7 @@ const ActionBadge = ({ action }) => {
   const Icon = icons[action] || FileText;
 
   return (
-    <Badge variant="outline" className={`${styles[action] || styles.updated} flex items-center gap-1 w-fit`}>
+    <Badge variant={styles[action] || styles.updated} className="flex items-center gap-1 w-fit">
       <Icon className="w-3 h-3" />
       <span className="capitalize">{action}</span>
     </Badge>
@@ -41,32 +42,32 @@ const ActionBadge = ({ action }) => {
 
 const TimelineItem = ({ item, isLast }) => (
   <div className="relative pl-8 pb-8">
-    {!isLast && <div className="absolute left-[11px] top-8 bottom-0 w-px bg-slate-800" />}
-    <div className="absolute left-0 top-1 h-6 w-6 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center z-10">
+    {!isLast && <div className="absolute left-[11px] top-8 bottom-0 w-px bg-pl-border" />}
+    <div className="absolute left-0 top-1 h-6 w-6 rounded-full bg-pl-surface border border-pl-border-strong flex items-center justify-center z-10">
       <div className={`h-2 w-2 rounded-full ${
-        item.action === 'created' ? 'bg-blue-500' :
-        item.action === 'tested' ? 'bg-green-500' :
-        'bg-slate-500'
+        item.action === 'created' ? 'bg-pl-info' :
+        item.action === 'tested' ? 'bg-pl-success' :
+        'bg-pl-muted'
       }`} />
     </div>
     
-    <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4">
-      <div className="flex justify-between items-start mb-2">
+    <div className="bg-pl-surface border border-pl-border rounded-lg p-4">
+      <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
         <div>
-          <h4 className="font-semibold text-slate-200">{item.app_name}</h4>
+          <h4 className="font-semibold text-pl-text">{item.app_name}</h4>
           <div className="flex items-center gap-2 mt-1">
             <ActionBadge action={item.action} />
-            <span className="text-xs text-slate-500 flex items-center gap-1">
+            <span className="text-xs text-pl-muted flex items-center gap-1">
               <Clock className="w-3 h-3" /> {new Date(item.created_at).toLocaleString()}
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-1 text-xs text-slate-400 bg-slate-950 px-2 py-1 rounded border border-slate-800">
+        <div className="flex items-center gap-1 text-xs text-pl-muted bg-pl-sunken px-2 py-1 rounded border border-pl-border">
           <User className="w-3 h-3" />
           {item.built_by || 'Unknown'}
         </div>
       </div>
-      <p className="text-sm text-slate-400 leading-relaxed">
+      <p className="text-sm text-pl-muted leading-relaxed">
         {item.description || "No description provided."}
       </p>
     </div>
@@ -112,14 +113,14 @@ export default function BuildHistoryAdmin() {
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-pl-border pb-4">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <History className="text-blue-400" /> Build History
+          <h2 className="text-2xl font-bold text-pl-text flex items-center gap-2">
+            <History className="text-pl-primary-text" aria-hidden="true" /> Build History
           </h2>
-          <p className="text-slate-400 text-sm">Track creation, updates, fixes, and testing of applications.</p>
+          <p className="text-pl-muted text-sm">Track creation, updates, fixes, and testing of applications.</p>
         </div>
-        <div className="flex items-center gap-2 bg-slate-900 p-1 rounded-lg border border-slate-800">
+        <div className="flex items-center gap-2 bg-pl-sunken p-1 rounded-lg border border-pl-border">
           <Button 
             variant={view === 'table' ? 'secondary' : 'ghost'} 
             size="sm" 
@@ -137,21 +138,21 @@ export default function BuildHistoryAdmin() {
         </div>
       </div>
 
-      <div className="flex gap-4 items-center bg-slate-900 p-4 rounded-lg border border-slate-800">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center bg-pl-surface p-4 rounded-lg border border-pl-border">
         <div className="relative flex-1">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-pl-muted" aria-hidden="true" />
           <Input 
             placeholder="Search by app name..." 
-            className="pl-8 bg-slate-950 border-slate-800"
+            className="pl-8"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <Select value={actionFilter} onValueChange={setActionFilter}>
-          <SelectTrigger className="w-[180px] bg-slate-950 border-slate-800">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Filter Action" />
           </SelectTrigger>
-          <SelectContent className="bg-slate-900 border-slate-800 text-white">
+          <SelectContent>
             <SelectItem value="all">All Actions</SelectItem>
             <SelectItem value="created">Created</SelectItem>
             <SelectItem value="updated">Updated</SelectItem>
@@ -162,38 +163,38 @@ export default function BuildHistoryAdmin() {
         </Select>
       </div>
 
-      <div className="flex-1 overflow-auto bg-slate-950 rounded-lg border border-slate-800">
+      <div className="flex-1 overflow-auto bg-pl-surface rounded-lg border border-pl-border">
         {loading ? (
-          <div className="p-8 text-center text-slate-500">Loading history...</div>
+          <div className="p-8 text-center text-pl-muted">Loading history...</div>
         ) : history.length === 0 ? (
-          <div className="p-8 text-center text-slate-500">No history found matching filters.</div>
+          <div className="p-8 text-center text-pl-muted">No history found matching filters.</div>
         ) : view === 'table' ? (
           <Table>
-            <TableHeader className="bg-slate-900 sticky top-0 z-10">
-              <TableRow className="border-slate-800">
-                <TableHead className="text-slate-400">Date</TableHead>
-                <TableHead className="text-slate-400">App Name</TableHead>
-                <TableHead className="text-slate-400">Action</TableHead>
-                <TableHead className="text-slate-400">Description</TableHead>
-                <TableHead className="text-slate-400">Builder</TableHead>
+            <TableHeader className="sticky top-0 z-10">
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>App Name</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Builder</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {history.map((item) => (
-                <TableRow key={item.id} className="border-slate-800 hover:bg-slate-900/50">
-                  <TableCell className="text-slate-400 text-xs whitespace-nowrap">
+                <TableRow key={item.id}>
+                  <TableCell className="text-pl-muted text-xs whitespace-nowrap">
                     {new Date(item.created_at).toLocaleString()}
                   </TableCell>
-                  <TableCell className="font-medium text-slate-200">
+                  <TableCell className="font-medium text-pl-text">
                     {item.app_name}
                   </TableCell>
                   <TableCell>
                     <ActionBadge action={item.action} />
                   </TableCell>
-                  <TableCell className="text-slate-400 text-sm max-w-md truncate" title={item.description}>
+                  <TableCell className="text-pl-muted text-sm max-w-md truncate" title={item.description}>
                     {item.description}
                   </TableCell>
-                  <TableCell className="text-slate-500 text-xs">
+                  <TableCell className="text-pl-muted text-xs">
                     {item.built_by}
                   </TableCell>
                 </TableRow>
