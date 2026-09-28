@@ -137,3 +137,25 @@ modifier is deleted rather than left in the table read by nothing: its
 only consumers are FR and the IEC 60534-8-3 method, neither of which is
 here. Every FL, xT, sigma threshold, authority threshold and noise band
 is labelled as this engine's stated choice.
+
+## 2026-09-28: design system rollout W5A (light default, dark per user)
+
+The page wraps itself in `ThemedApp` (App.jsx is untouched), so the studio
+opens on the grey panel light theme and the header toggle switches to dark
+and back, stored per user. The route prefix `/dashboard/apps/facilities/control-valve-sizing` is registered in
+`src/design/rollout/w5a.js` for the themed cold-load loaders.
+
+- Chrome on roles: the kit header themes itself (the decorative icon
+  gradient prop went); the app's own cards, inputs, selects, tables and
+  notes moved to `pl-*` roles, with the dark overrides on the adapted
+  Card, Input and Select removed. Help guide icons lost their decorative
+  colour.
+- Status colour only for status: the liquid regime (stable, incipient cavitation, cavitating, choked or flashing), the gas choked column, the RP 14E ratio, the authority verdict, the travel states and verdict and the noise band use the success, warning and danger roles; the warning and error notes are warning callouts.
+- Numbers: `Stat` and `Row` values take the mono face when they are a
+  number (with an optional unit or percentage); worded values (a regime,
+  a verdict, a description) stay in the text face.
+- Charts: unchanged, on the white `ChartFrame` in both themes.
+- Tests: new `src/pages/apps/__tests__/ControlValveSizing.theme.test.jsx` (the
+  shared `describeAppTheme` checks, every header tab and the
+  documentation drawer). No calculation, engine or export change; the
+  existing suites pass unchanged.

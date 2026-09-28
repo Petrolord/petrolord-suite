@@ -13,24 +13,24 @@ export const StreamInputs = () => {
   const s = inputs.streams;
   return (
     <div className="space-y-4">
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Hot stream</p>
+      <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Hot stream</p>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Flow (lb/hr)"><NumberInput section="streams" name="hotMLbHr" /></Field>
         <Field label="Cp (Btu/lb F)"><NumberInput section="streams" name="hotCpBtuLbF" step="0.01" /></Field>
       </div>
       <Field label="Inlet temperature (F)"><NumberInput section="streams" name="hotInF" /></Field>
 
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Cold stream</p>
+      <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold pt-2">Cold stream</p>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Flow (lb/hr)"><NumberInput section="streams" name="coldMLbHr" /></Field>
         <Field label="Cp (Btu/lb F)"><NumberInput section="streams" name="coldCpBtuLbF" step="0.01" /></Field>
       </div>
       <Field label="Inlet temperature (F)"><NumberInput section="streams" name="coldInF" /></Field>
 
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Duty</p>
+      <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold pt-2">Duty</p>
       <Field label="Set the duty by">
         <Select value={s.dutyMode} onValueChange={(v) => setSection('streams', 'dutyMode', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="hotOut">Hot outlet temperature</SelectItem>
             <SelectItem value="coldOut">Cold outlet temperature</SelectItem>
@@ -44,7 +44,7 @@ export const StreamInputs = () => {
 
       <Field label="Arrangement" hint="Shell and tube carries the F correction; pure counter or parallel flow does not.">
         <Select value={s.arrangement} onValueChange={(v) => setSection('streams', 'arrangement', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="counter">Pure counter-current (F = 1)</SelectItem>
             <SelectItem value="shell">Shell and tube (1 shell, 2 tube passes)</SelectItem>
@@ -66,7 +66,7 @@ export const CoefficientInputs = () => {
     <div className="space-y-4">
       <Field label="Overall coefficient">
         <Select value={f.uMode} onValueChange={(v) => setSection('film', 'uMode', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="assembled">Assemble it from the resistances</SelectItem>
             <SelectItem value="typed">Type a U</SelectItem>
@@ -82,7 +82,7 @@ export const CoefficientInputs = () => {
           </Field>
           <Field label="Tube-side film">
             <Select value={f.hiMode} onValueChange={(v) => setSection('film', 'hiMode', v)}>
-              <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="computed">Compute it (Dittus-Boelter)</SelectItem>
                 <SelectItem value="typed">Type hi</SelectItem>
@@ -93,7 +93,7 @@ export const CoefficientInputs = () => {
             <Field label="hi (Btu/hr ft2 F)"><NumberInput section="film" name="hiTypedBtuHrFt2F" /></Field>
           ) : (
             <>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-pl-muted">
                 The tube side is the COLD stream: its flow and specific heat come from the Cold
                 stream boxes above, and these two properties belong to it. The studio computes the
                 film in its heating form only, so putting the hot stream in the tubes needs a typed
@@ -121,7 +121,7 @@ export const CoefficientInputs = () => {
           </div>
         </>
       )}
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Bundle</p>
+      <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold pt-2">Bundle</p>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Tube length (ft)"><NumberInput section="geometry" name="tubeLengthFt" step="0.5" /></Field>
         <Field label="Tube passes"><NumberInput section="geometry" name="tubePasses" step="1" /></Field>
@@ -154,8 +154,8 @@ export const SizingResults = () => {
   if (thermal.error) return <ErrorNote>{thermal.error}</ErrorNote>;
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Driving force</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Driving force</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat label="Duty" value={fmt(thermal.qBtuHr / 1e6, 2)} unit="MMBtu/hr" />
@@ -173,7 +173,7 @@ export const SizingResults = () => {
                 hint="a whole number, and the engine refuses a fraction" />
               <Stat label="F correction"
                 value={thermal.fError ? 'unreachable' : show(fmt(thermal.f, 3), thermal.f)}
-                accent={thermal.fError ? 'text-red-400' : (thermal.f < 0.8 ? 'text-amber-400' : 'text-emerald-400')}
+                accent={thermal.fError ? 'text-pl-danger-text' : (thermal.f < 0.8 ? 'text-pl-warning-text' : 'text-pl-success-text')}
                 hint="computed from the published closed form rather than read off a chart" />
               <Stat label="Corrected LMTD"
                 value={thermal.fError ? '--' : fmt(thermal.lmtdF * thermal.f, 1)} unit="F" />
@@ -188,8 +188,8 @@ export const SizingResults = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Overall coefficient</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Overall coefficient</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {coefficient.error ? <ErrorNote>{coefficient.error}</ErrorNote> : (
             <>
@@ -200,14 +200,14 @@ export const SizingResults = () => {
                     <Stat label="U clean" value={fmt(coefficient.uCleanBtuHrFt2F, 1)} unit="Btu/hr ft2 F" />
                     <Stat label="Fouling penalty" value={fmt(coefficient.foulingPenaltyPct, 1)} unit="%" />
                     <Stat label="Controlling resistance" value={resistanceName(coefficient.controlling)}
-                      accent={coefficient.controllingClear ? 'text-slate-100' : 'text-amber-400'}
+                      accent={coefficient.controllingClear ? 'text-pl-text' : 'text-pl-warning-text'}
                       hint={`${fmt(coefficient.controllingSharePct, 0)} % of the total, ahead of ${resistanceName(coefficient.runnerUp).toLowerCase()} by ${fmt(coefficient.controllingMarginPct, 1)} %`} />
                   </>
                 )}
               </div>
               {!coefficient.typed && coefficient.resistances && (
                 <div className="pt-1">
-                  <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1">
+                  <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold mb-1">
                     The five resistances, referred to the outside area
                   </p>
                   {RESISTANCE_ROWS.map(([key, label]) => (
@@ -224,7 +224,7 @@ export const SizingResults = () => {
               )}
               {coefficient.controllingNote && <WarnNote>{coefficient.controllingNote}</WarnNote>}
               {coefficient.film && !coefficient.film.error && (
-                <p className="text-[12px] text-slate-500">
+                <p className="text-[12px] text-pl-muted">
                   Tube side: Reynolds {fmt(coefficient.film.re, 0)} ({coefficient.film.regime}),
                   Prandtl {fmt(coefficient.film.pr, 2)}, hi = {fmt(coefficient.film.hBtuHrFt2F, 0)}
                   {coefficient.film.siederTate ? ' with the Sieder-Tate correction' : ''}, at
@@ -232,7 +232,7 @@ export const SizingResults = () => {
                 </p>
               )}
               {coefficient.tubeTrail && coefficient.tubeTrail.length > 1 && (
-                <p className="text-[12px] text-slate-500">
+                <p className="text-[12px] text-pl-muted">
                   The film, the coefficient, the area and the bundle were iterated to one tube
                   count: {coefficient.tubeTrail.join(' to ')}
                   {coefficient.tubeCountConverged ? ', settled.' : '.'}
@@ -245,8 +245,8 @@ export const SizingResults = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Surface and bundle</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Surface and bundle</CardTitle></CardHeader>
         <CardContent>
           {sizing.error ? <ErrorNote>{sizing.error}</ErrorNote> : (
             <>

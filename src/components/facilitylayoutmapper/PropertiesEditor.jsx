@@ -31,7 +31,7 @@ const PropertiesEditor = ({ selectedLayer, onUpdateLayer }) => {
 
   if (!selectedLayer) {
     return (
-      <div className="text-sm text-slate-400 p-4 text-center bg-slate-800/50 rounded-lg">
+      <div className="text-sm text-pl-muted p-4 text-center bg-pl-sunken rounded-lg">
         Select an item on the map to edit its properties.
       </div>
     );
@@ -40,27 +40,23 @@ const PropertiesEditor = ({ selectedLayer, onUpdateLayer }) => {
   return (
     <div className="space-y-4 p-2">
       <div>
-        <Label htmlFor="tag-input" className="text-slate-300">Tag / Name</Label>
+        <Label htmlFor="tag-input">Tag / Name</Label>
         <Input
           id="tag-input"
           value={tag}
-          onChange={(e) => setTag(e.target.value)}
-          className="bg-slate-700 border-slate-600 text-white"
-        />
+          onChange={(e) => setTag(e.target.value)}        />
       </div>
       {selectedLayer.type === 'pipeline' && (
         <div>
-          <Label htmlFor="linesize-input" className="text-slate-300">Line Size</Label>
+          <Label htmlFor="linesize-input">Line Size</Label>
           <Input
             id="linesize-input"
             value={lineSize}
             onChange={(e) => setLineSize(e.target.value)}
-            placeholder='e.g., 6" or 150mm'
-            className="bg-slate-700 border-slate-600 text-white"
-          />
+            placeholder='e.g., 6" or 150mm'          />
         </div>
       )}
-      <Button onClick={handleUpdate} className="w-full bg-teal-600 hover:bg-teal-700 text-white">
+      <Button onClick={handleUpdate} className="w-full">
         Update Properties
       </Button>
     </div>

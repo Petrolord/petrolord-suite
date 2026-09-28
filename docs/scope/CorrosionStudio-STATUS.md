@@ -152,3 +152,25 @@ held FC9 course ladder. No number moved.
   Sizing ADDS one to a Barlow wall (0.0625 in); Storage Tank & Venting
   ADDS one to an API 650 shell course. The wall this studio is eating
   is not the wall either of those sized.
+
+## 2026-09-28: design system rollout W5A (light default, dark per user)
+
+The page wraps itself in `ThemedApp` (App.jsx is untouched), so the studio
+opens on the grey panel light theme and the header toggle switches to dark
+and back, stored per user. The route prefix `/dashboard/apps/facilities/corrosion-rate-predictor` is registered in
+`src/design/rollout/w5a.js` for the themed cold-load loaders.
+
+- Chrome on roles: the kit header themes itself (the decorative icon
+  gradient prop went); the app's own cards, inputs, selects, tables and
+  notes moved to `pl-*` roles, with the dark overrides on the adapted
+  Card, Input and Select removed. Help guide icons lost their decorative
+  colour.
+- Status colour only for status: the corrosion rate severity bands (negligible and low as success, moderate and high as warning, severe as danger), the film risk, the sour screen, the remaining life against the design life and the inhibitor warning use the status roles.
+- Numbers: `Stat` and `Row` values take the mono face when they are a
+  number (with an optional unit or percentage); worded values (a regime,
+  a verdict, a description) stay in the text face.
+- Charts: unchanged, on the white `ChartFrame` in both themes.
+- Tests: new `src/pages/apps/__tests__/CorrosionRatePredictor.theme.test.jsx` (the
+  shared `describeAppTheme` checks, every header tab and the
+  documentation drawer). No calculation, engine or export change; the
+  existing suites pass unchanged.

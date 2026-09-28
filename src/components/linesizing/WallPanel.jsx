@@ -18,7 +18,7 @@ const WallInputs = () => {
       <Field label="SMYS (psi)" hint="X52 is 52,000; B is 35,000."><NumberInput section="wall" name="smysPsi" /></Field>
       <Field label="Design code">
         <Select value={inputs.wall.code} onValueChange={(v) => setSection('wall', 'code', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="B31.4">B31.4 (liquid lines, F = 0.72)</SelectItem>
             <SelectItem value="B31.8">B31.8 (gas lines, location classes)</SelectItem>
@@ -31,7 +31,7 @@ const WallInputs = () => {
           hint="The class is about who lives near the line. Assuming Class 1 near a school is the mistake the classes exist to prevent."
         >
           <Select value={inputs.wall.locationClass} onValueChange={(v) => setSection('wall', 'locationClass', v)}>
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="1">Class 1 (F = 0.72)</SelectItem>
               <SelectItem value="2">Class 2 (F = 0.60)</SelectItem>
@@ -65,7 +65,7 @@ const WallResults = () => {
         <Stat
           label="Verdict"
           value={wall.pass === null ? 'enter a wall' : wall.pass ? 'ADEQUATE' : 'TOO THIN'}
-          accent={wall.pass === null ? 'text-slate-400' : wall.pass ? 'text-emerald-400' : 'text-red-400'}
+          accent={wall.pass === null ? 'text-pl-muted' : wall.pass ? 'text-pl-success-text' : 'text-pl-danger-text'}
         />
       </div>
       {wall.maop !== null && (
@@ -78,8 +78,8 @@ const WallResults = () => {
 };
 
 const WallPanel = () => (
-  <Card className="bg-slate-900/60 border-slate-800">
-    <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Wall thickness and MAOP</CardTitle></CardHeader>
+  <Card>
+    <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Wall thickness and MAOP</CardTitle></CardHeader>
     <CardContent><WallResults /></CardContent>
   </Card>
 );

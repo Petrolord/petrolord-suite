@@ -22,6 +22,7 @@ import {
 } from '@/components/heatexchanger/RatingCoolerPanels';
 import HeatExchangerHelpContent from '@/components/heatexchanger/HeatExchangerHelpGuide';
 import { fmt, Row } from '@/components/heatexchanger/fields';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'sizing', label: 'Sizing' },
@@ -30,7 +31,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const Summary = () => {
@@ -161,7 +162,6 @@ const StudioContent = () => {
             backTo="/dashboard/facilities"
             backTitle="Back to Facilities Engineering"
             icon={Thermometer}
-            iconGradientClass="from-orange-600 to-amber-700"
             title="Heat Exchanger & Cooling Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -171,12 +171,12 @@ const StudioContent = () => {
         headerActions={
           <>
             <FullPrecisionToggle app="heat-exchanger-sizer" />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Heat Exchanger Guide"
               description="Why F is computed rather than typed, what the controlling resistance tells you, and where the studio refuses to answer."
@@ -196,12 +196,17 @@ const StudioContent = () => {
   );
 };
 
+// Design system rollout batch 5A (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class in its own files is a
+// theme role.
 const HeatExchangerSizer = () => (
-  <HeatExchangerProvider>
-    <FullPrecisionProvider>
-      <StudioContent />
-    </FullPrecisionProvider>
-  </HeatExchangerProvider>
+  <ThemedApp data-testid="heatexchanger-theme-scope">
+    <HeatExchangerProvider>
+      <FullPrecisionProvider>
+        <StudioContent />
+      </FullPrecisionProvider>
+    </HeatExchangerProvider>
+  </ThemedApp>
 );
 
 export default HeatExchangerSizer;
