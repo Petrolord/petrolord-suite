@@ -183,7 +183,7 @@ export default function Reports() {
                 No comments have been raised yet.
               </p>
             ) : (
-              <div className="relative h-[340px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+              <div data-canvas="chart" className="relative h-[340px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={severityByStatus} margin={CHART_MARGINS.legend}>
                     <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -209,7 +209,7 @@ export default function Reports() {
               <CardTitle className="text-lg">Comments by discipline</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+              <div data-canvas="chart" className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={byDiscipline} layout="vertical" margin={CHART_MARGINS.compact}>
                     <CartesianGrid {...GRID_STYLE} horizontal={false} />
@@ -230,7 +230,7 @@ export default function Reports() {
               <CardTitle className="text-lg">Reviews by project or asset</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+              <div data-canvas="chart" className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={byAsset} layout="vertical" margin={CHART_MARGINS.compact}>
                     <CartesianGrid {...GRID_STYLE} horizontal={false} />

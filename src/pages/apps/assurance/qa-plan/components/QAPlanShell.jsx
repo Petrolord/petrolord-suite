@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AssuranceHelp from '@/components/assurance/AssuranceHelp';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export const BASE = '/dashboard/apps/assurance/qa-plan';
 
@@ -53,6 +54,7 @@ export const QAPlanShell = ({
         </div>
         <div className="flex flex-wrap gap-2">
           <AssuranceHelp appKey="quality" />
+          <ThemeToggle />
           {actions}
           <Button variant="outline" onClick={() => navigate(`${BASE}/ncr-register?raise=1`)}>
             <FileWarning className="w-4 h-4 mr-2" /> Raise NCR
