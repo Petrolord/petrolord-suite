@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
-import { ArrowLeft, PlusCircle, Package, Edit, Trash2, Zap, BarChart2 } from 'lucide-react';
+import { PlusCircle, Package, Edit, Trash2, Zap, BarChart2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -21,6 +20,12 @@ import { emvOrRefusal, projectRefusal, posText } from '@/components/capitalportf
 import PortfolioHelpGuide from '@/components/capitalportfoliostudio/PortfolioHelpGuide';
 import { FullPrecisionProvider, FullPrecisionToggle, useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
+import { AppHeader } from '@/components/ui/app-shell';
+import { signedTone } from '@/components/ui/numeric-table';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// right-aligned mono figures for the project inventory (NumericTable recipe)
+const numCell = (tone) => `text-right font-pl-mono tabular-nums whitespace-nowrap ${tone || 'text-pl-text'}`;
 
 const CapitalPortfolioStudioInner = () => {
   const { full } = useFullPrecision();
@@ -236,67 +241,58 @@ const CapitalPortfolioStudioInner = () => {
         <title>Capital Portfolio Studio</title>
         <meta name="description" content="Optimize your capital allocation with advanced portfolio analysis." />
       </Helmet>
-      <div className="flex flex-col h-full bg-slate-900 text-white p-4 md:p-8">
-        <header className="flex-shrink-0 mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/dashboard/economics">
-                <Button variant="outline" size="sm" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
-                  <ArrowLeft className="w-4 h-4 mr-2" /> Back
-                </Button>
-              </Link>
-              <div className="flex items-center gap-3">
-                <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-2 rounded-lg">
-                  <Package className="w-6 h-6 text-white" />
-                </div>
-                <h1 className="text-xl md:text-3xl font-bold">Capital Portfolio Studio</h1>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <FullPrecisionToggle app="capital-portfolio" />
-              <PortfolioHelpGuide />
-            </div>
-          </div>
-        </header>
-
+      <AppHeader
+        backTo="/dashboard/economics"
+        backLabel="Back to Economics"
+        icon={Package}
+        title="Capital Portfolio Studio"
+        subtitle="Risked EMV portfolio optimisation under a capital limit"
+        actions={(
+          <>
+            <FullPrecisionToggle app="capital-portfolio" />
+            <PortfolioHelpGuide />
+          </>
+        )}
+      />
+      <div className="flex flex-col h-full p-4 md:p-8">
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-1">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/5 border border-white/10 rounded-xl p-6 h-full flex flex-col">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-pl-surface border border-pl-border rounded-xl p-4 sm:p-6 h-full flex flex-col shadow-pl-sm">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-white">Portfolios</h2>
-                <Button onClick={() => handleOpenPortfolioDialog()} size="sm" className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
+                <h2 className="text-xl font-semibold text-pl-text">Portfolios</h2>
+                <Button onClick={() => handleOpenPortfolioDialog()} size="sm">
                   <PlusCircle className="w-4 h-4 mr-2" /> Create
                 </Button>
               </div>
-              <Button onClick={handleRunComparison} disabled={comparisonIds.size < 2} className="w-full mb-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white disabled:opacity-50">
+              <Button onClick={handleRunComparison} disabled={comparisonIds.size < 2} variant="outline" className="w-full mb-4">
                 <BarChart2 className="w-4 h-4 mr-2" /> Compare ({comparisonIds.size})
               </Button>
               <div className="space-y-2 overflow-y-auto">
                 {loading ? (
-                  <p className="text-center text-slate-400">Loading portfolios...</p>
+                  <p className="text-center text-pl-muted">Loading portfolios...</p>
                 ) : portfolios.length === 0 ? (
-                  <div className="text-center text-slate-400 py-16">
+                  <div className="text-center text-pl-muted py-16">
                     <p>No portfolios yet. Create your first scenario!</p>
                   </div>
                 ) : (
                   portfolios.map(p => (
                     <div key={p.id}
-                      className={`p-3 rounded-lg transition-all border-2 ${activePortfolio?.id === p.id ? 'bg-blue-500/30 border-blue-400' : 'border-transparent hover:bg-white/10'}`}>
+                      className={`p-3 rounded-lg transition-all border-2 ${activePortfolio?.id === p.id ? 'bg-pl-sunken border-pl-primary' : 'border-transparent hover:bg-pl-sunken'}`}>
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-3 flex-grow cursor-pointer" onClick={() => setActivePortfolio(p)}>
                           <Checkbox id={`compare-${p.id}`} checked={comparisonIds.has(p.id)} onCheckedChange={() => handleComparisonSelection(p.id)} onClick={(e) => e.stopPropagation()} />
                           <div>
-                            <p className="font-semibold text-white">{p.name}</p>
-                            <p className="text-sm text-slate-300">Limit: <span className="text-amber-300">{formatCurrency(p.capex_limit)}</span></p>
+                            <p className="font-semibold text-pl-text">{p.name}</p>
+                            <p className="text-sm text-pl-muted">Limit: <span className="font-pl-mono tabular-nums text-pl-text">{formatCurrency(p.capex_limit)}</span></p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleOpenPortfolioDialog(p); }} className="text-blue-400 hover:text-blue-300 h-7 w-7"><Edit className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleOpenPortfolioDialog(p); }} className="text-pl-muted hover:text-pl-text h-7 w-7" aria-label={`Edit ${p.name}`}><Edit className="w-4 h-4" /></Button>
                           <AlertDialog>
-                            <AlertDialogTrigger asChild><Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="text-red-500 hover:text-red-400 h-7 w-7"><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
-                            <AlertDialogContent className="bg-slate-800 border-slate-700 text-white">
-                              <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription className="text-slate-400">This will permanently delete the portfolio "{p.name}".</AlertDialogDescription></AlertDialogHeader>
-                              <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeletePortfolio(p.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction></AlertDialogFooter>
+                            <AlertDialogTrigger asChild><Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="text-pl-danger-text hover:text-pl-danger-text h-7 w-7" aria-label={`Delete ${p.name}`}><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the portfolio "{p.name}".</AlertDialogDescription></AlertDialogHeader>
+                              <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeletePortfolio(p.id)} className="bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90">Delete</AlertDialogAction></AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
                         </div>
@@ -309,31 +305,31 @@ const CapitalPortfolioStudioInner = () => {
           </div>
           <div className="lg:col-span-3">
             {!activePortfolio ? (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-center h-full bg-white/5 border border-white/10 rounded-xl">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-center h-full min-h-[16rem] bg-pl-surface border border-pl-border rounded-xl p-6 shadow-pl-sm">
                 <div className="text-center">
-                  <Package className="mx-auto h-12 w-12 text-slate-500" />
-                  <h3 className="mt-2 text-lg font-medium text-white">Select a portfolio</h3>
-                  <p className="mt-1 text-slate-400">Choose a portfolio from the list or create a new one to start.</p>
+                  <Package className="mx-auto h-12 w-12 text-pl-muted" aria-hidden="true" />
+                  <h3 className="mt-2 text-lg font-medium text-pl-text">Select a portfolio</h3>
+                  <p className="mt-1 text-pl-muted">Choose a portfolio from the list or create a new one to start.</p>
                 </div>
               </motion.div>
             ) : (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                <Card className="bg-white/5 border-white/10 text-white">
+                <Card>
                   <CardHeader>
                     <div className="flex justify-between items-center gap-2 flex-wrap">
-                      <CardTitle className="text-2xl">{activePortfolio.name} - Workbench</CardTitle>
-                      <div className="flex gap-2">
-                        <Button onClick={() => handleOpenProjectDialog()} variant="outline" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
+                      <CardTitle className="text-xl">{activePortfolio.name} - Workbench</CardTitle>
+                      <div className="flex flex-wrap gap-2">
+                        <Button onClick={() => handleOpenProjectDialog()} variant="outline">
                           <PlusCircle className="w-4 h-4 mr-2" /> Add Project
                         </Button>
-                        <Button onClick={runOptimization} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+                        <Button onClick={runOptimization}>
                           <Zap className="w-4 h-4 mr-2" /> Run Optimization
                         </Button>
                       </div>
                     </div>
-                    <p className="text-slate-300">Select projects to include. The optimizer maximizes risked EMV under the CAPEX limit: <span className="font-bold text-amber-300">{formatCurrency(activePortfolio.capex_limit)}</span></p>
+                    <p className="text-pl-muted">Select projects to include. The optimizer maximizes risked EMV under the CAPEX limit: <span className="font-semibold font-pl-mono tabular-nums text-pl-text">{formatCurrency(activePortfolio.capex_limit)}</span></p>
                     <div className="mt-3 flex flex-wrap items-center gap-3">
-                      <label htmlFor="portfolio-correlation" className="text-sm text-slate-300">
+                      <label htmlFor="portfolio-correlation" className="text-sm text-pl-muted">
                         Average correlation between projects
                       </label>
                       <input
@@ -341,11 +337,11 @@ const CapitalPortfolioStudioInner = () => {
                         type="range" min="0" max="0.9" step="0.05"
                         value={correlation}
                         onChange={(e) => setCorrelation(Number(e.target.value))}
-                        className="w-48 accent-amber-400"
+                        className="w-48 max-w-full accent-pl-primary"
                       />
-                      <span className="text-sm font-mono text-amber-300">{correlation.toFixed(2)}</span>
+                      <span className="text-sm font-pl-mono tabular-nums text-pl-text">{correlation.toFixed(2)}</span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-400 max-w-2xl">
+                    <p className="mt-1 text-xs text-pl-muted max-w-2xl">
                       Zero treats every project as independent, which is the friendliest assumption a
                       portfolio can be given. Projects that share a basin, a partner, a rig contract
                       or a price deck move together, and the loss they can produce at once is larger
@@ -355,7 +351,7 @@ const CapitalPortfolioStudioInner = () => {
                   </CardHeader>
                   <CardContent>
                     {projectRefusals.length > 0 && (
-                      <div role="alert" data-testid="portfolio-refusals" className="mb-3 rounded border border-red-800 bg-red-950/40 p-3 text-sm text-red-200 space-y-1">
+                      <div role="alert" data-testid="portfolio-refusals" className="mb-3 rounded-lg border border-pl-danger/40 bg-pl-danger-bg p-3 text-sm text-pl-danger-text space-y-1">
                         <p>These projects cannot be optimised until they are corrected:</p>
                         {projectRefusals.map((msg) => <p key={msg} className="text-xs">{msg}</p>)}
                       </div>
@@ -363,13 +359,13 @@ const CapitalPortfolioStudioInner = () => {
                     <div className="max-h-[28rem] overflow-y-auto pr-2">
                       <Table>
                         <TableHeader>
-                          <TableRow className="border-b-white/20 hover:bg-transparent">
+                          <TableRow className="hover:bg-transparent">
                             <TableHead className="w-[50px]"><Checkbox checked={selectedProjectIds.size === projects.length && projects.length > 0} onCheckedChange={(checked) => setSelectedProjectIds(checked ? new Set(projects.map(p => p.id)) : new Set())} /></TableHead>
-                            <TableHead className="text-white">Project</TableHead>
-                            <TableHead className="text-white text-right">CAPEX</TableHead>
-                            <TableHead className="text-white text-right">NPV P50</TableHead>
-                            <TableHead className="text-white text-right">POS</TableHead>
-                            <TableHead className="text-white text-right">Risked EMV</TableHead>
+                            <TableHead>Project</TableHead>
+                            <TableHead className="text-right">CAPEX</TableHead>
+                            <TableHead className="text-right">NPV P50</TableHead>
+                            <TableHead className="text-right">POS</TableHead>
+                            <TableHead className="text-right">Risked EMV</TableHead>
                             <TableHead className="w-[70px]"></TableHead>
                           </TableRow>
                         </TableHeader>
@@ -378,25 +374,25 @@ const CapitalPortfolioStudioInner = () => {
                             const refusal = projectRefusal(p);
                             const { emv } = emvOrRefusal(p);
                             return (
-                            <TableRow key={p.id} className="border-b-white/10">
+                            <TableRow key={p.id}>
                               <TableCell><Checkbox checked={selectedProjectIds.has(p.id)} onCheckedChange={() => handleProjectSelectionChange(p.id)} /></TableCell>
                               <TableCell className="font-medium">
                                 {p.name}
                                 {p.source_type === 'epe_mc' && (
-                                  <span className="ml-2 text-[10px] text-emerald-300 bg-emerald-900/30 border border-emerald-500/30 rounded px-1.5 py-0.5" title={p.source_label || 'Linked EPE Monte Carlo run'}>EPE MC</span>
+                                  <span className="ml-2 text-[10px] text-pl-muted bg-pl-sunken border border-pl-border rounded px-1.5 py-0.5" title={p.source_label || 'Linked EPE Monte Carlo run'}>EPE MC</span>
                                 )}
                               </TableCell>
-                              <TableCell className="text-right text-amber-300">{formatCurrency(p.capex)}</TableCell>
-                              <TableCell className="text-right text-slate-200">{formatCurrency(p.npv_p50)}</TableCell>
-                              <TableCell className="text-right text-slate-300">{posText(p, refusal)}</TableCell>
-                              <TableCell className="text-right text-lime-300">
-                                {emv === null ? <span className="text-red-300" title={refusal || undefined}>n/a</span> : (full ? `${formatFull(emv, MONEY_MM_DECIMALS)} $MM` : formatCurrency(emv))}
+                              <TableCell className={numCell()}>{formatCurrency(p.capex)}</TableCell>
+                              <TableCell className={numCell(signedTone(Number(p.npv_p50)))}>{formatCurrency(p.npv_p50)}</TableCell>
+                              <TableCell className={numCell()}>{posText(p, refusal)}</TableCell>
+                              <TableCell className={numCell(emv === null ? '' : signedTone(emv))}>
+                                {emv === null ? <span className="text-pl-danger-text" title={refusal || undefined}>n/a</span> : (full ? `${formatFull(emv, MONEY_MM_DECIMALS)} $MM` : formatCurrency(emv))}
                               </TableCell>
                               <TableCell className="text-right whitespace-nowrap">
-                                <Button variant="ghost" size="icon" onClick={() => handleOpenProjectDialog(p)} className="text-blue-400 hover:text-blue-300 h-7 w-7" title="Edit project"><Edit className="w-4 h-4" /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleOpenProjectDialog(p)} className="text-pl-muted hover:text-pl-text h-7 w-7" title="Edit project"><Edit className="w-4 h-4" /></Button>
                                 {/* CPS-T1-003: a project delete asks first, as a portfolio delete does */}
                                 <AlertDialog>
-                                  <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-500 hover:text-red-400 h-7 w-7" title="Delete project"><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
+                                  <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-pl-danger-text hover:text-pl-danger-text h-7 w-7" title="Delete project"><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
                                   <AlertDialogContent>
                                     <AlertDialogHeader>
                                       <AlertDialogTitle>Delete {p.name}?</AlertDialogTitle>
@@ -404,7 +400,7 @@ const CapitalPortfolioStudioInner = () => {
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDeleteProject(p.id)}>Delete</AlertDialogAction>
+                                      <AlertDialogAction onClick={() => handleDeleteProject(p.id)} className="bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90">Delete</AlertDialogAction>
                                     </AlertDialogFooter>
                                   </AlertDialogContent>
                                 </AlertDialog>
@@ -413,7 +409,7 @@ const CapitalPortfolioStudioInner = () => {
                             );
                           })}
                           {projects.length === 0 && (
-                            <TableRow><TableCell colSpan={7} className="text-center text-slate-400 py-6">No projects yet. Use Add Project to create one, typed or linked to an EPE Monte Carlo run.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={7} className="text-center text-pl-muted py-6">No projects yet. Use Add Project to create one, typed or linked to an EPE Monte Carlo run.</TableCell></TableRow>
                           )}
                         </TableBody>
                       </Table>
@@ -428,7 +424,7 @@ const CapitalPortfolioStudioInner = () => {
         </div>
       </div>
       <Dialog open={isProjectDialogOpen} onOpenChange={setProjectDialogOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingProject ? 'Edit' : 'Add'} Project</DialogTitle>
           </DialogHeader>
@@ -440,7 +436,7 @@ const CapitalPortfolioStudioInner = () => {
         </DialogContent>
       </Dialog>
       <Dialog open={isPortfolioDialogOpen} onOpenChange={setPortfolioDialogOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingPortfolio ? 'Edit' : 'Create'} Portfolio</DialogTitle>
           </DialogHeader>
@@ -458,10 +454,17 @@ const CapitalPortfolioStudioInner = () => {
 
 // W3 (D3): the Full precision switch prints the risked EMV, success-case NPV,
 // P90 / P10 and the inventory EMV column at 4 decimals in $MM.
+//
+// Design system rollout batch 2E (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// switches it to dark per user. The frontier and comparison charts keep the
+// white chart standard.
 const CapitalPortfolioStudio = () => (
-  <FullPrecisionProvider>
-    <CapitalPortfolioStudioInner />
-  </FullPrecisionProvider>
+  <ThemedApp className="min-h-screen" data-testid="portfolio-theme-scope">
+    <FullPrecisionProvider>
+      <CapitalPortfolioStudioInner />
+    </FullPrecisionProvider>
+  </ThemedApp>
 );
 
 export default CapitalPortfolioStudio;
