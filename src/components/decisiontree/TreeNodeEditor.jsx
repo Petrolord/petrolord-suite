@@ -111,13 +111,13 @@ const TreeNodeEditor = ({ node, onChange, onLinkMcRun, depth = 0 }) => {
           </span>
         )}
         {node.type === 'terminal' && !payoffIsLinked && onLinkMcRun && (
-          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-pl-primary-text hover:text-pl-primary-text-hover" onClick={() => onLinkMcRun((payoff) => set({ payoff }))}>
+          <Button size="xs" variant="ghost" className="text-pl-primary-text hover:text-pl-primary-text-hover" onClick={() => onLinkMcRun((payoff) => set({ payoff }))}>
             <Link2 className="w-3 h-3 mr-1" /> Link EPE MC run
           </Button>
         )}
 
         {node.type !== 'terminal' && (
-          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-pl-primary-text hover:text-pl-primary-text-hover" onClick={addBranch}>
+          <Button size="xs" variant="ghost" className="text-pl-primary-text hover:text-pl-primary-text-hover" onClick={addBranch}>
             <Plus className="w-3 h-3 mr-1" /> Branch
           </Button>
         )}
