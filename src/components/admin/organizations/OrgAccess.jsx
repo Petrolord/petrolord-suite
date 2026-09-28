@@ -95,22 +95,23 @@ const OrgAccess = ({ users }) => {
     return true; // Simplified for Admin Panel usage usually admins want full control
   };
 
-  if (loading) return <div className="p-8">Loading apps...</div>;
-  if (!users || users.length === 0) return <div className="text-center p-8 text-slate-500">No users to configure.</div>;
+  if (loading) return <div className="p-8 text-pl-muted" role="status">Loading apps...</div>;
+  if (!users || users.length === 0) return <div className="text-center p-8 text-pl-muted">No users to configure.</div>;
 
   return (
     <TooltipProvider>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-full">
         {/* Sidebar - User Selector */}
-        <div className="md:col-span-1 border-r border-slate-800 pr-4 flex flex-col h-full">
-          <h3 className="font-bold text-slate-400 mb-4 uppercase text-xs tracking-wider">Select User</h3>
+        <div className="md:col-span-1 border-b md:border-b-0 md:border-r border-pl-border pb-4 md:pb-0 md:pr-4 flex flex-col max-h-64 md:max-h-none md:h-full">
+          <h3 className="font-bold text-pl-muted mb-4 uppercase text-xs tracking-wider">Select User</h3>
           <ScrollArea className="flex-1">
             <div className="space-y-1">
               {users.map(u => (
                 <button
                   key={u.user_id}
                   onClick={() => setSelectedUser(u.user_id)}
-                  className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${selectedUser === u.user_id ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'}`}
+                  aria-pressed={selectedUser === u.user_id}
+                  className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${selectedUser === u.user_id ? 'bg-pl-primary text-pl-primary-fg' : 'text-pl-text hover:bg-pl-sunken'}`}
                 >
                   <div className="font-medium truncate">{u.email}</div>
                   <div className="text-xs opacity-70 capitalize">{u.role}</div>
@@ -122,12 +123,12 @@ const OrgAccess = ({ users }) => {
 
         {/* Main Content - Matrix */}
         <div className="md:col-span-3 flex flex-col h-full">
-          <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-4">
+          <div className="flex flex-col sm:flex-row gap-3 justify-between sm:items-center mb-4 border-b border-pl-border pb-4">
             <div>
-              <h2 className="text-lg font-bold text-white">Application Access Matrix</h2>
-              <p className="text-sm text-slate-400">Configure app permissions. Unbuilt apps are disabled.</p>
+              <h2 className="text-lg font-bold text-pl-text">Application Access Matrix</h2>
+              <p className="text-sm text-pl-muted">Configure app permissions. Unbuilt apps are disabled.</p>
             </div>
-            <Button onClick={savePermissions} disabled={isSaving} className="bg-lime-600 hover:bg-lime-700">
+            <Button onClick={savePermissions} disabled={isSaving}>
               <Save className="h-4 w-4 mr-2" /> {isSaving ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
@@ -144,19 +145,19 @@ const OrgAccess = ({ users }) => {
                 const someSelected = builtApps.some(a => permissions.apps.includes(a.slug));
 
                 return (
-                  <div key={module.id} className="bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden">
-                    <div className="p-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                  <div key={module.id} className="bg-pl-surface border border-pl-border rounded-lg overflow-hidden">
+                    <div className="p-3 bg-pl-sunken border-b border-pl-border flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Checkbox 
                             checked={allSelected} 
                             onCheckedChange={(checked) => handleModuleToggle(module.id, checked)}
                             className={someSelected && !allSelected ? "opacity-50" : ""}
                         />
-                        <h3 className="font-bold text-slate-200">
+                        <h3 className="font-bold text-pl-text">
                           {module.name}
                         </h3>
                       </div>
-                      <span className="text-xs text-slate-500">{apps.length} Apps</span>
+                      <span className="text-xs text-pl-muted">{apps.length} Apps</span>
                     </div>
                     <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {apps.map(app => {
@@ -164,7 +165,7 @@ const OrgAccess = ({ users }) => {
                         const comingSoon = app.status === 'coming_soon';
                         
                         return (
-                          <div key={app.id} className={`flex items-start gap-3 p-2 rounded transition-colors ${!isBuilt ? 'opacity-40' : 'hover:bg-slate-800/50'}`}>
+                          <div key={app.id} className={`flex items-start gap-3 p-2 rounded transition-colors ${!isBuilt ? 'opacity-60' : 'hover:bg-pl-sunken'}`}>
                             <Checkbox 
                                 id={app.slug}
                                 checked={permissions.apps.includes(app.slug)}
@@ -173,16 +174,16 @@ const OrgAccess = ({ users }) => {
                             />
                             <div className="grid gap-1 leading-none w-full">
                               <div className="flex justify-between items-center w-full">
-                                <label htmlFor={app.slug} className={`text-sm font-medium ${isBuilt ? 'text-slate-300 cursor-pointer' : 'text-slate-500 cursor-not-allowed'}`}>
+                                <label htmlFor={app.slug} className={`text-sm font-medium ${isBuilt ? 'text-pl-text cursor-pointer' : 'text-pl-muted cursor-not-allowed'}`}>
                                     {app.app_name}
                                 </label>
                                 {!isBuilt && (
-                                    <Badge variant="outline" className="text-[10px] h-4 px-1 py-0 border-amber-900 text-amber-600">
+                                    <Badge variant="warning" className="text-[10px] h-4 px-1 py-0">
                                         Dev
                                     </Badge>
                                 )}
                               </div>
-                              <p className="text-xs text-slate-500 line-clamp-1" title={app.description}>{app.description}</p>
+                              <p className="text-xs text-pl-muted line-clamp-1" title={app.description}>{app.description}</p>
                             </div>
                           </div>
                         );
