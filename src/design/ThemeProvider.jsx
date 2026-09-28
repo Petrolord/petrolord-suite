@@ -19,10 +19,11 @@
 // for that moment only (while AuthContext reports loading and has no user),
 // so a user who chose dark does not see one light frame. Once the id is
 // known their own per-user choice applies, as before.
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import { DEFAULT_THEME, THEME_NAMES } from './tokens.js';
 import { ThemeContext, useDsTheme, usePortalThemeProps } from './themeContext.js';
+import { publishActiveTheme } from './activeTheme.js';
 
 export { useDsTheme, usePortalThemeProps };
 
@@ -172,8 +173,24 @@ export function ThemedApp({ as: Comp = 'div', className = '', userId, defaultThe
   );
 }
 
+// Layout effect so the toaster follows the page from the first paint.
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
 function ThemedRoot({ as: Comp, className, children, ...rest }) {
   const { theme } = useDsTheme();
+  // Tell the root toaster which theme the page is in (activeTheme.js).
+  const handle = useRef(null);
+  useIsoLayoutEffect(() => {
+    handle.current = publishActiveTheme(theme);
+    return () => {
+      handle.current.release();
+      handle.current = null;
+    };
+    // publish once per mount; theme changes go through update() below
+  }, []);
+  useIsoLayoutEffect(() => {
+    if (handle.current) handle.current.update(theme);
+  }, [theme]);
   return (
     <Comp data-pl-theme={theme} data-pl-root="" className={className} {...rest}>
       {children}
