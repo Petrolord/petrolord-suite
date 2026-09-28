@@ -4,9 +4,9 @@
 // DS0. Everything shown is derived from the pool and the specifications.
 import React from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, FlaskConical } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { FlaskConical } from 'lucide-react';
+import { AppHeader } from '@/components/ui/app-shell';
+import { ThemedApp } from '@/design/ThemeProvider';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioNotifications from '@/components/studio/StudioNotifications';
@@ -22,65 +22,55 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex flex-col h-full bg-slate-950 text-white">
-        <header className="flex-shrink-0 border-b border-slate-800 px-4 py-3">
-          <Link to="/dashboard/midstream-downstream">
-            <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white pl-0 mb-2">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Midstream &amp; Downstream
-            </Button>
-          </Link>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-2 rounded-xl shadow-lg">
-                <FlaskConical className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">Product Blending Optimizer</h1>
-                <p className="text-slate-400 text-xs">
-                  The cheapest recipe that meets every specification, and what each specification is costing you.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-end gap-3">
-              <div className="w-52">
-                <StudioProjectManager
-                  label="Saved study"
-                  projects={persistence.projects}
-                  currentProjectId={persistence.currentProjectId}
-                  onCreate={persistence.createProject}
-                  onOpen={persistence.openProject}
-                  onDelete={persistence.deleteProject}
-                  confirmDeleteMessage="Delete this blend study and its saved inputs? This cannot be undone."
-                />
-              </div>
-              <StudioAutoSave
-                isSaving={persistence.isSaving}
-                saveError={persistence.saveError}
-                lastSaveTime={persistence.lastSaveTime}
-                onSave={persistence.manualSave}
-                disabled={!persistence.currentProjectId}
+      <AppHeader
+        title="Product Blending Optimizer"
+        eyebrow="Midstream & Downstream"
+        subtitle="The cheapest recipe that meets every specification, and what each specification is costing you."
+        icon={FlaskConical}
+        backTo="/dashboard/midstream-downstream"
+        backLabel="Midstream & Downstream"
+        actions={(
+          <>
+            <div className="w-52">
+              <StudioProjectManager
+                label="Saved study"
+                projects={persistence.projects}
+                currentProjectId={persistence.currentProjectId}
+                onCreate={persistence.createProject}
+                onOpen={persistence.openProject}
+                onDelete={persistence.deleteProject}
+                confirmDeleteMessage="Delete this blend study and its saved inputs? This cannot be undone."
               />
-              <FullPrecisionToggle app="product-blending-optimizer" className="mb-2" />
-              <BlendOptimizerHelpGuide />
             </div>
-          </div>
-        </header>
+            <StudioAutoSave
+              isSaving={persistence.isSaving}
+              saveError={persistence.saveError}
+              lastSaveTime={persistence.lastSaveTime}
+              onSave={persistence.manualSave}
+              disabled={!persistence.currentProjectId}
+            />
+            <FullPrecisionToggle app="product-blending-optimizer" />
+            <BlendOptimizerHelpGuide />
+          </>
+        )}
+      />
 
-        <div className="flex flex-1 overflow-hidden">
-          <aside className="w-full md:w-1/3 xl:w-1/4 border-r border-slate-800 bg-slate-900/40 p-4 overflow-y-auto">
-            <PoolPanel />
-          </aside>
-          <main className="flex-1 p-4 overflow-y-auto">
-            <RecipeResults />
-          </main>
-        </div>
+      <div className="flex flex-1 flex-col md:flex-row md:overflow-hidden">
+        <aside className="w-full border-b border-pl-border bg-pl-surface p-4 md:w-1/3 md:overflow-y-auto md:border-b-0 md:border-r xl:w-1/4">
+          <PoolPanel />
+        </aside>
+        <main className="min-w-0 flex-1 p-4 md:overflow-y-auto">
+          <RecipeResults />
+        </main>
       </div>
     </>
   );
 };
 
+// Design system rollout w5e: the page wraps itself in <ThemedApp>, so the
+// classes below are theme roles; the recipe chart stays white (ChartFrame).
 const ProductBlendingOptimizer = () => (
-  <>
+  <ThemedApp className="flex min-h-screen flex-col" data-testid="blend-theme-scope">
     <Helmet>
       <title>Product Blending Optimizer - Petrolord Suite</title>
       <meta name="description" content="Least-cost fuel blend recipes under octane, RVP, sulfur and viscosity specifications, with quality giveaway and shadow prices." />
@@ -90,7 +80,7 @@ const ProductBlendingOptimizer = () => (
         <Workspace />
       </FullPrecisionProvider>
     </BlendOptimizerProvider>
-  </>
+  </ThemedApp>
 );
 
 export default ProductBlendingOptimizer;

@@ -193,3 +193,23 @@ Engines #228 (df31f53) vendored; the page follows it.
   untrue and is reworded on the page and in the help, as in the engine.
 
 Gate: 3 new page tests (the smoke suite is 22).
+
+## Design system rollout (w5e, 2026-09-28)
+
+The page wraps itself in `ThemedApp`: grey panel light by default, dark by
+the user's choice in the header toggle. AppHeader (with the theme toggle, the
+saved-study selector, save and the documentation drawer) replaces the
+bespoke header. The input rail, KPI tiles and measure cards move to theme
+roles. The reportable verdict keeps success or warning with its words; the
+over-claim box is danger, the refusal, interaction and unchecked-claim boxes
+warning. The inventory and the abatement curve table are NumericTables (a
+blocked line or one missing provenance keeps a warning fill and says why;
+a measure that pays for itself keeps success text beside its minus sign).
+The three charts stay white in ChartFrame.
+No calculation change; the existing suites pass unchanged. Route `/dashboard/apps/midstream-downstream/carbon-footprint-abatement`
+is registered in `src/design/rollout/w5e.js` for the cold-load loaders.
+Theme test: `src/pages/apps/__tests__/CarbonAbatementStudio.theme.test.jsx` (the standard
+four checks plus both tabs in light and dark, the reportable and over-claim callouts and the help guide). Screens checked in light at 1440 and 390 (no
+sideways page scroll) and dark at 1440 on a private dev server; the phone
+layout now stacks the input rail above the results (before, the rail took
+the full width and squeezed the results out of view).

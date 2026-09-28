@@ -8,11 +8,11 @@ import { useModularRefinery } from '@/contexts/ModularRefineryContext';
 
 const Cell = ({ label, value, onChange, unit }) => (
   <div>
-    <Label className="text-[10px] text-slate-400">{label}{unit ? ` (${unit})` : ''}</Label>
+    <Label className="text-[10px] text-pl-muted">{label}{unit ? ` (${unit})` : ''}</Label>
     <Input
       type="number" step="any" value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}
-      className="h-7 bg-slate-950 border-slate-700 text-xs"
+      className="h-7 text-xs"
     />
   </div>
 );
@@ -25,30 +25,30 @@ const FeasibilityPanel = () => {
   return (
     <div className="space-y-4">
       <div>
-        <Label className="text-xs text-slate-400">Configuration</Label>
+        <Label className="text-xs text-pl-muted">Configuration</Label>
         <Select value={inputs.configurationId} onValueChange={(v) => set({ configurationId: v, yieldOverrides: null })}>
-          <SelectTrigger className="h-8 bg-slate-950 border-slate-700 text-sm mt-1"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-900 border-slate-700 text-slate-100">
+          <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+          <SelectContent>
             {Object.values(configurations).map((c) => (
               <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <p className="text-[11px] text-slate-500 mt-2">{configuration.description}</p>
-        <p className="text-[11px] text-slate-500 mt-1">
+        <p className="text-[11px] text-pl-muted mt-2">{configuration.description}</p>
+        <p className="text-[11px] text-pl-muted mt-1">
           Units: {configuration.units.join(', ')}.
         </p>
       </div>
 
       <div>
-        <Label className="text-xs text-slate-400">Crude supply scenario</Label>
+        <Label className="text-xs text-pl-muted">Crude supply scenario</Label>
         <Select value={inputs.scenarioId} onValueChange={(v) => set({ scenarioId: v })}>
-          <SelectTrigger className="h-8 bg-slate-950 border-slate-700 text-sm mt-1"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-900 border-slate-700 text-slate-100">
+          <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+          <SelectContent>
             {scenarios.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <p className="text-[11px] text-amber-300/80 mt-2">
+        <p className="text-[11px] text-pl-warning-text mt-2">
           Crude supply is what actually decides these projects, so it sits here beside the capacity
           rather than in an appendix. These are named futures, not probabilities: attaching an
           invented likelihood to each would not be honest.
@@ -56,7 +56,7 @@ const FeasibilityPanel = () => {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-2">Plant</h2>
+        <h2 className="text-sm font-semibold text-pl-text mb-2">Plant</h2>
         <div className="grid grid-cols-2 gap-2">
           <Cell label="Capacity" unit="bpd" value={inputs.capacityBpd} onChange={(v) => set({ capacityBpd: v })} />
           <Cell label="On-stream" unit="days/yr" value={inputs.onstreamDays} onChange={(v) => set({ onstreamDays: v })} />
@@ -66,14 +66,14 @@ const FeasibilityPanel = () => {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-2">Capital reference and scaling</h2>
+        <h2 className="text-sm font-semibold text-pl-text mb-2">Capital reference and scaling</h2>
         <div className="grid grid-cols-2 gap-2">
           <Cell label="Reference cost" unit="$" value={inputs.baseCost} onChange={(v) => set({ baseCost: v })} />
           <Cell label="At capacity" unit="bpd" value={inputs.baseCapacity} onChange={(v) => set({ baseCapacity: v })} />
           <Cell label="Modular exponent" value={inputs.modularExponent} onChange={(v) => set({ modularExponent: v })} />
           <Cell label="Stick-built exponent" value={inputs.stickBuiltExponent} onChange={(v) => set({ stickBuiltExponent: v })} />
         </div>
-        <p className="text-[11px] text-slate-500 mt-2">
+        <p className="text-[11px] text-pl-muted mt-2">
           Replace the reference point with a vendor quotation for a real study. The exponents are
           here rather than buried because the difference between them is the entire argument for or
           against a modular project.
@@ -81,7 +81,7 @@ const FeasibilityPanel = () => {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-2">Costs</h2>
+        <h2 className="text-sm font-semibold text-pl-text mb-2">Costs</h2>
         <div className="grid grid-cols-2 gap-2">
           <Cell label="Crude" unit="$/bbl" value={inputs.crudeCostPerBbl} onChange={(v) => set({ crudeCostPerBbl: v })} />
           <Cell label="Variable opex" unit="$/bbl" value={inputs.variableOpexPerBbl} onChange={(v) => set({ variableOpexPerBbl: v })} />
@@ -92,7 +92,7 @@ const FeasibilityPanel = () => {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-2">Product prices</h2>
+        <h2 className="text-sm font-semibold text-pl-text mb-2">Product prices</h2>
         <div className="grid grid-cols-2 gap-2">
           {slate.rows.map((r) => (
             <Cell
@@ -105,12 +105,12 @@ const FeasibilityPanel = () => {
           ))}
         </div>
         {slate.unpriced.length > 0 && (
-          <p className="text-[11px] text-amber-300 mt-2">
+          <p className="text-[11px] text-pl-warning-text mt-2">
             No price for {slate.unpriced.map(productLabel).join(', ')}. Those products contribute nothing to the value,
             so the project is understated until they are priced.
           </p>
         )}
-        <p className="text-[11px] text-slate-500 mt-2">
+        <p className="text-[11px] text-pl-muted mt-2">
           Yields are the configuration&apos;s screening defaults. A real study takes them from the
           crude&apos;s own assay, which is what the Crude Assay Studio computes.
         </p>

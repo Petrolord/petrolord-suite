@@ -36,3 +36,21 @@ goldens are unchanged); no royalty on a refinery.
 
 Tests: a page test pins the default NPV and the absent Royalty box, and one
 pins +5.3 MM with crude at 74; the second fails on the old page.
+
+## Design system rollout (w5e, 2026-09-28)
+
+The page wraps itself in `ThemedApp`: grey panel light by default, dark by
+the user's choice in the header toggle. AppHeader (with the theme toggle,
+the saved-study selector, save and the documentation drawer) replaces the
+bespoke header. The rail and KPI tiles move to theme roles; a negative NPV
+or margin reads in danger text beside its minus sign. The product slate and
+the supply scenarios are NumericTables (the chosen scenario keeps a sunken
+fill); licence stages show a success tick when done and expose it as
+aria-pressed. The scale chart stays white in ChartFrame.
+No calculation change; the existing suites pass unchanged. Route `/dashboard/apps/midstream-downstream/modular-refinery-feasibility`
+is registered in `src/design/rollout/w5e.js` for the cold-load loaders.
+Theme test: `src/pages/apps/__tests__/ModularRefineryFeasibility.theme.test.jsx` (the standard
+four checks plus the results in light and dark, the open configuration select, a ticked licence stage and the help guide). Screens checked in light at 1440 and 390 (no
+sideways page scroll) and dark at 1440 on a private dev server; the phone
+layout now stacks the input rail above the results (before, the rail took
+the full width and squeezed the results out of view).

@@ -70,7 +70,7 @@ const PcaPanel = () => {
               headers={['Component', 'Eigenvalue', 'Explained ratio', 'Cumulative']}
               rows={r.eigenvalues.map((v, k) => [`PC${k + 1}`, v, r.explainedVarianceRatio[k], r.cumulativeRatio[k]])}
             />
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-pl-muted">
               {r.n.toLocaleString('en-US')} rows, {r.p} logs, {r.matrix} matrix, total variance {dn(r.totalVariance)}; Jacobi {r.jacobiSweeps} sweep{r.jacobiSweeps === 1 ? '' : 's'}.
             </p>
           </Section>

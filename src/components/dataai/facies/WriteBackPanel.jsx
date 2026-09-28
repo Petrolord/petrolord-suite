@@ -114,11 +114,11 @@ const WriteBackPanel = () => {
           </Button>
         </div>
         <Note>{methodText(k, r, parsed)}.</Note>
-        {error ? <p role="alert" className="text-xs text-red-300">{error}</p> : null}
+        {error ? <p role="alert" className="text-xs text-pl-danger-text">{error}</p> : null}
       </Section>
       {preview ? (
         <Section title={`${preview.well.name}: the facies log`}>
-          <p className="text-xs text-slate-300" data-testid="writeback-counts">
+          <p className="text-xs text-pl-text" data-testid="writeback-counts">
             {preview.at.length.toLocaleString('en-US')} of {preview.block.n.toLocaleString('en-US')} samples carry a code; the rest stay null
             (outside the window, thinned, missing a log{k === 'agglomerative' && r.sampled ? ', or outside the agglomerative sample' : ''}).
           </p>

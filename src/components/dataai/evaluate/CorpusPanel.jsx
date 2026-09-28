@@ -25,10 +25,10 @@ const readText = (file) => (file.text ? file.text() : new Promise((res, rej) => 
 const FileField = ({
   label, testId, accept = '.csv,.tsv,.txt', onFile, name,
 }) => (
-  <label className="block text-[11px] text-slate-400">
+  <label className="block text-[11px] text-pl-muted">
     <span>{label}</span>
-    <input type="file" accept={accept} data-testid={testId} onChange={(e) => onFile(e.target.files?.[0] || null)} className="mt-1 block w-full text-xs text-slate-300" />
-    {name ? <span className="text-[10px] text-slate-500">{name}</span> : null}
+    <input type="file" accept={accept} data-testid={testId} onChange={(e) => onFile(e.target.files?.[0] || null)} className="mt-1 block w-full text-xs text-pl-text" />
+    {name ? <span className="text-[10px] text-pl-muted">{name}</span> : null}
   </label>
 );
 
@@ -75,7 +75,7 @@ const Uploader = () => {
         <FileField label="Calibration CSV: probability, outcome (0 or 1)" testId="upload-calibration" onFile={set('calibration')} name={files.calibration?.name} />
       </div>
       <Button size="sm" onClick={useCsv} data-testid="use-csv">Use these files</Button>
-      {error ? <p role="alert" className="text-xs text-red-300" data-testid="upload-error">{error}</p> : null}
+      {error ? <p role="alert" className="text-xs text-pl-danger-text" data-testid="upload-error">{error}</p> : null}
     </div>
   );
 };
@@ -94,8 +94,8 @@ const CorpusPanel = () => {
       >
         {dataset ? (
           <div className="space-y-1">
-            <p className="text-sm text-slate-100" data-testid="dataset-label">{dataset.label}</p>
-            <p className="text-xs text-slate-300" data-testid="dataset-counts">
+            <p className="text-sm text-pl-text" data-testid="dataset-label">{dataset.label}</p>
+            <p className="text-xs text-pl-text" data-testid="dataset-counts">
               {c.passages.toLocaleString('en-US')} passages, {c.queries} queries ({c.judgedQueries} judged, {c.judgedPairs.toLocaleString('en-US')} judged pairs
               {c.secondGrades ? `, ${c.secondGrades.toLocaleString('en-US')} with a second grade` : ''}), {c.systems} system{c.systems === 1 ? '' : 's'},
               {' '}{c.extractionRecords} extraction records, {c.calibrationRows.toLocaleString('en-US')} calibration rows.
@@ -106,8 +106,8 @@ const CorpusPanel = () => {
             ) : null}
           </div>
         ) : <Note tone="warn" testId="no-dataset">No dataset is loaded.</Note>}
-        <details className="rounded border border-slate-800 p-2">
-          <summary className="cursor-pointer text-xs text-slate-300">Upload your own corpus and judgments</summary>
+        <details className="rounded border border-pl-border p-2">
+          <summary className="cursor-pointer text-xs text-pl-text">Upload your own corpus and judgments</summary>
           <div className="mt-2"><Uploader /></div>
         </details>
       </Section>

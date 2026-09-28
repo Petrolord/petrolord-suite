@@ -7,11 +7,11 @@ import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 
 const Cell = ({ label, value, onChange, unit }) => (
   <div>
-    <Label className="text-[10px] text-slate-400">{label}{unit ? ` (${unit})` : ''}</Label>
+    <Label className="text-[10px] text-pl-muted">{label}{unit ? ` (${unit})` : ''}</Label>
     <Input
       type="number" step="any" value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}
-      className="h-7 bg-slate-950 border-slate-700 text-xs"
+      className="h-7 text-xs"
     />
   </div>
 );
@@ -40,14 +40,14 @@ const ConfigPanel = () => {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-sm font-semibold text-white mb-2">Period</h2>
+        <h2 className="text-sm font-semibold text-pl-text mb-2">Period</h2>
         <div className="grid grid-cols-3 gap-2">
           <div>
-            <Label className="text-[10px] text-slate-400">Start</Label>
+            <Label className="text-[10px] text-pl-muted">Start</Label>
             <Input
               type="date" value={inputs.periodStart}
               onChange={(e) => setPeriod({ periodStart: e.target.value })}
-              className="h-7 bg-slate-950 border-slate-700 text-xs"
+              className="h-7 text-xs"
             />
           </div>
           <Cell label="Days" value={inputs.periodDays} onChange={(v) => setPeriod({ periodDays: v })} />
@@ -56,18 +56,18 @@ const ConfigPanel = () => {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-2">Crudes</h2>
-        <p className="text-[11px] text-slate-500 mb-2">
+        <h2 className="text-sm font-semibold text-pl-text mb-2">Crudes</h2>
+        <p className="text-[11px] text-pl-muted mb-2">
           Yields are volume fractions of the crude into each stream, and they are data rather than
           something this app predicts. A refinery&apos;s own come from its assays; the Crude Assay
           Studio is where the straight-run ones are worked out.
         </p>
         {inputs.crudes.map((c) => (
-          <div key={c.id} className="rounded border border-slate-800 bg-slate-900/60 p-2 mb-2">
+          <div key={c.id} className="rounded border border-pl-border bg-pl-surface p-2 mb-2">
             <Input
               value={c.name}
               onChange={(e) => setCrude(c.id, { name: e.target.value })}
-              className="h-7 bg-slate-950 border-slate-700 text-sm font-medium mb-2"
+              className="h-7 text-sm font-medium mb-2"
             />
             <div className="grid grid-cols-2 gap-2">
               <Cell label="Cost" unit="$/bbl" value={c.cost} onChange={(v) => setCrude(c.id, { cost: v })} />
@@ -79,31 +79,31 @@ const ConfigPanel = () => {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-2">Units</h2>
+        <h2 className="text-sm font-semibold text-pl-text mb-2">Units</h2>
         {inputs.units.map((u) => {
           const run = plan.status === 'optimal' ? plan.unitRuns.find((r) => r.id === u.id) : null;
           return (
-            <div key={u.id} className="rounded border border-slate-800 bg-slate-900/60 p-2 mb-2">
+            <div key={u.id} className="rounded border border-pl-border bg-pl-surface p-2 mb-2">
               <Input
                 value={u.name}
                 onChange={(e) => setUnit(u.id, { name: e.target.value })}
-                className="h-7 bg-slate-950 border-slate-700 text-sm font-medium mb-2"
+                className="h-7 text-sm font-medium mb-2"
               />
               <div className="grid grid-cols-3 gap-2">
                 <Cell label="Capacity" unit="bbl" value={u.capacity} onChange={(v) => setUnit(u.id, { capacity: v })} />
                 <Cell label="Opex" unit="$/bbl" value={u.opex} onChange={(v) => setUnit(u.id, { opex: v })} />
                 <div>
-                  <Label className="text-[10px] text-slate-400">Feed stream</Label>
+                  <Label className="text-[10px] text-pl-muted">Feed stream</Label>
                   <Input
                     value={u.feed ?? ''}
                     onChange={(e) => setUnit(u.id, { feed: e.target.value })}
-                    className="h-7 bg-slate-950 border-slate-700 text-xs"
+                    className="h-7 text-xs"
                   />
                 </div>
               </div>
               <YieldGrid kind="units" row={u} streams={inputs.streams} />
               {run && run.utilisation !== null && (
-                <p className="text-[11px] text-slate-400 mt-1">
+                <p className="text-[11px] text-pl-muted mt-1">
                   Running at {show((run.utilisation * 100).toFixed(0), run.utilisation * 100)}% of capacity.
                 </p>
               )}
@@ -113,13 +113,13 @@ const ConfigPanel = () => {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-2">Products</h2>
+        <h2 className="text-sm font-semibold text-pl-text mb-2">Products</h2>
         {inputs.products.map((p) => (
-          <div key={p.id} className="rounded border border-slate-800 bg-slate-900/60 p-2 mb-2">
+          <div key={p.id} className="rounded border border-pl-border bg-pl-surface p-2 mb-2">
             <Input
               value={p.name}
               onChange={(e) => setProduct(p.id, { name: e.target.value })}
-              className="h-7 bg-slate-950 border-slate-700 text-sm font-medium mb-2"
+              className="h-7 text-sm font-medium mb-2"
             />
             <div className="grid grid-cols-3 gap-2">
               <Cell label="Price" unit="$/bbl" value={p.price} onChange={(v) => setProduct(p.id, { price: v })} />

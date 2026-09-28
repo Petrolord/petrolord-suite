@@ -43,7 +43,7 @@ const ExtractionPanel = () => {
           <StaleNote job="extraction" />
           {r.error ? <EngineError result={r} /> : (
             <>
-              <p className="text-xs text-slate-300" data-testid="extraction-line">
+              <p className="text-xs text-pl-text" data-testid="extraction-line">
                 {r.nPredicted} of {r.nRecords} labelled records returned; {r.overall.n} cells scored.
               </p>
               <Grid

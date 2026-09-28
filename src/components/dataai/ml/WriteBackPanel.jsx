@@ -123,11 +123,11 @@ const WriteBackPanel = () => {
         <Button size="sm" variant="secondary" disabled={!wellId || busy} onClick={predict} data-testid="writeback-predict">
           {busy && !preview ? 'Predicting' : 'Predict'}
         </Button>
-        {error ? <p role="alert" className="text-xs text-red-300">{error}</p> : null}
+        {error ? <p role="alert" className="text-xs text-pl-danger-text">{error}</p> : null}
       </Section>
       {preview ? (
         <Section title={`${preview.well.name}: the predicted curve`}>
-          <p className="text-xs text-slate-300" data-testid="writeback-counts">
+          <p className="text-xs text-pl-text" data-testid="writeback-counts">
             {preview.rows.X.length.toLocaleString('en-US')} of {preview.rows.n.toLocaleString('en-US')} samples predicted;
             {' '}{preview.rows.skipped.toLocaleString('en-US')} have a missing (or, for a logged feature, a zero or negative) feature and stay null.
             {preview.block.curves[target] ? ` ${preview.well.name} has a measured ${target}; it is shown for comparison and is not changed.` : ''}

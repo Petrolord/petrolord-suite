@@ -26,7 +26,7 @@ const SOURCES = [
   { id: 'spine', label: 'Production data', icon: Database },
 ];
 
-const ErrorLine = ({ error }) => (error ? <p role="alert" className="text-xs text-red-300">{error}</p> : null);
+const ErrorLine = ({ error }) => (error ? <p role="alert" className="text-xs text-pl-danger-text">{error}</p> : null);
 
 const UploadSource = () => {
   const { setTable } = useForecasting();
@@ -97,14 +97,14 @@ const UploadSource = () => {
 
   return (
     <div className="space-y-2">
-      <label className="block text-[11px] text-slate-400">
+      <label className="block text-[11px] text-pl-muted">
         <span>CSV, TSV, TXT or Excel file, one row per well and time step</span>
         <input
           type="file"
           accept=".csv,.tsv,.txt,.dat,.prn,.asc,.xlsx,.xlsm,.xls"
           data-testid="upload-input"
           onChange={(e) => onFile(e.target.files?.[0])}
-          className="mt-1 block w-full text-xs text-slate-300"
+          className="mt-1 block w-full text-xs text-pl-text"
         />
       </label>
       <Note>
@@ -121,8 +121,8 @@ const UploadSource = () => {
       ) : null}
       {parsed && !parsed.rows.length ? <Note tone="warn">The file has no data rows.</Note> : null}
       {parsed && parsed.rows.length ? (
-        <div className="space-y-2 rounded border border-slate-800 p-2" data-testid="upload-mapping">
-          <p className="text-[11px] text-slate-400">{parsed.rows.length} rows, {cols.length} columns.</p>
+        <div className="space-y-2 rounded border border-pl-border p-2" data-testid="upload-mapping">
+          <p className="text-[11px] text-pl-muted">{parsed.rows.length} rows, {cols.length} columns.</p>
           <SelectField label="Well column" value={wellCol} onChange={setWellCol} emptyLabel="None (one series)" testId="well-col" options={cols.map((c) => ({ value: String(c.index), label: `${c.name} (${c.kind})` }))} />
           <SelectField label="Period column (labels only)" value={periodCol} onChange={setPeriodCol} emptyLabel="None (row number)" testId="period-col" options={cols.map((c) => ({ value: String(c.index), label: `${c.name} (${c.kind})` }))} />
           <SelectField label="Production column" value={valueCol} onChange={setValueCol} emptyLabel="Choose" testId="value-col" options={cols.filter((c) => c.kind === 'number').map((c) => ({ value: String(c.index), label: c.name }))} />
@@ -211,7 +211,7 @@ const SpineSource = () => {
       {wells && !wells.length ? <Note testId="spine-no-wells">This field has no producing wells.</Note> : null}
       {wells && wells.length ? (
         <>
-          <div className="max-h-44 space-y-1 overflow-y-auto rounded border border-slate-800 p-2" data-testid="spine-wells">
+          <div className="max-h-44 space-y-1 overflow-y-auto rounded border border-pl-border p-2" data-testid="spine-wells">
             {wells.map((w) => (
               <Toggle key={w.id} label={w.name} checked={chosen.includes(w.id)} onChange={(on) => setChosen((c) => (on ? [...c, w.id] : c.filter((x) => x !== w.id)))} />
             ))}
@@ -234,9 +234,9 @@ const TableSummary = () => {
   if (!table) return <Note testId="no-data">No data loaded. Choose a source above.</Note>;
   const steps = table.wells.reduce((s, w) => s + w.values.length, 0);
   return (
-    <div className="space-y-1 rounded border border-slate-800 bg-slate-950/60 p-2 text-xs" data-testid="table-summary">
-      <p className="font-medium text-slate-100">{table.label}</p>
-      <p className="text-slate-400" data-testid="table-counts">
+    <div className="space-y-1 rounded border border-pl-border bg-pl-sunken p-2 text-xs" data-testid="table-summary">
+      <p className="font-medium text-pl-text">{table.label}</p>
+      <p className="text-pl-muted" data-testid="table-counts">
         {table.wells.length} well{table.wells.length === 1 ? '' : 's'}, {steps.toLocaleString('en-US')} steps in all; one step is a {table.step}
         {table.unit ? `; unit ${table.unit}` : ''}.
       </p>
@@ -251,7 +251,7 @@ const DataPanel = () => {
   } = useForecasting();
   return (
     <div className="space-y-3" data-testid="data-panel">
-      <h2 className="text-sm font-semibold text-slate-100">Data</h2>
+      <h2 className="text-sm font-semibold text-pl-text">Data</h2>
       <div className="flex gap-1" role="tablist" aria-label="Data source">
         {SOURCES.map(({ id, label, icon: Icon }) => (
           <button
@@ -261,7 +261,7 @@ const DataPanel = () => {
             aria-selected={sourceKind === id}
             onClick={() => setSourceKind(id)}
             data-testid={`source-${id}`}
-            className={`flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs ${sourceKind === id ? 'bg-sky-700 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+            className={`flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs ${sourceKind === id ? 'bg-pl-primary text-pl-primary-fg' : 'bg-pl-sunken text-pl-text hover:bg-pl-border'}`}
           >
             <Icon className="h-3.5 w-3.5" /> {label}
           </button>

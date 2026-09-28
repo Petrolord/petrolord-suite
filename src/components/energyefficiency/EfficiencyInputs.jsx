@@ -14,18 +14,18 @@ const Cell = ({ label, value, onChange, unit, placeholder }) => {
   const text = `${label}${unit ? ` (${unit})` : ''}`;
   return (
     <div>
-      <Label htmlFor={id} className="text-[10px] text-slate-400">{text}</Label>
+      <Label htmlFor={id} className="text-[10px] text-pl-muted">{text}</Label>
       <Input id={id} type="number" step="any" value={value ?? ''} placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="h-7 bg-slate-950 border-slate-700 text-xs" />
+        className="h-7 text-xs" />
     </div>
   );
 };
 
 const Group = ({ title, children, note }) => (
   <div>
-    <h2 className="text-sm font-semibold text-white mb-1">{title}</h2>
-    {note && <p className="text-[10px] text-slate-500 mb-1.5">{note}</p>}
+    <h2 className="text-sm font-semibold text-pl-text mb-1">{title}</h2>
+    {note && <p className="text-[10px] text-pl-muted mb-1.5">{note}</p>}
     <div className="grid grid-cols-2 gap-2">{children}</div>
   </div>
 );
@@ -46,18 +46,18 @@ const EfficiencyInputs = () => {
       </Group>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-1">The heater</h2>
-        <p className="text-[10px] text-slate-500 mb-1.5">
+        <h2 className="text-sm font-semibold text-pl-text mb-1">The heater</h2>
+        <p className="text-[10px] text-pl-muted mb-1.5">
           The radiation loss comes off a published chart against surface area and firing rate,
           and the oxygen below which this burner makes carbon monoxide depends on the burner.
           Neither is supplied here. The unburned and other loss comes off a flue gas measurement,
           so left blank it stays absent and the efficiency is reported without it.
         </p>
         <div className="mb-2">
-          <Label htmlFor="ee-basis" className="text-[10px] text-slate-400">Heating value basis</Label>
+          <Label htmlFor="ee-basis" className="text-[10px] text-pl-muted">Heating value basis</Label>
           <select id="ee-basis" value={inputs.heater.basis}
             onChange={(e) => setSection('heater', { basis: e.target.value })}
-            className="h-7 w-full rounded bg-slate-950 border border-slate-700 text-xs px-2 text-white">
+            className="h-7 w-full rounded bg-pl-surface border border-pl-border-strong text-xs px-2 text-pl-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus">
             <option value={HEATING_VALUE_BASIS.LHV}>LHV (lower heating value)</option>
             <option value={HEATING_VALUE_BASIS.HHV}>HHV (higher heating value)</option>
           </select>
@@ -106,10 +106,10 @@ const EfficiencyInputs = () => {
         <Cell label="Fuel cost" unit="/GJ" value={inputs.ledger.fuelCostPerGJ} onChange={(v) => setSection('ledger', { fuelCostPerGJ: v })} />
         <Cell label="Emission factor" unit="kgCO2e/GJ" value={inputs.ledger.emissionFactorKgCo2ePerGJ} placeholder="required for carbon" onChange={(v) => setSection('ledger', { emissionFactorKgCo2ePerGJ: v })} />
         <div className="col-span-2">
-          <Label htmlFor="ee-price-basis" className="text-[10px] text-slate-400">Price and factor quoted on</Label>
+          <Label htmlFor="ee-price-basis" className="text-[10px] text-pl-muted">Price and factor quoted on</Label>
           <select id="ee-price-basis" value={inputs.ledger.priceAndFactorBasis || ''}
             onChange={(e) => setSection('ledger', { priceAndFactorBasis: e.target.value })}
-            className="h-7 w-full rounded bg-slate-950 border border-slate-700 text-xs px-2 text-white">
+            className="h-7 w-full rounded bg-pl-surface border border-pl-border-strong text-xs px-2 text-pl-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus">
             <option value="">Not declared</option>
             <option value={HEATING_VALUE_BASIS.LHV}>LHV (IPCC default factors are on this basis)</option>
             <option value={HEATING_VALUE_BASIS.HHV}>HHV (gas is often priced on this basis)</option>
@@ -129,8 +129,8 @@ const EfficiencyInputs = () => {
 
       <div>
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-sm font-semibold text-white">The stream table</h2>
-          <Button size="sm" variant="outline" className="h-6 text-[11px] border-slate-700" onClick={addPinchStream}>
+          <h2 className="text-sm font-semibold text-pl-text">The stream table</h2>
+          <Button size="sm" variant="outline" className="h-6 text-[11px] border-pl-border" onClick={addPinchStream}>
             <Plus className="w-3 h-3 mr-1" /> Stream
           </Button>
         </div>
@@ -139,12 +139,12 @@ const EfficiencyInputs = () => {
             onChange={(v) => setSection('pinch', { minimumApproachC: v })} />
         </div>
         {inputs.pinch.streams.map((s) => (
-          <div key={s.id} className="rounded border border-slate-800 bg-slate-900/60 p-2 mb-2">
+          <div key={s.id} className="rounded border border-pl-border bg-pl-surface p-2 mb-2">
             <div className="flex items-center gap-1 mb-1.5">
               <Input value={s.label} aria-label={`Stream name ${s.label}`}
                 onChange={(e) => setPinchStream(s.id, { label: e.target.value })}
-                className="h-7 bg-slate-950 border-slate-700 text-xs" />
-              <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-500 hover:text-red-400"
+                className="h-7 text-xs" />
+              <Button size="icon" variant="ghost" className="h-7 w-7 text-pl-muted hover:text-pl-danger-text"
                 aria-label={`Remove ${s.label}`} onClick={() => removePinchStream(s.id)}>
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>

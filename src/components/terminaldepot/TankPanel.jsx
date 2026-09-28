@@ -19,11 +19,11 @@ const StrappingEditor = ({ tank, setTank }) => {
   };
   return (
     <details className="mt-2">
-      <summary className="cursor-pointer text-[11px] text-slate-400 hover:text-slate-200">
+      <summary className="cursor-pointer text-[11px] text-pl-muted hover:text-pl-text">
         Strapping table {tank.strappingIsSample ? '(linear placeholder)' : `(${(tank.strapping || []).length} rows supplied)`}
       </summary>
       {tank.strappingIsSample && (
-        <p className="text-[11px] text-amber-300 mt-1" data-testid="strapping-placeholder">
+        <p className="text-[11px] text-pl-warning-text mt-1" data-testid="strapping-placeholder">
           A straight line from capacity and height, standing in for this tank's table. Paste the
           tank's own, one height (mm) and volume (m3) per line, for volumes you can stand behind.
         </p>
@@ -31,9 +31,9 @@ const StrappingEditor = ({ tank, setTank }) => {
       <textarea
         aria-label={`Strapping table for ${tank.name}`}
         value={text} onChange={(e) => setText(e.target.value)} onBlur={apply} rows={6}
-        className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2 font-mono text-[11px] text-slate-200"
+        className="mt-1 w-full rounded border border-pl-border-strong bg-pl-surface p-2 font-mono text-[11px] text-pl-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus"
       />
-      {error && <p className="text-[11px] text-red-300">{error}</p>}
+      {error && <p className="text-[11px] text-pl-danger-text">{error}</p>}
     </details>
   );
 };
@@ -46,10 +46,10 @@ const Cell = ({ label, value, onChange, unit }) => {
   const text = `${label}${unit ? ` (${unit})` : ''}`;
   return (
     <div>
-      <Label htmlFor={id} className="text-[10px] text-slate-400">{text}</Label>
+      <Label htmlFor={id} className="text-[10px] text-pl-muted">{text}</Label>
       <Input id={id} type="number" step="any" value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
-        className="h-7 bg-slate-950 border-slate-700 text-xs" />
+        className="h-7 text-xs" />
     </div>
   );
 };
@@ -59,9 +59,9 @@ const TankPanel = () => {
 
   return (
     <div className="space-y-4">
-      <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
-        <h2 className="text-sm font-semibold text-white mb-1">Volume correction</h2>
-        <p className="text-[11px] text-slate-500 mb-2">
+      <div className="rounded-lg border border-pl-border bg-pl-raised p-3">
+        <h2 className="text-sm font-semibold text-pl-text mb-1">Volume correction</h2>
+        <p className="text-[11px] text-pl-muted mb-2">
           The API MPMS Chapter 11.1 coefficients are a published table this app does not ship, so
           supply your commodity group&apos;s row here, or type a VCF straight off your own tables on
           each tank. Without either, only gross observed volumes are reported, which is honest and
@@ -75,13 +75,13 @@ const TankPanel = () => {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-2">Tanks and dips</h2>
+        <h2 className="text-sm font-semibold text-pl-text mb-2">Tanks and dips</h2>
         {inputs.tanks.map((t) => {
           const stock = tankStocks.find((s) => s.id === t.id);
           return (
-            <div key={t.id} className="rounded border border-slate-800 bg-slate-900/60 p-2 mb-2">
+            <div key={t.id} className="rounded-lg border border-pl-border bg-pl-raised p-2 mb-2">
               <Input value={t.name} onChange={(e) => setTank(t.id, { name: e.target.value })}
-                className="h-7 bg-slate-950 border-slate-700 text-sm font-medium mb-2" />
+                className="h-7 text-sm font-medium mb-2" />
               <div className="grid grid-cols-3 gap-2">
                 <Cell label="Dip" unit="mm" value={t.dipMm} onChange={(v) => setTank(t.id, { dipMm: v })} />
                 <Cell label="Water" unit="mm" value={t.waterMm} onChange={(v) => setTank(t.id, { waterMm: v })} />
@@ -94,9 +94,9 @@ const TankPanel = () => {
               </div>
               <StrappingEditor tank={t} setTank={setTank} />
               {stock && (
-                <p className="text-[11px] text-slate-400 mt-2">
+                <p className="text-[11px] text-pl-muted mt-2">
                   {stock.error
-                    ? <span className="text-amber-300">{stock.error}</span>
+                    ? <span className="text-pl-warning-text">{stock.error}</span>
                     : (
                       <>
                         Gross {stock.grossM3?.toFixed(1)} m3
@@ -114,8 +114,8 @@ const TankPanel = () => {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-2">The day</h2>
-        <p className="text-[11px] text-slate-500 mb-2">
+        <h2 className="text-sm font-semibold text-pl-text mb-2">The day</h2>
+        <p className="text-[11px] text-pl-muted mb-2">
           Opening stock is yesterday&apos;s closing stock. The closing stock is today&apos;s dips above.
         </p>
         <div className="grid grid-cols-2 gap-2">
@@ -128,7 +128,7 @@ const TankPanel = () => {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-2">Loading rack</h2>
+        <h2 className="text-sm font-semibold text-pl-text mb-2">Loading rack</h2>
         <div className="grid grid-cols-3 gap-2">
           <Cell label="Arrivals" unit="/hr" value={inputs.rack.arrivalsPerHour} onChange={(v) => setSection('rack', { arrivalsPerHour: v })} />
           <Cell label="Load time" unit="min" value={inputs.rack.loadMinutes} onChange={(v) => setSection('rack', { loadMinutes: v })} />
@@ -137,7 +137,7 @@ const TankPanel = () => {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-white mb-2">Throughput economics</h2>
+        <h2 className="text-sm font-semibold text-pl-text mb-2">Throughput economics</h2>
         <div className="grid grid-cols-2 gap-2">
           <Cell label="Fee" unit="$/m3" value={inputs.economics.feePerM3} onChange={(v) => setSection('economics', { feePerM3: v })} />
           <Cell label="Variable cost" unit="$/m3" value={inputs.economics.variableCostPerM3} onChange={(v) => setSection('economics', { variableCostPerM3: v })} />

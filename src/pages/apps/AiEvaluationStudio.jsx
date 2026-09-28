@@ -20,6 +20,8 @@ import {
   ArrowLeft, BookOpen, FileDown, ScanSearch,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -82,21 +84,21 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex h-full flex-col bg-slate-950 text-white">
-        <header className="flex-shrink-0 border-b border-slate-800 px-4 py-3">
+      <div className="flex h-full flex-1 flex-col bg-pl-bg text-pl-text">
+        <header className="flex-shrink-0 border-b border-pl-border bg-pl-surface px-4 py-3">
           <Link to="/dashboard/data-ai">
-            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-slate-400 hover:text-white">
+            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-pl-muted hover:text-pl-text">
               <ArrowLeft className="mr-2 h-4 w-4" /> Data &amp; AI
             </Button>
           </Link>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 p-2 shadow-lg">
-                <ScanSearch className="h-6 w-6 text-white" />
+              <div className="rounded-xl bg-pl-primary p-2 text-pl-primary-fg shadow-pl-sm">
+                <ScanSearch className="h-6 w-6" aria-hidden="true" />
               </div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight">AI Evaluation Studio</h1>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-pl-muted">
                   BM25 and TF-IDF retrieval, ranking metrics, a seeded paired bootstrap between systems, claim-level groundedness,
                   extraction scoring, Cohen&apos;s kappa and calibration. Every number is computed by the Petrolord evaluation engine.
                 </p>
@@ -121,18 +123,19 @@ const Workspace = () => {
                 onSave={persistence.manualSave}
                 disabled={!persistence.currentProjectId}
               />
-              <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white" disabled={!canExport} onClick={exportCsv} data-testid="export-csv" title={canExport ? 'Report as CSV, every number at full precision' : 'Run a part first'}>
+              <Button variant="ghost" size="sm" className="text-pl-muted hover:text-pl-text" disabled={!canExport} onClick={exportCsv} data-testid="export-csv" title={canExport ? 'Report as CSV, every number at full precision' : 'Run a part first'}>
                 <FileDown className="mr-1 h-4 w-4" /> CSV
               </Button>
               <Link to={`${EVAL_ROUTE}/help`} title="Documentation">
-                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
+                <Button variant="ghost" size="sm" className="text-pl-muted hover:text-pl-text">
                   <BookOpen className="mr-1 h-4 w-4" /> Help guide
                 </Button>
               </Link>
+              <ThemeToggle />
             </div>
           </div>
           {orgId ? null : (
-            <p className="mt-2 text-xs text-amber-200">
+            <p className="mt-2 text-xs text-pl-warning-text">
               Evaluation runs are saved to your organization. Without one you can work here, and saving and the helper are unavailable.
             </p>
           )}
@@ -142,7 +145,7 @@ const Workspace = () => {
           <SavedNote />
           <BusyBar />
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="h-auto flex-wrap border border-slate-800 bg-slate-900">
+            <TabsList className="h-auto flex-wrap">
               <TabsTrigger value="corpus">Corpus and queries</TabsTrigger>
               <TabsTrigger value="retrieval">Retrieval</TabsTrigger>
               <TabsTrigger value="metrics">Retrieval metrics</TabsTrigger>
@@ -168,7 +171,7 @@ const Workspace = () => {
 };
 
 const AiEvaluationStudio = ({ createWorker }) => (
-  <>
+  <ThemedApp className="flex h-full min-h-screen flex-col" data-testid="aieval-theme-scope">
     <Helmet>
       <title>AI Evaluation Studio - Petrolord Suite</title>
       <meta
@@ -179,7 +182,7 @@ const AiEvaluationStudio = ({ createWorker }) => (
     <EvaluationProvider {...(createWorker ? { createWorker } : {})}>
       <Workspace />
     </EvaluationProvider>
-  </>
+  </ThemedApp>
 );
 
 export default AiEvaluationStudio;

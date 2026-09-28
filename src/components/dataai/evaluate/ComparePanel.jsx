@@ -42,7 +42,7 @@ const ComparePanel = () => {
           <Toggle label="Paired by query" checked={c.paired} onChange={(v) => updateSpec(['compare', 'paired'], v)} testId="cmp-paired" />
           <RunButton job="compare">Compare</RunButton>
         </div>
-        <p className="text-[11px] text-slate-400">Metric settings (shared with the Retrieval metrics tab):</p>
+        <p className="text-[11px] text-pl-muted">Metric settings (shared with the Retrieval metrics tab):</p>
         <MetricSettings />
       </Section>
       {out ? (
@@ -54,7 +54,7 @@ const ComparePanel = () => {
           {out.paired ? (
             out.paired.error ? <EngineError result={out.paired} /> : (
               <>
-                <p className="text-xs text-slate-300" data-testid="compare-line">
+                <p className="text-xs text-pl-text" data-testid="compare-line">
                   {out.metric.label} over {out.queries.length} included queries; {out.paired.nBoot.toLocaleString('en-US')} replicates, seed {out.paired.seed},
                   {' '}{out.paired.level * 100} percent interval; {out.paired.paired ? 'paired by query (both systems resampled on the same queries)' : 'unpaired (each system resampled on its own)'}.
                 </p>
@@ -67,7 +67,7 @@ const ComparePanel = () => {
                     ['A minus B', out.paired.difference, interval(out.paired), out.paired.standardError ?? 'undefined'],
                   ]}
                 />
-                <p className="text-xs text-slate-300" data-testid="compare-share">
+                <p className="text-xs text-pl-text" data-testid="compare-share">
                   In {dn(out.paired.shareAtOrBelowZero * 100)} percent of the replicates A does not beat B (a difference at or below 0).
                   This share describes the resampling; it is not a p-value.
                 </p>

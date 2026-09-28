@@ -117,3 +117,14 @@ certificate (engines #219, vendored at a1d8c9f; findings in
 
 DS4, the Modular Refinery Feasibility Studio: the flagship
 differentiator, consuming DS1 yields and DS3 configurations.
+
+## Design system rollout (w5c, 2026-09-28)
+
+The page wraps itself in `ThemedApp`: grey panel light by default, dark by the
+user's choice in the header toggle. AppHeader (with the theme toggle and the Full precision switch) replaces the bespoke header. The config rail, KPI tiles, plan tables and actuals form move to theme roles; the Where the gap came from variance ledger is a NumericTable (total column keeps success or danger by margin effect, as the copy explains). Charts stay white in ChartFrame. No calculation change; the existing
+suites pass unchanged. Theme test: `src/pages/apps/__tests__/RefineryPlanningStudio.theme.test.jsx` (standard
+four checks plus every tab, results states and the documentation drawer).
+Route `/dashboard/apps/midstream-downstream/refinery-planning-scheduling` is registered in
+`src/design/rollout/w5c.js` for the cold-load loaders. Screens checked in
+light at 1440 and 390 (no sideways page scroll) and dark at 1440 on a private
+dev server; the phone layout now stacks the input rail above the results.

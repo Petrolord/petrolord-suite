@@ -63,7 +63,7 @@ const HoldOut = () => {
 };
 
 const SplitLine = ({ split }) => (
-  <p className="text-xs text-slate-200" data-testid="split-line">
+  <p className="text-xs text-pl-text" data-testid="split-line">
     Trained on {split.nTrain.toLocaleString('en-US')} cored rows of {split.trainGroups.join(', ')}; scored on
     {' '}{split.nTest.toLocaleString('en-US')} cored rows of {split.testGroups.join(', ')}
     {split.scheme === 'seeded' ? ` (engine group split, seed ${split.seed}).` : ' (wells chosen).'}
@@ -75,7 +75,7 @@ const Scores = ({ r, prefix }) => (
     <SplitLine split={r.split} />
     {r.scores.report.error ? <EngineError result={r.scores.report} /> : (
       <>
-        <p className="text-xs text-slate-200">
+        <p className="text-xs text-pl-text">
           Held-out accuracy <span className="font-mono" data-testid={`${prefix}-accuracy`}>{dn(r.scores.report.accuracy)}</span>,
           {' '}macro F1 <span className="font-mono">{dn(r.scores.report.macro.f1)}</span>,
           {' '}adjusted Rand index <span className="font-mono" data-testid={`${prefix}-ari`}>{r.scores.ari.error ? r.scores.ari.error : dn(r.scores.ari.ari)}</span>.
@@ -107,7 +107,7 @@ const KnnSection = () => {
       {r && !refused ? (
         <div className="space-y-2" data-testid="knn-result">
           <Scores r={r} prefix="knn" />
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-pl-muted">
             {r.blind.tiedVotes} held-out row{r.blind.tiedVotes === 1 ? ' had' : 's had'} a tied vote.
             {r.final && !r.final.error ? ` The final model (every cored row) classified all ${r.final.predictions.length.toLocaleString('en-US')} rows in ${r.final.batches} batch${r.final.batches === 1 ? '' : 'es'}.` : ''}
           </p>
@@ -142,10 +142,10 @@ const CartSection = () => {
           {r.finalTree?.error ? <EngineError result={r.finalTree} prefix="Final tree" /> : null}
           {r.finalTree && !r.finalTree.error ? (
             <>
-              <p className="text-xs text-slate-200">
+              <p className="text-xs text-pl-text">
                 Final tree on every cored row: {r.finalTree.nLeaves} leaves, depth {r.finalTree.depth}, training accuracy {dn(r.finalTree.trainingAccuracy)} (measured on the rows it was grown on).
               </p>
-              <pre className="max-h-96 overflow-auto rounded border border-slate-800 bg-slate-950 p-2 font-mono text-[11px] leading-snug text-slate-200" data-testid="cart-tree">{cleanTree(r.finalTree.printed)}</pre>
+              <pre className="max-h-96 overflow-auto rounded border border-pl-border bg-pl-sunken p-2 font-mono text-[11px] leading-snug text-pl-text" data-testid="cart-tree">{cleanTree(r.finalTree.printed)}</pre>
               <Grid
                 testId="cart-importance"
                 caption="Feature importance: each log's share of the total Gini decrease (engine featureImportances)."
@@ -154,9 +154,9 @@ const CartSection = () => {
               />
             </>
           ) : null}
-          <details className="text-xs text-slate-300">
-            <summary className="cursor-pointer text-slate-400">The tree grown on the training wells only (the one scored above)</summary>
-            <pre className="mt-1 max-h-72 overflow-auto rounded border border-slate-800 bg-slate-950 p-2 font-mono text-[11px] leading-snug" data-testid="cart-blind-tree">{cleanTree(r.blindTree.printed)}</pre>
+          <details className="text-xs text-pl-text">
+            <summary className="cursor-pointer text-pl-muted">The tree grown on the training wells only (the one scored above)</summary>
+            <pre className="mt-1 max-h-72 overflow-auto rounded border border-pl-border bg-pl-sunken p-2 font-mono text-[11px] leading-snug" data-testid="cart-blind-tree">{cleanTree(r.blindTree.printed)}</pre>
           </details>
         </div>
       ) : null}

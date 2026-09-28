@@ -27,12 +27,12 @@ const RunButton = ({ job, label }) => {
 };
 
 const Side = ({ title, s, metric, testId }) => (
-  <div className="flex-1 rounded border border-slate-800 p-2 text-xs" data-testid={testId}>
-    <p className="mb-1 font-semibold text-slate-100">{title}</p>
-    <p className="text-slate-300">Held-out {metric}: <span className="font-mono">{dn(s.testScore)}</span></p>
-    <p className="text-slate-400">Training {metric}: <span className="font-mono">{dn(s.trainScore)}</span></p>
-    <p className="text-slate-400">{s.nTrain.toLocaleString('en-US')} training rows, {s.nTest.toLocaleString('en-US')} test rows.</p>
-    <p className="text-slate-400">
+  <div className="flex-1 rounded border border-pl-border p-2 text-xs" data-testid={testId}>
+    <p className="mb-1 font-semibold text-pl-text">{title}</p>
+    <p className="text-pl-text">Held-out {metric}: <span className="font-mono">{dn(s.testScore)}</span></p>
+    <p className="text-pl-muted">Training {metric}: <span className="font-mono">{dn(s.trainScore)}</span></p>
+    <p className="text-pl-muted">{s.nTrain.toLocaleString('en-US')} training rows, {s.nTest.toLocaleString('en-US')} test rows.</p>
+    <p className="text-pl-muted">
       Wells on both sides: {s.sharedGroups.length ? s.sharedGroups.join(', ') : 'none'}.
     </p>
   </div>
@@ -57,7 +57,7 @@ const Leakage = () => {
                 <Side title="Random row split" s={r.result.randomRow} metric={r.result.metric} testId="leakage-random" />
                 <Side title="Group split (whole wells)" s={r.result.group} metric={r.result.metric} testId="leakage-group" />
               </div>
-              <p className="text-xs text-slate-200" data-testid="leakage-verdict">
+              <p className="text-xs text-pl-text" data-testid="leakage-verdict">
                 Optimism ({r.result.basis.optimism}): <span className="font-mono">{dn(r.result.optimism)}</span>. {leakageVerdict(r.result)}
               </p>
               <Note>
@@ -88,16 +88,16 @@ const Importance = () => {
           <StaleNote keyName="importance" />
           {r.result.error ? <EngineError result={r.result} prefix="Permutation importance refused" /> : (
             <div className="space-y-2" data-testid="importance-result">
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-pl-text">
                 Held-out wells {r.result.testGroups.join(', ')} ({r.result.nTest.toLocaleString('en-US')} rows); baseline {r.result.metric} {dn(r.result.baseline)};
                 {' '}{r.result.nRepeats} repeats, seed {r.result.seed}. Ranking: {r.result.ranking.join(', ')}.
               </p>
               <ImportanceChart importances={r.result.importances} metric={r.result.metric} />
               <table className="w-full text-xs">
-                <thead><tr><th className="px-2 text-left text-slate-400">Feature</th><th className="px-2 text-left text-slate-400">Mean drop</th><th className="px-2 text-left text-slate-400">SD (population)</th></tr></thead>
+                <thead><tr><th className="px-2 text-left text-pl-muted">Feature</th><th className="px-2 text-left text-pl-muted">Mean drop</th><th className="px-2 text-left text-pl-muted">SD (population)</th></tr></thead>
                 <tbody>
                   {r.result.importances.map((x) => (
-                    <tr key={x.feature} className="border-t border-slate-800"><td className="px-2">{x.feature}</td><td className="px-2 font-mono">{dn(x.mean)}</td><td className="px-2 font-mono">{dn(x.sd)}</td></tr>
+                    <tr key={x.feature} className="border-t border-pl-border"><td className="px-2">{x.feature}</td><td className="px-2 font-mono">{dn(x.mean)}</td><td className="px-2 font-mono">{dn(x.sd)}</td></tr>
                   ))}
                 </tbody>
               </table>
@@ -129,7 +129,7 @@ const Learning = () => {
           ) : null}
           {r.result.error ? <EngineError result={r.result} prefix="Learning curve refused" /> : (
             <div className="space-y-2" data-testid="learning-result">
-              <p className="text-xs text-slate-300">Held-out wells {r.result.testGroups.join(', ')} ({r.result.nTest.toLocaleString('en-US')} rows).</p>
+              <p className="text-xs text-pl-text">Held-out wells {r.result.testGroups.join(', ')} ({r.result.nTest.toLocaleString('en-US')} rows).</p>
               <LearningChart points={r.result.points} metric={r.result.metric} />
             </div>
           )}

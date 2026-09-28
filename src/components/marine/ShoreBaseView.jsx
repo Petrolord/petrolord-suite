@@ -34,7 +34,7 @@ const ShoreInputs = () => {
         <NumField label="Vessel arrivals a day" testId="shore-arrivals" value={s.arrivalsPerDay} onChange={(v) => set({ arrivalsPerDay: v })} />
         <NumField label="Working hours a day (at most 24)" testId="shore-hours" value={s.workingHoursPerDay} onChange={(v) => set({ workingHoursPerDay: v })} hint="The clock of the queue: arrivals and waits run on working hours." />
       </div>
-      <p className="text-[11px] font-medium text-slate-300">Service a call needs</p>
+      <p className="text-[11px] font-medium text-pl-text">Service a call needs</p>
       <div className="grid grid-cols-2 gap-2">
         <NumField label="Fixed hours (mooring, paperwork)" testId="shore-fixed" value={s.fixedHours} onChange={(v) => set({ fixedHours: v })} />
         <NumField label="Crane lifts" testId="shore-lifts" value={s.lifts} onChange={(v) => set({ lifts: v })} />
@@ -68,7 +68,7 @@ const ShoreResults = () => {
     <ResultGate result={results.shore} testId="shore">
       {(r) => (
         <Panel title="Supply base queue" testId="shore-results">
-          <p className="text-xs text-slate-300" data-testid="shore-model-label">{MODEL_LABEL[r.model]}</p>
+          <p className="text-xs text-pl-text" data-testid="shore-model-label">{MODEL_LABEL[r.model]}</p>
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             <Stat label="Berth utilisation" value={fmtShare(r.berthUtilisation, 2)} testId="shore-utilisation" />
             <Stat label="Mean wait (working hours)" value={fmtNum(r.meanWaitHours, 4)} testId="shore-wait" />
@@ -80,10 +80,10 @@ const ShoreResults = () => {
             <Stat label="Mean time at the base (hours)" value={fmtNum(r.meanTimeAtBaseHours, 4)} testId="shore-time" />
           </div>
           {r.target ? (
-            <p className={`text-xs ${r.target.berths === null ? 'text-amber-200' : 'text-sky-200'}`} data-testid="shore-target-reason">{r.target.reason}</p>
+            <p className={`text-xs ${r.target.berths === null ? 'text-pl-warning-text' : 'text-pl-text'}`} data-testid="shore-target-reason">{r.target.reason}</p>
           ) : null}
           {results.berthCurve.length ? (
-            <div className="overflow-hidden rounded-lg border border-slate-700">
+            <div className="overflow-hidden rounded-lg border border-pl-border">
               <ChartFrame height={220} exportFilename="berth-mean-wait">
                 <LineChart data={results.berthCurve} margin={{ top: 16, right: 20, left: 0, bottom: 8 }}>
                   <CartesianGrid {...GRID_STYLE} />

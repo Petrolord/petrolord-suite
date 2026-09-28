@@ -10,18 +10,18 @@ const Cell = ({ label, value, onChange, unit, placeholder }) => {
   const text = `${label}${unit ? ` (${unit})` : ''}`;
   return (
     <div>
-      <Label htmlFor={id} className="text-[10px] text-slate-400">{text}</Label>
+      <Label htmlFor={id} className="text-[10px] text-pl-muted">{text}</Label>
       <Input id={id} type="number" step="any" value={value ?? ''} placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="h-7 bg-slate-950 border-slate-700 text-xs" />
+        className="h-7 text-xs" />
     </div>
   );
 };
 
 const Group = ({ title, children, note }) => (
   <div>
-    <h2 className="text-sm font-semibold text-white mb-1">{title}</h2>
-    {note && <p className="text-[10px] text-slate-500 mb-1.5">{note}</p>}
+    <h2 className="text-sm font-semibold text-pl-text mb-1">{title}</h2>
+    {note && <p className="text-[10px] text-pl-muted mb-1.5">{note}</p>}
     <div className="grid grid-cols-2 gap-2">{children}</div>
   </div>
 );
@@ -47,10 +47,10 @@ const RolloutInputs = () => {
         <Cell label="Vessel capacity" unit="m3" value={inputs.lpg.vesselCapacityM3} onChange={(v) => setLpg({ vesselCapacityM3: v })} />
         <Cell label="Max fill ratio" value={inputs.lpg.maxFillRatio} placeholder="required" onChange={(v) => setLpg({ maxFillRatio: v })} />
         <div>
-          <Label htmlFor="lc-fill-basis" className="text-[10px] text-slate-400">Fill ratio stated as</Label>
+          <Label htmlFor="lc-fill-basis" className="text-[10px] text-pl-muted">Fill ratio stated as</Label>
           <select id="lc-fill-basis" value={inputs.lpg.fillRatioBasis || 'liquid_volume'}
             onChange={(e) => setLpg({ fillRatioBasis: e.target.value })}
-            className="h-7 w-full rounded bg-slate-950 border border-slate-700 text-xs px-2 text-white">
+            className="h-7 w-full rounded border border-pl-border-strong bg-pl-surface px-2 text-xs text-pl-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus">
             <option value="liquid_volume">share of liquid volume</option>
             <option value="water_capacity_mass">filling density on water capacity</option>
           </select>
