@@ -42,7 +42,51 @@ matches rows by the new `quote_id`, so renewed rows may not get the new
 subscription end date. Needs a migration (owner and second-engineer review).
 Traced and fixed on `fix/renewal-expiry-sync` (HELD, see the next section).
 
+## 2026-09-28: paid-quote end dates, final rules (owner-approved, PR #769)
+
+Owner decision 2026-09-28: go ahead with the lead's recommendations. Built on
+`fix/renewal-expiry-sync`; migration `20260929130000` NOT YET APPLIED.
+
+- One place sets `purchased_modules.expiry_date` for a paid quote:
+  `manual_verify_quote(p_quote_id, p_organization_id, p_paid_at)`. Every rail
+  passes the paid date (Paystack verify page, Paystack webhook, Stripe via
+  `provisionPaidQuote`, bank transfer at approval). No finalizer runs its own
+  expiry update any more. The term comes from the quote
+  (`billing_period`, else `billing_term`; the `_shared/billing-term.ts` table).
+- Early renewal stacks: an app row with an end date in the future ends at
+  old end + term. Expired, or NULL: paid date + term. First purchase: paid
+  date + term.
+- Top-ups never shorten: re-buying a held app on a shorter term still stacks
+  on its end; the module row ends at the later of its end and the end just set
+  on its app, so a short top-up for a new app never pulls it earlier.
+- Re-runs change nothing: a row already on this quote keeps its end date, so
+  the webhook and the verify page in either order give one stacked end.
+- The Paystack webhook skips payments already marked `success` (verify page)
+  or `COMPLETED` (webhook). When it does provision (payer never returned) it
+  runs `provisionPaidQuote`, the same as Stripe: RPC, quote paid, org active,
+  bridge and promo codes, the subscriptions row, HSE with Suite, email.
+- subscriptions: `upsertSuiteSubscription` (`_shared/provision-quote.ts`),
+  used by verify, webhook and Stripe, keyed by org + quote (never a second
+  row for one quote). `end_date` = the RPC's `expiry_date` (latest end on the
+  quote's app rows), never before the paid window. Bank transfer moves the
+  subscription it activates to the same end, and now uses the shared term
+  table (a quarterly bank transfer got a year before).
+- The two-argument RPC stays as a wrapper (paid date from
+  `quotes.payment_verified_at`, else now()) for any caller not yet redeployed.
+  Both forms are service_role only.
+- Live check 2026-09-28 (read-only): the only NULL-expiry rows are six
+  `hse_free` module rows, which the RPC never touches.
+- Gates: `bash tools/validation/renewal-expiry/run.sh` (scratch postgres:16;
+  live definition + origin/main finalizer model vs this branch) and
+  `supabase/functions/_shared/__tests__/renewal-provisioning.test.ts`.
+- Owner steps: apply `20260929130000`, then deploy verify-paystack-payment,
+  paystack-webhook (`--no-verify-jwt`), activate-bank-transfer,
+  verify-stripe-payment, stripe-webhook (`--no-verify-jwt`). See PR #769.
+
 ## 2026-09-28: paid renewals and the purchased_modules end date (HELD)
+
+Superseded in part by the final rules above (early renewal stacks, top-ups
+never shorten, webhook-only creates the subscription).
 
 Trace against the live `manual_verify_quote` (identical to
 20260613141000) and origin/main functions. `quotes.expiry_date` is never
@@ -68,9 +112,9 @@ real end date on rows `WHERE quote_id = <paid quote>`.
   20260929130100 revokes EXECUTE on the RPC from PUBLIC/anon/authenticated:
   it is SECURITY DEFINER with no payment check, so a signed-in customer could
   call it on their own unpaid quote.
-- Not changed (owner policy): a renewal's window starts at payment, so paying
-  early forfeits the days left on the old term; a shorter top-up quote for an
-  app in an already-held module moves the module row to the top-up's end date.
+- Open policy questions at the time (since decided, see the final rules
+  above): early renewal forfeiting days; a shorter top-up moving the module
+  end date; no subscription row on webhook-only payments.
 - Dry run: `bash tools/validation/renewal-expiry/run.sh` (scratch postgres:16).
 
 
