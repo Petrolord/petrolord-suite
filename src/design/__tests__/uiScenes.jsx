@@ -1,5 +1,7 @@
 // Scenes shared by uiLegacyDom.test.jsx (outside a scope, pinned to main)
 // and scopeUiControls.test.jsx (inside a scope). Not a test file itself.
+// The loader scenes use a path that has not opted in (Waterflood Design
+// Studio): on pilot paths the loaders are themed on purpose (coldLoad.test.jsx).
 import React from 'react';
 import { fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -137,11 +139,6 @@ export const SCENES = {
     <MemoryRouter><AccessDenied moduleId="m" appName="some-app" debugInfo={{ checkedId: 'x', userModules: [], userApps: [] }} /></MemoryRouter>
   ),
   comingSoon: () => <MemoryRouter><ComingSoon appName="Thing" /></MemoryRouter>,
-  authGuardLoading: () => (
-    <AuthContext.Provider value={{ loading: true, user: null }}>
-      <MemoryRouter initialEntries={['/dashboard/apps/economics/epe/cases']}><AuthGuard><p>app</p></AuthGuard></MemoryRouter>
-    </AuthContext.Provider>
-  ),
   authGuardLoadingOther: () => (
     <AuthContext.Provider value={{ loading: true, user: null }}>
       <MemoryRouter initialEntries={['/dashboard/apps/reservoir/waterflood-design-studio']}><AuthGuard><p>app</p></AuthGuard></MemoryRouter>
@@ -149,7 +146,7 @@ export const SCENES = {
   ),
   protectedRouteLoading: () => (
     <AuthContext.Provider value={{ loading: true, user: null }}>
-      <MemoryRouter initialEntries={['/dashboard']}><ProtectedRoute><p>app</p></ProtectedRoute></MemoryRouter>
+      <MemoryRouter initialEntries={['/dashboard/apps/reservoir/waterflood-design-studio']}><ProtectedRoute><p>app</p></ProtectedRoute></MemoryRouter>
     </AuthContext.Provider>
   ),
   toaster: () => <Toaster richColors closeButton />,

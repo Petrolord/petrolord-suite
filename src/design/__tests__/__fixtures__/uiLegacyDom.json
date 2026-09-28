@@ -207,11 +207,6 @@
   "path|||",
   "BUTTON|inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white||"
  ],
- "authGuardLoading": [
-  "DIV|||",
-  "DIV|flex items-center justify-center h-screen bg-slate-900 text-white||",
-  "DIV|animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-lime-400||"
- ],
  "authGuardLoadingOther": [
   "DIV|||",
   "DIV|flex items-center justify-center h-screen bg-slate-900 text-white||",

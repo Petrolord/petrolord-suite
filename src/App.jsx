@@ -11,6 +11,7 @@ import AuthGuard from '@/components/AuthGuard';
 import AppRoute from '@/components/AppRoute';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import { ThemedApp } from '@/design/ThemeProvider';
+import { coldLoadTheme, ThemedLoadingScreen } from '@/design/coldLoad';
 import { Toaster } from '@/components/ui/sonner';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { AdminOrgProvider } from '@/contexts/AdminOrganizationContext';
@@ -344,12 +345,18 @@ const AdminSeedApps = lazy(() => import('@/pages/admin/AdminSeedApps'));
 const MasterAppsViewer = lazy(() => import('@/pages/admin/MasterAppsViewer'));
 const PromoCodes = lazy(() => import('@/pages/admin/PromoCodes'));
 
-// Loading fallback
-const PageLoader = () => (
-  <div className="flex items-center justify-center h-full w-full bg-[hsl(var(--background))] text-[hsl(var(--foreground))] min-h-screen">
-    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[hsl(var(--primary))]"></div>
-  </div>
-);
+// Loading fallback. On the design-system paths it paints the device's last
+// theme (src/design/coldLoad.jsx); elsewhere the legacy loader.
+const PageLoader = () => {
+  const { pathname } = useLocation();
+  const theme = coldLoadTheme(pathname);
+  if (theme) return <ThemedLoadingScreen theme={theme} className="min-h-screen" />;
+  return (
+    <div className="flex items-center justify-center h-full w-full bg-[hsl(var(--background))] text-[hsl(var(--foreground))] min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[hsl(var(--primary))]"></div>
+    </div>
+  );
+};
 
 const ExternalRedirect = ({ url }) => {
   React.useEffect(() => {
