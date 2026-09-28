@@ -20,7 +20,7 @@ const Reports = lazy(() => import('./Reports'));
  */
 export default function QAPlanPageShell() {
   return (
-    <ThemedApp className="qa-plan-shell h-full min-h-screen w-full" data-testid="qa-plan-theme-scope">
+    <ThemedApp className="qa-plan-shell flex h-full min-h-screen w-full flex-col" data-testid="qa-plan-theme-scope">
       <Suspense fallback={<div className="flex items-center justify-center h-full">Loading QA Plan Module...</div>}>
         <Routes>
           <Route path="/" element={<Dashboard />} />

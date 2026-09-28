@@ -87,11 +87,11 @@ const Workspace = () => {
           )}
         </header>
 
-        <div className="flex flex-1 overflow-hidden">
-          <aside className="w-full overflow-y-auto border-r border-pl-border bg-pl-surface p-4 md:w-1/3 xl:w-1/4">
+        <div className="flex flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
+          <aside className="w-full flex-shrink-0 border-b border-pl-border bg-pl-surface p-4 md:w-1/3 md:overflow-y-auto md:border-b-0 md:border-r xl:w-1/4">
             <ScenarioRail />
           </aside>
-          <main className="flex-1 space-y-4 overflow-y-auto p-4">
+          <main className="min-w-0 flex-1 space-y-4 p-4 md:overflow-y-auto">
             <ScopeNotice />
             <Tabs value={tab} onValueChange={setTab}>
               <TabsList className="h-auto flex-wrap">

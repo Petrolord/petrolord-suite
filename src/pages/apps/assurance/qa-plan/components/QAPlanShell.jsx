@@ -40,7 +40,7 @@ export const QAPlanShell = ({
   ];
 
   return (
-    <div className="flex flex-col h-full bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
+    <div className="flex flex-1 flex-col h-full bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       <div className="flex-none border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-6 py-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-4 min-w-0">
           <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/assurance')}
