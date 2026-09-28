@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/components/ui/use-toast';
 import BackupPanel from '@/components/portability/BackupPanel';
 import RestorePanel from '@/components/portability/RestorePanel';
+import { AccountScope, AccountPage, AccountHeader } from '@/components/account/accountChrome';
 
 const MAX_LISTED_FILES = 300;
 
@@ -29,12 +30,12 @@ function formatBytes(bytes) {
 }
 
 function StatusBadge({ status }) {
-  if (status === 'completed') return <Badge className="bg-green-500/20 text-green-400 hover:bg-green-500/30">Completed</Badge>;
-  if (status === 'processing') return <Badge className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30">Processing</Badge>;
-  return <Badge className="bg-red-500/20 text-red-400 hover:bg-red-500/30">Failed</Badge>;
+  if (status === 'completed') return <Badge variant="success">Completed</Badge>;
+  if (status === 'processing') return <Badge variant="info">Processing</Badge>;
+  return <Badge variant="danger">Failed</Badge>;
 }
 
-export default function DataExport() {
+function DataExportPage() {
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -257,24 +258,21 @@ export default function DataExport() {
     e.path.toLowerCase().includes(fileSearch.toLowerCase()));
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-6 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <AccountPage>
 
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <DatabaseBackup className="w-8 h-8 text-lime-400" /> Data Export
-          </h1>
-          <p className="text-slate-400">
-            Download a complete copy of your organization&apos;s data at any time.
-          </p>
-        </div>
+        <AccountHeader
+          eyebrow="Organization"
+          icon={DatabaseBackup}
+          title="Data Export"
+          description={<>Download a complete copy of your organization&apos;s data at any time.</>}
+        />
 
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <ShieldCheck className="w-5 h-5 text-lime-400" /> Your data belongs to you
+              <ShieldCheck className="w-5 h-5 text-pl-primary-text" aria-hidden="true" /> Your data belongs to you
             </CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardDescription>
               An export contains every database record your organization owns, including
               projects, wells, interpretations and billing history, packaged as JSON files
               in a single zip. Large stored files such as seismic volumes and log curves
@@ -287,7 +285,6 @@ export default function DataExport() {
             <Button
               onClick={requestExport}
               disabled={requesting || !orgId || jobs.some((j) => j.status === 'processing')}
-              className="bg-lime-600 hover:bg-lime-700 text-white"
             >
               {requesting || jobs.some((j) => j.status === 'processing') ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Export in progress...</>
@@ -298,67 +295,67 @@ export default function DataExport() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-lg">Export history</CardTitle>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-white" onClick={() => fetchJobs()}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-pl-muted hover:text-pl-text" onClick={() => fetchJobs()} aria-label="Refresh export history">
               <RefreshCw className="w-4 h-4" />
             </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-slate-800 hover:bg-slate-900">
-                  <TableHead className="text-slate-400">Requested</TableHead>
-                  <TableHead className="text-slate-400">Status</TableHead>
-                  <TableHead className="text-slate-400">Records</TableHead>
-                  <TableHead className="text-slate-400">Stored files</TableHead>
-                  <TableHead className="text-slate-400">Expires</TableHead>
-                  <TableHead className="text-right text-slate-400">Actions</TableHead>
+                <TableRow>
+                  <TableHead>Requested</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Records</TableHead>
+                  <TableHead>Stored files</TableHead>
+                  <TableHead>Expires</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={6} className="text-center h-24 text-slate-500">Loading...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center h-24 text-pl-muted">Loading...</TableCell></TableRow>
                 ) : jobs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24 text-slate-500">
+                    <TableCell colSpan={6} className="text-center h-24 text-pl-muted">
                       No exports yet. Request one above.
                     </TableCell>
                   </TableRow>
                 ) : (
                   jobs.map((job) => (
-                    <TableRow key={job.id} className="border-slate-800 hover:bg-slate-800/50">
-                      <TableCell className="text-sm text-slate-300">
+                    <TableRow key={job.id}>
+                      <TableCell className="text-sm text-pl-text whitespace-nowrap">
                         {new Date(job.created_at).toLocaleString()}
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={job.status} />
                         {job.status === 'failed' && job.error_message && (
-                          <div className="text-xs text-slate-500 mt-1 max-w-xs truncate" title={job.error_message}>
+                          <div className="text-xs text-pl-muted mt-1 max-w-xs truncate" title={job.error_message}>
                             {job.error_message}
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="text-sm text-slate-300">
+                      <TableCell className="text-sm text-pl-text font-pl-mono tabular-nums">
                         {job.total_rows != null ? job.total_rows.toLocaleString() : '-'}
                       </TableCell>
-                      <TableCell className="text-sm text-slate-300">
+                      <TableCell className="text-sm text-pl-text font-pl-mono tabular-nums whitespace-nowrap">
                         {job.blob_count != null ? `${job.blob_count} (${formatBytes(job.blob_bytes)})` : '-'}
                       </TableCell>
-                      <TableCell className="text-sm text-slate-400">
+                      <TableCell className="text-sm text-pl-muted whitespace-nowrap">
                         {job.expires_at
                           ? (isExpired(job) ? 'Expired' : new Date(job.expires_at).toLocaleDateString())
                           : '-'}
                       </TableCell>
-                      <TableCell className="text-right space-x-2">
+                      <TableCell className="text-right space-x-2 whitespace-nowrap">
                         {job.status === 'completed' && !isExpired(job) && job.file_path && (
                           <>
-                            <Button size="sm" variant="outline" className="border-slate-700 text-slate-200 hover:bg-slate-800" onClick={() => downloadZip(job)}>
+                            <Button size="sm" variant="outline" onClick={() => downloadZip(job)}>
                               <Download className="w-4 h-4 mr-1" /> Zip
                             </Button>
                             {job.blob_count > 0 && (
-                              <Button size="sm" variant="outline" className="border-slate-700 text-slate-200 hover:bg-slate-800" onClick={() => openFiles(job)}>
+                              <Button size="sm" variant="outline" onClick={() => openFiles(job)}>
                                 <FileJson className="w-4 h-4 mr-1" /> Stored files
                               </Button>
                             )}
@@ -376,12 +373,12 @@ export default function DataExport() {
         <BackupPanel />
         <RestorePanel />
 
-        <Card className="bg-slate-900 border-red-900/60">
+        <Card className="border-pl-danger/50">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg text-red-400">
-              <AlertTriangle className="w-5 h-5" /> Close organization account
+            <CardTitle className="flex items-center gap-2 text-lg text-pl-danger-text">
+              <AlertTriangle className="w-5 h-5" aria-hidden="true" /> Close organization account
             </CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardDescription>
               Closing the account schedules the permanent deletion of every database record,
               every stored file and every member account that belongs only to this organization.
               There is a 30 day grace period during which everything keeps working and any admin
@@ -392,10 +389,10 @@ export default function DataExport() {
             {closure ? (
               <div className="flex flex-col md:flex-row md:items-center gap-4">
                 <div className="text-sm">
-                  <div className="text-red-300 font-semibold">
+                  <div className="text-pl-danger-text font-semibold">
                     Deletion scheduled for {new Date(closure.effective_at).toLocaleDateString()}
                   </div>
-                  <div className="text-slate-400">
+                  <div className="text-pl-muted">
                     Requested by {closure.requested_by_email} on {new Date(closure.created_at).toLocaleDateString()}.
                   </div>
                 </div>
@@ -403,7 +400,7 @@ export default function DataExport() {
                   variant="outline"
                   disabled={closureBusy}
                   onClick={cancelClosure}
-                  className="md:ml-auto border-slate-600 text-slate-200 hover:bg-slate-800"
+                  className="md:ml-auto"
                 >
                   {closureBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                   Cancel scheduled deletion
@@ -418,43 +415,39 @@ export default function DataExport() {
         </Card>
 
         <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
-          <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-lg">
+          <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle className="text-red-400">Schedule account closure</DialogTitle>
+              <DialogTitle className="text-pl-danger-text">Schedule account closure</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 text-sm">
-              <ul className="list-disc pl-5 text-slate-300 space-y-1">
+            <div className="space-y-4 text-sm text-pl-text">
+              <ul className="list-disc pl-5 text-pl-text space-y-1">
                 <li>Deletion happens 30 days from today. Until then everything keeps working.</li>
                 <li>Any organization admin can cancel during those 30 days.</li>
                 <li>All projects, wells, interpretations, files and billing history will be permanently removed.</li>
                 <li>Member accounts that belong only to this organization will be deleted.</li>
                 <li>You will receive written confirmation when deletion completes.</li>
               </ul>
-              <p className="text-slate-400">
+              <p className="text-pl-muted">
                 We strongly recommend requesting a data export above before the deletion date.
               </p>
               <div>
-                <label className="block text-slate-300 mb-1">
+                <label className="block text-pl-text mb-1">
                   Type the organization name{orgName ? <> (<span className="font-semibold">{orgName}</span>)</> : ''} to confirm
                 </label>
                 <Input
                   value={confirmName}
                   onChange={(e) => setConfirmName(e.target.value)}
-                  placeholder={orgName || 'Organization name'}
-                  className="bg-slate-950 border-slate-700"
-                />
+                  placeholder={orgName || 'Organization name'}                />
               </div>
               <div>
-                <label className="block text-slate-300 mb-1">Reason (optional)</label>
+                <label className="block text-pl-text mb-1">Reason (optional)</label>
                 <Input
                   value={closureReason}
                   onChange={(e) => setClosureReason(e.target.value)}
-                  placeholder="Helps us improve"
-                  className="bg-slate-950 border-slate-700"
-                />
+                  placeholder="Helps us improve"                />
               </div>
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => setCloseDialogOpen(false)} className="text-slate-300">
+                <Button variant="ghost" onClick={() => setCloseDialogOpen(false)}>
                   Keep account
                 </Button>
                 <Button
@@ -471,55 +464,56 @@ export default function DataExport() {
         </Dialog>
 
         <Dialog open={!!filesJob} onOpenChange={(open) => { if (!open) setFilesJob(null); }}>
-          <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-3xl">
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>Stored files in this export</DialogTitle>
             </DialogHeader>
             {manifestLoading ? (
-              <div className="flex items-center justify-center h-32 text-slate-400">
+              <div className="flex items-center justify-center h-32 text-pl-muted">
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Loading manifest...
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-pl-muted">
                   Each download link is generated on demand and is valid for one hour.
                 </p>
                 <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-pl-muted" aria-hidden="true" />
                   <Input
                     placeholder="Filter files..."
-                    className="pl-8 bg-slate-950 border-slate-700"
+                    className="pl-8"
                     value={fileSearch}
                     onChange={(e) => setFileSearch(e.target.value)}
                   />
                 </div>
-                <div className="max-h-80 overflow-y-auto border border-slate-800 rounded-md">
+                <div className="max-h-80 overflow-y-auto border border-pl-border rounded-md">
                   <Table>
                     <TableHeader>
-                      <TableRow className="border-slate-800">
-                        <TableHead className="text-slate-400">File</TableHead>
-                        <TableHead className="text-slate-400">Size</TableHead>
-                        <TableHead className="text-right text-slate-400" />
+                      <TableRow>
+                        <TableHead>File</TableHead>
+                        <TableHead>Size</TableHead>
+                        <TableHead className="text-right" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredEntries.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={3} className="text-center h-16 text-slate-500">No files.</TableCell>
+                          <TableCell colSpan={3} className="text-center h-16 text-pl-muted">No files.</TableCell>
                         </TableRow>
                       ) : (
                         filteredEntries.slice(0, MAX_LISTED_FILES).map((entry) => (
-                          <TableRow key={`${entry.bucket}:${entry.path}`} className="border-slate-800">
-                            <TableCell className="text-xs text-slate-300 font-mono break-all">
+                          <TableRow key={`${entry.bucket}:${entry.path}`}>
+                            <TableCell className="text-xs text-pl-text font-pl-mono break-all">
                               {entry.bucket}/{entry.path}
                             </TableCell>
-                            <TableCell className="text-xs text-slate-400 whitespace-nowrap">
+                            <TableCell className="text-xs text-pl-muted font-pl-mono tabular-nums whitespace-nowrap">
                               {formatBytes(entry.size)}
                             </TableCell>
                             <TableCell className="text-right">
                               <Button
                                 size="sm" variant="ghost"
-                                className="h-7 text-slate-300 hover:text-white"
+                                className="h-7 text-pl-muted hover:text-pl-text"
+                                aria-label={`Download ${entry.path}`}
                                 disabled={signingPath === `${entry.bucket}:${entry.path}`}
                                 onClick={() => downloadBlob(entry)}
                               >
@@ -535,7 +529,7 @@ export default function DataExport() {
                   </Table>
                 </div>
                 {filteredEntries.length > MAX_LISTED_FILES && (
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-pl-muted">
                     Showing the first {MAX_LISTED_FILES} of {filteredEntries.length} files.
                     Use the filter to narrow the list. The full inventory is in manifest.json inside the zip.
                   </p>
@@ -545,7 +539,14 @@ export default function DataExport() {
           </DialogContent>
         </Dialog>
 
-      </div>
-    </div>
+    </AccountPage>
+  );
+}
+
+export default function DataExport() {
+  return (
+    <AccountScope testId="data-export-theme-scope">
+      <DataExportPage />
+    </AccountScope>
   );
 }

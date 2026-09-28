@@ -10,6 +10,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { Users, UserPlus, Trash2, Shield, Mail, LogOut, ArrowRight } from 'lucide-react';
 import { calculateSeatsUsed, getSeatsAvailable, canAddMember } from '@/utils/seatUtils';
 import { Link, useNavigate } from 'react-router-dom';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { AccountScope, AccountPage, AccountHeader } from '@/components/account/accountChrome';
 
 const TeamManagement = () => {
   const { user, actualUser, isSuperAdmin } = useAuth();
@@ -126,61 +128,65 @@ const TeamManagement = () => {
   // Super Admin View
   if (isSuperAdmin && !isImpersonating && !currentOrgId) {
       return (
-          <div className="p-12 flex flex-col items-center justify-center h-[80vh] text-center space-y-6">
-              <Shield className="h-24 w-24 text-amber-500 mb-4" />
-              <h1 className="text-4xl font-bold text-white">Super Admin Access</h1>
-              <p className="text-xl text-slate-400 max-w-2xl">
-                  You are signed in as a Super Administrator. Team management for individual organizations 
-                  is handled via the Super Admin Console.
-              </p>
-              <Button 
-                onClick={() => navigate('/super-admin')}
-                className="bg-amber-600 hover:bg-amber-700 text-white text-lg px-8 py-6 rounded-lg flex items-center gap-3"
-              >
-                  Go to Super Admin Console <ArrowRight className="h-6 w-6" />
-              </Button>
-          </div>
+          <AccountPage width="max-w-7xl">
+              <div className="flex justify-end"><ThemeToggle /></div>
+              <div className="py-12 flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
+                  <Shield className="h-24 w-24 text-pl-accent-text mb-4" aria-hidden="true" />
+                  <h1 className="text-3xl sm:text-4xl font-bold text-pl-text">Super Admin Access</h1>
+                  <p className="text-lg sm:text-xl text-pl-muted max-w-2xl">
+                      You are signed in as a Super Administrator. Team management for individual organizations 
+                      is handled via the Super Admin Console.
+                  </p>
+                  <Button 
+                    onClick={() => navigate('/super-admin')}
+                    className="text-lg px-8 py-6 rounded-lg flex items-center gap-3"
+                  >
+                      Go to Super Admin Console <ArrowRight className="h-6 w-6" />
+                  </Button>
+              </div>
+          </AccountPage>
       );
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">Team Management</h1>
-            <p className="text-slate-400">Manage your organization members and access.</p>
-        </div>
-        
-        <Card className="bg-slate-900 border-slate-800 p-4 flex items-center gap-6">
-            <div className="flex flex-col">
-                <span className="text-xs text-slate-500 uppercase font-semibold">Members</span>
-                <span className="text-2xl font-bold text-white">{members.length}</span>
-            </div>
-            <div className="h-8 w-px bg-slate-800" />
-            <div className="flex flex-col">
-                <span className="text-xs text-slate-500 uppercase font-semibold">App Seats</span>
-                <a href="/dashboard/seats" className="text-sm font-semibold text-lime-400 hover:underline">Manage per app →</a>
-            </div>
-        </Card>
-      </div>
+    <AccountPage width="max-w-7xl">
+      <AccountHeader
+        eyebrow="Organization"
+        icon={Users}
+        title="Team Management"
+        description="Manage your organization members and access."
+        actions={
+          <Card className="p-3 flex items-center gap-6">
+              <div className="flex flex-col">
+                  <span className="text-xs text-pl-muted uppercase font-semibold">Members</span>
+                  <span className="text-2xl font-bold font-pl-mono tabular-nums text-pl-text">{members.length}</span>
+              </div>
+              <div className="h-8 w-px bg-pl-border" aria-hidden="true" />
+              <div className="flex flex-col">
+                  <span className="text-xs text-pl-muted uppercase font-semibold">App Seats</span>
+                  <a href="/dashboard/seats" className="text-sm font-semibold text-pl-primary-text hover:text-pl-primary-text-hover hover:underline inline-flex items-center gap-1">Manage per app <ArrowRight className="h-3 w-3" aria-hidden="true" /></a>
+              </div>
+          </Card>
+        }
+      />
 
       {isImpersonating && (
-          <div className="bg-amber-900/20 border border-amber-700/50 p-4 rounded-lg flex items-center justify-between">
-              <div className="text-amber-500 flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
+          <div className="bg-pl-warning-bg border border-pl-warning/40 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="text-pl-warning-text flex items-center gap-2">
+                  <Shield className="h-5 w-5 shrink-0" aria-hidden="true" />
                   <span>You are in Impersonation Mode. Management actions are disabled.</span>
               </div>
-              <Button variant="outline" className="border-amber-700 text-amber-500" onClick={() => exitImpersonation(actualUser?.id)}>
+              <Button variant="outline" onClick={() => exitImpersonation(actualUser?.id)}>
                   <LogOut className="h-4 w-4 mr-2" /> Exit View
               </Button>
           </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="bg-slate-900 border-slate-800 lg:col-span-1 h-fit">
+        <Card className="lg:col-span-1 h-fit">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                    <UserPlus className="h-5 w-5 text-emerald-500" />
+                    <UserPlus className="h-5 w-5 text-pl-muted" aria-hidden="true" />
                     Invite Member
                 </CardTitle>
                 <CardDescription>
@@ -189,54 +195,54 @@ const TeamManagement = () => {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
+                <Button asChild className="w-full">
                     <Link to="/dashboard/employees">Go to Employees</Link>
                 </Button>
             </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800 lg:col-span-2">
+        <Card className="lg:col-span-2 min-w-0">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-blue-500" />
+                    <Users className="h-5 w-5 text-pl-muted" aria-hidden="true" />
                     Team Members
                 </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
                 <Table>
                     <TableHeader>
-                        <TableRow className="border-slate-800">
-                            <TableHead className="text-slate-400">Member</TableHead>
-                            <TableHead className="text-slate-400">Role</TableHead>
-                            <TableHead className="text-slate-400">Status</TableHead>
-                            <TableHead className="text-right text-slate-400">Actions</TableHead>
+                        <TableRow>
+                            <TableHead>Member</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {loading ? (
-                            <TableRow><TableCell colSpan={4} className="text-center text-slate-500">Loading...</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={4} className="text-center text-pl-muted">Loading...</TableCell></TableRow>
                         ) : members.length === 0 ? (
-                            <TableRow><TableCell colSpan={4} className="text-center text-slate-500">No members found.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={4} className="text-center text-pl-muted">No members found.</TableCell></TableRow>
                         ) : (
                             members.map((member) => (
-                                <TableRow key={member.id} className="border-slate-800 hover:bg-slate-800/50">
+                                <TableRow key={member.id}>
                                     <TableCell>
                                         <div className="flex items-center gap-3">
-                                            <div className="h-8 w-8 rounded-full bg-slate-800 flex items-center justify-center"><Mail className="h-4 w-4" /></div>
-                                            <div>
-                                                <div className="font-medium text-white">{member.email}</div>
-                                                <div className="text-xs text-slate-500">Joined: {member.joined_at ? new Date(member.joined_at).toLocaleDateString() : 'Pending'}</div>
+                                            <div className="h-8 w-8 shrink-0 rounded-full bg-pl-sunken text-pl-muted flex items-center justify-center"><Mail className="h-4 w-4" aria-hidden="true" /></div>
+                                            <div className="min-w-0">
+                                                <div className="font-medium text-pl-text break-all">{member.email}</div>
+                                                <div className="text-xs text-pl-muted">Joined: {member.joined_at ? new Date(member.joined_at).toLocaleDateString() : 'Pending'}</div>
                                             </div>
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant="outline" className="capitalize border-slate-600 text-slate-400">{member.role}</Badge>
+                                        <Badge variant="neutral" className="capitalize">{member.role}</Badge>
                                     </TableCell>
                                     <TableCell>
-                                        <span className="text-emerald-400 text-xs">{member.status || 'Active'}</span>
+                                        <Badge variant={!member.status || member.status === 'active' ? 'success' : 'neutral'} className="text-xs">{member.status || 'Active'}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" onClick={() => handleRemoveMember(member.id)} disabled={isImpersonating} className="hover:text-red-400">
+                                        <Button variant="ghost" size="icon" onClick={() => handleRemoveMember(member.id)} disabled={isImpersonating} className="text-pl-muted hover:text-pl-danger-text" aria-label="Remove member">
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </TableCell>
@@ -248,8 +254,14 @@ const TeamManagement = () => {
             </CardContent>
         </Card>
       </div>
-    </div>
+    </AccountPage>
   );
 };
 
-export default TeamManagement;
+export default function TeamManagementPage() {
+  return (
+    <AccountScope testId="team-management-theme-scope">
+      <TeamManagement />
+    </AccountScope>
+  );
+}
