@@ -1,20 +1,23 @@
-import { useTheme } from "next-themes"
 import { Toaster as Sonner } from "sonner"
 import { useActiveTheme } from "@/design/activeTheme"
 
 // Toasts match the page (owner revision of lead decision 3, 2026-09-28).
-// While an opted-in app (<ThemedApp>) is on screen the toaster takes its
+// While a theme scope (<ThemedApp>) is on screen the toaster takes its
 // theme: the wrapper carries data-pl-theme so the pl-* roles resolve, and
-// sonner's own light or dark palette (richColors) follows. On every other
-// page nothing changes: no wrapper, the legacy classes byte for byte.
-const LEGACY_CLASSES = {
+// sonner's own light or dark palette (richColors) follows. Where no scope is
+// mounted (the homepage) the toasts take one light style in the homepage's
+// paper palette (Home.css: white card, ink text, hairline border), with no
+// rich status colours.
+const PAPER_CLASSES = {
   toast:
-    "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-  description: "group-[.toast]:text-muted-foreground",
+    "group toast group-[.toaster]:bg-[#FFFFFF] group-[.toaster]:text-[#14231B] group-[.toaster]:border-[#D5DCD2] group-[.toaster]:shadow-lg group-[.toaster]:font-[Public_Sans,system-ui,sans-serif]",
+  description: "group-[.toast]:text-[#56655C]",
   actionButton:
-    "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
+    "group-[.toast]:bg-[#0C1F16] group-[.toast]:text-[#EEF2EC]",
   cancelButton:
-    "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+    "group-[.toast]:bg-[#E7EBE3] group-[.toast]:text-[#14231B]",
+  closeButton:
+    "group-[.toast]:border-[#D5DCD2] group-[.toast]:bg-[#FFFFFF] group-[.toast]:text-[#56655C]",
 }
 
 const THEMED_CLASSES = {
@@ -32,7 +35,6 @@ const THEMED_CLASSES = {
 const Toaster = ({
   ...props
 }) => {
-  const { theme = "system" } = useTheme()
   const active = useActiveTheme()
 
   if (active) {
@@ -49,12 +51,11 @@ const Toaster = ({
 
   return (
     <Sonner
-      theme={theme}
+      theme="light"
       className="toaster group"
-      toastOptions={{
-        classNames: LEGACY_CLASSES,
-      }}
-      {...props} />
+      toastOptions={{ classNames: PAPER_CLASSES }}
+      {...props}
+      richColors={false} />
   );
 }
 

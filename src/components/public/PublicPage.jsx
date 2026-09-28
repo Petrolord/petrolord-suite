@@ -51,6 +51,20 @@ export function PublicPage({ testId, header, className, mainClassName, children 
   );
 }
 
+/**
+ * The always-light public scope without the page frame, for a piece of a
+ * page that has none of its own: the homepage's Book a Demo dialog (the
+ * homepage paints its own paper look in Home.css and opens no scope).
+ * `className="contents"` keeps it out of the layout.
+ */
+export function PublicScope({ className, children, ...rest }) {
+  return (
+    <ThemedApp userId={null} className={className} {...rest}>
+      {children}
+    </ThemedApp>
+  );
+}
+
 // Shared class strings for the auth cards and the legal documents, written
 // out literally so Tailwind generates them.
 export const AUTH_CARD = 'rounded-2xl border border-pl-border bg-pl-raised p-6 shadow-pl-lg sm:p-8';

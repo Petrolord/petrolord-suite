@@ -31,9 +31,10 @@ const DashboardLayoutInner = () => {
 
     // Design system (batch 7A): one ThemedApp around the content column
     // (DashboardScope) themes every page under /dashboard. The sidebar and
-    // the phone bar stay outside it as the fixed dark ink frame.
+    // the phone bar stay outside it as the fixed dark ink frame (FixedTheme),
+    // so the frame itself carries no colour of its own.
     return (
-        <div className="flex h-screen bg-slate-900 text-white" data-testid="dashboard-layout">
+        <div className="flex h-screen" data-testid="dashboard-layout">
             <SidebarVisibilityController />
             
             {/* Conditional Sidebar Rendering based on Application Mode */}
