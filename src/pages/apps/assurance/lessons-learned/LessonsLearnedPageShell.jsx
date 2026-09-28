@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const Dashboard = lazy(() => import('./Dashboard'));
 const Register = lazy(() => import('./Register'));
@@ -19,7 +20,7 @@ const Reports = lazy(() => import('./Reports'));
  */
 export default function LessonsLearnedPageShell() {
   return (
-    <div className="lessons-learned-shell h-full w-full">
+    <ThemedApp className="lessons-learned-shell h-full w-full" data-testid="lessons-theme-scope">
       <Suspense fallback={<div className="flex items-center justify-center h-full">Loading Lessons Learned...</div>}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -31,6 +32,6 @@ export default function LessonsLearnedPageShell() {
           <Route path="*" element={<Dashboard />} />
         </Routes>
       </Suspense>
-    </div>
+    </ThemedApp>
   );
 }

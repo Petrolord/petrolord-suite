@@ -256,7 +256,7 @@ export default function Reports() {
                   No lesson has been given a root cause category yet.
                 </p>
               ) : (
-                <div className="relative h-[320px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+                <div className="relative h-[320px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={rootCauseData} layout="vertical" margin={CHART_MARGINS.compact}>
                       <CartesianGrid {...GRID_STYLE} horizontal={false} />
@@ -286,7 +286,7 @@ export default function Reports() {
                   No lesson has been applied to anything yet.
                 </p>
               ) : (
-                <div className="relative h-[320px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+                <div className="relative h-[320px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={targetData} layout="vertical" margin={CHART_MARGINS.compact}>
                       <CartesianGrid {...GRID_STYLE} horizontal={false} />
@@ -318,7 +318,7 @@ export default function Reports() {
                 No applications recorded yet.
               </p>
             ) : (
-              <div className="relative h-[260px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+              <div className="relative h-[260px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={outcomeData} margin={CHART_MARGINS.compact}>
                     <CartesianGrid {...GRID_STYLE} vertical={false} />

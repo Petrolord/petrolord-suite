@@ -95,8 +95,10 @@ describe('bands', () => {
     for (let l = 1; l <= 5; l += 1) {
       for (let i = 1; i <= 5; i += 1) {
         const band = getRiskBand(calculateRiskScore(l, i));
-        expect(getHeatmapCellClasses(l, i)).toContain(
-          { Critical: 'red', High: 'orange', Medium: 'yellow', Low: 'green' }[band],
+        // W4E (design system): the fills moved from Tailwind hues to the
+        // status roles; this pins the same one-band-one-fill agreement.
+        expect(getHeatmapCellClasses(l, i).split(' ')[0]).toBe(
+          { Critical: 'bg-pl-danger', High: 'bg-pl-warning', Medium: 'bg-pl-warning-bg', Low: 'bg-pl-success-bg' }[band],
         );
       }
     }

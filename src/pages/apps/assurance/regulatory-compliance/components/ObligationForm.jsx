@@ -40,7 +40,7 @@ const Select = ({ id, value, onChange, options, placeholder, ...rest }) => (
     id={id}
     value={value ?? ''}
     onChange={onChange}
-    className="flex h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--warning))]"
+    className="flex h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus"
     {...rest}
   >
     <option value="">{placeholder}</option>
@@ -273,7 +273,7 @@ export const ObligationForm = ({
           Cancel
         </Button>
         <Button type="submit" disabled={saving}
-          className="bg-[hsl(var(--warning))] text-white hover:bg-[hsl(var(--warning))]/90 border-0">
+         >
           {saving ? 'Saving...' : submitLabel}
         </Button>
       </div>

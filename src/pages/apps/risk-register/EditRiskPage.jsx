@@ -53,7 +53,7 @@ const EditRiskPage = () => {
     return (
       <RiskRegisterShell>
         <div className="flex items-center justify-center h-full min-h-[400px]">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-pl-primary" />
         </div>
       </RiskRegisterShell>
     );
@@ -62,17 +62,17 @@ const EditRiskPage = () => {
   return (
     <RiskRegisterShell>
       <div className="p-6 max-w-3xl mx-auto space-y-6 animate-in fade-in duration-300">
-        <div className="flex items-center gap-4 border-b border-slate-800 pb-4">
+        <div className="flex items-center gap-4 border-b border-pl-border pb-4">
           <Button
             variant="ghost" size="icon" onClick={back}
-            className="text-slate-400 hover:text-white bg-slate-900/50 rounded-full"
+            className="text-pl-muted hover:text-pl-text rounded-full"
             title="Back to the risk"
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h2 className="text-2xl font-bold text-white">Edit {risk.risk_id}</h2>
-            <p className="text-sm text-slate-400">
+            <h2 className="text-2xl font-bold text-pl-text">Edit {risk.risk_id}</h2>
+            <p className="text-sm text-pl-muted">
               Re-score the risk, record what the controls achieved, and set when it is next reviewed.
             </p>
           </div>

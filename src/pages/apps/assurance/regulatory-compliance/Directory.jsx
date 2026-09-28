@@ -99,12 +99,12 @@ export default function Directory() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground))]" />
           <Input
             placeholder="Search regulators, agencies, jurisdictions..."
-            className="pl-9 bg-[hsl(var(--background))] border-[hsl(var(--border))] focus-visible:ring-[hsl(var(--warning))] text-[hsl(var(--foreground))]"
+            className="pl-9 bg-[hsl(var(--background))] border-[hsl(var(--border))] focus-visible:ring-pl-focus text-[hsl(var(--foreground))]"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button className="bg-[hsl(var(--warning))] text-white hover:bg-[hsl(var(--warning))]/90 border-0"
+        <Button
           onClick={() => { setEditing({ ...EMPTY }); setErrors({}); }}>
           <Plus className="w-4 h-4 mr-2" /> Add regulator
         </Button>
@@ -160,7 +160,7 @@ export default function Directory() {
               Cancel
             </Button>
             <Button type="submit" disabled={saving}
-              className="bg-[hsl(var(--warning))] text-white hover:bg-[hsl(var(--warning))]/90 border-0">
+             >
               {saving ? 'Saving...' : 'Save regulator'}
             </Button>
           </div>
@@ -179,7 +179,7 @@ export default function Directory() {
             {filtered.map((a) => {
               const count = countFor(a.id);
               return (
-                <Card key={a.id} className="panel-elevation hover:border-[hsl(var(--warning))]/50 transition-colors group">
+                <Card key={a.id} className="panel-elevation hover:border-pl-primary/50 transition-colors group">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start mb-4">
                       <div>

@@ -44,70 +44,70 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting, h
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardContent className="p-6 space-y-6">
           <div className="space-y-4">
             <div>
-              <Label className="text-slate-300">Risk Title *</Label>
+              <Label>Risk Title *</Label>
               <Input 
                 required 
                 value={formData.title}
                 onChange={e => handleChange('title', e.target.value)}
-                className="bg-slate-950 border-slate-800 text-white mt-1" 
+                className="mt-1" 
                 placeholder="e.g. Wellbore Instability in Section 3" 
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label className="text-slate-300">Category *</Label>
+                <Label>Category *</Label>
                 <Select value={formData.category} onValueChange={v => handleChange('category', v)} required>
-                  <SelectTrigger aria-label="Category" className="bg-slate-950 border-slate-800 text-white mt-1">
+                  <SelectTrigger aria-label="Category" className="mt-1">
                     <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800">
+                  <SelectContent>
                     {RISK_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label className="text-slate-300 flex items-center gap-1"><Tag className="w-3 h-3"/> Tags</Label>
+                <Label className="flex items-center gap-1"><Tag className="w-3 h-3"/> Tags</Label>
                 <Input 
                   value={formData.tags}
                   onChange={e => handleChange('tags', e.target.value)}
-                  className="bg-slate-950 border-slate-800 text-white mt-1" 
+                  className="mt-1" 
                   placeholder="e.g. HSE, Q3, Drilling (comma separated)" 
                 />
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-800">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-pl-border">
             <div>
-              <Label className="text-slate-300">Likelihood</Label>
+              <Label>Likelihood</Label>
               <Select value={formData.likelihood.toString()} onValueChange={v => handleChange('likelihood', Number(v))}>
-                <SelectTrigger aria-label="Likelihood" className="bg-slate-950 border-slate-800 text-white mt-1">
+                <SelectTrigger aria-label="Likelihood" className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800">
+                <SelectContent>
                   {LIKELIHOOD_LEVELS.map(l => <SelectItem key={l.value} value={l.value.toString()}>{l.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-slate-300">Impact</Label>
+              <Label>Impact</Label>
               <Select value={formData.impact.toString()} onValueChange={v => handleChange('impact', Number(v))}>
-                <SelectTrigger aria-label="Impact" className="bg-slate-950 border-slate-800 text-white mt-1">
+                <SelectTrigger aria-label="Impact" className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800">
+                <SelectContent>
                   {IMPACT_LEVELS.map(i => <SelectItem key={i.value} value={i.value.toString()}>{i.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="md:col-span-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-slate-950 p-4 rounded-lg border border-slate-800">
+            <div className="md:col-span-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-pl-sunken p-4 rounded-lg border border-pl-border">
                 <div className="flex-1">
-                  <span className="text-slate-400 text-sm font-medium block mb-1">Inherent risk score</span>
-                  <span className="text-xs text-slate-500 block">Likelihood × impact, before any control</span>
+                  <span className="text-pl-muted text-sm font-medium block mb-1">Inherent risk score</span>
+                  <span className="text-xs text-pl-muted block">Likelihood × impact, before any control</span>
                 </div>
                 <RiskScoreBadge score={currentScore} className="text-lg px-4 py-1" />
             </div>
@@ -119,75 +119,75 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting, h
               20260916110000 these fields cannot be saved, so they are not
               offered, and the form says why (AS13). */}
           {!hasAs2Schema ? (
-            <div className="pt-4 border-t border-slate-800">
-              <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/5 text-sm text-slate-400">
+            <div className="pt-4 border-t border-pl-border">
+              <div className="p-3 rounded-lg border border-pl-warning/40 bg-pl-warning-bg text-sm text-pl-text">
                 {AS2_SCHEMA_MESSAGE}
               </div>
             </div>
           ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-800">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-pl-border">
             <div className="md:col-span-2">
-              <h3 className="text-sm font-semibold text-slate-200">After controls</h3>
-              <p className="text-xs text-slate-500 mt-1">
+              <h3 className="text-sm font-semibold text-pl-text">After controls</h3>
+              <p className="text-xs text-pl-muted mt-1">
                 Leave these blank until the controls are in place. A risk with no
                 residual assessment is carried at its inherent score, per axis, so
                 mitigating likelihood alone does not quietly reduce the impact.
               </p>
             </div>
             <div>
-              <Label className="text-slate-300">Residual likelihood</Label>
+              <Label>Residual likelihood</Label>
               <Select
                 value={formData.residual_likelihood ? String(formData.residual_likelihood) : 'none'}
                 onValueChange={v => handleChange('residual_likelihood', v === 'none' ? '' : Number(v))}
               >
-                <SelectTrigger aria-label="Residual likelihood" className="bg-slate-950 border-slate-800 text-white mt-1">
+                <SelectTrigger aria-label="Residual likelihood" className="mt-1">
                   <SelectValue placeholder="Not assessed" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800">
+                <SelectContent>
                   <SelectItem value="none">Not assessed</SelectItem>
                   {LIKELIHOOD_LEVELS.map(l => <SelectItem key={l.value} value={l.value.toString()}>{l.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-slate-300">Residual impact</Label>
+              <Label>Residual impact</Label>
               <Select
                 value={formData.residual_impact ? String(formData.residual_impact) : 'none'}
                 onValueChange={v => handleChange('residual_impact', v === 'none' ? '' : Number(v))}
               >
-                <SelectTrigger aria-label="Residual impact" className="bg-slate-950 border-slate-800 text-white mt-1">
+                <SelectTrigger aria-label="Residual impact" className="mt-1">
                   <SelectValue placeholder="Not assessed" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800">
+                <SelectContent>
                   <SelectItem value="none">Not assessed</SelectItem>
                   {IMPACT_LEVELS.map(i => <SelectItem key={i.value} value={i.value.toString()}>{i.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-slate-300">Target score (risk appetite)</Label>
+              <Label>Target score (risk appetite)</Label>
               <Input
                 type="number" min="1" max="25"
                 value={formData.target_score}
                 onChange={e => handleChange('target_score', e.target.value === '' ? '' : Number(e.target.value))}
-                className="bg-slate-950 border-slate-800 text-white mt-1"
+                className="mt-1"
                 placeholder="e.g. 6"
               />
-              <p className="text-xs text-slate-500 mt-1">The score this organisation is willing to carry.</p>
+              <p className="text-xs text-pl-muted mt-1">The score this organisation is willing to carry.</p>
             </div>
             <div>
-              <Label className="text-slate-300">Next review date</Label>
+              <Label>Next review date</Label>
               <Input
                 type="date"
                 value={formData.next_review_date || ''}
                 onChange={e => handleChange('next_review_date', e.target.value)}
-                className="bg-slate-950 border-slate-800 text-white mt-1"
+                className="mt-1"
               />
             </div>
-            <div className="md:col-span-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-slate-950 p-4 rounded-lg border border-slate-800">
+            <div className="md:col-span-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-pl-sunken p-4 rounded-lg border border-pl-border">
                 <div className="flex-1">
-                  <span className="text-slate-400 text-sm font-medium block mb-1">Residual risk score</span>
-                  <span className="text-xs text-slate-500 block">
+                  <span className="text-pl-muted text-sm font-medium block mb-1">Residual risk score</span>
+                  <span className="text-xs text-pl-muted block">
                     {appetite}
                   </span>
                 </div>
@@ -196,40 +196,40 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting, h
           </div>
           )}
 
-          <div className="space-y-4 pt-4 border-t border-slate-800">
+          <div className="space-y-4 pt-4 border-t border-pl-border">
             <div>
-              <Label className="text-slate-300">Root Cause</Label>
+              <Label>Root Cause</Label>
               <Textarea 
                 value={formData.root_cause}
                 onChange={e => handleChange('root_cause', e.target.value)}
-                className="bg-slate-950 border-slate-800 text-white mt-1 h-20" 
+                className="mt-1 h-20" 
                 placeholder="What is the underlying cause of this risk?" 
               />
             </div>
             <div>
-              <Label className="text-slate-300">Consequences</Label>
+              <Label>Consequences</Label>
               <Textarea 
                 value={formData.consequences}
                 onChange={e => handleChange('consequences', e.target.value)}
-                className="bg-slate-950 border-slate-800 text-white mt-1 h-20" 
+                className="mt-1 h-20" 
                 placeholder="What are the potential impacts if realized?" 
               />
             </div>
             <div>
-              <Label className="text-slate-300">Proposed Mitigation Summary</Label>
+              <Label>Proposed Mitigation Summary</Label>
               <Textarea 
                 value={formData.mitigation_summary}
                 onChange={e => handleChange('mitigation_summary', e.target.value)}
-                className="bg-slate-950 border-slate-800 text-white mt-1 h-20" 
+                className="mt-1 h-20" 
                 placeholder="How will this risk be controlled or reduced?" 
               />
             </div>
             <div>
-              <Label className="text-slate-300 flex items-center gap-1"><Link className="w-3 h-3"/> Linked Risks</Label>
+              <Label className="flex items-center gap-1"><Link className="w-3 h-3"/> Linked Risks</Label>
               <Input 
                 value={formData.linked_risks}
                 onChange={e => handleChange('linked_risks', e.target.value)}
-                className="bg-slate-950 border-slate-800 text-white mt-1" 
+                className="mt-1" 
                 placeholder="Search and attach risk IDs (e.g. RSK-1001)" 
               />
             </div>
@@ -238,10 +238,10 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting, h
       </Card>
 
       <div className="flex justify-end gap-3">
-        <Button type="button" variant="outline" onClick={onCancel} className="border-slate-700 text-slate-300 hover:bg-slate-800">
+        <Button type="button" variant="outline" onClick={onCancel}>
           <X className="w-4 h-4 mr-2" /> Cancel
         </Button>
-        <Button type="submit" disabled={isSubmitting} className="bg-cyan-600 hover:bg-cyan-700 text-white">
+        <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
           {initialData.id ? 'Save Changes' : 'Create Risk'}
         </Button>
