@@ -29,7 +29,7 @@ const MudWindowPanel = ({ rows = [], summary = null, sourceLabel = '' }) => {
   }));
 
   return (
-    <div className="bg-white relative flex h-full w-full min-h-0 min-w-0 flex-col" data-testid="mud-window-panel">
+    <div className="bg-white relative flex h-full w-full min-h-0 min-w-0 flex-col" data-testid="mud-window-panel" data-canvas="chart">
       <div className="flex items-center justify-between px-3 pt-2">
         <span className="text-[11px] font-semibold text-slate-700">
           Mud window ({keys.unit} vs TVD){sourceLabel ? ` — ${sourceLabel}` : ''}

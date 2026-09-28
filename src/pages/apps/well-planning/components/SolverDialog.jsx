@@ -85,11 +85,11 @@ const NumField = ({ label, value, onChange, step = 'any', testid, invalid, hint 
     <Label className="text-xs">{label}</Label>
     <Input
       type="number" step={step} value={value} onChange={(e) => onChange(e.target.value)}
-      className={`h-9 bg-slate-800 ${invalid ? 'border-red-500' : 'border-slate-700'}`}
+      className={`h-9 ${invalid ? 'border-pl-danger' : ''}`}
       data-testid={testid}
       aria-invalid={invalid ? 'true' : undefined}
     />
-    {hint ? <p className="text-[10px] text-slate-500 mt-1">{hint}</p> : null}
+    {hint ? <p className="text-[10px] text-pl-muted mt-1">{hint}</p> : null}
   </div>
 );
 
@@ -436,7 +436,6 @@ const SolverDialog = ({
     toast({
       title: r.verticalToTarget ? 'Vertical to target' : 'Solve complete',
       description: describeSolve(method, r, mdUnit, intervalLabel),
-      className: 'bg-green-600 text-white',
     });
     onOpenChange(false);
   };
@@ -447,10 +446,10 @@ const SolverDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-white">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Design method</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Whole-well profiles replace the segment list; curve-to-target and horizontal landing extend the design from its current end.
           </DialogDescription>
         </DialogHeader>
@@ -459,8 +458,8 @@ const SolverDialog = ({
           <div>
             <Label className="text-xs">Method</Label>
             <Select value={method} onValueChange={setMethod}>
-              <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700">
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
                 {METHODS.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -470,8 +469,8 @@ const SolverDialog = ({
             <div>
               <Label className="text-xs">{isHorizontal ? 'Landing (heel) target' : isPoint ? 'Point target' : 'Target'}</Label>
               <Select value={targetId} onValueChange={setTargetId}>
-                <SelectTrigger className="h-9 bg-slate-800 border-slate-700" data-testid="solver-target-trigger"><SelectValue placeholder="Select target..." /></SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">{targetItems}</SelectContent>
+                <SelectTrigger className="h-9" data-testid="solver-target-trigger"><SelectValue placeholder="Select target..." /></SelectTrigger>
+                <SelectContent>{targetItems}</SelectContent>
               </Select>
             </div>
           )}
@@ -491,7 +490,7 @@ const SolverDialog = ({
             </div>
           )}
           {method === 'continuous' && (
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-pl-muted">
               One exact arc from the current design end to the target. The required dogleg and toolface are computed; the design fails loudly if the target lies behind the hole direction.
             </p>
           )}
@@ -500,43 +499,43 @@ const SolverDialog = ({
               <div>
                 <Label className="text-xs">Alignment (toe) target</Label>
                 <Select value={toeTargetId} onValueChange={setToeTargetId}>
-                  <SelectTrigger className="h-9 bg-slate-800 border-slate-700" data-testid="solver-toe-trigger">
+                  <SelectTrigger className="h-9" data-testid="solver-toe-trigger">
                     <SelectValue placeholder="Optional: align the lateral on a second target..." />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">{targetItems}</SelectContent>
+                  <SelectContent>{targetItems}</SelectContent>
                 </Select>
-                <p className="text-[10px] text-slate-500 mt-1">
+                <p className="text-[10px] text-pl-muted mt-1">
                   The heel is where the well lands. The toe sets the direction the lateral runs, the way Compass uses Final Target plus Align on Target.
                 </p>
               </div>
 
-              <div className="rounded border border-slate-700 bg-slate-800/50 px-3 py-2 text-[11px] space-y-1" data-testid="solver-alignment">
+              <div className="rounded border border-pl-border bg-pl-sunken px-3 py-2 text-[11px] space-y-1" data-testid="solver-alignment">
                 {alignment?.ok ? (
                   <>
-                    <div className="text-slate-300">
-                      Heel to toe: <span className="font-mono text-lime-400">{fmt(alignment.aziDeg)} deg</span> over {fmt(alignment.horizontal, 0)} {mdUnit}
+                    <div className="text-pl-text">
+                      Heel to toe: <span className="font-mono text-pl-primary-text">{fmt(alignment.aziDeg)} deg</span> over {fmt(alignment.horizontal, 0)} {mdUnit}
                     </div>
-                    <div className="text-slate-500">
+                    <div className="text-pl-muted">
                       Toe is {fmt(Math.abs(alignment.tvdRise), 0)} {mdUnit} {alignment.tvdRise >= 0 ? 'deeper than' : 'shallower than'} the heel, so the lateral runs at {fmt(alignment.incDeg)} deg inclination to stay on that line.
                     </div>
                   </>
                 ) : (
-                  <div className="text-slate-500">
+                  <div className="text-pl-muted">
                     Pick an alignment target to set the landing azimuth from the heel-to-toe direction, or type one below.
                   </div>
                 )}
-                <div className="text-slate-300 pt-1 border-t border-slate-700/70 space-y-0.5">
+                <div className="text-pl-text pt-1 border-t border-pl-border space-y-0.5">
                   <div>
-                    Landing azimuth in use: <span className="font-mono text-lime-400" data-testid="solver-effective-azi">{fmt(effectiveLandAzi)} deg</span>
-                    <span className="text-slate-500">
+                    Landing azimuth in use: <span className="font-mono text-pl-primary-text" data-testid="solver-effective-azi">{fmt(effectiveLandAzi)} deg</span>
+                    <span className="text-pl-muted">
                       {manualAzi != null
                         ? ' (manual override)'
                         : alignment?.ok ? ' (from heel to toe)' : ' (aimed at the heel from the design end)'}
                     </span>
                   </div>
                   <div>
-                    Landing inclination in use: <span className="font-mono text-lime-400" data-testid="solver-effective-inc">{fmt(effectiveLandInc)} deg</span>
-                    <span className="text-slate-500">
+                    Landing inclination in use: <span className="font-mono text-pl-primary-text" data-testid="solver-effective-inc">{fmt(effectiveLandInc)} deg</span>
+                    <span className="text-pl-muted">
                       {landIncSource === 'manual'
                         ? ' (manual override)'
                         : landIncSource === 'alignOn' ? ' (from heel to toe)' : ' (horizontal)'}
@@ -574,15 +573,15 @@ const SolverDialog = ({
           )}
           {isPoint && (
             <div className="space-y-3" data-testid="solver-point">
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-pl-muted">
                 Lands exactly on a point from the {currentEnd ? 'current end of the design' : 'surface (the design is empty)'}. Straight below a vertical end is a vertical hold; an offset point is a curve at the DLS then a tangent hold; a deviated end with the point below it drops back to vertical.
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs">Point from</Label>
                   <Select value={p.pointSource} onValueChange={set('pointSource')}>
-                    <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700">
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
                       <SelectItem value="target">A target</SelectItem>
                       <SelectItem value="manual">Typed coordinates</SelectItem>
                     </SelectContent>
@@ -591,8 +590,8 @@ const SolverDialog = ({
                 <div>
                   <Label className="text-xs">Mode</Label>
                   <Select value={p.pointMode} onValueChange={set('pointMode')}>
-                    <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700">
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
                       <SelectItem value="tvd">Using TVD</SelectItem>
                       <SelectItem value="md">Using MD</SelectItem>
                     </SelectContent>
@@ -614,8 +613,8 @@ const SolverDialog = ({
                 <div>
                   <Label className="text-xs">Arrive</Label>
                   <Select value={p.pointArrive} onValueChange={set('pointArrive')}>
-                    <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700">
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
                       <SelectItem value="auto">Automatic</SelectItem>
                       <SelectItem value="tangent">On a tangent hold</SelectItem>
                       <SelectItem value="vertical">Vertical (drop back to vertical)</SelectItem>
@@ -623,7 +622,7 @@ const SolverDialog = ({
                   </Select>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-500">
+              <p className="text-[10px] text-pl-muted">
                 Design end: MD {fmt(pointStart.md || 0)}, TVD {fmt(pointStart.tvd || 0)}, N/S {fmt(pointStart.n || 0)}, E/W {fmt(pointStart.e || 0)} {mdUnit}, inclination {fmt(pointStart.inc || 0)} deg.
               </p>
             </div>
@@ -633,8 +632,8 @@ const SolverDialog = ({
               <div>
                 <Label className="text-xs">Mode</Label>
                 <Select value={p.nudgeMode} onValueChange={set('nudgeMode')}>
-                  <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
                     <SelectItem value="forward">Specify inclination and hold</SelectItem>
                     <SelectItem value="inverse">Solve from offset and vertical budget</SelectItem>
                   </SelectContent>
@@ -663,7 +662,7 @@ const SolverDialog = ({
             <div
               role="alert"
               data-testid="solver-problem"
-              className="flex gap-2 rounded border border-red-500/60 bg-red-950/40 px-3 py-2 text-xs text-red-200"
+              className="flex gap-2 rounded border border-pl-danger/40 bg-pl-danger-bg px-3 py-2 text-xs text-pl-danger-text"
             >
               <AlertTriangle className="h-4 w-4 shrink-0 mt-px" />
               <span>{problem}</span>
@@ -672,8 +671,8 @@ const SolverDialog = ({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-600 text-slate-300">Cancel</Button>
-          <Button onClick={handleSolve} className="bg-lime-600 hover:bg-lime-700 text-white" data-testid="solver-apply">Solve</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSolve} data-testid="solver-apply">Solve</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

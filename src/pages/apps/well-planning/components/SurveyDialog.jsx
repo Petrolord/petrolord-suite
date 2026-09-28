@@ -192,10 +192,10 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg bg-slate-900 border-slate-700 text-white">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{editing ? 'Edit survey run' : 'New survey run'}</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Actual stations for {wellbore?.name}. Azimuths convert to grid through the cached convergence and WMM2025 declination.
           </DialogDescription>
         </DialogHeader>
@@ -204,11 +204,11 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Run name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="MWD run 1" className="bg-slate-800 border-slate-700 h-9" data-testid="survey-name" />
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="MWD run 1" className="h-9" data-testid="survey-name" />
             </div>
             <div>
               <Label className="text-xs">Tool (optional)</Label>
-              <Input value={toolcode} onChange={(e) => setToolcode(e.target.value)} placeholder="MWD" className="bg-slate-800 border-slate-700 h-9" />
+              <Input value={toolcode} onChange={(e) => setToolcode(e.target.value)} placeholder="MWD" className="h-9" />
             </div>
           </div>
 
@@ -216,8 +216,8 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
             <div>
               <Label className="text-xs">Source</Label>
               <Select value={source} onValueChange={setSource} disabled={editing}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 h-9"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
                   {SOURCES.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -225,8 +225,8 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
             <div>
               <Label className="text-xs">Azimuths are</Label>
               <Select value={effectiveAziRef} onValueChange={setAziRef} disabled={source === 'geo_wells'}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 h-9"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
                   <SelectItem value="grid">Grid north</SelectItem>
                   <SelectItem value="true">True north</SelectItem>
                   <SelectItem value="magnetic">Magnetic north</SelectItem>
@@ -236,8 +236,8 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
             <div>
               <Label className="text-xs">MD unit</Label>
               <Select value={effectiveUnit} onValueChange={setUnit} disabled={source === 'geo_wells'}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 h-9"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
                   <SelectItem value="m">Metres</SelectItem>
                   <SelectItem value="ft">Feet</SelectItem>
                 </SelectContent>
@@ -250,14 +250,14 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
               <Label className="text-xs">Stations (one per line: MD  inclination  azimuth)</Label>
               <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={7}
                 placeholder={'0 0 0\n500 0 0\n800 15 45\n1200 30 45'}
-                className="bg-slate-800 border-slate-700 font-mono text-xs" data-testid="survey-stations" />
+                className="font-mono text-xs" data-testid="survey-stations" />
             </div>
           )}
 
           {source === 'csv' && (
             <div className="space-y-2">
               <input ref={fileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,.asc,.xlsx,.xlsm,.xls" className="hidden" onChange={handleFile} data-testid="survey-file" />
-              <Button variant="outline" onClick={() => fileRef.current?.click()} className="w-full border-slate-600 text-slate-300 h-9">
+              <Button variant="outline" onClick={() => fileRef.current?.click()} className="w-full h-9">
                 <Upload className="mr-2 h-4 w-4" /> {csv ? csv.fileName : 'Choose a CSV, text or Excel file'}
               </Button>
               {csv && (
@@ -266,8 +266,8 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
                     <div>
                       <Label className="text-[10px] uppercase">Sheet</Label>
                       <Select value={String(csv.sheetIndex)} onValueChange={setSheet}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700 h-8 text-xs" data-testid="survey-sheet"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700">
+                        <SelectTrigger className="h-8 text-xs" data-testid="survey-sheet"><SelectValue /></SelectTrigger>
+                        <SelectContent>
                           {csv.sheets.map((sh, i) => <SelectItem key={sh.name + i} value={String(i)}>{sh.name} ({sh.rows.length} rows)</SelectItem>)}
                         </SelectContent>
                       </Select>
@@ -276,8 +276,8 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
                     <div>
                       <Label className="text-[10px] uppercase">Delimiter</Label>
                       <Select value={csv.delimiter} onValueChange={setDelimiter}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700 h-8 text-xs" data-testid="survey-delimiter"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700">
+                        <SelectTrigger className="h-8 text-xs" data-testid="survey-delimiter"><SelectValue /></SelectTrigger>
+                        <SelectContent>
                           {DELIMITERS.map((d) => (
                             <SelectItem key={d.id} value={d.id}>
                               {d.label}{d.id === 'auto' && csv.usedDelimiter ? ` (${DELIMITERS.find((x) => x.id === csv.usedDelimiter)?.label.toLowerCase()})` : ''}
@@ -287,32 +287,32 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
                       </Select>
                     </div>
                   )}
-                  <div className="text-[11px] text-slate-400 self-end pb-1">
+                  <div className="text-[11px] text-pl-muted self-end pb-1">
                     {csv.rows.length} data rows, {csv.columns.length} columns{csv.header ? ', header detected' : ', no header'}
                   </div>
                 </div>
               )}
               {csv && (
-                <div className="rounded border border-slate-700 bg-slate-950 overflow-auto max-h-32" data-testid="survey-preview">
+                <div className="rounded border border-pl-border bg-pl-bg overflow-auto max-h-32" data-testid="survey-preview">
                   <table className="text-[11px] font-mono w-full">
                     <thead>
                       <tr>
                         {csv.columns.map((h, i) => (
-                          <th key={h + i} className="px-2 py-1 text-left text-slate-400 font-normal whitespace-nowrap">{h}</th>
+                          <th key={h + i} className="px-2 py-1 text-left text-pl-muted font-normal whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {csv.rows.slice(0, 5).map((r, ri) => (
-                        <tr key={ri} className="border-t border-slate-800">
+                        <tr key={ri} className="border-t border-pl-border">
                           {csv.columns.map((_, ci) => (
-                            <td key={ci} className="px-2 py-0.5 text-slate-300 whitespace-nowrap">{r[ci] ?? ''}</td>
+                            <td key={ci} className="px-2 py-0.5 text-pl-text whitespace-nowrap">{r[ci] ?? ''}</td>
                           ))}
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  {csv.rows.length > 5 && <div className="px-2 py-1 text-[10px] text-slate-500">and {csv.rows.length - 5} more rows</div>}
+                  {csv.rows.length > 5 && <div className="px-2 py-1 text-[10px] text-pl-muted">and {csv.rows.length - 5} more rows</div>}
                 </div>
               )}
               {csv && (
@@ -321,8 +321,8 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
                     <div key={f}>
                       <Label className="text-[10px] uppercase">{f} column</Label>
                       <Select value={String(csv.map[f])} onValueChange={setCsvMap(f)}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700 h-8 text-xs" data-testid={`survey-map-${f}`}><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700">
+                        <SelectTrigger className="h-8 text-xs" data-testid={`survey-map-${f}`}><SelectValue /></SelectTrigger>
+                        <SelectContent>
                           <SelectItem value="-1">Not mapped</SelectItem>
                           {csv.columns.map((h, i) => <SelectItem key={h + i} value={String(i)}>{h}</SelectItem>)}
                         </SelectContent>
@@ -338,8 +338,8 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
             <div>
               <Label className="text-xs">Registry well (deviation in metres, grid north)</Label>
               <Select value={geoWellId} onValueChange={setGeoWellId}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 h-9"><SelectValue placeholder={geoWells ? 'Select a well...' : 'Loading wells...'} /></SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectTrigger className="h-9"><SelectValue placeholder={geoWells ? 'Select a well...' : 'Loading wells...'} /></SelectTrigger>
+                <SelectContent>
                   {(geoWells || []).map((w) => (
                     <SelectItem key={w.id} value={w.id}>{w.name} ({w.deviation.length} stations)</SelectItem>
                   ))}
@@ -348,20 +348,20 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
             </div>
           )}
 
-          <div className="rounded-md border border-slate-700 bg-slate-800/50 p-2 text-xs">
-            {stationsPreview.error && <span className="text-red-400">{stationsPreview.error}</span>}
+          <div className="rounded-md border border-pl-border bg-pl-sunken p-2 text-xs">
+            {stationsPreview.error && <span className="text-pl-danger-text">{stationsPreview.error}</span>}
             {!stationsPreview.error && preview && (
-              <span className="text-slate-300">
+              <span className="text-pl-text">
                 {preview.length} stations, MD {preview[0].md.toFixed(1)} to {preview[preview.length - 1].md.toFixed(1)} {effectiveUnit}
               </span>
             )}
-            {!stationsPreview.error && !preview && <span className="italic text-slate-500">No stations yet.</span>}
+            {!stationsPreview.error && !preview && <span className="italic text-pl-muted">No stations yet.</span>}
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-600 text-slate-300">Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !name.trim() || !preview} className="bg-[#4CAF50] hover:bg-[#43a047] text-white" data-testid="survey-save">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving || !name.trim() || !preview} data-testid="survey-save">
             {editing ? 'Save changes' : 'Add survey'}
           </Button>
         </DialogFooter>

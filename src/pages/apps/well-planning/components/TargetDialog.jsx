@@ -92,10 +92,10 @@ const TargetDialog = ({ open, onOpenChange, target, onSave }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 text-white">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{editing ? 'Edit target' : 'New target'}</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Coordinates are in the site CRS (metres). Depth is subsea (TVDSS, positive down below MSL).
           </DialogDescription>
         </DialogHeader>
@@ -104,13 +104,13 @@ const TargetDialog = ({ open, onOpenChange, target, onSave }) => {
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-1">
               <Label className="text-xs">Name</Label>
-              <Input value={form.name || ''} onChange={(e) => set('name', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+              <Input value={form.name || ''} onChange={(e) => set('name', e.target.value)} className="h-9" />
             </div>
             <div>
               <Label className="text-xs">Kind</Label>
               <Select value={form.kind} onValueChange={(v) => set('kind', v)}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 h-9"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
                   <SelectItem value="point">Point</SelectItem>
                   <SelectItem value="circle">Circle</SelectItem>
                   <SelectItem value="ellipse">Ellipse</SelectItem>
@@ -121,8 +121,8 @@ const TargetDialog = ({ open, onOpenChange, target, onSave }) => {
             <div>
               <Label className="text-xs">Category</Label>
               <Select value={form.category} onValueChange={(v) => set('category', v)}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 h-9"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
                   <SelectItem value="geological">Geological</SelectItem>
                   <SelectItem value="drillers">Driller's</SelectItem>
                 </SelectContent>
@@ -133,23 +133,23 @@ const TargetDialog = ({ open, onOpenChange, target, onSave }) => {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-xs">Easting (m)</Label>
-              <Input type="number" value={form.center_x} onChange={(e) => set('center_x', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+              <Input type="number" value={form.center_x} onChange={(e) => set('center_x', e.target.value)} className="h-9" />
             </div>
             <div>
               <Label className="text-xs">Northing (m)</Label>
-              <Input type="number" value={form.center_y} onChange={(e) => set('center_y', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+              <Input type="number" value={form.center_y} onChange={(e) => set('center_y', e.target.value)} className="h-9" />
             </div>
             <div>
               <Label className="text-xs">TVDSS (m)</Label>
-              <Input type="number" value={form.tvdss_m} onChange={(e) => set('tvdss_m', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+              <Input type="number" value={form.tvdss_m} onChange={(e) => set('tvdss_m', e.target.value)} className="h-9" />
             </div>
           </div>
 
           {form.kind === 'ellipse' && (
             <div className="grid grid-cols-3 gap-3">
-              <div><Label className="text-xs">Semi-major (m)</Label><Input type="number" value={form.semi_major_m} onChange={(e) => set('semi_major_m', e.target.value)} className="bg-slate-800 border-slate-700 h-9" /></div>
-              <div><Label className="text-xs">Semi-minor (m)</Label><Input type="number" value={form.semi_minor_m} onChange={(e) => set('semi_minor_m', e.target.value)} className="bg-slate-800 border-slate-700 h-9" /></div>
-              <div><Label className="text-xs">Rotation (deg)</Label><Input type="number" value={form.rotation_deg} onChange={(e) => set('rotation_deg', e.target.value)} className="bg-slate-800 border-slate-700 h-9" /></div>
+              <div><Label className="text-xs">Semi-major (m)</Label><Input type="number" value={form.semi_major_m} onChange={(e) => set('semi_major_m', e.target.value)} className="h-9" /></div>
+              <div><Label className="text-xs">Semi-minor (m)</Label><Input type="number" value={form.semi_minor_m} onChange={(e) => set('semi_minor_m', e.target.value)} className="h-9" /></div>
+              <div><Label className="text-xs">Rotation (deg)</Label><Input type="number" value={form.rotation_deg} onChange={(e) => set('rotation_deg', e.target.value)} className="h-9" /></div>
             </div>
           )}
           {form.kind === 'polygon' && (
@@ -159,7 +159,7 @@ const TargetDialog = ({ open, onOpenChange, target, onSave }) => {
                 value={form.polygon}
                 onChange={(e) => set('polygon', e.target.value)}
                 rows={4}
-                className="mt-1 w-full rounded-md border border-slate-700 bg-slate-800 p-2 font-mono text-xs text-slate-200"
+                className="mt-1 w-full rounded-md border border-pl-border-strong bg-pl-surface p-2 font-mono text-xs text-pl-text"
               />
             </div>
           )}
@@ -168,32 +168,32 @@ const TargetDialog = ({ open, onOpenChange, target, onSave }) => {
             {form.kind === 'circle' && (
               <div>
                 <Label className="text-xs">Radius (m)</Label>
-                <Input type="number" value={form.radius_m} onChange={(e) => set('radius_m', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+                <Input type="number" value={form.radius_m} onChange={(e) => set('radius_m', e.target.value)} className="h-9" />
               </div>
             )}
             <div>
               <Label className="text-xs">Dip (deg)</Label>
-              <Input type="number" value={form.dip_deg} onChange={(e) => set('dip_deg', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+              <Input type="number" value={form.dip_deg} onChange={(e) => set('dip_deg', e.target.value)} className="h-9" />
             </div>
             <div>
               <Label className="text-xs">Dip azimuth (deg)</Label>
-              <Input type="number" value={form.dip_azimuth_deg} onChange={(e) => set('dip_azimuth_deg', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+              <Input type="number" value={form.dip_azimuth_deg} onChange={(e) => set('dip_azimuth_deg', e.target.value)} className="h-9" />
             </div>
             <div>
               <Label className="text-xs">Color</Label>
-              <Input type="color" value={form.color} onChange={(e) => set('color', e.target.value)} className="bg-slate-800 border-slate-700 h-9 p-1" />
+              <Input type="color" value={form.color} onChange={(e) => set('color', e.target.value)} className="h-9 p-1" />
             </div>
           </div>
 
           <div>
             <Label className="text-xs">Notes</Label>
-            <Input value={form.notes || ''} onChange={(e) => set('notes', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+            <Input value={form.notes || ''} onChange={(e) => set('notes', e.target.value)} className="h-9" />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-600 text-slate-300">Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !valid} className="bg-[#4CAF50] hover:bg-[#43a047] text-white">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving || !valid}>
             {editing ? 'Save changes' : 'Create target'}
           </Button>
         </DialogFooter>
