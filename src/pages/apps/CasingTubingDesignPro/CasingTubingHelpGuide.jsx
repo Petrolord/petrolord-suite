@@ -24,7 +24,7 @@ const sections = [
 ];
 
 const SectionHeading = ({ icon: Icon, children }) => (
-  <h2 className="flex items-center gap-3 text-3xl font-bold text-pl-text mb-4 mt-0 pt-2">
+  <h2 className="flex items-center gap-3 text-2xl sm:text-3xl font-bold text-pl-text mb-4 mt-0 pt-2">
     <Icon className="w-7 h-7 text-pl-muted" /> {children}
   </h2>
 );
@@ -76,7 +76,7 @@ const Table = ({ headers, rows }) => (
   </div>
 );
 const Section = ({ id, children }) => (
-  <section id={`section-${id}`} className="bg-pl-surface border border-pl-border rounded-xl p-6 mb-6 scroll-mt-6">
+  <section id={`section-${id}`} className="bg-pl-surface border border-pl-border rounded-xl p-4 sm:p-6 mb-6 scroll-mt-20">
     {children}
   </section>
 );

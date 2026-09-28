@@ -125,7 +125,7 @@ const CatalogBrowser = ({ open, onOpenChange, onSelect, kindFilter = null }) => 
                       <TableCell className="font-pl-mono tabular-nums text-pl-muted text-xs">{(item.wallM / 0.0254).toFixed(3)}</TableCell>
                       <TableCell className="font-pl-mono tabular-nums text-pl-muted text-xs">{(item.idM / 0.0254).toFixed(3)}</TableCell>
                       <TableCell>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-pl-sunken border border-pl-border text-pl-text">
+                        <span className="whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-bold bg-pl-sunken border border-pl-border text-pl-text">
                           {item.grade}
                         </span>
                       </TableCell>

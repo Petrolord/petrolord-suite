@@ -62,22 +62,22 @@ const TopBanner = () => {
           </div>
         </nav>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-8">
+        <div className="flex flex-wrap items-center justify-between gap-y-2">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:gap-x-8">
             <div>
               <span className="text-[10px] uppercase text-pl-muted font-bold tracking-wider">Site</span>
               <div className="text-pl-text font-medium text-sm">
                 {selectedSite?.name || <span className="text-pl-muted italic">Select a site</span>}
               </div>
             </div>
-            <div className="h-8 w-px bg-pl-border"></div>
+            <div className="hidden sm:block h-8 w-px bg-pl-border"></div>
             <div>
               <span className="text-[10px] uppercase text-pl-muted font-bold tracking-wider">Wellbore</span>
               <div className="text-pl-text font-bold text-lg leading-tight">
                 {selectedWellbore ? selectedWellbore.name : <span className="text-pl-muted italic text-sm font-medium">Select a wellbore</span>}
               </div>
             </div>
-            <div className="h-8 w-px bg-pl-border"></div>
+            <div className="hidden sm:block h-8 w-px bg-pl-border"></div>
             <div>
               <span className="text-[10px] uppercase text-pl-muted font-bold tracking-wider">Design Case</span>
               <div className="flex items-center space-x-2">

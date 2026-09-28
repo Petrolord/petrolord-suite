@@ -14,7 +14,8 @@ const RightPanel = () => {
   const {
     caseDoc, setSafetyFactors, results, depthUnit,
   } = useCasingTubingDesign();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // Phone width: the panel opens collapsed so the work area keeps the screen.
+  const [isCollapsed, setIsCollapsed] = useState(() => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 767px)').matches);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
 
   const safetyFactors = caseDoc?.safetyFactors || {};

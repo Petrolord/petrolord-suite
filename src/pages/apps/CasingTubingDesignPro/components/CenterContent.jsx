@@ -41,8 +41,8 @@ const CenterContent = () => {
                 </div>
             )}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col h-full">
-                <div className="px-4 pt-2 border-b border-pl-border bg-pl-surface flex justify-between items-center shrink-0">
-                    <TabsList className="bg-transparent h-9 p-0 space-x-6">
+                <div className="px-4 pt-2 border-b border-pl-border bg-pl-surface flex justify-between items-center gap-4 overflow-x-auto shrink-0">
+                    <TabsList className="bg-transparent border-0 rounded-none h-9 p-0 space-x-6">
                         <TabsTrigger 
                             value="well-loads" 
                             className="bg-transparent border-b-2 border-transparent data-[state=active]:border-pl-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-2 pb-2 text-pl-muted data-[state=active]:text-pl-primary-text hover:text-pl-text transition-colors text-xs"
