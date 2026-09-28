@@ -24,9 +24,9 @@ import { useToast } from '@/components/ui/use-toast';
 
 const StatusBadge = ({ status }) => {
     const styles = {
-        'calibrated': 'bg-pl-sunken text-pl-primary-text border-pl-primary/50',
+        'calibrated': 'bg-pl-success-bg text-pl-success-text border-pl-success/40',
         'in-progress': 'bg-pl-warning-bg text-pl-warning-text border-pl-warning/40',
-        'not-started': 'bg-pl-border-strong text-pl-muted border-pl-border-strong'
+        'not-started': 'bg-pl-sunken text-pl-muted border-pl-border'
     };
     
     const labels = {
@@ -216,8 +216,8 @@ const MultiWellManager = () => {
                             data-active={well.id === mwState.activeWellId ? 'true' : 'false'}
                             className={`group p-3 rounded-lg border cursor-pointer transition-all relative ${
                                 mwState.activeWellId === well.id 
-                                ? 'bg-pl-sunken border-pl-primary/50 shadow-sm ' 
-                                : 'bg-pl-bg border-pl-border hover:border-pl-border-strong hover:bg-pl-sunken'
+                                ? 'bg-pl-sunken border-pl-primary shadow-sm'
+                                : 'bg-pl-surface border-pl-border hover:border-pl-border-strong hover:bg-pl-sunken'
                             }`}
                         >
                             <div className="flex justify-between items-start mb-2 h-6">
@@ -343,14 +343,14 @@ const MultiWellManager = () => {
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-                        <Button onClick={handleCreateWell} >Create Well</Button>
+                        <Button onClick={handleCreateWell}>Create Well</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             {/* Delete Confirmation Dialog */}
             <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-                <AlertDialogContent className="bg-pl-surface border-pl-border text-pl-text max-w-[90vw] sm:max-w-md">
+                <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                         <AlertDialogDescription className="text-pl-muted">
@@ -358,8 +358,8 @@ const MultiWellManager = () => {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-transparent border-pl-border text-pl-text hover:bg-pl-sunken hover:text-pl-text">Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={confirmDelete} className="bg-pl-danger hover:bg-pl-danger text-pl-text border-0">Delete</AlertDialogAction>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDelete} className="bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90 border-0">Delete</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

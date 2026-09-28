@@ -73,11 +73,11 @@ const ScenarioManager = () => {
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <h2 className="text-2xl font-bold text-pl-text flex items-center gap-2">
-                            <GitBranch className="w-6 h-6 text-pl-primary-text" /> Scenario Manager
+                            <GitBranch className="w-6 h-6 text-pl-muted" /> Scenario Manager
                         </h2>
                         <p className="text-pl-muted text-sm">Create, manage, and compare simulation scenarios.</p>
                     </div>
-                    <Button onClick={handleCreateClick} >
+                    <Button onClick={handleCreateClick}>
                         <Plus className="w-4 h-4 mr-2" /> Save Current State
                     </Button>
                 </div>
@@ -155,7 +155,7 @@ const ScenarioManager = () => {
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSave} >Save</Button>
+                        <Button onClick={handleSave}>Save</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

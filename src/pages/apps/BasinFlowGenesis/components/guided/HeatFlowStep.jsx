@@ -34,7 +34,7 @@ const HeatFlowStep = () => {
                             >
                                 <div className="flex justify-between items-center mb-2">
                                     <div className="flex items-center gap-2 font-bold text-pl-text">
-                                        <Thermometer className={`w-5 h-5 ${preset.type === 'constant' ? 'text-pl-info-text' : 'text-pl-warning-text'}`} />
+                                        <Thermometer className={`w-5 h-5 ${preset.type === 'constant' ? 'text-pl-muted' : 'text-pl-primary-text'}`} />
                                         {preset.name}
                                     </div>
                                     <div className="text-sm font-mono text-pl-text bg-pl-bg px-2 py-1 rounded border border-pl-border">

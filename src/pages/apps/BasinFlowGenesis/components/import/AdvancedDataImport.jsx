@@ -39,7 +39,7 @@ function ImportZone({ kind, label, onText }) {
       {...getRootProps()}
       data-testid={`bf-import-zone-${kind}`}
       className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors h-40 flex flex-col items-center justify-center ${
-        isDragActive ? 'border-pl-primary bg-pl-sunken' : 'border-pl-border hover:border-pl-border-strong bg-pl-bg'
+        isDragActive ? 'border-pl-primary bg-pl-sunken' : 'border-pl-border hover:border-pl-border-strong bg-pl-surface'
       }`}
     >
       <input {...getInputProps()} data-testid={`bf-import-input-${kind}`} />
@@ -90,7 +90,7 @@ const AdvancedDataImport = () => {
   };
   const fileUnitSelect = (
     <label className="flex items-center gap-2 text-xs text-pl-muted">Depths in the file are in
-      <select data-testid="bf-import-file-unit" value={fileUnit} onChange={(e) => setFileUnit(e.target.value)} className="bg-pl-sunken border border-pl-border rounded px-1 py-0.5 text-xs text-pl-text">
+      <select data-testid="bf-import-file-unit" value={fileUnit} onChange={(e) => setFileUnit(e.target.value)} className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text">
         {DEPTH_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
       </select>
     </label>
@@ -158,10 +158,10 @@ const AdvancedDataImport = () => {
         <p className="text-sm text-pl-muted">Calibration points and formation tops from files, or tops from a registry well</p>
       </div>
       <Tabs defaultValue="calibration" className="space-y-4">
-        <TabsList className="bg-pl-surface border border-pl-border p-1">
-          <TabsTrigger value="calibration" data-testid="bf-import-tab-calibration" className="data-[state=active]:bg-pl-primary text-xs">Calibration data</TabsTrigger>
-          <TabsTrigger value="tops" data-testid="bf-import-tab-tops" className="data-[state=active]:bg-pl-primary text-xs">Formation tops</TabsTrigger>
-          <TabsTrigger value="registry" data-testid="bf-import-tab-registry" className="data-[state=active]:bg-pl-primary text-xs">Registry well</TabsTrigger>
+        <TabsList>
+          <TabsTrigger value="calibration" data-testid="bf-import-tab-calibration" className="text-xs">Calibration data</TabsTrigger>
+          <TabsTrigger value="tops" data-testid="bf-import-tab-tops" className="text-xs">Formation tops</TabsTrigger>
+          <TabsTrigger value="registry" data-testid="bf-import-tab-registry" className="text-xs">Registry well</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calibration" className="space-y-4">
@@ -173,14 +173,14 @@ const AdvancedDataImport = () => {
           {cal && (
             <Card>
               <CardContent className="p-4 space-y-3">
-                <div className="flex items-center gap-2 text-sm text-pl-text"><FileText className="w-4 h-4 text-pl-primary-text" /> {cal.name}
+                <div className="flex items-center gap-2 text-sm text-pl-text"><FileText className="w-4 h-4 text-pl-muted" /> {cal.name}
                   <Button variant="ghost" size="icon" className="ml-auto h-6 w-6 text-pl-muted" data-testid="bf-import-clear-calibration" onClick={() => setCal(null)}><X className="w-4 h-4" /></Button>
                 </div>
                 <div className="text-xs text-pl-text" data-testid="bf-import-preview-calibration">{cal.ro.length} Ro points, {cal.temp.length} temperature points read.</div>
                 <Problems items={cal.problems} kind="calibration" />
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" size="sm" data-testid="bf-import-apply-calibration-append" disabled={!cal.ro.length && !cal.temp.length} onClick={() => applyCalibration('append')}>Add to the points</Button>
-                  <Button size="sm"  data-testid="bf-import-apply-calibration" disabled={!cal.ro.length && !cal.temp.length} onClick={() => applyCalibration('replace')}>Replace the points</Button>
+                  <Button size="sm" data-testid="bf-import-apply-calibration" disabled={!cal.ro.length && !cal.temp.length} onClick={() => applyCalibration('replace')}>Replace the points</Button>
                 </div>
               </CardContent>
             </Card>
@@ -196,7 +196,7 @@ const AdvancedDataImport = () => {
           {tops && (
             <Card>
               <CardContent className="p-4 space-y-3">
-                <div className="flex items-center gap-2 text-sm text-pl-text"><FileText className="w-4 h-4 text-pl-primary-text" /> {tops.name}
+                <div className="flex items-center gap-2 text-sm text-pl-text"><FileText className="w-4 h-4 text-pl-muted" /> {tops.name}
                   <Button variant="ghost" size="icon" className="ml-auto h-6 w-6 text-pl-muted" data-testid="bf-import-clear-tops" onClick={() => setTops(null)}><X className="w-4 h-4" /></Button>
                 </div>
                 <label className="flex items-center gap-2 text-xs text-pl-muted">Total depth of the last layer ({fileUnit})
@@ -205,7 +205,7 @@ const AdvancedDataImport = () => {
                 <Problems items={tops.problems} kind="tops" />
                 {previewLayers.length > 0 && <LayerPreview layers={previewLayers} testid="bf-import-preview-tops" />}
                 <div className="flex justify-end">
-                  <Button size="sm"  data-testid="bf-import-apply-tops" disabled={!previewLayers.length} onClick={applyTops}>Replace the stratigraphy</Button>
+                  <Button size="sm" data-testid="bf-import-apply-tops" disabled={!previewLayers.length} onClick={applyTops}>Replace the stratigraphy</Button>
                 </div>
               </CardContent>
             </Card>
@@ -223,14 +223,14 @@ const AdvancedDataImport = () => {
             <p className="text-xs text-pl-muted" data-testid="bf-registry-empty">No wells in the registry yet. Import them in Well Data Manager first.</p>
           ) : (
             <div className="space-y-3">
-              <select data-testid="bf-registry-well" value={registryId} onChange={(e) => setRegistryId(e.target.value)} className="bg-pl-sunken border border-pl-border rounded px-2 py-1 text-xs text-pl-text">
+              <select data-testid="bf-registry-well" value={registryId} onChange={(e) => setRegistryId(e.target.value)} className="bg-pl-surface border border-pl-border-strong rounded px-2 py-1 text-xs text-pl-text">
                 <option value="">Choose a well</option>
                 {registryWells.map((w) => <option key={w.id} value={w.id}>{w.name} ({(w.tops || []).length} tops)</option>)}
               </select>
               {registryWell && registryLayers.length === 0 && <p className="text-xs text-pl-warning-text">This well has no tops yet.</p>}
               {registryLayers.length > 0 && <LayerPreview layers={registryLayers} testid="bf-registry-preview" />}
               <div className="flex justify-end">
-                <Button size="sm"  data-testid="bf-registry-apply" disabled={!registryLayers.length} onClick={applyRegistry}>Replace the stratigraphy</Button>
+                <Button size="sm" data-testid="bf-registry-apply" disabled={!registryLayers.length} onClick={applyRegistry}>Replace the stratigraphy</Button>
               </div>
               {state.settings?.registryWellName && <p className="text-xs text-pl-muted" data-testid="bf-registry-tied">Tied to {state.settings.registryWellName}.</p>}
             </div>

@@ -13,7 +13,7 @@ export default function UnitsBar({ className = '' }) {
       title={title}
       value={units[key]}
       onChange={(e) => setUnit(key, e.target.value)}
-      className="bg-pl-sunken border border-pl-border rounded px-1 py-0.5 text-[11px] text-pl-text"
+      className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-[11px] text-pl-text"
     >
       {options.map((o) => <option key={o} value={o}>{render(o)}</option>)}
     </select>

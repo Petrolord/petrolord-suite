@@ -58,13 +58,12 @@ const SimulationRunDialog = ({ isOpen, onClose, onComplete, onCancel }) => {
                     <div className="flex justify-center">
                         {status === 'running' && (
                             <div className="relative">
-                                <div className="absolute inset-0 bg-pl-primary blur-xl opacity-20 rounded-full animate-pulse"></div>
                                 <Loader2 className="w-12 h-12 text-pl-primary-text animate-spin relative z-10" />
                             </div>
                         )}
                         {status === 'success' && (
-                            <div className="p-4 bg-pl-sunken rounded-full border border-pl-primary/50 animate-in zoom-in">
-                                <CheckCircle2 className="w-12 h-12 text-pl-primary-text" />
+                            <div className="p-4 bg-pl-success-bg rounded-full border border-pl-success/40 animate-in zoom-in">
+                                <CheckCircle2 className="w-12 h-12 text-pl-success-text" />
                             </div>
                         )}
                         {status === 'error' && (
@@ -80,7 +79,7 @@ const SimulationRunDialog = ({ isOpen, onClose, onComplete, onCancel }) => {
                             <span data-testid="bf-sim-status">{status === 'running' ? 'Processing...' : status === 'success' ? 'Complete' : 'Failed'}</span>
                             <span>{Math.round(progress)}%</span>
                         </div>
-                        <Progress value={progress} className={status === 'error' ? "bg-pl-danger-bg" : ""} indicatorClassName={status === 'success' ? "bg-pl-primary" : status === 'error' ? "bg-pl-danger" : "bg-pl-primary"} />
+                        <Progress value={progress} className={status === 'error' ? "bg-pl-danger-bg" : ""} indicatorClassName={status === 'success' ? "bg-pl-success" : status === 'error' ? "bg-pl-danger" : "bg-pl-primary"} />
                     </div>
 
                     {/* Logs */}
@@ -101,7 +100,7 @@ const SimulationRunDialog = ({ isOpen, onClose, onComplete, onCancel }) => {
                         <div className="flex gap-2 w-full justify-end">
                             <Button variant="ghost" onClick={onClose} data-testid="bf-sim-close">Close</Button>
                             {status === 'success' && (
-                                <Button onClick={onClose}  data-testid="bf-sim-view">
+                                <Button onClick={onClose} data-testid="bf-sim-view">
                                     <BarChart2 className="w-4 h-4 mr-2" /> View Results
                                 </Button>
                             )}

@@ -12,8 +12,8 @@ const CompactionModelEditor = ({ layer, onUpdate }) => {
     };
 
     return (
-        <div className="space-y-3 p-3 bg-pl-bg rounded border border-pl-border">
-            <h4 className="text-xs font-semibold text-pl-primary-text uppercase tracking-wider">Compaction Model</h4>
+        <div className="space-y-3 p-3 bg-pl-sunken rounded border border-pl-border">
+            <h4 className="text-xs font-semibold text-pl-muted uppercase tracking-wider">Compaction Model</h4>
             
             <div className="grid grid-cols-2 gap-2">
                 <div className="col-span-2">

@@ -30,7 +30,7 @@ const BasinTemplateStep = () => {
                                 className={cn(
                                     "relative cursor-pointer flex gap-4 p-4 rounded-xl border-2 transition-all duration-200",
                                     isSelected 
-                                        ? "border-pl-primary bg-pl-sunken shadow-lg " 
+                                        ? "border-pl-primary bg-pl-surface shadow-pl-sm"
                                         : "border-pl-border bg-pl-surface hover:border-pl-border-strong hover:bg-pl-sunken"
                                 )}
                             >
@@ -52,7 +52,7 @@ const BasinTemplateStep = () => {
 
                                     <div className="flex flex-wrap gap-2">
                                         {template.useCases.map((useCase, i) => (
-                                            <span key={i} className="px-2 py-0.5 rounded text-[10px] font-medium bg-pl-bg text-pl-muted border border-pl-border">
+                                            <span key={i} className="px-2 py-0.5 rounded text-[10px] font-medium bg-pl-sunken text-pl-muted border border-pl-border">
                                                 {useCase}
                                             </span>
                                         ))}
@@ -78,7 +78,7 @@ const BasinTemplateStep = () => {
                                 <ul className="space-y-2">
                                     {selectedTemplate.dataRequirements.map((req, i) => (
                                         <li key={i} className="flex items-start gap-2 text-xs text-pl-text">
-                                            <Database className="w-3 h-3 mt-0.5 text-pl-info-text" />
+                                            <Database className="w-3 h-3 mt-0.5 text-pl-muted" />
                                             {req}
                                         </li>
                                     ))}

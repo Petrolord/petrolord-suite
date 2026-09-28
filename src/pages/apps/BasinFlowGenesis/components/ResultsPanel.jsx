@@ -50,7 +50,7 @@ const ResultsPanel = () => {
         <div className="h-full flex flex-col bg-pl-bg border-l border-pl-border w-full overflow-hidden">
             <div className="p-2 border-b border-pl-border flex justify-between items-center shrink-0 bg-pl-surface">
                 <div className="flex items-center gap-2 px-2">
-                    <LineChart className="w-4 h-4 text-pl-info-text" />
+                    <LineChart className="w-4 h-4 text-pl-muted" />
                     <h2 className="font-semibold text-pl-text text-sm">Analysis Results</h2>
                 </div>
                 <div className="flex gap-1">
@@ -67,11 +67,11 @@ const ResultsPanel = () => {
                 <div className="px-4 pt-2 bg-pl-surface shrink-0 overflow-x-auto no-scrollbar">
                     <TabsList className="w-full justify-start h-9 bg-transparent border-b border-pl-border rounded-none p-0 gap-4 min-w-max">
                         <TabsTrigger value="summary" data-testid="bf-results-tab-summary" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Summary</TabsTrigger>
-                        <TabsTrigger value="burial" data-testid="bf-results-tab-burial" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-info/40 rounded-none h-full px-1 pb-2">Burial</TabsTrigger>
-                        <TabsTrigger value="temperature" data-testid="bf-results-tab-temperature" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-danger/40 rounded-none h-full px-1 pb-2">Thermal</TabsTrigger>
-                        <TabsTrigger value="maturity" data-testid="bf-results-tab-maturity" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-warning/40 rounded-none h-full px-1 pb-2">Maturity</TabsTrigger>
-                        <TabsTrigger value="generation" data-testid="bf-results-tab-generation" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-success/40 rounded-none h-full px-1 pb-2">Expulsion</TabsTrigger>
-                        <TabsTrigger value="timing" data-testid="bf-results-tab-timing" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-warning/40 rounded-none h-full px-1 pb-2">Timing</TabsTrigger>
+                        <TabsTrigger value="burial" data-testid="bf-results-tab-burial" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Burial</TabsTrigger>
+                        <TabsTrigger value="temperature" data-testid="bf-results-tab-temperature" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Thermal</TabsTrigger>
+                        <TabsTrigger value="maturity" data-testid="bf-results-tab-maturity" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Maturity</TabsTrigger>
+                        <TabsTrigger value="generation" data-testid="bf-results-tab-generation" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Expulsion</TabsTrigger>
+                        <TabsTrigger value="timing" data-testid="bf-results-tab-timing" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Timing</TabsTrigger>
                     </TabsList>
                 </div>
 

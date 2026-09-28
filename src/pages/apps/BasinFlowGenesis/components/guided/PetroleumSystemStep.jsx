@@ -41,12 +41,12 @@ const PetroleumSystemStep = () => {
                     </div>
                     <div className="w-px h-4 bg-pl-border" />
                     <div className="flex items-center gap-2">
-                        <Layers className={`w-4 h-4 ${resCount > 0 ? 'text-pl-info-text' : 'text-pl-muted'}`} />
+                        <Layers className={`w-4 h-4 ${resCount > 0 ? 'text-pl-primary-text' : 'text-pl-muted'}`} />
                         <span>{resCount} Reservoir</span>
                     </div>
                     <div className="w-px h-4 bg-pl-border" />
                     <div className="flex items-center gap-2">
-                        <Shield className={`w-4 h-4 ${sealCount > 0 ? 'text-pl-warning-text' : 'text-pl-muted'}`} />
+                        <Shield className={`w-4 h-4 ${sealCount > 0 ? 'text-pl-primary-text' : 'text-pl-muted'}`} />
                         <span>{sealCount} Seal</span>
                     </div>
                 </div>

@@ -67,9 +67,9 @@ const ExportDialog = ({ isOpen, onClose, chartRefs = [] }) => {
                 </DialogHeader>
 
                 <div className="grid gap-4 py-4">
-                    <div className="flex items-center justify-between p-3 border border-pl-border rounded bg-pl-bg cursor-pointer hover:border-pl-primary/50 transition-colors" onClick={() => setOptions(o => ({...o, pdf: !o.pdf}))}>
+                    <div className="flex items-center justify-between p-3 border border-pl-border rounded bg-pl-surface cursor-pointer hover:border-pl-primary/50 transition-colors" onClick={() => setOptions(o => ({...o, pdf: !o.pdf}))}>
                         <div className="flex items-center gap-3">
-                            <FileText className="w-5 h-5 text-pl-danger-text" />
+                            <FileText className="w-5 h-5 text-pl-muted" />
                             <div className="flex flex-col">
                                 <span className="text-sm font-medium">PDF Report</span>
                                 <span className="text-xs text-pl-muted">Formatted report with plots</span>
@@ -78,9 +78,9 @@ const ExportDialog = ({ isOpen, onClose, chartRefs = [] }) => {
                         <Checkbox checked={options.pdf} onCheckedChange={(c) => setOptions(o => ({...o, pdf: c}))} />
                     </div>
 
-                    <div className="flex items-center justify-between p-3 border border-pl-border rounded bg-pl-bg cursor-pointer hover:border-pl-primary/50 transition-colors" onClick={() => setOptions(o => ({...o, csv: !o.csv}))}>
+                    <div className="flex items-center justify-between p-3 border border-pl-border rounded bg-pl-surface cursor-pointer hover:border-pl-primary/50 transition-colors" onClick={() => setOptions(o => ({...o, csv: !o.csv}))}>
                         <div className="flex items-center gap-3">
-                            <Table className="w-5 h-5 text-pl-success-text" />
+                            <Table className="w-5 h-5 text-pl-muted" />
                             <div className="flex flex-col">
                                 <span className="text-sm font-medium">CSV Data</span>
                                 <span className="text-xs text-pl-muted">Raw simulation time-steps</span>
@@ -89,9 +89,9 @@ const ExportDialog = ({ isOpen, onClose, chartRefs = [] }) => {
                         <Checkbox checked={options.csv} onCheckedChange={(c) => setOptions(o => ({...o, csv: c}))} />
                     </div>
 
-                    <div className="flex items-center justify-between p-3 border border-pl-border rounded bg-pl-bg cursor-pointer hover:border-pl-primary/50 transition-colors" onClick={() => setOptions(o => ({...o, json: !o.json}))}>
+                    <div className="flex items-center justify-between p-3 border border-pl-border rounded bg-pl-surface cursor-pointer hover:border-pl-primary/50 transition-colors" onClick={() => setOptions(o => ({...o, json: !o.json}))}>
                         <div className="flex items-center gap-3">
-                            <FileJson className="w-5 h-5 text-pl-warning-text" />
+                            <FileJson className="w-5 h-5 text-pl-muted" />
                             <div className="flex flex-col">
                                 <span className="text-sm font-medium">JSON Project</span>
                                 <span className="text-xs text-pl-muted">Full project state backup</span>
@@ -110,7 +110,7 @@ const ExportDialog = ({ isOpen, onClose, chartRefs = [] }) => {
 
                 <DialogFooter>
                     <Button variant="ghost" onClick={onClose}>Cancel</Button>
-                    <Button onClick={handleExport} disabled={isExporting} >
+                    <Button onClick={handleExport} disabled={isExporting}>
                         {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                         Download
                     </Button>

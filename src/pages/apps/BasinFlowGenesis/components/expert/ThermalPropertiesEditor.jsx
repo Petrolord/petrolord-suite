@@ -11,8 +11,8 @@ const ThermalPropertiesEditor = ({ layer, onUpdate }) => {
     };
 
     return (
-        <div className="space-y-3 p-3 bg-pl-bg rounded border border-pl-border">
-             <h4 className="text-xs font-semibold text-pl-danger-text uppercase tracking-wider">Thermal Properties</h4>
+        <div className="space-y-3 p-3 bg-pl-sunken rounded border border-pl-border">
+             <h4 className="text-xs font-semibold text-pl-muted uppercase tracking-wider">Thermal Properties</h4>
              
              <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-1">

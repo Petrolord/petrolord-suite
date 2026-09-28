@@ -76,14 +76,14 @@ const BatchProcessor = () => {
                             {mwState.wells.map(well => (
                                 <div 
                                     key={well.id} 
-                                    className={`flex items-center space-x-3 p-3 rounded border transition-colors cursor-pointer ${selectedWells.includes(well.id) ? 'bg-pl-sunken border-pl-primary/50' : 'bg-pl-bg border-pl-border hover:border-pl-border'}`}
+                                    className={`flex items-center space-x-3 p-3 rounded border transition-colors cursor-pointer ${selectedWells.includes(well.id) ? 'bg-pl-sunken border-pl-primary/50' : 'bg-pl-surface border-pl-border hover:border-pl-border-strong'}`}
                                     onClick={() => handleToggleWell(well.id)}
                                 >
                                     <Checkbox checked={selectedWells.includes(well.id)} />
                                     <div className="flex-1">
                                         <div className="text-sm font-medium text-pl-text">{well.name}</div>
                                         <div className="text-xs text-pl-muted flex gap-2">
-                                            <span className={`capitalize ${well.status === 'calibrated' ? 'text-pl-primary-text' : ''}`}>{well.status}</span>
+                                            <span className={`capitalize ${well.status === 'calibrated' ? 'text-pl-success-text' : ''}`}>{well.status}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -123,9 +123,9 @@ const BatchProcessor = () => {
                                 {results.map((res, i) => {
                                     const wellName = mwState.wellDataMap[res.wellId]?.name || 'Unknown Well';
                                     return (
-                                        <div key={i} className="p-3 bg-pl-bg rounded border border-pl-border flex justify-between items-center">
+                                        <div key={i} className="p-3 bg-pl-surface rounded border border-pl-border flex justify-between items-center">
                                             <div className="flex items-center gap-3">
-                                                {res.status === 'success' ? <CheckCircle className="w-5 h-5 text-pl-primary-text"/> : <XCircle className="w-5 h-5 text-pl-danger-text"/>}
+                                                {res.status === 'success' ? <CheckCircle className="w-5 h-5 text-pl-success-text"/> : <XCircle className="w-5 h-5 text-pl-danger-text"/>}
                                                 <div>
                                                     <div className="text-sm font-medium text-pl-text">{wellName}</div>
                                                     {res.status === 'success' ? (
@@ -135,7 +135,7 @@ const BatchProcessor = () => {
                                                     )}
                                                 </div>
                                             </div>
-                                            {res.status === 'success' && <Badge variant="outline" className="border-pl-primary/50 text-pl-primary-text">Success</Badge>}
+                                            {res.status === 'success' && <Badge variant="success">Success</Badge>}
                                         </div>
                                     );
                                 })}

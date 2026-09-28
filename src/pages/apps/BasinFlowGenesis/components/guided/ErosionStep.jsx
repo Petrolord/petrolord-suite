@@ -36,11 +36,11 @@ const ErosionStep = () => {
                             >
                                  <div className="flex justify-between items-center mb-2">
                                     <div className="flex items-center gap-2 font-bold text-pl-text">
-                                        <Mountain className={`w-5 h-5 ${opt.amount > 0 ? 'text-pl-warning-text' : 'text-pl-muted'}`} />
+                                        <Mountain className={`w-5 h-5 ${opt.amount > 0 ? 'text-pl-primary-text' : 'text-pl-muted'}`} />
                                         {opt.name}
                                     </div>
                                     {opt.amount > 0 && (
-                                        <div className="text-sm font-mono text-pl-warning-text font-bold">
+                                        <div className="text-sm font-mono text-pl-text font-bold">
                                             ~{opt.amount}m Removal
                                         </div>
                                     )}

@@ -30,7 +30,7 @@ const GuidedResultsSummaryPanel = ({ results }) => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <Card>
                     <CardContent className="pt-6 flex items-center gap-4">
-                        <div className="p-3 bg-pl-danger-bg rounded-full text-pl-danger-text">
+                        <div className="p-3 bg-pl-sunken rounded-full text-pl-primary-text">
                             <Flame className="w-8 h-8" />
                         </div>
                         <div>
@@ -54,7 +54,7 @@ const GuidedResultsSummaryPanel = ({ results }) => {
 
                 <Card>
                     <CardContent className="pt-6 flex items-center gap-4">
-                        <div className="p-3 bg-pl-info-bg rounded-full text-pl-info-text">
+                        <div className="p-3 bg-pl-sunken rounded-full text-pl-primary-text">
                             <TrendingUp className="w-8 h-8" />
                         </div>
                         <div>
@@ -72,7 +72,7 @@ const GuidedResultsSummaryPanel = ({ results }) => {
                         {sourceLayers.length > 0 ? (
                             sourceLayers.map((layer, i) => (
                                 <div key={i} className="flex items-start gap-3 pb-4 border-b border-pl-border last:border-0 last:pb-0">
-                                    <CheckCircle2 className="w-5 h-5 text-pl-primary-text mt-0.5" />
+                                    <CheckCircle2 className="w-5 h-5 text-pl-success-text mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-bold text-pl-text">{layer.name} - Working Source</h4>
                                         <p className="text-sm text-pl-muted mt-1">

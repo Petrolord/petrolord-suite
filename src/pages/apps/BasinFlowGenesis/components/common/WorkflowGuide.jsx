@@ -33,11 +33,11 @@ const WorkflowGuide = ({ steps, currentStep, onStepClick, validationState = {} }
                             <div className={cn(
                                 "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 z-10 transition-all duration-300 border-2",
                                 isActive 
-                                    ? "bg-pl-primary border-pl-primary text-pl-text ring-4 ring-pl-primary/50 shadow-lg " 
+                                    ? "bg-pl-primary border-pl-primary text-pl-primary-fg ring-4 ring-pl-primary/20"
                                     : isCompleted 
-                                        ? "bg-pl-sunken border-pl-primary text-pl-primary-text"
+                                        ? "bg-pl-success-bg border-pl-success text-pl-success-text"
                                         : "bg-pl-surface border-pl-border text-pl-muted",
-                                hasError && !isActive && "border-pl-danger/40 text-pl-danger-text bg-pl-danger-bg"
+                                hasError && !isActive && "border-pl-danger text-pl-danger-text bg-pl-danger-bg"
                             )}>
                                 {isCompleted && !hasError ? <CheckCircle2 className="w-4 h-4" /> : 
                                  hasError ? <AlertCircle className="w-4 h-4" /> : 
@@ -48,7 +48,7 @@ const WorkflowGuide = ({ steps, currentStep, onStepClick, validationState = {} }
                             <div className="pt-0.5">
                                 <h4 className={cn(
                                     "text-sm font-medium transition-colors",
-                                    isActive ? "text-pl-text" : isCompleted ? "text-pl-primary-text" : "text-pl-muted",
+                                    isActive ? "text-pl-text" : isCompleted ? "text-pl-success-text" : "text-pl-muted",
                                     hasError && "text-pl-danger-text"
                                 )}>
                                     {step.title}

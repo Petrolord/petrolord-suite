@@ -213,7 +213,7 @@ const CalibrationView = () => {
                         <div className="space-y-2">
                             <div className="flex justify-between">
                                 <Label className="text-xs text-pl-muted">Basal Heat Flow (mW/m²)</Label>
-                                <span className="text-xs font-mono text-pl-primary-text">{presentDayHeatFlow(state.heatFlow).toFixed(0)}</span>
+                                <span className="text-xs font-mono text-pl-text">{presentDayHeatFlow(state.heatFlow).toFixed(0)}</span>
                             </div>
                             <Slider
                                 value={[presentDayHeatFlow(state.heatFlow) || 60]}
@@ -247,27 +247,27 @@ const CalibrationView = () => {
                 <Card>
                     <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Misfit Statistics</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
-                        <div className="flex justify-between items-center p-2 bg-pl-bg rounded border border-pl-border">
+                        <div className="flex justify-between items-center p-2 bg-pl-sunken rounded border border-pl-border">
                             <span className="text-xs text-pl-muted">Ro RMS Error</span>
-                            <span className={`font-mono text-sm ${stats.roRMS < 0.2 ? 'text-pl-primary-text' : 'text-pl-warning-text'}`} data-testid="bf-cal-ro-rms">
+                            <span className={`font-mono text-sm ${stats.roRMS < 0.2 ? 'text-pl-success-text' : 'text-pl-warning-text'}`} data-testid="bf-cal-ro-rms">
                                 {safeFixed(stats.roRMS, 3)} %
                             </span>
                         </div>
-                        <div className="flex justify-between items-center p-2 bg-pl-bg rounded border border-pl-border">
+                        <div className="flex justify-between items-center p-2 bg-pl-sunken rounded border border-pl-border">
                             <span className="text-xs text-pl-muted">Temp RMS Error</span>
-                             <span className={`font-mono text-sm ${stats.tempRMS < 5 ? 'text-pl-primary-text' : 'text-pl-warning-text'}`} data-testid="bf-cal-temp-rms">
+                             <span className={`font-mono text-sm ${stats.tempRMS < 5 ? 'text-pl-success-text' : 'text-pl-warning-text'}`} data-testid="bf-cal-temp-rms">
                                 {safeFixed(tempDeltaToDisplay(stats.tempRMS, tU), 1)} {tempSymbol(tU)}
                             </span>
                         </div>
-                         <div className="flex justify-between items-center p-2 bg-pl-bg rounded border border-pl-border">
+                         <div className="flex justify-between items-center p-2 bg-pl-sunken rounded border border-pl-border">
                             <span className="text-xs text-pl-muted">Ro R²</span>
-                            <span className="font-mono text-sm text-pl-info-text">{safeFixed(stats.roR2, 3)}</span>
+                            <span className="font-mono text-sm text-pl-text">{safeFixed(stats.roR2, 3)}</span>
                         </div>
                     </CardContent>
                 </Card>
 
                 <div className="grid grid-cols-2 gap-2">
-                    <Button  size="sm" onClick={handleSaveCalibration}>
+                    <Button size="sm" onClick={handleSaveCalibration}>
                         <Save className="w-3 h-3 mr-2" /> Save
                     </Button>
                     <Button variant="outline" size="sm" onClick={exportToCSV} title="Export CSV">

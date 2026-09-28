@@ -16,6 +16,7 @@ import { ValidationEngine } from '../services/ValidationEngine';
 import SimulationRunDialog from './common/SimulationRunDialog';
 import ResultsDashboard from './ResultsDashboard';
 import UnitsBar from './common/UnitsBar';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Link } from 'react-router-dom';
 import { useBasinFlow } from '../contexts/BasinFlowContext';
 import { appPath } from '@/components/wells/appLinks';
@@ -89,9 +90,10 @@ const GuidedModeWizard = () => {
              {/* Help Button Floating or Fixed */}
             <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
                 <UnitsBar />
-                <Link to={helpHref} data-testid="bf-wizard-help" title="Open the help guide" className="text-pl-muted hover:text-pl-text bg-pl-surface">
+                <Link to={helpHref} data-testid="bf-wizard-help" title="Open the help guide" className="text-pl-muted hover:text-pl-text">
                     <HelpCircle className="w-5 h-5" />
                 </Link>
+                <ThemeToggle className="h-8 w-8" />
             </div>
 
             {/* Sidebar */}

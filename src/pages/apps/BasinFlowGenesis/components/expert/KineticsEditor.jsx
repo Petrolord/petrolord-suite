@@ -1,4 +1,5 @@
 import React from 'react';
+import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
@@ -12,7 +13,7 @@ const KineticsEditor = ({ layer, onUpdate }) => {
 
     if (!params.isSource) {
         return (
-             <div className="p-3 bg-pl-bg rounded border border-pl-border text-center">
+             <div className="p-3 bg-pl-sunken rounded border border-pl-border text-center">
                 <p className="text-xs text-pl-muted mb-2">Not a source rock.</p>
                 <button 
                     onClick={() => handleChange('isSource', true)}
@@ -25,9 +26,9 @@ const KineticsEditor = ({ layer, onUpdate }) => {
     }
 
     return (
-        <div className="space-y-3 p-3 bg-pl-bg rounded border border-pl-border">
+        <div className="space-y-3 p-3 bg-pl-sunken rounded border border-pl-border">
             <div className="flex justify-between items-center">
-                <h4 className="text-xs font-semibold text-pl-success-text uppercase tracking-wider">Kinetics & Richness</h4>
+                <h4 className="text-xs font-semibold text-pl-muted uppercase tracking-wider">Kinetics & Richness</h4>
                 <button 
                     onClick={() => handleChange('isSource', false)}
                     className="text-[10px] text-pl-muted hover:text-pl-danger-text"
@@ -56,7 +57,7 @@ const KineticsEditor = ({ layer, onUpdate }) => {
                             type="number" step="0.1"
                             value={params.toc}
                             onChange={(e) => handleChange('toc', parseFloat(e.target.value))}
-                            className="w-full h-7 bg-pl-surface border border-pl-border rounded px-2 text-xs"
+                            className={`${COMPACT_FIELD_THEMED} h-7`}
                         />
                     </div>
                     <div>
@@ -65,13 +66,13 @@ const KineticsEditor = ({ layer, onUpdate }) => {
                             type="number" step="10"
                             value={params.hi}
                             onChange={(e) => handleChange('hi', parseFloat(e.target.value))}
-                            className="w-full h-7 bg-pl-surface border border-pl-border rounded px-2 text-xs"
+                            className={`${COMPACT_FIELD_THEMED} h-7`}
                         />
                     </div>
                 </div>
             </div>
             
-            <div className="text-[10px] text-pl-muted italic bg-pl-surface p-1 rounded">
+            <div className="text-[10px] text-pl-muted italic bg-pl-sunken p-1 rounded">
                 Using Pepper & Corvi (1995) standard kinetics for {params.kerogen}.
             </div>
         </div>

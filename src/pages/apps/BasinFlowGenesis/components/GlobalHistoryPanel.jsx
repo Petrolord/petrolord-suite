@@ -24,7 +24,7 @@ const GlobalHistoryPanel = () => {
         <Card className="h-full border-l rounded-none w-full max-w-sm">
             <CardHeader className="border-b border-pl-border py-3">
                 <CardTitle className="text-sm flex items-center gap-2">
-                    <History className="w-4 h-4 text-pl-primary-text" />
+                    <History className="w-4 h-4 text-pl-muted" />
                     Global History
                 </CardTitle>
             </CardHeader>
@@ -34,7 +34,7 @@ const GlobalHistoryPanel = () => {
                         <TabsTrigger value="thermal" data-testid="bf-history-tab-thermal" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-3">
                             <Thermometer className="w-3 h-3 mr-1" /> Thermal
                         </TabsTrigger>
-                        <TabsTrigger value="erosion" data-testid="bf-history-tab-erosion" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-warning/40 rounded-none h-full px-3">
+                        <TabsTrigger value="erosion" data-testid="bf-history-tab-erosion" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-3">
                             <TrendingUp className="w-3 h-3 mr-1" /> Erosion{erosionEvents?.length ? ` (${erosionEvents.length})` : ''}
                         </TabsTrigger>
                     </TabsList>

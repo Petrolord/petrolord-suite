@@ -42,7 +42,7 @@ const ReviewAndRunStep = () => {
                     <Card>
                         <CardHeader className="pb-2">
                             <CardTitle className="text-base flex items-center gap-2">
-                                {stratValidation.isValid ? <Check className="w-4 h-4 text-pl-primary-text" /> : <AlertTriangle className="w-4 h-4 text-pl-warning-text" />}
+                                {stratValidation.isValid ? <Check className="w-4 h-4 text-pl-success-text" /> : <AlertTriangle className="w-4 h-4 text-pl-warning-text" />}
                                 Stratigraphy
                             </CardTitle>
                         </CardHeader>
@@ -60,7 +60,7 @@ const ReviewAndRunStep = () => {
                     <Card>
                         <CardHeader className="pb-2">
                             <CardTitle className="text-base flex items-center gap-2">
-                                {psValidation.isValid && psValidation.warnings.length === 0 ? <Check className="w-4 h-4 text-pl-primary-text" /> : <AlertTriangle className="w-4 h-4 text-pl-warning-text" />}
+                                {psValidation.isValid && psValidation.warnings.length === 0 ? <Check className="w-4 h-4 text-pl-success-text" /> : <AlertTriangle className="w-4 h-4 text-pl-warning-text" />}
                                 Petroleum System Elements
                             </CardTitle>
                         </CardHeader>
@@ -76,7 +76,7 @@ const ReviewAndRunStep = () => {
                     <Card>
                         <CardHeader className="pb-2">
                             <CardTitle className="text-base flex items-center gap-2">
-                                {hfValidation.isValid ? <Check className="w-4 h-4 text-pl-primary-text" /> : <AlertTriangle className="w-4 h-4 text-pl-warning-text" />}
+                                {hfValidation.isValid ? <Check className="w-4 h-4 text-pl-success-text" /> : <AlertTriangle className="w-4 h-4 text-pl-warning-text" />}
                                 Thermal Boundary Conditions
                             </CardTitle>
                         </CardHeader>

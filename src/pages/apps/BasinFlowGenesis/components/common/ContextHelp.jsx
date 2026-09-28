@@ -27,7 +27,7 @@ export const ContextHelp = ({ content, title }) => {
                         <HelpCircle className="w-3.5 h-3.5 text-pl-muted" />
                     </span>
                 </TooltipTrigger>
-                <TooltipContent className="max-w-xs bg-pl-surface border-pl-border text-pl-text text-xs p-3 shadow-xl">
+                <TooltipContent className="max-w-xs text-xs p-3">
                     {title && <div className="font-semibold text-pl-text mb-1">{title}</div>}
                     <p>{content}</p>
                 </TooltipContent>

@@ -42,7 +42,7 @@ const TemplateLibrary = () => {
             <div className="max-w-5xl mx-auto">
                 <div className="mb-8">
                     <h2 className="text-2xl font-bold text-pl-text flex items-center gap-2">
-                        <BookOpen className="w-6 h-6 text-pl-primary-text" /> Template Library
+                        <BookOpen className="w-6 h-6 text-pl-muted" /> Template Library
                     </h2>
                     <p className="text-pl-muted">Standard basin configurations to jumpstart your modeling.</p>
                 </div>
@@ -62,13 +62,14 @@ const TemplateLibrary = () => {
                                 </p>
                                 <div className="flex flex-wrap gap-2 mb-6">
                                     {t.useCases.slice(0,2).map((u, i) => (
-                                        <span key={i} className="text-[10px] bg-pl-bg px-2 py-1 rounded text-pl-muted border border-pl-border">
+                                        <span key={i} className="text-[10px] bg-pl-sunken px-2 py-1 rounded text-pl-muted border border-pl-border">
                                             {u}
                                         </span>
                                     ))}
                                 </div>
                                 <Button 
-                                    className="w-full bg-pl-sunken hover:text-pl-text text-pl-text transition-all"
+                                    variant="outline"
+                                    className="w-full transition-all"
                                     onClick={() => handleApplyTemplate(t)}
                                 >
                                     Use Template <ArrowRight className="w-4 h-4 ml-2" />

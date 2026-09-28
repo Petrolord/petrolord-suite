@@ -120,13 +120,13 @@ const SensitivityAnalysisView = () => {
     return (
         <div className="h-full grid grid-cols-12 gap-4 p-4 overflow-y-auto">
             <div className="col-span-12 lg:col-span-3 space-y-4">
-                <Card className="bg-slate-900 border-slate-800">
-                    <CardHeader><CardTitle className="text-white text-sm">Analysis Config</CardTitle></CardHeader>
+                <Card>
+                    <CardHeader><CardTitle className="text-pl-text text-sm">Analysis Config</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
-                            <Label className="text-xs text-slate-400">Target Parameter</Label>
+                            <Label className="text-xs text-pl-muted">Target Parameter</Label>
                             <Select value={parameter} onValueChange={handleParameterChange}>
-                                <SelectTrigger className="bg-slate-950 border-slate-800 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="heatFlow">Heat Flow (mW/m²)</SelectItem>
                                     <SelectItem value="erosion">Erosion Amount (m)</SelectItem>
@@ -137,22 +137,22 @@ const SensitivityAnalysisView = () => {
 
                         <div className="grid grid-cols-2 gap-2">
                             <div>
-                                <Label className="text-xs text-slate-400">Min</Label>
-                                <Input type="number" value={range.min} onChange={e => setRange({...range, min: +e.target.value})} className="bg-slate-950 border-slate-800 h-8 text-xs" />
+                                <Label className="text-xs text-pl-muted">Min</Label>
+                                <Input type="number" value={range.min} onChange={e => setRange({...range, min: +e.target.value})} className="h-8 text-xs" />
                             </div>
                             <div>
-                                <Label className="text-xs text-slate-400">Max</Label>
-                                <Input type="number" value={range.max} onChange={e => setRange({...range, max: +e.target.value})} className="bg-slate-950 border-slate-800 h-8 text-xs" />
+                                <Label className="text-xs text-pl-muted">Max</Label>
+                                <Input type="number" value={range.max} onChange={e => setRange({...range, max: +e.target.value})} className="h-8 text-xs" />
                             </div>
                         </div>
 
                         <div>
-                             <Label className="text-xs text-slate-400">Steps</Label>
-                             <Input type="number" value={range.steps} onChange={e => setRange({...range, steps: Math.max(2, +e.target.value)})} className="bg-slate-950 border-slate-800 h-8 text-xs" />
+                             <Label className="text-xs text-pl-muted">Steps</Label>
+                             <Input type="number" value={range.steps} onChange={e => setRange({...range, steps: Math.max(2, +e.target.value)})} className="h-8 text-xs" />
                         </div>
 
                         <Button
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                            className="w-full"
                             onClick={handleRun}
                             disabled={isRunning}
                         >
@@ -164,7 +164,7 @@ const SensitivityAnalysisView = () => {
             </div>
 
             <div className="col-span-12 lg:col-span-9">
-                 <Card className="bg-white border-slate-300 h-full min-h-[400px]">
+                 <Card className="bg-white border-slate-300 h-full min-h-[400px]" data-canvas="chart">
                     <CardContent className="p-4 h-full flex flex-col relative">
                         <h3 className="text-center text-sm font-semibold mb-4" style={{ color: CHART_COLORS.axisLabel }}>Parameter Sensitivity: Max Final %Ro</h3>
                         {results ? (

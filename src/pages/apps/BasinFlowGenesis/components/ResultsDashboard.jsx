@@ -29,7 +29,7 @@ const ResultsDashboard = ({ onBack }) => {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button  size="sm" data-testid="bf-dashboard-export" onClick={() => setExportOpen(true)}>
+                    <Button size="sm" data-testid="bf-dashboard-export" onClick={() => setExportOpen(true)}>
                         <Download className="w-4 h-4 mr-2" /> Export
                     </Button>
                 </div>
@@ -39,7 +39,7 @@ const ResultsDashboard = ({ onBack }) => {
             <div className="flex-1 overflow-hidden">
                 <Tabs defaultValue="summary" className="h-full flex flex-col">
                     <div className="px-6 pt-4 bg-pl-surface border-b border-pl-border shrink-0">
-                        <TabsList className="bg-pl-bg border border-pl-border">
+                        <TabsList>
                             <TabsTrigger value="summary">Dashboard</TabsTrigger>
                             <TabsTrigger value="detailed">Detailed Plots</TabsTrigger>
                         </TabsList>

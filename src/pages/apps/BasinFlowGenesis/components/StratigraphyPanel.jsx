@@ -144,10 +144,10 @@ const StratigraphyPanel = () => {
         <div className="h-full flex flex-col bg-pl-bg border-r border-pl-border w-full max-w-md">
             <div className="p-4 border-b border-pl-border flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                    <Layers className="w-5 h-5 text-pl-info-text" />
+                    <Layers className="w-5 h-5 text-pl-muted" />
                     <h2 className="font-semibold text-pl-text">Stratigraphy</h2>
                 </div>
-                <Button size="sm" onClick={() => dispatch({ type: 'ADD_LAYER' })} >
+                <Button size="sm" onClick={() => dispatch({ type: 'ADD_LAYER' })}>
                     <Plus className="w-4 h-4 mr-2" /> Add Layer
                 </Button>
             </div>

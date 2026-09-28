@@ -75,7 +75,7 @@ const ScenarioComparisonView = () => {
                     <ScrollArea className="flex-1 px-4">
                         <div className="space-y-2 pb-4">
                             {scenarios.map(s => (
-                                <div key={s.id} className={`p-3 rounded border ${s.id === activeScenarioId ? 'bg-pl-sunken border-pl-primary/50' : 'bg-pl-bg border-pl-border'} cursor-pointer hover:bg-pl-sunken transition-colors group`}>
+                                <div key={s.id} className={`p-3 rounded border ${s.id === activeScenarioId ? 'bg-pl-sunken border-pl-primary' : 'bg-pl-surface border-pl-border'} cursor-pointer hover:bg-pl-sunken transition-colors group`}>
                                     <div className="flex justify-between items-start">
                                         <div onClick={() => dispatch({type: 'LOAD_SCENARIO', id: s.id})} className="flex-1">
                                             <h4 className="text-sm font-medium text-pl-text group-hover:text-pl-primary-text">{s.name}</h4>
@@ -137,11 +137,11 @@ const ScenarioComparisonView = () => {
                              const baseline = comparisonData[0];
                              const diffRo = baseline.maxRo > 0 ? ((d.maxRo - baseline.maxRo) / baseline.maxRo) * 100 : 0;
                              return (
-                                 <div key={d.id} className="p-3 bg-pl-bg rounded border border-pl-border">
+                                 <div key={d.id} className="p-3 bg-pl-sunken rounded border border-pl-border">
                                      <div className="text-xs font-bold text-pl-text mb-1">{d.name} vs {baseline.name}</div>
                                      <div className="flex justify-between items-end">
                                         <span className="text-[10px] text-pl-muted">Max Maturity</span>
-                                        <span className={`text-sm font-mono font-bold ${diffRo > 0 ? 'text-pl-danger-text' : 'text-pl-info-text'}`}>
+                                        <span className="text-sm font-mono font-bold text-pl-text">
                                             {diffRo > 0 ? '+' : ''}{safeFixed(diffRo, 1)}%
                                         </span>
                                      </div>

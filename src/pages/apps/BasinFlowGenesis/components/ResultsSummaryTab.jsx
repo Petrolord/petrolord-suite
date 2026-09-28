@@ -50,7 +50,7 @@ const ResultsSummaryTab = ({ results, units = { depth: 'm', temp: 'C' } }) => {
                             </div>
                         </div>
                          <div className="flex items-start gap-3">
-                            <div className="p-1.5 rounded-full bg-pl-danger-bg text-pl-danger-text">
+                            <div className="p-1.5 rounded-full bg-pl-sunken text-pl-muted">
                                 <Flame className="w-4 h-4" />
                             </div>
                             <div>
