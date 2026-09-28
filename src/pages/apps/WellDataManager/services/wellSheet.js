@@ -28,7 +28,6 @@ const LATIN1_SWAPS = [
 export function latin1(value) {
   let s = String(value ?? '');
   for (const [re, to] of LATIN1_SWAPS) s = s.replace(re, to);
-  // eslint-disable-next-line no-control-regex
   return s.replace(/[^\u0000-ÿ]/g, '?');
 }
 
