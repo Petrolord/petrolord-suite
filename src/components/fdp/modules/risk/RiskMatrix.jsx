@@ -33,7 +33,7 @@ const RiskMatrix = ({ risks }) => {
 
     return (
         <ChartPanel title="Risk Heat Map" bodyClassName="overflow-x-auto">
-            <div className="mx-auto w-max p-2 pl-14">
+            <div className="mx-auto min-w-max w-fit p-2 pl-14">
                 <div className="relative">
                     {/* Y Axis Label */}
                     <div className="absolute -left-12 top-1/2 -translate-y-1/2 -rotate-90 text-xs font-bold text-pl-muted uppercase tracking-widest">
@@ -56,7 +56,7 @@ const RiskMatrix = ({ risks }) => {
                                         {row.map((count, cIdx) => (
                                             <div 
                                                 key={cIdx} 
-                                                className="w-24 h-16 rounded flex items-center justify-center font-bold text-lg shadow-sm transition cursor-pointer hover:brightness-110"
+                                                className="w-16 sm:w-24 h-16 rounded flex items-center justify-center font-bold text-lg shadow-sm transition cursor-pointer hover:brightness-110"
                                                 style={getCellStyle(rIdx, cIdx)}
                                                 title={`${probabilities[rIdx]} / ${impacts[cIdx]}`}
                                             >
@@ -70,7 +70,7 @@ const RiskMatrix = ({ risks }) => {
                             {/* X Axis Ticks */}
                             <div className="grid grid-cols-5 gap-1 text-center pt-2">
                                 {impacts.map(i => (
-                                    <div key={i} className="text-xs text-pl-muted font-medium w-24">{i}</div>
+                                    <div key={i} className="text-xs text-pl-muted font-medium w-16 sm:w-24">{i}</div>
                                 ))}
                             </div>
                         </div>
