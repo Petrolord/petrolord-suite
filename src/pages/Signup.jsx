@@ -181,8 +181,7 @@ const Signup = () => {
       toast({
         title: "Account Created Successfully!",
         description: "We've sent a confirmation email to verify your account.",
-        duration: 6000,
-        className: "bg-green-600 border-green-700 text-white"
+        duration: 6000
       });
       
       // Redirect to confirmation page instead of login

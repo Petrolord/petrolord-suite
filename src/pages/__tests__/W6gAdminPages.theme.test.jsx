@@ -9,7 +9,7 @@
  */
 import '@testing-library/jest-dom';
 import React from 'react';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 jest.mock('@/lib/customSupabaseClient', () => {
@@ -239,6 +239,14 @@ describe('W6G pages, dialogs, panels and states', () => {
     const sheet = await screen.findByRole('dialog');
     inScope(sheet);
     expectNoLegacyChrome();
+    // W7F: the phone menu used to open empty. Negative control: on the old
+    // AdminCenter the sheet holds no menu buttons.
+    for (const label of ['App Registry', 'Build History', 'Seed Tools', 'Access Diagnostics']) {
+      expect(within(sheet).getByRole('button', { name: label })).toBeInTheDocument();
+    }
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Build History' }));
+    await screen.findByText('Track creation, updates, fixes, and testing of applications.');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('master apps viewer shows access and orphan status as words', async () => {

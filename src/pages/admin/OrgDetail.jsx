@@ -42,6 +42,12 @@ const OrgDetailPage = () => {
       
       if (orgError) throw orgError;
       
+      // W7F: keep every subscriptions row for the Subscription tab, which
+      // lists them; the other tabs read the first one below.
+      orgData.subscriptionRows = Array.isArray(orgData.subscription)
+        ? orgData.subscription
+        : orgData.subscription ? [orgData.subscription] : [];
+
       // Flatten subscription if it comes as an array or just attach it
       if (orgData.subscription && Array.isArray(orgData.subscription)) {
           orgData.subscription = orgData.subscription[0] || {};
@@ -173,7 +179,7 @@ const OrgDetailPage = () => {
                     
                     <TabsContent value="subscription" className="mt-0 focus-visible:outline-none">
                         <Card className={tabCard}>
-                            <OrgSubscription />
+                            <OrgSubscription memberCount={members.length} />
                         </Card>
                     </TabsContent>
                     

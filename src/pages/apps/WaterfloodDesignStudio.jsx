@@ -31,7 +31,6 @@ import SurveillanceResults from '@/components/waterflooddesign/SurveillanceResul
 import ScenarioCompare from '@/components/waterflooddesign/ScenarioCompare';
 import DiagnosticsRail from '@/components/waterflooddesign/DiagnosticsRail';
 import WDSHelpContent from '@/components/waterflooddesign/WDSHelpContent';
-import { SectionLabel } from '@/components/waterflooddesign/primitives';
 import { mapScalKrIntake } from '@/components/waterflooddesign/scalKrIntake';
 
 // Design system rollout batch 1D (docs/scope/DesignSystem-Rollout.md): the
@@ -97,7 +96,6 @@ const WaterfloodDesignContent = () => {
   const leftPanel = (
     <div className="space-y-6">
       <section>
-        <SectionLabel>Project</SectionLabel>
         <StudioProjectManager
           projects={projects}
           currentProjectId={currentProjectId}

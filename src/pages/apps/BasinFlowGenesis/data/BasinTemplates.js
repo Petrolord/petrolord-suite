@@ -1,3 +1,5 @@
+// Stratigraphy is listed youngest first. Every layer has positive
+// thickness: the validators reject a zero-thickness layer.
 export const BasinTemplates = [
     {
         id: 'passive_margin',
@@ -11,8 +13,11 @@ export const BasinTemplates = [
             { name: 'Late Drift', thickness: 1500, lithology: 'shale', ageStart: 50, ageEnd: 5 },
             { name: 'Early Drift (Reservoir)', thickness: 800, lithology: 'sandstone', ageStart: 80, ageEnd: 50 },
             { name: 'Post-Rift Seal', thickness: 400, lithology: 'salt', ageStart: 90, ageEnd: 80 },
-            { name: 'Syn-Rift Source', thickness: 600, lithology: 'shale', ageStart: 120, ageEnd: 90, sourceRock: { isSource: true, toc: 4.0, kerogen: 'Type II', hi: 450 } },
-            { name: 'Basement', thickness: 0, lithology: 'granite', ageStart: 200, ageEnd: 120 }
+            { name: 'Syn-Rift Source', thickness: 600, lithology: 'shale', ageStart: 120, ageEnd: 90, sourceRock: { isSource: true, toc: 4.0, kerogen: 'Type II', hi: 450 } }
+            // W7F: a 'Basement' row of zero thickness sat here. Every layer
+            // must have positive thickness to pass validation, so the template
+            // could never run. Basement is the model's lower boundary, not a
+            // deposited layer, and the engine takes it from the heat flow.
         ]
     },
     {
@@ -41,8 +46,9 @@ export const BasinTemplates = [
             { name: 'Post-Rift Sag', thickness: 1200, lithology: 'sandstone', ageStart: 20, ageEnd: 0 },
             { name: 'Regional Seal', thickness: 500, lithology: 'shale', ageStart: 35, ageEnd: 20 },
             { name: 'Syn-Rift Fill', thickness: 2000, lithology: 'sandstone', ageStart: 55, ageEnd: 35 },
-            { name: 'Lacustrine Source', thickness: 400, lithology: 'shale', ageStart: 65, ageEnd: 55, sourceRock: { isSource: true, toc: 5.0, kerogen: 'Type I', hi: 600 } },
-            { name: 'Pre-Rift Basement', thickness: 0, lithology: 'granite', ageStart: 300, ageEnd: 65 }
+            { name: 'Lacustrine Source', thickness: 400, lithology: 'shale', ageStart: 65, ageEnd: 55, sourceRock: { isSource: true, toc: 5.0, kerogen: 'Type I', hi: 600 } }
+            // W7F: the zero-thickness 'Pre-Rift Basement' row was removed for
+            // the same reason as in the Passive Margin template.
         ]
     }
 ];

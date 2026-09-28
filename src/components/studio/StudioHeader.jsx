@@ -41,7 +41,7 @@ const StudioHeader = ({
 
       {/* A floor under the title block (icon + 6rem of title) so a long tab
           row can never draw over it; the tab row scrolls instead. */}
-      <div className={ds ? 'flex shrink-0 items-center gap-2 sm:min-w-[8.5rem]' : 'flex min-w-[8.5rem] items-center gap-2'}>
+      <div className={ds ? 'flex min-w-0 items-center gap-2 sm:min-w-[8.5rem]' : 'flex min-w-[8.5rem] items-center gap-2'}>
         {Icon && (
           <div className={ds ? 'shrink-0 bg-pl-primary text-pl-primary-fg p-1.5 rounded-md' : cn('shrink-0 bg-gradient-to-br p-1.5 rounded-md shadow-lg shadow-blue-900/20', iconGradientClass)}>
             <Icon size={18} className={ds ? 'text-pl-primary-fg' : 'text-white'} />
@@ -54,11 +54,15 @@ const StudioHeader = ({
 
       {tabs.length > 0 && (
         <>
-          {/* Themed: the tab row is the one item here that may shrink, so a
-              long row scrolls inside its list and the toggle stays on screen
-              (rollout batch 1D; a factor below 1 shrank it only in part). */}
+          {/* Themed: a long tab row scrolls inside its list and the toggle
+              stays on screen (rollout batch 1D). W7F: the title used to be
+              shrink-0 while the tabs took all the shrinking, so at 1440 px
+              Waterflood's last tab read "Surveillanc" beside a full title.
+              The title now gives way first, down to its 8.5rem floor (the
+              h1 truncates, its full name is the tooltip); only then does the
+              tab row shrink and scroll. */}
           <div className={ds ? 'hidden sm:block h-6 w-[1px] shrink-0 bg-pl-border mx-2' : 'h-6 w-[1px] shrink-0 bg-slate-700 mx-2'}></div>
-          <Tabs value={activeTab} onValueChange={onTabChange} className={ds ? 'h-8 min-w-0 flex-1 sm:flex-initial sm:shrink' : 'h-8 min-w-0 shrink-[0.001]'}>
+          <Tabs value={activeTab} onValueChange={onTabChange} className={ds ? 'h-8 min-w-0 flex-1 sm:flex-initial sm:shrink-[0.001]' : 'h-8 min-w-0 shrink-[0.001]'}>
             <TabsList className={ds ? 'h-8 max-w-full justify-start overflow-x-auto p-0.5' : 'h-8 max-w-full justify-start overflow-x-auto bg-slate-800/50 border border-slate-700 p-0.5'}>
               {tabs.map((t) => (
                 <TabsTrigger key={t.value} value={t.value} className={ds ? 'h-7 text-xs px-2 2xl:px-3' : 'h-7 text-xs px-2 2xl:px-3 data-[state=active]:bg-slate-700'}>

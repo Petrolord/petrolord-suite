@@ -133,8 +133,7 @@ const OrgSendQuotePage = () => {
 
         toast({ 
             title: "Quote Sent!", 
-            description: `Quote for ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(pricing.total)} has been sent to ${org.contact_email}.`,
-            className: "bg-green-600 text-white"
+            description: `Quote for ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(pricing.total)} has been sent to ${org.contact_email}.`
         });
         
         navigate(`/admin/organizations/${orgId}`);

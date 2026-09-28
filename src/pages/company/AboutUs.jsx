@@ -70,7 +70,7 @@ import React from 'react';
               >
                 <h2 className="font-pl-display text-4xl font-semibold text-center text-pl-text mb-8 flex items-center justify-center"><Building className="mr-3 h-10 w-10 text-pl-primary-text" aria-hidden="true" /> Our Story</h2>
                 <p className="text-pl-text text-lg max-w-4xl mx-auto leading-relaxed text-center">
-                  Founded by Lordsway Energy, Petrolord was born from a deep understanding of the challenges and opportunities within the energy sector. We saw brilliant engineers and geoscientists hampered by fragmented software and disconnected data. Our journey began with a simple question: "What if we could build a single, cohesive platform that connects every discipline?" Today, Petrolord is the answer—a comprehensive suite of applications designed by industry experts, for industry experts.
+                  Founded by Lordsway Energy, Petrolord was born from a deep understanding of the challenges and opportunities within the energy sector. We saw brilliant engineers and geoscientists hampered by fragmented software and disconnected data. Our journey began with a simple question: "What if we could build a single, cohesive platform that connects every discipline?" Today, Petrolord is the answer: a comprehensive suite of applications designed by industry experts, for industry experts.
                 </p>
               </motion.div>
             </div>

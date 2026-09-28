@@ -31,7 +31,8 @@ const AdminSeedApps = lazy(() => import('@/pages/admin/AdminSeedApps').then((m) 
 // To save space, assuming they are imported as in previous state
 
 const AdminCenter = () => {
-    const [activeTab, setActiveTab] = useState('master-registry'); 
+    const [activeTab, setActiveTab] = useState('master-registry');
+    const [menuOpen, setMenuOpen] = useState(false);
 
     const renderContent = () => {
         switch (activeTab) {
@@ -41,8 +42,6 @@ const AdminCenter = () => {
             case 'seed-apps': return <AdminSeedApps />;
             case 'module-diagnostics': return <AdminModuleAccessDiagnostics />;
 
-            // ... [Rest of the existing switch cases] ...
-            
             default: return <MasterAppsManager />; // Default to registry
         }
     };
@@ -51,7 +50,8 @@ const AdminCenter = () => {
         <Button 
             variant={activeTab === id ? 'secondary' : 'ghost'} 
             className="w-full justify-start text-xs h-8" 
-            onClick={() => setActiveTab(id)}
+            aria-current={activeTab === id ? 'page' : undefined}
+            onClick={() => { setActiveTab(id); setMenuOpen(false); }}
         >
             {Icon && <Icon className="w-3 h-3 mr-2" />} {label}
         </Button>
@@ -66,12 +66,26 @@ const AdminCenter = () => {
         </div>
     );
 
+    // W7F: one menu for both layouts. The phone sheet used to hold a
+    // "Replicated nav" placeholder and nothing else, so at phone width the
+    // Admin centre menu opened empty. The "Mobile Suite / Optimization
+    // Score" entry had no panel behind it (it fell through to App Registry)
+    // and is dropped.
+    const nav = (
+        <NavSection title="System Tools">
+            <NavButton id="master-registry" label="App Registry" icon={AppWindow} />
+            <NavButton id="build-history" label="Build History" icon={History} />
+            <NavButton id="seed-apps" label="Seed Tools" icon={Database} />
+            <NavButton id="module-diagnostics" label="Access Diagnostics" icon={Wrench} />
+        </NavSection>
+    );
+
     return (
         <AccountScope testId="admin-center-theme-scope">
         <div className="flex flex-col md:flex-row h-screen w-full bg-pl-bg text-pl-text font-pl-sans">
             {/* Mobile bar: menu, title and the theme toggle */}
             <div className="md:hidden flex items-center gap-2 border-b border-pl-border bg-pl-surface px-2 py-2">
-                <Sheet>
+                <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
                     <SheetTrigger asChild>
                         <Button variant="ghost" size="icon" aria-label="Open admin menu"><Menu /></Button>
                     </SheetTrigger>
@@ -79,9 +93,9 @@ const AdminCenter = () => {
                          <div className="p-4 border-b border-pl-border font-bold text-lg flex items-center gap-2 text-pl-text">
                             <ShieldCheck className="text-pl-primary-text" aria-hidden="true"/> Admin Center
                          </div>
-                         <div className="p-2 overflow-y-auto h-full">
-                            {/* Replicated nav */}
-                         </div>
+                         <nav aria-label="Admin menu" className="p-2 overflow-y-auto h-full">
+                            {nav}
+                         </nav>
                     </SheetContent>
                 </Sheet>
                 <span className="flex-1 flex items-center gap-2 font-bold text-pl-text">
@@ -98,21 +112,7 @@ const AdminCenter = () => {
                 </div>
                 <div className="flex-grow p-2 overflow-y-auto">
                     
-                    <NavSection title="System Tools">
-                        <NavButton id="master-registry" label="App Registry" icon={AppWindow} />
-                        <NavButton id="build-history" label="Build History" icon={History} />
-                        <NavButton id="seed-apps" label="Seed Tools" icon={Database} />
-                        <NavButton id="module-diagnostics" label="Access Diagnostics" icon={Wrench} />
-                    </NavSection>
-
-                    {/* Keep other sections... */}
-                    <NavSection title="Mobile Suite">
-                        <NavButton id="mob-optimize" label="Optimization Score" icon={Smartphone} />
-                        {/* ... */}
-                    </NavSection>
-                    
-                    {/* ... Rest of navigation sections ... */}
-
+                    {nav}
                 </div>
                 <div className="p-4 border-t border-pl-border text-xs text-pl-muted text-center">
                     v1.7.0-build-tracker

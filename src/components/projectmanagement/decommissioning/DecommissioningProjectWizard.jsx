@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatBudgetMillions, budgetFromMillionsInput } from '../formatBudget';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,7 +75,7 @@ const DecommissioningProjectWizard = ({ open, onOpenChange, onProjectCreated, us
           description: formData.description,
           start_date: formData.startDate,
           end_date: calculateEndDate().toISOString(),
-          baseline_budget: parseFloat(formData.budget) * 1000000, 
+          baseline_budget: budgetFromMillionsInput(formData.budget), 
           company_name: 'Decom Services', 
           project_type: 'Decommissioning',
           stage: 'Planning',
@@ -332,7 +333,7 @@ const DecommissioningProjectWizard = ({ open, onOpenChange, onProjectCreated, us
                             <div className="flex flex-col"><span className="text-pl-muted text-xs">Project Name</span><span className="text-pl-text">{formData.name}</span></div>
                             <div className="flex flex-col"><span className="text-pl-muted text-xs">Asset</span><span className="text-pl-text">{formData.asset}</span></div>
                             <div className="flex flex-col"><span className="text-pl-muted text-xs">Scope</span><span className="text-pl-text">{formData.decommissioningScope}</span></div>
-                            <div className="flex flex-col"><span className="text-pl-muted text-xs">Budget</span><span className="text-pl-text font-pl-mono tabular-nums">${formData.budget}M</span></div>
+                            <div className="flex flex-col"><span className="text-pl-muted text-xs">Budget</span><span className="text-pl-text font-pl-mono tabular-nums">{formatBudgetMillions(budgetFromMillionsInput(formData.budget))}</span></div>
                             <div className="flex flex-col"><span className="text-pl-muted text-xs">Wells</span><span className="text-pl-text">{formData.wellCount}</span></div>
                             <div className="flex flex-col"><span className="text-pl-muted text-xs">Duration</span><span className="text-pl-text">~{(DECOMMISSIONING_TEMPLATE.stages.reduce((a,b)=>a+b.duration_weeks,0)/4).toFixed(1)} months</span></div>
                         </div>

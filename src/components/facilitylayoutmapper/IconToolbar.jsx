@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { Indent, Droplets, Flame, Wind, GitBranch, Share2, CircleDot, Waypoints, Circle, ChevronsRight, ShieldCheck } from 'lucide-react';
+import { Indent, Droplets, Flame, Wind, GitBranch, Share2, CircleDot, Waypoints, Circle, ChevronsRight, ShieldCheck, Shapes } from 'lucide-react';
 
 const equipmentIcons = [
   { name: 'Wellhead', icon: CircleDot, type: 'icon' },
@@ -33,6 +33,7 @@ const IconToolbar = ({ activeTool, setActiveTool, customIcons = [] }) => {
             <Tooltip key={tool.name} delayDuration={0}>
               <TooltipTrigger asChild>
                 <button
+                  type="button"
                   onClick={() => handleToolClick(tool)}
                   className={cn(
                     "flex flex-col items-center justify-center p-2 rounded-lg aspect-square transition-all duration-200",
@@ -41,8 +42,15 @@ const IconToolbar = ({ activeTool, setActiveTool, customIcons = [] }) => {
                       : 'bg-pl-sunken text-pl-text hover:bg-pl-border'
                   )}
                 >
+                  {/* W7F: custom tools rendered a literal <img-replace> tag (an
+                      unknown element, so nothing showed). A custom tool is an
+                      uploaded image; without one it gets a generic icon. */}
                   {tool.isCustom ? (
-                    <img-replace src={tool.iconUrl} alt={tool.name} className="w-6 h-6 mb-1" />
+                    tool.iconUrl ? (
+                      <img src={tool.iconUrl} alt="" aria-hidden="true" className="w-6 h-6 mb-1 object-contain" />
+                    ) : (
+                      <Shapes className="w-6 h-6 mb-1" aria-hidden="true" />
+                    )
                   ) : (
                     <tool.icon className="w-6 h-6 mb-1" />
                   )}

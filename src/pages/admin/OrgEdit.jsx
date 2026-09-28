@@ -71,8 +71,7 @@ const OrgEditPage = () => {
 
       toast({ 
         title: "Success", 
-        description: "Organization updated successfully.",
-        className: "bg-green-600 text-white"
+        description: "Organization updated successfully."
       });
       navigate(`/admin/organizations/${orgId}`);
 

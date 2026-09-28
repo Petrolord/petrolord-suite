@@ -42,7 +42,6 @@ const AcceptInvite = () => {
           description: data?.linked
             ? "You already had an account, so it was added to the organization. Log in with your existing password."
             : "Redirecting to login...",
-          className: "bg-green-600 text-white",
           duration: data?.linked ? 10000 : undefined
         });
         
