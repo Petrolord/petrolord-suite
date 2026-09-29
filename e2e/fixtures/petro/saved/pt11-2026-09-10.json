@@ -1,0 +1,367 @@
+{
+ "_fixture": "Saved at PT11 (2026-09-10, main 84f88f906): state version 2 with app_build, every underscore extra in facies (_rules, _scenarios, _uncertainty, _mineral, _provenance), layouts version 2 with a ramp fill, crossplot zones and the depth-density config, Rw from the SP route, a deliberate temperature none.",
+ "id": "project-pt11",
+ "user_id": "user-dev",
+ "name": "Keta PT11 review",
+ "description": "PT11 era",
+ "well_ids": [],
+ "schema_version": 2,
+ "app_build": "84f88f906",
+ "params": {
+  "grClean": 20,
+  "grClay": 120,
+  "vshMethod": "larionov-tertiary",
+  "rhoMa": 2.65,
+  "rhoFl": 1.0,
+  "dtMa": 182,
+  "dtFl": 656,
+  "sonicMethod": "wyllie",
+  "ndMethod": "avg",
+  "phiSource": "density",
+  "swMethod": "archie",
+  "a": 1,
+  "m": 2,
+  "n": 2,
+  "rw": 0.05,
+  "rsh": 2.0,
+  "cutPhi": 0.08,
+  "cutVsh": 0.5,
+  "cutSw": 0.6,
+  "tempMode": "none",
+  "surfaceTempC": 27,
+  "bhtC": 95,
+  "bhtDepthM": 2100,
+  "rwRefTempC": 24,
+  "qv": 0.12,
+  "bMode": "juhasz",
+  "bValue": 3,
+  "rwb": 0.02,
+  "swb": 0.25,
+  "permMethod": "timur",
+  "swirrSource": "buckles",
+  "bucklesConst": 0.04,
+  "swirrManual": 0.15,
+  "wrC": 79,
+  "wrQ": 3,
+  "phiShale": 0.07,
+  "rwMethod": "sp-bateman-konen",
+  "deliberateNone": {
+   "tempMode": true
+  }
+ },
+ "zone_params": {},
+ "facies": {
+  "{{KETA}}": [
+   {
+    "id": "facies-1752500000000-0",
+    "name": "Clean sand",
+    "color": "#facc15",
+    "polygon": [
+     [
+      0.05,
+      2.05
+     ],
+     [
+      0.35,
+      2.05
+     ],
+     [
+      0.35,
+      2.4
+     ],
+     [
+      0.05,
+      2.4
+     ]
+    ]
+   }
+  ],
+  "_rules": [
+   {
+    "name": "Clean sand",
+    "color": "#facc15",
+    "conditions": [
+     {
+      "curve": "VSH",
+      "op": "<",
+      "value": 0.35
+     },
+     {
+      "curve": "PHIE",
+      "op": ">=",
+      "value": 0.1
+     }
+    ]
+   },
+   {
+    "name": "Shale",
+    "color": "#78716c",
+    "conditions": [
+     {
+      "curve": "VSH",
+      "op": ">=",
+      "value": 0.35
+     }
+    ]
+   }
+  ],
+  "_scenarios": {
+   "low": {
+    "rhoMa": 2.63,
+    "rw": 0.0625,
+    "m": 2.1,
+    "n": 2.1,
+    "phiShale": 0.08,
+    "grClean": 25
+   },
+   "high": {
+    "rhoMa": 2.67,
+    "rw": 0.04,
+    "m": 1.9,
+    "n": 1.9,
+    "phiShale": 0.04,
+    "grClean": 15
+   }
+  },
+  "_uncertainty": {
+   "spec": {
+    "grClean": {
+     "vary": true,
+     "type": "triangular",
+     "q10": 15,
+     "q50": 20,
+     "q90": 25
+    },
+    "grClay": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 108,
+     "q50": 120,
+     "q90": 132
+    },
+    "phiShale": {
+     "vary": true,
+     "type": "triangular",
+     "q10": 0.04,
+     "q50": 0.06,
+     "q90": 0.08
+    },
+    "rhoMa": {
+     "vary": true,
+     "type": "triangular",
+     "q10": 2.63,
+     "q50": 2.65,
+     "q90": 2.67
+    },
+    "rhoFl": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 0.9,
+     "q50": 1,
+     "q90": 1.1
+    },
+    "dtMa": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 163.8,
+     "q50": 182,
+     "q90": 200.2
+    },
+    "dtFl": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 590.4,
+     "q50": 656,
+     "q90": 721.6
+    },
+    "a": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 0.9,
+     "q50": 1,
+     "q90": 1.1
+    },
+    "m": {
+     "vary": true,
+     "type": "triangular",
+     "q10": 1.9,
+     "q50": 2,
+     "q90": 2.1
+    },
+    "n": {
+     "vary": true,
+     "type": "triangular",
+     "q10": 1.9,
+     "q50": 2,
+     "q90": 2.1
+    },
+    "rw": {
+     "vary": true,
+     "type": "triangular",
+     "q10": 0.04,
+     "q50": 0.05,
+     "q90": 0.0625
+    },
+    "rsh": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 1.8,
+     "q50": 2,
+     "q90": 2.2
+    },
+    "qv": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 0.09,
+     "q50": 0.1,
+     "q90": 0.11
+    },
+    "rwb": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 0.018,
+     "q50": 0.02,
+     "q90": 0.022
+    },
+    "swb": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 0.225,
+     "q50": 0.25,
+     "q90": 0.275
+    },
+    "bucklesConst": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 0.036,
+     "q50": 0.04,
+     "q90": 0.044
+    },
+    "swirrManual": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 0.135,
+     "q50": 0.15,
+     "q90": 0.165
+    },
+    "wrC": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 71.1,
+     "q50": 79,
+     "q90": 86.9
+    },
+    "wrQ": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 2.7,
+     "q50": 3,
+     "q90": 3.3
+    },
+    "cutPhi": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 0.072,
+     "q50": 0.08,
+     "q90": 0.088
+    },
+    "cutVsh": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 0.45,
+     "q50": 0.5,
+     "q90": 0.55
+    },
+    "cutSw": {
+     "vary": false,
+     "type": "triangular",
+     "q10": 0.54,
+     "q50": 0.6,
+     "q90": 0.66
+    }
+   },
+   "n": 200,
+   "seed": 7
+  },
+  "_mineral": {
+   "minerals": [
+    "quartz",
+    "calcite",
+    "dolomite"
+   ],
+   "endpoints": {
+    "quartz": {
+     "label": "Quartz (sandstone)",
+     "rho": 2.65,
+     "nphi": -0.02,
+     "pe": 1.81
+    },
+    "calcite": {
+     "label": "Calcite (limestone)",
+     "rho": 2.71,
+     "nphi": 0,
+     "pe": 5.08
+    },
+    "dolomite": {
+     "label": "Dolomite",
+     "rho": 2.87,
+     "nphi": 0.02,
+     "pe": 3.14
+    },
+    "anhydrite": {
+     "label": "Anhydrite",
+     "rho": 2.98,
+     "nphi": -0.01,
+     "pe": 5.05
+    },
+    "halite": {
+     "label": "Halite",
+     "rho": 2.03,
+     "nphi": -0.03,
+     "pe": 4.65
+    },
+    "clay": {
+     "label": "Clay (edit per well)",
+     "rho": 2.55,
+     "nphi": 0.3,
+     "pe": 3.45
+    }
+   },
+   "fluid": {
+    "rho": 1,
+    "nphi": 1,
+    "u": 0.398
+   }
+  },
+  "_provenance": [
+   {
+    "at": "2026-09-10T11:00:00.000Z",
+    "by": "user-dev",
+    "kind": "rw-apply",
+    "method": "sp-bateman-konen",
+    "rw": 0.0564
+   }
+  ]
+ },
+ "layouts": {
+  "version": 2,
+  "activeTemplateId": "std-triple-combo",
+  "templates": []
+ },
+ "crossplots": {
+  "plot": "density",
+  "colorBy": "GR",
+  "zones": [
+   "{{SAND_A}}"
+  ],
+  "density": {
+   "curve": "input:GR",
+   "ref": "md",
+   "xBins": 40,
+   "depthBinM": 25,
+   "overlayId": null
+  }
+ },
+ "created_at": "2026-09-10T09:00:00.000Z",
+ "updated_at": "2026-09-10T18:00:00.000Z"
+}

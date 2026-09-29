@@ -256,7 +256,8 @@ export default function HistogramChart({
           {Number(hover.value.toPrecision(4))}
         </div>
       )}
-      <ChartLogo />
+      {/* PETRO-U1-015: inside the plot corner, clear of the cutoff labels and ticks */}
+      <ChartLogo style={{ bottom: `${M.b + 18}px`, right: `${M.r + 6}px`, height: '32px' }} />
     </div>
   );
 }

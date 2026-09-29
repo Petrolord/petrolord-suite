@@ -1,0 +1,64 @@
+{
+  "id": "project-pre-pt9a",
+  "user_id": "user-dev",
+  "name": "Shared tester interpretation",
+  "description": "Saved 2026-09-04, before PT9a moved the permeability default to Timur: the code defaults of that day (permMethod none) and no schema_version column (state version 1 by definition).",
+  "well_ids": [],
+  "params": {
+    "grClean": 20,
+    "grClay": 120,
+    "vshMethod": "larionov-tertiary",
+    "rhoMa": 2.65,
+    "rhoFl": 1.0,
+    "dtMa": 182,
+    "dtFl": 656,
+    "sonicMethod": "wyllie",
+    "ndMethod": "avg",
+    "phiSource": "density",
+    "phiShale": 0.06,
+    "swMethod": "archie",
+    "a": 1,
+    "m": 2,
+    "n": 2,
+    "rw": 0.05,
+    "rsh": 2.0,
+    "tempMode": "none",
+    "surfaceTempC": 25,
+    "bhtC": 90,
+    "bhtDepthM": 2100,
+    "rwRefTempC": 25,
+    "qv": 0.1,
+    "bMode": "juhasz",
+    "bValue": 3,
+    "rwb": 0.02,
+    "swb": 0.25,
+    "permMethod": "none",
+    "swirrSource": "buckles",
+    "bucklesConst": 0.04,
+    "swirrManual": 0.15,
+    "wrC": 79,
+    "wrQ": 3,
+    "cutPhi": 0.08,
+    "cutVsh": 0.5,
+    "cutSw": 0.6
+  },
+  "zone_params": {},
+  "facies": {
+    "well-1": []
+  },
+  "layouts": {
+    "version": 1,
+    "activeTemplateId": "std-triple-combo",
+    "templates": [
+      {
+        "id": "std-triple-combo",
+        "name": "Standard triple combo",
+        "builtin": true,
+        "tracks": []
+      }
+    ]
+  },
+  "crossplots": {},
+  "created_at": "2026-09-04T09:12:00.000Z",
+  "updated_at": "2026-09-09T12:08:00.000Z"
+}

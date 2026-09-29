@@ -2,8 +2,8 @@ import { zoneCatalog, registryPatchForZone, areaPatchForSurface, aoiFromBoundary
 import { NULL_VALUE } from '@/lib/gridding/numeric';
 
 const wells = [
-  { name: 'A', zones: [{ name: 'Sand', properties: { phi_avg: 0.2, sw_avg: 0.3, ntg: 0.8, net_m: 20 } }] },
-  { name: 'B', zones: [{ name: 'Sand', properties: { phi_avg: 0.3, sw_avg: 0.5, ntg: 0.6, net_m: 40 } }, { name: 'Shale', properties: {} }] },
+  { name: 'A', zones: [{ name: 'Sand', properties: { phi_avg: 0.2, sw_avg: 0.3, ntg: 0.8, net_m: 20, gross_m: 25 } }] },
+  { name: 'B', zones: [{ name: 'Sand', properties: { phi_avg: 0.3, sw_avg: 0.5, ntg: 0.6, net_m: 21, gross_m: 35 } }, { name: 'Shale', properties: {} }] },
   { name: 'C', zones: [{ name: 'Sand' }] },
 ];
 
@@ -11,7 +11,7 @@ test('zoneCatalog counts wells and publishes per zone', () => {
   expect(zoneCatalog(wells)).toEqual([{ name: 'Sand', wells: 3, published: 2 }, { name: 'Shale', wells: 1, published: 0 }]);
 });
 
-test('registryPatchForZone averages the published wells and converts net thickness to the system unit', () => {
+test('registryPatchForZone averages the published wells and converts gross thickness to the system unit', () => {
   const f = registryPatchForZone(wells, 'Sand', 'field');
   expect(f.fromWells).toBe(2);
   expect(f.wellNames).toEqual(['A', 'B']);
@@ -22,7 +22,7 @@ test('registryPatchForZone averages the published wells and converts net thickne
   expect(f.provenance).toMatchObject({ source: 'shared-registry', zone: 'Sand', wells: ['A', 'B'] });
   expect(registryPatchForZone(wells, 'Sand', 'metric').patch.thickness).toBeCloseTo(30, 9);
   expect(() => registryPatchForZone(wells, 'Shale')).toThrow(/Publish zone summaries/);
-  expect(describePatch(f.patch)).toMatch(/porosity 0\.250, Sw 0\.400, NTG 0\.700, net thickness 98\.4 ft/);
+  expect(describePatch(f.patch)).toMatch(/porosity 0\.250, Sw 0\.400, NTG 0\.700, gross thickness 98\.4 ft/);
 });
 
 test('areaPatchForSurface measures the live footprint in the canonical area unit', () => {

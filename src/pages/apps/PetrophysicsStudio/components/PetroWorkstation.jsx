@@ -49,8 +49,8 @@ import { useStudioPrefs, SPLIT_DEFAULT, SPLIT_MIN_PERCENT } from '../services/st
 import FieldViewPanel from './FieldViewPanel';
 import { useWellCurvesCache } from '../hooks/useWellCurvesCache';
 import {
-  computeWellZoned, zoneSummary, DEFAULT_PARAMS, PIPELINE_VERSION,
-  preparePublishLogs, zonePropertiesSnapshot,
+  computeWellZoned, DEFAULT_PARAMS, PIPELINE_VERSION,
+  preparePublishLogs,
 } from '../engine/pipeline';
 import { faciesCurve } from '../engine/crossplot';
 import { intervalsFromRuns } from '@/lib/stratigraphy/intervals';
@@ -61,6 +61,8 @@ import { nameKey, digitizedCurveName } from '@/lib/curveNames';
 import { resolveTracks, sourceStatus } from '../layout/resolveTracks';
 import { migrationStatusLine, applyDeliberateNone, provenanceOf } from '../services/projectState';
 import { mapLogs } from '../services/curveMap';
+import { inputCurves } from '@/components/wells/curveUnits';
+import { zoneReports, zonePublishProperties } from '../services/zoneAverages';
 import { depthLabel, DEPTH_TRACK_KEYS, DEPTH_TRACK_TITLE } from '../viewer/depthModes';
 
 /** @param {string} [p.wellDataManagerPath] route of the Well Data Manager
@@ -221,10 +223,8 @@ export default function PetroWorkstation({
       // other mnemonic can be drawn through a `log:` layout address
       const rawLogs = {};
       for (const log of logs) rawLogs[log.mnemonic] = await backend.downloadCurve(log);
-      const curves = {};
-      for (const [key, log] of Object.entries(mapped)) {
-        if (log) curves[key] = rawLogs[log.mnemonic];
-      }
+      // PETRO-U1-006/007: inputs in the engines' units, vendor nulls as nulls
+      const { curves, notes: inputNotes } = inputCurves(mapped, rawLogs);
       setWellData({
         wellId,
         curves,
@@ -233,9 +233,10 @@ export default function PetroWorkstation({
         tops,
         intervals: intervals || [],   // ST1 interval logs (lithology, core, facies ...) for the strip tracks
         allLogs: logs,
+        inputNotes,
       });
       await refreshZones(wellId);
-      setStatus(`Loaded ${logs.length} curves (${Object.keys(curves).length} mapped to pipeline inputs).`);
+      setStatus(`Loaded ${logs.length} curves (${Object.keys(curves).length} mapped to pipeline inputs).${inputNotes.length ? ` ${inputNotes.join(' ')}` : ''}`);
     } catch (e) {
       setStatus(e.message);
       setWellData(null);
@@ -441,15 +442,12 @@ export default function PetroWorkstation({
     }
   };
 
+  // PETRO-U1: pore-volume weighted Sw, net reservoir and TVT beside the
+  // engine's summary, each zone on its OWN merged parameters
   const summaries = useMemo(() => {
     if (!wellData || !computed) return {};
-    const out = {};
-    for (const z of zones) {
-      const merged = { ...params, ...(zoneParams[z.id] || {}) };
-      out[z.id] = zoneSummary(wellData.curves, computed.outputs, merged, z);
-    }
-    return out;
-  }, [wellData, computed, params, zones, zoneParams]);
+    return zoneReports({ curves: wellData.curves, outputs: computed.outputs, params, zones, zoneParams, well: selected });
+  }, [wellData, computed, params, zones, zoneParams, selected]);
 
   // PT9c: every zone's patch at once (the zone table's Apply)
   const applyZonePatches = useCallback((patches) => {
@@ -615,14 +613,13 @@ export default function PetroWorkstation({
 
   const publishZone = async (zone) => {
     try {
-      const summary = zoneSummary(wellData.curves, computed.outputs, params, zone);
-      if (!summary) { setStatus('Compute curves before publishing a zone summary.'); return; }
-      const props = zonePropertiesSnapshot(summary, { ...params, ...(zoneParams[zone.id] || {}) }, {
-        projectId, interpretationName: projectName, publishedAt: new Date().toISOString(),
+      // PETRO-U1-003: the published numbers are the zone's own (its
+      // override cutoffs included), the same ones the zone card shows
+      const props = zonePublishProperties({
+        curves: wellData.curves, outputs: computed.outputs, params, zoneParams, zone, well: selected,
+        meta: { projectId, interpretationName: projectName, publishedAt: new Date().toISOString() },
       });
-      // publishZone REPLACES properties, so carry the PT8 top provenance
-      // forward or the zone stops following the tops it was cut from
-      if (zone.properties?.from_tops) props.from_tops = zone.properties.from_tops;
+      if (!props) { setStatus('Compute curves before publishing a zone summary.'); return; }
       await backend.publishZone(zone, props);
       setStatus(`Published ${zone.name} summary.`);
       await refreshZones(zone.well_id);
@@ -868,12 +865,13 @@ export default function PetroWorkstation({
     const logs = await backend.listLogs(well.id);
     const mapped = mapLogs(logs);
     if (!mapped.DEPT) throw new Error('no depth curve');
-    const curves = {};
+    const raw = {};
     const inventory = [];
     for (const [key, log] of Object.entries(mapped)) {
-      if (log) curves[key] = await backend.downloadCurve(log);
+      if (log) raw[log.mnemonic] = await backend.downloadCurve(log);
       inventory.push({ key, log });
     }
+    const { curves } = inputCurves(mapped, raw);
     // each well's OWN zones drive the overrides (patches are keyed by
     // zone id, so any well's zones the user has overridden apply here)
     const wellZones = await backend.listZones(well.id);
@@ -887,8 +885,20 @@ export default function PetroWorkstation({
     });
     if (!prepared.length) throw new Error('nothing to publish (missing inputs)');
     const saved = await backend.publishCurves(well.id, prepared, projectId);
+    // PETRO-U1-012: the zone summaries too, so ReservoirCalc Pro and Earth
+    // Modeling can average a zone across the wells in one batch
+    let zonesPublished = 0;
+    for (const zone of wellZones) {
+      const props = zonePublishProperties({
+        curves, outputs, params, zoneParams, zone, well,
+        meta: { projectId, interpretationName: projectName, publishedAt: new Date().toISOString() },
+      });
+      if (!props) continue;
+      await backend.publishZone(zone, props);
+      zonesPublished += 1;
+    }
     if (well.id === selectedId) await select(well.id);
-    return saved.length;
+    return { curves: saved.length, zones: zonesPublished };
   };
 
   const ribbon = (
@@ -1339,7 +1349,7 @@ export default function PetroWorkstation({
             if (Number.isFinite(pct) && Math.abs(pct - split) >= 0.1) setPref({ splitPercent: pct });
           }}
         >
-          <ResizablePanel ref={splitTracksRef} id="split-tracks" order={1} defaultSize={split} minSize={SPLIT_MIN_PERCENT} className="min-w-0 border-r border-pl-border">
+          <ResizablePanel ref={splitTracksRef} id="split-tracks" order={1} defaultSize={split} minSize={SPLIT_MIN_PERCENT} className="min-w-0 overflow-x-auto overflow-y-hidden border-r border-pl-border">
             {tracksEl}
           </ResizablePanel>
           <ResizableHandle
@@ -1349,7 +1359,7 @@ export default function PetroWorkstation({
             title="Drag to resize; double-click to reset to 60/40"
             onDoubleClick={() => { splitTracksRef.current?.resize(SPLIT_DEFAULT); setPref({ splitPercent: SPLIT_DEFAULT }); }}
           />
-          <ResizablePanel id="split-crossplot" order={2} defaultSize={100 - split} minSize={SPLIT_MIN_PERCENT} className="min-w-0">
+          <ResizablePanel id="split-crossplot" order={2} defaultSize={100 - split} minSize={SPLIT_MIN_PERCENT} className="min-w-0 overflow-hidden">
             {crossplotEl}
           </ResizablePanel>
         </ResizablePanelGroup>
@@ -1603,6 +1613,9 @@ export default function PetroWorkstation({
         projectName={projectName}
         trackPng={trackPngBlob}
         probabilistic={probResult && probResult.wellId === wellData?.wellId ? probResult : null}
+        zoneParams={zoneParams}
+        reportHeader={prefs.reportHeader || {}}
+        onReportHeader={(h) => setPref({ reportHeader: h })}
         onStatus={setStatus}
       />
     )}

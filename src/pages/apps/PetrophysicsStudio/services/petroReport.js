@@ -12,18 +12,66 @@ import 'jspdf-autotable';
 import { loadPetrolordLogo, drawBrandHeader } from '@/lib/pdfBrand';
 import { METHOD_CITATIONS, PIPELINE_VERSION } from '../engine/pipeline';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { buildLabel } from '@/lib/platformBuild';
+import { FIELDS, visibleField, fieldLabel, RW_METHOD_LABELS } from './paramFields';
+import { AVERAGING_NOTE } from './zoneAverages';
+
+// jsPDF's standard fonts are Latin-1: a Greek letter or a math sign in a
+// label prints as mojibake with its letters spaced out (PETRO-U1-010,
+// "Porosity: Æ shale"). Labels shared with the screen go through here.
+const LATIN1_MAP = { 'φ': 'phi', 'ρ': 'rho', 'Δ': 'delta ', '≥': '>=', '≤': '<=', '−': '-', '–': '-', '—': '-', '·': '.', 'Ω': 'ohm' };
+export const latin1Safe = (v) => String(v).replace(/[^\u0000-\u00ff]/g, (c) => LATIN1_MAP[c] ?? '?');
 
 const num = (v, d = 3) => (Number.isFinite(v) ? String(Number(v.toFixed(d))) : EMPTY_VALUE);
 
-const PARAM_ROWS = [
-  ['GR clean (API)', 'grClean'], ['GR clay (API)', 'grClay'], ['Vsh model', 'vshMethod'],
-  ['Matrix density (g/cc)', 'rhoMa'], ['Fluid density (g/cc)', 'rhoFl'],
-  ['Matrix slowness (us/m)', 'dtMa'], ['Fluid slowness (us/m)', 'dtFl'],
-  ['Sonic model', 'sonicMethod'], ['N-D combine', 'ndMethod'], ['Porosity source', 'phiSource'],
-  ['Sw model', 'swMethod'], ['a', 'a'], ['m', 'm'], ['n', 'n'],
-  ['Rw (ohm.m)', 'rw'], ['Rw method', 'rwMethod'], ['Rsh (ohm.m)', 'rsh'],
-  ['Cutoff phi >=', 'cutPhi'], ['Cutoff Vsh <=', 'cutVsh'], ['Cutoff Sw <=', 'cutSw'],
-];
+/**
+ * PETRO-U1-009: every parameter the pipeline applied, from the same field
+ * list the Parameter panel shows (the hand list left out phi shale,
+ * permeability, temperature and the shaly-sand models), with the section
+ * name so a reviewer can find it on screen.
+ * @returns {Array<[string, string]>} [label, value]
+ */
+export function parameterRows(params) {
+  const rows = [];
+  let section = '';
+  for (const f of FIELDS) {
+    if (f.section) { section = f.section; continue; }
+    if (!f.key || !visibleField(f, params)) continue;
+    const v = params[f.key];
+    rows.push([latin1Safe(`${section}: ${fieldLabel(f, params)}`), v === undefined || v === null || v === '' ? EMPTY_VALUE : latin1Safe(v)]);
+  }
+  if (params.rwMethod && RW_METHOD_LABELS[params.rwMethod]) rows.push(['Sw: Rw from', RW_METHOD_LABELS[params.rwMethod]]);
+  return rows;
+}
+
+/** Per-zone overrides as rows: [zone, 'key = value; ...']. */
+export function overrideRows(zones, zoneParams = {}) {
+  const labelOf = (key) => {
+    const f = FIELDS.find((x) => x.key === key);
+    return f ? fieldLabel(f, {}) : key;
+  };
+  return (zones || [])
+    .filter((z) => zoneParams[z.id] && Object.keys(zoneParams[z.id]).length)
+    .map((z) => [latin1Safe(z.name), latin1Safe(Object.entries(zoneParams[z.id]).map(([k, v]) => `${labelOf(k)} ${v}`).join('; '))]);
+}
+
+/** The header block a reviewer signs against (PL7). */
+export function headerRows({ wellName, well = null, header = {}, projectName = null, projectId = null, depthUnit = 'm', generatedAt = new Date() }) {
+  const t = (v) => (v === undefined || v === null || String(v).trim() === '' ? EMPTY_VALUE : latin1Safe(String(v).trim()));
+  const kb = Number(well?.kb_m);
+  const xy = Number.isFinite(Number(well?.surface_x)) && well?.surface_x !== null && Number.isFinite(Number(well?.surface_y)) && well?.surface_y !== null
+    ? `${Number(well.surface_x).toFixed(1)}, ${Number(well.surface_y).toFixed(1)}${well?.crs ? ` (${well.crs})` : (well?.crs_note ? ` (${well.crs_note})` : ' (CRS not recorded)')}`
+    : EMPTY_VALUE;
+  return [
+    ['Company', t(header.company)], ['Field', t(header.field)],
+    ['Well', t(wellName)], ['UWI', t(well?.uwi)],
+    ['Surface X, Y', xy], ['Depth reference', Number.isFinite(kb) ? `MD below KB; KB ${kb.toFixed(2)} m above the vertical datum` : 'MD below KB; KB not recorded'],
+    ['Analyst', t(header.analyst)], ['Interpretation', projectName ? `${projectName}${projectId ? ` (${projectId})` : ''}` : t(projectId)],
+    ['Units', `depths ${depthUnit === 'ft' ? 'ft' : 'm'}; porosity, Vsh and Sw v/v; k mD; resistivity ohm.m`],
+    ['Software', `Petrophysics Studio, pipeline v${PIPELINE_VERSION}, ${buildLabel()}`],
+    ['Generated', generatedAt.toISOString().replace('T', ' ').slice(0, 16) + ' UTC'],
+  ];
+}
 
 /** Methods actually in play for this parameter set, with citations. */
 export function methodLines(params) {
@@ -38,7 +86,7 @@ export function methodLines(params) {
   }
   const sw = METHOD_CITATIONS.sw[params.swMethod];
   if (sw) lines.push(`Water saturation: ${sw}`);
-  lines.push('Net pay: midpoint sample thickness; pay where phi, Vsh and Sw pass their cutoffs; net-thickness-weighted zone averages.');
+  lines.push(`Net pay: midpoint sample thickness; pay where phi, Vsh and Sw pass their cutoffs; net reservoir where phi and Vsh pass. ${AVERAGING_NOTE}`);
   return lines;
 }
 
@@ -54,6 +102,7 @@ export function methodLines(params) {
  */
 export async function buildReport({
   wellName, wellData, params, zones, summaries, projectId, depthUnit = 'm', well = null, columns = ['md'], probabilistic = null,
+  projectName = null, header = {}, zoneParams = {}, generatedAt = new Date(),
 }) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -65,7 +114,7 @@ export async function buildReport({
     pageWidth,
     appTitle: 'Petrophysics Studio',
     subtitle: 'Interpretation summary report',
-    rightLines: [wellName],
+    rightLines: [wellName, ...(projectName ? [projectName] : [])],
   }) + 10;
 
   const depth = wellData.curves.DEPT;
@@ -93,26 +142,51 @@ export async function buildReport({
   );
   y += 8;
 
+  const hdr = headerRows({ wellName, well, header, projectName, projectId, depthUnit, generatedAt });
+  doc.autoTable({
+    startY: y,
+    margin: { left: margin, right: margin },
+    body: Array.from({ length: Math.ceil(hdr.length / 2) }, (_, r) => [...(hdr[2 * r] || ['', '']), ...(hdr[2 * r + 1] || ['', ''])]),
+    styles: { fontSize: 8, cellPadding: 1.2 },
+    columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } },
+    theme: 'grid',
+  });
+  y = doc.lastAutoTable.finalY + 8;
+
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.text('Parameters', margin, y);
   y += 3;
+  const prow = parameterRows(params);
   doc.autoTable({
     startY: y,
     margin: { left: margin, right: margin },
     head: [['Parameter', 'Value', 'Parameter', 'Value']],
-    body: Array.from({ length: Math.ceil(PARAM_ROWS.length / 2) }, (_, r) => {
-      const a = PARAM_ROWS[2 * r];
-      const b = PARAM_ROWS[2 * r + 1];
-      const cell = (row) => (row ? [row[0], String(params[row[1]] ?? EMPTY_VALUE)] : ['', '']);
-      return [...cell(a), ...cell(b)];
-    }),
-    styles: { fontSize: 8, cellPadding: 1.5 },
+    body: Array.from({ length: Math.ceil(prow.length / 2) }, (_, r) => [...(prow[2 * r] || ['', '']), ...(prow[2 * r + 1] || ['', ''])]),
+    styles: { fontSize: 7.5, cellPadding: 1.2 },
     headStyles: { fillColor: [15, 23, 42] },
     theme: 'grid',
   });
-  y = doc.lastAutoTable.finalY + 8;
+  y = doc.lastAutoTable.finalY + 6;
+  const orows = overrideRows(zones, zoneParams);
+  if (orows.length) {
+    doc.setFontSize(9.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Zone parameter overrides (these zones did not use the values above)', margin, y);
+    y += 2;
+    doc.autoTable({
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['Zone', 'Overrides']],
+      body: orows,
+      styles: { fontSize: 7.5, cellPadding: 1.2 },
+      headStyles: { fillColor: [15, 23, 42] },
+      theme: 'grid',
+    });
+    y = doc.lastAutoTable.finalY + 6;
+  }
+  y += 2;
 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
@@ -140,17 +214,18 @@ export async function buildReport({
       margin: { left: margin, right: margin },
       head: [['Zone', `Top MD (${uTxt})`, `Base MD (${uTxt})`,
         ...extraKeys.flatMap((k) => [`Top ${k.toUpperCase()} (${uTxt})`, `Base ${k.toUpperCase()} (${uTxt})`]),
-        `Gross (${uTxt})`, `Net (${uTxt})`, 'N/G', 'phi avg', 'Vsh avg', 'Sw avg', 'k gm (mD)']],
+        `Gross (${uTxt})`, `Net res (${uTxt})`, `Net pay (${uTxt})`, 'N/G', `Net pay TVT (${uTxt})`, `HCPV (${uTxt})`, 'phie avg', 'Vsh avg', 'Sw avg', 'k gm (mD)']],
       body: zoneRows.map((z) => {
         const s = summaries[z.id];
         return [
           z.name, num(toU(z.top_md_m), 1), num(toU(z.base_md_m), 1),
           ...extraKeys.flatMap((k) => [num(depthIn(z.top_md_m, k), 1), num(depthIn(z.base_md_m, k), 1)]),
-          num(toU(s.gross_m), 2), num(toU(s.net_m), 2), num(s.ntg),
+          num(toU(s.gross_m), 2), num(toU(s.net_res_m), 2), num(toU(s.net_m), 2), num(s.ntg),
+          num(toU(s.net_tvt_m), 2), num(toU(s.hcpv_m), 3),
           num(s.phi_avg), num(s.vsh_avg), num(s.sw_avg), num(s.k_gm_md, 1),
         ];
       }),
-      styles: { fontSize: 8, cellPadding: 1.5 },
+      styles: { fontSize: 6.8, cellPadding: 1.1 },
       headStyles: { fillColor: [15, 23, 42] },
       theme: 'grid',
     });
@@ -199,11 +274,13 @@ export async function buildReport({
   doc.setTextColor(60, 70, 90);
   for (const line of [
     'Engine: petrophysics-studio (validated against an independent literature oracle at 1e-12).',
-    `Pipeline version: ${PIPELINE_VERSION} · Project: ${projectId || EMPTY_VALUE}`,
-    `Generated: ${new Date().toISOString()}`,
+    `Pipeline version: ${PIPELINE_VERSION} · Interpretation: ${projectName || EMPTY_VALUE} · Project: ${projectId || EMPTY_VALUE}`,
+    `Generated: ${generatedAt.toISOString()} · ${buildLabel()}`,
+    ...(wellData.inputNotes || []).map((n) => `Input: ${n}`),
   ]) {
-    doc.text(line, margin, y);
-    y += 4.5;
+    const wrapped = doc.splitTextToSize(line, pageWidth - 2 * margin);
+    doc.text(wrapped, margin, y);
+    y += wrapped.length * 4 + 0.5;
   }
 
   const pages = doc.getNumberOfPages();

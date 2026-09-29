@@ -142,7 +142,7 @@ export default function MineralModelDialog({
 
         <DialogFooter className="gap-2">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button variant="outline" size="sm" data-testid="petro-mineral-apply" disabled={!result} onClick={() => { onApply(); onStatus?.('The Mineral model layout is active.'); }}>Apply to tracks</Button>
+          <Button variant="outline" size="sm" data-testid="petro-mineral-apply" disabled={!result} onClick={() => { onApply(); onStatus?.('The Mineral model layout is active.'); onOpenChange(false); }}>Apply to tracks</Button>
           <Button size="sm" data-testid="petro-mineral-publish" disabled={!result || !canPublish || publishing} onClick={onPublish}>Publish</Button>
         </DialogFooter>
       </DialogContent>

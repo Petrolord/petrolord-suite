@@ -472,7 +472,9 @@ export default function CrossplotPanel({
 
   return (
     <div className="h-full min-h-0 flex flex-col" data-testid="petro-crossplot">
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-pl-border text-xs">
+      {/* PETRO-U1-017: wraps, so in the Split pane at 1366 and below every
+          control (Select, PNG, zones) stays reachable instead of clipping */}
+      <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 border-b border-pl-border text-xs">
         {plotBtn('nd', 'Density–Neutron', 'petro-plot-nd')}
         {plotBtn('pickett', 'Pickett', 'petro-plot-pickett')}
         {plotBtn('buckles', 'Buckles', 'petro-plot-buckles', !bucklesSamples.length)}

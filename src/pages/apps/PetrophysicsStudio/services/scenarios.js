@@ -7,7 +7,8 @@
 // No sampling anywhere: the Suite's Monte Carlo lives in ReservoirCalc
 // Pro and is not duplicated here.
 
-import { computeWellZoned, zoneSummary } from '../engine/pipeline';
+import { computeWellZoned } from '../engine/pipeline';
+import { zoneReport } from './zoneAverages';
 import { newId } from '../layout/layoutSchema';
 
 export const CASES = ['low', 'mid', 'high'];
@@ -75,7 +76,7 @@ export function scenarioSummaries(curves, results, params, zones, zoneParams, sc
     out[z.id] = {};
     for (const c of CASES) {
       const merged = { ...caseParams(params, scenarios, c), ...(zoneParams?.[z.id] || {}), ...(c === 'mid' ? {} : (scenarios?.[c] || {})) };
-      out[z.id][c] = results?.[c] ? zoneSummary(curves, results[c].outputs, merged, z) : null;
+      out[z.id][c] = results?.[c] ? zoneReport(curves, results[c].outputs, merged, z) : null;
     }
   }
   return out;

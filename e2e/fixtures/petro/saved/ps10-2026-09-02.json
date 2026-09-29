@@ -1,0 +1,135 @@
+{
+ "_fixture": "Saved at PS10 (2026-09-02, main d2991b598): named interpretation, per-zone overrides keyed by zone id, crossplots config, layouts version 1 with a user fork, Waxman-Smits with the linear temperature model and Coates. The PHIE of that release was the source porosity as read (renamed PHIT in PT9a).",
+ "id": "project-ps10",
+ "user_id": "user-dev",
+ "name": "Keta shaly-sand case",
+ "description": "PS10 era",
+ "well_ids": [],
+ "params": {
+  "grClean": 20,
+  "grClay": 120,
+  "vshMethod": "larionov-tertiary",
+  "rhoMa": 2.65,
+  "rhoFl": 1.0,
+  "dtMa": 182,
+  "dtFl": 656,
+  "sonicMethod": "wyllie",
+  "ndMethod": "avg",
+  "phiSource": "density",
+  "swMethod": "waxman-smits",
+  "a": 1,
+  "m": 2,
+  "n": 2,
+  "rw": 0.05,
+  "rsh": 2.0,
+  "cutPhi": 0.08,
+  "cutVsh": 0.5,
+  "cutSw": 0.6,
+  "tempMode": "linear",
+  "surfaceTempC": 27,
+  "bhtC": 95,
+  "bhtDepthM": 2100,
+  "rwRefTempC": 24,
+  "qv": 0.12,
+  "bMode": "juhasz",
+  "bValue": 3,
+  "rwb": 0.02,
+  "swb": 0.25,
+  "permMethod": "coates",
+  "swirrSource": "buckles",
+  "bucklesConst": 0.04,
+  "swirrManual": 0.15,
+  "wrC": 79,
+  "wrQ": 3
+ },
+ "zone_params": {
+  "{{SAND_A}}": {
+   "rw": 0.045,
+   "cutPhi": 0.1
+  }
+ },
+ "facies": {
+  "{{KETA}}": [
+   {
+    "id": "facies-1752500000000-0",
+    "name": "Clean sand",
+    "color": "#facc15",
+    "polygon": [
+     [
+      0.05,
+      2.05
+     ],
+     [
+      0.35,
+      2.05
+     ],
+     [
+      0.35,
+      2.4
+     ],
+     [
+      0.05,
+      2.4
+     ]
+    ]
+   }
+  ]
+ },
+ "layouts": {
+  "version": 1,
+  "activeTemplateId": "user-fork-1",
+  "templates": [
+   {
+    "id": "user-fork-1",
+    "name": "My triple combo",
+    "builtin": false,
+    "tracks": [
+     {
+      "id": "t1",
+      "title": "GR",
+      "width": 1,
+      "scale": "linear",
+      "min": 0,
+      "max": 150,
+      "curves": [
+       {
+        "source": "input:GR",
+        "color": "#059669"
+       }
+      ],
+      "fills": [
+       {
+        "mode": "threshold",
+        "curve": "input:GR",
+        "threshold": 75,
+        "side": "right",
+        "color": "#a16207",
+        "opacity": 0.3
+       }
+      ]
+     },
+     {
+      "id": "t2",
+      "title": "Porosity",
+      "width": 1,
+      "scale": "linear",
+      "min": 0.45,
+      "max": -0.15,
+      "curves": [
+       {
+        "source": "output:PHIE",
+        "color": "#0891b2"
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "crossplots": {
+  "plot": "pickett",
+  "colorBy": "VSH"
+ },
+ "created_at": "2026-09-02T09:00:00.000Z",
+ "updated_at": "2026-09-02T17:40:00.000Z"
+}

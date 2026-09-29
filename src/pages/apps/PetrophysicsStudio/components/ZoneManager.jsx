@@ -9,6 +9,7 @@ import { Trash2, Plus, Loader2, UploadCloud, Crosshair, Layers } from 'lucide-re
 import { toDisplay, fromDisplay, depthLabel } from '../viewer/depthModes';
 import { validateZoneWindow, planZoneFromTops, planZonesBetweenConsecutiveTops } from '../services/zonePlanner';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { AVERAGING_NOTE, publishedState } from '../services/zoneAverages';
 
 const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? EMPTY_VALUE : Number(v).toFixed(d));
@@ -111,11 +112,14 @@ export default function ZoneManager({
             </div>
             {s ? (
               <div className="grid grid-cols-3 gap-x-2 mt-1 text-[11px] text-pl-muted" data-testid={`petro-zone-summary-${z.name}`}>
-                <span>net <b className="text-pl-text" data-testid={`petro-zone-net-${z.name}`}>{fmt(toDisplay(s.net_m, depthUnit), 1)}</b> {u}</span>
-                <span>gross {fmt(toDisplay(s.gross_m, depthUnit), 1)} {u}</span>
-                <span>NTG {fmt(s.ntg, 3)}</span>
-                <span>φ {fmt(s.phi_avg, 3)}</span>
-                <span>Sw {fmt(s.sw_avg, 3)}</span>
+                <span title="Net pay: samples passing the porosity, Vsh and Sw cutoffs, measured along hole (MD)">net pay <b className="text-pl-text" data-testid={`petro-zone-net-${z.name}`}>{fmt(toDisplay(s.net_m, depthUnit), 1)}</b> {u}</span>
+                <span title="Gross interval thickness along hole (MD)">gross {fmt(toDisplay(s.gross_m, depthUnit), 1)} {u}</span>
+                <span title="Net pay over gross">NTG {fmt(s.ntg, 3)}</span>
+                {Number.isFinite(s.net_res_m) && (
+                  <span title="Net reservoir: samples passing the porosity and Vsh cutoffs only" data-testid={`petro-zone-netres-${z.name}`}>net res {fmt(toDisplay(s.net_res_m, depthUnit), 1)} {u}</span>
+                )}
+                <span title="Effective porosity, net-pay-thickness weighted">φe {fmt(s.phi_avg, 3)}</span>
+                <span title={AVERAGING_NOTE} data-testid={`petro-zone-sw-${z.name}`}>Sw {fmt(s.sw_avg, 3)}</span>
                 <span>Vsh {fmt(s.vsh_avg, 3)}</span>
                 {s.k_gm_md !== undefined && (
                   <span
@@ -131,6 +135,11 @@ export default function ZoneManager({
             ) : (
               <div className="mt-1 text-[11px] text-pl-muted">no computed curves yet</div>
             )}
+            {s && s.tvt_source === 'deviation survey' && (
+              <div className="mt-0.5 text-[11px] text-pl-muted" data-testid={`petro-zone-tvt-${z.name}`} title="True vertical thickness through the deviation survey: the thickness volumetrics use">
+                TVT gross {fmt(toDisplay(s.gross_tvt_m, depthUnit), 1)} · net pay <b className="text-pl-text">{fmt(toDisplay(s.net_tvt_m, depthUnit), 1)}</b> {u} (deviated well)
+              </div>
+            )}
             {probZones?.[z.id] && (
               <div className="mt-0.5 text-[11px] text-pl-muted" data-testid={`petro-zone-prob-${z.name}`}
                 title="Net pay cases from the probabilistic run. P90 means a 90% probability the actual quantity meets or exceeds this value, per SPE PRMS.">
@@ -139,9 +148,14 @@ export default function ZoneManager({
                 {' · '}P10 <b className="text-pl-text">{fmt(toDisplay(probZones[z.id].outcomes.net_m.p10, depthUnit), 1)}</b> {u}
               </div>
             )}
-            {Object.keys(z.properties || {}).length > 0 && (
-              <div className="mt-1 text-[10px] text-pl-success-text">published summary on record</div>
-            )}
+            {(() => {
+              // PETRO-U1-014: say what the registry row is, from the row itself
+              const ps = publishedState(z, s);
+              if (ps.state === 'none') return null;
+              return ps.state === 'current'
+                ? <div className="mt-1 text-[10px] text-pl-success-text" data-testid={`petro-zone-published-${z.name}`}>published{ps.at ? ` ${ps.at}` : ''}; matches these numbers</div>
+                : <div className="mt-1 text-[10px] text-pl-warning-text" data-testid={`petro-zone-published-${z.name}`}>published{ps.at ? ` ${ps.at}` : ''} with different numbers; publish again to update what other apps read</div>;
+            })()}
           </div>
         );
       })}

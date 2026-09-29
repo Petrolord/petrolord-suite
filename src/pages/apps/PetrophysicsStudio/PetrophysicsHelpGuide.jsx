@@ -505,18 +505,25 @@ const PetrophysicsHelpGuide = () => (
       <Table
         headers={['Readout', 'Definition']}
         rows={[
-          ['net', 'Metres of pay: samples passing all three cutoffs, thickness by sample midpoints'],
-          ['gross', 'Metres of rock in the zone, including samples with a missing input'],
-          ['NTG', 'net divided by gross'],
-          ['φ avg, Sw avg, Vsh avg', 'Net-thickness-weighted averages over the pay samples; blank when net is zero'],
-          ['k gm', 'Thickness-weighted geometric mean of KPERM over the pay samples, in mD. Shown while a permeability model is on (Timur by default); a dash means no pay sample carries a positive k.'],
+          ['net pay', 'Pay along hole (MD): samples passing all three cutoffs, thickness by sample midpoints'],
+          ['gross', 'Rock in the zone along hole, including samples with a missing input'],
+          ['NTG', 'net pay divided by gross'],
+          ['net res', 'Net reservoir: samples passing the porosity and Vsh cutoffs, whatever their Sw'],
+          ['φe, Vsh', 'Net-pay-thickness-weighted averages over the pay samples; n/a when net pay is zero'],
+          ['Sw', 'Pore-volume weighted over the pay samples (sum of φ Sw h over sum of φ h), so net pay × φe × (1 − Sw) is the hydrocarbon pore thickness. With Waxman-Smits or dual water, whose Sw is total Swt on PHIT, it is the effective-system saturation that keeps PHIT (1 − Swt).'],
+          ['TVT line', 'Deviated wells only: gross and net pay as true vertical thickness through the deviation survey, the thickness volumetrics use'],
+          ['k gm', 'Thickness-weighted geometric mean of KPERM over the pay samples, in mD. Shown while a permeability model is on (Timur by default); n/a means no pay sample carries a positive k.'],
         ]}
       />
       <Para>
         A sample with any missing input is never pay but still counts as gross. <Code>no computed
-        curves yet</Code> means porosity, Vsh or Sw is missing for this well. <Code>published summary
-        on record</Code> means a snapshot of this zone has been written to the registry; the upload
-        button on the card does that, and it is disabled until curves exist.
+        curves yet</Code> means porosity, Vsh or Sw is missing for this well. The upload button on the
+        card writes a snapshot of the zone to the registry (net pay, net reservoir, TVT, HCPV, the
+        averages, the cutoffs and methods the zone used, its own overrides included); Batch does the
+        same for every zone of every well it runs. The card then says <Code>published; matches these
+        numbers</Code>, or, once parameters or the zone move, that the published numbers differ and
+        to publish again. ReservoirCalc Pro&apos;s Wells tab reads these snapshots: gross thickness
+        (vertical when published) with NTG, porosity and Sw.
       </Para>
 
       <SubHeading>The zone parameter table</SubHeading>
@@ -1026,6 +1033,7 @@ const PetrophysicsHelpGuide = () => (
           ['Resistivity', 'ohm·m'],
           ['Temperature', 'Degrees Celsius everywhere you type; Arps runs in Fahrenheit inside the engine'],
           ['Porosity, Vsh, Sw, BVW', 'Fractions (v/v)'],
+          ['Inputs as stored', 'The Studio reads NPHI in v/v, RHOB in g/cc and DT in µs/m. A curve stored in PU or %, kg/m3 or µs/ft is converted as it is read, and so is one whose values only make sense in percent or kg/m3 whatever its label says; samples at -999 or below in GR, RHOB, NPHI, DT, RT, CAL, DRHO or PEF are nulls. The status line names every such change; the stored curve is never rewritten.'],
           ['Permeability', 'Millidarcies. This is the one documented exception to SI, because every cited correlation is written in mD.'],
           ['Qv', 'meq/cm³'],
         ]}
@@ -1045,7 +1053,7 @@ const PetrophysicsHelpGuide = () => (
         ]}
       />
       <Para>
-        Every published curve and zone summary carries <Code>pipeline_version</Code> (currently 5),
+        Every published curve and zone summary carries <Code>pipeline_version</Code> (currently 6),
         the method keys, the parameter set, the input log ids and the interpretation name, so a
         number in Well Correlation or a map can always be traced back to how it was made.
       </Para>

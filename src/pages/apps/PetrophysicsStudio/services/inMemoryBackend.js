@@ -24,7 +24,48 @@ const nextId = (p) => { seq += 1; return `${p}-${seq}`; };
 
 const toArray = (vals) => Float64Array.from(vals, (v) => (v === null ? NaN : v));
 
-export function makeInMemoryBackend() {
+/**
+ * AppUpgrade PL10 scale well: `lengthFt` of hole at `stepFt`, with the six
+ * pipeline inputs, CAL, DRHO, PEF and enough auxiliary curves to reach
+ * `nCurves` (the size a Techlog project well carries). Deterministic
+ * sand/shale cycles so the pipeline has real pay to find.
+ */
+export function buildScaleWellCurves({ lengthFt = 20000, stepFt = 0.5, nCurves = 30, topM = 300 } = {}) {
+  const n = Math.floor(lengthFt / stepFt) + 1;
+  const step = stepFt * 0.3048;
+  const curves = { DEPT: new Float64Array(n) };
+  const base = ['GR', 'RHOB', 'NPHI', 'DT', 'RT', 'CAL', 'DRHO', 'PEF'];
+  for (const k of base) curves[k] = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const d = topM + i * step;
+    curves.DEPT[i] = d;
+    const sand = Math.sin(d / 7) > 0.2;          // ~40 percent sand in 44 m cycles
+    const phi = sand ? 0.18 + 0.06 * Math.sin(d / 3) : 0.06;
+    const sw = sand ? (Math.sin(d / 97) > 0 ? 0.25 : 0.9) : 1;
+    curves.GR[i] = sand ? 25 + 10 * Math.sin(d) : 110 + 10 * Math.cos(d);
+    curves.RHOB[i] = 2.65 - 1.65 * phi;
+    curves.NPHI[i] = sand ? phi : 0.33;
+    curves.DT[i] = 182 + phi * 474;
+    curves.RT[i] = sand ? 0.05 / (phi * phi * sw * sw) : 2;
+    curves.CAL[i] = 8.5 + 0.2 * Math.sin(d / 2);
+    curves.DRHO[i] = 0.01 * Math.sin(d / 5);
+    curves.PEF[i] = sand ? 1.9 : 3.3;
+  }
+  for (let k = base.length + 1; k < nCurves; k++) {
+    const a = new Float64Array(n);
+    for (let i = 0; i < n; i++) a[i] = Math.sin(curves.DEPT[i] / (k + 3)) * k;
+    curves[`AUX${String(k).padStart(2, '0')}`] = a;
+  }
+  return curves;
+}
+
+/**
+ * @param {{scaleWell?: Object|null, extraWells?: number}} [opts]
+ *   scaleWell: add "SCALE-20K" built by buildScaleWellCurves(opts.scaleWell);
+ *   extraWells: add n owned copies of the type well ("KETA COPY-01"...)
+ *   with the SAND A zone, for multi-well batch and field view timing.
+ */
+export function makeInMemoryBackend(opts = {}) {
   const curveStore = new Map();   // log id -> Float64Array
   const logsByWell = new Map();
   const topsByWell = new Map();
@@ -119,6 +160,32 @@ export function makeInMemoryBackend() {
     base_md_m: 2080,
     properties: { phi_avg: 0.21, published_by: 'other user' },
   }]);
+
+  // PL10: scale fixtures, harness only (?scaleWell=1, ?extraWells=n)
+  if (opts.scaleWell) {
+    const id = addWell({ name: 'SCALE-20K', isOwn: true });
+    const curves = buildScaleWellCurves(opts.scaleWell === true ? {} : opts.scaleWell);
+    const depth = curves.DEPT;
+    for (const [mnemonic, vals] of Object.entries(curves)) {
+      const logId = nextId('log');
+      curveStore.set(logId, vals);
+      logsByWell.get(id).push({
+        id: logId, well_id: id, mnemonic, description: `${mnemonic} (scale well)`,
+        unit: CURVE_UNITS[mnemonic] || (mnemonic === 'CAL' ? 'IN' : mnemonic === 'DRHO' ? 'G/C3' : null),
+        start_md_m: depth[0], stop_md_m: depth[depth.length - 1], step_m: depth[1] - depth[0],
+        n_samples: depth.length, null_count: 0, source_file: 'scale', provenance: { synthetic: true },
+        storage_path: `dev/${id}/${logId}.f32`,
+      });
+    }
+    const w = wells.find((x) => x.id === id);
+    w.td_md_m = depth[depth.length - 1];
+    zonesByWell.set(id, [{ id: nextId('zone'), well_id: id, name: 'WHOLE WELL', top_md_m: depth[0], base_md_m: depth[depth.length - 1], properties: {} }]);
+  }
+  for (let k = 1; k <= (opts.extraWells || 0); k++) {
+    const id = addWell({ name: `KETA COPY-${String(k).padStart(2, '0')}`, isOwn: true });
+    addLogs(id);
+    zonesByWell.set(id, [{ id: nextId('zone'), well_id: id, name: 'SAND A', top_md_m: typewell.params.zones.SAND_A[0], base_md_m: typewell.params.zones.SAND_A[1], properties: {} }]);
+  }
 
   const ownZoneWell = (wellId) => {
     const w = wells.find((x) => x.id === wellId);
