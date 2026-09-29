@@ -52,8 +52,10 @@ export const SCROLL_H = 12;    // horizontal scrollbar under a band wider than t
 /** Tag text of a top: the typed abbreviation in the display scheme in front of the name; plain name for formation tops. */
 function topLabel(t, scheme) {
   const code = normalizeSurfaceType(t.row?.surface_type ?? t.surface_type);
-  if (code === 'formation_top') return t.name;
-  return `${displayLabel(code, scheme, { kind: 'surface', short: true }).label} ${t.name}`;
+  // U2-010: a low-confidence pick carries a ? on its tag
+  const q = (t.row?.confidence ?? t.confidence) === 'low' ? ' ?' : '';
+  if (code === 'formation_top') return `${t.name}${q}`;
+  return `${displayLabel(code, scheme, { kind: 'surface', short: true }).label} ${t.name}${q}`;
 }
 const MIN_READOUT_W = 60;
 const P = PALETTES.light;
@@ -261,6 +263,10 @@ const CrossSection = forwardRef(function CrossSection({
     else notes.push(...frameNotes(c.well, depthRef)); // WC-U1-005
     if (c.well.reoriented) notes.push('stored bottom-up: read top-down'); // WC-U1-003
     for (const st of strips?.[c.well.id] || []) if (st.note) notes.push(st.note); // U2-008
+    // WC-U1-024 / U2-010: a top repeated in one well (a fault repeat) correlates on the shallower pick
+    const seen = new Map();
+    for (const t of c.well.tops || []) if (!t.readonly) seen.set(t.name, (seen.get(t.name) || 0) + 1);
+    for (const [n, k] of seen) if (k > 1) notes.push(`${n} x${k}: correlated on the shallower`);
     return notes;
   }), [columns, datum, flattening, depthRef, strips]);
 

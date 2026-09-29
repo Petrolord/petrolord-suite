@@ -38,12 +38,14 @@ import { printPlan, buildSectionPdf, PDF_SCALES_M, PDF_SCALES_FT } from '../serv
 import { allTopNames } from '../engine/section';
 import { DEPTH_REF_LABEL, depthOfFor } from '../engine/sectionFrame';
 import { sectionCaption } from '../services/sectionReport';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { undoEntry, applyUndo, remapStack, UNDO_LIMIT } from '../services/topsUndo';
 import { topsCsv } from '../services/topsFile';
 import { sheetRows } from '../../WellDataManager/engine/topsSheet';
 import { horizonCandidates, horizonAtWell, horizonLabel } from '@/components/wells/section/horizons';
 import { wellStrips } from '@/components/wells/section/petroStrips';
 import { wellsInCorridor } from '../services/sectionLine';
+import { lagSuggestion, snapSuggestion, MIN_R } from '../services/pickAssist';
 
 // Fixed values for the parameter-bound fills of the Petrophysics
 // templates (GR clean/clay lines, porosity and saturation cut-offs): the
@@ -125,6 +127,82 @@ export default function CorrelationWorkstation({
     : sectionWells), [sectionWells, horizonPicks]);
   const datumNames = useMemo(() => [...topNames, ...horizonPicks.names], [topNames, horizonPicks.names]);
 
+  // ---- U2-010 pick attributes: who picked it and how sure (existing
+  // geo_wells_tops columns interpreter and confidence; the date is the row's
+  // updated_at, no schema change) -------------------------------------------
+  const [pickBy, setPickBy] = useState({ interpreter: '', confidence: '' });
+  const pickAttrs = () => {
+    const interpreter = (pickBy.interpreter || report.analyst || '').trim();
+    return { interpreter: interpreter || null, ...(['high', 'medium', 'low'].includes(pickBy.confidence) ? { confidence: pickBy.confidence } : {}) };
+  };
+  const pickDetails = (name) => sectionWells.flatMap((w) => (w.tops || []).filter((t) => t.name === name).map((t) => ({
+    well: w.name, md_m: t.md_m, interpreter: t.interpreter || null, confidence: t.confidence || null,
+    date: String(t.updated_at || t.created_at || '').slice(0, 10) || null,
+  })));
+
+  // ---- U2-009 assisted picking: SUGGESTIONS ONLY. The app proposes a pick
+  // with its reason; the interpreter accepts or rejects each; nothing is
+  // written without an accept.
+  const [suggestions, setSuggestions] = useState(null); // {name, items, none}
+  const suggestPicks = (name) => {
+    const log = (id) => {
+      const d = wellData[id];
+      const v = d?.curves?.GR || d?.logs?.GR;
+      return v && d?.curves?.DEPT ? { depth: Array.from(d.curves.DEPT), values: Array.from(v) } : null;
+    };
+    const carriers = sectionWells.map((w, i) => ({ w, i, top: (w.tops || []).find((t) => t.name === name) })).filter((c) => c.top);
+    if (!carriers.length) { setSuggestions(null); setStatus(`No section well carries ${name} yet; pick it on one well first.`); return; }
+    const conv = exportRef.current;
+    const items = []; const none = [];
+    sectionWells.forEach((w, i) => {
+      if (!w.is_own) { none.push(`${w.name} (shared, read-only)`); return; }
+      const lg = log(w.id);
+      if (!lg) { none.push(`${w.name} (no GR log)`); return; }
+      const top = (w.tops || []).find((t) => t.name === name);
+      if (top) {
+        const s = snapSuggestion(lg.depth, lg.values, top.md_m, { windowM: 5 });
+        if (s && Math.abs(s.md - top.md_m) > 0.5) {
+          items.push({ key: `snap:${w.id}`, kind: 'snap', wellId: w.id, wellName: w.name, topId: top.id, fromMd: top.md_m, md: Number(s.md.toFixed(2)),
+            reason: `GR changes from ${Math.round(s.from)} to ${Math.round(s.to)} API there, the strongest change within 5 m of the pick` });
+        }
+        return;
+      }
+      const ref = carriers.reduce((b, c) => (Math.abs(c.i - i) < Math.abs(b.i - i) ? c : b), carriers[0]);
+      const rl = log(ref.w.id);
+      if (!rl) { none.push(`${w.name} (${ref.w.name} has no GR log)`); return; }
+      let seed = ref.top.md_m;
+      if (conv?.displayedAt && conv?.mdAt) {
+        const inv = conv.mdAt(w.id, conv.displayedAt(ref.w.id, ref.top.md_m));
+        if (inv && Number.isFinite(inv.md) && !inv.ambiguous) seed = inv.md;
+      }
+      const s = lagSuggestion({ ...rl, topMd: ref.top.md_m }, { ...lg, seedMd: seed });
+      if (s.none) { none.push(`${w.name} (no confident match with ${ref.w.name}: best r ${Number.isFinite(s.bestR) ? s.bestR.toFixed(2) : EMPTY_VALUE}, needs ${MIN_R})`); return; }
+      items.push({ key: `lag:${w.id}`, kind: 'lag', wellId: w.id, wellName: w.name, md: Number(s.md.toFixed(2)),
+        reason: `the GR pattern 20 m either side of ${name} on ${ref.w.name} matches best here (r = ${s.r.toFixed(2)}, ${s.lagM >= 0 ? '+' : ''}${depthLabel(s.lagM, depthUnit)} from the same displayed depth)` });
+    });
+    setSuggestions({ name, items, none });
+    setStatus(items.length ? `${items.length} suggestion${items.length === 1 ? '' : 's'} for ${name}. Nothing is written until you accept one.` : `No suggestion for ${name}.`);
+  };
+  const acceptSuggestion = async (it) => {
+    try {
+      if (it.kind === 'lag') {
+        const row = await backend.saveTop(it.wellId, { name: suggestions.name, mdM: it.md, ...pickAttrs() });
+        if (row?.id) pushUndo(undoEntry.create([row], `accept the suggested ${suggestions.name} on ${it.wellName}`));
+        setShownTops((s) => (s.includes(suggestions.name) ? s : [...s, suggestions.name]));
+      } else {
+        await backend.updateTop(it.topId, { mdM: it.md });
+        pushUndo(undoEntry.move({ id: it.topId, well_id: it.wellId, name: suggestions.name }, it.fromMd, it.md, `accept the suggested move of ${suggestions.name} on ${it.wellName}`));
+      }
+      await refreshTops(it.wellId);
+      setSuggestions((s) => (s ? { ...s, items: s.items.filter((x) => x.key !== it.key) } : s));
+      setStatus(`Accepted: ${suggestions.name} on ${it.wellName} at ${depthLabel(it.md, depthUnit)} MD.`);
+    } catch (e) { setStatus(e.message); }
+  };
+  const rejectSuggestion = (it) => {
+    setSuggestions((s) => (s ? { ...s, items: s.items.filter((x) => x.key !== it.key) } : s));
+    setStatus(`Rejected the suggestion for ${it.wellName}; nothing written.`);
+  };
+
   // ---- U2-012 section line and corridor on the map ------------------------
   const [line, setLine] = useState(null); // {points, halfWidthM, crs, unit}
   const [lineAlong, setLineAlong] = useState({}); // well id -> metres along the line
@@ -180,6 +258,7 @@ export default function CorrelationWorkstation({
     setGhost(tl.ghost && tl.ghost.sourceWellId ? tl.ghost : null);
     setHzOn(Array.isArray(tl.horizons) ? tl.horizons.filter((x) => typeof x === 'string') : []);
     setStripsOn({ pay: !!tl.strips?.pay, zones: !!tl.strips?.zones, units: !!tl.strips?.units });
+    setPickBy({ interpreter: tl.pickBy?.interpreter || '', confidence: tl.pickBy?.confidence || '' });
     setLine(tl.line && Array.isArray(tl.line.points) && tl.line.points.length > 1 ? tl.line : null);
     setLineAlong(tl.lineAlong && typeof tl.lineAlong === 'object' ? tl.lineAlong : {});
     setReport(tl.report && typeof tl.report === 'object'
@@ -193,8 +272,8 @@ export default function CorrelationWorkstation({
   const payload = useMemo(() => ({
     well_ids: order,
     datum,
-    track_layout: { layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, horizons: hzOn, strips: stripsOn, line, lineAlong: line ? lineAlong : null },
-  }), [order, datum, layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, hzOn, stripsOn, line, lineAlong]);
+    track_layout: { layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, horizons: hzOn, strips: stripsOn, line, lineAlong: line ? lineAlong : null, pickBy },
+  }), [order, datum, layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, hzOn, stripsOn, line, lineAlong, pickBy]);
   const snapshot = useMemo(() => {
     const all = !shownTops.length || (topNames.length > 0 && topNames.every((n) => shownTops.includes(n)));
     const tl = payload.track_layout;
@@ -355,7 +434,7 @@ export default function CorrelationWorkstation({
       return;
     }
     try {
-      const row = await backend.saveTop(wellId, { name, mdM });
+      const row = await backend.saveTop(wellId, { name, mdM, ...pickAttrs() });
       if (row?.id) pushUndo(undoEntry.create([row], `add ${name} on ${wellName(wellId)}`));
       await refreshTops(wellId);
       setShownTops((s) => (s.includes(name) ? s : [...s, name]));
@@ -438,7 +517,7 @@ export default function CorrelationWorkstation({
     let moved = 0;
     try {
       for (const c of plan.creates) {
-        const row = await backend.saveTop(c.wellId, { name: c.name, mdM: Number(c.mdM.toFixed(4)) });
+        const row = await backend.saveTop(c.wellId, { name: c.name, mdM: Number(c.mdM.toFixed(4)), ...pickAttrs() });
         if (row?.id) created.push(row);
         touched.add(c.wellId);
       }
@@ -539,7 +618,7 @@ export default function CorrelationWorkstation({
     const skipNote = skipped.length ? ` Not added: ${skipped.join(', ')}.` : '';
     if (!targets.length) { setStatus(`${name} was not propagated.${skipNote}`); return; }
     try {
-      const created = await backend.propagateTop(name, targets);
+      const created = await backend.propagateTop(name, targets, pickAttrs());
       if (created.length) pushUndo(undoEntry.create(created, `propagate ${name} to ${created.length} well${created.length === 1 ? '' : 's'}`));
       for (const w of targets) await refreshTops(w.wellId);
       setShownTops((s) => (s.includes(name) ? s : [...s, name]));
@@ -783,6 +862,11 @@ export default function CorrelationWorkstation({
           <SectionControls
             topNames={topNames}
             datumNames={datumNames}
+            assist={{ suggestions, onSuggest: suggestPicks, onAccept: acceptSuggestion, onReject: rejectSuggestion, onClose: () => setSuggestions(null) }}
+            pickBy={pickBy}
+            onPickBy={setPickBy}
+            pickDetails={pickDetails}
+            analyst={report.analyst || ''}
             strips={{ on: stripsOn, onChange: setStripsOn, hasUnits: typeof backend.listUnits === 'function', hasZones: typeof backend.listZones === 'function' }}
             horizons={canHorizons ? { list: hzList, on: hzOn, onToggle: toggleHorizon, problems: horizonPicks.problems, loaded: hzGrids, picks: horizonPicks.byWell } : null}
             datum={datum}

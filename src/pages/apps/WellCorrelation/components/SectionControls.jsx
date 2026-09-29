@@ -29,7 +29,8 @@ const Section = ({ title, children, testId }) => (
 const unitTxt = (u) => (u === 'ft' ? 'ft' : 'm');
 const fmtDisplay = (mdM, unit) => (Number.isFinite(mdM) ? String(Number(toDisplay(mdM, unit).toFixed(1))) : '');
 
-function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete, mapHref, variants = [] }) {
+function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete, mapHref, variants = [], details = null, depthUnit = 'm' }) {
+  const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const [confirming, setConfirming] = useState(false);
@@ -40,6 +41,7 @@ function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete, mapHref, v
     if (v && v !== name) onRename(name, v);
   };
   return (
+    <>
     <div className="flex items-center gap-1.5 py-px" data-testid={`corr-top-row-${name}`}>
       <label className="flex items-center gap-1.5 min-w-0 flex-1" data-testid={`corr-toggle-${name}`}>
         <input type="checkbox" checked={shown} onChange={onToggle} />
@@ -63,6 +65,10 @@ function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete, mapHref, v
           title={`Also spelled ${variants.map((v) => JSON.stringify(v)).join(', ')} in this section. These are separate tops until one is renamed to the other.`}>
           also {variants.map((v) => JSON.stringify(v)).join(', ')}
         </span>
+      )}
+      {details && !editing && (
+        <button type="button" className={`text-[10px] ${open ? 'text-pl-primary-text' : 'text-pl-muted'} hover:text-pl-primary-text-hover`} data-testid={`corr-top-info-${name}`}
+          title="Who picked this top on each well, how sure, and when" onClick={() => setOpen((v) => !v)}>info</button>
       )}
       {mapHref && !editing && (
         <Link to={mapHref} className="text-pl-muted hover:text-pl-primary-text-hover" title="Map this top in Mapping & Surface Studio (TVDSS structure map from the section wells)" data-testid={`corr-map-top-${name}`}>
@@ -89,11 +95,23 @@ function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete, mapHref, v
         </>
       ))}
     </div>
+    {open && details && (
+      <ul className="ml-5 mb-1 text-[10px] text-pl-muted" data-testid={`corr-top-picks-${name}`}>
+        {details.map((d) => (
+          <li key={`${d.well}-${d.md_m}`}>
+            {d.well}: {Number(toDisplay(d.md_m, depthUnit).toFixed(1))} {unitTxt(depthUnit)} MD · {d.interpreter || EMPTY_VALUE} · {d.confidence || EMPTY_VALUE}{d.confidence === 'low' ? ' (shown with ?)' : ''} · {d.date || EMPTY_VALUE}
+          </li>
+        ))}
+      </ul>
+    )}
+    </>
   );
 }
 
 export default function SectionControls({
   topNames, datum, onDatum, datumNames = null, horizons = null, strips = null,
+  pickBy = null, onPickBy = null, pickDetails = null, analyst = '',
+  assist = null,
   depthUnit, onDepthUnit, depthRef, onDepthRef, spacing, onSpacing, columnWidth = 'auto', onColumnWidth = null, hasLine = false,
   layouts, onLayoutsChange, logSources, onStatus,
   shownTops, onToggleTop, onShowAllTops,
@@ -109,6 +127,7 @@ export default function SectionControls({
   const [propMd, setPropMd] = useState('');
   const [propRef, setPropRef] = useState('displayed'); // U2-005
   const [iso, setIso] = useState({ upper: '', lower: '' }); // U2-013
+  const [assistName, setAssistName] = useState(''); // U2-009
   const u = unitTxt(depthUnit);
   const dn = datumNames || topNames; // U2-003: flatten or stretch on a top or a seismic horizon
   // U2-003: in time the datum and the ghost shift are in ms (no ft conversion)
@@ -248,6 +267,52 @@ export default function SectionControls({
               onChange={(e) => onShowAllTops(e.target.checked)} /> all
           </label>
         </div>
+        {pickBy && onPickBy && canEdit && (
+          <div className="mb-1 flex items-center gap-1 flex-wrap" data-testid="corr-pick-by">
+            <span className="text-pl-muted">New picks by</span>
+            <input className={`${inputCls} w-24`} value={pickBy.interpreter} placeholder={analyst || 'interpreter'} data-testid="corr-pick-interpreter"
+              title="Stored on every top you pick, propagate or import here (blank uses the analyst of the report header)"
+              onChange={(e) => onPickBy({ ...pickBy, interpreter: e.target.value })} />
+            <select className={selCls} value={pickBy.confidence} data-testid="corr-pick-confidence" title="Confidence stored on new picks; low-confidence picks show a ? on the section"
+              onChange={(e) => onPickBy({ ...pickBy, confidence: e.target.value })}>
+              <option value="">confidence {EMPTY_VALUE}</option>
+              <option value="high">high</option>
+              <option value="medium">medium</option>
+              <option value="low">low</option>
+            </select>
+          </div>
+        )}
+        {assist && canEdit && topNames.length > 0 && (
+          <div className="mb-1 flex items-center gap-1 flex-wrap" data-testid="corr-assist">
+            <span className="text-pl-muted">Suggest</span>
+            <select className={`${selCls} min-w-0 max-w-[9rem]`} value={assistName || topNames[0]} data-testid="corr-assist-top" onChange={(e) => setAssistName(e.target.value)}>
+              {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <button type="button" className={btnCls} data-testid="corr-assist-run"
+              title="Propose picks for this top on the other own wells (GR pattern match) and small moves to the nearest log inflection. You accept or reject each; nothing is written otherwise."
+              onClick={() => assist.onSuggest(assistName || topNames[0])}>Suggest picks</button>
+          </div>
+        )}
+        {assist?.suggestions && (
+          <div className="mb-1 p-1.5 rounded border border-pl-border text-[11px]" data-testid="corr-suggestions">
+            <div className="flex items-center gap-1 mb-0.5">
+              <span className="text-pl-text font-medium">Suggestions for {assist.suggestions.name}</span>
+              <button type="button" className="ml-auto text-pl-muted hover:text-pl-text" onClick={assist.onClose}><X className="w-3.5 h-3.5" /></button>
+            </div>
+            {!assist.suggestions.items.length && <p className="text-pl-muted">No open suggestion.</p>}
+            {assist.suggestions.items.map((it) => (
+              <div key={it.key} className="py-0.5 border-t border-pl-border" data-testid={`corr-suggestion-${it.wellName}`}>
+                <div className="flex items-center gap-1">
+                  <span className="text-pl-text">{it.wellName}: {it.kind === 'snap' ? `move to ${fmtDisplay(it.md, depthUnit)} ${u} MD (from ${fmtDisplay(it.fromMd, depthUnit)})` : `pick at ${fmtDisplay(it.md, depthUnit)} ${u} MD`}</span>
+                  <button type="button" className="ml-auto px-1.5 rounded border border-pl-primary text-pl-primary-text" data-testid={`corr-suggestion-accept-${it.wellName}`} onClick={() => assist.onAccept(it)}>Accept</button>
+                  <button type="button" className="px-1.5 rounded border border-pl-border text-pl-muted" data-testid={`corr-suggestion-reject-${it.wellName}`} onClick={() => assist.onReject(it)}>Reject</button>
+                </div>
+                <p className="text-pl-muted">Why: {it.reason}.</p>
+              </div>
+            ))}
+            {assist.suggestions.none.length > 0 && <p className="mt-0.5 text-pl-warning-text">No suggestion: {assist.suggestions.none.join(', ')}.</p>}
+          </div>
+        )}
         {importing && topsFile && (
           <TopsFilePanel wells={topsFile.wells} loadRows={topsFile.loadRows} unit={depthUnit}
             onApply={topsFile.onApply} onClose={() => setImporting(false)} />
@@ -256,7 +321,8 @@ export default function SectionControls({
           {topNames.map((n) => (
             <TopRow key={n} name={n} shown={shownTops.includes(n)} onToggle={() => onToggleTop(n)}
               canEdit={canEdit} onRename={onRenameTop} onDelete={onDeleteTop}
-              mapHref={mapHrefFor ? mapHrefFor(n) : null} variants={topVariants[n] || []} />
+              mapHref={mapHrefFor ? mapHrefFor(n) : null} variants={topVariants[n] || []}
+              details={pickDetails ? pickDetails(n) : null} depthUnit={depthUnit} />
           ))}
           {!topNames.length && <p className="text-pl-muted">No tops in the section yet. Pick one on a column, or propagate a top below.</p>}
         </div>

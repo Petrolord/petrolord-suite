@@ -409,3 +409,73 @@ describe('U2-013 thickness map launcher to Mapping', () => {
     expect(screen.getByTestId('corr-iso-why').textContent).toBe('2 section wells carry both; a map needs 3');
   }, 300000);
 });
+
+describe('U2-010 pick attributes (interpreter, confidence, date) on the existing row', () => {
+  test('new picks carry who and how sure; the tops list shows them per well; low confidence is marked', async () => {
+    const b = makeInMemoryBackend();
+    mount(b, '?wells=corr-w1,corr-w2,corr-w3');
+    await rowsIn(3);
+    fireEvent.change(await screen.findByTestId('corr-report-analyst', {}, T), { target: { value: 'A. Analyst' } });
+    fireEvent.change(screen.getByTestId('corr-pick-confidence'), { target: { value: 'low' } });
+    fireEvent.change(screen.getByTestId('corr-prop-name'), { target: { value: 'Seed P' } });
+    fireEvent.change(screen.getByTestId('corr-prop-md'), { target: { value: '1520' } });
+    fireEvent.click(screen.getByTestId('corr-prop-run'));
+    await waitFor(() => expect(status()).toMatch(/Propagated Seed P to 2 wells/), T);
+    const row = (await b.listTops('corr-w1')).find((t) => t.name === 'Seed P');
+    expect(row).toMatchObject({ interpreter: 'A. Analyst', confidence: 'low' }); // blank interpreter uses the analyst
+    expect(row.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}/);
+    fireEvent.change(screen.getByTestId('corr-pick-interpreter'), { target: { value: 'ama' } });
+    fireEvent.change(screen.getByTestId('corr-pick-confidence'), { target: { value: 'high' } });
+    fireEvent.change(screen.getByTestId('corr-prop-name'), { target: { value: 'Seed Q' } });
+    fireEvent.change(screen.getByTestId('corr-prop-md'), { target: { value: '1530' } });
+    fireEvent.click(screen.getByTestId('corr-prop-run'));
+    await waitFor(() => expect(status()).toMatch(/Propagated Seed Q/), T);
+    expect((await b.listTops('corr-w2')).find((t) => t.name === 'Seed Q')).toMatchObject({ interpreter: 'ama', confidence: 'high' });
+    fireEvent.click(await screen.findByTestId('corr-top-info-Seed P', {}, T));
+    const picks = screen.getByTestId('corr-top-picks-Seed P').textContent;
+    expect(picks).toMatch(/KETA-1: 1520 m MD · A. Analyst · low \(shown with \?\) · \d{4}-\d{2}-\d{2}/);
+    expect(screen.getByTestId('corr-section').getAttribute('data-top-types')).toBeTruthy();
+  }, 300000);
+
+  test('a top repeated in one well is named: it correlates on the shallower pick', async () => {
+    const { scaleWells } = await import('../services/scaleSection');
+    const [w] = scaleWells(1);
+    w.tops.push({ id: 'rep', well_id: w.id, name: 'Sand A', md_m: w.tops.find((t) => t.name === 'Sand A').md_m + 90, surface_type: 'formation_top' });
+    mount(makeInMemoryBackend({ sample: false, seedWells: [w] }), `?sample=0&wells=${w.id}`);
+    await rowsIn(1);
+    await waitFor(() => expect(screen.getByTestId('corr-section').getAttribute('data-well-notes')).toMatch(/Sand A x2: correlated on the shallower/), T);
+  }, 300000);
+});
+
+describe('U2-009 assisted picking: suggestions only', () => {
+  test('proposes Top Dome on KETA-2 from the KETA-1 GR pattern with its reason; nothing is written until Accept', async () => {
+    const b = makeInMemoryBackend();
+    const dome2 = (await b.listTops('corr-w2')).find((t) => t.name === 'Top Dome');
+    await b.deleteTop(dome2);
+    mount(b, '?wells=corr-w1,corr-w2,corr-w3');
+    await rowsIn(3);
+    fireEvent.change(await screen.findByTestId('corr-assist-top', {}, T), { target: { value: 'Top Dome' } });
+    fireEvent.click(screen.getByTestId('corr-assist-run'));
+    const card = await screen.findByTestId('corr-suggestion-KETA-2', {}, T);
+    expect(card.textContent).toMatch(/pick at 15(39|40|41)\.\d m MD/);
+    expect(card.textContent).toMatch(/Why: the GR pattern 20 m either side of Top Dome on KETA-1 matches best here \(r = 0\.9\d/);
+    expect(screen.getByTestId('corr-suggestions').textContent).toMatch(/No suggestion: KETA-3 \(shared, read-only\)/);
+    expect((await b.listTops('corr-w2')).some((t) => t.name === 'Top Dome')).toBe(false); // a suggestion writes nothing
+    fireEvent.click(screen.getByTestId('corr-suggestion-accept-KETA-2'));
+    await waitFor(() => expect(status()).toMatch(/Accepted: Top Dome on KETA-2/), T);
+    expect(Math.abs((await b.listTops('corr-w2')).find((t) => t.name === 'Top Dome').md_m - 1540)).toBeLessThanOrEqual(1);
+  }, 300000);
+
+  test('Reject writes nothing', async () => {
+    const b = makeInMemoryBackend();
+    const dome2 = (await b.listTops('corr-w2')).find((t) => t.name === 'Top Dome');
+    await b.deleteTop(dome2);
+    mount(b, '?wells=corr-w1,corr-w2');
+    await rowsIn(2);
+    fireEvent.change(await screen.findByTestId('corr-assist-top', {}, T), { target: { value: 'Top Dome' } });
+    fireEvent.click(screen.getByTestId('corr-assist-run'));
+    fireEvent.click(await screen.findByTestId('corr-suggestion-reject-KETA-2', {}, T));
+    await waitFor(() => expect(status()).toMatch(/Rejected the suggestion for KETA-2; nothing written/), T);
+    expect((await b.listTops('corr-w2')).some((t) => t.name === 'Top Dome')).toBe(false);
+  }, 300000);
+});
