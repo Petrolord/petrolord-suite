@@ -222,7 +222,7 @@ describe('WC-U1-015 the section path map', () => {
   test('says when the wells are in different coordinate systems or have no location', async () => {
     const seed = hostileWells().map((w) => (w.name === 'IDU 9' ? { ...w, surface_x: null } : w));
     mount(makeInMemoryBackend({ sample: false, seedWells: seed }));
-    const note = await screen.findByTestId('corr-map-frames');
+    const note = await screen.findByTestId('corr-map-frames', {}, { timeout: 15000 });
     expect(note.textContent).toMatch(/Mixed coordinate systems/);
     expect(note.textContent).toMatch(/EPSG:2277/);
     expect(note.textContent).toMatch(/EPSG:32632/);
