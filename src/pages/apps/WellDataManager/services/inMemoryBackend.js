@@ -8,9 +8,11 @@
 // (is_own=false rows hide the owner-only actions, like RLS would
 // reject them server-side).
 
-import { wellNameClashMessage, validateStoredCheckshotsShape } from '@/lib/wellsRegistry';
+import { wellNameClashMessage, validateStoredCheckshotsShape, LogsStoppedError, surfaceCoordProblem } from '@/lib/wellsRegistry';
+import { PLATFORM_BUILD } from '@/lib/platformBuild';
 import { parseLas } from '../engine/lasParse';
 import { prepareLasForRegistry } from '../engine/lasIndex';
+import { prepareTextChannels } from '../engine/lasTextChannels';
 
 const DEV_USER = 'user-dev';
 const DEV_ORG = 'org-dev';
@@ -27,6 +29,7 @@ export function makeInMemoryBackend(opts = {}) {
   const intervalsByWell = new Map();   // ST1 interval logs
   const coreImagesByWell = new Map();  // ST1 core photos (metadata only; the harness shows a placeholder)
   const logsByWell = new Map();
+  const zonesByWell = new Map();       // Petrophysics zones (U2-008: WDM reads them)
   const curveStore = new Map(); // storage_path -> Float32Array
 
   if (opts.seedSharedWell !== false) {
@@ -70,10 +73,11 @@ export function makeInMemoryBackend(opts = {}) {
   // rows exactly as an older release stored them. `samples` on a log row
   // becomes its curve object; is_own defaults to the dev user's ownership.
   if (opts.seedRows) {
-    const { wells: sw = [], tops: st = {}, logs: sl = {} } = opts.seedRows;
+    const { wells: sw = [], tops: st = {}, logs: sl = {}, zones: sz = {} } = opts.seedRows;
     for (const w of sw) {
       wells.push({ ...w, is_own: w.is_own ?? (w.user_id === DEV_USER) });
       topsByWell.set(w.id, [...(st[w.id] || [])].map((t) => ({ well_id: w.id, ...t })));
+      zonesByWell.set(w.id, [...(sz[w.id] || [])].map((z) => ({ well_id: w.id, properties: {}, ...z })));
       logsByWell.set(w.id, (sl[w.id] || []).map(({ samples, ...row }) => {
         const r = { well_id: w.id, ...row };
         if (samples) curveStore.set(r.storage_path, Float32Array.from(samples, (v) => (v === null ? Number.NaN : v)));
@@ -91,6 +95,9 @@ export function makeInMemoryBackend(opts = {}) {
 
   const update = async (wellId, patch) => {
     const w = ownWell(wellId, 'edit');
+    for (const [n, col] of [['Surface X', 'surface_x'], ['Surface Y', 'surface_y']]) {
+      if (patch && col in patch) { const bad = surfaceCoordProblem(n, patch[col]); if (bad) throw new Error(bad); }
+    }
     if (patch && patch.name !== undefined) {
       const msg = wellNameClashMessage(patch.name, wells, { exceptId: wellId, userId: DEV_USER });
       if (msg) throw new Error(msg);
@@ -106,6 +113,10 @@ export function makeInMemoryBackend(opts = {}) {
     },
 
     async saveWell(w) {
+      for (const [n, v] of [['Surface X', w.surfaceX], ['Surface Y', w.surfaceY]]) {
+        const bad = surfaceCoordProblem(n, v);
+        if (bad) throw new Error(bad);
+      }
       // same one-name-per-registry rule as the live registry
       const msg = wellNameClashMessage(w.name, wells, { userId: DEV_USER });
       if (msg) throw new Error(msg);
@@ -152,8 +163,9 @@ export function makeInMemoryBackend(opts = {}) {
       // that they are finite, transform nothing.
       for (const [name, value, col] of [['Surface X', surfaceX, 'surface_x'], ['Surface Y', surfaceY, 'surface_y']]) {
         if (value === undefined) continue;
-        if (value === null) { patch[col] = null; continue; }
-        if (!Number.isFinite(Number(value))) throw new Error(`${name} must be a number in the well's CRS.`);
+        // WDM-U2-F01: live surface_x/y are NOT NULL; the harness refuses the same
+        const msg = surfaceCoordProblem(name, value);
+        if (msg) throw new Error(msg);
         patch[col] = Number(value);
       }
       if (kbM !== undefined) {
@@ -301,9 +313,16 @@ export function makeInMemoryBackend(opts = {}) {
 
     async listLogs(wellId) { return [...(logsByWell.get(wellId) || [])]; },
 
-    async saveLogs(wellId, logs) {
+    /** Petrophysics zones of a well, top-down (same shape as wellsRegistry.listZones). */
+    async listZones(wellId) { return [...(zonesByWell.get(wellId) || [])].sort((a, b) => a.top_md_m - b.top_md_m).map((z) => ({ ...z })); },
+
+    // registry-wide reads (U2-005 / U2-006), same shape as wellsRegistry
+    async listAllLogMeta() { return [...logsByWell.values()].flat().map((l) => ({ ...l })); },
+    async listAllTops() { return [...topsByWell.values()].flat().map((t) => ({ ...t })); },
+
+    async saveLogs(wellId, logs, { onProgress = null, cancel = null } = {}) {
       ownWell(wellId, 'add logs to');
-      const saved = logs.map((log) => {
+      const saveOne = (log) => {
         const id = nextId('log');
         const path = `${DEV_USER}/${wellId}/logs/${id}.f32`;
         curveStore.set(path, log.data);
@@ -321,11 +340,21 @@ export function makeInMemoryBackend(opts = {}) {
           source_file: log.provenance?.source_file || null,
           provenance: log.provenance || {},
           storage_path: path,
+          app_build: PLATFORM_BUILD.sha,
           created_at: new Date(2026, 6, 13, 2, 0, seq).toISOString(),
         };
         logsByWell.get(wellId).push(row);
         return row;
-      });
+      };
+      const saved = [];
+      for (let i = 0; i < logs.length; i++) {
+        // U2-013: same progress and stop contract as wellsRegistry.saveLogs
+        if (cancel?.cancelled) throw new LogsStoppedError(saved, logs.length);
+        onProgress?.({ done: i, total: logs.length, mnemonic: logs[i].mnemonic });
+        if (opts.saveDelayMs) await new Promise((r) => setTimeout(r, opts.saveDelayMs));
+        saved.push(saveOne(logs[i]));
+      }
+      onProgress?.({ done: logs.length, total: logs.length, mnemonic: null });
       return saved;
     },
 
@@ -335,6 +364,17 @@ export function makeInMemoryBackend(opts = {}) {
       const arr = logsByWell.get(log.well_id) || [];
       const i = arr.findIndex((l) => l.id === log.id);
       if (i >= 0) arr.splice(i, 1);
+    },
+
+    /** WDM-U2-010: same contract as wellsRegistry.rewriteLogSamples. */
+    async rewriteLogSamples(log, data, patch) {
+      ownWell(log.well_id, 'change logs of');
+      if (data.length !== Number(log.n_samples)) throw new Error(`Curve ${log.mnemonic}: ${data.length} samples, the row says ${log.n_samples}.`);
+      const row = (logsByWell.get(log.well_id) || []).find((l) => l.id === log.id);
+      if (!row) throw new Error('Log not found.');
+      curveStore.set(row.storage_path, Float32Array.from(data));
+      Object.assign(row, patch);
+      return { ...row };
     },
 
     async downloadCurve(log) {
@@ -351,6 +391,8 @@ export function makeInMemoryBackend(opts = {}) {
       const text = await file.text();
       const parsed = parseLas(text);
       const { prep, notes, suggestedHeader } = prepareLasForRegistry(parsed, { sourceFile: file.name || null });
+      const text3 = prepareTextChannels(text, parsed, prep, { sourceFile: file.name || null });
+      prep.textLogs = text3.logs;
       return {
         meta: {
           version: parsed.version,
@@ -365,6 +407,7 @@ export function makeInMemoryBackend(opts = {}) {
           // LAS 3.0 (2026-09-03): what the reader left out, for the import preview
           delimiter: parsed.delimiter || 'space',
           skippedCurves: parsed.skippedCurves || [],
+          textSkipped: text3.skipped,
           ignoredSections: parsed.ignoredSections || [],
           curves: parsed.curves.map(({ data, ...rest }) => rest),
         },

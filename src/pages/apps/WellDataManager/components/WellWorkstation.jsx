@@ -5,9 +5,9 @@
 // backend so the /dev harness runs the identical app on
 // makeInMemoryBackend with no auth or DB (the harness philosophy).
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Database, Loader2, Map as MapIcon, CircleDot } from 'lucide-react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Database, Loader2, Map as MapIcon, CircleDot, ClipboardList, HelpCircle, Table2 } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -15,15 +15,21 @@ import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import WellsTree from './WellsTree';
 import WellsMap from './WellsMap';
 import WellDetail from './WellDetail';
+import InventoryView from './InventoryView';
+import TopsSheetView from './TopsSheetView';
 import LasImportDialog from './LasImportDialog';
+import BatchLasDialog from './BatchLasDialog';
 import AddWellDialog from './AddWellDialog';
 import DeleteWellDialog from './DeleteWellDialog';
 import PackageExportDialog from '@/components/portability/PackageExportDialog';
 import PackageImportDialog from '@/components/portability/PackageImportDialog';
+import { AuthContext } from '@/contexts/SupabaseAuthContext';
+import { readDisplayUnit, writeDisplayUnit, unitText } from '../engine/displayUnits';
 
 /** @param {Object} [p.appPaths] route overrides for the "Open in" launchers
  *  (the harness points them at the other /dev harnesses) */
-export default function WellWorkstation({ backend, appPaths = {} }) {
+/** @param {string} [p.helpPath] the in-app help guide route (the harness uses its /dev twin) */
+export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/dashboard/apps/geoscience/well-data-manager/help' }) {
   // deep link (PT1): ?well=<id>&tab=<header|logs|tops|deviation|checkshots>
   // selects the well once the list has loaded (Petrophysics links here)
   const [searchParams] = useSearchParams();
@@ -32,15 +38,21 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState(null);
   const [busyId, setBusyId] = useState(null);     // well with an in-flight action
-  const [view, setView] = useState('map');        // 'map' | 'detail'
+  const [view, setView] = useState('map');        // 'map' | 'detail' | 'inventory' | 'tops'
   const [status, setStatus] = useState('Ready.');
   const [lasOpen, setLasOpen] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false); // WDM-U2-004
   const [packageOpen, setPackageOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [detailNonce, setDetailNonce] = useState(0); // reload the detail view after an import into the selected well
   const [deleting, setDeleting] = useState(null); // well pending delete confirm
   const [orgId, setOrgId] = useState(undefined);  // undefined = resolving
+  // WDM-U2-001: display depth unit, remembered per user on this device
+  const userId = useContext(AuthContext)?.user?.id || null;
+  const [unit, setUnitState] = useState(() => readDisplayUnit(userId));
+  useEffect(() => { setUnitState(readDisplayUnit(userId)); }, [userId]);
+  const setUnit = (u) => { setUnitState(u); writeDisplayUnit(userId, u); };
 
   const refresh = useCallback(async () => {
     try {
@@ -160,6 +172,30 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
         </button>
         <button
           type="button"
+          data-testid="wdm-view-inventory"
+          title="Every well against its logs, tops, survey, checkshots, CRS and KB, with QC flags"
+          className={`flex items-center gap-1 px-2 py-1 text-xs rounded border
+            ${view === 'inventory'
+              ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text'
+              : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
+          onClick={() => setView('inventory')}
+        >
+          <ClipboardList className="w-3.5 h-3.5" /> Inventory
+        </button>
+        <button
+          type="button"
+          data-testid="wdm-view-tops"
+          title="Every top of every well in one sheet: filter, edit, rename across wells, paste from Excel"
+          className={`flex items-center gap-1 px-2 py-1 text-xs rounded border
+            ${view === 'tops'
+              ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text'
+              : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
+          onClick={() => setView('tops')}
+        >
+          <Table2 className="w-3.5 h-3.5" /> Tops sheet
+        </button>
+        <button
+          type="button"
           data-testid="wdm-view-detail"
           disabled={!selected}
           className={`flex items-center gap-1 px-2 py-1 text-xs rounded border disabled:opacity-40
@@ -171,6 +207,18 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
           <CircleDot className="w-3.5 h-3.5" /> {selected ? selected.name : 'Well'}
         </button>
         <OpenInAppMenu wellIds={selectedId ? [selectedId] : []} paths={appPaths} testIdPrefix="wdm" disabled={!selected} />
+        <Link to={helpPath} data-testid="wdm-help" title="Open the Well Data Manager help guide"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken">
+          <HelpCircle className="w-3.5 h-3.5" /> Help
+        </Link>
+        <label className="flex items-center gap-1 text-[11px] text-pl-muted" title="Depth unit for every table, editor, plot and export. The registry stores metres.">
+          Depths in
+          <select className="rounded border border-pl-border bg-pl-surface text-pl-text px-1 py-0.5 text-xs" value={unit}
+            onChange={(e) => setUnit(e.target.value)} data-testid="wdm-units">
+            <option value="m">metres</option>
+            <option value="ft">feet</option>
+          </select>
+        </label>
         <ThemeToggle />
       </div>
     </div>
@@ -187,7 +235,7 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
         {list.length} well{list.length === 1 ? '' : 's'}
         {orgId === null ? ' · no organization' : ''}
       </span>
-      <span className="whitespace-nowrap text-pl-muted">SI internal (m)</span>
+      <span className="whitespace-nowrap text-pl-muted" data-testid="wdm-status-units">Depths in {unitText(unit)} (stored in m)</span>
     </div>
   );
 
@@ -197,12 +245,16 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
     </div>
   ) : (
     <div className="h-full min-h-0 overflow-auto">
-      {view === 'map' || !selected ? (
+      {view === 'inventory' ? (
+        <InventoryView backend={backend} wells={filtered} unit={unit} onOpen={select} onStatus={setStatus} reloadKey={wells} />
+      ) : view === 'tops' ? (
+        <TopsSheetView backend={backend} wells={filtered} unit={unit} onStatus={setStatus} onChanged={onWellChanged} reloadKey={wells} />
+      ) : view === 'map' || !selected ? (
         <div className="p-3">
           <WellsMap wells={list} selectedId={selectedId} onSelect={select} />
         </div>
       ) : (
-        <WellDetail backend={backend} well={selected} onStatus={setStatus} refreshNonce={detailNonce}
+        <WellDetail backend={backend} well={selected} unit={unit} onStatus={setStatus} refreshNonce={detailNonce}
           onWellChanged={onWellChanged} appPaths={appPaths} initialTab={deepLinkRef.current.well === selected.id ? deepLinkRef.current.tab : null} />
       )}
     </div>
@@ -218,6 +270,7 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
           <WellsTree
             wells={filtered}
             total={list.length}
+            unit={unit}
             search={search}
             onSearch={setSearch}
             selectedId={selectedId}
@@ -227,6 +280,7 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
             onShareToggle={shareToggle}
             onDelete={setDeleting}
             onImportLas={() => setLasOpen(true)}
+            onBatchLas={() => setBatchOpen(true)}
             onAddWell={() => setAddOpen(true)}
             onExportPackage={() => setPackageOpen(true)}
             onImportPackage={() => setImportOpen(true)}
@@ -241,7 +295,15 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
         backend={backend}
         wells={list}
         initialTargetId={selectedId}
+        unit={unit}
         onDone={onImported}
+      />
+      <BatchLasDialog
+        open={batchOpen}
+        onOpenChange={setBatchOpen}
+        backend={backend}
+        wells={list}
+        onDone={async ({ summary }) => { setStatus(summary); await refresh(); setDetailNonce((n) => n + 1); }}
       />
       <AddWellDialog
         open={addOpen}

@@ -178,8 +178,11 @@ test('PT1: Petrel checkshots (MD ft + OWT) convert at the door, read back as ent
   await page.getByTestId('wdm-edit-header').click();
   await expect(page.getByTestId('wdm-header-x')).toBeVisible();
   await page.getByTestId('wdm-header-x').fill('not a number');
-  await page.getByTestId('wdm-header-save').click();
-  await expect(page.getByTestId('wdm-header-error')).toContainText('Surface X must be a number');
+  // WDM-U2-F01: Save is refused before any request, with the reason inline
+  await expect(page.getByTestId('wdm-header-save')).toBeDisabled();
+  await expect(page.getByTestId('wdm-header-reason')).toContainText('Surface X must be a number');
+  await page.getByTestId('wdm-header-x').fill('');
+  await expect(page.getByTestId('wdm-header-reason')).toContainText('Surface X is required');
   await page.getByTestId('wdm-header-x').fill('501300.5');
   await page.getByTestId('wdm-header-y').fill('712400.25');
   await page.getByTestId('wdm-header-save').click();

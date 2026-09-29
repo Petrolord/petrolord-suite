@@ -22,6 +22,9 @@ import WellDataManager from '../WellDataManager';
 import { mapFrameSummary } from '../components/WellsMap';
 import { depthTickLabel } from '../components/LogTracks';
 
+// full-app renders run 3 to 6 s alone; the shared runner is often loaded
+jest.setTimeout(30000);
+
 let mockBackend = null;
 jest.mock('../services/registryBackend', () => ({ makeRegistryBackend: () => mockBackend }));
 const { makeInMemoryBackend } = jest.requireActual('../services/inMemoryBackend');

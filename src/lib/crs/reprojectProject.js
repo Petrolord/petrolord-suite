@@ -24,7 +24,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { normalizeTag, isTransformableTag } from '@/lib/crs/tags';
 import {
   getTransformer, reprojectSurveyAffine, reprojectSurfaceGrid,
-  convergenceAt, crsUnit, crsDisplayName,
+  convergenceAt, crsUnit, crsDisplayName, rowDatumTransform, transformOptsForRow,
 } from '@/lib/crs';
 import { toGridAzimuths } from '../../../packages/engines/engines/seismolord/wellPath';
 import { surveyAffine, affineToManifest } from '../../../packages/engines/engines/seismolord/surveyGeometry';
@@ -71,6 +71,9 @@ export async function reprojectProjectData({ toTag, onProgress = () => {} }) {
   const transformerTo = (fromTag) => getTransformer(fromTag, target, customDefs);
 
   // ---- wells -------------------------------------------------------------
+  // WDM-U2-014: a well carrying a site datum-transformation choice
+  // (crs_provenance.datum_transform, from Well Design Studio) converts
+  // through that transformation, never the catalog default.
   const wells = await listOwnTagged('geo_wells', user.id);
   for (let i = 0; i < wells.length; i += 1) {
     const w = wells[i];
@@ -82,21 +85,25 @@ export async function reprojectProjectData({ toTag, onProgress = () => {} }) {
       report.skippedNames.push(`${w.name} (${from})`);
       continue;
     }
-    const t = transformerTo(from);
+    const dt = rowDatumTransform(w);
+    const t = dt ? getTransformer(from, target, customDefs, { fromTransform: dt }) : transformerTo(from);
     const s = t.forward(w.surface_x, w.surface_y);
     // Stored azimuths are grid-relative; rotate them by the convergence
     // difference between the two grids at the wellhead.
     const dGamma = convergenceAt(target, s.x, s.y, customDefs)
-      - convergenceAt(from, w.surface_x, w.surface_y, customDefs);
+      - convergenceAt(from, w.surface_x, w.surface_y, customDefs, transformOptsForRow(w));
     const deviation = (w.deviation || []).length
       ? toGridAzimuths(w.deviation, { azimuthRef: 'true', convergenceDeg: dGamma })
       : w.deviation;
     const provenance = {
       ...(w.crs_provenance || {}),
       transform_chain: [...(w.crs_provenance?.transform_chain || []), {
-        ...chainEntry(from, target), azimuth_rotation_deg: dGamma,
+        ...chainEntry(from, target), azimuth_rotation_deg: dGamma, ...(dt ? { datum_transform: dt } : {}),
       }],
     };
+    // the choice stays only while it still applies to the new CRS (the
+    // chain entry above records the one used)
+    if (dt && !rowDatumTransform({ crs: target, crs_provenance: { datum_transform: dt } })) delete provenance.datum_transform;
     const { error } = await supabase.from('geo_wells')
       .update({
         surface_x: s.x, surface_y: s.y, deviation,

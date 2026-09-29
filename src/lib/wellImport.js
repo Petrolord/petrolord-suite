@@ -203,20 +203,26 @@ export function buildIntervals(rows, map, { mdUnit = 'm' } = {}) {
  * entered domain. Only numeric parsing lives here.
  * @param {{depth:number, time:number}} map
  */
-export function buildCheckshotInputs(rows, map) {
+export function buildCheckshotInputs(rows, map, { elevation = false } = {}) {
   if (map.depth < 0 || map.time < 0) {
     throw new Error('Map the depth and time columns first.');
   }
   const out = [];
   for (let r = 0; r < rows.length; r++) {
-    out.push({ depth: num(rows, r, map.depth, 'depth'), time: num(rows, r, map.time, 'time') });
+    const z = num(rows, r, map.depth, 'depth');
+    // WDM-U2-016: Z as an elevation (Petrel, negative down) is TVDSS with
+    // the sign flipped; the caller sets the TVDSS reference with the toggle
+    out.push({ depth: elevation ? -z : z, time: num(rows, r, map.time, 'time') });
   }
   if (out.length < 2) throw new Error('A checkshot table needs at least 2 rows.');
   // WDM-U1-013: Petrel exports checkshot Z as an elevation, negative down.
   // Say so plainly instead of the monotonic-order error it used to trip.
-  if (out.every((r) => r.depth <= 0) && out.some((r) => r.depth < 0)) {
+  if (!elevation && out.every((r) => r.depth <= 0) && out.some((r) => r.depth < 0)) {
     throw new Error('Every depth in this table is zero or negative, which reads as an elevation (Petrel Z, negative down). '
-      + 'Checkshot depths here are positive downward: remove the minus signs, or export the checkshots as TVDSS or MD, then paste again.');
+      + 'Tick "Z is an elevation" above, or export the checkshots as TVDSS or MD, then paste again.');
+  }
+  if (elevation && out.every((r) => r.depth <= 0) && out.some((r) => r.depth < 0)) {
+    throw new Error('"Z is an elevation" is ticked but every value is zero or positive, so these read as depths already. Untick it.');
   }
   return out;
 }

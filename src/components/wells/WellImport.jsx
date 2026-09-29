@@ -154,7 +154,7 @@ export default function WellImport({ onSave, crsContext }) {
     try {
       if (t.key === 'deviation') return buildDeviation(p.rows, m, { mdUnit: conv.deviation.mdUnit });
       if (t.key === 'tops') return buildTops(p.rows, m, { mdUnit: conv.tops.mdUnit });
-      return buildCheckshotInputs(p.rows, m);
+      return buildCheckshotInputs(p.rows, m, { elevation: !!conv.checkshots.elevation });
     } catch (e) {
       throw new Error(`${t.label}: ${e.message}`);
     }
@@ -247,6 +247,7 @@ export default function WellImport({ onSave, crsContext }) {
       checkshotsProvenance = makeCheckshotProvenance(conv.checkshots, {
         source: 'well-import', kbM, stations: frame.stations ? frame.stations.length : 0,
       });
+      if (conv.checkshots.elevation) checkshotsProvenance.z_elevation = true;
     }
     const nonSi = [];
     if (headUnit === 'ft') nonSi.push('KB/TD ft');
@@ -435,7 +436,7 @@ export default function WellImport({ onSave, crsContext }) {
         <MdUnitSelect value={conv.tops.mdUnit} onChange={(u) => setTabConv('tops', { mdUnit: u })} testId="well-import-topsunit" label="Tops MD in" />
       )}
       {tab === 'checkshots' && (
-        <CheckshotConventionRow conv={conv.checkshots} onChange={(c) => { setCsTouched(true); setTabConv('checkshots', c); }} />
+        <CheckshotConventionRow conv={conv.checkshots} onChange={(c) => { setCsTouched(true); setTabConv('checkshots', c); }} allowElevation />
       )}
 
       <textarea

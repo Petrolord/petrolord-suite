@@ -13,8 +13,8 @@
 // unrecognised units stay as-is and are marked, never guessed
 // (engine/lasImport.js contract).
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { planMerge, findDepthLog, clashFor } from '../engine/mergeImport';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { planMerge, findDepthLog, clashFor, sameGrid } from '../engine/mergeImport';
 import { Loader2, Upload, FileText } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -29,6 +29,7 @@ import { topsFromLasBlocks } from '../engine/lasTops';
 import { isDepthAlias } from '../engine/lasIndex';
 import { crsUnit } from '@/lib/crs';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { editCell, fromDisp, fmtDepth, unitText } from '../engine/displayUnits';
 
 const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs w-full';
 const thCls = 'text-left font-medium text-pl-muted pr-3 pb-1';
@@ -61,13 +62,17 @@ const emptyHeader = { name: '', uwi: '', x: '', y: '', kb: '', td: '', crs: '' }
  * @param {?string} [p.initialTargetId] well selected in the tree; when it
  *   is one of the caller's own wells the wizard targets it by default
  */
-export default function LasImportDialog({ open, onOpenChange, backend, wells, onDone, initialTargetId = null }) {
+export default function LasImportDialog({ open, onOpenChange, backend, wells, onDone, initialTargetId = null, unit = 'm' }) {
+  const u = unitText(unit); // WDM-U2-001: KB and TD typed in the display unit
   const { crsContext, commitAutoSetProject } = useCrsContext();
   const [crsTag, setCrsTag] = useState(null);
   const [lasIntervals, setLasIntervals] = useState(null);      // ST1 {intervals, skipped} from the LAS 3.0 blocks
   const [importIntervals, setImportIntervals] = useState(false);
   const [lasTops, setLasTops] = useState(null);                // WDM-U1-009 {tops, block, skipped} from ~Tops_Data
   const [importTops, setImportTops] = useState(false);
+  const [importText, setImportText] = useState(true);          // WDM-U2-017 LAS 3.0 text channels
+  const [upload, setUpload] = useState(null);                  // WDM-U2-013 {done, total, mnemonic}
+  const cancelRef = useRef({ cancelled: false });
   const [xyUnit, setXyUnit] = useState('m');                   // unit of the typed surface X/Y (WDM-U1-004)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -153,6 +158,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
       const t = topsFromLasBlocks(result.meta.blocks || {});
       setLasTops(t);
       setImportTops(t.tops.length > 0);
+      setImportText(true);
       const s = result.meta.suggestedHeader;
       // WDM-U1-008: XWELL/YWELL (or X/Y) from the file are offered, with the
       // unit the file states; the user still declares the CRS
@@ -162,8 +168,8 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
         uwi: s.uwi || '',
         x: s.surfaceX != null ? String(s.surfaceX) : '',
         y: s.surfaceY != null ? String(s.surfaceY) : '',
-        kb: s.kbM != null ? String(Number(s.kbM.toFixed(3))) : '',
-        td: s.tdMdM != null ? String(Number(s.tdMdM.toFixed(2))) : '',
+        kb: s.kbM != null ? editCell(s.kbM, u, 3) : '',
+        td: s.tdMdM != null ? editCell(s.tdMdM, u, 2) : '',
         crs: '',
       });
     } catch (err) {
@@ -175,8 +181,17 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
 
   const setHeadField = (k) => (e) => setHead((h) => ({ ...h, [k]: e.target.value }));
 
+  // WDM-U2-017: coded text curves are never interpolated, so they go in
+  // only on the file's own grid (a new well, a well with no depth yet, or
+  // a well whose depth grid is this file's)
+  const textLogs = parsed?.prep?.textLogs || [];
+  const textAllowed = target === 'new' || !existing.depth || (parsed && sameGrid(parsed.prep.logs[0].data, existing.depth.data));
+
   const doImport = async () => {
-    const logs = parsed.prep.logs.filter((l, i) => i === 0 || keep[l.mnemonic]);
+    const withText = importText && textAllowed && textLogs.length > 0;
+    const prepLogs = withText ? [...parsed.prep.logs, ...textLogs] : parsed.prep.logs;
+    const keepAll = withText ? { ...keep, ...Object.fromEntries(textLogs.map((l) => [l.mnemonic, true])) } : keep;
+    const logs = prepLogs.filter((l, i) => i === 0 || keepAll[l.mnemonic]);
     if (logs.length < 2) {
       setError('Keep at least one curve besides depth.');
       return;
@@ -196,10 +211,10 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
           throw new Error('Enter the surface X and Y in the coordinate system chosen below '
             + '(this file does not carry them).');
         }
-        const kbM = head.kb.trim() === '' ? 0 : Number(head.kb);
-        if (!Number.isFinite(kbM)) throw new Error('KB must be a number (metres above datum).');
-        const tdMdM = head.td.trim() === '' ? null : Number(head.td);
-        if (tdMdM !== null && !(tdMdM > 0)) throw new Error('TD must be a positive number (m MD).');
+        const kbM = head.kb.trim() === '' ? 0 : fromDisp(head.kb, u);
+        if (!Number.isFinite(kbM)) throw new Error(`KB must be a number (${u} above datum).`);
+        const tdMdM = head.td.trim() === '' ? null : fromDisp(head.td, u);
+        if (tdMdM !== null && !(tdMdM > 0)) throw new Error(`TD must be a positive number (${u} MD).`);
         // Structured placement: declared CRS -> Project CRS (Phase 4).
         const placed = placeWellLocation(
           {
@@ -232,7 +247,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
       if (target !== 'new') {
         if (existing.busy || existing.wellId !== target) throw new Error('Still reading the target well. Try again in a moment.');
         const plan = planMerge({
-          prepLogs: parsed.prep.logs, keep, names, onClash,
+          prepLogs, keep: keepAll, names, onClash,
           existingLogs: existing.logs, existingDepth: existing.depth,
         });
         if (plan.errors.length) throw new Error(plan.errors[0]);
@@ -247,11 +262,23 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
         note = parts.join(' · ');
       } else {
         // new well: names still apply (rename before first save)
-        const plan = planMerge({ prepLogs: parsed.prep.logs, keep, names });
+        const plan = planMerge({ prepLogs, keep: keepAll, names });
         if (plan.errors.length) throw new Error(plan.errors[0]);
         toSave = plan.logs;
       }
-      const saved = await backend.saveLogs(wellId, toSave);
+      cancelRef.current = { cancelled: false };
+      let saved;
+      try {
+        saved = await backend.saveLogs(wellId, toSave, { onProgress: setUpload, cancel: cancelRef.current });
+      } catch (err) {
+        if (err?.name !== 'LogsStoppedError') throw err;
+        // honest partial result: what was saved stays, and the status says so
+        setUpload(null);
+        close(false);
+        onDone({ wellId, well, nLogs: err.saved.length, nCurves: err.saved.filter((l) => !isDepthRow(l)).length, fileName, note: err.message });
+        return;
+      }
+      setUpload(null);
       // WDM-U1-009: tops from the LAS 3.0 Tops block. A new well takes them
       // all; an existing well gains the names it does not have yet.
       let nTops = 0;
@@ -283,6 +310,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
     } catch (err) {
       setError(err.message);
       setBusy(false);
+      setUpload(null);
     }
   };
 
@@ -371,8 +399,8 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
               <p className="text-xs text-pl-muted" data-testid="wdm-las-summary">
                 LAS {parsed.meta.version}{String(parsed.meta.wrap).toUpperCase() === 'YES' ? ', wrapped' : ''} · depth in{' '}
                 {prep.depthUnit}{prep.depthFactor !== 1 ? ` → m (×${prep.depthFactor})` : ' (m)'} ·{' '}
-                {prep.startMdM?.toFixed(1)}–{prep.stopMdM?.toFixed(1)} m ·{' '}
-                {prep.stepM == null ? 'irregular step' : `step ${prep.stepM.toFixed(3)} m`} ·{' '}
+                {fmtDepth(prep.startMdM, u)}–{fmtDepth(prep.stopMdM, u)} {u} ·{' '}
+                {prep.stepM == null ? 'irregular step' : `step ${fmtDepth(prep.stepM, u, 3)} ${u}`} ·{' '}
                 {prep.logs.length - 1} curve{prep.logs.length - 1 === 1 ? '' : 's'}
                 {parsed.meta.version >= 3 && parsed.meta.delimiter && parsed.meta.delimiter !== 'space' ? ` · ${parsed.meta.delimiter}-delimited` : ''}
               </p>
@@ -382,7 +410,19 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
               {(parsed.meta.skippedCurves?.length > 0 || parsed.meta.ignoredSections?.length > 0) && (
                 <p className="text-xs text-pl-warning-text" data-testid="wdm-las-las3-note">
                   {parsed.meta.skippedCurves?.length > 0 && (
-                    <>Not imported (text columns): {parsed.meta.skippedCurves.map((c) => `${c.mnemonic}${c.format ? ` {${c.format}}` : ''}`).join(', ')}. </>
+                    <>Text columns: {parsed.meta.skippedCurves.map((c) => `${c.mnemonic}${c.format ? ` {${c.format}}` : ''}`).join(', ')}. </>
+                  )}
+                  {textLogs.length > 0 && (
+                    <label className="flex items-center gap-1 mt-1 text-pl-text" data-testid="wdm-las-text">
+                      <input type="checkbox" checked={importText && textAllowed} disabled={!textAllowed} onChange={(e) => setImportText(e.target.checked)} data-testid="wdm-las-text-check" />
+                      Import {textLogs.map((l) => (l.provenance.text_channel === 'datetime'
+                        ? `${l.mnemonic} as seconds after ${l.provenance.time_origin}${l.provenance.zone_assumed_utc ? ' (no zone given, read as UTC)' : ''}`
+                        : `${l.mnemonic} as codes (${Object.entries(l.provenance.codes).map(([k, v]) => `${k} = ${v}`).join(', ')})`)).join('; ')}
+                      {!textAllowed ? ' (only on this file\'s own depth grid: coded values cannot be resampled onto the well\'s grid)' : ''}
+                    </label>
+                  )}
+                  {parsed.meta.textSkipped?.length > 0 && (
+                    <span className="block" data-testid="wdm-las-text-skipped">Not imported: {parsed.meta.textSkipped.map((x) => `${x.mnemonic} (${x.reason})`).join('; ')}.</span>
                   )}
                   {(() => {
                     // the Tops block is offered below when it yields tops (WDM-U1-009)
@@ -516,10 +556,10 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                     <input className={inputCls} value={head.y} onChange={setHeadField('y')} data-testid="wdm-las-y"
                       title="Northing in the coordinate system chosen below" />
                   </HeadField>
-                  <HeadField label="KB (m above datum)">
+                  <HeadField label={`KB (${u} above datum)`}>
                     <input className={inputCls} value={head.kb} onChange={setHeadField('kb')} data-testid="wdm-las-kb" />
                   </HeadField>
-                  <HeadField label="TD (m MD)">
+                  <HeadField label={`TD (${u} MD)`}>
                     <input className={inputCls} value={head.td} onChange={setHeadField('td')} data-testid="wdm-las-td" />
                   </HeadField>
                   <HeadField label="X and Y are in">
@@ -555,17 +595,31 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
             </>
           )}
 
+          {upload && (
+            <div data-testid="wdm-las-progress" className="space-y-1 text-xs">
+              <div className="h-1.5 rounded bg-pl-sunken overflow-hidden">
+                <div className="h-full bg-pl-primary" style={{ width: `${Math.round((upload.done / Math.max(1, upload.total)) * 100)}%` }} />
+              </div>
+              <div className="text-pl-muted">Saving curve {Math.min(upload.done + 1, upload.total)} of {upload.total}{upload.mnemonic ? ` (${upload.mnemonic})` : ''}</div>
+            </div>
+          )}
           {error && (
             <div className="text-xs text-pl-danger-text" data-testid="wdm-las-error">{error}</div>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm"
-            onClick={() => close(false)}
-          >
-            Cancel
-          </Button>
+          {upload ? (
+            <Button variant="outline" size="sm" onClick={() => { cancelRef.current.cancelled = true; }} data-testid="wdm-las-stop">
+              Stop after this curve
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm"
+              onClick={() => close(false)}
+            >
+              Cancel
+            </Button>
+          )}
           <Button size="sm"
             disabled={!parsed || busy} onClick={doImport} data-testid="wdm-las-import"
           >

@@ -52,6 +52,9 @@ export default function useWells() {
       name: row.name,
       color: wellColor(idx),
       crs: row.crs || null,
+      // WDM-U2-014: the site's datum-transformation choice travels with the
+      // well so the CRS guard converts through it
+      crs_provenance: row.crs_provenance || null,
       surfaceX: row.surface_x,
       surfaceY: row.surface_y,
       kbM: row.kb_m || 0,

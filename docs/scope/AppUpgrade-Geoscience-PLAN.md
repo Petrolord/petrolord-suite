@@ -117,7 +117,7 @@ Each is assigned to the app whose Step 2c will fix it:
 
 | # | App | Step 1 | Step 2 | Batches merged | Upgrade doc |
 |---|---|---|---|---|---|
-| 1 | Well Data Manager | done 2026-09-28: 12 checks, 33 findings, 19 fixed (all S2) | analysed 2026-09-28: 18 items, batches A/B/C for the owner | | `docs/upgrade/WellDataManager-UPGRADE.md` |
+| 1 | Well Data Manager | done 2026-09-28: 12 checks, 33 findings, 19 fixed (all S2) | analysed 2026-09-28: 18 items; batch decision 2026-09-28: 14 built (A, B, C), 4 deferred (U2-007, U2-012, U2-009, U2-018) | A, B, C built on `feat/wdm-u2` (PR open, 2026-09-28) | `docs/upgrade/WellDataManager-UPGRADE.md` |
 | 2 | Petrophysics Studio | not started | not started | | |
 | 3 | Well Correlation | not started | not started | | |
 | 4 | Stratigraphy Studio | not started | not started | | |
