@@ -53,7 +53,7 @@ test('the header band carries the title, and the caption when one is given', asy
   expect(t[1][1]).toBe('2000.0 m to 2100.0 m MD · datum KB 31.2 m');
   // the caption sits below the title and is drawn smaller and lighter
   expect(t[1][3]).toBeGreaterThan(t[0][3]);
-  expect(t[1][4].fillStyle).not.toBe(t[0][4].fillStyle);
+  expect(t[1].at(-1).fillStyle).not.toBe(t[0].at(-1).fillStyle);
   // the plot is composited below the band
   expect(out.ctx.calls.find((k) => k[0] === 'drawImage')).toEqual(['drawImage', src, 0, 48]);
 });
@@ -75,8 +75,8 @@ test('an offscreen render scales the band by the scale it passes, not by clientW
   expect(out.width).toBe(1600);
   expect(out.height).toBe(1200 + 96);         // 48 * 2
   const t = texts(out);
-  expect(t[0][4].font).toBe('bold 24px sans-serif');   // 12 * 2
-  expect(t[1][4].font).toBe('20px sans-serif');        // 10 * 2
+  expect(t[0].at(-1).font).toBe('bold 24px sans-serif');   // 12 * 2
+  expect(t[1].at(-1).font).toBe('20px sans-serif');        // 10 * 2
   expect(out.ctx.calls.find((k) => k[0] === 'drawImage')).toEqual(['drawImage', src, 0, 96]);
 });
 
@@ -84,4 +84,18 @@ test('a live 2x canvas still derives its own scale when none is passed', async (
   const src = makeCanvas(1600, 1200, 800);    // DPR 2 on-screen
   await trackPlotPng({ canvas: src, title: 'T' });
   expect(outputs[0].height).toBe(1200 + 68);  // 34 * 2
+});
+
+// AppUpgrade WC-U1-010: Well Correlation prints a three-line header (wells;
+// datum, reference, unit, scale, spacing, template; field, analyst, date,
+// build), each line fitted to the image width so nothing runs off the edge
+test('several caption lines: one band row each, every line fitted to the width', async () => {
+  const src = makeCanvas(600, 400, 600);
+  await trackPlotPng({ canvas: src, title: 'Well Correlation: Keta (3 wells)', caption: ['Wells: A, B, C', 'Structural (true depth) · Depth MD in m', 'Field Keta · Analyst X'] });
+  const out = outputs[0];
+  expect(out.height).toBe(400 + 34 + 14 * 3);
+  const t = texts(out);
+  expect(t.map((k) => k[1])).toEqual(['Well Correlation: Keta (3 wells)', 'Wells: A, B, C', 'Structural (true depth) · Depth MD in m', 'Field Keta · Analyst X']);
+  expect(t.map((k) => k[3])).toEqual([22, 38, 52, 66]);
+  for (const k of t) expect(k[4]).toBe(600 - 20); // maxWidth
 });
