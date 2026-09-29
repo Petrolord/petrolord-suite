@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { Crosshair, RefreshCw, Pencil, Trash2, Check, X, Map as MapIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import LayoutPanel from '@/components/wells/LayoutPanel';
+import LayoutPanel, { NumText } from '@/components/wells/LayoutPanel';
 import { topColor } from '@/components/wells/topColors';
 import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
 import { DEPTH_REF_LABEL } from '../engine/sectionFrame';
@@ -26,7 +26,7 @@ const Section = ({ title, children, testId }) => (
 const unitTxt = (u) => (u === 'ft' ? 'ft' : 'm');
 const fmtDisplay = (mdM, unit) => (Number.isFinite(mdM) ? String(Number(toDisplay(mdM, unit).toFixed(1))) : '');
 
-function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete, mapHref }) {
+function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete, mapHref, variants = [] }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const [confirming, setConfirming] = useState(false);
@@ -53,8 +53,14 @@ function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete, mapHref })
               if (e.key === 'Escape') { e.preventDefault(); setEditing(false); setDraft(name); }
             }}
           />
-        ) : <span className="text-pl-text truncate">{name}</span>}
+        ) : <span className="text-pl-text truncate" title={JSON.stringify(name)}>{name}</span>}
       </label>
+      {variants.length > 0 && !editing && (
+        <span className="text-[10px] text-pl-warning-text whitespace-nowrap" data-testid={`corr-top-variant-${name}`}
+          title={`Also spelled ${variants.map((v) => JSON.stringify(v)).join(', ')} in this section. These are separate tops until one is renamed to the other.`}>
+          also {variants.map((v) => JSON.stringify(v)).join(', ')}
+        </span>
+      )}
       {mapHref && !editing && (
         <Link to={mapHref} className="text-pl-muted hover:text-pl-primary-text-hover" title="Map this top in Mapping & Surface Studio (TVDSS structure map from the section wells)" data-testid={`corr-map-top-${name}`}>
           <MapIcon className="w-3.5 h-3.5" />
@@ -93,6 +99,7 @@ export default function SectionControls({
   onPropagate, canEdit,
   mapHrefFor = null,
   ghost = null, onGhost = null, sectionWells = [],
+  datumDefault = () => undefined, topVariants = {}, report = null, onReport = null,
 }) {
   const [propName, setPropName] = useState(topNames[0] || '');
   const [propMd, setPropMd] = useState('');
@@ -104,7 +111,7 @@ export default function SectionControls({
         <div className="flex items-center gap-1.5 flex-wrap">
           <select className={selCls} value={datum.mode} data-testid="corr-datum-mode"
             onChange={(e) => onDatum(e.target.value === 'flatten'
-              ? { mode: 'flatten', topName: datum.topName || topNames[0], datumM: datum.datumM ?? 1500 }
+              ? { mode: 'flatten', topName: datum.topName || topNames[0], datumM: datum.datumM ?? datumDefault(datum.topName || topNames[0]) ?? 0 }
               : e.target.value === 'stretch'
                 ? { mode: 'stretch', upperName: datum.upperName || topNames[0], lowerName: datum.lowerName || topNames[topNames.length - 1] }
                 : { mode: 'structural' })}>
@@ -126,11 +133,12 @@ export default function SectionControls({
           {datum.mode === 'flatten' && (
             <>
               <select className={selCls} value={datum.topName} data-testid="corr-datum-top"
-                onChange={(e) => onDatum({ ...datum, topName: e.target.value })}>
+                onChange={(e) => onDatum({ ...datum, topName: e.target.value, datumM: datumDefault(e.target.value) ?? datum.datumM })}>
                 {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
-              <input className={`${inputCls} w-16`} value={fmtDisplay(datum.datumM, depthUnit)} data-testid="corr-datum-depth"
-                title={`Datum depth (${u})`} onChange={(e) => onDatum({ ...datum, datumM: fromDisplay(Number(e.target.value), depthUnit) })} />
+              {/* WC-U1-009: typed like every numeric field (clearing, "-" and "2." do not snap) */}
+              <NumText className={`${inputCls} w-16`} value={fmtDisplay(datum.datumM, depthUnit)} data-testid="corr-datum-depth"
+                title={`Datum depth (${u}): where the chosen top is drawn`} onCommit={(v) => onDatum({ ...datum, datumM: fromDisplay(v, depthUnit) })} />
               <span className="text-pl-muted">{u}</span>
             </>
           )}
@@ -151,8 +159,11 @@ export default function SectionControls({
                 <select className={selCls} value={ghost.targetWellId || ''} data-testid="corr-ghost-target" onChange={(e) => onGhost({ ...ghost, targetWellId: e.target.value })}>
                   {sectionWells.filter((w) => w.id !== ghost.sourceWellId).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
-                <input type="range" min={-200} max={200} step={1} value={ghost.shiftM || 0} data-testid="corr-ghost-shift" onChange={(e) => onGhost({ ...ghost, shiftM: Number(e.target.value) })} />
-                <span className="text-pl-muted" data-testid="corr-ghost-shift-value">{ghost.shiftM >= 0 ? '+' : ''}{ghost.shiftM || 0} m</span>
+                {/* WC-U1-012: the shift reads and moves in the display unit */}
+                <input type="range" min={Math.round(toDisplay(-200, depthUnit))} max={Math.round(toDisplay(200, depthUnit))} step={1}
+                  value={Math.round(toDisplay(ghost.shiftM || 0, depthUnit))} data-testid="corr-ghost-shift"
+                  onChange={(e) => onGhost({ ...ghost, shiftM: fromDisplay(Number(e.target.value), depthUnit) })} />
+                <span className="text-pl-muted" data-testid="corr-ghost-shift-value">{(ghost.shiftM || 0) >= 0 ? '+' : ''}{Math.round(toDisplay(ghost.shiftM || 0, depthUnit))} {u}</span>
               </>
             )}
           </div>
@@ -209,7 +220,7 @@ export default function SectionControls({
           {topNames.map((n) => (
             <TopRow key={n} name={n} shown={shownTops.includes(n)} onToggle={() => onToggleTop(n)}
               canEdit={canEdit} onRename={onRenameTop} onDelete={onDeleteTop}
-              mapHref={mapHrefFor ? mapHrefFor(n) : null} />
+              mapHref={mapHrefFor ? mapHrefFor(n) : null} variants={topVariants[n] || []} />
           ))}
           {!topNames.length && <p className="text-pl-muted">No tops in the section yet. Pick one on a column, or propagate a top below.</p>}
         </div>
@@ -250,11 +261,26 @@ export default function SectionControls({
               data-testid="corr-prop-md" onChange={(e) => setPropMd(e.target.value)} />
             <button type="button" data-testid="corr-prop-run"
               className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
-              onClick={() => onPropagate(propName.trim(), fromDisplay(Number(propMd), depthUnit))}>
+              onClick={() => onPropagate(propName.trim(), propMd)}>
               Add
             </button>
           </div>
           <p className="mt-1 text-[10px] text-pl-muted">Seeds the top on every owned well in the section at that MD; drag each tag to correct it.</p>
+        </Section>
+      )}
+
+      {onReport && (
+        <Section title="Report header" testId="corr-report">
+          {/* WC-U1-010: the exported picture names who made it and where */}
+          <div className="grid grid-cols-[3.5rem_1fr] items-center gap-1">
+            <span className="text-pl-muted">Field</span>
+            <input className={inputCls} value={report?.field || ''} data-testid="corr-report-field" placeholder="Field or project"
+              onChange={(e) => onReport({ ...(report || {}), field: e.target.value })} />
+            <span className="text-pl-muted">Analyst</span>
+            <input className={inputCls} value={report?.analyst || ''} data-testid="corr-report-analyst" placeholder="Name"
+              onChange={(e) => onReport({ ...(report || {}), analyst: e.target.value })} />
+          </div>
+          <p className="mt-1 text-[10px] text-pl-muted">Printed on the PNG with the datum, depth reference, unit, vertical scale, date and build. Saved with the section.</p>
         </Section>
       )}
 

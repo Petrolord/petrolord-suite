@@ -1,0 +1,48 @@
+// What the exported section says about itself (AppUpgrade WC-U1-010, PL7):
+// the header a reviewer needs to sign a correlation panel without the app
+// around it: who and where (field, analyst), what was drawn (wells, datum
+// and flattening, depth reference, unit, spacing, template), at what scale,
+// when, and by which build. Pure, Latin-1 only (no em dashes).
+
+import { DEPTH_REF_LABEL, verticalScale } from '@/components/wells/section/sectionFrame';
+
+export { verticalScale };
+import { toDisplay } from '@/components/wells/depthModes';
+import { buildLabel } from '@/lib/platformBuild';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
+
+function datumText(datum, depthRef, depthUnit) {
+  const ref = DEPTH_REF_LABEL[depthRef] || 'MD';
+  const u = depthUnit === 'ft' ? 'ft' : 'm';
+  if (datum?.mode === 'flatten') {
+    const d = Number.isFinite(datum.datumM) ? `${Number(toDisplay(datum.datumM, depthUnit).toFixed(1))} ${u} ${ref}` : EMPTY_VALUE;
+    return `Flattened on ${datum.topName || EMPTY_VALUE} at ${d}`;
+  }
+  if (datum?.mode === 'stretch') return `Stretched between ${datum.upperName || EMPTY_VALUE} and ${datum.lowerName || EMPTY_VALUE}`;
+  return 'Structural (true depth)';
+}
+
+/**
+ * Title and caption lines of the exported PNG.
+ * @param {Object} p
+ * @param {Array<{name: string}>} p.wells section order
+ * @param {Object} p.datum @param {'md'|'tvd'|'tvdss'} p.depthRef @param {'m'|'ft'} p.depthUnit
+ * @param {'equal'|'proportional'} p.spacing effective spacing
+ * @param {string} p.templateName @param {?number} p.scale 1:N
+ * @param {{field?: string, analyst?: string}} [p.report]
+ * @param {Date} [p.now] @param {string} [p.build]
+ * @returns {{title: string, caption: string[]}}
+ */
+export function sectionCaption({ wells, datum, depthRef, depthUnit, spacing, templateName, scale, report = {}, now = new Date(), build = buildLabel() }) {
+  const field = (report?.field || '').trim();
+  const analyst = (report?.analyst || '').trim();
+  const names = (wells || []).map((w) => w.name);
+  const title = `Well Correlation${field ? `: ${field}` : ''} (${names.length} well${names.length === 1 ? '' : 's'})`;
+  const u = depthUnit === 'ft' ? 'ft' : 'm';
+  const caption = [
+    `Wells: ${names.join(', ') || EMPTY_VALUE}`,
+    `${datumText(datum, depthRef, depthUnit)} · Depth ${DEPTH_REF_LABEL[depthRef] || 'MD'} in ${u} (TVDSS below mean sea level) · Vertical scale ${scale ? `1:${scale.toLocaleString('en-US')}` : EMPTY_VALUE} · Spacing ${spacing === 'proportional' ? 'by distance' : 'equal'} · Template ${templateName || EMPTY_VALUE}`,
+    `Field ${field || EMPTY_VALUE} · Analyst ${analyst || EMPTY_VALUE} · ${now.toISOString().slice(0, 10)} · ${build}`,
+  ];
+  return { title, caption };
+}

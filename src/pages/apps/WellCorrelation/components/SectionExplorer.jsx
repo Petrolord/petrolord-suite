@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { Building2, Lock, ArrowUp, ArrowDown, X, Plus, Pencil } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { wellDataManagerHref } from '@/components/wells/appLinks';
+import { mappable, mapFrameSummary } from '@/pages/apps/WellDataManager/components/WellsMap';
 
 const PAD = 26;
 
@@ -19,15 +20,20 @@ export default function SectionExplorer({
   const canvasRef = useRef(null);
   const placed = useRef([]);
 
+  // WC-U1-015 (the WDM-U1-016/017 lesson): wells with no location are not
+  // drawn at the origin, and a map of wells in different coordinate systems
+  // says so instead of squeezing them into one frame silently
+  const located = useMemo(() => mappable(wells), [wells]);
+  const frames = useMemo(() => mapFrameSummary(wells), [wells]);
   const extent = useMemo(() => {
-    if (!wells.length) return null;
-    const xs = wells.map((w) => w.surface_x);
-    const ys = wells.map((w) => w.surface_y);
+    if (!located.length) return null;
+    const xs = located.map((w) => Number(w.surface_x));
+    const ys = located.map((w) => Number(w.surface_y));
     let [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
     if (!(maxX - minX > 0)) { minX -= 500; maxX += 500; }
     if (!(maxY - minY > 0)) { minY -= 500; maxY += 500; }
     return { minX, maxX, minY, maxY };
-  }, [wells]);
+  }, [located]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -54,17 +60,18 @@ export default function SectionExplorer({
     ctx.strokeStyle = '#22d3ee';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    order.forEach((id, i) => {
-      const w = wells.find((x) => x.id === id);
+    let pen = false;
+    order.forEach((id) => {
+      const w = located.find((x) => x.id === id);
       if (!w) return;
-      const { px, py } = toPx(w.surface_x, w.surface_y);
-      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+      const { px, py } = toPx(Number(w.surface_x), Number(w.surface_y));
+      if (pen) ctx.lineTo(px, py); else { ctx.moveTo(px, py); pen = true; }
     });
     ctx.stroke();
     ctx.lineWidth = 1;
 
-    for (const w of wells) {
-      const { px, py } = toPx(w.surface_x, w.surface_y);
+    for (const w of located) {
+      const { px, py } = toPx(Number(w.surface_x), Number(w.surface_y));
       placed.current.push({ id: w.id, px, py });
       const idx = order.indexOf(w.id);
       ctx.beginPath();
@@ -86,7 +93,7 @@ export default function SectionExplorer({
       ctx.textAlign = right ? 'left' : 'right';
       ctx.fillText(w.name, right ? px + 8 : px - 8, py + 3);
     }
-  }, [wells, order, extent, height]);
+  }, [located, order, extent, height]);
 
   const pick = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
@@ -109,6 +116,12 @@ export default function SectionExplorer({
         Section path: click wells to order
       </div>
       <canvas ref={canvasRef} data-testid="corr-map" data-canvas="dark" className="cursor-pointer border-b border-pl-border" onClick={pick} />
+      {(frames.mixed || frames.undrawn > 0) && (
+        <div className="px-2.5 py-1 text-[11px] leading-snug text-pl-warning-text border-b border-pl-border" data-testid="corr-map-frames">
+          {frames.mixed && <div>Mixed coordinate systems ({frames.frame}): the map and spacing by distance cannot compare these wells.</div>}
+          {frames.undrawn > 0 && <div>{frames.undrawn} well{frames.undrawn === 1 ? ' has' : 's have'} no surface location and {frames.undrawn === 1 ? 'is' : 'are'} not on the map.</div>}
+        </div>
+      )}
       <div className="px-2.5 py-1 text-[11px] uppercase tracking-wider text-pl-muted">
         In section <span data-testid="corr-order-count">{order.length}</span> / {wells.length}
       </div>

@@ -19,6 +19,7 @@ import React, {
 import { computeFlattening, correlationPolyline, displayedRange, displayedDepth } from '@/pages/apps/WellCorrelation/engine/section';
 import {
   toReferenceFrame, depthOfFor, displayedArray, isMonotonic, mdFromDisplayed, columnLayout, zoneBands, DEPTH_REF_LABEL,
+  spacingProblem, correlationSegments, frameNotes, verticalScale,
 } from './sectionFrame';
 import { trackGeometry } from '@/components/wells/trackRender';
 import {
@@ -171,6 +172,12 @@ const CrossSection = forwardRef(function CrossSection({
     () => columnLayout(wells, { mode: spacing, plotLeft: AXIS_W, plotW }),
     [wells, spacing, plotW],
   );
+  // WC-U1-002: spacing by distance needs one frame and located wells; the
+  // columns stay equal otherwise and the host is told why
+  const spacingNote = useMemo(() => (spacing === 'proportional' ? spacingProblem(wells) : null), [wells, spacing]);
+  useEffect(() => {
+    if (spacingNote && onNotice) onNotice(`Spacing by distance is off: ${spacingNote}. The columns are equal.`);
+  }, [spacingNote]); // eslint-disable-line react-hooks/exhaustive-deps
   const geoms = useMemo(
     () => columns.map((c, i) => trackGeometry(c.tracks, boxes[i]?.w || 0, 0).map((g) => ({ x0: g.x0 + (boxes[i]?.x0 || 0), w: g.w }))),
     [columns, boxes],
@@ -190,9 +197,24 @@ const CrossSection = forwardRef(function CrossSection({
   const topTypes = useMemo(() => columnTops.flat().map((t) => `${t.name}:${normalizeSurfaceType(t.row?.surface_type ?? t.surface_type)}`).join(';'), [columnTops]);
 
   const unitTxt = depthUnit === 'ft' ? 'ft' : 'm';
+  // WC-U1-011: a stretched section is labelled as such (its depths are the
+  // datum frame between two surfaces, not the wells' own)
   const axisTitle = datum.mode === 'flatten'
     ? `flattened ${DEPTH_REF_LABEL[depthRef]} (${unitTxt})`
-    : `${DEPTH_REF_LABEL[depthRef]} (${unitTxt})`;
+    : datum.mode === 'stretch'
+      ? `stretched ${DEPTH_REF_LABEL[depthRef]} (${unitTxt})`
+      : `${DEPTH_REF_LABEL[depthRef]} (${unitTxt})`;
+
+  // header notes per column (also on data-well-notes for the browser checks)
+  const columnNotes = useMemo(() => columns.map((c, i) => {
+    const notes = [];
+    if (datum.mode === 'flatten' && !c.hasDatumTop) notes.push('no datum top: true depth');
+    if (datum.mode === 'stretch' && flattening[i]?.partial) notes.push(c.hasDatumTop ? 'one surface: shifted without stretching' : 'neither surface: true depth');
+    if (c.fallback) notes.push(`${DEPTH_REF_LABEL[depthRef]} not monotonic: MD shown`);
+    else notes.push(...frameNotes(c.well, depthRef)); // WC-U1-005
+    if (c.well.reoriented) notes.push('stored bottom-up: read top-down'); // WC-U1-003
+    return notes;
+  }), [columns, datum, flattening, depthRef]);
 
   // ---- STATIC layer -------------------------------------------------------
   useEffect(() => {
@@ -297,10 +319,7 @@ const CrossSection = forwardRef(function CrossSection({
       ctx.fillStyle = P.textStrong;
       ctx.textAlign = 'center';
       ctx.fillText(`${w.name}${w.is_own ? '' : ' (shared)'}`, box.x0 + box.w / 2, 13, box.w - 8);
-      const notes = [];
-      if (datum.mode === 'flatten' && !c.hasDatumTop) notes.push('no datum top: true depth');
-      if (datum.mode === 'stretch' && flattening[i]?.partial) notes.push(c.hasDatumTop ? 'one surface: shifted without stretching' : 'neither surface: true depth');
-      if (c.fallback) notes.push(`${DEPTH_REF_LABEL[depthRef]} not monotonic: MD shown`);
+      const notes = columnNotes[i];
       if (notes.length) {
         ctx.font = '9px sans-serif';
         ctx.fillStyle = AMBER;
@@ -352,24 +371,27 @@ const CrossSection = forwardRef(function CrossSection({
         paintTrackBody(ctx, { track: { ...src.tracks[0], fills: [] }, depth: shifted, yOf, i0, i1, x0: g.x0, w: g.w, plotTop, plotH, headerH: WELL_H + HEADER_H });
         ctx.restore();
         ctx.fillStyle = AMBER; ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
-        ctx.fillText(`ghost: ${src.well.name} ${ghost.shiftM >= 0 ? '+' : ''}${Math.round(ghost.shiftM || 0)} m`, g.x0 + 3, plotTop + 12, g.w - 6);
+        const gs = (ghost.shiftM || 0) * F; // WC-U1-012: the display unit
+        ctx.fillText(`ghost: ${src.well.name} ${gs >= 0 ? '+' : ''}${Math.round(gs)} ${unitTxt}`, g.x0 + 3, plotTop + 12, g.w - 6);
       }
     }
 
-    // correlation lines between same-named tops, column centre to centre
+    // correlation lines between same-named tops, in the gaps between columns
+    // (WC-U1-004: column edge to column edge, never over the log tracks;
+    // dashed across a well that does not carry the top)
     for (const name of shownTops) {
       const line = correlationPolyline(frameWells, flattening, name);
       if (line.length < 2) continue;
       ctx.strokeStyle = colorOf(name);
       ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      line.forEach((pt, k) => {
-        const box = boxes[pt.wellIndex];
-        const cx = box.x0 + box.w / 2;
-        const y = yOf(pt.displayed);
-        if (k) ctx.lineTo(cx, y); else ctx.moveTo(cx, y);
-      });
-      ctx.stroke();
+      for (const seg of correlationSegments(line, boxes, yOf)) {
+        ctx.setLineDash(seg.dashed ? [4, 3] : []);
+        ctx.beginPath();
+        ctx.moveTo(seg.x1, seg.y1);
+        ctx.lineTo(seg.x2, seg.y2);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
       ctx.lineWidth = 1;
     }
 
@@ -388,7 +410,7 @@ const CrossSection = forwardRef(function CrossSection({
     });
 
     setTick((t) => t + 1);
-  }, [size, wells, columns, boxes, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, ghost]);
+  }, [size, wells, columns, columnNotes, boxes, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, unitTxt, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, ghost]);
 
   // ---- CURSOR layer -------------------------------------------------------
   useEffect(() => {
@@ -579,10 +601,15 @@ const CrossSection = forwardRef(function CrossSection({
     onTopCreate(c.well.id, Number(inv.md.toFixed(2)), name);
   };
 
+  // live values for the export (the handle is created once)
+  const exportMetaRef = useRef({});
+  exportMetaRef.current = { scale: verticalScale(vTop, vBase, plotH), spacing: spacingNote ? 'equal' : spacing };
   useImperativeHandle(exportRef, () => ({
-    toPng: (title) => {
+    /** @param {string | ((meta: {scale: ?number, spacing: string}) => {title: string, caption?: string[]})} make */
+    toPng: (make) => {
       setCursor(null);
-      return trackPlotPng({ canvas: canvasRef.current, title });
+      const meta = typeof make === 'function' ? make(exportMetaRef.current) : { title: make };
+      return trackPlotPng({ canvas: canvasRef.current, title: meta.title, caption: meta.caption });
     },
   }), []);
 
@@ -610,6 +637,8 @@ const CrossSection = forwardRef(function CrossSection({
       data-plot-h={plotH}
       data-col-x={boxes.map((b) => Math.round(b.x0)).join(',')}
       data-col-w={boxes.map((b) => Math.round(b.w)).join(',')}
+      data-spacing={spacingNote ? 'equal' : spacing}
+      data-well-notes={columns.map((c, i) => `${c.well.name}=${columnNotes[i].join('|')}`).join(';')}
       data-view-top={vTop}
       data-view-base={vBase}
       data-pick-mode={pickMode || ''}

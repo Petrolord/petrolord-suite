@@ -28,6 +28,18 @@ describe('CorrelationHelpGuide', () => {
     expect(text).toMatch(/falls back to MD/i);
   });
 
+  // AppUpgrade WC-U1-014: the datum section described modes the app does not
+  // have ("Datum mode none", "A depth datum") and missed Stretch; the quick
+  // start said Raw quicklook draws every mnemonic
+  test('names the datum modes and controls the dock really has', async () => {
+    const { container } = renderGuide();
+    const text = container.textContent;
+    for (const s of ['Structural (true depth)', 'Flatten on top', 'Stretch between two tops', 'Track layout', 'Report header', 'no KB: TVDSS = TVD', 'no survey: vertical', 'unsaved changes']) {
+      expect(text).toContain(s);
+    }
+    expect(text).not.toMatch(/Datum mode none|A depth datum|Track details|draws every mnemonic/);
+  });
+
   test('copy carries no em dashes (owner rule)', () => {
     const { container } = renderGuide();
     expect(container.textContent.includes('—')).toBe(false);

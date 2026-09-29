@@ -65,10 +65,10 @@ export default function CorrelationHelpGuide() {
       <GuideSection id="quickstart">
         <SectionHeading icon={Zap}>Quick start (5 min)</SectionHeading>
         <Step n={1} title="Add wells">In the explorer click the plus beside two or more wells. They join the section in that order; reorder them with the arrows in the ordered list.</Step>
-        <Step n={2} title="Choose a template">In the dock under View pick a track template. Standard triple combo draws GR, resistivity and density-neutron; Raw quicklook draws every mnemonic; Lithology quicklook adds the GR ramp and cut-off.</Step>
+        <Step n={2} title="Choose a template">In the dock under View pick a track template. Standard triple combo draws GR, resistivity and density-neutron; Raw quicklook draws GR, resistivity, density-neutron and sonic as logged; Lithology quicklook adds the GR ramp and cut-off.</Step>
         <Step n={3} title="Pick a top">Under Tops click Pick top, then click on a well column at the depth. Name it in the popover. Repeat on the other wells with the same name.</Step>
-        <Step n={4} title="Flatten">Under Datum choose the top as the flattening datum. Every well shifts so that top sits on one line.</Step>
-        <Step n={5} title="Fill and export">Set Zones to between shown tops, then PNG in the ribbon to download the section, or Save section to keep the layout and order.</Step>
+        <Step n={4} title="Flatten">Under Datum choose Flatten on top and the top. Every well shifts so that top sits on one line, drawn where the first well carrying it has it.</Step>
+        <Step n={5} title="Fill and export">Set Zones to between shown tops, type the field and analyst under Report header, then PNG in the ribbon to download the section with its header, and Save section to keep it. The status bar says unsaved changes until you save.</Step>
       </GuideSection>
 
       <GuideSection id="wells">
@@ -82,7 +82,7 @@ export default function CorrelationHelpGuide() {
         <Para>
           Wells arrive from other apps too. Well Data Manager's Open in Well Correlation, and the same launcher in
           Petrophysics Studio, open this app with those wells already on the section (a <Code>?wells=</Code> link).
-          Wells the link names that are not in your registry are skipped and named in the status.
+          Wells the link names that are not in your registry are skipped and named in the status. A saved section that names a well since deleted or no longer shared opens without it, and the status says how many were left out.
         </Para>
       </GuideSection>
 
@@ -101,8 +101,8 @@ export default function CorrelationHelpGuide() {
           is for correlation.
         </Para>
         <Para>
-          Track details opens the shared layout editor, where a built-in template forks into an editable copy. The
-          layout, unit, reference, spacing, zone mode and shown tops persist with a saved section.
+          Track layout opens the shared layout editor, where a built-in template forks into an editable copy. The
+          layout, unit, reference, spacing, zone mode, shown tops, ghost curve and report header persist with a saved section.
         </Para>
       </GuideSection>
 
@@ -111,20 +111,30 @@ export default function CorrelationHelpGuide() {
         <Table headers={['Control', 'What it does']} rows={[
           ['unit', 'm or ft for every depth you see and type: the scale, tops, the datum depth and the propagate depth.'],
           ['depth', Object.values(DEPTH_REF_LABEL).join(', ') + ': the plotting reference. TVD and TVDSS go through each well\'s deviation survey and KB, the same frame the checkshot and export doors use.'],
-          ['spacing', 'equal columns, or by distance along the section path with the distance printed in each gap.'],
+          ['spacing', 'equal columns, or by distance along the section path with the distance printed in each gap. Distances are in metres from each well\'s coordinates in its own CRS unit (m, ft or US survey ft); wells in different coordinate systems, or with no location, keep equal columns and the status says why.'],
         ]} />
         <Callout tone="info" title="A well that cannot be plotted in TVD">
           A horizontal reach makes TVD stop increasing, so that well falls back to MD and its header says so. Picks in a
           TVD frame on an uphill part of a well are refused with a message.
         </Callout>
+        <Para>
+          A well column also says when its vertical depth rests on an assumption: <Code>no survey: vertical</Code> when
+          the well has no deviation survey (TVD equals MD), <Code>no KB: TVDSS = TVD</Code> when no KB was entered (set
+          it in Well Data Manager, otherwise the well sits too deep by its KB height), and{' '}
+          <Code>stored bottom-up: read top-down</Code> for curves an early import stored in reverse order. TVDSS is below
+          mean sea level: the registry has no seismic reference datum yet.
+        </Para>
       </GuideSection>
 
       <GuideSection id="datum">
         <SectionHeading icon={ArrowDownToLine}>Flattening on a datum</SectionHeading>
+        <Table headers={['Datum', 'What it draws']} rows={[
+          ['Structural (true depth)', 'Every well at its own depth in the chosen reference.'],
+          ['Flatten on top', 'Each well shifts so the chosen top sits on one horizontal line at the datum depth, the way a stratigraphic section reads. The datum starts where the first well carrying the top has it; type another depth to move the line. The axis reads flattened.'],
+          ['Stretch between two tops', 'Each well is hung on two tops at once, so both lie on straight lines and the interval between them is stretched to one thickness. The axis reads stretched.'],
+        ]} />
         <Para>
-          Datum mode none plots true depth. A top datum shifts each well so the chosen top sits on one horizontal line,
-          the way a stratigraphic section reads. A depth datum shifts every well so that depth sits at the top of the
-          window. Wells that do not carry the datum top stay unshifted and are named in the status. The shift is exact
+          Wells that do not carry the datum top stay at true depth and their column header says so. The shift is exact
           closed-form arithmetic on the reference frame.
         </Para>
       </GuideSection>
@@ -140,6 +150,10 @@ export default function CorrelationHelpGuide() {
         <SubHeading>Reload and Map this top</SubHeading>
         <Para>Reload fetches tops edited in Petrophysics Studio or Well Data Manager. The map icon beside a top opens Mapping &amp; Surface Studio with that top gridded in TVDSS across the section wells that carry it.</Para>
         <Para>Each top has a show toggle and the all checkbox shows every top; the shown set is what zone fills use.</Para>
+        <SubHeading>One top spelled two ways</SubHeading>
+        <Para>Tops from different tools often differ only in case or spacing (TOP AGBADA and Top Agbada). They are separate tops, each with its own correlation line, and the list marks each with the other spelling. Rename one to the other to merge them; a well that already carries both keeps both and the status names it.</Para>
+        <SubHeading>Correlation lines</SubHeading>
+        <Para>A top is a dashed line across its well column; the correlation line joins it to the next well carrying the top through the gap between the columns. Across a well that does not carry the top the line is dashed.</Para>
       </GuideSection>
 
       <GuideSection id="zones">
@@ -154,15 +168,17 @@ export default function CorrelationHelpGuide() {
       <GuideSection id="propagate">
         <SectionHeading icon={GitBranch}>Propagating a top</SectionHeading>
         <Para>
-          Type a top name and a depth, then Propagate. Every well you own on the section that does not carry that top
-          receives it at that depth as a seed. Drag each seed to the right place afterwards; propagation is the manual
+          Type a top name and a measured depth, then Add. Every well you own on the section that does not carry that top
+          receives it at that MD as a seed. Wells that already have it, wells whose TD is shallower than the depth and
+          shared wells are named in the status. Drag each seed to the right place afterwards; propagation is the manual
           starting point, there is no automatic correlation.
         </Para>
       </GuideSection>
 
       <GuideSection id="export">
         <SectionHeading icon={ImageDown}>PNG export and saving</SectionHeading>
-        <Para>PNG downloads the section as drawn, with a title band and the Petrolord watermark. Save section keeps the well order, datum, layout, unit, reference, spacing, zone mode and shown tops in your account (the section state is yours alone; the tops stay registry rows).</Para>
+        <Para>PNG downloads the section as drawn with a header a reviewer can sign: field and analyst (Report header in the dock), the wells, the datum and flattening, depth reference and unit, vertical scale (1:N at 96 dpi), spacing, template, date and build, and the Petrolord watermark.</Para>
+        <Para>Save section keeps the well order, datum, layout, unit, reference, spacing, zone mode, shown tops, ghost curve and report header in your account (the section state is yours alone; the tops stay registry rows). The status bar says unsaved changes until you save. A section saved by a newer Petrolord build is not opened and is not overwritten: reload the page to get the latest build.</Para>
       </GuideSection>
 
       <GuideSection id="links">
@@ -179,7 +195,7 @@ export default function CorrelationHelpGuide() {
       <GuideSection id="pitfalls">
         <SectionHeading icon={AlertTriangle}>Pitfalls and FAQ</SectionHeading>
         <SubHeading>A curve does not draw</SubHeading>
-        <Para>The template names a curve the well does not carry under any alias. Use Raw quicklook to see every mnemonic, or add a <Code>log:</Code> address for it in Track details.</Para>
+        <Para>The template names a curve the well does not carry under any alias. Use Raw quicklook to see every mnemonic, or add a <Code>log:</Code> address for it in Track layout.</Para>
         <SubHeading>Columns are narrow</SubHeading>
         <Para>Spacing by distance narrows columns to fit the path. Switch to equal spacing for four-track templates on many wells.</Para>
         <SubHeading>Tops picked in another app are missing</SubHeading>
@@ -194,7 +210,7 @@ export default function CorrelationHelpGuide() {
           ['MD', 'Measured depth along the hole.'],
           ['TVD', 'True vertical depth below the KB, through the deviation survey.'],
           ['TVDSS', 'True vertical depth below the datum (sea level): TVD minus KB.'],
-          ['Datum', 'The top or depth the section is flattened on.'],
+          ['Datum', 'The top the section is flattened on, or the two tops it is stretched between.'],
           ['Template', 'A named set of tracks with scales, colours and fills, shared with Petrophysics Studio.'],
           ['Propagate', 'Seed a top on every own well that lacks it at one depth.'],
         ]} />
