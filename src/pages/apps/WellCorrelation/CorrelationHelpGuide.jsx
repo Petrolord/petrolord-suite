@@ -7,7 +7,7 @@
 import React from 'react';
 import {
   BookOpen, Zap, Database, Columns, Ruler, ArrowDownToLine, Crosshair, Layers, GitBranch,
-  ImageDown, Link2, AlertTriangle, BookMarked,
+  ImageDown, Link2, AlertTriangle, BookMarked, FolderOpen, FileUp, Waves, BarChart3, Route, Sparkles,
 } from 'lucide-react';
 import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Code, Callout, Step, Table,
@@ -27,7 +27,13 @@ export const HELP_SECTIONS = [
   { id: 'tops', icon: Crosshair, title: 'Tops: pick, drag, rename, delete' },
   { id: 'zones', icon: Layers, title: 'Zone fills' },
   { id: 'propagate', icon: GitBranch, title: 'Propagating a top' },
-  { id: 'export', icon: ImageDown, title: 'PNG export and saving' },
+  { id: 'assist', icon: Sparkles, title: 'Suggested picks' },
+  { id: 'topsfiles', icon: FileUp, title: 'Tops files in and out' },
+  { id: 'seismic', icon: Waves, title: 'Time and seismic horizons' },
+  { id: 'strips', icon: BarChart3, title: 'Pay, zones and units' },
+  { id: 'line', icon: Route, title: 'Section line and corridor' },
+  { id: 'sections', icon: FolderOpen, title: 'Named sections and undo' },
+  { id: 'export', icon: ImageDown, title: 'PNG and PDF export, saving' },
   { id: 'links', icon: Link2, title: 'Working with the other apps' },
   { id: 'pitfalls', icon: AlertTriangle, title: 'Pitfalls and FAQ' },
   { id: 'glossary', icon: BookMarked, title: 'Glossary' },
@@ -111,7 +117,8 @@ export default function CorrelationHelpGuide() {
         <Table headers={['Control', 'What it does']} rows={[
           ['unit', 'm or ft for every depth you see and type: the scale, tops, the datum depth and the propagate depth.'],
           ['depth', Object.values(DEPTH_REF_LABEL).join(', ') + ': the plotting reference. TVD and TVDSS go through each well\'s deviation survey and KB, the same frame the checkshot and export doors use.'],
-          ['spacing', 'equal columns, or by distance along the section path with the distance printed in each gap. Distances are in metres from each well\'s coordinates in its own CRS unit (m, ft or US survey ft); wells in different coordinate systems, or with no location, keep equal columns and the status says why.'],
+          ['spacing', 'equal columns, or by distance along the section path with the distance printed in each gap. Distances are in metres from each well\'s coordinates in its own CRS unit (m, ft or US survey ft); wells in different coordinate systems, or with no location, keep equal columns and the status says why. With a section line drawn, along the section line spaces the wells by their distance along it.'],
+          ['columns', 'auto fits the wells to the window until a column would be narrower than 90 px, then gives every column 140 px and a horizontal scrollbar under the section (or shift + wheel); fit always fits; a px width fixes it. The depth axis stays put and only the wells in view are drawn.'],
         ]} />
         <Callout tone="info" title="A well that cannot be plotted in TVD">
           A horizontal reach makes TVD stop increasing, so that well falls back to MD and its header says so. Picks in a
@@ -168,16 +175,92 @@ export default function CorrelationHelpGuide() {
       <GuideSection id="propagate">
         <SectionHeading icon={GitBranch}>Propagating a top</SectionHeading>
         <Para>
-          Type a top name and a measured depth, then Add. Every well you own on the section that does not carry that top
-          receives it at that MD as a seed. Wells that already have it, wells whose TD is shallower than the depth and
-          shared wells are named in the status. Drag each seed to the right place afterwards; propagation is the manual
-          starting point, there is no automatic correlation.
+          Type a top name and a depth, then Add. Every well you own on the section that does not carry that top
+          receives it as a seed. With at the displayed depth (the default) the depth is read on the section axis, flattened,
+          stretched, TVDSS or TWT as drawn, and each well gets its own MD through its survey and the flattening, so the
+          seeds sit on one line across the section. One MD in every well uses the same MD everywhere. Leave the depth
+          blank to seed from an existing pick of the top. Wells that already have it, wells whose TD is shallower than the
+          depth, depths reached twice along a well and shared wells are named in the status. Drag each seed to the right
+          place afterwards; propagation is the manual starting point, there is no automatic correlation.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="assist">
+        <SectionHeading icon={Sparkles}>Suggested picks</SectionHeading>
+        <Para>
+          Suggest picks proposes, for the chosen top, a pick on each of your wells that lacks it: the GR pattern 20 m either
+          side of the nearest well's pick is slid along the well, starting between the tops both wells share, and the best
+          match is offered with its correlation (r) when r is at least 0.6. On a well that already carries the top it may
+          propose a small move to the strongest GR change within 5 m. Each suggestion says why; Accept writes it (and Undo
+          reverts it), Reject drops it. Nothing is written without an accept: correlation stays your decision.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="topsfiles">
+        <SectionHeading icon={FileUp}>Tops files in and out</SectionHeading>
+        <Para>
+          Import in the Tops panel reads a Petrel, Kingdom or Petra tops file (comma, tab or semicolon, any column order),
+          or pasted rows. It shows the columns it read, the depth reference (MD, TVD, TVDSS or Z elevation) and unit from
+          the header, which you can change, how many tops are new, moved or unchanged, and every line it will not apply
+          with the reason. TVD, TVDSS and Z are converted to MD through each well's survey and KB; a well with no survey
+          or no KB is named. Time columns are refused. Undo reverts an applied file.
+        </Para>
+        <Para>CSV exports the shown tops of the section wells with MD, TVD and TVDSS in the display unit, TWT from checkshots, surface type, interpreter and confidence.</Para>
+        <SubHeading>Who picked it</SubHeading>
+        <Para>New picks by and the confidence choice are stored on every top you pick, propagate, import or accept (blank uses the analyst of the Report header). info beside a top lists each well's pick with its interpreter, confidence and date; a low-confidence pick shows ? on its tag. A top repeated in one well says so in the header and correlates on the shallower pick.</Para>
+      </GuideSection>
+
+      <GuideSection id="seismic">
+        <SectionHeading icon={Waves}>Time and seismic horizons</SectionHeading>
+        <Para>
+          Depth TWT draws the section in two-way time (ms) from each well's checkshots (Well Data Manager). A well without
+          checkshots is not drawn in time and its header says no checkshots.
+        </Para>
+        <Para>
+          Seismic horizons lists the time and depth structure surfaces in the surface registry (the horizons Seismolord
+          converts to surfaces). A checked horizon is sampled where each wellbore crosses it and drawn as a dotted marker
+          named H: that you can flatten or stretch on. Wells outside the grid, in another coordinate system, or without
+          checkshots for a time horizon are named under it. Horizons are read only.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="strips">
+        <SectionHeading icon={BarChart3}>Pay, zones and units</SectionHeading>
+        <Para>
+          Petrophysics and stratigraphy adds narrow strips at the left of each well: the PAY flag Petrophysics Studio
+          published, its zones with their published net, PHIE and Sw (or not published), and the units of the Stratigraphy
+          Studio column for tops linked to a unit. A well without the data says so in its header. Zones below has Thickness
+          map, which opens Mapping &amp; Surface Studio gridding the gross thickness between two tops (MD thickness,
+          longer than the vertical isochore on a deviated well) from the section wells that carry both.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="line">
+        <SectionHeading icon={Route}>Section line and corridor</SectionHeading>
+        <Para>
+          Draw section line under the map: click points, give the corridor (half-width in metres), Use line. The wells whose
+          wellhead or bottom hole lies in the corridor become the section, in order along the line, spaced along it.
+          Wells in another coordinate system or with no location are named. The line is saved with the section.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="sections">
+        <SectionHeading icon={FolderOpen}>Named sections and undo</SectionHeading>
+        <Para>
+          The ribbon picker holds all your sections: open one, start a new one, save a copy under a new name, rename or
+          delete (click twice). Sections are yours alone. With unsaved changes, switching asks Save first, Discard changes
+          or Cancel.
+        </Para>
+        <Para>
+          Undo (Ctrl+Z outside a text box) reverts the last tops edit made here: a drag, pick, propagate, rename, delete,
+          tops file or accepted suggestion. A top someone changed since in another app is kept and the status says so.
         </Para>
       </GuideSection>
 
       <GuideSection id="export">
-        <SectionHeading icon={ImageDown}>PNG export and saving</SectionHeading>
+        <SectionHeading icon={ImageDown}>PNG and PDF export, saving</SectionHeading>
         <Para>PNG downloads the section as drawn with a header a reviewer can sign: field and analyst (Report header in the dock), the wells, the datum and flattening, depth reference and unit, vertical scale (1:N at 96 dpi), spacing, template, date and build, and the Petrolord watermark.</Para>
+        <Para>PDF plots the depth window on screen to scale (Report header, PDF scale: 1:200 to 1:5,000, or 1 in = 20 to 200 ft), every well at the current column width, with the same header, a legend of the tops and fills and a scale bar. Print at 100 % and a ruler reads the scale. A window too long for one page is refused with the reason; a section in time has no scale and is refused too.</Para>
         <Para>Save section keeps the well order, datum, layout, unit, reference, spacing, zone mode, shown tops, ghost curve and report header in your account (the section state is yours alone; the tops stay registry rows). The status bar says unsaved changes until you save. A section saved by a newer Petrolord build is not opened and is not overwritten: reload the page to get the latest build.</Para>
       </GuideSection>
 

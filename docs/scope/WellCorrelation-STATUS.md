@@ -207,3 +207,34 @@ Fixed, each with a test that fails on the previous main:
 Open for Step 2: fixed-width columns with horizontal scroll for 30+ wells,
 undo, tops import/export here, TWT and horizons in the section, named
 sections, pick attributes.
+
+## 2026-09-29: comprehensive upgrade, Step 2 (batches A, B, C)
+
+Batch decision 2026-09-29 (programme lead, recorded in
+`docs/upgrade/WellCorrelation-UPGRADE.md`). Branch `feat/wc-u2`, one PR.
+Built, each with a test that fails on the previous main:
+
+- A: fixed-width columns with a horizontal scroll (auto at 140 px once
+  fitted columns drop under 90 px; only visible columns painted); named
+  sections (many owner-only rows, picker in the ribbon, unsaved changes
+  guarded; no RLS or schema change); undo for tops edits (Ctrl+Z; edits
+  made since in another app are kept); PDF plotted to a true 1:N vertical
+  scale (read back with pdftotext); tops file import (MD, TVD, TVDSS, Z
+  through survey and KB, the WDM door rules) and CSV export with TWT;
+  propagate at the displayed depth; well-list filter; the 72 stale
+  `WELL_CORRELATION_TOOL_*` docs deleted.
+- B: TWT reference from checkshots and Seismolord horizons (read only from
+  `geo_surfaces`, flatten on a horizon); Petrophysics pay and zone strips
+  and the Stratigraphy unit strip; section line and corridor on the map
+  (deviated wells by their bottom hole, spacing along the line); thickness
+  map launcher to Mapping; pick interpreter, confidence and date on the
+  existing row (no schema change; closes WC-U1-024); suggested picks
+  (suggestions only, the interpreter accepts or rejects each).
+- C: multi-log ghost with stretch and squeeze.
+
+Deferred by the decision: fault cuts (U2-011) and a seismic backdrop
+(U2-017) with Seismolord (app #5); SRD datum (U2-018) after the WDM datum
+migration; `sectionFrame` into petrolord-engines (U2-016).
+
+Shared kit changes (columns and scroll, TWT, strips, ghost, print render)
+reach Stratigraphy Studio; its suites were run on the branch.
