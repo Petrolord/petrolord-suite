@@ -5,6 +5,8 @@
 import { parseScanProposal } from './scanProposal';
 
 export const SCAN_READ_FUNCTION = 'petro-scan-read';
+/** PETRO-U2-018: scan reads per person per UTC day; must equal SCAN_USER_DAILY_CAP in supabase/functions/petro-scan-read/cap.ts. */
+export const SCAN_USER_DAILY_CAP = 25;
 
 export class ScanReadError extends Error {
   constructor(kind, message) {
@@ -21,6 +23,7 @@ export const SCAN_READ_MESSAGES = {
   upstream: 'The scan reader could not read this image. Calibrate by hand or try a clearer scan.',
   'bad-request': 'The scan reader rejected the request.',
   failed: 'The scan reader is unavailable right now. Calibrate by hand.',
+  cap: `You have used today's ${SCAN_USER_DAILY_CAP} scan reads (the count resets at 00:00 UTC). Calibrate this scan by hand.`,
 };
 
 export function kindForStatus(status) {
@@ -29,6 +32,7 @@ export function kindForStatus(status) {
   if (status === 503) return 'not-configured';
   if (status === 502) return 'upstream';
   if (status === 400) return 'bad-request';
+  if (status === 429) return 'cap';
   return 'failed';
 }
 
