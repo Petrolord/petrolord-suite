@@ -19,7 +19,7 @@ import React, {
 import { computeFlattening, correlationPolyline, displayedRange, displayedDepth } from '@/pages/apps/WellCorrelation/engine/section';
 import {
   toReferenceFrame, depthOfFor, displayedArray, isMonotonic, mdFromDisplayed, columnLayout, zoneBands, DEPTH_REF_LABEL,
-  spacingProblem, correlationSegments, frameNotes, verticalScale, resolveColumnWidth, scrollWindow,
+  spacingProblem, correlationSegments, frameNotes, verticalScale, resolveColumnWidth, scrollWindow, hasTime,
 } from './sectionFrame';
 import { trackGeometry } from '@/components/wells/trackRender';
 import {
@@ -118,7 +118,8 @@ const CrossSection = forwardRef(function CrossSection({
   const scrollbarRef = useRef(null);
   const dragRef = useRef(null);
   const movedRef = useRef(false);
-  const F = depthUnit === 'ft' ? 1 / 0.3048 : 1;
+  const isTime = depthRef === 'twt'; // U2-003: the axis is TWT in ms (no ft conversion)
+  const F = !isTime && depthUnit === 'ft' ? 1 / 0.3048 : 1;
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -134,14 +135,22 @@ const CrossSection = forwardRef(function CrossSection({
     // wells whose reference depth is not monotonic (a horizontal reach)
     // fall back to MD for everything, and say so in their header
     const fallback = new Set();
-    if (depthRef !== 'md') {
+    // U2-003: in time, a well without checkshots (or whose time is not
+    // monotonic) is not drawn at all; it never falls back to a depth
+    const noTime = new Map();
+    if (depthRef === 'twt') {
+      for (const w of wells) {
+        if (!hasTime(w)) noTime.set(w.id, 'no checkshots: not drawn in time');
+        else if (w.depth?.length && !isMonotonic(displayedArray(w.depth, depthOfFor(w, depthRef), 0))) noTime.set(w.id, 'TWT not monotonic: not drawn in time');
+      }
+    } else if (depthRef !== 'md') {
       for (const w of wells) {
         if (!w.depth?.length) continue;
         if (!isMonotonic(displayedArray(w.depth, depthOfFor(w, depthRef), 0))) fallback.add(w.id);
       }
     }
     const refAll = toReferenceFrame(wells, depthRef);
-    const frameWells = wells.map((w, i) => (fallback.has(w.id) ? w : refAll[i]));
+    const frameWells = wells.map((w, i) => (noTime.has(w.id) ? { ...w, tops: [] } : fallback.has(w.id) ? w : refAll[i]));
     let flattening;
     try {
       // ST2: a stretch datum hangs each well on two surfaces (stratigraphy/stretch.js)
@@ -153,7 +162,7 @@ const CrossSection = forwardRef(function CrossSection({
     const columns = wells.map((w, i) => {
       const f = flattening[i];
       const depthOf = fallback.has(w.id) ? (md) => md : depthOfFor(w, depthRef);
-      const disp = w.depth?.length ? displayedArray(w.depth, depthOf, f.shift) : null;
+      const disp = w.depth?.length && !noTime.has(w.id) ? displayedArray(w.depth, depthOf, f.shift) : null;
       if (disp) {
         let a = 0;
         while (a < disp.length && !Number.isFinite(disp[a])) a++;
@@ -163,7 +172,7 @@ const CrossSection = forwardRef(function CrossSection({
       }
       return {
         well: w, frameWell: frameWells[i], shift: f.shift, hasDatumTop: f.hasDatumTop,
-        disp, fallback: fallback.has(w.id), tracks: w.tracks || [],
+        disp, fallback: fallback.has(w.id), noTime: noTime.get(w.id) || null, tracks: w.tracks || [],
         refForWell: fallback.has(w.id) ? 'md' : depthRef,
       };
     });
@@ -221,7 +230,7 @@ const CrossSection = forwardRef(function CrossSection({
   const [scheme] = useScheme();
   const topTypes = useMemo(() => columnTops.flat().map((t) => `${t.name}:${normalizeSurfaceType(t.row?.surface_type ?? t.surface_type)}`).join(';'), [columnTops]);
 
-  const unitTxt = depthUnit === 'ft' ? 'ft' : 'm';
+  const unitTxt = isTime ? 'ms' : depthUnit === 'ft' ? 'ft' : 'm';
   // WC-U1-011: a stretched section is labelled as such (its depths are the
   // datum frame between two surfaces, not the wells' own)
   const axisTitle = datum.mode === 'flatten'
@@ -238,7 +247,8 @@ const CrossSection = forwardRef(function CrossSection({
     const notes = [];
     if (datum.mode === 'flatten' && !c.hasDatumTop) notes.push('no datum top: true depth');
     if (datum.mode === 'stretch' && flattening[i]?.partial) notes.push(c.hasDatumTop ? 'one surface: shifted without stretching' : 'neither surface: true depth');
-    if (c.fallback) notes.push(`${DEPTH_REF_LABEL[depthRef]} not monotonic: MD shown`);
+    if (c.noTime) notes.push(c.noTime);
+    else if (c.fallback) notes.push(`${DEPTH_REF_LABEL[depthRef]} not monotonic: MD shown`);
     else notes.push(...frameNotes(c.well, depthRef)); // WC-U1-005
     if (c.well.reoriented) notes.push('stored bottom-up: read top-down'); // WC-U1-003
     return notes;
@@ -428,8 +438,9 @@ const CrossSection = forwardRef(function CrossSection({
       if (line.length < 2) continue;
       ctx.strokeStyle = colorOf(name);
       ctx.lineWidth = 1.5;
+      const hz = name.startsWith('H: '); // U2-003 horizon: dotted
       for (const seg of correlationSegments(line, boxes, yOf)) {
-        ctx.setLineDash(seg.dashed ? [4, 3] : []);
+        ctx.setLineDash(hz ? [1, 3] : seg.dashed ? [4, 3] : []);
         ctx.beginPath();
         ctx.moveTo(seg.x1, seg.y1);
         ctx.lineTo(seg.x2, seg.y2);
@@ -448,8 +459,8 @@ const CrossSection = forwardRef(function CrossSection({
         if (t.md_m < vTop || t.md_m > vBase) continue;
         paintTopMarker(ctx, {
           name: t.name, label: topLabel(t, scheme), color: colorOf(t.name), y: yOf(t.md_m), xLeft: box.x0, xRight: box.x0 + box.w,
-          tagMax: Math.min(TAG_MAX, box.w - 4), grip: !!(c.well.is_own && onTopMove),
-          style: surfaceLineStyle(t.row?.surface_type ?? t.surface_type),
+          tagMax: Math.min(TAG_MAX, box.w - 4), grip: !!(c.well.is_own && onTopMove && !t.row?.readonly),
+          style: t.row?.horizon ? { dash: [1, 3], width: 2 } : surfaceLineStyle(t.row?.surface_type ?? t.surface_type),
         });
       }
     });
@@ -494,7 +505,8 @@ const CrossSection = forwardRef(function CrossSection({
         const inv = mdFromDisplayed(cursor.disp, c.shift, c.well, c.refForWell);
         if (inv && Number.isFinite(inv.md)) {
           const parts = [`MD ${depthLabel(inv.md, depthUnit)}`];
-          if (c.refForWell !== 'md') parts.push(`${DEPTH_REF_LABEL[c.refForWell]} ${depthLabel(invertShift(cursor.disp, c.shift), depthUnit)}`);
+          if (c.refForWell === 'twt') parts.push(`TWT ${Math.round(invertShift(cursor.disp, c.shift))} ms`);
+          else if (c.refForWell !== 'md') parts.push(`${DEPTH_REF_LABEL[c.refForWell]} ${depthLabel(invertShift(cursor.disp, c.shift), depthUnit)}`);
           ctx.fillStyle = P.textStrong;
           ctx.font = '9px sans-serif';
           ctx.textAlign = 'right';
@@ -560,7 +572,8 @@ const CrossSection = forwardRef(function CrossSection({
     if (i < 0 || !columns[i].well.is_own) return null;
     const box = boxes[i];
     const tagLeft = Math.max(box.x0, box.x0 + box.w - Math.min(TAG_MAX, box.w - 4) - 2);
-    const hit = hitTopAt({ x, y }, columnTops[i], yOf, { tagLeft, tol: 5 });
+    // U2-003: horizon markers are read-only (the registry surface is not a top)
+    const hit = hitTopAt({ x, y }, columnTops[i].filter((t) => !t.row?.readonly), yOf, { tagLeft, tol: 5 });
     return hit ? { top: hit.row, wellIndex: i, disp: hit.md_m } : null;
   };
   const clampDisp = (d) => Math.min(autoRange[1], Math.max(autoRange[0], d));
@@ -658,7 +671,7 @@ const CrossSection = forwardRef(function CrossSection({
   const exportMetaRef = useRef({});
   const shownCols = colVisible.map((v, i) => (v ? i : -1)).filter((i) => i >= 0);
   exportMetaRef.current = {
-    scale: verticalScale(vTop, vBase, plotH), spacing: spacingNote ? 'equal' : spacing,
+    scale: isTime ? null : verticalScale(vTop, vBase, plotH), spacing: spacingNote ? 'equal' : spacing, depthRef,
     // U2-002: a scrolled PNG shows a window of the section and says which wells
     window: scrolling && shownCols.length ? { first: shownCols[0] + 1, last: shownCols[shownCols.length - 1] + 1, n: wells.length } : null,
     // U2-006: what a print render needs to redraw this view at another size

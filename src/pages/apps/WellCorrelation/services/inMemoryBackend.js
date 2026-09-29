@@ -12,7 +12,7 @@
 // `section` seeds a saved geo_correlation_sections row, opened through the
 // same PP0 state kind as the registry (a newer-build row is refused).
 
-import { sampleWells } from './sampleSection';
+import { sampleWells, sampleSurfaces } from './sampleSection';
 import { openSectionRow } from '@/components/wells/section/sectionState';
 import { sectionNameProblem, DEFAULT_SECTION_NAME } from '@/components/wells/section/sectionNames';
 
@@ -27,7 +27,7 @@ const asCurves = (curves) => Object.fromEntries(Object.entries(curves || {})
  *   sections (U2-001) seeds several saved rows, newest last
  *   sample false drops the 3-well KETA section (a scale or hostile run alone)
  */
-export function makeInMemoryBackend({ seedWells = [], sample = true, section: seedSection = null, sections: seedSections = [] } = {}) {
+export function makeInMemoryBackend({ seedWells = [], sample = true, section: seedSection = null, sections: seedSections = [], surfaces: seedSurfaces = null } = {}) {
   const wells = [...(sample ? sampleWells() : []), ...seedWells.map((w) => ({ ...w, curves: asCurves(w.curves) }))].map((w) => ({ ...w }));
   const curvesByWell = new Map(wells.map((w) => [w.id, w.curves]));
   const topsByWell = new Map(wells.map((w) => [w.id, [...(w.tops || [])]]));
@@ -61,6 +61,17 @@ export function makeInMemoryBackend({ seedWells = [], sample = true, section: se
 
     async listIntervals(wellId, kind = null) {
       return (intervalsByWell.get(wellId) || []).filter((r) => !kind || r.kind === kind).map((r) => ({ ...r }));
+    },
+
+    // U2-003: geo_surfaces rows with their grids (the sample has one
+    // Seismolord time horizon and one depth horizon over the KETA wells)
+    async listSurfaces() {
+      return (seedSurfaces ?? (sample ? sampleSurfaces() : [])).map(({ grid, ...row }) => ({ ...row }));
+    },
+    async downloadSurfaceGrid(row) {
+      const s = (seedSurfaces ?? (sample ? sampleSurfaces() : [])).find((x) => x.id === row.id);
+      if (!s) throw new Error('Surface grid not found.');
+      return Float32Array.from(s.grid);
     },
 
     async listAllTops() {

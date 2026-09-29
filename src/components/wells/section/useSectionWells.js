@@ -60,7 +60,7 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
     const tl = section.track_layout || {};
     if (tl.layouts) setLayouts({ ...migrateLayouts(tl.layouts), activeTemplateId: tl.layouts.activeTemplateId || DEFAULT_TEMPLATE });
     if (tl.depthUnit === 'm' || tl.depthUnit === 'ft') setDepthUnit(tl.depthUnit);
-    if (['md', 'tvd', 'tvdss'].includes(tl.depthRef)) setDepthRef(tl.depthRef);
+    if (['md', 'tvd', 'tvdss', 'twt'].includes(tl.depthRef)) setDepthRef(tl.depthRef);
     if (tl.spacing === 'equal' || tl.spacing === 'proportional') setSpacing(tl.spacing);
     if (tl.columnWidth === 'auto' || tl.columnWidth === 'fit' || (Number(tl.columnWidth) >= 40 && Number(tl.columnWidth) <= 600)) setColumnWidth(tl.columnWidth === 'auto' || tl.columnWidth === 'fit' ? tl.columnWidth : Number(tl.columnWidth));
     if (['none', 'consecutive', 'pair'].includes(tl.zoneMode)) setZoneMode(tl.zoneMode);

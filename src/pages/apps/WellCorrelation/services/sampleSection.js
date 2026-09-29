@@ -86,6 +86,24 @@ function nphiAt(md, tops) {
 }
 
 /** Build the shared section: wells with tops + a synthetic GR curve. */
+const SAMPLE_CHECKSHOTS = [{ tvdss_m: 0, twt_ms: 0 }, { tvdss_m: 1000, twt_ms: 950 }, { tvdss_m: 2000, twt_ms: 1850 }];
+
+/**
+ * U2-003: two Seismolord horizons over the KETA wells in the shared surface
+ * registry shape (geo_surfaces row + grid): "Dome" in TWT ms (positive) and
+ * in depth (elevation ft, negative down), a gentle plane dipping east.
+ * Closed form: TWT = 1373 + 0.01 (x - 501000) ms; TVDSS = 1470 + 0.02 (x - 501000) m.
+ */
+export function sampleSurfaces() {
+  const spec = { origin_x: 500000, origin_y: 6699000, dx: 500, dy: 500, nx: 11, ny: 7, rotation_deg: 0, null_value: 1e30, crs: null, xy_unit: 'm' };
+  const grid = (f) => { const g = []; for (let r = 0; r < spec.ny; r++) for (let c = 0; c < spec.nx; c++) g.push(f(spec.origin_x + c * spec.dx)); return g; };
+  const prov = (domain) => ({ app: 'seismolord', volume: { id: 'vol-keta', name: 'KETA 3D' }, horizon: { id: 'hz-dome', name: 'Dome' }, domain });
+  return [
+    { id: 'surf-dome-twt', user_id: 'user-dev', is_own: true, name: 'Dome (TWT ms)', kind: 'structure', z_domain: 'time', z_unit: 'ms', ...spec, provenance: prov('twt_ms'), grid: grid((x) => 1373 + 0.01 * (x - 501000)) },
+    { id: 'surf-dome-depth', user_id: 'user-dev', is_own: true, name: 'Dome (depth ft)', kind: 'structure', z_domain: 'depth', z_unit: 'ft', ...spec, provenance: prov('depth_ft'), grid: grid((x) => -(1470 + 0.02 * (x - 501000)) / 0.3048) },
+  ];
+}
+
 export function sampleWells() {
   return Object.entries(TOPS).map(([id, w], idx) => {
     const n = Math.round((BOT_MD - TOP_MD) / STEP) + 1;
@@ -114,6 +132,9 @@ export function sampleWells() {
       kb_m: 30,
       td_md_m: BOT_MD,
       deviation: w.deviation || null,
+      // U2-003: checkshots (TVDSS m, TWT ms) on the two own wells; KETA-3 has
+      // none, so a time section names it instead of drawing it
+      checkshots: idx === 2 ? [] : SAMPLE_CHECKSHOTS,
       tops: w.tops.map((t, ti) => ({ id: `${id}-top-${ti}`, well_id: id, name: t.name, md_m: t.md_m, surface_type: SAMPLE_SURFACE_TYPES[t.name] || 'formation_top', unit_id: null, confidence: null, age_ma: SAMPLE_AGES[t.name] ?? null, hiatus_to_ma: t.name === 'Base Sand' ? SAMPLE_HIATUS[id] : null, notes: null })),
       intervals: sampleIntervals(id, w.tops),
       curves: { DEPT: depth, GR: gr, RT: rt, RHOB: rhob, NPHI: nphi },

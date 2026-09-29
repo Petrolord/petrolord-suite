@@ -93,7 +93,7 @@ function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete, mapHref, v
 }
 
 export default function SectionControls({
-  topNames, datum, onDatum,
+  topNames, datum, onDatum, datumNames = null, horizons = null,
   depthUnit, onDepthUnit, depthRef, onDepthRef, spacing, onSpacing, columnWidth = 'auto', onColumnWidth = null,
   layouts, onLayoutsChange, logSources, onStatus,
   shownTops, onToggleTop, onShowAllTops,
@@ -109,6 +109,10 @@ export default function SectionControls({
   const [propMd, setPropMd] = useState('');
   const [propRef, setPropRef] = useState('displayed'); // U2-005
   const u = unitTxt(depthUnit);
+  const dn = datumNames || topNames; // U2-003: flatten or stretch on a top or a seismic horizon
+  // U2-003: in time the datum and the ghost shift are in ms (no ft conversion)
+  const ru = depthRef === 'twt' ? 'ms' : depthUnit;
+  const ul = depthRef === 'twt' ? 'ms' : u;
 
   return (
     <div className="p-2 space-y-3 text-xs" data-testid="corr-controls">
@@ -116,9 +120,9 @@ export default function SectionControls({
         <div className="flex items-center gap-1.5 flex-wrap">
           <select className={selCls} value={datum.mode} data-testid="corr-datum-mode"
             onChange={(e) => onDatum(e.target.value === 'flatten'
-              ? { mode: 'flatten', topName: datum.topName || topNames[0], datumM: datum.datumM ?? datumDefault(datum.topName || topNames[0]) ?? 0 }
+              ? { mode: 'flatten', topName: datum.topName || dn[0], datumM: datum.datumM ?? datumDefault(datum.topName || dn[0]) ?? 0 }
               : e.target.value === 'stretch'
-                ? { mode: 'stretch', upperName: datum.upperName || topNames[0], lowerName: datum.lowerName || topNames[topNames.length - 1] }
+                ? { mode: 'stretch', upperName: datum.upperName || dn[0], lowerName: datum.lowerName || dn[dn.length - 1] }
                 : { mode: 'structural' })}>
             <option value="structural">Structural (true depth)</option>
             <option value="flatten">Flatten on top</option>
@@ -127,11 +131,11 @@ export default function SectionControls({
           {datum.mode === 'stretch' && (
             <>
               <select className={selCls} value={datum.upperName} data-testid="corr-datum-upper" onChange={(e) => onDatum({ ...datum, upperName: e.target.value })}>
-                {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
+                {dn.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
               <span className="text-pl-muted">to</span>
               <select className={selCls} value={datum.lowerName} data-testid="corr-datum-lower" onChange={(e) => onDatum({ ...datum, lowerName: e.target.value })}>
-                {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
+                {dn.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </>
           )}
@@ -139,12 +143,12 @@ export default function SectionControls({
             <>
               <select className={selCls} value={datum.topName} data-testid="corr-datum-top"
                 onChange={(e) => onDatum({ ...datum, topName: e.target.value, datumM: datumDefault(e.target.value) ?? datum.datumM })}>
-                {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
+                {dn.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
               {/* WC-U1-009: typed like every numeric field (clearing, "-" and "2." do not snap) */}
-              <NumText className={`${inputCls} w-16`} value={fmtDisplay(datum.datumM, depthUnit)} data-testid="corr-datum-depth"
-                title={`Datum depth (${u}): where the chosen top is drawn`} onCommit={(v) => onDatum({ ...datum, datumM: fromDisplay(v, depthUnit) })} />
-              <span className="text-pl-muted">{u}</span>
+              <NumText className={`${inputCls} w-16`} value={fmtDisplay(datum.datumM, ru)} data-testid="corr-datum-depth"
+                title={`Datum depth (${ul}): where the chosen top is drawn`} onCommit={(v) => onDatum({ ...datum, datumM: fromDisplay(v, ru) })} />
+              <span className="text-pl-muted">{ul}</span>
             </>
           )}
         </div>
@@ -165,10 +169,10 @@ export default function SectionControls({
                   {sectionWells.filter((w) => w.id !== ghost.sourceWellId).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
                 {/* WC-U1-012: the shift reads and moves in the display unit */}
-                <input type="range" min={Math.round(toDisplay(-200, depthUnit))} max={Math.round(toDisplay(200, depthUnit))} step={1}
-                  value={Math.round(toDisplay(ghost.shiftM || 0, depthUnit))} data-testid="corr-ghost-shift"
-                  onChange={(e) => onGhost({ ...ghost, shiftM: fromDisplay(Number(e.target.value), depthUnit) })} />
-                <span className="text-pl-muted" data-testid="corr-ghost-shift-value">{(ghost.shiftM || 0) >= 0 ? '+' : ''}{Math.round(toDisplay(ghost.shiftM || 0, depthUnit))} {u}</span>
+                <input type="range" min={Math.round(toDisplay(-200, ru))} max={Math.round(toDisplay(200, ru))} step={1}
+                  value={Math.round(toDisplay(ghost.shiftM || 0, ru))} data-testid="corr-ghost-shift"
+                  onChange={(e) => onGhost({ ...ghost, shiftM: fromDisplay(Number(e.target.value), ru) })} />
+                <span className="text-pl-muted" data-testid="corr-ghost-shift-value">{(ghost.shiftM || 0) >= 0 ? '+' : ''}{Math.round(toDisplay(ghost.shiftM || 0, ru))} {ul}</span>
               </>
             )}
           </div>
@@ -255,6 +259,33 @@ export default function SectionControls({
           {!topNames.length && <p className="text-pl-muted">No tops in the section yet. Pick one on a column, or propagate a top below.</p>}
         </div>
       </Section>
+
+      {horizons && (
+        <Section title="Seismic horizons" testId="corr-horizons">
+          {/* U2-003: read only from the surface registry (Seismolord converts its horizons there) */}
+          {!horizons.list.length && <p className="text-pl-muted">No time or depth structure surfaces in the registry. Convert a Seismolord horizon to a surface to see it here.</p>}
+          {horizons.list.map((h) => {
+            const on = horizons.on.includes(h.id);
+            const drawn = Object.values(horizons.picks || {}).flat().filter((t) => t.id.startsWith(`hz:${h.id}:`)).length;
+            const probs = horizons.problems?.[h.id] || [];
+            return (
+              <div key={h.id} className="py-px" data-testid={`corr-hz-row-${h.id}`}>
+                <label className="flex items-center gap-1.5">
+                  <input type="checkbox" checked={on} data-testid={`corr-hz-${h.id}`} onChange={() => horizons.onToggle(h.id)} />
+                  <span className="text-pl-text truncate" title={`${h.name} (${h.source})`}>{h.horizonName}</span>
+                  <span className="text-pl-muted text-[10px] whitespace-nowrap">{h.domain === 'time' ? 'TWT ms' : `depth ${h.zUnit}`} · {h.source}</span>
+                </label>
+                {on && horizons.loaded?.[h.id] && (
+                  <p className="pl-5 text-[10px] text-pl-muted" data-testid={`corr-hz-note-${h.id}`}>
+                    drawn on {drawn} well{drawn === 1 ? '' : 's'}{probs.length ? `; not on ${probs.join(', ')}` : ''}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+          <p className="mt-1 text-[10px] text-pl-muted">Each horizon is sampled where the wellbore crosses it (time horizons through the well's checkshots) and drawn dotted; flatten on it from Datum. Nothing is written.</p>
+        </Section>
+      )}
 
       <Section title="Zones">
         <div className="flex items-center gap-1 flex-wrap">

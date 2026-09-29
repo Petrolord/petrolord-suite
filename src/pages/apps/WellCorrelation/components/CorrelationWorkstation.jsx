@@ -41,6 +41,7 @@ import { sectionCaption } from '../services/sectionReport';
 import { undoEntry, applyUndo, remapStack, UNDO_LIMIT } from '../services/topsUndo';
 import { topsCsv } from '../services/topsFile';
 import { sheetRows } from '../../WellDataManager/engine/topsSheet';
+import { horizonCandidates, horizonAtWell, horizonLabel } from '@/components/wells/section/horizons';
 
 // Fixed values for the parameter-bound fills of the Petrophysics
 // templates (GR clean/clay lines, porosity and saturation cut-offs): the
@@ -75,6 +76,53 @@ export default function CorrelationWorkstation({
   const [printJob, setPrintJob] = useState(null);
   const printDone = useRef(null);
 
+  // ---- U2-003 seismic horizons from the surface registry (read only) ------
+  const [hzRows, setHzRows] = useState([]);   // geo_surfaces rows
+  const [hzGrids, setHzGrids] = useState({}); // id -> grid
+  const [hzOn, setHzOn] = useState([]);       // ids drawn
+  const canHorizons = typeof backend.listSurfaces === 'function';
+  useEffect(() => {
+    if (!canHorizons) return undefined;
+    let live = true;
+    backend.listSurfaces().then((rows) => { if (live) setHzRows(rows || []); }).catch((e) => { if (live) setStatus(`Horizons could not be listed: ${e.message}`); });
+    return () => { live = false; };
+  }, [backend, canHorizons]);
+  const hzList = useMemo(() => horizonCandidates(hzRows), [hzRows]);
+  const loadGrid = useCallback(async (id) => {
+    const row = hzRows.find((r) => r.id === id);
+    if (!row) return false;
+    try {
+      const grid = await backend.downloadSurfaceGrid(row);
+      setHzGrids((g) => ({ ...g, [id]: grid }));
+      return true;
+    } catch (e) { setStatus(`Horizon ${row.name}: ${e.message}`); return false; }
+  }, [backend, hzRows]);
+  useEffect(() => { for (const id of hzOn) if (!hzGrids[id]) loadGrid(id); }, [hzOn, hzGrids, loadGrid]);
+  const toggleHorizon = (id) => setHzOn((on) => (on.includes(id) ? on.filter((x) => x !== id) : [...on, id]));
+  // each drawn horizon becomes a read-only marker in every well it crosses
+  const horizonPicks = useMemo(() => {
+    const byWell = {}; const problems = {}; const names = [];
+    for (const id of hzOn) {
+      const c = hzList.find((x) => x.id === id);
+      const row = hzRows.find((r) => r.id === id);
+      const grid = hzGrids[id];
+      if (!c || !row || !grid) continue;
+      const name = horizonLabel(c);
+      names.push(name);
+      problems[id] = [];
+      for (const w of sectionWells) {
+        const hit = horizonAtWell(row, grid, w);
+        if (hit.problem) { problems[id].push(`${w.name} (${hit.problem})`); continue; }
+        (byWell[w.id] ||= []).push({ id: `hz:${id}:${w.id}`, well_id: w.id, name, md_m: hit.md, readonly: true, horizon: true, surface_type: 'formation_top', twt_ms: hit.twt });
+      }
+    }
+    return { byWell, problems, names };
+  }, [hzOn, hzList, hzRows, hzGrids, sectionWells]);
+  const viewWells = useMemo(() => (horizonPicks.names.length
+    ? sectionWells.map((w) => ({ ...w, tops: [...w.tops, ...(horizonPicks.byWell[w.id] || [])] }))
+    : sectionWells), [sectionWells, horizonPicks]);
+  const datumNames = useMemo(() => [...topNames, ...horizonPicks.names], [topNames, horizonPicks.names]);
+
   // WC-U1-013: the ghost and the report header ride in track_layout (no
   // migration, the column is jsonb) and come back with the section
   // (U2-001: opening another section replaces both, blank when it has none)
@@ -82,6 +130,7 @@ export default function CorrelationWorkstation({
     if (!savedRow) return;
     const tl = savedRow.track_layout || {};
     setGhost(tl.ghost && tl.ghost.sourceWellId ? tl.ghost : null);
+    setHzOn(Array.isArray(tl.horizons) ? tl.horizons.filter((x) => typeof x === 'string') : []);
     setReport(tl.report && typeof tl.report === 'object'
       ? { field: tl.report.field || '', analyst: tl.report.analyst || '', ...(Number(tl.report.pdfScale) > 0 ? { pdfScale: Number(tl.report.pdfScale) } : {}) }
       : { field: '', analyst: '' });
@@ -93,8 +142,8 @@ export default function CorrelationWorkstation({
   const payload = useMemo(() => ({
     well_ids: order,
     datum,
-    track_layout: { layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report },
-  }), [order, datum, layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report]);
+    track_layout: { layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, horizons: hzOn },
+  }), [order, datum, layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, hzOn]);
   const snapshot = useMemo(() => {
     const all = !shownTops.length || (topNames.length > 0 && topNames.every((n) => shownTops.includes(n)));
     const tl = payload.track_layout;
@@ -188,14 +237,14 @@ export default function CorrelationWorkstation({
   // WC-U1-009: a new flatten datum sits the chosen top where the first well
   // carrying it has it, so the section does not jump
   const datumDefault = useCallback((name) => {
-    for (const w of sectionWells) {
+    for (const w of viewWells) {
       const t = (w.tops || []).find((x) => x.name === name);
       if (!t) continue;
       const d = depthOfFor(w, depthRef)(t.md_m);
       if (Number.isFinite(d)) return Number(d.toFixed(2));
     }
     return undefined;
-  }, [sectionWells, depthRef]);
+  }, [viewWells, depthRef]);
 
   const wellName = (id) => (wells || []).find((w) => w.id === id)?.name || 'well';
   const canEdit = sectionWells.some((w) => w.is_own);
@@ -394,6 +443,9 @@ export default function CorrelationWorkstation({
   // A blank depth with the name of a top already picked on a section well
   // seeds from that pick's displayed depth.
   const shownRefLabel = `${datum.mode === 'flatten' ? 'flattened ' : datum.mode === 'stretch' ? 'stretched ' : ''}${DEPTH_REF_LABEL[depthRef]}`;
+  // U2-003: a displayed value in time is ms, never converted to feet
+  const dispLabel = (v) => (depthRef === 'twt' ? `${Number(v).toFixed(1)} ms` : depthLabel(v, depthUnit));
+  const dispUnit = depthRef === 'twt' ? 'ms' : depthUnit;
   const propagate = async (nameRaw, depthText, refMode = 'displayed') => {
     const name = String(nameRaw ?? '').trim();
     const t = String(depthText ?? '').trim();
@@ -406,13 +458,13 @@ export default function CorrelationWorkstation({
       const src = sectionWells.find((w) => (w.tops || []).some((x) => nameKey(x.name) === nameKey(name)));
       const top = src?.tops.find((x) => nameKey(x.name) === nameKey(name));
       const d = src && conv?.displayedAt ? conv.displayedAt(src.id, top.md_m) : NaN;
-      if (!Number.isFinite(d)) { setStatus(`Type the depth (${displayed ? shownRefLabel : 'MD'}, ${depthUnit}) to seed ${name} at.`); return; }
+      if (!Number.isFinite(d)) { setStatus(`Type the depth (${displayed ? `${shownRefLabel}, ${dispUnit}` : `MD, ${depthUnit}`}) to seed ${name} at.`); return; }
       dispM = d;
       seedNote = ` (seeded from its pick on ${src.name})`;
     } else {
       const v = /^[-+]?(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : NaN;
       if (!Number.isFinite(v) || (!displayed && v < 0)) { setStatus(`"${t}" is not a ${displayed ? 'depth' : 'measured depth'}; type a number of ${depthUnit}${displayed ? ` on the ${shownRefLabel} axis` : ' at or below the depth reference'}.`); return; }
-      dispM = fromDisplay(v, depthUnit);
+      dispM = displayed && depthRef === 'twt' ? v : fromDisplay(v, depthUnit);
     }
     const useDisplayed = displayed || !!seedNote;
     const skipped = [];
@@ -443,7 +495,7 @@ export default function CorrelationWorkstation({
       const mds = targets.map((x) => x.mdM);
       const lo = Math.min(...mds); const hi = Math.max(...mds);
       const where = useDisplayed
-        ? `${depthLabel(dispM, depthUnit)} ${shownRefLabel}${seedNote} (MD ${lo === hi ? depthLabel(lo, depthUnit) : `${depthLabel(lo, depthUnit)} to ${depthLabel(hi, depthUnit)}`})`
+        ? `${dispLabel(dispM)} ${shownRefLabel}${seedNote} (MD ${lo === hi ? depthLabel(lo, depthUnit) : `${depthLabel(lo, depthUnit)} to ${depthLabel(hi, depthUnit)}`})`
         : `${depthLabel(dispM, depthUnit)} MD`;
       setStatus(`Propagated ${name} to ${created.length} well${created.length === 1 ? '' : 's'} at ${where}.${skipNote}`);
     } catch (e) {
@@ -500,6 +552,7 @@ export default function CorrelationWorkstation({
   const exportPdf = async () => {
     const meta = exportRef.current?.meta?.();
     if (!meta) return;
+    if (depthRef === 'twt') { setStatus('A PDF to scale needs a depth axis: switch the reference to MD, TVD or TVDSS (a time section has no 1:N scale).'); return; }
     const scaleN = Number(report.pdfScale) || (depthUnit === 'ft' ? 1200 : 1000);
     const colW = Math.max(60, Math.round(meta.colW || 140));
     const band = columnLayout(sectionWells, { mode: meta.spacing, plotLeft: 0, plotW: 1, fixedW: colW });
@@ -516,7 +569,7 @@ export default function CorrelationWorkstation({
       const header = sectionCaption({
         wells: sectionWells, datum, depthRef, depthUnit, spacing: meta.spacing, templateName: template.name, scale: scaleN, report,
       });
-      const legend = shownTops.filter((n) => topNames.includes(n)).map((name) => ({ name, color: topColor(name) }));
+      const legend = [...shownTops.filter((n) => topNames.includes(n)), ...horizonPicks.names].map((name) => ({ name, color: topColor(name) }));
       const fillNote = zoneMode === 'none' ? 'none' : zoneMode === 'pair' ? (zonePair ? `${zonePair[0]} to ${zonePair[1]}` : 'none') : 'between consecutive shown tops, coloured by the upper top';
       const { doc, fileName } = buildSectionPdf({
         imageDataUrl: canvas.toDataURL('image/png'), plan, plotTopCss: PLOT_TOP, header, scaleN, depthUnit, legend, fillNote,
@@ -614,7 +667,7 @@ export default function CorrelationWorkstation({
   ) : (
     <CrossSection
       ref={exportRef}
-      wells={sectionWells}
+      wells={viewWells}
       datum={datum}
       depthUnit={depthUnit}
       depthRef={depthRef}
@@ -622,7 +675,7 @@ export default function CorrelationWorkstation({
       columnWidth={columnWidth}
       zoneMode={zoneMode}
       zonePair={zonePair}
-      shownTops={shownTops}
+      shownTops={horizonPicks.names.length ? [...shownTops, ...horizonPicks.names] : shownTops}
       topNames={topNames}
       pickMode={pickMode}
       onTopMove={canEdit ? onTopMove : undefined}
@@ -636,8 +689,8 @@ export default function CorrelationWorkstation({
   const printHost = printJob ? (
     <div aria-hidden="true" data-testid="corr-print-host" style={{ position: 'fixed', left: -100000, top: 0, width: printJob.w, height: printJob.h, pointerEvents: 'none' }}>
       <CrossSection
-        wells={sectionWells} datum={datum} depthUnit={depthUnit} depthRef={depthRef} spacing={spacing}
-        columnWidth={printJob.colW} zoneMode={zoneMode} zonePair={zonePair} shownTops={shownTops} topNames={topNames}
+        wells={viewWells} datum={datum} depthUnit={depthUnit} depthRef={depthRef} spacing={spacing}
+        columnWidth={printJob.colW} zoneMode={zoneMode} zonePair={zonePair} shownTops={horizonPicks.names.length ? [...shownTops, ...horizonPicks.names] : shownTops} topNames={topNames}
         ghost={ghost} view={printJob.view} onViewChange={() => {}}
         printSize={{ w: printJob.w, h: printJob.h, pixelRatio: printJob.pixelRatio }} onPainted={onPrintPainted}
       />
@@ -673,6 +726,8 @@ export default function CorrelationWorkstation({
         <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
           <SectionControls
             topNames={topNames}
+            datumNames={datumNames}
+            horizons={canHorizons ? { list: hzList, on: hzOn, onToggle: toggleHorizon, problems: horizonPicks.problems, loaded: hzGrids, picks: horizonPicks.byWell } : null}
             datum={datum}
             onDatum={setDatum}
             ghost={ghost}

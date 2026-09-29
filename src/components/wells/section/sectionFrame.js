@@ -18,9 +18,15 @@
 import { zoneSpan, displayedDepth, topMd } from '@/pages/apps/WellCorrelation/engine/section';
 import { invertShift } from '@/lib/stratigraphy/stretch';
 import { unitToMetres } from '../../../../packages/engines/lib/crs/catalog';
+import { twtAtTvdss, tvdssAtTwt, checkshotRange } from './timeDepth';
 
-export const DEPTH_REFS = ['md', 'tvd', 'tvdss'];
-export const DEPTH_REF_LABEL = { md: 'MD', tvd: 'TVD', tvdss: 'TVDSS' };
+// U2-003: 'twt' plots two-way time (ms) from each well's checkshots
+export const DEPTH_REFS = ['md', 'tvd', 'tvdss', 'twt'];
+export const DEPTH_REF_LABEL = { md: 'MD', tvd: 'TVD', tvdss: 'TVDSS', twt: 'TWT' };
+/** The unit a reference is drawn in: ms for time, else the depth unit. */
+export const refUnit = (depthRef, depthUnit) => (depthRef === 'twt' ? 'ms' : depthUnit === 'ft' ? 'ft' : 'm');
+/** True when the well can be drawn in time (two or more checkshots). */
+export const hasTime = (well) => !!checkshotRange(well?.checkshots);
 
 /**
  * Accessor from measured depth to the plotted reference depth for one
@@ -30,6 +36,16 @@ export const DEPTH_REF_LABEL = { md: 'MD', tvd: 'TVD', tvdss: 'TVDSS' };
  * @returns {(md: number) => number}
  */
 export function depthOfFor(well, depthRef = 'md') {
+  if (depthRef === 'twt') {
+    // MD -> TVDSS (survey, or KB on a well with none) -> TWT through the checkshots
+    const kb = Number(well?.kb_m) || 0;
+    const cs = well?.checkshots;
+    return (md) => {
+      let tvdss;
+      try { tvdss = well?.frame ? well.frame.mdToTvdss(md).tvdss : md - kb; } catch { return NaN; }
+      return twtAtTvdss(cs, tvdss);
+    };
+  }
   if (depthRef === 'md' || !well?.frame) return (md) => md;
   const key = depthRef === 'tvd' ? 'tvd' : 'tvdss';
   return (md) => {
@@ -88,6 +104,12 @@ export function isMonotonic(arr) {
 export function mdFromDisplayed(displayed, shift, well, depthRef = 'md') {
   const ref = invertShift(displayed, shift);
   if (!Number.isFinite(ref)) return null;
+  if (depthRef === 'twt') {
+    const z = tvdssAtTwt(well?.checkshots, ref);
+    if (!Number.isFinite(z)) return null;
+    if (!well?.frame) { const md = z + (Number(well?.kb_m) || 0); return md >= 0 ? { md, ambiguous: false, extrapolated: false } : null; }
+    return well.frame.tvdssToMd(z);
+  }
   if (depthRef === 'md' || !well?.frame) return { md: ref, ambiguous: false, extrapolated: false };
   const tvdss = depthRef === 'tvd' ? ref - (well.frame.kbM || 0) : ref;
   return well.frame.tvdssToMd(tvdss);
@@ -266,8 +288,9 @@ export function correlationSegments(line, boxes, yOf) {
 export function frameNotes(well, depthRef = 'md') {
   if (depthRef === 'md') return [];
   const notes = [];
+  if (depthRef === 'twt' && !hasTime(well)) return ['no checkshots: not drawn in time'];
   if (!well?.frame || well.frame.isVertical) notes.push('no survey: vertical');
-  if (depthRef === 'tvdss' && !(Number(well?.kb_m) > 0)) notes.push('no KB: TVDSS = TVD');
+  if ((depthRef === 'tvdss' || depthRef === 'twt') && !(Number(well?.kb_m) > 0)) notes.push('no KB: TVDSS = TVD');
   return notes;
 }
 

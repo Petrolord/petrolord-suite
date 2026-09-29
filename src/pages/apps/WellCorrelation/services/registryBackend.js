@@ -13,13 +13,15 @@ import {
   saveTop, updateTop, deleteTop, propagateTop,
 } from '@/lib/wellsRegistry';
 import { listIntervals } from '@/lib/stratRegistry';
+// U2-003: horizons are read only from the shared surface registry
+import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
 import {
   loadSection, saveSection, listSections, createSection, renameSection, deleteSection,
 } from '@/lib/sectionsRegistry';
 
 export function makeRegistryBackend() {
   return {
-    listWells, listLogs, downloadCurve, listTops, listAllTops, listIntervals,
+    listWells, listLogs, downloadCurve, listTops, listAllTops, listIntervals, listSurfaces, downloadSurfaceGrid,
     saveTop, updateTop, deleteTop, propagateTop,
     loadSection, saveSection, listSections, createSection, renameSection, deleteSection,
   };

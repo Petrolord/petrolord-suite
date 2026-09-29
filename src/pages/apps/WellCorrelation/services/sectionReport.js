@@ -15,7 +15,8 @@ function datumText(datum, depthRef, depthUnit) {
   const ref = DEPTH_REF_LABEL[depthRef] || 'MD';
   const u = depthUnit === 'ft' ? 'ft' : 'm';
   if (datum?.mode === 'flatten') {
-    const d = Number.isFinite(datum.datumM) ? `${Number(toDisplay(datum.datumM, depthUnit).toFixed(1))} ${u} ${ref}` : EMPTY_VALUE;
+    const d = !Number.isFinite(datum.datumM) ? EMPTY_VALUE
+      : depthRef === 'twt' ? `${Number(datum.datumM.toFixed(1))} ms ${ref}` : `${Number(toDisplay(datum.datumM, depthUnit).toFixed(1))} ${u} ${ref}`;
     return `Flattened on ${datum.topName || EMPTY_VALUE} at ${d}`;
   }
   if (datum?.mode === 'stretch') return `Stretched between ${datum.upperName || EMPTY_VALUE} and ${datum.lowerName || EMPTY_VALUE}`;
@@ -45,7 +46,7 @@ export function sectionCaption({ wells, datum, depthRef, depthUnit, spacing, tem
     shown && shown.n > 0 && (shown.first > 1 || shown.last < shown.n)
       ? `Wells ${shown.first} to ${shown.last} of ${shown.n} shown: ${names.slice(shown.first - 1, shown.last).join(', ')}`
       : `Wells: ${names.join(', ') || EMPTY_VALUE}`,
-    `${datumText(datum, depthRef, depthUnit)} · Depth ${DEPTH_REF_LABEL[depthRef] || 'MD'} in ${u} (TVDSS below mean sea level) · Vertical scale ${scale ? `1:${scale.toLocaleString('en-US')}` : EMPTY_VALUE} · Spacing ${spacing === 'proportional' ? 'by distance' : 'equal'} · Template ${templateName || EMPTY_VALUE}`,
+    `${datumText(datum, depthRef, depthUnit)} · ${depthRef === 'twt' ? 'Time TWT in ms from each well\'s checkshots' : `Depth ${DEPTH_REF_LABEL[depthRef] || 'MD'} in ${u} (TVDSS below mean sea level)`} · Vertical scale ${scale ? `1:${scale.toLocaleString('en-US')}` : depthRef === 'twt' ? `${EMPTY_VALUE} (time)` : EMPTY_VALUE} · Spacing ${spacing === 'proportional' ? 'by distance' : 'equal'} · Template ${templateName || EMPTY_VALUE}`,
     `Field ${field || EMPTY_VALUE} · Analyst ${analyst || EMPTY_VALUE} · ${now.toISOString().slice(0, 10)} · ${build}`,
   ];
   return { title, caption };

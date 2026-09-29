@@ -348,3 +348,28 @@ describe('U2-014 the well list at field scale', () => {
     expect(screen.getByTestId('corr-filter-empty').textContent).toMatch(/No well name or UWI contains "nothing like it"/);
   }, 300000);
 });
+
+describe('U2-003 TWT and seismic horizons in the section', () => {
+  test('TWT: wells with checkshots are drawn in time, a well without is named; horizons draw and the section flattens on one', async () => {
+    const b = makeInMemoryBackend();
+    mount(b, '?wells=corr-w1,corr-w2,corr-w3');
+    await rowsIn(3);
+    fireEvent.change(screen.getByTestId('corr-depth-ref'), { target: { value: 'twt' } });
+    const sec = () => screen.getByTestId('corr-section');
+    await waitFor(() => expect(sec().getAttribute('data-well-notes')).toMatch(/KETA-3 \(shared\)=no checkshots: not drawn in time|KETA-3=no checkshots: not drawn in time/), T);
+    expect(screen.getByTestId('corr-depth-status').textContent).toMatch(/TWT/);
+    // both Seismolord horizons are listed; the time one is drawn on the two wells with checkshots
+    fireEvent.click(await screen.findByTestId('corr-hz-surf-dome-twt', {}, T));
+    await waitFor(() => expect(screen.getByTestId('corr-hz-note-surf-dome-twt').textContent).toMatch(/drawn on 2 wells; not on KETA-3 \(no checkshots for a time horizon\)/), T);
+    fireEvent.click(screen.getByTestId('corr-hz-surf-dome-depth'));
+    await waitFor(() => expect(screen.getByTestId('corr-hz-note-surf-dome-depth').textContent).toMatch(/drawn on 3 wells/), T);
+    // flatten on the horizon: it is offered by the datum control
+    fireEvent.change(screen.getByTestId('corr-depth-ref'), { target: { value: 'md' } });
+    fireEvent.change(screen.getByTestId('corr-datum-mode'), { target: { value: 'flatten' } });
+    fireEvent.change(screen.getByTestId('corr-datum-top'), { target: { value: 'H: Dome' } });
+    await waitFor(() => expect(screen.getByTestId('corr-datum-top').value).toBe('H: Dome'), T);
+    // horizons are read only: they are not in the tops list and nothing was written
+    expect(screen.queryByTestId('corr-top-row-H: Dome')).toBeNull();
+    expect((await b.listTops('corr-w1')).some((t) => t.name.startsWith('H: '))).toBe(false);
+  }, 300000);
+});
