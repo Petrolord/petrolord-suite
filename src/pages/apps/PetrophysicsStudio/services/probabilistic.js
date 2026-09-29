@@ -10,6 +10,7 @@
 import { PIPELINE_VERSION } from '../engine/pipeline';
 import {
   UNCERTAIN_PARAMS, QUANTILE_CURVES, distFromPercentiles, quantileSuffix, runProbabilistic,
+  drawRealisations, probabilisticPart, finishProbabilistic,
 } from '../engine/probabilistic';
 import { defaultScenarios } from './scenarios';
 import { newId } from '../layout/layoutSchema';
@@ -210,6 +211,20 @@ export function probabilisticPublishLogs(wellData, result, params, meta) {
 // main -> worker: {type:'run', id, curves, params, zoneParamList, spec, opts}
 // worker -> main: {type:'progress', id, phase, done, total} | {type:'done', id, result} | {type:'error', id, message}
 export function handleRunMessage(msg, post) {
+  // PETRO-U2-011: one depth range of a run split across workers
+  if (msg && msg.type === 'part') {
+    const { id, curves, params, zoneParamList, patches, opts } = msg;
+    try {
+      const part = probabilisticPart(curves, params, zoneParamList || [], patches, {
+        ...(opts || {}),
+        onProgress: (p) => post({ type: 'progress', id, ...p }),
+      });
+      post({ type: 'done', id, part }, Object.values(part.curves).map((a) => a.buffer));
+    } catch (e) {
+      post({ type: 'error', id, message: e?.message || String(e) });
+    }
+    return;
+  }
   if (!msg || msg.type !== 'run') return;
   const { id, curves, params, zoneParamList, spec, opts } = msg;
   try {
@@ -230,7 +245,89 @@ let nextRunId = 1;
  * under jest and in browsers without module workers; then the run is
  * inline, still reporting progress). Returns {promise, cancel}.
  */
-export function runProbabilisticAsync(payload, { createWorker = null, onProgress = null } = {}) {
+/** Workers for one run: the machine's cores less one for the page, at most four. */
+export function workerCount(nav = typeof navigator !== 'undefined' ? navigator : null) {
+  const cores = Number(nav?.hardwareConcurrency) || 2;
+  return Math.max(1, Math.min(4, cores - 1));
+}
+
+/** Depth ranges [a, b] splitting N samples into k contiguous parts. */
+export function splitRanges(N, k) {
+  const parts = Math.max(1, Math.min(k, N));
+  const out = [];
+  for (let i = 0; i < parts; i++) {
+    const a = Math.floor((i * N) / parts);
+    const b = Math.floor(((i + 1) * N) / parts) - 1;
+    if (b >= a) out.push([a, b]);
+  }
+  return out;
+}
+
+/**
+ * PETRO-U2-011: a run split by depth across several workers. The draws are
+ * made once here (the canonical sampler, seeded), each worker runs every
+ * realisation over its depth range, and the parts join in
+ * finishProbabilistic. Same statistics as one worker: the per-sample curves
+ * bit for bit, the zone sums in a different addition order.
+ */
+function runParallel(payload, { createWorker, onProgress, k }) {
+  const { curves, params, zoneParamList, spec, opts = {} } = payload;
+  const { n = 200, seed = 1, correlations = [], zones = [], quantiles, chunk } = opts;
+  const { patches, varKeys } = drawRealisations(spec || {}, n, seed, correlations);
+  const N = curves.DEPT.length;
+  const ranges = splitRanges(N, k);
+  const workers = [];
+  let cancelled = false;
+  let rejectFn = null;
+  const done = new Array(ranges.length).fill(0);
+  const promise = new Promise((resolve, reject) => {
+    rejectFn = reject;
+    const parts = new Array(ranges.length).fill(null);
+    let left = ranges.length;
+    const fail = (err) => { for (const w of workers) w.terminate(); reject(err); };
+    ranges.forEach((range, i) => {
+      const id = nextRunId++;
+      const w = createWorker();
+      workers.push(w);
+      w.onmessage = (e) => {
+        const m = e.data;
+        if (!m || m.id !== id) return;
+        if (m.type === 'progress') {
+          done[i] = m.done;
+          onProgress?.({ phase: 'curves', done: done.reduce((a, b) => a + b, 0), total: N, workers: ranges.length });
+        } else if (m.type === 'error') fail(new Error(m.message));
+        else if (m.type === 'done') {
+          w.terminate();
+          parts[i] = m.part;
+          left -= 1;
+          if (!left && !cancelled) {
+            try {
+              resolve(finishProbabilistic({
+                N, parts, patches, varKeys, zones, quantiles, seed, spec: spec || {}, correlations,
+                onProgress: (p) => onProgress?.(p),
+              }));
+            } catch (err) { reject(err); }
+          }
+        }
+      };
+      w.onerror = (e) => fail(new Error(e?.message || 'Probabilistic worker failed.'));
+      w.postMessage({ type: 'part', id, curves, params, zoneParamList, patches, opts: { zones, quantiles, chunk, range } });
+    });
+  });
+  const cancel = () => { cancelled = true; for (const w of workers) w.terminate(); rejectFn?.(new Error('cancelled')); };
+  return { promise, cancel };
+}
+
+export function runProbabilisticAsync(payload, { createWorker = null, onProgress = null, workers = null } = {}) {
+  // several workers when the machine has the cores and the well is long enough to gain
+  const k = workers ?? workerCount();
+  if (typeof createWorker === 'function' && k > 1 && payload?.curves?.DEPT?.length > 4000) {
+    const probe = createWorker();
+    if (probe) {
+      probe.terminate();
+      return runParallel(payload, { createWorker, onProgress, k });
+    }
+  }
   const id = nextRunId++;
   const msg = { type: 'run', id, ...payload };
   const worker = typeof createWorker === 'function' ? createWorker() : null;
