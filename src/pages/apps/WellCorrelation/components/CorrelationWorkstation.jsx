@@ -16,7 +16,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { GitCompare, Loader2, Save, ImageDown, PanelRight, HelpCircle } from 'lucide-react';
+import { GitCompare, Loader2, Save, ImageDown, PanelRight, HelpCircle, Undo2 } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -35,6 +35,7 @@ import CrossSection from './CrossSection';
 import { allTopNames } from '../engine/section';
 import { DEPTH_REF_LABEL, depthOfFor } from '../engine/sectionFrame';
 import { sectionCaption } from '../services/sectionReport';
+import { undoEntry, applyUndo, remapStack, UNDO_LIMIT } from '../services/topsUndo';
 
 // Fixed values for the parameter-bound fills of the Petrophysics
 // templates (GR clean/clay lines, porosity and saturation cut-offs): the
@@ -189,10 +190,46 @@ export default function CorrelationWorkstation({
   const wellName = (id) => (wells || []).find((w) => w.id === id)?.name || 'well';
   const canEdit = sectionWells.some((w) => w.is_own);
 
+  // ---- U2-007 undo: a session stack of the tops edits written here ---------
+  const [undoStack, setUndoStack] = useState([]);
+  const undoBusy = useRef(false);
+  const pushUndo = (entry) => setUndoStack((st) => [...st, entry].slice(-UNDO_LIMIT));
+  const undo = async () => {
+    if (undoBusy.current || !undoStack.length) return;
+    undoBusy.current = true;
+    const entry = undoStack[undoStack.length - 1];
+    try {
+      const { wellIds, remap, skipped } = await applyUndo(entry, backend);
+      setUndoStack((st) => remapStack(st.slice(0, -1), remap));
+      for (const id of wellIds) await refreshTops(id);
+      if (entry.kind === 'rename' && wellIds.length) setShownTops((sh) => [...new Set([...sh, entry.from])]);
+      const note = skipped.length ? ` Not undone: ${skipped.join('; ')}.` : '';
+      setStatus(wellIds.length ? `Undid: ${entry.label}.${note}` : `Nothing undone.${note}`);
+    } catch (e) {
+      setStatus(`Undo failed: ${e.message}`);
+    } finally {
+      undoBusy.current = false;
+    }
+  };
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return;
+      const tag = (e.target?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable) return; // the field's own undo
+      e.preventDefault();
+      undoRef.current();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // ---- tops: the shared geo_wells_tops rows ------------------------------
   const onTopMove = async (top, mdM) => {
     try {
       await backend.updateTop(top.id, { mdM });
+      pushUndo(undoEntry.move(top, top.md_m, mdM, `move ${top.name} on ${wellName(top.well_id)}`));
       await refreshTops(top.well_id);
       setStatus(`Moved ${top.name} on ${wellName(top.well_id)} to ${depthLabel(mdM, depthUnit)}.`);
     } catch (e) {
@@ -208,7 +245,8 @@ export default function CorrelationWorkstation({
       return;
     }
     try {
-      await backend.saveTop(wellId, { name, mdM });
+      const row = await backend.saveTop(wellId, { name, mdM });
+      if (row?.id) pushUndo(undoEntry.create([row], `add ${name} on ${wellName(wellId)}`));
       await refreshTops(wellId);
       setShownTops((s) => (s.includes(name) ? s : [...s, name]));
       setStatus(`Added top ${name} on ${wellName(wellId)} at ${depthLabel(mdM, depthUnit)}.`);
@@ -240,8 +278,10 @@ export default function CorrelationWorkstation({
     }
     const clashNote = clashes.length ? ` ${clashes.join(', ')} already ${clashes.length === 1 ? 'has' : 'have'} ${next} and kept both tops; rename or delete one there.` : '';
     if (!moves.length) { setStatus(`Nothing renamed.${clashNote}`); return; }
+    const done = [];
     try {
-      for (const t of moves) await backend.updateTop(t.id, { name: next });
+      for (const t of moves) { await backend.updateTop(t.id, { name: next }); done.push(t); }
+      pushUndo(undoEntry.rename(done, name, next, `rename ${name} to ${next}`));
       for (const id of new Set(moves.map((t) => t.well_id))) await refreshTops(id);
       const merged = topNames.includes(next);
       setShownTops((s) => {
@@ -252,6 +292,7 @@ export default function CorrelationWorkstation({
       if (!clashes.length && datum.mode === 'flatten' && datum.topName === name) setDatum({ ...datum, topName: next });
       setStatus(`Renamed ${name} to ${next} on ${moves.length} well${moves.length === 1 ? '' : 's'}${merged ? ' (merged with the existing spelling)' : ''}${sharedNote(name)}.${clashNote}`);
     } catch (e) {
+      if (done.length && done.length < moves.length) pushUndo(undoEntry.rename(done, name, next, `rename ${name} to ${next} (${done.length} of ${moves.length})`));
       setStatus(e.message);
     }
   };
@@ -259,11 +300,15 @@ export default function CorrelationWorkstation({
   const deleteTop = async (name) => {
     const targets = editableTops(name);
     if (!targets.length) { setStatus(`No editable top named ${name} in the section.`); return; }
+    const done = [];
     try {
-      for (const t of targets) await backend.deleteTop(t);
+      for (const t of targets) { await backend.deleteTop(t); done.push(t); }
+      pushUndo(undoEntry.remove(done, `delete ${name} from ${done.length} well${done.length === 1 ? '' : 's'}`));
       for (const id of new Set(targets.map((t) => t.well_id))) await refreshTops(id);
-      setStatus(`Deleted ${name} from ${targets.length} well${targets.length === 1 ? '' : 's'}${sharedNote(name)}.`);
+      setStatus(`Deleted ${name} from ${targets.length} well${targets.length === 1 ? '' : 's'}${sharedNote(name)}. Undo puts ${targets.length === 1 ? 'it' : 'them'} back.`);
     } catch (e) {
+      if (done.length && done.length < targets.length) pushUndo(undoEntry.remove(done, `delete ${name} from ${done.length} of ${targets.length} wells`));
+      for (const id of new Set(done.map((t) => t.well_id))) await refreshTops(id);
       setStatus(e.message);
     }
   };
@@ -302,6 +347,7 @@ export default function CorrelationWorkstation({
     if (!targets.length) { setStatus(`${name} was not propagated.${skipNote}`); return; }
     try {
       const created = await backend.propagateTop(name, targets);
+      if (created.length) pushUndo(undoEntry.create(created, `propagate ${name} to ${created.length} well${created.length === 1 ? '' : 's'}`));
       for (const w of targets) await refreshTops(w.wellId);
       setShownTops((s) => (s.includes(name) ? s : [...s, name]));
       setStatus(`Propagated ${name} to ${created.length} well${created.length === 1 ? '' : 's'} at ${depthLabel(md, depthUnit)} MD.${skipNote}`);
@@ -377,6 +423,12 @@ export default function CorrelationWorkstation({
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken">
           <HelpCircle className="w-3.5 h-3.5" /> Help
         </Link>
+        <button type="button" data-testid="corr-undo" disabled={!undoStack.length}
+          title={undoStack.length ? `Undo ${undoStack[undoStack.length - 1].label} (Ctrl+Z)` : 'Nothing to undo: tops you drag, pick, propagate, rename or delete here can be undone'}
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
+          onClick={undo}>
+          <Undo2 className="w-3.5 h-3.5" /> Undo{undoStack.length ? ` (${undoStack.length})` : ''}
+        </button>
         <button type="button" data-testid="corr-export-png" disabled={!sectionWells.length}
           title="Download the section as a PNG image"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"

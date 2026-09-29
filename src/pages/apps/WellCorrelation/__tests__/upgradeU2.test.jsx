@@ -161,3 +161,65 @@ describe('U2-001 named sections', () => {
     expect((await b.loadSection(list.find((s) => s.name === 'Default section').id)).well_ids).toEqual(['corr-w1']);
   });
 });
+
+describe('U2-007 undo for tops edits (the shared registry rows)', () => {
+  const kWells = '?wells=corr-w1,corr-w2,corr-w3';
+  const names = async (b, id) => (await b.listTops(id)).map((t) => t.name);
+
+  test('undo a delete puts every row back with its attributes, including by Ctrl+Z', async () => {
+    const b = makeInMemoryBackend();
+    const mid = (await b.listTops('corr-w1')).find((t) => t.name === 'Mid Shale');
+    await b.updateTop(mid.id, { surface_type: 'mfs', confidence: 'low', notes: 'picked on GR' });
+    mount(b, kWells);
+    await rowsIn(3);
+    expect(screen.getByTestId('corr-undo').disabled).toBe(true);
+    fireEvent.click(await screen.findByTestId('corr-top-delete-Mid Shale', {}, T));
+    fireEvent.click(screen.getByTestId('corr-top-delete-Mid Shale'));
+    await waitFor(() => expect(status()).toMatch(/Deleted Mid Shale from 2 wells/), T);
+    expect(await names(b, 'corr-w1')).not.toContain('Mid Shale');
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    await waitFor(() => expect(status()).toMatch(/Undid: delete Mid Shale from 2 wells/), T);
+    const back = (await b.listTops('corr-w1')).find((t) => t.name === 'Mid Shale');
+    expect(back).toMatchObject({ md_m: 1580, surface_type: 'mfs', confidence: 'low', notes: 'picked on GR' });
+    expect(await names(b, 'corr-w2')).toContain('Mid Shale');
+    expect(screen.getByTestId('corr-undo').disabled).toBe(true);
+  });
+
+  test('undo a rename, then a propagate, in reverse order', async () => {
+    const b = makeInMemoryBackend();
+    mount(b, kWells);
+    await rowsIn(3);
+    fireEvent.click(await screen.findByTestId('corr-top-rename-Top Marker', {}, T));
+    fireEvent.change(screen.getByTestId('corr-top-rename-input-Top Marker'), { target: { value: 'Marker A' } });
+    fireEvent.click(screen.getByTestId('corr-top-rename-ok-Top Marker'));
+    await waitFor(() => expect(status()).toMatch(/Renamed Top Marker to Marker A/), T);
+    fireEvent.change(screen.getByTestId('corr-prop-name'), { target: { value: 'Seed Z' } });
+    fireEvent.change(screen.getByTestId('corr-prop-md'), { target: { value: '1520' } });
+    fireEvent.click(screen.getByTestId('corr-prop-run'));
+    await waitFor(() => expect(status()).toMatch(/Propagated Seed Z to 2 wells/), T);
+    expect(screen.getByTestId('corr-undo').textContent).toMatch(/Undo \(2\)/);
+    fireEvent.click(screen.getByTestId('corr-undo'));
+    await waitFor(() => expect(status()).toMatch(/Undid: propagate Seed Z to 2 wells/), T);
+    expect(await names(b, 'corr-w1')).not.toContain('Seed Z');
+    fireEvent.click(screen.getByTestId('corr-undo'));
+    await waitFor(() => expect(status()).toMatch(/Undid: rename Top Marker to Marker A/), T);
+    expect(await names(b, 'corr-w1')).toContain('Top Marker');
+    expect(await names(b, 'corr-w2')).toContain('Top Marker');
+  });
+
+  test('a top edited since in another app is kept, and the undo says why', async () => {
+    const b = makeInMemoryBackend();
+    mount(b, kWells);
+    await rowsIn(3);
+    fireEvent.change(screen.getByTestId('corr-prop-name'), { target: { value: 'Seed Y' } });
+    fireEvent.change(screen.getByTestId('corr-prop-md'), { target: { value: '1520' } });
+    fireEvent.click(screen.getByTestId('corr-prop-run'));
+    await waitFor(() => expect(status()).toMatch(/Propagated Seed Y/), T);
+    const y1 = (await b.listTops('corr-w1')).find((t) => t.name === 'Seed Y');
+    await b.updateTop(y1.id, { mdM: 1530 }); // moved in Petrophysics meanwhile
+    fireEvent.click(screen.getByTestId('corr-undo'));
+    await waitFor(() => expect(status()).toMatch(/Not undone: Seed Y was edited since and was kept/), T);
+    expect(await names(b, 'corr-w1')).toContain('Seed Y');
+    expect(await names(b, 'corr-w2')).not.toContain('Seed Y');
+  });
+});
