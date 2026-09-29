@@ -229,3 +229,4 @@ Branch `feat/wc-u2`, one PR. Build log per item below.
 
 | ID | Status | Proving test | Notes |
 |---|---|---|---|
+| U2-002 | Done | `src/components/wells/section/__tests__/upgradeU2Frame.test.jsx` (pure layout, window, 30-well CrossSection: 140 px columns, scrollbar, shift+wheel, only visible columns painted); `sectionReport.test.js` (scrolled PNG names the wells in view) | Column width control (auto, fit, 120 to 300 px) in View, saved in `track_layout.columnWidth`. Auto fits until a column would be under 90 px, then fixes 140 px with a scrollbar under the section and shift+wheel; the depth axis stays pinned and only columns in the window are painted. The PNG exports the window and its first caption line says "Wells 4 to 9 of 30 shown". Shared kit: Stratigraphy gets the same scroll. |

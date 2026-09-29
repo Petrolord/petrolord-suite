@@ -19,7 +19,7 @@ import React, {
 import { computeFlattening, correlationPolyline, displayedRange, displayedDepth } from '@/pages/apps/WellCorrelation/engine/section';
 import {
   toReferenceFrame, depthOfFor, displayedArray, isMonotonic, mdFromDisplayed, columnLayout, zoneBands, DEPTH_REF_LABEL,
-  spacingProblem, correlationSegments, frameNotes, verticalScale,
+  spacingProblem, correlationSegments, frameNotes, verticalScale, resolveColumnWidth, scrollWindow,
 } from './sectionFrame';
 import { trackGeometry } from '@/components/wells/trackRender';
 import {
@@ -43,6 +43,7 @@ export const HEADER_H = 50;    // track header (title + scale rows + readout)
 const PAD_TOP = 2;
 const PAD_BOTTOM = 4;
 const TAG_MAX = 120;
+export const SCROLL_H = 12;    // horizontal scrollbar under a band wider than the window (U2-002)
 
 /** Tag text of a top: the typed abbreviation in the display scheme in front of the name; plain name for formation tops. */
 function topLabel(t, scheme) {
@@ -84,11 +85,12 @@ const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.roun
  * @param {(wellId: string, mdM: number, name: string) => void} [p.onTopCreate]
  * @param {() => void} [p.onPickCancel]
  * @param {(msg: string) => void} [p.onNotice]
+ * @param {'auto'|'fit'|number} [p.columnWidth] U2-002: fit the window, a fixed px width, or auto (fixed once fit gets too narrow)
  */
 const CrossSection = forwardRef(function CrossSection({
   wells, datum, depthUnit = 'm', depthRef = 'md', spacing = 'equal', zoneMode = 'consecutive', zonePair = null,
   shownTops, pickMode = null, onTopMove, onTopCreate, onPickCancel, onNotice, topNames = [],
-  bands = null, ghost = null,
+  bands = null, ghost = null, columnWidth = 'auto',
   view: viewProp, onViewChange,
 }, exportRef) {
   const wrapRef = useRef(null);
@@ -106,6 +108,8 @@ const CrossSection = forwardRef(function CrossSection({
   const [cursor, setCursor] = useState(null);     // {y, disp}
   const [topDrag, setTopDrag] = useState(null);   // {top (row), wellIndex, disp}
   const [popover, setPopover] = useState(null);   // {x, y, wellIndex, disp}
+  const [scrollXState, setScrollX] = useState(0); // U2-002 horizontal offset of the column band
+  const scrollbarRef = useRef(null);
   const dragRef = useRef(null);
   const movedRef = useRef(false);
   const F = depthUnit === 'ft' ? 1 / 0.3048 : 1;
@@ -166,12 +170,27 @@ const CrossSection = forwardRef(function CrossSection({
 
   // ---- layout -------------------------------------------------------------
   const plotTop = WELL_H + HEADER_H + PAD_TOP;
-  const plotH = Math.max(10, size.h - plotTop - PAD_BOTTOM);
   const plotW = Math.max(10, size.w - AXIS_W);
-  const boxes = useMemo(
-    () => columnLayout(wells, { mode: spacing, plotLeft: AXIS_W, plotW }),
-    [wells, spacing, plotW],
+  // U2-002: fixed-width columns on a band that scrolls under a pinned depth
+  // axis; only the columns in the window are painted
+  // (an unmeasured viewport, size.w 0, fits: there is no window to scroll yet)
+  const fixedW = size.w > 0 ? resolveColumnWidth(columnWidth, wells.length, plotW) : null;
+  const band = useMemo(
+    () => columnLayout(wells, { mode: spacing, plotLeft: AXIS_W, plotW, fixedW }),
+    [wells, spacing, plotW, fixedW],
   );
+  // fitted columns never scroll (a gap rule can overrun a tiny window by a few px)
+  const win = useMemo(() => (fixedW
+    ? scrollWindow(band, { scrollX: scrollXState, plotLeft: AXIS_W, plotW })
+    : { ...scrollWindow(band, { plotLeft: AXIS_W, plotW }), maxScroll: 0, scrollX: 0, boxes: band, visible: band.map(() => true) }), [band, scrollXState, plotW, fixedW]);
+  const { boxes, visible: colVisible, maxScroll } = win;
+  const scrollX = win.scrollX;
+  const scrolling = maxScroll > 0;
+  const plotH = Math.max(10, size.h - plotTop - PAD_BOTTOM - (scrolling ? SCROLL_H : 0));
+  useEffect(() => {
+    const el = scrollbarRef.current;
+    if (el && Math.abs(el.scrollLeft - scrollX) > 0.5) el.scrollLeft = scrollX;
+  }, [scrollX, scrolling]);
   // WC-U1-002: spacing by distance needs one frame and located wells; the
   // columns stay equal otherwise and the host is told why
   const spacingNote = useMemo(() => (spacing === 'proportional' ? spacingProblem(wells) : null), [wells, spacing]);
@@ -185,7 +204,7 @@ const CrossSection = forwardRef(function CrossSection({
   const yOf = useCallback((d) => plotTop + ((d - vTop) / (vBase - vTop || 1)) * plotH, [plotTop, plotH, vTop, vBase]);
   const dOf = (y) => vTop + ((y - plotTop) / plotH) * (vBase - vTop);
   const colorOf = (name) => topColor(name);
-  const columnAt = (x) => boxes.findIndex((b) => x >= b.x0 && x < b.x0 + b.w);
+  const columnAt = (x) => (x < AXIS_W ? -1 : boxes.findIndex((b, i) => colVisible[i] && x >= b.x0 && x < b.x0 + b.w));
 
   // shown tops per column in displayed depth (the hit-test shape)
   const columnTops = useMemo(() => columns.map((c) => (c.frameWell.tops || [])
@@ -229,10 +248,15 @@ const CrossSection = forwardRef(function CrossSection({
     ctx.fillStyle = P.bg;
     ctx.fillRect(0, 0, size.w, size.h);
 
+    // U2-002: everything drawn in the plot band is clipped right of the
+    // pinned depth axis, so scrolled columns slide under it
+    const clipBand = () => { ctx.save(); ctx.beginPath(); ctx.rect(AXIS_W, 0, size.w - AXIS_W, size.h); ctx.clip(); };
+    clipBand();
     // zone bands under everything
     if (zoneMode !== 'none') {
       const pairs = zoneMode === 'pair' ? (zonePair ? [zonePair] : []) : null;
       columns.forEach((c, i) => {
+        if (!colVisible[i]) return;
         const box = boxes[i];
         for (const z of zoneBands(c.frameWell, c.shift, shownTops, pairs)) {
           const y0 = yOf(Math.max(z.top, vTop));
@@ -244,11 +268,14 @@ const CrossSection = forwardRef(function CrossSection({
       });
     }
 
+    ctx.restore();
     paintDepthAxis(ctx, { axisW: AXIS_W, plotTop, plotH, plotRight: size.w, vTop, vBase, yOf, F, title: axisTitle });
+    clipBand();
 
     // ST2 bands (systems tracts, motifs ...): under the tracks, in each well's own frame
     if (bands?.length) {
       columns.forEach((c, i) => {
+        if (!colVisible[i]) return;
         const box = boxes[i];
         for (const b of bands) {
           if (b.wellId !== c.well.id) continue;
@@ -310,6 +337,14 @@ const CrossSection = forwardRef(function CrossSection({
     columns.forEach((c, i) => {
       const box = boxes[i];
       const w = c.well;
+      // inter-well distance in the gap first (the gap can be in view while its column is not)
+      if (!colVisible[i]) {
+        if (box.gapAfter > 0 && Number.isFinite(box.distM) && box.x0 + box.w + box.gapAfter > AXIS_W && box.x0 + box.w < size.w) {
+          ctx.fillStyle = P.axisText; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+          ctx.fillText(fmtDist(box.distM), box.x0 + box.w + box.gapAfter / 2, 13, box.gapAfter - 4);
+        }
+        return;
+      }
       // well band
       ctx.fillStyle = P.headerBg;
       ctx.fillRect(box.x0, 0, box.w, WELL_H);
@@ -397,6 +432,7 @@ const CrossSection = forwardRef(function CrossSection({
 
     // top markers per well: dashed line and a name tag at the column's right edge
     columns.forEach((c, i) => {
+      if (!colVisible[i]) return;
       const box = boxes[i];
       for (const t of columnTops[i]) {
         if (topDrag && topDrag.top.id === t.id) continue; // drawn by the cursor layer while dragging
@@ -409,8 +445,9 @@ const CrossSection = forwardRef(function CrossSection({
       }
     });
 
+    ctx.restore();
     setTick((t) => t + 1);
-  }, [size, wells, columns, columnNotes, boxes, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, unitTxt, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, ghost]);
+  }, [size, wells, columns, columnNotes, boxes, colVisible, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, unitTxt, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, ghost]);
 
   // ---- CURSOR layer -------------------------------------------------------
   useEffect(() => {
@@ -435,7 +472,7 @@ const CrossSection = forwardRef(function CrossSection({
       // own measured depth there (the section shares displayed depth only)
       columns.forEach((c, i) => {
         const box = boxes[i];
-        if (!c.disp) return;
+        if (!c.disp || !colVisible[i]) return;
         const idx = nearestIdx(c.disp, cursor.disp);
         if (box.w >= MIN_READOUT_W && c.tracks.length && Math.abs(c.disp[idx] - cursor.disp) <= (vBase - vTop) / plotH * 3) {
           // one readout row per track that has room for its curves
@@ -491,7 +528,7 @@ const CrossSection = forwardRef(function CrossSection({
       ctx.textAlign = 'right';
       ctx.fillText((cursor.disp * F).toFixed(1), AXIS_W - 4, cursor.y - 4);
     }
-  }, [tick, size, wells, columns, boxes, geoms, cursor, topDrag, pickMode, yOf, plotTop, plotH, vTop, vBase, F, depthUnit]);
+  }, [tick, size, wells, columns, boxes, colVisible, geoms, cursor, topDrag, pickMode, yOf, plotTop, plotH, vTop, vBase, F, depthUnit]);
 
   // Esc leaves the pick mode / closes the popover
   useEffect(() => {
@@ -536,6 +573,12 @@ const CrossSection = forwardRef(function CrossSection({
 
   const onWheel = (e) => {
     e.preventDefault();
+    // U2-002: shift+wheel or a sideways swipe scrolls the column band
+    if (scrolling && (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY))) {
+      const dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      setScrollX(Math.min(maxScroll, Math.max(0, scrollX + dx)));
+      return;
+    }
     const rect = canvasRef.current.getBoundingClientRect();
     const d = dOf(e.clientY - rect.top);
     const next = zoomAbout([vTop, vBase], d, e.deltaY > 0 ? 1.25 : 0.8, autoRange);
@@ -603,7 +646,12 @@ const CrossSection = forwardRef(function CrossSection({
 
   // live values for the export (the handle is created once)
   const exportMetaRef = useRef({});
-  exportMetaRef.current = { scale: verticalScale(vTop, vBase, plotH), spacing: spacingNote ? 'equal' : spacing };
+  const shownCols = colVisible.map((v, i) => (v ? i : -1)).filter((i) => i >= 0);
+  exportMetaRef.current = {
+    scale: verticalScale(vTop, vBase, plotH), spacing: spacingNote ? 'equal' : spacing,
+    // U2-002: a scrolled PNG shows a window of the section and says which wells
+    window: scrolling && shownCols.length ? { first: shownCols[0] + 1, last: shownCols[shownCols.length - 1] + 1, n: wells.length } : null,
+  };
   useImperativeHandle(exportRef, () => ({
     /** @param {string | ((meta: {scale: ?number, spacing: string}) => {title: string, caption?: string[]})} make */
     toPng: (make) => {
@@ -637,6 +685,11 @@ const CrossSection = forwardRef(function CrossSection({
       data-plot-h={plotH}
       data-col-x={boxes.map((b) => Math.round(b.x0)).join(',')}
       data-col-w={boxes.map((b) => Math.round(b.w)).join(',')}
+      data-col-fixed-w={fixedW || ''}
+      data-content-w={Math.round(win.contentW)}
+      data-scroll-x={Math.round(scrollX)}
+      data-max-scroll={maxScroll}
+      data-painted-cols={colVisible.filter(Boolean).length}
       data-spacing={spacingNote ? 'equal' : spacing}
       data-well-notes={columns.map((c, i) => `${c.well.name}=${columnNotes[i].join('|')}`).join(';')}
       data-view-top={vTop}
@@ -673,10 +726,22 @@ const CrossSection = forwardRef(function CrossSection({
             testIdPrefix="corr-top"
           />
         )}
-        <span className="absolute bottom-1 right-2 text-[10px] text-pl-muted pointer-events-none">
+        {scrolling && (
+          <div
+            ref={scrollbarRef}
+            data-testid="corr-hscroll"
+            title="Scroll the wells (or shift + wheel on the section)"
+            className="absolute bottom-0 right-0 overflow-x-auto overflow-y-hidden"
+            style={{ left: AXIS_W, height: SCROLL_H }}
+            onScroll={(e) => setScrollX(e.currentTarget.scrollLeft)}
+          >
+            <div style={{ width: win.contentW, height: 1 }} />
+          </div>
+        )}
+        <span className="absolute right-2 text-[10px] text-pl-muted pointer-events-none" style={{ bottom: (scrolling ? SCROLL_H : 0) + 4 }}>
           {pickMode === 'top'
             ? 'click a column: place a top · Esc: finish'
-            : 'drag a name tag: move a top · drag: pan · wheel: zoom · double-click: fit'}
+            : `drag a name tag: move a top · drag: pan · wheel: zoom${scrolling ? ' · shift+wheel: scroll wells' : ''} · double-click: fit`}
         </span>
       </div>
       {size.w >= 460 && (

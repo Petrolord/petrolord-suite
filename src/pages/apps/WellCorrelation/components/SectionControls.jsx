@@ -11,6 +11,7 @@ import LayoutPanel, { NumText } from '@/components/wells/LayoutPanel';
 import { topColor } from '@/components/wells/topColors';
 import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
 import { DEPTH_REF_LABEL } from '../engine/sectionFrame';
+import { COLUMN_WIDTHS } from '@/components/wells/section/sectionFrame';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const selCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
@@ -91,7 +92,7 @@ function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete, mapHref, v
 
 export default function SectionControls({
   topNames, datum, onDatum,
-  depthUnit, onDepthUnit, depthRef, onDepthRef, spacing, onSpacing,
+  depthUnit, onDepthUnit, depthRef, onDepthRef, spacing, onSpacing, columnWidth = 'auto', onColumnWidth = null,
   layouts, onLayoutsChange, logSources, onStatus,
   shownTops, onToggleTop, onShowAllTops,
   pickMode, onPickMode, onReloadTops, onRenameTop, onDeleteTop,
@@ -189,6 +190,14 @@ export default function SectionControls({
               <option value="proportional">by distance</option>
             </select>
           </label>
+          {onColumnWidth && (
+            <label className="flex items-center gap-1 text-pl-muted" title="Column width: fit the window, or a fixed width with a horizontal scroll (auto fixes it once fitted columns get narrower than 90 px)">columns
+              <select className={selCls} value={String(columnWidth)} data-testid="corr-col-width"
+                onChange={(e) => onColumnWidth(e.target.value === 'auto' || e.target.value === 'fit' ? e.target.value : Number(e.target.value))}>
+                {COLUMN_WIDTHS.map((c) => <option key={c} value={String(c)}>{typeof c === 'number' ? `${c} px` : c}</option>)}
+              </select>
+            </label>
+          )}
           <label className="flex items-center gap-1 text-pl-muted col-span-2">template
             <select className={`${selCls} flex-1 min-w-0`} value={layouts.activeTemplateId} data-testid="corr-template"
               onChange={(e) => onLayoutsChange({ ...layouts, activeTemplateId: e.target.value })}>

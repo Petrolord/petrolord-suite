@@ -38,6 +38,7 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
   const [depthUnit, setDepthUnit] = useState('m');
   const [depthRef, setDepthRef] = useState('md');
   const [spacing, setSpacing] = useState('equal');
+  const [columnWidth, setColumnWidth] = useState('auto'); // U2-002: 'auto' | 'fit' | px
   const [layouts, setLayouts] = useState(defaultLayouts);
   // WC-U1-006: a saved section this build cannot open (a newer build's row)
   // is kept out of reach of Save, so it is never overwritten by an empty one
@@ -58,6 +59,7 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
     if (tl.depthUnit === 'm' || tl.depthUnit === 'ft') setDepthUnit(tl.depthUnit);
     if (['md', 'tvd', 'tvdss'].includes(tl.depthRef)) setDepthRef(tl.depthRef);
     if (tl.spacing === 'equal' || tl.spacing === 'proportional') setSpacing(tl.spacing);
+    if (tl.columnWidth === 'auto' || tl.columnWidth === 'fit' || (Number(tl.columnWidth) >= 40 && Number(tl.columnWidth) <= 600)) setColumnWidth(tl.columnWidth === 'auto' || tl.columnWidth === 'fit' ? tl.columnWidth : Number(tl.columnWidth));
     if (['none', 'consecutive', 'pair'].includes(tl.zoneMode)) setZoneMode(tl.zoneMode);
     if (Array.isArray(tl.shownTops)) setShownTops(tl.shownTops);
     if (Array.isArray(tl.zonePair) && tl.zonePair.length === 2) setZonePair(tl.zonePair);
@@ -193,7 +195,7 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
   return {
     wells, order, setOrder, wellData, setWellData, loading, sectionLoaded,
     datum, setDatum, shownTops, setShownTops, zoneMode, setZoneMode, zonePair, setZonePair,
-    depthUnit, setDepthUnit, depthRef, setDepthRef, spacing, setSpacing, layouts, setLayouts,
+    depthUnit, setDepthUnit, depthRef, setDepthRef, spacing, setSpacing, columnWidth, setColumnWidth, layouts, setLayouts,
     template, sectionWells, topNames, logSources, ensureWellData, refreshTops, toggleWell, moveWell, applySaved,
     sectionRefused, savedRow, setSavedRow,
   };

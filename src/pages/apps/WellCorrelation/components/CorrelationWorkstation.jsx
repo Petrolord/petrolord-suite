@@ -54,7 +54,7 @@ export default function CorrelationWorkstation({
   const exportRef = useRef(null);
   const {
     wells, order, setOrder, wellData, loading, datum, setDatum, shownTops, setShownTops, zoneMode, setZoneMode, zonePair, setZonePair,
-    depthUnit, setDepthUnit, depthRef, setDepthRef, spacing, setSpacing, layouts, setLayouts,
+    depthUnit, setDepthUnit, depthRef, setDepthRef, spacing, setSpacing, columnWidth, setColumnWidth, layouts, setLayouts,
     template, sectionWells, topNames, logSources, ensureWellData, refreshTops, toggleWell, moveWell,
     sectionLoaded, sectionRefused, savedRow,
   } = useSectionWells(backend, { deepLinkWells: parseWellsParam(searchParams.get('wells')), onStatus: setStatus });
@@ -77,8 +77,8 @@ export default function CorrelationWorkstation({
   const payload = useMemo(() => ({
     well_ids: order,
     datum,
-    track_layout: { layouts, depthUnit, depthRef, spacing, zoneMode, shownTops, zonePair, ghost, report },
-  }), [order, datum, layouts, depthUnit, depthRef, spacing, zoneMode, shownTops, zonePair, ghost, report]);
+    track_layout: { layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report },
+  }), [order, datum, layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report]);
   const snapshot = useMemo(() => {
     const all = !shownTops.length || (topNames.length > 0 && topNames.every((n) => shownTops.includes(n)));
     const tl = payload.track_layout;
@@ -258,8 +258,8 @@ export default function CorrelationWorkstation({
 
   const exportPng = async () => {
     try {
-      const blob = await exportRef.current.toPng(({ scale, spacing: spacingUsed }) => sectionCaption({
-        wells: sectionWells, datum, depthRef, depthUnit, spacing: spacingUsed, templateName: template.name, scale, report,
+      const blob = await exportRef.current.toPng(({ scale, spacing: spacingUsed, window: shown }) => sectionCaption({
+        wells: sectionWells, datum, depthRef, depthUnit, spacing: spacingUsed, templateName: template.name, scale, report, window: shown,
       }));
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -334,6 +334,7 @@ export default function CorrelationWorkstation({
       depthUnit={depthUnit}
       depthRef={depthRef}
       spacing={spacing}
+      columnWidth={columnWidth}
       zoneMode={zoneMode}
       zonePair={zonePair}
       shownTops={shownTops}
@@ -379,6 +380,8 @@ export default function CorrelationWorkstation({
             onDepthRef={setDepthRef}
             spacing={spacing}
             onSpacing={setSpacing}
+            columnWidth={columnWidth}
+            onColumnWidth={setColumnWidth}
             layouts={layouts}
             onLayoutsChange={setLayouts}
             logSources={logSources}

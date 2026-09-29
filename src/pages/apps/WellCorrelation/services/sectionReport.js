@@ -31,16 +31,20 @@ function datumText(datum, depthRef, depthUnit) {
  * @param {string} p.templateName @param {?number} p.scale 1:N
  * @param {{field?: string, analyst?: string}} [p.report]
  * @param {Date} [p.now] @param {string} [p.build]
+ * @param {?{first: number, last: number, n: number}} [p.window] wells in view (1-based) when the band scrolls
  * @returns {{title: string, caption: string[]}}
  */
-export function sectionCaption({ wells, datum, depthRef, depthUnit, spacing, templateName, scale, report = {}, now = new Date(), build = buildLabel() }) {
+export function sectionCaption({ wells, datum, depthRef, depthUnit, spacing, templateName, scale, report = {}, now = new Date(), build = buildLabel(), window: shown = null }) {
   const field = (report?.field || '').trim();
   const analyst = (report?.analyst || '').trim();
   const names = (wells || []).map((w) => w.name);
   const title = `Well Correlation${field ? `: ${field}` : ''} (${names.length} well${names.length === 1 ? '' : 's'})`;
   const u = depthUnit === 'ft' ? 'ft' : 'm';
   const caption = [
-    `Wells: ${names.join(', ') || EMPTY_VALUE}`,
+    // U2-002: a scrolled section exports the window on screen and says so
+    shown && shown.n > 0 && (shown.first > 1 || shown.last < shown.n)
+      ? `Wells ${shown.first} to ${shown.last} of ${shown.n} shown: ${names.slice(shown.first - 1, shown.last).join(', ')}`
+      : `Wells: ${names.join(', ') || EMPTY_VALUE}`,
     `${datumText(datum, depthRef, depthUnit)} · Depth ${DEPTH_REF_LABEL[depthRef] || 'MD'} in ${u} (TVDSS below mean sea level) · Vertical scale ${scale ? `1:${scale.toLocaleString('en-US')}` : EMPTY_VALUE} · Spacing ${spacing === 'proportional' ? 'by distance' : 'equal'} · Template ${templateName || EMPTY_VALUE}`,
     `Field ${field || EMPTY_VALUE} · Analyst ${analyst || EMPTY_VALUE} · ${now.toISOString().slice(0, 10)} · ${build}`,
   ];
