@@ -27,7 +27,10 @@ export default function ExportDialog({
   open, onOpenChange, wellName, wellData, outputs, params, zones, summaries, projectId, projectName, onStatus,
   trackPng, well = null, depthUnit = 'm', probabilistic = null,
   zoneParams = {}, reportHeader = {}, onReportHeader = () => {},
+  cpiPages = null, cpiAvailable = false,
 }) {
+  // PETRO-U2-003: a log plot (CPI) page per zone in the PDF
+  const [withCpi, setWithCpi] = useState(true);
   const [busy, setBusy] = useState(null); // which deliverable is building
   // depth options (PT2): unit, which depth columns travel, which is DEPT
   const [unit, setUnit] = useState(depthUnit);
@@ -121,11 +124,12 @@ export default function ExportDialog({
       testid: 'petro-export-pdf',
       icon: FileText,
       label: 'PDF summary report',
-      note: 'Header (company, field, analyst below), every parameter and zone override, methods with citations, zone table, cutoff sensitivity and provenance.',
+      note: 'Header (company, field, analyst below), every parameter and zone override, methods with citations, zone table, cutoff sensitivity, provenance and a log plot page per zone.',
       build: async () => {
         const doc = await buildReport({
           wellName, wellData, params, zones, summaries, projectId, depthUnit: unit, well, columns: depthOpts.columns, probabilistic,
           projectName, zoneParams, header: reportHeader,
+          cpi: withCpi && cpiPages ? cpiPages() : null,
           sensitivities: zoneSensitivities({
             curves: wellData.curves, outputs, params, zones, zoneParams, vth: verticalSampleThickness(wellData.curves.DEPT, well),
           }),
@@ -196,6 +200,18 @@ export default function ExportDialog({
             ))}
           </div>
         </div>
+
+        <label className="flex items-start gap-2 text-xs text-pl-text" data-testid="petro-export-cpi-row">
+          <input type="checkbox" checked={withCpi} data-testid="petro-export-cpi" onChange={(e) => setWithCpi(e.target.checked)} className="mt-0.5" />
+          <span>
+            PDF: a log plot (CPI) page per zone
+            <span className="block text-[11px] text-pl-muted" data-testid="petro-export-cpi-note">
+              {!zones.length ? 'No zones yet: the report has no log plot pages.'
+                : cpiAvailable ? `${zones.length} page${zones.length === 1 ? '' : 's'}: the tracks as laid out now, over each zone with its header and numbers.`
+                  : 'Open the Tracks or Split view first; the log plot is painted from the track view.'}
+            </span>
+          </span>
+        </label>
 
         <div className="space-y-1.5">
           {items.map(({ kind, testid, icon: Icon, label, note, build }) => (

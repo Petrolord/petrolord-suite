@@ -64,6 +64,7 @@ import { migrationStatusLine, applyDeliberateNone, provenanceOf } from '../servi
 import { mapLogs } from '../services/curveMap';
 import { inputCurves } from '@/components/wells/curveUnits';
 import { zoneReports, zonePublishProperties, verticalSampleThickness } from '../services/zoneAverages';
+import { cpiImages } from '../services/cpiPages';
 import { depthLabel, DEPTH_TRACK_KEYS, DEPTH_TRACK_TITLE } from '../viewer/depthModes';
 
 /** @param {string} [p.wellDataManagerPath] route of the Well Data Manager
@@ -665,6 +666,15 @@ export default function PetroWorkstation({
     });
     return { blob, top, base };
   }, [selected, depthUnit, projectName]);
+
+  // PETRO-U2-003: the PDF's log plot page per zone, painted by the live
+  // track viewer (same layout as the screen) at a fixed page size
+  const cpiForReport = useCallback(() => {
+    if (!wellData || !trackExportRef.current?.renderWindow) {
+      return { pages: [], skipped: [], reason: 'the Tracks view was not open; open Tracks or Split and export again' };
+    }
+    return cpiImages(zones, wellData.curves.DEPT, (win) => trackExportRef.current.renderWindow(win));
+  }, [wellData, zones]);
 
   const exportTrackPng = async () => {
     try {
@@ -1631,6 +1641,8 @@ export default function PetroWorkstation({
         projectId={projectId}
         projectName={projectName}
         trackPng={trackPngBlob}
+        cpiPages={cpiForReport}
+        cpiAvailable={view === 'tracks' || view === 'split'}
         probabilistic={probResult && probResult.wellId === wellData?.wellId ? probResult : null}
         zoneParams={zoneParams}
         reportHeader={prefs.reportHeader || {}}

@@ -129,6 +129,7 @@ export function sensitivityRows(zones, sensitivities = {}, depthUnit = 'm') {
 export async function buildReport({
   wellName, wellData, params, zones, summaries, projectId, depthUnit = 'm', well = null, columns = ['md'], probabilistic = null,
   projectName = null, header = {}, zoneParams = {}, generatedAt = new Date(), sensitivities = null,
+  cpi = null,
 }) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -229,6 +230,19 @@ export async function buildReport({
   y += 4;
 
   const zoneRows = zones.filter((z) => summaries[z.id]);
+  const zoneHead = ['Zone', `Top MD (${uTxt})`, `Base MD (${uTxt})`,
+    ...extraKeys.flatMap((k) => [`Top ${k.toUpperCase()} (${uTxt})`, `Base ${k.toUpperCase()} (${uTxt})`]),
+    `Gross (${uTxt})`, `Net res (${uTxt})`, `Net pay (${uTxt})`, 'N/G', `Net pay TVT (${uTxt})`, `HCPV (${uTxt})`, 'phie avg', 'Vsh avg', 'Sw avg', 'k gm (mD)'];
+  const zoneRow = (z) => {
+    const s = summaries[z.id];
+    return [
+      latin1Safe(z.name), num(toU(z.top_md_m), 1), num(toU(z.base_md_m), 1),
+      ...extraKeys.flatMap((k) => [num(depthIn(z.top_md_m, k), 1), num(depthIn(z.base_md_m, k), 1)]),
+      num(toU(s.gross_m), 2), num(toU(s.net_res_m), 2), num(toU(s.net_m), 2), num(s.ntg),
+      num(toU(s.net_tvt_m), 2), num(toU(s.hcpv_m), 3),
+      num(s.phi_avg), num(s.vsh_avg), num(s.sw_avg), num(s.k_gm_md, 1),
+    ];
+  };
   if (zoneRows.length) {
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
@@ -238,19 +252,8 @@ export async function buildReport({
     doc.autoTable({
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['Zone', `Top MD (${uTxt})`, `Base MD (${uTxt})`,
-        ...extraKeys.flatMap((k) => [`Top ${k.toUpperCase()} (${uTxt})`, `Base ${k.toUpperCase()} (${uTxt})`]),
-        `Gross (${uTxt})`, `Net res (${uTxt})`, `Net pay (${uTxt})`, 'N/G', `Net pay TVT (${uTxt})`, `HCPV (${uTxt})`, 'phie avg', 'Vsh avg', 'Sw avg', 'k gm (mD)']],
-      body: zoneRows.map((z) => {
-        const s = summaries[z.id];
-        return [
-          z.name, num(toU(z.top_md_m), 1), num(toU(z.base_md_m), 1),
-          ...extraKeys.flatMap((k) => [num(depthIn(z.top_md_m, k), 1), num(depthIn(z.base_md_m, k), 1)]),
-          num(toU(s.gross_m), 2), num(toU(s.net_res_m), 2), num(toU(s.net_m), 2), num(s.ntg),
-          num(toU(s.net_tvt_m), 2), num(toU(s.hcpv_m), 3),
-          num(s.phi_avg), num(s.vsh_avg), num(s.sw_avg), num(s.k_gm_md, 1),
-        ];
-      }),
+      head: [zoneHead],
+      body: zoneRows.map(zoneRow),
       styles: { fontSize: 6.8, cellPadding: 1.1 },
       headStyles: { fillColor: [15, 23, 42] },
       theme: 'grid',
@@ -317,6 +320,10 @@ export async function buildReport({
     y += 8;
   }
 
+  // PETRO-U2-003: one log plot (CPI) page per zone: the tracks over the
+  // zone with the header block and the zone's own row on the same page
+  const cpiPages = (cpi?.pages || []).filter((pg) => zones.some((z) => z.id === pg.zoneId));
+
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
@@ -330,10 +337,59 @@ export async function buildReport({
     `Pipeline version: ${PIPELINE_VERSION} · Interpretation: ${projectName || EMPTY_VALUE} · Project: ${projectId || EMPTY_VALUE}`,
     `Generated: ${generatedAt.toISOString()} · ${buildLabel()}`,
     ...(wellData.inputNotes || []).map((n) => `Input: ${n}`),
+    ...(cpi && !cpiPages.length ? [`Log plot pages: not included (${cpi.reason || 'no zone had a log plot'}).`] : []),
+    ...(cpi?.skipped?.length ? [`Log plot pages skipped for ${cpi.skipped.join(', ')}: outside the logged interval.`] : []),
   ]) {
     const wrapped = doc.splitTextToSize(line, pageWidth - 2 * margin);
     doc.text(wrapped, margin, y);
     y += wrapped.length * 4 + 0.5;
+  }
+
+  const pageH = doc.internal.pageSize.getHeight();
+  for (const pg of cpiPages) {
+    const z = zones.find((x) => x.id === pg.zoneId);
+    doc.addPage();
+    let cy = drawBrandHeader(doc, {
+      logo, margin, pageWidth, appTitle: 'Petrophysics Studio', subtitle: 'Log plot (CPI)', rightLines: [wellName, ...(projectName ? [projectName] : [])],
+    }) + 7;
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(latin1Safe(`Log plot (CPI): ${z.name}, ${num(toU(z.top_md_m), 1)} to ${num(toU(z.base_md_m), 1)} ${uTxt} MD`), margin, cy);
+    cy += 3;
+    const h = hdr.filter(([k]) => ['Company', 'Field', 'Well', 'UWI', 'Analyst', 'Interpretation', 'Depth reference', 'Generated'].includes(k));
+    doc.autoTable({
+      startY: cy,
+      margin: { left: margin, right: margin },
+      body: Array.from({ length: Math.ceil(h.length / 2) }, (_, r) => [...(h[2 * r] || ['', '']), ...(h[2 * r + 1] || ['', ''])]),
+      styles: { fontSize: 7, cellPadding: 0.9 },
+      columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } },
+      theme: 'grid',
+    });
+    cy = doc.lastAutoTable.finalY + 2;
+    if (summaries[z.id]) {
+      doc.autoTable({
+        startY: cy,
+        margin: { left: margin, right: margin },
+        head: [zoneHead],
+        body: [zoneRow(z)],
+        styles: { fontSize: 6.3, cellPadding: 0.9 },
+        headStyles: { fillColor: [15, 23, 42] },
+        theme: 'grid',
+      });
+      cy = doc.lastAutoTable.finalY + 3;
+    }
+    const caption = latin1Safe(`Tracks as laid out on screen; window ${num(toU(pg.top), 1)} to ${num(toU(pg.base), 1)} ${uTxt} MD, the zone band shaded.`);
+    const availH = pageH - cy - 14;
+    const availW = pageWidth - 2 * margin;
+    const ratio = pg.width / pg.height;
+    const iw = Math.min(availW, availH * ratio);
+    const ih = iw / ratio;
+    doc.addImage(pg.dataUrl, 'PNG', margin + (availW - iw) / 2, cy, iw, ih);
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 70, 90);
+    doc.text(caption, margin, cy + ih + 4);
   }
 
   const pages = doc.getNumberOfPages();

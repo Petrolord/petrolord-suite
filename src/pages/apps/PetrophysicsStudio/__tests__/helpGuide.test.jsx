@@ -76,6 +76,8 @@ describe('PetrophysicsHelpGuide', () => {
     // U2-005
     expect(text).toMatch(/Cutoff sensitivity…/);
     expect(text).toMatch(/SPE\s+84387/);
+    // U2-003
+    expect(text).toMatch(/log plot \(CPI\) page per zone/);
   });
 
   test('copy carries no em dashes (owner rule)', () => {

@@ -1029,9 +1029,18 @@ const PetrophysicsHelpGuide = () => (
           ['Zone summary CSV', 'Gross, net, N/G and net-weighted averages per zone at the current parameters.'],
           ['LAS 2.0', 'DEPT plus any extra depth columns as curves, inputs plus VSH, PHIT, PHIE, SW, BVW, KPERM and PAY, with the parameter set in the ~Parameter block (DEPTREF, EKB and DEPTHSRC record the depth choice). Feet write the unit F. The writer is round-trip gated: what it writes parses back bit for bit.'],
           ['Track plot PNG', 'The track view exactly as rendered, with a branded title band. Open the Tracks view first; the other views have no track canvas to capture.'],
-          ['PDF summary report', 'Well and interpretation, the parameter table, the methods in use with their literature citations, the zone table (top, base, gross, net, N/G, φ avg, Vsh avg, Sw avg), the cutoff sensitivity table per zone and provenance.'],
+          ['PDF summary report', 'Well and interpretation, the parameter table, the methods in use with their literature citations, the zone table (top, base, gross, net, N/G, φ avg, Vsh avg, Sw avg), the cutoff sensitivity table per zone, provenance, and a log plot (CPI) page per zone.'],
         ]}
       />
+      <SubHeading>Log plot (CPI) pages</SubHeading>
+      <Para>
+        With <Code>PDF: a log plot (CPI) page per zone</Code> ticked (the default), the report ends with one
+        page per zone: the header block (company, field, well, UWI, analyst, interpretation, depth reference),
+        the zone&apos;s own row of the zone table, and the tracks over the zone with a margin above and below
+        (a tenth of the zone&apos;s thickness, at least 3 m) so both boundaries show. The tracks are painted by
+        the track view itself, in the layout on screen, so open the Tracks or Split view before exporting;
+        from another view the report says the pages were not included and why.
+      </Para>
     </GuideSection>
 
     {/* ------------------------------------------------------------------ */}

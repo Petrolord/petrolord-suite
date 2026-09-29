@@ -181,17 +181,26 @@ const TrackViewer = forwardRef(function TrackViewer({
   // The picture is painted in CSS coordinates and the caller sets the
   // transform, so the on-screen layer and the PT8 image export draw the
   // SAME picture at different scales.
-  const paintStatic = useCallback((ctx) => {
+  // PETRO-U2-003: `vp` repaints any depth window at any size (the PDF's
+  // log plot page per zone); without it the on-screen view is painted.
+  const paintStatic = useCallback((ctx, vp = null) => {
+    const W = vp?.w ?? size.w;
+    const Hh = vp?.h ?? size.h;
+    const vT = vp?.top ?? vTop;
+    const vB = vp?.base ?? vBase;
+    const pH = vp ? Math.max(10, Hh - plotTop - 4) : plotH;
+    const yAt = vp ? (d) => plotTop + ((d - vT) / (vB - vT || 1)) * pH : yOf;
+    const g = vp ? trackGeometry(tracks, W, axisW) : geom;
     ctx.fillStyle = BG;
-    ctx.fillRect(0, 0, size.w, size.h);
+    ctx.fillRect(0, 0, W, Hh);
 
     // zone bands under everything
     zones.forEach((z, zi) => {
-      const y0 = yOf(Math.max(z.top_md_m, vTop));
-      const y1 = yOf(Math.min(z.base_md_m, vBase));
-      if (y1 < plotTop || y0 > plotTop + plotH) return;
+      const y0 = yAt(Math.max(z.top_md_m, vT));
+      const y1 = yAt(Math.min(z.base_md_m, vB));
+      if (y1 < plotTop || y0 > plotTop + pH) return;
       ctx.fillStyle = ZONE_COLORS[zi % ZONE_COLORS.length];
-      ctx.fillRect(axisW, Math.max(plotTop, y0), size.w - axisW, Math.min(plotTop + plotH, y1) - Math.max(plotTop, y0));
+      ctx.fillRect(axisW, Math.max(plotTop, y0), W - axisW, Math.min(plotTop + pH, y1) - Math.max(plotTop, y0));
       ctx.fillStyle = '#0369a1';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'left';
@@ -206,13 +215,13 @@ const TrackViewer = forwardRef(function TrackViewer({
       paintDepthAxis(ctx, {
         axisW: AXIS_COL_W * (i + 1),
         plotTop,
-        plotH,
-        plotRight: size.w,
+        plotH: pH,
+        plotRight: W,
         gridLeft: axisW,
         drawGrid: i === 0,
-        vTop,
-        vBase,
-        yOf,
+        vTop: vT,
+        vBase: vB,
+        yOf: yAt,
         F,
         labelOf: ax.labelOf,
         title: ax.title,
@@ -223,7 +232,7 @@ const TrackViewer = forwardRef(function TrackViewer({
         ctx.strokeStyle = PALETTES.light.grid;
         ctx.beginPath();
         ctx.moveTo(AXIS_COL_W * i + 0.5, plotTop);
-        ctx.lineTo(AXIS_COL_W * i + 0.5, plotTop + plotH);
+        ctx.lineTo(AXIS_COL_W * i + 0.5, plotTop + pH);
         ctx.stroke();
       }
     });
@@ -233,25 +242,25 @@ const TrackViewer = forwardRef(function TrackViewer({
       ctx.fillStyle = 'rgba(14,116,144,0.85)';
       for (let i = 0; i < depth.length - 1; i++) {
         if (!selection.has(i)) continue;
-        if (depth[i] > vBase || depth[i + 1] < vTop) continue;
-        const y = yOf(depth[i]);
-        const y2 = yOf(depth[i + 1]);
+        if (depth[i] > vB || depth[i + 1] < vT) continue;
+        const y = yAt(depth[i]);
+        const y2 = yAt(depth[i + 1]);
         ctx.fillRect(axisW - 3, y, 3, Math.max(1, y2 - y));
       }
     }
 
-    const { i0, i1 } = visibleRange(depth, vTop, vBase);
-    paintTrackColumn(ctx, { tracks, geom, depth, yOf, i0, i1, headerH: HEADER_H, plotTop, plotH });
+    const { i0, i1 } = visibleRange(depth, vT, vB);
+    paintTrackColumn(ctx, { tracks, geom: g, depth, yOf: yAt, i0, i1, headerH: HEADER_H, plotTop, plotH: pH });
 
     // tops markers across all tracks: a dashed line in the top's colour and
     // a name tag at the right edge (the tag is the drag handle on own wells)
     for (const t of shownTops) {
-      if (t.md_m < vTop || t.md_m > vBase) continue;
+      if (t.md_m < vT || t.md_m > vB) continue;
       const code = normalizeSurfaceType(t.surface_type);
       paintTopMarker(ctx, {
         name: t.name,
         label: code === 'formation_top' ? t.name : `${displayLabel(code, scheme, { kind: 'surface', short: true }).label} ${t.name}`,
-        color: t.color, y: yOf(t.md_m), xLeft: axisW, xRight: size.w, tagMax: TAG_MAX, grip: isOwn && !!onTopMove,
+        color: t.color, y: yAt(t.md_m), xLeft: axisW, xRight: W, tagMax: TAG_MAX, grip: isOwn && !!onTopMove,
         style: surfaceLineStyle(code),
       });
     }
@@ -292,6 +301,22 @@ const TrackViewer = forwardRef(function TrackViewer({
     },
     /** The depth window the export would capture, for its caption. */
     visibleRange: () => [vTop, vBase],
+    /**
+     * PETRO-U2-003: paint any depth window at a fixed size offscreen (the
+     * PDF's log plot page per zone). Same painter and track set as the
+     * screen; the window and size are the caller's.
+     * @returns {HTMLCanvasElement}
+     */
+    renderWindow: ({ top, base, width = 760, height = 1000, scale = 2 }) => {
+      if (!depth.length || !(base > top)) throw new Error('Nothing to draw in that window.');
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      paintStatic(ctx, { w: width, h: height, top, base });
+      return canvas;
+    },
   }), [paintStatic, size, depth.length, vTop, vBase]);
 
   // CURSOR layer: composite the static picture, then the header readouts,
