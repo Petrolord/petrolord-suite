@@ -20,14 +20,56 @@ const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-t
 const btnCls = 'px-2 py-0.5 rounded border text-xs border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40';
 const primaryCls = 'px-2 py-0.5 rounded text-xs bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg disabled:opacity-40';
 
-/** Column indices of a (well, top, MD) paste: header words first, else 0/1/2. */
+/** Column indices of a (well, top, MD) paste: header words first, else 0/1/2.
+ *  AppUpgrade WC-U1-016: Petra and Kingdom name the top column FMNAME, FORM
+ *  or PICK, which the generic guesses missed (the paste was refused with no
+ *  way to map it). */
 export function pasteMapping(header) {
   if (!header) return { well: 0, name: 1, md: 2 };
   const lower = header.map((h) => String(h).toLowerCase().trim());
   const well = lower.findIndex((h) => /^(well|uwi|wellbore|borehole)/.test(h));
   const rest = header.map((h, i) => (i === well ? '' : h));
   const g = guessMapping(rest, ['name', 'md']);
-  return { well, name: g.name, md: g.md };
+  let name = g.name;
+  if (name < 0) name = lower.findIndex((h, i) => i !== well && i !== g.md && /^(fm|form|pick|zone|strat)/.test(h));
+  return { well, name, md: g.md };
+}
+
+/**
+ * Why the column mapped as MD is not a measured depth, or null
+ * (AppUpgrade WC-U1-016): a header such as "Depth (TVDSS m)" or "TVD" was
+ * read as MD, so the tops landed a KB height or more off in every app.
+ */
+export function nonMdDepthHeader(cell) {
+  const h = ` ${String(cell ?? '').toLowerCase().replace(/[_\-()[\]/,.]/g, ' ')} `;
+  if (/\b(md|measured)\b/.test(h)) return null;
+  if (/\b(tvdss|tvd ss|ss|subsea|sub sea)\b/.test(h)) return 'TVDSS';
+  if (/\btvd\b/.test(h)) return 'TVD';
+  if (/\b(z|elev|elevation)\b/.test(h)) return 'an elevation (Z)';
+  if (/\b(twt|owt|time|ms)\b/.test(h)) return 'a time';
+  return null;
+}
+
+/**
+ * The whole tops paste door as one pure step (the text a user pastes to the
+ * plan the sheet applies), so the chain tests run exactly what the sheet
+ * runs. Returns the plan with the MD unit used, or { error }.
+ */
+export function planPasteText(text, { wells, rows, unit = 'm' }) {
+  try {
+    const p = parseDelimited(text);
+    const map = pasteMapping(p.header);
+    const depthCol = map.md >= 0 ? map.md : (p.header || []).findIndex((h, i) => i !== map.well && i !== map.name && nonMdDepthHeader(h));
+    const kind = p.header && depthCol >= 0 ? nonMdDepthHeader(p.header[depthCol]) : null;
+    if (kind) {
+      throw new Error(`The depth column "${p.header[depthCol]}" is ${kind}. Tops are stored in MD: export MD from the other tool, `
+        + 'or paste the MD column (the survey then gives TVD and TVDSS here and in every app).');
+    }
+    const mdUnit = (p.header && guessMdUnit([p.header[map.md] ?? ''], ['md'])) || unit;
+    return { ...planTopsPaste(p.rows, map, wells, rows, { mdUnit }), mdUnit };
+  } catch (e) {
+    return { error: e.message };
+  }
 }
 
 export default function TopsSheetView({ backend, wells, unit = 'm', onStatus, onChanged, reloadKey = 0 }) {
@@ -64,17 +106,7 @@ export default function TopsSheetView({ backend, wells, unit = 'm', onStatus, on
     return r && (e.name.trim() !== r.name || parseDisplayed(e.md, u, r.md_m, 2) !== r.md_m);
   });
 
-  const pastePlan = useMemo(() => {
-    if (!paste?.text?.trim()) return null;
-    try {
-      const p = parseDelimited(paste.text);
-      const map = pasteMapping(p.header);
-      const mdUnit = (p.header && guessMdUnit([p.header[map.md] ?? ''], ['md'])) || paste.unit;
-      return { ...planTopsPaste(p.rows, map, wells, rows, { mdUnit }), mdUnit };
-    } catch (e) {
-      return { error: e.message };
-    }
-  }, [paste, wells, rows]);
+  const pastePlan = useMemo(() => (paste?.text?.trim() ? planPasteText(paste.text, { wells, rows, unit: paste.unit }) : null), [paste, wells, rows]);
 
   const done = async (message) => {
     setEdits({});
