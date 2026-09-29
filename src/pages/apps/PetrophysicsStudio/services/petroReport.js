@@ -15,6 +15,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { buildLabel } from '@/lib/platformBuild';
 import { FIELDS, visibleField, fieldLabel, RW_METHOD_LABELS } from './paramFields';
 import { AVERAGING_NOTE } from './zoneAverages';
+import { toDisplayValue, UNIT_LABELS } from './paramUnits';
 import { SENSITIVITY_CUTOFFS, pointsAround, relativeSwing } from './cutoffSensitivity';
 
 // jsPDF's standard fonts are Latin-1: a Greek letter or a math sign in a
@@ -32,32 +33,33 @@ const num = (v, d = 3) => (Number.isFinite(v) ? String(Number(v.toFixed(d))) : E
  * name so a reviewer can find it on screen.
  * @returns {Array<[string, string]>} [label, value]
  */
-export function parameterRows(params) {
+export function parameterRows(params, system = 'si') {
   const rows = [];
   let section = '';
   for (const f of FIELDS) {
     if (f.section) { section = f.section; continue; }
     if (!f.key || !visibleField(f, params)) continue;
-    const v = params[f.key];
-    rows.push([latin1Safe(`${section}: ${fieldLabel(f, params)}`), v === undefined || v === null || v === '' ? EMPTY_VALUE : latin1Safe(v)]);
+    // PETRO-U2-002: in the unit system the analyst entered them in
+    const v = toDisplayValue(f.key, params[f.key], system);
+    rows.push([latin1Safe(`${section}: ${fieldLabel(f, params, system)}`), v === undefined || v === null || v === '' ? EMPTY_VALUE : latin1Safe(v)]);
   }
   if (params.rwMethod && RW_METHOD_LABELS[params.rwMethod]) rows.push(['Sw: Rw from', RW_METHOD_LABELS[params.rwMethod]]);
   return rows;
 }
 
 /** Per-zone overrides as rows: [zone, 'key = value; ...']. */
-export function overrideRows(zones, zoneParams = {}) {
+export function overrideRows(zones, zoneParams = {}, system = 'si') {
   const labelOf = (key) => {
     const f = FIELDS.find((x) => x.key === key);
-    return f ? fieldLabel(f, {}) : key;
+    return f ? fieldLabel(f, {}, system) : key;
   };
   return (zones || [])
     .filter((z) => zoneParams[z.id] && Object.keys(zoneParams[z.id]).length)
-    .map((z) => [latin1Safe(z.name), latin1Safe(Object.entries(zoneParams[z.id]).map(([k, v]) => `${labelOf(k)} ${v}`).join('; '))]);
+    .map((z) => [latin1Safe(z.name), latin1Safe(Object.entries(zoneParams[z.id]).map(([k, v]) => `${labelOf(k)} ${toDisplayValue(k, v, system)}`).join('; '))]);
 }
 
 /** The header block a reviewer signs against (PL7). */
-export function headerRows({ wellName, well = null, header = {}, projectName = null, projectId = null, depthUnit = 'm', generatedAt = new Date() }) {
+export function headerRows({ wellName, well = null, header = {}, projectName = null, projectId = null, depthUnit = 'm', generatedAt = new Date(), paramUnits = 'si' }) {
   const t = (v) => (v === undefined || v === null || String(v).trim() === '' ? EMPTY_VALUE : latin1Safe(String(v).trim()));
   const kb = Number(well?.kb_m);
   const xy = Number.isFinite(Number(well?.surface_x)) && well?.surface_x !== null && Number.isFinite(Number(well?.surface_y)) && well?.surface_y !== null
@@ -68,7 +70,7 @@ export function headerRows({ wellName, well = null, header = {}, projectName = n
     ['Well', t(wellName)], ['UWI', t(well?.uwi)],
     ['Surface X, Y', xy], ['Depth reference', Number.isFinite(kb) ? `MD below KB; KB ${kb.toFixed(2)} m above the vertical datum` : 'MD below KB; KB not recorded'],
     ['Analyst', t(header.analyst)], ['Interpretation', projectName ? `${projectName}${projectId ? ` (${projectId})` : ''}` : t(projectId)],
-    ['Units', `depths ${depthUnit === 'ft' ? 'ft' : 'm'}; porosity, Vsh and Sw v/v; k mD; resistivity ohm.m`],
+    ['Units', latin1Safe(`depths ${depthUnit === 'ft' ? 'ft' : 'm'}; porosity, Vsh and Sw v/v; k mD; resistivity ohm.m; parameters: slowness ${UNIT_LABELS[paramUnits === 'field' ? 'field' : 'si'].slowness}, temperature ${UNIT_LABELS[paramUnits === 'field' ? 'field' : 'si'].temperature}`)],
     ['Software', `Petrophysics Studio, pipeline v${PIPELINE_VERSION}, ${buildLabel()}`],
     ['Generated', generatedAt.toISOString().replace('T', ' ').slice(0, 16) + ' UTC'],
   ];
@@ -129,7 +131,7 @@ export function sensitivityRows(zones, sensitivities = {}, depthUnit = 'm') {
 export async function buildReport({
   wellName, wellData, params, zones, summaries, projectId, depthUnit = 'm', well = null, columns = ['md'], probabilistic = null,
   projectName = null, header = {}, zoneParams = {}, generatedAt = new Date(), sensitivities = null,
-  cpi = null,
+  cpi = null, paramUnits = 'si',
 }) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -169,7 +171,7 @@ export async function buildReport({
   );
   y += 8;
 
-  const hdr = headerRows({ wellName, well, header, projectName, projectId, depthUnit, generatedAt });
+  const hdr = headerRows({ wellName, well, header, projectName, projectId, depthUnit, generatedAt, paramUnits });
   doc.autoTable({
     startY: y,
     margin: { left: margin, right: margin },
@@ -185,7 +187,7 @@ export async function buildReport({
   doc.setTextColor(15, 23, 42);
   doc.text('Parameters', margin, y);
   y += 3;
-  const prow = parameterRows(params);
+  const prow = parameterRows(params, paramUnits);
   doc.autoTable({
     startY: y,
     margin: { left: margin, right: margin },
@@ -196,7 +198,7 @@ export async function buildReport({
     theme: 'grid',
   });
   y = doc.lastAutoTable.finalY + 6;
-  const orows = overrideRows(zones, zoneParams);
+  const orows = overrideRows(zones, zoneParams, paramUnits);
   if (orows.length) {
     doc.setFontSize(9.5);
     doc.setFont('helvetica', 'bold');

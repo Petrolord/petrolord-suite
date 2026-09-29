@@ -76,6 +76,9 @@ describe('PetrophysicsHelpGuide', () => {
     // U2-005
     expect(text).toMatch(/Cutoff sensitivity…/);
     expect(text).toMatch(/SPE\s+84387/);
+    // U2-002
+    expect(text).toMatch(/switches parameter entry between SI and Field/);
+    expect(text).toMatch(/stored in SI either way/);
     // U2-003
     expect(text).toMatch(/log plot \(CPI\) page per zone/);
   });

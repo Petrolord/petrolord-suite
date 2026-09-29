@@ -129,6 +129,10 @@ export default function PetroWorkstation({
   const [topsBusy, setTopsBusy] = useState(false);
   const [layoutFocus, setLayoutFocus] = useState(null);        // {index, nonce}
   const [depthUnit, setDepthUnit] = useState('m');             // display only
+  // PETRO-U2-002: parameter entry units follow the session's depth unit
+  // (feet means field units) until the user picks otherwise in the panel
+  const [paramUnits, setParamUnits] = useState('si');
+  useEffect(() => { setParamUnits(depthUnit === 'ft' ? 'field' : 'si'); }, [depthUnit]);
   const [rwToolsOpen, setRwToolsOpen] = useState(false);       // PS5 quicklooks
   const curvesCache = useWellCurvesCache(backend);             // PS7 cross-well curves
   const [condOpen, setCondOpen] = useState(false);             // PS8 conditioning
@@ -1427,6 +1431,8 @@ export default function PetroWorkstation({
               zoneParams={zoneParams}
               onApplyZone={applyZoneParams}
               onOpenZoneTable={() => setZoneTableOpen(true)}
+              unitSystem={paramUnits}
+              onUnitSystem={setParamUnits}
             />
             {/* the track layout editor's curve rows are wider than a narrow dock: they scroll sideways here */}
             <div className="overflow-x-auto" data-testid="petro-layout-scroll">
@@ -1600,6 +1606,7 @@ export default function PetroWorkstation({
       params={params}
       zones={zones}
       zoneParams={zoneParams}
+      unitSystem={paramUnits}
       onApply={applyZonePatches}
       onStatus={setStatus}
     />
@@ -1645,6 +1652,7 @@ export default function PetroWorkstation({
         cpiAvailable={view === 'tracks' || view === 'split'}
         probabilistic={probResult && probResult.wellId === wellData?.wellId ? probResult : null}
         zoneParams={zoneParams}
+        paramUnits={paramUnits}
         reportHeader={prefs.reportHeader || {}}
         onReportHeader={(h) => setPref({ reportHeader: h })}
         onStatus={setStatus}

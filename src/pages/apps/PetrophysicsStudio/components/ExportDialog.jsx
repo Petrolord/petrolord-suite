@@ -27,7 +27,7 @@ export default function ExportDialog({
   open, onOpenChange, wellName, wellData, outputs, params, zones, summaries, projectId, projectName, onStatus,
   trackPng, well = null, depthUnit = 'm', probabilistic = null,
   zoneParams = {}, reportHeader = {}, onReportHeader = () => {},
-  cpiPages = null, cpiAvailable = false,
+  cpiPages = null, cpiAvailable = false, paramUnits = 'si',
 }) {
   // PETRO-U2-003: a log plot (CPI) page per zone in the PDF
   const [withCpi, setWithCpi] = useState(true);
@@ -128,7 +128,7 @@ export default function ExportDialog({
       build: async () => {
         const doc = await buildReport({
           wellName, wellData, params, zones, summaries, projectId, depthUnit: unit, well, columns: depthOpts.columns, probabilistic,
-          projectName, zoneParams, header: reportHeader,
+          projectName, zoneParams, header: reportHeader, paramUnits,
           cpi: withCpi && cpiPages ? cpiPages() : null,
           sensitivities: zoneSensitivities({
             curves: wellData.curves, outputs, params, zones, zoneParams, vth: verticalSampleThickness(wellData.curves.DEPT, well),

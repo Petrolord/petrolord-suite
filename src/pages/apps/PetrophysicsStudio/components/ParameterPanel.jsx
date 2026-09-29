@@ -11,7 +11,8 @@
 // its override).
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { FIELDS } from '../services/paramFields';
+import { FIELDS, fieldLabel } from '../services/paramFields';
+import { toDisplayDraft, engineValue, UNIT_LABELS } from '../services/paramUnits';
 
 const num = (v) => (v === '' || v === '-' ? NaN : Number(v));
 const inputCls = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
@@ -20,6 +21,7 @@ const selCls = inputCls;
 
 export default function ParameterPanel({
   params, onApply, zones = [], zoneParams = {}, onApplyZone, onOpenZoneTable = null,
+  unitSystem = 'si', onUnitSystem = null,
 }) {
   const [scope, setScope] = useState('global'); // 'global' | zone id
   const zone = zones.find((z) => z.id === scope) || null;
@@ -29,11 +31,15 @@ export default function ParameterPanel({
     ? { ...params, ...(zoneParams[zone.id] || {}) }
     : params), [params, zone, zoneParams]);
 
-  const [draft, setDraft] = useState(effective);
-  useEffect(() => setDraft(effective), [effective]);
+  // PETRO-U2-002: the draft holds what the fields show (slowness,
+  // temperatures and the BHT depth in the chosen unit system); state stays
+  // in engine units and an untouched field keeps its stored value exactly
+  const shown = useMemo(() => toDisplayDraft(effective, unitSystem), [effective, unitSystem]);
+  const [draft, setDraft] = useState(shown);
+  useEffect(() => setDraft(shown), [shown]);
 
   const visible = (f) => !f.show || f.show(draft);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(effective);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(shown);
   const invalid = FIELDS.some((f) => f.key && !f.options && visible(f)
     && !Number.isFinite(num(String(draft[f.key]))));
 
@@ -44,7 +50,7 @@ export default function ParameterPanel({
     const next = { ...effective };
     for (const f of FIELDS) {
       if (!f.key || !visible(f)) continue;
-      next[f.key] = f.options ? draft[f.key] : num(String(draft[f.key]));
+      next[f.key] = f.options ? draft[f.key] : engineValue(f.key, num(String(draft[f.key])), [effective[f.key], params[f.key]], unitSystem);
     }
     if (!zone) {
       onApply(next);
@@ -57,8 +63,9 @@ export default function ParameterPanel({
     onApplyZone(zone.id, patch);
   };
 
+  const shownGlobal = useMemo(() => toDisplayDraft(params, unitSystem), [params, unitSystem]);
   const overridden = (key) => zone
-    && String(draft[key]) !== String(params[key]);
+    && String(draft[key]) !== String(shownGlobal[key]);
   const hasOverrides = zone && Object.keys(zoneParams[zone.id] || {}).length > 0;
 
   return (
@@ -79,6 +86,26 @@ export default function ParameterPanel({
           ))}
         </select>
       </label>
+      {onUnitSystem && (
+        <div className="flex items-center gap-2">
+          <span className="w-28 shrink-0 text-pl-muted">Units</span>
+          <div className="flex rounded border border-pl-border overflow-hidden" data-testid="petro-param-units">
+            {[['si', 'SI'], ['field', 'Field']].map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                data-testid={`petro-param-units-${k}`}
+                aria-pressed={unitSystem === k}
+                title={`Sonic slowness in ${UNIT_LABELS[k].slowness}, temperatures in ${UNIT_LABELS[k].temperature}, BHT depth in ${UNIT_LABELS[k].depth}. Stored in SI either way.`}
+                className={`px-2 py-0.5 text-[11px] ${unitSystem === k ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-muted hover:text-pl-text'}`}
+                onClick={() => onUnitSystem(k)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {onOpenZoneTable && zones.length > 0 && (
         <button
           type="button"
@@ -110,7 +137,7 @@ export default function ParameterPanel({
       ) : !visible(f) ? null : (
         <label key={f.key} className="flex items-center gap-2">
           <span className={`w-28 shrink-0 ${overridden(f.key) ? 'text-pl-primary-text' : 'text-pl-muted'}`}>
-            {typeof f.label === 'function' ? f.label(draft) : f.label}
+            {fieldLabel(f, draft, unitSystem)}
             {overridden(f.key) && <span className="text-pl-primary-text"> •</span>}
           </span>
           {f.options ? (

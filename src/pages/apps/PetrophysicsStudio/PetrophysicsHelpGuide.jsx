@@ -350,6 +350,15 @@ const PetrophysicsHelpGuide = () => (
         keep their last committed value, so stale text can never poison a run. The Scope selector at
         the top is covered under Zones.
       </Para>
+      <Para>
+        <Code>Units</Code> at the top of the panel switches parameter entry between SI and Field. In Field
+        units the matrix and fluid slowness read and type in µs/ft, the surface temperature, BHT and Rw
+        reference temperature in °F, and the BHT depth in ft; the zone parameter table follows the same
+        choice and the PDF prints the parameters in it. It starts as Field when the depth toggle is in feet.
+        The interpretation is stored in SI either way (µs/m, °C, m), converted once at entry by the exact
+        definitions (1 ft = 0.3048 m; °F = °C × 9/5 + 32), and a field you leave as shown keeps its stored
+        value exactly, so switching units and pressing Apply changes nothing.
+      </Para>
 
       <SubHeading>Vsh (GR)</SubHeading>
       <Formula>IGR = (GR - GR clean) / (GR clay - GR clean), clamped to 0..1</Formula>
