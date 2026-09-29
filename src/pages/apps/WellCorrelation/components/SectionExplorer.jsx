@@ -206,7 +206,7 @@ export default function SectionExplorer({
         <span>In section <span data-testid="corr-order-count">{order.length}</span> / {wells.length}</span>
         {filtering && <span className="normal-case tracking-normal" data-testid="corr-order-shown">({orderedWells.length} shown)</span>}
         {filtering && onRemoveMany && orderedWells.length > 0 && (
-          <button type="button" className="ml-auto normal-case tracking-normal text-pl-muted hover:text-pl-danger-text" data-testid="corr-remove-shown"
+          <button type="button" className="ml-auto normal-case tracking-normal text-pl-muted hover:text-pl-danger-text" data-testid="corr-well-remove-shown"
             title="Remove the wells the filter shows from the section" onClick={() => onRemoveMany(orderedWells.map((w) => w.id))}>remove shown</button>
         )}
       </div>
@@ -244,7 +244,7 @@ export default function SectionExplorer({
             <div className="px-2.5 pt-2 pb-1 text-[11px] uppercase tracking-wider text-pl-muted border-t border-pl-border flex items-center gap-1">
               <span>Available{filtering ? ` (${availableWells.length} of ${availableAll.length})` : ''}</span>
               {onAddMany && availableWells.length > 1 && (
-                <button type="button" className="ml-auto normal-case tracking-normal text-pl-primary-text hover:text-pl-primary-text-hover" data-testid="corr-add-shown"
+                <button type="button" className="ml-auto normal-case tracking-normal text-pl-primary-text hover:text-pl-primary-text-hover" data-testid="corr-well-add-shown"
                   title="Add every well listed here to the section, in list order" onClick={() => onAddMany(availableWells.map((w) => w.id))}>
                   add {filtering ? 'shown' : 'all'} ({availableWells.length})
                 </button>
