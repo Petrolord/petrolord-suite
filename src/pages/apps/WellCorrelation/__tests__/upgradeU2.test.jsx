@@ -457,8 +457,8 @@ describe('U2-009 assisted picking: suggestions only', () => {
     fireEvent.change(await screen.findByTestId('corr-assist-top', {}, T), { target: { value: 'Top Dome' } });
     fireEvent.click(screen.getByTestId('corr-assist-run'));
     const card = await screen.findByTestId('corr-suggestion-KETA-2', {}, T);
-    expect(card.textContent).toMatch(/pick at 15(39|40|41)\.\d m MD/);
-    expect(card.textContent).toMatch(/Why: the GR pattern 20 m either side of Top Dome on KETA-1 matches best here \(r = 0\.9\d/);
+    expect(card.textContent).toMatch(/pick at 15(39|40|41)(\.\d)? m MD/);
+    expect(card.textContent).toMatch(/Why: the GR pattern 20 m either side of Top Dome on KETA-1 matches best here \(r = (0\.9\d|1\.00), [+-][\d.]+ m from the seed placed between Top Marker and Mid Shale\)/);
     expect(screen.getByTestId('corr-suggestions').textContent).toMatch(/No suggestion: KETA-3 \(shared, read-only\)/);
     expect((await b.listTops('corr-w2')).some((t) => t.name === 'Top Dome')).toBe(false); // a suggestion writes nothing
     fireEvent.click(screen.getByTestId('corr-suggestion-accept-KETA-2'));
@@ -477,5 +477,21 @@ describe('U2-009 assisted picking: suggestions only', () => {
     fireEvent.click(await screen.findByTestId('corr-suggestion-reject-KETA-2', {}, T));
     await waitFor(() => expect(status()).toMatch(/Rejected the suggestion for KETA-2; nothing written/), T);
     expect((await b.listTops('corr-w2')).some((t) => t.name === 'Top Dome')).toBe(false);
+  }, 300000);
+});
+
+describe('U2-015 multi-log ghost', () => {
+  test('lays every track, stretches it, and saves it with the section', async () => {
+    const b = makeInMemoryBackend();
+    mount(b, '?wells=corr-w1,corr-w2');
+    await rowsIn(2);
+    fireEvent.change(await screen.findByTestId('corr-ghost-source', {}, T), { target: { value: 'corr-w1' } });
+    fireEvent.change(await screen.findByTestId('corr-ghost-tracks', {}, T), { target: { value: 'all' } });
+    fireEvent.change(screen.getByTestId('corr-ghost-stretch'), { target: { value: '125' } });
+    await waitFor(() => expect(screen.getByTestId('corr-section').getAttribute('data-ghost')).toBe('corr-w1>corr-w2:0:x1.25:all'), T);
+    expect(screen.getByTestId('corr-ghost-stretch-value').textContent).toBe('x1.25');
+    fireEvent.click(screen.getByTestId('corr-save'));
+    await waitFor(() => expect(status()).toMatch(/Section saved/), T);
+    expect((await b.loadSection()).track_layout.ghost).toMatchObject({ sourceWellId: 'corr-w1', targetWellId: 'corr-w2', stretch: 1.25, tracks: 'all' });
   }, 300000);
 });

@@ -15,6 +15,27 @@
 
 export const MIN_R = 0.6;
 
+/**
+ * Where to start looking in the target: between the nearest tops both wells
+ * carry above and below the reference pick (proportionally), or by the
+ * offset of the one shared top, else null (the caller uses the displayed
+ * depth). Returns the seed and the words for the reason.
+ */
+export function bracketSeed(refTops, tgtTops, refMd) {
+  const tgtBy = new Map(tgtTops.map((t) => [t.name, t.md_m]));
+  const shared = refTops.filter((t) => tgtBy.has(t.name) && Number.isFinite(t.md_m) && Math.abs(t.md_m - refMd) > 1e-6);
+  const above = shared.filter((t) => t.md_m < refMd).sort((a, b) => b.md_m - a.md_m)[0];
+  const below = shared.filter((t) => t.md_m > refMd).sort((a, b) => a.md_m - b.md_m)[0];
+  if (above && below) {
+    const f = (refMd - above.md_m) / (below.md_m - above.md_m);
+    const ta = tgtBy.get(above.name); const tb = tgtBy.get(below.name);
+    if (tb > ta) return { md: ta + f * (tb - ta), how: `between ${above.name} and ${below.name}` };
+  }
+  const one = above || below;
+  if (one) return { md: refMd + (tgtBy.get(one.name) - one.md_m), how: `by the offset of ${one.name}` };
+  return null;
+}
+
 /** Linear sample of a (depth ascending) curve at md; NaN outside or across a NaN. */
 export function sampleAt(depth, values, md) {
   const n = depth?.length || 0;
@@ -64,7 +85,8 @@ export function lagSuggestion(ref, tgt, { halfWindowM = 20, maxLagM = 30 } = {})
     const lag = j * step;
     const tw = tAll.slice(j + lags, j + lags + n);
     const { r } = pearson(refWin, tw);
-    if (Number.isFinite(r) && r > best.r + 1e-12) best = { r, lag };
+    // equal matches (a repetitive log) prefer the smaller move from the seed
+    if (Number.isFinite(r) && (r > best.r + 1e-9 || (Math.abs(r - best.r) <= 1e-9 && Math.abs(lag) < Math.abs(best.lag)))) best = { r, lag };
   }
   if (!(best.r >= MIN_R)) return { none: true, bestR: Number.isFinite(best.r) ? best.r : NaN };
   return { md: tgt.seedMd + best.lag, lagM: best.lag, r: best.r };

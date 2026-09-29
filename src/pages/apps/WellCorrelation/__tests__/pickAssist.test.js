@@ -52,3 +52,13 @@ test('snap finds the strongest change near a pick', () => {
   expect(Math.abs(s.md - 1043)).toBeLessThanOrEqual(1);
   expect(s.from).toBeGreaterThan(s.to);
 });
+
+test('the search starts between the tops both wells carry', () => {
+  // eslint-disable-next-line global-require
+  const { bracketSeed } = require('../services/pickAssist');
+  const ref = [{ name: 'A', md_m: 1440 }, { name: 'X', md_m: 1500 }, { name: 'B', md_m: 1580 }];
+  const tgt = [{ name: 'A', md_m: 1470 }, { name: 'B', md_m: 1610 }];
+  expect(bracketSeed(ref, tgt, 1500)).toEqual({ md: 1470 + (60 / 140) * 140, how: 'between A and B' });
+  expect(bracketSeed(ref, [{ name: 'B', md_m: 1600 }], 1500)).toEqual({ md: 1520, how: 'by the offset of B' });
+  expect(bracketSeed(ref, [], 1500)).toBeNull();
+});

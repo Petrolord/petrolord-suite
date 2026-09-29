@@ -45,7 +45,7 @@ import { sheetRows } from '../../WellDataManager/engine/topsSheet';
 import { horizonCandidates, horizonAtWell, horizonLabel } from '@/components/wells/section/horizons';
 import { wellStrips } from '@/components/wells/section/petroStrips';
 import { wellsInCorridor } from '../services/sectionLine';
-import { lagSuggestion, snapSuggestion, MIN_R } from '../services/pickAssist';
+import { lagSuggestion, snapSuggestion, bracketSeed, MIN_R } from '../services/pickAssist';
 
 // Fixed values for the parameter-bound fills of the Petrophysics
 // templates (GR clean/clay lines, porosity and saturation cut-offs): the
@@ -170,15 +170,18 @@ export default function CorrelationWorkstation({
       const ref = carriers.reduce((b, c) => (Math.abs(c.i - i) < Math.abs(b.i - i) ? c : b), carriers[0]);
       const rl = log(ref.w.id);
       if (!rl) { none.push(`${w.name} (${ref.w.name} has no GR log)`); return; }
+      // seed between the tops both wells carry, else at the same displayed depth
       let seed = ref.top.md_m;
-      if (conv?.displayedAt && conv?.mdAt) {
+      let how = 'the same displayed depth';
+      const br = bracketSeed(ref.w.tops || [], w.tops || [], ref.top.md_m);
+      if (br) { seed = br.md; how = br.how; } else if (conv?.displayedAt && conv?.mdAt) {
         const inv = conv.mdAt(w.id, conv.displayedAt(ref.w.id, ref.top.md_m));
         if (inv && Number.isFinite(inv.md) && !inv.ambiguous) seed = inv.md;
       }
       const s = lagSuggestion({ ...rl, topMd: ref.top.md_m }, { ...lg, seedMd: seed });
       if (s.none) { none.push(`${w.name} (no confident match with ${ref.w.name}: best r ${Number.isFinite(s.bestR) ? s.bestR.toFixed(2) : EMPTY_VALUE}, needs ${MIN_R})`); return; }
       items.push({ key: `lag:${w.id}`, kind: 'lag', wellId: w.id, wellName: w.name, md: Number(s.md.toFixed(2)),
-        reason: `the GR pattern 20 m either side of ${name} on ${ref.w.name} matches best here (r = ${s.r.toFixed(2)}, ${s.lagM >= 0 ? '+' : ''}${depthLabel(s.lagM, depthUnit)} from the same displayed depth)` });
+        reason: `the GR pattern 20 m either side of ${name} on ${ref.w.name} matches best here (r = ${s.r.toFixed(2)}, ${s.lagM >= 0 ? '+' : ''}${depthLabel(s.lagM, depthUnit)} from the seed placed ${how})` });
     });
     setSuggestions({ name, items, none });
     setStatus(items.length ? `${items.length} suggestion${items.length === 1 ? '' : 's'} for ${name}. Nothing is written until you accept one.` : `No suggestion for ${name}.`);
