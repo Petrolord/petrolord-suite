@@ -11,6 +11,7 @@
 // passive badge.
 
 import React, { useState } from 'react';
+import { zoneKeyLabel } from '../services/zoneProperties';
 import { SAND_FAMILY } from '@/lib/stratigraphy/stratMaps';
 import { LITHOLOGIES } from '@/lib/stratigraphy/lithology';
 import {
@@ -196,7 +197,7 @@ export default function SurfacesExplorer({
             {topNames.map((n) => <option key={`top:${n}`} value={`top:${n}`}>Top: {n}</option>)}
           </optgroup>
           <optgroup label="Attribute: zone property">
-            {zoneKeys.map((k) => <option key={`zone:${k}`} value={`zone:${k}`}>Zone: {k}</option>)}
+            {zoneKeys.map((k) => <option key={`zone:${k}`} value={`zone:${k}`}>Zone: {zoneKeyLabel(k)}</option>)}
           </optgroup>
           <optgroup label="Stratigraphy: between two tops">
             <option value="net:net">Net sand thickness</option>
