@@ -79,6 +79,14 @@ describe('PetrophysicsHelpGuide', () => {
     // U2-002
     expect(text).toMatch(/switches parameter entry between SI and Field/);
     expect(text).toMatch(/stored in SI either way/);
+    // U2-007, U2-010
+    expect(text).toMatch(/log10 k = a \+ b φ/);
+    expect(text).toMatch(/Saturation-height from SCAL Studio/);
+    // U2-011, U2-006, U2-015, U2-018
+    expect(text).toMatch(/split by depth across up to four workers/);
+    expect(text).toMatch(/Data AI facies/);
+    expect(text).toMatch(/Check against this well/);
+    expect(text).toMatch(/25 reads per person per day/);
     // U2-009, U2-013
     expect(text).toMatch(/Published curves: current or stale/);
     expect(text).toMatch(/Republish/);

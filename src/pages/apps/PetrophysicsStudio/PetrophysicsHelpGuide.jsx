@@ -965,7 +965,9 @@ const PetrophysicsHelpGuide = () => (
         cases move, with those two values as the 10th and 90th percentiles and the current value as
         the median), choose a distribution for each (triangular from three percentiles, uniform,
         normal or lognormal), pick the number of realisations and a seed, and run. The run happens in
-        a background worker with a progress bar; the same seed always gives the same answer. Every
+        background workers with a progress bar: a long well is split by depth across up to four workers (the
+        cores the machine has, less one), each running every realisation over its part, and the parts join into
+        one answer; the same seed always gives the same answer however it is split. Every
         realisation is the ordinary zoned pipeline with one drawn parameter set, so nothing new is
         assumed. The results are per-sample curves at the 10th, 50th and 90th percentile of PHIT,
         PHIE, Vsh, Sw, BVW and k, a pay probability curve (the fraction of realisations that flag a
@@ -1032,6 +1034,14 @@ const PetrophysicsHelpGuide = () => (
         scan: drag a point to move it, click empty space to add one, Alt-click or right-click to
         remove one, Undo reverts. The preview states the sample count, the depth range and the
         value range before you save.
+      </Para>
+      <Para>
+        A curve printed on a backup scale wraps back in from the other edge of its track when it runs off
+        (a gamma ray past 150 API on a 0 to 150 track). Tick <Code>Backup scale</Code> in Review and every
+        jump of more than half a track between neighbouring samples is undone, one scale width at a time (one
+        scale ratio on a logarithmic track); the saved curve records how many wraps it undid. The scan reader
+        allows 25 reads per person per day (the count resets at 00:00 UTC); past that it says so and you
+        calibrate by hand.
       </Para>
       <Para>
         A digitized curve is always a new curve: it is saved as <Code>MNEMONIC_DIG</Code>, then
@@ -1102,6 +1112,44 @@ const PetrophysicsHelpGuide = () => (
         Correlation, Rock Physics and every other app read it too; the samples are not touched and the curve&apos;s
         provenance records the old and new unit. The unit spellings come from one table that Rock Physics Studio
         reads as well.
+      </Para>
+      <SubHeading>Core calibration</SubHeading>
+      <Para>
+        <Code>Core…</Code> on the ribbon finds the well&apos;s routine core analysis (CPOR, CKH and the usual spellings;
+        percent porosity is read as v/v) as Well Data Manager stores it after a merge: each plug on its nearest log
+        sample. The dialog plots core permeability against porosity on a log scale with the log model&apos;s samples in
+        grey, fits the semi-log transform log10 k = a + b φ by least squares (Nelson 1994) for the whole well and for
+        each zone from that zone&apos;s own plugs, and lists a, b, R², the RMS error in log cycles and the porosity range
+        each fit covers; fewer than three plugs, or plugs all at one porosity, give no fit and say so.
+        <Code>Show on tracks</Code> opens the Core calibration layout: the plugs as points on the porosity and
+        permeability tracks, and <Code>K_CORE</Code>, the zone&apos;s transform applied to φe, beside the log model&apos;s
+        KPERM. Outside the fitted porosity range the transform is an extrapolation.
+      </Para>
+      <SubHeading>Saturation-height from SCAL Studio</SubHeading>
+      <Para>
+        <Code>Sat-height…</Code> reads a project saved in SCAL Studio under your account: its Leverett J function, rock,
+        fluid gradients and free-water level (FWL). Choose whether k and φ come from the project&apos;s rock or from each
+        sample&apos;s KPERM and φe, and check the FWL (TVDSS). <Code>Compute</Code> gives <Code>SW_SHM</Code>, the water
+        saturation at each sample&apos;s height above the FWL through SCAL Studio&apos;s own J, capillary pressure and height
+        chain (1 at and below the FWL), and a table of mean log Sw against mean saturation-height Sw per zone.
+        <Code>Show on tracks</Code> puts both on one Sw track. A large difference points at Rw, m and n, the FWL, or a
+        rock the J function does not describe.
+      </Para>
+      <SubHeading>Parameter checks against the well</SubHeading>
+      <Para>
+        Under the parameters, <Code>Check against this well</Code> appears when a value sits outside what this
+        well&apos;s own logs show: a GR clean line above the median GR or far below the cleanest rock, a GR clay line
+        below the median or far above the shales, a matrix density lighter than a share of the RHOB samples
+        (negative porosity), a cutoff no sample passes, or an Rw above the apparent Rwa of the clean porous rock.
+        Each hint quotes the well&apos;s own number. Hints advise; nothing is changed or blocked.
+      </Para>
+      <SubHeading>Data AI facies</SubHeading>
+      <Para>
+        Classes written by Data AI&apos;s Electrofacies Studio (curves such as EFAC_KM) are listed under the well&apos;s
+        curves. <Code>Show</Code> draws one as a strip track, labelled from its legend (with the matched core facies
+        when the run had one), beside the Studio&apos;s rule and crossplot facies; <Code>Compare</Code> tabulates the
+        share of samples in each pair of rule class and Data AI class. In the other direction, Data AI reads the
+        Studio&apos;s published facies and rule facies intervals as a core facies source.
       </Para>
       <SubHeading>Published curves: current or stale</SubHeading>
       <Para>
