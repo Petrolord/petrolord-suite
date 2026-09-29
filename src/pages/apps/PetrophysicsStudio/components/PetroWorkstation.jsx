@@ -37,6 +37,9 @@ import ScenariosDialog from './ScenariosDialog';
 import ProbabilisticDialog from './ProbabilisticDialog';
 import SensitivityDialog from './SensitivityDialog';                 // PETRO-U2-005
 import InputUnitsDialog from './InputUnitsDialog';                   // PETRO-U2-001
+import PublishedCurvesPanel from './PublishedCurvesPanel';           // PETRO-U2-009/013
+import { publishedSummary, faciesState, faciesKey } from '../services/publishedCurves';
+import { isPrePt9aPhie } from '@/lib/petroProvenance';
 import { ensureProbabilisticTemplate, probabilisticPublishLogs, runProbabilisticAsync } from '../services/probabilistic';
 import { createProbabilisticWorker } from '../services/probabilisticWorkerFactory';
 import { runScenarios, scenarioOutputs, ensureScenarioTemplate, SCENARIO_CURVES } from '../services/scenarios';
@@ -511,6 +514,21 @@ export default function PetroWorkstation({
     return zoneReports({ curves: wellData.curves, outputs: computed.outputs, params, zones, zoneParams, well: selected });
   }, [wellData, computed, params, zones, zoneParams, selected]);
 
+  // PETRO-U2-009/013: the Studio's published curves against the interpretation now open
+  const published = useMemo(() => (wellData
+    ? publishedSummary(wellData.allLogs, { params, zoneParams, projectId })
+    : null), [wellData, params, zoneParams, projectId]);
+  const publishedFacies = useMemo(() => {
+    if (!wellData) return [];
+    return [
+      ['electrofacies', 'Rule facies', ruleFacies],
+      ['facies', 'Crossplot facies', facies],
+    ].map(([kind, label, defs]) => {
+      const st = faciesState(wellData.intervals, kind, defs);
+      return st ? { kind, label, ...st } : null;
+    }).filter(Boolean);
+  }, [wellData, ruleFacies, facies]);
+
   // PETRO-U2-005: TVT per sample for the sensitivity and the report's sensitivity table
   const sensitivityVth = useMemo(() => (wellData ? verticalSampleThickness(wellData.curves.DEPT, selected) : null), [wellData, selected]);
 
@@ -565,7 +583,8 @@ export default function PetroWorkstation({
     setPublishing(true);
     try {
       const data = classifyRules(ruleCurves, rules, wellData.curves.DEPT.length).data;
-      const rows = intervalsFromRuns(wellData.curves.DEPT, data, rules.map((r) => r.name), { kind: 'electrofacies', colours: rules.map((r) => r.color), source: 'interpretation' });
+      const rows = intervalsFromRuns(wellData.curves.DEPT, data, rules.map((r) => r.name), { kind: 'electrofacies', colours: rules.map((r) => r.color), source: 'interpretation' })
+        .map((r) => ({ ...r, properties: { ...(r.properties || {}), source_key: faciesKey(rules) } })); // PETRO-U2-009
       const saved = await backend.replaceIntervals(wellData.wellId, 'electrofacies', rows);
       setWellData((d) => (d ? { ...d, intervals: [...(d.intervals || []).filter((r) => r.kind !== 'electrofacies'), ...saved] } : d));
       applyRuleFacies(rules);
@@ -643,7 +662,7 @@ export default function PetroWorkstation({
   // publish the current computed curves to the registry (overwrite-own
   // rule enforced in the backend) + refresh the inventory so the new
   // VSH/PHIT/PHIE/SW/KPERM/PAY rows show as mapped inputs going forward
-  const publish = async () => {
+  const publish = async ({ retireOldPhie = false } = {}) => {
     if (!wellData || !computed) return;
     setPublishing(true);
     try {
@@ -651,7 +670,14 @@ export default function PetroWorkstation({
         projectId, interpretationName: projectName, zoneParams,
       });
       const saved = await backend.publishCurves(wellData.wellId, prepared, projectId);
-      setStatus(`Published ${saved.length} curves to ${selected.name}.`);
+      // PETRO-U2-013: an explicit Republish also removes the Studio's pre-PT9a
+      // PHIE rows (total porosity under the PHIE name), on the owner's click only
+      let retired = 0;
+      if (retireOldPhie) {
+        for (const log of (wellData.allLogs || []).filter(isPrePt9aPhie)) { await backend.deleteLog(log); retired += 1; }
+      }
+      await select(wellData.wellId);
+      setStatus(`Published ${saved.length} curves to ${selected.name}.${retired ? ` Removed ${retired} PHIE row${retired === 1 ? '' : 's'} published before 2026-09-07 (total porosity).` : ''}`);
     } catch (e) {
       setStatus(e.message);
     } finally {
@@ -666,7 +692,8 @@ export default function PetroWorkstation({
     if (!wellData || !faciesData || !facies.length) { setStatus('Draw facies polygons on the crossplot first.'); return; }
     setPublishing(true);
     try {
-      const rows = intervalsFromRuns(wellData.curves.DEPT, faciesData, facies.map((f) => f.name), { kind: 'facies', colours: facies.map((f) => f.color), source: 'log' });
+      const rows = intervalsFromRuns(wellData.curves.DEPT, faciesData, facies.map((f) => f.name), { kind: 'facies', colours: facies.map((f) => f.color), source: 'log' })
+        .map((r) => ({ ...r, properties: { ...(r.properties || {}), source_key: faciesKey(facies) } })); // PETRO-U2-009
       const saved = await backend.replaceIntervals(wellData.wellId, 'facies', rows);
       setWellData((d) => (d ? { ...d, intervals: [...(d.intervals || []).filter((r) => r.kind !== 'facies'), ...saved] } : d));
       setStatus(`Published ${saved.length} facies interval${saved.length === 1 ? '' : 's'} to ${selected.name}.`);
@@ -1072,7 +1099,7 @@ export default function PetroWorkstation({
           title={selected && !selected.is_own ? 'Org-shared wells are read-only' : 'Publish computed curves to the registry'}
           className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
             border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40"
-          onClick={publish}
+          onClick={() => publish()}
         >
           {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5" />}
           Publish
@@ -1476,6 +1503,15 @@ export default function PetroWorkstation({
           allLogs={wellData?.allLogs}
           onPickCurve={selected?.is_own ? pickCurve : undefined}
           onSelect={select}
+          selectedExtra={wellData ? (
+            <PublishedCurvesPanel
+              summary={published}
+              facies={publishedFacies}
+              isOwn={!!selected?.is_own}
+              busy={publishing}
+              onRepublish={() => publish({ retireOldPhie: true })}
+            />
+          ) : null}
         />
       )}
       center={center}

@@ -79,6 +79,9 @@ describe('PetrophysicsHelpGuide', () => {
     // U2-002
     expect(text).toMatch(/switches parameter entry between SI and Field/);
     expect(text).toMatch(/stored in SI either way/);
+    // U2-009, U2-013
+    expect(text).toMatch(/Published curves: current or stale/);
+    expect(text).toMatch(/Republish/);
     // U2-012
     expect(text).toMatch(/BVW is PHIT × Swt/);
     // U2-001

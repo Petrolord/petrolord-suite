@@ -1103,6 +1103,17 @@ const PetrophysicsHelpGuide = () => (
         provenance records the old and new unit. The unit spellings come from one table that Rock Physics Studio
         reads as well.
       </Para>
+      <SubHeading>Published curves: current or stale</SubHeading>
+      <Para>
+        Under the selected well&apos;s curve list, <Code>Published here</Code> lists every curve the Studio&apos;s
+        Publish wrote on the well and whether it still matches the interpretation now open: <Code>current</Code>,
+        <Code>stale</Code> with what moved (parameters by name, zone overrides, the pipeline version), or
+        <Code>other interpretation</Code>. Rule facies and crossplot facies intervals say the same against the rules or
+        polygons now drawn. A PHIE published before 2026-09-07 (pipeline below 5) holds total porosity; it reads
+        <Code>total porosity (pre 2026-09-07)</Code> here and in Well Data Manager, Rock Physics, Data AI and Earth
+        Modeling. Nothing is rewritten on its own: on a well you own, <Code>Republish</Code> publishes this
+        interpretation again and removes those old PHIE rows.
+      </Para>
       <SubHeading>Output curves</SubHeading>
       <Table
         headers={['Curve', 'Available when', 'Chartable as']}
