@@ -227,7 +227,7 @@ export default function SectionControls({
             <select className={selCls} value={spacing} data-testid="corr-spacing" onChange={(e) => onSpacing(e.target.value)}>
               <option value="equal">equal</option>
               <option value="proportional">by distance</option>
-              {(hasLine || spacing === 'line') && <option value="line">along the section line</option>}
+              {(hasLine || spacing === 'line') && <option value="line">along line</option>}
             </select>
           </label>
           {onColumnWidth && (
