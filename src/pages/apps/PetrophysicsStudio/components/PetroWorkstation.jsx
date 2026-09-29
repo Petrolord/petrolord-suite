@@ -40,6 +40,7 @@ import InputUnitsDialog from './InputUnitsDialog';                   // PETRO-U2
 import PublishedCurvesPanel from './PublishedCurvesPanel';           // PETRO-U2-009/013
 import MlFaciesPanel from './MlFaciesPanel';                         // PETRO-U2-006
 import { mlFaciesLogs, mlFaciesIntervals, mlKind } from '../services/mlFacies';
+import { paramQcHints } from '../services/paramQc';
 import CoreDialog from './CoreDialog';                               // PETRO-U2-007
 import SaturationHeightDialog from './SaturationHeightDialog';       // PETRO-U2-010
 import { shmCurve, shmZoneComparison, ensureShmTemplate } from '../services/saturationHeight';
@@ -397,6 +398,8 @@ export default function PetroWorkstation({
   const shmComparison = useMemo(() => (shmResult && computed?.outputs.SW
     ? shmZoneComparison({ depth: wellData.curves.DEPT, sw: computed.outputs.SW, swShm: shmResult.data, zones })
     : null), [shmResult, computed, wellData, zones]);
+  // PETRO-U2-015: the base parameters against this well's own logs
+  const qcHints = useMemo(() => (wellData && computed ? paramQcHints({ curves: wellData.curves, outputs: computed.outputs, params }) : []), [wellData, computed, params]);
   // PETRO-U2-006: Data AI facies curves read as interval rows for strip tracks
   const mlFacies = useMemo(() => {
     if (!wellData) return [];
@@ -1615,6 +1618,7 @@ export default function PetroWorkstation({
               onOpenZoneTable={() => setZoneTableOpen(true)}
               unitSystem={paramUnits}
               onUnitSystem={setParamUnits}
+              qcHints={qcHints}
             />
             {/* the track layout editor's curve rows are wider than a narrow dock: they scroll sideways here */}
             <div className="overflow-x-auto" data-testid="petro-layout-scroll">

@@ -21,7 +21,7 @@ const selCls = inputCls;
 
 export default function ParameterPanel({
   params, onApply, zones = [], zoneParams = {}, onApplyZone, onOpenZoneTable = null,
-  unitSystem = 'si', onUnitSystem = null,
+  unitSystem = 'si', onUnitSystem = null, qcHints = [],
 }) {
   const [scope, setScope] = useState('global'); // 'global' | zone id
   const zone = zones.find((z) => z.id === scope) || null;
@@ -160,6 +160,15 @@ export default function ParameterPanel({
           )}
         </label>
       )))}
+      {/* PETRO-U2-015: parameters far from the well's own logs, said before a publish */}
+      {qcHints.length > 0 && (
+        <div className="mt-2 rounded border border-pl-warning/60 bg-pl-warning-bg/40 p-1.5 space-y-1" data-testid="petro-param-qc">
+          <div className="text-[10px] uppercase tracking-wider text-pl-warning-text">Check against this well</div>
+          {qcHints.map((h) => (
+            <p key={`${h.key}-${h.text.slice(0, 12)}`} className={`text-[10px] leading-snug ${h.level === 'error' ? 'text-pl-danger-text' : 'text-pl-warning-text'}`} data-testid={`petro-param-qc-${h.key}`}>{h.text}</p>
+          ))}
+        </div>
+      )}
       <button
         type="button"
         data-testid="petro-params-apply"
