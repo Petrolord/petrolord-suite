@@ -132,3 +132,45 @@ test('U2-003 + U2-005: the PDF carries the sensitivity table and a log plot page
   await page.getByTestId('petro-export').click();
   await expect(page.getByTestId('petro-export-cpi-note')).toContainText('Open the Tracks or Split view first');
 });
+
+test('U2-007 + U2-010: core calibration and saturation-height on white paper', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openKeta(page);
+  await page.getByTestId('petro-core').click();
+  await expect(page.getByTestId('petro-core-found')).toContainText('CPOR, CKH');
+  expect(await page.getByTestId('petro-core-plug').count()).toBeGreaterThan(5);
+  expect(await page.getByTestId('petro-core-crossplot').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)');
+  await page.screenshot({ path: `${SHOTS}/core-dialog.png` });
+  await page.getByTestId('petro-core-tracks').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Core calibration layout is active');
+  await page.screenshot({ path: `${SHOTS}/core-tracks.png` });
+  await page.getByTestId('petro-shm').click();
+  await expect(page.getByTestId('petro-shm-fwl')).toHaveValue('2060');
+  await page.getByTestId('petro-shm-run').click();
+  await expect(page.getByTestId('petro-shm-row-SAND A')).toContainText('0.');
+  await page.screenshot({ path: `${SHOTS}/shm-dialog.png` });
+  await page.getByTestId('petro-shm-tracks').click();
+  await expect(page.getByTestId('petro-status')).toContainText('saturation-height layout is active');
+  await page.screenshot({ path: `${SHOTS}/shm-tracks.png` });
+});
+
+test('U2-011: 100 draws on the 20,000 ft well, timed', async ({ page }) => {
+  test.setTimeout(600000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/dev/petrophysics-studio?scaleWell=1');
+  await page.locator('[data-well-name="SCALE-20K"]').click();
+  await expect(page.getByTestId('petro-zone-net-WHOLE WELL')).toBeAttached({ timeout: 120000 });
+  await page.getByTestId('petro-probabilistic').click();
+  await page.getByTestId('petro-prob-n').selectOption('100');
+  const t0 = Date.now();
+  await page.getByTestId('petro-prob-run').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Probabilistic run done: 100 realisations', { timeout: 480000 });
+  const ms = Date.now() - t0;
+  const cores = await page.evaluate(() => navigator.hardwareConcurrency);
+  console.log(`U2-011 probabilistic 100 draws x 40,001 samples: ${ms} ms on ${cores} cores; status: ${await page.getByTestId('petro-status').innerText()}`);
+  await expect(page.getByTestId('petro-prob-hcpv-WHOLE WELL-p50')).not.toHaveText('n/a');
+  // the programme target is under 10 s; the gate by default is the Step 1
+  // baseline (53.5 s, PETRO-U1-033) so a regression fails. On a quiet
+  // machine run with PETRO_TIMING_BUDGET_MS=10000 to check the target.
+  expect(ms).toBeLessThan(Number(process.env.PETRO_TIMING_BUDGET_MS || 53500));
+});
