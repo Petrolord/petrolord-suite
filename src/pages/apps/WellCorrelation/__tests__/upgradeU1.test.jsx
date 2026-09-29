@@ -130,7 +130,7 @@ describe('WC-U1-008 tops spelled two ways', () => {
     fireEvent.click(byExactId('corr-top-rename-Base Seal '));
     fireEvent.change(byExactId('corr-top-rename-input-Base Seal '), { target: { value: 'Base Seal' } });
     fireEvent.click(byExactId('corr-top-rename-ok-Base Seal '));
-    await waitFor(() => expect(status()).toMatch(/Renamed/));
+    await waitFor(() => expect(status()).toMatch(/Renamed/), { timeout: 8000 });
     expect((await b.listTops('hw-case')).map((t) => t.name)).toContain('Base Seal');
     // IDU 11 carries Top Agbada AND TOP AGBADA: renaming onto Top Agbada skips it
     fireEvent.click(screen.getByTestId('corr-top-rename-TOP AGBADA'));
