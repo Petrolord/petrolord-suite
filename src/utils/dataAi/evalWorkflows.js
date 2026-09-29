@@ -32,7 +32,7 @@ import * as EV from '@/utils/dataAi/engine/evaluate';
 import { APP_CAPS, cmpId, judgedQueryIds } from '@/utils/dataAi/evalData';
 
 /** The engine build the studio runs: petrolord-engines at the VENDOR.json pin. */
-export const ENGINE_VERSION = 'petrolord-engines e67e7ba (engines/dataai/evaluate.js, PR #257; PR #258 note and basis wording, no numeric change)';
+export const ENGINE_VERSION = 'petrolord-engines 6d6bdde (engines/dataai/evaluate.js, PR #257; PR #258 note and basis wording, no numeric change)';
 export const ENGINE_COMMIT = '6d6bdde6134f87f7c8dc43aaf76eb95181f90ad8';
 
 export const ENGINE_DEFAULTS = EV.DEFAULTS;
