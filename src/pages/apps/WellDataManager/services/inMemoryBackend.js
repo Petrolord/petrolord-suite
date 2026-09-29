@@ -8,7 +8,7 @@
 // (is_own=false rows hide the owner-only actions, like RLS would
 // reject them server-side).
 
-import { wellNameClashMessage, validateStoredCheckshotsShape, LogsStoppedError } from '@/lib/wellsRegistry';
+import { wellNameClashMessage, validateStoredCheckshotsShape, LogsStoppedError, surfaceCoordProblem } from '@/lib/wellsRegistry';
 import { PLATFORM_BUILD } from '@/lib/platformBuild';
 import { parseLas } from '../engine/lasParse';
 import { prepareLasForRegistry } from '../engine/lasIndex';
@@ -95,6 +95,9 @@ export function makeInMemoryBackend(opts = {}) {
 
   const update = async (wellId, patch) => {
     const w = ownWell(wellId, 'edit');
+    for (const [n, col] of [['Surface X', 'surface_x'], ['Surface Y', 'surface_y']]) {
+      if (patch && col in patch) { const bad = surfaceCoordProblem(n, patch[col]); if (bad) throw new Error(bad); }
+    }
     if (patch && patch.name !== undefined) {
       const msg = wellNameClashMessage(patch.name, wells, { exceptId: wellId, userId: DEV_USER });
       if (msg) throw new Error(msg);
@@ -110,6 +113,10 @@ export function makeInMemoryBackend(opts = {}) {
     },
 
     async saveWell(w) {
+      for (const [n, v] of [['Surface X', w.surfaceX], ['Surface Y', w.surfaceY]]) {
+        const bad = surfaceCoordProblem(n, v);
+        if (bad) throw new Error(bad);
+      }
       // same one-name-per-registry rule as the live registry
       const msg = wellNameClashMessage(w.name, wells, { userId: DEV_USER });
       if (msg) throw new Error(msg);
@@ -156,8 +163,9 @@ export function makeInMemoryBackend(opts = {}) {
       // that they are finite, transform nothing.
       for (const [name, value, col] of [['Surface X', surfaceX, 'surface_x'], ['Surface Y', surfaceY, 'surface_y']]) {
         if (value === undefined) continue;
-        if (value === null) { patch[col] = null; continue; }
-        if (!Number.isFinite(Number(value))) throw new Error(`${name} must be a number in the well's CRS.`);
+        // WDM-U2-F01: live surface_x/y are NOT NULL; the harness refuses the same
+        const msg = surfaceCoordProblem(name, value);
+        if (msg) throw new Error(msg);
         patch[col] = Number(value);
       }
       if (kbM !== undefined) {

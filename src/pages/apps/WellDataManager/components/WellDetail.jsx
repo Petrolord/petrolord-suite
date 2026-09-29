@@ -17,6 +17,7 @@ import { mapTopHref, appPath, MAPPING_ID } from '@/components/wells/appLinks';
 import CrsBadge from '@/components/crs/CrsBadge';
 import CrsPicker from '@/components/crs/CrsPicker';
 import { datumTransformInfo } from '@/lib/crs';
+import { surfaceCoordProblem } from '@/lib/wellsRegistry';
 import RowGridEditor from '@/components/wells/RowGridEditor';
 import PasteReplacePanel, { CheckshotConventionRow } from '@/components/wells/PasteReplacePanel';
 import { buildDeviation, buildTops, buildCheckshotInputs } from '@/lib/wellImport';
@@ -227,7 +228,9 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
         // PT8: a blank coordinate clears it; anything else must be finite.
         // The value is stored as typed — it is already in the well's CRS.
         const coord = (raw, label) => {
-          if (String(raw).trim() === '') return null;
+          // WDM-U2-F01: the registry needs a location; never send a blank
+          const bad = surfaceCoordProblem(label, raw, `${xyUnitLabel}, ${crsLabel}`);
+          if (bad) throw new Error(bad);
           const v = Number(raw);
           if (!Number.isFinite(v)) throw new Error(`${label} must be a number in the well's CRS (${crsLabel}).`);
           return v;
@@ -411,6 +414,10 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
   };
 
   const shared = !!well.organization_id;
+  // WDM-U2-F01: Save stays disabled while X or Y is blank or not a number
+  const headerProblem = editor?.tab === 'Header'
+    ? (surfaceCoordProblem('Surface X', editor.fields.x, `${xyUnitLabel}, ${crsLabel}`) || surfaceCoordProblem('Surface Y', editor.fields.y, `${xyUnitLabel}, ${crsLabel}`))
+    : null;
 
   // WDM-U2-016: put the tops back as they were before the last save
   const undoTops = async () => {
@@ -517,14 +524,14 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
               {editor?.tab === 'Header' ? (
                 <input className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-32"
                   value={editor.fields.x} onChange={(e) => setEditor((ed) => ({ ...ed, fields: { ...ed.fields, x: e.target.value } }))}
-                  data-testid="wdm-header-x" placeholder="blank = not set" />
+                  data-testid="wdm-header-x" inputMode="decimal" />
               ) : fmt(well.surface_x)}
             </Field>
             <Field label={`Surface Y (${xyUnitLabel}, ${crsLabel})`}>
               {editor?.tab === 'Header' ? (
                 <input className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-32"
                   value={editor.fields.y} onChange={(e) => setEditor((ed) => ({ ...ed, fields: { ...ed.fields, y: e.target.value } }))}
-                  data-testid="wdm-header-y" placeholder="blank = not set" />
+                  data-testid="wdm-header-y" inputMode="decimal" />
               ) : fmt(well.surface_y)}
             </Field>
             <Field label={`KB (${u})`}>
@@ -643,9 +650,10 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
             <Field label="Checkshot pairs">{(well.checkshots || []).length}</Field>
             {editor?.tab === 'Header' && (
               <div className="col-span-2 md:col-span-3 space-y-1">
+                {headerProblem && <div className="text-xs text-pl-warning-text" data-testid="wdm-header-reason">{headerProblem}</div>}
                 {editor.error && <div className="text-xs text-pl-danger-text" data-testid="wdm-header-error">{editor.error}</div>}
                 <div className="flex gap-2">
-                  <button type="button" className={primaryCls} disabled={editor.busy} onClick={() => saveEditor()} data-testid="wdm-header-save">Save header</button>
+                  <button type="button" className={primaryCls} disabled={editor.busy || !!headerProblem} onClick={() => saveEditor()} data-testid="wdm-header-save">Save header</button>
                   <button type="button" className={btnCls} onClick={() => setEditor(null)}>Cancel</button>
                 </div>
               </div>

@@ -414,6 +414,8 @@ are in `docs/upgrade/WellDataManager-UPGRADE.md` ("Batch decision",
   `crs_provenance`), `src/App.jsx` (help routes, hub redirect).
 - **Deferred:** U2-007 datum model, U2-012 team editing, U2-009 Well
   Design / Wellsite source, U2-018 DLIS.
-- **For the owner:** WDM-U2-F01, a blank surface coordinate cannot be
-  stored on live (`surface_x` / `surface_y` are NOT NULL); decide between a
-  migration and refusing the blank.
+- **WDM-U2-F01 resolved 2026-09-29** (no migration): live `surface_x` /
+  `surface_y` are NOT NULL, so the Header editor refuses a blank or
+  non-numeric X/Y and every registry writer refuses it before the request;
+  the harness rejects null like live. A migration may be revisited with the
+  U2-007 datum model.

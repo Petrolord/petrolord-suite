@@ -169,9 +169,9 @@ describe('PT1: well data edits (mirror of the registry rules)', () => {
     await expect(b.updateWellData(w.id, { surfaceY: NaN })).rejects.toThrow(/Surface Y must be a number/);
     // the rejected edits left the row alone
     expect((await b.listWells()).find((x) => x.id === w.id).surface_x).toBe(501234.5);
-    const cleared = await b.updateWellData(w.id, { surfaceX: null, surfaceY: null });
-    expect(cleared.surface_x).toBeNull();
-    expect(cleared.surface_y).toBeNull();
+    // WDM-U2-F01: live surface_x/y are NOT NULL, so a clear is refused like live
+    await expect(b.updateWellData(w.id, { surfaceX: null, surfaceY: null })).rejects.toThrow(/Surface X is required/);
+    expect((await b.listWells()).find((x) => x.id === w.id).surface_x).toBe(501234.5);
   });
   test('tops can be added, moved, renamed and deleted by the owner and stay MD-sorted', async () => {
     const b = makeInMemoryBackend();

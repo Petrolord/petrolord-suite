@@ -31,6 +31,21 @@ export { wellNameKey, wellNameClashMessage };
 
 const BUCKET = 'wells';
 
+/**
+ * WDM-U2-F01 (programme decision 2026-09-29, no migration): geo_wells
+ * surface_x / surface_y are NOT NULL, so every writer refuses a missing or
+ * non-numeric coordinate BEFORE the request and the raw not-null error
+ * never reaches a user. Shared with the harness backend.
+ * @returns {?string} the message, or null when the value is a finite number
+ */
+export function surfaceCoordProblem(name, value, unitLabel = null) {
+  if (value === null || value === undefined || String(value).trim() === '' || !Number.isFinite(Number(value))) {
+    const what = value === null || value === undefined || String(value).trim() === '' ? 'is required' : 'must be a number';
+    return `${name} ${what}${unitLabel ? ` (${unitLabel})` : ''}: the registry stores a surface location for every well.`;
+  }
+  return null;
+}
+
 // ---- app_build stamping (Well Data Manager U2-013) --------------------------
 // Every registry row this module writes says which build wrote it
 // (app_build, from the PP0 registry migration 20260902120500, applied
@@ -91,6 +106,10 @@ export async function assertWellNameFree(name, { exceptId = null, userId = null 
 const isMissingColumn = (error) => error && (error.code === 'PGRST204' || /column .* does not exist|schema cache/i.test(error.message || ''));
 
 export async function saveWell(w) {
+  for (const [n, v] of [['Surface X', w.surfaceX], ['Surface Y', w.surfaceY]]) {
+    const msg = surfaceCoordProblem(n, v);
+    if (msg) throw new Error(msg);
+  }
   const user = await requireUser();
   await assertWellNameFree(w.name, { userId: user.id });
   const row = {
@@ -142,10 +161,9 @@ export async function updateWellData(wellId, {
   const patch = {};
   for (const [name, value, col] of [['Surface X', surfaceX, 'surface_x'], ['Surface Y', surfaceY, 'surface_y']]) {
     if (value === undefined) continue;
-    if (value === null) { patch[col] = null; continue; }
-    const v = Number(value);
-    if (!Number.isFinite(v)) throw new Error(`${name} must be a number in the well's CRS.`);
-    patch[col] = v;
+    const msg = surfaceCoordProblem(name, value);
+    if (msg) throw new Error(msg);
+    patch[col] = Number(value);
   }
   if (kbM !== undefined) {
     const v = Number(kbM);
@@ -275,6 +293,9 @@ export async function getWell(wellId) {
 
 /** Owner-only header/survey updates (RLS rejects everyone else). */
 export async function updateWell(wellId, patch) {
+  for (const [n, col] of [['Surface X', 'surface_x'], ['Surface Y', 'surface_y']]) {
+    if (patch && col in patch) { const msg = surfaceCoordProblem(n, patch[col]); if (msg) throw new Error(msg); }
+  }
   if (patch && patch.name !== undefined) {
     const user = await requireUser();
     await assertWellNameFree(patch.name, { exceptId: wellId, userId: user.id });
