@@ -1349,7 +1349,7 @@ export default function PetroWorkstation({
             if (Number.isFinite(pct) && Math.abs(pct - split) >= 0.1) setPref({ splitPercent: pct });
           }}
         >
-          <ResizablePanel ref={splitTracksRef} id="split-tracks" order={1} defaultSize={split} minSize={SPLIT_MIN_PERCENT} className="min-w-0 border-r border-pl-border">
+          <ResizablePanel ref={splitTracksRef} id="split-tracks" order={1} defaultSize={split} minSize={SPLIT_MIN_PERCENT} className="min-w-0 overflow-x-auto overflow-y-hidden border-r border-pl-border">
             {tracksEl}
           </ResizablePanel>
           <ResizableHandle
@@ -1359,7 +1359,7 @@ export default function PetroWorkstation({
             title="Drag to resize; double-click to reset to 60/40"
             onDoubleClick={() => { splitTracksRef.current?.resize(SPLIT_DEFAULT); setPref({ splitPercent: SPLIT_DEFAULT }); }}
           />
-          <ResizablePanel id="split-crossplot" order={2} defaultSize={100 - split} minSize={SPLIT_MIN_PERCENT} className="min-w-0">
+          <ResizablePanel id="split-crossplot" order={2} defaultSize={100 - split} minSize={SPLIT_MIN_PERCENT} className="min-w-0 overflow-hidden">
             {crossplotEl}
           </ResizablePanel>
         </ResizablePanelGroup>

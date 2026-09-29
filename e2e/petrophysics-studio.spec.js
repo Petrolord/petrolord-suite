@@ -134,7 +134,11 @@ test('publish curves + zone, batch run, and project persistence across reload', 
   await expect(page.getByTestId('petro-zone-published-SAND A')).toContainText('matches these numbers');
 
   // change a parameter and save the project; the published row is now stale and says so (PETRO-U1-014)
+  // (SAND A's oil leg sits well under Sw 0.55, so its numbers do not move and the row still matches)
   await page.getByTestId('petro-param-cutSw').fill('0.55');
+  await page.getByTestId('petro-params-apply').click();
+  await expect(page.getByTestId('petro-zone-published-SAND A')).toContainText('matches these numbers');
+  await page.getByTestId('petro-param-cutPhi').fill('0.2');
   await page.getByTestId('petro-params-apply').click();
   await expect(page.getByTestId('petro-zone-published-SAND A')).toContainText('publish again');
   await page.getByTestId('petro-save-project').click();
@@ -1346,6 +1350,9 @@ test('PT11d: the mineral model runs on the type well, refuses the gas zone, appl
   await page.getByTestId('petro-mineral-publish').click();
   await expect(page.getByTestId('petro-status')).toContainText('Published 6 mineral model curves');
   await expect(page.getByTestId('petro-curve-inventory')).toContainText('V_QUARTZ');
+  // the dialog is modal since the design-system rollout: close it before the parameter panel
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('petro-mineral-dialog')).toHaveCount(0);
   // the solved porosity feeds the pipeline only through the explicit source
   await page.getByTestId('petro-param-phiSource').selectOption('mineral');
   await page.getByTestId('petro-params-apply').click();
