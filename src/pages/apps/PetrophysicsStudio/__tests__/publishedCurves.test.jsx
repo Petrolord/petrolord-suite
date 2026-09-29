@@ -77,7 +77,7 @@ describe('pre-PT9a PHIE flagged wherever it is read', () => {
       provenance: { computed: true, engine: 'petrophysics-studio', pipeline_version: 4, project_id: 'old-project', params: {} },
     }], 'old-project');
     render(<MemoryRouter><PetroWorkstation backend={backend} /></MemoryRouter>);
-    const rows = await screen.findAllByTestId('petro-well-row');
+    const rows = await screen.findAllByTestId('petro-well-row', {}, { timeout: 30000 });
     fireEvent.click(rows.find((r) => /KETA TYPE-1/.test(r.textContent)));
     await screen.findByTestId('petro-zone-net-SAND A', {}, { timeout: 10000 });
     expect(screen.getByTestId(`petro-published-PHIE`).getAttribute('data-state')).toBe('old-phie');

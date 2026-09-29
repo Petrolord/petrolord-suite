@@ -5,6 +5,7 @@ import {
   listWells, listLogs, downloadCurve, saveLog,
 } from '@/lib/wellsRegistry';
 import { wellBlock, tableFromBlocks, isDepthLog, baseName } from '@/utils/dataAi/mlData';
+import { isPrePt9aPhie } from '@/lib/petroProvenance';
 
 export { listWells, listLogs, saveLog };
 
@@ -45,9 +46,11 @@ export async function curveInventory(wells) {
     const logs = await listLogs(w.id);
     logs.filter((l) => !isDepthLog(l)).forEach((l) => {
       const b = baseName(l.mnemonic);
-      if (!byName.has(b)) byName.set(b, { name: b, unit: l.unit || '', wells: new Set() });
+      if (!byName.has(b)) byName.set(b, { name: b, unit: l.unit || '', wells: new Set(), totalPorosityWells: new Set() });
       byName.get(b).wells.add(w.name);
+      // PETRO-U2-013: a Studio PHIE from before 2026-09-07 is total porosity
+      if (isPrePt9aPhie(l)) byName.get(b).totalPorosityWells.add(w.name);
     });
   }
-  return [...byName.values()].map((c) => ({ ...c, wells: [...c.wells] })).sort((a, b) => a.name.localeCompare(b.name));
+  return [...byName.values()].map((c) => ({ ...c, wells: [...c.wells], totalPorosityWells: [...c.totalPorosityWells] })).sort((a, b) => a.name.localeCompare(b.name));
 }

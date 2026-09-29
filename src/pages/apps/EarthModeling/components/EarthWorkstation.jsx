@@ -219,7 +219,10 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       const worst = mt.reduce((a, t) => Math.max(a, Math.abs(t.residualM)), 0);
       const mtText = mt.length && !result.adjustment ? ` ${mt.length} well tie${mt.length === 1 ? '' : 's'} miss by more than ${fmtDepth(MISTIE_WARN_M, depthUnit, 0)} ${depthUnit} (worst ${fmtDepth(worst, depthUnit, 1)} ${depthUnit}): tick adjust surfaces to the well tops.` : '';
       const clampText = clamps ? ` Clamped nodes are marked on the map.` : '';
-      setStatus(`Built ${definition.name}: ${result.spec.nx}×${result.spec.ny} frame at ${result.spec.dx} m, ${result.zones.length} zones, ${blocks} block${blocks > 1 ? 's' : ''}, ${clamps} clamped nodes${result.boundary ? `, clipped to ${result.boundary.name}` : ''}${adjText}.${clampText}${mtText}${fbText}`);
+      // PETRO-U2-013: zone porosity published before PT9a is total porosity
+      const tp = result.totalPhi || [];
+      const tpText = tp.length ? ` Porosity from ${[...new Set(tp.map((t) => t.well))].join(', ')} is total porosity (Petrophysics Studio summary published before 2026-09-07); the well owner can republish it.` : '';
+      setStatus(`Built ${definition.name}: ${result.spec.nx}×${result.spec.ny} frame at ${result.spec.dx} m, ${result.zones.length} zones, ${blocks} block${blocks > 1 ? 's' : ''}, ${clamps} clamped nodes${result.boundary ? `, clipped to ${result.boundary.name}` : ''}${adjText}.${clampText}${mtText}${fbText}${tpText}`);
     } catch (e) {
       setStatus(e.message);
     } finally {

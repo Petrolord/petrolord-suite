@@ -16,6 +16,7 @@ import { zoneVolumes, zoneVolumesWithContacts } from '../engine/volumes';
 import { normalizeTag, isTransformableTag, consensusTag } from '@/lib/crs/tags';
 import { surfaceZToDepthDown } from '@/lib/surfaceConvention';
 import { maskOutsidePolygon } from '@/lib/gridding/gridmath';
+import { isPrePt9aZone } from '@/lib/petroProvenance';
 
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
@@ -236,6 +237,7 @@ export async function buildModel(definition, wells, surfaces, backend) {
     return before ? { ...t, residualBeforeM: before.residualM } : t;
   });
 
+  const totalPhi = [];
   const zones = (definition.zones || []).map((zdef, i) => {
     const thickness = framework.thickness[i];
     const props = {};
@@ -249,6 +251,8 @@ export async function buildModel(definition, wells, surfaces, backend) {
         const zone = (well?.zones || []).find((z) => z.name === zdef.registryZone);
         const v = zone?.properties?.[key];
         if (Number.isFinite(v)) all.push({ x: cp.x, y: cp.y, v, w: cp.w });
+        // PETRO-U2-013: a pre-PT9a Studio summary's phi_avg is total porosity
+        if (prop === 'phi' && Number.isFinite(v) && isPrePt9aZone(zone.properties)) totalPhi.push({ zone: zdef.name, well: cp.well });
       }
       const byBlock = {};
       for (const p of all) {
@@ -287,5 +291,5 @@ export async function buildModel(definition, wells, surfaces, backend) {
   }
   const misties = ties.filter((t) => Number.isFinite(t.residualM) && Math.abs(t.residualM) > MISTIE_WARN_M);
 
-  return { spec, crs, ...framework, clampMasks, labels, census, ties, zones, boundary, adjustment, fallbacks, misties };
+  return { spec, crs, ...framework, clampMasks, labels, census, ties, zones, boundary, adjustment, fallbacks, misties, totalPhi };
 }
