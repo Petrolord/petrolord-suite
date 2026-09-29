@@ -206,3 +206,23 @@ Sizes: S under a day, M two to four days, L a week or more.
 Batch A (demo-visible, NAPE-safe, no schema change): U2-005, U2-003, U2-002, U2-004, U2-001.
 Batch B: U2-007, U2-012, U2-011, U2-009, U2-013, U2-010, U2-008, U2-006 (U2-011 and U2-012 are engines-first).
 Batch C: U2-014, U2-016 (needs a migration, staging first), U2-017, U2-018, U2-015.
+
+## Batch decision (programme lead, 2026-09-29)
+
+Recorded verbatim.
+
+BUILD in this order, one commit per item:
+- Batch A: U2-005 cutoff sensitivity; U2-003 CPI page in the PDF; U2-002 parameter entry in us/ft and degF (display-layer conversion, state stays in engine units, exact round trip); U2-004 zone import (hostile-file tested); U2-001 unit family table + NEU/RES_DEEP aliases.
+- Batch B: U2-012 engine fixes for 019-021 (BVW/Swt naming for total-porosity models, pore-volume Sw in probabilistic stats), done engines-first per the vendoring recipe so the CI check vendored-engines-match-canonical stays green; if the canonical engines repo cannot be updated from here, stop that item and report; U2-009 stale badges on published curves; U2-013 old PHIE rows (decision on PETRO-U1-026: do not rewrite data; flag PHIE rows published before PT9a by pipeline version wherever they are read, and offer an explicit Republish action to the owner of the well); U2-008 HCPV to Mapping; U2-007 core overlay + poro-perm fit; U2-010 saturation-height link with SCAL Studio (read SCAL Studio's saved saturation-height functions; validate against a published example); U2-011 vectorised probabilistic engine (target: 100 draws on the 20k ft well well under 10 s; same statistics as before within Monte Carlo tolerance; use the canonical MonteCarloEngine per CLAUDE.md if sampling is touched, no new MC implementation); U2-006 facies interchange with Data AI (last in B; drop to deferred if it cannot be finished cleanly).
+- Batch C: U2-015 parameter QC hints; U2-018 AI read cap and digitizer follow-ups.
+
+DEFERRED: U2-014 multi-mineral stage two (L, waits for a customer case); U2-016 preferences table (needs a migration); U2-017 useProjectState extraction (refactor, no user value before NAPE).
+
+Owner question decided: PETRO-U1-028 workstation at 390 px stays desktop-first like WDM (narrow layout must stay readable, no horizontal page scroll).
+
+Still owed by the owner (list only): Bateman-Konen 150/300 F chart readings; equation page check.
+
+## Step 2 build log (branch `feat/petro-u2`)
+
+| Item | Status | What was built | Proving test |
+|---|---|---|---|
