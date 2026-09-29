@@ -38,6 +38,8 @@ import ProbabilisticDialog from './ProbabilisticDialog';
 import SensitivityDialog from './SensitivityDialog';                 // PETRO-U2-005
 import InputUnitsDialog from './InputUnitsDialog';                   // PETRO-U2-001
 import PublishedCurvesPanel from './PublishedCurvesPanel';           // PETRO-U2-009/013
+import MlFaciesPanel from './MlFaciesPanel';                         // PETRO-U2-006
+import { mlFaciesLogs, mlFaciesIntervals, mlKind } from '../services/mlFacies';
 import CoreDialog from './CoreDialog';                               // PETRO-U2-007
 import SaturationHeightDialog from './SaturationHeightDialog';       // PETRO-U2-010
 import { shmCurve, shmZoneComparison, ensureShmTemplate } from '../services/saturationHeight';
@@ -395,6 +397,16 @@ export default function PetroWorkstation({
   const shmComparison = useMemo(() => (shmResult && computed?.outputs.SW
     ? shmZoneComparison({ depth: wellData.curves.DEPT, sw: computed.outputs.SW, swShm: shmResult.data, zones })
     : null), [shmResult, computed, wellData, zones]);
+  // PETRO-U2-006: Data AI facies curves read as interval rows for strip tracks
+  const mlFacies = useMemo(() => {
+    if (!wellData) return [];
+    const depth = wellData.curves.DEPT;
+    return mlFaciesLogs(wellData.allLogs).map((log) => {
+      const data = wellData.logs[log.mnemonic];
+      if (!data || data.length !== depth.length) return null;
+      return { log, kind: mlKind(log.mnemonic), ...mlFaciesIntervals(depth, data, log) };
+    }).filter(Boolean);
+  }, [wellData]);
   // PETRO-U2-007: core plugs, the per-zone core transform, and its curves
   const core = useMemo(() => (wellData ? corePoints({ depth: wellData.curves.DEPT, allLogs: wellData.allLogs, logs: wellData.logs }) : null), [wellData]);
   const coreFits = useMemo(() => (core?.points.length ? zoneFits(core.points, zones) : null), [core, zones]);
@@ -637,11 +649,11 @@ export default function PetroWorkstation({
       ruleFacies,
       ruleFaciesData,
       params,
-      intervals: wellData.intervals || [],
+      intervals: [...(wellData.intervals || []), ...mlFacies.flatMap((m) => m.rows)],
       depth: wellData.curves?.DEPT || null,
       keepUnresolved: true, // PT10a: an empty track says why instead of vanishing
     });
-  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, probTwins, mineralTwins, coreOutputs, shmResult, params, zoneParams, layouts]);
+  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, probTwins, mineralTwins, coreOutputs, shmResult, mlFacies, params, zoneParams, layouts]);
 
   // PT10a: why a curve address resolves to nothing right now (layout panel labels)
   const layoutSourceStatus = useCallback((source) => {
@@ -1562,6 +1574,17 @@ export default function PetroWorkstation({
               isOwn={!!selected?.is_own}
               busy={publishing}
               onRepublish={() => publish({ retireOldPhie: true })}
+            />
+          ) : null}
+          selectedExtraMore={wellData && mlFacies.length ? (
+            <MlFaciesPanel
+              items={mlFacies}
+              depth={wellData.curves.DEPT}
+              intervals={wellData.intervals}
+              onShow={(m) => {
+                setLayouts((l) => ensureStripTrack(l, `intervals:${m.kind}`, `${m.log.mnemonic} (Data AI)`));
+                setStatus(`${m.log.mnemonic} from Data AI is on a strip track beside the Studio's facies.`);
+              }}
             />
           ) : null}
         />

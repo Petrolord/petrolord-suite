@@ -11,7 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { candidatesFor, unmappedLogs } from '../services/curveMap';
 
 export default function WellExplorer({
-  wells, selectedId, loadingId, curveInventory, allLogs, onPickCurve, onSelect, selectedExtra = null,
+  wells, selectedId, loadingId, curveInventory, allLogs, onPickCurve, onSelect, selectedExtra = null, selectedExtraMore = null,
   wellDataManagerPath = '/dashboard/apps/geoscience/well-data-manager',
   wellCorrelationPath = '/dashboard/apps/geoscience/well-correlation',
 }) {
@@ -113,6 +113,7 @@ export default function WellExplorer({
                     );
                   })}
                   {selectedExtra}
+                  {selectedExtraMore}
                 </div>
               )}
             </div>
