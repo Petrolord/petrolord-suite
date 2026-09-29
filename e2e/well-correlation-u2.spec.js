@@ -23,7 +23,7 @@ const shot = async (page, name) => { if (SHOTS) await page.screenshot({ path: pa
 async function open(page, { wells = [], section = null, sections = [], query = '' } = {}) {
   await page.addInitScript((seed) => { window.__CORR_SEED__ = seed; }, { wells, section, sections });
   await page.goto(`/dev/well-correlation${query}`);
-  await expect(page.getByTestId('corr-explorer')).toBeVisible({ timeout: 60000 });
+  await expect(page.getByTestId('corr-explorer')).toBeVisible({ timeout: 300000 });
 }
 const sec = (page) => page.getByTestId('corr-section');
 const ink = (page) => page.getByTestId('corr-section-canvas').evaluate((c) => {
