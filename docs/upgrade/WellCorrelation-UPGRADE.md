@@ -211,3 +211,21 @@ Batch C: U2-011, U2-017, U2-015, U2-016, U2-018 (U2-011 and U2-018 need registry
 
 1. Assisted picking (U2-009): the G3 plan kept correlation manual. Is a snap-and-suggest tool (the user still accepts every pick) acceptable for batch B?
 2. Named sections (U2-001): owner-only as today, or also readable by the organisation (an RLS change, second-engineer review)?
+
+## Batch decision (programme lead, 2026-09-29)
+
+Recorded verbatim.
+
+BUILD in this order, one commit per item:
+- Batch A: U2-002 fixed-width columns with horizontal scroll; U2-001 named sections (owner-only visibility: no RLS change; many sections per user); U2-007 undo; U2-006 PDF plotted to scale (true 1:N vertical scale, header as in the PNG, read back with pdftotext in a test); U2-004 tops CSV import/export in MD/TVD/TVDSS (hostile-file tested; reuse the WDM tops door rules); U2-005 propagate at the displayed depth; U2-014 well-list filter plus deleting the 72 stale docs (list them in the commit body; delete only docs that are verifiably stale for Well Correlation).
+- Batch B: U2-003 TWT from checkshots plus Seismolord horizons in the section (read-only from the existing registries); U2-008 Petrophysics pay and zone tracks plus the Stratigraphy unit strip; U2-012 section line and corridor on the map; U2-013 isochore launcher to Mapping; U2-010 pick attributes (interpreter, confidence, date) stored without a schema change if the existing row allows it, otherwise defer and say so; U2-009 assisted picking as SUGGESTIONS ONLY (decision: correlation stays interpreter-driven; the app proposes a pick with its reason and the user accepts or rejects each one; nothing is written without acceptance).
+- Batch C: U2-015 multi-log ghost.
+DEFERRED: U2-011 fault cuts (L) and U2-017 seismic backdrop (L), both to be revisited with Seismolord (app #5); U2-018 SRD datum (tied to the WDM datum-model migration U2-007); U2-016 moving sectionFrame into petrolord-engines (no user value before NAPE).
+Owner questions decided: assisted picking = suggest-only as above; named sections stay owner-only (org sharing would need an RLS change and a second engineer).
+
+Branch `feat/wc-u2`, one PR. Build log per item below.
+
+### Build log (Step 2)
+
+| ID | Status | Proving test | Notes |
+|---|---|---|---|
