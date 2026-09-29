@@ -66,6 +66,7 @@ import { mapLogs } from '../services/curveMap';
 import { inputCurves } from '@/components/wells/curveUnits';
 import { zoneReports, zonePublishProperties, verticalSampleThickness } from '../services/zoneAverages';
 import { cpiImages } from '../services/cpiPages';
+import { swSystemOf, labelSaturation } from '../services/swSystem';
 import { depthLabel, DEPTH_TRACK_KEYS, DEPTH_TRACK_TITLE } from '../viewer/depthModes';
 
 /** @param {string} [p.wellDataManagerPath] route of the Well Data Manager
@@ -580,7 +581,8 @@ export default function PetroWorkstation({
   // PS1 hardcoded set lives on as the std-triple-combo built-in
   const tracks = useMemo(() => {
     if (!wellData || !computed) return [];
-    return resolveTracks(activeTemplate(layouts), {
+    // PETRO-U2-012: a total-porosity model's saturation reads Swt on the track
+    return resolveTracks(labelSaturation(activeTemplate(layouts), swSystemOf(params, zoneParams)), {
       curves: wellData.curves,
       logs: wellData.logs,
       outputs: { ...computed.outputs, ...scenarioTwins, ...probTwins, ...mineralTwins },
@@ -593,7 +595,7 @@ export default function PetroWorkstation({
       depth: wellData.curves?.DEPT || null,
       keepUnresolved: true, // PT10a: an empty track says why instead of vanishing
     });
-  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, probTwins, mineralTwins, params, layouts]);
+  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, probTwins, mineralTwins, params, zoneParams, layouts]);
 
   // PT10a: why a curve address resolves to nothing right now (layout panel labels)
   const layoutSourceStatus = useCallback((source) => {

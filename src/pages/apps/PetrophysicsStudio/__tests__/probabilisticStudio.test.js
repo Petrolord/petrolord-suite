@@ -106,7 +106,9 @@ test('the run: inline fallback and a fake worker speak the same protocol; the CS
   expect(header).toContain('net_m P90');
   expect(header).toContain('ntg P10');
   expect(header).toContain('90th percentile of sw_avg');
-  const paramHeaders = header.filter((h) => !/^(net_m|ntg) /.test(h));
+  // PETRO-U2-012: HCPV is an outcome too
+  expect(header).toContain('hcpv_m P50');
+  const paramHeaders = header.filter((h) => !/^(net_m|ntg|hcpv_m) /.test(h));
   expect(findPLabels(paramHeaders)).toEqual([]);
   const csv = probabilisticCsv(inline, 'ft');
   expect(csv.split('\n')[0]).toContain('"top_ft"');

@@ -26,6 +26,9 @@ import { listIntervals, replaceIntervals } from '@/lib/stratRegistry';
 async function publishCurves(wellId, preparedLogs, projectId) {
   const existing = await listLogs(wellId);
   const mnemonics = new Set(preparedLogs.map((l) => l.mnemonic));
+  // PETRO-U2-012: SW and SWT name one saturation in two systems; a publish
+  // of either retires this project's earlier row of the other
+  if (mnemonics.has('SW') || mnemonics.has('SWT')) { mnemonics.add('SW'); mnemonics.add('SWT'); }
   const stale = existing.filter((l) => l.provenance?.computed
     && l.provenance?.engine === 'petrophysics-studio'
     && l.provenance?.project_id === projectId

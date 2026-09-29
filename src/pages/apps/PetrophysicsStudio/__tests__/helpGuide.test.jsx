@@ -79,6 +79,8 @@ describe('PetrophysicsHelpGuide', () => {
     // U2-002
     expect(text).toMatch(/switches parameter entry between SI and Field/);
     expect(text).toMatch(/stored in SI either way/);
+    // U2-012
+    expect(text).toMatch(/BVW is PHIT × Swt/);
     // U2-001
     expect(text).toMatch(/Save to well/);
     expect(text).toMatch(/Rock Physics Studio\s+reads as well/);

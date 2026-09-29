@@ -135,7 +135,7 @@ export const ZONE_PARAM_FIELDS = [['phi_avg', 'phi_avg'], ['sw_avg', 'sw_avg'], 
 export function probabilisticCsvHeader(depthUnit = 'm') {
   const u = depthUnit === 'ft' ? 'ft' : 'm';
   const cols = ['zone', 'realisations', `top_${u}`, `base_${u}`];
-  for (const f of [['net', `net_${u}`], ['ntg', 'ntg']]) {
+  for (const f of [['net', `net_${u}`], ['ntg', 'ntg'], ['hcpv', `hcpv_${u}`]]) {
     for (const k of OUTCOME_ORDER) cols.push(`${f[1]} ${OUTCOME_LABELS[k]}`);
     cols.push(`${f[1]} mean`);
   }
@@ -152,9 +152,9 @@ export function probabilisticCsv(result, depthUnit = 'm') {
   const lines = [probabilisticCsvHeader(depthUnit).map((h) => `"${h}"`).join(',')];
   for (const z of result?.zones || []) {
     const row = [`"${String(z.name).replace(/"/g, '""')}"`, String(z.n), num(z.top_md_m * F), num(z.base_md_m * F)];
-    for (const f of ['net_m', 'ntg']) {
-      const o = z.outcomes[f];
-      const scale = f === 'net_m' ? F : 1;
+    for (const f of ['net_m', 'ntg', 'hcpv_m']) {
+      const o = z.outcomes[f] || {};
+      const scale = f === 'ntg' ? 1 : F;
       for (const k of OUTCOME_ORDER) row.push(num(o[k] * scale));
       row.push(num(o.mean * scale));
     }

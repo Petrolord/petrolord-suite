@@ -302,15 +302,16 @@ export async function buildReport({
     doc.autoTable({
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['Zone', `Net P90 (${uTxt})`, `Net P50 (${uTxt})`, `Net P10 (${uTxt})`, 'N/G P50',
+      head: [['Zone', `Net P90 (${uTxt})`, `Net P50 (${uTxt})`, `Net P10 (${uTxt})`, 'N/G P50', `HCPV P90 (${uTxt})`, `HCPV P50 (${uTxt})`, `HCPV P10 (${uTxt})`,
         parameterPercentileLabel('phi', 'q10'), parameterPercentileLabel('phi', 'q90'),
         parameterPercentileLabel('Sw', 'q10'), parameterPercentileLabel('Sw', 'q90'),
         parameterPercentileLabel('k gm', 'q50')]],
       body: probabilistic.zones.map((z) => [
         z.name, num(toU(z.outcomes.net_m.p90), 2), num(toU(z.outcomes.net_m.p50), 2), num(toU(z.outcomes.net_m.p10), 2), num(z.outcomes.ntg.p50),
+        num(toU(z.outcomes.hcpv_m?.p90 ?? NaN), 3), num(toU(z.outcomes.hcpv_m?.p50 ?? NaN), 3), num(toU(z.outcomes.hcpv_m?.p10 ?? NaN), 3),
         num(z.parameters.phi_avg.q10), num(z.parameters.phi_avg.q90), num(z.parameters.sw_avg.q10), num(z.parameters.sw_avg.q90), num(z.parameters.k_gm_md.q50, 1),
       ]),
-      styles: { fontSize: 7.5, cellPadding: 1.5 },
+      styles: { fontSize: 6.5, cellPadding: 1.1 },
       headStyles: { fillColor: [15, 23, 42] },
       theme: 'grid',
     });

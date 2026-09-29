@@ -440,6 +440,14 @@ const PetrophysicsHelpGuide = () => (
           ['mod-simandoux', 'Bardon and Pied (1969) modified Simandoux; reduces to Archie at Vsh = 0.', 'Rsh'],
         ]}
       />
+      <Para>
+        Waxman-Smits and dual water solve total water saturation Swt on PHIT. The track then reads
+        <Code>Swt</Code> (or <Code>Sw / Swt</Code> when only some zones use them), BVW is PHIT × Swt, so bulk
+        volume water stays in one porosity system, and the published and exported curve is <Code>SWT</Code>;
+        a curve named <Code>SW</Code> always holds effective-system saturation (it is empty where a total model
+        ran). Publishing one retires this interpretation&apos;s earlier curve of the other name. The probabilistic
+        zone Sw is pore-volume weighted like the zone card, and HCPV is one of its P90, P50, P10 outcomes.
+      </Para>
       <Table
         headers={['Field', 'Default']}
         rows={[
@@ -1110,7 +1118,7 @@ const PetrophysicsHelpGuide = () => (
         ]}
       />
       <Para>
-        Every published curve and zone summary carries <Code>pipeline_version</Code> (currently 6),
+        Every published curve and zone summary carries <Code>pipeline_version</Code> (currently 7),
         the method keys, the parameter set, the input log ids and the interpretation name, so a
         number in Well Correlation or a map can always be traced back to how it was made.
       </Para>

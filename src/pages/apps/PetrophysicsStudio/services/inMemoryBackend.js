@@ -311,6 +311,8 @@ export function makeInMemoryBackend(opts = {}) {
       ownWell(wellId, 'publish curves to this well');
       const logs = logsByWell.get(wellId);
       const mnemonics = new Set(preparedLogs.map((l) => l.mnemonic));
+      // PETRO-U2-012: SW and SWT retire each other (registryBackend contract)
+      if (mnemonics.has('SW') || mnemonics.has('SWT')) { mnemonics.add('SW'); mnemonics.add('SWT'); }
       for (let i = logs.length - 1; i >= 0; i--) {
         const l = logs[i];
         if (l.provenance?.computed && l.provenance?.engine === 'petrophysics-studio'
