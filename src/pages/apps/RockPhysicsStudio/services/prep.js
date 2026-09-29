@@ -6,6 +6,7 @@
 // Greenberg-Castagna on the VSH sand/shale split, always flagged.
 
 import { isGap } from '@/lib/waveform';
+import { familyMember, isPercentUnit, isGramsPerCc, isPerFootSlowness } from '@/components/wells/unitFamilies';
 import { shearForWell } from '../engine/vsEstimate';
 
 // engine inputs <- registry mnemonics (base name, ':n' duplicate
@@ -37,8 +38,13 @@ export function mapLogs(logs) {
 const FT = 0.3048;
 
 /** Sonic slowness -> velocity, m/s. US/M by default; US/F converted. */
+// PETRO-U2-001: spellings from the shared unit-family table first (the one
+// Petrophysics Studio normalises its inputs with); the old loose pattern
+// still decides a spelling the table does not know.
+const known = (key, unit) => !!familyMember(key, unit);
+
 function slownessToVelocity(values, unit) {
-  const perFoot = /F/i.test(unit || '');
+  const perFoot = isPerFootSlowness(unit) || (!known('DT', unit) && /F/i.test(unit || ''));
   return Array.from(values, (dt) => {
     if (isGap(dt) || !(dt > 0)) return NaN;
     return perFoot ? (1e6 * FT) / dt : 1e6 / dt;
@@ -47,7 +53,7 @@ function slownessToVelocity(values, unit) {
 
 /** Bulk density -> kg/m3. G/C3-style logs (values ~2.x) scaled. */
 function densityToSi(values, unit) {
-  const gcc = /G\s*\/?\s*C/i.test(unit || '');
+  const gcc = isGramsPerCc(unit) || (!known('RHOB', unit) && /G\s*\/?\s*C/i.test(unit || ''));
   return Array.from(values, (v) => {
     if (isGap(v) || !(v > 0)) return NaN;
     return gcc || v < 10 ? v * 1000 : v;
@@ -56,7 +62,7 @@ function densityToSi(values, unit) {
 
 /** Fraction curve (phi/vsh/sw): percent logs scaled to v/v. */
 function toFraction(values, unit) {
-  const pct = /%|PERC|PU/i.test(unit || '');
+  const pct = isPercentUnit(unit) || (!known('NPHI', unit) && /%|PERC|PU/i.test(unit || ''));
   return Array.from(values, (v) => {
     if (isGap(v)) return NaN;
     return pct ? v / 100 : v;

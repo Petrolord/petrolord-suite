@@ -79,6 +79,9 @@ describe('PetrophysicsHelpGuide', () => {
     // U2-002
     expect(text).toMatch(/switches parameter entry between SI and Field/);
     expect(text).toMatch(/stored in SI either way/);
+    // U2-001
+    expect(text).toMatch(/Save to well/);
+    expect(text).toMatch(/Rock Physics Studio\s+reads as well/);
     // U2-004
     expect(text).toMatch(/Importing a zonation/);
     expect(text).toMatch(/A file in TVD or TVDSS is refused/);

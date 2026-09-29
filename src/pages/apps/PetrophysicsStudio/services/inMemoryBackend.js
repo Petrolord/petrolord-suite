@@ -214,6 +214,15 @@ export function makeInMemoryBackend(opts = {}) {
       if (i >= 0) logs.splice(i, 1);
       curveStore.delete(log.id);
     },
+    /** PETRO-U2-001: same contract as wellsRegistry.updateLogUnit. */
+    async updateLogUnit(log, unit) {
+      ownWell(log.well_id, 'change curve units on this well');
+      const logs = logsByWell.get(log.well_id) || [];
+      const i = logs.findIndex((l) => l.id === log.id);
+      if (i < 0) throw new Error(`No curve ${log.mnemonic}.`);
+      logs[i] = { ...logs[i], unit, provenance: { ...(logs[i].provenance || {}), unit_corrected: { from: logs[i].unit ?? null, to: unit, at: new Date().toISOString(), by_app: 'petrophysics-studio' } } };
+      return logs[i];
+    },
     async listWells() { return [...wells]; },
     async listLogs(wellId) { return [...(logsByWell.get(wellId) || [])]; },
     async downloadCurve(log) {

@@ -1074,16 +1074,27 @@ const PetrophysicsHelpGuide = () => (
         headers={['Quantity', 'Unit in the Studio']}
         rows={[
           ['Depth', 'Metres MD in storage. The ft toggle changes what you see and type (tracks, zone panel, statuses) and is the starting unit of the Export dialog, whose options also add TVD and TVDSS columns.'],
-          ['Slowness', 'µs/m'],
+          ['Slowness', 'µs/m in storage; typed and shown in µs/ft when the parameter Units switch is Field'],
           ['Density', 'g/cc'],
           ['Resistivity', 'ohm·m'],
-          ['Temperature', 'Degrees Celsius everywhere you type; Arps runs in Fahrenheit inside the engine'],
+          ['Temperature', 'Degrees Celsius in storage; typed in °F when the parameter Units switch is Field; Arps runs in Fahrenheit inside the engine'],
           ['Porosity, Vsh, Sw, BVW', 'Fractions (v/v)'],
-          ['Inputs as stored', 'The Studio reads NPHI in v/v, RHOB in g/cc and DT in µs/m. A curve stored in PU or %, kg/m3 or µs/ft is converted as it is read, and so is one whose values only make sense in percent or kg/m3 whatever its label says; samples at -999 or below in GR, RHOB, NPHI, DT, RT, CAL, DRHO or PEF are nulls. The status line names every such change; the stored curve is never rewritten.'],
+          ['Inputs as stored', 'The Studio reads NPHI in v/v, RHOB in g/cc and DT in µs/m. A curve stored in PU or %, kg/m3 or µs/ft is converted as it is read, and so is one whose values only make sense in percent or kg/m3 whatever its label says; samples at -999 or below in GR, RHOB, NPHI, DT, RT, CAL, DRHO or PEF are nulls. The status line names every such change; the stored curve is never rewritten. Input units on the status bar lists each reading with its reason (the stored unit, the values, or your setting) and lets you set the unit per curve.'],
           ['Permeability', 'Millidarcies. This is the one documented exception to SI, because every cited correlation is written in mD.'],
           ['Qv', 'meq/cm³'],
         ]}
       />
+      <SubHeading>Input units</SubHeading>
+      <Para>
+        <Code>input units</Code> on the status bar (it says how many inputs were converted) opens one table:
+        for NPHI, RHOB and DT, the curve, the unit stored on it, what the Studio reads it as, the factor, and
+        why. Where the file is wrong (a Petrel neutron in percent labelled v/v, a density with no unit), set the
+        unit in the row: the inputs are read again at once and the setting is kept with the interpretation. On a
+        well you own, <Code>Save to well</Code> writes the unit onto the registry curve instead, so Well
+        Correlation, Rock Physics and every other app read it too; the samples are not touched and the curve&apos;s
+        provenance records the old and new unit. The unit spellings come from one table that Rock Physics Studio
+        reads as well.
+      </Para>
       <SubHeading>Output curves</SubHeading>
       <Table
         headers={['Curve', 'Available when', 'Chartable as']}

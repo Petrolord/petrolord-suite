@@ -36,6 +36,7 @@ import CurveCalculatorDialog from './CurveCalculatorDialog';
 import ScenariosDialog from './ScenariosDialog';
 import ProbabilisticDialog from './ProbabilisticDialog';
 import SensitivityDialog from './SensitivityDialog';                 // PETRO-U2-005
+import InputUnitsDialog from './InputUnitsDialog';                   // PETRO-U2-001
 import { ensureProbabilisticTemplate, probabilisticPublishLogs, runProbabilisticAsync } from '../services/probabilistic';
 import { createProbabilisticWorker } from '../services/probabilisticWorkerFactory';
 import { runScenarios, scenarioOutputs, ensureScenarioTemplate, SCENARIO_CURVES } from '../services/scenarios';
@@ -134,7 +135,15 @@ export default function PetroWorkstation({
   const [paramUnits, setParamUnits] = useState('si');
   useEffect(() => { setParamUnits(depthUnit === 'ft' ? 'field' : 'si'); }, [depthUnit]);
   const [rwToolsOpen, setRwToolsOpen] = useState(false);       // PS5 quicklooks
-  const curvesCache = useWellCurvesCache(backend);             // PS7 cross-well curves
+  // PETRO-U2-001: units the user set per well and curve (wellId -> mnemonic
+  // -> unit), kept with the interpretation (facies._units); a ref gives the
+  // curves cache and batch a stable reader
+  const [unitOverrides, setUnitOverrides] = useState({});
+  const unitOverridesRef = useRef({});
+  useEffect(() => { unitOverridesRef.current = unitOverrides; }, [unitOverrides]);
+  const unitOverridesFor = useCallback((wellId) => unitOverridesRef.current[wellId] || {}, []);
+  const [unitsOpen, setUnitsOpen] = useState(false);
+  const curvesCache = useWellCurvesCache(backend, { unitOverridesFor }); // PS7 cross-well curves
   const [condOpen, setCondOpen] = useState(false);             // PS8 conditioning
   // PT11b: per-user display preferences (the Split view divider first)
   const [prefs, setPref] = useStudioPrefs(backend);
@@ -165,8 +174,9 @@ export default function PetroWorkstation({
         setProjectName(project.name || null);
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
         if (project.facies) {
-          const { _rules, _scenarios, _provenance, _uncertainty, _mineral, ...byWell } = project.facies;
+          const { _rules, _scenarios, _provenance, _uncertainty, _mineral, _units, ...byWell } = project.facies;
           setMineralModel(_mineral?.minerals ? _mineral : null);
+          if (_units && typeof _units === 'object') { unitOverridesRef.current = _units; setUnitOverrides(_units); }
           setFaciesByWell(byWell);
           setRuleFacies(Array.isArray(_rules) && _rules.length ? _rules : null);
           setScenarios(_scenarios && (_scenarios.low || _scenarios.high) ? _scenarios : null);
@@ -231,7 +241,7 @@ export default function PetroWorkstation({
       const rawLogs = {};
       for (const log of logs) rawLogs[log.mnemonic] = await backend.downloadCurve(log);
       // PETRO-U1-006/007: inputs in the engines' units, vendor nulls as nulls
-      const { curves, notes: inputNotes } = inputCurves(mapped, rawLogs);
+      const { curves, notes: inputNotes, decisions: unitDecisions } = inputCurves(mapped, rawLogs, { unitOverrides: unitOverridesRef.current[wellId] || {} });
       setWellData({
         wellId,
         curves,
@@ -241,6 +251,7 @@ export default function PetroWorkstation({
         intervals: intervals || [],   // ST1 interval logs (lithology, core, facies ...) for the strip tracks
         allLogs: logs,
         inputNotes,
+        unitDecisions,
       });
       await refreshZones(wellId);
       setStatus(`Loaded ${logs.length} curves (${Object.keys(curves).length} mapped to pipeline inputs).${inputNotes.length ? ` ${inputNotes.join(' ')}` : ''}`);
@@ -278,6 +289,49 @@ export default function PetroWorkstation({
     try { by = backend.whoAmI ? await backend.whoAmI() : null; } catch { by = null; }
     setProvenance((list) => [...list, { at: new Date().toISOString(), by, ...entry }]);
   }, [backend]);
+
+  // PETRO-U2-001: a unit the user sets re-reads the inputs at once; Save to
+  // well writes it onto the registry curve and drops the local setting
+  const setUnitOverride = useCallback((mnemonic, unit) => {
+    if (!wellData) return;
+    const wid = wellData.wellId;
+    const cur = { ...(unitOverridesRef.current[wid] || {}) };
+    if (unit) cur[mnemonic] = unit; else delete cur[mnemonic];
+    const next = { ...unitOverridesRef.current };
+    if (Object.keys(cur).length) next[wid] = cur; else delete next[wid];
+    unitOverridesRef.current = next;
+    setUnitOverrides(next);
+    curvesCache.invalidate(wid);
+    const mapped = Object.fromEntries(wellData.inventory.map((e) => [e.key, e.log]));
+    const r = inputCurves(mapped, wellData.logs, { unitOverrides: cur });
+    setWellData((d) => (d && d.wellId === wid ? { ...d, curves: r.curves, inputNotes: r.notes, unitDecisions: r.decisions } : d));
+    setStatus(unit ? `${mnemonic} is now read as ${unit} in this interpretation.` : `${mnemonic} is read by its stored unit again.`);
+    recordProvenance({ kind: 'input-unit', mnemonic, unit: unit || null, note: unit ? `${mnemonic} read as ${unit} (Input units).` : `${mnemonic} unit setting cleared.` });
+  }, [wellData, curvesCache, recordProvenance]);
+  const [unitsBusy, setUnitsBusy] = useState(false);
+  const saveUnitToWell = async (mnemonic, unit) => {
+    if (!wellData || !backend.updateLogUnit) return;
+    const log = (wellData.allLogs || []).find((l) => l.mnemonic === mnemonic);
+    if (!log) return;
+    setUnitsBusy(true);
+    try {
+      await backend.updateLogUnit(log, unit);
+      const wid = wellData.wellId;
+      const cur = { ...(unitOverridesRef.current[wid] || {}) };
+      delete cur[mnemonic];
+      const next = { ...unitOverridesRef.current };
+      if (Object.keys(cur).length) next[wid] = cur; else delete next[wid];
+      unitOverridesRef.current = next;
+      setUnitOverrides(next);
+      curvesCache.invalidate(wid);
+      await select(wid);
+      setStatus(`Saved ${mnemonic} as ${unit} on ${selected?.name}: every app now reads that unit.`);
+    } catch (e) {
+      setStatus(e.message);
+    } finally {
+      setUnitsBusy(false);
+    }
+  };
 
   const setFaciesForWell = useCallback((next) => {
     setFacies(next);
@@ -705,6 +759,7 @@ export default function PetroWorkstation({
       ...(scenarios ? { _scenarios: scenarios } : {}),
       ...(uncertainty ? { _uncertainty: uncertainty } : {}),
       ...(mineralModel ? { _mineral: mineralModel } : {}),
+      ...(Object.keys(unitOverrides).length ? { _units: unitOverrides } : {}),
       ...(provenance.length ? { _provenance: provenance } : {}),
     },
     zone_params: zoneParams,
@@ -821,8 +876,11 @@ export default function PetroWorkstation({
     setProjectName(project.name || null);
     setParams({ ...DEFAULT_PARAMS, ...(project.params || {}) });
     {
-      const { _rules, _scenarios, _provenance, _uncertainty, _mineral, ...byWell } = project.facies || {};
+      const { _rules, _scenarios, _provenance, _uncertainty, _mineral, _units, ...byWell } = project.facies || {};
       setMineralModel(_mineral?.minerals ? _mineral : null);
+      unitOverridesRef.current = _units && typeof _units === 'object' ? _units : {};
+      setUnitOverrides(unitOverridesRef.current);
+      curvesCache.invalidate();
       setMineralResult(null);
       setFaciesByWell(byWell);
       setRuleFacies(Array.isArray(_rules) && _rules.length ? _rules : null);
@@ -890,7 +948,7 @@ export default function PetroWorkstation({
       if (log) raw[log.mnemonic] = await backend.downloadCurve(log);
       inventory.push({ key, log });
     }
-    const { curves } = inputCurves(mapped, raw);
+    const { curves } = inputCurves(mapped, raw, { unitOverrides: unitOverridesRef.current[well.id] || {} });
     // each well's OWN zones drive the overrides (patches are keyed by
     // zone id, so any well's zones the user has overridden apply here)
     const wellZones = await backend.listZones(well.id);
@@ -1201,6 +1259,17 @@ export default function PetroWorkstation({
       <span className="ml-auto whitespace-nowrap">
         {selected ? `${selected.name} · ${wellData?.curves.DEPT?.length ?? '…'} samples` : `${wells?.length ?? '…'} wells`}
       </span>
+      {wellData?.unitDecisions?.length ? (
+        <button
+          type="button"
+          data-testid="petro-input-units-open"
+          title="What each input curve is read as, and where to correct it"
+          className={`whitespace-nowrap rounded border px-1.5 ${wellData.unitDecisions.some((d) => d.factor !== 1 || d.reason === 'unknown') ? 'border-pl-warning text-pl-warning-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
+          onClick={() => setUnitsOpen(true)}
+        >
+          input units{wellData.unitDecisions.filter((d) => d.factor !== 1).length ? ` · ${wellData.unitDecisions.filter((d) => d.factor !== 1).length} converted` : ''}
+        </button>
+      ) : null}
       <span className="flex items-center gap-1.5 whitespace-nowrap" data-testid="petro-depth-tracks">
         <span className="text-pl-muted">depth tracks</span>
         {DEPTH_TRACK_KEYS.map((k) => (
@@ -1622,6 +1691,18 @@ export default function PetroWorkstation({
       surfaceTempC={params.surfaceTempC}
       onStatus={setStatus}
     />
+    {wellData && (
+      <InputUnitsDialog
+        open={unitsOpen}
+        onOpenChange={setUnitsOpen}
+        decisions={wellData.unitDecisions || []}
+        overrides={unitOverrides[wellData.wellId] || {}}
+        isOwn={!!selected?.is_own && !!backend.updateLogUnit}
+        busy={unitsBusy}
+        onOverride={setUnitOverride}
+        onSaveToWell={saveUnitToWell}
+      />
+    )}
     {wellData && computed && (
       <SensitivityDialog
         open={sensitivityOpen}

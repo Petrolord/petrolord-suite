@@ -15,7 +15,7 @@ import { PETRO_PROJECT_KIND, petroProjectKindSpec } from './projectState';
 import {
   listWells, listLogs, downloadCurve, listTops, saveTop, updateTop, deleteTop,
   listZones, saveZone, updateZone, deleteZone,
-  saveLogs, deleteLog,
+  saveLogs, deleteLog, updateLogUnit,
 } from '@/lib/wellsRegistry';
 import { listIntervals, replaceIntervals } from '@/lib/stratRegistry';
 
@@ -160,6 +160,8 @@ export function makeRegistryBackend() {
     deleteProject,
     /** PT11c: remove one registry curve (the Depth shift panel's Reset to raw on a saved _DS row). */
     async deleteLog(log) { await deleteLog(log); },
+    /** PETRO-U2-001: correct a curve's unit label (samples untouched), owner-only. */
+    async updateLogUnit(log, unit) { return updateLogUnit(log, unit, { byApp: 'petrophysics-studio' }); },
     /** PT11a: the signed-in user id for provenance `by`; null when signed out. */
     async whoAmI() { try { return await currentUserId(); } catch { return null; } },
   };

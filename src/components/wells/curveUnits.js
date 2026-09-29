@@ -19,13 +19,9 @@
 const PHYSICAL = new Set(['GR', 'RHOB', 'NPHI', 'DT', 'RT', 'CAL', 'DRHO', 'PEF']);
 export const NULL_FLOOR = -999;
 
-const PERCENT = new Set(['PU', 'P.U.', '%', 'PERCENT', 'PERC', 'PCT', 'PU_LS', 'LSPU', 'SSPU', 'DPU', 'NAPU', 'PU(LS)']);
-const FRACTION = new Set(['V/V', 'DEC', 'DECP', 'FRAC', 'FRACTION', 'M3/M3', 'CFCF', 'FT3/FT3', 'CF/CF', 'VOL/VOL', 'V/V_LS']);
-const KG_M3 = new Set(['K/M3', 'KG/M3', 'KGM3', 'KG/M^3']);
-const G_CC = new Set(['G/C3', 'G/CC', 'G/CM3', 'GM/CC', 'GR/CC', 'GRAM/CC', 'GCC', 'G/CM^3']);
-const US_FT = new Set(['US/F', 'US/FT', 'USEC/F', 'USEC/FT', 'MICROSEC/FT']);
-
-const normUnit = (u) => String(u || '').trim().toUpperCase();
+// PETRO-U2-001: the unit spellings live in one table shared with Rock
+// Physics (unitFamilies.js); this module decides and says what it did.
+import { UNIT_FAMILIES, familyMember } from './unitFamilies';
 
 function quantile(data, q) {
   const xs = [];
@@ -42,13 +38,17 @@ const scaled = (data, f) => Float64Array.from(data, (v) => (Number.isFinite(v) ?
  * @param {string} key pipeline input key (GR, RHOB, NPHI, DT, RT, ...)
  * @param {{mnemonic?: string, unit?: string}} log registry row
  * @param {ArrayLike<number>} data samples as stored
- * @returns {{data: ArrayLike<number>, notes: string[]}}
+ * @param {{unitOverride?: ?string}} [opts] PETRO-U2-001: the unit the user
+ *   says the stored numbers are in (wins over the file and the range check)
+ * @returns {{data: ArrayLike<number>, notes: string[], decision: ?Object}}
+ *   decision: {key, mnemonic, fileUnit, readAs, factor, reason} where reason
+ *   is 'override' | 'file' | 'range' | 'pipeline' | 'unknown'
  */
-export function normalizeInputCurve(key, log, data) {
+export function normalizeInputCurve(key, log, data, { unitOverride = null } = {}) {
   const notes = [];
-  if (!data || !PHYSICAL.has(key)) return { data, notes };
+  if (!data || !PHYSICAL.has(key)) return { data, notes, decision: null };
   const name = log?.mnemonic || key;
-  const unit = normUnit(log?.unit);
+  const fam = UNIT_FAMILIES[key] || null;
   let out = data;
 
   // vendor null sentinels not declared as the file's NULL
@@ -58,51 +58,66 @@ export function normalizeInputCurve(key, log, data) {
     out = Float64Array.from(data, (v) => (v <= NULL_FLOOR ? NaN : v));
     notes.push(`${name}: ${sentinels} sample${sentinels === 1 ? '' : 's'} at -999 or below read as null (a vendor null value the file did not declare).`);
   }
+  if (!fam) return { data: out, notes, decision: null };
 
+  const decision = { key, mnemonic: name, fileUnit: log?.unit || '', readAs: fam.pipelineUnit, factor: 1, reason: 'pipeline', sentinels };
+  const apply = (factor, readAs, reason, note) => {
+    if (factor !== 1) out = scaled(out, factor);
+    Object.assign(decision, { factor, readAs, reason });
+    if (note) notes.push(note);
+  };
+  const verb = (m) => (m.factor < 1 ? `divided by ${Math.round(1 / m.factor)}` : 'converted');
+  const override = unitOverride ? familyMember(key, unitOverride) : null;
+  if (override) {
+    apply(override.factor, override.unit, 'override', override.factor === 1
+      ? `${name} read as ${fam.pipelineUnit} (your setting in Input units).`
+      : `${name} read as ${override.unit} (your setting in Input units): ${verb(override)} to ${fam.pipelineUnit.toLowerCase()} for the pipeline.`);
+    return { data: out, notes, decision };
+  }
+  const member = familyMember(key, log?.unit);
   if (key === 'NPHI') {
     const p95 = quantile(out, 0.95);
-    if (PERCENT.has(unit)) {
-      out = scaled(out, 0.01);
-      notes.push(`${name} is in ${log.unit}: divided by 100 to v/v for the pipeline.`);
+    if (member?.unit === 'PU') {
+      apply(0.01, 'PU', 'file', `${name} is in ${log.unit}: divided by 100 to v/v for the pipeline.`);
     } else if (p95 > 1.5) {
       // a neutron porosity above 1.5 v/v does not exist: the numbers are percent
-      out = scaled(out, 0.01);
-      notes.push(`${name} values run to ${p95.toFixed(1)}, which only percent can mean${FRACTION.has(unit) ? ` (the file labels them ${log.unit})` : ''}: divided by 100 to v/v. Fix the unit in Well Data Manager to silence this.`);
-    }
+      apply(0.01, 'PU', 'range', `${name} values run to ${p95.toFixed(1)}, which only percent can mean${member ? ` (the file labels them ${log.unit})` : ''}: divided by 100 to v/v. Set the unit in Input units to silence this.`);
+    } else Object.assign(decision, { reason: member ? 'file' : 'unknown' });
   } else if (key === 'RHOB') {
     const med = quantile(out, 0.5);
-    if (KG_M3.has(unit)) {
-      out = scaled(out, 0.001);
-      notes.push(`${name} is in ${log.unit}: divided by 1000 to g/cc for the pipeline.`);
+    if (member?.unit === 'KG/M3') {
+      apply(0.001, 'KG/M3', 'file', `${name} is in ${log.unit}: divided by 1000 to g/cc for the pipeline.`);
     } else if (med > 100) {
-      out = scaled(out, 0.001);
-      notes.push(`${name} values sit near ${Math.round(med)}, which only kg/m3 can mean${G_CC.has(unit) ? ` (the file labels them ${log.unit})` : ''}: divided by 1000 to g/cc.`);
-    }
-  } else if (key === 'DT' && US_FT.has(unit)) {
-    out = scaled(out, 1 / 0.3048);
-    notes.push(`${name} is in ${log.unit}: converted to us/m for the pipeline.`);
+      apply(0.001, 'KG/M3', 'range', `${name} values sit near ${Math.round(med)}, which only kg/m3 can mean${member ? ` (the file labels them ${log.unit})` : ''}: divided by 1000 to g/cc.`);
+    } else Object.assign(decision, { reason: member ? 'file' : 'unknown' });
+  } else if (key === 'DT') {
+    if (member?.unit === 'US/FT') apply(1 / 0.3048, 'US/FT', 'file', `${name} is in ${log.unit}: converted to us/m for the pipeline.`);
+    else Object.assign(decision, { reason: member ? 'file' : 'unknown' });
   }
-  return { data: out, notes };
+  return { data: out, notes, decision };
 }
 
 /**
  * The pipeline input curves for a well from its mapped logs.
  * @param {Object<string, ?{mnemonic: string, unit?: string}>} mapped key -> log
  * @param {Object<string, ArrayLike<number>>} rawByMnemonic stored samples
- * @returns {{curves: Object<string, ArrayLike<number>>, notes: string[]}}
+ * @param {{unitOverrides?: Object<string, string>}} [opts] mnemonic -> unit the user set (PETRO-U2-001)
+ * @returns {{curves: Object<string, ArrayLike<number>>, notes: string[], decisions: Array}}
  */
-export function inputCurves(mapped, rawByMnemonic) {
+export function inputCurves(mapped, rawByMnemonic, { unitOverrides = {} } = {}) {
   const curves = {};
   const notes = [];
+  const decisions = [];
   for (const [key, log] of Object.entries(mapped || {})) {
     if (!log) continue;
     const raw = rawByMnemonic[log.mnemonic];
     if (!raw) continue;
-    const r = normalizeInputCurve(key, log, raw);
+    const r = normalizeInputCurve(key, log, raw, { unitOverride: unitOverrides?.[log.mnemonic] || null });
     curves[key] = r.data;
     notes.push(...r.notes);
+    if (r.decision) decisions.push(r.decision);
   }
-  return { curves, notes };
+  return { curves, notes, decisions };
 }
 
 /** The unit a pipeline input carries after normalizeInputCurve. */

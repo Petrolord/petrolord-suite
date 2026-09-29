@@ -11,7 +11,11 @@ import { inputCurves } from './curveUnits';
 
 const CAP = 16;
 
-export function useWellCurvesCache(backend) {
+/** @param {Object} backend
+ *  @param {{unitOverridesFor?: (wellId: string) => Object}} [opts] PETRO-U2-001:
+ *  a STABLE function giving mnemonic -> unit the user set for a well; callers
+ *  invalidate the well when it changes */
+export function useWellCurvesCache(backend, { unitOverridesFor = null } = {}) {
   return useMemo(() => {
     const cache = new Map(); // wellId -> Promise<{curves, inventory}>
 
@@ -24,7 +28,7 @@ export function useWellCurvesCache(backend) {
         raw[log.mnemonic] = await backend.downloadCurve(log);
       }
       // PETRO-U1-006/007: pipeline inputs in the engines' units (curveUnits.js)
-      const { curves, notes } = inputCurves(mapped, raw);
+      const { curves, notes } = inputCurves(mapped, raw, { unitOverrides: unitOverridesFor?.(wellId) || {} });
       return {
         curves,
         inputNotes: notes,
@@ -55,5 +59,5 @@ export function useWellCurvesCache(backend) {
         else cache.clear();
       },
     };
-  }, [backend]);
+  }, [backend, unitOverridesFor]);
 }
