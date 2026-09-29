@@ -91,3 +91,15 @@ describe('a horizon at each well', () => {
     expect(c[0].source).toBe('Seismolord');
   });
 });
+
+describe('U2-015 multi-log ghost with stretch and squeeze', () => {
+  // eslint-disable-next-line global-require
+  const { ghostDepths } = require('../sectionFrame');
+  test('shift, stretch and squeeze about the middle of the log', () => {
+    const d = [1000, 1010, 1020, 1030, 1040];
+    expect(Array.from(ghostDepths(d, { shiftM: 5 }))).toEqual([1005, 1015, 1025, 1035, 1045]);
+    expect(Array.from(ghostDepths(d, { stretch: 2 }))).toEqual([980, 1000, 1020, 1040, 1060]); // anchor 1020
+    expect(Array.from(ghostDepths(d, { stretch: 0.5, shiftM: -10 }))).toEqual([1000, 1005, 1010, 1015, 1020]);
+    expect(Array.from(ghostDepths(d, { stretch: 100 }))[0]).toBe(1020 - 20 * 4); // clamped to x4
+  });
+});

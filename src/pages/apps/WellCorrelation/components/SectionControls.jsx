@@ -192,6 +192,17 @@ export default function SectionControls({
                 <input type="range" min={Math.round(toDisplay(-200, ru))} max={Math.round(toDisplay(200, ru))} step={1}
                   value={Math.round(toDisplay(ghost.shiftM || 0, ru))} data-testid="corr-ghost-shift"
                   onChange={(e) => onGhost({ ...ghost, shiftM: fromDisplay(Number(e.target.value), ru) })} />
+                {/* U2-015: every track or the first, and a stretch or squeeze about the log middle */}
+                <select className={selCls} value={ghost.tracks === 'all' ? 'all' : 'first'} data-testid="corr-ghost-tracks" title="Lay every track of the source well, or only its first"
+                  onChange={(e) => onGhost({ ...ghost, tracks: e.target.value })}>
+                  <option value="first">first track</option>
+                  <option value="all">all tracks</option>
+                </select>
+                <label className="flex items-center gap-1 text-pl-muted" title="Stretch (above 1) or squeeze (below 1) the ghost about the middle of its log, for an interval that thickens or thins">stretch
+                  <input type="range" min={50} max={200} step={1} value={Math.round((ghost.stretch || 1) * 100)} data-testid="corr-ghost-stretch"
+                    onChange={(e) => onGhost({ ...ghost, stretch: Number(e.target.value) / 100 })} />
+                  <span data-testid="corr-ghost-stretch-value">x{(ghost.stretch || 1).toFixed(2)}</span>
+                </label>
                 <span className="text-pl-muted" data-testid="corr-ghost-shift-value">{(ghost.shiftM || 0) >= 0 ? '+' : ''}{Math.round(toDisplay(ghost.shiftM || 0, ru))} {ul}</span>
               </>
             )}

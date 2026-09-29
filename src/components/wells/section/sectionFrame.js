@@ -369,3 +369,24 @@ export function scrollWindow(boxes, { scrollX = 0, plotLeft = 0, plotW = 0 } = {
   const visible = shifted.map((b) => b.x0 + b.w > plotLeft && b.x0 < plotLeft + plotW);
   return { contentW, maxScroll, scrollX: sx, boxes: shifted, visible };
 }
+
+/**
+ * Ghost depths (U2-015): the source column's displayed depths shifted, and
+ * stretched or squeezed about an anchor (the middle of the source log), so a
+ * log pattern of a different thickness can be laid over another well.
+ * d' = anchor + (d - anchor) * stretch + shift. Stretch is clamped to 0.25..4.
+ */
+export function ghostDepths(disp, { shiftM = 0, stretch = 1, anchor = null } = {}) {
+  const n = disp?.length || 0;
+  const out = new Float64Array(n);
+  let a = anchor;
+  if (!Number.isFinite(a)) {
+    let lo = Infinity; let hi = -Infinity;
+    for (let i = 0; i < n; i++) if (Number.isFinite(disp[i])) { lo = Math.min(lo, disp[i]); hi = Math.max(hi, disp[i]); }
+    a = Number.isFinite(lo) ? (lo + hi) / 2 : 0;
+  }
+  const k = Math.min(4, Math.max(0.25, Number(stretch) || 1));
+  const sh = Number(shiftM) || 0;
+  for (let i = 0; i < n; i++) out[i] = a + (disp[i] - a) * k + sh;
+  return out;
+}

@@ -19,7 +19,7 @@ import React, {
 import { computeFlattening, correlationPolyline, displayedRange, displayedDepth } from '@/pages/apps/WellCorrelation/engine/section';
 import {
   toReferenceFrame, depthOfFor, displayedArray, isMonotonic, mdFromDisplayed, columnLayout, zoneBands, DEPTH_REF_LABEL,
-  spacingProblem, correlationSegments, frameNotes, verticalScale, resolveColumnWidth, scrollWindow, hasTime,
+  spacingProblem, correlationSegments, frameNotes, verticalScale, resolveColumnWidth, scrollWindow, hasTime, ghostDepths,
 } from './sectionFrame';
 import { trackGeometry } from '@/components/wells/trackRender';
 import {
@@ -79,7 +79,8 @@ const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.roun
  * @param {Array} p.wells section order: {id, name, is_own, tops, depth (MD), tracks, frame, surface_x, surface_y, kb_m}
  * @param {{mode, topName?, datumM?, upperName?, lowerName?}} p.datum datumM in the reference depth (metres); mode 'stretch' (ST2) hangs each well on upperName and lowerName
  * @param {?Array<{wellId, top_md_m, base_md_m, colour?, label?, hatched?, outline?}>} [p.bands] ST2 fills under the tracks in each well's own MD (systems tracts, motifs)
- * @param {?{sourceWellId, targetWellId, shiftM}} [p.ghost] ST2 ghost curve: the source well's first track drawn on the target column
+ * @param {?{sourceWellId, targetWellId, shiftM, stretch?, tracks?}} [p.ghost] ST2 ghost curve: the source well's first track drawn on the target column;
+ *   U2-015: tracks 'all' (default the first, as ST2) lays every source track on the target's same slot, stretch squeezes or stretches it about the log middle
  * @param {'m'|'ft'} [p.depthUnit] display unit, data stays metres
  * @param {'md'|'tvd'|'tvdss'} [p.depthRef] plotted depth reference
  * @param {'equal'|'proportional'|'line'} [p.spacing] 'line' (U2-012): by distance along the drawn section line (p.lineDistances)
@@ -466,18 +467,24 @@ const CrossSection = forwardRef(function CrossSection({
       const si = columns.findIndex((c) => c.well.id === ghost.sourceWellId);
       const ti = columns.findIndex((c) => c.well.id === ghost.targetWellId);
       const src = columns[si]; const dst = columns[ti];
-      if (src?.disp && dst && src.tracks.length && dst.tracks.length && geoms[ti]?.[0]) {
-        const shifted = new Float64Array(src.disp.length);
-        for (let k = 0; k < shifted.length; k++) shifted[k] = src.disp[k] + (ghost.shiftM || 0);
+      if (src?.disp && dst && src.tracks.length && dst.tracks.length && geoms[ti]?.[0] && colVisible[ti]) {
+        // U2-015: every track slot (or the first), stretched or squeezed
+        const shifted = ghostDepths(src.disp, { shiftM: ghost.shiftM || 0, stretch: ghost.stretch || 1 });
         const { i0, i1 } = visibleRange(shifted, vTop, vBase);
-        const g = geoms[ti][0];
+        const slots = ghost.tracks === 'all' ? Math.min(src.tracks.length, dst.tracks.length) : 1; // ST2 default: the first track
         ctx.save();
         ctx.globalAlpha = 0.45;
-        paintTrackBody(ctx, { track: { ...src.tracks[0], fills: [] }, depth: shifted, yOf, i0, i1, x0: g.x0, w: g.w, plotTop, plotH, headerH: WELL_H + HEADER_H });
+        for (let k = 0; k < slots; k++) {
+          const g = geoms[ti][k];
+          if (!g) continue;
+          paintTrackBody(ctx, { track: { ...src.tracks[k], fills: [] }, depth: shifted, yOf, i0, i1, x0: g.x0, w: g.w, plotTop, plotH, headerH: WELL_H + HEADER_H });
+        }
         ctx.restore();
+        const g = geoms[ti][0];
         ctx.fillStyle = AMBER; ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
         const gs = (ghost.shiftM || 0) * F; // WC-U1-012: the display unit
-        ctx.fillText(`ghost: ${src.well.name} ${gs >= 0 ? '+' : ''}${Math.round(gs)} ${unitTxt}`, g.x0 + 3, plotTop + 12, g.w - 6);
+        const st = Number(ghost.stretch) && Math.abs(ghost.stretch - 1) > 1e-6 ? ` x${Number(ghost.stretch).toFixed(2)}` : '';
+        ctx.fillText(`ghost: ${src.well.name} ${gs >= 0 ? '+' : ''}${Math.round(gs)} ${unitTxt}${st}${slots > 1 ? ` (${slots} tracks)` : ''}`, g.x0 + 3, plotTop + 12, Math.max(40, dst.tracks.length > 1 ? g.w * 2 : g.w) - 6);
       }
     }
 
@@ -795,7 +802,7 @@ const CrossSection = forwardRef(function CrossSection({
       data-top-types={topTypes}
       data-datum-mode={datum.mode}
       data-band-count={bands ? bands.length : 0}
-      data-ghost={ghost?.sourceWellId ? `${ghost.sourceWellId}>${ghost.targetWellId}:${ghost.shiftM || 0}` : ''}
+      data-ghost={ghost?.sourceWellId ? `${ghost.sourceWellId}>${ghost.targetWellId}:${ghost.shiftM || 0}${ghost.stretch && ghost.stretch !== 1 ? `:x${ghost.stretch}` : ''}${ghost.tracks === 'all' ? ':all' : ''}` : ''}
       data-scheme={scheme}
     >
       <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden bg-white" data-canvas="chart"
