@@ -117,7 +117,7 @@ export default function CorrelationHelpGuide() {
         <Table headers={['Control', 'What it does']} rows={[
           ['unit', 'm or ft for every depth you see and type: the scale, tops, the datum depth and the propagate depth.'],
           ['depth', Object.values(DEPTH_REF_LABEL).join(', ') + ': the plotting reference. TVD and TVDSS go through each well\'s deviation survey and KB, the same frame the checkshot and export doors use.'],
-          ['spacing', 'equal columns, or by distance along the section path with the distance printed in each gap. Distances are in metres from each well\'s coordinates in its own CRS unit (m, ft or US survey ft); wells in different coordinate systems, or with no location, keep equal columns and the status says why. With a section line drawn, along the section line spaces the wells by their distance along it.'],
+          ['spacing', 'equal columns, or by distance along the section path with the distance printed in each gap. Distances are in metres from each well\'s coordinates in its own CRS unit (m, ft or US survey ft); wells in different coordinate systems, or with no location, keep equal columns and the status says why. With a section line drawn, along line spaces the wells by their distance along it.'],
           ['columns', 'auto fits the wells to the window until a column would be narrower than 90 px, then gives every column 140 px and a horizontal scrollbar under the section (or shift + wheel); fit always fits; a px width fixes it. The depth axis stays put and only the wells in view are drawn.'],
         ]} />
         <Callout tone="info" title="A well that cannot be plotted in TVD">
