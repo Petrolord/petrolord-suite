@@ -4,13 +4,18 @@
 //   U2-002 fixed-width columns and horizontal scroll at 30 wells
 //   U2-001 named sections in the ribbon
 //   U2-006 the PDF plotted to scale, read back with pdftotext and pdfinfo
+//   U2-012 a section line drawn on the map; U2-003/U2-008 time, horizons, strips; U2-004 a tops file
 //   PL6    1366x768, 1440x900 and 390 wide, light and dark
 
-import { test, expect } from '@playwright/test';
+import { test, expect as baseExpect } from '@playwright/test';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execFileSync } from 'child_process';
+
+// a shared box under load: assertions wait up to a minute, each test up to ten
+const expect = baseExpect.configure({ timeout: 60000 });
+test.describe.configure({ timeout: 600000 });
 
 const SHOTS = process.env.SHOTS || '';
 const shot = async (page, name) => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `wc-u2-${name}.png`) }); };
@@ -97,6 +102,50 @@ test('U2-006: the PDF is plotted to scale and carries the header (pdftotext, pdf
   expect(((hPx / 2) - 82) * 25.4 / 96).toBeCloseTo(vBase - vTop, 0);
   if (SHOTS) fs.copyFileSync(f, path.join(SHOTS, 'wc-u2-section.pdf'));
   fs.unlinkSync(f);
+});
+
+test('U2-012: a section line drawn on the map takes the wells along it, spaced along the line', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page);
+  await page.getByTestId('corr-line-draw').click();
+  const map = page.getByTestId('corr-map');
+  const box = await map.boundingBox();
+  await map.click({ position: { x: box.width * 0.05, y: box.height * 0.5 } });
+  await map.click({ position: { x: box.width * 0.95, y: box.height * 0.5 } });
+  await page.getByTestId('corr-line-width').fill('600');
+  await page.getByTestId('corr-line-done').click();
+  await expect(page.getByTestId('corr-order-count')).toHaveText('3', { timeout: 60000 });
+  await expect(page.getByTestId('corr-status')).toContainText('ordered along it');
+  await expect(sec(page)).toHaveAttribute('data-spacing', 'line');
+  expect((await map.getAttribute('data-line')).split(',')).toHaveLength(2);
+  await shot(page, 'line');
+});
+
+test('U2-003/U2-008: time section with horizons and the pay, zone and unit strips has ink and says what is missing', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, { query: '?wells=corr-w1,corr-w2,corr-w3' });
+  await expect(page.getByTestId('corr-order-count')).toHaveText('3');
+  for (const k of ['pay', 'zones', 'units']) await page.getByTestId(`corr-strip-${k}`).check();
+  await page.getByTestId('corr-hz-surf-dome-depth').check();
+  await expect(page.getByTestId('corr-hz-note-surf-dome-depth')).toContainText('drawn on 3 wells');
+  await expect.poll(async () => sec(page).getAttribute('data-strips')).toMatch(/KETA-1=pay:\d+\|zones:1\|units:2/);
+  await shot(page, 'strips-horizon');
+  await page.getByTestId('corr-depth-ref').selectOption('twt');
+  await page.getByTestId('corr-hz-surf-dome-twt').check();
+  await expect.poll(async () => sec(page).getAttribute('data-well-notes')).toMatch(/no checkshots: not drawn in time/);
+  expect(await ink(page)).toBeGreaterThan(0.02);
+  await shot(page, 'twt');
+});
+
+test('U2-004: a tops file chosen in the browser is read and applied', async ({ page }) => {
+  await open(page, { query: '?wells=corr-w1,corr-w2' });
+  await expect(page.getByTestId('corr-order-count')).toHaveText('2');
+  await page.getByTestId('corr-tops-import-open').click();
+  await page.getByTestId('corr-tops-file').setInputFiles({ name: 'tops.csv', mimeType: 'text/csv', buffer: Buffer.from('Well;Top;TVDSS (ft)\nKETA-1;Sand W;4921,3\n') });
+  await expect(page.getByTestId('corr-tops-plan-summary')).toHaveText('1 new, 0 moved, 0 unchanged, 0 not applied.');
+  await page.getByTestId('corr-tops-apply').click();
+  await expect(page.getByTestId('corr-status')).toContainText('Tops file applied: 1 added');
+  await expect(page.getByTestId('corr-top-row-Sand W')).toBeVisible();
 });
 
 for (const [w, h] of [[1366, 768], [1440, 900], [390, 844]]) {
