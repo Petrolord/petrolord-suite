@@ -12,6 +12,7 @@ import { resolveTracks } from '@/components/wells/layout/resolveTracks';
 import { buildDefaultLayouts, migrateLayouts, activeTemplate } from '@/components/wells/layout/layoutSchema';
 import { makeDepthFrame } from '@/pages/apps/WellDataManager/engine/checkshots';
 import { allTopNames } from '@/pages/apps/WellCorrelation/engine/section';
+import { orientSectionCurves } from './sectionFrame';
 
 export const CORR_PARAMS = { grClean: 30, grClay: 120, cutPhi: 0.08, cutVsh: 0.4, cutSw: 0.6 };
 export const DEFAULT_TEMPLATE = 'quicklook';
@@ -38,6 +39,12 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
   const [depthRef, setDepthRef] = useState('md');
   const [spacing, setSpacing] = useState('equal');
   const [layouts, setLayouts] = useState(defaultLayouts);
+  // WC-U1-006: a saved section this build cannot open (a newer build's row)
+  // is kept out of reach of Save, so it is never overwritten by an empty one
+  const [sectionRefused, setSectionRefused] = useState(null);
+  // the saved row as restored (hosts compare against it for unsaved changes
+  // and keep their own extra keys: ghost, report header)
+  const [savedRow, setSavedRow] = useState(null);
   const curvesCache = useWellCurvesCache(backend);
   const wellDataRef = useRef({});
   const pendingRef = useRef(new Set());
@@ -59,16 +66,32 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
   useEffect(() => {
     let live = true;
     (async () => {
+      let list;
       try {
-        const list = await backend.listWells();
+        list = await backend.listWells();
         if (!live) return;
         setWells(list);
+      } catch (e) {
+        if (live) { onStatus(e.message); setWells([]); setSectionLoaded(true); }
+        return;
+      }
+      // WC-U1-006: the saved section loads on its own, so a row this build
+      // cannot open (or a failed read) never empties the wells list
+      try {
         const section = await backend.loadSection();
         if (section && live) {
-          applySaved(section);
-          onStatus('Restored saved section.');
+          const known = new Set(list.map((w) => w.id));
+          const ids = section.well_ids || [];
+          const missing = ids.filter((id) => !known.has(id));
+          applySaved({ ...section, well_ids: ids.filter((id) => known.has(id)) });
+          setSavedRow(section);
+          onStatus(missing.length
+            ? `Restored saved section. ${missing.length} of its ${ids.length} wells ${missing.length === 1 ? 'is' : 'are'} no longer in your registry (deleted or no longer shared) and ${missing.length === 1 ? 'was' : 'were'} left out.`
+            : 'Restored saved section.');
         }
-      } catch (e) { if (live) { onStatus(e.message); setWells([]); } }
+      } catch (e) {
+        if (live) { setSectionRefused(e.message); onStatus(e.message); }
+      }
       if (live) setSectionLoaded(true);
     })();
     return () => { live = false; };
@@ -80,8 +103,9 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
     pendingRef.current.add(wellId);
     setLoading((n) => n + 1);
     try {
-      const [tops, cw, intervals] = await Promise.all([backend.listTops(wellId), curvesCache.getCurves(wellId), backend.listIntervals ? backend.listIntervals(wellId).catch(() => []) : Promise.resolve([])]);
-      setWellData((m) => ({ ...m, [wellId]: { tops, intervals: intervals || [], curves: cw.curves, logs: cw.logs, inventory: cw.inventory } }));
+      const [tops, cwRaw, intervals] = await Promise.all([backend.listTops(wellId), curvesCache.getCurves(wellId), backend.listIntervals ? backend.listIntervals(wellId).catch(() => []) : Promise.resolve([])]);
+      const cw = orientSectionCurves(cwRaw); // WC-U1-003: G1-era bottom-up curves read top-down
+      setWellData((m) => ({ ...m, [wellId]: { tops, intervals: intervals || [], curves: cw.curves, logs: cw.logs, inventory: cw.inventory, reoriented: cw.reoriented } }));
     } catch (e) {
       onStatus(e.message);
     } finally {
@@ -147,8 +171,8 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
       });
       return {
         id: w.id, name: w.name, uwi: w.uwi, is_own: w.is_own, organization_id: w.organization_id,
-        surface_x: w.surface_x, surface_y: w.surface_y, kb_m: w.kb_m,
-        tops: d.tops || [], depth: d.curves?.DEPT || null, tracks, frame,
+        surface_x: w.surface_x, surface_y: w.surface_y, kb_m: w.kb_m, crs: w.crs ?? null, xy_unit: w.xy_unit ?? null,
+        tops: d.tops || [], depth: d.curves?.DEPT || null, tracks, frame, reoriented: !!d.reoriented,
       };
     })
     .filter(Boolean), [order, wells, wellData, template]);
@@ -171,5 +195,6 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
     datum, setDatum, shownTops, setShownTops, zoneMode, setZoneMode, zonePair, setZonePair,
     depthUnit, setDepthUnit, depthRef, setDepthRef, spacing, setSpacing, layouts, setLayouts,
     template, sectionWells, topNames, logSources, ensureWellData, refreshTops, toggleWell, moveWell, applySaved,
+    sectionRefused, savedRow, setSavedRow,
   };
 }
