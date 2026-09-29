@@ -53,6 +53,7 @@ export function makeInMemoryBackend({ seedWells = [], sample = true, section: se
     name: w.name, surface_x: w.surface_x, surface_y: w.surface_y, kb_m: w.kb_m,
     td_md_m: w.td_md_m ?? null, deviation: w.deviation ?? null, uwi: w.uwi ?? null,
     crs: w.crs ?? null, xy_unit: w.xy_unit ?? null, crs_provenance: w.crs_provenance ?? null,
+    checkshots: w.checkshots ?? [],
   });
 
   return {
@@ -60,6 +61,10 @@ export function makeInMemoryBackend({ seedWells = [], sample = true, section: se
 
     async listIntervals(wellId, kind = null) {
       return (intervalsByWell.get(wellId) || []).filter((r) => !kind || r.kind === kind).map((r) => ({ ...r }));
+    },
+
+    async listAllTops() {
+      return [...topsByWell.values()].flat().map((t) => ({ ...t }));
     },
 
     async listTops(wellId) {

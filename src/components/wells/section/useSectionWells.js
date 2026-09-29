@@ -223,6 +223,7 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
       return {
         id: w.id, name: w.name, uwi: w.uwi, is_own: w.is_own, organization_id: w.organization_id,
         surface_x: w.surface_x, surface_y: w.surface_y, kb_m: w.kb_m, crs: w.crs ?? null, xy_unit: w.xy_unit ?? null,
+        checkshots: Array.isArray(w.checkshots) ? w.checkshots : null, // U2-003/U2-004 time-depth
         tops: d.tops || [], depth: d.curves?.DEPT || null, tracks, frame, reoriented: !!d.reoriented,
       };
     })

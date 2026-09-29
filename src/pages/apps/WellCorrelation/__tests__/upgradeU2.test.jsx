@@ -223,3 +223,103 @@ describe('U2-007 undo for tops edits (the shared registry rows)', () => {
     expect(await names(b, 'corr-w2')).not.toContain('Seed Y');
   });
 });
+
+describe('U2-004 tops file import and export in the app', () => {
+  test('a TVDSS file is read, shown with its columns, applied at MD, and undone', async () => {
+    const b = makeInMemoryBackend();
+    mount(b, '?wells=corr-w1,corr-w2,corr-w3');
+    await rowsIn(3);
+    fireEvent.click(await screen.findByTestId('corr-tops-import-open', {}, T));
+    fireEvent.change(await screen.findByTestId('corr-tops-paste', {}, T), { target: { value: 'Well,Top,TVDSS (m)\nKETA-1,Sand Q,1500\nKETA-3,Sand Q,1480\nNOPE,Sand Q,1\n' } });
+    await waitFor(() => expect(screen.getByTestId('corr-tops-plan-summary').textContent).toBe('1 new, 0 moved, 0 unchanged, 2 not applied.'), T);
+    const plan = screen.getByTestId('corr-tops-plan').textContent;
+    expect(plan).toMatch(/depth from "TVDSS \(m\)" as TVDSS \(below sea level\) in m/);
+    expect(screen.getByTestId('corr-tops-problems').textContent).toMatch(/KETA-3 is shared with you read-only/);
+    fireEvent.click(screen.getByTestId('corr-tops-apply'));
+    await waitFor(() => expect(status()).toMatch(/Tops file applied: 1 added, 0 moved, 2 lines not applied/), T);
+    const kb = (await b.listWells()).find((w) => w.id === 'corr-w1').kb_m || 0;
+    expect((await b.listTops('corr-w1')).find((t) => t.name === 'Sand Q').md_m).toBeCloseTo(1500 + kb, 3);
+    fireEvent.click(screen.getByTestId('corr-undo'));
+    await waitFor(() => expect(status()).toMatch(/Undid: apply the tops file/), T);
+    expect((await b.listTops('corr-w1')).some((t) => t.name === 'Sand Q')).toBe(false);
+  });
+
+  test('Export CSV downloads the shown tops with MD, TVD and TVDSS in the display unit', async () => {
+    const blobs = [];
+    window.URL.createObjectURL = (blob) => { blobs.push(blob); return 'blob:x'; };
+    window.URL.revokeObjectURL = () => {};
+    mount(makeInMemoryBackend(), '?wells=corr-w1,corr-w2');
+    await rowsIn(2);
+    fireEvent.change(screen.getByTestId('corr-depth-unit'), { target: { value: 'ft' } });
+    fireEvent.click(await screen.findByTestId('corr-tops-export', {}, T));
+    await waitFor(() => expect(status()).toMatch(/Exported 8 tops/), T);
+    const text = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsText(blobs[blobs.length - 1]); });
+    expect(text).toMatch(/Well,UWI,Top,Surface type,MD \(ft\),TVD \(ft\),TVDSS \(ft\),TWT \(ms\)/);
+    expect(text).toMatch(new RegExp(`KETA-1,[^,]*,Top Dome,[^,]*,${(1500 / 0.3048).toFixed(2)}`));
+  });
+});
+
+describe('U2-005 propagate at the displayed depth', () => {
+  const flatten = async () => {
+    fireEvent.change(screen.getByTestId('corr-datum-mode'), { target: { value: 'flatten' } });
+    fireEvent.change(screen.getByTestId('corr-datum-top'), { target: { value: 'Top Dome' } });
+    await waitFor(() => expect(screen.getByTestId('corr-section').getAttribute('data-datum-mode')).toBe('flatten'), T);
+  };
+  const mdOf = async (b, id, name) => (await b.listTops(id)).find((t) => t.name === name)?.md_m;
+
+  test('on a section flattened on Top Dome, the seed lands at the same flattened depth in each well', async () => {
+    const b = makeInMemoryBackend();
+    mount(b, '?wells=corr-w1,corr-w2,corr-w3');
+    await rowsIn(3);
+    await flatten(); // datum 1500: KETA-1 shift 0, KETA-2 (Top Dome 1540 m) shift -40
+    fireEvent.change(screen.getByTestId('corr-prop-name'), { target: { value: 'Seed F' } });
+    fireEvent.change(screen.getByTestId('corr-prop-md'), { target: { value: '1520' } });
+    fireEvent.click(screen.getByTestId('corr-prop-run'));
+    await waitFor(() => expect(status()).toMatch(/Propagated Seed F to 2 wells at 1520.0 m flattened MD \(MD 1520.0 m to 1560.0 m\)/), T);
+    expect(await mdOf(b, 'corr-w1', 'Seed F')).toBeCloseTo(1520, 6);
+    expect(await mdOf(b, 'corr-w2', 'Seed F')).toBeCloseTo(1560, 6); // one MD for all would put it 40 m high
+  });
+
+  test('"one MD in every well" keeps the old meaning', async () => {
+    const b = makeInMemoryBackend();
+    mount(b, '?wells=corr-w1,corr-w2,corr-w3');
+    await rowsIn(3);
+    await flatten();
+    fireEvent.change(screen.getByTestId('corr-prop-name'), { target: { value: 'Seed G' } });
+    fireEvent.change(screen.getByTestId('corr-prop-md'), { target: { value: '1520' } });
+    fireEvent.change(screen.getByTestId('corr-prop-ref'), { target: { value: 'md' } });
+    fireEvent.click(screen.getByTestId('corr-prop-run'));
+    await waitFor(() => expect(status()).toMatch(/Propagated Seed G to 2 wells at 1520.0 m MD/), T);
+    expect(await mdOf(b, 'corr-w2', 'Seed G')).toBeCloseTo(1520, 6);
+  });
+
+  test('in TVDSS the deviated well gets its own MD through its survey', async () => {
+    const b = makeInMemoryBackend();
+    mount(b, '?wells=corr-w1,corr-w2');
+    await rowsIn(2);
+    fireEvent.change(screen.getByTestId('corr-depth-ref'), { target: { value: 'tvdss' } });
+    const wells = await b.listWells();
+    const { makeDepthFrame } = await import('@/pages/apps/WellDataManager/engine/checkshots');
+    const w2 = wells.find((w) => w.id === 'corr-w2');
+    const f2 = makeDepthFrame({ deviation: w2.deviation, kbM: w2.kb_m });
+    const tvdss = f2.mdToTvdss(1700).tvdss;
+    fireEvent.change(screen.getByTestId('corr-prop-name'), { target: { value: 'Seed H' } });
+    fireEvent.change(screen.getByTestId('corr-prop-md'), { target: { value: tvdss.toFixed(4) } });
+    fireEvent.click(screen.getByTestId('corr-prop-run'));
+    await waitFor(() => expect(status()).toMatch(/Propagated Seed H to 2 wells at .* TVDSS/), T);
+    expect(await mdOf(b, 'corr-w2', 'Seed H')).toBeCloseTo(1700, 2);
+  });
+
+  test('a blank depth seeds from an existing pick of the top (flattened)', async () => {
+    const b = makeInMemoryBackend();
+    const mid2 = (await b.listTops('corr-w2')).find((t) => t.name === 'Mid Shale');
+    await b.deleteTop(mid2);
+    mount(b, '?wells=corr-w1,corr-w2,corr-w3');
+    await rowsIn(3);
+    await flatten();
+    fireEvent.change(screen.getByTestId('corr-prop-name'), { target: { value: 'Mid Shale' } });
+    fireEvent.click(screen.getByTestId('corr-prop-run'));
+    await waitFor(() => expect(status()).toMatch(/Propagated Mid Shale to 1 well at 1580.0 m flattened MD \(seeded from its pick on KETA-1\)/), T);
+    expect(await mdOf(b, 'corr-w2', 'Mid Shale')).toBeCloseTo(1620, 6);
+  });
+});

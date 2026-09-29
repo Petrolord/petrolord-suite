@@ -39,6 +39,8 @@ import { allTopNames } from '../engine/section';
 import { DEPTH_REF_LABEL, depthOfFor } from '../engine/sectionFrame';
 import { sectionCaption } from '../services/sectionReport';
 import { undoEntry, applyUndo, remapStack, UNDO_LIMIT } from '../services/topsUndo';
+import { topsCsv } from '../services/topsFile';
+import { sheetRows } from '../../WellDataManager/engine/topsSheet';
 
 // Fixed values for the parameter-bound fills of the Petrophysics
 // templates (GR clean/clay lines, porosity and saturation cut-offs): the
@@ -321,6 +323,58 @@ export default function CorrelationWorkstation({
     }
   };
 
+  // ---- U2-004 tops files --------------------------------------------------
+  const loadSheetRows = useCallback(async () => {
+    const list = wells || [];
+    const all = typeof backend.listAllTops === 'function'
+      ? await backend.listAllTops()
+      : (await Promise.all(list.map((w) => backend.listTops(w.id)))).flat();
+    return sheetRows(list, all);
+  }, [backend, wells]);
+  const applyTopsFile = async (plan) => {
+    const entries = [];
+    const touched = new Set();
+    const created = [];
+    let moved = 0;
+    try {
+      for (const c of plan.creates) {
+        const row = await backend.saveTop(c.wellId, { name: c.name, mdM: Number(c.mdM.toFixed(4)) });
+        if (row?.id) created.push(row);
+        touched.add(c.wellId);
+      }
+      if (created.length) entries.push(undoEntry.create(created, 'tops file'));
+      const rowsNow = plan.updates.length ? await loadSheetRows() : [];
+      for (const u of plan.updates) {
+        const wellId = rowsNow.find((r) => r.topId === u.topId)?.wellId;
+        await backend.updateTop(u.topId, { mdM: Number(u.mdM.toFixed(4)) });
+        entries.push(undoEntry.move({ id: u.topId, well_id: wellId, name: u.name }, u.fromM, Number(u.mdM.toFixed(4)), 'tops file'));
+        if (wellId) touched.add(wellId);
+        moved += 1;
+      }
+      setStatus(`Tops file applied: ${created.length} added, ${moved} moved${plan.problems.length ? `, ${plan.problems.length} line${plan.problems.length === 1 ? '' : 's'} not applied (listed in the import panel)` : ''}.`);
+    } catch (e) {
+      setStatus(`Tops file stopped: ${e.message} (${created.length} added and ${moved} moved before it; Undo reverts them).`);
+    } finally {
+      if (entries.length) pushUndo(undoEntry.batch(entries, `apply the tops file (${created.length} added, ${moved} moved)`));
+      for (const id of touched) if (order.includes(id)) await refreshTops(id);
+      const names = [...new Set(created.map((r) => r.name))];
+      if (names.length) setShownTops((s) => [...new Set([...s, ...names])]);
+    }
+  };
+  const exportTopsCsv = () => {
+    const { text, count } = topsCsv(sectionWells, { unit: depthUnit, names: shownTops, sectionName: sectionName || '' });
+    const blob = new Blob([text], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(sectionName || 'well-correlation').replace(/[^A-Za-z0-9]+/g, '_')}_tops_${depthUnit}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setStatus(`Exported ${count} top${count === 1 ? '' : 's'} (shown tops on the section wells) with MD, TVD and TVDSS in ${depthUnit} and TWT from checkshots.`);
+  };
+
   const reloadTops = async () => {
     try {
       for (const id of order) await refreshTops(id);
@@ -332,20 +386,48 @@ export default function CorrelationWorkstation({
 
   // WC-U1-001: the depth is parsed as typed (a blank box used to read as
   // MD 0); wells the depth is below TD of, wells that already carry the top
-  // and shared wells are named instead of skipped silently
-  const propagate = async (nameRaw, depthText) => {
+  // and shared wells are named instead of skipped silently.
+  // U2-005: by default the depth is the DISPLAYED depth (the section's
+  // reference with its flattening or stretch), converted to each well's own
+  // MD through the frame on screen, so on a flattened or TVDSS section the
+  // seed lands where the practitioner pointed; "MD" keeps one MD for all.
+  // A blank depth with the name of a top already picked on a section well
+  // seeds from that pick's displayed depth.
+  const shownRefLabel = `${datum.mode === 'flatten' ? 'flattened ' : datum.mode === 'stretch' ? 'stretched ' : ''}${DEPTH_REF_LABEL[depthRef]}`;
+  const propagate = async (nameRaw, depthText, refMode = 'displayed') => {
     const name = String(nameRaw ?? '').trim();
     const t = String(depthText ?? '').trim();
     if (!name) { setStatus('Type the name of the top to propagate.'); return; }
-    if (!t) { setStatus(`Type the depth (MD, ${depthUnit}) to seed ${name} at.`); return; }
-    const v = /^[-+]?(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : NaN;
-    if (!Number.isFinite(v) || v < 0) { setStatus(`"${t}" is not a measured depth; type a number of ${depthUnit} at or below the depth reference.`); return; }
-    const md = Number(fromDisplay(v, depthUnit).toFixed(4));
+    const conv = exportRef.current;
+    const displayed = refMode !== 'md' && conv?.mdAt;
+    let dispM;
+    let seedNote = '';
+    if (!t) {
+      const src = sectionWells.find((w) => (w.tops || []).some((x) => nameKey(x.name) === nameKey(name)));
+      const top = src?.tops.find((x) => nameKey(x.name) === nameKey(name));
+      const d = src && conv?.displayedAt ? conv.displayedAt(src.id, top.md_m) : NaN;
+      if (!Number.isFinite(d)) { setStatus(`Type the depth (${displayed ? shownRefLabel : 'MD'}, ${depthUnit}) to seed ${name} at.`); return; }
+      dispM = d;
+      seedNote = ` (seeded from its pick on ${src.name})`;
+    } else {
+      const v = /^[-+]?(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : NaN;
+      if (!Number.isFinite(v) || (!displayed && v < 0)) { setStatus(`"${t}" is not a ${displayed ? 'depth' : 'measured depth'}; type a number of ${depthUnit}${displayed ? ` on the ${shownRefLabel} axis` : ' at or below the depth reference'}.`); return; }
+      dispM = fromDisplay(v, depthUnit);
+    }
+    const useDisplayed = displayed || !!seedNote;
     const skipped = [];
     const targets = [];
     for (const w of sectionWells) {
       if (!w.is_own) { skipped.push(`${w.name} (shared, read-only)`); continue; }
       if ((w.tops || []).some((x) => nameKey(x.name) === nameKey(name))) { skipped.push(`${w.name} (already has it)`); continue; }
+      let md = dispM;
+      if (useDisplayed) {
+        const inv = conv.mdAt(w.id, dispM);
+        if (!inv || !Number.isFinite(inv.md) || inv.md < 0) { skipped.push(`${w.name} (outside the well at that depth)`); continue; }
+        if (inv.ambiguous) { skipped.push(`${w.name} (that depth is reached twice along the well; pick it by hand)`); continue; }
+        md = inv.md;
+      }
+      md = Number(md.toFixed(4));
       let td = Number.isFinite(Number(w.frame?.tdMdM)) && Number(w.frame.tdMdM) > 0 ? Number(w.frame.tdMdM) : null;
       if (td === null && w.depth?.length) { for (let i = w.depth.length - 1; i >= 0; i--) if (Number.isFinite(w.depth[i])) { td = w.depth[i]; break; } }
       if (td !== null && md > td + 1e-6) { skipped.push(`${w.name} (below TD ${depthLabel(td, depthUnit)})`); continue; }
@@ -358,7 +440,12 @@ export default function CorrelationWorkstation({
       if (created.length) pushUndo(undoEntry.create(created, `propagate ${name} to ${created.length} well${created.length === 1 ? '' : 's'}`));
       for (const w of targets) await refreshTops(w.wellId);
       setShownTops((s) => (s.includes(name) ? s : [...s, name]));
-      setStatus(`Propagated ${name} to ${created.length} well${created.length === 1 ? '' : 's'} at ${depthLabel(md, depthUnit)} MD.${skipNote}`);
+      const mds = targets.map((x) => x.mdM);
+      const lo = Math.min(...mds); const hi = Math.max(...mds);
+      const where = useDisplayed
+        ? `${depthLabel(dispM, depthUnit)} ${shownRefLabel}${seedNote} (MD ${lo === hi ? depthLabel(lo, depthUnit) : `${depthLabel(lo, depthUnit)} to ${depthLabel(hi, depthUnit)}`})`
+        : `${depthLabel(dispM, depthUnit)} MD`;
+      setStatus(`Propagated ${name} to ${created.length} well${created.length === 1 ? '' : 's'} at ${where}.${skipNote}`);
     } catch (e) {
       setStatus(e.message);
     }
@@ -573,6 +660,12 @@ export default function CorrelationWorkstation({
           onToggle={toggleWell}
           onMove={moveWell}
           onRemove={(id) => setOrder((o) => o.filter((x) => x !== id))}
+          onAddMany={async (ids) => {
+            await Promise.all(ids.map((id) => ensureWellData(id)));
+            setOrder((o) => [...o, ...ids.filter((id) => !o.includes(id))]);
+            setStatus(`Added ${ids.length} well${ids.length === 1 ? '' : 's'} to the section.`);
+          }}
+          onRemoveMany={(ids) => { setOrder((o) => o.filter((x) => !ids.includes(x))); setStatus(`Removed ${ids.length} well${ids.length === 1 ? '' : 's'} from the section.`); }}
         />
       )}
       center={center}
@@ -602,6 +695,7 @@ export default function CorrelationWorkstation({
             pickMode={pickMode}
             onPickMode={setPickMode}
             onReloadTops={reloadTops}
+            topsFile={{ wells: wells || [], loadRows: loadSheetRows, onApply: applyTopsFile, onExport: exportTopsCsv }}
             onRenameTop={renameTop}
             onDeleteTop={deleteTop}
             mapHrefFor={(name) => mapTopHref(name, order.filter((id) => (wellData[id]?.tops || []).some((t) => t.name === name)), mappingPath)}
@@ -610,6 +704,7 @@ export default function CorrelationWorkstation({
             zonePair={zonePair}
             onZonePair={setZonePair}
             onPropagate={propagate}
+            propRefLabel={shownRefLabel}
             canEdit={canEdit}
             onStatus={setStatus}
             datumDefault={datumDefault}

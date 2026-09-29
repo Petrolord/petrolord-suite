@@ -9,7 +9,7 @@
 // (geo_correlation_sections, owner-only).
 
 import {
-  listWells, listLogs, downloadCurve, listTops,
+  listWells, listLogs, downloadCurve, listTops, listAllTops,
   saveTop, updateTop, deleteTop, propagateTop,
 } from '@/lib/wellsRegistry';
 import { listIntervals } from '@/lib/stratRegistry';
@@ -19,7 +19,7 @@ import {
 
 export function makeRegistryBackend() {
   return {
-    listWells, listLogs, downloadCurve, listTops, listIntervals,
+    listWells, listLogs, downloadCurve, listTops, listAllTops, listIntervals,
     saveTop, updateTop, deleteTop, propagateTop,
     loadSection, saveSection, listSections, createSection, renameSection, deleteSection,
   };

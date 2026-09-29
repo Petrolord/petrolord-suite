@@ -230,6 +230,9 @@ const CrossSection = forwardRef(function CrossSection({
       ? `stretched ${DEPTH_REF_LABEL[depthRef]} (${unitTxt})`
       : `${DEPTH_REF_LABEL[depthRef]} (${unitTxt})`;
 
+  const axisTitleRef = useRef(axisTitle);
+  axisTitleRef.current = axisTitle;
+
   // header notes per column (also on data-well-notes for the browser checks)
   const columnNotes = useMemo(() => columns.map((c, i) => {
     const notes = [];
@@ -661,7 +664,25 @@ const CrossSection = forwardRef(function CrossSection({
     // U2-006: what a print render needs to redraw this view at another size
     vTop, vBase, colW: boxes[0]?.w || null, spacingMode: spacing,
   };
+  // U2-005: the host converts between a well's MD and the displayed depth
+  // (reference, flattening or stretch) through the frame on screen
+  const columnsRef = useRef(columns);
+  columnsRef.current = columns;
   useImperativeHandle(exportRef, () => ({
+    /** U2-005: MD of a displayed depth in one well ({md, ambiguous, extrapolated} or null). */
+    mdAt: (wellId, disp) => {
+      const c = columnsRef.current.find((x) => x.well.id === wellId);
+      return c ? mdFromDisplayed(disp, c.shift, c.well, c.refForWell) : null;
+    },
+    /** U2-005: displayed depth of an MD in one well (NaN when the frame cannot place it). */
+    displayedAt: (wellId, md) => {
+      const c = columnsRef.current.find((x) => x.well.id === wellId);
+      if (!c) return NaN;
+      const d = (c.refForWell === 'md' ? (m) => m : depthOfFor(c.well, c.refForWell))(md);
+      return Number.isFinite(d) ? displayedDepth(d, c.shift) : NaN;
+    },
+    /** U2-005: what the displayed depth means, for the host's labels. */
+    axisLabel: () => axisTitleRef.current,
     /** U2-006: the live view (depth window, effective column width, scale). */
     meta: () => ({ ...exportMetaRef.current }),
     /** @param {string | ((meta: {scale: ?number, spacing: string}) => {title: string, caption?: string[]})} make */

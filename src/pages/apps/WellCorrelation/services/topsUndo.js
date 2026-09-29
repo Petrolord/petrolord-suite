@@ -22,6 +22,8 @@ export const undoEntry = {
   create: (rows, label) => ({ kind: 'create', label, rows: rows.map((r) => ({ ...r })) }),
   rename: (rows, from, to, label) => ({ kind: 'rename', label, from, to, rows: rows.map((r) => ({ id: r.id, well_id: r.well_id })) }),
   remove: (rows, label) => ({ kind: 'delete', label, rows: rows.map((r) => ({ ...r })) }),
+  /** several edits undone together, last first (a tops file import) */
+  batch: (entries, label) => ({ kind: 'batch', label, entries }),
 };
 
 const near = (a, b) => Math.abs(Number(a) - Number(b)) < 1e-6;
@@ -31,6 +33,14 @@ const near = (a, b) => Math.abs(Number(a) - Number(b)) < 1e-6;
  * @returns {Promise<{wellIds: string[], remap: Object<string,string>, skipped: string[]}>}
  */
 export async function applyUndo(entry, backend) {
+  if (entry.kind === 'batch') {
+    const wellIds = new Set(); const remap = {}; const skipped = [];
+    for (const e of [...entry.entries].reverse()) {
+      const r = await applyUndo(e, backend);
+      r.wellIds.forEach((id) => wellIds.add(id)); Object.assign(remap, r.remap); skipped.push(...r.skipped);
+    }
+    return { wellIds: [...wellIds], remap, skipped };
+  }
   const wellIds = new Set();
   const remap = {};
   const skipped = [];
@@ -71,7 +81,7 @@ export async function applyUndo(entry, backend) {
 export function remapStack(stack, remap) {
   if (!Object.keys(remap).length) return stack;
   const id = (x) => remap[x] || x;
-  return stack.map((e) => (e.kind === 'move'
+  return stack.map((e) => (e.kind === 'batch' ? { ...e, entries: remapStack(e.entries, remap) } : e.kind === 'move'
     ? { ...e, topId: id(e.topId) }
     : { ...e, rows: e.rows.map((r) => ({ ...r, id: id(r.id) })) }));
 }

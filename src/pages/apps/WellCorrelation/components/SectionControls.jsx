@@ -5,7 +5,8 @@
 // persistence.
 
 import React, { useState } from 'react';
-import { Crosshair, RefreshCw, Pencil, Trash2, Check, X, Map as MapIcon } from 'lucide-react';
+import { Crosshair, RefreshCw, Pencil, Trash2, Check, X, Map as MapIcon, Upload, Download } from 'lucide-react';
+import TopsFilePanel from './TopsFilePanel';
 import { Link } from 'react-router-dom';
 import LayoutPanel, { NumText } from '@/components/wells/LayoutPanel';
 import { topColor } from '@/components/wells/topColors';
@@ -98,13 +99,15 @@ export default function SectionControls({
   shownTops, onToggleTop, onShowAllTops,
   pickMode, onPickMode, onReloadTops, onRenameTop, onDeleteTop,
   zoneMode, onZoneMode, zonePair, onZonePair,
-  onPropagate, canEdit,
+  onPropagate, canEdit, propRefLabel = 'MD',
   mapHrefFor = null,
   ghost = null, onGhost = null, sectionWells = [],
-  datumDefault = () => undefined, topVariants = {}, report = null, onReport = null,
+  datumDefault = () => undefined, topVariants = {}, report = null, onReport = null, topsFile = null,
 }) {
+  const [importing, setImporting] = useState(false);
   const [propName, setPropName] = useState(topNames[0] || '');
   const [propMd, setPropMd] = useState('');
+  const [propRef, setPropRef] = useState('displayed'); // U2-005
   const u = unitTxt(depthUnit);
 
   return (
@@ -221,11 +224,28 @@ export default function SectionControls({
           <button type="button" data-testid="corr-reload-tops" className={btnCls} title="Reload tops edited in Petrophysics Studio or Well Data Manager" onClick={onReloadTops}>
             <RefreshCw className="w-3.5 h-3.5" /> Reload
           </button>
+          {topsFile && canEdit && (
+            <button type="button" data-testid="corr-tops-import-open" className={btnCls} title="Import a tops file (Petrel, Kingdom, Petra; MD, TVD, TVDSS or Z, m or ft)"
+              onClick={() => setImporting((v) => !v)}>
+              <Upload className="w-3.5 h-3.5" /> Import
+            </button>
+          )}
+          {topsFile && (
+            <button type="button" data-testid="corr-tops-export" className={btnCls} disabled={!topNames.length}
+              title="Download the shown tops of the section wells as CSV (MD, TVD, TVDSS in the display unit; TWT from checkshots)"
+              onClick={topsFile.onExport}>
+              <Download className="w-3.5 h-3.5" /> CSV
+            </button>
+          )}
           <label className="ml-auto flex items-center gap-1 text-pl-muted">
             <input type="checkbox" data-testid="corr-tops-show-all" checked={topNames.length > 0 && shownTops.length === topNames.length}
               onChange={(e) => onShowAllTops(e.target.checked)} /> all
           </label>
         </div>
+        {importing && topsFile && (
+          <TopsFilePanel wells={topsFile.wells} loadRows={topsFile.loadRows} unit={depthUnit}
+            onApply={topsFile.onApply} onClose={() => setImporting(false)} />
+        )}
         <div className="space-y-0.5">
           {topNames.map((n) => (
             <TopRow key={n} name={n} shown={shownTops.includes(n)} onToggle={() => onToggleTop(n)}
@@ -267,15 +287,21 @@ export default function SectionControls({
             <input className={`${inputCls} flex-1 min-w-0`} placeholder="Top name" value={propName}
               data-testid="corr-prop-name" onChange={(e) => setPropName(e.target.value)} list="corr-topnames" />
             <datalist id="corr-topnames">{topNames.map((n) => <option key={n} value={n} />)}</datalist>
-            <input className={`${inputCls} w-16`} placeholder={`MD ${u}`} value={propMd}
+            <input className={`${inputCls} w-16`} placeholder={u} value={propMd} title={`Depth in ${u}; blank seeds from an existing pick of this top`}
               data-testid="corr-prop-md" onChange={(e) => setPropMd(e.target.value)} />
             <button type="button" data-testid="corr-prop-run"
               className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
-              onClick={() => onPropagate(propName.trim(), propMd)}>
+              onClick={() => onPropagate(propName.trim(), propMd, propRef)}>
               Add
             </button>
           </div>
-          <p className="mt-1 text-[10px] text-pl-muted">Seeds the top on every owned well in the section at that MD; drag each tag to correct it.</p>
+          <label className="mt-1 flex items-center gap-1 text-pl-muted">at
+            <select className={`${selCls} min-w-0 flex-1`} value={propRef} data-testid="corr-prop-ref" onChange={(e) => setPropRef(e.target.value)}>
+              <option value="displayed">the displayed depth ({propRefLabel})</option>
+              <option value="md">one MD in every well</option>
+            </select>
+          </label>
+          <p className="mt-1 text-[10px] text-pl-muted">Seeds the top on every owned well in the section; at the displayed depth each well gets its own MD through its survey and the flattening, so the seeds sit on one line across the section. Leave the depth blank to seed from an existing pick of the top. Drag each tag to correct it.</p>
         </Section>
       )}
 
