@@ -39,6 +39,8 @@ import SensitivityDialog from './SensitivityDialog';                 // PETRO-U2
 import InputUnitsDialog from './InputUnitsDialog';                   // PETRO-U2-001
 import PublishedCurvesPanel from './PublishedCurvesPanel';           // PETRO-U2-009/013
 import CoreDialog from './CoreDialog';                               // PETRO-U2-007
+import SaturationHeightDialog from './SaturationHeightDialog';       // PETRO-U2-010
+import { shmCurve, shmZoneComparison, ensureShmTemplate } from '../services/saturationHeight';
 import { corePoints, zoneFits, coreTwins, ensureCoreTemplate } from '../services/coreData';
 import { newId } from '../layout/layoutSchema';
 import { publishedSummary, faciesState, faciesKey } from '../services/publishedCurves';
@@ -132,6 +134,11 @@ export default function PetroWorkstation({
   const [exportOpen, setExportOpen] = useState(false);
   const [sensitivityOpen, setSensitivityOpen] = useState(false); // PETRO-U2-005
   const [coreOpen, setCoreOpen] = useState(false);               // PETRO-U2-007
+  // PETRO-U2-010: saturation-height settings persist with the interpretation
+  // (facies._shm); the curve is recomputed from them
+  const [shmOpen, setShmOpen] = useState(false);
+  const [shmSettings, setShmSettings] = useState(null);
+  const [shmRun, setShmRun] = useState(null);    // {shm, rock, fwlTvdssM, projectId, projectName}
   const [noDepthWell, setNoDepthWell] = useState(null); // {inventory} — C2 empty state
   const [layouts, setLayouts] = useState(buildDefaultLayouts); // PS4 templates
   const [pickMode, setPickMode] = useState(null);                // PT3: 'top' | 'zone' | null
@@ -182,7 +189,8 @@ export default function PetroWorkstation({
         setProjectName(project.name || null);
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
         if (project.facies) {
-          const { _rules, _scenarios, _provenance, _uncertainty, _mineral, _units, ...byWell } = project.facies;
+          const { _rules, _scenarios, _provenance, _uncertainty, _mineral, _units, _shm, ...byWell } = project.facies;
+          setShmSettings(_shm?.projectId ? _shm : null);
           setMineralModel(_mineral?.minerals ? _mineral : null);
           if (_units && typeof _units === 'object') { unitOverridesRef.current = _units; setUnitOverrides(_units); }
           setFaciesByWell(byWell);
@@ -378,6 +386,15 @@ export default function PetroWorkstation({
     }
   }, [wellData, params, zoneParamList, mineralHere]);
   const mineralTwins = useMemo(() => (mineralHere ? mineralHere.outputs : {}), [mineralHere]);
+  // PETRO-U2-010: SW_SHM on this well from the chosen SCAL project
+  const shmResult = useMemo(() => {
+    if (!shmRun || !wellData || !computed) return null;
+    const r = shmCurve({ shm: shmRun.shm, depth: wellData.curves.DEPT, well: selected, fwlTvdssM: shmRun.fwlTvdssM, rock: shmRun.rock, outputs: computed.outputs });
+    return r.ok ? r : null;
+  }, [shmRun, wellData, computed, selected]);
+  const shmComparison = useMemo(() => (shmResult && computed?.outputs.SW
+    ? shmZoneComparison({ depth: wellData.curves.DEPT, sw: computed.outputs.SW, swShm: shmResult.data, zones })
+    : null), [shmResult, computed, wellData, zones]);
   // PETRO-U2-007: core plugs, the per-zone core transform, and its curves
   const core = useMemo(() => (wellData ? corePoints({ depth: wellData.curves.DEPT, allLogs: wellData.allLogs, logs: wellData.logs }) : null), [wellData]);
   const coreFits = useMemo(() => (core?.points.length ? zoneFits(core.points, zones) : null), [core, zones]);
@@ -614,7 +631,7 @@ export default function PetroWorkstation({
     return resolveTracks(labelSaturation(activeTemplate(layouts), swSystemOf(params, zoneParams)), {
       curves: wellData.curves,
       logs: wellData.logs,
-      outputs: { ...computed.outputs, ...scenarioTwins, ...probTwins, ...mineralTwins, ...coreOutputs },
+      outputs: { ...computed.outputs, ...scenarioTwins, ...probTwins, ...mineralTwins, ...coreOutputs, ...(shmResult ? { SW_SHM: shmResult.data } : {}) },
       faciesData,
       facies,
       ruleFacies,
@@ -624,7 +641,7 @@ export default function PetroWorkstation({
       depth: wellData.curves?.DEPT || null,
       keepUnresolved: true, // PT10a: an empty track says why instead of vanishing
     });
-  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, probTwins, mineralTwins, coreOutputs, params, zoneParams, layouts]);
+  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, probTwins, mineralTwins, coreOutputs, shmResult, params, zoneParams, layouts]);
 
   // PT10a: why a curve address resolves to nothing right now (layout panel labels)
   const layoutSourceStatus = useCallback((source) => {
@@ -799,6 +816,7 @@ export default function PetroWorkstation({
       ...(uncertainty ? { _uncertainty: uncertainty } : {}),
       ...(mineralModel ? { _mineral: mineralModel } : {}),
       ...(Object.keys(unitOverrides).length ? { _units: unitOverrides } : {}),
+      ...(shmSettings ? { _shm: shmSettings } : {}),
       ...(provenance.length ? { _provenance: provenance } : {}),
     },
     zone_params: zoneParams,
@@ -915,7 +933,9 @@ export default function PetroWorkstation({
     setProjectName(project.name || null);
     setParams({ ...DEFAULT_PARAMS, ...(project.params || {}) });
     {
-      const { _rules, _scenarios, _provenance, _uncertainty, _mineral, _units, ...byWell } = project.facies || {};
+      const { _rules, _scenarios, _provenance, _uncertainty, _mineral, _units, _shm, ...byWell } = project.facies || {};
+      setShmSettings(_shm?.projectId ? _shm : null);
+      setShmRun(null);
       setMineralModel(_mineral?.minerals ? _mineral : null);
       unitOverridesRef.current = _units && typeof _units === 'object' ? _units : {};
       setUnitOverrides(unitOverridesRef.current);
@@ -1181,6 +1201,17 @@ export default function PetroWorkstation({
           onClick={() => setCoreOpen(true)}
         >
           <Layers className="w-3.5 h-3.5" /> Core…
+        </button>
+        <button
+          type="button"
+          data-testid="petro-shm"
+          disabled={!wellData || !computed}
+          title="Water saturation from a SCAL Studio saturation-height function beside the log Sw"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
+          onClick={() => setShmOpen(true)}
+        >
+          <Layers className="w-3.5 h-3.5" /> Sat-height…
         </button>
         <button
           type="button"
@@ -1760,6 +1791,29 @@ export default function PetroWorkstation({
         busy={unitsBusy}
         onOverride={setUnitOverride}
         onSaveToWell={saveUnitToWell}
+      />
+    )}
+    {wellData && computed && (
+      <SaturationHeightDialog
+        open={shmOpen}
+        onOpenChange={setShmOpen}
+        backend={backend}
+        depthUnit={depthUnit}
+        zones={zones}
+        settings={shmSettings}
+        result={shmResult}
+        comparison={shmComparison}
+        onRun={({ projectId: pid, projectName: pname, shm, rock, fwlTvdssM }) => {
+          setShmRun({ shm, rock, fwlTvdssM, projectId: pid, projectName: pname });
+          setShmSettings({ projectId: pid, projectName: pname, rock, fwlTvdssM });
+          recordProvenance({ kind: 'saturation-height', projectId: pid, rock, fwlTvdssM, note: `Saturation-height from SCAL project ${pname}, FWL ${depthLabel(fwlTvdssM, depthUnit)} TVDSS, k and phi from ${rock === 'logs' ? 'the logs' : 'the project'}.` });
+          setStatus(`Saturation-height Sw computed from ${pname} (FWL ${depthLabel(fwlTvdssM, depthUnit)} TVDSS).`);
+        }}
+        onShowTracks={() => {
+          setLayouts((l) => ensureShmTemplate(l, newId));
+          setShmOpen(false);
+          setStatus('The Log Sw and saturation-height layout is active.');
+        }}
       />
     )}
     {wellData && computed && (

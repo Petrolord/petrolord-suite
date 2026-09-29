@@ -246,6 +246,16 @@ export function makeInMemoryBackend(opts = {}) {
       if (i >= 0) logs.splice(i, 1);
       curveStore.delete(log.id);
     },
+    /** PETRO-U2-010: one sample SCAL Studio project (inputs_data shape, schema 1). */
+    async listScalProjects() { return [{ id: 'scal-sample', name: 'Keta SAND J (sample)', updatedAt: '2026-09-29T00:00:00Z' }]; },
+    async loadScalProject(id) {
+      if (id !== 'scal-sample') return null;
+      return {
+        id, name: 'Keta SAND J (sample)', schema: 1, samples: [],
+        capillary: { jMode: 'manual', manual: { a: '0.25', b: '1.4', Swirr: '0.15' }, SwirrOverride: '', includedSampleIds: [], reservoir: { k_md: '150', phi: '0.22', sigma_dyncm: '26', thetaDeg: '30' } },
+        height: { gammaW: '1.05', gammaHc: '0.80', fwl_tvdss: '6758.53', swMin: '0.2', swMax: '0.95' },
+      };
+    },
     /** PETRO-U2-001: same contract as wellsRegistry.updateLogUnit. */
     async updateLogUnit(log, unit) {
       ownWell(log.well_id, 'change curve units on this well');
