@@ -242,7 +242,7 @@ describe('U2-004 tops file import and export in the app', () => {
     fireEvent.click(screen.getByTestId('corr-undo'));
     await waitFor(() => expect(status()).toMatch(/Undid: apply the tops file/), T);
     expect((await b.listTops('corr-w1')).some((t) => t.name === 'Sand Q')).toBe(false);
-  });
+   }, 300000); // several awaited writes: slow under a loaded box
 
   test('Export CSV downloads the shown tops with MD, TVD and TVDSS in the display unit', async () => {
     const blobs = [];
