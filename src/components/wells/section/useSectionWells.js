@@ -61,7 +61,7 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
     if (tl.layouts) setLayouts({ ...migrateLayouts(tl.layouts), activeTemplateId: tl.layouts.activeTemplateId || DEFAULT_TEMPLATE });
     if (tl.depthUnit === 'm' || tl.depthUnit === 'ft') setDepthUnit(tl.depthUnit);
     if (['md', 'tvd', 'tvdss', 'twt'].includes(tl.depthRef)) setDepthRef(tl.depthRef);
-    if (tl.spacing === 'equal' || tl.spacing === 'proportional') setSpacing(tl.spacing);
+    if (tl.spacing === 'equal' || tl.spacing === 'proportional' || tl.spacing === 'line') setSpacing(tl.spacing);
     if (tl.columnWidth === 'auto' || tl.columnWidth === 'fit' || (Number(tl.columnWidth) >= 40 && Number(tl.columnWidth) <= 600)) setColumnWidth(tl.columnWidth === 'auto' || tl.columnWidth === 'fit' ? tl.columnWidth : Number(tl.columnWidth));
     if (['none', 'consecutive', 'pair'].includes(tl.zoneMode)) setZoneMode(tl.zoneMode);
     if (Array.isArray(tl.shownTops)) setShownTops(tl.shownTops);
@@ -154,9 +154,10 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
     pendingRef.current.add(wellId);
     setLoading((n) => n + 1);
     try {
-      const [tops, cwRaw, intervals] = await Promise.all([backend.listTops(wellId), curvesCache.getCurves(wellId), backend.listIntervals ? backend.listIntervals(wellId).catch(() => []) : Promise.resolve([])]);
+      const [tops, cwRaw, intervals, zones] = await Promise.all([backend.listTops(wellId), curvesCache.getCurves(wellId), backend.listIntervals ? backend.listIntervals(wellId).catch(() => []) : Promise.resolve([]),
+        backend.listZones ? backend.listZones(wellId).catch(() => []) : Promise.resolve([])]); // U2-008: published zones
       const cw = orientSectionCurves(cwRaw); // WC-U1-003: G1-era bottom-up curves read top-down
-      setWellData((m) => ({ ...m, [wellId]: { tops, intervals: intervals || [], curves: cw.curves, logs: cw.logs, inventory: cw.inventory, reoriented: cw.reoriented } }));
+      setWellData((m) => ({ ...m, [wellId]: { tops, intervals: intervals || [], zones: zones || [], curves: cw.curves, logs: cw.logs, inventory: cw.inventory, reoriented: cw.reoriented } }));
     } catch (e) {
       onStatus(e.message);
     } finally {

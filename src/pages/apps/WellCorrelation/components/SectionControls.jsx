@@ -93,14 +93,14 @@ function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete, mapHref, v
 }
 
 export default function SectionControls({
-  topNames, datum, onDatum, datumNames = null, horizons = null,
-  depthUnit, onDepthUnit, depthRef, onDepthRef, spacing, onSpacing, columnWidth = 'auto', onColumnWidth = null,
+  topNames, datum, onDatum, datumNames = null, horizons = null, strips = null,
+  depthUnit, onDepthUnit, depthRef, onDepthRef, spacing, onSpacing, columnWidth = 'auto', onColumnWidth = null, hasLine = false,
   layouts, onLayoutsChange, logSources, onStatus,
   shownTops, onToggleTop, onShowAllTops,
   pickMode, onPickMode, onReloadTops, onRenameTop, onDeleteTop,
   zoneMode, onZoneMode, zonePair, onZonePair,
   onPropagate, canEdit, propRefLabel = 'MD',
-  mapHrefFor = null,
+  mapHrefFor = null, isochoreFor = null,
   ghost = null, onGhost = null, sectionWells = [],
   datumDefault = () => undefined, topVariants = {}, report = null, onReport = null, topsFile = null,
 }) {
@@ -108,6 +108,7 @@ export default function SectionControls({
   const [propName, setPropName] = useState(topNames[0] || '');
   const [propMd, setPropMd] = useState('');
   const [propRef, setPropRef] = useState('displayed'); // U2-005
+  const [iso, setIso] = useState({ upper: '', lower: '' }); // U2-013
   const u = unitTxt(depthUnit);
   const dn = datumNames || topNames; // U2-003: flatten or stretch on a top or a seismic horizon
   // U2-003: in time the datum and the ghost shift are in ms (no ft conversion)
@@ -196,6 +197,7 @@ export default function SectionControls({
             <select className={selCls} value={spacing} data-testid="corr-spacing" onChange={(e) => onSpacing(e.target.value)}>
               <option value="equal">equal</option>
               <option value="proportional">by distance</option>
+              {(hasLine || spacing === 'line') && <option value="line">along the section line</option>}
             </select>
           </label>
           {onColumnWidth && (
@@ -287,6 +289,20 @@ export default function SectionControls({
         </Section>
       )}
 
+      {strips && (
+        <Section title="Petrophysics and stratigraphy" testId="corr-strips">
+          {/* U2-008: what Petrophysics Studio and Stratigraphy Studio published, read only */}
+          {[['pay', 'Pay flag (published PAY curve)', true], ['zones', 'Zones with their published net, PHIE, Sw', strips.hasZones], ['units', 'Stratigraphic units (tops linked to the column)', strips.hasUnits]]
+            .filter(([, , ok]) => ok).map(([k, label]) => (
+              <label key={k} className="flex items-center gap-1.5 py-px">
+                <input type="checkbox" checked={!!strips.on[k]} data-testid={`corr-strip-${k}`} onChange={(e) => strips.onChange({ ...strips.on, [k]: e.target.checked })} />
+                <span className="text-pl-text">{label}</span>
+              </label>
+            ))}
+          <p className="mt-1 text-[10px] text-pl-muted">Drawn as narrow strips at the left of each well; a well without the data says so in its header.</p>
+        </Section>
+      )}
+
       <Section title="Zones">
         <div className="flex items-center gap-1 flex-wrap">
           <select className={selCls} value={zoneMode} data-testid="corr-zone-mode" onChange={(e) => onZoneMode(e.target.value)}>
@@ -310,6 +326,33 @@ export default function SectionControls({
             </>
           )}
         </div>
+        {isochoreFor && topNames.length > 1 && (() => {
+          const upper = iso.upper || zonePair?.[0] || topNames[0];
+          const lower = iso.lower || zonePair?.[1] || topNames[1];
+          const { href, wells } = upper && lower && upper !== lower ? isochoreFor(upper, lower) : { href: null, wells: 0 };
+          return (
+            <div className="mt-1.5 flex items-center gap-1 flex-wrap" data-testid="corr-isochore">
+              <span className="text-pl-muted">Thickness map</span>
+              <select className={selCls} value={upper} data-testid="corr-iso-upper" onChange={(e) => setIso({ upper: e.target.value, lower })}>
+                {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <span className="text-pl-muted">to</span>
+              <select className={selCls} value={lower} data-testid="corr-iso-lower" onChange={(e) => setIso({ upper, lower: e.target.value })}>
+                {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+              {href && wells >= 3 ? (
+                <Link to={href} className="flex items-center gap-1 text-pl-primary-text hover:text-pl-primary-text-hover" data-testid="corr-iso-link"
+                  title="Open Mapping & Surface Studio and grid the gross thickness (MD) between these tops from the section wells carrying both. On a deviated well the MD thickness is longer than the vertical isochore.">
+                  <MapIcon className="w-3.5 h-3.5" /> Map ({wells} wells)
+                </Link>
+              ) : (
+                <span className="text-[10px] text-pl-warning-text" data-testid="corr-iso-why">
+                  {upper === lower ? 'pick two different tops' : `${wells} section well${wells === 1 ? '' : 's'} carry both; a map needs 3`}
+                </span>
+              )}
+            </div>
+          );
+        })()}
       </Section>
 
       {canEdit && (

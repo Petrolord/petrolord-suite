@@ -104,6 +104,35 @@ export function sampleSurfaces() {
   ];
 }
 
+// U2-008: the Stratigraphy column the sample tops link to, and a Petrophysics
+// interpretation published on KETA-1 (PAY flag and a SAND zone summary) with
+// an unpublished zone on KETA-2 (the section says so)
+export function sampleUnits() {
+  return [
+    { id: 'unit-dome', name: 'Dome Sand', rank: 'formation', colour: '#d97706', order_index: 1 },
+    { id: 'unit-mid', name: 'Mid Shale Member', rank: 'member', colour: '#64748b', order_index: 2 },
+  ];
+}
+export const SAMPLE_UNIT_OF = { 'Top Dome': 'unit-dome', 'Mid Shale': 'unit-mid' };
+
+/**
+ * The Well Correlation harness's published Petrophysics on the sample
+ * (applied by its in-memory backend only; Stratigraphy's harness keeps the
+ * plain sample): a PAY flag on KETA-1 where GR reads clean sand, a published
+ * SAND zone summary on KETA-1, an unpublished zone on KETA-2.
+ */
+export function samplePetro(w) {
+  if (w.id === 'corr-w1') {
+    const pay = Float64Array.from(w.curves.GR, (g) => (g < 60 ? 1 : 0));
+    return {
+      pay,
+      zones: [{ id: 'zone-w1-sand', well_id: w.id, name: 'Dome Sand', top_md_m: 1500, base_md_m: 1580, properties: { gross_m: 80, net_m: 52.5, ntg: 0.656, phi_avg: 0.214, sw_avg: 0.31, vsh_avg: 0.12, published_at: '2026-09-20T10:00:00Z' } }],
+    };
+  }
+  if (w.id === 'corr-w2') return { pay: null, zones: [{ id: 'zone-w2-sand', well_id: w.id, name: 'Dome Sand', top_md_m: 1540, base_md_m: 1610, properties: {} }] };
+  return { pay: null, zones: [] };
+}
+
 export function sampleWells() {
   return Object.entries(TOPS).map(([id, w], idx) => {
     const n = Math.round((BOT_MD - TOP_MD) / STEP) + 1;

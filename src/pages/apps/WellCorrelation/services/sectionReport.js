@@ -46,7 +46,7 @@ export function sectionCaption({ wells, datum, depthRef, depthUnit, spacing, tem
     shown && shown.n > 0 && (shown.first > 1 || shown.last < shown.n)
       ? `Wells ${shown.first} to ${shown.last} of ${shown.n} shown: ${names.slice(shown.first - 1, shown.last).join(', ')}`
       : `Wells: ${names.join(', ') || EMPTY_VALUE}`,
-    `${datumText(datum, depthRef, depthUnit)} · ${depthRef === 'twt' ? 'Time TWT in ms from each well\'s checkshots' : `Depth ${DEPTH_REF_LABEL[depthRef] || 'MD'} in ${u} (TVDSS below mean sea level)`} · Vertical scale ${scale ? `1:${scale.toLocaleString('en-US')}` : depthRef === 'twt' ? `${EMPTY_VALUE} (time)` : EMPTY_VALUE} · Spacing ${spacing === 'proportional' ? 'by distance' : 'equal'} · Template ${templateName || EMPTY_VALUE}`,
+    `${datumText(datum, depthRef, depthUnit)} · ${depthRef === 'twt' ? 'Time TWT in ms from each well\'s checkshots' : `Depth ${DEPTH_REF_LABEL[depthRef] || 'MD'} in ${u} (TVDSS below mean sea level)`} · Vertical scale ${scale ? `1:${scale.toLocaleString('en-US')}` : depthRef === 'twt' ? `${EMPTY_VALUE} (time)` : EMPTY_VALUE} · Spacing ${spacing === 'proportional' ? 'by distance' : spacing === 'line' ? 'by distance along the section line' : 'equal'} · Template ${templateName || EMPTY_VALUE}`,
     `Field ${field || EMPTY_VALUE} · Analyst ${analyst || EMPTY_VALUE} · ${now.toISOString().slice(0, 10)} · ${build}`,
   ];
   return { title, caption };

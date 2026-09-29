@@ -373,3 +373,39 @@ describe('U2-003 TWT and seismic horizons in the section', () => {
     expect((await b.listTops('corr-w1')).some((t) => t.name.startsWith('H: '))).toBe(false);
   }, 300000);
 });
+
+describe('U2-008 pay, zones and units beside the logs', () => {
+  test('strips draw what Petrophysics and Stratigraphy published, name what is missing, and save with the section', async () => {
+    const b = makeInMemoryBackend();
+    mount(b, '?wells=corr-w1,corr-w2,corr-w3');
+    await rowsIn(3);
+    for (const k of ['pay', 'zones', 'units']) fireEvent.click(await screen.findByTestId(`corr-strip-${k}`, {}, T));
+    const sec = () => screen.getByTestId('corr-section');
+    await waitFor(() => expect(sec().getAttribute('data-well-notes')).toMatch(/KETA-2=[^;]*no published PAY/), T);
+    const notes = sec().getAttribute('data-well-notes');
+    expect(notes).toMatch(/KETA-3=[^;]*no zones/);
+    expect(notes).not.toMatch(/KETA-1=[^;]*no published PAY/);
+    // jsdom has no layout width, so the strip geometry is asserted in the e2e; the unit links read from the column here
+    expect((await b.listUnits()).map((u) => u.name)).toEqual(['Dome Sand', 'Mid Shale Member']);
+    fireEvent.click(screen.getByTestId('corr-save'));
+    await waitFor(() => expect(status()).toMatch(/Section saved/), T);
+    expect((await b.loadSection()).track_layout.strips).toEqual({ pay: true, zones: true, units: true });
+  }, 300000);
+});
+
+describe('U2-013 thickness map launcher to Mapping', () => {
+  test('links the two tops and the section wells carrying both; fewer than three wells says why', async () => {
+    mount(makeInMemoryBackend(), '?wells=corr-w1,corr-w2,corr-w3');
+    await rowsIn(3);
+    fireEvent.change(await screen.findByTestId('corr-iso-upper', {}, T), { target: { value: 'Top Dome' } });
+    fireEvent.change(screen.getByTestId('corr-iso-lower'), { target: { value: 'Base Sand' } });
+    const href = screen.getByTestId('corr-iso-link').getAttribute('href');
+    const q = new URLSearchParams(href.split('?')[1]);
+    expect(href.startsWith('/dashboard/apps/geoscience/mapping-surface-studio?')).toBe(true);
+    expect(q.get('net')).toBe('Top Dome|Base Sand');
+    expect(q.get('measure')).toBe('gross');
+    expect(q.get('wells')).toBe('corr-w1,corr-w2,corr-w3');
+    fireEvent.change(screen.getByTestId('corr-iso-lower'), { target: { value: 'Mid Shale' } }); // KETA-3 lacks it
+    expect(screen.getByTestId('corr-iso-why').textContent).toBe('2 section wells carry both; a map needs 3');
+  }, 300000);
+});

@@ -173,10 +173,11 @@ export function spacingProblem(wells) {
  * Falls back to equal spacing when a distance is unknown or all zero.
  * @returns {Array<{x0: number, w: number, gapAfter: number, distM: number|null}>}
  */
-export function columnLayout(wells, { mode = 'equal', plotLeft = 0, plotW = 0, minColPx = 40, fixedW = null, colW: forcedColW = null } = {}) {
+export function columnLayout(wells, { mode = 'equal', plotLeft = 0, plotW = 0, minColPx = 40, fixedW = null, colW: forcedColW = null, distances = null } = {}) {
   const n = wells.length;
   if (!n) return [];
-  const dists = pathDistances(wells);
+  // U2-012: distances along a drawn section line replace the wellhead-to-wellhead ones
+  const dists = distances && distances.length === n - 1 ? distances : pathDistances(wells);
   const total = dists.reduce((s, d) => s + d, 0);
   const usable = mode === 'proportional' && n > 1 && dists.every((d) => Number.isFinite(d)) && total > 0;
   // U2-002: a fixed column width lays the columns out on a band wider than
@@ -189,7 +190,7 @@ export function columnLayout(wells, { mode = 'equal', plotLeft = 0, plotW = 0, m
       }));
     }
     const bandW = Math.max(plotW, n * fixedW + (n - 1) * gap * 3);
-    return columnLayout(wells, { mode, plotLeft, plotW: bandW, minColPx: fixedW, fixedW: null, colW: fixedW });
+    return columnLayout(wells, { mode, plotLeft, plotW: bandW, minColPx: fixedW, fixedW: null, colW: fixedW, distances });
   }
   const equalW = plotW / n;
   if (!usable) {

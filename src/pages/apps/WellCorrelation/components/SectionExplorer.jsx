@@ -10,6 +10,7 @@ import { Building2, Lock, ArrowUp, ArrowDown, X, Plus, Pencil, Search } from 'lu
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { wellDataManagerHref } from '@/components/wells/appLinks';
 import { mappable, mapFrameSummary } from '@/pages/apps/WellDataManager/components/WellsMap';
+import { unitToMetres } from '../../../../../packages/engines/lib/crs/catalog';
 
 const PAD = 26;
 
@@ -22,16 +23,27 @@ export function wellMatches(w, q) {
 
 export default function SectionExplorer({
   wells, order, onToggle, onMove, onRemove, onAddMany = null, onRemoveMany = null, height = 200,
+  line = null, onLineChange = null, onUseLine = null,
   wellDataManagerPath = '/dashboard/apps/geoscience/well-data-manager',
 }) {
   const canvasRef = useRef(null);
   const placed = useRef([]);
+  const xform = useRef(null); // U2-012: px <-> map units
+  const [drawing, setDrawing] = useState(null); // draft vertices while drawing a section line
+  const [halfWidth, setHalfWidth] = useState(String(line?.halfWidthM ?? 500));
 
   // WC-U1-015 (the WDM-U1-016/017 lesson): wells with no location are not
   // drawn at the origin, and a map of wells in different coordinate systems
   // says so instead of squeezing them into one frame silently
   const located = useMemo(() => mappable(wells), [wells]);
   const frames = useMemo(() => mapFrameSummary(wells), [wells]);
+  // U2-012: the frame a section line is drawn in (the map's single frame)
+  const lineFrame = useMemo(() => {
+    const unit = located[0]?.xy_unit || 'm';
+    let mPerUnit = 1;
+    try { mPerUnit = unitToMetres(unit); } catch { mPerUnit = NaN; }
+    return { crs: located[0]?.crs || null, unit, mPerUnit };
+  }, [located]);
   const extent = useMemo(() => {
     if (!located.length) return null;
     const xs = located.map((w) => Number(w.surface_x));
@@ -62,6 +74,24 @@ export default function SectionExplorer({
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
     const toPx = (x, y) => ({ px: cssW / 2 + (x - cx) * scale, py: height / 2 - (y - cy) * scale });
+    xform.current = { toWorld: (px, py) => ({ x: cx + (px - cssW / 2) / scale, y: cy - (py - height / 2) / scale }) };
+
+    // U2-012: the section line (or the one being drawn) and its corridor
+    const pts = drawing || line?.points;
+    if (pts?.length) {
+      const hw = Number(drawing ? halfWidth : line?.halfWidthM);
+      ctx.save();
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      if (pts.length > 1 && hw > 0) {
+        ctx.strokeStyle = 'rgba(250,204,21,0.18)'; ctx.lineWidth = Math.max(2, (2 * hw / lineFrame.mPerUnit) * scale);
+        ctx.beginPath(); pts.forEach((p, k) => { const q = toPx(p.x, p.y); if (k) ctx.lineTo(q.px, q.py); else ctx.moveTo(q.px, q.py); }); ctx.stroke();
+      }
+      ctx.strokeStyle = '#facc15'; ctx.lineWidth = 1.5; ctx.setLineDash(drawing ? [4, 3] : []);
+      ctx.beginPath(); pts.forEach((p, k) => { const q = toPx(p.x, p.y); if (k) ctx.lineTo(q.px, q.py); else ctx.moveTo(q.px, q.py); }); ctx.stroke();
+      ctx.fillStyle = '#facc15';
+      for (const p of pts) { const q = toPx(p.x, p.y); ctx.fillRect(q.px - 2, q.py - 2, 4, 4); }
+      ctx.restore();
+    }
 
     // section path (in order)
     ctx.strokeStyle = '#22d3ee';
@@ -100,12 +130,13 @@ export default function SectionExplorer({
       ctx.textAlign = right ? 'left' : 'right';
       ctx.fillText(w.name, right ? px + 8 : px - 8, py + 3);
     }
-  }, [located, order, extent, height]);
+  }, [located, order, extent, height, drawing, line, halfWidth, lineFrame]);
 
   const pick = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    if (drawing) { if (xform.current) setDrawing((d) => [...d, xform.current.toWorld(x, y)]); return; }
     let best = null;
     for (const p of placed.current) {
       const d = Math.hypot(p.px - x, p.py - y);
@@ -128,7 +159,37 @@ export default function SectionExplorer({
       <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
         Section path: click wells to order
       </div>
-      <canvas ref={canvasRef} data-testid="corr-map" data-canvas="dark" className="cursor-pointer border-b border-pl-border" onClick={pick} />
+      <canvas ref={canvasRef} data-testid="corr-map" data-canvas="dark" className={`${drawing ? 'cursor-crosshair' : 'cursor-pointer'} border-b border-pl-border`} onClick={pick}
+        data-line={line ? line.points.map((p) => `${Math.round(p.x)} ${Math.round(p.y)}`).join(',') : ''} />
+      {onLineChange && (
+        <div className="px-2 py-1 border-b border-pl-border flex items-center gap-1 flex-wrap text-[11px]" data-testid="corr-line">
+          {drawing ? (
+            <>
+              <span className="text-pl-warning-text">Click the map to add points ({drawing.length})</span>
+              <label className="flex items-center gap-1 text-pl-muted">corridor ±
+                <input className="w-14 rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5" value={halfWidth} data-testid="corr-line-width" onChange={(e) => setHalfWidth(e.target.value)} /> m
+              </label>
+              <button type="button" className="px-1.5 py-0.5 rounded border border-pl-primary text-pl-primary-text disabled:opacity-40" data-testid="corr-line-done"
+                disabled={drawing.length < 2 || !(Number(halfWidth) > 0)}
+                onClick={() => { onLineChange({ points: drawing, halfWidthM: Number(halfWidth), crs: lineFrame.crs, unit: lineFrame.unit }); setDrawing(null); }}>Use line</button>
+              <button type="button" className="px-1.5 py-0.5 rounded border border-pl-border text-pl-muted" onClick={() => setDrawing(null)}>Cancel</button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="px-1.5 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40" data-testid="corr-line-draw"
+                disabled={frames.mixed || !located.length}
+                title={frames.mixed ? 'The wells are in different coordinate systems; a line cannot be drawn across them' : 'Draw a section line on the map and take the wells in a corridor along it (Petra style)'}
+                onClick={() => { setDrawing([]); setHalfWidth(String(line?.halfWidthM ?? 500)); }}>Draw section line</button>
+              {line && (
+                <>
+                  <button type="button" className="px-1.5 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-sunken" data-testid="corr-line-use" onClick={onUseLine}>Wells along it</button>
+                  <button type="button" className="text-pl-muted hover:text-pl-danger-text" data-testid="corr-line-clear" onClick={() => onLineChange(null)}>clear</button>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      )}
       {(frames.mixed || frames.undrawn > 0) && (
         <div className="px-2.5 py-1 text-[11px] leading-snug text-pl-warning-text border-b border-pl-border" data-testid="corr-map-frames">
           {frames.mixed && <div>Mixed coordinate systems ({frames.frame}): the map and spacing by distance cannot compare these wells.</div>}

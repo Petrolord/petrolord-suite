@@ -21,7 +21,7 @@ import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { parseWellsParam, mapTopHref } from '@/components/wells/appLinks';
+import { parseWellsParam, mapTopHref, mapNetHref } from '@/components/wells/appLinks';
 import { useWellCurvesCache } from '@/components/wells/useWellCurvesCache';
 import { resolveTracks } from '@/components/wells/layout/resolveTracks';
 import { buildDefaultLayouts, migrateLayouts, activeTemplate } from '@/components/wells/layout/layoutSchema';
@@ -42,6 +42,8 @@ import { undoEntry, applyUndo, remapStack, UNDO_LIMIT } from '../services/topsUn
 import { topsCsv } from '../services/topsFile';
 import { sheetRows } from '../../WellDataManager/engine/topsSheet';
 import { horizonCandidates, horizonAtWell, horizonLabel } from '@/components/wells/section/horizons';
+import { wellStrips } from '@/components/wells/section/petroStrips';
+import { wellsInCorridor } from '../services/sectionLine';
 
 // Fixed values for the parameter-bound fills of the Petrophysics
 // templates (GR clean/clay lines, porosity and saturation cut-offs): the
@@ -123,6 +125,52 @@ export default function CorrelationWorkstation({
     : sectionWells), [sectionWells, horizonPicks]);
   const datumNames = useMemo(() => [...topNames, ...horizonPicks.names], [topNames, horizonPicks.names]);
 
+  // ---- U2-012 section line and corridor on the map ------------------------
+  const [line, setLine] = useState(null); // {points, halfWidthM, crs, unit}
+  const [lineAlong, setLineAlong] = useState({}); // well id -> metres along the line
+  const applyLine = async (ln = line) => {
+    if (!ln) return;
+    const framed = (wells || []).map((w) => {
+      let frame = null;
+      try { frame = makeDepthFrame({ deviation: w.deviation, kbM: w.kb_m, tdMdM: w.td_md_m }); } catch { frame = null; }
+      return { ...w, frame };
+    });
+    const r = wellsInCorridor(framed, ln.points, { halfWidthM: ln.halfWidthM, crs: ln.crs, unit: ln.unit });
+    if (!r.picked.length) { setStatus(`No well comes within ${ln.halfWidthM} m of the line (${Math.round(r.lengthM)} m long).`); return; }
+    const ids = r.picked.map((p) => p.id);
+    await Promise.all(ids.map((id) => ensureWellData(id)));
+    setOrder(ids);
+    setLineAlong(Object.fromEntries(r.picked.map((p) => [p.id, p.alongM])));
+    setSpacing('line');
+    const dev = r.picked.filter((p) => p.deviated).map((p) => p.name);
+    const left = r.left.length ? ` Left out: ${r.left.map((x) => `${x.name} (${x.reason})`).join(', ')}.` : '';
+    setStatus(`${ids.length} well${ids.length === 1 ? '' : 's'} within ${ln.halfWidthM} m of the ${(r.lengthM / 1000).toFixed(2)} km line, ordered along it and spaced by distance along it${dev.length ? `; ${dev.join(', ')} projected at wellhead and bottom hole` : ''}.${left}`);
+  };
+  const lineDistances = useMemo(() => {
+    if (!order.length || !order.every((id) => Number.isFinite(lineAlong[id]))) return null;
+    return order.slice(1).map((id, i) => Math.abs(lineAlong[id] - lineAlong[order[i]]));
+  }, [order, lineAlong]);
+
+  // ---- U2-008 Petrophysics pay and zones, Stratigraphy units (read only) ---
+  const [stripsOn, setStripsOn] = useState({ pay: false, zones: false, units: false });
+  const [units, setUnits] = useState([]);
+  useEffect(() => {
+    if (!stripsOn.units || typeof backend.listUnits !== 'function') return undefined;
+    let live = true;
+    backend.listUnits().then((u) => { if (live) setUnits(u || []); }).catch((e) => { if (live) setStatus(`The stratigraphic column could not be read: ${e.message}`); });
+    return () => { live = false; };
+  }, [backend, stripsOn.units]);
+  const stripsByWell = useMemo(() => {
+    if (!stripsOn.pay && !stripsOn.zones && !stripsOn.units) return null;
+    const out = {};
+    for (const w of sectionWells) {
+      const d = wellData[w.id] || {};
+      // the PAY Petrophysics publishes is a raw registry log (mnemonic PAY)
+      out[w.id] = wellStrips({ depth: d.curves?.DEPT || null, curves: { PAY: d.logs?.PAY || d.curves?.PAY || null }, zones: d.zones || [], tops: w.tops }, stripsOn, { units, unit: depthUnit });
+    }
+    return out;
+  }, [stripsOn, sectionWells, wellData, units, depthUnit]);
+
   // WC-U1-013: the ghost and the report header ride in track_layout (no
   // migration, the column is jsonb) and come back with the section
   // (U2-001: opening another section replaces both, blank when it has none)
@@ -131,6 +179,9 @@ export default function CorrelationWorkstation({
     const tl = savedRow.track_layout || {};
     setGhost(tl.ghost && tl.ghost.sourceWellId ? tl.ghost : null);
     setHzOn(Array.isArray(tl.horizons) ? tl.horizons.filter((x) => typeof x === 'string') : []);
+    setStripsOn({ pay: !!tl.strips?.pay, zones: !!tl.strips?.zones, units: !!tl.strips?.units });
+    setLine(tl.line && Array.isArray(tl.line.points) && tl.line.points.length > 1 ? tl.line : null);
+    setLineAlong(tl.lineAlong && typeof tl.lineAlong === 'object' ? tl.lineAlong : {});
     setReport(tl.report && typeof tl.report === 'object'
       ? { field: tl.report.field || '', analyst: tl.report.analyst || '', ...(Number(tl.report.pdfScale) > 0 ? { pdfScale: Number(tl.report.pdfScale) } : {}) }
       : { field: '', analyst: '' });
@@ -142,8 +193,8 @@ export default function CorrelationWorkstation({
   const payload = useMemo(() => ({
     well_ids: order,
     datum,
-    track_layout: { layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, horizons: hzOn },
-  }), [order, datum, layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, hzOn]);
+    track_layout: { layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, horizons: hzOn, strips: stripsOn, line, lineAlong: line ? lineAlong : null },
+  }), [order, datum, layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, hzOn, stripsOn, line, lineAlong]);
   const snapshot = useMemo(() => {
     const all = !shownTops.length || (topNames.length > 0 && topNames.every((n) => shownTops.includes(n)));
     const tl = payload.track_layout;
@@ -555,7 +606,7 @@ export default function CorrelationWorkstation({
     if (depthRef === 'twt') { setStatus('A PDF to scale needs a depth axis: switch the reference to MD, TVD or TVDSS (a time section has no 1:N scale).'); return; }
     const scaleN = Number(report.pdfScale) || (depthUnit === 'ft' ? 1200 : 1000);
     const colW = Math.max(60, Math.round(meta.colW || 140));
-    const band = columnLayout(sectionWells, { mode: meta.spacing, plotLeft: 0, plotW: 1, fixedW: colW });
+    const band = columnLayout(sectionWells, { mode: meta.spacing === 'line' ? 'proportional' : meta.spacing, plotLeft: 0, plotW: 1, fixedW: colW, distances: meta.spacing === 'line' ? lineDistances : null });
     const contentW = AXIS_W + Math.max(...band.map((b) => b.x0 + b.w)) + 2;
     const plan = printPlan({ vTop: meta.vTop, vBase: meta.vBase, scaleN, contentW, plotTop: PLOT_TOP, padBottom: sectionHeightFor(0) - PLOT_TOP });
     if (plan.problem) { setStatus(plan.problem); return; }
@@ -683,6 +734,8 @@ export default function CorrelationWorkstation({
       onPickCancel={() => setPickMode(null)}
       onNotice={setStatus}
       ghost={ghost}
+      strips={stripsByWell}
+      lineDistances={lineDistances}
     />
   );
 
@@ -691,7 +744,7 @@ export default function CorrelationWorkstation({
       <CrossSection
         wells={viewWells} datum={datum} depthUnit={depthUnit} depthRef={depthRef} spacing={spacing}
         columnWidth={printJob.colW} zoneMode={zoneMode} zonePair={zonePair} shownTops={horizonPicks.names.length ? [...shownTops, ...horizonPicks.names] : shownTops} topNames={topNames}
-        ghost={ghost} view={printJob.view} onViewChange={() => {}}
+        ghost={ghost} strips={stripsByWell} lineDistances={lineDistances} view={printJob.view} onViewChange={() => {}}
         printSize={{ w: printJob.w, h: printJob.h, pixelRatio: printJob.pixelRatio }} onPainted={onPrintPainted}
       />
     </div>
@@ -718,6 +771,9 @@ export default function CorrelationWorkstation({
             setOrder((o) => [...o, ...ids.filter((id) => !o.includes(id))]);
             setStatus(`Added ${ids.length} well${ids.length === 1 ? '' : 's'} to the section.`);
           }}
+          line={line}
+          onLineChange={(ln) => { setLine(ln); if (ln) applyLine(ln); else { setLineAlong({}); if (spacing === 'line') setSpacing('equal'); } }}
+          onUseLine={() => applyLine()}
           onRemoveMany={(ids) => { setOrder((o) => o.filter((x) => !ids.includes(x))); setStatus(`Removed ${ids.length} well${ids.length === 1 ? '' : 's'} from the section.`); }}
         />
       )}
@@ -727,6 +783,7 @@ export default function CorrelationWorkstation({
           <SectionControls
             topNames={topNames}
             datumNames={datumNames}
+            strips={{ on: stripsOn, onChange: setStripsOn, hasUnits: typeof backend.listUnits === 'function', hasZones: typeof backend.listZones === 'function' }}
             horizons={canHorizons ? { list: hzList, on: hzOn, onToggle: toggleHorizon, problems: horizonPicks.problems, loaded: hzGrids, picks: horizonPicks.byWell } : null}
             datum={datum}
             onDatum={setDatum}
@@ -739,6 +796,7 @@ export default function CorrelationWorkstation({
             onDepthRef={setDepthRef}
             spacing={spacing}
             onSpacing={setSpacing}
+            hasLine={!!line}
             columnWidth={columnWidth}
             onColumnWidth={setColumnWidth}
             layouts={layouts}
@@ -754,6 +812,11 @@ export default function CorrelationWorkstation({
             onRenameTop={renameTop}
             onDeleteTop={deleteTop}
             mapHrefFor={(name) => mapTopHref(name, order.filter((id) => (wellData[id]?.tops || []).some((t) => t.name === name)), mappingPath)}
+            isochoreFor={(upper, lower) => {
+              // U2-013: the section wells carrying both tops, gross thickness in Mapping (ST4 door)
+              const ids = order.filter((id) => { const t = wellData[id]?.tops || []; return t.some((x) => x.name === upper) && t.some((x) => x.name === lower); });
+              return { href: mapNetHref(upper, lower, ids, { measure: 'gross', path: mappingPath }), wells: ids.length };
+            }}
             zoneMode={zoneMode}
             onZoneMode={setZoneMode}
             zonePair={zonePair}

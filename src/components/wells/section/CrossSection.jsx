@@ -30,6 +30,7 @@ import { useScheme } from '@/lib/stratigraphy/scheme';
 import { computeStretch, invertShift } from '@/lib/stratigraphy/stretch';
 import { hitTopAt } from '@/components/wells/hitTest';
 import { topColor } from '@/components/wells/topColors';
+import { STRIP_W } from './petroStrips';
 import { depthLabel } from '@/components/wells/depthModes';
 import TopNamePopover from '@/components/wells/TopNamePopover';
 import DepthNavigator from '@/components/wells/DepthNavigator';
@@ -79,7 +80,7 @@ const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.roun
  * @param {?{sourceWellId, targetWellId, shiftM}} [p.ghost] ST2 ghost curve: the source well's first track drawn on the target column
  * @param {'m'|'ft'} [p.depthUnit] display unit, data stays metres
  * @param {'md'|'tvd'|'tvdss'} [p.depthRef] plotted depth reference
- * @param {'equal'|'proportional'} [p.spacing]
+ * @param {'equal'|'proportional'|'line'} [p.spacing] 'line' (U2-012): by distance along the drawn section line (p.lineDistances)
  * @param {'none'|'consecutive'|'pair'} [p.zoneMode]
  * @param {?[string,string]} [p.zonePair]
  * @param {string[]} p.shownTops
@@ -91,11 +92,12 @@ const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.roun
  * @param {'auto'|'fit'|number} [p.columnWidth] U2-002: fit the window, a fixed px width, or auto (fixed once fit gets too narrow)
  * @param {?{w: number, h: number, pixelRatio?: number}} [p.printSize] U2-006: an offscreen print render at this css size (no navigator, hints or scrollbar)
  * @param {(canvas: HTMLCanvasElement) => void} [p.onPainted] U2-006: the static layer after each paint
+ * @param {?Object<string, Array<{key, title, intervals, note?}>>} [p.strips] U2-008: narrow strips per well id (pay, zones, units; petroStrips.wellStrips)
  */
 const CrossSection = forwardRef(function CrossSection({
   wells, datum, depthUnit = 'm', depthRef = 'md', spacing = 'equal', zoneMode = 'consecutive', zonePair = null,
   shownTops, pickMode = null, onTopMove, onTopCreate, onPickCancel, onNotice, topNames = [],
-  bands = null, ghost = null, columnWidth = 'auto', printSize = null, onPainted = null,
+  bands = null, ghost = null, columnWidth = 'auto', printSize = null, onPainted = null, strips = null, lineDistances = null,
   view: viewProp, onViewChange,
 }, exportRef) {
   const wrapRef = useRef(null);
@@ -173,7 +175,7 @@ const CrossSection = forwardRef(function CrossSection({
       return {
         well: w, frameWell: frameWells[i], shift: f.shift, hasDatumTop: f.hasDatumTop,
         disp, fallback: fallback.has(w.id), noTime: noTime.get(w.id) || null, tracks: w.tracks || [],
-        refForWell: fallback.has(w.id) ? 'md' : depthRef,
+        refForWell: fallback.has(w.id) ? 'md' : depthRef, depthOf,
       };
     });
     const autoRange = displayedRange(frameWells, flattening, logRanges) || [0, 1];
@@ -191,8 +193,8 @@ const CrossSection = forwardRef(function CrossSection({
   // (an unmeasured viewport, size.w 0, fits: there is no window to scroll yet)
   const fixedW = size.w > 0 ? resolveColumnWidth(columnWidth, wells.length, plotW) : null;
   const band = useMemo(
-    () => columnLayout(wells, { mode: spacing, plotLeft: AXIS_W, plotW, fixedW }),
-    [wells, spacing, plotW, fixedW],
+    () => columnLayout(wells, { mode: spacing === 'line' ? 'proportional' : spacing, plotLeft: AXIS_W, plotW, fixedW, distances: spacing === 'line' ? lineDistances : null }),
+    [wells, spacing, plotW, fixedW, lineDistances],
   );
   // fitted columns never scroll (a gap rule can overrun a tiny window by a few px)
   const win = useMemo(() => (fixedW
@@ -208,13 +210,20 @@ const CrossSection = forwardRef(function CrossSection({
   }, [scrollX, scrolling]);
   // WC-U1-002: spacing by distance needs one frame and located wells; the
   // columns stay equal otherwise and the host is told why
-  const spacingNote = useMemo(() => (spacing === 'proportional' ? spacingProblem(wells) : null), [wells, spacing]);
+  const spacingNote = useMemo(() => (spacing === 'proportional' ? spacingProblem(wells)
+    : spacing === 'line' && !(lineDistances && lineDistances.length === wells.length - 1) ? 'the section wells are not the wells of the drawn line' : null), [wells, spacing, lineDistances]);
   useEffect(() => {
     if (spacingNote && onNotice) onNotice(`Spacing by distance is off: ${spacingNote}. The columns are equal.`);
   }, [spacingNote]); // eslint-disable-line react-hooks/exhaustive-deps
+  // U2-008: strips take a fixed width at the left of a column (when the
+  // column is wide enough to keep its tracks readable)
+  const stripW = useMemo(() => columns.map((c, i) => {
+    const n = strips?.[c.well.id]?.length || 0;
+    return n && (boxes[i]?.w || 0) >= n * STRIP_W + 60 ? n * STRIP_W : 0;
+  }), [columns, boxes, strips]);
   const geoms = useMemo(
-    () => columns.map((c, i) => trackGeometry(c.tracks, boxes[i]?.w || 0, 0).map((g) => ({ x0: g.x0 + (boxes[i]?.x0 || 0), w: g.w }))),
-    [columns, boxes],
+    () => columns.map((c, i) => trackGeometry(c.tracks, (boxes[i]?.w || 0) - stripW[i], 0).map((g) => ({ x0: g.x0 + (boxes[i]?.x0 || 0) + stripW[i], w: g.w }))),
+    [columns, boxes, stripW],
   );
   const yOf = useCallback((d) => plotTop + ((d - vTop) / (vBase - vTop || 1)) * plotH, [plotTop, plotH, vTop, vBase]);
   const dOf = (y) => vTop + ((y - plotTop) / plotH) * (vBase - vTop);
@@ -251,8 +260,9 @@ const CrossSection = forwardRef(function CrossSection({
     else if (c.fallback) notes.push(`${DEPTH_REF_LABEL[depthRef]} not monotonic: MD shown`);
     else notes.push(...frameNotes(c.well, depthRef)); // WC-U1-005
     if (c.well.reoriented) notes.push('stored bottom-up: read top-down'); // WC-U1-003
+    for (const st of strips?.[c.well.id] || []) if (st.note) notes.push(st.note); // U2-008
     return notes;
-  }), [columns, datum, flattening, depthRef]);
+  }), [columns, datum, flattening, depthRef, strips]);
 
   // ---- STATIC layer -------------------------------------------------------
   useEffect(() => {
@@ -401,11 +411,46 @@ const CrossSection = forwardRef(function CrossSection({
         ctx.fillText(c.disp ? 'no curve of this template' : 'no curves', box.x0 + box.w / 2, plotTop + 16, box.w - 8);
         return;
       }
+      // U2-008 strips: title in the header band, intervals in displayed depth
+      const ws = stripW[i] ? strips[w.id] : [];
+      ws.forEach((st, j) => {
+        const sx = box.x0 + j * STRIP_W;
+        ctx.save();
+        ctx.fillStyle = P.headerBg; ctx.fillRect(sx, WELL_H, STRIP_W, HEADER_H);
+        ctx.strokeStyle = P.frame; ctx.strokeRect(sx + 0.5, WELL_H + 0.5, STRIP_W - 1, HEADER_H - 1);
+        ctx.translate(sx + STRIP_W / 2 + 3, WELL_H + HEADER_H - 4); ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = P.textStrong; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText(st.title, 0, 0, HEADER_H - 8);
+        ctx.restore();
+        ctx.strokeStyle = P.frame; ctx.strokeRect(sx + 0.5, plotTop + 0.5, STRIP_W - 1, plotH - 1);
+        if (c.noTime) return;
+        for (const iv of st.intervals) {
+          const d0 = displayedDepth(c.depthOf(iv.top_md_m), c.shift); const d1 = displayedDepth(c.depthOf(iv.base_md_m), c.shift);
+          if (!Number.isFinite(d0) || !Number.isFinite(d1)) continue;
+          const y0 = yOf(Math.max(Math.min(d0, d1), vTop)); const y1 = yOf(Math.min(Math.max(d0, d1), vBase));
+          if (y1 <= y0) continue;
+          ctx.fillStyle = iv.colour || '#94a3b8';
+          ctx.fillRect(sx + 1, y0, STRIP_W - 2, Math.max(1, y1 - y0));
+        }
+      });
       if (!c.disp) return;
       const { i0, i1 } = visibleRange(c.disp, vTop, vBase);
       c.tracks.forEach((track, ti) => paintTrackBody(ctx, {
         track, depth: c.disp, yOf, i0, i1, x0: geom[ti].x0, w: geom[ti].w, plotTop, plotH, headerH: WELL_H + HEADER_H,
       }));
+      // zone summaries (published net, PHIE, Sw) written at each zone top
+      for (const st of ws) {
+        if (st.key !== 'zones' || c.noTime) continue;
+        for (const iv of st.intervals) {
+          const d0 = displayedDepth(c.depthOf(iv.top_md_m), c.shift);
+          if (!Number.isFinite(d0) || d0 < vTop || d0 > vBase || !iv.label) continue;
+          const y = yOf(d0) + 10;
+          ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
+          const tw = Math.min(ctx.measureText(iv.label).width, box.w - stripW[i] - 6);
+          ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(box.x0 + stripW[i] + 2, y - 9, tw + 4, 12);
+          ctx.fillStyle = P.textStrong; ctx.fillText(iv.label, box.x0 + stripW[i] + 4, y, box.w - stripW[i] - 8);
+        }
+      }
     });
 
     // ST2 ghost curve: the source well's first track drawn translucent on the
@@ -468,7 +513,7 @@ const CrossSection = forwardRef(function CrossSection({
     ctx.restore();
     setTick((t) => t + 1);
     if (onPainted) onPainted(canvas, { plotTop, plotH, vTop, vBase });
-  }, [size.w, size.h, printSize, onPainted, wells, columns, columnNotes, boxes, colVisible, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, unitTxt, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, ghost]);
+  }, [size.w, size.h, printSize, onPainted, strips, stripW, wells, columns, columnNotes, boxes, colVisible, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, unitTxt, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, ghost]);
 
   // ---- CURSOR layer -------------------------------------------------------
   useEffect(() => {
@@ -735,6 +780,7 @@ const CrossSection = forwardRef(function CrossSection({
       data-scroll-x={Math.round(scrollX)}
       data-max-scroll={maxScroll}
       data-painted-cols={colVisible.filter(Boolean).length}
+      data-strips={columns.map((c, i) => `${c.well.name}=${stripW[i] ? (strips[c.well.id] || []).map((st) => `${st.key}:${st.intervals.length}`).join('|') : ''}`).join(';')}
       data-spacing={spacingNote ? 'equal' : spacing}
       data-well-notes={columns.map((c, i) => `${c.well.name}=${columnNotes[i].join('|')}`).join(';')}
       data-view-top={vTop}

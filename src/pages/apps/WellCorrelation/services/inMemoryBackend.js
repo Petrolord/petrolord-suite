@@ -12,7 +12,7 @@
 // `section` seeds a saved geo_correlation_sections row, opened through the
 // same PP0 state kind as the registry (a newer-build row is refused).
 
-import { sampleWells, sampleSurfaces } from './sampleSection';
+import { sampleWells, sampleSurfaces, sampleUnits, samplePetro, SAMPLE_UNIT_OF } from './sampleSection';
 import { openSectionRow } from '@/components/wells/section/sectionState';
 import { sectionNameProblem, DEFAULT_SECTION_NAME } from '@/components/wells/section/sectionNames';
 
@@ -28,10 +28,23 @@ const asCurves = (curves) => Object.fromEntries(Object.entries(curves || {})
  *   sample false drops the 3-well KETA section (a scale or hostile run alone)
  */
 export function makeInMemoryBackend({ seedWells = [], sample = true, section: seedSection = null, sections: seedSections = [], surfaces: seedSurfaces = null } = {}) {
-  const wells = [...(sample ? sampleWells() : []), ...seedWells.map((w) => ({ ...w, curves: asCurves(w.curves) }))].map((w) => ({ ...w }));
+  // U2-008: the harness sample carries a published PAY, zones and unit links
+  const sampleSet = sample ? sampleWells().map((w) => {
+    const p = samplePetro(w);
+    return {
+      ...w,
+      tops: w.tops.map((t) => ({ ...t, unit_id: SAMPLE_UNIT_OF[t.name] || t.unit_id || null })),
+      zones: p.zones,
+      curves: p.pay ? { ...w.curves, PAY: p.pay } : w.curves,
+      logMeta: p.pay ? { ...w.logMeta, PAY: { ...w.logMeta.GR, unit: 'FLAG' } } : w.logMeta,
+    };
+  }) : [];
+  const wells = [...sampleSet, ...seedWells.map((w) => ({ ...w, curves: asCurves(w.curves) }))].map((w) => ({ ...w }));
   const curvesByWell = new Map(wells.map((w) => [w.id, w.curves]));
   const topsByWell = new Map(wells.map((w) => [w.id, [...(w.tops || [])]]));
   const intervalsByWell = new Map(wells.map((w) => [w.id, [...(w.intervals || [])]]));   // ST1 seeded lithology
+  const zonesByWell = new Map(wells.map((w) => [w.id, [...(w.zones || [])]]));           // U2-008 Petrophysics zones
+  const units = [...(sample ? sampleUnits() : []), ...seedWells.flatMap((w) => w.units || [])];
   const logMeta = new Map(wells.map((w) => [w.id, w.logMeta]));
   // U2-001: named sections, owner-only rows like the registry; `clock` orders
   // them by last save (newest first), as updated_at does
@@ -74,6 +87,9 @@ export function makeInMemoryBackend({ seedWells = [], sample = true, section: se
       return Float32Array.from(s.grid);
     },
 
+    async listZones(wellId) { return (zonesByWell.get(wellId) || []).map((z) => ({ ...z, properties: { ...(z.properties || {}) } })); },
+    async listUnits() { return units.map((u) => ({ ...u })); },
+
     async listAllTops() {
       return [...topsByWell.values()].flat().map((t) => ({ ...t }));
     },
@@ -106,7 +122,8 @@ export function makeInMemoryBackend({ seedWells = [], sample = true, section: se
     async saveTop(wellId, top) {
       own(wellId, 'add tops to this well');
       const row = { id: nid('top'), well_id: wellId, name: top.name, md_m: top.mdM, interpreter: top.interpreter || null,
-        surface_type: top.surface_type || 'formation_top', unit_id: top.unit_id || null, confidence: top.confidence || null, age_ma: top.age_ma ?? null, notes: top.notes || null };
+        surface_type: top.surface_type || 'formation_top', unit_id: top.unit_id || null, confidence: top.confidence || null, age_ma: top.age_ma ?? null, notes: top.notes || null,
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
       topsByWell.get(wellId).push(row);
       return row;
     },
@@ -116,6 +133,7 @@ export function makeInMemoryBackend({ seedWells = [], sample = true, section: se
         const t = tops.find((x) => x.id === topId);
         if (t) {
           own(wellId, 'edit tops of this well');
+          t.updated_at = new Date().toISOString();
           if (patch.mdM !== undefined) t.md_m = patch.mdM;
           if (patch.name !== undefined) t.name = patch.name;
           for (const k of ['surface_type', 'unit_id', 'confidence', 'age_ma', 'notes', 'hiatus_to_ma']) if (patch[k] !== undefined) t[k] = patch[k] === '' ? null : patch[k];
@@ -132,14 +150,14 @@ export function makeInMemoryBackend({ seedWells = [], sample = true, section: se
       if (i >= 0) tops.splice(i, 1);
     },
 
-    async propagateTop(name, targets) {
+    async propagateTop(name, targets, attrs = {}) {
       const created = [];
       for (const t of targets) {
         const w = wells.find((x) => x.id === t.wellId);
         if (!w || !w.is_own) continue; // RLS would drop unowned wells
         const tops = topsByWell.get(t.wellId);
         if (tops.some((x) => x.name === name)) continue;
-        const row = { id: nid('top'), well_id: t.wellId, name, md_m: t.mdM, interpreter: null };
+        const row = { id: nid('top'), well_id: t.wellId, name, md_m: t.mdM, interpreter: attrs.interpreter || null, confidence: attrs.confidence || null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
         tops.push(row);
         created.push(row);
       }
