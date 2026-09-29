@@ -103,7 +103,6 @@ export function overrideCounts(rows) {
  * patchFromDraft flags it.
  */
 export function draftToEngine(draft, committed, system = 'si', global = null) {
-  if (system !== 'field') return draft;
   const out = { ...draft };
   for (const key of Object.keys(PARAM_UNIT_KIND)) {
     if (!(key in out)) continue;

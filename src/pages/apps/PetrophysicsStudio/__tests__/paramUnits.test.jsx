@@ -43,12 +43,16 @@ test('conversions are the exact definitions', () => {
 
 test('exact round trip: an untouched field returns its stored value bit for bit', () => {
   const awkward = [182, 182.3456789012345, 189.7, 656, 0.1 + 0.2, 1e-9, 12345.678901234];
-  for (const key of Object.keys(PARAM_UNIT_KIND)) {
-    for (const v of awkward) {
-      const shown = toDisplayValue(key, v, 'field');
-      expect(Object.is(engineValue(key, shown, v, 'field'), v)).toBe(true);
+  for (const system of ['field', 'si']) {
+    for (const key of Object.keys(PARAM_UNIT_KIND)) {
+      for (const v of awkward) {
+        const shown = toDisplayValue(key, v, system);
+        expect(Object.is(engineValue(key, shown, v, system), v)).toBe(true);
+      }
     }
   }
+  // SI shows a field-typed value to 12 figures, and keeps it exactly
+  expect(toDisplayValue('dtMa', 55.5 / 0.3048, 'si')).toBe(182.086614173);
   // and a typed value is converted once, and shows as typed on the way back
   const stored = engineValue('dtMa', 55.5, 182, 'field');
   expect(stored).toBe(55.5 / 0.3048);

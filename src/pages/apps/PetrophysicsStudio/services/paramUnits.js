@@ -47,8 +47,9 @@ const clean = (v) => Number(Number(v).toPrecision(12));
 /** The number a field shows for an engine value (12 significant figures). */
 export function toDisplayValue(key, value, system = 'si') {
   const kind = PARAM_UNIT_KIND[key];
-  if (!kind || system !== 'field' || typeof value !== 'number' || !Number.isFinite(value)) return value;
-  return clean(TO_FIELD[kind](value));
+  if (!kind || typeof value !== 'number' || !Number.isFinite(value)) return value;
+  // SI too: a value typed in field units reads 182.086614173, not 182.08661417322833
+  return clean(system === 'field' ? TO_FIELD[kind](value) : value);
 }
 
 /** The engine value for a number typed in the display system. */
@@ -60,7 +61,6 @@ export function fromDisplayValue(key, value, system = 'si') {
 
 /** A parameter set as the panel shows it (unit fields converted). */
 export function toDisplayDraft(values, system = 'si') {
-  if (system !== 'field') return { ...values };
   const out = { ...values };
   for (const key of Object.keys(PARAM_UNIT_KIND)) if (key in out) out[key] = toDisplayValue(key, out[key], system);
   return out;
@@ -75,7 +75,7 @@ export function toDisplayDraft(values, system = 'si') {
  * @param {number|number[]} committed the stored engine value (or candidates)
  */
 export function engineValue(key, parsed, committed, system = 'si') {
-  if (!PARAM_UNIT_KIND[key] || system !== 'field') return parsed;
+  if (!PARAM_UNIT_KIND[key]) return parsed;
   // several candidates (a zone's own value and the global one): the text
   // that shows either keeps it exactly
   for (const c of Array.isArray(committed) ? committed : [committed]) {
