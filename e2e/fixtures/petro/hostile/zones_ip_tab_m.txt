@@ -1,0 +1,3 @@
+﻿Zone Name	Top Depth [m]	Bottom Depth [m]	Thickness [m]
+Oil sand	1525.00	1549.50	24.50
+Water sand	1575.00	1599.50	24.50

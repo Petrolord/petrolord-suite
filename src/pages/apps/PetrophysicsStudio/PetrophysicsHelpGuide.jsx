@@ -535,6 +535,21 @@ const PetrophysicsHelpGuide = () => (
         (vertical when published) with NTG, porosity and Sw.
       </Para>
 
+      <SubHeading>Importing a zonation</SubHeading>
+      <Para>
+        <Code>Import</Code> in the new-zone box takes a zonation from Techlog, Interactive Petrophysics, Petrel
+        or a spreadsheet: paste it or load a CSV or text file. Columns may come in any order (base before top is
+        fine) and may be separated by commas, tabs, semicolons (with comma decimals) or spaces; comment lines are
+        ignored; a thickness column stands in for a missing base; in a file with a well column only this
+        well&apos;s rows are kept. The depth unit is read from the headers (<Code>Top (ft)</Code>,
+        <Code>[m]</Code>, <Code>_FT</Code>) or a unit column, else the session unit is assumed and the preview
+        says so; <Code>depths in</Code> overrides it and the column pickers fix a header the reader did not
+        recognise. The preview lists every zone it will create in the display unit and every row it skipped with
+        the reason (a repeated name, a name already on the well, a depth that is not a number, a base above its
+        top, a negative depth). A file in TVD or TVDSS is refused: zones are stored as MD below KB. Nothing is
+        created until <Code>Import</Code>.
+      </Para>
+
       <SubHeading>Cutoff sensitivity</SubHeading>
       <Para>
         <Code>Cutoff sensitivity…</Code> at the top of the Zones panel plots, for one zone at a time,

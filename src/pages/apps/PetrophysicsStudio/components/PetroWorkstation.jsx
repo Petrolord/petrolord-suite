@@ -553,13 +553,13 @@ export default function PetroWorkstation({
     await refreshZones(wellData.wellId);
   };
   // PT4: several zones at once (between consecutive tops), sequential saves
-  const addZonesMany = async (list) => {
+  const addZonesMany = async (list, source = null) => {
     if (!wellData || !list.length) return;
     setZonesBusy(true);
     let n = 0;
     try {
       for (const z of list) { await backend.saveZone(wellData.wellId, z); n++; }
-      setStatus(`Created ${n} zone${n === 1 ? '' : 's'} from tops.`);
+      setStatus(`Created ${n} zone${n === 1 ? '' : 's'}${source ? ` from ${source}` : ' from tops'}.`);
     } catch (e) {
       setStatus(`Created ${n} zone${n === 1 ? '' : 's'}, then: ${e.message}`);
     } finally {
@@ -1481,6 +1481,8 @@ export default function PetroWorkstation({
                 tdM={selected?.td_md_m ?? null}
                 probZones={probZones}
                 onOpenSensitivity={computed ? () => setSensitivityOpen(true) : null}
+                well={selected}
+                logRange={wellData.curves.DEPT?.length ? [wellData.curves.DEPT[0], wellData.curves.DEPT[wellData.curves.DEPT.length - 1]] : null}
                 onDelete={deleteZone}
                 onPublish={publishZone}
               />

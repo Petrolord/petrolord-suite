@@ -79,6 +79,9 @@ describe('PetrophysicsHelpGuide', () => {
     // U2-002
     expect(text).toMatch(/switches parameter entry between SI and Field/);
     expect(text).toMatch(/stored in SI either way/);
+    // U2-004
+    expect(text).toMatch(/Importing a zonation/);
+    expect(text).toMatch(/A file in TVD or TVDSS is refused/);
     // U2-003
     expect(text).toMatch(/log plot \(CPI\) page per zone/);
   });
