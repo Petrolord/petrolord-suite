@@ -102,7 +102,7 @@ describe('Petrophysics Studio themed states', () => {
       // eslint-disable-next-line no-await-in-loop
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     }
-  });
+  }, 20000); // ten dialogs: over 5 s when the jest run is loaded
 
   test('the help guide shares the scope and opens light', () => {
     render(<MemoryRouter><PetrophysicsHelpGuide /></MemoryRouter>);
