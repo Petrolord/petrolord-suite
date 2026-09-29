@@ -132,6 +132,38 @@ export function makeInMemoryBackend(opts = {}) {
     { md: 2100, inc: 25, azi: 45 },
   ];
   addLogs(ownId);
+  // PETRO-U2-007: routine core analysis as Well Data Manager stores it after
+  // a merge (point values on the nearest samples, NaN between): plugs every
+  // 2 m through both sands; CPOR in percent, CKH in mD from a semi-log trend
+  // with a deterministic scatter, so the core transform has something to fit
+  if (opts.core !== false) {
+    const depth = typewell.curves.DEPT;
+    const phiTrue = typewell.construction.phi_true;
+    const cpor = new Float64Array(depth.length).fill(NaN);
+    const ckh = new Float64Array(depth.length).fill(NaN);
+    let j = 0;
+    for (let i = 0; i < depth.length; i += 4) {
+      const d = depth[i];
+      const inSand = (d >= 2010 && d <= 2030) || (d >= 2050 && d <= 2080);
+      const phi = phiTrue[i];
+      if (!inSand || !(phi > 0.05)) continue;
+      const wobble = [0.004, -0.006, 0.002, -0.003, 0.005, -0.001][j % 6];
+      cpor[i] = (phi + wobble) * 100;
+      ckh[i] = 10 ** (-1.4 + 15.5 * phi + [0.12, -0.08, 0.05, -0.15, 0.1, -0.02][j % 6]);
+      j += 1;
+    }
+    for (const [mnemonic, data, unit, description] of [['CPOR', cpor, '%', 'Core porosity (helium)'], ['CKH', ckh, 'MD', 'Core permeability, horizontal']]) {
+      const id = nextId('log');
+      curveStore.set(id, data);
+      logsByWell.get(ownId).push({
+        id, well_id: ownId, mnemonic, description, unit,
+        start_md_m: depth[0], stop_md_m: depth[depth.length - 1], step_m: 0.5, n_samples: depth.length,
+        null_count: data.filter((v) => !Number.isFinite(v)).length, source_file: 'core_routine.las',
+        provenance: { resampled_from: { method: 'nearest sample within half a grid step (point data, not interpolated)' } },
+        storage_path: `dev/${ownId}/${id}.f32`,
+      });
+    }
+  }
   topsByWell.set(ownId, [
     { id: nextId('top'), well_id: ownId, name: 'Top Sand A', md_m: 2010 },
     { id: nextId('top'), well_id: ownId, name: 'Top Shale', md_m: 2030 },

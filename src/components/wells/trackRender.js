@@ -35,6 +35,23 @@ export function drawCurve(ctx, {
 }) {
   const xs = xScaleFor(track, curve, x0, trackW);
   const clampX = (x) => Math.min(x0 + trackW - 2, Math.max(x0 + 2, x));
+  // PETRO-U2-007: point data (core plugs) as markers, one per finite sample
+  if (curve.style === 'points') {
+    ctx.setLineDash([]);
+    ctx.fillStyle = curve.color;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 0.8;
+    for (let i = i0; i <= i1; i++) {
+      const v = curve.data[i];
+      const x = Number.isFinite(v) ? xs(v) : NaN;
+      if (!Number.isFinite(x)) continue;
+      ctx.beginPath();
+      ctx.arc(clampX(x), yOf(depth[i]), 2.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    return;
+  }
   ctx.strokeStyle = curve.color;
   ctx.lineWidth = curve.lineWidth ?? 1.2;
   ctx.setLineDash(DASHES[curve.style] || []);

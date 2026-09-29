@@ -38,6 +38,9 @@ import ProbabilisticDialog from './ProbabilisticDialog';
 import SensitivityDialog from './SensitivityDialog';                 // PETRO-U2-005
 import InputUnitsDialog from './InputUnitsDialog';                   // PETRO-U2-001
 import PublishedCurvesPanel from './PublishedCurvesPanel';           // PETRO-U2-009/013
+import CoreDialog from './CoreDialog';                               // PETRO-U2-007
+import { corePoints, zoneFits, coreTwins, ensureCoreTemplate } from '../services/coreData';
+import { newId } from '../layout/layoutSchema';
 import { publishedSummary, faciesState, faciesKey } from '../services/publishedCurves';
 import { isPrePt9aPhie } from '@/lib/petroProvenance';
 import { ensureProbabilisticTemplate, probabilisticPublishLogs, runProbabilisticAsync } from '../services/probabilistic';
@@ -128,6 +131,7 @@ export default function PetroWorkstation({
   const [digitizerOpen, setDigitizerOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [sensitivityOpen, setSensitivityOpen] = useState(false); // PETRO-U2-005
+  const [coreOpen, setCoreOpen] = useState(false);               // PETRO-U2-007
   const [noDepthWell, setNoDepthWell] = useState(null); // {inventory} — C2 empty state
   const [layouts, setLayouts] = useState(buildDefaultLayouts); // PS4 templates
   const [pickMode, setPickMode] = useState(null);                // PT3: 'top' | 'zone' | null
@@ -374,6 +378,12 @@ export default function PetroWorkstation({
     }
   }, [wellData, params, zoneParamList, mineralHere]);
   const mineralTwins = useMemo(() => (mineralHere ? mineralHere.outputs : {}), [mineralHere]);
+  // PETRO-U2-007: core plugs, the per-zone core transform, and its curves
+  const core = useMemo(() => (wellData ? corePoints({ depth: wellData.curves.DEPT, allLogs: wellData.allLogs, logs: wellData.logs }) : null), [wellData]);
+  const coreFits = useMemo(() => (core?.points.length ? zoneFits(core.points, zones) : null), [core, zones]);
+  const coreOutputs = useMemo(() => (core?.points.length && wellData
+    ? coreTwins({ depth: wellData.curves.DEPT, points: core.points, fits: coreFits, zones, phie: computed?.outputs.PHIE })
+    : {}), [core, coreFits, zones, wellData, computed]);
 
   // PT9g: the _LOW / _HIGH twins of the outputs, drawn beside the mid curves
   const scenarioTwins = useMemo(() => {
@@ -604,7 +614,7 @@ export default function PetroWorkstation({
     return resolveTracks(labelSaturation(activeTemplate(layouts), swSystemOf(params, zoneParams)), {
       curves: wellData.curves,
       logs: wellData.logs,
-      outputs: { ...computed.outputs, ...scenarioTwins, ...probTwins, ...mineralTwins },
+      outputs: { ...computed.outputs, ...scenarioTwins, ...probTwins, ...mineralTwins, ...coreOutputs },
       faciesData,
       facies,
       ruleFacies,
@@ -614,13 +624,13 @@ export default function PetroWorkstation({
       depth: wellData.curves?.DEPT || null,
       keepUnresolved: true, // PT10a: an empty track says why instead of vanishing
     });
-  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, probTwins, mineralTwins, params, zoneParams, layouts]);
+  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, probTwins, mineralTwins, coreOutputs, params, zoneParams, layouts]);
 
   // PT10a: why a curve address resolves to nothing right now (layout panel labels)
   const layoutSourceStatus = useCallback((source) => {
     if (!wellData) return null;
-    return sourceStatus(source, { curves: wellData.curves, logs: wellData.logs, outputs: { ...(computed?.outputs || {}), ...scenarioTwins, ...probTwins, ...mineralTwins } });
-  }, [wellData, computed, scenarioTwins, probTwins, mineralTwins]);
+    return sourceStatus(source, { curves: wellData.curves, logs: wellData.logs, outputs: { ...(computed?.outputs || {}), ...scenarioTwins, ...probTwins, ...mineralTwins, ...coreOutputs } });
+  }, [wellData, computed, scenarioTwins, probTwins, mineralTwins, coreOutputs]);
 
   const addZone = async (z) => {
     const zone = await backend.saveZone(wellData.wellId, z);
@@ -1160,6 +1170,17 @@ export default function PetroWorkstation({
           onClick={() => setMineralOpen(true)}
         >
           <Layers className="w-3.5 h-3.5" /> Mineral model…
+        </button>
+        <button
+          type="button"
+          data-testid="petro-core"
+          disabled={!wellData || !computed}
+          title={core && !core.points.length ? 'No core porosity or permeability curve on this well' : 'Core plugs on the tracks and a porosity-permeability transform per zone'}
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
+          onClick={() => setCoreOpen(true)}
+        >
+          <Layers className="w-3.5 h-3.5" /> Core…
         </button>
         <button
           type="button"
@@ -1739,6 +1760,22 @@ export default function PetroWorkstation({
         busy={unitsBusy}
         onOverride={setUnitOverride}
         onSaveToWell={saveUnitToWell}
+      />
+    )}
+    {wellData && computed && (
+      <CoreDialog
+        open={coreOpen}
+        onOpenChange={setCoreOpen}
+        core={core}
+        fits={coreFits}
+        zones={zones}
+        logPhi={computed.outputs.PHIE || null}
+        logK={computed.outputs.KPERM || null}
+        onShowTracks={() => {
+          setLayouts((l) => ensureCoreTemplate(l, newId));
+          setCoreOpen(false);
+          setStatus('The Core calibration layout is active: core plugs as points, K_CORE (the core transform on φe) beside the log model k.');
+        }}
       />
     )}
     {wellData && computed && (
