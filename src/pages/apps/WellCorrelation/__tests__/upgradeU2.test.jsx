@@ -323,3 +323,28 @@ describe('U2-005 propagate at the displayed depth', () => {
     expect(await mdOf(b, 'corr-w2', 'Mid Shale')).toBeCloseTo(1620, 6);
   });
 });
+
+describe('U2-014 the well list at field scale', () => {
+  test('filters by name or UWI and adds or removes every shown well at once', async () => {
+    const { scaleWells } = await import('../services/scaleSection');
+    const b = makeInMemoryBackend({ sample: false, seedWells: scaleWells(50) });
+    mount(b);
+    await screen.findByTestId('corr-add-FIELD-50', {}, T);
+    fireEvent.change(screen.getByTestId('corr-well-filter'), { target: { value: 'field-1' } });
+    // FIELD-10 .. FIELD-19
+    expect(screen.getAllByTestId(/^corr-add-FIELD-/)).toHaveLength(10);
+    fireEvent.click(screen.getByTestId('corr-add-shown'));
+    await rowsIn(10);
+    expect(status()).toMatch(/Added 10 wells/);
+    // FIELD-10 .. FIELD-19 carry UWIs SC-1009 .. SC-1018: "SC-101" (dash ignored) matches nine of them
+    fireEvent.change(screen.getByTestId('corr-well-filter'), { target: { value: 'SC-101' } });
+    expect(screen.getByTestId('corr-order-shown').textContent).toBe('(9 shown)');
+    fireEvent.change(screen.getByTestId('corr-well-filter'), { target: { value: 'field-15' } });
+    fireEvent.click(screen.getByTestId('corr-remove-shown'));
+    await rowsIn(0); // the filter shows the in-section rows only
+    fireEvent.click(screen.getByTestId('corr-well-filter-clear'));
+    await rowsIn(9);
+    fireEvent.change(screen.getByTestId('corr-well-filter'), { target: { value: 'nothing like it' } });
+    expect(screen.getByTestId('corr-filter-empty').textContent).toMatch(/No well name or UWI contains "nothing like it"/);
+  }, 300000);
+});

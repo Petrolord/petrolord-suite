@@ -4,17 +4,24 @@
 // badges (the WDM idiom). Presentational — order lives in the
 // controller.
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Lock, ArrowUp, ArrowDown, X, Plus, Pencil } from 'lucide-react';
+import { Building2, Lock, ArrowUp, ArrowDown, X, Plus, Pencil, Search } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { wellDataManagerHref } from '@/components/wells/appLinks';
 import { mappable, mapFrameSummary } from '@/pages/apps/WellDataManager/components/WellsMap';
 
 const PAD = 26;
 
+/** U2-014: a well matches the filter on its name or UWI (case, spaces and dashes ignored). */
+export function wellMatches(w, q) {
+  const k = (s) => String(s ?? '').toLowerCase().replace(/[\s-]+/g, '');
+  const needle = k(q);
+  return !needle || k(w.name).includes(needle) || k(w.uwi).includes(needle);
+}
+
 export default function SectionExplorer({
-  wells, order, onToggle, onMove, onRemove, height = 200,
+  wells, order, onToggle, onMove, onRemove, onAddMany = null, onRemoveMany = null, height = 200,
   wellDataManagerPath = '/dashboard/apps/geoscience/well-data-manager',
 }) {
   const canvasRef = useRef(null);
@@ -107,8 +114,14 @@ export default function SectionExplorer({
     if (best) onToggle(best.id);
   };
 
-  const orderedWells = order.map((id) => wells.find((w) => w.id === id)).filter(Boolean);
-  const availableWells = wells.filter((w) => !order.includes(w.id));
+  // U2-014: at field scale (50+ wells) the lists filter by name or UWI, and
+  // every shown well can be added or removed at once
+  const [filter, setFilter] = useState('');
+  const orderedAll = order.map((id) => wells.find((w) => w.id === id)).filter(Boolean);
+  const orderedWells = orderedAll.filter((w) => wellMatches(w, filter));
+  const availableAll = wells.filter((w) => !order.includes(w.id));
+  const availableWells = availableAll.filter((w) => wellMatches(w, filter));
+  const filtering = filter.trim().length > 0;
 
   return (
     <div className="h-full min-h-0 flex flex-col bg-pl-surface" data-testid="corr-explorer">
@@ -122,8 +135,19 @@ export default function SectionExplorer({
           {frames.undrawn > 0 && <div>{frames.undrawn} well{frames.undrawn === 1 ? ' has' : 's have'} no surface location and {frames.undrawn === 1 ? 'is' : 'are'} not on the map.</div>}
         </div>
       )}
-      <div className="px-2.5 py-1 text-[11px] uppercase tracking-wider text-pl-muted">
-        In section <span data-testid="corr-order-count">{order.length}</span> / {wells.length}
+      <div className="px-2 py-1 border-b border-pl-border flex items-center gap-1">
+        <Search className="w-3.5 h-3.5 text-pl-muted shrink-0" />
+        <input className="flex-1 min-w-0 rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs"
+          placeholder="Filter wells by name or UWI" value={filter} data-testid="corr-well-filter" onChange={(e) => setFilter(e.target.value)} />
+        {filtering && <button type="button" className="text-pl-muted hover:text-pl-text" title="Clear the filter" data-testid="corr-well-filter-clear" onClick={() => setFilter('')}><X className="w-3.5 h-3.5" /></button>}
+      </div>
+      <div className="px-2.5 py-1 text-[11px] uppercase tracking-wider text-pl-muted flex items-center gap-1">
+        <span>In section <span data-testid="corr-order-count">{order.length}</span> / {wells.length}</span>
+        {filtering && <span className="normal-case tracking-normal" data-testid="corr-order-shown">({orderedWells.length} shown)</span>}
+        {filtering && onRemoveMany && orderedWells.length > 0 && (
+          <button type="button" className="ml-auto normal-case tracking-normal text-pl-muted hover:text-pl-danger-text" data-testid="corr-remove-shown"
+            title="Remove the wells the filter shows from the section" onClick={() => onRemoveMany(orderedWells.map((w) => w.id))}>remove shown</button>
+        )}
       </div>
       <ScrollArea className="flex-1 min-h-0">
         {orderedWells.map((w, i) => (
@@ -151,10 +175,19 @@ export default function SectionExplorer({
         ))}
         {!order.length && <p className="px-3 py-2 text-xs text-pl-muted leading-snug">Click wells on the map (or the list below) to add them to the cross-section in order.</p>}
 
+        {filtering && !orderedWells.length && !availableWells.length && (
+          <p className="px-3 py-2 text-xs text-pl-muted" data-testid="corr-filter-empty">No well name or UWI contains "{filter.trim()}".</p>
+        )}
         {availableWells.length > 0 && (
           <>
-            <div className="px-2.5 pt-2 pb-1 text-[11px] uppercase tracking-wider text-pl-muted border-t border-pl-border">
-              Available
+            <div className="px-2.5 pt-2 pb-1 text-[11px] uppercase tracking-wider text-pl-muted border-t border-pl-border flex items-center gap-1">
+              <span>Available{filtering ? ` (${availableWells.length} of ${availableAll.length})` : ''}</span>
+              {onAddMany && availableWells.length > 1 && (
+                <button type="button" className="ml-auto normal-case tracking-normal text-pl-primary-text hover:text-pl-primary-text-hover" data-testid="corr-add-shown"
+                  title="Add every well listed here to the section, in list order" onClick={() => onAddMany(availableWells.map((w) => w.id))}>
+                  add {filtering ? 'shown' : 'all'} ({availableWells.length})
+                </button>
+              )}
             </div>
             {availableWells.map((w) => (
               <button key={w.id} type="button" data-testid={`corr-add-${w.name}`}
