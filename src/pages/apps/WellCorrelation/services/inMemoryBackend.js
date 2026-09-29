@@ -5,18 +5,33 @@
 // wells). Same interface as registryBackend. Owner-only guards mirror
 // RLS: KETA-3 is org-shared read-only.
 
+//
+// AppUpgrade WC-U1 (2026-09-29): seedable for the evidence kit. `seedWells`
+// adds wells in the stored registry shape (curves as plain arrays, tops,
+// logMeta with start/stop so a G1-era bottom-up well stays bottom-up), and
+// `section` seeds a saved geo_correlation_sections row, opened through the
+// same PP0 state kind as the registry (a newer-build row is refused).
+
 import { sampleWells } from './sampleSection';
+import { openSectionRow } from '@/components/wells/section/sectionState';
 
 let seq = 0;
 const nid = (p) => { seq += 1; return `${p}-${seq}`; };
 
-export function makeInMemoryBackend() {
-  const wells = sampleWells().map((w) => ({ ...w }));
+const asCurves = (curves) => Object.fromEntries(Object.entries(curves || {})
+  .map(([k, v]) => [k, v instanceof Float32Array || v instanceof Float64Array ? v : Float32Array.from(v, (x) => (x == null ? NaN : x))]));
+
+/**
+ * @param {{ seedWells?: Object[], sample?: boolean, section?: ?Object }} [opts]
+ *   sample false drops the 3-well KETA section (a scale or hostile run alone)
+ */
+export function makeInMemoryBackend({ seedWells = [], sample = true, section: seedSection = null } = {}) {
+  const wells = [...(sample ? sampleWells() : []), ...seedWells.map((w) => ({ ...w, curves: asCurves(w.curves) }))].map((w) => ({ ...w }));
   const curvesByWell = new Map(wells.map((w) => [w.id, w.curves]));
-  const topsByWell = new Map(wells.map((w) => [w.id, [...w.tops]]));
+  const topsByWell = new Map(wells.map((w) => [w.id, [...(w.tops || [])]]));
   const intervalsByWell = new Map(wells.map((w) => [w.id, [...(w.intervals || [])]]));   // ST1 seeded lithology
   const logMeta = new Map(wells.map((w) => [w.id, w.logMeta]));
-  let section = null; // single implicit section (persisted in-memory)
+  let section = seedSection ? { ...seedSection } : null; // single implicit section (persisted in-memory)
 
   const own = (wellId, what) => {
     const w = wells.find((x) => x.id === wellId);
@@ -29,6 +44,7 @@ export function makeInMemoryBackend() {
     id: w.id, user_id: w.user_id, organization_id: w.organization_id, is_own: w.is_own,
     name: w.name, surface_x: w.surface_x, surface_y: w.surface_y, kb_m: w.kb_m,
     td_md_m: w.td_md_m ?? null, deviation: w.deviation ?? null, uwi: w.uwi ?? null,
+    crs: w.crs ?? null, xy_unit: w.xy_unit ?? null, crs_provenance: w.crs_provenance ?? null,
   });
 
   return {
@@ -106,7 +122,7 @@ export function makeInMemoryBackend() {
       return created;
     },
 
-    async loadSection() { return section; },
+    async loadSection() { return openSectionRow(section); },
     async saveSection(patch) {
       section = { id: section?.id || 'section-dev', name: 'Default section', ...section, ...patch };
       return section;

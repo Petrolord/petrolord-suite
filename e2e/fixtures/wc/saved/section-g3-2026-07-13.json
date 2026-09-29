@@ -1,0 +1,18 @@
+{
+  "id": "sec-g3",
+  "user_id": "user-dev",
+  "name": "Default section",
+  "well_ids": [
+    "corr-w1",
+    "corr-w2",
+    "corr-w3"
+  ],
+  "datum": {
+    "mode": "flatten",
+    "topName": "Top Dome",
+    "datumM": 1500
+  },
+  "track_layout": {},
+  "created_at": "2026-07-13T12:00:00Z",
+  "updated_at": "2026-07-13T12:00:00Z"
+}

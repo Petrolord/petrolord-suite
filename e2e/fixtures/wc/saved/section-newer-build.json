@@ -1,0 +1,18 @@
+{
+  "id": "sec-newer",
+  "user_id": "user-dev",
+  "name": "Default section",
+  "well_ids": [
+    "corr-w1",
+    "corr-w2",
+    "corr-w3"
+  ],
+  "datum": {
+    "mode": "structural"
+  },
+  "track_layout": {},
+  "schema_version": 2,
+  "app_build": "future0000",
+  "created_at": "2026-12-01T12:00:00Z",
+  "updated_at": "2026-12-01T12:00:00Z"
+}

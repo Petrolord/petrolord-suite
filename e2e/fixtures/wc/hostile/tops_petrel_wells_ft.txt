@@ -1,0 +1,4 @@
+Well	Surface	MD (ft)	TWT (ms)	Z (ft)	Interpreter
+OKAN PX-4	Top Agbada	6148.3	1601.2	-6066.3	ama
+OKAN PX-4	Sand D	6528.9	1688.0	-6446.9	ama
+IDU 9	Sand D	6542.0	1690.4	-6450.1	ama

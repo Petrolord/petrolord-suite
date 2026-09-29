@@ -1,0 +1,76 @@
+{
+  "id": "sec-wc2",
+  "user_id": "user-dev",
+  "name": "Default section",
+  "well_ids": [
+    "corr-w2",
+    "corr-w1",
+    "corr-w3"
+  ],
+  "datum": {
+    "mode": "structural"
+  },
+  "track_layout": {
+    "layouts": {
+      "version": 1,
+      "activeTemplateId": "wc2-user-1",
+      "templates": [
+        {
+          "id": "wc2-user-1",
+          "name": "My GR and RT",
+          "builtin": false,
+          "tracks": [
+            {
+              "id": "u-gr",
+              "title": "GR (API)",
+              "type": "curves",
+              "width": 1,
+              "scale": "linear",
+              "min": 0,
+              "max": 150,
+              "curves": [
+                {
+                  "source": "input:GR",
+                  "label": "GR",
+                  "color": "#059669"
+                }
+              ],
+              "fills": []
+            },
+            {
+              "id": "u-rt",
+              "title": "RT (ohm.m)",
+              "type": "curves",
+              "width": 1,
+              "scale": "log",
+              "min": 0.2,
+              "max": 2000,
+              "curves": [
+                {
+                  "source": "input:RT",
+                  "label": "RT",
+                  "color": "#dc2626"
+                }
+              ],
+              "fills": []
+            }
+          ]
+        }
+      ]
+    },
+    "depthUnit": "ft",
+    "depthRef": "tvdss",
+    "spacing": "proportional",
+    "zoneMode": "pair",
+    "shownTops": [
+      "Top Dome",
+      "Base Sand"
+    ],
+    "zonePair": [
+      "Top Dome",
+      "Base Sand"
+    ]
+  },
+  "created_at": "2026-09-03T12:00:00Z",
+  "updated_at": "2026-09-03T12:00:00Z"
+}

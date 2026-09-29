@@ -7,19 +7,17 @@
 // PP0 state kind.
 
 import { supabase } from '@/lib/customSupabaseClient';
-import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
-
-// PP0 state kind (docs/scope/ProjectPortability-PLAN.md §4.3): version 1 is
-// the current row shape; a future shape change bumps `current` and adds
-// migrations[n]. Rows open through openStateRow, writes go through writeStamped.
-const CORRELATION_SECTION_KIND = 'correlation-section';
-registerStateKind(CORRELATION_SECTION_KIND, { current: 1, label: 'correlation section' });
+import { writeStamped } from '@/lib/stateVersion';
+// PP0 state kind: registered in the section kit so the harness backends open
+// rows the same way (AppUpgrade WC-U1). Rows open through openSectionRow,
+// writes go through writeStamped.
+import { CORRELATION_SECTION_KIND, openSectionRow } from '@/components/wells/section/sectionState';
 
 export async function loadSection() {
   const { data, error } = await supabase.from('geo_correlation_sections')
     .select('*').order('updated_at', { ascending: false }).limit(1);
   if (error) throw new Error(`Could not load the section: ${error.message}`);
-  return openStateRow(CORRELATION_SECTION_KIND, data?.[0] || null);
+  return openSectionRow(data?.[0] || null);
 }
 
 export async function saveSection(patch) {
