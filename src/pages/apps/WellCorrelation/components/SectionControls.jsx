@@ -12,6 +12,7 @@ import { topColor } from '@/components/wells/topColors';
 import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
 import { DEPTH_REF_LABEL } from '../engine/sectionFrame';
 import { COLUMN_WIDTHS } from '@/components/wells/section/sectionFrame';
+import { PDF_SCALES_M, PDF_SCALES_FT, scaleLabel } from '../services/sectionPdf';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const selCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
@@ -289,7 +290,14 @@ export default function SectionControls({
             <input className={inputCls} value={report?.analyst || ''} data-testid="corr-report-analyst" placeholder="Name"
               onChange={(e) => onReport({ ...(report || {}), analyst: e.target.value })} />
           </div>
-          <p className="mt-1 text-[10px] text-pl-muted">Printed on the PNG with the datum, depth reference, unit, vertical scale, date and build. Saved with the section.</p>
+          <label className="mt-1 flex items-center gap-1 text-pl-muted">PDF scale
+            <select className={selCls} data-testid="corr-pdf-scale" value={String(report?.pdfScale || (depthUnit === 'ft' ? 1200 : 1000))}
+              onChange={(e) => onReport({ ...(report || {}), pdfScale: Number(e.target.value) })}>
+              {PDF_SCALES_M.map((n) => <option key={`m${n}`} value={String(n)}>{scaleLabel(n, 'm')}</option>)}
+              {PDF_SCALES_FT.filter((n) => !PDF_SCALES_M.includes(n)).map((n) => <option key={`f${n}`} value={String(n)}>{scaleLabel(n, 'ft')}</option>)}
+            </select>
+          </label>
+          <p className="mt-1 text-[10px] text-pl-muted">Printed on the PNG and the PDF with the datum, depth reference, unit, vertical scale, date and build. The PDF plots the depth window on screen at this scale, every well at the current column width. Saved with the section.</p>
         </Section>
       )}
 

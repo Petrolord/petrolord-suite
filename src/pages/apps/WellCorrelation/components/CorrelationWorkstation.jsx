@@ -16,7 +16,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { GitCompare, Loader2, Save, ImageDown, PanelRight, HelpCircle, Undo2 } from 'lucide-react';
+import { GitCompare, Loader2, Save, ImageDown, PanelRight, HelpCircle, Undo2, FileDown } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -31,7 +31,10 @@ import SectionExplorer from './SectionExplorer';
 import SectionControls from './SectionControls';
 import SectionPicker from './SectionPicker';
 import { copyName, freeName, DEFAULT_SECTION_NAME } from '@/components/wells/section/sectionNames';
-import CrossSection from './CrossSection';
+import CrossSection, { AXIS_W, PLOT_TOP, sectionHeightFor } from './CrossSection';
+import { columnLayout } from '@/components/wells/section/sectionFrame';
+import { topColor } from '@/components/wells/topColors';
+import { printPlan, buildSectionPdf, PDF_SCALES_M, PDF_SCALES_FT } from '../services/sectionPdf';
 import { allTopNames } from '../engine/section';
 import { DEPTH_REF_LABEL, depthOfFor } from '../engine/sectionFrame';
 import { sectionCaption } from '../services/sectionReport';
@@ -66,6 +69,9 @@ export default function CorrelationWorkstation({
   const [ghost, setGhost] = useState(null);
   // WC-U1-010: field and analyst printed on the exported section
   const [report, setReport] = useState({ field: '', analyst: '' });
+  // U2-006: the print render (offscreen CrossSection at the scale's size)
+  const [printJob, setPrintJob] = useState(null);
+  const printDone = useRef(null);
 
   // WC-U1-013: the ghost and the report header ride in track_layout (no
   // migration, the column is jsonb) and come back with the section
@@ -74,7 +80,9 @@ export default function CorrelationWorkstation({
     if (!savedRow) return;
     const tl = savedRow.track_layout || {};
     setGhost(tl.ghost && tl.ghost.sourceWellId ? tl.ghost : null);
-    setReport(tl.report && typeof tl.report === 'object' ? { field: tl.report.field || '', analyst: tl.report.analyst || '' } : { field: '', analyst: '' });
+    setReport(tl.report && typeof tl.report === 'object'
+      ? { field: tl.report.field || '', analyst: tl.report.analyst || '', ...(Number(tl.report.pdfScale) > 0 ? { pdfScale: Number(tl.report.pdfScale) } : {}) }
+      : { field: '', analyst: '' });
   }, [savedRow]);
 
   // WC-U1-013: unsaved changes. The baseline is what was restored (taken once
@@ -399,6 +407,47 @@ export default function CorrelationWorkstation({
     }
   };
 
+  // U2-006: the section plotted to scale. The drawn depth window is rendered
+  // offscreen at the height that makes it measure span / N on paper, every
+  // well at the current column width, and placed on a page of that size.
+  const exportPdf = async () => {
+    const meta = exportRef.current?.meta?.();
+    if (!meta) return;
+    const scaleN = Number(report.pdfScale) || (depthUnit === 'ft' ? 1200 : 1000);
+    const colW = Math.max(60, Math.round(meta.colW || 140));
+    const band = columnLayout(sectionWells, { mode: meta.spacing, plotLeft: 0, plotW: 1, fixedW: colW });
+    const contentW = AXIS_W + Math.max(...band.map((b) => b.x0 + b.w)) + 2;
+    const plan = printPlan({ vTop: meta.vTop, vBase: meta.vBase, scaleN, contentW, plotTop: PLOT_TOP, padBottom: sectionHeightFor(0) - PLOT_TOP });
+    if (plan.problem) { setStatus(plan.problem); return; }
+    setStatus(`Plotting the section at 1:${scaleN.toLocaleString('en-US')}...`);
+    try {
+      const canvas = await new Promise((resolve, reject) => {
+        printDone.current = { resolve, reject };
+        setPrintJob({ w: plan.wCss, h: plan.hCss, pixelRatio: plan.pixelRatio, view: [meta.vTop, meta.vBase], colW });
+        setTimeout(() => reject(new Error('The print render did not finish; try again or zoom the depth window.')), 30000);
+      });
+      const header = sectionCaption({
+        wells: sectionWells, datum, depthRef, depthUnit, spacing: meta.spacing, templateName: template.name, scale: scaleN, report,
+      });
+      const legend = shownTops.filter((n) => topNames.includes(n)).map((name) => ({ name, color: topColor(name) }));
+      const fillNote = zoneMode === 'none' ? 'none' : zoneMode === 'pair' ? (zonePair ? `${zonePair[0]} to ${zonePair[1]}` : 'none') : 'between consecutive shown tops, coloured by the upper top';
+      const { doc, fileName } = buildSectionPdf({
+        imageDataUrl: canvas.toDataURL('image/png'), plan, plotTopCss: PLOT_TOP, header, scaleN, depthUnit, legend, fillNote,
+      });
+      doc.save(fileName);
+      setStatus(`Section exported as PDF at 1:${scaleN.toLocaleString('en-US')} (${(plan.plotHmm / 10).toFixed(1)} cm for the ${Math.round(Math.abs(meta.vBase - meta.vTop) * (depthUnit === 'ft' ? 1 / 0.3048 : 1))} ${depthUnit} window, all ${sectionWells.length} wells).`);
+    } catch (e) {
+      setStatus(e.message);
+    } finally {
+      printDone.current = null;
+      setPrintJob(null);
+    }
+  };
+  const onPrintPainted = useCallback((canvas) => {
+    const p = printDone.current;
+    if (p) { printDone.current = null; p.resolve(canvas); }
+  }, []);
+
   const ribbon = (
     <div className="flex items-center gap-2 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
       <ModuleHomeLink module="geoscience" testId="corr-home" />
@@ -434,6 +483,12 @@ export default function CorrelationWorkstation({
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           onClick={exportPng}>
           <ImageDown className="w-3.5 h-3.5" /> PNG
+        </button>
+        <button type="button" data-testid="corr-export-pdf" disabled={!sectionWells.length || !!printJob}
+          title={`Download the section as a PDF plotted to scale (1:${(Number(report.pdfScale) || (depthUnit === 'ft' ? 1200 : 1000)).toLocaleString('en-US')}; change it under Report header)`}
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
+          onClick={exportPdf}>
+          <FileDown className="w-3.5 h-3.5" /> PDF
         </button>
         <button type="button" data-testid="corr-save"
           title={sectionRefused ? 'The saved section was made by a newer build; reload to get it' : unsaved ? 'Save the well order, datum, view, tops shown, ghost curve and report header' : 'The section is saved'}
@@ -491,7 +546,20 @@ export default function CorrelationWorkstation({
     />
   );
 
+  const printHost = printJob ? (
+    <div aria-hidden="true" data-testid="corr-print-host" style={{ position: 'fixed', left: -100000, top: 0, width: printJob.w, height: printJob.h, pointerEvents: 'none' }}>
+      <CrossSection
+        wells={sectionWells} datum={datum} depthUnit={depthUnit} depthRef={depthRef} spacing={spacing}
+        columnWidth={printJob.colW} zoneMode={zoneMode} zonePair={zonePair} shownTops={shownTops} topNames={topNames}
+        ghost={ghost} view={printJob.view} onViewChange={() => {}}
+        printSize={{ w: printJob.w, h: printJob.h, pixelRatio: printJob.pixelRatio }} onPainted={onPrintPainted}
+      />
+    </div>
+  ) : null;
+
   return (
+    <>
+    {printHost}
     <WorkspaceShell
       autoSaveId="wellcorrelation.workspace.v1"
       minWidth={1000}
@@ -555,5 +623,6 @@ export default function CorrelationWorkstation({
       onDockOpenChange={setDockOpen}
       statusBar={statusBar}
     />
+    </>
   );
 }

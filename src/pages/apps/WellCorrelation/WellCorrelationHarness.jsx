@@ -23,7 +23,7 @@ export default function WellCorrelationHarness() {
   const sample = params.get('sample') !== '0';
   const backend = useMemo(() => {
     const seed = (typeof window !== 'undefined' && window.__CORR_SEED__) || {};
-    return makeInMemoryBackend({ sample, seedWells: [...(seed.wells || []), ...scaleWells(n)], section: seed.section || null });
+    return makeInMemoryBackend({ sample, seedWells: [...(seed.wells || []), ...scaleWells(n)], section: seed.section || null, sections: seed.sections || [] });
   }, [n, sample]);
   return (
     <div className="h-screen w-full overflow-hidden" data-testid="corr-theme-scope">

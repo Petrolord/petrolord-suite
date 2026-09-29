@@ -42,6 +42,9 @@ export const WELL_H = 26;      // well name band above the track headers
 export const HEADER_H = 50;    // track header (title + scale rows + readout)
 const PAD_TOP = 2;
 const PAD_BOTTOM = 4;
+/** U2-006: plot band top and the canvas height that gives a plot band of plotH css px. */
+export const PLOT_TOP = WELL_H + HEADER_H + PAD_TOP;
+export const sectionHeightFor = (plotH) => PLOT_TOP + plotH + PAD_BOTTOM;
 const TAG_MAX = 120;
 export const SCROLL_H = 12;    // horizontal scrollbar under a band wider than the window (U2-002)
 
@@ -86,17 +89,20 @@ const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.roun
  * @param {() => void} [p.onPickCancel]
  * @param {(msg: string) => void} [p.onNotice]
  * @param {'auto'|'fit'|number} [p.columnWidth] U2-002: fit the window, a fixed px width, or auto (fixed once fit gets too narrow)
+ * @param {?{w: number, h: number, pixelRatio?: number}} [p.printSize] U2-006: an offscreen print render at this css size (no navigator, hints or scrollbar)
+ * @param {(canvas: HTMLCanvasElement) => void} [p.onPainted] U2-006: the static layer after each paint
  */
 const CrossSection = forwardRef(function CrossSection({
   wells, datum, depthUnit = 'm', depthRef = 'md', spacing = 'equal', zoneMode = 'consecutive', zonePair = null,
   shownTops, pickMode = null, onTopMove, onTopCreate, onPickCancel, onNotice, topNames = [],
-  bands = null, ghost = null, columnWidth = 'auto',
+  bands = null, ghost = null, columnWidth = 'auto', printSize = null, onPainted = null,
   view: viewProp, onViewChange,
 }, exportRef) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
   const staticRef = useRef(null);
-  const [size, setSize] = useState({ w: 0, h: 0 });
+  const [measured, setSize] = useState({ w: 0, h: 0 });
+  const size = printSize ? { w: printSize.w, h: printSize.h } : measured;
   const [viewState, setViewState] = useState(null);
   const controlled = viewProp !== undefined;
   const view = controlled ? viewProp : viewState;
@@ -238,7 +244,7 @@ const CrossSection = forwardRef(function CrossSection({
   // ---- STATIC layer -------------------------------------------------------
   useEffect(() => {
     if (!size.w || !size.h || !wells.length) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = printSize?.pixelRatio || window.devicePixelRatio || 1;
     if (!staticRef.current) staticRef.current = document.createElement('canvas');
     const canvas = staticRef.current;
     canvas.width = Math.round(size.w * dpr);
@@ -447,14 +453,15 @@ const CrossSection = forwardRef(function CrossSection({
 
     ctx.restore();
     setTick((t) => t + 1);
-  }, [size, wells, columns, columnNotes, boxes, colVisible, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, unitTxt, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, ghost]);
+    if (onPainted) onPainted(canvas, { plotTop, plotH, vTop, vBase });
+  }, [size.w, size.h, printSize, onPainted, wells, columns, columnNotes, boxes, colVisible, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, unitTxt, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, ghost]);
 
   // ---- CURSOR layer -------------------------------------------------------
   useEffect(() => {
     const canvas = canvasRef.current;
     const stat = staticRef.current;
     if (!canvas || !stat || !size.w || !size.h || !wells.length) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = printSize?.pixelRatio || window.devicePixelRatio || 1;
     if (canvas.width !== stat.width || canvas.height !== stat.height) {
       canvas.width = stat.width;
       canvas.height = stat.height;
@@ -528,7 +535,7 @@ const CrossSection = forwardRef(function CrossSection({
       ctx.textAlign = 'right';
       ctx.fillText((cursor.disp * F).toFixed(1), AXIS_W - 4, cursor.y - 4);
     }
-  }, [tick, size, wells, columns, boxes, colVisible, geoms, cursor, topDrag, pickMode, yOf, plotTop, plotH, vTop, vBase, F, depthUnit]);
+  }, [tick, size.w, size.h, wells, columns, boxes, colVisible, geoms, cursor, topDrag, pickMode, yOf, plotTop, plotH, vTop, vBase, F, depthUnit]);
 
   // Esc leaves the pick mode / closes the popover
   useEffect(() => {
@@ -651,8 +658,12 @@ const CrossSection = forwardRef(function CrossSection({
     scale: verticalScale(vTop, vBase, plotH), spacing: spacingNote ? 'equal' : spacing,
     // U2-002: a scrolled PNG shows a window of the section and says which wells
     window: scrolling && shownCols.length ? { first: shownCols[0] + 1, last: shownCols[shownCols.length - 1] + 1, n: wells.length } : null,
+    // U2-006: what a print render needs to redraw this view at another size
+    vTop, vBase, colW: boxes[0]?.w || null, spacingMode: spacing,
   };
   useImperativeHandle(exportRef, () => ({
+    /** U2-006: the live view (depth window, effective column width, scale). */
+    meta: () => ({ ...exportMetaRef.current }),
     /** @param {string | ((meta: {scale: ?number, spacing: string}) => {title: string, caption?: string[]})} make */
     toPng: (make) => {
       setCursor(null);
@@ -701,7 +712,8 @@ const CrossSection = forwardRef(function CrossSection({
       data-ghost={ghost?.sourceWellId ? `${ghost.sourceWellId}>${ghost.targetWellId}:${ghost.shiftM || 0}` : ''}
       data-scheme={scheme}
     >
-      <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden bg-white" data-canvas="chart">
+      <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden bg-white" data-canvas="chart"
+        style={printSize ? { width: printSize.w, height: printSize.h, flex: 'none' } : undefined}>
         <canvas
           ref={canvasRef}
           data-testid="corr-section-canvas"
@@ -726,7 +738,7 @@ const CrossSection = forwardRef(function CrossSection({
             testIdPrefix="corr-top"
           />
         )}
-        {scrolling && (
+        {scrolling && !printSize && (
           <div
             ref={scrollbarRef}
             data-testid="corr-hscroll"
@@ -738,13 +750,13 @@ const CrossSection = forwardRef(function CrossSection({
             <div style={{ width: win.contentW, height: 1 }} />
           </div>
         )}
-        <span className="absolute right-2 text-[10px] text-pl-muted pointer-events-none" style={{ bottom: (scrolling ? SCROLL_H : 0) + 4 }}>
+        {!printSize && <span className="absolute right-2 text-[10px] text-pl-muted pointer-events-none" style={{ bottom: (scrolling ? SCROLL_H : 0) + 4 }}>
           {pickMode === 'top'
             ? 'click a column: place a top · Esc: finish'
             : `drag a name tag: move a top · drag: pan · wheel: zoom${scrolling ? ' · shift+wheel: scroll wells' : ''} · double-click: fit`}
-        </span>
+        </span>}
       </div>
-      {size.w >= 460 && (
+      {size.w >= 460 && !printSize && (
         <DepthNavigator
           extent={autoRange}
           view={view}
