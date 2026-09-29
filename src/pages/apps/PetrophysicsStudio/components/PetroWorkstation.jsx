@@ -35,6 +35,7 @@ import RuleFaciesDialog from './RuleFaciesDialog';
 import CurveCalculatorDialog from './CurveCalculatorDialog';
 import ScenariosDialog from './ScenariosDialog';
 import ProbabilisticDialog from './ProbabilisticDialog';
+import SensitivityDialog from './SensitivityDialog';                 // PETRO-U2-005
 import { ensureProbabilisticTemplate, probabilisticPublishLogs, runProbabilisticAsync } from '../services/probabilistic';
 import { createProbabilisticWorker } from '../services/probabilisticWorkerFactory';
 import { runScenarios, scenarioOutputs, ensureScenarioTemplate, SCENARIO_CURVES } from '../services/scenarios';
@@ -62,7 +63,7 @@ import { resolveTracks, sourceStatus } from '../layout/resolveTracks';
 import { migrationStatusLine, applyDeliberateNone, provenanceOf } from '../services/projectState';
 import { mapLogs } from '../services/curveMap';
 import { inputCurves } from '@/components/wells/curveUnits';
-import { zoneReports, zonePublishProperties } from '../services/zoneAverages';
+import { zoneReports, zonePublishProperties, verticalSampleThickness } from '../services/zoneAverages';
 import { depthLabel, DEPTH_TRACK_KEYS, DEPTH_TRACK_TITLE } from '../viewer/depthModes';
 
 /** @param {string} [p.wellDataManagerPath] route of the Well Data Manager
@@ -120,6 +121,7 @@ export default function PetroWorkstation({
   const [batchOpen, setBatchOpen] = useState(false);
   const [digitizerOpen, setDigitizerOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [sensitivityOpen, setSensitivityOpen] = useState(false); // PETRO-U2-005
   const [noDepthWell, setNoDepthWell] = useState(null); // {inventory} — C2 empty state
   const [layouts, setLayouts] = useState(buildDefaultLayouts); // PS4 templates
   const [pickMode, setPickMode] = useState(null);                // PT3: 'top' | 'zone' | null
@@ -448,6 +450,9 @@ export default function PetroWorkstation({
     if (!wellData || !computed) return {};
     return zoneReports({ curves: wellData.curves, outputs: computed.outputs, params, zones, zoneParams, well: selected });
   }, [wellData, computed, params, zones, zoneParams, selected]);
+
+  // PETRO-U2-005: TVT per sample for the sensitivity and the report's sensitivity table
+  const sensitivityVth = useMemo(() => (wellData ? verticalSampleThickness(wellData.curves.DEPT, selected) : null), [wellData, selected]);
 
   // PT9c: every zone's patch at once (the zone table's Apply)
   const applyZonePatches = useCallback((patches) => {
@@ -1459,6 +1464,7 @@ export default function PetroWorkstation({
                 tops={wellData.tops}
                 tdM={selected?.td_md_m ?? null}
                 probZones={probZones}
+                onOpenSensitivity={computed ? () => setSensitivityOpen(true) : null}
                 onDelete={deleteZone}
                 onPublish={publishZone}
               />
@@ -1597,6 +1603,19 @@ export default function PetroWorkstation({
       surfaceTempC={params.surfaceTempC}
       onStatus={setStatus}
     />
+    {wellData && computed && (
+      <SensitivityDialog
+        open={sensitivityOpen}
+        onOpenChange={setSensitivityOpen}
+        curves={wellData.curves}
+        outputs={computed.outputs}
+        params={params}
+        zones={zones}
+        zoneParams={zoneParams}
+        vth={sensitivityVth}
+        depthUnit={depthUnit}
+      />
+    )}
     {wellData && computed && (
       <ExportDialog
         open={exportOpen}

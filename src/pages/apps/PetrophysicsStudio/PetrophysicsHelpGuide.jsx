@@ -526,6 +526,19 @@ const PetrophysicsHelpGuide = () => (
         (vertical when published) with NTG, porosity and Sw.
       </Para>
 
+      <SubHeading>Cutoff sensitivity</SubHeading>
+      <Para>
+        <Code>Cutoff sensitivity…</Code> at the top of the Zones panel plots, for one zone at a time,
+        net pay, net reservoir and the hydrocarbon pore thickness (HCPV) against each of the three
+        cutoffs, with the other two held at the zone&apos;s own values (its overrides included) and the
+        cutoff in use marked by a dashed line. The method is Worthington and Cosentino (2005, SPE
+        84387). Every point is the zone card&apos;s own calculation with one cutoff changed, so the point
+        on the dashed line is the card&apos;s number. The table under the charts lists the values two
+        grid steps either side and a swing: the change in net pay across the neighbouring grid values
+        as a fraction of today&apos;s net pay. A large swing means the answer depends on that cutoff; say
+        so in the report. The PDF report carries the same table.
+      </Para>
+
       <SubHeading>The zone parameter table</SubHeading>
       <Para>
         <Code>Zone parameter table…</Code> at the top of the Parameters panel opens every parameter
@@ -1016,7 +1029,7 @@ const PetrophysicsHelpGuide = () => (
           ['Zone summary CSV', 'Gross, net, N/G and net-weighted averages per zone at the current parameters.'],
           ['LAS 2.0', 'DEPT plus any extra depth columns as curves, inputs plus VSH, PHIT, PHIE, SW, BVW, KPERM and PAY, with the parameter set in the ~Parameter block (DEPTREF, EKB and DEPTHSRC record the depth choice). Feet write the unit F. The writer is round-trip gated: what it writes parses back bit for bit.'],
           ['Track plot PNG', 'The track view exactly as rendered, with a branded title band. Open the Tracks view first; the other views have no track canvas to capture.'],
-          ['PDF summary report', 'Well and interpretation, the parameter table, the methods in use with their literature citations, the zone table (top, base, gross, net, N/G, φ avg, Vsh avg, Sw avg) and provenance.'],
+          ['PDF summary report', 'Well and interpretation, the parameter table, the methods in use with their literature citations, the zone table (top, base, gross, net, N/G, φ avg, Vsh avg, Sw avg), the cutoff sensitivity table per zone and provenance.'],
         ]}
       />
     </GuideSection>

@@ -15,6 +15,8 @@ import { Loader2, FileText, FileSpreadsheet, FileType, FileImage, Package } from
 import PackageExportDialog from '@/components/portability/PackageExportDialog';
 import { curvesCsv, zonesCsv, buildLas, exportBaseName } from '../services/petroExport';
 import { buildReport } from '../services/petroReport';
+import { zoneSensitivities } from '../services/cutoffSensitivity';
+import { verticalSampleThickness } from '../services/zoneAverages';
 
 /** @param {Object} [p.well] the registry well row (survey + KB) for TVD /
  *  TVDSS columns; @param {'m'|'ft'} [p.depthUnit] the workstation's display
@@ -119,11 +121,14 @@ export default function ExportDialog({
       testid: 'petro-export-pdf',
       icon: FileText,
       label: 'PDF summary report',
-      note: 'Header (company, field, analyst below), every parameter and zone override, methods with citations, zone table and provenance.',
+      note: 'Header (company, field, analyst below), every parameter and zone override, methods with citations, zone table, cutoff sensitivity and provenance.',
       build: async () => {
         const doc = await buildReport({
           wellName, wellData, params, zones, summaries, projectId, depthUnit: unit, well, columns: depthOpts.columns, probabilistic,
           projectName, zoneParams, header: reportHeader,
+          sensitivities: zoneSensitivities({
+            curves: wellData.curves, outputs, params, zones, zoneParams, vth: verticalSampleThickness(wellData.curves.DEPT, well),
+          }),
         });
         doc.save(`${base}_petrophysics_report.pdf`);
       },

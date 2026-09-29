@@ -226,3 +226,4 @@ Still owed by the owner (list only): Bateman-Konen 150/300 F chart readings; equ
 
 | Item | Status | What was built | Proving test |
 |---|---|---|---|
+| U2-005 cutoff sensitivity (031) | Done | `services/cutoffSensitivity.js` sweeps each cutoff through the Studio's own zone report (one cutoff replaced, the zone's overrides kept; Worthington and Cosentino 2005, SPE 84387); `SensitivityDialog` (Zones panel, `Cutoff sensitivity…`): three white-paper charts with net pay, net reservoir and HCPV, current cutoff dashed, a swing column; the PDF carries the table per zone. | `cutoffSensitivity.test.js` (hand-counted ten-sample case, invariant at every point, monotone on the type well, override negative control), `sensitivityDialog.test.jsx`, `petroReportU2.test.js` (pdftotext; negative control without the argument) |

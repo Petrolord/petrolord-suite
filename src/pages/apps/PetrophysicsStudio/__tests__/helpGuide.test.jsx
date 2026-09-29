@@ -70,6 +70,14 @@ describe('PetrophysicsHelpGuide', () => {
     expect(text).toMatch(/reader proposes, it never traces and never saves/i);
   });
 
+  test('PETRO-U2 features are described', () => {
+    const { container } = renderGuide();
+    const text = container.textContent;
+    // U2-005
+    expect(text).toMatch(/Cutoff sensitivity…/);
+    expect(text).toMatch(/SPE\s+84387/);
+  });
+
   test('copy carries no em dashes (owner rule)', () => {
     const { container } = renderGuide();
     expect(container.textContent.includes('—')).toBe(false);

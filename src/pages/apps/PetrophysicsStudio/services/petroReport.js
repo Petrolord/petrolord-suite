@@ -15,6 +15,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { buildLabel } from '@/lib/platformBuild';
 import { FIELDS, visibleField, fieldLabel, RW_METHOD_LABELS } from './paramFields';
 import { AVERAGING_NOTE } from './zoneAverages';
+import { SENSITIVITY_CUTOFFS, pointsAround, relativeSwing } from './cutoffSensitivity';
 
 // jsPDF's standard fonts are Latin-1: a Greek letter or a math sign in a
 // label prints as mojibake with its letters spaced out (PETRO-U1-010,
@@ -91,6 +92,31 @@ export function methodLines(params) {
 }
 
 /**
+ * PETRO-U2-005: the cutoff sensitivity as table rows, per zone and cutoff:
+ * [zone, cutoff, "value: net / HCPV" for two grid steps either side of the
+ * current value (current marked *), swing]. Thickness in the report unit.
+ */
+export function sensitivityRows(zones, sensitivities = {}, depthUnit = 'm') {
+  const toU = (v) => (depthUnit === 'ft' ? v / 0.3048 : v);
+  const rows = [];
+  for (const z of zones || []) {
+    const s = sensitivities[z.id];
+    if (!s) continue;
+    for (const def of SENSITIVITY_CUTOFFS) {
+      const sweep = s.sweeps[def.key];
+      const pts = pointsAround(sweep, 2);
+      const swing = relativeSwing(sweep);
+      rows.push([
+        latin1Safe(z.name), latin1Safe(def.label),
+        pts.map((p) => `${p.isCurrent ? '*' : ''}${p.value}: ${num(toU(p.net_m), 2)} / ${num(toU(p.hcpv_m), 3)}`).join('   '),
+        swing === null ? EMPTY_VALUE : `${(swing * 100).toFixed(0)} %`,
+      ]);
+    }
+  }
+  return rows;
+}
+
+/**
  * @param {Object} args
  * @param {string} args.wellName
  * @param {{curves: Object, inventory: Array}} args.wellData
@@ -102,7 +128,7 @@ export function methodLines(params) {
  */
 export async function buildReport({
   wellName, wellData, params, zones, summaries, projectId, depthUnit = 'm', well = null, columns = ['md'], probabilistic = null,
-  projectName = null, header = {}, zoneParams = {}, generatedAt = new Date(),
+  projectName = null, header = {}, zoneParams = {}, generatedAt = new Date(), sensitivities = null,
 }) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -226,6 +252,33 @@ export async function buildReport({
         ];
       }),
       styles: { fontSize: 6.8, cellPadding: 1.1 },
+      headStyles: { fillColor: [15, 23, 42] },
+      theme: 'grid',
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
+  // PETRO-U2-005: how far each zone's net pay moves with each cutoff
+  const srows = sensitivityRows(zones, sensitivities || {}, depthUnit);
+  if (srows.length) {
+    if (y > doc.internal.pageSize.getHeight() - 50) { doc.addPage(); y = 20; }
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text('Cutoff sensitivity', margin, y);
+    y += 4;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 70, 90);
+    const intro = doc.splitTextToSize(`Net pay and HCPV (${uTxt}) with one cutoff moved and the other two at the zone's own values (Worthington and Cosentino 2005, SPE 84387). * marks the cutoff used above. Swing: change in net pay across the neighbouring grid values as a fraction of the current net pay.`, pageWidth - 2 * margin);
+    doc.text(intro, margin, y);
+    y += intro.length * 3.6 + 1;
+    doc.autoTable({
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['Zone', 'Cutoff', `Cutoff value: net pay / HCPV (${uTxt})`, 'Swing']],
+      body: srows,
+      styles: { fontSize: 7, cellPadding: 1.1 },
       headStyles: { fillColor: [15, 23, 42] },
       theme: 'grid',
     });
