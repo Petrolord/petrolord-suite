@@ -178,3 +178,32 @@ toggle switches to dark and back, stored per user. The route prefix
 - Tests: new `__tests__/WellCorrelation.theme.test.jsx` (shared checks,
   an empty and a three-well section, dark, the help guide). No section,
   tops or export change.
+
+## 2026-09-29: comprehensive upgrade, Step 1 (practitioner lens)
+
+App #3 of the Geoscience upgrade programme; working doc
+`docs/upgrade/WellCorrelation-UPGRADE.md` (findings WC-U1-001 to 026,
+evidence kit under `e2e/fixtures/wc/`, Step 2 backlog). Branch `feat/wc-u1`.
+Fixed, each with a test that fails on the previous main:
+
+- Propagate with a blank depth wrote the top at MD 0 on every owned well
+  (S2); wells below TD, shared or already carrying the top are now named.
+- Spacing by distance converts X/Y by each well's CRS unit and refuses
+  mixed CRSs (US feet read as metres, 13,500 km across CRSs); columns stay
+  on the canvas. Equal columns now have a gap and correlation lines run
+  edge to edge in it (shared section kit, Stratigraphy benefits).
+- Curves stored bottom-up by G1-era imports read top-down; well headers
+  say "no KB: TVDSS = TVD" and "no survey: vertical".
+- A saved section from a newer build no longer empties the wells list and
+  is never overwritten; wells gone from the registry are left out and
+  counted; "unsaved changes" until Save; ghost curve and report header saved.
+- Spelling variants of a top are flagged and can be merged by rename; the
+  datum depth is typed (NumText) and starts at the top's own depth.
+- PNG header: field, analyst, wells, datum, reference and unit, 1:N scale,
+  spacing, template, date and build.
+- Tops door (WDM tops sheet): TVDSS/TVD/elevation/time depth columns refused,
+  Petra FMNAME read. Help guide corrected.
+
+Open for Step 2: fixed-width columns with horizontal scroll for 30+ wells,
+undo, tops import/export here, TWT and horizons in the section, named
+sections, pick attributes.
