@@ -14,6 +14,7 @@
 
 import { sampleWells } from './sampleSection';
 import { openSectionRow } from '@/components/wells/section/sectionState';
+import { sectionNameProblem, DEFAULT_SECTION_NAME } from '@/components/wells/section/sectionNames';
 
 let seq = 0;
 const nid = (p) => { seq += 1; return `${p}-${seq}`; };
@@ -22,16 +23,23 @@ const asCurves = (curves) => Object.fromEntries(Object.entries(curves || {})
   .map(([k, v]) => [k, v instanceof Float32Array || v instanceof Float64Array ? v : Float32Array.from(v, (x) => (x == null ? NaN : x))]));
 
 /**
- * @param {{ seedWells?: Object[], sample?: boolean, section?: ?Object }} [opts]
+ * @param {{ seedWells?: Object[], sample?: boolean, section?: ?Object, sections?: Object[] }} [opts]
+ *   sections (U2-001) seeds several saved rows, newest last
  *   sample false drops the 3-well KETA section (a scale or hostile run alone)
  */
-export function makeInMemoryBackend({ seedWells = [], sample = true, section: seedSection = null } = {}) {
+export function makeInMemoryBackend({ seedWells = [], sample = true, section: seedSection = null, sections: seedSections = [] } = {}) {
   const wells = [...(sample ? sampleWells() : []), ...seedWells.map((w) => ({ ...w, curves: asCurves(w.curves) }))].map((w) => ({ ...w }));
   const curvesByWell = new Map(wells.map((w) => [w.id, w.curves]));
   const topsByWell = new Map(wells.map((w) => [w.id, [...(w.tops || [])]]));
   const intervalsByWell = new Map(wells.map((w) => [w.id, [...(w.intervals || [])]]));   // ST1 seeded lithology
   const logMeta = new Map(wells.map((w) => [w.id, w.logMeta]));
-  let section = seedSection ? { ...seedSection } : null; // single implicit section (persisted in-memory)
+  // U2-001: named sections, owner-only rows like the registry; `clock` orders
+  // them by last save (newest first), as updated_at does
+  let clock = 0;
+  const sections = [...(seedSection ? [seedSection] : []), ...seedSections]
+    .map((r) => ({ ...r, id: r.id || nid('section'), name: r.name || DEFAULT_SECTION_NAME, _t: ++clock }));
+  const newest = () => [...sections].sort((a, b) => b._t - a._t)[0] || null;
+  const strip = (r) => { if (!r) return null; const { _t, ...rest } = r; return { ...rest }; };
 
   const own = (wellId, what) => {
     const w = wells.find((x) => x.id === wellId);
@@ -122,10 +130,45 @@ export function makeInMemoryBackend({ seedWells = [], sample = true, section: se
       return created;
     },
 
-    async loadSection() { return openSectionRow(section); },
-    async saveSection(patch) {
-      section = { id: section?.id || 'section-dev', name: 'Default section', ...section, ...patch };
-      return section;
+    async listSections() {
+      return [...sections].sort((a, b) => b._t - a._t)
+        .map((r) => ({ id: r.id, name: r.name, wellCount: (r.well_ids || []).length, updated_at: r.updated_at || null }));
+    },
+    async loadSection(id = null) {
+      if (id) {
+        const r = sections.find((x) => x.id === id);
+        if (!r) throw new Error('That section no longer exists (deleted in another tab?).');
+        return openSectionRow(strip(r));
+      }
+      return openSectionRow(strip(newest()));
+    },
+    async saveSection(patch, { id = null } = {}) {
+      const target = id ? sections.find((x) => x.id === id) : newest();
+      if (id && !target) throw new Error('That section no longer exists (deleted in another tab?).');
+      if (target) { Object.assign(target, patch, { _t: ++clock }); return strip(target); }
+      const row = { id: id || 'section-dev', name: DEFAULT_SECTION_NAME, ...patch, _t: ++clock };
+      sections.push(row);
+      return strip(row);
+    },
+    async createSection(name, patch = {}) {
+      const problem = sectionNameProblem(name, sections);
+      if (problem) throw new Error(problem);
+      const row = { ...patch, id: nid('section'), name: String(name).trim(), _t: ++clock };
+      sections.push(row);
+      return strip(row);
+    },
+    async renameSection(id, name) {
+      const r = sections.find((x) => x.id === id);
+      if (!r) throw new Error('Only the owner can rename a section.');
+      const problem = sectionNameProblem(name, sections, id);
+      if (problem) throw new Error(problem);
+      r.name = String(name).trim();
+      return { id, name: r.name };
+    },
+    async deleteSection(id) {
+      const i = sections.findIndex((x) => x.id === id);
+      if (i < 0) throw new Error('Only the owner can delete a section.');
+      sections.splice(i, 1);
     },
   };
 }

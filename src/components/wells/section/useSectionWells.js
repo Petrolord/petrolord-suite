@@ -46,6 +46,9 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
   // the saved row as restored (hosts compare against it for unsaved changes
   // and keep their own extra keys: ghost, report header)
   const [savedRow, setSavedRow] = useState(null);
+  // U2-001 named sections: the row this state belongs to (null = not saved yet)
+  const [sectionId, setSectionId] = useState(null);
+  const [sectionName, setSectionName] = useState(null);
   const curvesCache = useWellCurvesCache(backend);
   const wellDataRef = useRef({});
   const pendingRef = useRef(new Set());
@@ -65,6 +68,61 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
     if (Array.isArray(tl.zonePair) && tl.zonePair.length === 2) setZonePair(tl.zonePair);
   }, []);
 
+  // a stored row into the state; wells gone from the registry are left out
+  // and counted (WC-U1-007)
+  const restore = useCallback((section, list, verb) => {
+    const known = new Set((list || []).map((w) => w.id));
+    const ids = section.well_ids || [];
+    const missing = ids.filter((id) => !known.has(id));
+    applySaved({ ...section, well_ids: ids.filter((id) => known.has(id)) });
+    setSavedRow(section);
+    setSectionId(section.id || null);
+    setSectionName(section.name || null);
+    setSectionRefused(null);
+    const label = section.name ? ` ${section.name}` : '';
+    onStatus(missing.length
+      ? `${verb}${label}. ${missing.length} of its ${ids.length} wells ${missing.length === 1 ? 'is' : 'are'} no longer in your registry (deleted or no longer shared) and ${missing.length === 1 ? 'was' : 'were'} left out.`
+      : `${verb}${label}.`);
+  }, [applySaved]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // the section part of the state back to a blank section (view settings,
+  // unit, reference, template and column width stay as the user has them)
+  const clearSection = useCallback(() => {
+    setOrder([]);
+    setDatum({ mode: 'structural' });
+    setShownTops([]);
+    setZoneMode('consecutive');
+    setZonePair(null);
+  }, []);
+
+  /** U2-001: open a named section by id (the whole state is replaced). */
+  const openSection = useCallback(async (id) => {
+    try {
+      const row = await backend.loadSection(id);
+      if (!row) throw new Error('That section no longer exists (deleted in another tab?).');
+      clearSection();
+      restore(row, wells || [], 'Opened section');
+      return row;
+    } catch (e) {
+      // WC-U1-006 per section: a row this build cannot open is never overwritten
+      clearSection();
+      setSavedRow(null);
+      setSectionId(id);
+      setSectionRefused(e.message);
+      onStatus(e.message);
+      return null;
+    }
+  }, [backend, wells, restore, clearSection]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** U2-001: start a blank section bound to a row just created (or none). */
+  const startSection = useCallback((row = null) => {
+    clearSection();
+    setSectionRefused(null);
+    setSectionId(row?.id || null);
+    setSectionName(row?.name || null);
+    setSavedRow(row || { track_layout: {} });
+  }, [clearSection]);
+
   useEffect(() => {
     let live = true;
     (async () => {
@@ -81,16 +139,7 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
       // cannot open (or a failed read) never empties the wells list
       try {
         const section = await backend.loadSection();
-        if (section && live) {
-          const known = new Set(list.map((w) => w.id));
-          const ids = section.well_ids || [];
-          const missing = ids.filter((id) => !known.has(id));
-          applySaved({ ...section, well_ids: ids.filter((id) => known.has(id)) });
-          setSavedRow(section);
-          onStatus(missing.length
-            ? `Restored saved section. ${missing.length} of its ${ids.length} wells ${missing.length === 1 ? 'is' : 'are'} no longer in your registry (deleted or no longer shared) and ${missing.length === 1 ? 'was' : 'were'} left out.`
-            : 'Restored saved section.');
-        }
+        if (section && live) restore(section, list, 'Restored saved section');
       } catch (e) {
         if (live) { setSectionRefused(e.message); onStatus(e.message); }
       }
@@ -198,5 +247,6 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
     depthUnit, setDepthUnit, depthRef, setDepthRef, spacing, setSpacing, columnWidth, setColumnWidth, layouts, setLayouts,
     template, sectionWells, topNames, logSources, ensureWellData, refreshTops, toggleWell, moveWell, applySaved,
     sectionRefused, savedRow, setSavedRow,
+    sectionId, setSectionId, sectionName, setSectionName, openSection, startSection, restore,
   };
 }

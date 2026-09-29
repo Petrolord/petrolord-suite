@@ -13,12 +13,14 @@ import {
   saveTop, updateTop, deleteTop, propagateTop,
 } from '@/lib/wellsRegistry';
 import { listIntervals } from '@/lib/stratRegistry';
-import { loadSection, saveSection } from '@/lib/sectionsRegistry';
+import {
+  loadSection, saveSection, listSections, createSection, renameSection, deleteSection,
+} from '@/lib/sectionsRegistry';
 
 export function makeRegistryBackend() {
   return {
     listWells, listLogs, downloadCurve, listTops, listIntervals,
     saveTop, updateTop, deleteTop, propagateTop,
-    loadSection, saveSection,
+    loadSection, saveSection, listSections, createSection, renameSection, deleteSection,
   };
 }

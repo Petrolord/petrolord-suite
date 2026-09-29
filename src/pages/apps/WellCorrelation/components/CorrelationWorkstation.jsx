@@ -29,6 +29,8 @@ import { depthLabel, fromDisplay } from '@/components/wells/depthModes';
 import { makeDepthFrame } from '../../WellDataManager/engine/checkshots';
 import SectionExplorer from './SectionExplorer';
 import SectionControls from './SectionControls';
+import SectionPicker from './SectionPicker';
+import { copyName, freeName, DEFAULT_SECTION_NAME } from '@/components/wells/section/sectionNames';
 import CrossSection from './CrossSection';
 import { allTopNames } from '../engine/section';
 import { DEPTH_REF_LABEL, depthOfFor } from '../engine/sectionFrame';
@@ -57,6 +59,7 @@ export default function CorrelationWorkstation({
     depthUnit, setDepthUnit, depthRef, setDepthRef, spacing, setSpacing, columnWidth, setColumnWidth, layouts, setLayouts,
     template, sectionWells, topNames, logSources, ensureWellData, refreshTops, toggleWell, moveWell,
     sectionLoaded, sectionRefused, savedRow,
+    sectionId, setSectionId, sectionName, setSectionName, openSection, startSection,
   } = useSectionWells(backend, { deepLinkWells: parseWellsParam(searchParams.get('wells')), onStatus: setStatus });
   // ST2 ghost curve (shared painter): {sourceWellId, targetWellId, shiftM}
   const [ghost, setGhost] = useState(null);
@@ -65,10 +68,12 @@ export default function CorrelationWorkstation({
 
   // WC-U1-013: the ghost and the report header ride in track_layout (no
   // migration, the column is jsonb) and come back with the section
+  // (U2-001: opening another section replaces both, blank when it has none)
   useEffect(() => {
-    const tl = savedRow?.track_layout || {};
-    if (tl.ghost && tl.ghost.sourceWellId) setGhost(tl.ghost);
-    if (tl.report && typeof tl.report === 'object') setReport({ field: tl.report.field || '', analyst: tl.report.analyst || '' });
+    if (!savedRow) return;
+    const tl = savedRow.track_layout || {};
+    setGhost(tl.ghost && tl.ghost.sourceWellId ? tl.ghost : null);
+    setReport(tl.report && typeof tl.report === 'object' ? { field: tl.report.field || '', analyst: tl.report.analyst || '' } : { field: '', analyst: '' });
   }, [savedRow]);
 
   // WC-U1-013: unsaved changes. The baseline is what was restored (taken once
@@ -93,7 +98,71 @@ export default function CorrelationWorkstation({
     pendingBaseline.current = false;
     setBaseline(snapshot);
   }, [snapshot, sectionLoaded, loading, order, wellData]);
-  const unsaved = sectionLoaded && (baseline === null ? order.length > 0 : baseline !== snapshot);
+  // (a restored row whose wells are still loading has no baseline yet and is not unsaved)
+  const unsaved = sectionLoaded && (baseline === null ? !savedRow && order.length > 0 : baseline !== snapshot);
+
+  // ---- U2-001 named sections (owner-only rows) -----------------------------
+  const namedSections = typeof backend.listSections === 'function';
+  const [sections, setSections] = useState([]);
+  const refreshSections = useCallback(async () => {
+    if (!namedSections) return;
+    try { setSections(await backend.listSections()); } catch (e) { setStatus(e.message); }
+  }, [backend, namedSections]);
+  useEffect(() => { if (sectionLoaded) refreshSections(); }, [sectionLoaded, refreshSections]);
+  // an action that would drop unsaved changes waits for Save or Discard
+  const [pendingAction, setPendingAction] = useState(null); // {label, run}
+  const guarded = (label, run) => { if (unsaved) setPendingAction({ label, run }); else run(); };
+  const suggestName = (kind) => (kind === 'duplicate' ? copyName(sectionName || DEFAULT_SECTION_NAME, sections) : freeName('New section', sections));
+  const openNamed = (id) => guarded(`open ${sections.find((x) => x.id === id)?.name || 'that section'}`, async () => {
+    setPickMode(null);
+    const row = await openSection(id);
+    if (row) pendingBaseline.current = true;
+  });
+  const nameAction = async (kind, name) => {
+    try {
+      if (kind === 'rename') {
+        const r = await backend.renameSection(sectionId, name);
+        setSectionName(r.name);
+        setStatus(`Section renamed to ${r.name}.`);
+      } else if (kind === 'duplicate') {
+        const row = await backend.createSection(name, payload);
+        setSectionId(row.id);
+        setSectionName(row.name);
+        setBaseline(snapshot);
+        setStatus(`Saved a copy as ${row.name}; you are now working in it.`);
+      } else {
+        guarded(`start ${name}`, async () => {
+          try {
+            const { layouts: l, depthUnit: du, depthRef: dr, spacing: sp, columnWidth: cw } = payload.track_layout;
+            const row = await backend.createSection(name, { well_ids: [], datum: { mode: 'structural' }, track_layout: { layouts: l, depthUnit: du, depthRef: dr, spacing: sp, columnWidth: cw } });
+            setPickMode(null);
+            startSection(row);
+            await refreshSections();
+            setStatus(`New section ${row.name}. Add wells from the map on the left.`);
+          } catch (e) { setStatus(e.message); }
+        });
+        return;
+      }
+      await refreshSections();
+    } catch (e) {
+      setStatus(e.message);
+    }
+  };
+  const deleteNamed = async () => {
+    const name = sectionName;
+    try {
+      await backend.deleteSection(sectionId);
+      const rest = (await backend.listSections());
+      setSections(rest);
+      if (rest.length) {
+        const row = await openSection(rest[0].id);
+        if (row) pendingBaseline.current = true;
+      } else startSection(null);
+      setStatus(`Deleted section ${name}. Its tops stay in the well registry.`);
+    } catch (e) {
+      setStatus(e.message);
+    }
+  };
 
   // WC-U1-008: names that differ only by case or spacing are separate tops
   const nameKey = (n) => String(n ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
@@ -248,11 +317,20 @@ export default function CorrelationWorkstation({
       return;
     }
     try {
-      await backend.saveSection(payload);
+      // U2-001: a named row is saved by id; a first save creates a named row
+      // (never the newest row of another section)
+      let row;
+      if (sectionId || !namedSections) row = await backend.saveSection(payload, sectionId ? { id: sectionId } : undefined);
+      else row = await backend.createSection(sectionName || freeName(DEFAULT_SECTION_NAME, sections), payload);
+      if (row?.id) setSectionId(row.id);
+      if (row?.name) setSectionName(row.name);
       setBaseline(snapshot);
-      setStatus('Section saved.');
+      setStatus(`Section saved${row?.name ? ` as ${row.name}` : ''}.`);
+      await refreshSections();
+      return true;
     } catch (e) {
       setStatus(e.message);
+      return false;
     }
   };
 
@@ -280,7 +358,20 @@ export default function CorrelationWorkstation({
       <ModuleHomeLink module="geoscience" testId="corr-home" />
       <GitCompare className="w-4 h-4 text-pl-primary-text" />
       <span className="text-sm font-semibold text-pl-text">Well Correlation</span>
-      <span className="text-[11px] text-pl-muted">cross-sections on the shared well registry</span>
+      {namedSections ? (pendingAction ? (
+        <div className="flex items-center gap-1 text-[11px]" data-testid="corr-section-pending">
+          <span className="text-pl-warning-text">Unsaved changes. Before you {pendingAction.label}:</span>
+          <button type="button" className="px-1.5 py-0.5 rounded border border-pl-primary text-pl-primary-text" data-testid="corr-section-save-first"
+            onClick={async () => { const a = pendingAction; setPendingAction(null); if (await saveSection()) await a.run(); }}>Save first</button>
+          <button type="button" className="px-1.5 py-0.5 rounded border border-pl-border text-pl-text" data-testid="corr-section-discard"
+            onClick={async () => { const a = pendingAction; setPendingAction(null); await a.run(); }}>Discard changes</button>
+          <button type="button" className="px-1.5 py-0.5 rounded border border-pl-border text-pl-muted" data-testid="corr-section-cancel"
+            onClick={() => setPendingAction(null)}>Cancel</button>
+        </div>
+      ) : (
+        <SectionPicker sections={sections} currentId={sectionId} currentName={sectionName}
+          onOpen={openNamed} onName={nameAction} onDelete={deleteNamed} suggestName={suggestName} />
+      )) : <span className="text-[11px] text-pl-muted">cross-sections on the shared well registry</span>}
       <div className="ml-auto flex items-center gap-1">
         <Link to="/dashboard/apps/geoscience/well-correlation/help" data-testid="corr-help" title="Open the Well Correlation help guide"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken">
