@@ -177,3 +177,15 @@ describe('the master_apps snapshot', () => {
     expect(SNAPSHOT._refresh).toMatch(/master_apps/);
   });
 });
+
+describe('the browser harness mirrors App.jsx', () => {
+  // src/dev/RouteGuardHarness.jsx re-mounts a sample of these routes for the
+  // Playwright walk; its appIds must be the ones App.jsx uses.
+  const harness = fs.readFileSync(path.join(ROOT, 'src/dev/RouteGuardHarness.jsx'), 'utf8');
+  const sample = [...harness.matchAll(/path: '([^']+)', appId: '([^']+)'/g)].map((m) => [m[1], m[2]]);
+  test('has a sample', () => { expect(sample.length).toBeGreaterThanOrEqual(5); });
+  test.each(sample)('%s uses %s in App.jsx too', (p, appId) => {
+    const r = parseAppRoutes(APP_SRC).find((x) => x.path === p);
+    expect(r).toMatchObject({ kind: 'protected', ids: [appId] });
+  });
+});

@@ -341,7 +341,13 @@ Outside `/dashboard/apps/**` (not paid apps, listed for completeness):
   behaviour on the real component, including the newly gated slugs).
 - Browser: dev harness `/dev/route-guard/:page` (src/dev/RouteGuardHarness.jsx)
   mounts the real ProtectedAppRoute and the real app pages on the in-memory
-  Supabase double with a chosen licence; see the PR for the Playwright walk.
+  Supabase double with a chosen licence. Playwright walk 2026-09-30 (own Vite
+  server, 1 worker), 12 of 12 pass: SCAL Studio, Waterflood Design Studio,
+  Material Balance Studio, DCA, Basin & Charge Modeling and EOR Screening each
+  show Access Restricted with Purchase License when unlicensed (no licence, or
+  a licence for a different app) and open the app when the route's slug is
+  licensed. The guard test checks that the harness uses the same appIds as
+  App.jsx.
 
 ## Open items
 
