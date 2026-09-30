@@ -354,6 +354,20 @@ export function planImport(pkg, target) {
   const companionsByOldPath = new Map();
   for (const [table, rows] of Object.entries(planned)) {
     const spec = tableSpec(table);
+    if (!spec.blob?.pathColumn || !spec.blob.rowCompanions) continue;
+    for (const r of rows) {
+      const oldMain = r.__oldStoragePath;
+      const newMain = r[spec.blob.pathColumn];
+      if (!oldMain || !newMain) continue;
+      // row-recorded companions keep their suffix beside the moved main object (Mapping U2-017)
+      for (const oldAlt of spec.blob.rowCompanions({ ...r, [spec.blob.pathColumn]: oldMain })) {
+        companionsByOldPath.set(`${spec.blob.bucket}/${oldAlt}`, { table, row: r, spec, newPath: `${newMain}${oldAlt.slice(oldMain.length)}` });
+      }
+      if (spec.blob.rewriteCompanions) spec.blob.rewriteCompanions(r, oldMain, newMain);
+    }
+  }
+  for (const [table, rows] of Object.entries(planned)) {
+    const spec = tableSpec(table);
     if (!spec.blob?.pathColumn || !spec.blob.companions) continue;
     for (const r of rows) {
       if (!r.__oldStoragePath) continue;

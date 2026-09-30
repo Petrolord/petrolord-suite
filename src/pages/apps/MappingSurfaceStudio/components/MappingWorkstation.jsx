@@ -679,7 +679,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
     } catch (e) {
       // MAP-U1-017: a .pld package carries the grid, not the re-grid archive
       setStatus(/previous grid/.test(e.message)
-        ? `The previous grid of ${surface.name} is not stored here, so it cannot be restored. A project imported from a .pld package keeps the current grid only. (${e.message})`
+        ? `The previous grid of ${surface.name} is not stored here, so it cannot be restored. A .pld package exported before this release carried the current grid only; packages exported now carry the previous grids too. (${e.message})`
         : e.message);
     }
   };
