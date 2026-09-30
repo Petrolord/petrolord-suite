@@ -119,7 +119,7 @@ Each is assigned to the app whose Step 2c will fix it:
 |---|---|---|---|---|---|
 | 1 | Well Data Manager | done 2026-09-28: 12 checks, 33 findings, 19 fixed (all S2) | analysed 2026-09-28: 18 items; batch decision 2026-09-28: 14 built (A, B, C), 4 deferred (U2-007, U2-012, U2-009, U2-018) | A, B, C built on `feat/wdm-u2` (PR open, 2026-09-28) | `docs/upgrade/WellDataManager-UPGRADE.md` |
 | 2 | Petrophysics Studio | done 2026-09-29: 12 checks, 33 findings, 17 fixed (the S1 and all S2) | analysed 2026-09-29: 18 items, batches A/B/C for the owner | | `docs/upgrade/PetrophysicsStudio-UPGRADE.md` |
-| 3 | Well Correlation | done 2026-09-29: 12 checks, 26 findings, 16 fixed (5 S2, 8 S3, 3 S4; no S2 open) | analysed 2026-09-29: ranked backlog, batches A/B/C for the owner | | `docs/upgrade/WellCorrelation-UPGRADE.md` |
+| 3 | Well Correlation | done 2026-09-29: 12 checks, 26 findings, 16 fixed (5 S2, 8 S3, 3 S4; no S2 open) | analysed 2026-09-29: 18 items; batch decision 2026-09-29: 14 built (A, B, C), 4 deferred (U2-011, U2-017, U2-018, U2-016) | A, B, C built on `feat/wc-u2` (PR open, 2026-09-29) | `docs/upgrade/WellCorrelation-UPGRADE.md` |
 | 4 | Stratigraphy Studio | not started | not started | | |
 | 5 | Seismolord | not started | not started | | |
 | 6 | Mapping & Surface Studio | not started | not started | | |

@@ -471,15 +471,16 @@ export async function deleteTop(top) {
  * top (idempotent re-propagate); RLS drops silently-unowned wells, and
  * the caller learns which succeeded from the returned rows.
  * @param {string} name @param {Array<{wellId: string, mdM: number}>} targets
+ * @param {{interpreter?: ?string, confidence?: ?string}} [attrs] pick attributes on every new row (WC-U2-010; existing columns)
  */
-export async function propagateTop(name, targets) {
+export async function propagateTop(name, targets, attrs = {}) {
   if (!targets.length) return [];
   const created = [];
   for (const t of targets) {
     const existing = await listTops(t.wellId);
     if (existing.some((x) => x.name === name)) continue;
     // per-well so one RLS-blocked well doesn't fail the whole batch
-    const { data, error } = await writeWithBuild({ well_id: t.wellId, name, md_m: t.mdM },
+    const { data, error } = await writeWithBuild(topRow(t.wellId, { name, mdM: t.mdM, ...attrs }),
       (r) => supabase.from('geo_wells_tops').insert(r).select());
     if (error) throw new Error(`Could not propagate "${name}": ${error.message}`);
     if (data && data.length) created.push(data[0]);

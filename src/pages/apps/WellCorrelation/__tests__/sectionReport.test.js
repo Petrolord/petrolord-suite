@@ -42,3 +42,10 @@ test('structural and stretched sections, and a header left blank, say so plainly
   const b = sectionCaption({ wells, datum: { mode: 'stretch', upperName: 'Top Dome', lowerName: 'Base Sand' }, depthRef: 'md', depthUnit: 'm', spacing: 'equal', templateName: 'T', scale: 500, now, build: 'b' });
   expect(b.caption.join(' ')).toContain('Stretched between Top Dome and Base Sand');
 });
+
+// U2-002: a scrolled section exports the window on screen and says which wells
+test('U2-002 a scrolled PNG names the wells in view and the total', () => {
+  const wells = Array.from({ length: 30 }, (_, i) => ({ name: `F-${i + 1}` }));
+  const { caption } = sectionCaption({ wells, datum: { mode: 'structural' }, depthRef: 'md', depthUnit: 'm', spacing: 'equal', templateName: 'Q', scale: 1000, window: { first: 4, last: 9, n: 30 } });
+  expect(caption[0]).toBe('Wells 4 to 9 of 30 shown: F-4, F-5, F-6, F-7, F-8, F-9');
+});

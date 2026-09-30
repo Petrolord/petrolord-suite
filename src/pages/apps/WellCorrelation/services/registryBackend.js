@@ -9,16 +9,21 @@
 // (geo_correlation_sections, owner-only).
 
 import {
-  listWells, listLogs, downloadCurve, listTops,
+  listWells, listLogs, downloadCurve, listTops, listAllTops, listZones,
   saveTop, updateTop, deleteTop, propagateTop,
 } from '@/lib/wellsRegistry';
-import { listIntervals } from '@/lib/stratRegistry';
-import { loadSection, saveSection } from '@/lib/sectionsRegistry';
+import { listIntervals, listUnits } from '@/lib/stratRegistry';
+// U2-003: horizons are read only from the shared surface registry
+import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
+import {
+  loadSection, saveSection, listSections, createSection, renameSection, deleteSection,
+} from '@/lib/sectionsRegistry';
 
 export function makeRegistryBackend() {
   return {
-    listWells, listLogs, downloadCurve, listTops, listIntervals,
+    listWells, listLogs, downloadCurve, listTops, listAllTops, listIntervals, listSurfaces, downloadSurfaceGrid,
+    listZones, listUnits, // U2-008: Petrophysics zones, Stratigraphy column (read only)
     saveTop, updateTop, deleteTop, propagateTop,
-    loadSection, saveSection,
+    loadSection, saveSection, listSections, createSection, renameSection, deleteSection,
   };
 }

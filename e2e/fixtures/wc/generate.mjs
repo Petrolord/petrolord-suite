@@ -97,6 +97,14 @@ out('hostile', 'tops_elevation_z.csv', [
   'OKAN PX-4,Sand H,-1975',
   'IDU 9,Sand H,-1978',
 ].join('\n') + '\n');
+// WC-U2-004: a time-only file (refused), a semicolon file with comma
+// decimals, and TVDSS rows the door must name (no KB, unknown well, no name,
+// not a number, above sea level on a well whose KB puts it above the rig)
+out('hostile', 'tops_twt_only.csv', ['Well,Horizon,TWT (ms)', 'OKAN PX-4,Sand K,1650'].join('\n') + '\n');
+out('hostile', 'tops_semicolon_comma.csv', ['Well;Top;TVDSS (m)', 'OKAN PX-4;Sand J;1990,5', 'IDU 9;Sand J;1996,25'].join('\n') + '\n');
+out('hostile', 'tops_tvdss_problems.csv', [
+  'Well,Top,TVDSS (m)', 'IDU 7,Sand L,1950', 'NO SUCH WELL,Sand L,1950', 'OKAN PX-4,,1950', 'OKAN PX-4,Sand L,abc', 'OKAN PX-4,Sand L,-40',
+].join('\n') + '\n');
 
 // ---- saved sections, one per release ---------------------------------------
 const save = (name, row) => out('saved', name, `${JSON.stringify(row, null, 2)}\n`);

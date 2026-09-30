@@ -18,9 +18,15 @@
 import { zoneSpan, displayedDepth, topMd } from '@/pages/apps/WellCorrelation/engine/section';
 import { invertShift } from '@/lib/stratigraphy/stretch';
 import { unitToMetres } from '../../../../packages/engines/lib/crs/catalog';
+import { twtAtTvdss, tvdssAtTwt, checkshotRange } from './timeDepth';
 
-export const DEPTH_REFS = ['md', 'tvd', 'tvdss'];
-export const DEPTH_REF_LABEL = { md: 'MD', tvd: 'TVD', tvdss: 'TVDSS' };
+// U2-003: 'twt' plots two-way time (ms) from each well's checkshots
+export const DEPTH_REFS = ['md', 'tvd', 'tvdss', 'twt'];
+export const DEPTH_REF_LABEL = { md: 'MD', tvd: 'TVD', tvdss: 'TVDSS', twt: 'TWT' };
+/** The unit a reference is drawn in: ms for time, else the depth unit. */
+export const refUnit = (depthRef, depthUnit) => (depthRef === 'twt' ? 'ms' : depthUnit === 'ft' ? 'ft' : 'm');
+/** True when the well can be drawn in time (two or more checkshots). */
+export const hasTime = (well) => !!checkshotRange(well?.checkshots);
 
 /**
  * Accessor from measured depth to the plotted reference depth for one
@@ -30,6 +36,16 @@ export const DEPTH_REF_LABEL = { md: 'MD', tvd: 'TVD', tvdss: 'TVDSS' };
  * @returns {(md: number) => number}
  */
 export function depthOfFor(well, depthRef = 'md') {
+  if (depthRef === 'twt') {
+    // MD -> TVDSS (survey, or KB on a well with none) -> TWT through the checkshots
+    const kb = Number(well?.kb_m) || 0;
+    const cs = well?.checkshots;
+    return (md) => {
+      let tvdss;
+      try { tvdss = well?.frame ? well.frame.mdToTvdss(md).tvdss : md - kb; } catch { return NaN; }
+      return twtAtTvdss(cs, tvdss);
+    };
+  }
   if (depthRef === 'md' || !well?.frame) return (md) => md;
   const key = depthRef === 'tvd' ? 'tvd' : 'tvdss';
   return (md) => {
@@ -88,6 +104,12 @@ export function isMonotonic(arr) {
 export function mdFromDisplayed(displayed, shift, well, depthRef = 'md') {
   const ref = invertShift(displayed, shift);
   if (!Number.isFinite(ref)) return null;
+  if (depthRef === 'twt') {
+    const z = tvdssAtTwt(well?.checkshots, ref);
+    if (!Number.isFinite(z)) return null;
+    if (!well?.frame) { const md = z + (Number(well?.kb_m) || 0); return md >= 0 ? { md, ambiguous: false, extrapolated: false } : null; }
+    return well.frame.tvdssToMd(z);
+  }
   if (depthRef === 'md' || !well?.frame) return { md: ref, ambiguous: false, extrapolated: false };
   const tvdss = depthRef === 'tvd' ? ref - (well.frame.kbM || 0) : ref;
   return well.frame.tvdssToMd(tvdss);
@@ -151,13 +173,26 @@ export function spacingProblem(wells) {
  * Falls back to equal spacing when a distance is unknown or all zero.
  * @returns {Array<{x0: number, w: number, gapAfter: number, distM: number|null}>}
  */
-export function columnLayout(wells, { mode = 'equal', plotLeft = 0, plotW = 0, minColPx = 40 } = {}) {
+export function columnLayout(wells, { mode = 'equal', plotLeft = 0, plotW = 0, minColPx = 40, fixedW = null, colW: forcedColW = null, distances = null } = {}) {
   const n = wells.length;
   if (!n) return [];
-  const dists = pathDistances(wells);
+  // U2-012: distances along a drawn section line replace the wellhead-to-wellhead ones
+  const dists = distances && distances.length === n - 1 ? distances : pathDistances(wells);
   const total = dists.reduce((s, d) => s + d, 0);
-  const equalW = plotW / n;
   const usable = mode === 'proportional' && n > 1 && dists.every((d) => Number.isFinite(d)) && total > 0;
+  // U2-002: a fixed column width lays the columns out on a band wider than
+  // the window (the host scrolls it); the gap keeps its fit-mode rule
+  if (fixedW > 0) {
+    const gap = n > 1 ? Math.max(8, Math.min(40, Math.round(fixedW * 0.12))) : 0;
+    if (!usable) {
+      return wells.map((_, i) => ({
+        x0: plotLeft + i * (fixedW + gap), w: fixedW, gapAfter: i + 1 < n ? gap : 0, distM: i + 1 < n ? dists[i] ?? null : null,
+      }));
+    }
+    const bandW = Math.max(plotW, n * fixedW + (n - 1) * gap * 3);
+    return columnLayout(wells, { mode, plotLeft, plotW: bandW, minColPx: fixedW, fixedW: null, colW: fixedW, distances });
+  }
+  const equalW = plotW / n;
   if (!usable) {
     // WC-U1-004: a gap between the columns carries the correlation lines
     // (a contiguous layout left them nowhere to run but over the tracks)
@@ -167,7 +202,7 @@ export function columnLayout(wells, { mode = 'equal', plotLeft = 0, plotW = 0, m
       x0: plotLeft + i * (w + gap), w, gapAfter: i + 1 < n ? gap : 0, distM: i + 1 < n ? dists[i] ?? null : null,
     }));
   }
-  const colW = Math.max(minColPx, equalW * 0.7);
+  const colW = forcedColW > 0 ? forcedColW : Math.max(minColPx, equalW * 0.7);
   const span = Math.max(0, plotW - colW); // centres run from plotLeft + colW/2 to plotLeft + plotW - colW/2
   const cols = [];
   let cum = 0;
@@ -254,8 +289,9 @@ export function correlationSegments(line, boxes, yOf) {
 export function frameNotes(well, depthRef = 'md') {
   if (depthRef === 'md') return [];
   const notes = [];
+  if (depthRef === 'twt' && !hasTime(well)) return ['no checkshots: not drawn in time'];
   if (!well?.frame || well.frame.isVertical) notes.push('no survey: vertical');
-  if (depthRef === 'tvdss' && !(Number(well?.kb_m) > 0)) notes.push('no KB: TVDSS = TVD');
+  if ((depthRef === 'tvdss' || depthRef === 'twt') && !(Number(well?.kb_m) > 0)) notes.push('no KB: TVDSS = TVD');
   return notes;
 }
 
@@ -299,4 +335,58 @@ export function verticalScale(vTop, vBase, plotH) {
   const n = (span / plotH) / M_PER_CSS_PX;
   const p = 10 ** Math.max(0, Math.floor(Math.log10(n)) - 2);
   return Math.round(n / p) * p;
+}
+
+/** Column width modes (U2-002): 'fit' shares the window, a number is a fixed
+ *  width in CSS px, 'auto' fits until a column would be narrower than
+ *  AUTO_MIN_COL_PX and then fixes it at AUTO_COL_PX with a horizontal scroll. */
+export const COLUMN_WIDTHS = ['auto', 'fit', 120, 160, 220, 300];
+export const AUTO_MIN_COL_PX = 90;
+export const AUTO_COL_PX = 140;
+
+/** The fixed width in px for a mode, or null when the columns fit the window. */
+export function resolveColumnWidth(mode, n, plotW) {
+  if (typeof mode === 'number' && mode > 0) return mode;
+  const m = Number(mode);
+  if (Number.isFinite(m) && m > 0) return m;
+  if (mode === 'fit' || !n) return null;
+  const fitW = plotW / n;
+  return fitW < AUTO_MIN_COL_PX ? AUTO_COL_PX : null;
+}
+
+/**
+ * The window onto a band of columns (U2-002): the width of the band, the
+ * scroll offset clamped to it, the boxes shifted by that offset, and which
+ * columns overlap the window (only those are painted).
+ * @returns {{contentW: number, maxScroll: number, scrollX: number, boxes: Array, visible: boolean[]}}
+ */
+export function scrollWindow(boxes, { scrollX = 0, plotLeft = 0, plotW = 0 } = {}) {
+  const right = boxes.reduce((m, b) => Math.max(m, b.x0 + b.w), plotLeft);
+  const contentW = Math.max(0, right - plotLeft);
+  const maxScroll = Math.max(0, Math.ceil(contentW - plotW));
+  const sx = Math.min(maxScroll, Math.max(0, Number(scrollX) || 0));
+  const shifted = boxes.map((b) => ({ ...b, x0: b.x0 - sx }));
+  const visible = shifted.map((b) => b.x0 + b.w > plotLeft && b.x0 < plotLeft + plotW);
+  return { contentW, maxScroll, scrollX: sx, boxes: shifted, visible };
+}
+
+/**
+ * Ghost depths (U2-015): the source column's displayed depths shifted, and
+ * stretched or squeezed about an anchor (the middle of the source log), so a
+ * log pattern of a different thickness can be laid over another well.
+ * d' = anchor + (d - anchor) * stretch + shift. Stretch is clamped to 0.25..4.
+ */
+export function ghostDepths(disp, { shiftM = 0, stretch = 1, anchor = null } = {}) {
+  const n = disp?.length || 0;
+  const out = new Float64Array(n);
+  let a = anchor;
+  if (!Number.isFinite(a)) {
+    let lo = Infinity; let hi = -Infinity;
+    for (let i = 0; i < n; i++) if (Number.isFinite(disp[i])) { lo = Math.min(lo, disp[i]); hi = Math.max(hi, disp[i]); }
+    a = Number.isFinite(lo) ? (lo + hi) / 2 : 0;
+  }
+  const k = Math.min(4, Math.max(0.25, Number(stretch) || 1));
+  const sh = Number(shiftM) || 0;
+  for (let i = 0; i < n; i++) out[i] = a + (disp[i] - a) * k + sh;
+  return out;
 }

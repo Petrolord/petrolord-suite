@@ -15,7 +15,7 @@ describe('CorrelationHelpGuide', () => {
     renderGuide();
     expect(screen.getByRole('heading', { level: 1, name: /Well Correlation Help Guide/ })).toBeInTheDocument();
     for (const { id } of HELP_SECTIONS) expect(document.getElementById(`section-${id}`)).not.toBeNull();
-    expect(HELP_SECTIONS.length).toBe(13);
+    expect(HELP_SECTIONS.length).toBe(19);
   });
 
   test('quotes the live depth references and section parameters', () => {
@@ -38,6 +38,15 @@ describe('CorrelationHelpGuide', () => {
       expect(text).toContain(s);
     }
     expect(text).not.toMatch(/Datum mode none|A depth datum|Track details|draws every mnemonic/);
+  });
+
+  // AppUpgrade WC-U2: the Step 2 controls are described as they are
+  test('describes the Step 2 controls', () => {
+    const { container } = renderGuide();
+    const text = container.textContent;
+    for (const s of ['Suggest picks', 'Nothing is written without an accept', 'Import', 'TWT', 'Seismic horizons', 'Draw section line', 'Thickness map', 'Save first', 'Ctrl+Z', 'PDF scale', 'at the displayed depth', 'New picks by']) {
+      expect(text).toContain(s);
+    }
   });
 
   test('copy carries no em dashes (owner rule)', () => {

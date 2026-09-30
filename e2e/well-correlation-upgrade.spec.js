@@ -61,7 +61,12 @@ test('PL2/PL3: hostile wells say how their depth was drawn; spacing by distance 
   const xs = (await sec.getAttribute('data-col-x')).split(',').map(Number);
   const ws = (await sec.getAttribute('data-col-w')).split(',').map(Number);
   expect(xs).toHaveLength(7);
-  xs.forEach((x, i) => expect(x + ws[i]).toBeLessThanOrEqual(box.width + 1));
+  // U2-002: seven wells no longer squeeze into the window; columns past the right
+  // edge are reached with the horizontal scrollbar (never lost without one)
+  if (Number(await sec.getAttribute('data-max-scroll')) > 0) {
+    await expect(page.getByTestId('corr-hscroll')).toBeVisible();
+    expect(ws.every((w) => w === 140)).toBe(true);
+  } else xs.forEach((x, i) => expect(x + ws[i]).toBeLessThanOrEqual(box.width + 1));
   await shot(page, 'hostile-tvdss');
 
   // one frame in US survey feet: spacing by distance is drawn
