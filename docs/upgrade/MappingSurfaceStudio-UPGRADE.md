@@ -338,3 +338,33 @@ readDepthSurface(row, grid, { accept, as = 'elevation', xy = 'native', requirePr
 | U2-013 | Done | `upgradeU2.test.js`: a planar surface samples exactly along the line on a metre and a US-feet frame (negative control: the feet frame read as metres reports a 16.4 km section for 5 km); rotation honoured; nulls stay gaps; wells within the buffer posted at their distance; the vertical exaggeration arithmetic. e2e: a two-click line shows the chart with curves, KETA-1 and KETA-3, and the exaggeration note | `services/sectionLine.js`, `components/SectionChart.jsx` (white chartTheme, ChartLogo). The line stays drawn on the map. Up to five other depth structures in the same CRS are added, each read through `readDepthSurface`. |
 | U2-008 | Done (layer cake as a hook) | `upgradeU2.test.js`: V0 + kZ fitted to exact ties recovers V0 = 1800 m/s and k = 0.6 (negative control: a single velocity leaves more than 20 m of misfit); a velocity map converts node by node, a declared ft/s map gives the same depths, an undeclared ft/s map is refused; the layer-cake conversion equals Seismolord's `layercakeDepthM` node by node (negative control: without the boundary the second layer is never used). e2e: fitted conversion with the residual table, publish, and the layer cake's hook reason | `services/depthConversion.js`: `fitLinearVelocityToTops` (the forward model is Seismolord's `twtMsToDepthM`), `elevationFromVelocityMap`, `convertWithLayerCake`, and `LAYER_CAKE_HOOK`. Seismolord U2-006 (layer-cake models on `feat/seis-u2`) was NOT on main when this was built, so the hook returns the reason and the picker shows it; wiring it is one function once Seismolord publishes each boundary as a time surface. Checkshots as an input and a velocity QC plot stay in the backlog. |
 | U2-017 | Done | `src/lib/portability/__tests__/surfaceArchives.test.js`: a backup carries the grid and its archive; the import lands the archive beside the new grid with its bytes, rewrites the recorded path and leaves a path that is not beside the grid alone; negative control: an archive already gone at export is left out and the row still imports. All 94 portability tests pass | `geoscienceSpec` geo_surfaces `rowCompanions` / `rewriteCompanions`; `collect.js` and `importPackage.js` carry row-recorded companions. Restore's message now says only packages exported before this release lack the previous grids. |
+
+### Deferred by the batch decision (reasons)
+
+| Item | Reason |
+|---|---|
+| U2-011 multigrid minimum curvature | L. The spline in tension covers the demo. After NAPE, engines-first with an oracle. |
+| U2-014 grid editor | M. After NAPE. Guide points and contour moves stay the editing tools. |
+| U2-010 stochastic structural uncertainty | L. It waits for the canonical Monte Carlo module (ReservoirEngineering-Module section 5). The GRV range stays the fully correlated kriging shift, labelled as such. |
+| U2-015 Digitizer polynomial and thin-plate warp | Deferred by the decision. The least-squares affine with per-point misfit stays. |
+| U2-016 collocated co-kriging | Deferred by the decision. |
+| U2-019 live remapping | Deferred by the decision. Re-grid in place from the recorded source stays. |
+| U2-020 storing the Digitizer image | It needs a storage policy (RLS review, second engineer). Saved projects keep the image name and size and ask for the image on load. |
+| U2-018 geo_wells.status migration | The owner applies it. The app reads the column when it is present. |
+| MAP-U1-025 staircase map edge | Not S-sized (see its row above). After NAPE. |
+
+### Units
+
+The Suite unit profile (branch `feat/suite-unit-profile`) was not on main when this PR was opened (2026-09-30). Mapping keeps its current behaviour: the depth display unit is `mapping.depthUnit` per browser, together with the per-user `geoscience_settings.depth_unit`. No new app-local unit preference was added. The PDF paper and scale are plot settings, not units, and are not stored. The adoption stays a follow-up: take the initial depth unit from `useUnitProfile`, and make the in-app toggle a view override.
+
+### Build summary
+
+- Built: Batch A, all items (U2-007, U2-001, U2-004, U2-002, U2-005, U2-003, U2-006, MAP-U1-028).
+- Built: Batch B, all items (U2-009, U2-012, U2-013, U2-008). The U2-008 layer cake is a named hook, because Seismolord U2-006 is not on main.
+- Built: Batch C (U2-017).
+- Deferred: MAP-U1-025 (not S-sized).
+- Engines: PR #289 (gridding) merged. The Suite vendors canonical `bf8376b`, which also brings in PR #290, the test-only CI speed gate.
+- The browser walks found three new defects, all fixed in this branch:
+  - The Digitizer's spline was singular on closed contours.
+  - The Digitizer map had no height at 390 wide.
+  - A T1 e2e pinned the old kriging refusal; it now expects the kriged map and its note.
