@@ -17,6 +17,8 @@
 //   rp_projects.well_ids uuid[]; avo may hold zone/top ids
 //   geo_correlation_sections.well_ids uuid[]; datum by top NAME
 //   geo_wells_tops.unit_id -> geo_strat_units (ST0); geo_strat_units.parent_id self reference
+//   em_models.definition: surfaceIds[], derived[].{sourceId,isochoreId,baseId} -> geo_surfaces;
+//     faultPolygons[].cultureId ('<uuid>' or '<uuid>#n'), frame.boundaryId -> geo_culture
 
 /**
  * softRefs entries:
@@ -188,6 +190,22 @@ export const GEOSCIENCE_SPEC = {
         // STRAT-U2-003: the chart version each age was entered under, keyed by row id
         { path: 'view.ageCharts.tops{keys}', table: 'geo_wells_tops', optional: true },
         { path: 'view.ageCharts.units{keys}', table: 'geo_strat_units', optional: true },
+      ],
+    },
+    // Earth Modeling model definitions (EM-U1-013, 2026-09-30). The
+    // definition names registry surfaces (the stack, derived horizons'
+    // sources, isochores and bases) and geo_culture rows (fault polygons,
+    // the boundary); the family hook brings those rows along and the
+    // importer rewrites every packaged id found under `definition`. Wells
+    // are not listed: a model reads the registry wells by zone name.
+    em_models: {
+      pk: 'id',
+      kind: 'em-model',
+      stamped: true,
+      scope: ['user_id'],
+      softRefs: [
+        { path: 'definition.*', table: 'geo_surfaces', optional: true },
+        { path: 'crs', form: 'custom-crs', table: 'geoscience_custom_crs', optional: false },
       ],
     },
     // STRAT-U2-008: organisation-wide biozone schemes (migration 20260930180000).

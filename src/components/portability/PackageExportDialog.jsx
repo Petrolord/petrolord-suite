@@ -36,6 +36,8 @@ const EXTRA_SECTIONS = [
     key: 'seismic', title: 'Seismic', kinds: ['seismic_project', 'seismic_volume', 'seismic_line'], testPrefix: 'pld-seismic', emptyText: 'No seismic projects, volumes or lines.',
     decorate: (it, kind) => ({ ...it, subtitle: it.subtitle ? `${SEISMIC_KIND_LABEL[kind]}: ${it.subtitle}` : SEISMIC_KIND_LABEL[kind] }),
   },
+  // EM-U1-013: Earth Modeling models bring the surfaces and polygons they name
+  { key: 'em', title: 'Earth models', kinds: ['em_model'], testPrefix: 'pld-em', emptyText: 'No saved earth models.' },
   // PP3b
   { key: 'wp_site', title: 'Well planning sites', kinds: ['wp_site'], testPrefix: 'pld-wpsite', emptyText: 'No well planning sites.' },
   { key: 'fields', title: 'Production fields', kinds: ['po_field'], testPrefix: 'pld-field', emptyText: 'No production fields.' },
