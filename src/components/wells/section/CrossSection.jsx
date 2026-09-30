@@ -188,6 +188,20 @@ const CrossSection = forwardRef(function CrossSection({
   const [vTop, vBase] = view || autoRange;
   useEffect(() => { setView(null); }, [datum, depthRef, setView]); // refit on a new frame
 
+  // STRAT-U1-003: bands are stored in MD and drawn in the section's reference
+  // (TVD, TVDSS through the survey and KB, TWT through the checkshots); a well
+  // not drawn in time draws none
+  const bandSpans = useMemo(() => columns.map((c) => {
+    if (!bands?.length || c.noTime) return [];
+    const out = [];
+    for (const b of bands) {
+      if (b.wellId !== c.well.id) continue;
+      const d0 = displayedDepth(c.depthOf(b.top_md_m), c.shift); const d1 = displayedDepth(c.depthOf(b.base_md_m), c.shift);
+      if (Number.isFinite(d0) && Number.isFinite(d1)) out.push({ b, d0, d1 });
+    }
+    return out;
+  }), [columns, bands]);
+
   // ---- layout -------------------------------------------------------------
   const plotTop = WELL_H + HEADER_H + PAD_TOP;
   const plotW = Math.max(10, size.w - AXIS_W);
@@ -309,13 +323,12 @@ const CrossSection = forwardRef(function CrossSection({
     clipBand();
 
     // ST2 bands (systems tracts, motifs ...): under the tracks, in each well's own frame
+    // (STRAT-U1-003: through the well's depth reference, like the interval strips)
     if (bands?.length) {
       columns.forEach((c, i) => {
         if (!colVisible[i]) return;
         const box = boxes[i];
-        for (const b of bands) {
-          if (b.wellId !== c.well.id) continue;
-          const d0 = displayedDepth(b.top_md_m, c.shift); const d1 = displayedDepth(b.base_md_m, c.shift);
+        for (const { b, d0, d1 } of bandSpans[i]) {
           const y0 = yOf(Math.max(Math.min(d0, d1), vTop)); const y1 = yOf(Math.min(Math.max(d0, d1), vBase));
           if (y1 <= y0) continue;
           if (b.outline) {
@@ -526,7 +539,7 @@ const CrossSection = forwardRef(function CrossSection({
     ctx.restore();
     setTick((t) => t + 1);
     if (onPainted) onPainted(canvas, { plotTop, plotH, vTop, vBase });
-  }, [size.w, size.h, printSize, onPainted, strips, stripW, wells, columns, columnNotes, boxes, colVisible, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, unitTxt, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, ghost]);
+  }, [size.w, size.h, printSize, onPainted, strips, stripW, wells, columns, columnNotes, boxes, colVisible, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, unitTxt, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, bandSpans, ghost]);
 
   // ---- CURSOR layer -------------------------------------------------------
   useEffect(() => {
@@ -802,6 +815,7 @@ const CrossSection = forwardRef(function CrossSection({
       data-top-types={topTypes}
       data-datum-mode={datum.mode}
       data-band-count={bands ? bands.length : 0}
+      data-band-spans={columns.map((c, i) => `${c.well.name}:${bandSpans[i].map(({ d0, d1 }) => `${Math.min(d0, d1).toFixed(1)}-${Math.max(d0, d1).toFixed(1)}`).join('|')}`).join(';')}
       data-ghost={ghost?.sourceWellId ? `${ghost.sourceWellId}>${ghost.targetWellId}:${ghost.shiftM || 0}${ghost.stretch && ghost.stretch !== 1 ? `:x${ghost.stretch}` : ''}${ghost.tracks === 'all' ? ':all' : ''}` : ''}
       data-scheme={scheme}
     >
