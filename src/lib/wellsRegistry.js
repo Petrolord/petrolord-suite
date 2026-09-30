@@ -597,6 +597,24 @@ export async function rewriteLogSamples(log, data, patch, { original = null } = 
   return rows[0];
 }
 
+/**
+ * Correct a stored curve's unit label without touching its samples
+ * (PETRO-U2-001: a Petrel NPHI in percent labelled v/v, a density with no
+ * unit). Owner-only by RLS. The change is recorded in the row's provenance
+ * so every reader can see the label was corrected, from what, and when.
+ * @param {Object} log registry row @param {string} unit
+ */
+export async function updateLogUnit(log, unit, { byApp = null } = {}) {
+  const provenance = {
+    ...(log.provenance || {}),
+    unit_corrected: { from: log.unit ?? null, to: unit, at: new Date().toISOString(), by_app: byApp },
+  };
+  const { data: rows, error } = await writeWithBuild({ unit, provenance }, (p) => supabase.from('geo_wells_logs').update(p).eq('id', log.id).select());
+  if (error) throw new Error(`Could not update the unit of ${log.mnemonic}: ${error.message}`);
+  if (!rows || !rows.length) throw new Error('Only the owner can change logs (org sharing is read-only).');
+  return rows[0];
+}
+
 /** Fetch one curve's samples. Works for org-shared wells too — the
  *  storage read policy resolves the owning well from the path. */
 export async function downloadCurve(log) {

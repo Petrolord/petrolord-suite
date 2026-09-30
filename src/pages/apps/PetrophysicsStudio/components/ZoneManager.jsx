@@ -10,6 +10,7 @@ import { toDisplay, fromDisplay, depthLabel } from '../viewer/depthModes';
 import { validateZoneWindow, planZoneFromTops, planZonesBetweenConsecutiveTops } from '../services/zonePlanner';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { AVERAGING_NOTE, publishedState } from '../services/zoneAverages';
+import ZoneImportPanel from './ZoneImportPanel';
 
 const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? EMPTY_VALUE : Number(v).toFixed(d));
@@ -23,7 +24,8 @@ const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? EM
  *  @param {?number} [p.tdM] TD for the optional last zone to TD */
 export default function ZoneManager({
   zones, summaries, isOwn, busy, onAdd, onDelete, onPublish, zoneParams = {}, depthUnit = 'm',
-  tops = [], onAddMany, onStartPick, pickActive = false, tdM = null, probZones = null,
+  tops = [], onAddMany, onStartPick, pickActive = false, tdM = null, probZones = null, onOpenSensitivity = null,
+  well = null, logRange = null,
 }) {
   const [draft, setDraft] = useState({ name: '', top: '', base: '' });
   const [error, setError] = useState(null);
@@ -66,8 +68,21 @@ export default function ZoneManager({
 
   return (
     <div className="p-2 space-y-2 text-xs" data-testid="petro-zones">
-      <div className="text-[10px] uppercase tracking-wider text-pl-muted">
-        Zones {busy && <Loader2 className="w-3 h-3 animate-spin inline ml-1" />}
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] uppercase tracking-wider text-pl-muted">
+          Zones {busy && <Loader2 className="w-3 h-3 animate-spin inline ml-1" />}
+        </span>
+        {onOpenSensitivity && zones.length > 0 && (
+          <button
+            type="button"
+            data-testid="petro-sensitivity-open"
+            className="ml-auto px-1.5 py-0.5 rounded border text-[11px] border-pl-border text-pl-text hover:bg-pl-sunken"
+            title="Net pay and HCPV against each cutoff, per zone (PETRO-U2-005)"
+            onClick={() => onOpenSensitivity(null)}
+          >
+            Cutoff sensitivity…
+          </button>
+        )}
       </div>
 
       {zones.map((z) => {
@@ -165,7 +180,7 @@ export default function ZoneManager({
         <div className="rounded border border-pl-border p-1.5 space-y-1">
           <div className="flex items-center gap-1 text-[10px]">
             <span className="text-pl-muted mr-1">New zone</span>
-            {[['typed', 'Typed'], ['tops', 'Between tops'], ['pick', 'Pick on track']].map(([k, label]) => (
+            {[['typed', 'Typed'], ['tops', 'Between tops'], ['pick', 'Pick on track'], ['import', 'Import']].map(([k, label]) => (
               <button key={k} type="button" data-testid={`petro-zone-mode-${k}`}
                 className={`px-1.5 py-0.5 rounded border ${mode === k ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:bg-pl-sunken'}`}
                 onClick={() => { setMode(k); setError(null); }}
@@ -174,11 +189,17 @@ export default function ZoneManager({
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-1">
-            <input className={`${inputCls} flex-1`} placeholder={mode === 'tops' ? 'Zone name (defaults to the upper top)' : 'Zone name'} value={draft.name}
-              data-testid="petro-zone-name"
-              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
-          </div>
+          {mode !== 'import' && (
+            <div className="flex items-center gap-1">
+              <input className={`${inputCls} flex-1`} placeholder={mode === 'tops' ? 'Zone name (defaults to the upper top)' : 'Zone name'} value={draft.name}
+                data-testid="petro-zone-name"
+                onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
+            </div>
+          )}
+          {mode === 'import' && (
+            <ZoneImportPanel well={well} zones={zones} depthUnit={depthUnit} logRange={logRange} busy={busy}
+              onImport={(list, meta) => onAddMany(list, meta?.fileName ? `${meta.fileName}` : 'the pasted zonation')} />
+          )}
           {mode === 'typed' && (
             <div className="flex items-center gap-1">
               <input className={`${inputCls} w-20`} placeholder={`Top ${u}`} value={draft.top}

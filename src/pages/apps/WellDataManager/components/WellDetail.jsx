@@ -715,7 +715,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                             // WDM-U2-008: a computed or digitized curve says so
                             const o = curveOrigin(log);
                             return o ? (
-                              <span className={`ml-1 rounded px-1 text-[10px] ${o.kind === 'computed' ? 'bg-pl-primary/10 text-pl-primary-text' : 'bg-pl-warning-bg text-pl-warning-text'}`}
+                              <span className={`ml-1 rounded px-1 text-[10px] ${o.kind === 'computed' && !o.stale ? 'bg-pl-primary/10 text-pl-primary-text' : 'bg-pl-warning-bg text-pl-warning-text'}`}
                                 title={o.title} data-testid={`wdm-log-origin-${log.mnemonic}`}>{o.label}</span>
                             ) : null;
                           })()}

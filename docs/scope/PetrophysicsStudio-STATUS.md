@@ -816,3 +816,14 @@ ranked Step 2 backlog: `docs/upgrade/PetrophysicsStudio-UPGRADE.md`
   page, unit doors, zone import, unit family table); whether to republish
   or flag PHIE rows published before PT9a (PETRO-U1-026); phone support
   for workstation apps (shared with WDM-U1-023).
+
+## 2026-09-29: upgrade programme Step 2 built (batches A, B, C)
+
+Branch `feat/petro-u2`, one commit per item; details and proving tests in
+`docs/upgrade/PetrophysicsStudio-UPGRADE.md` (Batch decision and Step 2 build log).
+
+- **A.** Cutoff sensitivity per zone on screen and in the PDF (U2-005); a log plot (CPI) page per zone in the PDF (U2-003); parameter entry in us/ft, degF and ft with an exact round trip (U2-002); zonation import from Techlog, IP, Petrel or a paste, hostile-file tested (U2-004); a shared unit-family table with an Input units door and the NEU / RES_DEEP aliases (U2-001, closes PETRO-U1-030).
+- **B.** Engines-first: BVW = PHIT x Swt and SWT for total-porosity models, pore-volume zone Sw and HCPV outcomes in the probabilistic run (U2-012, engines PR #285, PIPELINE_VERSION 7); a one-pass probabilistic engine split by depth across up to four workers (U2-011, engines PR #286; 100 draws on the 20,000 ft well 53.5 s to 30.3 s on a loaded host, the 10 s target still open). Stale badges on published curves and facies (U2-009); pre-PT9a PHIE rows flagged in the Studio, Well Data Manager, Rock Physics, Data AI and Earth Modeling with an owner Republish (U2-013); HCPV and net pay as named Mapping sources (U2-008); core plugs on the tracks and a per-zone poro-perm transform (U2-007); saturation-height from SCAL Studio projects beside the log Sw (U2-010); Data AI electrofacies on the Studio tracks with a crosstab against rule facies (U2-006).
+- **C.** Parameter checks against the well's own logs (U2-015); a 25-per-day scan-read cap logged in `dai_llm_calls` (no migration) and backup-scale unwrapping in the digitizer (U2-018).
+- **Deferred:** U2-014 multi-mineral stage two, U2-016 preferences table (migration), U2-017 useProjectState extraction.
+- **Owner items:** merge engines PRs #285 and #286 (the Suite pins their commits; the merge was refused to this session as unreviewed); deploy `petro-scan-read`; Bateman-Konen 150/300 F chart readings; the equation page check. PETRO-U1-028 decided: the workstation stays desktop-first at 390 px (readable, no page scroll).

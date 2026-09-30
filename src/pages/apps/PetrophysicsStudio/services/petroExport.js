@@ -16,14 +16,14 @@ import { derivedInputUnit } from '@/components/wells/curveUnits';
 // the published outputs — used when the inventory has no unit string
 const CANONICAL_UNITS = {
   DEPT: 'M', GR: 'API', RHOB: 'G/CC', NPHI: 'V/V', DT: 'US/M', RT: 'OHM.M',
-  VSH: 'V/V', PHIT: 'V/V', PHIE: 'V/V', SW: 'V/V', PAY: 'FLAG', KPERM: 'MD', BVW: 'V/V',
+  VSH: 'V/V', PHIT: 'V/V', PHIE: 'V/V', SW: 'V/V', SWT: 'V/V', PAY: 'FLAG', KPERM: 'MD', BVW: 'V/V',
 };
 // PT9: every pipeline product a well can carry, in log order; absent
 // ones (no GR, permeability off) are simply skipped
-const OUTPUT_KEYS = ['VSH', 'PHIT', 'PHIE', 'SW', 'BVW', 'KPERM', 'PAY'];
+const OUTPUT_KEYS = ['VSH', 'PHIT', 'PHIE', 'SW', 'SWT', 'BVW', 'KPERM', 'PAY'];
 const OUTPUT_DESCR = {
   VSH: 'Shale volume', PHIT: 'Total porosity (as read)', PHIE: 'Effective porosity (shale-corrected)',
-  SW: 'Water saturation', BVW: 'Bulk volume water', KPERM: 'Permeability (mD)', PAY: 'Net-pay flag (1 = pay)',
+  SW: 'Water saturation (effective system)', SWT: 'Total water saturation Swt on PHIT', BVW: 'Bulk volume water (in the system of its Sw)', KPERM: 'Permeability (mD)', PAY: 'Net-pay flag (1 = pay)',
 };
 // PT10d: the probabilistic twins ride along when a run exists (numeric
 // percentiles of the quantity, never a P-label; PAY_PROB is an outcome)
@@ -120,9 +120,16 @@ export function exportColumns(wellData, outputs) {
       data: wellData.curves[key],
     });
   }
+  // PETRO-U2-012: SW carries effective-system saturation only; where a
+  // total-porosity model ran its Swt travels as SWT (the publish rule)
+  const outs = { ...(outputs || {}) };
+  if (outs.SWT && outs.SW) {
+    const sw = Float64Array.from(outs.SW, (v, i) => (Number.isFinite(outs.SWT[i]) ? NaN : v));
+    outs.SW = sw.some(Number.isFinite) ? sw : null;
+  }
   for (const key of OUTPUT_KEYS) {
-    if (outputs?.[key]) {
-      cols.push({ key, unit: CANONICAL_UNITS[key], descr: OUTPUT_DESCR[key], data: outputs[key] });
+    if (outs[key]) {
+      cols.push({ key, unit: CANONICAL_UNITS[key], descr: OUTPUT_DESCR[key], data: outs[key] });
     }
   }
   for (const key of PROB_KEYS) {

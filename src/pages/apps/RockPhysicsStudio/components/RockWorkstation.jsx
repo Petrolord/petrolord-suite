@@ -20,6 +20,7 @@
 // harness point them at the /dev/* apps.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { isPrePt9aPhie, PRE_PT9A_PHIE_NOTE } from '@/lib/petroProvenance';
 import { Link } from 'react-router-dom';
 import { Waves, Loader2, Save, HelpCircle, Database } from 'lucide-react';
 import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
@@ -137,9 +138,11 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         tops,
       });
       setZones(zoneList);
-      setStatus(model.vsSource === 'estimated'
+      // PETRO-U2-013: a pre-PT9a Studio PHIE is total porosity; say so
+      const oldPhie = mapped.PHIE && isPrePt9aPhie(mapped.PHIE) ? ` ${mapped.PHIE.mnemonic}: ${PRE_PT9A_PHIE_NOTE}` : '';
+      setStatus((model.vsSource === 'estimated'
         ? `Loaded ${model.n} samples. No DTS, so Vs is estimated (Greenberg-Castagna).`
-        : `Loaded ${model.n} samples.`);
+        : `Loaded ${model.n} samples.`) + oldPhie);
     } catch (e) {
       setStatus(e.message);
       setWellData(null);

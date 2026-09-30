@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Image as ImageIcon, Sparkles, Undo2, Wand2, MousePointerClick } from 'lucide-react';
 import { digitizeCurve } from '../engine/digitizer';
 import { traceColorRoi } from '../engine/scanTrace';
+import { unwrapBackupScale } from '../services/digitizerScale';
 import { digitizedCurveName } from '@/lib/curveNames';
 import { imageToImageData, imageToDataUrl } from '../services/scanImage';
 import { proposalToCalibration, proposalEdited } from '../services/scanProposal';
@@ -231,7 +232,14 @@ export default function DigitizerDialog({
 
   // ---- preview + save -------------------------------------------------------
   const saveName = digitizedCurveName(meta.mnemonic || 'CURVE', existingMnemonics);
-  const buildLog = () => digitizeCurve({
+  // PETRO-U2-018: a curve drawn on a backup (wrapped) scale is unwrapped
+  const [backupScale, setBackupScale] = useState(false);
+  const withBackup = (log) => {
+    if (!backupScale) return log;
+    const { data, wraps } = unwrapBackupScale(log.data, { left: valueCal[0].value, right: valueCal[1].value, log: meta.valueLog });
+    return { ...log, data: Float32Array.from(data), provenance: { ...(log.provenance || {}), backup_scale: { wraps } } };
+  };
+  const buildLog = () => withBackup(digitizeCurve({
     points,
     depthCal, valueCal, valueLog: meta.valueLog,
     step: Number(meta.step), mnemonic: saveName,
@@ -248,20 +256,20 @@ export default function DigitizerDialog({
       calibration: { depth: depthCal, value: valueCal, assumed_edges: assumedEdges },
       depth_unit_entered: depthUnit,
     },
-  });
+  }));
   const preview = useMemo(() => {
     if (step !== 'review' || points.length < 2 || calProblem) return null;
     try {
       const stepM = Number(meta.step);
       if (!(stepM > 0)) return { error: 'Depth step must be positive.' };
-      const log = digitizeCurve({ points, depthCal, valueCal, valueLog: meta.valueLog, step: stepM, mnemonic: 'X' });
+      const log = withBackup(digitizeCurve({ points, depthCal, valueCal, valueLog: meta.valueLog, step: stepM, mnemonic: 'X' }));
       let lo = Infinity; let hi = -Infinity;
       for (const v of log.data) { if (v < lo) lo = v; if (v > hi) hi = v; }
       return { n: log.nSamples, top: log.startMdM, base: log.stopMdM, lo, hi };
     } catch (e) {
       return { error: e.message };
     }
-  }, [step, points, depthCal, valueCal, meta.valueLog, meta.step, calProblem]);
+  }, [step, points, depthCal, valueCal, meta.valueLog, meta.step, calProblem, backupScale]);
 
   const save = async () => {
     setError(null);
@@ -499,6 +507,10 @@ export default function DigitizerDialog({
             {step === 'review' && (
               <section className="space-y-1">
                 <div className="text-[10px] uppercase tracking-wide text-pl-muted">Preview</div>
+                <label className="flex items-center gap-1.5 text-pl-text" title="The printed curve wraps back to the other edge of its track (a backup scale): jumps of more than half a track are undone">
+                  <input type="checkbox" checked={backupScale} data-testid="petro-digitizer-backup" onChange={(e) => setBackupScale(e.target.checked)} />
+                  Backup scale: the curve wraps at the track edges
+                </label>
                 <div className="rounded border border-pl-border bg-pl-sunken/60 p-2 text-pl-text" data-testid="petro-digitizer-preview">
                   {preview?.error ? <span className="text-pl-danger-text">{preview.error}</span>
                     : preview ? (

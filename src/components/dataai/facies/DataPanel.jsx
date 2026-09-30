@@ -104,7 +104,7 @@ const WellsSource = () => {
           {curves.map((c) => (
             <Toggle
               key={c.name}
-              label={`${c.name}${c.unit ? ` (${c.unit})` : ''}, in ${c.wells.length} of ${chosenWells.length} wells`}
+              label={`${c.name}${c.unit ? ` (${c.unit})` : ''}, in ${c.wells.length} of ${chosenWells.length} wells${c.totalPorosityWells?.length ? `; total porosity in ${c.totalPorosityWells.join(', ')} (published before 2026-09-07, republish in Petrophysics Studio)` : ''}`}
               checked={pickedCurves.includes(c.name)}
               onChange={(on) => setPickedCurves((x) => (on ? [...x, c.name] : x.filter((y) => y !== c.name)))}
             />

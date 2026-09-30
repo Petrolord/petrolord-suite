@@ -35,6 +35,19 @@ import RuleFaciesDialog from './RuleFaciesDialog';
 import CurveCalculatorDialog from './CurveCalculatorDialog';
 import ScenariosDialog from './ScenariosDialog';
 import ProbabilisticDialog from './ProbabilisticDialog';
+import SensitivityDialog from './SensitivityDialog';                 // PETRO-U2-005
+import InputUnitsDialog from './InputUnitsDialog';                   // PETRO-U2-001
+import PublishedCurvesPanel from './PublishedCurvesPanel';           // PETRO-U2-009/013
+import MlFaciesPanel from './MlFaciesPanel';                         // PETRO-U2-006
+import { mlFaciesLogs, mlFaciesIntervals, mlKind } from '../services/mlFacies';
+import { paramQcHints } from '../services/paramQc';
+import CoreDialog from './CoreDialog';                               // PETRO-U2-007
+import SaturationHeightDialog from './SaturationHeightDialog';       // PETRO-U2-010
+import { shmCurve, shmZoneComparison, ensureShmTemplate } from '../services/saturationHeight';
+import { corePoints, zoneFits, coreTwins, ensureCoreTemplate } from '../services/coreData';
+import { newId } from '../layout/layoutSchema';
+import { publishedSummary, faciesState, faciesKey } from '../services/publishedCurves';
+import { isPrePt9aPhie } from '@/lib/petroProvenance';
 import { ensureProbabilisticTemplate, probabilisticPublishLogs, runProbabilisticAsync } from '../services/probabilistic';
 import { createProbabilisticWorker } from '../services/probabilisticWorkerFactory';
 import { runScenarios, scenarioOutputs, ensureScenarioTemplate, SCENARIO_CURVES } from '../services/scenarios';
@@ -62,7 +75,9 @@ import { resolveTracks, sourceStatus } from '../layout/resolveTracks';
 import { migrationStatusLine, applyDeliberateNone, provenanceOf } from '../services/projectState';
 import { mapLogs } from '../services/curveMap';
 import { inputCurves } from '@/components/wells/curveUnits';
-import { zoneReports, zonePublishProperties } from '../services/zoneAverages';
+import { zoneReports, zonePublishProperties, verticalSampleThickness } from '../services/zoneAverages';
+import { cpiImages } from '../services/cpiPages';
+import { swSystemOf, labelSaturation } from '../services/swSystem';
 import { depthLabel, DEPTH_TRACK_KEYS, DEPTH_TRACK_TITLE } from '../viewer/depthModes';
 
 /** @param {string} [p.wellDataManagerPath] route of the Well Data Manager
@@ -120,14 +135,33 @@ export default function PetroWorkstation({
   const [batchOpen, setBatchOpen] = useState(false);
   const [digitizerOpen, setDigitizerOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [sensitivityOpen, setSensitivityOpen] = useState(false); // PETRO-U2-005
+  const [coreOpen, setCoreOpen] = useState(false);               // PETRO-U2-007
+  // PETRO-U2-010: saturation-height settings persist with the interpretation
+  // (facies._shm); the curve is recomputed from them
+  const [shmOpen, setShmOpen] = useState(false);
+  const [shmSettings, setShmSettings] = useState(null);
+  const [shmRun, setShmRun] = useState(null);    // {shm, rock, fwlTvdssM, projectId, projectName}
   const [noDepthWell, setNoDepthWell] = useState(null); // {inventory} — C2 empty state
   const [layouts, setLayouts] = useState(buildDefaultLayouts); // PS4 templates
   const [pickMode, setPickMode] = useState(null);                // PT3: 'top' | 'zone' | null
   const [topsBusy, setTopsBusy] = useState(false);
   const [layoutFocus, setLayoutFocus] = useState(null);        // {index, nonce}
   const [depthUnit, setDepthUnit] = useState('m');             // display only
+  // PETRO-U2-002: parameter entry units follow the session's depth unit
+  // (feet means field units) until the user picks otherwise in the panel
+  const [paramUnits, setParamUnits] = useState('si');
+  useEffect(() => { setParamUnits(depthUnit === 'ft' ? 'field' : 'si'); }, [depthUnit]);
   const [rwToolsOpen, setRwToolsOpen] = useState(false);       // PS5 quicklooks
-  const curvesCache = useWellCurvesCache(backend);             // PS7 cross-well curves
+  // PETRO-U2-001: units the user set per well and curve (wellId -> mnemonic
+  // -> unit), kept with the interpretation (facies._units); a ref gives the
+  // curves cache and batch a stable reader
+  const [unitOverrides, setUnitOverrides] = useState({});
+  const unitOverridesRef = useRef({});
+  useEffect(() => { unitOverridesRef.current = unitOverrides; }, [unitOverrides]);
+  const unitOverridesFor = useCallback((wellId) => unitOverridesRef.current[wellId] || {}, []);
+  const [unitsOpen, setUnitsOpen] = useState(false);
+  const curvesCache = useWellCurvesCache(backend, { unitOverridesFor }); // PS7 cross-well curves
   const [condOpen, setCondOpen] = useState(false);             // PS8 conditioning
   // PT11b: per-user display preferences (the Split view divider first)
   const [prefs, setPref] = useStudioPrefs(backend);
@@ -158,8 +192,10 @@ export default function PetroWorkstation({
         setProjectName(project.name || null);
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
         if (project.facies) {
-          const { _rules, _scenarios, _provenance, _uncertainty, _mineral, ...byWell } = project.facies;
+          const { _rules, _scenarios, _provenance, _uncertainty, _mineral, _units, _shm, ...byWell } = project.facies;
+          setShmSettings(_shm?.projectId ? _shm : null);
           setMineralModel(_mineral?.minerals ? _mineral : null);
+          if (_units && typeof _units === 'object') { unitOverridesRef.current = _units; setUnitOverrides(_units); }
           setFaciesByWell(byWell);
           setRuleFacies(Array.isArray(_rules) && _rules.length ? _rules : null);
           setScenarios(_scenarios && (_scenarios.low || _scenarios.high) ? _scenarios : null);
@@ -224,7 +260,7 @@ export default function PetroWorkstation({
       const rawLogs = {};
       for (const log of logs) rawLogs[log.mnemonic] = await backend.downloadCurve(log);
       // PETRO-U1-006/007: inputs in the engines' units, vendor nulls as nulls
-      const { curves, notes: inputNotes } = inputCurves(mapped, rawLogs);
+      const { curves, notes: inputNotes, decisions: unitDecisions } = inputCurves(mapped, rawLogs, { unitOverrides: unitOverridesRef.current[wellId] || {} });
       setWellData({
         wellId,
         curves,
@@ -234,6 +270,7 @@ export default function PetroWorkstation({
         intervals: intervals || [],   // ST1 interval logs (lithology, core, facies ...) for the strip tracks
         allLogs: logs,
         inputNotes,
+        unitDecisions,
       });
       await refreshZones(wellId);
       setStatus(`Loaded ${logs.length} curves (${Object.keys(curves).length} mapped to pipeline inputs).${inputNotes.length ? ` ${inputNotes.join(' ')}` : ''}`);
@@ -272,6 +309,49 @@ export default function PetroWorkstation({
     setProvenance((list) => [...list, { at: new Date().toISOString(), by, ...entry }]);
   }, [backend]);
 
+  // PETRO-U2-001: a unit the user sets re-reads the inputs at once; Save to
+  // well writes it onto the registry curve and drops the local setting
+  const setUnitOverride = useCallback((mnemonic, unit) => {
+    if (!wellData) return;
+    const wid = wellData.wellId;
+    const cur = { ...(unitOverridesRef.current[wid] || {}) };
+    if (unit) cur[mnemonic] = unit; else delete cur[mnemonic];
+    const next = { ...unitOverridesRef.current };
+    if (Object.keys(cur).length) next[wid] = cur; else delete next[wid];
+    unitOverridesRef.current = next;
+    setUnitOverrides(next);
+    curvesCache.invalidate(wid);
+    const mapped = Object.fromEntries(wellData.inventory.map((e) => [e.key, e.log]));
+    const r = inputCurves(mapped, wellData.logs, { unitOverrides: cur });
+    setWellData((d) => (d && d.wellId === wid ? { ...d, curves: r.curves, inputNotes: r.notes, unitDecisions: r.decisions } : d));
+    setStatus(unit ? `${mnemonic} is now read as ${unit} in this interpretation.` : `${mnemonic} is read by its stored unit again.`);
+    recordProvenance({ kind: 'input-unit', mnemonic, unit: unit || null, note: unit ? `${mnemonic} read as ${unit} (Input units).` : `${mnemonic} unit setting cleared.` });
+  }, [wellData, curvesCache, recordProvenance]);
+  const [unitsBusy, setUnitsBusy] = useState(false);
+  const saveUnitToWell = async (mnemonic, unit) => {
+    if (!wellData || !backend.updateLogUnit) return;
+    const log = (wellData.allLogs || []).find((l) => l.mnemonic === mnemonic);
+    if (!log) return;
+    setUnitsBusy(true);
+    try {
+      await backend.updateLogUnit(log, unit);
+      const wid = wellData.wellId;
+      const cur = { ...(unitOverridesRef.current[wid] || {}) };
+      delete cur[mnemonic];
+      const next = { ...unitOverridesRef.current };
+      if (Object.keys(cur).length) next[wid] = cur; else delete next[wid];
+      unitOverridesRef.current = next;
+      setUnitOverrides(next);
+      curvesCache.invalidate(wid);
+      await select(wid);
+      setStatus(`Saved ${mnemonic} as ${unit} on ${selected?.name}: every app now reads that unit.`);
+    } catch (e) {
+      setStatus(e.message);
+    } finally {
+      setUnitsBusy(false);
+    }
+  };
+
   const setFaciesForWell = useCallback((next) => {
     setFacies(next);
     if (selectedId) setFaciesByWell((m) => ({ ...m, [selectedId]: next }));
@@ -309,6 +389,33 @@ export default function PetroWorkstation({
     }
   }, [wellData, params, zoneParamList, mineralHere]);
   const mineralTwins = useMemo(() => (mineralHere ? mineralHere.outputs : {}), [mineralHere]);
+  // PETRO-U2-010: SW_SHM on this well from the chosen SCAL project
+  const shmResult = useMemo(() => {
+    if (!shmRun || !wellData || !computed) return null;
+    const r = shmCurve({ shm: shmRun.shm, depth: wellData.curves.DEPT, well: selected, fwlTvdssM: shmRun.fwlTvdssM, rock: shmRun.rock, outputs: computed.outputs });
+    return r.ok ? r : null;
+  }, [shmRun, wellData, computed, selected]);
+  const shmComparison = useMemo(() => (shmResult && computed?.outputs.SW
+    ? shmZoneComparison({ depth: wellData.curves.DEPT, sw: computed.outputs.SW, swShm: shmResult.data, zones })
+    : null), [shmResult, computed, wellData, zones]);
+  // PETRO-U2-015: the base parameters against this well's own logs
+  const qcHints = useMemo(() => (wellData && computed ? paramQcHints({ curves: wellData.curves, outputs: computed.outputs, params }) : []), [wellData, computed, params]);
+  // PETRO-U2-006: Data AI facies curves read as interval rows for strip tracks
+  const mlFacies = useMemo(() => {
+    if (!wellData) return [];
+    const depth = wellData.curves.DEPT;
+    return mlFaciesLogs(wellData.allLogs).map((log) => {
+      const data = wellData.logs[log.mnemonic];
+      if (!data || data.length !== depth.length) return null;
+      return { log, kind: mlKind(log.mnemonic), ...mlFaciesIntervals(depth, data, log) };
+    }).filter(Boolean);
+  }, [wellData]);
+  // PETRO-U2-007: core plugs, the per-zone core transform, and its curves
+  const core = useMemo(() => (wellData ? corePoints({ depth: wellData.curves.DEPT, allLogs: wellData.allLogs, logs: wellData.logs }) : null), [wellData]);
+  const coreFits = useMemo(() => (core?.points.length ? zoneFits(core.points, zones) : null), [core, zones]);
+  const coreOutputs = useMemo(() => (core?.points.length && wellData
+    ? coreTwins({ depth: wellData.curves.DEPT, points: core.points, fits: coreFits, zones, phie: computed?.outputs.PHIE })
+    : {}), [core, coreFits, zones, wellData, computed]);
 
   // PT9g: the _LOW / _HIGH twins of the outputs, drawn beside the mid curves
   const scenarioTwins = useMemo(() => {
@@ -449,6 +556,24 @@ export default function PetroWorkstation({
     return zoneReports({ curves: wellData.curves, outputs: computed.outputs, params, zones, zoneParams, well: selected });
   }, [wellData, computed, params, zones, zoneParams, selected]);
 
+  // PETRO-U2-009/013: the Studio's published curves against the interpretation now open
+  const published = useMemo(() => (wellData
+    ? publishedSummary(wellData.allLogs, { params, zoneParams, projectId })
+    : null), [wellData, params, zoneParams, projectId]);
+  const publishedFacies = useMemo(() => {
+    if (!wellData) return [];
+    return [
+      ['electrofacies', 'Rule facies', ruleFacies],
+      ['facies', 'Crossplot facies', facies],
+    ].map(([kind, label, defs]) => {
+      const st = faciesState(wellData.intervals, kind, defs);
+      return st ? { kind, label, ...st } : null;
+    }).filter(Boolean);
+  }, [wellData, ruleFacies, facies]);
+
+  // PETRO-U2-005: TVT per sample for the sensitivity and the report's sensitivity table
+  const sensitivityVth = useMemo(() => (wellData ? verticalSampleThickness(wellData.curves.DEPT, selected) : null), [wellData, selected]);
+
   // PT9c: every zone's patch at once (the zone table's Apply)
   const applyZonePatches = useCallback((patches) => {
     setZoneParams((m) => {
@@ -500,7 +625,8 @@ export default function PetroWorkstation({
     setPublishing(true);
     try {
       const data = classifyRules(ruleCurves, rules, wellData.curves.DEPT.length).data;
-      const rows = intervalsFromRuns(wellData.curves.DEPT, data, rules.map((r) => r.name), { kind: 'electrofacies', colours: rules.map((r) => r.color), source: 'interpretation' });
+      const rows = intervalsFromRuns(wellData.curves.DEPT, data, rules.map((r) => r.name), { kind: 'electrofacies', colours: rules.map((r) => r.color), source: 'interpretation' })
+        .map((r) => ({ ...r, properties: { ...(r.properties || {}), source_key: faciesKey(rules) } })); // PETRO-U2-009
       const saved = await backend.replaceIntervals(wellData.wellId, 'electrofacies', rows);
       setWellData((d) => (d ? { ...d, intervals: [...(d.intervals || []).filter((r) => r.kind !== 'electrofacies'), ...saved] } : d));
       applyRuleFacies(rules);
@@ -516,26 +642,27 @@ export default function PetroWorkstation({
   // PS1 hardcoded set lives on as the std-triple-combo built-in
   const tracks = useMemo(() => {
     if (!wellData || !computed) return [];
-    return resolveTracks(activeTemplate(layouts), {
+    // PETRO-U2-012: a total-porosity model's saturation reads Swt on the track
+    return resolveTracks(labelSaturation(activeTemplate(layouts), swSystemOf(params, zoneParams)), {
       curves: wellData.curves,
       logs: wellData.logs,
-      outputs: { ...computed.outputs, ...scenarioTwins, ...probTwins, ...mineralTwins },
+      outputs: { ...computed.outputs, ...scenarioTwins, ...probTwins, ...mineralTwins, ...coreOutputs, ...(shmResult ? { SW_SHM: shmResult.data } : {}) },
       faciesData,
       facies,
       ruleFacies,
       ruleFaciesData,
       params,
-      intervals: wellData.intervals || [],
+      intervals: [...(wellData.intervals || []), ...mlFacies.flatMap((m) => m.rows)],
       depth: wellData.curves?.DEPT || null,
       keepUnresolved: true, // PT10a: an empty track says why instead of vanishing
     });
-  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, probTwins, mineralTwins, params, layouts]);
+  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, probTwins, mineralTwins, coreOutputs, shmResult, mlFacies, params, zoneParams, layouts]);
 
   // PT10a: why a curve address resolves to nothing right now (layout panel labels)
   const layoutSourceStatus = useCallback((source) => {
     if (!wellData) return null;
-    return sourceStatus(source, { curves: wellData.curves, logs: wellData.logs, outputs: { ...(computed?.outputs || {}), ...scenarioTwins, ...probTwins, ...mineralTwins } });
-  }, [wellData, computed, scenarioTwins, probTwins, mineralTwins]);
+    return sourceStatus(source, { curves: wellData.curves, logs: wellData.logs, outputs: { ...(computed?.outputs || {}), ...scenarioTwins, ...probTwins, ...mineralTwins, ...coreOutputs } });
+  }, [wellData, computed, scenarioTwins, probTwins, mineralTwins, coreOutputs]);
 
   const addZone = async (z) => {
     const zone = await backend.saveZone(wellData.wellId, z);
@@ -543,13 +670,13 @@ export default function PetroWorkstation({
     await refreshZones(wellData.wellId);
   };
   // PT4: several zones at once (between consecutive tops), sequential saves
-  const addZonesMany = async (list) => {
+  const addZonesMany = async (list, source = null) => {
     if (!wellData || !list.length) return;
     setZonesBusy(true);
     let n = 0;
     try {
       for (const z of list) { await backend.saveZone(wellData.wellId, z); n++; }
-      setStatus(`Created ${n} zone${n === 1 ? '' : 's'} from tops.`);
+      setStatus(`Created ${n} zone${n === 1 ? '' : 's'}${source ? ` from ${source}` : ' from tops'}.`);
     } catch (e) {
       setStatus(`Created ${n} zone${n === 1 ? '' : 's'}, then: ${e.message}`);
     } finally {
@@ -577,7 +704,7 @@ export default function PetroWorkstation({
   // publish the current computed curves to the registry (overwrite-own
   // rule enforced in the backend) + refresh the inventory so the new
   // VSH/PHIT/PHIE/SW/KPERM/PAY rows show as mapped inputs going forward
-  const publish = async () => {
+  const publish = async ({ retireOldPhie = false } = {}) => {
     if (!wellData || !computed) return;
     setPublishing(true);
     try {
@@ -585,7 +712,14 @@ export default function PetroWorkstation({
         projectId, interpretationName: projectName, zoneParams,
       });
       const saved = await backend.publishCurves(wellData.wellId, prepared, projectId);
-      setStatus(`Published ${saved.length} curves to ${selected.name}.`);
+      // PETRO-U2-013: an explicit Republish also removes the Studio's pre-PT9a
+      // PHIE rows (total porosity under the PHIE name), on the owner's click only
+      let retired = 0;
+      if (retireOldPhie) {
+        for (const log of (wellData.allLogs || []).filter(isPrePt9aPhie)) { await backend.deleteLog(log); retired += 1; }
+      }
+      await select(wellData.wellId);
+      setStatus(`Published ${saved.length} curves to ${selected.name}.${retired ? ` Removed ${retired} PHIE row${retired === 1 ? '' : 's'} published before 2026-09-07 (total porosity).` : ''}`);
     } catch (e) {
       setStatus(e.message);
     } finally {
@@ -600,7 +734,8 @@ export default function PetroWorkstation({
     if (!wellData || !faciesData || !facies.length) { setStatus('Draw facies polygons on the crossplot first.'); return; }
     setPublishing(true);
     try {
-      const rows = intervalsFromRuns(wellData.curves.DEPT, faciesData, facies.map((f) => f.name), { kind: 'facies', colours: facies.map((f) => f.color), source: 'log' });
+      const rows = intervalsFromRuns(wellData.curves.DEPT, faciesData, facies.map((f) => f.name), { kind: 'facies', colours: facies.map((f) => f.color), source: 'log' })
+        .map((r) => ({ ...r, properties: { ...(r.properties || {}), source_key: faciesKey(facies) } })); // PETRO-U2-009
       const saved = await backend.replaceIntervals(wellData.wellId, 'facies', rows);
       setWellData((d) => (d ? { ...d, intervals: [...(d.intervals || []).filter((r) => r.kind !== 'facies'), ...saved] } : d));
       setStatus(`Published ${saved.length} facies interval${saved.length === 1 ? '' : 's'} to ${selected.name}.`);
@@ -661,6 +796,15 @@ export default function PetroWorkstation({
     return { blob, top, base };
   }, [selected, depthUnit, projectName]);
 
+  // PETRO-U2-003: the PDF's log plot page per zone, painted by the live
+  // track viewer (same layout as the screen) at a fixed page size
+  const cpiForReport = useCallback(() => {
+    if (!wellData || !trackExportRef.current?.renderWindow) {
+      return { pages: [], skipped: [], reason: 'the Tracks view was not open; open Tracks or Split and export again' };
+    }
+    return cpiImages(zones, wellData.curves.DEPT, (win) => trackExportRef.current.renderWindow(win));
+  }, [wellData, zones]);
+
   const exportTrackPng = async () => {
     try {
       const { blob, top, base } = await trackPngBlob();
@@ -686,6 +830,8 @@ export default function PetroWorkstation({
       ...(scenarios ? { _scenarios: scenarios } : {}),
       ...(uncertainty ? { _uncertainty: uncertainty } : {}),
       ...(mineralModel ? { _mineral: mineralModel } : {}),
+      ...(Object.keys(unitOverrides).length ? { _units: unitOverrides } : {}),
+      ...(shmSettings ? { _shm: shmSettings } : {}),
       ...(provenance.length ? { _provenance: provenance } : {}),
     },
     zone_params: zoneParams,
@@ -802,8 +948,13 @@ export default function PetroWorkstation({
     setProjectName(project.name || null);
     setParams({ ...DEFAULT_PARAMS, ...(project.params || {}) });
     {
-      const { _rules, _scenarios, _provenance, _uncertainty, _mineral, ...byWell } = project.facies || {};
+      const { _rules, _scenarios, _provenance, _uncertainty, _mineral, _units, _shm, ...byWell } = project.facies || {};
+      setShmSettings(_shm?.projectId ? _shm : null);
+      setShmRun(null);
       setMineralModel(_mineral?.minerals ? _mineral : null);
+      unitOverridesRef.current = _units && typeof _units === 'object' ? _units : {};
+      setUnitOverrides(unitOverridesRef.current);
+      curvesCache.invalidate();
       setMineralResult(null);
       setFaciesByWell(byWell);
       setRuleFacies(Array.isArray(_rules) && _rules.length ? _rules : null);
@@ -871,7 +1022,7 @@ export default function PetroWorkstation({
       if (log) raw[log.mnemonic] = await backend.downloadCurve(log);
       inventory.push({ key, log });
     }
-    const { curves } = inputCurves(mapped, raw);
+    const { curves } = inputCurves(mapped, raw, { unitOverrides: unitOverridesRef.current[well.id] || {} });
     // each well's OWN zones drive the overrides (patches are keyed by
     // zone id, so any well's zones the user has overridden apply here)
     const wellZones = await backend.listZones(well.id);
@@ -993,7 +1144,7 @@ export default function PetroWorkstation({
           title={selected && !selected.is_own ? 'Org-shared wells are read-only' : 'Publish computed curves to the registry'}
           className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
             border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40"
-          onClick={publish}
+          onClick={() => publish()}
         >
           {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5" />}
           Publish
@@ -1054,6 +1205,28 @@ export default function PetroWorkstation({
           onClick={() => setMineralOpen(true)}
         >
           <Layers className="w-3.5 h-3.5" /> Mineral model…
+        </button>
+        <button
+          type="button"
+          data-testid="petro-core"
+          disabled={!wellData || !computed}
+          title={core && !core.points.length ? 'No core porosity or permeability curve on this well' : 'Core plugs on the tracks and a porosity-permeability transform per zone'}
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
+          onClick={() => setCoreOpen(true)}
+        >
+          <Layers className="w-3.5 h-3.5" /> Core…
+        </button>
+        <button
+          type="button"
+          data-testid="petro-shm"
+          disabled={!wellData || !computed}
+          title="Water saturation from a SCAL Studio saturation-height function beside the log Sw"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
+          onClick={() => setShmOpen(true)}
+        >
+          <Layers className="w-3.5 h-3.5" /> Sat-height…
         </button>
         <button
           type="button"
@@ -1182,6 +1355,17 @@ export default function PetroWorkstation({
       <span className="ml-auto whitespace-nowrap">
         {selected ? `${selected.name} · ${wellData?.curves.DEPT?.length ?? '…'} samples` : `${wells?.length ?? '…'} wells`}
       </span>
+      {wellData?.unitDecisions?.length ? (
+        <button
+          type="button"
+          data-testid="petro-input-units-open"
+          title="What each input curve is read as, and where to correct it"
+          className={`whitespace-nowrap rounded border px-1.5 ${wellData.unitDecisions.some((d) => d.factor !== 1 || d.reason === 'unknown') ? 'border-pl-warning text-pl-warning-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
+          onClick={() => setUnitsOpen(true)}
+        >
+          input units{wellData.unitDecisions.filter((d) => d.factor !== 1).length ? ` · ${wellData.unitDecisions.filter((d) => d.factor !== 1).length} converted` : ''}
+        </button>
+      ) : null}
       <span className="flex items-center gap-1.5 whitespace-nowrap" data-testid="petro-depth-tracks">
         <span className="text-pl-muted">depth tracks</span>
         {DEPTH_TRACK_KEYS.map((k) => (
@@ -1386,6 +1570,26 @@ export default function PetroWorkstation({
           allLogs={wellData?.allLogs}
           onPickCurve={selected?.is_own ? pickCurve : undefined}
           onSelect={select}
+          selectedExtra={wellData ? (
+            <PublishedCurvesPanel
+              summary={published}
+              facies={publishedFacies}
+              isOwn={!!selected?.is_own}
+              busy={publishing}
+              onRepublish={() => publish({ retireOldPhie: true })}
+            />
+          ) : null}
+          selectedExtraMore={wellData && mlFacies.length ? (
+            <MlFaciesPanel
+              items={mlFacies}
+              depth={wellData.curves.DEPT}
+              intervals={wellData.intervals}
+              onShow={(m) => {
+                setLayouts((l) => ensureStripTrack(l, `intervals:${m.kind}`, `${m.log.mnemonic} (Data AI)`));
+                setStatus(`${m.log.mnemonic} from Data AI is on a strip track beside the Studio's facies.`);
+              }}
+            />
+          ) : null}
         />
       )}
       center={center}
@@ -1412,6 +1616,9 @@ export default function PetroWorkstation({
               zoneParams={zoneParams}
               onApplyZone={applyZoneParams}
               onOpenZoneTable={() => setZoneTableOpen(true)}
+              unitSystem={paramUnits}
+              onUnitSystem={setParamUnits}
+              qcHints={qcHints}
             />
             {/* the track layout editor's curve rows are wider than a narrow dock: they scroll sideways here */}
             <div className="overflow-x-auto" data-testid="petro-layout-scroll">
@@ -1459,6 +1666,9 @@ export default function PetroWorkstation({
                 tops={wellData.tops}
                 tdM={selected?.td_md_m ?? null}
                 probZones={probZones}
+                onOpenSensitivity={computed ? () => setSensitivityOpen(true) : null}
+                well={selected}
+                logRange={wellData.curves.DEPT?.length ? [wellData.curves.DEPT[0], wellData.curves.DEPT[wellData.curves.DEPT.length - 1]] : null}
                 onDelete={deleteZone}
                 onPublish={publishZone}
               />
@@ -1584,6 +1794,7 @@ export default function PetroWorkstation({
       params={params}
       zones={zones}
       zoneParams={zoneParams}
+      unitSystem={paramUnits}
       onApply={applyZonePatches}
       onStatus={setStatus}
     />
@@ -1597,6 +1808,70 @@ export default function PetroWorkstation({
       surfaceTempC={params.surfaceTempC}
       onStatus={setStatus}
     />
+    {wellData && (
+      <InputUnitsDialog
+        open={unitsOpen}
+        onOpenChange={setUnitsOpen}
+        decisions={wellData.unitDecisions || []}
+        overrides={unitOverrides[wellData.wellId] || {}}
+        isOwn={!!selected?.is_own && !!backend.updateLogUnit}
+        busy={unitsBusy}
+        onOverride={setUnitOverride}
+        onSaveToWell={saveUnitToWell}
+      />
+    )}
+    {wellData && computed && (
+      <SaturationHeightDialog
+        open={shmOpen}
+        onOpenChange={setShmOpen}
+        backend={backend}
+        depthUnit={depthUnit}
+        zones={zones}
+        settings={shmSettings}
+        result={shmResult}
+        comparison={shmComparison}
+        onRun={({ projectId: pid, projectName: pname, shm, rock, fwlTvdssM }) => {
+          setShmRun({ shm, rock, fwlTvdssM, projectId: pid, projectName: pname });
+          setShmSettings({ projectId: pid, projectName: pname, rock, fwlTvdssM });
+          recordProvenance({ kind: 'saturation-height', projectId: pid, rock, fwlTvdssM, note: `Saturation-height from SCAL project ${pname}, FWL ${depthLabel(fwlTvdssM, depthUnit)} TVDSS, k and phi from ${rock === 'logs' ? 'the logs' : 'the project'}.` });
+          setStatus(`Saturation-height Sw computed from ${pname} (FWL ${depthLabel(fwlTvdssM, depthUnit)} TVDSS).`);
+        }}
+        onShowTracks={() => {
+          setLayouts((l) => ensureShmTemplate(l, newId));
+          setShmOpen(false);
+          setStatus('The Log Sw and saturation-height layout is active.');
+        }}
+      />
+    )}
+    {wellData && computed && (
+      <CoreDialog
+        open={coreOpen}
+        onOpenChange={setCoreOpen}
+        core={core}
+        fits={coreFits}
+        zones={zones}
+        logPhi={computed.outputs.PHIE || null}
+        logK={computed.outputs.KPERM || null}
+        onShowTracks={() => {
+          setLayouts((l) => ensureCoreTemplate(l, newId));
+          setCoreOpen(false);
+          setStatus('The Core calibration layout is active: core plugs as points, K_CORE (the core transform on φe) beside the log model k.');
+        }}
+      />
+    )}
+    {wellData && computed && (
+      <SensitivityDialog
+        open={sensitivityOpen}
+        onOpenChange={setSensitivityOpen}
+        curves={wellData.curves}
+        outputs={computed.outputs}
+        params={params}
+        zones={zones}
+        zoneParams={zoneParams}
+        vth={sensitivityVth}
+        depthUnit={depthUnit}
+      />
+    )}
     {wellData && computed && (
       <ExportDialog
         open={exportOpen}
@@ -1612,8 +1887,11 @@ export default function PetroWorkstation({
         projectId={projectId}
         projectName={projectName}
         trackPng={trackPngBlob}
+        cpiPages={cpiForReport}
+        cpiAvailable={view === 'tracks' || view === 'split'}
         probabilistic={probResult && probResult.wellId === wellData?.wellId ? probResult : null}
         zoneParams={zoneParams}
+        paramUnits={paramUnits}
         reportHeader={prefs.reportHeader || {}}
         onReportHeader={(h) => setPref({ reportHeader: h })}
         onStatus={setStatus}

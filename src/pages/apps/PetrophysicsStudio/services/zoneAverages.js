@@ -26,14 +26,14 @@
 // Invariant (tested to 1e-12): net_m * phi_avg * (1 - sw_avg) = hcpv_m.
 
 import { netPay, sampleThickness } from '../engine/netpay';
-import { zoneSummary, zonePropertiesSnapshot, DEFAULT_PARAMS } from '../engine/pipeline';
+import { zoneSummary, zonePropertiesSnapshot, zoneHydrocarbon, isTotalSwModel as engineIsTotal, TOTAL_SW_MODELS as ENGINE_TOTAL, DEFAULT_PARAMS } from '../engine/pipeline';
 import { clampDisplay } from '../engine/porosity';
 import { makeDepthFrame } from '../../WellDataManager/engine/checkshots';
 
-/** Sw models defined on total porosity (they return Swt on PHIT). */
-export const TOTAL_SW_MODELS = Object.freeze(['waxman-smits', 'dual-water']);
+/** Sw models defined on total porosity (they return Swt on PHIT): the engine's list (PETRO-U2-012). */
+export const TOTAL_SW_MODELS = ENGINE_TOTAL;
 
-export const isTotalSwModel = (swMethod) => TOTAL_SW_MODELS.includes(swMethod);
+export const isTotalSwModel = engineIsTotal;
 
 /** One sentence for reports and tooltips: how the zone numbers average. */
 export const AVERAGING_NOTE = 'Porosity and Vsh are net-pay-thickness weighted; Sw is pore-volume weighted '
@@ -101,8 +101,9 @@ export function zoneReport(curves, outputs, params, zone, { vth = null } = {}) {
   const th = sampleThickness(depth);
   const vt = vth && vth.length === n ? vth : th;
 
-  let hc = 0;
-  let phiH = 0;
+  // PETRO-U2-012: HCPV and the pore-volume Sw come from the engine
+  // (zoneHydrocarbon), the same function the probabilistic run uses
+  const hcE = zoneHydrocarbon(curves, outputs, params, zone);
   let hcV = 0;
   let netRes = 0;
   let netResV = 0;
@@ -118,22 +119,18 @@ export function zoneReport(curves, outputs, params, zone, { vth = null } = {}) {
     if (!flags[i]) continue;
     netV += vt[i];
     const hcI = phiHc[i] * (1 - sw[i]);
-    if (Number.isFinite(hcI)) {
-      hc += th[i] * hcI;
-      hcV += vt[i] * hcI;
-    }
-    phiH += th[i] * phiE[i];
+    if (Number.isFinite(hcI)) hcV += vt[i] * hcI;
   }
 
   return {
     ...s,
     // pore-volume weighted (hydrocarbon-conserving); the engine's
     // thickness-weighted value kept for traceability
-    sw_avg: phiH > 0 ? 1 - hc / phiH : null,
+    sw_avg: hcE.sw_avg,
     sw_avg_h: s.sw_avg,
     sw_avg_weighting: 'pore-volume',
     sw_system: total ? 'total' : 'effective',
-    hcpv_m: hc,
+    hcpv_m: hcE.hcpv_m,
     net_res_m: netRes,
     gross_tvt_m: grossV,
     net_tvt_m: netV,

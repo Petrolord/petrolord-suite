@@ -165,6 +165,44 @@ files['zones_techlog_export_ft.csv'] = [
   '',
 ].join('\n');
 
+// PETRO-U2-004: more zonations the way vendors write them
+const WATER = { top_md_m: TOP_M + 150 * STEP_M, base_md_m: TOP_M + 199 * STEP_M };
+// Interactive Petrophysics zonation: tab-delimited, byte-order mark, CRLF,
+// units in square brackets, a thickness column after the base
+files['zones_ip_tab_m.txt'] = '\uFEFF' + [
+  'Zone Name\tTop Depth [m]\tBottom Depth [m]\tThickness [m]',
+  `Oil sand\t${f(OIL_SAND.top_md_m, 2)}\t${f(OIL_SAND.base_md_m, 2)}\t${f(OIL_SAND.base_md_m - OIL_SAND.top_md_m, 2)}`,
+  `Water sand\t${f(WATER.top_md_m, 2)}\t${f(WATER.base_md_m, 2)}\t${f(WATER.base_md_m - WATER.top_md_m, 2)}`,
+  '',
+].join('\r\n');
+// Petrel zone export from a European locale: semicolons, comma decimals,
+// a well column with two wells, a quoted name holding a comma
+files['zones_petrel_semicolon_multiwell.csv'] = [
+  'Well;Zone;Top MD (m);Base MD (m)',
+  `PETRO REF-1;"Oil sand, upper";${f(OIL_SAND.top_md_m, 2).replace('.', ',')};${f(OIL_SAND.base_md_m, 2).replace('.', ',')}`,
+  `OTHER-2;Oil sand;1400,00;1420,00`,
+  `PETRO REF-1;Water sand;${f(WATER.top_md_m, 2).replace('.', ',')};${f(WATER.base_md_m, 2).replace('.', ',')}`,
+  '',
+].join('\n');
+// the same zonation in TVDSS: must be refused with the reason
+files['zones_tvdss_refused.csv'] = [
+  'Zone,Top TVDSS (m),Base TVDSS (m)',
+  `Oil sand,${f(OIL_SAND.top_md_m - 30, 2)},${f(OIL_SAND.base_md_m - 30, 2)}`,
+  '',
+].join('\n');
+// a spreadsheet paste: no header, blank lines, a repeated name, a text
+// depth, a base above its top and a negative (elevation) depth
+files['zones_messy_noheader.csv'] = [
+  `Oil sand,${f(OIL_SAND.top_md_m, 2)},${f(OIL_SAND.base_md_m, 2)}`,
+  '',
+  `Oil sand,1530.00,1540.00`,
+  `Tight streak,abc,1560.00`,
+  `Inverted,1570.00,1560.00`,
+  `Elevation,-1500.00,-1480.00`,
+  `Water sand,${f(WATER.top_md_m, 2)},${f(WATER.base_md_m, 2)}`,
+  '',
+].join('\n');
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   for (const [name, text] of Object.entries(files)) writeFileSync(join(here, name), text);
   console.log(`wrote ${Object.keys(files).length} files to ${here}`);

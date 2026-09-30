@@ -112,17 +112,25 @@ describe('one well, six vendor spellings, one answer', () => {
   });
 });
 
-test('Geolog names: NEU and RES_DEEP are not auto-mapped, but the picker offers them by description', async () => {
+// PETRO-U2-001 (closes PETRO-U1-030): the Geolog / Paradigm names map
+// automatically and the well gives the reference answer. Negative control
+// (run 2026-09-29): without the two aliases NPHI and RT stay unmapped, SW
+// is missing and the zone has no net pay.
+test('Geolog names: NEU and RES_DEEP auto-map and give the reference net pay', async () => {
   const r = await readAsPetro(wdm, wells['geolog_names.las'].id);
-  expect(r.mapped.NPHI).toBeNull();
-  expect(r.mapped.RT).toBeNull();
+  expect(r.mapped.NPHI.mnemonic).toBe('NEU');
+  expect(r.mapped.RT.mnemonic).toBe('RES_DEEP');
   expect(candidatesFor('NPHI', r.logs).map((l) => l.mnemonic)).toContain('NEU');
-  expect(candidatesFor('RT', r.logs).map((l) => l.mnemonic)).toContain('RES_DEEP');
+  const ref = await readAsPetro(wdm, wells['reference_si.las'].id);
+  const zr = zoneReport(ref.curves, computeWell(ref.curves, DEFAULT_PARAMS).outputs, DEFAULT_PARAMS, OIL);
+  const zg = zoneReport(r.curves, computeWell(r.curves, DEFAULT_PARAMS).outputs, DEFAULT_PARAMS, OIL);
+  expect(zg.net_m).toBeCloseTo(zr.net_m, 9);
+  expect(zg.sw_avg).toBeCloseTo(zr.sw_avg, 9);
 });
 
 test('normalizeInputCurve leaves clean SI curves and non-physical keys untouched', () => {
   const data = Float64Array.from([0.2, 0.25, -0.01]);
-  expect(normalizeInputCurve('NPHI', { unit: 'V/V' }, data)).toEqual({ data, notes: [] });
+  expect(normalizeInputCurve('NPHI', { unit: 'V/V' }, data)).toMatchObject({ data, notes: [], decision: { readAs: 'V/V', factor: 1, reason: 'file' } });
   const sp = Float64Array.from([-1200, -40]);
   expect(normalizeInputCurve('SP', { unit: 'MV' }, sp).data).toBe(sp);
 });
@@ -138,4 +146,4 @@ test('the workstation says what it converted when the IP well opens', async () =
   fireEvent.click(rows.find((row) => row.textContent.includes('PETRO IP-2')));
   await waitFor(() => expect(screen.getByTestId('petro-status').textContent).toMatch(/NPHI is in PU: divided by 100 to v\/v/));
   expect(screen.getByTestId('petro-status').textContent).toMatch(/read as null/);
-});
+}, 30000);

@@ -10,6 +10,8 @@
 // formula line.
 
 /** PT11a: how the current Rw was obtained (params.rwMethod); absent means typed. */
+import { labelInSystem } from './paramUnits';
+
 export const RW_METHOD_LABELS = {
   'sp-bateman-konen': 'SP route with the Bateman-Konen (1977) Rwe to Rw fit',
   arps: 'Arps temperature conversion',
@@ -101,5 +103,7 @@ export const visibleField = (f, draft) => !f.show || f.show(draft);
 /** Parameter fields only (no headings, no hints). */
 export const PARAM_FIELDS = FIELDS.filter((f) => f.key);
 
-/** Field label for a draft (labels may depend on the selected model). */
-export const fieldLabel = (f, draft) => (typeof f.label === 'function' ? f.label(draft) : f.label);
+/** Field label for a draft (labels may depend on the selected model); with
+ *  system 'field' the unit in the label is the one the value is shown in
+ *  (PETRO-U2-002). */
+export const fieldLabel = (f, draft, system = 'si') => labelInSystem(typeof f.label === 'function' ? f.label(draft) : f.label, f.key, system);

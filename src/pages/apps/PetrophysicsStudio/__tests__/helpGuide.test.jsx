@@ -70,6 +70,38 @@ describe('PetrophysicsHelpGuide', () => {
     expect(text).toMatch(/reader proposes, it never traces and never saves/i);
   });
 
+  test('PETRO-U2 features are described', () => {
+    const { container } = renderGuide();
+    const text = container.textContent;
+    // U2-005
+    expect(text).toMatch(/Cutoff sensitivity…/);
+    expect(text).toMatch(/SPE\s+84387/);
+    // U2-002
+    expect(text).toMatch(/switches parameter entry between SI and Field/);
+    expect(text).toMatch(/stored in SI either way/);
+    // U2-007, U2-010
+    expect(text).toMatch(/log10 k = a \+ b φ/);
+    expect(text).toMatch(/Saturation-height from SCAL Studio/);
+    // U2-011, U2-006, U2-015, U2-018
+    expect(text).toMatch(/split by depth across up to four workers/);
+    expect(text).toMatch(/Data AI facies/);
+    expect(text).toMatch(/Check against this well/);
+    expect(text).toMatch(/25 reads per person per day/);
+    // U2-009, U2-013
+    expect(text).toMatch(/Published curves: current or stale/);
+    expect(text).toMatch(/Republish/);
+    // U2-012
+    expect(text).toMatch(/BVW is PHIT × Swt/);
+    // U2-001
+    expect(text).toMatch(/Save to well/);
+    expect(text).toMatch(/Rock Physics Studio\s+reads as well/);
+    // U2-004
+    expect(text).toMatch(/Importing a zonation/);
+    expect(text).toMatch(/A file in TVD or TVDSS is refused/);
+    // U2-003
+    expect(text).toMatch(/log plot \(CPI\) page per zone/);
+  });
+
   test('copy carries no em dashes (owner rule)', () => {
     const { container } = renderGuide();
     expect(container.textContent.includes('—')).toBe(false);
