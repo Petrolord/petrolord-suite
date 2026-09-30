@@ -42,11 +42,13 @@ describe('fetchLayers', () => {
     const client = fakeClient((table, ops) => {
       if (table === 'geoscience_settings') return { data: { depth_unit: 'm' }, error: null };
       if (table === 'organization_members') return { data: { full_name: 'Ada Admin' }, error: null };
-      expect(ops.find((o) => o[0] === 'or')[1]).toContain('organization_id.eq.org1');
-      return { data: [
-        { scope: 'organization', organization_id: 'org1', profile: { preset: 'metric', units: {}, version: 1 }, updated_by: 'adm', updated_at: '2026-09-30' },
-        { scope: 'user', user_id: 'u1', profile: { preset: 'custom', units: { pressure: 'bar' }, version: 1 } },
-      ], error: null };
+      const scope = ops.find((o) => o[0] === 'eq' && o[1] === 'scope')[2];
+      if (scope === 'organization') {
+        expect(ops).toContainEqual(['eq', 'organization_id', 'org1']);
+        return { data: { scope: 'organization', organization_id: 'org1', profile: { preset: 'metric', units: {}, version: 1 }, updated_by: 'adm', updated_at: '2026-09-30' }, error: null };
+      }
+      expect(ops).toContainEqual(['eq', 'user_id', 'u1']);
+      return { data: { scope: 'user', user_id: 'u1', profile: { preset: 'custom', units: { pressure: 'bar' }, version: 1 } }, error: null };
     });
     const l = await fetchLayers({ userId: 'u1', orgId: 'org1', client });
     expect(l.tableAvailable).toBe(true);

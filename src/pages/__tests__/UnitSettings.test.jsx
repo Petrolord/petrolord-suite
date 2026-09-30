@@ -9,9 +9,23 @@ import React from 'react';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 
 const mockTables = {};
+// a stand-in client that honours eq filters (the unit rows are told apart by scope)
 jest.mock('@/lib/customSupabaseClient', () => {
   const { makeSupabase } = require('./accountTestKit');
-  return { supabase: new Proxy({}, { get: (_t, p) => makeSupabase(mockTables)[p] }) };
+  const filtered = (table) => {
+    const eqs = [];
+    const rows = () => (mockTables[table] || []).filter((r) => eqs.every(([k, v]) => !(k in r) || r[k] === v));
+    const q = new Proxy({}, {
+      get(_, prop) {
+        if (prop === 'then') return (res, rej) => Promise.resolve({ data: rows(), error: null }).then(res, rej);
+        if (prop === 'single' || prop === 'maybeSingle') return () => Promise.resolve({ data: rows()[0] ?? null, error: null });
+        if (prop === 'eq') return (k, v) => { eqs.push([k, v]); return q; };
+        return () => q;
+      },
+    });
+    return q;
+  };
+  return { supabase: new Proxy({}, { get: (_t, p) => (p === 'from' ? filtered : makeSupabase(mockTables)[p]) }) };
 });
 
 import { describeAppTheme } from '@/design/testing/themeAssertions';

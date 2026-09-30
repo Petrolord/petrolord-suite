@@ -81,18 +81,21 @@ export async function fetchLayers({ userId, orgId, client = supabase } = {}) {
   const out = { user: null, organization: null, legacyDepthUnit: null, tableAvailable: true, orgMeta: null };
   if (!userId) return out;
   const legacyP = readLegacyDepthUnit(client, userId).catch(() => null);
-  const filter = orgId
-    ? `and(scope.eq.user,user_id.eq.${userId}),and(scope.eq.organization,organization_id.eq.${orgId})`
-    : `and(scope.eq.user,user_id.eq.${userId})`;
-  const { data, error } = await client.from(TABLE).select(COLUMNS).or(filter);
+  // two plain reads (user row, organisation row) run together
+  const [userRes, orgRes] = await Promise.all([
+    client.from(TABLE).select(COLUMNS).eq('scope', 'user').eq('user_id', userId).maybeSingle(),
+    orgId
+      ? client.from(TABLE).select(COLUMNS).eq('scope', 'organization').eq('organization_id', orgId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  const error = userRes.error || orgRes.error;
   if (error) {
     if (!isMissingTable(error)) throw new Error(`Could not load unit settings: ${error.message}`);
     out.tableAvailable = false;
     out.user = readLocalUserProfile(userId);
   } else {
-    const rows = data || [];
-    const u = rows.find((r) => r.scope === 'user' && r.user_id === userId);
-    const o = rows.find((r) => r.scope === 'organization' && r.organization_id === orgId);
+    const u = userRes.data || null;
+    const o = orgRes.data || null;
     out.user = u ? normalizeProfile(u.profile) : null;
     out.organization = o ? normalizeProfile(o.profile) : null;
     if (o) {

@@ -141,6 +141,7 @@ const FacilitiesHarness = lazy(() => import('@/dev/FacilitiesHarness'));
 const StudiosHarness = lazy(() => import('@/dev/StudiosHarness'));
 const AssuranceHarness = lazy(() => import('@/dev/AssuranceHarness'));
 const HubsHarness = lazy(() => import('@/dev/HubsHarness'));
+const UnitsAppHarness = lazy(() => import('@/dev/UnitsAppHarness'));
 const ModularRefineryHarness = lazy(() => import('@/dev/ModularRefineryHarness'));
 const CarbonHarness = lazy(() => import('@/dev/CarbonHarness'));
 const ElectrofaciesHarness = lazy(() => import('@/dev/ElectrofaciesHarness'));
@@ -1027,6 +1028,7 @@ function App() {
                                     <Route path="/dev/nodal-analysis-studio" element={<NodalHarness />} />
                                     <Route path="/dev/material-balance-studio" element={<MbalHarness />} />
                                     <Route path="/dev/material-balance-studio/cases/:caseId" element={<MbalHarness />} />
+                                    <Route path="/dev/units-app/:app" element={<UnitsAppHarness />} />
                                   </Route>
                                   {/* These two bring their own scope: the specimen shows a scoped and an
                                       unscoped column, and the hubs harness mounts the real DashboardLayout. */}
