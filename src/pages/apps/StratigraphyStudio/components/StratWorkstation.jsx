@@ -27,6 +27,7 @@ import TopsTyping from './TopsTyping';
 import Glossary from './Glossary';
 import TimescalePanel from './TimescalePanel';
 import BiostratEvents from './BiostratEvents';
+import EventAgeModel from './EventAgeModel';
 import { flagAges, withStamps, changedAges, acceptPlan } from '@/lib/stratigraphy/ageCharts';
 
 const VIEWS = [
@@ -295,7 +296,9 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   const center = view === 'glossary' ? <ScrollArea className="h-full min-h-0"><Glossary scheme={scheme} /></ScrollArea>
     : view === 'tops' ? <ScrollArea className="h-full min-h-0"><TopsTyping well={well} tops={tops} units={units} scheme={scheme} onSaveTop={saveTop} onStatus={setStatus} ageFlags={flagsById} unit={unit} /></ScrollArea>
     : view === 'events' ? (well ? <ScrollArea className="h-full min-h-0"><BiostratEvents well={well} tops={tops} backend={backend} onStatus={setStatus} onTopsChanged={async () => { await refreshTops(); await refreshAllTops(); }} onAgesEntered={stampAges}
-        dictionary={project?.view?.eventDictionary || []} onDictionary={(rows) => saveProject({ view: { eventDictionary: rows } })} unit={unit} report={report} /></ScrollArea> : needWell)
+        dictionary={project?.view?.eventDictionary || []} onDictionary={(rows) => saveProject({ view: { eventDictionary: rows } })} unit={unit} report={report}>
+        <EventAgeModel well={well} tops={tops} backend={backend} onStatus={setStatus} onTopsChanged={async () => { await refreshTops(); await refreshAllTops(); }} onAgesEntered={stampAges} unit={unit} />
+      </BiostratEvents></ScrollArea> : needWell)
     : view === 'timescale' ? <ScrollArea className="h-full min-h-0"><TimescalePanel flags={ageFlags} onAccept={acceptChartUpdates} busy={accepting} /></ScrollArea>
       : view === 'section' || view === 'wheeler' ? <SectionView backend={backend} mode={view} scheme={scheme} onStatus={setStatus} appPaths={appPaths} saved={project} onSaveProject={saveProject} report={report} />
       : view === 'ages' ? (well ? <ScrollArea className="h-full min-h-0"><AgesView well={well} tops={tops} intervals={intervals} backend={backend} onStatus={setStatus} onTopsChanged={async () => { await refreshTops(); await refreshAllTops(); }} onAgesEntered={stampAges} appPaths={appPaths} report={report} units={units} scheme={scheme} ageCharts={project?.view?.ageCharts || {}} unit={unit} section={null} /></ScrollArea> : needWell)

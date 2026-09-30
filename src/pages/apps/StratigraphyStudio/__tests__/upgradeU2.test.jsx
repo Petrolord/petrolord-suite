@@ -538,3 +538,45 @@ describe('STRAT-U2-009 biostratigraphic events, dictionary and range chart', () 
     expect((await b.loadStratProject()).view.ageCharts.tops[after.find((t) => t.name === 'FDO Discoaster quinqueramus').id]).toEqual({ age_ma: 'ICS 2026/06' });
   }, 120000);
 });
+
+describe('STRAT-U2-010 event-based age model', () => {
+  const { wellEventModel } = jest.requireActual('../components/EventAgeModel');
+  const ev = (id, name, md, age) => ({ id, well_id: 'w', name, md_m: md, age_ma: age, surface_type: 'biozone' });
+
+  test('the model calls the gated engine on vertical depths and restarts below a dated unconformity', async () => {
+    const b = makeInMemoryBackend();
+    const k2 = (await b.listWells()).find((w) => w.id === 'corr-w2'); // deviated below 1400 m
+    const tops = [ev('a', 'FDO A', 1450, 5), ev('b', 'LDO A', 1550, 6), ev('c', 'FDO B', 1650, 7),
+      { id: 'su', name: 'Base Sand', md_m: 1705, surface_type: 'SU', age_ma: 10 }, ev('d', 'FDO C', 1750, 12), ev('e', 'LDO C', 1800, 12.5)];
+    const { model, basis, breaks } = wellEventModel(k2, tops);
+    expect(basis).toBe('tvd');
+    expect(breaks).toHaveLength(1);
+    expect(model.segments).toHaveLength(2);
+    // TVD rate is below the along-hole 100 m/Ma of the MD picks (the well is deviated there)
+    expect(model.segments[0].rate_m_per_ma).toBeLessThan(100);
+    expect(model.segments[0].n).toBe(3);
+  });
+
+  test('workstation: rates, residuals, the flagged event, and a previewed dating of the undated tops', async () => {
+    const StratWorkstation = jest.requireActual('../components/StratWorkstation').default;
+    const b = makeInMemoryBackend();
+    // KETA-1 (vertical): six events on a 100 m/Ma line, one read 2 Myr too old (caved LDO)
+    const lines = [[1445, 'FDO A', 4.05], [1470, 'LDO A', 4.3], [1495, 'FDO B', 4.55], [1530, 'LDO B', 6.9], [1555, 'FDO C', 5.15], [1590, 'LDO C', 5.5], [1620, 'FDO D', 5.8]];
+    for (const [md, name, age] of lines) await b.saveTop('corr-w1', { name, mdM: md, surface_type: 'biozone', age_ma: age });
+    render(<MemoryRouter><StratWorkstation backend={b} /></MemoryRouter>);
+    fireEvent.click(await screen.findByTestId('strat-well-KETA-1', {}, T));
+    fireEvent.click(screen.getByTestId('strat-view-events'));
+    await waitFor(() => expect(screen.getByTestId('strat-agemodel-event-LDO B').getAttribute('data-flagged')).toBe('1'), T);
+    expect([...document.querySelectorAll('[data-flagged="1"]')]).toHaveLength(1);
+    expect(screen.getByTestId('strat-agemodel-seg-0').textContent).toMatch(/7/);
+    // KETA-1's formation top Top Dome (1500 m) is undated: the model offers an age, nothing written before Apply
+    fireEvent.click(screen.getByTestId('strat-agemodel-preview'));
+    const row = screen.getByTestId('strat-agemodel-plan-Top Dome').textContent;
+    const age = Number(/: ([\d.]+) Ma/.exec(row)[1]);
+    expect(age).toBeGreaterThan(4.5); expect(age).toBeLessThan(5.1);
+    expect((await b.listTops('corr-w1')).find((t) => t.name === 'Top Dome').age_ma).toBeNull();
+    fireEvent.click(screen.getByTestId('strat-agemodel-apply'));
+    await waitFor(() => expect(screen.getByTestId('strat-status').textContent).toMatch(/Dated 1 top from the event age model/), T);
+    expect((await b.listTops('corr-w1')).find((t) => t.name === 'Top Dome').age_ma).toBe(age);
+  }, 120000);
+});

@@ -229,6 +229,15 @@ export default function StratigraphyHelpGuide() {
           in the well, depth down, with open ends marked.
         </Para>
         <Para>
+          Age model from the events fits a straight line through the dated events by least squares, age on vertical
+          depth (TVD through the survey), and starts a new line below every dated unconformity. Each segment shows its
+          rate, R-squared and residual standard deviation; each event its residual, and an event more than two residual
+          standard deviations off the line is flagged as a caving or reworking candidate (it stays in the fit). Date
+          undated tops lists the age the line gives each undated top, marks any beyond the events of its segment as
+          extrapolated, and writes nothing until Apply. The least-squares core reproduces the NIST certified regression
+          results for its reference data set.
+        </Para>
+        <Para>
           Biozone ranges paste with their scheme and ages: in Intervals choose Biozone and Replace from paste; a
           StrataBugs export maps Zone, Zonation, Top and Base Depth, and Top and Base Age (Ma, or ka converted to Ma).
           An age column is never read as a depth, and a range whose base age is not older than its top is refused by
