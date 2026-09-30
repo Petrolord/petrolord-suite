@@ -89,6 +89,8 @@ import {
 } from '@/lib/cultureRegistry';
 import { reprojectFeatures } from '@/lib/cultureImport';
 import { transformPoint, crsDisplayName } from '@/lib/crs';
+import { buildLabel } from '@/lib/platformBuild';
+import { sectionLineLabel, sectionCaption, verticalLabel, displayLabel } from '../lib/sectionCaption';
 import { normalizeTag, isTransformableTag, LOCAL } from '@/lib/crs/tags';
 import PlotDialog from './workspace/dialogs/PlotDialog';
 import ComputeAttributeDialog from './workspace/dialogs/ComputeAttributeDialog';
@@ -2976,6 +2978,23 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     return () => { live = false; };
   }, []);
   const depthUnit = depthUnitChoice || accountDepthUnit || 'm';
+
+  // SEIS-U1-011/013: what a picture of the section says about itself
+  const sectionLine = useMemo(
+    () => sectionLineLabel(manifest?.geometry, orientation,
+      manifest && slice && slice.orientation === orientation ? slice.index : sliceIndex),
+    [manifest, orientation, slice, sliceIndex],
+  );
+  const captionFor = useCallback((lineLabel, depth) => () => sectionCaption({
+    volumeName: volume?.name,
+    lineLabel,
+    depth,
+    depthUnit,
+    velocityText: depth && velocityForDisplay ? describeVelocity(velocityForDisplay) : null,
+    display,
+    crsName: volume?.crs ? crsDisplayName(volume.crs) : null,
+    build: buildLabel(),
+  }), [volume, depthUnit, velocityForDisplay, display]);
   const setDepthUnit = useCallback((u) => {
     setDepthUnitChoice(u);
     try { localStorage.setItem('seismolord.depthUnit.v1', u); } catch { /* private mode */ }
@@ -3951,6 +3970,9 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                   flatten={depthSection ? null : flatten}
                   planeMarks={planeMarks}
                   wellCorridor={wellCorridor}
+                  depthUnit={depthUnit}
+                  lineLabel={sectionLine}
+                  exportCaption={captionFor(sectionLine, Boolean(depthSection))}
                 />
                 {sectionNotice}
                 </div>
@@ -3978,6 +4000,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                   faults={overlays.faults}
                   wells={wellSections}
                   depthConv={depthConv}
+                  depthUnit={depthUnit}
                   onSelectPlane={selectPlane}
                   height="fill"
                 />
@@ -4044,6 +4067,9 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                     ghost={pickMode === 'manual' ? { mode: eventSnapMode, window: snapWindow } : null}
                     loading={traverseLoading}
                     depthConv={depthConv}
+                    depthUnit={depthUnit}
+                    lineLabel="Traverse"
+                    exportCaption={captionFor('Traverse', false)}
                     onPick={handleTraversePick}
                     onPickEnd={commitStroke}
                     onCursor={handleCursor}
@@ -4167,6 +4193,17 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
         mapCameraApi={mapCameraApi}
         volume={volume}
         crsName={volume?.crs ? crsDisplayName(volume.crs) : null}
+        extraRows={(source) => [
+          ...(source === 'map' ? [] : [
+            ['Vertical', verticalLabel({
+              depth: Boolean(depthSection),
+              depthUnit,
+              velocityText: depthSection && velocityForDisplay ? describeVelocity(velocityForDisplay) : null,
+            }).replace(/^Vertical: /, '')],
+            ['Display', displayLabel(display)],
+          ]),
+          ['Build', buildLabel()],
+        ]}
       />
 
       <ComputeAttributeDialog

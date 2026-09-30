@@ -21,10 +21,14 @@ import {
 
 const MS_PER_CM_CHOICES = [25, 50, 100, 200, 500];
 
+/** jsPDF standard fonts are Latin-1: replace what they cannot draw. */
+export const latin1 = (v) => String(v ?? '').replace(/[\u2012-\u2015]/g, '-').replace(/\u00b7/g, '-')
+  .replace(/[^\x20-\x7e\xa0-\xff]/g, '');
+
 const selCls = 'mt-1 w-full rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-2 py-1 text-sm';
 
 export default function PlotDialog({
-  open, onOpenChange, sectionCameraApi, mapCameraApi, volume, crsName,
+  open, onOpenChange, sectionCameraApi, mapCameraApi, volume, crsName, extraRows = null,
 }) {
   const { toast } = useToast();
   const [source, setSource] = useState('map');
@@ -116,17 +120,32 @@ export default function PlotDialog({
         scaleText,
         author: user?.email || null,
         dateStr: new Date().toISOString().slice(0, 10),
-        extra: [['View', snap.label]],
+        // SEIS-U1-013: the line number, vertical domain and datum, polarity
+        // and display, and the build a reviewer signs against
+        extra: [['View', snap.label], ...(typeof extraRows === 'function' ? extraRows(source) : [])]
+          .map(([k, v]) => [k, latin1(v)]),
       });
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(11);
       pdf.text(String(rows[0][1]), tb.x + 2, tb.y + 6);
       pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(7.5);
-      rows.slice(1).forEach(([k, v], i) => {
+      // short rows in two columns, the long reviewer rows (vertical
+      // domain, display) full width beside the scale bar
+      const WIDE = new Set(['Vertical', 'Display']);
+      const shortRows = rows.slice(1).filter(([k]) => !WIDE.has(k));
+      const wideRows = rows.slice(1).filter(([k]) => WIDE.has(k));
+      const step = wideRows.length ? 3.4 : 4.5;
+      pdf.setFontSize(wideRows.length ? 6.5 : 7.5);
+      shortRows.forEach(([k, v], i) => {
         const col = i % 2;
         const row = Math.floor(i / 2);
-        pdf.text(`${k}: ${v}`, tb.x + 2 + col * (tb.w / 2 - 40), tb.y + 11 + row * 4.5);
+        pdf.text(`${k}: ${v}`, tb.x + 2 + col * (tb.w / 2 - 40), tb.y + 11 + row * step);
+      });
+      const wideY = tb.y + 11 + Math.ceil(shortRows.length / 2) * step;
+      const wideW = Math.max(40, tb.w - Math.min(60, tb.w / 3) - 12);
+      wideRows.forEach(([k, v], i) => {
+        const [first] = pdf.splitTextToSize(`${k}: ${v}`, wideW);
+        pdf.text(first, tb.x + 2, wideY + i * step);
       });
 
       // scale bar, right side of the title block (ground scale)

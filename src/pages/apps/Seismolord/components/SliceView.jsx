@@ -34,6 +34,35 @@ import {
   surveySpacing, northScreenDir, niceStepUp,
 } from '../viewer/annotations';
 import { NULL_VALUE } from '../engine/manifest';
+import { lineLabelSlug } from '../lib/sectionCaption';
+
+/** The picture with a caption band above it (SEIS-U1-013): dark like the
+ *  seismic canvas (owner rule), light text, lines fitted to the width. */
+export function captionCanvas(pic, lines) {
+  const fontPx = Math.max(12, Math.round(pic.width / 110));
+  const pad = Math.round(fontPx * 0.8);
+  const lineH = Math.round(fontPx * 1.45);
+  const band = pad * 2 + lineH * lines.length;
+  const out = document.createElement('canvas');
+  out.width = pic.width;
+  out.height = pic.height + band;
+  const ctx = out.getContext('2d');
+  if (!ctx) return pic;
+  ctx.fillStyle = '#020617';
+  ctx.fillRect(0, 0, out.width, band);
+  ctx.textBaseline = 'top';
+  lines.forEach((text, i) => {
+    ctx.font = `${i === 0 ? '600 ' : ''}${fontPx}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.fillStyle = i === 0 ? '#f8fafc' : '#cbd5e1';
+    let t = String(text);
+    const maxW = out.width - pad * 2;
+    while (t.length > 4 && ctx.measureText(t).width > maxW) t = `${t.slice(0, -2)}`;
+    if (t !== String(text)) t = `${t.slice(0, -1)}…`;
+    ctx.fillText(t, pad, pad + i * lineH);
+  });
+  ctx.drawImage(pic, 0, band);
+  return out;
+}
 
 const NULL_F32 = Math.fround(NULL_VALUE);
 // v2: interpolate now defaults ON (shader bicubic, no GPU extension
@@ -133,6 +162,7 @@ function SliceView({
   vexag: vexagProp, onVexagChange, emptyHint, depthConv = null, onCursor = null,
   cameraApi = null, overlaySlice = null, overlayDisplay = null,
   depthAxisInfo = null, flatten = null, planeMarks = null, wellCorridor = null,
+  exportCaption = null, lineLabel = null, depthUnit = 'm',
 }) {
   const wrapRef = useRef(null);        // fullscreen target (toolbar + view)
   const viewportRef = useRef(null);    // the canvas container
@@ -197,7 +227,7 @@ function SliceView({
     flatten,
     slice, geom, manifest, orientation, sliceIndex, display, overlays,
     pickMode, ghost, prefs, gutter: g, depthConv, onCursor, agcMap, depthAxisInfo,
-    planeMarks, wellCorridor,
+    planeMarks, wellCorridor, depthUnit, lineLabel,
   };
 
   // ---- axis metadata per orientation ----------------------------------
@@ -211,7 +241,7 @@ function SliceView({
     // SL0: the axis reads the display depth unit; rows stay metres
     const zScale = depthAxisInfo?.unit === 'ft' ? 1 / 0.3048 : 1;
     const twt = depthAxisInfo
-      ? { title: `${depthAxisInfo.unit === 'ft' ? 'ft' : 'm'} TVD`, valueAtZero: depthAxisInfo.z0 * zScale, valuePerCell: depthAxisInfo.dz * zScale }
+      ? { title: `${depthAxisInfo.unit === 'ft' ? 'ft' : 'm'} TVDSS`, valueAtZero: depthAxisInfo.z0 * zScale, valuePerCell: depthAxisInfo.dz * zScale }
       : { title: 'ms', valueAtZero: 0, valuePerCell: gm.dt_us / 1000 };
     if (orientation === 'inline') return { x: xl, y: twt };
     if (orientation === 'xline') return { x: il, y: twt };
@@ -707,8 +737,10 @@ function SliceView({
       const conv = p.depthConv.toDepthM;
       const ms0 = Math.max(0, vis.y0) * dtMs;
       const ms1 = Math.max(ms0, (vis.y0 + vis.h) * dtMs);
-      const z0 = conv(ms0);
-      const z1 = conv(ms1);
+      // SEIS-U1-011: the axis reads the display depth unit, TVDSS below the seismic datum
+      const uf = p.depthUnit === 'ft' ? 1 / 0.3048 : 1;
+      const z0 = conv(ms0) * uf;
+      const z1 = conv(ms1) * uf;
       const innerH = anno.height - gt;
       if (z1 > z0 && innerH > 40 * dpr) {
         const step = niceStepUp(((z1 - z0) / innerH) * 64 * dpr);
@@ -724,7 +756,7 @@ function SliceView({
           let hi = ms1;
           for (let it = 0; it < 32; it++) {
             const mid = (lo + hi) / 2;
-            if (conv(mid) < z) lo = mid; else hi = mid;
+            if (conv(mid) * uf < z) lo = mid; else hi = mid;
           }
           const sy = gt + t2.worldToScreen(0, ((lo + hi) / 2) / dtMs).y;
           if (sy < gt + 6 * dpr || sy > anno.height - 4 * dpr) continue;
@@ -734,7 +766,7 @@ function SliceView({
           ctx.stroke();
           ctx.fillText(String(Math.round(z)), anno.width - 10 * dpr, sy);
         }
-        ctx.fillText('m TVD', anno.width - 6 * dpr, gt + 8 * dpr);
+        ctx.fillText(`${p.depthUnit === 'ft' ? 'ft' : 'm'} TVDSS`, anno.width - 6 * dpr, gt + 8 * dpr);
         ctx.restore();
       }
     }
@@ -994,7 +1026,7 @@ function SliceView({
   // overlays / prefs / ghost mode / depth conversion changed -> repaint 2D layers
   useEffect(() => {
     scheduleView();
-  }, [overlays, prefs, ghost, depthConv, planeMarks, wellCorridor, scheduleView]);
+  }, [overlays, prefs, ghost, depthConv, planeMarks, wellCorridor, depthUnit, scheduleView]);
 
   // controlled exaggeration (shared with the 3D window)
   useEffect(() => {
@@ -1054,8 +1086,9 @@ function SliceView({
           metersPerPx: perCell > 0 ? perCell / t.ppx : null,
           msPerPx: p.orientation !== 'time' && p.manifest
             ? (p.manifest.geometry.dt_us / 1000) / t.ppy : null,
-          label: p.orientation === 'traverse' ? 'Traverse'
-            : `${p.orientation} ${p.sliceIndex}`,
+          // SEIS-U1-011: the line NUMBER, never the lattice index
+          label: p.lineLabel || (p.orientation === 'traverse' ? 'Traverse'
+            : `${p.orientation} ${p.sliceIndex}`),
         };
       },
     };
@@ -1128,7 +1161,8 @@ function SliceView({
     if (info) {
       vals.textContent = `IL ${info.il}   XL ${info.xl}   `
         + (info.ms != null ? `${info.ms.toFixed(1)} ms   ` : '')
-        + (info.z != null ? `TVD ${info.z.toFixed(1)} m   ` : '')
+        + (info.z != null ? (propsRef.current.depthUnit === 'ft'
+          ? `TVDSS ${(info.z / 0.3048).toFixed(1)} ft   ` : `TVDSS ${info.z.toFixed(1)} m   `) : '')
         + `amp ${info.amp === null ? 'null' : `${info.ampApprox ? '≈' : ''}${info.amp.toExponential(3)}`}`;
       vals.style.display = '';
       hint.style.display = 'none';
@@ -1328,13 +1362,19 @@ function SliceView({
   };
 
   const screenshot = () => {
-    const out = composeSnapshot();
-    if (!out) return;
+    const pic = composeSnapshot();
+    if (!pic) return;
+    // SEIS-U1-013: the PNG carries its own caption (survey, real line
+    // number, vertical domain and datum, polarity and display, CRS, who,
+    // date, build); the file is named by the line number
+    const lines = typeof exportCaption === 'function' ? exportCaption() : exportCaption;
+    const out = lines && lines.length ? captionCanvas(pic, lines) : pic;
     out.toBlob((blob) => {
       if (!blob) return;
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `seismolord-${orientation}${orientation === 'traverse' ? '' : `-${sliceIndex}`}.png`;
+      a.download = `seismolord-${lineLabel ? lineLabelSlug(lineLabel)
+        : `${orientation}${orientation === 'traverse' ? '' : `-${sliceIndex}`}`}.png`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     }, 'image/png');
