@@ -461,9 +461,8 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       let g;
       let kriged = null;
       if (gridMethod === 'kriging') {
-        // MS5: ordinary kriging with the dock's variogram; fault blocks
-        // stay a thin-plate spline feature in v1
-        if (rings.length) throw new Error('Kriging grids without fault blocks in this version. Untick the fault polygons or grid with the thin-plate spline.');
+        // MS5: ordinary kriging with the dock's variogram; MAP-U2-001:
+        // with fault polygons each block is kriged from its own wells
         if (beyond > 0) throw new Error('Kriging maps inside the wells in this version. Map beyond them with the thin-plate spline or the spline in tension.');
         let v = variogram;
         if (!(Number(v.range) > 0) || !(Number(v.sill) > 0)) {
@@ -473,10 +472,15 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         }
         kriged = krigingOptions(v);
         // the range is typed in metres; the engine measures in map units
-        g = await runGridding('kriging', points, spec, { ...kriged, range: kriged.range * perM, maxExtrapolation: 1e9 });
+        const kOpts = { ...kriged, range: kriged.range * perM, maxExtrapolation: 1e9 };
+        g = rings.length
+          ? await runGridding('blocked-kriging', blocksForPoints(points, rings), spec, { ...kOpts, nodeBlocks: nodeBlocksFor(spec, rings) })
+          : await runGridding('kriging', points, spec, kOpts);
       } else if (gridMethod === 'tension') {
-        if (rings.length) throw new Error('The spline in tension grids without fault blocks in this version. Untick the fault polygons or grid with the thin-plate spline.');
-        g = await runGridding('tension', points, spec, { tension: tensionOpts.tension, smoothing: tensionOpts.smoothing, mask: 'none' });
+        const tOpts = { tension: tensionOpts.tension, smoothing: tensionOpts.smoothing };
+        g = rings.length
+          ? await runGridding('blocked-tension', blocksForPoints(points, rings), spec, { ...tOpts, nodeBlocks: nodeBlocksFor(spec, rings), maxExtrapolation: 1e9 })
+          : await runGridding('tension', points, spec, { ...tOpts, mask: 'none' });
       } else if (rings.length) {
         g = await runGridding('blocked', blocksForPoints(points, rings), spec, { nodeBlocks: nodeBlocksFor(spec, rings), maxExtrapolation: 1e9 });
       } else {
@@ -506,7 +510,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         spec, grid: g.z, name, kind, crs, zDomain, zUnit, variance: g.variance || null,
         provenance: {
           source: src, engine: 'mapping-surface-studio', cell_m: cell,
-          method: kriged ? 'kriging' : gridMethod === 'tension' ? 'tension' : (rings.length ? 'tps-blocked' : 'tps'),
+          method: `${kriged ? 'kriging' : gridMethod === 'tension' ? 'tension' : 'tps'}${rings.length ? '-blocked' : ''}`,
           tension: gridMethod === 'tension' ? { ...tensionOpts, p: g.p ?? null } : null,
           extent: beyond > 0 ? { beyond_m: beyond } : null,
           variogram: kriged ? { model: kriged.model, range_m: kriged.range, sill: kriged.sill, nugget: kriged.nugget, detrend: kriged.detrend, neighbourhood: g.neighbourhood } : null,

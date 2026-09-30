@@ -154,7 +154,8 @@ export default function MappingHelpGuide() {
           control points, and Grid fits them itself when the fields are empty. Remove the trend first fits a plane
           through the wells and kriges the residuals, so a regional dip is honoured. A kriged surface carries a
           variance map (metres squared), low where the wells constrain it and high where it is guessed; show the
-          variance map swaps it onto the map. Kriging grids without fault blocks in this version.
+          variance map swaps it onto the map. With fault-block polygons ticked, each block is kriged from its own wells
+          with the one variogram.
         </Para>
         <SubHeading>Spline in tension and smoothing</SubHeading>
         <Para>
@@ -205,7 +206,8 @@ export default function MappingHelpGuide() {
         <Para>
           Polygons, Fault block: click vertices on the map (three or more), name it, Save. Tick grid on the polygon
           and the next Grid fits the surface independently inside and outside each polygon, so a fault throw
-          shows as a step at the polygon edge. A block with fewer than three control points is left empty and
+          shows as a step at the polygon edge. This works with every method: the thin-plate spline, the spline in
+          tension and kriging. A block with fewer than three control points (two for kriging) is left empty and
           the status says so. Fault-block polygons are saved to the shared culture registry, so Earth Modeling
           and Seismolord can read them later.
         </Para>
