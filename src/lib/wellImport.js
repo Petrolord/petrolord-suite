@@ -191,8 +191,8 @@ export function intervalDepthProblem(cell) {
   if (cell == null) return null;
   const w = words(cell);
   const name = String(cell).trim();
-  if (AGE_RE.test(w)) return `"${name}" holds ages, not depths. Map the depth columns as top and base.`;
-  if (TIME_RE.test(w)) return `"${name}" is a time, not a depth. Intervals are stored in measured depth (MD); convert the file to MD first.`;
+  if (AGE_RE.test(w)) return `"${name}" holds ages. Map the depth columns as top and base.`;
+  if (TIME_RE.test(w)) return `"${name}" is a time. Intervals are stored in measured depth (MD); convert the file to MD first.`;
   if (/\b(tvd\s?ss|tvdss|ss|subsea|tvdmsl)\b/.test(w)) return `"${name}" is a TVDSS depth. Intervals are stored in measured depth (MD); export them in MD, or convert through the survey first.`;
   if (/\btvd\b/.test(w)) return `"${name}" is a TVD depth. Intervals are stored in measured depth (MD); export them in MD, or convert through the survey first.`;
   if (/\b(z|elev|elevation)\b/.test(w)) return `"${name}" is an elevation. Intervals are stored in measured depth (MD) below the depth reference.`;

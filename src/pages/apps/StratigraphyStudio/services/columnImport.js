@@ -53,7 +53,7 @@ export function parseColumnFile(text, existing = []) {
     if (!name) { problems.push(`Row ${line}: no unit name.`); return; }
     const rawRank = col.rank >= 0 ? norm(c[col.rank]) : 'formation';
     const rank = RANK_OF[rawRank] || null;
-    if (!rank) { problems.push(`Row ${line}: ${name} has rank "${c[col.rank]}", not one of ${RANKS.join(', ')}.`); return; }
+    if (!rank) { problems.push(`Row ${line}: ${name} has the rank "${c[col.rank]}"; the column takes ${RANKS.join(', ')}.`); return; }
     const top = col.top >= 0 ? num(c[col.top], dc) : null;
     const base = col.base >= 0 ? num(c[col.base], dc) : null;
     if ((top != null && !Number.isFinite(top)) || (base != null && !Number.isFinite(base))) { problems.push(`Row ${line}: ${name} ages must be numbers.`); return; }

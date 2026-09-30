@@ -86,9 +86,11 @@ export default function StratigraphyHelpGuide() {
         </Para>
         <Table headers={['Control', 'What it does']} rows={[
           ['Add unit', 'a new top-level formation to name, rank and place inside a parent'],
+          ['Import units', 'reads a Petrel zone hierarchy, a StrataBugs chart or a spreadsheet (name, rank or level, parent by name, top and base age in Ma or ka, colour) in any column and row order; the rows arrive unsaved, names already in the column are left as they are, repeats and overlaps are named'],
           ['From stage', `fills the top and base ages from a stage of the ICS chart (${TIMESCALE_VERSION})`],
           ['Save column', 'validates every unit and writes the additions, changes and removals; a problem refuses the whole save'],
           ['map', 'beside a unit in the explorer once a top names it: opens the top\'s structure map in Mapping'],
+          ['SVG, PNG', 'exports the graphic column with a header: timescale, field, prepared by, date and build'],
         ]} />
         <Callout tone="info" title="Removing a unit">
           Its children keep their rows with no parent, and any top that named it loses the reference. Nothing cascades.
@@ -108,7 +110,9 @@ export default function StratigraphyHelpGuide() {
         ])} />
         <SubHeading>The tract below</SubHeading>
         <Para>
-          The Tops table reads each pair of consecutive typed surfaces and names the systems tract they bound:
+          The Tops table reads each pair of consecutive sequence surfaces (formation tops, biozone datums and
+          unclassified unconformities between them carry no sequence position and are stepped over) and names the
+          systems tract they bound:
           a subaerial unconformity or correlative conformity below a maximum regressive surface bounds a lowstand,
           a maximum regressive surface below a maximum flooding surface a transgressive tract, a maximum flooding
           surface below a basal surface of forced regression a highstand, and that surface below the correlative
@@ -131,10 +135,11 @@ export default function StratigraphyHelpGuide() {
         </Para>
         <SubHeading>Doors</SubHeading>
         <Table headers={['Door', 'What arrives']} rows={[
-          ['Replace from paste', 'a table with top, base and code columns, feet or metres; abbreviations resolve, unknown codes are kept as typed'],
+          ['Replace from paste', 'a table with top, base and code columns in measured depth, feet or metres (a unit in the header such as "Top (ft)" is read; semicolon files with comma decimals too); abbreviations resolve, unknown codes are kept as typed. A TVD, TVDSS, elevation, time or age column is refused with the reason'],
           ['LAS 3.0 import (Well Data Manager)', 'a file with a core or lithology block imports its intervals, on by default, with dropped rows named'],
           ['Publish facies (Petrophysics Studio)', 'the crossplot facies polygons become facies intervals on the well'],
-          ['Record tracts (Section view)', 'the systems tracts the typed surfaces imply, written on every own well of the section'],
+          ['Record tracts (Section view)', 'the systems tracts the typed surfaces imply, written on every own well of the section that has any; a well with none keeps what it has and is named'],
+          ['Biozone scheme (Intervals view)', 'a CSV with scheme, zone, top and base age and source (Zonation, Top Age, Base Age and Reference are read too; ages in ka when the header says so) dates the biozone intervals whose scheme and zone match; a zone given two different ages is refused, a second file adds its schemes; remembered in this browser only'],
         ]} />
         <Para>
           Every well app draws a registry interval kind as a strip track: the Lithology quicklook template carries a
@@ -155,17 +160,20 @@ export default function StratigraphyHelpGuide() {
       <GuideSection id="section">
         <SectionHeading icon={GitCompare}>The section: tracts, stretch, ghost curve</SectionHeading>
         <Para>
-          The Section view opens the section you last saved in Well Correlation: the same wells, order, template and
-          datum, drawn by the same painter. Build and save sections there; interpret them here.
+          The Section view opens a section saved in Well Correlation (the one you pick, else the newest): the same
+          wells, order, template and datum, drawn by the same painter. Build and save sections there; interpret them
+          here.
         </Para>
         <Table headers={['Control', 'What it does']} rows={[
-          ['Datum', 'Structural, Flatten on a surface (one datum line), or Stretch between two surfaces: the rock between the two picks is stretched onto two common lines, the rest shifts rigidly; a well with one of the surfaces shifts onto that line and says so'],
+          ['Section', 'picks one of your named Well Correlation sections; Save view remembers it'],
+          ['Depth', 'MD, TVD or TVDSS through each survey and KB, or TWT through the checkshots, in metres or feet; tracts and motifs follow the reference'],
+          ['Datum', 'Structural, Flatten on a surface (one datum line, placed at the surface\'s depth in the first well carrying it), or Stretch between two surfaces: the rock between the two picks is stretched onto two common lines, the rest shifts rigidly; a well with one of the surfaces shifts onto that line and says so'],
           ['Tracts', 'fills between typed surfaces coloured by tract; implied until Record tracts writes them, hatched when the tract needs an unpicked boundary'],
           ['Motifs', 'outlines the log motif intervals beside the first track'],
           ['Record tracts', 'writes the implied systems tracts as intervals on every own well of the section'],
           ['Ghost', 'draws one well\'s first track translucent on another column at a chosen shift, to correlate by eye'],
           ['Map net sand', 'opens Mapping on the net sand between a tract\'s two surfaces across the section wells'],
-          ['Save view', 'keeps the datum and ghost with your stratigraphy project'],
+          ['Save view', 'keeps the section, depth reference, datum, ghost and the Prepared by and Field of the status bar with your stratigraphy project'],
         ]} />
         <Para>The systems tracts and motifs the engine knows:</Para>
         <Table headers={['Code', 'Catuneanu', 'Exxon display']} rows={SYSTEMS_TRACTS.map((t) => [
@@ -179,8 +187,11 @@ export default function StratigraphyHelpGuide() {
         <Para>
           The Wheeler view re-plots the section with geologic time down the axis. For each well the rock between
           two dated surfaces becomes a deposition cell spanning their ages, coloured by the tract the surfaces
-          imply; an unconformity with a hiatus end becomes a hatched hiatus cell. ICS stages sit behind the columns.
-          A well with fewer than two dated surfaces is listed as not placed, with the reason.
+          imply (the same tract rows the section fills, recorded ones first); an unconformity with a hiatus end becomes
+          a hatched hiatus cell. ICS stages sit behind the columns. The columns are the section's wells in order; the
+          chart is not interpolated between wells. A well with fewer than two dated surfaces is listed as not placed,
+          with the reason. SVG and PNG export the chart with a header naming the wells, section, field, terms,
+          timescale, preparer, date and build.
         </Para>
         <Callout tone="info" title="What the chart needs">
           Ages on the tops (Tops view) and, for an unconformity, the age its hiatus ends at. Ages are constant-rate
@@ -193,11 +204,12 @@ export default function StratigraphyHelpGuide() {
         <Para>
           The Ages view shows the selected well's age-depth plot: the dated surfaces joined by segments at constant
           accumulation rate, the rate written on each, a hiatus bar at every dated unconformity, and the ICS stage of
-          each surface. The table below repeats the rates and hiatuses.
+          each surface. The table below repeats the rates and hiatuses. On a well with a survey, depths and rates are
+          vertical (TVD below KB); on a vertical well or one without a survey they are MD, and the axis says which.
         </Para>
         <Table headers={['Control', 'What it does']} rows={[
           ['Biozone datums', 'turns every biozone range of the well (Intervals view, kind Biozone, with scheme and ages) into two typed biozone tops carrying the ages and the scheme'],
-          ['Send to Basin', 'creates a Basin & Charge Modeling model: one layer per top, ages from the bounding surfaces, the dominant lithology from the log, every hiatus as an erosion event whose amount you must type; undated layers keep placeholders and say so'],
+          ['Send to Basin', 'creates a Basin & Charge Modeling model: one layer per top with its vertical (TVD) thickness through the survey, ages from the bounding surfaces, the dominant lithology from the log, every hiatus as an erosion event whose amount you must type; undated layers keep placeholders and say so'],
           ['Open Basin', 'opens Basin & Charge Modeling, where the new model is listed with the well remembered as its tie'],
         ]} />
       </GuideSection>
