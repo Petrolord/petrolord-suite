@@ -308,6 +308,14 @@ export default function MappingHelpGuide() {
           B is resampled onto A's frame bilinearly before any two-surface operation, so the result has A's grid.
           Preview, then Publish.
         </Para>
+        <SubHeading>Section line</SubHeading>
+        <Para>
+          Draw a section line (dock, Section line): click two or more points on the map and press Show section. The
+          chart shows the surface on screen and up to five other depth structures in the same CRS along the line,
+          in the display unit with depth downward when depth + is on, and the wells within 500 m of the line at
+          their distance along it. The note under the chart gives the length and the vertical exaggeration the
+          chart is drawn at. Well Correlation remains the place for a correlation panel with logs.
+        </Para>
         <SubHeading>Isochore and isopach</SubHeading>
         <Para>
           The isochore is the vertical thickness between a top and a base (top minus base). The isopach is the true

@@ -115,3 +115,34 @@ test('MAP-U2-003: a horizon on a rotated survey lattice grids from the file and 
   await expect(page.locator('[data-testid="map-surface-row"][data-surface-name="Lattice horizon"]')).toBeVisible();
   expect(errs).toEqual([]);
 });
+
+async function screenOf(canvas, wx, wy) {
+  const scale = Number(await canvas.getAttribute('data-scale'));
+  const cx = Number(await canvas.getAttribute('data-cx'));
+  const cy = Number(await canvas.getAttribute('data-cy'));
+  const vw = Number(await canvas.getAttribute('data-vw'));
+  const vh = Number(await canvas.getAttribute('data-vh'));
+  return { x: vw / 2 + (wx - cx) * scale, y: vh / 2 - (wy - cy) * scale };
+}
+
+test('MAP-U2-013: a section line shows the surfaces and the wells along it, with its vertical exaggeration', async ({ page }) => {
+  const errs = errorsOf(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/dev/mapping-surface-studio');
+  await page.getByTestId('map-source').selectOption('top:Top Dome');
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Gridded', { timeout: 120000 });
+  await page.getByTestId('map-section-draw').click();
+  const canvas = page.getByTestId('map-canvas');
+  for (const [wx, wy] of [[500900, 6700200], [503600, 6700400]]) await canvas.click({ position: await screenOf(canvas, wx, wy) });
+  await expect(page.getByTestId('map-section-count')).toHaveText('2');
+  await page.getByTestId('map-section-run').click();
+  await expect(page.getByTestId('map-section-chart')).toBeVisible();
+  await expect(page.getByTestId('map-section-note')).toContainText(/Section 2\.\d\d km long; \d wells? within 500 m posted/);
+  await expect(page.getByTestId('map-section-note')).toContainText('Vertical exaggeration about');
+  // the chart draws lines (not blank) and names KETA-1 and KETA-3
+  expect(await page.getByTestId('map-section-chart').locator('path.recharts-curve').count()).toBeGreaterThan(0);
+  await expect(page.getByTestId('map-section-chart')).toContainText('KETA-1');
+  await expect(page.getByTestId('map-section-chart')).toContainText('KETA-3');
+  expect(errs).toEqual([]);
+});

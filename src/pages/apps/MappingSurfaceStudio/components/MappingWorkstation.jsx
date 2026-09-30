@@ -51,6 +51,8 @@ import { runArithmetic, ARITH_OPS } from '../services/arithmetic';
 import { quickGrv, describeGrv, interpretContact, nodeAt } from '../services/quickGrv';
 import { contactVolumes, describeContactVolumes } from '../services/contactVolumes';
 import ClosureCurveChart from './ClosureCurveChart';
+import SectionChart from './SectionChart';
+import { sectionProfile } from '../services/sectionLine';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -182,6 +184,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
   const [arith, setArith] = useState({ op: 'thickness', k: '' });
   const [grvContact, setGrvContact] = useState('');
   const [grvGoc, setGrvGoc] = useState(''); // MAP-U2-005: optional gas-oil contact
+  const [section, setSection] = useState(null); // MAP-U2-013: {line, profile}
   const [grvResult, setGrvResult] = useState(null);
   const [grvData, setGrvData] = useState(null);       // T1: the closure result behind the read-out
   // T1 (MAP-T1-005): a delete asks first, then waits UNDO_MS before it
@@ -944,6 +947,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
   const startDraw = (mode) => {
     setDrawMode(mode); setPending([]); setGuideAt(null); setPolyName(''); setContourDrag(null);
     setStatus(mode === 'guide' ? 'Click the map where the guide point goes, then type its value.'
+      : mode === 'section' ? 'Click points on the map along the section line (two or more), then Show section.'
       : mode === 'contour' ? 'Press on a contour line, drag it to where it belongs and release. The moved line becomes guide points and the surface re-grids through them.'
         : `Click the map to place ${mode === 'fault' ? 'fault-block' : mode === 'facies' ? 'facies' : mode === 'paleo' ? 'paleogeography' : 'boundary'} polygon vertices (3 or more), then name it${mode === 'facies' ? ' (a lithology name colours it)' : mode === 'paleo' ? ' (an environment name colours it)' : ''} and Save.`);
   };
@@ -1005,7 +1009,11 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       setStatus(`Showing ${preview.name}.`);
     }
   };
-  const hullLine = hullOverlay && hullOverlay.length > 2 ? [{ points: [...hullOverlay, hullOverlay[0]].flatMap((q) => [q.x, q.y]), color: 'rgba(148, 163, 184, 0.9)', width: 1.2, dash: [6, 4] }] : [];
+  const hullLine = [
+    ...(hullOverlay && hullOverlay.length > 2 ? [{ points: [...hullOverlay, hullOverlay[0]].flatMap((q) => [q.x, q.y]), color: 'rgba(148, 163, 184, 0.9)', width: 1.2, dash: [6, 4] }] : []),
+    // MAP-U2-013: the section line stays on the map while its chart is shown
+    ...(section ? [{ points: section.line.flat(), color: '#f97316', width: 2 }] : []),
+  ];
   const editOverlays = contourDrag ? [...hullLine,
     { points: contourDrag.path, color: 'rgba(244, 114, 182, 0.5)', width: 1.5, dash: [4, 3] },
     { points: translatePath(contourDrag.path, contourDrag.to.x - contourDrag.from.x, contourDrag.to.y - contourDrag.from.y), color: '#f472b6', width: 2.5 },
@@ -1020,6 +1028,34 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       return;
     }
     if (drawMode) setPending((p) => [...p, [x, y]]);
+  };
+  // MAP-U2-013: sample the depth surfaces along the drawn line
+  const runSection = async () => {
+    try {
+      if (pending.length < 2) throw new Error('Click two or more points on the map to draw the section line.');
+      const line = pending.map(([x, y]) => [x, y]);
+      const xyUnit = xyUnitOf(displaySurface);
+      const xyToM = metresPerXy(xyUnit);
+      const layers = [];
+      if (displayGrid && displaySurface?.z_domain === 'depth' && displaySurface.kind !== 'isochore' && displaySurface.kind !== 'attribute') {
+        layers.push({ name: displaySurface.name, spec: specOfSurface(displaySurface), grid: displayGrid });
+      }
+      const others = surfaces.filter((x) => x.id !== displaySurface?.id && x.z_domain === 'depth' && x.kind === 'structure'
+        && (x.crs || null) === (displaySurface?.crs || null)).slice(0, 5);
+      const notes = [];
+      for (const row of others) {
+        try {
+          const r = await loadSurfaceM(backend, row);
+          if (r.domain === 'elevation') layers.push({ name: row.name, spec: r.spec, grid: r.grid });
+        } catch (e) { notes.push(`${row.name}: ${e.message}`); }
+      }
+      if (!layers.length) throw new Error('No depth structure surface to show: select or grid one first.');
+      const profile = sectionProfile({ line, surfaces: layers, xyToM, wells: (displayWells || []).map((w) => ({ name: w.name, x: w.surface_x, y: w.surface_y })) });
+      setSection({ line, profile });
+      setDrawMode(null);
+      setPending([]);
+      setStatus(`Section of ${profile.series.length} surface${profile.series.length === 1 ? '' : 's'} along ${(profile.lengthM / 1000).toFixed(2)} km.${notes.length ? ` Left out: ${notes.join('; ')}.` : ''}`);
+    } catch (e) { setStatus(e.message); }
   };
   const savePolygon = async () => {
     try {
@@ -1400,7 +1436,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
                   <Pentagon className="w-3.5 h-3.5 inline mr-1" />Paleogeography
                 </button>
               </div>
-            ) : drawMode !== 'guide' ? (
+            ) : drawMode !== 'guide' && drawMode !== 'section' ? (
               <div className="space-y-1 rounded border border-pl-border p-1.5" data-testid="map-draw-form">
                 <div className="text-pl-text"><span data-testid="map-draw-count">{pending.length}</span> vertices on the map ({drawMode === 'fault' ? 'fault block' : drawMode === 'facies' ? 'facies' : drawMode === 'paleo' ? 'paleogeography' : 'boundary'})</div>
                 <input className={selCls} data-testid="map-polygon-name" placeholder="Polygon name" value={polyName} onChange={(e) => setPolyName(e.target.value)} />
@@ -1511,6 +1547,31 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
               {arith.op === 'thickness' ? 'Compute isochore' : 'Compute'}
             </button>
             <p className="text-[10px] text-pl-muted">Two-surface operations resample B onto A's frame; the isochore subtracts elevations, so the thickness is positive where the base is deeper. Publish to save.</p>
+
+            <div className="pt-2 border-t border-pl-border text-[10px] uppercase tracking-wider text-pl-muted flex items-center gap-1"><Spline className="w-3 h-3" /> Section line</div>
+            {drawMode === 'section' ? (
+              <div className="space-y-1 rounded border border-pl-border p-1.5" data-testid="map-section-form">
+                <div className="text-pl-text"><span data-testid="map-section-count">{pending.length}</span> points on the map</div>
+                <div className="flex gap-1">
+                  <button type="button" data-testid="map-section-run" disabled={pending.length < 2}
+                    className="flex-1 px-2 py-1 rounded border border-pl-border text-pl-primary-text hover:bg-pl-sunken disabled:opacity-40" onClick={runSection}>Show section</button>
+                  <button type="button" data-testid="map-section-cancel" className="px-2 py-1 rounded border border-pl-border text-pl-text" onClick={cancelDraw}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-1">
+                <button type="button" data-testid="map-section-draw" disabled={!displayGrid || !!drawMode}
+                  title="Click points on the map for a section line; every depth surface and the wells within 500 m are shown along it"
+                  className="flex-1 px-2 py-1 rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40" onClick={() => { setSection(null); startDraw('section'); }}>
+                  Draw a section line
+                </button>
+                {section && <button type="button" data-testid="map-section-clear" className="px-2 py-1 rounded border border-pl-border text-pl-text" onClick={() => setSection(null)}>Clear</button>}
+              </div>
+            )}
+            {section && (
+              <SectionChart profile={section.profile} unit={depthUnit} depthPositive={depthPositive}
+                toDisp={(m) => (depthPositive ? -1 : 1) * toDisplay(m, depthUnit)} />
+            )}
 
             <div className="pt-2 border-t border-pl-border text-[10px] uppercase tracking-wider text-pl-muted flex items-center gap-1"><Calculator className="w-3 h-3" /> Quick GRV</div>
             <div className="flex gap-1">

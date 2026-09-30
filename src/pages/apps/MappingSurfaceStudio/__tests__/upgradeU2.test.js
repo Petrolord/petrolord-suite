@@ -230,3 +230,35 @@ describe('MAP-U2-012: kriging beyond the wells', () => {
     expect(isNull(em.z[0])).toBe(true); // (0, 0) is more than 200 m past the hull
   });
 });
+
+describe('MAP-U2-013: surfaces and wells on a section line', () => {
+  // eslint-disable-next-line global-require
+  const { sectionProfile, projectOnLine, verticalExaggeration } = require('../services/sectionLine');
+  const specM = { x0: 0, y0: 0, dx: 100, dy: 100, nx: 51, ny: 51 };
+  const plane = (spec, s) => Float32Array.from({ length: spec.nx * spec.ny }, (_, i) => -1500 - 0.02 * (i % spec.nx) * spec.dx * s);
+  test('a planar surface samples exactly along the line; distances are metres on a feet frame too', () => {
+    const r = sectionProfile({ line: [[0, 2500], [5000, 2500]], surfaces: [{ name: 'Top', spec: specM, grid: plane(specM, 1) }], samples: 11 });
+    expect(r.lengthM).toBe(5000);
+    r.rows.forEach((row) => expect(row.s0).toBeCloseTo(-1500 - 0.02 * row.distM, 3));
+    const k = 1200 / 3937;
+    const specFt = { ...specM, dx: 100 / k, dy: 100 / k };
+    const ft = sectionProfile({ line: [[0, 2500 / k], [5000 / k, 2500 / k]], surfaces: [{ name: 'Top', spec: specFt, grid: plane(specFt, k) }], xyToM: k, samples: 11 });
+    expect(ft.lengthM).toBeCloseTo(5000, 6);
+    ft.rows.forEach((row) => expect(row.s0).toBeCloseTo(-1500 - 0.02 * row.distM, 2));
+    // negative control: the feet frame read as metres reports a 16,404 m section
+    expect(sectionProfile({ line: [[0, 2500 / k], [5000 / k, 2500 / k]], surfaces: [], samples: 2 }).lengthM).toBeGreaterThan(16000);
+  });
+  test('rotation is honoured; nulls stay gaps; wells within the buffer are posted at their distance', () => {
+    const rot = { ...specM, x0: 1000, y0: 0, rotation_deg: 90 }; // local X runs north
+    const grid = Float32Array.from({ length: 51 * 51 }, (_, i) => -2000 - (i % 51)); // falls 1 m per cell along local X
+    const r = sectionProfile({ line: [[900, 0], [900, 5000]], surfaces: [{ name: 'Rot', spec: rot, grid }], samples: 6, wells: [{ name: 'W1', x: 1100, y: 3000 }, { name: 'FAR', x: 5000, y: 3000 }], bufferM: 300 });
+    expect(r.rows[5].s0).toBeCloseTo(-2050, 3);
+    expect(r.wells).toEqual([{ name: 'W1', alongM: 3000, offsetM: 200 }]);
+    const gap = sectionProfile({ line: [[-500, 100], [100, 100]], surfaces: [{ name: 'Top', spec: specM, grid: plane(specM, 1) }], samples: 7 });
+    expect(gap.rows[0].s0).toBeNull();
+    expect(projectOnLine([[0, 0], [10, 0]], 5, 3)).toEqual({ along: 5, offset: 3 });
+    expect(verticalExaggeration({ lengthM: 5000, zRangeM: 100, widthPx: 500, heightPx: 200 })).toBe(20);
+    expect(() => sectionProfile({ line: [[0, 0]], surfaces: [] })).toThrow(/two or more points/);
+    expect(() => sectionProfile({ line: [[0, 0], [0, 0]], surfaces: [] })).toThrow(/no length/);
+  });
+});
