@@ -55,7 +55,7 @@ const MapViewport = forwardRef(function MapViewport({
   spec, grid, wells = [], polygons = [], pendingVertices = [], drawing = false, onMapClick,
   cultureLayers = [], markers = [], contours = true, contourStep = null, contourLabels = true,
   colormap = 'structure', reverse = false, showNames = true, posted = null,
-  showLegend = true, showScaleBar = true, showNorth = true, showAxes = false,
+  showLegend = true, showScaleBar = true, showNorth = true, showAxes = false, xyToM = 1,
   height = 'fill', testIdPrefix = 'map', zFormat = (v) => v.toFixed(1), zUnit = '',
   contourFormat = null, label = '', hint = '', onCameraChange,
   // MS5 contour editing: a consumer may capture a drag. onDragStart(world)
@@ -143,7 +143,8 @@ const MapViewport = forwardRef(function MapViewport({
       });
     }
     if (showLegend) paintWellLegend(ctx, { wells, x: 8, bottom: h - 34, ink: th.ink, bg: themeName === 'print' ? 'rgba(255, 255, 255, 0.85)' : 'rgba(2, 6, 23, 0.6)' });
-    if (showScaleBar) paintScaleBar(ctx, { x: 12, y: h - 12, transform: t, maxPx: Math.min(180, w / 3), ink: th.ink });
+    // a geographic frame has no metre scale: no bar rather than a wrong one
+    if (showScaleBar && xyToM > 0) paintScaleBar(ctx, { x: 12, y: h - 12, transform: t, maxPx: Math.min(180, w / 3), ink: th.ink, xyToM });
     if (showNorth) paintNorthArrow(ctx, { x: 26, y: 30, ink: th.ink });
     if (label) {
       ctx.save();
@@ -154,7 +155,7 @@ const MapViewport = forwardRef(function MapViewport({
       ctx.fillText(label, showNorth ? 48 : 8, 6);
       ctx.restore();
     }
-  }, [spec, grid, range, bitmap, contourData, contourLabels, zFormat, contourFormat, cultureLayers, polygons, pendingVertices, wells, showNames, posted, markers, showAxes, showLegend, lut, zUnit, showScaleBar, showNorth, label, overlays, colorbarLevels]);
+  }, [spec, grid, range, bitmap, contourData, contourLabels, zFormat, contourFormat, cultureLayers, polygons, pendingVertices, wells, showNames, posted, markers, showAxes, showLegend, lut, zUnit, showScaleBar, showNorth, label, overlays, colorbarLevels, xyToM]);
 
   // paint the live canvas
   useLayoutEffect(() => {

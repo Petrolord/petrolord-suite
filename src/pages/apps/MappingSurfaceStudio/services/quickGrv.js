@@ -48,15 +48,21 @@ export function nodeAt(spec, x, y) {
 }
 
 /**
- * @param {{spec, gridM:Float32Array, contactM:number, seedIndex?:number, levels?:number}} p
+ * @param {{spec, gridM:Float32Array, contactM:number, seedIndex?:number, levels?:number, xyToM?:number}} p
  *   contact as elevation in metres (negative below datum); seedIndex picks
- *   the closure containing that node (default: the highest closure)
+ *   the closure containing that node (default: the highest closure);
+ *   xyToM is metres per map unit of the frame (MAP-U1-001: a US-feet
+ *   state-plane frame is 0.3048..., without it the area is 10.76x)
  * @returns {{kind:'none'|'closure', crestZ:number, grvAcreFt:number, grvM3:number,
  *   areaM2:number, areaAcres:number, areaKm2:number, nodesAbove:number,
  *   open?:boolean, closure?:object, spill?:object, curve?:Array, others?:Array}}
  */
-export function quickGrv({ spec, gridM, contactM, seedIndex = null, levels = 30 }) {
+export function quickGrv({ spec, gridM, contactM, seedIndex = null, levels = 30, xyToM = 1 }) {
   if (!Number.isFinite(contactM)) throw new Error('Type the contact elevation.');
+  if (!(xyToM > 0)) throw new Error('This surface is in a geographic CRS (degrees), so it has no area in square metres. Reproject it to a projected CRS to measure a GRV.');
+  // the closure engine measures |dx dy| in map units squared; scale to m2
+  const a = xyToM * xyToM;
+  const scaled = (k) => (a === 1 ? k : { ...k, areaM2: k.areaM2 * a, grvM3: k.grvM3 * a });
   const st = surfaceStats(gridM);
   const empty = { contactM, crestZ: st.max, grvAcreFt: 0, grvM3: 0, areaM2: 0, areaAcres: 0, areaKm2: 0, nodesAbove: 0 };
   const { closures, label } = closuresAtContact(gridM, spec, { contact: contactM });
@@ -70,7 +76,8 @@ export function quickGrv({ spec, gridM, contactM, seedIndex = null, levels = 30 
   }
   const relief = Number.isFinite(st.max - st.min) ? Math.max(0.5, 0.01 * (st.max - st.min)) : 0.5;
   const spill = spillAnalysis(gridM, spec, { seed: target.crest.index, minRelief: relief });
-  const curve = closureCurve(spill, spec, { levels });
+  const curve = closureCurve(spill, spec, { levels }).map(scaled);
+  target = scaled(target);
   return {
     kind: 'closure',
     contactM,
@@ -88,7 +95,7 @@ export function quickGrv({ spec, gridM, contactM, seedIndex = null, levels = 30 
       merges: spill.merges.map((m) => ({ saddleZ: m.saddleZ, x: m.saddle.x, y: m.saddle.y, culminationZ: m.culminationZ })),
     },
     curve,
-    others: closures.filter((k) => k !== target).map((k) => ({ crestZ: k.crest.z, x: k.crest.x, y: k.crest.y, grvM3: k.grvM3, open: k.open })),
+    others: closures.filter((k) => k.id !== target.id).map(scaled).map((k) => ({ crestZ: k.crest.z, x: k.crest.x, y: k.crest.y, grvM3: k.grvM3, open: k.open })),
   };
 }
 
