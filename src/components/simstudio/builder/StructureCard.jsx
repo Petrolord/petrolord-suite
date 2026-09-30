@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
 import { sampleSurfaceToTops, topsPreviewCells } from '@/utils/simStructureImport';
+import { surfaceDomainOf } from '@/lib/readDepthSurface';
 import { depthColor } from '@/utils/simGridViz';
 
 const StructurePreview = ({ tops, nx, ny }) => {
@@ -40,7 +41,7 @@ const StructureCard = ({ form, set, addNotification }) => {
   useEffect(() => {
     if (structure.mode !== 'surface' || surfaces !== null) return;
     listSurfaces()
-      .then((rows) => setSurfaces(rows.filter((s) => (s.z_domain || 'depth') === 'depth')))
+      .then((rows) => setSurfaces(rows.filter((s) => surfaceDomainOf(s) === 'elevation')))
       .catch((e) => {
         setSurfaces([]);
         addNotification(e.message, 'error');

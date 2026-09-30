@@ -18,6 +18,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { listWellsWithTops } from '@/lib/wellsRegistry';
 import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
 import { computeWellPath, positionAtMd } from '../engine/surveyMath';
+import { readDepthSurface, surfaceDomainOf } from '@/lib/readDepthSurface';
 
 const num = (v) => {
   const n = parseFloat(v);
@@ -45,6 +46,28 @@ export function sampleGrid(surface, grid, x, y) {
     + z10 * (1 - tx) * ty + z11 * tx * ty;
 }
 
+/**
+ * A target depth from a registry surface (MAP-U1-031, Earth Modeling
+ * upgrade U1, 2026-09-30). The row is read through the shared door, so
+ * an elevation in feet becomes TVDSS in metres (the old Math.abs(z) kept
+ * feet as metres), a rotated lattice is sampled where the point really
+ * is, and time, attribute (MD/TVD maps) and isochore rows are refused with
+ * the reason instead of being read as TVDSS. A point above the datum
+ * gives a negative TVDSS, as it should.
+ * @param {object} surface geo_surfaces row
+ * @param {ArrayLike<number>} grid its stored f32 grid
+ * @param {number} x @param {number} y location in the surface's own map units
+ * @returns {{tvdss_m:number, sampled_z:number, crs:?string, notes:string[]}}
+ */
+export function targetDepthFromSurface(surface, grid, x, y) {
+  const r = readDepthSurface(surface, grid, { accept: ['elevation'], as: 'depth' });
+  if (!r.ok) throw new Error(r.reason);
+  const d = r.sampleAt(x, y);
+  if (d === null) throw new Error('The location is outside the surface grid (or on a null node).');
+  const raw = sampleGrid(surface, grid, x, y);
+  return { tvdss_m: d, sampled_z: Number.isFinite(raw) ? raw : null, crs: r.crs, xyUnit: r.xyUnit, notes: r.notes };
+}
+
 const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -63,7 +86,7 @@ const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
     (mode === 'tops' ? listWellsWithTops() : listSurfaces())
       .then((rows) => (mode === 'tops'
         ? setWells(rows.filter((w) => w.tops?.length))
-        : setSurfaces(rows.filter((s) => (s.z_domain || s.zDomain || 'depth') !== 'time'))))
+        : setSurfaces(rows.filter((s) => surfaceDomainOf(s) === 'elevation'))))
       .catch((e) => toast({ variant: 'destructive', title: 'Registry load failed', description: e.message }))
       .finally(() => setLoading(false));
   }, [open, mode, toast]);
@@ -101,18 +124,19 @@ const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
         const y = num(sy);
         if (x == null || y == null) throw new Error('Enter the target E/N location to sample.');
         const grid = await downloadSurfaceGrid(surface);
-        const z = sampleGrid(surface, grid, x, y);
-        if (z == null) throw new Error('The location is outside the surface grid (or on a null node).');
+        const t = targetDepthFromSurface(surface, grid, x, y);
         onPick({
           name: name || `${surface.name} pick`,
           kind: 'point',
           category: 'geological',
           center_x: x,
           center_y: y,
-          tvdss_m: Math.abs(z),
+          tvdss_m: t.tvdss_m,
           provenance: {
             source: 'geo_surface', surface_id: surface.id, surface_name: surface.name,
-            sampled_z: z, note: 'tvdss stored positive down; surface z sign normalized with abs',
+            sampled_z: t.sampled_z, z_unit: surface.z_unit || null, crs: t.crs, xy_unit: t.xyUnit || null,
+            note: 'tvdss in metres positive down, read from the registry elevation through readDepthSurface',
+            ...(t.notes.length ? { door_notes: t.notes } : {}),
           },
         });
       }
@@ -171,8 +195,8 @@ const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><Label className="text-xs">Easting (m)</Label><Input type="number" value={sx} onChange={(e) => setSx(e.target.value)} className="h-9" /></div>
-                  <div><Label className="text-xs">Northing (m)</Label><Input type="number" value={sy} onChange={(e) => setSy(e.target.value)} className="h-9" /></div>
+                  <div><Label className="text-xs">Easting ({surface?.xy_unit || 'm'})</Label><Input type="number" value={sx} onChange={(e) => setSx(e.target.value)} className="h-9" /></div>
+                  <div><Label className="text-xs">Northing ({surface?.xy_unit || 'm'})</Label><Input type="number" value={sy} onChange={(e) => setSy(e.target.value)} className="h-9" /></div>
                 </div>
               </>
             )}

@@ -5,12 +5,19 @@
 // Conventions: geo_surfaces grids are node-registered row-major nx*ny
 // (x fastest), origin at (origin_x, origin_y), y increasing with row —
 // the same +x/+y frame the sim grid uses, so I tracks x and J tracks y.
-// Structure maps carry z in metres (z_unit 'm' unless the row says 'ft'),
-// positive-down depth; the deck wants feet.
+// The deck wants feet, positive down.
+//
+// MAP-U1-032 (Earth Modeling upgrade U1, 2026-09-30): every row is read
+// through the shared door (src/lib/readDepthSurface.js). Registry depth
+// structures are ELEVATION (negative below datum, since Mapping MS0), so
+// the old "positive-down depth" reading threw "looks like elevation" on
+// every real row; and an XY unit of ftUS was taken as metres. The door
+// returns positive-down metres and the frame in metres, and refuses time,
+// attribute and isochore rows with the reason.
+
+import { readDepthSurface } from '@/lib/readDepthSurface';
 
 const FT_PER_M = 3.280839895013123;
-
-const toFt = (v, unit) => ((unit || 'm') === 'ft' ? v : v * FT_PER_M);
 
 /** Bilinear sample of a node-registered grid at fractional node coords
  *  (fx, fy in node units). NaN nodes poison their cell; the caller
@@ -47,21 +54,23 @@ export function sampleSurfaceToTops(surface, values, simGrid) {
     throw new Error('Surface grid is missing or does not match its nx*ny.');
   }
   if (!(nx >= 1 && ny >= 1)) throw new Error('Sim grid needs positive NX and NY.');
-  if ((surface.z_domain || 'depth') !== 'depth') {
-    throw new Error(`Surface '${surface.name || surface.id}' is in the ${surface.z_domain} domain — a depth-converted structure surface is required.`);
+  const door = readDepthSurface({ origin_x: 0, origin_y: 0, ...surface }, values, { accept: ['elevation'], as: 'depth', xy: 'm' });
+  if (!door.ok) {
+    if (door.code === 'empty') throw new Error('The surface has no valid values over the grid.');
+    throw new Error(door.reason);
   }
+  for (const n of door.notes) warnings.push(n);
+  if (door.spec.rotation_deg) warnings.push(`The surface grid is rotated ${door.spec.rotation_deg} degrees; the sim grid follows the surface lattice, so I and J run along its rotated axes.`);
 
-  // Mask the registry's null sentinel (default 1e30) as holes.
-  const nullValue = Number(surface.null_value ?? 1e30);
+  // positive-down metres, holes as NaN
   const masked = new Float64Array(values.length);
   for (let idx = 0; idx < values.length; idx += 1) {
-    const v = Number(values[idx]);
-    masked[idx] = (!Number.isFinite(v) || Math.abs(v) >= 1e29
-      || Math.abs(v - nullValue) <= Math.abs(nullValue) * 1e-6) ? NaN : v;
+    const v = door.grid[idx];
+    masked[idx] = Math.abs(v) >= 1e29 ? NaN : v;
   }
 
-  const widthFt = toFt((sNx - 1) * Number(surface.dx), surface.xy_unit);
-  const heightFt = toFt((sNy - 1) * Number(surface.dy), surface.xy_unit);
+  const widthFt = (sNx - 1) * Math.abs(door.spec.dx) * FT_PER_M;
+  const heightFt = (sNy - 1) * Math.abs(door.spec.dy) * FT_PER_M;
   const dxFt = widthFt / nx;
   const dyFt = heightFt / ny;
 
@@ -76,7 +85,7 @@ export function sampleSurfaceToTops(surface, values, simGrid) {
       const fx = ((i + 0.5) / nx) * (sNx - 1);
       const fy = ((j + 0.5) / ny) * (sNy - 1);
       const z = bilinear(masked, sNx, sNy, fx, fy);
-      tops[j * nx + i] = Number.isFinite(z) ? toFt(z, surface.z_unit) : NaN;
+      tops[j * nx + i] = Number.isFinite(z) ? z * FT_PER_M : NaN;
     }
   }
   // Patch NaN cells (holes in the mapped surface) with the mean of the
@@ -101,7 +110,7 @@ export function sampleSurfaceToTops(surface, values, simGrid) {
     warnings.push(`${nanCells} of ${tops.length} cells fell in surface holes and were filled with the mean depth.`);
   }
   if (min <= 0) {
-    throw new Error('Sampled tops include non-positive depths — the surface looks like elevation, not depth.');
+    throw new Error('Sampled tops include points at or above the datum (non-positive depth). The deck needs a structure below the datum; check the surface sign in Mapping & Surface Studio.');
   }
 
   return {
