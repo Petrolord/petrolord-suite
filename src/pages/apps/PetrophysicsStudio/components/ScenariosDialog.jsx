@@ -16,8 +16,9 @@ import {
   CASES, CASE_LABEL, defaultScenarios, runScenarios, scenarioSummaries, scenariosCsv, caseParams,
 } from '../services/scenarios';
 import ParamGrid from './ParamGrid';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
-const fmt = (v, d = 3) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toFixed(d));
+const fmt = (v, d = 3) => (v === null || v === undefined || Number.isNaN(v) ? EMPTY_VALUE : Number(v).toFixed(d));
 const COLS = [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }];
 
 export default function ScenariosDialog({
@@ -101,11 +102,11 @@ export default function ScenariosDialog({
                     <tr key={`${z.id}-${c}`} className={i === 0 ? 'border-t border-pl-border' : ''} data-testid={`petro-sc-row-${z.name}-${c}`}>
                       <td className="px-2 py-0.5 text-pl-text">{i === 0 ? z.name : ''}</td>
                       <td className={`px-2 py-0.5 ${c === 'low' ? 'text-pl-danger-text' : c === 'high' ? 'text-pl-success-text' : 'text-pl-text'}`}>{CASE_LABEL[c]}</td>
-                      <td className="px-2 py-0.5" data-testid={`petro-sc-net-${z.name}-${c}`}>{s ? fmt(s.net_m * F, 1) : '—'}</td>
-                      <td className="px-2 py-0.5">{s ? fmt(s.ntg) : '—'}</td>
-                      <td className="px-2 py-0.5">{s ? fmt(s.phi_avg) : '—'}</td>
-                      <td className="px-2 py-0.5">{s ? fmt(s.sw_avg) : '—'}</td>
-                      <td className="px-2 py-0.5">{s ? fmt(s.k_gm_md, 1) : '—'}</td>
+                      <td className="px-2 py-0.5" data-testid={`petro-sc-net-${z.name}-${c}`}>{s ? fmt(s.net_m * F, 1) : EMPTY_VALUE}</td>
+                      <td className="px-2 py-0.5">{s ? fmt(s.ntg) : EMPTY_VALUE}</td>
+                      <td className="px-2 py-0.5">{s ? fmt(s.phi_avg) : EMPTY_VALUE}</td>
+                      <td className="px-2 py-0.5">{s ? fmt(s.sw_avg) : EMPTY_VALUE}</td>
+                      <td className="px-2 py-0.5">{s ? fmt(s.k_gm_md, 1) : EMPTY_VALUE}</td>
                     </tr>
                   );
                 }))}

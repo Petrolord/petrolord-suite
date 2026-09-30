@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSimStudio } from '@/contexts/SimStudioContext';
 import { TEMPLATES } from '@/lib/simService';
 import { supabase } from '@/lib/customSupabaseClient';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const DeckPanel = () => {
   const { activeCase, deckText, deckLoading, busy, uploadDeck, applyTemplate, addNotification } = useSimStudio();
@@ -112,7 +113,7 @@ const DeckPanel = () => {
             </div>
           )}
           <p className="text-[11px] text-pl-muted mt-2">
-            Main deck: <span className="font-mono">{activeCase.deck_path ? activeCase.deck_path.split('/').pop() : '—'}</span>
+            Main deck: <span className="font-mono">{activeCase.deck_path ? activeCase.deck_path.split('/').pop() : EMPTY_VALUE}</span>
             {' '}· Limits: 25 MB bundle, 200k cells, 5,000 report steps, 30 min wall clock. PYACTION is not allowed.
           </p>
         </CardContent>

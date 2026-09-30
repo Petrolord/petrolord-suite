@@ -120,7 +120,10 @@ export default function MappingHelpGuide() {
           The depth reference select offers TVDSS (default, elevation below datum), TVD (below KB, also stored as
           elevation) and MD (the raw measured depth, positive, for legacy comparisons only). An isochore is the top
           elevation minus the base elevation, so it is positive where the base is deeper. Attribute maps (zone
-          properties such as phi_avg or ntg) carry raw values with no unit.
+          properties such as phi_avg or ntg) carry raw values with no unit, except the thicknesses Petrophysics Studio
+          publishes per zone (net pay, net reservoir, gross and HCPV, the hydrocarbon pore thickness, each along hole
+          and as true vertical thickness), which keep metres. An HCPV map times area is the hydrocarbon pore volume.
+          The zone property list names each one and leaves out bookkeeping numbers such as the pipeline version.
         </Para>
       </GuideSection>
 

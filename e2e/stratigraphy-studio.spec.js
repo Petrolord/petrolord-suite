@@ -151,8 +151,9 @@ test('ST1: a LAS 3.0 file with core and lithology blocks imports its intervals i
 
 test('ST2: the shared section opens in the studio; stretch datum, implied tracts, ghost curve, record tracts', async ({ page }) => {
   await openStudio(page);
-  // the sample's Top Dome is a plain formation top between the BSFR and the MFS, so no tract is implied yet;
-  // type it MFS on KETA-1 and the BSFR above it bounds a highstand
+  // STRAT-U1-001: the sample's Top Dome is a plain formation top between the BSFR and the MFS; tracts pair
+  // sequence surfaces across it, so KETA-1 and KETA-2 each carry an HST from the start. Typing Top Dome MFS on
+  // KETA-1 moves its HST up to Top Dome (MFS over MFS bounds none)
   await page.getByTestId('strat-well-KETA-1').click();
   await page.getByTestId('strat-top-type-Top Dome').selectOption('MFS');
   await page.getByTestId('strat-tops-save').click();
@@ -161,7 +162,7 @@ test('ST2: the shared section opens in the studio; stretch datum, implied tracts
   const sec = page.getByTestId('corr-section');
   await expect(sec).toBeVisible();
   await expect(page.getByTestId('strat-section-summary')).toContainText('3 wells');
-  await expect(sec).toHaveAttribute('data-band-count', '1');
+  await expect(sec).toHaveAttribute('data-band-count', '2');
   // stratigraphic flattening between two surfaces
   await page.getByTestId('strat-datum-mode').selectOption('stretch');
   await page.getByTestId('strat-datum-upper').selectOption('Top Dome');
@@ -175,7 +176,7 @@ test('ST2: the shared section opens in the studio; stretch datum, implied tracts
   await expect(page.getByTestId('strat-ghost-shift-value')).toHaveText('+40 m');
   // record the implied tracts as shared intervals on the own wells
   await page.getByTestId('strat-record-tracts').click();
-  await expect(page.getByTestId('strat-status')).toHaveText('Recorded 1 systems tract on 2 wells.');
+  await expect(page.getByTestId('strat-status')).toHaveText('Recorded 2 systems tracts on 2 wells.');
   await page.getByTestId('strat-save-view').click();
   await expect(page.getByTestId('strat-status')).toHaveText('Stratigraphy view saved.');
   // the recorded tracts are visible in the Intervals view of KETA-1
@@ -198,9 +199,10 @@ test('ST2: typing SU, MRS and MFS on a well gives LST, TST and HST fills and a W
   await expect(page.getByTestId('strat-top-tract-Top Marker')).toHaveText('HST');
   await expect(page.getByTestId('strat-top-tract-Top Dome')).toHaveText('TST');
   await expect(page.getByTestId('strat-top-tract-Mid Shale')).toHaveText('LST');
-  // the section fills the three tracts on KETA-1 (KETA-2's Top Dome is still untyped, so nothing there)
+  // the section fills the three tracts on KETA-1 and KETA-2's HST (its BSFR over its MFS, across the
+  // untyped Top Dome: STRAT-U1-001)
   await page.getByTestId('strat-view-section').click();
-  await expect(page.getByTestId('corr-section')).toHaveAttribute('data-band-count', '3');
+  await expect(page.getByTestId('corr-section')).toHaveAttribute('data-band-count', '4');
   // Wheeler: KETA-1 now has HST (4 to 5), TST (5 to 8), LST (8 to 10), hiatus (10 to 14)
   await page.getByTestId('strat-view-wheeler').click();
   const chart = page.getByTestId('strat-wheeler-chart');

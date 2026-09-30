@@ -178,3 +178,63 @@ toggle switches to dark and back, stored per user. The route prefix
 - Tests: new `__tests__/WellCorrelation.theme.test.jsx` (shared checks,
   an empty and a three-well section, dark, the help guide). No section,
   tops or export change.
+
+## 2026-09-29: comprehensive upgrade, Step 1 (practitioner lens)
+
+App #3 of the Geoscience upgrade programme; working doc
+`docs/upgrade/WellCorrelation-UPGRADE.md` (findings WC-U1-001 to 026,
+evidence kit under `e2e/fixtures/wc/`, Step 2 backlog). Branch `feat/wc-u1`.
+Fixed, each with a test that fails on the previous main:
+
+- Propagate with a blank depth wrote the top at MD 0 on every owned well
+  (S2); wells below TD, shared or already carrying the top are now named.
+- Spacing by distance converts X/Y by each well's CRS unit and refuses
+  mixed CRSs (US feet read as metres, 13,500 km across CRSs); columns stay
+  on the canvas. Equal columns now have a gap and correlation lines run
+  edge to edge in it (shared section kit, Stratigraphy benefits).
+- Curves stored bottom-up by G1-era imports read top-down; well headers
+  say "no KB: TVDSS = TVD" and "no survey: vertical".
+- A saved section from a newer build no longer empties the wells list and
+  is never overwritten; wells gone from the registry are left out and
+  counted; "unsaved changes" until Save; ghost curve and report header saved.
+- Spelling variants of a top are flagged and can be merged by rename; the
+  datum depth is typed (NumText) and starts at the top's own depth.
+- PNG header: field, analyst, wells, datum, reference and unit, 1:N scale,
+  spacing, template, date and build.
+- Tops door (WDM tops sheet): TVDSS/TVD/elevation/time depth columns refused,
+  Petra FMNAME read. Help guide corrected.
+
+Open for Step 2: fixed-width columns with horizontal scroll for 30+ wells,
+undo, tops import/export here, TWT and horizons in the section, named
+sections, pick attributes.
+
+## 2026-09-29: comprehensive upgrade, Step 2 (batches A, B, C)
+
+Batch decision 2026-09-29 (programme lead, recorded in
+`docs/upgrade/WellCorrelation-UPGRADE.md`). Branch `feat/wc-u2`, one PR.
+Built, each with a test that fails on the previous main:
+
+- A: fixed-width columns with a horizontal scroll (auto at 140 px once
+  fitted columns drop under 90 px; only visible columns painted); named
+  sections (many owner-only rows, picker in the ribbon, unsaved changes
+  guarded; no RLS or schema change); undo for tops edits (Ctrl+Z; edits
+  made since in another app are kept); PDF plotted to a true 1:N vertical
+  scale (read back with pdftotext); tops file import (MD, TVD, TVDSS, Z
+  through survey and KB, the WDM door rules) and CSV export with TWT;
+  propagate at the displayed depth; well-list filter; the 72 stale
+  `WELL_CORRELATION_TOOL_*` docs deleted.
+- B: TWT reference from checkshots and Seismolord horizons (read only from
+  `geo_surfaces`, flatten on a horizon); Petrophysics pay and zone strips
+  and the Stratigraphy unit strip; section line and corridor on the map
+  (deviated wells by their bottom hole, spacing along the line); thickness
+  map launcher to Mapping; pick interpreter, confidence and date on the
+  existing row (no schema change; closes WC-U1-024); suggested picks
+  (suggestions only, the interpreter accepts or rejects each).
+- C: multi-log ghost with stretch and squeeze.
+
+Deferred by the decision: fault cuts (U2-011) and a seismic backdrop
+(U2-017) with Seismolord (app #5); SRD datum (U2-018) after the WDM datum
+migration; `sectionFrame` into petrolord-engines (U2-016).
+
+Shared kit changes (columns and scroll, TWT, strips, ghost, print render)
+reach Stratigraphy Studio; its suites were run on the branch.

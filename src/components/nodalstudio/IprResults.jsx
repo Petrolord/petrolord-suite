@@ -5,6 +5,7 @@ import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABE
 import { useNodalStudio } from '@/contexts/NodalAnalysisStudioContext';
 import { ChartCard, Kpi, WarningBanner, LINE, fmtU, fmt } from './primitives';
 import { unitLabel, fromOilfield } from '@/utils/nodal/units';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const axisProps = {
   stroke: CHART_COLORS.axisLine,
@@ -56,7 +57,7 @@ const IprResults = () => {
           <Kpi title="Productivity index J" value={fmtU('productivityIndex', result.pi, unitSystem, fmt.f3)} unit={unitLabel('productivityIndex', unitSystem)} />
         )}
         {!isGasWell && (
-          <Kpi title="Model" value={MODEL_LABELS[result?.model] || '—'} />
+          <Kpi title="Model" value={MODEL_LABELS[result?.model] || EMPTY_VALUE} />
         )}
         {!isGasWell && Number.isFinite(result?.pb) && result?.pb > 0 && (
           <Kpi title="Bubble point" value={fmtU('pressure', result.pb, unitSystem, fmt.int)} unit={unitLabel('pressure', unitSystem)} />

@@ -1,0 +1,56 @@
+{
+ "_fixture": "Saved by G2.5 (2026-07-14, main e84f8a181): the single-object pre-PS3 payload. No name, no layouts, no crossplots, no zone_params, no schema_version; params hold the G2.3 keys only (no phiShale, temperature or permeability). {{KETA}} is replaced by the seeded well id at load.",
+ "id": "project-g25",
+ "user_id": "user-dev",
+ "well_ids": [],
+ "params": {
+  "grClean": 20,
+  "grClay": 120,
+  "vshMethod": "larionov-tertiary",
+  "rhoMa": 2.65,
+  "rhoFl": 1.0,
+  "dtMa": 182,
+  "dtFl": 656,
+  "sonicMethod": "wyllie",
+  "ndMethod": "avg",
+  "phiSource": "density",
+  "swMethod": "archie",
+  "a": 1,
+  "m": 2,
+  "n": 2,
+  "rw": 0.06,
+  "rsh": 2.0,
+  "cutPhi": 0.08,
+  "cutVsh": 0.5,
+  "cutSw": 0.6
+ },
+ "facies": {
+  "{{KETA}}": [
+   {
+    "id": "facies-1752500000000-0",
+    "name": "Clean sand",
+    "color": "#facc15",
+    "polygon": [
+     [
+      0.05,
+      2.05
+     ],
+     [
+      0.35,
+      2.05
+     ],
+     [
+      0.35,
+      2.4
+     ],
+     [
+      0.05,
+      2.4
+     ]
+    ]
+   }
+  ]
+ },
+ "created_at": "2026-07-14T08:00:00.000Z",
+ "updated_at": "2026-07-14T08:30:00.000Z"
+}

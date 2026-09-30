@@ -107,7 +107,7 @@ const PaymentVerification = () => {
           if (data.success) {
             setStatus('success');
             setMessage('Payment successfully verified! Your subscription is now active and modules are unlocked.');
-            toast({ title: "Payment Verified", description: "Welcome to Petrolord Suite!", className: "bg-green-600 text-white" });
+            toast({ title: "Payment Verified", description: "Welcome to Petrolord Suite!" });
             if (pollingRef.current) clearInterval(pollingRef.current);
             localStorage.removeItem('payment_verification_state'); // Clear state on success
           } else if (data.status === 'failed' || data.status === 'abandoned' || data.status === 'amount_mismatch') {

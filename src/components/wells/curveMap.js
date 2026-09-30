@@ -14,13 +14,16 @@
 // `log:<MNEMONIC>` (layout/layoutSchema.js).
 
 export const CURVE_ALIASES = {
-  DEPT: ['DEPT', 'DEPTH', 'MD', 'DEPTH_MD', 'MDEPTH'],
+  // TDEP (Schlumberger) and unit-suffixed names added 2026-09-28 (WDM-U1-003):
+  // wells imported before the index was saved as DEPT keep their file's name
+  DEPT: ['DEPT', 'DEPTH', 'MD', 'DEPTH_MD', 'MDEPTH', 'TDEP', 'TDEPTH', 'DEPTH_M', 'DEPT_M', 'MD_M', 'DEPTH_FT', 'DEPT_FT', 'MD_FT'],
   GR: ['GR', 'SGR', 'CGR', 'GRC', 'GRD', 'GRS', 'ECGR', 'HSGR', 'HCGR', 'GRR', 'GAM', 'GAMM', 'GRGC', 'GR_EDTC', 'GRTO'],
   RHOB: ['RHOB', 'DEN', 'ZDEN', 'RHOZ', 'DENS', 'ROBB', 'RHO8', 'RHOM', 'ALCDLC', 'BDCFM', 'DENB', 'DENC', 'RHOB_HR'],
-  NPHI: ['NPHI', 'TNPH', 'CNC', 'NPOR', 'NPHL', 'NPHS', 'APLC', 'HNPO', 'NEUT', 'TNPL', 'CN', 'NPRL', 'CNCF', 'NPHI_LS', 'PHIN'],
+  // NEU and RES_DEEP (Geolog / Paradigm) added 2026-09-29 (PETRO-U2-001, PETRO-U1-030)
+  NPHI: ['NPHI', 'TNPH', 'CNC', 'NPOR', 'NPHL', 'NPHS', 'APLC', 'HNPO', 'NEUT', 'TNPL', 'CN', 'NPRL', 'CNCF', 'NPHI_LS', 'PHIN', 'NEU'],
   DT: ['DT', 'DTC', 'AC', 'DTCO', 'DT24', 'DTL', 'DTLN', 'DTLF', 'DT4P', 'DTP', 'DTCM', 'SONIC'],
   RT: [
-    'RT', 'RES', 'RESD', 'RDEP', 'RD', 'ILD', 'LLD', 'RLLD', 'HLLD', 'HDRS', 'RT_HRLT', 'RT90', 'RESDEEP',
+    'RT', 'RES', 'RESD', 'RDEP', 'RD', 'ILD', 'LLD', 'RLLD', 'HLLD', 'HDRS', 'RT_HRLT', 'RT90', 'RESDEEP', 'RES_DEEP',
     'RLA5', 'RLA4', 'RLA3', 'AT90', 'AT60', 'AT30', 'AF90', 'AF60', 'AF30', 'AHT90', 'AHT60', 'AHF90',
     'A16H', 'A22H', 'A28H', 'A34H', 'A40H', 'P16H', 'P22H', 'P28H', 'P34H', 'P40H',
     'RACEHM', 'RACELM', 'RPCEHM', 'RPCELM', 'M2R9', 'M2R6', 'M2R3', 'M2RX', 'RTHM', 'RTLM', 'RXO_D', 'RLL3', 'RILD',
@@ -81,5 +84,5 @@ export function mapLogs(logs) {
  *  can still put on a track as `log:<MNEMONIC>`). */
 export function unmappedLogs(logs, mapped) {
   const bound = new Set(Object.values(mapped || {}).filter(Boolean).map((l) => l.id));
-  return (logs || []).filter((l) => !bound.has(l.id) && base(l.mnemonic) !== 'DEPT' && base(l.mnemonic) !== 'DEPTH' && base(l.mnemonic) !== 'MD');
+  return (logs || []).filter((l) => !bound.has(l.id) && !CURVE_ALIASES.DEPT.includes(base(l.mnemonic)));
 }

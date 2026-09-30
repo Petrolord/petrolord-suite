@@ -10,19 +10,20 @@ import { writeLas } from '../../WellDataManager/engine/lasWrite';
 import { makeDepthFrame, M_PER_FT } from '../../WellDataManager/engine/checkshots';
 import { PIPELINE_VERSION } from '../engine/pipeline';
 import { probabilisticCsv } from './probabilistic';
+import { derivedInputUnit } from '@/components/wells/curveUnits';
 
 // canonical registry units for the mapped inputs (SI at import) and
 // the published outputs — used when the inventory has no unit string
 const CANONICAL_UNITS = {
   DEPT: 'M', GR: 'API', RHOB: 'G/CC', NPHI: 'V/V', DT: 'US/M', RT: 'OHM.M',
-  VSH: 'V/V', PHIT: 'V/V', PHIE: 'V/V', SW: 'V/V', PAY: 'FLAG', KPERM: 'MD', BVW: 'V/V',
+  VSH: 'V/V', PHIT: 'V/V', PHIE: 'V/V', SW: 'V/V', SWT: 'V/V', PAY: 'FLAG', KPERM: 'MD', BVW: 'V/V',
 };
 // PT9: every pipeline product a well can carry, in log order; absent
 // ones (no GR, permeability off) are simply skipped
-const OUTPUT_KEYS = ['VSH', 'PHIT', 'PHIE', 'SW', 'BVW', 'KPERM', 'PAY'];
+const OUTPUT_KEYS = ['VSH', 'PHIT', 'PHIE', 'SW', 'SWT', 'BVW', 'KPERM', 'PAY'];
 const OUTPUT_DESCR = {
   VSH: 'Shale volume', PHIT: 'Total porosity (as read)', PHIE: 'Effective porosity (shale-corrected)',
-  SW: 'Water saturation', BVW: 'Bulk volume water', KPERM: 'Permeability (mD)', PAY: 'Net-pay flag (1 = pay)',
+  SW: 'Water saturation (effective system)', SWT: 'Total water saturation Swt on PHIT', BVW: 'Bulk volume water (in the system of its Sw)', KPERM: 'Permeability (mD)', PAY: 'Net-pay flag (1 = pay)',
 };
 // PT10d: the probabilistic twins ride along when a run exists (numeric
 // percentiles of the quantity, never a P-label; PAY_PROB is an outcome)
@@ -112,14 +113,23 @@ export function exportColumns(wellData, outputs) {
     if (!wellData.curves[key]) continue;
     cols.push({
       key,
-      unit: log?.unit || CANONICAL_UNITS[key] || '',
+      // the exported samples are the pipeline inputs (curveUnits.js), so
+      // NPHI, RHOB and DT carry the pipeline's unit, not the stored row's
+      unit: derivedInputUnit(key, log) || CANONICAL_UNITS[key] || '',
       descr: log?.description || '',
       data: wellData.curves[key],
     });
   }
+  // PETRO-U2-012: SW carries effective-system saturation only; where a
+  // total-porosity model ran its Swt travels as SWT (the publish rule)
+  const outs = { ...(outputs || {}) };
+  if (outs.SWT && outs.SW) {
+    const sw = Float64Array.from(outs.SW, (v, i) => (Number.isFinite(outs.SWT[i]) ? NaN : v));
+    outs.SW = sw.some(Number.isFinite) ? sw : null;
+  }
   for (const key of OUTPUT_KEYS) {
-    if (outputs?.[key]) {
-      cols.push({ key, unit: CANONICAL_UNITS[key], descr: OUTPUT_DESCR[key], data: outputs[key] });
+    if (outs[key]) {
+      cols.push({ key, unit: CANONICAL_UNITS[key], descr: OUTPUT_DESCR[key], data: outs[key] });
     }
   }
   for (const key of PROB_KEYS) {
@@ -139,7 +149,7 @@ export function exportColumns(wellData, outputs) {
 /** Curves CSV: one header row "KEY (UNIT)", NaN as empty cells. */
 export function curvesCsv(wellData, outputs, opts = null) {
   let cols = exportColumns(wellData, outputs);
-  if (!cols.length) throw new Error('Nothing to export — no curves loaded.');
+  if (!cols.length) throw new Error('Nothing to export: no curves are loaded.');
   const o = normOpts(opts);
   if (o) {
     const depthIdx = cols.findIndex((c) => c.key === 'DEPT');
@@ -157,9 +167,18 @@ export function curvesCsv(wellData, outputs, opts = null) {
 }
 
 /** Zone-summary CSV from the live ZoneManager summaries. */
+// PETRO-U1: net reservoir, true vertical thickness, hydrocarbon pore
+// thickness and the thickness-weighted Sw ride after the original columns
+// (sw_avg itself is pore-volume weighted; see services/zoneAverages.js)
+const EXTRA_ZONE_HEADER = (u) => `net_res_${u},gross_tvt_${u},net_tvt_${u},hcpv_${u},sw_avg_thickness_wtd`;
+const extraZoneCells = (s, unit) => [
+  num(conv(s.net_res_m, unit)), num(conv(s.gross_tvt_m, unit)), num(conv(s.net_tvt_m, unit)),
+  num(conv(s.hcpv_m, unit)), num(s.sw_avg_h),
+];
+
 export function zonesCsv(zones, summaries, opts = null) {
   const rows = zones.filter((z) => summaries[z.id]);
-  if (!rows.length) throw new Error('No zone summaries to export — add a zone first.');
+  if (!rows.length) throw new Error('No zone summaries to export. Add a zone first.');
   // PT10d: a probabilistic run appends its block (P90/P50/P10 outcomes,
   // parameter percentiles, the exceedance sentence) under the deterministic rows
   const probBlock = opts?.probabilistic?.zones?.length
@@ -167,7 +186,7 @@ export function zonesCsv(zones, summaries, opts = null) {
     : '';
   const o = normOpts(opts);
   if (!o) {
-    const lines = ['zone,top_m,base_m,gross_m,net_m,ntg,phi_avg,vsh_avg,sw_avg,k_gm_md'];
+    const lines = [`zone,top_m,base_m,gross_m,net_m,ntg,phi_avg,vsh_avg,sw_avg,k_gm_md,${EXTRA_ZONE_HEADER('m')}`];
     for (const z of rows) {
       const s = summaries[z.id];
       lines.push([
@@ -175,6 +194,7 @@ export function zonesCsv(zones, summaries, opts = null) {
         num(z.top_md_m), num(z.base_md_m),
         num(s.gross_m), num(s.net_m), num(s.ntg),
         num(s.phi_avg), num(s.vsh_avg), num(s.sw_avg), num(s.k_gm_md),
+        ...extraZoneCells(s, 'm'),
       ].join(','));
     }
     return `${lines.join('\n')}\n${probBlock}`;
@@ -190,13 +210,13 @@ export function zonesCsv(zones, summaries, opts = null) {
   };
   const header = ['zone'];
   for (const key of o.columns) header.push(`top_${key}_${u}`, `base_${key}_${u}`);
-  header.push(`gross_${u}`, `net_${u}`, 'ntg', 'phi_avg', 'vsh_avg', 'sw_avg', 'k_gm_md');
+  header.push(`gross_${u}`, `net_${u}`, 'ntg', 'phi_avg', 'vsh_avg', 'sw_avg', 'k_gm_md', EXTRA_ZONE_HEADER(u));
   const lines = [header.join(',')];
   for (const z of rows) {
     const s = summaries[z.id];
     const cells = [`"${String(z.name).replace(/"/g, '""')}"`];
     for (const key of o.columns) cells.push(num(depthOf(z.top_md_m, key)), num(depthOf(z.base_md_m, key)));
-    cells.push(num(conv(s.gross_m, o.depthUnit)), num(conv(s.net_m, o.depthUnit)), num(s.ntg), num(s.phi_avg), num(s.vsh_avg), num(s.sw_avg), num(s.k_gm_md));
+    cells.push(num(conv(s.gross_m, o.depthUnit)), num(conv(s.net_m, o.depthUnit)), num(s.ntg), num(s.phi_avg), num(s.vsh_avg), num(s.sw_avg), num(s.k_gm_md), ...extraZoneCells(s, o.depthUnit));
     lines.push(cells.join(','));
   }
   return `${lines.join('\n')}\n${probBlock}`;

@@ -12,23 +12,30 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { FIELDS } from '../services/paramFields';
-import { buildZoneTable, effectiveFor, patchesFromDrafts } from '../services/zoneParamTable';
+import { buildZoneTable, effectiveFor, patchesFromDrafts, draftToEngine } from '../services/zoneParamTable';
+import { toDisplayDraft } from '../services/paramUnits';
 import ParamGrid from './ParamGrid';
 
 export default function ZoneParamTable({
-  open, onOpenChange, params, zones = [], zoneParams = {}, onApply, onStatus,
+  open, onOpenChange, params, zones = [], zoneParams = {}, onApply, onStatus, unitSystem = 'si',
 }) {
+  // PETRO-U2-002: cells show slowness, temperatures and the BHT depth in the
+  // chosen unit system; patches are built in engine units
+  const shownGlobal = useMemo(() => toDisplayDraft(params, unitSystem), [params, unitSystem]);
   // draft: zoneId -> merged parameter draft (strings while typing)
   const [draft, setDraft] = useState({});
   useEffect(() => {
     if (!open) return;
     const d = {};
-    for (const z of zones) d[z.id] = effectiveFor(params, zoneParams, z.id);
+    for (const z of zones) d[z.id] = toDisplayDraft(effectiveFor(params, zoneParams, z.id), unitSystem);
     setDraft(d);
-  }, [open, params, zones, zoneParams]);
+  }, [open, params, zones, zoneParams, unitSystem]);
 
-  const rows = useMemo(() => buildZoneTable({ params, zones, zoneParams, sections: FIELDS }), [params, zones, zoneParams]);
-  const { patches, invalid } = useMemo(() => patchesFromDrafts(params, draft), [params, draft]);
+  const rows = useMemo(() => buildZoneTable({
+    params: shownGlobal, zones, zoneParams: Object.fromEntries(Object.entries(zoneParams).map(([k, v]) => [k, toDisplayDraft(v, unitSystem)])), sections: FIELDS, system: unitSystem,
+  }), [shownGlobal, zones, zoneParams, unitSystem]);
+  const engineDrafts = useMemo(() => Object.fromEntries(Object.entries(draft).map(([zid, d]) => [zid, draftToEngine(d, effectiveFor(params, zoneParams, zid), unitSystem, params)])), [draft, params, zoneParams, unitSystem]);
+  const { patches, invalid } = useMemo(() => patchesFromDrafts(params, engineDrafts), [params, engineDrafts]);
   const invalidCount = Object.values(invalid).reduce((n, keys) => n + keys.length, 0);
   const dirty = useMemo(() => zones.some((z) => {
     const cur = zoneParams[z.id] || {};
@@ -40,7 +47,7 @@ export default function ZoneParamTable({
 
   const copyFrom = (toId, fromId) => setDraft((d) => ({
     ...d,
-    [toId]: fromId === 'global' ? { ...params } : { ...(d[fromId] || effectiveFor(params, zoneParams, fromId)) },
+    [toId]: fromId === 'global' ? { ...shownGlobal } : { ...(d[fromId] || toDisplayDraft(effectiveFor(params, zoneParams, fromId), unitSystem)) },
   }));
 
   const apply = () => {
@@ -66,7 +73,7 @@ export default function ZoneParamTable({
         <ParamGrid
           rows={rows}
           columns={zones.map((z) => ({ id: z.id, name: z.name }))}
-          params={params}
+          params={shownGlobal}
           draft={draft}
           invalid={invalid}
           onCell={setCell}

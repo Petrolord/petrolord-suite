@@ -1,8 +1,8 @@
 // The registry door (ReservoirCalc Pro RC1, 2026-09-06): what the Wells
 // tab pulls from the shared Geoscience registry into the volumetric
 // inputs, and how. Zone averages published by Petrophysics Studio
-// (geo_wells_zones.properties) become porosity, Sw, NTG and net
-// thickness; a registry surface's live footprint becomes the area; a
+// (geo_wells_zones.properties) become porosity, Sw, NTG and gross
+// thickness (RCP applies NTG to it); a registry surface's live footprint becomes the area; a
 // boundary polygon drawn in Mapping (geo_culture) becomes an AOI. Pure
 // planning over registryInputs; the panel fetches and applies.
 
@@ -40,7 +40,9 @@ export function registryPatchForZone(wells, zoneName, unitSystem = 'field') {
   const zones = carrying.flatMap((w) => (w.zones || []).filter((z) => z.name === zoneName));
   const avg = zoneAveragesToInputs(zones);
   const fromWells = avg.fromWells;
+  const thicknessBasis = avg.thicknessBasis || null;
   delete avg.fromWells;
+  delete avg.thicknessBasis;
   if (!fromWells) throw new Error(`No well carries a published average for zone ${zoneName}. Publish zone summaries from Petrophysics Studio first.`);
   const patch = { ...avg };
   if (Number.isFinite(patch.thickness)) {
@@ -51,7 +53,7 @@ export function registryPatchForZone(wells, zoneName, unitSystem = 'field') {
     patch,
     fromWells,
     wellNames,
-    provenance: { source: 'shared-registry', zone: zoneName, wells: wellNames, fields: Object.keys(patch), pulled_at: new Date().toISOString() },
+    provenance: { source: 'shared-registry', zone: zoneName, wells: wellNames, fields: Object.keys(patch), thickness_basis: thicknessBasis, pulled_at: new Date().toISOString() },
   };
 }
 
@@ -81,7 +83,7 @@ export function describePatch(patch, unitSystem = 'field') {
   if (Number.isFinite(patch.porosity)) parts.push(`porosity ${patch.porosity.toFixed(3)}`);
   if (Number.isFinite(patch.sw)) parts.push(`Sw ${patch.sw.toFixed(3)}`);
   if (Number.isFinite(patch.ntg)) parts.push(`NTG ${patch.ntg.toFixed(3)}`);
-  if (Number.isFinite(patch.thickness)) parts.push(`net thickness ${patch.thickness.toFixed(1)} ${canonicalUnitFor('thickness', unitSystem)}`);
+  if (Number.isFinite(patch.thickness)) parts.push(`gross thickness ${patch.thickness.toFixed(1)} ${canonicalUnitFor('thickness', unitSystem)}`);
   if (Number.isFinite(patch.area)) parts.push(`area ${patch.area.toFixed(1)} ${canonicalUnitFor('area', unitSystem) === 'acre' ? 'acres' : 'km2'}`);
   return parts.join(', ');
 }

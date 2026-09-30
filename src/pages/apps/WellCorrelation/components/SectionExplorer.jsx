@@ -4,30 +4,55 @@
 // badges (the WDM idiom). Presentational — order lives in the
 // controller.
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Lock, ArrowUp, ArrowDown, X, Plus, Pencil } from 'lucide-react';
+import { Building2, Lock, ArrowUp, ArrowDown, X, Plus, Pencil, Search } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { wellDataManagerHref } from '@/components/wells/appLinks';
+import { mappable, mapFrameSummary } from '@/pages/apps/WellDataManager/components/WellsMap';
+import { unitToMetres } from '../../../../../packages/engines/lib/crs/catalog';
 
 const PAD = 26;
 
+/** U2-014: a well matches the filter on its name or UWI (case, spaces and dashes ignored). */
+export function wellMatches(w, q) {
+  const k = (s) => String(s ?? '').toLowerCase().replace(/[\s-]+/g, '');
+  const needle = k(q);
+  return !needle || k(w.name).includes(needle) || k(w.uwi).includes(needle);
+}
+
 export default function SectionExplorer({
-  wells, order, onToggle, onMove, onRemove, height = 200,
+  wells, order, onToggle, onMove, onRemove, onAddMany = null, onRemoveMany = null, height = 200,
+  line = null, onLineChange = null, onUseLine = null,
   wellDataManagerPath = '/dashboard/apps/geoscience/well-data-manager',
 }) {
   const canvasRef = useRef(null);
   const placed = useRef([]);
+  const xform = useRef(null); // U2-012: px <-> map units
+  const [drawing, setDrawing] = useState(null); // draft vertices while drawing a section line
+  const [halfWidth, setHalfWidth] = useState(String(line?.halfWidthM ?? 500));
 
+  // WC-U1-015 (the WDM-U1-016/017 lesson): wells with no location are not
+  // drawn at the origin, and a map of wells in different coordinate systems
+  // says so instead of squeezing them into one frame silently
+  const located = useMemo(() => mappable(wells), [wells]);
+  const frames = useMemo(() => mapFrameSummary(wells), [wells]);
+  // U2-012: the frame a section line is drawn in (the map's single frame)
+  const lineFrame = useMemo(() => {
+    const unit = located[0]?.xy_unit || 'm';
+    let mPerUnit = 1;
+    try { mPerUnit = unitToMetres(unit); } catch { mPerUnit = NaN; }
+    return { crs: located[0]?.crs || null, unit, mPerUnit };
+  }, [located]);
   const extent = useMemo(() => {
-    if (!wells.length) return null;
-    const xs = wells.map((w) => w.surface_x);
-    const ys = wells.map((w) => w.surface_y);
+    if (!located.length) return null;
+    const xs = located.map((w) => Number(w.surface_x));
+    const ys = located.map((w) => Number(w.surface_y));
     let [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
     if (!(maxX - minX > 0)) { minX -= 500; maxX += 500; }
     if (!(maxY - minY > 0)) { minY -= 500; maxY += 500; }
     return { minX, maxX, minY, maxY };
-  }, [wells]);
+  }, [located]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -49,22 +74,41 @@ export default function SectionExplorer({
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
     const toPx = (x, y) => ({ px: cssW / 2 + (x - cx) * scale, py: height / 2 - (y - cy) * scale });
+    xform.current = { toWorld: (px, py) => ({ x: cx + (px - cssW / 2) / scale, y: cy - (py - height / 2) / scale }) };
+
+    // U2-012: the section line (or the one being drawn) and its corridor
+    const pts = drawing || line?.points;
+    if (pts?.length) {
+      const hw = Number(drawing ? halfWidth : line?.halfWidthM);
+      ctx.save();
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      if (pts.length > 1 && hw > 0) {
+        ctx.strokeStyle = 'rgba(250,204,21,0.18)'; ctx.lineWidth = Math.max(2, (2 * hw / lineFrame.mPerUnit) * scale);
+        ctx.beginPath(); pts.forEach((p, k) => { const q = toPx(p.x, p.y); if (k) ctx.lineTo(q.px, q.py); else ctx.moveTo(q.px, q.py); }); ctx.stroke();
+      }
+      ctx.strokeStyle = '#facc15'; ctx.lineWidth = 1.5; ctx.setLineDash(drawing ? [4, 3] : []);
+      ctx.beginPath(); pts.forEach((p, k) => { const q = toPx(p.x, p.y); if (k) ctx.lineTo(q.px, q.py); else ctx.moveTo(q.px, q.py); }); ctx.stroke();
+      ctx.fillStyle = '#facc15';
+      for (const p of pts) { const q = toPx(p.x, p.y); ctx.fillRect(q.px - 2, q.py - 2, 4, 4); }
+      ctx.restore();
+    }
 
     // section path (in order)
     ctx.strokeStyle = '#22d3ee';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    order.forEach((id, i) => {
-      const w = wells.find((x) => x.id === id);
+    let pen = false;
+    order.forEach((id) => {
+      const w = located.find((x) => x.id === id);
       if (!w) return;
-      const { px, py } = toPx(w.surface_x, w.surface_y);
-      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+      const { px, py } = toPx(Number(w.surface_x), Number(w.surface_y));
+      if (pen) ctx.lineTo(px, py); else { ctx.moveTo(px, py); pen = true; }
     });
     ctx.stroke();
     ctx.lineWidth = 1;
 
-    for (const w of wells) {
-      const { px, py } = toPx(w.surface_x, w.surface_y);
+    for (const w of located) {
+      const { px, py } = toPx(Number(w.surface_x), Number(w.surface_y));
       placed.current.push({ id: w.id, px, py });
       const idx = order.indexOf(w.id);
       ctx.beginPath();
@@ -86,12 +130,13 @@ export default function SectionExplorer({
       ctx.textAlign = right ? 'left' : 'right';
       ctx.fillText(w.name, right ? px + 8 : px - 8, py + 3);
     }
-  }, [wells, order, extent, height]);
+  }, [located, order, extent, height, drawing, line, halfWidth, lineFrame]);
 
   const pick = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    if (drawing) { if (xform.current) setDrawing((d) => [...d, xform.current.toWorld(x, y)]); return; }
     let best = null;
     for (const p of placed.current) {
       const d = Math.hypot(p.px - x, p.py - y);
@@ -100,17 +145,70 @@ export default function SectionExplorer({
     if (best) onToggle(best.id);
   };
 
-  const orderedWells = order.map((id) => wells.find((w) => w.id === id)).filter(Boolean);
-  const availableWells = wells.filter((w) => !order.includes(w.id));
+  // U2-014: at field scale (50+ wells) the lists filter by name or UWI, and
+  // every shown well can be added or removed at once
+  const [filter, setFilter] = useState('');
+  const orderedAll = order.map((id) => wells.find((w) => w.id === id)).filter(Boolean);
+  const orderedWells = orderedAll.filter((w) => wellMatches(w, filter));
+  const availableAll = wells.filter((w) => !order.includes(w.id));
+  const availableWells = availableAll.filter((w) => wellMatches(w, filter));
+  const filtering = filter.trim().length > 0;
 
   return (
     <div className="h-full min-h-0 flex flex-col bg-pl-surface" data-testid="corr-explorer">
       <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
         Section path: click wells to order
       </div>
-      <canvas ref={canvasRef} data-testid="corr-map" data-canvas="dark" className="cursor-pointer border-b border-pl-border" onClick={pick} />
-      <div className="px-2.5 py-1 text-[11px] uppercase tracking-wider text-pl-muted">
-        In section <span data-testid="corr-order-count">{order.length}</span> / {wells.length}
+      <canvas ref={canvasRef} data-testid="corr-map" data-canvas="dark" className={`${drawing ? 'cursor-crosshair' : 'cursor-pointer'} border-b border-pl-border`} onClick={pick}
+        data-line={line ? line.points.map((p) => `${Math.round(p.x)} ${Math.round(p.y)}`).join(',') : ''} />
+      {onLineChange && (
+        <div className="px-2 py-1 border-b border-pl-border flex items-center gap-1 flex-wrap text-[11px]" data-testid="corr-line">
+          {drawing ? (
+            <>
+              <span className="text-pl-warning-text">Click the map to add points ({drawing.length})</span>
+              <label className="flex items-center gap-1 text-pl-muted">corridor ±
+                <input className="w-14 rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5" value={halfWidth} data-testid="corr-line-width" onChange={(e) => setHalfWidth(e.target.value)} /> m
+              </label>
+              <button type="button" className="px-1.5 py-0.5 rounded border border-pl-primary text-pl-primary-text disabled:opacity-40" data-testid="corr-line-done"
+                disabled={drawing.length < 2 || !(Number(halfWidth) > 0)}
+                onClick={() => { onLineChange({ points: drawing, halfWidthM: Number(halfWidth), crs: lineFrame.crs, unit: lineFrame.unit }); setDrawing(null); }}>Use line</button>
+              <button type="button" className="px-1.5 py-0.5 rounded border border-pl-border text-pl-muted" onClick={() => setDrawing(null)}>Cancel</button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="px-1.5 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40" data-testid="corr-line-draw"
+                disabled={frames.mixed || !located.length}
+                title={frames.mixed ? 'The wells are in different coordinate systems; a line cannot be drawn across them' : 'Draw a section line on the map and take the wells in a corridor along it (Petra style)'}
+                onClick={() => { setDrawing([]); setHalfWidth(String(line?.halfWidthM ?? 500)); }}>Draw section line</button>
+              {line && (
+                <>
+                  <button type="button" className="px-1.5 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-sunken" data-testid="corr-line-use" onClick={onUseLine}>Wells along it</button>
+                  <button type="button" className="text-pl-muted hover:text-pl-danger-text" data-testid="corr-line-clear" onClick={() => onLineChange(null)}>clear</button>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      )}
+      {(frames.mixed || frames.undrawn > 0) && (
+        <div className="px-2.5 py-1 text-[11px] leading-snug text-pl-warning-text border-b border-pl-border" data-testid="corr-map-frames">
+          {frames.mixed && <div>Mixed coordinate systems ({frames.frame}): the map and spacing by distance cannot compare these wells.</div>}
+          {frames.undrawn > 0 && <div>{frames.undrawn} well{frames.undrawn === 1 ? ' has' : 's have'} no surface location and {frames.undrawn === 1 ? 'is' : 'are'} not on the map.</div>}
+        </div>
+      )}
+      <div className="px-2 py-1 border-b border-pl-border flex items-center gap-1">
+        <Search className="w-3.5 h-3.5 text-pl-muted shrink-0" />
+        <input className="flex-1 min-w-0 rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs"
+          placeholder="Filter wells by name or UWI" value={filter} data-testid="corr-well-filter" onChange={(e) => setFilter(e.target.value)} />
+        {filtering && <button type="button" className="text-pl-muted hover:text-pl-text" title="Clear the filter" data-testid="corr-well-filter-clear" onClick={() => setFilter('')}><X className="w-3.5 h-3.5" /></button>}
+      </div>
+      <div className="px-2.5 py-1 text-[11px] uppercase tracking-wider text-pl-muted flex items-center gap-1">
+        <span>In section <span data-testid="corr-order-count">{order.length}</span> / {wells.length}</span>
+        {filtering && <span className="normal-case tracking-normal" data-testid="corr-order-shown">({orderedWells.length} shown)</span>}
+        {filtering && onRemoveMany && orderedWells.length > 0 && (
+          <button type="button" className="ml-auto normal-case tracking-normal text-pl-muted hover:text-pl-danger-text" data-testid="corr-well-remove-shown"
+            title="Remove the wells the filter shows from the section" onClick={() => onRemoveMany(orderedWells.map((w) => w.id))}>remove shown</button>
+        )}
       </div>
       <ScrollArea className="flex-1 min-h-0">
         {orderedWells.map((w, i) => (
@@ -138,10 +236,19 @@ export default function SectionExplorer({
         ))}
         {!order.length && <p className="px-3 py-2 text-xs text-pl-muted leading-snug">Click wells on the map (or the list below) to add them to the cross-section in order.</p>}
 
+        {filtering && !orderedWells.length && !availableWells.length && (
+          <p className="px-3 py-2 text-xs text-pl-muted" data-testid="corr-filter-empty">No well name or UWI contains "{filter.trim()}".</p>
+        )}
         {availableWells.length > 0 && (
           <>
-            <div className="px-2.5 pt-2 pb-1 text-[11px] uppercase tracking-wider text-pl-muted border-t border-pl-border">
-              Available
+            <div className="px-2.5 pt-2 pb-1 text-[11px] uppercase tracking-wider text-pl-muted border-t border-pl-border flex items-center gap-1">
+              <span>Available{filtering ? ` (${availableWells.length} of ${availableAll.length})` : ''}</span>
+              {onAddMany && availableWells.length > 1 && (
+                <button type="button" className="ml-auto normal-case tracking-normal text-pl-primary-text hover:text-pl-primary-text-hover" data-testid="corr-well-add-shown"
+                  title="Add every well listed here to the section, in list order" onClick={() => onAddMany(availableWells.map((w) => w.id))}>
+                  add {filtering ? 'shown' : 'all'} ({availableWells.length})
+                </button>
+              )}
             </div>
             {availableWells.map((w) => (
               <button key={w.id} type="button" data-testid={`corr-add-${w.name}`}

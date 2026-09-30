@@ -15,9 +15,10 @@ import { Trash2, Plus, ArrowUp, ArrowDown } from 'lucide-react';
 import {
   RULE_OPS, RULE_CURVES, defaultRules, nextColor, validateRules, classifyRules, classThickness, describeRule,
 } from '../services/ruleFacies';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
-const fmt = (v, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '—');
+const fmt = (v, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : EMPTY_VALUE);
 
 export default function RuleFaciesDialog({
   open, onOpenChange, rules, curvesByKey, depth, depthUnit = 'm', canPublish = false, onApply, onPublish, onStatus,

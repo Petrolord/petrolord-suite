@@ -23,6 +23,9 @@ import WellDataManager from '../WellDataManager';
 // The page builds its backend through makeRegistryBackend; the test hands
 // it an in-memory backend seeded with an owned well (logs, tops, checkshots)
 // beside the seeded org-shared one.
+// full-app renders run 3 to 6 s alone; the shared runner is often loaded
+jest.setTimeout(30000);
+
 let mockBackend = null;
 jest.mock('../services/registryBackend', () => ({
   makeRegistryBackend: () => mockBackend,

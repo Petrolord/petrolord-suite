@@ -61,7 +61,7 @@ export function makeInMemoryBackend({ sidetrack = false } = {}) {
       { id: `map-w${i + 1}-i3`, well_id: `map-w${i + 1}`, kind: 'environment', top_md_m: w.tops['Top Dome'], base_md_m: w.tops['Base Sand'], code: i < 3 ? 'shoreface' : 'shelf', label: null, properties: {}, source: 'interpretation' },
     ],
     // zones named after their top, the PT4 default
-    zones: [{ name: 'Top Dome', top_md_m: w.tops['Top Dome'], base_md_m: w.tops['Base Sand'], properties: { phi_avg: w.phi, ntg: w.ntg } }],
+    zones: [{ name: 'Top Dome', top_md_m: w.tops['Top Dome'], base_md_m: w.tops['Base Sand'], properties: { phi_avg: w.phi, ntg: w.ntg, net_m: Math.round((w.tops['Base Sand'] - w.tops['Top Dome']) * w.ntg * 10) / 10, hcpv_m: Math.round((w.tops['Base Sand'] - w.tops['Top Dome']) * w.ntg * w.phi * 0.7 * 1000) / 1000, pipeline_version: 7 } }], // PETRO-U2-008: what a Studio publish carries
   }));
 
   const surfaces = [];

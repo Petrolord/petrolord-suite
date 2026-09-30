@@ -17,10 +17,11 @@ import { Button } from '@/components/ui/button';
 import { rwArps, rwFromSsp, rweToRwProblem, rwToRweProblem, rweBand, rwFromSalinity, salinityFromRw } from '../engine/rw';
 import { RW_METHOD_LABELS } from '../services/paramFields';
 import { cToF } from '../engine/temperature';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const inputCls = 'w-24 rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const num = (v) => Number(v);
-const fmt = (v, d = 6) => (Number.isFinite(v) ? String(Number(v.toFixed(d))) : '—');
+const fmt = (v, d = 6) => (Number.isFinite(v) ? String(Number(v.toFixed(d))) : EMPTY_VALUE);
 
 export default function RwToolsDialog({
   open, onOpenChange, onApplyParams, onStatus, onProvenance = null, currentRw = null, currentRwTempC = null,

@@ -24,10 +24,50 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { wellNameKey, wellNameClashMessage } from '@/lib/wellNames';
+import { PLATFORM_BUILD } from '@/lib/platformBuild';
+import { isUnknownColumnError } from '@/lib/stateVersion';
 
 export { wellNameKey, wellNameClashMessage };
 
 const BUCKET = 'wells';
+
+/**
+ * WDM-U2-F01 (programme decision 2026-09-29, no migration): geo_wells
+ * surface_x / surface_y are NOT NULL, so every writer refuses a missing or
+ * non-numeric coordinate BEFORE the request and the raw not-null error
+ * never reaches a user. Shared with the harness backend.
+ * @returns {?string} the message, or null when the value is a finite number
+ */
+export function surfaceCoordProblem(name, value, unitLabel = null) {
+  if (value === null || value === undefined || String(value).trim() === '' || !Number.isFinite(Number(value))) {
+    const what = value === null || value === undefined || String(value).trim() === '' ? 'is required' : 'must be a number';
+    return `${name} ${what}${unitLabel ? ` (${unitLabel})` : ''}: the registry stores a surface location for every well.`;
+  }
+  return null;
+}
+
+// ---- app_build stamping (Well Data Manager U2-013) --------------------------
+// Every registry row this module writes says which build wrote it
+// (app_build, from the PP0 registry migration 20260902120500, applied
+// 2026-09-03), so a saved-state defect can be traced to a release. If an
+// environment lacks the column, the write is retried once without it and
+// the session stops stamping; saves never break on the stamp.
+
+let buildColumnMissing = false;
+/** Test hook. */
+export function _resetBuildStamp() { buildColumnMissing = false; }
+const withBuild = (payload) => {
+  if (buildColumnMissing) return payload;
+  const add = (r) => ({ ...r, app_build: PLATFORM_BUILD.sha });
+  return Array.isArray(payload) ? payload.map(add) : add(payload);
+};
+/** Run a write with the stamp; on "no app_build column", once more without. */
+async function writeWithBuild(payload, run) {
+  const first = await run(withBuild(payload));
+  if (!first?.error || buildColumnMissing || !isUnknownColumnError(first.error) || !/app_build/.test(String(first.error.message || ''))) return first;
+  buildColumnMissing = true;
+  return run(payload);
+}
 
 async function requireUser() {
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -66,6 +106,10 @@ export async function assertWellNameFree(name, { exceptId = null, userId = null 
 const isMissingColumn = (error) => error && (error.code === 'PGRST204' || /column .* does not exist|schema cache/i.test(error.message || ''));
 
 export async function saveWell(w) {
+  for (const [n, v] of [['Surface X', w.surfaceX], ['Surface Y', w.surfaceY]]) {
+    const msg = surfaceCoordProblem(n, v);
+    if (msg) throw new Error(msg);
+  }
   const user = await requireUser();
   await assertWellNameFree(w.name, { userId: user.id });
   const row = {
@@ -88,10 +132,11 @@ export async function saveWell(w) {
   // The column arrives with migration 20260904090000; until it is applied
   // the insert retries without it so well creation never breaks.
   if (w.checkshotsProvenance) row.checkshots_provenance = w.checkshotsProvenance;
-  let { data, error } = await supabase.from('geo_wells').insert(row).select().single();
+  const insert = (r) => supabase.from('geo_wells').insert(r).select().single();
+  let { data, error } = await writeWithBuild(row, insert);
   if (error && row.checkshots_provenance && isMissingColumn(error)) {
     delete row.checkshots_provenance;
-    ({ data, error } = await supabase.from('geo_wells').insert(row).select().single());
+    ({ data, error } = await writeWithBuild(row, insert));
   }
   if (error) throw new Error(`Could not save well: ${error.message}`);
   return data;
@@ -116,10 +161,9 @@ export async function updateWellData(wellId, {
   const patch = {};
   for (const [name, value, col] of [['Surface X', surfaceX, 'surface_x'], ['Surface Y', surfaceY, 'surface_y']]) {
     if (value === undefined) continue;
-    if (value === null) { patch[col] = null; continue; }
-    const v = Number(value);
-    if (!Number.isFinite(v)) throw new Error(`${name} must be a number in the well's CRS.`);
-    patch[col] = v;
+    const msg = surfaceCoordProblem(name, value);
+    if (msg) throw new Error(msg);
+    patch[col] = Number(value);
   }
   if (kbM !== undefined) {
     const v = Number(kbM);
@@ -151,14 +195,11 @@ export async function updateWellData(wellId, {
   }
   if (checkshotsProvenance !== undefined) patch.checkshots_provenance = checkshotsProvenance;
   if (!Object.keys(patch).length) throw new Error('Nothing to update.');
-  let { data, error } = await supabase.from('geo_wells')
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq('id', wellId).select().single();
+  const update = (p) => supabase.from('geo_wells').update(p).eq('id', wellId).select().single();
+  let { data, error } = await writeWithBuild({ ...patch, updated_at: new Date().toISOString() }, update);
   if (error && 'checkshots_provenance' in patch && isMissingColumn(error)) {
     delete patch.checkshots_provenance;
-    ({ data, error } = await supabase.from('geo_wells')
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq('id', wellId).select().single());
+    ({ data, error } = await writeWithBuild({ ...patch, updated_at: new Date().toISOString() }, update));
   }
   if (error) throw new Error(`Could not update well data: ${error.message}`);
   return data;
@@ -214,6 +255,35 @@ export async function listWellsWithTops() {
   }));
 }
 
+// ---- registry-wide reads (Well Data Manager U2-005 / U2-006) --------------
+// One query per child table for every well the caller can see (RLS does the
+// filtering), paged past PostgREST's 1,000-row cap, so the inventory and the
+// cross-well tops sheet never issue one request per well.
+
+const PAGE_ROWS = 1000;
+async function selectAllRows(table, columns, what) {
+  const out = [];
+  for (let from = 0; ; from += PAGE_ROWS) {
+    const { data, error } = await supabase.from(table).select(columns)
+      .order('id', { ascending: true }).range(from, from + PAGE_ROWS - 1);
+    if (error) throw new Error(`Could not load ${what}: ${error.message}`);
+    out.push(...(data || []));
+    if (!data || data.length < PAGE_ROWS) return out;
+  }
+}
+
+/** Log metadata (no samples) of every visible well: the inventory's input. */
+export async function listAllLogMeta() {
+  return selectAllRows('geo_wells_logs',
+    'id, well_id, mnemonic, unit, description, start_md_m, stop_md_m, step_m, n_samples, null_count, source_file, provenance, storage_path, created_at',
+    'log inventory');
+}
+
+/** Every top of every visible well (the cross-well tops sheet). */
+export async function listAllTops() {
+  return selectAllRows('geo_wells_tops', '*', 'tops');
+}
+
 export async function getWell(wellId) {
   const { data, error } = await supabase.from('geo_wells')
     .select('*').eq('id', wellId).single();
@@ -223,14 +293,16 @@ export async function getWell(wellId) {
 
 /** Owner-only header/survey updates (RLS rejects everyone else). */
 export async function updateWell(wellId, patch) {
+  for (const [n, col] of [['Surface X', 'surface_x'], ['Surface Y', 'surface_y']]) {
+    if (patch && col in patch) { const msg = surfaceCoordProblem(n, patch[col]); if (msg) throw new Error(msg); }
+  }
   if (patch && patch.name !== undefined) {
     const user = await requireUser();
     await assertWellNameFree(patch.name, { exceptId: wellId, userId: user.id });
     patch = { ...patch, name: String(patch.name).trim() };
   }
-  const { data, error } = await supabase.from('geo_wells')
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq('id', wellId).select().single();
+  const { data, error } = await writeWithBuild({ ...patch, updated_at: new Date().toISOString() },
+    (p) => supabase.from('geo_wells').update(p).eq('id', wellId).select().single());
   if (error) throw new Error(`Could not update well: ${error.message}`);
   return data;
 }
@@ -290,17 +362,15 @@ export async function saveZone(wellId, z) {
   // re-cuts exactly this zone. It rides in properties, which the publish
   // path merges rather than replaces.
   const properties = z.fromTops ? { from_tops: z.fromTops } : {};
-  const { data, error } = await supabase.from('geo_wells_zones')
-    .insert({ well_id: wellId, name: z.name, top_md_m: z.topMdM, base_md_m: z.baseMdM, properties })
-    .select().single();
+  const { data, error } = await writeWithBuild({ well_id: wellId, name: z.name, top_md_m: z.topMdM, base_md_m: z.baseMdM, properties },
+    (r) => supabase.from('geo_wells_zones').insert(r).select().single());
   if (error) throw new Error(`Could not save zone: ${error.message}`);
   return data;
 }
 
 export async function updateZone(zoneId, patch) {
-  const { data, error } = await supabase.from('geo_wells_zones')
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq('id', zoneId).select();
+  const { data, error } = await writeWithBuild({ ...patch, updated_at: new Date().toISOString() },
+    (p) => supabase.from('geo_wells_zones').update(p).eq('id', zoneId).select());
   if (error) throw new Error(`Could not update zone: ${error.message}`);
   if (!data || !data.length) {
     throw new Error('Only the owner can edit zones (org sharing is read-only).');
@@ -333,9 +403,8 @@ export async function replaceTops(wellId, tops) {
     .delete().eq('well_id', wellId);
   if (delError) throw new Error(`Could not clear existing tops: ${delError.message}`);
   if (!tops.length) return [];
-  const { data, error } = await supabase.from('geo_wells_tops')
-    .insert(tops.map((t) => topRow(wellId, { ...t, mdM: t.md ?? t.md_m ?? t.mdM })))
-    .select();
+  const { data, error } = await writeWithBuild(tops.map((t) => topRow(wellId, { ...t, mdM: t.md ?? t.md_m ?? t.mdM })),
+    (rows) => supabase.from('geo_wells_tops').insert(rows).select());
   if (error) throw new Error(`Could not save tops: ${error.message}`);
   return data;
 }
@@ -367,9 +436,8 @@ export function topRow(wellId, top) {
 
 /** @param {{name: string, mdM: number, interpreter?: ?string, surface_type?: string, unit_id?: ?string, confidence?: ?string, age_ma?: ?number, notes?: ?string}} top */
 export async function saveTop(wellId, top) {
-  const { data, error } = await supabase.from('geo_wells_tops')
-    .insert(topRow(wellId, top))
-    .select().single();
+  const { data, error } = await writeWithBuild(topRow(wellId, top),
+    (r) => supabase.from('geo_wells_tops').insert(r).select().single());
   if (error) throw new Error(`Could not add top: ${error.message}`);
   return data;
 }
@@ -379,8 +447,7 @@ export async function updateTop(topId, patch) {
   if (patch.mdM !== undefined) { row.md_m = patch.mdM; delete row.mdM; }
   for (const k of ['age_ma', 'hiatus_to_ma']) if (patch[k] !== undefined) row[k] = patch[k] === '' || patch[k] === null ? null : Number(patch[k]);
   for (const k of ['unit_id', 'confidence', 'notes']) if (row[k] === '') row[k] = null;
-  const { data, error } = await supabase.from('geo_wells_tops')
-    .update(row).eq('id', topId).select();
+  const { data, error } = await writeWithBuild(row, (r) => supabase.from('geo_wells_tops').update(r).eq('id', topId).select());
   if (error) throw new Error(`Could not update top: ${error.message}`);
   if (!data || !data.length) {
     throw new Error('Only the owner can edit tops (org sharing is read-only).');
@@ -404,17 +471,17 @@ export async function deleteTop(top) {
  * top (idempotent re-propagate); RLS drops silently-unowned wells, and
  * the caller learns which succeeded from the returned rows.
  * @param {string} name @param {Array<{wellId: string, mdM: number}>} targets
+ * @param {{interpreter?: ?string, confidence?: ?string}} [attrs] pick attributes on every new row (WC-U2-010; existing columns)
  */
-export async function propagateTop(name, targets) {
+export async function propagateTop(name, targets, attrs = {}) {
   if (!targets.length) return [];
   const created = [];
   for (const t of targets) {
     const existing = await listTops(t.wellId);
     if (existing.some((x) => x.name === name)) continue;
     // per-well so one RLS-blocked well doesn't fail the whole batch
-    const { data, error } = await supabase.from('geo_wells_tops')
-      .insert({ well_id: t.wellId, name, md_m: t.mdM })
-      .select();
+    const { data, error } = await writeWithBuild(topRow(t.wellId, { name, mdM: t.mdM, ...attrs }),
+      (r) => supabase.from('geo_wells_tops').insert(r).select());
     if (error) throw new Error(`Could not propagate "${name}": ${error.message}`);
     if (data && data.length) created.push(data[0]);
   }
@@ -447,8 +514,7 @@ export async function saveLog(wellId, log) {
     });
   if (upError) throw new Error(`Could not upload curve ${log.mnemonic}: ${upError.message}`);
 
-  const { data, error } = await supabase.from('geo_wells_logs')
-    .insert({
+  const { data, error } = await writeWithBuild({
       id: logId,
       well_id: wellId,
       mnemonic: log.mnemonic,
@@ -462,8 +528,7 @@ export async function saveLog(wellId, log) {
       source_file: log.provenance?.source_file || null,
       provenance: log.provenance || {},
       storage_path: path,
-    })
-    .select().single();
+    }, (r) => supabase.from('geo_wells_logs').insert(r).select().single());
   if (error) {
     await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
     throw new Error(`Could not save log ${log.mnemonic}: ${error.message}`);
@@ -472,11 +537,29 @@ export async function saveLog(wellId, log) {
 }
 
 /** All prepared logs of one LAS import, sequentially — clear first
- *  failure beats a shotgun of half-written curves. */
-export async function saveLogs(wellId, logs) {
+ *  failure beats a shotgun of half-written curves.
+ *  U2-013: onProgress({done, total, mnemonic}) before each curve and at the
+ *  end; cancel.cancelled = true stops before the next curve and throws a
+ *  LogsStoppedError carrying the curves already saved (they stay). */
+export async function saveLogs(wellId, logs, { onProgress = null, cancel = null } = {}) {
   const saved = [];
-  for (const log of logs) saved.push(await saveLog(wellId, log));
+  for (let i = 0; i < logs.length; i++) {
+    if (cancel?.cancelled) throw new LogsStoppedError(saved, logs.length);
+    onProgress?.({ done: i, total: logs.length, mnemonic: logs[i].mnemonic });
+    saved.push(await saveLog(wellId, logs[i]));
+  }
+  onProgress?.({ done: logs.length, total: logs.length, mnemonic: null });
   return saved;
+}
+
+/** Thrown by saveLogs when the user stops an import part-way. */
+export class LogsStoppedError extends Error {
+  constructor(saved, total) {
+    super(`Import stopped after ${saved.length} of ${total} curves. The ${saved.length} saved stay on the well; delete them on the Logs tab if you do not want them.`);
+    this.name = 'LogsStoppedError';
+    this.saved = saved;
+    this.total = total;
+  }
 }
 
 export async function deleteLog(log) {
@@ -484,6 +567,52 @@ export async function deleteLog(log) {
   if (rmError) throw new Error(`Could not delete curve data: ${rmError.message}`);
   const { error } = await supabase.from('geo_wells_logs').delete().eq('id', log.id);
   if (error) throw new Error(`Could not delete log: ${error.message}`);
+}
+
+/**
+ * Rewrite one stored curve in place (same log id and storage path) with
+ * new samples and a metadata patch: the WDM-U2-010 reorient of curves an
+ * earlier release stored bottom-up. Owner-only (storage and row RLS). The
+ * object is replaced first; if the row update then fails, the original
+ * samples are put back so object and row never disagree.
+ * @param {Object} log registry row @param {Float32Array} data @param {Object} patch
+ */
+export async function rewriteLogSamples(log, data, patch, { original = null } = {}) {
+  if (data.length !== Number(log.n_samples)) {
+    throw new Error(`Curve ${log.mnemonic}: ${data.length} samples, the row says ${log.n_samples}.`);
+  }
+  const blob = (arr) => new Blob([Float32Array.from(arr).buffer], { type: 'application/octet-stream' });
+  const { error: upError } = await supabase.storage.from(BUCKET)
+    .update(log.storage_path, blob(data), { contentType: 'application/octet-stream', upsert: true });
+  if (upError) throw new Error(`Could not rewrite curve ${log.mnemonic}: ${upError.message}`);
+  const { data: rows, error } = await writeWithBuild(patch, (p) => supabase.from('geo_wells_logs').update(p).eq('id', log.id).select());
+  if (error || !rows || !rows.length) {
+    if (original) {
+      await supabase.storage.from(BUCKET)
+        .update(log.storage_path, blob(original), { contentType: 'application/octet-stream', upsert: true }).catch(() => {});
+    }
+    throw new Error(error ? `Could not update log ${log.mnemonic}: ${error.message}`
+      : 'Only the owner can change logs (org sharing is read-only).');
+  }
+  return rows[0];
+}
+
+/**
+ * Correct a stored curve's unit label without touching its samples
+ * (PETRO-U2-001: a Petrel NPHI in percent labelled v/v, a density with no
+ * unit). Owner-only by RLS. The change is recorded in the row's provenance
+ * so every reader can see the label was corrected, from what, and when.
+ * @param {Object} log registry row @param {string} unit
+ */
+export async function updateLogUnit(log, unit, { byApp = null } = {}) {
+  const provenance = {
+    ...(log.provenance || {}),
+    unit_corrected: { from: log.unit ?? null, to: unit, at: new Date().toISOString(), by_app: byApp },
+  };
+  const { data: rows, error } = await writeWithBuild({ unit, provenance }, (p) => supabase.from('geo_wells_logs').update(p).eq('id', log.id).select());
+  if (error) throw new Error(`Could not update the unit of ${log.mnemonic}: ${error.message}`);
+  if (!rows || !rows.length) throw new Error('Only the owner can change logs (org sharing is read-only).');
+  return rows[0];
 }
 
 /** Fetch one curve's samples. Works for org-shared wells too — the

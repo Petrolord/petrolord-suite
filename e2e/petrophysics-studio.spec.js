@@ -11,6 +11,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import os from 'os';
 import { writeSyntheticScan, expectedValueAt, SCAN } from './helpers/syntheticScan.js';
+import { EMPTY_VALUE } from '../src/lib/emptyValue.js';
 
 // expected zone numbers come from the committed goldens, not hardcoded
 // literals — fixture regeneration cannot silently drift past this spec
@@ -130,11 +131,16 @@ test('publish curves + zone, batch run, and project persistence across reload', 
   // publish the seeded SAND A zone summary -> "on record" marker
   await page.getByTestId('petro-zone-publish-SAND A').click();
   await expect(page.getByTestId('petro-zone-summary-SAND A')).toBeVisible();
-  await expect(page.getByTestId('petro-zones')).toContainText('published summary on record');
+  await expect(page.getByTestId('petro-zone-published-SAND A')).toContainText('matches these numbers');
 
-  // change a parameter and save the project
+  // change a parameter and save the project; the published row is now stale and says so (PETRO-U1-014)
+  // (SAND A's oil leg sits well under Sw 0.55, so its numbers do not move and the row still matches)
   await page.getByTestId('petro-param-cutSw').fill('0.55');
   await page.getByTestId('petro-params-apply').click();
+  await expect(page.getByTestId('petro-zone-published-SAND A')).toContainText('matches these numbers');
+  await page.getByTestId('petro-param-cutPhi').fill('0.2');
+  await page.getByTestId('petro-params-apply').click();
+  await expect(page.getByTestId('petro-zone-published-SAND A')).toContainText('publish again');
   await page.getByTestId('petro-save-project').click();
   await expect(page.getByTestId('petro-status')).toContainText('Saved Default interpretation');
 
@@ -149,7 +155,7 @@ test('publish curves + zone, batch run, and project persistence across reload', 
   await page.getByTestId('petro-batch').click();
   await page.getByTestId('petro-batch-pick-KETA TYPE-1').check();
   await page.getByTestId('petro-batch-run').click();
-  await expect(page.getByTestId('petro-batch-result-KETA TYPE-1')).toContainText('curves published');
+  await expect(page.getByTestId('petro-batch-result-KETA TYPE-1')).toContainText(/curves and 1 zone summary published/);
 });
 
 test('digitizer by hand: inline calibration, clicked trace, review, saved as a new _DIG curve', async ({ page }) => {
@@ -570,7 +576,7 @@ test('PS9: field view compares wells side by side with the golden zone summaries
   const sandA = page.getByTestId('petro-field-zone-SAND A');
   await expect(sandA).toBeVisible();
   await expect(sandA).toContainText(`net ${goldenNet('SAND_A')} m`);
-  await expect(sandA).toContainText('—');
+  await expect(sandA).toContainText(EMPTY_VALUE);
   await expect(page.getByTestId('petro-field-zone-MAIN')).toContainText('net');
 
   // flatten on a top only KETA carries; the view survives (AKOMA draws
@@ -1344,6 +1350,9 @@ test('PT11d: the mineral model runs on the type well, refuses the gas zone, appl
   await page.getByTestId('petro-mineral-publish').click();
   await expect(page.getByTestId('petro-status')).toContainText('Published 6 mineral model curves');
   await expect(page.getByTestId('petro-curve-inventory')).toContainText('V_QUARTZ');
+  // the dialog is modal since the design-system rollout: close it before the parameter panel
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('petro-mineral-dialog')).toHaveCount(0);
   // the solved porosity feeds the pipeline only through the explicit source
   await page.getByTestId('petro-param-phiSource').selectOption('mineral');
   await page.getByTestId('petro-params-apply').click();

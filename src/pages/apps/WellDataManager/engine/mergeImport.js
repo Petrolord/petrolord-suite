@@ -26,8 +26,12 @@
 const NAN = Number.NaN;
 
 const base = (m) => String(m || '').toUpperCase().split(':')[0];
-const isDepthMnemonic = (m) => ['DEPT', 'DEPTH', 'MD'].includes(base(m));
 import { nextFreeName, nameKey } from '@/lib/curveNames';
+import { CURVE_ALIASES } from '@/components/wells/curveMap';
+
+// the DEPT alias family every downstream app reads (WDM-U1-003: TDEP and
+// friends are depth too, so a second LAS never writes a second depth curve)
+const isDepthMnemonic = (m) => CURVE_ALIASES.DEPT.includes(base(m));
 
 /** Linear resample of (depthSrc, data) onto depthDst; both ascending MD in
  *  metres. Returns Float32Array(depthDst.length). */
@@ -51,6 +55,43 @@ export function resampleToGrid(depthSrc, data, depthDst) {
     out[i] = v0 + t * (v1 - v0);
   }
   return out;
+}
+
+/**
+ * Point data onto a log grid without inventing values (PETRO-U1-011): each
+ * grid sample takes the NEAREST source sample within half a grid step, or
+ * NaN. For core plugs and other sparse or irregular measurements, where
+ * linear resampling drew a continuous "core porosity" between plugs metres
+ * apart and kept none of the measured values.
+ */
+export function placeNearest(depthSrc, data, depthDst) {
+  const out = new Float32Array(depthDst.length).fill(NAN);
+  const n = depthSrc.length;
+  if (!n || n !== data.length || depthDst.length < 2) return out;
+  let j = 0;
+  for (let i = 0; i < depthDst.length; i++) {
+    const d = depthDst[i];
+    if (!Number.isFinite(d)) continue;
+    const half = Math.abs((i + 1 < depthDst.length ? depthDst[i + 1] - d : d - depthDst[i - 1])) / 2;
+    while (j < n - 1 && Math.abs(depthSrc[j + 1] - d) <= Math.abs(depthSrc[j] - d)) j++;
+    // among equally near finite samples, take the first finite one
+    let best = -1;
+    for (let k = Math.max(0, j - 1); k <= Math.min(n - 1, j + 1); k++) {
+      if (!Number.isFinite(data[k]) || Math.abs(depthSrc[k] - d) > half + 1e-9) continue;
+      if (best < 0 || Math.abs(depthSrc[k] - d) < Math.abs(depthSrc[best] - d)) best = k;
+    }
+    if (best >= 0) out[i] = data[best];
+  }
+  return out;
+}
+
+/** Sparse or irregular: no constant step (null), or more than half the
+ *  samples null. A negative step is an unoriented regular log, not points. */
+export function isPointData(stepM, data) {
+  if (stepM === null || stepM === undefined || Number.isNaN(stepM)) return true;
+  let nulls = 0;
+  for (let i = 0; i < data.length; i++) if (!Number.isFinite(data[i])) nulls++;
+  return data.length > 0 && nulls / data.length > 0.5;
 }
 
 /** True when two depth vectors are the same grid (length and every
@@ -112,6 +153,10 @@ export function planMerge({ prepLogs, keep, names = {}, onClash = {}, existingLo
 
   const existingNames = existingLogs.map((e) => e.mnemonic);
   let resampled = 0;
+  // point placement needs an ascending index (an unoriented bottom-up file
+  // keeps the old path, which its own orientation step exists to prevent)
+  let srcAscending = true;
+  for (let i = 1; i < (lasDepth.data?.length || 0); i++) if (!(lasDepth.data[i] > lasDepth.data[i - 1])) { srcAscending = false; break; }
 
   // depth: written only when the well has none
   if (!depthReused) {
@@ -143,10 +188,14 @@ export function planMerge({ prepLogs, keep, names = {}, onClash = {}, existingLo
 
     let data = l.data;
     if (regrid) {
-      data = resampleToGrid(lasDepth.data, l.data, dst);
+      // PETRO-U1-011: point data (core plugs, sparse samples) is placed on
+      // the nearest grid sample, never interpolated between measurements
+      const points = srcAscending && isPointData(lasDepth.stepM, l.data);
+      data = points ? placeNearest(lasDepth.data, l.data, dst) : resampleToGrid(lasDepth.data, l.data, dst);
       provenance.resampled_from = {
         start_md_m: l.startMdM, stop_md_m: l.stopMdM, step_m: l.stepM, n_samples: l.nSamples,
         depth_mnemonic: lasDepth.mnemonic,
+        ...(points ? { method: 'nearest sample within half a grid step (point data, not interpolated)' } : {}),
       };
       resampled++;
     }

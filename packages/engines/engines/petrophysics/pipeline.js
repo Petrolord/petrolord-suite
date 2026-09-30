@@ -16,6 +16,20 @@ import { tempCurve, rwAtTemp } from './temperature';
 import { netPay, sampleThickness } from './netpay';
 import { kTimur, kTixier, kCoates, kWyllieRose, bvw, swirrFromBuckles, kGeomMean } from './perm';
 
+/** PETRO-U2-011: a Float64Array filled by index. Typed-array `from` with a
+ *  map function walks the iterator protocol and is several times slower on
+ *  the long wells the probabilistic run repeats the pipeline over. */
+function mapF64(n, f) {
+  const out = new Float64Array(n);
+  for (let i = 0; i < n; i++) out[i] = f(i);
+  return out;
+}
+
+/** Sw models defined on TOTAL porosity: they return total Swt on PHIT
+ *  (Waxman & Smits 1968; Clavier, Coates & Dumanoir 1984). */
+export const TOTAL_SW_MODELS = Object.freeze(['waxman-smits', 'dual-water']);
+export const isTotalSwModel = (swMethod) => TOTAL_SW_MODELS.includes(swMethod);
+
 /** The workstation's default parameter set — shown in the panel,
  *  never silently assumed by the engines themselves. */
 export const DEFAULT_PARAMS = {
@@ -73,15 +87,15 @@ export function computeWell(curves, params) {
   } else missing.push('GR (Vsh)');
 
   if (curves.RHOB) {
-    outputs.PHID = Float64Array.from(curves.RHOB, (r) => phiDensity(r, p.rhoMa, p.rhoFl));
+    outputs.PHID = mapF64(n, (i) => phiDensity(curves.RHOB[i], p.rhoMa, p.rhoFl));
   }
   if (curves.DT) {
-    outputs.PHIS = Float64Array.from(curves.DT, (d) => (p.sonicMethod === 'rhg'
-      ? phiSonicRhg(d, p.dtMa)
-      : phiSonicWyllie(d, p.dtMa, p.dtFl)));
+    outputs.PHIS = p.sonicMethod === 'rhg'
+      ? mapF64(n, (i) => phiSonicRhg(curves.DT[i], p.dtMa))
+      : mapF64(n, (i) => phiSonicWyllie(curves.DT[i], p.dtMa, p.dtFl));
   }
   if (outputs.PHID && curves.NPHI) {
-    outputs.PHIND = Float64Array.from(outputs.PHID, (d, i) => phiNd(d, curves.NPHI[i], p.ndMethod));
+    outputs.PHIND = mapF64(n, (i) => phiNd(outputs.PHID[i], curves.NPHI[i], p.ndMethod));
   }
 
   // PT11d: 'mineral' reads the porosity the Studio solved from the mineral
@@ -92,7 +106,7 @@ export function computeWell(curves, params) {
   if (phiT) outputs.PHIT = phiT;
   else missing.push(`${p.phiSource} porosity inputs`);
   if (phiT && outputs.VSH) {
-    outputs.PHIE = Float64Array.from(phiT, (f, i) => phiShaleCorrected(f, outputs.VSH[i], p.phiShale));
+    outputs.PHIE = mapF64(n, (i) => phiShaleCorrected(phiT[i], outputs.VSH[i], p.phiShale));
   } else if (phiT) {
     missing.push('GR (Vsh; no PHIE, so Sw, cutoffs and k use PHIT)');
   }
@@ -104,7 +118,7 @@ export function computeWell(curves, params) {
   const needsVsh = p.swMethod === 'simandoux' || p.swMethod === 'indonesia' || p.swMethod === 'mod-simandoux';
   // total-porosity models take PHIT (their exponents and Swb / Qv are
   // defined on total porosity); the Archie family takes PHIE
-  const totalPhiModel = p.swMethod === 'waxman-smits' || p.swMethod === 'dual-water';
+  const totalPhiModel = isTotalSwModel(p.swMethod);
   if (curves.RT && phiEff && (!needsVsh || outputs.VSH)) {
     const rt = curves.RT;
     const phi = totalPhiModel ? outputs.PHIT : phiEff;
@@ -136,6 +150,10 @@ export function computeWell(curves, params) {
       }
     }
     outputs.SW = sw;
+    // PETRO-U2-012 (PETRO-U1-020): a total-porosity model's saturation is
+    // Swt; SWT names it (SW keeps the model's saturation for the cutoffs and
+    // summaries, and the publish writes it as SWT, never as SW)
+    if (totalPhiModel) outputs.SWT = sw;
   } else if (!curves.RT) missing.push('RT (Sw)');
 
   if (p.permMethod !== 'none' && phiEff) {
@@ -153,16 +171,20 @@ export function computeWell(curves, params) {
     outputs.KPERM = kperm;
   }
   if (phiEff && outputs.SW) {
-    outputs.BVW = Float64Array.from(phiEff, (f, i) => bvw(f, clampDisplay(outputs.SW[i])));
+    // PETRO-U2-012 (PETRO-U1-019): BVW in ONE porosity system, the one the
+    // saturation was solved on: PHIT x Swt for the total-porosity models,
+    // PHIE x Sw for the Archie family (it was PHIE x Swt, mixing the two)
+    const bvwPhi = totalPhiModel && outputs.PHIT ? outputs.PHIT : phiEff;
+    outputs.BVW = mapF64(n, (i) => bvw(bvwPhi[i], clampDisplay(outputs.SW[i])));
   }
 
   if (outputs.PHIE && outputs.VSH && outputs.SW) {
-    const swClamped = Float64Array.from(outputs.SW, (s) => clampDisplay(s));
+    const swClamped = mapF64(n, (i) => clampDisplay(outputs.SW[i]));
     const { flags } = netPay(
       { depth: curves.DEPT, phi: outputs.PHIE, vsh: outputs.VSH, sw: swClamped },
       { cutPhi: p.cutPhi, cutVsh: p.cutVsh, cutSw: p.cutSw },
     );
-    outputs.PAY = Float64Array.from({ length: n }, (_, i) => (flags[i] === null ? NaN : (flags[i] ? 1 : 0)));
+    outputs.PAY = mapF64(n, (i) => (flags[i] === null ? NaN : (flags[i] ? 1 : 0)));
   }
 
   return { outputs, missing };
@@ -231,8 +253,10 @@ export function computeWellZoned(curves, baseParams, zoneParamList = []) {
  *  v5 (PT9): the curve formerly published as PHIE (the source porosity
  *  as read) is now PHIT; PHIE is the shale-corrected effective
  *  porosity and feeds Sw, cutoffs, k and BVW; permeability defaults to
- *  Timur. */
-export const PIPELINE_VERSION = 6; // PT11d: phiSource 'mineral'
+ *  Timur. v6 (PT11d): phiSource 'mineral'. v7 (PETRO-U2-012): with a
+ *  total-porosity Sw model BVW is PHIT x Swt (was PHIE x Swt), the
+ *  saturation is also output as SWT and published under that name. */
+export const PIPELINE_VERSION = 7; // PT11d v6: phiSource 'mineral'; PETRO-U2-012 v7: BVW = PHIT x Swt and the SWT curve for total-porosity Sw models
 
 /** Literature references for each selectable method, keyed the way the
  *  parameter set spells them — the same sources the validation oracle
@@ -284,6 +308,7 @@ const PUBLISH_SPECS = {
   PHIT: { unit: 'V/V', description: (p) => `Total porosity (${p.phiSource}, as read)` },
   PHIE: { unit: 'V/V', description: (p) => `Effective porosity (${p.phiSource}, shale-corrected, phi_sh ${p.phiShale})` },
   SW: { unit: 'V/V', description: (p) => `Water saturation (${p.swMethod})` },
+  SWT: { unit: 'V/V', description: (p) => `Total water saturation Swt on PHIT (${isTotalSwModel(p.swMethod) ? p.swMethod : 'total-porosity model in the zones that use one'})` },
   PAY: { unit: 'FLAG', description: () => 'Net-pay flag (1 = pay)' },
   // documented units exception (see perm.js): mD, never m^2
   KPERM: { unit: 'MD', description: (p) => `Permeability (${p.permMethod}, mD)` },
@@ -308,8 +333,16 @@ export function preparePublishLogs(wellData, outputs, params, meta) {
   const depthLog = wellData.inventory.find((e) => e.key === 'DEPT')?.log;
   const inputLogIds = wellData.inventory.filter((e) => e.log).map((e) => e.log.id);
   const logs = [];
+  // PETRO-U2-012: SW rows carry effective-system saturation only; where a
+  // total-porosity model ran (the whole well or a zone with its own model)
+  // the saturation is SWT, and SW is null there
+  const sources = { ...outputs };
+  if (outputs.SWT && outputs.SW) {
+    const sw = Float64Array.from(outputs.SW, (v, i) => (Number.isFinite(outputs.SWT[i]) ? NaN : v));
+    sources.SW = sw.some(Number.isFinite) ? sw : null;
+  }
   for (const [mnemonic, spec] of Object.entries(PUBLISH_SPECS)) {
-    const src = outputs[mnemonic];
+    const src = sources[mnemonic];
     if (!src) continue;
     let nullCount = 0;
     const data = new Float32Array(src.length);
@@ -371,4 +404,100 @@ export function zoneSummary(curves, outputs, params, zone) {
     summary.k_gm_md = kGeomMean(outputs.KPERM, flags, sampleThickness(curves.DEPT));
   }
   return summary;
+}
+
+/**
+ * PETRO-U2-012 (PETRO-U1-021): the zone's hydrocarbon pore thickness and
+ * its pore-volume weighted Sw, in the porosity system each sample's Sw was
+ * solved on. Over the pay samples (the zone's own cutoffs):
+ *   HCPV = sum h phi_hc (1 - Sw), phi_hc = PHIT for a total-porosity model
+ *   (Sw is Swt there), else PHIE;
+ *   sw_avg = 1 - HCPV / sum h PHIE, so net x phi_avg x (1 - sw_avg) = HCPV
+ * exactly (phi_avg being the net-weighted PHIE). For the Archie family this
+ * is sum(phi Sw h) / sum(phi h), the volumetric convention (Crain; AAPG
+ * thickness for volumetrics); zoneSummary's sw_avg stays the
+ * net-thickness-weighted figure for traceability.
+ * @returns {?{hcpv_m: number, pore_m: number, sw_avg: ?number, sw_system: 'total'|'effective'}}
+ */
+export function zoneHydrocarbon(curves, outputs, params, zone) {
+  const p = { ...DEFAULT_PARAMS, ...params };
+  if (!outputs.PHIE || !outputs.VSH || !outputs.SW) return null;
+  const total = isTotalSwModel(p.swMethod) && !!outputs.PHIT;
+  const phiE = outputs.PHIE;
+  const phiHc = total ? outputs.PHIT : phiE;
+  const sw = Float64Array.from(outputs.SW, (v) => clampDisplay(v));
+  const { flags } = netPay(
+    { depth: curves.DEPT, phi: phiE, vsh: outputs.VSH, sw },
+    { cutPhi: p.cutPhi, cutVsh: p.cutVsh, cutSw: p.cutSw, top: zone.top_md_m, base: zone.base_md_m },
+  );
+  const th = sampleThickness(curves.DEPT);
+  let hc = 0;
+  let pore = 0;
+  for (let i = 0; i < th.length; i++) {
+    if (!flags[i]) continue;
+    const hcI = phiHc[i] * (1 - sw[i]);
+    if (Number.isFinite(hcI)) hc += th[i] * hcI;
+    pore += th[i] * phiE[i];
+  }
+  return { hcpv_m: hc, pore_m: pore, sw_avg: pore > 0 ? 1 - hc / pore : null, sw_system: total ? 'total' : 'effective' };
+}
+
+/**
+ * PETRO-U2-011: the raw sums behind a zone summary over part of a well, so a
+ * zone can be summed chunk by chunk in one pass (the probabilistic run).
+ * Same pay rule, thickness and porosity systems as zoneSummary (netPay) and
+ * zoneHydrocarbon: over samples [from, to] of `curves` whose depth is inside
+ * the zone, with midpoint thickness from the full slice (pass one sample of
+ * margin either side of [from, to] for the whole-array midpoints).
+ * @returns {?{gross, net, sPhi, sVsh, sSw, kS, kW, hc, pore, hasK: boolean}} null without PHIE, VSH or SW
+ */
+export function zoneSums(curves, outputs, params, zone, from = 0, to = curves.DEPT.length - 1) {
+  const p = { ...DEFAULT_PARAMS, ...params };
+  if (!outputs.PHIE || !outputs.VSH || !outputs.SW) return null;
+  const depth = curves.DEPT;
+  const th = sampleThickness(depth);
+  const total = isTotalSwModel(p.swMethod) && !!outputs.PHIT;
+  const phiE = outputs.PHIE; const vsh = outputs.VSH; const swRaw = outputs.SW; const k = outputs.KPERM || null;
+  const phiHc = total ? outputs.PHIT : phiE;
+  const top = zone.top_md_m; const base = zone.base_md_m;
+  const r = { gross: 0, net: 0, sPhi: 0, sVsh: 0, sSw: 0, kS: 0, kW: 0, hc: 0, pore: 0, hasK: !!k };
+  for (let i = from; i <= to; i++) {
+    const d = depth[i];
+    if (d < top || d > base) continue;
+    const t = th[i];
+    r.gross += t;
+    const sw = clampDisplay(swRaw[i]);
+    const ph = phiE[i]; const v = vsh[i];
+    if (!(Number.isFinite(ph) && Number.isFinite(v) && Number.isFinite(sw))) continue;
+    if (!(ph >= p.cutPhi && v <= p.cutVsh && sw <= p.cutSw)) continue;
+    r.net += t; r.sPhi += ph * t; r.sVsh += v * t; r.sSw += sw * t;
+    if (k && k[i] > 0) { r.kS += Math.log(k[i]) * t; r.kW += t; }
+    const hcI = phiHc[i] * (1 - sw);
+    if (Number.isFinite(hcI)) r.hc += t * hcI;
+    r.pore += t * ph;
+  }
+  return r;
+}
+
+/** Add one partial zoneSums into another (in place). */
+export function addZoneSums(acc, part) {
+  for (const key of ['gross', 'net', 'sPhi', 'sVsh', 'sSw', 'kS', 'kW', 'hc', 'pore']) acc[key] += part[key];
+  acc.hasK = acc.hasK || part.hasK;
+  return acc;
+}
+
+/** Zone numbers from sums: zoneSummary's fields (sw_avg pore-volume weighted, as zoneHydrocarbon) plus hcpv_m. */
+export function summaryFromSums(r) {
+  const net = r.net;
+  return {
+    gross_m: r.gross,
+    net_m: net,
+    ntg: r.gross > 0 ? net / r.gross : null,
+    phi_avg: net > 0 ? r.sPhi / net : null,
+    vsh_avg: net > 0 ? r.sVsh / net : null,
+    sw_avg_h: net > 0 ? r.sSw / net : null,
+    sw_avg: r.pore > 0 ? 1 - r.hc / r.pore : null,
+    hcpv_m: r.hc,
+    ...(r.hasK ? { k_gm_md: r.kW > 0 ? Math.exp(r.kS / r.kW) : NaN } : {}),
+  };
 }

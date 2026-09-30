@@ -8,9 +8,10 @@ import { Snowflake, AlertTriangle, Thermometer, Route, ShieldCheck } from 'lucid
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const C = { hydrate: '#2563eb', profile: '#d97706', risk: '#dc2626', wat: '#7c3aed' };
-const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toFixed(d));
+const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toFixed(d));
 
 const Tile = ({ label, value, sub, icon: Icon, tone = 'text-pl-text' }) => (
   <div className="rounded-lg border border-pl-border bg-pl-sunken px-3 py-2">
@@ -53,7 +54,7 @@ const FlowAssuranceCard = ({ fa }) => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Tile label="Wax Appearance (WAT)" value={watLabel} sub={watSub} icon={Thermometer} />
           <Tile label="Asphaltene Onset (AOP)" value="N/A" sub="needs SARA data" icon={AlertTriangle} />
-          <Tile label="Min profile temp" value={fa.hydrate_risk.min_temp != null ? `${fmt(fa.hydrate_risk.min_temp)} °F` : '—'} icon={Thermometer} />
+          <Tile label="Min profile temp" value={fa.hydrate_risk.min_temp != null ? `${fmt(fa.hydrate_risk.min_temp)} °F` : EMPTY_VALUE} icon={Thermometer} />
           <Tile label="Max subcooling" value={`${fmt(fa.hydrate_risk.max_subcooling)} °F`} icon={Snowflake} tone={fa.hydrate_risk.max_subcooling > 0 ? 'text-pl-danger-text' : 'text-pl-text'} />
         </div>
 

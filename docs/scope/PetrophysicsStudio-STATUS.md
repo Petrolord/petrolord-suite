@@ -772,3 +772,58 @@ the themed cold-load loaders.
   light and dark, every view, ten dialogs and the help guide). The e2e
   selected-well check now reads `text-pl-primary-text`. No calculation,
   LAS, export or plotting change.
+
+## 2026-09-29: upgrade programme Step 1 (practitioner lens) and Step 2 analysis
+
+App #2 of the Geoscience upgrade programme. Full record, findings and the
+ranked Step 2 backlog: `docs/upgrade/PetrophysicsStudio-UPGRADE.md`
+(branch `feat/petro-u1`). All twelve checks run; 33 findings, 17 fixed
+(1 S1, 8 S2, 4 S3, 4 S4), 15 open (12 S3, 3 S4), none S1 or S2.
+
+- **S1, chain:** ReservoirCalc Pro's Wells tab fed a zone's net pay into
+  its gross thickness and also set NTG, so NTG applied twice. Thickness is
+  now the published gross (vertical when present).
+- **Zone numbers a volumetrics input can use** (`services/zoneAverages.js`):
+  Sw pore-volume weighted so net x phi x (1 - Sw) is HCPV (the engine's
+  thickness-weighted value kept as `sw_avg_h`); Waxman-Smits and dual
+  water keep PHIT (1 - Swt); net reservoir; true vertical thickness through
+  the survey; HCPV. Card, CSV, PDF, Field view, Low/High and publish all
+  use it. A zone publish used the base cutoffs; it now uses the zone's own.
+- **Inputs in the engines' units** (`src/components/wells/curveUnits.js`):
+  NPHI in PU or % (or in percent labelled v/v), RHOB in kg/m3 and DT in
+  us/ft convert as read; -999 and below in the physical inputs is null;
+  the status line says so. Applies to the Studio, the shared curves cache
+  (Field view, Well Correlation, Earth Modeling) and batch runs.
+- **Report:** header block (company, field, analyst in the Export dialog,
+  remembered per user; well, UWI, location and CRS, datum, interpretation,
+  units, build), every applied parameter, zone overrides, net reservoir,
+  TVT and HCPV; Latin-1 safe.
+- **Batch** publishes zone summaries too and has an All toggle; the zone
+  card says whether its published row matches; Split view works at 1280
+  and 1366 (two e2e specs had been red on main); crossplot labels and
+  watermarks stay inside their plots; Mineral Apply closes its dialog;
+  missing values print `n/a` in the shared track painter.
+- **WDM door:** core plugs merged into a well keep their measured values
+  (nearest sample, no interpolation).
+- **Kits:** hostile set `e2e/fixtures/petro/hostile/` (one well in six
+  vendor spellings, core, zonation), saved-state fixtures per release
+  `e2e/fixtures/petro/saved/`, harness `?scaleWell=1&extraWells=n`,
+  `e2e/petrophysics-upgrade.spec.js`.
+- **PL10:** 20,000 ft at 0.5 ft with 30 curves opens in 1.3 s (longest
+  main-thread task 0.49 s); a 23-well batch in 1.4 s; probabilistic 100
+  draws on that well 53.5 s in the worker (open, U2-011).
+- **Open for the owner:** Step 2 batch choice (A: cutoff sensitivity, CPI
+  page, unit doors, zone import, unit family table); whether to republish
+  or flag PHIE rows published before PT9a (PETRO-U1-026); phone support
+  for workstation apps (shared with WDM-U1-023).
+
+## 2026-09-29: upgrade programme Step 2 built (batches A, B, C)
+
+Branch `feat/petro-u2`, one commit per item; details and proving tests in
+`docs/upgrade/PetrophysicsStudio-UPGRADE.md` (Batch decision and Step 2 build log).
+
+- **A.** Cutoff sensitivity per zone on screen and in the PDF (U2-005); a log plot (CPI) page per zone in the PDF (U2-003); parameter entry in us/ft, degF and ft with an exact round trip (U2-002); zonation import from Techlog, IP, Petrel or a paste, hostile-file tested (U2-004); a shared unit-family table with an Input units door and the NEU / RES_DEEP aliases (U2-001, closes PETRO-U1-030).
+- **B.** Engines-first: BVW = PHIT x Swt and SWT for total-porosity models, pore-volume zone Sw and HCPV outcomes in the probabilistic run (U2-012, engines PR #285, PIPELINE_VERSION 7); a one-pass probabilistic engine split by depth across up to four workers (U2-011, engines PR #286; 100 draws on the 20,000 ft well 53.5 s to 30.3 s on a loaded host, the 10 s target still open). Stale badges on published curves and facies (U2-009); pre-PT9a PHIE rows flagged in the Studio, Well Data Manager, Rock Physics, Data AI and Earth Modeling with an owner Republish (U2-013); HCPV and net pay as named Mapping sources (U2-008); core plugs on the tracks and a per-zone poro-perm transform (U2-007); saturation-height from SCAL Studio projects beside the log Sw (U2-010); Data AI electrofacies on the Studio tracks with a crosstab against rule facies (U2-006).
+- **C.** Parameter checks against the well's own logs (U2-015); a 25-per-day scan-read cap logged in `dai_llm_calls` (no migration) and backup-scale unwrapping in the digitizer (U2-018).
+- **Deferred:** U2-014 multi-mineral stage two, U2-016 preferences table (migration), U2-017 useProjectState extraction.
+- **Owner items:** merge engines PRs #285 and #286 (the Suite pins their commits; the merge was refused to this session as unreviewed); deploy `petro-scan-read`; Bateman-Konen 150/300 F chart readings; the equation page check. PETRO-U1-028 decided: the workstation stays desktop-first at 390 px (readable, no page scroll).

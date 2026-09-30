@@ -433,6 +433,7 @@ and is the biggest build risk in the domain.
   roles. The scanned map sits on a dark canvas (`data-canvas="dark"`) that
   does not follow the theme; the image and the overlay drawing are
   unchanged. Theme test: `src/pages/apps/__tests__/ContourMapDigitizer.theme.test.jsx`.
+- (Retired 2026-09-28 by WDM-U2-015: the route now redirects to `/dashboard/geoscience`; the page and its theme test are deleted.)
 - The legacy Geoscience Hub app (`/dashboard/apps/geoscience/hub`) wraps
   itself in `<ThemedApp>` (`geo-hub-theme-scope`) with `AppHeader`; cards on
   the adapted primitives. Theme test: `src/pages/apps/__tests__/GeoscienceHub.theme.test.jsx`.

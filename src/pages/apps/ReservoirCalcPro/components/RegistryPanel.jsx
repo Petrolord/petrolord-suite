@@ -1,7 +1,7 @@
 // Wells tab (ReservoirCalc Pro RC1, 2026-09-06): the door from the shared
 // Geoscience registry into the volumetric inputs. Pick a zone and pull
 // the zone averages Petrophysics Studio published (porosity, Sw, NTG,
-// net thickness) from every well that carries it; take the area from a
+// gross thickness; RCP applies NTG to it) from every well that carries it; take the area from a
 // registry surface's live footprint; take a boundary polygon drawn in
 // Mapping & Surface Studio as an AOI. Nothing is applied silently: the
 // panel shows what Apply would set, and the audit trail and the inputs'

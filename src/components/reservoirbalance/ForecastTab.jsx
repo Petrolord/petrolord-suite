@@ -26,17 +26,18 @@ import {
   reconcileWithMbal,
 } from '@/pages/apps/reservoir-balance/lib/mbalForecast';
 import { useMaterialBalanceStudio } from '@/contexts/MaterialBalanceStudioContext';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const MODELS = ['Auto-Select', 'Exponential', 'Hyperbolic', 'Harmonic'];
 
 const fmtVol = (v, isGas) => {
-  if (v == null || !Number.isFinite(v)) return '—';
+  if (v == null || !Number.isFinite(v)) return EMPTY_VALUE;
   return isGas
     ? `${(v / 1e9).toLocaleString('en-US', { maximumFractionDigits: 2 })} Bcf`
     : `${(v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 2 })} MM STB`;
 };
 const fmtRate = (v, isGas) => {
-  if (v == null || !Number.isFinite(v)) return '—';
+  if (v == null || !Number.isFinite(v)) return EMPTY_VALUE;
   return isGas
     ? `${(v / 1e3).toLocaleString('en-US', { maximumFractionDigits: 0 })} Mscf/d`
     : `${v.toLocaleString('en-US', { maximumFractionDigits: 0 })} STB/d`;
@@ -271,7 +272,7 @@ const ForecastTab = () => {
                   label="Difference"
                   value={reconciliation.deltaFraction != null
                     ? `${(reconciliation.deltaFraction * 100).toFixed(1)}%`
-                    : '—'}
+                    : EMPTY_VALUE}
                   hint="DCA vs MBAL remaining"
                 />
               </div>
@@ -297,7 +298,7 @@ const ForecastTab = () => {
                   label="Drive mechanism band"
                   value={reconciliation.band
                     ? `${(reconciliation.band.lo * 100).toFixed(0)} to ${(reconciliation.band.hi * 100).toFixed(0)}%`
-                    : '—'}
+                    : EMPTY_VALUE}
                   hint={reconciliation.band?.label ?? reconciliation.driveMechanism?.replace(/_/g, ' ')}
                 />
               </div>

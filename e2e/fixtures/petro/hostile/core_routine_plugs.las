@@ -1,0 +1,28 @@
+~VERSION INFORMATION
+ VERS.                 2.0 :   CWLS LOG ASCII STANDARD -VERSION 2.0
+ WRAP.                  NO :   ONE LINE PER DEPTH STEP
+~WELL INFORMATION
+ STRT.M        1525.23 :   START DEPTH
+ STOP.M        1548.80 :   STOP DEPTH
+ STEP.M        0.0 :   STEP
+ NULL.            -999.25 :   NULL VALUE
+ WELL.   PETRO REF-1 :   WELL
+ COMP.   Demo Operator :   COMPANY
+~CURVE INFORMATION
+ DEPT.M      :   Core depth (driller)
+ CPOR.%       :   Core porosity (helium)
+ CKH .MD      :   Core permeability, horizontal
+ CGD .G/C3    :   Grain density
+~A
+1525.23 24.00 300.0 2.650
+1525.61 25.00 340.0 2.660
+1526.40 26.00 380.0 2.650
+1527.18 24.00 420.0 2.660
+1528.55 25.00 300.0 2.650
+1530.02 26.00 340.0 2.660
+1531.40 24.00 380.0 2.650
+1533.90 25.00 420.0 2.660
+1536.35 26.00 300.0 2.650
+1540.10 24.00 340.0 2.660
+1545.05 25.00 380.0 2.650
+1548.80 26.00 420.0 2.660

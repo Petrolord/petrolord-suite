@@ -24,7 +24,48 @@ const nextId = (p) => { seq += 1; return `${p}-${seq}`; };
 
 const toArray = (vals) => Float64Array.from(vals, (v) => (v === null ? NaN : v));
 
-export function makeInMemoryBackend() {
+/**
+ * AppUpgrade PL10 scale well: `lengthFt` of hole at `stepFt`, with the six
+ * pipeline inputs, CAL, DRHO, PEF and enough auxiliary curves to reach
+ * `nCurves` (the size a Techlog project well carries). Deterministic
+ * sand/shale cycles so the pipeline has real pay to find.
+ */
+export function buildScaleWellCurves({ lengthFt = 20000, stepFt = 0.5, nCurves = 30, topM = 300 } = {}) {
+  const n = Math.floor(lengthFt / stepFt) + 1;
+  const step = stepFt * 0.3048;
+  const curves = { DEPT: new Float64Array(n) };
+  const base = ['GR', 'RHOB', 'NPHI', 'DT', 'RT', 'CAL', 'DRHO', 'PEF'];
+  for (const k of base) curves[k] = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const d = topM + i * step;
+    curves.DEPT[i] = d;
+    const sand = Math.sin(d / 7) > 0.2;          // ~40 percent sand in 44 m cycles
+    const phi = sand ? 0.18 + 0.06 * Math.sin(d / 3) : 0.06;
+    const sw = sand ? (Math.sin(d / 97) > 0 ? 0.25 : 0.9) : 1;
+    curves.GR[i] = sand ? 25 + 10 * Math.sin(d) : 110 + 10 * Math.cos(d);
+    curves.RHOB[i] = 2.65 - 1.65 * phi;
+    curves.NPHI[i] = sand ? phi : 0.33;
+    curves.DT[i] = 182 + phi * 474;
+    curves.RT[i] = sand ? 0.05 / (phi * phi * sw * sw) : 2;
+    curves.CAL[i] = 8.5 + 0.2 * Math.sin(d / 2);
+    curves.DRHO[i] = 0.01 * Math.sin(d / 5);
+    curves.PEF[i] = sand ? 1.9 : 3.3;
+  }
+  for (let k = base.length + 1; k < nCurves; k++) {
+    const a = new Float64Array(n);
+    for (let i = 0; i < n; i++) a[i] = Math.sin(curves.DEPT[i] / (k + 3)) * k;
+    curves[`AUX${String(k).padStart(2, '0')}`] = a;
+  }
+  return curves;
+}
+
+/**
+ * @param {{scaleWell?: Object|null, extraWells?: number}} [opts]
+ *   scaleWell: add "SCALE-20K" built by buildScaleWellCurves(opts.scaleWell);
+ *   extraWells: add n owned copies of the type well ("KETA COPY-01"...)
+ *   with the SAND A zone, for multi-well batch and field view timing.
+ */
+export function makeInMemoryBackend(opts = {}) {
   const curveStore = new Map();   // log id -> Float64Array
   const logsByWell = new Map();
   const topsByWell = new Map();
@@ -91,6 +132,38 @@ export function makeInMemoryBackend() {
     { md: 2100, inc: 25, azi: 45 },
   ];
   addLogs(ownId);
+  // PETRO-U2-007: routine core analysis as Well Data Manager stores it after
+  // a merge (point values on the nearest samples, NaN between): plugs every
+  // 2 m through both sands; CPOR in percent, CKH in mD from a semi-log trend
+  // with a deterministic scatter, so the core transform has something to fit
+  if (opts.core !== false) {
+    const depth = typewell.curves.DEPT;
+    const phiTrue = typewell.construction.phi_true;
+    const cpor = new Float64Array(depth.length).fill(NaN);
+    const ckh = new Float64Array(depth.length).fill(NaN);
+    let j = 0;
+    for (let i = 0; i < depth.length; i += 4) {
+      const d = depth[i];
+      const inSand = (d >= 2010 && d <= 2030) || (d >= 2050 && d <= 2080);
+      const phi = phiTrue[i];
+      if (!inSand || !(phi > 0.05)) continue;
+      const wobble = [0.004, -0.006, 0.002, -0.003, 0.005, -0.001][j % 6];
+      cpor[i] = (phi + wobble) * 100;
+      ckh[i] = 10 ** (-1.4 + 15.5 * phi + [0.12, -0.08, 0.05, -0.15, 0.1, -0.02][j % 6]);
+      j += 1;
+    }
+    for (const [mnemonic, data, unit, description] of [['CPOR', cpor, '%', 'Core porosity (helium)'], ['CKH', ckh, 'MD', 'Core permeability, horizontal']]) {
+      const id = nextId('log');
+      curveStore.set(id, data);
+      logsByWell.get(ownId).push({
+        id, well_id: ownId, mnemonic, description, unit,
+        start_md_m: depth[0], stop_md_m: depth[depth.length - 1], step_m: 0.5, n_samples: depth.length,
+        null_count: data.filter((v) => !Number.isFinite(v)).length, source_file: 'core_routine.las',
+        provenance: { resampled_from: { method: 'nearest sample within half a grid step (point data, not interpolated)' } },
+        storage_path: `dev/${ownId}/${id}.f32`,
+      });
+    }
+  }
   topsByWell.set(ownId, [
     { id: nextId('top'), well_id: ownId, name: 'Top Sand A', md_m: 2010 },
     { id: nextId('top'), well_id: ownId, name: 'Top Shale', md_m: 2030 },
@@ -120,6 +193,32 @@ export function makeInMemoryBackend() {
     properties: { phi_avg: 0.21, published_by: 'other user' },
   }]);
 
+  // PL10: scale fixtures, harness only (?scaleWell=1, ?extraWells=n)
+  if (opts.scaleWell) {
+    const id = addWell({ name: 'SCALE-20K', isOwn: true });
+    const curves = buildScaleWellCurves(opts.scaleWell === true ? {} : opts.scaleWell);
+    const depth = curves.DEPT;
+    for (const [mnemonic, vals] of Object.entries(curves)) {
+      const logId = nextId('log');
+      curveStore.set(logId, vals);
+      logsByWell.get(id).push({
+        id: logId, well_id: id, mnemonic, description: `${mnemonic} (scale well)`,
+        unit: CURVE_UNITS[mnemonic] || (mnemonic === 'CAL' ? 'IN' : mnemonic === 'DRHO' ? 'G/C3' : null),
+        start_md_m: depth[0], stop_md_m: depth[depth.length - 1], step_m: depth[1] - depth[0],
+        n_samples: depth.length, null_count: 0, source_file: 'scale', provenance: { synthetic: true },
+        storage_path: `dev/${id}/${logId}.f32`,
+      });
+    }
+    const w = wells.find((x) => x.id === id);
+    w.td_md_m = depth[depth.length - 1];
+    zonesByWell.set(id, [{ id: nextId('zone'), well_id: id, name: 'WHOLE WELL', top_md_m: depth[0], base_md_m: depth[depth.length - 1], properties: {} }]);
+  }
+  for (let k = 1; k <= (opts.extraWells || 0); k++) {
+    const id = addWell({ name: `KETA COPY-${String(k).padStart(2, '0')}`, isOwn: true });
+    addLogs(id);
+    zonesByWell.set(id, [{ id: nextId('zone'), well_id: id, name: 'SAND A', top_md_m: typewell.params.zones.SAND_A[0], base_md_m: typewell.params.zones.SAND_A[1], properties: {} }]);
+  }
+
   const ownZoneWell = (wellId) => {
     const w = wells.find((x) => x.id === wellId);
     if (!w) throw new Error('Well not found.');
@@ -146,6 +245,25 @@ export function makeInMemoryBackend() {
       const i = logs.findIndex((l) => l.id === log.id);
       if (i >= 0) logs.splice(i, 1);
       curveStore.delete(log.id);
+    },
+    /** PETRO-U2-010: one sample SCAL Studio project (inputs_data shape, schema 1). */
+    async listScalProjects() { return [{ id: 'scal-sample', name: 'Keta SAND J (sample)', updatedAt: '2026-09-29T00:00:00Z' }]; },
+    async loadScalProject(id) {
+      if (id !== 'scal-sample') return null;
+      return {
+        id, name: 'Keta SAND J (sample)', schema: 1, samples: [],
+        capillary: { jMode: 'manual', manual: { a: '0.25', b: '1.4', Swirr: '0.15' }, SwirrOverride: '', includedSampleIds: [], reservoir: { k_md: '150', phi: '0.22', sigma_dyncm: '26', thetaDeg: '30' } },
+        height: { gammaW: '1.05', gammaHc: '0.80', fwl_tvdss: '6758.53', swMin: '0.2', swMax: '0.95' },
+      };
+    },
+    /** PETRO-U2-001: same contract as wellsRegistry.updateLogUnit. */
+    async updateLogUnit(log, unit) {
+      ownWell(log.well_id, 'change curve units on this well');
+      const logs = logsByWell.get(log.well_id) || [];
+      const i = logs.findIndex((l) => l.id === log.id);
+      if (i < 0) throw new Error(`No curve ${log.mnemonic}.`);
+      logs[i] = { ...logs[i], unit, provenance: { ...(logs[i].provenance || {}), unit_corrected: { from: logs[i].unit ?? null, to: unit, at: new Date().toISOString(), by_app: 'petrophysics-studio' } } };
+      return logs[i];
     },
     async listWells() { return [...wells]; },
     async listLogs(wellId) { return [...(logsByWell.get(wellId) || [])]; },
@@ -235,6 +353,8 @@ export function makeInMemoryBackend() {
       ownWell(wellId, 'publish curves to this well');
       const logs = logsByWell.get(wellId);
       const mnemonics = new Set(preparedLogs.map((l) => l.mnemonic));
+      // PETRO-U2-012: SW and SWT retire each other (registryBackend contract)
+      if (mnemonics.has('SW') || mnemonics.has('SWT')) { mnemonics.add('SW'); mnemonics.add('SWT'); }
       for (let i = logs.length - 1; i >= 0; i--) {
         const l = logs[i];
         if (l.provenance?.computed && l.provenance?.engine === 'petrophysics-studio'

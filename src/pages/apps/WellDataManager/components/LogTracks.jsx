@@ -9,6 +9,7 @@
 // so — the quick-view never pretends to a depth it doesn't have.
 
 import React, { useEffect, useRef } from 'react';
+import { toDisp, unitText } from '../engine/displayUnits';
 
 const TRACK_W = 130;
 const GUTTER = 54;      // left depth-axis gutter
@@ -20,6 +21,13 @@ const FRAME = 'rgba(148,163,184,0.9)'; // slate-400
 const GRID = 'rgba(203,213,225,0.9)';  // slate-300
 const AXIS_TEXT = '#475569';           // slate-600
 const COLORS = ['#0e7490', '#d97706', '#059669', '#db2777', '#7c3aed', '#dc2626'];
+
+/** Depth tick text with enough decimals that neighbouring ticks never read
+ *  the same (WDM-U1-014: a 7.5 m interval used to print 2007 twice). */
+export function depthTickLabel(d, tickStep) {
+  const dec = tickStep >= 1 ? 0 : (tickStep >= 0.1 ? 1 : 2);
+  return d.toFixed(dec);
+}
 
 function finiteRange(data) {
   let min = Infinity;
@@ -42,7 +50,7 @@ function finiteRange(data) {
  *   draw, in order; log is the geo_wells_logs row shape
  * @param {number} [p.height]
  */
-export default function LogTracks({ tracks, height = 420 }) {
+export default function LogTracks({ tracks, height = 420, unit = 'm' }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -80,6 +88,12 @@ export default function LogTracks({ tracks, height = 420 }) {
     const axisMin = regular ? start : 0;
     const axisMax = regular ? stop : maxN - 1;
     const yOf = (d) => plotTop + ((d - axisMin) / (axisMax - axisMin || 1)) * plotH;
+    // geometry for the browser checks (AppUpgrade PL6): the depth at the top
+    // and bottom of the plot, so a test can assert depth increases downward
+    canvas.dataset.depthTop = String(axisMin);
+    canvas.dataset.depthBottom = String(axisMax);
+    canvas.dataset.depthAxis = regular ? 'md' : 'index';
+    canvas.dataset.axisUnit = unitText(unit);
 
     // depth gridlines + labels
     ctx.strokeStyle = GRID;
@@ -94,13 +108,14 @@ export default function LogTracks({ tracks, height = 420 }) {
       ctx.moveTo(GUTTER, y);
       ctx.lineTo(cssW, y);
       ctx.stroke();
-      ctx.fillText(regular ? `${Math.round(d)}` : `#${Math.round(d)}`, GUTTER - 4, y + 3);
+      // WDM-U2-001: ticks read in the display unit; the spacing stays in stored metres
+      ctx.fillText(regular ? depthTickLabel(toDisp(d, unit), toDisp((axisMax - axisMin) / nTicks, unit)) : `#${Math.round(d)}`, GUTTER - 4, y + 3);
     }
     ctx.save();
     ctx.translate(11, plotTop + plotH / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
-    ctx.fillText(regular ? 'MD (m)' : 'sample index', 0, 0);
+    ctx.fillText(regular ? `MD (${unitText(unit)})` : 'sample index', 0, 0);
     ctx.restore();
 
     tracks.forEach((t, ti) => {
@@ -144,7 +159,7 @@ export default function LogTracks({ tracks, height = 420 }) {
       ctx.stroke();
       ctx.lineWidth = 1;
     });
-  }, [tracks, height]);
+  }, [tracks, height, unit]);
 
   return (
     <div className="overflow-x-auto" data-canvas="chart">

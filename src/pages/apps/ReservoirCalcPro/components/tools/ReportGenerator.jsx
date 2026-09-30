@@ -7,6 +7,7 @@ import { tornadoSwings } from '@/lib/monteCarlo';
 // this file's export test suite. One implementation now, so a change to the
 // Suite's report header reaches every report.
 import { loadPetrolordLogo, drawBrandHeader } from '@/lib/pdfBrand';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // ── Text-fitting helpers ────────────────────────────────────────────────────
 // Long project/reservoir names used to be drawn at full length and collided
@@ -51,7 +52,7 @@ export class ReportGenerator {
         const stats = (gas ? results.stats.giip : results.stats.stooip) || {};
         const denom = gas ? 1e9 : 1e6;
         const unit = gas ? (unitSystem === 'field' ? 'Bscf' : 'MMsm³') : (unitSystem === 'field' ? 'MMstb' : 'MMsm³');
-        const fmt = (v) => (Number.isFinite(v) ? (v / denom).toFixed(2) : '—');
+        const fmt = (v) => (Number.isFinite(v) ? (v / denom).toFixed(2) : EMPTY_VALUE);
 
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.width;
@@ -154,7 +155,7 @@ export class ReportGenerator {
             ['P90 / P10', `${fmt(stats.p90)} / ${fmt(stats.p10)}`, unit, 'Low / high case'],
             ['Std. Deviation', fmt(stats.stdDev), unit, 'Spread / uncertainty'],
             ['Min / Max', `${fmt(stats.min)} / ${fmt(stats.max)}`, unit, 'Simulated extremes'],
-            ['P10 / P90 Ratio', Number.isFinite(stats.p10 / stats.p90) ? (stats.p10 / stats.p90).toFixed(2) : '—', '-', 'Uncertainty ratio'],
+            ['P10 / P90 Ratio', Number.isFinite(stats.p10 / stats.p90) ? (stats.p10 / stats.p90).toFixed(2) : EMPTY_VALUE, '-', 'Uncertainty ratio'],
         ];
         // Executive keeps it short (mean / P50 / spread); technical shows all rows.
         const bodyRows = includeTechnical ? fullRows : fullRows.filter((r) => ['Mean', 'Median (P50)', 'P90 / P10', 'Std. Deviation'].includes(r[0]));
@@ -199,7 +200,7 @@ export class ReportGenerator {
                         const row = [PL[s.parameter] || s.parameter, `${s.contribution.toFixed(1)}%`, s.impactDirection > 0 ? 'Increases volume' : 'Decreases volume'];
                         if (hasSwings) {
                             const sw = swingByParam[s.parameter];
-                            row.push(sw ? fmt(sw.low) : '—', sw ? fmt(sw.high) : '—');
+                            row.push(sw ? fmt(sw.low) : EMPTY_VALUE, sw ? fmt(sw.high) : EMPTY_VALUE);
                         }
                         return row;
                     }),
@@ -301,7 +302,7 @@ export class ReportGenerator {
         const showOil = fluidType === 'oil' || fluidType === 'oil_gas';
         const showGas = fluidType === 'gas' || fluidType === 'oil_gas';
 
-        const num = (v, d = 0) => (Number.isFinite(v) ? v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d }) : '—');
+        const num = (v, d = 0) => (Number.isFinite(v) ? v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d }) : EMPTY_VALUE);
         const oilUnit = results.volumeUnit || (isField ? 'STB' : 'sm³');
         const gasB = 'B' + (isField ? 'scf' : 'sm³');
 
@@ -381,12 +382,12 @@ export class ReportGenerator {
         ];
         if (showOil) {
             inputRows.push(['Oil FVF (Bo)', num(inputs.fvf, 3)]);
-            inputRows.push(['Oil–Water Contact (OWC)', inputs.owc != null ? String(inputs.owc) : '—']);
+            inputRows.push(['Oil–Water Contact (OWC)', inputs.owc != null ? String(inputs.owc) : EMPTY_VALUE]);
             inputRows.push(['Oil Recovery Factor', num(inputs.recovery, 2)]);
         }
         if (showGas) {
             inputRows.push(['Gas FVF (Bg)', num(inputs.bg, 5)]);
-            inputRows.push(['Gas–Oil Contact (GOC)', inputs.goc != null ? String(inputs.goc) : '—']);
+            inputRows.push(['Gas–Oil Contact (GOC)', inputs.goc != null ? String(inputs.goc) : EMPTY_VALUE]);
             inputRows.push(['Gas Recovery Factor', num(inputs.recoveryGas, 2)]);
         }
         doc.autoTable({

@@ -35,7 +35,7 @@ const GUESSES = {
   // (lithology, facies ...), an optional label and description
   top: ['top', 'from', 'start', 'top_md', 'md_top', 'cort'],
   base: ['base', 'bottom', 'bot', 'to', 'end', 'stop', 'base_md', 'md_base', 'corb'],
-  code: ['code', 'lith', 'lithology', 'rock', 'facies', 'environment', 'env', 'motif', 'class'],
+  code: ['code', 'lith', 'lithology', 'rock', 'facies', 'environment', 'env', 'motif', 'class', 'zone', 'biozone'],
   label: ['label', 'name'],
   description: ['desc', 'description', 'remark', 'comment', 'notes'],
   // checkshots (PT1, 2026-09-03): the column is a DEPTH in whatever
@@ -69,8 +69,37 @@ export function guessCheckshotConvention(header) {
   return out;
 }
 
+/**
+ * Depth unit stated in a header cell ("MD (ft)", "MD[ft]", "MD_FT",
+ * "Depth m", "MD (metres)"), or null when the cell states none.
+ * WDM-U1-005: tops and survey pastes read the unit off the header the way
+ * checkshots already did, so a Petrel "MD (ft)" column is never stored as
+ * metres by default.
+ * @returns {'m'|'ft'|null}
+ */
+export function guessDepthUnit(cell) {
+  const w = ` ${String(cell ?? '').toLowerCase().replace(/[_\-()[\]/,.]/g, ' ')} `;
+  if (/\b(ft|feet|foot|usft|ftus)\b/.test(w)) return 'ft';
+  if (/\b(m|metres?|meters?)\b/.test(w)) return 'm';
+  return null;
+}
+
+/** The depth unit of the MD column a header maps to (tops, deviation). */
+export function guessMdUnit(header, fields = ['md']) {
+  if (!header) return null;
+  const map = guessMapping(header, fields);
+  return map.md >= 0 ? guessDepthUnit(header[map.md]) : null;
+}
+
 const M_PER_FT = 0.3048;
 const toM = (v, unit) => (unit === 'ft' ? v * M_PER_FT : v);
+
+// STRAT-U1-005: header words that make a column an age or a time, never an
+// interval depth ("Top Age (Ma)" beside "Top Depth (ft)" in a StrataBugs export)
+const words = (cell) => ` ${String(cell ?? '').toLowerCase().replace(/[_\-()[\]/,.]/g, ' ')} `;
+const AGE_RE = /\b(age|ages|ma|ka|myr|my)\b/;
+const TIME_RE = /\b(twt|owt|time|ms|msec)\b/;
+const INTERVAL_DEPTH_FIELDS = new Set(['top', 'base']);
 
 /** Best-guess column index per requested field, or -1. */
 export function guessMapping(header, fields) {
@@ -81,6 +110,7 @@ export function guessMapping(header, fields) {
     out[f] = -1;
     for (const key of GUESSES[f] || []) {
       const idx = lower.findIndex((h, i) => !used.has(i)
+        && !(INTERVAL_DEPTH_FIELDS.has(f) && (AGE_RE.test(words(h)) || TIME_RE.test(words(h))))
         && (h === key || h.startsWith(key)));
       if (idx >= 0) { out[f] = idx; used.add(idx); break; }
     }
@@ -148,22 +178,79 @@ export function buildTops(rows, map, { mdUnit = 'm' } = {}) {
   return out;
 }
 
+/** The fields the interval paste door maps (hoisted: PasteReplacePanel memoizes on them). */
+export const INTERVAL_FIELDS = ['top', 'base', 'code', 'label', 'description'];
+
+/**
+ * STRAT-U1-004: why a column mapped as an interval top or base is not a
+ * measured depth, or null. Intervals are stored in MD; a TVD, TVDSS,
+ * elevation, time or age column is refused with the reason (the rule the
+ * tops door follows since WC-U1-016), never stored as MD.
+ */
+export function intervalDepthProblem(cell) {
+  if (cell == null) return null;
+  const w = words(cell);
+  const name = String(cell).trim();
+  if (AGE_RE.test(w)) return `"${name}" holds ages. Map the depth columns as top and base.`;
+  if (TIME_RE.test(w)) return `"${name}" is a time. Intervals are stored in measured depth (MD); convert the file to MD first.`;
+  if (/\b(tvd\s?ss|tvdss|ss|subsea|tvdmsl)\b/.test(w)) return `"${name}" is a TVDSS depth. Intervals are stored in measured depth (MD); export them in MD, or convert through the survey first.`;
+  if (/\btvd\b/.test(w)) return `"${name}" is a TVD depth. Intervals are stored in measured depth (MD); export them in MD, or convert through the survey first.`;
+  if (/\b(z|elev|elevation)\b/.test(w)) return `"${name}" is an elevation. Intervals are stored in measured depth (MD) below the depth reference.`;
+  return null;
+}
+
+/** STRAT-U1-005: the unit the top (else base) column's header states, or null. */
+export function guessIntervalUnit(header, map) {
+  if (!header || !map) return null;
+  for (const f of ['top', 'base']) {
+    const u = map[f] >= 0 ? guessDepthUnit(header[map[f]]) : null;
+    if (u) return u;
+  }
+  return null;
+}
+
+const numDec = (rows, r, col, what, decimalComma) => {
+  const raw = String(rows[r][col] ?? '').trim();
+  const v = Number(decimalComma ? raw.replace(',', '.') : raw);
+  if (!Number.isFinite(v) || raw === '') throw new Error(`Row ${r + 1}: ${what} "${rows[r][col] ?? ''}" is not a number.`);
+  return v;
+};
+
 /**
  * Interval rows from mapped columns (Stratigraphy ST1): top, base and a
  * code (lithology, facies name ...) with optional label and description.
+ * With the header, a top or base column that is not MD is refused
+ * (STRAT-U1-004); a semicolon file reads comma decimals.
  * @param {{top:number, base:number, code:number, label?:number, description?:number}} map
+ * @param {{mdUnit?: 'm'|'ft', header?: ?string[], delimiter?: string}} [opts]
  * @returns {{top_md_m:number, base_md_m:number, code:string, label:?string, properties:Object}[]}
  */
-export function buildIntervals(rows, map, { mdUnit = 'm' } = {}) {
+export function buildIntervals(rows, map, { mdUnit = 'm', header = null, delimiter = null } = {}) {
+  if (header && (map.top < 0 || map.base < 0)) {
+    // the only top/base columns were ages or times (skipped by the guess): say why
+    for (const cell of header) {
+      const w = words(cell).trim();
+      if (!/^(top|base|bottom|from|to)\b/.test(w)) continue;
+      const why = intervalDepthProblem(cell);
+      if (why) throw new Error(why);
+    }
+  }
   if (map.top < 0 || map.base < 0 || map.code < 0) {
     throw new Error('Map the top, base and code columns first.');
   }
+  if (header) {
+    for (const f of ['top', 'base']) {
+      const why = intervalDepthProblem(header[map[f]]);
+      if (why) throw new Error(why);
+    }
+  }
+  const dc = delimiter === ';';
   const out = [];
   for (let r = 0; r < rows.length; r++) {
     const code = String(rows[r][map.code] ?? '').trim();
     if (!code) throw new Error(`Row ${r + 1}: the interval has no code.`);
-    const top = toM(num(rows, r, map.top, 'top'), mdUnit);
-    const base = toM(num(rows, r, map.base, 'base'), mdUnit);
+    const top = toM(numDec(rows, r, map.top, 'top', dc), mdUnit);
+    const base = toM(numDec(rows, r, map.base, 'base', dc), mdUnit);
     if (!(base > top)) throw new Error(`Row ${r + 1}: the base (${base} m) is not below the top (${top} m).`);
     const label = map.label >= 0 ? String(rows[r][map.label] ?? '').trim() || null : null;
     const description = map.description >= 0 ? String(rows[r][map.description] ?? '').trim() : '';
@@ -181,15 +268,27 @@ export function buildIntervals(rows, map, { mdUnit = 'm' } = {}) {
  * entered domain. Only numeric parsing lives here.
  * @param {{depth:number, time:number}} map
  */
-export function buildCheckshotInputs(rows, map) {
+export function buildCheckshotInputs(rows, map, { elevation = false } = {}) {
   if (map.depth < 0 || map.time < 0) {
     throw new Error('Map the depth and time columns first.');
   }
   const out = [];
   for (let r = 0; r < rows.length; r++) {
-    out.push({ depth: num(rows, r, map.depth, 'depth'), time: num(rows, r, map.time, 'time') });
+    const z = num(rows, r, map.depth, 'depth');
+    // WDM-U2-016: Z as an elevation (Petrel, negative down) is TVDSS with
+    // the sign flipped; the caller sets the TVDSS reference with the toggle
+    out.push({ depth: elevation ? -z : z, time: num(rows, r, map.time, 'time') });
   }
   if (out.length < 2) throw new Error('A checkshot table needs at least 2 rows.');
+  // WDM-U1-013: Petrel exports checkshot Z as an elevation, negative down.
+  // Say so plainly instead of the monotonic-order error it used to trip.
+  if (!elevation && out.every((r) => r.depth <= 0) && out.some((r) => r.depth < 0)) {
+    throw new Error('Every depth in this table is zero or negative, which reads as an elevation (Petrel Z, negative down). '
+      + 'Tick "Z is an elevation" above, or export the checkshots as TVDSS or MD, then paste again.');
+  }
+  if (elevation && out.every((r) => r.depth <= 0) && out.some((r) => r.depth < 0)) {
+    throw new Error('"Z is an elevation" is ticked but every value is zero or positive, so these read as depths already. Untick it.');
+  }
   return out;
 }
 

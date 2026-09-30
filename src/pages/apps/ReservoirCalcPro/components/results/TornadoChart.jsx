@@ -1,5 +1,6 @@
 import React from 'react';
 import { CHART_COLORS, CHART_TYPOGRAPHY } from '@/utils/chartTheme';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 /*
  * Symmetric sensitivity tornado for ReservoirCalc Pro.
@@ -29,7 +30,7 @@ export const DOWN_COLOR = '#2563eb';   // below P50 (blue-600)
 export const UP_COLOR = '#059669';     // above P50 (emerald-600)
 
 const fmtVal = (v, span) => {
-    if (!Number.isFinite(v)) return '—';
+    if (!Number.isFinite(v)) return EMPTY_VALUE;
     const digits = span < 2 ? 2 : span < 20 ? 1 : 0;
     return v.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 };

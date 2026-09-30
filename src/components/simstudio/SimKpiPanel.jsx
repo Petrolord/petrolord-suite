@@ -5,6 +5,7 @@ import { Info } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSimStudio } from '@/contexts/SimStudioContext';
 import { fmtElapsed } from '@/components/simstudio/resultAdapters';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const TONE = {
   complete: 'text-pl-success-text border-pl-success/40 bg-pl-success-bg',
@@ -47,7 +48,7 @@ const SimKpiPanel = () => {
         <>
           <Kpi title="Engine" value={latest.opm_version || 'OPM Flow'} />
           <Kpi title="Elapsed" value={fmtElapsed(latest.elapsed_seconds)} />
-          <Kpi title="Report steps" value={latest.report_steps ?? '—'} />
+          <Kpi title="Report steps" value={latest.report_steps ?? EMPTY_VALUE} />
           <Kpi title="Attempt" value={latest.attempt || 1} />
         </>
       )}

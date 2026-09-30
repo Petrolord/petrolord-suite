@@ -24,7 +24,7 @@ const SOURCES = [...INPUT_SOURCES, ...OUTPUT_SOURCES];
 // is committed to the layout only when the text is a complete number. A
 // controlled input that parsed every keystroke threw the "-" and the "."
 // away, so a negative or a decimal range could never be typed.
-function NumText({ value, onCommit, allowEmpty = false, ...rest }) {
+export function NumText({ value, onCommit, allowEmpty = false, ...rest }) {
   const shown = value == null || value === '' ? '' : String(value);
   const [text, setText] = useState(shown);
   const [focused, setFocused] = useState(false);

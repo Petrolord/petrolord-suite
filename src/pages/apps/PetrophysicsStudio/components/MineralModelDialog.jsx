@@ -16,10 +16,11 @@ import { uOf, MINERAL_FLAGS } from '../engine/mineral';
 import {
   defaultMineralModel, publishedEndpoint, modelProblem, ENDPOINT_FIELDS, MINERAL_UNSUITED, mineralSummaryLine, MINERAL_COLORS,
 } from '../services/mineralModel';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const cellCls = 'w-20 rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs font-mono';
 const selCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
-const fmt = (v, d = 3) => (Number.isFinite(v) ? Number(v).toFixed(d) : '—');
+const fmt = (v, d = 3) => (Number.isFinite(v) ? Number(v).toFixed(d) : EMPTY_VALUE);
 
 export default function MineralModelDialog({
   open, onOpenChange, model, result, wellData, params, canPublish = false, publishing = false,
@@ -141,7 +142,7 @@ export default function MineralModelDialog({
 
         <DialogFooter className="gap-2">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button variant="outline" size="sm" data-testid="petro-mineral-apply" disabled={!result} onClick={() => { onApply(); onStatus?.('The Mineral model layout is active.'); }}>Apply to tracks</Button>
+          <Button variant="outline" size="sm" data-testid="petro-mineral-apply" disabled={!result} onClick={() => { onApply(); onStatus?.('The Mineral model layout is active.'); onOpenChange(false); }}>Apply to tracks</Button>
           <Button size="sm" data-testid="petro-mineral-publish" disabled={!result || !canPublish || publishing} onClick={onPublish}>Publish</Button>
         </DialogFooter>
       </DialogContent>

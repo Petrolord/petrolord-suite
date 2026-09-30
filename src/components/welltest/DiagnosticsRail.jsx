@@ -4,6 +4,7 @@ import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { unitLabel, fromOilfield } from '@/utils/welltest/units';
 import { gaugeTime } from '@/utils/welltest/gaugeImport';
 import { SectionLabel, fmt, fmtU, MATCH_METHOD_LABEL } from './primitives';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const Row = ({ label, value }) => (
   <div className="flex justify-between text-xs py-1 border-b border-pl-border last:border-0">
@@ -27,8 +28,8 @@ const DiagnosticsRail = ({ activeTab }) => {
       <section>
         <SectionLabel>Test</SectionLabel>
         <Row label="Type" value={isBuildup ? 'Buildup' : 'Drawdown'} />
-        <Row label="Gauge points" value={gaugeRows.length || '—'} />
-        <Row label="Used" value={prepared.points.length || '—'} />
+        <Row label="Gauge points" value={gaugeRows.length || EMPTY_VALUE} />
+        <Row label="Used" value={prepared.points.length || EMPTY_VALUE} />
         {isBuildup && <Row label="tp (hr)" value={fmt.f1(configSpec.config?.tp)} />}
         {isBuildup && <Row label={`pwf at Δt = 0 (${uL('pressure')})`} value={fmtU('pressure', prepared.pwfShutIn, unitSystem, fmt.f1)} />}
         {prepared.testStartTime ? <Row label={isBuildup ? 'Shut-in, gauge clock (hr)' : 'Flow start, gauge clock (hr)'} value={gaugeTime(prepared.testStartTime)} /> : null}

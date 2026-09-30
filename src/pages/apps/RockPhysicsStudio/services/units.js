@@ -1,3 +1,4 @@
+import { EMPTY_VALUE } from '../../../../lib/emptyValue.js';
 // Display units for Rock Physics Studio (RP0, 2026-09-06). The engine
 // and every stored value stay SI (m/s, kg/m3, metres); these helpers
 // convert at the UI edge. Velocity may show as a speed (m/s, ft/s) or
@@ -66,10 +67,10 @@ export const velocityDigits = (unit, siDigits = 1) => (unit === 'us/ft' || unit 
 export const densityDigits = (unit, siDigits = 1) => (unit === 'g/cc' ? 3 : siDigits);
 
 export const velocityLabel = (unit) => (unit === 'us/ft' || unit === 'us/m' ? `Slowness (${unit})` : `Velocity (${unit})`);
-export const fmtVelocity = (ms, unit, siDigits = 1) => { const v = velocityToDisplay(ms, unit); return Number.isFinite(v) ? v.toFixed(velocityDigits(unit, siDigits)) : '—'; };
-export const fmtDensity = (kg, unit, siDigits = 1) => { const v = densityToDisplay(kg, unit); return Number.isFinite(v) ? v.toFixed(densityDigits(unit, siDigits)) : '—'; };
-export const fmtDepth = (m, unit, digits = 1) => { const v = depthToDisplay(m, unit); return Number.isFinite(v) ? v.toFixed(digits) : '—'; };
+export const fmtVelocity = (ms, unit, siDigits = 1) => { const v = velocityToDisplay(ms, unit); return Number.isFinite(v) ? v.toFixed(velocityDigits(unit, siDigits)) : EMPTY_VALUE; };
+export const fmtDensity = (kg, unit, siDigits = 1) => { const v = densityToDisplay(kg, unit); return Number.isFinite(v) ? v.toFixed(densityDigits(unit, siDigits)) : EMPTY_VALUE; };
+export const fmtDepth = (m, unit, digits = 1) => { const v = depthToDisplay(m, unit); return Number.isFinite(v) ? v.toFixed(digits) : EMPTY_VALUE; };
 /** Depth for a label: at most one decimal, no trailing zero (2060 m, 6758.5 ft). */
-export const tidyDepth = (m, unit) => { const v = depthToDisplay(m, unit); return Number.isFinite(v) ? String(Number(v.toFixed(1))) : '—'; };
+export const tidyDepth = (m, unit) => { const v = depthToDisplay(m, unit); return Number.isFinite(v) ? String(Number(v.toFixed(1))) : EMPTY_VALUE; };
 export const densityLabel = (unit) => `ρ (${unit === 'g/cc' ? 'g/cc' : 'kg/m³'})`;
 export const depthLabel = (unit) => `MD (${unit})`;

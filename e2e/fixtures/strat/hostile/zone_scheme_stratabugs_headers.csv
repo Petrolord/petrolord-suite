@@ -1,0 +1,4 @@
+# StrataBugs-style zonation export: vendor column names, reference instead of source
+Zonation,Zone,Top Age,Base Age,Reference
+P,P9,1.2,2.4,Operator scheme v3 (sample)
+P,P8,2.4,3.1,Operator scheme v3 (sample)

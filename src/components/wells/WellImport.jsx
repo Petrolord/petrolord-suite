@@ -23,7 +23,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  parseDelimited, guessMapping, guessCheckshotConvention,
+  parseDelimited, guessMapping, guessCheckshotConvention, guessMdUnit,
   buildDeviation, buildTops, buildCheckshotInputs,
 } from '@/lib/wellImport';
 import {
@@ -34,6 +34,7 @@ import { placeWellLocation, placeDeviation } from '@/lib/crs/wellPlacement';
 import { normalizeTag, isTransformableTag, UNKNOWN } from '@/lib/crs/tags';
 import ColumnMapper from './ColumnMapper';
 import { CheckshotConventionRow, MdUnitSelect, CHECKSHOT_FIELD_LABELS } from './PasteReplacePanel';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 
 const TABS = [
@@ -127,9 +128,15 @@ export default function WellImport({ onSave, crsContext }) {
       const hint = guessCheckshotConvention(parseDelimited(value).header);
       if (Object.keys(hint).length) setConv((c) => ({ ...c, checkshots: { ...c.checkshots, ...hint } }));
     }
+    // WDM-U1-005: a unit in the MD header ("MD (ft)") sets the tab's unit
+    if ((tab === 'deviation' || tab === 'tops') && !mdTouched[tab]) {
+      const unit = guessMdUnit(parseDelimited(value).header, tab === 'tops' ? ['name', 'md'] : ['md', 'inc', 'azi']);
+      if (unit) setConv((c) => ({ ...c, [tab]: { ...c[tab], mdUnit: unit } }));
+    }
   };
   const setMapField = (f, idx) => setMaps((m) => ({ ...m, [tab]: { ...m[tab], [f]: idx } }));
-  const setTabConv = (key, next) => setConv((c) => ({ ...c, [key]: next }));
+  const [mdTouched, setMdTouched] = useState({});
+  const setTabConv = (key, next) => { setMdTouched((t) => ({ ...t, [key]: true })); setConv((c) => ({ ...c, [key]: next })); };
 
   const loadFile = async (e) => {
     const f = e.target.files?.[0];
@@ -147,7 +154,7 @@ export default function WellImport({ onSave, crsContext }) {
     try {
       if (t.key === 'deviation') return buildDeviation(p.rows, m, { mdUnit: conv.deviation.mdUnit });
       if (t.key === 'tops') return buildTops(p.rows, m, { mdUnit: conv.tops.mdUnit });
-      return buildCheckshotInputs(p.rows, m);
+      return buildCheckshotInputs(p.rows, m, { elevation: !!conv.checkshots.elevation });
     } catch (e) {
       throw new Error(`${t.label}: ${e.message}`);
     }
@@ -174,12 +181,12 @@ export default function WellImport({ onSave, crsContext }) {
       else if (frame.isVertical) note = 'No deviation survey pasted: treated as vertical, MD = TVD.';
       else note = `Using the pasted deviation survey (${frame.stations.length} stations${frame.assumedVerticalToFirstStation ? ', vertical above the first station' : ''}).`;
     } catch (e) {
-      return { cell: () => '—', note: e.message };
+      return { cell: () => EMPTY_VALUE, note: e.message };
     }
     const cell = (r) => {
       const depth = Number(r[map.depth]);
       const time = Number(r[map.time]);
-      if (!Number.isFinite(depth) || !Number.isFinite(time)) return '—';
+      if (!Number.isFinite(depth) || !Number.isFinite(time)) return EMPTY_VALUE;
       try {
         const { rows } = toStoredCheckshots([{ depth, time }, { depth: depth + 1, time: time + 1 }], conv.checkshots, frame);
         return `${rows[0].tvdss_m.toFixed(2)} / ${rows[0].twt_ms.toFixed(1)}`;
@@ -240,6 +247,7 @@ export default function WellImport({ onSave, crsContext }) {
       checkshotsProvenance = makeCheckshotProvenance(conv.checkshots, {
         source: 'well-import', kbM, stations: frame.stations ? frame.stations.length : 0,
       });
+      if (conv.checkshots.elevation) checkshotsProvenance.z_elevation = true;
     }
     const nonSi = [];
     if (headUnit === 'ft') nonSi.push('KB/TD ft');
@@ -428,7 +436,7 @@ export default function WellImport({ onSave, crsContext }) {
         <MdUnitSelect value={conv.tops.mdUnit} onChange={(u) => setTabConv('tops', { mdUnit: u })} testId="well-import-topsunit" label="Tops MD in" />
       )}
       {tab === 'checkshots' && (
-        <CheckshotConventionRow conv={conv.checkshots} onChange={(c) => { setCsTouched(true); setTabConv('checkshots', c); }} />
+        <CheckshotConventionRow conv={conv.checkshots} onChange={(c) => { setCsTouched(true); setTabConv('checkshots', c); }} allowElevation />
       )}
 
       <textarea

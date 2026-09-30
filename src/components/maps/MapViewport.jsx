@@ -27,6 +27,7 @@ import {
   paintPolygons, paintCulture, paintMarkers, paintColorbar, paintScaleBar, paintNorthArrow, paintAxes, sampleAtScreen,
 } from './mapPainter';
 import { mapPlotPng } from './mapPng';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 /** Extra world polylines over the map (a contour being moved, a preview). */
 function paintOverlays(ctx, { overlays, transform }) {
@@ -212,7 +213,7 @@ const MapViewport = forwardRef(function MapViewport({
     if (!el) return;
     if (!spec || !grid) { el.textContent = ''; return; }
     const s = sampleAtScreen(grid, spec, tRef.current, sx, sy);
-    el.textContent = `X ${s.x.toFixed(0)}  Y ${s.y.toFixed(0)}  z ${s.z === null ? '—' : fmtZ(s.z)}`;
+    el.textContent = `X ${s.x.toFixed(0)}  Y ${s.y.toFixed(0)}  z ${s.z === null ? EMPTY_VALUE : fmtZ(s.z)}`;
   };
 
   const onPointerDown = (e) => {

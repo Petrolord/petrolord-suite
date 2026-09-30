@@ -1,0 +1,26 @@
+{
+  "id": "sec-st2",
+  "user_id": "user-dev",
+  "name": "Default section",
+  "well_ids": [
+    "corr-w1",
+    "corr-w2",
+    "corr-w3"
+  ],
+  "datum": {
+    "mode": "stretch",
+    "upperName": "Top Dome",
+    "lowerName": "Base Sand"
+  },
+  "track_layout": {
+    "depthUnit": "m",
+    "depthRef": "md",
+    "spacing": "equal",
+    "zoneMode": "consecutive",
+    "shownTops": []
+  },
+  "schema_version": 1,
+  "app_build": "1ffc8a8c9",
+  "created_at": "2026-09-06T12:00:00Z",
+  "updated_at": "2026-09-06T12:00:00Z"
+}

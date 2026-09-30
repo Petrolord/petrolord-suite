@@ -15,9 +15,14 @@ import { PETRO_PROJECT_KIND, petroProjectKindSpec } from './projectState';
 import {
   listWells, listLogs, downloadCurve, listTops, saveTop, updateTop, deleteTop,
   listZones, saveZone, updateZone, deleteZone,
-  saveLogs, deleteLog,
+  saveLogs, deleteLog, updateLogUnit,
 } from '@/lib/wellsRegistry';
 import { listIntervals, replaceIntervals } from '@/lib/stratRegistry';
+import { createSavedProjectsService } from '@/utils/savedProjects';
+
+// PETRO-U2-010: SCAL Studio's saved projects (owner-only rows), read for
+// their saturation-height functions; the Studio never writes them
+const scalProjects = createSavedProjectsService('saved_scal_projects');
 
 /** The overwrite-own-output rule (plan decision 1): a publish replaces
  *  ONLY curves this app previously published for the same well +
@@ -26,6 +31,9 @@ import { listIntervals, replaceIntervals } from '@/lib/stratRegistry';
 async function publishCurves(wellId, preparedLogs, projectId) {
   const existing = await listLogs(wellId);
   const mnemonics = new Set(preparedLogs.map((l) => l.mnemonic));
+  // PETRO-U2-012: SW and SWT name one saturation in two systems; a publish
+  // of either retires this project's earlier row of the other
+  if (mnemonics.has('SW') || mnemonics.has('SWT')) { mnemonics.add('SW'); mnemonics.add('SWT'); }
   const stale = existing.filter((l) => l.provenance?.computed
     && l.provenance?.engine === 'petrophysics-studio'
     && l.provenance?.project_id === projectId
@@ -160,6 +168,11 @@ export function makeRegistryBackend() {
     deleteProject,
     /** PT11c: remove one registry curve (the Depth shift panel's Reset to raw on a saved _DS row). */
     async deleteLog(log) { await deleteLog(log); },
+    /** PETRO-U2-010: the signed-in user's SCAL Studio projects and one project's inputs. */
+    listScalProjects: () => scalProjects.list(),
+    loadScalProject: (id) => scalProjects.load(id),
+    /** PETRO-U2-001: correct a curve's unit label (samples untouched), owner-only. */
+    async updateLogUnit(log, unit) { return updateLogUnit(log, unit, { byApp: 'petrophysics-studio' }); },
     /** PT11a: the signed-in user id for provenance `by`; null when signed out. */
     async whoAmI() { try { return await currentUserId(); } catch { return null; } },
   };

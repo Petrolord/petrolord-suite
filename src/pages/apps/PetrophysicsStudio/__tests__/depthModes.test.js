@@ -9,13 +9,14 @@ test('toDisplay/fromDisplay round trip in ft and are identity in m', () => {
 test('depthLabel formats units and non-finite values', () => {
   expect(depthLabel(2040, 'm')).toBe('2040.0 m');
   expect(depthLabel(2040, 'ft')).toBe('6692.9 ft');
-  expect(depthLabel(NaN, 'ft')).toBe('—');
+  expect(depthLabel(NaN, 'ft')).toBe(EMPTY_VALUE);
 });
 
 // ---- PT8 depth tracks (2026-09-05) -----------------------------------------
 // MD / TVD / TVDSS as their own gutter columns, converted through the same
 // welldata frame the checkshot door and the LAS depth columns use.
 import { makeDepthAxes, DEPTH_TRACK_KEYS, DEPTH_TRACK_TITLE } from '../viewer/depthModes';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const vertical = { kb_m: 30, deviation: null };
 const deviated = {

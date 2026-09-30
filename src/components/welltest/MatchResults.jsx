@@ -9,6 +9,7 @@ import { evaluateModelTest } from '@/utils/welltest/models/modelCatalog';
 import { unitLabel, fromOilfield, kindForCatalogUnit } from '@/utils/welltest/units';
 import { ChartCard, Kpi, LINE, WarningBanner, fmt, fmtU } from './primitives';
 import LogLogChart from './LogLogChart';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
 // Pinned to the top-right corner of the plot (owner directive 2026-09-08).
@@ -18,7 +19,7 @@ const legendProps = LEGEND_PROPS;
 const ci = (pair, digits = 3) =>
   Array.isArray(pair) && pair.every(Number.isFinite)
     ? `${Number(pair[0]).toPrecision(digits)} to ${Number(pair[1]).toPrecision(digits)}`
-    : '—';
+    : EMPTY_VALUE;
 
 const MatchResults = () => {
   const {

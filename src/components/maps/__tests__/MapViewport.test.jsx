@@ -6,6 +6,7 @@ import React from 'react';
 import { render, fireEvent, act } from '@testing-library/react';
 import MapViewport from '../MapViewport';
 import { FIT_PAD } from '../mapTransform';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const spec = { x0: 1000, y0: 2000, dx: 50, dy: 50, nx: 25, ny: 20 };
 const grid = Float32Array.from({ length: spec.nx * spec.ny }, (_, i) => 1500 + (i % spec.nx) + Math.floor(i / spec.nx));
@@ -89,5 +90,5 @@ test('zoom buttons change the scale about the centre and the readout samples und
   act(() => { fireEvent.pointerMove(canvas, { clientX: W / 2, clientY: H / 2 }); });
   expect(getByTestId('t-readout').textContent).toMatch(/^X \d+ {2}Y \d+ {2}z \d+ m$/);
   act(() => { fireEvent.pointerMove(canvas, { clientX: 1, clientY: 1 }); });
-  expect(getByTestId('t-readout').textContent).toContain('z —');
+  expect(getByTestId('t-readout').textContent).toContain(`z ${EMPTY_VALUE}`);
 });

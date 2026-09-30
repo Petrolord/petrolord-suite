@@ -77,10 +77,12 @@ describe('well spacing', () => {
     expect(d[0]).toBeCloseTo(1264.911, 3);
     expect(d[1]).toBeCloseTo(1315.295, 3);
   });
-  test('equal spacing: contiguous equal columns', () => {
+  test('equal spacing: equal columns with a gap for the correlation lines (WC-U1-004)', () => {
     const cols = columnLayout(wells, { mode: 'equal', plotLeft: 56, plotW: 900 });
-    expect(cols.map((c) => c.x0)).toEqual([56, 356, 656]);
-    expect(cols.every((c) => c.w === 300)).toBe(true);
+    // gap 12% of 300 = 36 px; (900 - 2 x 36) / 3 = 276
+    expect(cols.map((c) => c.x0)).toEqual([56, 368, 680]);
+    expect(cols.every((c) => c.w === 276)).toBe(true);
+    expect(cols.map((c) => c.gapAfter)).toEqual([36, 36, 0]);
     expect(cols[0].distM).toBeCloseTo(1264.911, 3);
     expect(cols[2].distM).toBeNull();
   });
@@ -96,7 +98,7 @@ describe('well spacing', () => {
   test('proportional falls back to equal without usable distances', () => {
     const noXY = wells.map((w) => ({ ...w, surface_x: null }));
     const cols = columnLayout(noXY, { mode: 'proportional', plotLeft: 0, plotW: 300 });
-    expect(cols.map((c) => c.x0)).toEqual([0, 100, 200]);
+    expect(cols.map((c) => c.x0)).toEqual([0, 104, 208]); // gap 12, width 92
     expect(columnLayout([], { plotW: 300 })).toEqual([]);
   });
   test('two wells at the same surface location do not overlap', () => {

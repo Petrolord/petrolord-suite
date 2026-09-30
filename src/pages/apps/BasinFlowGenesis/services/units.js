@@ -1,3 +1,4 @@
+import { EMPTY_VALUE } from '../../../../lib/emptyValue.js';
 // Display units for Basin & Charge Modeling (BF3, 2026-09-06). The
 // engine, the saved well and the goldens stay SI (metres, degrees C,
 // Ma, mW/m2); these helpers convert at the UI edge. Depth follows the
@@ -30,8 +31,8 @@ export const tempDeltaToDisplay = (dc, unit) => (Number.isFinite(dc) ? (unit ===
 
 /** Enough decimals, no trailing zeros (1600 m, 5249.34 ft). */
 export const tidy = (v, digits = 2) => (Number.isFinite(v) ? String(Number(v.toFixed(digits))) : '');
-export const fmtDepth = (m, unit, digits = 0) => { const v = depthToDisplay(m, unit); return Number.isFinite(v) ? v.toFixed(digits) : '—'; };
-export const fmtTemp = (c, unit, digits = 1) => { const v = tempToDisplay(c, unit); return Number.isFinite(v) ? v.toFixed(digits) : '—'; };
+export const fmtDepth = (m, unit, digits = 0) => { const v = depthToDisplay(m, unit); return Number.isFinite(v) ? v.toFixed(digits) : EMPTY_VALUE; };
+export const fmtTemp = (c, unit, digits = 1) => { const v = tempToDisplay(c, unit); return Number.isFinite(v) ? v.toFixed(digits) : EMPTY_VALUE; };
 
 export const depthLabel = (unit, what = 'Depth') => `${what} (${unit})`;
 export const tempLabel = (unit, what = 'Temperature') => `${what} (°${unit})`;

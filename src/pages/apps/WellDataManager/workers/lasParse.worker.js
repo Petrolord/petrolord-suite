@@ -14,11 +14,16 @@
 // prep  = prepareLogs output, SI-converted, arrays transferred.
 
 import { parseLas } from '../engine/lasParse';
-import { prepareLogs, suggestWellHeader } from '../engine/lasImport';
+import { prepareLasForRegistry } from '../engine/lasIndex';
+import { prepareTextChannels } from '../engine/lasTextChannels';
 
 function run(id, text, sourceFile) {
   const parsed = parseLas(text);
-  const prep = prepareLogs(parsed, { sourceFile });
+  // WDM-U1-001..003: index checked, oriented ascending and named DEPT
+  const { prep, notes, suggestedHeader } = prepareLasForRegistry(parsed, { sourceFile });
+  // WDM-U2-017: LAS 3.0 text and date-time channels as coded / seconds curves
+  const text3 = prepareTextChannels(text, parsed, prep, { sourceFile });
+  prep.textLogs = text3.logs;
   const meta = {
     version: parsed.version,
     wrap: parsed.wrap,
@@ -26,15 +31,17 @@ function run(id, text, sourceFile) {
     well: parsed.well,
     params: parsed.params,
     depthUnit: parsed.depthUnit,
-    suggestedHeader: suggestWellHeader(parsed),
+    suggestedHeader,
+    indexNotes: notes,
     // LAS 3.0 (2026-09-03): what the reader left out, for the import preview
     delimiter: parsed.delimiter || 'space',
     skippedCurves: parsed.skippedCurves || [],
+    textSkipped: text3.skipped,
     ignoredSections: parsed.ignoredSections || [],
     blocks: parsed.blocks || {},      // ST1: LAS 3.0 core / lithology blocks for the intervals import
     curves: parsed.curves.map(({ data, ...rest }) => rest),
   };
-  const transfers = prep.logs.map((l) => l.data.buffer);
+  const transfers = [...prep.logs, ...prep.textLogs].map((l) => l.data.buffer);
   self.postMessage({ type: 'parse:done', id, meta, prep }, transfers);
 }
 

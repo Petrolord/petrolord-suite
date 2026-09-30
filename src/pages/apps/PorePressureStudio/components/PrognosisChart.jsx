@@ -16,6 +16,7 @@ import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS } from '@/utils/chartThem
 import {
   DEFAULT_UNITS, depthToDisplay, pressureToDisplay, pressureDigits, pressureLabel, emwReferenceDepthM, emwDatumLabel, isEmw,
 } from '../services/units';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const SERIES = [
   { key: 'obg', name: 'Overburden', color: '#31363b' },
@@ -80,7 +81,7 @@ export default function PrognosisChart({ profile, zBmlM, calibration, units = DE
             />
             <Tooltip
               contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }}
-              formatter={(v) => (Number.isFinite(v) ? `${v.toFixed(digits)} ${pU}` : '—')}
+              formatter={(v) => (Number.isFinite(v) ? `${v.toFixed(digits)} ${pU}` : EMPTY_VALUE)}
               labelFormatter={(v) => `${Number.isFinite(v) ? v.toFixed(zU === 'ft' ? 0 : 1) : v} ${zU} bml`}
             />
             <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />

@@ -8,11 +8,12 @@ import ChartFrame from '@/components/charts/ChartFrame';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const BAR = '#d97706'; // amber-600, legible on white
 const STOCK_TANK = '#0891b2'; // cyan-700 to set the stock-tank stage apart
 
-const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d }));
+const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d }));
 
 /**
  * Separator-train results: a white ChartFrame bar chart of gas liberated per

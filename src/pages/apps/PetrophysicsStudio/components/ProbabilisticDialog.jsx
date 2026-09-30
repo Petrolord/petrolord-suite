@@ -19,8 +19,9 @@ import {
   DIST_TYPES, DIST_FIELDS, DRAW_CHOICES, defaultUncertainty, entryProblem, specForEngine, probabilisticCsv, BEST_CASE_NOTE,
 } from '../services/probabilistic';
 import { OUTCOME_LABELS, EXCEEDANCE_DEFINITION, parameterPercentileLabel } from '@/lib/percentileConventions';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
-const fmt = (v, d = 3) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toFixed(d));
+const fmt = (v, d = 3) => (v === null || v === undefined || Number.isNaN(v) ? EMPTY_VALUE : Number(v).toFixed(d));
 const cellCls = 'w-full min-w-[3.5rem] rounded bg-pl-surface border px-1 py-0.5 text-xs text-pl-text';
 const selCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs';
 
@@ -177,23 +178,26 @@ export default function ProbabilisticDialog({
                   <tr>
                     <th className="text-left px-2 py-1 text-pl-muted font-normal" rowSpan={2}>Zone</th>
                     <th className="text-left px-2 py-1 text-pl-muted font-normal whitespace-nowrap" colSpan={4}>Net pay ({depthUnit}), exceedance cases</th>
+                    <th className="text-left px-2 py-1 text-pl-muted font-normal whitespace-nowrap" colSpan={3}>HCPV ({depthUnit}), exceedance cases</th>
                     <th className="text-left px-2 py-1 text-pl-muted font-normal" colSpan={3}>φe avg, percentiles</th>
-                    <th className="text-left px-2 py-1 text-pl-muted font-normal" colSpan={3}>Sw avg, percentiles</th>
+                    <th className="text-left px-2 py-1 text-pl-muted font-normal" colSpan={3} title="Pore-volume weighted, the zone card's Sw">Sw avg (pore volume), percentiles</th>
                     <th className="text-left px-2 py-1 text-pl-muted font-normal" colSpan={3}>k gm (mD), percentiles</th>
                   </tr>
                   <tr>
                     {[OUTCOME_LABELS.p90, OUTCOME_LABELS.p50, OUTCOME_LABELS.p10, 'mean'].map((h) => <th key={`net-${h}`} className="text-left px-2 py-0.5 text-pl-muted font-normal">{h}</th>)}
+                    {[OUTCOME_LABELS.p90, OUTCOME_LABELS.p50, OUTCOME_LABELS.p10].map((h) => <th key={`hc-${h}`} className="text-left px-2 py-0.5 text-pl-muted font-normal">{h}</th>)}
                     {['phi', 'Sw', 'k'].flatMap((q) => ['q10', 'q50', 'q90'].map((k) => (
                       <th key={`${q}-${k}`} className="text-left px-2 py-0.5 text-pl-muted font-normal whitespace-nowrap" title={parameterPercentileLabel(q, k)}>{k.slice(1)}th</th>
                     )))}
                   </tr>
                 </thead>
                 <tbody>
-                  {!result && <tr><td colSpan={14} className="px-2 py-2 text-pl-muted">{zones.length ? 'Run to fill the table.' : 'No zones on this well yet; the run still draws on the tracks.'}</td></tr>}
+                  {!result && <tr><td colSpan={17} className="px-2 py-2 text-pl-muted">{zones.length ? 'Run to fill the table.' : 'No zones on this well yet; the run still draws on the tracks.'}</td></tr>}
                   {result?.zones.map((z) => (
                     <tr key={z.name} className="border-t border-pl-border" data-testid={`petro-prob-row-zone-${z.name}`}>
                       <td className="px-2 py-0.5 text-pl-text">{z.name}</td>
                       {['p90', 'p50', 'p10', 'mean'].map((k) => <td key={k} className="px-2 py-0.5" data-testid={`petro-prob-net-${z.name}-${k}`}>{fmt(z.outcomes.net_m[k] * F, 1)}</td>)}
+                      {['p90', 'p50', 'p10'].map((k) => <td key={`hc${k}`} className="px-2 py-0.5" data-testid={`petro-prob-hcpv-${z.name}-${k}`}>{fmt((z.outcomes.hcpv_m?.[k] ?? NaN) * F, 2)}</td>)}
                       {['phi_avg', 'sw_avg', 'k_gm_md'].flatMap((f) => ['q10', 'q50', 'q90'].map((k) => (
                         <td key={`${f}-${k}`} className="px-2 py-0.5">{fmt(z.parameters[f][k], f === 'k_gm_md' ? 1 : 3)}</td>
                       )))}

@@ -34,6 +34,7 @@ import {
 import { snapPick, autotrack2D } from '../engine/horizonTrack';
 import { NULL_VALUE } from '../engine/manifest';
 import { horizonColor } from './workspace/interpretationColors';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
 const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
@@ -446,7 +447,7 @@ export default function Line2dPanel({
             onChange={(e) => setActiveLineId(e.target.value)}
             data-testid="line2d-select"
           >
-            <option value="">—</option>
+            <option value="">{EMPTY_VALUE}</option>
             {readyLines.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}{l.is_own === false ? ' (teammate)' : ''}

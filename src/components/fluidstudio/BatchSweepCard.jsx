@@ -9,9 +9,10 @@ import { SlidersHorizontal } from 'lucide-react';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const C = { pb: '#dc2626', bo: '#059669' };
-const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d }));
+const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d }));
 
 /**
  * Batch sensitivity sweep: the swept variable on X against Pb (left axis) and

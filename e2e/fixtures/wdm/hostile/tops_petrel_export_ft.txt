@@ -1,0 +1,3 @@
+Well	Surface	MD (ft)	TWT (ms)	Z (ft)	Interpreter
+OKAN PX-4	Top Agbada	6565.6	1402.1	-6480.0	ama
+OKAN PX-4	Base Seal	6716.4	1431.8	-6630.8	ama

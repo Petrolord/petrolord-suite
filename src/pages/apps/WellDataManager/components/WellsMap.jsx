@@ -11,9 +11,34 @@ const HIT_RADIUS = 14;    // px pick tolerance
 /** Wells with a usable surface location. A well may carry none (never
  *  imported with coordinates, or the Header tab cleared them, PT8), and
  *  Math.min would read a null as 0 and drag the extent to the origin. */
-export const mappable = (wells) => (wells || []).filter(
-  (w) => Number.isFinite(Number(w.surface_x)) && Number.isFinite(Number(w.surface_y)),
-);
+const coord = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+// WDM-U1-017: Number(null) is 0, so a cleared coordinate used to pass the
+// finite test and put the well at the origin
+export const mappable = (wells) => (wells || []).filter((w) => coord(w.surface_x) && coord(w.surface_y));
+
+/**
+ * What the map caption says about the frame and the wells left off it
+ * (WDM-U1-011, WDM-U1-016): the coordinate systems and units actually in
+ * use, a warning when wells sit in more than one (their positions are
+ * then not comparable on one canvas), and how many wells have no surface
+ * location and are not drawn.
+ * @returns {{frame: string, mixed: boolean, undrawn: number}}
+ */
+export function mapFrameSummary(wells) {
+  const all = wells || [];
+  const drawn = mappable(all);
+  const frames = new Map();
+  for (const w of drawn) {
+    const key = `${w.crs || 'CRS unknown'}|${w.xy_unit || 'm'}`;
+    frames.set(key, (frames.get(key) || 0) + 1);
+  }
+  const labels = [...frames.keys()].map((k) => { const [c, u] = k.split('|'); return `${c}, ${u}`; });
+  return {
+    frame: labels.length ? labels.join('; ') : 'no located wells',
+    mixed: frames.size > 1,
+    undrawn: all.length - drawn.length,
+  };
+}
 
 function fitExtent(wells) {
   const xs = wells.map((w) => Number(w.surface_x));
@@ -34,6 +59,7 @@ export default function WellsMap({ wells, selectedId, onSelect, height = 480 }) 
   const placedRef = useRef([]); // [{id, px, py}] for hit-testing
 
   const placed = useMemo(() => mappable(wells), [wells]);
+  const summary = useMemo(() => mapFrameSummary(wells), [wells]);
   const extent = useMemo(() => (placed.length ? fitExtent(placed) : null), [placed]);
 
   useEffect(() => {
@@ -133,9 +159,15 @@ export default function WellsMap({ wells, selectedId, onSelect, height = 480 }) 
         className="rounded-pl-canvas border border-pl-border cursor-pointer"
         onClick={pick}
       />
-      <p className="mt-1 text-[11px] text-pl-muted">
-        Surface locations (world metres). Amber = private, green = org-shared; click a well to open it.
+      <p className="mt-1 text-[11px] text-pl-muted" data-testid="wdm-map-caption">
+        Surface locations ({summary.frame}). Amber = private, green = org-shared; click a well to open it.
+        {summary.undrawn > 0 && ` ${summary.undrawn} well${summary.undrawn === 1 ? ' has' : 's have'} no surface location and ${summary.undrawn === 1 ? 'is' : 'are'} not drawn.`}
       </p>
+      {summary.mixed && (
+        <p className="mt-1 text-[11px] text-pl-warning-text" data-testid="wdm-map-mixed">
+          These wells are stored in more than one coordinate system, so their positions here are not comparable. Assign or reproject them to the Project CRS.
+        </p>
+      )}
     </div>
   );
 }

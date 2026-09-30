@@ -5,7 +5,7 @@
 // converts and saves.
 
 import React, { useMemo, useState } from 'react';
-import { parseDelimited, guessMapping, guessCheckshotConvention } from '@/lib/wellImport';
+import { parseDelimited, guessMapping, guessCheckshotConvention, guessMdUnit, guessIntervalUnit } from '@/lib/wellImport';
 import ColumnMapper from './ColumnMapper';
 
 
@@ -17,12 +17,13 @@ export const CHECKSHOT_FIELD_LABELS = (conv) => ({
 });
 
 /** Convention selector row shared by the add-well form and the editors. */
-export function CheckshotConventionRow({ conv, onChange, testIdPrefix = 'well-import' }) {
+export function CheckshotConventionRow({ conv, onChange, testIdPrefix = 'well-import', allowElevation = false }) {
   const inputCls = INPUT_CLS;
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs text-pl-muted" data-testid={`${testIdPrefix}-cs-convention`}>
       Checkshots are
       <select className={inputCls} value={conv.depthRef} onChange={(e) => onChange({ ...conv, depthRef: e.target.value })}
+        disabled={allowElevation && !!conv.elevation}
         data-testid={`${testIdPrefix}-cs-depthref`} title="Depth reference of the pasted depth column. Petrel exports MD.">
         <option value="md">MD (measured depth)</option>
         <option value="tvd">TVD (below KB)</option>
@@ -40,6 +41,13 @@ export function CheckshotConventionRow({ conv, onChange, testIdPrefix = 'well-im
         <option value="owt">one-way time (ms)</option>
         <option value="twt">two-way time (ms)</option>
       </select>
+      {allowElevation && (
+        <label className="flex items-center gap-1" title="Petrel exports checkshot Z as an elevation below the datum, negative down. Ticked, the values are read as TVDSS with the sign flipped.">
+          <input type="checkbox" checked={!!conv.elevation} data-testid={`${testIdPrefix}-cs-elevation`}
+            onChange={(e) => onChange({ ...conv, elevation: e.target.checked, depthRef: e.target.checked ? 'tvdss' : conv.depthRef })} />
+          Z is an elevation (negative down)
+        </label>
+      )}
     </div>
   );
 }
@@ -94,6 +102,17 @@ export default function PasteReplacePanel({ kind, fields, labels, convention, on
       const hint = guessCheckshotConvention(p.header);
       if (Object.keys(hint).length) onConvention({ ...convention, ...hint });
     }
+    // WDM-U1-005: "MD (ft)" in a tops or survey header sets the unit once
+    if (kind !== 'checkshots' && !touched && fields.includes('md')) {
+      const unit = guessMdUnit(parseDelimited(v).header, fields);
+      if (unit && unit !== convention.mdUnit) onConvention({ ...convention, mdUnit: unit });
+    }
+    // STRAT-U1-005: "Top (ft)" in an interval header sets the unit the same way
+    if (kind === 'intervals' && !touched) {
+      const h = parseDelimited(v).header;
+      const unit = guessIntervalUnit(h, guessMapping(h, fields));
+      if (unit && unit !== convention.mdUnit) onConvention({ ...convention, mdUnit: unit });
+    }
     onParsed(null);
   };
   React.useEffect(() => { onParsed(state.parsed.rows.length ? state : null); }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -101,14 +120,15 @@ export default function PasteReplacePanel({ kind, fields, labels, convention, on
   return (
     <div className="space-y-2" data-testid={`${testIdPrefix}-paste`}>
       {kind === 'checkshots' ? (
-        <CheckshotConventionRow conv={convention} onChange={(c) => { setTouched(true); onConvention(c); }} testIdPrefix={testIdPrefix} />
+        <CheckshotConventionRow conv={convention} onChange={(c) => { setTouched(true); onConvention(c); }} testIdPrefix={testIdPrefix} allowElevation />
       ) : (
-        <MdUnitSelect value={convention.mdUnit} onChange={(u) => onConvention({ ...convention, mdUnit: u })} testId={`${testIdPrefix}-mdunit`} />
+        <MdUnitSelect value={convention.mdUnit} onChange={(u) => { setTouched(true); onConvention({ ...convention, mdUnit: u }); }} testId={`${testIdPrefix}-mdunit`} />
       )}
       <textarea
         className={`${inputCls} w-full h-24 font-mono`}
         placeholder={kind === 'deviation' ? 'Paste the survey (MD, inclination, azimuth)'
           : kind === 'tops' ? 'Paste tops (name, MD)'
+            : kind === 'intervals' ? 'Paste intervals (top MD, base MD, code); a unit in the header such as "Top (ft)" is read'
             : 'Paste checkshots as exported (depth, time); the selectors above say how to read them'}
         value={text}
         onChange={(e) => onText(e.target.value)}

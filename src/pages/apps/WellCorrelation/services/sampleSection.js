@@ -86,6 +86,53 @@ function nphiAt(md, tops) {
 }
 
 /** Build the shared section: wells with tops + a synthetic GR curve. */
+const SAMPLE_CHECKSHOTS = [{ tvdss_m: 0, twt_ms: 0 }, { tvdss_m: 1000, twt_ms: 950 }, { tvdss_m: 2000, twt_ms: 1850 }];
+
+/**
+ * U2-003: two Seismolord horizons over the KETA wells in the shared surface
+ * registry shape (geo_surfaces row + grid): "Dome" in TWT ms (positive) and
+ * in depth (elevation ft, negative down), a gentle plane dipping east.
+ * Closed form: TWT = 1373 + 0.01 (x - 501000) ms; TVDSS = 1470 + 0.02 (x - 501000) m.
+ */
+export function sampleSurfaces() {
+  const spec = { origin_x: 500000, origin_y: 6699000, dx: 500, dy: 500, nx: 11, ny: 7, rotation_deg: 0, null_value: 1e30, crs: null, xy_unit: 'm' };
+  const grid = (f) => { const g = []; for (let r = 0; r < spec.ny; r++) for (let c = 0; c < spec.nx; c++) g.push(f(spec.origin_x + c * spec.dx)); return g; };
+  const prov = (domain) => ({ app: 'seismolord', volume: { id: 'vol-keta', name: 'KETA 3D' }, horizon: { id: 'hz-dome', name: 'Dome' }, domain });
+  return [
+    { id: 'surf-dome-twt', user_id: 'user-dev', is_own: true, name: 'Dome (TWT ms)', kind: 'structure', z_domain: 'time', z_unit: 'ms', ...spec, provenance: prov('twt_ms'), grid: grid((x) => 1373 + 0.01 * (x - 501000)) },
+    { id: 'surf-dome-depth', user_id: 'user-dev', is_own: true, name: 'Dome (depth ft)', kind: 'structure', z_domain: 'depth', z_unit: 'ft', ...spec, provenance: prov('depth_ft'), grid: grid((x) => -(1470 + 0.02 * (x - 501000)) / 0.3048) },
+  ];
+}
+
+// U2-008: the Stratigraphy column the sample tops link to, and a Petrophysics
+// interpretation published on KETA-1 (PAY flag and a SAND zone summary) with
+// an unpublished zone on KETA-2 (the section says so)
+export function sampleUnits() {
+  return [
+    { id: 'unit-dome', name: 'Dome Sand', rank: 'formation', colour: '#d97706', order_index: 1 },
+    { id: 'unit-mid', name: 'Mid Shale Member', rank: 'member', colour: '#64748b', order_index: 2 },
+  ];
+}
+export const SAMPLE_UNIT_OF = { 'Top Dome': 'unit-dome', 'Mid Shale': 'unit-mid' };
+
+/**
+ * The Well Correlation harness's published Petrophysics on the sample
+ * (applied by its in-memory backend only; Stratigraphy's harness keeps the
+ * plain sample): a PAY flag on KETA-1 where GR reads clean sand, a published
+ * SAND zone summary on KETA-1, an unpublished zone on KETA-2.
+ */
+export function samplePetro(w) {
+  if (w.id === 'corr-w1') {
+    const pay = Float64Array.from(w.curves.GR, (g) => (g < 60 ? 1 : 0));
+    return {
+      pay,
+      zones: [{ id: 'zone-w1-sand', well_id: w.id, name: 'Dome Sand', top_md_m: 1500, base_md_m: 1580, properties: { gross_m: 80, net_m: 52.5, ntg: 0.656, phi_avg: 0.214, sw_avg: 0.31, vsh_avg: 0.12, published_at: '2026-09-20T10:00:00Z' } }],
+    };
+  }
+  if (w.id === 'corr-w2') return { pay: null, zones: [{ id: 'zone-w2-sand', well_id: w.id, name: 'Dome Sand', top_md_m: 1540, base_md_m: 1610, properties: {} }] };
+  return { pay: null, zones: [] };
+}
+
 export function sampleWells() {
   return Object.entries(TOPS).map(([id, w], idx) => {
     const n = Math.round((BOT_MD - TOP_MD) / STEP) + 1;
@@ -114,6 +161,9 @@ export function sampleWells() {
       kb_m: 30,
       td_md_m: BOT_MD,
       deviation: w.deviation || null,
+      // U2-003: checkshots (TVDSS m, TWT ms) on the two own wells; KETA-3 has
+      // none, so a time section names it instead of drawing it
+      checkshots: idx === 2 ? [] : SAMPLE_CHECKSHOTS,
       tops: w.tops.map((t, ti) => ({ id: `${id}-top-${ti}`, well_id: id, name: t.name, md_m: t.md_m, surface_type: SAMPLE_SURFACE_TYPES[t.name] || 'formation_top', unit_id: null, confidence: null, age_ma: SAMPLE_AGES[t.name] ?? null, hiatus_to_ma: t.name === 'Base Sand' ? SAMPLE_HIATUS[id] : null, notes: null })),
       intervals: sampleIntervals(id, w.tops),
       curves: { DEPT: depth, GR: gr, RT: rt, RHOB: rhob, NPHI: nphi },

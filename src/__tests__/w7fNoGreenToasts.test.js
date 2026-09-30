@@ -2,13 +2,13 @@
 // (className: "bg-green-600 text-white"), which ignore the theme and read
 // as a status colour the toast kit does not own. Write handlers use the
 // standard toast. This scans src for a toast className carrying green, lime
-// or emerald. PaymentVerification is payment code, left to its own review.
-// Negative control: on the old tree it finds ten.
+// or emerald, with no exceptions (W10 moved PaymentVerification over too).
+// Negative control: the second test runs the same scan on a green toast
+// line and expects a hit.
 import fs from 'fs';
 import path from 'path';
 
 const SRC = path.join(__dirname, '..');
-const ALLOW = new Set(['pages/PaymentVerification.jsx']);
 const PATTERN = /className:\s*["'`][^"'`]*\b(?:bg|border)-(?:green|lime|emerald)-/;
 
 const walk = (dir, out = []) => {
@@ -25,10 +25,13 @@ test('no toast paints itself green', () => {
   const hits = [];
   for (const f of walk(SRC)) {
     const rel = path.relative(SRC, f).split(path.sep).join('/');
-    if (ALLOW.has(rel)) continue;
     fs.readFileSync(f, 'utf8').split('\n').forEach((l, i) => {
       if (PATTERN.test(l)) hits.push(`${rel}:${i + 1}`);
     });
   }
   expect(hits).toEqual([]);
+});
+
+test('negative control: the scan catches a green toast', () => {
+  expect(PATTERN.test('toast({ title: "Saved", className: "bg-green-600 text-white" });')).toBe(true);
 });

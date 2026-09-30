@@ -6,6 +6,7 @@
 // `well-import-rowcount`).
 
 import React from 'react';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 
 const INPUT_CLS = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
@@ -37,7 +38,7 @@ export default function ColumnMapper({ parsed, fields, labels, map, onMap, nCols
               onChange={(e) => onMap(f, Number(e.target.value))}
               data-testid={`${testIdPrefix}-map-${f}`}
             >
-              <option value="-1">—</option>
+              <option value="-1">{EMPTY_VALUE}</option>
               {Array.from({ length: nCols }, (_, i) => (
                 <option key={i} value={String(i)}>
                   {parsed.header?.[i] ? `${parsed.header[i]}` : `column ${i + 1}`}
@@ -67,7 +68,7 @@ export default function ColumnMapper({ parsed, fields, labels, map, onMap, nCols
               <tr key={i}>
                 {fields.map((f) => (
                   <td key={f} className="pr-4 whitespace-nowrap">
-                    {map[f] >= 0 ? r[map[f]] : '—'}
+                    {map[f] >= 0 ? r[map[f]] : EMPTY_VALUE}
                   </td>
                 ))}
                 {extraColumns.map((c) => (

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Map, Trash2 } from 'lucide-react';
 import HeatmapCanvas from '../tools/HeatmapCanvas';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const MapGallery = ({ isOpen, onClose }) => {
     const { state, deleteMap } = useReservoirCalc();
@@ -36,7 +37,7 @@ const MapGallery = ({ isOpen, onClose }) => {
                                     <div className="h-40 bg-pl-bg relative" data-canvas="dark">
                                         <HeatmapCanvas gridData={map.data} colorscale={map.colorscale || 'Viridis'} />
                                         <Badge variant="neutral" className="absolute top-2 right-2 text-[10px]">
-                                            {map.unit || '—'}
+                                            {map.unit || EMPTY_VALUE}
                                         </Badge>
                                     </div>
                                     <div className="p-3 flex items-start justify-between gap-2">

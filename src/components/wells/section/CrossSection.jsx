@@ -19,6 +19,7 @@ import React, {
 import { computeFlattening, correlationPolyline, displayedRange, displayedDepth } from '@/pages/apps/WellCorrelation/engine/section';
 import {
   toReferenceFrame, depthOfFor, displayedArray, isMonotonic, mdFromDisplayed, columnLayout, zoneBands, DEPTH_REF_LABEL,
+  spacingProblem, correlationSegments, frameNotes, verticalScale, resolveColumnWidth, scrollWindow, hasTime, ghostDepths,
 } from './sectionFrame';
 import { trackGeometry } from '@/components/wells/trackRender';
 import {
@@ -29,6 +30,7 @@ import { useScheme } from '@/lib/stratigraphy/scheme';
 import { computeStretch, invertShift } from '@/lib/stratigraphy/stretch';
 import { hitTopAt } from '@/components/wells/hitTest';
 import { topColor } from '@/components/wells/topColors';
+import { STRIP_W } from './petroStrips';
 import { depthLabel } from '@/components/wells/depthModes';
 import TopNamePopover from '@/components/wells/TopNamePopover';
 import DepthNavigator from '@/components/wells/DepthNavigator';
@@ -41,13 +43,19 @@ export const WELL_H = 26;      // well name band above the track headers
 export const HEADER_H = 50;    // track header (title + scale rows + readout)
 const PAD_TOP = 2;
 const PAD_BOTTOM = 4;
+/** U2-006: plot band top and the canvas height that gives a plot band of plotH css px. */
+export const PLOT_TOP = WELL_H + HEADER_H + PAD_TOP;
+export const sectionHeightFor = (plotH) => PLOT_TOP + plotH + PAD_BOTTOM;
 const TAG_MAX = 120;
+export const SCROLL_H = 12;    // horizontal scrollbar under a band wider than the window (U2-002)
 
 /** Tag text of a top: the typed abbreviation in the display scheme in front of the name; plain name for formation tops. */
 function topLabel(t, scheme) {
   const code = normalizeSurfaceType(t.row?.surface_type ?? t.surface_type);
-  if (code === 'formation_top') return t.name;
-  return `${displayLabel(code, scheme, { kind: 'surface', short: true }).label} ${t.name}`;
+  // U2-010: a low-confidence pick carries a ? on its tag
+  const q = (t.row?.confidence ?? t.confidence) === 'low' ? ' ?' : '';
+  if (code === 'formation_top') return `${t.name}${q}`;
+  return `${displayLabel(code, scheme, { kind: 'surface', short: true }).label} ${t.name}${q}`;
 }
 const MIN_READOUT_W = 60;
 const P = PALETTES.light;
@@ -71,10 +79,11 @@ const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.roun
  * @param {Array} p.wells section order: {id, name, is_own, tops, depth (MD), tracks, frame, surface_x, surface_y, kb_m}
  * @param {{mode, topName?, datumM?, upperName?, lowerName?}} p.datum datumM in the reference depth (metres); mode 'stretch' (ST2) hangs each well on upperName and lowerName
  * @param {?Array<{wellId, top_md_m, base_md_m, colour?, label?, hatched?, outline?}>} [p.bands] ST2 fills under the tracks in each well's own MD (systems tracts, motifs)
- * @param {?{sourceWellId, targetWellId, shiftM}} [p.ghost] ST2 ghost curve: the source well's first track drawn on the target column
+ * @param {?{sourceWellId, targetWellId, shiftM, stretch?, tracks?}} [p.ghost] ST2 ghost curve: the source well's first track drawn on the target column;
+ *   U2-015: tracks 'all' (default the first, as ST2) lays every source track on the target's same slot, stretch squeezes or stretches it about the log middle
  * @param {'m'|'ft'} [p.depthUnit] display unit, data stays metres
  * @param {'md'|'tvd'|'tvdss'} [p.depthRef] plotted depth reference
- * @param {'equal'|'proportional'} [p.spacing]
+ * @param {'equal'|'proportional'|'line'} [p.spacing] 'line' (U2-012): by distance along the drawn section line (p.lineDistances)
  * @param {'none'|'consecutive'|'pair'} [p.zoneMode]
  * @param {?[string,string]} [p.zonePair]
  * @param {string[]} p.shownTops
@@ -83,17 +92,22 @@ const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.roun
  * @param {(wellId: string, mdM: number, name: string) => void} [p.onTopCreate]
  * @param {() => void} [p.onPickCancel]
  * @param {(msg: string) => void} [p.onNotice]
+ * @param {'auto'|'fit'|number} [p.columnWidth] U2-002: fit the window, a fixed px width, or auto (fixed once fit gets too narrow)
+ * @param {?{w: number, h: number, pixelRatio?: number}} [p.printSize] U2-006: an offscreen print render at this css size (no navigator, hints or scrollbar)
+ * @param {(canvas: HTMLCanvasElement) => void} [p.onPainted] U2-006: the static layer after each paint
+ * @param {?Object<string, Array<{key, title, intervals, note?}>>} [p.strips] U2-008: narrow strips per well id (pay, zones, units; petroStrips.wellStrips)
  */
 const CrossSection = forwardRef(function CrossSection({
   wells, datum, depthUnit = 'm', depthRef = 'md', spacing = 'equal', zoneMode = 'consecutive', zonePair = null,
   shownTops, pickMode = null, onTopMove, onTopCreate, onPickCancel, onNotice, topNames = [],
-  bands = null, ghost = null,
+  bands = null, ghost = null, columnWidth = 'auto', printSize = null, onPainted = null, strips = null, lineDistances = null,
   view: viewProp, onViewChange,
 }, exportRef) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
   const staticRef = useRef(null);
-  const [size, setSize] = useState({ w: 0, h: 0 });
+  const [measured, setSize] = useState({ w: 0, h: 0 });
+  const size = printSize ? { w: printSize.w, h: printSize.h } : measured;
   const [viewState, setViewState] = useState(null);
   const controlled = viewProp !== undefined;
   const view = controlled ? viewProp : viewState;
@@ -105,9 +119,12 @@ const CrossSection = forwardRef(function CrossSection({
   const [cursor, setCursor] = useState(null);     // {y, disp}
   const [topDrag, setTopDrag] = useState(null);   // {top (row), wellIndex, disp}
   const [popover, setPopover] = useState(null);   // {x, y, wellIndex, disp}
+  const [scrollXState, setScrollX] = useState(0); // U2-002 horizontal offset of the column band
+  const scrollbarRef = useRef(null);
   const dragRef = useRef(null);
   const movedRef = useRef(false);
-  const F = depthUnit === 'ft' ? 1 / 0.3048 : 1;
+  const isTime = depthRef === 'twt'; // U2-003: the axis is TWT in ms (no ft conversion)
+  const F = !isTime && depthUnit === 'ft' ? 1 / 0.3048 : 1;
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -123,14 +140,22 @@ const CrossSection = forwardRef(function CrossSection({
     // wells whose reference depth is not monotonic (a horizontal reach)
     // fall back to MD for everything, and say so in their header
     const fallback = new Set();
-    if (depthRef !== 'md') {
+    // U2-003: in time, a well without checkshots (or whose time is not
+    // monotonic) is not drawn at all; it never falls back to a depth
+    const noTime = new Map();
+    if (depthRef === 'twt') {
+      for (const w of wells) {
+        if (!hasTime(w)) noTime.set(w.id, 'no checkshots: not drawn in time');
+        else if (w.depth?.length && !isMonotonic(displayedArray(w.depth, depthOfFor(w, depthRef), 0))) noTime.set(w.id, 'TWT not monotonic: not drawn in time');
+      }
+    } else if (depthRef !== 'md') {
       for (const w of wells) {
         if (!w.depth?.length) continue;
         if (!isMonotonic(displayedArray(w.depth, depthOfFor(w, depthRef), 0))) fallback.add(w.id);
       }
     }
     const refAll = toReferenceFrame(wells, depthRef);
-    const frameWells = wells.map((w, i) => (fallback.has(w.id) ? w : refAll[i]));
+    const frameWells = wells.map((w, i) => (noTime.has(w.id) ? { ...w, tops: [] } : fallback.has(w.id) ? w : refAll[i]));
     let flattening;
     try {
       // ST2: a stretch datum hangs each well on two surfaces (stratigraphy/stretch.js)
@@ -142,7 +167,7 @@ const CrossSection = forwardRef(function CrossSection({
     const columns = wells.map((w, i) => {
       const f = flattening[i];
       const depthOf = fallback.has(w.id) ? (md) => md : depthOfFor(w, depthRef);
-      const disp = w.depth?.length ? displayedArray(w.depth, depthOf, f.shift) : null;
+      const disp = w.depth?.length && !noTime.has(w.id) ? displayedArray(w.depth, depthOf, f.shift) : null;
       if (disp) {
         let a = 0;
         while (a < disp.length && !Number.isFinite(disp[a])) a++;
@@ -152,8 +177,8 @@ const CrossSection = forwardRef(function CrossSection({
       }
       return {
         well: w, frameWell: frameWells[i], shift: f.shift, hasDatumTop: f.hasDatumTop,
-        disp, fallback: fallback.has(w.id), tracks: w.tracks || [],
-        refForWell: fallback.has(w.id) ? 'md' : depthRef,
+        disp, fallback: fallback.has(w.id), noTime: noTime.get(w.id) || null, tracks: w.tracks || [],
+        refForWell: fallback.has(w.id) ? 'md' : depthRef, depthOf,
       };
     });
     const autoRange = displayedRange(frameWells, flattening, logRanges) || [0, 1];
@@ -163,22 +188,65 @@ const CrossSection = forwardRef(function CrossSection({
   const [vTop, vBase] = view || autoRange;
   useEffect(() => { setView(null); }, [datum, depthRef, setView]); // refit on a new frame
 
+  // STRAT-U1-003: bands are stored in MD and drawn in the section's reference
+  // (TVD, TVDSS through the survey and KB, TWT through the checkshots); a well
+  // not drawn in time draws none
+  const bandSpans = useMemo(() => columns.map((c) => {
+    if (!bands?.length || c.noTime) return [];
+    const out = [];
+    for (const b of bands) {
+      if (b.wellId !== c.well.id) continue;
+      const d0 = displayedDepth(c.depthOf(b.top_md_m), c.shift); const d1 = displayedDepth(c.depthOf(b.base_md_m), c.shift);
+      if (Number.isFinite(d0) && Number.isFinite(d1)) out.push({ b, d0, d1 });
+    }
+    return out;
+  }), [columns, bands]);
+
   // ---- layout -------------------------------------------------------------
   const plotTop = WELL_H + HEADER_H + PAD_TOP;
-  const plotH = Math.max(10, size.h - plotTop - PAD_BOTTOM);
   const plotW = Math.max(10, size.w - AXIS_W);
-  const boxes = useMemo(
-    () => columnLayout(wells, { mode: spacing, plotLeft: AXIS_W, plotW }),
-    [wells, spacing, plotW],
+  // U2-002: fixed-width columns on a band that scrolls under a pinned depth
+  // axis; only the columns in the window are painted
+  // (an unmeasured viewport, size.w 0, fits: there is no window to scroll yet)
+  const fixedW = size.w > 0 ? resolveColumnWidth(columnWidth, wells.length, plotW) : null;
+  const band = useMemo(
+    () => columnLayout(wells, { mode: spacing === 'line' ? 'proportional' : spacing, plotLeft: AXIS_W, plotW, fixedW, distances: spacing === 'line' ? lineDistances : null }),
+    [wells, spacing, plotW, fixedW, lineDistances],
   );
+  // fitted columns never scroll (a gap rule can overrun a tiny window by a few px)
+  const win = useMemo(() => (fixedW
+    ? scrollWindow(band, { scrollX: scrollXState, plotLeft: AXIS_W, plotW })
+    : { ...scrollWindow(band, { plotLeft: AXIS_W, plotW }), maxScroll: 0, scrollX: 0, boxes: band, visible: band.map(() => true) }), [band, scrollXState, plotW, fixedW]);
+  const { boxes, visible: colVisible, maxScroll } = win;
+  const scrollX = win.scrollX;
+  const scrolling = maxScroll > 0;
+  const plotH = Math.max(10, size.h - plotTop - PAD_BOTTOM - (scrolling ? SCROLL_H : 0));
+  useEffect(() => {
+    const el = scrollbarRef.current;
+    if (el && Math.abs(el.scrollLeft - scrollX) > 0.5) el.scrollLeft = scrollX;
+  }, [scrollX, scrolling]);
+  // WC-U1-002: spacing by distance needs one frame and located wells; the
+  // columns stay equal otherwise and the host is told why
+  const spacingNote = useMemo(() => (spacing === 'proportional' ? spacingProblem(wells)
+    // (STRAT-U1-018: one well or none has nothing to space, so no note while a section is still loading)
+    : spacing === 'line' && wells.length > 1 && !(lineDistances && lineDistances.length === wells.length - 1) ? 'the section wells are not the wells of the drawn line' : null), [wells, spacing, lineDistances]);
+  useEffect(() => {
+    if (spacingNote && onNotice) onNotice(`Spacing by distance is off: ${spacingNote}. The columns are equal.`);
+  }, [spacingNote]); // eslint-disable-line react-hooks/exhaustive-deps
+  // U2-008: strips take a fixed width at the left of a column (when the
+  // column is wide enough to keep its tracks readable)
+  const stripW = useMemo(() => columns.map((c, i) => {
+    const n = strips?.[c.well.id]?.length || 0;
+    return n && (boxes[i]?.w || 0) >= n * STRIP_W + 60 ? n * STRIP_W : 0;
+  }), [columns, boxes, strips]);
   const geoms = useMemo(
-    () => columns.map((c, i) => trackGeometry(c.tracks, boxes[i]?.w || 0, 0).map((g) => ({ x0: g.x0 + (boxes[i]?.x0 || 0), w: g.w }))),
-    [columns, boxes],
+    () => columns.map((c, i) => trackGeometry(c.tracks, (boxes[i]?.w || 0) - stripW[i], 0).map((g) => ({ x0: g.x0 + (boxes[i]?.x0 || 0) + stripW[i], w: g.w }))),
+    [columns, boxes, stripW],
   );
   const yOf = useCallback((d) => plotTop + ((d - vTop) / (vBase - vTop || 1)) * plotH, [plotTop, plotH, vTop, vBase]);
   const dOf = (y) => vTop + ((y - plotTop) / plotH) * (vBase - vTop);
   const colorOf = (name) => topColor(name);
-  const columnAt = (x) => boxes.findIndex((b) => x >= b.x0 && x < b.x0 + b.w);
+  const columnAt = (x) => (x < AXIS_W ? -1 : boxes.findIndex((b, i) => colVisible[i] && x >= b.x0 && x < b.x0 + b.w));
 
   // shown tops per column in displayed depth (the hit-test shape)
   const columnTops = useMemo(() => columns.map((c) => (c.frameWell.tops || [])
@@ -189,15 +257,39 @@ const CrossSection = forwardRef(function CrossSection({
   const [scheme] = useScheme();
   const topTypes = useMemo(() => columnTops.flat().map((t) => `${t.name}:${normalizeSurfaceType(t.row?.surface_type ?? t.surface_type)}`).join(';'), [columnTops]);
 
-  const unitTxt = depthUnit === 'ft' ? 'ft' : 'm';
+  const unitTxt = isTime ? 'ms' : depthUnit === 'ft' ? 'ft' : 'm';
+  // WC-U1-011: a stretched section is labelled as such (its depths are the
+  // datum frame between two surfaces, not the wells' own)
   const axisTitle = datum.mode === 'flatten'
     ? `flattened ${DEPTH_REF_LABEL[depthRef]} (${unitTxt})`
-    : `${DEPTH_REF_LABEL[depthRef]} (${unitTxt})`;
+    : datum.mode === 'stretch'
+      ? `stretched ${DEPTH_REF_LABEL[depthRef]} (${unitTxt})`
+      : `${DEPTH_REF_LABEL[depthRef]} (${unitTxt})`;
+
+  const axisTitleRef = useRef(axisTitle);
+  axisTitleRef.current = axisTitle;
+
+  // header notes per column (also on data-well-notes for the browser checks)
+  const columnNotes = useMemo(() => columns.map((c, i) => {
+    const notes = [];
+    if (datum.mode === 'flatten' && !c.hasDatumTop) notes.push('no datum top: true depth');
+    if (datum.mode === 'stretch' && flattening[i]?.partial) notes.push(c.hasDatumTop ? 'one surface: shifted without stretching' : 'neither surface: true depth');
+    if (c.noTime) notes.push(c.noTime);
+    else if (c.fallback) notes.push(`${DEPTH_REF_LABEL[depthRef]} not monotonic: MD shown`);
+    else notes.push(...frameNotes(c.well, depthRef)); // WC-U1-005
+    if (c.well.reoriented) notes.push('stored bottom-up: read top-down'); // WC-U1-003
+    for (const st of strips?.[c.well.id] || []) if (st.note) notes.push(st.note); // U2-008
+    // WC-U1-024 / U2-010: a top repeated in one well (a fault repeat) correlates on the shallower pick
+    const seen = new Map();
+    for (const t of c.well.tops || []) if (!t.readonly) seen.set(t.name, (seen.get(t.name) || 0) + 1);
+    for (const [n, k] of seen) if (k > 1) notes.push(`${n} x${k}: correlated on the shallower`);
+    return notes;
+  }), [columns, datum, flattening, depthRef, strips]);
 
   // ---- STATIC layer -------------------------------------------------------
   useEffect(() => {
     if (!size.w || !size.h || !wells.length) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = printSize?.pixelRatio || window.devicePixelRatio || 1;
     if (!staticRef.current) staticRef.current = document.createElement('canvas');
     const canvas = staticRef.current;
     canvas.width = Math.round(size.w * dpr);
@@ -207,10 +299,15 @@ const CrossSection = forwardRef(function CrossSection({
     ctx.fillStyle = P.bg;
     ctx.fillRect(0, 0, size.w, size.h);
 
+    // U2-002: everything drawn in the plot band is clipped right of the
+    // pinned depth axis, so scrolled columns slide under it
+    const clipBand = () => { ctx.save(); ctx.beginPath(); ctx.rect(AXIS_W, 0, size.w - AXIS_W, size.h); ctx.clip(); };
+    clipBand();
     // zone bands under everything
     if (zoneMode !== 'none') {
       const pairs = zoneMode === 'pair' ? (zonePair ? [zonePair] : []) : null;
       columns.forEach((c, i) => {
+        if (!colVisible[i]) return;
         const box = boxes[i];
         for (const z of zoneBands(c.frameWell, c.shift, shownTops, pairs)) {
           const y0 = yOf(Math.max(z.top, vTop));
@@ -222,15 +319,17 @@ const CrossSection = forwardRef(function CrossSection({
       });
     }
 
+    ctx.restore();
     paintDepthAxis(ctx, { axisW: AXIS_W, plotTop, plotH, plotRight: size.w, vTop, vBase, yOf, F, title: axisTitle });
+    clipBand();
 
     // ST2 bands (systems tracts, motifs ...): under the tracks, in each well's own frame
+    // (STRAT-U1-003: through the well's depth reference, like the interval strips)
     if (bands?.length) {
       columns.forEach((c, i) => {
+        if (!colVisible[i]) return;
         const box = boxes[i];
-        for (const b of bands) {
-          if (b.wellId !== c.well.id) continue;
-          const d0 = displayedDepth(b.top_md_m, c.shift); const d1 = displayedDepth(b.base_md_m, c.shift);
+        for (const { b, d0, d1 } of bandSpans[i]) {
           const y0 = yOf(Math.max(Math.min(d0, d1), vTop)); const y1 = yOf(Math.min(Math.max(d0, d1), vBase));
           if (y1 <= y0) continue;
           if (b.outline) {
@@ -288,6 +387,14 @@ const CrossSection = forwardRef(function CrossSection({
     columns.forEach((c, i) => {
       const box = boxes[i];
       const w = c.well;
+      // inter-well distance in the gap first (the gap can be in view while its column is not)
+      if (!colVisible[i]) {
+        if (box.gapAfter > 0 && Number.isFinite(box.distM) && box.x0 + box.w + box.gapAfter > AXIS_W && box.x0 + box.w < size.w) {
+          ctx.fillStyle = P.axisText; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+          ctx.fillText(fmtDist(box.distM), box.x0 + box.w + box.gapAfter / 2, 13, box.gapAfter - 4);
+        }
+        return;
+      }
       // well band
       ctx.fillStyle = P.headerBg;
       ctx.fillRect(box.x0, 0, box.w, WELL_H);
@@ -297,10 +404,7 @@ const CrossSection = forwardRef(function CrossSection({
       ctx.fillStyle = P.textStrong;
       ctx.textAlign = 'center';
       ctx.fillText(`${w.name}${w.is_own ? '' : ' (shared)'}`, box.x0 + box.w / 2, 13, box.w - 8);
-      const notes = [];
-      if (datum.mode === 'flatten' && !c.hasDatumTop) notes.push('no datum top: true depth');
-      if (datum.mode === 'stretch' && flattening[i]?.partial) notes.push(c.hasDatumTop ? 'one surface: shifted without stretching' : 'neither surface: true depth');
-      if (c.fallback) notes.push(`${DEPTH_REF_LABEL[depthRef]} not monotonic: MD shown`);
+      const notes = columnNotes[i];
       if (notes.length) {
         ctx.font = '9px sans-serif';
         ctx.fillStyle = AMBER;
@@ -328,11 +432,46 @@ const CrossSection = forwardRef(function CrossSection({
         ctx.fillText(c.disp ? 'no curve of this template' : 'no curves', box.x0 + box.w / 2, plotTop + 16, box.w - 8);
         return;
       }
+      // U2-008 strips: title in the header band, intervals in displayed depth
+      const ws = stripW[i] ? strips[w.id] : [];
+      ws.forEach((st, j) => {
+        const sx = box.x0 + j * STRIP_W;
+        ctx.save();
+        ctx.fillStyle = P.headerBg; ctx.fillRect(sx, WELL_H, STRIP_W, HEADER_H);
+        ctx.strokeStyle = P.frame; ctx.strokeRect(sx + 0.5, WELL_H + 0.5, STRIP_W - 1, HEADER_H - 1);
+        ctx.translate(sx + STRIP_W / 2 + 3, WELL_H + HEADER_H - 4); ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = P.textStrong; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText(st.title, 0, 0, HEADER_H - 8);
+        ctx.restore();
+        ctx.strokeStyle = P.frame; ctx.strokeRect(sx + 0.5, plotTop + 0.5, STRIP_W - 1, plotH - 1);
+        if (c.noTime) return;
+        for (const iv of st.intervals) {
+          const d0 = displayedDepth(c.depthOf(iv.top_md_m), c.shift); const d1 = displayedDepth(c.depthOf(iv.base_md_m), c.shift);
+          if (!Number.isFinite(d0) || !Number.isFinite(d1)) continue;
+          const y0 = yOf(Math.max(Math.min(d0, d1), vTop)); const y1 = yOf(Math.min(Math.max(d0, d1), vBase));
+          if (y1 <= y0) continue;
+          ctx.fillStyle = iv.colour || '#94a3b8';
+          ctx.fillRect(sx + 1, y0, STRIP_W - 2, Math.max(1, y1 - y0));
+        }
+      });
       if (!c.disp) return;
       const { i0, i1 } = visibleRange(c.disp, vTop, vBase);
       c.tracks.forEach((track, ti) => paintTrackBody(ctx, {
         track, depth: c.disp, yOf, i0, i1, x0: geom[ti].x0, w: geom[ti].w, plotTop, plotH, headerH: WELL_H + HEADER_H,
       }));
+      // zone summaries (published net, PHIE, Sw) written at each zone top
+      for (const st of ws) {
+        if (st.key !== 'zones' || c.noTime) continue;
+        for (const iv of st.intervals) {
+          const d0 = displayedDepth(c.depthOf(iv.top_md_m), c.shift);
+          if (!Number.isFinite(d0) || d0 < vTop || d0 > vBase || !iv.label) continue;
+          const y = yOf(d0) + 10;
+          ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
+          const tw = Math.min(ctx.measureText(iv.label).width, box.w - stripW[i] - 6);
+          ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(box.x0 + stripW[i] + 2, y - 9, tw + 4, 12);
+          ctx.fillStyle = P.textStrong; ctx.fillText(iv.label, box.x0 + stripW[i] + 4, y, box.w - stripW[i] - 8);
+        }
+      }
     });
 
     // ST2 ghost curve: the source well's first track drawn translucent on the
@@ -342,60 +481,73 @@ const CrossSection = forwardRef(function CrossSection({
       const si = columns.findIndex((c) => c.well.id === ghost.sourceWellId);
       const ti = columns.findIndex((c) => c.well.id === ghost.targetWellId);
       const src = columns[si]; const dst = columns[ti];
-      if (src?.disp && dst && src.tracks.length && dst.tracks.length && geoms[ti]?.[0]) {
-        const shifted = new Float64Array(src.disp.length);
-        for (let k = 0; k < shifted.length; k++) shifted[k] = src.disp[k] + (ghost.shiftM || 0);
+      if (src?.disp && dst && src.tracks.length && dst.tracks.length && geoms[ti]?.[0] && colVisible[ti]) {
+        // U2-015: every track slot (or the first), stretched or squeezed
+        const shifted = ghostDepths(src.disp, { shiftM: ghost.shiftM || 0, stretch: ghost.stretch || 1 });
         const { i0, i1 } = visibleRange(shifted, vTop, vBase);
-        const g = geoms[ti][0];
+        const slots = ghost.tracks === 'all' ? Math.min(src.tracks.length, dst.tracks.length) : 1; // ST2 default: the first track
         ctx.save();
         ctx.globalAlpha = 0.45;
-        paintTrackBody(ctx, { track: { ...src.tracks[0], fills: [] }, depth: shifted, yOf, i0, i1, x0: g.x0, w: g.w, plotTop, plotH, headerH: WELL_H + HEADER_H });
+        for (let k = 0; k < slots; k++) {
+          const g = geoms[ti][k];
+          if (!g) continue;
+          paintTrackBody(ctx, { track: { ...src.tracks[k], fills: [] }, depth: shifted, yOf, i0, i1, x0: g.x0, w: g.w, plotTop, plotH, headerH: WELL_H + HEADER_H });
+        }
         ctx.restore();
+        const g = geoms[ti][0];
         ctx.fillStyle = AMBER; ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
-        ctx.fillText(`ghost: ${src.well.name} ${ghost.shiftM >= 0 ? '+' : ''}${Math.round(ghost.shiftM || 0)} m`, g.x0 + 3, plotTop + 12, g.w - 6);
+        const gs = (ghost.shiftM || 0) * F; // WC-U1-012: the display unit
+        const st = Number(ghost.stretch) && Math.abs(ghost.stretch - 1) > 1e-6 ? ` x${Number(ghost.stretch).toFixed(2)}` : '';
+        ctx.fillText(`ghost: ${src.well.name} ${gs >= 0 ? '+' : ''}${Math.round(gs)} ${unitTxt}${st}${slots > 1 ? ` (${slots} tracks)` : ''}`, g.x0 + 3, plotTop + 12, Math.max(40, dst.tracks.length > 1 ? g.w * 2 : g.w) - 6);
       }
     }
 
-    // correlation lines between same-named tops, column centre to centre
+    // correlation lines between same-named tops, in the gaps between columns
+    // (WC-U1-004: column edge to column edge, never over the log tracks;
+    // dashed across a well that does not carry the top)
     for (const name of shownTops) {
       const line = correlationPolyline(frameWells, flattening, name);
       if (line.length < 2) continue;
       ctx.strokeStyle = colorOf(name);
       ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      line.forEach((pt, k) => {
-        const box = boxes[pt.wellIndex];
-        const cx = box.x0 + box.w / 2;
-        const y = yOf(pt.displayed);
-        if (k) ctx.lineTo(cx, y); else ctx.moveTo(cx, y);
-      });
-      ctx.stroke();
+      const hz = name.startsWith('H: '); // U2-003 horizon: dotted
+      for (const seg of correlationSegments(line, boxes, yOf)) {
+        ctx.setLineDash(hz ? [1, 3] : seg.dashed ? [4, 3] : []);
+        ctx.beginPath();
+        ctx.moveTo(seg.x1, seg.y1);
+        ctx.lineTo(seg.x2, seg.y2);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
       ctx.lineWidth = 1;
     }
 
     // top markers per well: dashed line and a name tag at the column's right edge
     columns.forEach((c, i) => {
+      if (!colVisible[i]) return;
       const box = boxes[i];
       for (const t of columnTops[i]) {
         if (topDrag && topDrag.top.id === t.id) continue; // drawn by the cursor layer while dragging
         if (t.md_m < vTop || t.md_m > vBase) continue;
         paintTopMarker(ctx, {
           name: t.name, label: topLabel(t, scheme), color: colorOf(t.name), y: yOf(t.md_m), xLeft: box.x0, xRight: box.x0 + box.w,
-          tagMax: Math.min(TAG_MAX, box.w - 4), grip: !!(c.well.is_own && onTopMove),
-          style: surfaceLineStyle(t.row?.surface_type ?? t.surface_type),
+          tagMax: Math.min(TAG_MAX, box.w - 4), grip: !!(c.well.is_own && onTopMove && !t.row?.readonly),
+          style: t.row?.horizon ? { dash: [1, 3], width: 2 } : surfaceLineStyle(t.row?.surface_type ?? t.surface_type),
         });
       }
     });
 
+    ctx.restore();
     setTick((t) => t + 1);
-  }, [size, wells, columns, boxes, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, ghost]);
+    if (onPainted) onPainted(canvas, { plotTop, plotH, vTop, vBase });
+  }, [size.w, size.h, printSize, onPainted, strips, stripW, wells, columns, columnNotes, boxes, colVisible, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, unitTxt, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, bandSpans, ghost]);
 
   // ---- CURSOR layer -------------------------------------------------------
   useEffect(() => {
     const canvas = canvasRef.current;
     const stat = staticRef.current;
     if (!canvas || !stat || !size.w || !size.h || !wells.length) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = printSize?.pixelRatio || window.devicePixelRatio || 1;
     if (canvas.width !== stat.width || canvas.height !== stat.height) {
       canvas.width = stat.width;
       canvas.height = stat.height;
@@ -413,7 +565,7 @@ const CrossSection = forwardRef(function CrossSection({
       // own measured depth there (the section shares displayed depth only)
       columns.forEach((c, i) => {
         const box = boxes[i];
-        if (!c.disp) return;
+        if (!c.disp || !colVisible[i]) return;
         const idx = nearestIdx(c.disp, cursor.disp);
         if (box.w >= MIN_READOUT_W && c.tracks.length && Math.abs(c.disp[idx] - cursor.disp) <= (vBase - vTop) / plotH * 3) {
           // one readout row per track that has room for its curves
@@ -425,7 +577,8 @@ const CrossSection = forwardRef(function CrossSection({
         const inv = mdFromDisplayed(cursor.disp, c.shift, c.well, c.refForWell);
         if (inv && Number.isFinite(inv.md)) {
           const parts = [`MD ${depthLabel(inv.md, depthUnit)}`];
-          if (c.refForWell !== 'md') parts.push(`${DEPTH_REF_LABEL[c.refForWell]} ${depthLabel(invertShift(cursor.disp, c.shift), depthUnit)}`);
+          if (c.refForWell === 'twt') parts.push(`TWT ${Math.round(invertShift(cursor.disp, c.shift))} ms`);
+          else if (c.refForWell !== 'md') parts.push(`${DEPTH_REF_LABEL[c.refForWell]} ${depthLabel(invertShift(cursor.disp, c.shift), depthUnit)}`);
           ctx.fillStyle = P.textStrong;
           ctx.font = '9px sans-serif';
           ctx.textAlign = 'right';
@@ -469,7 +622,7 @@ const CrossSection = forwardRef(function CrossSection({
       ctx.textAlign = 'right';
       ctx.fillText((cursor.disp * F).toFixed(1), AXIS_W - 4, cursor.y - 4);
     }
-  }, [tick, size, wells, columns, boxes, geoms, cursor, topDrag, pickMode, yOf, plotTop, plotH, vTop, vBase, F, depthUnit]);
+  }, [tick, size.w, size.h, wells, columns, boxes, colVisible, geoms, cursor, topDrag, pickMode, yOf, plotTop, plotH, vTop, vBase, F, depthUnit]);
 
   // Esc leaves the pick mode / closes the popover
   useEffect(() => {
@@ -491,7 +644,8 @@ const CrossSection = forwardRef(function CrossSection({
     if (i < 0 || !columns[i].well.is_own) return null;
     const box = boxes[i];
     const tagLeft = Math.max(box.x0, box.x0 + box.w - Math.min(TAG_MAX, box.w - 4) - 2);
-    const hit = hitTopAt({ x, y }, columnTops[i], yOf, { tagLeft, tol: 5 });
+    // U2-003: horizon markers are read-only (the registry surface is not a top)
+    const hit = hitTopAt({ x, y }, columnTops[i].filter((t) => !t.row?.readonly), yOf, { tagLeft, tol: 5 });
     return hit ? { top: hit.row, wellIndex: i, disp: hit.md_m } : null;
   };
   const clampDisp = (d) => Math.min(autoRange[1], Math.max(autoRange[0], d));
@@ -514,6 +668,12 @@ const CrossSection = forwardRef(function CrossSection({
 
   const onWheel = (e) => {
     e.preventDefault();
+    // U2-002: shift+wheel or a sideways swipe scrolls the column band
+    if (scrolling && (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY))) {
+      const dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      setScrollX(Math.min(maxScroll, Math.max(0, scrollX + dx)));
+      return;
+    }
     const rect = canvasRef.current.getBoundingClientRect();
     const d = dOf(e.clientY - rect.top);
     const next = zoomAbout([vTop, vBase], d, e.deltaY > 0 ? 1.25 : 0.8, autoRange);
@@ -579,10 +739,42 @@ const CrossSection = forwardRef(function CrossSection({
     onTopCreate(c.well.id, Number(inv.md.toFixed(2)), name);
   };
 
+  // live values for the export (the handle is created once)
+  const exportMetaRef = useRef({});
+  const shownCols = colVisible.map((v, i) => (v ? i : -1)).filter((i) => i >= 0);
+  exportMetaRef.current = {
+    scale: isTime ? null : verticalScale(vTop, vBase, plotH), spacing: spacingNote ? 'equal' : spacing, depthRef,
+    // U2-002: a scrolled PNG shows a window of the section and says which wells
+    window: scrolling && shownCols.length ? { first: shownCols[0] + 1, last: shownCols[shownCols.length - 1] + 1, n: wells.length } : null,
+    // U2-006: what a print render needs to redraw this view at another size
+    vTop, vBase, colW: boxes[0]?.w || null, spacingMode: spacing,
+  };
+  // U2-005: the host converts between a well's MD and the displayed depth
+  // (reference, flattening or stretch) through the frame on screen
+  const columnsRef = useRef(columns);
+  columnsRef.current = columns;
   useImperativeHandle(exportRef, () => ({
-    toPng: (title) => {
+    /** U2-005: MD of a displayed depth in one well ({md, ambiguous, extrapolated} or null). */
+    mdAt: (wellId, disp) => {
+      const c = columnsRef.current.find((x) => x.well.id === wellId);
+      return c ? mdFromDisplayed(disp, c.shift, c.well, c.refForWell) : null;
+    },
+    /** U2-005: displayed depth of an MD in one well (NaN when the frame cannot place it). */
+    displayedAt: (wellId, md) => {
+      const c = columnsRef.current.find((x) => x.well.id === wellId);
+      if (!c) return NaN;
+      const d = (c.refForWell === 'md' ? (m) => m : depthOfFor(c.well, c.refForWell))(md);
+      return Number.isFinite(d) ? displayedDepth(d, c.shift) : NaN;
+    },
+    /** U2-005: what the displayed depth means, for the host's labels. */
+    axisLabel: () => axisTitleRef.current,
+    /** U2-006: the live view (depth window, effective column width, scale). */
+    meta: () => ({ ...exportMetaRef.current }),
+    /** @param {string | ((meta: {scale: ?number, spacing: string}) => {title: string, caption?: string[]})} make */
+    toPng: (make) => {
       setCursor(null);
-      return trackPlotPng({ canvas: canvasRef.current, title });
+      const meta = typeof make === 'function' ? make(exportMetaRef.current) : { title: make };
+      return trackPlotPng({ canvas: canvasRef.current, title: meta.title, caption: meta.caption });
     },
   }), []);
 
@@ -610,16 +802,26 @@ const CrossSection = forwardRef(function CrossSection({
       data-plot-h={plotH}
       data-col-x={boxes.map((b) => Math.round(b.x0)).join(',')}
       data-col-w={boxes.map((b) => Math.round(b.w)).join(',')}
+      data-col-fixed-w={fixedW || ''}
+      data-content-w={Math.round(win.contentW)}
+      data-scroll-x={Math.round(scrollX)}
+      data-max-scroll={maxScroll}
+      data-painted-cols={colVisible.filter(Boolean).length}
+      data-strips={columns.map((c, i) => `${c.well.name}=${stripW[i] ? (strips[c.well.id] || []).map((st) => `${st.key}:${st.intervals.length}`).join('|') : ''}`).join(';')}
+      data-spacing={spacingNote ? 'equal' : spacing}
+      data-well-notes={columns.map((c, i) => `${c.well.name}=${columnNotes[i].join('|')}`).join(';')}
       data-view-top={vTop}
       data-view-base={vBase}
       data-pick-mode={pickMode || ''}
       data-top-types={topTypes}
       data-datum-mode={datum.mode}
       data-band-count={bands ? bands.length : 0}
-      data-ghost={ghost?.sourceWellId ? `${ghost.sourceWellId}>${ghost.targetWellId}:${ghost.shiftM || 0}` : ''}
+      data-band-spans={columns.map((c, i) => `${c.well.name}:${bandSpans[i].map(({ d0, d1 }) => `${Math.min(d0, d1).toFixed(1)}-${Math.max(d0, d1).toFixed(1)}`).join('|')}`).join(';')}
+      data-ghost={ghost?.sourceWellId ? `${ghost.sourceWellId}>${ghost.targetWellId}:${ghost.shiftM || 0}${ghost.stretch && ghost.stretch !== 1 ? `:x${ghost.stretch}` : ''}${ghost.tracks === 'all' ? ':all' : ''}` : ''}
       data-scheme={scheme}
     >
-      <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden bg-white" data-canvas="chart">
+      <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden bg-white" data-canvas="chart"
+        style={printSize ? { width: printSize.w, height: printSize.h, flex: 'none' } : undefined}>
         <canvas
           ref={canvasRef}
           data-testid="corr-section-canvas"
@@ -644,13 +846,25 @@ const CrossSection = forwardRef(function CrossSection({
             testIdPrefix="corr-top"
           />
         )}
-        <span className="absolute bottom-1 right-2 text-[10px] text-pl-muted pointer-events-none">
+        {scrolling && !printSize && (
+          <div
+            ref={scrollbarRef}
+            data-testid="corr-hscroll"
+            title="Scroll the wells (or shift + wheel on the section)"
+            className="absolute bottom-0 right-0 overflow-x-auto overflow-y-hidden"
+            style={{ left: AXIS_W, height: SCROLL_H }}
+            onScroll={(e) => setScrollX(e.currentTarget.scrollLeft)}
+          >
+            <div style={{ width: win.contentW, height: 1 }} />
+          </div>
+        )}
+        {!printSize && <span className="absolute right-2 text-[10px] text-pl-muted pointer-events-none" style={{ bottom: (scrolling ? SCROLL_H : 0) + 4 }}>
           {pickMode === 'top'
             ? 'click a column: place a top · Esc: finish'
-            : 'drag a name tag: move a top · drag: pan · wheel: zoom · double-click: fit'}
-        </span>
+            : `drag a name tag: move a top · drag: pan · wheel: zoom${scrolling ? ' · shift+wheel: scroll wells' : ''} · double-click: fit`}
+        </span>}
       </div>
-      {size.w >= 460 && (
+      {size.w >= 460 && !printSize && (
         <DepthNavigator
           extent={autoRange}
           view={view}

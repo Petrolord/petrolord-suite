@@ -16,6 +16,7 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { minOf, maxOf, extentOf } from './extent';
 import { exaggerationLabel } from './sectionScale';
+import { EMPTY_VALUE } from '../../../../lib/emptyValue.js';
 
 // ---------------------------------------------------------------------------
 // brand chrome
@@ -95,7 +96,7 @@ function footer(doc, note) {
   }
 }
 
-const fmtNum = (v, dp = 1) => (Number.isFinite(v) ? v.toFixed(dp) : '—');
+const fmtNum = (v, dp = 1) => (Number.isFinite(v) ? v.toFixed(dp) : EMPTY_VALUE);
 
 // ---------------------------------------------------------------------------
 // vector chart primitives
@@ -248,13 +249,13 @@ export function drawSfLadder(doc, rect, { results, thresholds }) {
 
 function headerRowsFromContract(contract, magRef) {
   return [
-    ['Well', contract.wellbore.name ?? '—', 'Site', contract.site?.name ?? '—'],
-    ['UWI', contract.wellbore.uwi ?? '—', 'Site CRS', contract.site?.crs ?? 'unset'],
+    ['Well', contract.wellbore.name ?? EMPTY_VALUE, 'Site', contract.site?.name ?? EMPTY_VALUE],
+    ['UWI', contract.wellbore.uwi ?? EMPTY_VALUE, 'Site CRS', contract.site?.crs ?? 'unset'],
     ['Wellhead', `${fmtNum(contract.wellbore.headX)} E, ${fmtNum(contract.wellbore.headY)} N`, 'KB elevation', `${fmtNum(contract.wellbore.kbElevM)} m`],
-    ['Design', contract.design ? `${contract.design.name} r${contract.design.revision} (${contract.design.status})` : '—', 'Source', contract.source],
-    ['Azimuth ref', `${contract.wellbore.azimuthReference} (listing: grid)`, 'Convergence', `${contract.wellbore.gridConvergenceDeg ?? '—'} deg`],
-    ['Declination', `${contract.wellbore.magDeclinationDeg ?? '—'} deg`, 'Geomagnetics',
-      magRef ? `WMM2025: ${fmtNum(magRef.bTotalNT, 0)} nT, dip ${fmtNum(magRef.dipDeg)} deg` : '—'],
+    ['Design', contract.design ? `${contract.design.name} r${contract.design.revision} (${contract.design.status})` : EMPTY_VALUE, 'Source', contract.source],
+    ['Azimuth ref', `${contract.wellbore.azimuthReference} (listing: grid)`, 'Convergence', `${contract.wellbore.gridConvergenceDeg ?? EMPTY_VALUE} deg`],
+    ['Declination', `${contract.wellbore.magDeclinationDeg ?? EMPTY_VALUE} deg`, 'Geomagnetics',
+      magRef ? `WMM2025: ${fmtNum(magRef.bTotalNT, 0)} nT, dip ${fmtNum(magRef.dipDeg)} deg` : EMPTY_VALUE],
   ];
 }
 
@@ -388,10 +389,10 @@ export async function generateAcReport({ run, wellName = '', designLabel = '', g
     startY: 22,
     head: [['Separation rule (SPE-187073)', '', '', '']],
     body: [
-      ['k (probability factor)', p.k ?? '—', 'σ projection-ahead', `${p.sigmaPa ?? '—'} m`],
-      ['Surface margin Sm', `${p.Sm ?? '—'} m`, 'Radii ref / offset', `${p.refRadius ?? '—'} / ${p.offRadius ?? '—'} m`],
+      ['k (probability factor)', p.k ?? EMPTY_VALUE, 'σ projection-ahead', `${p.sigmaPa ?? EMPTY_VALUE} m`],
+      ['Surface margin Sm', `${p.Sm ?? EMPTY_VALUE} m`, 'Radii ref / offset', `${p.refRadius ?? EMPTY_VALUE} / ${p.offRadius ?? EMPTY_VALUE} m`],
       ['No-go below SF', p.noGo ?? 1.0, 'Review below SF', p.review ?? 1.5],
-      ['Error model', 'ISCWSA MWD Rev4 (oracle-gated)', 'Overall status', (run.summary?.status ?? '—').toUpperCase()],
+      ['Error model', 'ISCWSA MWD Rev4 (oracle-gated)', 'Overall status', (run.summary?.status ?? EMPTY_VALUE).toUpperCase()],
     ],
     styles: { fontSize: 7, cellPadding: 1 },
     headStyles: { fillColor: [30, 41, 59] },

@@ -5,6 +5,7 @@
 // choice of their own. Pure, no I/O.
 
 import { toDisplay } from '@/components/wells/depthModes';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 export const DEPTH_UNIT_KEY = 'em.depthUnit';
 export const VOLUME_UNITS_KEY = 'em.volumeUnits';
@@ -47,7 +48,7 @@ export function volumeValue(m3, column, units = 'metric') {
 /** Formatted volume, three decimals in metric, one in field rock units. */
 export function fmtVolume(m3, column, units = 'metric') {
   const v = volumeValue(m3, column, units);
-  if (v === null) return '—';
+  if (v === null) return EMPTY_VALUE;
   const kind = VOLUME_COLUMNS[column] || 'rock';
   return v.toFixed(units === 'field' && kind === 'rock' ? 1 : 3);
 }
@@ -59,4 +60,4 @@ export function volumeUnitLabel(column, units = 'metric') {
 }
 
 /** A depth (metres) in the display unit with `digits`. */
-export const fmtDepth = (m, unit = 'm', digits = 2) => (Number.isFinite(m) ? toDisplay(m, unit).toFixed(digits) : '—');
+export const fmtDepth = (m, unit = 'm', digits = 2) => (Number.isFinite(m) ? toDisplay(m, unit).toFixed(digits) : EMPTY_VALUE);

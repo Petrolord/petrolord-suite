@@ -8,25 +8,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { unitLabel, fromOilfield, displayInputString, storeInputString } from '@/utils/welltest/units';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 export const fmt = {
   num: (v) => {
     const n = typeof v === 'number' ? v : parseFloat(v);
     return Number.isFinite(n) ? n : NaN;
   },
-  pct: (v) => (v == null || !Number.isFinite(v) ? '—' : `${(v * 100).toFixed(1)}%`),
-  f1: (v) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toFixed(1)),
-  f2: (v) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toFixed(2)),
-  f3: (v) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toFixed(3)),
-  int: (v) => (v == null || !Number.isFinite(v) ? '—' : Math.round(v).toLocaleString()),
+  pct: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : `${(v * 100).toFixed(1)}%`),
+  f1: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toFixed(1)),
+  f2: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toFixed(2)),
+  f3: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toFixed(3)),
+  int: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Math.round(v).toLocaleString()),
   // three significant figures; from 1,000 up written out with separators
   // rather than toPrecision's "2.25e+3" (WTA-T1-003)
   sig3: (v) => {
-    if (v == null || !Number.isFinite(v)) return '—';
+    if (v == null || !Number.isFinite(v)) return EMPTY_VALUE;
     const r = Number(Number(v).toPrecision(3));
     return Math.abs(r) >= 1000 && Math.abs(r) < 1e15 ? r.toLocaleString('en-US') : Number(v).toPrecision(3);
   },
-  sci: (v) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toExponential(2)),
+  sci: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toExponential(2)),
 };
 
 // How the working match was reached (context matchMethod). "Regression"

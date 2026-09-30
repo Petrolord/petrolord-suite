@@ -1,0 +1,6 @@
+# Petrel-style zone hierarchy export (parent named, ages in Ma, colour hex)
+Level,Name,Parent,Top Age (Ma),Base Age (Ma),Colour
+Group,Agbada,,2.58,33.9,#f59e0b
+Formation,Upper Agbada,Agbada,2.58,15.98,#fbbf24
+Formation,Lower Agbada,Agbada,15.98,33.9,#d97706
+Group,Akata,,33.9,56.0,#64748b

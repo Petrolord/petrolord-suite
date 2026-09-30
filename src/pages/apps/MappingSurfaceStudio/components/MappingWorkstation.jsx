@@ -65,6 +65,8 @@ import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
 import { consensusTag } from '@/lib/crs/tags';
 import { crsUnit } from '@/lib/crs';
 import { placeWellsForHost } from '@/lib/crs/guards';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { orderZoneKeys, isLengthKey } from '../services/zoneProperties'; // PETRO-U2-008
 
 const selCls = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 
@@ -197,7 +199,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
   const setSetting = (key, value) => setMapSettings((m) => ({ ...m, [key]: value }));
 
   const fmtZ = useCallback((v, s = displaySurface) => {
-    if (!Number.isFinite(v)) return '—';
+    if (!Number.isFinite(v)) return EMPTY_VALUE;
     return isLengthSurface(s) ? `${(displaySign(s, depthPositive) * toDisplay(v, depthUnit)).toFixed(1)} ${depthUnit}` : v.toFixed(3);
   }, [depthUnit, displaySurface, depthPositive]);
   const zConventionText = depthPositive ? 'depth positive down' : 'elevation, negative down';
@@ -293,7 +295,8 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
     for (const w of wells || []) for (const z of w.zones || []) {
       for (const k of Object.keys(z.properties || {})) if (Number.isFinite(z.properties[k])) keys.add(k);
     }
-    return [...keys];
+    // PETRO-U2-008: named, volumetric first, bookkeeping dropped
+    return orderZoneKeys([...keys]);
   }, [wells]);
 
   useEffect(() => {
@@ -373,6 +376,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       let result;
       let name;
       let kind;
+      let zUnit = null;
       if (src.type === 'top') {
         result = topsToControlPoints(sourceWells, src.key, { depthRef, placement: 'borehole' });
         // T1 (MAP-T1-006): an MD map is not a structure map. Its values
@@ -397,6 +401,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         result = { points: zoneAttrToPoints(sourceWells, zoneName, src.key), skipped: [], extrapolated: 0, depthRef: null };
         name = `${src.key} attribute`;
         kind = 'attribute';
+        zUnit = isLengthKey(src.key) ? 'm' : null; // PETRO-U2-008: a thickness keeps its unit
       }
       // guide points (MS3) grid with the wells, tagged so the CSV says so
       const guideList = opts.guides || guidePoints;
@@ -470,7 +475,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       setShowVariance(false);
       snapshot();
       setPreview({
-        spec, grid: g.z, name, kind, crs, zDomain, variance: g.variance || null,
+        spec, grid: g.z, name, kind, crs, zDomain, zUnit, variance: g.variance || null,
         provenance: {
           source: src, engine: 'mapping-surface-studio', cell_m: cell,
           method: kriged ? 'kriging' : gridMethod === 'tension' ? 'tension' : (rings.length ? 'tps-blocked' : 'tps'),
@@ -545,7 +550,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       const payload = {
         name: preview.name, kind: preview.kind, spec: preview.spec,
         zDomain: preview.zDomain || (preview.kind === 'attribute' ? 'attribute' : 'depth'),
-        zUnit: preview.kind === 'attribute' ? null : (preview.zUnit || 'm'),
+        zUnit: preview.kind === 'attribute' ? (preview.zUnit || null) : (preview.zUnit || 'm'),
         crs: preview.crs || null,
         xyUnit: preview.crs ? crsUnit(preview.crs) : null,
         crsProvenance: preview.crs

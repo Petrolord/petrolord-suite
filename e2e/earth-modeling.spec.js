@@ -10,6 +10,7 @@ import { test, expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { EMPTY_VALUE } from '../src/lib/emptyValue.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const goldens = JSON.parse(fs.readFileSync(
@@ -335,7 +336,7 @@ test('T1: contacts give gas and oil HCPV and STOIIP; the build names mis-ties an
   await page.getByTestId('em-view-qc').click();
   await expect(page.getByTestId('em-nocontact-zone-1')).toHaveCount(0);
   await expect(page.getByTestId('em-vol-unit-stoiip')).toBeVisible();
-  await expect(page.getByTestId('em-vol-zone-1-total-stoiip')).not.toHaveText('—');
+  await expect(page.getByTestId('em-vol-zone-1-total-stoiip')).not.toHaveText(EMPTY_VALUE);
   // a bad Bo is refused plainly
   await page.getByTestId('em-bo-0').fill('0');
   await page.getByTestId('em-build').click();

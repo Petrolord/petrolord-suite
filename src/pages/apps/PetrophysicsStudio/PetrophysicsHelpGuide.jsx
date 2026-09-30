@@ -350,6 +350,15 @@ const PetrophysicsHelpGuide = () => (
         keep their last committed value, so stale text can never poison a run. The Scope selector at
         the top is covered under Zones.
       </Para>
+      <Para>
+        <Code>Units</Code> at the top of the panel switches parameter entry between SI and Field. In Field
+        units the matrix and fluid slowness read and type in µs/ft, the surface temperature, BHT and Rw
+        reference temperature in °F, and the BHT depth in ft; the zone parameter table follows the same
+        choice and the PDF prints the parameters in it. It starts as Field when the depth toggle is in feet.
+        The interpretation is stored in SI either way (µs/m, °C, m), converted once at entry by the exact
+        definitions (1 ft = 0.3048 m; °F = °C × 9/5 + 32), and a field you leave as shown keeps its stored
+        value exactly, so switching units and pressing Apply changes nothing.
+      </Para>
 
       <SubHeading>Vsh (GR)</SubHeading>
       <Formula>IGR = (GR - GR clean) / (GR clay - GR clean), clamped to 0..1</Formula>
@@ -431,6 +440,14 @@ const PetrophysicsHelpGuide = () => (
           ['mod-simandoux', 'Bardon and Pied (1969) modified Simandoux; reduces to Archie at Vsh = 0.', 'Rsh'],
         ]}
       />
+      <Para>
+        Waxman-Smits and dual water solve total water saturation Swt on PHIT. The track then reads
+        <Code>Swt</Code> (or <Code>Sw / Swt</Code> when only some zones use them), BVW is PHIT × Swt, so bulk
+        volume water stays in one porosity system, and the published and exported curve is <Code>SWT</Code>;
+        a curve named <Code>SW</Code> always holds effective-system saturation (it is empty where a total model
+        ran). Publishing one retires this interpretation&apos;s earlier curve of the other name. The probabilistic
+        zone Sw is pore-volume weighted like the zone card, and HCPV is one of its P90, P50, P10 outcomes.
+      </Para>
       <Table
         headers={['Field', 'Default']}
         rows={[
@@ -505,18 +522,53 @@ const PetrophysicsHelpGuide = () => (
       <Table
         headers={['Readout', 'Definition']}
         rows={[
-          ['net', 'Metres of pay: samples passing all three cutoffs, thickness by sample midpoints'],
-          ['gross', 'Metres of rock in the zone, including samples with a missing input'],
-          ['NTG', 'net divided by gross'],
-          ['φ avg, Sw avg, Vsh avg', 'Net-thickness-weighted averages over the pay samples; blank when net is zero'],
-          ['k gm', 'Thickness-weighted geometric mean of KPERM over the pay samples, in mD. Shown while a permeability model is on (Timur by default); a dash means no pay sample carries a positive k.'],
+          ['net pay', 'Pay along hole (MD): samples passing all three cutoffs, thickness by sample midpoints'],
+          ['gross', 'Rock in the zone along hole, including samples with a missing input'],
+          ['NTG', 'net pay divided by gross'],
+          ['net res', 'Net reservoir: samples passing the porosity and Vsh cutoffs, whatever their Sw'],
+          ['φe, Vsh', 'Net-pay-thickness-weighted averages over the pay samples; n/a when net pay is zero'],
+          ['Sw', 'Pore-volume weighted over the pay samples (sum of φ Sw h over sum of φ h), so net pay × φe × (1 − Sw) is the hydrocarbon pore thickness. With Waxman-Smits or dual water, whose Sw is total Swt on PHIT, it is the effective-system saturation that keeps PHIT (1 − Swt).'],
+          ['TVT line', 'Deviated wells only: gross and net pay as true vertical thickness through the deviation survey, the thickness volumetrics use'],
+          ['k gm', 'Thickness-weighted geometric mean of KPERM over the pay samples, in mD. Shown while a permeability model is on (Timur by default); n/a means no pay sample carries a positive k.'],
         ]}
       />
       <Para>
         A sample with any missing input is never pay but still counts as gross. <Code>no computed
-        curves yet</Code> means porosity, Vsh or Sw is missing for this well. <Code>published summary
-        on record</Code> means a snapshot of this zone has been written to the registry; the upload
-        button on the card does that, and it is disabled until curves exist.
+        curves yet</Code> means porosity, Vsh or Sw is missing for this well. The upload button on the
+        card writes a snapshot of the zone to the registry (net pay, net reservoir, TVT, HCPV, the
+        averages, the cutoffs and methods the zone used, its own overrides included); Batch does the
+        same for every zone of every well it runs. The card then says <Code>published; matches these
+        numbers</Code>, or, once parameters or the zone move, that the published numbers differ and
+        to publish again. ReservoirCalc Pro&apos;s Wells tab reads these snapshots: gross thickness
+        (vertical when published) with NTG, porosity and Sw.
+      </Para>
+
+      <SubHeading>Importing a zonation</SubHeading>
+      <Para>
+        <Code>Import</Code> in the new-zone box takes a zonation from Techlog, Interactive Petrophysics, Petrel
+        or a spreadsheet: paste it or load a CSV or text file. Columns may come in any order (base before top is
+        fine) and may be separated by commas, tabs, semicolons (with comma decimals) or spaces; comment lines are
+        ignored; a thickness column stands in for a missing base; in a file with a well column only this
+        well&apos;s rows are kept. The depth unit is read from the headers (<Code>Top (ft)</Code>,
+        <Code>[m]</Code>, <Code>_FT</Code>) or a unit column, else the session unit is assumed and the preview
+        says so; <Code>depths in</Code> overrides it and the column pickers fix a header the reader did not
+        recognise. The preview lists every zone it will create in the display unit and every row it skipped with
+        the reason (a repeated name, a name already on the well, a depth that is not a number, a base above its
+        top, a negative depth). A file in TVD or TVDSS is refused: zones are stored as MD below KB. Nothing is
+        created until <Code>Import</Code>.
+      </Para>
+
+      <SubHeading>Cutoff sensitivity</SubHeading>
+      <Para>
+        <Code>Cutoff sensitivity…</Code> at the top of the Zones panel plots, for one zone at a time,
+        net pay, net reservoir and the hydrocarbon pore thickness (HCPV) against each of the three
+        cutoffs, with the other two held at the zone&apos;s own values (its overrides included) and the
+        cutoff in use marked by a dashed line. The method is Worthington and Cosentino (2005, SPE
+        84387). Every point is the zone card&apos;s own calculation with one cutoff changed, so the point
+        on the dashed line is the card&apos;s number. The table under the charts lists the values two
+        grid steps either side and a swing: the change in net pay across the neighbouring grid values
+        as a fraction of today&apos;s net pay. A large swing means the answer depends on that cutoff; say
+        so in the report. The PDF report carries the same table.
       </Para>
 
       <SubHeading>The zone parameter table</SubHeading>
@@ -913,7 +965,9 @@ const PetrophysicsHelpGuide = () => (
         cases move, with those two values as the 10th and 90th percentiles and the current value as
         the median), choose a distribution for each (triangular from three percentiles, uniform,
         normal or lognormal), pick the number of realisations and a seed, and run. The run happens in
-        a background worker with a progress bar; the same seed always gives the same answer. Every
+        background workers with a progress bar: a long well is split by depth across up to four workers (the
+        cores the machine has, less one), each running every realisation over its part, and the parts join into
+        one answer; the same seed always gives the same answer however it is split. Every
         realisation is the ordinary zoned pipeline with one drawn parameter set, so nothing new is
         assumed. The results are per-sample curves at the 10th, 50th and 90th percentile of PHIT,
         PHIE, Vsh, Sw, BVW and k, a pay probability curve (the fraction of realisations that flag a
@@ -982,6 +1036,14 @@ const PetrophysicsHelpGuide = () => (
         value range before you save.
       </Para>
       <Para>
+        A curve printed on a backup scale wraps back in from the other edge of its track when it runs off
+        (a gamma ray past 150 API on a 0 to 150 track). Tick <Code>Backup scale</Code> in Review and every
+        jump of more than half a track between neighbouring samples is undone, one scale width at a time (one
+        scale ratio on a logarithmic track); the saved curve records how many wraps it undid. The scan reader
+        allows 25 reads per person per day (the count resets at 00:00 UTC); past that it says so and you
+        calibrate by hand.
+      </Para>
+      <Para>
         A digitized curve is always a new curve: it is saved as <Code>MNEMONIC_DIG</Code>, then
         <Code>_DIG:2</Code> and so on. It never overwrites an existing log, and its provenance records the
         mode, the box, the colour, the number of edited points and any AI reading you accepted.
@@ -1009,9 +1071,18 @@ const PetrophysicsHelpGuide = () => (
           ['Zone summary CSV', 'Gross, net, N/G and net-weighted averages per zone at the current parameters.'],
           ['LAS 2.0', 'DEPT plus any extra depth columns as curves, inputs plus VSH, PHIT, PHIE, SW, BVW, KPERM and PAY, with the parameter set in the ~Parameter block (DEPTREF, EKB and DEPTHSRC record the depth choice). Feet write the unit F. The writer is round-trip gated: what it writes parses back bit for bit.'],
           ['Track plot PNG', 'The track view exactly as rendered, with a branded title band. Open the Tracks view first; the other views have no track canvas to capture.'],
-          ['PDF summary report', 'Well and interpretation, the parameter table, the methods in use with their literature citations, the zone table (top, base, gross, net, N/G, φ avg, Vsh avg, Sw avg) and provenance.'],
+          ['PDF summary report', 'Well and interpretation, the parameter table, the methods in use with their literature citations, the zone table (top, base, gross, net, N/G, φ avg, Vsh avg, Sw avg), the cutoff sensitivity table per zone, provenance, and a log plot (CPI) page per zone.'],
         ]}
       />
+      <SubHeading>Log plot (CPI) pages</SubHeading>
+      <Para>
+        With <Code>PDF: a log plot (CPI) page per zone</Code> ticked (the default), the report ends with one
+        page per zone: the header block (company, field, well, UWI, analyst, interpretation, depth reference),
+        the zone&apos;s own row of the zone table, and the tracks over the zone with a margin above and below
+        (a tenth of the zone&apos;s thickness, at least 3 m) so both boundaries show. The tracks are painted by
+        the track view itself, in the layout on screen, so open the Tracks or Split view before exporting;
+        from another view the report says the pages were not included and why.
+      </Para>
     </GuideSection>
 
     {/* ------------------------------------------------------------------ */}
@@ -1021,15 +1092,76 @@ const PetrophysicsHelpGuide = () => (
         headers={['Quantity', 'Unit in the Studio']}
         rows={[
           ['Depth', 'Metres MD in storage. The ft toggle changes what you see and type (tracks, zone panel, statuses) and is the starting unit of the Export dialog, whose options also add TVD and TVDSS columns.'],
-          ['Slowness', 'µs/m'],
+          ['Slowness', 'µs/m in storage; typed and shown in µs/ft when the parameter Units switch is Field'],
           ['Density', 'g/cc'],
           ['Resistivity', 'ohm·m'],
-          ['Temperature', 'Degrees Celsius everywhere you type; Arps runs in Fahrenheit inside the engine'],
+          ['Temperature', 'Degrees Celsius in storage; typed in °F when the parameter Units switch is Field; Arps runs in Fahrenheit inside the engine'],
           ['Porosity, Vsh, Sw, BVW', 'Fractions (v/v)'],
+          ['Inputs as stored', 'The Studio reads NPHI in v/v, RHOB in g/cc and DT in µs/m. A curve stored in PU or %, kg/m3 or µs/ft is converted as it is read, and so is one whose values only make sense in percent or kg/m3 whatever its label says; samples at -999 or below in GR, RHOB, NPHI, DT, RT, CAL, DRHO or PEF are nulls. The status line names every such change; the stored curve is never rewritten. Input units on the status bar lists each reading with its reason (the stored unit, the values, or your setting) and lets you set the unit per curve.'],
           ['Permeability', 'Millidarcies. This is the one documented exception to SI, because every cited correlation is written in mD.'],
           ['Qv', 'meq/cm³'],
         ]}
       />
+      <SubHeading>Input units</SubHeading>
+      <Para>
+        <Code>input units</Code> on the status bar (it says how many inputs were converted) opens one table:
+        for NPHI, RHOB and DT, the curve, the unit stored on it, what the Studio reads it as, the factor, and
+        why. Where the file is wrong (a Petrel neutron in percent labelled v/v, a density with no unit), set the
+        unit in the row: the inputs are read again at once and the setting is kept with the interpretation. On a
+        well you own, <Code>Save to well</Code> writes the unit onto the registry curve instead, so Well
+        Correlation, Rock Physics and every other app read it too; the samples are not touched and the curve&apos;s
+        provenance records the old and new unit. The unit spellings come from one table that Rock Physics Studio
+        reads as well.
+      </Para>
+      <SubHeading>Core calibration</SubHeading>
+      <Para>
+        <Code>Core…</Code> on the ribbon finds the well&apos;s routine core analysis (CPOR, CKH and the usual spellings;
+        percent porosity is read as v/v) as Well Data Manager stores it after a merge: each plug on its nearest log
+        sample. The dialog plots core permeability against porosity on a log scale with the log model&apos;s samples in
+        grey, fits the semi-log transform log10 k = a + b φ by least squares (Nelson 1994) for the whole well and for
+        each zone from that zone&apos;s own plugs, and lists a, b, R², the RMS error in log cycles and the porosity range
+        each fit covers; fewer than three plugs, or plugs all at one porosity, give no fit and say so.
+        <Code>Show on tracks</Code> opens the Core calibration layout: the plugs as points on the porosity and
+        permeability tracks, and <Code>K_CORE</Code>, the zone&apos;s transform applied to φe, beside the log model&apos;s
+        KPERM. Outside the fitted porosity range the transform is an extrapolation.
+      </Para>
+      <SubHeading>Saturation-height from SCAL Studio</SubHeading>
+      <Para>
+        <Code>Sat-height…</Code> reads a project saved in SCAL Studio under your account: its Leverett J function, rock,
+        fluid gradients and free-water level (FWL). Choose whether k and φ come from the project&apos;s rock or from each
+        sample&apos;s KPERM and φe, and check the FWL (TVDSS). <Code>Compute</Code> gives <Code>SW_SHM</Code>, the water
+        saturation at each sample&apos;s height above the FWL through SCAL Studio&apos;s own J, capillary pressure and height
+        chain (1 at and below the FWL), and a table of mean log Sw against mean saturation-height Sw per zone.
+        <Code>Show on tracks</Code> puts both on one Sw track. A large difference points at Rw, m and n, the FWL, or a
+        rock the J function does not describe.
+      </Para>
+      <SubHeading>Parameter checks against the well</SubHeading>
+      <Para>
+        Under the parameters, <Code>Check against this well</Code> appears when a value sits outside what this
+        well&apos;s own logs show: a GR clean line above the median GR or far below the cleanest rock, a GR clay line
+        below the median or far above the shales, a matrix density lighter than a share of the RHOB samples
+        (negative porosity), a cutoff no sample passes, or an Rw above the apparent Rwa of the clean porous rock.
+        Each hint quotes the well&apos;s own number. Hints advise; nothing is changed or blocked.
+      </Para>
+      <SubHeading>Data AI facies</SubHeading>
+      <Para>
+        Classes written by Data AI&apos;s Electrofacies Studio (curves such as EFAC_KM) are listed under the well&apos;s
+        curves. <Code>Show</Code> draws one as a strip track, labelled from its legend (with the matched core facies
+        when the run had one), beside the Studio&apos;s rule and crossplot facies; <Code>Compare</Code> tabulates the
+        share of samples in each pair of rule class and Data AI class. In the other direction, Data AI reads the
+        Studio&apos;s published facies and rule facies intervals as a core facies source.
+      </Para>
+      <SubHeading>Published curves: current or stale</SubHeading>
+      <Para>
+        Under the selected well&apos;s curve list, <Code>Published here</Code> lists every curve the Studio&apos;s
+        Publish wrote on the well and whether it still matches the interpretation now open: <Code>current</Code>,
+        <Code>stale</Code> with what moved (parameters by name, zone overrides, the pipeline version), or
+        <Code>other interpretation</Code>. Rule facies and crossplot facies intervals say the same against the rules or
+        polygons now drawn. A PHIE published before 2026-09-07 (pipeline below 5) holds total porosity; it reads
+        <Code>total porosity (pre 2026-09-07)</Code> here and in Well Data Manager, Rock Physics, Data AI and Earth
+        Modeling. Nothing is rewritten on its own: on a well you own, <Code>Republish</Code> publishes this
+        interpretation again and removes those old PHIE rows.
+      </Para>
       <SubHeading>Output curves</SubHeading>
       <Table
         headers={['Curve', 'Available when', 'Chartable as']}
@@ -1045,7 +1177,7 @@ const PetrophysicsHelpGuide = () => (
         ]}
       />
       <Para>
-        Every published curve and zone summary carries <Code>pipeline_version</Code> (currently 5),
+        Every published curve and zone summary carries <Code>pipeline_version</Code> (currently 7),
         the method keys, the parameter set, the input log ids and the interpretation name, so a
         number in Well Correlation or a map can always be traced back to how it was made.
       </Para>

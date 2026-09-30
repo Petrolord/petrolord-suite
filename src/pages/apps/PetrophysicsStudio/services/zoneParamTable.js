@@ -6,6 +6,7 @@
 // no override" rule the Parameter panel applies.
 
 import { PARAM_FIELDS, visibleField, fieldLabel } from './paramFields';
+import { PARAM_UNIT_KIND, engineValue } from './paramUnits';
 
 const num = (v) => (v === '' || v === '-' || v === null || v === undefined ? NaN : Number(v));
 
@@ -18,7 +19,7 @@ export const effectiveFor = (params, zoneParams, zoneId) => ({ ...params, ...(zo
  * the field applies under that zone's models).
  * @returns {Array<{key, label, section, options?, global, cells: Array<{zoneId, value, overridden, applies}>}>}
  */
-export function buildZoneTable({ params, zones, zoneParams, fields = PARAM_FIELDS, sections = null }) {
+export function buildZoneTable({ params, zones, zoneParams, fields = PARAM_FIELDS, sections = null, system = 'si' }) {
   const rows = [];
   let section = null;
   for (const f of sections || fields) {
@@ -27,7 +28,7 @@ export function buildZoneTable({ params, zones, zoneParams, fields = PARAM_FIELD
     rows.push({
       key: f.key,
       section,
-      label: fieldLabel(f, params),
+      label: fieldLabel(f, params, system),
       options: f.options || null,
       global: params[f.key],
       cells: zones.map((z) => {
@@ -92,5 +93,21 @@ export function copyOverrides(zoneParams, fromZoneId, toZoneId) {
 export function overrideCounts(rows) {
   const out = {};
   for (const r of rows) out[r.key] = r.cells.filter((c) => c.overridden).length;
+  return out;
+}
+
+/**
+ * PETRO-U2-002: a zone draft typed in the display unit system back to
+ * engine units. Unit fields whose text still shows the committed value keep
+ * that value exactly; text that is not a number stays as text so
+ * patchFromDraft flags it.
+ */
+export function draftToEngine(draft, committed, system = 'si', global = null) {
+  const out = { ...draft };
+  for (const key of Object.keys(PARAM_UNIT_KIND)) {
+    if (!(key in out)) continue;
+    const v = typeof out[key] === 'number' ? out[key] : num(String(out[key]));
+    if (Number.isFinite(v)) out[key] = engineValue(key, v, [committed?.[key], global?.[key]], system);
+  }
   return out;
 }

@@ -140,6 +140,30 @@ export function datumTransformInfo(tag, override = null) {
   };
 }
 
+/**
+ * The datum transformation a stored row asks for (AppUpgrade WDM-U2-014).
+ * A well published from Well Design Studio records the site's choice in
+ * crs_provenance.datum_transform; every reader that converts the row's
+ * coordinates across datums must use it, or a Minna well moves by the
+ * difference between two published transformations (metres to tens of
+ * metres). Returns the code only when it is a published option for the
+ * row's own CRS; anything else reads as the catalog default (null).
+ * @param {?{crs?: ?string, crs_provenance?: ?Object}} row
+ * @returns {?string} 'EPSG:<code>' or null
+ */
+export function rowDatumTransform(row) {
+  const code = row?.crs_provenance?.datum_transform || row?.datumTransform || null;
+  if (!code) return null;
+  const info = datumTransformInfo(row?.crs, code);
+  return info && !info.overrideIgnored ? code : null;
+}
+
+/** opts for single-tag calls (toLonLat, projectorFor, convergenceAt) from a row. */
+export function transformOptsForRow(row) {
+  const code = rowDatumTransform(row);
+  return code ? { datumTransform: code } : {};
+}
+
 /** True when WGS 84 (lon, lat) lies inside a transformation's published area. */
 export function insideTransformArea(transform, lon, lat) {
   const [w, s, e, n] = transform?.areaBboxLonLat || [];

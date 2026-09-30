@@ -7,6 +7,8 @@
 import React, { useMemo } from 'react';
 import { unitsBetween } from '@/lib/stratigraphy/timescale';
 import { RANKS } from '@/lib/stratigraphy/column';
+import ChartLogo from '@/components/charts/ChartLogo';
+import { CHART_COLORS } from '@/utils/chartTheme';
 
 const AXIS_W = 44; const STAGE_W = 86; const LANE_W = 130; const HEAD_H = 22; const H = 420;
 
@@ -25,24 +27,24 @@ export default function ColumnChart({ units }) {
   const ticks = [];
   for (let t = Math.ceil(top / step) * step; t <= base + 1e-9; t += step) ticks.push(+t.toFixed(6));
   return (
-    // design system (W4B): the column is drawn for a dark ground, so it
-    // sits on a dark canvas in both themes; the drawing is unchanged
-    <div className="overflow-x-auto rounded bg-slate-950" data-canvas="dark" data-testid="strat-column-chart">
-      <svg width={W} height={H} className="block">
-        <text x={AXIS_W - 6} y={HEAD_H - 8} fontSize="9" fill="#94a3b8" textAnchor="end">Ma</text>
+    // STRAT-U1-013 (2026-09-30): white chart paper and the watermark (house standard; it was a dark canvas)
+    <div className="relative overflow-x-auto rounded border border-slate-200 bg-white pb-9" data-canvas="chart" data-testid="strat-column-chart">
+      <svg width={W} height={H} className="block" xmlns="http://www.w3.org/2000/svg" fontFamily="sans-serif">
+        <rect x="0" y="0" width={W} height={H} fill={CHART_COLORS.background} />
+        <text x={AXIS_W - 6} y={HEAD_H - 8} fontSize="9" fill={CHART_COLORS.axisLabel} textAnchor="end">Ma</text>
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={AXIS_W - 4} y1={yOf(t)} x2={AXIS_W} y2={yOf(t)} stroke="#94a3b8" />
-            <text x={AXIS_W - 6} y={yOf(t) + 3} fontSize="9" fill="#cbd5e1" textAnchor="end">{t}</text>
+            <line x1={AXIS_W - 4} y1={yOf(t)} x2={AXIS_W} y2={yOf(t)} stroke={CHART_COLORS.axisLine} />
+            <text x={AXIS_W - 6} y={yOf(t) + 3} fontSize="9" fill={CHART_COLORS.axisText} textAnchor="end">{t}</text>
           </g>
         ))}
-        <text x={AXIS_W + STAGE_W / 2} y={HEAD_H - 8} fontSize="9" fill="#94a3b8" textAnchor="middle">ICS stage</text>
+        <text x={AXIS_W + STAGE_W / 2} y={HEAD_H - 8} fontSize="9" fill={CHART_COLORS.axisLabel} textAnchor="middle">ICS stage</text>
         {stages.map((s) => {
           const y0 = yOf(Math.max(s.top_ma, top)); const y1 = yOf(Math.min(s.base_ma, base));
           return (
             <g key={s.name}>
-              <rect x={AXIS_W} y={y0} width={STAGE_W - 4} height={Math.max(0, y1 - y0)} fill="#1e293b" stroke="#334155" strokeWidth="0.5" />
-              {y1 - y0 > 10 && <text x={AXIS_W + 4} y={(y0 + y1) / 2 + 3} fontSize="8" fill="#94a3b8">{s.name}</text>}
+              <rect x={AXIS_W} y={y0} width={STAGE_W - 4} height={Math.max(0, y1 - y0)} fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="0.5" />
+              {y1 - y0 > 10 && <text x={AXIS_W + 4} y={(y0 + y1) / 2 + 3} fontSize="8" fill="#334155">{s.name}</text>}
             </g>
           );
         })}
@@ -50,12 +52,12 @@ export default function ColumnChart({ units }) {
           const x = AXIS_W + STAGE_W + li * LANE_W;
           return (
             <g key={rank}>
-              <text x={x + LANE_W / 2} y={HEAD_H - 8} fontSize="9" fill="#94a3b8" textAnchor="middle">{rank}</text>
+              <text x={x + LANE_W / 2} y={HEAD_H - 8} fontSize="9" fill={CHART_COLORS.axisLabel} textAnchor="middle">{rank}</text>
               {dated.filter((u) => u.rank === rank).map((u) => {
                 const y0 = yOf(Number(u.age_top_ma)); const y1 = yOf(Number(u.age_base_ma));
                 return (
                   <g key={u.id} data-testid={`strat-column-box-${u.name}`}>
-                    <rect x={x} y={y0} width={LANE_W - 6} height={Math.max(1, y1 - y0)} fill={u.colour || '#94a3b8'} fillOpacity="0.8" stroke="#0f172a" strokeWidth="0.8">
+                    <rect x={x} y={y0} width={LANE_W - 6} height={Math.max(1, y1 - y0)} fill={u.colour || '#94a3b8'} fillOpacity="0.8" stroke="#334155" strokeWidth="0.8">
                       <title>{`${u.name} (${u.rank}), ${u.age_top_ma} to ${u.age_base_ma} Ma`}</title>
                     </rect>
                     {y1 - y0 > 12 && <text x={x + (LANE_W - 6) / 2} y={(y0 + y1) / 2 + 3} fontSize="10" fill="#0f172a" textAnchor="middle">{u.name}</text>}
@@ -66,6 +68,7 @@ export default function ColumnChart({ units }) {
           );
         })}
       </svg>
+      <ChartLogo style={{ height: '24px' }} />
     </div>
   );
 }

@@ -93,12 +93,13 @@ import {
   GRID_STYLE,
   TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // =============================================================================
 // HELPERS
 // =============================================================================
 
-const formatNum = (val, decimals = 2, fallback = '—') => {
+const formatNum = (val, decimals = 2, fallback = EMPTY_VALUE) => {
   if (val === null || val === undefined) return fallback;
   const num = parseFloat(val);
   return isNaN(num) ? fallback : num.toFixed(decimals);
@@ -955,7 +956,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                               <TableCell className="font-mono text-xs text-pl-text text-right py-1.5 pr-4">
                                 {row.gas_viscosity_cp != null
                                   ? formatNum(row.gas_viscosity_cp, 4)
-                                  : '—'}
+                                  : EMPTY_VALUE}
                               </TableCell>
                             )}
                           </TableRow>
