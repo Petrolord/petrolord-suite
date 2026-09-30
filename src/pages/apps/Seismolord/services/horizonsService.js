@@ -304,7 +304,7 @@ export async function deleteHorizon(horizon, versions = []) {
     .remove(paths);
   if (removeError) {
     throw new Error(
-      `Could not delete stored picks (${removeError.message}) — nothing was deleted; try again.`);
+      `Could not delete stored picks (${removeError.message}). Nothing was deleted; try again.`);
   }
   const { error } = await supabase.from('seismic_horizons')
     .delete().in('id', rows.map((h) => h.id));

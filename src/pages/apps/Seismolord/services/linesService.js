@@ -49,7 +49,7 @@ export async function setLineShared(line, shared) {
   let organizationId = null;
   if (shared) {
     organizationId = await myOrgId();
-    if (!organizationId) throw new Error('You belong to no organization — nothing to share with.');
+    if (!organizationId) throw new Error('You belong to no organization, so there is nobody to share with.');
   }
   const { data, error } = await supabase.from('seismic_lines')
     .update({ organization_id: organizationId })

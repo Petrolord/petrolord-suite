@@ -127,7 +127,7 @@ export function resumeGate(row, fingerprint) {
   const rec = row.survey_meta?.ingest;
   if (!rec?.fingerprint) {
     throw new Error(
-      `"${row.name}" predates resume support — its source file cannot be verified. `
+      `"${row.name}" predates resume support, so its source file cannot be verified. `
       + 'Delete the interrupted volume and import the file again.');
   }
   if (!fingerprintsMatch(rec.fingerprint, fingerprint)) {

@@ -81,7 +81,7 @@ export function myOrgId() {
 export async function setSurfaceShared(surface, shared) {
   if (!shared) return unshareSurface(surface.id);
   const org = await myOrgId();
-  if (!org) throw new Error('You belong to no organization — nothing to share with.');
+  if (!org) throw new Error('You belong to no organization, so there is nobody to share with.');
   return shareSurface(surface.id, org);
 }
 

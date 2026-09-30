@@ -56,3 +56,29 @@ describe('the viewports read TVDSS in the display unit (source guard)', () => {
     }
   });
 });
+
+describe('SEIS-U1-016 copy style (PL12): no em dash in a user-facing Seismolord string', () => {
+  const root = path.join(__dirname, '..');
+  const files = [];
+  const walk = (d) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      if (e.name === '__tests__' || e.name === 'engine') continue;   // engine/ are vendored shims
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (/\.(js|jsx)$/.test(e.name)) files.push(p);
+    }
+  };
+  walk(root);
+  test('string literals and JSX text lines carry none', () => {
+    const bad = [];
+    for (const f of files) {
+      fs.readFileSync(f, 'utf8').split('\n').forEach((line, i) => {
+        const t = line.trim();
+        if (!t.includes('—') || t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return;
+        const code = t.replace(/\/\/.*$/, '');
+        if (/(['"`])[^'"`]*—/.test(code)) bad.push(`${path.relative(root, f)}:${i + 1}`);
+      });
+    }
+    expect(bad).toEqual([]);
+  });
+});

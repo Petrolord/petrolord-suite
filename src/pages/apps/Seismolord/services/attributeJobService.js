@@ -53,7 +53,7 @@ export function derivedStorageBytes(parentManifest) {
 export function assertFloat32Parent(parentManifest) {
   const dtype = parentManifest?.brick?.dtype ?? 'float32le';
   if (dtype !== 'float32le') {
-    throw new Error('Attribute volumes need a float32 parent — this volume was imported with 16-bit storage. Re-import it without compression to compute attributes.');
+    throw new Error('Attribute volumes need a float32 parent. This volume was imported with 16-bit storage. Re-import it without compression to compute attributes.');
   }
 }
 
