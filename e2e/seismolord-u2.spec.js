@@ -197,3 +197,23 @@ test('U2-014 1366x768: phase and amplitude misties per crossing and per line', a
   expect(await page.evaluate(() => window.__mistieApplied.rotationDeg.length)).toBe(3);
   await box.screenshot({ path: '/tmp/claude-0/seis-upg2/u2-014.png' });
 });
+
+// U2-013: the well wavelet in the real synthetics window
+for (const [vp, theme] of [[{ width: 1366, height: 768 }, 'light'], [{ width: 1440, height: 900 }, 'dark']]) {
+  test(`U2-013 ${vp.width}x${vp.height} ${theme}: wavelet extracted from the well, peak and phase shown`, async ({ page }) => {
+    await page.setViewportSize(vp);
+    await page.addInitScript((t) => {
+      try { for (const k of Object.keys(localStorage)) if (/theme/i.test(k)) localStorage.setItem(k, t); } catch { /* none */ }
+    }, theme);
+    await page.goto('/dev/seismolord-synthetics');
+    await expect(page.getByTestId('synth-well').locator('option[value="w-syn"]')).toHaveCount(1, { timeout: 60000 });
+    await page.getByTestId('synth-well').selectOption('w-syn');
+    await page.getByTestId('synth-run').click();
+    await expect(page.getByTestId('synth-result')).toBeVisible();
+    await expect(page.getByTestId('synth-wavelet-info')).toHaveText('ricker wavelet, peak 25.0 Hz, phase 0 deg');
+    await page.getByTestId('synth-extract-well').click();
+    await expect(page.getByTestId('synth-wavelet-info')).toHaveText(/^well wavelet, peak 2\d\.\d Hz, phase -?\d+ deg, fit (0\.9\d|1\.00)$/);
+    await expect(page.getByTestId('synth-canvas')).toBeVisible();
+    await page.screenshot({ path: `/tmp/claude-0/seis-upg2/u2-013-${vp.width}-${theme}.png` });
+  });
+}

@@ -14,6 +14,7 @@
 //   model (W3 wellTie.js owns calibration).
 // - Tracks are a seismic display on canvas (chartTheme mandate exempt).
 
+import { extractWellWavelet, describeWavelet, tieQcRecord, describeTieQc } from '../lib/wellWavelet';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Waves, Loader2, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -373,7 +374,8 @@ export default function SyntheticsPanel({
   const [densityId, setDensityId] = useState('');
   const [freqHz, setFreqHz] = useState(25);
   const [segNormal, setSegNormal] = useState(true);
-  const [waveletMode, setWaveletMode] = useState('ricker');   // 'ricker'|'extracted'
+  const [waveletMode, setWaveletMode] = useState('ricker');   // 'ricker'|'extracted'|'well'
+  const [wellWavelet, setWellWavelet] = useState(null);        // U2-013
   const [extracted, setExtracted] = useState(null);           // Float32Array
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -475,6 +477,10 @@ export default function SyntheticsPanel({
     if (waveletMode === 'extracted') {
       if (!extracted) throw new Error('Extract a wavelet from the seismic first (or switch back to Ricker).');
       w = Float32Array.from(extracted);
+    } else if (waveletMode === 'well') {
+      // U2-013: measured at the well, polarity included; returned as is
+      if (!wellWavelet) throw new Error('Extract a wavelet from the well first (or switch back to Ricker).');
+      return Float32Array.from(wellWavelet.wavelet);
     } else {
       w = rickerWavelet(freqHz, dtMs, 60);
     }
@@ -602,6 +608,39 @@ export default function SyntheticsPanel({
       setBusy(false);
     }
   };
+
+  // U2-013: least-squares wavelet from the well's reflectivity and the
+  // seismic trace at the well (needs a synthetic run for the reflectivity)
+  const extractFromWell = () => {
+    setError(null);
+    try {
+      if (!view?.result?.rc || !view.corridor?.length) throw new Error('Synthesize once first: the well wavelet needs the well reflectivity on the seismic time grid.');
+      const centre = view.corridor[(view.corridor.length - 1) / 2];
+      const r = extractWellWavelet(view.result.rc, centre, { halfLength: Math.round(30 / dtMs) });
+      setWellWavelet({ ...r, ...describeWavelet(r.wavelet, dtMs), wellId: view.well?.id });
+      setWaveletMode('well');
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const waveletInfo = useMemo(() => {
+    try {
+      if (!dtMs) return null;
+      if (waveletMode === 'well' && wellWavelet) return { kind: 'well', lengthMs: (wellWavelet.wavelet.length - 1) * dtMs, peakHz: wellWavelet.peakHz, phaseDeg: wellWavelet.phaseDeg };
+      if (waveletMode === 'extracted' && extracted) return { kind: 'statistical', lengthMs: (extracted.length - 1) * dtMs, ...describeWavelet(extracted, dtMs) };
+      return { kind: 'ricker', lengthMs: 120, peakHz: freqHz, phaseDeg: 0 };
+    } catch { return null; }
+  }, [waveletMode, wellWavelet, extracted, freqHz, dtMs]);
+
+  const qcRecord = () => tieQcRecord({
+    qc: tie?.qc || null,
+    shiftMs,
+    phiDeg: phiApplied && phase ? phase.phiDeg : null,
+    anchors: anchors.length,
+    wavelet: waveletInfo,
+    wellName: view?.wellName || view?.well?.name || null,
+  });
 
   const suggest = () => {
     if (!view?.result || !view.corridor?.length) return;
@@ -795,6 +834,7 @@ export default function SyntheticsPanel({
           anchors: anchors.length,
           phi_deg: phiApplied && phase ? Math.round(phase.phiDeg * 10) / 10 : null,
           created_at: new Date().toISOString(),
+          qc: qcRecord(),
         },
       });
     } catch (e) {
@@ -842,6 +882,7 @@ export default function SyntheticsPanel({
         ...calibrationProvenance(fit),
         source: 'well_tie_warp',
         created_at: new Date().toISOString(),
+        qc: qcRecord(),
       });
     } catch (e) {
       setError(e.message);
@@ -922,10 +963,29 @@ export default function SyntheticsPanel({
         </label>
         <Button variant="outline" size="sm" onClick={extractFromSeismic}
           disabled={busy || !wellId} data-testid="synth-extract"
+          title="Statistical: the amplitude spectrum of the seismic at the well, zero phase"
         >
           <Waves className="w-4 h-4 mr-1" />
           Extract from seismic at well
         </Button>
+        <label className="text-xs text-pl-muted flex items-center gap-1">
+          <input type="radio" className="accent-pl-primary" checked={waveletMode === 'well'}
+            onChange={() => setWaveletMode('well')} disabled={!wellWavelet}
+            data-testid="synth-mode-well" />
+          From the well
+        </label>
+        <Button variant="outline" size="sm" onClick={extractFromWell}
+          disabled={busy || !view?.result} data-testid="synth-extract-well"
+          title="Least squares: the wavelet that best turns the well reflectivity into the seismic at the well, phase measured"
+        >
+          <Waves className="w-4 h-4 mr-1" />
+          Extract from the well
+        </Button>
+        {waveletInfo && (
+          <span className="text-[11px] text-pl-muted font-mono" data-testid="synth-wavelet-info">
+            {`${waveletInfo.kind} wavelet, peak ${Number(waveletInfo.peakHz).toFixed(1)} Hz, phase ${waveletInfo.phaseDeg == null ? EMPTY_VALUE : `${Number(waveletInfo.phaseDeg).toFixed(0)} deg`}${waveletMode === 'well' && wellWavelet ? `, fit ${wellWavelet.fitCorr.toFixed(2)}` : ''}`}
+          </span>
+        )}
         <label className="text-xs text-pl-muted flex items-center gap-1">
           <input type="checkbox" className="accent-pl-primary" checked={segNormal}
             onChange={(e) => setSegNormal(e.target.checked)} data-testid="synth-polarity" />
@@ -1024,6 +1084,11 @@ export default function SyntheticsPanel({
                 >
                   {phiApplied ? 'remove rotation' : 'apply to display'}
                 </Button>
+              </span>
+            )}
+            {view.well?.checkshots_derived?.provenance?.qc && (
+              <span className="text-pl-muted" data-testid="synth-stored-qc" title="Stored with the committed tie (derived checkshots provenance)">
+                {`Stored: ${describeTieQc(view.well.checkshots_derived.provenance.qc)}`}
               </span>
             )}
             {qcSummary && (
