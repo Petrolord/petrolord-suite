@@ -49,3 +49,16 @@ export function depthDownToSurfaceZ(grid, { zUnit = 'm' } = {}) {
   for (let i = 0; i < grid.length; i++) out[i] = isNull(grid[i]) ? NULL_VALUE : grid[i] * f;
   return out;
 }
+
+/**
+ * A TIME surface grid as positive two-way time in milliseconds, nulls
+ * kept. The registry rule is positive TWT; Seismolord published TWT
+ * negative (its export-file sign) until 2026-09-30 (SEIS-U1-008), and
+ * TWT below the seismic datum is never negative, so a negative value is
+ * read as its magnitude. Every time-surface reader goes through here.
+ */
+export function surfaceTimeToPositiveMs(grid) {
+  const out = outArray(grid, grid.length);
+  for (let i = 0; i < grid.length; i++) out[i] = isNull(grid[i]) ? NULL_VALUE : Math.abs(grid[i]);
+  return out;
+}

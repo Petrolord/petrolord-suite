@@ -44,6 +44,9 @@ import useCrsContext from '@/components/crs/useCrsContext';
 import { getTransformer, reprojectSurfaceGrid } from '@/lib/crs';
 import { normalizeTag, compareTags } from '@/lib/crs/tags';
 import RejectReport from './import/RejectReport';
+import {
+  detectTimeUnit, TIME_SCALE, scaleLive, SURFACE_Z_CHOICES, surfaceZChoice,
+} from '../../../lib/importZUnits';
 import ColumnMappingStep, { mappingComplete } from './import/ColumnMappingStep';
 
 const SURFACE_FORMAT_LABELS = {
@@ -173,7 +176,8 @@ export default function ImportSurfaceDialog({
   const [mapping, setMapping] = useState(null);
   const [include, setInclude] = useState(null);          // Set of horizon names, null = all
   const [name, setName] = useState('');
-  const [domain, setDomain] = useState('twt');           // surface only: 'twt' | 'depth'
+  const [surfaceZ, setSurfaceZ] = useState('auto');      // surface only: auto | SURFACE_Z_CHOICES key
+  const [timeUnit, setTimeUnit] = useState('auto');      // picks/faults: 'auto' | 'ms' | 's'
   const [zSign, setZSign] = useState('auto');            // 'auto' | 'negative' | 'positive'
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -198,6 +202,8 @@ export default function ImportSurfaceDialog({
     setInclude(null);
     setName('');
     setError(null);
+    setSurfaceZ('auto');
+    setTimeUnit('auto');
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -242,6 +248,14 @@ export default function ImportSurfaceDialog({
 
   const effSign = zSign === 'auto' ? preview?.autoSign || 'negative' : zSign;
   const sign = effSign === 'negative' ? -1 : 1;
+  // SEIS-U1-009/010: the file's Z unit, auto-detected, always shown
+  const autoTimeUnit = useMemo(() => {
+    if (!preview) return 'ms';
+    return detectTimeUnit(kind === 'surface' ? preview.g?.z || [] : preview.zs || []);
+  }, [preview, kind]);
+  const effTimeUnit = timeUnit === 'auto' ? autoTimeUnit : timeUnit;
+  const zChoice = surfaceZChoice(surfaceZ === 'auto' ? (autoTimeUnit === 's' ? 'twt_s' : 'twt_ms') : surfaceZ);
+  const domain = zChoice.domain;
 
   const declaredTag = fileCrs ? normalizeTag(fileCrs) : volumeTag;
   const needsConvert = fileCrs && compareTags(declaredTag, volumeTag) === 'transformable';
@@ -285,8 +299,8 @@ export default function ImportSurfaceDialog({
       if (kind === 'surface') {
         // storage convention is negative-down: flip a positive-down file
         let g = preview.g;
-        const z = new Float32Array(g.z);
-        if (effSign === 'positive') {
+        const z = new Float32Array(scaleLive(g.z, zChoice.scale));
+        if (domain === 'depth' && effSign === 'positive') {
           for (let i = 0; i < z.length; i++) {
             if (Math.abs(z[i]) < 1e29) z[i] = -z[i];
           }
@@ -303,6 +317,7 @@ export default function ImportSurfaceDialog({
           name: name || fileName,
           g,
           domain,
+          zUnit: zChoice.zUnit,
           fileName,
           format: preview.g.format,
           stats: preview.stats,
@@ -325,10 +340,12 @@ export default function ImportSurfaceDialog({
           manifest,
           parsed,
           sign,
+          zScale: TIME_SCALE[effTimeUnit],
           singleName: name || null,
           source: {
             file_name: fileName,
             z_sign: effSign === 'negative' ? 'negative_down' : 'positive_down',
+            z_unit: effTimeUnit,
             ...crsSource,
           },
         });
@@ -352,11 +369,13 @@ export default function ImportSurfaceDialog({
           manifest,
           parsed,
           sign,
+          zScale: TIME_SCALE[effTimeUnit],
           include: multi ? chosen.map((h) => h.name) : null,
           singleName: multi ? null : (name || null),
           source: {
             file_name: fileName,
             z_sign: effSign === 'negative' ? 'negative_down' : 'positive_down',
+            z_unit: effTimeUnit,
             ...crsSource,
           },
         });
@@ -570,14 +589,32 @@ export default function ImportSurfaceDialog({
                   )}
                   {kind === 'surface' && (
                     <div>
-                      <Label className="text-pl-text">Domain</Label>
+                      <Label className="text-pl-text">Z domain and unit</Label>
                       <select
                         className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
-                        value={domain}
-                        onChange={(e) => setDomain(e.target.value)}
+                        value={surfaceZ}
+                        data-testid="sl-import-surface-z"
+                        onChange={(e) => setSurfaceZ(e.target.value)}
                       >
-                        <option value="twt">TWT (ms)</option>
-                        <option value="depth">Depth (ft)</option>
+                        <option value="auto">{`Auto (${autoTimeUnit === 's' ? 'TWT (s)' : 'TWT (ms)'})`}</option>
+                        {SURFACE_Z_CHOICES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  {kind !== 'surface' && (
+                    <div>
+                      <Label className="text-pl-text" title="TWT in the file: milliseconds (Petrel, Charisma, IESX) or seconds (some OpendTect and Kingdom exports)">
+                        TWT unit in the file
+                      </Label>
+                      <select
+                        className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
+                        value={timeUnit}
+                        data-testid="sl-import-time-unit"
+                        onChange={(e) => setTimeUnit(e.target.value)}
+                      >
+                        <option value="auto">{`Auto (${autoTimeUnit === 's' ? 'seconds' : 'milliseconds'})`}</option>
+                        <option value="ms">Milliseconds</option>
+                        <option value="s">Seconds</option>
                       </select>
                     </div>
                   )}
@@ -658,13 +695,14 @@ export default function ImportSurfaceDialog({
               {kind === 'surface'
                 && 'Any file name or extension: the content decides. XYZ points on a regular '
                   + 'lattice, CPS-3, ZMAP+ or Irap classic. Scattered points are refused here (import them '
-                  + 'as a horizon, or grid them first); the surface stores negative-down and lands in the '
-                  + 'shared registry.'}
+                  + 'as a horizon, or grid them first). Depth is stored as elevation (negative below datum) '
+                  + 'in the unit you choose, time as positive TWT in ms, in the shared registry.'}
               {kind === 'picks'
                 && 'Any file name or extension: the content decides. Charisma 3D interpretation lines, '
                   + 'IESX, EarthVision, CPS-3 points, CPS-3 or ZMAP+ grids, il xl x y z, x y z, or any table '
                   + 'through the column mapping. Points off the lattice or outside the volume time range '
-                  + 'are skipped and counted. TWT only; depth picks would need an inverse velocity model.'}
+                  + 'are skipped and counted. TWT in milliseconds or seconds; depth picks would need an '
+                  + 'inverse velocity model.'}
               {kind === 'faults'
                 && 'Any file name or extension: the content decides. Charisma fault sticks, IESX fault '
                   + 'sticks, x y z stick number, or any table through the column mapping. Each named fault '
