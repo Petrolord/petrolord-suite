@@ -122,3 +122,54 @@ describe('STRAT-U2-002 the studio section at Well Correlation U2 parity', () => 
     expect(isOptionalRefPath('strat_projects', 'view.horizons[0]')).toBe(true);
   });
 });
+
+describe('STRAT-U2-001 Wheeler columns spaced by distance', () => {
+  // three dated wells at 0, 100 and 1,000 m along X in one projected CRS
+  const dated = (id, x, extra = {}) => ({
+    id, name: id.toUpperCase(), surface_x: x, surface_y: 0, crs: 'EPSG:32632', xy_unit: 'm', ...extra,
+    surfaces: [{ name: 'A', md_m: 1000, age_ma: 2, surface_type: 'MFS' }, { name: 'B', md_m: 1100, age_ma: 6, surface_type: 'SU' }],
+  });
+  const colX = () => screen.getByTestId('wh-chart').getAttribute('data-col-x').split(',').map(Number);
+  const { default: WheelerChart } = jest.requireActual('@/components/wells/section/WheelerChart');
+
+  test('by distance: the gaps stand in the ratio of the wellhead distances and print them (origin/main: equal columns only)', () => {
+    render(<WheelerChart wells={[dated('w1', 0), dated('w2', 300), dated('w3', 1200)]} spacing="proportional" width={900} testIdPrefix="wh" />);
+    const [a, b, c] = colX();
+    expect((c - b) / (b - a)).toBeCloseTo(3, 1);
+    expect(screen.getByTestId('wh-chart').getAttribute('data-spacing')).toBe('proportional');
+    expect(screen.getByTestId('wh-gap-0').textContent).toBe('300 m');
+    expect(screen.getByTestId('wh-gap-1').textContent).toBe('900 m');
+  });
+
+  test('equal stays equal; mixed coordinate systems fall back to equal and say why', () => {
+    const { unmount } = render(<WheelerChart wells={[dated('w1', 0), dated('w2', 100), dated('w3', 1000)]} spacing="equal" width={900} testIdPrefix="wh" />);
+    let [a, b, c] = colX();
+    expect(c - b).toBeCloseTo(b - a, 5);
+    unmount();
+    render(<WheelerChart wells={[dated('w1', 0), dated('w2', 100, { crs: 'EPSG:26332' }), dated('w3', 1000)]} spacing="proportional" width={900} testIdPrefix="wh" />);
+    [a, b, c] = colX();
+    expect(c - b).toBeCloseTo(b - a, 5);
+    expect(screen.getByTestId('wh-spacing-note').textContent).toMatch(/different coordinate systems/);
+  });
+
+  test('along the section line: the saved along-line distances place the columns; an undated well between does not hold a gap', () => {
+    const undated = { id: 'w9', name: 'W9', surface_x: 50, surface_y: 0, crs: 'EPSG:32632', xy_unit: 'm', surfaces: [] };
+    render(<WheelerChart wells={[dated('w1', 0), undated, dated('w2', 5000), dated('w3', 9000)]} spacing="line" alongM={{ w1: 0, w9: 10, w2: 600, w3: 800 }} width={900} testIdPrefix="wh" />);
+    const [a, b, c] = colX();
+    expect((b - a) / (c - b)).toBeCloseTo(3, 1);
+    expect(screen.getByTestId('wh-gap-0').textContent).toBe('600 m');
+  });
+
+  test('the studio Wheeler offers the spacing, follows the section, and saves it in strat_projects.wheeler', async () => {
+    const b = makeInMemoryBackend();
+    const onSaveProject = jest.fn(async () => {});
+    renderSection(b, { mode: 'wheeler', onSaveProject });
+    const sel = await screen.findByTestId('strat-wheeler-spacing', {}, T);
+    expect(sel.value).toBe('equal');
+    fireEvent.change(sel, { target: { value: 'proportional' } });
+    await waitFor(() => expect(screen.getByTestId('strat-wheeler-chart').getAttribute('data-spacing')).toBe('proportional'), T);
+    fireEvent.click(screen.getByTestId('strat-wheeler-save-view'));
+    await waitFor(() => expect(onSaveProject).toHaveBeenCalled(), T);
+    expect(onSaveProject.mock.calls[0][0].wheeler).toEqual({ spacing: 'proportional' });
+  }, 120000);
+});

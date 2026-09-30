@@ -87,6 +87,9 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   const [showMotifs, setShowMotifs] = useState(true);
   const [busy, setBusy] = useState(false);
   const [restored, setRestored] = useState(false);
+  // STRAT-U2-001 (ST-T1-E1): Wheeler columns equal, by distance, or along the drawn line;
+  // null follows the section's own spacing; saved in strat_projects.wheeler
+  const [wheelerSpacing, setWheelerSpacing] = useState(null);
   const [restoreCheck, setRestoreCheck] = useState(false);
 
   // restore the studio's own view state once, after the shared section has loaded
@@ -100,6 +103,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
       if (id && id !== sec.sectionId && sections.some((x) => x.id === id)) await sec.openSection(id);
       if (saved.flatten?.mode) setDatum(saved.flatten);
       if (saved.view?.ghost) setGhost(saved.view.ghost);
+      if (['equal', 'proportional', 'line'].includes(saved.wheeler?.spacing)) setWheelerSpacing(saved.wheeler.spacing);
       if (['md', 'tvd', 'tvdss', 'twt'].includes(saved.view?.depthRef)) setDepthRef(saved.view.depthRef);
       if (saved.view?.depthUnit === 'm' || saved.view?.depthUnit === 'ft') setDepthUnit(saved.view.depthUnit);
       // STRAT-U2-002: horizons, strips and column width ride in the view (jsonb, no schema change)
@@ -204,14 +208,15 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   const saveView = async () => {
     if (!onSaveProject) return;
     try {
-      await onSaveProject({ section_id: sec.sectionId || null, flatten: datum, view: { ghost, showTracts, showMotifs, depthRef, depthUnit, horizons: hz.hzOn, strips: stripsOn, columnWidth: sec.columnWidth } });
+      await onSaveProject({ section_id: sec.sectionId || null, flatten: datum, wheeler: { ...(saved?.wheeler || {}), spacing: wheelerSpacing }, view: { ghost, showTracts, showMotifs, depthRef, depthUnit, horizons: hz.hzOn, strips: stripsOn, columnWidth: sec.columnWidth } });
       onStatus('Stratigraphy view saved.');
     } catch (e) { onStatus(e.message); }
   };
 
-  // Wheeler input: the section's dated surfaces per well, positioned along the section by order
+  // Wheeler input: the section's dated surfaces per well, in section order;
+  // STRAT-U2-001: with the wellhead and its frame, so columns can be spaced by distance
   const wheelerWells = useMemo(() => sectionWells.map((w, i) => ({
-    id: w.id, name: w.name, position: i,
+    id: w.id, name: w.name, position: i, surface_x: w.surface_x, surface_y: w.surface_y, crs: w.crs, xy_unit: w.xy_unit,
     surfaces: (w.tops || []).map((t) => ({ name: t.name, md_m: t.md_m, age_ma: t.age_ma, hiatus_to_ma: t.hiatus_to_ma ?? null, surface_type: normalizeSurfaceType(t.surface_type) })),
   })), [sectionWells]);
 
@@ -372,18 +377,28 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
     </div>
   );
 
+  const lineAlong = sec.savedRow?.track_layout?.lineAlong || null;
+  const wSpacing = wheelerSpacing || (spacing === 'line' && !lineAlong ? 'equal' : spacing);
   if (mode === 'wheeler') {
     return (
       <div className="h-full min-h-0 flex flex-col">
         <div className="px-3 py-1.5 border-b border-pl-border text-xs text-pl-muted flex items-center gap-2 flex-wrap">
           {sectionPicker}
+          <label className="flex items-center gap-1" title="Columns at equal spacing, by the distance between wellheads (in their coordinate system), or along the section line drawn in Well Correlation">Spacing
+            <select className={selCls} value={wSpacing} data-testid="strat-wheeler-spacing" onChange={(e) => setWheelerSpacing(e.target.value)}>
+              <option value="equal">equal</option>
+              <option value="proportional">by distance</option>
+              {lineAlong && <option value="line">along the section line</option>}
+            </select>
+          </label>
+          <button type="button" className={btnCls} onClick={saveView} data-testid="strat-wheeler-save-view" title="Save the spacing, datum and ghost with your stratigraphy project"><Save className="w-3.5 h-3.5" /> Save view</button>
           Wheeler chart of the section at its wells, time down (not interpolated between wells). Dated surfaces come from the Tops view; an unconformity needs a hiatus end.
           <span className="ml-auto text-pl-muted">{typedCount} typed surfaces · {tractCount} tract{tractCount === 1 ? '' : 's'}</span>
           <ChartExportButtons targetRef={wheelerRef} fileBase={`${sec.sectionName || 'Section'} Wheeler`} onStatus={onStatus} testIdPrefix="strat-wheeler"
-            headerLines={() => chartHeaderLines({ title: `Wheeler chart: ${sec.sectionName || 'section'}`, wells: sectionWells.map((w) => w.name), section: sec.sectionName, scheme, timescale: TIMESCALE_VERSION, basis: 'ages from dated surfaces; columns in section order', field: report?.field || sec.savedRow?.track_layout?.report?.field, analyst: report?.analyst || sec.savedRow?.track_layout?.report?.analyst })} />
+            headerLines={() => chartHeaderLines({ title: `Wheeler chart: ${sec.sectionName || 'section'}`, wells: sectionWells.map((w) => w.name), section: sec.sectionName, scheme, timescale: TIMESCALE_VERSION, basis: `ages from dated surfaces; columns in section order, ${wSpacing === 'equal' ? 'equally spaced' : wSpacing === 'line' ? 'spaced by distance along the section line' : 'spaced by wellhead distance'}`, field: report?.field || sec.savedRow?.track_layout?.report?.field, analyst: report?.analyst || sec.savedRow?.track_layout?.report?.analyst })} />
         </div>
         <div className="flex-1 min-h-0 overflow-auto p-3" ref={wheelerRef}>
-          <WheelerChart wells={wheelerWells} tractRows={tractRows} scheme={scheme} width={Math.max(480, 160 * sectionWells.length + 80)} height={440} testIdPrefix="strat-wheeler" />
+          <WheelerChart wells={wheelerWells} tractRows={tractRows} scheme={scheme} width={Math.max(480, 160 * sectionWells.length + 80)} height={440} testIdPrefix="strat-wheeler" spacing={wSpacing} alongM={lineAlong} />
         </div>
       </div>
     );
