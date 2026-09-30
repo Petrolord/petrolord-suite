@@ -214,6 +214,24 @@ Batch C: U2-015 (registry decision), U2-008 (RLS, second engineer), U2-019, U2-0
 2. Org-shared projects (U2-008): needs an RLS change on `seismic_projects` and a second engineer. Schedule it?
 3. Fault cuts (U2-015): where should fault-well intersections live (a new `geo_*` table, or computed on the fly from `seismic_faults`)?
 
+## Batch decision (2026-09-30)
+
+Recorded verbatim from the programme lead, 2026-09-30:
+
+BUILD in this order, one commit per item:
+- Batch A: U2-001 prospect-ready picture (plot templates for a section with a well and a map with contours and wells, legend of horizons and faults; company and analyst fields saved per user in existing per-user settings or project payload, no schema change); U2-002 seismic backdrop along a Well Correlation section path (read-only traverse assembly, served to Well Correlation's section; WC-U2-017); U2-003 fault sticks, surfaces and polygons to Earth Modeling, read-only from seismic_faults, no schema change (EM-T1-010; coordinate the reader contract in a small shared module Earth Modeling can import); U2-010 tracker confidence as an accept/reject repick filter plus guided two-point tracking; U2-014 phase and amplitude mistie UI on 2D crossings; U2-013 tie QC stored with the tie (existing jsonb) and a statistical wavelet from the seismic at the well (validate against a published/analytic case; negative control); U2-007 fault polygons in the 3D window and as GeoJSON; U2-018 help glossary (SEG polarity, TWT, TVDSS, interval vs RMS velocity) and a first-project walkthrough.
+- Batch B: U2-005 2D picks as gridding control and 2D line markers on 3D sections; U2-009 integer and little-endian SEG-Y, engines-first, validated against segyio-generated fixtures (generate them with python segyio only if already installed; otherwise hand-build byte-exact fixtures); U2-006 velocities: RMS/stacking velocity input with Dix conversion to interval (validate against a textbook worked example, negative control), layer-cake velocity models published for Pore Pressure and Mapping depth conversion.
+- Batch C: U2-017 small follow-ups (cube co-render, overlay in sessions, fault chain UI, true-north azimuth, delete-undo ids, pay zones on well tracks); skip any sub-item that needs a schema change and say so.
+DEFERRED (after NAPE unless time remains; record reasons): U2-004 depth-domain (PSDM) volumes (decision on owner Q1: keep refusing depth volumes with the reason until after NAPE); U2-012 picking in depth; U2-011 dip-steered filters; U2-015 fault cuts at wells (decision on owner Q3: when built, compute fault-well intersections on the fly from seismic_faults, no new table); U2-008 org-shared projects (owner Q2: needs an RLS change on seismic_projects and a second engineer, left for the owner); U2-019 range-read shards; U2-016 prospect sheet with RCP (revisit at app #8); U2-020 rock physics to synthetics / AVO (revisit at app #10).
+Units note: the owner is deciding on a Suite-wide unit profile. Do not add new app-local unit preferences; where a unit choice is needed, keep using the existing account depth unit (src/lib/crs/settingsService.js getDepthUnit) and the declared units at the import door.
+
+## Step 2 build log
+
+Branch `feat/seis-u2`. One row per item, in build order; each row names the test that fails without the item.
+
+| ID | Status | What was built | Proving test |
+|---|---|---|---|
+
 ## Verification (Step 1)
 
 See the PR for the final run. Jest in band: Seismolord suites, CRS, wells and surfaces registries, section kit, Mapping time-depth and surface export. Browser: `e2e/seismolord-upgrade.spec.js` and the Seismolord e2e specs against the branch dev server (port 8370), one worker. Production build after rebase.
