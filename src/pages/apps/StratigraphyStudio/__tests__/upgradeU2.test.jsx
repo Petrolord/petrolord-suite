@@ -390,3 +390,44 @@ describe('STRAT-U2-005 biozone paste with scheme and ages; ranges in the section
     await waitFor(() => expect(screen.getByTestId('corr-section').getAttribute('data-band-spans')).not.toMatch(/1440\.0-1455\.5/), T);
   }, 120000);
 });
+
+describe('STRAT-U2-007 the column editor at scale', () => {
+  const ColumnEditor = jest.requireActual('../components/ColumnEditor').default;
+  const scaleUnits = () => {
+    const out = [];
+    for (let g = 0; g < 4; g++) {
+      out.push({ id: `g${g}`, name: `Group ${g + 1}`, rank: 'group', parent_id: null, order_index: g, age_top_ma: g * 15, age_base_ma: g * 15 + 15, colour: '#94a3b8' });
+      for (let f = 0; f < 5; f++) {
+        out.push({ id: `g${g}f${f}`, name: `Fm ${g + 1}.${f + 1}`, rank: 'formation', parent_id: `g${g}`, order_index: f, age_top_ma: g * 15 + f * 3, age_base_ma: g * 15 + f * 3 + 3, colour: '#f59e0b' });
+        for (let m = 0; m < 3; m++) out.push({ id: `g${g}f${f}m${m}`, name: `Mbr ${g + 1}.${f + 1}.${m + 1}`, rank: 'member', parent_id: `g${g}f${f}`, order_index: m, age_top_ma: g * 15 + f * 3 + m, age_base_ma: g * 15 + f * 3 + m + 1, colour: '#fde68a' });
+      }
+    }
+    return out;
+  };
+
+  test('84 units open with a few hundred options instead of ~16,000; a list renders on focus and still sets the parent (origin/main: 16,212 options)', async () => {
+    const onSave = jest.fn(async () => {});
+    const { container } = render(<ColumnEditor units={scaleUnits()} onSave={onSave} onStatus={() => {}} />);
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(84);
+    const n = container.querySelectorAll('tbody option').length;
+    expect(n).toBeLessThan(84 * 8); // rank lists (6 each) plus the placeholder and current choice
+    const parent = screen.getByTestId('strat-unit-parent-2');
+    expect(parent.getAttribute('data-options')).toBe('83');
+    fireEvent.focus(parent);
+    expect(parent.querySelectorAll('option')).toHaveLength(84);
+    fireEvent.change(parent, { target: { value: 'g1' } });
+    const stage = screen.getByTestId('strat-unit-stage-2');
+    fireEvent.focus(stage);
+    fireEvent.change(stage, { target: { value: 'Chattian' } });
+    expect(screen.getByTestId('strat-unit-agebase-2').value).toBe('27.3');
+  });
+
+  test('an edit in one row leaves the other rows in place and lands in its own row (memoised rows)', () => {
+    const units = scaleUnits();
+    const { container } = render(<ColumnEditor units={units} onSave={jest.fn()} onStatus={() => {}} />);
+    const before = container.querySelector('[data-testid="strat-unit-row-40"]');
+    fireEvent.change(screen.getByTestId('strat-unit-agetop-3'), { target: { value: '1.5' } });
+    expect(container.querySelector('[data-testid="strat-unit-row-40"]')).toBe(before);
+    expect(screen.getByTestId('strat-unit-agetop-3').value).toBe('1.5');
+  });
+});

@@ -6,7 +6,7 @@
 // New rows carry a temporary id until saved; a new child of a new parent
 // is saved after its parent with the real id substituted.
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Trash2, Save, Loader2, FileUp } from 'lucide-react';
 import { parseColumnFile } from '../services/columnImport';
 import { RANKS, orderedUnits, validateColumn } from '@/lib/stratigraphy/column';
@@ -38,6 +38,67 @@ const toUnit = (r) => ({
 let tmp = 0;
 
 /**
+ * STRAT-U2-007 (U1-017): a select that renders its option list only once it is
+ * focused or pressed. An 84-unit column drew 84 parent lists of 84 and 84 stage
+ * lists of 102 options (about 16,000 elements) before it could open; closed,
+ * each select holds its placeholder and its current choice.
+ */
+export function LazySelect({ value, options, placeholder = null, ...rest }) {
+  const [open, setOpen] = useState(false);
+  const shown = open ? options : options.filter((o) => o.value === value);
+  return (
+    <select value={value} onFocus={() => setOpen(true)} onMouseDown={() => setOpen(true)} data-options={options.length} data-open={open ? '1' : '0'} {...rest}>
+      {placeholder}
+      {shown.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  );
+}
+
+const flagChip = (f) => (f.update ? `${f.update.to_ma} on ${TIMESCALE_VERSION.replace('ICS ', '')}` : f.chart.replace('ICS ', ''));
+
+/** One unit row; memoised so typing in one row leaves the other 83 alone. */
+const UnitRow = memo(function UnitRow({ u, i, r, canEdit, parentOptions, stageOptions, onCell, onStage, onDel, flagTop, flagBase, savedTop, savedBase }) {
+  const parents = useMemo(() => parentOptions.filter((o) => o.value !== u.id), [parentOptions, u.id]);
+  return (
+    <tr data-testid={`strat-unit-row-${i}`} data-unit-id={u.id}>
+      <td className="pr-3 py-0.5" style={{ paddingLeft: 4 + u.depth * 14 }}>
+        <input className={cellCls} style={{ width: 180 }} value={r.name} disabled={!canEdit} placeholder="Unit name"
+          onChange={(e) => onCell(u.id, 'name', e.target.value)} data-testid={`strat-unit-name-${i}`} />
+      </td>
+      <td className="pr-3 py-0.5">
+        <select className={cellCls} style={{ width: 104 }} value={r.rank} disabled={!canEdit} onChange={(e) => onCell(u.id, 'rank', e.target.value)} data-testid={`strat-unit-rank-${i}`}>
+          {RANKS.map((k) => <option key={k} value={k}>{k}</option>)}
+        </select>
+      </td>
+      <td className="pr-3 py-0.5">
+        <LazySelect className={cellCls} style={{ width: 150 }} value={r.parent_id} disabled={!canEdit} onChange={(e) => onCell(u.id, 'parent_id', e.target.value)} data-testid={`strat-unit-parent-${i}`}
+          options={parents} placeholder={<option value="">none (top level)</option>} />
+      </td>
+      <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 48 }} value={r.order_index} disabled={!canEdit} inputMode="numeric" onChange={(e) => onCell(u.id, 'order_index', e.target.value)} data-testid={`strat-unit-order-${i}`} /></td>
+      <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 72 }} value={r.age_top_ma} disabled={!canEdit} inputMode="decimal" onChange={(e) => onCell(u.id, 'age_top_ma', e.target.value)} data-testid={`strat-unit-agetop-${i}`} />
+        {/* STRAT-U2-003: entered under an older chart (shown while the saved value is on screen) */}
+        {flagTop && r.age_top_ma === savedTop && (
+          <span className="block text-[10px] text-pl-warning-text cursor-help" title={`${flagText(flagTop)}. Accept it in the Timescale view.`} data-testid={`strat-unit-agechart-agetop-${i}`}>{flagChip(flagTop)}</span>
+        )}
+      </td>
+      <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 72 }} value={r.age_base_ma} disabled={!canEdit} inputMode="decimal" onChange={(e) => onCell(u.id, 'age_base_ma', e.target.value)} data-testid={`strat-unit-agebase-${i}`} />
+        {flagBase && r.age_base_ma === savedBase && (
+          <span className="block text-[10px] text-pl-warning-text cursor-help" title={`${flagText(flagBase)}. Accept it in the Timescale view.`} data-testid={`strat-unit-agechart-agebase-${i}`}>{flagChip(flagBase)}</span>
+        )}
+      </td>
+      <td className="pr-3 py-0.5">
+        <LazySelect className={cellCls} style={{ width: 130 }} value="" disabled={!canEdit} onChange={(e) => onStage(u.id, e.target.value)} data-testid={`strat-unit-stage-${i}`} title="Fill both ages from a stage of the ICS chart"
+          options={stageOptions} placeholder={<option value="">pick a stage</option>} />
+      </td>
+      <td className="pr-3 py-0.5"><input type="color" value={r.colour} disabled={!canEdit} onChange={(e) => onCell(u.id, 'colour', e.target.value)} data-testid={`strat-unit-colour-${i}`} className="w-8 h-5 bg-transparent border-0 p-0" /></td>
+      <td className="py-0.5">
+        <button type="button" className="text-pl-muted hover:text-pl-danger-text" title="Remove unit" disabled={!canEdit} onClick={() => onDel(u.id)} data-testid={`strat-unit-del-${i}`}><Trash2 className="w-3 h-3" /></button>
+      </td>
+    </tr>
+  );
+});
+
+/**
  * @param {Object} p
  * @param {Array} p.units registry rows
  * @param {boolean} p.canEdit
@@ -56,7 +117,13 @@ export default function ColumnEditor({ units, canEdit = true, onSave, onStatus, 
   const ordered = useMemo(() => orderedUnits(rows.map(toUnit)), [rows]);
   const byId = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
 
-  const setCell = (id, key, value) => { setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [key]: value } : r))); setDirty(true); };
+  // STRAT-U2-007: stable callbacks so an edit re-renders its own row only
+  const setCell = useCallback((id, key, value) => { setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [key]: value } : r))); setDirty(true); }, []);
+  // the parent choices change only when a name or rank does, not on every keystroke in an age
+  const parentKey = rows.map((o) => `${o.id}\u0001${o.name}\u0001${o.rank}`).join('\u0002');
+  const parentOptions = useMemo(() => rows.map((o) => ({ value: o.id, label: `${o.name || '(unnamed)'} (${o.rank})` })), [parentKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const stageOptions = useMemo(() => stages.map((st) => ({ value: st.name, label: `${st.name} (${st.top_ma} to ${st.base_ma})` })), [stages]);
+  const savedAges = useMemo(() => new Map(units.map((x) => [x.id, [String(x.age_top_ma ?? ''), String(x.age_base_ma ?? '')]])), [units]);
   const addRow = () => {
     tmp += 1;
     setRows((rs) => [...rs, { id: `new-${tmp}`, name: '', rank: 'formation', parent_id: '', order_index: '', age_top_ma: '', age_base_ma: '', colour: '#94a3b8', is_new: true }]);
@@ -83,13 +150,13 @@ export default function ColumnEditor({ units, canEdit = true, onSave, onStatus, 
       onStatus?.(`Read ${fresh.length} unit${fresh.length === 1 ? '' : 's'} from ${f.name}; check them and Save column${notes.length ? `. ${notes.join('; ')}` : ''}${bad.length ? `. ${bad.length} row${bad.length === 1 ? '' : 's'} not read: ${bad[0]}` : ''}.`);
     } catch (err) { onStatus?.(err.message); }
   };
-  const delRow = (id) => { setRows((rs) => rs.filter((r) => r.id !== id).map((r) => (r.parent_id === id ? { ...r, parent_id: '' } : r))); setDirty(true); };
-  const fillFromStage = (id, stageName) => {
+  const delRow = useCallback((id) => { setRows((rs) => rs.filter((r) => r.id !== id).map((r) => (r.parent_id === id ? { ...r, parent_id: '' } : r))); setDirty(true); }, []);
+  const fillFromStage = useCallback((id, stageName) => {
     const b = ageBounds(stageName);
     if (!b) return;
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, age_top_ma: String(b.top_ma), age_base_ma: String(b.base_ma) } : r)));
     setDirty(true);
-  };
+  }, []);
 
   const save = async () => {
     const list = rows.map(toUnit);
@@ -156,55 +223,12 @@ export default function ColumnEditor({ units, canEdit = true, onSave, onStatus, 
               </tr>
             </thead>
             <tbody>
-              {ordered.map((u, i) => {
-                const r = byId.get(u.id);
-                return (
-                  <tr key={u.id} data-testid={`strat-unit-row-${i}`} data-unit-id={u.id}>
-                    <td className="pr-3 py-0.5" style={{ paddingLeft: 4 + u.depth * 14 }}>
-                      <input className={cellCls} style={{ width: 180 }} value={r.name} disabled={!canEdit} placeholder="Unit name"
-                        onChange={(e) => setCell(u.id, 'name', e.target.value)} data-testid={`strat-unit-name-${i}`} />
-                    </td>
-                    <td className="pr-3 py-0.5">
-                      <select className={cellCls} style={{ width: 104 }} value={r.rank} disabled={!canEdit} onChange={(e) => setCell(u.id, 'rank', e.target.value)} data-testid={`strat-unit-rank-${i}`}>
-                        {RANKS.map((k) => <option key={k} value={k}>{k}</option>)}
-                      </select>
-                    </td>
-                    <td className="pr-3 py-0.5">
-                      <select className={cellCls} style={{ width: 150 }} value={r.parent_id} disabled={!canEdit} onChange={(e) => setCell(u.id, 'parent_id', e.target.value)} data-testid={`strat-unit-parent-${i}`}>
-                        <option value="">none (top level)</option>
-                        {rows.filter((o) => o.id !== u.id).map((o) => <option key={o.id} value={o.id}>{o.name || '(unnamed)'} ({o.rank})</option>)}
-                      </select>
-                    </td>
-                    <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 48 }} value={r.order_index} disabled={!canEdit} inputMode="numeric" onChange={(e) => setCell(u.id, 'order_index', e.target.value)} data-testid={`strat-unit-order-${i}`} /></td>
-                    <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 72 }} value={r.age_top_ma} disabled={!canEdit} inputMode="decimal" onChange={(e) => setCell(u.id, 'age_top_ma', e.target.value)} data-testid={`strat-unit-agetop-${i}`} />
-                      {/* STRAT-U2-003: entered under an older chart */}
-                      {ageFlags?.get(`units:${u.id}:age_top_ma`) && r[`age_top_ma`] === String(units.find((x) => x.id === u.id)?.age_top_ma ?? '') && (
-                        <span className="block text-[10px] text-pl-warning-text cursor-help" title={`${flagText(ageFlags.get(`units:${u.id}:age_top_ma`))}. Accept it in the Timescale view.`} data-testid={`strat-unit-agechart-agetop-${i}`}>
-                          {ageFlags.get(`units:${u.id}:age_top_ma`).update ? `${ageFlags.get(`units:${u.id}:age_top_ma`).update.to_ma} on ${TIMESCALE_VERSION.replace('ICS ', '')}` : ageFlags.get(`units:${u.id}:age_top_ma`).chart.replace('ICS ', '')}
-                        </span>
-                      )}
-                    </td>
-                    <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 72 }} value={r.age_base_ma} disabled={!canEdit} inputMode="decimal" onChange={(e) => setCell(u.id, 'age_base_ma', e.target.value)} data-testid={`strat-unit-agebase-${i}`} />
-                      {/* STRAT-U2-003: entered under an older chart */}
-                      {ageFlags?.get(`units:${u.id}:age_base_ma`) && r[`age_base_ma`] === String(units.find((x) => x.id === u.id)?.age_base_ma ?? '') && (
-                        <span className="block text-[10px] text-pl-warning-text cursor-help" title={`${flagText(ageFlags.get(`units:${u.id}:age_base_ma`))}. Accept it in the Timescale view.`} data-testid={`strat-unit-agechart-agebase-${i}`}>
-                          {ageFlags.get(`units:${u.id}:age_base_ma`).update ? `${ageFlags.get(`units:${u.id}:age_base_ma`).update.to_ma} on ${TIMESCALE_VERSION.replace('ICS ', '')}` : ageFlags.get(`units:${u.id}:age_base_ma`).chart.replace('ICS ', '')}
-                        </span>
-                      )}
-                    </td>
-                    <td className="pr-3 py-0.5">
-                      <select className={cellCls} style={{ width: 130 }} value="" disabled={!canEdit} onChange={(e) => fillFromStage(u.id, e.target.value)} data-testid={`strat-unit-stage-${i}`} title="Fill both ages from a stage of the ICS chart">
-                        <option value="">pick a stage</option>
-                        {stages.map((s) => <option key={s.name} value={s.name}>{s.name} ({s.top_ma} to {s.base_ma})</option>)}
-                      </select>
-                    </td>
-                    <td className="pr-3 py-0.5"><input type="color" value={r.colour} disabled={!canEdit} onChange={(e) => setCell(u.id, 'colour', e.target.value)} data-testid={`strat-unit-colour-${i}`} className="w-8 h-5 bg-transparent border-0 p-0" /></td>
-                    <td className="py-0.5">
-                      <button type="button" className="text-pl-muted hover:text-pl-danger-text" title="Remove unit" disabled={!canEdit} onClick={() => delRow(u.id)} data-testid={`strat-unit-del-${i}`}><Trash2 className="w-3 h-3" /></button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {ordered.map((u, i) => (
+                <UnitRow key={u.id} u={u} i={i} r={byId.get(u.id)} canEdit={canEdit} parentOptions={parentOptions} stageOptions={stageOptions}
+                  onCell={setCell} onStage={fillFromStage} onDel={delRow}
+                  flagTop={ageFlags?.get(`units:${u.id}:age_top_ma`) || null} flagBase={ageFlags?.get(`units:${u.id}:age_base_ma`) || null}
+                  savedTop={savedAges.get(u.id)?.[0] ?? ''} savedBase={savedAges.get(u.id)?.[1] ?? ''} />
+              ))}
             </tbody>
           </table>
         </div>

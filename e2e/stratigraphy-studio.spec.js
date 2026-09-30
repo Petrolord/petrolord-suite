@@ -30,9 +30,11 @@ test('column editor: add a member from a timescale stage, save, explorer updates
   const i = rows - 1;
   await page.getByTestId(`strat-unit-name-${i}`).fill('D1 Sand');
   await page.getByTestId(`strat-unit-rank-${i}`).selectOption('member');
+  await page.getByTestId(`strat-unit-parent-${i}`).focus(); // STRAT-U2-007: the list renders on focus
   await page.getByTestId(`strat-unit-parent-${i}`).selectOption('unit-agbada-upper');
   // nested under Upper Agbada now (row 2)
   await expect(page.getByTestId('strat-unit-name-2')).toHaveValue('D1 Sand');
+  await page.getByTestId('strat-unit-stage-2').focus();
   await page.getByTestId('strat-unit-stage-2').selectOption('Zanclean');
   await expect(page.getByTestId('strat-unit-agetop-2')).toHaveValue('3.6');
   await page.getByTestId('strat-column-save').click();
