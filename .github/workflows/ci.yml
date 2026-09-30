@@ -1,0 +1,74 @@
+# Unit tests and the production build on every pull request and on main.
+#
+# Until 2026-09-30 CI ran only the vendored-engines guard; every jest run and
+# every production build happened on the shared 4-CPU studio box, where load
+# from parallel agents and other sessions pushed single test files past an
+# hour and builds past their limits, and made "green" hard to trust. Owner
+# decision 2026-09-30: jest and the build run here, on clean runners, and a
+# pull request merges only when these jobs pass.
+#
+# jest is split into shards (jest --shard) so the whole suite finishes in a
+# reasonable time. Some suites read the generated Ekene demo kit
+# (tools/demo-dataset), which is not committed, so each shard generates it
+# first. Playwright e2e specs are not run here yet: they need a dev server and
+# browsers, and stay a local gate for now.
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  jest:
+    name: jest (shard ${{ matrix.shard }}/8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      # node_modules is historically tracked in git (see CLAUDE.md); a clean
+      # install from the lockfile makes the runner independent of that copy.
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Generate the demo kit the dataset suites read
+        run: npx tsx tools/demo-dataset/generate.mjs
+
+      - name: jest shard ${{ matrix.shard }}
+        run: npx jest --ci --shard=${{ matrix.shard }}/8 --maxWorkers=2 --testTimeout=120000
+
+  build:
+    name: production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: vite build
+        run: npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
