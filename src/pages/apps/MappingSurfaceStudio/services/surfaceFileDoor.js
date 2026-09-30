@@ -120,6 +120,13 @@ function cleanXyz(text, notes) {
  * @returns {{g:{format,nx,ny,x0,y0,dx,dy,z,rotation_deg?}, notes:string[], hint:{zUnit:?string, domain:?string}}}
  */
 export function readSurfaceFile(text) {
+  try { return readSurfaceFileRaw(text); } catch (e) {
+    // the vendored readers word some errors with a dash; the house copy style has none
+    throw new Error(String(e.message).replace(/\s*\u2014\s*/g, ': '));
+  }
+}
+
+function readSurfaceFileRaw(text) {
   const src = String(text || '').replace(/^﻿/, '');
   if (!src.trim()) throw new Error('The file is empty.');
   if (ZMAP_NOT_GRID.test(src)) {

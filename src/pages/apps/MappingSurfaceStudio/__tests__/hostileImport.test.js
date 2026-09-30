@@ -92,3 +92,7 @@ describe('the door reads what the vendors write', () => {
     expect(gf.grvM3 / gm.grvM3).toBeCloseTo(1, 4);
   });
 });
+
+test('reader errors reach the dialog without a dash (PL12)', () => {
+  expect(() => readSurfaceFile('1 2 3\n1 2 4\n1 2 5\n1 2 6\n')).toThrow(/^All points share one X: not a grid\.$/);
+});
