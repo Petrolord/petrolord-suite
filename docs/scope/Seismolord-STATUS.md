@@ -3,7 +3,38 @@
 Design system: pilot 4 migrated 2026-09-28, PR #751 (light by default, dark per user; seismic, map, 3D and synthetics canvases stay dark in both themes).
 Design system grey tone experiment (2026-09-28): concluded. The owner chose grey panel, now the default light theme for Seismolord and every design-system scope (`feat/ds-grey-panel-default`); the staging shade picker (`toneExperiment.jsx`) is removed and the ribbon keeps its light/dark toggle. See docs/scope/DesignSystem-PLAN.md, "Grey tone experiment".
 
-Last updated: 2026-09-23 (Dip azimuth from grid north, fast spectral decomposition; new attributes: edge, chaos, dip, azimuth, curvature, spectral decomposition, RAI; fault picking upgrade: noisy data, Fault likelihood volume, volume inputs; Tops to Horizons: well tops to a named horizon framework, automatic fault picking; large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+Last updated: 2026-09-30 (upgrade U1: SEG-Y door, irregular surveys, positive TWT in the registry, captions; Dip azimuth from grid north, fast spectral decomposition; new attributes: edge, chaos, dip, azimuth, curvature, spectral decomposition, RAI; fault picking upgrade: noisy data, Fault likelihood volume, volume inputs; Tops to Horizons: well tops to a named horizon framework, automatic fault picking; large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+
+## 2026-09-30: upgrade U1, practitioner lens (app upgrade programme #5)
+
+First full practitioner audit of Seismolord (`docs/upgrade/Seismolord-UPGRADE.md`,
+branch `feat/seis-u1`). 26 findings, 18 fixed, no S1 or S2 open.
+- SEG-Y door (`lib/segyDoor.js`, used by every worker): extended textual
+  headers skipped; binary and trace headers that disagree on samples or
+  interval stop the import (owner rule); unset values taken from the trace
+  headers with a note; little-endian and non-float formats refused with the
+  reason; zero or degree coordinates, 2D lines in the 3D door and depth
+  hints named. The vertical axis is declared at import; depth volumes are
+  refused with the reason.
+- Irregular outlines and crossline-sorted files now import (trace lattice
+  in `conversionV4.conversionGrid`; manifest takes the lattice geometry).
+- Registry door: TWT surfaces are published POSITIVE (owner rule MS0);
+  Seismolord, Mapping and the section kit read time rows through
+  `surfaceTimeToPositiveMs`, so older negative rows read the same. Depth
+  grids keep their declared unit (m or ft); horizon and fault files in
+  seconds are detected.
+- Pictures: section and map PNGs carry a caption band (survey, line
+  number, vertical domain and datum, polarity and display, CRS, date,
+  build); the plot title block adds Vertical, Display, Build; depth reads
+  TVDSS in the display unit everywhere; the local view is scaled by its own
+  RMS; byte boxes commit on Enter or blur; sessions pointing at a gone
+  volume are refused before changing anything; copy guard.
+- Kits: `e2e/fixtures/seis/hostile` (14 SEG-Y), `e2e/fixtures/seis/saved`,
+  `__tests__/upgradeU1{Door,Chain,Caption,Saved,Scale}.test.js`,
+  `e2e/seismolord-upgrade.spec.js`.
+- Open (Step 2): integer and little-endian SEG-Y, depth volumes, fault
+  sticks to Earth Modeling, layer-cake velocities downstream, depth
+  picking, shared projects, 2D picks as gridding control.
 
 ## 2026-09-28: design system pilot 4 (dark canvases in a light workspace)
 

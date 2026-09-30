@@ -121,7 +121,7 @@ Each is assigned to the app whose Step 2c will fix it:
 | 2 | Petrophysics Studio | done 2026-09-29: 12 checks, 33 findings, 17 fixed (the S1 and all S2) | analysed 2026-09-29: 18 items; batch decision 2026-09-29: 15 built (A: 005, 003, 002, 004, 001; B: 012, 009, 013, 008, 007, 010, 011, 006; C: 015, 018), 3 deferred (U2-014, U2-016, U2-017) | A, B, C on `feat/petro-u2` (PR #817); engines PRs #285 and #286 merged, vendored at a5b1e52 (2026-09-30) | `docs/upgrade/PetrophysicsStudio-UPGRADE.md` |
 | 3 | Well Correlation | done 2026-09-29: 12 checks, 26 findings, 16 fixed (5 S2, 8 S3, 3 S4; no S2 open) | analysed 2026-09-29: 18 items; batch decision 2026-09-29: 14 built (A, B, C), 4 deferred (U2-011, U2-017, U2-018, U2-016) | A, B, C merged 2026-09-30 (PR #818) | `docs/upgrade/WellCorrelation-UPGRADE.md` |
 | 4 | Stratigraphy Studio | done 2026-09-30: 12 checks, 34 findings, 23 fixed (7 S2, 11 S3, 5 S4; no S2 open) | analysed 2026-09-30: 20 items, batches A/B/C for the programme lead | | `docs/upgrade/StratigraphyStudio-UPGRADE.md` |
-| 5 | Seismolord | not started | not started | | |
+| 5 | Seismolord | done 2026-09-30: 12 checks, 26 findings, 18 fixed (2 S1 at the registry door, 5 S2, 7 S3, 4 S4; no S1/S2 open) | analysed 2026-09-30: 20 items, batches A/B/C for the programme lead | | `docs/upgrade/Seismolord-UPGRADE.md` |
 | 6 | Mapping & Surface Studio | not started | not started | | |
 | 7 | Earth Modeling | not started | not started | | |
 | 8 | ReservoirCalc Pro | not started | not started | | |
