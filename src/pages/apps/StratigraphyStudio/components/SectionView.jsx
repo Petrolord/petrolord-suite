@@ -18,6 +18,7 @@ import { sequenceTracts } from '@/lib/stratigraphy/sequenceTracts';
 import { SYSTEMS_TRACTS, displayLabel, normalizeSurfaceType } from '@/lib/stratigraphy/vocabulary';
 import { motif as motifOf } from '@/lib/stratigraphy/vocabulary';
 import { appPath, mapNetHref, MAPPING_ID } from '@/components/wells/appLinks';
+import { datumDefaultFor, DEPTH_REF_LABEL } from '@/components/wells/section/sectionFrame';
 
 const TRACT_COLOUR = Object.fromEntries(SYSTEMS_TRACTS.map((t) => [t.code, t.colour]));
 const selCls = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text';
@@ -35,20 +36,43 @@ const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-
  */
 export default function SectionView({ backend, mode, scheme, onStatus, appPaths = {}, saved = null, onSaveProject }) {
   const sec = useSectionWells(backend, { onStatus });
-  const { wells, order, wellData, sectionWells, topNames, datum, setDatum, depthUnit, depthRef, spacing, layouts, template } = sec;
+  const { wells, order, wellData, sectionWells, topNames, datum, setDatum, depthUnit, setDepthUnit, depthRef, setDepthRef, spacing } = sec;
+  // STRAT-U1-009: Well Correlation keeps named sections (WC-U2-001); the studio
+  // opens the one the user picks (remembered with Save view), else the newest
+  const [sections, setSections] = useState([]);
+  useEffect(() => {
+    let live = true;
+    if (backend.listSections) backend.listSections().then((l) => { if (live) setSections(l || []); }).catch(() => {});
+    return () => { live = false; };
+  }, [backend]);
+  // STRAT-U1-018: spacing along a section line drawn in Well Correlation reads its saved distances
+  const lineDistances = useMemo(() => {
+    const along = sec.savedRow?.track_layout?.lineAlong;
+    // over the wells drawn now (the section fills in well by well as their data loads)
+    const ids = sectionWells.map((w) => w.id);
+    if (spacing !== 'line' || !along || !ids.length || !ids.every((id) => Number.isFinite(along[id]))) return null;
+    return ids.slice(1).map((id, i) => Math.abs(along[id] - along[ids[i]]));
+  }, [spacing, sec.savedRow, sectionWells]);
   const [ghost, setGhost] = useState(null);
   const [showTracts, setShowTracts] = useState(true);
   const [showMotifs, setShowMotifs] = useState(true);
   const [busy, setBusy] = useState(false);
   const [restored, setRestored] = useState(false);
 
-  // restore the studio's own view state once
+  // restore the studio's own view state once, after the shared section has loaded
+  // (a remembered named section opens first, then the studio's datum and view)
   useEffect(() => {
-    if (restored || !saved) return;
+    if (restored || !saved || !sec.sectionLoaded) return;
     setRestored(true);
-    if (saved.flatten?.mode) setDatum(saved.flatten);
-    if (saved.view?.ghost) setGhost(saved.view.ghost);
-  }, [saved, restored, setDatum]);
+    (async () => {
+      const id = saved.view?.sectionId;
+      if (id && id !== sec.sectionId && sections.some((x) => x.id === id)) await sec.openSection(id);
+      if (saved.flatten?.mode) setDatum(saved.flatten);
+      if (saved.view?.ghost) setGhost(saved.view.ghost);
+      if (['md', 'tvd', 'tvdss', 'twt'].includes(saved.view?.depthRef)) setDepthRef(saved.view.depthRef);
+      if (saved.view?.depthUnit === 'm' || saved.view?.depthUnit === 'ft') setDepthUnit(saved.view.depthUnit);
+    })();
+  }, [saved, restored, sec.sectionLoaded, sections]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // every well's intervals for the tract and motif overlays
   const intervalsByWell = useMemo(() => Object.fromEntries(order.map((id) => [id, wellData[id]?.intervals || []])), [order, wellData]);
@@ -128,7 +152,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   const saveView = async () => {
     if (!onSaveProject) return;
     try {
-      await onSaveProject({ flatten: datum, view: { ghost, showTracts, showMotifs } });
+      await onSaveProject({ flatten: datum, view: { ghost, showTracts, showMotifs, sectionId: sec.sectionId || null, depthRef, depthUnit } });
       onStatus('Stratigraphy view saved.');
     } catch (e) { onStatus(e.message); }
   };
@@ -152,13 +176,34 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   }
 
   const controls = (
-    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-pl-border text-xs flex-wrap" data-testid="strat-section-controls" data-tract-links={tractPairs.map((x) => x.href).join(' ')}>
+    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-pl-border text-xs flex-wrap" data-testid="strat-section-controls" data-tract-links={tractPairs.map((x) => x.href).join(' ')} data-datum={JSON.stringify(datum)} data-section-id={sec.sectionId || ''}>
+      {sections.length > 0 && (
+        <label className="flex items-center gap-1 text-pl-muted" title="Named sections saved in Well Correlation">Section
+          <select className={selCls} value={sec.sectionId || ''} data-testid="strat-section-pick"
+            onChange={(e) => { if (e.target.value) sec.openSection(e.target.value); }}>
+            {!sec.sectionId && <option value="">(unsaved)</option>}
+            {sections.map((x) => <option key={x.id} value={x.id}>{x.name} ({x.wellCount} wells)</option>)}
+          </select>
+        </label>
+      )}
+      <label className="flex items-center gap-1 text-pl-muted" title="Depth reference of the section: MD, TVD or TVDSS through each survey and KB, or TWT through the checkshots">Depth
+        <select className={selCls} value={depthRef} data-testid="strat-depth-ref" onChange={(e) => setDepthRef(e.target.value)}>
+          {['md', 'tvd', 'tvdss', 'twt'].map((r) => <option key={r} value={r}>{DEPTH_REF_LABEL[r] || r.toUpperCase()}</option>)}
+        </select>
+        {depthRef !== 'twt' && (
+          <select className={selCls} value={depthUnit} data-testid="strat-depth-unit" onChange={(e) => setDepthUnit(e.target.value)}>
+            <option value="m">m</option>
+            <option value="ft">ft</option>
+          </select>
+        )}
+      </label>
       <label className="flex items-center gap-1 text-pl-muted">Datum
         <select className={selCls} value={datum.mode} data-testid="strat-datum-mode"
           onChange={(e) => {
             const m = e.target.value;
             if (m === 'structural') setDatum({ mode: 'structural' });
-            else if (m === 'flatten') setDatum({ mode: 'flatten', topName: datum.topName || topNames[0], datumM: datum.datumM ?? 1500 });
+            // STRAT-U1-012 (carried from WC-U1-009): the datum sits at the chosen top's depth, never a fixed 1,500 m
+            else if (m === 'flatten') { const n = datum.topName || topNames[0]; setDatum({ mode: 'flatten', topName: n, datumM: datum.datumM ?? datumDefaultFor(sectionWells, n, depthRef) ?? 0 }); }
             else setDatum({ mode: 'stretch', upperName: datum.upperName || topNames[0], lowerName: datum.lowerName || topNames[topNames.length - 1] });
           }}>
           <option value="structural">Structural</option>
@@ -167,7 +212,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
         </select>
       </label>
       {datum.mode === 'flatten' && (
-        <select className={selCls} value={datum.topName} data-testid="strat-datum-top" onChange={(e) => setDatum({ ...datum, topName: e.target.value })}>
+        <select className={selCls} value={datum.topName} data-testid="strat-datum-top" onChange={(e) => setDatum({ ...datum, topName: e.target.value, datumM: datumDefaultFor(sectionWells, e.target.value, depthRef) ?? datum.datumM })}>
           {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
       )}
@@ -241,6 +286,8 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
           depthUnit={depthUnit}
           depthRef={depthRef}
           spacing={spacing}
+          lineDistances={lineDistances}
+          columnWidth={sec.columnWidth}
           zoneMode="none"
           shownTops={topNames}
           topNames={topNames}

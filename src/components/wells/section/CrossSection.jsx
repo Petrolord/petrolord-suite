@@ -228,7 +228,8 @@ const CrossSection = forwardRef(function CrossSection({
   // WC-U1-002: spacing by distance needs one frame and located wells; the
   // columns stay equal otherwise and the host is told why
   const spacingNote = useMemo(() => (spacing === 'proportional' ? spacingProblem(wells)
-    : spacing === 'line' && !(lineDistances && lineDistances.length === wells.length - 1) ? 'the section wells are not the wells of the drawn line' : null), [wells, spacing, lineDistances]);
+    // (STRAT-U1-018: one well or none has nothing to space, so no note while a section is still loading)
+    : spacing === 'line' && wells.length > 1 && !(lineDistances && lineDistances.length === wells.length - 1) ? 'the section wells are not the wells of the drawn line' : null), [wells, spacing, lineDistances]);
   useEffect(() => {
     if (spacingNote && onNotice) onNotice(`Spacing by distance is off: ${spacingNote}. The columns are equal.`);
   }, [spacingNote]); // eslint-disable-line react-hooks/exhaustive-deps

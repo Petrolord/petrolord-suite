@@ -32,11 +32,11 @@ import SectionControls from './SectionControls';
 import SectionPicker from './SectionPicker';
 import { copyName, freeName, DEFAULT_SECTION_NAME } from '@/components/wells/section/sectionNames';
 import CrossSection, { AXIS_W, PLOT_TOP, sectionHeightFor } from './CrossSection';
-import { columnLayout } from '@/components/wells/section/sectionFrame';
+import { columnLayout, datumDefaultFor } from '@/components/wells/section/sectionFrame';
 import { topColor } from '@/components/wells/topColors';
 import { printPlan, buildSectionPdf, PDF_SCALES_M, PDF_SCALES_FT } from '../services/sectionPdf';
 import { allTopNames } from '../engine/section';
-import { DEPTH_REF_LABEL, depthOfFor } from '../engine/sectionFrame';
+import { DEPTH_REF_LABEL } from '../engine/sectionFrame';
 import { sectionCaption } from '../services/sectionReport';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { undoEntry, applyUndo, remapStack, UNDO_LIMIT } from '../services/topsUndo';
@@ -369,15 +369,7 @@ export default function CorrelationWorkstation({
 
   // WC-U1-009: a new flatten datum sits the chosen top where the first well
   // carrying it has it, so the section does not jump
-  const datumDefault = useCallback((name) => {
-    for (const w of viewWells) {
-      const t = (w.tops || []).find((x) => x.name === name);
-      if (!t) continue;
-      const d = depthOfFor(w, depthRef)(t.md_m);
-      if (Number.isFinite(d)) return Number(d.toFixed(2));
-    }
-    return undefined;
-  }, [viewWells, depthRef]);
+  const datumDefault = useCallback((name) => datumDefaultFor(viewWells, name, depthRef), [viewWells, depthRef]);
 
   const wellName = (id) => (wells || []).find((w) => w.id === id)?.name || 'well';
   const canEdit = sectionWells.some((w) => w.is_own);

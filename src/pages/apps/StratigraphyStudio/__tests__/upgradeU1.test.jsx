@@ -173,3 +173,70 @@ describe('STRAT-U1-008 Send to Basin hands vertical thicknesses, not MD, for a d
     expect(row.settings.registryKbM).toBe(well.kb_m);
   });
 });
+
+describe('STRAT-U1-009/010/012/018 the studio section after Well Correlation U2', () => {
+  const keta = ['corr-w1', 'corr-w2', 'corr-w3'];
+  const twoSections = () => makeInMemoryBackend({ sections: [
+    { id: 'sec-a', name: 'Dome strike', well_ids: ['corr-w1', 'corr-w2'], datum: { mode: 'structural' }, track_layout: {} },
+    { id: 'sec-b', name: 'Regional dip', well_ids: keta, datum: { mode: 'structural' }, track_layout: { depthRef: 'tvdss', depthUnit: 'ft' } },
+  ] });
+
+  test('U1-009 the named section is picked in the studio and remembered with Save view (origin/main: always the newest, no picker)', async () => {
+    const backend = twoSections();
+    const onSaveProject = jest.fn(async () => {});
+    renderSection(backend, { onSaveProject });
+    await waitFor(() => expect(screen.getByTestId('strat-section-pick').value).toBe('sec-b'));
+    fireEvent.change(screen.getByTestId('strat-section-pick'), { target: { value: 'sec-a' } });
+    await waitFor(() => expect(screen.getByTestId('strat-section-summary').textContent).toContain('2 wells'));
+    fireEvent.click(screen.getByTestId('strat-save-view'));
+    await waitFor(() => expect(onSaveProject).toHaveBeenCalled());
+    expect(onSaveProject.mock.calls[0][0].view.sectionId).toBe('sec-a');
+  });
+
+  test('U1-009 a remembered section opens again', async () => {
+    const backend = twoSections();
+    renderSection(backend, { saved: { flatten: { mode: 'structural' }, view: { sectionId: 'sec-a' } } });
+    await waitFor(() => expect(screen.getByTestId('strat-section-controls').getAttribute('data-section-id')).toBe('sec-a'));
+    await waitFor(() => expect(screen.getByTestId('strat-section-summary').textContent).toContain('2 wells'));
+  });
+
+  test('U1-010 the depth reference and unit are shown and changed in the studio (origin/main: inherited, invisible)', async () => {
+    const backend = twoSections();
+    renderSection(backend);
+    await waitFor(() => expect(screen.getByTestId('strat-depth-ref').value).toBe('tvdss'));
+    expect(screen.getByTestId('strat-depth-unit').value).toBe('ft');
+    fireEvent.change(screen.getByTestId('strat-depth-ref'), { target: { value: 'md' } });
+    await waitFor(() => expect(screen.getByTestId('corr-section').getAttribute('data-band-spans')).toContain('KETA-1:1440.0-1580.0'));
+  });
+
+  test('U1-012 flatten starts at the chosen top\'s depth (origin/main: 1500 m whatever the data)', async () => {
+    const backend = makeInMemoryBackend();
+    renderSection(backend);
+    await waitFor(() => expect(screen.getByTestId('strat-section-summary').textContent).toContain('3 wells'));
+    fireEvent.change(screen.getByTestId('strat-datum-mode'), { target: { value: 'flatten' } });
+    const datum = () => JSON.parse(screen.getByTestId('strat-section-controls').getAttribute('data-datum'));
+    expect(datum().topName).toBe('Top Marker');
+    expect(datum().datumM).toBe(1440);
+    fireEvent.change(screen.getByTestId('strat-datum-top'), { target: { value: 'Base Sand' } });
+    expect(datum().datumM).toBe(1660);
+  });
+
+  test('U1-018 spacing along a Well Correlation section line uses its saved distances (origin/main: "not the wells of the drawn line")', async () => {
+    const backend = makeInMemoryBackend({ sections: [{ id: 's', name: 'Line', well_ids: keta, datum: { mode: 'structural' }, track_layout: { spacing: 'line', lineAlong: { 'corr-w1': 0, 'corr-w2': 1300, 'corr-w3': 2600 } } }] });
+    const onStatus = jest.fn();
+    renderSection(backend, { onStatus });
+    await waitFor(() => expect(screen.getByTestId('corr-section').getAttribute('data-spacing')).toBe('line'));
+    expect(onStatus.mock.calls.map((c) => c[0]).join(' ')).not.toMatch(/not the wells of the drawn line/);
+  });
+});
+
+describe('STRAT-U1-025 a strat project saved by a newer build says so', () => {
+  // eslint-disable-next-line global-require
+  const StratWorkstation = require('../components/StratWorkstation').default;
+  test('the status names it and Save view refuses (origin/main: silently ignored)', async () => {
+    const backend = makeInMemoryBackend({ project: { id: 'p', name: 'Default', schema_version: 99, flatten: { mode: 'structural' } } });
+    render(<MemoryRouter><StratWorkstation backend={backend} /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('strat-status').textContent).toMatch(/saved stratigraphy view was not opened/));
+    await expect(backend.saveStratProject({ flatten: { mode: 'structural' } })).rejects.toThrow();
+  });
+});

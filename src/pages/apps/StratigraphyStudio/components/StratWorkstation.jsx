@@ -71,7 +71,7 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
     let alive = true;
     track(async () => {
       try {
-        const [w, , proj] = await Promise.all([backend.listWells(), refreshUnits(), backend.loadStratProject ? backend.loadStratProject().catch(() => null) : Promise.resolve(null)]);
+        const [w, , proj] = await Promise.all([backend.listWells(), refreshUnits(), backend.loadStratProject ? backend.loadStratProject().catch((e) => { setStatus(`Your saved stratigraphy view was not opened: ${e.message} Save view stays refused so it is not overwritten.`); return null; }) : Promise.resolve(null)]);
         if (!alive) return;
         setWells(w);
         setProject(proj || null);
