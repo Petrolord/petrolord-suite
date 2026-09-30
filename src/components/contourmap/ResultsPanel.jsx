@@ -149,7 +149,8 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
     const { x, y } = getPointerPos(e);
     if (x < 0 || y < 0 || x > imageDimensions.width || y > imageDimensions.height) return;
 
-    if (drawMode === 'none' && controlPoints.length < 4) {
+    // MAP-U1-012: up to twelve control points (four or more give a check); remove them in the panel
+    if (drawMode === 'none' && controlPoints.length < 12) {
       const newPoint = { pixel: [x, y], world: [null, null] };
       setState(prev => ({ ...prev, controlPoints: [...prev.controlPoints, newPoint] }));
     } else if (drawMode === 'manual') {
@@ -215,7 +216,7 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
       <Tabs defaultValue="map" className="w-full h-full flex flex-col">
         <TabsList className="grid w-full grid-cols-2 rounded-t-xl">
           <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Map View</TabsTrigger>
-          <TabsTrigger value="grid"><GridIcon className="w-4 h-4 mr-2" />3D Grid</TabsTrigger>
+          <TabsTrigger value="grid"><GridIcon className="w-4 h-4 mr-2" />Grid summary</TabsTrigger>
         </TabsList>
         <TabsContent value="map" className="flex-grow p-2 mt-0 relative" ref={containerRef}>
           <div className="w-full h-full bg-pl-bg rounded-pl-canvas overflow-hidden relative flex items-center justify-center" data-canvas="dark" data-testid="digitizer-map-canvas">
