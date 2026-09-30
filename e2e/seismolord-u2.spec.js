@@ -123,3 +123,32 @@ for (const [vp, theme] of [[{ width: 1366, height: 768 }, 'light'], [{ width: 14
     await page.screenshot({ path: `/tmp/claude-0/seis-upg2/u2-002-${vp.width}-${theme}.png` });
   });
 }
+
+// U2-003: a Seismolord fault reaches Earth Modeling through the shared
+// reader (in-memory backend: an east-dipping fault over the fixture frame)
+for (const [vp, theme] of [[{ width: 1366, height: 768 }, 'dark'], [{ width: 1440, height: 900 }, 'light']]) {
+  test(`U2-003 ${vp.width}x${vp.height} ${theme}: Seismolord fault becomes a hanging-wall block in Earth Modeling`, async ({ page }) => {
+    await page.setViewportSize(vp);
+    await page.addInitScript((t) => {
+      try { for (const k of Object.keys(localStorage)) if (/theme/i.test(k)) localStorage.setItem(k, t); } catch { /* none */ }
+    }, theme);
+    await page.goto('/dev/earth-modeling');
+    await expect(page.getByTestId('em-explorer')).toBeVisible({ timeout: 60000 });
+    for (const name of ['TopA', 'TopB', 'BaseB']) await page.getByTestId(`em-add-${name}`).click();
+    await page.getByTestId('em-build').click();
+    await expect(page.getByTestId('em-status')).toContainText('Built');
+    await expect(page.getByTestId('em-seis-row-F-East (Seismolord)')).toBeVisible();
+    await page.getByTestId('em-seis-add-F-East (Seismolord)').click();
+    await expect(page.getByTestId('em-status')).toContainText('Added the hanging-wall block of F-East (Seismolord) (trace at 1,200 ms TWT in EM fixture 3D)');
+    await expect(page.getByTestId('em-seis-add-F-East (Seismolord)')).toBeDisabled();
+    await page.getByTestId('em-build').click();
+    await expect(page.getByTestId('em-status')).toContainText('2 blocks');
+    await page.getByTestId('em-view-qc').click();
+    // east of x = 1600: 12 or 13 of 25 columns, all 20 rows
+    const east = Number(await page.getByTestId('em-census-1').textContent());
+    expect(east).toBeGreaterThanOrEqual(240);
+    expect(east).toBeLessThanOrEqual(260);
+    const scroll = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(scroll).toBeLessThanOrEqual(0);
+  });
+}
