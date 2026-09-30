@@ -16,6 +16,7 @@ import { buildBasinModelRow, verticalDepthOf } from '@/lib/basinHandoff';
 import ChartExportButtons from '@/components/wells/section/ChartExportButtons';
 import { chartHeaderLines } from '@/components/wells/section/chartExport';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { fmtDepth, toDisp } from '@/pages/apps/WellDataManager/engine/displayUnits';
 import { appPath } from '@/components/wells/appLinks';
 
 const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40';
@@ -107,29 +108,30 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
           </button>
           <Link to={appPath('basinflow-genesis', appPaths)} className="text-pl-primary-text hover:text-pl-primary-text-hover px-1" data-testid="strat-open-basin">Open Basin</Link>
           <ChartExportButtons targetRef={plotRef} fileBase={`${well.name} age-depth`} onStatus={onStatus} testIdPrefix="strat-ages" disabled={dated.length < 2}
-            headerLines={() => chartHeaderLines({ title: `Age-depth plot: ${well.name}`, wells: [well.name], timescale: TIMESCALE_VERSION, basis: vertical.basis === 'tvd' ? 'TVD below KB through the survey (m); rates vertical' : 'MD (m), the well has no survey', field: report?.field, analyst: report?.analyst })} />
+            headerLines={() => chartHeaderLines({ title: `Age-depth plot: ${well.name}`, wells: [well.name], timescale: TIMESCALE_VERSION, basis: vertical.basis === 'tvd' ? `TVD below KB through the survey (${unit}); rates vertical` : `MD (${unit}), the well has no survey`, field: report?.field, analyst: report?.analyst })} />
         </div>
       </div>
-      <div ref={plotRef}><AgeDepthPlot surfaces={surfaces} depthLabel={basis} testIdPrefix="strat-agedepth" /></div>
+      {/* STRAT-U2-004: the plot and tables read in the display unit (the model runs in metres) */}
+      <div ref={plotRef}><AgeDepthPlot surfaces={unit === 'ft' ? surfaces.map((p) => ({ ...p, md_m: Number.isFinite(p.md_m) ? toDisp(p.md_m, unit) : p.md_m })) : surfaces} depthLabel={basis} depthUnit={unit} testIdPrefix="strat-agedepth" /></div>
       {vertical.basis === 'tvd' && <p className="text-pl-muted" data-testid="strat-ages-basis">Depths and rates are vertical (TVD below KB) through {well.name}&apos;s survey; the MD of each top is in the table below.</p>}
       {problems.length > 0 && <ul className="text-pl-danger-text" data-testid="strat-ages-problems">{problems.map((p, i) => <li key={i}>{p.message}</li>)}</ul>}
       {model && (
         <table className="text-xs" data-testid="strat-rates">
-          <thead><tr>{['From', 'To', `${basis} (m)`, 'Ages (Ma)', 'Rate (m/Ma)'].map((h) => <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>)}</tr></thead>
+          <thead><tr>{['From', 'To', `${basis} (${unit})`, 'Ages (Ma)', `Rate (${unit}/Ma)`].map((h) => <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>)}</tr></thead>
           <tbody>
             {model.segments.map((s, i) => (
               <tr key={i} data-testid={`strat-rate-${i}`}>
                 <td className="pr-3 py-0.5 text-pl-text">{s.upper}</td>
                 <td className="pr-3 py-0.5 text-pl-text">{s.lower}</td>
-                <td className="pr-3 py-0.5 font-mono text-pl-text">{Number(s.top_md_m.toFixed(1))} to {Number(s.base_md_m.toFixed(1))}</td>
+                <td className="pr-3 py-0.5 font-mono text-pl-text">{Number(fmtDepth(s.top_md_m, unit))} to {Number(fmtDepth(s.base_md_m, unit))}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-text">{s.age_top_ma} to {s.age_base_ma}</td>
-                <td className="pr-3 py-0.5 font-mono text-pl-text">{s.rate_m_per_ma == null ? 'event' : s.rate_m_per_ma.toFixed(1)}</td>
+                <td className="pr-3 py-0.5 font-mono text-pl-text">{s.rate_m_per_ma == null ? 'event' : toDisp(s.rate_m_per_ma, unit).toFixed(1)}</td>
               </tr>
             ))}
             {model.hiatuses.map((h, i) => (
               <tr key={`h${i}`} data-testid={`strat-hiatus-${i}`}>
                 <td className="pr-3 py-0.5 text-pl-warning-text" colSpan={2}>hiatus at {h.name}</td>
-                <td className="pr-3 py-0.5 font-mono text-pl-text">{Number(h.md_m.toFixed(1))}</td>
+                <td className="pr-3 py-0.5 font-mono text-pl-text">{Number(fmtDepth(h.md_m, unit))}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-warning-text">{h.from_ma} to {h.to_ma}</td>
                 <td className="pr-3 py-0.5 text-pl-muted">no deposition</td>
               </tr>
@@ -138,7 +140,7 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
         </table>
       )}
       <table className="text-xs" data-testid="strat-stages">
-        <thead><tr>{['Surface', 'Type', 'MD (m)', 'Age (Ma)', 'ICS stage', 'Notes'].map((h) => <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>)}</tr></thead>
+        <thead><tr>{['Surface', 'Type', `MD (${unit})`, 'Age (Ma)', 'ICS stage', 'Notes'].map((h) => <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>)}</tr></thead>
         <tbody>
           {(tops || []).map((t) => {
             const u = Number.isFinite(t.age_ma) ? unitAt(t.age_ma) : null;
@@ -146,7 +148,7 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
               <tr key={t.id} data-testid={`strat-stage-${t.name}`}>
                 <td className="pr-3 py-0.5 text-pl-text">{t.name}</td>
                 <td className="pr-3 py-0.5 text-pl-muted">{normalizeSurfaceType(t.surface_type)}</td>
-                <td className="pr-3 py-0.5 font-mono text-pl-text">{t.md_m}</td>
+                <td className="pr-3 py-0.5 font-mono text-pl-text" data-testid={`strat-stage-md-${t.name}`}>{fmtDepth(t.md_m, unit)}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-text">{t.age_ma ?? EMPTY_VALUE}</td>
                 <td className="pr-3 py-0.5 text-pl-text">{u ? u.name : (Number.isFinite(t.age_ma) ? 'outside the chart' : 'undated')}</td>
                 <td className="pr-3 py-0.5 text-pl-muted">{t.notes || ''}</td>

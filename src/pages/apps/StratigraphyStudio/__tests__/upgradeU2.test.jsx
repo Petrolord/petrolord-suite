@@ -299,3 +299,53 @@ describe('STRAT-U2-006 stratigraphic summary PDF, read back', () => {
     expect(t).toMatch(/Prepared by n\/a/);
   });
 });
+
+describe('STRAT-U2-004 display units in Tops, Intervals, Core and Ages', () => {
+  test('intervals in feet: shown and typed in ft, an untouched row keeps its metres bit for bit (origin/main: metres only)', async () => {
+    const IntervalsEditor = jest.requireActual('@/components/wells/IntervalsEditor').default;
+    const onReplace = jest.fn(async () => {});
+    const rows = [{ id: 'i1', kind: 'lithology', top_md_m: 1440.123, base_md_m: 1500, code: 'SST', properties: {} }, { id: 'i2', kind: 'lithology', top_md_m: 1500, base_md_m: 1580, code: 'SH', properties: {} }];
+    render(<IntervalsEditor well={{ id: 'w', name: 'KETA-1', is_own: true }} intervals={rows} onReplace={onReplace} onStatus={() => {}} testIdPrefix="iv" unit="ft" />);
+    expect(screen.getByTestId('iv-top-0').value).toBe('4724.81');
+    expect(screen.getByText('Top (ft)')).toBeTruthy();
+    fireEvent.change(screen.getByTestId('iv-base-1'), { target: { value: '5200' } });
+    fireEvent.click(screen.getByTestId('iv-save'));
+    await waitFor(() => expect(onReplace).toHaveBeenCalled());
+    const saved = onReplace.mock.calls[0][1];
+    expect(saved[0].top_md_m).toBe(1440.123);
+    expect(saved[1].base_md_m).toBeCloseTo(5200 * 0.3048, 9);
+    expect(screen.getByTestId('iv-thickness').textContent).toMatch(/ft/);
+  });
+
+  test('core photos in feet: shown in ft, an edited top converts at the door, the untouched base keeps its metres', async () => {
+    const CoreImagesPanel = jest.requireActual('@/components/wells/CoreImagesPanel').default;
+    const onUpdate = jest.fn(async () => {});
+    const img = { id: 'img1', well_id: 'w', top_md_m: 1500.001, base_md_m: 1510.004, caption: null, bytes: 10 };
+    render(<CoreImagesPanel well={{ id: 'w', name: 'KETA-1', is_own: true }} images={[img]} onUpload={jest.fn()} onUpdate={onUpdate} onDelete={jest.fn()} urlOf={async () => null} onStatus={() => {}} testIdPrefix="core" unit="ft" />);
+    const row = screen.getByTestId('core-row-img1');
+    const [topIn, baseIn] = row.querySelectorAll('input');
+    expect(topIn.value).toBe('4921.26');
+    fireEvent.change(topIn, { target: { value: '4920' } });
+    fireEvent.change(baseIn, { target: { value: baseIn.value } });
+    fireEvent.click(screen.getByTestId('core-save-img1'));
+    await waitFor(() => expect(onUpdate).toHaveBeenCalled());
+    expect(onUpdate.mock.calls[0][1].top_md_m).toBeCloseTo(4920 * 0.3048, 9);
+    expect(onUpdate.mock.calls[0][1].base_md_m).toBe(1510.004);
+    expect(screen.getAllByText('Top (ft)').length).toBe(2);
+  });
+
+  test('the workstation Depths select turns Tops and Ages into feet and is saved with the project', async () => {
+    const StratWorkstation = jest.requireActual('../components/StratWorkstation').default;
+    const b = makeInMemoryBackend();
+    render(<MemoryRouter><StratWorkstation backend={b} /></MemoryRouter>);
+    fireEvent.click(await screen.findByTestId('strat-well-KETA-2', {}, T));
+    await waitFor(() => expect(screen.getByTestId('strat-top-md-Top Marker').textContent).toBe('1470.0'), T);
+    fireEvent.change(screen.getByTestId('strat-display-unit'), { target: { value: 'ft' } });
+    expect(screen.getByTestId('strat-top-md-Top Marker').textContent).toBe('4822.8');
+    fireEvent.click(screen.getByTestId('strat-view-ages'));
+    await waitFor(() => expect(screen.getByTestId('strat-stage-md-Top Marker').textContent).toBe('4822.8'), T);
+    // KETA-2 TVD rate 136.7 m/Ma is 448.5 ft/Ma
+    expect(screen.getByTestId('strat-rate-0').textContent).toMatch(/448\.5$/);
+    await waitFor(async () => expect((await b.loadStratProject())?.view?.displayUnit).toBe('ft'), T);
+  }, 120000);
+});

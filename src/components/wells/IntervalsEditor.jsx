@@ -16,6 +16,7 @@ import { validateIntervals, sortIntervals, thicknessByCode } from '@/lib/stratig
 import { MOTIFS, SYSTEMS_TRACTS, STACKING_PATTERNS } from '@/lib/stratigraphy/vocabulary';
 import { buildIntervals, INTERVAL_FIELDS } from '@/lib/wellImport';
 import PasteReplacePanel from './PasteReplacePanel';
+import { editCell, parseDisplayed, fmtDepth, normUnit } from '@/pages/apps/WellDataManager/engine/displayUnits';
 
 
 const cellCls = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus disabled:opacity-60';
@@ -24,8 +25,10 @@ const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-
 /** Kinds this editor offers (systems tracts and biozones arrive with ST2 and ST3). */
 export const EDITABLE_KINDS = INTERVAL_KINDS.filter((k) => ['lithology', 'core_description', 'facies', 'electrofacies', 'environment', 'motif', 'systems_tract', 'biozone_interval'].includes(k.code));
 
-const toRow = (r) => ({
-  id: r.id, top: r.top_md_m == null ? '' : String(r.top_md_m), base: r.base_md_m == null ? '' : String(r.base_md_m),
+// STRAT-U2-004: depths show and are typed in the display unit; a cell left as
+// shown keeps its stored metres bit for bit (the WDM-U2-001 rule)
+const toRow = (r, unit = 'm') => ({
+  id: r.id, top: editCell(r.top_md_m, unit), base: editCell(r.base_md_m, unit), _top_m: r.top_md_m ?? null, _base_m: r.base_md_m ?? null,
   code: r.code || '', label: r.label || '', source: r.source || 'interpretation',
   grain_size: r.properties?.grain_size || '', environment: r.properties?.environment || '',
   description: r.properties?.description || '', colour: r.properties?.colour || '', stacking: r.properties?.stacking || '',
@@ -38,7 +41,7 @@ let tmp = 0;
 // hoisted: PasteReplacePanel memoizes on `fields`, so a fresh literal per render would re-parse and re-emit forever
 const PASTE_FIELDS = INTERVAL_FIELDS;
 
-const toInterval = (r, kind) => {
+const toInterval = (r, kind, unit = 'm') => {
   const properties = { ...(r.properties || {}) };
   for (const k of ['grain_size', 'environment', 'description', 'colour', 'stacking', 'scheme']) {
     if (r[k]) properties[k] = r[k]; else delete properties[k];
@@ -47,7 +50,7 @@ const toInterval = (r, kind) => {
     if (r[k] !== '' && r[k] != null && Number.isFinite(Number(r[k]))) properties[k] = Number(r[k]); else delete properties[k];
   }
   return {
-    id: r.id, kind, top_md_m: r.top === '' ? NaN : Number(r.top), base_md_m: r.base === '' ? NaN : Number(r.base),
+    id: r.id, kind, top_md_m: parseDisplayed(r.top, unit, r._top_m), base_md_m: parseDisplayed(r.base, unit, r._base_m),
     code: String(r.code || '').trim(), label: String(r.label || '').trim() || null, source: r.source || 'interpretation', properties,
   };
 };
@@ -61,8 +64,10 @@ const toInterval = (r, kind) => {
  * @param {(msg: string) => void} p.onStatus
  * @param {string} [p.testIdPrefix]
  * @param {string} [p.initialKind]
+ * @param {'m'|'ft'} [p.unit] STRAT-U2-004: display unit (the registry stays metres)
  */
-export default function IntervalsEditor({ well, intervals, canEdit = true, onReplace, onStatus, testIdPrefix = 'wdm-intervals', initialKind = 'lithology' }) {
+export default function IntervalsEditor({ well, intervals, canEdit = true, onReplace, onStatus, testIdPrefix = 'wdm-intervals', initialKind = 'lithology', unit: unitProp = 'm' }) {
+  const unit = normUnit(unitProp);
   const cell = cellCls;
   const btn = btnCls;
   const [kind, setKind] = useState(initialKind);
@@ -70,12 +75,13 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
   const [problems, setProblems] = useState([]);
   const [mode, setMode] = useState('grid');
   const [pasted, setPasted] = useState(null);
-  const [mdUnit, setMdUnit] = useState('m');
+  const [mdUnit, setMdUnit] = useState(unit);
+  useEffect(() => { setMdUnit(unit); }, [unit]);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
 
   const ofKind = useMemo(() => sortIntervals((intervals || []).filter((r) => r.kind === kind)), [intervals, kind]);
-  useEffect(() => { setRows(ofKind.map(toRow)); setProblems([]); setDirty(false); setMode('grid'); setPasted(null); }, [ofKind]);
+  useEffect(() => { setRows(ofKind.map((r) => toRow(r, unit))); setProblems([]); setDirty(false); setMode('grid'); setPasted(null); }, [ofKind, unit]);
 
   const codeOptions = useMemo(() => {
     if (kind === 'lithology' || kind === 'core_description') return LITHOLOGIES.map((l) => ({ value: l.code, label: l.name }));
@@ -89,7 +95,7 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
   const addRow = () => {
     tmp += 1;
     const last = rows[rows.length - 1];
-    setRows((rs) => [...rs, { id: `new-${tmp}`, top: last?.base || '', base: '', code: codeOptions ? codeOptions[0].value : '', label: '', source: 'interpretation', grain_size: '', environment: '', description: '', colour: '', stacking: '', scheme: '', age_top_ma: '', age_base_ma: '', properties: {}, is_new: true }]);
+    setRows((rs) => [...rs, { id: `new-${tmp}`, top: last?.base || '', base: '', _top_m: null, _base_m: null, code: codeOptions ? codeOptions[0].value : '', label: '', source: 'interpretation', grain_size: '', environment: '', description: '', colour: '', stacking: '', scheme: '', age_top_ma: '', age_base_ma: '', properties: {}, is_new: true }]);
     setDirty(true);
   };
   const delRow = (i) => { setRows((rs) => rs.filter((_, ri) => ri !== i)); setDirty(true); };
@@ -106,7 +112,7 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
         });
       } catch (e) { onStatus?.(e.message); return; }
     } else {
-      list = rows.map((r) => toInterval(r, kind));
+      list = rows.map((r) => toInterval(r, kind, unit));
     }
     const found = validateIntervals(list);
     setProblems(found);
@@ -126,7 +132,7 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
     }
   };
 
-  const thickness = useMemo(() => thicknessByCode(rows.map((r) => toInterval(r, kind)).filter((r) => Number.isFinite(r.top_md_m) && Number.isFinite(r.base_md_m)), kind), [rows, kind]);
+  const thickness = useMemo(() => thicknessByCode(rows.map((r) => toInterval(r, kind, unit)).filter((r) => Number.isFinite(r.top_md_m) && Number.isFinite(r.base_md_m)), kind), [rows, kind, unit]);
   const isLith = kind === 'lithology' || kind === 'core_description';
 
   return (
@@ -170,7 +176,7 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
           <table className="text-xs min-w-[860px]">
             <thead>
               <tr>
-                {['', 'Top (m)', 'Base (m)', isLith ? 'Lithology' : kind === 'environment' ? 'Environment' : kind === 'motif' ? 'Motif' : kind === 'systems_tract' ? 'Tract' : kind === 'biozone_interval' ? 'Biozone' : 'Code', 'Label', ...(isLith ? ['Grain size'] : []), ...(kind === 'core_description' ? ['Environment'] : []), ...(kind === 'systems_tract' ? ['Stacking'] : []), ...(kind === 'biozone_interval' ? ['Scheme', 'Age top (Ma)', 'Age base (Ma)'] : []), 'Description', 'Source', ''].map((h, i) => (
+                {['', `Top (${unit})`, `Base (${unit})`, isLith ? 'Lithology' : kind === 'environment' ? 'Environment' : kind === 'motif' ? 'Motif' : kind === 'systems_tract' ? 'Tract' : kind === 'biozone_interval' ? 'Biozone' : 'Code', 'Label', ...(isLith ? ['Grain size'] : []), ...(kind === 'core_description' ? ['Environment'] : []), ...(kind === 'systems_tract' ? ['Stacking'] : []), ...(kind === 'biozone_interval' ? ['Scheme', 'Age top (Ma)', 'Age base (Ma)'] : []), 'Description', 'Source', ''].map((h, i) => (
                   <th key={`${h}-${i}`} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>
                 ))}
               </tr>
@@ -238,7 +244,7 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
       )}
       {thickness.length > 0 && mode === 'grid' && (
         <div className="text-pl-muted" data-testid={`${testIdPrefix}-thickness`}>
-          Thickness: {thickness.map((t) => `${t.label} ${t.thickness_m.toFixed(1)} m`).join(' · ')}
+          Thickness: {thickness.map((t) => `${t.label} ${fmtDepth(t.thickness_m, unit)} ${unit}`).join(' · ')}
         </div>
       )}
     </div>

@@ -66,6 +66,8 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   const [loading, setLoading] = useState(0);
   // STRAT-U2-003: every visible top, read for the chart-version flags
   const [allTops, setAllTops] = useState(null);
+  // STRAT-U2-004: depths in Tops, Intervals, Core and Ages read in m or ft (stored metres); saved with the project
+  const [unit, setUnit] = useState('m');
   const [accepting, setAccepting] = useState(false);
 
   const track = useCallback(async (fn) => {
@@ -91,6 +93,7 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
         if (!alive) return;
         setWells(w);
         setProject(proj || null);
+        if (proj?.view?.displayUnit === 'ft') setUnit('ft');
         if (proj?.view?.report) setReport({ field: proj.view.report.field || '', analyst: proj.view.report.analyst || '' });
       } catch (e) {
         if (alive) { setWells([]); setStatus(e.message); }
@@ -225,6 +228,14 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
             {SCHEMES.map((s) => <option key={s} value={s}>{SCHEME_LABEL[s]}</option>)}
           </select>
         </label>
+        <label className="flex items-center gap-1 text-[11px] text-pl-muted" title="Depth unit of the Tops, Intervals, Core and Ages tables and the summary PDF; the registry keeps metres">
+          Depths
+          <select value={unit} data-testid="strat-display-unit" className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text"
+            onChange={(e) => { const u = e.target.value === 'ft' ? 'ft' : 'm'; setUnit(u); saveProject({ view: { displayUnit: u } }).catch(() => {}); }}>
+            <option value="m">m</option>
+            <option value="ft">ft</option>
+          </select>
+        </label>
         <Link to="/dashboard/apps/geoscience/stratigraphy-studio/help" data-testid="strat-help" title="Open the Stratigraphy Studio help guide"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken">
           <HelpCircle className="w-3.5 h-3.5" /> Help
@@ -280,12 +291,12 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   // the view keys of each save merge into the stored ones (the section's view, the age stamps)
   const saveProject = async (patch) => { const row = await backend.saveStratProject({ ...patch, view: { ...(project?.view || {}), ...(patch.view || {}), report }, scheme }); setProject(row); };
   const center = view === 'glossary' ? <ScrollArea className="h-full min-h-0"><Glossary scheme={scheme} /></ScrollArea>
-    : view === 'tops' ? <ScrollArea className="h-full min-h-0"><TopsTyping well={well} tops={tops} units={units} scheme={scheme} onSaveTop={saveTop} onStatus={setStatus} ageFlags={flagsById} /></ScrollArea>
+    : view === 'tops' ? <ScrollArea className="h-full min-h-0"><TopsTyping well={well} tops={tops} units={units} scheme={scheme} onSaveTop={saveTop} onStatus={setStatus} ageFlags={flagsById} unit={unit} /></ScrollArea>
     : view === 'timescale' ? <ScrollArea className="h-full min-h-0"><TimescalePanel flags={ageFlags} onAccept={acceptChartUpdates} busy={accepting} /></ScrollArea>
       : view === 'section' || view === 'wheeler' ? <SectionView backend={backend} mode={view} scheme={scheme} onStatus={setStatus} appPaths={appPaths} saved={project} onSaveProject={saveProject} report={report} />
-      : view === 'ages' ? (well ? <ScrollArea className="h-full min-h-0"><AgesView well={well} tops={tops} intervals={intervals} backend={backend} onStatus={setStatus} onTopsChanged={async () => { await refreshTops(); await refreshAllTops(); }} onAgesEntered={stampAges} appPaths={appPaths} report={report} units={units} scheme={scheme} ageCharts={project?.view?.ageCharts || {}} /></ScrollArea> : needWell)
-      : view === 'intervals' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><ZoneSchemePanel intervals={intervals} canEdit={!!well.is_own} onReplace={replaceIntervals} onStatus={setStatus} /><IntervalsEditor well={well} intervals={intervals} canEdit={!!well.is_own} onReplace={replaceIntervals} onStatus={setStatus} testIdPrefix="strat-intervals" /></div></ScrollArea> : needWell)
-        : view === 'core' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><CoreImagesPanel well={well} images={coreImages} canEdit={!!well.is_own} onStatus={setStatus} testIdPrefix="strat-core" {...coreOps} /></div></ScrollArea> : needWell)
+      : view === 'ages' ? (well ? <ScrollArea className="h-full min-h-0"><AgesView well={well} tops={tops} intervals={intervals} backend={backend} onStatus={setStatus} onTopsChanged={async () => { await refreshTops(); await refreshAllTops(); }} onAgesEntered={stampAges} appPaths={appPaths} report={report} units={units} scheme={scheme} ageCharts={project?.view?.ageCharts || {}} unit={unit} section={null} /></ScrollArea> : needWell)
+      : view === 'intervals' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><ZoneSchemePanel intervals={intervals} canEdit={!!well.is_own} onReplace={replaceIntervals} onStatus={setStatus} /><IntervalsEditor well={well} intervals={intervals} canEdit={!!well.is_own} onReplace={replaceIntervals} onStatus={setStatus} testIdPrefix="strat-intervals" unit={unit} /></div></ScrollArea> : needWell)
+        : view === 'core' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><CoreImagesPanel well={well} images={coreImages} canEdit={!!well.is_own} onStatus={setStatus} testIdPrefix="strat-core" unit={unit} {...coreOps} /></div></ScrollArea> : needWell)
           : <div className="h-full min-h-0 overflow-auto"><ColumnEditor units={units} onSave={saveColumn} onStatus={setStatus} report={report} ageFlags={flagsById} /></div>;
 
   const statusBar = (

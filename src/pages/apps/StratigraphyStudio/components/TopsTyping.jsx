@@ -13,6 +13,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { orderedUnits } from '@/lib/stratigraphy/column';
 import { FallbackBadge, StyleSwatch } from './Glossary';
 import { flagText } from '@/lib/stratigraphy/ageCharts';
+import { fmtDepth } from '@/pages/apps/WellDataManager/engine/displayUnits';
 import { TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
 
 const TS_SHORT = TIMESCALE_VERSION.replace('ICS ', '');
@@ -37,7 +38,7 @@ const toRow = (t) => ({
  * @param {(msg: string) => void} p.onStatus
  * @param {?Map} [p.ageFlags] STRAT-U2-003: 'tops:<id>:<field>' -> the flag of an age entered under an older chart
  */
-export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onStatus, ageFlags = null }) {
+export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onStatus, ageFlags = null, unit = 'm' }) {
   const [rows, setRows] = useState(() => tops.map(toRow));
   const [busy, setBusy] = useState(false);
   // a re-read that returns the same rows (every view change re-reads them) keeps what is being typed
@@ -106,7 +107,7 @@ export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onSta
         <table className="text-xs">
           <thead>
             <tr>
-              {['Top', 'MD (m)', 'Marker', 'Surface type', 'Unit', 'Confidence', 'Age (Ma)', 'Hiatus to (Ma)', 'Scheme / notes', 'Tract below'].map((h) => (
+              {['Top', `MD (${unit === 'ft' ? 'ft' : 'm'})`, 'Marker', 'Surface type', 'Unit', 'Confidence', 'Age (Ma)', 'Hiatus to (Ma)', 'Scheme / notes', 'Tract below'].map((h) => (
                 <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>
               ))}
             </tr>
@@ -118,7 +119,7 @@ export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onSta
               return (
                 <tr key={r.id} data-testid={`strat-top-row-${r.name}`} data-surface-type={r.surface_type}>
                   <td className="pr-3 py-0.5 text-pl-text">{r.name}</td>
-                  <td className="pr-3 py-0.5 text-pl-text font-mono">{Number(r.md_m).toFixed(1)}</td>
+                  <td className="pr-3 py-0.5 text-pl-text font-mono" data-testid={`strat-top-md-${r.name}`}>{fmtDepth(r.md_m, unit)}</td>
                   <td className="pr-3 py-0.5"><StyleSwatch style={surfaceLineStyle(r.surface_type)} width={40} /></td>
                   <td className="pr-3 py-0.5">
                     <select className={cellCls} style={{ width: 300 }} value={r.surface_type} disabled={!canEdit} onChange={(e) => setCell(r.id, 'surface_type', e.target.value)} data-testid={`strat-top-type-${r.name}`} title={d.label}>

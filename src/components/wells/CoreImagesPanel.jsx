@@ -9,6 +9,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Upload, Trash2, Loader2, Save } from 'lucide-react';
 import { CORE_IMAGE_MAX_BYTES } from '@/lib/stratRegistry';
+import { editCell, parseDisplayed, normUnit } from '@/pages/apps/WellDataManager/engine/displayUnits';
 
 
 const cellCls = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus disabled:opacity-60';
@@ -38,8 +39,11 @@ function imageSize(file) {
  * @param {(image: Object) => Promise<string>} p.urlOf signed URL to display a photo
  * @param {(msg: string) => void} p.onStatus
  * @param {string} [p.testIdPrefix]
+ * @param {'m'|'ft'} [p.unit] STRAT-U2-004: depths shown and typed in this unit (stored metres)
  */
-export default function CoreImagesPanel({ well, images, canEdit = true, onUpload, onUpdate, onDelete, urlOf, onStatus, testIdPrefix = 'wdm-core' }) {
+export default function CoreImagesPanel({ well, images, canEdit = true, onUpload, onUpdate, onDelete, urlOf, onStatus, testIdPrefix = 'wdm-core', unit: unitProp = 'm' }) {
+  const unit = normUnit(unitProp);
+  const toM = (text, orig = null) => { const v = parseDisplayed(text, unit, orig); return Number.isFinite(v) ? v : text; };
   const cell = cellCls;
   const btn = btnCls;
   const [file, setFile] = useState(null);
@@ -71,8 +75,8 @@ export default function CoreImagesPanel({ well, images, canEdit = true, onUpload
     setBusy(true);
     try {
       const size = file ? await imageSize(file) : null;
-      await onUpload(file, { top_md_m: top, base_md_m: base, caption, width: size?.width || null, height: size?.height || null });
-      onStatus?.(`Core photo added to ${well.name} (${top} to ${base} m).`);
+      await onUpload(file, { top_md_m: toM(top), base_md_m: toM(base), caption, width: size?.width || null, height: size?.height || null });
+      onStatus?.(`Core photo added to ${well.name} (${top} to ${base} ${unit}).`);
       setFile(null); setTop(base); setBase(''); setCaption('');
     } catch (e) {
       onStatus?.(e.message);
@@ -85,7 +89,7 @@ export default function CoreImagesPanel({ well, images, canEdit = true, onUpload
     const e = edits[img.id];
     if (!e) return;
     try {
-      await onUpdate(img, { top_md_m: e.top ?? img.top_md_m, base_md_m: e.base ?? img.base_md_m, caption: e.caption ?? img.caption });
+      await onUpdate(img, { top_md_m: e.top != null ? toM(e.top, img.top_md_m) : img.top_md_m, base_md_m: e.base != null ? toM(e.base, img.base_md_m) : img.base_md_m, caption: e.caption ?? img.caption });
       setEdits((m) => { const n = { ...m }; delete n[img.id]; return n; });
       onStatus?.('Core photo updated.');
     } catch (err) { onStatus?.(err.message); }
@@ -109,8 +113,8 @@ export default function CoreImagesPanel({ well, images, canEdit = true, onUpload
         <div className="flex items-center gap-2 flex-wrap" data-testid={`${testIdPrefix}-upload-form`}>
           <input type="file" accept="image/jpeg,image/png,image/webp" className="text-pl-muted text-xs" data-testid={`${testIdPrefix}-file`}
             onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          <label className="flex items-center gap-1 text-pl-muted">Top (m) <input className={cell} style={{ width: 72 }} value={top} inputMode="decimal" onChange={(e) => setTop(e.target.value)} data-testid={`${testIdPrefix}-top`} /></label>
-          <label className="flex items-center gap-1 text-pl-muted">Base (m) <input className={cell} style={{ width: 72 }} value={base} inputMode="decimal" onChange={(e) => setBase(e.target.value)} data-testid={`${testIdPrefix}-base`} /></label>
+          <label className="flex items-center gap-1 text-pl-muted">Top ({unit}) <input className={cell} style={{ width: 72 }} value={top} inputMode="decimal" onChange={(e) => setTop(e.target.value)} data-testid={`${testIdPrefix}-top`} /></label>
+          <label className="flex items-center gap-1 text-pl-muted">Base ({unit}) <input className={cell} style={{ width: 72 }} value={base} inputMode="decimal" onChange={(e) => setBase(e.target.value)} data-testid={`${testIdPrefix}-base`} /></label>
           <input className={cell} style={{ width: 200 }} value={caption} placeholder="Caption (optional)" onChange={(e) => setCaption(e.target.value)} data-testid={`${testIdPrefix}-caption`} />
           <button type="button" className={btn} disabled={!file || busy} onClick={upload} data-testid={`${testIdPrefix}-upload`}>
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />} Add photo
@@ -137,7 +141,7 @@ export default function CoreImagesPanel({ well, images, canEdit = true, onUpload
           </div>
           <table className="text-xs">
             <thead>
-              <tr>{['', 'Top (m)', 'Base (m)', 'Caption', 'Size', ''].map((h, i) => <th key={`${h}-${i}`} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>)}</tr>
+              <tr>{['', `Top (${unit})`, `Base (${unit})`, 'Caption', 'Size', ''].map((h, i) => <th key={`${h}-${i}`} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>)}</tr>
             </thead>
             <tbody>
               {sorted.map((img) => {
@@ -145,8 +149,8 @@ export default function CoreImagesPanel({ well, images, canEdit = true, onUpload
                 return (
                   <tr key={img.id} data-testid={`${testIdPrefix}-row-${img.id}`} className="align-top">
                     <td className="pr-3 py-0.5">{urls[img.id] ? <img src={urls[img.id]} alt="" className="w-12 h-12 object-cover rounded border border-pl-border" /> : <div className="w-12 h-12 rounded bg-pl-sunken" />}</td>
-                    <td className="pr-3 py-0.5"><input className={cell} style={{ width: 72 }} disabled={!canEdit} value={e.top ?? img.top_md_m} onChange={(ev) => setEdits((m) => ({ ...m, [img.id]: { ...m[img.id], top: ev.target.value } }))} /></td>
-                    <td className="pr-3 py-0.5"><input className={cell} style={{ width: 72 }} disabled={!canEdit} value={e.base ?? img.base_md_m} onChange={(ev) => setEdits((m) => ({ ...m, [img.id]: { ...m[img.id], base: ev.target.value } }))} /></td>
+                    <td className="pr-3 py-0.5"><input className={cell} style={{ width: 72 }} disabled={!canEdit} value={e.top ?? editCell(img.top_md_m, unit)} onChange={(ev) => setEdits((m) => ({ ...m, [img.id]: { ...m[img.id], top: ev.target.value } }))} /></td>
+                    <td className="pr-3 py-0.5"><input className={cell} style={{ width: 72 }} disabled={!canEdit} value={e.base ?? editCell(img.base_md_m, unit)} onChange={(ev) => setEdits((m) => ({ ...m, [img.id]: { ...m[img.id], base: ev.target.value } }))} /></td>
                     <td className="pr-3 py-0.5"><input className={cell} style={{ width: 200 }} disabled={!canEdit} value={e.caption ?? (img.caption || '')} onChange={(ev) => setEdits((m) => ({ ...m, [img.id]: { ...m[img.id], caption: ev.target.value } }))} /></td>
                     <td className="pr-3 py-0.5 text-pl-muted">{img.width && img.height ? `${img.width}×${img.height}, ` : ''}{((img.bytes || 0) / 1024).toFixed(0)} KB</td>
                     <td className="py-0.5 flex gap-1">

@@ -219,6 +219,11 @@ export default function StratigraphyHelpGuide() {
           ['Open Basin', 'opens Basin & Charge Modeling, where the new model is listed with the well remembered as its tie'],
         ]} />
               <Para>
+          Depths (ribbon) shows the Tops, Intervals, Core and Ages tables, the age-depth plot, the rates and the summary
+          PDF in metres or feet. The registry keeps metres; a value you type in feet converts at the door, and a cell you
+          leave as shown keeps its stored metres exactly. The choice is saved with your stratigraphy project.
+        </Para>
+        <Para>
           Summary PDF (Ages view) writes the well's stratigraphy for a reviewer: the header (well, field, section,
           prepared by and on, build, timescale, terms, depth basis), the typed tops with MD, TVD, type, unit, age, ICS
           stage, the chart each age was entered on and the tract below, the age-depth plot with depth down and its
