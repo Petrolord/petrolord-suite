@@ -299,3 +299,4 @@ Built on branch `feat/map-u2`. The build log per item follows in "Step 2 build (
 
 | Item | State | Proving test | Notes |
 |---|---|---|---|
+| U2-007 | Done | `src/lib/__tests__/readDepthSurface.test.js` (22): every saved release reads; feet and US-feet rows give one cell area in m² (negative control: dx·dy is 10.76x); rotation honoured (negative control: unrotated arithmetic is 100 m off); isochores stay positive (negative control: `surfaceZToDepthDown` negates them); TWT refused by a depth-only consumer with the way out; 8 hostile rows refused with reasons | `src/lib/readDepthSurface.js`. Mapping loads every registry grid through it (`loadSurfaceM`), and the status shows what it assumed about a legacy row. The contract is below. |

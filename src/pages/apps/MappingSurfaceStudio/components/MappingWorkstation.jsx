@@ -33,9 +33,10 @@ import { downloadBlob } from '@/components/maps/mapPng';
 import CultureImportDialog from '@/components/culture/CultureImportDialog';
 import SurfaceImportDialog from './SurfaceImportDialog';
 import {
-  exportSurfaceText, controlPointsCsv, downloadText, specOfSurface, gridInUnit, isLengthSurface,
+  exportSurfaceText, controlPointsCsv, downloadText, specOfSurface, isLengthSurface,
 } from '../services/surfaceExport';
 import { mergeCloseControls } from '@/lib/gridding/gridding';
+import { readDepthSurface } from '@/lib/readDepthSurface';
 import { runGridding } from '../services/gridRunner';
 import { extentMask } from '../services/extent';
 import { convertWithWellVelocity, correctToWells, wellDepthsForTop, mapResiduals, residualStats } from '../services/wellTieDepth';
@@ -87,8 +88,16 @@ export { isLengthSurface };
 
 /** Registry grids arrive in the row's z_unit (Seismolord and imports
  *  write feet); the workstation works in METRES internally, so every
- *  load converts here and the display converts back to the user's unit. */
-const loadGridM = async (backend, surface) => gridInUnit(surface, await backend.downloadSurfaceGrid(surface), 'm');
+ *  load converts here and the display converts back to the user's unit.
+ *  U2-007: through the shared door (src/lib/readDepthSurface.js), which
+ *  keeps isochores positive, reads TWT positive, converts feet and says
+ *  what it assumed about legacy rows. */
+const loadSurfaceM = async (backend, surface) => {
+  const r = readDepthSurface(surface, await backend.downloadSurfaceGrid(surface), { requireProjected: false });
+  if (!r.ok) throw new Error(r.reason);
+  return r;
+};
+const loadGridM = async (backend, surface) => (await loadSurfaceM(backend, surface)).grid;
 
 /** @param {Object} [p.appPaths] route overrides for the launchers (harness) */
 export default function MappingWorkstation({ backend, appPaths = {}, sample = false }) {
@@ -555,14 +564,15 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
     const s = surfaces.find((x) => x.id === id);
     if (!s) return;
     try {
-      const grid = await loadGridM(backend, s);
+      const read = await loadSurfaceM(backend, s);
+      const { grid } = read;
       setDisplaySurface(s);
       setDisplayGrid(grid);
       const pts = s.provenance?.points;
       setPosted(Array.isArray(pts) ? Object.fromEntries(pts.map((p) => [p.well, { z: p.z, x: p.x, y: p.y }])) : null);
       if (s.provenance?.display) setMapSettings({ ...DEFAULT_MAP_DISPLAY, ...s.provenance.display });
       const st = surfaceStats(grid);
-      setStatus(`${s.name}: ${st.count} live nodes, z ${fmtZ(st.min, s)} to ${fmtZ(st.max, s)}.`);
+      setStatus(`${s.name}: ${st.count} live nodes, z ${fmtZ(st.min, s)} to ${fmtZ(st.max, s)}.${read.notes.length ? ` ${read.notes.join(' ')}` : ''}`);
     } catch (e) { setStatus(e.message); }
   };
 
