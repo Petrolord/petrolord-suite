@@ -240,3 +240,78 @@ describe('STRAT-U1-025 a strat project saved by a newer build says so', () => {
     await expect(backend.saveStratProject({ flatten: { mode: 'structural' } })).rejects.toThrow();
   });
 });
+
+describe('STRAT-U1-013/014 charts on white chart paper with the watermark, exported with a reviewer header', () => {
+  // eslint-disable-next-line global-require
+  const AgeDepthPlot = require('@/components/wells/section/AgeDepthPlot').default;
+  // eslint-disable-next-line global-require
+  const ColumnChart = require('../components/ColumnChart').default;
+  // eslint-disable-next-line global-require
+  const ChartExportButtons = require('@/components/wells/section/ChartExportButtons').default;
+  // eslint-disable-next-line global-require
+  const { chartHeaderLines } = require('@/components/wells/section/chartExport');
+  // eslint-disable-next-line global-require
+  const { sampleWells } = require('@/pages/apps/WellCorrelation/services/sampleSection');
+  // eslint-disable-next-line global-require
+  const { seededUnits } = require('../services/inMemoryBackend');
+  const wheelerWells = () => sampleWells().map((w, i) => ({ id: w.id, name: w.name, position: i, surfaces: w.tops }));
+
+  test('Wheeler, age-depth and column charts are chart canvases with the Petrolord watermark (origin/main: dark canvases, no logo)', () => {
+    render(<div><WheelerChart wells={wheelerWells()} testIdPrefix="wh" /><AgeDepthPlot surfaces={sampleWells()[0].tops} testIdPrefix="ad" /><ColumnChart units={seededUnits()} /></div>);
+    for (const id of ['wh-chart', 'ad-plot', 'strat-column-chart']) {
+      const el = screen.getByTestId(id);
+      expect(el.getAttribute('data-canvas')).toBe('chart');
+      expect(within(el).getByAltText('Petrolord')).toBeTruthy();
+    }
+  });
+
+  test('the Wheeler SVG export carries the header and the chart, read back from the file (origin/main: no export)', async () => {
+    let blob = null;
+    const orig = URL.createObjectURL;
+    URL.createObjectURL = jest.fn((b) => { blob = b; return 'blob:x'; });
+    URL.revokeObjectURL = URL.revokeObjectURL || (() => {});
+    const onStatus = jest.fn();
+    const Host = () => {
+      const ref = React.useRef(null);
+      return (
+        <div>
+          <ChartExportButtons targetRef={ref} fileBase="KETA Wheeler" onStatus={onStatus} testIdPrefix="t"
+            headerLines={() => chartHeaderLines({ title: 'Wheeler chart: KETA section', wells: ['KETA-1', 'KETA-2', 'KETA-3'], section: 'KETA section', scheme: 'exxon', timescale: '2023/09', basis: 'ages from dated surfaces', field: 'Keta (sample)', analyst: 'A. Geologist', date: new Date('2026-09-30T12:00:00Z') })} />
+          <div ref={ref}><WheelerChart wells={wheelerWells()} testIdPrefix="wh" /></div>
+        </div>
+      );
+    };
+    render(<Host />);
+    fireEvent.click(screen.getByTestId('t-export-svg'));
+    await waitFor(() => expect(onStatus).toHaveBeenCalledWith(expect.stringMatching(/^Exported KETA Wheeler\.svg/)));
+    URL.createObjectURL = orig;
+    const text = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsText(blob); });
+    const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+    const lines = [...doc.querySelectorAll('[data-header-line]')].map((t) => t.textContent);
+    expect(lines[0]).toBe('Wheeler chart: KETA section');
+    expect(lines[1]).toBe('Wells: KETA-1, KETA-2, KETA-3 | Section: KETA section | Field: Keta (sample)');
+    expect(lines[2]).toBe('Terms: Exxon (display; stored Catuneanu) | Timescale: ICS 2023/09 | Depths: ages from dated surfaces');
+    expect(lines[3]).toMatch(/^Prepared by: A\. Geologist \| 2026-09-30 \| Petrolord Suite /);
+    expect(doc.querySelectorAll('[data-kind="hiatus"]').length).toBe(2);
+    expect(doc.querySelectorAll('[data-kind="deposition"]').length).toBe(4);
+  });
+});
+
+describe('STRAT-U1-015 age-depth rates are vertical on a deviated well', () => {
+  // eslint-disable-next-line global-require
+  const AgesView = require('../components/AgesView').default;
+  // eslint-disable-next-line global-require
+  const { makeDepthFrame } = require('@/pages/apps/WellDataManager/engine/checkshots');
+  test('KETA-2: the rate between Top Marker and Mid Shale is the TVD thickness per Ma (origin/main: 140.0 m/Ma along hole)', async () => {
+    const backend = makeInMemoryBackend();
+    const well = (await backend.listWells()).find((w) => w.id === 'corr-w2');
+    const tops = await backend.listTops('corr-w2');
+    render(<MemoryRouter><AgesView well={well} tops={tops} intervals={[]} backend={backend} onStatus={jest.fn()} /></MemoryRouter>);
+    const f = makeDepthFrame({ deviation: well.deviation, kbM: well.kb_m, tdMdM: well.td_md_m });
+    const tvd = (md) => f.mdToTvdss(md).tvd;
+    const want = (tvd(1610) - tvd(1470)) / (5 - 4);
+    expect(screen.getByTestId('strat-rate-0').textContent).toContain(want.toFixed(1));
+    expect(140 - want).toBeGreaterThan(3);
+    expect(screen.getByTestId('strat-agedepth-plot').getAttribute('data-depth-basis')).toBe('TVD');
+  });
+});

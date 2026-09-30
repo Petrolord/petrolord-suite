@@ -9,6 +9,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Save, Loader2 } from 'lucide-react';
 import { SURFACE_TYPES, displayLabel, normalizeSurfaceType, surfaceLineStyle } from '@/lib/stratigraphy/vocabulary';
 import { tractBelowEach } from '@/lib/stratigraphy/sequenceTracts';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { orderedUnits } from '@/lib/stratigraphy/column';
 import { FallbackBadge, StyleSwatch } from './Glossary';
 
@@ -137,7 +138,7 @@ export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onSta
                   <td className="pr-3 py-0.5">
                     {(r.surface_type === 'SU' || r.surface_type === 'unconformity') ? (
                       <input className={cellCls} style={{ width: 72 }} value={r.hiatus_to_ma} disabled={!canEdit} inputMode="decimal" title="Age of the youngest rock below the unconformity" onChange={(e) => setCell(r.id, 'hiatus_to_ma', e.target.value)} data-testid={`strat-top-hiatus-${r.name}`} />
-                    ) : <span className="text-pl-muted">n/a</span>}
+                    ) : <span className="text-pl-muted">{EMPTY_VALUE}</span>}
                   </td>
                   <td className="pr-3 py-0.5">
                     <input className={cellCls} style={{ width: 130 }} value={r.notes} disabled={!canEdit} placeholder={r.surface_type === 'biozone' ? 'scheme: zone' : ''} title={r.surface_type === 'biozone' ? 'Biozonation scheme and zone (ST3)' : 'Notes'} onChange={(e) => setCell(r.id, 'notes', e.target.value)} data-testid={`strat-top-notes-${r.name}`} />

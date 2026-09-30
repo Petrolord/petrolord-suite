@@ -6,11 +6,13 @@
 // New rows carry a temporary id until saved; a new child of a new parent
 // is saved after its parent with the real id substituted.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Trash2, Save, Loader2 } from 'lucide-react';
 import { RANKS, orderedUnits, validateColumn } from '@/lib/stratigraphy/column';
 import { unitsOfRank, ageBounds, TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
 import ColumnChart from './ColumnChart';
+import ChartExportButtons from '@/components/wells/section/ChartExportButtons';
+import { chartHeaderLines } from '@/components/wells/section/chartExport';
 
 const cellCls = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text w-full';
 const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40';
@@ -40,7 +42,8 @@ let tmp = 0;
  * @param {(ops: {create: Array, update: Array<{id, patch}>, remove: Array}) => Promise<void>} p.onSave
  * @param {(msg: string) => void} p.onStatus
  */
-export default function ColumnEditor({ units, canEdit = true, onSave, onStatus }) {
+export default function ColumnEditor({ units, canEdit = true, onSave, onStatus, report = null }) {
+  const chartRef = useRef(null);
   const [rows, setRows] = useState(() => units.map(toRow));
   const [problems, setProblems] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -166,7 +169,14 @@ export default function ColumnEditor({ units, canEdit = true, onSave, onStatus }
         </div>
       )}
       <p className="text-pl-muted">Removing a unit keeps its children and any tops that named it; they lose the reference. Sharing the column with your organization shares all of it, read-only.</p>
-      <ColumnChart units={rows} />
+      <div className="flex items-center gap-2">
+        <span className="text-pl-muted">Graphic column (saved units and your edits)</span>
+        <div className="ml-auto">
+          <ChartExportButtons targetRef={chartRef} fileBase="Stratigraphic column" onStatus={onStatus} testIdPrefix="strat-column"
+            headerLines={() => chartHeaderLines({ title: 'Stratigraphic column', timescale: TIMESCALE_VERSION, basis: 'unit ages in Ma (lithostratigraphic units placed by their nominal ages)', field: report?.field, analyst: report?.analyst })} />
+        </div>
+      </div>
+      <div ref={chartRef}><ColumnChart units={rows} /></div>
     </div>
   );
 }

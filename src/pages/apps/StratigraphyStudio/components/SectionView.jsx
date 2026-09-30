@@ -8,7 +8,7 @@
 // stratigraphic flattening between two surfaces. The Wheeler view is the
 // same wells re-plotted in time.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Save, Loader2 } from 'lucide-react';
 import CrossSection from '@/components/wells/section/CrossSection';
@@ -19,6 +19,9 @@ import { SYSTEMS_TRACTS, displayLabel, normalizeSurfaceType } from '@/lib/strati
 import { motif as motifOf } from '@/lib/stratigraphy/vocabulary';
 import { appPath, mapNetHref, MAPPING_ID } from '@/components/wells/appLinks';
 import { datumDefaultFor, DEPTH_REF_LABEL } from '@/components/wells/section/sectionFrame';
+import ChartExportButtons from '@/components/wells/section/ChartExportButtons';
+import { chartHeaderLines } from '@/components/wells/section/chartExport';
+import { TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
 
 const TRACT_COLOUR = Object.fromEntries(SYSTEMS_TRACTS.map((t) => [t.code, t.colour]));
 const selCls = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text';
@@ -34,7 +37,8 @@ const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-
  * @param {Object} [p.saved] the strat project row (flatten, view) to restore
  * @param {(patch: Object) => Promise<void>} [p.onSaveProject]
  */
-export default function SectionView({ backend, mode, scheme, onStatus, appPaths = {}, saved = null, onSaveProject }) {
+export default function SectionView({ backend, mode, scheme, onStatus, appPaths = {}, saved = null, onSaveProject, report = null }) {
+  const wheelerRef = useRef(null);
   const sec = useSectionWells(backend, { onStatus });
   const { wells, order, wellData, sectionWells, topNames, datum, setDatum, depthUnit, setDepthUnit, depthRef, setDepthRef, spacing } = sec;
   // STRAT-U1-009: Well Correlation keeps named sections (WC-U2-001); the studio
@@ -265,11 +269,13 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   if (mode === 'wheeler') {
     return (
       <div className="h-full min-h-0 flex flex-col">
-        <div className="px-3 py-1.5 border-b border-pl-border text-xs text-pl-muted flex items-center gap-2">
-          Wheeler chart of the section, time down. Dated surfaces come from the Tops view; an unconformity needs a hiatus end.
-          <span className="ml-auto text-pl-muted">{typedCount} typed surfaces</span>
+        <div className="px-3 py-1.5 border-b border-pl-border text-xs text-pl-muted flex items-center gap-2 flex-wrap">
+          Wheeler chart of the section at its wells, time down (not interpolated between wells). Dated surfaces come from the Tops view; an unconformity needs a hiatus end.
+          <span className="ml-auto text-pl-muted">{typedCount} typed surfaces · {tractCount} tract{tractCount === 1 ? '' : 's'}</span>
+          <ChartExportButtons targetRef={wheelerRef} fileBase={`${sec.sectionName || 'Section'} Wheeler`} onStatus={onStatus} testIdPrefix="strat-wheeler"
+            headerLines={() => chartHeaderLines({ title: `Wheeler chart: ${sec.sectionName || 'section'}`, wells: sectionWells.map((w) => w.name), section: sec.sectionName, scheme, timescale: TIMESCALE_VERSION, basis: 'ages from dated surfaces; columns in section order', field: report?.field || sec.savedRow?.track_layout?.report?.field, analyst: report?.analyst || sec.savedRow?.track_layout?.report?.analyst })} />
         </div>
-        <div className="flex-1 min-h-0 overflow-auto p-3">
+        <div className="flex-1 min-h-0 overflow-auto p-3" ref={wheelerRef}>
           <WheelerChart wells={wheelerWells} tractRows={tractRows} scheme={scheme} width={Math.max(480, 160 * sectionWells.length + 80)} height={440} testIdPrefix="strat-wheeler" />
         </div>
       </div>
