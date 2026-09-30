@@ -12,6 +12,8 @@
 // invent a value: a field with no registry source is left absent so the
 // existing input keeps its manual value.
 
+import { unitToMetres } from '../../../../../packages/engines/lib/crs/catalog';
+
 const NULL = (v) => !Number.isFinite(v) || Math.abs(v) >= 1e29;
 const avg = (xs) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null);
 
@@ -78,7 +80,12 @@ export function zoneAveragesToInputs(zones) {
 export function surfaceAreaM2(surface, grid) {
   let live = 0;
   for (let i = 0; i < grid.length; i++) if (!NULL(grid[i])) live += 1;
-  return live * surface.dx * surface.dy;
+  // MAP-U1-029: dx and dy are in the frame's XY unit (US survey feet on a
+  // state plane); read as metres the area was 10.76 times too large
+  let s = 1;
+  try { s = unitToMetres(surface.xy_unit || 'm'); } catch { s = NaN; }
+  if (!Number.isFinite(s)) throw new Error(`${surface.name || 'This surface'} is in a geographic CRS, so it has no area in square metres. Reproject it first.`);
+  return live * surface.dx * surface.dy * s * s;
 }
 
 const M2_PER_ACRE = 4046.8564224;

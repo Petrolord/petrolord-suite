@@ -20,6 +20,7 @@ const ContourMapDigitizerContent = () => {
     ovrCanvasRef,
     handleFileUpload,
     handleGeoref,
+    handleRemoveControlPoint,
     handleAutoTrace,
     handleManualDraw,
     handleDeleteLine,
@@ -65,6 +66,7 @@ const ContourMapDigitizerContent = () => {
               setState={setState}
               onFileUpload={handleFileUpload}
               onGeoref={handleGeoref}
+              onRemoveControlPoint={handleRemoveControlPoint}
               onAutoTrace={handleAutoTrace}
               onManualDraw={handleManualDraw}
               onDeleteLine={handleDeleteLine}

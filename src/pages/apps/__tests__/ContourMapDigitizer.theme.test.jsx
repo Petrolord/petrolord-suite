@@ -113,7 +113,7 @@ describe('Contour Map Digitizer themed states', () => {
     expect(screen.getByTestId('digitizer-map-canvas')).toHaveAttribute('data-canvas', 'dark');
     expect(screen.getByTestId('digitizer-grid-summary')).toBeInTheDocument();
     expectNoLegacyChrome();
-    const gridTab = screen.getByRole('tab', { name: /3D Grid/ });
+    const gridTab = screen.getByRole('tab', { name: /Grid summary/ });
     fireEvent.mouseDown(gridTab);
     fireEvent.click(gridTab);
     expect(await screen.findByTestId('digitizer-grid-tab')).toBeInTheDocument();

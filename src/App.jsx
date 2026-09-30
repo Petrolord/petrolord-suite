@@ -601,7 +601,7 @@ function App() {
                                 <Route path="apps/geoscience/log-facies-analysis" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
                                 <Route path="apps/geoscience/well-log-analyzer" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
                                 <Route path="apps/geoscience/automated-log-digitizer" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
-                                <Route path="apps/geoscience/contour-map-digitizer" element={<ContourMapDigitizer />} />
+                                <Route path="apps/geoscience/contour-map-digitizer" element={<ProtectedAppRoute appId={['contour-map-digitizer', 'mapping-surface-studio']} appName="Contour Map Digitizer"><ContourMapDigitizer /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/analog-finder" element={<Navigate to="/dashboard/geoscience" replace />} />
                                 {/* Legacy earth-model slugs redirect to the G8 successor
                                     (roadmap G0: routes stay as aliases where a successor exists). */}
