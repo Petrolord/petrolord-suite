@@ -391,6 +391,6 @@ There are 35 findings: 20 fixed (2 S1, 7 S2, 7 S3, 4 S4), 9 open, 5 carried to c
   - Well Design: `Math.abs(z)`, no ft to m.
   - Simulation: throws on elevation rows.
   - RCP dialog: xy unit and TWT rows.
-  - Seismolord: negates TWT rows.
+  - Seismolord's TWT negation is already fixed on main (SEIS-U1-008, #824).
   - `.pld`: re-grid archives.
 - Step 2: 20-item ranked backlog, batches A, B and C (analysis only).
