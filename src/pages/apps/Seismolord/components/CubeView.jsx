@@ -124,7 +124,7 @@ function CubeView({
   geom, manifest, getBrick, getSlice, indices, onChangeIndex, display, vexag,
   horizons, faults, wells, onSelectPlane, onRendered, height = 520,
   depthConv = null, steps = null, activeOrientation = 'inline',
-  sliceVis = null, onToggleSlicePlane = null,
+  sliceVis = null, onToggleSlicePlane = null, depthUnit = 'm',
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -182,7 +182,7 @@ function CubeView({
 
   propsRef.current = {
     geom, manifest, ext, prefs, display, indices, spacing, northLocal,
-    depthConv, steps, activeOrientation,
+    depthConv, steps, activeOrientation, depthUnit,
   };
 
   // ---- rendering --------------------------------------------------------
@@ -786,7 +786,8 @@ function CubeView({
     el.textContent = `${meta.orientation === 'time' ? 'Z' : meta.orientation} plane   `
       + `IL ${geo.il.min + hit.ilIdx * geo.il.step}   `
       + `XL ${geo.xl.min + hit.xlIdx * geo.xl.step}   ${ms.toFixed(1)} ms   `
-      + (z != null ? `TVD ${z.toFixed(1)} m   ` : '')
+      + (z != null ? (propsRef.current?.depthUnit === 'ft'
+        ? `TVDSS ${(z / 0.3048).toFixed(1)} ft   ` : `TVDSS ${z.toFixed(1)} m   `) : '')
       + `amp ${amp === null || amp === NULL_F32 ? 'null'
         : `${meta.slice?.codec === 'u8' ? '≈' : ''}${amp.toExponential(3)}`}`;
   }, []);

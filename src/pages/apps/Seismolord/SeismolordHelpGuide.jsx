@@ -97,6 +97,21 @@ export default function SeismolordHelpGuide() {
           web worker and streams 64 by 64 by 64 float32 bricks to your private storage; the storage meter in the
           explorer shows what your account holds. Amplitudes are stored as they are; gain and AGC are display only.
         </Para>
+        <Para>
+          The scan also checks the headers against each other and says what it found. Extended textual headers (SEG-Y
+          revision 1 and 2) are skipped. A sample interval or sample count missing from the binary header is read from
+          the trace headers, with a note. The import stops, with the reason, when the binary and trace headers
+          disagree on either value, when the file is byte-swapped (little-endian), or when the samples are not IBM or
+          IEEE floating point. A survey with an irregular outline (positions with no trace) imports with those
+          positions as nulls, and a crossline-sorted file imports after one extra pass over its trace headers. A file
+          with one inline is pointed at the 2D Lines import; missing coordinates and coordinates in degrees are named.
+        </Para>
+        <Callout tone="warn" title="Time volumes only">
+          Declare the vertical axis of each file. Seismolord interprets volumes in two-way time; a depth-migrated
+          volume is refused with the reason, because its sample axis would read as milliseconds and horizons picked
+          on it would be converted to depth a second time. A textual header that mentions depth or PSDM preselects
+          Depth; the header can be wrong, so check it.
+        </Callout>
         <SubHeading>Large surveys</SubHeading>
         <Para>
           Before anything is written, check the survey the scan reports (samples per trace, sample interval, format
@@ -164,7 +179,9 @@ export default function SeismolordHelpGuide() {
           CPS-3 and ZMAP+ grids, il xl x y z, x y z, and any other table through the column mapping step. A file that
           holds several named horizons becomes one horizon per name; tick the ones to import. Lines that cannot be
           read are listed with their line and column, and the rest of the file imports. Imported picks are two-way
-          time.
+          time, in milliseconds or seconds: the dialog detects the unit (a file whose times all fit in 20 reads as
+          seconds, as some OpendTect and Kingdom exports write them), shows it and lets you change it. Surfaces
+          imported as grids take their Z domain and unit from the same dialog: TWT in ms or s, depth in m or ft.
         </Para>
       </GuideSection>
 
@@ -321,7 +338,9 @@ export default function SeismolordHelpGuide() {
         <Table headers={['Format', 'Notes']} rows={SURFACE_EXPORT_FORMATS.map((f) => [f.label, `.${f.ext}`])} />
         <Callout tone="info" title="Sign convention">
           Exported and published depth surfaces are elevations: negative below the datum, in the unit the dialog
-          states. Time surfaces stay positive two-way time in milliseconds.
+          states. Time surfaces published to the registry are positive two-way time in milliseconds, which is what
+          Mapping, Well Correlation and Earth Modeling read; time surfaces written to files carry negative TWT, as
+          Petrel expects. Surfaces published before 30 September 2026 held negative TWT and read correctly everywhere.
         </Callout>
       </GuideSection>
 

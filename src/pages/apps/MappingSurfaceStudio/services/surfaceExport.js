@@ -6,6 +6,7 @@
 
 import { writeXYZ, writeCPS3, writeZMAP, writeIrapClassic } from '@/lib/gridding/surfaceExport';
 import { convertZUnit } from '@/lib/gridding/gridmath';
+import { surfaceTimeToPositiveMs } from '@/lib/surfaceConvention';
 import { normalizeTag, isTransformableTag } from '@/lib/crs/tags';
 import { gridObject } from '../engine/surface';
 import { downloadBlob } from '@/components/maps/mapPng';
@@ -28,6 +29,8 @@ const M_PER_FT = 0.3048;
 
 /** Elevation in the row's unit -> the display unit (nulls kept). */
 export function gridInUnit(surface, grid, unit) {
+  // SEIS-U1-008: time rows read as positive TWT whatever sign they were stored in
+  if (surface?.z_domain === 'time') return surfaceTimeToPositiveMs(grid);
   if (!isLengthSurface(surface)) return grid;
   const from = surface.z_unit === 'ft' ? 'ft' : 'm';
   return from === unit ? grid : convertZUnit(grid, from, unit);

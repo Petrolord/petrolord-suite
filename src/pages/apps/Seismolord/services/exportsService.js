@@ -81,7 +81,7 @@ export async function deleteExportedSurface(row) {
     .remove([row.storage_path]);
   if (removeError) {
     throw new Error(
-      `Could not delete stored surface (${removeError.message}) — nothing was deleted; try again.`);
+      `Could not delete stored surface (${removeError.message}). Nothing was deleted; try again.`);
   }
   const { error } = await supabase.from('seismic_exported_surfaces')
     .delete().eq('id', row.id);

@@ -42,9 +42,12 @@ export function surveyFrame(manifest) {
  * @returns {{landed: Array<{name, picks, placed, skipped, collisions,
  *   seed}>, failed: Array<{name, error}>}}
  */
-export function landHorizons({ parsed, manifest, sign, include = null }) {
+export function landHorizons({
+  parsed, manifest, sign, include = null, zScale = 1,
+}) {
   const { geom, affine, lines, dtMs } = surveyFrame(manifest);
-  const zToSample = (z) => (sign * z) / dtMs;
+  // zScale: 1000 for a file in seconds (SEIS-U1-010)
+  const zToSample = (z) => (sign * z * zScale) / dtMs;
   const landed = [];
   const failed = [];
   for (const h of parsed.horizons) {
@@ -88,9 +91,11 @@ export function landHorizons({ parsed, manifest, sign, include = null }) {
  * @returns {Promise<{saved: Object[], landed: Object[], failed: Object[]}>}
  */
 export async function saveImportedHorizons({
-  volume, manifest, parsed, sign, include = null, singleName = null, source,
+  volume, manifest, parsed, sign, include = null, singleName = null, source, zScale = 1,
 }) {
-  const { landed, failed } = landHorizons({ parsed, manifest, sign, include });
+  const { landed, failed } = landHorizons({
+    parsed, manifest, sign, include, zScale,
+  });
   const { dtUs } = surveyFrame(manifest);
   const saved = [];
   for (const h of landed) {
@@ -127,11 +132,11 @@ export async function saveImportedHorizons({
  * @returns {Promise<{saved: Object[], placed, skipped, droppedSticks}>}
  */
 export async function saveImportedFaults({
-  volume, manifest, parsed, sign, singleName = null, source,
+  volume, manifest, parsed, sign, singleName = null, source, zScale = 1,
 }) {
   const { geom, affine, lines, dtMs } = surveyFrame(manifest);
   const { faults, placed, skipped, droppedSticks } = faultSticksToLattice(
-    parsed.faults, geom, lines, affine, (z) => (sign * z) / dtMs,
+    parsed.faults, geom, lines, affine, (z) => (sign * z * zScale) / dtMs,
   );
   const fullSource = {
     ...source,

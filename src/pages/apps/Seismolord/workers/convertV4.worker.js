@@ -15,6 +15,7 @@ import { resolveCodec, hasNativeDeflateRaw, DEFLATE_RAW } from '../engine/brickC
 import { convertToSpool } from '../services/conversionV4';
 import { opfsSpool } from '../services/brickSpool';
 import { createDeflatePool } from '../services/deflatePool';
+import { openSegyDoor } from '../lib/segyDoor';
 
 const cancelled = new Set();
 
@@ -34,8 +35,9 @@ async function handleConvert({ id, file, scan, volumeId, memoryBudgetBytes, pool
   const spool = await opfsSpool(volumeId);
   const { codec, pool } = makeCodec(poolSize);
   try {
+    const { reader } = await openSegyDoor(fileReader(file));
     const record = await convertToSpool({
-      reader: fileReader(file),
+      reader,
       scan,
       spool,
       codec,

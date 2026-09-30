@@ -67,7 +67,8 @@ export function horizonAtWell(row, grid, well) {
   const kb = Number(well.kb_m) || 0;
   const time = row.z_domain === 'time';
   if (time && !(Array.isArray(well.checkshots) && well.checkshots.length >= 2)) return { problem: 'no checkshots for a time horizon' };
-  const zToTvdss = (z) => (time ? tvdssAtTwt(well.checkshots, z) : -z * (row.z_unit === 'ft' ? M_PER_FT : 1));
+  // time rows are positive TWT; a negative value is a pre-2026-09-30 Seismolord row (SEIS-U1-008)
+  const zToTvdss = (z) => (time ? tvdssAtTwt(well.checkshots, Math.abs(z)) : -z * (row.z_unit === 'ft' ? M_PER_FT : 1));
   const tvdssToMd = (t) => (well.frame ? well.frame.tvdssToMd(t) : (t + kb >= 0 ? { md: t + kb, ambiguous: false } : null));
   let x = sx; let y = sy;
   let hit = null; let tvdss = NaN; let z = null;
@@ -87,7 +88,7 @@ export function horizonAtWell(row, grid, well) {
     if (Math.hypot(nx - x, ny - y) * wm < 0.01) break;
     x = nx; y = ny;
   }
-  return { md: hit.md, tvdss, twt: time ? z : (Number.isFinite(twtAtTvdss(well.checkshots, tvdss)) ? twtAtTvdss(well.checkshots, tvdss) : null) };
+  return { md: hit.md, tvdss, twt: time ? Math.abs(z) : (Number.isFinite(twtAtTvdss(well.checkshots, tvdss)) ? twtAtTvdss(well.checkshots, tvdss) : null) };
 }
 
 /** Marker name of a horizon in the section (never a registry top name). */

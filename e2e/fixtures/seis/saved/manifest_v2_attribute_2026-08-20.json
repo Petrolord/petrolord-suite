@@ -1,0 +1,66 @@
+{
+ "_note": "W2.1 derived (attribute) volume.",
+ "manifest_version": 2,
+ "kind": "attribute",
+ "parent": {
+  "volume_id": "vol-parent"
+ },
+ "attribute": {
+  "name": "envelope",
+  "params": {}
+ },
+ "app": "seismolord",
+ "geometry": {
+  "il": {
+   "min": 1001,
+   "max": 1008,
+   "step": 1,
+   "count": 8
+  },
+  "xl": {
+   "min": 2001,
+   "max": 2006,
+   "step": 1,
+   "count": 6
+  },
+  "ns": 40,
+  "dt_us": 4000,
+  "coord_scalar": -100,
+  "corners": {
+   "first": {
+    "x": 500000,
+    "y": 700000
+   },
+   "last": {
+    "x": 500125,
+    "y": 700175
+   }
+  },
+  "affine": {
+   "origin": {
+    "x": 500000,
+    "y": 700000
+   },
+   "il_vec": {
+    "x": 0,
+    "y": 25
+   },
+   "xl_vec": {
+    "x": 25,
+    "y": 0
+   }
+  }
+ },
+ "brick": {
+  "size": 64,
+  "grid": [
+   1,
+   1,
+   1
+  ],
+  "dtype": "float32le"
+ },
+ "stats": {
+  "rms": 120
+ }
+}

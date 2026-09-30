@@ -21,6 +21,8 @@ export function describeImportJob(job) {
     case JOB_PHASE.CONVERTING: {
       const c = job.convert;
       if (!c || c.phase === 'clip') return `${name}: measuring amplitudes`;
+      // SEIS-U1-018: the lattice pass of an irregular or unsorted file
+      if (c.phase === 'index') return `${name}: indexing trace headers ${pct(c.done, c.total)}%`;
       return `${name}: converting ${pct(c.done, c.total)}%`;
     }
     case JOB_PHASE.UPLOADING:

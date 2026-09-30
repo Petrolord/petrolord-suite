@@ -1,0 +1,44 @@
+{
+ "_note": "Pre-versioning manifest (Phase 1, July 2026): no manifest_version, no affine, corners only.",
+ "app": "seismolord",
+ "geometry": {
+  "il": {
+   "min": 1001,
+   "max": 1008,
+   "step": 1,
+   "count": 8
+  },
+  "xl": {
+   "min": 2001,
+   "max": 2006,
+   "step": 1,
+   "count": 6
+  },
+  "ns": 40,
+  "dt_us": 4000,
+  "coord_scalar": -100,
+  "corners": {
+   "first": {
+    "x": 500000,
+    "y": 700000
+   },
+   "last": {
+    "x": 500125,
+    "y": 700175
+   }
+  }
+ },
+ "brick": {
+  "size": 64,
+  "grid": [
+   1,
+   1,
+   1
+  ]
+ },
+ "stats": {
+  "min": -1000,
+  "max": 1000,
+  "rms": 250
+ }
+}
