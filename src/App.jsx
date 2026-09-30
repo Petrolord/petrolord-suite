@@ -142,6 +142,7 @@ const StudiosHarness = lazy(() => import('@/dev/StudiosHarness'));
 const AssuranceHarness = lazy(() => import('@/dev/AssuranceHarness'));
 const HubsHarness = lazy(() => import('@/dev/HubsHarness'));
 const UnitsAppHarness = lazy(() => import('@/dev/UnitsAppHarness'));
+const RouteGuardHarness = lazy(() => import('@/dev/RouteGuardHarness'));
 const ModularRefineryHarness = lazy(() => import('@/dev/ModularRefineryHarness'));
 const CarbonHarness = lazy(() => import('@/dev/CarbonHarness'));
 const ElectrofaciesHarness = lazy(() => import('@/dev/ElectrofaciesHarness'));
@@ -610,8 +611,8 @@ function App() {
                                 <Route path="apps/geoscience/earthmodel-pro" element={<Navigate to="/dashboard/apps/geoscience/earth-modeling" replace />} />
                                 <Route path="apps/geoscience/earth-model-pro" element={<Navigate to="/dashboard/apps/geoscience/earth-modeling" replace />} />
                                 <Route path="apps/geoscience/earth-model-studio/projects" element={<Navigate to="/dashboard/apps/geoscience/earth-modeling" replace />} />
-                                <Route path="apps/geoscience/basinflow-genesis" element={<BasinFlowGenesis />} />
-                                <Route path="apps/geoscience/basinflow-genesis/help" element={<BasinFlowHelpGuide />} />
+                                <Route path="apps/geoscience/basinflow-genesis" element={<ProtectedAppRoute appId="basinflow-genesis" appName="Basin & Charge Modeling"><BasinFlowGenesis /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/basinflow-genesis/help" element={<ProtectedAppRoute appId="basinflow-genesis" appName="Basin & Charge Modeling"><BasinFlowHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/seismolord" element={<ProtectedAppRoute appId="seismolord" appName="Seismolord"><Seismolord /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/seismolord/help" element={<ProtectedAppRoute appId="seismolord" appName="Seismolord"><SeismolordHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/well-data-manager" element={<ProtectedAppRoute appId="well-data-manager" appName="Well Data Manager"><WellDataManager /></ProtectedAppRoute>} />
@@ -625,39 +626,43 @@ function App() {
                                 <Route path="apps/geoscience/mem" element={<Navigate to="/dashboard/apps/drilling/geomechanics-studio" replace />} />
                                 <Route path="apps/geoscience/geomechanics" element={<Navigate to="/dashboard/apps/drilling/geomechanics-studio" replace />} />
                                 
-                                <Route path="apps/reservoir/fluid-systems-studio" element={<FluidSystemsStudio />} />
+                                {/* Route protection 2026-09-30 (docs/scope/AppRouteProtection-STATUS.md): every
+                                    Reservoir app below is licence-gated by its master_apps slug. Waterflood Design
+                                    Studio's slug is fractional-flow-calculator, Well Test Analysis Studio's is
+                                    well-test-analyzer, and every Material Balance alias checks reservoir-balance. */}
+                                <Route path="apps/reservoir/fluid-systems-studio" element={<ProtectedAppRoute appId="fluid-systems-studio" appName="Fluid Systems Studio"><FluidSystemsStudio /></ProtectedAppRoute>} />
                                 {/* W6: surveillance absorbed into the Waterflood Design Studio */}
-                                <Route path="apps/reservoir/waterflood-dashboard" element={<Navigate to="/apps/reservoir/waterflood-design-studio?tab=surveillance" replace />} />
+                                <Route path="apps/reservoir/waterflood-dashboard" element={<Navigate to="/dashboard/apps/reservoir/waterflood-design-studio?tab=surveillance" replace />} />
                                 {/* design system pilot 5: light by default, dark by choice (docs/scope/DesignSystem.md) */}
-                                <Route path="apps/reservoir/voidage-replacement-monitor" element={<VoidageReplacementMonitor />} />
-                                <Route path="apps/reservoir/waterflood-design-studio" element={<WaterfloodDesignStudio />} />
-                                <Route path="apps/reservoir/scal-studio" element={<ScalStudio />} />
+                                <Route path="apps/reservoir/voidage-replacement-monitor" element={<ProtectedAppRoute appId="voidage-replacement-monitor" appName="Voidage Replacement Monitor"><VoidageReplacementMonitor /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/waterflood-design-studio" element={<ProtectedAppRoute appId="fractional-flow-calculator" appName="Waterflood Design Studio"><WaterfloodDesignStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/scal-studio" element={<ProtectedAppRoute appId="scal-studio" appName="SCAL Studio"><ScalStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/reservoir/reservoir-simulation-studio" element={<ProtectedAppRoute appId="reservoir-simulation-studio" appName="Reservoir Simulation Studio"><ReservoirSimulationStudio /></ProtectedAppRoute>} />
-                                <Route path="apps/reservoir/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
+                                <Route path="apps/reservoir/well-test-analysis-studio" element={<ProtectedAppRoute appId="well-test-analyzer" appName="Well Test Analysis Studio"><WellTestAnalysisStudio /></ProtectedAppRoute>} />
                                 {/* tile slug (kept as the entitlement key; WT3 tile migration moves it to Reservoir) */}
-                                <Route path="apps/reservoir/well-test-analyzer" element={<WellTestAnalysisStudio />} />
+                                <Route path="apps/reservoir/well-test-analyzer" element={<ProtectedAppRoute appId="well-test-analyzer" appName="Well Test Analysis Studio"><WellTestAnalysisStudio /></ProtectedAppRoute>} />
                                 {/* legacy slugs (incl. the tile slug) — aliases into the studio */}
-                                <Route path="apps/reservoir/fractional-flow-calculator" element={<WaterfloodDesignStudio />} />
+                                <Route path="apps/reservoir/fractional-flow-calculator" element={<ProtectedAppRoute appId="fractional-flow-calculator" appName="Waterflood Design Studio"><WaterfloodDesignStudio /></ProtectedAppRoute>} />
                                 {/* SC6: rel-perm home is SCAL Studio (alias tile archived by 20260719110500) */}
                                 <Route path="apps/reservoir/relative-permeability-designer" element={<Navigate to="/dashboard/apps/reservoir/scal-studio" replace />} />
-                                <Route path="apps/reservoir/recovery-factor-estimator" element={<RecoveryFactorEstimator />} />
-                                <Route path="apps/reservoir/risked-reserves-valuation" element={<RiskedReservesValuation />} />
-                                <Route path="apps/reservoir/risked-reserves-valuation/help" element={<RiskedReservesHelpGuide />} />
-                                <Route path="apps/reservoir/eor-screening" element={<EorScreeningTool />} />
-                                <Route path="apps/reservoir/eor-screening/help" element={<EorScreeningHelpGuide />} />
-                                <Route path="apps/reservoir/forecast-scenario-hub" element={<ForecastScenarioHub />} />
-                                <Route path="apps/reservoir/forecast-scenario-hub/help" element={<ForecastScenarioHubHelpGuide />} />
+                                <Route path="apps/reservoir/recovery-factor-estimator" element={<ProtectedAppRoute appId="recovery-factor-estimator" appName="Recovery Factor Estimator"><RecoveryFactorEstimator /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/risked-reserves-valuation" element={<ProtectedAppRoute appId="risked-reserves-valuation" appName="Risked Reserves Valuation"><RiskedReservesValuation /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/risked-reserves-valuation/help" element={<ProtectedAppRoute appId="risked-reserves-valuation" appName="Risked Reserves Valuation"><RiskedReservesHelpGuide /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/eor-screening" element={<ProtectedAppRoute appId="eor-screening" appName="EOR Screening"><EorScreeningTool /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/eor-screening/help" element={<ProtectedAppRoute appId="eor-screening" appName="EOR Screening"><EorScreeningHelpGuide /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/forecast-scenario-hub" element={<ProtectedAppRoute appId="forecast-scenario-hub" appName="Forecast Scenario Hub"><ForecastScenarioHub /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/forecast-scenario-hub/help" element={<ProtectedAppRoute appId="forecast-scenario-hub" appName="Forecast Scenario Hub"><ForecastScenarioHubHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/reservoir/aquifer-influx-calculator" element={<Navigate to="/dashboard/apps/reservoir/reservoir-balance?tab=aquifer" replace />} />
-                                <Route path="apps/reservoir/decline-curve-analysis" element={<DeclineCurveAnalysis />} />
-                                <Route path="apps/reservoir/reservoir-balance" element={<ReservoirBalance />} />
-                                <Route path="apps/reservoir/reservoir-balance/cases/:caseId" element={<ReservoirBalance />} />
+                                <Route path="apps/reservoir/decline-curve-analysis" element={<ProtectedAppRoute appId="decline-curve-analysis" appName="Decline Curve Analysis"><DeclineCurveAnalysis /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/reservoir-balance" element={<ProtectedAppRoute appId="reservoir-balance" appName="Material Balance Studio"><ReservoirBalance /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/reservoir-balance/cases/:caseId" element={<ProtectedAppRoute appId="reservoir-balance" appName="Material Balance Studio"><ReservoirBalance /></ProtectedAppRoute>} />
                                 {/* Added multiple aliases to prevent 404 routing mismatches with various database slugs */}
-                                <Route path="apps/reservoir/reservoir-balance-pro" element={<ReservoirBalance />} />
-                                <Route path="apps/reservoir/reservoir-balance-pro/cases/:caseId" element={<ReservoirBalance />} />
-                                <Route path="apps/reservoir/reservoir-balance-surveillance" element={<ReservoirBalance />} />
-                                <Route path="apps/reservoir/reservoir-balance-surveillance/cases/:caseId" element={<ReservoirBalance />} />
-                                <Route path="apps/reservoir/material-balance-studio" element={<ReservoirBalance />} />
-                                <Route path="apps/reservoir/material-balance-studio/cases/:caseId" element={<ReservoirBalance />} />
+                                <Route path="apps/reservoir/reservoir-balance-pro" element={<ProtectedAppRoute appId="reservoir-balance" appName="Material Balance Studio"><ReservoirBalance /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/reservoir-balance-pro/cases/:caseId" element={<ProtectedAppRoute appId="reservoir-balance" appName="Material Balance Studio"><ReservoirBalance /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/reservoir-balance-surveillance" element={<ProtectedAppRoute appId="reservoir-balance" appName="Material Balance Studio"><ReservoirBalance /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/reservoir-balance-surveillance/cases/:caseId" element={<ProtectedAppRoute appId="reservoir-balance" appName="Material Balance Studio"><ReservoirBalance /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/material-balance-studio" element={<ProtectedAppRoute appId="reservoir-balance" appName="Material Balance Studio"><ReservoirBalance /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/material-balance-studio/cases/:caseId" element={<ProtectedAppRoute appId="reservoir-balance" appName="Material Balance Studio"><ReservoirBalance /></ProtectedAppRoute>} />
                                 {/* R0-archived shells (nonexistent scenario-planner-engine) — redirect to their real successors */}
                                 <Route path="apps/reservoir/scenario-planner" element={<Navigate to="/dashboard/apps/reservoir/forecast-scenario-hub" replace />} />
                                 <Route path="apps/reservoir/eor-designer" element={<Navigate to="/dashboard/apps/reservoir/eor-screening" replace />} />
@@ -745,10 +750,10 @@ function App() {
                                 <Route path="apps/production/well-intervention-planner" element={<ProtectedAppRoute appId="well-intervention-planner" appName="Well Intervention Planner"><WellInterventionPlanner /></ProtectedAppRoute>} />
                                 {/* The four shells this replaces were archived at P0 and are
                                     never revived; these slugs stay redirects. */}
-                                <Route path="apps/production/stimulation-candidate-selector" element={<Navigate to="/dashboard/production/apps/production/well-intervention-planner" replace />} />
-                                <Route path="apps/production/water-gas-shutoff-planner" element={<Navigate to="/dashboard/production/apps/production/well-intervention-planner" replace />} />
-                                <Route path="apps/production/workover-planner" element={<Navigate to="/dashboard/production/apps/production/well-intervention-planner" replace />} />
-                                <Route path="apps/production/rigless-intervention-planner" element={<Navigate to="/dashboard/production/apps/production/well-intervention-planner" replace />} />
+                                <Route path="apps/production/stimulation-candidate-selector" element={<Navigate to="/dashboard/apps/production/well-intervention-planner" replace />} />
+                                <Route path="apps/production/water-gas-shutoff-planner" element={<Navigate to="/dashboard/apps/production/well-intervention-planner" replace />} />
+                                <Route path="apps/production/workover-planner" element={<Navigate to="/dashboard/apps/production/well-intervention-planner" replace />} />
+                                <Route path="apps/production/rigless-intervention-planner" element={<Navigate to="/dashboard/apps/production/well-intervention-planner" replace />} />
                                 <Route path="apps/production/production-network-studio" element={<ProtectedAppRoute appId="production-network-studio" appName="Production Network Studio"><ProductionNetworkStudio /></ProtectedAppRoute>} />
                                 {/* Network Diagram Pro was delisted at P0 (a canvas whose Solve
                                     button raised a toast). Its slug stays a redirect: the editor
@@ -1029,6 +1034,7 @@ function App() {
                                     <Route path="/dev/material-balance-studio" element={<MbalHarness />} />
                                     <Route path="/dev/material-balance-studio/cases/:caseId" element={<MbalHarness />} />
                                     <Route path="/dev/units-app/:app" element={<UnitsAppHarness />} />
+                                    <Route path="/dev/route-guard/:page" element={<RouteGuardHarness />} />
                                   </Route>
                                   {/* These two bring their own scope: the specimen shows a scoped and an
                                       unscoped column, and the hubs harness mounts the real DashboardLayout. */}

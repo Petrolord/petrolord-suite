@@ -79,3 +79,67 @@ describe('a companion route opens on any of its licences', () => {
     expect(line).toContain("<ProtectedAppRoute appId={['contour-map-digitizer', 'mapping-surface-studio']}");
   });
 });
+
+// Route protection 2026-09-30 (docs/scope/AppRouteProtection-STATUS.md): the
+// Reservoir and Basin routes that used to render with no licence check now go
+// through this gate on their master_apps slug. The gate itself is exercised
+// here with those slugs; the guard test (src/__tests__/appRouteProtection.test.js)
+// proves App.jsx wires them.
+describe('the newly gated routes', () => {
+  const gate = (appId, name) => (
+    <ProtectedAppRoute appId={appId} appName={name}><div>THE APP</div></ProtectedAppRoute>
+  );
+
+  test.each([
+    ['fractional-flow-calculator', 'Waterflood Design Studio'],
+    ['well-test-analyzer', 'Well Test Analysis Studio'],
+    ['reservoir-balance', 'Material Balance Studio'],
+    ['scal-studio', 'SCAL Studio'],
+    ['basinflow-genesis', 'Basin & Charge Modeling'],
+  ])('no licence for %s: access restricted with the purchase path', async (slug, name) => {
+    mockInvoke.mockResolvedValue({ data: { accessible_app_ids: ['seismolord'], entitlements: [] }, error: null });
+    render(gate(slug, name));
+    await tick(300);
+    expect(screen.queryByText('THE APP')).toBeNull();
+    expect(screen.getByText('Access Restricted')).toBeTruthy();
+    expect(screen.getByText(name)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Purchase License/ })).toBeTruthy();
+  });
+
+  test('a Reservoir module licence (slugs granted by the edge function) opens them', async () => {
+    mockInvoke.mockResolvedValue({
+      data: { accessible_app_ids: ['uuid-1', 'fractional-flow-calculator', 'uuid-2', 'reservoir-balance'], entitlements: [] },
+      error: null,
+    });
+    const { unmount } = render(gate('fractional-flow-calculator', 'Waterflood Design Studio'));
+    await tick(300);
+    expect(screen.getByText('THE APP')).toBeTruthy();
+    unmount();
+    render(gate('reservoir-balance', 'Material Balance Studio'));
+    await tick(300);
+    expect(screen.getByText('THE APP')).toBeTruthy();
+  });
+
+  test('one Reservoir app licence does not open another', async () => {
+    mockInvoke.mockResolvedValue({ data: { accessible_app_ids: ['fractional-flow-calculator'], entitlements: [] }, error: null });
+    render(gate('well-test-analyzer', 'Well Test Analysis Studio'));
+    await tick(300);
+    expect(screen.getByText('Access Restricted')).toBeTruthy();
+  });
+
+  test('a failed entitlement read fails closed', async () => {
+    mockInvoke.mockResolvedValue({ data: null, error: new Error('boom') });
+    render(gate('decline-curve-analysis', 'Decline Curve Analysis'));
+    await tick(300);
+    expect(screen.queryByText('THE APP')).toBeNull();
+    expect(screen.getByText('Access Restricted')).toBeTruthy();
+  });
+
+  test('a super admin opens a gated app with no licence', async () => {
+    mockAuthValue = { user: { id: 'u1' }, isSuperAdmin: true, loading: false };
+    mockInvoke.mockResolvedValue({ data: { accessible_app_ids: [], entitlements: [] }, error: null });
+    render(gate('scal-studio', 'SCAL Studio'));
+    await tick(100);
+    expect(screen.getByText('THE APP')).toBeTruthy();
+  });
+});
