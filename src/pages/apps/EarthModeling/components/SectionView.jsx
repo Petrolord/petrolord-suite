@@ -32,7 +32,7 @@ export function grTrack(values, cutoff = 75) {
 
 const SectionView = forwardRef(function SectionView({
   spec, clamped = [], surfaceNames = [], zoneNames = [], vertices = null, ties = [],
-  projected = [], depthUnit = 'm', ve = 1, width = null,
+  projected = [], depthUnit = 'm', ve = 1, width = null, xyToM = 1,
 }, ref) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
@@ -82,7 +82,9 @@ const SectionView = forwardRef(function SectionView({
     zMin -= zPad; zMax += zPad;
 
     const plotW = cssW - PAD.l - PAD.r;
-    const sc = sectionScale({ total: path.total, zMin, zMax, plotW, ve });
+    // EM-U1-001: horizontal metres on any frame, so VE compares metres with metres
+    const totalM = path.total * xyToM;
+    const sc = sectionScale({ total: totalM, zMin, zMax, plotW, ve });
     const cssH = sc.plotH + PAD.t + PAD.b;
     canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
     canvas.style.width = `${cssW}px`; canvas.style.height = `${cssH}px`;
@@ -147,7 +149,7 @@ const SectionView = forwardRef(function SectionView({
       ctx.beginPath(); ctx.moveTo(px, PAD.t); ctx.lineTo(px, cssH - PAD.b); ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillStyle = '#e2e8f0'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(`${p.well.name}${p.offset > 1 ? ` (${p.offset.toFixed(0)} m off)` : ''}`, px, 12);
+      ctx.fillText(`${p.well.name}${p.offset * xyToM > 1 ? ` (${(p.offset * xyToM).toFixed(0)} m off)` : ''}`, px, 12);
       if (p.gr && p.gr.tvdss.length > 1) {
         const depth = p.gr.tvdss;
         let i0 = 0; while (i0 < depth.length - 1 && depth[i0] < zMin) i0 += 1;
@@ -188,9 +190,9 @@ const SectionView = forwardRef(function SectionView({
       ctx.strokeStyle = 'rgba(148,163,184,0.15)'; ctx.beginPath(); ctx.moveTo(PAD.l, yPx(z)); ctx.lineTo(cssW - PAD.r, yPx(z)); ctx.stroke();
     }
     ctx.textAlign = 'center';
-    ctx.fillText(`${path.total.toFixed(0)} m along the line, vertical exaggeration ${sc.exaggeration.toFixed(1)}x`, (PAD.l + cssW - PAD.r) / 2, cssH - 8);
+    ctx.fillText(`${totalM.toFixed(0)} m along the line, vertical exaggeration ${sc.exaggeration.toFixed(1)}x`, (PAD.l + cssW - PAD.r) / 2, cssH - 8);
     ctx.save(); ctx.translate(12, cssH / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(`TVDSS (${depthUnit})`, 0, 0); ctx.restore();
-  }, [spec, clamped, surfaceNames, zoneNames, vertices, ties, projected, depthUnit, ve, width]);
+  }, [spec, clamped, surfaceNames, zoneNames, vertices, ties, projected, depthUnit, ve, width, xyToM]);
 
   return (
     <div ref={wrapRef} className="w-full overflow-auto" data-testid="em-section-wrap">

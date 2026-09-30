@@ -73,9 +73,11 @@ export function makeDerivedEntry(form, rows, depthUnit = 'm') {
  * The derived grid on the source's frame, metres positive down.
  * @param {object} d derived entry
  * @param {object[]} rows allSurfaceRows
- * @param {(row) => Promise<Float32Array>} loadDepthDown registry grid as depth-down metres (or raw thickness in metres for isochores)
+ * @param {(row) => Promise<Float32Array>} loadDepthDown registry grid as depth-down metres
+ * @param {(row) => Promise<Float32Array>} [loadIsochore] an isochore row in metres (EM-U1-002:
+ *   the build passes the shared door; without it the raw grid is converted by its z_unit)
  */
-export async function computeDerivedGrid(d, rows, loadDepthDown) {
+export async function computeDerivedGrid(d, rows, loadDepthDown, loadIsochore = null) {
   const src = rows.find((s) => s.id === d.sourceId);
   if (!src) throw new Error('A derived horizon lost its source surface. Remove it from the model.');
   const srcSpec = specOf(src);
@@ -84,8 +86,9 @@ export async function computeDerivedGrid(d, rows, loadDepthDown) {
     if (d.isochoreId) {
       const iso = rows.find((s) => s.id === d.isochoreId);
       if (!iso) throw new Error('A derived horizon lost its thickness surface. Remove it from the model.');
-      const raw = await loadDepthDown(iso);
-      const tM = iso.z_unit === 'ft' ? convertZUnit(raw, 'ft', 'm') : raw;
+      let tM;
+      if (loadIsochore) tM = await loadIsochore(iso);
+      else { const raw = await loadDepthDown(iso); tM = iso.z_unit === 'ft' ? convertZUnit(raw, 'ft', 'm') : raw; }
       const t = resampleTo(tM, specOf(iso), srcSpec);
       return parallelSurface(zSrc, t);
     }
