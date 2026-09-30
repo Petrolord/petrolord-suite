@@ -778,15 +778,15 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       const r = runArithmetic({ op: arith.op, a: { surface: a, grid: ga }, b: b ? { surface: b, grid: gb } : null, k: arith.k, boundary });
       snapshot();
       setPreview({
-        spec: r.spec, grid: r.grid, name: r.name, kind: r.kind, zDomain: r.zDomain,
+        spec: r.spec, grid: r.grid, name: r.name, kind: r.kind, zDomain: r.zDomain, zUnit: r.zUnit ?? undefined,
         crs: consensusTag([a.crs, ...(b ? [b.crs] : [])]),
         provenance: r.provenance,
       });
-      setDisplaySurface({ ...r.spec, origin_x: r.spec.x0, origin_y: r.spec.y0, name: r.name, kind: r.kind, z_domain: r.zDomain, crs: a.crs, xy_unit: xyUnitOf(a) });
+      setDisplaySurface({ ...r.spec, origin_x: r.spec.x0, origin_y: r.spec.y0, name: r.name, kind: r.kind, z_domain: r.zDomain, z_unit: r.zUnit ?? null, crs: a.crs, xy_unit: xyUnitOf(a) });
       setDisplayGrid(r.grid);
       setSelectedId(null);
       setPosted(null);
-      setStatus(`${arith.op === 'thickness' ? 'Isochore' : 'Computed'} ${r.name}${isLengthSurface({ kind: r.kind, z_domain: r.zDomain }) ? ` (${depthUnit})` : ''}: review, then Publish.`);
+      setStatus(`${arith.op === 'thickness' ? 'Isochore' : 'Computed'} ${r.name}${isLengthSurface({ kind: r.kind, z_domain: r.zDomain }) ? ` (${depthUnit})` : ''}${r.isopach ? `: thickness perpendicular to bedding, dip from the mid-surface (steepest ${r.isopach.max_dip_deg == null ? EMPTY_VALUE : `${r.isopach.max_dip_deg.toFixed(1)} deg`})${r.isopach.base_above_top_nodes ? `; ${r.isopach.base_above_top_nodes} nodes where the base is above the top are left empty` : ''}` : ''}: review, then Publish.`);
     } catch (e) { setStatus(e.message); }
   };
 

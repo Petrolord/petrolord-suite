@@ -185,3 +185,30 @@ describe('MAP-U2-003: scattered points and a rotated lattice from a file grid in
     expect(readSurfaceFile('0 0 1\n10 0 2\n0 10 3\n10 10 4').g.nx).toBe(2);
   });
 });
+
+describe('MAP-U2-009: the isopach beside the isochore', () => {
+  // eslint-disable-next-line global-require
+  const { runArithmetic } = require('../services/arithmetic');
+  const theta = (30 * Math.PI) / 180;
+  const row = (id, extra = {}) => ({ id, name: id, kind: 'structure', z_domain: 'depth', origin_x: 0, origin_y: 0, nx: 20, ny: 10, dx: 50, dy: 50, xy_unit: 'm', ...extra });
+  const plane = (off) => Float32Array.from({ length: 200 }, (_, i) => -2000 - Math.tan(theta) * (i % 20) * 50 - off);
+  test('a 30 degree layer 100 m thick vertically is 86.6 m thick perpendicular to bedding', () => {
+    const iso = runArithmetic({ op: 'thickness', a: { surface: row('Top'), grid: plane(0) }, b: { surface: row('Base'), grid: plane(100) } });
+    const tst = runArithmetic({ op: 'isopach', a: { surface: row('Top'), grid: plane(0) }, b: { surface: row('Base'), grid: plane(100) } });
+    expect(iso.grid[45]).toBeCloseTo(100, 3);
+    expect(tst.grid[45]).toBeCloseTo(100 * Math.cos(theta), 3);
+    // negative control: the isochore is not the isopach on a dipping layer
+    expect(iso.grid[45] - tst.grid[45]).toBeGreaterThan(13);
+    expect(tst.kind).toBe('attribute');
+    expect(tst.zUnit).toBe('m');
+    expect(tst.name).toMatch(/isopach \(true stratigraphic thickness, m\)/);
+    expect(tst.isopach.max_dip_deg).toBeCloseTo(30, 3);
+  });
+  test('a US-feet frame measures the dip in metres; time, isochore and degree frames refuse', () => {
+    const k = 1200 / 3937;
+    const ft = runArithmetic({ op: 'isopach', a: { surface: row('Top', { dx: 50 / k, dy: 50 / k, xy_unit: 'ftUS' }), grid: plane(0) }, b: { surface: row('Base', { dx: 50 / k, dy: 50 / k, xy_unit: 'ftUS' }), grid: plane(100) } });
+    expect(ft.grid[45]).toBeCloseTo(100 * Math.cos(theta), 2);
+    expect(() => runArithmetic({ op: 'isopach', a: { surface: row('T', { z_domain: 'time' }), grid: plane(0) }, b: { surface: row('B'), grid: plane(100) } })).toThrow(/two depth structure surfaces/);
+    expect(() => runArithmetic({ op: 'isopach', a: { surface: row('T', { xy_unit: 'deg' }), grid: plane(0) }, b: { surface: row('B'), grid: plane(100) } })).toThrow(/projected frame/);
+  });
+});

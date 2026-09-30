@@ -306,6 +306,14 @@ export default function MappingHelpGuide() {
           B is resampled onto A's frame bilinearly before any two-surface operation, so the result has A's grid.
           Preview, then Publish.
         </Para>
+        <SubHeading>Isochore and isopach</SubHeading>
+        <Para>
+          The isochore is the vertical thickness between a top and a base (top minus base). The isopach is the true
+          stratigraphic thickness, measured perpendicular to bedding: the isochore times the cosine of the dip, with
+          the dip taken from the mid-surface of the two. On a 30 degree flank a 100 m isochore is an 86.6 m isopach.
+          The isopach is published as an attribute in metres, so no other app reads it as a vertical thickness.
+        </Para>
+        <Formula>isopach = isochore × cos(dip),  tan(dip) = |gradient of the mid-surface|</Formula>
         <SubHeading>Quick GRV</SubHeading>
         <Para>
           Type a contact in the display unit, as an elevation (negative below datum) or as a depth below datum
