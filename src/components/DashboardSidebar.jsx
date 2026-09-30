@@ -24,6 +24,7 @@ import {
   HardHat,
   Monitor,
   DatabaseBackup,
+  Ruler,
   LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -170,6 +171,9 @@ const DashboardSidebar = ({ onNavigate, className }) => {
             <>
               <SectionLabel>Organization Administration</SectionLabel>
               
+              {/* Suite unit profile: everyone sets their own units; admins also set the organisation default */}
+              <SidebarItem icon={Ruler} label="Units" to="/dashboard/units" onNavigate={onNavigate} />
+
               {canSuite(SUITE_PERMISSIONS.MANAGE_USERS) && (
                 <>
                   <SidebarItem icon={Users} label="Employees" to="/dashboard/employees" onNavigate={onNavigate} disabled={isImpersonating} />

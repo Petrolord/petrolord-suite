@@ -334,6 +334,7 @@ const ModuleAccess = lazy(() => import('@/pages/ModuleAccess'));
 const SeatManagement = lazy(() => import('@/pages/SeatManagement'));
 const EmployeeManagement = lazy(() => import('@/pages/EmployeeManagement'));
 const DataExport = lazy(() => import('@/pages/DataExport'));
+const UnitSettings = lazy(() => import('@/pages/UnitSettings'));
 const AccessRequests = lazy(() => import('@/pages/admin/AccessRequests'));
 const SubscriptionManagement = lazy(() => import('@/pages/SubscriptionManagement'));
 const RenewSubscription = lazy(() => import('@/pages/RenewSubscription'));
@@ -501,6 +502,8 @@ function App() {
                                 <Route path="seats" element={<SeatManagement />} />
                                 <Route path="employees" element={<EmployeeManagement />} />
                                 <Route path="access-requests" element={<AccessRequests />} />
+                                {/* Suite unit profile: every member sees it; RLS decides who edits the organisation default */}
+                                <Route path="units" element={<UnitSettings />} />
                                 
                                 <Route path="data-export" element={
                                   <ProtectedRoute requiredPermission={SUITE_PERMISSIONS.MANAGE_ORGANIZATION}>
