@@ -190,12 +190,12 @@ describe('STRAT-U1-009/010/012/018 the studio section after Well Correlation U2'
     await waitFor(() => expect(screen.getByTestId('strat-section-summary').textContent).toContain('2 wells'));
     fireEvent.click(screen.getByTestId('strat-save-view'));
     await waitFor(() => expect(onSaveProject).toHaveBeenCalled());
-    expect(onSaveProject.mock.calls[0][0].view.sectionId).toBe('sec-a');
+    expect(onSaveProject.mock.calls[0][0].section_id).toBe('sec-a');
   });
 
   test('U1-009 a remembered section opens again', async () => {
     const backend = twoSections();
-    renderSection(backend, { saved: { flatten: { mode: 'structural' }, view: { sectionId: 'sec-a' } } });
+    renderSection(backend, { saved: { section_id: 'sec-a', flatten: { mode: 'structural' }, view: {} } });
     await waitFor(() => expect(screen.getByTestId('strat-section-controls').getAttribute('data-section-id')).toBe('sec-a'));
     await waitFor(() => expect(screen.getByTestId('strat-section-summary').textContent).toContain('2 wells'));
   });
@@ -356,5 +356,15 @@ describe('STRAT-U1-016 a column comes in from a Petrel, StrataBugs or spreadshee
     const { rows, notes } = parseColumnFile(read('column_petrel_zones.csv'), [{ id: 'u1', name: 'Agbada' }]);
     expect(rows.map((r) => r.name)).toEqual(['Upper Agbada', 'Lower Agbada', 'Akata']);
     expect(notes.join(' ')).toMatch(/Agbada is already in the column/);
+  });
+});
+
+describe('STRAT-U1-020 a view saved by an earlier release that names a gone well or top', () => {
+  test('the ghost is switched off and the missing datum top is named (origin/main: silent)', async () => {
+    const backend = makeInMemoryBackend();
+    const onStatus = jest.fn();
+    renderSection(backend, { onStatus, saved: { flatten: { mode: 'flatten', topName: 'Top Chalk', datumM: 1500 }, view: { ghost: { sourceWellId: 'deleted-well', targetWellId: 'corr-w2', shiftM: 0 } } } });
+    await waitFor(() => expect(onStatus).toHaveBeenCalledWith(expect.stringMatching(/^Saved stratigraphy view restored; its ghost curve names a well no longer in the section.*no section well carries "Top Chalk"/)));
+    expect(screen.getByTestId('corr-section').getAttribute('data-ghost')).toBe('');
   });
 });

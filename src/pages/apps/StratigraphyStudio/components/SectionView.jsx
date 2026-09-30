@@ -62,6 +62,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   const [showMotifs, setShowMotifs] = useState(true);
   const [busy, setBusy] = useState(false);
   const [restored, setRestored] = useState(false);
+  const [restoreCheck, setRestoreCheck] = useState(false);
 
   // restore the studio's own view state once, after the shared section has loaded
   // (a remembered named section opens first, then the studio's datum and view)
@@ -69,14 +70,30 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
     if (restored || !saved || !sec.sectionLoaded) return;
     setRestored(true);
     (async () => {
-      const id = saved.view?.sectionId;
+      // strat_projects.section_id (FK, on delete set null; remapped by the .pld import)
+      const id = saved.section_id || null;
       if (id && id !== sec.sectionId && sections.some((x) => x.id === id)) await sec.openSection(id);
       if (saved.flatten?.mode) setDatum(saved.flatten);
       if (saved.view?.ghost) setGhost(saved.view.ghost);
       if (['md', 'tvd', 'tvdss', 'twt'].includes(saved.view?.depthRef)) setDepthRef(saved.view.depthRef);
       if (saved.view?.depthUnit === 'm' || saved.view?.depthUnit === 'ft') setDepthUnit(saved.view.depthUnit);
+      setRestoreCheck(true);
     })();
   }, [saved, restored, sec.sectionLoaded, sections]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // STRAT-U1-020 (PL5): a view saved by an earlier release may name a well or
+  // a top the section no longer has; say so once the section wells are in
+  useEffect(() => {
+    if (!restoreCheck || sectionWells.length < order.length) return;
+    setRestoreCheck(false);
+    const ids = new Set(sectionWells.map((w) => w.id));
+    const notes = [];
+    if (ghost && (!ids.has(ghost.sourceWellId) || !ids.has(ghost.targetWellId))) { setGhost(null); notes.push('its ghost curve names a well no longer in the section, so the ghost is off'); }
+    const need = datum.mode === 'flatten' ? [datum.topName] : datum.mode === 'stretch' ? [datum.upperName, datum.lowerName] : [];
+    const gone = need.filter((n) => n && !topNames.includes(n));
+    if (gone.length) notes.push(`no section well carries ${gone.map((n) => `"${n}"`).join(' or ')}, so the datum cannot hang`);
+    if (notes.length) onStatus(`Saved stratigraphy view restored; ${notes.join('; ')}.`);
+  }, [restoreCheck, sectionWells, order]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // every well's intervals for the tract and motif overlays
   const intervalsByWell = useMemo(() => Object.fromEntries(order.map((id) => [id, wellData[id]?.intervals || []])), [order, wellData]);
@@ -156,7 +173,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   const saveView = async () => {
     if (!onSaveProject) return;
     try {
-      await onSaveProject({ flatten: datum, view: { ghost, showTracts, showMotifs, sectionId: sec.sectionId || null, depthRef, depthUnit } });
+      await onSaveProject({ section_id: sec.sectionId || null, flatten: datum, view: { ghost, showTracts, showMotifs, depthRef, depthUnit } });
       onStatus('Stratigraphy view saved.');
     } catch (e) { onStatus(e.message); }
   };

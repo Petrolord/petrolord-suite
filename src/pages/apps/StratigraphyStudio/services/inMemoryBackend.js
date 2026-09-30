@@ -8,6 +8,7 @@
 import { sampleWells } from '../../WellCorrelation/services/sampleSection';
 import { openSectionRow } from '@/components/wells/section/sectionState';
 import { openStratProjectRow } from '@/lib/stratigraphy/stratProjectState';
+import { makeInMemoryBackend as makeBasinMemory } from '../../BasinFlowGenesis/services/backend';
 
 // AppUpgrade STRAT-U1-011 (2026-09-30): the harness was blind to surveys,
 // CRSs and checkshots (publicWell dropped them, carried from WDM-U1-018),
@@ -52,7 +53,9 @@ export function makeInMemoryBackend({ sample = true, seedWells = [], sections: s
   const newest = () => [...sections].sort((a, b) => b._t - a._t)[0] || null;
   const strip = (r) => { if (!r) return null; const { _t, ...rest } = r; return { ...rest }; };
   let project = seedProject ? { ...seedProject } : null;
-  const basinModels = [];   // ST3 handoff target (the harness has no Basin store)
+  const basinModels = [];   // ST3 handoff record for tests
+  // STRAT-U1-019: the handoff lands in the Basin harness's own store, so "Open Basin" shows it
+  const basin = makeBasinMemory();
 
   const own = (wellId, what) => {
     const w = wells.find((x) => x.id === wellId);
@@ -186,7 +189,7 @@ export function makeInMemoryBackend({ sample = true, seedWells = [], sections: s
       return { ...row };
     },
     async currentUserId() { return 'user-a'; },
-    async createBasinModel(row) { basinModels.push({ ...row }); return { ...row }; },
+    async createBasinModel(row) { basinModels.push({ ...row }); await basin.insertWell({ ...row }); return { ...row }; },
     _basinModels: () => basinModels,
 
     async listUnits() { return units.map((u) => ({ ...u })); },
