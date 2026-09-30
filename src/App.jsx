@@ -167,6 +167,7 @@ const WellCorrelationHarness = lazy(() => import('@/pages/apps/WellCorrelation/W
 const StratigraphyStudioHarness = lazy(() => import('@/pages/apps/StratigraphyStudio/StratigraphyStudioHarness'));
 const WellsiteStudioHarness = lazy(() => import('@/pages/apps/WellsiteStudio/WellsiteStudioHarness'));
 const MappingSurfaceStudioHarness = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingSurfaceStudioHarness'));
+const ContourMapDigitizerHarness = lazy(() => import('@/pages/apps/ContourMapDigitizerHarness'));
 const ProspectRiskingHarness = lazy(() => import('@/pages/apps/ReservoirCalcPro/ProspectRiskingHarness'));
 const RiskedReservesHarness = lazy(() => import('@/pages/apps/riskedreserves/RiskedReservesHarness'));
 const ReservoirCalcProHarness = lazy(() => import('@/pages/apps/ReservoirCalcPro/ReservoirCalcProHarness'));
@@ -979,6 +980,7 @@ function App() {
                                     <Route path="/dev/stratigraphy-studio" element={<StratigraphyStudioHarness />} />
                                     <Route path="/dev/wellsite-studio" element={<WellsiteStudioHarness />} />
                                     <Route path="/dev/mapping-surface-studio" element={<MappingSurfaceStudioHarness />} />
+                                    <Route path="/dev/contour-map-digitizer" element={<ContourMapDigitizerHarness />} />
                                     <Route path="/dev/prospect-risking" element={<ProspectRiskingHarness />} />
                                     <Route path="/dev/risked-reserves" element={<RiskedReservesHarness />} />
                                     <Route path="/dev/reservoircalc-pro" element={<ReservoirCalcProHarness />} />
