@@ -246,7 +246,9 @@ export function createImportJobManager(deps) {
           cancelToken: job.cancelToken,
           onProgress: (p) => {
             setView(job, { convert: p });
-            publish({ fileName: file.name, phase: 'transcode', done: p.done, total: p.total });
+            publish({
+              fileName: file.name, phase: p.phase === 'index' ? 'scan' : 'transcode', done: p.done, total: p.total,
+            });
           },
         });
         job.record = record;

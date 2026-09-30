@@ -289,3 +289,12 @@ describe('SEIS-U1-002 an irregular outline and a crossline-sorted survey import'
     if (name === 'irregular_outline.sgy') expect(at(0, 20)).toBe(Math.fround(NULL_VALUE));
   });
 });
+
+describe('SEIS-U1-018 the lattice pass is named in the progress (no converting 100 % then 0 %)', () => {
+  test('describeImportJob says indexing during the index phase', async () => {
+    const { describeImportJob } = await import('../components/workspace/ImportJobsIndicator');
+    const { JOB_PHASE } = await import('../services/importJobs');
+    expect(describeImportJob({ name: 'irr.sgy', phase: JOB_PHASE.CONVERTING, convert: { phase: 'index', done: 1, total: 4 } }))
+      .toBe('irr.sgy: indexing trace headers 25%');
+  });
+});
