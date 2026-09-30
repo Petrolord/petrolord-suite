@@ -59,6 +59,7 @@ import {
 import { resampleTo } from '@/lib/gridding/gridmath';
 import { describeGridResult, topMapKind } from '../services/gridStatus';
 import { xyUnitOf, metresPerXy, metresToXy, XY_UNIT_LABEL } from '../services/xyUnits';
+import { mapCaption, readReport, writeReport } from '../services/mapReport';
 import { parseWellsParam, parseNetParam, appPath, MAPPING_ID } from '@/components/wells/appLinks';
 import { environmentPoints } from '@/lib/stratigraphy/stratMaps';
 import { verticalThicknessPoints } from '@/lib/stratigraphy/verticalThickness';
@@ -146,6 +147,9 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
   // posting, legend, scale bar, north arrow, axes; saved with a surface
   // in provenance.display and restored on select
   const [mapSettings, setMapSettings] = useState(DEFAULT_MAP_DISPLAY);
+  // MAP-U1-013: field and analyst for the exported map's header, per browser
+  const [report, setReport] = useState(readReport);
+  useEffect(() => { writeReport(report); }, [report]);
   const [posted, setPosted] = useState(null); // well -> {z, x, y} of the preview's control points
   const viewRef = useRef(null);
   // MS2: import dialog and the in-place re-grid target
@@ -639,16 +643,23 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
     try {
       const zf = (m) => fmtZ(m, { kind: 'structure', z_domain: 'depth' });
       const mm3 = (v) => `${(v / 1e6).toFixed(2)} million m³`;
-      const mapBlob = await viewRef.current.toPng({ title: displaySurface.name, caption: `${depthUnit}, ${zConventionText}`, theme: 'print' });
+      const cap = exportCaption();
+      const mapBlob = await viewRef.current.toPng({ title: cap.title, caption: cap.caption, theme: 'print' });
       const rows = [
         ['Crest', zf(grvData.crestZ)],
         ['Spill', `${zf(grvData.spill.z)}${grvData.spill.limitedByEdge ? ' (map edge)' : ''}`],
         ['Contact', zf(grvData.contactM)],
         ['Closed area', `${grvData.areaKm2.toFixed(2)} km²`],
         ['GRV', mm3(grvData.grvM3)],
-        ...(grvData.range ? [['GRV P90 / P50 / P10', `${(grvData.range.p90 / 1e6).toFixed(1)} / ${(grvData.range.p50 / 1e6).toFixed(1)} / ${(grvData.range.p10 / 1e6).toFixed(1)} million m³`]] : []),
+        // MAP-U1-014: the range says how it was made, as the read-out does
+        ...(grvData.range ? [['GRV P90 / P50 / P10 (kriging variance, fully correlated)', `${(grvData.range.p90 / 1e6).toFixed(1)} / ${(grvData.range.p50 / 1e6).toFixed(1)} / ${(grvData.range.p10 / 1e6).toFixed(1)} million m³`]] : []),
+        ['Field / analyst', `${report.field || EMPTY_VALUE} / ${report.analyst || EMPTY_VALUE}`],
       ];
-      const note = grvData.open ? 'Not a trap volume: the closure runs off the mapped area, so the GRV is a minimum.' : '';
+      const note = [
+        grvData.open ? 'Not a trap volume: the closure runs off the mapped area, so the GRV is a minimum.' : '',
+        grvData.range ? 'The range moves every node together by the kriging standard deviation (fully correlated), so it is wider than a range from independent realisations.' : '',
+        cap.caption[2],
+      ].filter(Boolean).join(' ');
       const blob = await prospectCardPng({ mapBlob, title: `${displaySurface.name}: prospect`, rows, note });
       downloadBlob(blob, `${String(displaySurface.name).replace(/[^\w-]+/g, '_')}-prospect-card.png`);
       setStatus(`Exported the prospect card of ${displaySurface.name}.`);
@@ -1034,17 +1045,20 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
     }
   };
 
+  const exportCaption = () => {
+    const surface = preview && displayGrid === preview.grid
+      ? { ...displaySurface, provenance: preview.provenance, z_unit: preview.zUnit ?? displaySurface?.z_unit }
+      : displaySurface;
+    const step = contourPlan({ grid: displayGrid, typed: mapSettings.contourStep, unit: depthUnit, isLength: isLengthSurface(displaySurface) }).stepDisp;
+    return mapCaption({ surface, depthUnit, depthPositive, contourStep: step || null, report });
+  };
   const exportPng = async () => {
     if (!viewRef.current || !displaySurface) return;
     try {
-      const crsTxt = displaySurface.crs ? ` · ${displaySurface.crs}` : '';
-      const unitTxt = isLengthSurface(displaySurface) ? `${depthUnit}, ${displaySign(displaySurface, depthPositive) < 0 ? 'depth positive down' : 'elevation negative down'}` : 'attribute';
-      // T1 (MAP-T1-010): the export is the white report page, not the dark screen
-      const blob = await viewRef.current.toPng({
-        title: displaySurface.name,
-        caption: `${displaySurface.kind || 'surface'} · ${unitTxt}${crsTxt} · ${new Date().toISOString().slice(0, 10)}`,
-        theme: 'print',
-      });
+      // T1 (MAP-T1-010): the export is the white report page, not the dark screen;
+      // MAP-U1-013: its header carries what a reviewer signs against
+      const { title, caption } = exportCaption();
+      const blob = await viewRef.current.toPng({ title, caption, theme: 'print' });
       downloadBlob(blob, `${String(displaySurface.name).replace(/[^\w-]+/g, '_')}-map.png`);
       setStatus(`Exported ${displaySurface.name} as PNG.`);
     } catch (e) { setStatus(e.message); }
@@ -1252,6 +1266,13 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
                   <span>{text}</span>
                 </label>
               ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-1" data-testid="map-report">
+              <input className={selCls} data-testid="map-report-field" placeholder="Field (export header)" value={report.field}
+                onChange={(e) => setReport((r) => ({ ...r, field: e.target.value }))} />
+              <input className={selCls} data-testid="map-report-analyst" placeholder="Analyst" value={report.analyst}
+                onChange={(e) => setReport((r) => ({ ...r, analyst: e.target.value }))} />
             </div>
 
             <div className="pt-2 border-t border-pl-border text-[10px] uppercase tracking-wider text-pl-muted flex items-center gap-1"><Pentagon className="w-3 h-3" /> Polygons</div>

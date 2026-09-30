@@ -83,3 +83,28 @@ describe('MAP-U1-002: a TVD top map is not a structure map', () => {
     expect(say('md')).not.toContain('elevation');
   });
 });
+
+import { mapCaption, sourceText } from '../services/mapReport';
+
+describe('MAP-U1-013: the exported map carries a reviewer header', () => {
+  const surface = {
+    name: 'Top Dome structure', kind: 'structure', z_domain: 'depth', crs: 'EPSG:32632',
+    provenance: { source: { type: 'top', key: 'Top Dome' }, method: 'tension', control_points: 5, cell_m: 150, depth_ref: 'tvdss', faults: [{ name: 'F1' }], boundary: { name: 'OML 99' } },
+  };
+  test('source, method, cell, faults, unit, sign, contour interval, CRS, field, analyst, date and build', () => {
+    const { title, caption } = mapCaption({ surface, depthUnit: 'ft', contourStep: 25, report: { field: 'Keta', analyst: 'A. Geologist' }, now: new Date('2026-09-30T12:00:00Z'), build: 'Petrolord Suite 4.0.0 (abc)' });
+    expect(title).toBe('Top Dome structure · Keta');
+    expect(caption[0]).toBe('Top Top Dome from 5 control points, TVDSS at the borehole, spline in tension, cell 150 m, fault blocks F1, clipped to OML 99');
+    expect(caption[1]).toBe('Elevation, negative below mean sea level in ft · Contour interval 25 ft · CRS EPSG:32632 (XY in metres)');
+    expect(caption[2]).toBe('Field Keta · Analyst A. Geologist · 2026-09-30 · Petrolord Suite 4.0.0 (abc)');
+    // Latin-1 only, so the jsPDF and canvas fonts can print it
+    for (const line of [title, ...caption]) expect(/^[\x20-\xff]*$/.test(line)).toBe(true);
+  });
+  test('missing values say n/a; no CRS says so; time and imports read right', () => {
+    const { caption } = mapCaption({ surface: { name: 'H1', kind: 'structure', z_domain: 'time', provenance: { imported_from: { file_name: 'h1.zmap' } } }, depthUnit: 'm' });
+    expect(caption[0]).toBe('Imported from h1.zmap');
+    expect(caption[1]).toBe('Two-way time in ms · Contour interval n/a · No CRS: placement unverified');
+    expect(caption[2]).toMatch(/^Field n\/a · Analyst n\/a · /);
+    expect(sourceText({ provenance: { arithmetic: { op: 'add' } } })).toBe('Surface arithmetic (add)');
+  });
+});
