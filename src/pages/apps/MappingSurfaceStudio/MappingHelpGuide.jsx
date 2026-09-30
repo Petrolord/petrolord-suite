@@ -187,6 +187,7 @@ export default function MappingHelpGuide() {
           ['Colour map', 'Display, Colour map: the structure ramp (shallow warm) or any shared colour map, with a reverse toggle'],
           ['Posting', 'Display: well names, posted values (the control value at each well), legend, scale bar, north arrow, axes'],
           ['PNG', 'PNG in the ribbon: a titled, captioned, logo-stamped image of the map at twice the screen resolution'],
+          ['PDF to scale', 'PDF in the ribbon: one page plotted at 1:N (paper and scale in the dock; blank picks the largest standard scale that fits). Vector contours, faults, boundary and wells, a coordinate grid in the CRS units, a scale bar in metres, grid north and a title block with the reviewer header. Print at 100% with no fit to page'],
         ]} />
         <Para>
           Display settings are saved with a surface when you publish it and restored when you select it.

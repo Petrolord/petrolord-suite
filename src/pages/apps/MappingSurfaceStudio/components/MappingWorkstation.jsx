@@ -18,7 +18,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Map as MapIcon, Loader2, UploadCloud, Sigma, Globe2, Image as ImageIcon, SlidersHorizontal,
-  Pentagon, Square, MapPin, Calculator, Clock, Trash2, Eye, EyeOff, HelpCircle, Spline,
+  Pentagon, Square, MapPin, Calculator, Clock, Trash2, Eye, EyeOff, HelpCircle, Spline, FileText,
 } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
@@ -62,6 +62,7 @@ import { resampleTo } from '@/lib/gridding/gridmath';
 import { describeGridResult, topMapKind } from '../services/gridStatus';
 import { xyUnitOf, metresPerXy, metresToXy, XY_UNIT_LABEL, controlPointsInWellFrame } from '../services/xyUnits';
 import { mapCaption, readReport, writeReport } from '../services/mapReport';
+import { buildMapPdf } from '../services/mapPdf';
 import { parseWellsParam, parseNetParam, appPath, MAPPING_ID } from '@/components/wells/appLinks';
 import { environmentPoints } from '@/lib/stratigraphy/stratMaps';
 import { verticalThicknessPoints } from '@/lib/stratigraphy/verticalThickness';
@@ -159,6 +160,8 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
   const [mapSettings, setMapSettings] = useState(DEFAULT_MAP_DISPLAY);
   // MAP-U1-013: field and analyst for the exported map's header, per browser
   const [report, setReport] = useState(readReport);
+  // MAP-U2-002: the PDF plot's paper and scale (blank scale = the largest standard scale that fits)
+  const [pdfOpts, setPdfOpts] = useState({ paper: 'A3', scale: '' });
   useEffect(() => { writeReport(report); }, [report]);
   const [posted, setPosted] = useState(null); // well -> {z, x, y} of the preview's control points
   const viewRef = useRef(null);
@@ -1088,6 +1091,29 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
     } catch (e) { setStatus(e.message); }
   };
 
+  const exportPdf = async () => {
+    if (!displayGrid || !displaySurface) return;
+    try {
+      const { title, caption } = exportCaption();
+      const isLen = isLengthSurface(displaySurface);
+      const plan = contourPlan({ grid: displayGrid, typed: mapSettings.contourStep, unit: depthUnit, isLength: isLen, sign: displaySign(displaySurface, depthPositive) });
+      const polyRows = polygonRows.filter((r) => (r.kind === POLYGON_KINDS.fault || r.kind === POLYGON_KINDS.boundary)
+        && (visibleCultureIds.has(r.id) || gridFaultIds.has(r.id) || r.id === clipBoundaryId));
+      const polygons = await Promise.all(polyRows.map(async (r) => ({ name: r.name, kind: r.kind, rings: await ringsFor(r) })));
+      const xyUnit = xyUnitOf(displaySurface);
+      const stepText = plan.stepDisp ? `${Number(plan.stepDisp.toFixed(3))}${isLen ? ` ${depthUnit}` : displaySurface.z_domain === 'time' ? ' ms' : ''}` : null;
+      const { doc, fileName, plan: pp } = await buildMapPdf({
+        surface: displaySurface, grid: displayGrid, spec: specOfSurface(displaySurface), caption: { title, caption },
+        contours: { stepM: plan.stepM, stepText, format: plan.format },
+        wells: (displayWells || []).map((w) => ({ name: w.name, x: w.surface_x, y: w.surface_y })),
+        polygons, xyToM: metresPerXy(xyUnit), xyUnitLabel: XY_UNIT_LABEL[xyUnit] || xyUnit || 'metres (no CRS declared)',
+        paper: pdfOpts.paper, scale: String(pdfOpts.scale).trim() ? Number(String(pdfOpts.scale).replace(/[, ]/g, '').replace(/^1:/, '')) : null,
+      });
+      doc.save(fileName);
+      setStatus(`Exported ${displaySurface.name} as a PDF plotted at 1:${pp.scale.toLocaleString('en-US')} on ${pdfOpts.paper}. Print at 100% (no fit to page) to keep the scale.`);
+    } catch (e) { setStatus(e.message); }
+  };
+
   const ribbon = (
     <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
       <ModuleHomeLink module="geoscience" />
@@ -1110,6 +1136,11 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
         disabled={!displayGrid} title="Download the map as a titled PNG" onClick={exportPng}>
         <ImageIcon className="w-3.5 h-3.5" /> PNG
+      </button>
+      <button type="button" data-testid="map-export-pdf"
+        className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
+        disabled={!displayGrid} title="Download the map as a PDF plotted to scale, with a title block, coordinate grid, scale bar and north arrow (paper and scale in the dock)" onClick={exportPdf}>
+        <FileText className="w-3.5 h-3.5" /> PDF
       </button>
       <button type="button" data-testid="map-undo" disabled={!undoDepth}
         className="px-2 py-0.5 text-[11px] rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
@@ -1297,6 +1328,13 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
                 onChange={(e) => setReport((r) => ({ ...r, field: e.target.value }))} />
               <input className={selCls} data-testid="map-report-analyst" placeholder="Analyst" value={report.analyst}
                 onChange={(e) => setReport((r) => ({ ...r, analyst: e.target.value }))} />
+              <select className={selCls} data-testid="map-pdf-paper" value={pdfOpts.paper} title="Paper for the PDF plot (landscape)"
+                onChange={(e) => setPdfOpts((o) => ({ ...o, paper: e.target.value }))}>
+                {['A4', 'A3', 'A2'].map((p) => <option key={p} value={p}>PDF on {p}</option>)}
+              </select>
+              <input className={selCls} data-testid="map-pdf-scale" placeholder="scale 1: auto" value={pdfOpts.scale} inputMode="numeric"
+                title="The N of 1:N for the PDF plot; blank picks the largest standard scale that fits the paper"
+                onChange={(e) => setPdfOpts((o) => ({ ...o, scale: e.target.value }))} />
             </div>
 
             <div className="pt-2 border-t border-pl-border text-[10px] uppercase tracking-wider text-pl-muted flex items-center gap-1"><Pentagon className="w-3 h-3" /> Polygons</div>
