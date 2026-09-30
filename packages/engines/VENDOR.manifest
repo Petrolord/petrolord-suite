@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 15d907f0ce3406d2cacea5f97a12dc1565debf2a
+# commit bf8376b9fc3e33948df9563c2282ae94503fdc9b
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 29fb828f7173209a3b86294ecd4a53015b3ae902 README.md
@@ -176,7 +176,7 @@ f314f56ca2f116acf51968e5cdba732d069a6122 __tests__/seismolord.faultdetect.test.j
 c3a3eeb360916ea1312a370817c875c36ad70569 __tests__/seismolord.faultlikelihood.test.js
 e4f3077ef409febee84ffbc11ee97ed5185488e9 __tests__/seismolord.faultobjects.test.js
 f164d0a958b73fb28b1608a37b8a5c1cc9a0223e __tests__/seismolord.framework.test.js
-0490668ac5610c28bb10572edff39d5d93f863ec __tests__/seismolord.geoazimuth.spectral.test.js
+7ed439df7f7ac1d6f39e838f46bd438b2d818397 __tests__/seismolord.geoazimuth.spectral.test.js
 2c5ca1e15b0a09c85bfe9d7da0526704cf4cebff __tests__/seismolord.horizonanalytics.test.js
 7dbc1174a7ae4bb2789161f1461f0328a4ede442 __tests__/seismolord.import.test.js
 65d29290a18eab1e3c9d164faf9d71fab94efe00 __tests__/seismolord.importreaders.test.js
