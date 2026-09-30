@@ -58,7 +58,7 @@ import {
 } from '../engine/surface';
 import { resampleTo } from '@/lib/gridding/gridmath';
 import { describeGridResult, topMapKind } from '../services/gridStatus';
-import { xyUnitOf, metresPerXy, metresToXy, XY_UNIT_LABEL } from '../services/xyUnits';
+import { xyUnitOf, metresPerXy, metresToXy, XY_UNIT_LABEL, controlPointsInWellFrame } from '../services/xyUnits';
 import { mapCaption, readReport, writeReport } from '../services/mapReport';
 import { parseWellsParam, parseNetParam, appPath, MAPPING_ID } from '@/components/wells/appLinks';
 import { environmentPoints } from '@/lib/stratigraphy/stratMaps';
@@ -352,7 +352,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
   const currentControlPoints = (opts = {}) => {
     const src = opts.source || source;
     const sourceWells = opts.wellIds?.length ? (wells || []).filter((w) => opts.wellIds.includes(w.id)) : wells;
-    if (src.type === 'top') return topsToControlPoints(sourceWells, src.key, { depthRef, placement: 'borehole' }).points;
+    if (src.type === 'top') return controlPointsInWellFrame(topsToControlPoints(sourceWells, src.key, { depthRef, placement: 'borehole' }).points, sourceWells, crsUnit).points;
     if (src.type === 'net') return verticalThicknessPoints(sourceWells, src.upper, src.lower, { intervalsByWell: intervalsByWell(sourceWells), measure: src.measure, codes: src.codes }).points;
     return zoneAttrToPoints(sourceWells, src.zoneName || zoneNames[0], src.key);
   };
@@ -387,6 +387,8 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       let zUnit = null;
       if (src.type === 'top') {
         result = topsToControlPoints(sourceWells, src.key, { depthRef, placement: 'borehole' });
+        // MAP-U1-019: one CRS, and survey offsets in the wells' own unit
+        result = { ...result, points: controlPointsInWellFrame(result.points, sourceWells, crsUnit).points };
         // T1 (MAP-T1-006) and MAP-U1-002: only a TVDSS map is a structure
         // map. MD and TVD are measured below each well's KB, so publishing
         // them as elevation made ReservoirCalc Pro, Earth Modeling and Well

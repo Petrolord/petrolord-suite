@@ -32,3 +32,37 @@ export function metresToXy(valueM, unit) {
   if (!Number.isFinite(s)) throw new Error('The wells or the surface are in a geographic CRS (degrees). Set a projected Project CRS to grid and measure in metres.');
   return valueM / s;
 }
+
+/**
+ * MAP-U1-019: the frame of a top map's control points. Wells in two known
+ * CRSs cannot be gridded in one set of raw coordinates (the map would
+ * mix UTM metres with state-plane feet), so that is refused with the
+ * CRSs named. The depth frame returns borehole offsets in METRES; on a
+ * feet frame they are scaled into the wells' unit before being added to
+ * the wellhead.
+ * @param {Array<{x,y,well}>} points from topsToControlPoints (x = wellhead + offset in m)
+ * @param {Array<{name, surface_x, surface_y, crs}>} wells
+ * @returns {{points:Array, crs:?string, unit:?string}}
+ */
+export function controlPointsInWellFrame(points, wells, crsUnitOf) {
+  const byName = new Map((wells || []).map((w) => [w.name, w]));
+  const used = points.map((p) => byName.get(p.well)).filter(Boolean);
+  const tags = [...new Set(used.map((w) => w.crs).filter(Boolean))];
+  if (tags.length > 1) {
+    throw new Error(`The wells carrying this top are in ${tags.length} coordinate systems (${tags.join(', ')}), so they cannot be gridded on one map. Reproject the project to one CRS in Well Data Manager, or grid the wells of one CRS.`);
+  }
+  const crs = tags[0] || null;
+  const unit = crs ? crsUnitOf(crs) : null;
+  const s = metresPerXy(unit);
+  if (!Number.isFinite(s)) throw new Error('The wells are in a geographic CRS (degrees). Set a projected Project CRS to grid them.');
+  if (s === 1) return { points, crs, unit };
+  return {
+    crs,
+    unit,
+    points: points.map((p) => {
+      const w = byName.get(p.well);
+      if (!w) return p;
+      return { ...p, x: w.surface_x + (p.x - w.surface_x) / s, y: w.surface_y + (p.y - w.surface_y) / s };
+    }),
+  };
+}

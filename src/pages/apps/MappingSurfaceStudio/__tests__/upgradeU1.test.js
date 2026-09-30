@@ -108,3 +108,32 @@ describe('MAP-U1-013: the exported map carries a reviewer header', () => {
     expect(sourceText({ provenance: { arithmetic: { op: 'add' } } })).toBe('Surface arithmetic (add)');
   });
 });
+
+import { controlPointsInWellFrame } from '../services/xyUnits';
+import { crsUnit } from '@/lib/crs';
+
+describe('MAP-U1-019: control points in one frame and in the wells\' unit', () => {
+  const M_FT_US = 1200 / 3937;
+  // a deviated well on a US-feet state plane: 300 m east at the top
+  const well = { name: 'D', surface_x: 1968500, surface_y: 500000, kb_m: 0, td_md_m: 3000, crs: 'EPSG:2274', deviation: [{ md: 0, inc: 0, azi: 90 }, { md: 500, inc: 0, azi: 90 }, { md: 1100, inc: 60, azi: 90 }, { md: 3000, inc: 60, azi: 90 }], tops: [{ name: 'T', md_m: 2000 }] };
+
+  test('a feet frame gets the borehole offset in feet (was metres added to feet)', () => {
+    const raw = topsToControlPoints([well], 'T').points;
+    const offM = raw[0].x - well.surface_x; // the engine's offset, metres
+    expect(offM).toBeGreaterThan(300);
+    const { points, unit } = controlPointsInWellFrame(raw, [well], crsUnit);
+    expect(unit).toBe('ftUS');
+    expect((points[0].x - well.surface_x) * M_FT_US).toBeCloseTo(offM, 6);
+    // negative control: unconverted, the offset is 3.28x short in feet
+    expect(Math.abs((raw[0].x - well.surface_x) * M_FT_US - offM)).toBeGreaterThan(200);
+  });
+
+  test('wells in two CRSs are refused with the CRSs named; one CRS or none passes', () => {
+    const a = { name: 'A', surface_x: 0, surface_y: 0, crs: 'EPSG:32631' };
+    const b = { name: 'B', surface_x: 0, surface_y: 0, crs: 'EPSG:2274' };
+    const pts = [{ well: 'A', x: 0, y: 0 }, { well: 'B', x: 0, y: 0 }];
+    expect(() => controlPointsInWellFrame(pts, [a, b], crsUnit)).toThrow(/2 coordinate systems \(EPSG:32631, EPSG:2274\)/);
+    expect(controlPointsInWellFrame(pts, [a, { ...b, crs: 'EPSG:32631' }], crsUnit).unit).toBe('m');
+    expect(controlPointsInWellFrame(pts, [{ ...a, crs: null }, { ...b, crs: null }], crsUnit).crs).toBeNull();
+  });
+});
