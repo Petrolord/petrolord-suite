@@ -468,7 +468,7 @@ test('T1: an MD map is published as an attribute, never as an elevation surface'
   await expect(row).toContainText('attr');
 });
 
-test('T1 batch B: spline in tension, a map past the wells with its hull drawn, residuals, kriging refuses to extrapolate', async ({ page }) => {
+test('T1 batch B: spline in tension, a map past the wells with its hull drawn, residuals, kriging past the wells says what it shows', async ({ page }) => {
   await page.goto('/dev/mapping-surface-studio');
   await page.getByTestId('map-source').selectOption('top:Top Dome');
   await page.getByTestId('map-grid-method').selectOption('tension');
@@ -484,10 +484,11 @@ test('T1 batch B: spline in tension, a map past the wells with its hull drawn, r
   await page.getByTestId('map-extent-distance').fill('800');
   await page.getByTestId('map-grid-run').click();
   await expect(page.getByTestId('map-status')).toContainText('mapped 800 m beyond the wells');
-  // kriging maps inside the wells only, and says so
+  // MAP-U2-012 (was a refusal): kriging maps past the wells too, and says the flanks return to the trend
   await page.getByTestId('map-grid-method').selectOption('kriging');
   await page.getByTestId('map-grid-run').click();
-  await expect(page.getByTestId('map-status')).toContainText('Kriging maps inside the wells in this version');
+  await expect(page.getByTestId('map-status')).toContainText('mapped 800 m beyond the wells', { timeout: 60000 });
+  await expect(page.getByTestId('map-status')).toContainText('past the variogram range the kriged map returns to');
 });
 
 test('T1 batch B: depth conversion with average velocity from the wells, and a linear model corrected to the top', async ({ page }) => {

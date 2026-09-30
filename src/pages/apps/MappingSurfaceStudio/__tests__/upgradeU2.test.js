@@ -212,3 +212,21 @@ describe('MAP-U2-009: the isopach beside the isochore', () => {
     expect(() => runArithmetic({ op: 'isopach', a: { surface: row('T', { xy_unit: 'deg' }), grid: plane(0) }, b: { surface: row('B'), grid: plane(100) } })).toThrow(/projected frame/);
   });
 });
+
+describe('MAP-U2-012: kriging beyond the wells', () => {
+  // eslint-disable-next-line global-require
+  const { extentMask } = require('../services/extent');
+  const pts = [{ x: 400, y: 400, z: -1500 }, { x: 600, y: 420, z: -1520 }, { x: 500, y: 600, z: -1480 }, { x: 460, y: 520, z: -1490 }];
+  const s = { x0: 0, y0: 0, dx: 50, dy: 50, nx: 21, ny: 21 };
+  const opts = { model: 'spherical', range: 300, sill: 400, nugget: 0, maxExtrapolation: 1e9 };
+  test('the studio path (mask none, then the extent mask) reaches past the hull by the distance and no further', () => {
+    const g = runGriddingSync('kriging', pts, s, { ...opts, mask: 'none' });
+    const em = extentMask(g.z, s, pts, 200);
+    expect(em.extrapolatedNodes).toBeGreaterThan(20);
+    const live = Array.from(em.z).filter((v) => !isNull(v)).length;
+    const inside = runGriddingSync('kriging', pts, s, opts);
+    const liveInside = Array.from(inside.z).filter((v) => !isNull(v)).length;
+    expect(live).toBeGreaterThan(liveInside); // negative control: the hull mask stops at the wells
+    expect(isNull(em.z[0])).toBe(true); // (0, 0) is more than 200 m past the hull
+  });
+});

@@ -170,8 +170,10 @@ export default function MappingHelpGuide() {
         <Para>
           Map inside the wells keeps the map a cell and a half past the outermost wells, so every well sits inside
           it. Map beyond the wells by a distance extends it past them to show the flanks and the spill; the wells'
-          outline is drawn dashed so you can tell mapped area from extrapolated area. Kriging maps inside the wells
-          in this version. After every structure grid a table lists each well, the map value at the well and the
+          outline is drawn dashed so you can tell mapped area from extrapolated area. Kriging maps past the wells
+          too, but past the variogram range it has nothing to go on: the map returns to the mean of the wells (or to
+          the regional plane when Remove the trend is ticked) and the variance rises to the sill, and the status says
+          so. After every structure grid a table lists each well, the map value at the well and the
           mis-tie, with the mean, RMS and worst mis-tie.
         </Para>
 </GuideSection>

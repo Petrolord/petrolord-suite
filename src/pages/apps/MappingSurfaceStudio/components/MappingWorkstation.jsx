@@ -476,7 +476,6 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       if (gridMethod === 'kriging') {
         // MS5: ordinary kriging with the dock's variogram; MAP-U2-001:
         // with fault polygons each block is kriged from its own wells
-        if (beyond > 0) throw new Error('Kriging maps inside the wells in this version. Map beyond them with the thin-plate spline or the spline in tension.');
         let v = variogram;
         if (!(Number(v.range) > 0) || !(Number(v.sill) > 0)) {
           const fit = fitVariogramFromPoints(points, { model: v.model, nugget: Number(v.nugget || 0) });
@@ -485,7 +484,9 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         }
         kriged = krigingOptions(v);
         // the range is typed in metres; the engine measures in map units
-        const kOpts = { ...kriged, range: kriged.range * perM, maxExtrapolation: 1e9 };
+        // MAP-U2-012: beyond the wells the kriging evaluates every node, and the
+        // extent mask below keeps the stated distance past the wells' hull
+        const kOpts = { ...kriged, range: kriged.range * perM, maxExtrapolation: 1e9, ...(beyond > 0 ? { mask: 'none' } : {}) };
         g = rings.length
           ? await runGridding('blocked-kriging', blocksForPoints(points, rings), spec, { ...kOpts, nodeBlocks: nodeBlocksFor(spec, rings) })
           : await runGridding('kriging', points, spec, kOpts);
@@ -500,9 +501,10 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         g = await runGridding('tps', points, spec, { maxExtrapolation: 1e9, mask: 'none' });
       }
       let reach = null;
-      if (!kriged && !rings.length) {
+      if (!rings.length && (!kriged || beyond > 0)) {
         const em = extentMask(g.z, spec, points, reachW);
-        g = { ...g, z: em.z };
+        const variance = g.variance ? Float32Array.from(g.variance, (v, i) => (Math.abs(em.z[i]) >= 1e29 ? em.z[i] : v)) : g.variance;
+        g = { ...g, z: em.z, variance };
         if (beyond > 0) reach = em;
       }
       setHullOverlay(reach ? reach.ring : null);
@@ -559,6 +561,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         gridMethod === 'tension' && !kriged ? `spline in tension ${tensionOpts.tension}${tensionOpts.smoothing ? `, smoothing ${tensionOpts.smoothing}` : ''}` : null,
         perM !== 1 ? `cell ${cell} m (${cellW.toFixed(1)} ${XY_UNIT_LABEL[xyUnit] || xyUnit} in the wells' frame)` : null,
         reach ? `mapped ${beyond} m beyond the wells (${reach.extrapolatedNodes} extrapolated nodes; the dashed line is the wells' hull)` : null,
+        reach && kriged ? `past the variogram range the kriged map returns to ${kriged.detrend ? 'the regional plane fitted through the wells' : 'the mean of the wells'} and the kriging variance rises to the sill: show the variance map to see where the flanks are guessed` : null,
         guides.length ? `${guides.length} guide point${guides.length === 1 ? '' : 's'}` : null,
         // STRAT-U2-011: the thickness basis of a strat map
         src.type === 'net' && src.measure !== 'ratio' ? `vertical thickness (TVD through each survey)${result.mdWells?.length ? `; ${result.mdWells.join(', ')} ${result.mdWells.length === 1 ? 'has' : 'have'} no survey and ${result.mdWells.length === 1 ? 'is' : 'are'} taken as vertical` : ''}` : null,
