@@ -219,6 +219,16 @@ export default function StratigraphyHelpGuide() {
           ['Open Basin', 'opens Basin & Charge Modeling, where the new model is listed with the well remembered as its tie'],
         ]} />
               <Para>
+          The Events view holds a well's biostratigraphic events. Add events pastes depth, event and taxon (columns in
+          any order; feet or metres from the header; FDO, LDO, LAD, FAD, top and base of acme, first and last common
+          occurrence, and the short forms T, B, HO and LO). Each event becomes a biozone datum named with its event and
+          taxon (LAD Discoaster quinqueramus), so every app that lists tops lists it. Event dictionary loads the
+          calibrated ages you use (taxon, event, age in Ma or ka, reference) into your stratigraphy project; Date from
+          dictionary gives every undated event its age, reading an FDO as the taxon's LAD and an LDO as its FAD when
+          the dictionary has no well-site row, and says which it did. The range chart draws each taxon's observed range
+          in the well, depth down, with open ends marked.
+        </Para>
+        <Para>
           Biozone ranges paste with their scheme and ages: in Intervals choose Biozone and Replace from paste; a
           StrataBugs export maps Zone, Zonation, Top and Base Depth, and Top and Base Age (Ma, or ka converted to Ma).
           An age column is never read as a depth, and a range whose base age is not older than its top is refused by

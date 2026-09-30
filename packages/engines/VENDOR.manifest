@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit a793d1ac1ee403639e03e77fc3913cfbf844478f
+# commit 8983e2fbfb30f210ce8864d3518a1f49f7029637
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 29fb828f7173209a3b86294ecd4a53015b3ae902 README.md
@@ -200,6 +200,7 @@ dbfd55a425be27e98ec7098ceb5ce167b8e3b125 __tests__/stats.fitNotePercentileWords.
 64a7c1f655884e2b4c9ec632520ffd29bc031652 __tests__/stats.test.js
 d0b4e6d5a656710b753f44c2a15f92802b542659 __tests__/stratigraphy.agedepth.test.js
 ef26dc8228ff287c6ff07f067dce829a9109c29e __tests__/stratigraphy.basinlayers.test.js
+b76388feae08a2103e7bde1e9128c63d6ba7e657 __tests__/stratigraphy.biostrat.test.js
 086439bc922135f981186e36cc7b7d972b5729d6 __tests__/stratigraphy.column.test.js
 dee903e9d3d5e9df9e98002fc0862140c08b07d9 __tests__/stratigraphy.intervals.test.js
 716f944a8968bf250283952a3935282a7ab1ca89 __tests__/stratigraphy.lithology.test.js
@@ -511,6 +512,7 @@ ba97020050ce5a4ba304708ae1bed1e65b13ccda engines/sim/emitSchedule.js
 8fdeb24c76947ea7315e3d7f5e8fdad32a41d821 engines/sim/wellPath.js
 5483ba4918bbb7afb0086337e8f5aab1a42a73a5 engines/stratigraphy/ageDepth.js
 f8abe0f81034c7748abd5317aa5ddd6d1416b158 engines/stratigraphy/basinLayers.js
+2f79d22e82febcd6d88a6b6c9b50b6eb97171b5b engines/stratigraphy/biostrat.js
 a7346da46693778a4312e72cc1a31f9ffab8a709 engines/stratigraphy/column.js
 cb674dbe85ffe0ae20595c3d8a1c40d6c62083dc engines/stratigraphy/intervals.js
 33a2e1d8c265c1c9b733f35c2488e761c944fe98 engines/stratigraphy/lithology.js
@@ -789,9 +791,10 @@ b0ed49b810132b17a0e1fa8a0c8dcf2f48bc9fdd test-data/seismolord/picks/earthvision_
 f213312d11270f77f03b152d7967bd49c07760f8 test-data/seismolord/structure/gen_structure.py
 fbd8bfb1f097f02e83efcc528074ae91339ee898 test-data/seismolord/structure/structure_golden.json
 5144b15883705461f9c29323038cc2e9dd131eb0 test-data/stats/simple_statistics_pins.json
-30056112a0cab4eb0be77a0ec0579834a5a5d1bc test-data/stratigraphy/README.md
+941148fbe6fed90b1b4b774dbc45eca4851334a7 test-data/stratigraphy/README.md
 3841c2e06ae3a3c1f01d8f8a5f9c9fa3a40c6ed1 test-data/stratigraphy/ics-chart-2023-09-numbers.txt
 c8e19f3032ca8c5a2716b48cf1a41508b9d23ccb test-data/stratigraphy/ics-chart-2026-06-numbers.txt
+e2c624fe041fa2cb732f2d572bbae7abdeec32c3 test-data/stratigraphy/nist-strd-norris.dat
 654badb06925ddd23f69f3f867016ab6f9553970 test-data/stratigraphy/wheeler-synthetic.json
 339be1c7e1c554df1256c8f6c8be900b46d487c6 test-data/supplychain/ekene-marine/README.md
 bf401edd93d68c2e30a044785ded47fead636b9c test-data/supplychain/ekene-marine/marine.json

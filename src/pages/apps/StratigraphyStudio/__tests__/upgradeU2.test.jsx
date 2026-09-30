@@ -489,3 +489,52 @@ describe('STRAT-U2-012 Data AI facies labels from systems tracts and biozones', 
     expect(intervalKindNote('systems_tract')).toMatch(/recorded in Stratigraphy Studio \(Section, Record tracts\)/);
   });
 });
+
+describe('STRAT-U2-009 biostratigraphic events, dictionary and range chart', () => {
+  const { parseEventRows, parseEventDictionary } = jest.requireActual('../services/biostratFiles');
+
+  test('hostile event paste: aliases, feet from the header, semicolons with comma decimals, bad rows named, a repeat refused', () => {
+    const r = parseEventRows('Taxon;Event;Depth (ft)\nDiscoaster quinqueramus;T;4757,2\nAmaurolithus primus;B;5000\nX;Z;5100\n;LAD;5200\nDiscoaster quinqueramus;HO;4800');
+    expect(r.rows.map((x) => [x.name, Number(x.md_m.toFixed(3))])).toEqual([['FDO Discoaster quinqueramus', 1449.995], ['LDO Amaurolithus primus', 1524]]);
+    expect(r.notes).toEqual(['depths read in ft from the header']);
+    expect(r.problems.join(' ')).toMatch(/Row 4: "Z" is not an event/);
+    expect(r.problems.join(' ')).toMatch(/Row 5: no taxon/);
+    expect(r.problems.join(' ')).toMatch(/FDO Discoaster quinqueramus is given twice/);
+    expect(() => parseEventRows('TWT (ms),Event,Taxon\n1400,FDO,X')).toThrow(/is a time/);
+  });
+
+  test('dictionary: ka to Ma, conflicting rows refused by name', () => {
+    const d = parseEventDictionary('Species,Datum type,Age (ka),Source\nEmiliania huxleyi,FAD,290,GTS2012\nPseudoemiliania lacunosa,LAD,440,GTS2012\nX,LAD,1000,a\nX,LAD,1200,b');
+    expect(d.rows.map((x) => [x.taxon, x.event, x.age_ma])).toEqual([['Emiliania huxleyi', 'FAD', 0.29], ['Pseudoemiliania lacunosa', 'LAD', 0.44]]);
+    expect(d.problems[0]).toMatch(/LAD X is dated twice \(1 and 1.2 Ma\); neither is used/);
+  });
+
+  test('workstation: events pasted become datums, dated from the project dictionary (FDO read as the LAD), drawn on the range chart', async () => {
+    const StratWorkstation = jest.requireActual('../components/StratWorkstation').default;
+    const b = makeInMemoryBackend();
+    render(<MemoryRouter><StratWorkstation backend={b} /></MemoryRouter>);
+    fireEvent.click(await screen.findByTestId('strat-well-KETA-1', {}, T));
+    fireEvent.click(screen.getByTestId('strat-view-events'));
+    fireEvent.click(await screen.findByTestId('strat-events-paste-toggle', {}, T));
+    fireEvent.change(screen.getByTestId('strat-events-paste-text'), { target: { value: 'MD (m),Event,Taxon\n1450,FDO,Discoaster quinqueramus\n1600,LDO,Discoaster quinqueramus\n1520,FDO,Amaurolithus primus' } });
+    fireEvent.click(screen.getByTestId('strat-events-paste-apply'));
+    await waitFor(() => expect(screen.getByTestId('strat-status').textContent).toMatch(/3 events added to KETA-1 as biozone datums/), T);
+    const tops = await b.listTops('corr-w1');
+    expect(tops.find((t) => t.name === 'FDO Discoaster quinqueramus')).toMatchObject({ md_m: 1450, surface_type: 'biozone' });
+    await waitFor(() => expect(screen.getByTestId('strat-range-chart').getAttribute('data-taxa')).toBe('2'), T);
+    expect(screen.getByTestId('strat-range-taxon-Amaurolithus primus').getAttribute('data-base')).toBe('1520');
+    fireEvent.click(screen.getByTestId('strat-events-dict-toggle'));
+    fireEvent.change(screen.getByTestId('strat-events-dict-text'), { target: { value: 'Taxon,Event,Age (Ma),Reference\nDiscoaster quinqueramus,LAD,5.53,sample calibration\nDiscoaster quinqueramus,FAD,8.12,sample calibration' } });
+    fireEvent.click(screen.getByTestId('strat-events-dict-apply'));
+    await waitFor(async () => expect((await b.loadStratProject())?.view?.eventDictionary).toHaveLength(2), T);
+    await waitFor(() => expect(screen.getByTestId('strat-events-date').disabled).toBe(false), T);
+    fireEvent.click(screen.getByTestId('strat-events-date'));
+    await waitFor(() => expect(screen.getByTestId('strat-status').textContent).toMatch(/Dated 2 events from the dictionary; not in the dictionary: FDO Amaurolithus primus/), T);
+    const after = await b.listTops('corr-w1');
+    expect(after.find((t) => t.name === 'FDO Discoaster quinqueramus')).toMatchObject({ age_ma: 5.53 });
+    expect(after.find((t) => t.name === 'FDO Discoaster quinqueramus').notes).toMatch(/read as the LAD/);
+    expect(after.find((t) => t.name === 'LDO Discoaster quinqueramus').age_ma).toBe(8.12);
+    // stamped with the current chart (U2-003)
+    expect((await b.loadStratProject()).view.ageCharts.tops[after.find((t) => t.name === 'FDO Discoaster quinqueramus').id]).toEqual({ age_ma: 'ICS 2026/06' });
+  }, 120000);
+});

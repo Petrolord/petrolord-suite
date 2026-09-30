@@ -7,7 +7,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Layers, Loader2, PanelRight, BookOpen, ListTree, Tags, Rows as RowsIcon, Image, GitCompare, Hourglass, Clock, HelpCircle, History } from 'lucide-react';
+import { Layers, Loader2, PanelRight, BookOpen, ListTree, Tags, Rows as RowsIcon, Image, GitCompare, Hourglass, Clock, HelpCircle, History, Microscope } from 'lucide-react';
 import IntervalsEditor from '@/components/wells/IntervalsEditor';
 import ZoneSchemePanel from './ZoneSchemePanel';
 import CoreImagesPanel from '@/components/wells/CoreImagesPanel';
@@ -26,6 +26,7 @@ import ColumnEditor from './ColumnEditor';
 import TopsTyping from './TopsTyping';
 import Glossary from './Glossary';
 import TimescalePanel from './TimescalePanel';
+import BiostratEvents from './BiostratEvents';
 import { flagAges, withStamps, changedAges, acceptPlan } from '@/lib/stratigraphy/ageCharts';
 
 const VIEWS = [
@@ -36,6 +37,7 @@ const VIEWS = [
   { id: 'section', label: 'Section', icon: GitCompare },
   { id: 'wheeler', label: 'Wheeler', icon: Hourglass },
   { id: 'ages', label: 'Ages', icon: Clock },
+  { id: 'events', label: 'Events', icon: Microscope },
   { id: 'timescale', label: 'Timescale', icon: History },
   { id: 'glossary', label: 'Glossary', icon: BookOpen },
 ];
@@ -105,7 +107,7 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   const well = useMemo(() => (wells || []).find((w) => w.id === selectedId) || null, [wells, selectedId]);
   // T1 (ST-T1-003): a per-well view opens on the first well instead of an empty pane
   useEffect(() => {
-    if (!selectedId && (wells || []).length && ['ages', 'intervals', 'core', 'tops'].includes(view)) setSelectedId(wells[0].id);
+    if (!selectedId && (wells || []).length && ['ages', 'events', 'intervals', 'core', 'tops'].includes(view)) setSelectedId(wells[0].id);
   }, [selectedId, wells, view]);
 
   const refreshTops = useCallback(async () => {
@@ -123,7 +125,7 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   // Section view records tracts through its own section state (ST2)
   useEffect(() => { refreshTops(); }, [refreshTops, view]);
 
-  const selectWell = (id) => { setSelectedId(id); setView((v) => (v === 'intervals' || v === 'core' || v === 'ages' ? v : 'tops')); };
+  const selectWell = (id) => { setSelectedId(id); setView((v) => (['intervals', 'core', 'ages', 'events'].includes(v) ? v : 'tops')); };
 
   const replaceIntervals = async (kind, rows) => {
     await backend.replaceIntervals(selectedId, kind, rows);
@@ -292,6 +294,8 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   const saveProject = async (patch) => { const row = await backend.saveStratProject({ ...patch, view: { ...(project?.view || {}), ...(patch.view || {}), report }, scheme }); setProject(row); };
   const center = view === 'glossary' ? <ScrollArea className="h-full min-h-0"><Glossary scheme={scheme} /></ScrollArea>
     : view === 'tops' ? <ScrollArea className="h-full min-h-0"><TopsTyping well={well} tops={tops} units={units} scheme={scheme} onSaveTop={saveTop} onStatus={setStatus} ageFlags={flagsById} unit={unit} /></ScrollArea>
+    : view === 'events' ? (well ? <ScrollArea className="h-full min-h-0"><BiostratEvents well={well} tops={tops} backend={backend} onStatus={setStatus} onTopsChanged={async () => { await refreshTops(); await refreshAllTops(); }} onAgesEntered={stampAges}
+        dictionary={project?.view?.eventDictionary || []} onDictionary={(rows) => saveProject({ view: { eventDictionary: rows } })} unit={unit} report={report} /></ScrollArea> : needWell)
     : view === 'timescale' ? <ScrollArea className="h-full min-h-0"><TimescalePanel flags={ageFlags} onAccept={acceptChartUpdates} busy={accepting} /></ScrollArea>
       : view === 'section' || view === 'wheeler' ? <SectionView backend={backend} mode={view} scheme={scheme} onStatus={setStatus} appPaths={appPaths} saved={project} onSaveProject={saveProject} report={report} />
       : view === 'ages' ? (well ? <ScrollArea className="h-full min-h-0"><AgesView well={well} tops={tops} intervals={intervals} backend={backend} onStatus={setStatus} onTopsChanged={async () => { await refreshTops(); await refreshAllTops(); }} onAgesEntered={stampAges} appPaths={appPaths} report={report} units={units} scheme={scheme} ageCharts={project?.view?.ageCharts || {}} unit={unit} section={null} /></ScrollArea> : needWell)
