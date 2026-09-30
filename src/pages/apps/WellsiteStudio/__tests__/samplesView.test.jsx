@@ -47,7 +47,8 @@ test('the schedule reaches three samples ahead of the bit; catch and stages; the
   // catch sample 1, then described must wait for nothing but bagged needs described
   await act(async () => { fireEvent.click(screen.getByTestId('ws-sample-caught-1')); });
   await waitFor(() => expect(screen.getByTestId('ws-status')).toHaveTextContent(/Sample 1 caught at \d\d:\d\d\./));
-  expect(screen.getByTestId('ws-sample-state-1')).toHaveTextContent('caught');
+  // the status line and the row re-render separately; on a slow runner the row lags
+  await waitFor(() => expect(screen.getByTestId('ws-sample-state-1')).toHaveTextContent('caught'));
   expect(screen.queryByTestId('ws-sample-bagged-1')).toBeNull();
   const wellId = (await backend.listWells())[0].id;
   const s1 = (await backend.listSamples(wellId)).find((s) => s.sample_no === 1);
