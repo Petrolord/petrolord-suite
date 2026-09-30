@@ -62,7 +62,11 @@ export const DEFAULT_DELIVERABILITY = {
 export const DEFAULT_TEST_CONFIG = {
   testType: 'buildup', // 'drawdown' | 'buildup' | 'injection' | 'falloff'
   tp: '36',
-  pwfShutIn: '', // empty: a gauge reading at t = 0 if the file has one, else skin is withheld
+  pwfShutIn: '', // empty: the gauge reading at shut-in (dt = 0) if the file has one, else skin is withheld
+  // Gauge-clock time (hr) of the shut-in (buildup/falloff) or of the start of
+  // flow (drawdown/injection). Empty = 0: the file's time column is already
+  // the elapsed test time. Readings before it are the preceding period.
+  testStartTime: '',
   smoothingL: '0.1',
   pointsPerDecade: '15',
   spikeTrimOn: true,
@@ -168,6 +172,7 @@ export function buildTestConfig(t) {
     mirror: testType === 'injection' || testType === 'falloff',
     tp: num(t.tp),
     pwfShutIn: num(t.pwfShutIn), // may be NaN: auto from data
+    testStartTime: Number.isFinite(num(t.testStartTime)) ? num(t.testStartTime) : 0,
     smoothingL: Math.min(Math.max(num(t.smoothingL) || 0.1, 0), 0.5),
     pointsPerDecade: Math.max(Math.round(num(t.pointsPerDecade) || 15), 4),
     spikeTrimOn: !!t.spikeTrimOn,
@@ -202,15 +207,25 @@ export function buildTestConfig(t) {
  */
 export function prepareTestData({ gaugeRows, reservoir, config }) {
   const empty = (warnings = []) => ({
-    points: [], pwfShutIn: NaN, skinWithheld: null, removedSpikes: 0, warnings,
+    points: [], pwfShutIn: NaN, pwfSource: null, testStartTime: config?.testStartTime || 0, preTestPoints: 0, info: [],
+    skinWithheld: null, removedSpikes: 0, warnings,
     paI: NaN, paShutIn: NaN, fromAnalysis: (v) => v, dpToGauge: (v) => v,
   });
-  const all = (gaugeRows || []).map((r) => ({ t: num(r.t), p: num(r.p) }));
-  // a reading at the shut-in instant (t = 0) cannot go on a log axis, but it
-  // IS the pressure at shut-in, so it is kept for that
-  const atShutIn = all.find((r) => r.t === 0 && Number.isFinite(r.p)) || null;
+  // Gauge clock -> elapsed test time: dt = t - testStartTime (tester round
+  // 2026-09-28: the shut-in can happen part-way through the gauge record).
+  const t0 = Number.isFinite(config?.testStartTime) ? config.testStartTime : 0;
+  const all = (gaugeRows || [])
+    .map((r) => ({ t: num(r.t) - t0, p: num(r.p) }))
+    .filter((r) => Number.isFinite(r.t) && Number.isFinite(r.p));
+  // a reading at the shut-in instant (dt = 0) cannot go on a log axis, but
+  // it IS the pressure at shut-in, so it is kept for that
+  const atShutIn = all.find((r) => Math.abs(r.t) <= SHUT_IN_T_EPS_HR) || null;
+  // readings before the test start belong to the preceding flow period; the
+  // last of them is the flowing pressure just before the shut-in
+  const before = all.filter((r) => r.t < -SHUT_IN_T_EPS_HR).sort((a, b) => a.t - b.t);
+  const lastBefore = before.length ? before[before.length - 1] : null;
   const rows = all
-    .filter((r) => r.t > 0 && Number.isFinite(r.p))
+    .filter((r) => r.t > SHUT_IN_T_EPS_HR)
     .sort((a, b) => a.t - b.t);
   if (rows.length < 5 || !reservoir || !config) {
     return empty(rows.length ? ['At least 5 gauge points are needed.'] : []);
@@ -232,10 +247,26 @@ export function prepareTestData({ gaugeRows, reservoir, config }) {
 
   const warnings = [];
   let pwfShutIn = NaN;
+  let pwfSource = null;
   let skinWithheld = null;
   let base; // analysis-space reference the test moves away from
   if (config.family === 'buildup') {
-    pwfShutIn = Number.isFinite(config.pwfShutIn) ? config.pwfShutIn : (atShutIn ? atShutIn.p : series[0].p);
+    // pwf at dt = 0: entered value, else the gauge reading at the shut-in
+    // instant, else the last flowing reading before it, else (skin
+    // withheld) the first buildup reading
+    if (Number.isFinite(config.pwfShutIn)) {
+      pwfShutIn = config.pwfShutIn;
+      pwfSource = { kind: 'entered' };
+    } else if (atShutIn) {
+      pwfShutIn = atShutIn.p;
+      pwfSource = { kind: 'gauge', dt: 0 };
+    } else if (lastBefore && lastBefore.t > -0.25) {
+      pwfShutIn = lastBefore.p;
+      pwfSource = { kind: 'gauge-before', dt: lastBefore.t };
+    } else {
+      pwfShutIn = series[0].p;
+      pwfSource = { kind: 'first-buildup', dt: series[0].t };
+    }
     base = A(pwfShutIn);
     // Skin is measured from the pressure at the instant of shut-in. When it
     // is not entered and the gauge starts after shut-in, the earliest point
@@ -243,9 +274,10 @@ export function prepareTestData({ gaugeRows, reservoir, config }) {
     // would come out biased; they are withheld with the reason. Permeability
     // and p* come from the slope and do not depend on it.
     const flowing = config.mirror ? 'injection' : 'flowing';
-    if (!Number.isFinite(config.pwfShutIn) && !atShutIn && series[0].t > SHUT_IN_T_EPS_HR) {
+    if (pwfSource.kind === 'first-buildup' && series[0].t > SHUT_IN_T_EPS_HR) {
       skinWithheld = `Skin is withheld: enter the ${flowing} pressure at shut-in. The gauge starts ${series[0].t.toPrecision(3)} h after shut-in, `
         + `already into the ${config.mirror ? 'falloff' : 'buildup'}, so its first reading (${series[0].p.toFixed(1)} psi) would bias the skin. `
+        + 'If the file also holds the flowing period, set the shut-in time on the gauge clock instead. '
         + 'Permeability and p* do not depend on it.';
       warnings.push(skinWithheld);
     }
@@ -269,12 +301,22 @@ export function prepareTestData({ gaugeRows, reservoir, config }) {
       ? 'Gauge pressures below initial pressure were dropped from the injection series.'
       : 'Gauge pressures above initial pressure were dropped from the drawdown series.');
   }
+  // informational, not a warning: splitting a gauge record at the shut-in
+  // is routine
+  const info = [];
+  if (before.length > 0) {
+    info.push(`${before.length} reading${before.length > 1 ? 's' : ''} before the ${isBuildupFamily ? (config.mirror ? 'shut-in of the injector' : 'shut-in') : 'start of flow'} (gauge time ${Number(t0.toPrecision(6))} hr) ${before.length > 1 ? 'are' : 'is'} excluded from the analysis series.`);
+  }
   if (removedSpikes > 0) warnings.push(`${removedSpikes} outlier point${removedSpikes > 1 ? 's' : ''} removed by the spike filter.`);
 
   const dpToGauge = (dp) => fromM(base + s * dp);
   return {
     points,
     pwfShutIn,
+    pwfSource,
+    testStartTime: t0,
+    preTestPoints: before.length,
+    info,
     skinWithheld,
     removedSpikes,
     warnings,
@@ -302,6 +344,29 @@ export function buildLoglog({ points, config, taOf = (t) => t }) {
     .filter((p) => p.x > 0 && p.y > 0);
   const deriv = bourdetDerivative(series, { L: config.smoothingL });
   return deriv.map((d, i) => ({ x: d.x, time: series[i]?.time ?? d.x, dp: d.y, derivative: d.derivative }));
+}
+
+/**
+ * How the working match was reached (tester round 2026-09-28). A regression
+ * result describes the match only while the match still holds exactly the
+ * fitted values of the same model on the same inputs. Moving a slider,
+ * switching model or editing the data afterwards turns it back into a
+ * manual match, and the regression status and its confidence intervals are
+ * no longer reported. kind: 'none' | 'manual' | 'regression'.
+ */
+export function resolveMatchMethod({ source, fitResult, fitStale, model, matchInputs }) {
+  if (source !== 'match') return { kind: 'none', note: null };
+  if (!fitResult) return { kind: 'manual', note: null };
+  const sameParams = fitResult.modelId === model?.id && (model?.parameters || []).every(
+    (meta) => String(matchInputs?.[meta.key] ?? '') === String(fitResult.appliedInputs?.[meta.key] ?? ''),
+  );
+  if (sameParams && !fitStale) return { kind: 'regression', note: null };
+  return {
+    kind: 'manual',
+    note: fitStale && sameParams
+      ? 'Auto-fit was run on earlier inputs; re-run it to report the regression.'
+      : 'Adjusted by hand after an auto-fit.',
+  };
 }
 
 /** Deterministic synthetic buildup used by the Sample button and smoke test. */
@@ -337,6 +402,9 @@ export const WellTestStudioProvider = ({ children }) => {
 
   // Persisted inputs
   const [wellName, setWellName] = useState('');
+  // report header identity (tester round 2026-09-28)
+  const [fieldName, setFieldName] = useState('');
+  const [analyst, setAnalyst] = useState('');
   const [reservoirInputs, setReservoirInputs] = useState(DEFAULT_RESERVOIR);
   const [testConfig, setTestConfig] = useState(DEFAULT_TEST_CONFIG);
   const [gaugeRows, setGaugeRows] = useState([]); // [{t, p}] numbers
@@ -701,16 +769,16 @@ export const WellTestStudioProvider = ({ children }) => {
         addNotification('Not enough valid data to fit.', 'error');
         return;
       }
-      setFitResult({ ...fit, testType: cfg.testType, ranAt: new Date().toISOString() });
+      const appliedInputs = Object.fromEntries(model.parameters.map((meta) => [
+        meta.key,
+        meta.logScale ? fit.params[meta.key].toPrecision(4) : fit.params[meta.key].toFixed(2),
+      ]));
+      setFitResult({
+        ...fit, testType: cfg.testType, ranAt: new Date().toISOString(), modelId: model.id, appliedInputs,
+      });
       hasFitResult.current = true;
       setFitStale(false);
-      setMatchInputs((prev) => ({
-        ...prev,
-        ...Object.fromEntries(model.parameters.map((meta) => [
-          meta.key,
-          meta.logScale ? fit.params[meta.key].toPrecision(4) : fit.params[meta.key].toFixed(2),
-        ])),
-      }));
+      setMatchInputs((prev) => ({ ...prev, ...appliedInputs }));
       addNotification(
         fit.converged
           ? `Auto-fit converged in ${fit.iterations} iterations.`
@@ -724,6 +792,11 @@ export const WellTestStudioProvider = ({ children }) => {
       setIsFitting(false);
     }
   }, [isFitting, reservoirSpec, configSpec, prepared, model, matchParams, addNotification]);
+
+  const matchMethod = useMemo(
+    () => resolveMatchMethod({ source: derivedKpis?.source, fitResult, fitStale, model, matchInputs }),
+    [derivedKpis, fitResult, fitStale, model, matchInputs],
+  );
 
   // Data or configuration edits invalidate an existing fit result (the match
   // parameters it produced stay in the working match).
@@ -755,6 +828,8 @@ export const WellTestStudioProvider = ({ children }) => {
     id: currentProjectId,
     name: projectName,
     wellName,
+    fieldName,
+    analyst,
     reservoirInputs,
     testConfig,
     gaugeRows,
@@ -767,10 +842,12 @@ export const WellTestStudioProvider = ({ children }) => {
     rtaRows,
     rtaWindows,
     modified: new Date().toISOString(),
-  }), [currentProjectId, projectName, wellName, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows]);
+  }), [currentProjectId, projectName, wellName, fieldName, analyst, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows]);
 
   const hydrate = useCallback((payload) => {
     setWellName(payload?.wellName || '');
+    setFieldName(payload?.fieldName || '');
+    setAnalyst(payload?.analyst || '');
     setReservoirInputs({ ...DEFAULT_RESERVOIR, ...(payload?.reservoirInputs || {}) });
     setTestConfig({ ...DEFAULT_TEST_CONFIG, ...(payload?.testConfig || {}) });
     setGaugeRows(Array.isArray(payload?.gaugeRows) ? payload.gaugeRows : []);
@@ -885,7 +962,7 @@ export const WellTestStudioProvider = ({ children }) => {
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [wellName, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, currentProjectId, hydrated]);
+  }, [wellName, fieldName, analyst, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, currentProjectId, hydrated]);
 
   const value = {
     // shell plumbing
@@ -896,6 +973,8 @@ export const WellTestStudioProvider = ({ children }) => {
     isSaving, saveError, lastSaveTime,
     // inputs
     wellName, setWellName,
+    fieldName, setFieldName,
+    analyst, setAnalyst,
     reservoirInputs, setReservoirField,
     testConfig, setTestField,
     gaugeRows, setGaugeRows,
@@ -915,7 +994,7 @@ export const WellTestStudioProvider = ({ children }) => {
     semilogResult, pssResult, sqrtResult, derivedKpis,
     multiRateResult, deliverabilityResult,
     // auto-fit
-    fitResult, isFitting, fitStale, runAutoFit,
+    fitResult, isFitting, fitStale, runAutoFit, matchMethod,
     // sample
     loadSampleTest,
   };

@@ -485,3 +485,53 @@ report change.
   unchanged.
 - Screenshots: harness at 1440 and 390 in light, plus dark at 1440
   (Diagnostics, Match); no sideways page scroll.
+
+## 2026-09-28: tester feedback round (branch `fix/welltest-tester-feedback-units-headers`)
+
+Five items from the team that tested the studio. No engine change: every
+row still reaches state as oilfield hours and absolute psi. No migration:
+the new fields persist in the project jsonb.
+
+1. **CSV units.** New `src/utils/welltest/gaugeImport.js`. Time in hours,
+   minutes, seconds, days or date/time stamps (hours from the first
+   reading); pressure in psia, psig, kPa, bar or MPa, absolute or gauge.
+   Gauge readings add one standard atmosphere (14.696 psi = 101.325 kPa),
+   because drawdowns compare the gauge with pi (psia) and gas m(p) needs
+   absolute pressure. Units are read from the headers when present,
+   otherwise the pressure default follows the unit system (psia / kPa abs).
+2. **Column order.** Time and pressure columns are found from the header
+   text in any order and any position; temperature, rate and depth columns
+   are skipped. A headerless file is still read as time then pressure. After
+   an import the Data rail shows a mapping card (time column and unit,
+   pressure column and unit) and any change re-reads the file.
+3. **pwf with its time.** New test setting `testStartTime`: the shut-in
+   time (buildup/falloff) or start of flow (drawdown/injection) on the
+   gauge clock, blank = 0. `prepareTestData` counts elapsed time from it and
+   sets the earlier readings aside (`preTestPoints`, an info line, not a
+   warning). pwf at dt = 0 is the entered value, else the gauge reading at
+   the shut-in, else the last flowing reading within 15 min before it, else
+   the first buildup reading with skin withheld (`pwfSource`). The Data rail,
+   Data KPI, right rail, Report and PDF all state it as "pwf at dt = 0 hr
+   (gauge time X hr)" with its source. CSV import now keeps t <= 0 rows so
+   the t = 0 reading reaches `prepareTestData` (it was dropped before).
+   The label keeps the "Flowing pressure at shut-in" prefix the Ekene demo
+   kit and the T1 e2e look for.
+4. **"Converged" without a regression.** `resolveMatchMethod` (context):
+   the match is reported as a regression only while it holds exactly the
+   auto-fit's values for the same model on unchanged inputs. A slider-only
+   match, or one moved by hand, re-modelled or re-data'd after a fit, is a
+   **manual match**: no regression status and no confidence intervals in
+   the Report tab, the PDF (fitResult is passed only for a regression) or
+   the rail ("Match method" row replaces "Fit"). The Match tab still shows
+   the last auto-fit, retitled and explained when it no longer describes
+   the working match.
+5. **PDF header.** `buildReportHeader` (exported, jest-covered): Project,
+   Well, Field, Analyst, Test type, Fluid, tp, shut-in time, pwf at shut-in
+   time 0 hr with its source, Generated (UTC). Field and Analyst are new
+   Test setup inputs saved with the project and shown on the Report tab.
+   PDF text stays Latin-1 (no Greek delta; jsPDF standard fonts).
+
+Tests: `src/utils/welltest/__tests__/gaugeImport.test.js` (new); the
+wiring suite gains the gauge-clock shut-in cases, `resolveMatchMethod` and
+`buildReportHeader`; the smoke test checks the pwf readout, the report
+identity line and that nothing says "converged" without an auto-fit.

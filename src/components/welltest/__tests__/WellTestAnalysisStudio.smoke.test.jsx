@@ -46,6 +46,12 @@ describe('WellTestAnalysisStudio page', () => {
     fireEvent.click(screen.getByRole('button', { name: /Sample/i }));
     expect(await screen.findByText(/Points used/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Pressure history/i).length).toBeGreaterThan(0);
+    // tester round 2026-09-28: pwf is stated at dt = 0 with its gauge time,
+    // and the field / analyst travel to the report header
+    expect(screen.getByTestId('wts-pwf-readout')).toHaveTextContent(/pwf at Δt = 0 hr \(gauge time 0 hr\): \d+\.\d psi, entered/);
+    const input = (label) => screen.getByText(label, { selector: 'label' }).parentElement.querySelector('input');
+    fireEvent.change(input('Field'), { target: { value: 'Obodo' } });
+    fireEvent.change(input('Analyst'), { target: { value: 'A. Analyst' } });
 
     // Diagnostics: log-log plot and regime detection on the sample.
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Diagnostics' }));
@@ -72,5 +78,9 @@ describe('WellTestAnalysisStudio page', () => {
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Report' }));
     expect(await screen.findByText(/Straight-line analyses/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Radius of investigation/i).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('wts-report-identity')).toHaveTextContent('Well Sample well 1 · Field Obodo · Analyst A. Analyst');
+    expect(screen.getByTestId('wts-report-pwf')).toHaveTextContent(/pwf at shut-in, Δt = 0 hr \(gauge time 0 hr\)/);
+    // no auto-fit was run, so nothing may claim a regression
+    expect(screen.queryByText(/converged/i)).toBeNull();
   });
 });
