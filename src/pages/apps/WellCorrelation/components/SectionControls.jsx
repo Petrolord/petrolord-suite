@@ -108,7 +108,7 @@ function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete, mapHref, v
 }
 
 export default function SectionControls({
-  topNames, datum, onDatum, datumNames = null, horizons = null, strips = null,
+  topNames, datum, onDatum, datumNames = null, horizons = null, strips = null, backdrop = null,
   pickBy = null, onPickBy = null, pickDetails = null, analyst = '',
   assist = null,
   depthUnit, onDepthUnit, depthRef, onDepthRef, spacing, onSpacing, columnWidth = 'auto', onColumnWidth = null, hasLine = false,
@@ -362,6 +362,28 @@ export default function SectionControls({
             );
           })}
           <p className="mt-1 text-[10px] text-pl-muted">Each horizon is sampled where the wellbore crosses it (time horizons through the well's checkshots) and drawn dotted; flatten on it from Datum. Nothing is written.</p>
+        </Section>
+      )}
+
+      {backdrop && (
+        <Section title="Seismic backdrop" testId="corr-backdrop">
+          {/* Seismolord U2-002: a traverse through the section wells, read only */}
+          {!backdrop.volumes.length && <p className="text-pl-muted">No Seismolord volume is available to you. Import one in Seismolord to see seismic behind the wells.</p>}
+          {backdrop.volumes.length > 0 && (
+            <select
+              className="w-full rounded border border-pl-border bg-pl-surface text-pl-text px-1 py-0.5"
+              value={backdrop.volumeId || ''}
+              data-testid="corr-backdrop-volume"
+              aria-label="Seismic volume"
+              onChange={(e) => backdrop.onVolume(e.target.value || null)}
+            >
+              <option value="">None</option>
+              {backdrop.volumes.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+          )}
+          {backdrop.loading && <p className="text-pl-muted text-[10px]">Reading the seismic along the section...</p>}
+          {backdrop.volumeId && !backdrop.timeRef && <p className="text-[10px] text-pl-warning-text">Set the depth reference to TWT to see the backdrop.</p>}
+          <p className="mt-1 text-[10px] text-pl-muted">The seismic is read along the line through the wells in section order, one trace per bin, and drawn between the columns in two-way time with each well on its own trace. Nothing is written.</p>
         </Section>
       )}
 

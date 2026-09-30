@@ -82,3 +82,44 @@ test('U2-001: map with contours and wells, legend states the contour interval', 
   expect(text).toContain('OKAN-1');
   expect(text).toContain('Analyst: Harness Analyst');
 });
+
+// U2-002: the seismic backdrop in Well Correlation's section (in-memory
+// backend: the synthetic KETA 3D volume under the sample wells)
+const gapInk = (page) => page.evaluate(() => {
+  const sec = document.querySelector('[data-testid="corr-section"]');
+  const c = document.querySelector('[data-testid="corr-section-canvas"]');
+  const xs = sec.dataset.colX.split(',').map(Number);
+  const ws = sec.dataset.colW.split(',').map(Number);
+  const top = Number(sec.dataset.plotTop);
+  const h = Number(sec.dataset.plotH);
+  const dpr = c.width / c.getBoundingClientRect().width;
+  const x = Math.round(((xs[0] + ws[0] + xs[1]) / 2) * dpr);
+  const { data } = c.getContext('2d').getImageData(x, Math.round(top * dpr), 1, Math.round(h * dpr));
+  let n = 0;
+  for (let i = 0; i < data.length; i += 4) if (Math.abs(data[i] - data[i + 2]) > 60) n++;
+  return n / (data.length / 4);
+});
+
+for (const [vp, theme] of [[{ width: 1366, height: 768 }, 'light'], [{ width: 1440, height: 900 }, 'dark']]) {
+  test(`U2-002 ${vp.width}x${vp.height} ${theme}: seismic backdrop between the wells of a TWT section`, async ({ page }) => {
+    await page.setViewportSize(vp);
+    await page.addInitScript((t) => {
+      try { for (const k of Object.keys(localStorage)) if (/theme/i.test(k)) localStorage.setItem(k, t); } catch { /* none */ }
+    }, theme);
+    await page.goto('/dev/well-correlation?wells=corr-w1,corr-w2,corr-w3');
+    await expect(page.getByTestId('corr-order-count')).toHaveText('3', { timeout: 120000 });
+    await page.getByTestId('corr-depth-ref').selectOption('twt');
+    const sec = page.getByTestId('corr-section');
+    await expect(sec).toHaveAttribute('data-backdrop-spans', '0');
+    const before = await gapInk(page);
+    await page.getByTestId('corr-backdrop-volume').selectOption({ label: 'KETA 3D' });
+    await expect(sec).toHaveAttribute('data-backdrop-spans', '2', { timeout: 60000 });
+    await expect(page.getByTestId('corr-status')).toContainText('Seismic backdrop from KETA 3D through 3 wells');
+    await expect.poll(() => gapInk(page), { timeout: 30000 }).toBeGreaterThan(0.2);
+    expect(before).toBeLessThan(0.02); // negative control: no backdrop, no seismic colour in the gap
+    const scroll = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(scroll).toBeLessThanOrEqual(0);
+    // flattening hides it and says why
+    await page.screenshot({ path: `/tmp/claude-0/seis-upg2/u2-002-${vp.width}-${theme}.png` });
+  });
+}
