@@ -211,3 +211,21 @@ Batch C: U2-016, U2-020, U2-014, U2-015, U2-017, U2-018, U2-019.
 
 1. ICS version (U2-003): move to 2026/06 for all new ages and flag ages typed under 2023/09, or offer a per-project chart version? The recommendation is one current chart plus the stamp and the flag.
 2. Zone schemes (U2-008): organisation-readable, owner-writable like `geo_strat_units`? That is a new product table with RLS (migration reviewed and applied by the owner), no shared-table change.
+
+## Batch decision (programme lead, 2026-09-30)
+
+Recorded verbatim.
+
+BUILD in this order, one commit per item:
+- Batch A: U2-002 bring the Well Correlation U2 section additions (Seismolord horizons, strips, fixed-width columns) into the studio section; U2-001 Wheeler columns spaced by distance; U2-003 ICS chart 2026/06, engines first (decision on the ICS policy: 2026/06 becomes the default chart; every age carries the chart version it was entered under; ages entered under an older chart are flagged with the numeric change where a boundary moved, e.g. J/K 145.0 to 143.1 Ma, and the user can accept the update per project; store the chart version in the existing project payload, no schema change); U2-006 stratigraphic summary PDF (reviewer header, read back with pdftotext in a test); U2-004 display units; U2-005 biozone paste with scheme and ages; U2-007 column editor at scale.
+- Batch B: U2-011 strat maps on vertical thickness; U2-012 Data AI labels from tracts; U2-009 biostrat events and range chart; U2-010 event-based age model (validate against a published worked example); U2-013 Seismolord terminations as registry rows ONLY if an existing registry table can hold them without a schema change, otherwise defer with the reason.
+- Batch C: U2-016 suggest-only tract picks (each suggestion shows its reason; nothing written until accepted, same rule as Well Correlation U2-009); U2-018 ranks and tidy-ups; U2-019 delete the kit re-export shims (only if every importer is updated and the suites pass).
+DEFERRED: U2-008 org-wide zone schemes (needs a new product table with RLS: owner review and apply; do not write the migration in this PR); U2-020 decompaction (Basin & Charge Modeling owns burial history, revisit at app #11); U2-014 Wheeler from seismic, U2-015 graphic correlation, U2-017 chemostratigraphy (L, after NAPE).
+
+Branch `feat/strat-u2`, one PR. Build log per item below.
+
+### Build log (Step 2)
+
+| ID | Status | Proving test | Notes |
+|---|---|---|---|
+| U2-002 | Done | `__tests__/upgradeU2.test.jsx` "STRAT-U2-002" (registry backend lists sections, surfaces and zones; both Seismolord horizons drawn, the time one naming KETA-3, flatten on "H: Dome", nothing written; pay, zone and unit strips with KETA-2 "no published PAY"; 220 px columns; horizons, strips and width saved with the view and restored; ghost in feet with all tracks and x1.25; the Wheeler's section picker; `.pld` remaps the ghost wells and horizons); `src/lib/portability/__tests__/stratigraphyFamily.test.js` (softRefs, updated deliberately); every Well Correlation suite (the horizon code moved into the kit) | The horizon logic Well Correlation U2-003 built moved unchanged into the kit (`useSectionHorizons.js`); both apps call it. The studio section gains a Horizons list (read only, per-horizon "drawn on n wells; not on ..."), Strips (pay, zones, units), a Columns width select (auto, fit, 120 to 300 px with the kit's horizontal scroll), flatten and stretch on a horizon, and the WC ghost controls (all tracks, stretch) with the shift in the display unit (ft, or ms on TWT). All of it rides in `strat_projects.view` (jsonb, no schema change). Found on the way: the registry backend never passed `listSections`, so the U1-009 section picker showed only on the harness; fixed. `.pld`: `view.ghost.*Id` (geo_wells) and `view.horizons[]` (geo_surfaces) are optional softRefs, so U1-030's ghost ids are remapped. The Wheeler header has the section picker. The harness sample now carries WC's published PAY, zones and the two Dome horizons. |

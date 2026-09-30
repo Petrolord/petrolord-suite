@@ -5,7 +5,7 @@
 // three-level Niger Delta style column. Same interface as registryBackend;
 // owner-only guards mirror RLS.
 
-import { sampleWells } from '../../WellCorrelation/services/sampleSection';
+import { sampleWells, sampleSurfaces, samplePetro } from '../../WellCorrelation/services/sampleSection';
 import { openSectionRow } from '@/components/wells/section/sectionState';
 import { openStratProjectRow } from '@/lib/stratigraphy/stratProjectState';
 import { makeInMemoryBackend as makeBasinMemory } from '../../BasinFlowGenesis/services/backend';
@@ -36,8 +36,17 @@ export function seededUnits() {
  *   sections: saved geo_correlation_sections rows, newest LAST (the default
  *   is the KETA section); project: a saved strat_projects row
  */
-export function makeInMemoryBackend({ sample = true, seedWells = [], sections: seedSections = null, project: seedProject = null, units: seedUnits = null } = {}) {
-  const wells = [...(sample ? sampleWells() : []), ...seedWells.map((w) => ({ ...w, curves: asCurves(w.curves) }))].map((w) => ({ ...w }));
+export function makeInMemoryBackend({ sample = true, seedWells = [], sections: seedSections = null, project: seedProject = null, units: seedUnits = null, surfaces: seedSurfaces = null } = {}) {
+  // STRAT-U2-002: the sample carries Well Correlation's published Petrophysics
+  // (PAY on KETA-1, zones) and its two Seismolord horizons, so the studio
+  // section can draw strips and horizons on the harness
+  const sampleSet = sample ? sampleWells().map((w) => {
+    const p = samplePetro(w);
+    return { ...w, zones: p.zones, curves: p.pay ? { ...w.curves, PAY: p.pay } : w.curves, logMeta: p.pay ? { ...w.logMeta, PAY: { ...w.logMeta.GR, unit: 'FLAG' } } : w.logMeta };
+  }) : [];
+  const wells = [...sampleSet, ...seedWells.map((w) => ({ ...w, curves: asCurves(w.curves) }))].map((w) => ({ ...w }));
+  const zonesByWell = new Map(wells.map((w) => [w.id, [...(w.zones || [])]]));
+  const surfaces = () => seedSurfaces ?? (sample ? sampleSurfaces() : []);
   const topsByWell = new Map(wells.map((w) => [w.id, w.tops.map((t) => ({ ...t }))]));
   const intervalsByWell = new Map(wells.map((w) => [w.id, (w.intervals || []).map((r) => ({ ...r }))]));   // ST1 seeded lithology
   const coreImagesByWell = new Map();
@@ -153,6 +162,13 @@ export function makeInMemoryBackend({ sample = true, seedWells = [], sections: s
       if (!c) throw new Error('Curve not found.');
       return c instanceof Float32Array ? c : Float32Array.from(c);
     },
+    async listSurfaces() { return surfaces().map(({ grid, ...row }) => ({ ...row })); },
+    async downloadSurfaceGrid(row) {
+      const found = surfaces().find((x) => x.id === row.id);
+      if (!found) throw new Error('Surface grid not found.');
+      return Float32Array.from(found.grid);
+    },
+    async listZones(wellId) { return (zonesByWell.get(wellId) || []).map((z) => ({ ...z, properties: { ...(z.properties || {}) } })); },
     async listSections() {
       return [...sections].sort((a, b) => b._t - a._t)
         .map((r) => ({ id: r.id, name: r.name || 'Section', wellCount: (r.well_ids || []).length, updated_at: r.updated_at || null }));

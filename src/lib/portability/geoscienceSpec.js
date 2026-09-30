@@ -151,7 +151,13 @@ export const GEOSCIENCE_SPEC = {
       kind: 'strat-project',
       stamped: true,
       scope: ['user_id'],
-      softRefs: [{ path: 'section_id', table: 'geo_correlation_sections', optional: true }],
+      // STRAT-U2-002 (U1-030): the ghost's wells and the drawn horizons ride in view
+      softRefs: [
+        { path: 'section_id', table: 'geo_correlation_sections', optional: true },
+        { path: 'view.ghost.sourceWellId', table: 'geo_wells', optional: true },
+        { path: 'view.ghost.targetWellId', table: 'geo_wells', optional: true },
+        { path: 'view.horizons[]', table: 'geo_surfaces', optional: true },
+      ],
     },
   },
 };

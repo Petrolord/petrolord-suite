@@ -15,7 +15,13 @@ test('the geoscience family carries the stratigraphy tables in dependency order'
   expect(importOrder()).toEqual(expect.arrayContaining(['geo_strat_units', 'geo_wells_intervals', 'geo_wells_core_images', 'strat_projects']));
   expect(order.indexOf('geo_correlation_sections')).toBeLessThan(order.indexOf('strat_projects'));
   expect(fam.roots.strat_project).toBe('strat_projects');
-  expect(tableSpec('strat_projects').softRefs).toEqual([{ path: 'section_id', table: 'geo_correlation_sections', optional: true }]);
+  // STRAT-U2-002: the ghost's wells and the drawn horizons in view are remapped too (updated deliberately)
+  expect(tableSpec('strat_projects').softRefs).toEqual([
+    { path: 'section_id', table: 'geo_correlation_sections', optional: true },
+    { path: 'view.ghost.sourceWellId', table: 'geo_wells', optional: true },
+    { path: 'view.ghost.targetWellId', table: 'geo_wells', optional: true },
+    { path: 'view.horizons[]', table: 'geo_surfaces', optional: true },
+  ]);
 });
 
 test('intervals and core images are children of the well; a typed top references its unit optionally', () => {
