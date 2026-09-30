@@ -61,6 +61,18 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
         </div>
       </div>
 
+      {((built.notes || []).length > 0 || (built.propertyClamps || []).length > 0) && (
+        <div className={card} data-testid="em-build-notes">
+          <div className="px-2 py-1.5 text-xs font-semibold text-pl-text border-b border-pl-border">Build notes: what the model assumed or held</div>
+          <ul className="px-4 py-1.5 list-disc text-[11px] text-pl-text space-y-0.5">
+            {(built.propertyClamps || []).map((c) => (
+              <li key={`${c.zone}-${c.prop}`} className="text-pl-warning-text">{c.zone} {c.prop}: {c.nodes} node{c.nodes === 1 ? '' : 's'} extrapolated outside 0 to 1 and held at the limit (a trend or kriging beyond the wells).</li>
+            ))}
+            {(built.notes || []).map((n) => <li key={n}>{n}</li>)}
+          </ul>
+        </div>
+      )}
+
       {built.adjustment && (
         <div className={card} data-testid="em-adjust-report">
           <div className="px-2 py-1.5 text-xs font-semibold text-pl-text border-b border-pl-border">

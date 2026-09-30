@@ -19,9 +19,17 @@ const goldens = JSON.parse(fs.readFileSync(
 
 const fmtM = (v) => (v / 1e6).toFixed(3);
 
-async function stackAndBuild(page) {
-  await page.goto('/dev/earth-modeling');
+// EM-U1-014: since the Suite unit profile (#830) the harness opens on the
+// profile's volume set (field when no profile is stored), so the oracle
+// assertions pick metric explicitly
+async function openMetric(page, url = '/dev/earth-modeling') {
+  await page.goto(url);
   await expect(page.getByTestId('em-explorer')).toBeVisible();
+  await page.getByTestId('em-volume-units').selectOption('metric');
+}
+
+async function stackAndBuild(page) {
+  await openMetric(page);
   for (const name of ['TopA', 'TopB', 'BaseB']) {
     await page.getByTestId(`em-add-${name}`).click();
   }
@@ -206,8 +214,7 @@ test('EM1: adjusting the surfaces to the well tops shrinks the residuals and the
 });
 
 test('EM2: a horizon parallel to TopA at 50 m joins the stack and builds a 50 m zone with the closed-form bulk volume', async ({ page }) => {
-  await page.goto('/dev/earth-modeling');
-  await expect(page.getByTestId('em-explorer')).toBeVisible();
+  await openMetric(page);
   await page.getByTestId('em-add-TopA').click();
   await page.getByTestId('em-derived-source').selectOption({ label: 'TopA' });
   await page.getByTestId('em-derived-thickness').fill('164.042');

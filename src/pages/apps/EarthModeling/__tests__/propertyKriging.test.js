@@ -40,3 +40,46 @@ test('a typed variogram is honoured and validated', () => {
   const { provenance } = populateZonePropertyOk(spec, null, { 0: pts }, pts, { fit: false, model: 'spherical', range: '600', sill: '0.001' });
   expect(provenance[0].variogram).toMatchObject({ range: 600, fitted: false });
 });
+
+// EM-U1-015 (PL10): grouped kriging equals the engine's per-target path
+describe('krigeTargetsGrouped', () => {
+  // eslint-disable-next-line global-require
+  const { krigeTargetsGrouped } = require('../services/propertyKriging');
+  // eslint-disable-next-line global-require
+  const { krigePoints } = require('@/lib/gridding/kriging');
+  const pts = Array.from({ length: 60 }, (_, i) => ({ x: (i * 7919) % 5000, y: (i * 104729) % 5000, z: 0.2 + 0.05 * Math.sin(i / 3) + 1e-5 * ((i * 7919) % 5000) }));
+  const T = [];
+  for (let r = 0; r < 40; r++) for (let c = 0; c < 40; c++) T.push([c * 125 + 3, r * 125 + 7]);
+  const vg = { model: 'spherical', range: 2500, sill: 0.002, nugget: 0.0001, neighbours: 24 };
+
+  test.each([true, false])('detrend %s: values and variances match krigePoints to 1e-9 with far fewer systems', (detrend) => {
+    const a = krigePoints(pts, T, { ...vg, detrend });
+    const b = krigeTargetsGrouped(pts, T, { ...vg, detrend });
+    for (let i = 0; i < T.length; i++) {
+      expect(Math.abs(a.values[i] - b.values[i])).toBeLessThan(1e-9);
+      expect(Math.abs(a.variances[i] - b.variances[i])).toBeLessThan(1e-9);
+    }
+    expect(b.groups).toBeLessThan(T.length / 3);
+  });
+
+  test('negative control: a plane fitted per group (not once on every point) moves the values', () => {
+    const a = krigePoints(pts, T, { ...vg, detrend: true });
+    // the wrong way: detrend inside each group
+    let worst = 0;
+    const sample = T.filter((_, i) => i % 97 === 0);
+    for (const t of sample) {
+      const near = [...pts].sort((p, q) => ((p.x - t[0]) ** 2 + (p.y - t[1]) ** 2) - ((q.x - t[0]) ** 2 + (q.y - t[1]) ** 2)).slice(0, 24);
+      const w = krigePoints(near, [t], { ...vg, detrend: true }).values[0];
+      worst = Math.max(worst, Math.abs(w - a.values[T.indexOf(t)]));
+    }
+    expect(worst).toBeGreaterThan(1e-6);
+  });
+
+  test('a small point set (at most k) takes the global system as before', () => {
+    const few = pts.slice(0, 10);
+    const a = krigePoints(few, T.slice(0, 50), { ...vg, detrend: true });
+    const b = krigeTargetsGrouped(few, T.slice(0, 50), { ...vg, detrend: true });
+    expect(b.groups).toBe(1);
+    b.values.forEach((v, i) => expect(v).toBeCloseTo(a.values[i], 12));
+  });
+});
