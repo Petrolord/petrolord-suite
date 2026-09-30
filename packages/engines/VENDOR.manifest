@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 8983e2fbfb30f210ce8864d3518a1f49f7029637
+# commit bf8376b9fc3e33948df9563c2282ae94503fdc9b
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 29fb828f7173209a3b86294ecd4a53015b3ae902 README.md
@@ -134,6 +134,7 @@ d3b4c56d74031a4ab9d2900ee6a2327dc83c45d3 __tests__/hse.exposure.test.js
 18ecef5c10e9fef95943227c3b9a1e936e9cde02 __tests__/mapping.kriging.test.js
 a46150ed760bc35823154ef53bc33dbcd725db96 __tests__/mapping.structurepoints.test.js
 b49f1bf2a40b079b94284e7867cf4567224898ad __tests__/mapping.t1.test.js
+99867728c424fb33ebb4623e8fcbc5affc24a595 __tests__/mapping.u2.test.js
 66917aa10462c0197fc48e7c020bb24f62119186 __tests__/mbal.test.ts
 2c42cf594e3e98a5df4bbc5e1e4b5cb1c55f6380 __tests__/petrophysics.conditioning.test.js
 99a7f6a2d8dac3d210a23c0fdc66fe12bec49cd5 __tests__/petrophysics.mineral.test.js
@@ -175,7 +176,7 @@ f314f56ca2f116acf51968e5cdba732d069a6122 __tests__/seismolord.faultdetect.test.j
 c3a3eeb360916ea1312a370817c875c36ad70569 __tests__/seismolord.faultlikelihood.test.js
 e4f3077ef409febee84ffbc11ee97ed5185488e9 __tests__/seismolord.faultobjects.test.js
 f164d0a958b73fb28b1608a37b8a5c1cc9a0223e __tests__/seismolord.framework.test.js
-0490668ac5610c28bb10572edff39d5d93f863ec __tests__/seismolord.geoazimuth.spectral.test.js
+7ed439df7f7ac1d6f39e838f46bd438b2d818397 __tests__/seismolord.geoazimuth.spectral.test.js
 2c5ca1e15b0a09c85bfe9d7da0526704cf4cebff __tests__/seismolord.horizonanalytics.test.js
 7dbc1174a7ae4bb2789161f1461f0328a4ede442 __tests__/seismolord.import.test.js
 65d29290a18eab1e3c9d164faf9d71fab94efe00 __tests__/seismolord.importreaders.test.js
@@ -573,15 +574,17 @@ a9f4aed1007adab6744e55b6a476843715dcf375 lib/crs/gridReproject.js
 9a256b5b4f89fa83866c70a6b9760dca50990393 lib/crs/transform.js
 15dba4d7ecb833fd1d9c2bf8b32942fbe4e5a382 lib/dates/dates.js
 8aa52bc3b2876860fde0803c26d963f6523d52cc lib/fft.js
+f64c4fc41f49a4d53c3de345d024cb40ad939f63 lib/gridding/blockedGridding.js
 9935981abb59d0999ea820820cedc09edd89db54 lib/gridding/closure.js
 2cf7a6f8630b86ed596a4b8b06e9692b1e524c17 lib/gridding/gridding.js
 b826a59d23b93344fc6a72f5ffaffc5d38ad9e82 lib/gridding/gridmath.js
-746238725c21ae5fd8f612214031c506db7ff6df lib/gridding/kriging.js
+3bdcbb9345b4f6a9b6313d366c9ee6b92114abc4 lib/gridding/isopach.js
+96baf552c9b6927dbbf0d6d366b3951aca98838f lib/gridding/kriging.js
 ae6ab0759e28f7f6ee62af4a46224b567eda2bd6 lib/gridding/mapContours.js
 6781b836e8c152989ca9f84af0d8360acd0c8bcc lib/gridding/numeric.js
 732bc74ae164f70c092d5fe09a20f21b2e85ae43 lib/gridding/surfaceExport.js
 257ace2d4a1a25624830610689c5c2f6cd5219a6 lib/gridding/surfaceImport.js
-f6eb51264fb5e23468726d130c347f86e551de1d lib/gridding/tensionSpline.js
+239f287ce6a3553604e551cdcf4c1469abb54ea6 lib/gridding/tensionSpline.js
 33e4c427eb4e2398cbf1fc7f7c2faf09282027e6 lib/linalg/solveDense.js
 d0e10f21a7c6cc8d6f2167bd6244e5dd32c63d35 lib/lp/simplex.js
 92985b59a8f78fb16d3d132a13fcbadb1a7ec4ee lib/stats/stats.js

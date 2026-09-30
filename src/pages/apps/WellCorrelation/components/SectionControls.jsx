@@ -5,6 +5,7 @@
 // persistence.
 
 import React, { useState } from 'react';
+import UnitProfileNote from '@/components/units/UnitProfileNote';
 import { Crosshair, RefreshCw, Pencil, Trash2, Check, X, Map as MapIcon, Upload, Download } from 'lucide-react';
 import TopsFilePanel from './TopsFilePanel';
 import { Link } from 'react-router-dom';
@@ -111,7 +112,7 @@ export default function SectionControls({
   topNames, datum, onDatum, datumNames = null, horizons = null, strips = null, backdrop = null,
   pickBy = null, onPickBy = null, pickDetails = null, analyst = '',
   assist = null,
-  depthUnit, onDepthUnit, depthRef, onDepthRef, spacing, onSpacing, columnWidth = 'auto', onColumnWidth = null, hasLine = false,
+  depthUnit, onDepthUnit, unitNote = null, depthRef, onDepthRef, spacing, onSpacing, columnWidth = 'auto', onColumnWidth = null, hasLine = false,
   layouts, onLayoutsChange, logSources, onStatus,
   shownTops, onToggleTop, onShowAllTops,
   pickMode, onPickMode, onReloadTops, onRenameTop, onDeleteTop,
@@ -210,6 +211,7 @@ export default function SectionControls({
       )}
 
       <Section title="View">
+        {unitNote && <UnitProfileNote u={unitNote} className="mb-1" />}
         <div className="grid grid-cols-2 gap-1.5">
           <label className="flex items-center gap-1 text-pl-muted">unit
             <select className={selCls} value={depthUnit} data-testid="corr-depth-unit" onChange={(e) => onDepthUnit(e.target.value)}>

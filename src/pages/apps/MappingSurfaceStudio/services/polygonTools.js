@@ -8,6 +8,8 @@
 // boundary nulls every node outside it. Pure helpers, no I/O.
 
 import { labelBlocks, pointInPolygon, validatePolygon } from '@/pages/apps/EarthModeling/engine/blocks';
+import { gridXY, isNull } from '@/lib/gridding/gridmath';
+import { NULL_VALUE } from '@/lib/gridding/numeric';
 
 export const POLYGON_KINDS = Object.freeze({ fault: 'fault_polygon', boundary: 'boundary', facies: 'facies', paleo: 'paleogeography' });
 export const POLYGON_STYLE = Object.freeze({
@@ -86,4 +88,23 @@ export function blocksForPoints(points, rings) {
 /** Per-node block ids on a grid spec (the gridSurfaceBlocked input). */
 export function nodeBlocksFor(spec, rings) {
   return labelBlocks(spec, rings);
+}
+
+/**
+ * MAP-U2-004: null every node outside ALL of the rings (a boundary file
+ * with several polygons keeps the union). Rotation honoured.
+ */
+export function maskOutsideRings(z, spec, rings) {
+  const polys = (rings || []).map(validatePolygon);
+  if (!polys.length) throw new Error('Pick a boundary polygon.');
+  const out = new (z.constructor)(z.length);
+  for (let r = 0; r < spec.ny; r++) {
+    for (let c = 0; c < spec.nx; c++) {
+      const i = r * spec.nx + c;
+      if (isNull(z[i])) { out[i] = NULL_VALUE; continue; }
+      const { x, y } = gridXY(spec, r, c);
+      out[i] = polys.some((p) => pointInPolygon(x, y, p)) ? z[i] : NULL_VALUE;
+    }
+  }
+  return out;
 }

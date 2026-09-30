@@ -13,6 +13,7 @@ import { buildDefaultLayouts, migrateLayouts, activeTemplate } from '@/component
 import { makeDepthFrame } from '@/pages/apps/WellDataManager/engine/checkshots';
 import { allTopNames } from '@/pages/apps/WellCorrelation/engine/section';
 import { orientSectionCurves } from './sectionFrame';
+import { useAppUnits } from '@/lib/units/useAppUnits';
 
 export const CORR_PARAMS = { grClean: 30, grClay: 120, cutPhi: 0.08, cutVsh: 0.4, cutSw: 0.6 };
 export const DEFAULT_TEMPLATE = 'quicklook';
@@ -22,7 +23,7 @@ const defaultLayouts = () => ({ ...buildDefaultLayouts(), activeTemplateId: DEFA
  * @param {Object} backend listWells, listTops, listLogs, downloadCurve, loadSection, (listIntervals)
  * @param {{ deepLinkWells?: string[], onStatus?: (msg: string) => void }} [opts]
  */
-export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => {} } = {}) {
+export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => {}, unitsApp = 'well-correlation' } = {}) {
   // deep link (cross-app navigation, 2026-09-03): ?wells=<id,id> appends
   // those wells to the section once the wells and any saved section loaded
   const deepLinkRef = useRef({ wells: deepLinkWells || [], done: false });
@@ -35,7 +36,22 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
   const [shownTops, setShownTops] = useState([]);
   const [zoneMode, setZoneMode] = useState('consecutive');
   const [zonePair, setZonePair] = useState(null);
-  const [depthUnit, setDepthUnit] = useState('m');
+  // Suite unit profile: the depth unit starts from the profile. A saved
+  // section (or a host's saved view) opens in the unit it was saved with,
+  // like a saved project; the toolbar choice is a session view override.
+  // unitNote feeds UnitProfileNote, so the UI says when the view differs.
+  const unitsHook = useAppUnits(unitsApp, { depth: { family: 'depth', allowed: ['m', 'ft'] } }, { fallback: { depth: 'm' } });
+  const [savedDepthUnit, setSavedDepthUnit] = useState(null);
+  const depthUnit = savedDepthUnit || unitsHook.units.depth;
+  const setDepthUnit = useCallback((u) => { setSavedDepthUnit(null); unitsHook.setUnit('depth', u); }, [unitsHook]);
+  /** A saved view's unit: shown as saved, without becoming a session override. */
+  const restoreDepthUnit = useCallback((u) => { if (u === 'm' || u === 'ft') setSavedDepthUnit(u); }, []);
+  const unitNote = useMemo(() => ({
+    ...unitsHook,
+    units: { depth: depthUnit },
+    differs: depthUnit !== unitsHook.profileUnits.depth ? ['depth'] : [],
+    resetToProfile: () => { setSavedDepthUnit(null); unitsHook.resetToProfile(); },
+  }), [unitsHook, depthUnit]);
   const [depthRef, setDepthRef] = useState('md');
   const [spacing, setSpacing] = useState('equal');
   const [columnWidth, setColumnWidth] = useState('auto'); // U2-002: 'auto' | 'fit' | px
@@ -59,7 +75,7 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
     if (section.datum) setDatum(section.datum);
     const tl = section.track_layout || {};
     if (tl.layouts) setLayouts({ ...migrateLayouts(tl.layouts), activeTemplateId: tl.layouts.activeTemplateId || DEFAULT_TEMPLATE });
-    if (tl.depthUnit === 'm' || tl.depthUnit === 'ft') setDepthUnit(tl.depthUnit);
+    if (tl.depthUnit === 'm' || tl.depthUnit === 'ft') setSavedDepthUnit(tl.depthUnit);
     if (['md', 'tvd', 'tvdss', 'twt'].includes(tl.depthRef)) setDepthRef(tl.depthRef);
     if (tl.spacing === 'equal' || tl.spacing === 'proportional' || tl.spacing === 'line') setSpacing(tl.spacing);
     if (tl.columnWidth === 'auto' || tl.columnWidth === 'fit' || (Number(tl.columnWidth) >= 40 && Number(tl.columnWidth) <= 600)) setColumnWidth(tl.columnWidth === 'auto' || tl.columnWidth === 'fit' ? tl.columnWidth : Number(tl.columnWidth));
@@ -246,7 +262,7 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
   return {
     wells, order, setOrder, wellData, setWellData, loading, sectionLoaded,
     datum, setDatum, shownTops, setShownTops, zoneMode, setZoneMode, zonePair, setZonePair,
-    depthUnit, setDepthUnit, depthRef, setDepthRef, spacing, setSpacing, columnWidth, setColumnWidth, layouts, setLayouts,
+    depthUnit, setDepthUnit, restoreDepthUnit, unitNote, depthRef, setDepthRef, spacing, setSpacing, columnWidth, setColumnWidth, layouts, setLayouts,
     template, sectionWells, topNames, logSources, ensureWellData, refreshTops, toggleWell, moveWell, applySaved,
     sectionRefused, savedRow, setSavedRow,
     sectionId, setSectionId, sectionName, setSectionName, openSection, startSection, restore,

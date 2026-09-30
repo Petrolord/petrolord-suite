@@ -59,14 +59,14 @@ describe('WellsiteWorkstation on the seeded harness backend', () => {
     const backend = await setup();
     render(<MemoryRouter><WellsiteWorkstation backend={backend} /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('ws-status-bit')).toHaveTextContent('Bit 10000 ft'));
-    expect(screen.getByTestId('ws-status-spm')).toHaveTextContent('60 spm');
-    expect(screen.getByTestId('ws-status-tour')).toHaveTextContent(/tour/);
-    expect(screen.getByTestId('ws-live-tvd')).not.toHaveTextContent('10000');
+    await waitFor(() => expect(screen.getByTestId('ws-status-spm')).toHaveTextContent('60 spm'));
+    await waitFor(() => expect(screen.getByTestId('ws-status-tour')).toHaveTextContent(/tour/));
+    await waitFor(() => expect(screen.getByTestId('ws-live-tvd')).not.toHaveTextContent('10000'));
     fireEvent.change(screen.getByTestId('ws-bit-value'), { target: { value: '10050' } });
     await act(async () => { fireEvent.click(screen.getByTestId('ws-bit-save')); });
     await waitFor(() => expect(screen.getByTestId('ws-status-bit')).toHaveTextContent('Bit 10050 ft'));
-    expect(screen.getByTestId('ws-status')).toHaveTextContent('Bit depth recorded.');
-    expect(screen.getByTestId('ws-sync-state')).toHaveTextContent(/to share|shared|sharing/);
+    await waitFor(() => expect(screen.getByTestId('ws-status')).toHaveTextContent('Bit depth recorded.'));
+    await waitFor(() => expect(screen.getByTestId('ws-sync-state')).toHaveTextContent(/to share|shared|sharing/));
     // metres display
     fireEvent.change(screen.getByTestId('ws-unit'), { target: { value: 'm' } });
     expect(screen.getByTestId('ws-status-bit')).toHaveTextContent('Bit 3063.2 m');

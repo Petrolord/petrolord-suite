@@ -154,7 +154,8 @@ export default function MappingHelpGuide() {
           control points, and Grid fits them itself when the fields are empty. Remove the trend first fits a plane
           through the wells and kriges the residuals, so a regional dip is honoured. A kriged surface carries a
           variance map (metres squared), low where the wells constrain it and high where it is guessed; show the
-          variance map swaps it onto the map. Kriging grids without fault blocks in this version.
+          variance map swaps it onto the map. With fault-block polygons ticked, each block is kriged from its own wells
+          with the one variogram.
         </Para>
         <SubHeading>Spline in tension and smoothing</SubHeading>
         <Para>
@@ -169,8 +170,10 @@ export default function MappingHelpGuide() {
         <Para>
           Map inside the wells keeps the map a cell and a half past the outermost wells, so every well sits inside
           it. Map beyond the wells by a distance extends it past them to show the flanks and the spill; the wells'
-          outline is drawn dashed so you can tell mapped area from extrapolated area. Kriging maps inside the wells
-          in this version. After every structure grid a table lists each well, the map value at the well and the
+          outline is drawn dashed so you can tell mapped area from extrapolated area. Kriging maps past the wells
+          too, but past the variogram range it has nothing to go on: the map returns to the mean of the wells (or to
+          the regional plane when Remove the trend is ticked) and the variance rises to the sill, and the status says
+          so. After every structure grid a table lists each well, the map value at the well and the
           mis-tie, with the mean, RMS and worst mis-tie.
         </Para>
 </GuideSection>
@@ -186,6 +189,7 @@ export default function MappingHelpGuide() {
           ['Colour map', 'Display, Colour map: the structure ramp (shallow warm) or any shared colour map, with a reverse toggle'],
           ['Posting', 'Display: well names, posted values (the control value at each well), legend, scale bar, north arrow, axes'],
           ['PNG', 'PNG in the ribbon: a titled, captioned, logo-stamped image of the map at twice the screen resolution'],
+          ['PDF to scale', 'PDF in the ribbon: one page plotted at 1:N (paper and scale in the dock; blank picks the largest standard scale that fits). Vector contours, faults, boundary and wells, a coordinate grid in the CRS units, a scale bar in metres, grid north and a title block with the reviewer header. Print at 100% with no fit to page'],
         ]} />
         <Para>
           Display settings are saved with a surface when you publish it and restored when you select it.
@@ -205,9 +209,24 @@ export default function MappingHelpGuide() {
         <Para>
           Polygons, Fault block: click vertices on the map (three or more), name it, Save. Tick grid on the polygon
           and the next Grid fits the surface independently inside and outside each polygon, so a fault throw
-          shows as a step at the polygon edge. A block with fewer than three control points is left empty and
+          shows as a step at the polygon edge. This works with every method: the thin-plate spline, the spline in
+          tension and kriging. A block with fewer than three control points (two for kriging) is left empty and
           the status says so. Fault-block polygons are saved to the shared culture registry, so Earth Modeling
           and Seismolord can read them later.
+        </Para>
+        <SubHeading>Grid points from a file</SubHeading>
+        <Para>
+          Import a file of points that are not on a regular grid (scattered picks, or a horizon exported on a
+          rotated seismic lattice) and the dialog says so and offers Grid these points. Say what the values are,
+          their unit and sign, and the file CRS as for a grid; the points are then gridded with the method, cell
+          size, extent, fault blocks and boundary set in the studio. Review the preview, then Publish.
+        </Para>
+        <SubHeading>Bring fault polygons from Petrel or RMS</SubHeading>
+        <Para>
+          Culture, Import reads GeoJSON, shapefiles, Petrel ZMAP+ lines and Irap classic lines. Pick Fault polygons
+          (fault blocks) or Map boundary as the kind: every closed polygon in the file is kept (a file with twelve
+          faults makes twelve blocks), and open lines or points are left out and counted in the message. Tick the
+          layer in Polygons and Grid as usual.
         </Para>
         <SubHeading>Boundaries</SubHeading>
         <Para>
@@ -289,6 +308,22 @@ export default function MappingHelpGuide() {
           B is resampled onto A's frame bilinearly before any two-surface operation, so the result has A's grid.
           Preview, then Publish.
         </Para>
+        <SubHeading>Section line</SubHeading>
+        <Para>
+          Draw a section line (dock, Section line): click two or more points on the map and press Show section. The
+          chart shows the surface on screen and up to five other depth structures in the same CRS along the line,
+          in the display unit with depth downward when depth + is on, and the wells within 500 m of the line at
+          their distance along it. The note under the chart gives the length and the vertical exaggeration the
+          chart is drawn at. Well Correlation remains the place for a correlation panel with logs.
+        </Para>
+        <SubHeading>Isochore and isopach</SubHeading>
+        <Para>
+          The isochore is the vertical thickness between a top and a base (top minus base). The isopach is the true
+          stratigraphic thickness, measured perpendicular to bedding: the isochore times the cosine of the dip, with
+          the dip taken from the mid-surface of the two. On a 30 degree flank a 100 m isochore is an 86.6 m isopach.
+          The isopach is published as an attribute in metres, so no other app reads it as a vertical thickness.
+        </Para>
+        <Formula>isopach = isochore × cos(dip),  tan(dip) = |gradient of the mid-surface|</Formula>
         <SubHeading>Quick GRV</SubHeading>
         <Para>
           Type a contact in the display unit, as an elevation (negative below datum) or as a depth below datum
@@ -303,6 +338,15 @@ export default function MappingHelpGuide() {
           place for fluids, contacts by zone and full uncertainty.
         </Para>
         <Formula>GRV = sum over the closure's nodes of (z − contact) × dx × dy</Formula>
+        <SubHeading>Gas cap, oil leg and fault blocks</SubHeading>
+        <Para>
+          The first field is the oil-water contact (or the only contact). Type a gas-oil contact above it in the
+          second field and the read-out splits the closure: the gas cap above the GOC and the oil leg between the
+          two contacts, which add up to the closure's GRV. With fault polygons ticked for gridding, a table gives
+          each fault block's gas, oil and total. One GOC and one OWC apply to every block; a contact per block is
+          not modelled here.
+        </Para>
+        <Formula>gas = sum of max(0, z − GOC) × A;  oil = sum of (min(z, GOC) − OWC) × A</Formula>
       </GuideSection>
 
       <GuideSection id="timedepth">
@@ -315,9 +359,7 @@ export default function MappingHelpGuide() {
         <Formula>V(z) = v0 + k·z, so z(t) = (v0 / k)(e^(k·t) − 1) with t the one-way time in seconds</Formula>
         <Para>
           The result is elevation (negative below datum) in feet by default or metres, published as a structure
-          surface with the model recorded in its provenance. A layer-cake model is refused here because its layer
-          boundaries are horizon picks on the seismic lattice: convert that horizon to depth in Seismolord and
-          publish it from there.
+          surface with the model recorded in its provenance.
         </Para>
         <SubHeading>Average velocity from the wells</SubHeading>
         <Para>
@@ -327,6 +369,25 @@ export default function MappingHelpGuide() {
           spread the mis-ties at the wells over the map. Both paths show the residual table.
         </Para>
         <Formula>Vavg = Z / (TWT / 2), then Z = Vavg × TWT / 2 at every node</Formula>
+        <SubHeading>V0 + kZ fitted to the tops</SubHeading>
+        <Para>
+          Pick the top this horizon marks and choose V0 + kZ fitted to the tops. One linear velocity function is
+          fitted by least squares to every well's time and depth, and the status gives V0, k and the RMS misfit;
+          the residual table shows the mis-tie at each well. Use it when the wells are few or clustered and a
+          gridded velocity would wander between them.
+        </Para>
+        <SubHeading>Velocity map</SubHeading>
+        <Para>
+          Choose Velocity map and pick an attribute surface of average velocity to this horizon (from Seismolord or
+          an import). It is resampled onto the horizon and depth = velocity × one-way time node by node. A map
+          published with the unit ft/s is converted; a map with no unit is read as m/s, and values outside 1,000 to
+          8,000 m/s are refused with the reason.
+        </Para>
+        <SubHeading>Layer cakes</SubHeading>
+        <Para>
+          A layer-cake model is refused here for now and converts in Seismolord. Mapping will read it once Seismolord publishes each
+          layer boundary as a time surface (Seismolord upgrade U2-006); the conversion engine is already here.
+        </Para>
       </GuideSection>
 
       <GuideSection id="sharing">

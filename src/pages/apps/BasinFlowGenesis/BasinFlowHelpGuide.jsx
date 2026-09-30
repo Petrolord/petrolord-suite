@@ -163,8 +163,8 @@ export default function BasinFlowHelpGuide() {
         <Para>
           The Units selectors in the header convert thicknesses, depths and temperatures on the layer cards, the
           history editors, the calibration tables and plots, the summary table and the burial and temperature plots.
-          The model, the saved well and the SI columns of the CSV stay in metres and degrees C. The depth unit starts
-          from your Geoscience depth setting, shared with Mapping &amp; Surface Studio and Earth Modeling.
+          The model, the saved well and the SI columns of the CSV stay in metres and degrees C. Depth and temperature
+          start from your Suite units (Units in the dashboard sidebar); a change here holds for this session.
         </Para>
         <Table headers={['Quantity', 'Choices']} rows={[['Depth and thickness', DEPTH_UNITS.join(', ')], ['Temperature', TEMP_UNITS.map((u) => `°${u}`).join(', ')]]} />
       </GuideSection>

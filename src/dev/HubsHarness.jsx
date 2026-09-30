@@ -22,6 +22,8 @@ import HubScope from '@/components/hubs/HubScope';
 import AppRoute from '@/components/AppRoute';
 import ProtectedAppRoute from '@/components/ProtectedAppRoute';
 import Dashboard from '@/pages/Dashboard';
+import { AuthContext, useAuth } from '@/contexts/SupabaseAuthContext';
+import { UnitProfileProvider } from '@/lib/units/UnitProfileContext';
 
 const GeoscienceAnalytics = lazy(() => import('@/pages/dashboard/GeoscienceAnalytics'));
 const ReservoirManagement = lazy(() => import('@/pages/dashboard/ReservoirManagement'));
@@ -41,6 +43,7 @@ const StratigraphyHelpGuide = lazy(() => import('@/pages/apps/StratigraphyStudio
 const PetrophysicsStudio = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudio'));
 const Profile = lazy(() => import('@/pages/Profile'));
 const AdminCenter = lazy(() => import('@/pages/admin/AdminCenter'));
+const UnitSettings = lazy(() => import('@/pages/UnitSettings'));
 
 const ORG = { id: '00000000-0000-4000-8000-000000000001', name: 'Harness Energy' };
 const USER = { ...DEV_USER, user_metadata: { full_name: 'Ada Harness', role: 'admin' } };
@@ -83,7 +86,13 @@ const seed = () => ({
     id: `pm-${i}`, organization_id: ORG.id, module_id: m, status: 'active', expiry_date: null,
   })),
   app_seat_assignments: SEATS.map((a) => ({ app_id: a, user_id: USER.id, organization_id: ORG.id })),
-  organization_members: [{ organization_id: ORG.id, user_id: USER.id }],
+  organization_members: [
+    { organization_id: ORG.id, user_id: USER.id, full_name: 'Ada Harness' },
+    { organization_id: ORG.id, user_id: 'dev-admin', full_name: 'Tunde Admin' },
+  ],
+  // Suite unit profile: a metric organisation default set by Tunde Admin
+  suite_unit_settings: [{ id: 'usu-org', scope: 'organization', organization_id: ORG.id, user_id: null,
+    profile: { preset: 'metric', units: { pressure: 'bar' }, version: 1 }, updated_by: 'dev-admin', updated_at: '2026-09-30T09:00:00Z' }],
   access_requests: [],
   org_closure_requests: [],
 });
@@ -99,6 +108,10 @@ const START = {
   // batch 7B: the pages outside /dashboard that open their own scope (AccountScope)
   profile: '/profile',
   admin: '/admin/center',
+  // Suite unit profile: the Units page as an organisation admin, and as a
+  // member reading the admin's default (seeded below)
+  units: '/dashboard/units',
+  'units-member': '/dashboard/units',
 };
 const hubRoute = (slug, Hub) => <Route path={slug} element={<AppRoute appName={slug}><Hub /></AppRoute>} />;
 // An app route as App.jsx wires it, behind the entitlement guard.
@@ -114,6 +127,17 @@ const FUNCTIONS = {
 };
 
 let store = null;
+
+/** The Units page on the harness store, with the caller's role set for the page. */
+function UnitsPage({ role }) {
+  const auth = useAuth();
+  return (
+    <AuthContext.Provider value={{ ...auth, role }}>
+      <UnitProfileProvider><UnitSettings /></UnitProfileProvider>
+    </AuthContext.Provider>
+  );
+}
+
 
 export default function HubsHarness() {
   const { page = 'landing' } = useParams();
@@ -147,6 +171,7 @@ export default function HubsHarness() {
                     {appRoute('apps/facilities/separator-slug-catcher-designer', 'separator-slug-catcher-designer', 'Separator & Slug Catcher Studio', SeparatorSlugCatcherDesigner)}
                     {appRoute('apps/geoscience/petrophysics-studio', 'petrophysics-studio', 'Petrophysics Studio', PetrophysicsStudio)}
                     <Route path="apps/geoscience/stratigraphy-studio/help" element={<StratigraphyHelpGuide />} />
+                    <Route path="units" element={<UnitsPage role={page === 'units-member' ? 'member' : 'admin'} />} />
                   </Route>
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/admin/center" element={<AdminCenter />} />

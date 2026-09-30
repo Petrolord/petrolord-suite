@@ -84,7 +84,7 @@ describe('Members panel on the Config view', () => {
     expect(screen.getByTestId('ws-status')).toHaveTextContent('O. Office added as Operations geologist.');
     await act(async () => { fireEvent.click(screen.getByTestId('ws-member-deactivate-user-office')); });
     await waitFor(() => expect(screen.getByTestId('ws-status')).toHaveTextContent('O. Office is no longer a member.'));
-    expect(screen.getByTestId('ws-member-user-office')).toHaveTextContent('inactive');
+    await waitFor(() => expect(screen.getByTestId('ws-member-user-office')).toHaveTextContent('inactive'));
     // the only administrator cannot make themselves inactive
     await act(async () => { fireEvent.click(screen.getByTestId(`ws-member-deactivate-${SEED_USER.id}`)); });
     await waitFor(() => expect(screen.getByTestId('ws-status')).toHaveTextContent('A well keeps at least one active administrator.'));
@@ -104,7 +104,7 @@ describe('Open in from Well Data Manager (?well=<registry id>)', () => {
     const { backend } = await seeded();
     render(<MemoryRouter initialEntries={['/?well=geo-keta-2']}><WellsiteWorkstation backend={backend} /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('ws-status-bit')).toHaveTextContent('Bit 10000 ft'));
-    expect(screen.queryByTestId('ws-need-well')).toBeNull();
+    await waitFor(() => expect(screen.queryByTestId('ws-need-well')).toBeNull());
   });
   test('a live-well id still opens that live well', async () => {
     const { backend, well } = await seeded();

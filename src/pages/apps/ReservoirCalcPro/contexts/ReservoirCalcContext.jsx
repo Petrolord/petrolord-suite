@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useMemo } from 'react';
+import React, { createContext, useContext, useReducer, useMemo, useEffect, useRef } from 'react';
 import { VolumeCalculationEngine } from '../services/VolumeCalculationEngine';
 import { ContactVolumetricsEngine } from '../services/ContactVolumetricsEngine';
 import { MonteCarloEngine } from '../services/MonteCarloEngine';
@@ -7,6 +7,10 @@ import { makeRegistryRcpBackend } from '../services/rcpBackend';
 import { AOIManager } from '../services/AOIManager';
 import { loadSettings } from '../hooks/useReservoirSettings';
 import { defaultInputUnits, convertInputsOnSystemChange } from '../services/unitsCatalog';
+import { useProfileSystem } from '@/lib/units/useProfileSystem';
+
+// Families that decide RCP's system from the Suite unit profile
+const RCP_PROFILE_FAMILIES = ['area', 'rockVolume', 'depth'];
 
 const MAX_AUDIT = 200;
 const auditEntry = (action, details = '') => ({
@@ -168,6 +172,7 @@ const ACTIONS = {
     SET_PROJECTS: 'SET_PROJECTS',
     LOAD_PROJECT: 'LOAD_PROJECT',
     NEW_PROJECT: 'NEW_PROJECT',
+    ADOPT_UNIT_SYSTEM: 'ADOPT_UNIT_SYSTEM',
     // Multi-reservoir cases within a project
     ADD_RESERVOIR: 'ADD_RESERVOIR',
     SWITCH_RESERVOIR: 'SWITCH_RESERVOIR',
@@ -217,6 +222,18 @@ const reducer = (state, action) => {
                 inputs: convertInputsOnSystemChange(state.inputs, state.unitSystem, action.payload),
                 inputUnits: defaultInputUnits(action.payload),
                 isDirty: true
+            };
+        }
+        case ACTIONS.ADOPT_UNIT_SYSTEM: {
+            // Suite unit profile: a blank, unsaved workspace takes the
+            // profile's system. Same conversion as a toggle, but nothing the
+            // user did changed, so the workspace stays clean.
+            if (action.payload === state.unitSystem || state.project?.id || state.isDirty) return state;
+            return {
+                ...state,
+                unitSystem: action.payload,
+                inputs: convertInputsOnSystemChange(state.inputs, state.unitSystem, action.payload),
+                inputUnits: defaultInputUnits(action.payload),
             };
         }
         case ACTIONS.SET_INPUT_UNIT:
@@ -503,7 +520,16 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
     const setTopSurface = (id) => dispatch({ type: ACTIONS.SET_TOP_SURFACE, payload: id });
     const setBaseSurface = (id) => dispatch({ type: ACTIONS.SET_BASE_SURFACE, payload: id });
     const setCalcMethod = (mode) => dispatch({ type: ACTIONS.SET_MODE, payload: mode });
-    const setUnitSystem = (system) => dispatch({ type: ACTIONS.SET_UNIT_SYSTEM, payload: system });
+    const setUnitSystem = (system) => { unitPickedRef.current = true; dispatch({ type: ACTIONS.SET_UNIT_SYSTEM, payload: system }); };
+    // Suite unit profile: NEW projects start from the profile's system;
+    // an opened (saved) project keeps its own, and so does a workspace the
+    // user has already changed or switched by hand
+    const profileUnitSystem = useProfileSystem('rcp', RCP_PROFILE_FAMILIES);
+    const unitPickedRef = useRef(false);
+    useEffect(() => {
+        if (!profileUnitSystem || unitPickedRef.current) return;
+        dispatch({ type: ACTIONS.ADOPT_UNIT_SYSTEM, payload: profileUnitSystem });
+    }, [profileUnitSystem, state.project?.id, state.isDirty, state.unitSystem]);
     const setInputUnit = (field, unit) => dispatch({ type: ACTIONS.SET_INPUT_UNIT, payload: { field, unit } });
     const setInputMethod = (method) => dispatch({ type: ACTIONS.SET_INPUT_METHOD, payload: method });
     const setResults = (results) => dispatch({ type: ACTIONS.SET_RESULTS, payload: results });
@@ -602,6 +628,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
     };
 
     const createNewProject = () => {
+        unitPickedRef.current = false; // a new project starts from the Suite units again
         dispatch({ type: ACTIONS.NEW_PROJECT });
         logEvent('New project started');
     };
@@ -722,6 +749,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
         setBaseSurface,
         setCalcMethod,
         setUnitSystem,
+        profileUnitSystem,
         setInputUnit,
         setInputMethod,
         setResults,
@@ -752,7 +780,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
         // Audit
         logEvent,
         clearAudit
-    }), [state]);
+    }), [state, profileUnitSystem]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <ReservoirCalcContext.Provider value={value}>

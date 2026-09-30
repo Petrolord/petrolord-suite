@@ -248,7 +248,7 @@ test('MS3: fault-block and boundary polygons, a guide point, arithmetic, quick G
   await expect(page.getByTestId('map-zrange')).toContainText('1401.2 to 1790.0 ms');
   await page.getByTestId('map-td-model').selectOption({ label: 'KETA 3D layer cake (layer cake)' });
   await page.getByTestId('map-td-run').click();
-  await expect(page.getByTestId('map-status')).toContainText('Convert the horizon to depth in Seismolord');
+  await expect(page.getByTestId('map-status')).toContainText('A layer-cake model converts in Seismolord for now'); // MAP-U2-008: the LAYER_CAKE_HOOK reason
   await page.getByTestId('map-td-model').selectOption({ label: 'KETA 3D (v0 2000, k 0.3)' });
   await page.getByTestId('map-td-run').click();
   await expect(page.getByTestId('map-status')).toContainText('Converted Dome TWT to depth');
@@ -468,7 +468,7 @@ test('T1: an MD map is published as an attribute, never as an elevation surface'
   await expect(row).toContainText('attr');
 });
 
-test('T1 batch B: spline in tension, a map past the wells with its hull drawn, residuals, kriging refuses to extrapolate', async ({ page }) => {
+test('T1 batch B: spline in tension, a map past the wells with its hull drawn, residuals, kriging past the wells says what it shows', async ({ page }) => {
   await page.goto('/dev/mapping-surface-studio');
   await page.getByTestId('map-source').selectOption('top:Top Dome');
   await page.getByTestId('map-grid-method').selectOption('tension');
@@ -484,10 +484,11 @@ test('T1 batch B: spline in tension, a map past the wells with its hull drawn, r
   await page.getByTestId('map-extent-distance').fill('800');
   await page.getByTestId('map-grid-run').click();
   await expect(page.getByTestId('map-status')).toContainText('mapped 800 m beyond the wells');
-  // kriging maps inside the wells only, and says so
+  // MAP-U2-012 (was a refusal): kriging maps past the wells too, and says the flanks return to the trend
   await page.getByTestId('map-grid-method').selectOption('kriging');
   await page.getByTestId('map-grid-run').click();
-  await expect(page.getByTestId('map-status')).toContainText('Kriging maps inside the wells in this version');
+  await expect(page.getByTestId('map-status')).toContainText('mapped 800 m beyond the wells', { timeout: 60000 });
+  await expect(page.getByTestId('map-status')).toContainText('past the variogram range the kriged map returns to');
 });
 
 test('T1 batch B: depth conversion with average velocity from the wells, and a linear model corrected to the top', async ({ page }) => {

@@ -32,13 +32,28 @@ const SAMPLE_WELLS = [
 ];
 
 /**
- * @param {{sidetrack?: boolean}} [opts] sidetrack: add "KETA-1 ST1" on
- *   KETA-1's slot with its Top Dome 3 m deeper (T1 MAP-T1-003 e2e)
+ * @param {{sidetrack?: boolean, scaleWells?: number, seed?: {surfaces?: Array<{row:object, grid:number[]}>, culture?: Array<{row:object, features:Array}>}}} [opts]
+ *   sidetrack: add "KETA-1 ST1" on KETA-1's slot with its Top Dome 3 m
+ *   deeper (T1 MAP-T1-003 e2e); scaleWells: n more vertical wells on a
+ *   10 x 10 km dome (MAP-U1 PL10); seed.surfaces: saved registry rows
+ *   from earlier releases with their grids (MAP-U1 PL5)
  */
-export function makeInMemoryBackend({ sidetrack = false } = {}) {
-  const seeds = sidetrack
+export function makeInMemoryBackend({ sidetrack = false, scaleWells = 0, seed = null } = {}) {
+  const base = sidetrack
     ? [...SAMPLE_WELLS, { ...SAMPLE_WELLS[0], name: `${SAMPLE_WELLS[0].name} ST1`, tops: { ...SAMPLE_WELLS[0].tops, 'Top Dome': SAMPLE_WELLS[0].tops['Top Dome'] + 3 } }]
     : SAMPLE_WELLS;
+  const extra = [];
+  const n = Math.min(Math.max(0, Math.floor(scaleWells) || 0), 5000);
+  for (let i = 0; i < n; i++) {
+    // golden-angle spiral: even cover without a regular lattice
+    const r = 5000 * Math.sqrt((i + 0.5) / n);
+    const a = i * 2.399963229728653;
+    const x = 502000 + r * Math.cos(a);
+    const y = 6700000 + r * Math.sin(a);
+    const top = Math.round((1500 + 0.00002 * r * r + 3 * Math.sin(x / 700)) * 10) / 10; // MD = TVD, KB 30
+    extra.push({ name: `SCALE-${String(i + 1).padStart(4, '0')}`, x, y, td: top + 400, tops: { 'Top Dome': top, 'Base Sand': top + 150 }, phi: 0.2, ntg: 0.7 });
+  }
+  const seeds = [...base, ...extra];
   const wells = seeds.map((w, i) => ({
     id: `map-w${i + 1}`,
     user_id: 'user-dev',
@@ -104,6 +119,18 @@ export function makeInMemoryBackend({ sidetrack = false } = {}) {
     storage_path: `user-other/${sharedId}/grid.f32`,
     created_at: new Date(2026, 0, 10).toISOString(),
   });
+
+  // MAP-U1 PL5: rows saved by earlier releases, with their grids
+  for (const s of seed?.surfaces || []) {
+    gridStore.set(s.row.id, Float32Array.from(s.grid));
+    surfaces.push({ user_id: 'user-dev', organization_id: null, is_own: true, ...s.row });
+  }
+
+  // MAP-U2-004: culture rows as a file import leaves them (fault polygons, boundaries)
+  for (const c of seed?.culture || []) {
+    featureStore.set(c.row.id, c.features);
+    culture.push({ user_id: 'user-dev', organization_id: null, is_own: true, geometry_type: 'polygon', feature_count: c.features.length, style: {}, crs: null, ...c.row });
+  }
 
   const ownSurface = (surface, what) => {
     const s = surfaces.find((x) => x.id === surface.id);

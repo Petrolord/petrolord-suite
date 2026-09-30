@@ -20,6 +20,7 @@
 // Nothing existing is ever updated or deleted: importing is copying.
 
 import JSZip from 'jszip';
+import { parseUnitProfileMeta, UNIT_PROFILE_FILE } from '@/lib/units/portability';
 import { customCrsId } from './geoscienceSpec';
 import { tableSpec, importOrder } from './familySpec';
 import './familiesCore';
@@ -163,7 +164,9 @@ export async function readPackage(data, opts = {}) {
   const blobs = manifest.blobs.map((b) => ({ ...b, bytes: bytesOf[b.file] }));
   const readmeEntry = manifest.open.find((o) => o.kind === 'readme');
   const readme = readmeEntry ? await utf8(bytesOf[readmeEntry.file]) : null;
-  return { manifest, tables, blobs, open: manifest.open, readme, integrity: { checked: Object.keys(manifest.files).length }, signature };
+  // Suite unit profile metadata (information only; the importer offers it as the user's own setting)
+  const unitProfile = parseUnitProfileMeta(bytesOf[UNIT_PROFILE_FILE] || null);
+  return { manifest, tables, blobs, open: manifest.open, readme, integrity: { checked: Object.keys(manifest.files).length }, signature, unitProfile };
 }
 
 // ---- phase 2: plan ---------------------------------------------------------
@@ -352,6 +355,20 @@ export function planImport(pkg, target) {
   }
   // companion objects (derived from a row's main path) map through the same derivation on the new path
   const companionsByOldPath = new Map();
+  for (const [table, rows] of Object.entries(planned)) {
+    const spec = tableSpec(table);
+    if (!spec.blob?.pathColumn || !spec.blob.rowCompanions) continue;
+    for (const r of rows) {
+      const oldMain = r.__oldStoragePath;
+      const newMain = r[spec.blob.pathColumn];
+      if (!oldMain || !newMain) continue;
+      // row-recorded companions keep their suffix beside the moved main object (Mapping U2-017)
+      for (const oldAlt of spec.blob.rowCompanions({ ...r, [spec.blob.pathColumn]: oldMain })) {
+        companionsByOldPath.set(`${spec.blob.bucket}/${oldAlt}`, { table, row: r, spec, newPath: `${newMain}${oldAlt.slice(oldMain.length)}` });
+      }
+      if (spec.blob.rewriteCompanions) spec.blob.rewriteCompanions(r, oldMain, newMain);
+    }
+  }
   for (const [table, rows] of Object.entries(planned)) {
     const spec = tableSpec(table);
     if (!spec.blob?.pathColumn || !spec.blob.companions) continue;

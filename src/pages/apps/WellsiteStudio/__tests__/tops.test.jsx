@@ -48,7 +48,7 @@ test('prognosis, approach panel, interpretation, call lifecycle to final, event 
   type('ws-top-basis', 'Evidence is consistent with the top between 10160 and 10180 ft');
   await act(async () => { fireEvent.click(screen.getByTestId('ws-top-submit')); });
   await waitFor(() => expect(screen.getByTestId('ws-status')).toHaveTextContent('Top Agbada interpretation recorded, high confidence.'));
-  expect(screen.getByTestId('ws-top-interp-top_agbada')).toHaveTextContent('10160 ft to 10180 ft, high');
+  await waitFor(() => expect(screen.getByTestId('ws-top-interp-top_agbada')).toHaveTextContent('10160 ft to 10180 ft, high'));
   // official call, preliminary (a first call cannot be final)
   fireEvent.click(screen.getByTestId('ws-top-callbtn-top_agbada'));
   expect(Array.from(screen.getByTestId('ws-top-status').querySelectorAll('option')).map((o) => o.value)).toEqual(['preliminary', 'confirmed']);
@@ -56,7 +56,7 @@ test('prognosis, approach panel, interpretation, call lifecycle to final, event 
   type('ws-top-basis', 'GR drop and sand at 10168 ft');
   await act(async () => { fireEvent.click(screen.getByTestId('ws-top-submit')); });
   await waitFor(() => expect(screen.getByTestId('ws-status')).toHaveTextContent('Top Agbada called at 10168 ft, preliminary.'));
-  expect(screen.getByTestId('ws-top-row-top_agbada')).toHaveAttribute('data-status', 'preliminary');
+  await waitFor(() => expect(screen.getByTestId('ws-top-row-top_agbada')).toHaveAttribute('data-status', 'preliminary'));
   // confirm, then final (the seeded user is the administrator, an approver)
   fireEvent.click(screen.getByTestId('ws-top-callbtn-top_agbada'));
   expect(Array.from(screen.getByTestId('ws-top-status').querySelectorAll('option')).map((o) => o.value)).toEqual(['confirmed', 'revised', 'withdrawn']);
@@ -114,7 +114,7 @@ test('a competing office version is a conflict; a non-approver only sees it; the
   fireEvent.change(screen.getByTestId('ws-conflict-basis'), { target: { value: 'The LWD pick is the better datum' } });
   await act(async () => { fireEvent.click(screen.getByTestId('ws-conflict-resolve')); });
   await waitFor(() => expect(screen.getByTestId('ws-status')).toHaveTextContent('competing versions resolved'));
-  expect(screen.queryByTestId('ws-conflict')).toBeNull();
+  await waitFor(() => expect(screen.queryByTestId('ws-conflict')).toBeNull());
   const tops = await backend.listTops(well.id);
   const resolver = tops.find((t) => t.resolves_ids && t.resolves_ids.length);
   expect(resolver.resolves_ids).toHaveLength(2);

@@ -15,6 +15,10 @@ import { mdhAnalysis, hornerAnalysis, cartesianPssAnalysis, sqrtTimeAnalysis, ra
 import { autoFitModel } from '@/utils/welltest/autoFit';
 import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalizedPseudoTime, GAS } from '@/utils/welltest/gas';
 import { UNIT_SYSTEMS } from '@/utils/welltest/units';
+import { useProfileSystem } from '@/lib/units/useProfileSystem';
+
+// Families that decide Well Test's system from the Suite unit profile
+const WT_PROFILE_FAMILIES = ['pressure', 'liquidRate', 'depth'];
 
 // A gauge reading this close to shut-in (hours) is taken as the pressure at
 // the instant of shut-in.
@@ -415,8 +419,12 @@ export const WellTestStudioProvider = ({ children }) => {
   const [notes, setNotes] = useState('');
   // WT8: display-layer unit system; state and engines stay oilfield always
   const [unitSystem, setUnitSystemRaw] = useState('oilfield');
+  // Suite unit profile: a NEW (not yet saved or opened) workspace starts
+  // from the profile's system; an explicit choice or an opened project wins
+  const profileUnitSystem = useProfileSystem('welltest', WT_PROFILE_FAMILIES);
+  const unitPickedRef = useRef(false);
   const setUnitSystem = useCallback(
-    (v) => setUnitSystemRaw(UNIT_SYSTEMS.includes(v) ? v : 'oilfield'),
+    (v) => { unitPickedRef.current = true; setUnitSystemRaw(UNIT_SYSTEMS.includes(v) ? v : 'oilfield'); },
     [],
   );
   // WT9 RTA: production history [{t (days), q, pwf}] strings + the
@@ -856,7 +864,8 @@ export const WellTestStudioProvider = ({ children }) => {
     setWindows({ ...DEFAULT_WINDOWS, ...(payload?.windows || {}) });
     setDeliverabilityInputs({ ...DEFAULT_DELIVERABILITY, ...(payload?.deliverabilityInputs || {}) });
     setNotes(payload?.notes || '');
-    setUnitSystem(payload?.unitSystem || 'oilfield');
+    // a saved project keeps the system it was saved with
+    setUnitSystemRaw(UNIT_SYSTEMS.includes(payload?.unitSystem) ? payload.unitSystem : 'oilfield');
     setRtaRows(Array.isArray(payload?.rtaRows) ? payload.rtaRows : []);
     setRtaWindows({ linMin: '', linMax: '', ...(payload?.rtaWindows || {}) });
     setFitResult(null);
@@ -874,6 +883,11 @@ export const WellTestStudioProvider = ({ children }) => {
       }
     })();
   }, [addNotification]);
+
+  useEffect(() => {
+    if (!profileUnitSystem || hydrated || currentProjectId || unitPickedRef.current) return;
+    setUnitSystemRaw(profileUnitSystem);
+  }, [profileUnitSystem, hydrated, currentProjectId]);
 
   const openProject = useCallback(async (id) => {
     try {
@@ -983,7 +997,7 @@ export const WellTestStudioProvider = ({ children }) => {
     windows, setWindowField,
     notes, setNotes,
     deliverabilityInputs, setDeliverabilityField, setDeliverabilityRows,
-    unitSystem, setUnitSystem,
+    unitSystem, setUnitSystem, profileUnitSystem,
     rtaRows, setRtaRows,
     rtaWindows, setRtaWindowField,
     // derived

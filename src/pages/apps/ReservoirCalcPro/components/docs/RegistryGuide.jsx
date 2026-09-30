@@ -36,8 +36,8 @@ const RegistryGuide = () => (
     <P>
       Every depth surface in the registry is an elevation: negative below the datum (TVDSS), in metres or feet as
       its row records. Fluid contacts follow the same convention. The unit selector on the Fluid Contacts card
-      (ft or m) defaults to your Geoscience depth unit, the same setting Mapping and Earth Modeling use, and is
-      remembered with the project; the value stored for the engine stays in the unit system's length unit, so
+      (ft or m) starts from the depth unit of your Suite units on a new project and is remembered with the
+      project; the value stored for the engine stays in the unit system's length unit, so
       toggling Field and Metric converts it as before.
     </P>
     <P>

@@ -8,7 +8,8 @@ import { Lock, AlertCircle, ShoppingCart } from 'lucide-react';
 
 /**
  * A wrapper component that guards routes based on purchased entitlements.
- * @param {string} appId - The UUID of the app to check access for.
+ * @param {string|string[]} appId - The slug (or UUID) of the app to check access for; an
+ *   array opens the route on a licence for any one of them (a companion tool).
  * @param {string} appName - Display name for the error message.
  */
 // Design system (batch 7A): every route this guard protects is under
@@ -55,7 +56,9 @@ const ProtectedAppRoute = ({ children, appId, appName }) => {
     return children;
   }
 
-  const hasAccess = hasAccessToApp(appId);
+  // MAP-U1-004: a companion tool (the Contour Map Digitizer beside Mapping &
+  // Surface Studio) passes several ids; any licence among them opens it
+  const hasAccess = [].concat(appId).some((id) => hasAccessToApp(id));
 
   if (hasAccess && stale) {
     // offline boot on a cached licence (Wellsite Studio WS6): the app opens, the banner says so

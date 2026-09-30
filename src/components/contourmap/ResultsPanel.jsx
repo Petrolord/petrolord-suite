@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Map, Grid as GridIcon } from 'lucide-react';
 
-const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDraw, onAutoTrace }) => {
+const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDraw, onAutoTrace, onDragAssign }) => {
   const { imagePreview, imageDimensions, controlPoints, layers, results, drawMode, currentLine } = state;
   const [isDrawing, setIsDrawing] = useState(false);
   const [aiBox, setAiBox] = useState(null);
@@ -63,6 +63,14 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
       });
     });
 
+    // MAP-U2-006: each valued contour shows its value at its first vertex
+    ctx.font = 'bold 11px Arial';
+    layers.contours.forEach((line) => {
+      if (line.value == null || !line.points.length) return;
+      const [px, py] = line.points[0];
+      ctx.fillStyle = '#f97316'; // orange reads on a white scan and on the dark canvas
+      ctx.fillText(String(line.value), px * scaleX + 5, py * scaleY);
+    });
     ctx.font = '12px Arial';
     controlPoints.forEach((pt, i) => {
       if (pt.pixel[0] !== null) {
@@ -75,8 +83,8 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
       }
     });
     
-    if (isDrawing && currentLine.length > 1 && drawMode === 'manual') {
-        ctx.strokeStyle = 'lime';
+    if (isDrawing && currentLine.length > 1 && (drawMode === 'manual' || drawMode === 'assign')) {
+        ctx.strokeStyle = drawMode === 'assign' ? 'orange' : 'lime';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(currentLine[0][0] * scaleX, currentLine[0][1] * scaleY);
@@ -149,10 +157,11 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
     const { x, y } = getPointerPos(e);
     if (x < 0 || y < 0 || x > imageDimensions.width || y > imageDimensions.height) return;
 
-    if (drawMode === 'none' && controlPoints.length < 4) {
+    // MAP-U1-012: up to twelve control points (four or more give a check); remove them in the panel
+    if (drawMode === 'none' && controlPoints.length < 12) {
       const newPoint = { pixel: [x, y], world: [null, null] };
       setState(prev => ({ ...prev, controlPoints: [...prev.controlPoints, newPoint] }));
-    } else if (drawMode === 'manual') {
+    } else if (drawMode === 'manual' || drawMode === 'assign') {
       setIsDrawing(true);
       setState(prev => ({ ...prev, currentLine: [[x, y]] }));
     } else if (drawMode === 'ai_box') {
@@ -165,7 +174,7 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
     if (!isDrawing) return;
     const { x, y } = getPointerPos(e);
 
-    if (drawMode === 'manual') {
+    if (drawMode === 'manual' || drawMode === 'assign') {
       setState(prev => ({ ...prev, currentLine: [...prev.currentLine, [x, y]] }));
     } else if (drawMode === 'ai_box' && aiBox) {
         setAiBox(prev => ({ ...prev, w: x - prev.startX, h: y - prev.startY }));
@@ -178,6 +187,10 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
 
     if (drawMode === 'manual') {
       onManualDraw(state.currentLine);
+      setState(prev => ({ ...prev, currentLine: [] }));
+    } else if (drawMode === 'assign') {
+      // MAP-U2-006: the drag values the contours it crosses
+      onDragAssign?.(state.currentLine);
       setState(prev => ({ ...prev, currentLine: [] }));
     } else if (drawMode === 'ai_box' && aiBox) {
         const positiveBox = {
@@ -215,7 +228,7 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
       <Tabs defaultValue="map" className="w-full h-full flex flex-col">
         <TabsList className="grid w-full grid-cols-2 rounded-t-xl">
           <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Map View</TabsTrigger>
-          <TabsTrigger value="grid"><GridIcon className="w-4 h-4 mr-2" />3D Grid</TabsTrigger>
+          <TabsTrigger value="grid"><GridIcon className="w-4 h-4 mr-2" />Grid summary</TabsTrigger>
         </TabsList>
         <TabsContent value="map" className="flex-grow p-2 mt-0 relative" ref={containerRef}>
           <div className="w-full h-full bg-pl-bg rounded-pl-canvas overflow-hidden relative flex items-center justify-center" data-canvas="dark" data-testid="digitizer-map-canvas">

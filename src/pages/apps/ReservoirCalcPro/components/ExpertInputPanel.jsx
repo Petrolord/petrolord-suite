@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
+import ProjectUnitSystemNote from '@/components/units/ProjectUnitSystemNote';
 import { useReservoirCalc } from '../contexts/ReservoirCalcContext';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -24,7 +25,7 @@ import { defaultInputUnits } from '../services/unitsCatalog';
 
 const ExpertInputPanel = () => {
     const {
-        state, updateInputs, setUnitSystem, setCalcMethod,
+        state, updateInputs, setUnitSystem, profileUnitSystem, setCalcMethod,
         setInputMethod, setInputUnit, calculate
     } = useReservoirCalc();
     
@@ -108,6 +109,7 @@ const ExpertInputPanel = () => {
                     <div className="flex justify-between items-center">
                         <Label className="text-xs font-bold text-pl-text">Simulation Setup</Label>
                     </div>
+                    <ProjectUnitSystemNote system={state.unitSystem || 'field'} profileSystem={profileUnitSystem} />
                     <div className="grid grid-cols-2 gap-2">
                         <div>
                             <Label className="text-[10px] text-pl-muted">System</Label>
@@ -153,6 +155,7 @@ const ExpertInputPanel = () => {
                     </div>
                     
                     <CollapsibleContent className="p-3 pt-0 space-y-3">
+                        <ProjectUnitSystemNote system={state.unitSystem || 'field'} profileSystem={profileUnitSystem} />
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <Label className="text-[10px] text-pl-muted">System</Label>

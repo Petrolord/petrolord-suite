@@ -103,8 +103,9 @@ describe('the workstation in feet', () => {
     fireEvent.click(within(detail).getByRole('button', { name: /^Logs/ }));
     expect(await screen.findByText('Interval (ft MD)')).toBeInTheDocument();
     expect(screen.getAllByTestId('wdm-well-row')[0]).toHaveTextContent(/TD \d+ ft/);
-    // remembered for the next session on this device
-    expect(window.localStorage.getItem(displayUnitKey(null))).toBe('ft');
+    // Suite unit profile: the in-app choice is a view override for this
+    // session, kept in sessionStorage; it no longer persists per device
+    expect(JSON.parse(window.sessionStorage.getItem('petrolord.units.view.v1:well-data-manager'))).toEqual({ depth: 'ft' });
   });
 
   test('Save on the Tops grid in feet with nothing typed keeps every stored MD exactly', async () => {

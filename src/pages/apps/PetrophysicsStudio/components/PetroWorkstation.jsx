@@ -10,6 +10,8 @@
 // ms). Publishing results to the registry is G2.5.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAppUnits } from '@/lib/units/useAppUnits';
+import UnitProfileNote from '@/components/units/UnitProfileNote';
 import { Link, useSearchParams } from 'react-router-dom';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { mapTopHref } from '@/components/wells/appLinks';
@@ -147,7 +149,11 @@ export default function PetroWorkstation({
   const [pickMode, setPickMode] = useState(null);                // PT3: 'top' | 'zone' | null
   const [topsBusy, setTopsBusy] = useState(false);
   const [layoutFocus, setLayoutFocus] = useState(null);        // {index, nonce}
-  const [depthUnit, setDepthUnit] = useState('m');             // display only
+  // display only. Suite unit profile: the depth unit starts from the
+  // profile; the status-bar toggle changes this view for the session
+  const unitsHook = useAppUnits('petrophysics', { depth: { family: 'depth', allowed: ['m', 'ft'] } }, { fallback: { depth: 'm' } });
+  const depthUnit = unitsHook.units.depth;
+  const setDepthUnit = (next) => unitsHook.setUnit('depth', typeof next === 'function' ? next(depthUnit) : next);
   // PETRO-U2-002: parameter entry units follow the session's depth unit
   // (feet means field units) until the user picks otherwise in the panel
   const [paramUnits, setParamUnits] = useState('si');
@@ -1390,12 +1396,13 @@ export default function PetroWorkstation({
       <button
         type="button"
         data-testid="petro-depth-unit"
-        title="Display unit for the depth axis. Internal storage stays SI metres."
+        title="Display unit for the depth axis; starts from your Suite units and changes this view for the session. Internal storage stays SI metres."
         className="whitespace-nowrap rounded border border-pl-border px-1.5 text-pl-muted hover:text-pl-text"
         onClick={() => setDepthUnit((u) => (u === 'm' ? 'ft' : 'm'))}
       >
         depth: {depthUnit} · SI internal
       </button>
+      <UnitProfileNote u={unitsHook} className="hidden lg:inline-flex" />
     </div>
   );
 

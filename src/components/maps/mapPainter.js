@@ -528,9 +528,10 @@ export function paintColorbar(ctx, {
   ctx.restore();
 }
 
-/** Scale bar for an axis-aligned metre grid. */
-export function paintScaleBar(ctx, { x, y, transform, maxPx = 180, ink = INK }) {
-  drawScaleBar(ctx, { x, y, metersPerPx: transform.metersPerPx, dpr: 1, maxPx, ink });
+/** Scale bar in metres; xyToM is metres per map unit (MAP-U1-001: a
+ *  US-feet frame drew a bar 3.28 times too long). */
+export function paintScaleBar(ctx, { x, y, transform, maxPx = 180, ink = INK, xyToM = 1 }) {
+  drawScaleBar(ctx, { x, y, metersPerPx: transform.metersPerPx * (xyToM > 0 ? xyToM : 1), dpr: 1, maxPx, ink });
 }
 
 /** North arrow for a grid whose y axis is grid north (screen up). */

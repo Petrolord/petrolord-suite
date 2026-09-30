@@ -13,6 +13,7 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { getUserOrgRow } from '@/lib/orgContext';
+import { fetchLayers } from '@/lib/units/profileService';
 import { tableSpec } from './familySpec';
 import { WELL_STATE_TABLES } from './geoscienceSpec';
 
@@ -42,6 +43,18 @@ export function makeSupabaseSource() {
       } catch (e) { /* no org: private account */ }
       userCache = { id, organization_id, organization_name };
       return userCache;
+    },
+
+    /**
+     * Suite unit profile: the organisation default's profile, or null
+     * (none set, private account, or the settings table not applied yet).
+     */
+    async unitProfile() {
+      const who = await this.currentUser();
+      try {
+        const layers = await fetchLayers({ userId: who.id, orgId: who.organization_id });
+        return layers.organization || null;
+      } catch { return null; }
     },
 
     async getRow(table, id) {

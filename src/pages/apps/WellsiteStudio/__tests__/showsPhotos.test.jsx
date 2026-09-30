@@ -86,7 +86,8 @@ test('observations: a total gas reading at the bit depth with its unit and sourc
   const gas = (await backend.listRecords(wellId, { subtype: 'total_gas' }))[0];
   expect(gas).toMatchObject({ depth_kind: 'bit_depth', depth_value: 10000 });
   expect(gas.payload).toEqual({ value: 2.4, unit: '%', text: null, source: 'external' });
-  expect(screen.getAllByTestId(/^ws-obs-row-/)).toHaveLength(2);
+  // the list refreshes on its own tick after the status line (slow CI runners)
+  await waitFor(() => expect(screen.getAllByTestId(/^ws-obs-row-/)).toHaveLength(2));
 });
 
 test('a photo attaches once with depth, user and times, shows in the grid, and advances a caught sample to photographed', async () => {

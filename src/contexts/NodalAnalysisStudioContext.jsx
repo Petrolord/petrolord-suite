@@ -20,6 +20,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { UNIT_SYSTEMS } from '@/utils/nodal/units';
+import { useProfileSystem } from '@/lib/units/useProfileSystem';
+
+// Families that decide Nodal's system from the Suite unit profile
+const NODAL_PROFILE_FAMILIES = ['pressure', 'liquidRate', 'depth'];
 import { buildFluidModel } from '@/utils/nodal/pvt';
 import { buildTrajectory } from '@/utils/nodal/trajectory';
 import { linearGeothermal } from '@/utils/nodal/temperature';
@@ -284,10 +288,18 @@ export const NodalAnalysisStudioProvider = ({ children }) => {
   const [gasLiftConfig, setGasLiftConfig] = useState(DEFAULT_GASLIFT);
   const [choke, setChoke] = useState(DEFAULT_CHOKE);
 
+  // Suite unit profile: a NEW (not yet saved or opened) workspace starts
+  // from the profile's system; an explicit choice or an opened project wins
+  const profileUnitSystem = useProfileSystem('nodal', NODAL_PROFILE_FAMILIES);
+  const unitPickedRef = useRef(false);
   const setUnitSystem = useCallback(
-    (v) => setUnitSystemRaw(UNIT_SYSTEMS.includes(v) ? v : 'oilfield'),
+    (v) => { unitPickedRef.current = true; setUnitSystemRaw(UNIT_SYSTEMS.includes(v) ? v : 'oilfield'); },
     []
   );
+  useEffect(() => {
+    if (!profileUnitSystem || hydrated || currentProjectId || unitPickedRef.current) return;
+    setUnitSystemRaw(profileUnitSystem);
+  }, [profileUnitSystem, hydrated, currentProjectId]);
   const setFluidField = useCallback((k, v) => setFluid((p) => ({ ...p, [k]: v })), []);
   const setInflowField = useCallback((k, v) => setInflow((p) => ({ ...p, [k]: v })), []);
   const setWellField = useCallback((k, v) => setWell((p) => ({ ...p, [k]: v })), []);
@@ -667,6 +679,7 @@ export const NodalAnalysisStudioProvider = ({ children }) => {
     // units
     unitSystem,
     setUnitSystem,
+    profileUnitSystem,
     // inputs
     fluid,
     setFluidField,

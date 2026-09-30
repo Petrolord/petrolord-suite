@@ -27,6 +27,27 @@
  *   optional  the importer may null/drop the reference when the target is
  *             not in the package (reported as "external", never dangling)
  */
+
+/** The re-grid archive paths a geo_surfaces row records (only those beside its own grid). */
+export function surfaceArchivePaths(row) {
+  const main = row?.storage_path;
+  const hist = row?.provenance?.history;
+  if (!main || !Array.isArray(hist)) return [];
+  return hist.map((h) => h?.archive_path).filter((p) => typeof p === 'string' && p.startsWith(`${main}.`));
+}
+
+/** The row with its recorded archive paths moved from the old grid path to the new one. */
+export function moveSurfaceArchivePaths(row, oldMain, newMain) {
+  const hist = row?.provenance?.history;
+  if (!Array.isArray(hist) || !oldMain || !newMain) return row;
+  row.provenance = {
+    ...row.provenance,
+    history: hist.map((h) => (typeof h?.archive_path === 'string' && h.archive_path.startsWith(`${oldMain}.`)
+      ? { ...h, archive_path: `${newMain}${h.archive_path.slice(oldMain.length)}` } : h)),
+  };
+  return row;
+}
+
 export const GEOSCIENCE_SPEC = {
   package_kind: 'geoscience',
   tables: {
@@ -83,7 +104,14 @@ export const GEOSCIENCE_SPEC = {
       pk: 'id',
       stamped: true,
       scope: ['user_id', 'organization_id'],
-      blob: { bucket: 'surfaces', pathColumn: 'storage_path', contentType: 'application/octet-stream', newPath: (userId, row) => `${userId}/${row.id}/grid.f32` },
+      blob: {
+        bucket: 'surfaces', pathColumn: 'storage_path', contentType: 'application/octet-stream', newPath: (userId, row) => `${userId}/${row.id}/grid.f32`,
+        // Mapping U2-017 (MAP-U1-034): the re-grid archives (<path>.prev-<ts>.f32,
+        // recorded in provenance.history) travel with the row, so Restore works
+        // after an import; their recorded paths are moved with the grid
+        rowCompanions: surfaceArchivePaths,
+        rewriteCompanions: moveSurfaceArchivePaths,
+      },
       softRefs: [
         { path: 'provenance.isochore[]', table: 'geo_surfaces', optional: true },
         // surfaces saved from Seismolord record the volume and horizon they were cut from

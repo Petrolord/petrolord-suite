@@ -11,7 +11,7 @@ import ResultsPanel from '@/components/contourmap/ResultsPanel';
 import EmptyState from '@/components/contourmap/EmptyState';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
-const ContourMapDigitizerContent = () => {
+const ContourMapDigitizerContent = ({ backend, mappingPath }) => {
   const { toast } = useToast();
   const {
     state,
@@ -20,10 +20,12 @@ const ContourMapDigitizerContent = () => {
     ovrCanvasRef,
     handleFileUpload,
     handleGeoref,
+    handleRemoveControlPoint,
     handleAutoTrace,
     handleManualDraw,
     handleDeleteLine,
     handleSetLineValue,
+    handleDragAssign,
     handleGrid,
     handlePublishSurface,
     handleSaveProject,
@@ -32,7 +34,7 @@ const ContourMapDigitizerContent = () => {
     isProcessing,
     status,
     isCvReady,
-  } = useContourDigitizer(toast);
+  } = useContourDigitizer(toast, backend);
 
   const { imagePreview } = state;
 
@@ -43,12 +45,12 @@ const ContourMapDigitizerContent = () => {
         <meta name="description" content="Digitize contour maps into gridded horizons and save them to the surface registry." />
       </Helmet>
       <div className="flex flex-col md:flex-row h-screen bg-pl-bg text-pl-text">
-        {/* Mobile & Desktop Responsive Sidebar */}
+        {/* Mobile & Desktop Responsive Sidebar; MAP-U2-006 walk: on a phone the panel scrolls in the top 45% so the map keeps the rest (it had no height at 390 wide) */}
         <motion.div 
           initial={{ x: -50, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.5, ease: "easeInOut" }}
-          className="w-full md:w-2/5 xl:w-1/3 p-4 sm:p-6 flex flex-col bg-pl-surface border-b md:border-b-0 md:border-r border-pl-border overflow-y-auto md:h-full shrink-0"
+          className="w-full md:w-2/5 xl:w-1/3 p-4 sm:p-6 flex flex-col bg-pl-surface border-b md:border-b-0 md:border-r border-pl-border overflow-y-auto max-h-[45vh] md:max-h-none md:h-full shrink-0"
         >
           <div className="flex items-center mb-6">
             <Link to="/dashboard/geoscience">
@@ -65,6 +67,7 @@ const ContourMapDigitizerContent = () => {
               setState={setState}
               onFileUpload={handleFileUpload}
               onGeoref={handleGeoref}
+              onRemoveControlPoint={handleRemoveControlPoint}
               onAutoTrace={handleAutoTrace}
               onManualDraw={handleManualDraw}
               onDeleteLine={handleDeleteLine}
@@ -74,6 +77,7 @@ const ContourMapDigitizerContent = () => {
               onSaveProject={handleSaveProject}
               onLoadProject={handleLoadProject}
               onExport={handleExport}
+              {...(mappingPath ? { mappingPath } : {})}
               isProcessing={isProcessing}
               isCvReady={isCvReady}
             />
@@ -81,7 +85,7 @@ const ContourMapDigitizerContent = () => {
         </motion.div>
         
         {/* Main Content Area */}
-        <main className="flex-1 p-4 sm:p-6 overflow-y-auto h-full relative">
+        <main className="flex-1 min-h-[55vh] md:min-h-0 p-4 sm:p-6 overflow-y-auto h-full relative">
           {!imagePreview && !isProcessing && (
             <EmptyState onUpload={() => document.getElementById('image-upload-dropzone')?.click()} />
           )}
@@ -112,6 +116,7 @@ const ContourMapDigitizerContent = () => {
                 ovrCanvasRef={ovrCanvasRef}
                 onManualDraw={handleManualDraw}
                 onAutoTrace={handleAutoTrace}
+                onDragAssign={handleDragAssign}
               />
             </motion.div>
           )}
@@ -124,9 +129,10 @@ const ContourMapDigitizerContent = () => {
 // Design system rollout batch 4D: the digitizer opens light and follows the
 // user's theme from the header toggle. The scanned map sits on a dark canvas
 // that does not follow the theme, and the image is never recoloured.
-const ContourMapDigitizer = () => (
+// MAP-U1-028: the /dev harness passes an in-memory backend and the dev Mapping path
+const ContourMapDigitizer = ({ backend, mappingPath } = {}) => (
   <div className="min-h-screen" data-testid="cmd-theme-scope">
-    <ContourMapDigitizerContent />
+    <ContourMapDigitizerContent backend={backend} mappingPath={mappingPath} />
   </div>
 );
 

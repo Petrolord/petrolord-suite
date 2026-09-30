@@ -357,3 +357,64 @@ loaders.
 - Tests: new `src/pages/apps/MappingSurfaceStudio/__tests__/MappingSurfaceStudio.theme.test.jsx`
   (the shared `describeAppTheme` checks on the real workstation, plus the
   views, the dark theme and the help guide). No calculation, engine, export or plotting change; the existing suites pass unchanged.
+
+## 2026-09-30: upgrade Step 1 (practitioner lens), with the Contour Map Digitizer
+
+Doc: `docs/upgrade/MappingSurfaceStudio-UPGRADE.md` (branch `feat/map-u1`).
+There are 35 findings: 20 fixed (2 S1, 7 S2, 7 S3, 4 S4), 9 open, 5 carried to consumer apps and 1 owner item. No S1 or S2 is open.
+
+- **Feet frames (MAP-U1-001, -019):**
+  - GRV, area and scale bar are in metres on a US-feet or feet frame. The GRV used to be 10.76x.
+  - Cell, extent and kriging range typed in metres are converted to map units.
+  - Wells in two CRSs are refused for one map.
+  - Borehole offsets are scaled into the wells' unit.
+  - ReservoirCalc Pro's registry area got the same fix (029).
+- **TVD maps (002):** published as attributes "(TVD below KB, m)", never as TVDSS elevation.
+- **Import door (003, 018):** `services/surfaceFileDoor.js` reads Petrel CPS-3 (`->` line), header rows, Petrel points, semicolon files with comma decimals, and columns in another order. It says what it changed.
+- **Contour Map Digitizer (004 to 012):**
+  - ProtectedAppRoute, on its own licence or a Mapping licence.
+  - Least-squares affine georeference with per-point misfit and RMS.
+  - Exports in map coordinates with faults and Z.
+  - Saved projects resume.
+  - Map CRS declared.
+  - Honest copy (no "AI").
+  - Typed cell size.
+  - Up to 12 removable control points.
+- **Exports (013, 014, 016):** the PNG and prospect card carry a three-line reviewer header. The GRV range states that it is fully correlated.
+- **Restore (017):** says when a re-grid archive did not travel with a `.pld`.
+- **Evidence kit:**
+  - hostile files `e2e/fixtures/map/hostile/` and saved rows `e2e/fixtures/map/saved/`;
+  - harness `?scaleWells=` and `window.__MAP_SEED__`;
+  - `e2e/mapping-surface-studio-upgrade.spec.js`, 13 tests: three viewports in light and dark, 505 and 2,005 wells in 1.5 s and 2.9 s.
+- **Carried to consumer apps:**
+  - Earth Modeling: isochore units, time and attribute rows.
+  - Well Design: `Math.abs(z)`, no ft to m.
+  - Simulation: throws on elevation rows.
+  - RCP dialog: xy unit and TWT rows.
+  - Seismolord's TWT negation is already fixed on main (SEIS-U1-008, #824).
+  - `.pld`: re-grid archives.
+- Step 2: 20-item ranked backlog, batches A, B and C (analysis only).
+
+## 2026-09-30: upgrade Step 2 (batches A, B, C), with the Contour Map Digitizer
+
+Doc: `docs/upgrade/MappingSurfaceStudio-UPGRADE.md` ("Batch decision" and "Step 2 build"). Branch `feat/map-u2`. Engines PR #289 merged; vendored at `bf8376b`.
+
+- **Shared surface door (U2-007):** `src/lib/readDepthSurface.js` returns canonical metres by domain (elevation, depth, time, attribute, isochore). It gives the XY unit's metres and the cell area, honours rotation, and refuses with a reason. Mapping reads every registry grid through it. Earth Modeling and ReservoirCalc Pro adopt it next; the contract is in the upgrade doc.
+- **Fault blocks everywhere (U2-001, U2-004):**
+  - The spline in tension and kriging grid per fault block (engines `blockedGridding.js`).
+  - Petrel ZMAP+ lines and Irap lines polygon files import as fault polygons or boundaries, and every polygon of a file is a block.
+- **PDF plotted to scale (U2-002):** 1:N on A4, A3 or A2, with vector contours, CRS grid, scale bar, grid north, legend and a title block. It is read back with pdftotext, and the scale is proved from the printed labels.
+- **Volumes (U2-005):** gas cap and oil leg from a GOC and an OWC, and volumes per fault block. They are validated against an analytic cone.
+- **Points from a file (U2-003):** scattered picks and rotated seismic lattices grid in the studio.
+- **Digitizer (U2-006, MAP-U1-028):**
+  - Drag across the contours to value them with a step.
+  - A `/dev/contour-map-digitizer` harness.
+  - The walk found and fixed the singular spline on closed contours and the zero-height map at 390 wide.
+- **Batch B:**
+  - Isopach, true stratigraphic thickness (U2-009).
+  - Kriging beyond the wells, with its note (U2-012).
+  - A section line across the surfaces with wells and vertical exaggeration (U2-013).
+  - V0 + kZ fitted to tops and velocity maps (U2-008). The layer cake is a hook (`LAYER_CAKE_HOOK`) until Seismolord U2-006 publishes its boundaries.
+- **Batch C:** a `.pld` carries the re-grid archives (U2-017).
+- **Deferred:** 011, 014, 010, 015, 016, 019, 020, 018 (owner), and MAP-U1-025.
+- **Units:** the Suite unit profile was not on main, so Mapping keeps its depth-unit behaviour.

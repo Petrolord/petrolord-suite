@@ -7,7 +7,8 @@ import { EMPTY_VALUE } from '../../../../lib/emptyValue.js';
 // browser fallback. Pure, no I/O.
 
 export const UNITS_KEY = 'rp.units';
-const M_PER_FT = 0.3048;
+// the exact international foot from the Suite unit registry (one home)
+import { M_PER_FT } from '../../../../lib/units/registry.js';
 
 export const VELOCITY_UNITS = Object.freeze([
   { key: 'm/s', label: 'm/s', kind: 'speed' },

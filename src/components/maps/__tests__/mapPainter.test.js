@@ -233,3 +233,18 @@ describe('rotated frames (MS5)', () => {
     expect(sampleAtScreen(z, spec, t, outside.x, outside.y).z).toBeNull();
   });
 });
+
+test('MAP-U1-001: the scale bar reads metres on a US-feet frame', () => {
+  const lengthOf = (xyToM) => {
+    const ctx = makeCtx();
+    paintScaleBar(ctx, { x: 12, y: 468, transform: tr(), maxPx: 180, xyToM });
+    const [txt] = texts(ctx);
+    const v = Number(txt.replace(/[^\d.]/g, ''));
+    return /km/.test(txt) ? v * 1000 : v;
+  };
+  const m = lengthOf(1);
+  const ft = lengthOf(1200 / 3937);
+  // the same pixels span 0.3048 of the metres on a feet frame
+  expect(ft).toBeLessThan(m);
+  expect(ft).toBeLessThanOrEqual(m * 0.31);
+});

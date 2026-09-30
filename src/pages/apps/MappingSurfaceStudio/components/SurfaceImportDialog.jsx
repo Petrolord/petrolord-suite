@@ -17,16 +17,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import CrsPicker from '@/components/crs/CrsPicker';
 import useCrsContext from '@/components/crs/useCrsContext';
-import { parseSurfaceFile, surfaceGridStats } from '@/lib/gridding/surfaceImport';
-import { crsDisplayName } from '@/lib/crs';
+import { surfaceGridStats } from '@/lib/gridding/surfaceImport';
+import { readSurfaceFile } from '../services/surfaceFileDoor';
+import { crsDisplayName, transformPoint } from '@/lib/crs';
+import { normalizeTag } from '@/lib/crs/tags';
 import {
-  planImport, detectSign, IMPORT_DOMAINS, IMPORT_SIGNS, SURFACE_FORMAT_LABELS,
+  planImport, planPointsSource, detectSign, IMPORT_DOMAINS, IMPORT_SIGNS, SURFACE_FORMAT_LABELS,
 } from '../services/importPlan';
 
 const selCls = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-2 py-1 text-sm';
 
 export default function SurfaceImportDialog({
-  open, onOpenChange, backend, depthUnit = 'ft', onImported,
+  open, onOpenChange, backend, depthUnit = 'ft', onImported, onGridPoints,
 }) {
   const fileRef = useRef(null);
   const { crsContext } = useCrsContext();
@@ -58,10 +60,18 @@ export default function SurfaceImportDialog({
     setName(file.name.replace(/\.[^.]+$/, ''));
     try {
       const text = await file.text();
-      const g = parseSurfaceFile(text);
+      // MAP-U1-003: vendor dialects are read at the door, and said
+      const { g, points, notes, hint } = readSurfaceFile(text);
+      if (hint.domain) setDomain(hint.domain);
+      if (hint.zUnit === 'm' || hint.zUnit === 'ft') setZUnit(hint.zUnit);
+      if (!g) {
+        // MAP-U2-003: scattered points or a rotated lattice grid in the studio
+        setParsed({ g: null, points, autoSign: detectSign(points.map((p) => p.z)), notes });
+        return;
+      }
       const stats = surfaceGridStats(g);
       if (!stats.live) throw new Error('The grid has no live nodes.');
-      setParsed({ g, stats, autoSign: detectSign(g.z) });
+      setParsed({ g, stats, autoSign: detectSign(g.z), notes });
     } catch (err) {
       setError(err.message);
     }
@@ -69,6 +79,11 @@ export default function SurfaceImportDialog({
 
   const previewLine = useMemo(() => {
     if (!parsed) return null;
+    if (parsed.points) {
+      const zs = parsed.points.map((p) => p.z);
+      return `Points (not a regular grid): ${parsed.points.length.toLocaleString()} points, z ${Math.min(...zs).toFixed(1)} to ${Math.max(...zs).toFixed(1)}. `
+        + 'Grid them with the method, cell size and extent set in the studio.';
+    }
     const { g, stats } = parsed;
     return `${SURFACE_FORMAT_LABELS[g.format] || g.format}: ${g.nx}×${g.ny} nodes, cell ${g.dx.toFixed(1)}×${g.dy.toFixed(1)}, `
       + `${g.rotation_deg ? `rotated ${g.rotation_deg} deg, ` : ''}`
@@ -78,8 +93,25 @@ export default function SurfaceImportDialog({
   const projectTag = crsContext?.projectTag || null;
   const customDefs = crsContext?.customDefs || {};
 
+  const doGridPoints = () => {
+    if (!parsed?.points) return;
+    setError(null);
+    try {
+      const plan = planPointsSource({
+        points: parsed.points, fileName, name, domain, zUnit, zSign, declaredTag: fileCrs, projectTag,
+        transform: (x, y) => transformPoint(normalizeTag(fileCrs), normalizeTag(projectTag), x, y, customDefs),
+      });
+      onGridPoints?.(plan);
+      reset();
+      onOpenChange(false);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const doImport = async () => {
     if (!parsed) return;
+    if (parsed.points) { doGridPoints(); return; }
     setBusy(true);
     setError(null);
     try {
@@ -111,11 +143,16 @@ export default function SurfaceImportDialog({
         </DialogHeader>
         <div className="space-y-3 text-sm">
           <div>
-            <Label className="text-xs text-pl-muted">Grid file (XYZ points on a regular grid, CPS-3, ZMAP+, Irap classic)</Label>
-            <input ref={fileRef} type="file" data-testid="map-import-file" accept=".xyz,.dat,.txt,.grd,.zmap,.cps3,.irap,.asc"
+            <Label className="text-xs text-pl-muted">Grid or points file (XYZ with or without a header, Petrel points, CPS-3, ZMAP+, Irap classic; scattered points and rotated lattices are gridded in the studio)</Label>
+            <input ref={fileRef} type="file" data-testid="map-import-file" accept=".xyz,.dat,.txt,.grd,.zmap,.cps3,.cps,.irap,.asc,.csv"
               className="mt-1 block w-full text-xs text-pl-text file:mr-2 file:px-2 file:py-1 file:rounded file:border file:border-pl-border file:bg-pl-sunken file:text-pl-text"
               onChange={onFile} />
             {previewLine && <p className="mt-1 text-xs text-pl-muted" data-testid="map-import-preview">{previewLine}</p>}
+            {parsed?.notes?.length > 0 && (
+              <ul className="mt-1 text-[11px] text-pl-muted list-disc pl-4" data-testid="map-import-notes">
+                {parsed.notes.map((n) => <li key={n}>{n}</li>)}
+              </ul>
+            )}
           </div>
           <div>
             <Label className="text-xs text-pl-muted">Surface name</Label>
@@ -159,7 +196,7 @@ export default function SurfaceImportDialog({
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button size="sm" data-testid="map-import-run" disabled={!parsed || busy} onClick={doImport}>
-              {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Upload className="w-4 h-4 mr-1" />} Import
+              {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Upload className="w-4 h-4 mr-1" />} {parsed?.points ? 'Grid these points' : 'Import'}
             </Button>
           </div>
         </div>

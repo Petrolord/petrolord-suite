@@ -98,9 +98,9 @@ function RockPhysicsStudioHelpGuideContent() {
         <SectionHeading icon={Ruler}>Display units</SectionHeading>
         <Para>
           The Units selectors in the ribbon convert the tables, charts, zone and top labels and the manual AVO
-          halfspaces. The engine, the saved project and the published curves stay in m/s, kg/m3 and metres. The
-          choices are remembered in this browser; the depth unit starts from your Geoscience depth setting, the same
-          one Mapping &amp; Surface Studio and Earth Modeling use.
+          halfspaces. The engine, the saved project and the published curves stay in m/s, kg/m3 and metres. Velocity,
+          density and depth start from your Suite units (Units in the dashboard sidebar); a change here holds for this
+          session, and the app says when the view differs from your units.
         </Para>
         <Table headers={['Quantity', 'Choices']} rows={[
           ['Velocity', VELOCITY_UNITS.map((u) => u.label).join(', ')],

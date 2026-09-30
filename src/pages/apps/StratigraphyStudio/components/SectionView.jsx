@@ -9,6 +9,7 @@
 // same wells re-plotted in time.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import UnitProfileNote from '@/components/units/UnitProfileNote';
 import { Link } from 'react-router-dom';
 import { Save, Loader2 } from 'lucide-react';
 import CrossSection from '@/components/wells/section/CrossSection';
@@ -43,7 +44,7 @@ const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-
  */
 export default function SectionView({ backend, mode, scheme, onStatus, appPaths = {}, saved = null, onSaveProject, report = null }) {
   const wheelerRef = useRef(null);
-  const sec = useSectionWells(backend, { onStatus });
+  const sec = useSectionWells(backend, { onStatus, unitsApp: 'stratigraphy' });
   const { wells, order, wellData, sectionWells, topNames, datum, setDatum, depthUnit, setDepthUnit, depthRef, setDepthRef, spacing } = sec;
   // STRAT-U1-009: Well Correlation keeps named sections (WC-U2-001); the studio
   // opens the one the user picks (remembered with Save view), else the newest
@@ -109,7 +110,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
       if (saved.view?.showBiozones === false) setShowBiozones(false);
       if (['equal', 'proportional', 'line'].includes(saved.wheeler?.spacing)) setWheelerSpacing(saved.wheeler.spacing);
       if (['md', 'tvd', 'tvdss', 'twt'].includes(saved.view?.depthRef)) setDepthRef(saved.view.depthRef);
-      if (saved.view?.depthUnit === 'm' || saved.view?.depthUnit === 'ft') setDepthUnit(saved.view.depthUnit);
+      if (saved.view?.depthUnit === 'm' || saved.view?.depthUnit === 'ft') sec.restoreDepthUnit(saved.view.depthUnit);
       // STRAT-U2-002: horizons, strips and column width ride in the view (jsonb, no schema change)
       if (Array.isArray(saved.view?.horizons)) hz.setHzOn(saved.view.horizons.filter((x) => typeof x === 'string'));
       if (saved.view?.strips) setStripsOn({ pay: !!saved.view.strips.pay, zones: !!saved.view.strips.zones, units: !!saved.view.strips.units });
@@ -303,6 +304,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
           </select>
         )}
       </label>
+      <UnitProfileNote u={sec.unitNote} className="hidden lg:inline-flex" />
       <label className="flex items-center gap-1 text-pl-muted">Datum
         <select className={selCls} value={datum.mode} data-testid="strat-datum-mode"
           onChange={(e) => {

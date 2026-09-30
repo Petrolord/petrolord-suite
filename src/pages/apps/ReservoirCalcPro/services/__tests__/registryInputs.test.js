@@ -62,6 +62,15 @@ test('surfaceAreaM2 counts live nodes × cell area; nulls excluded', () => {
   expect(surfaceAreaM2({ dx: 100, dy: 100 }, grid)).toBe(40000);
 });
 
+test('MAP-U1-029: a US-feet frame gives square metres, a geographic one is refused', () => {
+  const grid = Float32Array.from([10, 20, NULL_VALUE, 30, 40, NULL_VALUE]);
+  const ftUS = 1200 / 3937;
+  // the same 100 m cells written in US survey feet
+  expect(surfaceAreaM2({ dx: 100 / ftUS, dy: 100 / ftUS, xy_unit: 'ftUS' }, grid)).toBeCloseTo(40000, 6);
+  expect(surfaceAreaM2({ dx: 100 / ftUS, dy: 100 / ftUS }, grid)).toBeGreaterThan(40000 * 10.7); // negative control: no unit, read as metres
+  expect(() => surfaceAreaM2({ dx: 0.001, dy: 0.001, xy_unit: 'deg', name: 'G' }, grid)).toThrow(/geographic/);
+});
+
 test('surfaceArea unit conversions', () => {
   const grid = Float32Array.from([1, 1, 1, 1]); // 4 live
   const s = { dx: 100, dy: 100 }; // 40000 m2
