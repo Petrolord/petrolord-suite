@@ -4,7 +4,7 @@
 // (separate records), and conflicts for an approver. Withdrawn calls
 // never publish.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import DepthEntry from './DepthEntry';
 import ConflictResolver from './ConflictResolver';
@@ -31,14 +31,19 @@ export default function TopsView({ board, tops, records, prognosis, ctx, default
   const [registryWells, setRegistryWells] = useState(null);
   const [offsetIds, setOffsetIds] = useState(() => (prognosis && prognosis.source && prognosis.source.offset_well_ids) || []);
   const lastOffsetKey = JSON.stringify((prognosis && prognosis.source && prognosis.source.offset_well_ids) || []);
-  useEffect(() => { setOffsetIds(JSON.parse(lastOffsetKey)); }, [lastOffsetKey]);
+  // a new prognosis version re-seeds the chooser, unless the user has changed
+  // it since the last Load: the version can arrive after their click
+  const offsetsTouched = useRef(false);
+  useEffect(() => { if (!offsetsTouched.current) setOffsetIds(JSON.parse(lastOffsetKey)); }, [lastOffsetKey]);
+  // another well: its own prognosis seeds the chooser
+  useEffect(() => { offsetsTouched.current = false; setOffsetIds(JSON.parse(lastOffsetKey)); }, [geoWellId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     let alive = true;
     if (!canAdmin || !online || !loadRegistryWells) return undefined;
     loadRegistryWells().then((w) => { if (alive) setRegistryWells((w || []).filter((x) => x.id !== geoWellId)); }).catch(() => { if (alive) setRegistryWells([]); });
     return () => { alive = false; };
   }, [canAdmin, online, loadRegistryWells, geoWellId]);
-  const toggleOffset = (id) => setOffsetIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  const toggleOffset = (id) => { offsetsTouched.current = true; return setOffsetIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id])); };
   const local = (iso) => toRigLocal(Date.parse(iso), offsetMin).hhmm;
   const sel = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text';
   const recentEvidence = useMemo(() => [...records].filter((r) => r.kind === 'observation').sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at)).slice(0, 12), [records]);
@@ -81,7 +86,7 @@ export default function TopsView({ board, tops, records, prognosis, ctx, default
         <span className="text-[11px] text-pl-muted" data-testid="ws-prognosis-version">
           {prognosis ? `Prognosis version ${prognosis.version}, loaded ${toRigLocal(Date.parse(prognosis.loaded_at || prognosis.client_created_at), offsetMin).iso.replace('T', ' ')} rig time, ${(prognosis.tops || []).length} top(s), ${(prognosis.offset_tops || []).length} offset top(s)` : 'No prognosis loaded.'}
         </span>
-        {canAdmin && <Button size="sm" variant="outline" disabled={!online} onClick={() => onLoadPrognosis(offsetIds)} data-testid="ws-prognosis-load" title={online ? 'Load the prognosis from the registry (a new version)' : 'Needs a connection'}>Load from registry</Button>}
+        {canAdmin && <Button size="sm" variant="outline" disabled={!online} onClick={() => { offsetsTouched.current = false; onLoadPrognosis(offsetIds); }} data-testid="ws-prognosis-load" title={online ? 'Load the prognosis from the registry (a new version)' : 'Needs a connection'}>Load from registry</Button>}
         {canAdmin && online && registryWells && (
           <details className="text-[11px] text-pl-text" data-testid="ws-prognosis-offsets">
             <summary className="cursor-pointer text-pl-muted" data-testid="ws-prognosis-offsets-summary">Offset wells ({offsetIds.length} chosen)</summary>

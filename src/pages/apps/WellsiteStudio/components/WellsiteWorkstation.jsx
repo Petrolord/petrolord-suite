@@ -146,7 +146,12 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   }, [wells]);
   useEffect(() => { if (!wellParam.current && !selectedId && wells && wells.length) setSelectedId(wells[0].id); }, [wells, selectedId]);
 
+  // refreshes overlap (every save bumps tick); only the latest one may land,
+  // or a slower, older read overwrites newer rows (a just-saved observation
+  // vanished, a user's offset choice was reset on slow machines)
+  const refreshSeq = useRef(0);
   const refreshWellData = useCallback(async () => {
+    const seq = ++refreshSeq.current;
     if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); setShows([]); setObservations([]); setPhotos([]); setTops([]); setPrognoses([]); setMembers([]); setNarratives([]); setReports([]); setSignoffs([]); return; }
     const [bits, pumps, cfg, descs, evs, smp, stg, prog, shw, obs, pho, tps, prg, mem, nar, rep, sgn] = await Promise.all([
       backend.listRecords(well.id, { subtype: 'bit_depth' }),
@@ -167,6 +172,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       backend.listReports(well.id),
       backend.listSignoffs(well.id),
     ]);
+    if (seq !== refreshSeq.current) return; // a newer refresh is in flight
     setNarratives(nar);
     setReports(rep);
     setSignoffs(sgn);

@@ -181,6 +181,16 @@ describe('useAppUnits', () => {
     expect(screen.queryByTestId('unit-profile-note')).toBeNull();
     expect(window.localStorage.getItem('demo.units')).toBe('keep');
   });
+  test('a choice made before the profile resolves survives the resolution', () => {
+    // the provider starts on the built-in default (ft), the user picks m, then the organisation row arrives
+    const { rerender } = render(<StaticUnitProfileProvider layers={null}><Harness /></StaticUnitProfileProvider>);
+    fireEvent.click(screen.getByText('toggle'));
+    expect(screen.getByTestId('depth').textContent).toBe('m');
+    act(() => { rerender(<StaticUnitProfileProvider layers={{ organization: makeProfile('oilfield', { pressure: 'bar' }) }}><Harness /></StaticUnitProfileProvider>); });
+    expect(screen.getByTestId('depth').textContent).toBe('m');
+    expect(screen.getByTestId('pressure').textContent).toBe('MPa');
+    expect(screen.getByTestId('unit-profile-note').dataset.state).toBe('differs');
+  });
   test('the view follows a profile change when there is no override', () => {
     const { rerender } = render(<StaticUnitProfileProvider layers={{ organization: makeProfile('metric') }}><Harness /></StaticUnitProfileProvider>);
     expect(screen.getByTestId('depth').textContent).toBe('m');

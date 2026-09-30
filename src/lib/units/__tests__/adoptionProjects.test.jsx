@@ -50,6 +50,15 @@ describe('Well Test', () => {
     rerender(tree({ organization: makeProfile('metric', { depth: 'm' }) }));
     expect(a.ref.current.unitSystem).toBe('oilfield');
   });
+  test('inputs typed before the profile resolves are kept (the system is display only)', async () => {
+    const a = probe(useWellTestStudio);
+    const tree = (layers) => <StaticUnitProfileProvider layers={layers}><WellTestStudioProvider><a.Probe /></WellTestStudioProvider></StaticUnitProfileProvider>;
+    const { rerender } = render(tree(null));
+    act(() => a.ref.current.setReservoirField('h', '77'));
+    rerender(tree(METRIC));
+    await waitFor(() => expect(a.ref.current.unitSystem).toBe('si'));
+    expect(a.ref.current.reservoirInputs.h).toBe('77');
+  });
   test('negative control: no provider keeps the old oilfield default', () => {
     const a = probe(useWellTestStudio);
     render(<WellTestStudioProvider><a.Probe /></WellTestStudioProvider>);
