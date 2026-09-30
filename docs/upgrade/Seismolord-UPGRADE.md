@@ -231,6 +231,7 @@ Branch `feat/seis-u2`. One row per item, in build order; each row names the test
 
 | ID | Status | What was built | Proving test |
 |---|---|---|---|
+| U2-001 | Done | Plot templates (Current view; Section with a well; Map with contours and wells) that check the picture before plotting and say what is missing; a legend column of the horizons, faults, wells and contour interval actually drawn (SliceView and MapView report what they drew, never the explorer list); Company and Analyst in the title block, saved per user in the account metadata (`seismolord_plot_identity`, no schema change; the profile name is the default analyst). `lib/plotTemplates.js`. | `u2PlotTemplates.test.js` (line through no well refused, legend from the drawn set, hostile identity text, store round trip); `e2e/seismolord-u2.spec.js` PDF read back with pdftotext at 1366x768 and 1440x900, light and dark |
 
 ## Verification (Step 1)
 

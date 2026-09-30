@@ -2958,6 +2958,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
           sticks: f.sticks,
           color: faultColorById[f.id],
           id: f.id,
+          name: f.name,
           lineWidth: d.lineWidth,
           opacity: d.opacity,
         };

@@ -190,6 +190,7 @@ function MapView({
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
   const canvasRef = useRef(null);
+  const drawnRef = useRef(null);
   const transformRef = useRef(new ViewTransform());
   const rafRef = useRef(0);
   const dragRef = useRef(null);
@@ -546,6 +547,11 @@ function MapView({
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // U2-001: what this frame really draws (plot templates and legend)
+    const drawn = {
+      horizons: [], faults: [], wells: [], contours: null,
+    };
+    drawnRef.current = drawn;
     if (!p.geom || !p.manifest) return;
     const t = transformRef.current;
     const dpr = window.devicePixelRatio || 1;
@@ -554,6 +560,10 @@ function MapView({
     const layer = p.prefs.fill || p.prefs.contours || p.prefs.colorbar
       ? (p.activeSurface ? layerForSurface(p.activeSurface) : layerFor(p.active, p.vs))
       : null;
+    if (layer && (p.prefs.fill || p.prefs.contours)) {
+      const src = p.activeSurface || p.active;
+      if (src?.name) drawn.horizons.push({ name: src.name, color: src.color });
+    }
 
     // data area (clipped, gutter-offset)
     ctx.save();
@@ -581,6 +591,9 @@ function MapView({
 
     if (p.prefs.contours && layer && layer.levels.length
       && p.active?.display?.contours !== false) {
+      drawn.contours = {
+        name: (p.activeSurface || p.active)?.name || null, step: layer.step, unit: layer.unit,
+      };
       const inkFor = (major) => (p.prefs.fill
         ? `rgba(15, 23, 42, ${major ? 0.85 : 0.5})`
         : `rgba(148, 163, 184, ${major ? 0.95 : 0.55})`);
@@ -638,6 +651,7 @@ function MapView({
     if (p.prefs.faults) {
       const mk = Math.max(3, 1.5 * dpr);
       for (const f of p.faults || []) {
+        if ((f.sticks || []).length) drawn.faults.push({ name: f.name, color: f.color });
         ctx.strokeStyle = f.color;
         ctx.fillStyle = f.color;
         ctx.lineWidth = 1.6 * dpr;
@@ -992,6 +1006,9 @@ function MapView({
       for (const w of p.wells) {
         const surf = worldToIlxl(aff, w.surfaceX, w.surfaceY);
         if (!surf) continue;
+        if (surf.i >= -0.5 && surf.j >= -0.5 && surf.i <= p.geom.nIl - 0.5 && surf.j <= p.geom.nXl - 0.5) {
+          drawn.wells.push({ name: w.name, color: w.color });
+        }
         ctx.strokeStyle = w.color;
         ctx.fillStyle = w.color;
         if (w.path && w.path.length > 1) {
@@ -1186,6 +1203,7 @@ function MapView({
           metersPerPx: p.spacing.xlSpacing / transformRef.current.ppx,
           msPerPx: null,
           label: 'Map',
+          drawn: drawnRef.current,
         };
       },
     };

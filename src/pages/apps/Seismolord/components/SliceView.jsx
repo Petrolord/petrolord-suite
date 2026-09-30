@@ -35,6 +35,7 @@ import {
 } from '../viewer/annotations';
 import { NULL_VALUE } from '../engine/manifest';
 import { lineLabelSlug } from '../lib/sectionCaption';
+import { sectionDrawn } from '../lib/plotTemplates';
 
 /** The picture with a caption band above it (SEIS-U1-013): dark like the
  *  seismic canvas (owner rule), light text, lines fitted to the width. */
@@ -1089,6 +1090,15 @@ function SliceView({
           // SEIS-U1-011: the line NUMBER, never the lattice index
           label: p.lineLabel || (p.orientation === 'traverse' ? 'Traverse'
             : `${p.orientation} ${p.sliceIndex}`),
+          // U2-001: what the picture shows, for the template and legend
+          drawn: sectionDrawn({
+            overlays: p.overlays,
+            orientation: p.orientation,
+            sliceIndex: p.sliceIndex,
+            geom: p.geom,
+            positions: p.slice?.positions || null,
+            corridor: p.wellCorridor?.[p.orientation] ?? null,
+          }),
         };
       },
     };
