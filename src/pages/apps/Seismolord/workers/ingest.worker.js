@@ -19,11 +19,15 @@ import { fileReader } from '../engine/reader';
 import { readTextualHeader, scanGeometry, previewTraceHeaders } from '../engine/segyScan';
 import { transcodeToBricks } from '../engine/brickTranscode';
 import { createBrickChannel } from './brickAckChannel';
+import { openSegyDoor, doorScanWarnings, depthDomainHint } from '../lib/segyDoor';
 
 const channel = createBrickChannel((msg, transfer) => self.postMessage(msg, transfer));
 
 async function handleScan({ id, file, mapping, maxTraces }) {
-  const reader = fileReader(file);
+  // SEIS-U1: the door checks the headers first (refusing with the reason)
+  // and presents extended-header and unset-interval files in the layout
+  // the engines read
+  const { reader, door } = await openSegyDoor(fileReader(file));
   const [textLines, preview, scan] = [
     await readTextualHeader(reader),
     await previewTraceHeaders(reader, mapping),
@@ -32,11 +36,17 @@ async function handleScan({ id, file, mapping, maxTraces }) {
       onProgress: (done, total) => self.postMessage({ type: 'progress', id, phase: 'scan', done, total }),
     }),
   ];
+  scan.warnings = doorScanWarnings(door, scan);
+  scan.door = {
+    revision: door.revision, extTextHeaders: door.extTextHeaders, coordUnits: door.coordUnits,
+    zeroCoordinates: door.zeroCoordinates, patches: door.patches,
+  };
+  scan.depthHint = depthDomainHint(textLines);
   self.postMessage({ type: 'scan:done', id, scan, textLines, preview });
 }
 
 async function handleIngest({ id, file, mapping, memoryBudgetBytes }) {
-  const reader = fileReader(file);
+  const { reader } = await openSegyDoor(fileReader(file));
   const scan = await scanGeometry(reader, mapping, {
     onProgress: (done, total) => self.postMessage({ type: 'progress', id, phase: 'scan', done, total }),
   });

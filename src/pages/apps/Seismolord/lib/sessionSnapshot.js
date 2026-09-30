@@ -49,3 +49,11 @@ export function clampIndices(indices, geometry) {
     time: clamp(indices?.time, geometry.ns),
   };
 }
+
+/** Why a saved session or bookmark cannot be restored, or null
+ *  (SEIS-U1-015: checked BEFORE anything is applied). */
+export function sessionVolumeProblem(payload, volumes) {
+  if (!payload?.volume_id) return null;
+  if ((volumes || []).some((v) => v.id === payload.volume_id)) return null;
+  return 'The volume this session points at no longer exists (deleted, or no longer shared). Nothing was changed.';
+}

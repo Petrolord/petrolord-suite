@@ -21,8 +21,54 @@ import { sanityCheck, crsDisplayName } from '@/lib/crs';
 import { getProjectCrs, addCustomDef } from '@/lib/crs/settingsService';
 import { isTransformableTag, normalizeTag, UNKNOWN } from '@/lib/crs/tags';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { COORD_UNITS, SAMPLE_FORMATS, needsTraceLattice } from '../lib/segyDoor';
 
 const fmtInt = (v) => (v == null ? EMPTY_VALUE : v.toLocaleString('en-US'));
+
+/** SEIS-U1-012: a trace-header byte position is committed on Enter or
+ *  blur, only when it is a whole number the header can hold. Typing
+ *  "189" no longer rescans at bytes 1 and 18 first, and clearing the box
+ *  no longer scans at byte 0 (a raw DataView range error). */
+export function ByteField({ value, max, onCommit, disabled, ariaLabel }) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => { setText(String(value)); }, [value]);
+  const commit = () => {
+    const n = Number(text.trim());
+    if (Number.isInteger(n) && n >= 1 && n <= max) {
+      if (n !== value) onCommit(n);
+    } else {
+      setText(String(value));
+    }
+  };
+  return (
+    <Input
+      type="text" inputMode="numeric" value={text} aria-label={ariaLabel}
+      className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
+      title={`A trace-header byte position from 1 to ${max}; applied on Enter or when you leave the box`}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }}
+      disabled={disabled}
+    />
+  );
+}
+
+/** Why Start import stays off for this scan (SEIS-U1-002, -005), or null. */
+export function importBlockReason({ scan, domain, useV4, v4Support, compress16 }) {
+  if (!scan) return null;
+  if (domain === 'depth') {
+    return 'Seismolord interprets volumes in two-way time: a depth volume\'s sample axis would read as '
+      + 'milliseconds, and horizons picked on it would be depth converted a second time. Import the '
+      + 'time-migrated volume, or declare Two-way time if the header is wrong.';
+  }
+  if (needsTraceLattice(scan) && !useV4) {
+    return 'This survey has an irregular outline or is not inline-sorted. It imports through the '
+      + 'background import, which indexes every trace'
+      + (compress16 ? '; untick 16-bit storage to use it.'
+        : v4Support && !v4Support.ok ? ', and this browser cannot run it.' : '.');
+  }
+  return null;
+}
 
 const MB = 1024 * 1024;
 // display copy with its levels of detail, compressed, as a share of the
@@ -97,6 +143,10 @@ export default function ImportPanel({
   const [sanity, setSanity] = useState(null);
   const [sanityOverride, setSanityOverride] = useState(false);
   const [compress16, setCompress16] = useState(false); // W4.4 int16 storage
+  // SEIS-U1-005: vertical domain of the file, declared like the CRS; a
+  // textual-header hint prefills it once per file, never commits it
+  const [domain, setDomain] = useState('time');
+  const domainPrefilledRef = useRef(false);
   const crsPrefilledRef = useRef(false);
   const [interrupted, setInterrupted] = useState([]); // status 'ingesting' rows
   const [resuming, setResuming] = useState(null);     // row being resumed
@@ -141,6 +191,8 @@ export default function ImportPanel({
     setCrsTag(null);
     setSanityOverride(false);
     crsPrefilledRef.current = false;
+    setDomain('time');
+    domainPrefilledRef.current = false;
     runScan(f, mapping);
     if (onFilePicked) onFilePicked(f, mapping);
   };
@@ -240,6 +292,12 @@ export default function ImportPanel({
     else if (crsHints.suggestions[0]?.code) setCrsTag(crsHints.suggestions[0].code);
   }, [scan, project, crsHints]);
 
+  useEffect(() => {
+    if (!scan || domainPrefilledRef.current) return;
+    domainPrefilledRef.current = true;
+    if (scan.depthHint) setDomain('depth');
+  }, [scan]);
+
   // Plausibility of the scanned coordinates under the declared CRS.
   useEffect(() => {
     if (!scan || !crsTag || !isTransformableTag(crsTag)) { setSanity(null); return; }
@@ -271,6 +329,9 @@ export default function ImportPanel({
   };
 
   const crsChosen = Boolean(crsTag);
+  const blockReason = importBlockReason({
+    scan, domain, useV4, v4Support, compress16,
+  });
   const sanityBlocks = Boolean(sanity && !sanity.ok && sanity.verdict === 'out-of-area' && !sanityOverride);
   const projectSet = Boolean(project?.tag && isTransformableTag(project.tag));
   const willConvert = projectSet && crsTag && isTransformableTag(crsTag)
@@ -473,19 +534,17 @@ export default function ImportPanel({
               </div>
               <div>
                 <Label className="text-pl-text">Inline byte</Label>
-                <Input
-                  type="number" min="1" max="237" value={mapping.ilByte}
-                  className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
-                  onChange={(e) => onMappingChange({ ilByte: Number(e.target.value) })}
+                <ByteField
+                  value={mapping.ilByte} max={237} ariaLabel="Inline byte"
+                  onCommit={(n) => onMappingChange({ ilByte: n })}
                   disabled={phase === 'ingesting'}
                 />
               </div>
               <div>
                 <Label className="text-pl-text">Crossline byte</Label>
-                <Input
-                  type="number" min="1" max="237" value={mapping.xlByte}
-                  className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
-                  onChange={(e) => onMappingChange({ xlByte: Number(e.target.value) })}
+                <ByteField
+                  value={mapping.xlByte} max={237} ariaLabel="Crossline byte"
+                  onCommit={(n) => onMappingChange({ xlByte: n })}
                   disabled={phase === 'ingesting'}
                 />
               </div>
@@ -503,31 +562,25 @@ export default function ImportPanel({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
                   <div>
                     <Label className="text-pl-text">X byte</Label>
-                    <Input
-                      type="number" min="1" max="237"
-                      value={mapping.xByte ?? DEFAULT_MAPPING.xByte}
-                      className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
-                      onChange={(e) => onMappingChange({ xByte: Number(e.target.value) })}
+                    <ByteField
+                      value={mapping.xByte ?? DEFAULT_MAPPING.xByte} max={237} ariaLabel="X byte"
+                      onCommit={(n) => onMappingChange({ xByte: n })}
                       disabled={phase === 'ingesting'}
                     />
                   </div>
                   <div>
                     <Label className="text-pl-text">Y byte</Label>
-                    <Input
-                      type="number" min="1" max="237"
-                      value={mapping.yByte ?? DEFAULT_MAPPING.yByte}
-                      className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
-                      onChange={(e) => onMappingChange({ yByte: Number(e.target.value) })}
+                    <ByteField
+                      value={mapping.yByte ?? DEFAULT_MAPPING.yByte} max={237} ariaLabel="Y byte"
+                      onCommit={(n) => onMappingChange({ yByte: n })}
                       disabled={phase === 'ingesting'}
                     />
                   </div>
                   <div>
                     <Label className="text-pl-text">Scalar byte</Label>
-                    <Input
-                      type="number" min="1" max="239"
-                      value={mapping.scalarByte ?? DEFAULT_MAPPING.scalarByte}
-                      className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
-                      onChange={(e) => onMappingChange({ scalarByte: Number(e.target.value) })}
+                    <ByteField
+                      value={mapping.scalarByte ?? DEFAULT_MAPPING.scalarByte} max={239} ariaLabel="Scalar byte"
+                      onCommit={(n) => onMappingChange({ scalarByte: n })}
                       disabled={phase === 'ingesting'}
                     />
                   </div>
@@ -537,7 +590,7 @@ export default function ImportPanel({
 
             {/* Measured geometry */}
             <div className="rounded-lg border border-pl-border bg-pl-sunken/60 p-4 text-sm text-pl-text grid grid-cols-2 md:grid-cols-4 gap-y-2">
-              <div>Format: <span className="text-pl-text">{scan.formatCode === 1 ? 'IBM float' : 'IEEE float'}</span></div>
+              <div>Format: <span className="text-pl-text">{scan.formatCode === 1 ? 'IBM float' : scan.formatCode === 5 ? 'IEEE float' : SAMPLE_FORMATS[scan.formatCode] || `code ${scan.formatCode}`}</span></div>
               <div>Traces: <span className="text-pl-text">{fmtInt(scan.totalTraces)}</span></div>
               <div>Samples: <span className="text-pl-text">{fmtInt(scan.ns)}</span> @ {scan.dtUs / 1000} ms</div>
               <div>Scalar: <span className="text-pl-text">{scan.coordScalar}</span></div>
@@ -558,7 +611,7 @@ export default function ImportPanel({
               )}
               <div className="col-span-2">
                 Header units words: <span className="text-pl-text">
-                  {scan.coordUnits === 1 ? 'length' : scan.coordUnits === 2 ? 'arc-seconds' : 'unstated'}
+                  {COORD_UNITS[scan.coordUnits] || 'unstated'}
                 </span>
                 <span className="text-pl-muted"> (byte 89)</span>
                 {', '}
@@ -575,6 +628,26 @@ export default function ImportPanel({
               {scan.sampled && (
                 <div className="col-span-full text-pl-muted">
                   Preview from sampled headers. Every trace is validated during import.
+                </div>
+              )}
+            </div>
+
+            {/* SEIS-U1-005: vertical domain, declared like the CRS */}
+            <div className="rounded-lg border border-pl-border bg-pl-sunken/60 p-4 space-y-2" data-testid="sl-import-domain">
+              <Label className="text-pl-text">Vertical axis of this file</Label>
+              <div className="flex flex-wrap gap-4 text-sm text-pl-text">
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="sl-domain" checked={domain === 'time'} onChange={() => setDomain('time')} disabled={phase === 'ingesting'} />
+                  Two-way time (sample interval {scan.dtUs / 1000} ms)
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="sl-domain" checked={domain === 'depth'} onChange={() => setDomain('depth')} disabled={phase === 'ingesting'} />
+                  Depth (a depth-migrated volume)
+                </label>
+              </div>
+              {scan.depthHint && (
+                <div className="text-xs text-pl-muted">
+                  The textual header mentions &quot;{scan.depthHint.word}&quot;, so Depth was preselected. The header may be wrong: check it below.
                 </div>
               )}
             </div>
@@ -768,11 +841,17 @@ export default function ImportPanel({
           </label>
         </div>
 
+        {blockReason && phase !== 'ingesting' && (
+          <div className="flex items-start text-pl-warning-text text-sm" data-testid="sl-import-blocked">
+            <AlertTriangle className="w-4 h-4 mr-2 mt-0.5 shrink-0" />{blockReason}
+          </div>
+        )}
         <div className="flex gap-3">
           <Button
             onClick={startIngest}
-            disabled={!scan || phase === 'ingesting' || phase === 'scanning' || !crsChosen || sanityBlocks}
+            disabled={!scan || phase === 'ingesting' || phase === 'scanning' || !crsChosen || sanityBlocks || Boolean(blockReason)}
             title={!scan ? undefined
+              : blockReason ? blockReason
               : !crsChosen ? 'Choose the coordinate reference system of this file first'
                 : sanityBlocks ? 'The coordinates are implausible for the chosen CRS. Fix the choice or confirm the override.'
                   : undefined}

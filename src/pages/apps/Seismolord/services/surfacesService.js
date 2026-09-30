@@ -21,6 +21,7 @@ import { M_PER_FT } from '../engine/velocityModel';
 import { crsUnit, reprojectSurveyAffine } from '@/lib/crs';
 import { isTransformableTag, normalizeTag, compareTags, LOCAL } from '@/lib/crs/tags';
 import { explainOverlapFailure } from '@/lib/crs/guards';
+import { surfaceTimeToPositiveMs } from '@/lib/surfaceConvention';
 
 export const SURFACE_APP = 'seismolord';
 
@@ -80,7 +81,7 @@ export function myOrgId() {
 export async function setSurfaceShared(surface, shared) {
   if (!shared) return unshareSurface(surface.id);
   const org = await myOrgId();
-  if (!org) throw new Error('You belong to no organization — nothing to share with.');
+  if (!org) throw new Error('You belong to no organization, so there is nobody to share with.');
   return shareSurface(surface.id, org);
 }
 
@@ -99,6 +100,10 @@ export async function setSurfaceShared(surface, shared) {
  *   object the RCP handoff records)
  */
 export async function saveHorizonAsSurface({ volume, horizon, domain, g, spec, params }) {
+  // SEIS-U1-008: the registry stores time as POSITIVE TWT ms (owner rule
+  // MS0); the gridder returns the export-file sign (negative TWT), which
+  // Mapping, Well Correlation and Earth Modeling read as positive
+  const grid = domain === 'depth' ? g.z : surfaceTimeToPositiveMs(g.z);
   return saveSurface({
     name: `${horizon.name} (${domain === 'depth' ? 'depth ft' : 'TWT ms'})`,
     kind: 'structure',
@@ -106,12 +111,15 @@ export async function saveHorizonAsSurface({ volume, horizon, domain, g, spec, p
     zDomain: domain === 'depth' ? 'depth' : 'time',
     zUnit: domain === 'depth' ? 'ft' : 'ms',
     ...volumeCrsFields(volume),
-    crsNote: 'Survey world XY from the volume; Z negative-down (Petrolord convention)',
-    grid: g.z,
+    crsNote: domain === 'depth'
+      ? 'Survey world XY from the volume; Z elevation, negative below datum (Petrolord convention)'
+      : 'Survey world XY from the volume; Z positive two-way time in ms',
+    grid,
     provenance: {
       app: SURFACE_APP,
       volume: { id: volume.id, name: volume.name },
       horizon: { id: horizon.id, name: horizon.name },
+      z_sign: domain === 'depth' ? 'elevation' : 'positive_twt',
       domain: domain === 'depth' ? 'depth_ft' : 'twt_ms',
       params,
       converted_at: new Date().toISOString(),
@@ -174,14 +182,21 @@ export async function saveAmplitudeAsSurface({
  * @param {{live, zMin, zMax}} p.stats pre-sign-fix stats (provenance)
  */
 export async function saveImportedSurface({
-  volume, name, g, domain, fileName, format, stats, declaredCrs, reprojected,
+  volume, name, g, domain, zUnit = null, fileName, format, stats, declaredCrs, reprojected,
 }) {
+  // SEIS-U1-009: a depth grid keeps the unit the user declared (metres
+  // were stored as feet, 3.28x shallow downstream); time is stored as
+  // positive TWT ms (the caller has converted seconds), depth as
+  // elevation, negative below datum
+  const isDepth = domain === 'depth';
+  const unit = isDepth ? (zUnit === 'm' ? 'm' : 'ft') : 'ms';
+  const grid = isDepth ? g.z : surfaceTimeToPositiveMs(g.z);
   return saveSurface({
     name,
     kind: 'structure',
     spec: { x0: g.x0, y0: g.y0, dx: g.dx, dy: g.dy, nx: g.nx, ny: g.ny },
-    zDomain: domain === 'depth' ? 'depth' : 'time',
-    zUnit: domain === 'depth' ? 'ft' : 'ms',
+    zDomain: isDepth ? 'depth' : 'time',
+    zUnit: unit,
     ...volumeCrsFields(volume),
     ...(declaredCrs ? {
       crsProvenance: {
@@ -189,15 +204,15 @@ export async function saveImportedSurface({
         ...(reprojected ? { transform: 'proj4', coverage: reprojected.coverage } : { transform: 'none' }),
       },
     } : {}),
-    crsNote: declaredCrs
-      ? `Imported file declared ${declaredCrs}; Z negative-down (Petrolord convention)`
-      : 'Imported file; volume frame assumed; Z negative-down (Petrolord convention)',
-    grid: g.z,
+    crsNote: `${declaredCrs ? `Imported file declared ${declaredCrs}` : 'Imported file; volume frame assumed'}; `
+      + (isDepth ? 'Z elevation, negative below datum (Petrolord convention)' : 'Z positive two-way time in ms'),
+    grid,
     provenance: {
       app: SURFACE_APP,
       volume: { id: volume.id, name: volume.name },
       imported_from: { file_name: fileName, format },
-      domain: domain === 'depth' ? 'depth_ft' : 'twt_ms',
+      domain: isDepth ? `depth_${unit}` : 'twt_ms',
+      z_sign: isDepth ? 'elevation' : 'positive_twt',
       stats: { live_nodes: stats.live, z_min: stats.zMin, z_max: stats.zMax },
       imported_at: new Date().toISOString(),
     },
@@ -231,7 +246,12 @@ export function surfaceToGrid(surface, grid) {
 export async function exportStoredSurface(surface, formatKey) {
   const fmt = SURFACE_EXPORT_FORMATS.find((f) => f.key === formatKey);
   if (!fmt) throw new Error(`Unknown surface export format: ${formatKey}`);
-  const grid = await downloadSurfaceGrid(surface);
+  const stored = await downloadSurfaceGrid(surface);
+  // time files keep the app's export sign (negative TWT, as the export
+  // dialog writes and Petrel reads) whatever sign the row was stored in
+  const grid = surface.z_domain === 'time'
+    ? Float32Array.from(surfaceTimeToPositiveMs(stored), (v) => (Math.abs(v) >= 1e29 ? v : -v))
+    : stored;
   const g = surfaceToGrid(surface, grid);
   const safeName = surface.name.replace(/[^\w-]+/g, '_').toLowerCase();
   let text;
@@ -288,7 +308,12 @@ export async function loadSurfaceMapLayer(surface, affine, geom, volume) {
     throw new Error(explainOverlapFailure(surface.name, surface.crs, volume?.crs));
   }
   const isAttribute = surface.z_domain === 'attribute';
-  if (!isAttribute) {
+  if (surface.z_domain === 'time') {
+    // SEIS-U1-008: positive TWT whatever sign the row was stored in
+    for (let i = 0; i < values.length; i++) {
+      if (Math.abs(values[i]) < 1e29) values[i] = Math.abs(values[i]);
+    }
+  } else if (!isAttribute) {
     for (let i = 0; i < values.length; i++) {
       if (Math.abs(values[i]) < 1e29) values[i] = -values[i];
     }

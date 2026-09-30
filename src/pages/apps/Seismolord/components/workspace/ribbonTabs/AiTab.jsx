@@ -12,7 +12,7 @@ export default function AiTab({ copilotOpen, toggleCopilot }) {
         label="Copilot"
         active={copilotOpen}
         onClick={toggleCopilot}
-        title="Interpretation copilot — asks before it acts; tools run in your browser"
+        title="Interpretation copilot: asks before it acts; tools run in your browser"
       />
     </RibbonGroup>
   );

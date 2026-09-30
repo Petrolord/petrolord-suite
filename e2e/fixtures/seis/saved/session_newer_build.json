@@ -1,0 +1,16 @@
+{
+ "_note": "A session written by a newer build: unknown fields and an unknown colormap.",
+ "volume_id": "vol-1",
+ "schema": 9,
+ "display": {
+  "colormap": "future_map",
+  "gain": 2,
+  "polarity": 1,
+  "newThing": {
+   "a": 1
+  }
+ },
+ "indices": {
+  "inline": 3
+ }
+}

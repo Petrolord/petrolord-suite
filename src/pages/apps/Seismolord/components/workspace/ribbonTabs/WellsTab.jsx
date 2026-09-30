@@ -49,7 +49,7 @@ export default function WellsTab({
           onClick={openCalibrate}
           disabled={!velocityForDisplay || !(visibleWells || []).length || !horizons.length}
           title={!velocityForDisplay
-            ? 'Save a velocity model first — calibration adjusts the current model'
+            ? 'Save a velocity model first. Calibration adjusts the current model'
             : !(visibleWells || []).length
               ? 'Toggle wells with tops visible in the explorer first'
               : 'Fit the velocity model so converted horizon depths match the well tops'}
@@ -60,8 +60,8 @@ export default function WellsTab({
           onClick={openSynthetics}
           disabled={!hasVolume}
           title={hasVolume
-            ? 'Synthetic seismogram from LAS sonic/density logs — the seismic-to-well tie (display-only)'
-            : 'Load a seismic volume first — the synthetic samples onto its time grid'}
+            ? 'Synthetic seismogram from LAS sonic and density logs: the seismic-to-well tie (display only)'
+            : 'Load a seismic volume first. The synthetic samples onto its time grid'}
         />
       </RibbonGroup>
     </>

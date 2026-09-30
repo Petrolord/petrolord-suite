@@ -1,0 +1,11 @@
+{
+ "_note": "A session whose volume was deleted (or unshared).",
+ "volume_id": "vol-gone",
+ "display": {
+  "colormap": "gray",
+  "gain": 9
+ },
+ "local": {
+  "seismolord.windows.v1": "{\"open\":[\"3d\"]}"
+ }
+}

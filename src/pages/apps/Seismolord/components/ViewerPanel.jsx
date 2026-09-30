@@ -81,7 +81,7 @@ import { amplitudePercentile, percentileOfSorted } from '../engine/displayEnhanc
 import { UndoStack } from '../lib/undoStack';
 import { EditHistory } from '../lib/horizonEditHistory';
 import { createdHorizonCommand, rewriteHorizonCommand } from '../lib/horizonUndoCommands';
-import { captureLocal, applyLocal, clampIndices } from '../lib/sessionSnapshot';
+import { captureLocal, applyLocal, clampIndices, sessionVolumeProblem } from '../lib/sessionSnapshot';
 import SessionsDialog from './workspace/dialogs/SessionsDialog';
 import CultureImportDialog from '@/components/culture/CultureImportDialog';
 import {
@@ -89,6 +89,8 @@ import {
 } from '@/lib/cultureRegistry';
 import { reprojectFeatures } from '@/lib/cultureImport';
 import { transformPoint, crsDisplayName } from '@/lib/crs';
+import { buildLabel } from '@/lib/platformBuild';
+import { sectionLineLabel, sectionCaption, verticalLabel, displayLabel } from '../lib/sectionCaption';
 import { normalizeTag, isTransformableTag, LOCAL } from '@/lib/crs/tags';
 import PlotDialog from './workspace/dialogs/PlotDialog';
 import ComputeAttributeDialog from './workspace/dialogs/ComputeAttributeDialog';
@@ -999,6 +1001,10 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
    *  via the epoch key to re-read them), then display state, then
    *  navigation through the same pending-restore path. */
   const restoreSession = async (payload) => {
+    // SEIS-U1-015: a session whose volume is gone is refused before it
+    // rewrites the layout and display (it used to apply both, then fail)
+    const problem = sessionVolumeProblem(payload, volumes);
+    if (problem) throw new Error(problem);
     applyLocal(payload?.local, window.localStorage);
     setSessionEpoch((e) => e + 1);
     const d = payload?.display || {};
@@ -2896,8 +2902,31 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
       : null
   ), [scaleMode, slice, clipPct]);
 
+  // SEIS-U1-014: a local file (View it now) has no survey statistics yet,
+  // so the RMS clip fell back to 1 x 3 and real data (RMS in the hundreds)
+  // showed saturated. The first section's RMS stands in, frozen per volume
+  // so stepping lines keeps one display scale.
+  const fallbackRmsRef = useRef({ id: null, rms: null });
+  const fallbackRms = useMemo(() => {
+    if (manifest?.stats?.rms) return null;
+    const vid = volume?.id || null;
+    if (fallbackRmsRef.current.id === vid && fallbackRmsRef.current.rms) return fallbackRmsRef.current.rms;
+    const src = slice?.absSample || slice?.data;
+    if (!src || !src.length) return null;
+    let sum = 0;
+    let n = 0;
+    const stride = Math.max(1, Math.floor(src.length / 262144));
+    for (let i = 0; i < src.length; i += stride) {
+      const v = src[i];
+      if (Number.isFinite(v) && Math.abs(v) < 1e29) { sum += v * v; n += 1; }
+    }
+    const rms = n ? Math.sqrt(sum / n) : null;
+    if (rms) fallbackRmsRef.current = { id: vid, rms };
+    return rms;
+  }, [manifest, slice, volume]);
+
   const display = useMemo(() => {
-    const rmsClip = Math.max((manifest?.stats?.rms || 1) * clipRms, 1e-12);
+    const rmsClip = Math.max((manifest?.stats?.rms || fallbackRms || 1) * clipRms, 1e-12);
     let clip = rmsClip;
     if (scaleMode === 'pct' && pctClip > 0) clip = pctClip;
     else if (scaleMode === 'manual' && manualClip > 0) clip = manualClip;
@@ -2916,7 +2945,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
         : null,
     };
   }, [colormap, gain, polarity, clipRms, traceBalance, manifest, scaleMode,
-    pctClip, manualClip, reverseCmap, wiggleMode, agcOn, agcWindowMs]);
+    pctClip, manualClip, reverseCmap, wiggleMode, agcOn, agcWindowMs, fallbackRms]);
 
   const overlays = useMemo(() => ({
     horizons: resolvedHorizons,
@@ -2976,6 +3005,23 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     return () => { live = false; };
   }, []);
   const depthUnit = depthUnitChoice || accountDepthUnit || 'm';
+
+  // SEIS-U1-011/013: what a picture of the section says about itself
+  const sectionLine = useMemo(
+    () => sectionLineLabel(manifest?.geometry, orientation,
+      manifest && slice && slice.orientation === orientation ? slice.index : sliceIndex),
+    [manifest, orientation, slice, sliceIndex],
+  );
+  const captionFor = useCallback((lineLabel, depth) => () => sectionCaption({
+    volumeName: volume?.name,
+    lineLabel,
+    depth,
+    depthUnit,
+    velocityText: depth && velocityForDisplay ? describeVelocity(velocityForDisplay) : null,
+    display,
+    crsName: volume?.crs ? crsDisplayName(volume.crs) : null,
+    build: buildLabel(),
+  }), [volume, depthUnit, velocityForDisplay, display]);
   const setDepthUnit = useCallback((u) => {
     setDepthUnitChoice(u);
     try { localStorage.setItem('seismolord.depthUnit.v1', u); } catch { /* private mode */ }
@@ -3951,6 +3997,9 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                   flatten={depthSection ? null : flatten}
                   planeMarks={planeMarks}
                   wellCorridor={wellCorridor}
+                  depthUnit={depthUnit}
+                  lineLabel={sectionLine}
+                  exportCaption={captionFor(sectionLine, Boolean(depthSection))}
                 />
                 {sectionNotice}
                 </div>
@@ -3978,6 +4027,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                   faults={overlays.faults}
                   wells={wellSections}
                   depthConv={depthConv}
+                  depthUnit={depthUnit}
                   onSelectPlane={selectPlane}
                   height="fill"
                 />
@@ -4044,6 +4094,9 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                     ghost={pickMode === 'manual' ? { mode: eventSnapMode, window: snapWindow } : null}
                     loading={traverseLoading}
                     depthConv={depthConv}
+                    depthUnit={depthUnit}
+                    lineLabel="Traverse"
+                    exportCaption={captionFor('Traverse', false)}
                     onPick={handleTraversePick}
                     onPickEnd={commitStroke}
                     onCursor={handleCursor}
@@ -4111,6 +4164,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                 )}
                 <MapView
                   depthUnit={depthUnit}
+                  exportCaption={captionFor('Map', null)}
                   manifest={manifest}
                   geom={geom}
                   horizons={resolvedHorizons}
@@ -4167,6 +4221,17 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
         mapCameraApi={mapCameraApi}
         volume={volume}
         crsName={volume?.crs ? crsDisplayName(volume.crs) : null}
+        extraRows={(source) => [
+          ...(source === 'map' ? [] : [
+            ['Vertical', verticalLabel({
+              depth: Boolean(depthSection),
+              depthUnit,
+              velocityText: depthSection && velocityForDisplay ? describeVelocity(velocityForDisplay) : null,
+            }).replace(/^Vertical: /, '')],
+            ['Display', displayLabel(display)],
+          ]),
+          ['Build', buildLabel()],
+        ]}
       />
 
       <ComputeAttributeDialog

@@ -19,6 +19,7 @@
 
 import { SliceEngine } from './sliceEngine';
 import { fileReader } from '../engine/reader';
+import { openSegyDoor } from '../lib/segyDoor';
 import { storageBrickFetcher, ABORTED as BRICK_ABORTED } from '../engine/brickCache';
 import { v4BrickFetcher } from '../engine/brickCodecV4';
 import { cacheBudgetBytes } from './memoryBudget';
@@ -78,7 +79,8 @@ export function createSliceWorkerHandler(post, env = {}) {
   const controllers = new Map();       // request id -> AbortController
   const tokenWaiters = new Map();
   let tokenSeq = 0;
-  const makeReader = env.makeReader || fileReader;
+  // SEIS-U1: the local view reads through the same SEG-Y door as the import
+  const makeReader = env.makeReader || (async (file) => (await openSegyDoor(fileReader(file))).reader);
   const makeFetcher = env.makeFetcher || ((cfg) => storageBrickFetcher(cfg));
 
   const ensureEngine = (budgetBytes) => {
@@ -139,7 +141,7 @@ export function createSliceWorkerHandler(post, env = {}) {
       return run(m.id, async (signal) => {
         const eng = ensureEngine();
         let last = 0;
-        const res = await eng.openLocal(m.sourceId, makeReader(m.file), {
+        const res = await eng.openLocal(m.sourceId, await makeReader(m.file), {
           mapping: m.mapping,
           name: m.name ?? m.file?.name,
           fileSize: m.file?.size,
