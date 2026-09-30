@@ -30,7 +30,7 @@ export function chartHeaderLines({ title, wells = [], scheme = null, timescale =
   ].filter(Boolean).join(' | ');
   const l3 = [
     scheme ? `Terms: ${scheme === 'exxon' ? 'Exxon (display; stored Catuneanu)' : 'Catuneanu'}` : null,
-    timescale ? `Timescale: ICS ${timescale}` : null,
+    timescale ? `Timescale: ${/^ICS\b/.test(timescale) ? timescale : `ICS ${timescale}`}` : null,
     basis ? `Depths: ${basis}` : null,
   ].filter(Boolean).join(' | ');
   const l4 = `Prepared by: ${analyst || EMPTY_VALUE} | ${date.toISOString().slice(0, 10)} | ${buildLabel()}`;

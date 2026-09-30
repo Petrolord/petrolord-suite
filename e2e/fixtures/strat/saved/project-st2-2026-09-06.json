@@ -1,0 +1,4 @@
+{ "id": "strat-st2", "user_id": "user-dev", "name": "Default", "section_id": null, "scheme": "catuneanu",
+  "flatten": { "mode": "stretch", "upperName": "Top Dome", "lowerName": "Base Sand" }, "wheeler": {},
+  "view": { "ghost": { "sourceWellId": "corr-w1", "targetWellId": "corr-w2", "shiftM": 12 }, "showTracts": true, "showMotifs": true },
+  "schema_version": 1, "app_build": "1ffc8a8c9", "created_at": "2026-09-06T12:00:00Z", "updated_at": "2026-09-06T12:00:00Z" }
