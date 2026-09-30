@@ -126,3 +126,25 @@ describe('STRAT-U1-004/005 the interval paste door (shared with Well Data Manage
     expect(onReplace).not.toHaveBeenCalled();
   });
 });
+
+describe('STRAT-U1-007 the scheme panel adds schemes and shows what it read', () => {
+  // eslint-disable-next-line global-require
+  const fs = require('fs'); const path = require('path');
+  // eslint-disable-next-line global-require
+  const ZoneSchemePanel = require('../components/ZoneSchemePanel').default;
+  const FIX = path.join(__dirname, '..', '..', '..', '..', '..', 'e2e', 'fixtures', 'strat', 'hostile');
+  const file = (f) => ({ name: f, text: async () => fs.readFileSync(path.join(FIX, f), 'utf8') });
+  beforeEach(() => { try { localStorage.clear(); } catch { /* none */ } });
+
+  test('a second file keeps the first scheme (origin/main: replaced it)', async () => {
+    const onStatus = jest.fn();
+    render(<ZoneSchemePanel intervals={[]} canEdit onReplace={jest.fn()} onStatus={onStatus} />);
+    fireEvent.change(screen.getByTestId('strat-zone-scheme-file'), { target: { files: [file('zone_scheme_ok.csv')] } });
+    await waitFor(() => expect(screen.getByTestId('strat-zone-scheme-row-NN')).toBeTruthy());
+    fireEvent.change(screen.getByTestId('strat-zone-scheme-file'), { target: { files: [file('zone_scheme_ka.csv')] } });
+    await waitFor(() => expect(screen.getByTestId('strat-zone-scheme-row-MIS')).toBeTruthy());
+    expect(screen.getByTestId('strat-zone-scheme-row-NN').textContent).toContain('5.59 to 11.63 Ma');
+    expect(screen.getByTestId('strat-zone-scheme-row-MIS').textContent).toContain('0.116 to 0.191 Ma');
+    expect(onStatus).toHaveBeenLastCalledWith(expect.stringMatching(/ages read in ka and converted to Ma/));
+  });
+});
