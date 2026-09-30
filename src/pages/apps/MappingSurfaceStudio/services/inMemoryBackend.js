@@ -32,7 +32,7 @@ const SAMPLE_WELLS = [
 ];
 
 /**
- * @param {{sidetrack?: boolean, scaleWells?: number, seed?: {surfaces?: Array<{row:object, grid:number[]}>}}} [opts]
+ * @param {{sidetrack?: boolean, scaleWells?: number, seed?: {surfaces?: Array<{row:object, grid:number[]}>, culture?: Array<{row:object, features:Array}>}}} [opts]
  *   sidetrack: add "KETA-1 ST1" on KETA-1's slot with its Top Dome 3 m
  *   deeper (T1 MAP-T1-003 e2e); scaleWells: n more vertical wells on a
  *   10 x 10 km dome (MAP-U1 PL10); seed.surfaces: saved registry rows
@@ -124,6 +124,12 @@ export function makeInMemoryBackend({ sidetrack = false, scaleWells = 0, seed = 
   for (const s of seed?.surfaces || []) {
     gridStore.set(s.row.id, Float32Array.from(s.grid));
     surfaces.push({ user_id: 'user-dev', organization_id: null, is_own: true, ...s.row });
+  }
+
+  // MAP-U2-004: culture rows as a file import leaves them (fault polygons, boundaries)
+  for (const c of seed?.culture || []) {
+    featureStore.set(c.row.id, c.features);
+    culture.push({ user_id: 'user-dev', organization_id: null, is_own: true, geometry_type: 'polygon', feature_count: c.features.length, style: {}, crs: null, ...c.row });
   }
 
   const ownSurface = (surface, what) => {
