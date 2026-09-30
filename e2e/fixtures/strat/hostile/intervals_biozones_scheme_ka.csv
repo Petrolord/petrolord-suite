@@ -1,0 +1,5 @@
+# Biozone ranges with their zonation and ages in ka (a Quaternary nannofossil sheet); depths in metres MD
+Well;Zonation;Zone;Top Depth (m);Base Depth (m);Top Age (ka);Base Age (ka)
+KETA-1;NN;NN21;1440,0;1455,5;0;290
+KETA-1;NN;NN20;1455,5;1470;290;440
+KETA-1;NN;NN19;1470;1500;440;

@@ -219,6 +219,12 @@ export default function StratigraphyHelpGuide() {
           ['Open Basin', 'opens Basin & Charge Modeling, where the new model is listed with the well remembered as its tie'],
         ]} />
               <Para>
+          Biozone ranges paste with their scheme and ages: in Intervals choose Biozone and Replace from paste; a
+          StrataBugs export maps Zone, Zonation, Top and Base Depth, and Top and Base Age (Ma, or ka converted to Ma).
+          An age column is never read as a depth, and a range whose base age is not older than its top is refused by
+          row. The Section view outlines the ranges beside the first track with their scheme and ages (Biozones).
+        </Para>
+        <Para>
           Depths (ribbon) shows the Tops, Intervals, Core and Ages tables, the age-depth plot, the rates and the summary
           PDF in metres or feet. The registry keeps metres; a value you type in feet converts at the door, and a cell you
           leave as shown keeps its stored metres exactly. The choice is saved with your stratigraphy project.

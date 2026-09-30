@@ -85,6 +85,8 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   }, [stripsOn, sectionWells, wellData, units, depthUnit]);
   const [showTracts, setShowTracts] = useState(true);
   const [showMotifs, setShowMotifs] = useState(true);
+  // STRAT-U2-005: biozone ranges (Intervals, kind Biozone) beside the logs
+  const [showBiozones, setShowBiozones] = useState(true);
   const [busy, setBusy] = useState(false);
   const [restored, setRestored] = useState(false);
   // STRAT-U2-001 (ST-T1-E1): Wheeler columns equal, by distance, or along the drawn line;
@@ -103,6 +105,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
       if (id && id !== sec.sectionId && sections.some((x) => x.id === id)) await sec.openSection(id);
       if (saved.flatten?.mode) setDatum(saved.flatten);
       if (saved.view?.ghost) setGhost(saved.view.ghost);
+      if (saved.view?.showBiozones === false) setShowBiozones(false);
       if (['equal', 'proportional', 'line'].includes(saved.wheeler?.spacing)) setWheelerSpacing(saved.wheeler.spacing);
       if (['md', 'tvd', 'tvdss', 'twt'].includes(saved.view?.depthRef)) setDepthRef(saved.view.depthRef);
       if (saved.view?.depthUnit === 'm' || saved.view?.depthUnit === 'ft') setDepthUnit(saved.view.depthUnit);
@@ -160,8 +163,17 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
         }
       }
     }
+    if (showBiozones) {
+      for (const w of sectionWells) {
+        for (const r of (intervalsByWell[w.id] || []).filter((x) => x.kind === 'biozone_interval')) {
+          const p = r.properties || {};
+          const ages = p.age_top_ma != null && p.age_base_ma != null ? ` ${p.age_top_ma}-${p.age_base_ma} Ma` : '';
+          out.push({ wellId: w.id, top_md_m: r.top_md_m, base_md_m: r.base_md_m, colour: '#0ea5e9', label: `${p.scheme ? `${p.scheme} ` : ''}${r.code}${ages}`, outline: true });
+        }
+      }
+    }
     return out;
-  }, [sectionWells, intervalsByWell, tractRows, showTracts, showMotifs, scheme]);
+  }, [sectionWells, intervalsByWell, tractRows, showTracts, showMotifs, showBiozones, scheme]);
 
   // the distinct (upper, lower) surface pairs the tracts run between, for the Mapping launcher
   const tractPairs = useMemo(() => {
@@ -208,7 +220,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   const saveView = async () => {
     if (!onSaveProject) return;
     try {
-      await onSaveProject({ section_id: sec.sectionId || null, flatten: datum, wheeler: { ...(saved?.wheeler || {}), spacing: wheelerSpacing }, view: { ghost, showTracts, showMotifs, depthRef, depthUnit, horizons: hz.hzOn, strips: stripsOn, columnWidth: sec.columnWidth } });
+      await onSaveProject({ section_id: sec.sectionId || null, flatten: datum, wheeler: { ...(saved?.wheeler || {}), spacing: wheelerSpacing }, view: { ghost, showTracts, showMotifs, showBiozones, depthRef, depthUnit, horizons: hz.hzOn, strips: stripsOn, columnWidth: sec.columnWidth } });
       onStatus('Stratigraphy view saved.');
     } catch (e) { onStatus(e.message); }
   };
@@ -334,6 +346,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
       </details>
       <label className="flex items-center gap-1 text-pl-muted ml-2"><input type="checkbox" checked={showTracts} onChange={(e) => setShowTracts(e.target.checked)} data-testid="strat-show-tracts" /> Tracts</label>
       <label className="flex items-center gap-1 text-pl-muted"><input type="checkbox" checked={showMotifs} onChange={(e) => setShowMotifs(e.target.checked)} data-testid="strat-show-motifs" /> Motifs</label>
+      <label className="flex items-center gap-1 text-pl-muted" title="Biozone ranges from the Intervals view, outlined beside the first track with their scheme and ages"><input type="checkbox" checked={showBiozones} onChange={(e) => setShowBiozones(e.target.checked)} data-testid="strat-show-biozones" /> Biozones</label>
       <button type="button" className={btnCls} disabled={busy || !sectionWells.some((w) => w.is_own)} onClick={recordTracts} data-testid="strat-record-tracts" title="Write the implied systems tracts to the shared intervals of every own well in the section">
         {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} Record tracts
       </button>

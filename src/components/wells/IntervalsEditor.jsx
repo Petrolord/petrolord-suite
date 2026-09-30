@@ -14,7 +14,7 @@ import {
 } from '@/lib/stratigraphy/lithology';
 import { validateIntervals, sortIntervals, thicknessByCode } from '@/lib/stratigraphy/intervals';
 import { MOTIFS, SYSTEMS_TRACTS, STACKING_PATTERNS } from '@/lib/stratigraphy/vocabulary';
-import { buildIntervals, INTERVAL_FIELDS } from '@/lib/wellImport';
+import { buildIntervals, INTERVAL_FIELDS, BIOZONE_INTERVAL_FIELDS } from '@/lib/wellImport';
 import PasteReplacePanel from './PasteReplacePanel';
 import { editCell, parseDisplayed, fmtDepth, normUnit } from '@/pages/apps/WellDataManager/engine/displayUnits';
 
@@ -40,6 +40,7 @@ let tmp = 0;
 
 // hoisted: PasteReplacePanel memoizes on `fields`, so a fresh literal per render would re-parse and re-emit forever
 const PASTE_FIELDS = INTERVAL_FIELDS;
+const BIOZONE_PASTE_FIELDS = BIOZONE_INTERVAL_FIELDS; // STRAT-U2-005
 
 const toInterval = (r, kind, unit = 'm') => {
   const properties = { ...(r.properties || {}) };
@@ -163,8 +164,8 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
       )}
       {mode === 'paste' ? (
         <div className="space-y-1">
-          <PasteReplacePanel kind="intervals" fields={PASTE_FIELDS}
-            labels={{ top: `Top (${mdUnit})`, base: `Base (${mdUnit})`, code: isLith ? 'Lithology' : 'Code', label: 'Label (optional)', description: 'Description (optional)' }}
+          <PasteReplacePanel kind="intervals" fields={kind === 'biozone_interval' ? BIOZONE_PASTE_FIELDS : PASTE_FIELDS}
+            labels={{ top: `Top (${mdUnit})`, base: `Base (${mdUnit})`, code: isLith ? 'Lithology' : kind === 'biozone_interval' ? 'Zone' : 'Code', label: 'Label (optional)', description: 'Description (optional)', scheme: 'Scheme (optional)', age_top: 'Top age, Ma or ka (optional)', age_base: 'Base age, Ma or ka (optional)' }}
             convention={{ mdUnit }} onConvention={(c) => setMdUnit(c.mdUnit || 'm')}
             onParsed={setPasted} testIdPrefix={`${testIdPrefix}-paste`} />
           <p className="text-pl-muted">Replaces every {kind.replace(/_/g, ' ')} interval on this well. Lithology abbreviations (SST, SH, LS, DOL ...) resolve to the vocabulary; unknown ones are kept as typed.</p>

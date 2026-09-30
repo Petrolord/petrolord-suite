@@ -349,3 +349,44 @@ describe('STRAT-U2-004 display units in Tops, Intervals, Core and Ages', () => {
     await waitFor(async () => expect((await b.loadStratProject())?.view?.displayUnit).toBe('ft'), T);
   }, 120000);
 });
+
+describe('STRAT-U2-005 biozone paste with scheme and ages; ranges in the section', () => {
+  const fs = require('fs'); const path = require('path');
+  const { parseDelimited, guessMapping, guessIntervalUnit, buildIntervals, BIOZONE_INTERVAL_FIELDS, INTERVAL_FIELDS } = jest.requireActual('@/lib/wellImport');
+  const read = (f) => fs.readFileSync(path.join(__dirname, '../../../../../e2e/fixtures/strat/hostile', f), 'utf8').split('\n').filter((l) => !l.startsWith('#')).join('\n');
+  const door = (f, fields = BIOZONE_INTERVAL_FIELDS) => {
+    const parsed = parseDelimited(read(f));
+    const map = guessMapping(parsed.header, fields);
+    return buildIntervals(parsed.rows, map, { mdUnit: guessIntervalUnit(parsed.header, map) || 'm', header: parsed.header, delimiter: parsed.delimiter });
+  };
+
+  test('the StrataBugs export keeps its ages on the ranges (origin/main: ages dropped, typed per row)', () => {
+    const rows = door('intervals_stratabugs_biozones_ft.csv');
+    expect(rows.map((r) => [r.code, r.properties.age_top_ma, r.properties.age_base_ma])).toEqual([['NN12', 5.59, 8.29], ['NN11', 8.29, 11.63]]);
+    expect(rows[0].top_md_m).toBeCloseTo(4921.3 * 0.3048, 9);
+    // the plain interval door still ignores them
+    expect(door('intervals_stratabugs_biozones_ft.csv', INTERVAL_FIELDS)[0].properties).toEqual({});
+  });
+
+  test('scheme column, ages in ka converted to Ma, a blank age left blank, semicolons with comma decimals', () => {
+    const rows = door('intervals_biozones_scheme_ka.csv');
+    expect(rows.map((r) => [r.code, r.properties.scheme, r.properties.age_top_ma, r.properties.age_base_ma ?? null, r.top_md_m]))
+      .toEqual([['NN21', 'NN', 0, 0.29, 1440], ['NN20', 'NN', 0.29, 0.44, 1455.5], ['NN19', 'NN', 0.44, null, 1470]]);
+  });
+
+  test('a range whose base age is not older than its top is refused by row', () => {
+    const parsed = parseDelimited('Zone,Top,Base,Top Age (Ma),Base Age (Ma)\nNN12,1440,1460,8.29,5.59');
+    const map = guessMapping(parsed.header, BIOZONE_INTERVAL_FIELDS);
+    expect(() => buildIntervals(parsed.rows, map, { header: parsed.header })).toThrow(/Row 1: the base age \(5.59 Ma\) is not older than the top age \(8.29 Ma\)/);
+  });
+
+  test('the section outlines the biozone ranges with scheme and ages, and can hide them', async () => {
+    const b = makeInMemoryBackend();
+    await b.replaceIntervals('corr-w1', 'biozone_interval', [{ top_md_m: 1440, base_md_m: 1455.5, code: 'NN21', properties: { scheme: 'NN', age_top_ma: 0, age_base_ma: 0.29 } }]);
+    renderSection(b);
+    await wellsDrawn(3);
+    await waitFor(() => expect(screen.getByTestId('corr-section').getAttribute('data-band-spans')).toMatch(/KETA-1:[^;]*1440\.0-1455\.5/), T);
+    fireEvent.click(screen.getByTestId('strat-show-biozones'));
+    await waitFor(() => expect(screen.getByTestId('corr-section').getAttribute('data-band-spans')).not.toMatch(/1440\.0-1455\.5/), T);
+  }, 120000);
+});
