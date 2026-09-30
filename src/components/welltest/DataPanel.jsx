@@ -5,6 +5,7 @@
 // time and pressure columns from the headers and converts the file's units
 // (utils/welltest/gaugeImport.js).
 import React, { useRef, useState } from 'react';
+import ProjectUnitSystemNote from '@/components/units/ProjectUnitSystemNote';
 import { Upload, FlaskConical, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -104,7 +105,7 @@ const DataPanel = () => {
     gaugeRows, setGaugeRows,
     rateRows, setRateRows,
     addNotification, loadSampleTest,
-    unitSystem, setUnitSystem,
+    unitSystem, setUnitSystem, profileUnitSystem,
   } = useWellTestStudio();
   const fileRef = useRef(null);
   // the file just imported, held so its column/unit mapping can be changed
@@ -170,6 +171,7 @@ const DataPanel = () => {
                 <SelectItem value="si">SI / metric (kPa, m, m3/d)</SelectItem>
               </SelectContent>
             </Select>
+            <ProjectUnitSystemNote system={unitSystem} profileSystem={profileUnitSystem} />
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-pl-muted">Test type</Label>

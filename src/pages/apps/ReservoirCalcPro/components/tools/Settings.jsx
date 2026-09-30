@@ -10,7 +10,7 @@ import { useReservoirSettings, RESOLUTION_OPTIONS, COLORSCALE_OPTIONS, INTERPOLA
 // Real, persisted preferences. Each control writes to localStorage immediately and
 // is consumed by the app (no dead "Save Changes" button).
 const Settings = () => {
-    const { setUnitSystem } = useReservoirCalc();
+    const { state, setUnitSystem } = useReservoirCalc();
     const [settings, update] = useReservoirSettings();
 
     return (
@@ -27,12 +27,12 @@ const Settings = () => {
                 <CardContent className="space-y-4">
                     <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                            <Label className="text-pl-text">Default Unit System</Label>
-                            <p className="text-xs text-pl-muted">Applied to the current workspace and new projects.</p>
+                            <Label className="text-pl-text">Unit system for this workspace</Label>
+                            <p className="text-xs text-pl-muted">New projects start from your Suite units (the Units page). Saved projects keep the units they were saved with.</p>
                         </div>
                         <Select
-                            value={settings.defaultUnitSystem}
-                            onValueChange={(v) => { update({ defaultUnitSystem: v }); setUnitSystem(v); }}
+                            value={state.unitSystem || 'field'}
+                            onValueChange={(v) => setUnitSystem(v)}
                         >
                             <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
                             <SelectContent>

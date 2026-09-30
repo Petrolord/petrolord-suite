@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 // Persisted, app-wide ReservoirCalc Pro preferences. Stored in localStorage and
 // broadcast so every open component (and the calculation engine) stays in sync.
 // These are real settings — each one is consumed somewhere:
-//   defaultUnitSystem  → applied when it changes / for new projects
+//   defaultUnitSystem  → retired (Suite unit profile, 2026-09-30): new projects
+//                        start from the Suite units; kept so old stored settings parse
 //   gridResolution     → ContactVolumetricsEngine + hypsometry + 3D viz grid
 //   defaultColorscale  → default colour map for the structure surface layer
 //   autoSave           → auto-persist an already-saved project after each run

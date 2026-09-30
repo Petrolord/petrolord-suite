@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
+import { useUnitProfile } from '@/lib/units/UnitProfileContext';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,13 +25,24 @@ const FluidContactManager = () => {
     const [localGoc, setLocalGoc] = useState('');
     const focusedRef = useRef(null);
 
-    // the account's depth unit sets the display unit once, on a fresh workspace
+    // the Suite unit profile's depth sets the contact display unit once, on
+    // a fresh workspace (without a profile provider: the account's legacy
+    // Geoscience depth unit, as before)
+    const profile = useUnitProfile();
     const appliedRef = useRef(false);
     useEffect(() => {
-        if (appliedRef.current || !backend?.getDepthUnit || state.project?.id) return;
+        if (appliedRef.current || state.project?.id) return;
+        if (profile.available) {
+            if (!profile.ready) return;
+            appliedRef.current = true;
+            const u = profile.units.depth;
+            if (u === 'm' || u === 'ft') setInputUnit('contact', u);
+            return;
+        }
+        if (!backend?.getDepthUnit) return;
         appliedRef.current = true;
         backend.getDepthUnit().then((u) => { if (u === 'm' || u === 'ft') setInputUnit('contact', u); }).catch(() => {});
-    }, [backend, state.project?.id, setInputUnit]);
+    }, [backend, state.project?.id, setInputUnit, profile.available, profile.ready, profile.units]);
 
     useEffect(() => {
         if (focusedRef.current !== 'owc') setLocalOwc(displayRound(fromCanonical('contact', parseFloat(owc), unit, unitSystem)));
