@@ -182,3 +182,32 @@ Batches:
 
 1. Playwright e2e is not in CI; the Earth Modeling spec went red with #830 unnoticed (EM-U1-014). Consider an e2e job on the harness routes.
 2. U2-014 org-shared models needs a migration and a second engineer (later).
+
+## Batch decision (programme lead, 2026-09-30)
+
+Recorded verbatim:
+
+> BUILD in order, one commit per item:
+> - Batch A: U2-004 build in a worker with progress and cancel, plus the engines fix (variogram parameters checked once, not per covariance call), engines-first; U2-005 contacts per fault block; U2-006 hydrocarbon leg bounded by Mapping's closure and spill (reuse Mapping's helpers); U2-002 Sw from SCAL saturation-height reusing Petrophysics saturationHeight.js (validate against its published example; negative control); U2-003 PDF model report with a reviewer header, read back with pdftotext; U2-001 Seismolord faults as polygons per zone top: if Seismolord U2-003 (feat/seis-u2, in progress) has merged to main, consume its contract; otherwise build against the contract recorded in your UPGRADE doc with a clearly named hook and a test fixture, and say so.
+> - Batch B: U2-009 model to ReservoirCalc Pro as a prospect (ReservoirCalc Pro is app #8 and is starting its Step 1 in /root/wt-upg-rcp right now: write the handoff through a small documented contract module, keep RCP-side edits minimal, and note them); U2-010 volume distribution through the canonical Monte Carlo module; U2-008 Petrophysics net pay and HCPV maps as property trends; U2-011 GRDECL export to Simulation (validate by re-reading it through Simulation's own importer); U2-018 3D properties and fence view.
+> - Batch C: U2-017 isopach zones.
+> DEFERRED (record reasons): U2-007 layering and upscaled logs (L, after NAPE); U2-015 truncation rules; U2-016 fault throw; U2-012 structural uncertainty; U2-013 SGS; U2-014 org-shared models (migration + second engineer); EM-U1-026 .pld carrying a model's wells (note for the Project programme).
+
+Deferred, with reasons:
+
+| Item | Reason |
+|---|---|
+| U2-007 layering and upscaled logs | Size L; after NAPE. The one-layer-per-zone model stays, said in the help. |
+| U2-015 truncation rules | Batch C; the monotonic clamp stays the stacking rule and marks clamped nodes. |
+| U2-016 fault throw | Size L; needs sticks with throw on main (Seismolord U2-003) and a horizon offset engine. |
+| U2-012 structural uncertainty | Size L; U2-010 samples contacts, FVFs and property shifts first. |
+| U2-013 sequential Gaussian simulation | Size L; engines-first geostatistics after NAPE. |
+| U2-014 org-shared models | Needs a migration on em_models and a second engineer's review (shared-table rule). |
+| EM-U1-026 `.pld` carrying a model's wells | A note for the Suite Project programme (docs/scope/SuiteProject-DESIGN.md): a model package names zones, not wells; U2-009 records the wells used in the handoff. |
+
+## Step 2 build (2026-10-01)
+
+Branch `feat/em-u2`. One row per item in build order; each row names the test that proves it.
+
+| Item | State | Proving test | Notes |
+|---|---|---|---|
