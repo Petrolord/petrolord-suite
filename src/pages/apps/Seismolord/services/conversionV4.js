@@ -14,6 +14,8 @@ import {
   gridFromScan, sampleAmplitudeClip, transcodeV4, V4_DEFAULT_BUDGET_BYTES,
 } from '../engine/brickTranscodeV4';
 import { displayBrickRelPath, f32BrickRelPath } from '../engine/manifest';
+import { buildTraceIndex } from '../engine/traceIndex';
+import { needsTraceLattice } from '../lib/segyDoor';
 
 const MiB = 1024 * 1024;
 
@@ -53,6 +55,40 @@ export function conversionRecord(result) {
 }
 
 /**
+ * SEIS-U1-002: a survey whose traces do not fill a full inline-sorted
+ * rectangle (an irregular outline, a crossline-sorted or unsorted file)
+ * is addressed through a trace lattice built from one pass over the trace
+ * headers. Returns the grid and the geometry the manifest must carry (the
+ * lattice's own inline and crossline ranges, never the preview's sampled
+ * ones), or the plain grid for a regular file.
+ */
+export async function conversionGrid(reader, scan, { onProgress = () => {}, isCancelled = () => false } = {}) {
+  if (!needsTraceLattice(scan)) return { grid: gridFromScan(scan), lattice: null };
+  onProgress({ phase: 'index', done: 0, total: 1 });
+  const index = await buildTraceIndex(reader, scan.mapping, {
+    forceLattice: true,
+    onProgress: (done, total) => onProgress({ phase: 'index', done, total }),
+  });
+  if (isCancelled()) throw new Error('Conversion cancelled.');
+  const grid = gridFromScan({ ...scan, il: index.il, xl: index.xl }, { lattice: index.lattice });
+  return {
+    grid,
+    lattice: {
+      il: index.il,
+      xl: index.xl,
+      sort: index.sort,
+      live_traces: index.liveTraces,
+      dead_traces: index.deadTraces,
+      duplicate_traces: index.duplicateTraces,
+      corners: index.corners,
+      affineRaw: index.affine || null,
+      warnings: index.warnings,
+    },
+  };
+}
+
+
+/**
  * Convert and spool.
  *
  * @param {Object} p
@@ -75,7 +111,7 @@ export async function convertToSpool({
   reader, scan, spool, codec, memoryBudgetBytes = V4_DEFAULT_BUDGET_BYTES, encodeConcurrency = 1,
   levels, brickSize, clip, onProgress = () => {}, isCancelled = () => false,
 }) {
-  const grid = gridFromScan(scan);
+  const { grid, lattice } = await conversionGrid(reader, scan, { onProgress, isCancelled });
   onProgress({ phase: 'clip', done: 0, total: 1 });
   const clipInfo = clip ?? await sampleAmplitudeClip(reader, grid);
   if (isCancelled()) throw new Error('Conversion cancelled.');
@@ -101,6 +137,7 @@ export async function convertToSpool({
     },
   });
   const record = conversionRecord(result);
+  if (lattice) record.lattice = lattice;
   await spool.putJson('conversion', record);
   onProgress({ phase: 'convert', done: 1, total: 1, bricksDone: record.bricks.display.bricks + record.bricks.f32.bricks });
   return record;

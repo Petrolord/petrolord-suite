@@ -19,6 +19,7 @@ import { useSyncExternalStore } from 'react';
 import { buildManifestV4, volumeDir } from '../engine/manifest';
 import { createTwoStageUpload, UPLOAD_STATUS } from './uploadV4';
 import { applyCrsToScan } from './ingestCrs';
+import { scanForManifest } from '../lib/segyDoor';
 import { publishConversionProgress, clearConversionProgress } from '../sources/conversionProgress';
 
 export const V4_STATUS = Object.freeze({
@@ -249,7 +250,7 @@ export function createImportJobManager(deps) {
           },
         });
         job.record = record;
-        const { scan: placed, crsBlock } = applyCrsToScan(scan, prep.crsPlan, prep.customDefs);
+        const { scan: placed, crsBlock } = applyCrsToScan(scanForManifest(scan, record), prep.crsPlan, prep.customDefs);
         const manifest = buildManifestV4({
           volumeId,
           name: prep.name,

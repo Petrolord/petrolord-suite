@@ -15,6 +15,7 @@
 //   {type:'error', id, message}
 
 import { fileReader } from '../engine/reader';
+import { openSegyDoor } from '../lib/segyDoor';
 import { scanLine2d, transcodeLineToStrips, writeNavBlob } from '../engine/line2d';
 import { createBrickChannel } from './brickAckChannel';
 
@@ -40,7 +41,8 @@ self.onmessage = async (e) => {
   const msg = e.data;
   try {
     if (msg.type === 'scan2d') {
-      const scan = await scanLine2d(fileReader(msg.file), msg.mapping, {
+      const { reader: doorR } = await openSegyDoor(fileReader(msg.file));
+      const scan = await scanLine2d(doorR, msg.mapping, {
         onProgress: (done, total) => self.postMessage({
           type: 'progress', id: msg.id, phase: 'scan', done, total,
         }),
@@ -51,7 +53,7 @@ self.onmessage = async (e) => {
         [navBlob],
       );
     } else if (msg.type === 'ingest2d') {
-      const reader = fileReader(msg.file);
+      const { reader } = await openSegyDoor(fileReader(msg.file));
       const scan = await scanLine2d(reader, msg.mapping, {
         onProgress: (done, total) => self.postMessage({
           type: 'progress', id: msg.id, phase: 'scan', done, total,
