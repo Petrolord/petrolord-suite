@@ -2898,8 +2898,31 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
       : null
   ), [scaleMode, slice, clipPct]);
 
+  // SEIS-U1-014: a local file (View it now) has no survey statistics yet,
+  // so the RMS clip fell back to 1 x 3 and real data (RMS in the hundreds)
+  // showed saturated. The first section's RMS stands in, frozen per volume
+  // so stepping lines keeps one display scale.
+  const fallbackRmsRef = useRef({ id: null, rms: null });
+  const fallbackRms = useMemo(() => {
+    if (manifest?.stats?.rms) return null;
+    const vid = volume?.id || null;
+    if (fallbackRmsRef.current.id === vid && fallbackRmsRef.current.rms) return fallbackRmsRef.current.rms;
+    const src = slice?.absSample || slice?.data;
+    if (!src || !src.length) return null;
+    let sum = 0;
+    let n = 0;
+    const stride = Math.max(1, Math.floor(src.length / 262144));
+    for (let i = 0; i < src.length; i += stride) {
+      const v = src[i];
+      if (Number.isFinite(v) && Math.abs(v) < 1e29) { sum += v * v; n += 1; }
+    }
+    const rms = n ? Math.sqrt(sum / n) : null;
+    if (rms) fallbackRmsRef.current = { id: vid, rms };
+    return rms;
+  }, [manifest, slice, volume]);
+
   const display = useMemo(() => {
-    const rmsClip = Math.max((manifest?.stats?.rms || 1) * clipRms, 1e-12);
+    const rmsClip = Math.max((manifest?.stats?.rms || fallbackRms || 1) * clipRms, 1e-12);
     let clip = rmsClip;
     if (scaleMode === 'pct' && pctClip > 0) clip = pctClip;
     else if (scaleMode === 'manual' && manualClip > 0) clip = manualClip;
@@ -2918,7 +2941,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
         : null,
     };
   }, [colormap, gain, polarity, clipRms, traceBalance, manifest, scaleMode,
-    pctClip, manualClip, reverseCmap, wiggleMode, agcOn, agcWindowMs]);
+    pctClip, manualClip, reverseCmap, wiggleMode, agcOn, agcWindowMs, fallbackRms]);
 
   const overlays = useMemo(() => ({
     horizons: resolvedHorizons,
