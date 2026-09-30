@@ -13,12 +13,12 @@ import { SectionLabel } from './primitives';
 
 const ReportPanel = () => {
   const {
-    notes, setNotes, projectName, wellName, reservoirInputs, testConfig,
+    notes, setNotes, projectName, wellName, fieldName, analyst, reservoirInputs, testConfig,
     gaugeRows, rateRows, matchInputs, windows, addNotification,
     configSpec, reservoirSpec, prepared, model, matchParams, fitResult,
     derivedKpis, semilogResult, sqrtResult, pssResult, multiRateResult, sqrtMeaningful,
     deliverabilityResult, regimes, rtaResult, rtaRows, rtaWindows,
-    deliverabilityInputs, unitSystem,
+    deliverabilityInputs, unitSystem, matchMethod,
   } = useWellTestStudio();
   const navigate = useNavigate();
 
@@ -26,7 +26,7 @@ const ReportPanel = () => {
     const result = exportProjectAsJSON({
       id: 'export',
       name: projectName || wellName || 'well-test',
-      wellName, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, notes,
+      wellName, fieldName, analyst, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, notes,
       deliverabilityInputs, rtaRows, rtaWindows, unitSystem,
     });
     if (result.success) addNotification('Project exported as JSON.', 'success');
@@ -35,13 +35,15 @@ const ReportPanel = () => {
 
   const exportPdf = () => {
     const ok = exportWellTestPdf({
-      projectName, wellName,
+      projectName, wellName, fieldName, analyst,
       config: configSpec.config,
       reservoir: reservoirSpec.reservoir,
       prepared, model,
       // the untouched default match is not an interpretation (WTA-T1-002)
       matchParams: derivedKpis?.source === 'match' ? matchParams : null,
-      fitResult, derivedKpis,
+      // regression status and CIs only while the match IS the auto-fit
+      fitResult: matchMethod?.kind === 'regression' ? fitResult : null,
+      derivedKpis,
       semilogResult, sqrtResult: sqrtMeaningful ? sqrtResult : null, pssResult, multiRateResult, deliverabilityResult,
       rtaResult, regimes, notes, unitSystem,
     });

@@ -9,13 +9,15 @@ import {
   prepareTestData,
   buildLoglog,
   generateSampleBuildup,
+  resolveMatchMethod,
   DEFAULT_RESERVOIR,
   DEFAULT_TEST_CONFIG,
 } from '@/contexts/WellTestStudioContext';
 import { parseGaugeCsv } from '@/components/welltest/DataPanel';
 import { detectFlowRegimes } from '@/utils/welltest/derivative';
 import { hornerAnalysis } from '@/utils/welltest/analysis';
-import { OILFIELD } from '@/utils/welltest/models/modelCatalog';
+import { OILFIELD, getModel } from '@/utils/welltest/models/modelCatalog';
+import { buildReportHeader } from '@/utils/wellTestReportExport';
 
 describe('buildReservoirInputs', () => {
   test('accepts the defaults', () => {
@@ -47,6 +49,53 @@ describe('buildTestConfig', () => {
 
 describe('prepareTestData', () => {
   const reservoir = buildReservoirInputs(DEFAULT_RESERVOIR).reservoir;
+
+  describe('shut-in time on the gauge clock (tester round 2026-09-28)', () => {
+    // 6 hr of flowing readings at 2880-ish psi, shut in at gauge time 6 hr
+    const flowing = Array.from({ length: 12 }, (_, i) => ({ t: 0.5 * i, p: 2900 - 1.5 * i }));
+    const buildup = Array.from({ length: 30 }, (_, i) => ({ t: 6 + 0.05 * 1.25 ** i, p: 2880 + 40 * Math.log10(1 + 20 * 1.25 ** i) }));
+
+    test('elapsed time counts from the shut-in and the flowing period is set aside', () => {
+      const config = buildTestConfig({ ...DEFAULT_TEST_CONFIG, testStartTime: '6', pwfShutIn: '' }).config;
+      const out = prepareTestData({ gaugeRows: [...flowing, ...buildup], reservoir, config });
+      expect(config.testStartTime).toBe(6);
+      expect(out.testStartTime).toBe(6);
+      expect(out.preTestPoints).toBe(12);
+      expect(out.points[0].time).toBeCloseTo(0.05, 9);
+      expect(out.points.every((p) => p.time > 0)).toBe(true);
+      expect(out.info[0]).toMatch(/12 readings before the shut-in \(gauge time 6 hr\)/);
+    });
+
+    test('pwf at dt = 0 is the last flowing reading when there is no reading at the shut-in instant', () => {
+      const config = buildTestConfig({ ...DEFAULT_TEST_CONFIG, testStartTime: '5.6', pwfShutIn: '' }).config;
+      const out = prepareTestData({ gaugeRows: [...flowing, ...buildup], reservoir, config });
+      // last flowing reading is at t = 5.5, 0.1 hr before the shut-in
+      expect(out.pwfShutIn).toBeCloseTo(2900 - 1.5 * 11, 9);
+      expect(out.pwfSource.kind).toBe('gauge-before');
+      expect(out.skinWithheld).toBeNull();
+    });
+
+    test('a reading at the shut-in instant wins, an entered pwf wins over both', () => {
+      const cfgAuto = buildTestConfig({ ...DEFAULT_TEST_CONFIG, testStartTime: '5.5', pwfShutIn: '' }).config;
+      const auto = prepareTestData({ gaugeRows: [...flowing, ...buildup], reservoir, config: cfgAuto });
+      expect(auto.pwfSource).toEqual({ kind: 'gauge', dt: 0 });
+      expect(auto.pwfShutIn).toBeCloseTo(2883.5, 9);
+      const cfgEntered = buildTestConfig({ ...DEFAULT_TEST_CONFIG, testStartTime: '6', pwfShutIn: '2880' }).config;
+      const entered = prepareTestData({ gaugeRows: [...flowing, ...buildup], reservoir, config: cfgEntered });
+      expect(entered.pwfShutIn).toBe(2880);
+      expect(entered.pwfSource.kind).toBe('entered');
+    });
+
+    test('blank start time keeps the historical behaviour', () => {
+      const config = buildTestConfig({ ...DEFAULT_TEST_CONFIG, pwfShutIn: '' }).config;
+      expect(config.testStartTime).toBe(0);
+      const rows = buildup.map((r) => ({ t: r.t - 6, p: r.p }));
+      const out = prepareTestData({ gaugeRows: rows, reservoir, config });
+      expect(out.preTestPoints).toBe(0);
+      expect(out.info).toEqual([]);
+      expect(out.pwfSource.kind).toBe('first-buildup');
+    });
+  });
 
   test('buildup anchors on the earliest point when blank and withholds skin', () => {
     const config = buildTestConfig({ ...DEFAULT_TEST_CONFIG, pwfShutIn: '' }).config;
@@ -128,8 +177,73 @@ describe('parseGaugeCsv', () => {
     expect(rows[0]).toEqual({ t: 0.5, p: 4531.2 });
   });
 
-  test('ignores non-positive times', () => {
+  test('keeps the shut-in reading and earlier flowing readings for prepareTestData', () => {
+    // t = 0 is the pressure at shut-in and negative times are the flowing
+    // period before it (tester round 2026-09-28); prepareTestData splits them
     const rows = parseGaugeCsv('0,100\n-1,200\n1,300\n2,400\n3,500\n4,600\n5,700');
+    expect(rows).toHaveLength(7);
+    expect(rows[0]).toEqual({ t: 0, p: 100 });
+  });
+
+  test('reads pressure-first files by their headers and converts psig and minutes', () => {
+    const rows = parseGaugeCsv('Pressure (psig),Elapsed time (min)\n2865.3,0\n2900,30\n2950,60\n2980,90\n3000,120\n');
     expect(rows).toHaveLength(5);
+    expect(rows[2].t).toBeCloseTo(1, 12);
+    expect(rows[0].p).toBeCloseTo(2865.3 + 14.695948775513449, 9);
+  });
+});
+
+describe('resolveMatchMethod (tester round 2026-09-28)', () => {
+  const model = getModel('homogeneous');
+  const appliedInputs = { k: '84.97', skin: '6.49', C: '0.01500' };
+  const fitResult = { converged: true, modelId: 'homogeneous', appliedInputs };
+  const inputs = { modelId: 'homogeneous', ...appliedInputs };
+
+  test('no auto-fit run means a manual match, never "converged"', () => {
+    expect(resolveMatchMethod({ source: 'match', fitResult: null, fitStale: false, model, matchInputs: inputs }).kind).toBe('manual');
+    expect(resolveMatchMethod({ source: 'semilog', fitResult: null, fitStale: false, model, matchInputs: inputs }).kind).toBe('none');
+  });
+
+  test('regression only while the match holds the fitted values', () => {
+    expect(resolveMatchMethod({ source: 'match', fitResult, fitStale: false, model, matchInputs: inputs }).kind).toBe('regression');
+    const moved = resolveMatchMethod({ source: 'match', fitResult, fitStale: false, model, matchInputs: { ...inputs, skin: '5' } });
+    expect(moved).toEqual({ kind: 'manual', note: 'Adjusted by hand after an auto-fit.' });
+    const stale = resolveMatchMethod({ source: 'match', fitResult, fitStale: true, model, matchInputs: inputs });
+    expect(stale.kind).toBe('manual');
+    expect(stale.note).toMatch(/earlier inputs/);
+    const otherModel = resolveMatchMethod({ source: 'match', fitResult, fitStale: false, model: getModel('homogeneous-sealing-fault'), matchInputs: inputs });
+    expect(otherModel.kind).toBe('manual');
+  });
+});
+
+describe('buildReportHeader (tester round 2026-09-28)', () => {
+  const at = new Date('2026-09-28T10:00:00Z');
+  test('carries field and analyst beside the well, and pwf with its shut-in time', () => {
+    const config = buildTestConfig({ ...DEFAULT_TEST_CONFIG, testStartTime: '6', tp: '36' }).config;
+    const rows = buildReportHeader({
+      projectName: 'P1', wellName: 'W-7', fieldName: 'Obodo', analyst: 'A. Analyst', config, isGas: false,
+      prepared: { pwfShutIn: 2880, pwfSource: { kind: 'entered' }, testStartTime: 6 }, generatedAt: at,
+    });
+    const cells = Object.fromEntries(rows.flatMap((r) => [[r[0], r[1]], [r[2], r[3]]]));
+    expect(cells.Well).toBe('W-7');
+    expect(cells.Field).toBe('Obodo');
+    expect(cells.Analyst).toBe('A. Analyst');
+    expect(cells['Shut-in time']).toBe('0 hr elapsed (gauge clock 6 hr)');
+    expect(cells['pwf at shut-in']).toBe('2880.0 psi at shut-in time 0 hr (entered)');
+    expect(cells.Generated).toBe('2026-09-28 10:00 UTC');
+    // jsPDF standard fonts are Latin-1: no Greek delta in the PDF text
+    expect(rows.flat().join(' ')).not.toMatch(/[^\x00-\xff]/);
+  });
+
+  test('blank field and analyst print as dashes, SI pressure converts', () => {
+    const config = buildTestConfig({ ...DEFAULT_TEST_CONFIG }).config;
+    const rows = buildReportHeader({
+      wellName: 'W-7', config, isGas: false, unitSystem: 'si',
+      prepared: { pwfShutIn: 1000, pwfSource: { kind: 'gauge' }, testStartTime: 0 }, generatedAt: at,
+    });
+    const cells = Object.fromEntries(rows.flatMap((r) => [[r[0], r[1]], [r[2], r[3]]]));
+    expect(cells.Field).toBe('-');
+    expect(cells.Analyst).toBe('-');
+    expect(cells['pwf at shut-in']).toBe('6894.8 kPa at shut-in time 0 hr (gauge reading at the shut-in)');
   });
 });
