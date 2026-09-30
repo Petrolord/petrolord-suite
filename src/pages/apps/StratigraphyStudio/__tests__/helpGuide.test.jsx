@@ -31,7 +31,7 @@ describe('StratigraphyHelpGuide', () => {
     expect(text).toContain(TIMESCALE_VERSION);
     expect(text).toContain('Sequence boundary (SB)');            // the Exxon display column
     expect(text).toContain('no equivalent');                      // the fallback rule
-    expect(text).toMatch(/measured-depth thicknesses/i);          // the ST4 limit
+    expect(text).toMatch(/Thicknesses are vertical: each well's tops and lithology log go through its survey to TVD/); // STRAT-U2-011 (was the ST4 MD limit)
     expect(text).toMatch(/5 MB per image and 200 MB per well/);   // the ST1 caps
   });
 

@@ -10,7 +10,7 @@ import { Database, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useElectrofacies } from '@/contexts/ElectrofaciesContext';
 import { listWells, curveInventory, loadFaciesWellsTable } from '@/utils/dataAi/faciesSources';
-import { faciesTableFromUpload, intervalKinds } from '@/utils/dataAi/faciesData';
+import { faciesTableFromUpload, intervalKinds, intervalKindName } from '@/utils/dataAi/faciesData';
 import { describeColumns } from '@/utils/dataAi/qcDatasets';
 import {
   readTabularFile, parseDelimitedText, tableFromRows, unsupportedFileMessage, classifyFile,
@@ -256,7 +256,7 @@ const TableSummary = () => {
       </p>
       {table.intervals ? (
         <p className="text-pl-muted" data-testid="interval-kinds">
-          Interval logs: {kinds.length ? kinds.map((k) => `${k.kind} (${k.wells.length} well${k.wells.length === 1 ? '' : 's'})`).join(', ') : 'none on these wells'}.
+          Interval logs: {kinds.length ? kinds.map((k) => `${intervalKindName(k.kind)} (${k.wells.length} well${k.wells.length === 1 ? '' : 's'})`).join(', ') : 'none on these wells'}.
         </p>
       ) : null}
       {table.notes.map((t) => <Note key={t}>{t}</Note>)}

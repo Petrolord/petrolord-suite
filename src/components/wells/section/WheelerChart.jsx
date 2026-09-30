@@ -12,9 +12,11 @@ import { unitsBetween } from '@/lib/stratigraphy/timescale';
 import { withSectionTracts } from '@/lib/stratigraphy/sequenceTracts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS } from '@/utils/chartTheme';
+import { columnLayout, spacingProblem } from './sectionFrame';
 
 const TRACT_COLOUR = Object.fromEntries(SYSTEMS_TRACTS.map((t) => [t.code, t.colour]));
 const AXIS_W = 56;
+const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.round(m)} m`);
 const HEAD_H = 28;
 
 /**
@@ -26,8 +28,11 @@ const HEAD_H = 28;
  * @param {boolean} [p.showStages] draw ICS stage bands behind the columns
  * @param {string} [p.testIdPrefix]
  * @param {?Object<string, Array>} [p.tractRows] STRAT-U1-001: the tract intervals the section fills per well (recorded or implied); cells take the tract that holds them
+ * @param {'equal'|'proportional'|'line'} [p.spacing] STRAT-U2-001: columns at equal spacing, by the wellhead distance
+ *   (the wells carry surface_x/y, crs, xy_unit; the kit's CRS-aware distances) or along the drawn section line (p.alongM)
+ * @param {?Object<string, number>} [p.alongM] well id -> metres along the section line (spacing 'line')
  */
-export default function WheelerChart({ wells, tractRows = null, scheme = 'catuneanu', width = 720, height = 420, showStages = true, testIdPrefix = 'wheeler' }) {
+export default function WheelerChart({ wells, tractRows = null, scheme = 'catuneanu', width = 720, height = 420, showStages = true, testIdPrefix = 'wheeler', spacing = 'equal', alongM = null }) {
   const chart = useMemo(() => {
     const c = wheelerChart(wells || []);
     return tractRows ? withSectionTracts(c, tractRows) : c;
@@ -35,7 +40,29 @@ export default function WheelerChart({ wells, tractRows = null, scheme = 'catune
   const n = chart.wells.length;
   const plotW = Math.max(60, width - AXIS_W - 8);
   const plotH = Math.max(60, height - HEAD_H - 24);
-  const colW = n ? plotW / n : plotW;
+  // STRAT-U2-001: the columns of the wells the chart places, spaced as the
+  // section is (the kit's columnLayout: equal, by distance, along the line);
+  // distances run between the placed wells, so an undated well in between
+  // does not hold a gap open
+  const layout = useMemo(() => {
+    const byId = new Map((wells || []).map((w) => [w.id, w]));
+    const placed = chart.wells.map((w) => ({ ...(byId.get(w.id) || {}), id: w.id, name: w.name }));
+    let note = null;
+    let distances = null;
+    if (spacing === 'line') {
+      const ok = alongM && placed.every((w) => Number.isFinite(alongM[w.id]));
+      if (ok) distances = placed.slice(1).map((w, i) => Math.abs(alongM[w.id] - alongM[placed[i].id]));
+      else if (placed.length > 1) note = 'the Wheeler wells are not the wells of the drawn line';
+    } else if (spacing === 'proportional') {
+      note = spacingProblem(placed);
+    }
+    const mode = note || spacing === 'equal' ? 'equal' : 'proportional';
+    // narrower columns than the log section (half the equal width, 120 px at most) leave room
+    // for the distances to show before two close wells have to be pushed apart
+    const colW = Math.max(28, Math.min((plotW / Math.max(1, placed.length)) * 0.5, 120));
+    const cols = columnLayout(placed, { mode, plotLeft: AXIS_W, plotW, minColPx: 28, colW, distances });
+    return { cols, note, mode };
+  }, [chart.wells, wells, spacing, alongM, plotW]);
   const span = Math.max(1e-6, chart.age_max_ma - chart.age_min_ma);
   const yOf = (ma) => HEAD_H + ((ma - chart.age_min_ma) / span) * plotH;
   const stages = useMemo(() => (showStages && n ? unitsBetween(chart.age_min_ma, chart.age_max_ma, 'age') : []), [showStages, n, chart.age_min_ma, chart.age_max_ma]);
@@ -58,7 +85,7 @@ export default function WheelerChart({ wells, tractRows = null, scheme = 'catune
   return (
     // STRAT-U1-013 (2026-09-30): the house chart standard, white chart paper
     // and the Petrolord watermark, in both themes (it was a dark canvas)
-    <div data-testid={`${testIdPrefix}-chart`} data-cell-count={chart.wells.reduce((s, w) => s + w.cells.length, 0)} data-age-max={chart.age_max_ma} data-canvas="chart" className="relative overflow-x-auto rounded border border-slate-200 bg-white pb-10">
+    <div data-testid={`${testIdPrefix}-chart`} data-spacing={layout.mode} data-col-x={layout.cols.map((c) => Math.round(c.x0 + c.w / 2)).join(',')} data-cell-count={chart.wells.reduce((s, w) => s + w.cells.length, 0)} data-age-max={chart.age_max_ma} data-canvas="chart" className="relative overflow-x-auto rounded border border-slate-200 bg-white pb-10">
       <svg width={width} height={height} className="block" xmlns="http://www.w3.org/2000/svg" fontFamily="sans-serif">
         <rect x="0" y="0" width={width} height={height} fill={CHART_COLORS.background} />
         <defs>
@@ -87,7 +114,9 @@ export default function WheelerChart({ wells, tractRows = null, scheme = 'catune
         <text x={AXIS_W - 6} y={HEAD_H - 8} fontSize="9" fill={CHART_COLORS.axisLabel} textAnchor="end">Ma</text>
         {/* wells */}
         {chart.wells.map((w, i) => {
-          const x0 = AXIS_W + i * colW + 6; const cw = colW - 12;
+          const box = layout.cols[i];
+          const inset = layout.mode === 'equal' ? 6 : 2;
+          const x0 = box.x0 + inset; const cw = Math.max(8, box.w - 2 * inset);
           // Stratigraphy T1 (ST-T1-004): the part of the chart this well has no
           // dated record for reads "undated", distinct from a hiatus
           const wTop = Math.min(...w.cells.map((c) => c.from_ma));
@@ -117,6 +146,12 @@ export default function WheelerChart({ wells, tractRows = null, scheme = 'catune
             </g>
           );
         })}
+        {/* STRAT-U2-001: the distance each gap stands for, as the section prints it */}
+        {layout.mode !== 'equal' && layout.cols.slice(0, -1).map((c, i) => (Number.isFinite(c.distM) || (spacing === 'line' && alongM) ? (
+          <text key={`d${i}`} data-testid={`${testIdPrefix}-gap-${i}`} x={(c.x0 + c.w + layout.cols[i + 1].x0) / 2} y={height - 6} fontSize="8" fill="#64748b" textAnchor="middle">
+            {fmtDist(spacing === 'line' && alongM ? Math.abs(alongM[chart.wells[i + 1].id] - alongM[chart.wells[i].id]) : c.distM)}
+          </text>
+        ) : null))}
       </svg>
       {/* legend of the tracts on the chart (T1 ST-T1-004) */}
       {(() => {
@@ -135,6 +170,9 @@ export default function WheelerChart({ wells, tractRows = null, scheme = 'catune
           </div>
         );
       })()}
+      {layout.note && (
+        <div className="text-[11px] text-amber-700 px-2" data-testid={`${testIdPrefix}-spacing-note`}>Spacing by distance is off: {layout.note}. The columns are equal.</div>
+      )}
       {chart.skipped.length > 0 && (
         <div className="text-[11px] text-amber-700 px-2" data-testid={`${testIdPrefix}-skipped`}>
           Not placed: {chart.skipped.map((s) => `${s.name} (${s.reason})`).join('; ')}

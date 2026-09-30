@@ -1,7 +1,7 @@
 // Electrofacies Studio: logs, window, scaling and core facies (Data & AI D3).
 import React from 'react';
 import { useElectrofacies } from '@/contexts/ElectrofaciesContext';
-import { intervalKinds, ROW_CAP_BASIS } from '@/utils/dataAi/faciesData';
+import { intervalKinds, intervalKindName, intervalKindNote, ROW_CAP_BASIS } from '@/utils/dataAi/faciesData';
 import { SCALES } from '@/utils/dataAi/faciesWorkflows';
 import {
   EngineError, Note, Section, SelectField, TextInput, Toggle,
@@ -67,9 +67,10 @@ const SpecPanel = () => {
             <SelectField label="Facies code curve" value={fs.curve} onChange={(v) => updateSpec(['facies', 'curve'], v)} emptyLabel="Choose" options={curves.map((c) => ({ value: c, label: c }))} testId="facies-curve" className="w-48" />
           ) : null}
           {fs.source === 'intervals' ? (
-            <SelectField label="Interval kind" value={fs.kind} onChange={(v) => updateSpec(['facies', 'kind'], v)} emptyLabel="Choose" options={kinds.map((k) => ({ value: k.kind, label: `${k.kind} (${k.wells.join(', ')})` }))} testId="facies-kind" className="w-72" />
+            <SelectField label="Interval kind" value={fs.kind} onChange={(v) => updateSpec(['facies', 'kind'], v)} emptyLabel="Choose" options={kinds.map((k) => ({ value: k.kind, label: `${intervalKindName(k.kind)} (${k.wells.join(', ')})` }))} testId="facies-kind" className="w-72" />
           ) : null}
         </div>
+        {fs.source === 'intervals' && intervalKindNote(fs.kind) ? <Note testId="facies-kind-note">{intervalKindNote(fs.kind)}</Note> : null}
         {fs.source === 'intervals' && !kinds.length ? <Note tone="warn">These wells have no interval logs. Import core descriptions or facies intervals in the Well Data Manager.</Note> : null}
         <Note>
           The core facies are what the clusters are compared with and what kNN and CART learn from. A sample takes the

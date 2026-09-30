@@ -38,6 +38,11 @@ const GUESSES = {
   code: ['code', 'lith', 'lithology', 'rock', 'facies', 'environment', 'env', 'motif', 'class', 'zone', 'biozone'],
   label: ['label', 'name'],
   description: ['desc', 'description', 'remark', 'comment', 'notes'],
+  // STRAT-U2-005: a biozone range's scheme and its ages (StrataBugs "Zonation",
+  // "Top Age (Ma)", "Base Age (Ma)"; youngest/oldest in some exports)
+  scheme: ['scheme', 'zonation', 'biozonation', 'zone scheme', 'reference'],
+  age_top: ['top age', 'age top', 'top_age', 'age_top', 'youngest age', 'young age', 'top (ma)', 'top ma'],
+  age_base: ['base age', 'age base', 'base_age', 'age_base', 'bottom age', 'oldest age', 'old age', 'base (ma)', 'base ma'],
   // checkshots (PT1, 2026-09-03): the column is a DEPTH in whatever
   // reference the user declares (MD | TVD | TVDSS) and a TIME in whatever
   // kind (OWT | TWT); the convention itself is guessed separately by
@@ -180,6 +185,11 @@ export function buildTops(rows, map, { mdUnit = 'm' } = {}) {
 
 /** The fields the interval paste door maps (hoisted: PasteReplacePanel memoizes on them). */
 export const INTERVAL_FIELDS = ['top', 'base', 'code', 'label', 'description'];
+/** STRAT-U2-005: a biozone paste also reads the scheme and the range's ages (Ma, or ka converted). */
+export const BIOZONE_INTERVAL_FIELDS = [...INTERVAL_FIELDS, 'scheme', 'age_top', 'age_base'];
+
+/** Ma per value of an age column: 0.001 when its header says ka, else 1. */
+const agePerUnit = (cell) => (/\bka\b/.test(words(cell)) ? 0.001 : 1);
 
 /**
  * STRAT-U1-004: why a column mapped as an interval top or base is not a
@@ -254,7 +264,21 @@ export function buildIntervals(rows, map, { mdUnit = 'm', header = null, delimit
     if (!(base > top)) throw new Error(`Row ${r + 1}: the base (${base} m) is not below the top (${top} m).`);
     const label = map.label >= 0 ? String(rows[r][map.label] ?? '').trim() || null : null;
     const description = map.description >= 0 ? String(rows[r][map.description] ?? '').trim() : '';
-    out.push({ top_md_m: top, base_md_m: base, code, label, properties: description ? { description } : {} });
+    const properties = description ? { description } : {};
+    // STRAT-U2-005: scheme and ages ride in properties (the biozone row's own fields)
+    if (map.scheme >= 0) { const sc = String(rows[r][map.scheme] ?? '').trim(); if (sc) properties.scheme = sc; }
+    for (const [f, key, what] of [['age_top', 'age_top_ma', 'top age'], ['age_base', 'age_base_ma', 'base age']]) {
+      if (!(map[f] >= 0)) continue;
+      const raw = String(rows[r][map[f]] ?? '').trim();
+      if (raw === '') continue;
+      const v = numDec(rows, r, map[f], what, dc) * (header ? agePerUnit(header[map[f]]) : 1);
+      if (v < 0) throw new Error(`Row ${r + 1}: the ${what} ${v} Ma is negative.`);
+      properties[key] = Number(v.toFixed(6));
+    }
+    if (properties.age_top_ma != null && properties.age_base_ma != null && !(properties.age_base_ma > properties.age_top_ma)) {
+      throw new Error(`Row ${r + 1}: the base age (${properties.age_base_ma} Ma) is not older than the top age (${properties.age_top_ma} Ma).`);
+    }
+    out.push({ top_md_m: top, base_md_m: base, code, label, properties });
   }
   if (!out.length) throw new Error('No intervals found in the pasted data.');
   return out;

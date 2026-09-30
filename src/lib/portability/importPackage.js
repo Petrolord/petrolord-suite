@@ -282,6 +282,13 @@ export function planImport(pkg, target) {
     if (!rows || !rows.length) continue;
     const spec = tableSpec(table);
     const kind = spec.kind || null;
+    // STRAT-U2-008: an organisation-wide table (strat_zone_schemes) lands in the
+    // importer's organisation whatever the sharing choice; outside one it is left out
+    if (spec.orgWide && !target.organizationId) {
+      notes.push(`${rows.length} organisation ${spec.orgWide} ${rows.length === 1 ? 'was' : 'were'} left out: you are not in an organisation.`);
+      continue;
+    }
+    if (spec.orgWide) notes.push(`${rows.length} ${spec.orgWide} ${rows.length === 1 ? 'joins' : 'join'} your organisation (every member reads them); a name your organisation already uses is imported with "(imported)" added.`);
     planned[table] = rows.map((original) => {
       // migrate older shapes up first (the Petrel rule already refused newer ones);
       // a kind this page never registered (its app is not loaded) opens as stored
@@ -301,7 +308,8 @@ export function planImport(pkg, target) {
       for (const ref of spec.softRefs || []) problems.push(...rewriteSoftRef(row, ref, idMap, table));
       // rescope
       if ('user_id' in row || (spec.scope && spec.scope.includes('user_id'))) row.user_id = target.userId;
-      if ('organization_id' in row || (spec.scope && spec.scope.includes('organization_id'))) row.organization_id = orgId;
+      if ('organization_id' in row || (spec.scope && spec.scope.includes('organization_id'))) row.organization_id = spec.orgWide ? target.organizationId : orgId;
+      for (const c of spec.stripOnInsert || []) delete row[c]; // e.g. created_by: the column default stamps the importer
       for (const c of STRIP_ON_INSERT) delete row[c];
       // blob location under the importer's prefix
       if (spec.blob?.pathColumn) {

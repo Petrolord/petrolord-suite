@@ -12,7 +12,11 @@ import { tractBelowEach } from '@/lib/stratigraphy/sequenceTracts';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { orderedUnits } from '@/lib/stratigraphy/column';
 import { FallbackBadge, StyleSwatch } from './Glossary';
+import { flagText } from '@/lib/stratigraphy/ageCharts';
+import { fmtDepth } from '@/pages/apps/WellDataManager/engine/displayUnits';
+import { TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
 
+const TS_SHORT = TIMESCALE_VERSION.replace('ICS ', '');
 const cellCls = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text';
 const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40';
 
@@ -32,11 +36,14 @@ const toRow = (t) => ({
  * @param {'catuneanu'|'exxon'} p.scheme
  * @param {(topId: string, patch: Object) => Promise<void>} p.onSaveTop
  * @param {(msg: string) => void} p.onStatus
+ * @param {?Map} [p.ageFlags] STRAT-U2-003: 'tops:<id>:<field>' -> the flag of an age entered under an older chart
  */
-export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onStatus }) {
+export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onStatus, ageFlags = null, unit = 'm' }) {
   const [rows, setRows] = useState(() => tops.map(toRow));
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setRows(tops.map(toRow)); }, [tops]);
+  // a re-read that returns the same rows (every view change re-reads them) keeps what is being typed
+  const topsKey = useMemo(() => JSON.stringify(tops.map(toRow)), [tops]);
+  useEffect(() => { setRows(JSON.parse(topsKey)); }, [topsKey]);
   const canEdit = !!well?.is_own;
   const unitOptions = useMemo(() => orderedUnits(units).map((u) => ({ value: u.id, label: `${'  '.repeat(u.depth)}${u.name} (${u.rank})` })), [units]);
   const typeOptions = useMemo(() => SURFACE_TYPES.map((s) => {
@@ -100,7 +107,7 @@ export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onSta
         <table className="text-xs">
           <thead>
             <tr>
-              {['Top', 'MD (m)', 'Marker', 'Surface type', 'Unit', 'Confidence', 'Age (Ma)', 'Hiatus to (Ma)', 'Scheme / notes', 'Tract below'].map((h) => (
+              {['Top', `MD (${unit === 'ft' ? 'ft' : 'm'})`, 'Marker', 'Surface type', 'Unit', 'Confidence', 'Age (Ma)', 'Hiatus to (Ma)', 'Scheme / notes', 'Tract below'].map((h) => (
                 <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>
               ))}
             </tr>
@@ -112,7 +119,7 @@ export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onSta
               return (
                 <tr key={r.id} data-testid={`strat-top-row-${r.name}`} data-surface-type={r.surface_type}>
                   <td className="pr-3 py-0.5 text-pl-text">{r.name}</td>
-                  <td className="pr-3 py-0.5 text-pl-text font-mono">{Number(r.md_m).toFixed(1)}</td>
+                  <td className="pr-3 py-0.5 text-pl-text font-mono" data-testid={`strat-top-md-${r.name}`}>{fmtDepth(r.md_m, unit)}</td>
                   <td className="pr-3 py-0.5"><StyleSwatch style={surfaceLineStyle(r.surface_type)} width={40} /></td>
                   <td className="pr-3 py-0.5">
                     <select className={cellCls} style={{ width: 300 }} value={r.surface_type} disabled={!canEdit} onChange={(e) => setCell(r.id, 'surface_type', e.target.value)} data-testid={`strat-top-type-${r.name}`} title={d.label}>
@@ -134,7 +141,15 @@ export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onSta
                       <option value="low">low</option>
                     </select>
                   </td>
-                  <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 72 }} value={r.age_ma} disabled={!canEdit} inputMode="decimal" onChange={(e) => setCell(r.id, 'age_ma', e.target.value)} data-testid={`strat-top-age-${r.name}`} /></td>
+                  <td className="pr-3 py-0.5">
+                    <input className={cellCls} style={{ width: 72 }} value={r.age_ma} disabled={!canEdit} inputMode="decimal" onChange={(e) => setCell(r.id, 'age_ma', e.target.value)} data-testid={`strat-top-age-${r.name}`} />
+                    {/* STRAT-U2-003: an age entered under an older chart, with what the current chart makes of it */}
+                    {['age_ma', 'hiatus_to_ma'].map((f) => ageFlags?.get(`tops:${r.id}:${f}`)).filter(Boolean).map((f) => (
+                      <span key={f.field} className="ml-1 text-pl-warning-text cursor-help" title={`${f.field === 'age_ma' ? 'Age' : 'Hiatus end'} ${flagText(f)}. Accept it in the Timescale view.`} data-testid={`strat-top-agechart-${r.name}-${f.field}`}>
+                        {f.update ? `${f.update.to_ma} on ${TS_SHORT}` : f.chart.replace('ICS ', '')}
+                      </span>
+                    ))}
+                  </td>
                   <td className="pr-3 py-0.5">
                     {(r.surface_type === 'SU' || r.surface_type === 'unconformity') ? (
                       <input className={cellCls} style={{ width: 72 }} value={r.hiatus_to_ma} disabled={!canEdit} inputMode="decimal" title="Age of the youngest rock below the unconformity" onChange={(e) => setCell(r.id, 'hiatus_to_ma', e.target.value)} data-testid={`strat-top-hiatus-${r.name}`} />

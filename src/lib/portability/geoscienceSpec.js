@@ -151,7 +151,26 @@ export const GEOSCIENCE_SPEC = {
       kind: 'strat-project',
       stamped: true,
       scope: ['user_id'],
-      softRefs: [{ path: 'section_id', table: 'geo_correlation_sections', optional: true }],
+      // STRAT-U2-002 (U1-030): the ghost's wells and the drawn horizons ride in view
+      softRefs: [
+        { path: 'section_id', table: 'geo_correlation_sections', optional: true },
+        { path: 'view.ghost.sourceWellId', table: 'geo_wells', optional: true },
+        { path: 'view.ghost.targetWellId', table: 'geo_wells', optional: true },
+        { path: 'view.horizons[]', table: 'geo_surfaces', optional: true },
+        // STRAT-U2-003: the chart version each age was entered under, keyed by row id
+        { path: 'view.ageCharts.tops{keys}', table: 'geo_wells_tops', optional: true },
+        { path: 'view.ageCharts.units{keys}', table: 'geo_strat_units', optional: true },
+      ],
+    },
+    // STRAT-U2-008: organisation-wide biozone schemes (migration 20260930180000).
+    // They land in the importer's organisation; the creator column is left to
+    // its default (the importer), as RLS requires.
+    strat_zone_schemes: {
+      pk: 'id',
+      scope: ['organization_id'],
+      orgWide: 'zone schemes',
+      stripOnInsert: ['created_by'],
+      softRefs: [],
     },
   },
 };

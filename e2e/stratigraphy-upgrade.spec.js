@@ -51,7 +51,8 @@ test('PL2: hostile interval files: TVDSS refused with the reason, "Top (ft)" rea
   await expect(page.getByTestId('strat-intervals-paste-mdunit')).toHaveValue('ft');
   await page.getByTestId('strat-intervals-save').click();
   await expect(status(page)).toHaveText('2 lithology intervals saved on KETA-1.');
-  await expect(page.getByTestId('strat-intervals-top-0')).toHaveValue(String(4724.4 * 0.3048));
+  // STRAT-U2-004: cells show two decimals in the display unit (metres here); the stored metres are unchanged
+  await expect(page.getByTestId('strat-intervals-top-0')).toHaveValue('1440');
   await shot(page, 'pl2-intervals');
 });
 
@@ -198,7 +199,7 @@ test('PL7: the Wheeler exports read back with their header', async ({ page }) =>
   const svg = fs.readFileSync(await svgDl.path(), 'utf8');
   expect(svg).toContain('Wheeler chart: KETA section');
   expect(svg).toContain('Wells: KETA-1, KETA-2, KETA-3 | Section: KETA section | Field: Keta (sample)');
-  expect(svg).toContain('Terms: Catuneanu | Timescale: ICS 2023/09');
+  expect(svg).toContain('Terms: Catuneanu | Timescale: ICS 2026/06');
   expect(svg).toMatch(/Prepared by: A\. Stratigrapher \| \d{4}-\d{2}-\d{2} \| Petrolord Suite/);
   const [pngDl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('strat-wheeler-export-png').click()]);
   const png = fs.readFileSync(await pngDl.path());

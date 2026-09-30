@@ -8,7 +8,7 @@
 // depth reference (MD, TVD or TVDSS) in the display unit.
 //
 // Geometry comes from the vendored engine/section.js plus
-// engine/sectionFrame.js; this owns only the depth window, the cursor,
+// sectionFrame.js beside it; this owns only the depth window, the cursor,
 // the in-progress drag and the pick popover. Two canvases: the STATIC
 // layer repaints on data or view changes, the CURSOR layer composites it
 // and adds the crosshair, readouts and previews on every pointer move.
