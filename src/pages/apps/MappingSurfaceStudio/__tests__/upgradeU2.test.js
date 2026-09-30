@@ -97,3 +97,47 @@ describe('MAP-U2-004: fault polygon files become fault blocks', () => {
     expect(() => maskOutsideRings(z, s, [])).toThrow(/boundary/);
   });
 });
+
+describe('MAP-U2-005: gas cap, oil leg and fault-block volumes against an analytic cone', () => {
+  // eslint-disable-next-line global-require
+  const { contactVolumes } = require('../services/contactVolumes');
+  // eslint-disable-next-line global-require
+  const { quickGrv } = require('../services/quickGrv');
+  // a cone z = -1800 - 0.1 r: the volume above a contact h below the crest is pi (10 h)^2 h / 3
+  const s = { x0: -1500, y0: -1500, dx: 10, dy: 10, nx: 301, ny: 301 };
+  const z = new Float32Array(s.nx * s.ny);
+  for (let r = 0; r < s.ny; r++) for (let c = 0; c < s.nx; c++) z[r * s.nx + c] = -1800 - 0.1 * Math.hypot(s.x0 + c * s.dx, s.y0 + r * s.dy);
+  const cone = (h) => (Math.PI * (10 * h) ** 2 * h) / 3;
+  const owc = -1900; const goc = -1850;
+  test('gas cap and oil leg match the analytic cone and add up to the closure GRV exactly', () => {
+    const v = contactVolumes({ spec: s, gridM: z, owcM: owc, gocM: goc });
+    expect(Math.abs(v.gasM3 / cone(50) - 1)).toBeLessThan(0.01);
+    expect(Math.abs(v.oilM3 / (cone(100) - cone(50)) - 1)).toBeLessThan(0.005);
+    expect((v.gasM3 + v.oilM3) / v.totalM3).toBeCloseTo(1, 12);
+    expect(v.totalM3 / quickGrv({ spec: s, gridM: z, contactM: owc }).grvM3).toBeCloseTo(1, 12);
+    // negative control: one contact (the old read-out) books the gas cap as oil
+    expect(v.totalM3 / (cone(100) - cone(50))).toBeGreaterThan(1.1);
+  });
+  test('two fault blocks split the cone in half; their sum is the total', () => {
+    const nodeBlocks = new Int32Array(s.nx * s.ny);
+    for (let i = 0; i < nodeBlocks.length; i++) nodeBlocks[i] = s.x0 + (i % s.nx) * s.dx > 0 ? 1 : 0;
+    const v = contactVolumes({ spec: s, gridM: z, owcM: owc, gocM: goc, nodeBlocks, blockNames: { 1: 'East' } });
+    const [west, east] = v.blocks;
+    expect(east.name).toBe('East');
+    expect(Math.abs(east.totalM3 / (cone(100) / 2) - 1)).toBeLessThan(0.02);
+    expect(Math.abs(west.totalM3 / (cone(100) / 2) - 1)).toBeLessThan(0.02);
+    expect((west.totalM3 + east.totalM3) / v.totalM3).toBeCloseTo(1, 12);
+    expect((east.gasM3 + east.oilM3) / east.totalM3).toBeCloseTo(1, 12);
+    // negative control: no block labels gives one block holding everything
+    expect(contactVolumes({ spec: s, gridM: z, owcM: owc }).blocks).toHaveLength(0);
+  });
+  test('a feet frame keeps square metres; hostile contacts refuse', () => {
+    const k = 1200 / 3937;
+    const ft = contactVolumes({ spec: { ...s, dx: s.dx / k, dy: s.dy / k }, gridM: z, owcM: owc, gocM: goc, xyToM: k });
+    expect(ft.totalM3 / contactVolumes({ spec: s, gridM: z, owcM: owc }).totalM3).toBeCloseTo(1, 9);
+    expect(() => contactVolumes({ spec: s, gridM: z, owcM: owc, gocM: -1950 })).toThrow(/above \(shallower than\)/);
+    expect(() => contactVolumes({ spec: s, gridM: z, owcM: NaN })).toThrow(/oil-water/);
+    expect(contactVolumes({ spec: s, gridM: z, owcM: owc, gocM: -1700 }).gasCapAboveCrest).toBe(true);
+    expect(contactVolumes({ spec: s, gridM: z, owcM: -1700 }).kind).toBe('none');
+  });
+});

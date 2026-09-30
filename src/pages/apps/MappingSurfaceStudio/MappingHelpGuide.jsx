@@ -313,6 +313,15 @@ export default function MappingHelpGuide() {
           place for fluids, contacts by zone and full uncertainty.
         </Para>
         <Formula>GRV = sum over the closure's nodes of (z − contact) × dx × dy</Formula>
+        <SubHeading>Gas cap, oil leg and fault blocks</SubHeading>
+        <Para>
+          The first field is the oil-water contact (or the only contact). Type a gas-oil contact above it in the
+          second field and the read-out splits the closure: the gas cap above the GOC and the oil leg between the
+          two contacts, which add up to the closure's GRV. With fault polygons ticked for gridding, a table gives
+          each fault block's gas, oil and total. One GOC and one OWC apply to every block; a contact per block is
+          not modelled here.
+        </Para>
+        <Formula>gas = sum of max(0, z − GOC) × A;  oil = sum of (min(z, GOC) − OWC) × A</Formula>
       </GuideSection>
 
       <GuideSection id="timedepth">

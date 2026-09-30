@@ -49,6 +49,7 @@ import {
 } from '../services/polygonTools';
 import { runArithmetic, ARITH_OPS } from '../services/arithmetic';
 import { quickGrv, describeGrv, interpretContact, nodeAt } from '../services/quickGrv';
+import { contactVolumes, describeContactVolumes } from '../services/contactVolumes';
 import ClosureCurveChart from './ClosureCurveChart';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -180,6 +181,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
   const [clipBoundaryId, setClipBoundaryId] = useState('');
   const [arith, setArith] = useState({ op: 'thickness', k: '' });
   const [grvContact, setGrvContact] = useState('');
+  const [grvGoc, setGrvGoc] = useState(''); // MAP-U2-005: optional gas-oil contact
   const [grvResult, setGrvResult] = useState(null);
   const [grvData, setGrvData] = useState(null);       // T1: the closure result behind the read-out
   // T1 (MAP-T1-005): a delete asks first, then waits UNDO_MS before it
@@ -677,6 +679,8 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         ['Contact', zf(grvData.contactM)],
         ['Closed area', `${grvData.areaKm2.toFixed(2)} km²`],
         ['GRV', mm3(grvData.grvM3)],
+        ...(grvData.split?.gocM != null ? [['Gas cap / oil leg GRV', `${mm3(grvData.split.gasM3)} / ${mm3(grvData.split.oilM3)}`], ['GOC', zf(grvData.split.gocM)]] : []),
+        ...(grvData.split?.blocks?.length > 1 ? grvData.split.blocks.map((b) => [`Block ${b.name}`, mm3(b.totalM3)]) : []),
         // MAP-U1-014: the range says how it was made, as the read-out does
         ...(grvData.range ? [['GRV P90 / P50 / P10 (kriging variance, fully correlated)', `${(grvData.range.p90 / 1e6).toFixed(1)} / ${(grvData.range.p50 / 1e6).toFixed(1)} / ${(grvData.range.p10 / 1e6).toFixed(1)} million m³`]] : []),
         ['Field / analyst', `${report.field || EMPTY_VALUE} / ${report.analyst || EMPTY_VALUE}`],
@@ -776,7 +780,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
     } catch (e) { setStatus(e.message); }
   };
 
-  const runGrv = (seedIndex = null) => {
+  const runGrv = async (seedIndex = null) => {
     if (!displayGrid || !displaySurface || !isLengthSurface(displaySurface) || displaySurface.kind === 'isochore') {
       setStatus('Quick GRV needs a depth structure surface on the map.');
       return;
@@ -813,7 +817,29 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       const frameTxt = r.kind !== 'closure' ? ''
         : xyToM !== 1 ? ` Map frame in ${XY_UNIT_LABEL[xyUnit] || xyUnit}: areas converted to square metres.`
           : !xyUnit ? ' The surface has no CRS: its map units are taken as metres.' : '';
-      const text = `${readAsDepth && !depthPositive ? `Read ${c} as a depth below datum (elevation ${zfmt(contactM)}). ` : ''}${describeGrv(r, { contactLabel: zfmt(contactM), fmtZ: zfmt })}${rangeTxt}${frameTxt}`;
+      // MAP-U2-005: a gas-oil contact splits the closure into gas cap and
+      // oil leg; ticked fault polygons split it by block
+      let splitTxt = '';
+      if (r.kind === 'closure') {
+        let gocM = null;
+        if (String(grvGoc).trim() !== '') {
+          const g = Number(grvGoc);
+          if (!Number.isFinite(g)) throw new Error(`Type the gas-oil contact in ${depthUnit}, or leave it blank.`);
+          gocM = interpretContact(fromDisplay(g, depthUnit), displayGrid).contactM;
+        }
+        const faults = faultRows.filter((row) => gridFaultIds.has(row.id));
+        let nodeBlocks = null; const blockNames = {};
+        if (faults.length) {
+          const named = (await Promise.all(faults.map(async (row) => (await ringsFor(row)).map((ring, k, all) => ({ ring, name: all.length > 1 ? `${row.name} ${k + 1}` : row.name }))))).flat();
+          nodeBlocks = nodeBlocksFor(spec, named.map((n) => n.ring));
+          named.forEach((n, k) => { blockNames[k + 1] = n.name; });
+        }
+        if (gocM != null || nodeBlocks) {
+          r.split = contactVolumes({ spec, gridM: displayGrid, owcM: contactM, gocM, seedIndex: r.closure.crest.index, xyToM, nodeBlocks, blockNames });
+          splitTxt = ` ${describeContactVolumes(r.split, { fmtZ: zfmt })}`;
+        }
+      }
+      const text = `${readAsDepth && !depthPositive ? `Read ${c} as a depth below datum (elevation ${zfmt(contactM)}). ` : ''}${describeGrv(r, { contactLabel: zfmt(contactM), fmtZ: zfmt })}${splitTxt}${rangeTxt}${frameTxt}`;
       setGrvData(r);
       setGrvResult(text);
       setStatus(text);
@@ -1475,8 +1501,10 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
 
             <div className="pt-2 border-t border-pl-border text-[10px] uppercase tracking-wider text-pl-muted flex items-center gap-1"><Calculator className="w-3 h-3" /> Quick GRV</div>
             <div className="flex gap-1">
-              <input className={`${selCls} flex-1`} data-testid="map-grv-contact" placeholder={`contact (${depthUnit})`} title={`Contact in ${depthUnit}: an elevation (negative below datum) or a depth below datum`}
+              <input className={`${selCls} flex-1`} data-testid="map-grv-contact" placeholder={`OWC or contact (${depthUnit})`} title={`Oil-water contact (or the only contact) in ${depthUnit}: an elevation (negative below datum) or a depth below datum`}
                 value={grvContact} onChange={(e) => setGrvContact(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') runGrv(); }} />
+              <input className={`${selCls} w-24`} data-testid="map-grv-goc" placeholder="GOC (optional)" title={`Gas-oil contact in ${depthUnit}, above the OWC: splits the GRV into gas cap and oil leg`}
+                value={grvGoc} onChange={(e) => setGrvGoc(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') runGrv(); }} />
               <button type="button" data-testid="map-grv-run" disabled={!displayGrid} className="px-2 py-1 rounded border border-pl-primary/50 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40" onClick={() => runGrv()}>GRV</button>
             </div>
             <button type="button" data-testid="map-grv-pick" disabled={!displayGrid || grvContact === ''}
@@ -1488,6 +1516,21 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
             {grvResult && (
               <p className={`text-[11px] ${grvData?.open ? 'text-pl-warning-text' : 'text-pl-text'}`} data-testid="map-grv-result"
                 data-open={grvData?.kind === 'closure' ? String(grvData.open) : undefined}>{grvResult}</p>
+            )}
+            {grvData?.split?.kind === 'closure' && (
+              <table className="w-full text-[10px] text-pl-text" data-testid="map-grv-split">
+                <thead><tr className="text-pl-muted"><th className="text-left font-normal">Block</th><th className="text-right font-normal">Gas</th><th className="text-right font-normal">Oil</th><th className="text-right font-normal">Total (million m³)</th></tr></thead>
+                <tbody>
+                  {(grvData.split.blocks.length ? grvData.split.blocks : [{ block: 'all', name: 'Closure', ...grvData.split }]).map((b) => (
+                    <tr key={b.block} data-testid={`map-grv-split-${b.block}`}>
+                      <td>{b.name}</td>
+                      <td className="text-right">{grvData.split.gocM != null ? (b.gasM3 / 1e6).toFixed(2) : EMPTY_VALUE}</td>
+                      <td className="text-right">{grvData.split.gocM != null ? (b.oilM3 / 1e6).toFixed(2) : EMPTY_VALUE}</td>
+                      <td className="text-right">{(b.totalM3 / 1e6).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
             {grvData?.kind === 'closure' && (
               <button type="button" data-testid="map-prospect-card" onClick={exportProspectCard}

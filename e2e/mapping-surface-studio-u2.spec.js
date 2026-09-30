@@ -74,3 +74,26 @@ test('MAP-U2-002: the PDF is plotted to scale and carries the reviewer header', 
   expect(mm).toBeCloseTo(((east[1].v - east[0].v) * 1000) / scale, 0);
   await expect(page.getByTestId('map-status')).toContainText('Print at 100%');
 });
+
+test('MAP-U2-005: a gas-oil contact splits the closure into gas cap and oil leg', async ({ page }) => {
+  await page.goto('/dev/mapping-surface-studio');
+  await page.getByTestId('map-source').selectOption('top:Top Dome');
+  await page.getByTestId('map-grid-method').selectOption('tension');
+  await page.getByTestId('map-extent').selectOption('beyond');
+  await page.getByTestId('map-extent-distance').fill('1500');
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Gridded', { timeout: 120000 });
+  await page.getByTestId('map-grv-contact').fill('-5100');
+  await page.getByTestId('map-grv-goc').fill('-4950');
+  await page.getByTestId('map-grv-run').click();
+  await expect(page.getByTestId('map-grv-result')).toContainText('Gas cap');
+  await expect(page.getByTestId('map-grv-result')).toContainText('oil leg');
+  const row = page.getByTestId('map-grv-split-all');
+  await expect(row).toBeVisible();
+  const cells = (await row.locator('td').allTextContents()).map(Number);
+  expect(cells[1] + cells[2]).toBeCloseTo(cells[3], 1);
+  // a GOC below the OWC is refused
+  await page.getByTestId('map-grv-goc').fill('-5300');
+  await page.getByTestId('map-grv-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('must be above (shallower than) the oil-water contact');
+});
