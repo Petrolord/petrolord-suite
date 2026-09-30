@@ -248,3 +248,20 @@ test('U2-007 1440x900: the fault polygon is drawn on the horizon in the 3D windo
   expect(withPoly).toBeGreaterThan(without + 50);
   await page.screenshot({ path: '/tmp/claude-0/seis-upg2/u2-007.png' });
 });
+
+// U2-018: the glossary and the first-project walkthrough in the real guide
+for (const [vp, theme] of [[{ width: 1366, height: 768 }, 'light'], [{ width: 1440, height: 900 }, 'dark']]) {
+  test(`U2-018 ${vp.width}x${vp.height} ${theme}: glossary and first-project walkthrough`, async ({ page }) => {
+    await page.setViewportSize(vp);
+    await page.addInitScript((t) => {
+      try { for (const k of Object.keys(localStorage)) if (/theme/i.test(k)) localStorage.setItem(k, t); } catch { /* none */ }
+    }, theme);
+    await page.goto('/dev/seismolord-help');
+    await expect(page.locator('#section-first-project')).toContainText('Read the header before you import', { timeout: 60000 });
+    await expect(page.locator('#section-glossary')).toContainText('an increase in acoustic impedance downward is a peak');
+    await expect(page.locator('#section-glossary')).toContainText('Dix equation');
+    const scroll = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(scroll).toBeLessThanOrEqual(0);
+    await page.locator('#section-glossary').screenshot({ path: `/tmp/claude-0/seis-upg2/u2-018-${vp.width}-${theme}.png` });
+  });
+}

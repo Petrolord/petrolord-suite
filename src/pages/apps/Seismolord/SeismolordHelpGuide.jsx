@@ -5,7 +5,7 @@
 import React from 'react';
 import {
   BookOpen, Zap, Database, Layers, Activity, GitBranch, CircleDot, Map as MapIcon, Box, Rows, Ruler, Link2, AlertTriangle, BookMarked,
-  Waves, Sparkles,
+  Waves, Sparkles, GraduationCap,
 } from 'lucide-react';
 import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Callout, Step, Table,
@@ -17,6 +17,7 @@ const APP_PATH = '/dashboard/apps/geoscience/seismolord';
 export const HELP_SECTIONS = [
   { id: 'overview', icon: BookOpen, title: 'What Seismolord is' },
   { id: 'quickstart', icon: Zap, title: 'Quick start (15 min)' },
+  { id: 'first-project', icon: GraduationCap, title: 'Your first project, step by step' },
   { id: 'volumes', icon: Database, title: 'Volumes and SEG-Y import' },
   { id: 'viewing', icon: Layers, title: 'Sections, slices and display' },
   { id: 'horizons', icon: Activity, title: 'Horizon interpretation' },
@@ -86,6 +87,49 @@ export default function SeismolordHelpGuide() {
         <Step n={4} title="Tie a well">Wells: import a well or use one from the registry, load its sonic and density, build the synthetic and drag the tie; the T-D relation is saved with the well.</Step>
         <Step n={5} title="Let the wells build the framework">With wells that carry tops shown, Interpretation: Tops to horizons ties the wells, matches every top to its seismic event, can pick the faults for you, tracks one named horizon per top and saves them when you Accept.</Step>
         <Step n={6} title="Make a surface">Right-click the horizon in the explorer and choose Make surface: Grid in Seismolord shows the surface in the Map window, Publish to the registry saves it for Mapping &amp; Surface Studio. Export writes it as a file.</Step>
+      </GuideSection>
+
+      <GuideSection id="first-project">
+        <SectionHeading icon={GraduationCap}>Your first project, step by step</SectionHeading>
+        <Para>
+          A walkthrough for a first survey, written for a graduate who has the operator&apos;s SEG-Y, a well with a
+          sonic log and a textbook. Each step says what to check before moving on. The terms in italics are in the
+          Glossary at the end.
+        </Para>
+        <Step n={1} title="Read the header before you import">
+          Volumes, Import: pick the file. The scan shows the inline, crossline and coordinate bytes it measured, the
+          sample interval and the sample count, and warns when the binary and trace headers disagree. Check the
+          inline and crossline ranges against the survey&apos;s base map; if they look wrong, correct the byte
+          positions and press Enter. Declare the vertical axis (<em>TWT</em> for a time-migrated volume) and the CRS.
+        </Step>
+        <Step n={2} title="Look at the data">
+          View it now opens the file before the upload finishes. Step through inlines and crosslines and open a time
+          slice. The display is <em>SEG normal polarity</em> as recorded in the file; reverse it for display only if
+          the processing report says so. Gain, clip and AGC never change the stored amplitudes.
+        </Step>
+        <Step n={3} title="Tie a well first">
+          Wells: show a well with checkshots, open the synthetics window, Synthesize with a Ricker, then Extract from
+          the well for a wavelet measured at the well. Suggest the bulk shift, add anchors where events clearly
+          match, and read the tie QC. Commit to checkshots: the QC is stored with the tie.
+        </Step>
+        <Step n={4} title="Pick the key horizon">
+          Interpretation: New horizon, pick a seed on the tied event, Track 2D along the line. Where the event
+          weakens or crosses a fault, pick point A, then point B beyond it, and use Guided (2 points). Track 3D, then
+          use the Confidence filter: Reject + repick removes picks the tracker was unsure of and grows them back only
+          where the event correlates well.
+        </Step>
+        <Step n={5} title="Pick the faults">
+          Fault sticks on every few lines; the 3D window shows the fault surface and, once a horizon crosses it, the
+          fault polygon. Export the polygons as GeoJSON for the GIS, or add the fault to Earth Modeling.
+        </Step>
+        <Step n={6} title="Map it and convert to depth">
+          Make surface grids the horizon for the Map window and the registry. Set a velocity model (V0 and k, a layer
+          cake, or build one from stacking velocities) to read the map in <em>TVDSS</em>.
+        </Step>
+        <Step n={7} title="Plot it for the review">
+          Export, Plot: choose the template Section with a well or Map with contours and wells. The PDF carries the
+          legend, your company and analyst name, the vertical domain and datum, polarity and the build.
+        </Step>
       </GuideSection>
 
       <GuideSection id="volumes">
@@ -182,6 +226,20 @@ export default function SeismolordHelpGuide() {
           time, in milliseconds or seconds: the dialog detects the unit (a file whose times all fit in 20 reads as
           seconds, as some OpendTect and Kingdom exports write them), shows it and lets you change it. Surfaces
           imported as grids take their Z domain and unit from the same dialog: TWT in ms or s, depth in m or ft.
+        </Para>
+        <SubHeading>Guided tracking and the confidence filter</SubHeading>
+        <Para>
+          Guided (2 points) in the toolbox tracks between two points you choose on the same line: pick a seed (point
+          A) and press Guided, then pick point B on the same event and press it again. The pick follows the event of
+          greatest waveform continuity that passes through both points, moving at most two samples per trace, and
+          bridges dead traces by interpolation. Use it across faults, noise and weak zones where Track 2D stops.
+        </Para>
+        <Para>
+          Tracking by correlation stores a confidence for every pick (the correlation with its neighbour). The
+          Confidence filter works on the target horizon: Reject removes its picks below the threshold as one
+          undoable edit; Reject + repick removes them and grows the horizon again from what is left, with the
+          threshold as the correlation limit, so a pick only comes back where the event now correlates that well.
+          Picks without a confidence (manual picks, seeds) are kept and counted.
         </Para>
       </GuideSection>
 
@@ -281,6 +339,16 @@ export default function SeismolordHelpGuide() {
           Right-click a well in the explorer for Show or Hide, Well data (Well Data Manager on its tops) and Open in,
           which lists the other Geoscience apps for that well.
         </Para>
+        <SubHeading>Wavelets and the stored tie QC</SubHeading>
+        <Para>
+          Three wavelets are offered. Ricker, at the frequency you set. Extract from seismic at well: a statistical
+          wavelet whose amplitude spectrum is the seismic&apos;s at the well, zero phase by construction. Extract from
+          the well: the least-squares wavelet that best turns the well&apos;s reflectivity into the seismic trace at
+          the well, so its phase is measured (run Synthesize first; extract after the bulk shift, because a time
+          shift reads as phase). The window shows each wavelet&apos;s peak frequency and constant phase. Committing a
+          tie stores its QC with it: the mean and minimum windowed correlation, the windows, the bulk shift, the phase
+          applied, the anchors and the wavelet. Reopening the well shows it as Stored: Tie QC.
+        </Para>
       </GuideSection>
 
       <GuideSection id="automation">
@@ -335,6 +403,12 @@ export default function SeismolordHelpGuide() {
           Studio. No file export or re-import is involved. The Export dialog offers the same through Save as surface,
           with every gridding option, and Grid &amp; download writes the surface as a file.
         </Para>
+        <Para>
+          Export, Plot writes a true-scale PDF. The template Section with a well needs a line through a drawn well;
+          Map with contours and wells needs contours and wells on the map; each says what is missing. The legend lists
+          the horizons, faults, wells and contour interval the picture shows, and the title block carries the company
+          and analyst you enter, saved to your account.
+        </Para>
         <Table headers={['Format', 'Notes']} rows={SURFACE_EXPORT_FORMATS.map((f) => [f.label, `.${f.ext}`])} />
         <Callout tone="info" title="Sign convention">
           Exported and published depth surfaces are elevations: negative below the datum, in the unit the dialog
@@ -353,6 +427,12 @@ export default function SeismolordHelpGuide() {
           the 3D window focused, the arrow keys step the plane under the cursor, or the Section window's
           orientation when the cursor is elsewhere.
         </Para>
+        <Para>
+          With faults and horizons shown, each fault&apos;s polygon against each horizon draws as a closed loop on the
+          horizon (footwall cutoffs, then hanging-wall cutoffs). Right-click a fault, Fault polygons (GeoJSON), to
+          export them: WGS 84 longitude and latitude when the survey CRS converts, otherwise the survey CRS, named in
+          the file.
+        </Para>
       </GuideSection>
 
       <GuideSection id="lines">
@@ -362,6 +442,13 @@ export default function SeismolordHelpGuide() {
           window, where horizons are picked along the line under the same names as in 3D. Where lines cross, the
           Misties tool measures the time difference at every crossing, solves least-squares bulk shifts per line and
           applies them as statics without changing the stored samples.
+        </Para>
+        <Para>
+          After the time solve, the same dialog measures what is left at each crossing in a 200 ms window about the
+          horizon on each line: the phase rotation from one line to the other and the amplitude ratio. It solves a
+          phase rotation and an amplitude scalar per line (mean zero phase, unit average scale); Apply phase and
+          amplitude stores them with the lines and the 2D Lines window shows the corrected traces. Stored samples
+          never change; re-running the analysis after an apply reports what is left.
         </Para>
       </GuideSection>
 
@@ -382,6 +469,8 @@ export default function SeismolordHelpGuide() {
           ['Well Data Manager', 'Well data on a well in the explorer opens it on its tops; wells imported there appear here without re-import.'],
           ['Petrophysics Studio, Well Correlation, Pore Pressure Studio and the rest', 'Open in on a well lists the Geoscience apps for it.'],
           ['Mapping & Surface Studio and Earth Modeling', 'Published surfaces are listed there; their surfaces and fault polygons are listed here under Surfaces and Culture.'],
+          ['Earth Modeling', 'Faults from Seismolord lists your interpreted faults; Add closes the fault trace with the model frame on its hanging-wall side as a fault block. Read only.'],
+          ['Well Correlation', 'Seismic backdrop draws this volume between the wells of a TWT section, each well on its own trace. Read only.'],
           ['ReservoirCalc Pro', 'Reads published surfaces in its Surface import.'],
           ['Geoscience home', 'The Geoscience link at the left end of the ribbon, as in the other Geoscience studios.'],
         ]} />
@@ -406,6 +495,16 @@ export default function SeismolordHelpGuide() {
       <GuideSection id="glossary">
         <SectionHeading icon={BookMarked}>Glossary</SectionHeading>
         <Table headers={['Term', 'Meaning']} rows={[
+          ['SEG normal polarity', 'The SEG convention for a zero-phase wavelet: an increase in acoustic impedance downward is a peak (a positive number). Seismolord shows the file as recorded; reversing polarity is display only.'],
+          ['TWT', 'Two-way time: the time for a wave to travel from the seismic datum down to a reflector and back, in milliseconds. One-way time is half of it.'],
+          ['TVDSS', 'True vertical depth subsea: depth below the seismic or sea-level datum along the vertical, whatever the well path. Depth maps from Seismolord are TVDSS, negative below the datum in files and the registry.'],
+          ['Interval velocity', 'The velocity of one layer: its thickness divided by its one-way time thickness. A layer cake is a stack of interval velocities.'],
+          ['RMS velocity', 'The root-mean-square of the interval velocities down to a time, weighted by time; close to the stacking velocity from processing. Converted to interval velocity with the Dix equation.'],
+          ['Dix equation', 'Vint^2 = (Vrms2^2 t2 - Vrms1^2 t1) / (t2 - t1), the interval velocity between two times from the RMS velocities at them (Dix, 1955).'],
+          ['Statistical wavelet', 'A wavelet with the seismic\'s amplitude spectrum at the well and an assumed zero phase.'],
+          ['Tracking confidence', 'The correlation (0 to 1) between a picked trace and the trace it was tracked from; stored with correlation tracking.'],
+          ['Phase mistie', 'The constant phase rotation between two 2D lines at their crossing, after the time mistie is removed.'],
+          ['Fault polygon', 'The outline of the gap a fault cuts in a horizon: the footwall and hanging-wall cutoff lines, closed.'],
           ['Brick', 'A 64 by 64 by 64 block of float32 samples; volumes are read brick by brick and are not loaded whole.'],
           ['Lattice', 'The inline, crossline, sample grid of a volume; picks are stored on it.'],
           ['Traverse', 'An arbitrary polyline section through the volume.'],

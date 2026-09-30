@@ -987,6 +987,7 @@ function App() {
                                     <Route path="/dev/seismolord-synthetics" element={<SeismolordSyntheticsHarness />} />
                                     <Route path="/dev/seismolord-workspace" element={<SeismolordWorkspaceHarness />} />
                                     <Route path="/dev/seismolord-u2" element={<SeismolordU2Harness />} />
+                                    <Route path="/dev/seismolord-help" element={<SeismolordHelpGuide />} />
                                     <Route path="/dev/well-data-manager" element={<WellDataManagerHarness />} />
                                     <Route path="/dev/well-data-manager/help" element={<WellDataManagerHelpGuide backTo="/dev/well-data-manager" />} />
                                     <Route path="/dev/petrophysics-studio" element={<PetrophysicsStudioHarness />} />
