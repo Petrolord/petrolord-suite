@@ -222,6 +222,8 @@ BUILD in this order, one commit per item:
 - Batch C: U2-016 suggest-only tract picks (each suggestion shows its reason; nothing written until accepted, same rule as Well Correlation U2-009); U2-018 ranks and tidy-ups; U2-019 delete the kit re-export shims (only if every importer is updated and the suites pass).
 DEFERRED: U2-008 org-wide zone schemes (needs a new product table with RLS: owner review and apply; do not write the migration in this PR); U2-020 decompaction (Basin & Charge Modeling owns burial history, revisit at app #11); U2-014 Wheeler from seismic, U2-015 graphic correlation, U2-017 chemostratigraphy (L, after NAPE).
 
+Change, owner decision 2026-09-30 (relayed by the programme lead): U2-008 (organisation-wide zone schemes) is now IN SCOPE, built in Batch B after the items above. The table is written, tested and pending the owner's apply on its own branch (`feat/strat-zone-schemes-table`, migration `20260930180000_strat_zone_schemes.sql`; it merges to main first). This PR builds the service, the panel, the `.pld` family entry and the in-memory mirror of its RLS; it writes and applies no migration, and keeps browser storage working while the table is absent.
+
 Branch `feat/strat-u2`, one PR. Build log per item below.
 
 ### Build log (Step 2)

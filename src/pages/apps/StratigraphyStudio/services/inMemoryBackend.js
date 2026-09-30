@@ -83,6 +83,8 @@ export function makeInMemoryBackend({ sample = true, seedWells = [], sections: s
   return {
     async listWells() { return wells.map(publicWell); },
 
+    async listAllTops() { return [...topsByWell.values()].flat().map((t) => ({ ...t })); },
+
     async listTops(wellId) {
       return [...(topsByWell.get(wellId) || [])].sort((a, b) => a.md_m - b.md_m).map((t) => ({ ...t }));
     },

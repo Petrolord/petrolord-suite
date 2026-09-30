@@ -198,7 +198,7 @@ test('PL7: the Wheeler exports read back with their header', async ({ page }) =>
   const svg = fs.readFileSync(await svgDl.path(), 'utf8');
   expect(svg).toContain('Wheeler chart: KETA section');
   expect(svg).toContain('Wells: KETA-1, KETA-2, KETA-3 | Section: KETA section | Field: Keta (sample)');
-  expect(svg).toContain('Terms: Catuneanu | Timescale: ICS 2023/09');
+  expect(svg).toContain('Terms: Catuneanu | Timescale: ICS 2026/06');
   expect(svg).toMatch(/Prepared by: A\. Stratigrapher \| \d{4}-\d{2}-\d{2} \| Petrolord Suite/);
   const [pngDl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('strat-wheeler-export-png').click()]);
   const png = fs.readFileSync(await pngDl.path());

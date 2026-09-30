@@ -157,6 +157,9 @@ export const GEOSCIENCE_SPEC = {
         { path: 'view.ghost.sourceWellId', table: 'geo_wells', optional: true },
         { path: 'view.ghost.targetWellId', table: 'geo_wells', optional: true },
         { path: 'view.horizons[]', table: 'geo_surfaces', optional: true },
+        // STRAT-U2-003: the chart version each age was entered under, keyed by row id
+        { path: 'view.ageCharts.tops{keys}', table: 'geo_wells_tops', optional: true },
+        { path: 'view.ageCharts.units{keys}', table: 'geo_strat_units', optional: true },
       ],
     },
   },

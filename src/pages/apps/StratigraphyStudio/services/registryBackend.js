@@ -8,7 +8,7 @@
 // stratigraphic column from src/lib/stratRegistry.js (geo_strat_units).
 // No app-local Supabase calls against registry tables (plan section 4).
 
-import { listWells, listTops, updateTop, saveTop, listLogs, downloadCurve, listZones } from '@/lib/wellsRegistry';
+import { listWells, listTops, listAllTops, updateTop, saveTop, listLogs, downloadCurve, listZones } from '@/lib/wellsRegistry';
 import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
 import { supabase } from '@/lib/customSupabaseClient';
 import { makeRegistryBackend as makeBasinBackend } from '@/pages/apps/BasinFlowGenesis/services/backend';
@@ -32,5 +32,7 @@ export function makeRegistryBackend() {
     // STRAT-U2-002: the section picker (STRAT-U1-009) listed nothing here, only
     // on the harness; Seismolord horizons and Petrophysics zones, read only
     listSections, listSurfaces, downloadSurfaceGrid, listZones,
+    // STRAT-U2-003: every visible top in one read, for the chart-version flags
+    listAllTops,
   };
 }

@@ -12,6 +12,7 @@ import { parseColumnFile } from '../services/columnImport';
 import { RANKS, orderedUnits, validateColumn } from '@/lib/stratigraphy/column';
 import { unitsOfRank, ageBounds, TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
 import ColumnChart from './ColumnChart';
+import { flagText } from '@/lib/stratigraphy/ageCharts';
 import ChartExportButtons from '@/components/wells/section/ChartExportButtons';
 import { chartHeaderLines } from '@/components/wells/section/chartExport';
 
@@ -43,7 +44,7 @@ let tmp = 0;
  * @param {(ops: {create: Array, update: Array<{id, patch}>, remove: Array}) => Promise<void>} p.onSave
  * @param {(msg: string) => void} p.onStatus
  */
-export default function ColumnEditor({ units, canEdit = true, onSave, onStatus, report = null }) {
+export default function ColumnEditor({ units, canEdit = true, onSave, onStatus, report = null, ageFlags = null }) {
   const chartRef = useRef(null);
   const [rows, setRows] = useState(() => units.map(toRow));
   const [problems, setProblems] = useState([]);
@@ -175,8 +176,22 @@ export default function ColumnEditor({ units, canEdit = true, onSave, onStatus, 
                       </select>
                     </td>
                     <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 48 }} value={r.order_index} disabled={!canEdit} inputMode="numeric" onChange={(e) => setCell(u.id, 'order_index', e.target.value)} data-testid={`strat-unit-order-${i}`} /></td>
-                    <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 72 }} value={r.age_top_ma} disabled={!canEdit} inputMode="decimal" onChange={(e) => setCell(u.id, 'age_top_ma', e.target.value)} data-testid={`strat-unit-agetop-${i}`} /></td>
-                    <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 72 }} value={r.age_base_ma} disabled={!canEdit} inputMode="decimal" onChange={(e) => setCell(u.id, 'age_base_ma', e.target.value)} data-testid={`strat-unit-agebase-${i}`} /></td>
+                    <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 72 }} value={r.age_top_ma} disabled={!canEdit} inputMode="decimal" onChange={(e) => setCell(u.id, 'age_top_ma', e.target.value)} data-testid={`strat-unit-agetop-${i}`} />
+                      {/* STRAT-U2-003: entered under an older chart */}
+                      {ageFlags?.get(`units:${u.id}:age_top_ma`) && r[`age_top_ma`] === String(units.find((x) => x.id === u.id)?.age_top_ma ?? '') && (
+                        <span className="block text-[10px] text-pl-warning-text cursor-help" title={`${flagText(ageFlags.get(`units:${u.id}:age_top_ma`))}. Accept it in the Timescale view.`} data-testid={`strat-unit-agechart-agetop-${i}`}>
+                          {ageFlags.get(`units:${u.id}:age_top_ma`).update ? `${ageFlags.get(`units:${u.id}:age_top_ma`).update.to_ma} on ${TIMESCALE_VERSION.replace('ICS ', '')}` : ageFlags.get(`units:${u.id}:age_top_ma`).chart.replace('ICS ', '')}
+                        </span>
+                      )}
+                    </td>
+                    <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 72 }} value={r.age_base_ma} disabled={!canEdit} inputMode="decimal" onChange={(e) => setCell(u.id, 'age_base_ma', e.target.value)} data-testid={`strat-unit-agebase-${i}`} />
+                      {/* STRAT-U2-003: entered under an older chart */}
+                      {ageFlags?.get(`units:${u.id}:age_base_ma`) && r[`age_base_ma`] === String(units.find((x) => x.id === u.id)?.age_base_ma ?? '') && (
+                        <span className="block text-[10px] text-pl-warning-text cursor-help" title={`${flagText(ageFlags.get(`units:${u.id}:age_base_ma`))}. Accept it in the Timescale view.`} data-testid={`strat-unit-agechart-agebase-${i}`}>
+                          {ageFlags.get(`units:${u.id}:age_base_ma`).update ? `${ageFlags.get(`units:${u.id}:age_base_ma`).update.to_ma} on ${TIMESCALE_VERSION.replace('ICS ', '')}` : ageFlags.get(`units:${u.id}:age_base_ma`).chart.replace('ICS ', '')}
+                        </span>
+                      )}
+                    </td>
                     <td className="pr-3 py-0.5">
                       <select className={cellCls} style={{ width: 130 }} value="" disabled={!canEdit} onChange={(e) => fillFromStage(u.id, e.target.value)} data-testid={`strat-unit-stage-${i}`} title="Fill both ages from a stage of the ICS chart">
                         <option value="">pick a stage</option>

@@ -30,7 +30,7 @@ const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-
  * @param {() => Promise<void>} p.onTopsChanged
  * @param {Object} [p.appPaths]
  */
-export default function AgesView({ well, tops, intervals, backend, onStatus, onTopsChanged, appPaths = {}, report = null }) {
+export default function AgesView({ well, tops, intervals, backend, onStatus, onTopsChanged, onAgesEntered = null, appPaths = {}, report = null }) {
   const [busy, setBusy] = useState(false);
   const plotRef = useRef(null);
   // STRAT-U1-015: accumulation rates are vertical; on a deviated well the dated
@@ -50,6 +50,7 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
   const createDatums = async () => {
     setBusy(true);
     let n = 0;
+    const entered = [];
     try {
       const existing = new Set((tops || []).map((t) => t.name));
       for (const z of biozones) {
@@ -57,10 +58,12 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
         const pairs = [[`${z.code} top`, z.top_md_m, z.properties?.age_top_ma], [`${z.code} base`, z.base_md_m, z.properties?.age_base_ma]];
         for (const [name, md, age] of pairs) {
           if (existing.has(name)) continue;
-          await backend.saveTop(well.id, { name, mdM: md, surface_type: 'biozone', age_ma: Number.isFinite(Number(age)) && age !== '' && age != null ? Number(age) : null, confidence: null, notes: `${scheme}${z.label || z.code}` });
+          const row = await backend.saveTop(well.id, { name, mdM: md, surface_type: 'biozone', age_ma: Number.isFinite(Number(age)) && age !== '' && age != null ? Number(age) : null, confidence: null, notes: `${scheme}${z.label || z.code}` });
+          if (row?.id && row.age_ma != null) entered.push({ kind: 'tops', id: row.id, field: 'age_ma' }); // STRAT-U2-003 stamp
           n += 1;
         }
       }
+      await onAgesEntered?.(entered);
       await onTopsChanged?.();
       onStatus(`${n} biozone datum${n === 1 ? '' : 's'} added as typed tops on ${well.name}.`);
     } catch (e) { onStatus(e.message); } finally { setBusy(false); }

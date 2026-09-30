@@ -173,3 +173,82 @@ describe('STRAT-U2-001 Wheeler columns spaced by distance', () => {
     expect(onSaveProject.mock.calls[0][0].wheeler).toEqual({ spacing: 'proportional' });
   }, 120000);
 });
+
+describe('STRAT-U2-003 ICS 2026/06 with the chart version of every age', () => {
+  const { flagAges, acceptPlan, withStamps, changedAges, flagText } = jest.requireActual('@/lib/stratigraphy/ageCharts');
+  const { TIMESCALE_VERSION } = jest.requireActual('@/lib/stratigraphy/timescale');
+
+  test('the studio draws on 2026/06 (origin/main: ICS 2023/09, J/K at 145.0)', () => {
+    expect(TIMESCALE_VERSION).toBe('ICS 2026/06');
+  });
+
+  test('flags: an unstamped age on a moved boundary gets the change; a stamped one does not; an off-boundary age names its new stage', () => {
+    const tops = [
+      { id: 't1', well_id: 'w1', name: 'Base K', age_ma: 145.0 },
+      { id: 't2', well_id: 'w1', name: 'Near JK', age_ma: 144.0 },
+      { id: 't3', well_id: 'w1', name: 'Mid Mio', age_ma: 12.0 },
+      { id: 't4', well_id: 'w1', name: 'Typed now', age_ma: 145.0 },
+    ];
+    const stamps = withStamps({}, [{ kind: 'tops', id: 't4', field: 'age_ma' }]);
+    const flags = flagAges({ tops, wellName: () => 'KETA-1', stamps });
+    expect(flags.map((f) => [f.id, f.update?.to_ma ?? null, f.stageTo])).toEqual([['t1', 143.1, 'Berriasian'], ['t2', null, 'Tithonian']]);
+    expect(flagText(flags[0])).toBe('entered under ICS 2023/09 on the base of the Berriasian (base of the Cretaceous): 145 to 143.1 Ma (-1.9 Myr) on ICS 2026/06');
+    expect(flagText(flags[1])).toMatch(/the number stays, but on ICS 2026\/06 it falls in the Tithonian \(was Berriasian\)/);
+  });
+
+  test('accept plan: moves boundary ages, stamps every flag, leaves shared rows and a broken hiatus order named', () => {
+    const tops = [
+      { id: 't1', well_id: 'w1', name: 'Base K', age_ma: 145.0, hiatus_to_ma: null },
+      { id: 't2', well_id: 'w2', name: 'Top Olig', age_ma: 27.82 },
+      { id: 't3', well_id: 'w1', name: 'Odd SU', age_ma: 143.5, hiatus_to_ma: 145.0 },
+    ];
+    const flags = flagAges({ tops, canEdit: (k, r) => r.well_id === 'w1' });
+    const plan = acceptPlan(flags, { tops });
+    expect(plan.writes).toEqual([{ kind: 'tops', id: 't1', patch: { age_ma: 143.1 } }]);
+    expect(plan.stamps).toEqual([{ kind: 'tops', id: 't1', field: 'age_ma' }]);
+    expect(plan.skipped.join(' | ')).toMatch(/Top Olig age \(shared with you, read-only; its owner accepts it\)/);
+    expect(plan.skipped.join(' | ')).toMatch(/Odd SU \(after the update the hiatus end, 143.1 Ma, would not be older than 143.5 Ma\)/);
+  });
+
+  test('only a changed age is stamped (a type change on a row keeps its old chart)', () => {
+    expect(changedAges('tops', { id: 't1', age_ma: 145, hiatus_to_ma: null }, { age_ma: 145, hiatus_to_ma: null, surface_type: 'SU' })).toEqual([]);
+    expect(changedAges('tops', { id: 't1', age_ma: 145 }, { age_ma: 150 })).toEqual([{ kind: 'tops', id: 't1', field: 'age_ma' }]);
+    expect(changedAges('units', { id: 'u1' }, { age_top_ma: 2.58, age_base_ma: 33.9 })).toHaveLength(2);
+  });
+
+  test('workstation: flags counted, shown on the row, accepted per project; a newly typed age is stamped 2026/06', async () => {
+    const StratWorkstation = jest.requireActual('../components/StratWorkstation').default;
+    const shared = { id: 'sh-1', name: 'SHARED-1', is_own: false, user_id: 'user-other', organization_id: 'org-dev', surface_x: 501500, surface_y: 6700300, kb_m: 30, curves: {}, logMeta: {},
+      tops: [{ id: 'sh-top', well_id: 'sh-1', name: 'Top Olig', md_m: 900, age_ma: 27.82, surface_type: 'formation_top' }] };
+    const b = makeInMemoryBackend({ seedWells: [shared], units: [{ id: 'u-k', user_id: 'user-a', organization_id: null, name: 'Lower K', rank: 'formation', parent_id: null, order_index: 0, age_top_ma: 100.5, age_base_ma: 145.0, colour: '#84cc16' }] });
+    await b.updateTop('corr-w1-top-0', { age_ma: 145.0 });   // Top Marker typed under 2023/09 on the J/K
+    render(<MemoryRouter><StratWorkstation backend={b} /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('strat-timescale-badge').textContent).toBe('3'), T);
+    fireEvent.click(screen.getByTestId('strat-view-timescale'));
+    expect(screen.getByTestId('strat-timescale-count').textContent).toBe('3 ages, 3 on a moved boundary');
+    expect(screen.getByTestId('strat-timescale-flag-KETA-1 Top Marker age').textContent).toMatch(/145 Ma.*143\.1 Ma \(-1\.9\)/);
+    expect(screen.getByTestId('strat-timescale-change-Berriasian').textContent).toMatch(/base of the Berriasian \(base of the Cretaceous\)145143\.1-1\.9/);
+    // the Tops view marks the row
+    fireEvent.click(screen.getByTestId('strat-well-KETA-1'));
+    fireEvent.click(screen.getByTestId('strat-view-tops'));
+    expect((await screen.findByTestId('strat-top-agechart-Top Marker-age_ma', {}, T)).textContent).toBe('143.1 on 2026/06');
+    // accept for the project
+    fireEvent.click(screen.getByTestId('strat-view-timescale'));
+    fireEvent.click(screen.getByTestId('strat-timescale-accept'));
+    await waitFor(() => expect(screen.getByTestId('strat-status').textContent).toMatch(/Accepted the ICS 2026\/06 updates: 2 ages moved with their boundary, 2 stamped ICS 2026\/06; left as entered: SHARED-1 Top Olig age \(shared with you/), T);
+    expect((await b.listTops('corr-w1')).find((t) => t.name === 'Top Marker').age_ma).toBe(143.1);
+    expect((await b.listUnits()).find((u) => u.id === 'u-k').age_base_ma).toBe(143.1);
+    expect((await b.listTops('sh-1'))[0].age_ma).toBe(27.82);
+    const proj = await b.loadStratProject();
+    expect(proj.view.ageCharts.tops['corr-w1-top-0']).toEqual({ age_ma: 'ICS 2026/06' });
+    expect(proj.view.ageCharts.units['u-k']).toEqual({ age_base_ma: 'ICS 2026/06' });
+    await waitFor(() => expect(screen.getByTestId('strat-timescale-count').textContent).toBe('1 age, 1 on a moved boundary'), T);
+    // a new age typed now is stamped with the current chart and never flagged
+    fireEvent.click(screen.getByTestId('strat-view-tops'));
+    await waitFor(() => expect(screen.getByTestId('strat-top-age-Top Marker').value).toBe('143.1'), T); // the refreshed rows
+    fireEvent.change(screen.getByTestId('strat-top-age-Top Dome'), { target: { value: '145' } });
+    fireEvent.click(screen.getByTestId('strat-tops-save'));
+    await waitFor(async () => expect((await b.loadStratProject()).view.ageCharts.tops['corr-w1-top-1']).toEqual({ age_ma: 'ICS 2026/06' }), T);
+    expect(screen.queryByTestId('strat-top-agechart-Top Dome-age_ma')).toBeNull();
+  }, 120000);
+});
