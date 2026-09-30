@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { supabase } from '@/lib/customSupabaseClient';
 import { fitGeoreference, describeGeoreference } from '@/lib/digitizer/georeference';
 import { contoursGeoJSON, contoursDXF, contoursCSV } from '@/lib/digitizer/contourExport';
 import { crsUnit } from '@/lib/crs';
 import { useOpenCv } from '@/hooks/useOpenCv';
 import { processImageWithOpenCv, dp } from '@/utils/digitizerOpenCv';
 import { planDigitizedSurface, digitizedSurfacePayload } from '@/lib/digitizer/contoursToSurface';
-import { saveSurface } from '@/lib/surfacesRegistry';
 import { layersFromSaved } from '@/lib/digitizer/savedProject';
+import { registryDigitizerBackend } from '@/lib/digitizer/digitizerBackend';
+import { assignValuesByDrag, describeDragAssign } from '@/lib/digitizer/dragAssign';
 
 const downloadText = (text, fileName, type) => {
   const url = URL.createObjectURL(new Blob([text], { type }));
@@ -26,7 +26,9 @@ const downloadText = (text, fileName, type) => {
 // thin-plate spline in the map's world frame and can be published to
 // geo_surfaces under the registry convention (elevation, unit per row).
 
-const useContourDigitizer = (toast) => {
+// MAP-U1-028: the backend is injected, so /dev/contour-map-digitizer runs the
+// same page on an in-memory store (no auth, no database)
+const useContourDigitizer = (toast, backend = registryDigitizerBackend) => {
   const [state, setState] = useState({
     id: null,
     imageFile: null,
@@ -48,6 +50,8 @@ const useContourDigitizer = (toast) => {
     zUnit: 'm',
     surfaceName: '',
     results: null,           // { spec, grid, stats, ... } from planDigitizedSurface
+    assignStart: '',         // MAP-U2-006: drag-assign start value and increment, as typed
+    assignStep: '',
     publishedSurface: null,  // geo_surfaces row after Publish
   });
   const [isProcessing, setIsProcessing] = useState(false);
@@ -60,19 +64,13 @@ const useContourDigitizer = (toast) => {
   stateRef.current = state;
 
   const fetchProjects = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data, error } = await supabase
-      .from('contour_projects')
-      .select('id, project_name, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    if (error) {
-      toast({ title: 'Error fetching projects', description: error.message, variant: 'destructive' });
-    } else {
+    try {
+      const data = await backend.listProjects();
       setState(p => ({ ...p, projects: data || [] }));
+    } catch (error) {
+      toast({ title: 'Error fetching projects', description: error.message, variant: 'destructive' });
     }
-  }, [toast]);
+  }, [toast, backend]);
 
   useEffect(() => {
     fetchProjects();
@@ -199,6 +197,24 @@ const useContourDigitizer = (toast) => {
     }));
   }, []);
 
+  // MAP-U2-006: drag across the contours to value them with an increment
+  const handleDragAssign = useCallback((path) => {
+    const cur = stateRef.current;
+    const start = cur.assignStart === '' ? NaN : Number(cur.assignStart);
+    const increment = cur.assignStep === '' ? NaN : Number(cur.assignStep);
+    try {
+      const r = assignValuesByDrag(cur.layers.contours, path, { start, increment });
+      setState(p => ({
+        ...p,
+        layers: { ...p.layers, contours: p.layers.contours.map(l => (r.values.has(l.id) ? { ...l, value: r.values.get(l.id) } : l)) },
+        results: null,
+      }));
+      toast({ title: 'Contour values assigned', description: describeDragAssign(r, { start, increment }) });
+    } catch (error) {
+      toast({ title: 'No values assigned', description: error.message, variant: 'destructive' });
+    }
+  }, [toast]);
+
   const handleGrid = useCallback(() => {
     try {
       const plan = planDigitizedSurface(state.layers, state.pixelToWorld, {
@@ -229,7 +245,7 @@ const useContourDigitizer = (toast) => {
         imageName: state.imageFile?.name || state.map_image_url || null,
         crs: state.crs || null,
       });
-      const row = await saveSurface(payload);
+      const row = await backend.saveSurface(payload);
       setState(p => ({ ...p, publishedSurface: row }));
       toast({ title: 'Surface published', description: `${row.name} is in the registry. Open it in Mapping & Surface Studio to contour, edit and export it.` });
     } catch (error) {
@@ -238,15 +254,14 @@ const useContourDigitizer = (toast) => {
       setIsProcessing(false);
       setStatus('');
     }
-  }, [state.results, state.surfaceName, state.projectName, state.zUnit, state.valuesAre, state.imageFile, state.map_image_url, state.crs, toast]);
+  }, [state.results, state.surfaceName, state.projectName, state.zUnit, state.valuesAre, state.imageFile, state.map_image_url, state.crs, toast, backend]);
 
   const handleLoadProject = useCallback(async (projectId) => {
     if (!projectId || projectId === 'none') return;
     setIsProcessing(true);
     setStatus('Loading project...');
     try {
-      const { data, error } = await supabase.from('contour_projects').select('*').eq('id', projectId).single();
-      if (error) throw error;
+      const data = await backend.getProject(projectId);
       // MAP-U1-006: older rows, settings, and the georeference rebuilt
       const { layers, settings } = layersFromSaved(data.contours);
       const controlPoints = Array.isArray(data.geo_points) ? data.geo_points : [];
@@ -291,17 +306,13 @@ const useContourDigitizer = (toast) => {
       setIsProcessing(false);
       setStatus('');
     }
-  }, [toast]);
+  }, [toast, backend]);
 
   const handleSaveProject = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !state.projectName) return;
+    if (!state.projectName) return;
     setIsProcessing(true);
     try {
-      const { data: savedData, error } = await supabase
-        .from('contour_projects')
-        .upsert({
-          user_id: user.id,
+      const savedData = await backend.saveProject({
           project_name: state.projectName,
           geo_points: state.controlPoints,
           // MAP-U1-006: settings and the image's name and size ride in the
@@ -315,10 +326,8 @@ const useContourDigitizer = (toast) => {
           },
           grid_cell_size: Number(state.gridCellSize) > 0 ? Number(state.gridCellSize) : 50,
           gridding_method: 'tps',
-          id: state.id
-        }, { onConflict: 'id' })
-        .select().single();
-      if (error) throw error;
+          id: state.id,
+        });
       setState(p => ({ ...p, id: savedData.id }));
       toast({ title: 'Project Saved' });
       fetchProjects();
@@ -327,7 +336,7 @@ const useContourDigitizer = (toast) => {
     } finally {
       setIsProcessing(false);
     }
-  }, [state, toast, fetchProjects]);
+  }, [state, toast, fetchProjects, backend]);
 
   // MAP-U1-007: map coordinates, values and fault lines; refused without a georeference
   const handleExport = useCallback((format) => {
@@ -346,7 +355,7 @@ const useContourDigitizer = (toast) => {
   return {
     state, setState, imgCanvasRef, ovrCanvasRef,
     handleFileUpload, handleGeoref, handleRemoveControlPoint, handleAutoTrace,
-    handleManualDraw, handleDeleteLine, handleSetLineValue, handleGrid, handlePublishSurface,
+    handleManualDraw, handleDeleteLine, handleSetLineValue, handleDragAssign, handleGrid, handlePublishSurface,
     handleSaveProject, handleLoadProject, handleExport, isProcessing, status, isCvReady,
   };
 };

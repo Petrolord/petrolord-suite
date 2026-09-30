@@ -71,8 +71,10 @@ describe('the door reads what the vendors write', () => {
     expect(at(plan, 502000, 6700000)).toBeCloseTo(-1500 / FT, 1);
   });
 
-  test('a rotated seismic lattice is refused with the reason and the way out', () => {
-    expect(() => readSurfaceFile(read('xyz_rotated_survey_lattice.xyz'))).toThrow(/not on a regular X\/Y grid .*CPS-3, ZMAP\+ or Irap/);
+  test('a rotated seismic lattice is read as points to grid, with the reason (MAP-U2-003 supersedes the U1 refusal)', () => {
+    const r = readSurfaceFile(read('xyz_rotated_survey_lattice.xyz'));
+    expect(r.g).toBeNull();
+    expect(r.notes.join(' ')).toMatch(/Not a regular X\/Y grid \(a rotated seismic lattice or scattered picks\)/);
   });
 
   test('a ZMAP+ lines file (fault polygons) is named as culture, not read as a broken grid', () => {

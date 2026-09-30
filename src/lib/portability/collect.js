@@ -71,6 +71,14 @@ async function collectBlobsFor(source, col, table, spec, row) {
           rememberBlob(col, table, row[spec.pk], b.bucket, alt, ctype, more);
         } catch (e) { /* no companion stored */ }
       }
+      // row-recorded companions beside the main object (Mapping U2-017: re-grid archives)
+      for (const alt of (b.rowCompanions ? b.rowCompanions(row) : [])) {
+        if (!alt || alt === path) continue;
+        try {
+          const more = await source.downloadBlob(b.bucket, alt);
+          rememberBlob(col, table, row[spec.pk], b.bucket, alt, ctype, more);
+        } catch (e) { /* an archive that is gone is left out; Restore says so */ }
+      }
     } else if (b.prefixOf) {
       const prefix = b.prefixOf(row);
       const all = await source.listBlobs(b.bucket, prefix);

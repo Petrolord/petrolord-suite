@@ -134,11 +134,23 @@ const InputPanel = ({ state, setState, onFileUpload, onGeoref, onRemoveControlPo
               <TabsTrigger value="faults">Faults ({layers.faults.length})</TabsTrigger>
             </TabsList>
           </Tabs>
+          {activeLayer === 'contours' && (
+            <div className="space-y-2" data-testid="digitizer-assign">
+              <p className="text-xs text-pl-muted">Assign values by dragging: type the first contour's value and the step, then drag across the contours in order. A step is negative when the values fall along the drag.</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input data-testid="digitizer-assign-start" inputMode="decimal" placeholder="First value" value={state.assignStart ?? ''} onChange={(e) => setState((p) => ({ ...p, assignStart: e.target.value }))} className="h-8 text-xs" />
+                <Input data-testid="digitizer-assign-step" inputMode="decimal" placeholder="Step, e.g. -10" value={state.assignStep ?? ''} onChange={(e) => setState((p) => ({ ...p, assignStep: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <Button data-testid="digitizer-assign-drag" onClick={() => setState((p) => ({ ...p, drawMode: p.drawMode === 'assign' ? 'none' : 'assign' }))} variant={drawMode === 'assign' ? 'secondary' : 'outline'} className="w-full" disabled={layers.contours.length === 0}>
+                <Pencil className="w-4 h-4 mr-2" />{drawMode === 'assign' ? 'Dragging assigns values (click to stop)' : 'Drag to assign values'}
+              </Button>
+            </div>
+          )}
           <div className="max-h-40 overflow-y-auto space-y-2 p-1 custom-scrollbar">
             {layers[activeLayer].length === 0 && <p className="text-center text-xs text-pl-muted py-4">No lines in this layer yet.</p>}
             {layers[activeLayer].map(line => (
               <div key={line.id} className="flex items-center gap-2 p-1 bg-pl-sunken rounded">
-                <Input type="number" placeholder={activeLayer === 'faults' ? 'not used' : valuesAre === 'depth' ? 'Depth' : 'Elevation'} value={line.value ?? ''} onChange={e => onSetLineValue(line.id, e.target.value)} className="h-8 text-xs" />
+                <Input type="number" data-testid={`digitizer-line-value-${activeLayer}`} placeholder={activeLayer === 'faults' ? 'not used' : valuesAre === 'depth' ? 'Depth' : 'Elevation'} value={line.value ?? ''} onChange={e => onSetLineValue(line.id, e.target.value)} className="h-8 text-xs" />
                 <span className="text-xs text-pl-muted flex-grow">{line.points.length} pts</span>
                 <Button variant="ghost" size="icon" onClick={() => onDeleteLine(line.id)} className="h-8 w-8"><Trash2 className="w-4 h-4 text-pl-danger-text" /></Button>
               </div>

@@ -36,11 +36,11 @@ export function reportableSkips(skipped) {
  */
 export function describeGridResult({ name, result, spec, depthUnit = 'ft', method = 'tps' }) {
   // MAP-U1-002: only TVDSS is an elevation; MD and TVD maps are attributes in metres below KB
-  const ref = !result.depthRef ? 'attribute'
+  const ref = result.zDomain === 'time' ? 'two-way time, ms' : !result.depthRef ? 'attribute'
     : result.depthRef === 'tvdss' ? `TVDSS elevation, ${depthUnit}`
       : `${DEPTH_REF_LABEL[result.depthRef]} below KB, m, an attribute`;
   const verb = method === 'kriging' ? 'Kriged' : 'Gridded';
-  const parts = [`${verb} ${name} (${ref}) from ${result.points.length} wells (${spec.nx}×${spec.ny}).`];
+  const parts = [`${verb} ${name} (${ref}) from ${result.points.length} ${result.sourceNoun || 'wells'} (${spec.nx}×${spec.ny}).`];
   const skips = reportableSkips(result.skipped);
   if (skips.length) {
     parts.push(`Skipped ${skips.length}: ${skips.map((s) => `${s.well} (${CONTROL_POINT_SKIP_REASONS[s.reason] || s.reason})`).join(', ')}.`);

@@ -281,3 +281,90 @@ Consumer fixes 030 to 033 are scheduled in their own apps: Earth Modeling (#7), 
 1. Does master_apps have a `contour-map-digitizer` row? The read-only check was not permitted from here. The route now also opens on a Mapping licence, so either answer is safe.
 2. For the 25 unprotected app routes (035), should one Suite-wide pass wrap them, each with its catalog slug?
 3. Should U2-007 (the shared reader door) land with Mapping batch A, so that Earth Modeling and RCP adopt it in their upgrades?
+
+## Batch decision (programme lead, 2026-09-30)
+
+Recorded verbatim:
+
+> BUILD in this order, one commit per item:
+> - Batch A: U2-007 FIRST: one shared "read a depth surface" helper (src/lib, next to surfacesRegistry) that returns a surface in canonical metres with its domain (elevation/depth/TWT/attribute/isochore), xy unit converted, rotation honoured, and refuses rows a consumer cannot use with the reason; Earth Modeling (#7) and ReservoirCalc Pro (#8) will adopt it in their own upgrades, so document its contract; adopt it inside Mapping now. Then U2-001 fault blocks in the tension spline and kriging; U2-004 fault polygon files as fault blocks; U2-002 PDF map plotted to scale (reviewer header, read back with pdftotext); U2-005 separate GOC/OWC and per-fault-block volumes (validate against an analytic geometry, negative control); U2-003 scattered points as a gridding source; U2-006 Digitizer drag-to-assign contour values. Also the small ones: MAP-U1-028 Digitizer /dev harness; MAP-U1-025 staircase map edge if S-sized.
+> - Batch B: U2-009 isopach; U2-012 kriging beyond the wells (with an honest extrapolation note); U2-013 section line across surfaces; U2-008 more depth-conversion methods LAST in B: it should consume Seismolord's layer-cake velocity models (Seismolord U2-006, being built now on feat/seis-u2): if that is merged to main by the time you get here, read its published contract; if not, build the other depth-conversion methods (average velocity from well tops, V0+kZ fitted to tops, velocity map) and leave a clearly named hook for the layer cake, and say so.
+> - Batch C: U2-017 .pld carries the re-grid archives.
+> DEFERRED (record reasons): U2-011 multigrid minimum curvature (L; the tension spline covers the demo; after NAPE, engines-first); U2-014 grid editor (M, after NAPE); U2-010 stochastic structural uncertainty (L; canonical Monte Carlo module when built); U2-015 Digitizer warp; U2-016 co-kriging; U2-019 live remapping; U2-020 storing the Digitizer image (RLS review); U2-018 the held geo_wells.status migration is the owner's apply.
+> Units: do not add new app-local unit preferences. If the Suite unit profile PR (branch feat/suite-unit-profile) has merged to main before you open your PR, adopt it in Mapping (initial depth unit from useUnitProfile; the in-app toggle becomes a view override) as a final item; otherwise leave Mapping's current behaviour and note it.
+
+Built on branch `feat/map-u2`. The build log per item follows in "Step 2 build (2026-09-30)".
+
+## The shared surface door: `readDepthSurface` (U2-007 contract)
+
+`src/lib/readDepthSurface.js`, beside `surfacesRegistry.js`. Earth Modeling (#7) and ReservoirCalc Pro (#8) adopt it in their own upgrades; Well Design and Simulation can take it for MAP-U1-031 and 032.
+
+```js
+readDepthSurface(row, grid, { accept, as = 'elevation', xy = 'native', requireProjected = true })
+// ok:      { ok: true, domain, grid, zUnit, spec, xyUnit, xyToM, cellAreaM2, crs, depthRef, nodeXY, sampleAt, live, notes }
+// refused: { ok: false, code, reason }
+```
+
+- `domain`:
+  - `elevation`: a depth row, negative below datum. `as: 'depth'` returns it positive down as `depth`.
+  - `time`: positive TWT in ms, whatever sign it was stored in.
+  - `isochore`: kind `isochore`, a positive vertical thickness.
+  - `attribute`: raw values. A `z_unit` of `ft` is converted to metres.
+- `grid` is a new Float32Array in metres for every length. `zUnit` is `m`, `ms` or the attribute's own unit.
+- `spec` keeps the row's frame (`xy: 'native'`) or is scaled to metres (`xy: 'm'`). `rotation_deg` is kept, and `nodeXY` and `sampleAt` honour it. `xyToM` is metres per map unit and `cellAreaM2` is the cell area in square metres.
+- Refusal codes:
+  - `grid`, `frame`: the grid or its frame is not usable.
+  - `domain`: the row is not in `accept`. The reason names the row's domain, the one needed and the way out.
+  - `z-unit`: a length in an unknown unit.
+  - `xy-unit`: an unknown unit, or a geographic frame when `requireProjected`.
+  - `empty`: no live node.
+- `notes` says what was assumed: no z domain, no depth unit, no CRS, or positive values on an elevation row. Show them to the user.
+
+## Step 2 build (2026-09-30)
+
+| Item | State | Proving test | Notes |
+|---|---|---|---|
+| U2-007 | Done | `src/lib/__tests__/readDepthSurface.test.js` (22): every saved release reads; feet and US-feet rows give one cell area in m² (negative control: dx·dy is 10.76x); rotation honoured (negative control: unrotated arithmetic is 100 m off); isochores stay positive (negative control: `surfaceZToDepthDown` negates them); TWT refused by a depth-only consumer with the way out; 8 hostile rows refused with reasons | `src/lib/readDepthSurface.js`. Mapping loads every registry grid through it (`loadSurfaceM`), and the status shows what it assumed about a legacy row. The contract is below. |
+| U2-001 | Done | Engines `mapping.u2.test.js` (gridBlocked reproduces each block's plane to float32 precision; negative control: unblocked tension and kriging smear the 100 m throw by more than 20 m). Suite `upgradeU2.test.js` through `gridSync` and the polygon tools: a 95 m-plus step one cell across the fault | Engines PR #289 (`blockedGridding.js`, `nodeMask` on both gridders), vendored at 15d907f. The workstation grids tension and kriging per fault block; the old refusals are gone; provenance method `tension-blocked` / `kriging-blocked`. |
+| U2-004 | Done | `upgradeU2.test.js`: the hostile Petrel ZMAP+ lines file reads as one closed polygon; ids, null rows and Irap `999` separators split polygons; the two-fault GeoJSON makes three block labels (negative control: the first feature alone makes two); a two-polygon boundary keeps the union | `src/lib/culturePolygonFiles.js` (ZMAP+ lines, Irap lines, `polygonRingsOf`). The shared Culture import dialog offers Fault polygons and Map boundary kinds, keeps closed polygons only and counts what it left out. Mapping grids with every ring of a row and clips to the union of a boundary's rings. |
+| U2-002 | Done | `mapPdf.test.js` (node, pdftotext): the header, source, method, field, analyst, date and build read back; the scale is proved from the printed easting labels (their spacing on paper equals the grid step x 1000 / N, on a metre frame and on a US-feet frame); negative control: the feet frame read as metres needs a 3.28x smaller scale; a typed scale that does not fit is refused with the one that does | `services/mapPdf.js`: `planMapPlot` (standard scales 1:1,000 to 1:1,000,000, A4/A3/A2 landscape) and `buildMapPdf` (vector contours with labels, fault and boundary polygons, wells, CRS grid, scale bar in metres, grid north, legend, title block). Ribbon PDF button; paper and scale in the dock. |
+| U2-005 | Done | `upgradeU2.test.js` against an analytic cone (z = -1800 - 0.1 r): gas cap within 1% and oil leg within 0.5% of pi (10 h)^2 h / 3; gas + oil = the closure engine's GRV to 1e-12; two blocks each hold half; negative control: one contact books the gas cap as oil (more than 10% high). e2e: the split table adds up and a GOC below the OWC is refused | `services/contactVolumes.js`. A GOC field beside the contact (now "OWC or contact"); a table of gas, oil and total per fault block (the ticked fault polygons); the prospect card carries the split. One GOC and OWC for every block; contacts per block are not modelled. |
+| U2-003 | Done | `upgradeU2.test.js`: the hostile rotated survey lattice (refused in U1) reads as points and grids to the fixture's crest of -1500 m within 20 m; feet, sign and TWT resolve as for a grid; negative control: a regular file still reads as a grid. e2e: import, Grid these points, publish | `surfaceFileDoor.scatteredPoints`, `importPlan.planPointsSource`. The import dialog offers "Grid these points"; the studio grids them with its own method, cell, extent, fault blocks and boundary. The U1 refusal test was updated (superseded). |
+| U2-006 | Done | `src/lib/digitizer/__tests__/dragAssign.test.js`: a drag from the crest values three rings in crossing order (negative control: the reverse drag reverses them); a drag through the dome keeps the first crossing and says so; typed values replaced are counted. e2e `contour-map-digitizer.spec.js` at 1366x768 and 1440x900: drop a scan, georeference, draw three rings, one drag values them 1500/1550/1600, grid, publish (crest -1500 m), save and reload | `src/lib/digitizer/dragAssign.js`; start value and step fields and "Drag to assign values" in Layers; values drawn on the scan. The browser walk found two defects, both fixed: closed contours (last vertex on the first) made the spline singular (the duplicates are merged within a tenth of a cell; negative control in the test), and at 390 wide the map had no height. The "open as Mapping's Import scanned map" half of the backlog row stays with the Digitizer page (linked from its Publish). |
+| MAP-U1-028 | Done | The digitizer e2e above runs on `/dev/contour-map-digitizer` | `src/lib/digitizer/digitizerBackend.js` (registry and in-memory backends with one contract); the hook takes the backend; the harness exposes `window.__DIGITIZER_BACKEND__`. |
+| MAP-U1-025 | Deferred | n/a | Not S-sized. T1 already draws the raster edge at the mask's 0.5 level; what remains is the node-resolution outline of the mask itself. A smooth edge needs a vector mask outline (marching squares on the live mask) used as a clip path in the map, the PNG and the PDF. After NAPE. |
+| U2-009 | Done | Engines `mapping.u2.test.js` (TST = TVT cos(dip) on a planar 20 degree layer to 1e-9; negative controls: a flat layer gives TST = TVT, a feet frame read as metres gives the wrong dip). Suite `upgradeU2.test.js`: 100 m of isochore on a 30 degree flank is 86.6 m of isopach (negative control: the isochore differs by more than 13 m); a US-feet frame gives the same; time, isochore and degree frames refuse | Engines `lib/gridding/isopach.js` (PR #289). Surface arithmetic has "Isopach"; the result is an attribute in metres named "isopach (true stratigraphic thickness, m)", so no reader takes it for a vertical isochore. The PL1 quantity table's isopach row is now computed. |
+| U2-012 | Done | Engines `mapping.u2.test.js`: with mask none the far node is the data mean and the variance exceeds the sill (negative control: the hull mask leaves it empty). Suite `upgradeU2.test.js`: the studio path reaches past the hull by the distance and no further. The T1 e2e that pinned the refusal now expects the map and its note | Kriging honours "Map beyond the wells by"; the variance is masked with the map; the status says that past the variogram range the map returns to the mean of the wells (or the regional plane when detrended) and the variance rises to the sill. |
+| U2-013 | Done | `upgradeU2.test.js`: a planar surface samples exactly along the line on a metre and a US-feet frame (negative control: the feet frame read as metres reports a 16.4 km section for 5 km); rotation honoured; nulls stay gaps; wells within the buffer posted at their distance; the vertical exaggeration arithmetic. e2e: a two-click line shows the chart with curves, KETA-1 and KETA-3, and the exaggeration note | `services/sectionLine.js`, `components/SectionChart.jsx` (white chartTheme, ChartLogo). The line stays drawn on the map. Up to five other depth structures in the same CRS are added, each read through `readDepthSurface`. |
+| U2-008 | Done (layer cake as a hook) | `upgradeU2.test.js`: V0 + kZ fitted to exact ties recovers V0 = 1800 m/s and k = 0.6 (negative control: a single velocity leaves more than 20 m of misfit); a velocity map converts node by node, a declared ft/s map gives the same depths, an undeclared ft/s map is refused; the layer-cake conversion equals Seismolord's `layercakeDepthM` node by node (negative control: without the boundary the second layer is never used). e2e: fitted conversion with the residual table, publish, and the layer cake's hook reason | `services/depthConversion.js`: `fitLinearVelocityToTops` (the forward model is Seismolord's `twtMsToDepthM`), `elevationFromVelocityMap`, `convertWithLayerCake`, and `LAYER_CAKE_HOOK`. Seismolord U2-006 (layer-cake models on `feat/seis-u2`) was NOT on main when this was built, so the hook returns the reason and the picker shows it; wiring it is one function once Seismolord publishes each boundary as a time surface. Checkshots as an input and a velocity QC plot stay in the backlog. |
+| U2-017 | Done | `src/lib/portability/__tests__/surfaceArchives.test.js`: a backup carries the grid and its archive; the import lands the archive beside the new grid with its bytes, rewrites the recorded path and leaves a path that is not beside the grid alone; negative control: an archive already gone at export is left out and the row still imports. All 94 portability tests pass | `geoscienceSpec` geo_surfaces `rowCompanions` / `rewriteCompanions`; `collect.js` and `importPackage.js` carry row-recorded companions. Restore's message now says only packages exported before this release lack the previous grids. |
+
+### Deferred by the batch decision (reasons)
+
+| Item | Reason |
+|---|---|
+| U2-011 multigrid minimum curvature | L. The spline in tension covers the demo. After NAPE, engines-first with an oracle. |
+| U2-014 grid editor | M. After NAPE. Guide points and contour moves stay the editing tools. |
+| U2-010 stochastic structural uncertainty | L. It waits for the canonical Monte Carlo module (ReservoirEngineering-Module section 5). The GRV range stays the fully correlated kriging shift, labelled as such. |
+| U2-015 Digitizer polynomial and thin-plate warp | Deferred by the decision. The least-squares affine with per-point misfit stays. |
+| U2-016 collocated co-kriging | Deferred by the decision. |
+| U2-019 live remapping | Deferred by the decision. Re-grid in place from the recorded source stays. |
+| U2-020 storing the Digitizer image | It needs a storage policy (RLS review, second engineer). Saved projects keep the image name and size and ask for the image on load. |
+| U2-018 geo_wells.status migration | The owner applies it. The app reads the column when it is present. |
+| MAP-U1-025 staircase map edge | Not S-sized (see its row above). After NAPE. |
+
+### Units
+
+The Suite unit profile (branch `feat/suite-unit-profile`) was not on main when this PR was opened (2026-09-30). It merged as PR #830 shortly after, and main was merged into this branch; per the batch decision the adoption was not added to this PR. Mapping keeps its current behaviour: the depth display unit is `mapping.depthUnit` per browser, together with the per-user `geoscience_settings.depth_unit`. No new app-local unit preference was added. The PDF paper and scale are plot settings, not units, and are not stored. The adoption stays a follow-up: take the initial depth unit from `useUnitProfile`, and make the in-app toggle a view override.
+
+### Build summary
+
+- Built: Batch A, all items (U2-007, U2-001, U2-004, U2-002, U2-005, U2-003, U2-006, MAP-U1-028).
+- Built: Batch B, all items (U2-009, U2-012, U2-013, U2-008). The U2-008 layer cake is a named hook, because Seismolord U2-006 is not on main.
+- Built: Batch C (U2-017).
+- Deferred: MAP-U1-025 (not S-sized).
+- Engines: PR #289 (gridding) merged. The Suite vendors canonical `bf8376b`, which also brings in PR #290, the test-only CI speed gate.
+- The browser walks found three new defects, all fixed in this branch:
+  - The Digitizer's spline was singular on closed contours.
+  - The Digitizer map had no height at 390 wide.
+  - A T1 e2e pinned the old kriging refusal; it now expects the kriged map and its note.

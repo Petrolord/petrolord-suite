@@ -5,7 +5,7 @@
 // scanned map lands in geo_surfaces under the registry convention
 // (elevation, negative below datum, unit per row). Pure planning, no I/O.
 
-import { gridSurface } from '@/lib/gridding/gridding';
+import { gridSurface, mergeCloseControls } from '@/lib/gridding/gridding';
 import { specForPoints } from '@/pages/apps/MappingSurfaceStudio/engine/surface';
 import { surfaceStats } from '@/lib/gridding/gridmath';
 
@@ -50,12 +50,25 @@ export function planDigitizedSurface(layers, pixelToWorld, { valuesAre = 'depth'
   const { points, lines, skipped } = contourControlPoints(layers, pixelToWorld, { valuesAre });
   if (lines < 2) throw new Error('Give at least two contour lines a value before gridding.');
   if (!(cellSize > 0)) throw new Error('Cell size must be a positive number in map units.');
-  const spec = specForPoints(points, cellSize);
+  // MAP-U2-006 (found by the new browser walk): a closed contour ends on its
+  // first vertex, and a hand-drawn line repeats points, so the control set
+  // held duplicates and the spline was singular ("collinear or duplicated").
+  // Points closer than a tenth of a cell carry no extra shape: merge them.
+  const merge = mergeCloseControls(points, 0.1 * cellSize);
+  const spec = specForPoints(merge.points, cellSize);
   if (spec.nx * spec.ny > 4_000_000) throw new Error('That cell size makes more than four million nodes. Use a larger cell.');
-  const result = gridSurface(points, spec, { maxExtrapolation: 2 * cellSize });
+  let result;
+  try {
+    result = gridSurface(merge.points, spec, { maxExtrapolation: 2 * cellSize });
+  } catch (e) {
+    throw new Error(/singular/.test(e.message)
+      ? 'The contour points cannot be gridded (they lie on one straight line). Digitize contours that cover an area.'
+      : String(e.message).replace(/\s*\u2014\s*/g, ': '));
+  }
   return {
     spec, grid: result.z, stats: surfaceStats(result.z),
     controlCount: result.controlCount, dropped: result.dropped, lines, skipped,
+    mergedPoints: points.length - merge.points.length,
   };
 }
 

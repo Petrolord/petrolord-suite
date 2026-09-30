@@ -15,6 +15,7 @@ export const REPORT_KEY = 'mapping.report';
 
 const METHOD_LABEL = {
   tps: 'thin-plate spline', 'tps-blocked': 'thin-plate spline by fault block', kriging: 'ordinary kriging', tension: 'spline in tension',
+  'tension-blocked': 'spline in tension by fault block', 'kriging-blocked': 'ordinary kriging by fault block',
 };
 
 /** One phrase for where the surface came from. */

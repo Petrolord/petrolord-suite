@@ -117,7 +117,8 @@ function cleanXyz(text, notes) {
 
 /**
  * @param {string} text the file
- * @returns {{g:{format,nx,ny,x0,y0,dx,dy,z,rotation_deg?}, notes:string[], hint:{zUnit:?string, domain:?string}}}
+ * @returns {{g:?{format,nx,ny,x0,y0,dx,dy,z,rotation_deg?}, points?:Array<{x,y,z}>, notes:string[], hint:{zUnit:?string, domain:?string}}}
+ *   g is null and points is set when the rows are not a regular grid (MAP-U2-003)
  */
 export function readSurfaceFile(text) {
   try { return readSurfaceFileRaw(text); } catch (e) {
@@ -130,7 +131,7 @@ function readSurfaceFileRaw(text) {
   const src = String(text || '').replace(/^﻿/, '');
   if (!src.trim()) throw new Error('The file is empty.');
   if (ZMAP_NOT_GRID.test(src)) {
-    throw new Error('This is a ZMAP+ lines file (fault polygons, contours or points), not a grid. Import grids here; bring fault polygons in through Culture layers as GeoJSON or a shapefile.');
+    throw new Error('This is a ZMAP+ lines file (fault polygons, contours or points), not a grid. Import grids here; bring fault polygons in through Culture layers (Import reads ZMAP+ lines, Irap lines, GeoJSON and shapefiles).');
   }
   const notes = [];
   const fmt = detectSurfaceFormat(src);
@@ -141,8 +142,24 @@ function readSurfaceFileRaw(text) {
     return { g: parseSurfaceFile(clean, 'xyz'), notes, hint };
   } catch (e) {
     if (/not regularly spaced|collapse the grid axis/.test(e.message)) {
-      throw new Error('The points are not on a regular X/Y grid (a rotated seismic lattice or scattered picks). Export a gridded file (CPS-3, ZMAP+ or Irap classic) from the source tool; gridding scattered points from a file is not in this version.');
+      // MAP-U2-003: scattered picks or a rotated seismic lattice become a
+      // gridding source (the points, not a grid); the dialog grids them
+      const points = scatteredPoints(clean);
+      if (points.length < 3) throw new Error('The points are not on a regular X/Y grid and there are fewer than 3 of them to grid.');
+      notes.push(`Not a regular X/Y grid (a rotated seismic lattice or scattered picks): ${points.length.toLocaleString('en-US')} points to grid.`);
+      return { g: null, points, notes, hint };
     }
     throw e;
   }
+}
+
+/** Clean "x y z" rows as points; null z (1e30, the Irap and Petrel nulls) dropped. */
+export function scatteredPoints(clean) {
+  const out = [];
+  for (const line of String(clean).split('\n')) {
+    const [x, y, z] = line.trim().split(/\s+/).map(Number);
+    if (![x, y, z].every(Number.isFinite) || Math.abs(z) >= 1e29 || z === 9999900 || z === -99999) continue;
+    out.push({ x, y, z });
+  }
+  return out;
 }
