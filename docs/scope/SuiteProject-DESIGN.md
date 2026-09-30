@@ -194,14 +194,22 @@ S under a day, M two to four days, L a week or more.
 | Users confused by a new header control | One default project per organisation, so nothing changes until someone creates a second project |
 | Deep links from before P1 | Links without `?project=` open in the current project |
 
-## 11. Decisions for the owner
+## 11. Decisions (owner delegated to the programme lead, 2026-09-30)
 
-1. Default visibility of a new project: open to the whole organisation, or
-   members only? (Proposed: open to the organisation, with members-only as
-   an option for client-confidential work.)
-2. May an organisation admin see every project, including members-only
-   ones? (Proposed: yes, for governance, and it is logged.)
-3. Is a project a commercial unit (seat or project limits per plan), or
-   purely organisational? (Proposed: purely organisational at launch.)
-4. Should `strat_zone_schemes` and other reference libraries stay
-   organisation-wide? (Proposed: yes; projects reference them.)
+The owner asked for the pending items to be executed; these four were
+decided on the proposals below and are binding for P0 to P4.
+
+1. **Default visibility: open to the whole organisation.** A project can be
+   switched to members only, for client-confidential work (consultancies,
+   joint ventures). The switch is recorded with who changed it and when.
+2. **Organisation admins can see every project, members-only included,**
+   for governance. An admin opening a members-only project they are not a
+   member of is logged (project, admin, time), and the project owner can
+   see that log.
+3. **Projects are purely organisational at launch.** No project limits or
+   per-project charges in any plan; licensing stays per organisation and
+   per app. Revisit only with pricing data.
+4. **Reference libraries stay organisation-wide:** biozone schemes
+   (`strat_zone_schemes`), unit profiles, custom CRS definitions and the
+   timescale tables. Projects reference them and may pin a choice (for
+   example the timescale edition) in their settings.
