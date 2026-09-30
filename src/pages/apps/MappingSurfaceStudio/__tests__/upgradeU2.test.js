@@ -43,3 +43,57 @@ describe('MAP-U2-001: fault blocks with the spline in tension and kriging', () =
     expect(worst(k.z)).toBeGreaterThan(20);
   });
 });
+
+describe('MAP-U2-004: fault polygon files become fault blocks', () => {
+  // eslint-disable-next-line global-require
+  const fs = require('fs');
+  // eslint-disable-next-line global-require
+  const path = require('path');
+  const { parsePolygonLinesFile, parseZmapLines, parseIrapLines, polygonRingsOf, detectPolygonFileFormat } = require('@/lib/culturePolygonFiles');
+  const { parseGeoJSON } = require('@/lib/cultureImport');
+  const { maskOutsideRings } = require('../services/polygonTools');
+  const hostile = (f) => fs.readFileSync(path.join(process.cwd(), 'e2e/fixtures/map/hostile', f), 'utf8');
+
+  test('the Petrel ZMAP+ lines export reads as one closed fault polygon', () => {
+    const r = parsePolygonLinesFile(hostile('petrel_fault_polygons_zmap_lines.dat'));
+    expect(r.format).toBe('zmap-lines');
+    expect(r.features).toHaveLength(1);
+    expect(r.features[0].type).toBe('polygon');
+    expect(polygonRingsOf(r.features)[0]).toEqual([[501700, 6699200], [501800, 6699200], [501900, 6700800], [501800, 6700800]]);
+  });
+
+  test('two polygons by id or by null rows, and Irap lines with 999 separators', () => {
+    const z = parseZmapLines(['@F HEADER, POLYGON, 4', '20, -999, , 4, 1', '@',
+      '0 0 1 1', '10 0 1 1', '10 10 1 1', '0 0 1 1',
+      '20 0 1 2', '30 0 1 2', '30 10 1 2', '20 0 1 2',
+      '-999 -999 -999 2', '40 0 1 2', '41 5 1 2'].join('\n'));
+    expect(z.features.map((f) => f.type)).toEqual(['polygon', 'polygon', 'polyline']); // two points cannot close
+    const lineSet = parseZmapLines(['@Traces HEADER, LINE, 4', '20, 1E+30, , 4, 1', '@', '0 0 1 1', '10 5 1 1'].join('\n'));
+    expect(lineSet.features[0].type).toBe('polyline');
+    const irap = parseIrapLines(['0 0 -1500', '100 0 -1500', '100 100 -1500', '0 0 -1500', '999.000000 999.000000 999.000000', '200 0 -1', '300 50 -1', '999 999 999'].join('\n'));
+    expect(irap.features.map((f) => f.type)).toEqual(['polygon', 'polyline']);
+    expect(detectPolygonFileFormat('999 999 999\n1 2 3')).toBe('irap-lines');
+    expect(() => parsePolygonLinesFile('X,Y,Z\n1,2,3')).toThrow(/ZMAP\+ lines .* Irap classic lines/);
+    expect(() => parseZmapLines('@F HEADER, POLYGON\n20, 1E+30')).toThrow(/closing @/);
+  });
+
+  test('every polygon of a two-fault GeoJSON is a block (the map used only the first)', () => {
+    const feats = parseGeoJSON(hostile('fault_polygons_two.geojson')).features;
+    const rings = polygonRingsOf(feats);
+    expect(rings).toHaveLength(2);
+    const s = { x0: 501500, y0: 6699000, dx: 50, dy: 50, nx: 41, ny: 41 };
+    const labels = nodeBlocksFor(s, rings);
+    expect(new Set(labels)).toEqual(new Set([0, 1, 2]));
+    // negative control: the first feature alone gives two labels
+    expect(new Set(nodeBlocksFor(s, rings.slice(0, 1)))).toEqual(new Set([0, 1]));
+  });
+
+  test('a boundary with two polygons keeps the union', () => {
+    const s = { x0: 0, y0: 0, dx: 10, dy: 10, nx: 11, ny: 3 };
+    const z = new Float32Array(33).fill(-1500);
+    const out = maskOutsideRings(z, s, [[[-5, -5], [25, -5], [25, 25], [-5, 25]], [[75, -5], [105, -5], [105, 25], [75, 25]]]);
+    const kept = Array.from(out).filter((v) => !isNull(v)).length;
+    expect(kept).toBe(3 * 3 + 3 * 3);
+    expect(() => maskOutsideRings(z, s, [])).toThrow(/boundary/);
+  });
+});

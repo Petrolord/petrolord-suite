@@ -5,6 +5,7 @@
 
 import { resampleTo, combine, thickness, scalarAdd, maskOutsidePolygon } from '../engine/surface';
 import { specOfSurface, isLengthSurface } from './surfaceExport';
+import { maskOutsideRings } from './polygonTools';
 
 const isNull = (v) => !Number.isFinite(v) || Math.abs(v) >= 1e29;
 
@@ -52,7 +53,7 @@ export function runArithmetic({ op, a, b = null, k = null, boundary = null }) {
     zB = resampleTo(b.grid, specOfSurface(b.surface), spec);
   }
   if (def.needsK && !Number.isFinite(Number(k))) throw new Error('Type a number for k.');
-  if (def.needsBoundary && !(boundary?.ring?.length >= 3)) throw new Error('Pick a boundary polygon.');
+  if (def.needsBoundary && !(boundary?.ring?.length >= 3) && !(boundary?.rings?.length)) throw new Error('Pick a boundary polygon.');
   const kk = Number(k);
   let grid;
   let name;
@@ -65,7 +66,7 @@ export function runArithmetic({ op, a, b = null, k = null, boundary = null }) {
     case 'max': grid = elementwise(a.grid, zB, Math.min); name = `deeper of ${a.surface.name} and ${b.surface.name}`; break;
     case 'scalarAdd': grid = scalarAdd(a.grid, kk); name = `${a.surface.name} ${kk >= 0 ? '+' : '-'} ${Math.abs(kk)}`; break;
     case 'scalarMultiply': grid = elementwise(a.grid, a.grid, (v) => v * kk); name = `${a.surface.name} × ${kk}`; break;
-    case 'clip': grid = maskOutsidePolygon(a.grid, spec, boundary.ring); name = `${a.surface.name} clipped to ${boundary.name}`; break;
+    case 'clip': grid = boundary.rings ? maskOutsideRings(a.grid, spec, boundary.rings) : maskOutsidePolygon(a.grid, spec, boundary.ring); name = `${a.surface.name} clipped to ${boundary.name}`; break;
     default: throw new Error(`Unknown surface operation "${op}".`);
   }
   const { kind, zDomain } = resultKind(op, a.surface);

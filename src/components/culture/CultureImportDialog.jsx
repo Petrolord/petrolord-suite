@@ -23,6 +23,7 @@ import {
   parseGeoJSON, parseShapefile, reprojectFeatures, featuresBBox, geometryTypeOf,
 } from '@/lib/cultureImport';
 import { saveCulture } from '@/lib/cultureRegistry';
+import { parsePolygonLinesFile } from '@/lib/culturePolygonFiles';
 
 
 const KINDS = [
@@ -31,7 +32,13 @@ const KINDS = [
   { key: 'pipeline', label: 'Pipelines' },
   { key: 'coastline', label: 'Coastline' },
   { key: 'other', label: 'Other culture' },
+  // MAP-U2-004: the kinds Mapping & Surface Studio grids with
+  { key: 'fault_polygon', label: 'Fault polygons (fault blocks)' },
+  { key: 'boundary', label: 'Map boundary' },
 ];
+/** Kinds that must be closed polygons; lines and points are left out and counted. */
+const POLYGON_ONLY = { fault_polygon: '#eab308', boundary: '#22d3ee' };
+const LINES_FILE = /\.(dat|txt|pol|lin|lines|irap|zmap)$/i;
 
 const COLORS = ['#f59e0b', '#22d3ee', '#a3e635', '#f472b6', '#e2e8f0', '#fb7185', '#38bdf8'];
 
@@ -116,13 +123,19 @@ export default function CultureImportDialog({ open, onOpenChange, onImported }) 
         if (prj) prjText = (await prj.text()).slice(0, 400);
         format = 'shapefile';
         fileName = shp.name;
+      } else if (files.find((f) => LINES_FILE.test(f.name))) {
+        const lf = files.find((f) => LINES_FILE.test(f.name));
+        result = parsePolygonLinesFile(await lf.text());
+        format = result.format;
+        fileName = lf.name;
+        if (result.features.some((f) => f.type === 'polygon')) setKind('fault_polygon');
       } else {
-        throw new Error('Pick a .geojson/.json file, a zipped shapefile, or .shp (+.dbf).');
+        throw new Error('Pick a .geojson/.json file, a zipped shapefile, .shp (+.dbf), or Petrel ZMAP+ lines or Irap lines polygons (.dat, .txt, .pol).');
       }
 
       if (!result.features.length) throw new Error('The file contains no usable features.');
       setParsed({ ...result, fileName, format, prjText });
-      setName(fileName.replace(/\.(zip|shp|geojson|json)$/i, ''));
+      setName(fileName.replace(/\.(zip|shp|geojson|json|dat|txt|pol|lin|lines|irap|zmap)$/i, ''));
       setLabelField('');
     } catch (e) {
       toast({ title: 'Could not read the file', description: e.message, variant: 'destructive' });
@@ -147,6 +160,12 @@ export default function CultureImportDialog({ open, onOpenChange, onImported }) 
       const projTag = project ? normalizeTag(project.tag) : UNKNOWN;
       const customDefs = project?.customDefs || {};
       let features = parsed.features;
+      let dropped = 0;
+      if (POLYGON_ONLY[kind]) {
+        features = features.filter((f) => f.type === 'polygon');
+        dropped = parsed.features.length - features.length;
+        if (!features.length) throw new Error('This file has no closed polygons, so it cannot be fault blocks or a boundary. Import it as other culture.');
+      }
       let storedTag = declared;
       let converted = false;
       if (declared !== LOCAL && projTag !== UNKNOWN && declared !== projTag
@@ -165,7 +184,7 @@ export default function CultureImportDialog({ open, onOpenChange, onImported }) 
         features: labelField
           ? features.map((f) => ({ ...f, label: f.props?.[labelField] != null ? String(f.props[labelField]) : null }))
           : features,
-        style: { color, weight: 1, label_field: labelField || null },
+        style: { color: POLYGON_ONLY[kind] || color, weight: POLYGON_ONLY[kind] ? 1.5 : 1, label_field: labelField || null },
         crs: storedTag === UNKNOWN ? null : storedTag,
         xyUnit: storedTag === projTag ? (project?.xyUnit || 'm') : null,
         crsProvenance: converted ? 'converted_on_import' : 'declared_on_import',
@@ -176,13 +195,15 @@ export default function CultureImportDialog({ open, onOpenChange, onImported }) 
             format: parsed.format,
             declared_crs: declared,
             skipped: parsed.skipped,
+            ...(dropped ? { not_polygons: dropped } : {}),
           },
           converted,
         },
       });
       toast({
         title: 'Culture layer imported',
-        description: `${row.name}: ${summarize(parsed.features)}`
+        description: `${row.name}: ${summarize(features)}`
+          + `${dropped ? ` (${dropped} line or point feature${dropped === 1 ? '' : 's'} left out: not closed polygons)` : ''}`
           + `${converted ? `, converted to ${storedTag}` : ''}.`,
       });
       if (onImported) onImported(row);
@@ -207,12 +228,12 @@ export default function CultureImportDialog({ open, onOpenChange, onImported }) 
         <div className="space-y-3 text-sm">
           <label className="block">
             <span className="text-xs text-pl-muted">
-              GeoJSON, zipped shapefile, or .shp with its .dbf/.prj
+              GeoJSON, zipped shapefile, .shp with its .dbf/.prj, or Petrel ZMAP+ lines and Irap lines polygons
             </span>
             <input
               type="file"
               multiple
-              accept=".geojson,.json,.zip,.shp,.dbf,.prj"
+              accept=".geojson,.json,.zip,.shp,.dbf,.prj,.dat,.txt,.pol,.lin,.lines,.irap,.zmap"
               onChange={(e) => handleFiles(e.target.files)}
               className="mt-1 block w-full text-xs text-pl-text file:mr-3 file:rounded-md file:border file:border-pl-border-strong file:bg-pl-sunken file:px-3 file:py-1.5 file:text-xs file:text-pl-text"
             />

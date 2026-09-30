@@ -37,6 +37,7 @@ import {
 } from '../services/surfaceExport';
 import { mergeCloseControls } from '@/lib/gridding/gridding';
 import { readDepthSurface } from '@/lib/readDepthSurface';
+import { polygonRingsOf } from '@/lib/culturePolygonFiles';
 import { runGridding } from '../services/gridRunner';
 import { extentMask } from '../services/extent';
 import { convertWithWellVelocity, correctToWells, wellDepthsForTop, mapResiduals, residualStats } from '../services/wellTieDepth';
@@ -44,7 +45,7 @@ import ResidualTable from './ResidualTable';
 import { prospectCardPng } from '../services/prospectCard';
 import { GRID_METHODS, fitVariogramFromPoints, krigingOptions, describeVariogram } from '../services/krigingPlan';
 import {
-  polygonPayload, blocksForPoints, nodeBlocksFor, ringOf, isPolygonLayer, POLYGON_KINDS, POLYGON_KIND_LABEL, STRAT_POLYGON_KINDS,
+  polygonPayload, blocksForPoints, nodeBlocksFor, maskOutsideRings, isPolygonLayer, POLYGON_KINDS, POLYGON_KIND_LABEL, STRAT_POLYGON_KINDS,
 } from '../services/polygonTools';
 import { runArithmetic, ARITH_OPS } from '../services/arithmetic';
 import { quickGrv, describeGrv, interpretContact, nodeAt } from '../services/quickGrv';
@@ -283,16 +284,17 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
   const faultRows = useMemo(() => polygonRows.filter((c) => c.kind === POLYGON_KINDS.fault), [polygonRows]);
   const boundaryRows = useMemo(() => polygonRows.filter((c) => c.kind === POLYGON_KINDS.boundary), [polygonRows]);
 
-  /** Ring of a polygon row, downloading its features once. */
-  const ringFor = useCallback(async (row) => {
+  /** Every polygon ring of a row, downloading its features once. MAP-U2-004:
+   *  a fault polygon file carries many faults in one row; each is a block. */
+  const ringsFor = useCallback(async (row) => {
     let feats = cultureFeatures.get(row.id);
     if (!feats) {
       feats = await backend.downloadCultureFeatures(row);
       setCultureFeatures((m) => new Map(m).set(row.id, feats));
     }
-    const ring = ringOf(feats[0]);
-    if (ring.length < 3) throw new Error(`${row.name} has no polygon ring.`);
-    return ring;
+    const rings = polygonRingsOf(feats);
+    if (!rings.length) throw new Error(`${row.name} has no polygon ring.`);
+    return rings;
   }, [backend, cultureFeatures]);
 
   const topNames = useMemo(() => {
@@ -457,7 +459,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       // extrapolation limit (2 cells) is a seismic-pick-density setting
       // and leaves a well-spaced map in patches.
       const faults = faultRows.filter((r) => gridFaultIds.has(r.id));
-      const rings = await Promise.all(faults.map(ringFor));
+      const rings = (await Promise.all(faults.map(ringsFor))).flat();
       let g;
       let kriged = null;
       if (gridMethod === 'kriging') {
@@ -495,7 +497,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       setHullOverlay(reach ? reach.ring : null);
       const boundary = boundaryRows.find((r) => r.id === clipBoundaryId) || null;
       let z = g.z;
-      if (boundary) z = maskOutsidePolygon(z, spec, await ringFor(boundary));
+      if (boundary) z = maskOutsideRings(z, spec, await ringsFor(boundary));
       g = { ...g, z };
       // The map inherits its CRS from the wells it was gridded from:
       // any disagreement or unknown well leaves the map unverified
@@ -538,7 +540,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       const extras = [
         kriged ? describeVariogram(kriged) : null,
         kriged && g.merged ? `${g.merged} duplicate location${g.merged === 1 ? '' : 's'} averaged` : null,
-        faults.length ? `${faults.length} fault-block polygon${faults.length === 1 ? '' : 's'}` : null,
+        rings.length ? `${rings.length} fault-block polygon${rings.length === 1 ? '' : 's'}` : null,
         g.skippedBlocks ? `${g.skippedBlocks} block${g.skippedBlocks === 1 ? '' : 's'} with fewer than 3 control points left empty` : null,
         boundary ? `clipped to ${boundary.name}` : null,
         gridMethod === 'tension' && !kriged ? `spline in tension ${tensionOpts.tension}${tensionOpts.smoothing ? `, smoothing ${tensionOpts.smoothing}` : ''}` : null,
@@ -753,7 +755,8 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       if (def?.needsBoundary) {
         const row = boundaryRows.find((r) => r.id === clipBoundaryId);
         if (!row) throw new Error('Pick a boundary polygon in the Polygons section.');
-        boundary = { id: row.id, name: row.name, ring: await ringFor(row) };
+        const rings = await ringsFor(row);
+        boundary = { id: row.id, name: row.name, ring: rings[0], rings };
       }
       const r = runArithmetic({ op: arith.op, a: { surface: a, grid: ga }, b: b ? { surface: b, grid: gb } : null, k: arith.k, boundary });
       snapshot();

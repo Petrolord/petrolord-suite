@@ -211,6 +211,13 @@ export default function MappingHelpGuide() {
           the status says so. Fault-block polygons are saved to the shared culture registry, so Earth Modeling
           and Seismolord can read them later.
         </Para>
+        <SubHeading>Bring fault polygons from Petrel or RMS</SubHeading>
+        <Para>
+          Culture, Import reads GeoJSON, shapefiles, Petrel ZMAP+ lines and Irap classic lines. Pick Fault polygons
+          (fault blocks) or Map boundary as the kind: every closed polygon in the file is kept (a file with twelve
+          faults makes twelve blocks), and open lines or points are left out and counted in the message. Tick the
+          layer in Polygons and Grid as usual.
+        </Para>
         <SubHeading>Boundaries</SubHeading>
         <Para>
           Polygons, Boundary: draw a lease, licence or area of interest and mark it clip. Gridding nulls every
