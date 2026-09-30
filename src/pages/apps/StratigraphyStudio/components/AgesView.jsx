@@ -86,8 +86,24 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
     try {
       const userId = backend.currentUserId ? await backend.currentUserId() : null;
       const { row, problems: notes, layerCount, datedCount, erosionCount } = buildBasinModelRow({ well, tops, intervals, userId });
-      await backend.createBasinModel(row);
-      onStatus(`Basin model "${row.name}" created: ${layerCount} layers, ${datedCount} dated, ${erosionCount} erosion event${erosionCount === 1 ? '' : 's'}${notes.length ? `. ${notes[0]}` : '.'}`);
+      // STRAT-U2-018 (U1-032): the model this studio made for the well before is
+      // updated in place (layers, erosion, location); what the modeller set in
+      // Basin (name, heat flow, calibration, scenarios) is kept
+      const existing = backend.listBasinModels
+        ? (await backend.listBasinModels()).find((m) => m.settings?.registryWellId === well.id && m.settings?.fromStratigraphyStudio)
+        : null;
+      const counts = `${layerCount} layers, ${datedCount} dated, ${erosionCount} erosion event${erosionCount === 1 ? '' : 's'}`;
+      if (existing && backend.updateBasinModel) {
+        await backend.updateBasinModel(existing.id, {
+          stratigraphy: row.stratigraphy, erosion_events: row.erosion_events, location_coords: row.location_coords,
+          settings: { ...(existing.settings || {}), registryWellName: row.settings.registryWellName, registryKbM: row.settings.registryKbM, fromStratigraphyStudio: row.settings.fromStratigraphyStudio },
+          thermal_history: null, updated_at: row.updated_at,
+        });
+        onStatus(`Basin model "${existing.name}" updated in place: ${counts}; its heat flow, calibration and scenarios were kept, and its thermal history cleared until you run it again in Basin${notes.length ? `. ${notes[0]}` : '.'}`);
+      } else {
+        await backend.createBasinModel(row);
+        onStatus(`Basin model "${row.name}" created: ${counts}${notes.length ? `. ${notes[0]}` : '.'}`);
+      }
     } catch (e) { onStatus(e.message); } finally { setBusy(false); }
   };
 

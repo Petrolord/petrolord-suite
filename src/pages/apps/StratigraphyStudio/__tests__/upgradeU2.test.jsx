@@ -601,3 +601,31 @@ describe('STRAT-U2-016 suggest-only sequence surfaces', () => {
     expect(onStatus).toHaveBeenCalledWith(expect.stringMatching(/Accepted: MFS picked on KETA-1 at 1[56]\d\d(\.\d+)? m MD \(low confidence until you confirm it\)/));
   }, 120000);
 });
+
+describe('STRAT-U2-018 tidy-ups', () => {
+  test('Send to Basin updates the model it made for the well in place and keeps what the modeller set (origin/main: a new model per click)', async () => {
+    const AgesView = jest.requireActual('../components/AgesView').default;
+    const b = makeInMemoryBackend();
+    const well = (await b.listWells()).find((w) => w.id === 'corr-w1');
+    const onStatus = jest.fn();
+    const props = { well, tops: await b.listTops('corr-w1'), intervals: await b.listIntervals('corr-w1'), backend: b, onStatus, onTopsChanged: async () => {} };
+    const { rerender } = render(<MemoryRouter><AgesView {...props} /></MemoryRouter>);
+    fireEvent.click(screen.getByTestId('strat-send-basin'));
+    await waitFor(() => expect(onStatus).toHaveBeenLastCalledWith(expect.stringMatching(/created/)));
+    const [first] = await b.listBasinModels();
+    await b.updateBasinModel(first.id, { name: 'KETA-1 burial (edited in Basin)', heat_flow: { type: 'constant', value: 72, history: [] }, thermal_history: { run: 1 } });
+    rerender(<MemoryRouter><AgesView {...props} /></MemoryRouter>);
+    fireEvent.click(screen.getByTestId('strat-send-basin'));
+    await waitFor(() => expect(onStatus).toHaveBeenLastCalledWith(expect.stringMatching(/Basin model "KETA-1 burial \(edited in Basin\)" updated in place: .*heat flow, calibration and scenarios were kept, and its thermal history cleared/)));
+    const all = (await b.listBasinModels()).filter((m) => m.settings?.registryWellId === 'corr-w1');
+    expect(all).toHaveLength(1);
+    expect(all[0].heat_flow.value).toBe(72);
+    expect(all[0].thermal_history).toBeNull();
+  });
+
+  test('the Exxon display explains its two sequence-boundary variants', () => {
+    const Glossary = jest.requireActual('../components/Glossary').default;
+    render(<Glossary scheme="exxon" />);
+    expect(screen.getByTestId('strat-exxon-cc-note').textContent).toMatch(/SB \(cc\) is the correlative conformity at the END of forced regression .* SB \(P&A\) is the basal surface of forced regression at its ONSET/);
+  });
+});

@@ -214,6 +214,9 @@ export function makeInMemoryBackend({ sample = true, seedWells = [], sections: s
     async currentUserId() { return 'user-a'; },
     async createBasinModel(row) { basinModels.push({ ...row }); await basin.insertWell({ ...row }); return { ...row }; },
     _basinModels: () => basinModels,
+    // STRAT-U2-018 (U1-032): one Basin model per well, updated in place
+    listBasinModels: () => basin.listWells(),
+    async updateBasinModel(id, patch) { await basin.updateWell(id, patch); const m = basinModels.find((r) => r.id === id); if (m) Object.assign(m, patch); },
 
     async listUnits() { return units.map((u) => ({ ...u })); },
 

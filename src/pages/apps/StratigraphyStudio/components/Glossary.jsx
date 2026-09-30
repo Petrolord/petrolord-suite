@@ -55,6 +55,15 @@ export default function Glossary({ scheme, compact = false }) {
           Stored in the Catuneanu scheme. The display option relabels them; it never changes what is stored.
           {scheme === 'exxon' ? ' Exxon labels are shown; where Exxon has no term the Catuneanu name carries a badge.' : ''}
         </p>
+        {/* STRAT-U2-018 (U1-026) */}
+        {scheme === 'exxon' && (
+          <p className="text-pl-muted mb-2" data-testid="strat-exxon-cc-note">
+            Under the Exxon display two surfaces read as sequence-boundary variants. SB (cc) is the
+            correlative conformity at the END of forced regression (Hunt and Tucker 1992, stored CC); SB (P&amp;A) is the basal
+            surface of forced regression at its ONSET, where Posamentier and Allen place the sequence boundary (stored BSFR).
+            A Vail-school interpreter who expects one SB types the one their school uses; the tracts follow the stored code.
+          </p>
+        )}
         <table className="text-xs">
           <thead>
             <tr>
