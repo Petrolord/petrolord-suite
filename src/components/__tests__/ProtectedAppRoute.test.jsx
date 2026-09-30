@@ -50,3 +50,32 @@ test('the gate stops reading once it has an answer', async () => {
   // A loop shows up as a count that keeps climbing while nothing else happens.
   expect(mockInvoke.mock.calls.length).toBe(afterFirstSettle);
 });
+
+// MAP-U1-004: the Contour Map Digitizer rides on a Mapping licence as well
+// as its own slug; the route used to be served to anyone signed in.
+describe('a companion route opens on any of its licences', () => {
+  test('a Mapping licence opens the digitizer', async () => {
+    mockInvoke.mockResolvedValue({ data: { accessible_app_ids: ['mapping-surface-studio'], entitlements: [] }, error: null });
+    render(<ProtectedAppRoute appId={['contour-map-digitizer', 'mapping-surface-studio']} appName="Contour Map Digitizer"><div>DIGITIZER</div></ProtectedAppRoute>);
+    await tick(300);
+    expect(screen.getByText('DIGITIZER')).toBeTruthy();
+  });
+
+  test('neither licence: access restricted, the tool never renders', async () => {
+    mockInvoke.mockResolvedValue({ data: { accessible_app_ids: ['well-correlation'], entitlements: [] }, error: null });
+    render(<ProtectedAppRoute appId={['contour-map-digitizer', 'mapping-surface-studio']} appName="Contour Map Digitizer"><div>DIGITIZER</div></ProtectedAppRoute>);
+    await tick(300);
+    expect(screen.queryByText('DIGITIZER')).toBeNull();
+    expect(screen.getByText('Access Restricted')).toBeTruthy();
+  });
+
+  test('App.jsx wraps the digitizer route', () => {
+    // eslint-disable-next-line global-require
+    const fs = require('fs');
+    // eslint-disable-next-line global-require
+    const path = require('path');
+    const app = fs.readFileSync(path.join(process.cwd(), 'src/App.jsx'), 'utf8');
+    const line = app.split('\n').find((l) => l.includes('path="apps/geoscience/contour-map-digitizer"'));
+    expect(line).toContain("<ProtectedAppRoute appId={['contour-map-digitizer', 'mapping-surface-studio']}");
+  });
+});

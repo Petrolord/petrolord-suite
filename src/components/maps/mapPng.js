@@ -5,15 +5,18 @@
 
 /**
  * @param {{paint:(ctx:CanvasRenderingContext2D)=>void, width:number, height:number,
- *   title:string, caption?:string, scale?:number, logoSrc?:string}} p
+ *   title:string, caption?:string|string[], scale?:number, logoSrc?:string}} p
  *   `paint` draws the CSS-px scene onto a context already scaled by `scale`.
  * @returns {Promise<Blob>}
  */
 export function mapPlotPng({
   paint, width, height, title, caption = '', scale = 2, logoSrc = '/petrolord-chart-watermark.png',
 }) {
+  // MAP-U1-013: several caption lines (the reviewer's header), or one
+  const lines = (Array.isArray(caption) ? caption : [caption]).filter(Boolean);
+  const bandCss = 34 + 14 * lines.length;
   return new Promise((resolve, reject) => {
-    const headerH = Math.round((caption ? 48 : 34) * scale);
+    const headerH = Math.round(bandCss * scale);
     const out = document.createElement('canvas');
     out.width = Math.round(width * scale);
     out.height = Math.round(height * scale) + headerH;
@@ -25,11 +28,15 @@ export function mapPlotPng({
     ctx.fillStyle = '#0f172a';
     ctx.font = `bold ${Math.round(12 * scale)}px sans-serif`;
     ctx.fillText(title, Math.round(10 * scale), Math.round(22 * scale));
-    if (caption) {
-      ctx.fillStyle = '#475569';
-      ctx.font = `${Math.round(10 * scale)}px sans-serif`;
-      ctx.fillText(caption, Math.round(10 * scale), Math.round(38 * scale));
-    }
+    ctx.fillStyle = '#475569';
+    ctx.font = `${Math.round(10 * scale)}px sans-serif`;
+    const maxW = out.width - Math.round(150 * scale); // clear of the logo
+    lines.forEach((line, i) => {
+      // clip in JS: canvas text does not ellipsize (the RCP export lesson)
+      let t = String(line);
+      while (t.length > 4 && ctx.measureText(t).width > maxW) t = `${t.slice(0, -4)}...`;
+      ctx.fillText(t, Math.round(10 * scale), Math.round((38 + 14 * i) * scale));
+    });
     ctx.save();
     ctx.translate(0, headerH);
     ctx.scale(scale, scale);
@@ -45,7 +52,7 @@ export function mapPlotPng({
     logo.onload = () => {
       // in the white title band, top right (Mapping T1 MAP-T1-010): over the
       // map's bottom-right corner it covered the colour bar's CI label
-      const h = Math.round(Math.min(28, (caption ? 48 : 34) - 10) * scale);
+      const h = Math.round(Math.min(28, bandCss - 10) * scale);
       const w = Math.round(h * (logo.naturalWidth / (logo.naturalHeight || 1)));
       ctx.drawImage(logo, out.width - w - Math.round(10 * scale), Math.round((headerH - h) / 2), w, h);
       finish();

@@ -18,7 +18,7 @@ test('lists only the wells the engine could not place, with the reason text, and
   };
   expect(reportableSkips(result.skipped).map((s) => s.well)).toEqual(['KETA-7', 'KETA-8']);
   expect(describeGridResult({ name: 'Top A structure', result, spec, depthUnit: 'm' }))
-    .toBe('Gridded Top A structure (MD elevation, m) from 3 wells (31×21). Skipped 2: KETA-7 (top above the survey), KETA-8 (no surface location). 2 tops below the last survey station follow the final tangent. Review, then Publish.');
+    .toBe('Gridded Top A structure (MD below KB, m, an attribute) from 3 wells (31×21). Skipped 2: KETA-7 (top above the survey), KETA-8 (no surface location). 2 tops below the last survey station follow the final tangent. Review, then Publish.');
 });
 
 test('attribute maps have no depth reference', () => {

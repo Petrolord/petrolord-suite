@@ -16,7 +16,7 @@ const EmptyState = ({ onUpload }) => {
       </div>
       <h2 className="text-2xl sm:text-3xl font-bold text-pl-text mb-2 tracking-tight">Contour Map Digitizer</h2>
       <p className="text-pl-muted max-w-md mb-8">
-        Upload a map image, geo-reference it, and let our AI detect contours to generate a 3D surface grid.
+        Upload a scanned contour map, georeference it with control points, trace the contours automatically or by hand, and grid them into a surface for Mapping & Surface Studio.
       </p>
       <Button 
         onClick={onUpload} 

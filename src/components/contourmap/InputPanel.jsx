@@ -10,6 +10,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Link } from 'react-router-dom';
 import { VALUE_CONVENTIONS, Z_UNITS } from '@/lib/digitizer/contoursToSurface';
+import { describeGeoreference } from '@/lib/digitizer/georeference';
+import CrsPicker from '@/components/crs/CrsPicker';
+import useCrsContext from '@/components/crs/useCrsContext';
+import { crsUnit } from '@/lib/crs';
 
 const CollapsibleSection = ({ title, icon, children, defaultOpen = false }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -35,9 +39,17 @@ const CollapsibleSection = ({ title, icon, children, defaultOpen = false }) => {
   );
 };
 
-const InputPanel = ({ state, setState, onFileUpload, onGeoref, onAutoTrace, onDeleteLine, onSetLineValue, onGrid, onPublishSurface, onSaveProject, onLoadProject, onExport, isProcessing, isCvReady, mappingPath = '/dashboard/apps/geoscience/mapping-surface-studio' }) => {
+const InputPanel = ({ state, setState, onFileUpload, onGeoref, onRemoveControlPoint, onAutoTrace, onDeleteLine, onSetLineValue, onGrid, onPublishSurface, onSaveProject, onLoadProject, onExport, isProcessing, isCvReady, mappingPath = '/dashboard/apps/geoscience/mapping-surface-studio' }) => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop: onFileUpload, accept: { 'image/*': ['.jpeg', '.jpg', '.png'] }, multiple: false });
-  const { projectName, projects, controlPoints, layers, activeLayer, drawMode, gridCellSize, valuesAre, zUnit, surfaceName, results, publishedSurface, pixelToWorld } = state;
+  const { projectName, projects, controlPoints, layers, activeLayer, drawMode, gridCellSize, valuesAre, zUnit, surfaceName, results, publishedSurface, pixelToWorld, georef, crs } = state;
+  // MAP-U1-008: the world coordinates are in a CRS; the Project CRS by default
+  const { crsContext } = useCrsContext();
+  const projectTag = crsContext?.projectTag || null;
+  React.useEffect(() => {
+    if (!crs && projectTag) setState((p) => (p.crs ? p : { ...p, crs: projectTag }));
+  }, [crs, projectTag, setState]);
+  const xyUnitText = crs ? (crsUnit(crs) === 'm' ? 'm' : 'ft') : 'map units';
+  const residualOf = (i) => georef?.residuals?.find((r) => r.index === i);
 
   return (
     <div className="space-y-4 h-full flex flex-col">
@@ -68,10 +80,18 @@ const InputPanel = ({ state, setState, onFileUpload, onGeoref, onAutoTrace, onDe
         </CollapsibleSection>
 
         <CollapsibleSection title="Geo-Referencing" icon={<MapPin />} defaultOpen>
-          <p className="text-xs text-pl-muted">Click on the map to set pixel coordinates for control points (min 3).</p>
+          <p className="text-xs text-pl-muted">With no drawing tool active, click the map to place control points (three or more; four or more gives a check), then type each point's map coordinates.</p>
+          <div className="space-y-1">
+            <Label className="text-pl-muted text-xs">Map coordinates are in</Label>
+            <div data-testid="digitizer-crs"><CrsPicker value={crs} onChange={(tag) => setState((p) => ({ ...p, crs: tag, results: null }))} customDefs={crsContext?.customDefs || {}} /></div>
+          </div>
           {controlPoints.map((pt, i) => (
             <div key={i} className="grid grid-cols-1 gap-2 text-xs">
-              <span className="text-pl-text font-semibold">Control Point {i+1}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-pl-text font-semibold">Control Point {i+1}</span>
+                {residualOf(i) && !georef.exact && <span className="text-pl-muted" data-testid={`digitizer-gcp-residual-${i}`}>misfit {residualOf(i).error.toFixed(1)} {xyUnitText}</span>}
+                <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" aria-label={`Remove control point ${i + 1}`} data-testid={`digitizer-gcp-remove-${i}`} onClick={() => onRemoveControlPoint?.(i)}><Trash2 className="w-3.5 h-3.5 text-pl-danger-text" /></Button>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <Input placeholder="Pixel X" value={pt.pixel[0] ? pt.pixel[0].toFixed(2) : ''} readOnly className="bg-pl-sunken h-8" />
                 <Input placeholder="Pixel Y" value={pt.pixel[1] ? pt.pixel[1].toFixed(2) : ''} readOnly className="bg-pl-sunken h-8" />
@@ -88,18 +108,19 @@ const InputPanel = ({ state, setState, onFileUpload, onGeoref, onAutoTrace, onDe
               </div>
             </div>
           ))}
-          <Button onClick={onGeoref} disabled={isProcessing || controlPoints.length < 3} className="w-full">Set Georeference</Button>
+          <Button onClick={onGeoref} data-testid="digitizer-georef" disabled={isProcessing || controlPoints.length < 3} className="w-full">Set Georeference</Button>
+          {georef && <p className="text-xs text-pl-text" data-testid="digitizer-georef-summary">{describeGeoreference(georef, xyUnitText)}</p>}
         </CollapsibleSection>
 
         <CollapsibleSection title="Digitizing Tools" icon={<Bot />} defaultOpen>
-          <p className="text-xs text-pl-muted">Use AI to trace a region, or draw manually. Click again to deactivate.</p>
+          <p className="text-xs text-pl-muted">Trace a line automatically by dragging a box around it, or draw by hand. Click the tool again to stop.</p>
           <div className="flex gap-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button onClick={() => setState(p => ({...p, drawMode: p.drawMode === 'ai_box' ? 'none' : 'ai_box'}))} variant={drawMode === 'ai_box' ? 'secondary' : 'outline'} className="flex-1 disabled:opacity-50" disabled={!isCvReady || isProcessing}><Bot className="w-4 h-4 mr-2" />AI Trace</Button>
+                  <Button onClick={() => setState(p => ({...p, drawMode: p.drawMode === 'ai_box' ? 'none' : 'ai_box'}))} variant={drawMode === 'ai_box' ? 'secondary' : 'outline'} className="flex-1 disabled:opacity-50" disabled={!isCvReady || isProcessing}><Bot className="w-4 h-4 mr-2" />Auto trace</Button>
                 </TooltipTrigger>
-                {!isCvReady && <TooltipContent><p>AI Engine is loading...</p></TooltipContent>}
+                {!isCvReady && <TooltipContent><p>The tracing engine is loading.</p></TooltipContent>}
               </Tooltip>
             </TooltipProvider>
             <Button onClick={() => setState(p => ({...p, drawMode: p.drawMode === 'manual' ? 'none' : 'manual'}))} variant={drawMode === 'manual' ? 'secondary' : 'outline'} className="flex-1"><Pencil className="w-4 h-4 mr-2" />Manual Draw</Button>
@@ -117,7 +138,7 @@ const InputPanel = ({ state, setState, onFileUpload, onGeoref, onAutoTrace, onDe
             {layers[activeLayer].length === 0 && <p className="text-center text-xs text-pl-muted py-4">No lines in this layer yet.</p>}
             {layers[activeLayer].map(line => (
               <div key={line.id} className="flex items-center gap-2 p-1 bg-pl-sunken rounded">
-                <Input type="number" placeholder="Depth" value={line.value ?? ''} onChange={e => onSetLineValue(line.id, e.target.value)} className="h-8 text-xs" />
+                <Input type="number" placeholder={activeLayer === 'faults' ? 'not used' : valuesAre === 'depth' ? 'Depth' : 'Elevation'} value={line.value ?? ''} onChange={e => onSetLineValue(line.id, e.target.value)} className="h-8 text-xs" />
                 <span className="text-xs text-pl-muted flex-grow">{line.points.length} pts</span>
                 <Button variant="ghost" size="icon" onClick={() => onDeleteLine(line.id)} className="h-8 w-8"><Trash2 className="w-4 h-4 text-pl-danger-text" /></Button>
               </div>
@@ -126,6 +147,7 @@ const InputPanel = ({ state, setState, onFileUpload, onGeoref, onAutoTrace, onDe
         </CollapsibleSection>
 
         <CollapsibleSection title="Grid & Publish" icon={<Grid />} defaultOpen>
+          {layers.faults.length > 0 && <p className="text-xs text-pl-warning-text" data-testid="digitizer-faults-note">Fault lines are exported but not used in gridding: the surface is smooth across them.</p>}
           <p className="text-xs text-pl-muted">The contours are gridded with the shared thin-plate spline in the georeferenced frame and can be published to the surface registry, where Mapping & Surface Studio, ReservoirCalc Pro and Earth Modeling read them.</p>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
@@ -148,8 +170,8 @@ const InputPanel = ({ state, setState, onFileUpload, onGeoref, onAutoTrace, onDe
             </div>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="grid-cell-size">Cell size (map units)</Label>
-            <Input id="grid-cell-size" data-testid="digitizer-cell" type="number" value={gridCellSize} onChange={e => setState(p => ({ ...p, gridCellSize: parseFloat(e.target.value) || 50, results: null }))} />
+            <Label htmlFor="grid-cell-size">Cell size ({xyUnitText})</Label>
+            <Input id="grid-cell-size" data-testid="digitizer-cell" inputMode="decimal" value={gridCellSize} onChange={e => setState(p => ({ ...p, gridCellSize: e.target.value, results: null }))} />
           </div>
           {!pixelToWorld && <p className="text-xs text-pl-warning-text">Set the georeference before gridding.</p>}
           <Button onClick={onGrid} data-testid="digitizer-grid" disabled={isProcessing || !pixelToWorld || layers.contours.filter(l => l.value !== null).length < 2} className="w-full">Grid the contours</Button>

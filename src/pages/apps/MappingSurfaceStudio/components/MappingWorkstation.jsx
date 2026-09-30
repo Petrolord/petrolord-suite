@@ -57,7 +57,9 @@ import {
   topsToControlPoints, zoneAttrToPoints, specForPoints, surfaceStats, maskOutsidePolygon,
 } from '../engine/surface';
 import { resampleTo } from '@/lib/gridding/gridmath';
-import { describeGridResult } from '../services/gridStatus';
+import { describeGridResult, topMapKind } from '../services/gridStatus';
+import { xyUnitOf, metresPerXy, metresToXy, XY_UNIT_LABEL, controlPointsInWellFrame } from '../services/xyUnits';
+import { mapCaption, readReport, writeReport } from '../services/mapReport';
 import { parseWellsParam, parseNetParam, appPath, MAPPING_ID } from '@/components/wells/appLinks';
 import { environmentPoints } from '@/lib/stratigraphy/stratMaps';
 import { verticalThicknessPoints } from '@/lib/stratigraphy/verticalThickness';
@@ -145,6 +147,9 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
   // posting, legend, scale bar, north arrow, axes; saved with a surface
   // in provenance.display and restored on select
   const [mapSettings, setMapSettings] = useState(DEFAULT_MAP_DISPLAY);
+  // MAP-U1-013: field and analyst for the exported map's header, per browser
+  const [report, setReport] = useState(readReport);
+  useEffect(() => { writeReport(report); }, [report]);
   const [posted, setPosted] = useState(null); // well -> {z, x, y} of the preview's control points
   const viewRef = useRef(null);
   // MS2: import dialog and the in-place re-grid target
@@ -347,7 +352,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
   const currentControlPoints = (opts = {}) => {
     const src = opts.source || source;
     const sourceWells = opts.wellIds?.length ? (wells || []).filter((w) => opts.wellIds.includes(w.id)) : wells;
-    if (src.type === 'top') return topsToControlPoints(sourceWells, src.key, { depthRef, placement: 'borehole' }).points;
+    if (src.type === 'top') return controlPointsInWellFrame(topsToControlPoints(sourceWells, src.key, { depthRef, placement: 'borehole' }).points, sourceWells, crsUnit).points;
     if (src.type === 'net') return verticalThicknessPoints(sourceWells, src.upper, src.lower, { intervalsByWell: intervalsByWell(sourceWells), measure: src.measure, codes: src.codes }).points;
     return zoneAttrToPoints(sourceWells, src.zoneName || zoneNames[0], src.key);
   };
@@ -361,8 +366,10 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
     try {
       const pts = [...currentControlPoints(), ...guidePoints.map((gp) => ({ x: gp.x, y: gp.y, z: gp.z }))];
       const fit = fitVariogramFromPoints(pts, { model: variogram.model, nugget: Number(variogram.nugget || 0) });
-      setVariogram((v) => ({ ...v, range: fit.range.toFixed(0), sill: fit.sill.toFixed(2) }));
-      setStatus(`Fitted a ${fit.model} variogram from ${pts.length} control points: range ${fit.range.toFixed(0)} m, sill ${fit.sill.toFixed(2)} (${fit.bins} lag bins of ${fit.lag.toFixed(0)} m, rmse ${fit.rmse.toFixed(3)}).`);
+      // MAP-U1-001: the fit is in map units; the dock shows metres
+      const m = metresPerXy(consensusTag((wells || []).filter((w) => pts.some((p) => p.well === w.name)).map((w) => w.crs)) ? crsUnit(consensusTag((wells || []).filter((w) => pts.some((p) => p.well === w.name)).map((w) => w.crs))) : null);
+      setVariogram((v) => ({ ...v, range: (fit.range * m).toFixed(0), sill: fit.sill.toFixed(2) }));
+      setStatus(`Fitted a ${fit.model} variogram from ${pts.length} control points: range ${(fit.range * m).toFixed(0)} m, sill ${fit.sill.toFixed(2)} (${fit.bins} lag bins of ${(fit.lag * m).toFixed(0)} m, rmse ${fit.rmse.toFixed(3)}).`);
     } catch (e) { setStatus(e.message); }
   };
 
@@ -380,17 +387,18 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       let zUnit = null;
       if (src.type === 'top') {
         result = topsToControlPoints(sourceWells, src.key, { depthRef, placement: 'borehole' });
-        // T1 (MAP-T1-006): an MD map is not a structure map. Its values
-        // are positive measured depths, so publishing it as an elevation
-        // surface made ReservoirCalc Pro and Earth Modeling read it upside
-        // down. It is an attribute (raw metres) and says so in its name.
-        if (depthRef === 'md') {
-          name = `${src.key} MD (measured depth, m)`;
-          kind = 'attribute';
-        } else {
-          name = `${src.key} structure`;
-          kind = 'structure';
-        }
+        // MAP-U1-019: one CRS, and survey offsets in the wells' own unit
+        result = { ...result, points: controlPointsInWellFrame(result.points, sourceWells, crsUnit).points };
+        // T1 (MAP-T1-006) and MAP-U1-002: only a TVDSS map is a structure
+        // map. MD and TVD are measured below each well's KB, so publishing
+        // them as elevation made ReservoirCalc Pro, Earth Modeling and Well
+        // Design read them as TVDSS. They are attributes of positive metres
+        // and say so in their names.
+        const tk = topMapKind(depthRef, src.key);
+        name = tk.name;
+        kind = tk.kind;
+        if (tk.kind === 'attribute') zUnit = tk.zUnit;
+        if (tk.zSign !== 1) result = { ...result, points: result.points.map((p) => ({ ...p, z: tk.zSign * p.z })) };
       } else if (src.type === 'net') {
         // ST4: thickness between two tops from the lithology log; STRAT-U2-011: vertical
         // (TVD through each survey), a well without a survey stays MD and is named
@@ -413,17 +421,25 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       // an exact interpolant through two nearly coincident values
       // overshoots into a bullseye, and through two at the same place it
       // cannot be solved at all
-      const merge = mergeCloseControls([...result.points, ...guides], cell / 2);
+      // MAP-U1-001: the cell size and distances are typed in metres, the
+      // wells' coordinates are in their CRS unit (US survey feet on a state
+      // plane): convert, or a 150 m cell is 150 ft and every area is off
+      const xyWells = (sourceWells || []).filter((w) => result.points.some((p) => p.well === w.name));
+      const xyCrs = consensusTag(xyWells.map((w) => w.crs));
+      const xyUnit = xyCrs ? crsUnit(xyCrs) : null;
+      const cellW = metresToXy(cell, xyUnit);
+      const perM = 1 / metresPerXy(xyUnit);
+      const merge = mergeCloseControls([...result.points, ...guides], cellW / 2);
       const points = merge.points;
       if (points.length < 3) throw new Error('Need at least 3 control points: this source has too few wells.');
       // T1 (MAP-T1-007): the map may reach past the outermost wells
       const beyond = extent.mode === 'beyond' ? Number(extent.distance) : 0;
       if (extent.mode === 'beyond' && !(beyond > 0)) throw new Error('Type how far past the wells to map, in metres.');
-      const spec = specForPoints(points, cell, 2 + (beyond > 0 ? Math.ceil(beyond / cell) : 0));
+      const spec = specForPoints(points, cellW, 2 + (beyond > 0 ? Math.ceil(beyond / cell) : 0));
       // Even "inside the wells" a map reaches a cell and a half past their
       // hull, so the outermost wells sit inside the map instead of on its
       // ragged null edge (T1: they read no residual and looked unmapped)
-      const reachM = beyond > 0 ? beyond : 1.5 * cell;
+      const reachW = (beyond > 0 ? beyond : 1.5 * cell) * perM;
       if (spec.nx * spec.ny > 4_000_000) throw new Error('Grid too large: increase the cell size.');
       // Fault-block polygons (MS3): the surface is gridded independently
       // inside and outside each polygon, so a throw shows as a step at
@@ -443,11 +459,12 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         let v = variogram;
         if (!(Number(v.range) > 0) || !(Number(v.sill) > 0)) {
           const fit = fitVariogramFromPoints(points, { model: v.model, nugget: Number(v.nugget || 0) });
-          v = { ...v, range: fit.range.toFixed(0), sill: fit.sill.toFixed(2) };
+          v = { ...v, range: (fit.range / perM).toFixed(0), sill: fit.sill.toFixed(2) };
           setVariogram(v);
         }
         kriged = krigingOptions(v);
-        g = await runGridding('kriging', points, spec, { ...kriged, maxExtrapolation: 1e9 });
+        // the range is typed in metres; the engine measures in map units
+        g = await runGridding('kriging', points, spec, { ...kriged, range: kriged.range * perM, maxExtrapolation: 1e9 });
       } else if (gridMethod === 'tension') {
         if (rings.length) throw new Error('The spline in tension grids without fault blocks in this version. Untick the fault polygons or grid with the thin-plate spline.');
         g = await runGridding('tension', points, spec, { tension: tensionOpts.tension, smoothing: tensionOpts.smoothing, mask: 'none' });
@@ -458,7 +475,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       }
       let reach = null;
       if (!kriged && !rings.length) {
-        const em = extentMask(g.z, spec, points, reachM);
+        const em = extentMask(g.z, spec, points, reachW);
         g = { ...g, z: em.z };
         if (beyond > 0) reach = em;
       }
@@ -502,7 +519,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         const rows = mapResiduals(tieWells, g.z, spec);
         setResiduals({ title: 'Map against the wells', rows, stats: residualStats(rows) });
       } else setResiduals(null);
-      setDisplaySurface({ origin_x: spec.x0, origin_y: spec.y0, nx: spec.nx, ny: spec.ny, dx: spec.dx, dy: spec.dy, name, kind, z_domain: zDomain, crs });
+      setDisplaySurface({ origin_x: spec.x0, origin_y: spec.y0, nx: spec.nx, ny: spec.ny, dx: spec.dx, dy: spec.dy, name, kind, z_domain: zDomain, crs, xy_unit: crs ? crsUnit(crs) : null });
       setDisplayGrid(g.z);
       setSelectedId(null);
       const extras = [
@@ -512,6 +529,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         g.skippedBlocks ? `${g.skippedBlocks} block${g.skippedBlocks === 1 ? '' : 's'} with fewer than 3 control points left empty` : null,
         boundary ? `clipped to ${boundary.name}` : null,
         gridMethod === 'tension' && !kriged ? `spline in tension ${tensionOpts.tension}${tensionOpts.smoothing ? `, smoothing ${tensionOpts.smoothing}` : ''}` : null,
+        perM !== 1 ? `cell ${cell} m (${cellW.toFixed(1)} ${XY_UNIT_LABEL[xyUnit] || xyUnit} in the wells' frame)` : null,
         reach ? `mapped ${beyond} m beyond the wells (${reach.extrapolatedNodes} extrapolated nodes; the dashed line is the wells' hull)` : null,
         guides.length ? `${guides.length} guide point${guides.length === 1 ? '' : 's'}` : null,
         // STRAT-U2-011: the thickness basis of a strat map
@@ -618,7 +636,12 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       setStatus(`Restored the previous grid of ${surface.name} (${pv.nx}×${pv.ny}).`);
       await refresh();
       setSelectedId(null);
-    } catch (e) { setStatus(e.message); }
+    } catch (e) {
+      // MAP-U1-017: a .pld package carries the grid, not the re-grid archive
+      setStatus(/previous grid/.test(e.message)
+        ? `The previous grid of ${surface.name} is not stored here, so it cannot be restored. A project imported from a .pld package keeps the current grid only. (${e.message})`
+        : e.message);
+    }
   };
 
   // T1 (E3): the prospect card of the measured closure
@@ -627,16 +650,23 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
     try {
       const zf = (m) => fmtZ(m, { kind: 'structure', z_domain: 'depth' });
       const mm3 = (v) => `${(v / 1e6).toFixed(2)} million m³`;
-      const mapBlob = await viewRef.current.toPng({ title: displaySurface.name, caption: `${depthUnit}, ${zConventionText}`, theme: 'print' });
+      const cap = exportCaption();
+      const mapBlob = await viewRef.current.toPng({ title: cap.title, caption: cap.caption, theme: 'print' });
       const rows = [
         ['Crest', zf(grvData.crestZ)],
         ['Spill', `${zf(grvData.spill.z)}${grvData.spill.limitedByEdge ? ' (map edge)' : ''}`],
         ['Contact', zf(grvData.contactM)],
         ['Closed area', `${grvData.areaKm2.toFixed(2)} km²`],
         ['GRV', mm3(grvData.grvM3)],
-        ...(grvData.range ? [['GRV P90 / P50 / P10', `${(grvData.range.p90 / 1e6).toFixed(1)} / ${(grvData.range.p50 / 1e6).toFixed(1)} / ${(grvData.range.p10 / 1e6).toFixed(1)} million m³`]] : []),
+        // MAP-U1-014: the range says how it was made, as the read-out does
+        ...(grvData.range ? [['GRV P90 / P50 / P10 (kriging variance, fully correlated)', `${(grvData.range.p90 / 1e6).toFixed(1)} / ${(grvData.range.p50 / 1e6).toFixed(1)} / ${(grvData.range.p10 / 1e6).toFixed(1)} million m³`]] : []),
+        ['Field / analyst', `${report.field || EMPTY_VALUE} / ${report.analyst || EMPTY_VALUE}`],
       ];
-      const note = grvData.open ? 'Not a trap volume: the closure runs off the mapped area, so the GRV is a minimum.' : '';
+      const note = [
+        grvData.open ? 'Not a trap volume: the closure runs off the mapped area, so the GRV is a minimum.' : '',
+        grvData.range ? 'The range moves every node together by the kriging standard deviation (fully correlated), so it is wider than a range from independent realisations.' : '',
+        cap.caption[2],
+      ].filter(Boolean).join(' ');
       const blob = await prospectCardPng({ mapBlob, title: `${displaySurface.name}: prospect`, rows, note });
       downloadBlob(blob, `${String(displaySurface.name).replace(/[^\w-]+/g, '_')}-prospect-card.png`);
       setStatus(`Exported the prospect card of ${displaySurface.name}.`);
@@ -718,7 +748,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         crs: consensusTag([a.crs, ...(b ? [b.crs] : [])]),
         provenance: r.provenance,
       });
-      setDisplaySurface({ ...r.spec, origin_x: r.spec.x0, origin_y: r.spec.y0, name: r.name, kind: r.kind, z_domain: r.zDomain, crs: a.crs });
+      setDisplaySurface({ ...r.spec, origin_x: r.spec.x0, origin_y: r.spec.y0, name: r.name, kind: r.kind, z_domain: r.zDomain, crs: a.crs, xy_unit: xyUnitOf(a) });
       setDisplayGrid(r.grid);
       setSelectedId(null);
       setPosted(null);
@@ -738,7 +768,10 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       // negative lies inside it is a depth below datum, read as such
       const { contactM, readAsDepth } = interpretContact(fromDisplay(c, depthUnit), displayGrid);
       const spec = specOfSurface(displaySurface);
-      const r = quickGrv({ spec, gridM: displayGrid, contactM, seedIndex });
+      // MAP-U1-001: area in square metres whatever the frame's unit
+      const xyUnit = xyUnitOf(displaySurface);
+      const xyToM = metresPerXy(xyUnit);
+      const r = quickGrv({ spec, gridM: displayGrid, contactM, seedIndex, xyToM });
       // T1 (E2): with a kriged surface on screen, the GRV range from the
       // kriging standard deviation (z -/+ 1.2816 sigma: P90 low, P10 high).
       // Every node moves together, a fully correlated structural case.
@@ -749,7 +782,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
           return Math.abs(v) >= 1e29 || !Number.isFinite(s2) || s2 < 0 ? v : v + sgn * k * Math.sqrt(s2);
         });
         const at = (grid) => {
-          try { return quickGrv({ spec, gridM: grid, contactM, seedIndex: r.closure.crest.index }).grvM3; } catch { return 0; }
+          try { return quickGrv({ spec, gridM: grid, contactM, seedIndex: r.closure.crest.index, xyToM }).grvM3; } catch { return 0; }
         };
         r.range = { p90: at(shift(-1)), p50: r.grvM3, p10: at(shift(1)) };
       }
@@ -757,7 +790,10 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         ? `${+(-toDisplay(m, depthUnit)).toFixed(1)} ${depthUnit} below datum`
         : `${+toDisplay(m, depthUnit).toFixed(1)} ${depthUnit}`);
       const rangeTxt = r.range ? ` Structural range from the kriging variance (fully correlated): P90 ${(r.range.p90 / 1e6).toFixed(2)}, P50 ${(r.range.p50 / 1e6).toFixed(2)}, P10 ${(r.range.p10 / 1e6).toFixed(2)} million m³.` : '';
-      const text = `${readAsDepth && !depthPositive ? `Read ${c} as a depth below datum (elevation ${zfmt(contactM)}). ` : ''}${describeGrv(r, { contactLabel: zfmt(contactM), fmtZ: zfmt })}${rangeTxt}`;
+      const frameTxt = r.kind !== 'closure' ? ''
+        : xyToM !== 1 ? ` Map frame in ${XY_UNIT_LABEL[xyUnit] || xyUnit}: areas converted to square metres.`
+          : !xyUnit ? ' The surface has no CRS: its map units are taken as metres.' : '';
+      const text = `${readAsDepth && !depthPositive ? `Read ${c} as a depth below datum (elevation ${zfmt(contactM)}). ` : ''}${describeGrv(r, { contactLabel: zfmt(contactM), fmtZ: zfmt })}${rangeTxt}${frameTxt}`;
       setGrvData(r);
       setGrvResult(text);
       setStatus(text);
@@ -799,7 +835,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
             time_depth: { method: 'average_velocity_from_wells', top: tdTop, wells: r.ties.map((t) => ({ well: t.well, twt_ms: t.twtMs, vavg_mps: t.vavg })), source_surface: src.id, converted_at: new Date().toISOString() },
           },
         });
-        setDisplaySurface({ ...spec, origin_x: spec.x0, origin_y: spec.y0, name, kind: 'structure', z_domain: 'depth', z_unit: 'm', crs: src.crs || null });
+        setDisplaySurface({ ...spec, origin_x: spec.x0, origin_y: spec.y0, name, kind: 'structure', z_domain: 'depth', z_unit: 'm', crs: src.crs || null, xy_unit: xyUnitOf(src) });
         setDisplayGrid(Float32Array.from(r.zM));
         setSelectedId(null);
         setPosted(Object.fromEntries(tieWells.map((w) => [w.well, { z: -w.depthM, x: w.x, y: w.y }])));
@@ -831,7 +867,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
             ...(corr ? { corrected_to: tdTop, radius_m: corr.radius, rms_before_m: corr.before.rms, rms_after_m: corr.after.rms } : {}) },
         },
       });
-      setDisplaySurface({ ...spec, origin_x: spec.x0, origin_y: spec.y0, name, kind: 'structure', z_domain: 'depth', z_unit: tdUnit, crs: src.crs || null });
+      setDisplaySurface({ ...spec, origin_x: spec.x0, origin_y: spec.y0, name, kind: 'structure', z_domain: 'depth', z_unit: tdUnit, crs: src.crs || null, xy_unit: xyUnitOf(src) });
       // the workstation holds metres
       setDisplayGrid(Float32Array.from(zM));
       setSelectedId(null);
@@ -1016,17 +1052,20 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
     }
   };
 
+  const exportCaption = () => {
+    const surface = preview && displayGrid === preview.grid
+      ? { ...displaySurface, provenance: preview.provenance, z_unit: preview.zUnit ?? displaySurface?.z_unit }
+      : displaySurface;
+    const step = contourPlan({ grid: displayGrid, typed: mapSettings.contourStep, unit: depthUnit, isLength: isLengthSurface(displaySurface) }).stepDisp;
+    return mapCaption({ surface, depthUnit, depthPositive, contourStep: step || null, report });
+  };
   const exportPng = async () => {
     if (!viewRef.current || !displaySurface) return;
     try {
-      const crsTxt = displaySurface.crs ? ` · ${displaySurface.crs}` : '';
-      const unitTxt = isLengthSurface(displaySurface) ? `${depthUnit}, ${displaySign(displaySurface, depthPositive) < 0 ? 'depth positive down' : 'elevation negative down'}` : 'attribute';
-      // T1 (MAP-T1-010): the export is the white report page, not the dark screen
-      const blob = await viewRef.current.toPng({
-        title: displaySurface.name,
-        caption: `${displaySurface.kind || 'surface'} · ${unitTxt}${crsTxt} · ${new Date().toISOString().slice(0, 10)}`,
-        theme: 'print',
-      });
+      // T1 (MAP-T1-010): the export is the white report page, not the dark screen;
+      // MAP-U1-013: its header carries what a reviewer signs against
+      const { title, caption } = exportCaption();
+      const blob = await viewRef.current.toPng({ title, caption, theme: 'print' });
       downloadBlob(blob, `${String(displaySurface.name).replace(/[^\w-]+/g, '_')}-map.png`);
       setStatus(`Exported ${displaySurface.name} as PNG.`);
     } catch (e) { setStatus(e.message); }
@@ -1234,6 +1273,13 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
                   <span>{text}</span>
                 </label>
               ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-1" data-testid="map-report">
+              <input className={selCls} data-testid="map-report-field" placeholder="Field (export header)" value={report.field}
+                onChange={(e) => setReport((r) => ({ ...r, field: e.target.value }))} />
+              <input className={selCls} data-testid="map-report-analyst" placeholder="Analyst" value={report.analyst}
+                onChange={(e) => setReport((r) => ({ ...r, analyst: e.target.value }))} />
             </div>
 
             <div className="pt-2 border-t border-pl-border text-[10px] uppercase tracking-wider text-pl-muted flex items-center gap-1"><Pentagon className="w-3 h-3" /> Polygons</div>

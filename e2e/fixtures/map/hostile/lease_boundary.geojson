@@ -1,0 +1,38 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "OML 99"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       500900,
+       6699100
+      ],
+      [
+       503100,
+       6699100
+      ],
+      [
+       503100,
+       6700900
+      ],
+      [
+       500900,
+       6700900
+      ],
+      [
+       500900,
+       6699100
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

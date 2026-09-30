@@ -9,6 +9,7 @@ import MapViewport from '@/components/maps/MapViewport';
 import { fmtTick } from '@/components/maps/annotations';
 import { contourLevels, gridRange } from '@/lib/gridding/mapContours';
 import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
+import { xyUnitOf, metresPerXy } from '../services/xyUnits';
 
 export const DEFAULT_MAP_DISPLAY = Object.freeze({
   contourStep: '',   // display-unit interval; '' = automatic
@@ -115,6 +116,7 @@ const MapCanvas = forwardRef(function MapCanvas({
       showNames={settings.names}
       showLegend={settings.legend}
       showScaleBar={settings.scaleBar}
+      xyToM={metresPerXy(xyUnitOf(surface))}
       showNorth={settings.north}
       showAxes={settings.axes}
       height="fill"
