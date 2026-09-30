@@ -15,6 +15,8 @@ import { coldLoadTheme, ThemedLoadingScreen } from '@/design/coldLoad';
 import { Toaster } from '@/components/ui/sonner';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { AdminOrgProvider } from '@/contexts/AdminOrganizationContext';
+// Suite unit profile: one provider so every app reads the same resolved units
+import { UnitProfileProvider } from '@/lib/units/UnitProfileContext';
 import ProtectedAppRoute from '@/components/ProtectedAppRoute';
 import PwaUpdatePrompt from '@/components/pwa/PwaUpdatePrompt';
 import { runAccessDiagnostics } from '@/utils/debugAccess';
@@ -370,6 +372,7 @@ function App() {
   return (
     <AuthProvider>
       <HSEProvider> 
+        <UnitProfileProvider>
           <AuthGuard>
             <PwaUpdatePrompt />
             <ErrorBoundary>
@@ -1036,6 +1039,7 @@ function App() {
               </ReservoirProvider>
             </ErrorBoundary>
           </AuthGuard>
+        </UnitProfileProvider>
           <Toaster richColors closeButton />
       </HSEProvider>
     </AuthProvider>
