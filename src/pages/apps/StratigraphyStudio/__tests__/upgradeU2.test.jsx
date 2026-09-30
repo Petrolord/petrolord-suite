@@ -466,3 +466,24 @@ describe('STRAT-U2-011 strat maps on vertical thickness', () => {
     expect(flat.basis).toBe('md');
   });
 });
+
+describe('STRAT-U2-012 Data AI facies labels from systems tracts and biozones', () => {
+  const { intervalKinds, intervalKindName, intervalKindNote, compactIntervals, coreFacies } = jest.requireActual('@/utils/dataAi/faciesData');
+
+  test('recorded tracts label the samples they hold, offered by name after the facies kinds (origin/main: raw code, last in the list)', async () => {
+    const b = makeInMemoryBackend();
+    const { sequenceTracts } = jest.requireActual('@/lib/stratigraphy/sequenceTracts');
+    const tops = await b.listTops('corr-w1');
+    await b.replaceIntervals('corr-w1', 'systems_tract', sequenceTracts(tops)); // what Record tracts writes (HST 1440 to 1580)
+    await b.replaceIntervals('corr-w1', 'facies', [{ top_md_m: 1440, base_md_m: 1500, code: 'sand' }]);
+    const table = {
+      group: ['KETA-1', 'KETA-1', 'KETA-1'], depth: [1450, 1579.9, 1600],
+      intervals: { 'KETA-1': compactIntervals(await b.listIntervals('corr-w1')) },
+    };
+    expect(intervalKinds(table).map((k) => k.kind)).toEqual(['facies', 'lithology', 'systems_tract']);
+    expect(intervalKindName('systems_tract')).toBe('Systems tract');
+    expect(intervalKindName('biozone_interval')).toBe('Biozone');
+    expect(coreFacies(table, { source: 'intervals', kind: 'systems_tract' }).labels).toEqual(['HST', 'HST', null]);
+    expect(intervalKindNote('systems_tract')).toMatch(/recorded in Stratigraphy Studio \(Section, Record tracts\)/);
+  });
+});

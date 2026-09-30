@@ -175,7 +175,7 @@ describe('the page', () => {
   it('loads three wells with their interval logs, runs k-means and shows the engine numbers and the matching that ran', async () => {
     mount();
     await loadAndChoose();
-    expect(screen.getByTestId('interval-kinds')).toHaveTextContent('facies (2 wells)');
+    expect(screen.getByTestId('interval-kinds')).toHaveTextContent('Facies (2 wells)');
     const design = buildFaciesDesign(expectedTable(), SPEC);
     expect(screen.getByTestId('design-rows')).toHaveTextContent(`360 rows on GR, RHOB, NPHI, PEF from 3 wells; ${design.labelled.length} have a core facies`);
     expect(design.labelled).toHaveLength(240);

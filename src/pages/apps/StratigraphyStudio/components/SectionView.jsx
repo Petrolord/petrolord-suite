@@ -209,7 +209,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
         sec.setWellData((m) => ({ ...m, [w.id]: { ...(m[w.id] || {}), intervals: fresh } }));
         n += rows.length; wellsDone += 1;
       }
-      onStatus(`Recorded ${n} systems tract${n === 1 ? '' : 's'} on ${wellsDone} well${wellsDone === 1 ? '' : 's'}${kept.length ? `; ${kept.join('; ')}` : ''}.`);
+      onStatus(`Recorded ${n} systems tract${n === 1 ? '' : 's'} on ${wellsDone} well${wellsDone === 1 ? '' : 's'}${kept.length ? `; ${kept.join('; ')}` : ''}.${n ? ' Electrofacies Studio can now use them as labels (interval kind Systems tract).' : ''}`);
     } catch (e) {
       onStatus(e.message);
     } finally {
