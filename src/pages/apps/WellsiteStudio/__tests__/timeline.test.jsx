@@ -68,5 +68,5 @@ test('a user-defined event asks for its label (two interactions) and refuses an 
   fireEvent.change(screen.getByTestId('ws-event-label'), { target: { value: 'Wiper trip to the shoe' } });
   await act(async () => { fireEvent.click(screen.getByTestId('ws-event-label-start')); });
   await waitFor(() => expect(screen.getByTestId('ws-status')).toHaveTextContent(/Wiper trip to the shoe started/));
-  expect(screen.getByTestId('ws-event-open-user_defined')).toHaveTextContent('Wiper trip to the shoe');
+  await waitFor(() => expect(screen.getByTestId('ws-event-open-user_defined')).toHaveTextContent('Wiper trip to the shoe'));
 });
