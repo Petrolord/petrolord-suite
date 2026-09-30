@@ -111,8 +111,8 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
             headerLines={() => chartHeaderLines({ title: `Age-depth plot: ${well.name}`, wells: [well.name], timescale: TIMESCALE_VERSION, basis: vertical.basis === 'tvd' ? `TVD below KB through the survey (${unit}); rates vertical` : `MD (${unit}), the well has no survey`, field: report?.field, analyst: report?.analyst })} />
         </div>
       </div>
-      {/* STRAT-U2-004: the plot and tables read in the display unit (the model runs in metres) */}
-      <div ref={plotRef}><AgeDepthPlot surfaces={unit === 'ft' ? surfaces.map((p) => ({ ...p, md_m: Number.isFinite(p.md_m) ? toDisp(p.md_m, unit) : p.md_m })) : surfaces} depthLabel={basis} depthUnit={unit} testIdPrefix="strat-agedepth" /></div>
+      {/* STRAT-U2-004: the plot and tables read in the display unit (the model runs in metres; the plot converts its own axis and rates) */}
+      <div ref={plotRef}><AgeDepthPlot surfaces={surfaces} depthLabel={basis} depthUnit={unit} testIdPrefix="strat-agedepth" /></div>
       {vertical.basis === 'tvd' && <p className="text-pl-muted" data-testid="strat-ages-basis">Depths and rates are vertical (TVD below KB) through {well.name}&apos;s survey; the MD of each top is in the table below.</p>}
       {problems.length > 0 && <ul className="text-pl-danger-text" data-testid="strat-ages-problems">{problems.map((p, i) => <li key={i}>{p.message}</li>)}</ul>}
       {model && (

@@ -346,6 +346,8 @@ describe('STRAT-U2-004 display units in Tops, Intervals, Core and Ages', () => {
     await waitFor(() => expect(screen.getByTestId('strat-stage-md-Top Marker').textContent).toBe('4822.8'), T);
     // KETA-2 TVD rate 136.7 m/Ma is 448.5 ft/Ma
     expect(screen.getByTestId('strat-rate-0').textContent).toMatch(/448\.5$/);
+    // the plot converts its own axis once (a double conversion drew 1471.6 ft/Ma)
+    expect(screen.getByTestId('strat-agedepth-segment-0').textContent).toBe('448.5 ft/Ma');
     await waitFor(async () => expect((await b.loadStratProject())?.view?.displayUnit).toBe('ft'), T);
   }, 120000);
 });
