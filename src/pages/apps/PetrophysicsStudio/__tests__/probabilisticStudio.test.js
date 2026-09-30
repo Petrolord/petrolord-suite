@@ -132,7 +132,7 @@ test('the run: inline fallback and a fake worker speak the same protocol; the CS
   // export columns carry the twins when present; the zone CSV appends the block
   const cols = exportColumns(wellData, { PHIE: curves.GR, ...inline.curves });
   expect(cols.map((c) => c.key)).toEqual(expect.arrayContaining(['PHIE', 'PHIE_Q10', 'SW_Q90', 'KPERM_Q50', 'PAY_PROB']));
-  expect(cols.find((c) => c.key === 'SW_Q90').descr).toBe('90th percentile of water saturation');
+  expect(cols.find((c) => c.key === 'SW_Q90').descr).toBe('90th percentile of water saturation (effective system)');
   expect(findPLabels(cols.filter((c) => c.key !== 'PAY_PROB').map((c) => `${c.key} ${c.descr}`))).toEqual([]);
   const zcsv = zonesCsv(zones, { [zones[0].id]: { gross_m: 20, net_m: 18, ntg: 0.9, phi_avg: 0.2, vsh_avg: 0.01, sw_avg: 0.3, k_gm_md: 200 } }, { depthUnit: 'm', columns: ['md'], primary: 'md', probabilistic: inline });
   expect(zcsv).toContain('probabilistic (60 realisations, seed 3)');
