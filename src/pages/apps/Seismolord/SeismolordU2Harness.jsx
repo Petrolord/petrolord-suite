@@ -7,6 +7,24 @@ import SliceView from './components/SliceView';
 import MapView from './components/MapView';
 import PlotDialog from './components/workspace/dialogs/PlotDialog';
 import { guidedTrack2D } from './lib/trackerEdit';
+import { MistieCharacterTable } from './components/Line2dPanel';
+import { crossingCharacter, solveCharacter } from './lib/mistieCharacter';
+import { rotateConstantPhase } from './engine/tieWarp';
+
+// U2-014: three synthetic 2D lines at one crossing each pair, rotated
+// 0, 30, -20 degrees and scaled 1, 1.5, 0.8 about a common trace
+function mistieDemo() {
+  const ns = 200;
+  const ricker = (x, w = 4) => { const a = (x / w) ** 2; return (1 - 2 * a) * Math.exp(-a); };
+  const base = Float32Array.from({ length: ns }, (_, k) => ricker(k - 90) - 0.6 * ricker(k - 104) + 0.4 * ricker(k - 118));
+  const lines = [[0, 1], [30, 1.5], [-20, 0.8]].map(([d, k]) => Float32Array.from(rotateConstantPhase(base, (d * Math.PI) / 180), (v) => v * k));
+  const measured = [[0, 1], [0, 2], [1, 2]].map(([a, b]) => ({ a, b, timeMs: 0, ...crossingCharacter(lines[a], lines[b], 100, 100, { half: 40 }) }));
+  return {
+    participants: ['L-101', 'L-102', 'L-103'].map((name, i) => ({ line: { id: `l${i}`, name, survey_meta: {} } })),
+    horizon: 'Top Reservoir',
+    character: { measured, sol: solveCharacter(3, measured) },
+  };
+}
 
 // Dev-only harness route (/dev/seismolord-u2, DEV builds only): the Step 2
 // upgrade features on the deterministic synthetic volume, no auth or DB.
@@ -38,6 +56,7 @@ export default function SeismolordU2Harness() {
   const sectionCameraApi = useRef(null);
   const mapCameraApi = useRef(null);
   const identityStore = useMemo(memoryIdentityStore, []);
+  const mistie = useMemo(mistieDemo, []);
   // U2-010: guided two-point tracking on the displayed line
   const [pickMode, setPickMode] = useState(null);
   const [guide, setGuide] = useState([]);
@@ -180,6 +199,10 @@ export default function SeismolordU2Harness() {
             cameraApi={mapCameraApi}
           />
         </div>
+      </div>
+      <div className="mt-3 max-w-2xl" data-testid="u2-mistie">
+        <strong className="text-xs">2D crossings: phase and amplitude</strong>
+        <MistieCharacterTable result={mistie} busy={false} onApply={() => { window.__mistieApplied = mistie.character.sol; }} />
       </div>
       <PlotDialog
         open={plotOpen}

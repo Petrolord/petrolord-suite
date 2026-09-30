@@ -6,6 +6,7 @@
 // transforms — a polyline has no lattice, so there is no affine
 // subtlety, and the native declaration is preserved on the row).
 
+import { applyCharacter } from '../lib/mistieCharacter';
 import { supabase } from '@/lib/customSupabaseClient';
 import { SEISMIC_BUCKET, assertQuota } from './seismicStorage';
 import { myOrgId } from './surfacesService';
@@ -82,6 +83,21 @@ export async function deleteLine(line) {
   }
   const { error } = await supabase.from('seismic_lines').delete().eq('id', line.id);
   if (error) throw new Error(`Could not delete line record: ${error.message}`);
+}
+
+/**
+ * Display-side phase and amplitude correction (U2-014), kept in the row's
+ * survey_meta jsonb (no schema change): {rotation_deg, amp_scale,
+ * horizon, applied_at}. Stored samples untouched.
+ */
+export async function setLineCharacter(line, character) {
+  const meta = { ...(line.survey_meta || {}), mistie_character: { ...character, applied_at: new Date().toISOString() } };
+  const { data, error } = await supabase.from('seismic_lines')
+    .update({ survey_meta: meta, updated_at: new Date().toISOString() })
+    .eq('id', line.id)
+    .select().single();
+  if (error) throw new Error(`Could not store the phase and amplitude correction: ${error.message}`);
+  return data;
 }
 
 /** Display-side mistie static (stored samples untouched). */
@@ -313,7 +329,7 @@ export function shiftPickGrid(picks, shiftSamples) {
  * (see shiftPickGrid).
  */
 export async function loadLineSection(line, manifest, {
-  supabaseUrl, getToken, applyShift = true,
+  supabaseUrl, getToken, applyShift = true, applyCorrection = true,
 } = {}) {
   const geom2d = geomFromLineManifest(manifest);
   const cache = new BrickCache(
@@ -339,7 +355,10 @@ export async function loadLineSection(line, manifest, {
     }
     section.data = rolled;
   }
-  return { ...section, shiftSamples, dtMs };
+  // U2-014: the line's phase and amplitude correction, display side
+  const character = applyCorrection ? line.survey_meta?.mistie_character || null : null;
+  const out = character ? applyCharacter(section, character) : section;
+  return { ...out, shiftSamples, dtMs, character };
 }
 
 // ---- picks ----------------------------------------------------------------

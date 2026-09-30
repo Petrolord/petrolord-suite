@@ -7,6 +7,7 @@
 // alone on pseudo-coordinates. Line picks are per-trace arrays grouped
 // across lines by horizon NAME (the mistie join key).
 
+import { crossingCharacter, solveCharacter, composeCharacter } from '../lib/mistieCharacter';
 import React, {
   useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
@@ -24,12 +25,12 @@ import SliceView from './SliceView';
 import StorageMeter from './StorageMeter';
 import {
   ingestLine2d, getLineManifest, loadLineNav,
-  loadLineSection, listLinePicks, loadLinePicks, saveLinePicks,
+  loadLineSection, listLinePicks, loadLinePicks, saveLinePicks, setLineCharacter,
   updateLinePicks, setLineBulkShift, shiftPickGrid,
 } from '../services/linesService';
 import { MAPPING_2D_PRESETS } from '../engine/line2d';
 import {
-  lineToLattice, lineIntersections, solveMisties,
+  lineToLattice, lineIntersections, solveMisties, crossingTraces,
 } from '../engine/line2dIntegration';
 import { snapPick, autotrack2D } from '../engine/horizonTrack';
 import { NULL_VALUE } from '../engine/manifest';
@@ -49,6 +50,75 @@ const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-p
  * @param {Object} p.overlays ViewerPanel's overlay bundle (horizons etc.)
  * @param {{supabaseUrl: string, getToken: Function}} p.storageCfg
  */
+/** U2-014: phase and amplitude misties per crossing and per line. */
+export function MistieCharacterTable({ result, busy, onApply }) {
+  const ch = result?.character;
+  if (!ch) return null;
+  if (ch.error) return <p className="text-xs text-pl-warning-text">Phase and amplitude could not be measured: {ch.error}</p>;
+  const name = (i) => result.participants[i]?.line.name || String(i);
+  const f1 = (v, d = 1) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : v.toFixed(d));
+  return (
+    <div className="space-y-2 pt-2 border-t border-pl-border" data-testid="line2d-mistie-character">
+      <div className="text-xs text-pl-text">
+        {`Phase RMS ${f1(ch.sol.rmsPhaseBefore)} deg -> ${f1(ch.sol.rmsPhaseAfter)} deg · `}
+        {`amplitude RMS ${f1(100 * (Math.exp(ch.sol.rmsLogAmpBefore) - 1))} % -> ${f1(100 * (Math.exp(ch.sol.rmsLogAmpAfter) - 1))} %`}
+        {` (${ch.sol.used} of ${ch.measured.length} crossings measured)`}
+      </div>
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="text-pl-muted text-left">
+            <th className="pr-2">Crossing</th>
+            <th className="pr-2">Time (ms)</th>
+            <th className="pr-2">Phase (deg)</th>
+            <th>Amplitude B/A</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ch.measured.map((c, k) => (
+            <tr key={`${c.a}-${c.b}-${k}`} className="text-pl-text" data-testid="line2d-crossing-row">
+              <td className="pr-2">{`${name(c.a)} x ${name(c.b)}`}</td>
+              <td className="pr-2 font-mono">{f1(c.timeMs)}</td>
+              <td className="pr-2 font-mono">{f1(c.phiDeg)}</td>
+              <td className="font-mono">{f1(c.ratio, 3)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="text-pl-muted text-left">
+            <th className="pr-2">Line</th>
+            <th className="pr-2">Phase rotation (deg)</th>
+            <th className="pr-2">Amplitude scalar</th>
+            <th>Already applied</th>
+          </tr>
+        </thead>
+        <tbody>
+          {result.participants.map((p, i) => {
+            const prev = p.line.survey_meta?.mistie_character;
+            return (
+              <tr key={p.line.id} className="text-pl-text" data-testid="line2d-character-row">
+                <td className="pr-2">{p.line.name}</td>
+                <td className="pr-2 font-mono">{f1(ch.sol.rotationDeg[i])}</td>
+                <td className="pr-2 font-mono">{f1(ch.sol.scale[i], 3)}</td>
+                <td className="font-mono">{prev ? `${f1(prev.rotation_deg)} deg, x${f1(prev.amp_scale, 3)}` : EMPTY_VALUE}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="text-[11px] text-pl-muted">
+        Measured in a 200 ms window about the horizon on each line, after the time mistie. A rotation of +30 deg on a
+        crossing means line B looks like line A rotated by 30 deg. Corrections are least squares, mean zero phase and unit
+        average scale, applied to the display; stored samples never change.
+      </p>
+      <Button size="sm" onClick={onApply} disabled={busy || !ch.sol.used} variant="outline" data-testid="line2d-character-apply">
+        Apply phase and amplitude to the lines
+      </Button>
+    </div>
+  );
+}
+
 export default function Line2dPanel({
   lines, refreshLines, volumeManifest, affine, geom, overlays, storageCfg,
 }) {
@@ -405,7 +475,22 @@ export default function Line2dPanel({
         })),
         crossings, dt,
       );
-      setMistieResult({ ...res, participants, horizon: name, crossings: crossings.length });
+      // U2-014: what is left once the times agree, phase and amplitude at
+      // each tied crossing (traces from the displayed sections, windows
+      // about each line's own pick), and a per-line correction
+      let character = null;
+      try {
+        const sections = await Promise.all(participants.map(async (p) => loadLineSection(p.line, await getLineManifest(p.line), storageCfg)));
+        const measured = res.observations.map((o) => {
+          const tr = crossingTraces(sections[o.a], sections[o.b], o);
+          const c = tr ? crossingCharacter(tr.a, tr.b, o.tAMs / sections[o.a].dtMs, o.tBMs / sections[o.b].dtMs, { half: Math.max(8, Math.round(100 / sections[o.a].dtMs)) }) : null;
+          return { a: o.a, b: o.b, x: o.x, y: o.y, timeMs: o.dtMs, ...(c || { phiDeg: null, ratio: null }) };
+        });
+        character = { measured, sol: solveCharacter(participants.length, measured) };
+      } catch (e) {
+        character = { error: e.message };
+      }
+      setMistieResult({ ...res, participants, horizon: name, crossings: crossings.length, character });
     } catch (e) {
       toast({ title: 'Mistie analysis failed', description: e.message, variant: 'destructive' });
     } finally {
@@ -424,6 +509,32 @@ export default function Line2dPanel({
       toast({
         title: 'Mistie shifts applied',
         description: `${mistieResult.participants.length} line statics stored (display-side; stored samples untouched).`,
+      });
+      setMistieOpen(false);
+      setMistieResult(null);
+      refreshLines();
+    } catch (e) {
+      toast({ title: 'Apply failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setMistieBusy(false);
+    }
+  };
+
+  const applyCharacterCorrections = async () => {
+    const ch = mistieResult?.character;
+    if (!ch?.sol) return;
+    setMistieBusy(true);
+    try {
+      for (let i = 0; i < mistieResult.participants.length; i++) {
+        const l = mistieResult.participants[i].line;
+        await setLineCharacter(l, {
+          ...composeCharacter(l.survey_meta?.mistie_character, ch.sol.rotationDeg[i], ch.sol.scale[i]),
+          horizon: mistieResult.horizon,
+        });
+      }
+      toast({
+        title: 'Phase and amplitude applied',
+        description: `${mistieResult.participants.length} line corrections stored (display-side; stored samples untouched).`,
       });
       setMistieOpen(false);
       setMistieResult(null);
@@ -674,6 +785,7 @@ export default function Line2dPanel({
                 >
                   Apply shifts to the lines
                 </Button>
+                <MistieCharacterTable result={mistieResult} busy={mistieBusy} onApply={applyCharacterCorrections} />
               </div>
             )}
           </div>

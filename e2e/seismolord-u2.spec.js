@@ -173,3 +173,27 @@ test('U2-010 1440x900: two guide points picked on the section, the guided pick j
   expect(Number(m[1])).toBeGreaterThan(10);
   await page.screenshot({ path: '/tmp/claude-0/seis-upg2/u2-010.png' });
 });
+
+// U2-014: the phase and amplitude mistie table (real crossing measurement and network solve)
+test('U2-014 1366x768: phase and amplitude misties per crossing and per line', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/dev/seismolord-u2');
+  const box = page.getByTestId('line2d-mistie-character');
+  await expect(box).toBeVisible({ timeout: 60000 });
+  const rows = box.getByTestId('line2d-crossing-row');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0)).toContainText('L-101 x L-102');
+  const cells = await rows.nth(0).locator('td').allTextContents();
+  expect(Number(cells[2])).toBeCloseTo(30, 0);
+  expect(Number(cells[3])).toBeCloseTo(1.5, 2);
+  const lineRows = box.getByTestId('line2d-character-row');
+  await expect(lineRows).toHaveCount(3);
+  // mean zero: L-101 +3.3, L-102 -26.7, L-103 +23.3
+  const rot = await Promise.all([0, 1, 2].map(async (i) => Number((await lineRows.nth(i).locator('td').allTextContents())[1])));
+  expect(rot[0] + rot[1] + rot[2]).toBeCloseTo(0, 0);
+  expect(rot[1] - rot[0]).toBeCloseTo(-30, 0);
+  await expect(box).toContainText(/Phase RMS [\d.]+ deg -> 0\.\d deg/);
+  await box.getByTestId('line2d-character-apply').click();
+  expect(await page.evaluate(() => window.__mistieApplied.rotationDeg.length)).toBe(3);
+  await box.screenshot({ path: '/tmp/claude-0/seis-upg2/u2-014.png' });
+});
