@@ -357,3 +357,40 @@ loaders.
 - Tests: new `src/pages/apps/MappingSurfaceStudio/__tests__/MappingSurfaceStudio.theme.test.jsx`
   (the shared `describeAppTheme` checks on the real workstation, plus the
   views, the dark theme and the help guide). No calculation, engine, export or plotting change; the existing suites pass unchanged.
+
+## 2026-09-30: upgrade Step 1 (practitioner lens), with the Contour Map Digitizer
+
+Doc: `docs/upgrade/MappingSurfaceStudio-UPGRADE.md` (branch `feat/map-u1`).
+There are 35 findings: 20 fixed (2 S1, 7 S2, 7 S3, 4 S4), 9 open, 5 carried to consumer apps and 1 owner item. No S1 or S2 is open.
+
+- **Feet frames (MAP-U1-001, -019):**
+  - GRV, area and scale bar are in metres on a US-feet or feet frame. The GRV used to be 10.76x.
+  - Cell, extent and kriging range typed in metres are converted to map units.
+  - Wells in two CRSs are refused for one map.
+  - Borehole offsets are scaled into the wells' unit.
+  - ReservoirCalc Pro's registry area got the same fix (029).
+- **TVD maps (002):** published as attributes "(TVD below KB, m)", never as TVDSS elevation.
+- **Import door (003, 018):** `services/surfaceFileDoor.js` reads Petrel CPS-3 (`->` line), header rows, Petrel points, semicolon files with comma decimals, and columns in another order. It says what it changed.
+- **Contour Map Digitizer (004 to 012):**
+  - ProtectedAppRoute, on its own licence or a Mapping licence.
+  - Least-squares affine georeference with per-point misfit and RMS.
+  - Exports in map coordinates with faults and Z.
+  - Saved projects resume.
+  - Map CRS declared.
+  - Honest copy (no "AI").
+  - Typed cell size.
+  - Up to 12 removable control points.
+- **Exports (013, 014, 016):** the PNG and prospect card carry a three-line reviewer header. The GRV range states that it is fully correlated.
+- **Restore (017):** says when a re-grid archive did not travel with a `.pld`.
+- **Evidence kit:**
+  - hostile files `e2e/fixtures/map/hostile/` and saved rows `e2e/fixtures/map/saved/`;
+  - harness `?scaleWells=` and `window.__MAP_SEED__`;
+  - `e2e/mapping-surface-studio-upgrade.spec.js`, 13 tests: three viewports in light and dark, 505 and 2,005 wells in 1.5 s and 2.9 s.
+- **Carried to consumer apps:**
+  - Earth Modeling: isochore units, time and attribute rows.
+  - Well Design: `Math.abs(z)`, no ft to m.
+  - Simulation: throws on elevation rows.
+  - RCP dialog: xy unit and TWT rows.
+  - Seismolord: negates TWT rows.
+  - `.pld`: re-grid archives.
+- Step 2: 20-item ranked backlog, batches A, B and C (analysis only).
