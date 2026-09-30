@@ -6,6 +6,7 @@ import { assembleSlice } from './engine/sliceAssembly';
 import SliceView from './components/SliceView';
 import MapView from './components/MapView';
 import PlotDialog from './components/workspace/dialogs/PlotDialog';
+import { guidedTrack2D } from './lib/trackerEdit';
 
 // Dev-only harness route (/dev/seismolord-u2, DEV builds only): the Step 2
 // upgrade features on the deterministic synthetic volume, no auth or DB.
@@ -37,6 +38,20 @@ export default function SeismolordU2Harness() {
   const sectionCameraApi = useRef(null);
   const mapCameraApi = useRef(null);
   const identityStore = useMemo(memoryIdentityStore, []);
+  // U2-010: guided two-point tracking on the displayed line
+  const [pickMode, setPickMode] = useState(null);
+  const [guide, setGuide] = useState([]);
+  const [guided, setGuided] = useState(null);
+  const onPick = (p) => {
+    if (pickMode !== 'seed') return;
+    setGuide((g) => [...g, { trace: p.xlIdx, sample: p.sample }].slice(-2));
+  };
+  const runGuided = () => {
+    try {
+      const r = guidedTrack2D(slice, guide[0], guide[1], { mode: 'peak', maxStep: 2 });
+      setGuided({ ...r, error: null });
+    } catch (e) { setGuided({ error: e.message }); }
+  };
 
   const manifest = useMemo(() => ({
     geometry: {
@@ -77,8 +92,14 @@ export default function SeismolordU2Harness() {
     const stick = [0, 1, 2].map((k) => ({ il: WELL.il, xl: 20 + k, s: 12 + 14 * k }));
     const wellPts = [];
     for (let s = 2; s <= DIM - 2; s += 1) wellPts.push({ il: WELL.il, xl: WELL.xl, s });
+    const guidedGrid = (() => {
+      if (!guided?.picks) return null;
+      const g = new Float32Array(DIM * DIM).fill(Math.fround(1e30));
+      for (let t = 0; t < DIM; t++) g[lineIndex * DIM + t] = guided.picks[t];
+      return { id: 'guided', name: 'Guided pick', grid: g, color: '#facc15' };
+    })();
     return {
-      horizons: [horizon],
+      horizons: guidedGrid ? [horizon, guidedGrid] : [horizon],
       faults: [{
         id: 'f1', name: 'Fault F1', sticks: [{ points: stick }], color: '#f97316',
       }],
@@ -88,7 +109,7 @@ export default function SeismolordU2Harness() {
         id: 'w1', name: 'OKAN-1', color: '#fbbf24', points: wellPts, tops: [{ name: 'Top A', il: WELL.il, xl: WELL.xl, s: 30 }],
       }],
     };
-  }, [horizon]);
+  }, [horizon, guided, lineIndex]);
 
   const mapWells = useMemo(() => [{
     id: 'w1',
@@ -116,6 +137,14 @@ export default function SeismolordU2Harness() {
           />
         </label>
         <span data-testid="u2-status">{slice ? 'ready' : 'loading'}</span>
+        <button type="button" data-testid="u2-pick-seed" onClick={() => setPickMode((m) => (m ? null : 'seed'))} className="border border-pl-border px-2">
+          {pickMode ? 'Picking guide points' : 'Pick guide points'}
+        </button>
+        <span data-testid="u2-guide-points">{guide.map((g) => `${g.trace}:${g.sample.toFixed(1)}`).join(' ')}</span>
+        <button type="button" data-testid="u2-guided" onClick={runGuided} disabled={guide.length < 2} className="border border-pl-border px-2">
+          Guided track
+        </button>
+        <span data-testid="u2-guided-result">{guided ? (guided.error || `${guided.tracked} traces ${guided.from}-${guided.to}`) : ''}</span>
         <button type="button" data-testid="u2-open-plot" onClick={() => setPlotOpen(true)} className="border border-pl-border px-2">
           Plot to PDF
         </button>
@@ -132,7 +161,8 @@ export default function SeismolordU2Harness() {
               colormap: 'seismic_rwb', gain: 1, polarity: 1, clip: 1.5, traceBalance: false,
             }}
             overlays={overlays}
-            pickMode={null}
+            pickMode={pickMode}
+            onPick={onPick}
             loading={false}
             height={360}
             cameraApi={sectionCameraApi}

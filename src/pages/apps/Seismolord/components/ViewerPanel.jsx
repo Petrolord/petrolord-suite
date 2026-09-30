@@ -119,6 +119,7 @@ import StartHerePanel from './workspace/StartHerePanel';
 import FirstRunTour from './workspace/FirstRunTour';
 import { buildStartHere } from '../lib/startHere';
 import { tourSeen } from '../lib/firstRunTour';
+import { confidenceFilter, guidedTrack2D } from '../lib/trackerEdit';
 import { startFrameworkJob } from '../services/frameworkRunner';
 import WellImportDialog from './workspace/dialogs/WellImportDialog';
 import VelocityModelDialog from './workspace/dialogs/VelocityModelDialog';
@@ -1990,6 +1991,118 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     applyOp(cells, vals);
     commitStroke();
     toast({ title: '2D autotrack', description: `${tracked} traces tracked along this line.` });
+  };
+
+  // ---- U2-010 guided two-point tracking and the confidence filter -------
+  const [guideA, setGuideA] = useState(null);   // {orientation, index, trace, sample}
+  const [confThreshold, setConfThreshold] = useState(0.8);
+
+  /** Guided track: the first press keeps the seed as point A; the second,
+   *  with a new seed on the same line, tracks A to it (one undoable op). */
+  const guidedTrack = async () => {
+    if (!seedPick || !slice || !geom || orientation === 'time' || orientation === 'traverse') return;
+    const onLine = orientation === 'inline' ? seedPick.ilIdx === sliceIndex : seedPick.xlIdx === sliceIndex;
+    if (!onLine) {
+      toast({ title: 'Seed is not on this line', description: 'Pick the guide points on the displayed section.' });
+      return;
+    }
+    const pt = {
+      orientation, index: sliceIndex, trace: orientation === 'inline' ? seedPick.xlIdx : seedPick.ilIdx, sample: seedPick.sample,
+    };
+    if (!guideA || guideA.orientation !== orientation || guideA.index !== sliceIndex || guideA.trace === pt.trace) {
+      setGuideA(pt);
+      toast({ title: 'Guide point A set', description: 'Pick point B on the same event of this line, then press Guided again.' });
+      return;
+    }
+    const s = editRef.current || await openSession(editTarget);
+    if (!s) return;
+    try {
+      const mode = snapMode === 'trough' ? 'trough' : 'peak';
+      const { picks, tracked } = guidedTrack2D(slice, guideA, pt, { mode, maxStep: 2 });
+      const cells = [];
+      const vals = [];
+      for (let tr = 0; tr < picks.length; tr++) {
+        if (picks[tr] === NULL_F32) continue;
+        cells.push(orientation === 'inline' ? sliceIndex * geom.nXl + tr : tr * geom.nXl + sliceIndex);
+        vals.push(picks[tr]);
+      }
+      applyOp(cells, vals);
+      commitStroke();
+      setGuideA(null);
+      toast({ title: 'Guided track', description: `${tracked} traces between the two points (${mode}).` });
+    } catch (e) {
+      toast({ title: 'Guided track failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  /** Reject the target horizon's picks below the confidence threshold
+   *  (an undoable edit), or reject and repick: grow again from the kept
+   *  picks with the threshold as the correlation limit (updates the row). */
+  const rejectLowConfidence = async (repick = false) => {
+    if (editTarget === 'new' || !geom || !manifest) return;
+    const h = horizons.find((x) => x.id === editTarget);
+    if (!h) return;
+    try {
+      const conf = await loadHorizonConfidence(h).catch(() => null);
+      if (!conf) {
+        toast({ title: 'No confidence layer', description: `${h.name} was not tracked by correlation, so its picks carry no confidence.` });
+        return;
+      }
+      const session = editRef.current && editRef.current.targetId === h.id ? editRef.current : null;
+      if (repick && session?.history.dirty) {
+        toast({ title: 'Unsaved edits', description: 'Save or discard the edits on this horizon before repicking.' });
+        return;
+      }
+      const grid = session ? session.grid : (gridCacheRef.current.get(h.id) || await loadHorizonGrid(h));
+      const f = confidenceFilter(grid, conf, confThreshold);
+      if (!f.rejected.length) {
+        toast({ title: 'Nothing below the threshold', description: `Every scored pick of ${h.name} is at or above ${confThreshold.toFixed(2)}${f.unscored ? ` (${f.unscored} picks carry no confidence and are kept)` : ''}.` });
+        return;
+      }
+      if (!repick) {
+        const s = session || await openSession(h.id);
+        if (!s) return;
+        applyOp(f.rejected, f.rejected.map(() => NULL_VALUE));
+        commitStroke();
+        toast({ title: 'Low-confidence picks rejected', description: `${f.rejected.length} picks below ${confThreshold.toFixed(2)} removed from ${h.name}; ${f.kept} kept${f.unscored ? `, ${f.unscored} without a confidence` : ''}. Save to keep it.` });
+        return;
+      }
+      const { picks, confidence } = await runTracker({
+        seed: null,
+        extraOpts: {
+          mode: 'ncc', corrHalf: 8, corrSearch: snapWindow, maxJump: 4, corrThreshold: confThreshold, initialPicks: f.picks,
+        },
+      });
+      let back = 0;
+      for (const c of f.rejected) if (picks[c] !== NULL_F32) back += 1;
+      const row = await updateHorizon({
+        horizon: h,
+        picks,
+        dtUs: manifest.geometry.dt_us,
+        params: { ...h.params, source: 'repick', repick_threshold: confThreshold },
+        confidence,
+      });
+      cacheGrid(gridCacheRef.current, h.id, picks);
+      await reloadHorizons(volume);
+      pushRewriteUndo({
+        label: `repick horizon "${h.name}"`,
+        id: h.id,
+        before: grid,
+        after: picks,
+        prevParams: h.params,
+        prevConfidence: conf,
+        nextConfidence: confidence,
+        vol: volume,
+        dtUs: manifest.geometry.dt_us,
+      });
+      toast({ title: 'Rejected and repicked', description: `${h.name}: ${f.rejected.length} picks below ${confThreshold.toFixed(2)} rejected, ${back} repicked at or above it, ${f.rejected.length - back} left empty; ${row.stats.tracked} traces.` });
+    } catch (e) {
+      if (!/cancelled/i.test(e.message)) {
+        toast({ title: 'Confidence filter failed', description: e.message, variant: 'destructive' });
+      }
+    } finally {
+      setTracking(null);
+    }
   };
 
   /** Map window region erase (rectangle or polygon outline, already
@@ -3888,6 +4001,11 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                     seedPick,
                     tracking,
                     track2D,
+                    guidedTrack,
+                    guideA,
+                    confThreshold,
+                    setConfThreshold,
+                    rejectLowConfidence,
                     trackHorizon,
                     growHorizon,
                     cancelTracking,

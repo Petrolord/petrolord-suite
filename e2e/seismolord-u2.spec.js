@@ -152,3 +152,24 @@ for (const [vp, theme] of [[{ width: 1366, height: 768 }, 'dark'], [{ width: 144
     expect(scroll).toBeLessThanOrEqual(0);
   });
 }
+
+// U2-010: guided two-point tracking in a real browser (the real SliceView picks
+// through its view transform; the engine joins the two points)
+test('U2-010 1440x900: two guide points picked on the section, the guided pick joins them', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/dev/seismolord-u2');
+  await expect(page.getByTestId('u2-status')).toHaveText('ready', { timeout: 60000 });
+  await page.getByTestId('u2-pick-seed').click();
+  const canvas = page.getByTestId('u2-section').locator('canvas').last();
+  const box = await canvas.boundingBox();
+  await page.mouse.click(box.x + box.width * 0.25, box.y + box.height * 0.5);
+  await page.mouse.click(box.x + box.width * 0.75, box.y + box.height * 0.5);
+  await expect.poll(async () => (await page.getByTestId('u2-guide-points').textContent()).trim().split(' ').length).toBe(2);
+  await page.getByTestId('u2-guided').click();
+  const txt = await page.getByTestId('u2-guided-result').textContent();
+  const m = /^(\d+) traces (\d+)-(\d+)$/.exec(txt.trim());
+  expect(m, txt).not.toBeNull();
+  expect(Number(m[1])).toBe(Number(m[3]) - Number(m[2]) + 1);
+  expect(Number(m[1])).toBeGreaterThan(10);
+  await page.screenshot({ path: '/tmp/claude-0/seis-upg2/u2-010.png' });
+});
