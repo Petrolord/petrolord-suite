@@ -148,3 +148,28 @@ describe('STRAT-U1-007 the scheme panel adds schemes and shows what it read', ()
     expect(onStatus).toHaveBeenLastCalledWith(expect.stringMatching(/ages read in ka and converted to Ma/));
   });
 });
+
+describe('STRAT-U1-008 Send to Basin hands vertical thicknesses, not MD, for a deviated well', () => {
+  // eslint-disable-next-line global-require
+  const { buildBasinModelRow } = require('@/lib/basinHandoff');
+  // eslint-disable-next-line global-require
+  const { makeDepthFrame } = require('@/pages/apps/WellDataManager/engine/checkshots');
+  test('KETA-2 (0 to 30 degrees below 1400 m): layer thickness is the TVD difference (origin/main: MD difference)', async () => {
+    const backend = makeInMemoryBackend();
+    const well = (await backend.listWells()).find((w) => w.id === 'corr-w2');
+    expect(Array.isArray(well.deviation)).toBe(true); // STRAT-U1-011: the harness carries the survey
+    const tops = await backend.listTops('corr-w2');
+    const intervals = await backend.listIntervals('corr-w2');
+    const { row, problems } = buildBasinModelRow({ well, tops, intervals, userId: 'u' });
+    const f = makeDepthFrame({ deviation: well.deviation, kbM: well.kb_m, tdMdM: well.td_md_m });
+    const tvd = (md) => f.mdToTvdss(md).tvd;
+    const byName = Object.fromEntries(row.stratigraphy.map((l) => [l.name, l]));
+    // Mid Shale 1610 m MD to Base Sand 1705 m MD: 95 m along hole
+    expect(byName['Mid Shale'].thickness).toBeCloseTo(tvd(1705) - tvd(1610), 6);
+    expect(95 - byName['Mid Shale'].thickness).toBeGreaterThan(5);
+    expect(byName['Mid Shale'].provenance).toMatchObject({ top_md_m: 1610, base_md_m: 1705, thickness_basis: 'tvd' });
+    expect(problems.join(' ')).toMatch(/thicknesses are vertical \(TVD\) through the survey/);
+    expect(row.surface_elevation).toBeNull();
+    expect(row.settings.registryKbM).toBe(well.kb_m);
+  });
+});

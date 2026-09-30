@@ -6,6 +6,17 @@
 // owner-only guards mirror RLS.
 
 import { sampleWells } from '../../WellCorrelation/services/sampleSection';
+import { openSectionRow } from '@/components/wells/section/sectionState';
+import { openStratProjectRow } from '@/lib/stratigraphy/stratProjectState';
+
+// AppUpgrade STRAT-U1-011 (2026-09-30): the harness was blind to surveys,
+// CRSs and checkshots (publicWell dropped them, carried from WDM-U1-018),
+// so no deviated or feet path had ever run here. It now serves the whole
+// well header, can be seeded (hostile wells, saved rows of each release,
+// several named sections) and opens rows through the state-version door
+// the registry uses.
+const asCurves = (curves) => Object.fromEntries(Object.entries(curves || {})
+  .map(([k, v]) => [k, v instanceof Float32Array || v instanceof Float64Array ? v : Float32Array.from(v, (x) => (x == null ? NaN : x))]));
 
 let seq = 0;
 const nid = (p) => { seq += 1; return `${p}-${seq}`; };
@@ -19,18 +30,28 @@ export function seededUnits() {
   ];
 }
 
-export function makeInMemoryBackend() {
-  const wells = sampleWells().map((w) => ({ ...w }));
+/**
+ * @param {{ sample?: boolean, seedWells?: Object[], sections?: Object[], project?: ?Object, units?: ?Object[] }} [opts]
+ *   sections: saved geo_correlation_sections rows, newest LAST (the default
+ *   is the KETA section); project: a saved strat_projects row
+ */
+export function makeInMemoryBackend({ sample = true, seedWells = [], sections: seedSections = null, project: seedProject = null, units: seedUnits = null } = {}) {
+  const wells = [...(sample ? sampleWells() : []), ...seedWells.map((w) => ({ ...w, curves: asCurves(w.curves) }))].map((w) => ({ ...w }));
   const topsByWell = new Map(wells.map((w) => [w.id, w.tops.map((t) => ({ ...t }))]));
   const intervalsByWell = new Map(wells.map((w) => [w.id, (w.intervals || []).map((r) => ({ ...r }))]));   // ST1 seeded lithology
   const coreImagesByWell = new Map();
   const imgSeq = { n: 0 };
-  let units = seededUnits();
+  let units = seedUnits ? seedUnits.map((u) => ({ ...u })) : seededUnits();
   const curvesByWell = new Map(wells.map((w) => [w.id, w.curves]));
   const logMeta = new Map(wells.map((w) => [w.id, w.logMeta]));
-  // ST2: the shared section (Well Correlation's rows) seeded over all three wells, and the view state
-  let section = { id: 'section-1', well_ids: wells.map((w) => w.id), datum: { mode: 'structural' }, track_layout: {} };
-  let project = null;
+  // ST2: the shared section (Well Correlation's rows) seeded over the wells, and the view state;
+  // WC-U2-001 named sections: several rows, the newest opens by default
+  let clock = 0;
+  const sections = (seedSections || [{ id: 'section-1', name: 'KETA section', well_ids: wells.map((w) => w.id), datum: { mode: 'structural' }, track_layout: {} }])
+    .map((r) => ({ ...r, id: r.id || `section-${clock + 1}`, _t: ++clock }));
+  const newest = () => [...sections].sort((a, b) => b._t - a._t)[0] || null;
+  const strip = (r) => { if (!r) return null; const { _t, ...rest } = r; return { ...rest }; };
+  let project = seedProject ? { ...seedProject } : null;
   const basinModels = [];   // ST3 handoff target (the harness has no Basin store)
 
   const own = (wellId, what) => {
@@ -43,6 +64,8 @@ export function makeInMemoryBackend() {
   const publicWell = (w) => ({
     id: w.id, user_id: w.user_id, organization_id: w.organization_id, is_own: w.is_own,
     name: w.name, surface_x: w.surface_x, surface_y: w.surface_y, kb_m: w.kb_m, td_md_m: w.td_md_m ?? null,
+    deviation: w.deviation ?? null, uwi: w.uwi ?? null, crs: w.crs ?? null, xy_unit: w.xy_unit ?? null,
+    crs_provenance: w.crs_provenance ?? null, checkshots: w.checkshots ?? [],
   });
 
   return {
@@ -127,10 +150,31 @@ export function makeInMemoryBackend() {
       if (!c) throw new Error('Curve not found.');
       return c instanceof Float32Array ? c : Float32Array.from(c);
     },
-    async loadSection() { return section ? { ...section } : null; },
-    async saveSection(patch) { section = { ...(section || { id: 'section-1' }), ...patch }; return { ...section }; },
-    async loadStratProject() { return project ? { ...project } : null; },
-    async saveStratProject(patch) { project = { ...(project || { id: 'strat-1', name: 'Default' }), ...patch }; return { ...project }; },
+    async listSections() {
+      return [...sections].sort((a, b) => b._t - a._t)
+        .map((r) => ({ id: r.id, name: r.name || 'Section', wellCount: (r.well_ids || []).length, updated_at: r.updated_at || null }));
+    },
+    async loadSection(id = null) {
+      if (id) {
+        const r = sections.find((x) => x.id === id);
+        if (!r) throw new Error('That section no longer exists (deleted in another tab?).');
+        return openSectionRow(strip(r));
+      }
+      return openSectionRow(strip(newest()));
+    },
+    async saveSection(patch, { id = null } = {}) {
+      const target = id ? sections.find((x) => x.id === id) : newest();
+      if (target) { Object.assign(target, patch, { _t: ++clock }); return strip(target); }
+      const row = { id: 'section-1', name: 'Section', ...patch, _t: ++clock };
+      sections.push(row);
+      return strip(row);
+    },
+    async loadStratProject() { return openStratProjectRow(project ? { ...project } : null); },
+    async saveStratProject(patch) {
+      if (project) openStratProjectRow({ ...project }); // a newer build's row is never overwritten
+      project = { ...(project || { id: 'strat-1', name: 'Default' }), ...patch };
+      return { ...project };
+    },
 
     async saveTop(wellId, top) {
       own(wellId, 'add tops to this well');
