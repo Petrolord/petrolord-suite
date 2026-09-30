@@ -13,10 +13,11 @@ import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getDepthUnit } from '@/lib/crs/settingsService';
 import { tourAt, toRigLocal, offsetLabel } from '@/lib/wellsite/time';
 import { wellContext, offsetMinOf, defaultDepthEntry, tourConfigOf } from '../services/wellContext';
-import { readUnits, writeUnits, fmtDepth, DEPTH_UNITS } from '../services/units';
+import { readUnits, fmtDepth, DEPTH_UNITS, UNITS_KEY } from '../services/units';
+import { useAppUnits } from '@/lib/units/useAppUnits';
+import UnitProfileNote from '@/components/units/UnitProfileNote';
 import { currentObservations } from '@/lib/wellsite/records';
 import LiveWellView from './LiveWellView';
 import ConfigView from './ConfigView';
@@ -94,21 +95,17 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const syncState = useSyncState();
   const [status, setStatus] = useState('Ready.');
   const [loading, setLoading] = useState(0);
-  const [units, setUnits] = useState(() => readUnits(typeof localStorage !== 'undefined' ? localStorage : null));
+  // Suite unit profile: depth starts from the profile; the header selector
+  // changes this view for the session only, and the older remembered
+  // 'ws.units' choice no longer beats the profile
+  const unitsHook = useAppUnits('wellsite', { depth: { family: 'depth', allowed: DEPTH_UNITS } },
+    { fallback: readUnits(typeof localStorage !== 'undefined' ? localStorage : null), legacyKeys: [UNITS_KEY] });
+  const { units } = unitsHook;
   const [tick, setTick] = useState(0);
   const [user, setUser] = useState(null);
   void appPaths;
 
   const track = useCallback(async (fn) => { setLoading((n) => n + 1); try { return await fn(); } finally { setLoading((n) => n - 1); } }, []);
-
-  // account depth unit as the fallback (local default first, remote as an enhancement)
-  useEffect(() => {
-    let alive = true;
-    try {
-      if (!localStorage.getItem('ws.units')) getDepthUnit().then((u) => { if (alive && DEPTH_UNITS.includes(u)) setUnits({ depth: u }); }).catch(() => {});
-    } catch { /* no storage */ }
-    return () => { alive = false; };
-  }, []);
 
   const refreshWells = useCallback(async () => {
     try {
@@ -349,7 +346,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const nowMs = Date.now() + tick * 0;
   const tour = well ? tourAt(nowMs, tourConfigOf(well)) : null;
   const rigNow = toRigLocal(nowMs, offsetMin);
-  const setUnit = (u) => { const next = { depth: u }; setUnits(next); writeUnits(typeof localStorage !== 'undefined' ? localStorage : null, next); };
+  const setUnit = (u) => unitsHook.setUnit('depth', u);
   const isMember = true;
 
   const ribbon = (
@@ -371,12 +368,13 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
         </button>
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <label className="flex items-center gap-1 whitespace-nowrap text-[11px] text-pl-muted" title="Display unit; the record stores metres">
+        <label className="flex items-center gap-1 whitespace-nowrap text-[11px] text-pl-muted" title="Display unit; starts from your Suite units and changes this view for the session. The record stores metres">
           Depth
           <select value={units.depth} onChange={(e) => setUnit(e.target.value)} data-testid="ws-unit" className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text">
             {DEPTH_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
         </label>
+        <UnitProfileNote u={unitsHook} className="hidden lg:inline-flex" />
         <SyncStatusPill onClick={() => { setDockView('sync'); setDockOpen(true); }} />
         <Link to="/dashboard/apps/geoscience/wellsite-studio/help" data-testid="ws-help" title="Open the Wellsite Studio help guide"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken">
