@@ -20,7 +20,8 @@ import MapView from './MapView';
 import SectionView from './SectionView';
 import FrameworkView3D from './FrameworkView3D';
 import QcPanel from './QcPanel';
-import { buildModel, emptyDefinition, MISTIE_WARN_M, publishPayload, BG_UNITS, upgradeDefinition } from '../services/modelBuild';
+import { emptyDefinition, MISTIE_WARN_M, publishPayload, BG_UNITS, upgradeDefinition } from '../services/modelBuild';
+import { runBuild } from '../services/buildClient';
 import { contourPlan, colorbarLevelsFor } from '@/pages/apps/MappingSurfaceStudio/components/MapCanvas';
 import { DEPTH_UNIT_KEY, VOLUME_UNITS_KEY, VOLUME_UNIT_SETS, readSetting, fmtDepth } from '../services/units';
 import { useAppUnits } from '@/lib/units/useAppUnits';
@@ -218,11 +219,23 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     setDef({ ...definition, surfaceIds, topNames: tn });
   };
 
+  // U2-004: the build runs on a worker with progress; Cancel terminates it
+  const [buildProgress, setBuildProgress] = useState(null);
+  const [buildWhere, setBuildWhere] = useState(null);
+  const buildAbortRef = useRef(null);
+  const cancelBuild = () => { buildAbortRef.current?.abort(); };
   const build = async () => {
     setBuilding(true);
+    setBuildProgress({ label: 'Starting the build', fraction: 0 });
+    const ctrl = new AbortController();
+    buildAbortRef.current = ctrl;
     try {
-      const result = await buildModel(definition, wells, surfaces, backend);
+      const { built: result, where } = await runBuild({
+        definition, wells, surfaces, backend, signal: ctrl.signal,
+        onProgress: (p) => setBuildProgress({ label: p.label, fraction: p.fraction }),
+      });
       setBuilt(result);
+      setBuildWhere(where);
       setZoneIdx(0);
       const blocks = Object.keys(result.census).length;
       const clamps = result.counts.reduce((a, b) => a + b, 0);
@@ -252,9 +265,11 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       const frameText = `${result.spec.nx}×${result.spec.ny} frame at ${fmtCell(result.specM.dx)} m${result.xyToM !== 1 ? ` (${fmtCell(result.spec.dx)} ${result.xyUnit})` : ''}`;
       setStatus(`Built ${definition.name}: ${frameText}, ${result.zones.length} zones, ${blocks} block${blocks > 1 ? 's' : ''}, ${clamps} clamped nodes${result.boundary ? `, clipped to ${result.boundary.name}` : ''}${adjText}.${clampText}${mtText}${fbText}${tpText}${pcText}${openText}${noteText}`);
     } catch (e) {
-      setStatus(e.message);
+      setStatus(e.cancelled ? 'Build cancelled. The previous model, if any, is unchanged.' : e.message);
     } finally {
       setBuilding(false);
+      setBuildProgress(null);
+      buildAbortRef.current = null;
     }
   };
 
@@ -416,11 +431,21 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           {Object.values(VOLUME_UNIT_SETS).map((u) => <option key={u.key} value={u.key}>{u.label}</option>)}
         </select>
         <UnitProfileNote u={unitsHook} names={{ volume: 'volumes' }} className="hidden xl:inline-flex" />
-        <button type="button" data-testid="em-build"
+        <button type="button" data-testid="em-build" data-build-where={buildWhere || ''}
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-primary/50 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40"
           disabled={building || definition.surfaceIds.length < 2} onClick={build}>
           {building ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Hammer className="w-3.5 h-3.5" />} Build model
         </button>
+        {building && (
+          <span className="flex items-center gap-1" data-testid="em-build-progress">
+            <span className="w-20 h-1.5 rounded bg-pl-sunken overflow-hidden" title={buildProgress?.label || ''}>
+              <span className="block h-full bg-pl-primary" style={{ width: `${Math.round(100 * (buildProgress?.fraction || 0))}%` }} />
+            </span>
+            <span className="text-[11px] text-pl-muted whitespace-nowrap" data-testid="em-build-progress-text">{Math.round(100 * (buildProgress?.fraction || 0))}%</span>
+            <button type="button" data-testid="em-build-cancel" onClick={cancelBuild}
+              className="px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken">Cancel</button>
+          </span>
+        )}
         <button type="button" data-testid="em-publish"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-primary-text hover:bg-pl-sunken disabled:opacity-40"
           disabled={!built || !mapGrid || layer === 'blocks'} onClick={publish}>
@@ -461,7 +486,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
 
   const statusBar = (
     <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
-      <span data-testid="em-status" className="truncate">{status}</span>
+      <span data-testid="em-status" className="truncate">{building && buildProgress ? `Building: ${buildProgress.label} (${Math.round(100 * buildProgress.fraction)}%)` : status}</span>
       <span className="ml-auto whitespace-nowrap" data-testid="em-frame">
         {built ? `${built.spec.nx}×${built.spec.ny} @ ${fmtCell(built.specM.dx)} m` : `${definition.surfaceIds.length} surfaces stacked`}
       </span>

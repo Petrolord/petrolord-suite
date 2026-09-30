@@ -150,6 +150,11 @@ export function engineFluids(f) {
   return rest;
 }
 
+/** Thrown when a build is cancelled (U2-004). */
+export class BuildCancelled extends Error {
+  constructor() { super('Build cancelled.'); this.name = 'BuildCancelled'; this.cancelled = true; }
+}
+
 /** A mis-tie beyond this (metres) is reported after a build (T1 EM-T1-003). */
 export const MISTIE_WARN_M = 10;
 
@@ -337,7 +342,17 @@ export function publishPayload(built, { layer, grid, modelName, zoneName, method
  * `xyToM` the factor between them.
  * @returns {{spec, specM, xyToM, xyUnit, clamped, counts, thickness, labels, census, ties, zones, notes}}
  */
-export async function buildModel(definition, wells, surfaces, backend) {
+export async function buildModel(definition, wells, surfaces, backend, { onProgress = null, signal = null } = {}) {
+  // U2-004: progress in steps (surfaces read, framework, each zone's three
+  // properties and its volumes), and a cancel checked between steps
+  const nZones = Math.max(0, (definition.surfaceIds || []).length - 1);
+  const totalSteps = (definition.surfaceIds || []).length + 1 + nZones * 4;
+  let step = 0;
+  const progress = (label) => {
+    if (signal?.aborted) throw new BuildCancelled();
+    step += 1;
+    if (onProgress) onProgress({ label, step: Math.min(step, totalSteps), total: totalSteps, fraction: Math.min(1, step / totalSteps) });
+  };
   // registry rows plus the definition's derived horizons (EM2)
   const rows = allSurfaceRows(surfaces, definition);
   const stack = definition.surfaceIds.map((id) => {
@@ -373,9 +388,13 @@ export async function buildModel(definition, wells, surfaces, backend) {
   };
   const loadDepthDown = async (s) => (await readRow(s, ['elevation'], 'a surface in the model stack')).grid;
   const loadIsochore = async (s) => (await readRow(s, ['isochore'], 'the thickness of a derived horizon')).grid;
-  const grids = await Promise.all(stack.map(async (s) => (s.derived
-    ? computeDerivedGrid(s.provenance.derived, rows, loadDepthDown, loadIsochore)
-    : loadDepthDown(s))));
+  const grids = await Promise.all(stack.map(async (s) => {
+    const g = await (s.derived
+      ? computeDerivedGrid(s.provenance.derived, rows, loadDepthDown, loadIsochore)
+      : loadDepthDown(s));
+    progress(`Read ${s.name}`);
+    return g;
+  }));
 
   // one XY unit for the whole stack: the registry rows read (derived rows
   // take their sources' frame)
@@ -434,6 +453,7 @@ export async function buildModel(definition, wells, surfaces, backend) {
   });
   const thickness = [];
   for (let i = 0; i + 1 < clamped.length; i++) thickness.push(zoneThickness(clamped[i], clamped[i + 1]));
+  progress('Framework stacked and clamped');
   const framework = { grids: resampled, clamped, counts, thickness };
 
   // EM0: a boundary polygon (geo_culture kind boundary) clips the model:
@@ -515,6 +535,7 @@ export async function buildModel(definition, wells, surfaces, backend) {
       props[prop] = out.z;
       if (out.variance) variance[prop] = out.variance;
       provenance[prop] = out.provenance;
+      progress(`${zdef.name}: ${prop === 'phi' ? 'porosity' : prop === 'sw' ? 'Sw' : 'NTG'} populated`);
     }
     const fluids = parsedFluids[i] || null;
     const eng = engineFluids(fluids);
@@ -526,6 +547,7 @@ export async function buildModel(definition, wells, surfaces, backend) {
     const zone = { name: zdef.name, registryZone: zdef.registryZone, thickness: zThickness, props, variance, provenance, volumes, fluids };
     zone.range = volumeRange(specM, zone, labels, eng, top, base);
     zone.openEdge = contactEdgeReport(specM, top, fluids);
+    progress(`${zdef.name}: volumes`);
     return zone;
   });
 
