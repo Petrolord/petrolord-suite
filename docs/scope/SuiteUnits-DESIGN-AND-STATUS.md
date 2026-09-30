@@ -177,3 +177,20 @@ Pro (registry guide, contact field).
    could follow the profile's system directly.
 6. Retire `geoscience_settings.depth_unit` once every reader uses the profile
    (it stays as step 4 until then).
+
+## Verification (2026-09-30, branch feat/suite-unit-profile)
+
+- Scratch Postgres dry run and pentest: 33/33 (the shape check's NULL case
+  was caught by the negative control and fixed before commit).
+- Jest in band: 273 suites, 2448 tests green (units library, settings page,
+  portability, every adopted app, Well Test and Nodal utils, wells
+  components, src/__tests__ guards).
+- Playwright walk (1 worker; 1366x768 and 390, light and dark), 77/77:
+  `/dev/hubs/units` (admin edits and saves the organisation default and
+  My units; sidebar link), `/dev/hubs/units-member` (read-only, admin
+  named), `/dev/units-app/pp?preset=metric` (m and MPa; toggle shows the
+  differs note, survives a reload in the tab, reset returns to the
+  profile), `/dev/units-app/wdm?preset=oilfield` (feet; a user oilfield
+  setting beats a metric organisation default). No horizontal scroll at
+  390, no page errors.
+- Production build (`npm run build`): passed in 3m 33s after merging origin/main (8851a52e4).
