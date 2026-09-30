@@ -7,7 +7,8 @@
 // is saved after its parent with the real id substituted.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2, Save, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Save, Loader2, FileUp } from 'lucide-react';
+import { parseColumnFile } from '../services/columnImport';
 import { RANKS, orderedUnits, validateColumn } from '@/lib/stratigraphy/column';
 import { unitsOfRank, ageBounds, TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
 import ColumnChart from './ColumnChart';
@@ -60,6 +61,27 @@ export default function ColumnEditor({ units, canEdit = true, onSave, onStatus, 
     setRows((rs) => [...rs, { id: `new-${tmp}`, name: '', rank: 'formation', parent_id: '', order_index: '', age_top_ma: '', age_base_ma: '', colour: '#94a3b8', is_new: true }]);
     setDirty(true);
   };
+  // STRAT-U1-016: a Petrel zone hierarchy, a StrataBugs chart or a spreadsheet
+  // goes in as new rows (parents by name, any row order); nothing is saved
+  // until Save column, which validates the whole column as before
+  const importFile = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    try {
+      const { rows: incoming, problems: bad, notes } = parseColumnFile(await f.text(), rows);
+      if (!incoming.length) { onStatus?.(bad[0] || notes[0] || 'No new units in the file.'); return; }
+      const idOf = new Map(rows.map((r) => [String(r.name).trim().toLowerCase(), r.id]));
+      const fresh = incoming.map((u) => { tmp += 1; const id = `new-${tmp}`; idOf.set(u.name.toLowerCase(), id); return { ...u, id }; });
+      setRows((rs) => [...rs, ...fresh.map((u) => ({
+        id: u.id, name: u.name, rank: u.rank, parent_id: u.parentName ? idOf.get(u.parentName.toLowerCase()) || '' : '',
+        order_index: '', age_top_ma: u.age_top_ma == null ? '' : String(u.age_top_ma), age_base_ma: u.age_base_ma == null ? '' : String(u.age_base_ma),
+        colour: u.colour || '#94a3b8', is_new: true,
+      }))]);
+      setDirty(true);
+      onStatus?.(`Read ${fresh.length} unit${fresh.length === 1 ? '' : 's'} from ${f.name}; check them and Save column${notes.length ? `. ${notes.join('; ')}` : ''}${bad.length ? `. ${bad.length} row${bad.length === 1 ? '' : 's'} not read: ${bad[0]}` : ''}.`);
+    } catch (err) { onStatus?.(err.message); }
+  };
   const delRow = (id) => { setRows((rs) => rs.filter((r) => r.id !== id).map((r) => (r.parent_id === id ? { ...r, parent_id: '' } : r))); setDirty(true); };
   const fillFromStage = (id, stageName) => {
     const b = ageBounds(stageName);
@@ -105,6 +127,10 @@ export default function ColumnEditor({ units, canEdit = true, onSave, onStatus, 
         <span className="text-pl-text font-medium">Stratigraphic column</span>
         <span className="text-pl-muted">{units.length} unit{units.length === 1 ? '' : 's'} · ages in Ma, timescale {TIMESCALE_VERSION}</span>
         <div className="ml-auto flex items-center gap-1">
+          <label className={`${btnCls} ${canEdit ? 'cursor-pointer' : 'opacity-40 pointer-events-none'}`} title="Units from a Petrel zone hierarchy, a StrataBugs chart or a spreadsheet: name, rank, parent, top and base age (Ma or ka), colour">
+            <FileUp className="w-3.5 h-3.5" /> Import units
+            <input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" className="hidden" disabled={!canEdit} onChange={importFile} data-testid="strat-column-import" />
+          </label>
           <button type="button" className={btnCls} onClick={addRow} disabled={!canEdit} data-testid="strat-unit-add"><Plus className="w-3.5 h-3.5" /> Add unit</button>
           <button type="button" className={`${btnCls} ${dirty ? 'border-pl-primary text-pl-primary-text' : ''}`} onClick={save} disabled={!canEdit || busy || !dirty} data-testid="strat-column-save">
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save column
@@ -138,7 +164,7 @@ export default function ColumnEditor({ units, canEdit = true, onSave, onStatus, 
                         onChange={(e) => setCell(u.id, 'name', e.target.value)} data-testid={`strat-unit-name-${i}`} />
                     </td>
                     <td className="pr-3 py-0.5">
-                      <select className={cellCls} value={r.rank} disabled={!canEdit} onChange={(e) => setCell(u.id, 'rank', e.target.value)} data-testid={`strat-unit-rank-${i}`}>
+                      <select className={cellCls} style={{ width: 104 }} value={r.rank} disabled={!canEdit} onChange={(e) => setCell(u.id, 'rank', e.target.value)} data-testid={`strat-unit-rank-${i}`}>
                         {RANKS.map((k) => <option key={k} value={k}>{k}</option>)}
                       </select>
                     </td>

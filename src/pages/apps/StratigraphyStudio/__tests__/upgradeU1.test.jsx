@@ -315,3 +315,46 @@ describe('STRAT-U1-015 age-depth rates are vertical on a deviated well', () => {
     expect(screen.getByTestId('strat-agedepth-plot').getAttribute('data-depth-basis')).toBe('TVD');
   });
 });
+
+describe('STRAT-U1-016 a column comes in from a Petrel, StrataBugs or spreadsheet file', () => {
+  // eslint-disable-next-line global-require
+  const fs = require('fs'); const path = require('path');
+  // eslint-disable-next-line global-require
+  const ColumnEditor = require('../components/ColumnEditor').default;
+  // eslint-disable-next-line global-require
+  const { parseColumnFile } = require('../services/columnImport');
+  const FIX = path.join(__dirname, '..', '..', '..', '..', '..', 'e2e', 'fixtures', 'strat', 'hostile');
+  const read = (f) => fs.readFileSync(path.join(FIX, f), 'utf8');
+
+  test('the spreadsheet: ka to Ma, a child before its parent, a repeat read once, an overlap noted', () => {
+    const { rows, problems, notes } = parseColumnFile(read('column_spreadsheet_ka.tsv'));
+    expect(problems).toEqual([]);
+    expect(rows.map((r) => [r.name, r.rank, r.parentName, r.age_top_ma, r.age_base_ma])).toEqual([
+      ['Benin Sands', 'member', 'Benin', 0, 2.58], ['Benin', 'formation', null, 0, 23.03], ['Qua Iboe Shale', 'member', 'Benin', 2, 5.333],
+    ]);
+    const all = notes.join(' | ');
+    expect(all).toMatch(/ages read in ka and converted to Ma/);
+    expect(all).toMatch(/Benin Sands repeated on row 4 was read once/);
+    expect(all).toMatch(/Benin Sands and Qua Iboe Shale overlap in age \(2 to 2\.58 Ma\)/);
+  });
+
+  test('the Petrel hierarchy goes into an empty column and saves parents first (origin/main: no import)', async () => {
+    const onSave = jest.fn(async () => {});
+    const onStatus = jest.fn();
+    render(<ColumnEditor units={[]} onSave={onSave} onStatus={onStatus} />);
+    fireEvent.change(screen.getByTestId('strat-column-import'), { target: { files: [{ name: 'zones.csv', text: async () => read('column_petrel_zones.csv') }] } });
+    await waitFor(() => expect(onStatus).toHaveBeenCalledWith(expect.stringMatching(/^Read 4 units from zones\.csv/)));
+    fireEvent.click(screen.getByTestId('strat-column-save'));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const { create } = onSave.mock.calls[0][0];
+    expect(create.map((u) => u.name)).toEqual(['Agbada', 'Upper Agbada', 'Lower Agbada', 'Akata']);
+    const agbada = create.find((u) => u.name === 'Agbada');
+    expect(create.find((u) => u.name === 'Lower Agbada')).toMatchObject({ parent_id: agbada.id, rank: 'formation', age_top_ma: 15.98, age_base_ma: 33.9, colour: '#d97706' });
+  });
+
+  test('names already in the column are left as they are', () => {
+    const { rows, notes } = parseColumnFile(read('column_petrel_zones.csv'), [{ id: 'u1', name: 'Agbada' }]);
+    expect(rows.map((r) => r.name)).toEqual(['Upper Agbada', 'Lower Agbada', 'Akata']);
+    expect(notes.join(' ')).toMatch(/Agbada is already in the column/);
+  });
+});
