@@ -580,3 +580,24 @@ describe('STRAT-U2-010 event-based age model', () => {
     expect((await b.listTops('corr-w1')).find((t) => t.name === 'Top Dome').age_ma).toBe(age);
   }, 120000);
 });
+
+describe('STRAT-U2-016 suggest-only sequence surfaces', () => {
+  test('each suggestion shows its reason; nothing is written until Accept; Reject writes nothing; a shared well is named', async () => {
+    const b = makeInMemoryBackend();
+    const onStatus = jest.fn();
+    renderSection(b, { onStatus });
+    await wellsDrawn(3);
+    const before = JSON.stringify(await b.listTops('corr-w1'));
+    fireEvent.click(screen.getByTestId('strat-suggest-surfaces'));
+    const panel = await screen.findByTestId('strat-suggestions', {}, T);
+    expect(panel.textContent).toMatch(/KETA-1: pick MFS at 1[56]\d\d m MD/);
+    expect(panel.textContent).toMatch(/Why: GR rises upward to \d+ API .* maximum flooding surface/);
+    expect(panel.textContent).toMatch(/No suggestion: .*KETA-3 \(shared, read-only\)/);
+    expect(JSON.stringify(await b.listTops('corr-w1'))).toBe(before); // suggesting writes nothing
+    fireEvent.click(screen.getByTestId('strat-suggestion-reject-KETA-2-MFS'));
+    expect(JSON.stringify(await b.listTops('corr-w2')).includes('MFS 1')).toBe(false);
+    fireEvent.click(screen.getByTestId('strat-suggestion-accept-KETA-1-MFS'));
+    await waitFor(async () => expect((await b.listTops('corr-w1')).some((t) => /^MFS 1[56]\d\d$/.test(t.name) && t.surface_type === 'MFS' && t.confidence === 'low')).toBe(true), T);
+    expect(onStatus).toHaveBeenCalledWith(expect.stringMatching(/Accepted: MFS picked on KETA-1 at 1[56]\d\d(\.\d+)? m MD \(low confidence until you confirm it\)/));
+  }, 120000);
+});

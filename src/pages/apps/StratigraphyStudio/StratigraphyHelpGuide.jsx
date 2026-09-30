@@ -172,6 +172,7 @@ export default function StratigraphyHelpGuide() {
           ['Tracts', 'fills between typed surfaces coloured by tract; implied until Record tracts writes them, hatched when the tract needs an unpicked boundary'],
           ['Motifs', 'outlines the log motif intervals beside the first track'],
           ['Record tracts', 'writes the implied systems tracts as intervals on every own well of the section'],
+          ['Suggest surfaces', 'proposes a maximum flooding surface where the GR trend turns from fining-upward to coarsening-upward, and a maximum regressive surface where it turns the other way (a swing of 20 API or more), each with its reason; it proposes typing a formation top within 5 m, or a new low-confidence pick. You accept or reject each; nothing is written otherwise'],
           ['Columns', 'auto, fit or a fixed width (120 to 300 px) with a horizontal scroll, as in Well Correlation'],
           ['Horizons', 'Seismolord horizons converted to surfaces, sampled where each wellbore crosses them and drawn dotted (time horizons through the checkshots); a well a horizon cannot reach is named with the reason; Datum can flatten or stretch on a horizon. Read only'],
           ['Strips', 'the PAY flag and zone summaries Petrophysics Studio published, and the units of this column, as narrow strips beside each well; a well without the data says so'],

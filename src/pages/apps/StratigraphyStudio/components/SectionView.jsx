@@ -22,6 +22,7 @@ import { datumDefaultFor, DEPTH_REF_LABEL, COLUMN_WIDTHS } from '@/components/we
 import { useSectionHorizons } from '@/components/wells/section/useSectionHorizons';
 import { wellStrips } from '@/components/wells/section/petroStrips';
 import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
+import { suggestSurfaces } from '@/lib/stratigraphy/tractAssist';
 import ChartExportButtons from '@/components/wells/section/ChartExportButtons';
 import { chartHeaderLines } from '@/components/wells/section/chartExport';
 import { TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
@@ -217,6 +218,37 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
     }
   };
 
+  // ---- STRAT-U2-016 suggest-only sequence surfaces (the WC-U2-009 rule: each
+  // proposal shows its reason; nothing is written until it is accepted) ----
+  const [suggest, setSuggest] = useState(null); // {items, none}
+  const runSuggest = () => {
+    const items = []; const none = [];
+    for (const w of sectionWells) {
+      if (!w.is_own) { none.push(`${w.name} (shared, read-only)`); continue; }
+      const d = wellData[w.id];
+      const gr = d?.curves?.GR || d?.logs?.GR;
+      if (!gr || !d?.curves?.DEPT) { none.push(`${w.name} (no GR log)`); continue; }
+      const got = suggestSurfaces({ depth: d.curves.DEPT, gr, tops: w.tops || [] });
+      if (!got.length) none.push(`${w.name} (no GR turnaround of 20 API or more without a surface already typed there)`);
+      got.forEach((g, k) => items.push({ ...g, key: `${w.id}:${k}:${g.code}:${g.md}`, wellId: w.id, wellName: w.name }));
+    }
+    setSuggest({ items, none });
+    onStatus(items.length ? `${items.length} suggested surface${items.length === 1 ? '' : 's'}. Nothing is written until you accept one.` : 'No surface to suggest.');
+  };
+  const acceptSuggestion = async (it) => {
+    try {
+      if (it.kind === 'type') await backend.updateTop(it.topId, { surface_type: it.code });
+      else await backend.saveTop(it.wellId, { name: `${it.code} ${Math.round(it.md)}`, mdM: it.md, surface_type: it.code, confidence: 'low', notes: 'suggested from the GR trend, accepted' });
+      await sec.refreshTops(it.wellId);
+      setSuggest((x) => (x ? { ...x, items: x.items.filter((y) => y.key !== it.key) } : x));
+      onStatus(it.kind === 'type' ? `Accepted: ${it.topName} on ${it.wellName} typed ${it.code}.` : `Accepted: ${it.code} picked on ${it.wellName} at ${it.md} m MD (low confidence until you confirm it).`);
+    } catch (e) { onStatus(e.message); }
+  };
+  const rejectSuggestion = (it) => {
+    setSuggest((x) => (x ? { ...x, items: x.items.filter((y) => y.key !== it.key) } : x));
+    onStatus(`Rejected the ${it.code} suggestion on ${it.wellName}; nothing written.`);
+  };
+
   const saveView = async () => {
     if (!onSaveProject) return;
     try {
@@ -350,6 +382,8 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
       <button type="button" className={btnCls} disabled={busy || !sectionWells.some((w) => w.is_own)} onClick={recordTracts} data-testid="strat-record-tracts" title="Write the implied systems tracts to the shared intervals of every own well in the section">
         {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} Record tracts
       </button>
+      <button type="button" className={btnCls} disabled={!sectionWells.some((w) => w.is_own)} onClick={runSuggest} data-testid="strat-suggest-surfaces"
+        title="Propose maximum flooding and maximum regressive surfaces where the GR trend turns (20 API or more), each with its reason; you accept or reject each, nothing is written otherwise">Suggest surfaces</button>
       <label className="flex items-center gap-1 text-pl-muted ml-2">Ghost
         <select className={selCls} value={ghost?.sourceWellId || ''} data-testid="strat-ghost-source" onChange={(e) => setGhost(e.target.value ? { sourceWellId: e.target.value, targetWellId: ghost?.targetWellId || sectionWells.find((w) => w.id !== e.target.value)?.id, shiftM: ghost?.shiftM || 0 } : null)}>
           <option value="">off</option>
@@ -417,9 +451,28 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
     );
   }
 
+  const suggestPanel = suggest && (
+    <div className="px-3 py-1.5 border-b border-pl-border text-xs space-y-0.5 max-h-48 overflow-auto" data-testid="strat-suggestions">
+      <div className="flex items-center gap-2"><span className="text-pl-text font-medium">Suggested surfaces</span><button type="button" className="ml-auto text-pl-muted" onClick={() => setSuggest(null)} data-testid="strat-suggestions-close">close</button></div>
+      {!suggest.items.length && <p className="text-pl-muted">No open suggestion.</p>}
+      {suggest.items.map((it) => (
+        <div key={it.key} className="border-t border-pl-border py-0.5" data-testid={`strat-suggestion-${it.wellName}-${it.code}`}>
+          <div className="flex items-center gap-1">
+            <span className="text-pl-text">{it.wellName}: {it.kind === 'type' ? `type ${it.topName} as ${displayLabel(it.code, scheme, { kind: 'surface', short: true }).label}` : `pick ${displayLabel(it.code, scheme, { kind: 'surface', short: true }).label} at ${Math.round(toDisplay(it.md, depthUnit === 'ft' ? 'ft' : 'm'))} ${depthUnit === 'ft' ? 'ft' : 'm'} MD`}</span>
+            <button type="button" className="ml-auto px-1.5 rounded border border-pl-primary text-pl-primary-text" onClick={() => acceptSuggestion(it)} data-testid={`strat-suggestion-accept-${it.wellName}-${it.code}`}>Accept</button>
+            <button type="button" className="px-1.5 rounded border border-pl-border text-pl-muted" onClick={() => rejectSuggestion(it)} data-testid={`strat-suggestion-reject-${it.wellName}-${it.code}`}>Reject</button>
+          </div>
+          <p className="text-pl-muted">Why: {it.reason}.</p>
+        </div>
+      ))}
+      {suggest.none.length > 0 && <p className="text-pl-warning-text">No suggestion: {suggest.none.join(', ')}.</p>}
+    </div>
+  );
+
   return (
     <div className="h-full min-h-0 flex flex-col">
       {controls}
+      {suggestPanel}
       <div className="flex-1 min-h-0">
         <CrossSection
           wells={viewWells}
