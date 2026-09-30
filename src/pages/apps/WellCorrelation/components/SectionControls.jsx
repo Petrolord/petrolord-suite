@@ -11,8 +11,7 @@ import { Link } from 'react-router-dom';
 import LayoutPanel, { NumText } from '@/components/wells/LayoutPanel';
 import { topColor } from '@/components/wells/topColors';
 import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
-import { DEPTH_REF_LABEL } from '../engine/sectionFrame';
-import { COLUMN_WIDTHS } from '@/components/wells/section/sectionFrame';
+import { DEPTH_REF_LABEL, COLUMN_WIDTHS } from '@/components/wells/section/sectionFrame';
 import { PDF_SCALES_M, PDF_SCALES_FT, scaleLabel } from '../services/sectionPdf';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 

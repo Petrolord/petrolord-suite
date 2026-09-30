@@ -5,7 +5,7 @@ import { computeFlattening, correlationPolyline } from '../engine/section';
 import {
   depthOfFor, toReferenceFrame, displayedArray, isMonotonic, mdFromDisplayed,
   pathDistances, columnLayout, zoneBands,
-} from '../engine/sectionFrame';
+} from '@/components/wells/section/sectionFrame';
 import { makeDepthFrame } from '../../WellDataManager/engine/checkshots';
 
 const withFrames = (wells) => wells.map((w) => ({

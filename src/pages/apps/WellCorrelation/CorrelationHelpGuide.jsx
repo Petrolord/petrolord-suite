@@ -12,7 +12,7 @@ import {
 import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Code, Callout, Step, Table,
 } from '@/components/helpguide/HelpGuideLayout';
-import { DEPTH_REF_LABEL } from './engine/sectionFrame';
+import { DEPTH_REF_LABEL } from '@/components/wells/section/sectionFrame';
 import { CORR_PARAMS } from './components/CorrelationWorkstation';
 
 const APP_PATH = '/dashboard/apps/geoscience/well-correlation';
