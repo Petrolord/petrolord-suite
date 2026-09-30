@@ -2,6 +2,7 @@
 // velocity, density and depth from the profile; the older remembered
 // 'rp.units' choice no longer beats it. Negative control: no provider.
 import React from 'react';
+import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { installDomShims, installDashboardScope } from '@/design/testing/themeAssertions';

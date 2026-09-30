@@ -4,6 +4,7 @@
 // the note names. Negative control: without a provider the old default
 // and the remembered choice stand.
 import React from 'react';
+import '@testing-library/jest-dom';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { installDomShims, installDashboardScope } from '@/design/testing/themeAssertions';
