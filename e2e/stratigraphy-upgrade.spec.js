@@ -51,7 +51,8 @@ test('PL2: hostile interval files: TVDSS refused with the reason, "Top (ft)" rea
   await expect(page.getByTestId('strat-intervals-paste-mdunit')).toHaveValue('ft');
   await page.getByTestId('strat-intervals-save').click();
   await expect(status(page)).toHaveText('2 lithology intervals saved on KETA-1.');
-  await expect(page.getByTestId('strat-intervals-top-0')).toHaveValue(String(4724.4 * 0.3048));
+  // STRAT-U2-004: cells show two decimals in the display unit (metres here); the stored metres are unchanged
+  await expect(page.getByTestId('strat-intervals-top-0')).toHaveValue('1440');
   await shot(page, 'pl2-intervals');
 });
 
