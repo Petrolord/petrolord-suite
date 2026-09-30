@@ -13,6 +13,7 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 import { STRAT_PROJECT_KIND } from '@/lib/stratigraphy/stratProjectState';
+import { ZoneSchemesUnavailable } from '@/lib/stratigraphy/zoneSchemesUnavailable';
 
 export const STRAT_UNIT_KIND = 'strat-unit';
 registerStateKind(STRAT_UNIT_KIND, { current: 1, label: 'stratigraphic unit' });
@@ -273,4 +274,68 @@ export async function saveStratProject(patch) {
     (row) => supabase.from('strat_projects').insert(row).select().single());
   if (error) throw new Error(`Could not save the stratigraphy project: ${error.message}`);
   return data;
+}
+
+// ---- organisation zone schemes (AppUpgrade STRAT-U2-008) --------------------
+//
+// strat_zone_schemes (migration 20260930180000, applied 2026-09-30): one row
+// per scheme per organisation, zones as [{zone, top_ma, base_ma}], the
+// calibration source, the ICS chart edition. Members read, any member adds
+// (stamped as the creator), the creator or an organisation admin changes or
+// deletes (RLS). On a database without the table the studio keeps working on
+// browser storage: the functions below throw ZoneSchemesUnavailable, which the
+// panel reads as "organisation sharing arrives once the table exists".
+
+export { ZoneSchemesUnavailable };
+const missingTable = (error) => !!error && (['42P01', 'PGRST205'].includes(String(error.code)) || /relation .*strat_zone_schemes.* does not exist|Could not find the table .*strat_zone_schemes/i.test(String(error.message || '')));
+const ZONE_SCHEME_COLUMNS = 'id, organization_id, name, source, chart_version, zones, notes, created_by, app_build, created_at, updated_at';
+
+/** The signed-in user and their organisation membership ({userId, email, orgId, role}); orgId null outside an organisation. */
+export async function zoneSchemeContext() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { userId: null, email: null, orgId: null, role: null };
+  const { getUserOrgRow } = await import('@/lib/orgContext');
+  const row = await getUserOrgRow(user.id);
+  return { userId: user.id, email: user.email || null, orgId: row?.organization_id || null, role: row?.role || null };
+}
+
+/** Every zone scheme of the user's organisation, newest first. */
+export async function listOrgZoneSchemes() {
+  const { data, error } = await supabase.from('strat_zone_schemes').select(ZONE_SCHEME_COLUMNS).order('updated_at', { ascending: false });
+  if (missingTable(error)) throw new ZoneSchemesUnavailable();
+  if (error) throw new Error(`Could not list the organisation zone schemes: ${error.message}`);
+  return data || [];
+}
+
+/**
+ * Share a scheme with the organisation: a new row, or the same-named row
+ * updated (only its creator or an admin can; RLS refuses the rest).
+ * @param {{name, source, chart_version?, zones: Array<{zone, top_ma, base_ma}>, notes?}} scheme
+ */
+export async function saveOrgZoneScheme(scheme, { organizationId, appBuild = null } = {}) {
+  if (!organizationId) throw new Error('You are not in an organisation, so the scheme cannot be shared; it stays in this browser.');
+  const row = { name: String(scheme.name || '').trim(), source: String(scheme.source || '').trim(), chart_version: scheme.chart_version || null, zones: scheme.zones || [], notes: scheme.notes || null, app_build: appBuild };
+  if (!row.name) throw new Error('The scheme needs a name.');
+  if (!row.source) throw new Error(`The ${row.name} scheme needs a source (the calibration it follows) before it is shared.`);
+  const { data: existing, error: e1 } = await supabase.from('strat_zone_schemes').select('id').eq('organization_id', organizationId).ilike('name', row.name).limit(1);
+  if (missingTable(e1)) throw new ZoneSchemesUnavailable();
+  if (e1) throw new Error(`Could not share the scheme: ${e1.message}`);
+  if (existing?.length) {
+    const { data, error } = await supabase.from('strat_zone_schemes').update(row).eq('id', existing[0].id).select(ZONE_SCHEME_COLUMNS);
+    if (error) throw new Error(`Could not update the shared ${row.name} scheme: ${error.message}`);
+    if (!data?.length) throw new Error(`The organisation already has a ${row.name} scheme shared by someone else; only its creator or an organisation admin can replace it. Rename yours to share it beside it.`);
+    return { row: data[0], replaced: true };
+  }
+  const { data, error } = await supabase.from('strat_zone_schemes').insert({ ...row, organization_id: organizationId }).select(ZONE_SCHEME_COLUMNS).single();
+  if (missingTable(error)) throw new ZoneSchemesUnavailable();
+  if (error) throw new Error(`Could not share the scheme: ${error.message}`);
+  return { row: data, replaced: false };
+}
+
+/** Delete a shared scheme (its creator or an organisation admin). */
+export async function deleteOrgZoneScheme(id) {
+  const { data, error } = await supabase.from('strat_zone_schemes').delete().eq('id', id).select('id');
+  if (missingTable(error)) throw new ZoneSchemesUnavailable();
+  if (error) throw new Error(`Could not delete the scheme: ${error.message}`);
+  if (!data?.length) throw new Error('Only the scheme\'s creator or an organisation admin can delete it.');
 }

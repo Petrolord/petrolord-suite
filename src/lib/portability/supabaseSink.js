@@ -94,6 +94,16 @@ export function makeSupabaseSink() {
     },
 
     async insertRows(table, rows) {
+      // STRAT-U2-008: a zone scheme whose name the organisation already uses
+      // (unique per organisation) is imported beside it with "(imported)" added
+      if (table === 'strat_zone_schemes') {
+        for (const row of rows) {
+          let { error } = await supabase.from(table).insert(row);
+          if (error && String(error.code) === '23505') ({ error } = await supabase.from(table).insert({ ...row, name: `${row.name} (imported ${new Date().toISOString().slice(0, 10)})` }));
+          if (error) throw new Error(`Could not write ${table}: ${error.message}`);
+        }
+        return;
+      }
       const { error } = await supabase.from(table).insert(rows);
       if (error) throw new Error(`Could not write ${table}: ${error.message}`);
     },

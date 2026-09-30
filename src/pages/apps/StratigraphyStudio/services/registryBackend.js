@@ -17,6 +17,7 @@ import {
   listUnits, saveUnit, updateUnit, deleteUnit,
   listIntervals, replaceIntervals, listCoreImages, uploadCoreImage, updateCoreImage, deleteCoreImage, coreImageUrl,
   loadStratProject, saveStratProject,
+  zoneSchemeContext, listOrgZoneSchemes, saveOrgZoneScheme, deleteOrgZoneScheme,
 } from '@/lib/stratRegistry';
 
 export function makeRegistryBackend() {
@@ -34,5 +35,7 @@ export function makeRegistryBackend() {
     listSections, listSurfaces, downloadSurfaceGrid, listZones,
     // STRAT-U2-003: every visible top in one read, for the chart-version flags
     listAllTops,
+    // STRAT-U2-008: organisation zone schemes (strat_zone_schemes)
+    zoneSchemeContext, listOrgZoneSchemes, saveOrgZoneScheme, deleteOrgZoneScheme,
   };
 }

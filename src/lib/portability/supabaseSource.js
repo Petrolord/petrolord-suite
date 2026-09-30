@@ -107,6 +107,13 @@ export function makeSupabaseSource() {
       return data || [];
     },
 
+    /** STRAT-U2-008: the organisation's zone schemes (none on a database without the table). */
+    async listOrgZoneSchemes() {
+      const { data, error } = await supabase.from('strat_zone_schemes').select('*');
+      if (error) { if (['42P01', 'PGRST205'].includes(String(error.code)) || /does not exist|Could not find the table/i.test(String(error.message || ''))) return []; throw error; }
+      return data || [];
+    },
+
     async getCustomCrs(id) {
       const { data, error } = await supabase.from('geoscience_settings').select('custom_defs').maybeSingle();
       if (error || !data?.custom_defs) return null;

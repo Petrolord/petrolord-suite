@@ -9,6 +9,7 @@ import { sampleWells, sampleSurfaces, samplePetro } from '../../WellCorrelation/
 import { openSectionRow } from '@/components/wells/section/sectionState';
 import { openStratProjectRow } from '@/lib/stratigraphy/stratProjectState';
 import { makeInMemoryBackend as makeBasinMemory } from '../../BasinFlowGenesis/services/backend';
+import { makeZoneSchemeStore } from './inMemoryZoneSchemes';
 
 // AppUpgrade STRAT-U1-011 (2026-09-30): the harness was blind to surveys,
 // CRSs and checkshots (publicWell dropped them, carried from WDM-U1-018),
@@ -36,7 +37,9 @@ export function seededUnits() {
  *   sections: saved geo_correlation_sections rows, newest LAST (the default
  *   is the KETA section); project: a saved strat_projects row
  */
-export function makeInMemoryBackend({ sample = true, seedWells = [], sections: seedSections = null, project: seedProject = null, units: seedUnits = null, surfaces: seedSurfaces = null } = {}) {
+export function makeInMemoryBackend({ sample = true, seedWells = [], sections: seedSections = null, project: seedProject = null, units: seedUnits = null, surfaces: seedSurfaces = null, zoneSchemes = {} } = {}) {
+  // STRAT-U2-008: organisation zone schemes with the table's RLS mirrored
+  const zs = makeZoneSchemeStore(zoneSchemes);
   // STRAT-U2-002: the sample carries Well Correlation's published Petrophysics
   // (PAY on KETA-1, zones) and its two Seismolord horizons, so the studio
   // section can draw strips and horizons on the harness
@@ -164,6 +167,8 @@ export function makeInMemoryBackend({ sample = true, seedWells = [], sections: s
       if (!c) throw new Error('Curve not found.');
       return c instanceof Float32Array ? c : Float32Array.from(c);
     },
+    zoneSchemeContext: zs.zoneSchemeContext, listOrgZoneSchemes: zs.listOrgZoneSchemes, saveOrgZoneScheme: zs.saveOrgZoneScheme, deleteOrgZoneScheme: zs.deleteOrgZoneScheme,
+    _zoneSchemes: zs,
     async listSurfaces() { return surfaces().map(({ grid, ...row }) => ({ ...row })); },
     async downloadSurfaceGrid(row) {
       const found = surfaces().find((x) => x.id === row.id);

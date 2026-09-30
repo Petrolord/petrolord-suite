@@ -162,6 +162,16 @@ export const GEOSCIENCE_SPEC = {
         { path: 'view.ageCharts.units{keys}', table: 'geo_strat_units', optional: true },
       ],
     },
+    // STRAT-U2-008: organisation-wide biozone schemes (migration 20260930180000).
+    // They land in the importer's organisation; the creator column is left to
+    // its default (the importer), as RLS requires.
+    strat_zone_schemes: {
+      pk: 'id',
+      scope: ['organization_id'],
+      orgWide: 'zone schemes',
+      stripOnInsert: ['created_by'],
+      softRefs: [],
+    },
   },
 };
 

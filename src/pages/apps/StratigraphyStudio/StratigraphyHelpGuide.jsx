@@ -139,7 +139,8 @@ export default function StratigraphyHelpGuide() {
           ['LAS 3.0 import (Well Data Manager)', 'a file with a core or lithology block imports its intervals, on by default, with dropped rows named'],
           ['Publish facies (Petrophysics Studio)', 'the crossplot facies polygons become facies intervals on the well'],
           ['Record tracts (Section view)', 'the systems tracts the typed surfaces imply, written on every own well of the section that has any; a well with none keeps what it has and is named'],
-          ['Biozone scheme (Intervals view)', 'a CSV with scheme, zone, top and base age and source (Zonation, Top Age, Base Age and Reference are read too; ages in ka when the header says so) dates the biozone intervals whose scheme and zone match; a zone given two different ages is refused, a second file adds its schemes; remembered in this browser only'],
+          ['Biozone scheme (Intervals view)', 'a CSV with scheme, zone, top and base age and source (Zonation, Top Age, Base Age and Reference are read too; ages in ka when the header says so) dates the biozone intervals whose scheme and zone match; a zone given two different ages is refused, a second file adds its schemes; remembered in this browser'],
+          ['Share with organisation', 'puts a browser scheme in your organisation\'s schemes: every member sees it with who shared it and dates biozones from it; its creator or an organisation admin can update or remove it. Dating reads the organisation\'s schemes and this browser\'s (a browser scheme of the same name wins). On a database without the organisation table, schemes stay in the browser and the panel says so'],
         ]} />
         <Para>
           Every well app draws a registry interval kind as a strip track: the Lithology quicklook template carries a
