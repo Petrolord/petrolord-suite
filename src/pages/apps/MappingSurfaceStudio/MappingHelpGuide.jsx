@@ -385,7 +385,7 @@ export default function MappingHelpGuide() {
         </Para>
         <SubHeading>Layer cakes</SubHeading>
         <Para>
-          A layer-cake model converts in Seismolord for now. Mapping will read it once Seismolord publishes each
+          A layer-cake model is refused here for now and converts in Seismolord. Mapping will read it once Seismolord publishes each
           layer boundary as a time surface (Seismolord upgrade U2-006); the conversion engine is already here.
         </Para>
       </GuideSection>
