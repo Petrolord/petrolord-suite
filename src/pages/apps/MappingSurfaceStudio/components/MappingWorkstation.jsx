@@ -58,6 +58,8 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { twtGridToElevation, usableModel, describeVelocity } from '../services/timeDepth';
+import { fitLinearVelocityToTops, elevationFromLinear, elevationFromVelocityMap } from '../services/depthConversion';
+import { averageVelocityTies } from '../engine/wellTie';
 import {
   topsToControlPoints, zoneAttrToPoints, specForPoints, surfaceStats, maskOutsidePolygon,
 } from '../engine/surface';
@@ -141,6 +143,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
   const [hullOverlay, setHullOverlay] = useState(null);
   const [residuals, setResiduals] = useState(null); // {title, rows, stats}
   const [tdMethod, setTdMethod] = useState('linear');
+  const [tdVelId, setTdVelId] = useState(''); // MAP-U2-008: a velocity-map surface
   const [tdTop, setTdTop] = useState('');
   const [tdCorrect, setTdCorrect] = useState(false);
   // T1 (MAP-T1-016): contours of another surface over this one's colours
@@ -907,6 +910,45 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       } catch (e) { setStatus(e.message); }
       return;
     }
+    // MAP-U2-008: V0 + kZ fitted to the tops, and a velocity map
+    if (tdMethod === 'fit' || tdMethod === 'vmap') {
+      try {
+        let zM; let what; let td;
+        if (tdMethod === 'fit') {
+          if (!tdTop) throw new Error('Pick the top that this time horizon marks.');
+          const { ties } = averageVelocityTies(tieWells, displayGrid, spec);
+          const f = fitLinearVelocityToTops(ties);
+          zM = elevationFromLinear(displayGrid, f);
+          what = `V0 + kZ fitted to ${f.n} wells on ${tdTop}: V0 ${Math.round(f.v0).toLocaleString()} m/s, k ${f.k.toFixed(3)} 1/s, RMS misfit ${fmtZ(f.rmsM, { kind: 'isochore', z_domain: 'depth' })}`;
+          td = { method: 'v0_kz_fitted_to_tops', top: tdTop, v0: f.v0, k: f.k, rms_m: f.rmsM, wells: ties.map((t) => t.well) };
+        } else {
+          const velRow = surfaces.find((x) => x.id === tdVelId);
+          if (!velRow) throw new Error('Pick the velocity map (an average velocity surface in m/s).');
+          const read = readDepthSurface(velRow, await backend.downloadSurfaceGrid(velRow), { accept: ['attribute'], requireProjected: false });
+          if (!read.ok) throw new Error(read.reason);
+          const r = elevationFromVelocityMap({ twtMs: displayGrid, spec, velocity: read.grid, velocitySpec: read.spec, unit: velRow.z_unit });
+          zM = r.zM;
+          what = `the velocity map ${velRow.name} (${Math.round(r.vRange[0]).toLocaleString()} to ${Math.round(r.vRange[1]).toLocaleString()} m/s)`;
+          td = { method: 'average_velocity_map', velocity_surface: { id: velRow.id, name: velRow.name, unit: velRow.z_unit || 'm/s' } };
+        }
+        const name = `${src.name} depth (${tdMethod === 'fit' ? 'V0 + kZ' : 'velocity map'})`;
+        snapshot();
+        setPreview({
+          spec, grid: Float32Array.from(zM), name, kind: 'structure', zDomain: 'depth', zUnit: 'm', crs: src.crs || null,
+          provenance: { engine: 'mapping-surface-studio', z_convention: 'elevation', time_depth: { ...td, source_surface: src.id, converted_at: new Date().toISOString() } },
+        });
+        setDisplaySurface({ ...spec, origin_x: spec.x0, origin_y: spec.y0, name, kind: 'structure', z_domain: 'depth', z_unit: 'm', crs: src.crs || null, xy_unit: xyUnitOf(src) });
+        setDisplayGrid(Float32Array.from(zM));
+        setSelectedId(null);
+        setPosted(tieWells.length ? Object.fromEntries(tieWells.map((w) => [w.well, { z: -w.depthM, x: w.x, y: w.y }])) : null);
+        if (tieWells.length) {
+          const rows = mapResiduals(tieWells, zM, spec);
+          setResiduals({ title: `Depth map against ${tdTop}`, rows, stats: residualStats(rows) });
+        } else setResiduals(null);
+        setStatus(`Converted ${src.name} to depth with ${what}: review, then Publish.`);
+      } catch (e) { setStatus(e.message); }
+      return;
+    }
     const entry = velocityModels.find((m) => m.id === tdModelId);
     if (!entry) { setStatus('Pick a velocity model.'); return; }
     const { model, reason } = usableModel(entry);
@@ -1624,10 +1666,19 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
                 <select className={selCls} value={tdMethod} data-testid="map-td-method" onChange={(e) => setTdMethod(e.target.value)}>
                   <option value="linear">Linear V(z) from a Seismolord velocity model</option>
                   <option value="wells">Average velocity from the wells</option>
+                  <option value="fit">V0 + kZ fitted to the tops</option>
+                  <option value="vmap">Velocity map (average velocity surface)</option>
                 </select>
+                {tdMethod === 'vmap' && (
+                  <select className={selCls} value={tdVelId} data-testid="map-td-velocity" onChange={(e) => setTdVelId(e.target.value)}
+                    title="An attribute surface of average velocity to this horizon, in m/s (or published with the unit ft/s)">
+                    <option value="">velocity map (attribute surface)…</option>
+                    {surfaces.filter((x) => x.kind === 'attribute' || x.z_domain === 'attribute').map((x) => <option key={x.id} value={x.id}>{x.name}{x.z_unit ? ` (${x.z_unit})` : ''}</option>)}
+                  </select>
+                )}
                 <select className={selCls} value={tdTop} data-testid="map-td-top" onChange={(e) => setTdTop(e.target.value)}
                   title="The well top this time horizon marks">
-                  <option value="">{tdMethod === 'wells' ? 'top this horizon marks…' : 'tie to a top (optional)…'}</option>
+                  <option value="">{tdMethod === 'wells' || tdMethod === 'fit' ? 'top this horizon marks…' : 'tie to a top (optional)…'}</option>
                   {topNames.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
                 {tdMethod === 'linear' && (
@@ -1645,11 +1696,15 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
                     </label>
                   </>
                 )}
-                <button type="button" data-testid="map-td-run" disabled={tdMethod === 'linear' ? !tdModelId : !tdTop}
+                <button type="button" data-testid="map-td-run" disabled={tdMethod === 'linear' ? !tdModelId : tdMethod === 'vmap' ? !tdVelId : !tdTop}
                   className="w-full px-2 py-1 rounded border border-pl-primary/50 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40" onClick={runTimeDepth}>Convert</button>
                 <p className="text-[10px] text-pl-muted">{tdMethod === 'wells'
                   ? 'Average velocity (depth over one-way time) at each well carrying the top, gridded over the horizon; the map honours every well.'
-                  : "V(z) = v0 + k·z from the volume's velocity model; the result is elevation, negative below datum. Layer cakes convert in Seismolord."}</p>
+                  : tdMethod === 'fit'
+                    ? 'One V(z) = V0 + k·z for the whole map, fitted by least squares to the tops; the status gives V0, k and the RMS misfit, and the table the mis-tie at each well.'
+                    : tdMethod === 'vmap'
+                      ? 'Depth = average velocity × one-way time, node by node, with the velocity map resampled onto this horizon.'
+                      : "V(z) = v0 + k·z from the volume's velocity model; the result is elevation, negative below datum. A layer-cake model converts in Seismolord until it publishes its boundaries (Seismolord U2-006)."}</p>
               </>
             )}
 

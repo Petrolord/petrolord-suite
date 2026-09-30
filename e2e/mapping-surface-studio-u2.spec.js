@@ -146,3 +146,26 @@ test('MAP-U2-013: a section line shows the surfaces and the wells along it, with
   await expect(page.getByTestId('map-section-chart')).toContainText('KETA-3');
   expect(errs).toEqual([]);
 });
+
+test('MAP-U2-008: V0 + kZ fitted to the tops converts a TWT horizon and shows the mis-ties; a layer cake names the hook', async ({ page }) => {
+  const errs = errorsOf(page);
+  await page.goto('/dev/mapping-surface-studio');
+  await page.locator('[data-testid="map-surface-row"][data-surface-name="Dome TWT"]').click();
+  await page.getByTestId('map-td-method').selectOption('fit');
+  await page.getByTestId('map-td-top').selectOption('Top Dome');
+  await page.getByTestId('map-td-run').click();
+  await expect(page.getByTestId('map-status')).toContainText(/Converted Dome TWT to depth with V0 \+ kZ fitted to \d wells on Top Dome: V0 [\d,]+ m\/s, k -?\d\.\d{3} 1\/s, RMS misfit/);
+  await expect(page.getByTestId('map-residuals')).toContainText('Depth map against Top Dome');
+  await page.getByTestId('map-publish').click();
+  await expect(page.locator('[data-testid="map-surface-row"][data-surface-name="Dome TWT depth (V0 + kZ)"]')).toBeVisible();
+  // the layer-cake model in the harness is refused with the hook's reason
+  await page.locator('[data-testid="map-surface-row"][data-surface-name="Dome TWT"]').click();
+  await page.getByTestId('map-td-method').selectOption('linear');
+  const lc = page.getByTestId('map-td-model').locator('option', { hasText: 'layer cake' });
+  if (await lc.count()) {
+    await page.getByTestId('map-td-model').selectOption({ label: await lc.first().textContent() });
+    await page.getByTestId('map-td-run').click();
+    await expect(page.getByTestId('map-status')).toContainText('Seismolord upgrade U2-006');
+  }
+  expect(errs).toEqual([]);
+});

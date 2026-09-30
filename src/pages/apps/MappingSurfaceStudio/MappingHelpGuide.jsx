@@ -359,9 +359,7 @@ export default function MappingHelpGuide() {
         <Formula>V(z) = v0 + k·z, so z(t) = (v0 / k)(e^(k·t) − 1) with t the one-way time in seconds</Formula>
         <Para>
           The result is elevation (negative below datum) in feet by default or metres, published as a structure
-          surface with the model recorded in its provenance. A layer-cake model is refused here because its layer
-          boundaries are horizon picks on the seismic lattice: convert that horizon to depth in Seismolord and
-          publish it from there.
+          surface with the model recorded in its provenance.
         </Para>
         <SubHeading>Average velocity from the wells</SubHeading>
         <Para>
@@ -371,6 +369,25 @@ export default function MappingHelpGuide() {
           spread the mis-ties at the wells over the map. Both paths show the residual table.
         </Para>
         <Formula>Vavg = Z / (TWT / 2), then Z = Vavg × TWT / 2 at every node</Formula>
+        <SubHeading>V0 + kZ fitted to the tops</SubHeading>
+        <Para>
+          Pick the top this horizon marks and choose V0 + kZ fitted to the tops. One linear velocity function is
+          fitted by least squares to every well's time and depth, and the status gives V0, k and the RMS misfit;
+          the residual table shows the mis-tie at each well. Use it when the wells are few or clustered and a
+          gridded velocity would wander between them.
+        </Para>
+        <SubHeading>Velocity map</SubHeading>
+        <Para>
+          Choose Velocity map and pick an attribute surface of average velocity to this horizon (from Seismolord or
+          an import). It is resampled onto the horizon and depth = velocity × one-way time node by node. A map
+          published with the unit ft/s is converted; a map with no unit is read as m/s, and values outside 1,000 to
+          8,000 m/s are refused with the reason.
+        </Para>
+        <SubHeading>Layer cakes</SubHeading>
+        <Para>
+          A layer-cake model converts in Seismolord for now. Mapping will read it once Seismolord publishes each
+          layer boundary as a time surface (Seismolord upgrade U2-006); the conversion engine is already here.
+        </Para>
       </GuideSection>
 
       <GuideSection id="sharing">

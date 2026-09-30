@@ -262,3 +262,53 @@ describe('MAP-U2-013: surfaces and wells on a section line', () => {
     expect(() => sectionProfile({ line: [[0, 0], [0, 0]], surfaces: [] })).toThrow(/no length/);
   });
 });
+
+describe('MAP-U2-008: more depth-conversion methods (V0 + kZ fitted to tops, velocity map, layer-cake hook)', () => {
+  // eslint-disable-next-line global-require
+  const dc = require('../services/depthConversion');
+  // eslint-disable-next-line global-require
+  const { twtMsToDepthM, layercakeDepthM } = require('@/pages/apps/Seismolord/engine/velocityModel');
+  const truth = { v0: 1800, k: 0.6 };
+  const ties = [1000, 1300, 1600, 1900, 2200, 2400].map((twtMs) => ({ twtMs, depthM: twtMsToDepthM(twtMs, truth) }));
+  test('V0 + kZ fitted to exact ties recovers the model; a constant velocity cannot', () => {
+    const f = dc.fitLinearVelocityToTops(ties);
+    expect(Math.abs(f.v0 / truth.v0 - 1)).toBeLessThan(1e-3);
+    expect(Math.abs(f.k - truth.k)).toBeLessThan(2e-3);
+    expect(f.rmsM).toBeLessThan(0.5);
+    // negative control: forcing k = 0 (one velocity) leaves tens of metres of misfit
+    const flat = dc.fitLinearVelocityToTops(ties, { kMin: 0, kMax: 1e-12 });
+    expect(flat.rmsM).toBeGreaterThan(20);
+    const z = dc.elevationFromLinear(Float32Array.from([1500, 1e30]), f);
+    expect(z[0]).toBeCloseTo(-twtMsToDepthM(1500, truth), 0);
+    expect(Math.abs(z[1])).toBeGreaterThan(1e29);
+    expect(() => dc.fitLinearVelocityToTops(ties.slice(0, 2))).toThrow(/at least 3 wells/);
+  });
+  test('a velocity map converts node by node; a map in ft/s is refused', () => {
+    const spec = { x0: 0, y0: 0, dx: 100, dy: 100, nx: 5, ny: 4 };
+    const twt = new Float32Array(20).fill(2000);
+    const vel = Float32Array.from({ length: 20 }, (_, i) => 2000 + 10 * (i % 5));
+    const r = dc.elevationFromVelocityMap({ twtMs: twt, spec, velocity: vel, velocitySpec: spec });
+    expect(r.zM[3]).toBeCloseTo(-2030, 6);
+    expect(r.vRange).toEqual([2000, 2040]);
+    // a map declared in ft/s converts to the same depths
+    const ft = dc.elevationFromVelocityMap({ twtMs: twt, spec, velocity: vel.map((v) => v / 0.3048), velocitySpec: spec, unit: 'ft/s' });
+    expect(ft.zM[3]).toBeCloseTo(-2030, 3);
+    // negative control: an undeclared ft/s map of a fast section is refused, never read as m/s
+    expect(() => dc.elevationFromVelocityMap({ twtMs: twt, spec, velocity: vel.map((v) => (v + 1000) / 0.3048), velocitySpec: spec })).toThrow(/feet per second/);
+  });
+  test('the layer-cake conversion is the Seismolord engine node by node; the hook says where the model comes from', () => {
+    const model = { type: 'layercake', layers: [{ v0: 1700, k: 0.4, base_horizon_id: 'h1' }, { v0: 2600, k: 0.2 }] };
+    const twt = Float32Array.from([800, 1500, 2200]);
+    const boundary = Float32Array.from([1200, 1200, 1e30]);
+    const z = dc.convertWithLayerCake({ twtMs: twt, model, boundaryTwtMs: [boundary] });
+    const layers = [{ v0: 1700, k: 0.4 }, { v0: 2600, k: 0.2 }];
+    expect(z[1]).toBeCloseTo(-layercakeDepthM(layers, [1200], 1500), 9);
+    expect(z[0]).toBeCloseTo(-twtMsToDepthM(800, { v0: 1700, k: 0.4 }), 9); // above the boundary: layer 1 only
+    // negative control: without the boundary the second layer's velocity is never used
+    expect(Math.abs(z[1] + twtMsToDepthM(1500, { v0: 1700, k: 0.4 }))).toBeGreaterThan(20);
+    expect(() => dc.convertWithLayerCake({ twtMs: twt, model, boundaryTwtMs: [] })).toThrow(/needs 1 boundary time grid/);
+    const hook = dc.LAYER_CAKE_HOOK();
+    expect(hook.ok).toBe(false);
+    expect(hook.reason).toMatch(/Seismolord upgrade U2-006/);
+  });
+});

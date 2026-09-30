@@ -7,6 +7,7 @@
 // (owner decision). Pure.
 
 import { normalizeVelocity, twtMsToDepthM, describeVelocity } from '@/pages/apps/Seismolord/engine/velocityModel';
+import { LAYER_CAKE_HOOK } from './depthConversion';
 
 const isNull = (v) => !Number.isFinite(v) || Math.abs(v) >= 1e29;
 const M_PER_FT = 0.3048;
@@ -16,7 +17,9 @@ export function usableModel(entry) {
   const m = normalizeVelocity(entry?.velocity || entry);
   if (!m) return { model: null, reason: 'This volume has no usable velocity model.' };
   if (m.kind !== 'linear') {
-    return { model: null, reason: 'This is a layer-cake model: its layer boundaries are horizon picks on the seismic lattice, which a registry grid does not carry. Convert the horizon to depth in Seismolord and publish it from there.' };
+    // MAP-U2-008: the one place a Seismolord layer cake will be wired in
+    const hook = LAYER_CAKE_HOOK(entry);
+    return { model: null, reason: hook.ok ? null : hook.reason };
   }
   return { model: m, reason: null };
 }
