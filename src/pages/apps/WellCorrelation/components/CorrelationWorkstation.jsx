@@ -67,7 +67,7 @@ export default function CorrelationWorkstation({
   const exportRef = useRef(null);
   const {
     wells, order, setOrder, wellData, loading, datum, setDatum, shownTops, setShownTops, zoneMode, setZoneMode, zonePair, setZonePair,
-    depthUnit, setDepthUnit, depthRef, setDepthRef, spacing, setSpacing, columnWidth, setColumnWidth, layouts, setLayouts,
+    depthUnit, setDepthUnit, unitNote, depthRef, setDepthRef, spacing, setSpacing, columnWidth, setColumnWidth, layouts, setLayouts,
     template, sectionWells, topNames, logSources, ensureWellData, refreshTops, toggleWell, moveWell,
     sectionLoaded, sectionRefused, savedRow,
     sectionId, setSectionId, sectionName, setSectionName, openSection, startSection,
@@ -828,6 +828,7 @@ export default function CorrelationWorkstation({
             sectionWells={sectionWells}
             depthUnit={depthUnit}
             onDepthUnit={setDepthUnit}
+            unitNote={unitNote}
             depthRef={depthRef}
             onDepthRef={setDepthRef}
             spacing={spacing}
