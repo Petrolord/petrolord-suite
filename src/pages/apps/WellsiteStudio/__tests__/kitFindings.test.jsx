@@ -74,11 +74,13 @@ describe('(2) offset wells for Load from registry', () => {
     // the anchored well (KETA-2) is not offered as its own offset
     expect(screen.queryByTestId('ws-prognosis-offset-KETA-2')).toBeNull();
     fireEvent.click(screen.getByTestId('ws-prognosis-offset-KETA-1'));
-    expect(screen.getByTestId('ws-prognosis-offsets-summary')).toHaveTextContent('Offset wells (0 chosen)');
+    // the chooser re-renders on its own tick; Load must not run before it (slow CI runners)
+    await waitFor(() => expect(screen.getByTestId('ws-prognosis-offsets-summary')).toHaveTextContent('Offset wells (0 chosen)'));
     await act(async () => { fireEvent.click(screen.getByTestId('ws-prognosis-load')); });
     await waitFor(() => expect(screen.getByTestId('ws-status')).toHaveTextContent(/Prognosis version \d+ loaded: .*, 0 offset top\(s\)/));
     expect((await backend.listPrognosis(well.id)).sort((a, b) => b.version - a.version)[0].source.offset_well_ids).toEqual([]);
     fireEvent.click(screen.getByTestId('ws-prognosis-offset-KETA-1'));
+    await waitFor(() => expect(screen.getByTestId('ws-prognosis-offsets-summary')).toHaveTextContent('Offset wells (1 chosen)'));
     await act(async () => { fireEvent.click(screen.getByTestId('ws-prognosis-load')); });
     await waitFor(() => expect(screen.getByTestId('ws-status')).toHaveTextContent(/Prognosis version \d+ loaded: .*, 2 offset top\(s\)/));
     const versions = await backend.listPrognosis(well.id);

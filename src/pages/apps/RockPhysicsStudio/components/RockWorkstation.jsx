@@ -24,6 +24,8 @@ import { isPrePt9aPhie, PRE_PT9A_PHIE_NOTE } from '@/lib/petroProvenance';
 import { Link } from 'react-router-dom';
 import { Waves, Loader2, Save, HelpCircle, Database } from 'lucide-react';
 import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
+import { useAppUnits } from '@/lib/units/useAppUnits';
+import UnitProfileNote from '@/components/units/UnitProfileNote';
 import { appPath, wellDataManagerHref, WELL_DATA_MANAGER_ID } from '@/components/wells/appLinks';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
@@ -68,28 +70,15 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [projectId, setProjectId] = useState(null);
-  const [units, setUnits] = useState(() => readUnits(storage()));
-
-  // the depth unit defaults to the account's Geoscience setting (the
-  // Mapping and Earth Modeling one) until the user picks one here
-  useEffect(() => {
-    let live = true;
-    let chosen = false;
-    try { chosen = !!JSON.parse(storage()?.getItem(UNITS_KEY) || 'null')?.depth; } catch { /* fresh browser */ }
-    if (chosen || !backend.getDepthUnit) return undefined;
-    backend.getDepthUnit().then((u) => {
-      if (live && DEPTH_UNITS.includes(u)) setUnits((prev) => ({ ...prev, depth: u }));
-    }).catch(() => {});
-    return () => { live = false; };
-  }, [backend]);
-
-  const setUnit = (key, value) => {
-    setUnits((prev) => {
-      const next = { ...prev, [key]: value };
-      try { storage()?.setItem(UNITS_KEY, JSON.stringify(next)); } catch { /* private mode */ }
-      return next;
-    });
-  };
+  // Suite unit profile: velocity, density and depth start from the
+  // profile; the selectors change this view for the session only, and the
+  // older remembered 'rp.units' choice no longer beats the profile
+  const unitsHook = useAppUnits('rock-physics', {
+    velocity: { family: 'velocity', allowed: VELOCITY_UNITS.map((v) => v.key) },
+    density: { family: 'density', allowed: DENSITY_UNITS.map((v) => v.key) },
+    depth: { family: 'depth', allowed: DEPTH_UNITS },
+  }, { fallback: readUnits(storage()), legacyKeys: [UNITS_KEY] });
+  const { units, setUnit } = unitsHook;
 
   useEffect(() => {
     let live = true;
@@ -264,7 +253,8 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         <span className="text-[11px] text-pl-muted mr-1">Units</span>
         {unitSelect('velocity', VELOCITY_UNITS, 'Velocity or sonic slowness display unit (the engine stays in m/s)')}
         {unitSelect('density', DENSITY_UNITS, 'Density display unit (the engine stays in kg/m3)')}
-        {unitSelect('depth', DEPTH_UNITS, 'Depth display unit; defaults to your Geoscience depth setting')}
+        {unitSelect('depth', DEPTH_UNITS, 'Depth display unit; starts from your Suite units and changes this view for the session')}
+        <UnitProfileNote u={unitsHook} className="ml-1 hidden md:inline-flex" />
         <span className="w-px h-4 bg-pl-border mx-1" />
         <button
           type="button"

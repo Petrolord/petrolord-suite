@@ -24,7 +24,9 @@ import DeleteWellDialog from './DeleteWellDialog';
 import PackageExportDialog from '@/components/portability/PackageExportDialog';
 import PackageImportDialog from '@/components/portability/PackageImportDialog';
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
-import { readDisplayUnit, writeDisplayUnit, unitText } from '../engine/displayUnits';
+import { readDisplayUnit, displayUnitKey, unitText, DEPTH_UNITS } from '../engine/displayUnits';
+import { useAppUnits } from '@/lib/units/useAppUnits';
+import UnitProfileNote from '@/components/units/UnitProfileNote';
 
 /** @param {Object} [p.appPaths] route overrides for the "Open in" launchers
  *  (the harness points them at the other /dev harnesses) */
@@ -48,11 +50,15 @@ export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/d
   const [detailNonce, setDetailNonce] = useState(0); // reload the detail view after an import into the selected well
   const [deleting, setDeleting] = useState(null); // well pending delete confirm
   const [orgId, setOrgId] = useState(undefined);  // undefined = resolving
-  // WDM-U2-001: display depth unit, remembered per user on this device
+  // WDM-U2-001: display depth unit. Suite unit profile: it starts from
+  // the profile; the header selector changes this view for the session
+  // only, and the older per-user remembered choice no longer beats the
+  // profile (removed once)
   const userId = useContext(AuthContext)?.user?.id || null;
-  const [unit, setUnitState] = useState(() => readDisplayUnit(userId));
-  useEffect(() => { setUnitState(readDisplayUnit(userId)); }, [userId]);
-  const setUnit = (u) => { setUnitState(u); writeDisplayUnit(userId, u); };
+  const unitsHook = useAppUnits('well-data-manager', { depth: { family: 'depth', allowed: DEPTH_UNITS } },
+    { fallback: { depth: readDisplayUnit(userId) }, legacyKeys: [displayUnitKey(userId), displayUnitKey(null)] });
+  const unit = unitsHook.units.depth;
+  const setUnit = (u) => unitsHook.setUnit('depth', u);
 
   const refresh = useCallback(async () => {
     try {
@@ -211,7 +217,7 @@ export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/d
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken">
           <HelpCircle className="w-3.5 h-3.5" /> Help
         </Link>
-        <label className="flex items-center gap-1 text-[11px] text-pl-muted" title="Depth unit for every table, editor, plot and export. The registry stores metres.">
+        <label className="flex items-center gap-1 text-[11px] text-pl-muted" title="Depth unit for every table, editor, plot and export; starts from your Suite units and changes this view for the session. The registry stores metres.">
           Depths in
           <select className="rounded border border-pl-border bg-pl-surface text-pl-text px-1 py-0.5 text-xs" value={unit}
             onChange={(e) => setUnit(e.target.value)} data-testid="wdm-units">
@@ -219,6 +225,7 @@ export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/d
             <option value="ft">feet</option>
           </select>
         </label>
+        <UnitProfileNote u={unitsHook} className="hidden xl:inline-flex" />
         <ThemeToggle />
       </div>
     </div>

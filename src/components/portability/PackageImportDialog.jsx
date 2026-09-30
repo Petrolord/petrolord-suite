@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Loader2, PackageOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { makeSupabaseSink } from '@/lib/portability/supabaseSink';
 import { preflightPackage, executeImport, importPackage } from '@/lib/portability/importPackage';
+import { useUnitProfile } from '@/lib/units/UnitProfileContext';
+import { describeUnitMeta } from '@/lib/units/portability';
 import { signatureMessage } from '@/lib/portability/signing';
 
 
@@ -38,6 +40,44 @@ const fmtDate = (iso) => {
   const d = iso ? new Date(iso) : null;
   return d && !Number.isNaN(d.getTime()) ? d.toISOString().replace('T', ' ').slice(0, 16) + ' UTC' : (iso || '');
 };
+
+/**
+ * Suite unit profile: the package's organisation units, shown as
+ * information with an offer to use them as MY units. It never changes the
+ * organisation default, and nothing about the imported data depends on it.
+ */
+export function PackageUnitsOffer({ meta }) {
+  const profile = useUnitProfile();
+  const [state, setState] = useState('idle'); // idle | saving | done | error
+  const [message, setMessage] = useState('');
+  if (!meta) return null;
+  const apply = async () => {
+    setState('saving');
+    try {
+      const res = await profile.saveMine(meta.profile);
+      setState('done');
+      setMessage(res?.stored === 'browser' ? 'Saved as your units in this browser.' : 'Saved as your units.');
+    } catch (e) {
+      setState('error');
+      setMessage(e.message);
+    }
+  };
+  return (
+    <div className="text-pl-muted space-y-1" data-testid="pld-import-units">
+      <div>{describeUnitMeta(meta)} The data itself is stored in canonical units, so it imports the same either way.</div>
+      {profile.available && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" className="h-6 text-xs" data-testid="pld-import-units-apply"
+            disabled={state === 'saving' || state === 'done'} onClick={apply}>
+            {state === 'saving' ? 'Saving...' : 'Use these as my units'}
+          </Button>
+          <span className="text-[10px]">Your organisation default does not change.</span>
+          {message && <span className={state === 'error' ? 'text-pl-danger-text' : 'text-pl-success-text'} data-testid="pld-import-units-message">{message}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function PackageImportDialog({ open, onOpenChange, onImported, onStatus }) {
   const sink = useMemo(() => makeSupabaseSink(), []);
@@ -235,6 +275,7 @@ export default function PackageImportDialog({ open, onOpenChange, onImported, on
                   </div>
                 );
               })()}
+              <PackageUnitsOffer meta={preflight.pkg.unitProfile} />
               <ul className="text-pl-muted grid grid-cols-2 gap-x-3">
                 {tableRows.map(([t, n]) => (
                   <li key={t}><span className="text-pl-muted">{t}</span> {n}</li>

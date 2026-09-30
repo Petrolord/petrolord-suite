@@ -20,6 +20,7 @@
 // Nothing existing is ever updated or deleted: importing is copying.
 
 import JSZip from 'jszip';
+import { parseUnitProfileMeta, UNIT_PROFILE_FILE } from '@/lib/units/portability';
 import { customCrsId } from './geoscienceSpec';
 import { tableSpec, importOrder } from './familySpec';
 import './familiesCore';
@@ -163,7 +164,9 @@ export async function readPackage(data, opts = {}) {
   const blobs = manifest.blobs.map((b) => ({ ...b, bytes: bytesOf[b.file] }));
   const readmeEntry = manifest.open.find((o) => o.kind === 'readme');
   const readme = readmeEntry ? await utf8(bytesOf[readmeEntry.file]) : null;
-  return { manifest, tables, blobs, open: manifest.open, readme, integrity: { checked: Object.keys(manifest.files).length }, signature };
+  // Suite unit profile metadata (information only; the importer offers it as the user's own setting)
+  const unitProfile = parseUnitProfileMeta(bytesOf[UNIT_PROFILE_FILE] || null);
+  return { manifest, tables, blobs, open: manifest.open, readme, integrity: { checked: Object.keys(manifest.files).length }, signature, unitProfile };
 }
 
 // ---- phase 2: plan ---------------------------------------------------------

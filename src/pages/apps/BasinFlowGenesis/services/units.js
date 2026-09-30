@@ -1,4 +1,5 @@
 import { EMPTY_VALUE } from '../../../../lib/emptyValue.js';
+import { M_PER_FT } from '../../../../lib/units/registry.js';
 // Display units for Basin & Charge Modeling (BF3, 2026-09-06). The
 // engine, the saved well and the goldens stay SI (metres, degrees C,
 // Ma, mW/m2); these helpers convert at the UI edge. Depth follows the
@@ -6,7 +7,8 @@ import { EMPTY_VALUE } from '../../../../lib/emptyValue.js';
 // fallback; temperature is C or F. Pure, no I/O.
 
 export const UNITS_KEY = 'bf.units';
-export const M_PER_FT = 0.3048;
+// the exact international foot lives in the Suite unit registry (one home)
+export { M_PER_FT };
 export const DEPTH_UNITS = Object.freeze(['m', 'ft']);
 export const TEMP_UNITS = Object.freeze(['C', 'F']);
 export const DEFAULT_UNITS = Object.freeze({ depth: 'ft', temp: 'C' });

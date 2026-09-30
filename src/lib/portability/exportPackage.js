@@ -22,6 +22,7 @@ import { PackageWriter } from './zipWriter';
 import { readmeText } from './sidecars';
 import { readStateVersion } from '@/lib/stateVersion';
 import { PLATFORM_BUILD } from '@/lib/platformBuild';
+import { unitProfileMeta, UNIT_PROFILE_FILE, describeUnitMeta } from '@/lib/units/portability';
 
 export class PackageIntegrityError extends Error {
   constructor(message, dangling) {
@@ -69,6 +70,7 @@ export async function buildPackage(source, roots, opts = {}) {
  */
 export async function buildPackageInto(writer, source, roots, {
   name = null, includeInterpretations = true, includeSidecars = true, onProgress = () => {}, allowDangling = false, dedupeRoots = false,
+  unitProfile,
 } = {}) {
   const who = await source.currentUser();
   const user = { user_id: who.id, organization_id: who.organization_id ?? null, organization_name: who.organization_name ?? null };
@@ -120,6 +122,17 @@ export async function buildPackageInto(writer, source, roots, {
       if (!col.families.has(f.name) || !f.hooks?.sidecars) continue;
       await f.hooks.sidecars({ col, writer, notes, open, used });
     }
+  }
+
+  // Suite unit profile: the exporting organisation's default travels as
+  // information (meta/unit-profile.json, hashed like every file). The
+  // source supplies it (unitProfile()); a caller may pass one; null skips.
+  let orgUnits = unitProfile;
+  if (orgUnits === undefined && source.unitProfile) orgUnits = await source.unitProfile().catch(() => undefined);
+  if (orgUnits !== undefined && orgUnits !== false) {
+    const meta = unitProfileMeta(orgUnits, { organizationName: user.organization_name });
+    await writer.addText(UNIT_PROFILE_FILE, `${JSON.stringify(meta, null, 2)}\n`);
+    notes.push(`Units: ${describeUnitMeta(meta)} Values in the package are stored in canonical units.`);
   }
 
   const draft = buildManifest({ name, source: user, roots: col.roots, tables: tableInfo, blobs, open, files: {}, notes });

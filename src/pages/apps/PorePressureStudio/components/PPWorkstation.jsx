@@ -21,6 +21,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Gauge, Loader2, Save, Upload, Download, HelpCircle, Database } from 'lucide-react';
 import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
+import { useAppUnits } from '@/lib/units/useAppUnits';
+import UnitProfileNote from '@/components/units/UnitProfileNote';
 import { appPath, wellDataManagerHref, WELL_DATA_MANAGER_ID } from '@/components/wells/appLinks';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
@@ -75,32 +77,18 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [units, setUnits] = useState(() => readUnits(storage()));
-  const [readoutText, setReadoutText] = useState(() => tidyDepth(3500, readUnits(storage()).depth));
-
-  // the depth unit defaults to the account's Geoscience setting (the
-  // Mapping and Earth Modeling one) until the user picks one here
-  useEffect(() => {
-    let live = true;
-    let chosen = false;
-    try { chosen = !!JSON.parse(storage()?.getItem(UNITS_KEY) || 'null')?.depth; } catch { /* fresh browser */ }
-    if (chosen || !backend.getDepthUnit) return undefined;
-    backend.getDepthUnit().then((u) => {
-      if (live && DEPTH_UNITS.includes(u)) setUnits((prev) => ({ ...prev, depth: u }));
-    }).catch(() => {});
-    return () => { live = false; };
-  }, [backend]);
+  // Suite unit profile: depth and pressure start from the profile; the
+  // selectors below change this view for the session only, and the older
+  // remembered 'pp.units' choice no longer beats the profile
+  const unitsHook = useAppUnits('pore-pressure', {
+    depth: { family: 'depth', allowed: DEPTH_UNITS },
+    pressure: { family: 'pressure', allowed: PRESSURE_UNITS.map((p) => p.key) },
+  }, { fallback: readUnits(storage()), legacyKeys: [UNITS_KEY] });
+  const { units, setUnit } = unitsHook;
+  const [readoutText, setReadoutText] = useState(() => tidyDepth(3500, units.depth));
 
   // the readout text follows the depth unit; typing edits the SI depth
   useEffect(() => { setReadoutText(tidyDepth(readoutDepthM, units.depth)); }, [units.depth]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const setUnit = (key, value) => {
-    setUnits((prev) => {
-      const next = { ...prev, [key]: value };
-      try { storage()?.setItem(UNITS_KEY, JSON.stringify(next)); } catch { /* private mode */ }
-      return next;
-    });
-  };
 
   useEffect(() => {
     let live = true;
@@ -389,7 +377,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         <span className="w-px h-4 bg-pl-border mx-1" />
         <span className="text-[11px] text-pl-muted mr-1">Units</span>
         {unitSelect('pressure', PRESSURE_UNITS, 'Pressure display unit, or an equivalent mud weight (the engine stays in Pa)')}
-        {unitSelect('depth', DEPTH_UNITS, 'Depth display unit; defaults to your Geoscience depth setting. Sonic and the compaction constant follow it')}
+        {unitSelect('depth', DEPTH_UNITS, 'Depth display unit; starts from your Suite units and changes this view for the session. Sonic and the compaction constant follow it')}
+        <UnitProfileNote u={unitsHook} names={{ depth: 'depth', pressure: 'pressure' }} className="ml-1 hidden md:inline-flex" />
         <span className="w-px h-4 bg-pl-border mx-1" />
         {result && (
           <button
