@@ -120,3 +120,56 @@ export function planImport({
     reprojected,
   };
 }
+
+/**
+ * MAP-U2-003: scattered points from a file as a gridding source. Values
+ * resolve the way planImport resolves a grid: depth becomes elevation in
+ * METRES (the workstation's working unit), time positive TWT, attributes
+ * raw; a declared CRS that differs from the project converts point by
+ * point through `transform` (x, y) -> {x, y}.
+ * @returns {{points:Array<{x,y,z,well}>, zDomain, crs, effSign, name, provenance}}
+ */
+export function planPointsSource({
+  points, fileName = 'points', name = '', domain = 'depth', zUnit = 'ft', zSign = 'auto',
+  declaredTag = null, projectTag = null, transform = null,
+}) {
+  if (!Array.isArray(points) || points.length < 3) throw new Error('Gridding needs at least 3 points.');
+  if (!['depth', 'time', 'attribute'].includes(domain)) throw new Error(`Unknown surface domain "${domain}".`);
+  if (!['m', 'ft'].includes(zUnit)) throw new Error(`Unknown depth unit "${zUnit}".`);
+  const zs = points.map((p) => p.z);
+  let effSign = null;
+  let f = 1;
+  if (domain === 'depth') {
+    effSign = zSign === 'auto' ? detectSign(zs) : zSign;
+    f = (effSign === 'positive' ? -1 : 1) * (zUnit === 'ft' ? 0.3048 : 1);
+  } else if (domain === 'time') {
+    effSign = detectSign(zs);
+    f = effSign === 'negative' ? -1 : 1;
+  }
+  const declared = declaredTag ? normalizeTag(declaredTag) : null;
+  const project = projectTag ? normalizeTag(projectTag) : null;
+  let tag = declared && declared !== UNKNOWN ? declared : null;
+  let move = null;
+  if (declared && project && declared !== project) {
+    const rel = compareTags(declared, project);
+    if (rel === 'transformable') {
+      if (!transform) throw new Error('No coordinate transform is available for this file CRS.');
+      move = transform;
+      tag = project;
+    } else if (rel === 'local-mismatch') {
+      throw new Error('The file is on a local grid and the project is georeferenced (or the reverse). Declare a matching CRS or import it as unknown placement.');
+    }
+  }
+  const out = points.map((p, i) => {
+    const q = move ? move(p.x, p.y) : p;
+    return { x: q.x, y: q.y, z: p.z * f, well: `P${i + 1}` };
+  });
+  return {
+    points: out,
+    zDomain: domain,
+    crs: tag,
+    effSign,
+    name: (name || fileName.replace(/\.[^.]+$/, '') || 'Imported points').trim(),
+    provenance: { file_name: fileName, points: out.length, declared_crs: declared || null, converted: !!move, z_sign_in: effSign, z_unit_in: domain === 'depth' ? zUnit : null },
+  };
+}

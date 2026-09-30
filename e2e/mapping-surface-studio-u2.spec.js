@@ -97,3 +97,21 @@ test('MAP-U2-005: a gas-oil contact splits the closure into gas cap and oil leg'
   await page.getByTestId('map-grv-run').click();
   await expect(page.getByTestId('map-status')).toContainText('must be above (shallower than) the oil-water contact');
 });
+
+test('MAP-U2-003: a horizon on a rotated survey lattice grids from the file and publishes', async ({ page }) => {
+  const errs = errorsOf(page);
+  await page.goto('/dev/mapping-surface-studio');
+  await page.getByTestId('map-cell').fill('100');
+  await page.getByTestId('map-import').click();
+  await page.getByTestId('map-import-file').setInputFiles(path.join(HOSTILE, 'xyz_rotated_survey_lattice.xyz'));
+  await expect(page.getByTestId('map-import-preview')).toContainText('Points (not a regular grid)');
+  await expect(page.getByTestId('map-import-run')).toHaveText(/Grid these points/);
+  await page.getByTestId('map-import-name').fill('Lattice horizon');
+  await page.getByTestId('map-import-unit').selectOption('m');
+  await page.getByTestId('map-import-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Gridded Lattice horizon (TVDSS elevation', { timeout: 120000 });
+  await expect(page.getByTestId('map-status')).toContainText('points from xyz_rotated_survey_lattice.xyz');
+  await page.getByTestId('map-publish').click();
+  await expect(page.locator('[data-testid="map-surface-row"][data-surface-name="Lattice horizon"]')).toBeVisible();
+  expect(errs).toEqual([]);
+});

@@ -415,6 +415,12 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         kind = tk.kind;
         if (tk.kind === 'attribute') zUnit = tk.zUnit;
         if (tk.zSign !== 1) result = { ...result, points: result.points.map((p) => ({ ...p, z: tk.zSign * p.z })) };
+      } else if (src.type === 'points') {
+        // MAP-U2-003: scattered points from a file (planPointsSource: elevation m, positive TWT or raw)
+        result = { points: src.points, skipped: [], extrapolated: 0, depthRef: src.zDomain === 'depth' ? 'tvdss' : null };
+        name = src.name;
+        kind = src.zDomain === 'attribute' ? 'attribute' : 'structure';
+        if (src.zDomain === 'time') zUnit = 'ms';
       } else if (src.type === 'net') {
         // ST4: thickness between two tops from the lithology log; STRAT-U2-011: vertical
         // (TVD through each survey), a well without a survey stays MD and is named
@@ -431,7 +437,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       }
       // guide points (MS3) grid with the wells, tagged so the CSV says so
       const guideList = opts.guides || guidePoints;
-      const guides = kind === 'structure' ? guideList.map((gp) => ({ x: gp.x, y: gp.y, z: gp.z, well: gp.label, md: null, extrapolated: false, guide: true })) : [];
+      const guides = kind === 'structure' && !(src.type === 'points' && src.zDomain === 'time') ? guideList.map((gp) => ({ x: gp.x, y: gp.y, z: gp.z, well: gp.label, md: null, extrapolated: false, guide: true })) : [];
       // T1 (MAP-T1-003): wells closer than half a cell (a pilot hole and
       // its sidetrack, a re-entry) become one control point at their mean;
       // an exact interpolant through two nearly coincident values
@@ -441,7 +447,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       // wells' coordinates are in their CRS unit (US survey feet on a state
       // plane): convert, or a 150 m cell is 150 ft and every area is off
       const xyWells = (sourceWells || []).filter((w) => result.points.some((p) => p.well === w.name));
-      const xyCrs = consensusTag(xyWells.map((w) => w.crs));
+      const xyCrs = src.type === 'points' ? (src.crs || null) : consensusTag(xyWells.map((w) => w.crs));
       const xyUnit = xyCrs ? crsUnit(xyCrs) : null;
       const cellW = metresToXy(cell, xyUnit);
       const perM = 1 / metresPerXy(xyUnit);
@@ -508,33 +514,35 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       // any disagreement or unknown well leaves the map unverified
       // (null tag, amber badge) instead of guessing.
       const contributing = (wells || []).filter((w) => points.some((p) => p.well === w.name));
-      const crs = consensusTag(contributing.map((w) => w.crs));
-      const zDomain = kind === 'attribute' ? 'attribute' : 'depth';   // an isochore is a length in the depth domain
+      const crs = src.type === 'points' ? (src.crs || null) : consensusTag(contributing.map((w) => w.crs));
+      // an isochore is a length in the depth domain; MAP-U2-003: gridded time points stay TWT
+      const zDomain = kind === 'attribute' ? 'attribute' : src.type === 'points' && src.zDomain === 'time' ? 'time' : 'depth';
       const postedNow = Object.fromEntries(points.flatMap((p) => (p.wells || [p.well]).map((w) => [w, { z: p.z, x: p.x, y: p.y }])));
       setShowVariance(false);
       snapshot();
       setPreview({
         spec, grid: g.z, name, kind, crs, zDomain, zUnit, variance: g.variance || null,
         provenance: {
-          source: src, engine: 'mapping-surface-studio', cell_m: cell,
+          source: src.type === 'points' ? { type: 'points', file_name: src.provenance?.file_name || null, declared_crs: src.provenance?.declared_crs || null, z_sign_in: src.effSign ?? null } : src,
+          engine: 'mapping-surface-studio', cell_m: cell,
           method: `${kriged ? 'kriging' : gridMethod === 'tension' ? 'tension' : 'tps'}${rings.length ? '-blocked' : ''}`,
           tension: gridMethod === 'tension' ? { ...tensionOpts, p: g.p ?? null } : null,
           extent: beyond > 0 ? { beyond_m: beyond } : null,
           variogram: kriged ? { model: kriged.model, range_m: kriged.range, sill: kriged.sill, nugget: kriged.nugget, detrend: kriged.detrend, neighbourhood: g.neighbourhood } : null,
           control_points: points.length,
           points: points.map((p) => ({ well: p.well, x: p.x, y: p.y, z: p.z, md: p.md ?? null, extrapolated: !!p.extrapolated })),
-          depth_ref: result.depthRef, placement: kind === 'structure' ? 'borehole' : null,
+          depth_ref: result.depthRef, placement: kind === 'structure' && src.type !== 'points' ? 'borehole' : null,
           ...(src.type === 'net' ? { surfaces: [src.upper, src.lower], measure: src.measure, codes: src.codes, thickness_basis: result.thicknessBasis || 'tvd', md_wells: result.mdWells || [] } : {}),
           skipped: result.skipped, extrapolated: result.extrapolated,
-          z_convention: kind === 'structure' ? 'elevation' : 'raw',
+          z_convention: zDomain === 'time' ? 'twt_positive' : kind === 'structure' ? 'elevation' : 'raw',
           faults: faults.map((f) => ({ id: f.id, name: f.name })),
           boundary: boundary ? { id: boundary.id, name: boundary.name } : null,
           guide_points: guides.map((gp) => ({ x: gp.x, y: gp.y, z: gp.z, label: gp.well })),
         },
       });
-      setPosted(postedNow);
+      setPosted(src.type === 'points' ? null : postedNow);
       // E5: how well the map honours each well (the unmerged, un-guided picks)
-      if (kind === 'structure') {
+      if (kind === 'structure' && src.type !== 'points') {
         const tieWells = result.points.map((p) => ({ well: p.well, x: p.x, y: p.y, depthM: -p.z }));
         const rows = mapResiduals(tieWells, g.z, spec);
         setResiduals({ title: 'Map against the wells', rows, stats: residualStats(rows) });
@@ -554,9 +562,11 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         guides.length ? `${guides.length} guide point${guides.length === 1 ? '' : 's'}` : null,
         // STRAT-U2-011: the thickness basis of a strat map
         src.type === 'net' && src.measure !== 'ratio' ? `vertical thickness (TVD through each survey)${result.mdWells?.length ? `; ${result.mdWells.join(', ')} ${result.mdWells.length === 1 ? 'has' : 'have'} no survey and ${result.mdWells.length === 1 ? 'is' : 'are'} taken as vertical` : ''}` : null,
-        ...merge.merged.map((m) => `${m.wells.join(' + ')} merged into one control point${kind === 'structure' || kind === 'isochore' ? ` (${fmtZ(m.spreadZ, { kind: 'isochore', z_domain: 'depth' })} apart)` : ''}`),
+        ...(src.type === 'points'
+          ? [merge.merged.length ? `${merge.merged.length} groups of points closer than half a cell averaged` : null, `points from ${src.provenance?.file_name || 'a file'}`]
+          : merge.merged.map((m) => `${m.wells.join(' + ')} merged into one control point${kind === 'structure' || kind === 'isochore' ? ` (${fmtZ(m.spreadZ, { kind: 'isochore', z_domain: 'depth' })} apart)` : ''}`)),
       ].filter(Boolean);
-      setStatus(`${opts.prefix || ''}${describeGridResult({ name, result: { ...result, points }, spec, depthUnit, method: kriged ? 'kriging' : gridMethod === 'tension' ? 'tension' : 'tps' })}${extras.length ? ` With ${extras.join(', ')}.` : ''}`);
+      setStatus(`${opts.prefix || ''}${describeGridResult({ name, result: { ...result, points, sourceNoun: src.type === 'points' ? 'points' : 'wells', zDomain }, spec, depthUnit, method: kriged ? 'kriging' : gridMethod === 'tension' ? 'tension' : 'tps' })}${extras.length ? ` With ${extras.join(', ')}.` : ''}`);
     } catch (e) {
       setStatus(/singular/.test(e.message)
         ? `${e.message} Check for wells in a straight line, or wells at one location with different values.`
@@ -1649,6 +1659,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         backend={backend}
         depthUnit={depthUnit}
         onImported={onImported}
+        onGridPoints={(plan) => runGrid({ source: { type: 'points', ...plan } })}
       />
     </>
   );

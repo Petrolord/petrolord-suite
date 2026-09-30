@@ -141,3 +141,47 @@ describe('MAP-U2-005: gas cap, oil leg and fault-block volumes against an analyt
     expect(contactVolumes({ spec: s, gridM: z, owcM: -1700 }).kind).toBe('none');
   });
 });
+
+describe('MAP-U2-003: scattered points and a rotated lattice from a file grid in the studio', () => {
+  // eslint-disable-next-line global-require
+  const fs = require('fs');
+  // eslint-disable-next-line global-require
+  const path = require('path');
+  // eslint-disable-next-line global-require
+  const { readSurfaceFile } = require('../services/surfaceFileDoor');
+  // eslint-disable-next-line global-require
+  const { planPointsSource } = require('../services/importPlan');
+  // eslint-disable-next-line global-require
+  const { describeGridResult } = require('../services/gridStatus');
+  const lattice = fs.readFileSync(path.join(process.cwd(), 'e2e/fixtures/map/hostile/xyz_rotated_survey_lattice.xyz'), 'utf8');
+
+  test('the rotated survey lattice reads as points (it was refused before) and grids through the engine', () => {
+    const r = readSurfaceFile(lattice);
+    expect(r.g).toBeNull();
+    expect(r.points.length).toBeGreaterThan(50);
+    expect(r.notes.join(' ')).toMatch(/Not a regular X\/Y grid .* points to grid/);
+    const plan = planPointsSource({ points: r.points, fileName: 'lattice.xyz', domain: 'depth', zUnit: 'm' });
+    expect(plan.points.every((p) => p.z < 0)).toBe(true); // positive depth in the file -> elevation
+    const xs = plan.points.map((p) => p.x); const ys = plan.points.map((p) => p.y);
+    const spec = { x0: Math.min(...xs), y0: Math.min(...ys), dx: 100, dy: 100, nx: Math.ceil((Math.max(...xs) - Math.min(...xs)) / 100) + 1, ny: Math.ceil((Math.max(...ys) - Math.min(...ys)) / 100) + 1 };
+    const g = runGriddingSync('tps', plan.points, spec, { maxExtrapolation: 1e9 });
+    expect(g.live).toBeGreaterThan(10);
+    // the dome crest of the fixture is -1500 m at (502000, 6700000)
+    expect(g.zMax).toBeGreaterThan(-1520);
+    expect(g.zMax).toBeLessThan(-1480);
+  });
+
+  test('feet, sign and time resolve like a grid import; the status counts points', () => {
+    const pts = [{ x: 0, y: 0, z: 5000 }, { x: 100, y: 0, z: 5100 }, { x: 0, y: 100, z: 5200 }];
+    const ft = planPointsSource({ points: pts, domain: 'depth', zUnit: 'ft' });
+    expect(ft.points[0].z).toBeCloseTo(-1524, 6);
+    const neg = planPointsSource({ points: pts.map((p) => ({ ...p, z: -p.z })), domain: 'time' });
+    expect(neg.points[0].z).toBe(5000);
+    expect(planPointsSource({ points: pts, domain: 'attribute' }).points[2].z).toBe(5200);
+    expect(() => planPointsSource({ points: pts.slice(0, 2) })).toThrow(/at least 3/);
+    const txt = describeGridResult({ name: 'H1', result: { points: ft.points, skipped: [], depthRef: 'tvdss', sourceNoun: 'points' }, spec: { nx: 3, ny: 3 } });
+    expect(txt).toMatch(/from 3 points/);
+    // negative control: the regular-grid door still reads a regular file as a grid
+    expect(readSurfaceFile('0 0 1\n10 0 2\n0 10 3\n10 10 4').g.nx).toBe(2);
+  });
+});

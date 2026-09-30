@@ -212,6 +212,13 @@ export default function MappingHelpGuide() {
           the status says so. Fault-block polygons are saved to the shared culture registry, so Earth Modeling
           and Seismolord can read them later.
         </Para>
+        <SubHeading>Grid points from a file</SubHeading>
+        <Para>
+          Import a file of points that are not on a regular grid (scattered picks, or a horizon exported on a
+          rotated seismic lattice) and the dialog says so and offers Grid these points. Say what the values are,
+          their unit and sign, and the file CRS as for a grid; the points are then gridded with the method, cell
+          size, extent, fault blocks and boundary set in the studio. Review the preview, then Publish.
+        </Para>
         <SubHeading>Bring fault polygons from Petrel or RMS</SubHeading>
         <Para>
           Culture, Import reads GeoJSON, shapefiles, Petrel ZMAP+ lines and Irap classic lines. Pick Fault polygons
