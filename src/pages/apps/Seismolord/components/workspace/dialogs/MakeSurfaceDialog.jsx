@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { listFaults } from '../../../services/faultsService';
+import { loadLineControl } from '../../../services/linesService';
 import { makeSurfaceFromHorizon, MAPPING_STUDIO_PATH } from '../../../services/makeSurface';
 import { normalizeVelocity, describeVelocity } from '../../../engine/velocityModel';
 
@@ -36,6 +37,8 @@ export default function MakeSurfaceDialog({
   const [cell, setCell] = useState(0);
   const [faults, setFaults] = useState([]);
   const [faultAware, setFaultAware] = useState(true);
+  const [lineControl, setLineControl] = useState(null);   // U2-005 {control, lines, picks}
+  const [withLines, setWithLines] = useState(true);
   const [running, setRunning] = useState(null);     // null | 'grid' | 'publish'
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
@@ -59,6 +62,17 @@ export default function MakeSurfaceDialog({
 
   const horizon = horizons.find((h) => h.id === horizonId) || null;
 
+  // U2-005: 2D line picks with this horizon's name join as gridding control
+  useEffect(() => {
+    setLineControl(null);
+    if (!open || !horizon || !manifest || volume?.local) return undefined;
+    let live = true;
+    loadLineControl({ name: horizon.name, dtMs3d: manifest.geometry.dt_us / 1000 })
+      .then((r) => { if (live) setLineControl(r.control.length ? r : null); })
+      .catch(() => { if (live) setLineControl(null); });
+    return () => { live = false; };
+  }, [open, horizon, manifest, volume]);
+
   /** @param {'grid'|'publish'} action */
   const run = async (action) => {
     if (!horizon) return;
@@ -77,6 +91,7 @@ export default function MakeSurfaceDialog({
         cellM: cell,
         faults: faultAware ? faults : null,
         signal: ctl.signal,
+        lineControl: withLines ? lineControl : null,
       });
       setResult({ ...out, action });
       onSurfaceSaved?.(out.surface);
@@ -178,6 +193,14 @@ export default function MakeSurfaceDialog({
               )}
             </div>
 
+            {lineControl && (
+              <label className="flex items-start gap-2 text-sm text-pl-text cursor-pointer select-none" data-testid="sl-make-surface-lines"
+                title="The 2D picks are mistie-corrected (the statics applied in the 2D Lines window) and gridded with the 3D picks; the grid grows to cover the lines">
+                <input type="checkbox" checked={withLines} onChange={(e) => setWithLines(e.target.checked)} className="accent-pl-primary mt-1" />
+                {`Include 2D line picks named ${horizon?.name} (${lineControl.lines.length} line${lineControl.lines.length === 1 ? '' : 's'}: ${lineControl.lines.join(', ')}; ${lineControl.picks.toLocaleString('en-US')} picks)`}
+              </label>
+            )}
+
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 data-testid="sl-make-surface-grid"
@@ -215,7 +238,8 @@ export default function MakeSurfaceDialog({
             {result && (
               <div className="rounded-lg border border-pl-border bg-pl-sunken/60 p-3 text-sm text-pl-text" data-testid="sl-make-surface-result">
                 {`${result.surface?.name || 'Surface'}: ${result.live.toLocaleString()} live nodes, cell ${result.cellM} m, `
-                  + `z ${result.zMin?.toFixed(1)} to ${result.zMax?.toFixed(1)}.`}
+                  + `z ${result.zMin?.toFixed(1)} to ${result.zMax?.toFixed(1)}.`
+                  + (result.lineInfo ? ` ${result.lineInfo.used.toLocaleString('en-US')} 2D control points (${result.lineInfo.outside.toLocaleString('en-US')} outside the 3D survey${result.lineInfo.skipped ? `, ${result.lineInfo.skipped} skipped: the layer-cake model has no column there` : ''}).` : '')}
                 {result.action === 'publish' && (
                   <Link
                     to={MAPPING_STUDIO_PATH}

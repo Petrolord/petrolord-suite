@@ -10,6 +10,7 @@ import { guidedTrack2D } from './lib/trackerEdit';
 import { MistieCharacterTable } from './components/Line2dPanel';
 import { crossingCharacter, solveCharacter } from './lib/mistieCharacter';
 import { rotateConstantPhase } from './engine/tieWarp';
+import { lineMarkersOnSection } from './lib/lines2dControl';
 
 // U2-014: three synthetic 2D lines at one crossing each pair, rotated
 // 0, 30, -20 degrees and scaled 1, 1.5, 0.8 about a common trace
@@ -117,7 +118,12 @@ export default function SeismolordU2Harness() {
       for (let t = 0; t < DIM; t++) g[lineIndex * DIM + t] = guided.picks[t];
       return { id: 'guided', name: 'Guided pick', grid: g, color: '#facc15' };
     })();
+    // U2-005: a diagonal 2D line across the survey, marked where it crosses the inline
+    const diag = Array.from({ length: DIM }, (_, k) => ({ il: k, xl: 0.5 * k + 10 }));
+    const lineMarkers = new URLSearchParams(window.location.search).get('lines') === '0' ? []
+      : lineMarkersOnSection([{ id: 'l1', name: 'L-2D-101', color: '#e879f9', positions: diag }], 'inline', lineIndex);
     return {
+      lineMarkers,
       horizons: guidedGrid ? [horizon, guidedGrid] : [horizon],
       faults: [{
         id: 'f1', name: 'Fault F1', sticks: [{ points: stick }], color: '#f97316',

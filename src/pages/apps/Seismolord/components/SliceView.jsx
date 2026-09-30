@@ -625,6 +625,36 @@ function SliceView({
     // ST5 termination markers (onlap, downlap, toplap, truncation) on the
     // cells of this section: a coloured ring with the kind's initial,
     // shifted with the flatten like every other overlay
+    // U2-005: where 2D lines cross this inline or crossline, a dashed
+    // vertical marker with the line name at the top
+    if (ov.lineMarkers?.length && (ori === 'inline' || ori === 'xline')) {
+      ctx.save();
+      ctx.setLineDash([6 * dpr, 4 * dpr]);
+      ctx.lineWidth = Math.max(1.5, 1.2 * dpr);
+      ctx.font = `${Math.round(10 * dpr)}px ui-monospace, monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      for (const m of ov.lineMarkers) {
+        const top = t.worldToScreen(m.trace + 0.5, 0);
+        const bot = t.worldToScreen(m.trace + 0.5, gm.ns);
+        ctx.strokeStyle = m.color;
+        ctx.beginPath();
+        ctx.moveTo(top.x, Math.max(0, top.y));
+        ctx.lineTo(bot.x, Math.min(H, bot.y));
+        ctx.stroke();
+        const ly = Math.max(2 * dpr, top.y + 2 * dpr);
+        ctx.lineWidth = 3 * dpr;
+        ctx.setLineDash([]);
+        ctx.strokeStyle = 'rgba(2, 6, 23, 0.9)';
+        ctx.strokeText(m.name, top.x, ly);
+        ctx.fillStyle = m.color;
+        ctx.fillText(m.name, top.x, ly);
+        ctx.setLineDash([6 * dpr, 4 * dpr]);
+        ctx.lineWidth = Math.max(1.5, 1.2 * dpr);
+      }
+      ctx.restore();
+    }
+
     if (ov.terminations?.length && ori !== 'time') {
       const posn = ori === 'traverse' ? p.slice?.positions : null;
       const KIND_COLOUR = { onlap: '#22d3ee', downlap: '#f59e0b', toplap: '#a78bfa', truncation: '#f87171' };

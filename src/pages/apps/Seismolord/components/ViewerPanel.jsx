@@ -121,6 +121,8 @@ import { buildStartHere } from '../lib/startHere';
 import { tourSeen } from '../lib/firstRunTour';
 import { confidenceFilter, guidedTrack2D } from '../lib/trackerEdit';
 import { faultPolygonsGeoJson, polygonLoopLines } from '../lib/faultPolygons';
+import { lineMarkersOnSection } from '../lib/lines2dControl';
+import { lineToLattice } from '../engine/line2dIntegration';
 import { startFrameworkJob } from '../services/frameworkRunner';
 import WellImportDialog from './workspace/dialogs/WellImportDialog';
 import VelocityModelDialog from './workspace/dialogs/VelocityModelDialog';
@@ -147,6 +149,8 @@ import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 const NULL_F32 = Math.fround(NULL_VALUE);
 
 const DRAFT_COLOR = '#facc15';
+// U2-005: 2D line markers on 3D sections
+const LINE_MARKER_COLORS = ['#e879f9', '#22d3ee', '#facc15', '#fb923c'];
 
 // storage base URL without touching the shared client module
 const storageBase = () => supabase.storage.from('seismic')
@@ -3110,6 +3114,21 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     return out;
   }, [faults, visibleFaultIds, resolvedHorizons, geom, faultColorById]);
 
+  // U2-005: visible 2D lines on the lattice, and where they cross the
+  // displayed inline or crossline
+  const lineLattices = useMemo(() => {
+    if (!geom || !affine) return [];
+    return lines2d
+      .filter((l) => visibleLineIds.has(l.id) && lineNavs.has(l.id))
+      .map((l, idx) => ({
+        id: l.id, name: l.name, color: LINE_MARKER_COLORS[idx % LINE_MARKER_COLORS.length], positions: lineToLattice(lineNavs.get(l.id), affine, geom).positions,
+      }));
+  }, [lines2d, visibleLineIds, lineNavs, geom, affine]);
+  const lineMarkers = useMemo(
+    () => lineMarkersOnSection(lineLattices, orientation, sliceIndex),
+    [lineLattices, orientation, sliceIndex],
+  );
+
   const overlays = useMemo(() => ({
     horizons: resolvedHorizons,
     surfaces: sectionSurfaces,
@@ -3132,7 +3151,8 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     seedPick,
     wells: wellSections,
     terminations,
-  }), [resolvedHorizons, sectionSurfaces, faults, visibleFaultIds, draftSticks, seedPick,
+    lineMarkers,
+  }), [lineMarkers, resolvedHorizons, sectionSurfaces, faults, visibleFaultIds, draftSticks, seedPick,
     wellSections, terminations, faultDisplayFor, faultColorById, pickMode, faultEditor.selected]);
 
   // ST5: per-trace flatten offsets for the displayed section (inline,

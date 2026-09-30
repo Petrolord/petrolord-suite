@@ -7,6 +7,7 @@
 // subtlety, and the native declaration is preserved on the row).
 
 import { applyCharacter } from '../lib/mistieCharacter';
+import { linePicksToControl } from '../lib/lines2dControl';
 import { supabase } from '@/lib/customSupabaseClient';
 import { SEISMIC_BUCKET, assertQuota } from './seismicStorage';
 import { myOrgId } from './surfacesService';
@@ -98,6 +99,36 @@ export async function setLineCharacter(line, character) {
     .select().single();
   if (error) throw new Error(`Could not store the phase and amplitude correction: ${error.message}`);
   return data;
+}
+
+/**
+ * U2-005: every ready line's picks named like a horizon, as gridding
+ * control for the 3D volume (mistie-corrected, in the volume's samples).
+ * @param {{name: string, dtMs3d: number, lines?: Array, step?: number}} p
+ * @returns {Promise<{control: {x, y, sample}[], lines: string[], picks: number}>}
+ */
+export async function loadLineControl({
+  name, dtMs3d, lines = null, step = 2,
+}) {
+  const rows = lines || await listLines();
+  const control = [];
+  const used = [];
+  let total = 0;
+  for (const l of rows) {
+    if ((l.status || 'ready') !== 'ready') continue;
+    const sets = await listLinePicks(l.id).catch(() => []);
+    const p = sets.find((q) => String(q.name).trim().toLowerCase() === String(name).trim().toLowerCase());
+    if (!p) continue;
+    const [picks, nav, manifest] = await Promise.all([loadLinePicks(p), loadLineNav(l), getLineManifest(l)]);
+    const r = linePicksToControl({
+      picks, nav, dtMs2d: manifest.geometry.dt_us / 1000, dtMs3d, shiftMs: l.bulk_shift_ms || 0, step,
+    });
+    if (!r.points.length) continue;
+    control.push(...r.points);
+    used.push(l.name);
+    total += r.live;
+  }
+  return { control, lines: used, picks: total };
 }
 
 /** Display-side mistie static (stored samples untouched). */

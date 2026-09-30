@@ -22,6 +22,7 @@ import { latticeToWorldGrid } from '../engine/surfaceOnLattice';
 import { normalizeVelocity, sampleToExportZ } from '../engine/velocityModel';
 import { NULL_VALUE } from '../engine/manifest';
 import { newGriddingWorker } from './griddingWorkerFactory';
+import { controlToGridPoints, mergeBounds } from '../lib/lines2dControl';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
 
@@ -80,23 +81,35 @@ async function resolveSampleToZ({ manifest, horizon, domain, velocityFtS }) {
 
 export async function gridHorizonSurface({
   manifest, horizon, domain, velocityFtS = 10000, cellM = 0, faults = null,
-  signal = null, maxExtrapolationM = 0,
+  signal = null, maxExtrapolationM = 0, lineControl = null,
 }) {
   if (signal?.aborted) throw new Error('Export cancelled');
   const geom = geomFromManifest(manifest);
   const picks = await loadHorizonGrid(horizon);
-  const { sampleToZ } = await resolveSampleToZ({ manifest, horizon, domain, velocityFtS });
+  const { sampleToZ, model } = await resolveSampleToZ({ manifest, horizon, domain, velocityFtS });
   const affine = surveyAffine(manifest.geometry);
   if (!affine) throw new Error('Volume has no usable survey coordinates for gridding.');
   const points = picksToPoints(picks, geom, affine, sampleToZ);
-  if (points.length < 3) throw new Error('Horizon has too few live picks to grid.');
+  // U2-005: 2D line picks of the same horizon as extra control (world XY,
+  // mistie-corrected time in this volume's samples); a layer-cake depth
+  // needs a lattice column, so 2D points off the survey are skipped then
+  let linePoints = [];
+  let lineInfo = null;
+  if (lineControl?.length) {
+    const r = controlToGridPoints(lineControl, affine, geom, sampleToZ, {
+      columnDependent: domain === 'depth' && model?.kind === 'layercake',
+    });
+    linePoints = r.points;
+    lineInfo = { used: r.points.length, skipped: r.skipped, outside: r.points.filter((q) => !q.inside).length };
+  }
+  if (points.length + linePoints.length < 3) throw new Error('Horizon has too few live picks to grid.');
 
   // export grid: axis-aligned world bbox of the (possibly rotated) survey.
   // exportGridSpec clamps a bad cell to the bin and throws a clear domain
   // error (with the minimum usable cell) instead of allocating a runaway
   // node count (ML5).
   const bin = cellSpacing(affine).xl || 25;
-  const b = surveyBounds(affine, manifest.geometry.il.count, manifest.geometry.xl.count);
+  const b = mergeBounds(surveyBounds(affine, manifest.geometry.il.count, manifest.geometry.xl.count), linePoints);
   const spec = exportGridSpec(b, cellM, bin);
   const dxy = spec.dx;
 
@@ -141,6 +154,14 @@ export async function gridHorizonSurface({
     };
   }
 
+  // line control joins after the lattice points were tagged (same order
+  // picksToPoints used); in blocked mode each takes its nearest cell's block
+  for (const q of linePoints) {
+    points.push(blocks ? {
+      x: q.x, y: q.y, z: q.z, block: blocks.labels[q.cell],
+    } : { x: q.x, y: q.y, z: q.z });
+  }
+
   if (signal?.aborted) throw new Error('Export cancelled');
   const maxExtra = Number.isFinite(maxExtrapolationM) && maxExtrapolationM > 0
     ? maxExtrapolationM : 2 * dxy;
@@ -183,7 +204,9 @@ export async function gridHorizonSurface({
     x: Array.from({ length: spec.nx }, (_, i) => spec.x0 + i * spec.dx),
     y: Array.from({ length: spec.ny }, (_, i) => spec.y0 + i * spec.dy),
   };
-  return { g, spec, gridded, xyzText: writeXYZ(g), faultInfo, maxExtrapolationM: maxExtra };
+  return {
+    g, spec, gridded, xyzText: writeXYZ(g), faultInfo, maxExtrapolationM: maxExtra, lineInfo,
+  };
 }
 
 /**
@@ -229,7 +252,7 @@ export async function gridHorizonAmplitude({
   if (signal?.aborted) throw new Error('Export cancelled');
 
   const bin = cellSpacing(affine).xl || 25;
-  const b = surveyBounds(affine, manifest.geometry.il.count, manifest.geometry.xl.count);
+  const b = mergeBounds(surveyBounds(affine, manifest.geometry.il.count, manifest.geometry.xl.count), linePoints);
   const spec = exportGridSpec(b, cellM, bin);
   const { z, live, vMin, vMax } = latticeToWorldGrid(values, affine, geom, spec);
   if (!live) throw new Error('Horizon has no live amplitude values to export.');

@@ -265,3 +265,29 @@ for (const [vp, theme] of [[{ width: 1366, height: 768 }, 'light'], [{ width: 14
     await page.locator('#section-glossary').screenshot({ path: `/tmp/claude-0/seis-upg2/u2-018-${vp.width}-${theme}.png` });
   });
 }
+
+// U2-005: a 2D line marker on a 3D inline (2D overlay canvas is readable)
+async function magentaOnSection(page, q) {
+  await page.goto(`/dev/seismolord-u2${q}`);
+  await expect(page.getByTestId('u2-status')).toHaveText('ready', { timeout: 60000 });
+  await page.waitForTimeout(500);
+  return page.evaluate(() => {
+    let n = 0;
+    for (const c of document.querySelectorAll('[data-testid="u2-section"] canvas')) {
+      const ctx = c.getContext('2d');
+      if (!ctx) continue;
+      const { data } = ctx.getImageData(0, 0, c.width, c.height);
+      for (let i = 0; i < data.length; i += 4) if (data[i] > 200 && data[i + 1] > 90 && data[i + 1] < 150 && data[i + 2] > 220 && data[i + 3] > 200) n++;
+    }
+    return n;
+  });
+}
+
+test('U2-005 1366x768: the 2D line crossing the inline is marked and named', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  const without = await magentaOnSection(page, '?lines=0');
+  const withLine = await magentaOnSection(page, '');
+  expect(without).toBe(0);
+  expect(withLine).toBeGreaterThan(100);
+  await page.getByTestId('u2-section').screenshot({ path: '/tmp/claude-0/seis-upg2/u2-005.png' });
+});

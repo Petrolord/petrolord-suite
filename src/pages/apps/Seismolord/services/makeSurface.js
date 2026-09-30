@@ -35,7 +35,7 @@ export const MAPPING_STUDIO_PATH = '/dashboard/apps/geoscience/mapping-surface-s
  */
 export async function makeSurfaceFromHorizon({
   volume, manifest, horizon, domain, velocityFtS = 10000, cellM = 0, faults = null,
-  maxExtrapolationM = 0, signal = null,
+  maxExtrapolationM = 0, signal = null, lineControl = null,
 }) {
   if (!volume || !manifest) throw new Error('Open the horizon\'s volume first.');
   if (!horizon) throw new Error('Choose a horizon.');
@@ -43,7 +43,7 @@ export async function makeSurfaceFromHorizon({
   if (!affine) throw new Error('The volume has no usable survey coordinates for gridding.');
   const model = normalizeVelocity(manifest.velocity);
   const {
-    g, spec, gridded, faultInfo, maxExtrapolationM: usedExtrapolation,
+    g, spec, gridded, faultInfo, maxExtrapolationM: usedExtrapolation, lineInfo,
   } = await gridHorizonSurface({
     manifest,
     horizon,
@@ -53,6 +53,7 @@ export async function makeSurfaceFromHorizon({
     faults: faults?.length ? faults : null,
     maxExtrapolationM,
     signal,
+    lineControl: lineControl?.control || null,
   });
   const params = {
     cell_m: spec.dx,
@@ -73,6 +74,9 @@ export async function makeSurfaceFromHorizon({
     z_min: gridded.zMin,
     z_max: gridded.zMax,
     made_from: 'make_surface',
+    // U2-005: 2D line picks used as control (mistie-corrected)
+    lines_2d: lineControl?.lines?.length ? lineControl.lines : null,
+    line_control_points: lineInfo?.used ?? null,
   };
   const surface = await saveHorizonAsSurface({
     volume, horizon, domain, g, spec, params,
@@ -84,5 +88,6 @@ export async function makeSurfaceFromHorizon({
     zMax: gridded.zMax,
     cellM: spec.dx,
     faultInfo,
+    lineInfo,
   };
 }
