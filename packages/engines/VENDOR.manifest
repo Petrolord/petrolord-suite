@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit a5b1e52c8c0aa8efca1b1a8c4eced680d4456d1c
+# commit a793d1ac1ee403639e03e77fc3913cfbf844478f
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 29fb828f7173209a3b86294ecd4a53015b3ae902 README.md
@@ -206,7 +206,8 @@ dee903e9d3d5e9df9e98002fc0862140c08b07d9 __tests__/stratigraphy.intervals.test.j
 ca5026cb9b961714945074dad52989238333e80f __tests__/stratigraphy.sequence.test.js
 305eaf29a0ab4dbd568b6dc37a93b6cd00963a8b __tests__/stratigraphy.stratmaps.test.js
 f10949f2708dc7b233fdc3cb3e09bf6cc9ff7842 __tests__/stratigraphy.stretch.test.js
-9ec2d6370d2c01f76bccbceef0dd83cf20f9f96c __tests__/stratigraphy.timescale.test.js
+365e4332dde4bc253c119d96094a5fc10b4c2db5 __tests__/stratigraphy.timescale.test.js
+e92934ab4a5896d0353adaa6cb8f0161c27b984c __tests__/stratigraphy.timescale2026.test.js
 d7ab63fcc9594647465ab7cc6b1437350f4dfeac __tests__/stratigraphy.vocabulary.test.js
 ba54dfab0b41ade99cb94fa4f754b029058674f9 __tests__/stratigraphy.wheeler.test.js
 fa0c16d94cdf725ea354ba119bef12f514321062 __tests__/supplychain.inventory.test.js
@@ -516,7 +517,7 @@ cb674dbe85ffe0ae20595c3d8a1c40d6c62083dc engines/stratigraphy/intervals.js
 3d9150855acbb6514d5e919c8d6dd523b78add04 engines/stratigraphy/sequence.js
 10afaf2e9a3044d043466f1afbd170066a210f88 engines/stratigraphy/stratMaps.js
 548a05cf748e8238eddd1c54b0bef61a678769e1 engines/stratigraphy/stretch.js
-69dddb3d38e19ef8efe2e945e08047c35a85ff62 engines/stratigraphy/timescale.js
+a895218a11f52ff0d46086f2af2193ffa985f554 engines/stratigraphy/timescale.js
 05015035c4695dfe45c3d45ba010224dfb5b41a9 engines/stratigraphy/vocabulary.js
 fd87b141e8a3fd267cd0b86aafe33e2ac5c8bb76 engines/stratigraphy/wheeler.js
 516304c7449deff007e9df832c61f400f286814f engines/supplychain/inventory.js
@@ -788,7 +789,9 @@ b0ed49b810132b17a0e1fa8a0c8dcf2f48bc9fdd test-data/seismolord/picks/earthvision_
 f213312d11270f77f03b152d7967bd49c07760f8 test-data/seismolord/structure/gen_structure.py
 fbd8bfb1f097f02e83efcc528074ae91339ee898 test-data/seismolord/structure/structure_golden.json
 5144b15883705461f9c29323038cc2e9dd131eb0 test-data/stats/simple_statistics_pins.json
-cb1026e6bcd8459e66c8609cb7423de1da470ff2 test-data/stratigraphy/README.md
+30056112a0cab4eb0be77a0ec0579834a5a5d1bc test-data/stratigraphy/README.md
+3841c2e06ae3a3c1f01d8f8a5f9c9fa3a40c6ed1 test-data/stratigraphy/ics-chart-2023-09-numbers.txt
+c8e19f3032ca8c5a2716b48cf1a41508b9d23ccb test-data/stratigraphy/ics-chart-2026-06-numbers.txt
 654badb06925ddd23f69f3f867016ab6f9553970 test-data/stratigraphy/wheeler-synthetic.json
 339be1c7e1c554df1256c8f6c8be900b46d487c6 test-data/supplychain/ekene-marine/README.md
 bf401edd93d68c2e30a044785ded47fead636b9c test-data/supplychain/ekene-marine/marine.json

@@ -290,7 +290,7 @@ describe('STRAT-U1-013/014 charts on white chart paper with the watermark, expor
     const lines = [...doc.querySelectorAll('[data-header-line]')].map((t) => t.textContent);
     expect(lines[0]).toBe('Wheeler chart: KETA section');
     expect(lines[1]).toBe('Wells: KETA-1, KETA-2, KETA-3 | Section: KETA section | Field: Keta (sample)');
-    expect(lines[2]).toBe('Terms: Exxon (display; stored Catuneanu) | Timescale: ICS 2026/06 | Depths: ages from dated surfaces');
+    expect(lines[2]).toBe('Terms: Exxon (display; stored Catuneanu) | Timescale: ICS 2023/09 | Depths: ages from dated surfaces');
     expect(lines[3]).toMatch(/^Prepared by: A\. Geologist \| 2026-09-30 \| Petrolord Suite /);
     expect(doc.querySelectorAll('[data-kind="hiatus"]').length).toBe(2);
     expect(doc.querySelectorAll('[data-kind="deposition"]').length).toBe(4);

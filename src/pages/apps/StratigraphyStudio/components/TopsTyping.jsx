@@ -40,7 +40,9 @@ const toRow = (t) => ({
 export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onStatus, ageFlags = null }) {
   const [rows, setRows] = useState(() => tops.map(toRow));
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setRows(tops.map(toRow)); }, [tops]);
+  // a re-read that returns the same rows (every view change re-reads them) keeps what is being typed
+  const topsKey = useMemo(() => JSON.stringify(tops.map(toRow)), [tops]);
+  useEffect(() => { setRows(JSON.parse(topsKey)); }, [topsKey]);
   const canEdit = !!well?.is_own;
   const unitOptions = useMemo(() => orderedUnits(units).map((u) => ({ value: u.id, label: `${'  '.repeat(u.depth)}${u.name} (${u.rank})` })), [units]);
   const typeOptions = useMemo(() => SURFACE_TYPES.map((s) => {
