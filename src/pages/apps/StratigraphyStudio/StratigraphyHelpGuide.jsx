@@ -218,7 +218,13 @@ export default function StratigraphyHelpGuide() {
           ['Send to Basin', 'creates a Basin & Charge Modeling model: one layer per top with its vertical (TVD) thickness through the survey, ages from the bounding surfaces, the dominant lithology from the log, every hiatus as an erosion event whose amount you must type; undated layers keep placeholders and say so'],
           ['Open Basin', 'opens Basin & Charge Modeling, where the new model is listed with the well remembered as its tie'],
         ]} />
-              <Callout tone="info" title="Timescale: chart versions">
+              <Para>
+          Summary PDF (Ages view) writes the well's stratigraphy for a reviewer: the header (well, field, section,
+          prepared by and on, build, timescale, terms, depth basis), the typed tops with MD, TVD, type, unit, age, ICS
+          stage, the chart each age was entered on and the tract below, the age-depth plot with depth down and its
+          rates and hiatuses, the well's Wheeler cells, the column, and a reviewed-by line.
+        </Para>
+        <Callout tone="info" title="Timescale: chart versions">
           Lookups, stage fills and exports use the ICS chart {TIMESCALE_VERSION}. Every age you type or fill is stamped
           with the chart it was entered under (in your stratigraphy project). Ages entered before are read as ICS
           2023/09: one that sits on a boundary the new chart moved (the Jurassic/Cretaceous boundary moved from 145.0 to

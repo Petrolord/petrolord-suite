@@ -252,3 +252,50 @@ describe('STRAT-U2-003 ICS 2026/06 with the chart version of every age', () => {
     expect(screen.queryByTestId('strat-top-agechart-Top Dome-age_ma')).toBeNull();
   }, 120000);
 });
+
+describe('STRAT-U2-006 stratigraphic summary PDF, read back', () => {
+  const fs = require('fs'); const os = require('os'); const path = require('path');
+  const { execFileSync } = require('child_process');
+  const read = (doc) => {
+    const f = path.join(os.tmpdir(), `strat-summary-${process.pid}.pdf`);
+    fs.writeFileSync(f, Buffer.from(doc.output('arraybuffer')));
+    const text = execFileSync('pdftotext', ['-layout', f, '-'], { encoding: 'latin1' }).replace(/[ \t]+/g, ' ');
+    fs.unlinkSync(f);
+    return text;
+  };
+
+  test('KETA-2 (deviated): reviewer header, tops with TVD, stage and chart, rates in TVD, Wheeler cells, the column (origin/main: no PDF)', async () => {
+    const { buildStratSummary } = jest.requireActual('../services/stratSummaryPdf');
+    const { seededUnits } = jest.requireActual('../services/inMemoryBackend');
+    const b = makeInMemoryBackend();
+    const well = (await b.listWells()).find((w) => w.id === 'corr-w2');
+    const tops = await b.listTops('corr-w2');
+    const { doc, fileName } = await buildStratSummary({ well, tops, intervals: await b.listIntervals('corr-w2'), units: seededUnits(), scheme: 'exxon', section: 'KETA section',
+      report: { field: 'Keta (sample)', analyst: 'A. Geologist' }, ageCharts: { tops: { [tops.find((t) => t.name === 'Mid Shale').id]: { age_ma: 'ICS 2026/06' } } }, now: new Date('2026-09-30T12:00:00Z') });
+    expect(fileName).toBe('KETA-2_stratigraphic_summary.pdf');
+    const t = read(doc);
+    for (const s of ['Stratigraphic summary', 'Well KETA-2', 'Field Keta (sample)', 'Section KETA section', 'Prepared by A. Geologist', 'Prepared on 2026-09-30',
+      'Timescale ICS 2026/06', 'Terms Exxon (display; stored Catuneanu)', 'TVD below KB through the survey', 'Reviewed by']) expect(t).toContain(s);
+    // tops: Mid Shale typed now, Base Sand entered before stamps
+    expect(t).toMatch(/Mid Shale 1610\.0 1606\.6 MFS n\/a 5 Zanclean ICS 2026\/06/);
+    expect(t).toMatch(/Base Sand 1705\.0 .*10 \(hiatus to 12\) Tortonian ICS 2023\/09/);
+    // rates in TVD (the U1-015 basis) and the hiatus
+    expect(t).toMatch(/Top Marker Mid Shale 1469\.9 to 1606\.6 4 to 5 136\.7/);
+    expect(t).toMatch(/hiatus at Base Sand .*10 to 12 no deposition/);
+    // Wheeler cells and the column
+    expect(t).toMatch(/Wheeler \(time down, this well\)/);
+    expect(t).toMatch(/12 .*removed or not deposited/);
+    expect(t).toMatch(/Agbada group 2\.58 33\.9 ICS 2023\/09/);
+    expect(t).toMatch(/Age \(Ma\), ICS 2026\/06/);
+  });
+
+  test('feet: depths and rates in ft, and a well with one dated surface says so', async () => {
+    const { buildStratSummary } = jest.requireActual('../services/stratSummaryPdf');
+    const well = { id: 'x', name: 'X-1', kb_m: 25 };
+    const tops = [{ id: 'a', name: 'A', md_m: 1000, age_ma: 3 }, { id: 'b', name: 'B', md_m: 1100, age_ma: null }];
+    const t = read((await buildStratSummary({ well, tops, unit: 'ft' })).doc);
+    expect(t).toMatch(/A 3280\.8 3280\.8/);
+    expect(t).toMatch(/Fewer than two dated surfaces/);
+    expect(t).toMatch(/Prepared by n\/a/);
+  });
+});

@@ -7,7 +7,7 @@
 
 import React, { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Flame, Tags } from 'lucide-react';
+import { Loader2, Flame, Tags, FileText } from 'lucide-react';
 import AgeDepthPlot from '@/components/wells/section/AgeDepthPlot';
 import { ageDepthModel, validateAgeDepth, sortDated } from '@/lib/stratigraphy/ageDepth';
 import { unitAt, TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
@@ -30,7 +30,7 @@ const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-
  * @param {() => Promise<void>} p.onTopsChanged
  * @param {Object} [p.appPaths]
  */
-export default function AgesView({ well, tops, intervals, backend, onStatus, onTopsChanged, onAgesEntered = null, appPaths = {}, report = null }) {
+export default function AgesView({ well, tops, intervals, backend, onStatus, onTopsChanged, onAgesEntered = null, appPaths = {}, report = null, units = [], scheme = 'catuneanu', ageCharts = {}, unit = 'm', section = null }) {
   const [busy, setBusy] = useState(false);
   const plotRef = useRef(null);
   // STRAT-U1-015: accumulation rates are vertical; on a deviated well the dated
@@ -69,6 +69,17 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
     } catch (e) { onStatus(e.message); } finally { setBusy(false); }
   };
 
+  // STRAT-U2-006: the one-page-per-topic summary a reviewer signs
+  const exportSummary = async () => {
+    setBusy(true);
+    try {
+      const { buildStratSummary } = await import('../services/stratSummaryPdf');
+      const { doc, fileName } = await buildStratSummary({ well, tops, intervals, units, unit, scheme, report: report || {}, section, ageCharts });
+      doc.save(fileName);
+      onStatus(`Exported ${fileName}: header, typed tops, age-depth, Wheeler cells and the column, with a reviewer line.`);
+    } catch (e) { onStatus(`The summary PDF was not made: ${e.message}`); } finally { setBusy(false); }
+  };
+
   const sendToBasin = async () => {
     setBusy(true);
     try {
@@ -90,6 +101,9 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
           </button>
           <button type="button" className={btnCls} disabled={busy || !backend.createBasinModel} onClick={sendToBasin} data-testid="strat-send-basin" title="Create a Basin & Charge Modeling model with layers, ages and erosion events from this well">
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Flame className="w-3.5 h-3.5" />} Send to Basin
+          </button>
+          <button type="button" className={btnCls} disabled={busy} onClick={exportSummary} data-testid="strat-summary-pdf" title="A PDF of this well's stratigraphy for a reviewer: header, tops with ages and stages, age-depth plot and rates, Wheeler cells, the column">
+            <FileText className="w-3.5 h-3.5" /> Summary PDF
           </button>
           <Link to={appPath('basinflow-genesis', appPaths)} className="text-pl-primary-text hover:text-pl-primary-text-hover px-1" data-testid="strat-open-basin">Open Basin</Link>
           <ChartExportButtons targetRef={plotRef} fileBase={`${well.name} age-depth`} onStatus={onStatus} testIdPrefix="strat-ages" disabled={dated.length < 2}
