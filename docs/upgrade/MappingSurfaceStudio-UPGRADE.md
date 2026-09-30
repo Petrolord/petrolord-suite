@@ -295,6 +295,31 @@ Recorded verbatim:
 
 Built on branch `feat/map-u2`. The build log per item follows in "Step 2 build (2026-09-30)".
 
+## The shared surface door: `readDepthSurface` (U2-007 contract)
+
+`src/lib/readDepthSurface.js`, beside `surfacesRegistry.js`. Earth Modeling (#7) and ReservoirCalc Pro (#8) adopt it in their own upgrades; Well Design and Simulation can take it for MAP-U1-031 and 032.
+
+```js
+readDepthSurface(row, grid, { accept, as = 'elevation', xy = 'native', requireProjected = true })
+// ok:      { ok: true, domain, grid, zUnit, spec, xyUnit, xyToM, cellAreaM2, crs, depthRef, nodeXY, sampleAt, live, notes }
+// refused: { ok: false, code, reason }
+```
+
+- `domain`:
+  - `elevation`: a depth row, negative below datum. `as: 'depth'` returns it positive down as `depth`.
+  - `time`: positive TWT in ms, whatever sign it was stored in.
+  - `isochore`: kind `isochore`, a positive vertical thickness.
+  - `attribute`: raw values. A `z_unit` of `ft` is converted to metres.
+- `grid` is a new Float32Array in metres for every length. `zUnit` is `m`, `ms` or the attribute's own unit.
+- `spec` keeps the row's frame (`xy: 'native'`) or is scaled to metres (`xy: 'm'`). `rotation_deg` is kept, and `nodeXY` and `sampleAt` honour it. `xyToM` is metres per map unit and `cellAreaM2` is the cell area in square metres.
+- Refusal codes:
+  - `grid`, `frame`: the grid or its frame is not usable.
+  - `domain`: the row is not in `accept`. The reason names the row's domain, the one needed and the way out.
+  - `z-unit`: a length in an unknown unit.
+  - `xy-unit`: an unknown unit, or a geographic frame when `requireProjected`.
+  - `empty`: no live node.
+- `notes` says what was assumed: no z domain, no depth unit, no CRS, or positive values on an elevation row. Show them to the user.
+
 ## Step 2 build (2026-09-30)
 
 | Item | State | Proving test | Notes |
