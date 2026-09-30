@@ -233,7 +233,12 @@ const Profile = () => {
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="flex justify-center">
+          <CardFooter className="flex flex-col items-center gap-1">
+            {!isOnboarding && (
+              <Button variant="link" onClick={() => navigate('/dashboard/units')} data-testid="profile-units-link">
+                Units for every app (depth, pressure, volumes)
+              </Button>
+            )}
             <Button variant="link" onClick={handleBackToDashboard}>
               Back to Dashboard
             </Button>

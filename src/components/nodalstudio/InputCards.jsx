@@ -2,6 +2,7 @@
 // oilfield-unit strings in state; UnitField renders them in the active
 // display system.
 import React from 'react';
+import ProjectUnitSystemNote from '@/components/units/ProjectUnitSystemNote';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -32,17 +33,20 @@ const SelectField = ({ label, value, onChange, options }) => (
 );
 
 export const UnitSystemSelect = () => {
-  const { unitSystem, setUnitSystem } = useNodalStudio();
+  const { unitSystem, setUnitSystem, profileUnitSystem } = useNodalStudio();
   return (
-    <SelectField
-      label="Display units"
-      value={unitSystem}
-      onChange={setUnitSystem}
-      options={[
-        { value: 'oilfield', label: 'Oilfield (psia, STB/D, ft)' },
-        { value: 'si', label: 'SI (kPa, m³/d, m)' },
-      ]}
-    />
+    <>
+      <SelectField
+        label="Display units"
+        value={unitSystem}
+        onChange={setUnitSystem}
+        options={[
+          { value: 'oilfield', label: 'Oilfield (psia, STB/D, ft)' },
+          { value: 'si', label: 'SI (kPa, m³/d, m)' },
+        ]}
+      />
+      <ProjectUnitSystemNote system={unitSystem} profileSystem={profileUnitSystem} />
+    </>
   );
 };
 

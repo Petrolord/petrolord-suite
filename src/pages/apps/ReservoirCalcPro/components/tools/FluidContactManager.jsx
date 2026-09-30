@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
+import { useUnitProfile } from '@/lib/units/UnitProfileContext';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,13 +25,24 @@ const FluidContactManager = () => {
     const [localGoc, setLocalGoc] = useState('');
     const focusedRef = useRef(null);
 
-    // the account's depth unit sets the display unit once, on a fresh workspace
+    // the Suite unit profile's depth sets the contact display unit once, on
+    // a fresh workspace (without a profile provider: the account's legacy
+    // Geoscience depth unit, as before)
+    const profile = useUnitProfile();
     const appliedRef = useRef(false);
     useEffect(() => {
-        if (appliedRef.current || !backend?.getDepthUnit || state.project?.id) return;
+        if (appliedRef.current || state.project?.id) return;
+        if (profile.available) {
+            if (!profile.ready) return;
+            appliedRef.current = true;
+            const u = profile.units.depth;
+            if (u === 'm' || u === 'ft') setInputUnit('contact', u);
+            return;
+        }
+        if (!backend?.getDepthUnit) return;
         appliedRef.current = true;
         backend.getDepthUnit().then((u) => { if (u === 'm' || u === 'ft') setInputUnit('contact', u); }).catch(() => {});
-    }, [backend, state.project?.id, setInputUnit]);
+    }, [backend, state.project?.id, setInputUnit, profile.available, profile.ready, profile.units]);
 
     useEffect(() => {
         if (focusedRef.current !== 'owc') setLocalOwc(displayRound(fromCanonical('contact', parseFloat(owc), unit, unitSystem)));
@@ -74,7 +86,7 @@ const FluidContactManager = () => {
             <div className="flex items-center gap-2 text-xs font-bold text-pl-text">
                 <Droplets className="w-3 h-3 text-pl-muted" /> FLUID CONTACTS
                 <select className="ml-auto rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-[10px]" data-testid="rcp-contact-unit"
-                    value={unit} title="Contact depth unit (TVDSS elevation). Defaults to the account's Geoscience depth unit."
+                    value={unit} title="Contact depth unit (TVDSS elevation). Starts from your Suite units on a new project."
                     onChange={(e) => setInputUnit('contact', e.target.value)}>
                     {INPUT_UNIT_OPTIONS.contact.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>

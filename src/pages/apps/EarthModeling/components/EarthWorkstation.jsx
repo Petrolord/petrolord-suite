@@ -23,6 +23,8 @@ import QcPanel from './QcPanel';
 import { buildModel, emptyDefinition, MISTIE_WARN_M } from '../services/modelBuild';
 import { contourPlan, colorbarLevelsFor } from '@/pages/apps/MappingSurfaceStudio/components/MapCanvas';
 import { DEPTH_UNIT_KEY, VOLUME_UNITS_KEY, VOLUME_UNIT_SETS, readSetting, fmtDepth } from '../services/units';
+import { useAppUnits } from '@/lib/units/useAppUnits';
+import UnitProfileNote from '@/components/units/UnitProfileNote';
 import { allSurfaceRows, makeDerivedEntry, describeDerived } from '../services/derivedSurfaces';
 import { projectWells, VE_OPTIONS } from '../services/sectionPath';
 import { minCurvature, positionAtMd } from '../engine/wellties';
@@ -92,24 +94,28 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     return !d;
   });
   const [dockOpen, setDockOpen] = useState(true);
-  // EM0: display units. Depth follows the account's Geoscience depth
-  // unit (the Mapping setting) once known, browser fallback, ft default;
-  // volumes are a display choice of this app
-  const [depthUnit, setDepthUnit] = useState(() => readSetting(DEPTH_UNIT_KEY, ['m', 'ft'], 'ft'));
-  const [volumeUnits, setVolumeUnits] = useState(() => readSetting(VOLUME_UNITS_KEY, Object.keys(VOLUME_UNIT_SETS), 'metric'));
+  // EM0: display units. Suite unit profile: depth and the volume set
+  // start from the profile (rock volume family); the toolbar controls
+  // change this view for the session only, and the older remembered
+  // 'em.depthUnit' / 'em.volumeUnits' choices no longer beat the profile.
+  // The toggle no longer writes the account depth setting either.
+  const unitsHook = useAppUnits('earth-modeling', {
+    depth: { family: 'depth', allowed: ['m', 'ft'] },
+    volume: { family: 'rockVolume', allowed: Object.keys(VOLUME_UNIT_SETS) },
+  }, {
+    fallback: { depth: readSetting(DEPTH_UNIT_KEY, ['m', 'ft'], 'ft'), volume: readSetting(VOLUME_UNITS_KEY, Object.keys(VOLUME_UNIT_SETS), 'metric') },
+    legacyKeys: [DEPTH_UNIT_KEY, VOLUME_UNITS_KEY],
+  });
+  const depthUnit = unitsHook.units.depth;
+  const volumeUnits = unitsHook.units.volume;
+  const setVolumeUnits = (v) => unitsHook.setUnit('volume', v);
   const [boundaries, setBoundaries] = useState([]);
-  useEffect(() => { try { localStorage.setItem(DEPTH_UNIT_KEY, depthUnit); } catch { /* private mode */ } }, [depthUnit]);
-  useEffect(() => { try { localStorage.setItem(VOLUME_UNITS_KEY, volumeUnits); } catch { /* private mode */ } }, [volumeUnits]);
   useEffect(() => {
     let live = true;
-    if (backend.getDepthUnit) backend.getDepthUnit().then((u) => { if (live && (u === 'm' || u === 'ft')) setDepthUnit(u); }).catch(() => {});
     if (backend.listBoundaries) backend.listBoundaries().then((b) => { if (live) setBoundaries(b); }).catch(() => {});
     return () => { live = false; };
   }, [backend]);
-  const changeDepthUnit = (u) => {
-    setDepthUnit(u);
-    if (backend.setDepthUnit) backend.setDepthUnit(u).catch((e) => setStatus(e.message));
-  };
+  const changeDepthUnit = (u) => unitsHook.setUnit('depth', u);
 
   const refreshSurfaces = useCallback(async () => {
     try { setSurfaces(await backend.listSurfaces()); } catch (e) { setStatus(e.message); }
@@ -391,7 +397,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       <div className="ml-auto flex flex-wrap items-center gap-1">
         <button type="button" data-testid="em-depth-unit"
           className="px-2 py-1 text-[11px] rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
-          title="Depth display unit (feet or metres), the account's Geoscience setting. The model computes in metres."
+          title="Depth display unit (feet or metres); starts from your Suite units and changes this view for the session. The model computes in metres."
           onClick={() => changeDepthUnit(depthUnit === 'ft' ? 'm' : 'ft')}>
           depth: {depthUnit}
         </button>
@@ -399,6 +405,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           onChange={(e) => setVolumeUnits(e.target.value)}>
           {Object.values(VOLUME_UNIT_SETS).map((u) => <option key={u.key} value={u.key}>{u.label}</option>)}
         </select>
+        <UnitProfileNote u={unitsHook} names={{ volume: 'volumes' }} className="hidden xl:inline-flex" />
         <button type="button" data-testid="em-build"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-primary/50 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40"
           disabled={building || definition.surfaceIds.length < 2} onClick={build}>

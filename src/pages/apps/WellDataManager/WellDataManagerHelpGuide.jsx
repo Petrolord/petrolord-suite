@@ -125,7 +125,8 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
             Depths in (ribbon) switches every depth on screen between metres and feet: the Logs table and the quick
             view, the Tops, Deviation and Header tabs, the wells tree, the inventory and every export. The registry
             always stores metres; only the numbers you read and type convert, with the international foot (exactly
-            0.3048 m). The choice is remembered for you on this device.
+            0.3048 m). The unit starts from your Suite units (Units in the dashboard sidebar); a change here holds for
+            this session, and the ribbon says when the view differs from your units.
           </Para>
           <Para>
             Editors take the display unit. A cell you did not change keeps its stored value exactly, so opening a grid

@@ -87,8 +87,8 @@ export default function PorePressureStudioHelpGuide() {
         <SectionHeading icon={Ruler}>Display units and the EMW datum</SectionHeading>
         <Para>
           The Units selectors in the ribbon convert the readout, both charts, the dock fields, the calibration lines and
-          the CSV. The engine, the saved project and the published curves stay in Pa and metres. The depth unit starts
-          from your Geoscience depth setting, shared with Mapping &amp; Surface Studio and Earth Modeling; sonic and
+          the CSV. The engine, the saved project and the published curves stay in Pa and metres. Depth and pressure start
+          from your Suite units (Units in the dashboard sidebar), and a change here holds for this session; sonic and
           the compaction constant follow it (us/m and 1/m, or us/ft and 1/ft), and the density fields follow the
           pressure unit (kg/m3 with MPa, ppg with psi and ppg, sg with sg).
         </Para>

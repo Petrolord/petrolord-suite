@@ -15,6 +15,8 @@ import { coldLoadTheme, ThemedLoadingScreen } from '@/design/coldLoad';
 import { Toaster } from '@/components/ui/sonner';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { AdminOrgProvider } from '@/contexts/AdminOrganizationContext';
+// Suite unit profile: one provider so every app reads the same resolved units
+import { UnitProfileProvider } from '@/lib/units/UnitProfileContext';
 import ProtectedAppRoute from '@/components/ProtectedAppRoute';
 import PwaUpdatePrompt from '@/components/pwa/PwaUpdatePrompt';
 import { runAccessDiagnostics } from '@/utils/debugAccess';
@@ -139,6 +141,7 @@ const FacilitiesHarness = lazy(() => import('@/dev/FacilitiesHarness'));
 const StudiosHarness = lazy(() => import('@/dev/StudiosHarness'));
 const AssuranceHarness = lazy(() => import('@/dev/AssuranceHarness'));
 const HubsHarness = lazy(() => import('@/dev/HubsHarness'));
+const UnitsAppHarness = lazy(() => import('@/dev/UnitsAppHarness'));
 const RouteGuardHarness = lazy(() => import('@/dev/RouteGuardHarness'));
 const ModularRefineryHarness = lazy(() => import('@/dev/ModularRefineryHarness'));
 const CarbonHarness = lazy(() => import('@/dev/CarbonHarness'));
@@ -333,6 +336,7 @@ const ModuleAccess = lazy(() => import('@/pages/ModuleAccess'));
 const SeatManagement = lazy(() => import('@/pages/SeatManagement'));
 const EmployeeManagement = lazy(() => import('@/pages/EmployeeManagement'));
 const DataExport = lazy(() => import('@/pages/DataExport'));
+const UnitSettings = lazy(() => import('@/pages/UnitSettings'));
 const AccessRequests = lazy(() => import('@/pages/admin/AccessRequests'));
 const SubscriptionManagement = lazy(() => import('@/pages/SubscriptionManagement'));
 const RenewSubscription = lazy(() => import('@/pages/RenewSubscription'));
@@ -371,6 +375,7 @@ function App() {
   return (
     <AuthProvider>
       <HSEProvider> 
+        <UnitProfileProvider>
           <AuthGuard>
             <PwaUpdatePrompt />
             <ErrorBoundary>
@@ -499,6 +504,8 @@ function App() {
                                 <Route path="seats" element={<SeatManagement />} />
                                 <Route path="employees" element={<EmployeeManagement />} />
                                 <Route path="access-requests" element={<AccessRequests />} />
+                                {/* Suite unit profile: every member sees it; RLS decides who edits the organisation default */}
+                                <Route path="units" element={<UnitSettings />} />
                                 
                                 <Route path="data-export" element={
                                   <ProtectedRoute requiredPermission={SUITE_PERMISSIONS.MANAGE_ORGANIZATION}>
@@ -1026,6 +1033,7 @@ function App() {
                                     <Route path="/dev/nodal-analysis-studio" element={<NodalHarness />} />
                                     <Route path="/dev/material-balance-studio" element={<MbalHarness />} />
                                     <Route path="/dev/material-balance-studio/cases/:caseId" element={<MbalHarness />} />
+                                    <Route path="/dev/units-app/:app" element={<UnitsAppHarness />} />
                                     <Route path="/dev/route-guard/:page" element={<RouteGuardHarness />} />
                                   </Route>
                                   {/* These two bring their own scope: the specimen shows a scoped and an
@@ -1042,6 +1050,7 @@ function App() {
               </ReservoirProvider>
             </ErrorBoundary>
           </AuthGuard>
+        </UnitProfileProvider>
           <Toaster richColors closeButton />
       </HSEProvider>
     </AuthProvider>
