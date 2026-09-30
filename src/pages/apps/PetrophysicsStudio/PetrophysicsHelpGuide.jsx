@@ -295,7 +295,7 @@ const PetrophysicsHelpGuide = () => (
         headers={['Toggle', 'Effect']}
         rows={[
           ['axis: MD / axis: TVD (status bar)', 'Shown only when the well carries a deviation survey with at least two stations. It changes the LABELS on the depth axis to true vertical depth through the minimum-curvature survey math; the spacing stays measured depth, and the axis title says so: TVD (m) on MD spacing. Depths outside the survey label as a dash.'],
-          ['depth: m / depth: ft (status bar)', 'Display unit for the depth axis and the crosshair readout. The label adds SI internal as a reminder that storage stays metres; grid lines are chosen in the display unit so a feet grid looks like a feet grid.'],
+          ['depth: m / depth: ft (status bar)', 'Display unit for the depth axis and the crosshair readout. The label adds SI internal as a reminder that storage stays metres; grid lines are chosen in the display unit so a feet grid looks like a feet grid. It starts from your Suite units (Units in the dashboard sidebar); a change here holds for this session.'],
         ]}
       />
       <Para>

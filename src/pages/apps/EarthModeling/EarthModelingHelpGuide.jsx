@@ -95,9 +95,10 @@ export default function EarthModelingHelpGuide() {
       <GuideSection id="units">
         <SectionHeading icon={Ruler}>Depth and volume units</SectionHeading>
         <Para>
-          The model computes in metres, positive down below the datum. The ribbon's depth unit (feet or metres) is
-          your Geoscience setting, shared with Mapping &amp; Surface Studio, and drives the map labels, the section axis
-          and the tie table. Volume units are a separate choice:
+          The model computes in metres, positive down below the datum. The ribbon's depth unit (feet or metres) and the
+          volume set start from your Suite units (Units in the dashboard sidebar); changing them here changes this view
+          for the session and never changes stored data. The depth unit drives the map labels, the section axis and
+          the tie table. Volume units are a separate choice:
         </Para>
         <Table headers={['Choice', 'Rock and net volume', 'Pore and hydrocarbon pore volume']}
           rows={Object.values(VOLUME_UNIT_SETS).map((u) => [u.label, u.rock, u.pore])} />

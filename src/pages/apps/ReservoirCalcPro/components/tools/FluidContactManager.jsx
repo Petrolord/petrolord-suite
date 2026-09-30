@@ -86,7 +86,7 @@ const FluidContactManager = () => {
             <div className="flex items-center gap-2 text-xs font-bold text-pl-text">
                 <Droplets className="w-3 h-3 text-pl-muted" /> FLUID CONTACTS
                 <select className="ml-auto rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-[10px]" data-testid="rcp-contact-unit"
-                    value={unit} title="Contact depth unit (TVDSS elevation). Defaults to the account's Geoscience depth unit."
+                    value={unit} title="Contact depth unit (TVDSS elevation). Starts from your Suite units on a new project."
                     onChange={(e) => setInputUnit('contact', e.target.value)}>
                     {INPUT_UNIT_OPTIONS.contact.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
