@@ -14,12 +14,12 @@ const SRC = path.join(__dirname, '..');
 const ALLOW = {
   // Separator between the report date and its status in the saved-report list.
   'pages/apps/well-planning/tabs/ReportsTab.jsx': 1,
-  // Canvas track painter: depth axis tick and discrete-track label glyphs.
-  'components/wells/trackPainter.js': 2,
   // Unit column of the drive-index rows: the indices are dimensionless.
   'components/reservoirbalance/RbDiagnosticPlots.jsx': 5,
   // Input placeholder that marks a required PVT cell ('optional' otherwise).
   'components/reservoirbalance/PvtRock.jsx': 1,
+  // Latin-1 map key for the PDF: an em dash in user text prints as '-'.
+  'pages/apps/PetrophysicsStudio/services/petroReport.js': 1,
 };
 
 // A quoted lone dash ('—', "—", `—`, '—'), JSX text that is only a dash
