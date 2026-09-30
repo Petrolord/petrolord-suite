@@ -12,6 +12,7 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
+import { STRAT_PROJECT_KIND } from '@/lib/stratigraphy/stratProjectState';
 
 export const STRAT_UNIT_KIND = 'strat-unit';
 registerStateKind(STRAT_UNIT_KIND, { current: 1, label: 'stratigraphic unit' });
@@ -246,8 +247,8 @@ export async function coreImageUrl(image, expiresSeconds = 3600) {
 // enough for v1 (the latest is the project); interpretation products are
 // registry rows, never here.
 
-export const STRAT_PROJECT_KIND = 'strat-project';
-registerStateKind(STRAT_PROJECT_KIND, { current: 1, label: 'stratigraphy project' });
+// the kind lives beside the harness backend's copy of the door (STRAT-U1-011)
+export { STRAT_PROJECT_KIND };
 
 export async function loadStratProject() {
   const { data, error } = await supabase.from('strat_projects')

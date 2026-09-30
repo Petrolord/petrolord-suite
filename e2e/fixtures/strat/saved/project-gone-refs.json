@@ -1,0 +1,4 @@
+{ "id": "strat-gone", "user_id": "user-dev", "name": "Default", "section_id": "section-deleted", "scheme": "catuneanu",
+  "flatten": { "mode": "flatten", "topName": "Top Chalk", "datumM": 2100 }, "wheeler": {},
+  "view": { "ghost": { "sourceWellId": "well-deleted", "targetWellId": "corr-w2", "shiftM": 0 }, "showTracts": true, "showMotifs": true },
+  "schema_version": 1, "app_build": "1cdc182b9", "created_at": "2026-09-27T09:00:00Z", "updated_at": "2026-09-27T09:00:00Z" }

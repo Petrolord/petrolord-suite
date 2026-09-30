@@ -29,6 +29,21 @@ export const refUnit = (depthRef, depthUnit) => (depthRef === 'twt' ? 'ms' : dep
 export const hasTime = (well) => !!checkshotRange(well?.checkshots);
 
 /**
+ * WC-U1-009, shared at STRAT-U1-012 (2026-09-30): where a new flatten datum
+ * sits by default, the chosen top's depth in the first section well carrying
+ * it, in the section's reference; undefined when no well carries it.
+ */
+export function datumDefaultFor(wells, name, depthRef = 'md') {
+  for (const w of wells || []) {
+    const t = (w.tops || []).find((x) => x.name === name);
+    if (!t) continue;
+    const d = depthOfFor(w, depthRef)(t.md_m);
+    if (Number.isFinite(d)) return Number(d.toFixed(2));
+  }
+  return undefined;
+}
+
+/**
  * Accessor from measured depth to the plotted reference depth for one
  * well. MD is the identity; TVD and TVDSS go through the well's depth
  * frame (`well.frame`, from makeDepthFrame) and read NaN where the frame

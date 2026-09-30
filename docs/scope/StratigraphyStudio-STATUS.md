@@ -502,3 +502,39 @@ loaders.
 - Tests: new `src/pages/apps/StratigraphyStudio/__tests__/StratigraphyStudio.theme.test.jsx`
   (the shared `describeAppTheme` checks on the real workstation, plus the
   views, the dark theme and the help guide). No calculation, engine, export or plotting change; the existing suites pass unchanged.
+
+## 2026-09-30: AppUpgrade Step 1 (practitioner lens) and Step 2 analysis
+
+Working doc: `docs/upgrade/StratigraphyStudio-UPGRADE.md` (branch
+`feat/strat-u1`). Twelve checks run; 34 findings, 23 fixed with a failing-first
+test each, no S1, no S2 open. What changed:
+
+- Systems tracts pair SEQUENCE surfaces (`src/lib/stratigraphy/sequenceTracts.js`):
+  a formation top between two sequence surfaces no longer removes the tract
+  from the section, Record tracts, the Tops view, the Mapping launcher or the
+  Wheeler; the Wheeler takes the section's tract rows. Record tracts keeps a
+  well's tracts when nothing is implied.
+- Shared kit: tract and motif bands follow the depth reference (TVD, TVDSS,
+  TWT); `datumDefaultFor` is shared with Well Correlation; no line-spacing note
+  while a section loads.
+- Shared interval paste door (WDM Intervals, studio Intervals): TVD, TVDSS,
+  elevation, time and age columns refused with the reason; "Top (ft)" read;
+  comma decimals in semicolon files.
+- Zone schemes: vendor headers, ka, semicolons; contradicting zones refused;
+  schemes merge; the panel shows what was read.
+- Column: Import units from a Petrel hierarchy, StrataBugs chart or spreadsheet.
+- Basin handoff and age-depth rates on vertical depth (TVD through the survey).
+- Section view: named-section picker (saved in `strat_projects.section_id`),
+  depth reference and unit, flatten at the chosen top, saved-view checks.
+- Charts: Wheeler, age-depth and column on white chart paper with ChartLogo;
+  SVG and PNG export with a reviewer header; Prepared by and Field in the
+  status bar.
+- Harness: whole well header, seeding (`window.__STRAT_SEED__`, `?scaleWells`,
+  `?scaleUnits`, `?sample=0`), Basin handoff into Basin's harness store.
+- Help guide updated. Evidence kit: `e2e/fixtures/strat/`, e2e
+  `e2e/stratigraphy-upgrade.spec.js`.
+
+Open for Step 2 (ranked backlog in the upgrade doc): ICS chart 2026/06
+(engines-first), Wheeler spacing by distance, WC U2 parity in the studio
+section, org zone schemes (new table), display units, PDF summary, biostrat
+events and age models. No migration was written or applied.

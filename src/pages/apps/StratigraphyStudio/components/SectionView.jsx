@@ -8,16 +8,20 @@
 // stratigraphic flattening between two surfaces. The Wheeler view is the
 // same wells re-plotted in time.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Save, Loader2 } from 'lucide-react';
 import CrossSection from '@/components/wells/section/CrossSection';
 import WheelerChart from '@/components/wells/section/WheelerChart';
 import { useSectionWells } from '@/components/wells/section/useSectionWells';
-import { tractsWithStacking } from '@/lib/stratigraphy/sequence';
+import { sequenceTracts } from '@/lib/stratigraphy/sequenceTracts';
 import { SYSTEMS_TRACTS, displayLabel, normalizeSurfaceType } from '@/lib/stratigraphy/vocabulary';
 import { motif as motifOf } from '@/lib/stratigraphy/vocabulary';
 import { appPath, mapNetHref, MAPPING_ID } from '@/components/wells/appLinks';
+import { datumDefaultFor, DEPTH_REF_LABEL } from '@/components/wells/section/sectionFrame';
+import ChartExportButtons from '@/components/wells/section/ChartExportButtons';
+import { chartHeaderLines } from '@/components/wells/section/chartExport';
+import { TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
 
 const TRACT_COLOUR = Object.fromEntries(SYSTEMS_TRACTS.map((t) => [t.code, t.colour]));
 const selCls = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text';
@@ -33,38 +37,84 @@ const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-
  * @param {Object} [p.saved] the strat project row (flatten, view) to restore
  * @param {(patch: Object) => Promise<void>} [p.onSaveProject]
  */
-export default function SectionView({ backend, mode, scheme, onStatus, appPaths = {}, saved = null, onSaveProject }) {
+export default function SectionView({ backend, mode, scheme, onStatus, appPaths = {}, saved = null, onSaveProject, report = null }) {
+  const wheelerRef = useRef(null);
   const sec = useSectionWells(backend, { onStatus });
-  const { wells, order, wellData, sectionWells, topNames, datum, setDatum, depthUnit, depthRef, spacing, layouts, template } = sec;
+  const { wells, order, wellData, sectionWells, topNames, datum, setDatum, depthUnit, setDepthUnit, depthRef, setDepthRef, spacing } = sec;
+  // STRAT-U1-009: Well Correlation keeps named sections (WC-U2-001); the studio
+  // opens the one the user picks (remembered with Save view), else the newest
+  const [sections, setSections] = useState([]);
+  useEffect(() => {
+    let live = true;
+    if (backend.listSections) backend.listSections().then((l) => { if (live) setSections(l || []); }).catch(() => {});
+    return () => { live = false; };
+  }, [backend]);
+  // STRAT-U1-018: spacing along a section line drawn in Well Correlation reads its saved distances
+  const lineDistances = useMemo(() => {
+    const along = sec.savedRow?.track_layout?.lineAlong;
+    // over the wells drawn now (the section fills in well by well as their data loads)
+    const ids = sectionWells.map((w) => w.id);
+    if (spacing !== 'line' || !along || !ids.length || !ids.every((id) => Number.isFinite(along[id]))) return null;
+    return ids.slice(1).map((id, i) => Math.abs(along[id] - along[ids[i]]));
+  }, [spacing, sec.savedRow, sectionWells]);
   const [ghost, setGhost] = useState(null);
   const [showTracts, setShowTracts] = useState(true);
   const [showMotifs, setShowMotifs] = useState(true);
   const [busy, setBusy] = useState(false);
   const [restored, setRestored] = useState(false);
+  const [restoreCheck, setRestoreCheck] = useState(false);
 
-  // restore the studio's own view state once
+  // restore the studio's own view state once, after the shared section has loaded
+  // (a remembered named section opens first, then the studio's datum and view)
   useEffect(() => {
-    if (restored || !saved) return;
+    if (restored || !saved || !sec.sectionLoaded) return;
     setRestored(true);
-    if (saved.flatten?.mode) setDatum(saved.flatten);
-    if (saved.view?.ghost) setGhost(saved.view.ghost);
-  }, [saved, restored, setDatum]);
+    (async () => {
+      // strat_projects.section_id (FK, on delete set null; remapped by the .pld import)
+      const id = saved.section_id || null;
+      if (id && id !== sec.sectionId && sections.some((x) => x.id === id)) await sec.openSection(id);
+      if (saved.flatten?.mode) setDatum(saved.flatten);
+      if (saved.view?.ghost) setGhost(saved.view.ghost);
+      if (['md', 'tvd', 'tvdss', 'twt'].includes(saved.view?.depthRef)) setDepthRef(saved.view.depthRef);
+      if (saved.view?.depthUnit === 'm' || saved.view?.depthUnit === 'ft') setDepthUnit(saved.view.depthUnit);
+      setRestoreCheck(true);
+    })();
+  }, [saved, restored, sec.sectionLoaded, sections]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // STRAT-U1-020 (PL5): a view saved by an earlier release may name a well or
+  // a top the section no longer has; say so once the section wells are in
+  useEffect(() => {
+    if (!restoreCheck || sectionWells.length < order.length) return;
+    setRestoreCheck(false);
+    const ids = new Set(sectionWells.map((w) => w.id));
+    const notes = [];
+    if (ghost && (!ids.has(ghost.sourceWellId) || !ids.has(ghost.targetWellId))) { setGhost(null); notes.push('its ghost curve names a well no longer in the section, so the ghost is off'); }
+    const need = datum.mode === 'flatten' ? [datum.topName] : datum.mode === 'stretch' ? [datum.upperName, datum.lowerName] : [];
+    const gone = need.filter((n) => n && !topNames.includes(n));
+    if (gone.length) notes.push(`no section well carries ${gone.map((n) => `"${n}"`).join(' or ')}, so the datum cannot hang`);
+    if (notes.length) onStatus(`Saved stratigraphy view restored; ${notes.join('; ')}.`);
+  }, [restoreCheck, sectionWells, order]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // every well's intervals for the tract and motif overlays
   const intervalsByWell = useMemo(() => Object.fromEntries(order.map((id) => [id, wellData[id]?.intervals || []])), [order, wellData]);
 
-  // systems tracts the typed surfaces imply, per well (engine), coloured by tract
-  const impliedTracts = useMemo(() => Object.fromEntries(sectionWells.map((w) => [w.id, tractsWithStacking(w.tops, intervalsByWell[w.id])])), [sectionWells, intervalsByWell]);
+  // systems tracts the typed surfaces imply, per well (engine), coloured by tract.
+  // STRAT-U1-001: paired across formation tops, which carry no sequence meaning
+  const impliedTracts = useMemo(() => Object.fromEntries(sectionWells.map((w) => [w.id, sequenceTracts(w.tops, intervalsByWell[w.id])])), [sectionWells, intervalsByWell]);
+  // the tract rows each well shows: recorded ones win once written (the Wheeler reads the same rows)
+  const tractRows = useMemo(() => Object.fromEntries(sectionWells.map((w) => {
+    const recorded = (intervalsByWell[w.id] || []).filter((r) => r.kind === 'systems_tract');
+    return [w.id, recorded.length ? recorded : impliedTracts[w.id] || []];
+  })), [sectionWells, intervalsByWell, impliedTracts]);
 
   const bands = useMemo(() => {
     const out = [];
     if (showTracts) {
       for (const w of sectionWells) {
-        const recorded = (intervalsByWell[w.id] || []).filter((r) => r.kind === 'systems_tract');
-        const rows = recorded.length ? recorded : impliedTracts[w.id] || [];
-        for (const r of rows) {
+        const recorded = (intervalsByWell[w.id] || []).some((r) => r.kind === 'systems_tract');
+        for (const r of tractRows[w.id] || []) {
           const d = displayLabel(r.code, scheme, { kind: 'tract', short: true });
-          out.push({ wellId: w.id, top_md_m: r.top_md_m, base_md_m: r.base_md_m, colour: TRACT_COLOUR[r.code] || '#94a3b8', label: `${d.label}${r.properties?.certain === false ? ' ?' : ''}${recorded.length ? '' : ' (implied)'}`, hatched: r.properties?.certain === false });
+          out.push({ wellId: w.id, top_md_m: r.top_md_m, base_md_m: r.base_md_m, colour: TRACT_COLOUR[r.code] || '#94a3b8', label: `${d.label}${r.properties?.certain === false ? ' ?' : ''}${recorded ? '' : ' (implied)'}`, hatched: r.properties?.certain === false });
         }
       }
     }
@@ -76,15 +126,13 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
       }
     }
     return out;
-  }, [sectionWells, intervalsByWell, impliedTracts, showTracts, showMotifs, scheme]);
+  }, [sectionWells, intervalsByWell, tractRows, showTracts, showMotifs, scheme]);
 
   // the distinct (upper, lower) surface pairs the tracts run between, for the Mapping launcher
   const tractPairs = useMemo(() => {
     const seen = new Map();
     for (const w of sectionWells) {
-      const recorded = (intervalsByWell[w.id] || []).filter((r) => r.kind === 'systems_tract');
-      const rows = recorded.length ? recorded : impliedTracts[w.id] || [];
-      for (const r of rows) {
+      for (const r of tractRows[w.id] || []) {
         const up = r.properties?.upper_surface; const lo = r.properties?.lower_surface;
         if (!up || !lo) continue;
         const key = `${up}|${lo}`;
@@ -92,21 +140,29 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
       }
     }
     return Array.from(seen.values());
-  }, [sectionWells, intervalsByWell, impliedTracts, order, scheme, appPaths]);
+  }, [sectionWells, tractRows, order, scheme, appPaths]);
 
   const recordTracts = async () => {
     setBusy(true);
     let n = 0; let wellsDone = 0;
+    const kept = [];
     try {
       for (const w of sectionWells) {
         if (!w.is_own) continue;
         const rows = impliedTracts[w.id] || [];
+        // STRAT-U1-002: a well with nothing implied keeps what it has; writing an
+        // empty set used to delete its recorded (or hand-edited) tracts
+        if (!rows.length) {
+          const had = (intervalsByWell[w.id] || []).filter((r) => r.kind === 'systems_tract').length;
+          kept.push(had ? `${w.name} kept its ${had} recorded tract${had === 1 ? '' : 's'} (nothing implied)` : `${w.name} has no pair of sequence surfaces that bounds a tract`);
+          continue;
+        }
         await backend.replaceIntervals(w.id, 'systems_tract', rows);
         const fresh = await backend.listIntervals(w.id);
         sec.setWellData((m) => ({ ...m, [w.id]: { ...(m[w.id] || {}), intervals: fresh } }));
         n += rows.length; wellsDone += 1;
       }
-      onStatus(`Recorded ${n} systems tract${n === 1 ? '' : 's'} on ${wellsDone} well${wellsDone === 1 ? '' : 's'}.`);
+      onStatus(`Recorded ${n} systems tract${n === 1 ? '' : 's'} on ${wellsDone} well${wellsDone === 1 ? '' : 's'}${kept.length ? `; ${kept.join('; ')}` : ''}.`);
     } catch (e) {
       onStatus(e.message);
     } finally {
@@ -117,7 +173,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   const saveView = async () => {
     if (!onSaveProject) return;
     try {
-      await onSaveProject({ flatten: datum, view: { ghost, showTracts, showMotifs } });
+      await onSaveProject({ section_id: sec.sectionId || null, flatten: datum, view: { ghost, showTracts, showMotifs, depthRef, depthUnit } });
       onStatus('Stratigraphy view saved.');
     } catch (e) { onStatus(e.message); }
   };
@@ -129,6 +185,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   })), [sectionWells]);
 
   const typedCount = sectionWells.reduce((s, w) => s + (w.tops || []).filter((t) => normalizeSurfaceType(t.surface_type) !== 'formation_top').length, 0);
+  const tractCount = sectionWells.reduce((s, w) => s + (tractRows[w.id] || []).length, 0);
 
   if (!wells) return <div className="h-full flex items-center justify-center text-pl-muted text-sm"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading wells…</div>;
   if (!order.length) {
@@ -140,13 +197,34 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   }
 
   const controls = (
-    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-pl-border text-xs flex-wrap" data-testid="strat-section-controls" data-tract-links={tractPairs.map((x) => x.href).join(' ')}>
+    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-pl-border text-xs flex-wrap" data-testid="strat-section-controls" data-tract-links={tractPairs.map((x) => x.href).join(' ')} data-datum={JSON.stringify(datum)} data-section-id={sec.sectionId || ''}>
+      {sections.length > 0 && (
+        <label className="flex items-center gap-1 text-pl-muted" title="Named sections saved in Well Correlation">Section
+          <select className={selCls} value={sec.sectionId || ''} data-testid="strat-section-pick"
+            onChange={(e) => { if (e.target.value) sec.openSection(e.target.value); }}>
+            {!sec.sectionId && <option value="">(unsaved)</option>}
+            {sections.map((x) => <option key={x.id} value={x.id}>{x.name} ({x.wellCount} wells)</option>)}
+          </select>
+        </label>
+      )}
+      <label className="flex items-center gap-1 text-pl-muted" title="Depth reference of the section: MD, TVD or TVDSS through each survey and KB, or TWT through the checkshots">Depth
+        <select className={selCls} value={depthRef} data-testid="strat-depth-ref" onChange={(e) => setDepthRef(e.target.value)}>
+          {['md', 'tvd', 'tvdss', 'twt'].map((r) => <option key={r} value={r}>{DEPTH_REF_LABEL[r] || r.toUpperCase()}</option>)}
+        </select>
+        {depthRef !== 'twt' && (
+          <select className={selCls} value={depthUnit} data-testid="strat-depth-unit" onChange={(e) => setDepthUnit(e.target.value)}>
+            <option value="m">m</option>
+            <option value="ft">ft</option>
+          </select>
+        )}
+      </label>
       <label className="flex items-center gap-1 text-pl-muted">Datum
         <select className={selCls} value={datum.mode} data-testid="strat-datum-mode"
           onChange={(e) => {
             const m = e.target.value;
             if (m === 'structural') setDatum({ mode: 'structural' });
-            else if (m === 'flatten') setDatum({ mode: 'flatten', topName: datum.topName || topNames[0], datumM: datum.datumM ?? 1500 });
+            // STRAT-U1-012 (carried from WC-U1-009): the datum sits at the chosen top's depth, never a fixed 1,500 m
+            else if (m === 'flatten') { const n = datum.topName || topNames[0]; setDatum({ mode: 'flatten', topName: n, datumM: datum.datumM ?? datumDefaultFor(sectionWells, n, depthRef) ?? 0 }); }
             else setDatum({ mode: 'stretch', upperName: datum.upperName || topNames[0], lowerName: datum.lowerName || topNames[topNames.length - 1] });
           }}>
           <option value="structural">Structural</option>
@@ -155,7 +233,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
         </select>
       </label>
       {datum.mode === 'flatten' && (
-        <select className={selCls} value={datum.topName} data-testid="strat-datum-top" onChange={(e) => setDatum({ ...datum, topName: e.target.value })}>
+        <select className={selCls} value={datum.topName} data-testid="strat-datum-top" onChange={(e) => setDatum({ ...datum, topName: e.target.value, datumM: datumDefaultFor(sectionWells, e.target.value, depthRef) ?? datum.datumM })}>
           {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
       )}
@@ -200,7 +278,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
           </select>
         </label>
       )}
-      <span className="ml-auto text-pl-muted" data-testid="strat-section-summary">{sectionWells.length} wells · {typedCount} typed surfaces</span>
+      <span className="ml-auto text-pl-muted" data-testid="strat-section-summary">{sectionWells.length} wells · {typedCount} typed surfaces · {tractCount} tract{tractCount === 1 ? '' : 's'}</span>
       <button type="button" className={btnCls} onClick={saveView} data-testid="strat-save-view" title="Save the datum and ghost with your stratigraphy project"><Save className="w-3.5 h-3.5" /> Save view</button>
     </div>
   );
@@ -208,12 +286,14 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   if (mode === 'wheeler') {
     return (
       <div className="h-full min-h-0 flex flex-col">
-        <div className="px-3 py-1.5 border-b border-pl-border text-xs text-pl-muted flex items-center gap-2">
-          Wheeler chart of the section, time down. Dated surfaces come from the Tops view; an unconformity needs a hiatus end.
-          <span className="ml-auto text-pl-muted">{typedCount} typed surfaces</span>
+        <div className="px-3 py-1.5 border-b border-pl-border text-xs text-pl-muted flex items-center gap-2 flex-wrap">
+          Wheeler chart of the section at its wells, time down (not interpolated between wells). Dated surfaces come from the Tops view; an unconformity needs a hiatus end.
+          <span className="ml-auto text-pl-muted">{typedCount} typed surfaces · {tractCount} tract{tractCount === 1 ? '' : 's'}</span>
+          <ChartExportButtons targetRef={wheelerRef} fileBase={`${sec.sectionName || 'Section'} Wheeler`} onStatus={onStatus} testIdPrefix="strat-wheeler"
+            headerLines={() => chartHeaderLines({ title: `Wheeler chart: ${sec.sectionName || 'section'}`, wells: sectionWells.map((w) => w.name), section: sec.sectionName, scheme, timescale: TIMESCALE_VERSION, basis: 'ages from dated surfaces; columns in section order', field: report?.field || sec.savedRow?.track_layout?.report?.field, analyst: report?.analyst || sec.savedRow?.track_layout?.report?.analyst })} />
         </div>
-        <div className="flex-1 min-h-0 overflow-auto p-3">
-          <WheelerChart wells={wheelerWells} scheme={scheme} width={Math.max(480, 160 * sectionWells.length + 80)} height={440} testIdPrefix="strat-wheeler" />
+        <div className="flex-1 min-h-0 overflow-auto p-3" ref={wheelerRef}>
+          <WheelerChart wells={wheelerWells} tractRows={tractRows} scheme={scheme} width={Math.max(480, 160 * sectionWells.length + 80)} height={440} testIdPrefix="strat-wheeler" />
         </div>
       </div>
     );
@@ -229,6 +309,8 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
           depthUnit={depthUnit}
           depthRef={depthRef}
           spacing={spacing}
+          lineDistances={lineDistances}
+          columnWidth={sec.columnWidth}
           zoneMode="none"
           shownTops={topNames}
           topNames={topNames}

@@ -56,6 +56,8 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   const [scheme, setScheme] = useScheme();
   const [dockOpen, setDockOpen] = useState(true);
   const [status, setStatus] = useState('Ready.');
+  // STRAT-U1-014: who prepared the exported charts (and the field), saved with the view
+  const [report, setReport] = useState({ field: '', analyst: '' });
   const [loading, setLoading] = useState(0);
 
   const track = useCallback(async (fn) => {
@@ -71,10 +73,11 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
     let alive = true;
     track(async () => {
       try {
-        const [w, , proj] = await Promise.all([backend.listWells(), refreshUnits(), backend.loadStratProject ? backend.loadStratProject().catch(() => null) : Promise.resolve(null)]);
+        const [w, , proj] = await Promise.all([backend.listWells(), refreshUnits(), backend.loadStratProject ? backend.loadStratProject().catch((e) => { setStatus(`Your saved stratigraphy view was not opened: ${e.message} Save view stays refused so it is not overwritten.`); return null; }) : Promise.resolve(null)]);
         if (!alive) return;
         setWells(w);
         setProject(proj || null);
+        if (proj?.view?.report) setReport({ field: proj.view.report.field || '', analyst: proj.view.report.analyst || '' });
       } catch (e) {
         if (alive) { setWells([]); setStatus(e.message); }
       }
@@ -216,20 +219,26 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   );
 
   const needWell = <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="strat-need-well">Pick a well on the left.</div>;
-  const saveProject = async (patch) => { const row = await backend.saveStratProject({ ...patch, scheme }); setProject(row); };
+  const saveProject = async (patch) => { const row = await backend.saveStratProject({ ...patch, view: { ...(patch.view || {}), report }, scheme }); setProject(row); };
   const center = view === 'glossary' ? <ScrollArea className="h-full min-h-0"><Glossary scheme={scheme} /></ScrollArea>
     : view === 'tops' ? <ScrollArea className="h-full min-h-0"><TopsTyping well={well} tops={tops} units={units} scheme={scheme} onSaveTop={saveTop} onStatus={setStatus} /></ScrollArea>
-      : view === 'section' || view === 'wheeler' ? <SectionView backend={backend} mode={view} scheme={scheme} onStatus={setStatus} appPaths={appPaths} saved={project} onSaveProject={saveProject} />
-      : view === 'ages' ? (well ? <ScrollArea className="h-full min-h-0"><AgesView well={well} tops={tops} intervals={intervals} backend={backend} onStatus={setStatus} onTopsChanged={refreshTops} appPaths={appPaths} /></ScrollArea> : needWell)
+      : view === 'section' || view === 'wheeler' ? <SectionView backend={backend} mode={view} scheme={scheme} onStatus={setStatus} appPaths={appPaths} saved={project} onSaveProject={saveProject} report={report} />
+      : view === 'ages' ? (well ? <ScrollArea className="h-full min-h-0"><AgesView well={well} tops={tops} intervals={intervals} backend={backend} onStatus={setStatus} onTopsChanged={refreshTops} appPaths={appPaths} report={report} /></ScrollArea> : needWell)
       : view === 'intervals' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><ZoneSchemePanel intervals={intervals} canEdit={!!well.is_own} onReplace={replaceIntervals} onStatus={setStatus} /><IntervalsEditor well={well} intervals={intervals} canEdit={!!well.is_own} onReplace={replaceIntervals} onStatus={setStatus} testIdPrefix="strat-intervals" /></div></ScrollArea> : needWell)
         : view === 'core' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><CoreImagesPanel well={well} images={coreImages} canEdit={!!well.is_own} onStatus={setStatus} testIdPrefix="strat-core" {...coreOps} /></div></ScrollArea> : needWell)
-          : <div className="h-full min-h-0 overflow-auto"><ColumnEditor units={units} onSave={saveColumn} onStatus={setStatus} /></div>;
+          : <div className="h-full min-h-0 overflow-auto"><ColumnEditor units={units} onSave={saveColumn} onStatus={setStatus} report={report} /></div>;
 
   const statusBar = (
     <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="strat-status" className="truncate">{status}</span>
       {loading > 0 && <Loader2 className="w-3 h-3 animate-spin text-pl-muted" />}
-      <span className="ml-auto whitespace-nowrap">{(wells || []).length} well{(wells || []).length === 1 ? '' : 's'} · {units.length} unit{units.length === 1 ? '' : 's'}</span>
+      <label className="ml-auto flex items-center gap-1 whitespace-nowrap" title="Printed on exported charts; saved with Save view in the Section view">Prepared by
+        <input className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0 text-[11px] text-pl-text w-28" value={report.analyst} onChange={(e) => setReport((r) => ({ ...r, analyst: e.target.value }))} data-testid="strat-report-analyst" />
+      </label>
+      <label className="flex items-center gap-1 whitespace-nowrap">Field
+        <input className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0 text-[11px] text-pl-text w-24" value={report.field} onChange={(e) => setReport((r) => ({ ...r, field: e.target.value }))} data-testid="strat-report-field" />
+      </label>
+      <span className="whitespace-nowrap">{(wells || []).length} well{(wells || []).length === 1 ? '' : 's'} · {units.length} unit{units.length === 1 ? '' : 's'}</span>
       <span className="whitespace-nowrap text-pl-muted" data-testid="strat-scheme-status">terms: {SCHEME_LABEL[scheme]}</span>
     </div>
   );

@@ -7,7 +7,8 @@
  * (with a negative control), and the route is registered for the themed
  * cold-load loaders. Every view, the dark theme and the help guide are
  * checked below with expectNoLegacyChrome; the column, age-depth and
- * Wheeler charts are drawn for a dark ground and stay dark canvases.
+ * Wheeler charts are white chart paper with the watermark in both themes
+ * (AppUpgrade STRAT-U1-013, 2026-09-30; they were dark canvases).
  */
 import React from 'react';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
@@ -68,12 +69,12 @@ describe('Stratigraphy Studio themed states', () => {
     expectNegativeControl(scope);
   });
 
-  test('the age-depth plot stays a dark canvas in the light theme', async () => {
+  test('the age-depth plot is chart paper in the light theme (STRAT-U1-013: was a dark canvas)', async () => {
     renderApp();
     fireEvent.click((await wellsListed())[0]);
     fireEvent.click(screen.getByTestId('strat-view-ages'));
     const plot = await screen.findByTestId(/^strat-agedepth-(plot|empty)$/);
-    if (plot.getAttribute('data-testid') === 'strat-agedepth-plot') expect(plot).toHaveAttribute('data-canvas', 'dark');
+    if (plot.getAttribute('data-testid') === 'strat-agedepth-plot') expect(plot).toHaveAttribute('data-canvas', 'chart');
     expectNoLegacyChrome();
   });
 
