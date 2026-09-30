@@ -14,7 +14,7 @@ import { Save, Loader2 } from 'lucide-react';
 import CrossSection from '@/components/wells/section/CrossSection';
 import WheelerChart from '@/components/wells/section/WheelerChart';
 import { useSectionWells } from '@/components/wells/section/useSectionWells';
-import { tractsWithStacking } from '@/lib/stratigraphy/sequence';
+import { sequenceTracts } from '@/lib/stratigraphy/sequenceTracts';
 import { SYSTEMS_TRACTS, displayLabel, normalizeSurfaceType } from '@/lib/stratigraphy/vocabulary';
 import { motif as motifOf } from '@/lib/stratigraphy/vocabulary';
 import { appPath, mapNetHref, MAPPING_ID } from '@/components/wells/appLinks';
@@ -53,18 +53,23 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   // every well's intervals for the tract and motif overlays
   const intervalsByWell = useMemo(() => Object.fromEntries(order.map((id) => [id, wellData[id]?.intervals || []])), [order, wellData]);
 
-  // systems tracts the typed surfaces imply, per well (engine), coloured by tract
-  const impliedTracts = useMemo(() => Object.fromEntries(sectionWells.map((w) => [w.id, tractsWithStacking(w.tops, intervalsByWell[w.id])])), [sectionWells, intervalsByWell]);
+  // systems tracts the typed surfaces imply, per well (engine), coloured by tract.
+  // STRAT-U1-001: paired across formation tops, which carry no sequence meaning
+  const impliedTracts = useMemo(() => Object.fromEntries(sectionWells.map((w) => [w.id, sequenceTracts(w.tops, intervalsByWell[w.id])])), [sectionWells, intervalsByWell]);
+  // the tract rows each well shows: recorded ones win once written (the Wheeler reads the same rows)
+  const tractRows = useMemo(() => Object.fromEntries(sectionWells.map((w) => {
+    const recorded = (intervalsByWell[w.id] || []).filter((r) => r.kind === 'systems_tract');
+    return [w.id, recorded.length ? recorded : impliedTracts[w.id] || []];
+  })), [sectionWells, intervalsByWell, impliedTracts]);
 
   const bands = useMemo(() => {
     const out = [];
     if (showTracts) {
       for (const w of sectionWells) {
-        const recorded = (intervalsByWell[w.id] || []).filter((r) => r.kind === 'systems_tract');
-        const rows = recorded.length ? recorded : impliedTracts[w.id] || [];
-        for (const r of rows) {
+        const recorded = (intervalsByWell[w.id] || []).some((r) => r.kind === 'systems_tract');
+        for (const r of tractRows[w.id] || []) {
           const d = displayLabel(r.code, scheme, { kind: 'tract', short: true });
-          out.push({ wellId: w.id, top_md_m: r.top_md_m, base_md_m: r.base_md_m, colour: TRACT_COLOUR[r.code] || '#94a3b8', label: `${d.label}${r.properties?.certain === false ? ' ?' : ''}${recorded.length ? '' : ' (implied)'}`, hatched: r.properties?.certain === false });
+          out.push({ wellId: w.id, top_md_m: r.top_md_m, base_md_m: r.base_md_m, colour: TRACT_COLOUR[r.code] || '#94a3b8', label: `${d.label}${r.properties?.certain === false ? ' ?' : ''}${recorded ? '' : ' (implied)'}`, hatched: r.properties?.certain === false });
         }
       }
     }
@@ -76,15 +81,13 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
       }
     }
     return out;
-  }, [sectionWells, intervalsByWell, impliedTracts, showTracts, showMotifs, scheme]);
+  }, [sectionWells, intervalsByWell, tractRows, showTracts, showMotifs, scheme]);
 
   // the distinct (upper, lower) surface pairs the tracts run between, for the Mapping launcher
   const tractPairs = useMemo(() => {
     const seen = new Map();
     for (const w of sectionWells) {
-      const recorded = (intervalsByWell[w.id] || []).filter((r) => r.kind === 'systems_tract');
-      const rows = recorded.length ? recorded : impliedTracts[w.id] || [];
-      for (const r of rows) {
+      for (const r of tractRows[w.id] || []) {
         const up = r.properties?.upper_surface; const lo = r.properties?.lower_surface;
         if (!up || !lo) continue;
         const key = `${up}|${lo}`;
@@ -92,21 +95,29 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
       }
     }
     return Array.from(seen.values());
-  }, [sectionWells, intervalsByWell, impliedTracts, order, scheme, appPaths]);
+  }, [sectionWells, tractRows, order, scheme, appPaths]);
 
   const recordTracts = async () => {
     setBusy(true);
     let n = 0; let wellsDone = 0;
+    const kept = [];
     try {
       for (const w of sectionWells) {
         if (!w.is_own) continue;
         const rows = impliedTracts[w.id] || [];
+        // STRAT-U1-002: a well with nothing implied keeps what it has; writing an
+        // empty set used to delete its recorded (or hand-edited) tracts
+        if (!rows.length) {
+          const had = (intervalsByWell[w.id] || []).filter((r) => r.kind === 'systems_tract').length;
+          kept.push(had ? `${w.name} kept its ${had} recorded tract${had === 1 ? '' : 's'} (nothing implied)` : `${w.name} has no pair of sequence surfaces that bounds a tract`);
+          continue;
+        }
         await backend.replaceIntervals(w.id, 'systems_tract', rows);
         const fresh = await backend.listIntervals(w.id);
         sec.setWellData((m) => ({ ...m, [w.id]: { ...(m[w.id] || {}), intervals: fresh } }));
         n += rows.length; wellsDone += 1;
       }
-      onStatus(`Recorded ${n} systems tract${n === 1 ? '' : 's'} on ${wellsDone} well${wellsDone === 1 ? '' : 's'}.`);
+      onStatus(`Recorded ${n} systems tract${n === 1 ? '' : 's'} on ${wellsDone} well${wellsDone === 1 ? '' : 's'}${kept.length ? `; ${kept.join('; ')}` : ''}.`);
     } catch (e) {
       onStatus(e.message);
     } finally {
@@ -129,6 +140,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   })), [sectionWells]);
 
   const typedCount = sectionWells.reduce((s, w) => s + (w.tops || []).filter((t) => normalizeSurfaceType(t.surface_type) !== 'formation_top').length, 0);
+  const tractCount = sectionWells.reduce((s, w) => s + (tractRows[w.id] || []).length, 0);
 
   if (!wells) return <div className="h-full flex items-center justify-center text-pl-muted text-sm"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading wells…</div>;
   if (!order.length) {
@@ -200,7 +212,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
           </select>
         </label>
       )}
-      <span className="ml-auto text-pl-muted" data-testid="strat-section-summary">{sectionWells.length} wells · {typedCount} typed surfaces</span>
+      <span className="ml-auto text-pl-muted" data-testid="strat-section-summary">{sectionWells.length} wells · {typedCount} typed surfaces · {tractCount} tract{tractCount === 1 ? '' : 's'}</span>
       <button type="button" className={btnCls} onClick={saveView} data-testid="strat-save-view" title="Save the datum and ghost with your stratigraphy project"><Save className="w-3.5 h-3.5" /> Save view</button>
     </div>
   );
@@ -213,7 +225,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
           <span className="ml-auto text-pl-muted">{typedCount} typed surfaces</span>
         </div>
         <div className="flex-1 min-h-0 overflow-auto p-3">
-          <WheelerChart wells={wheelerWells} scheme={scheme} width={Math.max(480, 160 * sectionWells.length + 80)} height={440} testIdPrefix="strat-wheeler" />
+          <WheelerChart wells={wheelerWells} tractRows={tractRows} scheme={scheme} width={Math.max(480, 160 * sectionWells.length + 80)} height={440} testIdPrefix="strat-wheeler" />
         </div>
       </div>
     );

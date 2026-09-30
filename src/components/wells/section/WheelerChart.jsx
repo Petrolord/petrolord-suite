@@ -9,6 +9,7 @@ import React, { useMemo } from 'react';
 import { wheelerChart } from '@/lib/stratigraphy/wheeler';
 import { SYSTEMS_TRACTS, displayLabel } from '@/lib/stratigraphy/vocabulary';
 import { unitsBetween } from '@/lib/stratigraphy/timescale';
+import { withSectionTracts } from '@/lib/stratigraphy/sequenceTracts';
 
 const TRACT_COLOUR = Object.fromEntries(SYSTEMS_TRACTS.map((t) => [t.code, t.colour]));
 const AXIS_W = 56;
@@ -22,9 +23,13 @@ const HEAD_H = 28;
  * @param {number} [p.height]
  * @param {boolean} [p.showStages] draw ICS stage bands behind the columns
  * @param {string} [p.testIdPrefix]
+ * @param {?Object<string, Array>} [p.tractRows] STRAT-U1-001: the tract intervals the section fills per well (recorded or implied); cells take the tract that holds them
  */
-export default function WheelerChart({ wells, scheme = 'catuneanu', width = 720, height = 420, showStages = true, testIdPrefix = 'wheeler' }) {
-  const chart = useMemo(() => wheelerChart(wells || []), [wells]);
+export default function WheelerChart({ wells, tractRows = null, scheme = 'catuneanu', width = 720, height = 420, showStages = true, testIdPrefix = 'wheeler' }) {
+  const chart = useMemo(() => {
+    const c = wheelerChart(wells || []);
+    return tractRows ? withSectionTracts(c, tractRows) : c;
+  }, [wells, tractRows]);
   const n = chart.wells.length;
   const plotW = Math.max(60, width - AXIS_W - 8);
   const plotH = Math.max(60, height - HEAD_H - 24);

@@ -7,7 +7,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Save, Loader2 } from 'lucide-react';
-import { SURFACE_TYPES, displayLabel, normalizeSurfaceType, expectedTract, surfaceLineStyle } from '@/lib/stratigraphy/vocabulary';
+import { SURFACE_TYPES, displayLabel, normalizeSurfaceType, surfaceLineStyle } from '@/lib/stratigraphy/vocabulary';
+import { tractBelowEach } from '@/lib/stratigraphy/sequenceTracts';
 import { orderedUnits } from '@/lib/stratigraphy/column';
 import { FallbackBadge, StyleSwatch } from './Glossary';
 
@@ -75,17 +76,9 @@ export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onSta
     }
   };
 
-  // the tract each consecutive typed pair bounds (base to top), read-only guidance for ST2
-  const pairs = useMemo(() => {
-    const sorted = [...rows].sort((a, b) => a.md_m - b.md_m);
-    const out = new Map();
-    for (let i = 0; i < sorted.length - 1; i++) {
-      const upper = sorted[i]; const lower = sorted[i + 1];
-      const t = expectedTract(lower.surface_type, upper.surface_type);
-      if (t) out.set(upper.id, t);
-    }
-    return out;
-  }, [rows]);
+  // the tract each pair of consecutive SEQUENCE surfaces bounds (base to top), read-only
+  // guidance; STRAT-U1-001: formation tops between them no longer break the pair
+  const pairs = useMemo(() => tractBelowEach(rows), [rows]);
 
   if (!well) return <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="strat-tops-empty">Pick a well on the left to type its tops.</div>;
 
