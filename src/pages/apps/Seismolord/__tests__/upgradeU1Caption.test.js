@@ -41,6 +41,15 @@ describe('sectionCaption: what a reviewer signs', () => {
       .toBe('Vertical: depth TVDSS in ft below the seismic datum, through V(z) = 1800 + 0.5z');
     expect(displayLabel({ polarity: 1, colormap: 'gray', gain: 1, clip: 2 })).toMatch(/^polarity as recorded in the file/);
   });
+  test('a map caption carries no vertical line', () => {
+    const lines = sectionCaption({ volumeName: 'V', lineLabel: 'Map', depth: null, date: '2026-09-30' });
+    expect(lines[1]).toBe('');
+    expect(lines[0]).toBe('Seismolord  V  Map');
+  });
+  test('the map PNG is captioned like the section (source guard)', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'components', 'MapView.jsx'), 'utf8');
+    expect(src).toMatch(/captionCanvas\(canvas, lines\)/);
+  });
   test('plot rows are Latin-1 safe for the jsPDF standard fonts', () => {
     expect(latin1('a · b — c → d')).toBe('a - b - c  d');
   });

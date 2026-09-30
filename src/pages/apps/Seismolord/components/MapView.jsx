@@ -48,6 +48,7 @@ import { NULL_VALUE } from '../engine/manifest';
 import { projectorFor } from '@/lib/crs';
 import { contourLabelPositions, isMajorLevel } from '@/components/maps/contourLabels';
 import { isTransformableTag } from '@/lib/crs/tags';
+import { captionCanvas } from './SliceView';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
 
@@ -184,7 +185,7 @@ function MapView({
   onAmplitude, wells, height = 560, onCursor = null, lines2d = null,
   timeSlice = null, sliceVis = null, indices = null, display = null,
   onHorizonSettings = null, onToggleHorizon = null, surfaces = null,
-  cameraApi = null, cultureLayers = null, depthUnit = null,
+  cameraApi = null, cultureLayers = null, depthUnit = null, exportCaption = null,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -1591,7 +1592,10 @@ function MapView({
     const canvas = canvasRef.current;
     if (!canvas) return;
     draw();
-    canvas.toBlob((blob) => {
+    // SEIS-U1-013: the map PNG carries the same caption band as sections
+    const lines = typeof exportCaption === 'function' ? exportCaption() : exportCaption;
+    const pic = lines && lines.length ? captionCanvas(canvas, lines) : canvas;
+    pic.toBlob((blob) => {
       if (!blob) return;
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);

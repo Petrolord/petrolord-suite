@@ -52,7 +52,8 @@ export function sectionCaption({
 }) {
   return [
     `Seismolord  ${volumeName || EMPTY_VALUE}  ${lineLabel || ''}`.trim(),
-    [verticalLabel({ depth, depthUnit, velocityText }), displayLabel(display)].filter(Boolean).join('. '),
+    // depth null: a map, whose Z is the layer's own (named in its colour bar)
+    [depth === null ? null : verticalLabel({ depth, depthUnit, velocityText }), displayLabel(display)].filter(Boolean).join('. '),
     [
       `CRS ${crsName || 'not set'}`,
       author ? `by ${author}` : null,

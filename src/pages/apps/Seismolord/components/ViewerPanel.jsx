@@ -4164,6 +4164,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                 )}
                 <MapView
                   depthUnit={depthUnit}
+                  exportCaption={captionFor('Map', null)}
                   manifest={manifest}
                   geom={geom}
                   horizons={resolvedHorizons}
