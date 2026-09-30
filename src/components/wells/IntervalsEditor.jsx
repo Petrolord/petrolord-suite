@@ -14,7 +14,7 @@ import {
 } from '@/lib/stratigraphy/lithology';
 import { validateIntervals, sortIntervals, thicknessByCode } from '@/lib/stratigraphy/intervals';
 import { MOTIFS, SYSTEMS_TRACTS, STACKING_PATTERNS } from '@/lib/stratigraphy/vocabulary';
-import { buildIntervals } from '@/lib/wellImport';
+import { buildIntervals, INTERVAL_FIELDS } from '@/lib/wellImport';
 import PasteReplacePanel from './PasteReplacePanel';
 
 
@@ -36,7 +36,7 @@ const toRow = (r) => ({
 let tmp = 0;
 
 // hoisted: PasteReplacePanel memoizes on `fields`, so a fresh literal per render would re-parse and re-emit forever
-const PASTE_FIELDS = ['top', 'base', 'code', 'label', 'description'];
+const PASTE_FIELDS = INTERVAL_FIELDS;
 
 const toInterval = (r, kind) => {
   const properties = { ...(r.properties || {}) };
@@ -99,7 +99,8 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
     if (mode === 'paste') {
       if (!pasted) { onStatus?.('Paste intervals first.'); return; }
       try {
-        list = buildIntervals(pasted.parsed.rows, pasted.map, { mdUnit }).map((r) => {
+        // STRAT-U1-004/005: a TVD, TVDSS, time or age column is refused; comma decimals in a semicolon file read
+        list = buildIntervals(pasted.parsed.rows, pasted.map, { mdUnit, header: pasted.parsed.header, delimiter: pasted.parsed.delimiter }).map((r) => {
           const lith = (kind === 'lithology' || kind === 'core_description') ? resolveLithology(r.code) : null;
           return { kind, top_md_m: r.top_md_m, base_md_m: r.base_md_m, code: lith ? lith.code : r.code, label: r.label || (lith ? lith.name : null), properties: { ...r.properties, ...(lith ? {} : (kind === 'lithology' || kind === 'core_description') && r.code ? { lithology_text: r.code } : {}) }, source: 'import' };
         });

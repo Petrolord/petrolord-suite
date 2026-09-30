@@ -163,7 +163,8 @@ export function splitDelimited(text, delimiter) {
 }
 
 const isNum = (c) => c === '' || Number.isFinite(Number(c));
-const isNumericRow = (r) => r.every(isNum);
+// STRAT-U1-005: a semicolon file writes decimals with a comma ("1440,5")
+const isNumDc = (c) => isNum(c) || /^-?\d+,\d+$/.test(String(c).trim());
 
 /**
  * Header detection: the first row is a header only when it is
@@ -172,13 +173,14 @@ const isNumericRow = (r) => r.every(isNum);
  * trailing comment columns) from being eaten as headers: a single-row
  * tops file is data, and 'NAME,MD' over 'TopA,100' is a header.
  */
-export function detectHeader(rows) {
+export function detectHeader(rows, { decimalComma = false } = {}) {
   let header = null;
-  if (rows.length && !isNumericRow(rows[0])) {
+  const num = decimalComma ? isNumDc : isNum;
+  if (rows.length && !rows[0].every(num)) {
     if (rows.length > 1) {
       const n = Math.max(rows[0].length, rows[1].length);
       for (let c = 0; c < n; c++) {
-        if (isNum(rows[0][c] ?? '') !== isNum(rows[1][c] ?? '')) {
+        if (num(rows[0][c] ?? '') !== num(rows[1][c] ?? '')) {
           header = rows[0];
           break;
         }
@@ -192,7 +194,7 @@ export function detectHeader(rows) {
 export function parseDelimitedText(text, { delimiter = 'auto' } = {}) {
   const { rows, delimiter: used } = splitDelimited(text, delimiter);
   if (!rows.length) return { header: null, rows: [], delimiter: used };
-  return { ...detectHeader(rows), delimiter: used };
+  return { ...detectHeader(rows, { decimalComma: used === ';' }), delimiter: used };
 }
 
 const cellToString = (v) => {

@@ -1,0 +1,6 @@
+# spreadsheet: children listed before parents, ages in ka, a duplicate and an overlap
+unit	rank	group	top age (ka)	base age (ka)
+Benin Sands	member	Benin	0	2580
+Benin	formation		0	23030
+Benin Sands	member	Benin	0	2580
+Qua Iboe Shale	member	Benin	2000	5333

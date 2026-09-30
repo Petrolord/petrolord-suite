@@ -95,3 +95,34 @@ describe('STRAT-U1-002 Record tracts never erases a well it has nothing to write
     expect(onStatus.mock.calls.map((c) => c[0]).join(' ')).toMatch(/KETA-1 kept its 1 recorded tract/);
   });
 });
+
+describe('STRAT-U1-004/005 the interval paste door (shared with Well Data Manager)', () => {
+  // eslint-disable-next-line global-require
+  const fs = require('fs'); const path = require('path');
+  // eslint-disable-next-line global-require
+  const IntervalsEditor = require('@/components/wells/IntervalsEditor').default;
+  const FIX = path.join(__dirname, '..', '..', '..', '..', '..', 'e2e', 'fixtures', 'strat', 'hostile');
+  const paste = async (file) => {
+    const onReplace = jest.fn(async () => {});
+    const onStatus = jest.fn();
+    render(<IntervalsEditor well={{ id: 'w', name: 'KETA-1', is_own: true }} intervals={[]} onReplace={onReplace} onStatus={onStatus} testIdPrefix="t" />);
+    fireEvent.click(screen.getByTestId('t-paste-toggle'));
+    fireEvent.change(screen.getByTestId('t-paste-paste-text'), { target: { value: fs.readFileSync(path.join(FIX, file), 'utf8') } });
+    await waitFor(() => expect(screen.getByTestId('t-save').disabled).toBe(false));
+    fireEvent.click(screen.getByTestId('t-save'));
+    return { onReplace, onStatus };
+  };
+
+  test('"Top (ft)" flips the unit and the rows are stored in metres (origin/main: feet stored as metres)', async () => {
+    const { onReplace } = await paste('intervals_feet_header.tsv');
+    expect(screen.getByTestId('t-paste-mdunit').value).toBe('ft');
+    await waitFor(() => expect(onReplace).toHaveBeenCalled());
+    expect(onReplace.mock.calls[0][1][0].top_md_m).toBeCloseTo(4724.4 * 0.3048, 6);
+  });
+
+  test('a TVDSS file is refused with the reason and nothing is written (origin/main: stored as MD)', async () => {
+    const { onReplace, onStatus } = await paste('intervals_petrel_tvdss.csv');
+    await waitFor(() => expect(onStatus).toHaveBeenCalledWith(expect.stringMatching(/"Top TVDSS \(m\)" is a TVDSS depth/)));
+    expect(onReplace).not.toHaveBeenCalled();
+  });
+});

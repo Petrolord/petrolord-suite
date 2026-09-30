@@ -5,7 +5,7 @@
 // converts and saves.
 
 import React, { useMemo, useState } from 'react';
-import { parseDelimited, guessMapping, guessCheckshotConvention, guessMdUnit } from '@/lib/wellImport';
+import { parseDelimited, guessMapping, guessCheckshotConvention, guessMdUnit, guessIntervalUnit } from '@/lib/wellImport';
 import ColumnMapper from './ColumnMapper';
 
 
@@ -107,6 +107,12 @@ export default function PasteReplacePanel({ kind, fields, labels, convention, on
       const unit = guessMdUnit(parseDelimited(v).header, fields);
       if (unit && unit !== convention.mdUnit) onConvention({ ...convention, mdUnit: unit });
     }
+    // STRAT-U1-005: "Top (ft)" in an interval header sets the unit the same way
+    if (kind === 'intervals' && !touched) {
+      const h = parseDelimited(v).header;
+      const unit = guessIntervalUnit(h, guessMapping(h, fields));
+      if (unit && unit !== convention.mdUnit) onConvention({ ...convention, mdUnit: unit });
+    }
     onParsed(null);
   };
   React.useEffect(() => { onParsed(state.parsed.rows.length ? state : null); }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -122,6 +128,7 @@ export default function PasteReplacePanel({ kind, fields, labels, convention, on
         className={`${inputCls} w-full h-24 font-mono`}
         placeholder={kind === 'deviation' ? 'Paste the survey (MD, inclination, azimuth)'
           : kind === 'tops' ? 'Paste tops (name, MD)'
+            : kind === 'intervals' ? 'Paste intervals (top MD, base MD, code); a unit in the header such as "Top (ft)" is read'
             : 'Paste checkshots as exported (depth, time); the selectors above say how to read them'}
         value={text}
         onChange={(e) => onText(e.target.value)}
