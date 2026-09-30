@@ -634,7 +634,12 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       setStatus(`Restored the previous grid of ${surface.name} (${pv.nx}×${pv.ny}).`);
       await refresh();
       setSelectedId(null);
-    } catch (e) { setStatus(e.message); }
+    } catch (e) {
+      // MAP-U1-017: a .pld package carries the grid, not the re-grid archive
+      setStatus(/previous grid/.test(e.message)
+        ? `The previous grid of ${surface.name} is not stored here, so it cannot be restored. A project imported from a .pld package keeps the current grid only. (${e.message})`
+        : e.message);
+    }
   };
 
   // T1 (E3): the prospect card of the measured closure
