@@ -23,6 +23,8 @@ export const UNIT_ALIASES = Object.freeze({
   density: { 'g/cm3': 'g/cc' },
   viscosity: { cp: 'cP', 'mPa·s': 'mPa.s' },
   permeability: { md: 'mD' },
+  // Earth Modeling's volume sets: metric (10^6 m3) and field (acre-ft, MMbbl)
+  rockVolume: { metric: '10^6 m3', field: 'acre-ft' },
 });
 
 const toRegistry = (family, appUnit) => UNIT_ALIASES[family]?.[appUnit] || appUnit;
