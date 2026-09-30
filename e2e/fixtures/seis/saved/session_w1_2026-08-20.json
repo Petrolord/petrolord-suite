@@ -1,0 +1,21 @@
+{
+ "_note": "W1.2b session (first release of sessions).",
+ "volume_id": "vol-1",
+ "orientation": "inline",
+ "indices": {
+  "inline": 7,
+  "xline": 3,
+  "time": 20
+ },
+ "display": {
+  "colormap": "seismic_rwb",
+  "gain": 1.5,
+  "clipRms": 3,
+  "polarity": -1,
+  "traceBalance": false
+ },
+ "local": {
+  "seismolord.windows.v1": "{\"open\":[\"section\",\"map\"]}",
+  "seismolord.viewerPrefs.v2": "{\"axes\":true}"
+ }
+}

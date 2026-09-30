@@ -81,7 +81,7 @@ import { amplitudePercentile, percentileOfSorted } from '../engine/displayEnhanc
 import { UndoStack } from '../lib/undoStack';
 import { EditHistory } from '../lib/horizonEditHistory';
 import { createdHorizonCommand, rewriteHorizonCommand } from '../lib/horizonUndoCommands';
-import { captureLocal, applyLocal, clampIndices } from '../lib/sessionSnapshot';
+import { captureLocal, applyLocal, clampIndices, sessionVolumeProblem } from '../lib/sessionSnapshot';
 import SessionsDialog from './workspace/dialogs/SessionsDialog';
 import CultureImportDialog from '@/components/culture/CultureImportDialog';
 import {
@@ -1001,6 +1001,10 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
    *  via the epoch key to re-read them), then display state, then
    *  navigation through the same pending-restore path. */
   const restoreSession = async (payload) => {
+    // SEIS-U1-015: a session whose volume is gone is refused before it
+    // rewrites the layout and display (it used to apply both, then fail)
+    const problem = sessionVolumeProblem(payload, volumes);
+    if (problem) throw new Error(problem);
     applyLocal(payload?.local, window.localStorage);
     setSessionEpoch((e) => e + 1);
     const d = payload?.display || {};

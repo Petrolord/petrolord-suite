@@ -1,0 +1,27 @@
+{
+ "_note": "Tester-programme session: player and well projection keys, AGC, wiggle, percentile scaling.",
+ "volume_id": "vol-1",
+ "orientation": "xline",
+ "indices": {
+  "inline": 2,
+  "xline": 40,
+  "time": 999
+ },
+ "display": {
+  "colormap": "gray",
+  "gain": 1,
+  "clipRms": 3,
+  "polarity": 1,
+  "scaleMode": "pct",
+  "clipPct": 99,
+  "agcOn": true,
+  "agcWindowMs": 250,
+  "wiggle": "overlay",
+  "reverseCmap": true
+ },
+ "local": {
+  "seismolord.player.v1": "{\"step\":2}",
+  "seismolord.wellProjection.v1": "250",
+  "evil.key": "x"
+ }
+}
