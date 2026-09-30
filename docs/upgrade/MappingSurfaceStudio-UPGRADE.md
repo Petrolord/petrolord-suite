@@ -281,3 +281,21 @@ Consumer fixes 030 to 033 are scheduled in their own apps: Earth Modeling (#7), 
 1. Does master_apps have a `contour-map-digitizer` row? The read-only check was not permitted from here. The route now also opens on a Mapping licence, so either answer is safe.
 2. For the 25 unprotected app routes (035), should one Suite-wide pass wrap them, each with its catalog slug?
 3. Should U2-007 (the shared reader door) land with Mapping batch A, so that Earth Modeling and RCP adopt it in their upgrades?
+
+## Batch decision (programme lead, 2026-09-30)
+
+Recorded verbatim:
+
+> BUILD in this order, one commit per item:
+> - Batch A: U2-007 FIRST: one shared "read a depth surface" helper (src/lib, next to surfacesRegistry) that returns a surface in canonical metres with its domain (elevation/depth/TWT/attribute/isochore), xy unit converted, rotation honoured, and refuses rows a consumer cannot use with the reason; Earth Modeling (#7) and ReservoirCalc Pro (#8) will adopt it in their own upgrades, so document its contract; adopt it inside Mapping now. Then U2-001 fault blocks in the tension spline and kriging; U2-004 fault polygon files as fault blocks; U2-002 PDF map plotted to scale (reviewer header, read back with pdftotext); U2-005 separate GOC/OWC and per-fault-block volumes (validate against an analytic geometry, negative control); U2-003 scattered points as a gridding source; U2-006 Digitizer drag-to-assign contour values. Also the small ones: MAP-U1-028 Digitizer /dev harness; MAP-U1-025 staircase map edge if S-sized.
+> - Batch B: U2-009 isopach; U2-012 kriging beyond the wells (with an honest extrapolation note); U2-013 section line across surfaces; U2-008 more depth-conversion methods LAST in B: it should consume Seismolord's layer-cake velocity models (Seismolord U2-006, being built now on feat/seis-u2): if that is merged to main by the time you get here, read its published contract; if not, build the other depth-conversion methods (average velocity from well tops, V0+kZ fitted to tops, velocity map) and leave a clearly named hook for the layer cake, and say so.
+> - Batch C: U2-017 .pld carries the re-grid archives.
+> DEFERRED (record reasons): U2-011 multigrid minimum curvature (L; the tension spline covers the demo; after NAPE, engines-first); U2-014 grid editor (M, after NAPE); U2-010 stochastic structural uncertainty (L; canonical Monte Carlo module when built); U2-015 Digitizer warp; U2-016 co-kriging; U2-019 live remapping; U2-020 storing the Digitizer image (RLS review); U2-018 the held geo_wells.status migration is the owner's apply.
+> Units: do not add new app-local unit preferences. If the Suite unit profile PR (branch feat/suite-unit-profile) has merged to main before you open your PR, adopt it in Mapping (initial depth unit from useUnitProfile; the in-app toggle becomes a view override) as a final item; otherwise leave Mapping's current behaviour and note it.
+
+Built on branch `feat/map-u2`. The build log per item follows in "Step 2 build (2026-09-30)".
+
+## Step 2 build (2026-09-30)
+
+| Item | State | Proving test | Notes |
+|---|---|---|---|
