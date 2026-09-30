@@ -59,7 +59,8 @@ import {
 import { resampleTo } from '@/lib/gridding/gridmath';
 import { describeGridResult } from '../services/gridStatus';
 import { parseWellsParam, parseNetParam, appPath, MAPPING_ID } from '@/components/wells/appLinks';
-import { thicknessPoints, environmentPoints } from '@/lib/stratigraphy/stratMaps';
+import { environmentPoints } from '@/lib/stratigraphy/stratMaps';
+import { verticalThicknessPoints } from '@/lib/stratigraphy/verticalThickness';
 import { resolveEnvironment, resolveLithology } from '@/lib/stratigraphy/lithology';
 import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
 import { consensusTag } from '@/lib/crs/tags';
@@ -347,7 +348,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
     const src = opts.source || source;
     const sourceWells = opts.wellIds?.length ? (wells || []).filter((w) => opts.wellIds.includes(w.id)) : wells;
     if (src.type === 'top') return topsToControlPoints(sourceWells, src.key, { depthRef, placement: 'borehole' }).points;
-    if (src.type === 'net') return thicknessPoints(sourceWells, src.upper, src.lower, { intervalsByWell: intervalsByWell(sourceWells), measure: src.measure, codes: src.codes }).points;
+    if (src.type === 'net') return verticalThicknessPoints(sourceWells, src.upper, src.lower, { intervalsByWell: intervalsByWell(sourceWells), measure: src.measure, codes: src.codes }).points;
     return zoneAttrToPoints(sourceWells, src.zoneName || zoneNames[0], src.key);
   };
   // ST4: each well's interval rows keyed by id (the backends embed them)
@@ -391,9 +392,10 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
           kind = 'structure';
         }
       } else if (src.type === 'net') {
-        // ST4: thickness between two tops from the lithology log (measured-depth thickness)
-        const r = thicknessPoints(sourceWells, src.upper, src.lower, { intervalsByWell: intervalsByWell(sourceWells), measure: src.measure, codes: src.codes });
-        result = { points: r.points, skipped: r.skipped, extrapolated: 0, depthRef: null };
+        // ST4: thickness between two tops from the lithology log; STRAT-U2-011: vertical
+        // (TVD through each survey), a well without a survey stays MD and is named
+        const r = verticalThicknessPoints(sourceWells, src.upper, src.lower, { intervalsByWell: intervalsByWell(sourceWells), measure: src.measure, codes: src.codes });
+        result = { points: r.points, skipped: r.skipped, extrapolated: 0, depthRef: null, thicknessBasis: r.basis, mdWells: r.mdWells };
         name = `${src.measure === 'gross' ? 'Gross thickness' : src.measure === 'net' ? 'Net sand' : 'Net to gross'} ${src.upper} to ${src.lower}`;
         kind = src.measure === 'ratio' ? 'attribute' : 'isochore';
       } else {
@@ -485,7 +487,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
           control_points: points.length,
           points: points.map((p) => ({ well: p.well, x: p.x, y: p.y, z: p.z, md: p.md ?? null, extrapolated: !!p.extrapolated })),
           depth_ref: result.depthRef, placement: kind === 'structure' ? 'borehole' : null,
-          ...(src.type === 'net' ? { surfaces: [src.upper, src.lower], measure: src.measure, codes: src.codes, thickness_basis: 'md' } : {}),
+          ...(src.type === 'net' ? { surfaces: [src.upper, src.lower], measure: src.measure, codes: src.codes, thickness_basis: result.thicknessBasis || 'tvd', md_wells: result.mdWells || [] } : {}),
           skipped: result.skipped, extrapolated: result.extrapolated,
           z_convention: kind === 'structure' ? 'elevation' : 'raw',
           faults: faults.map((f) => ({ id: f.id, name: f.name })),
@@ -512,6 +514,8 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         gridMethod === 'tension' && !kriged ? `spline in tension ${tensionOpts.tension}${tensionOpts.smoothing ? `, smoothing ${tensionOpts.smoothing}` : ''}` : null,
         reach ? `mapped ${beyond} m beyond the wells (${reach.extrapolatedNodes} extrapolated nodes; the dashed line is the wells' hull)` : null,
         guides.length ? `${guides.length} guide point${guides.length === 1 ? '' : 's'}` : null,
+        // STRAT-U2-011: the thickness basis of a strat map
+        src.type === 'net' && src.measure !== 'ratio' ? `vertical thickness (TVD through each survey)${result.mdWells?.length ? `; ${result.mdWells.join(', ')} ${result.mdWells.length === 1 ? 'has' : 'have'} no survey and ${result.mdWells.length === 1 ? 'is' : 'are'} taken as vertical` : ''}` : null,
         ...merge.merged.map((m) => `${m.wells.join(' + ')} merged into one control point${kind === 'structure' || kind === 'isochore' ? ` (${fmtZ(m.spreadZ, { kind: 'isochore', z_domain: 'depth' })} apart)` : ''}`),
       ].filter(Boolean);
       setStatus(`${opts.prefix || ''}${describeGridResult({ name, result: { ...result, points }, spec, depthUnit, method: kriged ? 'kriging' : gridMethod === 'tension' ? 'tension' : 'tps' })}${extras.length ? ` With ${extras.join(', ')}.` : ''}`);

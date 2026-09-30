@@ -431,3 +431,38 @@ describe('STRAT-U2-007 the column editor at scale', () => {
     expect(screen.getByTestId('strat-unit-agetop-3').value).toBe('1.5');
   });
 });
+
+describe('STRAT-U2-011 strat maps on vertical thickness', () => {
+  const { verticalThicknessPoints } = jest.requireActual('@/lib/stratigraphy/verticalThickness');
+  const { thicknessPoints } = jest.requireActual('@/lib/stratigraphy/stratMaps');
+  const wellsOf = async (b) => Promise.all((await b.listWells()).map(async (w) => ({ ...w, tops: await b.listTops(w.id), intervals: await b.listIntervals(w.id) })));
+
+  test('deviated KETA-2: gross Top Dome to Mid Shale is 67.6 m TVD where the engine alone gives 70.0 m MD; vertical KETA-1 unchanged', async () => {
+    const wells = await wellsOf(makeInMemoryBackend());
+    const ib = Object.fromEntries(wells.map((w) => [w.id, w.intervals]));
+    const md = thicknessPoints(wells, 'Top Dome', 'Mid Shale', { intervalsByWell: ib, measure: 'gross' });
+    const tv = verticalThicknessPoints(wells, 'Top Dome', 'Mid Shale', { intervalsByWell: ib, measure: 'gross' });
+    const at = (r, n) => r.points.find((p) => p.well === n);
+    expect(at(md, 'KETA-2').z).toBeCloseTo(70, 9);                 // negative control: along hole
+    expect(at(tv, 'KETA-2').z).toBeCloseTo(67.6, 1);
+    expect(at(tv, 'KETA-2')).toMatchObject({ top_md_m: 1540, base_md_m: 1610, basis: 'tvd' });
+    expect(at(tv, 'KETA-1').z).toBeCloseTo(at(md, 'KETA-1').z, 9);
+    expect(tv.basis).toBe('mixed'); // KETA-1 has no survey (KETA-3 lacks Mid Shale): taken as vertical and named
+    expect(tv.mdWells).toEqual(['KETA-1']);
+  });
+
+  test('net sand goes through the survey interval by interval, never more than the gross; a well without a survey is named', async () => {
+    const wells = await wellsOf(makeInMemoryBackend());
+    const ib = Object.fromEntries(wells.map((w) => [w.id, w.intervals]));
+    const net = verticalThicknessPoints(wells, 'Top Dome', 'Mid Shale', { intervalsByWell: ib, measure: 'net' });
+    const gross = verticalThicknessPoints(wells, 'Top Dome', 'Mid Shale', { intervalsByWell: ib, measure: 'gross' });
+    for (const p of net.points) expect(p.z).toBeLessThanOrEqual(gross.points.find((g) => g.well === p.well).z + 1e-9);
+    const k2 = net.points.find((p) => p.well === 'KETA-2');
+    const mdNet = thicknessPoints(wells, 'Top Dome', 'Mid Shale', { intervalsByWell: ib, measure: 'net' }).points.find((p) => p.well === 'KETA-2');
+    expect(k2.z).toBeLessThan(mdNet.z);
+    // a surveyless well stays MD and is named
+    const flat = verticalThicknessPoints([{ ...wells[0], deviation: null, name: 'NOSURVEY' }], 'Top Dome', 'Mid Shale', { intervalsByWell: { [wells[0].id]: wells[0].intervals }, measure: 'gross' });
+    expect(flat.mdWells).toEqual(['NOSURVEY']);
+    expect(flat.basis).toBe('md');
+  });
+});

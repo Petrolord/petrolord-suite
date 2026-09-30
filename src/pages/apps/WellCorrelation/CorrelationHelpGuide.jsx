@@ -230,8 +230,8 @@ export default function CorrelationHelpGuide() {
           Petrophysics and stratigraphy adds narrow strips at the left of each well: the PAY flag Petrophysics Studio
           published, its zones with their published net, PHIE and Sw (or not published), and the units of the Stratigraphy
           Studio column for tops linked to a unit. A well without the data says so in its header. Zones below has Thickness
-          map, which opens Mapping &amp; Surface Studio gridding the gross thickness between two tops (MD thickness,
-          longer than the vertical isochore on a deviated well) from the section wells that carry both.
+          map, which opens Mapping &amp; Surface Studio gridding the gross vertical thickness between two tops (TVD
+          through each survey, the isochore) from the section wells that carry both.
         </Para>
       </GuideSection>
 

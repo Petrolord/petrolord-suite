@@ -255,8 +255,10 @@ export default function StratigraphyHelpGuide() {
           Paleogeography polygons take the vocabulary colour of the name you give them.
         </Para>
         <Callout tone="warn" title="Thickness basis">
-          Thicknesses are measured-depth thicknesses between the two picks and the surface's provenance says so.
-          True vertical thickness is a later correction.
+          Thicknesses are vertical: each well's tops and lithology log go through its survey to TVD, so a deviated
+          well maps its vertical thickness (the isochore). A well with no survey is taken as vertical, and its
+          measured-depth thicknesses are used and named in the status and the surface's provenance. The correction
+          for bed dip (true vertical thickness, TVT) is not applied.
         </Callout>
       </GuideSection>
 
