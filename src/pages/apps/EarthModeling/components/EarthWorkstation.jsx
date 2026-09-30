@@ -20,7 +20,7 @@ import MapView from './MapView';
 import SectionView from './SectionView';
 import FrameworkView3D from './FrameworkView3D';
 import QcPanel from './QcPanel';
-import { buildModel, emptyDefinition, MISTIE_WARN_M } from '../services/modelBuild';
+import { buildModel, emptyDefinition, MISTIE_WARN_M, publishPayload, BG_UNITS, upgradeDefinition } from '../services/modelBuild';
 import { contourPlan, colorbarLevelsFor } from '@/pages/apps/MappingSurfaceStudio/components/MapCanvas';
 import { DEPTH_UNIT_KEY, VOLUME_UNITS_KEY, VOLUME_UNIT_SETS, readSetting, fmtDepth } from '../services/units';
 import { useAppUnits } from '@/lib/units/useAppUnits';
@@ -35,7 +35,10 @@ import { appPath, mapSurfaceHref, reservoirCalcSurfaceHref, MAPPING_ID, RESERVOI
 import { toDisplay } from '@/components/wells/depthModes';
 import { validatePolygon } from '../engine/blocks';
 import { surfaceStats } from '@/lib/gridding/gridmath';
-import { depthDownToSurfaceZ } from '@/lib/surfaceConvention';
+
+/** A cell size for the status line: whole metres or two decimals. */
+const REPORT_KEY = 'em.report';
+const fmtCell = (v) => (Math.abs(v - Math.round(v)) < 1e-6 ? String(Math.round(v)) : v.toFixed(2));
 
 const selCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 const viewBtn = (active) =>
@@ -102,13 +105,25 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   const unitsHook = useAppUnits('earth-modeling', {
     depth: { family: 'depth', allowed: ['m', 'ft'] },
     volume: { family: 'rockVolume', allowed: Object.keys(VOLUME_UNIT_SETS) },
+    // U1 (EM-U1-007): the gas FVF is typed in the profile's unit (RB/Mscf in field)
+    bg: { family: 'fvfGas', allowed: BG_UNITS },
   }, {
-    fallback: { depth: readSetting(DEPTH_UNIT_KEY, ['m', 'ft'], 'ft'), volume: readSetting(VOLUME_UNITS_KEY, Object.keys(VOLUME_UNIT_SETS), 'metric') },
+    fallback: { depth: readSetting(DEPTH_UNIT_KEY, ['m', 'ft'], 'ft'), volume: readSetting(VOLUME_UNITS_KEY, Object.keys(VOLUME_UNIT_SETS), 'metric'), bg: 'm3/m3' },
     legacyKeys: [DEPTH_UNIT_KEY, VOLUME_UNITS_KEY],
   });
   const depthUnit = unitsHook.units.depth;
   const volumeUnits = unitsHook.units.volume;
   const setVolumeUnits = (v) => unitsHook.setUnit('volume', v);
+  const bgUnit = unitsHook.units.bg || 'm3/m3';
+  // U1 (EM-U1-011): field and analyst for the volumes report, kept per browser
+  const [report, setReport] = useState(() => {
+    try { const r = JSON.parse(localStorage.getItem(REPORT_KEY) || '{}'); return { field: r.field || '', analyst: r.analyst || '' }; } catch { return { field: '', analyst: '' }; }
+  });
+  const changeReport = (patchR) => setReport((r) => {
+    const next = { ...r, ...patchR };
+    try { localStorage.setItem(REPORT_KEY, JSON.stringify(next)); } catch { /* private mode */ }
+    return next;
+  });
   const [boundaries, setBoundaries] = useState([]);
   useEffect(() => {
     let live = true;
@@ -228,7 +243,14 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       // PETRO-U2-013: zone porosity published before PT9a is total porosity
       const tp = result.totalPhi || [];
       const tpText = tp.length ? ` Porosity from ${[...new Set(tp.map((t) => t.well))].join(', ')} is total porosity (Petrophysics Studio summary published before 2026-09-07); the well owner can republish it.` : '';
-      setStatus(`Built ${definition.name}: ${result.spec.nx}×${result.spec.ny} frame at ${result.spec.dx} m, ${result.zones.length} zones, ${blocks} block${blocks > 1 ? 's' : ''}, ${clamps} clamped nodes${result.boundary ? `, clipped to ${result.boundary.name}` : ''}${adjText}.${clampText}${mtText}${fbText}${tpText}`);
+      // U1 (EM-U1-005, -008, door notes): clamped properties, open legs and what the door assumed
+      const pc = result.propertyClamps || [];
+      const pcText = pc.length ? ` ${pc.map((c) => `${c.zone} ${c.prop}: ${c.nodes} node${c.nodes === 1 ? '' : 's'}`).join('; ')} extrapolated outside 0 to 1 and held at the limit.` : '';
+      const open = result.zones.filter((z) => z.openEdge?.open);
+      const openText = open.length ? ` ${open.map((z) => z.name).join(', ')}: the hydrocarbon leg reaches the model edge, so the volume depends on where the frame stops (see QC).` : '';
+      const noteText = (result.notes || []).length ? ` ${result.notes.join(' ')}` : '';
+      const frameText = `${result.spec.nx}×${result.spec.ny} frame at ${fmtCell(result.specM.dx)} m${result.xyToM !== 1 ? ` (${fmtCell(result.spec.dx)} ${result.xyUnit})` : ''}`;
+      setStatus(`Built ${definition.name}: ${frameText}, ${result.zones.length} zones, ${blocks} block${blocks > 1 ? 's' : ''}, ${clamps} clamped nodes${result.boundary ? `, clipped to ${result.boundary.name}` : ''}${adjText}.${clampText}${mtText}${fbText}${tpText}${pcText}${openText}${noteText}`);
     } catch (e) {
       setStatus(e.message);
     } finally {
@@ -297,26 +319,10 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   const publish = async () => {
     if (!built || !mapGrid || layer === 'blocks') return;
     try {
-      const kind = layer === 'thickness' ? 'isochore'
-        : (layer === 'top' || layer === 'base') ? 'structure' : 'attribute';
-      const name = `${definition.name} · ${zoneName} ${layer.endsWith('_var') ? `${layer.slice(0, -4)} variance` : layer}`;
-      const saved = await backend.saveSurface({
-        name,
-        kind,
-        spec: built.spec,
-        zDomain: kind === 'attribute' ? 'attribute' : 'depth',
-        zUnit: kind === 'attribute' ? null : 'm',
-        provenance: {
-          engine: 'earth-modeling',
-          model: definition.name,
-          zone: zoneName,
-          layer,
-          methods: definition.methods,
-        },
-        // structure layers leave as registry elevation (negative below
-        // datum, metres); thickness and attributes are raw
-        grid: kind === 'structure' ? depthDownToSurfaceZ(mapGrid) : Float32Array.from(mapGrid),
-      });
+      // U1 (EM-U1-003): the layer leaves with the model's CRS and XY unit
+      const saved = await backend.saveSurface(publishPayload(built, {
+        layer, grid: mapGrid, modelName: definition.name, zoneName, methods: definition.methods,
+      }));
       setLastPublished(saved);
       setStatus(`Published ${saved.name} to the registry. Open it in ReservoirCalc Pro or Mapping from the ribbon.`);
       await refreshSurfaces();
@@ -351,25 +357,29 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     if ((definition.faultPolygons || []).some((p) => p.cultureId === cp.id)) { setStatus(`${cp.name} is already in the model.`); return; }
     try {
       validatePolygon(cp.vertices);
-      const faultPolygons = [...(definition.faultPolygons || []), { name: cp.name, vertices: cp.vertices.map(([x, y]) => [x, y]), cultureId: cp.id, source: 'geo_culture' }];
+      const faultPolygons = [...(definition.faultPolygons || []), { name: cp.name, vertices: cp.vertices.map(([x, y]) => [x, y]), cultureId: cp.id, source: 'geo_culture', ...(cp.crs ? { crs: cp.crs } : {}) }];
       setDef({ ...definition, faultPolygons });
       setStatus(`Added fault polygon ${cp.name} from Mapping & Surface Studio. Rebuild to apply blocks.`);
     } catch (e) { setStatus(e.message); }
   };
 
-  const saveProject = async () => {
+  // U1 (EM-U1-009): Save overwrites the model that is open; a new row only
+  // for a model never saved, or on Save as a new model
+  const [projectId, setProjectId] = useState(null);
+  const saveProject = async ({ asNew = false } = {}) => {
     try {
-      const saved = await backend.saveProject({
-        name: definition.name,
-        definition,
-        crs: built?.crs || null,
-      });
+      const payload = { name: definition.name, definition, crs: built?.crs || null };
+      const saved = projectId && !asNew && backend.updateProject
+        ? await backend.updateProject(projectId, payload)
+        : await backend.saveProject(payload);
+      setProjectId(saved.id);
       setProjects(await backend.listProjects());
-      setStatus(`Saved model "${saved.name}".`);
+      setStatus(`Saved model "${saved.name}"${projectId && !asNew ? ' (updated)' : ''}.`);
     } catch (e) { setStatus(e.message); }
   };
   const loadProject = (p) => {
-    setDefinition(normalizeDefinition(p.definition));
+    setDefinition(normalizeDefinition(upgradeDefinition(p.definition)));
+    setProjectId(p.id);
     setBuilt(null);
     setStatus(`Loaded model "${p.name}". Build to compute.`);
   };
@@ -453,7 +463,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="em-status" className="truncate">{status}</span>
       <span className="ml-auto whitespace-nowrap" data-testid="em-frame">
-        {built ? `${built.spec.nx}×${built.spec.ny} @ ${built.spec.dx} m` : `${definition.surfaceIds.length} surfaces stacked`}
+        {built ? `${built.spec.nx}×${built.spec.ny} @ ${fmtCell(built.specM.dx)} m` : `${definition.surfaceIds.length} surfaces stacked`}
       </span>
       <span className="whitespace-nowrap text-pl-muted">{depthPositive ? 'TVDSS' : 'elevation'} {depthUnit}, SI internal</span>
     </div>
@@ -529,13 +539,14 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   const finishSection = () => {
     if (sectionPending.length < 2) { setStatus('A section line needs at least two vertices.'); return; }
     setSectionPath(sectionPending); setSectionDrawing(false); setSectionPending([]); setView('section');
-    const total = sectionPending.slice(1).reduce((acc, [x, y], i) => acc + Math.hypot(x - sectionPending[i][0], y - sectionPending[i][1]), 0);
-    setStatus(`Section line set: ${sectionPending.length} vertices, ${total.toFixed(0)} m. Wells within ${projectionM.toFixed(0)} m project onto it.`);
+    const k = built?.xyToM || 1;
+    const total = k * sectionPending.slice(1).reduce((acc, [x, y], i) => acc + Math.hypot(x - sectionPending[i][0], y - sectionPending[i][1]), 0);
+    setStatus(`Section line set: ${sectionPending.length} vertices, ${total.toFixed(0)} m. Wells within ${(projectionM * k).toFixed(0)} m project onto it.`);
   };
   const cancelSection = () => { setSectionDrawing(false); setSectionPending([]); setStatus('Section drawing cancelled.'); };
   const exportVolumesCsv = () => {
     try {
-      const { text, fileName } = volumesCsv(built, { name: definition.name, volumeUnits });
+      const { text, fileName } = volumesCsv(built, { name: definition.name, volumeUnits, report });
       downloadBlob(new Blob([text], { type: 'text/csv' }), fileName);
       setStatus(`Volumes exported as ${fileName}.`);
     } catch (e) { setStatus(e.message); }
@@ -607,6 +618,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
         projected={projected}
         depthUnit={depthUnit}
         ve={ve}
+        xyToM={built?.xyToM || 1}
       />
     </div>
   ) : !built ? (
@@ -679,7 +691,13 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           onFinishDraw={finishDraw}
           onCancelDraw={cancelDraw}
           projects={projects}
-          onSaveProject={saveProject}
+          onSaveProject={() => saveProject()}
+          onSaveAsNew={() => saveProject({ asNew: true })}
+          projectId={projectId}
+          bgUnit={bgUnit}
+          report={report}
+          onReport={changeReport}
+          onBgUnit={(u) => unitsHook.setUnit('bg', u)}
           onLoadProject={loadProject}
           boundaries={boundaries}
         />

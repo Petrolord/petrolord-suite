@@ -46,6 +46,11 @@ export async function listRootCandidates(kind) {
       const rows = await rowsOf(supabase.from('ws_wells').select('id, name, organization_id, header, updated_at').order('updated_at', { ascending: false }));
       return rows.map((r) => ({ id: r.id, name: r.name || `Live well ${String(r.id).slice(0, 8)}`, organization_id: r.organization_id, subtitle: [r.header && r.header.field, r.header && r.header.rig].filter(Boolean).join(', ') }));
     }
+    case 'em_model': {
+      // EM-U1-013: Earth Modeling model definitions (owner-only)
+      const rows = await rowsOf(supabase.from('em_models').select('id, name, user_id, updated_at').order('updated_at', { ascending: false }));
+      return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `Earth model ${String(r.id).slice(0, 8)}`, subtitle: 'earth model' }));
+    }
     case 'seismic_project': {
       const rows = await rowsOf(supabase.from('seismic_projects').select('id, name, user_id').order('name'));
       return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `Project ${String(r.id).slice(0, 8)}` }));

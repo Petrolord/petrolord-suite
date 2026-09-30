@@ -24,7 +24,8 @@ const syntheticSurface = () => {
   const values = new Float32Array(nx * ny);
   for (let r = 0; r < ny; r += 1) {
     for (let c = 0; c < nx; c += 1) {
-      values[r * nx + c] = 2500 + c * 100 * 0.05;
+      // registry depth structures are elevation, negative below datum (Mapping MS0)
+      values[r * nx + c] = -(2500 + c * 100 * 0.05);
     }
   }
   return {
@@ -61,16 +62,35 @@ describe('simStructureImport', () => {
     expect(out.tops.every((v) => v > 8000 && v < 9000)).toBe(true);
   });
 
-  test('refuses time-domain surfaces, elevation grids and hole-dominated maps', () => {
+  test('refuses time-domain surfaces, grids above the datum and hole-dominated maps', () => {
     const { surface, values } = syntheticSurface();
     expect(() => sampleSurfaceToTops({ ...surface, z_domain: 'time' }, values, { nx: 5, ny: 5 }))
-      .toThrow(/depth-converted/);
-    const negative = values.map((v) => -v);
-    expect(() => sampleSurfaceToTops(surface, negative, { nx: 5, ny: 5 }))
-      .toThrow(/elevation/);
+      .toThrow(/Depth-convert it/);
+    const aboveDatum = values.map((v) => -v);
+    expect(() => sampleSurfaceToTops(surface, aboveDatum, { nx: 5, ny: 5 }))
+      .toThrow(/above the datum/);
     const holey = new Float32Array(values.length).fill(1e30);
     expect(() => sampleSurfaceToTops(surface, holey, { nx: 5, ny: 5 }))
       .toThrow(/no valid values/);
+  });
+
+  // MAP-U1-032 (Earth Modeling upgrade U1): real registry rows
+  test('a registry elevation row in feet on a US-feet frame gives the metre answer (before: threw "looks like elevation"; ftUS read as m)', () => {
+    const { surface, values } = syntheticSurface();
+    const mOut = sampleSurfaceToTops(surface, values, { nx: 10, ny: 10 });
+    const FTUS = 1200 / 3937;
+    const ftRow = { ...surface, z_unit: 'ft', xy_unit: 'ftUS', dx: 100 / FTUS, dy: 100 / FTUS };
+    const ftValues = values.map((v) => v / 0.3048);
+    const fOut = sampleSurfaceToTops(ftRow, ftValues, { nx: 10, ny: 10 });
+    expect(fOut.dxFt).toBeCloseTo(mOut.dxFt, 1);
+    fOut.tops.forEach((t, i) => expect(t).toBeCloseTo(mOut.tops[i], 1));
+  });
+
+  test('attribute and isochore rows are refused with the reason', () => {
+    const { surface, values } = syntheticSurface();
+    const pos = values.map((v) => -v);
+    expect(() => sampleSurfaceToTops({ ...surface, kind: 'isochore' }, pos, { nx: 5, ny: 5 })).toThrow(/isochore/);
+    expect(() => sampleSurfaceToTops({ ...surface, kind: 'attribute', z_domain: 'attribute' }, pos, { nx: 5, ny: 5 })).toThrow(/attribute map/);
   });
 
   test('preview grid downsamples to the cap', () => {
