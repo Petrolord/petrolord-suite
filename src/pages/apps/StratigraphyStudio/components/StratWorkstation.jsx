@@ -7,7 +7,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Layers, Loader2, PanelRight, BookOpen, ListTree, Tags, Rows as RowsIcon, Image, GitCompare, Hourglass, Clock, HelpCircle } from 'lucide-react';
+import { Layers, Loader2, PanelRight, BookOpen, ListTree, Tags, Rows as RowsIcon, Image, GitCompare, Hourglass, Clock, HelpCircle, History, Microscope } from 'lucide-react';
 import IntervalsEditor from '@/components/wells/IntervalsEditor';
 import ZoneSchemePanel from './ZoneSchemePanel';
 import CoreImagesPanel from '@/components/wells/CoreImagesPanel';
@@ -19,11 +19,16 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { SCHEMES } from '@/lib/stratigraphy/vocabulary';
 import { useScheme } from '@/lib/stratigraphy/scheme';
+import { TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
 import { orderedUnits } from '@/lib/stratigraphy/column';
 import { wellDataManagerHref, appPath, WELL_DATA_MANAGER_ID, MAPPING_ID, mapTopHref } from '@/components/wells/appLinks';
 import ColumnEditor from './ColumnEditor';
 import TopsTyping from './TopsTyping';
 import Glossary from './Glossary';
+import TimescalePanel from './TimescalePanel';
+import BiostratEvents from './BiostratEvents';
+import EventAgeModel from './EventAgeModel';
+import { flagAges, withStamps, changedAges, acceptPlan } from '@/lib/stratigraphy/ageCharts';
 
 const VIEWS = [
   { id: 'column', label: 'Column', icon: ListTree },
@@ -33,9 +38,12 @@ const VIEWS = [
   { id: 'section', label: 'Section', icon: GitCompare },
   { id: 'wheeler', label: 'Wheeler', icon: Hourglass },
   { id: 'ages', label: 'Ages', icon: Clock },
+  { id: 'events', label: 'Events', icon: Microscope },
+  { id: 'timescale', label: 'Timescale', icon: History },
   { id: 'glossary', label: 'Glossary', icon: BookOpen },
 ];
 
+const TIMESCALE_LABEL = TIMESCALE_VERSION;
 const SCHEME_LABEL = { catuneanu: 'Catuneanu', exxon: 'Exxon (display)' };
 
 /**
@@ -59,11 +67,22 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   // STRAT-U1-014: who prepared the exported charts (and the field), saved with the view
   const [report, setReport] = useState({ field: '', analyst: '' });
   const [loading, setLoading] = useState(0);
+  // STRAT-U2-003: every visible top, read for the chart-version flags
+  const [allTops, setAllTops] = useState(null);
+  // STRAT-U2-004: depths in Tops, Intervals, Core and Ages read in m or ft (stored metres); saved with the project
+  const [unit, setUnit] = useState('m');
+  const [accepting, setAccepting] = useState(false);
 
   const track = useCallback(async (fn) => {
     setLoading((n) => n + 1);
     try { return await fn(); } finally { setLoading((n) => n - 1); }
   }, []);
+
+  const refreshAllTops = useCallback(async () => {
+    if (typeof backend.listAllTops !== 'function') { setAllTops([]); return; }
+    try { setAllTops(await backend.listAllTops()); } catch (e) { setAllTops([]); setStatus(`The tops could not be read for the timescale check: ${e.message}`); }
+  }, [backend]);
+  useEffect(() => { refreshAllTops(); }, [refreshAllTops]);
 
   const refreshUnits = useCallback(async () => {
     try { setUnits(await backend.listUnits()); } catch (e) { setStatus(e.message); }
@@ -77,6 +96,7 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
         if (!alive) return;
         setWells(w);
         setProject(proj || null);
+        if (proj?.view?.displayUnit === 'ft') setUnit('ft');
         if (proj?.view?.report) setReport({ field: proj.view.report.field || '', analyst: proj.view.report.analyst || '' });
       } catch (e) {
         if (alive) { setWells([]); setStatus(e.message); }
@@ -88,7 +108,7 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   const well = useMemo(() => (wells || []).find((w) => w.id === selectedId) || null, [wells, selectedId]);
   // T1 (ST-T1-003): a per-well view opens on the first well instead of an empty pane
   useEffect(() => {
-    if (!selectedId && (wells || []).length && ['ages', 'intervals', 'core', 'tops'].includes(view)) setSelectedId(wells[0].id);
+    if (!selectedId && (wells || []).length && ['ages', 'events', 'intervals', 'core', 'tops'].includes(view)) setSelectedId(wells[0].id);
   }, [selectedId, wells, view]);
 
   const refreshTops = useCallback(async () => {
@@ -106,7 +126,7 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   // Section view records tracts through its own section state (ST2)
   useEffect(() => { refreshTops(); }, [refreshTops, view]);
 
-  const selectWell = (id) => { setSelectedId(id); setView((v) => (v === 'intervals' || v === 'core' || v === 'ages' ? v : 'tops')); };
+  const selectWell = (id) => { setSelectedId(id); setView((v) => (['intervals', 'core', 'ages', 'events'].includes(v) ? v : 'tops')); };
 
   const replaceIntervals = async (kind, rows) => {
     await backend.replaceIntervals(selectedId, kind, rows);
@@ -119,25 +139,68 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
     onDelete: async (img) => { await backend.deleteCoreImage(img); setCoreImages(await backend.listCoreImages(selectedId)); },
   };
 
+  // STRAT-U2-003: every age typed or filled here is stamped with the chart it
+  // was entered under (strat_projects.view.ageCharts, no schema change)
+  const stampAges = async (ages) => {
+    if (!ages.length) return;
+    try {
+      await saveProject({ view: { ageCharts: withStamps(project?.view?.ageCharts, ages) } });
+    } catch (e) { setStatus(`Saved; the chart version of ${ages.length} age${ages.length === 1 ? '' : 's'} was not recorded: ${e.message}`); }
+  };
+
   const saveColumn = async ({ create, update, remove }) => {
     const idMap = new Map();
+    const stamped = [];
     for (const u of create) {
       const row = await backend.saveUnit({ ...u, parent_id: u.parent_id ? (idMap.get(u.parent_id) || u.parent_id) : null });
       idMap.set(u.id, row.id);
+      stamped.push(...changedAges('units', { id: row.id }, u));
     }
     for (const { id, patch } of update) {
       const p = { ...patch };
       if (p.parent_id && idMap.has(p.parent_id)) p.parent_id = idMap.get(p.parent_id);
       await backend.updateUnit(id, p);
+      stamped.push(...changedAges('units', units.find((x) => x.id === id) || { id }, p));
     }
     for (const u of remove) await backend.deleteUnit(u);
+    await stampAges(stamped);
     await refreshUnits();
     await refreshTops();
   };
 
   const saveTop = async (topId, patch) => {
+    const before = tops.find((t) => t.id === topId) || { id: topId };
     await backend.updateTop(topId, patch);
+    await stampAges(changedAges('tops', before, patch));
     await refreshTops();
+    await refreshAllTops();
+  };
+
+  const ageFlags = useMemo(() => (allTops == null ? null : flagAges({
+    tops: allTops, units,
+    wellName: (id) => (wells || []).find((w) => w.id === id)?.name || 'a well',
+    canEdit: (kind, row) => (kind === 'units' ? units.some((u) => u.id === row.id && u.is_own !== false) : !!(wells || []).find((w) => w.id === row.well_id)?.is_own),
+    stamps: project?.view?.ageCharts || {},
+  })), [allTops, units, wells, project]);
+  const flagsById = useMemo(() => {
+    const m = new Map();
+    for (const f of ageFlags || []) m.set(`${f.kind}:${f.id}:${f.field}`, f);
+    return m;
+  }, [ageFlags]);
+
+  const acceptChartUpdates = async () => {
+    setAccepting(true);
+    try {
+      const plan = acceptPlan(ageFlags || [], { tops: allTops || [], units });
+      let n = 0;
+      for (const w of plan.writes) {
+        if (w.kind === 'tops') await backend.updateTop(w.id, w.patch); else await backend.updateUnit(w.id, w.patch);
+        n += Object.keys(w.patch).length;
+      }
+      await stampAges(plan.stamps);
+      await Promise.all([refreshUnits(), refreshTops(), refreshAllTops()]);
+      setStatus(`Accepted the ${TIMESCALE_LABEL} updates: ${n} age${n === 1 ? '' : 's'} moved with their boundary, ${plan.stamps.length} stamped ${TIMESCALE_LABEL}${plan.skipped.length ? `; left as entered: ${plan.skipped.join('; ')}` : ''}.`);
+    } catch (e) { setStatus(e.message); } finally { setAccepting(false); }
   };
 
   const ordered = useMemo(() => orderedUnits(units), [units]);
@@ -156,6 +219,7 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
             className={`flex items-center gap-1 px-2 py-1 text-xs rounded border ${view === v.id ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:bg-pl-sunken'}`}
             onClick={() => setView(v.id)}>
             <v.icon className="w-3.5 h-3.5" /> {v.label}
+            {v.id === 'timescale' && ageFlags?.length > 0 && <span className="ml-0.5 px-1 rounded bg-pl-warning/20 text-pl-warning-text" data-testid="strat-timescale-badge" title={`${ageFlags.length} age${ageFlags.length === 1 ? '' : 's'} entered under an older chart`}>{ageFlags.length}</span>}
           </button>
         ))}
       </div>
@@ -165,6 +229,14 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
           <select value={scheme} onChange={(e) => setScheme(e.target.value)} data-testid="strat-scheme"
             className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text">
             {SCHEMES.map((s) => <option key={s} value={s}>{SCHEME_LABEL[s]}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-1 text-[11px] text-pl-muted" title="Depth unit of the Tops, Intervals, Core and Ages tables and the summary PDF; the registry keeps metres">
+          Depths
+          <select value={unit} data-testid="strat-display-unit" className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text"
+            onChange={(e) => { const u = e.target.value === 'ft' ? 'ft' : 'm'; setUnit(u); saveProject({ view: { displayUnit: u } }).catch(() => {}); }}>
+            <option value="m">m</option>
+            <option value="ft">ft</option>
           </select>
         </label>
         <Link to="/dashboard/apps/geoscience/stratigraphy-studio/help" data-testid="strat-help" title="Open the Stratigraphy Studio help guide"
@@ -219,14 +291,20 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   );
 
   const needWell = <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="strat-need-well">Pick a well on the left.</div>;
-  const saveProject = async (patch) => { const row = await backend.saveStratProject({ ...patch, view: { ...(patch.view || {}), report }, scheme }); setProject(row); };
+  // the view keys of each save merge into the stored ones (the section's view, the age stamps)
+  const saveProject = async (patch) => { const row = await backend.saveStratProject({ ...patch, view: { ...(project?.view || {}), ...(patch.view || {}), report }, scheme }); setProject(row); };
   const center = view === 'glossary' ? <ScrollArea className="h-full min-h-0"><Glossary scheme={scheme} /></ScrollArea>
-    : view === 'tops' ? <ScrollArea className="h-full min-h-0"><TopsTyping well={well} tops={tops} units={units} scheme={scheme} onSaveTop={saveTop} onStatus={setStatus} /></ScrollArea>
+    : view === 'tops' ? <ScrollArea className="h-full min-h-0"><TopsTyping well={well} tops={tops} units={units} scheme={scheme} onSaveTop={saveTop} onStatus={setStatus} ageFlags={flagsById} unit={unit} /></ScrollArea>
+    : view === 'events' ? (well ? <ScrollArea className="h-full min-h-0"><BiostratEvents well={well} tops={tops} backend={backend} onStatus={setStatus} onTopsChanged={async () => { await refreshTops(); await refreshAllTops(); }} onAgesEntered={stampAges}
+        dictionary={project?.view?.eventDictionary || []} onDictionary={(rows) => saveProject({ view: { eventDictionary: rows } })} unit={unit} report={report}>
+        <EventAgeModel well={well} tops={tops} backend={backend} onStatus={setStatus} onTopsChanged={async () => { await refreshTops(); await refreshAllTops(); }} onAgesEntered={stampAges} unit={unit} />
+      </BiostratEvents></ScrollArea> : needWell)
+    : view === 'timescale' ? <ScrollArea className="h-full min-h-0"><TimescalePanel flags={ageFlags} onAccept={acceptChartUpdates} busy={accepting} /></ScrollArea>
       : view === 'section' || view === 'wheeler' ? <SectionView backend={backend} mode={view} scheme={scheme} onStatus={setStatus} appPaths={appPaths} saved={project} onSaveProject={saveProject} report={report} />
-      : view === 'ages' ? (well ? <ScrollArea className="h-full min-h-0"><AgesView well={well} tops={tops} intervals={intervals} backend={backend} onStatus={setStatus} onTopsChanged={refreshTops} appPaths={appPaths} report={report} /></ScrollArea> : needWell)
-      : view === 'intervals' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><ZoneSchemePanel intervals={intervals} canEdit={!!well.is_own} onReplace={replaceIntervals} onStatus={setStatus} /><IntervalsEditor well={well} intervals={intervals} canEdit={!!well.is_own} onReplace={replaceIntervals} onStatus={setStatus} testIdPrefix="strat-intervals" /></div></ScrollArea> : needWell)
-        : view === 'core' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><CoreImagesPanel well={well} images={coreImages} canEdit={!!well.is_own} onStatus={setStatus} testIdPrefix="strat-core" {...coreOps} /></div></ScrollArea> : needWell)
-          : <div className="h-full min-h-0 overflow-auto"><ColumnEditor units={units} onSave={saveColumn} onStatus={setStatus} report={report} /></div>;
+      : view === 'ages' ? (well ? <ScrollArea className="h-full min-h-0"><AgesView well={well} tops={tops} intervals={intervals} backend={backend} onStatus={setStatus} onTopsChanged={async () => { await refreshTops(); await refreshAllTops(); }} onAgesEntered={stampAges} appPaths={appPaths} report={report} units={units} scheme={scheme} ageCharts={project?.view?.ageCharts || {}} unit={unit} section={null} /></ScrollArea> : needWell)
+      : view === 'intervals' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><ZoneSchemePanel intervals={intervals} canEdit={!!well.is_own} onReplace={replaceIntervals} onStatus={setStatus} backend={backend} /><IntervalsEditor well={well} intervals={intervals} canEdit={!!well.is_own} onReplace={replaceIntervals} onStatus={setStatus} testIdPrefix="strat-intervals" unit={unit} /></div></ScrollArea> : needWell)
+        : view === 'core' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><CoreImagesPanel well={well} images={coreImages} canEdit={!!well.is_own} onStatus={setStatus} testIdPrefix="strat-core" unit={unit} {...coreOps} /></div></ScrollArea> : needWell)
+          : <div className="h-full min-h-0 overflow-auto"><ColumnEditor units={units} onSave={saveColumn} onStatus={setStatus} report={report} ageFlags={flagsById} /></div>;
 
   const statusBar = (
     <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">

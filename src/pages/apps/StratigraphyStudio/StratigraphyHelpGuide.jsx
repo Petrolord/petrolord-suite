@@ -139,7 +139,8 @@ export default function StratigraphyHelpGuide() {
           ['LAS 3.0 import (Well Data Manager)', 'a file with a core or lithology block imports its intervals, on by default, with dropped rows named'],
           ['Publish facies (Petrophysics Studio)', 'the crossplot facies polygons become facies intervals on the well'],
           ['Record tracts (Section view)', 'the systems tracts the typed surfaces imply, written on every own well of the section that has any; a well with none keeps what it has and is named'],
-          ['Biozone scheme (Intervals view)', 'a CSV with scheme, zone, top and base age and source (Zonation, Top Age, Base Age and Reference are read too; ages in ka when the header says so) dates the biozone intervals whose scheme and zone match; a zone given two different ages is refused, a second file adds its schemes; remembered in this browser only'],
+          ['Biozone scheme (Intervals view)', 'a CSV with scheme, zone, top and base age and source (Zonation, Top Age, Base Age and Reference are read too; ages in ka when the header says so) dates the biozone intervals whose scheme and zone match; a zone given two different ages is refused, a second file adds its schemes; remembered in this browser'],
+          ['Share with organisation', 'puts a browser scheme in your organisation\'s schemes: every member sees it with who shared it and dates biozones from it; its creator or an organisation admin can update or remove it. Dating reads the organisation\'s schemes and this browser\'s (a browser scheme of the same name wins). On a database without the organisation table, schemes stay in the browser and the panel says so'],
         ]} />
         <Para>
           Every well app draws a registry interval kind as a strip track: the Lithology quicklook template carries a
@@ -171,9 +172,13 @@ export default function StratigraphyHelpGuide() {
           ['Tracts', 'fills between typed surfaces coloured by tract; implied until Record tracts writes them, hatched when the tract needs an unpicked boundary'],
           ['Motifs', 'outlines the log motif intervals beside the first track'],
           ['Record tracts', 'writes the implied systems tracts as intervals on every own well of the section'],
-          ['Ghost', 'draws one well\'s first track translucent on another column at a chosen shift, to correlate by eye'],
+          ['Suggest surfaces', 'proposes a maximum flooding surface where the GR trend turns from fining-upward to coarsening-upward, and a maximum regressive surface where it turns the other way (a swing of 20 API or more), each with its reason; it proposes typing a formation top within 5 m, or a new low-confidence pick. You accept or reject each; nothing is written otherwise'],
+          ['Columns', 'auto, fit or a fixed width (120 to 300 px) with a horizontal scroll, as in Well Correlation'],
+          ['Horizons', 'Seismolord horizons converted to surfaces, sampled where each wellbore crosses them and drawn dotted (time horizons through the checkshots); a well a horizon cannot reach is named with the reason; Datum can flatten or stretch on a horizon. Read only'],
+          ['Strips', 'the PAY flag and zone summaries Petrophysics Studio published, and the units of this column, as narrow strips beside each well; a well without the data says so'],
+          ['Ghost', 'draws one well\'s first track (or all of them) translucent on another column at a shift in the display unit (ms on TWT), stretched or squeezed about its middle, to correlate by eye'],
           ['Map net sand', 'opens Mapping on the net sand between a tract\'s two surfaces across the section wells'],
-          ['Save view', 'keeps the section, depth reference, datum, ghost and the Prepared by and Field of the status bar with your stratigraphy project'],
+          ['Save view', 'keeps the section, depth reference, datum, ghost, horizons, strips, column width and the Prepared by and Field of the status bar with your stratigraphy project'],
         ]} />
         <Para>The systems tracts and motifs the engine knows:</Para>
         <Table headers={['Code', 'Catuneanu', 'Exxon display']} rows={SYSTEMS_TRACTS.map((t) => [
@@ -189,7 +194,10 @@ export default function StratigraphyHelpGuide() {
           two dated surfaces becomes a deposition cell spanning their ages, coloured by the tract the surfaces
           imply (the same tract rows the section fills, recorded ones first); an unconformity with a hiatus end becomes
           a hatched hiatus cell. ICS stages sit behind the columns. The columns are the section's wells in order; the
-          chart is not interpolated between wells. A well with fewer than two dated surfaces is listed as not placed,
+          chart is not interpolated between wells. Spacing places the columns at equal spacing, by the distance
+          between wellheads (in their coordinate system), or along the section line drawn in Well Correlation, with
+          each gap printing its distance; wells in different coordinate systems fall back to equal spacing and say
+          so. Pick another named section from the header. A well with fewer than two dated surfaces is listed as not placed,
           with the reason. SVG and PNG export the chart with a header naming the wells, section, field, terms,
           timescale, preparer, date and build.
         </Para>
@@ -212,6 +220,50 @@ export default function StratigraphyHelpGuide() {
           ['Send to Basin', 'creates a Basin & Charge Modeling model: one layer per top with its vertical (TVD) thickness through the survey, ages from the bounding surfaces, the dominant lithology from the log, every hiatus as an erosion event whose amount you must type; undated layers keep placeholders and say so'],
           ['Open Basin', 'opens Basin & Charge Modeling, where the new model is listed with the well remembered as its tie'],
         ]} />
+              <Para>
+          The Events view holds a well's biostratigraphic events. Add events pastes depth, event and taxon (columns in
+          any order; feet or metres from the header; FDO, LDO, LAD, FAD, top and base of acme, first and last common
+          occurrence, and the short forms T, B, HO and LO). Each event becomes a biozone datum named with its event and
+          taxon (LAD Discoaster quinqueramus), so every app that lists tops lists it. Event dictionary loads the
+          calibrated ages you use (taxon, event, age in Ma or ka, reference) into your stratigraphy project; Date from
+          dictionary gives every undated event its age, reading an FDO as the taxon's LAD and an LDO as its FAD when
+          the dictionary has no well-site row, and says which it did. The range chart draws each taxon's observed range
+          in the well, depth down, with open ends marked.
+        </Para>
+        <Para>
+          Age model from the events fits a straight line through the dated events by least squares, age on vertical
+          depth (TVD through the survey), and starts a new line below every dated unconformity. Each segment shows its
+          rate, R-squared and residual standard deviation; each event its residual, and an event more than two residual
+          standard deviations off the line is flagged as a caving or reworking candidate (it stays in the fit). Date
+          undated tops lists the age the line gives each undated top, marks any beyond the events of its segment as
+          extrapolated, and writes nothing until Apply. The least-squares core reproduces the NIST certified regression
+          results for its reference data set.
+        </Para>
+        <Para>
+          Biozone ranges paste with their scheme and ages: in Intervals choose Biozone and Replace from paste; a
+          StrataBugs export maps Zone, Zonation, Top and Base Depth, and Top and Base Age (Ma, or ka converted to Ma).
+          An age column is never read as a depth, and a range whose base age is not older than its top is refused by
+          row. The Section view outlines the ranges beside the first track with their scheme and ages (Biozones).
+        </Para>
+        <Para>
+          Depths (ribbon) shows the Tops, Intervals, Core and Ages tables, the age-depth plot, the rates and the summary
+          PDF in metres or feet. The registry keeps metres; a value you type in feet converts at the door, and a cell you
+          leave as shown keeps its stored metres exactly. The choice is saved with your stratigraphy project.
+        </Para>
+        <Para>
+          Summary PDF (Ages view) writes the well's stratigraphy for a reviewer: the header (well, field, section,
+          prepared by and on, build, timescale, terms, depth basis), the typed tops with MD, TVD, type, unit, age, ICS
+          stage, the chart each age was entered on and the tract below, the age-depth plot with depth down and its
+          rates and hiatuses, the well's Wheeler cells, the column, and a reviewed-by line.
+        </Para>
+        <Callout tone="info" title="Timescale: chart versions">
+          Lookups, stage fills and exports use the ICS chart {TIMESCALE_VERSION}. Every age you type or fill is stamped
+          with the chart it was entered under (in your stratigraphy project). Ages entered before are read as ICS
+          2023/09: one that sits on a boundary the new chart moved (the Jurassic/Cretaceous boundary moved from 145.0 to
+          143.1 Ma) is flagged in Tops, Column and the Timescale view with the change, and Accept updates every such age
+          of the project at once. An age off the boundaries keeps its number; the Timescale view names its new stage
+          when it changed. Ages on shared wells stay for their owner.
+        </Callout>
       </GuideSection>
 
       <GuideSection id="maps">
@@ -224,8 +276,10 @@ export default function StratigraphyHelpGuide() {
           Paleogeography polygons take the vocabulary colour of the name you give them.
         </Para>
         <Callout tone="warn" title="Thickness basis">
-          Thicknesses are measured-depth thicknesses between the two picks and the surface's provenance says so.
-          True vertical thickness is a later correction.
+          Thicknesses are vertical: each well's tops and lithology log go through its survey to TVD, so a deviated
+          well maps its vertical thickness (the isochore). A well with no survey is taken as vertical, and its
+          measured-depth thicknesses are used and named in the status and the surface's provenance. The correction
+          for bed dip (true vertical thickness, TVT) is not applied.
         </Callout>
       </GuideSection>
 

@@ -27,3 +27,26 @@ one continuous deposition cell. The age axis therefore runs 0 to 16 Ma
 with boundaries at 0, 5, 8, 10, 12, 14, 16. The chart's only non-obvious
 rule is that a hiatus cell wins over the deposition cells that touch it at
 the same age (`cellAt`).
+
+## ICS chart numbers (STRAT-U2-003, 2026-09-30)
+
+`ics-chart-2026-06-numbers.txt` and `ics-chart-2023-09-numbers.txt`: the
+numeric column of the published International Chronostratigraphic Chart
+PDFs (stratigraphy.org, CC BY 4.0), read with `pdftotext -raw` and kept
+verbatim in the order printed. A boundary that falls on a column break is
+printed twice; "~" marks an approximate age; the "±" uncertainties are kept
+as printed and ignored by the gate. `stratigraphy.timescale2026.test.js`
+checks the engine's 2026/06 table against the 2026/06 file as sets (every
+printed number is a base, every base is printed, "~" is `approx`), and the
+2023/09 table as shipped against the 2023/09 file, where it differs only in
+the three recorded errata (Barremian, Ladinian, Hadean).
+
+## NIST StRD Norris (STRAT-U2-010, 2026-09-30)
+
+`nist-strd-norris.dat`: the NIST Statistical Reference Datasets linear
+regression file "Norris" (lower difficulty, 36 observations), downloaded
+verbatim from https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/Norris.dat
+(public domain, US Government work). `stratigraphy.biostrat.test.js` reads
+the certified B0, B1, their standard deviations, the residual standard
+deviation and R-squared from the file and holds `leastSquaresLine`, the core
+of the event-based age model, to 1e-9 relative on each.

@@ -22,6 +22,7 @@
 // (packages/engines/engines/dataai/cluster.js) in faciesWorkflows.js.
 import { readCell, describeColumns } from '@/utils/dataAi/qcDatasets';
 import { baseName, ordinal } from '@/utils/dataAi/mlData';
+import { INTERVAL_KINDS } from '@/lib/stratigraphy/lithology';
 
 /** Rows the studio clusters and classifies at most. */
 export const MAX_ROWS = 100000;
@@ -44,8 +45,22 @@ export const ROW_CAP_BASIS = [
 
 export const FACIES_SOURCES = ['none', 'curve', 'intervals', 'column'];
 
-/** Interval kinds that can carry core facies, in the order offered. */
-export const FACIES_INTERVAL_KINDS = ['facies', 'core_description', 'lithology', 'electrofacies'];
+/** Interval kinds that can carry core facies, in the order offered. STRAT-U2-012:
+ *  the systems tracts Stratigraphy Studio records and its biozone ranges are
+ *  sequence-aware labels, offered after the facies kinds. */
+export const FACIES_INTERVAL_KINDS = ['facies', 'core_description', 'lithology', 'electrofacies', 'systems_tract', 'biozone_interval', 'environment'];
+
+/** The name of an interval kind as the Stratigraphy vocabulary gives it ("Systems tract"), else the code. */
+export function intervalKindName(kind) {
+  return INTERVAL_KINDS.find((k) => k.code === kind)?.name || kind;
+}
+
+/** Where a sequence-aware label kind comes from, for the facies panel (null for the others). */
+export function intervalKindNote(kind) {
+  if (kind === 'systems_tract') return 'Systems tracts are the ones recorded in Stratigraphy Studio (Section, Record tracts), in each well\'s measured depth. A well whose tracts are only implied there has none here, so its samples take no label.';
+  if (kind === 'biozone_interval') return 'Biozone ranges come from Stratigraphy Studio or Well Data Manager Intervals (kind Biozone); a sample takes the zone whose range holds it.';
+  return null;
+}
 
 const toLabel = (v) => {
   if (v === null || v === undefined) return null;

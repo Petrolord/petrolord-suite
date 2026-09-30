@@ -538,3 +538,50 @@ Open for Step 2 (ranked backlog in the upgrade doc): ICS chart 2026/06
 (engines-first), Wheeler spacing by distance, WC U2 parity in the studio
 section, org zone schemes (new table), display units, PDF summary, biostrat
 events and age models. No migration was written or applied.
+
+## 2026-09-30: AppUpgrade Step 2 build (U2, branch `feat/strat-u2`)
+
+Batch decision by the programme lead 2026-09-30 (recorded verbatim in
+`docs/upgrade/StratigraphyStudio-UPGRADE.md`), plus the owner's decision the
+same day to bring U2-008 in scope. Built, one commit per item:
+
+- **Batch A.** U2-002 the studio section at Well Correlation U2 parity
+  (Seismolord horizons through the kit hook `useSectionHorizons`, pay, zone
+  and unit strips, column width, ghost in the display unit, section picker on
+  the Wheeler; the registry backend now passes `listSections`); U2-001 Wheeler
+  spaced by distance; U2-003 ICS chart 2026/06 (engines PR #287), every age
+  stamped with its chart in `strat_projects.view.ageCharts`, a Timescale view
+  that flags ages on moved boundaries (J/K 145.0 to 143.1 Ma) and accepts the
+  updates per project; U2-006 stratigraphic summary PDF; U2-004 display units
+  m/ft; U2-005 biozone paste with scheme and ages, ranges in the section;
+  U2-007 column editor at scale (lazy selects, memoised rows).
+- **Batch B.** U2-011 strat maps on vertical thickness (Mapping); U2-012 Data
+  AI facies labels from tracts and biozones; U2-009 biostratigraphic events,
+  event dictionary and range chart (Events view); U2-010 event-based age model
+  (engines PR #288, NIST StRD Norris gate); U2-008 organisation zone schemes
+  on `strat_zone_schemes` (applied by the owner, #821/#822); U2-013 deferred
+  (no registry table holds section-space terminations without a schema change).
+- **Batch C.** U2-016 suggest-only MFS and MRS picks from the GR trend;
+  U2-018 one Basin model per well updated in place and the Exxon CC note
+  (supergroup/subgroup ranks and interpretation versions deferred: a rank
+  check constraint and a design decision); U2-019 section kit shims deleted.
+- **Deferred by the decision:** U2-020 decompaction (Basin, app #11), U2-014
+  Wheeler from seismic, U2-015 graphic correlation, U2-017 chemostratigraphy.
+
+Engines pin moved a5b1e52 to 8983e2f (PRs #287 and #288, merge commits);
+guard clean at 1107 paths; Data AI ENGINE_COMMIT strings follow. No
+migration written or applied in this branch.
+
+Found on the way: the ST0 2023/09 timescale table had three values off the
+printed chart (Barremian 129.4 for 125.77, Ladinian 241.0 for ~242, Hadean
+4567.3 for 4567), kept as shipped and recorded so ages filled from it are
+recognised; the studio's section picker never listed sections outside the
+harness; the Tops table dropped what was being typed when a view change
+re-read the same rows.
+
+Parity after U2 (Step 2a rows that moved): chronostrat chart version done
+(2026/06, versioned ages); Wheeler spacing done (distance, line); biostrat
+events and range charts done; age model partial to done (events fitted, no
+drag nodes); zonation libraries shared per organisation; chart exports now
+include a PDF; assisted tract picking suggest-only; Wheeler from seismic,
+graphic correlation and chemostratigraphy remain missing (deferred).

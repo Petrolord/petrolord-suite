@@ -60,7 +60,7 @@ describe('scheme drift', () => {
 describe('shims', () => {
   test('re-export the vendored engine', () => {
     expect(displayLabel('MFS', 'exxon').label).toBe('Maximum flooding surface (MFS)');
-    expect(TIMESCALE_VERSION).toBe('ICS 2023/09');
+    expect(TIMESCALE_VERSION).toBe('ICS 2026/06'); // STRAT-U2-003: the current chart (updated deliberately)
     expect(RANKS).toEqual(['group', 'formation', 'member', 'bed']);
   });
 });

@@ -18,7 +18,11 @@ import { sequenceTracts } from '@/lib/stratigraphy/sequenceTracts';
 import { SYSTEMS_TRACTS, displayLabel, normalizeSurfaceType } from '@/lib/stratigraphy/vocabulary';
 import { motif as motifOf } from '@/lib/stratigraphy/vocabulary';
 import { appPath, mapNetHref, MAPPING_ID } from '@/components/wells/appLinks';
-import { datumDefaultFor, DEPTH_REF_LABEL } from '@/components/wells/section/sectionFrame';
+import { datumDefaultFor, DEPTH_REF_LABEL, COLUMN_WIDTHS } from '@/components/wells/section/sectionFrame';
+import { useSectionHorizons } from '@/components/wells/section/useSectionHorizons';
+import { wellStrips } from '@/components/wells/section/petroStrips';
+import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
+import { suggestSurfaces } from '@/lib/stratigraphy/tractAssist';
 import ChartExportButtons from '@/components/wells/section/ChartExportButtons';
 import { chartHeaderLines } from '@/components/wells/section/chartExport';
 import { TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
@@ -58,10 +62,37 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
     return ids.slice(1).map((id, i) => Math.abs(along[id] - along[ids[i]]));
   }, [spacing, sec.savedRow, sectionWells]);
   const [ghost, setGhost] = useState(null);
+  // STRAT-U2-002: what Well Correlation U2 gave the shared section, in the
+  // stratigrapher's section too: Seismolord horizons (flatten on one), the
+  // Petrophysics pay and zone strips and the unit strip, the column width
+  const hz = useSectionHorizons(backend, sectionWells, topNames, onStatus);
+  const { viewWells, datumNames, horizonPicks } = hz;
+  const [stripsOn, setStripsOn] = useState({ pay: false, zones: false, units: false });
+  const [units, setUnits] = useState([]);
+  useEffect(() => {
+    if (!stripsOn.units || typeof backend.listUnits !== 'function') return undefined;
+    let live = true;
+    backend.listUnits().then((u) => { if (live) setUnits(u || []); }).catch((e) => { if (live) onStatus(`The stratigraphic column could not be read: ${e.message}`); });
+    return () => { live = false; };
+  }, [backend, stripsOn.units]); // eslint-disable-line react-hooks/exhaustive-deps
+  const stripsByWell = useMemo(() => {
+    if (!stripsOn.pay && !stripsOn.zones && !stripsOn.units) return null;
+    const out = {};
+    for (const w of sectionWells) {
+      const d = wellData[w.id] || {};
+      out[w.id] = wellStrips({ depth: d.curves?.DEPT || null, curves: { PAY: d.logs?.PAY || d.curves?.PAY || null }, zones: d.zones || [], tops: w.tops }, stripsOn, { units, unit: depthUnit });
+    }
+    return out;
+  }, [stripsOn, sectionWells, wellData, units, depthUnit]);
   const [showTracts, setShowTracts] = useState(true);
   const [showMotifs, setShowMotifs] = useState(true);
+  // STRAT-U2-005: biozone ranges (Intervals, kind Biozone) beside the logs
+  const [showBiozones, setShowBiozones] = useState(true);
   const [busy, setBusy] = useState(false);
   const [restored, setRestored] = useState(false);
+  // STRAT-U2-001 (ST-T1-E1): Wheeler columns equal, by distance, or along the drawn line;
+  // null follows the section's own spacing; saved in strat_projects.wheeler
+  const [wheelerSpacing, setWheelerSpacing] = useState(null);
   const [restoreCheck, setRestoreCheck] = useState(false);
 
   // restore the studio's own view state once, after the shared section has loaded
@@ -75,8 +106,15 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
       if (id && id !== sec.sectionId && sections.some((x) => x.id === id)) await sec.openSection(id);
       if (saved.flatten?.mode) setDatum(saved.flatten);
       if (saved.view?.ghost) setGhost(saved.view.ghost);
+      if (saved.view?.showBiozones === false) setShowBiozones(false);
+      if (['equal', 'proportional', 'line'].includes(saved.wheeler?.spacing)) setWheelerSpacing(saved.wheeler.spacing);
       if (['md', 'tvd', 'tvdss', 'twt'].includes(saved.view?.depthRef)) setDepthRef(saved.view.depthRef);
       if (saved.view?.depthUnit === 'm' || saved.view?.depthUnit === 'ft') setDepthUnit(saved.view.depthUnit);
+      // STRAT-U2-002: horizons, strips and column width ride in the view (jsonb, no schema change)
+      if (Array.isArray(saved.view?.horizons)) hz.setHzOn(saved.view.horizons.filter((x) => typeof x === 'string'));
+      if (saved.view?.strips) setStripsOn({ pay: !!saved.view.strips.pay, zones: !!saved.view.strips.zones, units: !!saved.view.strips.units });
+      const cw = saved.view?.columnWidth;
+      if (cw === 'auto' || cw === 'fit' || (Number(cw) >= 40 && Number(cw) <= 600)) sec.setColumnWidth(cw === 'auto' || cw === 'fit' ? cw : Number(cw));
       setRestoreCheck(true);
     })();
   }, [saved, restored, sec.sectionLoaded, sections]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -90,7 +128,8 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
     const notes = [];
     if (ghost && (!ids.has(ghost.sourceWellId) || !ids.has(ghost.targetWellId))) { setGhost(null); notes.push('its ghost curve names a well no longer in the section, so the ghost is off'); }
     const need = datum.mode === 'flatten' ? [datum.topName] : datum.mode === 'stretch' ? [datum.upperName, datum.lowerName] : [];
-    const gone = need.filter((n) => n && !topNames.includes(n));
+    // a datum on a seismic horizon ("H: ...") is checked once its grid is drawn, not here
+    const gone = need.filter((n) => n && !topNames.includes(n) && !String(n).startsWith('H: '));
     if (gone.length) notes.push(`no section well carries ${gone.map((n) => `"${n}"`).join(' or ')}, so the datum cannot hang`);
     if (notes.length) onStatus(`Saved stratigraphy view restored; ${notes.join('; ')}.`);
   }, [restoreCheck, sectionWells, order]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -125,8 +164,17 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
         }
       }
     }
+    if (showBiozones) {
+      for (const w of sectionWells) {
+        for (const r of (intervalsByWell[w.id] || []).filter((x) => x.kind === 'biozone_interval')) {
+          const p = r.properties || {};
+          const ages = p.age_top_ma != null && p.age_base_ma != null ? ` ${p.age_top_ma}-${p.age_base_ma} Ma` : '';
+          out.push({ wellId: w.id, top_md_m: r.top_md_m, base_md_m: r.base_md_m, colour: '#0ea5e9', label: `${p.scheme ? `${p.scheme} ` : ''}${r.code}${ages}`, outline: true });
+        }
+      }
+    }
     return out;
-  }, [sectionWells, intervalsByWell, tractRows, showTracts, showMotifs, scheme]);
+  }, [sectionWells, intervalsByWell, tractRows, showTracts, showMotifs, showBiozones, scheme]);
 
   // the distinct (upper, lower) surface pairs the tracts run between, for the Mapping launcher
   const tractPairs = useMemo(() => {
@@ -162,7 +210,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
         sec.setWellData((m) => ({ ...m, [w.id]: { ...(m[w.id] || {}), intervals: fresh } }));
         n += rows.length; wellsDone += 1;
       }
-      onStatus(`Recorded ${n} systems tract${n === 1 ? '' : 's'} on ${wellsDone} well${wellsDone === 1 ? '' : 's'}${kept.length ? `; ${kept.join('; ')}` : ''}.`);
+      onStatus(`Recorded ${n} systems tract${n === 1 ? '' : 's'} on ${wellsDone} well${wellsDone === 1 ? '' : 's'}${kept.length ? `; ${kept.join('; ')}` : ''}.${n ? ' Electrofacies Studio can now use them as labels (interval kind Systems tract).' : ''}`);
     } catch (e) {
       onStatus(e.message);
     } finally {
@@ -170,20 +218,54 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
     }
   };
 
+  // ---- STRAT-U2-016 suggest-only sequence surfaces (the WC-U2-009 rule: each
+  // proposal shows its reason; nothing is written until it is accepted) ----
+  const [suggest, setSuggest] = useState(null); // {items, none}
+  const runSuggest = () => {
+    const items = []; const none = [];
+    for (const w of sectionWells) {
+      if (!w.is_own) { none.push(`${w.name} (shared, read-only)`); continue; }
+      const d = wellData[w.id];
+      const gr = d?.curves?.GR || d?.logs?.GR;
+      if (!gr || !d?.curves?.DEPT) { none.push(`${w.name} (no GR log)`); continue; }
+      const got = suggestSurfaces({ depth: d.curves.DEPT, gr, tops: w.tops || [] });
+      if (!got.length) none.push(`${w.name} (no GR turnaround of 20 API or more without a surface already typed there)`);
+      got.forEach((g, k) => items.push({ ...g, key: `${w.id}:${k}:${g.code}:${g.md}`, wellId: w.id, wellName: w.name }));
+    }
+    setSuggest({ items, none });
+    onStatus(items.length ? `${items.length} suggested surface${items.length === 1 ? '' : 's'}. Nothing is written until you accept one.` : 'No surface to suggest.');
+  };
+  const acceptSuggestion = async (it) => {
+    try {
+      if (it.kind === 'type') await backend.updateTop(it.topId, { surface_type: it.code });
+      else await backend.saveTop(it.wellId, { name: `${it.code} ${Math.round(it.md)}`, mdM: it.md, surface_type: it.code, confidence: 'low', notes: 'suggested from the GR trend, accepted' });
+      await sec.refreshTops(it.wellId);
+      setSuggest((x) => (x ? { ...x, items: x.items.filter((y) => y.key !== it.key) } : x));
+      onStatus(it.kind === 'type' ? `Accepted: ${it.topName} on ${it.wellName} typed ${it.code}.` : `Accepted: ${it.code} picked on ${it.wellName} at ${it.md} m MD (low confidence until you confirm it).`);
+    } catch (e) { onStatus(e.message); }
+  };
+  const rejectSuggestion = (it) => {
+    setSuggest((x) => (x ? { ...x, items: x.items.filter((y) => y.key !== it.key) } : x));
+    onStatus(`Rejected the ${it.code} suggestion on ${it.wellName}; nothing written.`);
+  };
+
   const saveView = async () => {
     if (!onSaveProject) return;
     try {
-      await onSaveProject({ section_id: sec.sectionId || null, flatten: datum, view: { ghost, showTracts, showMotifs, depthRef, depthUnit } });
+      await onSaveProject({ section_id: sec.sectionId || null, flatten: datum, wheeler: { ...(saved?.wheeler || {}), spacing: wheelerSpacing }, view: { ghost, showTracts, showMotifs, showBiozones, depthRef, depthUnit, horizons: hz.hzOn, strips: stripsOn, columnWidth: sec.columnWidth } });
       onStatus('Stratigraphy view saved.');
     } catch (e) { onStatus(e.message); }
   };
 
-  // Wheeler input: the section's dated surfaces per well, positioned along the section by order
+  // Wheeler input: the section's dated surfaces per well, in section order;
+  // STRAT-U2-001: with the wellhead and its frame, so columns can be spaced by distance
   const wheelerWells = useMemo(() => sectionWells.map((w, i) => ({
-    id: w.id, name: w.name, position: i,
+    id: w.id, name: w.name, position: i, surface_x: w.surface_x, surface_y: w.surface_y, crs: w.crs, xy_unit: w.xy_unit,
     surfaces: (w.tops || []).map((t) => ({ name: t.name, md_m: t.md_m, age_ma: t.age_ma, hiatus_to_ma: t.hiatus_to_ma ?? null, surface_type: normalizeSurfaceType(t.surface_type) })),
   })), [sectionWells]);
 
+  // the ghost shift in the display unit (ms on a TWT section)
+  const ru = depthRef === 'twt' ? 'ms' : depthUnit;
   const typedCount = sectionWells.reduce((s, w) => s + (w.tops || []).filter((t) => normalizeSurfaceType(t.surface_type) !== 'formation_top').length, 0);
   const tractCount = sectionWells.reduce((s, w) => s + (tractRows[w.id] || []).length, 0);
 
@@ -196,17 +278,20 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
     );
   }
 
+  // STRAT-U1-009 named sections; STRAT-U2-002: the Wheeler has the picker too
+  const sectionPicker = sections.length > 0 && (
+    <label className="flex items-center gap-1 text-pl-muted" title="Named sections saved in Well Correlation">Section
+      <select className={selCls} value={sec.sectionId || ''} data-testid={`strat-${mode === 'wheeler' ? 'wheeler-' : ''}section-pick`}
+        onChange={(e) => { if (e.target.value) sec.openSection(e.target.value); }}>
+        {!sec.sectionId && <option value="">(unsaved)</option>}
+        {sections.map((x) => <option key={x.id} value={x.id}>{x.name} ({x.wellCount} wells)</option>)}
+      </select>
+    </label>
+  );
+
   const controls = (
     <div className="flex items-center gap-2 px-3 py-1.5 border-b border-pl-border text-xs flex-wrap" data-testid="strat-section-controls" data-tract-links={tractPairs.map((x) => x.href).join(' ')} data-datum={JSON.stringify(datum)} data-section-id={sec.sectionId || ''}>
-      {sections.length > 0 && (
-        <label className="flex items-center gap-1 text-pl-muted" title="Named sections saved in Well Correlation">Section
-          <select className={selCls} value={sec.sectionId || ''} data-testid="strat-section-pick"
-            onChange={(e) => { if (e.target.value) sec.openSection(e.target.value); }}>
-            {!sec.sectionId && <option value="">(unsaved)</option>}
-            {sections.map((x) => <option key={x.id} value={x.id}>{x.name} ({x.wellCount} wells)</option>)}
-          </select>
-        </label>
-      )}
+      {sectionPicker}
       <label className="flex items-center gap-1 text-pl-muted" title="Depth reference of the section: MD, TVD or TVDSS through each survey and KB, or TWT through the checkshots">Depth
         <select className={selCls} value={depthRef} data-testid="strat-depth-ref" onChange={(e) => setDepthRef(e.target.value)}>
           {['md', 'tvd', 'tvdss', 'twt'].map((r) => <option key={r} value={r}>{DEPTH_REF_LABEL[r] || r.toUpperCase()}</option>)}
@@ -224,8 +309,8 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
             const m = e.target.value;
             if (m === 'structural') setDatum({ mode: 'structural' });
             // STRAT-U1-012 (carried from WC-U1-009): the datum sits at the chosen top's depth, never a fixed 1,500 m
-            else if (m === 'flatten') { const n = datum.topName || topNames[0]; setDatum({ mode: 'flatten', topName: n, datumM: datum.datumM ?? datumDefaultFor(sectionWells, n, depthRef) ?? 0 }); }
-            else setDatum({ mode: 'stretch', upperName: datum.upperName || topNames[0], lowerName: datum.lowerName || topNames[topNames.length - 1] });
+            else if (m === 'flatten') { const n = datum.topName || datumNames[0]; setDatum({ mode: 'flatten', topName: n, datumM: datum.datumM ?? datumDefaultFor(viewWells, n, depthRef) ?? 0 }); }
+            else setDatum({ mode: 'stretch', upperName: datum.upperName || datumNames[0], lowerName: datum.lowerName || datumNames[datumNames.length - 1] });
           }}>
           <option value="structural">Structural</option>
           <option value="flatten">Flatten on a surface</option>
@@ -233,26 +318,72 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
         </select>
       </label>
       {datum.mode === 'flatten' && (
-        <select className={selCls} value={datum.topName} data-testid="strat-datum-top" onChange={(e) => setDatum({ ...datum, topName: e.target.value, datumM: datumDefaultFor(sectionWells, e.target.value, depthRef) ?? datum.datumM })}>
-          {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
+        <select className={selCls} value={datum.topName} data-testid="strat-datum-top" onChange={(e) => setDatum({ ...datum, topName: e.target.value, datumM: datumDefaultFor(viewWells, e.target.value, depthRef) ?? datum.datumM })}>
+          {datumNames.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
       )}
       {datum.mode === 'stretch' && (
         <>
           <select className={selCls} value={datum.upperName} data-testid="strat-datum-upper" onChange={(e) => setDatum({ ...datum, upperName: e.target.value })}>
-            {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
+            {datumNames.map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
           <span className="text-pl-muted">to</span>
           <select className={selCls} value={datum.lowerName} data-testid="strat-datum-lower" onChange={(e) => setDatum({ ...datum, lowerName: e.target.value })}>
-            {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
+            {datumNames.map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </>
       )}
+      <label className="flex items-center gap-1 text-pl-muted" title="Column width: fit the window, or a fixed width with a horizontal scroll (auto fixes it once fitted columns get narrower than 90 px)">Columns
+        <select className={selCls} value={String(sec.columnWidth)} data-testid="strat-col-width"
+          onChange={(e) => sec.setColumnWidth(e.target.value === 'auto' || e.target.value === 'fit' ? e.target.value : Number(e.target.value))}>
+          {COLUMN_WIDTHS.map((c) => <option key={c} value={String(c)}>{typeof c === 'number' ? `${c} px` : c}</option>)}
+        </select>
+      </label>
+      {hz.canHorizons && (
+        <details className="relative" data-testid="strat-horizons">
+          <summary className="cursor-pointer text-pl-muted select-none" title="Seismic horizons from the surface registry (Seismolord converts its horizons there), read only">Horizons ({hz.hzOn.length}/{hz.hzList.length})</summary>
+          <div className="absolute z-20 mt-1 w-80 p-2 rounded border border-pl-border bg-pl-surface shadow space-y-1">
+            {!hz.hzList.length && <p className="text-pl-muted">No time or depth structure surfaces in the registry. Convert a Seismolord horizon to a surface to see it here.</p>}
+            {hz.hzList.map((h) => {
+              const on = hz.hzOn.includes(h.id);
+              const drawn = Object.values(horizonPicks.byWell || {}).flat().filter((t) => t.id.startsWith(`hz:${h.id}:`)).length;
+              const probs = horizonPicks.problems?.[h.id] || [];
+              return (
+                <div key={h.id}>
+                  <label className="flex items-center gap-1.5">
+                    <input type="checkbox" checked={on} data-testid={`strat-hz-${h.id}`} onChange={() => hz.toggleHorizon(h.id)} />
+                    <span className="text-pl-text truncate" title={`${h.name} (${h.source})`}>{h.horizonName}</span>
+                    <span className="text-pl-muted text-[10px] whitespace-nowrap">{h.domain === 'time' ? 'TWT ms' : `depth ${h.zUnit}`} · {h.source}</span>
+                  </label>
+                  {on && hz.hzGrids[h.id] && <p className="pl-5 text-[10px] text-pl-muted" data-testid={`strat-hz-note-${h.id}`}>drawn on {drawn} well{drawn === 1 ? '' : 's'}{probs.length ? `; not on ${probs.join(', ')}` : ''}</p>}
+                </div>
+              );
+            })}
+            <p className="text-[10px] text-pl-muted">Each horizon is sampled where the wellbore crosses it (time horizons through the checkshots), drawn dotted and offered to Datum. Nothing is written.</p>
+          </div>
+        </details>
+      )}
+      <details className="relative" data-testid="strat-strips">
+        <summary className="cursor-pointer text-pl-muted select-none" title="Pay and zones Petrophysics Studio published, and the units of this column, as narrow strips beside each well">Strips ({['pay', 'zones', 'units'].filter((k) => stripsOn[k]).length})</summary>
+        <div className="absolute z-20 mt-1 w-72 p-2 rounded border border-pl-border bg-pl-surface shadow space-y-1">
+          {[['pay', 'Pay flag (published PAY curve)', true], ['zones', 'Zones with their published net, PHIE, Sw', typeof backend.listZones === 'function'], ['units', 'Stratigraphic units (tops linked to the column)', typeof backend.listUnits === 'function']]
+            .filter(([, , ok]) => ok).map(([k, label]) => (
+              <label key={k} className="flex items-center gap-1.5">
+                <input type="checkbox" checked={!!stripsOn[k]} data-testid={`strat-strip-${k}`} onChange={(e) => setStripsOn({ ...stripsOn, [k]: e.target.checked })} />
+                <span className="text-pl-text">{label}</span>
+              </label>
+            ))}
+          <p className="text-[10px] text-pl-muted">Drawn at the left of each well; a well without the data says so in its header.</p>
+        </div>
+      </details>
       <label className="flex items-center gap-1 text-pl-muted ml-2"><input type="checkbox" checked={showTracts} onChange={(e) => setShowTracts(e.target.checked)} data-testid="strat-show-tracts" /> Tracts</label>
       <label className="flex items-center gap-1 text-pl-muted"><input type="checkbox" checked={showMotifs} onChange={(e) => setShowMotifs(e.target.checked)} data-testid="strat-show-motifs" /> Motifs</label>
+      <label className="flex items-center gap-1 text-pl-muted" title="Biozone ranges from the Intervals view, outlined beside the first track with their scheme and ages"><input type="checkbox" checked={showBiozones} onChange={(e) => setShowBiozones(e.target.checked)} data-testid="strat-show-biozones" /> Biozones</label>
       <button type="button" className={btnCls} disabled={busy || !sectionWells.some((w) => w.is_own)} onClick={recordTracts} data-testid="strat-record-tracts" title="Write the implied systems tracts to the shared intervals of every own well in the section">
         {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} Record tracts
       </button>
+      <button type="button" className={btnCls} disabled={!sectionWells.some((w) => w.is_own)} onClick={runSuggest} data-testid="strat-suggest-surfaces"
+        title="Propose maximum flooding and maximum regressive surfaces where the GR trend turns (20 API or more), each with its reason; you accept or reject each, nothing is written otherwise">Suggest surfaces</button>
       <label className="flex items-center gap-1 text-pl-muted ml-2">Ghost
         <select className={selCls} value={ghost?.sourceWellId || ''} data-testid="strat-ghost-source" onChange={(e) => setGhost(e.target.value ? { sourceWellId: e.target.value, targetWellId: ghost?.targetWellId || sectionWells.find((w) => w.id !== e.target.value)?.id, shiftM: ghost?.shiftM || 0 } : null)}>
           <option value="">off</option>
@@ -265,8 +396,18 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
           <select className={selCls} value={ghost.targetWellId || ''} data-testid="strat-ghost-target" onChange={(e) => setGhost({ ...ghost, targetWellId: e.target.value })}>
             {sectionWells.filter((w) => w.id !== ghost.sourceWellId).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
-          <input type="range" min={-200} max={200} step={1} value={ghost.shiftM || 0} data-testid="strat-ghost-shift" onChange={(e) => setGhost({ ...ghost, shiftM: Number(e.target.value) })} />
-          <span className="text-pl-muted w-12" data-testid="strat-ghost-shift-value">{ghost.shiftM >= 0 ? '+' : ''}{ghost.shiftM || 0} m</span>
+          {/* STRAT-U2-002 (U1-030): the shift reads and moves in the display unit (ms on TWT), as in Well Correlation */}
+          <input type="range" min={Math.round(toDisplay(-200, ru))} max={Math.round(toDisplay(200, ru))} step={1} value={Math.round(toDisplay(ghost.shiftM || 0, ru))} data-testid="strat-ghost-shift"
+            onChange={(e) => setGhost({ ...ghost, shiftM: fromDisplay(Number(e.target.value), ru) })} />
+          <span className="text-pl-muted w-14" data-testid="strat-ghost-shift-value">{(ghost.shiftM || 0) >= 0 ? '+' : ''}{Math.round(toDisplay(ghost.shiftM || 0, ru))} {ru}</span>
+          <select className={selCls} value={ghost.tracks === 'all' ? 'all' : 'first'} data-testid="strat-ghost-tracks" title="Lay every track of the source well, or only its first" onChange={(e) => setGhost({ ...ghost, tracks: e.target.value })}>
+            <option value="first">first track</option>
+            <option value="all">all tracks</option>
+          </select>
+          <label className="flex items-center gap-1 text-pl-muted" title="Stretch (above 1) or squeeze (below 1) the ghost about the middle of its log">stretch
+            <input type="range" min={50} max={200} step={1} value={Math.round((ghost.stretch || 1) * 100)} data-testid="strat-ghost-stretch" onChange={(e) => setGhost({ ...ghost, stretch: Number(e.target.value) / 100 })} />
+            <span data-testid="strat-ghost-stretch-value">x{(ghost.stretch || 1).toFixed(2)}</span>
+          </label>
         </>
       )}
       {tractPairs.length > 0 && (
@@ -283,28 +424,58 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
     </div>
   );
 
+  const lineAlong = sec.savedRow?.track_layout?.lineAlong || null;
+  const wSpacing = wheelerSpacing || (spacing === 'line' && !lineAlong ? 'equal' : spacing);
   if (mode === 'wheeler') {
     return (
       <div className="h-full min-h-0 flex flex-col">
         <div className="px-3 py-1.5 border-b border-pl-border text-xs text-pl-muted flex items-center gap-2 flex-wrap">
+          {sectionPicker}
+          <label className="flex items-center gap-1" title="Columns at equal spacing, by the distance between wellheads (in their coordinate system), or along the section line drawn in Well Correlation">Spacing
+            <select className={selCls} value={wSpacing} data-testid="strat-wheeler-spacing" onChange={(e) => setWheelerSpacing(e.target.value)}>
+              <option value="equal">equal</option>
+              <option value="proportional">by distance</option>
+              {lineAlong && <option value="line">along the section line</option>}
+            </select>
+          </label>
+          <button type="button" className={btnCls} onClick={saveView} data-testid="strat-wheeler-save-view" title="Save the spacing, datum and ghost with your stratigraphy project"><Save className="w-3.5 h-3.5" /> Save view</button>
           Wheeler chart of the section at its wells, time down (not interpolated between wells). Dated surfaces come from the Tops view; an unconformity needs a hiatus end.
           <span className="ml-auto text-pl-muted">{typedCount} typed surfaces · {tractCount} tract{tractCount === 1 ? '' : 's'}</span>
           <ChartExportButtons targetRef={wheelerRef} fileBase={`${sec.sectionName || 'Section'} Wheeler`} onStatus={onStatus} testIdPrefix="strat-wheeler"
-            headerLines={() => chartHeaderLines({ title: `Wheeler chart: ${sec.sectionName || 'section'}`, wells: sectionWells.map((w) => w.name), section: sec.sectionName, scheme, timescale: TIMESCALE_VERSION, basis: 'ages from dated surfaces; columns in section order', field: report?.field || sec.savedRow?.track_layout?.report?.field, analyst: report?.analyst || sec.savedRow?.track_layout?.report?.analyst })} />
+            headerLines={() => chartHeaderLines({ title: `Wheeler chart: ${sec.sectionName || 'section'}`, wells: sectionWells.map((w) => w.name), section: sec.sectionName, scheme, timescale: TIMESCALE_VERSION, basis: `ages from dated surfaces; columns in section order, ${wSpacing === 'equal' ? 'equally spaced' : wSpacing === 'line' ? 'spaced by distance along the section line' : 'spaced by wellhead distance'}`, field: report?.field || sec.savedRow?.track_layout?.report?.field, analyst: report?.analyst || sec.savedRow?.track_layout?.report?.analyst })} />
         </div>
         <div className="flex-1 min-h-0 overflow-auto p-3" ref={wheelerRef}>
-          <WheelerChart wells={wheelerWells} tractRows={tractRows} scheme={scheme} width={Math.max(480, 160 * sectionWells.length + 80)} height={440} testIdPrefix="strat-wheeler" />
+          <WheelerChart wells={wheelerWells} tractRows={tractRows} scheme={scheme} width={Math.max(480, 160 * sectionWells.length + 80)} height={440} testIdPrefix="strat-wheeler" spacing={wSpacing} alongM={lineAlong} />
         </div>
       </div>
     );
   }
 
+  const suggestPanel = suggest && (
+    <div className="px-3 py-1.5 border-b border-pl-border text-xs space-y-0.5 max-h-48 overflow-auto" data-testid="strat-suggestions">
+      <div className="flex items-center gap-2"><span className="text-pl-text font-medium">Suggested surfaces</span><button type="button" className="ml-auto text-pl-muted" onClick={() => setSuggest(null)} data-testid="strat-suggestions-close">close</button></div>
+      {!suggest.items.length && <p className="text-pl-muted">No open suggestion.</p>}
+      {suggest.items.map((it) => (
+        <div key={it.key} className="border-t border-pl-border py-0.5" data-testid={`strat-suggestion-${it.wellName}-${it.code}`}>
+          <div className="flex items-center gap-1">
+            <span className="text-pl-text">{it.wellName}: {it.kind === 'type' ? `type ${it.topName} as ${displayLabel(it.code, scheme, { kind: 'surface', short: true }).label}` : `pick ${displayLabel(it.code, scheme, { kind: 'surface', short: true }).label} at ${Math.round(toDisplay(it.md, depthUnit === 'ft' ? 'ft' : 'm'))} ${depthUnit === 'ft' ? 'ft' : 'm'} MD`}</span>
+            <button type="button" className="ml-auto px-1.5 rounded border border-pl-primary text-pl-primary-text" onClick={() => acceptSuggestion(it)} data-testid={`strat-suggestion-accept-${it.wellName}-${it.code}`}>Accept</button>
+            <button type="button" className="px-1.5 rounded border border-pl-border text-pl-muted" onClick={() => rejectSuggestion(it)} data-testid={`strat-suggestion-reject-${it.wellName}-${it.code}`}>Reject</button>
+          </div>
+          <p className="text-pl-muted">Why: {it.reason}.</p>
+        </div>
+      ))}
+      {suggest.none.length > 0 && <p className="text-pl-warning-text">No suggestion: {suggest.none.join(', ')}.</p>}
+    </div>
+  );
+
   return (
     <div className="h-full min-h-0 flex flex-col">
       {controls}
+      {suggestPanel}
       <div className="flex-1 min-h-0">
         <CrossSection
-          wells={sectionWells}
+          wells={viewWells}
           datum={datum}
           depthUnit={depthUnit}
           depthRef={depthRef}
@@ -312,10 +483,11 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
           lineDistances={lineDistances}
           columnWidth={sec.columnWidth}
           zoneMode="none"
-          shownTops={topNames}
+          shownTops={horizonPicks.names.length ? [...topNames, ...horizonPicks.names] : topNames}
           topNames={topNames}
           bands={bands}
           ghost={ghost}
+          strips={stripsByWell}
           onNotice={onStatus}
         />
       </div>

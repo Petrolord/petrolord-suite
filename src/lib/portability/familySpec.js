@@ -81,10 +81,11 @@ registerFamily('geoscience', {
     rp_project: 'rp_projects',
     correlation_section: 'geo_correlation_sections',
     strat_project: 'strat_projects',
+    strat_zone_scheme: 'strat_zone_schemes',
   },
   order: [
     'geo_wells', 'geo_wells_logs', 'geo_strat_units', 'geo_wells_tops', 'geo_wells_zones', 'geo_wells_intervals', 'geo_wells_core_images',
     'geo_surfaces', 'geo_culture', 'geoscience_custom_crs',
-    'petro_projects', 'pp_projects', 'rp_projects', 'geo_correlation_sections', 'strat_projects',
+    'petro_projects', 'pp_projects', 'rp_projects', 'geo_correlation_sections', 'strat_projects', 'strat_zone_schemes',
   ],
 });

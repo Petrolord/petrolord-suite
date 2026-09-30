@@ -118,9 +118,11 @@ describe('ColumnEditor', () => {
     const newIndex = rows.length - 1;
     fireEvent.change(screen.getByTestId(`strat-unit-name-${newIndex}`), { target: { value: 'D1 Sand' } });
     fireEvent.change(screen.getByTestId(`strat-unit-rank-${newIndex}`), { target: { value: 'member' } });
+    fireEvent.focus(screen.getByTestId(`strat-unit-parent-${newIndex}`)); // STRAT-U2-007: the list renders on focus
     fireEvent.change(screen.getByTestId(`strat-unit-parent-${newIndex}`), { target: { value: 'unit-agbada-upper' } });
     // it now nests under Upper Agbada (row 2)
     expect(screen.getByTestId('strat-unit-name-2').value).toBe('D1 Sand');
+    fireEvent.focus(screen.getByTestId('strat-unit-stage-2'));
     fireEvent.change(screen.getByTestId('strat-unit-stage-2'), { target: { value: 'Zanclean' } });
     expect(screen.getByTestId('strat-unit-agetop-2').value).toBe('3.6');
     expect(screen.getByTestId('strat-unit-agebase-2').value).toBe('5.333');

@@ -151,7 +151,8 @@ no-em-dash rule. Wave 3 follow-ups are otherwise unchanged.
 ## 2026-09-06: Stratigraphy ST2, the second consumer
 
 `CrossSection.jsx` and `engine/sectionFrame.js` now live in
-`src/components/wells/section/` (shims at the old paths), and the section
+`src/components/wells/section/` (the shims at the old paths were deleted in
+Stratigraphy STRAT-U2-019, 2026-09-30), and the section
 state moved unchanged into `useSectionWells` there; this app and
 Stratigraphy Studio run the same hook over the same saved section
 (`src/lib/sectionsRegistry.js`). The painter gained a stretch datum

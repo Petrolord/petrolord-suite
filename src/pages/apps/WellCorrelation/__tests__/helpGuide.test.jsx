@@ -5,7 +5,7 @@ import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import CorrelationHelpGuide, { HELP_SECTIONS } from '../CorrelationHelpGuide';
-import { DEPTH_REF_LABEL } from '../engine/sectionFrame';
+import { DEPTH_REF_LABEL } from '@/components/wells/section/sectionFrame';
 import { CORR_PARAMS } from '../components/CorrelationWorkstation';
 
 const renderGuide = () => render(<MemoryRouter><CorrelationHelpGuide /></MemoryRouter>);

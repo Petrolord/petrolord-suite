@@ -11,8 +11,7 @@ import { Link } from 'react-router-dom';
 import LayoutPanel, { NumText } from '@/components/wells/LayoutPanel';
 import { topColor } from '@/components/wells/topColors';
 import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
-import { DEPTH_REF_LABEL } from '../engine/sectionFrame';
-import { COLUMN_WIDTHS } from '@/components/wells/section/sectionFrame';
+import { DEPTH_REF_LABEL, COLUMN_WIDTHS } from '@/components/wells/section/sectionFrame';
 import { PDF_SCALES_M, PDF_SCALES_FT, scaleLabel } from '../services/sectionPdf';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
@@ -419,7 +418,7 @@ export default function SectionControls({
               </select>
               {href && wells >= 3 ? (
                 <Link to={href} className="flex items-center gap-1 text-pl-primary-text hover:text-pl-primary-text-hover" data-testid="corr-iso-link"
-                  title="Open Mapping & Surface Studio and grid the gross thickness (MD) between these tops from the section wells carrying both. On a deviated well the MD thickness is longer than the vertical isochore.">
+                  title="Open Mapping & Surface Studio and grid the gross vertical thickness (TVD through each survey, the isochore) between these tops from the section wells carrying both.">
                   <MapIcon className="w-3.5 h-3.5" /> Map ({wells} wells)
                 </Link>
               ) : (

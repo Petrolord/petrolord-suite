@@ -30,9 +30,11 @@ test('column editor: add a member from a timescale stage, save, explorer updates
   const i = rows - 1;
   await page.getByTestId(`strat-unit-name-${i}`).fill('D1 Sand');
   await page.getByTestId(`strat-unit-rank-${i}`).selectOption('member');
+  await page.getByTestId(`strat-unit-parent-${i}`).focus(); // STRAT-U2-007: the list renders on focus
   await page.getByTestId(`strat-unit-parent-${i}`).selectOption('unit-agbada-upper');
   // nested under Upper Agbada now (row 2)
   await expect(page.getByTestId('strat-unit-name-2')).toHaveValue('D1 Sand');
+  await page.getByTestId('strat-unit-stage-2').focus();
   await page.getByTestId('strat-unit-stage-2').selectOption('Zanclean');
   await expect(page.getByTestId('strat-unit-agetop-2')).toHaveValue('3.6');
   await page.getByTestId('strat-column-save').click();
@@ -145,7 +147,7 @@ test('ST1: a LAS 3.0 file with core and lithology blocks imports its intervals i
   await expect(page.getByTestId('wdm-intervals-code-0')).toHaveValue('limestone');
   await page.getByTestId('wdm-intervals-kind').selectOption('core_description');
   await expect(page.getByTestId(/^wdm-intervals-row-/)).toHaveCount(3);          // core: feet converted to metres
-  await expect(page.getByTestId('wdm-intervals-top-0')).toHaveValue(/^1500\.0/);
+  await expect(page.getByTestId('wdm-intervals-top-0')).toHaveValue(/^1500(\.0\d*)?$/); // STRAT-U2-004: two decimals shown
   await expect(page.getByTestId('wdm-intervals-grain-0')).toHaveValue('f_sand');
 });
 
@@ -176,7 +178,7 @@ test('ST2: the shared section opens in the studio; stretch datum, implied tracts
   await expect(page.getByTestId('strat-ghost-shift-value')).toHaveText('+40 m');
   // record the implied tracts as shared intervals on the own wells
   await page.getByTestId('strat-record-tracts').click();
-  await expect(page.getByTestId('strat-status')).toHaveText('Recorded 2 systems tracts on 2 wells.');
+  await expect(page.getByTestId('strat-status')).toHaveText('Recorded 2 systems tracts on 2 wells. Electrofacies Studio can now use them as labels (interval kind Systems tract).');
   await page.getByTestId('strat-save-view').click();
   await expect(page.getByTestId('strat-status')).toHaveText('Stratigraphy view saved.');
   // the recorded tracts are visible in the Intervals view of KETA-1

@@ -75,8 +75,15 @@ async function unitsOfTops(col, collectRow) {
   }
 }
 
+/** STRAT-U2-008: a stratigraphy project travels with the organisation's zone schemes it dates from. */
+async function zoneSchemesOfProjects(source, col) {
+  if (!col.tables.strat_zone_schemes || !col.tables.strat_projects?.size || typeof source.listOrgZoneSchemes !== 'function') return;
+  for (const row of await source.listOrgZoneSchemes()) if (!col.tables.strat_zone_schemes.has(row.id)) col.tables.strat_zone_schemes.set(row.id, row);
+}
+
 async function afterRoots(source, col, { includeInterpretations, collectRow }) {
   await wellsOfStateRoots(col, collectRow);
+  await zoneSchemesOfProjects(source, col);
   if (includeInterpretations) await interpretationsForWells(source, col);
   await unitsOfTops(col, collectRow);
   await liftCustomCrs(source, col);

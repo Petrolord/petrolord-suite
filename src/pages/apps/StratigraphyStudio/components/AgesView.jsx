@@ -7,7 +7,7 @@
 
 import React, { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Flame, Tags } from 'lucide-react';
+import { Loader2, Flame, Tags, FileText } from 'lucide-react';
 import AgeDepthPlot from '@/components/wells/section/AgeDepthPlot';
 import { ageDepthModel, validateAgeDepth, sortDated } from '@/lib/stratigraphy/ageDepth';
 import { unitAt, TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
@@ -16,6 +16,7 @@ import { buildBasinModelRow, verticalDepthOf } from '@/lib/basinHandoff';
 import ChartExportButtons from '@/components/wells/section/ChartExportButtons';
 import { chartHeaderLines } from '@/components/wells/section/chartExport';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { fmtDepth, toDisp } from '@/pages/apps/WellDataManager/engine/displayUnits';
 import { appPath } from '@/components/wells/appLinks';
 
 const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40';
@@ -30,7 +31,7 @@ const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-
  * @param {() => Promise<void>} p.onTopsChanged
  * @param {Object} [p.appPaths]
  */
-export default function AgesView({ well, tops, intervals, backend, onStatus, onTopsChanged, appPaths = {}, report = null }) {
+export default function AgesView({ well, tops, intervals, backend, onStatus, onTopsChanged, onAgesEntered = null, appPaths = {}, report = null, units = [], scheme = 'catuneanu', ageCharts = {}, unit = 'm', section = null }) {
   const [busy, setBusy] = useState(false);
   const plotRef = useRef(null);
   // STRAT-U1-015: accumulation rates are vertical; on a deviated well the dated
@@ -50,6 +51,7 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
   const createDatums = async () => {
     setBusy(true);
     let n = 0;
+    const entered = [];
     try {
       const existing = new Set((tops || []).map((t) => t.name));
       for (const z of biozones) {
@@ -57,13 +59,26 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
         const pairs = [[`${z.code} top`, z.top_md_m, z.properties?.age_top_ma], [`${z.code} base`, z.base_md_m, z.properties?.age_base_ma]];
         for (const [name, md, age] of pairs) {
           if (existing.has(name)) continue;
-          await backend.saveTop(well.id, { name, mdM: md, surface_type: 'biozone', age_ma: Number.isFinite(Number(age)) && age !== '' && age != null ? Number(age) : null, confidence: null, notes: `${scheme}${z.label || z.code}` });
+          const row = await backend.saveTop(well.id, { name, mdM: md, surface_type: 'biozone', age_ma: Number.isFinite(Number(age)) && age !== '' && age != null ? Number(age) : null, confidence: null, notes: `${scheme}${z.label || z.code}` });
+          if (row?.id && row.age_ma != null) entered.push({ kind: 'tops', id: row.id, field: 'age_ma' }); // STRAT-U2-003 stamp
           n += 1;
         }
       }
+      await onAgesEntered?.(entered);
       await onTopsChanged?.();
       onStatus(`${n} biozone datum${n === 1 ? '' : 's'} added as typed tops on ${well.name}.`);
     } catch (e) { onStatus(e.message); } finally { setBusy(false); }
+  };
+
+  // STRAT-U2-006: the one-page-per-topic summary a reviewer signs
+  const exportSummary = async () => {
+    setBusy(true);
+    try {
+      const { buildStratSummary } = await import('../services/stratSummaryPdf');
+      const { doc, fileName } = await buildStratSummary({ well, tops, intervals, units, unit, scheme, report: report || {}, section, ageCharts });
+      doc.save(fileName);
+      onStatus(`Exported ${fileName}: header, typed tops, age-depth, Wheeler cells and the column, with a reviewer line.`);
+    } catch (e) { onStatus(`The summary PDF was not made: ${e.message}`); } finally { setBusy(false); }
   };
 
   const sendToBasin = async () => {
@@ -71,8 +86,24 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
     try {
       const userId = backend.currentUserId ? await backend.currentUserId() : null;
       const { row, problems: notes, layerCount, datedCount, erosionCount } = buildBasinModelRow({ well, tops, intervals, userId });
-      await backend.createBasinModel(row);
-      onStatus(`Basin model "${row.name}" created: ${layerCount} layers, ${datedCount} dated, ${erosionCount} erosion event${erosionCount === 1 ? '' : 's'}${notes.length ? `. ${notes[0]}` : '.'}`);
+      // STRAT-U2-018 (U1-032): the model this studio made for the well before is
+      // updated in place (layers, erosion, location); what the modeller set in
+      // Basin (name, heat flow, calibration, scenarios) is kept
+      const existing = backend.listBasinModels
+        ? (await backend.listBasinModels()).find((m) => m.settings?.registryWellId === well.id && m.settings?.fromStratigraphyStudio)
+        : null;
+      const counts = `${layerCount} layers, ${datedCount} dated, ${erosionCount} erosion event${erosionCount === 1 ? '' : 's'}`;
+      if (existing && backend.updateBasinModel) {
+        await backend.updateBasinModel(existing.id, {
+          stratigraphy: row.stratigraphy, erosion_events: row.erosion_events, location_coords: row.location_coords,
+          settings: { ...(existing.settings || {}), registryWellName: row.settings.registryWellName, registryKbM: row.settings.registryKbM, fromStratigraphyStudio: row.settings.fromStratigraphyStudio },
+          thermal_history: null, updated_at: row.updated_at,
+        });
+        onStatus(`Basin model "${existing.name}" updated in place: ${counts}; its heat flow, calibration and scenarios were kept, and its thermal history cleared until you run it again in Basin${notes.length ? `. ${notes[0]}` : '.'}`);
+      } else {
+        await backend.createBasinModel(row);
+        onStatus(`Basin model "${row.name}" created: ${counts}${notes.length ? `. ${notes[0]}` : '.'}`);
+      }
     } catch (e) { onStatus(e.message); } finally { setBusy(false); }
   };
 
@@ -88,31 +119,35 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
           <button type="button" className={btnCls} disabled={busy || !backend.createBasinModel} onClick={sendToBasin} data-testid="strat-send-basin" title="Create a Basin & Charge Modeling model with layers, ages and erosion events from this well">
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Flame className="w-3.5 h-3.5" />} Send to Basin
           </button>
+          <button type="button" className={btnCls} disabled={busy} onClick={exportSummary} data-testid="strat-summary-pdf" title="A PDF of this well's stratigraphy for a reviewer: header, tops with ages and stages, age-depth plot and rates, Wheeler cells, the column">
+            <FileText className="w-3.5 h-3.5" /> Summary PDF
+          </button>
           <Link to={appPath('basinflow-genesis', appPaths)} className="text-pl-primary-text hover:text-pl-primary-text-hover px-1" data-testid="strat-open-basin">Open Basin</Link>
           <ChartExportButtons targetRef={plotRef} fileBase={`${well.name} age-depth`} onStatus={onStatus} testIdPrefix="strat-ages" disabled={dated.length < 2}
-            headerLines={() => chartHeaderLines({ title: `Age-depth plot: ${well.name}`, wells: [well.name], timescale: TIMESCALE_VERSION, basis: vertical.basis === 'tvd' ? 'TVD below KB through the survey (m); rates vertical' : 'MD (m), the well has no survey', field: report?.field, analyst: report?.analyst })} />
+            headerLines={() => chartHeaderLines({ title: `Age-depth plot: ${well.name}`, wells: [well.name], timescale: TIMESCALE_VERSION, basis: vertical.basis === 'tvd' ? `TVD below KB through the survey (${unit}); rates vertical` : `MD (${unit}), the well has no survey`, field: report?.field, analyst: report?.analyst })} />
         </div>
       </div>
-      <div ref={plotRef}><AgeDepthPlot surfaces={surfaces} depthLabel={basis} testIdPrefix="strat-agedepth" /></div>
+      {/* STRAT-U2-004: the plot and tables read in the display unit (the model runs in metres; the plot converts its own axis and rates) */}
+      <div ref={plotRef}><AgeDepthPlot surfaces={surfaces} depthLabel={basis} depthUnit={unit} testIdPrefix="strat-agedepth" /></div>
       {vertical.basis === 'tvd' && <p className="text-pl-muted" data-testid="strat-ages-basis">Depths and rates are vertical (TVD below KB) through {well.name}&apos;s survey; the MD of each top is in the table below.</p>}
       {problems.length > 0 && <ul className="text-pl-danger-text" data-testid="strat-ages-problems">{problems.map((p, i) => <li key={i}>{p.message}</li>)}</ul>}
       {model && (
         <table className="text-xs" data-testid="strat-rates">
-          <thead><tr>{['From', 'To', `${basis} (m)`, 'Ages (Ma)', 'Rate (m/Ma)'].map((h) => <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>)}</tr></thead>
+          <thead><tr>{['From', 'To', `${basis} (${unit})`, 'Ages (Ma)', `Rate (${unit}/Ma)`].map((h) => <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>)}</tr></thead>
           <tbody>
             {model.segments.map((s, i) => (
               <tr key={i} data-testid={`strat-rate-${i}`}>
                 <td className="pr-3 py-0.5 text-pl-text">{s.upper}</td>
                 <td className="pr-3 py-0.5 text-pl-text">{s.lower}</td>
-                <td className="pr-3 py-0.5 font-mono text-pl-text">{Number(s.top_md_m.toFixed(1))} to {Number(s.base_md_m.toFixed(1))}</td>
+                <td className="pr-3 py-0.5 font-mono text-pl-text">{Number(fmtDepth(s.top_md_m, unit))} to {Number(fmtDepth(s.base_md_m, unit))}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-text">{s.age_top_ma} to {s.age_base_ma}</td>
-                <td className="pr-3 py-0.5 font-mono text-pl-text">{s.rate_m_per_ma == null ? 'event' : s.rate_m_per_ma.toFixed(1)}</td>
+                <td className="pr-3 py-0.5 font-mono text-pl-text">{s.rate_m_per_ma == null ? 'event' : toDisp(s.rate_m_per_ma, unit).toFixed(1)}</td>
               </tr>
             ))}
             {model.hiatuses.map((h, i) => (
               <tr key={`h${i}`} data-testid={`strat-hiatus-${i}`}>
                 <td className="pr-3 py-0.5 text-pl-warning-text" colSpan={2}>hiatus at {h.name}</td>
-                <td className="pr-3 py-0.5 font-mono text-pl-text">{Number(h.md_m.toFixed(1))}</td>
+                <td className="pr-3 py-0.5 font-mono text-pl-text">{Number(fmtDepth(h.md_m, unit))}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-warning-text">{h.from_ma} to {h.to_ma}</td>
                 <td className="pr-3 py-0.5 text-pl-muted">no deposition</td>
               </tr>
@@ -121,7 +156,7 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
         </table>
       )}
       <table className="text-xs" data-testid="strat-stages">
-        <thead><tr>{['Surface', 'Type', 'MD (m)', 'Age (Ma)', 'ICS stage', 'Notes'].map((h) => <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>)}</tr></thead>
+        <thead><tr>{['Surface', 'Type', `MD (${unit})`, 'Age (Ma)', 'ICS stage', 'Notes'].map((h) => <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>)}</tr></thead>
         <tbody>
           {(tops || []).map((t) => {
             const u = Number.isFinite(t.age_ma) ? unitAt(t.age_ma) : null;
@@ -129,7 +164,7 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
               <tr key={t.id} data-testid={`strat-stage-${t.name}`}>
                 <td className="pr-3 py-0.5 text-pl-text">{t.name}</td>
                 <td className="pr-3 py-0.5 text-pl-muted">{normalizeSurfaceType(t.surface_type)}</td>
-                <td className="pr-3 py-0.5 font-mono text-pl-text">{t.md_m}</td>
+                <td className="pr-3 py-0.5 font-mono text-pl-text" data-testid={`strat-stage-md-${t.name}`}>{fmtDepth(t.md_m, unit)}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-text">{t.age_ma ?? EMPTY_VALUE}</td>
                 <td className="pr-3 py-0.5 text-pl-text">{u ? u.name : (Number.isFinite(t.age_ma) ? 'outside the chart' : 'undated')}</td>
                 <td className="pr-3 py-0.5 text-pl-muted">{t.notes || ''}</td>
