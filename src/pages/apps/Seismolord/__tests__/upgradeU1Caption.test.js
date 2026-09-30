@@ -48,7 +48,7 @@ describe('sectionCaption: what a reviewer signs', () => {
   });
   test('the map PNG is captioned like the section (source guard)', () => {
     const src = fs.readFileSync(path.join(__dirname, '..', 'components', 'MapView.jsx'), 'utf8');
-    expect(src).toMatch(/captionCanvas\(canvas, lines\)/);
+    expect(src).toMatch(/captionCanvas\(canvas, lines/);
   });
   test('plot rows are Latin-1 safe for the jsPDF standard fonts', () => {
     expect(latin1('a · b — c → d')).toBe('a - b - c  d');

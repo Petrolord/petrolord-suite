@@ -1594,7 +1594,7 @@ function MapView({
     draw();
     // SEIS-U1-013: the map PNG carries the same caption band as sections
     const lines = typeof exportCaption === 'function' ? exportCaption() : exportCaption;
-    const pic = lines && lines.length ? captionCanvas(canvas, lines) : canvas;
+    const pic = lines && lines.length ? captionCanvas(canvas, lines.filter(Boolean)) : canvas;
     pic.toBlob((blob) => {
       if (!blob) return;
       const a = document.createElement('a');

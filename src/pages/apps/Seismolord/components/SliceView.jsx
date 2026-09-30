@@ -1368,7 +1368,7 @@ function SliceView({
     // number, vertical domain and datum, polarity and display, CRS, who,
     // date, build); the file is named by the line number
     const lines = typeof exportCaption === 'function' ? exportCaption() : exportCaption;
-    const out = lines && lines.length ? captionCanvas(pic, lines) : pic;
+    const out = lines && lines.length ? captionCanvas(pic, lines.filter(Boolean)) : pic;
     out.toBlob((blob) => {
       if (!blob) return;
       const a = document.createElement('a');
