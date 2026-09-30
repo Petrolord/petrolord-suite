@@ -23,7 +23,7 @@ export function sourceText(surface) {
   const src = p.source || {};
   const method = METHOD_LABEL[p.method] || null;
   const bits = [];
-  if (src.type === 'top') bits.push(`Top ${src.key} from ${p.control_points ?? EMPTY_VALUE} control points, ${DEPTH_REF_LABEL[p.depth_ref] || 'TVDSS'} at the borehole`);
+  if (src.type === 'top') bits.push(`Well top ${src.key} from ${p.control_points ?? EMPTY_VALUE} control points, ${DEPTH_REF_LABEL[p.depth_ref] || 'TVDSS'} at the borehole`);
   else if (src.type === 'zone') bits.push(`Zone ${src.zoneName || ''} ${src.key} from ${p.control_points ?? EMPTY_VALUE} wells`.replace(/\s+/g, ' '));
   else if (src.type === 'net') bits.push(`${src.measure === 'ratio' ? 'Net to gross' : src.measure === 'gross' ? 'Gross vertical thickness' : 'Net sand'} ${src.upper} to ${src.lower} from ${p.control_points ?? EMPTY_VALUE} wells`);
   else if (p.imported_from?.file_name) bits.push(`Imported from ${p.imported_from.file_name}`);

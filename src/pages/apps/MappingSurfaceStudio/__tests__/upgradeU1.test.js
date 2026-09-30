@@ -94,7 +94,7 @@ describe('MAP-U1-013: the exported map carries a reviewer header', () => {
   test('source, method, cell, faults, unit, sign, contour interval, CRS, field, analyst, date and build', () => {
     const { title, caption } = mapCaption({ surface, depthUnit: 'ft', contourStep: 25, report: { field: 'Keta', analyst: 'A. Geologist' }, now: new Date('2026-09-30T12:00:00Z'), build: 'Petrolord Suite 4.0.0 (abc)' });
     expect(title).toBe('Top Dome structure · Keta');
-    expect(caption[0]).toBe('Top Top Dome from 5 control points, TVDSS at the borehole, spline in tension, cell 150 m, fault blocks F1, clipped to OML 99');
+    expect(caption[0]).toBe('Well top Top Dome from 5 control points, TVDSS at the borehole, spline in tension, cell 150 m, fault blocks F1, clipped to OML 99');
     expect(caption[1]).toBe('Elevation, negative below mean sea level in ft · Contour interval 25 ft · CRS EPSG:32632 (XY in metres)');
     expect(caption[2]).toBe('Field Keta · Analyst A. Geologist · 2026-09-30 · Petrolord Suite 4.0.0 (abc)');
     // Latin-1 only, so the jsPDF and canvas fonts can print it
