@@ -48,7 +48,8 @@ const SEED = {
 
 test('curveOrigin names the app, the operation and the interpretation; a measured log has none', () => {
   expect(curveOrigin(SEED.logs.w1[1])).toBeNull();
-  expect(curveOrigin(SEED.logs.w1[2]).title).toBe('Computed by Petrophysics Studio (interpretation), interpretation "Base case", pipeline 3.1, from 2 input curves. Recomputing in Petrophysics Studio replaces it; imported logs are never overwritten.');
+  // pipeline 3.1 predates PT9a, so the PHIE row carries the U2-013 flag
+  expect(curveOrigin(SEED.logs.w1[2]).title).toBe('Computed by Petrophysics Studio (interpretation), interpretation "Base case", pipeline 3.1, from 2 input curves. Published before 2026-09-07 (Petrophysics Studio pipeline below 5): this PHIE is total porosity. The well owner can republish it from Petrophysics Studio.');
   expect(curveOrigin(SEED.logs.w1[3]).title).toMatch(/^Computed by Petrophysics Studio \(mineral model\)/);
   expect(curveOrigin(SEED.logs.w1[4])).toMatchObject({ kind: 'digitized', label: 'digitized' });
 });
