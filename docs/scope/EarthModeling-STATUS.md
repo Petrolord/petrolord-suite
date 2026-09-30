@@ -179,3 +179,37 @@ loaders.
 - Tests: new `src/pages/apps/EarthModeling/__tests__/EarthModeling.theme.test.jsx`
   (the shared `describeAppTheme` checks on the real workstation, plus the
   views, the dark theme and the help guide). No calculation, engine, export or plotting change; the existing suites pass unchanged.
+
+## 2026-09-30: upgrade Step 1 (practitioner lens), branch `feat/em-u1`
+
+Working doc: docs/upgrade/EarthModeling-UPGRADE.md (26 findings, 18 fixed,
+Step 2 backlog of 18 items in batches A/B/C).
+
+- S1 fixed: on a feet or US-feet frame GRV to GIIP were 10.76x. The engine
+  now runs on a metre frame (`specM`, wells, polygons, cell, radius and
+  range in metres); `spec` stays in the surfaces' units for the map,
+  section and publish; `xyToM` drives the section and 3D exaggeration.
+- Every registry grid enters through `src/lib/readDepthSurface.js`: only
+  depth structures stack (time, attribute and isochore rows refused with
+  the reason); isochores in ft become metres; mixed XY units refused.
+- Published layers carry CRS, XY unit and `depth_ref`; a rotated top gives
+  an unrotated frame; populated fractions held to 0..1 and counted.
+- Fluids: each contact keeps its typed unit, a negative contact is an
+  elevation, Bg is typed in the profile's gas FVF unit (RB/Mscf in field),
+  Bg with no Bo and no GOC makes a gas zone; an open leg at the model edge
+  is said in the status, QC and CSV.
+- Save overwrites the open model (Save as a new model copies); saved rows
+  from every release open through `upgradeDefinition`; `?saved=1` on the
+  harness lists one per release.
+- Every ring of a Mapping fault or boundary row is used; polygons and
+  wells in another CRS are refused or left out, said in QC Build notes.
+- `em_models` travel in `.pld` packages and backups with the surfaces and
+  polygons they name (root kind `em_model`).
+- Volumes CSV reviewer header (field, analyst, date, build, datum,
+  contacts and FVFs as used).
+- Ordinary kriging groups targets by their nearest-well set (8 to 9x at
+  401 x 401; equals the engine to 1e-9). A worker is Step 2 U2-004.
+- Cross-app: Well Design targets (MAP-U1-031) and Simulation structure
+  import (MAP-U1-032) now read through the same door.
+- e2e: `e2e/earth-modeling.spec.js` picks metric volumes (red since the
+  unit profile, #830); new `e2e/earth-modeling-upgrade.spec.js` (9).
