@@ -355,7 +355,7 @@ readDepthSurface(row, grid, { accept, as = 'elevation', xy = 'native', requirePr
 
 ### Units
 
-The Suite unit profile (branch `feat/suite-unit-profile`) was not on main when this PR was opened (2026-09-30). Mapping keeps its current behaviour: the depth display unit is `mapping.depthUnit` per browser, together with the per-user `geoscience_settings.depth_unit`. No new app-local unit preference was added. The PDF paper and scale are plot settings, not units, and are not stored. The adoption stays a follow-up: take the initial depth unit from `useUnitProfile`, and make the in-app toggle a view override.
+The Suite unit profile (branch `feat/suite-unit-profile`) was not on main when this PR was opened (2026-09-30). It merged as PR #830 shortly after, and main was merged into this branch; per the batch decision the adoption was not added to this PR. Mapping keeps its current behaviour: the depth display unit is `mapping.depthUnit` per browser, together with the per-user `geoscience_settings.depth_unit`. No new app-local unit preference was added. The PDF paper and scale are plot settings, not units, and are not stored. The adoption stays a follow-up: take the initial depth unit from `useUnitProfile`, and make the in-app toggle a view override.
 
 ### Build summary
 
