@@ -124,7 +124,7 @@ function CubeView({
   geom, manifest, getBrick, getSlice, indices, onChangeIndex, display, vexag,
   horizons, faults, wells, onSelectPlane, onRendered, height = 520,
   depthConv = null, steps = null, activeOrientation = 'inline',
-  sliceVis = null, onToggleSlicePlane = null, depthUnit = 'm',
+  sliceVis = null, onToggleSlicePlane = null, depthUnit = 'm', faultPolygons = null,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -671,6 +671,16 @@ function CubeView({
         }
       }
     }
+    // U2-007: fault polygons (fault vs horizon cutoffs) on the horizons
+    if (prefs.faults) {
+      for (const p of faultPolygons || []) {
+        if (!p.lines?.length) continue;
+        const id = `fpoly-${p.id}`;
+        wanted.add(id);
+        const rgb = hexToRgb(p.color);
+        r.setLineSet(id, { positions: p.lines, color: [...rgb.slice(0, 3), 1] });
+      }
+    }
     for (const id of activeFltRef.current) {
       if (!wanted.has(id)) {
         if (id.startsWith('fltrib-')) r.setMesh(id, null);
@@ -679,7 +689,7 @@ function CubeView({
     }
     activeFltRef.current = wanted;
     scheduleRender();
-  }, [faults, geom, prefs.faults, scheduleRender]);
+  }, [faults, faultPolygons, geom, prefs.faults, scheduleRender]);
 
   useEffect(() => {
     const r = rendererRef.current;

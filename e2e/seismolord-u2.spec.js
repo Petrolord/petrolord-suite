@@ -217,3 +217,34 @@ for (const [vp, theme] of [[{ width: 1366, height: 768 }, 'light'], [{ width: 14
     await page.screenshot({ path: `/tmp/claude-0/seis-upg2/u2-013-${vp.width}-${theme}.png` });
   });
 }
+
+// U2-007: fault polygons drawn in the 3D window (WebGL is read through an
+// element screenshot, never the drawing buffer)
+async function orangeInCube(page, fpoly) {
+  await page.goto(`/dev/seismolord-cubeview?dim=64&fpoly=${fpoly}`);
+  await expect(page.getByTestId('harness-status')).toHaveAttribute('data-harness-status', 'ready', { timeout: 60000 });
+  await page.waitForTimeout(800);
+  const png = await page.locator('canvas').first().screenshot();
+  return page.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const { data } = ctx.getImageData(0, 0, c.width, c.height);
+    let n = 0;
+    for (let i = 0; i < data.length; i += 4) if (data[i] > 200 && data[i + 1] > 70 && data[i + 1] < 160 && data[i + 2] < 90) n++;
+    return n;
+  }, png.toString('base64'));
+}
+
+test('U2-007 1440x900: the fault polygon is drawn on the horizon in the 3D window', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const without = await orangeInCube(page, 0);
+  const withPoly = await orangeInCube(page, 1);
+  await expect(page.getByTestId('harness-fpoly')).toContainText('polygons 1');
+  expect(withPoly).toBeGreaterThan(without + 50);
+  await page.screenshot({ path: '/tmp/claude-0/seis-upg2/u2-007.png' });
+});

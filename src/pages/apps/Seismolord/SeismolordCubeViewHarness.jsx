@@ -1,6 +1,8 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { buildTestBricks } from './viewer/selfTest';
 import CubeView from './components/CubeView';
+import { faultHorizonIntersection } from './engine/faultObjects';
+import { polygonLoopLines } from './lib/faultPolygons';
 
 // Dev-only harness route (/dev/seismolord-cubeview): mounts the real 3D
 // CubeView on the deterministic synthetic volume so the Playwright suite
@@ -9,6 +11,33 @@ import CubeView from './components/CubeView';
 
 const q = new URLSearchParams(window.location.search);
 const DIM = Math.min(320, Math.max(32, Number(q.get('dim')) || 128));
+// U2-007 e2e: ?fpoly=1 adds a faulted horizon, its fault and the fault
+// polygon (the W3.1 cutoffs) drawn on it; ?fpoly=0 the same without the polygon
+const FPOLY = q.get('fpoly');
+
+function faultedScene() {
+  const k = DIM / 64;
+  const NULL = Math.fround(1e30);
+  const grid = new Float32Array(DIM * DIM).fill(NULL);
+  for (let i = 0; i < DIM; i++) {
+    for (let j = 0; j < DIM; j++) {
+      if (j < 32 * k + 0.5 * (40 * k - 50 * k)) grid[i * DIM + j] = 40 * k;
+      else if (j >= 32 * k + 0.5 * (48 * k - 50 * k)) grid[i * DIM + j] = 48 * k;
+    }
+  }
+  const fault = {
+    id: 'f1', name: 'F1', color: '#f97316',
+    sticks: [8, 24, 40, 56].map((il) => ({
+      points: Array.from({ length: 13 }, (_, n) => { const s = (20 + n * 5) * k; return { il: il * k, xl: 32 * k + 0.5 * (s - 50 * k), s }; }),
+    })),
+  };
+  const x = faultHorizonIntersection(fault, grid, { nIl: DIM, nXl: DIM });
+  return {
+    horizons: [{ id: 'h1', name: 'Top Reservoir', grid, color: '#4ade80' }],
+    faults: [fault],
+    polygons: x ? [{ id: 'f1-h1', color: '#f97316', lines: polygonLoopLines(x, { nIl: DIM, nXl: DIM, ns: DIM }) }] : [],
+  };
+}
 
 const DISPLAY_CYCLE = [
   { colormap: 'seismic_rwb', gain: 1, polarity: 1, clip: 1.5, traceBalance: false },
@@ -18,6 +47,7 @@ const DISPLAY_CYCLE = [
 
 export default function SeismolordCubeViewHarness() {
   const { geom, getBrick } = useMemo(() => buildTestBricks(DIM), []);
+  const scene = useMemo(() => (FPOLY != null ? faultedScene() : null), []);
   const [indices, setIndices] = useState({
     inline: Math.floor(DIM / 2),
     xline: Math.floor(DIM / 2),
@@ -66,6 +96,7 @@ export default function SeismolordCubeViewHarness() {
         style={{ color: '#7dd3fc', fontSize: 12, marginBottom: 8 }}
       >
         {ready ? 'ready' : 'loading'} · dim {DIM}
+        {scene ? <span data-testid="harness-fpoly"> · polygons {FPOLY === '1' ? scene.polygons.length : 0}</span> : null}
       </div>
       <div style={{
         display: 'flex', gap: 12, marginBottom: 8, fontSize: 12, color: '#cbd5e1',
@@ -102,6 +133,11 @@ export default function SeismolordCubeViewHarness() {
           onSelectPlane={setLastPlane}
           onRendered={onRendered}
           height={480}
+          {...(scene ? {
+            horizons: scene.horizons,
+            faults: [],
+            faultPolygons: FPOLY === '1' ? scene.polygons : [],
+          } : {})}
         />
       </div>
     </div>

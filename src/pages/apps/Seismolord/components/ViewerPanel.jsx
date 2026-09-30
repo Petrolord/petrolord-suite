@@ -88,7 +88,7 @@ import {
   listCulture, downloadCultureFeatures, deleteCulture, setCultureShared,
 } from '@/lib/cultureRegistry';
 import { reprojectFeatures } from '@/lib/cultureImport';
-import { transformPoint, crsDisplayName } from '@/lib/crs';
+import { transformPoint, crsDisplayName, projectorFor } from '@/lib/crs';
 import { buildLabel } from '@/lib/platformBuild';
 import { sectionLineLabel, sectionCaption, verticalLabel, displayLabel } from '../lib/sectionCaption';
 import { normalizeTag, isTransformableTag, LOCAL } from '@/lib/crs/tags';
@@ -120,6 +120,7 @@ import FirstRunTour from './workspace/FirstRunTour';
 import { buildStartHere } from '../lib/startHere';
 import { tourSeen } from '../lib/firstRunTour';
 import { confidenceFilter, guidedTrack2D } from '../lib/trackerEdit';
+import { faultPolygonsGeoJson, polygonLoopLines } from '../lib/faultPolygons';
 import { startFrameworkJob } from '../services/frameworkRunner';
 import WellImportDialog from './workspace/dialogs/WellImportDialog';
 import VelocityModelDialog from './workspace/dialogs/VelocityModelDialog';
@@ -1892,6 +1893,37 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     }
   };
 
+  // U2-007: every visible fault's polygon against every visible horizon
+  // as GeoJSON (WGS 84 longitude and latitude when the CRS converts)
+  const onExportFaultPolygonsGeoJson = async (f) => {
+    try {
+      if (!manifest || !affine || !geom) throw new Error('The volume has no usable survey coordinates.');
+      const items = [];
+      for (const h of horizons) {
+        const picks = gridCacheRef.current?.get?.(h.id) || await loadHorizonGrid(h).catch(() => null);
+        if (!picks) continue;
+        const x = faultHorizonIntersection(f, picks, geom);
+        if (x) items.push({ faultName: f.name, horizonName: h.name, intersection: x });
+      }
+      if (!items.length) {
+        toast({ title: 'No polygons', description: `"${f.name}" needs at least two sticks crossing a horizon.` });
+        return;
+      }
+      let lonLat = null;
+      if (volume?.crs && isTransformableTag(volume.crs)) {
+        try { const pr = projectorFor(volume.crs); lonLat = (x, y) => pr.toLonLat(x, y); } catch { lonLat = null; }
+      }
+      const { geojson, count, skipped } = faultPolygonsGeoJson({
+        items, affine, dtMs: manifest.geometry.dt_us / 1000, crsName: volume?.crs ? crsDisplayName(volume.crs) : null, toLonLat: lonLat,
+      });
+      const safe = f.name.replace(/[^\w-]+/g, '_').toLowerCase();
+      downloadText(JSON.stringify(geojson, null, 1), `${safe}_polygons.geojson`, 'Fault polygons exported',
+        `${count} polygon(s) ${lonLat ? 'in WGS 84 longitude and latitude' : `in ${volume?.crs ? crsDisplayName(volume.crs) : 'the survey CRS (not set)'}`}${skipped.length ? `; no polygon for ${skipped.join(', ')}` : ''}.`);
+    } catch (e) {
+      toast({ title: 'Export failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
   const onDeleteFault = async (f) => {
     // eslint-disable-next-line no-alert
     if (!window.confirm(`Delete fault "${f.name}"? (Undo restores it)`)) return false;
@@ -3060,6 +3092,24 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
   }, [colormap, gain, polarity, clipRms, traceBalance, manifest, scaleMode,
     pctClip, manualClip, reverseCmap, wiggleMode, agcOn, agcWindowMs, fallbackRms]);
 
+  // U2-007: fault polygons for the 3D window, visible faults x visible
+  // horizons (the W3.1 cutoff polygons the map draws)
+  const faultPolygons3d = useMemo(() => {
+    if (!geom) return [];
+    const out = [];
+    for (const f of faults) {
+      if (!visibleFaultIds.has(f.id)) continue;
+      for (const h of resolvedHorizons) {
+        if (h.id === '__draft' || h.dash || !h.grid) continue;
+        const x = faultHorizonIntersection(f, h.grid, geom);
+        if (!x) continue;
+        const lines = polygonLoopLines(x, geom);
+        if (lines.length) out.push({ id: `${f.id}-${h.id}`, color: faultColorById[f.id] || '#f97316', lines });
+      }
+    }
+    return out;
+  }, [faults, visibleFaultIds, resolvedHorizons, geom, faultColorById]);
+
   const overlays = useMemo(() => ({
     horizons: resolvedHorizons,
     surfaces: sectionSurfaces,
@@ -3572,6 +3622,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     exportFaultSticks: onExportFaultSticks,
     exportFaultSurface: onExportFaultSurface,
     exportFaultPolygon: onExportFaultPolygon,
+    exportFaultPolygonsGeoJson: onExportFaultPolygonsGeoJson,
     toggleWell: wellsApi.toggle,
     deleteWell: wellsApi.remove,
     openTraverse: (t) => handleTraverse(t.vertices, t.id),
@@ -4144,6 +4195,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                   vexag={vexag}
                   horizons={resolvedHorizons}
                   faults={overlays.faults}
+                  faultPolygons={faultPolygons3d}
                   wells={wellSections}
                   depthConv={depthConv}
                   depthUnit={depthUnit}

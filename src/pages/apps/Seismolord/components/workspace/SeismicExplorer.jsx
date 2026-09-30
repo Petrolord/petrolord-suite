@@ -760,6 +760,12 @@ export default function SeismicExplorer({ tree, actions }) {
                       </ContextMenuItem>
                     </ContextMenuSubContent>
                   </ContextMenuSub>
+                  {(horizons || []).length > 0 && actions.exportFaultPolygonsGeoJson && (
+                    <ContextMenuItem onSelect={() => actions.exportFaultPolygonsGeoJson(f)}>
+                      <Download className="w-3.5 h-3.5 mr-1.5" />
+                      Fault polygons (GeoJSON)
+                    </ContextMenuItem>
+                  )}
                   {(horizons || []).length > 0 && (
                     <ContextMenuSub>
                       <ContextMenuSubTrigger>
