@@ -32,8 +32,8 @@ import * as EV from '@/utils/dataAi/engine/evaluate';
 import { APP_CAPS, cmpId, judgedQueryIds } from '@/utils/dataAi/evalData';
 
 /** The engine build the studio runs: petrolord-engines at the VENDOR.json pin. */
-export const ENGINE_VERSION = 'petrolord-engines 1e5d394 (engines/dataai/evaluate.js, PR #257; PR #258 note and basis wording, no numeric change)';
-export const ENGINE_COMMIT = '1e5d394443631c54ef207ae0b8114764b3d42c42';
+export const ENGINE_VERSION = 'petrolord-engines aeddb4b (engines/dataai/evaluate.js, PR #257; PR #258 note and basis wording, no numeric change)';
+export const ENGINE_COMMIT = 'aeddb4b616a5994fa299360f8c4f430b4114cadf';
 
 export const ENGINE_DEFAULTS = EV.DEFAULTS;
 export const DEFAULT_SEED = 20260925;
