@@ -235,7 +235,7 @@ Deferred, with reasons:
 
 ## Step 2 build (branch `feat/bf-u2`)
 
-Engine changes first, in engines PR [#295](https://github.com/Petrolord/petrolord-engines/pull/295) (merged; the Suite pins its merge commit 970c021): every Basin engine addition is in the canonical engines repo with its gate in `__tests__/basin.u2.test.js`, and the Suite vendors the merge commit.
+Engine changes first, in engines PR [#295](https://github.com/Petrolord/petrolord-engines/pull/295) (merged; first pinned at its merge commit 970c021, then re-vendored at engines main 2ad4fe0 after Pore Pressure #293 merged: 1131 paths byte for byte, the eight `porepressure-u2` ledger rows removed, 0 recorded deviations): every Basin engine addition is in the canonical engines repo with its gate in `__tests__/basin.u2.test.js`, and the Suite vendors the merge commit.
 
 A session restart interrupted the build after U2-001: the programme lead saved the in-progress code of U2-012, -004, -006, -008, -010, -011, -009 and -016 as one commit (`577e7685b`, "wip"). Each item is then closed by its own commit (doc row, help, any remaining code); the rows name the wip commit where the code landed.
 
@@ -290,5 +290,9 @@ Depth and temperature follow the unit profile everywhere new (burial plot note, 
 
 1. **`bf_wells` RLS (U2-019), needs a migration and a second engineer.** Today: RLS on, one policy `auth.uid() = user_id` for all commands with no WITH CHECK clause (Postgres then applies the USING clause to inserts and updates, so a user cannot write a row for another user today; the gap is one of form and of future edits). Proposed migration, staging first: drop the single policy; add four (`select`, `insert`, `update`, `delete`), each `to authenticated`, `using (auth.uid() = user_id)` on select, update and delete and `with check (auth.uid() = user_id)` on insert and update; no org sharing until the Suite Project design lands (docs/scope/SuiteProject-DESIGN.md). Pentest, rolled back: as user A insert a row with user B's id (refused), update A's row to B's id (refused), read and delete B's row (0 rows), as anon read (0 rows), as A full CRUD on A's own row (works). Log in MIGRATIONS.md. Not written here by instruction.
 2. Scenario results saved in `bf_wells.scenarios` now carry the column and pressure arrays, so a model with many saved scenarios is a larger row; no schema change.
-3. Stratigraphy `upgradeU1.test.jsx` section tests timed out locally at load 9 to 17 on this branch (they pass in CI on main and do not touch the Ages view); CI is the arbiter.
+3. Stratigraphy `upgradeU1.test.jsx` section tests timed out locally at load 9 to 17 (they do not touch the Ages view); they pass in CI on this branch.
 4. No migration and no DDL in this work.
+
+### U2 browser checks (PL6)
+
+`e2e/basinflow-upgrade-u2.spec.js` (8) on the harness at 1366x768, 1440x900 and 390 wide, light and dark: the worked example runs in the Web Worker (the run log says so), the burial plot names its eroded section, depth runs downward on the burial and pressure plots (tick positions read from the page), the pressure tab links to Pore Pressure Studio, Horner changes the temperature misfit, two scenarios compare, a template is undone, and the downloaded PDF is read back with pdftotext (plots, eroded section, BHT line); no page errors, no sideways scroll. The earlier specs were run in the same window: `basinflow-upgrade.spec.js` (U1, 7) and `basinflow-t1.spec.js` (2) pass; `basinflow.spec.js` (BF0 to BF3, 6) had been red since the unit profile (#830: the harness opens in ft and F while the spec reads the oracle's SI values, and the auth-gate check read the URL before the gate answered) and is fixed to select m and C and to poll the redirect. 23 of 23 pass. The jest guard `verticalDepthAxes.test.js` caught the pressure and scenario Ro plots drawn upside down (a `reversed` axis on a vertical layout) in CI; fixed and now checked in the browser.

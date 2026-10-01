@@ -1,7 +1,7 @@
 # Basin & Charge Modeling (BasinFlow Genesis) — STATUS
 
 Updated 2026-10-01 — **UPGRADE U2 BUILT** (branch `feat/bf-u2`, engines PR #295
-merged, vendored at 970c021; detail in `docs/upgrade/BasinFlowGenesis-UPGRADE.md`).
+merged, vendored at engines main 2ad4fe0; detail in `docs/upgrade/BasinFlowGenesis-UPGRADE.md`).
 What the app does now that it did not:
 - the eroded section is drawn on the burial history; plots are keyed by layer id;
 - Ro and temperature run through the whole column (slices about 100 m), and
