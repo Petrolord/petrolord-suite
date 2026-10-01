@@ -11,7 +11,8 @@ const initialState = {
     activeWellId: null,
     comparisonMode: false,
     selectedWellsForComparison: [],
-    isLoading: false
+    isLoading: false,
+    loaded: false, // BF-U1-019: the first list has arrived
 };
 
 const multiWellReducer = (state, action) => {
@@ -26,6 +27,7 @@ const multiWellReducer = (state, action) => {
             });
             return { 
                 ...state, 
+                loaded: true,
                 wells: action.payload.map(w => ({
                     id: w.id,
                     name: w.name,

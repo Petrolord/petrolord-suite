@@ -73,13 +73,16 @@ const MultiWellManager = () => {
 
     // Initialize active well if none selected but we have wells
     useEffect(() => {
+        // BF-U1-019: wait for the saved list; opening Expert mode before it
+        // arrived created a stray "Exploration Well 1" every time
+        if (!mwState.loaded) return;
         if (!mwState.activeWellId && mwState.wells && mwState.wells.length > 0) {
             handleSwitchWell(mwState.wells[0].id);
         } else if (mwState.wells && mwState.wells.length === 0) {
             // Create default first well
             addWell({ name: 'Exploration Well 1', status: 'not-started' });
         }
-    }, [mwState.wells]); // Depend on wells to ensure we catch updates
+    }, [mwState.wells, mwState.loaded]); // Depend on wells to ensure we catch updates
 
     const handleSwitchWell = (targetId) => {
         if (targetId === mwState.activeWellId) return;
