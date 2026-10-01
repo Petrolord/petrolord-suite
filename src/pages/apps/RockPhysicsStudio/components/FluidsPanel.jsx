@@ -17,7 +17,8 @@ import ChartLogo from '@/components/charts/ChartLogo';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
 } from '@/utils/chartTheme';
-import { sideFluid, kminFromRock, substituteInterval } from '../services/scenario';
+import { sideFluid, substituteZone } from '../services/scenario';
+import { elasticMeans, impedanceDisplay } from '../services/elastic';
 import { zoneIndices, meanAt } from '../services/prep';
 import {
   DEFAULT_UNITS, velocityToDisplay, velocityDigits, velocityLabel, densityLabel, depthLabel, depthToDisplay,
@@ -70,27 +71,24 @@ export default function FluidsPanel({
 
   const result = useMemo(() => {
     if (!model || !zone || !fluids.a || !fluids.b) return null;
-    let kmin;
-    try { kmin = kminFromRock(rock); } catch (e) { return { error: e.message }; }
     const indices = zoneIndices(model.depth, zone.top_md_m, zone.base_md_m);
     if (!indices.length) return { error: 'The zone has no samples in this well.' };
-    const sub = substituteInterval(model, indices, kmin, fluids.a, fluids.b, rock.phiConst);
+    let sub;
+    try { sub = substituteZone(model, indices, scenario, rock); } catch (e) { return { error: e.message }; }
+    // RP-U1-007: before and after compare the SAME samples (the substituted
+    // ones), so a skipped or out-of-limits sample cannot move one side only
+    const used = indices.filter((i) => Number.isFinite(sub.vp[i]));
+    const side = (vp, vs, rho) => ({
+      vp: meanAt(vp, used), vs: meanAt(vs, used), rho: meanAt(rho, used), ...elasticMeans(vp, vs, rho, used),
+    });
     return {
       indices,
       sub,
-      kmin,
-      before: {
-        vp: meanAt(model.vp, indices),
-        vs: meanAt(model.vs, indices),
-        rho: meanAt(model.rho, indices),
-      },
-      after: {
-        vp: meanAt(sub.vp, indices),
-        vs: meanAt(sub.vs, indices),
-        rho: meanAt(sub.rho, indices),
-      },
+      kmin: sub.kmin,
+      before: side(model.vp, model.vs, model.rho),
+      after: side(sub.vp, sub.vs, sub.rho),
     };
-  }, [model, zone, fluids, rock]);
+  }, [model, zone, fluids, rock, scenario]);
 
   // chart samples in the display units (slowness inverts the axis sense)
   const chartData = useMemo(() => {
@@ -156,9 +154,12 @@ export default function FluidsPanel({
         <>
           <div className="rounded border border-pl-border p-2">
             <div className="flex items-center gap-2 mb-1">
-              <div className="text-[11px] uppercase tracking-wider text-pl-muted">
-                Gassmann substitution A → B · {zone.name} · K_min {gpa(result.kmin)} GPa ·{' '}
+              <div className="text-[11px] uppercase tracking-wider text-pl-muted" data-testid="rp-sub-header">
+                Gassmann substitution A → B · {zone.name} · K_min {result.sub.kminSource === 'vsh' && result.sub.done
+                  ? `${gpa(result.sub.kminMin)} to ${gpa(result.sub.kminMax)} GPa (clay at VSH)`
+                  : `${gpa(result.kmin)} GPa${result.sub.kminSource === 'override' ? ' (override)' : ''}`} ·{' '}
                 {result.sub.done} samples{result.sub.skipped ? ` (${result.sub.skipped} skipped)` : ''}
+                {result.sub.outside ? ` · ${result.sub.outside} left in situ (outside the Gassmann limits)` : ''}
               </div>
               {onPublish && (
                 <button
@@ -175,6 +176,18 @@ export default function FluidsPanel({
                 </button>
               )}
             </div>
+            <p className="text-[12px] text-pl-muted mb-1" data-testid="rp-sub-basis">
+              Porosity: {model.phiCurve ? `${model.phiCurve} (${model.phiBasis === 'total' ? 'total' : 'effective'} porosity)` : `constant ${rock.phiConst} (no PHIE or PHIT curve)`}
+              {' · '}fluid A Sw: {result.sub.swFromLog ? `from the SW log${result.sub.swFallback ? ` (${result.sub.swFallback} null samples used ${scenario.fluidA.sw})` : ''}` : `${scenario.fluidA.sw} as typed${scenario.fluidA.swFromLog && !model.sw ? ' (no SW curve on this well)' : ''}`}
+              {' · '}limits: VSH up to {rock.vshMax ?? 1}, porosity from {rock.phiMin ?? 0}
+            </p>
+            {model.phiBasis === 'effective' && result.sub.kminSource === 'table' && !(rock.minerals?.clay > 0)
+              && Number.isFinite(meanAt(model.vsh || [], result.indices)) && meanAt(model.vsh, result.indices) > 0.1 && (
+              <p className="text-[12px] text-pl-warning-text mb-1" data-testid="rp-sub-clay-note">
+                Effective porosity with a clay-free mineral: the clay (mean VSH {meanAt(model.vsh, result.indices).toFixed(2)}) sits in neither the pores nor the solid.
+                Tick "clay from VSH" in Scenario &amp; rock, or use total porosity.
+              </p>
+            )}
             {result.sub.firstError && (
               <p className="text-[12px] text-pl-warning-text mb-1" data-testid="rp-sub-sample-error">
                 skipped samples: {result.sub.firstError}
@@ -187,6 +200,9 @@ export default function FluidsPanel({
                   <th className="font-normal text-right">{velocityLabel(vU).replace('Velocity', 'Vp').replace('Slowness', 'DTp')}</th>
                   <th className="font-normal text-right">{velocityLabel(vU).replace('Velocity', 'Vs').replace('Slowness', 'DTs')}</th>
                   <th className="font-normal text-right">{densityLabel(dU)}</th>
+                  <th className="font-normal text-right" title="Acoustic impedance AI = Vp x density">AI ({impedanceDisplay(1, vU, dU).unit})</th>
+                  <th className="font-normal text-right" title="Velocity ratio">Vp/Vs</th>
+                  <th className="font-normal text-right" title="Poisson's ratio (Vp² - 2Vs²) / (2(Vp² - Vs²))">Poisson</th>
                 </tr>
               </thead>
               <tbody>
@@ -195,12 +211,18 @@ export default function FluidsPanel({
                   <td className="py-1 text-right" data-testid="rp-sub-before-vp">{fmtVelocity(result.before.vp, vU, 2)}</td>
                   <td className="py-1 text-right" data-testid="rp-sub-before-vs">{fmtVelocity(result.before.vs, vU, 2)}</td>
                   <td className="py-1 text-right" data-testid="rp-sub-before-rho">{fmtDensity(result.before.rho, dU, 2)}</td>
+                  <td className="py-1 text-right" data-testid="rp-sub-before-ai">{impedanceDisplay(result.before.ai, vU, dU).text}</td>
+                  <td className="py-1 text-right" data-testid="rp-sub-before-vpvs">{Number.isFinite(result.before.vpvs) ? result.before.vpvs.toFixed(3) : EMPTY_VALUE}</td>
+                  <td className="py-1 text-right" data-testid="rp-sub-before-pr">{Number.isFinite(result.before.pr) ? result.before.pr.toFixed(3) : EMPTY_VALUE}</td>
                 </tr>
                 <tr className="border-t border-pl-border">
                   <td className="py-1 text-pl-text">after (B)</td>
                   <td className="py-1 text-right" data-testid="rp-sub-after-vp">{fmtVelocity(result.after.vp, vU, 2)}</td>
                   <td className="py-1 text-right" data-testid="rp-sub-after-vs">{fmtVelocity(result.after.vs, vU, 2)}</td>
                   <td className="py-1 text-right" data-testid="rp-sub-after-rho">{fmtDensity(result.after.rho, dU, 2)}</td>
+                  <td className="py-1 text-right" data-testid="rp-sub-after-ai">{impedanceDisplay(result.after.ai, vU, dU).text}</td>
+                  <td className="py-1 text-right" data-testid="rp-sub-after-vpvs">{Number.isFinite(result.after.vpvs) ? result.after.vpvs.toFixed(3) : EMPTY_VALUE}</td>
+                  <td className="py-1 text-right" data-testid="rp-sub-after-pr">{Number.isFinite(result.after.pr) ? result.after.pr.toFixed(3) : EMPTY_VALUE}</td>
                 </tr>
               </tbody>
             </table>

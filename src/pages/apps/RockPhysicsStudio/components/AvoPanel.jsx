@@ -17,7 +17,8 @@ import {
 } from '@/utils/chartTheme';
 import { zoeppritzRpp, akiRichards, shuey, avoClass } from '../engine/avo';
 import { meanAt } from '../services/prep';
-import { substitutedHalfspace } from '../services/scenario';
+import { substitutedHalfspace, plainMessage } from '../services/scenario';
+import { acousticImpedance, vpVs, poissonRatio, impedanceDisplay } from '../services/elastic';
 import UnitInput from './UnitInput';
 import {
   DEFAULT_UNITS, velocityToDisplay, velocityFromDisplay, densityToDisplay, densityFromDisplay,
@@ -103,7 +104,7 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
   // as set in Scenario & rock; top mode only (manual halfspaces have no logs)
   const replaced = useMemo(() => {
     if (avo.mode !== 'top' || !model || !top || !scenario || !rock) return null;
-    try { return substitutedHalfspace(model, top.md_m, top.md_m + avo.windowM, scenario, rock); } catch (e) { return { error: e.message }; }
+    try { return substitutedHalfspace(model, top.md_m, top.md_m + avo.windowM, scenario, rock); } catch (e) { return { error: plainMessage(e.message) }; }
   }, [avo.mode, avo.windowM, model, top, scenario, rock]);
 
   const result = useMemo(() => {
@@ -129,9 +130,11 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
         alt = { a: s0.a, b: s0.b, cls: avoClass(s0.a, s0.b), labelA: r.labelA, labelB: r.labelB, hs: r };
         curve.forEach((pt) => { pt.zoeppritzB = zoeppritzRpp(u.vp, u.vs, u.rho, r.vp, r.vs, r.rho, pt.theta).re; });
       }
-      return { a, b, c, cls, curve, alt };
+      // RP-U1-014: past the critical angle the exact coefficient is complex
+      const critical = l.vp > u.vp ? (Math.asin(u.vp / l.vp) * 180) / Math.PI : null;
+      return { a, b, c, cls, curve, alt, critical };
     } catch (e) {
-      return { error: e.message };
+      return { error: plainMessage(e.message) };
     }
   }, [halfspaces, avo.maxTheta, replaced]);
 
@@ -234,7 +237,35 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
         </table>
       )}
 
+      {halfspaces && [halfspaces.upper, halfspaces.lower].every((h) => Number.isFinite(h.vp) && Number.isFinite(h.vs) && Number.isFinite(h.rho)) && (
+        <table className="text-[12px] text-pl-text" data-testid="rp-avo-elastic">
+          <thead>
+            <tr className="text-pl-muted text-left">
+              <th className="font-normal pr-3">Halfspace</th>
+              <th className="font-normal pr-3 text-right" title="Acoustic impedance Vp x density">AI ({impedanceDisplay(1, vU, dU).unit})</th>
+              <th className="font-normal pr-3 text-right">Vp/Vs</th>
+              <th className="font-normal text-right" title="Poisson's ratio">Poisson</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[['upper', halfspaces.upper], ['lower', halfspaces.lower]].map(([k, h]) => (
+              <tr key={k} className="border-t border-pl-border">
+                <td className="py-0.5 pr-3">{k}</td>
+                <td className="py-0.5 pr-3 text-right" data-testid={`rp-avo-${k}-ai`}>{impedanceDisplay(acousticImpedance(h.vp, h.rho), vU, dU).text}</td>
+                <td className="py-0.5 pr-3 text-right" data-testid={`rp-avo-${k}-vpvs`}>{Number.isFinite(vpVs(h.vp, h.vs)) ? vpVs(h.vp, h.vs).toFixed(3) : EMPTY_VALUE}</td>
+                <td className="py-0.5 text-right" data-testid={`rp-avo-${k}-pr`}>{Number.isFinite(poissonRatio(h.vp, h.vs)) ? poissonRatio(h.vp, h.vs).toFixed(3) : EMPTY_VALUE}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
       {result?.error && <p className="text-[12px] text-pl-warning-text" data-testid="rp-avo-error">{result.error}</p>}
+      {result && !result.error && result.critical !== null && result.critical < avo.maxTheta && (
+        <p className="text-[12px] text-pl-warning-text" data-testid="rp-avo-critical">
+          Critical angle {result.critical.toFixed(1)}°: past it the exact Zoeppritz coefficient is complex, the curve shows its real part, and Aki-Richards stops.
+        </p>
+      )}
 
       {result && !result.error && (
         <>

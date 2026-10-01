@@ -1,7 +1,8 @@
 // Wells + curve-inventory explorer (Rock Physics Studio G6.4, the
 // PetroWorkstation explorer idiom): registry wells with org badges;
 // the selected well expands its curve inventory showing which engine
-// inputs mapped (DEPT/DT/DTS/RHOB/PHIE/VSH/SW). Presentational —
+// inputs mapped (DEPT/DT/DTS/RHOB/PHIE/PHIT/VSH/SW) and, since RP-U1, how
+// the curves were read (units, nulls). Presentational —
 // state lives in RockWorkstation.
 
 import React from 'react';
@@ -9,7 +10,7 @@ import { CircleDot, Building2, Lock, Loader2, Check, Minus } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function WellExplorer({
-  wells, selectedId, loadingId, curveInventory, published = [], onSelect,
+  wells, selectedId, loadingId, curveInventory, published = [], readNotes = [], onSelect,
 }) {
   return (
     <div className="h-full min-h-0 flex flex-col bg-pl-surface" data-testid="rp-explorer">
@@ -57,6 +58,11 @@ export default function WellExplorer({
                       </span>
                     </div>
                   ))}
+                  {readNotes.length > 0 && (
+                    <ul className="mt-1 space-y-0.5 text-[11px] text-pl-warning-text" data-testid="rp-read-notes" title="How the curves were read (RP-U1-003): units, nulls and porosity">
+                      {readNotes.map((t) => <li key={t}>{t}</li>)}
+                    </ul>
+                  )}
                   {published.length > 0 && (
                     <div className="mt-1 text-[11px] text-pl-success-text" data-testid="rp-published-curves" title="Curves this app has written to the well (fluid-substituted case)">
                       published: {published.map((l) => l.mnemonic).join(', ')}

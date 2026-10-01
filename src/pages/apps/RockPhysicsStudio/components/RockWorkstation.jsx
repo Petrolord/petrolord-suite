@@ -32,7 +32,7 @@ import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import WellExplorer from './WellExplorer';
-import RockParamsPanel from './RockParamsPanel';
+import RockParamsPanel, { TEMPERATURE_UNITS, PRESSURE_UNITS, GOR_UNITS } from './RockParamsPanel';
 import FluidsPanel from './FluidsPanel';
 import AvoPanel from './AvoPanel';
 import WedgePanel from './WedgePanel';
@@ -81,7 +81,11 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     velocity: { family: 'velocity', allowed: VELOCITY_UNITS.map((v) => v.key) },
     density: { family: 'density', allowed: DENSITY_UNITS.map((v) => v.key) },
     depth: { family: 'depth', allowed: DEPTH_UNITS },
-  }, { fallback: readUnits(storage()), legacyKeys: [UNITS_KEY] });
+    // RP-U1-008: the dock's reservoir conditions and GOR follow the profile too
+    temperature: { family: 'temperature', allowed: TEMPERATURE_UNITS },
+    pressure: { family: 'pressure', allowed: PRESSURE_UNITS },
+    gor: { family: 'gor', allowed: GOR_UNITS },
+  }, { fallback: { ...readUnits(storage()), temperature: 'degC', pressure: 'MPa', gor: 'm3/m3' }, legacyKeys: [UNITS_KEY] });
   const { units, setUnit } = unitsHook;
 
   useEffect(() => {
@@ -137,13 +141,14 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         inventory: Object.entries(mapped).map(([key, log]) => ({ key, log })),
         published: publishedBy(logs),
         tops,
+        notes: model.notes || [],
       });
       setZones(zoneList);
       // PETRO-U2-013: a pre-PT9a Studio PHIE is total porosity; say so
       const oldPhie = mapped.PHIE && isPrePt9aPhie(mapped.PHIE) ? ` ${mapped.PHIE.mnemonic}: ${PRE_PT9A_PHIE_NOTE}` : '';
       setStatus((model.vsSource === 'estimated'
         ? `Loaded ${model.n} samples. No DTS, so Vs is estimated (Greenberg-Castagna).`
-        : `Loaded ${model.n} samples.`) + oldPhie);
+        : `Loaded ${model.n} samples.`) + (model.notes?.length ? ` ${model.notes.length} reading note${model.notes.length === 1 ? '' : 's'} under the curve list.` : '') + oldPhie);
     } catch (e) {
       setStatus(e.message);
       setWellData(null);
@@ -358,13 +363,14 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
           loadingId={loadingId}
           curveInventory={wellData?.inventory}
           published={wellData?.published}
+          readNotes={wellData?.notes}
           onSelect={select}
         />
       )}
       center={center}
       dock={(
         <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
-          <RockParamsPanel scenario={scenario} rock={rock} onApply={applyParams} />
+          <RockParamsPanel scenario={scenario} rock={rock} onApply={applyParams} units={units} onUnit={setUnit} />
         </ScrollArea>
       )}
       dockOpen={dockOpen}
