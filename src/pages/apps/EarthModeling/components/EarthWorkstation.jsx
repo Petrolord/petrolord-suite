@@ -34,6 +34,7 @@ import { useWellCurvesCache } from '@/components/wells/useWellCurvesCache';
 import { downloadBlob } from '@/components/maps/mapPng';
 import { volumesCsv } from '../services/volumesCsv';
 import { buildModelReportPdf } from '../services/modelReportPdf';
+import { grdeclText } from '../services/grdeclExport';
 import { buildEarthModelProspect, writeProspectHandoff, rcpProspectHref } from '@/lib/earthModelProspect';
 import { SEISMIC_FAULTS_HOOK, normalizeSeismicFault, hangingWallAtSurface } from '../services/seismicFaultZones';
 import { appPath, mapSurfaceHref, reservoirCalcSurfaceHref, MAPPING_ID, RESERVOIRCALC_ID, EARTH_MODELING_ID } from '@/components/wells/appLinks';
@@ -493,6 +494,11 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           disabled={!built} onClick={() => exportVolumesCsv()}>
           <FileDown className="w-3.5 h-3.5" /> Volumes CSV
         </button>
+        <button type="button" data-testid="em-grdecl" title="Download the model as an Eclipse corner-point grid (GRDECL) for Reservoir Simulation Studio, one layer per zone"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
+          disabled={!built} onClick={() => exportGrdecl()}>
+          <FileDown className="w-3.5 h-3.5" /> GRDECL
+        </button>
         <button type="button" data-testid="em-send-rcp" title="Open ReservoirCalc Pro with the zone on the map as a prospect: area, column, NTG, porosity, Sw, contacts and FVFs as the model has them"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           disabled={!built} onClick={() => sendToRcp()}>
@@ -624,6 +630,15 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     } catch (e) { setStatus(e.message); }
   };
   // U2-003: the model report a reviewer signs (PDF); the map on screen goes in as a picture
+  // U2-011: the corner-point grid for Reservoir Simulation Studio (GRID include + SWAT include)
+  const exportGrdecl = () => {
+    try {
+      const g = grdeclText(built, { name: definition.name });
+      downloadBlob(new Blob([g.text], { type: 'text/plain' }), g.fileName);
+      downloadBlob(new Blob([g.swatText], { type: 'text/plain' }), g.swatFileName);
+      setStatus(`Exported ${g.fileName} (${g.dims.nx} x ${g.dims.ny} x ${g.dims.nz}, ${g.active} active cells) and ${g.swatFileName}. Upload both in Reservoir Simulation Studio's Deck tab and INCLUDE them in the GRID and SOLUTION sections; add permeability.`);
+    } catch (e) { setStatus(e.message); }
+  };
   // U2-009: the model to ReservoirCalc Pro as a prospect (the zone on the map)
   const navigate = useNavigate();
   const sendToRcp = () => {

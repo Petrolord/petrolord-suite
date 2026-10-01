@@ -161,3 +161,23 @@ test('U2-008: zone A takes NTG and Sw from the Petrophysics net pay and HCPV map
   await expect(page.getByTestId('em-qc')).toContainText('no Petrophysics map picked for this zone');
   expect(errs).toEqual([]);
 });
+
+test('U2-011: the GRDECL and SWAT includes download and read back', async ({ page }) => {
+  const errs = errorsOf(page);
+  await stack(page);
+  await metric(page);
+  await buildNow(page);
+  const downloads = [];
+  page.on('download', (d) => downloads.push(d));
+  await page.getByTestId('em-grdecl').click();
+  await expect.poll(() => downloads.length).toBe(2);
+  const names = downloads.map((d) => d.suggestedFilename()).sort();
+  expect(names).toEqual(['NEW_MODEL.GRDECL', 'NEW_MODEL_SWAT.INC']);
+  const f = path.join(SHOTS, 'NEW_MODEL.GRDECL');
+  await downloads.find((d) => d.suggestedFilename() === 'NEW_MODEL.GRDECL').saveAs(f);
+  const text = fs.readFileSync(f, 'utf8');
+  expect(text).toMatch(/SPECGRID\n {2}24 19 2 1 F\n\//);
+  for (const k of ['COORD', 'ZCORN', 'ACTNUM', 'PORO', 'NTG']) expect(text).toContain(`\n${k}\n`);
+  await expect(page.getByTestId('em-status')).toContainText('active cells');
+  expect(errs).toEqual([]);
+});
