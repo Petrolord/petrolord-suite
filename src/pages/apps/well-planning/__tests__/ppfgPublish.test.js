@@ -15,18 +15,21 @@ describe('ppfg curve plumbing', () => {
     expect(md).toEqual([500, 525, 550, 575]);
   });
 
-  test('pickPpfgLogs keeps the latest MPa curve per mnemonic and ignores others', () => {
+  test('pickPpfgLogs keeps the latest readable curve per mnemonic and names the others (PP-U1-005)', () => {
     const logs = [
       { mnemonic: 'GR', unit: 'API' },
       { mnemonic: 'PP', unit: 'MPA', id: 'old' },
       { mnemonic: 'PP', unit: 'MPA', id: 'new' },
       { mnemonic: 'FP', unit: 'MPA', id: 'fp' },
-      { mnemonic: 'OBG', unit: 'kPa', id: 'wrong-unit' },
+      { mnemonic: 'OBG', unit: 'kPa', id: 'kpa' },
+      { mnemonic: 'FP', unit: 'API', id: 'not-a-pressure' },
     ];
-    const picked = pickPpfgLogs(logs);
+    const skipped = [];
+    const picked = pickPpfgLogs(logs, skipped);
     expect(picked.PP.id).toBe('new');
     expect(picked.FP.id).toBe('fp');
-    expect(picked.OBG).toBeUndefined();
+    expect(picked.OBG.id).toBe('kpa'); // was dropped silently before: only MPA was read
+    expect(skipped).toEqual([expect.stringMatching(/FP is in API, which is not a pressure/)]);
   });
 
   test('sampleCurve interpolates inside, nulls outside and across gaps', () => {

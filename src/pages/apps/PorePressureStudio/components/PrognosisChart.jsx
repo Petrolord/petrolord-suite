@@ -17,6 +17,7 @@ import {
   DEFAULT_UNITS, depthToDisplay, pressureToDisplay, pressureDigits, pressureLabel, emwReferenceDepthM, emwDatumLabel, isEmw,
 } from '../services/units';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { thinIndices } from '../services/thin';
 
 const SERIES = [
   { key: 'obg', name: 'Overburden', color: '#31363b' },
@@ -31,13 +32,16 @@ export default function PrognosisChart({ profile, zBmlM, calibration, units = DE
   const data = useMemo(() => {
     if (!profile) return [];
     const conv = (pa, zM) => { const v = pressureToDisplay(pa, pU, emwReferenceDepthM(zM, params)); return Number.isFinite(v) ? v : null; };
-    const rows = zBmlM.map((z, i) => ({
-      z: depthToDisplay(z, zU),
-      obg: conv(profile.overburdenPa[i], z),
-      ph: conv(profile.hydrostaticPa[i], z),
-      pp: conv(profile.porePressurePa[i], z),
-      fg: conv(profile.fracPressurePa[i], z),
-    }));
+    const rows = thinIndices(zBmlM.length).map((i) => {
+      const z = zBmlM[i];
+      return {
+        z: depthToDisplay(z, zU),
+        obg: conv(profile.overburdenPa[i], z),
+        ph: conv(profile.hydrostaticPa[i], z),
+        pp: conv(profile.porePressurePa[i], z),
+        fg: conv(profile.fracPressurePa[i], z),
+      };
+    });
     // drilling window band between PP and FG (T1-E1)
     rows.forEach((r) => { if (r.pp != null && r.fg != null) r.win = [r.pp, r.fg]; });
     for (const c of calibration || []) {
@@ -54,7 +58,7 @@ export default function PrognosisChart({ profile, zBmlM, calibration, units = DE
   if (!profile) return null;
 
   return (
-    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="pp-prognosis-chart">
+    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="pp-prognosis-chart" data-rows={data.length}>
       <h3 className="text-center text-sm font-semibold" style={{ color: CHART_COLORS.axisLabel }}>
         Pressure prognosis
       </h3>
