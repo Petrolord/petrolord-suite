@@ -94,7 +94,7 @@ export class ContactVolumetricsEngine {
         if (trap && trap.limitedByEdge && trap.filledToSpill) {
             // U2-008: the trap is filled to a spill point on the map edge
             openEdge = { open: true, cells: Math.max(openCells, 1), edgeElevation: trap.spillElevation, atSpill: true };
-            warnings.push(`Open closure: the trap spills at the edge of the mapped surface (${Math.round(trap.spillElevation).toLocaleString('en-US')} ${lenUnit} TVDSS), so the structure may close deeper off the map. This volume is a minimum, not a trap volume.`);
+            warnings.push(`Open closure: the trap spills at the edge of the mapped surface (${Math.round(trap.spillElevation).toLocaleString('en-US')} ${lenUnit} TVDSS), so the structure may close deeper off the map. This volume is only a minimum.`);
         } else if (openEdge.open) {
             warnings.push(`Open closure: the hydrocarbon column reaches the edge of the mapped surface at ${openCells.toLocaleString('en-US')} cells, so the structure does not close inside the map at this contact. This volume is a minimum, not a trap volume. The shallowest edge of the surface is at ${Number.isFinite(openEdge.edgeElevation) ? Math.round(openEdge.edgeElevation).toLocaleString('en-US') : 'n/a'} ${lenUnit} TVDSS: a contact below that spills or runs off the map.`);
         }
