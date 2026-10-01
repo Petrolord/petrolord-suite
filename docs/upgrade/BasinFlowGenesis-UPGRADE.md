@@ -239,3 +239,4 @@ Engine changes first, in engines PR (see the table): every Basin engine addition
 
 | ID | Status | Proving test | Notes |
 |---|---|---|---|
+| U2-001 | Done | engines `basin.u2.test.js` U2-001 (2); Suite `upgradeU2.test.js` U2-001 (2), `upgradeU2Ui.test.jsx` U2-001 | The engine reports each eroded (phantom) section with its burial history (`meta.phantoms`, `data.phantoms`). The burial plot draws it hatched grey on top of the column from its deposition (the youngest age before the event) until the erosion event, and says it under the title: the reference basin shows 600 m (1,969 ft) deposited at 20 Ma and removed at 10 Ma. A result saved before U2 has no phantoms and draws without one. Closes BF-T1-E3 and BF-U1-026. |
