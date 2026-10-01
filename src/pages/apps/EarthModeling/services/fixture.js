@@ -91,3 +91,23 @@ export function fixtureWells() {
     };
   });
 }
+
+/**
+ * U2-001: an interpreted fault in the shape of Seismolord's reader contract
+ * (src/lib/seismicFaultsReader.js on feat/seis-u2): striking north, dipping
+ * 60 degrees east, through x = 1500 m at 1500 m depth, so its trace is at
+ * x = 1500 + (d - 1500) / tan(60) on a horizon at depth d. Three rails down
+ * the fault surface at y = 1950, 2475 and 3000 m.
+ */
+export const SEISMIC_FAULT_DIP_DEG = 60;
+export const seismicFaultX = (d) => 1500 + (d - 1500) / Math.tan((SEISMIC_FAULT_DIP_DEG * Math.PI) / 180);
+export function seismicFaultFixture() {
+  const rail = (y) => Array.from({ length: 17 }, (_, i) => {
+    const d = 1400 + i * 25;
+    return { x: seismicFaultX(d), y, twtMs: 1400 + i * 25, depthM: d };
+  });
+  return {
+    id: 'sf-east-60', name: 'F-East 60 (Seismolord)', source: 'seismolord', volumeId: 'vol-em', volumeName: 'EM fixture 3D',
+    sticks: [rail(1950), rail(2475), rail(3000)], surface: [rail(1950), rail(2475), rail(3000)], crsStatus: 'same', notes: [],
+  };
+}

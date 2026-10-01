@@ -86,7 +86,8 @@ describe('the hanging-wall block Earth Modeling takes', () => {
 
   test('the Earth Modeling in-memory backend serves it through the contract', async () => {
     const sf = await makeInMemoryBackend().listSeismicFaults();
-    expect(sf.faults.map((f) => f.name)).toEqual(['F-East (Seismolord)']);
+    // Earth Modeling U2-001 adds a depth-railed fault and a time-only one beside it
+    expect(sf.faults.map((f) => f.name)).toEqual(['F-East (Seismolord)', 'F-East 60 (Seismolord)', 'F-Time (Seismolord)']);
   });
 });
 

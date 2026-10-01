@@ -20,6 +20,12 @@ import { NULL_VALUE } from '@/lib/gridding/numeric';
 import { readDepthSurface } from '@/lib/readDepthSurface';
 import { convert } from '@/lib/units/registry';
 import { isPrePt9aZone } from '@/lib/petroProvenance';
+import { boundLegByClosure } from './trapBound';
+import { shmSwGrid } from './shmGrid';
+import { hangingWallAtSurface } from './seismicFaultZones';
+import { ntgFromNetMap, swFromHcpvMap, isMdKey } from './propertyMaps';
+import { resampleTo } from '@/lib/gridding/gridmath';
+import { isopach } from '@/lib/gridding/isopach';
 
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
@@ -30,6 +36,10 @@ export const POPULATION_METHODS = Object.freeze([
   { key: 'trend', label: 'trend (LSQ plane)' },
   { key: 'okrige', label: 'ordinary kriging (fitted variogram)' },
   { key: 'krige', label: 'simple kriging (typed variogram, legacy)' },
+  // U2-002: Sw only
+  { key: 'shm', label: 'saturation-height (SCAL Studio), Sw only', only: 'sw' },
+  // U2-008: Petrophysics maps per zone (net pay for NTG, HCPV for Sw)
+  { key: 'map', label: 'Petrophysics map per zone (net pay, HCPV)', only: ['ntg', 'sw'] },
 ]);
 
 /** A fresh, empty model definition. */
@@ -72,7 +82,7 @@ export function upgradeDefinition(def) {
     name: typeof d.name === 'string' && d.name.trim() ? d.name : e.name,
     surfaceIds: ids,
     topNames: ids.map((_, i) => (Array.isArray(d.topNames) && typeof d.topNames[i] === 'string' ? d.topNames[i] : '')),
-    zones: Array.isArray(d.zones) ? d.zones.filter(Boolean).map((z, i) => ({ name: z.name || `Zone ${i + 1}`, registryZone: z.registryZone || '' })) : [],
+    zones: Array.isArray(d.zones) ? d.zones.filter(Boolean).map((z, i) => ({ name: z.name || `Zone ${i + 1}`, registryZone: z.registryZone || '', ...(z.maps ? { maps: z.maps } : {}) })) : [],
     faultPolygons: Array.isArray(d.faultPolygons) ? d.faultPolygons.filter((p) => Array.isArray(p?.vertices)).map((p, i) => ({ ...p, name: p.name || `Fault ${i + 1}`, vertices: p.vertices.map(vert) })) : [],
     methods: { ...e.methods, ...(d.methods || {}) },
     krige: { ...e.krige, ...(d.krige || {}) },
@@ -133,7 +143,22 @@ export function parseFluidsInput(inputs = []) {
     if (out.bo !== null && !(out.bo > 0)) throw new Error(`Zone ${i + 1}: Bo must be greater than zero.`);
     if (out.bg !== null && !(out.bg > 0)) throw new Error(`Zone ${i + 1}: Bg must be greater than zero.`);
     if (out.goc !== null && out.owc !== null && out.goc > out.owc) throw new Error(`Zone ${i + 1}: the GOC is deeper than the OWC.`);
-    if (out.bg !== null && out.bo === null && out.goc === null) {
+    // U2-005: contacts per fault block override the zone's (block 0 is
+    // outside every fault polygon); each keeps the unit it was typed in
+    const blocks = {};
+    for (const [lab, b] of Object.entries(f.blocks || {})) {
+      if (!b) continue;
+      const bg = depth(b.goc, b.gocUnit, `the GOC of block ${lab}`);
+      const bw = depth(b.owc, b.owcUnit, `the OWC of block ${lab}`);
+      if (bg === null && bw === null) continue;
+      const eg = bg ?? out.goc; const ew = bw ?? out.owc;
+      if (eg !== null && ew !== null && eg > ew) throw new Error(`Zone ${i + 1}, block ${lab}: the GOC is deeper than the OWC.`);
+      blocks[lab] = { goc: bg, owc: bw };
+    }
+    if (Object.keys(blocks).length) out.blocks = blocks;
+    // U2-006: bound the leg by the closure and spill of the zone top
+    if (f.trap === 'closure') out.trap = 'closure';
+    if (out.bg !== null && out.bo === null && out.goc === null && !Object.values(blocks).some((b) => b.goc !== null)) {
       out.gasZone = true;
       notes.push(`Zone ${i + 1}: Bg with no Bo and no GOC, so the zone is gas from its top down to ${out.owc === null ? 'its base' : 'the contact'}.`);
     }
@@ -142,19 +167,62 @@ export function parseFluidsInput(inputs = []) {
   });
 }
 
-/** Engine fluids for a zone: a gas zone puts the GOC at the contact (or deeper than any node). */
-export function engineFluids(f) {
+/**
+ * The contact of one kind ('goc' or 'owc') at every node (U2-005, U2-006):
+ * the block's own contact when one was typed, else the zone's; NaN where
+ * none applies (the engine's "no contact given"). Null when the zone has
+ * no contact of that kind anywhere.
+ */
+export function contactGrid(f, kind, labels, n) {
+  if (!f) return null;
+  const zoneV = Number.isFinite(f[kind]) ? f[kind] : null;
+  const byBlock = {};
+  for (const [lab, b] of Object.entries(f.blocks || {})) if (Number.isFinite(b?.[kind])) byBlock[lab] = b[kind];
+  if (zoneV === null && !Object.keys(byBlock).length) return null;
+  const out = new Float64Array(n);
+  for (let j = 0; j < n; j++) {
+    const lab = String(labels ? labels[j] : 0);
+    out[j] = lab in byBlock ? byBlock[lab] : (zoneV ?? NaN);
+  }
+  return out;
+}
+
+/** The contact of one kind in a block (the block's own, else the zone's), or null. */
+export const blockContact = (f, kind, lab) => {
+  const b = f?.blocks?.[String(lab)]?.[kind];
+  if (Number.isFinite(b)) return b;
+  return Number.isFinite(f?.[kind]) ? f[kind] : null;
+};
+
+/**
+ * Engine fluids for a zone: a gas zone puts the GOC at the contact (or
+ * deeper than any node). With contacts per block (U2-005) the contacts go
+ * to the engine per node, so a block with none typed falls back to the zone's.
+ */
+export function engineFluids(f, labels = null, n = 0) {
   if (!f) return f;
-  const { notes, gasZone, ...rest } = f;
+  const { notes, gasZone, blocks, ...rest } = f;
+  if (blocks && n > 0) {
+    const owc = contactGrid(f, 'owc', labels, n);
+    const goc = gasZone
+      ? (owc ? Float64Array.from(owc, (v) => (Number.isFinite(v) ? v : 1e12)) : 1e12)
+      : contactGrid(f, 'goc', labels, n);
+    return { ...rest, goc, owc };
+  }
   if (gasZone) return { ...rest, goc: rest.owc === null ? 1e12 : rest.owc };
   return rest;
+}
+
+/** Thrown when a build is cancelled (U2-004). */
+export class BuildCancelled extends Error {
+  constructor() { super('Build cancelled.'); this.name = 'BuildCancelled'; this.cancelled = true; }
 }
 
 /** A mis-tie beyond this (metres) is reported after a build (T1 EM-T1-003). */
 export const MISTIE_WARN_M = 10;
 
 /** True when a zone's fluids carry any contact or FVF. */
-export const hasFluids = (f) => !!f && ['goc', 'owc', 'bo', 'bg'].some((k) => Number.isFinite(f[k]));
+export const hasFluids = (f) => !!f && (['goc', 'owc', 'bo', 'bg'].some((k) => Number.isFinite(f[k]) || ArrayBuffer.isView(f[k]) || Array.isArray(f[k])) || Object.keys(f.blocks || {}).length > 0);
 
 /**
  * HCPV and in-place volumes at a low and a high property case (T1 E1): the
@@ -162,24 +230,33 @@ export const hasFluids = (f) => !!f && ['goc', 'owc', 'bo', 'bg'].some((k) => Nu
  * down and Sw up for P90, the reverse for P10, every node moving together
  * (a fully correlated property case). Null when no property was kriged.
  */
+/**
+ * The zone's property grids shifted by z kriging standard deviations each
+ * (every node moving together), held to 0..1. `zs` is {phi, sw, ntg}; a
+ * property without a variance grid is returned unshifted.
+ */
+export function shiftProps(zone, zs = {}) {
+  const vars = zone.variance || {};
+  const out = {};
+  for (const k of ['phi', 'sw', 'ntg']) {
+    const g = zone.props[k];
+    if (!g) continue;
+    const v = vars[k];
+    const z = Number(zs[k]) || 0;
+    if (!v || z === 0) { out[k] = g; continue; }
+    out[k] = Float64Array.from(g, (x, i) => {
+      if (!Number.isFinite(v[i]) || v[i] < 0 || Math.abs(x) >= 1e29) return x;
+      return Math.min(1, Math.max(0, x + z * Math.sqrt(v[i])));
+    });
+  }
+  return out;
+}
+
 export function volumeRange(spec, zone, labels, fluids, top, base) {
   const vars = zone.variance || {};
   if (!['phi', 'sw', 'ntg'].some((k) => vars[k])) return null;
   const K = 1.2815515655446004;
-  const shifted = (sgn) => {
-    const out = {};
-    for (const k of ['phi', 'sw', 'ntg']) {
-      const g = zone.props[k];
-      if (!g) continue;
-      const v = vars[k];
-      const dir = k === 'sw' ? -sgn : sgn;
-      out[k] = Float64Array.from(g, (x, i) => {
-        if (!v || !Number.isFinite(v[i]) || v[i] < 0 || Math.abs(x) >= 1e29) return x;
-        return Math.min(1, Math.max(0, x + dir * K * Math.sqrt(v[i])));
-      });
-    }
-    return out;
-  };
+  const shifted = (sgn) => shiftProps(zone, { phi: sgn * K, sw: -sgn * K, ntg: sgn * K });
   const vol = (props) => (hasFluids(fluids)
     ? zoneVolumesWithContacts(spec, top, base, labels, props, fluids)
     : zoneVolumes(spec, zone.thickness, labels, props)).total;
@@ -265,16 +342,18 @@ export function clampFractionGrid(z) {
  * where the frame stops. Null when there is no contact (the no-OWC
  * warning covers that case).
  */
-export function contactEdgeReport(spec, top, fluids) {
-  const contact = fluids && Number.isFinite(fluids.owc) ? fluids.owc : null;
-  if (!Number.isFinite(contact)) return { open: null, nodes: 0 };
+export function contactEdgeReport(spec, top, fluids, labels = null) {
+  // U2-005: the contact of each node's own block
+  const grid = contactGrid(fluids, 'owc', labels, top.length);
+  if (!grid) return { open: null, nodes: 0 };
   const { nx, ny } = spec;
   let nodes = 0;
   for (let r = 0; r < ny; r++) {
     for (let c = 0; c < nx; c++) {
       const j = r * nx + c;
       const v = top[j];
-      if (isNull(v) || v >= contact) continue;
+      const contact = grid[j];
+      if (isNull(v) || !Number.isFinite(contact) || v >= contact) continue;
       const edge = r === 0 || c === 0 || r === ny - 1 || c === nx - 1
         || isNull(top[j - 1]) || isNull(top[j + 1]) || isNull(top[j - nx]) || isNull(top[j + nx]);
       if (edge) nodes += 1;
@@ -300,7 +379,9 @@ export function publishPayload(built, { layer, grid, modelName, zoneName, method
   const kind = layer === 'thickness' ? 'isochore'
     : (layer === 'top' || layer === 'base') ? 'structure' : 'attribute';
   const isVar = layer.endsWith('_var');
-  const name = `${modelName} · ${zoneName} ${isVar ? `${layer.slice(0, -4)} variance` : layer}`;
+  // U2-017: the isopach leaves as a length attribute, named so no reader takes it for an isochore
+  const isIso = layer === 'isopach';
+  const name = `${modelName} · ${zoneName} ${isIso ? 'isopach (true stratigraphic thickness, m)' : isVar ? `${layer.slice(0, -4)} variance` : layer}`;
   return {
     name,
     kind,
@@ -308,7 +389,7 @@ export function publishPayload(built, { layer, grid, modelName, zoneName, method
     crs: built.crs || null,
     xyUnit: built.xyUnit || null,
     zDomain: kind === 'attribute' ? 'attribute' : 'depth',
-    zUnit: kind === 'attribute' ? (isVar ? 'fraction^2' : 'fraction') : 'm',
+    zUnit: kind === 'attribute' ? (isIso ? 'm' : isVar ? 'fraction^2' : 'fraction') : 'm',
     provenance: {
       engine: 'earth-modeling',
       model: modelName,
@@ -337,7 +418,17 @@ export function publishPayload(built, { layer, grid, modelName, zoneName, method
  * `xyToM` the factor between them.
  * @returns {{spec, specM, xyToM, xyUnit, clamped, counts, thickness, labels, census, ties, zones, notes}}
  */
-export async function buildModel(definition, wells, surfaces, backend) {
+export async function buildModel(definition, wells, surfaces, backend, { onProgress = null, signal = null } = {}) {
+  // U2-004: progress in steps (surfaces read, framework, each zone's three
+  // properties and its volumes), and a cancel checked between steps
+  const nZones = Math.max(0, (definition.surfaceIds || []).length - 1);
+  const totalSteps = (definition.surfaceIds || []).length + 1 + nZones * 4;
+  let step = 0;
+  const progress = (label) => {
+    if (signal?.aborted) throw new BuildCancelled();
+    step += 1;
+    if (onProgress) onProgress({ label, step: Math.min(step, totalSteps), total: totalSteps, fraction: Math.min(1, step / totalSteps) });
+  };
   // registry rows plus the definition's derived horizons (EM2)
   const rows = allSurfaceRows(surfaces, definition);
   const stack = definition.surfaceIds.map((id) => {
@@ -373,9 +464,13 @@ export async function buildModel(definition, wells, surfaces, backend) {
   };
   const loadDepthDown = async (s) => (await readRow(s, ['elevation'], 'a surface in the model stack')).grid;
   const loadIsochore = async (s) => (await readRow(s, ['isochore'], 'the thickness of a derived horizon')).grid;
-  const grids = await Promise.all(stack.map(async (s) => (s.derived
-    ? computeDerivedGrid(s.provenance.derived, rows, loadDepthDown, loadIsochore)
-    : loadDepthDown(s))));
+  const grids = await Promise.all(stack.map(async (s) => {
+    const g = await (s.derived
+      ? computeDerivedGrid(s.provenance.derived, rows, loadDepthDown, loadIsochore)
+      : loadDepthDown(s));
+    progress(`Read ${s.name}`);
+    return g;
+  }));
 
   // one XY unit for the whole stack: the registry rows read (derived rows
   // take their sources' frame)
@@ -434,6 +529,7 @@ export async function buildModel(definition, wells, surfaces, backend) {
   });
   const thickness = [];
   for (let i = 0; i + 1 < clamped.length; i++) thickness.push(zoneThickness(clamped[i], clamped[i + 1]));
+  progress('Framework stacked and clamped');
   const framework = { grids: resampled, clamped, counts, thickness };
 
   // EM0: a boundary polygon (geo_culture kind boundary) clips the model:
@@ -469,6 +565,25 @@ export async function buildModel(definition, wells, surfaces, backend) {
   const polygons = (definition.faultPolygons || []).map((p) => p.vertices.map(([x, y]) => [x * k, y * k]));
   const labels = polygons.length ? labelBlocks(specM, polygons) : null;
   const census = labels ? blockCensus(labels) : { 0: specM.nx * specM.ny };
+  // U2-001: a Seismolord fault (rails down its surface) is cut with each zone
+  // top, so a sloping fault moves its block boundary from zone to zone
+  let polygonsByZone = null;
+  if ((definition.faultPolygons || []).some((p) => Array.isArray(p.rails) && p.rails.length >= 2)) {
+    polygonsByZone = [];
+    for (let i = 0; i + 1 < framework.clamped.length; i++) {
+      polygonsByZone.push((definition.faultPolygons || []).map((p, q) => {
+        if (!Array.isArray(p.rails) || p.rails.length < 2) return polygons[q];
+        const rails = p.rails.map((rail) => rail.map(([x, y, d]) => ({ x: x * k, y: y * k, d })));
+        const r = hangingWallAtSurface(rails, framework.clamped[i], specM);
+        if (r.error) {
+          notes.push(`${p.name}: ${r.error} (zone ${i + 1}), so its polygon at the first top is used there.`);
+          return polygons[q];
+        }
+        return r.polygon;
+      }));
+    }
+  }
+  const labelsByZone = polygonsByZone ? polygonsByZone.map((ps) => labelBlocks(specM, ps)) : null;
 
   const ties = wellTies(eWells, framework.clamped, specM, surfIndexByTop).map((t) => {
     const before = adjustment?.tiesBefore.find((b) => b.well === t.well && b.top === t.top);
@@ -476,16 +591,56 @@ export async function buildModel(definition, wells, surfaces, backend) {
     return before ? { ...native, residualBeforeM: before.residualM } : native;
   });
 
+  // U2-008: each zone's Petrophysics maps (attribute rows in metres), on the model frame
+  const readMap = async (id, role) => {
+    if (!id) return null;
+    const row = surfaces.find((x) => x.id === id);
+    if (!row) throw new Error(`A Petrophysics map the model uses (${role}) is no longer in the registry. Pick another in the dock.`);
+    const r = await readRow(row, ['attribute'], role);
+    if (r.zUnit !== 'm') throw new Error(`${row.name} is not a thickness in metres or feet (z unit ${row.z_unit || 'none'}), so it cannot be ${role}.`);
+    if (isMdKey(row)) notes.push(`${row.name} is measured-depth thickness; in deviated wells it is longer than the vertical zone thickness. Grid the TVT key in Mapping for a true ratio.`);
+    return resampleTo(r.grid, scaleSpec(specOf(row), r.xyToM), specM);
+  };
+  const zoneMaps = await Promise.all((definition.zones || []).map(async (zd) => ({
+    ntg: definition.methods?.ntg === 'map' ? await readMap(zd.maps?.ntg, `the net pay map of ${zd.name}`) : null,
+    sw: definition.methods?.sw === 'map' ? await readMap(zd.maps?.sw, `the HCPV map of ${zd.name}`) : null,
+  })));
+
   const totalPhi = [];
   const propertyClamps = [];
   const parsedFluids = definition.fluidsInput ? parseFluidsInput(definition.fluidsInput) : (definition.fluids || []);
   for (const f of parsedFluids) for (const n of f?.notes || []) notes.push(n);
   const zones = (definition.zones || []).map((zdef, i) => {
     const zThickness = framework.thickness[i];
+    // U2-001: this zone's own blocks when a fault slopes
+    const zLabels = labelsByZone ? labelsByZone[i] : labels;
+    const zPolygons = polygonsByZone ? polygonsByZone[i] : polygons;
     const props = {};
     const variance = {};
     const provenance = {};
+    let shmPending = false;
+    let swMapPending = false;
     for (const [prop, key] of Object.entries(PROP_KEYS)) {
+      // U2-008: Sw from the HCPV map waits for NTG and porosity; NTG from the net pay map
+      if (prop === 'sw' && definition.methods?.sw === 'map' && zoneMaps[i].sw) {
+        swMapPending = true;
+        progress(`${zdef.name}: Sw from the HCPV map`);
+        continue;
+      }
+      if (prop === 'ntg' && definition.methods?.ntg === 'map' && zoneMaps[i].ntg) {
+        const r = ntgFromNetMap(zoneMaps[i].ntg, zThickness);
+        props.ntg = r.z;
+        if (r.clamped) propertyClamps.push({ zone: zdef.name, prop: 'ntg', nodes: r.clamped });
+        provenance.ntg = [{ block: 0, methodUsed: 'map', wells: 0, fellBack: false, note: 'net pay map / zone thickness' }];
+        progress(`${zdef.name}: NTG from the net pay map`);
+        continue;
+      }
+      // U2-002: Sw from the SCAL saturation-height function waits for the contacts
+      if (prop === 'sw' && definition.methods?.sw === 'shm') {
+        shmPending = true;
+        progress(`${zdef.name}: Sw from saturation-height`);
+        continue;
+      }
       const base = zoneControlPoints(eWells, zdef.registryZone);
       const all = [];
       for (const cp of base) {
@@ -499,33 +654,97 @@ export async function buildModel(definition, wells, surfaces, backend) {
       const byBlock = {};
       for (const p of all) {
         let lab = 0;
-        for (let q = 0; q < polygons.length; q++) {
-          if (pointInPolygon(p.x, p.y, polygons[q])) { lab = q + 1; break; }
+        for (let q = 0; q < zPolygons.length; q++) {
+          if (pointInPolygon(p.x, p.y, zPolygons[q])) { lab = q + 1; break; }
         }
         (byBlock[lab] = byBlock[lab] || []).push(p);
       }
-      const method = definition.methods?.[prop] || 'constant';
+      let method = definition.methods?.[prop] || 'constant';
+      if (method === 'map' || method === 'shm') method = 'constant'; // no map for this zone: the weighted mean, said in provenance
       // EM4: ordinary kriging with a fitted variogram and a variance grid
       const out = method === 'okrige'
-        ? populateZonePropertyOk(specM, labels, byBlock, all, definition.krige || DEFAULT_KRIGE)
-        : populateZoneProperty(specM, labels, byBlock, all, method, definition.krige || DEFAULT_KRIGE);
+        ? populateZonePropertyOk(specM, zLabels, byBlock, all, definition.krige || DEFAULT_KRIGE)
+        : populateZoneProperty(specM, zLabels, byBlock, all, method, definition.krige || DEFAULT_KRIGE);
       // EM-U1-005: a trend or kriging extrapolated past the wells stays a fraction
       const n = clampFractionGrid(out.z);
       if (n) propertyClamps.push({ zone: zdef.name, prop, nodes: n });
       props[prop] = out.z;
       if (out.variance) variance[prop] = out.variance;
-      provenance[prop] = out.provenance;
+      provenance[prop] = definition.methods?.[prop] === 'map'
+        ? out.provenance.map((r) => ({ ...r, fellBack: true, note: `no Petrophysics map picked for this zone${r.note ? `; ${r.note}` : ''}` }))
+        : out.provenance;
+      progress(`${zdef.name}: ${prop === 'phi' ? 'porosity' : prop === 'sw' ? 'Sw' : 'NTG'} populated`);
+    }
+    if (swMapPending) {
+      const r = swFromHcpvMap(zoneMaps[i].sw, zThickness, props.ntg, props.phi);
+      props.sw = r.z;
+      if (r.clamped) propertyClamps.push({ zone: zdef.name, prop: 'sw', nodes: r.clamped });
+      provenance.sw = [{ block: 0, methodUsed: 'map', wells: 0, fellBack: false, note: '1 - HCPV map / (thickness x NTG x porosity)' }];
     }
     const fluids = parsedFluids[i] || null;
-    const eng = engineFluids(fluids);
+    const nNodes = specM.nx * specM.ny;
+    const eng = engineFluids(fluids, zLabels, nNodes);
+    const topI = framework.clamped[i];
+    // U2-006: the leg bounded by Mapping's closure and spill engine
+    let trap = null;
+    if (fluids?.trap === 'closure') {
+      const owcGrid = contactGrid(fluids, 'owc', zLabels, nNodes);
+      if (owcGrid) {
+        trap = boundLegByClosure(specM, topI, owcGrid);
+        eng.owc = trap.owc;
+        if (fluids.gasZone) eng.goc = Float64Array.from(trap.owc, (v) => (Number.isFinite(v) ? v : 1e12));
+        trap.traps = trap.traps.map((t) => ({ ...t, spillXY: t.spillXY ? { x: t.spillXY.x / k, y: t.spillXY.y / k } : null }));
+      }
+    }
     const top = framework.clamped[i];
     const base = framework.clamped[i + 1];
-    const volumes = hasFluids(fluids)
-      ? zoneVolumesWithContacts(specM, top, base, labels, props, eng)
-      : zoneVolumes(specM, zThickness, labels, props);
-    const zone = { name: zdef.name, registryZone: zdef.registryZone, thickness: zThickness, props, variance, provenance, volumes, fluids };
-    zone.range = volumeRange(specM, zone, labels, eng, top, base);
-    zone.openEdge = contactEdgeReport(specM, top, fluids);
+    let shm = null;
+    if (shmPending) {
+      const r = definition.shmResolved;
+      if (!r?.ok) throw new Error(r?.errors?.[0] || 'Sw from saturation-height needs a SCAL Studio project. Pick one in the dock.');
+      const fwlM = Number.isFinite(r.fwlM) ? r.fwlM : r.fwlTvdssM;
+      if (!Number.isFinite(fwlM)) throw new Error('Sw from saturation-height needs a free-water level: the SCAL project has none, so type one in the dock.');
+      const owcAt = eng && eng.owc !== null && eng.owc !== undefined
+        ? (typeof eng.owc === 'number' ? new Float64Array(nNodes).fill(eng.owc) : eng.owc) : null;
+      const g = shmSwGrid({ spec: specM, top, base, contact: owcAt, shm: r, fwlM, rock: definition.shm?.rock || 'project', phi: props.phi });
+      props.sw = g.sw;
+      const usedFwl = !owcAt || !Array.from(owcAt).some(Number.isFinite);
+      provenance.sw = [{ block: 0, methodUsed: 'shm', wells: 0, fellBack: false, note: `${r.name || 'SCAL project'}, FWL ${fwlM.toFixed(1)} m, rock from ${definition.shm?.rock === 'model' ? 'the modelled porosity' : 'the project'}` }];
+      shm = { project: r.name || 'SCAL project', fwlM, rock: definition.shm?.rock || 'project', transitionNodes: g.transitionNodes, fwlAsContact: usedFwl };
+      if (usedFwl) {
+        // no OWC typed: the FWL bounds the hydrocarbon leg, or the water below it would count
+        if (eng) eng.owc = fwlM;
+        notes.push(`${zdef.name}: no OWC typed, so the free-water level (${fwlM.toFixed(1)} m) bounds the hydrocarbon leg; the transition zone above it is in Sw.`);
+      }
+    }
+    const volFluids = shmPending && shm?.fwlAsContact ? (eng || { owc: shm.fwlM }) : eng;
+    const volumes = (hasFluids(fluids) || (shmPending && shm?.fwlAsContact))
+      ? zoneVolumesWithContacts(specM, top, base, zLabels, props, volFluids)
+      : zoneVolumes(specM, zThickness, zLabels, props);
+    const zone = { name: zdef.name, registryZone: zdef.registryZone, ...(labelsByZone ? { labels: zLabels, census: blockCensus(zLabels) } : {}), thickness: zThickness, props, variance, provenance, volumes, fluids, ...(shm ? { shm } : {}) };
+    zone.range = volumeRange(specM, zone, zLabels, volFluids, top, base);
+    // U2-010: what a volume distribution needs to re-run this zone's volumes
+    zone.mc = { fluids: volFluids || null, trap: !!trap, owcBase: trap ? contactGrid(fluids, 'owc', zLabels, nNodes) : null, hasFluids: !!(hasFluids(fluids) || (shmPending && shm?.fwlAsContact)) };
+    if (trap) {
+      zone.trap = { traps: trap.traps, cutNodes: trap.cutNodes, openEdge: trap.openEdge };
+      zone.openEdge = trap.openEdge ? { open: true, nodes: 0, spillAtEdge: true } : { open: false, nodes: 0 };
+    } else {
+      zone.openEdge = contactEdgeReport(specM, top, fluids, zLabels);
+    }
+    // U2-017: the zone's isopach (true stratigraphic thickness) beside its isochore,
+    // Mapping's engine (TST = TVT cos(dip), dip from the zone's mid-surface)
+    {
+      const elevTop = Float64Array.from(top, (v) => (isNull(v) ? NULL_VALUE : -v));
+      const elevBase = Float64Array.from(base, (v) => (isNull(v) ? NULL_VALUE : -v));
+      const iso = isopach(elevTop, elevBase, specM, { xyToM: 1, dipFrom: 'mid' });
+      let sTst = 0; let sTvt = 0; let nIso = 0;
+      for (let j = 0; j < iso.tst.length; j++) {
+        if (isNull(iso.tst[j]) || isNull(iso.tvt[j])) continue;
+        sTst += iso.tst[j]; sTvt += iso.tvt[j]; nIso += 1;
+      }
+      zone.isopach = { tst: iso.tst, dip: iso.dip, maxDipDeg: iso.maxDipDeg, meanTstM: nIso ? sTst / nIso : null, meanTvtM: nIso ? sTvt / nIso : null };
+    }
+    progress(`${zdef.name}: volumes`);
     return zone;
   });
 
@@ -540,6 +759,7 @@ export async function buildModel(definition, wells, surfaces, backend) {
 
   return {
     spec, specM, xyToM: k, xyUnit, crs, ...framework, clampMasks, labels, census, ties, zones, boundary, adjustment,
+    ...(polygonsByZone ? { polygonsByZone: polygonsByZone.map((ps) => ps.map((ring) => ring.map(([x, y]) => [x / k, y / k]))) } : {}),
     fallbacks, misties, totalPhi, propertyClamps, notes,
   };
 }

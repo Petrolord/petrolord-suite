@@ -5,7 +5,7 @@
 // planar properties — so Playwright asserts the oracle's numbers off
 // the rendered UI. Same interface as registryBackend.
 
-import { MODEL_SPEC, planeGrid, fixtureWells, FAULT_POLYGON } from './fixture';
+import { MODEL_SPEC, planeGrid, fixtureWells, FAULT_POLYGON, seismicFaultFixture } from './fixture';
 import { depthDownToSurfaceZ } from '@/lib/surfaceConvention';
 import { SAVED_MODELS, resolveSavedModel } from './savedFixtures';
 import { faultToModelObjects } from '@/lib/seismicFaultsReader';
@@ -34,8 +34,12 @@ export const SEISMIC_FIXTURE = {
 let seq = 0;
 const nid = (p) => { seq += 1; return `${p}-${seq}`; };
 
-/** @param {{savedModels?: boolean}} [opts] savedModels seeds one saved model per release (U1, PL5) */
-export function makeInMemoryBackend({ savedModels = false } = {}) {
+/**
+ * @param {{savedModels?: boolean, propertyMaps?: boolean}} [opts] savedModels seeds one saved
+ *   model per release (U1, PL5); propertyMaps seeds zone A's Petrophysics net pay and HCPV
+ *   maps as Mapping grids them (U2-008)
+ */
+export function makeInMemoryBackend({ savedModels = false, propertyMaps = false } = {}) {
   const wells = fixtureWells();
   const surfaces = [];
   const gridStore = new Map();
@@ -56,6 +60,27 @@ export function makeInMemoryBackend({ savedModels = false } = {}) {
       storage_path: `user-dev/${id}/grid.f32`,
       created_at: new Date(2026, 6, 14, 9, 0, seq).toISOString(),
     });
+  }
+
+  // U2-008: zone A's net pay is 70% of its vertical thickness (TopB - TopA =
+  // 30 + 0.01 (x - 1000) m) and its HCPV thickness is net x 0.22 x 0.7
+  if (propertyMaps) {
+    const { x0, y0, dx, dy, nx, ny } = MODEL_SPEC;
+    const net = new Float32Array(nx * ny); const hcpv = new Float32Array(nx * ny);
+    for (let r = 0; r < ny; r++) for (let c = 0; c < nx; c++) {
+      const t = 30 + 0.01 * (c * dx);
+      net[r * nx + c] = 0.7 * t; hcpv[r * nx + c] = 0.7 * t * 0.22 * 0.7;
+    }
+    for (const [name, key, g] of [['A net pay (TVT)', 'net_tvt_m', net], ['A HCPV (TVT)', 'hcpv_tvt_m', hcpv]]) {
+      const id = nid('surf');
+      gridStore.set(id, g);
+      surfaces.push({
+        id, user_id: 'user-dev', organization_id: null, is_own: true, name, kind: 'attribute',
+        origin_x: x0, origin_y: y0, nx, ny, dx, dy, z_domain: 'attribute', z_unit: 'm', crs: null, xy_unit: 'm',
+        provenance: { source: { type: 'zone', zoneName: 'A', key } }, storage_path: `user-dev/${id}/grid.f32`,
+        created_at: new Date(2026, 9, 1, 9, 0, seq).toISOString(),
+      });
+    }
   }
 
   // EM3: a synthetic GR per fixture well (10 m samples to TD), a sand
@@ -120,10 +145,15 @@ export function makeInMemoryBackend({ savedModels = false } = {}) {
     async listFaultPolygons() {
       return [{ id: 'cult-fault-dev', name: 'Fixture fault (Mapping)', vertices: FAULT_POLYGON.map(([x, y]) => [x, y]), is_own: true, source: 'geo_culture' }];
     },
-    // Seismolord U2-003: faults read through the shared reader contract
+    // Seismolord U2-003: faults read through the shared reader contract, plus
+    // (U2-001) a 60 degree fault with depth rails over the whole frame and a
+    // time-only one, so the per-zone path and its refusal can be driven
     async listSeismicFaults() {
       const obj = faultToModelObjects(SEISMIC_FIXTURE.fault, SEISMIC_FIXTURE.volume);
-      return { faults: obj.error ? [] : [obj], skipped: obj.error ? [{ name: obj.name, reason: obj.error }] : [] };
+      const time = { ...seismicFaultFixture(), id: 'sf-time', name: 'F-Time (Seismolord)' };
+      time.surface = time.surface.map((r) => r.map((p) => ({ ...p, depthM: null })));
+      time.sticks = time.surface;
+      return { faults: [...(obj.error ? [] : [obj]), seismicFaultFixture(), time], skipped: obj.error ? [{ name: obj.name, reason: obj.error }] : [] };
     },
     // EM0: a boundary polygon (geo_culture kind boundary) over the
     // western 60% of the frame, so clipping changes the census
@@ -133,6 +163,18 @@ export function makeInMemoryBackend({ savedModels = false } = {}) {
       const xw = x0 + 0.6 * (nx - 1) * dx;
       const yn = y0 + (ny - 1) * dy;
       return [{ id: 'cult-lease-dev', name: 'Fixture lease (Mapping)', vertices: [[x0 - 1, y0 - 1], [xw, y0 - 1], [xw, yn + 1], [x0 - 1, yn + 1]], is_own: true, source: 'geo_culture' }];
+    },
+    // U2-002: one sample SCAL Studio project (inputs_data, schema 1), the
+    // Petrophysics harness sample: Leverett J a 0.25, b 1.4, Swirr 0.15,
+    // k 150 mD, phi 0.22; FWL 1,640 m (5,380.58 ft) under the fixture zones
+    async listScalProjects() { return [{ id: 'scal-sample', name: 'Fixture SAND J (sample)', updatedAt: '2026-10-01T00:00:00Z' }]; },
+    async loadScalProject(id) {
+      if (id !== 'scal-sample') return null;
+      return {
+        id, name: 'Fixture SAND J (sample)', schema: 1, samples: [],
+        capillary: { jMode: 'manual', manual: { a: '0.25', b: '1.4', Swirr: '0.15' }, SwirrOverride: '', includedSampleIds: [], reservoir: { k_md: '150', phi: '0.22', sigma_dyncm: '26', thetaDeg: '30' } },
+        height: { gammaW: '1.05', gammaHc: '0.80', fwl_tvdss: String(1640 / 0.3048), swMin: '0.2', swMax: '0.95' },
+      };
     },
     async getDepthUnit() { return depthUnit; },
     async setDepthUnit(u) { if (!['m', 'ft'].includes(u)) throw new Error(`Depth unit must be m or ft, got "${u}".`); depthUnit = u; return u; },

@@ -17,10 +17,12 @@ export default function EarthModelingHarness() {
   // U1 (PL5): ?saved=1 lists one saved model per release
   const [params] = useSearchParams();
   const saved = params.get('saved') === '1';
-  const backend = useMemo(() => makeInMemoryBackend({ savedModels: saved }), [saved]);
+  // U2-008: ?maps=1 adds zone A's Petrophysics net pay and HCPV maps
+  const maps = params.get('maps') === '1';
+  const backend = useMemo(() => makeInMemoryBackend({ savedModels: saved, propertyMaps: maps }), [saved, maps]);
   return (
     <div className="h-screen w-full overflow-hidden" data-testid="em-theme-scope">
-      <EarthWorkstation backend={backend} appPaths={{ 'mapping-surface-studio': '/dev/mapping-surface-studio', 'reservoircalc-pro': '/dashboard/apps/geoscience/reservoircalc-pro', 'earth-modeling': '/dev/earth-modeling' }} />
+      <EarthWorkstation backend={backend} appPaths={{ 'mapping-surface-studio': '/dev/mapping-surface-studio', 'reservoircalc-pro': '/dev/reservoircalc-pro', 'earth-modeling': '/dev/earth-modeling' }} />
     </div>
   );
 }
