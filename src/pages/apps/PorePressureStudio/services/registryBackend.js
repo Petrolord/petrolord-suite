@@ -24,6 +24,9 @@ import { getTransformer } from '@/lib/crs';
 import { staleOwnCurves } from './publish';
 import { getDepthUnit } from '@/lib/crs/settingsService';
 import { projectWellIds } from './projectRow';
+import { layerCakeAlongWell } from './alongHole';
+import { wellDepthFrame } from './prep';
+import { normalizeVelocity, layercakeDepthM } from '@/pages/apps/Seismolord/engine/velocityModel';
 
 // ---- Seismolord velocity models (P4; layer cakes from Seismolord U2-006) ----
 // Through the shared reader (src/lib/velocityModels): the volume row's
@@ -43,8 +46,12 @@ async function listVelocityModels() {
     }));
 }
 
-/** The layer cake's boundary times at a well's surface location. */
-async function layerCakeBoundariesAt(model, well) {
+/**
+ * The layer cake's boundary times along a well (PP-U2-008): where the hole
+ * crosses each boundary, through the well's survey, below the declared
+ * seismic datum. A vertical well (no survey) reads them at the wellhead.
+ */
+async function layerCakeBoundariesAt(model, well, { srdElevM = 0 } = {}) {
   const resolved = await resolveLayerCake(model.entry, { surfaces: await listSurfaces(), downloadGrid: downloadSurfaceGrid });
   if (!resolved.ok) throw new Error(resolved.reason);
   let x = Number(well.surface_x);
@@ -58,12 +65,25 @@ async function layerCakeBoundariesAt(model, well) {
   } else if (rel === 'local-mismatch') {
     throw new Error(`${well.name} is on a local grid and the layer boundaries are not, so the layer cake cannot be read there.`);
   }
-  const boundaryTwtMs = boundariesAt(resolved, x, y);
+  // the survey offsets are metres east and north of the wellhead in the well's
+  // frame; on a transformed CRS the offset is carried by the transform
+  const toSurf = rel === 'transformable'
+    ? (() => { const t = getTransformer(well.crs, surfCrs); return (dx, dy) => t.forward(Number(well.surface_x) + dx, Number(well.surface_y) + dy); })()
+    : (dx, dy) => ({ x: x + dx, y: y + dy });
+  const along = layerCakeAlongWell({
+    sampleAt: (px, py) => { const q = toSurf(px - x, py - y); return boundariesAt(resolved, q.x, q.y); },
+    layers: normalizeVelocity(model.velocity).layers,
+    layercakeDepthM,
+    surface: { x, y },
+    frame: wellDepthFrame(well),
+    srdElevM,
+  });
+  const boundaryTwtMs = along.boundaryTwtMs;
   const missing = boundaryTwtMs.map((v, i) => (v == null ? resolved.boundaries[i].row.name : null)).filter(Boolean);
   return {
     boundaryTwtMs,
     names: resolved.boundaries.map((b) => b.row.name),
-    note: missing.length ? `${missing.join(', ')} ${missing.length === 1 ? 'has' : 'have'} no value at ${well.name}; the layer above extends there.` : null,
+    note: [along.note, missing.length ? `${missing.join(', ')} ${missing.length === 1 ? 'has' : 'have'} no value at ${well.name}; the layer above extends there.` : null].filter(Boolean).join(' '),
     crsStatus: rel,
   };
 }

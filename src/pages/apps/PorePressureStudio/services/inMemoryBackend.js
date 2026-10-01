@@ -160,7 +160,8 @@ export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
     },
     async layerCakeBoundariesAt(model, well) {
       if (model.id !== LAYER_CAKE.id) throw new Error('Unknown velocity model.');
-      return { boundaryTwtMs: [1000], names: ['Base layer 1 (TWT ms)'], note: null, crsStatus: 'same', well: well.name };
+      // a flat boundary: the same along any hole (the vertical harness well)
+      return { boundaryTwtMs: [1000], names: ['Base layer 1 (TWT ms)'], note: 'Boundaries read at the wellhead (no deviation survey: a vertical well).', crsStatus: 'same', well: well.name };
     },
     // PP0: the account's Geoscience depth unit (the Mapping setting);
     // the fixture is SI so the oracle-anchored readout stays in metres

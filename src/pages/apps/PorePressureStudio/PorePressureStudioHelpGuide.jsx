@@ -98,6 +98,13 @@ export default function PorePressureStudioHelpGuide() {
           The result is trend-grade and badged as such: it constrains the regional trend and carries no local
           overpressure anomaly. Publish is unavailable for a trend because there is no well to write to.
         </Para>
+        <Para>
+          A layer cake is read along the hole: on a well with a deviation survey each boundary is read where the hole
+          crosses it, which on a dipping boundary differs from the wellhead, and the note under the ribbon says how far
+          from the wellhead that was. The model's depths are below the seismic datum (SRD). Type its elevation above sea
+          level in the dock (Seismic datum); until you do, the note says it is taken at sea level. Onshore, the ground
+          is placed below the KB by the mudline MD.
+        </Para>
       </GuideSection>
 
       <GuideSection id="units">

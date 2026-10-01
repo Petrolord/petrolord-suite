@@ -58,3 +58,30 @@ export function boundariesAlongHole({ sampleAt, depthsBelowDatum, xyAtDepthBelow
   }
   return { boundaryTwtMs: times, positions, iterations: it, converged, offWell };
 }
+
+/**
+ * The layer cake's boundary times along one well: the surface location
+ * (in the boundaries' CRS) plus the survey's offsets at each crossing.
+ * @param {{sampleAt: (x, y) => (number|null)[], layers: {v0, k}[], layercakeDepthM: Function,
+ *   surface: {x: number, y: number}, frame: ?{tvdssToMd: Function, mdToPosition: Function}, srdElevM?: number}} a
+ * @returns {{boundaryTwtMs: (number|null)[], note: string, alongHole: boolean}}
+ */
+export function layerCakeAlongWell({ sampleAt, layers, layercakeDepthM, surface, frame, srdElevM = 0 }) {
+  const depthsBelowDatum = (t) => t.map((v) => (v == null ? NaN : layercakeDepthM(layers, t, v)));
+  if (!frame) {
+    return { boundaryTwtMs: sampleAt(surface.x, surface.y), alongHole: false, note: 'Boundaries read at the wellhead (no deviation survey: a vertical well).' };
+  }
+  const xyAt = (zBelowDatum) => {
+    const hit = frame.tvdssToMd(zBelowDatum - srdElevM);
+    if (!hit) return null;
+    const p = frame.mdToPosition(hit.md);
+    return { x: surface.x + p.x, y: surface.y + p.y };
+  };
+  const r = boundariesAlongHole({ sampleAt, depthsBelowDatum, xyAtDepthBelowDatum: xyAt, surface });
+  const off = r.positions.map((p) => (p ? Math.hypot(p.x - surface.x, p.y - surface.y) : 0));
+  return {
+    boundaryTwtMs: r.boundaryTwtMs,
+    alongHole: true,
+    note: `Boundaries read where the hole crosses them (up to ${Math.round(Math.max(0, ...off))} m from the wellhead${r.converged ? '' : '; the crossing did not settle, the last reading is used'}).`,
+  };
+}

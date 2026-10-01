@@ -56,7 +56,7 @@ export function calibrationMisfit(calibration, zBmlM, ppPa, compare = 'pp') {
  * @returns {{key: string, text: string, tone: 'warn'|'info'}[]}
  */
 export function inputNotes({
-  input, result, params, source = 'well', nctFitted = false, trend = 'dt', calibration = [], fmtZ = (m) => `${Math.round(m)} m`, fmtP = (mpa) => `${mpa.toFixed(2)} MPa`,
+  input, result, params, source = 'well', nctFitted = false, trend = 'dt', calibration = [], seismicNote = null, fmtZ = (m) => `${Math.round(m)} m`, fmtP = (mpa) => `${mpa.toFixed(2)} MPa`,
 }) {
   const notes = [];
   if (!input || input.error || !result) return notes;
@@ -65,6 +65,8 @@ export function inputNotes({
   if (source === 'well' && wd > 0 && ml < wd) {
     notes.push({ key: 'datum', tone: 'warn', text: `Mudline MD ${fmtZ(ml)} is shallower than the water depth ${fmtZ(wd)}: the log MD is read as depth below mudline. Offshore, set the mudline MD to the air gap plus the water depth; onshore, set the water depth to 0.` });
   }
+  // U2-008: where a velocity trend was read and against which datum
+  if (source !== 'well' && seismicNote) notes.push({ key: 'seismic', tone: /taken at sea level|did not settle/.test(seismicNote) ? 'warn' : 'info', text: seismicNote });
   if (input.tvdFrom === 'survey') {
     notes.push({ key: 'tvd', tone: 'info', text: 'Depths are TVD from the deviation survey; published curves sit on the well MD.' });
   }

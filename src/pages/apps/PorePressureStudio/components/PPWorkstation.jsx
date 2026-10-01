@@ -44,6 +44,7 @@ import { reviewerLines, prognosisPdf } from '../services/report';
 import { drillingWindow, casingDesign, WINDOW_FROM_BML_M } from '../services/drillingWindow';
 import { pickShaleLog, normalizeShaleIndicator } from '../services/shalePicks';
 import { fitTarget, fitToCalibration } from '../services/calibrate';
+import { datumToMudline } from '../services/alongHole';
 import { comparesTo } from '../services/calibrationImport';
 import {
   UNITS_KEY, PRESSURE_UNITS, DEPTH_UNITS, readUnits, depthFromDisplay, tidyDepth,
@@ -231,18 +232,34 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         return;
       }
       setStatus(`Reading the layer cake of ${model.name} at ${at.name}...`);
-      backend.layerCakeBoundariesAt(model, at)
+      backend.layerCakeBoundariesAt(model, at, { srdElevM: Number(params.seismicDatumElevM) || 0 })
         .then((r) => {
-          setLayerCakeAt({ ...r, wellName: at.name, tdMdM: at.td_md_m ?? null });
+          setLayerCakeAt({ ...r, wellName: at.name, wellId: at.id, modelId: model.id, srd: Number(params.seismicDatumElevM) || 0, tdMdM: at.td_md_m ?? null });
           setStatus(`Velocity trend from the ${model.name} layer cake at ${at.name}: a trend-grade prognosis (no local anomaly).${r.note ? ` ${r.note}` : ''}`);
         })
         .catch((e) => { setLayerCakeAt({ error: e.message }); setStatus(e.message); });
       return;
     }
     setStatus(`Velocity trend from ${model.name}: a trend-grade prognosis (no local anomaly).`);
-  }, [wells, selectedId, backend]);
+  }, [wells, selectedId, backend, params.seismicDatumElevM]);
+
+  // U2-008: a new seismic datum moves the crossings; read the layer cake again
+  useEffect(() => {
+    const srd = Number(params.seismicDatumElevM) || 0;
+    if (seismicModel?.kind !== 'layercake' || !layerCakeAt?.wellId || layerCakeAt.srd === srd || !backend.layerCakeBoundariesAt) return;
+    const at = (wells || []).find((w) => w.id === layerCakeAt.wellId);
+    if (!at) return;
+    let live = true;
+    backend.layerCakeBoundariesAt(seismicModel, at, { srdElevM: srd })
+      .then((r) => { if (live) setLayerCakeAt((prev) => ({ ...prev, ...r, srd })); })
+      .catch((e) => { if (live) setLayerCakeAt({ error: e.message }); });
+    return () => { live = false; };
+  }, [params.seismicDatumElevM, seismicModel, layerCakeAt, wells, backend]);
 
   const byRes = params.method === 'eaton-resistivity';
+  // U2-008: the mudline below the declared seismic datum (SRD), not the water depth alone
+  const trendWell = seismicModel ? (wells || []).find((w) => w.name === layerCakeAt?.wellName) || null : null;
+  const datum = datumToMudline(params, { kbM: trendWell?.kb_m != null ? Number(trendWell.kb_m) : null });
   const input = useMemo(() => {
     try {
       if (seismicModel && byRes) {
@@ -252,7 +269,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         if (!layerCakeAt) return null;
         if (layerCakeAt.error) return { error: layerCakeAt.error };
         return layerCakeProfile(seismicModel.velocity, layerCakeAt.boundaryTwtMs, {
-          datumToMudlineM: params.waterDepthM,
+          datumToMudlineM: datum.value,
           zMaxM: trendZMaxM,
           stepM: 10,
         });
@@ -260,7 +277,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       if (seismicModel) {
         // model datum = sea level; the water column is the offset
         return pseudoSonicFromLinearVelocity(seismicModel.velocity, {
-          datumToMudlineM: params.waterDepthM,
+          datumToMudlineM: datum.value,
           zMaxM: trendZMaxM,
           stepM: 10,
         });
@@ -273,7 +290,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     } catch (e) {
       return { error: e.message };
     }
-  }, [curves, seismicModel, layerCakeAt, params.mudlineMdM, params.waterDepthM, selected, trendZMaxM, byRes]);
+  }, [curves, seismicModel, layerCakeAt, params.mudlineMdM, params.waterDepthM, selected, trendZMaxM, byRes, datum.value]);
 
   const profile = useMemo(() => {
     if (!input || input.error) return null;
@@ -312,7 +329,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     calibration,
     fmtZ: (m) => `${fmtDepth(m, units.depth)} ${units.depth}`,
     fmtP: (mpa) => (units.pressure === 'psi' ? `${fmtPressure(mpa * 1e6, 'psi')} psi` : `${mpa.toFixed(2)} MPa`),
-  }), [input, result, params, seismicModel, nctFittedFor, resNctFittedFor, byRes, selectedId, calibration, units]);
+    seismicNote: seismicModel ? [datum.note, layerCakeAt?.note].filter(Boolean).join(' ') : null,
+  }), [input, result, params, seismicModel, nctFittedFor, resNctFittedFor, byRes, selectedId, calibration, units, datum.note, layerCakeAt]);
 
   const readout = useMemo(() => {
     if (!result || !input) return null;

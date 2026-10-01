@@ -42,6 +42,7 @@ const toDraft = (params, calibration, units) => {
     rhoSeawaterKgM3: tidy(densityToDisplay(params.rhoSeawaterKgM3, pU), densityDigits(pU)),
     rhoFluidKgM3: tidy(densityToDisplay(params.rhoFluidKgM3, pU), densityDigits(pU)),
     mudlineMdM: tidy(depthToDisplay(params.mudlineMdM ?? 0, zU), 2),
+    srd: tidy(depthToDisplay(params.seismicDatumElevM ?? 0, zU), 2),
     dtMlUsPerM: tidy(slownessToDisplay(params.nct.dtMlUsPerM, zU), 3),
     dtMaUsPerM: tidy(slownessToDisplay(params.nct.dtMaUsPerM, zU), 3),
     cPerM: tidy(compactionToDisplay(params.nct.cPerM, zU), 9),
@@ -90,6 +91,7 @@ export default function ParamsPanel({
       rhoSeawaterKgM3: densityFromDisplay(num(d.rhoSeawaterKgM3), pU),
       rhoFluidKgM3: densityFromDisplay(num(d.rhoFluidKgM3), pU),
       mudlineMdM: depthFromDisplay(num(d.mudlineMdM), zU),
+      seismicDatumElevM: depthFromDisplay(num(d.srd), zU) || 0,
       nct: {
         dtMlUsPerM: slownessFromDisplay(num(d.dtMlUsPerM), zU),
         dtMaUsPerM: slownessFromDisplay(num(d.dtMaUsPerM), zU),
@@ -128,6 +130,7 @@ export default function ParamsPanel({
       <Field id="pp-param-rhosw" label={`Seawater ρ (${dU})`} value={d.rhoSeawaterKgM3} onChange={set('rhoSeawaterKgM3')} />
       <Field id="pp-param-rhofl" label={`Pore fluid ρ (${dU})`} value={d.rhoFluidKgM3} onChange={set('rhoFluidKgM3')} />
       <Field id="pp-param-mudline" label={`Mudline at MD (${zU}, RKB)`} value={d.mudlineMdM} onChange={set('mudlineMdM')} />
+      <Field id="pp-param-srd" label={`Seismic datum above sea level (${zU})`} value={d.srd} onChange={set('srd')} />
 
       <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Normal compaction trend</div>
       <Field id="pp-param-dtml" label={`dt mudline (${sU})`} value={d.dtMlUsPerM} onChange={set('dtMlUsPerM')} />

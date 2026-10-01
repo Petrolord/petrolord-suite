@@ -149,3 +149,23 @@ describe('U2-006 fit to calibration', () => {
     await waitFor(() => expect(Number(screen.getByTestId('pp-param-eatonn').value)).toBeCloseTo(3, 1));
   });
 });
+
+describe('U2-008 the seismic datum and the layer cake read at the well', () => {
+  test('the note says where and against which datum; a declared SRD moves the trend', async () => {
+    mount({ layerCake: true });
+    const row = await screen.findByTestId('pp-well-row', {}, { timeout: 15000 });
+    fireEvent.click(row);
+    await waitFor(() => expect(screen.getByTestId('pp-readout-pp')).toBeInTheDocument(), { timeout: 30000 });
+    fireEvent.change(screen.getByTestId('pp-unit-depth'), { target: { value: 'm' } });
+    fireEvent.change(screen.getByTestId('pp-unit-pressure'), { target: { value: 'MPa' } });
+    fireEvent.click(screen.getAllByTestId('pp-velocity-row')[1]);
+    await waitFor(() => expect(screen.getByTestId('pp-note-seismic')).toHaveTextContent(/at the wellhead/), { timeout: 30000 });
+    expect(screen.getByTestId('pp-note-seismic')).toHaveTextContent(/taken at sea level \(SRD 0 m\)/);
+    fireEvent.change(screen.getByTestId('pp-readout-depth'), { target: { value: '2000' } });
+    const before = screen.getByTestId('pp-readout-obg').textContent;
+    setField('pp-param-srd', '50');
+    apply();
+    await waitFor(() => expect(screen.getByTestId('pp-note-seismic')).not.toHaveTextContent(/taken at sea level/));
+    await waitFor(() => expect(screen.getByTestId('pp-readout-obg').textContent).not.toBe(before));
+  });
+});

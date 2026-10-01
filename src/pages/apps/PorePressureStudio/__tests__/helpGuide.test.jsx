@@ -36,6 +36,8 @@ describe('PorePressureStudioHelpGuide', () => {
     expect(text).toMatch(/the prognosis plot \(the curves/);
     // U2-006
     expect(text).toMatch(/Fit n to calibration \(Eaton sonic or resistivity\)/);
+    // U2-008
+    expect(text).toMatch(/A layer cake is read along the hole/);
     // U2-002
     expect(text).toMatch(/declare the depth column and reference/);
   });

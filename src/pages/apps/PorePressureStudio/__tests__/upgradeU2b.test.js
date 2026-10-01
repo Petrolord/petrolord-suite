@@ -121,3 +121,24 @@ describe('U2-006 calibration that calibrates', () => {
     expect(ru.rmsAfterMpa).toBeLessThanOrEqual(ru.rmsBeforeMpa + 1e-9);
   });
 });
+
+describe('U2-008 the registry door reads a layer cake along the well', () => {
+  const { layerCakeAlongWell } = jest.requireActual('../services/alongHole');
+  const layers = normalizeVelocity({ type: 'layercake', layers: [{ v0: 1800, k: 0 }, { v0: 2600, k: 0.3 }] }).layers;
+  const surface = { x: 500000, y: 6700000 };
+  const sampleAt = (x) => [1000 + 0.1 * (x - surface.x)];
+  const frame = makeDepthFrame({ deviation: [{ md: 0, inc: 0, azi: 90 }, { md: 300, inc: 0, azi: 90 }, { md: 900, inc: 60, azi: 90 }, { md: 5000, inc: 60, azi: 90 }], kbM: 30 });
+
+  test('deviated: read at the crossing and said; vertical: at the wellhead and said', () => {
+    const r = layerCakeAlongWell({ sampleAt, layers, layercakeDepthM, surface, frame });
+    expect(r.alongHole).toBe(true);
+    expect(r.boundaryTwtMs[0]).toBeGreaterThan(1020);
+    expect(r.note).toMatch(/where the hole crosses them \(up to \d+ m from the wellhead\)/);
+    const v = layerCakeAlongWell({ sampleAt, layers, layercakeDepthM, surface, frame: null });
+    expect(v.boundaryTwtMs).toEqual([1000]);
+    expect(v.note).toMatch(/at the wellhead/);
+    // an SRD above sea level puts the crossing shallower in the hole (less offset, earlier time)
+    const srd = layerCakeAlongWell({ sampleAt, layers, layercakeDepthM, surface, frame, srdElevM: 200 });
+    expect(srd.boundaryTwtMs[0]).toBeLessThan(r.boundaryTwtMs[0]);
+  });
+});
