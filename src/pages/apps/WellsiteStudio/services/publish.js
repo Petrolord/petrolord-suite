@@ -140,9 +140,9 @@ export function publishFailureText(r) {
 }
 
 /** What the publish will do, as lines for the plan panel. */
-export function planLines(plan, { photos = 0 } = {}) {
+export function planLines(plan, { photos = 0, fmt = (m) => `${m.toFixed(1)} m` } = {}) {
   const out = [];
-  out.push(`${plan.tops.length} final top(s) will be added as drilled${plan.tops.length ? `: ${plan.tops.map((t) => `${t.row.name} at ${t.row.md_m.toFixed(1)} m MD`).join('; ')}` : ''}.`);
+  out.push(`${plan.tops.length} final top(s) will be added as drilled${plan.tops.length ? `: ${plan.tops.map((t) => `${t.row.name} at ${fmt(t.row.md_m)} MD`).join('; ')}` : ''}.`);
   out.push(`${plan.intervals.length} lithology interval(s) from the current descriptions will be added.`);
   if (plan.replaceTops.length || plan.replaceIntervals.length) out.push(`${plan.replaceTops.length} top(s) and ${plan.replaceIntervals.length} interval(s) this app published before will be removed after the new ones are in.`);
   out.push(`${plan.untouchedTops + plan.untouchedIntervals} row(s) from other sources are not touched${(plan.duplicates || []).length ? ', except the renames you tick below' : ''}.`);

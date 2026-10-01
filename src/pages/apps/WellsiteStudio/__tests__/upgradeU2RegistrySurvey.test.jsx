@@ -96,7 +96,7 @@ test('screen: compare with the registry, send, and see what was sent', async () 
   fireEvent.click(screen.getByTestId('ws-nav-surveys'));
   await waitFor(() => expect(screen.getByTestId('ws-survey-inuse')).toHaveTextContent('version rig-1'));
   await act(async () => { fireEvent.click(screen.getByTestId('ws-survey-registry-compare')); });
-  await waitFor(() => expect(screen.getByTestId('ws-survey-registry-plan')).toHaveTextContent('The registry holds 4 station(s) to 3200.0 m MD.'));
+  await waitFor(() => expect(screen.getByTestId('ws-survey-registry-plan')).toHaveTextContent('The registry holds 4 station(s) to 10499 ft MD.'));
   expect(registryWells[0].deviation).toHaveLength(4);
   await act(async () => { fireEvent.click(screen.getByTestId('ws-survey-registry-send')); });
   await waitFor(() => expect(screen.getByTestId('ws-status')).toHaveTextContent('Survey rig-1 sent to the well registry: 6 station(s) now held, replacing 4.'));

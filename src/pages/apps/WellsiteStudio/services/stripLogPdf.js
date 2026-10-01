@@ -145,7 +145,7 @@ export async function buildStripLogPdf(model, { well, unit = 'm', toDisplay = (m
       const yy = y(m.mdM); const c = rgb(m.color);
       doc.setDrawColor(...c); doc.setLineWidth(0.3);
       if (m.dashed) doc.setLineDashPattern([1.5, 1], 0); else doc.setLineDashPattern([], 0);
-      doc.line(MARGIN, yy, pageW - MARGIN, yy);
+      doc.line(tracks[0].type === 'depth' ? tracks[0].x0 + tracks[0].w : MARGIN, yy, pageW - MARGIN, yy);
       doc.setLineDashPattern([], 0);
       doc.setFont('helvetica', 'bold'); doc.setTextColor(...c);
       const label = latin(`${m.label} ${fmt(toDisplay(m.mdM))} ${unit}`);

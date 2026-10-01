@@ -161,7 +161,8 @@ test('screen: a run is declared and recorded; TVD on Live follows it and later r
   fireEvent.change(screen.getByTestId('ws-survey-aziref'), { target: { value: 'grid' } });
   await act(async () => { fireEvent.click(screen.getByTestId('ws-survey-paste-record')); });
   await waitFor(() => expect(screen.getByTestId('ws-survey-inuse')).toHaveTextContent(/Rig survey, 1 run\(s\), 5 stations, version rig-1, to 10827 ft MD/));
-  expect(screen.getByTestId('ws-status')).toHaveTextContent(/Survey run: 2 station\(s\) from 2500\.0 to 3300\.0 m MD, replacing 1 earlier station\(s\) from 2500\.0 m down/);
+  // the status is in the depth unit of the view; the record keeps metres
+  expect(screen.getByTestId('ws-status')).toHaveTextContent('Survey run: 2 station(s) from 8202 ft to 10827 ft MD, replacing 1 earlier station(s) from 8202 ft down. TVD and subsea depths now follow it.');
   await waitFor(() => expect(screen.getByTestId('ws-survey-stale-summary')).toHaveTextContent(/stored depth\(s\) were calculated before survey rig-1/));
   expect(screen.getAllByTestId(/^ws-survey-row-/)).toHaveLength(5);
   // Live: the bit's TVD is recalculated with the run and the recorded value is kept beside it

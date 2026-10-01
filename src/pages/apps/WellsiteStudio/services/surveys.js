@@ -168,6 +168,12 @@ export function buildRun({ stations, mdUnit, azimuthRef, gridCorrectionDeg = 0, 
   };
 }
 
+/** A run in words, in the depth unit of the view (the stored text is in metres, the unit of the record). */
+export function runText(payload, fmt = (m) => `${m.toFixed(1)} m`) {
+  const st = payload.stations; const first = st[payload.tie_in ? 1 : 0];
+  return `Survey run: ${payload.added} station(s) from ${fmt(first.md)} to ${fmt(st[st.length - 1].md)} MD${payload.replaced ? `, replacing ${payload.replaced} earlier station(s) from ${fmt(st[0].md)} down` : ''}.`;
+}
+
 /** The survey listing through the shared minimum curvature table (TVD, TVDSS, north, east, dogleg severity). */
 export function surveyListing(stations, kbM) {
   if (!usable(stations)) return [];

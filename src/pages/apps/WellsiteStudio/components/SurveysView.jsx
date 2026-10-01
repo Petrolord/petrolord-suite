@@ -10,7 +10,7 @@ import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toRigLocal } from '@/lib/wellsite/time';
 import { fmtDepth, parseFieldNumber, depthToDisplay } from '../services/units';
-import { parseStationTable, buildRun, surveyListing, AZIMUTH_REFS } from '../services/surveys';
+import { parseStationTable, buildRun, surveyListing, AZIMUTH_REFS, runText } from '../services/surveys';
 import { parseWitsml, trajectoryFromWitsml } from '../services/witsml';
 
 export default function SurveysView({ inUse, ctx, unit, offsetMin, stale, runs = [], onRecord, onStatus, nameOf, extraSlot = null, online = true, onRegistryPlan = null, onRegistrySend = null, lastSent = null }) {
@@ -132,7 +132,11 @@ export default function SurveysView({ inUse, ctx, unit, offsetMin, stale, runs =
           {regPlan && !regPlan.can && <div className="text-[11px] text-pl-muted" data-testid="ws-survey-registry-reason">{regPlan.reason}</div>}
           {regPlan && regPlan.can && (
             <div className="space-y-1 text-[11px] text-pl-text" data-testid="ws-survey-registry-plan">
-              <ul className="list-disc pl-5">{regPlan.lines.map((l) => <li key={l}>{l}</li>)}</ul>
+              <ul className="list-disc pl-5">
+                <li>The registry holds {regPlan.provenance.previous.stations ? `${regPlan.provenance.previous.stations} station(s) to ${fmtDepth(regPlan.provenance.previous.td_md_m, unit)} MD` : 'no survey'}.</li>
+                <li>The rig survey in use ({regPlan.provenance.survey_version}, {regPlan.provenance.runs} run(s)) holds {regPlan.provenance.stations} station(s) to {fmtDepth(regPlan.provenance.td_md_m, unit)} MD.</li>
+                <li>{regPlan.lines[2]}</li>
+              </ul>
               <Button size="sm" disabled={sending} data-testid="ws-survey-registry-send" onClick={async () => { setSending(true); try { await onRegistrySend(); setRegPlan(null); } catch (e) { onStatus?.(e.message); } finally { setSending(false); } }}>{sending ? 'Sending' : 'Send the rig survey to the registry'}</Button>
             </div>
           )}
@@ -159,7 +163,7 @@ export default function SurveysView({ inUse, ctx, unit, offsetMin, stale, runs =
           </table>
         </div>
         {listing.length === 0 && <div className="text-[11px] text-pl-muted" data-testid="ws-survey-none">No survey yet. Record a surface station at MD 0 and the first station below it.</div>}
-        {runs.length > 0 && <div className="text-[10px] text-pl-muted" data-testid="ws-survey-runs">{runs.length} run(s) on record. {runs.slice(-3).map((r) => `${toRigLocal(Date.parse(r.occurred_at), offsetMin).hhmm}: ${r.payload.text}`).join(' ')}</div>}
+        {runs.length > 0 && <div className="text-[10px] text-pl-muted" data-testid="ws-survey-runs">{runs.length} run(s) on record. {runs.slice(-3).map((r) => `${toRigLocal(Date.parse(r.occurred_at), offsetMin).hhmm}: ${runText(r.payload, (m) => fmtDepth(m, unit))}`).join(' ')}</div>}
       </section>
     </div>
   );

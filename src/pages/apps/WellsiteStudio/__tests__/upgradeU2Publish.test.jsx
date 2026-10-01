@@ -146,7 +146,7 @@ test('screen: Publish shows the plan with the duplicate named, the rename is the
   await waitFor(() => expect(screen.getByTestId('ws-top-row-top_agbada')).toHaveAttribute('data-status', 'final'));
   await act(async () => { fireEvent.click(screen.getByTestId('ws-top-publish')); });
   const lines = await screen.findByTestId('ws-publish-plan-lines');
-  expect(lines).toHaveTextContent('1 final top(s) will be added as drilled: Top Agbada at 3099.2 m MD.');
+  expect(lines).toHaveTextContent('1 final top(s) will be added as drilled: Top Agbada at 10168 ft MD.');
   expect(screen.getByTestId('ws-publish-duplicates')).toHaveTextContent('Rename the earlier Top Agbada at 10171 ft (Office) to Top Agbada (prognosis)');
   // nothing is written until Publish is pressed
   expect(names(registry())).toEqual(['Top Agbada', 'Top Benin']);

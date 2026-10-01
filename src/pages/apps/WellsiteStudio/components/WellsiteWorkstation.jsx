@@ -66,7 +66,7 @@ import { surveyListing } from '../services/surveys';
 import { abbreviate, descriptionOf, mergeProfile } from '../services/describe';
 import { dExponentSeries, currentDxcSettings, dxcSettingsParams } from '../services/dexponent';
 import { buildStripLog } from '../services/stripLog';
-import { SURVEY_SUBTYPE, SURVEY_PUBLISHED_SUBTYPE, activeSurvey, wellWithSurvey, surveyRuns, staleDepths } from '../services/surveys';
+import { SURVEY_SUBTYPE, SURVEY_PUBLISHED_SUBTYPE, activeSurvey, wellWithSurvey, surveyRuns, staleDepths, runText } from '../services/surveys';
 import { LAG_CHECK_SUBTYPE, currentWashout, lagCheckParams, washoutParams } from '../services/lagCheck';
 
 // record types added by the upgrade that belong with the typed observations (lists, evidence, reports)
@@ -326,9 +326,10 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     const params = dxcSettingsParams({ ...p, person: user ? user.name || user.email : null });
     if (dxcSettings && dxcSettings.record) await backend.addVersion(dxcSettings.record, { payload: params.payload });
     else await backend.addRecord(well.id, params);
-    setStatus(`${params.payload.statement}.`);
+    const pl = params.payload;
+    setStatus(`Normal pore pressure gradient ${pl.normal_value} ${pl.normal_unit}${Number.isFinite(pl.trend_from_md_m) ? `; normal trend fitted from ${fmtDepth(pl.trend_from_md_m, units.depth)} to ${fmtDepth(pl.trend_to_md_m, units.depth)} MD` : '; no normal trend interval'}.`);
     setTick((t) => t + 1);
-  }, [backend, well, dxcSettings, user]);
+  }, [backend, well, dxcSettings, user, units.depth]);
   const registrySurveyPlan = useCallback(async () => (await backend.registrySurveyPlanFor(well.id)).plan, [backend, well]);
   const sendSurveyToRegistry = useCallback(async () => {
     const { plan, result } = await backend.publishSurveyToRegistry(well.id);
@@ -338,9 +339,9 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const lastSurveySent = useMemo(() => observations.filter((r) => r.subtype === SURVEY_PUBLISHED_SUBTYPE).sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))[0] || null, [observations]);
   const recordSurveyRun = useCallback(async (p) => {
     const { row } = await backend.addRecord(well.id, p);
-    setStatus(`${row.payload.text} TVD and subsea depths now follow it.`);
+    setStatus(`${runText(row.payload, (m) => fmtDepth(m, units.depth))} TVD and subsea depths now follow it.`);
     setTick((t) => t + 1);
-  }, [backend, well]);
+  }, [backend, well, units.depth]);
   // U2-011: WITSML 1.4.1.1 files out, and mudLog intervals in as cuttings descriptions
   const exportWitsml = useCallback((kind) => {
     try {

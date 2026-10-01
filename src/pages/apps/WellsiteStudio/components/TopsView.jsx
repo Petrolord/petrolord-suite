@@ -132,7 +132,7 @@ export default function TopsView({ board, tops, records, prognosis, ctx, default
       {plan && (
         <div className="rounded border border-pl-border bg-pl-surface p-3 space-y-2 text-xs text-pl-text" data-testid="ws-publish-plan">
           <div className="font-semibold">Publish plan</div>
-          <ul className="list-disc pl-5 space-y-0.5" data-testid="ws-publish-plan-lines">{planLines(plan, { photos: publishPhotoIds.length }).map((l) => <li key={l}>{l}</li>)}</ul>
+          <ul className="list-disc pl-5 space-y-0.5" data-testid="ws-publish-plan-lines">{planLines(plan, { photos: publishPhotoIds.length, fmt: (m) => fmtDepth(m, unit) }).map((l) => <li key={l}>{l}</li>)}</ul>
           {(plan.duplicates || []).length > 0 && (
             <div className="space-y-1" data-testid="ws-publish-duplicates">
               <div className="text-pl-warning-text">The registry already holds a top of the same name from another source. Downstream apps pick tops by name, so keep the earlier one apart as the prognosis, or leave both under one name.</div>
