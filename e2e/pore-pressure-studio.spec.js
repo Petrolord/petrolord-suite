@@ -187,12 +187,13 @@ test('PP0: pressure and depth display units convert the readout, the NCT, the do
   await page.getByTestId('pp-unit-pressure').selectOption('MPa');
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('pp-export-csv').click()]);
   const csv = fs.readFileSync(await download.path(), 'utf8');
-  expect(csv).toContain('Depth bml (ft),Depth below RKB (ft),OBG (MPa),Ph (MPa),PP (MPa),FP (MPa),OBG EMW (ppg),PP EMW (ppg),FP EMW (ppg),PP EMW (sg),FP EMW (sg)');
+  // PP-U2-004: every depth frame the source supports sits beside the depth below mudline
+  expect(csv).toContain('Depth bml (ft),TVD below RKB (ft),TVDSS (ft),MD below RKB (ft),Depth below RKB (ft),OBG (MPa),Ph (MPa),PP (MPa),FP (MPa),OBG EMW (ppg),PP EMW (ppg),FP EMW (ppg),PP EMW (sg),FP EMW (sg)');
   const row = csv.split('\n').find((l) => l.startsWith('11482.94,'));
   expect(row).toBeTruthy();
   const cols = row.split(',');
-  expect(cols[4]).toBe(mpa(pp));
-  expect(Number(cols[7])).toBeCloseTo(ppg, 2);
+  expect(cols[7]).toBe(mpa(pp));
+  expect(Number(cols[10])).toBeCloseTo(ppg, 2);
   await expect(page.getByTestId('pp-status')).toHaveText('Prognosis CSV in MPa and ft downloaded.');
 
   // remembered across a reload (a session view override; the profile stays ft)

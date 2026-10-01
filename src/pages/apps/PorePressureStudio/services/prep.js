@@ -26,6 +26,8 @@ export const CURVE_ALIASES = {
   DEPT: ['DEPT', 'DEPTH', 'MD'],
   DT: ['DT', 'DTC', 'AC', 'DTCO'],
   RHOB: ['RHOB', 'DEN', 'ZDEN'],
+  // U2-001: deep resistivity for resistivity Eaton (the WDM import kind guesses)
+  RES: ['RT', 'RDEEP', 'RD', 'ILD', 'RILD', 'LLD', 'RLLD', 'AT90', 'AF90', 'RLA5', 'HDRS', 'RDEP', 'RESD', 'RES', 'M2R9'],
 };
 
 export function mapLogs(logs) {
@@ -116,6 +118,34 @@ export function normalizePpCurves({ depth, dt, rho = null, dtLog = null, rhoLog 
   };
 }
 
+// ---- resistivity (U2-001) ------------------------------------------------------
+const RES_NULLS = [-999, -999.25, -9999, -99999, -999.2500];
+const OHMM = /^(OHMM|OHM\.?M|OHM-M|OHM\*M|OHM_M|OHM M|Ω\.?M|Ω·M|OHMS?\/?M?)$/i;
+const MMHO = /^(MMHO\/M|MS\/M|MMHOS\/M)$/i;
+
+/**
+ * Deep resistivity -> ohm.m with each decision said. Vendor nulls and
+ * values at or below zero are gaps; a conductivity in mS/m (mmho/m)
+ * becomes 1000 / C; an unknown unit is read as ohm.m and said.
+ * @returns {{res: number[], notes: string[]}}
+ */
+export function normalizeResistivity(values, log = {}) {
+  const notes = [];
+  const unit = String(log.unit || '').trim().replace(/\s+/g, ' ');
+  const name = log.mnemonic || 'RT';
+  let nulls = 0;
+  const conductivity = MMHO.test(unit);
+  const res = Array.from(values || [], (v) => {
+    if (v == null || !Number.isFinite(v) || RES_NULLS.some((n) => Math.abs(v - n) < 1e-6) || !(v > 0)) { nulls += 1; return NaN; }
+    return conductivity ? 1000 / v : v;
+  });
+  if (conductivity) notes.push(`${name} is a conductivity in ${unit}: read as resistivity 1000 / C in ohm.m.`);
+  else if (unit && !OHMM.test(unit.replace(/\s/g, ''))) notes.push(`${name} has the unit ${unit}, which is not ohm.m; its values are read as ohm.m.`);
+  else if (!unit) notes.push(`${name} has no unit; its values are read as ohm.m.`);
+  if (nulls) notes.push(`${nulls} ${name} sample${nulls === 1 ? '' : 's'} with nulls or values at or below zero left out.`);
+  return { res, notes };
+}
+
 /**
  * Registry curves -> computeProfile input. Depth is the registry MD below
  * the rotary table (RKB). PP-U1-002: with a depth frame (the well's
@@ -130,7 +160,13 @@ export function normalizePpCurves({ depth, dt, rho = null, dtLog = null, rhoLog 
  * sample's MD so publishing puts every value back at its own depth
  * (PP-U1-001).
  */
-export function buildProfileInput({ depth, dt, rho }, units, { mudlineMdM = 0, frame = null } = {}) {
+export function buildProfileInput({ depth, dt, rho, res = null, shale = null }, units, { mudlineMdM = 0, frame = null, needs = 'dt' } = {}) {
+  // U2-001: resistivity Eaton keeps the samples with a resistivity; the sonic
+  // is then optional per sample where a density gives the overburden
+  const byRes = needs === 'res';
+  if (byRes && (!depth || !res || depth.length !== res.length)) {
+    throw new Error('This well has no resistivity curve on its depth (RT, ILD, LLD, AT90 ...): resistivity Eaton needs one.');
+  }
   if (!depth || !dt || depth.length !== dt.length) {
     throw new Error('Depth and sonic curves must be present and equal length.');
   }
@@ -146,7 +182,9 @@ export function buildProfileInput({ depth, dt, rho }, units, { mudlineMdM = 0, f
   const mdM = [];
   const dtUsPerM = [];
   const rhoKgM3 = [];
-  const dropped = { aboveMudline: 0, dtGaps: 0, upturn: 0, offSurvey: 0 };
+  const resOhmM = [];
+  const shaleOut = []; // U2-005: the shale indicator on the kept samples
+  const dropped = { aboveMudline: 0, dtGaps: 0, upturn: 0, offSurvey: 0, resGaps: 0, noDensity: 0 };
   let deepest = -Infinity;
   for (let i = 0; i < depth.length; i++) {
     const md = depth[i];
@@ -156,19 +194,26 @@ export function buildProfileInput({ depth, dt, rho }, units, { mudlineMdM = 0, f
     const z = tvd - mudlineTvd;
     const dtv = dt[i];
     if (!(z >= 0)) { dropped.aboveMudline += 1; continue; }
-    if (dtv == null || !Number.isFinite(dtv)) { dropped.dtGaps += 1; continue; }
+    const dtOk = dtv != null && Number.isFinite(dtv);
+    const rv = rho ? rho[i] : null;
+    const rhoOk = rv != null && Number.isFinite(rv);
+    if (byRes) {
+      if (!(res[i] > 0)) { dropped.resGaps += 1; continue; }
+      if (!dtOk && !rhoOk) { dropped.noDensity += 1; continue; }
+    } else if (!dtOk) { dropped.dtGaps += 1; continue; }
     if (z < deepest) { dropped.upturn += 1; continue; }
     deepest = z;
     zBmlM.push(z);
     mdM.push(md);
-    dtUsPerM.push(slownessToUsPerM(dtv, units?.DT));
-    const rv = rho ? rho[i] : null;
-    rhoKgM3.push(rv == null || !Number.isFinite(rv) ? null : densityToKgM3(rv, units?.RHOB));
+    dtUsPerM.push(dtOk ? slownessToUsPerM(dtv, units?.DT) : null);
+    rhoKgM3.push(rhoOk ? densityToKgM3(rv, units?.RHOB) : null);
+    if (byRes) resOhmM.push(res[i]);
+    if (shale) shaleOut.push(Number.isFinite(shale[i]) ? shale[i] : NaN);
   }
   if (zBmlM.length === 0) {
     throw new Error('No usable samples below the mudline.');
   }
   return {
-    zBmlM, dtUsPerM, rhoKgM3, mdM, dropped, tvdFrom: frame && !frame.isVertical ? 'survey' : 'vertical',
+    zBmlM, dtUsPerM, rhoKgM3, ...(byRes ? { resOhmM } : {}), ...(shale && shale.length === depth.length ? { shale: shaleOut } : {}), mdM, dropped, tvdFrom: frame && !frame.isVertical ? 'survey' : 'vertical',
   };
 }

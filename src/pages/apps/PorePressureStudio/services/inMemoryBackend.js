@@ -31,7 +31,24 @@ export const AIR_GAP_M = 30;
 export const MUDLINE_MD_M = AIR_GAP_M + WELL.params.water_depth_m;
 const MD = WELL.z_bml_m.map((z) => z + MUDLINE_MD_M);
 
-export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
+// U2-001: a deep resistivity generated as the sonic was, by inverting
+// Eaton with the published resistivity exponent (1.2) on the imposed pore
+// pressure against the trend R_n = 0.6 exp(2e-4 z): resistivity Eaton with
+// these parameters must reproduce goldens.well.pore_pressure_pa
+export const HARNESS_RES_NCT = Object.freeze({ r0OhmM: 0.6, bPerM: 2.0e-4 });
+export const RES_OHMM = WELL.z_bml_m.map((z, i) => {
+  const S = WELL.overburden_pa[i]; const Ph = WELL.hydrostatic_pa[i]; const PP = WELL.pore_pressure_pa[i];
+  const ratio = S - Ph > 1 ? ((S - PP) / (S - Ph)) ** (1 / 1.2) : 1;
+  return ratio * HARNESS_RES_NCT.r0OhmM * Math.exp(HARNESS_RES_NCT.bPerM * z);
+});
+
+// U2-005: a shale volume with five sand beds (VSH 0.15) in shale (0.85).
+// The sonic stays the oracle's everywhere (so the goldens hold); the beds
+// sit away from the depths the e2e picks and reads (500 to 2,000 m, 3,500 m).
+export const SAND_BEDS_BML_M = Object.freeze([[600, 640], [1200, 1240], [1800, 1840], [2700, 2740], [3300, 3340]]);
+export const VSH_HARNESS = WELL.z_bml_m.map((z) => (SAND_BEDS_BML_M.some(([a, b]) => z >= a && z <= b) ? 0.15 : 0.85));
+
+export function makeInMemoryBackend({ layerCake = false, saved = null, seedProject = null, projectKey = null } = {}) {
   const wellId = nextId('well');
   const curveStore = new Map();
   const logs = [];
@@ -59,6 +76,8 @@ export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
   addLog('DEPT', 'M', MD);
   addLog('DT', 'US/M', WELL.dt_us_per_m);
   addLog('RHOB', 'G/C3', WELL.rho_kg_m3.map((r) => r / 1000.0));
+  addLog('RT', 'OHMM', RES_OHMM);
+  addLog('VSH', 'V/V', VSH_HARNESS);
 
   const wells = [{
     id: wellId,
@@ -82,7 +101,7 @@ export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
   // project persistence survives page reloads via sessionStorage so
   // the e2e can prove restore; first load seeds the goldens' own
   // parameters so the harness lands on the verifiable state
-  const PROJECT_KEY = 'pp.dev.project.v1';
+  const PROJECT_KEY = projectKey || 'pp.dev.project.v1';
   const P = WELL.params;
   const SEED_PROJECT = {
     id: 'pp-project-dev',
@@ -101,6 +120,8 @@ export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
       eatonN: P.eaton_n,
       bowers: { A: 10, B: 0.75 },
       nu: P.nu,
+      resNct: { ...HARNESS_RES_NCT },
+      eatonNRes: 1.2,
     },
     picks: [],
     calibration: [],
@@ -139,7 +160,8 @@ export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
     },
     async layerCakeBoundariesAt(model, well) {
       if (model.id !== LAYER_CAKE.id) throw new Error('Unknown velocity model.');
-      return { boundaryTwtMs: [1000], names: ['Base layer 1 (TWT ms)'], note: null, crsStatus: 'same', well: well.name };
+      // a flat boundary: the same along any hole (the vertical harness well)
+      return { boundaryTwtMs: [1000], names: ['Base layer 1 (TWT ms)'], note: 'Boundaries read at the wellhead (no deviation survey: a vertical well).', crsStatus: 'same', well: well.name };
     },
     // PP0: the account's Geoscience depth unit (the Mapping setting);
     // the fixture is SI so the oracle-anchored readout stays in metres
@@ -181,7 +203,7 @@ export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
 
     async loadProject() {
       // PL5: `saved` opens a project as an earlier release saved it
-      const seed = (saved && bindSaved(saved, wellId)) || SEED_PROJECT;
+      const seed = (saved && bindSaved(saved, wellId)) || (seedProject && { ...seedProject, source: { ...seedProject.source, wellId, nctFittedFor: seedProject.source?.nctFittedFor ? wellId : undefined } }) || SEED_PROJECT;
       try {
         const raw = window.sessionStorage.getItem(PROJECT_KEY);
         return raw ? JSON.parse(raw) : seed;

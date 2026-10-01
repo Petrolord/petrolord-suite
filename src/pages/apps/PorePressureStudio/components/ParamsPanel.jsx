@@ -8,6 +8,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { parseCalibration } from '../services/honesty';
+import { marginsOf } from '../services/drillingWindow';
+import { kindOf, kindLabel } from '../services/calibrationImport';
+import CalibrationImport from './CalibrationImport';
 import {
   DEFAULT_UNITS, depthToDisplay, depthFromDisplay, slownessToDisplay, slownessFromDisplay, slownessUnit,
   compactionToDisplay, compactionFromDisplay, compactionUnit, densityToDisplay, densityFromDisplay, densityUnit,
@@ -39,26 +42,39 @@ const toDraft = (params, calibration, units) => {
     rhoSeawaterKgM3: tidy(densityToDisplay(params.rhoSeawaterKgM3, pU), densityDigits(pU)),
     rhoFluidKgM3: tidy(densityToDisplay(params.rhoFluidKgM3, pU), densityDigits(pU)),
     mudlineMdM: tidy(depthToDisplay(params.mudlineMdM ?? 0, zU), 2),
+    srd: tidy(depthToDisplay(params.seismicDatumElevM ?? 0, zU), 2),
     dtMlUsPerM: tidy(slownessToDisplay(params.nct.dtMlUsPerM, zU), 3),
     dtMaUsPerM: tidy(slownessToDisplay(params.nct.dtMaUsPerM, zU), 3),
     cPerM: tidy(compactionToDisplay(params.nct.cPerM, zU), 9),
     method: params.method,
     eatonN: String(params.eatonN),
+    eatonNRes: String(params.eatonNRes ?? 1.2),
+    resR0: tidy(params.resNct?.r0OhmM ?? 0.6, 6),
+    resB: tidy(compactionToDisplay(params.resNct?.bPerM ?? 2e-4, zU), 9),
     bowersA: String(params.bowers?.A ?? 10),
     bowersB: String(params.bowers?.B ?? 0.75),
     bowersU: params.bowers?.U != null ? String(params.bowers.U) : '',
     bowersSigmaMax: sMax != null ? tidy(pressureToDisplay(sMax, stressUnit(pU)), pressureDigits(stressUnit(pU))) : '',
     nu: String(params.nu),
+    fracMethod: params.fracMethod || 'eaton',
+    k0: String(params.k0 ?? 0.75),
+    beta: String(params.beta ?? 0),
+    tripMargin: tidy(densityToDisplay(marginsOf(params).tripKgM3, pU), densityDigits(pU)),
+    kickMargin: tidy(densityToDisplay(marginsOf(params).kickKgM3, pU), densityDigits(pU)),
+    minSeat: tidy(depthToDisplay(marginsOf(params).minShallowSeatBmlM, zU), 2),
     field: params.report?.field || '',
     analyst: params.report?.analyst || '',
-    calText: (calibration || []).map((c) => {
+    // U2-002: the text box edits typed points; imported points are kept apart
+    calText: (calibration || []).filter((c) => !c.source).map((c) => {
       const ref = emwReferenceDepthM(c.z, params);
       return `${tidy(depthToDisplay(c.z, zU), 2)}, ${tidy(pressureToDisplay(c.pMpa * 1e6, pU, ref), pressureDigits(pU))}`;
     }).join('\n'),
   };
 };
 
-export default function ParamsPanel({ params, calibration, onApply, units = DEFAULT_UNITS }) {
+export default function ParamsPanel({
+  params, calibration, onApply, units = DEFAULT_UNITS, importCtx = {}, onImportCalibration = null, onClearImported = null,
+}) {
   const zU = units.depth; const pU = units.pressure;
   const sU = slownessUnit(zU); const cU = compactionUnit(zU); const dU = densityUnit(pU); const stU = stressUnit(pU);
   const [d, setD] = useState(() => toDraft(params, calibration, units));
@@ -78,6 +94,7 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
       rhoSeawaterKgM3: densityFromDisplay(num(d.rhoSeawaterKgM3), pU),
       rhoFluidKgM3: densityFromDisplay(num(d.rhoFluidKgM3), pU),
       mudlineMdM: depthFromDisplay(num(d.mudlineMdM), zU),
+      seismicDatumElevM: depthFromDisplay(num(d.srd), zU) || 0,
       nct: {
         dtMlUsPerM: slownessFromDisplay(num(d.dtMlUsPerM), zU),
         dtMaUsPerM: slownessFromDisplay(num(d.dtMaUsPerM), zU),
@@ -85,9 +102,21 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
       },
       method: d.method,
       eatonN: num(d.eatonN),
+      eatonNRes: num(d.eatonNRes),
+      resNct: { r0OhmM: num(d.resR0), bPerM: compactionFromDisplay(num(d.resB), zU) },
       bowers,
       nu: num(d.nu),
+      // U2-012: the fracture method and its coefficient
+      fracMethod: d.fracMethod,
+      k0: num(d.k0),
+      beta: num(d.beta),
       report: { field: d.field.trim(), analyst: d.analyst.trim() },
+      // U2-003: margins are density differences, so the unit converts by its factor alone
+      margins: {
+        tripKgM3: Math.max(0, densityFromDisplay(num(d.tripMargin), pU) || 0),
+        kickKgM3: Math.max(0, densityFromDisplay(num(d.kickMargin), pU) || 0),
+        minShallowSeatBmlM: Math.max(0, depthFromDisplay(num(d.minSeat), zU) || 0),
+      },
     };
     // calibration lines are "depth, pressure" in the display units; an
     // EMW pressure converts at that depth below the datum
@@ -98,7 +127,7 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
       const pa = pressureFromDisplay(pd, pU, emwReferenceDepthM(z, next));
       return { z, pMpa: pa / 1e6 };
     });
-    onApply({ params: next, calibration: cal, skipped });
+    onApply({ params: next, calibration: [...cal, ...(calibration || []).filter((c) => c.source)], skipped });
   };
 
   return (
@@ -108,6 +137,7 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
       <Field id="pp-param-rhosw" label={`Seawater ρ (${dU})`} value={d.rhoSeawaterKgM3} onChange={set('rhoSeawaterKgM3')} />
       <Field id="pp-param-rhofl" label={`Pore fluid ρ (${dU})`} value={d.rhoFluidKgM3} onChange={set('rhoFluidKgM3')} />
       <Field id="pp-param-mudline" label={`Mudline at MD (${zU}, RKB)`} value={d.mudlineMdM} onChange={set('mudlineMdM')} />
+      <Field id="pp-param-srd" label={`Seismic datum above sea level (${zU})`} value={d.srd} onChange={set('srd')} />
 
       <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Normal compaction trend</div>
       <Field id="pp-param-dtml" label={`dt mudline (${sU})`} value={d.dtMlUsPerM} onChange={set('dtMlUsPerM')} />
@@ -116,21 +146,27 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
 
       <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Method</div>
       <div className="flex gap-1">
-        {['eaton', 'bowers'].map((m) => (
+        {[['eaton', 'Eaton sonic'], ['eaton-resistivity', 'Eaton resistivity'], ['bowers', 'Bowers']].map(([m, label]) => (
           <button
             key={m}
             type="button"
             data-testid={`pp-method-${m}`}
-            className={`px-2 py-1 text-xs rounded border capitalize
+            className={`px-2 py-1 text-xs rounded border
               ${d.method === m ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
             onClick={() => setD((prev) => ({ ...prev, method: m }))}
           >
-            {m}
+            {label}
           </button>
         ))}
       </div>
       {d.method === 'eaton' ? (
-        <Field id="pp-param-eatonn" label="Eaton exponent n" value={d.eatonN} onChange={set('eatonN')} />
+        <Field id="pp-param-eatonn" label="Eaton exponent n (3.0 sonic)" value={d.eatonN} onChange={set('eatonN')} />
+      ) : d.method === 'eaton-resistivity' ? (
+        <>
+          <Field id="pp-param-eatonnres" label="Eaton exponent n (1.2 resistivity)" value={d.eatonNRes} onChange={set('eatonNRes')} />
+          <Field id="pp-param-resr0" label="Shale R at mudline (ohm.m)" value={d.resR0} onChange={set('resR0')} />
+          <Field id="pp-param-resb" label={`R trend slope b (${cU})`} value={d.resB} onChange={set('resB')} />
+        </>
       ) : (
         <>
           <Field id="pp-param-bowersa" label="Bowers A (ft/s, psi)" value={d.bowersA} onChange={set('bowersA')} />
@@ -139,7 +175,26 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
           <Field id="pp-param-bowerssmax" label={`σ'max (${stU})`} value={d.bowersSigmaMax} onChange={set('bowersSigmaMax')} />
         </>
       )}
-      <Field id="pp-param-nu" label="Poisson's ratio ν" value={d.nu} onChange={set('nu')} />
+      <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Fracture gradient</div>
+      <label htmlFor="pp-param-fracmethod" className="flex items-center justify-between gap-2 text-xs text-pl-muted">
+        <span>Method</span>
+        <select id="pp-param-fracmethod" data-testid="pp-param-fracmethod" value={d.fracMethod}
+          onChange={(e) => setD((prev) => ({ ...prev, fracMethod: e.target.value }))}
+          className="w-36 px-1 py-1 rounded bg-pl-surface border border-pl-border-strong text-pl-text text-xs">
+          <option value="eaton">Eaton (nu)</option>
+          <option value="matthews-kelly">Matthews and Kelly (k0)</option>
+          <option value="daines">Daines (nu + beta)</option>
+        </select>
+      </label>
+      {d.fracMethod === 'matthews-kelly'
+        ? <Field id="pp-param-k0" label="Matrix stress coefficient k0" value={d.k0} onChange={set('k0')} />
+        : <Field id="pp-param-nu" label="Poisson's ratio ν" value={d.nu} onChange={set('nu')} />}
+      {d.fracMethod === 'daines' && <Field id="pp-param-beta" label="Tectonic beta" value={d.beta} onChange={set('beta')} />}
+
+      <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Drilling margins and casing seats</div>
+      <Field id="pp-param-trip" label={`Trip margin (${dU})`} value={d.tripMargin} onChange={set('tripMargin')} />
+      <Field id="pp-param-kick" label={`Kick margin (${dU})`} value={d.kickMargin} onChange={set('kickMargin')} />
+      <Field id="pp-param-minseat" label={`Shallowest seat at least (${zU} bml)`} value={d.minSeat} onChange={set('minSeat')} />
 
       <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">
         Calibration points (z {zU} bml, P {pU})
@@ -152,6 +207,30 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
         value={d.calText}
         onChange={(e) => set('calText')(e.target.value)}
       />
+      {(() => {
+        const imported = (calibration || []).filter((c) => c.source);
+        if (!imported.length) return null;
+        const byKind = {};
+        for (const c of imported) byKind[kindOf(c)] = (byKind[kindOf(c)] || 0) + 1;
+        const files = [...new Set(imported.map((c) => c.source))];
+        return (
+          <div className="text-[11px] text-pl-muted flex flex-wrap items-center gap-1" data-testid="pp-cal-imported">
+            Imported: {Object.entries(byKind).map(([k, n]) => `${n} ${kindLabel(k)}`).join(', ')} from {files.join(', ')}
+            {onClearImported && (
+              <button type="button" data-testid="pp-cal-clear-imported" onClick={onClearImported}
+                className="px-1.5 rounded border border-pl-border text-pl-muted hover:text-pl-text">Clear imported</button>
+            )}
+          </div>
+        );
+      })()}
+      {onImportCalibration && (
+        <CalibrationImport
+          ctx={importCtx}
+          onImport={onImportCalibration}
+          fmtZ={(m) => `${tidy(depthToDisplay(m, zU), 1)} ${zU}`}
+          fmtP={(mpa) => (pU === 'psi' ? `${Math.round(pressureToDisplay(mpa * 1e6, 'psi'))} psi` : `${mpa.toFixed(2)} MPa`)}
+        />
+      )}
 
       <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Report</div>
       {[['field', 'Field'], ['analyst', 'Analyst']].map(([k, label]) => (

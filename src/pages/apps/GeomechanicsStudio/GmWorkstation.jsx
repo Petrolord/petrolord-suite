@@ -200,8 +200,9 @@ function GmWorkstationContent({ backend }) {
 
   const buildMem = () => {
     if (!curves) throw new Error('Load curves first (Inputs & Logs tab).');
+    // PP-U2-013: registry depths are MD; the MEM is placed at TVD through the definitive trajectory
     const base = assembleBaseProfile({
-      source: caseDraft.source, logs: curves.logs, published: curves.published,
+      source: caseDraft.source, logs: curves.logs, published: curves.published, stations: trajectory?.stations || null,
     });
     // Align DT to the base grid when the published path is used: the
     // in-registry grids match by construction (same well); fall back to raw.
