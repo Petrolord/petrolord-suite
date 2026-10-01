@@ -8,11 +8,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import DepthEntry from './DepthEntry';
 import ConflictResolver from './ConflictResolver';
-import { versionChain, CONFIDENCES, TOP_STATUSES, canTransition, interpretationParams, callParams, evidenceChain } from '../services/tops';
+import { versionChain, CONFIDENCES, TOP_STATUSES, canTransition, interpretationParams, callParams, evidenceChain, prognosisDifference } from '../services/tops';
 import { fmtDepth, depthToDisplay } from '../services/units';
 import { toRigLocal } from '@/lib/wellsite/time';
 
-export default function TopsView({ board, tops, records, prognosis, ctx, defaults, unit, offsetMin, approver, online, canAdmin, onInterpret, onCall, onResolve, onLoadPrognosis, onAddPrognosisTop, onPublish, onStatus, userName, geoWellId = null, loadRegistryWells = null }) {
+export default function TopsView({ board, tops, records, prognosis, ctx, defaults, unit, offsetMin, approver, online, canAdmin, onInterpret, onCall, onResolve, onLoadPrognosis, onAddPrognosisTop, onPublish, onStatus, userName, geoWellId = null, loadRegistryWells = null, nameOf = null, photos = [] }) {
+  const who = (id) => (nameOf ? nameOf(id) : (id === 'user-a' ? userName : id));
+  // WS-U1-016: the help promised chosen photographs publish as core images, but nothing chose them
+  const [publishPhotoIds, setPublishPhotoIds] = useState([]);
   const [open, setOpen] = useState(null);
   const [form, setForm] = useState(null); // { kind:'interpret'|'call', key, name }
   const [name, setName] = useState('');
@@ -100,11 +103,24 @@ export default function TopsView({ board, tops, records, prognosis, ctx, default
           </details>
         )}
         {board.conflicts.length > 0 && <span className="text-[11px] text-pl-warning-text" data-testid="ws-tops-conflicts">{board.conflicts.length} conflict(s)</span>}
-        {onPublish && <Button size="sm" variant="outline" disabled={!online} onClick={onPublish} data-testid="ws-top-publish" title={online ? 'Publish final calls and current descriptions to the shared well registry (registry owner only)' : 'Needs a connection'}>Publish to registry</Button>}
+        {onPublish && photos.length > 0 && (
+          <details className="text-[11px] text-pl-text" data-testid="ws-publish-photos">
+            <summary className="cursor-pointer text-pl-muted">Photographs to publish ({publishPhotoIds.length} chosen)</summary>
+            <div className="mt-1 flex flex-wrap gap-2 max-w-xl">
+              {photos.map((p) => (
+                <label key={p.id} className="flex items-center gap-1"><input type="checkbox" checked={publishPhotoIds.includes(p.id)} data-testid={`ws-publish-photo-${p.id}`}
+                  onChange={() => setPublishPhotoIds((cur) => (cur.includes(p.id) ? cur.filter((x) => x !== p.id) : [...cur, p.id]))} />
+                  {p.caption || 'photo'}{Number.isFinite(p.md_calc_m) ? ` ${fmtDepth(p.md_calc_m, unit)}` : ''}</label>
+              ))}
+            </div>
+            <div className="text-pl-muted mt-1">Chosen photographs go to the registry as core images with the next Publish.</div>
+          </details>
+        )}
+        {onPublish && <Button size="sm" variant="outline" disabled={!online} onClick={() => onPublish(publishPhotoIds)} data-testid="ws-top-publish" title={online ? 'Publish final calls and current descriptions to the shared well registry (registry owner only)' : 'Needs a connection'}>Publish to registry</Button>}
       </div>
 
       <table className="text-xs text-pl-text w-full">
-        <thead><tr className="text-[10px] uppercase text-pl-muted"><th className="text-left pr-3">Formation</th><th className="text-left pr-3">Prognosis</th><th className="text-left pr-3">Interpretation</th><th className="text-left pr-3">Call</th><th className="text-left">Actions</th></tr></thead>
+        <thead><tr className="text-[10px] uppercase text-pl-muted"><th className="text-left pr-3">Formation</th><th className="text-left pr-3">Prognosis</th><th className="text-left pr-3">Interpretation</th><th className="text-left pr-3">Call</th><th className="text-left pr-3" title="True vertical depth subsea, positive below MSL">Call TVDSS</th><th className="text-left pr-3" title="Call against prognosis, subsea: high is shallower than prognosed">vs prognosis</th><th className="text-left">Actions</th></tr></thead>
         <tbody>
           {board.rows.map((r) => (
             <React.Fragment key={r.key}>
@@ -113,6 +129,12 @@ export default function TopsView({ board, tops, records, prognosis, ctx, default
                 <td className="pr-3 whitespace-nowrap">{r.prognosis ? `${fmtDepth(r.prognosis.md_m, unit)} ±${fmtDepth(r.prognosis.uncertainty_m || 0, unit)}` : ''}{r.offsets.length ? <span className="text-pl-muted"> ({r.offsets.length} offsets)</span> : null}</td>
                 <td className="pr-3 whitespace-nowrap" data-testid={`ws-top-interp-${r.key}`}>{r.interpretation ? `${fmtDepth(r.interpretation.range_top_md_m, unit)} to ${fmtDepth(r.interpretation.range_base_md_m, unit)}, ${r.interpretation.confidence}` : ''}</td>
                 <td className="pr-3 whitespace-nowrap" data-testid={`ws-top-call-${r.key}`}>{r.call ? `${fmtDepth(r.call.md_calc_m, unit)} ${r.call.status} v${r.call.version_no}` : ''}{r.competing.length ? <span className="text-pl-warning-text"> competing</span> : null}</td>
+                {(() => { const d = prognosisDifference(r, ctx); return (
+                  <>
+                    <td className="pr-3 whitespace-nowrap" data-testid={`ws-top-tvdss-${r.key}`}>{d && Number.isFinite(d.callTvdssM) ? fmtDepth(d.callTvdssM, unit) : ''}</td>
+                    <td className="pr-3 whitespace-nowrap" data-testid={`ws-top-vsprog-${r.key}`}>{d && d.word ? (d.word === 'on prognosis' ? d.word : `${fmtDepth(Math.abs(d.diffM), unit)} ${d.word}`) : ''}</td>
+                  </>
+                ); })()}
                 <td className="whitespace-nowrap">
                   <button type="button" onClick={() => startForm('interpret', r)} data-testid={`ws-top-interpret-${r.key}`} className="mr-1 px-1.5 py-0.5 rounded border border-pl-border hover:bg-pl-sunken">Interpret</button>
                   <button type="button" onClick={() => startForm('call', r)} data-testid={`ws-top-callbtn-${r.key}`} className="mr-1 px-1.5 py-0.5 rounded border border-pl-primary text-pl-primary-text hover:bg-pl-primary/10">{r.call ? 'Revise call' : 'Call'}</button>
@@ -120,21 +142,21 @@ export default function TopsView({ board, tops, records, prognosis, ctx, default
                 </td>
               </tr>
               {r.conflicts.length > 0 && (
-                <tr><td colSpan={5} className="py-1">
+                <tr><td colSpan={7} className="py-1">
                   {r.conflicts.map((c) => (
                     <ConflictResolver key={c.headIds.join('+')} heads={c.headIds.map((id) => tops.find((t) => t.id === id)).filter(Boolean)} approver={approver} unit={unit} offsetMin={offsetMin} userName={userName}
-                      onResolve={(chosen, why, heads) => onResolve(chosen, why, heads)} />
+                      onResolve={(chosen, why, heads) => onResolve(chosen, why, heads)} nameOf={nameOf} />
                   ))}
                 </td></tr>
               )}
               {chainOf === r.key && (
-                <tr><td colSpan={5} className="py-1">
+                <tr><td colSpan={7} className="py-1">
                   <div className="rounded border border-pl-border bg-pl-surface p-2 space-y-1" data-testid={`ws-top-history-${r.key}`}>
                     {[...new Set(tops.filter((t) => t.formation_key === r.key).map((t) => t.chain_id))].map((chainId) => (
                       <div key={chainId}>
                         {versionChain(tops, chainId).map((v) => (
                           <div key={v.id} className="text-[11px] text-pl-muted" data-testid={`ws-top-version-${v.id}`}>
-                            v{v.version_no} {v.role} {v.status} {fmtDepth(v.md_calc_m, unit)}{v.role === 'interpretation' ? ` to ${fmtDepth(v.range_base_md_m, unit)}, ${v.confidence}` : ''} at {local(v.occurred_at)} by {v.created_by === 'user-a' ? userName : v.created_by}{v.basis ? `: ${v.basis}` : ''}{v.resolves_ids && v.resolves_ids.length ? ` (resolves ${v.resolves_ids.length} competing versions)` : ''}
+                            v{v.version_no} {v.role} {v.status} {fmtDepth(v.md_calc_m, unit)}{v.role === 'interpretation' ? ` to ${fmtDepth(v.range_base_md_m, unit)}, ${v.confidence}` : ''} at {local(v.occurred_at)} by {who(v.created_by)}{v.basis ? `: ${v.basis}` : ''}{v.resolves_ids && v.resolves_ids.length ? ` (resolves ${v.resolves_ids.length} competing versions)` : ''}
                           </div>
                         ))}
                       </div>
@@ -186,8 +208,8 @@ export default function TopsView({ board, tops, records, prognosis, ctx, default
         <div className="flex items-end gap-3 flex-wrap">
           <label className="text-[10px] text-pl-muted">Formation<br /><input value={progName} onChange={(e) => setProgName(e.target.value)} data-testid="ws-prog-name" className={`${sel} w-40`} /></label>
           <div><div className="text-[10px] text-pl-muted">Depth</div><DepthEntry value={progDepth} onChange={setProgDepth} kind="prognosis" ctx={ctx} compact testIdPrefix="ws-prog-depth" /></div>
-          <label className="text-[10px] text-pl-muted">Uncertainty ({unit})<br /><input type="number" value={progUnc} onChange={(e) => setProgUnc(e.target.value)} data-testid="ws-prog-unc" className={`${sel} w-20`} /></label>
-          <Button size="sm" variant="outline" disabled={!canAdmin} onClick={async () => { try { await onAddPrognosisTop({ name: progName, depth: progDepth, uncertaintyDisplay: Number(progUnc) }); setProgName(''); setProgDepth({ ...progDepth, value: NaN }); } catch (e) { onStatus?.(e.message); } }} data-testid="ws-prog-add">Add (new prognosis version)</Button>
+          <label className="text-[10px] text-pl-muted">Uncertainty ({progDepth.unit || unit})<br /><input type="number" value={progUnc} onChange={(e) => setProgUnc(e.target.value)} data-testid="ws-prog-unc" className={`${sel} w-20`} /></label>
+          <Button size="sm" variant="outline" disabled={!canAdmin} onClick={async () => { try { await onAddPrognosisTop({ name: progName, depth: progDepth, uncertaintyDisplay: Number(progUnc), uncertaintyUnit: progDepth.unit || unit }); setProgName(''); setProgDepth({ ...progDepth, value: NaN }); } catch (e) { onStatus?.(e.message); } }} data-testid="ws-prog-add">Add (new prognosis version)</Button>
         </div>
       </section>
       {!form && board.rows.length > 0 && <Button size="sm" variant="ghost" onClick={() => startForm('interpret', null)} data-testid="ws-top-new">Interpret a formation not in the prognosis</Button>}

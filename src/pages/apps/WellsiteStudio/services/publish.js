@@ -44,8 +44,14 @@ export function staleOwnIntervals(existingIntervals) {
 export function publishPlan({ tops, records, profile, existingTops = [], existingIntervals = [] }) {
   const topsOut = finalTopsToPublish(tops);
   const intervalsOut = descriptionsToPublish(records, profile);
+  // WS-U1-013 (PL9): a formation that already has a registry top from another
+  // source (a prognosis typed in Well Data Manager) gains a second top of the
+  // same name; that row is never touched, so the publish says so
+  const own = new Set(staleOwnTops(existingTops).map((t) => t.id));
+  const otherNames = new Set((existingTops || []).filter((t) => !own.has(t.id)).map((t) => String(t.name || '').trim().toLowerCase()));
+  const sameNameOther = topsOut.map((t) => t.row.name).filter((n) => otherNames.has(String(n).trim().toLowerCase()));
   return {
-    tops: topsOut, intervals: intervalsOut,
+    tops: topsOut, intervals: intervalsOut, sameNameOther,
     replaceTops: staleOwnTops(existingTops), replaceIntervals: staleOwnIntervals(existingIntervals),
     untouchedTops: existingTops.length - staleOwnTops(existingTops).length,
     untouchedIntervals: existingIntervals.length - staleOwnIntervals(existingIntervals).length,

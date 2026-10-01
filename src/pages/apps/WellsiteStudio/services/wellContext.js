@@ -19,9 +19,25 @@ export function offsetMinOf(well) {
   return Number.isInteger(v) ? v : 0;
 }
 
-export function defaultDepthEntry(well) {
+/**
+ * The depth entry form a new entry starts from: the well's own default when an
+ * administrator set one, otherwise the display unit (WS-U1-012: a metric user
+ * was handed a feet entry form on every well without a default).
+ */
+export function defaultDepthEntry(well, fallbackUnit = 'ft') {
   const d = (well && well.settings && well.settings.default_depth) || {};
-  return { unit: d.unit || 'ft', reference: d.reference || 'MD', datum: d.datum || 'RT' };
+  return { unit: d.unit || fallbackUnit || 'ft', reference: d.reference || 'MD', datum: d.datum || 'RT' };
+}
+
+/**
+ * Is the well's KB elevation one a subsea depth can rest on? The registry
+ * stores 0 when no KB was entered (WS-U1-010), and an offshore KB is 20 to
+ * 40 m, so a zero is said rather than used silently.
+ */
+export function kbStatus(kbM) {
+  if (!Number.isFinite(kbM)) return { ok: false, note: 'This well has no KB elevation. TVDSS and the offset comparison need one: enter KB in Well Data Manager.' };
+  if (kbM === 0) return { ok: false, note: 'KB elevation is 0 m above MSL (the registry default when none was entered). TVDSS then equals TVD below KB; if the real KB is not 0, correct it in Well Data Manager before drilling.' };
+  return { ok: true, note: '' };
 }
 
 export function tourConfigOf(well) {

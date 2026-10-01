@@ -144,3 +144,46 @@ export function sampleBoard({ samples, stages, well, rigConfig, bitDepths, pumpE
   const nextScheduled = rows.find((r) => r.state === 'scheduled') || null;
   return { rows, inTransit, nextDue, nextScheduled, overdue: rows.filter((r) => r.state === 'overdue'), lagged, bitMdM, cfg, tolerance };
 }
+
+/**
+ * WS-U1-011 (PL1, PL8): the rate of penetration from the bit depth log, the
+ * number a wellsite geologist reads beside every sample. The history already
+ * holds the bit still through connections, trips and circulation, so the
+ * rate is depth over drilling time. Returns the latest segment that made
+ * hole (m per hour) and the interval it covers, or null with a reason.
+ */
+export function ropNow(bitDepths, events = []) {
+  const h = bitHistoryOf(bitDepths, events);
+  for (let i = h.length - 1; i > 0; i -= 1) {
+    const a = h[i - 1];
+    const b = h[i];
+    const dMd = b.mdM - a.mdM;
+    const dHr = (b.utcMs - a.utcMs) / 3600000;
+    if (dMd > 0 && dHr > 0) return { mPerHr: dMd / dHr, fromMdM: a.mdM, toMdM: b.mdM, fromUtcMs: a.utcMs, toUtcMs: b.utcMs, note: '' };
+  }
+  return { mPerHr: null, note: h.length < 2 ? 'Two bit depths are needed for a rate of penetration.' : 'No hole made between the recorded bit depths.' };
+}
+
+/**
+ * WS-U1-007 (PL1): the volumes behind the lag strokes and the flow now, in
+ * the volume unit chosen (bbl or m3). Lag strokes alone hide whether the
+ * geometry is right; a mudlogger checks the annular volume and the flow.
+ */
+export function lagVolumes(lag, volumeUnit = 'bbl') {
+  if (!lag || !lag.available) return null;
+  const perBbl = 0.158987294928;
+  const v = (m3) => (Number.isFinite(m3) ? (volumeUnit === 'bbl' ? m3 / perBbl : m3) : null);
+  const ctx = lag.lagCtx || {};
+  const mainM3PerMin = (lag.spmNow || 0) * (ctx.m3PerStroke || 0);
+  const riserM3PerMin = mainM3PerMin + (lag.boosterSpmNow || 0) * (ctx.boosterM3PerStroke || 0);
+  return {
+    unit: volumeUnit,
+    annulus: v((lag.wellM3 || 0) + (lag.riserM3 || 0)),
+    well: v(lag.wellM3),
+    riser: lag.riserM3 > 0 ? v(lag.riserM3) : null,
+    perStroke: v(ctx.m3PerStroke),
+    flowPerMin: v(mainM3PerMin),
+    flowAlt: volumeUnit === 'bbl' ? { value: mainM3PerMin * 264.172052, unit: 'gpm' } : { value: mainM3PerMin * 1000, unit: 'L/min' },
+    riserFlowPerMin: lag.riserM3 > 0 ? v(riserM3PerMin) : null,
+  };
+}

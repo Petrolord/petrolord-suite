@@ -7,8 +7,11 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toRigLocal } from '@/lib/wellsite/time';
 import { fmtDepth } from '../services/units';
+import { lagVolumes } from '../services/samples';
 
-export default function LagPanel({ lag, pumpEvents, onPump, unit, offsetMin, nowMs, floater = false }) {
+export default function LagPanel({ lag, pumpEvents, onPump, unit, volumeUnit = 'bbl', offsetMin, nowMs, floater = false }) {
+  const vol = lagVolumes(lag, volumeUnit);
+  const fv = (v, dp = 1) => (Number.isFinite(v) ? `${v.toFixed(dp)} ${volumeUnit}` : 'n/a');
   const [spm, setSpm] = useState('');
   const [boosterSpm, setBoosterSpm] = useState('');
   const [note, setNote] = useState('');
@@ -28,6 +31,9 @@ export default function LagPanel({ lag, pumpEvents, onPump, unit, offsetMin, now
           <Row label="Pumps" value={lag.spmNow > 0 ? `${lag.spmNow} spm` : 'off'} testId="ws-lag-spm" />
           {floater && <Row label="Booster" value={lag.boosterSpmNow > 0 ? `${lag.boosterSpmNow} spm` : 'off'} testId="ws-lag-booster" />}
           {floater && <Row label="Riser leg" value={Number.isFinite(lag.riserStrokes) ? `${Math.round(lag.riserStrokes)} stk of the lag` : ''} testId="ws-lag-riser" />}
+          {vol && <Row label="Annular volume, bit to surface" value={`${fv(vol.annulus)}${vol.riser != null ? ` (riser ${fv(vol.riser)})` : ''}`} testId="ws-lag-annulus" />}
+          {vol && <Row label="Pump output" value={`${fv(vol.perStroke, 4)}/stk`} testId="ws-lag-perstroke" />}
+          {vol && <Row label="Flow now" value={lag.spmNow > 0 ? `${fv(vol.flowPerMin, 2)}/min (${Math.round(vol.flowAlt.value)} ${vol.flowAlt.unit})` : 'pumps off'} testId="ws-lag-flow" />}
           <Row label="Lag time at this rate" value={fmtMin(lag.lagTimeMin)} testId="ws-lag-time" />
           <Row label="Lagged sample depth" value={Number.isFinite(lag.laggedMdM) ? fmtDepth(lag.laggedMdM, unit) : 'not yet at surface'} testId="ws-lag-lagged" />
           <Row label="Bottoms up from now" value={lag.bottomsUpUtcMs ? local(lag.bottomsUpUtcMs) : 'undefined'} testId="ws-lag-bottoms-up" />
