@@ -136,6 +136,7 @@ export default function BasinFlowHelpGuide() {
           Files are read in the display depth unit shown on the import tab; switch it if a file is in the other unit.
           Temperatures in files are degrees C.
         </Callout>
+        <Para>A template, a tops file or a registry well replaces the layers of the open model. Templates ask first, by model name. After any replacement an Undo bar at the top of Properties puts the previous layers, erosion and tie back (one step, until you open another model).</Para>
       </GuideSection>
 
       <GuideSection id="results">
