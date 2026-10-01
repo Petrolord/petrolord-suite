@@ -184,6 +184,13 @@ Batches:
 - **Batch B:** U2-008, U2-009, U2-010, U2-011, U2-012, U2-013 (the only one needing DDL, on app-private ws_* tables).
 - **Batch C:** U2-014, U2-015, U2-016, U2-017, U2-018, U2-019.
 
+### Test record (2026-10-01)
+
+- jest on CI (8 shards): green, with the four new suites (32 tests) and every existing Wellsite, lag engine, portability and `src/__tests__` suite.
+- jest locally, in band: the new suites pass. The existing workstation suites (tops, kitFindings, membersOpenIn, describe, samplesView, reports, localStore) time out on this box at load 10 to 15, on origin/main as on this branch (the baseline run before any change failed the same way; `localStore` is untouched by this PR). CI is the reference.
+- e2e, 1 worker, private dev server: `wellsite-upgrade.spec.js` 11 of 11; `wellsite-studio.spec.js` 16 of 16 (WS9 publish passed on a second run at low load; under load its second click raced the first save, an existing pattern in that spec).
+- Production build: local 7 min 13 s, pass; CI build pass.
+
 ### Owner items
 
 1. The three Release 1 walks are still open: WS1 validation review, WS6 PWA install on a laptop and a tablet, WS9 simulated shift. The stacked layout (WS-U1-004) is worth trying on the tablet in the same walk.
