@@ -81,8 +81,35 @@ async function zoneSchemesOfProjects(source, col) {
   for (const row of await source.listOrgZoneSchemes()) if (!col.tables.strat_zone_schemes.has(row.id)) col.tables.strat_zone_schemes.set(row.id, row);
 }
 
+const UUID_ONLY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+/** The registry rows an Earth Modeling definition names (EM-U1-013). */
+export function emModelRefs(definition) {
+  const d = definition || {};
+  const surfaces = new Set();
+  const culture = new Set();
+  const addId = (set, v) => { const m = typeof v === 'string' ? v.match(UUID_ONLY) : null; if (m) set.add(m[0].toLowerCase()); };
+  for (const id of d.surfaceIds || []) addId(surfaces, id);
+  for (const x of d.derived || []) { addId(surfaces, x?.sourceId); addId(surfaces, x?.isochoreId); addId(surfaces, x?.baseId); }
+  for (const p of d.faultPolygons || []) addId(culture, p?.cultureId);
+  addId(culture, d.frame?.boundaryId);
+  return { surfaces: [...surfaces], culture: [...culture] };
+}
+
+/** An Earth Modeling model travels with the surfaces and polygons it names. */
+async function rowsOfModels(col, collectRow) {
+  if (!col.tables.em_models?.size) return;
+  for (const row of Array.from(col.tables.em_models.values())) {
+    const refs = emModelRefs(row.definition);
+    const why = { reason: `named by earth model "${row.name || row.id}"` };
+    for (const id of refs.surfaces) await collectRow('geo_surfaces', id, why);
+    for (const id of refs.culture) await collectRow('geo_culture', id, why);
+  }
+}
+
 async function afterRoots(source, col, { includeInterpretations, collectRow }) {
   await wellsOfStateRoots(col, collectRow);
+  await rowsOfModels(col, collectRow);
   await zoneSchemesOfProjects(source, col);
   if (includeInterpretations) await interpretationsForWells(source, col);
   await unitsOfTops(col, collectRow);

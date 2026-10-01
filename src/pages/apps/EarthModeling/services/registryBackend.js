@@ -16,6 +16,7 @@ import { listWellsWithTops, listZones, listLogs, downloadCurve } from '@/lib/wel
 import { listSurfaces, saveSurface, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
 import { listCulture, downloadCultureFeatures } from '@/lib/cultureRegistry';
 import { POLYGON_KINDS, ringOf } from '@/pages/apps/MappingSurfaceStudio/services/polygonTools';
+import { polygonRingsOf } from '@/lib/culturePolygonFiles';
 import { getDepthUnit, setDepthUnit, getProjectCrs } from '@/lib/crs/settingsService';
 import { listSeismicFaultsForModel } from '@/lib/seismicFaultsReader';
 import { getTransformer } from '@/lib/crs';
@@ -29,25 +30,40 @@ export async function listSeismicFaults() {
 }
 
 /**
- * Fault polygons drawn in Mapping & Surface Studio (geo_culture kind
- * fault_polygon; MS5, 2026-09-06), as vertex lists the block engine
- * takes. A layer whose features cannot be read is skipped, not fatal.
+ * Polygons from geo_culture as vertex lists the block engine takes
+ * (Mapping MS5; U1 EM-U1-012). EVERY closed ring of a row counts: a
+ * fault-polygon file imported in Mapping (U2-004) holds many faults in one
+ * row, and the first ring alone silently dropped the rest. Fault rows give
+ * one entry per ring (`id`, then `id#2`, ...); boundary rows give one
+ * entry whose `rings` the model clips to as a union. The row's CRS rides
+ * along so the build can refuse a polygon from another system. A layer
+ * whose features cannot be read is skipped, not fatal.
  */
-export async function listCulturePolygons(kind) {
+export function culturePolygonEntries(row, feats, { split = true } = {}) {
+  const rings = polygonRingsOf(feats);
+  if (!rings.length) {
+    const ring = ringOf(feats?.[0]);
+    if (ring.length >= 3) rings.push(ring);
+  }
+  if (!rings.length) return [];
+  const base = { is_own: !!row.is_own, source: 'geo_culture', crs: row.crs || null };
+  if (!split) return [{ ...base, id: row.id, name: row.name, vertices: rings[0], rings }];
+  return rings.map((ring, i) => ({ ...base, id: i ? `${row.id}#${i + 1}` : row.id, name: i || rings.length > 1 ? `${row.name} (${i + 1})` : row.name, vertices: ring }));
+}
+
+export async function listCulturePolygons(kind, { split = true } = {}) {
   const rows = (await listCulture()).filter((c) => c.kind === kind);
   const out = [];
   for (const row of rows) {
     try {
-      const feats = await downloadCultureFeatures(row);
-      const ring = ringOf(feats?.[0]);
-      if (ring.length >= 3) out.push({ id: row.id, name: row.name, vertices: ring, is_own: !!row.is_own, source: 'geo_culture' });
+      out.push(...culturePolygonEntries(row, await downloadCultureFeatures(row), { split }));
     } catch { /* unreadable layer: leave it out */ }
   }
   return out;
 }
 export const listCultureFaultPolygons = () => listCulturePolygons(POLYGON_KINDS.fault);
 /** Boundary polygons drawn in Mapping (geo_culture kind boundary; EM0). */
-export const listCultureBoundaries = () => listCulturePolygons(POLYGON_KINDS.boundary);
+export const listCultureBoundaries = () => listCulturePolygons(POLYGON_KINDS.boundary, { split: false });
 
 // PP0 state kind (docs/scope/ProjectPortability-PLAN.md §4.3): version 1 is
 // the current row shape; a future shape change bumps `current` and adds

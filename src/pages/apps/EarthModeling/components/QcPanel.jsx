@@ -1,8 +1,8 @@
 // QC & volumes view (Earth Modeling G8.2): the numbers behind the
 // model, never silent — well-tie residuals, clamp report, population
 // provenance (incl. every fallback), and the per-zone per-block volume
-// tables. Tabular workstation surface; volumes in 10^6 m3 (SI
-// internal; fluids/contacts stay in ReservoirCalc Pro).
+// tables. Tabular workstation surface; volumes in the chosen units
+// (SI internal); contacts and FVF per zone since T1.
 
 import React from 'react';
 import { fmtVolume, volumeUnitLabel, fmtDepth } from '../services/units';
@@ -60,6 +60,18 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
           </table>
         </div>
       </div>
+
+      {((built.notes || []).length > 0 || (built.propertyClamps || []).length > 0) && (
+        <div className={card} data-testid="em-build-notes">
+          <div className="px-2 py-1.5 text-xs font-semibold text-pl-text border-b border-pl-border">Build notes: what the model assumed or held</div>
+          <ul className="px-4 py-1.5 list-disc text-[11px] text-pl-text space-y-0.5">
+            {(built.propertyClamps || []).map((c) => (
+              <li key={`${c.zone}-${c.prop}`} className="text-pl-warning-text">{c.zone} {c.prop}: {c.nodes} node{c.nodes === 1 ? '' : 's'} extrapolated outside 0 to 1 and held at the limit (a trend or kriging beyond the wells).</li>
+            ))}
+            {(built.notes || []).map((n) => <li key={n}>{n}</li>)}
+          </ul>
+        </div>
+      )}
 
       {built.adjustment && (
         <div className={card} data-testid="em-adjust-report">
@@ -119,21 +131,31 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
           <div className="px-2 py-1.5 text-xs font-semibold text-pl-text border-b border-pl-border">
             {zone.name}: volumes and population provenance
           </div>
-          {!hasFluids(zone.fluids) && (
+          {!Number.isFinite(zone.fluids?.owc) && (
             <div className="px-2 py-1 text-[11px] text-pl-warning-text border-b border-pl-border" data-testid={`em-nocontact-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
               No OWC given: the whole zone counts as hydrocarbon. Enter the contacts in the dock for a true HCPV.
+            </div>
+          )}
+          {zone.openEdge?.open && (
+            <div className="px-2 py-1 text-[11px] text-pl-warning-text border-b border-pl-border" data-testid={`em-openedge-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
+              The hydrocarbon leg reaches the model edge at {zone.openEdge.nodes} node{zone.openEdge.nodes === 1 ? '' : 's'}: the accumulation is not closed inside the frame, so these volumes depend on where the frame or boundary stops. Check the spill point in Mapping &amp; Surface Studio.
+            </div>
+          )}
+          {zone.fluids?.gasZone && (
+            <div className="px-2 py-1 text-[11px] text-pl-muted border-b border-pl-border" data-testid={`em-gaszone-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
+              Gas zone (Bg with no Bo and no GOC): gas from the zone top down to the contact.
             </div>
           )}
           <table className="w-full">
             <thead>
               <tr>
-                <th className={th}>Block</th><th className={th}>Cells</th><th className={th} data-testid="em-vol-unit-bulk">Bulk ({vu('bulk_m3')})</th>
-                <th className={th}>Net ({vu('net_m3')})</th><th className={th}>Pore ({vu('pore_m3')})</th><th className={th} data-testid="em-vol-unit-hcpv">HCPV ({vu('hcpv_m3')})</th>
+                <th className={th}>Block</th><th className={th}>Cells</th><th className={th} data-testid="em-vol-unit-bulk" title="Gross rock volume (GRV): zone thickness times cell area">Bulk ({vu('bulk_m3')})</th>
+                <th className={th} title="Net rock volume (NRV): GRV times net to gross">Net ({vu('net_m3')})</th><th className={th} title="Pore volume: NRV times porosity">Pore ({vu('pore_m3')})</th><th className={th} data-testid="em-vol-unit-hcpv" title="Hydrocarbon pore volume at reservoir conditions: pore volume times (1 - Sw), above the contact">HCPV ({vu('hcpv_m3')})</th>
                 {hasFluids(zone.fluids) && (
                   <>
                     <th className={th}>Gas HCPV ({vu('gas_hcpv_m3')})</th><th className={th}>Oil HCPV ({vu('oil_hcpv_m3')})</th>
                     {zone.fluids?.bo != null && <th className={th} data-testid="em-vol-unit-stoiip">STOIIP ({vu('stoiip_m3')})</th>}
-                    {zone.fluids?.bg != null && <th className={th} data-testid="em-vol-unit-giip">GIIP ({vu('giip_m3')})</th>}
+                    {zone.fluids?.bg != null && <th className={th} data-testid="em-vol-unit-giip" title="Free gas initially in place (gas cap or gas zone); solution gas is not included">GIIP, free gas ({vu('giip_m3')})</th>}
                   </>
                 )}
               </tr>

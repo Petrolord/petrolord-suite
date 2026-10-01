@@ -32,6 +32,9 @@ export function stackRange(clamped) {
 export function buildFrameworkScene(built, wells, opts = {}) {
   const { ve = 2, surfaceNames = [], visible = null, faultPolygons = [], depthUnit = 'm', colorBy = 'depth' } = opts;
   const { spec, clamped } = built;
+  // EM-U1-001: metres per map unit, so VE compares metres with metres and
+  // survey offsets (metres) land right on a feet frame
+  const k = Number.isFinite(built.xyToM) && built.xyToM > 0 ? built.xyToM : 1;
   const extX = (spec.nx - 1) * spec.dx;
   const extY = (spec.ny - 1) * spec.dy;
   const L = Math.max(extX, extY) || 1;
@@ -39,7 +42,7 @@ export function buildFrameworkScene(built, wells, opts = {}) {
   if (!range) throw new Error('The framework has no live nodes to draw.');
   const { zMin, zMax } = range;
   const zRange = zMax - zMin;
-  const ext = { X: extX / L, D: Math.max(1e-3, ve) * (zRange / L), Z: extY / L };
+  const ext = { X: extX / L, D: Math.max(1e-3, ve) * (zRange / (L * k)), Z: extY / L };
   const nx = (x) => (x - spec.x0) / L;
   const nz = (y) => (y - spec.y0) / L;
   const ny = (d) => -(d - zMin) / zRange;
@@ -65,7 +68,8 @@ export function buildFrameworkScene(built, wells, opts = {}) {
   const margin = 0.15 * zRange;
   for (const w of wells || []) {
     if (!Number.isFinite(w.surface_x) || !Number.isFinite(w.surface_y)) continue;
-    const traj = minCurvature(w.deviation || [], w.kb_m || 0, w.surface_x, w.surface_y);
+    const traj = minCurvature(w.deviation || [], w.kb_m || 0, w.surface_x * k, w.surface_y * k)
+      .map((st) => ({ ...st, x: st.x / k, y: st.y / k }));
     const pts = [];
     for (const st of traj) {
       if (st.tvdss < zMin - margin || st.tvdss > zMax + margin) continue;

@@ -259,7 +259,7 @@ export async function listSeismicFaultsForModel({
     } else if (rel === 'local-mismatch') {
       skipped.push({ name: r.name, reason: 'local grid data cannot be placed in this frame' }); continue;
     }
-    const obj = faultToModelObjects(r, v, { levelMs, transform, crsStatus });
+    const obj = { ...faultToModelObjects(r, v, { levelMs, transform, crsStatus }), crs: transform ? hostCrs : (v.crs || null) };
     if (obj.error) { skipped.push({ name: r.name, reason: obj.error }); continue; }
     faults.push(obj);
   }

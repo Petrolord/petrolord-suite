@@ -90,6 +90,15 @@ export default function EarthModelingHelpGuide() {
           stay). A boundary polygon drawn in Mapping &amp; Surface Studio clips the model: nodes outside it are empty on
           every surface, so the map, the section and the volumes stop at the lease line.
         </Para>
+        <Para>
+          Only depth structures stack. A time surface, an attribute map (MD, TVD, porosity) or an isochore is refused
+          with the reason; depth-convert a time surface in Mapping &amp; Surface Studio first, and use an isochore
+          through a derived horizon. Surfaces on a feet or US-feet frame work: the model computes on a metre frame,
+          so the cell size, the adjustment radius and the variogram range are always metres, and the volumes are the
+          same as on a metre frame. A rotated top surface gives the unrotated extent at its smaller cell. Wells and
+          polygons in another coordinate system than the model are left out (wells) or refused (polygons), and the QC
+          view lists every such note under Build notes.
+        </Para>
       </GuideSection>
 
       <GuideSection id="units">
@@ -180,9 +189,16 @@ export default function EarthModelingHelpGuide() {
         </Para>
         <Para>
           Fluid contacts and FVF (per zone, in the dock) cut each zone at the gas-oil and oil-water contacts, typed as
-          depths below datum. The table then splits the hydrocarbon pore volume into gas cap and oil leg and, with Bo
-          and Bg, gives STOIIP and GIIP at surface conditions (MMstb and Bscf in field units). With no OWC the whole
-          zone counts as hydrocarbon and the table says so in amber. When a property is kriged, a line under the
+          depths below datum; each value keeps the unit it was typed in, and a negative value is read as an
+          elevation. Bo is in rb/stb; Bg is typed in the unit chosen above the zone rows (rm3/sm3, rcf/scf or RB/Mscf,
+          starting from your Suite units), and a line under each zone says how the values were read. The table then
+          splits the hydrocarbon pore volume into gas cap and oil leg and, with Bo and Bg, gives STOIIP and GIIP (free
+          gas, solution gas not included) at surface conditions (MMstb and Bscf in field units). Bg with no Bo and no
+          GOC makes a gas zone, gas from the top down to the contact. With no OWC the whole zone counts as
+          hydrocarbon and the table says so in amber; when the hydrocarbon leg reaches the edge of the model, the
+          accumulation is not closed inside the frame and an amber line says the volume depends on where the frame
+          stops (check the spill point in Mapping &amp; Surface Studio). Porosity, Sw and NTG populated by a trend or
+          kriging beyond the wells are held between 0 and 1, and the Build notes count the nodes held. When a property is kriged, a line under the
           table gives the P90, P50 and P10 hydrocarbon volume from the kriging variance, every node moving together.
           Recovery and full uncertainty stay in ReservoirCalc Pro.
         </Para>
@@ -199,9 +215,13 @@ export default function EarthModelingHelpGuide() {
         <Para>
           Publish layer writes the layer shown on the map to the registry: zone top and base as structure (elevation,
           metres), thickness as an isochore, properties and variances as attributes, with the model name, zone and
-          methods in the provenance. Volumes CSV downloads every zone's table in the chosen units with the frame and
-          the provenance in the header. Save model definition keeps the recipe in your account; grids are recomputed
-          on load.
+          methods in the provenance, the model's CRS and XY unit. Volumes CSV downloads every zone's table in the
+          chosen units; its header carries the field and analyst typed in the dock, the date and build, the depth
+          reference, the frame, each zone's contacts and FVFs and any open-edge or held-property note, and the
+          provenance. Save model definition keeps the recipe in your account; after a load, Save overwrites that model
+          and Save as a new model makes a copy. Grids are recomputed on load, and models saved by earlier releases
+          open with today's defaults. Earth models travel in a project package (.pld) with the surfaces and polygons
+          they name.
         </Para>
       </GuideSection>
 

@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DERIVED_KINDS, describeDerived } from '../services/derivedSurfaces';
-import { POPULATION_METHODS } from '../services/modelBuild';
+import { POPULATION_METHODS, parseFluidsInput, BG_UNITS } from '../services/modelBuild';
 import { VARIOGRAM_MODELS } from '../services/propertyKriging';
 
 const selCls = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
@@ -20,6 +20,7 @@ export default function BuilderDock({
   drawing, pendingCount, onStartDraw, onFinishDraw, onCancelDraw,
   projects, onSaveProject, onLoadProject, boundaries = [],
   registrySurfaces = null, depthUnit = 'm', onAddDerived, onRemoveDerived,
+  bgUnit = 'm3/m3', onBgUnit, projectId = null, onSaveAsNew, report = null, onReport,
 }) {
   // EM2 derived-horizon form (thickness typed in the display unit)
   const [dv, setDv] = useState({ kind: 'parallel', sourceId: '', thickness: '', isochoreId: '', baseId: '', fraction: '0.5', name: '' });
@@ -39,6 +40,12 @@ export default function BuilderDock({
         <div className={secCls}>Model</div>
         <input className={inCls} data-testid="em-model-name" value={definition.name}
           onChange={(e) => patch({ name: e.target.value })} placeholder="Model name" />
+        {report && (
+          <div className="grid grid-cols-2 gap-1" title="Printed in the volumes CSV header for the reviewer; kept in this browser">
+            <input className={inCls} data-testid="em-report-field" value={report.field} placeholder="Field" onChange={(e) => onReport?.({ field: e.target.value })} />
+            <input className={inCls} data-testid="em-report-analyst" value={report.analyst} placeholder="Analyst" onChange={(e) => onReport?.({ analyst: e.target.value })} />
+          </div>
+        )}
 
         <div className={secCls}>Model frame (EM0)</div>
         <div className="flex items-center gap-1">
@@ -144,21 +151,42 @@ export default function BuilderDock({
         ))}
 
         <div className={secCls}>Fluid contacts and FVF (per zone)</div>
+        <label className="flex items-center gap-1 text-pl-muted" title="The unit Bg is typed in from now on; values already typed keep the unit they were typed in">
+          <span className="w-24">Bg unit</span>
+          <select className={selCls} data-testid="em-bg-unit" value={bgUnit} onChange={(e) => onBgUnit?.(e.target.value)}>
+            {BG_UNITS.map((u) => <option key={u} value={u}>{u === 'm3/m3' ? 'rm3/sm3' : u}</option>)}
+          </select>
+        </label>
         {definition.zones.map((z, i) => {
           const f = (definition.fluidsInput || [])[i] || {};
+          // U1 (EM-U1-006, -007): every value keeps the unit it was typed in
+          const unitKey = { goc: 'gocUnit', owc: 'owcUnit', bg: 'bgUnit' };
           const setF = (k, v) => {
             const next = [...(definition.fluidsInput || [])];
-            next[i] = { ...f, [k]: v, unit: k === 'goc' || k === 'owc' ? depthUnit : (f.unit || depthUnit) };
+            next[i] = { ...f, [k]: v, ...(unitKey[k] ? { [unitKey[k]]: k === 'bg' ? bgUnit : depthUnit } : {}) };
             patch({ fluidsInput: next });
           };
+          const uOf = (k) => f[unitKey[k]] || (k === 'bg' ? 'm3/m3' : f.unit || depthUnit);
+          let read = null;
+          try {
+            const [p] = parseFluidsInput([f]);
+            const bits = [];
+            if (p?.goc != null) bits.push(`GOC ${p.goc.toFixed(1)} m`);
+            if (p?.owc != null) bits.push(`OWC ${p.owc.toFixed(1)} m`);
+            if (p?.bo != null) bits.push(`Bo ${p.bo}`);
+            if (p?.bg != null) bits.push(`Bg ${p.bg.toPrecision(3)} rm3/sm3`);
+            if (p?.gasZone) bits.push('gas zone');
+            read = bits.length ? `reads as ${bits.join(', ')} below datum` : null;
+          } catch (e) { read = e.message; }
           return (
             <div key={`fl-${i}`} className="grid grid-cols-4 gap-1" data-testid={`em-fluids-${i}`}
-              title="Contacts as depth below datum (positive down) in the display unit; Bo in rm3/sm3 (rb/stb), Bg in rm3/sm3. Blank = not given; with no OWC the whole zone counts as hydrocarbon.">
+              title="Contacts as depth below datum (positive down; a negative value is read as an elevation). Bo in rb/stb (rm3/sm3). Blank = not given; with no OWC the whole zone counts as hydrocarbon. Bg with no Bo and no GOC makes a gas zone.">
               <span className="col-span-4 text-[10px] text-pl-muted">{z.name}</span>
-              <input className={inCls} value={f.goc ?? ''} placeholder={`GOC ${f.unit || depthUnit}`} data-testid={`em-goc-${i}`} onChange={(e) => setF('goc', e.target.value)} />
-              <input className={inCls} value={f.owc ?? ''} placeholder={`OWC ${f.unit || depthUnit}`} data-testid={`em-owc-${i}`} onChange={(e) => setF('owc', e.target.value)} />
-              <input className={inCls} value={f.bo ?? ''} placeholder="Bo" data-testid={`em-bo-${i}`} onChange={(e) => setF('bo', e.target.value)} />
-              <input className={inCls} value={f.bg ?? ''} placeholder="Bg" data-testid={`em-bg-${i}`} onChange={(e) => setF('bg', e.target.value)} />
+              <input className={inCls} value={f.goc ?? ''} placeholder={`GOC ${uOf('goc')}`} data-testid={`em-goc-${i}`} onChange={(e) => setF('goc', e.target.value)} />
+              <input className={inCls} value={f.owc ?? ''} placeholder={`OWC ${uOf('owc')}`} data-testid={`em-owc-${i}`} onChange={(e) => setF('owc', e.target.value)} />
+              <input className={inCls} value={f.bo ?? ''} placeholder="Bo rb/stb" data-testid={`em-bo-${i}`} onChange={(e) => setF('bo', e.target.value)} />
+              <input className={inCls} value={f.bg ?? ''} placeholder={`Bg ${bgUnit === 'm3/m3' ? 'rm3/sm3' : bgUnit}`} data-testid={`em-bg-${i}`} onChange={(e) => setF('bg', e.target.value)} />
+              {read && <span className="col-span-4 text-[10px] text-pl-muted" data-testid={`em-fluids-read-${i}`}>{read}</span>}
             </div>
           );
         })}
@@ -225,8 +253,14 @@ export default function BuilderDock({
         <div className={secCls}>Saved models</div>
         <button type="button" data-testid="em-save-model" className={`${btnCls} border-pl-primary/50 text-pl-primary-text hover:bg-pl-primary/10`}
           onClick={onSaveProject}>
-          Save model definition
+          {projectId ? 'Save model (overwrite)' : 'Save model definition'}
         </button>
+        {projectId && (
+          <button type="button" data-testid="em-save-as-new" className={`${btnCls} border-pl-border text-pl-text hover:bg-pl-sunken`}
+            onClick={onSaveAsNew}>
+            Save as a new model
+          </button>
+        )}
         {(projects || []).map((p) => (
           <div key={p.id} className="flex items-center gap-1">
             <span className="truncate flex-1 text-pl-muted">{p.name}</span>

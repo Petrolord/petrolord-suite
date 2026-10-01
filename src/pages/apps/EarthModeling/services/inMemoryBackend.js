@@ -7,6 +7,7 @@
 
 import { MODEL_SPEC, planeGrid, fixtureWells, FAULT_POLYGON } from './fixture';
 import { depthDownToSurfaceZ } from '@/lib/surfaceConvention';
+import { SAVED_MODELS, resolveSavedModel } from './savedFixtures';
 import { faultToModelObjects } from '@/lib/seismicFaultsReader';
 
 // Seismolord U2-003: a seismic volume over the model frame (50 m bins,
@@ -33,7 +34,8 @@ export const SEISMIC_FIXTURE = {
 let seq = 0;
 const nid = (p) => { seq += 1; return `${p}-${seq}`; };
 
-export function makeInMemoryBackend() {
+/** @param {{savedModels?: boolean}} [opts] savedModels seeds one saved model per release (U1, PL5) */
+export function makeInMemoryBackend({ savedModels = false } = {}) {
   const wells = fixtureWells();
   const surfaces = [];
   const gridStore = new Map();
@@ -71,6 +73,13 @@ export function makeInMemoryBackend() {
   };
   const curvesByWell = new Map(wells.map((w) => [w.id, grOf(w)]));
 
+  if (savedModels) {
+    for (const m of SAVED_MODELS) {
+      const r = resolveSavedModel(m, surfaces);
+      projects.push({ id: nid('emp'), name: r.name, definition: r.definition, updated_at: new Date(2026, 6, 14, 12, 0, seq).toISOString() });
+    }
+  }
+
   return {
     async listWells() { return wells.map((w) => ({ ...w })); },
     async listLogs(wellId) {
@@ -96,7 +105,9 @@ export function makeInMemoryBackend() {
         id, user_id: 'user-dev', organization_id: null, is_own: true,
         name: s.name, kind: s.kind || 'structure',
         origin_x: s.spec.x0, origin_y: s.spec.y0, nx: s.spec.nx, ny: s.spec.ny, dx: s.spec.dx, dy: s.spec.dy,
+        rotation_deg: s.spec.rotation_deg || 0,
         z_domain: s.zDomain || 'depth', z_unit: s.zUnit ?? 'm', crs_note: s.crsNote || null,
+        crs: s.crs || null, xy_unit: s.xyUnit || null,
         provenance: s.provenance || {}, storage_path: `user-dev/${id}/grid.f32`,
         created_at: new Date(2026, 6, 14, 12, 0, seq).toISOString(),
       };

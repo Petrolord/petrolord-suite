@@ -32,7 +32,7 @@ const GeoscienceAnalytics = () => {
         <HubSearch value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
       </HubToolbar>
 
-      {/* DB Driven Grid handles routing (EarthModel Pro route handled in App.jsx via alias) */}
+      {/* DB Driven Grid handles routing (the retired earthmodel-pro slugs redirect to Earth Modeling in App.jsx) */}
       <section className="space-y-4">
         <HubSectionTitle>All Applications</HubSectionTitle>
         <ApplicationsGrid moduleFilter={moduleFilter} searchQuery={searchTerm} />
