@@ -21,12 +21,12 @@ import {
   depthToDisplay, depthFromDisplay, slownessToDisplay, slownessUnit, compactionToDisplay, compactionUnit,
 } from '../services/units';
 
-/** Log-axis ticks: 1, 1.5, 2, 3, 5, 7 x 10^k inside [lo, hi]. */
+/** Log-axis ticks: 1, 1.5, 2, 2.5, 3, 4, 5, 7 x 10^k inside [lo, hi]. */
 export function logTicks(lo, hi) {
   if (!(lo > 0) || !(hi > lo)) return undefined;
   const out = [];
   for (let e = Math.floor(Math.log10(lo)); e <= Math.ceil(Math.log10(hi)); e++) {
-    for (const m of [1, 1.5, 2, 3, 5, 7]) { const v = m * 10 ** e; if (v >= lo && v <= hi) out.push(Number(v.toPrecision(6))); }
+    for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 7]) { const v = m * 10 ** e; if (v >= lo && v <= hi) out.push(Number(v.toPrecision(6))); }
   }
   return out.length >= 2 ? out : undefined;
 }
