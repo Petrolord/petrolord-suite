@@ -9,6 +9,11 @@ import { test, expect } from '@playwright/test';
 
 test.use({ launchOptions: { args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] } });
 
+// evidence (screenshots, the exported PDFs) lands under test-results unless SEIS_SHOTS names a directory;
+// it used to be a fixed path on the studio box, which a clean runner does not have
+const SHOTS = process.env.SEIS_SHOTS || 'test-results/seismolord-u2';
+fs.mkdirSync(SHOTS, { recursive: true });
+
 const pdfText = (file) => execFileSync('pdftotext', ['-layout', file, '-']).toString();
 
 async function openHarness(page, vp, theme) {
@@ -62,7 +67,7 @@ for (const vp of [{ width: 1366, height: 768 }, { width: 1440, height: 900 }]) {
       expect(text).toContain('Inline 1032');
       // saved per user
       expect(await page.evaluate(() => window.__plotIdentity)).toEqual({ company: 'Lordsway Energy', analyst: 'A. Asaolu' });
-      fs.copyFileSync(file, `/tmp/claude-0/seis-upg2/u2-001-${vp.width}-${theme}.pdf`);
+      fs.copyFileSync(file, `${SHOTS}/u2-001-${vp.width}-${theme}.pdf`);
     });
   }
 }
@@ -121,7 +126,7 @@ for (const [vp, theme] of [[{ width: 1366, height: 768 }, 'light'], [{ width: 14
     const scroll = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(scroll).toBeLessThanOrEqual(0);
     // flattening hides it and says why
-    await page.screenshot({ path: `/tmp/claude-0/seis-upg2/u2-002-${vp.width}-${theme}.png` });
+    await page.screenshot({ path: `${SHOTS}/u2-002-${vp.width}-${theme}.png` });
   });
 }
 
@@ -172,7 +177,7 @@ test('U2-010 1440x900: two guide points picked on the section, the guided pick j
   expect(m, txt).not.toBeNull();
   expect(Number(m[1])).toBe(Number(m[3]) - Number(m[2]) + 1);
   expect(Number(m[1])).toBeGreaterThan(10);
-  await page.screenshot({ path: '/tmp/claude-0/seis-upg2/u2-010.png' });
+  await page.screenshot({ path: `${SHOTS}/u2-010.png` });
 });
 
 // U2-014: the phase and amplitude mistie table (real crossing measurement and network solve)
@@ -196,7 +201,7 @@ test('U2-014 1366x768: phase and amplitude misties per crossing and per line', a
   await expect(box).toContainText(/Phase RMS [\d.]+ deg -> 0\.\d deg/);
   await box.getByTestId('line2d-character-apply').click();
   expect(await page.evaluate(() => window.__mistieApplied.rotationDeg.length)).toBe(3);
-  await box.screenshot({ path: '/tmp/claude-0/seis-upg2/u2-014.png' });
+  await box.screenshot({ path: `${SHOTS}/u2-014.png` });
 });
 
 // U2-013: the well wavelet in the real synthetics window
@@ -215,7 +220,7 @@ for (const [vp, theme] of [[{ width: 1366, height: 768 }, 'light'], [{ width: 14
     await page.getByTestId('synth-extract-well').click();
     await expect(page.getByTestId('synth-wavelet-info')).toHaveText(/^well wavelet, peak 2\d\.\d Hz, phase -?\d+ deg, fit (0\.9\d|1\.00)$/);
     await expect(page.getByTestId('synth-canvas')).toBeVisible();
-    await page.screenshot({ path: `/tmp/claude-0/seis-upg2/u2-013-${vp.width}-${theme}.png` });
+    await page.screenshot({ path: `${SHOTS}/u2-013-${vp.width}-${theme}.png` });
   });
 }
 
@@ -247,7 +252,7 @@ test('U2-007 1440x900: the fault polygon is drawn on the horizon in the 3D windo
   const withPoly = await orangeInCube(page, 1);
   await expect(page.getByTestId('harness-fpoly')).toContainText('polygons 1');
   expect(withPoly).toBeGreaterThan(without + 50);
-  await page.screenshot({ path: '/tmp/claude-0/seis-upg2/u2-007.png' });
+  await page.screenshot({ path: `${SHOTS}/u2-007.png` });
 });
 
 // U2-018: the glossary and the first-project walkthrough in the real guide
@@ -263,7 +268,7 @@ for (const [vp, theme] of [[{ width: 1366, height: 768 }, 'light'], [{ width: 14
     await expect(page.locator('#section-glossary')).toContainText('Dix equation');
     const scroll = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(scroll).toBeLessThanOrEqual(0);
-    await page.locator('#section-glossary').screenshot({ path: `/tmp/claude-0/seis-upg2/u2-018-${vp.width}-${theme}.png` });
+    await page.locator('#section-glossary').screenshot({ path: `${SHOTS}/u2-018-${vp.width}-${theme}.png` });
   });
 }
 
@@ -290,7 +295,7 @@ test('U2-005 1366x768: the 2D line crossing the inline is marked and named', asy
   const withLine = await magentaOnSection(page, '');
   expect(without).toBe(0);
   expect(withLine).toBeGreaterThan(100);
-  await page.getByTestId('u2-section').screenshot({ path: '/tmp/claude-0/seis-upg2/u2-005.png' });
+  await page.getByTestId('u2-section').screenshot({ path: `${SHOTS}/u2-005.png` });
 });
 
 // U2-009: a little-endian and an int16 file viewed through the import door
@@ -312,7 +317,7 @@ for (const [name, vp] of [['rev2_little_endian.sgy', { width: 1366, height: 768 
     const section = page.locator('[data-testid="window-section"]');
     await expect(section.getByTitle('Save PNG snapshot')).toBeEnabled({ timeout: 60000 });
     await expect(section).not.toContainText(/did not load|failed/i);
-    await section.screenshot({ path: `/tmp/claude-0/seis-upg2/u2-009-${name}.png` });
+    await section.screenshot({ path: `${SHOTS}/u2-009-${name}.png` });
   });
 }
 
@@ -386,7 +391,7 @@ test('U2-017 1440x900: the co-render overlay draws on the 3D planes', async ({ p
   const off = await greenInCube(page, '');
   const on = await greenInCube(page, '&corender=1');
   expect(on).toBeGreaterThan(off + 2000);
-  await page.screenshot({ path: '/tmp/claude-0/seis-upg2/u2-017-corender.png' });
+  await page.screenshot({ path: `${SHOTS}/u2-017-corender.png` });
 });
 
 // U2-017: published pay zones as a band on the well track (2D overlay canvas)
