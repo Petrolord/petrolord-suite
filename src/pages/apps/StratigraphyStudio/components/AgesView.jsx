@@ -142,7 +142,7 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
       {problems.length > 0 && <ul className="text-pl-danger-text" data-testid="strat-ages-problems">{problems.map((p, i) => <li key={i}>{p.message}</li>)}</ul>}
       {model && (
         <table className="text-xs" data-testid="strat-rates">
-          <thead><tr>{['From', 'To', `${basis} (${unit})`, 'Ages (Ma)', `Rate (${unit}/Ma)`, `Decompacted (${unit}/Ma)`].map((h) => <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>)}</tr></thead>
+          <thead><tr>{['From', 'To', `${basis} (${unit})`, 'Ages (Ma)', `Decompacted (${unit}/Ma)`, `Rate (${unit}/Ma)`].map((h) => <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>)}</tr></thead>
           <tbody>
             {model.segments.map((s, i) => (
               <tr key={i} data-testid={`strat-rate-${i}`}>
@@ -150,8 +150,8 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
                 <td className="pr-3 py-0.5 text-pl-text">{s.lower}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-text">{Number(fmtDepth(s.top_md_m, unit))} to {Number(fmtDepth(s.base_md_m, unit))}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-text">{s.age_top_ma} to {s.age_base_ma}</td>
+                <td className="pr-3 py-0.5 font-mono text-pl-text" data-testid={`strat-decomp-rate-${i}`}>{decomp?.rows[i]?.decompactedRate == null ? (s.rate_m_per_ma == null ? 'event' : EMPTY_VALUE) : toDisp(decomp.rows[i].decompactedRate, unit).toFixed(1)}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-text">{s.rate_m_per_ma == null ? 'event' : toDisp(s.rate_m_per_ma, unit).toFixed(1)}</td>
-                <td className="pr-3 py-0.5 font-mono text-pl-text" data-testid={`strat-rate-decomp-${i}`}>{decomp?.rows[i]?.decompactedRate == null ? (s.rate_m_per_ma == null ? 'event' : EMPTY_VALUE) : toDisp(decomp.rows[i].decompactedRate, unit).toFixed(1)}</td>
               </tr>
             ))}
             {model.hiatuses.map((h, i) => (
@@ -159,8 +159,8 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
                 <td className="pr-3 py-0.5 text-pl-warning-text" colSpan={2}>hiatus at {h.name}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-text">{Number(fmtDepth(h.md_m, unit))}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-warning-text">{h.from_ma} to {h.to_ma}</td>
-                <td className="pr-3 py-0.5 text-pl-muted">no deposition</td>
                 <td />
+                <td className="pr-3 py-0.5 text-pl-muted">no deposition</td>
               </tr>
             ))}
           </tbody>

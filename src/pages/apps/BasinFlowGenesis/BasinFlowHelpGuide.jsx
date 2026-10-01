@@ -28,6 +28,7 @@ export const HELP_SECTIONS = [
   { id: 'export', icon: UploadCloud, title: 'Scenarios, saving and export' },
   { id: 'units', icon: Ruler, title: 'Display units' },
   { id: 'links', icon: Link2, title: 'Working with the other apps' },
+  { id: 'example', icon: Zap, title: 'Worked example' },
   { id: 'pitfalls', icon: AlertTriangle, title: 'Pitfalls and FAQ' },
   { id: 'glossary', icon: BookMarked, title: 'Glossary' },
 ];
@@ -67,6 +68,7 @@ export default function BasinFlowHelpGuide() {
         <Step n={3} title="Set the history">In Global History choose a constant heat flow or a history table, type the surface temperature, and add erosion events if the section was uplifted.</Step>
         <Step n={4} title="Simulate">Press Simulate. The Analysis tab opens on the summary with the present-day temperature and Ro of every layer, then the burial, temperature, maturity, generation and timing plots.</Step>
         <Step n={5} title="Calibrate">In Calibration type or import measured Ro and temperature points, read the misfit, and let Auto-Fit find the heat flow.</Step>
+        <Para>New to basin modelling? Open the worked example from the welcome screen and follow the Worked example section below.</Para>
       </GuideSection>
 
       <GuideSection id="stratigraphy">
@@ -185,6 +187,16 @@ export default function BasinFlowHelpGuide() {
           ['Pore Pressure Studio', 'Uses its own sonic-based method; the two share the registry wells.'],
           ['Geoscience home', 'The home button in the Expert header.'],
         ]} />
+      </GuideSection>
+
+      <GuideSection id="example">
+        <SectionHeading icon={Zap}>Worked example</SectionHeading>
+        <Para>On the welcome screen choose Open the worked example. A new model opens in Expert mode: six layers of a rift-margin well, a Paleocene source shale on Pepper and Corvi organofacies B kinetics, 700 m eroded at the Base Oligocene unconformity, five measured Ro values, log BHTs at two depths with their shut-in times, and one DST. It opens at a basal heat flow of 55 mW/m2.</Para>
+        <Step n={1} title="Look at the column">In Properties read the layers and open the source shale's details (TOC 4 wt %, HI 500). In Global History find the erosion event.</Step>
+        <Step n={2} title="Run it">Press Simulate. On the burial plot the eroded section is hatched from 34 to 30 Ma; the events chart marks the critical moment.</Step>
+        <Step n={3} title="Correct the BHTs">In Calibration the BHT correction is Horner with 6 h of circulation: the table shows each depth's raw and corrected temperature. Set it to None and the temperatures compared drop by about 7 C.</Step>
+        <Step n={4} title="Fit the heat flow">With Horner on, press Auto-Fit Heat Flow: it returns about 62 mW/m2, the value the example was sampled from. With None it lands lower, because raw BHTs read cool.</Step>
+        <Step n={5} title="Compare and report">Save a scenario, change the heat flow, run and save again; tick both in Scenarios to compare. Export the PDF for the reviewer block and the plots.</Step>
       </GuideSection>
 
       <GuideSection id="pitfalls">

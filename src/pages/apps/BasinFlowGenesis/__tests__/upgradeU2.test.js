@@ -124,3 +124,19 @@ describe('U2-006 BHT correction (BF-U1-028)', () => {
     expect(r.columns.shutIn).toBe('shut-in (h)');
   });
 });
+
+describe('U2-018 the worked example', () => {
+  test('Auto-Fit with Horner on recovers the heat flow the example was sampled from; raw BHTs land low', async () => {
+    const { workedExampleModel, WORKED_EXAMPLE_TRUTH_HEAT_FLOW } = require('../data/WorkedExample');
+    const { HeatFlowFitter } = require('../services/HeatFlowFitter');
+    const { correctedTemperatures } = require('../services/bht');
+    const m = workedExampleModel();
+    const inputs = { stratigraphy: m.stratigraphy, heatFlow: m.heatFlow, erosionEvents: m.erosionEvents, settings: m.settings };
+    const corrected = correctedTemperatures(m.calibration);
+    expect(corrected.points.filter((p) => p.method === 'horner')).toHaveLength(2);
+    const fit = await HeatFlowFitter.fit(inputs, m.calibration.ro, corrected.points);
+    expect(Math.abs(fit.heatFlow.value - WORKED_EXAMPLE_TRUTH_HEAT_FLOW)).toBeLessThan(2);
+    const raw = await HeatFlowFitter.fit(inputs, [], m.calibration.temp);
+    expect(raw.heatFlow.value).toBeLessThan(WORKED_EXAMPLE_TRUTH_HEAT_FLOW - 3);
+  }, 600000);
+});

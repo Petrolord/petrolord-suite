@@ -82,3 +82,17 @@ describe('in the app (Expert mode on the harness backend)', () => {
     expect(within(table).getByTestId('bf-compare-row-ro-source_shale')).toHaveTextContent(/Source Shale/);
   }, 180000);
 });
+
+describe('U2-018 the worked example opens from the welcome screen', () => {
+  test('a new model with six layers, its calibration and Horner, in Expert mode', async () => {
+    const be = makeInMemoryBackend({ persist: false });
+    render(<MemoryRouter><BasinFlowShell backend={be} /></MemoryRouter>);
+    fireEvent.click(await screen.findByTestId('bf-worked-example'));
+    await screen.findByTestId('bf-tab-properties');
+    await waitFor(() => expect(screen.getAllByTestId('bf-layer-card')).toHaveLength(6), { timeout: 30000 });
+    await waitFor(() => expect(be._rows().some((r) => r.name === 'Worked example: rift-margin well' && r.calibration_data?.bht?.method === 'horner')).toBe(true));
+    selectTab(screen.getByTestId('bf-tab-calibration'));
+    expect(await screen.findByTestId('bf-cal-bht-method')).toHaveValue('horner');
+    expect(screen.getByTestId('bf-cal-bht-circ')).toHaveValue(6);
+  }, 180000);
+});

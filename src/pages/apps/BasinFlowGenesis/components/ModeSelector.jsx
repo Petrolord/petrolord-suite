@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { BookOpen, MonitorPlay, ArrowRight, CheckCircle2 } from 'lucide-react';
 
-const ModeSelector = ({ onSelectMode }) => {
+const ModeSelector = ({ onSelectMode, onWorkedExample = null }) => {
     return (
         <div className="relative flex flex-col h-full w-full items-center bg-pl-bg p-4 pt-16 md:p-8 overflow-y-auto">
             <div className="absolute top-4 right-4">
@@ -88,6 +88,13 @@ const ModeSelector = ({ onSelectMode }) => {
                         </div>
                     </Card>
                 </div>
+                {onWorkedExample && (
+                    <div className="mt-6 text-center text-sm text-pl-muted" data-testid="bf-worked-example-card">
+                        New to basin modelling?{' '}
+                        <Button variant="link" className="px-1 h-auto" data-testid="bf-worked-example" onClick={onWorkedExample}>Open the worked example</Button>
+                        . It is a rift-margin well with an unconformity, a source rock, measured Ro and log BHTs to calibrate, walked through in the help guide.
+                    </div>
+                )}
             </div>
         </div>
     );
