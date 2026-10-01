@@ -140,6 +140,7 @@ export default function BasinFlowHelpGuide() {
           Temperatures in files are degrees C.
         </Callout>
         <Para>A template, a tops file or a registry well replaces the layers of the open model. Templates ask first, by model name. After any replacement an Undo bar at the top of Properties puts the previous layers, erosion and tie back (one step, until you open another model).</Para>
+        <Para>Petrophysics logs: for a model tied to a registry well, this tab reads the well's published porosity (PHIT, else PHIE) and TOC curves, averages them over each layer and shows the log porosity beside the model's. Set the surface porosity from the log scales each layer so the model matches the log (the compaction coefficient is kept). Set the source TOC from the log writes the mean TOC to layers marked as source rock; a log TOC is the present-day value, so raise it for a source that has already generated. Undo in Properties reverses either.</Para>
       </GuideSection>
 
       <GuideSection id="results">
