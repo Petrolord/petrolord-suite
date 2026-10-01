@@ -4,6 +4,7 @@
 
 import fs from 'fs';
 import { execFileSync } from 'child_process';
+import path from 'path';
 import { test, expect } from '@playwright/test';
 
 test.use({ launchOptions: { args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] } });
@@ -291,3 +292,26 @@ test('U2-005 1366x768: the 2D line crossing the inline is marked and named', asy
   expect(withLine).toBeGreaterThan(100);
   await page.getByTestId('u2-section').screenshot({ path: '/tmp/claude-0/seis-upg2/u2-005.png' });
 });
+
+// U2-009: a little-endian and an int16 file viewed through the import door
+const HOSTILE_DIR = path.join(process.cwd(), 'e2e/fixtures/seis/hostile');
+for (const [name, vp] of [['rev2_little_endian.sgy', { width: 1366, height: 768 }], ['fmt3_int16.sgy', { width: 1440, height: 900 }]]) {
+  test(`U2-009 ${vp.width}x${vp.height}: ${name} imports and views`, async ({ page }) => {
+    await page.setViewportSize(vp);
+    await page.goto('/dev/seismolord-workspace');
+    await expect(page.locator('[data-testid="viewer-windows"]')).toBeVisible({ timeout: 60000 });
+    await page.getByTestId('sl-start-toggle').click();
+    await page.getByTestId('sl-start-go-import').click();
+    const dialog = page.getByRole('dialog');
+    await dialog.locator('input[type="file"][accept*=".sgy"]').first().setInputFiles(path.join(HOSTILE_DIR, name));
+    await expect(dialog.getByText('Vertical axis of this file')).toBeVisible({ timeout: 30000 });
+    await expect(dialog).toContainText('converted to 32-bit float on import');
+    await expect(dialog).toContainText('1001');
+    await dialog.getByRole('button', { name: /View it now/ }).click();
+    await expect(dialog).toBeHidden();
+    const section = page.locator('[data-testid="window-section"]');
+    await expect(section.getByTitle('Save PNG snapshot')).toBeEnabled({ timeout: 60000 });
+    await expect(section).not.toContainText(/did not load|failed/i);
+    await section.screenshot({ path: `/tmp/claude-0/seis-upg2/u2-009-${name}.png` });
+  });
+}
