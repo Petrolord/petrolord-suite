@@ -207,3 +207,27 @@ test('U2-009: the 2D view is the shared map kit: ink, a scale in metres, and AOI
   await expect(page.getByText(/Click the 2D map to add points \(3\)/)).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('U2-011: the one-page prospect summary PDF reads back with its reviewer header', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/dev/prospect-risking');
+  await expect(page.getByTestId('prospect-risking')).toBeVisible({ timeout: 60000 });
+  await page.getByTestId('prospect-name').fill('Keta East');
+  if (!(await page.getByTestId('vol-mean').inputValue())) {
+    await page.getByTestId('vol-mean').fill('42.5');
+    await page.getByTestId('vol-p90').fill('18.2');
+    await page.getByTestId('vol-p50').fill('37.9');
+    await page.getByTestId('vol-p10').fill('71.4');
+  }
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.getByTestId('prospect-pdf').click()]);
+  const { execFileSync } = await import('child_process');
+  const file = await download.path();
+  expect(execFileSync('pdfinfo', [file], { encoding: 'utf8' })).toMatch(/Pages:\s+1\b/);
+  const text = execFileSync('pdftotext', ['-layout', file, '-'], { encoding: 'utf8' });
+  expect(text).toMatch(/Prospect summary: Keta East/);
+  expect(text).toMatch(/Field: .* \| Analyst: .* \| Date: \d{4}-\d{2}-\d{2}/);
+  expect(text).toMatch(/Pg \(product\)/);
+  expect(text).toMatch(/risked percentiles are not quoted/);
+  expect(errors).toEqual([]);
+});

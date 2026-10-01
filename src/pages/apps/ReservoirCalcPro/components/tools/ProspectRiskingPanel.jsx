@@ -16,6 +16,8 @@ import { Trash2, Plus, Layers } from 'lucide-react';
 import { RISK_FACTORS, chanceOfSuccess, riskProspect } from '../../services/ProspectRiskEngine';
 import { VOLUME_UNITS, portfolioInMMboe } from '../../services/prospectVolumes';
 import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
+import { buildProspectSummaryPdf } from '../../services/prospectSummaryPdf';
+import { reviewerLines } from '../../services/reportInfo';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const inputCls = COMPACT_FIELD_THEMED;
@@ -24,7 +26,7 @@ const pct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : EMPTY_VALU
 
 const DEFAULT_FACTORS = { trap: 0.6, reservoir: 0.7, charge: 0.8, seal: 0.7 };
 
-export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 'MMbbl', valuationHref = '/dashboard/apps/reservoir/risked-reserves-valuation' }) {
+export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 'MMbbl', valuationHref = '/dashboard/apps/reservoir/risked-reserves-valuation', reviewer = null, context = null, projectName = null }) {
   const [name, setName] = useState('');
   const [factors, setFactors] = useState(DEFAULT_FACTORS);
   const [vol, setVol] = useState({ mean: '', p90: '', p50: '', p10: '' });
@@ -168,6 +170,20 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
             <Plus className="w-3.5 h-3.5" /> Add to inventory
           </button>
         </div>
+        <button type="button" data-testid="prospect-pdf" disabled={!live}
+          className="mt-2 px-2.5 py-1 rounded border border-pl-border text-xs text-pl-text hover:bg-pl-sunken disabled:opacity-50"
+          title="One page: reviewer header, Pg factors, success-case and risked volumes, signature block"
+          onClick={async () => {
+            try {
+              const doc = await buildProspectSummaryPdf({
+                name: name.trim() || 'Unnamed prospect', factors, unrisked: unriskedObj, unit, basis, projectName,
+                reviewer: reviewer || reviewerLines({ unitSystem: 'field' }).slice(0, 1), context: context || [],
+              });
+              doc.save(`prospect_${(name.trim() || 'unnamed').replace(/[^A-Za-z0-9_-]+/g, '_')}.pdf`);
+            } catch (e) { setStatus(e.message); }
+          }}>
+          Prospect summary PDF
+        </button>
         {status && <p className="mt-1 text-[11px] text-pl-muted" data-testid="prospect-status">{status}</p>}
         {added && (
           <a href={valuationHref} className="mt-1 inline-block text-[11px] text-pl-primary-text hover:text-pl-primary-text-hover hover:underline" data-testid="prospect-value-link">

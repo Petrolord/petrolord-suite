@@ -257,6 +257,14 @@ const ProspectRiskingGuide = () => (
       </li>
     </UL>
 
+    <H2>The one-page prospect summary</H2>
+    <P>
+      Prospect summary PDF prints the sheet a committee signs: the reviewer header (field, analyst, date, build, units,
+      method and contacts from the workspace), the four chance factors and their product Pg, the success-case P90, P50,
+      P10 and mean beside the risked mean, the basis and unit of the volumes, and a signature block. Risked percentiles
+      are not printed: the risked outcome is zero with probability 1 - Pg, so only the risked mean is a fair summary of it.
+    </P>
+
     <H2>What these numbers do not tell you</H2>
     <UL>
       <li>
