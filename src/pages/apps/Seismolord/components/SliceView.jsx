@@ -27,7 +27,7 @@ import { agcGainMap, wiggleDeviations, varAreaRuns } from '../engine/displayEnha
 import { snapPick } from '../engine/horizonTrack';
 import { shiftedSample } from '../engine/flatten';
 import { projectStickToTraverse } from '../engine/traverse';
-import { wellSectionMarks } from '../lib/wellDisplay';
+import { wellSectionMarks, payMask } from '../lib/wellDisplay';
 import { ViewTransform, MIN_ZOOM, MAX_ZOOM } from '../viewer/viewTransform';
 import {
   drawAxes, drawScaleBar, drawNorthArrow, drawColorbar,
@@ -35,6 +35,7 @@ import {
 } from '../viewer/annotations';
 import { NULL_VALUE } from '../engine/manifest';
 import { lineLabelSlug } from '../lib/sectionCaption';
+import { sectionDrawn } from '../lib/plotTemplates';
 
 /** The picture with a caption band above it (SEIS-U1-013): dark like the
  *  seismic canvas (owner rule), light text, lines fitted to the width. */
@@ -65,6 +66,7 @@ export function captionCanvas(pic, lines) {
 }
 
 const NULL_F32 = Math.fround(NULL_VALUE);
+const PAY_COLOR = 'rgba(16, 185, 129, 0.85)';   // U2-017 pay zones on well tracks
 // v2: interpolate now defaults ON (shader bicubic, no GPU extension
 // needed). v1 sessions all persisted interpolate:false (the old default),
 // so that key is dropped when migrating — every other pref carries over.
@@ -597,6 +599,28 @@ function SliceView({
             else { ctx.moveTo(s.x, s.y); pen = true; }
           }
           ctx.stroke();
+          // U2-017: published pay zones as a thick band along the track
+          // (proj is index-aligned with w.points on sections)
+          if (w.pay?.length && ori !== 'traverse') {
+            const mask = payMask(w.points, w.pay);
+            ctx.save();
+            ctx.strokeStyle = PAY_COLOR;
+            ctx.lineWidth = Math.max(5, 4.5 * dpr);
+            ctx.lineCap = 'butt';
+            ctx.beginPath();
+            let penP = false;
+            for (let k = 0; k < proj.length; k++) {
+              const q = proj[k];
+              if (!q || q.s == null || !mask[k]) { penP = false; continue; }
+              const s = t.worldToScreen(q.trace + 0.5, sh(q.s, q.trace) + 0.5);
+              if (penP) ctx.lineTo(s.x, s.y);
+              else { ctx.moveTo(s.x, s.y); penP = true; }
+            }
+            ctx.stroke();
+            ctx.restore();
+            ctx.strokeStyle = w.color;
+            ctx.lineWidth = Math.max(2, 1.8 * dpr);
+          }
         }
         const topMarks = sectionTops || (w.tops || []).map((tp) => {
           const tv = projectStickToTraverse([tp], posn);
@@ -624,6 +648,36 @@ function SliceView({
     // ST5 termination markers (onlap, downlap, toplap, truncation) on the
     // cells of this section: a coloured ring with the kind's initial,
     // shifted with the flatten like every other overlay
+    // U2-005: where 2D lines cross this inline or crossline, a dashed
+    // vertical marker with the line name at the top
+    if (ov.lineMarkers?.length && (ori === 'inline' || ori === 'xline')) {
+      ctx.save();
+      ctx.setLineDash([6 * dpr, 4 * dpr]);
+      ctx.lineWidth = Math.max(1.5, 1.2 * dpr);
+      ctx.font = `${Math.round(10 * dpr)}px ui-monospace, monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      for (const m of ov.lineMarkers) {
+        const top = t.worldToScreen(m.trace + 0.5, 0);
+        const bot = t.worldToScreen(m.trace + 0.5, gm.ns);
+        ctx.strokeStyle = m.color;
+        ctx.beginPath();
+        ctx.moveTo(top.x, Math.max(0, top.y));
+        ctx.lineTo(bot.x, Math.min(H, bot.y));
+        ctx.stroke();
+        const ly = Math.max(2 * dpr, top.y + 2 * dpr);
+        ctx.lineWidth = 3 * dpr;
+        ctx.setLineDash([]);
+        ctx.strokeStyle = 'rgba(2, 6, 23, 0.9)';
+        ctx.strokeText(m.name, top.x, ly);
+        ctx.fillStyle = m.color;
+        ctx.fillText(m.name, top.x, ly);
+        ctx.setLineDash([6 * dpr, 4 * dpr]);
+        ctx.lineWidth = Math.max(1.5, 1.2 * dpr);
+      }
+      ctx.restore();
+    }
+
     if (ov.terminations?.length && ori !== 'time') {
       const posn = ori === 'traverse' ? p.slice?.positions : null;
       const KIND_COLOUR = { onlap: '#22d3ee', downlap: '#f59e0b', toplap: '#a78bfa', truncation: '#f87171' };
@@ -1089,6 +1143,15 @@ function SliceView({
           // SEIS-U1-011: the line NUMBER, never the lattice index
           label: p.lineLabel || (p.orientation === 'traverse' ? 'Traverse'
             : `${p.orientation} ${p.sliceIndex}`),
+          // U2-001: what the picture shows, for the template and legend
+          drawn: sectionDrawn({
+            overlays: p.overlays,
+            orientation: p.orientation,
+            sliceIndex: p.sliceIndex,
+            geom: p.geom,
+            positions: p.slice?.positions || null,
+            corridor: p.wellCorridor?.[p.orientation] ?? null,
+          }),
         };
       },
     };

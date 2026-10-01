@@ -79,14 +79,14 @@ for (const [w, h, theme] of [[1366, 768, 'light'], [1440, 900, 'dark']]) {
   });
 }
 
-test('U2-001: a Seismolord fault joins as a polygon per zone top (fixture through the hook)', async ({ page }) => {
+test('U2-001: a Seismolord fault joins as a polygon per zone top (through the reader contract)', async ({ page }) => {
   const errs = errorsOf(page);
   await stack(page);
   await metric(page);
   await page.getByTestId('em-frame-cell').fill('10');
   await buildNow(page);
-  await expect(page.getByTestId('em-seis-add-F-Time (Seismolord)')).toBeDisabled();
-  await page.getByTestId('em-seis-add-F-East 60 (Seismolord)').click();
+  await expect(page.getByTestId('em-seis-zones-F-Time (Seismolord)')).toBeDisabled();
+  await page.getByTestId('em-seis-zones-F-East 60 (Seismolord)').click();
   await expect(page.getByTestId('em-status')).toContainText('cut with each zone top');
   await buildNow(page);
   await expect(page.getByTestId('em-status')).toContainText('2 blocks');

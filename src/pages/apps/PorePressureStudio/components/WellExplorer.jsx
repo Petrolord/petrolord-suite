@@ -50,14 +50,14 @@ export default function WellExplorer({
                   <button
                     type="button"
                     data-testid="pp-velocity-row"
-                    title={m.calibration ? 'Well-tie calibrated in Seismolord' : 'Uncalibrated model'}
+                    title={`${m.calibration ? 'Well-tie calibrated in Seismolord' : 'Uncalibrated model'}${m.kind === 'layercake' ? '. A layer cake is read at the well selected before it' : ''}`}
                     className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm
                       ${m.id === selectedModelId ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-text hover:bg-pl-sunken'}`}
                     onClick={() => onSelectModel(m)}
                   >
                     <CircleDot className="w-3.5 h-3.5 text-pl-muted" />
                     <span className="truncate">{m.name}</span>
-                    <span className="ml-auto text-[10px] text-pl-muted">v0+kz</span>
+                    <span className="ml-auto text-[10px] text-pl-muted">{m.kind === 'layercake' ? 'layer cake, at a well' : 'v0+kz'}</span>
                   </button>
                 </li>
               ))}

@@ -7,19 +7,16 @@
 // top, and the hanging-wall block of that zone is the model frame on the
 // side the fault dips towards.
 //
-// THE HOOK (SEISMIC_FAULTS_HOOK). Seismolord U2-003 builds the read-only
-// contract src/lib/seismicFaultsReader.js (branch feat/seis-u2, commit
-// 16a157ce8); it was NOT on main when this was built, so Earth Modeling
-// cannot read seismic_faults yet. normalizeSeismicFault accepts that
-// contract's fault object as it stands on the branch
+// THE CONTRACT (SEISMIC_FAULTS_HOOK). Seismolord U2-003 built the read-only
+// contract src/lib/seismicFaultsReader.js; it was on a branch while this was
+// built behind this hook and reached main (#837) before this merged, so the
+// registry backend's listSeismicFaults is the reader's listSeismicFaultsForModel.
+// normalizeSeismicFault accepts that contract's fault object
 //   {id, name, volumeName?, crsStatus?, sticks: [[{x, y, twtMs, depthM}]],
 //    surface: [[{x, y, twtMs, depthM}]] (rails), notes?}
 // and the shape this app's UPGRADE doc recorded before it
 //   {id, name, crs?, z_domain: 'depth', sticks: [[[x, y, z]]]}.
-// Wiring it is one backend method: registryBackend.listSeismicFaults =
-// () => listSeismicFaultsForModel({supabase, hostCrs, getTransformer}),
-// returning {faults, skipped}. The harness serves a fixture in the
-// branch's shape. Depth is required: a time-only fault (no velocity model
+// The harness serves the reader's own fixture plus one in its shape. Depth is required: a time-only fault (no velocity model
 // on its volume) is listed with the reason and cannot be added.
 // Pure, no I/O.
 
@@ -29,7 +26,7 @@ import { pointInPolygon, validatePolygon } from '../engine/blocks';
 export const SEISMIC_FAULTS_HOOK = Object.freeze({
   contract: 'src/lib/seismicFaultsReader.js (Seismolord U2-003, branch feat/seis-u2)',
   method: 'listSeismicFaults',
-  reason: 'Faults from Seismolord arrive with Seismolord U2-003, which is not on main yet. Until then use fault polygons from Mapping & Surface Studio or draw them.',
+  reason: 'This backend cannot read Seismolord faults. Use fault polygons from Mapping & Surface Studio or draw them.',
 });
 
 /**

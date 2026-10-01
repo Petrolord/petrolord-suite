@@ -8,6 +8,28 @@
 import { MODEL_SPEC, planeGrid, fixtureWells, FAULT_POLYGON, seismicFaultFixture } from './fixture';
 import { depthDownToSurfaceZ } from '@/lib/surfaceConvention';
 import { SAVED_MODELS, resolveSavedModel } from './savedFixtures';
+import { faultToModelObjects } from '@/lib/seismicFaultsReader';
+
+// Seismolord U2-003: a seismic volume over the model frame (50 m bins,
+// V0 2000 m/s) and one interpreted fault, three sticks dipping east from
+// crossline 10 at 800 ms to crossline 14 at 1,600 ms. At its mid level
+// (1,200 ms) the fault crosses x = 1600 from south to north, so its
+// hanging-wall block is the eastern half of the frame.
+export const SEISMIC_FIXTURE = {
+  volume: {
+    id: 'vol-em', name: 'EM fixture 3D', crs: null,
+    survey_meta: {
+      il: { min: 1, step: 1, count: 20 }, xl: { min: 1, step: 1, count: 25 }, ns: 600, dt_us: 4000,
+      affine: { origin: { x: 1000, y: 2000 }, il_vec: { x: 0, y: 50 }, xl_vec: { x: 50, y: 0 } },
+    },
+    velocity_model: { kind: 'linear', v0: 2000, k: 0 },
+  },
+  fault: {
+    id: 'sf-east', name: 'F-East (Seismolord)', volume_id: 'vol-em',
+    sticks: [2, 10, 18].map((il) => ({ points: [{ il, xl: 10, s: 200 }, { il, xl: 12, s: 300 }, { il, xl: 14, s: 400 }] })),
+    surface: null,
+  },
+};
 
 let seq = 0;
 const nid = (p) => { seq += 1; return `${p}-${seq}`; };
@@ -123,13 +145,15 @@ export function makeInMemoryBackend({ savedModels = false, propertyMaps = false 
     async listFaultPolygons() {
       return [{ id: 'cult-fault-dev', name: 'Fixture fault (Mapping)', vertices: FAULT_POLYGON.map(([x, y]) => [x, y]), is_own: true, source: 'geo_culture' }];
     },
-    // U2-001: Seismolord faults through the reader contract's shape (the
-    // registry backend gains this method when Seismolord U2-003 lands)
+    // Seismolord U2-003: faults read through the shared reader contract, plus
+    // (U2-001) a 60 degree fault with depth rails over the whole frame and a
+    // time-only one, so the per-zone path and its refusal can be driven
     async listSeismicFaults() {
+      const obj = faultToModelObjects(SEISMIC_FIXTURE.fault, SEISMIC_FIXTURE.volume);
       const time = { ...seismicFaultFixture(), id: 'sf-time', name: 'F-Time (Seismolord)' };
       time.surface = time.surface.map((r) => r.map((p) => ({ ...p, depthM: null })));
       time.sticks = time.surface;
-      return { faults: [seismicFaultFixture(), time], skipped: [] };
+      return { faults: [...(obj.error ? [] : [obj]), seismicFaultFixture(), time], skipped: obj.error ? [{ name: obj.name, reason: obj.error }] : [] };
     },
     // EM0: a boundary polygon (geo_culture kind boundary) over the
     // western 60% of the frame, so clipping changes the census

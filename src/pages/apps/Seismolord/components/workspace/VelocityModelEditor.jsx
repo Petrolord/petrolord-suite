@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { describeVelocity } from '../../engine/velocityModel';
 import { surveyAffine } from '../../engine/surveyGeometry';
 import WellTiePanel from '../WellTiePanel';
+import StackingVelocityPanel from './StackingVelocityPanel';
 
 export default function VelocityModelEditor({
   velMode, setVelMode, velDraft, setVelDraft, velLayers, setVelLayers,
@@ -17,6 +18,7 @@ export default function VelocityModelEditor({
   readOnly = false,
   calOpen, setCalOpen, horizons, wells, manifest, geom,
   loadGridById, applyCalibratedModel,
+  layerTimesMs = [], publishBoundaries = null, boundariesBusy = false,
 }) {
   return (
     <div className="space-y-1.5">
@@ -157,7 +159,29 @@ export default function VelocityModelEditor({
           </span>
         </div>
       )}
+      <StackingVelocityPanel
+        velMode={velMode}
+        velLayers={velLayers}
+        layerTimesMs={layerTimesMs}
+        onUseLinear={(fit) => {
+          setVelMode('linear');
+          setVelDraft({ v0: String(Math.round(fit.v0)), k: String(Math.round(fit.k * 1000) / 1000) });
+        }}
+        onUseLayers={(vs) => setVelLayers((rows) => rows.map((r, i) => (vs[i] != null ? { ...r, v0: String(Math.round(vs[i])), k: '0' } : r)))}
+      />
       <div className="flex flex-wrap items-center gap-2">
+        {publishBoundaries && velocityModel?.kind === 'layercake' && (
+          <Button
+            variant="outline" size="sm"
+            onClick={publishBoundaries}
+            disabled={boundariesBusy || readOnly}
+            data-testid="sl-publish-boundaries"
+            title="Publish each layer boundary horizon as a TWT surface in the registry, so Mapping and Pore Pressure can use this layer cake"
+          >
+            {boundariesBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+            Publish boundaries
+          </Button>
+        )}
         <Button
           variant="outline" size="sm"
           className={calOpen ? 'border-pl-primary/60 text-pl-primary-text' : ''}

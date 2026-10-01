@@ -43,6 +43,7 @@ import { undoEntry, applyUndo, remapStack, UNDO_LIMIT } from '../services/topsUn
 import { topsCsv } from '../services/topsFile';
 import { sheetRows } from '../../WellDataManager/engine/topsSheet';
 import { useSectionHorizons } from '@/components/wells/section/useSectionHorizons';
+import { useSeismicBackdrop } from '@/components/wells/section/useSeismicBackdrop';
 import { wellStrips } from '@/components/wells/section/petroStrips';
 import { wellsInCorridor } from '../services/sectionLine';
 import { lagSuggestion, snapSuggestion, bracketSeed, MIN_R } from '../services/pickAssist';
@@ -83,6 +84,8 @@ export default function CorrelationWorkstation({
   // ---- U2-003 seismic horizons from the surface registry (read only; the
   // shared kit hook since STRAT-U2-002, so Stratigraphy draws them too) ------
   const { canHorizons, hzList, hzGrids, hzOn, setHzOn, toggleHorizon, horizonPicks, viewWells, datumNames } = useSectionHorizons(backend, sectionWells, topNames, setStatus);
+  // Seismolord U2-002 (WC-U2-017): seismic behind the section, read only
+  const seis = useSeismicBackdrop(backend, sectionWells, setStatus);
 
   // ---- U2-010 pick attributes: who picked it and how sure (existing
   // geo_wells_tops columns interpreter and confidence; the date is the row's
@@ -217,6 +220,7 @@ export default function CorrelationWorkstation({
     const tl = savedRow.track_layout || {};
     setGhost(tl.ghost && tl.ghost.sourceWellId ? tl.ghost : null);
     setHzOn(Array.isArray(tl.horizons) ? tl.horizons.filter((x) => typeof x === 'string') : []);
+    seis.setVolumeId(typeof tl.backdrop === 'string' ? tl.backdrop : null);
     setStripsOn({ pay: !!tl.strips?.pay, zones: !!tl.strips?.zones, units: !!tl.strips?.units });
     setPickBy({ interpreter: tl.pickBy?.interpreter || '', confidence: tl.pickBy?.confidence || '' });
     setLine(tl.line && Array.isArray(tl.line.points) && tl.line.points.length > 1 ? tl.line : null);
@@ -232,8 +236,8 @@ export default function CorrelationWorkstation({
   const payload = useMemo(() => ({
     well_ids: order,
     datum,
-    track_layout: { layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, horizons: hzOn, strips: stripsOn, line, lineAlong: line ? lineAlong : null, pickBy },
-  }), [order, datum, layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, hzOn, stripsOn, line, lineAlong, pickBy]);
+    track_layout: { layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, horizons: hzOn, strips: stripsOn, line, lineAlong: line ? lineAlong : null, pickBy, ...(seis.volumeId ? { backdrop: seis.volumeId } : {}) },
+  }), [order, datum, layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, hzOn, stripsOn, line, lineAlong, pickBy, seis.volumeId]);
   const snapshot = useMemo(() => {
     const all = !shownTops.length || (topNames.length > 0 && topNames.every((n) => shownTops.includes(n)));
     const tl = payload.track_layout;
@@ -767,6 +771,7 @@ export default function CorrelationWorkstation({
       ghost={ghost}
       strips={stripsByWell}
       lineDistances={lineDistances}
+      backdrop={seis.backdrop}
     />
   );
 
@@ -775,7 +780,7 @@ export default function CorrelationWorkstation({
       <CrossSection
         wells={viewWells} datum={datum} depthUnit={depthUnit} depthRef={depthRef} spacing={spacing}
         columnWidth={printJob.colW} zoneMode={zoneMode} zonePair={zonePair} shownTops={horizonPicks.names.length ? [...shownTops, ...horizonPicks.names] : shownTops} topNames={topNames}
-        ghost={ghost} strips={stripsByWell} lineDistances={lineDistances} view={printJob.view} onViewChange={() => {}}
+        ghost={ghost} strips={stripsByWell} lineDistances={lineDistances} backdrop={seis.backdrop} view={printJob.view} onViewChange={() => {}}
         printSize={{ w: printJob.w, h: printJob.h, pixelRatio: printJob.pixelRatio }} onPainted={onPrintPainted}
       />
     </div>
@@ -821,6 +826,7 @@ export default function CorrelationWorkstation({
             analyst={report.analyst || ''}
             strips={{ on: stripsOn, onChange: setStripsOn, hasUnits: typeof backend.listUnits === 'function', hasZones: typeof backend.listZones === 'function' }}
             horizons={canHorizons ? { list: hzList, on: hzOn, onToggle: toggleHorizon, problems: horizonPicks.problems, loaded: hzGrids, picks: horizonPicks.byWell } : null}
+            backdrop={seis.can ? { volumes: seis.volumes, volumeId: seis.volumeId, onVolume: seis.setVolumeId, loading: seis.loading, on: !!seis.backdrop, timeRef: depthRef === 'twt' } : null}
             datum={datum}
             onDatum={setDatum}
             ghost={ghost}

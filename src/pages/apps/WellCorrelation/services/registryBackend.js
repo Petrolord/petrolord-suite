@@ -19,8 +19,14 @@ import {
   loadSection, saveSection, listSections, createSection, renameSection, deleteSection,
 } from '@/lib/sectionsRegistry';
 
+// Seismolord U2-002: a seismic backdrop read along the section (lazy: the
+// seismic code loads only when a volume is chosen)
+const listSeismicVolumes = async () => (await import('@/pages/apps/Seismolord/services/sectionBackdrop')).listBackdropVolumes();
+const loadSeismicBackdrop = async (volume, wells) => (await import('@/pages/apps/Seismolord/services/sectionBackdrop')).loadVolumeBackdrop(volume, wells);
+
 export function makeRegistryBackend() {
   return {
+    listSeismicVolumes, loadSeismicBackdrop,
     listWells, listLogs, downloadCurve, listTops, listAllTops, listIntervals, listSurfaces, downloadSurfaceGrid,
     listZones, listUnits, // U2-008: Petrophysics zones, Stratigraphy column (read only)
     saveTop, updateTop, deleteTop, propagateTop,

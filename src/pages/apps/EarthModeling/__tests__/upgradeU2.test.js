@@ -362,7 +362,7 @@ describe('U2-001: Seismolord faults as a polygon per zone top (hook + fixture)',
 
   test('through buildModel: each zone gets its own hanging-wall block; a vertical polygon misplaces nodes', async () => {
     const f = await fixture();
-    const sf = (await f.backend.listSeismicFaults()).faults[0];
+    const sf = (await f.backend.listSeismicFaults()).faults.find((x) => x.name === 'F-East 60 (Seismolord)');
     const { normalizeSeismicFault } = await import('../services/seismicFaultZones');
     const n = normalizeSeismicFault(sf);
     // the frame rect, padded; the rails extend past it so every top is cut
@@ -398,13 +398,20 @@ describe('U2-001: Seismolord faults as a polygon per zone top (hook + fixture)',
     }
   });
 
-  test('the hook names the contract and the way out', async () => {
+  test('the contract on main: the registry backend reads Seismolord faults through it', async () => {
     const { SEISMIC_FAULTS_HOOK } = await import('../services/seismicFaultZones');
     expect(SEISMIC_FAULTS_HOOK.method).toBe('listSeismicFaults');
     expect(SEISMIC_FAULTS_HOOK.contract).toMatch(/seismicFaultsReader/);
-    expect(SEISMIC_FAULTS_HOOK.reason).toMatch(/not on main yet/);
+    expect(SEISMIC_FAULTS_HOOK.reason).toMatch(/Mapping & Surface Studio/);
     const { makeRegistryBackend } = await import('../services/registryBackend');
-    expect(typeof makeRegistryBackend()[SEISMIC_FAULTS_HOOK.method]).toBe('undefined');
+    expect(typeof makeRegistryBackend()[SEISMIC_FAULTS_HOOK.method]).toBe('function');
+    // Seismolord's own fixture fault (a linear velocity model, so it has depth) normalises for the per-zone path
+    const { faultToModelObjects } = await import('@/lib/seismicFaultsReader');
+    const { SEISMIC_FIXTURE } = await import('../services/inMemoryBackend');
+    const { normalizeSeismicFault } = await import('../services/seismicFaultZones');
+    const n = normalizeSeismicFault(faultToModelObjects(SEISMIC_FIXTURE.fault, SEISMIC_FIXTURE.volume));
+    expect(n.ok).toBe(true);
+    expect(n.rails.length).toBeGreaterThanOrEqual(2);
   });
 });
 

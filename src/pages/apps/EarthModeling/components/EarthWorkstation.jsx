@@ -20,9 +20,10 @@ import MapView from './MapView';
 import SectionView from './SectionView';
 import FrameworkView3D from './FrameworkView3D';
 import QcPanel from './QcPanel';
-import { emptyDefinition, MISTIE_WARN_M, publishPayload, BG_UNITS, upgradeDefinition } from '../services/modelBuild';
+import { emptyDefinition, MISTIE_WARN_M, publishPayload, BG_UNITS, upgradeDefinition, specOf } from '../services/modelBuild';
 import { runBuild } from '../services/buildClient';
 import { resolveShm } from '../services/shmResolve';
+import { hangingWallBlock } from '@/lib/seismicFaultsReader';
 import { contourPlan, colorbarLevelsFor } from '@/pages/apps/MappingSurfaceStudio/components/MapCanvas';
 import { DEPTH_UNIT_KEY, VOLUME_UNITS_KEY, VOLUME_UNIT_SETS, readSetting, fmtDepth } from '../services/units';
 import { useAppUnits } from '@/lib/units/useAppUnits';
@@ -71,8 +72,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   const [wells, setWells] = useState(null);
   const [surfaces, setSurfaces] = useState([]);
   const [culturePolygons, setCulturePolygons] = useState([]);
-  // U2-001: Seismolord faults through the hook (null until the backend has the reader)
-  const [seismicFaults, setSeismicFaults] = useState(null);
+  const [seismicFaults, setSeismicFaults] = useState({ faults: [], skipped: [] }); // Seismolord U2-003 reader; U2-001 per zone top
   const [projects, setProjects] = useState([]);
   const [definition, setDefinition] = useState(emptyDefinition);
   const [built, setBuilt] = useState(null);
@@ -164,12 +164,9 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
         setSurfaces(s);
         setProjects(p);
         setCulturePolygons(cp);
-        if (backend[SEISMIC_FAULTS_HOOK.method]) {
-          backend[SEISMIC_FAULTS_HOOK.method]().then((sf) => {
-            if (!live) return;
-            const norm = (sf?.faults || []).map(normalizeSeismicFault);
-            setSeismicFaults({ faults: norm.map((n, i) => ({ ...n, id: n.id ?? `sf-${i}`, volumeName: n.volumeName })), skipped: sf?.skipped || [] });
-          }).catch((e) => { if (live) setStatus(`Seismolord faults could not be read: ${e.message}`); });
+        if (backend.listSeismicFaults) {
+          backend.listSeismicFaults().then((sf) => { if (live) setSeismicFaults(sf || { faults: [], skipped: [] }); })
+            .catch((e) => { if (live) setStatus(`Seismolord faults could not be read: ${e.message}`); });
         }
         if (w.length >= 2) setSectionWells({ a: w[0].id, b: w[1].id });
       } catch (e) { if (live) { setStatus(e.message); setWells([]); } }
@@ -400,9 +397,33 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     } catch (e) { setStatus(e.message); }
   };
 
-  // U2-001: a Seismolord fault joins as its rails; the build cuts it with
-  // each zone top. The polygon at the first top is kept for the list and map.
+  // Seismolord U2-003 (EM-T1-010): an interpreted fault becomes the
+  // hanging-wall block, its trace at its level closed with the model frame
+  // on the side it dips towards; the provenance survives a save
   const addSeismicFault = (sf) => {
+    if ((definition.faultPolygons || []).some((p) => p.seismicFaultId === sf.id)) { setStatus(`${sf.name} is already in the model.`); return; }
+    const top = surfaces.find((x) => x.id === definition.surfaceIds?.[0]);
+    const fs = built?.spec || (top ? specOf(top) : null);
+    if (!fs) { setStatus(`Stack a top surface first: ${sf.name} is closed against the model frame.`); return; }
+    const rect = { x0: fs.x0, y0: fs.y0, x1: fs.x0 + (fs.nx - 1) * fs.dx, y1: fs.y0 + (fs.ny - 1) * fs.dy };
+    const r = hangingWallBlock(sf, rect);
+    if (r.error) { setStatus(`${sf.name}: ${r.error}.`); return; }
+    try {
+      validatePolygon(r.polygon);
+      const ms = Math.round(sf.levelMs);
+      const sticks3d = sf.sticks.filter((st) => st.every((q) => q.depthM != null)).map((st) => st.map((q) => [q.x, q.y, q.depthM]));
+      const faultPolygons = [...(definition.faultPolygons || []), {
+        name: `${sf.name} hanging wall`, vertices: r.polygon, seismicFaultId: sf.id, source: 'seismolord', volumeName: sf.volumeName, levelMs: ms, sticks3d, ...(sf.crs ? { crs: sf.crs } : {}),
+      }];
+      setDef({ ...definition, faultPolygons });
+      setStatus(`Added the hanging-wall block of ${sf.name} (trace at ${ms.toLocaleString('en-US')} ms TWT in ${sf.volumeName}). Rebuild to apply blocks.`);
+    } catch (e) { setStatus(e.message); }
+  };
+
+  // U2-001: a Seismolord fault with depth joins as its rails; the build cuts
+  // it with each zone top. The polygon at the first top is kept for the list and map.
+  const addSeismicFaultPerZone = (raw) => {
+    const sf = normalizeSeismicFault(raw);
     if (!sf.ok) { setStatus(`${sf.name}: ${sf.reason}.`); return; }
     if ((definition.faultPolygons || []).some((p) => p.seismicFaultId === sf.id)) { setStatus(`${sf.name} is already in the model.`); return; }
     if (!built) { setStatus(`Build the model first: ${sf.name} is cut with the zone tops of the built framework.`); return; }
@@ -789,6 +810,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           seismicFaults={seismicFaults}
           seismicHookReason={backend[SEISMIC_FAULTS_HOOK.method] ? null : SEISMIC_FAULTS_HOOK.reason}
           onAddSeismicFault={addSeismicFault}
+          onAddSeismicFaultPerZone={addSeismicFaultPerZone}
         />
       )}
       center={center}

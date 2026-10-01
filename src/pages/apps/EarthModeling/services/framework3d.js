@@ -178,6 +178,12 @@ export function buildFrameworkScene(built, wells, opts = {}) {
       return [nx(x), ny(isNull(d) ? zMin : d), nz(y)];
     });
     for (let i = 0; i < ring.length; i++) faultSoup.push(...ring[i], ...ring[(i + 1) % ring.length]);
+    // Seismolord U2-003: the interpreter's sticks in depth, when the volume had a velocity model
+    for (const st of p.sticks3d || []) {
+      for (let i = 0; i + 1 < st.length; i++) {
+        faultSoup.push(nx(st[i][0]), ny(st[i][2]), nz(st[i][1]), nx(st[i + 1][0]), ny(st[i + 1][2]), nz(st[i + 1][1]));
+      }
+    }
     // U2-001: a Seismolord fault's rails down its surface, in depth
     for (const rail of p.rails || []) {
       for (let i = 0; i + 1 < rail.length; i++) {

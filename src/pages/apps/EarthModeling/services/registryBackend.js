@@ -17,7 +17,17 @@ import { listSurfaces, saveSurface, downloadSurfaceGrid } from '@/lib/surfacesRe
 import { listCulture, downloadCultureFeatures } from '@/lib/cultureRegistry';
 import { POLYGON_KINDS, ringOf } from '@/pages/apps/MappingSurfaceStudio/services/polygonTools';
 import { polygonRingsOf } from '@/lib/culturePolygonFiles';
-import { getDepthUnit, setDepthUnit } from '@/lib/crs/settingsService';
+import { getDepthUnit, setDepthUnit, getProjectCrs } from '@/lib/crs/settingsService';
+import { listSeismicFaultsForModel } from '@/lib/seismicFaultsReader';
+import { getTransformer } from '@/lib/crs';
+
+/** Seismolord U2-003 (EM-T1-010): interpreted faults, read only, in the Project CRS. */
+export async function listSeismicFaults() {
+  const { tag, customDefs } = await getProjectCrs().catch(() => ({ tag: null, customDefs: {} }));
+  return listSeismicFaultsForModel({
+    supabase, hostCrs: tag && tag !== 'UNKNOWN' ? tag : null, getTransformer, customDefs,
+  });
+}
 import { createSavedProjectsService } from '@/utils/savedProjects';
 
 // U2-002: the user's saved SCAL Studio projects, read only (Petrophysics reads them the same way)
@@ -111,6 +121,7 @@ export function makeRegistryBackend() {
     listLogs,
     downloadCurve,
     listFaultPolygons: listCultureFaultPolygons,
+    listSeismicFaults,
     listBoundaries: listCultureBoundaries,
     // EM0: the account's Geoscience depth unit (geoscience_settings.depth_unit)
     getDepthUnit,

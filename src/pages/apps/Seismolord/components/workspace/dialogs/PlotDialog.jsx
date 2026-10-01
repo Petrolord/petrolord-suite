@@ -18,6 +18,10 @@ import {
   PAPER_SIZES, SCALE_CHOICES, paperLayout, suggestScale, cropForScale,
   plotScaleBar, titleBlockRows,
 } from '../../../lib/plotComposer';
+import {
+  PLOT_TEMPLATES, templateByKey, templateCheck, legendEntries, legendLayout,
+  LEGEND_MM, authIdentityStore, normalizePlotIdentity,
+} from '../../../lib/plotTemplates';
 
 const MS_PER_CM_CHOICES = [25, 50, 100, 200, 500];
 
@@ -27,10 +31,57 @@ export const latin1 = (v) => String(v ?? '').replace(/[\u2012-\u2015]/g, '-').re
 
 const selCls = 'mt-1 w-full rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-2 py-1 text-sm';
 
+/** Draw the legend column (U2-001) into a jsPDF document. */
+export function drawLegend(pdf, box, entries) {
+  const { items, omitted } = legendLayout(entries, box);
+  pdf.setLineWidth(0.2);
+  pdf.setDrawColor(30);
+  pdf.rect(box.x + 1, box.y, box.w - 1, box.h);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(8);
+  pdf.text('Legend', box.x + 3, box.y + 3.5);
+  for (const it of items) {
+    if (it.type === 'heading') {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(7);
+      pdf.text(latin1(it.text), box.x + 3, it.y + 3.2);
+      continue;
+    }
+    const hex = /^#([0-9a-f]{6})$/i.exec(it.color || '');
+    const rgb = hex ? [0, 2, 4].map((k) => parseInt(hex[1].slice(k, k + 2), 16)) : [100, 116, 139];
+    pdf.setDrawColor(...rgb);
+    pdf.setFillColor(...rgb);
+    if (it.kind === 'well') {
+      pdf.circle(box.x + 5.5, it.y + 2.2, 1.1, 'S');
+    } else {
+      pdf.setLineWidth(it.kind === 'fault' ? 0.7 : 0.5);
+      if (it.dash && pdf.setLineDashPattern) pdf.setLineDashPattern([1, 0.8], 0);
+      pdf.line(box.x + 3, it.y + 2.2, box.x + 8, it.y + 2.2);
+      if (pdf.setLineDashPattern) pdf.setLineDashPattern([], 0);
+    }
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(6.5);
+    const [first] = pdf.splitTextToSize(latin1(it.text), box.w - 12);
+    pdf.text(first, box.x + 10, it.y + 3.2);
+  }
+  pdf.setDrawColor(30);
+  if (omitted > 0) {
+    pdf.setFontSize(6);
+    pdf.text(`${omitted} more not listed`, box.x + 3, box.y + box.h - 2);
+  }
+}
+
 export default function PlotDialog({
   open, onOpenChange, sectionCameraApi, mapCameraApi, volume, crsName, extraRows = null,
+  identityStore = null,
 }) {
   const { toast } = useToast();
+  const [template, setTemplate] = useState('current');
+  const [company, setCompany] = useState('');
+  const [analyst, setAnalyst] = useState('');
+  const [savedIdentity, setSavedIdentity] = useState(null);
+  const [withLegend, setWithLegend] = useState(true);
+  const [problems, setProblems] = useState([]);
   const [source, setSource] = useState('map');
   const [paper, setPaper] = useState('a4');
   const [orient, setOrient] = useState('landscape');
@@ -40,6 +91,29 @@ export default function PlotDialog({
   const [busy, setBusy] = useState(false);
 
   const apiFor = (src) => (src === 'map' ? mapCameraApi : sectionCameraApi);
+  const store = identityStore || authIdentityStore(supabase);
+
+  // company and analyst, saved per user (U2-001)
+  useEffect(() => {
+    if (!open) return undefined;
+    let stale = false;
+    store.load().then((id) => {
+      if (stale || !id) return;
+      setCompany(id.company || '');
+      setAnalyst(id.analyst || '');
+      setSavedIdentity(normalizePlotIdentity(id));
+    }).catch(() => {});
+    return () => { stale = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const chooseTemplate = (key) => {
+    setTemplate(key);
+    setProblems([]);
+    const t = templateByKey(key);
+    if (t.source) setSource(t.source);
+    if (t.orientation) setOrient(t.orientation);
+  };
 
   // Suggest a fitting scale whenever source/paper changes while open
   useEffect(() => {
@@ -70,7 +144,23 @@ export default function PlotDialog({
       if (!snap.metersPerPx) {
         throw new Error('This view has no ground coordinates, so a true-scale plot is not possible.');
       }
-      const layout = paperLayout(paper, orient);
+      const check = templateCheck(template, snap);
+      if (!check.ok) {
+        setProblems(check.problems);
+        throw new Error(check.problems[0]);
+      }
+      setProblems([]);
+      const legend = withLegend ? legendEntries(snap.drawn) : [];
+      const layout = paperLayout(paper, orient, { legendMm: legend.length ? LEGEND_MM : 0 });
+      const identity = normalizePlotIdentity({ company, analyst });
+      if (!savedIdentity || savedIdentity.company !== identity.company
+        || savedIdentity.analyst !== identity.analyst) {
+        try {
+          setSavedIdentity(await store.save(identity));
+        } catch (e) {
+          toast({ title: 'Company and analyst not saved', description: e.message, variant: 'destructive' });
+        }
+      }
       const isSection = snap.kind === 'section';
       const crop = cropForScale(
         {
@@ -120,14 +210,17 @@ export default function PlotDialog({
         scaleText,
         author: user?.email || null,
         dateStr: new Date().toISOString().slice(0, 10),
+        company: latin1(identity.company),
+        analyst: latin1(identity.analyst),
         // SEIS-U1-013: the line number, vertical domain and datum, polarity
         // and display, and the build a reviewer signs against
         extra: [['View', snap.label], ...(typeof extraRows === 'function' ? extraRows(source) : [])]
           .map(([k, v]) => [k, latin1(v)]),
       });
+      if (layout.legendBox) drawLegend(pdf, layout.legendBox, legend);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(11);
-      pdf.text(String(rows[0][1]), tb.x + 2, tb.y + 6);
+      pdf.text(latin1(rows[0][1]), tb.x + 2, tb.y + 6);
       pdf.setFont('helvetica', 'normal');
       // short rows in two columns, the long reviewer rows (vertical
       // domain, display) full width beside the scale bar
@@ -160,7 +253,8 @@ export default function PlotDialog({
       pdf.text(bar.label, bx + bar.mm, by - 1.5, { align: 'right' });
 
       const safe = (volume?.name || 'plot').replace(/[^\w-]+/g, '_').toLowerCase();
-      pdf.save(`seismolord-${safe}-${source}.pdf`);
+      const suffix = template === 'current' ? source : template.replace(/_/g, '-');
+      pdf.save(`seismolord-${safe}-${suffix}.pdf`);
       toast({ title: 'Plot ready', description: `${scaleText} on ${PAPER_SIZES[paper].label} ${orient}.` });
       onOpenChange(false);
     } catch (e) {
@@ -181,9 +275,26 @@ export default function PlotDialog({
         </DialogHeader>
         <div className="space-y-3 text-sm">
           <div className="grid grid-cols-2 gap-2">
+            <label className="block col-span-2">
+              <span className="text-xs text-pl-muted">Template</span>
+              <select
+                value={template}
+                onChange={(e) => chooseTemplate(e.target.value)}
+                className={selCls}
+                data-testid="plot-template"
+              >
+                {PLOT_TEMPLATES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+              </select>
+              <span className="block text-[11px] text-pl-muted mt-0.5">{templateByKey(template).help}</span>
+            </label>
             <label className="block">
               <span className="text-xs text-pl-muted">Window</span>
-              <select value={source} onChange={(e) => setSource(e.target.value)} className={selCls}>
+              <select
+                value={source}
+                onChange={(e) => setSource(e.target.value)}
+                className={selCls}
+                disabled={Boolean(templateByKey(template).source)}
+              >
                 <option value="map">Map (plan view)</option>
                 <option value="section">Section / traverse</option>
               </select>
@@ -222,6 +333,30 @@ export default function PlotDialog({
                 </select>
               </label>
             )}
+            <label className="block">
+              <span className="text-xs text-pl-muted">Company</span>
+              <input
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                placeholder="Optional"
+                className={selCls}
+                aria-label="Company"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs text-pl-muted">Analyst</span>
+              <input
+                value={analyst}
+                onChange={(e) => setAnalyst(e.target.value)}
+                placeholder="Optional"
+                className={selCls}
+                aria-label="Analyst"
+              />
+            </label>
+            <label className="flex items-center gap-2 col-span-2 text-xs text-pl-text">
+              <input type="checkbox" checked={withLegend} onChange={(e) => setWithLegend(e.target.checked)} />
+              Legend of the horizons, faults and wells in the picture
+            </label>
             <label className="block col-span-2">
               <span className="text-xs text-pl-muted">Plot title</span>
               <input
@@ -232,11 +367,17 @@ export default function PlotDialog({
               />
             </label>
           </div>
+          {problems.length > 0 && (
+            <ul className="text-[11px] rounded-md border border-pl-border bg-pl-warning-bg text-pl-warning-text px-2 py-1 space-y-0.5" data-testid="plot-template-problems">
+              {problems.map((m) => <li key={m}>{m}</li>)}
+            </ul>
+          )}
           <p className="text-[11px] text-pl-muted flex items-start gap-1">
             <FileText className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             The plot is centered on the current view and clipped to the paper
-            at the chosen scale. Title block carries volume, CRS, scale,
-            author and date; the scale bar is exact on paper.
+            at the chosen scale. The title block carries company, analyst,
+            volume, CRS, scale, account and date; the scale bar is exact on
+            paper. Company and analyst are saved to your account.
           </p>
           <div className="flex justify-end">
             <Button onClick={generate} disabled={busy}>

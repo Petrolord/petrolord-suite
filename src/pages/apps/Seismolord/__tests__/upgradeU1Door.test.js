@@ -105,17 +105,28 @@ describe('SEIS-U1-003 headers that disagree stop the import (owner rule)', () =>
   });
 });
 
-describe('SEIS-U1-004 byte order and sample formats say what they are', () => {
-  test('a little-endian rev 2 file is named as byte-swapped', async () => {
-    // negative control: "Unsupported SEG-Y sample format code 1280"
+describe('SEIS-U1-004 byte order and sample formats (U2-009: little-endian and integers now import)', () => {
+  test('a little-endian rev 2 file is read through the door, said in the scan', async () => {
+    // negative control: the engines alone read "Unsupported SEG-Y sample format code 1280"
     await expect(scanGeometry(readerOf('rev2_little_endian.sgy'), {}, {})).rejects.toThrow(/format code 1280/);
-    await expect(inspectSegy(readerOf('rev2_little_endian.sgy'))).rejects.toThrow(/byte-swapped \(little-endian\).*format code 5 only when the bytes are reversed/);
+    const { door, scan, warnings } = await doorScan('rev2_little_endian.sgy');
+    expect(door).toMatchObject({ byteOrder: 'little', transcode: true, formatCode: 5, revision: 2 });
+    expect(scan.regular).toBe(true);
+    expect(scan.il).toMatchObject({ min: 1001, count: 8 });
+    expect(warnings.join(' ')).toMatch(/Byte-swapped \(little-endian\) SEG-Y with 4-byte IEEE floating point samples \(format code 5\): read as it is and converted to 32-bit float on import; the file is not changed/);
   });
 
-  test('two-byte integers name their format and the way out', async () => {
-    await expect(inspectSegy(readerOf('fmt3_int16.sgy'))).rejects.toThrow(
-      /2-byte two's complement integer \(format code 3\).*Export the volume again as 32-bit float SEG-Y/,
-    );
+  test('two-byte integers are read at their plain value, said in the scan', async () => {
+    const { door, scan, warnings } = await doorScan('fmt3_int16.sgy');
+    expect(door).toMatchObject({ byteOrder: 'big', transcode: true, formatCode: 3, sampleBytes: 2 });
+    expect(scan.formatCode).toBe(5);   // presented to the readers as IEEE float
+    expect(warnings.join(' ')).toMatch(/2-byte two's complement integer samples \(format code 3\).*plain value \(no trace weighting factor\)/);
+  });
+
+  test('formats the engines do not decode are refused with the list that is', async () => {
+    const u8 = fileOf('rev1_ieee_clean.sgy');
+    new DataView(u8.buffer).setInt16(3224, 4, false);
+    await expect(inspectSegy(bufferReader(u8.buffer))).rejects.toThrow(/4-byte fixed point with gain \(obsolete\) \(format code 4\).*codes 2, 3, 8, 10, 11, 16/);
   });
 
   test('rev 0 IBM with inline and crossline at bytes 9 and 21 imports under the preset', async () => {
@@ -287,6 +298,32 @@ describe('SEIS-U1-002 an irregular outline and a crossline-sorted survey import'
     const at = (xlIdx, s) => s0.data[xlIdx * ns + s];
     expect(at(5, 20)).toBeCloseTo(amplitude(1001, 2006, 20, ns), 3);
     if (name === 'irregular_outline.sgy') expect(at(0, 20)).toBe(Math.fround(NULL_VALUE));
+  });
+});
+
+describe('U2-009 a little-endian and an integer file import end to end', () => {
+  test.each(['rev2_little_endian.sgy', 'fmt3_int16.sgy'])('%s: v4 import, every slice equal to the file', async (name) => {
+    const {
+      manifest, rows, call, blob,
+    } = await importAndReadBack(name);
+    expect(rows.get('vol-1').status).toBe(V4_STATUS.READY);
+    expect(manifest.geometry.il).toEqual({ min: 1001, max: 1008, step: 1, count: 8 });
+    await call({ type: 'openLocal', sourceId: 'L', file: blob, mapping: {} });
+    const { clip } = manifest.display;
+    const u32 = (s2) => new Uint32Array(s2.data.buffer, s2.data.byteOffset, s2.data.length);
+    for (let i = 0; i < 8; i++) {
+      // eslint-disable-next-line no-await-in-loop
+      const a = await call({ type: 'slice', sourceId: 'V4', orientation: 'inline', index: i });
+      // eslint-disable-next-line no-await-in-loop
+      const b = await call({ type: 'slice', sourceId: 'L', orientation: 'inline', index: i });
+      const e = b.data.map((v) => dequantizeU8(quantizeU8(v, clip), clip));
+      expect(u32(a)).toEqual(new Uint32Array(e.buffer));
+    }
+    // the local read is the file's stored value: the writer stores int16 as round(10 x amplitude)
+    const s0 = await call({ type: 'slice', sourceId: 'L', orientation: 'inline', index: 0 });
+    const want = amplitude(1001, 2006, 20, 40);
+    if (name === 'fmt3_int16.sgy') expect(s0.data[5 * 40 + 20]).toBe(Math.round(want * 10));
+    else expect(s0.data[5 * 40 + 20]).toBeCloseTo(want, 3);
   });
 });
 

@@ -109,6 +109,6 @@ describe('timeDepth', () => {
   test('a layer cake is refused with the Seismolord message; junk is refused', () => {
     expect(usableModel({ velocity: { type: 'layercake', layers: [{ v0: 2000, k: 0 }] } }).reason).toMatch(/Seismolord/);
     expect(usableModel({ velocity: null }).reason).toMatch(/no usable/);
-    expect(() => twtGridToElevation(Float32Array.from([1]), { type: 'layercake', layers: [{ v0: 2000, k: 0 }] })).toThrow(/layer-cake/);
+    expect(() => twtGridToElevation(Float32Array.from([1]), { type: 'layercake', layers: [{ v0: 2000, k: 0 }] })).toThrow(/layer cake/);
   });
 });

@@ -7,7 +7,7 @@
 // under the ingest backpressure and the result registers as a derived
 // volume (manifest v2) that lists beside its parent in the explorer.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, Ban, Loader2 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -18,6 +18,11 @@ import {
   ALL_ATTRIBUTE_DEFS, attributePrecheck, computeAttributeVolume, defaultDerivedName, derivedStorageBytes,
 } from '../../../services/attributeJobService';
 import { groupAttributeDefs } from '../../../lib/attributeDisplay';
+import { surveyConvergence } from '../../../lib/northReference';
+import { surveyAffine } from '../../../engine/surveyGeometry';
+import { geomFromManifest } from '../../../engine/sliceAssembly';
+import { convergenceAt } from '@/lib/crs';
+import { isTransformableTag } from '@/lib/crs/tags';
 
 /** A typed parameter value: blank or unreadable falls back to the default;
  *  0 is a real value where the parameter allows it (Edge's window). */
@@ -64,6 +69,27 @@ export default function ComputeAttributeDialog({
     }
   } catch { /* manifest without brick block: leave blank */ }
 
+  // U2-017: Dip azimuth from true north (the meridian convergence at the
+  // survey centre), when the survey CRS is a real projection
+  const [northRef, setNorthRef] = useState('grid');
+  const trueNorth = useMemo(() => {
+    if (attr !== 'azimuth_north' || !manifest || !volume) return null;
+    if (!volume.crs || !isTransformableTag(volume.crs)) {
+      return { error: 'True north needs the survey CRS declared as a projection; this volume has none, so only grid north is offered.' };
+    }
+    try {
+      const aff = surveyAffine(manifest.geometry);
+      const g = geomFromManifest(manifest);
+      const c = surveyConvergence(aff, g, (x, y) => convergenceAt(volume.crs, x, y));
+      return { convergenceDeg: c.centreDeg, spreadDeg: c.spreadDeg };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }, [attr, manifest, volume]);
+  const north = attr === 'azimuth_north' && northRef === 'true' && trueNorth && !trueNorth.error
+    ? { reference: 'true', convergenceDeg: Math.round(trueNorth.convergenceDeg * 1e4) / 1e4, crs: volume.crs }
+    : null;
+
   const run = async () => {
     setBusy(true);
     cancelRef.current = { cancelled: false };
@@ -71,8 +97,8 @@ export default function ComputeAttributeDialog({
       await computeAttributeVolume({
         parent: volume,
         parentManifest: manifest,
-        attribute: { name: attr, params },
-        name: name.trim() || undefined,
+        attribute: { name: attr, params, ...(north ? { north } : {}) },
+        name: name.trim() || (north ? `${placeholder} (true north)` : undefined),
         cancelToken: cancelRef.current,
         onProgress: (p) => setProgress(p),
       });
@@ -139,6 +165,22 @@ export default function ComputeAttributeDialog({
                 />
               </label>
             ))}
+            {attr === 'azimuth_north' && (
+              <label className="block col-span-2" data-testid="sl-attr-north">
+                <span className="text-xs text-pl-muted">North reference</span>
+                <select value={northRef} onChange={(e) => setNorthRef(e.target.value)} className={selCls} disabled={busy}>
+                  <option value="grid">Grid north</option>
+                  <option value="true" disabled={!trueNorth || Boolean(trueNorth.error)}>True north</option>
+                </select>
+                <span className="block text-[11px] text-pl-muted mt-0.5">
+                  {trueNorth?.error
+                    ? trueNorth.error
+                    : trueNorth
+                      ? `True north is ${Math.abs(trueNorth.convergenceDeg).toFixed(3)} deg ${trueNorth.convergenceDeg >= 0 ? 'east' : 'west'} of grid north at the survey centre (meridian convergence); it varies by ${trueNorth.spreadDeg.toFixed(3)} deg across the survey, and the centre value is used throughout.`
+                      : ''}
+                </span>
+              </label>
+            )}
             <label className="block col-span-2">
               <span className="text-xs text-pl-muted">Volume name</span>
               <input
