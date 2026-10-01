@@ -69,3 +69,13 @@ jobs:
       - name: Dev server log
         if: failure()
         run: tail -n 200 vite-dev.log
+
+      # Each failed test leaves an error-context.md (the page as it stood) here.
+      - name: Keep the failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-shard-${{ matrix.shard }}-test-results
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
