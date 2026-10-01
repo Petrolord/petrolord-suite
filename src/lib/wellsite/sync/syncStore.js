@@ -25,5 +25,9 @@ export function syncHeadline(s = state) {
   if (s.rejected > 0) return { state: 'failed', text: `${s.rejected} refused`, tone: 'red' };
   if (s.phase !== 'idle') return { state: 'synchronising', text: s.phase === 'pushing' ? 'sharing' : 'receiving', tone: 'cyan' };
   if (s.pending + s.failed > 0) return { state: 'pending', text: `${s.pending + s.failed} to share`, tone: 'cyan' };
-  return { state: 'synchronised', text: s.lastSyncUtc ? 'shared' : 'shared', tone: 'slate' };
+  // WS-U1-002: "shared" only after a sharing pass has completed; before the
+  // first one (signed out, a fresh page, a pass that failed) nothing has
+  // reached the office yet and the pill must not say otherwise
+  if (!s.lastSyncUtc) return { state: 'local', text: s.lastError ? 'not shared yet, last try failed' : 'not shared yet', tone: s.lastError ? 'amber' : 'slate' };
+  return { state: 'synchronised', text: 'shared', tone: 'slate' };
 }

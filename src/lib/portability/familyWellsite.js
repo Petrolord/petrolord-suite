@@ -8,6 +8,16 @@ import { registerFamily } from './familySpec';
 
 const child = (extra = {}) => ({ pk: 'id', stamped: true, parent: { table: 'ws_wells', column: 'well_id' }, softRefs: [], ...extra });
 
+// WS-U1-003 (2026-10-01): every row gets a new id on import, so the ids a row
+// carries inside its own columns must follow. Before this, a resolved conflict
+// came back after an import (resolves_ids still named the old heads), the
+// evidence chain of every call broke (evidence_ids), versions of one chain
+// kept the old chain id, and a prognosis still named the source registry
+// wells. The 'any' form rewrites every id the package carries and leaves
+// the rest (an offset well that was not packaged) as it was.
+const anyRef = (path) => ({ path: `${path}.*`, table: 'ws_records', optional: true, form: 'any' });
+const CHAIN_REFS = [anyRef('chain_id'), anyRef('evidence_ids'), anyRef('resolves_ids')];
+
 export const WELLSITE_TABLES = {
   ws_wells: {
     pk: 'id',
@@ -29,8 +39,9 @@ export const WELLSITE_TABLES = {
     ],
   },
   ws_well_members: { pk: 'id', stamped: false, parent: { table: 'ws_wells', column: 'well_id' }, softRefs: [] },
-  ws_prognosis: child(),
+  ws_prognosis: child({ softRefs: [anyRef('source'), anyRef('tops'), anyRef('offset_tops')] }),
   ws_records: child({ softRefs: [
+    ...CHAIN_REFS, anyRef('payload'),
     { path: 'previous_version_id', table: 'ws_records', optional: true },
     { path: 'supersedes_id', table: 'ws_records', optional: true },
     { path: 'sample_id', table: 'ws_samples', optional: true },
@@ -38,14 +49,14 @@ export const WELLSITE_TABLES = {
   ] }),
   ws_samples: child(),
   ws_sample_stages: child({ softRefs: [{ path: 'sample_id', table: 'ws_samples', optional: false }] }),
-  ws_tops: child({ softRefs: [{ path: 'previous_version_id', table: 'ws_tops', optional: true }] }),
+  ws_tops: child({ softRefs: [...CHAIN_REFS, { path: 'previous_version_id', table: 'ws_tops', optional: true }, { path: 'unit_id', table: 'geo_strat_units', optional: true }] }),
   ws_photos: child({
     softRefs: [{ path: 'sample_id', table: 'ws_samples', optional: true }, { path: 'record_id', table: 'ws_records', optional: true }],
     blob: { bucket: 'wellsite', prefixOf: (row) => `${row.storage_prefix}`.replace(/\/$/, ''), newPrefix: (userId, row) => `${row.organization_id || userId}/${row.well_id}/photos/${row.id}` },
   }),
-  ws_reports: child({ softRefs: [{ path: 'previous_version_id', table: 'ws_reports', optional: true }] }),
+  ws_reports: child({ softRefs: [anyRef('chain_id'), { path: 'previous_version_id', table: 'ws_reports', optional: true }] }),
   ws_signoffs: child({ softRefs: [{ path: 'report_id', table: 'ws_reports', optional: false }] }),
-  ws_publications: child(),
+  ws_publications: child({ softRefs: [anyRef('source_ids')] }),
 };
 
 registerFamily('wellsite', {
