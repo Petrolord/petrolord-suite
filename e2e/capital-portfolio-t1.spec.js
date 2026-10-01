@@ -34,8 +34,10 @@ test('T1: optimum A+B+D and the frontier shows it', async ({ page }) => {
   await expect(page.getByText('$230 MM').first()).toBeVisible();
   await expect(page.getByText('$450 MM').first()).toBeVisible();
   // the optimum star sits inside the plot area, not on its edge
-  const frame = page.locator('div', { has: page.getByText('Efficient Frontier (risked EMV vs capital)') }).last();
-  const ticks = await frame.locator('.recharts-cartesian-axis-tick-value').allTextContents();
-  expect(ticks).toContain('600');
+  // the shared ChartPanel card holds the title in its head and the chart in its body
+  const frame = page.locator('[data-canvas="chart"]', { has: page.getByText('Efficient Frontier (risked EMV vs capital)') }).last();
+  // the x axis runs past the 500 limit to a round 600; the chart draws after its
+  // container is measured, so wait for the tick itself
+  await expect(frame.locator('.recharts-cartesian-axis-tick-value', { hasText: /^600$/ })).toHaveCount(1);
   await expect(frame.locator('.recharts-scatter-symbol path[fill="#059669"], .recharts-scatter-symbol [fill="#059669"]').first()).toBeVisible();
 });

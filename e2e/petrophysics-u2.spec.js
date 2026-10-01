@@ -10,6 +10,13 @@ import { test, expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
+import { seedUnitView } from './helpers/unitView.js';
+
+// Since the Suite unit profile (#830) the harness opens in feet (signed out:
+// the built-in oilfield preset). The type well, the goldens and the expected
+// values here are metres, so each tab starts on a metric view override; the
+// tests that exercise feet switch through the in-app toggle.
+test.beforeEach(async ({ page }) => { await seedUnitView(page, 'petrophysics'); });
 
 const SHOTS = process.env.PETRO_SHOTS || 'test-results/petro-u2';
 const HOSTILE = 'e2e/fixtures/petro/hostile';

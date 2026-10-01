@@ -18,10 +18,19 @@ import fs from 'fs';
 import os from 'os';
 import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { seedUnitView } from './helpers/unitView.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const H = (f) => path.join(here, 'fixtures', 'wdm', 'hostile', f);
 const SHOTS = process.env.E2E_SHOTS || null;
+
+// Since the Suite unit profile (#830) the harness opens in feet (signed out:
+// the built-in oilfield preset). The fixtures and expected values here are
+// metres, so each tab starts on a metric view override; U2-001 asserts the
+// profile default itself and is tagged to skip the override.
+test.beforeEach(async ({ page }, testInfo) => {
+  if (!testInfo.tags.includes('@profile-units')) await seedUnitView(page, 'well-data-manager');
+});
 
 async function importPetrel(page) {
   await page.getByTestId('wdm-open-las').click();
@@ -30,18 +39,23 @@ async function importPetrel(page) {
   await expect(page.getByTestId('wdm-detail-name')).toHaveText('OKAN PX-4');
 }
 
-test('U2-001: feet everywhere, remembered after a reload', async ({ page }) => {
+test('U2-001: opens in the profile unit (feet); metres on request, remembered after a reload', { tag: '@profile-units' }, async ({ page }) => {
   await page.goto('/dev/well-data-manager');
   await importPetrel(page);
   await page.getByTestId('wdm-detail-tab-logs').click();
-  await expect(page.getByText('Interval (m MD)')).toBeVisible();
-  await page.getByTestId('wdm-units').selectOption('ft');
+  // signed out, the profile is the built-in oilfield preset: feet everywhere
+  await expect(page.getByTestId('wdm-units')).toHaveValue('ft');
   await expect(page.getByText('Interval (ft MD)')).toBeVisible();
   await expect(page.getByTestId('wdm-status-units')).toHaveText('Depths in ft (stored in m)');
   await page.getByTestId('wdm-plot-GR').check();
   await expect(page.getByTestId('wdm-log-tracks')).toHaveAttribute('data-axis-unit', 'ft');
+  // the toggle is a view override for this session: it converts, and a reload keeps it
+  await page.getByTestId('wdm-units').selectOption('m');
+  await expect(page.getByText('Interval (m MD)')).toBeVisible();
+  await expect(page.getByTestId('wdm-status-units')).toHaveText('Depths in m (stored in m)');
+  await expect(page.getByTestId('wdm-log-tracks')).toHaveAttribute('data-axis-unit', 'm');
   await page.reload();
-  await expect(page.getByTestId('wdm-units')).toHaveValue('ft');
+  await expect(page.getByTestId('wdm-units')).toHaveValue('m');
 });
 
 test('U2-002 and U2-011: LAS, tops CSV and the data sheet PDF download and read back', async ({ page }) => {

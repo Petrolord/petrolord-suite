@@ -7,6 +7,7 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { seedUnitView } from './helpers/unitView.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const LAS3 = path.join(HERE, '..', 'packages', 'engines', 'test-data', 'wells', 'las', 'las3_intervals_30.las');
@@ -19,8 +20,13 @@ async function openStudio(page, query = '') {
   await expect(page.getByTestId('strat-unit-name-0')).toHaveValue('Agbada');
 }
 
+// Since the Suite unit profile (#830) the studio and the shared section open in
+// feet (signed out: the built-in oilfield preset). The sample wells and the
+// depths typed here are metres, so each tab starts on a metric view override.
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => { try { window.localStorage.removeItem('strat.scheme'); } catch (e) { /* ignore */ } });
+  await seedUnitView(page, 'stratigraphy');
+  await seedUnitView(page, 'well-correlation');
 });
 
 test('column editor: add a member from a timescale stage, save, explorer updates', async ({ page }) => {

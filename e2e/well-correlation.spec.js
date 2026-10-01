@@ -6,6 +6,13 @@
 // angle below 1400 m so TVDSS differs from MD there.
 
 import { test, expect } from '@playwright/test';
+import { seedUnitView } from './helpers/unitView.js';
+
+// Since the Suite unit profile (#830) the section opens in feet (signed out:
+// the built-in oilfield preset). The synthetic section and the depths asserted
+// here are metres, so each tab starts on a metric view override; the WC test
+// below still switches to feet through the toggle.
+test.beforeEach(async ({ page }) => { await seedUnitView(page, 'well-correlation'); });
 
 async function openSection(page, query = '') {
   await page.goto(`/dev/well-correlation${query}`);

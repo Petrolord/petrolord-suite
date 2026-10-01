@@ -141,9 +141,9 @@ test('earth-modeling app route loads its chunk and gates on auth', async ({ page
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/dashboard/apps/geoscience/earth-modeling');
-  await page.waitForLoadState('networkidle');
+  // signed out, the gate sends the route to the login page; wait for the redirect to land
+  await expect(page).toHaveURL(/\/login/, { timeout: 30000 });
   expect(errors).toEqual([]);
-  expect(page.url()).not.toContain('earth-modeling'); // redirected by the auth gate
 });
 
 test('MS4: ?surface= from Mapping stacks the surface on arrival', async ({ page }) => {
