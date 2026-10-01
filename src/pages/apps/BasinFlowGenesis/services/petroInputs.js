@@ -74,9 +74,19 @@ export function toModelDepth(log, values, { tvdOf = (md) => md, topTvdM = 0 } = 
   return out;
 }
 
-/** Present-day layer intervals (youngest first, as the model lists them). */
+/**
+ * Present-day layer intervals in model depth (youngest first, as the model
+ * lists them). A layer built from a registry well carries the TVD of its
+ * top and base, and those are used (minus the model surface) so a log
+ * sample lands in the layer its top says; other layers stack by thickness.
+ */
 export function layerIntervals(stratigraphy) {
   const order = [...(stratigraphy || [])].sort((a, b) => (Number(a.ageStart) || 0) - (Number(b.ageStart) || 0));
+  const tvd = order.every((l) => Number.isFinite(l.provenance?.top_tvd_m) && Number.isFinite(l.provenance?.base_tvd_m));
+  if (tvd) {
+    const top0 = Math.min(...order.map((l) => l.provenance.top_tvd_m));
+    return order.map((l) => ({ layer: l, top: l.provenance.top_tvd_m - top0, base: l.provenance.base_tvd_m - top0 }));
+  }
   let z = 0;
   return order.map((l) => { const top = z; z += Number(l.thickness) || 0; return { layer: l, top, base: z }; });
 }
