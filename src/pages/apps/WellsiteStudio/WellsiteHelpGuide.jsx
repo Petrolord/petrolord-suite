@@ -7,7 +7,7 @@
 import React from 'react';
 import {
   BookOpen, Zap, WifiOff, HardHat, Settings, Activity, FlaskConical, PenLine, Droplets, Eye, Camera, Tags, ListOrdered,
-  ClipboardList, FileText, RefreshCw, Upload, AlertTriangle, ListChecks,
+  ClipboardList, FileText, RefreshCw, Upload, AlertTriangle, ListChecks, FileUp,
 } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Code, Callout, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import { SAMPLE_STAGES } from '@/lib/wellsite/sampleProgram';
@@ -33,6 +33,7 @@ export const HELP_SECTIONS = [
   { id: 'shows', icon: Droplets, title: 'Shows' },
   { id: 'observations', icon: Eye, title: 'Observations' },
   { id: 'photos', icon: Camera, title: 'Photographs' },
+  { id: 'import', icon: FileUp, title: 'Importing mudlogging data' },
   { id: 'tops', icon: Tags, title: 'Formation tops' },
   { id: 'timeline', icon: ListOrdered, title: 'The timeline' },
   { id: 'handover', icon: ClipboardList, title: 'Shift handover' },
@@ -279,6 +280,32 @@ export default function WellsiteHelpGuide() {
           appears in the sample, the handover and the report without being attached again. The sharing drawer counts photographs not yet
           backed up.
         </Para>
+      </GuideSection>
+
+      <GuideSection id="import">
+        <SectionHeading icon={FileUp}>Importing mudlogging data</SectionHeading>
+        <Para>
+          The Import view reads what the mudlogging unit exports: a CSV, a text file separated by tabs, semicolons or spaces, or a
+          LAS file (2.0 or 3.0), indexed by depth or by time. Choose the file or paste the table. The app shows every column it
+          found, the unit written in the file, and the first values, and suggests what each column is: hole depth, bit depth, date
+          and time, rate of penetration, weight on bit, rotary speed, torque, standpipe pressure, flow, pump strokes, mud weight,
+          ECD, total gas, C1 to C5 and bit size.
+        </Para>
+        <Para>
+          Nothing is stored until every column you keep has its unit declared and the depths have their datum (KB, RT, GL or MSL).
+          A unit found in the header only fills the choice in for you to check. A time file also asks whether dates are day first or
+          month first, and whether the clock is rig time or UTC. The preview then says how many rows will be imported, over what
+          depths, which rows were not read and why, and which values were left out as impossible. If most of a column falls
+          outside its possible range, the import stops and says the declared unit looks wrong.
+        </Para>
+        <Para>
+          From a time file you can also record the bit depths and the pump rate changes for the lag, marked externally observed.
+          Imported rows feed the strip log and the d-exponent. Every import is listed with what was declared; Withdraw takes its rows
+          out of use, with your reason, and keeps the record of it. One row of drilling parameters can be typed on the same view.
+        </Para>
+        <Callout tone="info" title="Depths are measured depths">
+          The importer reads measured depth. Rows are kept as recorded and work without a connection like every other record.
+        </Callout>
       </GuideSection>
 
       <GuideSection id="tops">
