@@ -8,9 +8,9 @@
 // recomputed on demand (plan decision 2).
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck, ImageDown, Route, FileDown, ExternalLink, HelpCircle, Box } from 'lucide-react';
+import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck, ImageDown, Route, FileDown, ExternalLink, HelpCircle, Box, FileText } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -20,7 +20,9 @@ import MapView from './MapView';
 import SectionView from './SectionView';
 import FrameworkView3D from './FrameworkView3D';
 import QcPanel from './QcPanel';
-import { buildModel, emptyDefinition, MISTIE_WARN_M, publishPayload, BG_UNITS, upgradeDefinition, specOf } from '../services/modelBuild';
+import { emptyDefinition, MISTIE_WARN_M, publishPayload, BG_UNITS, upgradeDefinition, specOf } from '../services/modelBuild';
+import { runBuild } from '../services/buildClient';
+import { resolveShm } from '../services/shmResolve';
 import { hangingWallBlock } from '@/lib/seismicFaultsReader';
 import { contourPlan, colorbarLevelsFor } from '@/pages/apps/MappingSurfaceStudio/components/MapCanvas';
 import { DEPTH_UNIT_KEY, VOLUME_UNITS_KEY, VOLUME_UNIT_SETS, readSetting, fmtDepth } from '../services/units';
@@ -32,6 +34,10 @@ import { minCurvature, positionAtMd } from '../engine/wellties';
 import { useWellCurvesCache } from '@/components/wells/useWellCurvesCache';
 import { downloadBlob } from '@/components/maps/mapPng';
 import { volumesCsv } from '../services/volumesCsv';
+import { buildModelReportPdf } from '../services/modelReportPdf';
+import { grdeclText } from '../services/grdeclExport';
+import { buildEarthModelProspect, writeProspectHandoff, rcpProspectHref } from '@/lib/earthModelProspect';
+import { SEISMIC_FAULTS_HOOK, normalizeSeismicFault, hangingWallAtSurface } from '../services/seismicFaultZones';
 import { appPath, mapSurfaceHref, reservoirCalcSurfaceHref, MAPPING_ID, RESERVOIRCALC_ID, EARTH_MODELING_ID } from '@/components/wells/appLinks';
 import { toDisplay } from '@/components/wells/depthModes';
 import { validatePolygon } from '../engine/blocks';
@@ -51,6 +57,7 @@ const LAYERS = [
   { key: 'top', label: 'Zone top (depth)' },
   { key: 'base', label: 'Zone base (depth)' },
   { key: 'thickness', label: 'Thickness (isochore)' },
+  { key: 'isopach', label: 'Isopach (true stratigraphic thickness)' },
   { key: 'phi', label: 'Porosity' },
   { key: 'sw', label: 'Sw' },
   { key: 'ntg', label: 'NTG' },
@@ -65,7 +72,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   const [wells, setWells] = useState(null);
   const [surfaces, setSurfaces] = useState([]);
   const [culturePolygons, setCulturePolygons] = useState([]);
-  const [seismicFaults, setSeismicFaults] = useState({ faults: [], skipped: [] }); // Seismolord U2-003
+  const [seismicFaults, setSeismicFaults] = useState({ faults: [], skipped: [] }); // Seismolord U2-003 reader; U2-001 per zone top
   const [projects, setProjects] = useState([]);
   const [definition, setDefinition] = useState(emptyDefinition);
   const [built, setBuilt] = useState(null);
@@ -89,6 +96,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   const [lastPublished, setLastPublished] = useState(null); // EM5: the row the launchers point at
   const curvesCache = useWellCurvesCache(backend);
   const [status, setStatus] = useState('Ready.');
+  const [reporting, setReporting] = useState(false); // U2-003: a report PDF is being made
   // T1 (EM-T1-009): the depth sign shared with Mapping (mapping.depthPositive);
   // unset keeps Earth Modeling's positive TVDSS
   const [depthPositive, setDepthPositive] = useState(() => {
@@ -127,9 +135,12 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     return next;
   });
   const [boundaries, setBoundaries] = useState([]);
+  const [scalProjects, setScalProjects] = useState([]);
   useEffect(() => {
     let live = true;
     if (backend.listBoundaries) backend.listBoundaries().then((b) => { if (live) setBoundaries(b); }).catch(() => {});
+    // U2-002: SCAL Studio projects for Sw from saturation-height
+    if (backend.listScalProjects) backend.listScalProjects().then((p) => { if (live) setScalProjects(p || []); }).catch(() => {});
     return () => { live = false; };
   }, [backend]);
   const changeDepthUnit = (u) => unitsHook.setUnit('depth', u);
@@ -224,11 +235,25 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     setDef({ ...definition, surfaceIds, topNames: tn });
   };
 
+  // U2-004: the build runs on a worker with progress; Cancel terminates it
+  const [buildProgress, setBuildProgress] = useState(null);
+  const [buildWhere, setBuildWhere] = useState(null);
+  const buildAbortRef = useRef(null);
+  const cancelBuild = () => { buildAbortRef.current?.abort(); };
   const build = async () => {
     setBuilding(true);
+    setBuildProgress({ label: 'Starting the build', fraction: 0 });
+    const ctrl = new AbortController();
+    buildAbortRef.current = ctrl;
     try {
-      const result = await buildModel(definition, wells, surfaces, backend);
+      // U2-002: the SCAL project is read here, so the worker gets plain data
+      const def = definition.methods?.sw === 'shm' ? { ...definition, shmResolved: await resolveShm(definition.shm, backend) } : definition;
+      const { built: result, where } = await runBuild({
+        definition: def, wells, surfaces, backend, signal: ctrl.signal,
+        onProgress: (p) => setBuildProgress({ label: p.label, fraction: p.fraction }),
+      });
       setBuilt(result);
+      setBuildWhere(where);
       setZoneIdx(0);
       const blocks = Object.keys(result.census).length;
       const clamps = result.counts.reduce((a, b) => a + b, 0);
@@ -258,26 +283,29 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       const frameText = `${result.spec.nx}×${result.spec.ny} frame at ${fmtCell(result.specM.dx)} m${result.xyToM !== 1 ? ` (${fmtCell(result.spec.dx)} ${result.xyUnit})` : ''}`;
       setStatus(`Built ${definition.name}: ${frameText}, ${result.zones.length} zones, ${blocks} block${blocks > 1 ? 's' : ''}, ${clamps} clamped nodes${result.boundary ? `, clipped to ${result.boundary.name}` : ''}${adjText}.${clampText}${mtText}${fbText}${tpText}${pcText}${openText}${noteText}`);
     } catch (e) {
-      setStatus(e.message);
+      setStatus(e.cancelled ? 'Build cancelled. The previous model, if any, is unchanged.' : e.message);
     } finally {
       setBuilding(false);
+      setBuildProgress(null);
+      buildAbortRef.current = null;
     }
   };
 
   const mapGrid = useMemo(() => {
     if (!built) return null;
-    if (layer === 'blocks') return built.labels ? Float64Array.from(built.labels) : null;
+    if (layer === 'blocks') { const lb = built.zones[zoneIdx]?.labels || built.labels; return lb ? Float64Array.from(lb) : null; }
     if (layer === 'top') return built.clamped[zoneIdx] || null;
     if (layer === 'base') return built.clamped[zoneIdx + 1] || null;
     if (layer === 'thickness') return built.thickness[zoneIdx] || null;
+    if (layer === 'isopach') return built.zones[zoneIdx]?.isopach?.tst || null;
     if (layer.endsWith('_var')) return built.zones[zoneIdx]?.variance?.[layer.slice(0, -4)] || null;
     return built.zones[zoneIdx]?.props?.[layer] || null;
   }, [built, layer, zoneIdx]);
 
   // T1 (EM-T1-005): contour interval and colour-bar ticks round in the
   // display unit (the Mapping plan), depth layers in the shared sign
-  const isDepthLayer = ['top', 'base', 'thickness'].includes(layer);
-  const depthSign = isDepthLayer && layer !== 'thickness' && !depthPositive ? -1 : 1;
+  const isDepthLayer = ['top', 'base', 'thickness', 'isopach'].includes(layer);
+  const depthSign = isDepthLayer && !['thickness', 'isopach'].includes(layer) && !depthPositive ? -1 : 1;
   const mapPlan = useMemo(() => (mapGrid && isDepthLayer
     ? contourPlan({ grid: mapGrid, typed: '', unit: depthUnit, isLength: true, sign: depthSign })
     : null), [mapGrid, isDepthLayer, depthUnit, depthSign]);
@@ -392,6 +420,25 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     } catch (e) { setStatus(e.message); }
   };
 
+  // U2-001: a Seismolord fault with depth joins as its rails; the build cuts
+  // it with each zone top. The polygon at the first top is kept for the list and map.
+  const addSeismicFaultPerZone = (raw) => {
+    const sf = normalizeSeismicFault(raw);
+    if (!sf.ok) { setStatus(`${sf.name}: ${sf.reason}.`); return; }
+    if ((definition.faultPolygons || []).some((p) => p.seismicFaultId === sf.id)) { setStatus(`${sf.name} is already in the model.`); return; }
+    if (!built) { setStatus(`Build the model first: ${sf.name} is cut with the zone tops of the built framework.`); return; }
+    const k = built.xyToM || 1;
+    const rails = sf.rails.map((rail) => rail.map((p) => ({ x: p.x * k, y: p.y * k, d: p.d })));
+    const r = hangingWallAtSurface(rails, built.clamped[0], built.specM);
+    if (r.error) { setStatus(`${sf.name}: ${r.error}.`); return; }
+    const faultPolygons = [...(definition.faultPolygons || []), {
+      name: `${sf.name} hanging wall`, vertices: r.polygon.map(([x, y]) => [x / k, y / k]),
+      rails: sf.rails.map((rail) => rail.map((p) => [p.x, p.y, p.d])), seismicFaultId: sf.id, source: 'seismolord', ...(sf.volumeName ? { volumeName: sf.volumeName } : {}), ...(sf.crs ? { crs: sf.crs } : {}),
+    }];
+    setDef({ ...definition, faultPolygons });
+    setStatus(`Added the hanging-wall block of ${sf.name}; it is cut with each zone top. Rebuild to apply blocks.`);
+  };
+
   // U1 (EM-U1-009): Save overwrites the model that is open; a new row only
   // for a model never saved, or on Save as a new model
   const [projectId, setProjectId] = useState(null);
@@ -445,11 +492,21 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           {Object.values(VOLUME_UNIT_SETS).map((u) => <option key={u.key} value={u.key}>{u.label}</option>)}
         </select>
         <UnitProfileNote u={unitsHook} names={{ volume: 'volumes' }} className="hidden xl:inline-flex" />
-        <button type="button" data-testid="em-build"
+        <button type="button" data-testid="em-build" data-build-where={buildWhere || ''}
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-primary/50 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40"
           disabled={building || definition.surfaceIds.length < 2} onClick={build}>
           {building ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Hammer className="w-3.5 h-3.5" />} Build model
         </button>
+        {building && (
+          <span className="flex items-center gap-1" data-testid="em-build-progress">
+            <span className="w-20 h-1.5 rounded bg-pl-sunken overflow-hidden" title={buildProgress?.label || ''}>
+              <span className="block h-full bg-pl-primary" style={{ width: `${Math.round(100 * (buildProgress?.fraction || 0))}%` }} />
+            </span>
+            <span className="text-[11px] text-pl-muted whitespace-nowrap" data-testid="em-build-progress-text">{Math.round(100 * (buildProgress?.fraction || 0))}%</span>
+            <button type="button" data-testid="em-build-cancel" onClick={cancelBuild}
+              className="px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken">Cancel</button>
+          </span>
+        )}
         <button type="button" data-testid="em-publish"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-primary-text hover:bg-pl-sunken disabled:opacity-40"
           disabled={!built || !mapGrid || layer === 'blocks'} onClick={publish}>
@@ -459,6 +516,21 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           disabled={!built} onClick={() => exportVolumesCsv()}>
           <FileDown className="w-3.5 h-3.5" /> Volumes CSV
+        </button>
+        <button type="button" data-testid="em-grdecl" title="Download the model as an Eclipse corner-point grid (GRDECL) for Reservoir Simulation Studio, one layer per zone"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
+          disabled={!built} onClick={() => exportGrdecl()}>
+          <FileDown className="w-3.5 h-3.5" /> GRDECL
+        </button>
+        <button type="button" data-testid="em-send-rcp" title="Open ReservoirCalc Pro with the zone on the map as a prospect: area, column, NTG, porosity, Sw, contacts and FVFs as the model has them"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
+          disabled={!built} onClick={() => sendToRcp()}>
+          <ExternalLink className="w-3.5 h-3.5" /> Prospect to RCP
+        </button>
+        <button type="button" data-testid="em-report-pdf" title="Download the model report (PDF): reviewer header, volumes, contacts as used, flags, provenance, ties and the map"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
+          disabled={!built || reporting} onClick={() => exportReportPdf()}>
+          <FileText className="w-3.5 h-3.5" /> Report PDF
         </button>
         {lastPublished && (
           <>
@@ -490,7 +562,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
 
   const statusBar = (
     <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
-      <span data-testid="em-status" className="truncate">{status}</span>
+      <span data-testid="em-status" className="truncate">{building && buildProgress ? `Building: ${buildProgress.label} (${Math.round(100 * buildProgress.fraction)}%)` : status}</span>
       <span className="ml-auto whitespace-nowrap" data-testid="em-frame">
         {built ? `${built.spec.nx}×${built.spec.ny} @ ${fmtCell(built.specM.dx)} m` : `${definition.surfaceIds.length} surfaces stacked`}
       </span>
@@ -580,6 +652,40 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       setStatus(`Volumes exported as ${fileName}.`);
     } catch (e) { setStatus(e.message); }
   };
+  // U2-003: the model report a reviewer signs (PDF); the map on screen goes in as a picture
+  // U2-011: the corner-point grid for Reservoir Simulation Studio (GRID include + SWAT include)
+  const exportGrdecl = () => {
+    try {
+      const g = grdeclText(built, { name: definition.name });
+      downloadBlob(new Blob([g.text], { type: 'text/plain' }), g.fileName);
+      downloadBlob(new Blob([g.swatText], { type: 'text/plain' }), g.swatFileName);
+      setStatus(`Exported ${g.fileName} (${g.dims.nx} x ${g.dims.ny} x ${g.dims.nz}, ${g.active} active cells) and ${g.swatFileName}. Upload both in Reservoir Simulation Studio's Deck tab and INCLUDE them in the GRID and SOLUTION sections; add permeability.`);
+    } catch (e) { setStatus(e.message); }
+  };
+  // U2-009: the model to ReservoirCalc Pro as a prospect (the zone on the map)
+  const navigate = useNavigate();
+  const sendToRcp = () => {
+    try {
+      const usedWells = (wells || []).filter((w) => (w.zones || []).some((z) => definition.zones.some((d) => d.registryZone && d.registryZone === z.name)));
+      const payload = buildEarthModelProspect(built, { name: definition.name, wells: usedWells, report });
+      const id = writeProspectHandoff(payload);
+      navigate(rcpProspectHref(id, zoneIdx, appPath(RESERVOIRCALC_ID, appPaths)));
+    } catch (e) { setStatus(e.message); }
+  };
+  const exportReportPdf = async () => {
+    if (!built) return;
+    setReporting(true);
+    try {
+      const images = [];
+      const canvas = document.querySelector('[data-testid="em-map-canvas"] canvas') || document.querySelector('canvas[data-testid="em-map-canvas"]');
+      if (canvas && canvas.width > 0) {
+        try { images.push({ title: `Map: ${zoneName} ${layerLabel}`, dataUrl: canvas.toDataURL('image/png'), w: canvas.width, h: canvas.height }); } catch { /* a tainted canvas is skipped */ }
+      }
+      const { doc, fileName } = await buildModelReportPdf({ built, name: definition.name, volumeUnits, report, images });
+      downloadBlob(doc.output('blob'), fileName);
+      setStatus(`Model report exported as ${fileName}.`);
+    } catch (e) { setStatus(e.message); } finally { setReporting(false); }
+  };
   const exportSectionPng = async () => {
     try {
       const blob = await sectionRef.current?.toBlob();
@@ -624,11 +730,12 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry…
     </div>
   ) : view === 'qc' ? (
-    <QcPanel built={built} surfaceNames={surfaceNames} depthUnit={depthUnit} volumeUnits={volumeUnits} />
+    <QcPanel built={built} surfaceNames={surfaceNames} depthUnit={depthUnit} volumeUnits={volumeUnits}
+      onDistribution={(d) => { setBuilt((b) => (b ? { ...b, distribution: d } : b)); setStatus(`Volume distribution: ${d.iterations} trials, seed ${d.seed}. P90 is the low case.`); }} />
   ) : view === '3d' ? (
     <div className="p-3 h-full min-h-0">
       {built ? (
-        <FrameworkView3D built={built} wells={wells} surfaceNames={surfaceNames} faultPolygons={definition.faultPolygons || []} depthUnit={depthUnit} onStatus={setStatus} />
+        <FrameworkView3D built={built} wells={wells} surfaceNames={surfaceNames} faultPolygons={definition.faultPolygons || []} depthUnit={depthUnit} onStatus={setStatus} fenceLine={sectionVertices} />
       ) : (
         <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="em-3d-empty">Build the model to see it in 3D.</div>
       )}
@@ -666,7 +773,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
         spec={built.spec}
         grid={mapGrid}
         wells={wells}
-        polygons={definition.faultPolygons || []}
+        polygons={built.polygonsByZone ? built.polygonsByZone[zoneIdx].map((ring, q) => ({ ...(definition.faultPolygons[q] || {}), vertices: ring })) : (definition.faultPolygons || [])}
         pendingVertices={pending}
         drawing={drawing || sectionDrawing}
         onMapClick={({ x, y }) => (sectionDrawing ? setSectionPending((p) => [...p, [x, y]]) : setPending((p) => [...p, [x, y]]))}
@@ -699,9 +806,11 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           onMoveSurface={moveSurface}
           onDeletePolygon={deletePolygon}
           culturePolygons={culturePolygons}
-          seismicFaults={seismicFaults}
-          onAddSeismicFault={addSeismicFault}
           onAddCulturePolygon={addCulturePolygon}
+          seismicFaults={seismicFaults}
+          seismicHookReason={backend[SEISMIC_FAULTS_HOOK.method] ? null : SEISMIC_FAULTS_HOOK.reason}
+          onAddSeismicFault={addSeismicFault}
+          onAddSeismicFaultPerZone={addSeismicFaultPerZone}
         />
       )}
       center={center}
@@ -731,6 +840,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           onBgUnit={(u) => unitsHook.setUnit('bg', u)}
           onLoadProject={loadProject}
           boundaries={boundaries}
+          scalProjects={scalProjects}
         />
       )}
       dockOpen={dockOpen}

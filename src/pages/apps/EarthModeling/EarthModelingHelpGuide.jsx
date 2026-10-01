@@ -7,7 +7,7 @@
 import React from 'react';
 import {
   BookOpen, Zap, Layers3, Ruler, Crosshair, GitBranch, Pentagon, Rows, Grid3x3, ClipboardCheck,
-  UploadCloud, Link2, AlertTriangle, BookMarked,
+  UploadCloud, Link2, AlertTriangle, BookMarked, Dice5,
 } from 'lucide-react';
 import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Code, Callout, Step, Table,
@@ -32,6 +32,7 @@ export const HELP_SECTIONS = [
   { id: 'qc', icon: ClipboardCheck, title: 'QC and volumes' },
   { id: 'publish', icon: UploadCloud, title: 'Publishing and exports' },
   { id: 'links', icon: Link2, title: 'Working with the other apps' },
+  { id: 'step2', icon: Dice5, title: 'Traps, uncertainty, reports and handoffs' },
   { id: 'pitfalls', icon: AlertTriangle, title: 'Pitfalls and FAQ' },
   { id: 'glossary', icon: BookMarked, title: 'Glossary' },
 ];
@@ -168,6 +169,8 @@ export default function EarthModelingHelpGuide() {
           trend: 'A least-squares plane through the wells of the block.',
           okrige: 'Ordinary kriging with a variogram fitted from the wells (or typed), trend removed first; also gives a variance map.',
           krige: 'The original simple kriging with a typed variogram and mean; kept for saved models.',
+          shm: 'Sw from a SCAL Studio saturation-height function: per node, the mean Sw over the hydrocarbon leg from its height above the free-water level.',
+          map: 'Per zone, NTG from a Petrophysics net pay map (net pay / thickness) and Sw from its HCPV map (1 - HCPV / (thickness x NTG x porosity)).',
         }[m.key]])} />
         <Callout tone="info" title="The fallback ladder">
           A block with too few wells falls back to a plane, then to the mean, and a block with no wells uses every well's
@@ -233,6 +236,60 @@ export default function EarthModelingHelpGuide() {
           ['Well Correlation and Petrophysics Studio', 'Tops and zone averages picked there are the ties and the control points here.'],
           ['Geoscience home', 'The home icon at the left of the ribbon.'],
         ]} />
+      </GuideSection>
+
+      <GuideSection id="step2">
+        <SectionHeading icon={Dice5}>Traps, uncertainty, reports and handoffs</SectionHeading>
+        <SubHeading>Building a large model</SubHeading>
+        <Para>
+          Build model runs in the background: the ribbon shows the step and a percentage, the page stays usable, and
+          Cancel stops the build and keeps the previous model.
+        </Para>
+        <SubHeading>Contacts per fault block</SubHeading>
+        <Para>
+          When the model has fault polygons, open Contacts per fault block under a zone and type a GOC or OWC for a block
+          whose fault seals. Blank keeps the zone contact. Block 0 is the area outside every fault polygon.
+        </Para>
+        <SubHeading>Bound the leg by the closure and spill</SubHeading>
+        <Para>
+          Tick bound the leg by the closure and spill under a zone. Mapping &amp; Surface Studio&apos;s closure engine runs on
+          the zone top: a contact below the spill point fills the trap only to the spill, and nodes above the contact
+          outside the trap hold no hydrocarbon. QC says where each trap spills, or that it spills at the model edge.
+        </Para>
+        <SubHeading>Sw from saturation-height</SubHeading>
+        <Para>
+          Pick saturation-height for Sw, then a saved SCAL Studio project. The free-water level is the project&apos;s unless you
+          type one. With no OWC typed, the free-water level bounds the hydrocarbon leg and the transition zone above it is in
+          Sw. Rock: the project&apos;s porosity and permeability, or the modelled porosity through the Leverett scaling.
+        </Para>
+        <SubHeading>Faults from Seismolord</SubHeading>
+        <Para>
+          Interpreted faults are listed under Faults from Seismolord once Seismolord publishes them to the other apps. Add
+          one after a build: its fault surface is cut with every zone top, so each zone gets its own hanging-wall block and a
+          sloping fault moves the block boundary from zone to zone. A fault with no depth (its volume has no velocity model)
+          cannot be added.
+        </Para>
+        <SubHeading>Volume distribution</SubHeading>
+        <Para>
+          QC and volumes, Volume distribution: type the spread of the contacts (plus or minus metres), of Bo and Bg (plus or
+          minus percent), tick kriged properties, then Run. Each trial re-runs the volumes with the Suite&apos;s canonical Monte
+          Carlo sampler. P90 is the low case (the 10th percentile of outcomes), P10 the high case. The same seed gives the
+          same answer.
+        </Para>
+        <SubHeading>Report PDF, GRDECL and ReservoirCalc Pro</SubHeading>
+        <Para>
+          Report PDF is the model report a reviewer signs: field, analyst, date and build, the volumes, the contacts and
+          FVFs as used, every flag, provenance, ties and the map. GRDECL downloads the model as an Eclipse corner-point grid
+          (one layer per zone) and a SWAT include for Reservoir Simulation Studio; add permeability in the deck. Prospect to
+          RCP opens ReservoirCalc Pro with the zone on the map filled in: area, average column, NTG, porosity, the Sw that
+          keeps the model&apos;s HCPV, contacts and FVFs.
+        </Para>
+        <SubHeading>3D properties, fence and isopach</SubHeading>
+        <Para>
+          In 3D, colour cycles depth, surface and property (porosity, Sw or NTG of the zone below each surface); fence draws
+          a section along the Section view&apos;s line. The map&apos;s Isopach layer is the true stratigraphic thickness (vertical
+          thickness times the cosine of the dip); volumes still use the vertical thickness.
+        </Para>
       </GuideSection>
 
       <GuideSection id="pitfalls">
