@@ -77,12 +77,13 @@ test('mud window along the golden slant trajectory matches the oracle', async ()
   for (const cp of CASE.expected.checkpoints) {
     const row = win.rows.find((r) => Math.abs(r.md - cp.md) < 1e-6);
     expect(row).toBeTruthy();
-    // Float32 round-trip through the published curves costs ~1e-7 relative.
-    expectClose(row.collapseEmwKgM3, cp.collapseEmwKgM3, 1e-4, 0.05);
-    expectClose(row.fracInitEmwKgM3, cp.fracInitEmwKgM3, 1e-4, 0.05);
+    // Float32 round-trip costs ~1e-7 relative; the MD grid between the oracle's
+    // 50 m nodes costs up to ~2e-4 (linear interpolation of the profile)
+    expectClose(row.collapseEmwKgM3, cp.collapseEmwKgM3, TOL, 0.05);
+    expectClose(row.fracInitEmwKgM3, cp.fracInitEmwKgM3, TOL, 0.05);
   }
   expectClose(win.tightest.md, CASE.expected.tightestMd, 1e-6, 1e-6);
-  expectClose(win.tightest.widthKgM3, CASE.expected.tightestWidthKgM3, 1e-3, 0.1);
+  expectClose(win.tightest.widthKgM3, CASE.expected.tightestWidthKgM3, TOL, 0.1);
 });
 
 test('gm-1.0.0 publish round trip with overwrite-own', async () => {
