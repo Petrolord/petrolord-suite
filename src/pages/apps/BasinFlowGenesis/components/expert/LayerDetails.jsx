@@ -13,18 +13,13 @@ import { NumText } from '@/components/wells/LayoutPanel';
 import { getThermalProps } from '../../services/ThermalPropertiesLibrary';
 import { getCompactionParams } from '../../services/CompactionModelLibrary';
 import { staleOverrides, withLibraryProperties } from '../../services/honesty';
+import { layerLibrary, lithologyLabel, mixPercent, MIX_LITHOLOGIES, KINETICS_OPTIONS, kineticsKey, customKinetics } from '../../services/lithologyMix';
+import { PepperCorvi1995 } from '../../services/KerogenLibrary';
 
 const inputCls = 'h-7 w-full rounded border border-pl-border-strong bg-pl-surface px-1.5 text-xs text-pl-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus';
-const KEROGENS = [['type1', 'Type I (lacustrine, oil prone)'], ['type2', 'Type II (marine)'], ['type3', 'Type III (terrestrial, gas prone)']];
 
 /** 'Type II', 'type2' or a kinetics object to the select value. */
-export function kerogenKey(k) {
-  if (k && typeof k === 'object') return 'custom';
-  const c = String(k || 'type2').toLowerCase().replace(/\s+/g, '');
-  if (c === 'type1' || c === 'typei') return 'type1';
-  if (c === 'type3' || c === 'typeiii') return 'type3';
-  return 'type2';
-}
+export function kerogenKey(k) { return kineticsKey(k); }
 
 const Field = ({ label, unit, children, testid }) => (
   <label className="block" data-testid={testid}>
@@ -37,7 +32,21 @@ export default function LayerDetails({ layer, dispatch, readOnly = false }) {
   const set = (payload) => dispatch({ type: 'UPDATE_LAYER', id: layer.id, payload });
   const sr = layer.sourceRock || { isSource: false, toc: 0, hi: 0, kerogen: 'type2' };
   const setSr = (patch) => set({ sourceRock: { ...sr, ...patch } });
-  const libT = getThermalProps(layer.lithology); const libC = getCompactionParams(layer.lithology);
+  // U2-013: a mixed layer's library is its mixture
+  const lib = layerLibrary(layer);
+  const libT = lib.thermal; const libC = lib.compaction;
+  const mix = mixPercent(layer);
+  const lithName = lithologyLabel(layer);
+  const setMix = (k, v) => {
+    const next = { sandstone: 0, shale: 0, limestone: 0, ...(layer.lithologyMix || {}), [k]: Math.max(0, Number(v) || 0) };
+    if (MIX_LITHOLOGIES.some((x) => next[x] > 0)) set({ lithologyMix: next });
+  };
+  const cust = (sr.kerogen && typeof sr.kerogen === 'object' && sr.kerogen.custom) || null;
+  const setCustom = (patch) => {
+    const base = cust || PepperCorvi1995.B;
+    const next = { aFactor: base.aFactor, eMeanKJ: base.eMeanKJ, sigmaKJ: base.sigmaKJ, ...patch };
+    if (next.aFactor > 0 && next.eMeanKJ > 0 && next.sigmaKJ >= 0) setSr({ kerogen: customKinetics(next) });
+  };
   const th = { ...libT, ...(layer.thermal || {}) };
   const co = { ...libC, ...(layer.compaction || {}) };
   const setTh = (patch) => set({ thermal: { conductivity: th.conductivity, radiogenic: th.radiogenic, heatCapacity: th.heatCapacity, ...patch } });
@@ -61,15 +70,40 @@ export default function LayerDetails({ layer, dispatch, readOnly = false }) {
             <Field label="TOC" unit="wt %"><NumText className={inputCls} value={sr.toc} onCommit={(v) => setSr({ toc: v })} data-testid="bf-layer-toc" disabled={readOnly} /></Field>
             <Field label="HI" unit="mg HC/g TOC"><NumText className={inputCls} value={sr.hi} onCommit={(v) => setSr({ hi: v })} data-testid="bf-layer-hi" disabled={readOnly} /></Field>
             <Field label="Kerogen">
-              <select className={inputCls} value={kKey} disabled={readOnly || kKey === 'custom'} data-testid="bf-layer-kerogen"
-                onChange={(e) => setSr({ kerogen: e.target.value })}>
-                {kKey === 'custom' && <option value="custom">Custom kinetics</option>}
-                {KEROGENS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              <select className={inputCls} value={kKey} disabled={readOnly} data-testid="bf-layer-kerogen"
+                onChange={(e) => (e.target.value === 'custom' ? setCustom({}) : setSr({ kerogen: e.target.value }))}>
+                {KINETICS_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </Field>
           </div>
         )}
+        {sr.isSource && kKey === 'custom' && (
+          <div className="grid grid-cols-3 gap-2" data-testid="bf-layer-kinetics">
+            {cust ? (
+              <>
+                <Field label="Frequency factor A" unit="1/s"><NumText className={inputCls} value={cust.aFactor} onCommit={(v) => setCustom({ aFactor: v })} data-testid="bf-layer-kin-a" disabled={readOnly} /></Field>
+                <Field label="Mean activation energy" unit="kJ/mol"><NumText className={inputCls} value={cust.eMeanKJ} onCommit={(v) => setCustom({ eMeanKJ: v })} data-testid="bf-layer-kin-e" disabled={readOnly} /></Field>
+                <Field label="Spread (standard deviation)" unit="kJ/mol"><NumText className={inputCls} value={cust.sigmaKJ} onCommit={(v) => setCustom({ sigmaKJ: v })} data-testid="bf-layer-kin-s" disabled={readOnly} /></Field>
+              </>
+            ) : <p className="col-span-3 text-[11px] text-pl-muted">Kinetics set outside the editor (a table of reaction fractions); choose a library set to replace them.</p>}
+          </div>
+        )}
+        {sr.isSource && kKey.startsWith('pc-') && (
+          <p className="text-[11px] text-pl-muted" data-testid="bf-layer-kinetics-note">Pepper and Corvi (1995) oil generation: A {PepperCorvi1995[kKey.slice(3)].aFactor.toExponential(2)} 1/s, mean E {PepperCorvi1995[kKey.slice(3)].eMeanKJ} kJ/mol, spread {PepperCorvi1995[kKey.slice(3)].sigmaKJ} kJ/mol.</p>
+        )}
       </div>
+      {layer.lithology === 'mixed' && (
+        <div className="space-y-1" data-testid="bf-layer-mix">
+          <div className="grid grid-cols-3 gap-2">
+            {MIX_LITHOLOGIES.map((k) => (
+              <Field key={k} label={k[0].toUpperCase() + k.slice(1)} unit="parts">
+                <NumText className={inputCls} value={Number(layer.lithologyMix?.[k] ?? 0)} onCommit={(v) => setMix(k, v)} data-testid={`bf-layer-mix-${k}`} disabled={readOnly} />
+              </Field>
+            ))}
+          </div>
+          <p className="text-[11px] text-pl-muted" data-testid="bf-layer-mix-label">Mixture: {lithName}. Porosity, compaction and heat capacity mix by fraction; conductivity by the geometric mean. Changing the parts resets the properties below to the mixture.</p>
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-2">
         <Field label="Matrix conductivity" unit="W/(m K)" testid="bf-layer-k-field">
           <NumText className={inputCls} value={Number(th.conductivity)} onCommit={(v) => Number(v) > 0 && setTh({ conductivity: v })} data-testid="bf-layer-k" disabled={readOnly} />
@@ -89,14 +123,14 @@ export default function LayerDetails({ layer, dispatch, readOnly = false }) {
         <div className="flex items-end">
           <button type="button" disabled={readOnly} data-testid="bf-layer-library"
             className="h-7 w-full rounded border border-pl-border text-[11px] text-pl-text hover:bg-pl-sunken disabled:opacity-40"
-            title={`Set the five properties to the ${layer.lithology} library values`}
+            title={`Set the five properties to the ${layer.lithology === 'mixed' ? 'mixture' : `${layer.lithology} library`} values`}
             onClick={() => set(withLibraryProperties(layer))}>
-            Use {layer.lithology} library
+            {layer.lithology === 'mixed' ? 'Use the mixture' : `Use ${layer.lithology} library`}
           </button>
         </div>
       </div>
       {(custom(th.conductivity, libT.conductivity) || custom(co.phi0, libC.phi0) || custom(co.c, libC.c) || custom(th.radiogenic, libT.radiogenic) || custom(th.heatCapacity, libT.heatCapacity)) && (
-        <p className="text-[11px] text-pl-muted" data-testid="bf-layer-custom">Some properties differ from the {layer.lithology} library ({libT.conductivity} W/(m K), {(libT.radiogenic * 1e6).toFixed(1)} microW/m3, porosity {libC.phi0} with {(libC.c * 1000).toFixed(2)}/km).</p>
+        <p className="text-[11px] text-pl-muted" data-testid="bf-layer-custom">Some properties differ from the {layer.lithology === 'mixed' ? 'mixture' : `${layer.lithology} library`} ({Number(libT.conductivity.toFixed(2))} W/(m K), {(libT.radiogenic * 1e6).toFixed(1)} microW/m3, porosity {Number(libC.phi0.toFixed(3))} with {(libC.c * 1000).toFixed(2)}/km).</p>
       )}
       {stale && (
         <p className="text-[11px] text-pl-warning-text" data-testid="bf-layer-stale">

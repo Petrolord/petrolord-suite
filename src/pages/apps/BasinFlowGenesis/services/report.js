@@ -13,6 +13,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { depthToDisplay, tempToDisplay, tempDeltaToDisplay } from './units';
 import { finalDepthProfile, calibrationProfile, eventsChartRows, withLayerRoles } from './resultsView';
 import { withCorrectedTemps, bhtMethodText } from './bht';
+import { layerLibrary, lithologyLabel, kineticsLabel } from './lithologyMix';
 import { drawBurialChart, drawMaturityChart, drawEventsChart } from './reportCharts';
 import { presentDayHeatFlow } from './history';
 import { getThermalProps } from './ThermalPropertiesLibrary';
@@ -87,10 +88,11 @@ export function reviewerLines(p) {
 export function inputRows(state, units) {
   const zU = units.depth;
   return (state?.stratigraphy || []).map((l) => {
-    const t = { ...getThermalProps(l.lithology), ...(l.thermal || {}) };
-    const c = { ...getCompactionParams(l.lithology), ...(l.compaction || {}) };
-    const sr = l.sourceRock?.isSource ? `TOC ${l.sourceRock.toc}, HI ${l.sourceRock.hi}, ${typeof l.sourceRock.kerogen === 'string' ? l.sourceRock.kerogen : 'custom'}` : '';
-    return [l.name, `${l.ageStart} - ${l.ageEnd}${l.agesGuessed ? ' (placeholder)' : ''}`, f(depthToDisplay(Number(l.thickness), zU), zU === 'ft' ? 0 : 1), l.lithology,
+    const lib = layerLibrary(l);
+    const t = { ...lib.thermal, ...(l.thermal || {}) };
+    const c = { ...lib.compaction, ...(l.compaction || {}) };
+    const sr = l.sourceRock?.isSource ? `TOC ${l.sourceRock.toc}, HI ${l.sourceRock.hi}, ${kineticsLabel(l.sourceRock.kerogen)}` : '';
+    return [l.name, `${l.ageStart} - ${l.ageEnd}${l.agesGuessed ? ' (placeholder)' : ''}`, f(depthToDisplay(Number(l.thickness), zU), zU === 'ft' ? 0 : 1), lithologyLabel(l),
       f(Number(t.conductivity), 2), f(Number(c.phi0), 2), f(Number(c.c) * 1000, 2), sr].map(latin1);
   });
 }

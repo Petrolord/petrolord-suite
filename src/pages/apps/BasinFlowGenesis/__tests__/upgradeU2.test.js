@@ -164,3 +164,45 @@ describe('U2-005 maximum-burial compaction in the app', () => {
     expect(lines).toMatch(/Compaction: maximum burial; the present thicknesses are reproduced to 0(\.\d+)? m/);
   }, 300000);
 });
+
+describe('U2-013 kinetics and lithology mixing in the app', () => {
+  const { layerLibrary, lithologyLabel, kineticsKey, kineticsLabel, customKinetics, KINETICS_OPTIONS } = require('../services/lithologyMix');
+  const { engineInputsKey, withLibraryProperties } = require('../services/honesty');
+  const { PepperCorvi1995 } = require('../services/KerogenLibrary');
+
+  test('a mixed layer carries its mixture as explicit properties and the engine reads the same numbers either way', async () => {
+    const mixed = { id: 'm', name: 'Mixed', lithology: 'mixed', lithologyMix: { sandstone: 30, shale: 70, limestone: 0 }, ageStart: 80, ageEnd: 30, thickness: 2000 };
+    const lib = layerLibrary(mixed);
+    expect(lib.thermal.conductivity).toBeCloseTo(Math.exp(0.3 * Math.log(3.5) + 0.7 * Math.log(1.8)), 12);
+    expect(lib.compaction.phi0).toBeCloseTo(0.3 * 0.49 + 0.7 * 0.63, 12);
+    expect(lithologyLabel(mixed)).toBe('70 % shale, 30 % sandstone');
+    const top = { id: 't', name: 'Top', lithology: 'shale', ageStart: 30, ageEnd: 0, thickness: 1000 };
+    const run = async (l) => (await SimulationEngine.run({ stratigraphy: [top, l], heatFlow: { type: 'constant', value: 60 }, erosionEvents: [], settings: { surfaceTemp: 15 } })).data.maturity[0].slice(-1)[0].value;
+    const byMix = await run(mixed);
+    const byOverrides = await run(withLibraryProperties(mixed));
+    expect(byOverrides).toBeCloseTo(byMix, 12);
+    // the fractions are inputs: changing them changes the key
+    const key = (mix) => engineInputsKey({ stratigraphy: [{ ...mixed, lithologyMix: mix }] });
+    expect(key({ sandstone: 30, shale: 70 })).not.toBe(key({ sandstone: 50, shale: 50 }));
+  }, 120000);
+
+  test('kinetics choices: the Pepper and Corvi sets resolve by key, a custom set rides with its three numbers', async () => {
+    expect(KINETICS_OPTIONS.map(([v]) => v)).toEqual(['type1', 'type2', 'type3', 'pc-A', 'pc-B', 'pc-C', 'pc-DE', 'pc-F', 'custom']);
+    expect(kineticsKey('pc-de')).toBe('pc-DE');
+    expect(kineticsKey('Type II')).toBe('type2');
+    const c = customKinetics({ aFactor: 2.13e13, eMeanKJ: 206.4, sigmaKJ: 8.2 });
+    expect(kineticsKey(c)).toBe('custom');
+    expect(kineticsLabel(c)).toMatch(/custom kinetics \(A 2\.13e\+13 1\/s, E 206\.4 kJ\/mol, sd 8\.2\)/);
+    const tr = async (kerogen) => {
+      const p = ref();
+      p.stratigraphy = p.stratigraphy.map((l) => (l.sourceRock?.isSource ? { ...l, sourceRock: { ...l.sourceRock, kerogen } } : l));
+      const r = await SimulationEngine.run(p);
+      const li = r.meta.layers.findIndex((l) => l.id === 'source_shale');
+      return r.data.transformation[li].find((e) => e.age === 100).value;
+    };
+    // the custom set with organofacies A's published numbers is organofacies A
+    expect(await tr(c)).toBeCloseTo(await tr('pc-A'), 12);
+    expect(await tr('pc-A')).toBeGreaterThan(await tr('pc-F'));
+    expect(PepperCorvi1995.B.eMeanKJ).toBe(215.2);
+  }, 300000);
+});

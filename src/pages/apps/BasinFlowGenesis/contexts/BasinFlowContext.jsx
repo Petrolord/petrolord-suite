@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { UNITS_KEY, DEPTH_UNITS, TEMP_UNITS, readUnits } from '../services/units';
 import { useAppUnits } from '@/lib/units/useAppUnits';
 import { engineInputsKey } from '../services/honesty';
+import { layerLibrary } from '../services/lithologyMix';
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 
@@ -122,12 +123,18 @@ function reducer(state, action) {
                 // overrides to the new lithology's library defaults —
                 // otherwise the engine would keep applying the old
                 // lithology's phi0/c/conductivity as explicit overrides.
-                if (action.payload.lithology && action.payload.lithology !== layer.lithology
-                    && !action.payload.thermal && !action.payload.compaction) {
-                    const t = getThermalProps(action.payload.lithology);
-                    const c = getCompactionParams(action.payload.lithology);
-                    updated.thermal = { conductivity: t.conductivity, radiogenic: t.radiogenic, heatCapacity: t.heatCapacity };
-                    updated.compaction = { model: 'exponential', phi0: c.phi0, c: c.c };
+                // U2-013: a mixed layer's properties follow its fractions
+                const lithChanged = action.payload.lithology && action.payload.lithology !== layer.lithology;
+                const mixChanged = updated.lithology === 'mixed' && action.payload.lithologyMix;
+                if ((lithChanged || mixChanged) && !action.payload.thermal && !action.payload.compaction) {
+                    if (lithChanged && updated.lithology === 'mixed' && !action.payload.lithologyMix) {
+                        // start a mix from what the layer was
+                        const from = ['sandstone', 'shale', 'limestone'].includes(layer.lithology) ? layer.lithology : 'shale';
+                        updated.lithologyMix = { sandstone: 0, shale: 0, limestone: 0, [from]: 100 };
+                    }
+                    const lib = layerLibrary(updated);
+                    updated.thermal = lib.thermal;
+                    updated.compaction = lib.compaction;
                 }
                 return updated;
             })

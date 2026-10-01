@@ -17,6 +17,7 @@
 import { getThermalProps, ThermalProperties } from './ThermalPropertiesLibrary';
 import { ageOnChart, isTimescaleVersion, TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
 import { getCompactionParams, LithologyCompaction } from './CompactionModelLibrary';
+import { layerLibrary } from './lithologyMix';
 
 const LITHS = ['sandstone', 'shale', 'limestone', 'salt', 'coal'];
 const num = (v) => (v === null || v === undefined || v === '' ? NaN : Number(v));
@@ -28,6 +29,8 @@ export function engineInputsKey(state) {
     src: l.sourceRock?.isSource ? { toc: num(l.sourceRock.toc), hi: num(l.sourceRock.hi), k: typeof l.sourceRock.kerogen === 'string' ? l.sourceRock.kerogen : JSON.stringify(l.sourceRock.kerogen ?? null) } : null,
     th: l.thermal ? [num(l.thermal.conductivity), num(l.thermal.radiogenic), num(l.thermal.heatCapacity)] : null,
     co: l.compaction ? [num(l.compaction.phi0), num(l.compaction.c), num(l.compaction.grainDensity)] : null,
+    // U2-013: a mixed layer's fractions are inputs (keys added only when used, so earlier results keep their key)
+    ...(l.lithology === 'mixed' && l.lithologyMix ? { mix: Object.entries(l.lithologyMix).filter(([, w]) => Number(w) > 0).sort(([a], [b]) => (a < b ? -1 : 1)) } : {}),
   }));
   const hf = state?.heatFlow || {};
   return JSON.stringify({
@@ -67,8 +70,9 @@ export function staleOverrides(layer) {
 
 /** The layer with its thermal and compaction overrides set to its own lithology's library values. */
 export function withLibraryProperties(layer) {
-  const t = getThermalProps(layer.lithology); const c = getCompactionParams(layer.lithology);
-  return { ...layer, thermal: { conductivity: t.conductivity, radiogenic: t.radiogenic, heatCapacity: t.heatCapacity }, compaction: { model: 'exponential', phi0: c.phi0, c: c.c } };
+  // U2-013: a mixed layer's library is its mixture
+  const lib = layerLibrary(layer);
+  return { ...layer, thermal: lib.thermal, compaction: lib.compaction };
 }
 
 const FIELD_WORD = { conductivity: 'conductivity', radiogenic: 'radiogenic heat', heatCapacity: 'heat capacity', phi0: 'surface porosity', c: 'compaction coefficient' };
