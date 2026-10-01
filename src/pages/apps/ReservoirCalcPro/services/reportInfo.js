@@ -71,7 +71,7 @@ export function reviewerLines(p) {
   if (results?.openEdge?.open) lines.push(`OPEN CLOSURE: the hydrocarbon column reaches the edge of the mapped surface at ${results.openEdge.cells} cells; the volume is a minimum, not a trap volume.`);
   if (probResults?.stats) {
     const m = probResults.meta || {};
-    lines.push(`Monte Carlo: ${(m.iterations || probResults.stats.iterations || 0).toLocaleString('en-US')} realizations, ${m.grvMode === 'structural' ? 'GRV from the surface against sampled contacts' : 'area x thickness'}${m.ranAt ? `, run ${m.ranAt.slice(0, 16).replace('T', ' ')} UTC` : ''}. P90 (low), P50 (best) and P10 (high) are the volumes exceeded with 90, 50 and 10 percent probability.`);
+    lines.push(`Monte Carlo: ${(m.iterations || probResults.stats.iterations || 0).toLocaleString('en-US')} realizations, ${m.grvMode === 'structural' ? 'GRV from the surface against sampled contacts' : 'area x thickness'}${m.ranAt ? `, run ${m.ranAt.slice(0, 16).replace('T', ' ')} UTC` : ''}${Number.isFinite(m.seed) ? `, seed ${m.seed}` : ''}. P90 (low), P50 (best) and P10 (high) are the volumes exceeded with 90, 50 and 10 percent probability.`);
   }
   return lines.map(latin1);
 }

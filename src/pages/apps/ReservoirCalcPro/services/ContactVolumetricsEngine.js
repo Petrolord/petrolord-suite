@@ -1,5 +1,6 @@
 import { makeInterpolator } from './GriddingEngine';
 import { PolygonClippingEngine } from './PolygonClippingEngine';
+import { hypsometryFromTable } from './hypsometry';
 
 const FT_PER_M = 3.280839895;
 const SQFT_PER_ACRE = 43560;
@@ -195,54 +196,23 @@ export class ContactVolumetricsEngine {
             for (const c of cells) v += Math.max(0, Math.min(c.bd, z) - c.td) * c.area;
             volume[k] = v;
         }
-        const vTotal = volume[N - 1];
-
-        // Contacts are TVDSS elevations in workspace units (ft field, m metric;
-        // FluidContactManager stores them so), which are also the target
-        // units: depth-down is the negation, whatever the surface's own unit
-        // or sign (RCP-T1-011).
-        const toTargetDepth = (userZ) => -userZ;
-
-        const rockToContact = (userZ) => {
-            if (userZ === null || userZ === undefined || userZ === '' || isNaN(parseFloat(userZ))) return vTotal;
-            const z = toTargetDepth(parseFloat(userZ));
-            if (z <= zLo) return 0;
-            if (z >= zHi) return vTotal;
-            const t = ((z - zLo) / span) * (N - 1);
-            const i = Math.floor(t);
-            const frac = t - i;
-            return volume[i] + (volume[i + 1] - volume[i]) * frac;
-        };
-
-        const zoneVolumes = (fluidType, owc, goc) => {
-            if (fluidType === 'gas') {
-                const gwc = isNum(goc) ? goc : owc;             // gas-water contact
-                return { grvOil: 0, grvGas: rockToContact(gwc) };
-            }
-            if (fluidType === 'oil_gas' && isNum(goc)) {
-                // RCP-U1-007: a GOC below the OWC stops at the OWC (gas never
-                // sits under the water leg)
-                const g = isNum(owc) ? Math.max(parseFloat(goc), parseFloat(owc)) : parseFloat(goc);
-                const vGoc = rockToContact(g);
-                const vOwc = rockToContact(owc);
-                return { grvGas: vGoc, grvOil: Math.max(0, vOwc - vGoc) };
-            }
-            // oil (or oil_gas with no GOC → undersaturated oil, no gas cap)
-            return { grvOil: rockToContact(owc), grvGas: 0 };
-        };
-
+        // U2-006: the model is a plain table (it crosses into the Monte
+        // Carlo worker); hypsometryFromTable gives back rockToContact and
+        // zoneVolumes. Contacts are TVDSS elevations in workspace units
+        // (ft field, m metric), also the target units: depth-down is the
+        // negation, whatever the surface's own unit or sign (RCP-T1-011).
         return {
+            ...hypsometryFromTable({
+                kind: 'hypsometry-table',
+                zLo, zHi, volume, totalArea,
+                // RCP-U1-012: contacts (TVDSS elevation) deeper than this are open
+                edgeElevation: Number.isFinite(meta.edgeTop) ? -meta.edgeTop : null,
+                isField: meta.isField,
+                volUnit: meta.volUnit,
+                areaUnit: meta.areaUnit,
+                source: 'grid',
+            }),
             meta,
-            vTotal,
-            totalArea,
-            zLo, zHi,
-            // RCP-U1-012: contacts (TVDSS elevation) deeper than this are open
-            edgeElevation: Number.isFinite(meta.edgeTop) ? -meta.edgeTop : null,
-            rockToContact,
-            zoneVolumes,
-            isField: meta.isField,
-            volUnit: meta.volUnit,
-            areaUnit: meta.areaUnit,
         };
     }
 

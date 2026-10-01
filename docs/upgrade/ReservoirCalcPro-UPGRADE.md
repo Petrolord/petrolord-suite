@@ -194,3 +194,22 @@ Batches:
 2. Earth Modeling U2 adds a two-line mount to RCP's ExpertInputPanel; whichever merges second resolves it (no overlap with U1's lines).
 3. Saved prospects from before U1 carry in-place volumes; the valuation now flags them. Owners should re-run and re-add them.
 4. U2-014 needs a migration and a second engineer.
+
+## Batch decision (programme lead, 2026-10-01)
+
+Recorded verbatim:
+
+> BUILD in order, one commit per item:
+> - Batch A: U2-006 Monte Carlo in a worker with progress and cancel (same statistics as before for a fixed seed; the canonical engine moves into the worker, it is not reimplemented); U2-005 sample the registry lattice directly (fixes RCP-U1-036: validate GRV against Mapping's own GRV on the same surface to within 0.1 percent; negative control with the old IDW path); U2-001 area/depth GRV table (validate against an analytic cone and against Mapping's contactVolumes); U2-008 spill-aware hydrocarbon leg (reuse Mapping's closure/spill helpers); U2-002 correlation editor (positive semidefinite check, honest refusal, applied in the canonical engine's correlation path); U2-004 LAST: consume Earth Modeling's prospect contract (`src/lib/earthModelProspect.js`, from Earth Modeling U2-009 on feat/em-u2): if it has merged to main when you reach this item, wire it and resolve the ExpertInputPanel mount; if not, skip it and say so (Earth Modeling's PR will then own the mount).
+> - Batch B: U2-007 solution gas (Rs), Rv and saturation height (reuse Petrophysics saturationHeight.js); U2-009 the shared Mapping map kit in RCP; U2-011 one-page prospect PDF with a reviewer header, read back with pdftotext; U2-012 economics through the canonical NPV (calculateEconomics or the EPE cash-flow engine; no new NPV code); U2-013 gridding settings saved with the project.
+> - Batch C: U2-015 retire the Seismolord legacy exports (only if nothing still reads them; prove it with a search and the suites); U2-017 spider plot and distribution fitting (fitting validated against known samples, negative control).
+> DEFERRED (record reasons): U2-003 segments with dependencies (L, after NAPE); U2-010 play/prospect chance split; U2-014 org sharing (migration + second engineer); U2-016 portfolio Monte Carlo (L).
+> Owner item 3 (prospects saved before U1 hold in-place volumes and are flagged): add a one-click "Re-run this prospect" in Risked Reserves for flagged prospects if it is S-sized; otherwise record it.
+
+Built on branch `feat/rcp-u2`, one commit per item.
+
+## Step 2 build (2026-10-01)
+
+| Item | State | Proving test | Notes |
+|---|---|---|---|
+| U2-006 | Done | `__tests__/upgradeU2Worker.test.js` (8): a seeded run through the worker's own message handler gives the same realizations and statistics as the page engine on the same random stream (and, checked once by hand, as the engine on origin/main with `Math.random` on that stream: identical `stats`); the handler calls `MonteCarloEngine.simulate` (spy); a structural run crosses the boundary as a table and gives the same GRV per realization (negative control: the config with the hypsometry's functions cannot be cloned); progress in order; Cancel terminates the worker and rejects; no Worker falls back to the page with the same numbers. e2e `reservoircalc-pro-u2.spec.js`: a 250k run shows progress and is cancelled, then a 10k run says "seed 123, background worker" | `MonteCarloEngine.simulate` is the old `runSimulation` body, unchanged in its arithmetic, with an injectable random stream; `runSimulation` keeps its API. `services/hypsometry.js` (the model as a table), `mcWorkerProtocol.js`, `workers/monteCarlo.worker.js`, `mcWorkerFactory.js` (imported lazily so jest needs no mapper), `mcClient.js`. Options 100k and 250k added; every run is seeded and records its seed (panel, PDF, audit trail). Timing on this box: 250k in about 10 s with the page live. Found in the browser: the run set "calculating" and then cleared it (SET_ERROR order), invisible while the run was synchronous; fixed. Closes RCP-U1-032. |

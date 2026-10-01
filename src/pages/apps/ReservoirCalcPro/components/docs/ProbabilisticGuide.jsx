@@ -14,11 +14,12 @@ const ProbabilisticGuide = () => (
         value back onto it.
       </li>
       <li>
-        <strong>Settings.</strong> Base case consistency mode and the iteration count.
+        <strong>Settings.</strong> Base case consistency mode, the iteration count and the random seed.
       </li>
       <li>
-        <strong>Simulation.</strong> Run the study. The run is asynchronous and reports progress at
-        completion.
+        <strong>Simulation.</strong> Run the study. The run is in a background worker: the page stays
+        live, a bar shows how many realizations are done, and Cancel run stops it and keeps the previous
+        results.
       </li>
     </OL>
     <P>
@@ -249,8 +250,15 @@ const ProbabilisticGuide = () => (
 
     <H2>9. Iterations</H2>
     <P>
-      Four choices are offered: 1,000, 5,000, 10,000 and 50,000. The default is 10,000. The engine
-      floors whatever it receives at 100.
+      Six choices are offered: 1,000, 5,000, 10,000, 50,000, 100,000 and 250,000. The default is
+      10,000. The engine floors whatever it receives at 100. The run is in a background worker
+      (the same engine the page used before), so 250,000 realizations take some seconds without
+      freezing the page; where a browser cannot start a worker, the run falls back to the page.
+    </P>
+    <P>
+      Every run is seeded and records its seed (shown under Run, in the PDF reviewer block and in
+      the audit trail). Type a seed to repeat a run exactly: the same inputs and seed give the same
+      realizations. Leave it empty for a new seed each run.
     </P>
     <P>
       More iterations buy smoother tails. The P50 stabilises quickly, and P90 and P10 are estimated

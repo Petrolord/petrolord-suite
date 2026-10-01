@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useReducer, useMemo, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useReducer, useMemo, useEffect, useRef, useState } from 'react';
 import { VolumeCalculationEngine } from '../services/VolumeCalculationEngine';
 import { ContactVolumetricsEngine } from '../services/ContactVolumetricsEngine';
-import { MonteCarloEngine } from '../services/MonteCarloEngine';
+import { runMonteCarlo, newSeed } from '../services/mcClient';
 import { ProjectService } from '../services/ProjectService';
 import { makeRegistryRcpBackend } from '../services/rcpBackend';
 import { AOIManager } from '../services/AOIManager';
@@ -507,6 +507,11 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
     // in-memory pair) so the whole app runs without auth or DB in e2e
     const be = useMemo(() => backend || makeRegistryRcpBackend(), [backend]);
     const [state, dispatch] = useReducer(reducer, initialState);
+    // U2-006: Monte Carlo progress (0 to 1, null when idle) and the
+    // controller that cancels the running worker
+    const [mcProgress, setMcProgress] = useState(null);
+    const mcAbortRef = useRef(null);
+    const cancelSimulation = () => { mcAbortRef.current?.abort(); };
 
     // Append a real event to the audit trail.
     const logEvent = (actionLabel, details = '') => dispatch({ type: ACTIONS.LOG_EVENT, payload: auditEntry(actionLabel, details) });
@@ -662,8 +667,10 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
     const calculate = async (customProbInputs = null, options = {}) => {
         // Back-compat: older callers passed a boolean `consistencyMode` here.
         const opts = typeof options === 'boolean' ? { consistencyMode: options } : (options || {});
-        dispatch({ type: ACTIONS.SET_CALCULATING, payload: true });
+        // SET_ERROR clears isCalculating, so it goes first (U2-006: the run
+        // is now long enough in the worker for the order to show)
         dispatch({ type: ACTIONS.SET_ERROR, payload: null });
+        dispatch({ type: ACTIONS.SET_CALCULATING, payload: true });
 
         // Grid resolution + interpolation method for the contact-based engine come
         // from user settings.
@@ -713,13 +720,33 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
                     recovery: state.inputs.recovery,
                     recoveryGas: state.inputs.recoveryGas,
                     signature: runSignature(state),
+                    // U2-006: every run is seeded and records its seed, so
+                    // the same inputs and seed give the same realizations
+                    seed: Number.isFinite(opts.seed) ? opts.seed : newSeed(),
                     hypsometry,
                     deterministicContacts: { owc: state.inputs.owc, goc: state.inputs.goc }
                 };
 
-                const probRes = await MonteCarloEngine.runSimulation(config, customProbInputs);
+                const ctrl = new AbortController();
+                mcAbortRef.current = ctrl;
+                setMcProgress(0);
+                let probRes;
+                try {
+                    probRes = await runMonteCarlo(config, customProbInputs, { onProgress: setMcProgress, signal: ctrl.signal });
+                } catch (e) {
+                    if (e?.cancelled) {
+                        dispatch({ type: ACTIONS.SET_CALCULATING, payload: false });
+                        logEvent('Monte Carlo cancelled', `${(config.iterations).toLocaleString()} iterations requested; the previous results were kept`);
+                        return { cancelled: true };
+                    }
+                    throw e;
+                } finally {
+                    mcAbortRef.current = null;
+                    setMcProgress(null);
+                }
                 dispatch({ type: ACTIONS.SET_PROB_RESULTS, payload: probRes });
-                logEvent('Monte Carlo run', `${(config.iterations).toLocaleString()} iterations • ${structural ? 'contact-based GRV' : 'area×thickness'}`);
+                logEvent('Monte Carlo run', `${(config.iterations).toLocaleString()} iterations, seed ${config.seed}, ${structural ? 'contact-based GRV' : 'area x thickness'}${probRes.meta?.ranIn === 'worker' ? ' (background worker)' : ''}`);
+                return { ok: true };
             } else {
                 await new Promise(resolve => setTimeout(resolve, 300));
                 // Pass the active AOI so structural (hybrid/surfaces) volumetrics clip
@@ -774,6 +801,8 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
         deleteReservoir,
         exportWorkspace,
         calculate,
+        mcProgress,
+        cancelSimulation,
         // AOI
         startDrawing,
         addDrawingPoint,
@@ -790,7 +819,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
         // Audit
         logEvent,
         clearAudit
-    }), [state, profileUnitSystem]); // eslint-disable-line react-hooks/exhaustive-deps
+    }), [state, profileUnitSystem, mcProgress]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <ReservoirCalcContext.Provider value={value}>
