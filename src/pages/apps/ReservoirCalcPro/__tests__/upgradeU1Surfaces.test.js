@@ -119,7 +119,9 @@ describe('RCP-U1-011 the depth unit is its own choice', () => {
     const mixed = buildImportedSurface(feetDepth, { xyUnit: 'm', depthUnit: 'ft', zConvention: 'elevation' });
     expect(mixed.depthUnit).toBe('ft');
     expect(mixed.xyUnit).toBe('m');
-    const ref = grvOf(metres).grv;
+    // U2-005: the registry surface now integrates on its lattice; the
+    // file-import surfaces here are points, so compare on the points path
+    const ref = grvOf({ ...metres, lattice: undefined }).grv;
     expect(Math.abs(grvOf(mixed).grv / ref - 1)).toBeLessThan(0.005);
     // negative control: the old one-unit model read those feet as metres
     const oneUnit = buildImportedSurface(feetDepth, { xyUnit: 'm', depthUnit: 'm', zConvention: 'elevation' });

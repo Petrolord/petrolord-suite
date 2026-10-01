@@ -49,5 +49,10 @@ export function runSignature(state = {}) {
     state.unitSystem, state.inputMethod, i.fluidType, i.topSurfaceId || null, i.baseSurfaceId || null,
     i.thickness, i.area, i.ntg, i.porosity, i.sw, i.fvf, i.bg, i.owc, i.goc, i.gasCapFraction ?? null,
     i.recovery, i.recoveryGas, state.activeAoiId || null,
+    // U2-001: the area/depth table and its spill point
+    i.areaDepth ? JSON.stringify(i.areaDepth) : null,
+    i.fillToSpill === true,
+    // U2-007: Rs, the Sw source and the saturation-height set-up
+    i.rs ?? null, i.cgr ?? null, i.swSource || 'typed', i.saturationHeight ? JSON.stringify([i.saturationHeight.projectId, i.saturationHeight.fwl]) : null,
   ]);
 }

@@ -8,12 +8,15 @@ import { Loader2, Map as MapIcon, Layers, Trash2, Eye } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { MapGenerationEngine } from '../../services/MapGenerationEngine';
 import { useReservoirSettings } from '../../hooks/useReservoirSettings';
+import { effectiveGridding } from '../../services/griddingSettings';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const MapGenerationPanel = () => {
     const { state, addMaps, deleteMap } = useReservoirCalc();
     const { toast } = useToast();
-    const [settings] = useReservoirSettings();
+    const [browserSettings] = useReservoirSettings();
+    // U2-013: the project's gridding, else the browser's
+    const settings = { ...browserSettings, ...effectiveGridding(state.gridding, browserSettings) };
     const [isGenerating, setIsGenerating] = useState(false);
     const [selectedMaps, setSelectedMaps] = useState({
         structure: true,

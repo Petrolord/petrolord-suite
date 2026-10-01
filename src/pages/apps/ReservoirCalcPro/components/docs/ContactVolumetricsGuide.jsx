@@ -260,6 +260,20 @@ const ContactVolumetricsGuide = () => (
       wrong zConvention, contact on the wrong side of the structure, or an AOI that misses the map.
     </Note>
 
+    <H2>9a. Registry grids and the trap</H2>
+    <P>
+      A surface taken from the shared registry keeps its own grid: each live node is one cell of the grid&apos;s
+      spacing, the midpoint rule Mapping &amp; Surface Studio uses, so the two apps give one GRV on one surface. Files
+      and older projects keep the points and the gridding above.
+    </P>
+    <P>
+      With Trap only (under the contacts, on for new projects) the volume counts the crest&apos;s closure alone: the
+      interior culmination is flooded down to its spill point with Mapping&apos;s closure engine, cells past the spill
+      saddle and other closures are left out, and a contact below the spill point is taken at the spill point (Filled
+      to spill). A spill on the edge of the map is an open closure: the volume is a minimum. Monte Carlo counts the
+      realizations that filled to spill. Projects saved before this option keep their volumes with it off.
+    </P>
+
     <H2>10. Hypsometry, the Monte Carlo shortcut</H2>
     <P>
       Rebuilding the grid for every Monte Carlo realisation would be unaffordable.

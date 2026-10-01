@@ -257,6 +257,24 @@ const ProspectRiskingGuide = () => (
       </li>
     </UL>
 
+    <H2>Success-case economics</H2>
+    <P>
+      Tick Success-case economics to value the discovery with the Suite&apos;s screening NPV (the same engine as the NPV
+      Scenario Builder: Tax/Royalty, mid-year discounting). Production starts the year after development and declines
+      exponentially so that it recovers the success-case mean; price, opex, royalty, tax and discount rate are yours.
+      The panel shows the success-case NPV, the value per boe before development and the development cost as the
+      engine sees it (discounted, after tax). Both are saved with the prospect and Risked Reserves Valuation uses them,
+      so value per barrel x volume - development cost is the engine&apos;s NPV. No other NPV arithmetic is involved.
+    </P>
+
+    <H2>The one-page prospect summary</H2>
+    <P>
+      Prospect summary PDF prints the sheet a committee signs: the reviewer header (field, analyst, date, build, units,
+      method and contacts from the workspace), the four chance factors and their product Pg, the success-case P90, P50,
+      P10 and mean beside the risked mean, the basis and unit of the volumes, and a signature block. Risked percentiles
+      are not printed: the risked outcome is zero with probability 1 - Pg, so only the risked mean is a fair summary of it.
+    </P>
+
     <H2>What these numbers do not tell you</H2>
     <UL>
       <li>

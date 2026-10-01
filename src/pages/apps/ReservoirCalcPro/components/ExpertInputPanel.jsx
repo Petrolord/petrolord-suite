@@ -16,6 +16,8 @@ import SurfaceDataManager from './tools/SurfaceDataManager';
 import AOIPanel from './AOIPanel';
 import EarthModelProspectNote from './EarthModelProspectNote'; // Earth Modeling U2-009 handoff
 import RegistryPanel from './RegistryPanel';
+import AreaDepthPanel from './AreaDepthPanel';
+import SaturationHeightPanel from './SaturationHeightPanel';
 import ProbabilisticPanel from './probabilistic/ProbabilisticPanel';
 import { FLUID_PRESETS, FluidPropertyCalculator } from '../services/FluidPropertyLibrary';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -72,7 +74,7 @@ const ExpertInputPanel = () => {
             }, 500); // debounce deterministic base case calculation
             return () => clearTimeout(timeout);
         }
-    }, [state.inputs, state.calcMethod, state.unitSystem, state.inputMethod]);
+    }, [state.inputs, state.calcMethod, state.unitSystem, state.inputMethod, state.gridding]);
 
     const handleDetChange = (field, val) => updateInputs({ [field]: val });
     const handleFluidChange = (val) => updateInputs({ fluidType: val });
@@ -193,13 +195,13 @@ const ExpertInputPanel = () => {
                             <RadioGroup 
                                 value={state.inputMethod} 
                                 onValueChange={setInputMethod}
-                                className="grid grid-cols-3 gap-1"
+                                className="grid grid-cols-4 gap-1"
                             >
-                                {['simple', 'hybrid', 'surfaces'].map(m => (
+                                {['simple', 'hybrid', 'surfaces', 'areadepth'].map(m => (
                                     <div key={m}>
                                         <RadioGroupItem value={m} id={`im-${m}`} className="peer sr-only" />
                                         <Label htmlFor={`im-${m}`} className="flex items-center justify-center rounded-md border border-pl-border bg-pl-sunken py-1.5 px-1 hover:bg-pl-surface peer-data-[state=checked]:border-pl-primary peer-data-[state=checked]:bg-pl-surface peer-data-[state=checked]:text-pl-primary-text cursor-pointer text-[9px] capitalize text-center transition-all">
-                                            {m}
+                                            {m === 'areadepth' ? 'Area-depth' : m}
                                         </Label>
                                     </div>
                                 ))}
@@ -227,6 +229,8 @@ const ExpertInputPanel = () => {
 
                         {state.inputMethod === 'simple' ? (
                             <UnitInput label="Area" {...unitInputProps('area')} />
+                        ) : state.inputMethod === 'areadepth' ? (
+                            <AreaDepthPanel />
                         ) : (
                             <div className="space-y-2">
                                 <Label className="text-xs text-pl-muted">Surface Selection Managed in Surfaces Tab</Label>
@@ -271,6 +275,7 @@ const ExpertInputPanel = () => {
                                     <NumberField value={state.inputs?.permeability} onCommit={v => handleDetChange('permeability', v ?? 0)} className="h-8" />
                                 </div>
                             </div>
+                            <SaturationHeightPanel />
                         </div>
 
                         <div className="pt-2 border-t border-pl-border space-y-2">
@@ -311,6 +316,11 @@ const ExpertInputPanel = () => {
                                     </div>
                                 </div>
                                 <div className="space-y-1">
+                                    <Label className="text-xs">Solution gas-oil ratio, Rs ({state.unitSystem === 'field' ? 'scf/STB' : 'sm³/sm³'})</Label>
+                                    <NumberField value={state.inputs?.rs} onCommit={v => handleDetChange('rs', v)} className="h-8" data-testid="rcp-rs" />
+                                    <p className="text-[10px] text-pl-muted">Leave empty to leave solution gas out. Solution gas in place = STOIIP x Rs; recoverable at the oil recovery factor.</p>
+                                </div>
+                                <div className="space-y-1">
                                     <Label className="text-xs">Formation Vol Factor (Bo)</Label>
                                     <div className="flex gap-2">
                                         <NumberField value={state.inputs?.fvf} onCommit={v => handleDetChange('fvf', v ?? 0)} className="h-8" />
@@ -334,9 +344,9 @@ const ExpertInputPanel = () => {
                                     </div>
                                 </div>
                                 <div className="space-y-1">
-                                    <Label className="text-xs">Condensate-gas ratio, CGR ({cgrUnitLabel(state.unitSystem)})</Label>
+                                    <Label className="text-xs">{fluidType === 'oil_gas' ? 'Vaporised oil-gas ratio, Rv' : 'Condensate-gas ratio, CGR'} ({cgrUnitLabel(state.unitSystem)})</Label>
                                     <NumberField value={state.inputs?.cgr} onCommit={v => handleDetChange('cgr', v)} className="h-8" data-testid="rcp-cgr" />
-                                    <p className="text-[10px] text-pl-muted">Leave empty for dry gas. Condensate in place = GIIP x CGR; recoverable condensate takes the gas recovery factor.</p>
+                                    <p className="text-[10px] text-pl-muted">{fluidType === 'oil_gas' ? 'Oil carried in the free gas of the gas cap. Vaporised oil = free GIIP x Rv; recoverable at the gas recovery factor. Empty: none.' : 'Leave empty for dry gas. Condensate in place = GIIP x CGR; recoverable condensate takes the gas recovery factor.'}</p>
                                 </div>
                                 <UnitInput label="Gas FVF (Bg)" {...unitInputProps('bg')}
                                     hint="Pick the convention your PVT report uses. Values in rb/scf and rb/Mscf are converted internally (5.614583 ft³/bbl)." />

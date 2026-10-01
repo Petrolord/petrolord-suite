@@ -142,6 +142,26 @@ const InputMethodsGuide = () => (
       <li>A method tag of <Code>contact-grid</Code> in the results record.</li>
     </UL>
 
+    <H2>area-depth: an area/depth table</H2>
+    <P>
+      Paste one row per depth: the TVDSS elevation (negative below the datum, in the project length unit), the area
+      enclosed by the top of the reservoir, and optionally the area enclosed by its base. Without a base column the
+      gross thickness sets the base (the top area shifted down by the thickness). The gross rock volume above a contact
+      is the integral of top area minus base area from the crest to the contact; areas are linear between rows and the
+      integral is exact, so the only error is the table spacing. A contact below the last row is reported as a
+      minimum. From the top surface measures the table from the selected surface (on a registry grid, on its own
+      nodes), and Export CSV saves it for a reviewer. Monte Carlo samples the contacts against the same table.
+    </P>
+
+    <H2>From an Earth Modeling model</H2>
+    <P>
+      Send to ReservoirCalc Pro in Earth Modeling opens this app with one model zone in the Simple method: area, an
+      average column, NTG, porosity and the Sw that keeps the model&apos;s hydrocarbon pore volume, so the STOIIP or GIIP
+      reproduces the model. The case keeps the model, zone, date, wells and the model&apos;s flags (an open edge, a spill
+      on the edge, no OWC); they appear with the results and in the reports. If you change an input afterwards, the
+      reports say which and that the volumes no longer reproduce the model.
+    </P>
+
     <H2>What changes in probabilistic mode</H2>
     <P>
       The input method also decides which variables the Monte Carlo panel offers, because sampling free area and

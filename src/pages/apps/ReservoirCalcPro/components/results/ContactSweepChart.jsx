@@ -10,6 +10,7 @@ import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { ContactVolumetricsEngine } from '../../services/ContactVolumetricsEngine';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
+import { checkAreaDepthRows, areaDepthHypsometry } from '../../services/areaDepth';
 
 const AXIS_TICK = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
 
@@ -22,11 +23,18 @@ export default function ContactSweepChart() {
   const aoi = aois.find((a) => a.id === activeAoiId) || null;
 
   const sweep = useMemo(() => {
+    if (inputMethod === 'areadepth') {
+      // U2-001: the area/depth table is the hypsometry
+      const chk = checkAreaDepthRows(inputs.areaDepth?.rows || []);
+      if (!chk.ok) return null;
+      const h = areaDepthHypsometry(chk.rows, { unitSystem, thickness: chk.hasBase ? null : parseFloat(inputs.thickness), spill: inputs.areaDepth?.spill ?? null });
+      return ContactVolumetricsEngine.contactSweep({ ...h, meta: { isField: unitSystem === 'field' } }, inputs, 60);
+    }
     if (!structural || !top || (inputMethod === 'surfaces' && !base)) return null;
     const h = ContactVolumetricsEngine.buildHypsometry({
       topSurface: top, baseSurface: base,
       constantThickness: inputMethod === 'hybrid' ? parseFloat(inputs.thickness) : null,
-      unitSystem, aoiPolygon: aoi, options: { resolution: 100, interpolation: 'idw' },
+      unitSystem, aoiPolygon: aoi, options: { resolution: 100, interpolation: 'idw', fillToSpill: inputs.fillToSpill === true },
     });
     return ContactVolumetricsEngine.contactSweep(h, inputs, 60);
   }, [structural, top, base, inputMethod, inputs, unitSystem, aoi]);

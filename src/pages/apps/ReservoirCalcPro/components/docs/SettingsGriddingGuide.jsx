@@ -6,6 +6,13 @@ const SettingsGriddingGuide = () => (
     title="Settings and Gridding"
     lead="The Settings tab in Workspace Tools holds five preferences, and two of them change your numbers: grid resolution and interpolation method. This article says what each one does, how ordinary kriging is set up here, and what a finer grid buys."
   >
+    <Note tone="info" title="Gridding travels with the project">
+      Grid resolution and surface interpolation change a structural volume, so a saved project keeps the gridding it
+      was saved with: any machine that opens it calculates the same volume. Changing either setting with a project open
+      changes that project (and this browser&apos;s default for new projects). A project saved before this release follows
+      the browser until it is saved again; Settings says which applies.
+    </Note>
+
     <H2>Where the settings live</H2>
     <P>
       Open Workspace Tools and pick the Settings tab. Every control writes immediately, which is why there is
