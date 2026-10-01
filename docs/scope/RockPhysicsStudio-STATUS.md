@@ -129,9 +129,9 @@ migration.
 - Engines first: Petrolord/petrolord-engines PR #296 (angle gather, fluid
   line, iterative Vs and a bit-identical fast Greenberg-Castagna path,
   template lines, pseudo-sonic, Voigt mix) with an independent Python
-  oracle (`oracle_u2.py`, `goldens.u2.json`). Vendored byte-identical and
-  recorded in `packages/engines/VENDOR.json` (group `rockphysics-u2`) until
-  it is merged.
+  oracle (`oracle_u2.py`, `goldens.u2.json`). Merged by the programme lead
+  (engines main 96e5963); the Suite is pinned there with no recorded
+  deviations.
 - New views: Crossplot (impedance against Vp/Vs with critical-porosity and
   mudrock template lines) and Gather (angle gather in situ and substituted,
   Zoeppritz or Aki-Richards, a Ricker or the Seismolord tie wavelet, AVO

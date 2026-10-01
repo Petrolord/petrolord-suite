@@ -201,7 +201,7 @@ Deferred, with reasons:
 
 ## Step 2 build log (branch `feat/rp-u2`)
 
-Engines first: Petrolord/petrolord-engines PR #296 (`feat/rp-u2-engines`), vendored byte-identical and recorded in `packages/engines/VENDOR.json` (group `rockphysics-u2`) until the programme lead merges it. Independent Python oracle `packages/engines/tools/validation/rockphysics/oracle_u2.py`, goldens `test-data/rockphysics/goldens.u2.json`, gates `packages/engines/__tests__/rockphysics.u2.test.js` (20 tests, each with a negative control).
+Engines first: Petrolord/petrolord-engines PR #296 (`feat/rp-u2-engines`), reviewed and merged by the programme lead on 2026-10-01 (engines main 96e5963). The Suite is pinned to that commit, the manifest is regenerated, the Data AI engine labels moved with it, and the eleven `rockphysics-u2` ledger rows carried while the PR was open are gone: `node tools/check-vendored-engines.mjs --canonical <clone>` reports 0 recorded deviations. Independent Python oracle `packages/engines/tools/validation/rockphysics/oracle_u2.py`, goldens `test-data/rockphysics/goldens.u2.json`, gates `packages/engines/__tests__/rockphysics.u2.test.js` (20 tests, each with a negative control).
 
 | Item | Status | What was built | Proving test |
 |---|---|---|---|
@@ -243,7 +243,7 @@ Validation that is weaker than asked, stated plainly:
 
 ### Owner items after Step 2
 
-1. Engines PR #296 (Petrolord/petrolord-engines, `feat/rp-u2-engines`) is open and green and is NOT merged; the Suite carries its 11 files as recorded deviations (`packages/engines/VENDOR.json`, group `rockphysics-u2`). After the programme lead merges it: re-pin `canonical.commit`, regenerate `VENDOR.manifest`, move the Data AI engine labels, delete the 11 rows.
+1. Engines PR #296 was merged by the programme lead (engines main 96e5963) and the Suite is re-pinned to it with no recorded deviations. Nothing is left to do here.
 2. The ten live wells with no sonic can now be opened, on an estimated Vp that the live check shows to be rough. For real rock physics on those wells, load a sonic (or a checkshot-calibrated velocity) into Well Data Manager. The Barracuda wells carry acoustic impedance and interval-velocity curves that would give a better Vp than either transform: a small follow-up (read Vp from AI over RHOB, labelled derived).
 3. Well W-3's depth index is in feet under a metre label (it runs to 8806 against a TD of 2682 m). It reads wrongly in every app that trusts the unit; worth fixing in Well Data Manager.
 4. A gather published to Seismolord is visible to its owner only, because `rp_projects` is owner-only. Sharing it across an organisation needs a registry home or an RLS change (second engineer); revisit with the Suite Project.
