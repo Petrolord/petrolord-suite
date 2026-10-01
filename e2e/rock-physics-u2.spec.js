@@ -241,3 +241,69 @@ for (const vp of [{ w: 1366, h: 768 }, { w: 1440, h: 900 }, { w: 390, h: 844 }])
     });
   }
 }
+
+test('U2-007: a well with no sonic opens on an estimated Vp, says so everywhere, calibrates and publishes DT_EST', async ({ page }) => {
+  const errors = await open(page, '?nosonic=1');
+  await pick(page, 'NOSONIC RP-6 (no sonic log)');
+  await expect(page.getByTestId('rp-vp-badge')).toHaveText('Vp estimated');
+  await expect(page.getByTestId('rp-vs-badge')).toBeVisible();
+  await expect(page.getByTestId('rp-status')).toContainText('No sonic log, so Vp is ESTIMATED (Gardner (1974) inverse from density');
+  const inv = page.getByTestId('rp-curve-inventory');
+  await expect(inv).toContainText('DT: not in this well');
+  await expect(inv).toContainText('RT · RT (OHMM)');
+  const box = page.getByTestId('rp-pseudo-box');
+  await expect(box).toContainText('Vp is estimated: this well has no sonic log');
+  await expect(page.getByTestId('rp-pseudo-live')).toContainText('16 and 25 percent RMS');
+  await expect(page.getByTestId('rp-sub-basis')).toContainText('Vp ESTIMATED, no sonic log');
+  const vpPublished = Number(await page.getByTestId('rp-sub-before-vp').textContent());
+  // calibrate on the well that has a sonic: the constant moves to the fixture's 0.245 and Vp drops
+  await page.getByTestId('rp-pseudo-find').click();
+  await page.getByTestId('rp-pseudo-calibrate').selectOption({ label: 'SONIC RP-7 (calibration well)' });
+  await expect(page.getByTestId('rp-pseudo-calibration')).toContainText('On SONIC RP-7 (calibration well), published constant: bias');
+  await expect(page.getByTestId('rp-pseudo-calibration')).toContainText('the error on this well is unknown');
+  await expect(page.getByTestId('rp-pseudo-note')).toContainText('calibrated on SONIC RP-7 (calibration well)');
+  const a = Number(await page.getByTestId('rp-pseudo-constant').inputValue());
+  expect(a).toBeGreaterThan(0.24);
+  expect(a).toBeLessThan(0.25);
+  const vpCal = Number(await page.getByTestId('rp-sub-before-vp').textContent());
+  expect(vpCal).toBeLessThan(vpPublished * 0.85);
+  // Faust on the same well, then a typed constant (text kept while typing)
+  await page.getByTestId('rp-pseudo-method').selectOption('faust');
+  await expect(page.getByTestId('rp-pseudo-note')).toContainText('Faust (1953) from resistivity and depth');
+  const c = page.getByTestId('rp-pseudo-constant');
+  await c.fill('');
+  await expect(c).toHaveValue('');
+  await c.pressSequentially('1948');
+  await expect(page.getByTestId('rp-pseudo-note')).toContainText('V = 1948 (Z R)^(1/6) ft/s, published constant');
+  // the CSV header and the PDF say estimated
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('rp-export-csv').click()]);
+  const csv = fs.readFileSync(await dl.path(), 'utf8');
+  expect(csv).toMatch(/# Sonic: Vp ESTIMATED, no sonic log: Faust \(1953\)/);
+  expect(csv).toMatch(/# Shear: Vs estimated from the estimated Vp/);
+  const { execFileSync } = await import('child_process');
+  const [pdf] = await Promise.all([page.waitForEvent('download'), page.getByTestId('rp-export-pdf').click()]);
+  const file = `${SHOTS}/rp-u2-nosonic.pdf`;
+  await pdf.saveAs(file);
+  const text = execFileSync('pdftotext', ['-layout', file, '-'], { encoding: 'utf8' });
+  expect(text).toMatch(/Sonic:\s+Vp ESTIMATED, no sonic log/);
+  expect(text).toContain('Vp is ESTIMATED');
+  // publish the estimate and the substituted logs: both are listed, the well still has no DT
+  await page.getByTestId('rp-pseudo-publish').click();
+  await expect(page.getByTestId('rp-status')).toHaveText('Published DT_EST (estimated sonic) to the well registry.');
+  await expect(page.getByTestId('rp-published-curves')).toContainText('DT_EST');
+  await page.getByTestId('rp-publish').click();
+  await expect(page.getByTestId('rp-published-curves')).toContainText('DT_SUB');
+  await expect(inv).toContainText('DT: not in this well');
+  await page.screenshot({ path: `${SHOTS}/rp-u2-nosonic.png` });
+  // Save keeps the setting; a reload reopens the well on Faust
+  await page.getByTestId('rp-save-project').click();
+  await expect(page.getByTestId('rp-status')).toHaveText('Project saved.');
+  await page.reload();
+  await expect(page.getByTestId('rp-pseudo-note')).toContainText('Faust (1953)', { timeout: 60000 });
+  // a well with a sonic shows neither the badge nor the box
+  await page.locator('[data-well-name="SONIC RP-7 (calibration well)"]').click();
+  await expect(page.getByTestId('rp-sub-after-vp')).toBeVisible();
+  await expect(page.getByTestId('rp-vp-badge')).toHaveCount(0);
+  await expect(page.getByTestId('rp-pseudo-box')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
