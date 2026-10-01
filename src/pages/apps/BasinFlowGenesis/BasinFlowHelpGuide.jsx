@@ -121,6 +121,7 @@ export default function BasinFlowHelpGuide() {
           history is scaled and its shape kept. Save stores the points with the well and marks it calibrated when the
           misfit is small.
         </Para>
+        <Para>The modelled curve on the Ro and temperature plots runs through the whole column in slices about 100 m thick, so a sample inside a thick layer is compared with the value at its own depth rather than a line between layer centres. Auto-Fit uses the same profile.</Para>
       </GuideSection>
 
       <GuideSection id="import">
