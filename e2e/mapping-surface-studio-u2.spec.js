@@ -147,7 +147,7 @@ test('MAP-U2-013: a section line shows the surfaces and the wells along it, with
   expect(errs).toEqual([]);
 });
 
-test('MAP-U2-008: V0 + kZ fitted to the tops converts a TWT horizon and shows the mis-ties; a layer cake names the hook', async ({ page }) => {
+test('MAP-U2-008: V0 + kZ fitted to the tops converts a TWT horizon and shows the mis-ties; a layer cake with unpublished boundaries says what to publish', async ({ page }) => {
   const errs = errorsOf(page);
   await page.goto('/dev/mapping-surface-studio');
   await page.locator('[data-testid="map-surface-row"][data-surface-name="Dome TWT"]').click();
@@ -158,14 +158,15 @@ test('MAP-U2-008: V0 + kZ fitted to the tops converts a TWT horizon and shows th
   await expect(page.getByTestId('map-residuals')).toContainText('Depth map against Top Dome');
   await page.getByTestId('map-publish').click();
   await expect(page.locator('[data-testid="map-surface-row"][data-surface-name="Dome TWT depth (V0 + kZ)"]')).toBeVisible();
-  // the layer-cake model in the harness is refused with the hook's reason
+  // the layer-cake model in the harness has no published boundaries, so it is refused with the
+  // reason and the way out (the hook itself shipped with Seismolord upgrade U2-006, PR #837)
   await page.locator('[data-testid="map-surface-row"][data-surface-name="Dome TWT"]').click();
   await page.getByTestId('map-td-method').selectOption('linear');
   const lc = page.getByTestId('map-td-model').locator('option', { hasText: 'layer cake' });
-  if (await lc.count()) {
-    await page.getByTestId('map-td-model').selectOption({ label: await lc.first().textContent() });
-    await page.getByTestId('map-td-run').click();
-    await expect(page.getByTestId('map-status')).toContainText('Seismolord upgrade U2-006');
-  }
+  await expect(lc.first()).toBeAttached();
+  await page.getByTestId('map-td-model').selectOption({ label: await lc.first().textContent() });
+  await page.getByTestId('map-td-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('needs every layer boundary published as a time surface; layer 1 base (horizon h1) is not.');
+  await expect(page.getByTestId('map-status')).toContainText('In Seismolord open the velocity model and press Publish boundaries');
   expect(errs).toEqual([]);
 });

@@ -10,8 +10,8 @@
 # jest is split into shards (jest --shard) so the whole suite finishes in a
 # reasonable time. Some suites read the generated Ekene demo kit
 # (tools/demo-dataset), which is not committed, so each shard generates it
-# first. Playwright e2e specs are not run here yet: they need a dev server and
-# browsers, and stay a local gate for now.
+# first. The Playwright e2e specs run in their own workflow (e2e.yml), six
+# shards against a Vite dev server on the runner; see docs/scope/E2E-CI-STATUS.md.
 name: CI
 
 on:
