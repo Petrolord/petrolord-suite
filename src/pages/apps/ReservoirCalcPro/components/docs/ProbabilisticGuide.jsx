@@ -121,18 +121,18 @@ const ProbabilisticGuide = () => (
       standard normal CDF first to get a uniform variate, then through the marginal inverse CDF. That
       pair of steps is the copula.
     </P>
-    <Note tone="info" title="The built-in porosity to Sw correlation">
-      Every run applies a correlation of <Code>-0.8</Code> between porosity and water saturation
-      automatically, in both input methods, whenever both carry spread. Tighter rock holds more
-      irreducible water, so a high porosity draw arrives with a low Sw draw. Caller supplied
-      correlations are applied on top, and each is accepted only when the coefficient is finite and
-      strictly between -1 and 1.
+    <Note tone="info" title="The correlation editor (Settings step)">
+      The Settings step lists the correlated pairs. It starts with <Code>-0.8</Code> between porosity
+      and water saturation (tighter rock holds more irreducible water) and you can change it, remove it
+      or add pairs of any inputs that carry spread. The coefficient is the correlation of the normal
+      scores, close to the rank correlation. A pair with an input that has no spread in the run is not
+      applied, and the run says so. The pairs are printed in the PDF reviewer block.
     </Note>
     <P>
-      The Cholesky routine clamps the diagonal at zero, so a correlation set that is slightly outside
-      positive definite degrades gracefully instead of producing NaN volumes. The trade is that the
-      realised correlation structure will not match the requested one exactly in that case, so keep
-      requested correlations physically consistent.
+      A set of pairs that cannot hold together (the matrix is not positive semidefinite, for example
+      two inputs that both correlate strongly with a third but not with each other) is refused with
+      the reason, and Run stays disabled until it is fixed. Before this check the Cholesky routine
+      clamped such a matrix silently and sampled a different correlation from the one typed.
     </P>
 
     <H2>5. Truncation by rejection</H2>

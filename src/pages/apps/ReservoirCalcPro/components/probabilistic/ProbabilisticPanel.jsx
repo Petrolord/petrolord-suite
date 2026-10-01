@@ -11,6 +11,7 @@ import { distScaleFactor } from '../../services/unitsCatalog';
 import {
     distKeysFor, syncDistParams, recentreDist, formatDistributions, centralOf,
 } from '../../services/distributions';
+import CorrelationEditor, { correlationsProblem } from './CorrelationEditor';
 
 const DIST_TYPES = [
     { value: 'triangular', label: 'Triangular' },
@@ -99,6 +100,9 @@ const ProbabilisticPanel = () => {
     // longer freeze the page
     const ITERATION_OPTIONS = [1000, 5000, 10000, 50000, 100000, 250000];
     const [seedText, setSeedText] = useState('');
+    // U2-002: the correlation pairs the engine applies (starts from the
+    // long-standing porosity-Sw -0.8)
+    const [correlations, setCorrelations] = useState([{ a: 'porosity', b: 'sw', rho: -0.8 }]);
 
     const fluidType = state.inputs.fluidType || 'oil';
     // the headline stream: gas for a gas reservoir, the oil leg otherwise
@@ -126,6 +130,7 @@ const ProbabilisticPanel = () => {
         recovery: 'Oil Recovery Factor (%)',
         recoveryGas: 'Gas Recovery Factor (%)',
     }[key] || key);
+    const corrProblem = correlationsProblem(correlations, distLabel);
 
     // U1 (RCP-U1-008): the keys follow the input method and fluid while
     // the panel is open, the whole distribution moves with a new base
@@ -217,7 +222,11 @@ const ProbabilisticPanel = () => {
                 toast({ variant: "destructive", title: "Check the seed", description: 'The seed is a whole number of 0 or more, or empty for a new seed each run.' });
                 return;
             }
-            const out = await calculate(formatted, { consistencyMode, iterations, seed: seedNum });
+            if (corrProblem) {
+                toast({ variant: "destructive", title: "Check the correlations", description: corrProblem });
+                return;
+            }
+            const out = await calculate(formatted, { consistencyMode, iterations, seed: seedNum, correlations: correlations.map(({ a, b, rho }) => ({ a, b, rho: Number(rho) })) });
             if (out?.cancelled) {
                 toast({ title: "Run cancelled", description: 'The previous results were kept.' });
                 return;
@@ -308,11 +317,12 @@ const ProbabilisticPanel = () => {
                                 className="h-7 w-full rounded border border-pl-border bg-pl-surface px-2 text-xs text-pl-text" />
                             <p className="text-[10px] text-pl-muted">Every run records its seed. The same inputs and seed give the same realizations.</p>
                         </div>
+                        <CorrelationEditor keys={distKeys} labelOf={distLabel} value={correlations} onChange={setCorrelations} problem={corrProblem} />
                         <div className="p-3 bg-pl-sunken rounded border border-pl-border space-y-2">
                             <Label className="text-xs font-bold text-pl-text flex items-center gap-1"><FileText className="w-3 h-3"/> Active Engine Features</Label>
                             <ul className="text-[10px] text-pl-muted list-disc pl-4 space-y-1">
                                 <li>Cholesky Decomposition for correlated sampling</li>
-                                <li>Automatic Porosity-Sw negative correlation (-0.8)</li>
+                                <li>Correlations from the table above (a matrix that cannot hold is refused)</li>
                                 <li>Strict out-of-bounds rejection logging</li>
                                 <li>Variance decomposition (Tornado charting)</li>
                                 <li>Detailed P-value realization tracking</li>
@@ -338,7 +348,8 @@ const ProbabilisticPanel = () => {
                                 <p className="text-[10px] text-pl-muted text-center">{Math.round((mcProgress || 0) * 100)}% of {iterations.toLocaleString()} realizations</p>
                             </div>
                         )}
-                        <Button className="w-full" data-testid="rcp-mc-run" onClick={runSimulation} disabled={state.isCalculating}>
+                        {corrProblem && <p className="text-[10px] text-pl-danger-text" data-testid="rcp-corr-block">Run is blocked: {corrProblem}</p>}
+                        <Button className="w-full" data-testid="rcp-mc-run" onClick={runSimulation} disabled={state.isCalculating || !!corrProblem}>
                             {state.isCalculating ? "Processing..." : "Run Monte Carlo"}
                         </Button>
                         {state.isCalculating && (

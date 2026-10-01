@@ -74,6 +74,7 @@ export function reviewerLines(p) {
   if (probResults?.stats) {
     const m = probResults.meta || {};
     lines.push(`Monte Carlo: ${(m.iterations || probResults.stats.iterations || 0).toLocaleString('en-US')} realizations, ${m.grvMode === 'structural' ? 'GRV from the surface against sampled contacts' : 'area x thickness'}${m.ranAt ? `, run ${m.ranAt.slice(0, 16).replace('T', ' ')} UTC` : ''}${Number.isFinite(m.seed) ? `, seed ${m.seed}` : ''}. P90 (low), P50 (best) and P10 (high) are the volumes exceeded with 90, 50 and 10 percent probability.`);
+    if (Array.isArray(m.correlations)) lines.push(m.correlations.length ? `Correlations (Gaussian copula): ${m.correlations.map((c) => `${c.a} with ${c.b} ${c.rho}`).join('; ')}` : 'Correlations: none (inputs sampled independently)');
   }
   return lines.map(latin1);
 }

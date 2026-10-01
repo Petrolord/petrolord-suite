@@ -109,3 +109,35 @@ test('U2-008: Trap only fills to the spill point and says so; off, the old open-
   expect(frame).toBeGreaterThan(trapped * 1.01);
   expect(errors).toEqual([]);
 });
+
+test('U2-002: the correlation editor refuses a set that cannot hold and runs a valid one', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await openProbabilistic(page);
+  await page.getByRole('button', { name: /^Next/ }).click();
+  await expect(page.getByTestId('rcp-corr-row-0')).toBeVisible();
+  // porosity-Sw -0.8 is there; add Sw-NTG 0.9 and porosity-NTG 0.9: cannot hold
+  for (const [a, b, rho] of [['sw', 'ntg', '0.9'], ['porosity', 'ntg', '0.9']]) {
+    await page.getByTestId('rcp-corr-add').click();
+    const row = page.locator('[data-testid^="rcp-corr-row-"]').last();
+    await row.locator('select').nth(0).selectOption(a);
+    await row.locator('select').nth(1).selectOption(b);
+    const rhoField = row.locator('input');
+    await rhoField.fill(rho);
+    await rhoField.blur();
+  }
+  await expect(page.getByTestId('rcp-corr-problem')).toContainText('cannot hold together');
+  await page.getByRole('button', { name: /^Next/ }).click();
+  await expect(page.getByTestId('rcp-mc-run')).toBeDisabled();
+  await expect(page.getByTestId('rcp-corr-block')).toBeVisible();
+  // weaken the last pair: the set holds and the run goes
+  await page.getByRole('button', { name: /Back/ }).click();
+  const last = page.locator('[data-testid^="rcp-corr-row-"]').last().locator('input');
+  await last.fill('-0.5');
+  await last.blur();
+  await expect(page.getByTestId('rcp-corr-problem')).toHaveCount(0);
+  await page.getByRole('button', { name: /^Next/ }).click();
+  await page.getByTestId('rcp-mc-run').click();
+  await expect(page.getByTestId('rcp-mc-last-seed')).toBeVisible({ timeout: 60000 });
+  expect(errors).toEqual([]);
+});

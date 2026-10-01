@@ -118,13 +118,32 @@ export class MonteCarloEngine {
             const ia = varKeys.indexOf(a), ib = varKeys.indexOf(b);
             if (ia >= 0 && ib >= 0) { C[ia][ib] = rho; C[ib][ia] = rho; }
         };
-        // Default: porosity rises as water saturation falls.
-        setCorr('porosity', 'sw', -0.8);
-        if (Array.isArray(config.correlations)) {
-            config.correlations.forEach(({ a, b, rho }) => {
-                if (Number.isFinite(rho) && rho > -1 && rho < 1) setCorr(a, b, rho);
-            });
+        // U2-002: the correlations are the user's list when one is given
+        // (the editor starts from porosity-Sw -0.8); with none, the
+        // long-standing default holds (porosity rises as Sw falls).
+        const userCorr = Array.isArray(config.correlations);
+        const pairs = userCorr ? config.correlations : [{ a: 'porosity', b: 'sw', rho: -0.8 }];
+        const applied = [];
+        for (const { a, b, rho } of pairs) {
+            const r = Number(rho);
+            if (!Number.isFinite(r) || r <= -1 || r >= 1) {
+                if (userCorr) throw new Error(`The correlation of ${a} with ${b} must be between -1 and 1 (not inclusive); it is ${rho}.`);
+                continue;
+            }
+            if (a === b) {
+                if (userCorr) throw new Error(`A variable cannot be correlated with itself (${a}).`);
+                continue;
+            }
+            if (varKeys.indexOf(a) < 0 || varKeys.indexOf(b) < 0) {
+                if (userCorr && r !== 0) diagnostics.warnings.push(`The correlation of ${a} with ${b} (${r}) was not applied: ${varKeys.indexOf(a) < 0 ? a : b} has no spread in this run.`);
+                continue;
+            }
+            setCorr(a, b, r);
+            applied.push({ a, b, rho: r });
         }
+        // a matrix that is not positive semidefinite is refused, not clamped
+        const corrProblem = mc.correlationMatrixProblem(C, varKeys);
+        if (corrProblem) throw new Error(corrProblem);
         const L = this.cholesky(C);
 
         const isField = config.unitSystem === 'field';
@@ -261,6 +280,7 @@ export class MonteCarloEngine {
             ranAt: new Date().toISOString(),
             signature: config.signature || null,
             seed,
+            correlations: applied,
             boeBasis: '6 Mscf per boe',
         };
         if (onProgress) onProgress(iterations, iterations);
