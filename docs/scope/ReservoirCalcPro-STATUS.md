@@ -3,6 +3,33 @@
 App: `src/pages/apps/ReservoirCalcPro/` (Geoscience module). Contact-based
 volumetrics flagship; deterministic + Monte Carlo STOIIP/GIIP.
 
+## 2026-10-01: App upgrade U2 (Step 2 batches A, B, C)
+
+Doc: docs/upgrade/ReservoirCalcPro-UPGRADE.md (branch feat/rcp-u2). 12 items
+built, each with a gate that calls the shipped engine and a negative control.
+
+- Monte Carlo in a Web Worker with progress, Cancel, 100k/250k and a
+  recorded seed; the worker runs the canonical `MonteCarloEngine.simulate`
+  (same realizations as before for the same random stream).
+- Registry grids integrated on their own lattice: GRV equals Mapping's
+  quickGrv within 0.1 percent on every saved frame (old IDW path missed).
+- Area/depth (hypsometry) table as a GRV input and CSV export (analytic
+  cone and Mapping's contactVolumes within 0.5 to 1 percent).
+- Trap only: the crest's closure filled at most to its spill point
+  (Mapping's spillAnalysis); on for new projects, off for saved ones.
+- Correlation editor with a positive semidefinite check (refused, not
+  clamped).
+- Solution gas (Rs), vaporised oil (Rv), Sw from SCAL saturation height
+  (Petrophysics swAtHeight, rock-weighted per leg).
+- 2D view on the shared Mapping map kit; one-page prospect PDF (pdftotext
+  read back); success-case economics through `calculateEconomics` handed
+  to Risked Reserves Valuation; gridding saved with the project; spider
+  plot and distribution fitting (KS ranked).
+- Earth Modeling prospects (U2-004) carry their model, zone, wells and
+  flags into the results and reports, and say when edited since.
+- Not built: U2-015 (the legacy exports are still written by Seismolord); deferred U2-003, 010,
+  014 (owner, migration), 016.
+
 ## 2026-10-01: App upgrade U1 (practitioner lens)
 
 Doc: docs/upgrade/ReservoirCalcPro-UPGRADE.md (branch feat/rcp-u1). 39
