@@ -20,7 +20,7 @@ import ChartLogo from '@/components/charts/ChartLogo';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
 } from '@/utils/chartTheme';
-import { sideFluid } from '../services/scenario';
+import { sideFluid, mixingOf } from '../services/scenario';
 import { computeZoneResult } from '../services/zoneResult';
 import { shearSourceText } from '../services/iterativeVs';
 import { minMaxDecimate } from '../services/decimate';
@@ -82,8 +82,8 @@ export default function FluidsPanel({
 
   const fluids = useMemo(() => {
     const out = { a: null, b: null, aError: null, bError: null };
-    try { out.a = sideFluid(scenario.conditions, scenario.fluidA); } catch (e) { out.aError = e.message; }
-    try { out.b = sideFluid(scenario.conditions, scenario.fluidB); } catch (e) { out.bError = e.message; }
+    try { out.a = sideFluid(scenario.conditions, scenario.fluidA, mixingOf(scenario)); } catch (e) { out.aError = e.message; }
+    try { out.b = sideFluid(scenario.conditions, scenario.fluidB, mixingOf(scenario)); } catch (e) { out.bError = e.message; }
     return out;
   }, [scenario]);
 
@@ -134,7 +134,7 @@ export default function FluidsPanel({
 
       <div className="rounded border border-pl-border p-2">
         <div className="text-[11px] uppercase tracking-wider text-pl-muted mb-1">
-          Pore fluids (Batzle-Wang 1992 at {scenario.conditions.tC} °C / {scenario.conditions.pMPa} MPa)
+          Pore fluids (Batzle-Wang 1992 at {scenario.conditions.tC} °C / {scenario.conditions.pMPa} MPa{mixingOf(scenario) === 'voigt' ? '; patchy saturation, Voigt bound' : ''})
         </div>
         <table className="w-full text-[12px] text-pl-text">
           <thead>

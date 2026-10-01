@@ -415,3 +415,27 @@ test('U2-012: Rock Physics publishes the gather with the project; Seismolord syn
   await page.screenshot({ path: `${SHOTS}/rp-u2-seismolord-gather.png` });
   expect(errors2).toEqual([]);
 });
+
+test('U2-016: patchy saturation stiffens a partly gas-filled sand, and the heading and CSV say which mixing was used', async ({ page }) => {
+  const errors = await open(page);
+  await pick(page, 'KETA RP-1');
+  await page.getByTestId('rp-param-fluidB-sw').fill('0.5');
+  await page.getByTestId('rp-apply-params').click();
+  const kUniform = Number(await page.getByTestId('rp-fluid-b-k').textContent());
+  const vpUniform = Number(await page.getByTestId('rp-sub-after-vp').textContent());
+  const rhoUniform = Number(await page.getByTestId('rp-sub-after-rho').textContent());
+  await page.getByTestId('rp-param-mixing').selectOption('voigt');
+  await page.getByTestId('rp-apply-params').click();
+  await expect(page.getByTestId('rp-fluids-panel')).toContainText('patchy saturation, Voigt bound');
+  const kPatchy = Number(await page.getByTestId('rp-fluid-b-k').textContent());
+  const kBrine = Number(await page.getByTestId('rp-fluid-a-k').textContent());
+  // Voigt: half the brine modulus plus half the gas modulus; Wood is far softer
+  expect(kPatchy).toBeGreaterThan(kBrine / 2);
+  expect(kPatchy).toBeLessThan(kBrine / 2 + 0.1);
+  expect(kPatchy).toBeGreaterThan(kUniform * 5);
+  expect(Number(await page.getByTestId('rp-sub-after-vp').textContent())).toBeGreaterThan(vpUniform + 100);
+  expect(Number(await page.getByTestId('rp-sub-after-rho').textContent())).toBeCloseTo(rhoUniform, 1);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('rp-export-csv').click()]);
+  expect(fs.readFileSync(await dl.path(), 'utf8')).toMatch(/# Fluid mixing: patchy saturation at its stiff bound: Voigt/);
+  expect(errors).toEqual([]);
+});

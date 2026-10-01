@@ -17,6 +17,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
 import { convert, M_PER_FT } from '@/lib/units/registry';
+import { FLUID_MIXING } from '../services/scenario';
 
 const num = (v, fallback) => {
   const x = parseFloat(v);
@@ -263,6 +264,7 @@ export default function RockParamsPanel({ scenario, rock, onApply, units = {}, o
     };
     onApply({
       scenario: {
+        mixing: draft.mixing === 'voigt' ? 'voigt' : 'wood',
         conditions,
         fluidA: parseSide(draft.fluidA, 'A'),
         fluidB: parseSide(draft.fluidB, 'B'),
@@ -308,6 +310,18 @@ export default function RockParamsPanel({ scenario, rock, onApply, units = {}, o
         <p className="pb-0.5 text-[11px] text-pl-muted" data-testid="rp-param-pp-note">{wellInputs.pp.reason}</p>
       ))}
       <Field id="salinity" label="Salinity (NaCl)" value={draft.conditions.salinity} onChange={(v) => patchCond({ salinity: v })} unit={u.salinity} units={SALINITY_UNITS} onUnit={(v) => setUnit('salinity', v)} />
+
+      <label className="flex items-center justify-between gap-2 py-0.5 text-[12px] text-pl-text" title="How brine and hydrocarbon share the pores when Sw is between 0 and 1. Uniform: a fine mix, the Wood (Reuss) average of the fluid moduli, the soft bound. Patchy: the phases in patches, at the stiff bound, the Voigt average. A real rock lies between the two; a little gas softens a uniform mix far more than a patchy one.">
+        <span>Fluid mixing</span>
+        <select
+          data-testid="rp-param-mixing"
+          value={draft.mixing === 'voigt' ? 'voigt' : 'wood'}
+          onChange={(e) => setDraft({ ...draft, mixing: e.target.value })}
+          className="w-36 bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-pl-text"
+        >
+          {FLUID_MIXING.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+        </select>
+      </label>
 
       <FluidSide side="fluidA" label="Fluid A (in situ)" draft={draft} setDraft={setDraft} gorUnit={u.gor} onGorUnit={(v) => setUnit('gor', v)} />
       <FluidSide side="fluidB" label="Fluid B (substitute)" draft={draft} setDraft={setDraft} gorUnit={u.gor} onGorUnit={(v) => setUnit('gor', v)} wellInputs={wellInputs} depthUnit={zU} />

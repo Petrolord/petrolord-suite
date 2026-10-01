@@ -152,7 +152,7 @@ function RockPhysicsStudioHelpGuideContent() {
         <Para>
           Each fluid side is brine mixed with one hydrocarbon at the water saturation you type: gas by its gravity,
           dead oil by API, live oil by API, gas to oil ratio and solution gas gravity. Brine follows the salinity in the
-          conditions. The mixture modulus is the Wood (Reuss) average and the density the volume average. The table
+          conditions. The mixture modulus is the Wood (Reuss) average and the density the volume average. Fluid mixing in the dock switches to patchy saturation, the Voigt (arithmetic) average: the stiff bound, for phases that sit in patches too large for pore pressure to even out in a seismic period. A real rock lies between the two; ten percent gas takes most of the stiffness out of a uniform mix and almost none out of a patchy one, so run both to bracket the effect. The table
           reports density, bulk modulus and, where the fluid has one, its own velocity.
         </Para>
         <SubHeading>The rock model</SubHeading>
@@ -334,6 +334,9 @@ function RockPhysicsStudioHelpGuideContent() {
           ['Gassmann', 'The relation between the dry, saturated, mineral and fluid bulk moduli of a porous rock at low frequency.'],
           ['K_min', 'The mineral (grain) bulk modulus; the Voigt-Reuss-Hill average of the mineral table unless overridden.'],
           ['Wood mixing', 'The Reuss average of the fluid moduli, weighted by saturation; the effective modulus of a uniform fluid mixture.'],
+          ['Patchy saturation', 'Brine and hydrocarbon in separate patches; here mixed with the Voigt (arithmetic) average of their moduli, the stiff bound.'],
+          ['Wet trend (fluid line)', 'The line brine-filled interfaces follow on the intercept-gradient plane; an interface with hydrocarbon sits off it.'],
+          ['Pseudo-sonic', 'A P velocity estimated from density (Gardner inverse) or resistivity and depth (Faust) for a well with no sonic log; always marked estimated.'],
           ['Intercept and gradient', 'The Shuey A and B: the normal-incidence reflection coefficient and its change with the sine squared of the angle.'],
           ['Tuning thickness', 'The bed thickness at which the top and base reflections add to the largest amplitude.'],
           ['Slowness', 'Sonic transit time, the inverse of velocity, in us/ft or us/m.'],

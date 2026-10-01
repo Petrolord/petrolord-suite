@@ -4,12 +4,25 @@
 // unphysical inputs THROW with the reason, per-sample gaps are
 // skipped and counted — never silently zeroed.
 
-import { brine, gas, deadOil, liveOil, apiToRho0, woodMix } from '../engine/fluids';
+import { brine, gas, deadOil, liveOil, apiToRho0, woodMix, voigtMix } from '../engine/fluids';
 import { mixMinerals } from '../engine/minerals';
 import { substituteVels } from '../engine/gassmann';
 import { kminFromFractions } from './petroInputs';
 
+// U2-016: how brine and hydrocarbon share the pore space. 'wood' is a fine
+// uniform mix (the Reuss average of the fluid moduli, the soft bound);
+// 'voigt' is patchy saturation at its stiff bound (the Voigt average: the
+// phases sit in patches too large for pore pressure to equalise in a
+// seismic period). A real rock lies between the two.
+export const FLUID_MIXING = Object.freeze([
+  { key: 'wood', label: 'uniform (Wood)' },
+  { key: 'voigt', label: 'patchy (Voigt bound)' },
+]);
+export const mixingOf = (scenario) => (scenario?.mixing === 'voigt' ? 'voigt' : 'wood');
+const mixer = (mixing) => (mixing === 'voigt' ? voigtMix : woodMix);
+
 export const DEFAULT_SCENARIO = {
+  mixing: 'wood',
   conditions: { tC: 60, pMPa: 25, salinity: 0.035 },
   // each side is brine mixed with ONE hydrocarbon at water saturation
   // sw (Reuss/Wood, plan decision 1); sw=1 -> pure brine, sw=0 -> pure hc
@@ -52,7 +65,7 @@ export function hcProps(cond, hc) {
 }
 
 /** One side's effective pore fluid {rho, k, vp?, label}. */
-export function sideFluid(cond, side) {
+export function sideFluid(cond, side, mixing = 'wood') {
   const sw = side.sw;
   if (!(sw >= 0 && sw <= 1)) throw new Error('Sw must be in [0, 1].');
   const br = brine(cond.tC, cond.pMPa, cond.salinity);
@@ -60,11 +73,11 @@ export function sideFluid(cond, side) {
   const hc = hcProps(cond, side.hc);
   const hcLabel = side.hc.kind === 'gas' ? 'gas' : side.hc.kind;
   if (sw === 0) return { ...hc, label: hcLabel };
-  const mixed = woodMix([
+  const mixed = mixer(mixing)([
     { ...br, sat: sw },
     { ...hc, sat: 1 - sw },
   ]);
-  return { ...mixed, label: `${hcLabel} (Sw ${sw})` };
+  return { ...mixed, label: `${hcLabel} (Sw ${sw}${mixing === 'voigt' ? ', patchy' : ''})` };
 }
 
 /** K_min (Pa) from the rock panel: override wins, else VRH mix. */
@@ -139,8 +152,10 @@ export const plainMessage = (m) => String(m || '').replace(/\s*—\s*/g, ': ');
  */
 export function makeSampler(model, scenario, rock) {
   const cond = scenario.conditions;
-  const flA = sideFluid(cond, scenario.fluidA);
-  const flB = sideFluid(cond, scenario.fluidB);
+  const mixing = mixingOf(scenario);
+  const mix = mixer(mixing);
+  const flA = sideFluid(cond, scenario.fluidA, mixing);
+  const flB = sideFluid(cond, scenario.fluidB, mixing);
   const override = parseFloat(rock.kminOverrideGPa);
   const hasOverride = Number.isFinite(override) && override > 0;
   const kminTable = kminFromRock(rock);
@@ -157,6 +172,7 @@ export function makeSampler(model, scenario, rock) {
   const useShm = !!scenario.fluidB?.shm?.on && !!model.swB;
   const hcB = useShm && scenario.fluidB.hc ? hcProps(cond, scenario.fluidB.hc) : null;
   return {
+    mixing,
     useShm,
     labelB: useShm ? `brine and ${scenario.fluidB.hc?.kind === 'gas' ? 'gas' : scenario.fluidB.hc?.kind} at the saturation-height Sw` : flB.label,
     /** fluid B's water saturation at the sample, and whether the typed value stood in */
@@ -194,14 +210,14 @@ export function makeSampler(model, scenario, rock) {
       const sw = model.sw[i];
       if (!Number.isFinite(sw)) return flA;
       const s = Math.min(1, Math.max(0, sw));
-      return s >= 1 ? brineAt : s <= 0 ? hcA : woodMix([{ ...brineAt, sat: s }, { ...hcA, sat: 1 - s }]);
+      return s >= 1 ? brineAt : s <= 0 ? hcA : mix([{ ...brineAt, sat: s }, { ...hcA, sat: 1 - s }]);
     },
     fluidB: (i) => {
       if (!useShm) return flB;
       const sw = model.swB[i];
       if (!Number.isFinite(sw)) return flB;
       const s = Math.min(1, Math.max(0, sw));
-      return s >= 1 ? brineAt : s <= 0 ? hcB : woodMix([{ ...brineAt, sat: s }, { ...hcB, sat: 1 - s }]);
+      return s >= 1 ? brineAt : s <= 0 ? hcB : mix([{ ...brineAt, sat: s }, { ...hcB, sat: 1 - s }]);
     },
     kmin: (i) => {
       if (usePetro) {
@@ -235,6 +251,7 @@ export function substituteZone(model, indices, scenario, rock) {
     outside: 0,
     swFallback: 0,
     mineralFallback: 0,
+    mixing: sm.mixing,
     swBFromShm: sm.useShm,
     swBFallback: 0,
     swBMin: Infinity,

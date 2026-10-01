@@ -78,6 +78,7 @@ export function preparePublishLogs(model, sub, indices, zone, meta) {
         fluids: label,
         phi_basis: sub.phiBasis || (model.phi ? (model.phiBasis || 'effective') : 'constant'),
         phi_curve: model.phiCurve || null,
+        fluid_mixing: sub.mixing || 'wood',
         sw_from_log: !!sub.swFromLog,
         sw_b_from_saturation_height: !!sub.swBFromShm,
         pore_pressure_source: meta.scenario?.conditions?.pSource || null,

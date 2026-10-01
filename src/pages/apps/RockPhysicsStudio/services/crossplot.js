@@ -9,7 +9,7 @@
 import { brine } from '../engine/fluids';
 import { mixMinerals } from '../engine/minerals';
 import { sandLine, mudrockLine, CRITICAL_POROSITY_SANDSTONE } from '../engine/templates';
-import { sideFluid } from './scenario';
+import { sideFluid, mixingOf } from './scenario';
 import { acousticImpedance, vpVs } from './elastic';
 
 export const CROSSPLOT_MAX_POINTS = 1500;
@@ -89,7 +89,7 @@ export function templateLines(scenario, rock, { phic = CRITICAL_POROSITY_SANDSTO
     for (let p = 0; p < phic - 1e-9; p += PHI_STEP) phis.push(Number(p.toFixed(4)));
     const br = brine(cond.tC, cond.pMPa, cond.salinity);
     out.brine = sandLine(mineral, br, phis, phic);
-    const flB = sideFluid(cond, scenario.fluidB);
+    const flB = sideFluid(cond, scenario.fluidB, mixingOf(scenario));
     if (scenario.fluidB.sw < 1) {
       out.fluidB = sandLine(mineral, flB, phis, phic);
       out.fluidBLabel = flB.label;

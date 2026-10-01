@@ -57,6 +57,9 @@ export function reportHeader({ well, zone, model, sub, indices, scenario, rock, 
     ['Fluid B (substitute)', sub.swBFromShm && sub.done
       ? `brine and ${scenario.fluidB.hc?.kind === 'gas' ? 'gas' : 'oil'} with Sw from the saturation-height function per sample (${model.swBInfo?.name || 'SCAL Studio project'}, free-water level ${cell(model.swBInfo?.fwlTvdssM, 1)} m TVDSS): Sw ${cell(sub.swBMin, 3)} to ${cell(sub.swBMax, 3)}${sub.swBFallback ? `; ${sub.swBFallback} samples with no value used the typed ${scenario.fluidB.sw}` : ''}`
       : `${describeFluid(scenario.fluidB)}: K ${cell(sub.flB.k / 1e9, 4)} GPa, density ${cell(sub.flB.rho, 1)} kg/m3`],
+    ['Fluid mixing', sub.mixing === 'voigt'
+      ? 'patchy saturation at its stiff bound: Voigt (arithmetic) average of the brine and hydrocarbon moduli; a uniform mix (Wood) is softer'
+      : 'uniform saturation: Wood (Reuss) average of the brine and hydrocarbon moduli'],
     ['Mineral modulus', `${kmin}; minerals ${minerals || 'none'}`],
     ['Porosity', model.phiCurve ? `${model.phiCurve} (${model.phiBasis === 'total' ? 'total' : 'effective'} porosity)` : `constant ${rock.phiConst}`],
     ['Sonic', model.vpSource === 'estimated' ? `Vp ESTIMATED, no sonic log: ${model.vpNote}` : 'measured sonic log'],
