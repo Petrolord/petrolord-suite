@@ -191,6 +191,7 @@ export default function BasinFlowHelpGuide() {
           ['Pore Pressure Studio', 'Uses its own sonic-based method; the two share the registry wells.'],
           ['Geoscience home', 'The home button in the Expert header.'],
         ]} />
+        <Para>ReservoirCalc Pro and Risked Reserves: on the Timing tab, Send the charge to ReservoirCalc Pro hands over what the source rocks expel. In Prospect Risking there, type the fetch area, the age the trap formed and a migration efficiency: it works out the charge that reaches the trap, compares it with the prospect and suggests the charge factor of Pg, which you apply or change. The prospect keeps the record and Risked Reserves Valuation names the basin model beside it. Stratigraphy Studio reads decompacted accumulation rates from this app's engine, and Pore Pressure Studio takes the pressure profile from the Pressure tab.</Para>
       </GuideSection>
 
       <GuideSection id="example">
