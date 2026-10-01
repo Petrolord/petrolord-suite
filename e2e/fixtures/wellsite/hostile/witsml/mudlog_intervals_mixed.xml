@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mudLogs xmlns="http://www.witsml.org/schemas/1series" version="1.4.1.1">
+  <mudLog uidWell="W-1" uidWellbore="B-1" uid="M-1">
+    <nameWell>HOSTILE-M1</nameWell>
+    <nameWellbore>HOSTILE-M1</nameWellbore>
+    <name>Mud log 12.25 in section</name>
+    <startMd uom="ft">9900</startMd>
+    <endMd uom="ft">9950</endMd>
+    <geologyInterval uid="G1">
+      <typeLithology>cuttings</typeLithology>
+      <mdTop uom="ft">9900</mdTop>
+      <mdBottom uom="ft">9910</mdBottom>
+      <lithology uid="G1L1"><type>sandstone</type><lithPc uom="%">70</lithPc></lithology>
+      <lithology uid="G1L2"><type>shale</type><lithPc uom="%">30</lithPc></lithology>
+      <description>SST lt gy f-m gr w/ SH dk gy</description>
+    </geologyInterval>
+    <geologyInterval uid="G2">
+      <typeLithology>cuttings</typeLithology>
+      <mdTop uom="ft">9910</mdTop>
+      <mdBottom uom="ft">9920</mdBottom>
+      <lithology uid="G2L1"><type>unobtainium</type><lithPc uom="%">100</lithPc></lithology>
+    </geologyInterval>
+    <geologyInterval uid="G3">
+      <typeLithology>cuttings</typeLithology>
+      <mdTop uom="ft">9920</mdTop>
+      <mdBottom uom="ft">9930</mdBottom>
+      <lithology uid="G3L1"><type>limestone</type><lithPc uom="%">60</lithPc></lithology>
+      <lithology uid="G3L2"><type>shale</type><lithPc uom="%">20</lithPc></lithology>
+    </geologyInterval>
+    <geologyInterval uid="G4">
+      <typeLithology>cuttings</typeLithology>
+      <mdTop>9930</mdTop>
+      <mdBottom uom="ft">9940</mdBottom>
+      <lithology uid="G4L1"><type>shale</type><lithPc uom="%">100</lithPc></lithology>
+    </geologyInterval>
+    <geologyInterval uid="G5">
+      <typeLithology>cuttings</typeLithology>
+      <mdTop uom="ft">9940</mdTop>
+      <mdBottom uom="ft">9950</mdBottom>
+      <lithology uid="G5L1"><type>SH</type></lithology>
+      <description>SH dk gy fis</description>
+    </geologyInterval>
+  </mudLog>
+</mudLogs>

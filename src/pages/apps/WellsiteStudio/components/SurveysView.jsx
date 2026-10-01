@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { toRigLocal } from '@/lib/wellsite/time';
 import { fmtDepth, parseFieldNumber, depthToDisplay } from '../services/units';
 import { parseStationTable, buildRun, surveyListing, AZIMUTH_REFS } from '../services/surveys';
+import { parseWitsml, trajectoryFromWitsml } from '../services/witsml';
 
 export default function SurveysView({ inUse, ctx, unit, offsetMin, stale, runs = [], onRecord, onStatus, nameOf, extraSlot = null, online = true, onRegistryPlan = null, onRegistrySend = null, lastSent = null }) {
   const [regPlan, setRegPlan] = useState(null);
@@ -39,7 +40,26 @@ export default function SurveysView({ inUse, ctx, unit, offsetMin, stale, runs =
     } catch (e) { setError(e.message); onStatus?.(e.message); }
   };
   const addOne = () => record([{ md: parseFieldNumber(md), inc: parseFieldNumber(inc), azi: parseFieldNumber(azi) }], 'manual');
-  const onFile = async (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; setText(await f.text()); e.target.value = ''; };
+  const [fileNote, setFileNote] = useState('');
+  const onFile = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const body = await f.text();
+    e.target.value = '';
+    setError(''); setFileNote('');
+    if (body.trimStart().startsWith('<')) {
+      // U2-011: a WITSML trajectory declares its units on every value; they are converted on reading
+      try {
+        const t = trajectoryFromWitsml(parseWitsml(body));
+        setText(['MD (m)  Inc  Azi', ...t.stations.map((x) => `${x.md} ${x.inc} ${x.azi}`)].join('\n'));
+        setMdUnit('m');
+        if (t.azimuthRef) setAziRef(t.azimuthRef);
+        setFileNote(`WITSML trajectory ${t.name}: ${t.stations.length} station(s), depths converted to metres and angles to degrees by the units in the file${t.azimuthRef ? `, azimuths from ${t.azimuthRef} north` : ''}.${t.skipped.length ? ` ${t.skipped.length} station(s) not read: ${t.skipped.slice(0, 3).map((x) => `${x.text} (${x.reason})`).join('; ')}.` : ''} ${t.notes.join(' ')}`.trim());
+      } catch (err) { setText(''); setError(err.message); onStatus?.(err.message); }
+      return;
+    }
+    setText(body);
+  };
 
   return (
     <div className="p-4 space-y-4" data-testid="ws-surveys">
@@ -72,10 +92,11 @@ export default function SurveysView({ inUse, ctx, unit, offsetMin, stale, runs =
         <div className="flex items-start gap-2 flex-wrap">
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} spellCheck={false} data-testid="ws-survey-paste" placeholder="MD  Inc  Azi, one station per line" className="w-full max-w-xl bg-pl-surface border border-pl-border-strong rounded px-2 py-1 text-[11px] font-mono text-pl-text" />
           <div className="space-y-1">
-            <input type="file" accept=".csv,.txt,.tsv,text/plain,text/csv" onChange={onFile} data-testid="ws-survey-file" className="block text-xs text-pl-text" />
+            <input type="file" accept=".csv,.txt,.tsv,.xml,.witsml,text/plain,text/csv,text/xml,application/xml" onChange={onFile} data-testid="ws-survey-file" className="block text-xs text-pl-text" />
             <Button size="sm" variant="outline" disabled={!parsed || !!parsed.error || !parsed.stations.length} onClick={() => record(parsed.stations, 'external')} data-testid="ws-survey-paste-record">Record {parsed && !parsed.error ? parsed.stations.length : 0} station(s)</Button>
           </div>
         </div>
+        {fileNote && <div className="text-[11px] text-pl-text" data-testid="ws-survey-file-note">{fileNote}</div>}
         {parsed && parsed.error && <div className="text-[11px] text-pl-warning-text" data-testid="ws-survey-parse-error">{parsed.error}</div>}
         {parsed && !parsed.error && (
           <div className="text-[11px] text-pl-muted" data-testid="ws-survey-parse-summary">

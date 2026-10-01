@@ -60,6 +60,9 @@ import LogView from './LogView';
 import OfficeView from './OfficeView';
 import { mudWindowAtBit, pressureEmwSeries } from '../services/pressure';
 import { displayUnit } from '../services/mudlogImport';
+import { trajectoryXml, logXml, mudLogXml, descriptionRecordsFromIntervals, downloadText } from '../services/witsml';
+import { surveyListing } from '../services/surveys';
+import { abbreviate, descriptionOf, mergeProfile } from '../services/describe';
 import { dExponentSeries, currentDxcSettings, dxcSettingsParams } from '../services/dexponent';
 import { buildStripLog } from '../services/stripLog';
 import { SURVEY_SUBTYPE, SURVEY_PUBLISHED_SUBTYPE, activeSurvey, wellWithSurvey, surveyRuns, staleDepths } from '../services/surveys';
@@ -334,6 +337,23 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setStatus(`${row.payload.text} TVD and subsea depths now follow it.`);
     setTick((t) => t + 1);
   }, [backend, well]);
+  // U2-011: WITSML 1.4.1.1 files out, and mudLog intervals in as cuttings descriptions
+  const exportWitsml = useCallback((kind) => {
+    try {
+      const safe = String(well.name).replace(/[^\w]+/g, '-').toLowerCase();
+      if (kind === 'log') downloadText(`${safe}-log.witsml.xml`, logXml({ well, points: mudlog.points }));
+      else if (kind === 'mudLog') {
+        const profile = mergeProfile(well.settings && well.settings.abbreviation_profile ? well.settings.abbreviation_profile : null);
+        downloadText(`${safe}-mudlog.witsml.xml`, mudLogXml({ well, descriptions, textOf: (r) => abbreviate(descriptionOf(r), profile).text }));
+      } else downloadText(`${safe}-trajectory.witsml.xml`, trajectoryXml({ well, listing: surveyListing(surveyInUse.survey ? surveyInUse.survey.stations : [], ctx ? ctx.kbElevM : 0), version: surveyInUse.survey ? surveyInUse.survey.version : 'survey' }));
+      setStatus(`WITSML ${kind} file saved.`);
+    } catch (e) { setStatus(e.message); }
+  }, [well, mudlog, descriptions, surveyInUse, ctx]);
+  const importIntervals = useCallback(async (intervals, { fileName }) => {
+    await backend.addRecords(well.id, descriptionRecordsFromIntervals(intervals, { fileName }));
+    setStatus(`${fileName}: ${intervals.length} cuttings description(s) added from the WITSML mudLog, marked externally observed.`);
+    setTick((t) => t + 1);
+  }, [backend, well]);
   const recordLagCheck = useCallback(async (result, { tracer }) => {
     const bit = bitDepths[bitDepths.length - 1] || null;
     const { row } = await backend.addRecord(well.id, lagCheckParams({ result, tracer, bit }));
@@ -576,7 +596,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   } else if (view === 'photos') {
     center = <PhotosPanel backend={backend} well={well} photos={photos} samples={samples} sampleId={photoSampleId} onSampleChange={setPhotoSampleId} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   } else if (view === 'import') {
-    center = <ImportView ctx={ctx} defaults={entryDefaults} unit={units.depth} pressureUnit={units.pressure} offsetMin={offsetMin} imports={mudlogImports} series={mudlog} onImport={importMudlog} onWithdraw={withdrawImport} onTypedRow={recordTypedRow} onStatus={setStatus} userName={user ? user.name || user.email : ''} />;
+    center = <ImportView ctx={ctx} defaults={entryDefaults} unit={units.depth} pressureUnit={units.pressure} offsetMin={offsetMin} imports={mudlogImports} series={mudlog} onImport={importMudlog} onWithdraw={withdrawImport} onTypedRow={recordTypedRow} onStatus={setStatus} userName={user ? user.name || user.email : ''} onImportIntervals={importIntervals} onExport={exportWitsml} />;
   } else if (view === 'surveys') {
     center = <SurveysView inUse={surveyInUse} ctx={ctx} unit={units.depth} offsetMin={offsetMin} stale={staleNow} runs={surveyRuns(surveyRecords)} onRecord={recordSurveyRun} onStatus={setStatus} nameOf={nameOf} online={backend.online()} onRegistryPlan={registrySurveyPlan} onRegistrySend={sendSurveyToRegistry} lastSent={lastSurveySent} />;
   } else if (view === 'log') {

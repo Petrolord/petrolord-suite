@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<witsml:trajectorys xmlns:witsml="http://www.witsml.org/schemas/1series" version="1.4.1.1">
+  <witsml:trajectory uidWell="W-1" uidWellbore="B-1" uid="T-1">
+    <witsml:nameWell>HOSTILE-T1</witsml:nameWell>
+    <witsml:nameWellbore>HOSTILE-T1 ST0</witsml:nameWellbore>
+    <witsml:name>MWD run 3</witsml:name>
+    <witsml:mdMn uom="ft">10500</witsml:mdMn>
+    <witsml:mdMx uom="ft">10690</witsml:mdMx>
+    <witsml:aziRef>true north</witsml:aziRef>
+    <witsml:trajectoryStation uid="S2">
+      <witsml:typeTrajStation>magnetic MWD</witsml:typeTrajStation>
+      <witsml:md uom="ft">10690</witsml:md>
+      <witsml:incl uom="rad">0.5585</witsml:incl>
+      <witsml:azi uom="rad">1.5882</witsml:azi>
+    </witsml:trajectoryStation>
+    <witsml:trajectoryStation uid="S1">
+      <witsml:typeTrajStation>magnetic MWD</witsml:typeTrajStation>
+      <witsml:md uom="ft">10500</witsml:md>
+      <witsml:incl uom="dega">30.5</witsml:incl>
+      <witsml:azi uom="dega">91.2</witsml:azi>
+    </witsml:trajectoryStation>
+    <witsml:trajectoryStation uid="S3">
+      <witsml:typeTrajStation>magnetic MWD</witsml:typeTrajStation>
+      <witsml:md>10780</witsml:md>
+      <witsml:incl uom="dega">33</witsml:incl>
+      <witsml:azi uom="dega">91</witsml:azi>
+    </witsml:trajectoryStation>
+  </witsml:trajectory>
+</witsml:trajectorys>

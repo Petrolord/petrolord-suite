@@ -26,6 +26,7 @@
 // ignored by every reader. Pure, no I/O.
 
 import { parseLas } from '../../../../../packages/engines/engines/welldata/lasParse.js';
+import { parseWitsml, logTableFromWitsml } from './witsml';
 
 export const IMPORT_SUBTYPE = 'mudlog_import';
 export const DATA_SUBTYPE = 'mudlog_data';
@@ -44,9 +45,9 @@ const UNIT_SYNONYMS = {
   rpm: ['rpm', 'rev/min', 'c/min', 'r/min', '1/min'],
   'kft.lbf': ['kft.lbf', 'kft.lb', 'kft-lb', 'kft-lbf', 'kftlb', 'kftlbf', 'kft.lbs', 'kft-lbs'], 'ft.lbf': ['ft.lbf', 'ft.lb', 'ft-lb', 'ft-lbf', 'ftlb', 'ftlbf', 'ft.lbs', 'ft-lbs'], 'kN.m': ['kn.m', 'knm', 'kn-m'], 'N.m': ['n.m', 'nm', 'n-m'],
   psi: ['psi', 'psig'], kPa: ['kpa'], bar: ['bar', 'barg'], MPa: ['mpa'],
-  gpm: ['gpm', 'gal/min', 'usgpm', 'usgal/min'], 'L/min': ['l/min', 'lpm', 'ltr/min'], 'm3/min': ['m3/min', 'm3/mn'], 'bbl/min': ['bbl/min', 'bpm'],
+  gpm: ['gpm', 'gal/min', 'usgpm', 'usgal/min', 'galus/min'], 'L/min': ['l/min', 'lpm', 'ltr/min'], 'm3/min': ['m3/min', 'm3/mn'], 'bbl/min': ['bbl/min', 'bpm'],
   spm: ['spm', 'stk/min', 'strokes/min', 'str/min'],
-  ppg: ['ppg', 'lb/gal', 'lbm/gal', 'lbs/gal'], sg: ['sg', 's.g.', 's.g'], 'g/cc': ['g/cc', 'g/cm3', 'gm/cc', 'g/c3'], 'kg/m3': ['kg/m3', 'k/m3'], pcf: ['pcf', 'lb/ft3', 'lbm/ft3', 'lb/cf'],
+  ppg: ['ppg', 'lb/gal', 'lbm/gal', 'lbs/gal', 'lbm/galus'], sg: ['sg', 's.g.', 's.g'], 'g/cc': ['g/cc', 'g/cm3', 'gm/cc', 'g/c3'], 'kg/m3': ['kg/m3', 'k/m3'], pcf: ['pcf', 'lb/ft3', 'lbm/ft3', 'lb/cf'],
   '%': ['%', 'pct', 'percent', 'perc'], ppm: ['ppm'], units: ['units', 'unit', 'u', 'gu', 'api'],
   in: ['in', 'inch', 'inches', '"'], mm: ['mm'],
 };
@@ -131,6 +132,13 @@ function guessColumns(columns, units) {
 export function parseMudlogFile(text, { fileName = '' } = {}) {
   const raw = String(text || '').replace(/^﻿/, '');
   if (!raw.trim()) throw new Error('The file is empty.');
+  if (raw.trimStart().startsWith('<')) {
+    // U2-011: a WITSML log arrives through the same door, its units those the file declares
+    const w = parseWitsml(raw);
+    if (w.kind !== 'log') throw new Error(w.kind === 'trajectory' ? 'This is a WITSML trajectory: load it on the Surveys view.' : 'This is a WITSML mudLog: it holds lithology intervals, read below as cuttings descriptions.');
+    const t = logTableFromWitsml(w);
+    return { ...t, guess: guessColumns(t.columns, t.units), lasRows: true };
+  }
   if (/^\s*~V/im.test(raw) || /\.las$/i.test(fileName)) return parseLasMudlog(raw);
   const lines = raw.replace(/\r\n?/g, '\n').split('\n').map((l, i) => ({ text: l, line: i + 1 })).filter((l) => l.text.trim() && !/^\s*(#|\/\/)/.test(l.text));
   if (!lines.length) throw new Error('The file is empty.');

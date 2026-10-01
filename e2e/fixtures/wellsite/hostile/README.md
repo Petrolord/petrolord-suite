@@ -14,3 +14,14 @@ shipped importer (`services/mudlogImport.js`) and by `e2e/wellsite-u2.spec.js`.
 | `mudlog_las30_comma_metric.las` | LAS 3.0, comma delimited, metric |
 
 A file at real size (10,000 rows) is generated inside the test.
+
+## WITSML files (upgrade U2-011), in `witsml/`
+
+| File | What is hostile about it |
+|---|---|
+| `trajectory_prefixed_ft_rad.xml` | Every element carries a namespace prefix; depths in feet; one station's angles in radians; stations out of depth order; one station with no uom on its depth; azimuths from true north |
+| `log_vendor_units_nulls.xml` | Vendor mnemonics (ROPA, WOBA, MDIA); WITSML unit spellings (ft/h, klbf, lbm/galUS); a null value of -9999 and an empty cell; a gas curve in a unit the door does not know (Euc) |
+| `mudlog_intervals_mixed.xml` | Feet; a lithology that is not in the vocabulary; percentages that do not add up; a depth with no uom; a single lithology with no percentage and an alias (SH) |
+| `broken_cut_short.xml` | Truncated mid-element |
+| `witsml20_trajectory.xml` | A WITSML 2.0 object |
+| `well_object_not_supported.xml` | A valid 1.4.1.1 file of an object this reader does not take |

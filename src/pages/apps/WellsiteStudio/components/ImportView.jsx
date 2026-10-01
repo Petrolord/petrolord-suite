@@ -15,10 +15,13 @@ import { toRigLocal } from '@/lib/wellsite/time';
 import { datumElevationM } from '@/lib/wellsite/depth';
 import { fmtDepth, parseFieldNumber } from '../services/units';
 import { parseMudlogFile, initialMapping, missingChoices, convertMudlog, QUANTITIES, quantity, displayUnit, lagRecordsFromRows } from '../services/mudlogImport';
+import { parseWitsml, intervalsFromWitsml } from '../services/witsml';
 
 const TYPED = ['rop', 'wob', 'rpm', 'mw', 'ecd', 'total_gas', 'bit_size'];
 
-export default function ImportView({ ctx, defaults, unit, pressureUnit, offsetMin, imports = [], series = null, onImport, onWithdraw, onTypedRow, onStatus, userName, extraSlot = null }) {
+export default function ImportView({ ctx, defaults, unit, pressureUnit, offsetMin, imports = [], series = null, onImport, onWithdraw, onTypedRow, onStatus, userName, extraSlot = null, onImportIntervals = null, onExport = null }) {
+  // U2-011: a WITSML mudLog holds lithology intervals, read as cuttings descriptions
+  const [mudLog, setMudLog] = useState(null);
   const [fileName, setFileName] = useState('');
   const [text, setText] = useState('');
   const [table, setTable] = useState(null);
@@ -33,8 +36,17 @@ export default function ImportView({ ctx, defaults, unit, pressureUnit, offsetMi
   const sel = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text';
 
   const read = (name, body) => {
-    setError(''); setFileName(name); setText(body);
+    setError(''); setFileName(name); setText(body); setMudLog(null);
     try {
+      if (String(body).trimStart().startsWith('<')) {
+        const w = parseWitsml(body);
+        if (w.kind === 'mudLog') {
+          const iv = intervalsFromWitsml(w);
+          setTable(null); setMapping(null); setMudLog({ ...iv, fileName: name });
+          onStatus?.(`${name}: WITSML mudLog ${iv.name} read, ${iv.intervals.length} interval(s)${iv.skipped.length ? `, ${iv.skipped.length} not read` : ''}.`);
+          return;
+        }
+      }
       const t = parseMudlogFile(body, { fileName: name });
       setTable(t); setMapping(initialMapping(t));
       onStatus?.(`${name || 'Pasted table'} read: ${t.columns.length} column(s), ${t.rows.length} row(s). Check what each column is before importing.`);
@@ -92,7 +104,7 @@ export default function ImportView({ ctx, defaults, unit, pressureUnit, offsetMi
       <h2 className="text-sm font-semibold text-pl-text">Import mudlogging data</h2>
       <p className="text-[11px] text-pl-muted max-w-3xl">A CSV, a delimited text file or a LAS file from the mudlogging unit, by depth or by time. The app shows what it read and asks what each column is and its unit before anything is stored. Depths are measured depths.</p>
       <div className="flex items-center gap-2 flex-wrap">
-        <input ref={fileRef} type="file" accept=".csv,.txt,.las,.tsv,.asc,text/plain,text/csv" onChange={onFile} data-testid="ws-import-file" className="text-xs text-pl-text" />
+        <input ref={fileRef} type="file" accept=".csv,.txt,.las,.tsv,.asc,.xml,.witsml,text/plain,text/csv,text/xml,application/xml" onChange={onFile} data-testid="ws-import-file" className="text-xs text-pl-text" />
         <span className="text-[11px] text-pl-muted">or paste the table below and press Read</span>
       </div>
       <div className="flex items-start gap-2">
@@ -101,10 +113,22 @@ export default function ImportView({ ctx, defaults, unit, pressureUnit, offsetMi
       </div>
       {error && <div className="text-[11px] text-pl-warning-text" data-testid="ws-import-error">{error}</div>}
 
+      {mudLog && (
+        <div className="space-y-1 text-[11px] text-pl-text" data-testid="ws-import-mudlog">
+          <div data-testid="ws-import-mudlog-summary">WITSML mudLog {mudLog.name}: {mudLog.intervals.length} lithology interval(s){mudLog.intervals.length ? `, ${fmtDepth(mudLog.intervals[0].mdTopM, unit)} to ${fmtDepth(mudLog.intervals[mudLog.intervals.length - 1].mdBaseM, unit)} MD below KB` : ''}. They are added as cuttings descriptions marked externally observed, with the lithology percentages and the description text of the file. {mudLog.notes.join(' ')}</div>
+          {mudLog.skipped.length > 0 && (
+            <details open={mudLog.skipped.length <= 5} data-testid="ws-import-mudlog-skipped"><summary className="cursor-pointer text-pl-warning-text">{mudLog.skipped.length} interval(s) not read</summary>
+              <ul className="list-disc pl-5 text-pl-muted">{mudLog.skipped.slice(0, 20).map((x) => <li key={x.line}>interval {x.line}: {x.reason}</li>)}</ul></details>
+          )}
+          <Button size="sm" disabled={busy || !mudLog.intervals.length || !onImportIntervals} data-testid="ws-import-mudlog-go"
+            onClick={async () => { setBusy(true); try { await onImportIntervals(mudLog.intervals, { fileName: mudLog.fileName }); setMudLog(null); setText(''); } catch (e) { setError(e.message); onStatus?.(e.message); } finally { setBusy(false); } }}>Add {mudLog.intervals.length} description(s)</Button>
+        </div>
+      )}
+
       {table && mapping && (
         <div className="space-y-2" data-testid="ws-import-mapping">
           <div className="text-[11px] text-pl-text" data-testid="ws-import-read-summary">
-            Read {table.format === 'las' ? 'a LAS file' : `a text table separated by ${table.delim}`}: {table.columns.length} column(s), {table.rows.length} row(s){table.commaDecimal ? ', comma decimals' : ''}. {table.notes.join(' ')}
+            Read {table.format === 'las' ? 'a LAS file' : table.format === 'witsml' ? 'a WITSML log' : `a text table separated by ${table.delim}`}: {table.columns.length} column(s), {table.rows.length} row(s){table.commaDecimal ? ', comma decimals' : ''}. {table.notes.join(' ')}
           </div>
           <div className="overflow-x-auto">
             <table className="text-xs text-pl-text">
@@ -194,6 +218,18 @@ export default function ImportView({ ctx, defaults, unit, pressureUnit, offsetMi
         </div>
         {series && <div className="text-[11px] text-pl-muted" data-testid="ws-import-series">{series.points.length} data row(s) on this well: {series.imports} import(s), {series.typed} typed.</div>}
       </section>
+
+      {onExport && (
+        <section className="space-y-1" data-testid="ws-witsml-export">
+          <h3 className="text-xs font-semibold text-pl-text">WITSML 1.4.1.1 files</h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" variant="outline" onClick={() => onExport('log')} data-testid="ws-witsml-export-log" title="The data rows on this well as a depth-indexed WITSML log">Export log</Button>
+            <Button size="sm" variant="outline" onClick={() => onExport('mudLog')} data-testid="ws-witsml-export-mudlog" title="The current cuttings descriptions as a WITSML mudLog with their lithology percentages">Export mudLog</Button>
+            <Button size="sm" variant="outline" onClick={() => onExport('trajectory')} data-testid="ws-witsml-export-trajectory" title="The survey in use as a WITSML trajectory">Export trajectory</Button>
+          </div>
+          <div className="text-[11px] text-pl-muted">Files for systems that speak WITSML: metres, degrees and the units named on every value. A WITSML log or mudLog file is read with the file chooser above; a trajectory file on the Surveys view. There is no live WITSML feed in this release.</div>
+        </section>
+      )}
 
       {extraSlot}
 
