@@ -13,6 +13,7 @@ import {
 } from './units';
 import { calibrationMisfit } from './honesty';
 import { refLabel } from './depthRef';
+import { drawPrognosisPlot } from './reportPlot';
 
 export const latin1 = (t) => String(t ?? '')
   .replace(/[‒-―−]/g, '-')
@@ -127,6 +128,16 @@ export function prognosisPdf(JsPDF, args, { logo = null } = {}) {
     y += 4 * wrapped.length;
   }
   y += 3;
+  // U2-011: the prognosis plot (vector, house chart standard) before the table
+  if (args.input && args.result && args.plot !== false) {
+    const h = Math.min(150, pageH - y - 20);
+    if (h < 90) { doc.addPage(); y = 16; }
+    const box = { x: margin, y, w: pageW - 2 * margin, h: Math.min(150, pageH - y - 20) };
+    args.plotDrawn = drawPrognosisPlot(doc, box, { ...args, logo });
+    y += box.h + 6;
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(8);
+  }
   const datum = emwDatumLabel(params);
   const refHead = args.mapper && args.mapper.key !== 'bml' ? `${{ tvdrkb: 'TVD RKB', tvdss: 'TVDSS', md: 'MD' }[args.mapper.key]} (${units.depth})` : `Depth bml (${units.depth})`;
   const head = [refHead, `Below ${datum} (${units.depth})`, `OBG (${units.pressure})`, `Ph (${units.pressure})`, `PP (${units.pressure})`, `FG (${units.pressure})`, 'PP (ppg)', 'FG (ppg)'].map(latin1);

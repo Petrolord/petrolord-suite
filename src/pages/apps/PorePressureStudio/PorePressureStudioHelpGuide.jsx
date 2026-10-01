@@ -218,7 +218,8 @@ export default function PorePressureStudioHelpGuide() {
           profile in the chosen units with EMW columns in ppg and sg and the datum in the header, the table a well plan
           needs, with the reviewer block in its header. PDF downloads the report a reviewer signs: well, field, analyst
           (typed under Report in the dock), date, build, units, datum, method, NCT status, calibration, the drilling
-          window and the table with EMW in ppg. Save keeps the parameters, picks and calibration as your project and
+          window, the prognosis plot (the curves, the margin lines, the casing shoes and the measured points, drawn as
+          vector lines on white with depth downward in the chosen depth frame) and the table with EMW in ppg. Save keeps the parameters, picks and calibration as your project and
           reopens the well next time. Well Design Studio's mud window reads the published curves in ppg or g/cc EMW
           against its own trajectory TVD.
         </Para>

@@ -32,6 +32,8 @@ describe('PorePressureStudioHelpGuide', () => {
     expect(text).toMatch(/TVD below the rotary table, TVDSS or\s+MD below the rotary table/);
     // U2-005
     expect(text).toMatch(/Pick shales takes one shale point per interval/);
+    // U2-011
+    expect(text).toMatch(/the prognosis plot \(the curves/);
     // U2-002
     expect(text).toMatch(/declare the depth column and reference/);
   });
