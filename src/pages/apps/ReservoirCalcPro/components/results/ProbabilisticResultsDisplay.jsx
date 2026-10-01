@@ -201,7 +201,8 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                         <h2 className="text-xl font-bold text-pl-text">Probabilistic Simulation Results</h2>
                         <div className="text-xs mt-1 flex items-center gap-3">
                             <span className="font-pl-mono font-bold text-pl-text bg-pl-sunken px-2 py-0.5 rounded border border-pl-border">
-                                {rawVolumes.length.toLocaleString()} Iterations
+                                {(probResults.meta?.iterations || probResults.stats?.iterations || rawVolumes.length).toLocaleString()} Iterations
+                                {probResults.raw?.thinned && <span className="font-normal text-pl-muted"> (saved: {probResults.raw.thinned.kept.toLocaleString()} kept for the charts)</span>}
                             </span>
                             {probResults.diagnostics.warnings.length > 0 ? (
                                 <span className="text-pl-warning-text flex items-center gap-1"><AlertCircle className="w-3 h-3"/> Warnings Present</span>

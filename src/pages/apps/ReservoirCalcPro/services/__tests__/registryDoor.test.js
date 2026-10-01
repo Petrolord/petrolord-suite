@@ -15,14 +15,15 @@ test('registryPatchForZone averages the published wells and converts gross thick
   const f = registryPatchForZone(wells, 'Sand', 'field');
   expect(f.fromWells).toBe(2);
   expect(f.wellNames).toEqual(['A', 'B']);
-  expect(f.patch.porosity).toBeCloseTo(0.25, 9);
-  expect(f.patch.sw).toBeCloseTo(0.4, 9);
-  expect(f.patch.ntg).toBeCloseTo(0.7, 9);
+  // RCP-U1-018 (superseded plain means 0.25 / 0.40 / 0.70): thickness-weighted
+  expect(f.patch.porosity).toBeCloseTo((20 * 0.2 + 21 * 0.3) / 41, 9);
+  expect(f.patch.sw).toBeCloseTo((20 * 0.2 * 0.3 + 21 * 0.3 * 0.5) / (20 * 0.2 + 21 * 0.3), 9);
+  expect(f.patch.ntg).toBeCloseTo(41 / 60, 9);
   expect(f.patch.thickness).toBeCloseTo(30 / 0.3048, 6);
   expect(f.provenance).toMatchObject({ source: 'shared-registry', zone: 'Sand', wells: ['A', 'B'] });
   expect(registryPatchForZone(wells, 'Sand', 'metric').patch.thickness).toBeCloseTo(30, 9);
   expect(() => registryPatchForZone(wells, 'Shale')).toThrow(/Publish zone summaries/);
-  expect(describePatch(f.patch)).toMatch(/porosity 0\.250, Sw 0\.400, NTG 0\.700, gross thickness 98\.4 ft/);
+  expect(describePatch(f.patch)).toMatch(/porosity 0\.251, Sw 0\.422, NTG 0\.683, gross thickness 98\.4 ft/);
 });
 
 test('areaPatchForSurface measures the live footprint in the canonical area unit', () => {
@@ -35,7 +36,7 @@ test('areaPatchForSurface measures the live footprint in the canonical area unit
 
 test('aoiFromBoundary builds an AOI from the first ring and records its source', () => {
   const row = { id: 'c1', name: 'Lease', kind: 'boundary', geometry_type: 'polygon' };
-  const aoi = aoiFromBoundary(row, [{ type: 'polygon', rings: [[[0, 0], [100, 0], [100, 100], [0, 100], [0, 0]]] }]);
+  const [aoi] = aoiFromBoundary(row, [{ type: 'polygon', rings: [[[0, 0], [100, 0], [100, 100], [0, 100], [0, 0]]] }]);
   expect(aoi.name).toBe('Lease');
   expect(aoi.vertices).toEqual([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }]);
   expect(aoi.area).toBeCloseTo(10000, 6);
