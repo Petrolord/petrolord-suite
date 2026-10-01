@@ -2,6 +2,7 @@ import { makeInterpolator } from './GriddingEngine';
 import { PolygonClippingEngine } from './PolygonClippingEngine';
 import { hypsometryFromTable } from './hypsometry';
 import { latticeOf } from './lattice';
+import { areaDepthFromCells } from './areaDepth';
 import { gridXY, sampleAtXY, isNull as isNullZ } from '@/lib/gridding/gridmath';
 
 const FT_PER_M = 3.280839895;
@@ -246,6 +247,17 @@ export class ContactVolumetricsEngine {
             points.push({ contact, grv, volume: grv * ntg * phi * soi * factor });
         }
         return { points, volumeUnit: meta.isField ? (gas ? 'scf' : 'STB') : 'sm³', contactUnit: meta.isField ? 'ft' : 'm' };
+    }
+
+    /**
+     * U2-001 export: the area/depth table of a surface case (top and base
+     * area against depth, workspace units), from the same cells the
+     * volumes integrate.
+     */
+    static areaDepthTable(p, n = 40) {
+        const built = this._buildCells(p);
+        if (built.error) return { error: built.error };
+        return { rows: areaDepthFromCells(built.cells, { unitSystem: p.unitSystem || 'field', n }), gridding: built.meta.interpolation };
     }
 
     /**

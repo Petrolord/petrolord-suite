@@ -109,7 +109,7 @@ const ProbabilisticPanel = () => {
     // Structural input methods integrate GRV from the surface against sampled contacts,
     // so the geometric uncertainty is the CONTACT depths (+ a GRV factor) rather than
     // free area/thickness marginals.
-    const structural = state.inputMethod === 'hybrid' || state.inputMethod === 'surfaces';
+    const structural = state.inputMethod === 'hybrid' || state.inputMethod === 'surfaces' || state.inputMethod === 'areadepth';
     const len = state.unitSystem === 'field' ? 'ft' : 'm';
     const distLabel = (key) => ({
         porosity: 'Porosity (fraction)',
@@ -261,7 +261,7 @@ const ProbabilisticPanel = () => {
                     <div className="space-y-3" data-testid="rcp-mc-dists">
                         {structural && (
                             <div className="text-[10px] text-pl-info-text bg-pl-info-bg border border-pl-info/40 rounded px-2 py-1">
-                                GRV is integrated from the top surface against the sampled contacts below ({state.unitSystem === 'field' ? 'ft' : 'm'}, TVDSS elevation, negative below the datum).
+                                GRV is integrated from the {state.inputMethod === 'areadepth' ? 'area/depth table' : 'top surface'} against the sampled contacts below ({state.unitSystem === 'field' ? 'ft' : 'm'}, TVDSS elevation, negative below the datum).
                             </div>
                         )}
                         {distKeys.map((key) => (

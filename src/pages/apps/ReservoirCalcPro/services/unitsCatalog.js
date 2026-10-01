@@ -120,6 +120,18 @@ export function convertInputsOnSystemChange(inputs, fromSystem, toSystem) {
         const v = parseFloat(next[key]);
         if (isNum(v)) next[key] = UnitConversionEngine.convert(v, lenFrom, lenTo, 'length');
     }
+    // U2-001: the area/depth table converts with the system (depth as a
+    // length, areas as areas), as the other inputs do
+    if (next.areaDepth && Array.isArray(next.areaDepth.rows)) {
+        const L = (v) => (isNum(parseFloat(v)) ? UnitConversionEngine.convert(parseFloat(v), lenFrom, lenTo, 'length') : v);
+        const A = (v) => (isNum(parseFloat(v)) ? UnitConversionEngine.convert(parseFloat(v), canonicalUnitFor('area', fromSystem), canonicalUnitFor('area', toSystem), 'area') : v);
+        next.areaDepth = {
+            ...next.areaDepth,
+            rows: next.areaDepth.rows.map((r) => ({ depth: L(r.depth), areaTop: A(r.areaTop), areaBase: r.areaBase === null || r.areaBase === undefined ? null : A(r.areaBase) })),
+            spill: next.areaDepth.spill === null || next.areaDepth.spill === undefined || next.areaDepth.spill === '' ? next.areaDepth.spill : L(next.areaDepth.spill),
+            text: undefined,
+        };
+    }
     // RCP-U1-017: condensate-gas ratio, STB/MMscf (field) and sm3 per
     // million sm3 (metric); 1 STB/MMscf = 0.158987 / 0.0283168 sm3/10^6 sm3
     const cgr = parseFloat(next.cgr);

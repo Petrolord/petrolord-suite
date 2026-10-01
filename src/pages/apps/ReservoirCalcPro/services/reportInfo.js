@@ -23,6 +23,7 @@ const METHOD_LABEL = {
   simple: 'Simple (area x gross thickness, no structure; contacts not used)',
   hybrid: 'Hybrid (top surface + constant gross thickness, cut by the contacts)',
   surfaces: 'Surfaces (top and base surfaces, cut by the contacts)',
+  areadepth: 'Area/depth table (top and base area against depth, cut by the contacts)',
 };
 const INTERP_LABEL = { kriging: 'ordinary kriging', idw: 'inverse distance', lattice: 'the registry grid\'s own nodes (no re-gridding)' };
 

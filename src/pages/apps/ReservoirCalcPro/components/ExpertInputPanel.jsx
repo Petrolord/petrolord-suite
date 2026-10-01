@@ -15,6 +15,7 @@ import MapGenerationPanel from './tools/MapGenerationPanel';
 import SurfaceDataManager from './tools/SurfaceDataManager';
 import AOIPanel from './AOIPanel';
 import RegistryPanel from './RegistryPanel';
+import AreaDepthPanel from './AreaDepthPanel';
 import ProbabilisticPanel from './probabilistic/ProbabilisticPanel';
 import { FLUID_PRESETS, FluidPropertyCalculator } from '../services/FluidPropertyLibrary';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -191,13 +192,13 @@ const ExpertInputPanel = () => {
                             <RadioGroup 
                                 value={state.inputMethod} 
                                 onValueChange={setInputMethod}
-                                className="grid grid-cols-3 gap-1"
+                                className="grid grid-cols-4 gap-1"
                             >
-                                {['simple', 'hybrid', 'surfaces'].map(m => (
+                                {['simple', 'hybrid', 'surfaces', 'areadepth'].map(m => (
                                     <div key={m}>
                                         <RadioGroupItem value={m} id={`im-${m}`} className="peer sr-only" />
                                         <Label htmlFor={`im-${m}`} className="flex items-center justify-center rounded-md border border-pl-border bg-pl-sunken py-1.5 px-1 hover:bg-pl-surface peer-data-[state=checked]:border-pl-primary peer-data-[state=checked]:bg-pl-surface peer-data-[state=checked]:text-pl-primary-text cursor-pointer text-[9px] capitalize text-center transition-all">
-                                            {m}
+                                            {m === 'areadepth' ? 'Area-depth' : m}
                                         </Label>
                                     </div>
                                 ))}
@@ -225,6 +226,8 @@ const ExpertInputPanel = () => {
 
                         {state.inputMethod === 'simple' ? (
                             <UnitInput label="Area" {...unitInputProps('area')} />
+                        ) : state.inputMethod === 'areadepth' ? (
+                            <AreaDepthPanel />
                         ) : (
                             <div className="space-y-2">
                                 <Label className="text-xs text-pl-muted">Surface Selection Managed in Surfaces Tab</Label>

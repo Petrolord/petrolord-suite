@@ -9,6 +9,7 @@ import { loadSettings } from '../hooks/useReservoirSettings';
 import { defaultInputUnits, convertInputsOnSystemChange } from '../services/unitsCatalog';
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
 import { runSignature } from '../services/volumeDisplay';
+import { checkAreaDepthRows, areaDepthHypsometry } from '../services/areaDepth';
 
 // Families that decide RCP's system from the Suite unit profile
 const RCP_PROFILE_FAMILIES = ['area', 'rockVolume', 'depth'];
@@ -686,9 +687,18 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
 
                 // Structural methods drive GRV from the surface + sampled contacts. Build
                 // the hypsometric curve once so each realisation is an O(1) lookup.
-                const structural = state.inputMethod === 'hybrid' || state.inputMethod === 'surfaces';
+                const structural = state.inputMethod === 'hybrid' || state.inputMethod === 'surfaces' || state.inputMethod === 'areadepth';
                 let hypsometry = null;
-                if (structural) {
+                if (state.inputMethod === 'areadepth') {
+                    // U2-001: the table is the hypsometry
+                    const chk = checkAreaDepthRows(state.inputs.areaDepth?.rows || []);
+                    if (!chk.ok) throw new Error(`Area/depth table: ${chk.reason}`);
+                    hypsometry = areaDepthHypsometry(chk.rows, {
+                        unitSystem: state.unitSystem,
+                        thickness: chk.hasBase ? null : parseFloat(state.inputs.thickness),
+                        spill: state.inputs.areaDepth?.spill ?? null,
+                    });
+                } else if (structural) {
                     const topSurface = state.surfaces[state.inputs.topSurfaceId];
                     if (!topSurface) throw new Error('Select a Top structural surface before running a probabilistic study in this input method.');
                     const baseSurface = state.inputMethod === 'surfaces' ? state.surfaces[state.inputs.baseSurfaceId] : null;
