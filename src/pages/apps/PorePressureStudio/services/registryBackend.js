@@ -23,6 +23,7 @@ import { compareTags } from '@/lib/crs/tags';
 import { getTransformer } from '@/lib/crs';
 import { staleOwnCurves } from './publish';
 import { getDepthUnit } from '@/lib/crs/settingsService';
+import { projectWellIds } from './projectRow';
 
 // ---- Seismolord velocity models (P4; layer cakes from Seismolord U2-006) ----
 // Through the shared reader (src/lib/velocityModels): the volume row's
@@ -100,7 +101,7 @@ async function saveProject(patch) {
   const existing = await loadProject();
   if (existing) {
     const { data, error } = await writeStamped(PP_PROJECT_KIND,
-      { ...patch, updated_at: new Date().toISOString() },
+      { ...patch, well_ids: projectWellIds(patch, existing), updated_at: new Date().toISOString() },
       (row) => supabase.from('pp_projects').update(row).eq('id', existing.id).select().single());
     if (error) throw new Error(`Could not save the project: ${error.message}`);
     return data;
@@ -108,7 +109,7 @@ async function saveProject(patch) {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) throw new Error('You must be signed in to save projects.');
   const { data, error } = await writeStamped(PP_PROJECT_KIND,
-    { user_id: user.id, name: 'Default project', ...patch },
+    { user_id: user.id, name: 'Default project', ...patch, well_ids: projectWellIds(patch) },
     (row) => supabase.from('pp_projects').insert(row).select().single());
   if (error) throw new Error(`Could not save the project: ${error.message}`);
   return data;

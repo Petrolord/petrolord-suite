@@ -60,7 +60,7 @@ test('harness builds the MEM and window with the engine numbers', async ({ page 
   await expect(page.getByTestId('gm-traj-info')).toContainText('definitive');
 
   await page.getByTestId('gm-load').click();
-  await expect(page.getByTestId('gm-curve-status')).toContainText('pp-1.0.0 PP: found', { timeout: 20000 });
+  await expect(page.getByTestId('gm-curve-status')).toContainText('published PP: found', { timeout: 20000 });
 
   await page.getByTestId('gm-tab-profiles').click();
   await page.getByTestId('gm-run-mem').click();

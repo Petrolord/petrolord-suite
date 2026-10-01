@@ -42,7 +42,7 @@ import {
     SEGMENT_TYPES, SEGMENT_TYPE_LABELS,
 } from '../services/planEditor';
 import { buildTrajectoryContract, exportFormats } from '../services/trajectoryContract';
-import { loadPpfgCurves, buildMudWindow, mudWindowSummary } from '../services/ppfg';
+import { loadPpfgCurves, buildMudWindow, mudWindowSummary, ppfgSourceLine } from '../services/ppfg';
 import { compositeStations } from '../services/surveyUtils';
 import { listSurveys } from '../services/wpApi';
 import {
@@ -103,6 +103,7 @@ const DesignTab = () => {
     // first time the toggle is on, per wellbore + design.
     const [showOffsets, setShowOffsets] = useState(false);
     const [offsetLoad, setOffsetLoad] = useState(null); // {key, candidates, savedRunIds, notes} | {key, loading:true}
+    const [ppfgNote, setPpfgNote] = useState(null); // why curves were not read
     const [ppfg, setPpfg] = useState(null);          // {rows, summary} | 'loading' | 'none' | null
     const [scene3d, setScene3d] = useState(null);    // {composite, offsets, tops} lazy-loaded
     const loadedFor = useRef(null);
@@ -280,13 +281,18 @@ const DesignTab = () => {
         if (!wellbore?.geo_well_id) { setPpfg('none'); return; }
         let live = true;
         setPpfg('loading');
-        loadPpfgCurves(wellbore.geo_well_id)
+        setPpfgNote(null);
+        // PP-U1-005: curves read by their declared unit; a curve that could
+        // not be read, or a failed load, is said instead of showing "none"
+        const skipped = [];
+        loadPpfgCurves(wellbore.geo_well_id, { skipped })
             .then((curves) => {
                 if (!live) return;
                 const rows = buildMudWindow(curves, gridMeterStations, { kbElevM: wellbore.kb_elev_m || 0 });
-                setPpfg(rows.length ? { rows, summary: mudWindowSummary(rows) } : 'none');
+                setPpfgNote(skipped.length ? skipped.join(' ') : null);
+                setPpfg(rows.length ? { rows, summary: mudWindowSummary(rows), source: ppfgSourceLine(curves) } : 'none');
             })
-            .catch(() => { if (live) setPpfg('none'); });
+            .catch((e) => { if (live) { setPpfgNote(`The PPFG curves could not be loaded: ${e.message}`); setPpfg('none'); } });
         return () => { live = false; };
     }, [showPpfg, wellbore?.geo_well_id, gridMeterStations, wellbore?.kb_elev_m]);
 
@@ -950,14 +956,15 @@ const DesignTab = () => {
                                             </div>
                                         )}
                                         {ppfg === 'none' && (
-                                            <div className="flex h-full items-center justify-center p-4 text-center text-xs text-pl-muted">
+                                            <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center text-xs text-pl-muted" data-testid="mud-window-none">
                                                 {wellbore?.geo_well_id
                                                     ? 'No PPFG prognosis on the bridged registry well. Run Pore Pressure Studio on it and publish the PP/FP curves.'
                                                     : 'No bridged registry well. Publish this design first, then run Pore Pressure Studio on the published well.'}
+                                                {ppfgNote && <span className="text-pl-warning-text" data-testid="mud-window-note">{ppfgNote}</span>}
                                             </div>
                                         )}
                                         {ppfg && typeof ppfg === 'object' && (
-                                            <MudWindowPanel rows={ppfg.rows} summary={ppfg.summary} sourceLabel="registry PPFG" />
+                                            <MudWindowPanel rows={ppfg.rows} summary={ppfg.summary} sourceLabel={ppfg.source || 'registry PPFG'} note={ppfgNote} depthUnit={depthUnitLabel === 'ft' ? 'ft' : 'm'} />
                                         )}
                                     </div>
                                 )}

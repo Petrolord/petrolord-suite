@@ -92,7 +92,7 @@ test('gm-1.0.0 publish round trip with overwrite-own', async () => {
 test('actionable errors + unit helpers', async () => {
   const { caseRow } = await seeded();
   expect(() => assembleBaseProfile({ source: { ppSource: 'published' }, published: null }))
-    .toThrow(/published pp-1.0.0/);
+    .toThrow(/published pp-1.x/);
   expect(() => assembleBaseProfile({ source: { ppSource: 'computed' }, logs: null }))
     .toThrow(/DEPT and DT/);
   const base = { tvdM: [100], svPa: [2e6], ppPa: [1e6] };

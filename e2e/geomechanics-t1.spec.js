@@ -10,7 +10,8 @@ test('T1: mud window sized on the drilling range, clipping stated', async ({ pag
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto('/dev/geomechanics', { timeout: 120000 });
   await page.getByRole('button', { name: /Load curves/ }).click({ timeout: 60000 });
-  await expect(page.getByText('curves loaded')).toBeVisible({ timeout: 20000 });
+  // the toast also says "Curves loaded"; the status line is the lower-case one
+  await expect(page.getByText('curves loaded', { exact: true })).toBeVisible({ timeout: 20000 });
   await page.getByTestId('gm-tab-window').click();
   await page.getByRole('button', { name: /Compute mud window/ }).click();
   await expect(page.getByText(/^1\.041/).first()).toBeVisible({ timeout: 20000 });

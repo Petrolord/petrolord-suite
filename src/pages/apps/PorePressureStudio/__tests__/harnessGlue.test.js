@@ -9,7 +9,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { makeInMemoryBackend } from '../services/inMemoryBackend';
+import { makeInMemoryBackend, MUDLINE_MD_M } from '../services/inMemoryBackend';
 import { mapLogs, buildProfileInput, slownessToUsPerM, densityToKgM3 } from '../services/prep';
 import { computeProfile } from '../engine/profile';
 import { fitNct } from '../engine/nct';
@@ -26,7 +26,7 @@ const PARAMS = {
   waterDepthM: P.water_depth_m,
   rhoSeawaterKgM3: P.rho_seawater,
   rhoFluidKgM3: P.rho_fluid,
-  mudlineMdM: 0,
+  mudlineMdM: MUDLINE_MD_M,
   nct: { dtMlUsPerM: P.dt_ml_us_per_m, dtMaUsPerM: P.dt_ma_us_per_m, cPerM: P.c_nct_per_m },
   method: 'eaton',
   eatonN: P.eaton_n,
@@ -45,7 +45,7 @@ async function loadInput(backend) {
   return buildProfileInput(
     { depth: Array.from(depth), dt: Array.from(dt), rho: Array.from(rho) },
     { DT: mapped.DT.unit, RHOB: mapped.RHOB.unit },
-    { mudlineMdM: 0 },
+    { mudlineMdM: MUDLINE_MD_M },
   );
 }
 

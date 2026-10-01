@@ -153,6 +153,8 @@ export const GEOSCIENCE_SPEC = {
       softRefs: [
         { path: 'well_ids[]', table: 'geo_wells', optional: false },
         { path: 'source.wellId', table: 'geo_wells', optional: true },
+        // PP-U1-015: the well the NCT was fitted on travels with the project
+        { path: 'source.nctFittedFor', table: 'geo_wells', optional: true },
         { path: 'source.volumeId', table: 'seismic_volumes', optional: true },
       ],
     },

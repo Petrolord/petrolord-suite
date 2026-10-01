@@ -12,15 +12,26 @@
 // numbers straight off the screen. Density is stored in G/C3 and the
 // depth log starts at the mudline so the prep conversions are
 // exercised, not bypassed.
+//
+// PP-U1-003 (2026-10-01): the depth log is registry MD below the rotary
+// table, as every real well's is: the synthetic mudline sits at
+// MUDLINE_MD_M = air gap (KB 30 m above sea level) + water depth (100 m),
+// and the seeded project carries that mudline MD, so the below-mudline
+// depths the engine sees are the goldens' own and published curves land
+// at their true MD.
 
 import goldens from '../../../../../packages/engines/test-data/porepressure/goldens.json';
+import { bindSaved } from './savedFixtures';
 
 let seq = 0;
 const nextId = (p) => { seq += 1; return `${p}-${seq}`; };
 
 export const WELL = goldens.well;
+export const AIR_GAP_M = 30;
+export const MUDLINE_MD_M = AIR_GAP_M + WELL.params.water_depth_m;
+const MD = WELL.z_bml_m.map((z) => z + MUDLINE_MD_M);
 
-export function makeInMemoryBackend({ layerCake = false } = {}) {
+export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
   const wellId = nextId('well');
   const curveStore = new Map();
   const logs = [];
@@ -34,8 +45,8 @@ export function makeInMemoryBackend({ layerCake = false } = {}) {
       mnemonic,
       description: `${mnemonic} (oracle synthetic well)`,
       unit,
-      start_md_m: WELL.z_bml_m[0],
-      stop_md_m: WELL.z_bml_m[WELL.z_bml_m.length - 1],
+      start_md_m: MD[0],
+      stop_md_m: MD[MD.length - 1],
       step_m: 10,
       n_samples: values.length,
       null_count: 0,
@@ -45,7 +56,7 @@ export function makeInMemoryBackend({ layerCake = false } = {}) {
     });
   };
 
-  addLog('DEPT', 'M', WELL.z_bml_m);
+  addLog('DEPT', 'M', MD);
   addLog('DT', 'US/M', WELL.dt_us_per_m);
   addLog('RHOB', 'G/C3', WELL.rho_kg_m3.map((r) => r / 1000.0));
 
@@ -57,10 +68,10 @@ export function makeInMemoryBackend({ layerCake = false } = {}) {
     uwi: 'ORACLE PP-1',
     surface_x: 501000,
     surface_y: 6700200,
-    kb_m: 30,
-    td_md_m: WELL.z_bml_m[WELL.z_bml_m.length - 1],
+    kb_m: AIR_GAP_M,
+    td_md_m: MD[MD.length - 1],
     crs_note: 'EPSG:32630 (demo)',
-    units_note: 'SI; depth = m below mudline',
+    units_note: `SI; depth = MD below RKB, mudline at ${MUDLINE_MD_M} m MD`,
     deviation: [],
     checkshots: [],
     created_at: new Date(2026, 6, 14).toISOString(),
@@ -80,7 +91,7 @@ export function makeInMemoryBackend({ layerCake = false } = {}) {
       waterDepthM: P.water_depth_m,
       rhoSeawaterKgM3: P.rho_seawater,
       rhoFluidKgM3: P.rho_fluid,
-      mudlineMdM: 0,
+      mudlineMdM: MUDLINE_MD_M,
       nct: {
         dtMlUsPerM: P.dt_ml_us_per_m,
         dtMaUsPerM: P.dt_ma_us_per_m,
@@ -169,11 +180,13 @@ export function makeInMemoryBackend({ layerCake = false } = {}) {
     },
 
     async loadProject() {
+      // PL5: `saved` opens a project as an earlier release saved it
+      const seed = (saved && bindSaved(saved, wellId)) || SEED_PROJECT;
       try {
         const raw = window.sessionStorage.getItem(PROJECT_KEY);
-        return raw ? JSON.parse(raw) : SEED_PROJECT;
+        return raw ? JSON.parse(raw) : seed;
       } catch {
-        return SEED_PROJECT;
+        return seed;
       }
     },
 
