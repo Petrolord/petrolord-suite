@@ -122,6 +122,7 @@ export default function BasinFlowHelpGuide() {
           misfit is small.
         </Para>
         <Para>The modelled curve on the Ro and temperature plots runs through the whole column in slices about 100 m thick, so a sample inside a thick layer is compared with the value at its own depth rather than a line between layer centres. Auto-Fit uses the same profile.</Para>
+        <Para>Log BHTs read cool because circulating mud chilled the hole. In the BHT correction card choose Horner (two or more runs at one depth, each with its hours since circulation stopped, and the circulation time), AAPG or Harrison (one BHT by depth). The table lists the raw and the used value of each point; DST temperatures are never corrected. A calibration file may carry a shut-in (h) column and a type column marking DST rows.</Para>
       </GuideSection>
 
       <GuideSection id="import">
