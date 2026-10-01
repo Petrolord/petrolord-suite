@@ -2,8 +2,9 @@
 
 App #12, the last, of the Geoscience upgrade programme (`docs/scope/AppUpgrade-Geoscience-PLAN.md`).
 Step 1 (practitioner lens, `docs/scope/AppUpgrade-BestPractices.md`) was run and
-fixed on 2026-10-01 on branch `feat/ws-u1`. Step 2 (advancement review) is
-analysis only; batches are chosen before anything is built.
+fixed on 2026-10-01 on branch `feat/ws-u1`. Step 2 (advancement review) was
+analysed the same day; the programme lead chose the batches and they were built
+on branch `feat/ws-u2` (PR #847): see "Batch decision" and "Step 2 build record".
 
 - Route: `/dashboard/apps/geoscience/wellsite-studio` (ProtectedAppRoute, verified in `App.jsx`) and its `/help`.
 - Harness: `/dev/wellsite-studio` (the real local database with the fake transport; `?reset`, `?empty`, `?seed=reference`, `?conflict`, `?offline`, `?plant`).
@@ -77,20 +78,20 @@ Severity: S1 wrong answer with no warning; S2 wrong or lost data, or a door that
 | WS-U1-010 | S3 | PL4 | A registry well with no KB stores 0, and the live well took it silently: TVDSS then equals TVD below KB. | Test. | Fixed: said at New well and in Config. The value is still the registry's (see 024). |
 | WS-U1-011 | S3 | PL1, PL8 | No ROP anywhere although the bit log holds it. | Test (50 ft/hr; a held connection excluded). | Fixed: ROP card on Live from the last interval that made hole, drilling time only. |
 | WS-U1-012 | S3 | PL3 | A well with no default entry form started every depth entry in feet, whatever the user's units. | Test. | Fixed: falls back to the display unit. |
-| WS-U1-013 | S3 | PL9 | Publish adds a final top beside a hand-typed registry top of the same name (the usual case: prognosis tops typed in WDM). Downstream apps pick tops by name. | Test. | Fixed in part: the publish names them and says the registry now holds two. Marking or replacing is Step 2 (U2-010). |
+| WS-U1-013 | S3 | PL9 | Publish adds a final top beside a hand-typed registry top of the same name (the usual case: prognosis tops typed in WDM). Downstream apps pick tops by name. | Test. | Fixed: named in U1; in Step 2 (U2-010) the plan offers to keep the earlier top apart as the prognosis. |
 | WS-U1-014 | S3 | PL7 | PDF and DOCX: "Depths in ft" with no reference, no KB, no operator, preparer or build. | pdftotext. | Fixed: reviewer lines. |
 | WS-U1-015 | S4 | PL1 | The approach panel listed offsets subsea beside a prognosis and bit in MD. | Walk. | Fixed: prognosis and bit subsea rows. |
 | WS-U1-016 | S3 | PL4 | The help said chosen photographs publish as core images; nothing chose them (`photoIds` was never passed). | Code read. | Fixed: "Photographs to publish" chooser on Tops. |
 | WS-U1-017 | S3 | PL3 | Config lengths (sections, BHA, BOP depth) were feet only. | Walk. | Fixed: they follow the depth unit; diameters stay inches. |
 | WS-U1-018 | S4 | PL9 | The prognosis read the planned trajectory from the definitive design only (the #433 defect). | Code read. | Fixed: the shared resolver, with its source recorded. The trajectory is stored and not yet used (see 022). |
-| WS-U1-019 | S3 | PL1, PL8 | No lag check: a carbide or tracer lag cannot be entered and no washout factor corrects the open hole volume. | Walk. | Open: Step 2 U2-004 (engines-first). |
-| WS-U1-020 | S3 | PL2, PL8 | No importer: bit depth, pump rate, gas and drilling parameters are typed one at a time; a mudlogging CSV or LAS export or a WITSML file cannot be read. | Walk. | Open: Step 2 U2-003, U2-011, U2-014. |
-| WS-U1-021 | S3 | PL1, PL8 | Gas is one typed number; no C1 to C5, no ratios, "units" uncalibrated; shale density in g/cc only. | Walk. | Open: Step 2 U2-002. |
-| WS-U1-022 | S3 | PL3, PL8 | The survey is a snapshot from the registry at well creation. MWD surveys taken while drilling cannot be entered, so TVD past the last station is extrapolated for the rest of the well (it says so). | Code read. | Open: Step 2 U2-005. |
-| WS-U1-023 | S3 | PL8 | No depth-based picture of the well (composite or mud log strip). | Walk. | Open: Step 2 U2-001. |
+| WS-U1-019 | S3 | PL1, PL8 | No lag check: a carbide or tracer lag cannot be entered and no washout factor corrects the open hole volume. | Walk. | Closed in Step 2: U2-004. |
+| WS-U1-020 | S3 | PL2, PL8 | No importer: bit depth, pump rate, gas and drilling parameters are typed one at a time; a mudlogging CSV or LAS export or a WITSML file cannot be read. | Walk. | Closed for files in Step 2: U2-003, U2-011. The live feed is U2-014 (deferred). |
+| WS-U1-021 | S3 | PL1, PL8 | Gas is one typed number; no C1 to C5, no ratios, "units" uncalibrated; shale density in g/cc only. | Walk. | Closed in Step 2: U2-002. |
+| WS-U1-022 | S3 | PL3, PL8 | The survey is a snapshot from the registry at well creation. MWD surveys taken while drilling cannot be entered, so TVD past the last station is extrapolated for the rest of the well (it says so). | Code read. | Closed in Step 2: U2-005. |
+| WS-U1-023 | S3 | PL8 | No depth-based picture of the well (composite or mud log strip). | Walk. | Closed in Step 2: U2-001. |
 | WS-U1-024 | S3 | PL3, PL9 | KB cannot be corrected in the app and the registry cannot tell "0" from "not entered"; offset wells with no KB compare subsea depths off by their KB. | Code read. | Open: with the WDM datum model (WDM U2-007, a migration). |
-| WS-U1-025 | S3 | PL9 | Publish deletes this app's earlier registry tops, then inserts the new ones, one call each: a failure midway leaves the registry without them until the next publish. | Code read. | Open: Step 2 U2-010. |
-| WS-U1-026 | S4 | PL7 | Offline, a signer who is not in the cached organisation list prints as "User 7b0c2a52". Names are not stored on the record. | Code read. | Open: Step 2 U2-013 (a column, so a migration). |
+| WS-U1-025 | S3 | PL9 | Publish deletes this app's earlier registry tops, then inserts the new ones, one call each: a failure midway leaves the registry without them until the next publish. | Code read. | Closed in Step 2: U2-010 (staged with rollback and reporting; the registry offers no transaction without DDL). |
+| WS-U1-026 | S4 | PL7 | Offline, a signer who is not in the cached organisation list prints as "User 7b0c2a52". Names are not stored on the record. | Code read. | Closed in part in Step 2: U2-013 (sign-offs and called tops, no DDL); interpretations need the sketched migration. |
 
 Totals: 26 findings. Fixed 18 (5 S2, 11 S3, 2 S4), 013 in part; open 8 (7 S3, 1 S4), all to Step 2. No S1 found; no S2 open.
 
@@ -224,6 +225,27 @@ Recorded verbatim.
 | U2-013 | Done in part (no DDL) | Names kept on the record where an existing column can carry them (`services/names.js`): a sign-off's statement now ends "Signed as NAME." (`ws_signoffs.statement`, the text the signer signs and the platform countersigns) and the `top_called` event of every official call carries `by_name` (`ws_records.payload`). The screens, the PDF and the DOCX still take the organisation list first; when it does not know the person (offline, or someone who has left) they use the name on the record in place of "User 7b0c2a52". **Not built:** interpretations of a top and earlier records have no such column (`ws_tops` has only the geologist's own `basis` text). Migration sketched, for the owner and a second reviewer, not in this PR: `alter table public.ws_tops add column if not exists created_by_name text; alter table public.ws_signoffs add column if not exists user_name text; alter table public.ws_records add column if not exists created_by_name text;` (nullable, no backfill needed, written by the client at insert, covered by the existing insert policies; the sync pull already selects `*`). | `__tests__/upgradeU2Names.test.js` (3): the statement round trip without stacking names; names read off sign-offs and call events; the organisation list wins, the record name is the fallback, the short id the last resort (the old output is the negative control). |
 | U2-012 | Not built | Top scoring against the prognosis and offsets. The decision made it conditional on time; the round closed on the eleven items above. It stays ranked for the next round. | none |
 
+### Step 2 validation, said plainly
+
+| Item | Asked | What it rests on |
+|---|---|---|
+| U2-004 lag check | A published carbide-lag worked example | **Published**, read on the page: Baker Hughes INTEQ, Advanced Logging Procedures Workbook (80269H Rev. C, 1995), pages 1-3 and 1-6 (968 strokes down; 14.20 in and 11.13 in). Plus a field-unit stdlib oracle, the closing identity and a mutation run. |
+| U2-002 gas ratios | Published ratio examples | **Weaker than asked.** Formulas and limits were read on the page (the same INTEQ workbook, pages 6-6 to 6-8; the Pixler C1/C2 limits and oil gravity bands in a Diversified Well Logging overview). No published worked example with C1 to C5 readings and printed ratios could be read, so the numeric cases are hand arithmetic, one per band. The Pixler chart bands of C1/C3, C1/C4 and C1/C5 were not read on a source page and are not in the engine. |
+| U2-006 d-exponent | A published worked example | **Published**, read on the page: Lapeyrouse pages 131 to 132 (1.82, 1.16) and drillingformulas.com (1.20, 0.9). The Bourgoyne case (1.64, 1.54) is from memory; its page was not readable and the test says so. |
+| U2-011 WITSML | Round trip and hostile files | Round trip and six hostile files. Element names, order and enumerations were checked against the published Energistics 1.4.1.1 XSDs. **Not done:** a schema validator run, or a load into a third-party WITSML store. |
+| U2-010 publish | Atomic, or honestly staged with rollback reporting | Staged with rollback and reporting (the registry offers no transaction to a browser without DDL). A failure at each of the five steps is tested to leave the registry as it was. |
+| U2-013 names | Only with no DDL | Built for sign-offs and called tops; interpretations need the sketched migration. |
+
+### Step 2 evidence kit
+
+| Kit | Where |
+|---|---|
+| Engines gates | `packages/engines/__tests__/wellsite.lagcheck.test.js` (16), `wellsite.gasratios.test.js` (17), `wellsite.dexponent.test.js` (11); oracle `tools/validation/wellsite/oracle_lagcheck.py` |
+| Item gates (jest, on the real workstation, local database and fake transport) | `src/pages/apps/WellsiteStudio/__tests__/upgradeU2Lag.test.jsx`, `upgradeU2Gas`, `upgradeU2Import`, `upgradeU2Surveys`, `upgradeU2Dxc`, `upgradeU2StripLog` (node, pdftotext), `upgradeU2Office`, `upgradeU2Publish`, `upgradeU2RegistrySurvey`, `upgradeU2Pressure`, `upgradeU2Witsml`, `upgradeU2Names` |
+| Hostile files (PL2) | `e2e/fixtures/wellsite/hostile/` (six mudlog files) and `witsml/` (six WITSML files), with a README |
+| Saved state (PL5) | `src/lib/portability/__tests__/wellsiteU2Records.test.js`: every new record type through `planImport` with its ids rewritten, read back by the app's own readers. All new records are `ws_records` rows, so the local store, the offline queue and the sync carry them with no change. |
+| Browser (PL6, PL7) | `e2e/wellsite-u2.spec.js` (11): 1366x768, 1440x900, 820x1180 and 390x844 in light and dark over the new views with no sideways scroll and no page errors; the strip log's white surface and logo; depth ticks increasing downward; curves drawn with real extent; the called top between its depth labels; the strip log PDF downloaded and read with pdftotext; hostile files through the file chooser; lag check, chromatograph, an MWD station, the office view |
+
 ### Test record (2026-10-01)
 
 - jest on CI (8 shards): green, with the four new suites (32 tests) and every existing Wellsite, lag engine, portability and `src/__tests__` suite.
@@ -231,9 +253,27 @@ Recorded verbatim.
 - e2e, 1 worker, private dev server: `wellsite-upgrade.spec.js` 11 of 11; `wellsite-studio.spec.js` 16 of 16 (WS9 publish passed on a second run at low load; under load its second click raced the first save, an existing pattern in that spec).
 - Production build: local 7 min 13 s, pass; CI build pass.
 
+### Step 2 test record (2026-10-01 to 2026-10-02)
+
+- CI on PR #847 at the head of the branch: jest 8 shards, the production build, the vendored engines guard and Playwright 6 shards (all Wellsite specs: `wellsite-studio` 16, `wellsite-upgrade` 11, `wellsite-u2` 11): green.
+- Engines PR #297: its CI green.
+- Local: the shared box ran at load 7 to 16 for most of the build, where one workstation suite takes 3 to 5 minutes and a Vite cold start exceeds the Playwright timeout, so CI was the reference for jest and e2e. Each new suite was also run locally at least once while it was written. At low load the strip log, d-exponent and viewport specs were run on the private dev server (port 8450) and the screenshots reviewed.
+- Found and fixed along the way: Config reset a value typed right after Record when its own reload arrived (a real race, now keyed on what the screen just saved); a tops test clicked before the row followed the status line.
+
 ### Owner items
 
 1. The three Release 1 walks are still open: WS1 validation review, WS6 PWA install on a laptop and a tablet, WS9 simulated shift. The stacked layout (WS-U1-004) is worth trying on the tablet in the same walk.
 2. Playwright e2e is still not in CI; `e2e/wellsite-upgrade.spec.js` is new and runs only by hand.
 3. WS-U1-009: before this fix every production PDF printed user ids in the sign-off block. Any daily report already sent out from production shows ids instead of names; re-export after the next upload.
 4. No migration in this PR. U2-013 and U2-019 would need one.
+
+### Step 2 owner items
+
+1. Engines PR Petrolord/petrolord-engines #297 (lagCheck, gasRatios, dExponent) is final and waits for the programme lead to merge. Then: re-pin `packages/engines/VENDOR.json` to its merge commit, regenerate the manifest, move the Data AI engine labels, delete the nine `wellsite-u2` ledger rows.
+2. U2-013: the names migration is sketched in the build record (three nullable text columns on `ws_tops`, `ws_signoffs`, `ws_records`); it needs the owner and a second reviewer. Until then interpretations show the short id when the organisation list does not know the person.
+3. Reports signed before this release keep their statements as signed; new sign-offs end "Signed as NAME.".
+4. WITSML files were checked against the published 1.4.1.1 XSDs but not run through a schema validator or a third-party store. A test against the customer's WITSML system is worth doing before it is promised in a demo.
+5. The gas ratio engine rests on formulas and limits read on the page, with hand-derived numeric cases. A published worked example (Haworth 1985, Pixler 1969) should be added as a gate when a copy of either paper is at hand.
+6. A registry survey sent from Wellsite records its source in `geo_wells.crs_provenance.deviation`. Assigning a CRS by hand in Well Data Manager rewrites that provenance object and drops the survey source line (the survey itself stays).
+7. Still open from Step 1: the three Release 1 walks (WS1 validation review, WS6 PWA install, WS9 simulated shift).
+8. Next round: U2-012 top scoring; U2-016 end of well report on the strip log; U2-014 the live WITSML feed; kicks and losses as typed, numeric records for Pore Pressure Studio.
