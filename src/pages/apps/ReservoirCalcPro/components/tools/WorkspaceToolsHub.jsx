@@ -8,6 +8,7 @@ import ProspectRiskingPanel from './ProspectRiskingPanel';
 import { makeRegistryProspectsBackend } from '../../services/prospectsService';
 import { unriskedFromRun, runVolumeUnit } from '../../services/prospectVolumes';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
+import { reviewerLines } from '../../services/reportInfo';
 
 // Prospect Risking wraps the shared panel with the real rcp_prospects
 // backend and the latest MC result (unrisked volume) from RCP context.
@@ -17,7 +18,13 @@ const ProspectRiskingTool = () => {
     const { state } = useReservoirCalc();
     const fluidType = state?.inputs?.fluidType || 'oil';
     const unrisked = useMemo(() => unriskedFromRun(state?.probResults, fluidType, state?.unitSystem), [state?.probResults, fluidType, state?.unitSystem]);
-    return <ProspectRiskingPanel backend={backend} unrisked={unrisked} defaultUnit={runVolumeUnit(fluidType, state?.unitSystem)} />;
+    // U2-011: the one-page summary carries the workspace's reviewer block
+    const reviewer = useMemo(() => reviewerLines({
+        report: state?.inputs?.report, unitSystem: state?.probResults?.meta?.unitSystem || state?.unitSystem, inputMethod: state?.inputMethod,
+        fluidType, inputs: state?.inputs, results: state?.results, probResults: state?.probResults,
+    }), [state, fluidType]);
+    return <ProspectRiskingPanel backend={backend} unrisked={unrisked} defaultUnit={runVolumeUnit(fluidType, state?.unitSystem)}
+        reviewer={reviewer} projectName={state?.project?.name || null} />;
 };
 
 const TABS = [

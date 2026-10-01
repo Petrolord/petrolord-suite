@@ -50,6 +50,7 @@ export const fromRow = (row) => {
         auditTrail: blob.auditTrail || [],
         results: row.results_data || null,
         probResults: blob.probResults || null,
+        gridding: blob.gridding || null,
         created_at: row.created_at,
         updated_at: blob.updated_at || row.created_at,
     };
@@ -70,6 +71,8 @@ export const toBlob = (project, version) => ({
     activeReservoirId: project.activeReservoirId || null,
     probResults: compactRun(project.probResults) || null,
     auditTrail: project.auditTrail || [],
+    // U2-013: the gridding the project calculates with
+    gridding: project.gridding || null,
     updated_at: new Date().toISOString(),
 });
 

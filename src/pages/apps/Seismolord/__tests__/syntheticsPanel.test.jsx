@@ -54,4 +54,19 @@ describe('SyntheticsPanel through the harness', () => {
     await waitFor(() => expect(screen.getByTestId('synth-result')).toBeTruthy());
     expect(screen.getByTestId('synth-density-note').textContent).toContain('constant density');
   });
+
+  test('RP-U1-009: Rock Physics substituted curves are listed, labelled, and synthesize', async () => {
+    await pickWell();
+    const sonicOpts = [...screen.getByTestId('synth-sonic').querySelectorAll('option')].map((o) => o.textContent);
+    const densOpts = [...screen.getByTestId('synth-density').querySelectorAll('option')].map((o) => o.textContent);
+    expect(sonicOpts.some((t) => /DT_SUB \(US\/M\), fluid substituted/.test(t))).toBe(true);
+    expect(densOpts.some((t) => /RHOB_SUB \(KG\/M3\), fluid substituted/.test(t))).toBe(true);
+    // the measured curves stay the default even though the substituted ones come first
+    expect(screen.getByTestId('synth-sonic').value).toBe('log-dt');
+    fireEvent.change(screen.getByTestId('synth-sonic'), { target: { value: 'log-dt-sub' } });
+    fireEvent.change(screen.getByTestId('synth-density'), { target: { value: 'log-rhob-sub' } });
+    fireEvent.click(screen.getByTestId('synth-run'));
+    await waitFor(() => expect(screen.getByTestId('synth-result')).toBeTruthy());
+    expect(screen.queryByTestId('synth-density-note')).toBeNull();
+  });
 });

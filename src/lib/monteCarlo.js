@@ -49,6 +49,68 @@ export function cholesky(matrix) {
   return L;
 }
 
+/**
+ * Eigenvalues of a small symmetric matrix (cyclic Jacobi). Used to test a
+ * correlation matrix before it is factored.
+ */
+export function symmetricEigenvalues(matrix) {
+  const n = matrix.length;
+  const a = matrix.map((row) => row.slice());
+  for (let sweep = 0; sweep < 100; sweep++) {
+    let off = 0;
+    for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) off += a[p][q] * a[p][q];
+    if (off < 1e-24) break;
+    for (let p = 0; p < n; p++) {
+      for (let q = p + 1; q < n; q++) {
+        if (Math.abs(a[p][q]) < 1e-300) continue;
+        const theta = (a[q][q] - a[p][p]) / (2 * a[p][q]);
+        const t = Math.sign(theta || 1) / (Math.abs(theta) + Math.sqrt(theta * theta + 1));
+        const c = 1 / Math.sqrt(t * t + 1);
+        const sn = t * c;
+        for (let k = 0; k < n; k++) {
+          const akp = a[k][p]; const akq = a[k][q];
+          a[k][p] = c * akp - sn * akq; a[k][q] = sn * akp + c * akq;
+        }
+        for (let k = 0; k < n; k++) {
+          const apk = a[p][k]; const aqk = a[q][k];
+          a[p][k] = c * apk - sn * aqk; a[q][k] = sn * apk + c * aqk;
+        }
+      }
+    }
+  }
+  return a.map((row, i) => row[i]).sort((x, y) => x - y);
+}
+
+/**
+ * Why a correlation matrix cannot be used, or null when it can: square,
+ * symmetric, unit diagonal, entries in [-1, 1] and positive semidefinite.
+ * cholesky() clamps a negative pivot to zero, so a matrix that is not
+ * positive semidefinite would otherwise sample a different correlation
+ * from the one typed, with no warning.
+ * @param {number[][]} matrix
+ * @param {string[]} [names] labels for the message
+ * @returns {?string}
+ */
+export function correlationMatrixProblem(matrix, names = null, tol = 1e-9) {
+  const n = matrix.length;
+  const nm = (i) => (names && names[i]) || `#${i + 1}`;
+  for (let i = 0; i < n; i++) {
+    if (!Array.isArray(matrix[i]) || matrix[i].length !== n) return 'The correlation matrix is not square.';
+    if (Math.abs(matrix[i][i] - 1) > tol) return `The diagonal entry for ${nm(i)} is not 1.`;
+    for (let j = 0; j < n; j++) {
+      const v = matrix[i][j];
+      if (!Number.isFinite(v) || v < -1 || v > 1) return `The correlation of ${nm(i)} with ${nm(j)} is outside -1 to 1.`;
+      if (Math.abs(v - matrix[j][i]) > tol) return `The correlation of ${nm(i)} with ${nm(j)} differs from ${nm(j)} with ${nm(i)}.`;
+    }
+  }
+  if (n < 2) return null;
+  const lmin = symmetricEigenvalues(matrix)[0];
+  if (lmin < -tol) {
+    return `These correlations cannot hold together (the matrix is not positive semidefinite; smallest eigenvalue ${lmin.toFixed(3)}). Weaken one of them: for example, two variables that both correlate strongly with a third must correlate with each other.`;
+  }
+  return null;
+}
+
 // Box-Muller standard normal.
 export function randomNormal(rng = Math.random) {
   let u = 0;

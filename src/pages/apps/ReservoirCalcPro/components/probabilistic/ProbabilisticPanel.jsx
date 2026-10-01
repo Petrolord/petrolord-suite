@@ -11,6 +11,8 @@ import { distScaleFactor } from '../../services/unitsCatalog';
 import {
     distKeysFor, syncDistParams, recentreDist, formatDistributions, centralOf,
 } from '../../services/distributions';
+import CorrelationEditor, { correlationsProblem } from './CorrelationEditor';
+import FitFromData from './FitFromData';
 
 const DIST_TYPES = [
     { value: 'triangular', label: 'Triangular' },
@@ -90,12 +92,18 @@ const DistInput = ({ label, value, baseValue, onChange, consistencyMode, paramKe
 };
 
 const ProbabilisticPanel = () => {
-    const { state, calculate } = useReservoirCalc();
+    const { state, calculate, mcProgress, cancelSimulation } = useReservoirCalc();
     const { toast } = useToast();
     const [currentStep, setCurrentStep] = useState(0);
     const [consistencyMode, setConsistencyMode] = useState(true);
     const [iterations, setIterations] = useState(10000);
-    const ITERATION_OPTIONS = [1000, 5000, 10000, 50000];
+    // U2-006: the run is in a background worker, so 100k and 250k no
+    // longer freeze the page
+    const ITERATION_OPTIONS = [1000, 5000, 10000, 50000, 100000, 250000];
+    const [seedText, setSeedText] = useState('');
+    // U2-002: the correlation pairs the engine applies (starts from the
+    // long-standing porosity-Sw -0.8)
+    const [correlations, setCorrelations] = useState([{ a: 'porosity', b: 'sw', rho: -0.8 }]);
 
     const fluidType = state.inputs.fluidType || 'oil';
     // the headline stream: gas for a gas reservoir, the oil leg otherwise
@@ -106,7 +114,7 @@ const ProbabilisticPanel = () => {
     // Structural input methods integrate GRV from the surface against sampled contacts,
     // so the geometric uncertainty is the CONTACT depths (+ a GRV factor) rather than
     // free area/thickness marginals.
-    const structural = state.inputMethod === 'hybrid' || state.inputMethod === 'surfaces';
+    const structural = state.inputMethod === 'hybrid' || state.inputMethod === 'surfaces' || state.inputMethod === 'areadepth';
     const len = state.unitSystem === 'field' ? 'ft' : 'm';
     const distLabel = (key) => ({
         porosity: 'Porosity (fraction)',
@@ -123,6 +131,7 @@ const ProbabilisticPanel = () => {
         recovery: 'Oil Recovery Factor (%)',
         recoveryGas: 'Gas Recovery Factor (%)',
     }[key] || key);
+    const corrProblem = correlationsProblem(correlations, distLabel);
 
     // U1 (RCP-U1-008): the keys follow the input method and fluid while
     // the panel is open, the whole distribution moves with a new base
@@ -209,9 +218,21 @@ const ProbabilisticPanel = () => {
                 toast({ title: "Heads up", description: "Some input central values differ >5% from the deterministic base case. Running anyway." });
             }
 
-            await calculate(formatted, { consistencyMode, iterations });
-
-            toast({ title: "Simulation Complete", description: `${iterations.toLocaleString()} iterations run.` });
+            const seedNum = seedText.trim() === '' ? undefined : Number(seedText);
+            if (seedNum !== undefined && !(Number.isInteger(seedNum) && seedNum >= 0)) {
+                toast({ variant: "destructive", title: "Check the seed", description: 'The seed is a whole number of 0 or more, or empty for a new seed each run.' });
+                return;
+            }
+            if (corrProblem) {
+                toast({ variant: "destructive", title: "Check the correlations", description: corrProblem });
+                return;
+            }
+            const out = await calculate(formatted, { consistencyMode, iterations, seed: seedNum, correlations: correlations.map(({ a, b, rho }) => ({ a, b, rho: Number(rho) })) });
+            if (out?.cancelled) {
+                toast({ title: "Run cancelled", description: 'The previous results were kept.' });
+                return;
+            }
+            if (out?.ok) toast({ title: "Simulation Complete", description: `${iterations.toLocaleString()} iterations run.` });
         } catch (err) {
             toast({ variant: "destructive", title: "Simulation Failed", description: err.message });
         }
@@ -250,7 +271,7 @@ const ProbabilisticPanel = () => {
                     <div className="space-y-3" data-testid="rcp-mc-dists">
                         {structural && (
                             <div className="text-[10px] text-pl-info-text bg-pl-info-bg border border-pl-info/40 rounded px-2 py-1">
-                                GRV is integrated from the top surface against the sampled contacts below ({state.unitSystem === 'field' ? 'ft' : 'm'}, TVDSS elevation, negative below the datum).
+                                GRV is integrated from the {state.inputMethod === 'areadepth' ? 'area/depth table' : 'top surface'} against the sampled contacts below ({state.unitSystem === 'field' ? 'ft' : 'm'}, TVDSS elevation, negative below the datum).
                             </div>
                         )}
                         {distKeys.map((key) => (
@@ -259,6 +280,7 @@ const ProbabilisticPanel = () => {
                                 onChange={v => handleParamChange(key, v)}
                                 consistencyMode={key === 'grvFactor' ? false : consistencyMode} />
                         ))}
+                        <FitFromData keys={distKeys} labelOf={distLabel} onUse={(k, d) => handleParamChange(k, d)} />
                         {problems.length > 0 && (
                             <ul className="text-[10px] text-pl-danger-text list-disc pl-4" data-testid="rcp-mc-problems">
                                 {problems.map((p, i) => <li key={i}>{p}</li>)}
@@ -290,13 +312,19 @@ const ProbabilisticPanel = () => {
                                     </button>
                                 ))}
                             </div>
-                            <p className="text-[10px] text-pl-muted">More iterations = smoother tails (P90/P10) at the cost of runtime.</p>
+                            <p className="text-[10px] text-pl-muted">More iterations give smoother tails (P90/P10). The run is in the background with progress and Cancel.</p>
+                            <Label className="text-[10px] text-pl-muted" htmlFor="rcp-mc-seed">Random seed (empty: a new seed each run)</Label>
+                            <input id="rcp-mc-seed" data-testid="rcp-mc-seed" inputMode="numeric" value={seedText}
+                                onChange={(e) => setSeedText(e.target.value)}
+                                className="h-7 w-full rounded border border-pl-border bg-pl-surface px-2 text-xs text-pl-text" />
+                            <p className="text-[10px] text-pl-muted">Every run records its seed. The same inputs and seed give the same realizations.</p>
                         </div>
+                        <CorrelationEditor keys={distKeys} labelOf={distLabel} value={correlations} onChange={setCorrelations} problem={corrProblem} />
                         <div className="p-3 bg-pl-sunken rounded border border-pl-border space-y-2">
                             <Label className="text-xs font-bold text-pl-text flex items-center gap-1"><FileText className="w-3 h-3"/> Active Engine Features</Label>
                             <ul className="text-[10px] text-pl-muted list-disc pl-4 space-y-1">
                                 <li>Cholesky Decomposition for correlated sampling</li>
-                                <li>Automatic Porosity-Sw negative correlation (-0.8)</li>
+                                <li>Correlations from the table above (a matrix that cannot hold is refused)</li>
                                 <li>Strict out-of-bounds rejection logging</li>
                                 <li>Variance decomposition (Tornado charting)</li>
                                 <li>Detailed P-value realization tracking</li>
@@ -314,9 +342,26 @@ const ProbabilisticPanel = () => {
                             <h5 className="text-sm font-medium text-pl-text">{state.isCalculating ? 'Simulating...' : 'Ready to Simulate'}</h5>
                             <p className="text-[10px] text-pl-muted mt-1">{iterations.toLocaleString()} Iterations • Correlated Variables • Rejection Handled</p>
                         </div>
-                        <Button className="w-full" data-testid="rcp-mc-run" onClick={runSimulation} disabled={state.isCalculating}>
+                        {state.isCalculating && mcProgress !== null && (
+                            <div className="w-full space-y-1" data-testid="rcp-mc-progress">
+                                <div className="h-2 w-full rounded bg-pl-sunken border border-pl-border overflow-hidden">
+                                    <div className="h-full bg-pl-primary transition-[width]" style={{ width: `${Math.round((mcProgress || 0) * 100)}%` }} />
+                                </div>
+                                <p className="text-[10px] text-pl-muted text-center">{Math.round((mcProgress || 0) * 100)}% of {iterations.toLocaleString()} realizations</p>
+                            </div>
+                        )}
+                        {corrProblem && <p className="text-[10px] text-pl-danger-text" data-testid="rcp-corr-block">Run is blocked: {corrProblem}</p>}
+                        <Button className="w-full" data-testid="rcp-mc-run" onClick={runSimulation} disabled={state.isCalculating || !!corrProblem}>
                             {state.isCalculating ? "Processing..." : "Run Monte Carlo"}
                         </Button>
+                        {state.isCalculating && (
+                            <Button variant="outline" className="w-full" data-testid="rcp-mc-cancel" onClick={cancelSimulation}>
+                                Cancel run
+                            </Button>
+                        )}
+                        {state.probResults?.meta?.seed !== undefined && state.probResults?.meta?.seed !== null && !state.isCalculating && (
+                            <p className="text-[10px] text-pl-muted" data-testid="rcp-mc-last-seed">Last run: seed {state.probResults.meta.seed}{state.probResults.meta.ranIn === 'worker' ? ', background worker' : ''}</p>
+                        )}
                     </div>
                 )}
             </div>

@@ -14,6 +14,17 @@ import { listCulture, downloadCultureFeatures } from '@/lib/cultureRegistry';
 import { makeRegistryProspectsBackend, makeInMemoryProspectsBackend } from './prospectsService';
 import { getDepthUnit } from '@/lib/crs/settingsService';
 import { makeInMemoryBackend as makeMappingInMemoryBackend } from '@/pages/apps/MappingSurfaceStudio/services/inMemoryBackend';
+import { createSavedProjectsService } from '@/utils/savedProjects';
+
+// U2-007: SCAL Studio projects for Sw from saturation height (read only)
+const scalProjects = createSavedProjectsService('saved_scal_projects');
+
+/** The harness's one SCAL project (the Petrophysics harness sample). */
+export const SCAL_SAMPLE = {
+  id: 'scal-sample', name: 'Keta SAND J (sample)', schema: 1, samples: [],
+  capillary: { jMode: 'manual', manual: { a: '0.25', b: '1.4', Swirr: '0.15' }, SwirrOverride: '', includedSampleIds: [], reservoir: { k_md: '150', phi: '0.22', sigma_dyncm: '26', thetaDeg: '30' } },
+  height: { gammaW: '1.05', gammaHc: '0.80', fwl_tvdss: '6758.53', swMin: '0.2', swMax: '0.95' },
+};
 
 export function makeRegistryRcpBackend() {
   return {
@@ -25,6 +36,7 @@ export function makeRegistryRcpBackend() {
     prospects: makeRegistryProspectsBackend(),
     // RC2: the account's Geoscience depth unit (the Mapping setting)
     getDepthUnit,
+    scal: { listScalProjects: () => scalProjects.list(), loadScalProject: (id) => scalProjects.load(id) },
   };
 }
 
@@ -105,5 +117,9 @@ export function makeInMemoryRcpBackend({ savedRows = [], prospects = [] } = {}) 
     culture: { listCulture: () => mapping.listCulture(), downloadCultureFeatures: (row) => mapping.downloadCultureFeatures(row) },
     prospects: makeInMemoryProspectsBackend(prospects),
     async getDepthUnit() { return null; },
+    scal: {
+      async listScalProjects() { return [{ id: SCAL_SAMPLE.id, name: SCAL_SAMPLE.name, updatedAt: '2026-09-29T00:00:00Z' }]; },
+      async loadScalProject(id) { return id === SCAL_SAMPLE.id ? JSON.parse(JSON.stringify(SCAL_SAMPLE)) : null; },
+    },
   };
 }

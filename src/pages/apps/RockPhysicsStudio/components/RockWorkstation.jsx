@@ -32,7 +32,7 @@ import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import WellExplorer from './WellExplorer';
-import RockParamsPanel from './RockParamsPanel';
+import RockParamsPanel, { TEMPERATURE_UNITS, PRESSURE_UNITS, GOR_UNITS } from './RockParamsPanel';
 import FluidsPanel from './FluidsPanel';
 import AvoPanel from './AvoPanel';
 import WedgePanel from './WedgePanel';
@@ -43,6 +43,7 @@ import {
   UNITS_KEY, VELOCITY_UNITS, DENSITY_UNITS, DEPTH_UNITS, readUnits,
 } from '../services/units';
 import { preparePublishLogs, ENGINE } from '../services/publish';
+import { projectRowFromState, projectStateFromRow } from '../services/projectState';
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 const publishedBy = (logs) => logs.filter((l) => l.provenance?.computed && l.provenance?.engine === ENGINE);
@@ -70,6 +71,9 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [projectId, setProjectId] = useState(null);
+  // RP-U1-013: the zone is workstation state so Save keeps it with the well
+  const [zoneId, setZoneId] = useState('');
+  const [restoreWellId, setRestoreWellId] = useState(null);
   // Suite unit profile: velocity, density and depth start from the
   // profile; the selectors change this view for the session only, and the
   // older remembered 'rp.units' choice no longer beats the profile
@@ -77,7 +81,11 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     velocity: { family: 'velocity', allowed: VELOCITY_UNITS.map((v) => v.key) },
     density: { family: 'density', allowed: DENSITY_UNITS.map((v) => v.key) },
     depth: { family: 'depth', allowed: DEPTH_UNITS },
-  }, { fallback: readUnits(storage()), legacyKeys: [UNITS_KEY] });
+    // RP-U1-008: the dock's reservoir conditions and GOR follow the profile too
+    temperature: { family: 'temperature', allowed: TEMPERATURE_UNITS },
+    pressure: { family: 'pressure', allowed: PRESSURE_UNITS },
+    gor: { family: 'gor', allowed: GOR_UNITS },
+  }, { fallback: { ...readUnits(storage()), temperature: 'degC', pressure: 'MPa', gor: 'm3/m3' }, legacyKeys: [UNITS_KEY] });
   const { units, setUnit } = unitsHook;
 
   useEffect(() => {
@@ -90,11 +98,18 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         const project = await backend.loadProject();
         if (!live || !project) return;
         setProjectId(project.id || null);
-        if (project.scenario) setScenario((s) => ({ ...s, ...project.scenario }));
-        if (project.rock) setRock((r) => ({ ...r, ...project.rock }));
-        if (project.avo) setAvo((a) => ({ ...a, ...project.avo }));
-        if (project.wedge) setWedge((w) => ({ ...w, ...project.wedge }));
-        setStatus('Restored saved project.');
+        // RP-U1-001: rows from any release open through one tolerant reader
+        const st = projectStateFromRow(project);
+        if (st.scenario) setScenario((s) => ({ ...s, ...st.scenario }));
+        if (st.rock) setRock((r) => ({ ...r, ...st.rock }));
+        if (st.avo) setAvo((a) => ({ ...a, ...st.avo }));
+        if (st.wedge) setWedge((w) => ({ ...w, ...st.wedge }));
+        if (st.zoneId) setZoneId(st.zoneId);
+        const savedWell = st.wellId && list.find((w) => w.id === st.wellId);
+        if (savedWell) setRestoreWellId(savedWell.id);
+        setStatus(st.wellId && !savedWell
+          ? 'Restored saved project. Its well is no longer in the registry you can see; pick a well.'
+          : 'Restored saved project.');
       } catch (e) {
         if (live) { setStatus(e.message); setWells((w) => w || []); }
       }
@@ -104,8 +119,9 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
 
   const selected = (wells || []).find((w) => w.id === selectedId) || null;
 
-  const select = useCallback(async (wellId) => {
+  const select = useCallback(async (wellId, { keepZone = false, restored = false } = {}) => {
     setSelectedId(wellId);
+    if (!keepZone) setZoneId('');
     setLoadingId(wellId);
     setWellData(null);
     setZones([]);
@@ -125,13 +141,14 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         inventory: Object.entries(mapped).map(([key, log]) => ({ key, log })),
         published: publishedBy(logs),
         tops,
+        notes: model.notes || [],
       });
       setZones(zoneList);
       // PETRO-U2-013: a pre-PT9a Studio PHIE is total porosity; say so
       const oldPhie = mapped.PHIE && isPrePt9aPhie(mapped.PHIE) ? ` ${mapped.PHIE.mnemonic}: ${PRE_PT9A_PHIE_NOTE}` : '';
-      setStatus((model.vsSource === 'estimated'
+      setStatus((restored ? 'Restored saved project. ' : '') + (model.vsSource === 'estimated'
         ? `Loaded ${model.n} samples. No DTS, so Vs is estimated (Greenberg-Castagna).`
-        : `Loaded ${model.n} samples.`) + oldPhie);
+        : `Loaded ${model.n} samples.`) + (model.notes?.length ? ` ${model.notes.length} reading note${model.notes.length === 1 ? '' : 's'} under the curve list.` : '') + oldPhie);
     } catch (e) {
       setStatus(e.message);
       setWellData(null);
@@ -142,6 +159,13 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
 
   const model = wellData?.model || null;
 
+  // RP-U1-013: reopen the saved project's well (once, after the list loads)
+  useEffect(() => {
+    if (!restoreWellId) return;
+    setRestoreWellId(null);
+    select(restoreWellId, { keepZone: true, restored: true });
+  }, [restoreWellId, select]);
+
   const applyParams = ({ scenario: s, rock: r }) => {
     setScenario(s);
     setRock(r);
@@ -151,7 +175,9 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const saveProject = async () => {
     setSaving(true);
     try {
-      const saved = await backend.saveProject({ scenario, rock, avo, wedge });
+      const saved = await backend.saveProject(projectRowFromState({
+        scenario, rock, avo, wedge, wellId: wellData?.wellId || null, zoneId: zoneId || null,
+      }));
       if (saved?.id) setProjectId(saved.id);
       setStatus('Project saved.');
     } catch (e) {
@@ -254,7 +280,6 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         {unitSelect('velocity', VELOCITY_UNITS, 'Velocity or sonic slowness display unit (the engine stays in m/s)')}
         {unitSelect('density', DENSITY_UNITS, 'Density display unit (the engine stays in kg/m3)')}
         {unitSelect('depth', DEPTH_UNITS, 'Depth display unit; starts from your Suite units and changes this view for the session')}
-        <UnitProfileNote u={unitsHook} className="ml-1 hidden md:inline-flex" />
         <span className="w-px h-4 bg-pl-border mx-1" />
         <button
           type="button"
@@ -283,6 +308,9 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const statusBar = (
     <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="rp-status" className="truncate">{status}</span>
+      {/* RP-U1-017: in the ribbon this note wrapped into a 400 px column when
+          the view differed from the profile; the status bar has the width */}
+      <UnitProfileNote u={unitsHook} className="min-w-0 shrink flex-nowrap whitespace-nowrap overflow-hidden" />
       <span className="ml-auto whitespace-nowrap">
         {selected ? `${selected.name} · ${model ? `${model.n} samples` : '…'}` : `${wells?.length ?? '…'} wells`}
       </span>
@@ -305,9 +333,9 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const center = view === 'wedge' ? (
     <WedgePanel wedge={wedge} onWedgeChange={setWedge} units={units} />
   ) : view === 'avo' ? (
-    (avo.mode === 'manual' || model) ? (
-      <AvoPanel model={model} tops={wellData?.tops || []} avo={avo} onAvoChange={setAvo} units={units} scenario={scenario} rock={rock} />
-    ) : needsWell
+    // RP-U1-016: the panel (and its Manual halfspaces button) shows with no
+    // well too; before, a new user on "From top" had no way to reach manual
+    <AvoPanel model={model} tops={wellData?.tops || []} avo={avo} onAvoChange={setAvo} units={units} scenario={scenario} rock={rock} />
   ) : (
     model ? (
       <FluidsPanel
@@ -316,6 +344,9 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         scenario={scenario}
         rock={rock}
         units={units}
+        zoneId={zoneId}
+        onZoneChange={setZoneId}
+        well={selected}
         onPublish={backend.publishCurves ? publish : null}
         publishing={publishing}
       />
@@ -335,13 +366,14 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
           loadingId={loadingId}
           curveInventory={wellData?.inventory}
           published={wellData?.published}
+          readNotes={wellData?.notes}
           onSelect={select}
         />
       )}
       center={center}
       dock={(
         <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
-          <RockParamsPanel scenario={scenario} rock={rock} onApply={applyParams} />
+          <RockParamsPanel scenario={scenario} rock={rock} onApply={applyParams} units={units} onUnit={setUnit} />
         </ScrollArea>
       )}
       dockOpen={dockOpen}

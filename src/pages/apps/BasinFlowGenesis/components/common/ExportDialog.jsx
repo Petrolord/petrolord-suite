@@ -2,48 +2,49 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { Loader2, FileText, Table, FileJson } from 'lucide-react';
 import { ExportEngine } from '../../services/ExportEngine';
 import { useBasinFlow } from '../../contexts/BasinFlowContext';
+import { useMultiWell } from '../../contexts/MultiWellContext';
+import { basinReportPdf } from '../../services/report';
+import { modelNotes, chartAgeFlags } from '../../services/honesty';
+import { resultState } from './RunNotes';
 import { useToast } from '@/components/ui/use-toast';
 
-const ExportDialog = ({ isOpen, onClose, chartRefs = [] }) => {
-    const { state, units } = useBasinFlow();
+const ExportDialog = ({ isOpen, onClose }) => {
+    const { state, dispatch, units } = useBasinFlow();
+    const { state: mw } = useMultiWell();
     const { toast } = useToast();
     const [isExporting, setIsExporting] = useState(false);
     const [options, setOptions] = useState({
         pdf: true,
         csv: false,
         json: false,
-        includeCharts: true
     });
+    const report = state.settings?.report || {};
+    const setReport = (patch) => dispatch({ type: 'UPDATE_SETTINGS', payload: { report: { ...report, ...patch } } });
+    // BF-U1-016: the model's own name (the PDF printed "Untitled Basin Model" for every model)
+    const modelName = mw.wellDataMap?.[mw.activeWellId]?.name || state.name || state.project?.name || '';
 
     const handleExport = async () => {
         setIsExporting(true);
         try {
             if (options.csv) {
+                if (!state.results) throw new Error('Run the model before exporting the results CSV.');
                 ExportEngine.generateCSV(state.results, units);
             }
             
             if (options.json) {
-                ExportEngine.generateJSON(state);
+                ExportEngine.generateJSON({ ...state, name: modelName });
             }
 
             if (options.pdf) {
-                // Capture charts if provided and requested
-                let charts = [];
-                if (options.includeCharts && chartRefs.length > 0) {
-                    // In a real implementation, we'd use html2canvas on the refs here
-                    // For now, we pass empty or mock, as refs usually need to be DOM nodes passed from parent
-                    // Assuming chartRefs contains objects with { title, dataUrl } if pre-captured, 
-                    // or we can't easily capture from a dialog that might be covering them.
-                    // Ideally, the parent passes pre-generated chart images or the engine handles logic.
-                    // We'll assume chartRefs are prepared objects for this phase.
-                    charts = chartRefs; 
-                }
-                
-                await ExportEngine.generatePDF(state.project, state.results, charts);
+                const [{ jsPDF }, { loadPetrolordLogo }] = await Promise.all([import('jspdf'), import('@/lib/pdfBrand')]);
+                const logo = await loadPetrolordLogo().catch(() => null);
+                const stale = resultState(state.results, state, mw.activeWellId);
+                const notes = modelNotes(state, { chartFlags: chartAgeFlags(state) });
+                const doc = basinReportPdf(jsPDF, { modelName, state, results: state.results, units, report, notes, stale }, { logo });
+                doc.save(`basin-model-${(modelName || 'model').replace(/[^\w.-]+/g, '_')}.pdf`);
             }
 
             toast({ title: "Export Complete", description: "Your files have been downloaded." });
@@ -72,7 +73,7 @@ const ExportDialog = ({ isOpen, onClose, chartRefs = [] }) => {
                             <FileText className="w-5 h-5 text-pl-muted" />
                             <div className="flex flex-col">
                                 <span className="text-sm font-medium">PDF Report</span>
-                                <span className="text-xs text-pl-muted">Formatted report with plots</span>
+                                <span className="text-xs text-pl-muted">Reviewer report: inputs, present day, calibration</span>
                             </div>
                         </div>
                         <Checkbox checked={options.pdf} onCheckedChange={(c) => setOptions(o => ({...o, pdf: c}))} />
@@ -101,9 +102,13 @@ const ExportDialog = ({ isOpen, onClose, chartRefs = [] }) => {
                     </div>
                     
                     {options.pdf && (
-                        <div className="flex items-center space-x-2 pt-2 border-t border-pl-border">
-                            <Checkbox id="charts" checked={options.includeCharts} onCheckedChange={(c) => setOptions(o => ({...o, includeCharts: c}))} />
-                            <Label htmlFor="charts" className="text-xs text-pl-muted">Include Charts in PDF</Label>
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-pl-border">
+                            <label className="text-xs text-pl-muted">Field
+                                <input className="mt-1 h-7 w-full rounded border border-pl-border-strong bg-pl-surface px-1.5 text-xs text-pl-text" data-testid="bf-report-field" value={report.field || ''} onChange={(e) => setReport({ field: e.target.value })} />
+                            </label>
+                            <label className="text-xs text-pl-muted">Analyst
+                                <input className="mt-1 h-7 w-full rounded border border-pl-border-strong bg-pl-surface px-1.5 text-xs text-pl-text" data-testid="bf-report-analyst" value={report.analyst || ''} onChange={(e) => setReport({ analyst: e.target.value })} />
+                            </label>
                         </div>
                     )}
                 </div>

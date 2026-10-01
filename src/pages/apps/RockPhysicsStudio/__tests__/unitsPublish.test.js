@@ -30,7 +30,8 @@ test('preparePublishLogs writes the substituted values inside the zone and the i
   const sub = { vp: [NaN, 2500, 2540, NaN], vs: [NaN, 1600, 1620, NaN], rho: [NaN, 2090, 2095, NaN], done: 2 };
   const zone = { name: 'GAS SAND', top_md_m: 2000.5, base_md_m: 2001 };
   const logs = preparePublishLogs(model, sub, [1, 2], zone, { scenario: { fluidA: { sw: 1, hc: { kind: 'gas', gravity: 0.6 } }, fluidB: { sw: 0.2, hc: { kind: 'gas', gravity: 0.6 } } }, rock: { kmin: 37e9 }, kmin: 37e9, projectId: 'p1', inputLogIds: ['l1'] });
-  expect(logs.map((l) => l.mnemonic)).toEqual(['VP_SUB', 'VS_SUB', 'RHOB_SUB']);
+  // RP-U1-009: DT_SUB (us/m) joins so Seismolord's synthetics can use the case
+  expect(logs.map((l) => l.mnemonic)).toEqual(['VP_SUB', 'VS_SUB', 'RHOB_SUB', 'DT_SUB']);
   expect(Array.from(logs[0].data)).toEqual([3000, 2500, 2540, 3300]);
   expect(Array.from(logs[2].data)).toEqual([2200, 2090, 2095, 2230]);
   expect(logs[0]).toMatchObject({ unit: 'M/S', startMdM: 2000, stopMdM: 2001.5, stepM: 0.5, nSamples: 4, nullCount: 0 });

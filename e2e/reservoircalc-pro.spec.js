@@ -86,7 +86,14 @@ test('RC2: contacts are TVDSS elevations in a chosen unit and the viewers label 
   await page.locator('#owc-input').blur();
   const stooip = page.getByTestId('rcp-stooip');
   await expect.poll(async () => Number(await stooip.getAttribute('data-value')), { timeout: 20000 }).toBeGreaterThan(0);
-  const feet = Number(await stooip.getAttribute('data-value'));
+  // RCP U2: wait until the debounced recompute settles (the first value can be the previous contact's)
+  let feet = NaN;
+  for (let i = 0, same = 0; i < 60 && same < 3; i++) {
+    const v = Number(await stooip.getAttribute('data-value'));
+    same = v === feet ? same + 1 : 0;
+    feet = v;
+    await page.waitForTimeout(500);
+  }
   // the same contact typed in metres gives the same volume
   await page.getByTestId('rcp-contact-unit').selectOption('m');
   await expect(page.locator('#owc-input')).toHaveValue(/-1599\.99|-1600/);

@@ -33,7 +33,11 @@ export class ValidationEngine {
 
         layers.forEach((layer, index) => {
             if (!layer.name) errors.push(`Layer ${index + 1}: Missing name.`);
-            if (layer.thickness <= 0) errors.push(`Layer '${layer.name || index+1}': Thickness must be positive.`);
+            // BF-U1-017: a cleared box stored NaN, which passed every
+            // comparison below and ran the engine to NaN
+            if (!(Number(layer.thickness) > 0)) errors.push(`Layer '${layer.name || index+1}': Thickness must be a positive number.`);
+            if (!Number.isFinite(Number(layer.ageStart)) || !Number.isFinite(Number(layer.ageEnd)) || layer.ageStart === '' || layer.ageEnd === '' || layer.ageStart == null || layer.ageEnd == null) errors.push(`Layer '${layer.name || index+1}': Start and end ages must be numbers (Ma).`);
+            else if (Number(layer.ageEnd) < 0) errors.push(`Layer '${layer.name || index+1}': End age cannot be negative.`);
             if (layer.ageStart <= layer.ageEnd) errors.push(`Layer '${layer.name || index+1}': Start age (${layer.ageStart} Ma) must be older than End age (${layer.ageEnd} Ma).`);
         });
 
@@ -62,8 +66,8 @@ export class ValidationEngine {
             warnings.push("No active source rocks defined. Simulation will run but no hydrocarbons will be generated.");
         } else {
             sources.forEach(s => {
-                if (s.sourceRock.toc <= 0) errors.push(`Source '${s.name}': TOC must be greater than 0.`);
-                if (s.sourceRock.hi <= 0) errors.push(`Source '${s.name}': HI must be greater than 0.`);
+                if (!(Number(s.sourceRock.toc) > 0)) errors.push(`Source '${s.name}': TOC must be greater than 0.`);
+                if (!(Number(s.sourceRock.hi) > 0)) errors.push(`Source '${s.name}': HI must be greater than 0.`);
             });
         }
 

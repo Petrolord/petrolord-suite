@@ -21,6 +21,7 @@ import { useMultiWell } from '@/pages/apps/BasinFlowGenesis/contexts/MultiWellCo
 import { useBasinFlow } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowContext';
 import { depthToDisplay } from '@/pages/apps/BasinFlowGenesis/services/units';
 import { useToast } from '@/components/ui/use-toast';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -73,13 +74,16 @@ const MultiWellManager = () => {
 
     // Initialize active well if none selected but we have wells
     useEffect(() => {
+        // BF-U1-019: wait for the saved list; opening Expert mode before it
+        // arrived created a stray "Exploration Well 1" every time
+        if (!mwState.loaded) return;
         if (!mwState.activeWellId && mwState.wells && mwState.wells.length > 0) {
             handleSwitchWell(mwState.wells[0].id);
         } else if (mwState.wells && mwState.wells.length === 0) {
             // Create default first well
             addWell({ name: 'Exploration Well 1', status: 'not-started' });
         }
-    }, [mwState.wells]); // Depend on wells to ensure we catch updates
+    }, [mwState.wells, mwState.loaded]); // Depend on wells to ensure we catch updates
 
     const handleSwitchWell = (targetId) => {
         if (targetId === mwState.activeWellId) return;
@@ -92,6 +96,7 @@ const MultiWellManager = () => {
                 erosionEvents: bfState.erosionEvents,
                 settings: bfState.settings,
                 calibration: bfState.calibration,
+                scenarios: bfState.scenarios,
             };
             saveWellData(mwState.activeWellId, currentData);
         }
@@ -106,7 +111,10 @@ const MultiWellManager = () => {
                 heatFlow: targetWellData.heatFlow || { type: 'constant', value: 60, history: [] },
                 erosionEvents: targetWellData.erosionEvents || [],
                 settings: targetWellData.settings || {},
-                calibration: targetWellData.calibration || { ro: [], temp: [] }
+                calibration: targetWellData.calibration || { ro: [], temp: [] },
+                // BF-U1-002: the well's own scenarios (they were never loaded, and the
+                // auto-save then wrote the previous well's list, or [], over them)
+                scenarios: Array.isArray(targetWellData.scenarios) ? targetWellData.scenarios : [],
             }});
             toast({ description: `Switched to ${targetWellData.name}` });
         }
@@ -263,7 +271,7 @@ const MultiWellManager = () => {
                             </div>
 
                             <div className="text-[10px] text-pl-muted flex gap-3 border-t border-pl-border pt-2 mt-1">
-                                <span className="flex items-center"><MapPin className="w-2.5 h-2.5 mr-1" /> {well.location?.name || 'N/A'}</span>
+                                <span className="flex items-center"><MapPin className="w-2.5 h-2.5 mr-1" /> {well.location?.name || EMPTY_VALUE}</span>
                                 <span className="flex items-center">TD: {wellTd(well)}</span>
                             </div>
                         </div>

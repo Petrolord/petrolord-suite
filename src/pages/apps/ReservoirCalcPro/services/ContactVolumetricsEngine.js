@@ -1,5 +1,10 @@
 import { makeInterpolator } from './GriddingEngine';
 import { PolygonClippingEngine } from './PolygonClippingEngine';
+import { hypsometryFromTable } from './hypsometry';
+import { latticeOf } from './lattice';
+import { areaDepthFromCells } from './areaDepth';
+import { gridXY, sampleAtXY, isNull as isNullZ } from '@/lib/gridding/gridmath';
+import { spillAnalysis } from '@/lib/gridding/closure';
 
 const FT_PER_M = 3.280839895;
 const SQFT_PER_ACRE = 43560;
@@ -38,9 +43,17 @@ export class ContactVolumetricsEngine {
     static calculate(p) {
         const built = this._buildCells(p);
         if (built.error) return { error: built.error };
-        const { cells, meta } = built;
-        const inputs = p.inputs || {};
+        const { meta } = built;
         const warnings = [...built.warnings];
+        // U2-008: with fill to spill, only the crest's trap counts and no
+        // contact sits below its spill point
+        let trap = p.options?.fillToSpill ? trapOf(built) : null;
+        if (trap?.noTrap) {
+            warnings.push('Trap only is on, but no closed culmination was found on the map (the highest ground is on its edge), so every cell above the contact is counted.');
+            trap = null;
+        }
+        const cells = trap ? trap.cells : built.cells;
+        const inputs = trap ? { ...(p.inputs || {}), ...clampContactsToSpill(p.inputs || {}, trap, meta, warnings) } : (p.inputs || {});
 
         const ntg = clampFrac(inputs.ntg, 1.0);
         const phi = clampFrac(inputs.porosity, 0.2);
@@ -75,10 +88,14 @@ export class ContactVolumetricsEngine {
         const lenUnit = meta.isField ? 'ft' : 'm';
         // RCP-U1-012: a column that reaches the edge of the mapped surface is
         // not closed inside the map at this contact
-        const openEdge = openCells > 0
+        let openEdge = openCells > 0
             ? { open: true, cells: openCells, edgeElevation: Number.isFinite(meta.edgeTop) ? -meta.edgeTop : null }
             : { open: false, cells: 0, edgeElevation: Number.isFinite(meta.edgeTop) ? -meta.edgeTop : null };
-        if (openEdge.open) {
+        if (trap && trap.limitedByEdge && trap.filledToSpill) {
+            // U2-008: the trap is filled to a spill point on the map edge
+            openEdge = { open: true, cells: Math.max(openCells, 1), edgeElevation: trap.spillElevation, atSpill: true };
+            warnings.push(`Open closure: the trap spills at the edge of the mapped surface (${Math.round(trap.spillElevation).toLocaleString('en-US')} ${lenUnit} TVDSS), so the structure may close deeper off the map. This volume is only a minimum.`);
+        } else if (openEdge.open) {
             warnings.push(`Open closure: the hydrocarbon column reaches the edge of the mapped surface at ${openCells.toLocaleString('en-US')} cells, so the structure does not close inside the map at this contact. This volume is a minimum, not a trap volume. The shallowest edge of the surface is at ${Number.isFinite(openEdge.edgeElevation) ? Math.round(openEdge.edgeElevation).toLocaleString('en-US') : 'n/a'} ${lenUnit} TVDSS: a contact below that spills or runs off the map.`);
         }
         // RCP-U1-022: a contact typed as a positive depth sits above the datum
@@ -142,6 +159,7 @@ export class ContactVolumetricsEngine {
             // the report say what produced the number
             gridding: { interpolation: meta.interpolation, nx: meta.nx, ny: meta.ny, dx: meta.dx, dy: meta.dy, xyUnit: meta.xyUnit },
             openEdge,
+            trap: trap ? { spillElevation: trap.spillElevation, limitedByEdge: trap.limitedByEdge, merges: trap.merges, excludedCells: trap.excludedCells, filledToSpill: !!trap.filledToSpill } : null,
             condensate: cond.inPlace, recoverableCondensate: cond.recoverable, cgr: cond.cgr,
             cellCount: cells.length,
             maskedCount: meta.maskedCount,
@@ -169,7 +187,10 @@ export class ContactVolumetricsEngine {
     static buildHypsometry(p) {
         const built = this._buildCells(p);
         if (built.error) return { error: built.error };
-        const { cells, meta } = built;
+        const { meta } = built;
+        let trap = p.options?.fillToSpill ? trapOf(built) : null;
+        if (trap?.noTrap) trap = null;
+        const cells = trap ? trap.cells : built.cells;
 
         if (cells.length === 0) return { error: 'No cells inside the surveyed area / AOI to integrate.' };
 
@@ -195,54 +216,26 @@ export class ContactVolumetricsEngine {
             for (const c of cells) v += Math.max(0, Math.min(c.bd, z) - c.td) * c.area;
             volume[k] = v;
         }
-        const vTotal = volume[N - 1];
-
-        // Contacts are TVDSS elevations in workspace units (ft field, m metric;
-        // FluidContactManager stores them so), which are also the target
-        // units: depth-down is the negation, whatever the surface's own unit
-        // or sign (RCP-T1-011).
-        const toTargetDepth = (userZ) => -userZ;
-
-        const rockToContact = (userZ) => {
-            if (userZ === null || userZ === undefined || userZ === '' || isNaN(parseFloat(userZ))) return vTotal;
-            const z = toTargetDepth(parseFloat(userZ));
-            if (z <= zLo) return 0;
-            if (z >= zHi) return vTotal;
-            const t = ((z - zLo) / span) * (N - 1);
-            const i = Math.floor(t);
-            const frac = t - i;
-            return volume[i] + (volume[i + 1] - volume[i]) * frac;
-        };
-
-        const zoneVolumes = (fluidType, owc, goc) => {
-            if (fluidType === 'gas') {
-                const gwc = isNum(goc) ? goc : owc;             // gas-water contact
-                return { grvOil: 0, grvGas: rockToContact(gwc) };
-            }
-            if (fluidType === 'oil_gas' && isNum(goc)) {
-                // RCP-U1-007: a GOC below the OWC stops at the OWC (gas never
-                // sits under the water leg)
-                const g = isNum(owc) ? Math.max(parseFloat(goc), parseFloat(owc)) : parseFloat(goc);
-                const vGoc = rockToContact(g);
-                const vOwc = rockToContact(owc);
-                return { grvGas: vGoc, grvOil: Math.max(0, vOwc - vGoc) };
-            }
-            // oil (or oil_gas with no GOC → undersaturated oil, no gas cap)
-            return { grvOil: rockToContact(owc), grvGas: 0 };
-        };
-
+        // U2-006: the model is a plain table (it crosses into the Monte
+        // Carlo worker); hypsometryFromTable gives back rockToContact and
+        // zoneVolumes. Contacts are TVDSS elevations in workspace units
+        // (ft field, m metric), also the target units: depth-down is the
+        // negation, whatever the surface's own unit or sign (RCP-T1-011).
         return {
+            ...hypsometryFromTable({
+                kind: 'hypsometry-table',
+                zLo, zHi, volume, totalArea,
+                // RCP-U1-012: contacts (TVDSS elevation) deeper than this are open
+                edgeElevation: trapEdgeElevation(cells, meta, trap),
+                // U2-008: sampled contacts below the spill fill to the spill
+                spillElevation: trap ? trap.spillElevation : null,
+                isField: meta.isField,
+                volUnit: meta.volUnit,
+                areaUnit: meta.areaUnit,
+                source: 'grid',
+            }),
             meta,
-            vTotal,
-            totalArea,
-            zLo, zHi,
-            // RCP-U1-012: contacts (TVDSS elevation) deeper than this are open
-            edgeElevation: Number.isFinite(meta.edgeTop) ? -meta.edgeTop : null,
-            rockToContact,
-            zoneVolumes,
-            isField: meta.isField,
-            volUnit: meta.volUnit,
-            areaUnit: meta.areaUnit,
+            trap: trap ? { spillElevation: trap.spillElevation, limitedByEdge: trap.limitedByEdge } : null,
         };
     }
 
@@ -277,6 +270,17 @@ export class ContactVolumetricsEngine {
     }
 
     /**
+     * U2-001 export: the area/depth table of a surface case (top and base
+     * area against depth, workspace units), from the same cells the
+     * volumes integrate.
+     */
+    static areaDepthTable(p, n = 40) {
+        const built = this._buildCells(p);
+        if (built.error) return { error: built.error };
+        return { rows: areaDepthFromCells(built.cells, { unitSystem: p.unitSystem || 'field', n }), gridding: built.meta.interpolation };
+    }
+
+    /**
      * Build the integration cells shared by calculate() and buildHypsometry().
      * Each cell = { td, bd, area } with td/bd the top/base depths in *target* length
      * units (depth increases downward) and area the cell footprint in acres (field)
@@ -292,7 +296,7 @@ export class ContactVolumetricsEngine {
         if (!top || typeof top !== 'object') return this._buildCellsRaw(p);
         const key = JSON.stringify([
             objectId(p.baseSurface), p.constantThickness ?? null, p.unitSystem || 'field',
-            p.aoiPolygon?.vertices || null, p.options || {},
+            p.aoiPolygon?.vertices || null, { ...(p.options || {}), fillToSpill: undefined },
         ]);
         let byKey = CELL_CACHE.get(top);
         if (!byKey) { byKey = new Map(); CELL_CACHE.set(top, byKey); }
@@ -304,6 +308,9 @@ export class ContactVolumetricsEngine {
     }
 
     static _buildCellsRaw(p) {
+        // U2-005: a registry surface that kept its lattice is integrated on
+        // the lattice's own nodes (Mapping's midpoint rule), not re-gridded
+        if (p.options?.lattice !== false && latticeOf(p.topSurface)) return this._buildLatticeCells(p);
         const {
             topSurface,
             baseSurface = null,
@@ -425,6 +432,204 @@ export class ContactVolumetricsEngine {
 }
 
 // ---- helpers ----
+
+/**
+ * U2-008: the trap of a built cell set. The cells are put on their grid
+ * (elevation = minus top depth, target units; empty nodes null) and
+ * Mapping's closure engine floods from the crest (spillAnalysis): the
+ * trap is the flood up to its spill point, which is the deepest closing
+ * contour. Cached on the built object.
+ */
+function trapOf(built) {
+    if (built._trap) return built._trap;
+    const { cells, meta } = built;
+    const { nx, ny } = meta;
+    const z = new Float64Array(nx * ny).fill(1e30);
+    const at = new Map();
+    for (const c of cells) {
+        const k = c.j * nx + c.i;
+        // the shallowest top when a node holds more than one cell
+        if (z[k] >= 1e29 || -c.td > z[k]) z[k] = -c.td;
+        at.set(k, (at.get(k) || []).concat([c]));
+    }
+    if (!cells.length) { built._trap = { cells: [], spillElevation: null, limitedByEdge: true, merges: 0, excludedCells: 0 }; return built._trap; }
+    // The crest of the trap: the interior culmination (a node above its
+    // four neighbours) whose trap holds the most rock above its spill.
+    // The global highest node can sit on an up-dip map edge, where it
+    // traps nothing.
+    const spec = { x0: 0, y0: 0, dx: 1, dy: 1, nx, ny };
+    const live = (k) => z[k] < 1e29;
+    const peaks = [];
+    for (let j = 1; j < ny - 1; j++) {
+        for (let i = 1; i < nx - 1; i++) {
+            const k = j * nx + i;
+            if (!live(k)) continue;
+            const nb = [k - 1, k + 1, k - nx, k + nx];
+            if (nb.some((q) => !live(q))) continue;
+            if (nb.every((q) => z[q] <= z[k]) && nb.some((q) => z[q] < z[k])) peaks.push(k);
+        }
+    }
+    peaks.sort((a, b) => z[b] - z[a]);
+    let sp = null; let best = -Infinity;
+    for (const k of peaks.slice(0, 6)) {
+        const cand = spillAnalysis(z, spec, { seed: k });
+        let n = 0;
+        while (n < cand.order.length && cand.runMin[n] > cand.spillZ) n++;
+        const vol = n ? cand.prefixSum[n - 1] - n * cand.spillZ : 0;
+        if (vol > best) { best = vol; sp = cand; }
+    }
+    if (!sp || best <= 0) {
+        built._trap = { cells: [], spillElevation: null, limitedByEdge: true, merges: 0, excludedCells: cells.length, noTrap: true };
+        return built._trap;
+    }
+    // the trap: the flood while its running minimum is above the spill;
+    // nodes popped at or after the spill level lie past the saddle
+    const inTrap = new Set();
+    for (let q = 0; q < sp.order.length; q++) if (sp.runMin[q] > sp.spillZ) inTrap.add(sp.order[q]);
+    const trapCells = [];
+    for (const k of inTrap) for (const c of at.get(k) || []) trapCells.push(c);
+    built._trap = {
+        cells: trapCells,
+        spillElevation: sp.spillZ,
+        limitedByEdge: sp.limitedByEdge,
+        merges: sp.merges.length,
+        excludedCells: cells.length - trapCells.length,
+        crestElevation: sp.crest.z,
+    };
+    return built._trap;
+}
+
+/** Contacts held at the spill point, with the reason said. */
+function clampContactsToSpill(inputs, trap, meta, warnings) {
+    const out = {};
+    const lenU = meta.isField ? 'ft' : 'm';
+    const sp = trap.spillElevation;
+    const fmtZ = (v) => `${Math.round(v).toLocaleString('en-US')} ${lenU}`;
+    if (!Number.isFinite(sp)) return out;
+    let filled = false;
+    for (const k of ['owc', 'goc']) {
+        const v = parseFloat(inputs[k]);
+        if (isNum(inputs[k]) && v < sp) { out[k] = sp; filled = true; }
+    }
+    // a contact left empty means "to the base": the trap still stops at the spill
+    if (!isNum(inputs.owc) && (inputs.fluidType || 'oil') !== 'gas') { out.owc = sp; filled = true; }
+    trap.filledToSpill = filled;
+    if (filled) {
+        warnings.push(`Filled to spill: the contact is below the spill point at ${fmtZ(sp)} TVDSS, deeper than the trap can hold, so the volumes are taken to the spill point.`);
+    }
+    if (trap.excludedCells > 0) {
+        warnings.push(`${trap.excludedCells.toLocaleString('en-US')} cells outside the crest's trap (other closures or the flank beyond the spill) are not counted.`);
+    }
+    if (trap.merges > 0) {
+        warnings.push(`The trap joins ${trap.merges} neighbouring culmination${trap.merges === 1 ? '' : 's'} above its spill point (fill and spill); they are one accumulation here.`);
+    }
+    return out;
+}
+
+/**
+ * Contacts deeper than this elevation are open. With a trap (U2-008) only
+ * a spill on the map edge is open; otherwise the shallowest edge cell.
+ */
+function trapEdgeElevation(cells, meta, trap = null) {
+    if (trap) return trap.limitedByEdge && Number.isFinite(trap.spillElevation) ? trap.spillElevation : null;
+    let e = Infinity;
+    for (const c of cells) if (c.edge && c.td < e) e = c.td;
+    if (Number.isFinite(e)) return -e;
+    return Number.isFinite(meta.edgeTop) ? -meta.edgeTop : null;
+}
+
+/**
+ * U2-005: cells on a registry lattice. Each live node is one cell of
+ * |dx dy| map units (in square metres through the row's metres per unit),
+ * the midpoint rule Mapping's closure engine uses, so the two apps give
+ * one GRV on one surface. A base surface on the same frame is read node
+ * by node; on another frame it is sampled bilinearly (a lattice) or by
+ * the interpolator (points).
+ */
+ContactVolumetricsEngine._buildLatticeCells = function buildLatticeCells(p) {
+    const { topSurface, baseSurface = null, constantThickness = null, unitSystem = 'field', aoiPolygon = null, options = {} } = p;
+    const { spec, z } = latticeOf(topSurface);
+    const isField = unitSystem === 'field';
+    const constThick = parseFloat(constantThickness);
+    const baseL = latticeOf(baseSurface);
+    const hasBasePoints = !baseL && !!(baseSurface && Array.isArray(baseSurface.points) && baseSurface.points.length >= 3);
+    if (!baseL && !hasBasePoints && !(constThick > 0)) return { error: 'Provide either a base surface or a positive gross thickness.' };
+    const xyToM = Number.isFinite(topSurface.xyToM) && topSurface.xyToM > 0 ? topSurface.xyToM : 1;
+    if (baseSurface && Number.isFinite(baseSurface.xyToM) && Math.abs(baseSurface.xyToM - xyToM) > 1e-9) {
+        return { error: 'The top and base surfaces are in different XY units. Import both in the same frame.' };
+    }
+    // lattice values are metres elevation (readDepthSurface)
+    const mToTarget = isField ? FT_PER_M : 1;
+    const areaM2 = Math.abs(spec.dx * spec.dy) * xyToM * xyToM;
+    const cellArea = isField ? (areaM2 * FT_PER_M * FT_PER_M) / SQFT_PER_ACRE : areaM2;
+    const sameFrame = baseL && ['x0', 'y0', 'dx', 'dy', 'nx', 'ny'].every((k) => baseL.spec[k] === spec[k]) && (baseL.spec.rotation_deg || 0) === (spec.rotation_deg || 0);
+    const baseInterp = hasBasePoints ? makeInterpolator(baseSurface.points, options.interpolation || 'idw') : null;
+    const baseToDepthTarget = (() => {
+        if (!baseSurface) return null;
+        const conv = baseSurface.zConvention || 'elevation';
+        const du = baseSurface.depthUnit || 'm';
+        const toT = du === 'm' ? mToTarget : (isField ? 1 : 1 / FT_PER_M);
+        return (v) => (conv === 'elevation' ? -v : v) * toT;
+    })();
+    const { nx, ny } = spec;
+    const cells = [];
+    let maskedCount = 0, clippedCount = 0;
+    const dead = new Uint8Array(nx * ny);
+    const verts = aoiPolygon && Array.isArray(aoiPolygon.vertices) && aoiPolygon.vertices.length >= 3 ? aoiPolygon.vertices : null;
+    for (let r = 0; r < ny; r++) {
+        for (let c = 0; c < nx; c++) {
+            const k = r * nx + c;
+            const zt = z[k];
+            if (isNullZ(zt)) { dead[k] = 1; maskedCount++; continue; }
+            const w = gridXY(spec, r, c);
+            let coverage = 1;
+            if (verts) {
+                coverage = cellCoverage(w.x, w.y, Math.abs(spec.dx), Math.abs(spec.dy), verts);
+                if (coverage <= 0) { clippedCount++; continue; }
+            }
+            const td0 = -zt * mToTarget;
+            let bd0;
+            if (baseL) {
+                const zb = sameFrame ? baseL.z[k] : sampleAtXY(baseL.z, baseL.spec, w.x, w.y);
+                if (isNullZ(zb)) { maskedCount++; continue; }
+                bd0 = -zb * mToTarget;
+            } else if (baseInterp) {
+                bd0 = baseToDepthTarget(baseInterp.predict(w.x, w.y));
+            } else {
+                bd0 = td0 + constThick; // workspace units (ft field, m metric)
+            }
+            const td = Math.min(td0, bd0);
+            const bd = Math.max(td0, bd0);
+            if (bd - td <= 0) continue;
+            cells.push({ td, bd, area: cellArea * coverage, i: c, j: r });
+        }
+    }
+    let edgeTop = Infinity;
+    for (const cl of cells) {
+        const { i, j } = cl;
+        const edge = i === 0 || j === 0 || i === nx - 1 || j === ny - 1
+            || dead[j * nx + i - 1] || dead[j * nx + i + 1] || dead[(j - 1) * nx + i] || dead[(j + 1) * nx + i];
+        cl.edge = !!edge;
+        if (cl.edge && cl.td < edgeTop) edgeTop = cl.td;
+    }
+    const xyUnit = topSurface.xyUnit || 'm';
+    return {
+        cells,
+        warnings: [],
+        lattice: { spec, z },
+        meta: {
+            isField, unitSystem,
+            xyUnit, depthUnit: 'm', zConvention: 'elevation', depthToTargetLen: mToTarget,
+            nx, ny, dx: Math.abs(spec.dx), dy: Math.abs(spec.dy), maskedCount, clippedCount,
+            edgeTop,
+            interpolation: 'lattice',
+            volumeUnit: isField ? 'STB' : 'sm³',
+            volUnit: isField ? 'Ac-ft' : 'm³',
+            resVolUnit: isField ? 'Ac-ft' : 'm³',
+            areaUnit: isField ? 'Acres' : 'km²',
+        },
+    };
+};
 
 const CELL_CACHE = new WeakMap();
 const OBJECT_IDS = new WeakMap();

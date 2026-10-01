@@ -1,14 +1,16 @@
-import React, { createContext, useContext, useReducer, useMemo, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useReducer, useMemo, useEffect, useRef, useState } from 'react';
 import { VolumeCalculationEngine } from '../services/VolumeCalculationEngine';
 import { ContactVolumetricsEngine } from '../services/ContactVolumetricsEngine';
-import { MonteCarloEngine } from '../services/MonteCarloEngine';
+import { runMonteCarlo, newSeed } from '../services/mcClient';
 import { ProjectService } from '../services/ProjectService';
 import { makeRegistryRcpBackend } from '../services/rcpBackend';
 import { AOIManager } from '../services/AOIManager';
 import { loadSettings } from '../hooks/useReservoirSettings';
+import { effectiveGridding, cleanGridding } from '../services/griddingSettings';
 import { defaultInputUnits, convertInputsOnSystemChange } from '../services/unitsCatalog';
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
 import { runSignature } from '../services/volumeDisplay';
+import { checkAreaDepthRows, areaDepthHypsometry } from '../services/areaDepth';
 
 // Families that decide RCP's system from the Suite unit profile
 const RCP_PROFILE_FAMILIES = ['area', 'rockVolume', 'depth'];
@@ -66,7 +68,11 @@ const initialState = {
         gasCapFraction: null,
         // Condensate-gas ratio (STB/MMscf field, sm³ per 10⁶ sm³ metric);
         // empty means no condensate stream (RCP-U1-017)
-        cgr: null
+        cgr: null,
+        // U2-008: only the crest's trap counts, filled at most to its spill
+        // point. New projects start with it on; a project saved before
+        // U2-008 has no key and keeps the volumes it was saved with (off).
+        fillToSpill: true
     },
     
     surfaces: {},
@@ -89,6 +95,9 @@ const initialState = {
     maps: [],
 
     results: null,
+    // U2-013: the gridding this project calculates with (saved with it);
+    // null: the browser's setting (a new project, or one saved before U2-013)
+    gridding: null,
     baseCase: null, // Shared deterministic parameters & results for MC integration
     probResults: null,
     projects: [], // Saved projects for the current user (Project Manager)
@@ -166,6 +175,7 @@ const ACTIONS = {
     ADD_AOI: 'ADD_AOI',
     SET_PROB_RESULTS: 'SET_PROB_RESULTS',
     SET_CALCULATING: 'SET_CALCULATING',
+    SET_GRIDDING: 'SET_GRIDDING',
     SET_ERROR: 'SET_ERROR',
     RESET: 'RESET',
     SET_MODE: 'SET_MODE',
@@ -288,6 +298,8 @@ const reducer = (state, action) => {
             return { ...state, probResults: action.payload, isCalculating: false, error: null };
         case ACTIONS.SET_CALCULATING:
             return { ...state, isCalculating: action.payload };
+        case ACTIONS.SET_GRIDDING:
+            return { ...state, gridding: cleanGridding(action.payload), isDirty: true };
         case ACTIONS.SET_ERROR:
             return { ...state, error: action.payload, isCalculating: false };
         case ACTIONS.MARK_DIRTY:
@@ -297,6 +309,8 @@ const reducer = (state, action) => {
         case ACTIONS.LOAD_PROJECT: {
             const p = action.payload;
             const projectFields = {
+                // U2-013: the project's own gridding (absent before U2-013)
+                gridding: cleanGridding(p.gridding),
                 reservoirName: p.reservoirName || '',
                 auditTrail: p.auditTrail || [],
                 project: { name: p.name, id: p.id, created_at: p.created_at, version: p.version },
@@ -322,6 +336,8 @@ const reducer = (state, action) => {
             // Legacy single-reservoir project: materialise its contents as the
             // one and only reservoir entry.
             const det = { ...initialState.inputs, ...(p.inputs?.deterministic || {}) };
+            // U2-008: a project saved before fill-to-spill keeps its volumes
+            det.fillToSpill = p.inputs?.deterministic?.fillToSpill === true;
             const surfaces = (p.inputs?.surfaces || []).reduce((m, s) => {
                 if (s && s.id) m[s.id] = s;
                 return m;
@@ -507,6 +523,11 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
     // in-memory pair) so the whole app runs without auth or DB in e2e
     const be = useMemo(() => backend || makeRegistryRcpBackend(), [backend]);
     const [state, dispatch] = useReducer(reducer, initialState);
+    // U2-006: Monte Carlo progress (0 to 1, null when idle) and the
+    // controller that cancels the running worker
+    const [mcProgress, setMcProgress] = useState(null);
+    const mcAbortRef = useRef(null);
+    const cancelSimulation = () => { mcAbortRef.current?.abort(); };
 
     // Append a real event to the audit trail.
     const logEvent = (actionLabel, details = '') => dispatch({ type: ACTIONS.LOG_EVENT, payload: auditEntry(actionLabel, details) });
@@ -537,6 +558,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
     const setInputUnit = (field, unit) => dispatch({ type: ACTIONS.SET_INPUT_UNIT, payload: { field, unit } });
     const setInputMethod = (method) => dispatch({ type: ACTIONS.SET_INPUT_METHOD, payload: method });
     const setResults = (results) => dispatch({ type: ACTIONS.SET_RESULTS, payload: results });
+    const setGridding = (g) => dispatch({ type: ACTIONS.SET_GRIDDING, payload: g });
 
     // AOI drawing + management
     const startDrawing = () => dispatch({ type: ACTIONS.START_DRAWING });
@@ -591,7 +613,9 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
             reservoirs: folded.reservoirs,
             activeReservoirId: folded.activeReservoirId,
             // The audit trail travels with the project (also underpins collaboration handoff).
-            auditTrail: (state.auditTrail || []).slice(0, MAX_AUDIT)
+            auditTrail: (state.auditTrail || []).slice(0, MAX_AUDIT),
+            // U2-013: the gridding the volumes were calculated with
+            gridding: (() => { const g = effectiveGridding(state.gridding, loadSettings()); return { gridResolution: g.gridResolution, interpolationMethod: g.interpolationMethod }; })(),
         };
     };
 
@@ -600,6 +624,8 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
     const saveCurrentProject = async (userId, meta) => {
         if (!userId) throw new Error('Sign in to save projects.');
         const projectData = buildProjectData(userId, meta);
+        // U2-013: from now on this project keeps the gridding it was saved with
+        if (!state.gridding) dispatch({ type: ACTIONS.SET_GRIDDING, payload: projectData.gridding });
         const saved = await be.projects.saveProject(projectData, !projectData.id);
         dispatch({
             type: ACTIONS.SET_PROJECT,
@@ -662,12 +688,15 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
     const calculate = async (customProbInputs = null, options = {}) => {
         // Back-compat: older callers passed a boolean `consistencyMode` here.
         const opts = typeof options === 'boolean' ? { consistencyMode: options } : (options || {});
-        dispatch({ type: ACTIONS.SET_CALCULATING, payload: true });
+        // SET_ERROR clears isCalculating, so it goes first (U2-006: the run
+        // is now long enough in the worker for the order to show)
         dispatch({ type: ACTIONS.SET_ERROR, payload: null });
+        dispatch({ type: ACTIONS.SET_CALCULATING, payload: true });
 
         // Grid resolution + interpolation method for the contact-based engine come
         // from user settings.
-        const settings = loadSettings();
+        // U2-013: the project's gridding, else the browser's setting
+        const settings = effectiveGridding(state.gridding, loadSettings());
         const gridResolution = settings.gridResolution;
         const interpolation = settings.interpolationMethod;
 
@@ -679,9 +708,18 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
 
                 // Structural methods drive GRV from the surface + sampled contacts. Build
                 // the hypsometric curve once so each realisation is an O(1) lookup.
-                const structural = state.inputMethod === 'hybrid' || state.inputMethod === 'surfaces';
+                const structural = state.inputMethod === 'hybrid' || state.inputMethod === 'surfaces' || state.inputMethod === 'areadepth';
                 let hypsometry = null;
-                if (structural) {
+                if (state.inputMethod === 'areadepth') {
+                    // U2-001: the table is the hypsometry
+                    const chk = checkAreaDepthRows(state.inputs.areaDepth?.rows || []);
+                    if (!chk.ok) throw new Error(`Area/depth table: ${chk.reason}`);
+                    hypsometry = areaDepthHypsometry(chk.rows, {
+                        unitSystem: state.unitSystem,
+                        thickness: chk.hasBase ? null : parseFloat(state.inputs.thickness),
+                        spill: state.inputs.areaDepth?.spill ?? null,
+                    });
+                } else if (structural) {
                     const topSurface = state.surfaces[state.inputs.topSurfaceId];
                     if (!topSurface) throw new Error('Select a Top structural surface before running a probabilistic study in this input method.');
                     const baseSurface = state.inputMethod === 'surfaces' ? state.surfaces[state.inputs.baseSurfaceId] : null;
@@ -693,7 +731,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
                         constantThickness: state.inputMethod === 'hybrid' ? parseFloat(state.inputs.thickness) : null,
                         unitSystem: state.unitSystem,
                         aoiPolygon: activeAoi,
-                        options: { resolution: gridResolution, interpolation }
+                        options: { resolution: gridResolution, interpolation, fillToSpill: state.inputs.fillToSpill === true }
                     });
                     if (hypsometry?.error) throw new Error(hypsometry.error);
                 }
@@ -713,13 +751,33 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
                     recovery: state.inputs.recovery,
                     recoveryGas: state.inputs.recoveryGas,
                     signature: runSignature(state),
+                    // U2-006: every run is seeded and records its seed, so
+                    // the same inputs and seed give the same realizations
+                    seed: Number.isFinite(opts.seed) ? opts.seed : newSeed(),
                     hypsometry,
                     deterministicContacts: { owc: state.inputs.owc, goc: state.inputs.goc }
                 };
 
-                const probRes = await MonteCarloEngine.runSimulation(config, customProbInputs);
+                const ctrl = new AbortController();
+                mcAbortRef.current = ctrl;
+                setMcProgress(0);
+                let probRes;
+                try {
+                    probRes = await runMonteCarlo(config, customProbInputs, { onProgress: setMcProgress, signal: ctrl.signal });
+                } catch (e) {
+                    if (e?.cancelled) {
+                        dispatch({ type: ACTIONS.SET_CALCULATING, payload: false });
+                        logEvent('Monte Carlo cancelled', `${(config.iterations).toLocaleString()} iterations requested; the previous results were kept`);
+                        return { cancelled: true };
+                    }
+                    throw e;
+                } finally {
+                    mcAbortRef.current = null;
+                    setMcProgress(null);
+                }
                 dispatch({ type: ACTIONS.SET_PROB_RESULTS, payload: probRes });
-                logEvent('Monte Carlo run', `${(config.iterations).toLocaleString()} iterations • ${structural ? 'contact-based GRV' : 'area×thickness'}`);
+                logEvent('Monte Carlo run', `${(config.iterations).toLocaleString()} iterations, seed ${config.seed}, ${structural ? 'contact-based GRV' : 'area x thickness'}${probRes.meta?.ranIn === 'worker' ? ' (background worker)' : ''}`);
+                return { ok: true };
             } else {
                 await new Promise(resolve => setTimeout(resolve, 300));
                 // Pass the active AOI so structural (hybrid/surfaces) volumetrics clip
@@ -730,7 +788,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
                     state.unitSystem,
                     state.inputMethod,
                     state.surfaces,
-                    { aoiPolygon: activeAoi, contactOptions: { resolution: gridResolution, interpolation } }
+                    { aoiPolygon: activeAoi, contactOptions: { resolution: gridResolution, interpolation, fillToSpill: state.inputs.fillToSpill === true } }
                 );
 
                 if (results.error) {
@@ -763,6 +821,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
         setInputUnit,
         setInputMethod,
         setResults,
+        setGridding,
         getActiveSurface,
         saveCurrentProject,
         loadProjects,
@@ -774,6 +833,8 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
         deleteReservoir,
         exportWorkspace,
         calculate,
+        mcProgress,
+        cancelSimulation,
         // AOI
         startDrawing,
         addDrawingPoint,
@@ -790,7 +851,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
         // Audit
         logEvent,
         clearAudit
-    }), [state, profileUnitSystem]); // eslint-disable-line react-hooks/exhaustive-deps
+    }), [state, profileUnitSystem, mcProgress]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <ReservoirCalcContext.Provider value={value}>

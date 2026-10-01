@@ -37,9 +37,10 @@ const CURVE_ROLES = {
   DT: 'Compressional sonic slowness (us/ft or us/m); Vp comes from it',
   DTS: 'Shear sonic slowness; Vs comes from it when present',
   RHOB: 'Bulk density (g/cc or kg/m3)',
-  PHIE: 'Porosity, fraction or percent; the constant in the rock model stands in when absent',
-  VSH: 'Shale volume, fraction or percent; drives the Greenberg-Castagna sand/shale split',
-  SW: 'Water saturation; read for reference',
+  PHIE: 'Effective porosity, fraction or percent; used first. A Petrophysics PHIE published before 2026-09-07 is total porosity and is labelled so',
+  PHIT: 'Total porosity, fraction or percent; used when there is no PHIE (the basis is shown)',
+  VSH: 'Shale volume, fraction or percent; drives the Greenberg-Castagna sand/shale split, the Gassmann VSH limit and, when ticked, clay in K_min',
+  SW: 'Water saturation; sets fluid A per sample when "Sw from the SW log" is ticked',
 };
 
 function RockPhysicsStudioHelpGuideContent() {
@@ -60,7 +61,7 @@ function RockPhysicsStudioHelpGuideContent() {
           Batzle and Wang (1992), substitutes one fluid for another over a zone with Gassmann's equation, shows the
           amplitude-versus-offset response of an interface with the exact Zoeppritz solution next to the Shuey and
           Aki-Richards approximations, and tunes a wedge with a Ricker wavelet. The substituted velocities and density
-          can be published back to the well as logs for Seismolord ties and Well Correlation displays.
+          can be published back to the well as logs for Seismolord synthetics and Well Correlation displays.
         </Para>
         <Para>
           Three panels: the registry wells and their curve inventory on the left, the Fluids &amp; Gassmann, AVO and
@@ -75,7 +76,7 @@ function RockPhysicsStudioHelpGuideContent() {
         <Step n={2} title="Choose the zone">In Fluids &amp; Gassmann pick the zone. Zones come from Petrophysics Studio; a well without zones has nothing to substitute over.</Step>
         <Step n={3} title="Set the fluids">In the dock set the reservoir conditions, fluid A (in situ) and fluid B (substitute), each brine mixed with one hydrocarbon at its water saturation, and press Apply.</Step>
         <Step n={4} title="Read the result">The fluid table gives density and modulus of each fluid; the interval table gives Vp, Vs and density before and after; the chart shows both cases against depth.</Step>
-        <Step n={5} title="Deliver">Publish substituted logs writes VP_SUB, VS_SUB and RHOB_SUB to the well. Save keeps the scenario, rock model, AVO and wedge settings in your account.</Step>
+        <Step n={5} title="Deliver">Publish substituted logs writes VP_SUB, VS_SUB, RHOB_SUB and DT_SUB to the well. CSV downloads the substitution with a reviewer header (type the field and your name beside it). Save keeps the well, zone, scenario, rock model, AVO and wedge settings in your account.</Step>
       </GuideSection>
 
       <GuideSection id="inputs">
@@ -87,6 +88,12 @@ function RockPhysicsStudioHelpGuideContent() {
         </Para>
         <Table headers={['Engine input', 'Accepted mnemonics', 'Role']}
           rows={Object.entries(CURVE_ALIASES).map(([key, aliases]) => [key, aliases.join(', '), CURVE_ROLES[key]])} />
+        <Callout tone="info" title="How the curves were read">
+          Sonic and density go through the same unit table as Petrophysics Studio. A sonic with no unit whose values
+          would be faster than any rock as us/m is read as us/ft; a shear sonic with no unit is read in the unit that
+          gives a physical Vp/Vs; porosity, VSH and Sw above 1.5 are percent; -999 values are nulls; a kg/m3 label on
+          values near 2.3 is g/cc. Every such reading is listed under the curve inventory.
+        </Callout>
         <Callout tone="info" title="Estimated Vs is always badged">
           A well with no shear sonic gets Vs from the Greenberg-Castagna (1992) relations on the VSH sand and shale
           split, and the ribbon shows a Vs estimated badge for the whole well. Measured and estimated shear are never
@@ -106,6 +113,8 @@ function RockPhysicsStudioHelpGuideContent() {
           ['Velocity', VELOCITY_UNITS.map((u) => u.label).join(', ')],
           ['Density', DENSITY_UNITS.map((u) => u.label).join(', ')],
           ['Depth', DEPTH_UNITS.join(', ')],
+          ['Temperature, pore pressure, GOR (dock)', 'degC or degF; MPa, bar, kPa or psi; m3/m3 (L/L) or scf/STB, from your Suite units'],
+          ['Salinity (dock)', 'weight fraction, ppm or wt% NaCl'],
         ]} />
         <Para>
           A slowness choice shows sonic transit time in place of velocity: the column heads read DTp and DTs, and a
@@ -124,9 +133,18 @@ function RockPhysicsStudioHelpGuideContent() {
         <SubHeading>The rock model</SubHeading>
         <Para>
           The mineral modulus is the Voigt-Reuss-Hill average of the mineral fractions in the dock, or the K_min
-          override when typed. Porosity comes from the PHIE curve, or from the constant when the well has none. Dry
-          rock moduli are inverted from the in-situ curves with fluid A, then refilled with fluid B, sample by sample
-          over the zone.
+          override when typed. Porosity comes from PHIE (effective), else PHIT (total), else the constant; the panel
+          says which. With effective porosity the clay belongs to the solid: tick Clay from VSH and each sample's
+          K_min mixes clay in at its VSH. Dry rock moduli are inverted from the in-situ curves with fluid A, then
+          refilled with fluid B, sample by sample over the zone. With Sw from the SW log ticked, fluid A at each sample
+          is brine and the hydrocarbon at that sample's log Sw.
+        </Para>
+        <SubHeading>Gassmann limits</SubHeading>
+        <Para>
+          Gassmann holds for connected porosity in reservoir rock. Samples with VSH above the limit or porosity below it
+          (0.5 and 0.03 by default) keep their in-situ values; the heading counts them and the published curves carry
+          the in-situ values there. The interval table compares the substituted samples before and after, with
+          acoustic impedance, Vp/Vs and Poisson&apos;s ratio beside Vp, Vs and density.
         </Para>
         <Callout tone="warn" title="Samples the engine refuses">
           A sample whose inverted dry modulus is unphysical (for example porosity at or above the critical value, or a
@@ -193,7 +211,7 @@ function RockPhysicsStudioHelpGuideContent() {
         <Table headers={['App', 'Link']} rows={[
           ['Well Data Manager', 'Well data in the ribbon opens the selected well on its logs, where the published curves are listed and can be deleted.'],
           ['Petrophysics Studio, Well Correlation, Mapping & Surface Studio and the rest', 'Open in lists the Geoscience apps for the selected well; Petrophysics and Well Correlation open on that well.'],
-          ['Seismolord', 'Ties a well with VP_SUB and RHOB_SUB to show the substituted synthetic.'],
+          ['Seismolord', 'The synthetics window lists DT_SUB and RHOB_SUB (labelled fluid substituted) beside the measured sonic and density; pick them to see the substituted synthetic.'],
           ['Geoscience home', 'The home icon at the left of the ribbon.'],
         ]} />
       </GuideSection>

@@ -14,11 +14,12 @@ const ProbabilisticGuide = () => (
         value back onto it.
       </li>
       <li>
-        <strong>Settings.</strong> Base case consistency mode and the iteration count.
+        <strong>Settings.</strong> Base case consistency mode, the iteration count and the random seed.
       </li>
       <li>
-        <strong>Simulation.</strong> Run the study. The run is asynchronous and reports progress at
-        completion.
+        <strong>Simulation.</strong> Run the study. The run is in a background worker: the page stays
+        live, a bar shows how many realizations are done, and Cancel run stops it and keeps the previous
+        results.
       </li>
     </OL>
     <P>
@@ -120,18 +121,18 @@ const ProbabilisticGuide = () => (
       standard normal CDF first to get a uniform variate, then through the marginal inverse CDF. That
       pair of steps is the copula.
     </P>
-    <Note tone="info" title="The built-in porosity to Sw correlation">
-      Every run applies a correlation of <Code>-0.8</Code> between porosity and water saturation
-      automatically, in both input methods, whenever both carry spread. Tighter rock holds more
-      irreducible water, so a high porosity draw arrives with a low Sw draw. Caller supplied
-      correlations are applied on top, and each is accepted only when the coefficient is finite and
-      strictly between -1 and 1.
+    <Note tone="info" title="The correlation editor (Settings step)">
+      The Settings step lists the correlated pairs. It starts with <Code>-0.8</Code> between porosity
+      and water saturation (tighter rock holds more irreducible water) and you can change it, remove it
+      or add pairs of any inputs that carry spread. The coefficient is the correlation of the normal
+      scores, close to the rank correlation. A pair with an input that has no spread in the run is not
+      applied, and the run says so. The pairs are printed in the PDF reviewer block.
     </Note>
     <P>
-      The Cholesky routine clamps the diagonal at zero, so a correlation set that is slightly outside
-      positive definite degrades gracefully instead of producing NaN volumes. The trade is that the
-      realised correlation structure will not match the requested one exactly in that case, so keep
-      requested correlations physically consistent.
+      A set of pairs that cannot hold together (the matrix is not positive semidefinite, for example
+      two inputs that both correlate strongly with a third but not with each other) is refused with
+      the reason, and Run stays disabled until it is fixed. Before this check the Cholesky routine
+      clamped such a matrix silently and sampled a different correlation from the one typed.
     </P>
 
     <H2>5. Truncation by rejection</H2>
@@ -249,8 +250,15 @@ const ProbabilisticGuide = () => (
 
     <H2>9. Iterations</H2>
     <P>
-      Four choices are offered: 1,000, 5,000, 10,000 and 50,000. The default is 10,000. The engine
-      floors whatever it receives at 100.
+      Six choices are offered: 1,000, 5,000, 10,000, 50,000, 100,000 and 250,000. The default is
+      10,000. The engine floors whatever it receives at 100. The run is in a background worker
+      (the same engine the page used before), so 250,000 realizations take some seconds without
+      freezing the page; where a browser cannot start a worker, the run falls back to the page.
+    </P>
+    <P>
+      Every run is seeded and records its seed (shown under Run, in the PDF reviewer block and in
+      the audit trail). Type a seed to repeat a run exactly: the same inputs and seed give the same
+      realizations. Leave it empty for a new seed each run.
     </P>
     <P>
       More iterations buy smoother tails. The P50 stabilises quickly, and P90 and P10 are estimated
@@ -356,6 +364,22 @@ const ProbabilisticGuide = () => (
         marginal.
       </li>
     </UL>
+
+    <H2>11a. Spider plot and fitting from data</H2>
+    <P>
+      The detailed results add a spider plot: the in-place volume as each uncertain input moves through the 10th,
+      25th, 50th, 75th and 90th percentile of its own sampled values while every other input sits at its median. The
+      volumes are the engine&apos;s own, so the lines show exactly what the run&apos;s arithmetic does. A steep line is a
+      sensitive input; crossing lines show where the ranking changes. The x axis is the input&apos;s percentile; P90,
+      P50 and P10 stay reserved for outcomes.
+    </P>
+    <P>
+      Fit a distribution from data (Distributions step): paste the values of an input, such as the porosity of each
+      well. Normal and lognormal are fitted by maximum likelihood, uniform and triangular from the data&apos;s range and
+      mean, and each is ranked by its Kolmogorov-Smirnov distance to the data; a distance above the 5 percent critical
+      value marks a poor fit. Use puts the chosen shape on the input. A fit that reaches outside 0 to 1 for a fraction
+      is said; the run truncates it there.
+    </P>
 
     <H2>12. Reading the base case comparison</H2>
     <P>
