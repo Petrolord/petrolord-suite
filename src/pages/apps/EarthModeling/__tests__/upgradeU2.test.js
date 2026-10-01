@@ -508,3 +508,44 @@ describe('U2-008: Petrophysics net pay and HCPV maps as property trends', () => 
     await expect(buildModel(def, f.wells, f.surfaces, f.backend)).rejects.toThrow(/net pay map of Zone A/);
   });
 });
+
+describe('U2-018: properties on the 3D surfaces and a fence section', () => {
+  test('the fence follows the zone tops along the line and takes each zone\'s property colour', async () => {
+    const f = await fixture();
+    const b = await buildModel(baseDef(f.byName, { methods: { phi: 'trend', sw: 'trend', ntg: 'constant' } }), f.wells, f.surfaces, f.backend);
+    const { fenceMesh, propertyRange, propertyColor, buildFrameworkScene } = await import('../services/framework3d');
+    const { PLANES } = await import('../services/fixture');
+    const line = [[1100, 2100], [2050, 2150]]; // W1 to W4
+    const range = propertyRange(b, 'phi');
+    const m = fenceMesh(b, line, { prop: 'phi', range, toModel: (x, y, d) => [x, d, y] });
+    expect(m.quads).toBeGreaterThan(10);
+    // every vertex pair is (top, base) of a zone at a sample on the line
+    for (let v = 0; v < m.positions.length / 3; v += 2) {
+      const x = m.positions[3 * v]; const y = m.positions[3 * v + 2];
+      const dTop = m.positions[3 * v + 1]; const dBase = m.positions[3 * (v + 1) + 1];
+      const exp = [PLANES.TopA(x, y), PLANES.TopB(x, y), PLANES.BaseB(x, y)];
+      // zone A's band comes first: its top is the TopA plane (bilinear on a plane is exact)
+      if (v < 2 * m.samples.length) {
+        expect(Math.abs(dTop - exp[0])).toBeLessThan(1e-3);
+        expect(Math.abs(dBase - exp[1])).toBeLessThan(1e-3);
+      }
+      expect(dBase).toBeGreaterThanOrEqual(dTop - 1e-6);
+    }
+    // the colour at the first vertex is the porosity ramp at W1
+    const { sampleAtXY } = await import('@/lib/gridding/gridmath');
+    const c0 = propertyColor(sampleAtXY(b.zones[0].props.phi, b.spec, 1100, 2100), range);
+    for (let q = 0; q < 3; q++) expect(m.colors[q]).toBeCloseTo(c0[q], 6);
+    // the scene: surfaces coloured by the zone below; the node with the lowest porosity is the ramp's low end
+    const sc = buildFrameworkScene(b, f.wells, { colorBy: 'property', property: 'phi', fence: line });
+    expect(sc.fence.quads).toBe(m.quads);
+    expect(sc.propertyRange.lo).toBeCloseTo(range.lo, 12);
+    const phi = b.zones[0].props.phi;
+    let lo = 0; for (let j = 0; j < phi.length; j++) if (phi[j] < phi[lo]) lo = j;
+    const low = propertyColor(range.lo, range);
+    for (let q = 0; q < 3; q++) expect(sc.surfaces[0].colors[3 * lo + q]).toBeCloseTo(low[q], 6);
+    // negative control: depth colouring does not give the property colour at that node
+    const depthScene = buildFrameworkScene(b, f.wells, { colorBy: 'depth' });
+    expect([0, 1, 2].some((q) => Math.abs(depthScene.surfaces[0].colors[3 * lo + q] - low[q]) > 1e-3)).toBe(true);
+    expect(fenceMesh(b, [[1100, 2100]], { toModel: (x, y, d) => [x, d, y] })).toBeNull();
+  });
+});

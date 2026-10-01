@@ -502,7 +502,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
         <button type="button" data-testid="em-send-rcp" title="Open ReservoirCalc Pro with the zone on the map as a prospect: area, column, NTG, porosity, Sw, contacts and FVFs as the model has them"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           disabled={!built} onClick={() => sendToRcp()}>
-          <ExternalLink className="w-3.5 h-3.5" /> Prospect to ReservoirCalc Pro
+          <ExternalLink className="w-3.5 h-3.5" /> Prospect to RCP
         </button>
         <button type="button" data-testid="em-report-pdf" title="Download the model report (PDF): reviewer header, volumes, contacts as used, flags, provenance, ties and the map"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
@@ -712,7 +712,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   ) : view === '3d' ? (
     <div className="p-3 h-full min-h-0">
       {built ? (
-        <FrameworkView3D built={built} wells={wells} surfaceNames={surfaceNames} faultPolygons={definition.faultPolygons || []} depthUnit={depthUnit} onStatus={setStatus} />
+        <FrameworkView3D built={built} wells={wells} surfaceNames={surfaceNames} faultPolygons={definition.faultPolygons || []} depthUnit={depthUnit} onStatus={setStatus} fenceLine={sectionVertices} />
       ) : (
         <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="em-3d-empty">Build the model to see it in 3D.</div>
       )}

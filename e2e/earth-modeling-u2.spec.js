@@ -181,3 +181,22 @@ test('U2-011: the GRDECL and SWAT includes download and read back', async ({ pag
   await expect(page.getByTestId('em-status')).toContainText('active cells');
   expect(errs).toEqual([]);
 });
+
+test('U2-018: 3D surfaces coloured by porosity and a fence along the section line', async ({ page }) => {
+  const errs = errorsOf(page);
+  await stack(page);
+  await metric(page);
+  await page.getByTestId('em-method-phi').selectOption('trend');
+  await buildNow(page);
+  await page.getByTestId('em-view-3d').click();
+  const view = page.getByTestId('em-3d-view');
+  await expect(view).toBeVisible();
+  await page.getByTestId('em-3d-colorby').click(); // surface
+  await page.getByTestId('em-3d-colorby').click(); // property
+  await expect(view).toHaveAttribute('data-colorby', 'property');
+  await expect(page.getByTestId('em-3d-prop-legend')).toContainText('porosity');
+  await page.getByTestId('em-3d-fence').click();
+  await expect.poll(async () => Number(await view.getAttribute('data-fence-quads'))).toBeGreaterThan(10);
+  await page.screenshot({ path: path.join(SHOTS, 'u2-018-3d-fence.png') });
+  expect(errs).toEqual([]);
+});
