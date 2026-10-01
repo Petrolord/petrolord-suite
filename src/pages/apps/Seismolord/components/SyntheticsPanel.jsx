@@ -19,6 +19,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Waves, Loader2, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { guessCurveKind } from '@/pages/apps/WellDataManager/engine/lasImport';
+import { substitutedCurveKind, substitutedCurveLabel } from '@/lib/rockPhysicsCurves';
+import { normalizeInputCurve } from '@/components/wells/curveUnits';
 import {
   isGap, rickerWavelet, extractStatisticalWavelet, suggestBulkShift,
 } from '../engine/synthetics';
@@ -421,7 +423,10 @@ export default function SyntheticsPanel({
     return () => { cancelled = true; };
   }, [wells, listLogs]);
 
-  const kindOf = (log) => guessCurveKind(log.mnemonic);
+  // RP-U1-009: Rock Physics' substituted DT_SUB / RHOB_SUB are a sonic and a
+  // density too (listed after the measured curves, labelled as substituted)
+  const kindOf = (log) => guessCurveKind(log.mnemonic) || substitutedCurveKind(log);
+  const curveLabel = (l) => (substitutedCurveKind(l) ? substitutedCurveLabel(l) : `${l.mnemonic} (${l.unit || '?'})`);
   const sonicWells = useMemo(
     () => (wells || []).filter((w) => (logsByWell[w.id] || []).some((l) => kindOf(l) === 'sonic')),
     [wells, logsByWell],
@@ -439,8 +444,9 @@ export default function SyntheticsPanel({
     setPhase(null);
     setPhiApplied(false);
     const logs = logsByWell[id] || [];
-    const sonic = logs.find((l) => kindOf(l) === 'sonic');
-    const dens = logs.find((l) => kindOf(l) === 'density');
+    const measured = (k) => logs.find((l) => kindOf(l) === k && !substitutedCurveKind(l)) || logs.find((l) => kindOf(l) === k);
+    const sonic = measured('sonic');
+    const dens = measured('density');
     setSonicId(sonic ? sonic.id : '');
     setDensityId(dens ? dens.id : '');
   };
@@ -509,11 +515,15 @@ export default function SyntheticsPanel({
       if (!well || !sonicLog) throw new Error('Pick a well with a sonic (DT) curve first.');
       const densityLog = wellLogs.find((l) => l.id === densityId) || null;
 
-      const [dtCurve, rhobCurve, mdArray] = await Promise.all([
+      const [dtRaw, rhobRaw, mdArray] = await Promise.all([
         downloadCurve(sonicLog),
         densityLog ? downloadCurve(densityLog) : Promise.resolve(null),
         loadDepthVector(sonicLog),
       ]);
+      // RP-U1-009 (shared reader): the engine takes DT in us/m and RHOB in g/cc;
+      // a us/ft sonic or a kg/m3 density (RHOB_SUB) converts at the door
+      const dtCurve = normalizeInputCurve('DT', sonicLog, dtRaw).data;
+      const rhobCurve = rhobRaw ? normalizeInputCurve('RHOB', densityLog, rhobRaw).data : null;
       const { stations, ilxl } = locateWell(well, sonicLog);
 
       const result = await synthesize({
@@ -924,7 +934,7 @@ export default function SyntheticsPanel({
           <select className={inputCls} value={sonicId} onChange={(e) => setSonicId(e.target.value)}
             disabled={!wellId} data-testid="synth-sonic">
             {sonicLogs.map((l) => (
-              <option key={l.id} value={l.id}>{`${l.mnemonic} (${l.unit || '?'})`}</option>
+              <option key={l.id} value={l.id}>{curveLabel(l)}</option>
             ))}
           </select>
         </label>
@@ -934,7 +944,7 @@ export default function SyntheticsPanel({
             disabled={!wellId} data-testid="synth-density">
             <option value="">constant 2.3 g/cc</option>
             {densityLogs.map((l) => (
-              <option key={l.id} value={l.id}>{`${l.mnemonic} (${l.unit || '?'})`}</option>
+              <option key={l.id} value={l.id}>{curveLabel(l)}</option>
             ))}
           </select>
         </label>

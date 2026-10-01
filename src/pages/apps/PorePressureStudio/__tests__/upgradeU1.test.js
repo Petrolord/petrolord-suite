@@ -147,7 +147,8 @@ describe('PP-U1-004 hostile curves are read for what they are', () => {
     const usft = W.dt_us_per_m.map((v) => v * 0.3048);
     const n = normalizePpCurves({ depth: W.z_bml_m, dt: usft, dtLog: { mnemonic: 'DT', unit: 'USPF' } });
     expect(n.dt[200]).toBeCloseTo(W.dt_us_per_m[200], 6);
-    expect(n.notes.join(' ')).toMatch(/only us\/ft can mean/);
+    // RP-U1-003 moved the per-foot spelling and range rules into the shared door
+    expect(n.notes.join(' ')).toMatch(/only us\/ft can mean|read as us\/ft/);
     const asM = normalizePpCurves({ depth: [0, 1], dt: [DT_US_PER_FT_MEDIAN_MAX + 200, DT_US_PER_FT_MEDIAN_MAX + 210], dtLog: { mnemonic: 'DT', unit: '' } });
     expect(asM.dt[0]).toBe(DT_US_PER_FT_MEDIAN_MAX + 200);
     expect(asM.notes.join(' ')).toMatch(/read as us\/m/);
