@@ -252,7 +252,7 @@ export async function gridHorizonAmplitude({
   if (signal?.aborted) throw new Error('Export cancelled');
 
   const bin = cellSpacing(affine).xl || 25;
-  const b = mergeBounds(surveyBounds(affine, manifest.geometry.il.count, manifest.geometry.xl.count), linePoints);
+  const b = surveyBounds(affine, manifest.geometry.il.count, manifest.geometry.xl.count);
   const spec = exportGridSpec(b, cellM, bin);
   const { z, live, vMin, vMax } = latticeToWorldGrid(values, affine, geom, spec);
   if (!live) throw new Error('Horizon has no live amplitude values to export.');
