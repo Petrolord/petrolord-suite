@@ -140,6 +140,16 @@ export default function PorePressureStudioHelpGuide() {
           value is taken from the nearest sample) and Fit NCT solves the mudline transit time and the constant
           exactly from the picks; the matrix transit time is kept from the dock.
         </Para>
+        <SubHeading>Semi-log axis, shale picks and trend breaks</SubHeading>
+        <Para>
+          The trend is read on a log axis, as the trade draws it (Log axis turns it off). When the well has a shale
+          volume (VSH, VCL or the Petrophysics _CND curves) or a gamma ray, Pick shales takes one shale point per interval
+          between two depths, at or above the cutoff (0.6 v/v for VSH; for a gamma ray, halfway between the sand and
+          shale lines of the well); a hand pick in a sand is flagged. A trend break at a depth (an unconformity or a
+          change of lithology) starts a new segment below it; Fit NCT then fits each segment on the picks inside it and
+          says which segment kept its values for want of two picks. The breaks are drawn dashed, saved with the project
+          and listed in the report.
+        </Para>
       </GuideSection>
 
       <GuideSection id="methods">

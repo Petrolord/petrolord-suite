@@ -42,6 +42,7 @@ import { preparePublishLogs, publishBlocker } from '../services/publish';
 import { inputNotes, trendDepthM } from '../services/honesty';
 import { reviewerLines, prognosisPdf } from '../services/report';
 import { drillingWindow, casingDesign, WINDOW_FROM_BML_M } from '../services/drillingWindow';
+import { pickShaleLog, normalizeShaleIndicator } from '../services/shalePicks';
 import {
   UNITS_KEY, PRESSURE_UNITS, DEPTH_UNITS, readUnits, depthFromDisplay, tidyDepth,
   fmtPressure, fmtDepth, emwReferenceDepthM, emwDatumLabel, isEmw, prognosisCsv,
@@ -163,6 +164,10 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       ]);
       const rho = mapped.RHOB ? await backend.downloadCurve(mapped.RHOB) : null;
       const resRaw = mapped.RES ? await backend.downloadCurve(mapped.RES) : null;
+      // U2-005: the shale indicator for the NCT picks (VSH, else GR)
+      const shaleLog = pickShaleLog(logs);
+      const shaleRaw = shaleLog ? await backend.downloadCurve(shaleLog.log) : null;
+      const shaleN = shaleRaw && shaleRaw.length === depth.length ? normalizeShaleIndicator(shaleRaw, shaleLog) : null;
       // PP-U1-004: vendor nulls, kg/m3 density and us/ft sonic are read for
       // what they are, and each decision is said
       const norm = normalizePpCurves({ depth, dt, rho, dtLog: mapped.DT, rhoLog: mapped.RHOB });
@@ -173,10 +178,13 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         dt: norm.dt,
         rho: norm.rho,
         res: resN ? resN.res : null,
+        shale: shaleN ? shaleN.values : null,
+        shaleKind: shaleN ? shaleN.kind : null,
+        shaleName: shaleN ? shaleN.name : null,
         resName: mapped.RES?.mnemonic || null,
         units: norm.units,
         fileUnits: { DT: mapped.DT.unit, RHOB: mapped.RHOB?.unit, RES: mapped.RES?.unit },
-        notes: [...norm.notes, ...(resN ? resN.notes : [])],
+        notes: [...norm.notes, ...(resN ? resN.notes : []), ...(shaleN ? shaleN.notes : [])],
         logIds: Object.values(mapped).filter(Boolean).map((l) => l.id),
       });
       setNctFittedFor((prev) => (prev === wellId ? prev : null));
@@ -421,6 +429,18 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     setResNctFittedFor(selectedId);
     setParams((p) => ({ ...p, resNct: { r0OhmM: fit.r0OhmM, bPerM: fit.bPerM } }));
     setStatus(`Resistivity trend fitted: R0 ${fit.r0OhmM.toFixed(3)} ohm.m, b ${fit.bPerM.toExponential(3)} 1/m.`);
+  };
+
+  // U2-005: the trend segments fitted on their own picks; a new break unfits the trend
+  const onSegmentsFitted = (r) => {
+    setNctFittedFor(selectedId || (seismicModel ? `model:${seismicModel.id}` : null));
+    setParams((p) => ({ ...p, nct: { ...p.nct, dtMlUsPerM: r.nct.dtMlUsPerM, cPerM: r.nct.cPerM }, nctSegments: r.segments }));
+    setStatus(`NCT fitted: ${r.fitted.join(', ')}${r.kept.length ? `; ${r.kept.join(', ')} kept (fewer than two picks)` : ''}.`);
+  };
+  const onSegmentsChange = (segments) => {
+    setParams((p) => ({ ...p, nctSegments: segments }));
+    setNctFittedFor(null);
+    setStatus(segments.length ? `Trend breaks at ${segments.map((g) => `${fmtDepth(g.zTopM, units.depth)} ${units.depth}`).join(', ')} below mudline: fit the NCT again.` : 'Trend breaks removed: fit the NCT again.');
   };
 
   const onNctFitted = (fit) => {
@@ -674,6 +694,10 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       onPicksChange={setPicks}
       onNctFitted={onNctFitted}
       onResNctFitted={onResNctFitted}
+      onSegmentsFitted={onSegmentsFitted}
+      onSegmentsChange={onSegmentsChange}
+      shaleName={curves?.shaleName || null}
+      shaleKind={curves?.shaleKind || null}
       byRes={byRes}
       depthUnit={units.depth}
     />

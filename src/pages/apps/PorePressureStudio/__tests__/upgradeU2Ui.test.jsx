@@ -103,3 +103,32 @@ describe('U2-004 the depth frame in the ribbon', () => {
     expect(opts.filter((o) => o.disabled)).toHaveLength(0);
   });
 });
+
+describe('U2-005 the NCT view: shale picks, trend breaks', () => {
+  test('Pick shales takes VSH shale points only; a break adds a segment fitted on its own picks', async () => {
+    mount();
+    await ready();
+    fireEvent.change(screen.getByTestId('pp-unit-depth'), { target: { value: 'm' } });
+    fireEvent.click(screen.getByTestId('pp-view-nct'));
+    await waitFor(() => expect(screen.getByTestId('pp-nct-chart')).toHaveAttribute('data-log', 'true'));
+    expect(screen.getByTestId('pp-nct-shale')).toHaveTextContent(/Shale picks on VSH at or above/);
+    fireEvent.change(screen.getByTestId('pp-shale-from'), { target: { value: '200' } });
+    fireEvent.change(screen.getByTestId('pp-shale-to'), { target: { value: '2390' } });
+    fireEvent.change(screen.getByTestId('pp-shale-every'), { target: { value: '200' } });
+    fireEvent.click(screen.getByTestId('pp-auto-pick'));
+    await waitFor(() => expect(screen.getByTestId('pp-nct-chart')).toHaveAttribute('data-picks', '11'));
+    expect(screen.queryByTestId('pp-picks-in-sand')).toBeNull();
+    // a hand pick in a sand bed is flagged
+    fireEvent.change(screen.getByTestId('pp-pick-depth'), { target: { value: '620' } });
+    fireEvent.click(screen.getByTestId('pp-add-pick'));
+    await waitFor(() => expect(screen.getByTestId('pp-picks-in-sand')).toHaveTextContent('1 pick in sand'));
+    fireEvent.change(screen.getByTestId('pp-break-depth'), { target: { value: '1500' } });
+    fireEvent.click(screen.getByTestId('pp-add-break'));
+    await waitFor(() => expect(screen.getByTestId('pp-break-0')).toHaveTextContent('1500 m'));
+    expect(screen.getByTestId('pp-status')).toHaveTextContent(/fit the NCT again/);
+    fireEvent.click(screen.getByTestId('pp-fit-nct'));
+    await waitFor(() => expect(screen.getByTestId('pp-status')).toHaveTextContent(/NCT fitted: the base trend, the segment from 1500 m/));
+    fireEvent.click(screen.getByTestId('pp-nct-logaxis'));
+    expect(screen.getByTestId('pp-nct-chart')).toHaveAttribute('data-log', 'false');
+  });
+});

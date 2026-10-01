@@ -160,7 +160,7 @@ export function normalizeResistivity(values, log = {}) {
  * sample's MD so publishing puts every value back at its own depth
  * (PP-U1-001).
  */
-export function buildProfileInput({ depth, dt, rho, res = null }, units, { mudlineMdM = 0, frame = null, needs = 'dt' } = {}) {
+export function buildProfileInput({ depth, dt, rho, res = null, shale = null }, units, { mudlineMdM = 0, frame = null, needs = 'dt' } = {}) {
   // U2-001: resistivity Eaton keeps the samples with a resistivity; the sonic
   // is then optional per sample where a density gives the overburden
   const byRes = needs === 'res';
@@ -183,6 +183,7 @@ export function buildProfileInput({ depth, dt, rho, res = null }, units, { mudli
   const dtUsPerM = [];
   const rhoKgM3 = [];
   const resOhmM = [];
+  const shaleOut = []; // U2-005: the shale indicator on the kept samples
   const dropped = { aboveMudline: 0, dtGaps: 0, upturn: 0, offSurvey: 0, resGaps: 0, noDensity: 0 };
   let deepest = -Infinity;
   for (let i = 0; i < depth.length; i++) {
@@ -207,11 +208,12 @@ export function buildProfileInput({ depth, dt, rho, res = null }, units, { mudli
     dtUsPerM.push(dtOk ? slownessToUsPerM(dtv, units?.DT) : null);
     rhoKgM3.push(rhoOk ? densityToKgM3(rv, units?.RHOB) : null);
     if (byRes) resOhmM.push(res[i]);
+    if (shale) shaleOut.push(Number.isFinite(shale[i]) ? shale[i] : NaN);
   }
   if (zBmlM.length === 0) {
     throw new Error('No usable samples below the mudline.');
   }
   return {
-    zBmlM, dtUsPerM, rhoKgM3, ...(byRes ? { resOhmM } : {}), mdM, dropped, tvdFrom: frame && !frame.isVertical ? 'survey' : 'vertical',
+    zBmlM, dtUsPerM, rhoKgM3, ...(byRes ? { resOhmM } : {}), ...(shale && shale.length === depth.length ? { shale: shaleOut } : {}), mdM, dropped, tvdFrom: frame && !frame.isVertical ? 'survey' : 'vertical',
   };
 }

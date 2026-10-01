@@ -30,6 +30,8 @@ describe('PorePressureStudioHelpGuide', () => {
     expect(text).toMatch(/1.2 for resistivity/);
     // U2-004
     expect(text).toMatch(/TVD below the rotary table, TVDSS or\s+MD below the rotary table/);
+    // U2-005
+    expect(text).toMatch(/Pick shales takes one shale point per interval/);
     // U2-002
     expect(text).toMatch(/declare the depth column and reference/);
   });

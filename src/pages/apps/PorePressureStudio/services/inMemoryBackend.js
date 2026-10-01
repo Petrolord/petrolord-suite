@@ -42,6 +42,12 @@ export const RES_OHMM = WELL.z_bml_m.map((z, i) => {
   return ratio * HARNESS_RES_NCT.r0OhmM * Math.exp(HARNESS_RES_NCT.bPerM * z);
 });
 
+// U2-005: a shale volume with five sand beds (VSH 0.15) in shale (0.85).
+// The sonic stays the oracle's everywhere (so the goldens hold); the beds
+// sit away from the depths the e2e picks and reads (500 to 2,000 m, 3,500 m).
+export const SAND_BEDS_BML_M = Object.freeze([[600, 640], [1200, 1240], [1800, 1840], [2700, 2740], [3300, 3340]]);
+export const VSH_HARNESS = WELL.z_bml_m.map((z) => (SAND_BEDS_BML_M.some(([a, b]) => z >= a && z <= b) ? 0.15 : 0.85));
+
 export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
   const wellId = nextId('well');
   const curveStore = new Map();
@@ -71,6 +77,7 @@ export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
   addLog('DT', 'US/M', WELL.dt_us_per_m);
   addLog('RHOB', 'G/C3', WELL.rho_kg_m3.map((r) => r / 1000.0));
   addLog('RT', 'OHMM', RES_OHMM);
+  addLog('VSH', 'V/V', VSH_HARNESS);
 
   const wells = [{
     id: wellId,

@@ -48,7 +48,7 @@ export function reviewerLines(p) {
       : params.method === 'eaton-resistivity'
         ? `Method: Eaton resistivity, n = ${params.eatonNRes ?? 1.2}, trend R_n = ${params.resNct?.r0OhmM} exp(${Number(params.resNct?.bPerM).toExponential(3)} z) ohm.m (z in m below mudline); fracture: K = nu/(1-nu), nu = ${params.nu}`
       : `Method: Bowers ${params.bowers?.U != null ? `unloading, U = ${params.bowers.U}` : 'loading'}, A = ${params.bowers?.A}, B = ${params.bowers?.B} (ft/s, psi); fracture: K = nu/(1-nu), nu = ${params.nu}`,
-    `NCT: dt = dt_ma + (dt_ml - dt_ma) exp(-c z), dt_ml ${r1(params.nct.dtMlUsPerM, 2)} us/m, dt_ma ${r1(params.nct.dtMaUsPerM, 2)} us/m, c ${Number(params.nct.cPerM).toExponential(3)} 1/m; ${nctFitted ? 'fitted on this source' : 'NOT fitted on this source (project or default values)'}`,
+    `NCT: dt = dt_ma + (dt_ml - dt_ma) exp(-c z), dt_ml ${r1(params.nct.dtMlUsPerM, 2)} us/m, dt_ma ${r1(params.nct.dtMaUsPerM, 2)} us/m, c ${Number(params.nct.cPerM).toExponential(3)} 1/m${(params.nctSegments || []).length ? `; segments: ${params.nctSegments.map((g) => `from ${r1(g.zTopM, 0)} m dt_ml ${r1(g.dtMlUsPerM, 2)} us/m, c ${Number(g.cPerM).toExponential(3)} 1/m`).join('; ')}` : ''}; ${nctFitted ? 'fitted on this source' : 'NOT fitted on this source (project or default values)'}`,
   ];
   // U2-004: the frame the table and the plot are read in
   if (mapper && mapper.key !== 'bml') lines.push(`Depths read as ${refLabel(mapper.key)} (converted from depth below mudline through the ${input?.tvdFrom === 'survey' ? 'deviation survey' : 'vertical well'} and the datum)`);
