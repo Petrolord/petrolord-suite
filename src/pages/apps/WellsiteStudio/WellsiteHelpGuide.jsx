@@ -331,6 +331,14 @@ export default function WellsiteHelpGuide() {
           screen and the value recorded at the time is shown beside it. A depth that was entered as TVD or TVDSS is listed with the
           measured depth the survey in use gives it, for you to record again if the TVD was what was meant.
         </Para>
+        <SubHeading>Sending the rig survey to the well registry</SubHeading>
+        <Para>
+          The other apps read a well's survey from the shared registry. Compare with the registry, on the Surveys view, reads
+          what the registry holds and shows it beside the survey in use. The owner of the registry well can then send the rig
+          survey: it replaces the registry survey for every app that reads the well, and the registry records where it came from
+          (this live well, the survey version, when and by whom, and how many stations it replaced), which Well Data Manager shows
+          as the survey source. The send is recorded on the live well. It needs a connection, and nothing is sent by itself.
+        </Para>
       </GuideSection>
 
       <GuideSection id="log">
