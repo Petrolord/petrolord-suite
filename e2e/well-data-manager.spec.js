@@ -95,9 +95,9 @@ test('well-data-manager app route loads its chunk and gates on auth', async ({ p
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/dashboard/apps/geoscience/well-data-manager');
-  await page.waitForLoadState('networkidle');
+  // signed out, the gate sends the route to the login page; wait for the redirect to land
+  await expect(page).toHaveURL(/\/login/, { timeout: 30000 });
   expect(errors).toEqual([]);
-  expect(page.url()).not.toContain('well-data-manager'); // redirected by the auth gate
 });
 
 test('map shows wells and click-selects; manual add-well flow', async ({ page }) => {

@@ -265,9 +265,9 @@ test('mapping app route loads its chunk and gates on auth', async ({ page }) => 
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/dashboard/apps/geoscience/mapping-surface-studio');
-  await page.waitForLoadState('networkidle');
+  // signed out, the gate sends the route to the login page; wait for the redirect to land
+  await expect(page).toHaveURL(/\/login/, { timeout: 30000 });
   expect(errors).toEqual([]);
-  expect(page.url()).not.toContain('mapping-surface-studio');
 });
 
 test('MS4: deep links in, launchers out, help', async ({ page }) => {
