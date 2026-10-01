@@ -28,6 +28,8 @@ describe('PorePressureStudioHelpGuide', () => {
     expect(text).toMatch(/trip margin is added to the pore pressure/);
     // U2-001
     expect(text).toMatch(/1.2 for resistivity/);
+    // U2-004
+    expect(text).toMatch(/TVD below the rotary table, TVDSS or\s+MD below the rotary table/);
     // U2-002
     expect(text).toMatch(/declare the depth column and reference/);
   });

@@ -47,6 +47,9 @@ import {
   fmtPressure, fmtDepth, emwReferenceDepthM, emwDatumLabel, isEmw, prognosisCsv,
 } from '../services/units';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import {
+  DEPTH_REF_KEY, VIEW_REFS, depthReferences, refMapper, refShort, refLabel,
+} from '../services/depthRef';
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 
@@ -100,9 +103,15 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   }, { fallback: readUnits(storage()), legacyKeys: [UNITS_KEY] });
   const { units, setUnit } = unitsHook;
   const [readoutText, setReadoutText] = useState(() => tidyDepth(3500, units.depth));
+  // U2-004: the depth frame the prognosis is read in (remembered per browser)
+  const [depthRefKey, setDepthRefKey] = useState(() => {
+    try { const v = window.localStorage.getItem(DEPTH_REF_KEY); return VIEW_REFS.some((r) => r.key === v) ? v : 'bml'; } catch { return 'bml'; }
+  });
+  const chooseDepthRef = (k) => { setDepthRefKey(k); try { window.localStorage.setItem(DEPTH_REF_KEY, k); } catch { /* per-viewer convenience */ } };
 
   // the readout text follows the depth unit; typing edits the SI depth
-  useEffect(() => { setReadoutText(tidyDepth(readoutDepthM, units.depth)); }, [units.depth]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setReadoutText(tidyDepth(mapperRef.current ? mapperRef.current.fromBml(readoutDepthM) : readoutDepthM, units.depth)); }, [units.depth, depthRefKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mapperRef = React.useRef(null);
 
   useEffect(() => {
     let live = true;
@@ -269,6 +278,15 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const windowInfo = useMemo(() => (result && input ? drillingWindow(result, input.zBmlM, params) : null), [result, input, params]);
   // U2-003: kick and trip margins and the bottom-up casing seats
   const casing = useMemo(() => (result && input ? casingDesign(result, input.zBmlM, params) : null), [result, input, params]);
+  // U2-004: every sample in each depth frame the source supports
+  const refs = useMemo(() => (input && !input.error ? depthReferences(input, params, {
+    frame: seismicModel ? null : wellDepthFrame(selected),
+    kbM: !seismicModel && selected?.kb_m != null && Number.isFinite(Number(selected.kb_m)) ? Number(selected.kb_m) : null,
+    source: seismicModel ? 'seismic' : 'well',
+  }) : null), [input, params, seismicModel, selected]);
+  const mapper = useMemo(() => refMapper(refs, depthRefKey), [refs, depthRefKey]);
+  mapperRef.current = mapper;
+  const zRef = (zBml) => `${fmtDepth(mapper.fromBml(zBml), units.depth)} ${units.depth} ${refShort(mapper.key)}`;
   const computeError = input?.error || profile?.error || null;
 
   // PL4: what the prognosis rests on (datum, TVD, gaps, density, NCT, calibration)
@@ -320,6 +338,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     nctFitted: !notes.some((n) => n.key === 'nct'),
     window: windowInfo,
     casing,
+    mapper,
+    refs,
   });
 
   // PP-U1-008: the reviewer PDF (jsPDF loaded on demand)
@@ -341,7 +361,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const exportCsv = () => {
     if (!result || !input) return;
     const source = seismicModel ? seismicModel.name : (selected?.name || 'well');
-    const csv = prognosisCsv(input, result, params, units, { source, reviewer: reviewerLines(reportArgs()) });
+    const csv = prognosisCsv(input, result, params, units, { source, reviewer: reviewerLines(reportArgs()), refs });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -485,10 +505,10 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             onChange={(e) => {
               setReadoutText(e.target.value);
               const d = Number(e.target.value);
-              if (Number.isFinite(d)) setReadoutDepthM(depthFromDisplay(d, units.depth));
+              if (Number.isFinite(d)) setReadoutDepthM(mapper.toBml(depthFromDisplay(d, units.depth)));
             }}
           />
-          <span>{units.depth} bml:</span>
+          <span data-testid="pp-readout-ref">{units.depth} {refShort(mapper.key)}:</span>
           {readout && (
             <>
               <span data-testid="pp-readout-obg">OBG {readout.obg}</span>
@@ -538,6 +558,17 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
           <HelpCircle className="w-3.5 h-3.5" /> Help
         </Link>
         <span className="w-px h-4 bg-pl-border mx-1" />
+        <select
+          data-testid="pp-depth-ref"
+          title={`Depth frame for the readout, the chart, the CSV and the PDF${refs ? Object.entries(refs.reasons).map(([k, r]) => `; ${refLabel(k)} unavailable: ${r}`).join('') : ''}`}
+          value={mapper.key}
+          onChange={(e) => chooseDepthRef(e.target.value)}
+          className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-[11px] text-pl-text"
+        >
+          {VIEW_REFS.map((r) => (
+            <option key={r.key} value={r.key} disabled={!!(refs && !refs[r.key])}>{r.label}{refs && !refs[r.key] ? ' (unavailable)' : ''}</option>
+          ))}
+        </select>
         <span className="text-[11px] text-pl-muted mr-1">Units</span>
         {unitSelect('pressure', PRESSURE_UNITS, 'Pressure display unit, or an equivalent mud weight (the engine stays in Pa)')}
         {unitSelect('depth', DEPTH_UNITS, 'Depth display unit; starts from your Suite units and changes this view for the session. Sonic and the compaction constant follow it')}
@@ -652,8 +683,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         <div className="text-[11px] text-pl-text px-1" data-testid="pp-drilling-window">
           Narrowest drilling window <b>{windowInfo.narrowest.windowPpg.toFixed(2)} ppg</b>
           {' '}(PP {windowInfo.narrowest.ppPpg.toFixed(2)}, FG {windowInfo.narrowest.fgPpg.toFixed(2)} ppg EMW)
-          {' '}at {fmtDepth(windowInfo.narrowest.zBmlM, units.depth)} {units.depth} below mudline (below the top {fmtDepth(WINDOW_FROM_BML_M, units.depth)} {units.depth}, the conductor section)
-          {windowInfo.maxPp && <> · highest PP {windowInfo.maxPp.ppPpg.toFixed(2)} ppg at {fmtDepth(windowInfo.maxPp.zBmlM, units.depth)} {units.depth}</>}
+          {' '}at {zRef(windowInfo.narrowest.zBmlM)} (below the top {fmtDepth(WINDOW_FROM_BML_M, units.depth)} {units.depth}, the conductor section)
+          {windowInfo.maxPp && <> · highest PP {windowInfo.maxPp.ppPpg.toFixed(2)} ppg at {zRef(windowInfo.maxPp.zBmlM)}</>}
           {windowInfo.narrowest.windowPpg < 0.5 && <span className="text-pl-warning-text"> · under 0.5 ppg: plan a casing point or managed pressure</span>}
         </div>
       )}
@@ -663,17 +694,17 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         ) : (
           <div className="text-[11px] text-pl-text px-1" data-testid="pp-casing-seats" data-seats={casing.seats.length}>
             Casing seats, bottom-up (trip margin {casing.tripPpg.toFixed(2)} ppg, kick margin {casing.kickPpg.toFixed(2)} ppg):
-            {casing.seats.length === 0 && <span> none needed above TD; one open-hole section from {fmtDepth(casing.fromBmlM, units.depth)} {units.depth} holds</span>}
+            {casing.seats.length === 0 && <span> none needed above TD; one open-hole section from {zRef(casing.fromBmlM)} holds</span>}
             {casing.seats.map((s, k) => (
               <span key={k} data-testid={`pp-casing-seat-${k}`}>
-                {k ? ';' : ''} shoe at least {fmtDepth(s.zBmlM, units.depth)} {units.depth} bml{s.driver === 'minimum shallow seat' ? ' (your minimum)' : ''}, then {s.mudBelowPpg.toFixed(2)} ppg below
+                {k ? ';' : ''} shoe at least {zRef(s.zBmlM)}{s.driver === 'minimum shallow seat' ? ' (your minimum)' : ''}, then {s.mudBelowPpg.toFixed(2)} ppg below
               </span>
             ))}
             {casing.closedAtBmlM != null && (
-              <span className="text-pl-warning-text" data-testid="pp-casing-closed"> · window closed by the margins at {fmtDepth(casing.closedAtBmlM, units.depth)} {units.depth} bml: no seat opens it; managed pressure or smaller margins</span>
+              <span className="text-pl-warning-text" data-testid="pp-casing-closed"> · window closed by the margins at {zRef(casing.closedAtBmlM)}: no seat opens it; managed pressure or smaller margins</span>
             )}
             <span className="block text-pl-muted" data-testid="pp-casing-sections">
-              Window per section: {casing.sections.map((sec) => `${fmtDepth(sec.topBmlM, units.depth)} to ${fmtDepth(sec.baseBmlM, units.depth)} ${units.depth}: mud ${sec.mudPpg.toFixed(2)} ppg, margin to the design FG ${sec.marginPpg.toFixed(2)} ppg`).join(' | ')}
+              Window per section: {casing.sections.map((sec) => `${fmtDepth(mapper.fromBml(sec.topBmlM), units.depth)} to ${zRef(sec.baseBmlM)}: mud ${sec.mudPpg.toFixed(2)} ppg, margin to the design FG ${sec.marginPpg.toFixed(2)} ppg`).join(' | ')}
             </span>
           </div>
         )
@@ -686,7 +717,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         </ul>
       )}
       <div className="flex-1 min-h-0">
-        <PrognosisChart profile={result} zBmlM={input.zBmlM} calibration={calibration} units={units} params={params} casing={casing && !casing.error ? casing : null} />
+        <PrognosisChart profile={result} zBmlM={input.zBmlM} calibration={calibration} units={units} params={params} casing={casing && !casing.error ? casing : null} mapper={mapper} />
       </div>
     </div>
   );

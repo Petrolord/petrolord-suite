@@ -19,6 +19,7 @@ import {
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { thinIndices } from '../services/thin';
 import { comparesTo } from '../services/calibrationImport';
+import { refLabel, refShort } from '../services/depthRef';
 
 const SERIES = [
   { key: 'obg', name: 'Overburden', color: '#31363b' },
@@ -28,8 +29,10 @@ const SERIES = [
 ];
 
 export default function PrognosisChart({
-  profile, zBmlM, calibration, units = DEFAULT_UNITS, params = null, casing = null,
+  profile, zBmlM, calibration, units = DEFAULT_UNITS, params = null, casing = null, mapper = null,
 }) {
+  // U2-004: depths shown in the chosen frame (below mudline when none)
+  const zOf = (zBml) => depthToDisplay(mapper ? mapper.fromBml(zBml) : zBml, units.depth);
   const pU = units.pressure;
   const zU = units.depth;
   const data = useMemo(() => {
@@ -39,7 +42,7 @@ export default function PrognosisChart({
     const rows = thinned.map((i) => {
       const z = zBmlM[i];
       return {
-        z: depthToDisplay(z, zU),
+        z: zOf(z),
         obg: conv(profile.overburdenPa[i], z),
         ph: conv(profile.hydrostaticPa[i], z),
         pp: conv(profile.porePressurePa[i], z),
@@ -65,12 +68,12 @@ export default function PrognosisChart({
     const KEY = { pp: 'cal', fg: 'lot', mw: 'mwu' };
     for (const c of calibration || []) {
       if (Number.isFinite(c.z) && Number.isFinite(c.pMpa)) {
-        rows.push({ z: depthToDisplay(c.z, zU), [KEY[comparesTo(c)]]: conv(c.pMpa * 1e6, c.z) });
+        rows.push({ z: zOf(c.z), [KEY[comparesTo(c)]]: conv(c.pMpa * 1e6, c.z) });
       }
     }
     rows.sort((a, b) => a.z - b.z);
     return rows;
-  }, [profile, zBmlM, calibration, pU, zU, params, casing]);
+  }, [profile, zBmlM, calibration, pU, zU, params, casing, mapper]); // eslint-disable-line react-hooks/exhaustive-deps
   const digits = pressureDigits(pU);
   const hasCal = data.some((r) => r.cal != null);
   const hasLot = data.some((r) => r.lot != null);
@@ -79,7 +82,7 @@ export default function PrognosisChart({
   if (!profile) return null;
 
   return (
-    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="pp-prognosis-chart" data-rows={data.length} data-seats={casing ? casing.seats.length : 0} data-cal={data.filter((r) => r.cal != null).length} data-lot={data.filter((r) => r.lot != null).length} data-mw={data.filter((r) => r.mwu != null).length}>
+    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="pp-prognosis-chart" data-ref={mapper ? mapper.key : 'bml'} data-rows={data.length} data-seats={casing ? casing.seats.length : 0} data-cal={data.filter((r) => r.cal != null).length} data-lot={data.filter((r) => r.lot != null).length} data-mw={data.filter((r) => r.mwu != null).length}>
       <h3 className="text-center text-sm font-semibold" style={{ color: CHART_COLORS.axisLabel }}>
         Pressure prognosis
       </h3>
@@ -102,12 +105,12 @@ export default function PrognosisChart({
               domain={['auto', 'auto']}
               stroke={CHART_COLORS.axisLine}
               tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-              label={{ value: `Depth (${zU} below mudline)`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
+              label={{ value: `Depth (${zU} ${mapper ? refLabel(mapper.key) : 'below mudline'})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
             />
             <Tooltip
               contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }}
               formatter={(v) => (Number.isFinite(v) ? `${v.toFixed(digits)} ${pU}` : EMPTY_VALUE)}
-              labelFormatter={(v) => `${Number.isFinite(v) ? v.toFixed(zU === 'ft' ? 0 : 1) : v} ${zU} bml`}
+              labelFormatter={(v) => `${Number.isFinite(v) ? v.toFixed(zU === 'ft' ? 0 : 1) : v} ${zU} ${mapper ? refShort(mapper.key) : 'bml'}`}
             />
             <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
             <Area dataKey="win" name="Drilling window (PP to FG)" stroke="none" fill="#22c55e" fillOpacity={0.12}
@@ -129,7 +132,7 @@ export default function PrognosisChart({
             {casing && <Line dataKey="dfg" name="Design FG (FG - kick margin)" stroke="#456990" strokeWidth={1.2}
               strokeDasharray="2 3" dot={false} connectNulls isAnimationActive={false} />}
             {casing && casing.seats.map((s, k) => (
-              <ReferenceLine key={`seat-${k}`} y={depthToDisplay(s.zBmlM, zU)} stroke="#334155" strokeWidth={1.5}
+              <ReferenceLine key={`seat-${k}`} y={zOf(s.zBmlM)} stroke="#334155" strokeWidth={1.5}
                 ifOverflow="extendDomain" label={{ value: `Shoe ${k + 1}`, position: 'insideTopRight', fill: '#334155', fontSize: 10 }} />
             ))}
             {/* a Scatter does not plot in a vertical-layout chart: a dot-only Line

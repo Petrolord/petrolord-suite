@@ -83,3 +83,23 @@ describe('U2-002 the calibration import door', () => {
     await waitFor(() => expect(screen.getByTestId('pp-prognosis-chart')).toHaveAttribute('data-lot', '0'));
   });
 });
+
+describe('U2-004 the depth frame in the ribbon', () => {
+  test('TVDSS: the readout takes and shows TVDSS; the same sample as below mudline', async () => {
+    mount();
+    await ready();
+    fireEvent.change(screen.getByTestId('pp-unit-depth'), { target: { value: 'm' } });
+    fireEvent.change(screen.getByTestId('pp-unit-pressure'), { target: { value: 'MPa' } });
+    fireEvent.change(screen.getByTestId('pp-readout-depth'), { target: { value: '3500' } });
+    const atBml = screen.getByTestId('pp-readout-pp').textContent;
+    fireEvent.change(screen.getByTestId('pp-depth-ref'), { target: { value: 'tvdss' } });
+    await waitFor(() => expect(screen.getByTestId('pp-readout-ref')).toHaveTextContent('m TVDSS'));
+    // the readout text moved into the frame: 3,500 m bml is 3,600 m TVDSS on 100 m of water
+    expect(screen.getByTestId('pp-readout-depth')).toHaveValue('3600');
+    expect(screen.getByTestId('pp-readout-pp').textContent).toBe(atBml);
+    expect(screen.getByTestId('pp-prognosis-chart')).toHaveAttribute('data-ref', 'tvdss');
+    // every frame is offered on this well (offshore, mudline MD set, MD on the log)
+    const opts = Array.from(screen.getByTestId('pp-depth-ref').querySelectorAll('option'));
+    expect(opts.filter((o) => o.disabled)).toHaveLength(0);
+  });
+});

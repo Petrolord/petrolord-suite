@@ -12,6 +12,7 @@ import {
   depthToDisplay, pressureToDisplay, pressureDigits, emwPpg, emwReferenceDepthM, emwDatumLabel, isEmw,
 } from './units';
 import { calibrationMisfit } from './honesty';
+import { refLabel } from './depthRef';
 
 export const latin1 = (t) => String(t ?? '')
   .replace(/[‒-―−]/g, '-')
@@ -29,10 +30,11 @@ const r1 = (v, d = 1) => (Number.isFinite(v) ? Number(v.toFixed(d)).toLocaleStri
 export function reviewerLines(p) {
   const {
     wellName = '', source = 'well', sourceName = '', report = {}, params, units, input, result, calibration = [],
-    nctFitted = false, window = null, casing = null, now = new Date(), build = buildLabel(),
+    nctFitted = false, window = null, casing = null, mapper = null, now = new Date(), build = buildLabel(),
   } = p;
   const zU = units.depth;
   const z = (m) => `${r1(depthToDisplay(m, zU), zU === 'ft' ? 0 : 1)} ${zU}`;
+  const zr = (m) => (mapper && mapper.key !== 'bml' ? `${r1(depthToDisplay(mapper.fromBml(m), zU), zU === 'ft' ? 0 : 1)} ${zU} ${refLabel(mapper.key)}` : `${z(m)} bml`);
   const field = String(report.field || '').trim() || 'not given';
   const analyst = String(report.analyst || '').trim() || 'not given';
   const ml = Number(params.mudlineMdM) || 0;
@@ -48,6 +50,8 @@ export function reviewerLines(p) {
       : `Method: Bowers ${params.bowers?.U != null ? `unloading, U = ${params.bowers.U}` : 'loading'}, A = ${params.bowers?.A}, B = ${params.bowers?.B} (ft/s, psi); fracture: K = nu/(1-nu), nu = ${params.nu}`,
     `NCT: dt = dt_ma + (dt_ml - dt_ma) exp(-c z), dt_ml ${r1(params.nct.dtMlUsPerM, 2)} us/m, dt_ma ${r1(params.nct.dtMaUsPerM, 2)} us/m, c ${Number(params.nct.cPerM).toExponential(3)} 1/m; ${nctFitted ? 'fitted on this source' : 'NOT fitted on this source (project or default values)'}`,
   ];
+  // U2-004: the frame the table and the plot are read in
+  if (mapper && mapper.key !== 'bml') lines.push(`Depths read as ${refLabel(mapper.key)} (converted from depth below mudline through the ${input?.tvdFrom === 'survey' ? 'deviation survey' : 'vertical well'} and the datum)`);
   if (Array.isArray(result?.rhoSource) && result.rhoSource.length) {
     const nLog = result.rhoSource.filter((s) => s === 'log').length;
     const pct = Math.round((100 * nLog) / result.rhoSource.length);
@@ -66,12 +70,12 @@ export function reviewerLines(p) {
   const sources = [...new Set((calibration || []).map((c) => c.source).filter(Boolean))];
   if (sources.length) lines.push(`Imported from: ${sources.join(', ')}`);
   if (window?.narrowest) {
-    lines.push(`Drilling window: narrowest ${window.narrowest.windowPpg.toFixed(2)} ppg (PP ${window.narrowest.ppPpg.toFixed(2)}, FG ${window.narrowest.fgPpg.toFixed(2)} ppg EMW) at ${z(window.narrowest.zBmlM)} bml${window.maxPp ? `; highest PP ${window.maxPp.ppPpg.toFixed(2)} ppg at ${z(window.maxPp.zBmlM)} bml` : ''}`);
+    lines.push(`Drilling window: narrowest ${window.narrowest.windowPpg.toFixed(2)} ppg (PP ${window.narrowest.ppPpg.toFixed(2)}, FG ${window.narrowest.fgPpg.toFixed(2)} ppg EMW) at ${zr(window.narrowest.zBmlM)}${window.maxPp ? `; highest PP ${window.maxPp.ppPpg.toFixed(2)} ppg at ${zr(window.maxPp.zBmlM)}` : ''}`);
   }
   // U2-003: the margins and the bottom-up casing seats
   if (casing && !casing.error) {
     const seats = casing.seats.length
-      ? casing.seats.map((s, k) => `shoe ${k + 1} at least ${z(s.zBmlM)} bml (${s.mudBelowPpg.toFixed(2)} ppg below)`).join('; ')
+      ? casing.seats.map((s, k) => `shoe ${k + 1} at least ${zr(s.zBmlM)} (${s.mudBelowPpg.toFixed(2)} ppg below)`).join('; ')
       : 'none needed above TD';
     lines.push(`Casing seats (bottom-up from TD, below ${z(casing.fromBmlM)} bml; trip margin ${casing.tripPpg.toFixed(2)} ppg, kick margin ${casing.kickPpg.toFixed(2)} ppg): ${seats}${casing.closedAtBmlM != null ? `; window closed by the margins at ${z(casing.closedAtBmlM)} bml` : ''}`);
   }
@@ -79,7 +83,7 @@ export function reviewerLines(p) {
 }
 
 /** Rows of the prognosis table every `everyM` metres (display units). */
-export function reportRows({ input, result, params, units, everyM }) {
+export function reportRows({ input, result, params, units, everyM, mapper = null }) {
   const zU = units.depth; const pU = units.pressure;
   const step = everyM || (zU === 'ft' ? 500 * 0.3048 : 250);
   const rows = [];
@@ -92,7 +96,7 @@ export function reportRows({ input, result, params, units, everyM }) {
     const f = (pa) => { const v = pressureToDisplay(pa, pU, ref); return Number.isFinite(v) ? v.toFixed(pressureDigits(pU)) : 'n/a'; };
     const g = (pa) => { const v = emwPpg(pa, ref); return Number.isFinite(v) ? v.toFixed(2) : 'n/a'; };
     rows.push([
-      r1(depthToDisplay(zb, zU), zU === 'ft' ? 0 : 1), r1(depthToDisplay(ref, zU), zU === 'ft' ? 0 : 1),
+      r1(depthToDisplay(mapper ? mapper.fromBml(zb) : zb, zU), zU === 'ft' ? 0 : 1), r1(depthToDisplay(ref, zU), zU === 'ft' ? 0 : 1),
       f(result.overburdenPa[i]), f(result.hydrostaticPa[i]), f(result.porePressurePa[i]), f(result.fracPressurePa[i]),
       g(result.porePressurePa[i]), g(result.fracPressurePa[i]),
     ]);
@@ -124,7 +128,8 @@ export function prognosisPdf(JsPDF, args, { logo = null } = {}) {
   }
   y += 3;
   const datum = emwDatumLabel(params);
-  const head = [`Depth bml (${units.depth})`, `Below ${datum} (${units.depth})`, `OBG (${units.pressure})`, `Ph (${units.pressure})`, `PP (${units.pressure})`, `FG (${units.pressure})`, 'PP (ppg)', 'FG (ppg)'].map(latin1);
+  const refHead = args.mapper && args.mapper.key !== 'bml' ? `${{ tvdrkb: 'TVD RKB', tvdss: 'TVDSS', md: 'MD' }[args.mapper.key]} (${units.depth})` : `Depth bml (${units.depth})`;
+  const head = [refHead, `Below ${datum} (${units.depth})`, `OBG (${units.pressure})`, `Ph (${units.pressure})`, `PP (${units.pressure})`, `FG (${units.pressure})`, 'PP (ppg)', 'FG (ppg)'].map(latin1);
   const colW = (pageW - 2 * margin) / head.length;
   const drawHead = () => {
     doc.setFont('helvetica', 'bold');
