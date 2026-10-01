@@ -7,7 +7,7 @@
 // the context maps it to app state.
 
 import { supabase } from '@/lib/customSupabaseClient';
-import { listWellsWithTops } from '@/lib/wellsRegistry';
+import { listWellsWithTops, listLogs, downloadCurve } from '@/lib/wellsRegistry';
 import { getDepthUnit } from '@/lib/crs/settingsService';
 import { listIntervals } from '@/lib/stratRegistry';
 
@@ -46,6 +46,9 @@ export function makeRegistryBackend() {
     // build the layers exactly as Stratigraphy Studio's Send to Basin does
     listRegistryWells: listWellsWithTops,
     listRegistryIntervals: (wellId) => listIntervals(wellId, 'lithology'),
+    // BF-U2-007: the tied well's curves (Petrophysics porosity, TOC)
+    listRegistryLogs: listLogs,
+    downloadRegistryCurve: downloadCurve,
     // BF3: the account's Geoscience depth unit (the Mapping setting)
     getDepthUnit,
   };
@@ -82,6 +85,27 @@ export const REGISTRY_INTERVALS_DEV = {
     { kind: 'lithology', code: 'shale', top_md_m: 2400, base_md_m: 2800 },
   ],
 };
+
+/** BF-U2-007: KETA-2's published porosity (PHIT, v/v) and a TOC log (wt %, with
+ *  the vendor null outside the source interval) for the harness. The porosity
+ *  follows 0.50 exp(-0.45/km x TVD) with a small ripple: tighter at depth
+ *  than the library shale, so the fit has something to say. */
+const KETA2_TVD = (md) => (md <= 1000 ? md : 1000 + (md - 1000) * 0.94);
+export const REGISTRY_LOGS_DEV = {
+  'reg-well-2': [
+    { id: 'k2-phit', well_id: 'reg-well-2', mnemonic: 'PHIT', unit: 'V/V', start_md_m: 100, step_m: 10, n_samples: 286, provenance: { computed: true, engine: 'petrophysics-studio' } },
+    { id: 'k2-toc', well_id: 'reg-well-2', mnemonic: 'TOC', unit: '%', start_md_m: 100, step_m: 10, n_samples: 286, provenance: {} },
+  ],
+};
+export function registryCurveDev(log) {
+  const out = new Float32Array(log.n_samples);
+  for (let i = 0; i < log.n_samples; i++) {
+    const md = log.start_md_m + i * log.step_m;
+    if (log.mnemonic === 'PHIT') out[i] = 0.5 * Math.exp(-0.00045 * KETA2_TVD(md)) + 0.01 * Math.sin(i / 3);
+    else out[i] = md >= 2400 && md < 2800 ? 5 + 0.5 * Math.sin(i / 2) : -999.25;
+  }
+  return out;
+}
 
 // ---- in-memory (harness, jest) -------------------------------------------------
 /** The oracle's reference basin (test-data/basinflow/goldens.json
@@ -153,6 +177,8 @@ export function makeInMemoryBackend({ persist = true } = {}) {
     async deleteWell(id) { rows = rows.filter((r) => r.id !== id); save(); },
     async listRegistryWells() { return REGISTRY_WELLS_DEV.map((w) => ({ ...w, tops: w.tops.map((t) => ({ ...t })) })); },
     async listRegistryIntervals(wellId) { return (REGISTRY_INTERVALS_DEV[wellId] || []).map((r) => ({ ...r })); },
+    async listRegistryLogs(wellId) { return (REGISTRY_LOGS_DEV[wellId] || []).map((r) => ({ ...r })); },
+    async downloadRegistryCurve(log) { return registryCurveDev(log); },
     // the fixture is SI so the oracle-anchored e2e reads metres by default
     async getDepthUnit() { return 'm'; },
     /** test seam: the stored rows */

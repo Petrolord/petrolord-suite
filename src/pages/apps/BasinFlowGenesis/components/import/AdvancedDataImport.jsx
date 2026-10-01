@@ -13,6 +13,7 @@
 // model has no consumer for them.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import PetroLogsImport from './PetroLogsImport';
 import { useDropzone } from 'react-dropzone';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -186,6 +187,7 @@ const AdvancedDataImport = () => {
           <TabsTrigger value="calibration" data-testid="bf-import-tab-calibration" className="text-xs">Calibration data</TabsTrigger>
           <TabsTrigger value="tops" data-testid="bf-import-tab-tops" className="text-xs">Formation tops</TabsTrigger>
           <TabsTrigger value="registry" data-testid="bf-import-tab-registry" className="text-xs">Registry well</TabsTrigger>
+          <TabsTrigger value="petro" data-testid="bf-import-tab-petro" className="text-xs">Petrophysics logs</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calibration" className="space-y-4">
@@ -261,6 +263,10 @@ const AdvancedDataImport = () => {
               {state.settings?.registryWellName && <p className="text-xs text-pl-muted" data-testid="bf-registry-tied">Tied to {state.settings.registryWellName}.</p>}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="petro" className="space-y-4">
+          <PetroLogsImport />
         </TabsContent>
       </Tabs>
     </div>
