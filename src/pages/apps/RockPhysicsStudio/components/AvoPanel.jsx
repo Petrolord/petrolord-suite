@@ -182,15 +182,22 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
               />
               {zU}
             </label>
-            {!tops.length && <span className="text-pl-muted">no tops on this well</span>}
+            {!model && <span className="text-pl-muted" data-testid="rp-avo-no-well">Select a well to read halfspaces from a top, or use Manual halfspaces.</span>}
+            {model && !tops.length && <span className="text-pl-muted">no tops on this well</span>}
           </>
         )}
         <label className="flex items-center gap-1 ml-auto">
           θ max
-          <input
-            type="number"
+          {/* RP-U1-011: clearing the box no longer snaps it to 40; a typed
+              value is held to 5..89 degrees when it is a number */}
+          <UnitInput
+            testid="rp-avo-theta-max"
             value={avo.maxTheta}
-            onChange={(e) => patch({ maxTheta: Math.max(5, Math.min(89, parseFloat(e.target.value) || 40)) })}
+            unit=""
+            toDisplay={(v) => v}
+            fromDisplay={(v) => v}
+            digits={1}
+            onChange={(v) => { if (Number.isFinite(v)) patch({ maxTheta: Math.max(5, Math.min(89, v)) }); }}
             className="w-14 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-right text-pl-text"
           />
           °

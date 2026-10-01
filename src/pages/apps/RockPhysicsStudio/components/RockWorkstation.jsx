@@ -119,7 +119,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
 
   const selected = (wells || []).find((w) => w.id === selectedId) || null;
 
-  const select = useCallback(async (wellId, { keepZone = false } = {}) => {
+  const select = useCallback(async (wellId, { keepZone = false, restored = false } = {}) => {
     setSelectedId(wellId);
     if (!keepZone) setZoneId('');
     setLoadingId(wellId);
@@ -146,7 +146,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
       setZones(zoneList);
       // PETRO-U2-013: a pre-PT9a Studio PHIE is total porosity; say so
       const oldPhie = mapped.PHIE && isPrePt9aPhie(mapped.PHIE) ? ` ${mapped.PHIE.mnemonic}: ${PRE_PT9A_PHIE_NOTE}` : '';
-      setStatus((model.vsSource === 'estimated'
+      setStatus((restored ? 'Restored saved project. ' : '') + (model.vsSource === 'estimated'
         ? `Loaded ${model.n} samples. No DTS, so Vs is estimated (Greenberg-Castagna).`
         : `Loaded ${model.n} samples.`) + (model.notes?.length ? ` ${model.notes.length} reading note${model.notes.length === 1 ? '' : 's'} under the curve list.` : '') + oldPhie);
     } catch (e) {
@@ -163,7 +163,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   useEffect(() => {
     if (!restoreWellId) return;
     setRestoreWellId(null);
-    select(restoreWellId, { keepZone: true });
+    select(restoreWellId, { keepZone: true, restored: true });
   }, [restoreWellId, select]);
 
   const applyParams = ({ scenario: s, rock: r }) => {
@@ -280,7 +280,6 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         {unitSelect('velocity', VELOCITY_UNITS, 'Velocity or sonic slowness display unit (the engine stays in m/s)')}
         {unitSelect('density', DENSITY_UNITS, 'Density display unit (the engine stays in kg/m3)')}
         {unitSelect('depth', DEPTH_UNITS, 'Depth display unit; starts from your Suite units and changes this view for the session')}
-        <UnitProfileNote u={unitsHook} className="ml-1 hidden md:inline-flex" />
         <span className="w-px h-4 bg-pl-border mx-1" />
         <button
           type="button"
@@ -309,6 +308,9 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const statusBar = (
     <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="rp-status" className="truncate">{status}</span>
+      {/* RP-U1-017: in the ribbon this note wrapped into a 400 px column when
+          the view differed from the profile; the status bar has the width */}
+      <UnitProfileNote u={unitsHook} className="min-w-0 shrink flex-nowrap whitespace-nowrap overflow-hidden" />
       <span className="ml-auto whitespace-nowrap">
         {selected ? `${selected.name} · ${model ? `${model.n} samples` : '…'}` : `${wells?.length ?? '…'} wells`}
       </span>
@@ -331,9 +333,9 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const center = view === 'wedge' ? (
     <WedgePanel wedge={wedge} onWedgeChange={setWedge} units={units} />
   ) : view === 'avo' ? (
-    (avo.mode === 'manual' || model) ? (
-      <AvoPanel model={model} tops={wellData?.tops || []} avo={avo} onAvoChange={setAvo} units={units} scenario={scenario} rock={rock} />
-    ) : needsWell
+    // RP-U1-016: the panel (and its Manual halfspaces button) shows with no
+    // well too; before, a new user on "From top" had no way to reach manual
+    <AvoPanel model={model} tops={wellData?.tops || []} avo={avo} onAvoChange={setAvo} units={units} scenario={scenario} rock={rock} />
   ) : (
     model ? (
       <FluidsPanel
@@ -344,6 +346,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         units={units}
         zoneId={zoneId}
         onZoneChange={setZoneId}
+        well={selected}
         onPublish={backend.publishCurves ? publish : null}
         publishing={publishing}
       />

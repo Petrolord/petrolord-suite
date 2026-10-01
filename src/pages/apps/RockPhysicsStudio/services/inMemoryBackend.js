@@ -55,7 +55,50 @@ function buildCurves({ withDts }) {
 
 const CURVE_UNITS = { DEPT: 'M', DT: 'US/M', DTS: 'US/M', RHOB: 'G/C3', PHIE: 'V/V', VSH: 'V/V' };
 
-export function makeInMemoryBackend() {
+// RP-U1 evidence wells (harness flags, never in the default list):
+// - hostile (?hostile=1): a Schlumberger-named export (TDEP, DTCO, DTSM,
+//   RHOZ) with sonic and shear in us/ft and NO unit, density in kg/m3,
+//   total porosity in percent with no unit, -999 nulls, a shaly band and an
+//   SW log over a gas leg: every reading rule of RP-U1-002..006 at once
+// - long (?long=1): 5000 m of log at 0.1524 m (32,809 samples) with one
+//   4000 m zone, the PL10 scale case
+function hostileCurves() {
+  const curves = { TDEP: [], DTCO: [], DTSM: [], RHOZ: [], PHIT: [], VSH: [], SW: [] };
+  for (let d = 2000; d <= 2100; d += 0.5) {
+    const sandy = d >= 2020 && d <= 2050;
+    const gasLeg = d >= 2020 && d < 2035;
+    const vp = sandy ? (gasLeg ? 2700 : 3150) : 2900;
+    const vs = sandy ? (gasLeg ? 1700 : 1750) : 1330;
+    const rho = sandy ? (gasLeg ? 2.08 : 2.24) : 2.29;
+    curves.TDEP.push(d);
+    curves.DTCO.push((1e6 * 0.3048) / vp);     // us/ft, unit left blank
+    curves.DTSM.push((1e6 * 0.3048) / vs);     // us/ft, unit left blank
+    curves.RHOZ.push(d === 2041 ? -999 : rho * 1000); // kg/m3 with one vendor null
+    curves.PHIT.push(sandy ? 26 : 9);          // percent, unit left blank
+    curves.VSH.push(sandy ? (d > 2045 ? 0.6 : 0.08) : 0.85);
+    curves.SW.push(gasLeg ? 0.25 : 1);
+  }
+  return curves;
+}
+const HOSTILE_UNITS = { TDEP: 'M', DTCO: '', DTSM: '', RHOZ: 'KG/M3', PHIT: '', VSH: 'V/V', SW: 'V/V' };
+
+function longCurves() {
+  const step = 0.1524;
+  const n = Math.round(5000 / step) + 1;
+  const c = { DEPT: new Float64Array(n), DT: new Float64Array(n), RHOB: new Float64Array(n), PHIE: new Float64Array(n), VSH: new Float64Array(n) };
+  for (let i = 0; i < n; i++) {
+    const d = 500 + i * step;
+    const cyc = Math.sin(d / 7);
+    c.DEPT[i] = d;
+    c.DT[i] = 1e6 / (2400 + 0.25 * d + 150 * cyc);
+    c.RHOB[i] = 2.15 + 0.00004 * d + 0.05 * cyc;
+    c.PHIE[i] = Math.max(0.04, 0.28 - 0.00004 * d - 0.04 * cyc);
+    c.VSH[i] = 0.5 + 0.45 * cyc;
+  }
+  return { curves: c, n, step };
+}
+
+export function makeInMemoryBackend({ hostile = false, long = false } = {}) {
   const curveStore = new Map();
   const logsByWell = new Map();
   const topsByWell = new Map();
@@ -121,6 +164,40 @@ export function makeInMemoryBackend() {
 
   addWell({ name: 'KETA RP-1', isOwn: true, withDts: true });
   addWell({ name: 'AKOMA-2 (org shared)', isOwn: false, org: 'org-dev', withDts: false });
+
+  const addRawWell = (name, curves, units, zones, { start, stop, step }) => {
+    const id = nextId('well');
+    wells.push({
+      id, user_id: 'user-dev', organization_id: null, name, uwi: name, surface_x: 501000, surface_y: 6700200,
+      kb_m: 30, td_md_m: stop, crs_note: 'EPSG:32630 (demo)', units_note: 'mixed', deviation: [], checkshots: [],
+      created_at: new Date(2026, 9, 1).toISOString(), updated_at: new Date(2026, 9, 1).toISOString(), is_own: true,
+    });
+    const logs = [];
+    for (const [mnemonic, vals] of Object.entries(curves)) {
+      const logId = nextId('log');
+      curveStore.set(logId, Float64Array.from(vals));
+      logs.push({
+        id: logId, well_id: id, mnemonic, description: `${mnemonic} (RP-U1 evidence well)`, unit: units[mnemonic] ?? null,
+        start_md_m: start, stop_md_m: stop, step_m: step, n_samples: vals.length, null_count: 0,
+        source_file: 'inMemoryBackend.js', provenance: { synthetic: true }, storage_path: `dev/${id}/${logId}.f32`,
+      });
+    }
+    logsByWell.set(id, logs);
+    topsByWell.set(id, zones.flatMap((z) => [
+      { id: nextId('top'), well_id: id, name: `Top ${z.name}`, md_m: z.top },
+      { id: nextId('top'), well_id: id, name: `Base ${z.name}`, md_m: z.base },
+    ]));
+    zonesByWell.set(id, zones.map((z) => ({ id: nextId('zone'), well_id: id, name: z.name, top_md_m: z.top, base_md_m: z.base, properties: {} })));
+  };
+  if (hostile) {
+    addRawWell('HOSTILE RP-4 (vendor export)', hostileCurves(), HOSTILE_UNITS,
+      [{ name: 'SAND WITH GAS LEG', top: 2020, base: 2050 }], { start: 2000, stop: 2100, step: 0.5 });
+  }
+  if (long) {
+    const { curves, step } = longCurves();
+    addRawWell('LONG RP-3 (5000 m)', curves, { DEPT: 'M', DT: 'US/M', RHOB: 'G/C3', PHIE: 'V/V', VSH: 'V/V' },
+      [{ name: 'LONG ZONE', top: 900, base: 4900 }], { start: 500, stop: 500 + (curves.DEPT.length - 1) * step, step });
+  }
 
   // project persistence survives page reloads via sessionStorage so
   // the e2e can prove restore; first load seeds the analytic-fixture

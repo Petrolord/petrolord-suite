@@ -6,6 +6,22 @@
 import { test, expect } from '@playwright/test';
 import { EMPTY_VALUE } from '../src/lib/emptyValue.js';
 
+// RP-U1-012: the harness opens on the Suite unit profile (oilfield since
+// #830), while these assertions read the oracle in SI. Start each page on a
+// metric view override (sessionStorage, the useAppUnits session rule) once per
+// tab, so a test that chooses units and reloads keeps its choice.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const k = 'petrolord.units.view.v1:rock-physics';
+    try {
+      if (!window.sessionStorage.getItem('rp.e2e.seeded')) {
+        window.sessionStorage.setItem('rp.e2e.seeded', '1');
+        window.sessionStorage.setItem(k, JSON.stringify({ velocity: 'm/s', density: 'kg/m3', depth: 'm', temperature: 'degC', pressure: 'MPa', gor: 'm3/m3' }));
+      }
+    } catch { /* storage blocked */ }
+  });
+});
+
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto('/dev/rock-physics-studio');

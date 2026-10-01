@@ -19,6 +19,22 @@ const LOG = goldens.gassmann.log_domain;
 const CLASS3 = goldens.avo.find((c) => c.name === 'class3_gas_sand');
 const WEDGE = goldens.wedge;
 
+// RP-U1-012: the harness opens on the Suite unit profile (oilfield since
+// #830), while these assertions read the oracle in SI. Start each page on a
+// metric view override (sessionStorage, the useAppUnits session rule) once per
+// tab, so a test that chooses units and reloads keeps its choice.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const k = 'petrolord.units.view.v1:rock-physics';
+    try {
+      if (!window.sessionStorage.getItem('rp.e2e.seeded')) {
+        window.sessionStorage.setItem('rp.e2e.seeded', '1');
+        window.sessionStorage.setItem(k, JSON.stringify({ velocity: 'm/s', density: 'kg/m3', depth: 'm', temperature: 'degC', pressure: 'MPa', gor: 'm3/m3' }));
+      }
+    } catch { /* storage blocked */ }
+  });
+});
+
 test('fluid substitution on the brine sand matches the oracle log-domain golden', async ({ page }) => {
   await page.goto('/dev/rock-physics-studio');
 
@@ -100,7 +116,7 @@ test('no-DTS well flags estimated Vs; project state survives reload', async ({ p
   // the org-shared well has no shear log -> provenance badge
   await page.locator('[data-well-name="AKOMA-2 (org shared)"]').click();
   await expect(page.getByTestId('rp-vs-badge')).toBeVisible();
-  await expect(page.getByTestId('rp-status')).toContainText('Vs estimated');
+  await expect(page.getByTestId('rp-status')).toContainText('Vs is estimated');
 
   // change the mineral modulus override, save, reload -> restored
   await page.getByTestId('rp-param-kmin').fill('40');
@@ -170,12 +186,12 @@ test('RP1: the substituted case publishes to the well as VP_SUB / VS_SUB / RHOB_
 
   await page.getByTestId('rp-publish').click();
   await expect(page.getByTestId('rp-status')).toHaveText('Published VP_SUB/VS_SUB/RHOB_SUB/DT_SUB to the well registry.');
-  await expect(page.getByTestId('rp-published-curves')).toHaveText('published: VP_SUB, VS_SUB, RHOB_SUB');
+  await expect(page.getByTestId('rp-published-curves')).toHaveText('published: VP_SUB, VS_SUB, RHOB_SUB, DT_SUB');
 
   // republish replaces this project's curves rather than adding a second set
   await page.getByTestId('rp-publish').click();
   await expect(page.getByTestId('rp-status')).toHaveText('Published VP_SUB/VS_SUB/RHOB_SUB/DT_SUB to the well registry.');
-  await expect(page.getByTestId('rp-published-curves')).toHaveText('published: VP_SUB, VS_SUB, RHOB_SUB');
+  await expect(page.getByTestId('rp-published-curves')).toHaveText('published: VP_SUB, VS_SUB, RHOB_SUB, DT_SUB');
 
   // the engine inputs are untouched by the publish (exact-name mapping)
   await expect(page.getByTestId('rp-sub-after-vp')).toHaveText(LOG.vp.toFixed(2));

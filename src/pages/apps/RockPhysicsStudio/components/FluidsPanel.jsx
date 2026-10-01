@@ -9,7 +9,9 @@
 // Publish writes the substituted case to the well as logs.
 
 import React, { useMemo, useState } from 'react';
-import { Upload, Loader2 } from 'lucide-react';
+import { Upload, Loader2, Download } from 'lucide-react';
+import { downloadText } from '@/lib/fullPrecision';
+import { substitutionCsv, substitutionCsvName } from '../services/substitutionCsv';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label,
 } from 'recharts';
@@ -51,8 +53,18 @@ function FluidRow({ id, label, fluid, error, units }) {
 
 export default function FluidsPanel({
   model, zones, scenario, rock, units = DEFAULT_UNITS, onPublish = null, publishing = false,
-  zoneId: zoneIdProp, onZoneChange = null,
+  zoneId: zoneIdProp, onZoneChange = null, well = null,
 }) {
+  // RP-U1-010: the reviewer's field and name, remembered per browser
+  const [reviewer, setReviewer] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem('rp.reviewer') || '{}') || {}; } catch { return {}; }
+  });
+  const patchReviewer = (p) => setReviewer((r) => {
+    const next = { ...r, ...p };
+    try { window.localStorage.setItem('rp.reviewer', JSON.stringify(next)); } catch { /* storage blocked */ }
+    return next;
+  });
+  const [exported, setExported] = useState('');
   // RP-U1-013: the workstation owns the zone when it passes one (Save keeps it)
   const [zoneIdLocal, setZoneIdLocal] = useState('');
   const zoneId = zoneIdProp !== undefined ? zoneIdProp : zoneIdLocal;
@@ -75,18 +87,19 @@ export default function FluidsPanel({
     if (!indices.length) return { error: 'The zone has no samples in this well.' };
     let sub;
     try { sub = substituteZone(model, indices, scenario, rock); } catch (e) { return { error: e.message }; }
-    // RP-U1-007: before and after compare the SAME samples (the substituted
-    // ones), so a skipped or out-of-limits sample cannot move one side only
-    const used = indices.filter((i) => Number.isFinite(sub.vp[i]));
+    // RP-U1-006/007: "after" is the case that publishes: substituted where
+    // the sample was substituted, in situ where it was left (outside the
+    // limits) or skipped; both sides average the same zone samples
+    const merged = (key) => model[key].map((v, i) => (Number.isFinite(sub[key][i]) ? sub[key][i] : v));
     const side = (vp, vs, rho) => ({
-      vp: meanAt(vp, used), vs: meanAt(vs, used), rho: meanAt(rho, used), ...elasticMeans(vp, vs, rho, used),
+      vp: meanAt(vp, indices), vs: meanAt(vs, indices), rho: meanAt(rho, indices), ...elasticMeans(vp, vs, rho, indices),
     });
     return {
       indices,
       sub,
       kmin: sub.kmin,
       before: side(model.vp, model.vs, model.rho),
-      after: side(sub.vp, sub.vs, sub.rho),
+      after: side(merged('vp'), merged('vs'), merged('rho')),
     };
   }, [model, zone, fluids, rock, scenario]);
 
@@ -153,7 +166,7 @@ export default function FluidsPanel({
       {result && !result.error && (
         <>
           <div className="rounded border border-pl-border p-2">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
               <div className="text-[11px] uppercase tracking-wider text-pl-muted" data-testid="rp-sub-header">
                 Gassmann substitution A → B · {zone.name} · K_min {result.sub.kminSource === 'vsh' && result.sub.done
                   ? `${gpa(result.sub.kminMin)} to ${gpa(result.sub.kminMax)} GPa (clay at VSH)`
@@ -161,13 +174,42 @@ export default function FluidsPanel({
                 {result.sub.done} samples{result.sub.skipped ? ` (${result.sub.skipped} skipped)` : ''}
                 {result.sub.outside ? ` · ${result.sub.outside} left in situ (outside the Gassmann limits)` : ''}
               </div>
+              <input
+                data-testid="rp-reviewer-field"
+                value={reviewer.field || ''}
+                placeholder="Field"
+                onChange={(e) => patchReviewer({ field: e.target.value })}
+                className="ml-auto w-24 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-[11px] text-pl-text"
+              />
+              <input
+                data-testid="rp-reviewer-analyst"
+                value={reviewer.analyst || ''}
+                placeholder="Analyst"
+                onChange={(e) => patchReviewer({ analyst: e.target.value })}
+                className="w-24 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-[11px] text-pl-text"
+              />
+              <button
+                type="button"
+                data-testid="rp-export-csv"
+                title="Download the substitution as CSV: a header with the well, zone, field, analyst, date, build, units, conditions, both fluids, K_min, porosity basis and limits, then every zone sample in the display units"
+                className="flex items-center gap-1 px-2 py-0.5 text-xs rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken"
+                onClick={() => {
+                  const text = substitutionCsv({
+                    well, zone, model, sub: result.sub, indices: result.indices, scenario, rock, units, reviewer,
+                  });
+                  const name = substitutionCsvName(well, zone);
+                  setExported(downloadText(name, text) ? `Saved ${name}.` : '');
+                }}
+              >
+                <Download className="w-3.5 h-3.5" /> CSV
+              </button>
               {onPublish && (
                 <button
                   type="button"
                   data-testid="rp-publish"
                   disabled={publishing || !result.sub.done}
                   title="Write VP_SUB, VS_SUB and RHOB_SUB to this well in the registry: the in-situ log outside the zone, the substituted case inside. Overwrites only this project's previous publish."
-                  className="ml-auto flex items-center gap-1 px-2 py-0.5 text-xs rounded border
+                  className="flex items-center gap-1 px-2 py-0.5 text-xs rounded border
                     border-pl-primary text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40"
                   onClick={() => onPublish(result, zone)}
                 >
@@ -188,6 +230,7 @@ export default function FluidsPanel({
                 Tick "clay from VSH" in Scenario &amp; rock, or use total porosity.
               </p>
             )}
+            {exported && <p className="text-[11px] text-pl-success-text mb-1" data-testid="rp-export-note">{exported}</p>}
             {result.sub.firstError && (
               <p className="text-[12px] text-pl-warning-text mb-1" data-testid="rp-sub-sample-error">
                 skipped samples: {result.sub.firstError}
@@ -269,10 +312,10 @@ export default function FluidsPanel({
                   verticalAlign="top"
                   wrapperStyle={{ fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`, color: CHART_COLORS.legendText, paddingBottom: 4 }}
                 />
-                <Line type="monotone" dataKey="vpA" stroke="#0284c7" strokeWidth={1.5} dot={false} name="Vp in situ" />
-                <Line type="monotone" dataKey="vpB" stroke="#dc2626" strokeWidth={1.5} dot={false} name="Vp substituted" />
-                <Line type="monotone" dataKey="vsA" stroke="#0284c7" strokeWidth={1.5} strokeDasharray="4 3" dot={false} name="Vs in situ" />
-                <Line type="monotone" dataKey="vsB" stroke="#dc2626" strokeWidth={1.5} strokeDasharray="4 3" dot={false} name="Vs substituted" />
+                <Line type="monotone" isAnimationActive={false} dataKey="vpA" stroke="#0284c7" strokeWidth={1.5} dot={false} name="Vp in situ" />
+                <Line type="monotone" isAnimationActive={false} dataKey="vpB" stroke="#dc2626" strokeWidth={1.5} dot={false} name="Vp substituted" />
+                <Line type="monotone" isAnimationActive={false} dataKey="vsA" stroke="#0284c7" strokeWidth={1.5} strokeDasharray="4 3" dot={false} name="Vs in situ" />
+                <Line type="monotone" isAnimationActive={false} dataKey="vsB" stroke="#dc2626" strokeWidth={1.5} strokeDasharray="4 3" dot={false} name="Vs substituted" />
               </LineChart>
             </ResponsiveContainer>
             <ChartLogo />
