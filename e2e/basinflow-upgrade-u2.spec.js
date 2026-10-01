@@ -20,6 +20,16 @@ async function openExample(page) {
   await expect(page.locator('[data-testid="bf-layer-card"]')).toHaveCount(6, { timeout: 60000 });
 }
 
+// depth runs downward: the y tick nearest the top of the visible chart is the smallest depth
+async function depthRunsDownward(page) {
+  const sel = '[data-canvas="chart"]:visible .recharts-yAxis .recharts-cartesian-axis-tick';
+  await expect(page.locator(sel).first()).toBeVisible({ timeout: 30000 });
+  const ticks = await page.locator(sel).evaluateAll((els) => els.map((e) => ({ y: e.getBoundingClientRect().y, v: parseFloat(e.textContent.replace(/,/g, '')) })).filter((t) => Number.isFinite(t.v)));
+  expect(ticks.length).toBeGreaterThan(2);
+  const top = ticks.reduce((a, b) => (b.y < a.y ? b : a)); const bottom = ticks.reduce((a, b) => (b.y > a.y ? b : a));
+  expect(top.v).toBeLessThan(bottom.v);
+}
+
 async function run(page) {
   await page.getByTestId('bf-simulate').click();
   await expect(page.getByTestId('bf-sim-status')).toHaveText('Complete', { timeout: 120000 });
@@ -35,15 +45,12 @@ test('U2: the worked example runs in the worker, draws the eroded section, repor
 
   await page.getByTestId('bf-results-tab-burial').click();
   await expect(page.getByTestId('bf-burial-eroded-note')).toContainText('removed at 30 Ma');
-  // depth runs downward: the first y tick label is the smallest depth and sits above the largest
-  const ticks = await page.locator('[data-canvas="chart"] .recharts-yAxis .recharts-cartesian-axis-tick').evaluateAll((els) => els.map((e) => ({ y: e.getBoundingClientRect().y, v: parseFloat(e.textContent.replace(/,/g, '')) })).filter((t) => Number.isFinite(t.v)));
-  expect(ticks.length).toBeGreaterThan(2);
-  const top = ticks.reduce((a, b) => (b.y < a.y ? b : a)); const bottom = ticks.reduce((a, b) => (b.y > a.y ? b : a));
-  expect(top.v).toBeLessThan(bottom.v);
+  await depthRunsDownward(page);
 
   await page.getByTestId('bf-results-tab-pressure').click();
   await expect(page.getByTestId('bf-pressure-note')).toContainText('compaction disequilibrium');
   await expect(page.getByTestId('bf-send-pressure')).toHaveAttribute('href', /pore-pressure-studio\?bfPressure=/);
+  await depthRunsDownward(page);
 
   await page.getByTestId('bf-tab-calibration').click();
   await expect(page.getByTestId('bf-cal-bht-method')).toHaveValue('horner');
@@ -73,7 +80,7 @@ test('U2: the worked example runs in the worker, draws the eroded section, repor
   expect(errors).toEqual([]);
 });
 
-test('U2: a template asks by model name and Undo puts the layers back; the run can be cancelled', async ({ page }) => {
+test('U2: a template asks by model name and Undo puts the layers back', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await openExample(page);
@@ -91,7 +98,7 @@ test('U2: a template asks by model name and Undo puts the layers back; the run c
 
 for (const vp of [{ width: 1366, height: 768 }, { width: 1440, height: 900 }, { width: 390, height: 844 }]) {
   for (const theme of ['light', 'dark']) {
-    test(`U2: ${vp.width} wide, ${theme}: the worked example, its pressure tab and scenario compare open with no page errors and no sideways scroll`, async ({ page }) => {
+    test(`U2: ${vp.width} wide, ${theme}: the worked example, its pressure tab and burial plot open with no page errors and no sideways scroll`, async ({ page }) => {
       const errors = [];
       page.on('pageerror', (e) => errors.push(e.message));
       await page.setViewportSize(vp);
