@@ -174,3 +174,32 @@ No item needs DDL.
 
 1. Playwright e2e is not in CI: the Rock Physics specs went red with #830 unnoticed (RP-U1-012), the third app after Earth Modeling and ReservoirCalc Pro.
 2. Save had never worked on the registry backend (RP-U1-001); live table empty, nothing to repair. After this merges, a staging save is worth a click.
+
+## Batch decision (programme lead, 2026-10-01)
+
+Recorded verbatim:
+
+> BUILD in order, one commit per item:
+> - Batch A: AI versus Vp/Vs crossplot with rock-physics template lines; wet background trend on the intercept-gradient crossplot (fluid-line fit, anomalies measured from it); angle-gather synthetic (Zoeppritz or Aki-Richards per angle with a chosen wavelet, including Seismolord's well-extracted wavelet where available; validate reflectivities against a published AVO example, negative control); PDF report with a reviewer header (read back with pdftotext); iterative Vs estimation in hydrocarbon zones; long-well performance (decimation plus the Greenberg-Castagna speed-up, engines-first).
+> - Batch B: pseudo-sonic for wells without DT (Gardner inverse and/or Faust from resistivity, clearly labelled as estimated, published as estimated curves with provenance: 10 of the 12 live wells have no sonic, so this decides whether they can be used; validate against wells that do have DT, report the misfit honestly); K_min from the Petrophysics mineral model; pore pressure from Pore Pressure Studio and Sw from Petrophysics saturation-height as inputs; gathers in Seismolord (the second half of Seismolord U2-020: Rock Physics publishes the angle gather / AVO response through a small documented contract and Seismolord's synthetics panel shows it; keep Seismolord-side edits minimal and run its suites).
+> - Batch C: patchy saturation option (validated against the Voigt bound).
+> DEFERRED (record reasons): Xu-White and soft/stiff sand models (L, engines-first, after NAPE); modelled AVO versus Seismolord attribute volumes (M, after NAPE); scenario Monte Carlo; several projects per user (revisit with the Suite Project); log editing.
+
+Mapped to the backlog: Batch A is U2-001, U2-002, U2-003, U2-004, U2-005, U2-014; Batch B is U2-007, U2-009, U2-011, U2-012; Batch C is U2-016.
+
+Deferred, with reasons:
+
+| ID | Item | Reason |
+|---|---|---|
+| U2-006 | Xu-White and soft/stiff sand models | Large, engines-first with published examples to find and gate; after NAPE. The crossplot's template lines use the critical-porosity sand line and the mudrock line, which need no new rock model. |
+| U2-008 | Modelled A/B against Seismolord AVO attribute volumes | Medium, needs pre-stack or angle-stack volumes in Seismolord first; after NAPE. |
+| U2-010 | Scenario Monte Carlo | Not chosen for this pass; when built it goes through the canonical `src/lib/monteCarlo.js`, no new sampler. |
+| U2-013 | Several projects per user | Revisit with the Suite Project (`docs/scope/SuiteProject-DESIGN.md`), which changes what a project is. |
+| U2-015 | Log editing (despike, splice) | Not chosen; belongs with Well Data Manager or Petrophysics conditioning. |
+
+## Step 2 build log (branch `feat/rp-u2`)
+
+Engines first: Petrolord/petrolord-engines PR #296 (`feat/rp-u2-engines`), vendored byte-identical and recorded in `packages/engines/VENDOR.json` (group `rockphysics-u2`) until the programme lead merges it. Independent Python oracle `packages/engines/tools/validation/rockphysics/oracle_u2.py`, goldens `test-data/rockphysics/goldens.u2.json`, gates `packages/engines/__tests__/rockphysics.u2.test.js` (20 tests, each with a negative control).
+
+| Item | Status | What was built | Proving test |
+|---|---|---|---|
