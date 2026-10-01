@@ -155,6 +155,7 @@ export default function BasinFlowHelpGuide() {
         ]} />
         <Para>Each layer is its own series on every plot, keyed by the layer and labelled by its name, so two layers with the same name are both drawn; rename them to tell them apart in the legend.</Para>
         <Para>A run computes in the background: the run dialog shows its progress, Cancel run stops it and keeps the previous result, and Keep working closes the dialog while it finishes.</Para>
+        <Para>The Pressure tab shows present-day hydrostatic, pore and overburden pressure through the column (MPa with metres, psi with feet). The pore pressure is a 1D estimate of what the burial rate can trap in low-permeability layers (compaction disequilibrium); it does not feed back into compaction. Send to Pore Pressure Studio opens that app with the profile as a reference, in its declared units.</Para>
       </GuideSection>
 
       <GuideSection id="export">
