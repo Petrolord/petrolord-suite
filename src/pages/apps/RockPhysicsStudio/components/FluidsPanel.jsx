@@ -50,8 +50,12 @@ function FluidRow({ id, label, fluid, error, units }) {
 
 export default function FluidsPanel({
   model, zones, scenario, rock, units = DEFAULT_UNITS, onPublish = null, publishing = false,
+  zoneId: zoneIdProp, onZoneChange = null,
 }) {
-  const [zoneId, setZoneId] = useState('');
+  // RP-U1-013: the workstation owns the zone when it passes one (Save keeps it)
+  const [zoneIdLocal, setZoneIdLocal] = useState('');
+  const zoneId = zoneIdProp !== undefined ? zoneIdProp : zoneIdLocal;
+  const setZoneId = onZoneChange || setZoneIdLocal;
   const zone = zones.find((z) => z.id === zoneId) || zones[0] || null;
   const vU = units.velocity;
   const dU = units.density;

@@ -43,6 +43,7 @@ import {
   UNITS_KEY, VELOCITY_UNITS, DENSITY_UNITS, DEPTH_UNITS, readUnits,
 } from '../services/units';
 import { preparePublishLogs, ENGINE } from '../services/publish';
+import { projectRowFromState, projectStateFromRow } from '../services/projectState';
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 const publishedBy = (logs) => logs.filter((l) => l.provenance?.computed && l.provenance?.engine === ENGINE);
@@ -70,6 +71,9 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [projectId, setProjectId] = useState(null);
+  // RP-U1-013: the zone is workstation state so Save keeps it with the well
+  const [zoneId, setZoneId] = useState('');
+  const [restoreWellId, setRestoreWellId] = useState(null);
   // Suite unit profile: velocity, density and depth start from the
   // profile; the selectors change this view for the session only, and the
   // older remembered 'rp.units' choice no longer beats the profile
@@ -90,11 +94,18 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         const project = await backend.loadProject();
         if (!live || !project) return;
         setProjectId(project.id || null);
-        if (project.scenario) setScenario((s) => ({ ...s, ...project.scenario }));
-        if (project.rock) setRock((r) => ({ ...r, ...project.rock }));
-        if (project.avo) setAvo((a) => ({ ...a, ...project.avo }));
-        if (project.wedge) setWedge((w) => ({ ...w, ...project.wedge }));
-        setStatus('Restored saved project.');
+        // RP-U1-001: rows from any release open through one tolerant reader
+        const st = projectStateFromRow(project);
+        if (st.scenario) setScenario((s) => ({ ...s, ...st.scenario }));
+        if (st.rock) setRock((r) => ({ ...r, ...st.rock }));
+        if (st.avo) setAvo((a) => ({ ...a, ...st.avo }));
+        if (st.wedge) setWedge((w) => ({ ...w, ...st.wedge }));
+        if (st.zoneId) setZoneId(st.zoneId);
+        const savedWell = st.wellId && list.find((w) => w.id === st.wellId);
+        if (savedWell) setRestoreWellId(savedWell.id);
+        setStatus(st.wellId && !savedWell
+          ? 'Restored saved project. Its well is no longer in the registry you can see; pick a well.'
+          : 'Restored saved project.');
       } catch (e) {
         if (live) { setStatus(e.message); setWells((w) => w || []); }
       }
@@ -104,8 +115,9 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
 
   const selected = (wells || []).find((w) => w.id === selectedId) || null;
 
-  const select = useCallback(async (wellId) => {
+  const select = useCallback(async (wellId, { keepZone = false } = {}) => {
     setSelectedId(wellId);
+    if (!keepZone) setZoneId('');
     setLoadingId(wellId);
     setWellData(null);
     setZones([]);
@@ -142,6 +154,13 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
 
   const model = wellData?.model || null;
 
+  // RP-U1-013: reopen the saved project's well (once, after the list loads)
+  useEffect(() => {
+    if (!restoreWellId) return;
+    setRestoreWellId(null);
+    select(restoreWellId, { keepZone: true });
+  }, [restoreWellId, select]);
+
   const applyParams = ({ scenario: s, rock: r }) => {
     setScenario(s);
     setRock(r);
@@ -151,7 +170,9 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const saveProject = async () => {
     setSaving(true);
     try {
-      const saved = await backend.saveProject({ scenario, rock, avo, wedge });
+      const saved = await backend.saveProject(projectRowFromState({
+        scenario, rock, avo, wedge, wellId: wellData?.wellId || null, zoneId: zoneId || null,
+      }));
       if (saved?.id) setProjectId(saved.id);
       setStatus('Project saved.');
     } catch (e) {
@@ -316,6 +337,8 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         scenario={scenario}
         rock={rock}
         units={units}
+        zoneId={zoneId}
+        onZoneChange={setZoneId}
         onPublish={backend.publishCurves ? publish : null}
         publishing={publishing}
       />
