@@ -183,7 +183,7 @@ describe('the saved run payload', () => {
     expect(payload.snapshot.facies).toEqual(table.facies);
     const s = payload.summary;
     expect(s.fingerprint).toBe(fingerprint(design));
-    expect(s.engine).toMatch(/^petrolord-engines bf8376b/);
+    expect(s.engine).toMatch(/^petrolord-engines 1e5d394/);
     expect(s.pca.explainedVarianceRatio).toEqual(results.pca.result.explainedVarianceRatio);
     const km = results.kmeans.result;
     expect(s.methods.kmeans).toMatchObject({

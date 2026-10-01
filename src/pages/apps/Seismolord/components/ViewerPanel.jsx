@@ -2,6 +2,9 @@ import { Link as RouterLink } from 'react-router-dom';
 import { HelpCircle as HelpIcon } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { getDepthUnit as getAccountDepthUnit } from '@/lib/crs/settingsService';
+import { useAppUnits } from '@/lib/units/useAppUnits';
+import UnitProfileNote from '@/components/units/UnitProfileNote';
+import { SEISMOLORD_UNIT_APP, SEISMOLORD_UNITS, SEISMOLORD_LEGACY_UNIT_KEYS } from '../lib/unitProfile';
 import { appPath as appRoutePath } from '@/components/wells/appLinks';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -26,6 +29,7 @@ import {
 } from '../services/horizonsService';
 import {
   saveFault, listFaults, deleteFault, updateFaultSticks, updateFaultMeta,
+  listFaultVersions, saveFaultVersion, faultChainOf,
 } from '../services/faultsService';
 import { placeWellsForHost } from '@/lib/crs/guards';
 import { faultSticksToRows, writeCharismaFaultSticks } from '../engine/pickExport';
@@ -81,14 +85,16 @@ import { amplitudePercentile, percentileOfSorted } from '../engine/displayEnhanc
 import { UndoStack } from '../lib/undoStack';
 import { EditHistory } from '../lib/horizonEditHistory';
 import { createdHorizonCommand, rewriteHorizonCommand } from '../lib/horizonUndoCommands';
-import { captureLocal, applyLocal, clampIndices, sessionVolumeProblem } from '../lib/sessionSnapshot';
+import {
+  captureLocal, applyLocal, clampIndices, sessionVolumeProblem, captureOverlay, overlayRestorePlan,
+} from '../lib/sessionSnapshot';
 import SessionsDialog from './workspace/dialogs/SessionsDialog';
 import CultureImportDialog from '@/components/culture/CultureImportDialog';
 import {
   listCulture, downloadCultureFeatures, deleteCulture, setCultureShared,
 } from '@/lib/cultureRegistry';
 import { reprojectFeatures } from '@/lib/cultureImport';
-import { transformPoint, crsDisplayName } from '@/lib/crs';
+import { transformPoint, crsDisplayName, projectorFor } from '@/lib/crs';
 import { buildLabel } from '@/lib/platformBuild';
 import { sectionLineLabel, sectionCaption, verticalLabel, displayLabel } from '../lib/sectionCaption';
 import { normalizeTag, isTransformableTag, LOCAL } from '@/lib/crs/tags';
@@ -119,6 +125,10 @@ import StartHerePanel from './workspace/StartHerePanel';
 import FirstRunTour from './workspace/FirstRunTour';
 import { buildStartHere } from '../lib/startHere';
 import { tourSeen } from '../lib/firstRunTour';
+import { confidenceFilter, guidedTrack2D } from '../lib/trackerEdit';
+import { faultPolygonsGeoJson, polygonLoopLines } from '../lib/faultPolygons';
+import { lineMarkersOnSection } from '../lib/lines2dControl';
+import { lineToLattice } from '../engine/line2dIntegration';
 import { startFrameworkJob } from '../services/frameworkRunner';
 import WellImportDialog from './workspace/dialogs/WellImportDialog';
 import VelocityModelDialog from './workspace/dialogs/VelocityModelDialog';
@@ -145,6 +155,8 @@ import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 const NULL_F32 = Math.fround(NULL_VALUE);
 
 const DRAFT_COLOR = '#facc15';
+// U2-005: 2D line markers on 3D sections
+const LINE_MARKER_COLORS = ['#e879f9', '#22d3ee', '#facc15', '#fb923c'];
 
 // storage base URL without touching the shared client module
 const storageBase = () => supabase.storage.from('seismic')
@@ -618,6 +630,70 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     return g;
   }, [horizons]);
 
+  // ---- U2-006: Dix layer times and published layer-cake boundaries ------
+  // the draft layer cake's boundary times at the survey centre (where the
+  // stacking velocities fill the layer velocities)
+  const [layerTimesMs, setLayerTimesMs] = useState([]);
+  useEffect(() => {
+    let live = true;
+    const ids = velLayers.slice(0, -1).map((l) => l.baseHorizonId);
+    if (!geom || !manifest || velMode !== 'layercake' || ids.some((id) => !id)) { setLayerTimesMs([]); return undefined; }
+    (async () => {
+      try {
+        const cell = Math.floor(geom.nIl / 2) * geom.nXl + Math.floor(geom.nXl / 2);
+        const dtMs = manifest.geometry.dt_us / 1000;
+        const out = [];
+        for (const id of ids) {
+          // eslint-disable-next-line no-await-in-loop
+          const g = await loadGridById(id);
+          const v = g[cell];
+          out.push(v === NULL_F32 ? null : v * dtMs);
+        }
+        if (live) setLayerTimesMs(out.some((v) => v == null) ? [] : out);
+      } catch { if (live) setLayerTimesMs([]); }
+    })();
+    return () => { live = false; };
+  }, [velLayers, velMode, geom, manifest, loadGridById]);
+
+  const [boundariesBusy, setBoundariesBusy] = useState(false);
+  /** Publish each layer boundary of the saved layer cake as a TWT surface
+   *  (Make surface), so Mapping and Pore Pressure read the layer cake. */
+  const publishVelocityBoundaries = async () => {
+    if (!velocityModel || velocityModel.kind !== 'layercake' || !volume || !manifest) return;
+    setBoundariesBusy(true);
+    try {
+      const { listSurfaces } = await import('@/lib/surfacesRegistry');
+      const { boundarySurfaceFor } = await import('@/lib/velocityModels');
+      const { makeSurfaceFromHorizon } = await import('../services/makeSurface');
+      const rows = await listSurfaces();
+      const done = [];
+      const already = [];
+      const missing = [];
+      for (const l of velocityModel.layers.slice(0, -1)) {
+        const h = horizons.find((x) => x.id === l.baseHorizonId);
+        if (!h) { missing.push(l.baseHorizonId || 'no horizon chosen'); continue; }
+        if (boundarySurfaceFor(rows, h.id)) { already.push(h.name); continue; }
+        // eslint-disable-next-line no-await-in-loop
+        await makeSurfaceFromHorizon({ volume, manifest, horizon: h, domain: 'twt' });
+        done.push(h.name);
+      }
+      toast({
+        title: missing.length ? 'Some boundaries were not published' : 'Layer-cake boundaries published',
+        description: [
+          done.length ? `Published as TWT surfaces: ${done.join(', ')}.` : null,
+          already.length ? `Already in the registry: ${already.join(', ')}.` : null,
+          missing.length ? `Not found: ${missing.join(', ')}; save the layer cake with every boundary horizon first.` : null,
+          'Mapping and Pore Pressure now read this layer cake.',
+        ].filter(Boolean).join(' '),
+        variant: missing.length ? 'destructive' : undefined,
+      });
+    } catch (e) {
+      toast({ title: 'Publish failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setBoundariesBusy(false);
+    }
+  };
+
   /** Apply a calibrated model (WellTiePanel's explicit Save — the only
    *  path that rewrites the model outside the editor). The calibration
    *  provenance persists alongside (velocity_calibration) so depth
@@ -984,6 +1060,10 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     flattenHorizonId,
     terminations,
     sliceVis,
+    // U2-017: the co-render overlay rides in the session
+    overlay: captureOverlay({
+      volumeId: overlayVolumeId, colormap: overlayColormap, opacity: overlayOpacity, blend: overlayBlend,
+    }),
     local: captureLocal(window.localStorage),
   });
 
@@ -1022,6 +1102,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
       setWiggleMode(d.wiggle ?? d.wiggleMode);
     }
     if (typeof d.reverseCmap === 'boolean') setReverseCmap(d.reverseCmap);
+    pendingOverlayRef.current = payload?.overlay ? { forVolume: payload.volume_id, overlay: payload.overlay } : null;
     if (payload?.volume_id) await restoreBookmark(payload);
     else pendingRestoreRef.current = null;
   };
@@ -1293,6 +1374,12 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     return sourceRef.current.getSlice({ orientation: o, index: idx, prefetch: false });
   }, [volume]);   // eslint-disable-line react-hooks/exhaustive-deps
 
+  // U2-017: the 3D window co-renders the overlay volume on its planes
+  const getCubeOverlaySlice = useCallback((o, idx) => {
+    if (!sourceBRef.current) return Promise.reject(new Error('No co-render volume.'));
+    return sourceBRef.current.getSlice({ orientation: o, index: idx, prefetch: false });
+  }, [overlayInfo]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   // ---- W2.4 co-render overlay ------------------------------------------
 
   /** Same-lattice candidates for the overlay picker, judged from the
@@ -1333,6 +1420,27 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
       setOverlayVolumeId(null);
     }
   }, [volumes, manifest, toast]);
+
+  // U2-017: a session's co-render overlay, applied once its volume's
+  // manifest and the same-lattice candidates are in
+  const pendingOverlayRef = useRef(null);
+  useEffect(() => {
+    const pending = pendingOverlayRef.current;
+    if (!pending || !manifest || !volume || volume.id !== pending.forVolume) return;
+    pendingOverlayRef.current = null;
+    const plan = overlayRestorePlan(pending.overlay, overlayCandidates, SEISMIC_COLORMAPS.map((c) => c.key));
+    if (!plan) return;
+    if (plan.problem) {
+      toast({ title: 'Co-render not restored', description: plan.problem });
+      return;
+    }
+    (async () => {
+      await selectOverlayVolume(plan.select);
+      if (plan.colormap) setOverlayColormap(plan.colormap);
+      setOverlayOpacity(plan.opacity);
+      setOverlayBlend(plan.blend);
+    })();
+  }, [manifest, volume, overlayCandidates, selectOverlayVolume, toast]);
 
   // Assemble the overlay's matching slice AFTER the primary lands (the
   // overlay lags one beat on scrub by design); errors degrade to a toast
@@ -1891,22 +1999,89 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     }
   };
 
-  const onDeleteFault = async (f) => {
-    // eslint-disable-next-line no-alert
-    if (!window.confirm(`Delete fault "${f.name}"? (Undo restores it)`)) return false;
+  // U2-007: every visible fault's polygon against every visible horizon
+  // as GeoJSON (WGS 84 longitude and latitude when the CRS converts)
+  const onExportFaultPolygonsGeoJson = async (f) => {
+    try {
+      if (!manifest || !affine || !geom) throw new Error('The volume has no usable survey coordinates.');
+      const items = [];
+      for (const h of horizons) {
+        const picks = gridCacheRef.current?.get?.(h.id) || await loadHorizonGrid(h).catch(() => null);
+        if (!picks) continue;
+        const x = faultHorizonIntersection(f, picks, geom);
+        if (x) items.push({ faultName: f.name, horizonName: h.name, intersection: x });
+      }
+      if (!items.length) {
+        toast({ title: 'No polygons', description: `"${f.name}" needs at least two sticks crossing a horizon.` });
+        return;
+      }
+      let lonLat = null;
+      if (volume?.crs && isTransformableTag(volume.crs)) {
+        try { const pr = projectorFor(volume.crs); lonLat = (x, y) => pr.toLonLat(x, y); } catch { lonLat = null; }
+      }
+      const { geojson, count, skipped } = faultPolygonsGeoJson({
+        items, affine, dtMs: manifest.geometry.dt_us / 1000, crsName: volume?.crs ? crsDisplayName(volume.crs) : null, toLonLat: lonLat,
+      });
+      const safe = f.name.replace(/[^\w-]+/g, '_').toLowerCase();
+      downloadText(JSON.stringify(geojson, null, 1), `${safe}_polygons.geojson`, 'Fault polygons exported',
+        `${count} polygon(s) ${lonLat ? 'in WGS 84 longitude and latitude' : `in ${volume?.crs ? crsDisplayName(volume.crs) : 'the survey CRS (not set)'}`}${skipped.length ? `; no polygon for ${skipped.join(', ')}` : ''}.`);
+    } catch (e) {
+      toast({ title: 'Export failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  // ---- U2-017 fault version chain (W4.3 columns, no schema change) ------
+  const [faultVersions, setFaultVersions] = useState([]);
+  const reloadFaultVersions = useCallback(async (vid) => {
+    try { setFaultVersions(vid ? await listFaultVersions(vid) : []); } catch { setFaultVersions([]); }
+  }, []);
+  useEffect(() => { reloadFaultVersions(volume && !volume.local ? volume.id : null); }, [volume, reloadFaultVersions]);
+  const faultChain = useCallback((head) => faultChainOf(head, faultVersions), [faultVersions]);
+
+  /** Snapshot the fault's current sticks as a new head version. */
+  const onNewFaultVersion = async (f, restoreFrom = null) => {
     setFaultBusyId(f.id);
     try {
-      await deleteFault(f);
+      const head = await saveFaultVersion({
+        fault: f,
+        sticks: restoreFrom ? restoreFrom.sticks : null,
+        params: restoreFrom ? { restored_from_version: restoreFrom.version } : { versioned_from: f.id },
+      });
+      setVisibleFaultIds((sv) => { const n = new Set(sv); if (n.delete(f.id)) n.add(head.id); return n; });
+      setFaults(await listFaults(volume.id));
+      await reloadFaultVersions(volume.id);
+      toast({
+        title: restoreFrom ? 'Fault version restored' : 'New fault version',
+        description: restoreFrom
+          ? `${f.name} v${head.version} now carries the v${restoreFrom.version} sticks.`
+          : `${f.name} is now v${head.version}; v${f.version || 1} moved to History.`,
+      });
+    } catch (e) {
+      toast({ title: 'Version failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setFaultBusyId(null);
+    }
+  };
+
+  const onDeleteFault = async (f) => {
+    const chain = faultChain(f);
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`Delete fault "${f.name}"${chain.length ? ` and its ${chain.length} archived version(s)` : ''}? (Undo restores the head)`)) return false;
+    setFaultBusyId(f.id);
+    try {
+      await deleteFault(f, chain);
       setVisibleFaultIds((s) => { const n = new Set(s); n.delete(f.id); return n; });
       setFaults(await listFaults(volume.id));
+      if (chain.length) await reloadFaultVersions(volume.id);
       // delete-with-restore: the row carries its sticks + params, so a
-      // full re-create is possible (under a new id, tracked in the box)
+      // full re-create is possible, under its own id (U2-017) so sessions,
+      // links and exports that name it still find it
       const box = { row: f };
       undoStack.push({
         label: `delete fault "${f.name}"`,
         undo: async () => {
           box.row = await saveFault({
-            volumeId: volume.id, name: f.name, sticks: f.sticks, params: f.params,
+            volumeId: volume.id, name: f.name, sticks: f.sticks, params: f.params, id: f.id,
           });
           setFaults(await listFaults(volume.id));
           setVisibleFaultIds((s) => new Set([...s, box.row.id]));
@@ -1990,6 +2165,118 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     applyOp(cells, vals);
     commitStroke();
     toast({ title: '2D autotrack', description: `${tracked} traces tracked along this line.` });
+  };
+
+  // ---- U2-010 guided two-point tracking and the confidence filter -------
+  const [guideA, setGuideA] = useState(null);   // {orientation, index, trace, sample}
+  const [confThreshold, setConfThreshold] = useState(0.8);
+
+  /** Guided track: the first press keeps the seed as point A; the second,
+   *  with a new seed on the same line, tracks A to it (one undoable op). */
+  const guidedTrack = async () => {
+    if (!seedPick || !slice || !geom || orientation === 'time' || orientation === 'traverse') return;
+    const onLine = orientation === 'inline' ? seedPick.ilIdx === sliceIndex : seedPick.xlIdx === sliceIndex;
+    if (!onLine) {
+      toast({ title: 'Seed is not on this line', description: 'Pick the guide points on the displayed section.' });
+      return;
+    }
+    const pt = {
+      orientation, index: sliceIndex, trace: orientation === 'inline' ? seedPick.xlIdx : seedPick.ilIdx, sample: seedPick.sample,
+    };
+    if (!guideA || guideA.orientation !== orientation || guideA.index !== sliceIndex || guideA.trace === pt.trace) {
+      setGuideA(pt);
+      toast({ title: 'Guide point A set', description: 'Pick point B on the same event of this line, then press Guided again.' });
+      return;
+    }
+    const s = editRef.current || await openSession(editTarget);
+    if (!s) return;
+    try {
+      const mode = snapMode === 'trough' ? 'trough' : 'peak';
+      const { picks, tracked } = guidedTrack2D(slice, guideA, pt, { mode, maxStep: 2 });
+      const cells = [];
+      const vals = [];
+      for (let tr = 0; tr < picks.length; tr++) {
+        if (picks[tr] === NULL_F32) continue;
+        cells.push(orientation === 'inline' ? sliceIndex * geom.nXl + tr : tr * geom.nXl + sliceIndex);
+        vals.push(picks[tr]);
+      }
+      applyOp(cells, vals);
+      commitStroke();
+      setGuideA(null);
+      toast({ title: 'Guided track', description: `${tracked} traces between the two points (${mode}).` });
+    } catch (e) {
+      toast({ title: 'Guided track failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  /** Reject the target horizon's picks below the confidence threshold
+   *  (an undoable edit), or reject and repick: grow again from the kept
+   *  picks with the threshold as the correlation limit (updates the row). */
+  const rejectLowConfidence = async (repick = false) => {
+    if (editTarget === 'new' || !geom || !manifest) return;
+    const h = horizons.find((x) => x.id === editTarget);
+    if (!h) return;
+    try {
+      const conf = await loadHorizonConfidence(h).catch(() => null);
+      if (!conf) {
+        toast({ title: 'No confidence layer', description: `${h.name} was not tracked by correlation, so its picks carry no confidence.` });
+        return;
+      }
+      const session = editRef.current && editRef.current.targetId === h.id ? editRef.current : null;
+      if (repick && session?.history.dirty) {
+        toast({ title: 'Unsaved edits', description: 'Save or discard the edits on this horizon before repicking.' });
+        return;
+      }
+      const grid = session ? session.grid : (gridCacheRef.current.get(h.id) || await loadHorizonGrid(h));
+      const f = confidenceFilter(grid, conf, confThreshold);
+      if (!f.rejected.length) {
+        toast({ title: 'Nothing below the threshold', description: `Every scored pick of ${h.name} is at or above ${confThreshold.toFixed(2)}${f.unscored ? ` (${f.unscored} picks carry no confidence and are kept)` : ''}.` });
+        return;
+      }
+      if (!repick) {
+        const s = session || await openSession(h.id);
+        if (!s) return;
+        applyOp(f.rejected, f.rejected.map(() => NULL_VALUE));
+        commitStroke();
+        toast({ title: 'Low-confidence picks rejected', description: `${f.rejected.length} picks below ${confThreshold.toFixed(2)} removed from ${h.name}; ${f.kept} kept${f.unscored ? `, ${f.unscored} without a confidence` : ''}. Save to keep it.` });
+        return;
+      }
+      const { picks, confidence } = await runTracker({
+        seed: null,
+        extraOpts: {
+          mode: 'ncc', corrHalf: 8, corrSearch: snapWindow, maxJump: 4, corrThreshold: confThreshold, initialPicks: f.picks,
+        },
+      });
+      let back = 0;
+      for (const c of f.rejected) if (picks[c] !== NULL_F32) back += 1;
+      const row = await updateHorizon({
+        horizon: h,
+        picks,
+        dtUs: manifest.geometry.dt_us,
+        params: { ...h.params, source: 'repick', repick_threshold: confThreshold },
+        confidence,
+      });
+      cacheGrid(gridCacheRef.current, h.id, picks);
+      await reloadHorizons(volume);
+      pushRewriteUndo({
+        label: `repick horizon "${h.name}"`,
+        id: h.id,
+        before: grid,
+        after: picks,
+        prevParams: h.params,
+        prevConfidence: conf,
+        nextConfidence: confidence,
+        vol: volume,
+        dtUs: manifest.geometry.dt_us,
+      });
+      toast({ title: 'Rejected and repicked', description: `${h.name}: ${f.rejected.length} picks below ${confThreshold.toFixed(2)} rejected, ${back} repicked at or above it, ${f.rejected.length - back} left empty; ${row.stats.tracked} traces.` });
+    } catch (e) {
+      if (!/cancelled/i.test(e.message)) {
+        toast({ title: 'Confidence filter failed', description: e.message, variant: 'destructive' });
+      }
+    } finally {
+      setTracking(null);
+    }
   };
 
   /** Map window region erase (rectangle or polygon outline, already
@@ -2572,6 +2859,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
       // capture the pick grid BEFORE the blob goes away, so undo can
       // re-create the horizon in full (new id, tracked in the box)
       const grid = gridCacheRef.current.get(h.id) || await loadHorizonGrid(h);
+      const conf = await loadHorizonConfidence(h).catch(() => null);
       await deleteHorizon(h, chain);
       chain.forEach((v) => {
         gridCacheRef.current.delete(v.id);
@@ -2587,8 +2875,9 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
       undoStack.push({
         label: `delete horizon "${h.name}"`,
         undo: async () => {
+          // U2-017: under its own id, with its tracking confidence
           box.row = await saveHorizon({
-            volume, name: h.name, picks: grid, seed: h.seed, params: h.params, dtUs,
+            volume, name: h.name, picks: grid, seed: h.seed, params: h.params, dtUs, id: h.id, confidence: conf,
           });
           await reloadHorizons(volume);
         },
@@ -2947,6 +3236,39 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
   }, [colormap, gain, polarity, clipRms, traceBalance, manifest, scaleMode,
     pctClip, manualClip, reverseCmap, wiggleMode, agcOn, agcWindowMs, fallbackRms]);
 
+  // U2-007: fault polygons for the 3D window, visible faults x visible
+  // horizons (the W3.1 cutoff polygons the map draws)
+  const faultPolygons3d = useMemo(() => {
+    if (!geom) return [];
+    const out = [];
+    for (const f of faults) {
+      if (!visibleFaultIds.has(f.id)) continue;
+      for (const h of resolvedHorizons) {
+        if (h.id === '__draft' || h.dash || !h.grid) continue;
+        const x = faultHorizonIntersection(f, h.grid, geom);
+        if (!x) continue;
+        const lines = polygonLoopLines(x, geom);
+        if (lines.length) out.push({ id: `${f.id}-${h.id}`, color: faultColorById[f.id] || '#f97316', lines });
+      }
+    }
+    return out;
+  }, [faults, visibleFaultIds, resolvedHorizons, geom, faultColorById]);
+
+  // U2-005: visible 2D lines on the lattice, and where they cross the
+  // displayed inline or crossline
+  const lineLattices = useMemo(() => {
+    if (!geom || !affine) return [];
+    return lines2d
+      .filter((l) => visibleLineIds.has(l.id) && lineNavs.has(l.id))
+      .map((l, idx) => ({
+        id: l.id, name: l.name, color: LINE_MARKER_COLORS[idx % LINE_MARKER_COLORS.length], positions: lineToLattice(lineNavs.get(l.id), affine, geom).positions,
+      }));
+  }, [lines2d, visibleLineIds, lineNavs, geom, affine]);
+  const lineMarkers = useMemo(
+    () => lineMarkersOnSection(lineLattices, orientation, sliceIndex),
+    [lineLattices, orientation, sliceIndex],
+  );
+
   const overlays = useMemo(() => ({
     horizons: resolvedHorizons,
     surfaces: sectionSurfaces,
@@ -2958,6 +3280,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
           sticks: f.sticks,
           color: faultColorById[f.id],
           id: f.id,
+          name: f.name,
           lineWidth: d.lineWidth,
           opacity: d.opacity,
         };
@@ -2968,7 +3291,8 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     seedPick,
     wells: wellSections,
     terminations,
-  }), [resolvedHorizons, sectionSurfaces, faults, visibleFaultIds, draftSticks, seedPick,
+    lineMarkers,
+  }), [lineMarkers, resolvedHorizons, sectionSurfaces, faults, visibleFaultIds, draftSticks, seedPick,
     wellSections, terminations, faultDisplayFor, faultColorById, pickMode, faultEditor.selected]);
 
   // ST5: per-trace flatten offsets for the displayed section (inline,
@@ -2993,18 +3317,21 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
   // exactly "per slice keyed on velocityKey" from the plan. Overlays
   // convert through the SAME converter closure; wells plot native TVD.
   const [sectionDomain, setSectionDomain] = useState('twt');
-  // SL0: depth display unit for sections, the map and the cursor; the
-  // account's Geoscience depth unit is the default until chosen here
-  const [depthUnitChoice, setDepthUnitChoice] = useState(() => {
-    try { const u = localStorage.getItem('seismolord.depthUnit.v1'); return u === 'ft' || u === 'm' ? u : null; } catch { return null; }
-  });
+  // Depth display unit for sections, the map and the cursor (Suite unit
+  // profile, 2026-10-01): it starts from the profile; the Home tab toggle
+  // changes this view for the session only, and the older per-browser
+  // choice (seismolord.depthUnit.v1) no longer beats the profile (removed
+  // once). Without a profile provider the account's Geoscience depth
+  // unit stands in, as before.
   const [accountDepthUnit, setAccountDepthUnit] = useState(null);
   useEffect(() => {
     let live = true;
     getAccountDepthUnit().then((u) => { if (live && (u === 'm' || u === 'ft')) setAccountDepthUnit(u); }).catch(() => {});
     return () => { live = false; };
   }, []);
-  const depthUnit = depthUnitChoice || accountDepthUnit || 'm';
+  const unitsHook = useAppUnits(SEISMOLORD_UNIT_APP, SEISMOLORD_UNITS,
+    { fallback: { depth: accountDepthUnit || 'm' }, legacyKeys: [...SEISMOLORD_LEGACY_UNIT_KEYS] });
+  const depthUnit = unitsHook.units.depth || 'm';
 
   // SEIS-U1-011/013: what a picture of the section says about itself
   const sectionLine = useMemo(
@@ -3022,10 +3349,8 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     crsName: volume?.crs ? crsDisplayName(volume.crs) : null,
     build: buildLabel(),
   }), [volume, depthUnit, velocityForDisplay, display]);
-  const setDepthUnit = useCallback((u) => {
-    setDepthUnitChoice(u);
-    try { localStorage.setItem('seismolord.depthUnit.v1', u); } catch { /* private mode */ }
-  }, []);
+  const setUnitView = unitsHook.setUnit;
+  const setDepthUnit = useCallback((u) => setUnitView('depth', u), [setUnitView]);
   const isDepthSection = sectionDomain === 'depth'
     && (orientation === 'inline' || orientation === 'xline');
 
@@ -3458,6 +3783,10 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     exportFaultSticks: onExportFaultSticks,
     exportFaultSurface: onExportFaultSurface,
     exportFaultPolygon: onExportFaultPolygon,
+    exportFaultPolygonsGeoJson: onExportFaultPolygonsGeoJson,
+    newFaultVersion: (f) => onNewFaultVersion(f),
+    restoreFaultVersion: (head, v) => onNewFaultVersion(head, v),
+    faultChainOf: faultChain,
     toggleWell: wellsApi.toggle,
     deleteWell: wellsApi.remove,
     openTraverse: (t) => handleTraverse(t.vertices, t.id),
@@ -3536,6 +3865,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
               flattenInfo={flatten}
               depthUnit={depthUnit}
               setDepthUnit={setDepthUnit}
+              unitNote={<UnitProfileNote u={unitsHook} className="max-w-[16rem]" />}
               depthReady={Boolean(depthConv)}
               orientation={orientation}
               setOrientation={setOrientation}
@@ -3887,6 +4217,11 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                     seedPick,
                     tracking,
                     track2D,
+                    guidedTrack,
+                    guideA,
+                    confThreshold,
+                    setConfThreshold,
+                    rejectLowConfidence,
                     trackHorizon,
                     growHorizon,
                     cancelTracking,
@@ -4015,6 +4350,8 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                   manifest={manifest}
                   getBrick={getBrick}
                   getSlice={getCubeSlice}
+                  getOverlaySlice={overlayInfo ? getCubeOverlaySlice : null}
+                  overlayDisplay={overlayDisplay}
                   indices={indices}
                   onChangeIndex={changeIndex}
                   steps={player.steps}
@@ -4025,6 +4362,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                   vexag={vexag}
                   horizons={resolvedHorizons}
                   faults={overlays.faults}
+                  faultPolygons={faultPolygons3d}
                   wells={wellSections}
                   depthConv={depthConv}
                   depthUnit={depthUnit}
@@ -4364,6 +4702,9 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
             geom={geom}
             loadGridById={loadGridById}
             applyCalibratedModel={applyCalibratedModel}
+            layerTimesMs={layerTimesMs}
+            publishBoundaries={volume?.local ? null : publishVelocityBoundaries}
+            boundariesBusy={boundariesBusy}
           />
         )}
       </VelocityModelDialog>

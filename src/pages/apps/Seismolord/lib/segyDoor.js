@@ -15,8 +15,13 @@
 //    common on field tapes and some exports) takes the trace headers'
 //    value (bytes 115 and 117), said as a warning;
 //  - the binary and trace headers disagreeing on either value, both
-//    intervals unset, a byte-swapped (little-endian) file and a sample
-//    format other than IBM or IEEE float are refused with the reason.
+//    intervals unset, and a sample format the engines do not decode are
+//    refused with the reason;
+//  - U2-009: a byte-swapped (little-endian) file or one in an integer or
+//    8-byte float sample format is presented to the readers as the
+//    classic big-endian IEEE float layout, transcoded trace by trace on
+//    read (engines segyTranscode, validated against segyio). The file is
+//    never changed; the scan says what was read.
 //
 // Pure apart from the reader; jest-tested on the hostile set in
 // e2e/fixtures/seis/hostile/.
@@ -62,11 +67,17 @@ export const COORD_UNITS = Object.freeze({
   4: 'degrees, minutes, seconds (DMS)',
 });
 
-const SUPPORTED_FORMATS = new Set([1, 5]);
+import { SAMPLE_BYTES } from '../engine/segyDecode';
+import {
+  detectByteOrder, binaryHeaderToIeeeBe, transcodeTraces,
+} from '../engine/segyTranscode';
+
+/** Formats the readers take as they are (classic layout, 4-byte samples). */
+const NATIVE_FORMATS = new Set([1, 5]);
 const DEPTH_WORDS = /\b(DEPTH|PSDM|PRE-?STACK DEPTH|DEPTH[- ]MIGRAT\w*|Z UNIT|TVDSS)\b/i;
 const TIME_WORDS = /\b(PSTM|TIME[- ]MIGRAT\w*|TWT|TWO[- ]WAY TIME|MILLISECONDS?|\bMS\b)\b/i;
 
-const i16 = (dv, pos, le) => dv.getInt16(pos, le);
+const i16 = (dv, pos, le = false) => dv.getInt16(pos, le);
 const i32 = (dv, pos, le) => dv.getInt32(pos, le);
 
 /** Does the textual header say the volume is in depth? A HINT, never a decision. */
@@ -128,33 +139,35 @@ export async function inspectSegy(reader) {
       + 'and binary headers alone are 3,600 bytes).', 'too-small');
   }
   const bin = new DataView(await reader.read(TEXT, BIN));
-  const fmtBe = i16(bin, 24, false);
-  const fmtLe = i16(bin, 24, true);
-  const orderBe = bin.getUint32(96, false);
-  const littleEndian = orderBe === 0x04030201
-    || (!SAMPLE_FORMATS[fmtBe] && Boolean(SAMPLE_FORMATS[fmtLe]));
-  if (littleEndian) {
-    throw new SegyDoorRefusal('This SEG-Y is byte-swapped (little-endian): its binary header reads '
-      + `format code ${fmtLe} only when the bytes are reversed. Seismolord reads the standard `
-      + 'big-endian layout. Export the volume again as big-endian SEG-Y (the default in Petrel, '
-      + 'Kingdom, OpendTect and segyio) and import that file.', 'little-endian');
-  }
-  const formatCode = fmtBe;
-  if (!SUPPORTED_FORMATS.has(formatCode)) {
+  const le = detectByteOrder(bin, SAMPLE_FORMATS) === 'little';
+  const formatCode = i16(bin, 24, le);
+  const sampleBytes = SAMPLE_BYTES[formatCode] || null;
+  if (!sampleBytes) {
     const what = SAMPLE_FORMATS[formatCode];
     throw new SegyDoorRefusal(`The samples are ${what ? `${what} (format code ${formatCode})` : `in an `
-      + `unknown format (code ${formatCode})`}. Seismolord imports IBM floating point (code 1) and `
-      + 'IEEE floating point (code 5). Export the volume again as 32-bit float SEG-Y.', 'format');
+      + `unknown format (code ${formatCode})`}. Seismolord imports IBM and IEEE floating point (codes 1, `
+      + '5 and 6) and two\'s complement or unsigned integers of 1, 2 or 4 bytes (codes 2, 3, 8, 10, 11, 16). '
+      + 'Export the volume again in one of those formats.', 'format');
   }
-  const revision = new Uint8Array(bin.buffer, bin.byteOffset + 300, 1)[0];
-  const binDtUs = i16(bin, 16, false);
-  const binNs = i16(bin, 20, false);
+  const transcode = le || !NATIVE_FORMATS.has(formatCode);
+  // rev 1 holds the revision as a 2-byte word, rev 2 as two single bytes:
+  // in a byte-swapped rev 1 file the major number sits in the second byte
+  const revBytes = new Uint8Array(bin.buffer, bin.byteOffset + 300, 2);
+  const revision = le && revBytes[0] === 0 ? revBytes[1] : revBytes[0];
+  const binDtUs = i16(bin, 16, le);
+  const binNs = i16(bin, 20, le);
   const warnings = [];
+  if (transcode) {
+    warnings.push(`${le ? 'Byte-swapped (little-endian) SEG-Y' : 'SEG-Y'} with ${SAMPLE_FORMATS[formatCode]} samples `
+      + `(format code ${formatCode}): read as it is and converted to 32-bit float on import; the file is not changed.`
+      + (formatCode !== 1 && formatCode !== 5 && formatCode !== 6
+        ? ' Integer samples are taken at their plain value (no trace weighting factor), as segyio reads them.' : ''));
+  }
 
   // Extended textual headers: honoured only in rev 1 and 2 files (the
   // bytes are unassigned in rev 0 and hold junk in the wild).
   let extTextHeaders = 0;
-  const extWord = i16(bin, 304, false);
+  const extWord = i16(bin, 304, le);
   if (revision === 1 || revision === 2) {
     if (extWord > 0 && extWord <= MAX_EXT && HEAD + extWord * EXT_BLOCK < reader.size) {
       extTextHeaders = extWord;
@@ -186,13 +199,13 @@ export async function inspectSegy(reader) {
   if (!th) {
     throw new SegyDoorRefusal('No traces found in file.', 'no-traces');
   }
-  const traceNs = i16(th, 114, false);
-  const traceDtUs = i16(th, 116, false);
+  const traceNs = i16(th, 114, le);
+  const traceDtUs = i16(th, 116, le);
 
   // samples per trace
   let ns = binNs;
   let nsPatched = false;
-  const bytesPerSample = 4;
+  const bytesPerSample = sampleBytes;
   const fits = (n) => n > 0 && (reader.size - dataStart) % (TRACE_HEADER + n * bytesPerSample) === 0;
   if (binNs > 0 && traceNs > 0 && binNs !== traceNs) {
     const which = fits(traceNs) && !fits(binNs) ? ` The file size fits ${traceNs} samples per trace.`
@@ -235,13 +248,13 @@ export async function inspectSegy(reader) {
     }
   }
 
-  const coordUnits = i16(th, 88, false);
+  const coordUnits = i16(th, 88, le);
   if (coordUnits === 3 || coordUnits === 4) {
     warnings.push(`The trace headers declare coordinates in ${COORD_UNITS[coordUnits]} (byte 89 = `
       + `${coordUnits}). Declare a geographic CRS for this file, or check the preview X and Y before `
       + 'choosing a projected one.');
   }
-  const zeroCoordinates = [180, 184, 72, 76].every((p) => i32(th, p, false) === 0);
+  const zeroCoordinates = [180, 184, 72, 76].every((p) => i32(th, p, le) === 0);
   if (zeroCoordinates) {
     warnings.push('The first trace carries no coordinates (CDP and source X/Y are zero). If the '
       + 'whole file has none, declare it Local (engineering grid): maps, wells and surfaces '
@@ -249,7 +262,9 @@ export async function inspectSegy(reader) {
   }
 
   return {
-    byteOrder: 'big',
+    byteOrder: le ? 'little' : 'big',
+    sampleBytes,
+    transcode,
     revision,
     extTextHeaders,
     dataStart,
@@ -274,6 +289,7 @@ export async function inspectSegy(reader) {
  * followed directly by the traces.
  */
 export function doorReader(reader, door) {
+  if (door.transcode) return transcodingReader(reader, door);
   const shift = door.dataStart - HEAD;
   if (!shift && !door.patches.ns && !door.patches.dt) return reader;
   let headPromise = null;
@@ -303,6 +319,63 @@ export function doorReader(reader, door) {
       const out = new Uint8Array(length);
       out.set(new Uint8Array(h, offset, HEAD - offset), 0);
       out.set(new Uint8Array(await reader.read(HEAD + shift, offset + length - HEAD)), HEAD - offset);
+      return out.buffer;
+    },
+  };
+}
+
+/**
+ * U2-009: the file presented as big-endian headers and IEEE float samples
+ * (4 bytes each), whatever its byte order and sample format: the textual
+ * header as is, the binary header swapped and set to format 5 (with the
+ * door's sample count and interval), each trace transcoded on read.
+ */
+export function transcodingReader(reader, door) {
+  const srcTrace = TRACE_HEADER + door.ns * door.sampleBytes;
+  const dstTrace = TRACE_HEADER + door.ns * 4;
+  const nTraces = Math.floor((reader.size - door.dataStart) / srcTrace);
+  const size = HEAD + nTraces * dstTrace;
+  let headPromise = null;
+  const head = () => {
+    if (!headPromise) {
+      headPromise = Promise.all([reader.read(0, TEXT), reader.read(TEXT, BIN)]).then(([text, bin]) => {
+        const out = new Uint8Array(HEAD);
+        out.set(new Uint8Array(text), 0);
+        const be = new Uint8Array(binaryHeaderToIeeeBe(bin, door.byteOrder === 'little'));
+        out.set(be, TEXT);
+        const dv = new DataView(out.buffer);
+        dv.setInt16(TEXT + 16, door.dtUs, false);
+        dv.setInt16(TEXT + 20, door.ns, false);
+        dv.setInt16(TEXT + 304, 0, false);
+        return out.buffer;
+      });
+    }
+    return headPromise;
+  };
+  return {
+    size,
+    transcoded: true,
+    async read(offset, length) {
+      if (offset < 0 || offset + length > size) throw new Error(`Read out of range: ${offset}+${length} of ${size}`);
+      const out = new Uint8Array(length);
+      let filled = 0;
+      if (offset < HEAD) {
+        const h = new Uint8Array(await head());
+        const n = Math.min(HEAD - offset, length);
+        out.set(h.subarray(offset, offset + n), 0);
+        filled = n;
+      }
+      if (filled < length) {
+        const start = offset + filled - HEAD;            // within the trace area
+        const t0 = Math.floor(start / dstTrace);
+        const t1 = Math.floor((offset + length - 1 - HEAD) / dstTrace);
+        const src = await reader.read(door.dataStart + t0 * srcTrace, (t1 - t0 + 1) * srcTrace);
+        const conv = new Uint8Array(transcodeTraces(src, {
+          ns: door.ns, formatCode: door.formatCode, littleEndian: door.byteOrder === 'little',
+        }));
+        const from = start - t0 * dstTrace;
+        out.set(conv.subarray(from, from + (length - filled)), filled);
+      }
       return out.buffer;
     },
   };

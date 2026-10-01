@@ -28,6 +28,10 @@ the owner-only RLS guard). No DDL, no engines change. Tests: backend
 jest (share/unshare/owner-only) + e2e share-toggle steps on the
 harness; full run 194 suites / 2468 green, build green.
 
+## 2026-10-01: Seismolord layer cakes (Seismolord U2-006)
+
+Time to depth reads a Seismolord layer cake: LAYER_CAKE_HOOK is wired to `src/lib/velocityModels.js`, which resolves each boundary to the time surface Seismolord published (Publish boundaries) and names any that is missing. Velocity models are listed from the volume row first (W0.2), so models saved since then appear.
+
 ## Phase status
 
 | Phase | Status | Landed |

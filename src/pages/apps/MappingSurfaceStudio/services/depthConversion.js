@@ -14,16 +14,16 @@
 //    the horizon (m/s), resampled onto the time surface; depth = V t.
 //    A map whose values are not plausible m/s (feet per second, interval
 //    velocity in km/s) is refused with the reason.
-// 3. Layer cake (hook): convertWithLayerCake runs Seismolord's own
+// 3. Layer cake: convertWithLayerCake runs Seismolord's own
 //    layercakeDepthM node by node once the model's layer boundaries are
-//    time grids on the horizon's frame. Resolving a Seismolord layer-cake
-//    model to those boundary grids is Seismolord U2-006's published
-//    contract, not yet on main (2026-09-30): LAYER_CAKE_HOOK names the one
-//    place that wires it, and until then the picker says so.
+//    time grids on the horizon's frame. Seismolord U2-006 publishes the
+//    boundaries as registry TWT surfaces (src/lib/velocityModels);
+//    LAYER_CAKE_HOOK puts them on the horizon's frame.
 // Pure.
 
 import { twtMsToDepthM, layercakeDepthM, normalizeVelocity } from '@/pages/apps/Seismolord/engine/velocityModel';
 import { resampleTo, isNull } from '@/lib/gridding/gridmath';
+import { boundariesOnSpec } from '@/lib/velocityModels';
 import { NULL_VALUE } from '@/lib/gridding/numeric';
 
 const goldenMin = (f, lo, hi, iters = 80) => {
@@ -118,16 +118,25 @@ export function convertWithLayerCake({ twtMs, model, boundaryTwtMs }) {
 }
 
 /**
- * THE LAYER-CAKE HOOK. Seismolord U2-006 publishes layer-cake velocity
- * models with their boundary horizons; when its contract is on main this
- * resolves a model row to boundary time grids on `spec` and returns them
- * for convertWithLayerCake. Until then it returns the reason, which the
- * time-to-depth picker shows.
+ * THE LAYER-CAKE HOOK, wired by Seismolord U2-006 (2026-10-01): a layer
+ * cake's boundaries reach the registry as the TWT surfaces Seismolord
+ * publishes from its boundary horizons (Publish boundaries in its velocity
+ * dialog). The caller resolves them (src/lib/velocityModels
+ * resolveLayerCake, which names any boundary that is not published) and
+ * passes them here with the time surface's frame; the hook resamples them
+ * onto it for convertWithLayerCake. Without resolved boundaries it says
+ * what is needed.
+ * @param {Object} [entry] the picker row (velocityEntryFor)
+ * @param {{resolved?: {ok: boolean, reason?: string, boundaries?: Array}, spec?: Object}} [ctx]
  * @returns {{ok:false, reason:string}|{ok:true, boundaryTwtMs:Array}}
  */
-export function LAYER_CAKE_HOOK(/* entry, { surfaces, spec } */) {
+export function LAYER_CAKE_HOOK(entry, { resolved = null, spec = null } = {}) {
+  if (resolved && !resolved.ok) return { ok: false, reason: resolved.reason };
+  if (resolved && resolved.ok && spec) {
+    return { ok: true, boundaryTwtMs: boundariesOnSpec(resolved, spec) };
+  }
   return {
     ok: false,
-    reason: 'A layer-cake model converts in Seismolord for now: Mapping reads it once Seismolord publishes each layer boundary as a time surface (Seismolord upgrade U2-006). Use V0 + kZ fitted to the tops, a velocity map, or average velocity from the wells here.',
+    reason: `A layer cake converts here from its layer boundaries published as time surfaces by Seismolord${entry?.name ? ` (${entry.name})` : ''}: press Convert to read them.`,
   };
 }

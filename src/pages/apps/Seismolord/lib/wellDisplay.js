@@ -66,6 +66,8 @@ export function buildWellSections({
     }
     sections.push({
       id: w.id, name: w.name, color: w.color, source: timeConv.source, ...built,
+      // U2-017: published pay zones (Petrophysics) on the well track
+      pay: payIntervals(w.zones),
     });
   }
   return { sections, skipped };
@@ -109,4 +111,38 @@ export function wellSectionMarks(well, orientation, index, maxDist = DEFAULT_COR
     if (at && at[0] && at[0].s != null) tops.push({ name: tp.name, trace: at[0].trace, s: at[0].s });
   }
   return { path, tops };
+}
+
+// ---- U2-017: pay zones on the well track ------------------------------------
+// Petrophysics Studio publishes zone summaries to the well registry
+// (geo_wells_zones, properties.published_at with net_m, ntg, phi_avg,
+// sw_avg). A zone with published net pay is drawn as a thick band along
+// the well path on sections; an unpublished zone is not pay evidence and
+// is left out.
+
+/** Published zones with net pay above zero, in MD (m). */
+export function payIntervals(zones) {
+  const out = [];
+  for (const z of zones || []) {
+    const p = z?.properties || {};
+    const top = Number(z?.top_md_m);
+    const base = Number(z?.base_md_m);
+    const net = Number(p.net_m);
+    if (!p.published_at || !(net > 0) || !Number.isFinite(top) || !Number.isFinite(base) || !(base > top)) continue;
+    out.push({
+      name: z.name, top, base, net, ntg: Number.isFinite(Number(p.ntg)) ? Number(p.ntg) : null,
+    });
+  }
+  return out.sort((a, b) => a.top - b.top);
+}
+
+/** Per path point: inside a pay interval (by MD)? */
+export function payMask(points, intervals) {
+  const m = new Uint8Array((points || []).length);
+  if (!intervals || !intervals.length) return m;
+  (points || []).forEach((q, i) => {
+    const md = Number(q?.md);
+    if (Number.isFinite(md) && intervals.some((iv) => md >= iv.top && md <= iv.base)) m[i] = 1;
+  });
+  return m;
 }

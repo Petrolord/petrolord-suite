@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { listWells, saveWell, deleteWell } from '../services/wellsService';
+import { listZones } from '@/lib/wellsRegistry';
 import { computeWellPath, verticalWellPath } from '../engine/wellPath';
 import { wellColor } from '../components/workspace/interpretationColors';
 
@@ -43,6 +44,17 @@ export default function useWells() {
 
   useEffect(() => { reload(); }, [reload]);
 
+  // U2-017: published zones of the visible wells (pay on the well track)
+  const [zonesById, setZonesById] = useState(new Map());
+  useEffect(() => {
+    let live = true;
+    const missing = [...visibleIds].filter((id) => !zonesById.has(id));
+    if (!missing.length) return undefined;
+    Promise.all(missing.map(async (id) => [id, await listZones(id).catch(() => [])]))
+      .then((pairs) => { if (live) setZonesById((m) => { const n = new Map(m); for (const [id, z] of pairs) n.set(id, z); return n; }); });
+    return () => { live = false; };
+  }, [visibleIds]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // visible wells with computed paths for the viewer windows
   const visible = useMemo(() => wells
     .map((w, idx) => ({ row: w, idx }))
@@ -65,7 +77,8 @@ export default function useWells() {
       checkshots_derived: row.checkshots_derived || null,
       deviation: row.deviation || [],
       path: wellWorldPath(row),
-    })), [wells, visibleIds]);
+      zones: zonesById.get(row.id) || [],
+    })), [wells, visibleIds, zonesById]);
 
   /** WellImport's onSave: persist, make visible, refresh the list. */
   const save = useCallback(async (draft) => {

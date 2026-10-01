@@ -13,7 +13,7 @@ describe('SeismolordHelpGuide', () => {
     renderGuide();
     expect(screen.getByRole('heading', { level: 1, name: /Seismolord Help Guide/ })).toBeInTheDocument();
     for (const { id } of HELP_SECTIONS) expect(document.getElementById(`section-${id}`)).not.toBeNull();
-    expect(HELP_SECTIONS.length).toBe(16);
+    expect(HELP_SECTIONS.length).toBe(17);
   });
 
   test('names the launchers, the depth unit and the sign convention', () => {
@@ -48,6 +48,18 @@ describe('SeismolordHelpGuide', () => {
       'Spectral decomposition', 'Relative acoustic impedance', 'suitable colormap', 'Dip azimuth (grid north)']) {
       expect(text).toContain(f);
     }
+  });
+
+  test('U2-018: the glossary terms a graduate needs and the first-project walkthrough', () => {
+    const { container } = renderGuide();
+    const text = container.textContent;
+    for (const f of ['SEG normal polarity', 'an increase in acoustic impedance downward is a peak', 'Two-way time', 'True vertical depth subsea',
+      'Interval velocity', 'RMS velocity', 'Dix equation', 'Your first project, step by step', 'Read the header before you import',
+      'Tie a well first', 'Plot it for the review', 'Guided (2 points)', 'Reject + repick', 'Extract from the well', 'Stored: Tie QC',
+      'Apply phase and amplitude', 'Fault polygons (GeoJSON)', 'Seismic backdrop', 'Faults from Seismolord', 'Map with contours and wells']) {
+      expect(text).toContain(f);
+    }
+    expect(document.getElementById('section-first-project')).not.toBeNull();
   });
 
   test('copy carries no em dashes (owner rule)', () => {

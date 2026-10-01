@@ -307,8 +307,9 @@ describe('MAP-U2-008: more depth-conversion methods (V0 + kZ fitted to tops, vel
     // negative control: without the boundary the second layer's velocity is never used
     expect(Math.abs(z[1] + twtMsToDepthM(1500, { v0: 1700, k: 0.4 }))).toBeGreaterThan(20);
     expect(() => dc.convertWithLayerCake({ twtMs: twt, model, boundaryTwtMs: [] })).toThrow(/needs 1 boundary time grid/);
+    // Seismolord U2-006 wired the hook: without resolved boundaries it says what is needed
     const hook = dc.LAYER_CAKE_HOOK();
     expect(hook.ok).toBe(false);
-    expect(hook.reason).toMatch(/Seismolord upgrade U2-006/);
+    expect(hook.reason).toMatch(/published as time surfaces by Seismolord/);
   });
 });

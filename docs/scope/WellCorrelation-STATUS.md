@@ -11,6 +11,10 @@ Production note: **RESOLVED 2026-07-14** — prod is current (source zip
 from main `e84f8a181` uploaded to Hostinger); tile route and legacy
 redirect are live on petrolord.com.
 
+## 2026-10-01: seismic backdrop (Seismolord U2-002, WC-U2-017)
+
+The section's dock has a Seismic backdrop: choose a Seismolord volume and, on a structural TWT section, the volume is read along the line through the section wells (read only) and drawn between the columns, each well on its own trace. Flattened, stretched and depth sections say why it is hidden. The choice is saved with the section (track_layout). Code: `src/components/wells/section/seismicBackdrop.js`, `useSeismicBackdrop.js`; Seismolord `services/sectionBackdrop.js`.
+
 ## Phase status
 
 | Phase | Status | Landed |

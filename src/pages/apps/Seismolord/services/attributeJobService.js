@@ -136,7 +136,7 @@ export async function computeAttributeVolume({
       status: 'ingesting',
       kind: 'attribute',
       parent_volume_id: parent.id,
-      attribute_params: { name: attribute.name, params: attribute.params ?? {} },
+      attribute_params: { name: attribute.name, params: attribute.params ?? {}, ...(attribute.north ? { north: attribute.north } : {}) },
       crs: parent.crs,
       survey_meta: {},
     })

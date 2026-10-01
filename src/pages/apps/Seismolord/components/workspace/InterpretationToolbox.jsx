@@ -255,6 +255,51 @@ export default function InterpretationToolbox({
             title="Grow the target horizon outward from all its picks"
           />
         </div>
+        {/* U2-010: guided two-point tracking and the confidence filter */}
+        {hz.guidedTrack && (
+          <div className="grid grid-cols-1 gap-1 mt-1">
+            <ToolButton
+              icon={Spline}
+              label={hz.guideA ? 'Guided: to seed' : 'Guided (2 points)'}
+              onClick={hz.guidedTrack}
+              disabled={!hz.seedPick || !hasSection}
+              title={hz.guideA
+                ? `Track from point A (trace ${hz.guideA.trace}) to the current seed along this line`
+                : 'Keep the seed as point A; pick point B on the same event, then press again'}
+            />
+          </div>
+        )}
+        {hz.rejectLowConfidence && (
+          <div className="mt-1.5" data-testid="sl-conf-filter">
+            <Field label="Confidence">
+              <select
+                className={selectCls}
+                value={String(hz.confThreshold)}
+                onChange={(e) => hz.setConfThreshold(Number(e.target.value))}
+                disabled={!hz.hasVolume}
+                aria-label="Confidence threshold"
+              >
+                {[0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95].map((t) => <option key={t} value={String(t)}>{`below ${t.toFixed(2)}`}</option>)}
+              </select>
+            </Field>
+            <div className="grid grid-cols-2 gap-1 mt-1">
+              <ToolButton
+                icon={Eraser}
+                label="Reject"
+                onClick={() => hz.rejectLowConfidence(false)}
+                disabled={!hz.hasVolume || hz.editTarget === 'new' || hz.tracking !== null}
+                title="Remove the target horizon's picks whose tracking confidence is below the threshold (undoable edit)"
+              />
+              <ToolButton
+                icon={Sprout}
+                label="Reject + repick"
+                onClick={() => hz.rejectLowConfidence(true)}
+                disabled={!hz.hasVolume || hz.editTarget === 'new' || hz.tracking !== null}
+                title="Reject below the threshold, then grow again from the kept picks with the threshold as the correlation limit"
+              />
+            </div>
+          </div>
+        )}
         {hz.tracking && (
           <p className="mt-1 flex items-center text-[11px] text-pl-text">
             <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />

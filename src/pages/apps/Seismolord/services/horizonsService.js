@@ -37,11 +37,14 @@ const interpreterName = (user) => user?.user_metadata?.full_name
  * @param {Object} p.params tracker options used (mode, window, maxJump, …)
  * @param {number} p.dtUs volume sample interval, for TWT stats
  */
-export async function saveHorizon({ volume, name, picks, seed, params, dtUs, confidence = null }) {
+export async function saveHorizon({
+  volume, name, picks, seed, params, dtUs, confidence = null, id = null,
+}) {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) throw new Error('You must be signed in to save horizons.');
 
-  const horizonId = crypto.randomUUID();
+  // U2-017: an undo of a delete restores the horizon under its own id
+  const horizonId = id || crypto.randomUUID();
   // W4.1: on an org-shared volume that is not mine, my interpretation
   // blobs live under MY uid with the same volume id at path segment 2 —
   // storage writes stay owner-path-only, the org SELECT policy matches

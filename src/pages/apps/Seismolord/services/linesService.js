@@ -6,6 +6,8 @@
 // transforms — a polyline has no lattice, so there is no affine
 // subtlety, and the native declaration is preserved on the row).
 
+import { applyCharacter } from '../lib/mistieCharacter';
+import { linePicksToControl } from '../lib/lines2dControl';
 import { supabase } from '@/lib/customSupabaseClient';
 import { SEISMIC_BUCKET, assertQuota } from './seismicStorage';
 import { myOrgId } from './surfacesService';
@@ -82,6 +84,51 @@ export async function deleteLine(line) {
   }
   const { error } = await supabase.from('seismic_lines').delete().eq('id', line.id);
   if (error) throw new Error(`Could not delete line record: ${error.message}`);
+}
+
+/**
+ * Display-side phase and amplitude correction (U2-014), kept in the row's
+ * survey_meta jsonb (no schema change): {rotation_deg, amp_scale,
+ * horizon, applied_at}. Stored samples untouched.
+ */
+export async function setLineCharacter(line, character) {
+  const meta = { ...(line.survey_meta || {}), mistie_character: { ...character, applied_at: new Date().toISOString() } };
+  const { data, error } = await supabase.from('seismic_lines')
+    .update({ survey_meta: meta, updated_at: new Date().toISOString() })
+    .eq('id', line.id)
+    .select().single();
+  if (error) throw new Error(`Could not store the phase and amplitude correction: ${error.message}`);
+  return data;
+}
+
+/**
+ * U2-005: every ready line's picks named like a horizon, as gridding
+ * control for the 3D volume (mistie-corrected, in the volume's samples).
+ * @param {{name: string, dtMs3d: number, lines?: Array, step?: number}} p
+ * @returns {Promise<{control: {x, y, sample}[], lines: string[], picks: number}>}
+ */
+export async function loadLineControl({
+  name, dtMs3d, lines = null, step = 2,
+}) {
+  const rows = lines || await listLines();
+  const control = [];
+  const used = [];
+  let total = 0;
+  for (const l of rows) {
+    if ((l.status || 'ready') !== 'ready') continue;
+    const sets = await listLinePicks(l.id).catch(() => []);
+    const p = sets.find((q) => String(q.name).trim().toLowerCase() === String(name).trim().toLowerCase());
+    if (!p) continue;
+    const [picks, nav, manifest] = await Promise.all([loadLinePicks(p), loadLineNav(l), getLineManifest(l)]);
+    const r = linePicksToControl({
+      picks, nav, dtMs2d: manifest.geometry.dt_us / 1000, dtMs3d, shiftMs: l.bulk_shift_ms || 0, step,
+    });
+    if (!r.points.length) continue;
+    control.push(...r.points);
+    used.push(l.name);
+    total += r.live;
+  }
+  return { control, lines: used, picks: total };
 }
 
 /** Display-side mistie static (stored samples untouched). */
@@ -313,7 +360,7 @@ export function shiftPickGrid(picks, shiftSamples) {
  * (see shiftPickGrid).
  */
 export async function loadLineSection(line, manifest, {
-  supabaseUrl, getToken, applyShift = true,
+  supabaseUrl, getToken, applyShift = true, applyCorrection = true,
 } = {}) {
   const geom2d = geomFromLineManifest(manifest);
   const cache = new BrickCache(
@@ -339,7 +386,10 @@ export async function loadLineSection(line, manifest, {
     }
     section.data = rolled;
   }
-  return { ...section, shiftSamples, dtMs };
+  // U2-014: the line's phase and amplitude correction, display side
+  const character = applyCorrection ? line.survey_meta?.mistie_character || null : null;
+  const out = character ? applyCharacter(section, character) : section;
+  return { ...out, shiftSamples, dtMs, character };
 }
 
 // ---- picks ----------------------------------------------------------------

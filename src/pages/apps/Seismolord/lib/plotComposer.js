@@ -17,8 +17,11 @@ export const PAPER_SIZES = {
 export const MARGIN_MM = 12;
 export const TITLE_BLOCK_MM = 26;
 
-/** Paper layout: outer frame, image box, and title block strip. */
-export function paperLayout(paperKey, orientation = 'landscape') {
+/**
+ * Paper layout: outer frame, image box, and title block strip. With
+ * legendMm (U2-001), a legend column on the right of the image box.
+ */
+export function paperLayout(paperKey, orientation = 'landscape', { legendMm = 0 } = {}) {
   const p = PAPER_SIZES[paperKey];
   if (!p) throw new Error(`Unknown paper size: ${paperKey}`);
   const wMm = orientation === 'landscape' ? Math.max(p.w, p.h) : Math.min(p.w, p.h);
@@ -26,13 +29,17 @@ export function paperLayout(paperKey, orientation = 'landscape') {
   const frame = {
     x: MARGIN_MM, y: MARGIN_MM, w: wMm - 2 * MARGIN_MM, h: hMm - 2 * MARGIN_MM,
   };
+  const legendW = legendMm > 0 ? Math.min(legendMm, frame.w / 3) : 0;
   return {
     wMm,
     hMm,
     frame,
     imageBox: {
-      x: frame.x, y: frame.y, w: frame.w, h: frame.h - TITLE_BLOCK_MM,
+      x: frame.x, y: frame.y, w: frame.w - legendW, h: frame.h - TITLE_BLOCK_MM,
     },
+    legendBox: legendW > 0 ? {
+      x: frame.x + frame.w - legendW, y: frame.y, w: legendW, h: frame.h - TITLE_BLOCK_MM,
+    } : null,
     titleBlock: {
       x: frame.x, y: frame.y + frame.h - TITLE_BLOCK_MM, w: frame.w, h: TITLE_BLOCK_MM,
     },
@@ -106,10 +113,13 @@ export function plotScaleBar(scale, maxMm = 60) {
 
 /** Title-block rows (label/value pairs) — one place for the copy. */
 export function titleBlockRows({
-  title, volumeName, crsName, scaleText, author, dateStr, extra = [],
+  title, volumeName, crsName, scaleText, author, dateStr, company = '', analyst = '', extra = [],
 }) {
   return [
     ['Title', title || volumeName || 'Seismic plot'],
+    // U2-001: the company and analyst a reviewer signs against
+    ['Company', company || ''],
+    ['Analyst', analyst || ''],
     ['Volume', volumeName || ''],
     ['CRS', crsName || 'not set'],
     ['Scale', scaleText],

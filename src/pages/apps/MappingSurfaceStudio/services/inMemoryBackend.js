@@ -7,6 +7,8 @@
 // registry convention); the user grids and publishes the rest. Same
 // interface as registryBackend.
 
+import { velocityEntryFor } from '@/lib/velocityModels';
+
 let seq = 0;
 const nid = (p) => { seq += 1; return `${p}-${seq}`; };
 
@@ -119,6 +121,23 @@ export function makeInMemoryBackend({ sidetrack = false, scaleWells = 0, seed = 
     storage_path: `user-other/${sharedId}/grid.f32`,
     created_at: new Date(2026, 0, 10).toISOString(),
   });
+
+  // Seismolord U2-006 (seed.layerCakeBoundary): the layer cake's boundary
+  // horizon h1 published by Seismolord as a TWT surface (dipping east)
+  if (seed?.layerCakeBoundary) {
+    const bId = nid('surf');
+    const b = new Float32Array(twtSpec.nx * twtSpec.ny);
+    for (let r = 0; r < twtSpec.ny; r++) for (let c = 0; c < twtSpec.nx; c++) b[r * twtSpec.nx + c] = 1300 + 0.05 * c * twtSpec.dx / 10;
+    gridStore.set(bId, b);
+    surfaces.push({
+      id: bId, user_id: 'user-dev', organization_id: null, is_own: true,
+      name: 'Base layer 1 (TWT ms)', kind: 'structure',
+      origin_x: twtSpec.x0, origin_y: twtSpec.y0, nx: twtSpec.nx, ny: twtSpec.ny, dx: twtSpec.dx, dy: twtSpec.dy,
+      z_domain: 'time', z_unit: 'ms', provenance: { app: 'seismolord', horizon: { id: 'h1', name: 'Base layer 1' }, domain: 'twt_ms', z_sign: 'positive_twt' },
+      storage_path: `user-dev/${bId}/grid.f32`,
+      created_at: new Date(2026, 0, 13).toISOString(),
+    });
+  }
 
   // MAP-U1 PL5: rows saved by earlier releases, with their grids
   for (const s of seed?.surfaces || []) {
@@ -266,10 +285,11 @@ export function makeInMemoryBackend({ sidetrack = false, scaleWells = 0, seed = 
     canImportCulture: false,
     // MS3 time-to-depth: a linear model and a layer cake (refused)
     async listVelocityModels() {
+      // the shared reader's entry shape (Seismolord U2-006)
       return [
-        { id: 'vol-dev', name: 'KETA 3D (v0 2000, k 0.3)', kind: 'linear', velocity: { v0: 2000, k: 0.3 } },
-        { id: 'vol-lc', name: 'KETA 3D layer cake', kind: 'layercake', velocity: { type: 'layercake', layers: [{ v0: 1800, k: 0.2, base_horizon_id: 'h1' }, { v0: 2400, k: 0.1 }] } },
-      ];
+        { id: 'vol-dev', name: 'KETA 3D (v0 2000, k 0.3)', velocity: { v0: 2000, k: 0.3 } },
+        { id: 'vol-lc', name: 'KETA 3D layer cake', velocity: { type: 'layercake', layers: [{ v0: 1800, k: 0.2, base_horizon_id: 'h1' }, { v0: 2400, k: 0.1 }] } },
+      ].map((row) => velocityEntryFor({ id: row.id, name: row.name, velocity_model: row.velocity }, null));
     },
   };
 }

@@ -20,7 +20,7 @@ const nextId = (p) => { seq += 1; return `${p}-${seq}`; };
 
 export const WELL = goldens.well;
 
-export function makeInMemoryBackend() {
+export function makeInMemoryBackend({ layerCake = false } = {}) {
   const wellId = nextId('well');
   const curveStore = new Map();
   const logs = [];
@@ -105,6 +105,14 @@ export function makeInMemoryBackend() {
     calibration: { wells: 1, rms_ms: 2.1 },
   }];
 
+  const LAYER_CAKE = {
+    id: 'vol-lc',
+    name: 'DEMO 3D layer cake',
+    kind: 'layercake',
+    velocity: { type: 'layercake', layers: [{ v0: 1800, k: 0, base_horizon_id: 'h1' }, { v0: 2600, k: 0.3 }] },
+    calibration: null,
+  };
+
   return {
     async listWells() { return [...wells]; },
     async listLogs(id) { return id === wellId ? [...logs] : []; },
@@ -113,7 +121,15 @@ export function makeInMemoryBackend() {
       if (!data) throw new Error(`No curve data for ${log.mnemonic}.`);
       return data;
     },
-    async listVelocityModels() { return [...VELOCITY_MODELS]; },
+    async listVelocityModels() {
+      // Seismolord U2-006 (?layercake=1): a two-layer cake whose boundary is
+      // published at 1,000 ms TWT under the demo well
+      return layerCake ? [...VELOCITY_MODELS, LAYER_CAKE] : [...VELOCITY_MODELS];
+    },
+    async layerCakeBoundariesAt(model, well) {
+      if (model.id !== LAYER_CAKE.id) throw new Error('Unknown velocity model.');
+      return { boundaryTwtMs: [1000], names: ['Base layer 1 (TWT ms)'], note: null, crsStatus: 'same', well: well.name };
+    },
     // PP0: the account's Geoscience depth unit (the Mapping setting);
     // the fixture is SI so the oracle-anchored readout stays in metres
     async getDepthUnit() { return 'm'; },
