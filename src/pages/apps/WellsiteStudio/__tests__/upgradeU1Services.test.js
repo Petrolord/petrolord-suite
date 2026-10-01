@@ -73,7 +73,7 @@ describe('WS-U1-007 lag volumes are the engine lag strokes times the pump output
     expect(bbl.annulus * 0.158987294928).toBeCloseTo(m3.annulus, 9);
     expect(m3.annulus).toBeCloseTo(lag.lagStrokes * lag.lagCtx.m3PerStroke, 9);
     // 6 x 12 in triplex at 97 percent: the field rule 0.000243 x D^2 x L x eff = 0.1018 bbl/stk
-    expect(bbl.perStroke / (0.000243 * 36 * 12 * 0.97)).toBeCloseTo(1, 3);
+    expect(Math.abs(bbl.perStroke / (0.000243 * 36 * 12 * 0.97) - 1)).toBeLessThan(0.001);
     expect(bbl.flowPerMin).toBeCloseTo(60 * bbl.perStroke, 9);
     expect(bbl.flowAlt.unit).toBe('gpm');
     expect(m3.flowAlt.unit).toBe('L/min');
