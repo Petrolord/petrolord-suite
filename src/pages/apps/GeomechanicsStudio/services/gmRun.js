@@ -36,13 +36,14 @@ export function assembleBaseProfile({ source = {}, logs = null, published = null
   const mode = source.ppSource || 'hydrostatic';
   if (mode === 'published') {
     if (!published?.tvdM?.length || !published.ppPa || !published.obgPa) {
-      throw new Error('No published pp-1.0.0 PP/OBG curves found for this well.');
+      throw new Error('No published pp-1.x PP/OBG curves (Pore Pressure Studio) found for this well.');
     }
     return {
       tvdM: published.tvdM,
       svPa: published.obgPa,
       ppPa: published.ppPa,
-      provenance: 'published pp-1.0.0 curves',
+      ...(published.dtAligned ? { dtAligned: published.dtAligned } : {}),
+      provenance: 'published Pore Pressure Studio curves',
     };
   }
   if (!logs?.depthM?.length || !logs.dtUsPerM) {

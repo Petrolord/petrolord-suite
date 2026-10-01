@@ -6,12 +6,13 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  ComposedChart, Line, Scatter, XAxis, YAxis, CartesianGrid, Tooltip,
+  ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer,
 } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS } from '@/utils/chartTheme';
 import { fitNct } from '../engine/nct';
+import { thinIndices } from '../services/thin';
 import {
   depthToDisplay, depthFromDisplay, slownessToDisplay, slownessUnit, compactionToDisplay, compactionUnit,
 } from '../services/units';
@@ -25,8 +26,8 @@ export default function NctPanel({ input, profile, params, picks, onPicksChange,
   // chart rows in the display units (picks and the trend stay SI)
   const data = useMemo(() => {
     if (!input) return [];
-    const rows = input.zBmlM.map((z, i) => ({
-      z: depthToDisplay(z, zU),
+    const rows = thinIndices(input.zBmlM.length).map((i) => ({
+      z: depthToDisplay(input.zBmlM[i], zU),
       dt: slownessToDisplay(input.dtUsPerM[i], zU),
       dtn: profile ? slownessToDisplay(profile.dtNormalUsPerM[i], zU) : undefined,
     }));
@@ -124,7 +125,10 @@ export default function NctPanel({ input, profile, params, picks, onPicksChange,
             <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
             <Line dataKey="dt" name="Sonic" stroke="#456990" dot={false} strokeWidth={1.5} connectNulls isAnimationActive={false} />
             <Line dataKey="dtn" name="Normal trend" stroke="#2a9d8f" dot={false} strokeWidth={1.5} strokeDasharray="6 3" connectNulls isAnimationActive={false} />
-            <Scatter dataKey="pick" name="Shale picks" fill="#e76f51" isAnimationActive={false} />
+            {/* PP-U1-014: a Scatter does not plot in a vertical-layout chart (T1-002);
+                a dot-only Line does, with no legend entry until there is a pick */}
+            {picks.length > 0 && <Line dataKey="pick" name="Shale picks" stroke="none" legendType="circle"
+              dot={{ r: 4, fill: '#e76f51', stroke: '#9a3412' }} activeDot={false} isAnimationActive={false} />}
           </ComposedChart>
         </ResponsiveContainer>
         <ChartLogo />

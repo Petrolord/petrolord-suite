@@ -14,9 +14,11 @@ import { makeInMemoryBackend } from './services/inMemoryBackend';
 import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 
 export default function PorePressureStudioHarness() {
-  const backend = useMemo(() => makeInMemoryBackend({
-    layerCake: typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('layercake') === '1',
-  }), []);
+  const backend = useMemo(() => {
+    const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+    // ?saved=p3|pp0|t1|u1 opens a project as that release saved it (PL5)
+    return makeInMemoryBackend({ layerCake: q.get('layercake') === '1', saved: q.get('saved') });
+  }, []);
   return (
     <div className="h-screen w-full overflow-hidden" data-testid="pp-theme-scope">
       <PPWorkstation backend={backend} appPaths={DEV_APP_PATHS} />

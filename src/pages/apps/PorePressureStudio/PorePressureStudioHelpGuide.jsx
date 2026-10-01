@@ -72,12 +72,28 @@ export default function PorePressureStudioHelpGuide() {
         <SectionHeading icon={Database}>Wells, curves and velocity trends</SectionHeading>
         <Para>
           Wells and curves are the registry's (Well Data Manager imports the LAS files). The depth and sonic curves are
-          required; the sonic may be in us/m or us/ft and the density in g/cc or kg/m3, both converted on load. Depths
-          are taken below the mudline: the dock's mudline MD says where the mudline sits on the well's measured depth.
+          required; the sonic may be in us/m or us/ft and the density in g/cc or kg/m3, both converted on load, and a
+          vendor null written as -999 is a gap. When a unit is missing or unknown the app reads the values for what
+          they must be (a density near 2400 is kg/m3, a sonic near 100 is us/ft) and the status line says so.
+        </Para>
+        <SubHeading>Depth reference</SubHeading>
+        <Para>
+          The registry depth is MD below the rotary table. The engine works below the mudline: depth below mudline is
+          the TVD minus the mudline. A well with a deviation survey is computed at its TVD from the survey; without
+          one it is vertical. Offshore, set the mudline MD to the air gap plus the water depth: with the mudline MD
+          shallower than the water depth the log MD would be read as depth below mudline, so the app says so under the
+          ribbon and holds Publish until it is set.
+        </Para>
+        <SubHeading>What the prognosis rests on</SubHeading>
+        <Para>
+          The line under the ribbon states the datum, TVD from the survey, samples left out, the share of the
+          overburden from the density log, whether the NCT was fitted on this well, and the calibration: the misfit
+          of the measured points against the pore pressure and where the prognosis runs deeper than the deepest point.
         </Para>
         <SubHeading>Seismic velocity trends</SubHeading>
         <Para>
-          A velocity model calibrated in Seismolord (a v0 plus k times depth trend) can drive a prognosis without a well.
+          A velocity model calibrated in Seismolord (a v0 plus k times depth trend, or a layer cake read at the well
+          selected first) can drive a prognosis without a well; the trend runs to that well's TD, or 6,000 m below the mudline.
           The result is trend-grade and badged as such: it constrains the regional trend and carries no local
           overpressure anomaly. Publish is unavailable for a trend because there is no well to write to.
         </Para>
@@ -124,8 +140,8 @@ export default function PorePressureStudioHelpGuide() {
         <Para>
           The fracture pressure is the minimum horizontal stress from Poisson's ratio: the pore pressure plus the
           effective overburden scaled by nu over one minus nu. The dock's calibration points (a depth and a pressure
-          per line, in the display units) are drawn on the prognosis as dots for comparison; they do not change the
-          computation.
+          per line, in the display units) are drawn on the prognosis as dots and compared with the pore pressure (the
+          misfit is stated under the ribbon and in the report); they do not change the computation.
         </Para>
       </GuideSection>
 
@@ -141,11 +157,15 @@ export default function PorePressureStudioHelpGuide() {
       <GuideSection id="deliver">
         <SectionHeading icon={UploadCloud}>Publishing, the CSV and saving</SectionHeading>
         <Para>
-          Publish writes PP, FP and OBG to the well in the registry in MPa with the method, parameters and input curves
-          in the provenance; publishing again from the same project replaces those three curves and leaves other apps'
+          Publish writes PP, FP and OBG to the well in the registry in MPa on the well's own MD (a sonic gap stays a
+          gap) with the method, parameters, input curves and depth reference in the provenance; publishing again from the same project replaces those three curves and leaves other apps'
           curves alone. This is the contract the Drilling mechanical earth model reads. Prognosis CSV downloads the
           profile in the chosen units with EMW columns in ppg and sg and the datum in the header, the table a well plan
-          needs. Save keeps the parameters, picks and calibration as your project.
+          needs, with the reviewer block in its header. PDF downloads the report a reviewer signs: well, field, analyst
+          (typed under Report in the dock), date, build, units, datum, method, NCT status, calibration, the drilling
+          window and the table with EMW in ppg. Save keeps the parameters, picks and calibration as your project and
+          reopens the well next time. Well Design Studio's mud window reads the published curves in ppg or g/cc EMW
+          against its own trajectory TVD.
         </Para>
       </GuideSection>
 
@@ -165,6 +185,8 @@ export default function PorePressureStudioHelpGuide() {
         <Para>Pore pressure needs a depth and a sonic curve. Import the LAS with DT in Well Data Manager.</Para>
         <SubHeading>The EMW looks too low near the top</SubHeading>
         <Para>Check the datum: with the mudline MD at zero the reference is sea level, so shallow samples carry the whole water column in their depth. Set the mudline MD to reference the rotary table.</Para>
+        <SubHeading>Publish is held</SubHeading>
+        <Para>The well is offshore and the mudline MD is not set: type the air gap plus the water depth as the mudline MD and press Apply.</Para>
         <SubHeading>Fit NCT refuses</SubHeading>
         <Para>It needs at least two picks at different depths with transit times above the matrix value.</Para>
         <SubHeading>The numbers differ from Petrel or Drillworks</SubHeading>

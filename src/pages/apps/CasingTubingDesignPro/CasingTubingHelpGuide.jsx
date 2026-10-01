@@ -153,7 +153,7 @@ const CasingTubingHelpGuide = () => {
               <Step n={2} title="Set the environment">
                 On the Well & Loads tab enter mud, cement and packer fluid densities, the
                 surface temperature and gradient, and the pore/frac EMWs at the shoe.
-                If published pp-1.0.0 curves exist for this wellbore, press Sync.
+                If published pp-1.0.0 or pp-1.1.0 curves exist for this wellbore, press Sync.
               </Step>
               <Step n={3} title="Check the load cases">
                 The seeded canonical cases cover gas kick, pressure test, full evacuation,

@@ -4,6 +4,22 @@
 // conversions live HERE, at the UI edge (lasImport precedent) — the
 // engine only ever sees SI.
 
+import { normalizeInputCurve } from '../../../../components/wells/curveUnits';
+import { makeDepthFrame } from '../../../../../packages/engines/engines/welldata/checkshots';
+
+/**
+ * The well's depth frame (deviation survey + KB) for MD -> TVD, or null
+ * when the well has no survey (vertical: MD = TVD). PP-U1-002.
+ */
+export function wellDepthFrame(well) {
+  const dev = Array.isArray(well?.deviation) ? well.deviation : [];
+  if (dev.length < 2) return null;
+  try {
+    const frame = makeDepthFrame({ deviation: dev, kbM: well.kb_m ?? 0, tdMdM: well.td_md_m ?? null });
+    return frame.isVertical ? null : frame;
+  } catch { return null; }
+}
+
 // engine inputs <- registry mnemonics (base name, ':n' duplicate
 // suffixes ignored; first match wins — the PetroWorkstation pattern)
 export const CURVE_ALIASES = {
@@ -42,29 +58,109 @@ export function densityToKgM3(value, unit) {
   return value * 1000.0; // G/C3, G/CC, GM/CC — the LAS-world default
 }
 
+// ---- input curves (PP-U1-004, hostile file set) -------------------------------
+// The registry keeps curves as imported. A vendor null the file did not
+// declare (-999.25 written as -999), a density in kg/m3 with no unit or an
+// unknown spelling, or a sonic in us/ft under an unknown spelling reached
+// the engine as data: one -999 sample threw the whole well, and RHOB 2400
+// read as g/cc became 2,400,000 kg/m3 (overburden 1000x). The Petrophysics
+// normaliser (curveUnits.js, the unit family table shared with Rock
+// Physics) decides and says what it did; pore pressure adds one rule of its
+// own: a sonic with no known unit whose median is below 160 can only be
+// us/ft (no rock is that fast in us/m).
+
+/** Below this median a unit-less sonic is read as us/ft. */
+export const DT_US_PER_FT_MEDIAN_MAX = 160;
+
+function median(values) {
+  const xs = [];
+  for (const v of values || []) if (Number.isFinite(v)) xs.push(v);
+  if (!xs.length) return NaN;
+  xs.sort((a, b) => a - b);
+  return xs[Math.floor((xs.length - 1) / 2)];
+}
+
 /**
- * Registry curves -> computeProfile input. Depth is converted to
- * metres below mudline by subtracting mudlineMdM (v1 vertical-well
- * convention: MD below the datum, mudline at a user-set MD). Samples
- * above the mudline are dropped; DT gaps (null/NaN) are dropped WITH
- * their depth (the engine is strict); RHOB gaps stay null per sample
- * (the engine's Gardner fallback records provenance).
+ * Raw registry samples -> SI-ready curves, with a sentence per decision.
+ * @param {{depth: ArrayLike<number>, dt: ArrayLike<number>, rho?: ?ArrayLike<number>,
+ *   dtLog?: {mnemonic?: string, unit?: string}, rhoLog?: ?{mnemonic?: string, unit?: string}}} raw
+ * @returns {{depth: number[], dt: number[], rho: ?number[], units: {DT: string, RHOB: ?string}, notes: string[]}}
+ *   dt in us/m, rho in g/cc (or null), nulls as NaN
  */
-export function buildProfileInput({ depth, dt, rho }, units, { mudlineMdM = 0 } = {}) {
+export function normalizePpCurves({ depth, dt, rho = null, dtLog = null, rhoLog = null }) {
+  const notes = [];
+  const d = normalizeInputCurve('DT', dtLog || { mnemonic: 'DT' }, Float64Array.from(dt, (v) => (v == null ? NaN : v)));
+  notes.push(...d.notes);
+  let dtOut = Array.from(d.data);
+  if (d.decision?.reason === 'unknown') {
+    const med = median(dtOut);
+    if (med < DT_US_PER_FT_MEDIAN_MAX) {
+      dtOut = dtOut.map((v) => (Number.isFinite(v) ? v / FT : v));
+      notes.push(`${dtLog?.mnemonic || 'DT'} has no known unit${dtLog?.unit ? ` (${dtLog.unit})` : ''} and its values sit near ${Math.round(med)}, which only us/ft can mean: converted to us/m.`);
+    } else {
+      notes.push(`${dtLog?.mnemonic || 'DT'} has no known unit${dtLog?.unit ? ` (${dtLog.unit})` : ''}; its values sit near ${Math.round(med)} and are read as us/m.`);
+    }
+  }
+  let rhoOut = null;
+  if (rho) {
+    const r = normalizeInputCurve('RHOB', rhoLog || { mnemonic: 'RHOB' }, Float64Array.from(rho, (v) => (v == null ? NaN : v)));
+    notes.push(...r.notes);
+    rhoOut = Array.from(r.data);
+  }
+  return {
+    depth: Array.from(depth),
+    dt: dtOut,
+    rho: rhoOut,
+    units: { DT: 'US/M', RHOB: rho ? 'G/C3' : null },
+    notes,
+  };
+}
+
+/**
+ * Registry curves -> computeProfile input. Depth is the registry MD below
+ * the rotary table (RKB). PP-U1-002: with a depth frame (the well's
+ * deviation survey and KB through the canonical welldata frame), each MD
+ * becomes TVD and the depth below mudline is TVD minus the mudline's TVD,
+ * so a deviated well is computed at its true vertical depth; with no
+ * frame the well is vertical (MD = TVD). Samples above the mudline are
+ * dropped; DT gaps (null/NaN) are dropped WITH their depth (the engine is
+ * strict); RHOB gaps stay null per sample (the engine's Gardner fallback
+ * records provenance); samples where the hole turns back up (TVD no
+ * longer increasing) are dropped and counted. `mdM` keeps each kept
+ * sample's MD so publishing puts every value back at its own depth
+ * (PP-U1-001).
+ */
+export function buildProfileInput({ depth, dt, rho }, units, { mudlineMdM = 0, frame = null } = {}) {
   if (!depth || !dt || depth.length !== dt.length) {
     throw new Error('Depth and sonic curves must be present and equal length.');
   }
   if (rho && rho.length !== depth.length) {
     throw new Error('Density curve length must match depth.');
   }
+  const tvdAt = (md) => (frame ? frame.mdToPosition(md).tvd : md);
+  let mudlineTvd = mudlineMdM;
+  if (frame) {
+    try { mudlineTvd = tvdAt(mudlineMdM); } catch { mudlineTvd = mudlineMdM; }
+  }
   const zBmlM = [];
+  const mdM = [];
   const dtUsPerM = [];
   const rhoKgM3 = [];
+  const dropped = { aboveMudline: 0, dtGaps: 0, upturn: 0, offSurvey: 0 };
+  let deepest = -Infinity;
   for (let i = 0; i < depth.length; i++) {
-    const z = depth[i] - mudlineMdM;
+    const md = depth[i];
+    if (!Number.isFinite(md)) { dropped.dtGaps += 1; continue; }
+    let tvd;
+    try { tvd = tvdAt(md); } catch { dropped.offSurvey += 1; continue; }
+    const z = tvd - mudlineTvd;
     const dtv = dt[i];
-    if (!(z >= 0) || dtv == null || !Number.isFinite(dtv)) continue;
+    if (!(z >= 0)) { dropped.aboveMudline += 1; continue; }
+    if (dtv == null || !Number.isFinite(dtv)) { dropped.dtGaps += 1; continue; }
+    if (z < deepest) { dropped.upturn += 1; continue; }
+    deepest = z;
     zBmlM.push(z);
+    mdM.push(md);
     dtUsPerM.push(slownessToUsPerM(dtv, units?.DT));
     const rv = rho ? rho[i] : null;
     rhoKgM3.push(rv == null || !Number.isFinite(rv) ? null : densityToKgM3(rv, units?.RHOB));
@@ -72,5 +168,7 @@ export function buildProfileInput({ depth, dt, rho }, units, { mudlineMdM = 0 } 
   if (zBmlM.length === 0) {
     throw new Error('No usable samples below the mudline.');
   }
-  return { zBmlM, dtUsPerM, rhoKgM3 };
+  return {
+    zBmlM, dtUsPerM, rhoKgM3, mdM, dropped, tvdFrom: frame && !frame.isVertical ? 'survey' : 'vertical',
+  };
 }

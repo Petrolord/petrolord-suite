@@ -7,6 +7,7 @@
 // unit); Apply converts back to the SI parameters.
 
 import React, { useEffect, useState } from 'react';
+import { parseCalibration } from '../services/honesty';
 import {
   DEFAULT_UNITS, depthToDisplay, depthFromDisplay, slownessToDisplay, slownessFromDisplay, slownessUnit,
   compactionToDisplay, compactionFromDisplay, compactionUnit, densityToDisplay, densityFromDisplay, densityUnit,
@@ -48,6 +49,8 @@ const toDraft = (params, calibration, units) => {
     bowersU: params.bowers?.U != null ? String(params.bowers.U) : '',
     bowersSigmaMax: sMax != null ? tidy(pressureToDisplay(sMax, stressUnit(pU)), pressureDigits(stressUnit(pU))) : '',
     nu: String(params.nu),
+    field: params.report?.field || '',
+    analyst: params.report?.analyst || '',
     calText: (calibration || []).map((c) => {
       const ref = emwReferenceDepthM(c.z, params);
       return `${tidy(depthToDisplay(c.z, zU), 2)}, ${tidy(pressureToDisplay(c.pMpa * 1e6, pU, ref), pressureDigits(pU))}`;
@@ -84,18 +87,18 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
       eatonN: num(d.eatonN),
       bowers,
       nu: num(d.nu),
+      report: { field: d.field.trim(), analyst: d.analyst.trim() },
     };
     // calibration lines are "depth, pressure" in the display units; an
     // EMW pressure converts at that depth below the datum
-    const cal = d.calText.split('\n').map((line) => line.trim()).filter(Boolean)
-      .map((line) => {
-        const [zd, pd] = line.split(',').map((s) => Number(s.trim()));
-        const z = depthFromDisplay(zd, zU);
-        const pa = pressureFromDisplay(pd, pU, emwReferenceDepthM(z, next));
-        return { z, pMpa: pa / 1e6 };
-      })
-      .filter((c) => Number.isFinite(c.z) && Number.isFinite(c.pMpa));
-    onApply({ params: next, calibration: cal });
+    // PP-U1-016: comma, semicolon, tab or space between the two numbers (a
+    // pasted RFT table); a line that does not read is counted and said
+    const { points: cal, skipped } = parseCalibration(d.calText, (zd, pd) => {
+      const z = depthFromDisplay(zd, zU);
+      const pa = pressureFromDisplay(pd, pU, emwReferenceDepthM(z, next));
+      return { z, pMpa: pa / 1e6 };
+    });
+    onApply({ params: next, calibration: cal, skipped });
   };
 
   return (
@@ -149,6 +152,20 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
         value={d.calText}
         onChange={(e) => set('calText')(e.target.value)}
       />
+
+      <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Report</div>
+      {[['field', 'Field'], ['analyst', 'Analyst']].map(([k, label]) => (
+        <label key={k} htmlFor={`pp-param-${k}`} className="flex items-center justify-between gap-2 text-xs text-pl-muted">
+          <span>{label}</span>
+          <input
+            id={`pp-param-${k}`}
+            data-testid={`pp-param-${k}`}
+            className="w-28 px-2 py-1 rounded bg-pl-surface border border-pl-border-strong text-pl-text"
+            value={d[k]}
+            onChange={(e) => set(k)(e.target.value)}
+          />
+        </label>
+      ))}
 
       <button
         type="button"
