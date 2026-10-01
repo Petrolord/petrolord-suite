@@ -200,3 +200,15 @@ test('U2-018: 3D surfaces coloured by porosity and a fence along the section lin
   await page.screenshot({ path: path.join(SHOTS, 'u2-018-3d-fence.png') });
   expect(errs).toEqual([]);
 });
+
+test('U2-017: the isopach layer maps and QC sets it beside the isochore', async ({ page }) => {
+  const errs = errorsOf(page);
+  await stack(page);
+  await metric(page);
+  await buildNow(page);
+  await page.getByTestId('em-map-layer').selectOption('isopach');
+  await expect(page.getByTestId('em-publish')).toBeEnabled();
+  await page.getByTestId('em-view-qc').click();
+  await expect(page.getByTestId('em-isopach-zone-1')).toContainText('mean isopach (TST)');
+  expect(errs).toEqual([]);
+});

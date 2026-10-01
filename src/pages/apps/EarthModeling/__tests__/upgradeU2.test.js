@@ -549,3 +549,30 @@ describe('U2-018: properties on the 3D surfaces and a fence section', () => {
     expect(fenceMesh(b, [[1100, 2100]], { toModel: (x, y, d) => [x, d, y] })).toBeNull();
   });
 });
+
+describe('U2-017: isopach zones (true stratigraphic thickness, Mapping\'s engine)', () => {
+  test('zone A\'s isopach is TVT cos(dip) of its planar mid-surface; the publish row is a metre attribute', async () => {
+    const f = await fixture();
+    const b = await buildModel(baseDef(f.byName), f.wells, f.surfaces, f.backend);
+    const iso = b.zones[0].isopach;
+    // TopA grad (0.05, 0.02), TopB (0.06, 0.02): the mid-surface dips atan(hypot(0.055, 0.02))
+    const cos = Math.cos(Math.atan(Math.hypot(0.055, 0.02)));
+    const S = b.specM;
+    for (let r = 1; r < S.ny - 1; r++) {
+      for (let c = 1; c < S.nx - 1; c++) {
+        const j = r * S.nx + c;
+        const tvt = b.thickness[0][j];
+        expect(Math.abs(iso.tst[j] - tvt * cos)).toBeLessThan(1e-3);
+        // negative control: the isochore is longer than the isopach by more than 4 cm here (TVT 30 to 42 m, cos 0.9984)
+        expect(tvt - iso.tst[j]).toBeGreaterThan(0.04);
+      }
+    }
+    expect(iso.maxDipDeg).toBeGreaterThan(3);
+    expect(iso.meanTstM).toBeLessThan(iso.meanTvtM);
+    const { publishPayload } = await import('../services/modelBuild');
+    const p = publishPayload(b, { layer: 'isopach', grid: iso.tst, modelName: 'M', zoneName: 'Zone A', methods: {} });
+    expect(p.kind).toBe('attribute');
+    expect(p.zUnit).toBe('m');
+    expect(p.name).toMatch(/isopach \(true stratigraphic thickness, m\)/);
+  });
+});

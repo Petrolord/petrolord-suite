@@ -25,6 +25,7 @@ import { shmSwGrid } from './shmGrid';
 import { hangingWallAtSurface } from './seismicFaultZones';
 import { ntgFromNetMap, swFromHcpvMap, isMdKey } from './propertyMaps';
 import { resampleTo } from '@/lib/gridding/gridmath';
+import { isopach } from '@/lib/gridding/isopach';
 
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
@@ -378,7 +379,9 @@ export function publishPayload(built, { layer, grid, modelName, zoneName, method
   const kind = layer === 'thickness' ? 'isochore'
     : (layer === 'top' || layer === 'base') ? 'structure' : 'attribute';
   const isVar = layer.endsWith('_var');
-  const name = `${modelName} · ${zoneName} ${isVar ? `${layer.slice(0, -4)} variance` : layer}`;
+  // U2-017: the isopach leaves as a length attribute, named so no reader takes it for an isochore
+  const isIso = layer === 'isopach';
+  const name = `${modelName} · ${zoneName} ${isIso ? 'isopach (true stratigraphic thickness, m)' : isVar ? `${layer.slice(0, -4)} variance` : layer}`;
   return {
     name,
     kind,
@@ -386,7 +389,7 @@ export function publishPayload(built, { layer, grid, modelName, zoneName, method
     crs: built.crs || null,
     xyUnit: built.xyUnit || null,
     zDomain: kind === 'attribute' ? 'attribute' : 'depth',
-    zUnit: kind === 'attribute' ? (isVar ? 'fraction^2' : 'fraction') : 'm',
+    zUnit: kind === 'attribute' ? (isIso ? 'm' : isVar ? 'fraction^2' : 'fraction') : 'm',
     provenance: {
       engine: 'earth-modeling',
       model: modelName,
@@ -727,6 +730,19 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       zone.openEdge = trap.openEdge ? { open: true, nodes: 0, spillAtEdge: true } : { open: false, nodes: 0 };
     } else {
       zone.openEdge = contactEdgeReport(specM, top, fluids, zLabels);
+    }
+    // U2-017: the zone's isopach (true stratigraphic thickness) beside its isochore,
+    // Mapping's engine (TST = TVT cos(dip), dip from the zone's mid-surface)
+    {
+      const elevTop = Float64Array.from(top, (v) => (isNull(v) ? NULL_VALUE : -v));
+      const elevBase = Float64Array.from(base, (v) => (isNull(v) ? NULL_VALUE : -v));
+      const iso = isopach(elevTop, elevBase, specM, { xyToM: 1, dipFrom: 'mid' });
+      let sTst = 0; let sTvt = 0; let nIso = 0;
+      for (let j = 0; j < iso.tst.length; j++) {
+        if (isNull(iso.tst[j]) || isNull(iso.tvt[j])) continue;
+        sTst += iso.tst[j]; sTvt += iso.tvt[j]; nIso += 1;
+      }
+      zone.isopach = { tst: iso.tst, dip: iso.dip, maxDipDeg: iso.maxDipDeg, meanTstM: nIso ? sTst / nIso : null, meanTvtM: nIso ? sTvt / nIso : null };
     }
     progress(`${zdef.name}: volumes`);
     return zone;

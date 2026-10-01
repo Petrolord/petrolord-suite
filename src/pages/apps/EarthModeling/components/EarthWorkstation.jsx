@@ -56,6 +56,7 @@ const LAYERS = [
   { key: 'top', label: 'Zone top (depth)' },
   { key: 'base', label: 'Zone base (depth)' },
   { key: 'thickness', label: 'Thickness (isochore)' },
+  { key: 'isopach', label: 'Isopach (true stratigraphic thickness)' },
   { key: 'phi', label: 'Porosity' },
   { key: 'sw', label: 'Sw' },
   { key: 'ntg', label: 'NTG' },
@@ -299,14 +300,15 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     if (layer === 'top') return built.clamped[zoneIdx] || null;
     if (layer === 'base') return built.clamped[zoneIdx + 1] || null;
     if (layer === 'thickness') return built.thickness[zoneIdx] || null;
+    if (layer === 'isopach') return built.zones[zoneIdx]?.isopach?.tst || null;
     if (layer.endsWith('_var')) return built.zones[zoneIdx]?.variance?.[layer.slice(0, -4)] || null;
     return built.zones[zoneIdx]?.props?.[layer] || null;
   }, [built, layer, zoneIdx]);
 
   // T1 (EM-T1-005): contour interval and colour-bar ticks round in the
   // display unit (the Mapping plan), depth layers in the shared sign
-  const isDepthLayer = ['top', 'base', 'thickness'].includes(layer);
-  const depthSign = isDepthLayer && layer !== 'thickness' && !depthPositive ? -1 : 1;
+  const isDepthLayer = ['top', 'base', 'thickness', 'isopach'].includes(layer);
+  const depthSign = isDepthLayer && !['thickness', 'isopach'].includes(layer) && !depthPositive ? -1 : 1;
   const mapPlan = useMemo(() => (mapGrid && isDepthLayer
     ? contourPlan({ grid: mapGrid, typed: '', unit: depthUnit, isLength: true, sign: depthSign })
     : null), [mapGrid, isDepthLayer, depthUnit, depthSign]);

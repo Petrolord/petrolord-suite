@@ -150,6 +150,12 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
               The hydrocarbon leg reaches the model edge at {zone.openEdge.nodes} node{zone.openEdge.nodes === 1 ? '' : 's'}: the accumulation is not closed inside the frame, so these volumes depend on where the frame or boundary stops. Tick bound the leg by the closure and spill in the dock, or check the spill point in Mapping &amp; Surface Studio.
             </div>
           )}
+          {zone.isopach && Number.isFinite(zone.isopach.meanTstM) && (
+            <div className="px-2 py-1 text-[11px] text-pl-muted border-b border-pl-border" data-testid={`em-isopach-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}
+              title="Isochore: vertical thickness (TVT). Isopach: thickness perpendicular to bedding (TST = TVT x cos dip), dip from the zone's mid-surface.">
+              Mean isochore (TVT) {fmtDepth(zone.isopach.meanTvtM, u, 1)} {u}; mean isopach (TST) {fmtDepth(zone.isopach.meanTstM, u, 1)} {u}; steepest dip {Number.isFinite(zone.isopach.maxDipDeg) ? zone.isopach.maxDipDeg.toFixed(1) : EMPTY_VALUE} degrees. Volumes use the vertical thickness (cell area x TVT).
+            </div>
+          )}
           {zone.trap && (
             <div className={`px-2 py-1 text-[11px] border-b border-pl-border ${zone.trap.openEdge ? 'text-pl-warning-text' : 'text-pl-muted'}`} data-testid={`em-trap-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
               Leg bounded by the closure and spill: {describeTraps(zone.trap, (m) => `${fmtDepth(m, u, 1)} ${u}`)}.
