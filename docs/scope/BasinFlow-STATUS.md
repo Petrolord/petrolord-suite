@@ -1,5 +1,27 @@
 # Basin & Charge Modeling (BasinFlow Genesis) — STATUS
 
+Updated 2026-10-01 — **UPGRADE U2 BUILT** (branch `feat/bf-u2`, engines PR #295
+merged, vendored at 970c021; detail in `docs/upgrade/BasinFlowGenesis-UPGRADE.md`).
+What the app does now that it did not:
+- the eroded section is drawn on the burial history; plots are keyed by layer id;
+- Ro and temperature run through the whole column (slices about 100 m), and
+  calibration, the fit and the report compare against it;
+- BHT corrections (Horner, AAPG, Harrison) with raw and used values;
+- scenarios compare side by side; a template, tops or registry replacement can be undone;
+- the PDF report carries the burial, maturity and events plots;
+- runs go to a Web Worker with progress and cancel;
+- maximum-burial (irreversible) compaction is a model setting (elastic stays the default);
+- Pepper and Corvi organofacies and custom kinetics; mixed lithologies;
+- a 1D compaction-disequilibrium pressure with a handoff to Pore Pressure Studio;
+- Petrophysics porosity and TOC read from the tied registry well;
+- a worked example model and help walk;
+- contracts out: `src/lib/basinDecompaction.js` (Stratigraphy rates),
+  `src/lib/basinPressure.js` (Pore Pressure), `src/lib/basinCharge.js`
+  (ReservoirCalc Pro Prospect Risking and Risked Reserves).
+Still v1 limits: 1D (no trap, migration or maps: U2-014); basal heat flow is
+typed (no lithosphere model: U2-002); the overpressure does not feed back into
+compaction; `bf_wells` RLS is one policy with no WITH CHECK (U2-019, owner).
+
 Updated 2026-07-16 — **ENGINES CENTRALIZED** (petrolord-engines PR #1
 + Suite branch `feat/basin-central-engines`): the eleven live G7 math
 modules now live in the central `@petrolord/engines` `basin` domain

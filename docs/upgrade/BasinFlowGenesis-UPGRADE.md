@@ -256,3 +256,39 @@ A session restart interrupted the build after U2-001: the programme lead saved t
 | U2-013 | Done | engines `basin.u2.test.js` U2-013 (7); Suite `upgradeU2.test.js` U2-013 (2) | Kinetics: Pepper and Corvi (1995, Table 3) oil-generation sets for organofacies A, B, C, D/E and F as Gaussian activation-energy distributions on their own energy grid (the engine's kinetics now carry an optional `energies` array). Validated against the paper's published windows at 2 C/Ma (10 to 90 percent of the oil-generative kerogen: about 95 to 135 C for A and 145 to 175 C for F), computed through the engine within 6 C, with the order A to F; controls: F's numbers under A's name miss by more than 20 C, and kinetics ignoring their own energy grid fail. Lithology mixing (Hantschel and Kauerauf 2009): arithmetic Athy porosity, coefficient and grain density, geometric-mean conductivity, arithmetic radiogenic heat and heat capacity; pure end members equal the library. App: the kerogen select offers the three types, the five organofacies and Custom (A, mean E, spread, shown again from the stored set); a layer can be Mixed with sandstone, shale and limestone parts, its properties written from the mixture and reset when the parts change; the mix and the kinetics are in the input key and named in the report. |
 | U2-017 | Done | `src/lib/__tests__/basinCharge.test.jsx` (4) | Contract `src/lib/basinCharge.js` (schema `bf-charge/1`, kg/m2 and Ma declared; another unit or schema is refused): each source rock with its TOC, HI, kinetics, transformation, expelled mass and expulsion history, the critical moment and the engine's petroleum density. Basin: the Timing tab states the expelled mass and "Send the charge to ReservoirCalc Pro". ReservoirCalc Pro, Prospect Risking: `BasinChargeNote` (one import, one state, one element and one saved field in `ProspectRiskingPanel`) takes the fetch area, the trap age and a migration efficiency (default 0.1), computes the charge that reaches the trap after it formed (MMboe) against the prospect's unrisked mean, and suggests the charge factor from the documented bands (0.05 when nothing arrives after the trap; 0.1, 0.3, 0.5, 0.7, 0.9 by the ratio); the analyst applies it. The saved prospect keeps the record (`inputs.bfCharge`: model, fetch, trap age, efficiency, charge, suggested and applied factor). Risked Reserves Valuation reads the Pg and names the basin model beside the prospect (`rrvStore.fromRcpProspect` `chargeNote`). The bands are a screening convention and the efficiency carries the migration risk the 1D model does not model (said in the payload notes). |
 | U2-016 | Done (code in `577e7685b` and `2e75cf3ed`) | `src/lib/__tests__/basinDecompaction.test.js` (2); Stratigraphy `ages.test.jsx` (decompacted column) | STRAT-U2-020: the decompaction stays in Basin's engine. Contract `src/lib/basinDecompaction.js` (schema `bf-decompaction/1`): age-depth segments in (vertical depths in m, ages in Ma, a lithology and the depth of the sediment surface below the datum), per segment the present, decompacted (at the surface) and solid thickness and the three rates out, with the basis sentence the reader shows. It calls `BurialCompactionEngine` (the decompacted thickness matches an independent bisection of the Athy integral to 1e-5 m; an interval at the surface is unchanged). Stratigraphy Studio's Ages view (the only Stratigraphy file edited, plus its test) shows a "Decompacted" rate column beside the compacted rate, the lithology it assumed (shale, sandstone or limestone) and the seabed depth below KB for offshore wells. Each interval is decompacted alone at its present burial depth (single-layer backstripping); the estimate of eroded thickness from the rates stays open. |
+
+### U2 negative controls
+
+| Gate | Control | Result |
+|---|---|---|
+| Horner (ZetaWare example) | the time ratio written as (tc + ts) / tc | gate fails |
+| Overpressure solver (analytic) | the loading term dropped | gate fails |
+| Maximum-burial compaction | elastic geometry in irreversible mode | gate fails |
+| Pepper and Corvi windows | kinetics ignoring their own energy grid | gate fails |
+| Column Ro profile | slice temperature taken at the layer centre | gate fails |
+| Calibration on the column | the layer-centre comparison (a result without the column) | misses the same point by more than 0.05 %Ro (asserted) |
+| Porosity fit | the layer before the fit | engine mean off the log by more than 0.02 (asserted) |
+| Pressure handoff unit | psi values declared as MPa | read 145 times too high (asserted) |
+| Worked example | raw BHTs in the fit | heat flow more than 3 mW/m2 low (asserted) |
+
+The first five were run by mutating the engine in the engines worktree and running its gate (each failed 1 of 1), then restoring the file.
+
+### U2 units and status (PL3, PL4)
+
+Depth and temperature follow the unit profile everywhere new (burial plot note, pressure tab, scenario comparison, report plots, BHT table). Heat flow stays mW/m2. Pressure is MPa with metres and psi with feet, said on the axis; the handoff payloads declare their units (MPa and m; kg/m2 and Ma) and readers refuse others. The Stratigraphy seabed input is in metres and says so. New status text follows an event: the run log says whether the worker or the page ran it; a scenario column says whether its result belongs to its inputs; a BHT that could not be corrected says why and is compared raw; the pressure note says it is a decoupled 1D estimate; the charge suggestion says it is a screening band.
+
+### Deferred from the U2 build
+
+- U2-014 multi-1D maps and migration, U2-002 lithosphere heat flow, U2-019 `bf_wells` RLS (reasons under Batch decision).
+- PNG export header (the second half of BF-U1-020): the PDF carries the plots; the PNG stays a plain white capture.
+- Undo is one level and lasts for the session.
+- The overpressure does not feed back into compaction; permeability is Kozeny-Carman with a specific surface per lithology (a layer may carry `permeability.ss`, with no editor yet).
+- Eroded thickness estimated from decompacted rates (the second half of STRAT-U2-020).
+- A tabulated worked example from Sweeney and Burnham (1990) could not be retrieved (paywalled); Easy%Ro rests on the published parameter table and range, the closed form through the engine and the independent oracle goldens.
+
+### Owner items (U2)
+
+1. **`bf_wells` RLS (U2-019), needs a migration and a second engineer.** Today: RLS on, one policy `auth.uid() = user_id` for all commands with no WITH CHECK clause (Postgres then applies the USING clause to inserts and updates, so a user cannot write a row for another user today; the gap is one of form and of future edits). Proposed migration, staging first: drop the single policy; add four (`select`, `insert`, `update`, `delete`), each `to authenticated`, `using (auth.uid() = user_id)` on select, update and delete and `with check (auth.uid() = user_id)` on insert and update; no org sharing until the Suite Project design lands (docs/scope/SuiteProject-DESIGN.md). Pentest, rolled back: as user A insert a row with user B's id (refused), update A's row to B's id (refused), read and delete B's row (0 rows), as anon read (0 rows), as A full CRUD on A's own row (works). Log in MIGRATIONS.md. Not written here by instruction.
+2. Scenario results saved in `bf_wells.scenarios` now carry the column and pressure arrays, so a model with many saved scenarios is a larger row; no schema change.
+3. Stratigraphy `upgradeU1.test.jsx` section tests timed out locally at load 9 to 17 on this branch (they pass in CI on main and do not touch the Ages view); CI is the arbiter.
+4. No migration and no DDL in this work.
