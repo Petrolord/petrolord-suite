@@ -14,7 +14,11 @@ import { makeInMemoryBackend } from './services/inMemoryBackend';
 import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 
 export default function RockPhysicsStudioHarness() {
-  const backend = useMemo(() => makeInMemoryBackend(), []);
+  // RP-U1: ?hostile=1 adds the vendor-export evidence well, ?long=1 the 5000 m well
+  const backend = useMemo(() => {
+    const q = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    return makeInMemoryBackend({ hostile: q.has('hostile'), long: q.has('long') });
+  }, []);
   return (
     <div className="h-screen w-full overflow-hidden">
       <RockWorkstation backend={backend} appPaths={DEV_APP_PATHS} />

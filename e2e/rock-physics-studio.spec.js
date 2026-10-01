@@ -19,8 +19,25 @@ const LOG = goldens.gassmann.log_domain;
 const CLASS3 = goldens.avo.find((c) => c.name === 'class3_gas_sand');
 const WEDGE = goldens.wedge;
 
+// RP-U1-012: the harness opens on the Suite unit profile (oilfield since
+// #830), while these assertions read the oracle in SI. Start each page on a
+// metric view override (sessionStorage, the useAppUnits session rule) once per
+// tab, so a test that chooses units and reloads keeps its choice.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const k = 'petrolord.units.view.v1:rock-physics';
+    try {
+      if (!window.sessionStorage.getItem('rp.e2e.seeded')) {
+        window.sessionStorage.setItem('rp.e2e.seeded', '1');
+        window.sessionStorage.setItem(k, JSON.stringify({ velocity: 'm/s', density: 'kg/m3', depth: 'm', temperature: 'degC', pressure: 'MPa', gor: 'm3/m3' }));
+      }
+    } catch { /* storage blocked */ }
+  });
+});
+
 test('fluid substitution on the brine sand matches the oracle log-domain golden', async ({ page }) => {
   await page.goto('/dev/rock-physics-studio');
+  await expect(page.getByTestId('rp-well-row').first()).toBeVisible({ timeout: 60000 });
 
   await expect(page.getByTestId('rp-well-row')).toHaveCount(2);
   await page.locator('[data-well-name="KETA RP-1"]').click();
@@ -52,6 +69,7 @@ test('fluid substitution on the brine sand matches the oracle log-domain golden'
 
 test('AVO from the Top GAS SAND top reads the class-III golden intercept/gradient', async ({ page }) => {
   await page.goto('/dev/rock-physics-studio');
+  await expect(page.getByTestId('rp-well-row').first()).toBeVisible({ timeout: 60000 });
   await page.locator('[data-well-name="KETA RP-1"]').click();
   await expect(page.getByTestId('rp-curve-inventory')).toBeVisible();
 
@@ -78,6 +96,7 @@ test('AVO from the Top GAS SAND top reads the class-III golden intercept/gradien
 
 test('wedge panel tunes at the oracle thickness and recomputes live', async ({ page }) => {
   await page.goto('/dev/rock-physics-studio');
+  await expect(page.getByTestId('rp-well-row').first()).toBeVisible({ timeout: 60000 });
 
   // the wedge is pure parameters — usable with no well selected
   await page.getByTestId('rp-view-wedge').click();
@@ -96,11 +115,12 @@ test('wedge panel tunes at the oracle thickness and recomputes live', async ({ p
 
 test('no-DTS well flags estimated Vs; project state survives reload', async ({ page }) => {
   await page.goto('/dev/rock-physics-studio');
+  await expect(page.getByTestId('rp-well-row').first()).toBeVisible({ timeout: 60000 });
 
   // the org-shared well has no shear log -> provenance badge
   await page.locator('[data-well-name="AKOMA-2 (org shared)"]').click();
   await expect(page.getByTestId('rp-vs-badge')).toBeVisible();
-  await expect(page.getByTestId('rp-status')).toContainText('Vs estimated');
+  await expect(page.getByTestId('rp-status')).toContainText('Vs is estimated');
 
   // change the mineral modulus override, save, reload -> restored
   await page.getByTestId('rp-param-kmin').fill('40');
@@ -109,6 +129,7 @@ test('no-DTS well flags estimated Vs; project state survives reload', async ({ p
   await expect(page.getByTestId('rp-status')).toContainText('Project saved');
 
   await page.reload();
+  await expect(page.getByTestId('rp-well-row').first()).toBeVisible({ timeout: 60000 });
   await expect(page.getByTestId('rp-status')).toContainText('Restored saved project');
   await expect(page.getByTestId('rp-param-kmin')).toHaveValue('40');
 });
@@ -117,15 +138,16 @@ test('rock-physics-studio app route loads its chunk and gates on auth', async ({
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/dashboard/apps/geoscience/rock-physics-studio');
-  await page.waitForLoadState('networkidle');
+  // redirected by the auth gate (waited for, not read at network idle: a slow dev server redirects later)
+  await expect(page).not.toHaveURL(/rock-physics-studio/, { timeout: 60000 });
   expect(errors).toEqual([]);
-  expect(page.url()).not.toContain('rock-physics-studio'); // redirected by the auth gate
 });
 
 const FT = 0.3048;
 
 test('RP0: display units convert the tables, the zone and top labels and the manual halfspaces, and are remembered', async ({ page }) => {
   await page.goto('/dev/rock-physics-studio');
+  await expect(page.getByTestId('rp-well-row').first()).toBeVisible({ timeout: 60000 });
   await page.locator('[data-well-name="KETA RP-1"]').click();
   await expect(page.getByTestId('rp-sub-after-vp')).toHaveText(LOG.vp.toFixed(2));
 
@@ -157,6 +179,7 @@ test('RP0: display units convert the tables, the zone and top labels and the man
 
   // the choice survives a reload
   await page.reload();
+  await expect(page.getByTestId('rp-well-row').first()).toBeVisible({ timeout: 60000 });
   await expect(page.getByTestId('rp-unit-velocity')).toHaveValue('ft/s');
   await expect(page.getByTestId('rp-unit-density')).toHaveValue('g/cc');
   await expect(page.getByTestId('rp-unit-depth')).toHaveValue('ft');
@@ -164,18 +187,19 @@ test('RP0: display units convert the tables, the zone and top labels and the man
 
 test('RP1: the substituted case publishes to the well as VP_SUB / VS_SUB / RHOB_SUB with overwrite-own', async ({ page }) => {
   await page.goto('/dev/rock-physics-studio');
+  await expect(page.getByTestId('rp-well-row').first()).toBeVisible({ timeout: 60000 });
   await page.locator('[data-well-name="KETA RP-1"]').click();
   await expect(page.getByTestId('rp-sub-after-vp')).toHaveText(LOG.vp.toFixed(2));
   await expect(page.getByTestId('rp-published-curves')).toHaveCount(0);
 
   await page.getByTestId('rp-publish').click();
-  await expect(page.getByTestId('rp-status')).toHaveText('Published VP_SUB/VS_SUB/RHOB_SUB to the well registry.');
-  await expect(page.getByTestId('rp-published-curves')).toHaveText('published: VP_SUB, VS_SUB, RHOB_SUB');
+  await expect(page.getByTestId('rp-status')).toHaveText('Published VP_SUB/VS_SUB/RHOB_SUB/DT_SUB to the well registry.');
+  await expect(page.getByTestId('rp-published-curves')).toHaveText('published: VP_SUB, VS_SUB, RHOB_SUB, DT_SUB');
 
   // republish replaces this project's curves rather than adding a second set
   await page.getByTestId('rp-publish').click();
-  await expect(page.getByTestId('rp-status')).toHaveText('Published VP_SUB/VS_SUB/RHOB_SUB to the well registry.');
-  await expect(page.getByTestId('rp-published-curves')).toHaveText('published: VP_SUB, VS_SUB, RHOB_SUB');
+  await expect(page.getByTestId('rp-status')).toHaveText('Published VP_SUB/VS_SUB/RHOB_SUB/DT_SUB to the well registry.');
+  await expect(page.getByTestId('rp-published-curves')).toHaveText('published: VP_SUB, VS_SUB, RHOB_SUB, DT_SUB');
 
   // the engine inputs are untouched by the publish (exact-name mapping)
   await expect(page.getByTestId('rp-sub-after-vp')).toHaveText(LOG.vp.toFixed(2));
@@ -183,6 +207,7 @@ test('RP1: the substituted case publishes to the well as VP_SUB / VS_SUB / RHOB_
 
 test('RP2: launchers open the selected well in the other apps and the ribbon links the help guide', async ({ page }) => {
   await page.goto('/dev/rock-physics-studio');
+  await expect(page.getByTestId('rp-well-row').first()).toBeVisible({ timeout: 60000 });
   await expect(page.getByTestId('rp-help')).toHaveAttribute('href', '/dev/rock-physics-studio/help');
   // nothing selected: no Well data link, Open in disabled
   await expect(page.getByTestId('rp-open-wdm')).toHaveCount(0);

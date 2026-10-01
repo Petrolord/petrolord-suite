@@ -14,6 +14,8 @@ import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
 import { wedgePanel, tuningCurve, tuningThicknessMs } from '../engine/wedge';
+import UnitInput from './UnitInput';
+import { velocityToDisplay, velocityFromDisplay, velocityDigits, fmtVelocity } from '../services/units';
 
 const AXIS_TICK = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
 const AXIS_LINE = { stroke: CHART_COLORS.axisLine, strokeWidth: 1 };
@@ -119,16 +121,22 @@ function drawWedge(canvas, panel) {
   ctx.stroke();
 }
 
+// RP-U1-011 (PL11): the field keeps what the person types ("-", "0.", a
+// cleared box) instead of snapping to NaN and wiping the text; the value
+// still updates on every finite keystroke (UnitInput with no conversion)
+const same = (v) => v;
 function NumField({ id, label, value, onChange }) {
   return (
     <label className="flex items-center gap-1 text-[12px] text-pl-text">
       {label}
-      <input
-        data-testid={`rp-wedge-${id}`}
-        type="number"
-        step="any"
+      <UnitInput
+        testid={`rp-wedge-${id}`}
         value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
+        unit=""
+        toDisplay={same}
+        fromDisplay={same}
+        digits={6}
+        onChange={onChange}
         className="w-16 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-right
           text-pl-text focus:outline-none focus:border-pl-focus"
       />
@@ -138,6 +146,8 @@ function NumField({ id, label, value, onChange }) {
 
 export default function WedgePanel({ wedge, onWedgeChange, units = null }) {
   const zU = units?.depth || 'm';
+  // RP-U1-008: the wedge Vp is typed in the velocity display unit, stored m/s
+  const vU = units?.velocity || 'm/s';
   const vpW = Number.isFinite(wedge.vpWedge) ? wedge.vpWedge : DEFAULT_WEDGE.vpWedge;
   const canvasRef = useRef(null);
   const patch = (p) => onWedgeChange({ ...wedge, ...p });
@@ -172,14 +182,27 @@ export default function WedgePanel({ wedge, onWedgeChange, units = null }) {
         <NumField id="freq" label="Ricker f (Hz)" value={wedge.freqHz} onChange={(v) => patch({ freqHz: v })} />
         <NumField id="dt" label="dt (ms)" value={wedge.dtMs} onChange={(v) => patch({ dtMs: v })} />
         <NumField id="max" label="max thickness (ms)" value={wedge.maxThicknessMs} onChange={(v) => patch({ maxThicknessMs: v })} />
-        <NumField id="vp" label="wedge Vp (m/s)" value={vpW} onChange={(v) => patch({ vpWedge: v })} />
+        <label className="flex items-center gap-1 text-[12px] text-pl-text">
+          wedge Vp ({vU})
+          <UnitInput
+            testid="rp-wedge-vp"
+            value={vpW}
+            unit={vU}
+            toDisplay={velocityToDisplay}
+            fromDisplay={velocityFromDisplay}
+            digits={velocityDigits(vU, 1)}
+            onChange={(si) => patch({ vpWedge: si })}
+            className="w-20 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-right text-pl-text focus:outline-none focus:border-pl-focus"
+            title={`Interval velocity inside the wedge, in ${vU} (stored in m/s)`}
+          />
+        </label>
         {result && !result.error && (
           <span className="ml-auto text-[13px] text-pl-text">
             tuning thickness{' '}
             <b data-testid="rp-wedge-tuning">{result.tuningMs}</b> ms
             {Number.isFinite(tuningDepthM(result.tuningMs, vpW)) && (
               <span className="text-pl-muted" data-testid="rp-wedge-tuning-depth">
-                {' '}(about {(zU === 'ft' ? tuningDepthM(result.tuningMs, vpW) / 0.3048 : tuningDepthM(result.tuningMs, vpW)).toFixed(1)} {zU} at {vpW} m/s; thickness of maximum constructive interference)
+                {' '}(about {(zU === 'ft' ? tuningDepthM(result.tuningMs, vpW) / 0.3048 : tuningDepthM(result.tuningMs, vpW)).toFixed(1)} {zU} at {fmtVelocity(vpW, vU, 0)} {vU}; thickness of maximum constructive interference)
               </span>
             )}
           </span>

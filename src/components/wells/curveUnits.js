@@ -18,6 +18,9 @@
 /** Measurements that can never read -999 or below; such samples are nulls. */
 const PHYSICAL = new Set(['GR', 'RHOB', 'NPHI', 'DT', 'RT', 'CAL', 'DRHO', 'PEF']);
 export const NULL_FLOOR = -999;
+/** A compressional slowness median below this, read as us/m, would be faster
+ *  than any sedimentary rock (140 us/m = 7140 m/s; dolomite is about 7000). */
+export const DT_PER_FOOT_BELOW = 140;
 
 // PETRO-U2-001: the unit spellings live in one table shared with Rock
 // Physics (unitFamilies.js); this module decides and says what it did.
@@ -92,7 +95,23 @@ export function normalizeInputCurve(key, log, data, { unitOverride = null } = {}
     } else Object.assign(decision, { reason: member ? 'file' : 'unknown' });
   } else if (key === 'DT') {
     if (member?.unit === 'US/FT') apply(1 / 0.3048, 'US/FT', 'file', `${name} is in ${log.unit}: converted to us/m for the pipeline.`);
-    else Object.assign(decision, { reason: member ? 'file' : 'unknown' });
+    else if (member) Object.assign(decision, { reason: 'file' });
+    else {
+      // RP-U1-003 (shared): a spelling the table does not know, or no unit at all.
+      // A per-foot spelling (MICROSECONDS/FT) reads per foot; with no hint, a
+      // median below DT_PER_FOOT_BELOW us/m would be faster than any
+      // sedimentary rock, so the numbers are us/ft.
+      const u = String(log?.unit || '').trim();
+      const med = quantile(out, 0.5);
+      if (/F/i.test(u)) {
+        apply(1 / 0.3048, 'US/FT', 'pattern', `${name} unit "${u}" is not in the unit table; it names feet, so it was read as us/ft and converted to us/m.`);
+      } else if (med > 0 && med < DT_PER_FOOT_BELOW) {
+        apply(1 / 0.3048, 'US/FT', 'range', `${name} ${u ? `unit "${u}" is not in the unit table` : 'has no unit'} and its values sit near ${med.toFixed(0)}, which as us/m would be faster than any sedimentary rock: read as us/ft and converted to us/m. Set the unit to silence this.`);
+      } else {
+        // left to the caller: Pore Pressure applies its own overburden rule here
+        Object.assign(decision, { reason: 'unknown', median: med });
+      }
+    }
   }
   return { data: out, notes, decision };
 }

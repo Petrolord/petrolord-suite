@@ -9,7 +9,9 @@
 // Publish writes the substituted case to the well as logs.
 
 import React, { useMemo, useState } from 'react';
-import { Upload, Loader2 } from 'lucide-react';
+import { Upload, Loader2, Download } from 'lucide-react';
+import { downloadText } from '@/lib/fullPrecision';
+import { substitutionCsv, substitutionCsvName } from '../services/substitutionCsv';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label,
 } from 'recharts';
@@ -17,7 +19,8 @@ import ChartLogo from '@/components/charts/ChartLogo';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
 } from '@/utils/chartTheme';
-import { sideFluid, kminFromRock, substituteInterval } from '../services/scenario';
+import { sideFluid, substituteZone } from '../services/scenario';
+import { elasticMeans, impedanceDisplay } from '../services/elastic';
 import { zoneIndices, meanAt } from '../services/prep';
 import {
   DEFAULT_UNITS, velocityToDisplay, velocityDigits, velocityLabel, densityLabel, depthLabel, depthToDisplay,
@@ -25,6 +28,7 @@ import {
 } from '../services/units';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
+const CHART_MAX_POINTS = 2000;
 const gpa = (pa) => (Number.isFinite(pa) ? (pa / 1e9).toFixed(3) : EMPTY_VALUE);
 
 const AXIS_TICK = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
@@ -50,8 +54,22 @@ function FluidRow({ id, label, fluid, error, units }) {
 
 export default function FluidsPanel({
   model, zones, scenario, rock, units = DEFAULT_UNITS, onPublish = null, publishing = false,
+  zoneId: zoneIdProp, onZoneChange = null, well = null,
 }) {
-  const [zoneId, setZoneId] = useState('');
+  // RP-U1-010: the reviewer's field and name, remembered per browser
+  const [reviewer, setReviewer] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem('rp.reviewer') || '{}') || {}; } catch { return {}; }
+  });
+  const patchReviewer = (p) => setReviewer((r) => {
+    const next = { ...r, ...p };
+    try { window.localStorage.setItem('rp.reviewer', JSON.stringify(next)); } catch { /* storage blocked */ }
+    return next;
+  });
+  const [exported, setExported] = useState('');
+  // RP-U1-013: the workstation owns the zone when it passes one (Save keeps it)
+  const [zoneIdLocal, setZoneIdLocal] = useState('');
+  const zoneId = zoneIdProp !== undefined ? zoneIdProp : zoneIdLocal;
+  const setZoneId = onZoneChange || setZoneIdLocal;
   const zone = zones.find((z) => z.id === zoneId) || zones[0] || null;
   const vU = units.velocity;
   const dU = units.density;
@@ -66,33 +84,34 @@ export default function FluidsPanel({
 
   const result = useMemo(() => {
     if (!model || !zone || !fluids.a || !fluids.b) return null;
-    let kmin;
-    try { kmin = kminFromRock(rock); } catch (e) { return { error: e.message }; }
     const indices = zoneIndices(model.depth, zone.top_md_m, zone.base_md_m);
     if (!indices.length) return { error: 'The zone has no samples in this well.' };
-    const sub = substituteInterval(model, indices, kmin, fluids.a, fluids.b, rock.phiConst);
+    let sub;
+    try { sub = substituteZone(model, indices, scenario, rock); } catch (e) { return { error: e.message }; }
+    // RP-U1-006/007: "after" is the case that publishes: substituted where
+    // the sample was substituted, in situ where it was left (outside the
+    // limits) or skipped; both sides average the same zone samples
+    const merged = (key) => model[key].map((v, i) => (Number.isFinite(sub[key][i]) ? sub[key][i] : v));
+    const side = (vp, vs, rho) => ({
+      vp: meanAt(vp, indices), vs: meanAt(vs, indices), rho: meanAt(rho, indices), ...elasticMeans(vp, vs, rho, indices),
+    });
     return {
       indices,
       sub,
-      kmin,
-      before: {
-        vp: meanAt(model.vp, indices),
-        vs: meanAt(model.vs, indices),
-        rho: meanAt(model.rho, indices),
-      },
-      after: {
-        vp: meanAt(sub.vp, indices),
-        vs: meanAt(sub.vs, indices),
-        rho: meanAt(sub.rho, indices),
-      },
+      kmin: sub.kmin,
+      before: side(model.vp, model.vs, model.rho),
+      after: side(merged('vp'), merged('vs'), merged('rho')),
     };
-  }, [model, zone, fluids, rock]);
+  }, [model, zone, fluids, rock, scenario]);
 
   // chart samples in the display units (slowness inverts the axis sense)
   const chartData = useMemo(() => {
     if (!result?.indices) return [];
     const v = (x) => { const d = velocityToDisplay(x, vU); return Number.isFinite(d) ? d : null; };
-    return result.indices.map((i) => ({
+    // RP-U1-018 (PL10): a long zone draws at most CHART_MAX_POINTS rows (every
+    // k-th sample, said under the chart); tables and publish use every sample
+    const step = Math.max(1, Math.ceil(result.indices.length / CHART_MAX_POINTS));
+    return result.indices.filter((_, k) => k % step === 0).map((i) => ({
       depth: depthToDisplay(model.depth[i], zU),
       vpA: v(model.vp[i]),
       vpB: v(result.sub.vp[i]),
@@ -151,18 +170,50 @@ export default function FluidsPanel({
       {result && !result.error && (
         <>
           <div className="rounded border border-pl-border p-2">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="text-[11px] uppercase tracking-wider text-pl-muted">
-                Gassmann substitution A → B · {zone.name} · K_min {gpa(result.kmin)} GPa ·{' '}
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <div className="text-[11px] uppercase tracking-wider text-pl-muted" data-testid="rp-sub-header">
+                Gassmann substitution A → B · {zone.name} · K_min {result.sub.kminSource === 'vsh' && result.sub.done
+                  ? `${gpa(result.sub.kminMin)} to ${gpa(result.sub.kminMax)} GPa (clay at VSH)`
+                  : `${gpa(result.kmin)} GPa${result.sub.kminSource === 'override' ? ' (override)' : ''}`} ·{' '}
                 {result.sub.done} samples{result.sub.skipped ? ` (${result.sub.skipped} skipped)` : ''}
+                {result.sub.outside ? ` · ${result.sub.outside} left in situ (outside the Gassmann limits)` : ''}
               </div>
+              <input
+                data-testid="rp-reviewer-field"
+                value={reviewer.field || ''}
+                placeholder="Field"
+                onChange={(e) => patchReviewer({ field: e.target.value })}
+                className="ml-auto w-24 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-[11px] text-pl-text"
+              />
+              <input
+                data-testid="rp-reviewer-analyst"
+                value={reviewer.analyst || ''}
+                placeholder="Analyst"
+                onChange={(e) => patchReviewer({ analyst: e.target.value })}
+                className="w-24 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-[11px] text-pl-text"
+              />
+              <button
+                type="button"
+                data-testid="rp-export-csv"
+                title="Download the substitution as CSV: a header with the well, zone, field, analyst, date, build, units, conditions, both fluids, K_min, porosity basis and limits, then every zone sample in the display units"
+                className="flex items-center gap-1 px-2 py-0.5 text-xs rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken"
+                onClick={() => {
+                  const text = substitutionCsv({
+                    well, zone, model, sub: result.sub, indices: result.indices, scenario, rock, units, reviewer,
+                  });
+                  const name = substitutionCsvName(well, zone);
+                  setExported(downloadText(name, text) ? `Saved ${name}.` : '');
+                }}
+              >
+                <Download className="w-3.5 h-3.5" /> CSV
+              </button>
               {onPublish && (
                 <button
                   type="button"
                   data-testid="rp-publish"
                   disabled={publishing || !result.sub.done}
                   title="Write VP_SUB, VS_SUB and RHOB_SUB to this well in the registry: the in-situ log outside the zone, the substituted case inside. Overwrites only this project's previous publish."
-                  className="ml-auto flex items-center gap-1 px-2 py-0.5 text-xs rounded border
+                  className="flex items-center gap-1 px-2 py-0.5 text-xs rounded border
                     border-pl-primary text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40"
                   onClick={() => onPublish(result, zone)}
                 >
@@ -171,6 +222,19 @@ export default function FluidsPanel({
                 </button>
               )}
             </div>
+            <p className="text-[12px] text-pl-muted mb-1" data-testid="rp-sub-basis">
+              Porosity: {model.phiCurve ? `${model.phiCurve} (${model.phiBasis === 'total' ? 'total' : 'effective'} porosity)` : `constant ${rock.phiConst} (no PHIE or PHIT curve)`}
+              {' · '}fluid A Sw: {result.sub.swFromLog ? `from the SW log${result.sub.swFallback ? ` (${result.sub.swFallback} null samples used ${scenario.fluidA.sw})` : ''}` : `${scenario.fluidA.sw} as typed${scenario.fluidA.swFromLog && !model.sw ? ' (no SW curve on this well)' : ''}`}
+              {' · '}limits: VSH up to {rock.vshMax ?? 1}, porosity from {rock.phiMin ?? 0}
+            </p>
+            {model.phiBasis === 'effective' && result.sub.kminSource === 'table' && !(rock.minerals?.clay > 0)
+              && Number.isFinite(meanAt(model.vsh || [], result.indices)) && meanAt(model.vsh, result.indices) > 0.1 && (
+              <p className="text-[12px] text-pl-warning-text mb-1" data-testid="rp-sub-clay-note">
+                Effective porosity with a clay-free mineral: the clay (mean VSH {meanAt(model.vsh, result.indices).toFixed(2)}) sits in neither the pores nor the solid.
+                Tick "clay from VSH" in Scenario &amp; rock, or use total porosity.
+              </p>
+            )}
+            {exported && <p className="text-[11px] text-pl-success-text mb-1" data-testid="rp-export-note">{exported}</p>}
             {result.sub.firstError && (
               <p className="text-[12px] text-pl-warning-text mb-1" data-testid="rp-sub-sample-error">
                 skipped samples: {result.sub.firstError}
@@ -183,6 +247,9 @@ export default function FluidsPanel({
                   <th className="font-normal text-right">{velocityLabel(vU).replace('Velocity', 'Vp').replace('Slowness', 'DTp')}</th>
                   <th className="font-normal text-right">{velocityLabel(vU).replace('Velocity', 'Vs').replace('Slowness', 'DTs')}</th>
                   <th className="font-normal text-right">{densityLabel(dU)}</th>
+                  <th className="font-normal text-right" title="Acoustic impedance AI = Vp x density">AI ({impedanceDisplay(1, vU, dU).unit})</th>
+                  <th className="font-normal text-right" title="Velocity ratio">Vp/Vs</th>
+                  <th className="font-normal text-right" title="Poisson's ratio (Vp² - 2Vs²) / (2(Vp² - Vs²))">Poisson</th>
                 </tr>
               </thead>
               <tbody>
@@ -191,12 +258,18 @@ export default function FluidsPanel({
                   <td className="py-1 text-right" data-testid="rp-sub-before-vp">{fmtVelocity(result.before.vp, vU, 2)}</td>
                   <td className="py-1 text-right" data-testid="rp-sub-before-vs">{fmtVelocity(result.before.vs, vU, 2)}</td>
                   <td className="py-1 text-right" data-testid="rp-sub-before-rho">{fmtDensity(result.before.rho, dU, 2)}</td>
+                  <td className="py-1 text-right" data-testid="rp-sub-before-ai">{impedanceDisplay(result.before.ai, vU, dU).text}</td>
+                  <td className="py-1 text-right" data-testid="rp-sub-before-vpvs">{Number.isFinite(result.before.vpvs) ? result.before.vpvs.toFixed(3) : EMPTY_VALUE}</td>
+                  <td className="py-1 text-right" data-testid="rp-sub-before-pr">{Number.isFinite(result.before.pr) ? result.before.pr.toFixed(3) : EMPTY_VALUE}</td>
                 </tr>
                 <tr className="border-t border-pl-border">
                   <td className="py-1 text-pl-text">after (B)</td>
                   <td className="py-1 text-right" data-testid="rp-sub-after-vp">{fmtVelocity(result.after.vp, vU, 2)}</td>
                   <td className="py-1 text-right" data-testid="rp-sub-after-vs">{fmtVelocity(result.after.vs, vU, 2)}</td>
                   <td className="py-1 text-right" data-testid="rp-sub-after-rho">{fmtDensity(result.after.rho, dU, 2)}</td>
+                  <td className="py-1 text-right" data-testid="rp-sub-after-ai">{impedanceDisplay(result.after.ai, vU, dU).text}</td>
+                  <td className="py-1 text-right" data-testid="rp-sub-after-vpvs">{Number.isFinite(result.after.vpvs) ? result.after.vpvs.toFixed(3) : EMPTY_VALUE}</td>
+                  <td className="py-1 text-right" data-testid="rp-sub-after-pr">{Number.isFinite(result.after.pr) ? result.after.pr.toFixed(3) : EMPTY_VALUE}</td>
                 </tr>
               </tbody>
             </table>
@@ -243,13 +316,18 @@ export default function FluidsPanel({
                   verticalAlign="top"
                   wrapperStyle={{ fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`, color: CHART_COLORS.legendText, paddingBottom: 4 }}
                 />
-                <Line type="monotone" dataKey="vpA" stroke="#0284c7" strokeWidth={1.5} dot={false} name="Vp in situ" />
-                <Line type="monotone" dataKey="vpB" stroke="#dc2626" strokeWidth={1.5} dot={false} name="Vp substituted" />
-                <Line type="monotone" dataKey="vsA" stroke="#0284c7" strokeWidth={1.5} strokeDasharray="4 3" dot={false} name="Vs in situ" />
-                <Line type="monotone" dataKey="vsB" stroke="#dc2626" strokeWidth={1.5} strokeDasharray="4 3" dot={false} name="Vs substituted" />
+                <Line type="monotone" isAnimationActive={false} dataKey="vpA" stroke="#0284c7" strokeWidth={1.5} dot={false} name="Vp in situ" />
+                <Line type="monotone" isAnimationActive={false} dataKey="vpB" stroke="#dc2626" strokeWidth={1.5} dot={false} name="Vp substituted" />
+                <Line type="monotone" isAnimationActive={false} dataKey="vsA" stroke="#0284c7" strokeWidth={1.5} strokeDasharray="4 3" dot={false} name="Vs in situ" />
+                <Line type="monotone" isAnimationActive={false} dataKey="vsB" stroke="#dc2626" strokeWidth={1.5} strokeDasharray="4 3" dot={false} name="Vs substituted" />
               </LineChart>
             </ResponsiveContainer>
             <ChartLogo />
+            {result.indices.length > CHART_MAX_POINTS && (
+              <div className="absolute bottom-1 right-3 text-[10px] text-slate-500" data-testid="rp-chart-decimated">
+                every {Math.ceil(result.indices.length / CHART_MAX_POINTS)}th of {result.indices.length} samples drawn
+              </div>
+            )}
           </div>
         </>
       )}

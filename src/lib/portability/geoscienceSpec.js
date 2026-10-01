@@ -14,7 +14,7 @@
 //   geo_surfaces.provenance.isochore [surfaceId, surfaceId]
 //   petro_projects.well_ids uuid[]; facies keyed by well id; zone_params keyed by zone id
 //   pp_projects.well_ids uuid[]; source.{wellId | volumeId}
-//   rp_projects.well_ids uuid[]; avo may hold zone/top ids
+//   rp_projects.well_ids uuid[]; avo.topId -> geo_wells_tops; rock.zoneId -> geo_wells_zones (RP-U1-013)
 //   geo_correlation_sections.well_ids uuid[]; datum by top NAME
 //   geo_wells_tops.unit_id -> geo_strat_units (ST0); geo_strat_units.parent_id self reference
 //   em_models.definition: surfaceIds[], derived[].{sourceId,isochoreId,baseId} -> geo_surfaces;
@@ -166,7 +166,10 @@ export const GEOSCIENCE_SPEC = {
       wellIdsColumn: 'well_ids',
       softRefs: [
         { path: 'well_ids[]', table: 'geo_wells', optional: false },
-        { path: 'avo.*', table: 'geo_wells_zones', optional: true },
+        // avo.topId is a geo_wells_tops id ('any' rewrites every packaged uuid under avo)
+        { path: 'avo.*', table: 'geo_wells_tops', optional: true },
+        // RP-U1-013: the zone the substitution ran over
+        { path: 'rock.zoneId', table: 'geo_wells_zones', optional: true },
       ],
     },
     geo_correlation_sections: {
