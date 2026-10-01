@@ -12,6 +12,7 @@ import {
     distKeysFor, syncDistParams, recentreDist, formatDistributions, centralOf,
 } from '../../services/distributions';
 import CorrelationEditor, { correlationsProblem } from './CorrelationEditor';
+import FitFromData from './FitFromData';
 
 const DIST_TYPES = [
     { value: 'triangular', label: 'Triangular' },
@@ -279,6 +280,7 @@ const ProbabilisticPanel = () => {
                                 onChange={v => handleParamChange(key, v)}
                                 consistencyMode={key === 'grvFactor' ? false : consistencyMode} />
                         ))}
+                        <FitFromData keys={distKeys} labelOf={distLabel} onUse={(k, d) => handleParamChange(k, d)} />
                         {problems.length > 0 && (
                             <ul className="text-[10px] text-pl-danger-text list-disc pl-4" data-testid="rcp-mc-problems">
                                 {problems.map((p, i) => <li key={i}>{p}</li>)}

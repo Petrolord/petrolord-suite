@@ -365,6 +365,22 @@ const ProbabilisticGuide = () => (
       </li>
     </UL>
 
+    <H2>11a. Spider plot and fitting from data</H2>
+    <P>
+      The detailed results add a spider plot: the in-place volume as each uncertain input moves through the 10th,
+      25th, 50th, 75th and 90th percentile of its own sampled values while every other input sits at its median. The
+      volumes are the engine&apos;s own, so the lines show exactly what the run&apos;s arithmetic does. A steep line is a
+      sensitive input; crossing lines show where the ranking changes. The x axis is the input&apos;s percentile; P90,
+      P50 and P10 stay reserved for outcomes.
+    </P>
+    <P>
+      Fit a distribution from data (Distributions step): paste the values of an input, such as the porosity of each
+      well. Normal and lognormal are fitted by maximum likelihood, uniform and triangular from the data&apos;s range and
+      mean, and each is ranked by its Kolmogorov-Smirnov distance to the data; a distance above the 5 percent critical
+      value marks a poor fit. Use puts the chosen shape on the input. A fit that reaches outside 0 to 1 for a fraction
+      is said; the run truncates it there.
+    </P>
+
     <H2>12. Reading the base case comparison</H2>
     <P>
       The results view reports how far the Monte Carlo P50 sits from the deterministic base case, and

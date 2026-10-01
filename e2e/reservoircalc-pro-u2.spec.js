@@ -250,3 +250,26 @@ test('U2-012: success-case economics from the screening NPV, saved with the pros
   await expect(page.getByTestId('prospect-status')).toContainText('Added Keta Econ');
   expect(errors).toEqual([]);
 });
+
+test('U2-017: fit porosity from pasted values, run, and read the spider plot', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await openProbabilistic(page);
+  await page.getByTestId('rcp-fit-open').click();
+  await page.getByTestId('rcp-fit-key').selectOption('porosity');
+  await page.getByTestId('rcp-fit-text').fill('0.18 0.21 0.19 0.22 0.20 0.17 0.23 0.20 0.19 0.21 0.24 0.16 0.20 0.22 0.18 0.21');
+  await page.getByTestId('rcp-fit-run').click();
+  await expect(page.getByTestId('rcp-fit-result')).toContainText('16 values');
+  await page.getByTestId('rcp-fit-use-normal').click();
+  await expect(page.getByTestId('rcp-mc-dists')).toContainText('Std Dev');
+  for (let i = 0; i < 4 && !(await page.getByTestId('rcp-mc-run').isVisible()); i++) await page.getByRole('button', { name: /^Next/ }).click();
+  await page.getByTestId('rcp-mc-run').click();
+  await expect(page.getByTestId('rcp-mc-last-seed')).toBeVisible({ timeout: 60000 });
+  await page.getByRole('button', { name: /View Full Analysis/ }).click();
+  await page.getByRole('button', { name: /^Detailed$/ }).click();
+  const spider = page.getByTestId('rcp-spider');
+  await expect(spider).toBeVisible({ timeout: 15000 });
+  await expect(spider.locator('.recharts-line')).toHaveCount(await spider.locator('.recharts-legend-item').count());
+  expect(await spider.locator('.recharts-line').count()).toBeGreaterThan(2);
+  expect(errors).toEqual([]);
+});

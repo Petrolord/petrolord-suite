@@ -4,6 +4,7 @@
 // the volumetrics-specific runSimulation stays local.
 import * as mc from '@/lib/monteCarlo';
 import { asHypsometry } from './hypsometry';
+import { spiderFromRun } from './spider';
 
 const CLAMP_LABEL = { ntg: 'net-to-gross', porosity: 'porosity', sw: 'water saturation', gasCapFraction: 'the gas-cap fraction' };
 const BBL_PER_SM3 = 6.289811;
@@ -327,6 +328,12 @@ export class MonteCarloEngine {
             iterations,
             validCount: validLen,
         };
+
+        // U2-017: spider plot data from the engine itself (constants at the
+        // inputs' sampled percentiles); skipped inside its own evaluations
+        if (config.spider !== false && nVars > 0) {
+            try { stats.spider = spiderFromRun((c, i) => this.simulate(c, i), config, varKeys, results.samples); } catch { stats.spider = null; }
+        }
 
         return { raw: results, stats, diagnostics, meta };
     }
