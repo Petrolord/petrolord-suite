@@ -119,3 +119,51 @@ findings, 18 fixed, no S1 or S2 open.
   `e2e/rock-physics-upgrade.spec.js`; the older RP e2e (red since #830) fixed.
 - Engines untouched. No migration.
 
+
+## 2026-10-01: Upgrade U2 (Step 2 batches A, B and C), app #10 of the Geoscience programme
+
+Doc: docs/upgrade/RockPhysicsStudio-UPGRADE.md (branch `feat/rp-u2`). 11 of
+16 backlog items built, 5 deferred by the programme lead's decision. No
+migration.
+
+- Engines first: Petrolord/petrolord-engines PR #296 (angle gather, fluid
+  line, iterative Vs and a bit-identical fast Greenberg-Castagna path,
+  template lines, pseudo-sonic, Voigt mix) with an independent Python
+  oracle (`oracle_u2.py`, `goldens.u2.json`). Vendored byte-identical and
+  recorded in `packages/engines/VENDOR.json` (group `rockphysics-u2`) until
+  it is merged.
+- New views: Crossplot (impedance against Vp/Vs with critical-porosity and
+  mudrock template lines) and Gather (angle gather in situ and substituted,
+  Zoeppritz or Aki-Richards, a Ricker or the Seismolord tie wavelet, AVO
+  picked off the gather).
+- AVO: the wet background trend fitted to the well (or Castagna's line when
+  the well cannot give a fit) and each interface's distance from it.
+- PDF report with the reviewer header, the interval table, the zone-top AVO
+  and three vector plots (`services/report.js`); one header for CSV and PDF.
+- Shear: iterative Vs in hydrocarbon samples when there is no shear log
+  (closes RP-U1-018). One sampler (`scenario.makeSampler`) reads each
+  sample's fluid, mineral modulus and limits for every consumer.
+- Wells with no sonic open on an estimated Vp (Gardner inverse or Faust),
+  marked estimated everywhere and publishable as DT_EST (closes RP-U1-019).
+  Checked against the two live wells with a sonic: Gardner RMS 16 and 25
+  percent, Faust 17 and 70 percent, little sample correlation. Screening
+  only.
+- Inputs from other apps: K_min per sample from the Petrophysics mineral
+  model, pore pressure from Pore Pressure Studio's PP curve, fluid B Sw
+  from a SCAL Studio saturation-height function through Petrophysics'
+  reader (`services/petroInputs.js`).
+- Seismolord: the gather is published through the `rock-physics-gather`
+  contract (`src/lib/rockPhysicsGather.js`, in `rp_projects.avo`) and shown
+  in the synthetics window; the canvas is shared
+  (`src/components/charts/AngleGatherCanvas.jsx`). Second half of Seismolord
+  U2-020.
+- Patchy saturation (Voigt bound) beside Wood.
+- Long wells: min/max chart decimation; Greenberg-Castagna 15 times faster
+  on the 32,809 sample well.
+- Publish pipeline `rp-1.2.0` (vp_source, vs_method, kmin_source,
+  fluid_mixing, pore_pressure_source, sw_b_from_saturation_height).
+- Harness flags `?trend=1`, `?nosonic=1`, `?minerals=1`, `?pp=1`; e2e
+  `e2e/rock-physics-u2.spec.js`.
+- Deferred: Xu-White and soft/stiff sand models, modelled AVO against
+  Seismolord attribute volumes, scenario Monte Carlo, several projects per
+  user, log editing.
