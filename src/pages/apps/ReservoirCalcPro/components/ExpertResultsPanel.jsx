@@ -19,6 +19,11 @@ const ExpertResultsPanel = () => {
         }
     };
 
+    // The panel body for the current state. The results dialog is mounted
+    // once, below, outside these branches: it used to live inside two of them
+    // and not in the "Processing" one, so a recalculation that ran while the
+    // dialog was open closed it and reopened it on its first view.
+    const renderPanel = () => {
     if (isCalculating) {
         return (
             <div className="h-full flex flex-col items-center justify-center bg-pl-sunken p-6 text-center space-y-4 border-l border-pl-border">
@@ -95,10 +100,6 @@ const ExpertResultsPanel = () => {
                         </div>
                     )}
                 </div>
-                 <ResultsModal 
-                    isOpen={isModalOpen} 
-                    onClose={() => setModalOpen(false)}
-                />
             </div>
          );
     }
@@ -178,12 +179,18 @@ const ExpertResultsPanel = () => {
                     <Play className="w-3 h-3 mr-2 fill-current" /> Recalculate
                 </Button>
             </div>
-            
-            <ResultsModal 
-                isOpen={isModalOpen} 
+        </div>
+    );
+    };
+
+    return (
+        <>
+            {renderPanel()}
+            <ResultsModal
+                isOpen={isModalOpen}
                 onClose={() => setModalOpen(false)}
             />
-        </div>
+        </>
     );
 };
 

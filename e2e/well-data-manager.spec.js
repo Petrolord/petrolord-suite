@@ -8,9 +8,15 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { seedUnitView } from './helpers/unitView.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const LAS = path.join(here, '..', 'packages', 'engines', 'test-data', 'wells', 'las', 'basic_20.las');
+
+// Since the Suite unit profile (#830) the harness opens in feet (signed out:
+// the built-in oilfield preset). The fixtures, typed depths and expected
+// values here are metres, so each tab starts on a metric view override.
+test.beforeEach(async ({ page }) => { await seedUnitView(page, 'well-data-manager'); });
 
 test('full LAS import → view → share → delete flow in the harness', async ({ page }) => {
   await page.goto('/dev/well-data-manager');
@@ -89,9 +95,9 @@ test('well-data-manager app route loads its chunk and gates on auth', async ({ p
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/dashboard/apps/geoscience/well-data-manager');
-  await page.waitForLoadState('networkidle');
+  // signed out, the gate sends the route to the login page; wait for the redirect to land
+  await expect(page).toHaveURL(/\/login/, { timeout: 30000 });
   expect(errors).toEqual([]);
-  expect(page.url()).not.toContain('well-data-manager'); // redirected by the auth gate
 });
 
 test('map shows wells and click-selects; manual add-well flow', async ({ page }) => {

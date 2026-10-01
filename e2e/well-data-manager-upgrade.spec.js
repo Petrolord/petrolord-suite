@@ -12,10 +12,16 @@ import path from 'path';
 import { writeFileSync } from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
+import { seedUnitView } from './helpers/unitView.js';
 import { bigLas } from './fixtures/wdm/hostile/generate.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const H = (f) => path.join(here, 'fixtures', 'wdm', 'hostile', f);
+
+// Since the Suite unit profile (#830) the harness opens in feet (signed out:
+// the built-in oilfield preset). The fixtures, typed depths and expected
+// values here are metres, so each tab starts on a metric view override.
+test.beforeEach(async ({ page }) => { await seedUnitView(page, 'well-data-manager'); });
 
 async function openLas(page, file) {
   await page.getByTestId('wdm-open-las').click();

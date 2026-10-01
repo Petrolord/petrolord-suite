@@ -224,6 +224,6 @@ test('RP2: launchers open the selected well in the other apps and the ribbon lin
 
   // the help route is a real page on the app path
   await page.goto('/dashboard/apps/geoscience/rock-physics-studio/help');
-  await page.waitForLoadState('networkidle');
-  expect(page.url()).not.toContain('/help'); // gated by auth like the app itself
+  // gated by auth like the app itself: wait for the redirect to land
+  await expect(page).toHaveURL(/\/login/, { timeout: 30000 });
 });

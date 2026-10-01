@@ -212,6 +212,6 @@ test('BF3: display units convert the cards, editors, summary and calibration; la
 
   // the guide route is gated like the app
   await page.goto('/dashboard/apps/geoscience/basinflow-genesis/help');
-  await page.waitForLoadState('networkidle');
-  expect(page.url()).not.toContain('/help');
+  // gated by auth like the app itself: wait for the redirect to land
+  await expect(page).toHaveURL(/\/login/, { timeout: 30000 });
 });

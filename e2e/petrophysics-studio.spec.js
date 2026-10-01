@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 import os from 'os';
 import { writeSyntheticScan, expectedValueAt, SCAN } from './helpers/syntheticScan.js';
 import { EMPTY_VALUE } from '../src/lib/emptyValue.js';
+import { seedUnitView } from './helpers/unitView.js';
 
 // expected zone numbers come from the committed goldens, not hardcoded
 // literals — fixture regeneration cannot silently drift past this spec
@@ -25,6 +26,11 @@ const analytic = JSON.parse(fs.readFileSync(
 ));
 // PT9: the pipeline runs on shale-corrected PHIE, whose goldens live in EFFECTIVE
 const goldenNet = (zone) => goldens.EFFECTIVE.ZONES[zone].summary.net_m.toFixed(1);
+
+// Since the Suite unit profile (#830) the harness opens in feet; the goldens
+// and every typed depth here are metres, so each tab starts on a metric view
+// override. PL0 below asserts the profile default itself.
+test.beforeEach(async ({ page }) => { await seedUnitView(page, 'petrophysics'); });
 
 const netOf = async (page, zone) => parseFloat(await page.getByTestId(`petro-zone-net-${zone}`).innerText());
 
@@ -45,9 +51,8 @@ test('type well loads, tracks render, zone summaries match the oracle', async ({
   // tracks canvas up and sized
   const canvas = page.getByTestId('petro-tracks-canvas');
   await expect(canvas).toBeVisible();
-  const box = await canvas.boundingBox();
-  expect(box.width).toBeGreaterThan(300);
-  expect(box.height).toBeGreaterThan(200);
+  await expect.poll(async () => (await canvas.boundingBox())?.width ?? 0).toBeGreaterThan(300);
+  await expect.poll(async () => (await canvas.boundingBox())?.height ?? 0).toBeGreaterThan(200);
 
   // the seeded zone reads the oracle's SAND_A summary
   await expect(page.getByTestId('petro-zone-net-SAND A')).toHaveText(goldenNet('SAND_A'));
@@ -298,8 +303,9 @@ test('PS1: z-color with colorbar, point identify tooltip, Buckles plot, zoom res
   // Buckles plot renders with iso-BVW overlays (canvas up and sized)
   await page.getByTestId('petro-plot-buckles').click();
   await expect(canvas).toBeVisible();
-  const bbox = await canvas.boundingBox();
-  expect(bbox.width).toBeGreaterThan(300);
+  // a canvas that has not been laid out yet is the HTML default 300 px wide, and the plot
+  // remounts on the switch, so wait for the measured size instead of reading it once
+  await expect.poll(async () => (await canvas.boundingBox())?.width ?? 0).toBeGreaterThan(300);
 });
 
 test('PS3: per-zone overrides drive the summary; named interpretations round-trip them', async ({ page }) => {

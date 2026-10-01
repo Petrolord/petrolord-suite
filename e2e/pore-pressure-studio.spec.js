@@ -223,6 +223,6 @@ test('PP1: launchers open the selected well in the other apps and the ribbon lin
   await expect(page.getByTestId('pp-open-in')).toBeDisabled();
 
   await page.goto('/dashboard/apps/geoscience/pore-pressure-studio/help');
-  await page.waitForLoadState('networkidle');
-  expect(page.url()).not.toContain('/help'); // gated by auth like the app itself
+  // gated by auth like the app itself: wait for the redirect to land
+  await expect(page).toHaveURL(/\/login/, { timeout: 30000 });
 });
