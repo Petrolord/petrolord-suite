@@ -8,7 +8,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera, Tags, ClipboardList, FileText, FileUp, Compass } from 'lucide-react';
+import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera, Tags, ClipboardList, FileText, FileUp, Compass, LineChart } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -56,11 +56,16 @@ import ImportView from './ImportView';
 import { IMPORT_SUBTYPE, DATA_SUBTYPE, mudlogRecords, mudlogSeries, importsOf, withdrawParams, typedRowParams } from '../services/mudlogImport';
 import { newId } from '@/lib/wellsite/ids';
 import SurveysView from './SurveysView';
+import LogView from './LogView';
+import { dExponentSeries, currentDxcSettings, dxcSettingsParams } from '../services/dexponent';
+import { depthWindow, depthTrack, dExponentTrack } from '../services/stripLog';
 import { SURVEY_SUBTYPE, activeSurvey, wellWithSurvey, surveyRuns, staleDepths } from '../services/surveys';
 import { LAG_CHECK_SUBTYPE, currentWashout, lagCheckParams, washoutParams } from '../services/lagCheck';
 
 // record types added by the upgrade that belong with the typed observations (lists, evidence, reports)
 const EXTRA_OBSERVATION_SUBTYPES = [GAS_SUBTYPE, 'lag_check', SURVEY_SUBTYPE];
+
+const latestBitMdForLog = (bits) => (bits.length ? bits[bits.length - 1].md_calc_m : null);
 
 export const VIEWS = [
   { id: 'live', label: 'Live', icon: Activity },
@@ -71,6 +76,7 @@ export const VIEWS = [
   { id: 'photos', label: 'Photos', icon: Camera },
   { id: 'import', label: 'Import', icon: FileUp },
   { id: 'surveys', label: 'Surveys', icon: Compass },
+  { id: 'log', label: 'Log', icon: LineChart },
   { id: 'tops', label: 'Tops', icon: Tags },
   { id: 'timeline', label: 'Timeline', icon: ListOrdered },
   { id: 'handover', label: 'Handover', icon: ClipboardList },
@@ -304,6 +310,21 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setStatus(`Drilling parameters recorded at ${fmtDepth(row.md_calc_m, units.depth)}.`);
     setTick((t) => t + 1);
   }, [backend, well, units.depth]);
+  // U2-006: d and dc from the data rows, the settings a decision on the record
+  const dxcSettings = useMemo(() => currentDxcSettings(decisionRecords), [decisionRecords]);
+  const dxc = useMemo(() => dExponentSeries({ points: mudlog.points, rigConfig, ctx, settings: dxcSettings }), [mudlog, rigConfig, ctx, dxcSettings]);
+  const saveDxcSettings = useCallback(async (p) => {
+    const params = dxcSettingsParams({ ...p, person: user ? user.name || user.email : null });
+    if (dxcSettings && dxcSettings.record) await backend.addVersion(dxcSettings.record, { payload: params.payload });
+    else await backend.addRecord(well.id, params);
+    setStatus(`${params.payload.statement}.`);
+    setTick((t) => t + 1);
+  }, [backend, well, dxcSettings, user]);
+  const logModel = useMemo(() => {
+    const win = depthWindow({ points: mudlog.points, bitMdM: latestBitMdForLog(bitDepths) });
+    const tracks = win ? [depthTrack(units.depth), ...(dxc.rows.length ? [dExponentTrack(dxc)] : [])] : [];
+    return { win, tracks, markers: [] };
+  }, [mudlog, bitDepths, dxc, units.depth]);
   const recordSurveyRun = useCallback(async (p) => {
     const { row } = await backend.addRecord(well.id, p);
     setStatus(`${row.payload.text} TVD and subsea depths now follow it.`);
@@ -411,7 +432,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const keepOffline = useCallback(async () => {
     try {
       // fetch this app's lazy chunks so the service worker holds them; the shell itself is precached
-      await Promise.all([import('../WellsiteStudio'), import('./ConfigView'), import('./DescribeView'), import('./SamplesView'), import('./TopsView'), import('./TimelineView'), import('./ShowsView'), import('./ObservationsView'), import('./PhotosPanel'), import('./ImportView'), import('./SurveysView')]);
+      await Promise.all([import('../WellsiteStudio'), import('./ConfigView'), import('./DescribeView'), import('./SamplesView'), import('./TopsView'), import('./TimelineView'), import('./ShowsView'), import('./ObservationsView'), import('./PhotosPanel'), import('./ImportView'), import('./SurveysView'), import('./LogView')]);
       const persisted = await persistStorage();
       setOfflineReady(true);
       setStatus(persisted ? 'This app is cached for use without a connection and its storage is protected.' : 'This app is cached for use without a connection.');
@@ -525,6 +546,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     center = <ImportView ctx={ctx} defaults={entryDefaults} unit={units.depth} pressureUnit={units.pressure} offsetMin={offsetMin} imports={mudlogImports} series={mudlog} onImport={importMudlog} onWithdraw={withdrawImport} onTypedRow={recordTypedRow} onStatus={setStatus} userName={user ? user.name || user.email : ''} />;
   } else if (view === 'surveys') {
     center = <SurveysView inUse={surveyInUse} ctx={ctx} unit={units.depth} offsetMin={offsetMin} stale={staleNow} runs={surveyRuns(surveyRecords)} onRecord={recordSurveyRun} onStatus={setStatus} nameOf={nameOf} />;
+  } else if (view === 'log') {
+    center = <LogView win={logModel.win} tracks={logModel.tracks} markers={logModel.markers} dxc={dxc} dxcSettings={dxcSettings} onSaveDxc={saveDxcSettings} unit={units.depth} onStatus={setStatus} title={`${well.name}.`} />;
   } else if (view === 'tops') {
     center = <TopsView board={topsBoard} tops={tops} records={allObservationRecords} prognosis={prognosis} ctx={ctx} defaults={entryDefaults} unit={units.depth} offsetMin={offsetMin}
       approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} geoWellId={well.geo_well_id} loadRegistryWells={loadRegistryWells} onAddPrognosisTop={addPrognosisTop} onPublish={publishToRegistry} onStatus={setStatus} userName={user ? user.name || user.email : ''} nameOf={nameOf} photos={photos} />;

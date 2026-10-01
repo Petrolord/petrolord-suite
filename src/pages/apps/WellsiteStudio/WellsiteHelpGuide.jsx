@@ -7,7 +7,7 @@
 import React from 'react';
 import {
   BookOpen, Zap, WifiOff, HardHat, Settings, Activity, FlaskConical, PenLine, Droplets, Eye, Camera, Tags, ListOrdered,
-  ClipboardList, FileText, RefreshCw, Upload, AlertTriangle, ListChecks, FileUp, Compass,
+  ClipboardList, FileText, RefreshCw, Upload, AlertTriangle, ListChecks, FileUp, Compass, LineChart,
 } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Code, Callout, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import { SAMPLE_STAGES } from '@/lib/wellsite/sampleProgram';
@@ -35,6 +35,7 @@ export const HELP_SECTIONS = [
   { id: 'photos', icon: Camera, title: 'Photographs' },
   { id: 'import', icon: FileUp, title: 'Importing mudlogging data' },
   { id: 'surveys', icon: Compass, title: 'Surveys on the rig' },
+  { id: 'log', icon: LineChart, title: 'The strip log and the d-exponent' },
   { id: 'tops', icon: Tags, title: 'Formation tops' },
   { id: 'timeline', icon: ListOrdered, title: 'The timeline' },
   { id: 'handover', icon: ClipboardList, title: 'Shift handover' },
@@ -329,6 +330,32 @@ export default function WellsiteHelpGuide() {
           screen and the value recorded at the time is shown beside it. A depth that was entered as TVD or TVDSS is listed with the
           measured depth the survey in use gives it, for you to record again if the TVD was what was meant.
         </Para>
+      </GuideSection>
+
+      <GuideSection id="log">
+        <SectionHeading icon={LineChart}>The strip log and the d-exponent</SectionHeading>
+        <Para>
+          The Log view draws the well against depth, with depth increasing down the page. Choose the depth window and the vertical
+          scale (fit the window, or 1:200, 1:500, 1:1000, 1:2000 as on paper).
+        </Para>
+        <SubHeading>d-exponent</SubHeading>
+        <Para>
+          For every data row with a rate of penetration, a rotary speed and a weight on bit (imported or typed on the Import view)
+          the app computes the d-exponent: log(R / 60N) over log(12W / 10^6 D), with R in ft/hr, N in rev/min, W in lbf and D the
+          bit size in inches, whatever units the data arrived in. The bit size is taken from the row, or from the open hole section
+          in Config at that depth. Record the normal pore pressure gradient of the area, with its unit (ppg, sg, kg/m3, psi/ft or
+          kPa/m), and the app also shows the corrected d-exponent: d times the normal gradient over the mud weight in use (the ECD
+          where the row has one, otherwise the mud weight in, and it says which).
+        </Para>
+        <Para>
+          Then give the depth interval you judge normally pressured. The normal trend is the straight line through its dc points
+          on the logarithmic scale against TVD, drawn dashed down the whole track; rows more than 10 percent below it are marked
+          and listed. The settings are a record with your name on it. A row that cannot be computed is counted with the reason.
+        </Para>
+        <Callout tone="info" title="An indication, with no pressure computed">
+          A dc falling below its normal trend is one sign of rising pore pressure, to weigh with gas, cavings and hole condition.
+          The app does not turn it into a pore pressure here.
+        </Callout>
       </GuideSection>
 
       <GuideSection id="tops">
