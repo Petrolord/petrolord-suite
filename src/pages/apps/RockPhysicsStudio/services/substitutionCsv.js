@@ -8,6 +8,7 @@
 
 import { buildLabel } from '@/lib/platformBuild';
 import { describeFluid } from './publish';
+import { shearSourceText } from './iterativeVs';
 import { velocityToDisplay, densityToDisplay, depthToDisplay } from './units';
 import { acousticImpedance, vpVs } from './elastic';
 
@@ -27,34 +28,53 @@ const ascii = (s) => String(s ?? '').replace(/[·•]/g, '.').replace(/[–—]/
  * @param {{field?: string, analyst?: string}} [p.reviewer]
  * @param {Date} [p.now]
  */
-export function substitutionCsv({ well, zone, model, sub, indices, scenario, rock, units, reviewer = {}, now = new Date() }) {
+/**
+ * The reviewer block, as [label, text] pairs: one source for the CSV header
+ * and the PDF (U2-004), so the two cannot disagree.
+ */
+export function reportHeader({ well, zone, model, sub, indices, scenario, rock, units, reviewer = {}, now = new Date(), build = buildLabel() }) {
   const vU = units.velocity === 'us/ft' || units.velocity === 'us/m' ? 'm/s' : units.velocity;
   const dU = units.density;
   const zU = units.depth;
   const c = scenario.conditions;
-  const kmin = sub.kminSource === 'vsh'
+  const kmin = sub.kminSource === 'petro-minerals' && sub.done
+    ? `${(sub.kminMin / 1e9).toFixed(3)} to ${(sub.kminMax / 1e9).toFixed(3)} GPa (Petrophysics mineral model per sample: ${(sub.mineralKeys || []).join(', ')}; Voigt-Reuss-Hill${sub.mineralFallback ? `; ${sub.mineralFallback} samples without fractions used the mineral table` : ''})`
+    : sub.kminSource === 'vsh'
     ? `${(sub.kminMin / 1e9).toFixed(3)} to ${(sub.kminMax / 1e9).toFixed(3)} GPa (clay at VSH, Voigt-Reuss-Hill)`
     : `${(sub.kmin / 1e9).toFixed(3)} GPa (${sub.kminSource === 'override' ? 'override' : 'Voigt-Reuss-Hill of the mineral table'})`;
   const minerals = Object.entries(rock.minerals || {}).filter(([, f]) => f > 0).map(([m, f]) => `${m} ${f}`).join(', ');
-  const header = [
+  return [
     ['Report', 'Rock Physics Studio: Gassmann fluid substitution'],
     ['Field', reviewer.field || ''],
     ['Well', well?.name || ''],
     ['Zone', `${zone.name} (MD ${cell(depthToDisplay(zone.top_md_m, zU), 1)} to ${cell(depthToDisplay(zone.base_md_m, zU), 1)} ${zU})`],
     ['Analyst', reviewer.analyst || ''],
     ['Date', now.toISOString().slice(0, 19).replace('T', ' ')],
-    ['Software', buildLabel()],
+    ['Software', build],
     ['Units', `depth ${zU} MD; velocity ${vU}; density ${dU}; impedance ${vU}*${dU}`],
-    ['Conditions', `${cell(c.tC, 1)} degC, pore pressure ${cell(c.pMPa, 2)} MPa, salinity ${c.salinity} weight fraction NaCl (Batzle-Wang 1992)`],
+    ['Conditions', `${cell(c.tC, 1)} degC, pore pressure ${cell(c.pMPa, 2)} MPa${c.pSource ? ` (${c.pSource})` : ''}, salinity ${c.salinity} weight fraction NaCl (Batzle-Wang 1992)`],
     ['Fluid A (in situ)', `${describeFluid(scenario.fluidA)}${sub.swFromLog ? ' with Sw from the SW log per sample' : ''}: K ${cell(sub.flA.k / 1e9, 4)} GPa, density ${cell(sub.flA.rho, 1)} kg/m3`],
-    ['Fluid B (substitute)', `${describeFluid(scenario.fluidB)}: K ${cell(sub.flB.k / 1e9, 4)} GPa, density ${cell(sub.flB.rho, 1)} kg/m3`],
+    ['Fluid B (substitute)', sub.swBFromShm && sub.done
+      ? `brine and ${scenario.fluidB.hc?.kind === 'gas' ? 'gas' : 'oil'} with Sw from the saturation-height function per sample (${model.swBInfo?.name || 'SCAL Studio project'}, free-water level ${cell(model.swBInfo?.fwlTvdssM, 1)} m TVDSS): Sw ${cell(sub.swBMin, 3)} to ${cell(sub.swBMax, 3)}${sub.swBFallback ? `; ${sub.swBFallback} samples with no value used the typed ${scenario.fluidB.sw}` : ''}`
+      : `${describeFluid(scenario.fluidB)}: K ${cell(sub.flB.k / 1e9, 4)} GPa, density ${cell(sub.flB.rho, 1)} kg/m3`],
+    ['Fluid mixing', sub.mixing === 'voigt'
+      ? 'patchy saturation at its stiff bound: Voigt (arithmetic) average of the brine and hydrocarbon moduli; a uniform mix (Wood) is softer'
+      : 'uniform saturation: Wood (Reuss) average of the brine and hydrocarbon moduli'],
     ['Mineral modulus', `${kmin}; minerals ${minerals || 'none'}`],
     ['Porosity', model.phiCurve ? `${model.phiCurve} (${model.phiBasis === 'total' ? 'total' : 'effective'} porosity)` : `constant ${rock.phiConst}`],
-    ['Shear', model.vsSource === 'estimated' ? 'Vs estimated (Greenberg-Castagna on VSH); no shear log' : 'measured shear log'],
+    ['Sonic', model.vpSource === 'estimated' ? `Vp ESTIMATED, no sonic log: ${model.vpNote}` : 'measured sonic log'],
+    ['Shear', shearSourceText(model)],
     ['Gassmann limits', `substituted where VSH <= ${rock.vshMax ?? 1} and porosity >= ${rock.phiMin ?? 0}`],
     ['Samples', `${indices.length} in zone; ${sub.done} substituted; ${sub.outside || 0} left in situ (outside the limits); ${sub.skipped} skipped${sub.firstError ? ` (${sub.firstError})` : ''}`],
     ['Method', 'Gassmann (1951) through the dry rock; shear modulus unchanged; density by pore-fluid swap'],
   ];
+}
+
+export function substitutionCsv({ well, zone, model, sub, indices, scenario, rock, units, reviewer = {}, now = new Date(), build = buildLabel() }) {
+  const vU = units.velocity === 'us/ft' || units.velocity === 'us/m' ? 'm/s' : units.velocity;
+  const dU = units.density;
+  const zU = units.depth;
+  const header = reportHeader({ well, zone, model, sub, indices, scenario, rock, units, reviewer, now, build });
   const lines = header.map(([k, v]) => `# ${ascii(k)}: ${ascii(v)}`);
   lines.push([
     `MD (${zU})`, `Vp in situ (${vU})`, `Vp B (${vU})`, `Vs in situ (${vU})`, `Vs B (${vU})`,

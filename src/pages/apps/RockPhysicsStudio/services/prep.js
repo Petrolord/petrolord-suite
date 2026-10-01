@@ -24,6 +24,7 @@ import { CURVE_ALIASES as SHARED_ALIASES } from '@/components/wells/curveMap';
 import { normalizeInputCurve } from '@/components/wells/curveUnits';
 import { isPrePt9aPhie } from '@/lib/petroProvenance';
 import { shearForWell } from '../engine/vsEstimate';
+import { pseudoConfig, pseudoVp, pseudoNote } from './pseudoSonic';
 
 // engine inputs <- registry mnemonics (base name, ':n' duplicate
 // suffixes ignored; first match wins; the PetroWorkstation pattern)
@@ -32,6 +33,8 @@ export const CURVE_ALIASES = {
   DT: SHARED_ALIASES.DT,
   DTS: ['DTS', 'DTSM', 'DTSH', 'DTS1', 'DTS2', 'DTSD', 'DT4S', 'DTSHEAR', 'DTSW', 'DT_S', 'DTSXX', 'DTSYY'],
   RHOB: SHARED_ALIASES.RHOB,
+  // U2-007: deep resistivity, for the Faust pseudo-sonic on wells with no DT
+  RT: SHARED_ALIASES.RT,
   PHIE: ['PHIE', 'PHI_E', 'PHIEFF', 'EPOR', 'PHIE_X'],
   PHIT: ['PHIT', 'PHI', 'POR', 'PHI_T', 'PHITOT', 'TPOR', 'PHIT_X'],
   VSH: ['VSH', 'VCL', 'VCLAY', 'VSHALE', 'VSH_GR', 'VCL_GR'],
@@ -144,17 +147,41 @@ function toFraction(values, log, notes) {
 
 /**
  * Registry curves -> SI model. curves/mapped keyed by CURVE_ALIASES.
- * Returns {depth, vp, vs, vsSource, rho, phi, phiBasis, phiCurve, vsh,
- * sw, n, notes}: vsSource is 'measured' | 'estimated' (never silently
+ * Returns {depth, vp, vs, vsSource, vpSource, vpMethod, vpNote, rt, rho,
+ * phi, phiBasis, phiCurve, vsh, sw, n, notes}: vpSource is 'measured' |
+ * 'estimated' (U2-007: no sonic log, a pseudo-sonic stands in); vsSource is 'measured' | 'estimated' (never silently
  * mixed); phiBasis is 'effective' | 'total' | null (no porosity curve).
  */
-export function buildModel(curves, mapped) {
+export function buildModel(curves, mapped, { pseudoSonic = null, minerals = null } = {}) {
   if (!curves.DEPT) throw new Error('This well has no depth curve. Import LAS logs in Well Data Manager first.');
-  if (!curves.DT) throw new Error('This well has no sonic (DT) curve, and rock physics needs Vp.');
-  if (!curves.RHOB) throw new Error('This well has no density (RHOB) curve.');
+  if (!curves.RHOB) throw new Error(curves.DT ? 'This well has no density (RHOB) curve.' : 'This well has no sonic (DT) and no density (RHOB) curve; rock physics needs at least one of them with a depth curve.');
   const notes = [];
   const depth = Array.from(curves.DEPT, (d) => (isGap(d) ? NaN : d));
-  const { vp } = sonicToVelocity(curves.DT, mapped.DT, notes);
+  const rho = densityToSi(curves.RHOB, mapped.RHOB, notes);
+  let rt = null;
+  if (curves.RT) {
+    const r = normalizeInputCurve('RT', mapped.RT || { mnemonic: 'RT' }, curves.RT);
+    notes.push(...r.notes);
+    rt = Array.from(r.data, (v) => (isGap(v) || !(v > 0) ? NaN : v));
+  }
+  // U2-007: no sonic log. Vp is ESTIMATED from density (Gardner inverse) or
+  // from resistivity and depth (Faust), and the model says so everywhere.
+  let vp;
+  let vpSource = 'measured';
+  let vpMethod = null;
+  let vpNote = null;
+  let pseudo = null;
+  if (curves.DT) {
+    ({ vp } = sonicToVelocity(curves.DT, mapped.DT, notes));
+  } else {
+    pseudo = pseudoConfig(pseudoSonic, { rhob: true, rt: !!rt });
+    ({ vp } = pseudoVp({ depth, rho, rt }, pseudo));
+    vpSource = 'estimated';
+    vpMethod = pseudo.method;
+    vpNote = pseudoNote(pseudo);
+    notes.push(`No sonic (DT) curve: Vp is estimated. ${vpNote}.${pseudo.method === 'faust' ? ' Depth is the measured depth.' : ''}`);
+    if (pseudo.fellBack) notes.push(pseudo.fellBack);
+  }
   const vsh = curves.VSH ? toFraction(curves.VSH, mapped.VSH, notes) : null;
   const { vs, source: vsSource } = shearForWell({
     vpCurve: vp,
@@ -180,7 +207,14 @@ export function buildModel(curves, mapped) {
     vp,
     vs,
     vsSource,
-    rho: densityToSi(curves.RHOB, mapped.RHOB, notes),
+    // U2-009: Petrophysics Studio's published mineral fractions (petroInputs.buildMineralSet), or null
+    minerals: minerals && minerals.n === depth.length ? minerals : null,
+    vpSource,
+    vpMethod,
+    vpNote,
+    pseudo,
+    rt,
+    rho,
     phi,
     phiBasis,
     phiCurve,

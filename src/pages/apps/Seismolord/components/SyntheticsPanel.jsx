@@ -19,8 +19,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Waves, Loader2, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { guessCurveKind } from '@/pages/apps/WellDataManager/engine/lasImport';
-import { substitutedCurveKind, substitutedCurveLabel } from '@/lib/rockPhysicsCurves';
+import { substitutedCurveKind, substitutedCurveLabel, estimatedCurveKind, estimatedCurveLabel } from '@/lib/rockPhysicsCurves';
 import { normalizeInputCurve } from '@/components/wells/curveUnits';
+import RockPhysicsGather from './RockPhysicsGather';
 import {
   isGap, rickerWavelet, extractStatisticalWavelet, suggestBulkShift,
 } from '../engine/synthetics';
@@ -363,11 +364,14 @@ function drawTracks(canvas, view) {
  * @param {?number} p.dtUs
  * @param {?Object} p.velocity velocityForDisplay (T(z) fallback)
  * @param {?Array} p.boundaries layer-cake boundary grids
+ * @param {?(wellId: string) => Promise<{ok: boolean, gather?: Object, reason?: string}>} p.loadRockPhysicsGather
+ *   U2-020: the angle gather Rock Physics Studio published for the well (src/lib/rockPhysicsGather.js)
  */
 export default function SyntheticsPanel({
   wells, listLogs, downloadCurve, synthesize, getTraces,
   horizons, loadGrid, affine, geom, dtUs, velocity, boundaries,
   onApplyVelocity = null, onCommitCheckshots = null, onClearCheckshots = null,
+  loadRockPhysicsGather = null,
 }) {
   const [logsByWell, setLogsByWell] = useState({});
   const [logsLoading, setLogsLoading] = useState(false);
@@ -391,6 +395,16 @@ export default function SyntheticsPanel({
   const [phase, setPhase] = useState(null);       // estimatePhaseRotation result
   const [phiApplied, setPhiApplied] = useState(false);
   const [commitBusy, setCommitBusy] = useState(false);
+  // U2-020 (second half): the angle gather Rock Physics Studio published for this well
+  const [rpGather, setRpGather] = useState(null);
+  const [showRpGather, setShowRpGather] = useState(false);
+  useEffect(() => {
+    let live = true;
+    setRpGather(null);
+    if (!wellId || !loadRockPhysicsGather) return undefined;
+    loadRockPhysicsGather(wellId).then((r) => { if (live) setRpGather(r?.ok ? r.gather : null); }).catch(() => { if (live) setRpGather(null); });
+    return () => { live = false; };
+  }, [wellId, loadRockPhysicsGather]);
   const canvasRef = useRef(null);
   const layoutRef = useRef(null);                 // {t0, t1} of the last draw
   const dragRef = useRef(null);                   // index of the dragged anchor
@@ -425,8 +439,10 @@ export default function SyntheticsPanel({
 
   // RP-U1-009: Rock Physics' substituted DT_SUB / RHOB_SUB are a sonic and a
   // density too (listed after the measured curves, labelled as substituted)
-  const kindOf = (log) => guessCurveKind(log.mnemonic) || substitutedCurveKind(log);
-  const curveLabel = (l) => (substitutedCurveKind(l) ? substitutedCurveLabel(l) : `${l.mnemonic} (${l.unit || '?'})`);
+  // RP-U2-007: the pseudo-sonic DT_EST (a well with no sonic log) is listed
+  // too, last, under a label that says it is an estimate
+  const kindOf = (log) => guessCurveKind(log.mnemonic) || substitutedCurveKind(log) || estimatedCurveKind(log);
+  const curveLabel = (l) => (substitutedCurveKind(l) ? substitutedCurveLabel(l) : estimatedCurveKind(l) ? estimatedCurveLabel(l) : `${l.mnemonic} (${l.unit || '?'})`);
   const sonicWells = useMemo(
     () => (wells || []).filter((w) => (logsByWell[w.id] || []).some((l) => kindOf(l) === 'sonic')),
     [wells, logsByWell],
@@ -444,7 +460,7 @@ export default function SyntheticsPanel({
     setPhase(null);
     setPhiApplied(false);
     const logs = logsByWell[id] || [];
-    const measured = (k) => logs.find((l) => kindOf(l) === k && !substitutedCurveKind(l)) || logs.find((l) => kindOf(l) === k);
+    const measured = (k) => logs.find((l) => kindOf(l) === k && !substitutedCurveKind(l) && !estimatedCurveKind(l)) || logs.find((l) => kindOf(l) === k && !estimatedCurveKind(l)) || logs.find((l) => kindOf(l) === k);
     const sonic = measured('sonic');
     const dens = measured('density');
     setSonicId(sonic ? sonic.id : '');
@@ -1009,6 +1025,28 @@ export default function SyntheticsPanel({
         </Button>
       </div>
 
+      {(() => {
+        const chosen = wellLogs.find((l) => l.id === sonicId);
+        return chosen && (estimatedCurveKind(chosen) || chosen.provenance?.vp_source === 'estimated') ? (
+          <div className="text-xs text-pl-warning-text shrink-0" data-testid="synth-estimated-sonic">
+            The chosen sonic is an estimate, with no sonic log behind it: the synthetic is indicative only and is no basis for a tie.
+          </div>
+        ) : null;
+      })()}
+      {rpGather && (
+        <div className="shrink-0">
+          <button
+            type="button"
+            data-testid="synth-rp-gather-toggle"
+            className="text-xs px-2 py-0.5 rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken"
+            onClick={() => setShowRpGather((v) => !v)}
+            title="The synthetic angle gather Rock Physics Studio published for this well (in situ and fluid substituted)"
+          >
+            {showRpGather ? 'Hide' : 'Show'} the Rock Physics angle gather
+          </button>
+        </div>
+      )}
+      {rpGather && showRpGather && <RockPhysicsGather gather={rpGather} />}
       {error && <div className="text-xs text-pl-danger-text shrink-0" data-testid="synth-error">{error}</div>}
 
       {view && (

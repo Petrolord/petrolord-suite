@@ -4,11 +4,25 @@
 // unphysical inputs THROW with the reason, per-sample gaps are
 // skipped and counted — never silently zeroed.
 
-import { brine, gas, deadOil, liveOil, apiToRho0, woodMix } from '../engine/fluids';
+import { brine, gas, deadOil, liveOil, apiToRho0, woodMix, voigtMix } from '../engine/fluids';
 import { mixMinerals } from '../engine/minerals';
 import { substituteVels } from '../engine/gassmann';
+import { kminFromFractions } from './petroInputs';
+
+// U2-016: how brine and hydrocarbon share the pore space. 'wood' is a fine
+// uniform mix (the Reuss average of the fluid moduli, the soft bound);
+// 'voigt' is patchy saturation at its stiff bound (the Voigt average: the
+// phases sit in patches too large for pore pressure to equalise in a
+// seismic period). A real rock lies between the two.
+export const FLUID_MIXING = Object.freeze([
+  { key: 'wood', label: 'uniform (Wood)' },
+  { key: 'voigt', label: 'patchy (Voigt bound)' },
+]);
+export const mixingOf = (scenario) => (scenario?.mixing === 'voigt' ? 'voigt' : 'wood');
+const mixer = (mixing) => (mixing === 'voigt' ? voigtMix : woodMix);
 
 export const DEFAULT_SCENARIO = {
+  mixing: 'wood',
   conditions: { tC: 60, pMPa: 25, salinity: 0.035 },
   // each side is brine mixed with ONE hydrocarbon at water saturation
   // sw (Reuss/Wood, plan decision 1); sw=1 -> pure brine, sw=0 -> pure hc
@@ -27,10 +41,17 @@ export const DEFAULT_ROCK = {
   // effective porosity the clay is part of the frame, so K_min mixes clay
   // in at each sample's VSH (Voigt-Reuss-Hill with the table's other minerals)
   clayFromVsh: false,
+  // U2-009: K_min per sample from the mineral fractions Petrophysics Studio
+  // published on the well (off until the user asks; the K_min override wins)
+  mineralsFromPetro: false,
   // RP-U1-006: Gassmann holds for connected porosity in reservoir rock;
   // samples above vshMax or below phiMin keep their in-situ values, counted
   vshMax: 0.5,
   phiMin: 0.03,
+  // U2-005: with no shear log, Vs in hydrocarbon-bearing samples is found
+  // by iteration through the brine state (Greenberg-Castagna holds for
+  // brine rock); off = the regression applied straight to the in-situ Vp
+  iterativeVs: true,
 };
 
 /** Hydrocarbon phase {rho, k, vp?} from the hc spec at conditions. */
@@ -44,7 +65,7 @@ export function hcProps(cond, hc) {
 }
 
 /** One side's effective pore fluid {rho, k, vp?, label}. */
-export function sideFluid(cond, side) {
+export function sideFluid(cond, side, mixing = 'wood') {
   const sw = side.sw;
   if (!(sw >= 0 && sw <= 1)) throw new Error('Sw must be in [0, 1].');
   const br = brine(cond.tC, cond.pMPa, cond.salinity);
@@ -52,11 +73,11 @@ export function sideFluid(cond, side) {
   const hc = hcProps(cond, side.hc);
   const hcLabel = side.hc.kind === 'gas' ? 'gas' : side.hc.kind;
   if (sw === 0) return { ...hc, label: hcLabel };
-  const mixed = woodMix([
+  const mixed = mixer(mixing)([
     { ...br, sat: sw },
     { ...hc, sat: 1 - sw },
   ]);
-  return { ...mixed, label: `${hcLabel} (Sw ${sw})` };
+  return { ...mixed, label: `${hcLabel} (Sw ${sw}${mixing === 'voigt' ? ', patchy' : ''})` };
 }
 
 /** K_min (Pa) from the rock panel: override wins, else VRH mix. */
@@ -122,6 +143,96 @@ export function kminAtVsh(rock, vsh) {
 export const plainMessage = (m) => String(m || '').replace(/\s*—\s*/g, ': ');
 
 /**
+ * What each sample is given before Gassmann runs on it (U2, 2026-10-01):
+ * its in-situ fluid (the SW log when asked, else the typed Sw), its
+ * mineral modulus (clay at VSH when asked, else the table or the override)
+ * and whether it is inside the Gassmann limits. One sampler serves the
+ * zone substitution, the iterative Vs and the wet trend, so they cannot
+ * read a sample differently.
+ */
+export function makeSampler(model, scenario, rock) {
+  const cond = scenario.conditions;
+  const mixing = mixingOf(scenario);
+  const mix = mixer(mixing);
+  const flA = sideFluid(cond, scenario.fluidA, mixing);
+  const flB = sideFluid(cond, scenario.fluidB, mixing);
+  const override = parseFloat(rock.kminOverrideGPa);
+  const hasOverride = Number.isFinite(override) && override > 0;
+  const kminTable = kminFromRock(rock);
+  const useClay = !!rock.clayFromVsh && !hasOverride && !!model.vsh;
+  // U2-009: the mineral model Petrophysics Studio published on this well
+  const usePetro = !!rock.mineralsFromPetro && !hasOverride && !!model.minerals && model.minerals.keys.length > 0 && !model.minerals.unknown.length;
+  const useSwLog = !!scenario.fluidA?.swFromLog && !!model.sw;
+  const brineAt = brine(cond.tC, cond.pMPa, cond.salinity);
+  const hcA = useSwLog && scenario.fluidA.hc ? hcProps(cond, scenario.fluidA.hc) : null;
+  const vshMax = Number.isFinite(rock.vshMax) ? rock.vshMax : 1;
+  const phiMin = Number.isFinite(rock.phiMin) ? rock.phiMin : 0;
+  // U2-011: fluid B's Sw per sample from a saturation-height function
+  // (model.swB, set by the workstation from a SCAL Studio project)
+  const useShm = !!scenario.fluidB?.shm?.on && !!model.swB;
+  const hcB = useShm && scenario.fluidB.hc ? hcProps(cond, scenario.fluidB.hc) : null;
+  return {
+    mixing,
+    useShm,
+    labelB: useShm ? `brine and ${scenario.fluidB.hc?.kind === 'gas' ? 'gas' : scenario.fluidB.hc?.kind} at the saturation-height Sw` : flB.label,
+    /** fluid B's water saturation at the sample, and whether the typed value stood in */
+    swB: (i) => {
+      if (!useShm) return { sw: scenario.fluidB.sw, fallback: false };
+      const sw = model.swB[i];
+      if (!Number.isFinite(sw)) return { sw: scenario.fluidB.sw, fallback: true };
+      return { sw: Math.min(1, Math.max(0, sw)), fallback: false };
+    },
+    flA,
+    flB,
+    brine: brineAt,
+    kminTable,
+    useSwLog,
+    kminSource: hasOverride ? 'override' : usePetro ? 'petro-minerals' : useClay ? 'vsh' : 'table',
+    usePetro,
+    labelA: useSwLog ? `brine and ${scenario.fluidA.hc?.kind === 'gas' ? 'gas' : scenario.fluidA.hc?.kind} at the SW log` : flA.label,
+    phi: (i) => (model.phi ? model.phi[i] : rock.phiConst),
+    /** true when the sample is outside the Gassmann limits */
+    outside: (i) => {
+      const vsh = model.vsh ? model.vsh[i] : NaN;
+      const phi = model.phi ? model.phi[i] : rock.phiConst;
+      return (Number.isFinite(vsh) && vsh > vshMax) || phi < phiMin;
+    },
+    /** in-situ water saturation at the sample, and whether the typed value stood in for a null */
+    swA: (i) => {
+      if (!useSwLog) return { sw: scenario.fluidA.sw, fallback: false };
+      const sw = model.sw[i];
+      if (!Number.isFinite(sw)) return { sw: scenario.fluidA.sw, fallback: true };
+      return { sw: Math.min(1, Math.max(0, sw)), fallback: false };
+    },
+    /** the in-situ pore fluid {k, rho} at the sample */
+    fluidA: (i) => {
+      if (!useSwLog) return flA;
+      const sw = model.sw[i];
+      if (!Number.isFinite(sw)) return flA;
+      const s = Math.min(1, Math.max(0, sw));
+      return s >= 1 ? brineAt : s <= 0 ? hcA : mix([{ ...brineAt, sat: s }, { ...hcA, sat: 1 - s }]);
+    },
+    fluidB: (i) => {
+      if (!useShm) return flB;
+      const sw = model.swB[i];
+      if (!Number.isFinite(sw)) return flB;
+      const s = Math.min(1, Math.max(0, sw));
+      return s >= 1 ? brineAt : s <= 0 ? hcB : mix([{ ...brineAt, sat: s }, { ...hcB, sat: 1 - s }]);
+    },
+    kmin: (i) => {
+      if (usePetro) {
+        const k = kminFromFractions(model.minerals, i);
+        if (Number.isFinite(k)) return k;
+      }
+      const vsh = model.vsh ? model.vsh[i] : NaN;
+      return useClay && Number.isFinite(vsh) ? kminAtVsh(rock, vsh) : kminTable;
+    },
+    /** true when the mineral model was asked for but gave nothing at this sample */
+    mineralFallback: (i) => usePetro && !Number.isFinite(kminFromFractions(model.minerals, i)),
+  };
+}
+
+/**
  * The zone substitution the Fluids panel, the AVO replacement and the
  * publish all use (RP-U1-004/005/006). Per sample: fluid A from the SW log
  * when asked, K_min from VSH when asked, and the validity cutoffs. Returns
@@ -129,18 +240,7 @@ export const plainMessage = (m) => String(m || '').replace(/\s*—\s*/g, ': ');
  * kminMin, kminMax, kminSource, phiBasis}.
  */
 export function substituteZone(model, indices, scenario, rock) {
-  const cond = scenario.conditions;
-  const flA = sideFluid(cond, scenario.fluidA);
-  const flB = sideFluid(cond, scenario.fluidB);
-  const override = parseFloat(rock.kminOverrideGPa);
-  const hasOverride = Number.isFinite(override) && override > 0;
-  const kminTable = kminFromRock(rock);
-  const useClay = !!rock.clayFromVsh && !hasOverride && !!model.vsh;
-  const useSwLog = !!scenario.fluidA?.swFromLog && !!model.sw;
-  const brineA = useSwLog ? brine(cond.tC, cond.pMPa, cond.salinity) : null;
-  const hcA = useSwLog && scenario.fluidA.hc ? hcProps(cond, scenario.fluidA.hc) : null;
-  const vshMax = Number.isFinite(rock.vshMax) ? rock.vshMax : 1;
-  const phiMin = Number.isFinite(rock.phiMin) ? rock.phiMin : 0;
+  const sm = makeSampler(model, scenario, rock);
   const n = model.n;
   const out = {
     vp: new Array(n).fill(NaN),
@@ -150,42 +250,47 @@ export function substituteZone(model, indices, scenario, rock) {
     skipped: 0,
     outside: 0,
     swFallback: 0,
+    mineralFallback: 0,
+    mixing: sm.mixing,
+    swBFromShm: sm.useShm,
+    swBFallback: 0,
+    swBMin: Infinity,
+    swBMax: -Infinity,
+    labelB: sm.labelB,
     firstError: null,
-    kmin: kminTable,
+    kmin: sm.kminTable,
     kminMin: Infinity,
     kminMax: -Infinity,
-    kminSource: hasOverride ? 'override' : useClay ? 'vsh' : 'table',
-    swFromLog: useSwLog,
+    kminSource: sm.kminSource,
+    swFromLog: sm.useSwLog,
     phiBasis: model.phi ? (model.phiBasis || 'effective') : 'constant',
-    flA,
-    flB,
-    labelA: useSwLog ? `brine and ${scenario.fluidA.hc?.kind === 'gas' ? 'gas' : scenario.fluidA.hc?.kind} at the SW log` : flA.label,
+    mineralKeys: sm.usePetro ? [...model.minerals.keys] : null,
+    flA: sm.flA,
+    flB: sm.flB,
+    labelA: sm.labelA,
   };
   for (const i of indices) {
     const vp = model.vp[i];
     const vs = model.vs[i];
     const rho = model.rho[i];
-    const phi = model.phi ? model.phi[i] : rock.phiConst;
+    const phi = sm.phi(i);
     if (![vp, vs, rho, phi].every(Number.isFinite)) { out.skipped += 1; continue; }
-    const vsh = model.vsh ? model.vsh[i] : NaN;
-    if ((Number.isFinite(vsh) && vsh > vshMax) || phi < phiMin) { out.outside += 1; continue; }
+    if (sm.outside(i)) { out.outside += 1; continue; }
     try {
-      let a = flA;
-      if (useSwLog) {
-        const sw = model.sw[i];
-        if (Number.isFinite(sw)) {
-          const s = Math.min(1, Math.max(0, sw));
-          a = s >= 1 ? brineA : s <= 0 ? hcA : woodMix([{ ...brineA, sat: s }, { ...hcA, sat: 1 - s }]);
-        } else out.swFallback += 1;
-      }
-      const kmin = useClay && Number.isFinite(vsh) ? kminAtVsh(rock, vsh) : kminTable;
-      const r = substituteVels(vp, vs, rho, kmin, phi, a, flB);
+      if (sm.swA(i).fallback) out.swFallback += 1;
+      const sb = sm.swB(i);
+      if (sb.fallback) out.swBFallback += 1;
+      const kmin = sm.kmin(i);
+      if (sm.mineralFallback(i)) out.mineralFallback += 1;
+      const r = substituteVels(vp, vs, rho, kmin, phi, sm.fluidA(i), sm.fluidB(i));
       out.vp[i] = r.vp;
       out.vs[i] = r.vs;
       out.rho[i] = r.rho;
       out.done += 1;
       out.kminMin = Math.min(out.kminMin, kmin);
       out.kminMax = Math.max(out.kminMax, kmin);
+      out.swBMin = Math.min(out.swBMin, sb.sw);
+      out.swBMax = Math.max(out.swBMax, sb.sw);
     } catch (e) {
       out.skipped += 1;
       if (!out.firstError) out.firstError = plainMessage(e.message);
@@ -214,5 +319,5 @@ export function substitutedHalfspace(model, from, to, scenario, rock) {
     const v = idx.map((i) => arr[i]).filter(Number.isFinite);
     return v.reduce((s, x) => s + x, 0) / v.length;
   };
-  return { vp: mean(sub.vp), vs: mean(sub.vs), rho: mean(sub.rho), labelA: sub.labelA, labelB: flB.label };
+  return { vp: mean(sub.vp), vs: mean(sub.vs), rho: mean(sub.rho), labelA: sub.labelA, labelB: sub.labelB || flB.label };
 }

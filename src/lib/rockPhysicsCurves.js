@@ -28,5 +28,25 @@ export function substitutedCurveLabel(log) {
   const p = log?.provenance || {};
   const zone = p.zone?.name ? ` in ${p.zone.name}` : '';
   const what = p.fluids ? `: ${p.fluids}${zone}` : zone;
-  return `${log.mnemonic} (${log.unit || '?'}), fluid substituted${what}`;
+  // RP-U2-007: a substituted curve built on a pseudo-sonic says so
+  const est = p.vp_source === 'estimated' ? ', from an ESTIMATED sonic' : '';
+  return `${log.mnemonic} (${log.unit || '?'}), fluid substituted${est}${what}`;
+}
+
+// RP-U2-007 (2026-10-01): for a well with no sonic log Rock Physics can
+// publish its pseudo-sonic as DT_EST (us/m, provenance.estimated = true).
+// A reader may list it as a sonic, but only under a label that says it is
+// an estimate, and never as its default.
+const EST_KINDS = Object.freeze({ DT_EST: 'sonic' });
+
+/** 'sonic' for an estimated curve a synthetic may use, else null. */
+export function estimatedCurveKind(log) {
+  if (!isRockPhysicsCurve(log) || log.provenance.estimated !== true) return null;
+  return EST_KINDS[base(log.mnemonic)] || null;
+}
+
+/** "DT_EST (US/M), ESTIMATED sonic: Gardner (1974) inverse from density, ..." */
+export function estimatedCurveLabel(log) {
+  const note = log?.provenance?.note ? `: ${log.provenance.note}` : '';
+  return `${log.mnemonic} (${log.unit || '?'}), ESTIMATED sonic${note}`;
 }

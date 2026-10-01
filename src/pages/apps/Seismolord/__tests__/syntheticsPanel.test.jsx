@@ -69,4 +69,38 @@ describe('SyntheticsPanel through the harness', () => {
     await waitFor(() => expect(screen.getByTestId('synth-result')).toBeTruthy());
     expect(screen.queryByTestId('synth-density-note')).toBeNull();
   });
+
+  test('RP-U2-007: an estimated sonic is listed last in words that say so, is never the default, and warns when chosen', async () => {
+    await pickWell();
+    const opts = [...screen.getByTestId('synth-sonic').querySelectorAll('option')].map((o) => o.textContent);
+    expect(opts.some((t) => /^DT_EST \(US\/M\), ESTIMATED sonic: Gardner \(1974\) inverse from density/.test(t))).toBe(true);
+    // the measured sonic stays the default although the estimate is first in the list
+    expect(screen.getByTestId('synth-sonic').value).toBe('log-dt');
+    expect(screen.queryByTestId('synth-estimated-sonic')).toBeNull();
+    fireEvent.change(screen.getByTestId('synth-sonic'), { target: { value: 'log-dt-est' } });
+    expect(screen.getByTestId('synth-estimated-sonic').textContent).toMatch(/is an estimate, with no sonic log behind it.*no basis for a tie/);
+    // negative control: a plain DT has no warning
+    fireEvent.change(screen.getByTestId('synth-sonic'), { target: { value: 'log-dt' } });
+    expect(screen.queryByTestId('synth-estimated-sonic')).toBeNull();
+  });
+
+  test('RP-U2-012 (U2-020 second half): the gather Rock Physics published for the well is shown on request', async () => {
+    await pickWell();
+    await waitFor(() => expect(screen.getByTestId('synth-rp-gather-toggle')).toBeTruthy());
+    expect(screen.queryByTestId('synth-rp-gather')).toBeNull();
+    fireEvent.click(screen.getByTestId('synth-rp-gather-toggle'));
+    expect(screen.getByTestId('synth-rp-gather-caption').textContent).toBe('Rock Physics angle gather of Layer 2 · 5 angles to 40 degrees · exact Zoeppritz · Ricker 25 Hz, zero phase · published 2026-10-01');
+    for (const key of ['in-situ', 'substituted']) {
+      const el = screen.getByTestId(`synth-rp-gather-${key}`);
+      expect(el.getAttribute('data-traces')).toBe('5');
+      expect(el.getAttribute('data-samples')).toBe('81');
+      expect(el.getAttribute('data-canvas')).toBe('chart');
+    }
+    expect(screen.getByTestId('synth-rp-gather-ab').textContent).toContain('Zone with 100% gas');
+    expect(screen.getByTestId('synth-rp-gather-ab').textContent).toContain('intercept -0.1000');
+    expect(screen.getByTestId('synth-rp-gather-ab').textContent).toContain('gradient -0.3300');
+    expect(screen.queryByTestId('synth-rp-gather-estimated')).toBeNull();
+    fireEvent.click(screen.getByTestId('synth-rp-gather-toggle'));
+    expect(screen.queryByTestId('synth-rp-gather')).toBeNull();
+  });
 });
