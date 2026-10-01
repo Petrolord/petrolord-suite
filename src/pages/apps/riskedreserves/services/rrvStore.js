@@ -53,6 +53,10 @@ export function fromRcpProspect(row) {
           : 'saved before the basis was recorded: these may be in-place volumes, check before valuing',
     ].filter(Boolean).join('; '),
     basis: row.inputs?.basis || null,
+    // BF-U2-017: the charge factor's basin model, when one was handed over
+    chargeNote: row.inputs?.bfCharge?.model
+      ? `charge from the basin model ${row.inputs.bfCharge.model} (${Number(row.inputs.bfCharge.chargeMMboe).toPrecision(3)} MMboe to the trap; suggested ${row.inputs.bfCharge.suggestedFactor ?? 'none'}, used ${row.inputs.bfCharge.appliedFactor ?? f.charge ?? 'none'})`
+      : '',
     ...DEFAULT_ECONOMICS,
     // RCP-U2-012: a prospect valued in ReservoirCalc Pro brings its value
     // per barrel and development cost (the Suite's screening NPV)

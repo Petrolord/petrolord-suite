@@ -12,8 +12,9 @@ test('basinflow-genesis app route loads its chunk and gates on auth', async ({ p
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/dashboard/apps/geoscience/basinflow-genesis');
   await page.waitForLoadState('networkidle');
+  // redirected by the auth gate (the gate answers after the session check, so poll)
+  await expect.poll(() => page.url(), { timeout: 60000 }).not.toContain('basinflow-genesis');
   expect(errors).toEqual([]);
-  expect(page.url()).not.toContain('basinflow-genesis'); // redirected by the auth gate
 });
 
 import fs from 'fs';
@@ -29,9 +30,13 @@ const lastOf = (a) => a[a.length - 1];
 
 async function openExpert(page) {
   await page.goto('/dev/basinflow-genesis');
-  await expect(page.getByTestId('bf-harness')).toBeVisible();
+  await expect(page.getByTestId('bf-harness')).toBeVisible({ timeout: 120000 });
   await page.getByTestId('bf-mode-expert').click();
-  await expect(page.getByTestId('bf-simulate')).toBeVisible();
+  await expect(page.getByTestId('bf-simulate')).toBeVisible({ timeout: 60000 });
+  // the Suite unit profile (#830) opens the harness in ft and F; this spec is
+  // anchored on the oracle's SI values, so it reads the page in m and C
+  await page.getByTestId('bf-unit-depth').selectOption('m');
+  await page.getByTestId('bf-unit-temp').selectOption('C');
   // the seeded reference basin is the active well and its layers are listed
   await expect(page.locator('[data-testid="bf-well-row"][data-well-name="Reference Basin (oracle)"]')).toHaveAttribute('data-active', 'true');
   await expect(page.locator('[data-testid="bf-layer-card"]')).toHaveCount(4);

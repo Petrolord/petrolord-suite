@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS } from '@/utils/chartTheme';
-import { alignSeriesByAge, ageAxisProps, maxAgeOf, isoline, MATURITY_WINDOWS } from '../../services/resultsView';
+import { burialChartRows, erodedSections, layerKey, ageAxisProps, maxAgeOf, isoline, MATURITY_WINDOWS } from '../../services/resultsView';
 import { depthToDisplay, depthLabel } from '../../services/units';
 
 // Lithology fills — legible on the white chart background
@@ -24,10 +24,12 @@ const BurialHistoryPlot = ({ results, units = { depth: 'm' } }) => {
     const zU = units.depth;
     const [overlay, setOverlay] = useState('ro');
     const lines = overlay === 'ro' ? RO_LINES : overlay === 'temp' ? ISOTHERMS_C : [];
+    const eroded = useMemo(() => erodedSections(results), [results]);
 
     const chartData = useMemo(() => {
         if (!data?.timeSteps?.length) return [];
-        const rows = alignSeriesByAge(data.timeSteps, data.burial, meta.layers, e => [depthToDisplay(e.top, zU), depthToDisplay(e.bottom, zU)]);
+        // U2-001: the eroded section is drawn while it exists (BF-T1-E3)
+        const rows = burialChartRows(results, (m) => depthToDisplay(m, zU));
         const byAge = new Map(rows.map((r) => [r.age, r]));
         for (const l of lines) {
             for (const pt of isoline(results, overlay === 'ro' ? 'maturity' : 'temperature', l.value)) {
@@ -52,9 +54,20 @@ const BurialHistoryPlot = ({ results, units = { depth: 'm' } }) => {
                     </select>
                 </label>
             </div>
+            {eroded.length > 0 && (
+                <p className="text-center text-[11px] text-slate-500" data-testid="bf-burial-eroded-note">
+                    {eroded.map((p) => `Eroded section: ${Math.round(depthToDisplay(p.amountM, zU))} ${zU} deposited at ${p.depositAge} Ma, removed at ${p.erodeAge} Ma (hatched)`).join('; ')}
+                </p>
+            )}
             <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData} margin={CHART_MARGINS.standard}>
+                        <defs>
+                            <pattern id="bf-eroded-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                                <rect width="6" height="6" fill="#e2e8f0" />
+                                <line x1="0" y1="0" x2="0" y2="6" stroke="#94a3b8" strokeWidth="2" />
+                            </pattern>
+                        </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
                         <XAxis
                             {...ageAxisProps(maxAgeOf(results))}
@@ -70,11 +83,25 @@ const BurialHistoryPlot = ({ results, units = { depth: 'm' } }) => {
                         />
                         <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} />
                         <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
-                        {meta.layers.map((layer) => (
+                        {eroded.map((p) => (
                             <Area
-                                key={layer.id || layer.name}
+                                key={p.key}
+                                type="linear"
+                                dataKey={p.key}
+                                name={`Eroded section (removed at ${p.erodeAge} Ma)`}
+                                stroke="#64748b"
+                                strokeDasharray="4 3"
+                                fill="url(#bf-eroded-hatch)"
+                                fillOpacity={1}
+                                connectNulls={false}
+                                isAnimationActive={false}
+                            />
+                        ))}
+                        {meta.layers.map((layer, li) => (
+                            <Area
+                                key={layerKey(layer, li)}
                                 type="monotone"
-                                dataKey={layer.name}
+                                dataKey={layerKey(layer, li)}
                                 name={layer.name}
                                 stroke={LITHOLOGY_COLORS[layer.lithology] || '#64748b'}
                                 fill={LITHOLOGY_COLORS[layer.lithology] || '#64748b'}

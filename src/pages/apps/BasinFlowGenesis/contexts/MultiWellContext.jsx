@@ -98,7 +98,8 @@ export const MultiWellProvider = ({ children, backend = null }) => {
         erosionEvents: Array.isArray(w.erosion_events) ? w.erosion_events : [],
         settings: w.settings && typeof w.settings === 'object' ? w.settings : {},
         calibration: w.calibration_data && (w.calibration_data.ro || w.calibration_data.temp)
-            ? { ro: w.calibration_data.ro || [], temp: w.calibration_data.temp || [] }
+            // BF-U2-006: the BHT correction choice travels with the points
+            ? { ro: w.calibration_data.ro || [], temp: w.calibration_data.temp || [], ...(w.calibration_data.bht ? { bht: w.calibration_data.bht } : {}) }
             : { ro: [], temp: [] },
         scenarios: w.scenarios || []
     });
@@ -139,7 +140,8 @@ export const MultiWellProvider = ({ children, backend = null }) => {
                 heat_flow: wellData.heatFlow || { type: 'constant', value: 60 },
                 erosion_events: Array.isArray(wellData.erosionEvents) ? wellData.erosionEvents : [],
                 settings: wellData.settings || {},
-                calibration_data: {},
+                // BF-U2-018: the worked example arrives with its calibration
+                calibration_data: wellData.calibration || {},
                 scenarios: [],
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()

@@ -28,6 +28,7 @@ export const HELP_SECTIONS = [
   { id: 'export', icon: UploadCloud, title: 'Scenarios, saving and export' },
   { id: 'units', icon: Ruler, title: 'Display units' },
   { id: 'links', icon: Link2, title: 'Working with the other apps' },
+  { id: 'example', icon: Zap, title: 'Worked example' },
   { id: 'pitfalls', icon: AlertTriangle, title: 'Pitfalls and FAQ' },
   { id: 'glossary', icon: BookMarked, title: 'Glossary' },
 ];
@@ -67,6 +68,7 @@ export default function BasinFlowHelpGuide() {
         <Step n={3} title="Set the history">In Global History choose a constant heat flow or a history table, type the surface temperature, and add erosion events if the section was uplifted.</Step>
         <Step n={4} title="Simulate">Press Simulate. The Analysis tab opens on the summary with the present-day temperature and Ro of every layer, then the burial, temperature, maturity, generation and timing plots.</Step>
         <Step n={5} title="Calibrate">In Calibration type or import measured Ro and temperature points, read the misfit, and let Auto-Fit find the heat flow.</Step>
+        <Para>New to basin modelling? Open the worked example from the welcome screen and follow the Worked example section below.</Para>
       </GuideSection>
 
       <GuideSection id="stratigraphy">
@@ -84,6 +86,7 @@ export default function BasinFlowHelpGuide() {
           mass based: the layer's organic mass times its potential, converted by the kinetic model as the layer heats.
           Expulsion starts once the generated mass exceeds the retention threshold and is reported per square metre.
         </Para>
+        <Para>Kinetics: besides the three kerogen types a source rock can use a Pepper and Corvi (1995) organofacies (A marine carbonate, B marine clastic, C lacustrine, D/E waxy coastal plain, F terrigenous) or Custom kinetics from a frequency factor, a mean activation energy and its spread. Lithology Mixed takes sandstone, shale and limestone parts in the layer details: porosity, compaction and heat capacity mix by fraction and conductivity by the geometric mean.</Para>
       </GuideSection>
 
       <GuideSection id="thermal">
@@ -109,6 +112,7 @@ export default function BasinFlowHelpGuide() {
           or a custom event in the wizard:
         </Para>
         <Table headers={['Option', 'Removed']} rows={ErosionPresets.map((p) => [p.name, p.amount > 0 ? `${p.amount} m` : 'none'])} />
+        <Para>Compaction on unroofing (under the erosion events) sets what an uplifted layer does. Elastic lets its porosity follow the present depth, so it re-expands. Maximum burial keeps the layer as thin and tight as it was at its deepest, which is what rocks do; the engine then finds the solid thickness that reproduces today's thickness. With no erosion the two give the same answer.</Para>
       </GuideSection>
 
       <GuideSection id="calibration">
@@ -121,6 +125,8 @@ export default function BasinFlowHelpGuide() {
           history is scaled and its shape kept. Save stores the points with the well and marks it calibrated when the
           misfit is small.
         </Para>
+        <Para>The modelled curve on the Ro and temperature plots runs through the whole column in slices about 100 m thick, so a sample inside a thick layer is compared with the value at its own depth rather than a line between layer centres. Auto-Fit uses the same profile.</Para>
+        <Para>Log BHTs read cool because circulating mud chilled the hole. In the BHT correction card choose Horner (two or more runs at one depth, each with its hours since circulation stopped, and the circulation time), AAPG or Harrison (one BHT by depth). The table lists the raw and the used value of each point; DST temperatures are never corrected. A calibration file may carry a shut-in (h) column and a type column marking DST rows.</Para>
       </GuideSection>
 
       <GuideSection id="import">
@@ -134,6 +140,8 @@ export default function BasinFlowHelpGuide() {
           Files are read in the display depth unit shown on the import tab; switch it if a file is in the other unit.
           Temperatures in files are degrees C.
         </Callout>
+        <Para>A template, a tops file or a registry well replaces the layers of the open model. Templates ask first, by model name. After any replacement an Undo bar at the top of Properties puts the previous layers, erosion and tie back (one step, until you open another model).</Para>
+        <Para>Petrophysics logs: for a model tied to a registry well, this tab reads the well's published porosity (PHIT, else PHIE) and TOC curves, averages them over each layer and shows the log porosity beside the model's. Set the surface porosity from the log scales each layer so the model matches the log (the compaction coefficient is kept). Set the source TOC from the log writes the mean TOC to layers marked as source rock; a log TOC is the present-day value, so raise it for a source that has already generated. Undo in Properties reverses either.</Para>
       </GuideSection>
 
       <GuideSection id="results">
@@ -147,6 +155,9 @@ export default function BasinFlowHelpGuide() {
           ['Expulsion', 'Generated and expelled mass per square metre for the source layers, and their transformation ratio.'],
           ['Timing', 'The petroleum system events chart: deposition of the source, reservoir, seal and overburden rocks, the generation and expulsion windows, and the critical moment at the peak expulsion rate. Trap formation is not modelled in 1D.'],
         ]} />
+        <Para>Each layer is its own series on every plot, keyed by the layer and labelled by its name, so two layers with the same name are both drawn; rename them to tell them apart in the legend.</Para>
+        <Para>A run computes in the background: the run dialog shows its progress, Cancel run stops it and keeps the previous result, and Keep working closes the dialog while it finishes.</Para>
+        <Para>The Pressure tab shows present-day hydrostatic, pore and overburden pressure through the column (MPa with metres, psi with feet). The pore pressure is a 1D estimate of what the burial rate can trap in low-permeability layers (compaction disequilibrium); it does not feed back into compaction. Send to Pore Pressure Studio opens that app with the profile as a reference, in its declared units.</Para>
       </GuideSection>
 
       <GuideSection id="export">
@@ -157,6 +168,8 @@ export default function BasinFlowHelpGuide() {
           with the stratigraphy table and summary, a CSV of every layer at every age (SI columns plus the display
           units), and the project as JSON.
         </Para>
+        <Para>To compare scenarios, tick two to four in the Scenario Manager. The table marks the inputs that differ (with an asterisk) and shows each scenario's own present-day Ro, temperature, transformation and critical moment, with the Ro profiles overlaid. A scenario keeps the result that was on screen when it was saved, so run before saving; a column whose result does not belong to its inputs says so and shows no numbers.</Para>
+        <Para>The PDF report now carries a plot page: the burial history with the eroded section, the maturity history on the maturity windows, and the petroleum-system events chart with the critical moment.</Para>
       </GuideSection>
 
       <GuideSection id="units">
@@ -178,6 +191,17 @@ export default function BasinFlowHelpGuide() {
           ['Pore Pressure Studio', 'Uses its own sonic-based method; the two share the registry wells.'],
           ['Geoscience home', 'The home button in the Expert header.'],
         ]} />
+        <Para>ReservoirCalc Pro and Risked Reserves: on the Timing tab, Send the charge to ReservoirCalc Pro hands over what the source rocks expel. In Prospect Risking there, type the fetch area, the age the trap formed and a migration efficiency: it works out the charge that reaches the trap, compares it with the prospect and suggests the charge factor of Pg, which you apply or change. The prospect keeps the record and Risked Reserves Valuation names the basin model beside it. Stratigraphy Studio reads decompacted accumulation rates from this app's engine, and Pore Pressure Studio takes the pressure profile from the Pressure tab.</Para>
+      </GuideSection>
+
+      <GuideSection id="example">
+        <SectionHeading icon={Zap}>Worked example</SectionHeading>
+        <Para>On the welcome screen choose Open the worked example. A new model opens in Expert mode: six layers of a rift-margin well, a Paleocene source shale on Pepper and Corvi organofacies B kinetics, 700 m eroded at the Base Oligocene unconformity, five measured Ro values, log BHTs at two depths with their shut-in times, and one DST. It opens at a basal heat flow of 55 mW/m2.</Para>
+        <Step n={1} title="Look at the column">In Properties read the layers and open the source shale's details (TOC 4 wt %, HI 500). In Global History find the erosion event.</Step>
+        <Step n={2} title="Run it">Press Simulate. On the burial plot the eroded section is hatched from 34 to 30 Ma; the events chart marks the critical moment.</Step>
+        <Step n={3} title="Correct the BHTs">In Calibration the BHT correction is Horner with 6 h of circulation: the table shows each depth's raw and corrected temperature. Set it to None and the temperatures compared drop by about 7 C.</Step>
+        <Step n={4} title="Fit the heat flow">With Horner on, press Auto-Fit Heat Flow: it returns about 62 mW/m2, the value the example was sampled from. With None it lands lower, because raw BHTs read cool.</Step>
+        <Step n={5} title="Compare and report">Save a scenario, change the heat flow, run and save again; tick both in Scenarios to compare. Export the PDF for the reviewer block and the plots.</Step>
       </GuideSection>
 
       <GuideSection id="pitfalls">

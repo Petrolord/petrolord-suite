@@ -58,11 +58,15 @@ export function parseCalibrationText(text) {
   const iDepth = findCol(header, DEPTH_NAMES);
   const iRo = findCol(header, RO_NAMES);
   const iT = findCol(header, TEMP_NAMES.filter(Boolean));
+  // BF-U2-006: Horner needs each run's time since circulation stopped (hours);
+  // a kind column marks DST or static temperatures (never corrected)
+  const iTs = findCol(header, ['shutin', 'shut', 'tsc', 'ts', 'timesincecirculation', 'hourssincecirculation', 'sincecirc', 'elapsed']);
+  const iKind = findCol(header, ['kind', 'type', 'source', 'test']);
   if (!header) problems.push('No header row found; expected columns such as depth, Ro, temperature.');
   else if (iDepth < 0) problems.push('No depth column found (depth, TVD, MD or z).');
   else if (iRo < 0 && iT < 0) problems.push('No Ro or temperature column found.');
   const units = { depth: iDepth >= 0 ? headerUnit(header[iDepth], 'depth') : null, temp: iT >= 0 ? headerUnit(header[iT], 'temp') : null };
-  const columns = { depth: iDepth >= 0 ? header[iDepth] : null, ro: iRo >= 0 ? header[iRo] : null, temp: iT >= 0 ? header[iT] : null };
+  const columns = { depth: iDepth >= 0 ? header[iDepth] : null, ro: iRo >= 0 ? header[iRo] : null, temp: iT >= 0 ? header[iT] : null, shutIn: iTs >= 0 ? header[iTs] : null, kind: iKind >= 0 ? header[iKind] : null };
   if (header && iDepth >= 0 && findCol(header, ['md']) >= 0 && findCol(header, ['tvd', 'tvdkb']) === iDepth) problems.push(`Depth read from "${header[iDepth]}" (vertical); the MD column is not used.`);
   if (header && iDepth >= 0 && /tvdss|ss$/.test(norm(header[iDepth]))) problems.push(`"${header[iDepth]}" is below sea level; the model's depths are below its surface, so add the surface elevation or water depth if they differ.`);
   const tMax = units.temp === 'F' ? 750 : 400; const tMin = units.temp === 'F' ? 14 : -10;
@@ -81,7 +85,15 @@ export function parseCalibrationText(text) {
       if (iT >= 0 && String(r[iT] ?? '').trim() !== '') {
         const v = num(r[iT]);
         if (!Number.isFinite(v) || v < tMin || v > tMax) problems.push(`Row ${k + 2}: temperature "${r[iT]}" is not in degrees ${units.temp || 'C'}.`);
-        else { temp.push({ depth, value: v }); any = true; }
+        else {
+          const pt = { depth, value: v };
+          if (iTs >= 0 && String(r[iTs] ?? '').trim() !== '') {
+            const h = num(r[iTs]);
+            if (Number.isFinite(h) && h > 0) pt.shutInH = h; else problems.push(`Row ${k + 2}: time since circulation "${r[iTs]}" is not a number of hours.`);
+          }
+          if (iKind >= 0 && /dst|static|equilib/i.test(String(r[iKind] ?? ''))) pt.kind = 'DST';
+          temp.push(pt); any = true;
+        }
       }
       if (!any) problems.push(`Row ${k + 2}: no Ro or temperature value.`);
     });

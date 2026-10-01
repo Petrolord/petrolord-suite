@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Plus, Edit2, Trash2, Play, GitBranch } from 'lucide-react';
 import { useBasinFlow } from '../../contexts/BasinFlowContext';
 import { useToast } from '@/components/ui/use-toast';
+import ScenarioCompare from './ScenarioCompare';
+import { MAX_COMPARE } from '../../services/scenarioCompare';
 
 const ScenarioManager = () => {
     const { state, dispatch } = useBasinFlow();
@@ -17,6 +19,10 @@ const ScenarioManager = () => {
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [editingScenario, setEditingScenario] = useState(null); // null = create new
     const [formData, setFormData] = useState({ name: '', description: '' });
+    // U2-008: two to four scenarios side by side
+    const [picked, setPicked] = useState([]);
+    const togglePick = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= MAX_COMPARE ? p : [...p, id]));
+    const compared = picked.map((id) => scenarios.find((s) => s.id === id)).filter(Boolean);
 
     const handleCreateClick = () => {
         setEditingScenario(null);
@@ -87,6 +93,7 @@ const ScenarioManager = () => {
                         <Table>
                             <TableHeader>
                                 <TableRow className="border-pl-border hover:bg-transparent">
+                                    <TableHead className="text-pl-muted w-16">Compare</TableHead>
                                     <TableHead className="text-pl-muted">Name</TableHead>
                                     <TableHead className="text-pl-muted">Created</TableHead>
                                     <TableHead className="text-pl-muted">Description</TableHead>
@@ -96,13 +103,18 @@ const ScenarioManager = () => {
                             <TableBody>
                                 {scenarios.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center py-8 text-pl-muted">
+                                        <TableCell colSpan={5} className="text-center py-8 text-pl-muted">
                                             No scenarios saved yet.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     scenarios.map((s) => (
                                         <TableRow key={s.id} className={`border-pl-border ${activeScenarioId === s.id ? 'bg-pl-sunken' : ''}`}>
+                                            <TableCell>
+                                                <input type="checkbox" aria-label={`Compare ${s.name}`} data-testid={`bf-scenario-pick-${s.id}`}
+                                                    checked={picked.includes(s.id)} onChange={() => togglePick(s.id)}
+                                                    disabled={!picked.includes(s.id) && picked.length >= MAX_COMPARE} />
+                                            </TableCell>
                                             <TableCell className="font-medium text-pl-text">
                                                 {s.name}
                                                 {activeScenarioId === s.id && <span className="ml-2 text-[10px] text-pl-primary-text bg-pl-sunken px-1.5 py-0.5 rounded">Active</span>}
@@ -117,7 +129,7 @@ const ScenarioManager = () => {
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-pl-primary-text" onClick={() => handleLoad(s.id)} title="Load">
                                                     <Play className="w-4 h-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-pl-danger-text" onClick={() => handleDelete(s.id)} title="Delete">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-pl-danger-text" onClick={() => { setPicked((p) => p.filter((x) => x !== s.id)); handleDelete(s.id); }} title="Delete">
                                                     <Trash2 className="w-4 h-4" />
                                                 </Button>
                                             </TableCell>
@@ -128,6 +140,11 @@ const ScenarioManager = () => {
                         </Table>
                     </CardContent>
                 </Card>
+                <div className="mt-6" data-testid="bf-scenario-compare-area">
+                    {compared.length >= 2
+                        ? <ScenarioCompare scenarios={compared} />
+                        : <p className="text-xs text-pl-muted" data-testid="bf-scenario-compare-hint">Tick two to {MAX_COMPARE} scenarios to compare their inputs and results side by side. A scenario keeps the result that was on screen when it was saved; run before saving to compare results.</p>}
+                </div>
             </div>
 
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>

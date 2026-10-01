@@ -9,6 +9,15 @@ import TemperatureHistoryPlot from './plots/TemperatureHistoryPlot';
 import MaturityPlot from './plots/MaturityPlot';
 import GenerationExpulsionPlot from './plots/GenerationExpulsionPlot';
 import ChargeTimingPlot from './plots/ChargeTimingPlot';
+import PressurePlot from './plots/PressurePlot';
+import { buildBasinPressure, writeBasinPressure } from '@/lib/basinPressure';
+import { buildBasinCharge, writeBasinCharge } from '@/lib/basinCharge';
+import { eventsChartRows } from '../services/resultsView';
+import { kineticsLabel } from '../services/lithologyMix';
+import { Link } from 'react-router-dom';
+import { Spec } from '../services/PhysicsUtils';
+import { appPath } from '@/components/wells/appLinks';
+import { useMultiWell } from '../contexts/MultiWellContext';
 import { withLayerRoles } from '../services/resultsView';
 import ResultsSummaryTab from './ResultsSummaryTab';
 import RunNotes from './common/RunNotes';
@@ -17,7 +26,8 @@ import { ExportEngine } from '../services/ExportEngine';
 import html2canvas from 'html2canvas';
 
 const ResultsPanel = () => {
-    const { state, units } = useBasinFlow();
+    const { state, units, appPaths } = useBasinFlow();
+    const { state: mwState } = useMultiWell();
     // layer roles (deposition ages, source flag) for the events chart and source-layer plots
     const results = useMemo(() => withLayerRoles(state.results, state.stratigraphy || []), [state.results, state.stratigraphy]);
     const [activeTab, setActiveTab] = useState('burial');
@@ -25,6 +35,27 @@ const ResultsPanel = () => {
 
     // Check if we have results
     const hasResults = results && results.data && results.data.timeSteps && results.data.timeSteps.length > 0;
+
+    // BF-U2-015: the pressure column goes to Pore Pressure Studio through
+    // src/lib/basinPressure.js (declared units); the link carries its id
+    const pressureSend = useMemo(() => {
+        try {
+            const payload = buildBasinPressure(state.results, { name: mwState?.wellDataMap?.[mwState?.activeWellId]?.name || 'Basin model', settings: state.settings, stratigraphy: state.stratigraphy });
+            return { payload, href: `${appPath('pore-pressure-studio', appPaths)}?bfPressure=${payload.id}` };
+        } catch { return null; }
+    }, [state.results, state.settings, state.stratigraphy, mwState, appPaths]);
+
+    // BF-U2-017: the expelled charge goes to ReservoirCalc Pro's Prospect
+    // Risking through src/lib/basinCharge.js
+    const chargeSend = useMemo(() => {
+        try {
+            const payload = buildBasinCharge(results, {
+                name: mwState?.wellDataMap?.[mwState?.activeWellId]?.name || 'Basin model', settings: state.settings, stratigraphy: state.stratigraphy,
+                criticalMoment: eventsChartRows(results).criticalMoment, kineticsLabel, hcDensityKgM3: Spec.RHO_HC,
+            });
+            return { payload, href: `${appPath('reservoircalc-pro', appPaths)}?bfCharge=${payload.id}` };
+        } catch (e) { return { error: e.message }; }
+    }, [results, state.settings, state.stratigraphy, mwState, appPaths]);
 
     const handleDownloadImage = async (type = 'png') => {
         if (!printRef.current) return;
@@ -72,6 +103,7 @@ const ResultsPanel = () => {
                         <TabsTrigger value="temperature" data-testid="bf-results-tab-temperature" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Thermal</TabsTrigger>
                         <TabsTrigger value="maturity" data-testid="bf-results-tab-maturity" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Maturity</TabsTrigger>
                         <TabsTrigger value="generation" data-testid="bf-results-tab-generation" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Expulsion</TabsTrigger>
+                        <TabsTrigger value="pressure" data-testid="bf-results-tab-pressure" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Pressure</TabsTrigger>
                         <TabsTrigger value="timing" data-testid="bf-results-tab-timing" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Timing</TabsTrigger>
                     </TabsList>
                 </div>
@@ -88,7 +120,22 @@ const ResultsPanel = () => {
                                  <TransformationRatioPlot results={results} />
                              </div>
                          </TabsContent>
-                         <TabsContent value="timing" className="h-full m-0"><ChargeTimingPlot results={results} /></TabsContent>
+                         <TabsContent value="pressure" className="h-full m-0"><PressurePlot results={results} units={units} sendHref={pressureSend?.href || null} onSend={() => pressureSend && writeBasinPressure(pressureSend.payload)} /></TabsContent>
+                         <TabsContent value="timing" className="h-full m-0">
+                             <div className="flex flex-col h-full gap-2">
+                                 <div className="text-[11px] text-pl-muted flex flex-wrap items-center gap-2" data-testid="bf-charge-send-bar">
+                                     {chargeSend?.payload ? (
+                                         <>
+                                             <span>Expelled, present day: {chargeSend.payload.expelledKgM2.toFixed(0)} kg/m2 of source rock.</span>
+                                             <Link to={chargeSend.href} onClick={() => writeBasinCharge(chargeSend.payload)} data-testid="bf-send-charge"
+                                                 className="px-2 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-sunken">Send the charge to ReservoirCalc Pro</Link>
+                                             <span>Open Prospect Risking there: it compares the charge with the prospect and suggests the charge factor of Pg.</span>
+                                         </>
+                                     ) : <span data-testid="bf-charge-send-none">{chargeSend?.error}</span>}
+                                 </div>
+                                 <div className="flex-1 min-h-0"><ChargeTimingPlot results={results} /></div>
+                             </div>
+                         </TabsContent>
                      </div>
                 </div>
             </Tabs>

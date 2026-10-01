@@ -32,6 +32,7 @@ import WellExplorer from './WellExplorer';
 import ParamsPanel from './ParamsPanel';
 import PrognosisChart from './PrognosisChart';
 import NctPanel from './NctPanel';
+import BasinPressureNote from './BasinPressureNote';
 import CrossplotPanel from './CrossplotPanel';
 import {
   mapLogs, buildProfileInput, normalizePpCurves, wellDepthFrame, normalizeResistivity,
@@ -846,6 +847,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       center={center}
       dock={(
         <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
+          <BasinPressureNote />
           <ParamsPanel
             params={params}
             calibration={calibration}
