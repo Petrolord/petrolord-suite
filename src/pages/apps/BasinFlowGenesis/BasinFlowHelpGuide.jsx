@@ -160,6 +160,7 @@ export default function BasinFlowHelpGuide() {
           with the stratigraphy table and summary, a CSV of every layer at every age (SI columns plus the display
           units), and the project as JSON.
         </Para>
+        <Para>To compare scenarios, tick two to four in the Scenario Manager. The table marks the inputs that differ (with an asterisk) and shows each scenario's own present-day Ro, temperature, transformation and critical moment, with the Ro profiles overlaid. A scenario keeps the result that was on screen when it was saved, so run before saving; a column whose result does not belong to its inputs says so and shows no numbers.</Para>
       </GuideSection>
 
       <GuideSection id="units">
