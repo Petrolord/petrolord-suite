@@ -58,7 +58,8 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { twtGridToElevation, usableModel, describeVelocity } from '../services/timeDepth';
-import { fitLinearVelocityToTops, elevationFromLinear, elevationFromVelocityMap } from '../services/depthConversion';
+import { resolveLayerCake } from '@/lib/velocityModels';
+import { fitLinearVelocityToTops, elevationFromLinear, elevationFromVelocityMap, convertWithLayerCake, LAYER_CAKE_HOOK } from '../services/depthConversion';
 import { averageVelocityTies } from '../engine/wellTie';
 import {
   topsToControlPoints, zoneAttrToPoints, specForPoints, surfaceStats, maskOutsidePolygon,
@@ -951,6 +952,38 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
     }
     const entry = velocityModels.find((m) => m.id === tdModelId);
     if (!entry) { setStatus('Pick a velocity model.'); return; }
+    // Seismolord U2-006: a layer cake converts through its published boundary surfaces
+    if (entry.kind === 'layercake') {
+      try {
+        const resolved = await resolveLayerCake(entry, { surfaces, downloadGrid: (row) => backend.downloadSurfaceGrid(row) });
+        const hook = LAYER_CAKE_HOOK(entry, { resolved, spec });
+        if (!hook.ok) { setStatus(hook.reason); return; }
+        const zLc = convertWithLayerCake({ twtMs: displayGrid, model: entry.velocity, boundaryTwtMs: hook.boundaryTwtMs });
+        const zM = Float32Array.from(zLc);
+        const z = tdUnit === 'ft' ? Float32Array.from(zM, (v) => (Math.abs(v) >= 1e29 ? v : v / 0.3048)) : Float32Array.from(zM);
+        const name = `${src.name} depth (${tdUnit})`;
+        snapshot();
+        setPreview({
+          spec, grid: z, name, kind: 'structure', zDomain: 'depth', zUnit: tdUnit, crs: src.crs || null,
+          provenance: {
+            engine: 'mapping-surface-studio', z_convention: 'elevation',
+            time_depth: {
+              volume: { id: entry.id, name: entry.name }, model: entry.velocity, unit: tdUnit, source_surface: src.id, converted_at: new Date().toISOString(),
+              boundaries: resolved.boundaries.map((b) => ({ layer: b.layer, horizon_id: b.horizonId, surface_id: b.row.id, surface: b.row.name })),
+            },
+          },
+        });
+        setDisplaySurface({ ...spec, origin_x: spec.x0, origin_y: spec.y0, name, kind: 'structure', z_domain: 'depth', z_unit: tdUnit, crs: src.crs || null, xy_unit: xyUnitOf(src) });
+        setDisplayGrid(zM);
+        setSelectedId(null);
+        if (tieWells.length) {
+          const rows = mapResiduals(tieWells, zM, spec);
+          setResiduals({ title: `Depth map against ${tdTop}`, rows, stats: residualStats(rows) });
+        } else setResiduals(null);
+        setStatus(`Converted ${src.name} to depth with the ${entry.model.layers.length}-layer cake of ${entry.name} (boundaries ${resolved.boundaries.map((b) => b.row.name).join(', ')}): review, then Publish.`);
+      } catch (e) { setStatus(e.message); }
+      return;
+    }
     const { model, reason } = usableModel(entry);
     if (!model) { setStatus(reason); return; }
     try {
@@ -1704,7 +1737,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
                     ? 'One V(z) = V0 + k·z for the whole map, fitted by least squares to the tops; the status gives V0, k and the RMS misfit, and the table the mis-tie at each well.'
                     : tdMethod === 'vmap'
                       ? 'Depth = average velocity × one-way time, node by node, with the velocity map resampled onto this horizon.'
-                      : "V(z) = v0 + k·z from the volume's velocity model; the result is elevation, negative below datum. A layer-cake model converts in Seismolord until it publishes its boundaries (Seismolord U2-006)."}</p>
+                      : "V(z) = v0 + k·z from the volume's velocity model, or its layer cake through the boundary horizons Seismolord published as time surfaces; the result is elevation, negative below datum."}</p>
               </>
             )}
 

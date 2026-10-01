@@ -315,3 +315,47 @@ for (const [name, vp] of [['rev2_little_endian.sgy', { width: 1366, height: 768 
     await section.screenshot({ path: `/tmp/claude-0/seis-upg2/u2-009-${name}.png` });
   });
 }
+
+// U2-006: stacking velocities to a model (Dix), and the layer cake read by Mapping and Pore Pressure
+test('U2-006 1366x768: Dix interval velocities from a pasted RMS table fill the model', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/dev/seismolord-u2');
+  const panel = page.getByTestId('sl-stacking-velocity');
+  await expect(panel).toBeVisible({ timeout: 60000 });
+  await panel.getByTestId('sl-stacking-input').fill('TWT ms, Vrms m/s\n1000, 2000\n1600, 2200.85\n2000, 2382.23');
+  const rows = panel.getByTestId('sl-dix-table').locator('tbody tr');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(1)).toContainText('2,500');
+  await expect(rows.nth(2)).toContainText('3,000');
+  await expect(rows.nth(2)).toContainText('2,350');
+  await panel.getByTestId('sl-dix-use-layers').click();
+  const lv = await page.evaluate(() => window.__dixLayers);
+  expect(lv[0]).toBeCloseTo((2000 * 1000 + 2500 * 300) / 1300, 0);
+  await panel.getByTestId('sl-stacking-input').fill('1000, 2400\n1100, 1500');
+  await expect(panel.getByTestId('sl-stacking-error')).toContainText('no real interval velocity');
+});
+
+test('U2-006 1440x900: Mapping converts a TWT map with a published layer cake', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => { window.__MAP_SEED__ = { layerCakeBoundary: true }; });
+  await page.goto('/dev/mapping-surface-studio');
+  await page.locator('[data-testid="map-surface-row"][data-surface-name="Dome TWT"]').click();
+  await page.getByTestId('map-td-method').selectOption('linear');
+  await page.getByTestId('map-td-model').selectOption({ label: 'KETA 3D layer cake (layer cake)' });
+  await page.getByTestId('map-td-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('with the 2-layer cake of KETA 3D layer cake (boundaries Base layer 1 (TWT ms))', { timeout: 30000 });
+});
+
+test('U2-006 1366x768: Pore Pressure reads the layer cake at the selected well', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/dev/pore-pressure-studio?layercake=1');
+  await expect(page.getByTestId('pp-velocity-row')).toHaveCount(2);
+  // without a well first: the reason
+  await page.getByTestId('pp-velocity-row').nth(1).click();
+  await expect(page.getByTestId('pp-status')).toContainText(/select a well first/i);
+  await page.getByTestId('pp-well-row').first().click();
+  await page.getByTestId('pp-velocity-row').nth(1).click();
+  await expect(page.getByTestId('pp-status')).toContainText('layer cake at');
+  await expect(page.getByTestId('pp-trend-badge')).toBeVisible();
+  await expect(page.getByTestId('pp-prognosis-chart')).toBeVisible();
+});

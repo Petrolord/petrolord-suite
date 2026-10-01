@@ -624,6 +624,70 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     return g;
   }, [horizons]);
 
+  // ---- U2-006: Dix layer times and published layer-cake boundaries ------
+  // the draft layer cake's boundary times at the survey centre (where the
+  // stacking velocities fill the layer velocities)
+  const [layerTimesMs, setLayerTimesMs] = useState([]);
+  useEffect(() => {
+    let live = true;
+    const ids = velLayers.slice(0, -1).map((l) => l.baseHorizonId);
+    if (!geom || !manifest || velMode !== 'layercake' || ids.some((id) => !id)) { setLayerTimesMs([]); return undefined; }
+    (async () => {
+      try {
+        const cell = Math.floor(geom.nIl / 2) * geom.nXl + Math.floor(geom.nXl / 2);
+        const dtMs = manifest.geometry.dt_us / 1000;
+        const out = [];
+        for (const id of ids) {
+          // eslint-disable-next-line no-await-in-loop
+          const g = await loadGridById(id);
+          const v = g[cell];
+          out.push(v === NULL_F32 ? null : v * dtMs);
+        }
+        if (live) setLayerTimesMs(out.some((v) => v == null) ? [] : out);
+      } catch { if (live) setLayerTimesMs([]); }
+    })();
+    return () => { live = false; };
+  }, [velLayers, velMode, geom, manifest, loadGridById]);
+
+  const [boundariesBusy, setBoundariesBusy] = useState(false);
+  /** Publish each layer boundary of the saved layer cake as a TWT surface
+   *  (Make surface), so Mapping and Pore Pressure read the layer cake. */
+  const publishVelocityBoundaries = async () => {
+    if (!velocityModel || velocityModel.kind !== 'layercake' || !volume || !manifest) return;
+    setBoundariesBusy(true);
+    try {
+      const { listSurfaces } = await import('@/lib/surfacesRegistry');
+      const { boundarySurfaceFor } = await import('@/lib/velocityModels');
+      const { makeSurfaceFromHorizon } = await import('../services/makeSurface');
+      const rows = await listSurfaces();
+      const done = [];
+      const already = [];
+      const missing = [];
+      for (const l of velocityModel.layers.slice(0, -1)) {
+        const h = horizons.find((x) => x.id === l.baseHorizonId);
+        if (!h) { missing.push(l.baseHorizonId || 'no horizon chosen'); continue; }
+        if (boundarySurfaceFor(rows, h.id)) { already.push(h.name); continue; }
+        // eslint-disable-next-line no-await-in-loop
+        await makeSurfaceFromHorizon({ volume, manifest, horizon: h, domain: 'twt' });
+        done.push(h.name);
+      }
+      toast({
+        title: missing.length ? 'Some boundaries were not published' : 'Layer-cake boundaries published',
+        description: [
+          done.length ? `Published as TWT surfaces: ${done.join(', ')}.` : null,
+          already.length ? `Already in the registry: ${already.join(', ')}.` : null,
+          missing.length ? `Not found: ${missing.join(', ')}; save the layer cake with every boundary horizon first.` : null,
+          'Mapping and Pore Pressure now read this layer cake.',
+        ].filter(Boolean).join(' '),
+        variant: missing.length ? 'destructive' : undefined,
+      });
+    } catch (e) {
+      toast({ title: 'Publish failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setBoundariesBusy(false);
+    }
+  };
+
   /** Apply a calibrated model (WellTiePanel's explicit Save — the only
    *  path that rewrites the model outside the editor). The calibration
    *  provenance persists alongside (velocity_calibration) so depth
@@ -4555,6 +4619,9 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
             geom={geom}
             loadGridById={loadGridById}
             applyCalibratedModel={applyCalibratedModel}
+            layerTimesMs={layerTimesMs}
+            publishBoundaries={volume?.local ? null : publishVelocityBoundaries}
+            boundariesBusy={boundariesBusy}
           />
         )}
       </VelocityModelDialog>

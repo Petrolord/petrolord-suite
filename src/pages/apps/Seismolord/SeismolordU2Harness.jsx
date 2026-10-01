@@ -11,6 +11,7 @@ import { MistieCharacterTable } from './components/Line2dPanel';
 import { crossingCharacter, solveCharacter } from './lib/mistieCharacter';
 import { rotateConstantPhase } from './engine/tieWarp';
 import { lineMarkersOnSection } from './lib/lines2dControl';
+import StackingVelocityPanel from './components/workspace/StackingVelocityPanel';
 
 // U2-014: three synthetic 2D lines at one crossing each pair, rotated
 // 0, 30, -20 degrees and scaled 1, 1.5, 0.8 about a common trace
@@ -205,6 +206,15 @@ export default function SeismolordU2Harness() {
             cameraApi={mapCameraApi}
           />
         </div>
+      </div>
+      <div className="mt-3 max-w-2xl" data-testid="u2-velocity">
+        <StackingVelocityPanel
+          velMode="layercake"
+          velLayers={[{}, {}]}
+          layerTimesMs={[1300]}
+          onUseLinear={(fit) => { window.__dixLinear = fit; }}
+          onUseLayers={(vs) => { window.__dixLayers = vs; }}
+        />
       </div>
       <div className="mt-3 max-w-2xl" data-testid="u2-mistie">
         <strong className="text-xs">2D crossings: phase and amplitude</strong>

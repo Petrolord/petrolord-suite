@@ -248,7 +248,7 @@ test('MS3: fault-block and boundary polygons, a guide point, arithmetic, quick G
   await expect(page.getByTestId('map-zrange')).toContainText('1401.2 to 1790.0 ms');
   await page.getByTestId('map-td-model').selectOption({ label: 'KETA 3D layer cake (layer cake)' });
   await page.getByTestId('map-td-run').click();
-  await expect(page.getByTestId('map-status')).toContainText('A layer-cake model converts in Seismolord for now'); // MAP-U2-008: the LAYER_CAKE_HOOK reason
+  await expect(page.getByTestId('map-status')).toContainText('needs every layer boundary published as a time surface'); // Seismolord U2-006: the boundary is not published in this harness
   await page.getByTestId('map-td-model').selectOption({ label: 'KETA 3D (v0 2000, k 0.3)' });
   await page.getByTestId('map-td-run').click();
   await expect(page.getByTestId('map-status')).toContainText('Converted Dome TWT to depth');
