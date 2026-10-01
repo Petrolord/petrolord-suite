@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { makeRegistryBackend } from './services/backend';
 import { BasinFlowProvider, useBasinFlow } from './contexts/BasinFlowContext';
-import { MultiWellProvider } from './contexts/MultiWellContext';
+import { MultiWellProvider, useMultiWell } from './contexts/MultiWellContext';
+import { workedExampleModel } from './data/WorkedExample';
 import { GuidedModeProvider } from './contexts/GuidedModeContext';
 import ModeSelector from './components/ModeSelector';
 import GuidedModeWizard from './components/GuidedModeWizard';
@@ -34,8 +35,18 @@ const ErrorFallback = ({ error, resetErrorBoundary }) => {
 export const BasinFlowApp = () => {
     const { state, dispatch } = useBasinFlow();
 
+    const { addWell, setActiveWell } = useMultiWell();
     const handleSelectMode = (mode) => {
         dispatch({ type: 'SET_MODE', payload: mode });
+    };
+
+    // BF-U2-018: the worked example opens as a new model of its own
+    const handleWorkedExample = async () => {
+        const m = workedExampleModel();
+        const id = await addWell({ ...m, quiet: true });
+        if (id) setActiveWell(id);
+        dispatch({ type: 'LOAD_PROJECT', payload: { name: m.name, stratigraphy: m.stratigraphy, heatFlow: m.heatFlow, erosionEvents: m.erosionEvents, settings: m.settings, calibration: m.calibration, scenarios: [] } });
+        dispatch({ type: 'SET_MODE', payload: 'expert' });
     };
 
     const handleGuidedComplete = () => {
@@ -51,7 +62,7 @@ export const BasinFlowApp = () => {
 
     return (
         <div className="h-screen w-full bg-pl-bg overflow-hidden flex flex-col">
-            {!state.mode && <ModeSelector onSelectMode={handleSelectMode} />}
+            {!state.mode && <ModeSelector onSelectMode={handleSelectMode} onWorkedExample={handleWorkedExample} />}
             
             {state.mode === 'guided' && (
                 <GuidedModeProvider>

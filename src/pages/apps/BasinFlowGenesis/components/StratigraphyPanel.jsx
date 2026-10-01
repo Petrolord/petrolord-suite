@@ -11,6 +11,7 @@ import { Plus, Trash2, GripVertical, Layers, AlertCircle } from 'lucide-react';
 import { useBasinFlow } from '../contexts/BasinFlowContext';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
 import { depthToDisplay, depthFromDisplay, tidy, fmtDepth } from '../services/units';
+import { lithologyLabel } from '../services/lithologyMix';
 
 const numCls = 'h-7 w-full rounded-md border border-pl-border-strong bg-pl-surface px-2 text-xs text-pl-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus';
 
@@ -86,7 +87,7 @@ const LayerCard = ({ layer, index, dispatch, readOnly = false, depthUnit = 'm' }
                                     <div className="space-y-2">
                                         <div className="flex justify-between text-xs">
                                             <span className="text-pl-muted">Lithology</span>
-                                            <span className="text-pl-text capitalize">{layer.lithology || 'unknown'}</span>
+                                            <span className="text-pl-text capitalize" data-testid="bf-layer-lith-label">{lithologyLabel(layer)}</span>
                                         </div>
                                         <Select 
                                             value={layer.lithology || 'shale'} 
@@ -102,6 +103,7 @@ const LayerCard = ({ layer, index, dispatch, readOnly = false, depthUnit = 'm' }
                                                 <SelectItem value="limestone">Limestone</SelectItem>
                                                 <SelectItem value="salt">Salt</SelectItem>
                                                 <SelectItem value="coal">Coal</SelectItem>
+                                                <SelectItem value="mixed">Mixed (set the parts in the details)</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>

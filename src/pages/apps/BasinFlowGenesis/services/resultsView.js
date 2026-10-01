@@ -7,6 +7,10 @@
  * ages. Always align by each entry's own age.
  */
 
+// U2-004: the profile calibration compares against (the column slices when
+// the result carries them, the layer centres for a result saved before)
+export { calibrationProfile } from '../../../../../packages/engines/engines/basin/results';
+
 // Categorical palette legible on the white chartTheme background.
 export const SERIES_COLORS = ['#2563eb', '#d97706', '#059669', '#db2777', '#7c3aed', '#0891b2', '#65a30d', '#dc2626'];
 
@@ -99,8 +103,17 @@ export const MATURITY_WINDOWS = Object.freeze([
 
 
 /**
- * Build recharts rows [{age, [layerName]: value}] from per-layer
- * series arrays of {age, ...} entries.
+ * The chart key of a layer (U2-012, BF-U1-018): its id, so two layers with
+ * one name are two series; the name is only the label.
+ */
+export const layerKey = (layer, li = 0) => String(layer?.id ?? `layer-${li}`);
+
+const put = (obj, key, value) => Object.defineProperty(obj, key, { value, writable: true, enumerable: true, configurable: true });
+
+/**
+ * Build recharts rows [{age, [layerKey]: value}] from per-layer series
+ * arrays of {age, ...} entries. Keys are layer ids (U2-012): the series
+ * used to be keyed by name, so two layers named "Shale" drew as one.
  * @param {Array<number>} timeSteps - master age list
  * @param {Array<Array>} perLayerSeries - data.<field> arrays
  * @param {Array} layers - meta.layers (same order as perLayerSeries)
@@ -112,10 +125,45 @@ export function alignSeriesByAge(timeSteps, perLayerSeries, layers, pick = (e) =
         const point = { age };
         layers.forEach((layer, li) => {
             const e = maps[li].get(age);
-            if (e !== undefined) point[layer.name] = pick(e);
+            if (e !== undefined) put(point, layerKey(layer, li), pick(e));
         });
         return point;
     });
+}
+
+/** Key of an eroded (phantom) section's series on the burial plot (U2-001). */
+export const phantomKey = (p, i = 0) => `__eroded_${p?.id ?? i}`;
+
+/**
+ * Burial-history rows (U2-001, U2-012): each layer's [top, bottom] by id
+ * and each eroded section's [top, bottom] while it exists (deposited at
+ * the youngest age before the erosion event, removed at the event), in the
+ * display depth unit. The engine reports the eroded section from U2 on
+ * (data.phantoms); a result saved before has none and draws without it.
+ * @param {object} results
+ * @param {(m:number)=>number} toDisplay
+ */
+export function burialChartRows(results, toDisplay = (m) => m) {
+    const { data, meta } = results || {};
+    if (!data?.timeSteps?.length) return [];
+    const rows = alignSeriesByAge(data.timeSteps, data.burial, meta.layers, (e) => [toDisplay(e.top), toDisplay(e.bottom)]);
+    const byAge = new Map(rows.map((r) => [r.age, r]));
+    (meta.phantoms || []).forEach((p, i) => {
+        for (const e of data.phantoms?.[i] || []) {
+            const r = byAge.get(e.age);
+            if (r) put(r, phantomKey(p, i), [toDisplay(e.top), toDisplay(e.bottom)]);
+        }
+    });
+    return rows;
+}
+
+/** The eroded sections a result carries, with their amounts (m) and ages. */
+export function erodedSections(results) {
+    const { data, meta } = results || {};
+    return (meta?.phantoms || []).map((p, i) => {
+        const s = data?.phantoms?.[i] || [];
+        return { ...p, key: phantomKey(p, i), amountM: s.length ? s[0].thickness : null, steps: s.length };
+    }).filter((p) => p.steps > 0);
 }
 
 /**
@@ -132,6 +180,7 @@ export function finalDepthProfile(results) {
         if (!t?.length || !m?.length || !b?.length) return null;
         const last = t.length - 1;
         return {
+            id: layer.id,
             name: layer.name,
             depth: t[last].depth,
             top: b[last].top,

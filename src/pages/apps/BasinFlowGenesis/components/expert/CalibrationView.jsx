@@ -9,7 +9,7 @@ import { useMultiWell } from '@/pages/apps/BasinFlowGenesis/contexts/MultiWellCo
 import { CalibrationCalculator } from '@/pages/apps/BasinFlowGenesis/services/CalibrationCalculator';
 import { HeatFlowFitter } from '@/pages/apps/BasinFlowGenesis/services/HeatFlowFitter';
 import { SimulationEngine } from '@/pages/apps/BasinFlowGenesis/services/SimulationEngine';
-import { finalDepthProfile } from '@/pages/apps/BasinFlowGenesis/services/resultsView';
+import { calibrationProfile } from '@/pages/apps/BasinFlowGenesis/services/resultsView';
 import { presentDayHeatFlow } from '@/pages/apps/BasinFlowGenesis/services/history';
 import { Save, Download, TrendingUp, FileText, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -19,6 +19,7 @@ import CalibrationPointsEditor from './CalibrationPointsEditor';
 import RunNotes, { resultState } from '../common/RunNotes';
 import { calibrationCoverage, fitAtBound } from '@/pages/apps/BasinFlowGenesis/services/honesty';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { BHT_METHODS, correctedTemperatures, bhtMethodText } from '@/pages/apps/BasinFlowGenesis/services/bht';
 import { basinReportPdf } from '@/pages/apps/BasinFlowGenesis/services/report';
 import { depthToDisplay, tempToDisplay, tempDeltaToDisplay, depthLabel, tempLabel, tempSymbol } from '@/pages/apps/BasinFlowGenesis/services/units';
 
@@ -40,6 +41,12 @@ const CalibrationView = () => {
         { id: 2, depth: 3000, value: 110 }
     ]);
 
+    // BF-U2-006: the temperatures compared are the corrected BHTs (raw kept)
+    const bht = state.calibration?.bht || { method: 'none', circulationH: null };
+    const corrected = useMemo(() => correctedTemperatures({ temp: bhtPoints, bht }), [bhtPoints, bht.method, bht.circulationH]); // eslint-disable-line react-hooks/exhaustive-deps
+    const tempPoints = corrected.points;
+    const setBht = (patch) => dispatch({ type: 'SET_CALIBRATION_DATA', payload: { bht: { ...bht, ...patch } } });
+
     const [isFitting, setIsFitting] = useState(false);
     const [fitNote, setFitNote] = useState(null);
 
@@ -50,11 +57,11 @@ const CalibrationView = () => {
         }
     }, [state.calibration]);
 
-    // Final-state modeled profile in meta.layers order (the pre-G7 view
-    // indexed results by state.stratigraphy order AND missed the .data
-    // nesting — both wrong).
+    // Present-day modelled profile, shallow to deep. U2-004: through the
+    // whole column (slices about 100 m thick), so a point inside a thick
+    // layer meets the Ro at its own depth; layer centres for older results.
     const modelProfiles = useMemo(() => {
-        const prof = finalDepthProfile(state.results);
+        const prof = calibrationProfile(state.results);
         return {
             depths: prof.map(p => p.depth),
             ro: prof.map(p => p.ro),
@@ -75,17 +82,17 @@ const CalibrationView = () => {
         const modeledTempAtPts = CalibrationCalculator.interpolateToMeasured(
             modelProfiles.depths,
             modelProfiles.temp,
-            bhtPoints.map(p => p.depth)
+            tempPoints.map(p => p.depth)
         );
 
         return {
             roRMS: roPoints.length ? CalibrationCalculator.calculateRMS(roPoints.map(p => p.value), modeledRoAtPts) : NaN,
-            tempRMS: bhtPoints.length ? CalibrationCalculator.calculateRMS(bhtPoints.map(p => p.value), modeledTempAtPts) : NaN,
+            tempRMS: tempPoints.length ? CalibrationCalculator.calculateRMS(tempPoints.map(p => p.value), modeledTempAtPts) : NaN,
             roR2: roPoints.length > 1 ? CalibrationCalculator.calculateR2(roPoints.map(p => p.value), modeledRoAtPts) : NaN,
             residualsRo: roPoints.map((p, i) => ({ depth: p.depth, residual: p.value - modeledRoAtPts[i] })),
-            residualsTemp: bhtPoints.map((p, i) => ({ depth: p.depth, residual: p.value - modeledTempAtPts[i] }))
+            residualsTemp: tempPoints.map((p, i) => ({ depth: p.depth, residual: p.value - modeledTempAtPts[i] }))
         };
-    }, [modelProfiles, roPoints, bhtPoints]);
+    }, [modelProfiles, roPoints, tempPoints]);
 
     // the slider edits the present-day value; a history is shifted so its
     // youngest point lands on the slider (the shape is kept)
@@ -107,7 +114,7 @@ const CalibrationView = () => {
         setIsFitting(true);
         toast({ title: "Auto-calibration started", description: "Optimizing heat flow against the calibration data..." });
         try {
-            const fitted = await HeatFlowFitter.fit(state, roPoints, bhtPoints);
+            const fitted = await HeatFlowFitter.fit(state, roPoints, tempPoints);
             dispatch({ type: 'UPDATE_HEAT_FLOW', payload: fitted.heatFlow });
             await runSimulationWith(fitted.heatFlow);
             // BF-U1-013: a fit on the search bound is not a fit; say so
@@ -139,7 +146,7 @@ const CalibrationView = () => {
             return;
         }
 
-        dispatch({ type: 'SET_CALIBRATION_DATA', payload: { ro: roPoints, temp: bhtPoints } });
+        dispatch({ type: 'SET_CALIBRATION_DATA', payload: { ro: roPoints, temp: bhtPoints, bht } });
         // BF-U1-013: "Calibrated" only from a current result that fits every kind of point given
         const rs = resultState(state.results, state, mwState.activeWellId);
         const fits = !stats.none && rs && !rs.stale
@@ -148,7 +155,7 @@ const CalibrationView = () => {
 
         if (mwState.activeWellId) {
             await updateWell(mwState.activeWellId, {
-                calibration: { ro: roPoints, temp: bhtPoints },
+                calibration: { ro: roPoints, temp: bhtPoints, bht },
                 status: newStatus
             });
             toast({ title: "Calibration Saved", description: fits ? 'Points saved; the current result fits them (Ro RMS under 0.3 %, temperature RMS under 10 C): marked Calibrated.' : `Points saved; not marked Calibrated: ${stats.none || !rs ? 'run the model first' : rs.stale ? 'the result is out of date, run the model again' : 'the misfit is above Ro RMS 0.3 % or temperature RMS 10 C'}.` });
@@ -158,15 +165,15 @@ const CalibrationView = () => {
     };
 
     const exportToCSV = () => {
-        const headers = `Depth_${zU},Measured_Ro,Modeled_Ro,Residual_Ro,Measured_Temp_${tU},Modeled_Temp_${tU},Residual_Temp_${tU}\n`;
+        const headers = `Depth_${zU},Measured_Ro,Modeled_Ro,Residual_Ro,Measured_Temp_${tU},Modeled_Temp_${tU},Residual_Temp_${tU},Raw_Temp_${tU},BHT_Correction\n`;
         const roRows = roPoints.map(p => {
             const mod = CalibrationCalculator.interpolateToMeasured(modelProfiles.depths, modelProfiles.ro, [p.depth])[0];
             return `${zD(p.depth).toFixed(2)},${p.value},${mod?.toFixed(2)||''},${(p.value-(mod||0)).toFixed(2)},,,`;
         }).join("\n");
 
-        const tempRows = bhtPoints.map(p => {
+        const tempRows = tempPoints.map(p => {
             const mod = CalibrationCalculator.interpolateToMeasured(modelProfiles.depths, modelProfiles.temp, [p.depth])[0];
-            return `${zD(p.depth).toFixed(2)},,,${tD(p.value).toFixed(1)},${Number.isFinite(mod) ? tD(mod).toFixed(1) : ''},${tempDeltaToDisplay(p.value-(mod||0), tU).toFixed(1)}`;
+            return `${zD(p.depth).toFixed(2)},,,${tD(p.value).toFixed(1)},${Number.isFinite(mod) ? tD(mod).toFixed(1) : ''},${tempDeltaToDisplay(p.value-(mod||0), tU).toFixed(1)},${tD(p.raw ?? p.value).toFixed(1)},${p.method || 'none'}`;
         }).join("\n");
 
         const csvContent = "data:text/csv;charset=utf-8," + headers + roRows + "\n" + tempRows;
@@ -186,7 +193,7 @@ const CalibrationView = () => {
             const [{ jsPDF }, { loadPetrolordLogo }] = await Promise.all([import('jspdf'), import('@/lib/pdfBrand')]);
             const logo = await loadPetrolordLogo().catch(() => null);
             const modelName = mwState.wellDataMap?.[mwState.activeWellId]?.name || '';
-            const st = { ...state, calibration: { ro: roPoints, temp: bhtPoints } };
+            const st = { ...state, calibration: { ro: roPoints, temp: bhtPoints, bht } };
             const doc = basinReportPdf(jsPDF, { modelName, state: st, results: state.results, units, report: state.settings?.report || {}, notes: [], stale: resultState(state.results, state, mwState.activeWellId) }, { logo });
             doc.save(`basin-calibration-${(modelName || 'model').replace(/[^\w.-]+/g, '_')}.pdf`);
         } catch (e) {
@@ -198,13 +205,13 @@ const CalibrationView = () => {
         if (typeof num !== 'number' || isNaN(num)) return EMPTY_VALUE;
         return num.toFixed(digits);
     };
-    const coverage = calibrationCoverage([...roPoints, ...bhtPoints], modelProfiles.depths);
+    const coverage = calibrationCoverage([...roPoints, ...tempPoints], modelProfiles.depths);
 
     // plots in the display units (the stats above stay SI)
     const modeledRoProfile = modelProfiles.depths.map((d, i) => ({ depth: zD(d), value: modelProfiles.ro[i] }));
     const modeledTempProfile = modelProfiles.depths.map((d, i) => ({ depth: zD(d), value: tD(modelProfiles.temp[i]) }));
     const roPointsD = roPoints.map((p) => ({ ...p, depth: zD(p.depth) }));
-    const bhtPointsD = bhtPoints.map((p) => ({ ...p, depth: zD(p.depth), value: tD(p.value) }));
+    const bhtPointsD = tempPoints.map((p) => ({ ...p, depth: zD(p.depth), value: tD(p.value) }));
     const residualsD = {
         ro: stats.residualsRo.map((r) => ({ ...r, depth: zD(r.depth) })),
         temp: stats.residualsTemp.map((r) => ({ ...r, depth: zD(r.depth), residual: tempDeltaToDisplay(r.residual, tU) })),
@@ -251,13 +258,45 @@ const CalibrationView = () => {
                         />
                     </CardContent>
                 </Card>
+                <Card data-testid="bf-cal-bht">
+                    <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">BHT correction</CardTitle></CardHeader>
+                    <CardContent className="space-y-2 text-xs">
+                        <select data-testid="bf-cal-bht-method" value={bht.method || 'none'} onChange={(e) => setBht({ method: e.target.value })}
+                            className="w-full h-7 bg-pl-surface border border-pl-border-strong rounded px-1 text-xs text-pl-text">
+                            {BHT_METHODS.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                        </select>
+                        {bht.method === 'horner' && (
+                            <label className="flex items-center justify-between gap-2 text-pl-muted">Circulation time (h)
+                                <input type="number" step="any" min="0" data-testid="bf-cal-bht-circ" value={bht.circulationH ?? ''}
+                                    onChange={(e) => { const v = parseFloat(e.target.value); setBht({ circulationH: Number.isFinite(v) && v > 0 ? v : null }); }}
+                                    className="h-7 w-20 bg-pl-surface border border-pl-border-strong rounded px-1 text-xs text-pl-text" />
+                            </label>
+                        )}
+                        <p className="text-[11px] text-pl-muted">{bht.method === 'horner' ? 'Runs at one depth, each with its shut-in time, extrapolate to the formation temperature.' : bht.method === 'none' ? 'Log BHTs read cool; a correction raises them toward the formation temperature.' : 'One BHT per depth, corrected by the published depth polynomial.'} DST points are never corrected.</p>
+                        {bht.method !== 'none' && tempPoints.some((p) => p.method !== 'none') && (
+                            <table className="w-full" data-testid="bf-cal-bht-table">
+                                <thead><tr className="text-pl-muted text-left"><th className="font-normal">Depth ({zU})</th><th className="font-normal">Raw ({tempSymbol(tU)})</th><th className="font-normal">Used ({tempSymbol(tU)})</th></tr></thead>
+                                <tbody>
+                                    {tempPoints.map((p, i) => (
+                                        <tr key={i} className="border-t border-pl-border" data-testid={`bf-cal-bht-row-${i}`}>
+                                            <td className="font-mono">{zD(p.depth).toFixed(0)}</td>
+                                            <td className="font-mono">{tD(p.raw ?? p.value).toFixed(1)}</td>
+                                            <td className="font-mono" title={p.note || ''}>{tD(p.value).toFixed(1)}{p.method === 'none' ? ' (raw)' : ''}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                        {corrected.notes.map((n, i) => <p key={i} className="text-[11px] text-pl-warning-text" data-testid="bf-cal-bht-note">{n}</p>)}
+                    </CardContent>
+                </Card>
                 <Card>
                     <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Misfit Statistics</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
                         {stats.none && <p className="text-[11px] text-pl-muted" data-testid="bf-cal-no-run">No result yet: run the model to compare it with the points.</p>}
                         {coverage.outside.length > 0 && (
                             <p className="text-[11px] text-pl-warning-text" data-testid="bf-cal-outside">
-                                {coverage.outside.length} point{coverage.outside.length === 1 ? ' lies' : 's lie'} outside the modelled layer centres ({zD(coverage.top).toFixed(0)} to {zD(coverage.base).toFixed(0)} {zU}); {coverage.outside.length === 1 ? 'it is' : 'they are'} compared with the nearest centre's value, which is extrapolation.
+                                {coverage.outside.length} point{coverage.outside.length === 1 ? ' lies' : 's lie'} outside the modelled column ({zD(coverage.top).toFixed(0)} to {zD(coverage.base).toFixed(0)} {zU}); {coverage.outside.length === 1 ? 'it is' : 'they are'} compared with the nearest modelled value, which is extrapolation.
                             </p>
                         )}
                         {fitNote && <p className="text-[11px] text-pl-text" data-testid="bf-cal-fit-note">{fitNote}</p>}

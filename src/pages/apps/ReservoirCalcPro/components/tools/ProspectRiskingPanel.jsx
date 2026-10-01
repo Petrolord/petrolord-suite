@@ -20,6 +20,7 @@ import { buildProspectSummaryPdf } from '../../services/prospectSummaryPdf';
 import { prospectEconomics, ECONOMICS_DEFAULTS } from '../../services/prospectEconomics';
 import { reviewerLines } from '../../services/reportInfo';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import BasinChargeNote from './BasinChargeNote';
 
 const inputCls = COMPACT_FIELD_THEMED;
 const fmt = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? EMPTY_VALUE : Number(v).toLocaleString(undefined, { maximumFractionDigits: d }));
@@ -41,6 +42,8 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
   // U2-012: success-case economics through the canonical screening NPV
   const [econOn, setEconOn] = useState(false);
   const [econ, setEcon] = useState({ ...ECONOMICS_DEFAULTS });
+  // BF-U2-017: a charge handed from Basin & Charge Modeling (src/lib/basinCharge.js)
+  const [bfCharge, setBfCharge] = useState(null);
 
   // seed volumes from RCP's latest run when available
   useEffect(() => {
@@ -82,6 +85,7 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
         pgFactors: factors,
         inputs: {
           mean: unriskedObj.mean, p90: unriskedObj.p90, p50: unriskedObj.p50, p10: unriskedObj.p10, unit, basis,
+          ...(bfCharge ? { bfCharge: { ...bfCharge, appliedFactor: factors.charge } } : {}),
           ...(econRes?.ok ? { economics: { npvMM: econRes.npvMM, unitValue: econRes.unitValue, devCost: econRes.devCost, assumptions: econRes.assumptions, engine: econRes.engine } } : {}),
         },
         risked: { pg: live.pg, risked_mean: live.riskedMean, success: live.successCase },
@@ -106,6 +110,7 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
           <h3 className="text-sm font-semibold">Prospect Risking</h3>
         </div>
 
+        <div className="mb-3 empty:hidden"><BasinChargeNote meanVolume={vol.mean} unit={unit} basis={basis} onRecord={setBfCharge} onApply={(v) => setFactors((s) => ({ ...s, charge: v }))} /></div>
         <div className="grid grid-cols-2 gap-3">
           {/* Pg factors */}
           <div className="rounded border border-pl-border p-2 space-y-1.5">

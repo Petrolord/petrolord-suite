@@ -6,9 +6,11 @@ import { Loader2, CheckCircle2, AlertTriangle, BarChart2 } from 'lucide-react';
 import { useBasinFlow } from '../../contexts/BasinFlowContext';
 
 const SimulationRunDialog = ({ isOpen, onClose, onComplete, onCancel }) => {
-    const { state, runSimulation } = useBasinFlow();
-    const [status, setStatus] = useState('idle'); // idle, running, success, error
-    const [progress, setProgress] = useState(0);
+    const { state, runSimulation, cancelSimulation } = useBasinFlow();
+    const [status, setStatus] = useState('idle'); // idle, running, success, error, cancelled
+    const [localProgress, setProgress] = useState(0);
+    // BF-U2-009: the engine reports its progress (it runs in a worker)
+    const progress = status === 'running' ? Math.max(localProgress, state.progress || 0) : localProgress;
     const [logs, setLogs] = useState([]);
 
     const addLog = (msg) => setLogs(prev => [...prev, msg]);
@@ -28,15 +30,19 @@ const SimulationRunDialog = ({ isOpen, onClose, onComplete, onCancel }) => {
         try {
             // BF0: the run is the only wait; the staged delays that used
             // to pad this dialog were theatre
-            addLog('Decompacting, solving heat and kinetics...');
-            setProgress(20);
-            await runSimulation();
-            addLog('Finalizing results...');
+            addLog('Decompacting, solving heat, kinetics and pressure...');
+            const res = await runSimulation();
+            addLog(res?.meta?.ranIn === 'worker' ? 'Ran in the background worker.' : 'Ran on the page (no background worker here).');
             setProgress(100);
             setStatus('success');
             if(onComplete) onComplete();
 
         } catch (error) {
+            if (error?.cancelled) {
+                setStatus('cancelled');
+                addLog('Cancelled. The previous result, if any, is kept.');
+                return;
+            }
             console.error(error);
             setStatus('error');
             addLog(`Error: ${error.message}`);
@@ -76,7 +82,7 @@ const SimulationRunDialog = ({ isOpen, onClose, onComplete, onCancel }) => {
                     {/* Progress Bar */}
                     <div className="space-y-2">
                         <div className="flex justify-between text-xs text-pl-muted">
-                            <span data-testid="bf-sim-status">{status === 'running' ? 'Processing...' : status === 'success' ? 'Complete' : 'Failed'}</span>
+                            <span data-testid="bf-sim-status">{status === 'running' ? 'Processing...' : status === 'success' ? 'Complete' : status === 'cancelled' ? 'Cancelled' : 'Failed'}</span>
                             <span>{Math.round(progress)}%</span>
                         </div>
                         <Progress value={progress} className={status === 'error' ? "bg-pl-danger-bg" : ""} indicatorClassName={status === 'success' ? "bg-pl-success" : status === 'error' ? "bg-pl-danger" : "bg-pl-primary"} />
@@ -95,7 +101,10 @@ const SimulationRunDialog = ({ isOpen, onClose, onComplete, onCancel }) => {
 
                 <DialogFooter className="sm:justify-between">
                     {status === 'running' ? (
-                        <Button variant="ghost" onClick={onCancel} className="text-pl-muted hover:text-pl-text">Run in Background</Button>
+                        <div className="flex gap-2 w-full justify-end">
+                            <Button variant="ghost" onClick={onCancel} className="text-pl-muted hover:text-pl-text" data-testid="bf-sim-background">Keep working</Button>
+                            <Button variant="outline" onClick={() => cancelSimulation && cancelSimulation()} data-testid="bf-sim-cancel">Cancel run</Button>
+                        </div>
                     ) : (
                         <div className="flex gap-2 w-full justify-end">
                             <Button variant="ghost" onClick={onClose} data-testid="bf-sim-close">Close</Button>

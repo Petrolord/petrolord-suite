@@ -13,6 +13,7 @@
 // model has no consumer for them.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import PetroLogsImport from './PetroLogsImport';
 import { useDropzone } from 'react-dropzone';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -123,8 +124,9 @@ const AdvancedDataImport = () => {
 
   const applyTops = () => {
     if (!previewLayers.length) return;
-    dispatch({ type: 'REORDER_LAYERS', payload: previewLayers });
-    toast({ title: 'Stratigraphy replaced', description: `${previewLayers.length} layers from ${tops.name}. The ages are placeholders: type them in Properties.` });
+    // U2-010: kept for Undo
+    dispatch({ type: 'REPLACE_LAYERS', payload: { stratigraphy: previewLayers, label: `Tops from ${tops.name}` } });
+    toast({ title: 'Stratigraphy replaced', description: `${previewLayers.length} layers from ${tops.name}. The ages are placeholders: type them in Properties. Undo in Properties puts the previous layers back.` });
     setTops(null);
   };
 
@@ -150,9 +152,11 @@ const AdvancedDataImport = () => {
   const applyRegistry = () => {
     if (!registryLayers.length) return;
     const b = registryBuild;
-    dispatch({ type: 'REORDER_LAYERS', payload: registryLayers });
-    dispatch({ type: 'SET_EROSION_EVENTS', payload: b.row.erosion_events });
-    dispatch({ type: 'UPDATE_SETTINGS', payload: { registryWellId: registryWell.id, registryWellName: registryWell.name, registryKbM: b.row.settings.registryKbM, timescale: b.row.settings.timescale } });
+    // U2-010: one replacement (layers, erosion surfaces and the tie), kept for Undo
+    dispatch({ type: 'REPLACE_LAYERS', payload: {
+      stratigraphy: registryLayers, erosionEvents: b.row.erosion_events, label: `Registry well ${registryWell.name}`,
+      settings: { registryWellId: registryWell.id, registryWellName: registryWell.name, registryKbM: b.row.settings.registryKbM, timescale: b.row.settings.timescale },
+    } });
     toast({ title: 'Stratigraphy from the registry', description: `${b.layerCount} layers from ${registryWell.name}: ${b.datedCount} dated, ${b.erosionCount} erosion event${b.erosionCount === 1 ? '' : 's'}. ${b.problems.join(' ')}` });
   };
 
@@ -183,6 +187,7 @@ const AdvancedDataImport = () => {
           <TabsTrigger value="calibration" data-testid="bf-import-tab-calibration" className="text-xs">Calibration data</TabsTrigger>
           <TabsTrigger value="tops" data-testid="bf-import-tab-tops" className="text-xs">Formation tops</TabsTrigger>
           <TabsTrigger value="registry" data-testid="bf-import-tab-registry" className="text-xs">Registry well</TabsTrigger>
+          <TabsTrigger value="petro" data-testid="bf-import-tab-petro" className="text-xs">Petrophysics logs</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calibration" className="space-y-4">
@@ -258,6 +263,10 @@ const AdvancedDataImport = () => {
               {state.settings?.registryWellName && <p className="text-xs text-pl-muted" data-testid="bf-registry-tied">Tied to {state.settings.registryWellName}.</p>}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="petro" className="space-y-4">
+          <PetroLogsImport />
         </TabsContent>
       </Tabs>
     </div>
