@@ -306,6 +306,17 @@ export default function WellsiteHelpGuide() {
           Imported rows feed the strip log and the d-exponent. Every import is listed with what was declared; Withdraw takes its rows
           out of use, with your reason, and keeps the record of it. One row of drilling parameters can be typed on the same view.
         </Para>
+        <SubHeading>WITSML files</SubHeading>
+        <Para>
+          The same view reads and writes WITSML 1.4.1.1 files. A WITSML log file is read through the import above, with the units
+          the file names on its curves filled in for you to check. A WITSML mudLog file is read as lithology intervals and added as
+          cuttings descriptions marked externally observed: each interval needs its top and base with their units, lithologies the
+          description vocabulary knows, and percentages that add up to 100; the intervals that do not fit are listed with the
+          reason. A WITSML trajectory file is loaded on the Surveys view, its depths and angles converted by the units in the
+          file. Export log, Export mudLog and Export trajectory write this well's data rows, cuttings descriptions and survey in
+          use as WITSML files in metres and degrees. A version 2.0 file, another WITSML object or a damaged file is refused with
+          the reason. There is no live WITSML feed in this release.
+        </Para>
         <Callout tone="info" title="Depths are measured depths">
           The importer reads measured depth. Rows are kept as recorded and work without a connection like every other record.
         </Callout>
