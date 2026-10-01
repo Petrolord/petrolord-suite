@@ -11,6 +11,11 @@ import GenerationExpulsionPlot from './plots/GenerationExpulsionPlot';
 import ChargeTimingPlot from './plots/ChargeTimingPlot';
 import PressurePlot from './plots/PressurePlot';
 import { buildBasinPressure, writeBasinPressure } from '@/lib/basinPressure';
+import { buildBasinCharge, writeBasinCharge } from '@/lib/basinCharge';
+import { eventsChartRows } from '../services/resultsView';
+import { kineticsLabel } from '../services/lithologyMix';
+import { Link } from 'react-router-dom';
+import { Spec } from '../services/PhysicsUtils';
 import { appPath } from '@/components/wells/appLinks';
 import { useMultiWell } from '../contexts/MultiWellContext';
 import { withLayerRoles } from '../services/resultsView';
@@ -39,6 +44,18 @@ const ResultsPanel = () => {
             return { payload, href: `${appPath('pore-pressure-studio', appPaths)}?bfPressure=${payload.id}` };
         } catch { return null; }
     }, [state.results, state.settings, state.stratigraphy, mwState, appPaths]);
+
+    // BF-U2-017: the expelled charge goes to ReservoirCalc Pro's Prospect
+    // Risking through src/lib/basinCharge.js
+    const chargeSend = useMemo(() => {
+        try {
+            const payload = buildBasinCharge(results, {
+                name: mwState?.wellDataMap?.[mwState?.activeWellId]?.name || 'Basin model', settings: state.settings, stratigraphy: state.stratigraphy,
+                criticalMoment: eventsChartRows(results).criticalMoment, kineticsLabel, hcDensityKgM3: Spec.RHO_HC,
+            });
+            return { payload, href: `${appPath('reservoircalc-pro', appPaths)}?bfCharge=${payload.id}` };
+        } catch (e) { return { error: e.message }; }
+    }, [results, state.settings, state.stratigraphy, mwState, appPaths]);
 
     const handleDownloadImage = async (type = 'png') => {
         if (!printRef.current) return;
@@ -104,7 +121,21 @@ const ResultsPanel = () => {
                              </div>
                          </TabsContent>
                          <TabsContent value="pressure" className="h-full m-0"><PressurePlot results={results} units={units} sendHref={pressureSend?.href || null} onSend={() => pressureSend && writeBasinPressure(pressureSend.payload)} /></TabsContent>
-                         <TabsContent value="timing" className="h-full m-0"><ChargeTimingPlot results={results} /></TabsContent>
+                         <TabsContent value="timing" className="h-full m-0">
+                             <div className="flex flex-col h-full gap-2">
+                                 <div className="text-[11px] text-pl-muted flex flex-wrap items-center gap-2" data-testid="bf-charge-send-bar">
+                                     {chargeSend?.payload ? (
+                                         <>
+                                             <span>Expelled, present day: {chargeSend.payload.expelledKgM2.toFixed(0)} kg/m2 of source rock.</span>
+                                             <Link to={chargeSend.href} onClick={() => writeBasinCharge(chargeSend.payload)} data-testid="bf-send-charge"
+                                                 className="px-2 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-sunken">Send the charge to ReservoirCalc Pro</Link>
+                                             <span>Open Prospect Risking there: it compares the charge with the prospect and suggests the charge factor of Pg.</span>
+                                         </>
+                                     ) : <span data-testid="bf-charge-send-none">{chargeSend?.error}</span>}
+                                 </div>
+                                 <div className="flex-1 min-h-0"><ChargeTimingPlot results={results} /></div>
+                             </div>
+                         </TabsContent>
                      </div>
                 </div>
             </Tabs>
