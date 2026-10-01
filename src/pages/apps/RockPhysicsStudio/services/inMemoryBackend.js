@@ -192,7 +192,7 @@ const MINERAL_PROVENANCE = Object.freeze({
 /** The wet (brine) truth of the trend well, for tests. */
 export const trendWellTruth = () => trendCurves().wet;
 
-export function makeInMemoryBackend({ hostile = false, long = false, trend = false, nosonic = false, minerals = false } = {}) {
+export function makeInMemoryBackend({ hostile = false, long = false, trend = false, nosonic = false, minerals = false, pp = false } = {}) {
   const curveStore = new Map();
   const logsByWell = new Map();
   const topsByWell = new Map();
@@ -302,6 +302,22 @@ export function makeInMemoryBackend({ hostile = false, long = false, trend = fal
       [{ name: 'GAS BED', top: TREND_GAS.top, base: TREND_GAS.base }], { start: 1800, stop: 2200, step: 0.5 });
   }
 
+  if (pp) {
+    // U2-011: a pore pressure curve as Pore Pressure Studio publishes it, on
+    // its own grid (10 m from 1900 m), 0.0105 MPa per metre of MD: the mean
+    // over the BRINE SAND zone (2020, 2030, 2040 m) is 21.315 MPa
+    const wellId = wells[0].id;
+    const logId = nextId('log');
+    const vals = [];
+    for (let d = 1900; d <= 2200 + 1e-9; d += 10) vals.push(0.0105 * d);
+    curveStore.set(logId, Float64Array.from(vals));
+    logsByWell.get(wellId).push({
+      id: logId, well_id: wellId, mnemonic: 'PP', description: 'Pore pressure (eaton n=3)', unit: 'MPA',
+      start_md_m: 1900, stop_md_m: 2200, step_m: 10, n_samples: vals.length, null_count: 0, source_file: null,
+      provenance: { computed: true, engine: 'pore-pressure-studio', pipeline_version: 'pp-1.1.0', params: { method: 'eaton' } },
+      storage_path: `dev/${wellId}/${logId}.f32`, created_at: new Date(2026, 9, 1).toISOString(),
+    });
+  }
   if (minerals) {
     addRawWell('MINERAL RP-8 (Petrophysics mineral model)', mineralCurves(),
       { DEPT: 'M', DT: 'US/M', DTS: 'US/M', RHOB: 'G/C3', PHIE: 'V/V', VSH: 'V/V', V_QUARTZ: 'V/V', V_CALCITE: 'V/V', V_DOLOMITE: 'V/V' },
@@ -377,6 +393,18 @@ export function makeInMemoryBackend({ hostile = false, long = false, trend = fal
     },
     async listZones(wellId) {
       return [...(zonesByWell.get(wellId) || [])].sort((a, b) => a.top_md_m - b.top_md_m);
+    },
+
+    // U2-011: one sample SCAL Studio project (the Petrophysics harness's own;
+    // inputs_data shape, schema 1), free-water level 6758.53 ft = 2060 m TVDSS
+    async listScalProjects() { return [{ id: 'scal-sample', name: 'Keta SAND J (sample)', updatedAt: '2026-09-29T00:00:00Z' }]; },
+    async loadScalProject(id) {
+      if (id !== 'scal-sample') return null;
+      return {
+        id, name: 'Keta SAND J (sample)', schema: 1, samples: [],
+        capillary: { jMode: 'manual', manual: { a: '0.25', b: '1.4', Swirr: '0.15' }, SwirrOverride: '', includedSampleIds: [], reservoir: { k_md: '150', phi: '0.22', sigma_dyncm: '26', thetaDeg: '30' } },
+        height: { gammaW: '1.05', gammaHc: '0.80', fwl_tvdss: '6758.53', swMin: '0.2', swMax: '0.95' },
+      };
     },
 
     async loadProject() {

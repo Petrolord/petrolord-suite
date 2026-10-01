@@ -79,6 +79,8 @@ export function preparePublishLogs(model, sub, indices, zone, meta) {
         phi_basis: sub.phiBasis || (model.phi ? (model.phiBasis || 'effective') : 'constant'),
         phi_curve: model.phiCurve || null,
         sw_from_log: !!sub.swFromLog,
+        sw_b_from_saturation_height: !!sub.swBFromShm,
+        pore_pressure_source: meta.scenario?.conditions?.pSource || null,
         kmin_source: sub.kminSource || 'table',
         kmin_minerals: sub.mineralKeys || null,
         limits: { vsh_max: meta.rock?.vshMax ?? null, phi_min: meta.rock?.phiMin ?? null },

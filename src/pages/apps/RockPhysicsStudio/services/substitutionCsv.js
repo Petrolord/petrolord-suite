@@ -52,9 +52,11 @@ export function reportHeader({ well, zone, model, sub, indices, scenario, rock, 
     ['Date', now.toISOString().slice(0, 19).replace('T', ' ')],
     ['Software', build],
     ['Units', `depth ${zU} MD; velocity ${vU}; density ${dU}; impedance ${vU}*${dU}`],
-    ['Conditions', `${cell(c.tC, 1)} degC, pore pressure ${cell(c.pMPa, 2)} MPa, salinity ${c.salinity} weight fraction NaCl (Batzle-Wang 1992)`],
+    ['Conditions', `${cell(c.tC, 1)} degC, pore pressure ${cell(c.pMPa, 2)} MPa${c.pSource ? ` (${c.pSource})` : ''}, salinity ${c.salinity} weight fraction NaCl (Batzle-Wang 1992)`],
     ['Fluid A (in situ)', `${describeFluid(scenario.fluidA)}${sub.swFromLog ? ' with Sw from the SW log per sample' : ''}: K ${cell(sub.flA.k / 1e9, 4)} GPa, density ${cell(sub.flA.rho, 1)} kg/m3`],
-    ['Fluid B (substitute)', `${describeFluid(scenario.fluidB)}: K ${cell(sub.flB.k / 1e9, 4)} GPa, density ${cell(sub.flB.rho, 1)} kg/m3`],
+    ['Fluid B (substitute)', sub.swBFromShm && sub.done
+      ? `brine and ${scenario.fluidB.hc?.kind === 'gas' ? 'gas' : 'oil'} with Sw from the saturation-height function per sample (${model.swBInfo?.name || 'SCAL Studio project'}, free-water level ${cell(model.swBInfo?.fwlTvdssM, 1)} m TVDSS): Sw ${cell(sub.swBMin, 3)} to ${cell(sub.swBMax, 3)}${sub.swBFallback ? `; ${sub.swBFallback} samples with no value used the typed ${scenario.fluidB.sw}` : ''}`
+      : `${describeFluid(scenario.fluidB)}: K ${cell(sub.flB.k / 1e9, 4)} GPa, density ${cell(sub.flB.rho, 1)} kg/m3`],
     ['Mineral modulus', `${kmin}; minerals ${minerals || 'none'}`],
     ['Porosity', model.phiCurve ? `${model.phiCurve} (${model.phiBasis === 'total' ? 'total' : 'effective'} porosity)` : `constant ${rock.phiConst}`],
     ['Sonic', model.vpSource === 'estimated' ? `Vp ESTIMATED, no sonic log: ${model.vpNote}` : 'measured sonic log'],

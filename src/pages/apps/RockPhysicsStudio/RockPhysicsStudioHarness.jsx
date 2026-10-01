@@ -19,7 +19,7 @@ export default function RockPhysicsStudioHarness() {
   // sonic log and a calibration well
   const backend = useMemo(() => {
     const q = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-    return makeInMemoryBackend({ hostile: q.has('hostile'), long: q.has('long'), trend: q.has('trend'), nosonic: q.has('nosonic'), minerals: q.has('minerals') });
+    return makeInMemoryBackend({ hostile: q.has('hostile'), long: q.has('long'), trend: q.has('trend'), nosonic: q.has('nosonic'), minerals: q.has('minerals'), pp: q.has('pp') });
   }, []);
   return (
     <div className="h-screen w-full overflow-hidden">

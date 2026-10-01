@@ -330,3 +330,39 @@ test('U2-009: K_min follows the Petrophysics mineral model per sample when asked
   await expect(page.getByTestId('rp-sub-header')).not.toContainText('Petrophysics mineral model');
   expect(errors).toEqual([]);
 });
+
+test('U2-011: pore pressure from Pore Pressure Studio and fluid B Sw from the saturation-height function', async ({ page }) => {
+  const errors = await open(page, '?pp=1');
+  await pick(page, 'KETA RP-1');
+  // the zone mean of the published PP curve (0.0105 MPa per metre at 2020, 2030, 2040 m)
+  await expect(page.getByTestId('rp-param-pp-use')).toHaveText('Use 21.32 MPa');
+  await page.getByTestId('rp-param-pp-use').click();
+  await expect(page.getByTestId('rp-param-pMPa')).toHaveValue('21.315');
+  await page.getByTestId('rp-apply-params').click();
+  await expect(page.getByTestId('rp-sub-basis')).toContainText('pore pressure from Pore Pressure Studio PP (eaton), mean of 3 samples in the zone');
+  const rhoAllGas = Number(await page.getByTestId('rp-sub-after-rho').textContent());
+  // fluid B from the saturation-height function: wetter than all gas, so denser
+  await page.getByTestId('rp-param-fluidB-shm').check();
+  await expect(page.getByTestId('rp-param-fluidB-shm-project')).toHaveValue('scal-sample');
+  await page.getByTestId('rp-apply-params').click();
+  await expect(page.getByTestId('rp-param-fluidB-shm-note')).toContainText('Keta SAND J (sample): Sw from the height above the free-water level at 2060.0 m TVDSS, on 201 samples.');
+  await expect(page.getByTestId('rp-sub-basis')).toContainText('fluid B Sw: from the saturation-height function (Keta SAND J (sample))');
+  const rhoShm = Number(await page.getByTestId('rp-sub-after-rho').textContent());
+  expect(rhoShm).toBeGreaterThan(rhoAllGas + 10);
+  // what if the contact were 100 m deeper: the zone is drier, so lighter
+  const fwl = page.getByTestId('rp-param-fluidB-shm-fwl');
+  await fwl.fill('');
+  await fwl.pressSequentially('2160');
+  await page.getByTestId('rp-apply-params').click();
+  await expect(page.getByTestId('rp-param-fluidB-shm-note')).toContainText('at 2160.0 m TVDSS');
+  await expect.poll(async () => Number(await page.getByTestId('rp-sub-after-rho').textContent())).toBeLessThan(rhoShm - 2);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('rp-export-csv').click()]);
+  const csv = fs.readFileSync(await dl.path(), 'utf8');
+  expect(csv).toMatch(/# Conditions: 60\.0 degC, pore pressure 21\.32 MPa \(Pore Pressure Studio PP/);
+  expect(csv).toMatch(/# Fluid B \(substitute\): brine and gas with Sw from the saturation-height function per sample \(Keta SAND J \(sample\), free-water level 2160\.0 m TVDSS\)/);
+  // typing a pressure by hand clears the source
+  await page.getByTestId('rp-param-pMPa').fill('30');
+  await page.getByTestId('rp-apply-params').click();
+  await expect(page.getByTestId('rp-sub-basis')).not.toContainText('pore pressure from');
+  expect(errors).toEqual([]);
+});

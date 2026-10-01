@@ -166,6 +166,20 @@ function RockPhysicsStudioHelpGuideContent() {
           refilled with fluid B, sample by sample over the zone. With Sw from the SW log ticked, fluid A at each sample
           is brine and the hydrocarbon at that sample's log Sw.
         </Para>
+        <SubHeading>Inputs from the other apps</SubHeading>
+        <Para>
+          When Pore Pressure Studio has published its PP curve on the well, the dock offers its mean over the selected
+          zone under the pore pressure field (in your pressure unit); press the button, then Apply. The basis line, the
+          CSV and the PDF then name Pore Pressure Studio as the source, and typing another number clears it. A PP curve
+          in a mud-weight or gradient unit is converted at the true vertical depth from the well&apos;s survey.
+        </Para>
+        <Para>
+          Tick Sw from saturation-height under fluid B to take fluid B&apos;s water saturation, sample by sample, from a
+          SCAL Studio project&apos;s saturation-height function: the Sw at each sample&apos;s height above the free-water
+          level, read through the same code Petrophysics Studio uses. Leave the free-water level blank to use the
+          project&apos;s, or type another (true vertical depth subsea, in the depth unit) to see the logs as they would
+          be with the contact elsewhere. Where the function has no value the typed Sw stands in, and the count is shown.
+        </Para>
         <SubHeading>Gassmann limits</SubHeading>
         <Para>
           Gassmann holds for connected porosity in reservoir rock. Samples with VSH above the limit or porosity below it
@@ -287,6 +301,8 @@ function RockPhysicsStudioHelpGuideContent() {
         <SectionHeading icon={Link2}>Working with the other apps</SectionHeading>
         <Table headers={['App', 'Link']} rows={[
           ['Well Data Manager', 'Well data in the ribbon opens the selected well on its logs, where the published curves are listed and can be deleted.'],
+          ['Pore Pressure Studio', 'Its published PP curve fills the pore pressure of the fluids (the zone mean), on request.'],
+          ['Petrophysics Studio and SCAL Studio', 'The published mineral model can set K_min per sample; a SCAL Studio saturation-height function can set fluid B Sw per sample.'],
           ['Petrophysics Studio, Well Correlation, Mapping & Surface Studio and the rest', 'Open in lists the Geoscience apps for the selected well; Petrophysics and Well Correlation open on that well.'],
           ['Seismolord', 'The synthetics window lists DT_SUB and RHOB_SUB (labelled fluid substituted) beside the measured sonic and density; pick them to see the substituted synthetic. A published DT_EST is listed last, labelled ESTIMATED sonic, with a warning that it is no basis for a tie.'],
           ['Geoscience home', 'The home icon at the left of the ribbon.'],

@@ -243,6 +243,8 @@ export default function FluidsPanel({
               Porosity: {model.phiCurve ? `${model.phiCurve} (${model.phiBasis === 'total' ? 'total' : 'effective'} porosity)` : `constant ${rock.phiConst} (no PHIE or PHIT curve)`}
               {' · '}fluid A Sw: {result.sub.swFromLog ? `from the SW log${result.sub.swFallback ? ` (${result.sub.swFallback} null samples used ${scenario.fluidA.sw})` : ''}` : `${scenario.fluidA.sw} as typed${scenario.fluidA.swFromLog && !model.sw ? ' (no SW curve on this well)' : ''}`}
               {' · '}limits: VSH up to {rock.vshMax ?? 1}, porosity from {rock.phiMin ?? 0}
+              {result.sub.swBFromShm ? ` · fluid B Sw: from the saturation-height function (${model.swBInfo?.name || 'SCAL Studio project'}), ${Number.isFinite(result.sub.swBMin) ? `${result.sub.swBMin.toFixed(2)} to ${result.sub.swBMax.toFixed(2)}` : 'no sample'}${result.sub.swBFallback ? `, ${result.sub.swBFallback} samples on the typed ${scenario.fluidB.sw}` : ''}` : ''}
+              {scenario.conditions.pSource ? ` · pore pressure from ${scenario.conditions.pSource}` : ''}
               {model.vsSource === 'estimated' ? ` · ${shearSourceText(model)}` : ''}
               {model.vpSource === 'estimated' ? ` · Vp ESTIMATED, no sonic log (${model.vpNote})` : ''}
             </p>

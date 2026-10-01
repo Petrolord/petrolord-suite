@@ -47,7 +47,8 @@ import {
 import { preparePublishLogs, prepareEstimatedSonicLog, ENGINE } from '../services/publish';
 import { pseudoConfig, calibrateOn, calibratedConfig, savedPseudo } from '../services/pseudoSonic';
 import PseudoSonicBox from './PseudoSonicBox';
-import { mineralModelLogs, buildMineralSet } from '../services/petroInputs';
+import { mineralModelLogs, buildMineralSet, porePressureLog, zonePorePressure, saturationHeightSw } from '../services/petroInputs';
+import { makeDepthFrame } from '@/pages/apps/WellDataManager/engine/checkshots';
 import { projectRowFromState, projectStateFromRow } from '../services/projectState';
 import { applyIterativeVs, shearSourceText } from '../services/iterativeVs';
 
@@ -87,6 +88,9 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const [calibration, setCalibration] = useState(null);
   const [pseudoBusy, setPseudoBusy] = useState(false);
   const [pseudoError, setPseudoError] = useState('');
+  // U2-011: SCAL Studio projects and the saturation-height Sw on this well
+  const [scalProjects, setScalProjects] = useState([]);
+  const [shm, setShm] = useState(null); // {key, ok, data?, name?, fwlTvdssM?, n?, reason?}
   // Suite unit profile: velocity, density and depth start from the
   // profile; the selectors change this view for the session only, and the
   // older remembered 'rp.units' choice no longer beats the profile
@@ -108,6 +112,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         const list = await backend.listWells();
         if (!live) return;
         setWells(list);
+        if (backend.listScalProjects) backend.listScalProjects().then((p) => { if (live) setScalProjects(p || []); }).catch(() => {});
         const project = await backend.loadProject();
         if (!live || !project) return;
         setProjectId(project.id || null);
@@ -154,13 +159,17 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         try { mineralEntries.push({ key, data: await backend.downloadCurve(log) }); } catch { /* an unreadable fraction curve is left out; the model then falls back */ }
       }
       const minerals = mineralEntries.length ? buildMineralSet(mineralEntries) : null;
+      // U2-011: a pore pressure curve on the well (Pore Pressure Studio's PP first)
+      const ppLog = porePressureLog(logs);
+      let pp = null;
+      if (ppLog) { try { pp = { log: ppLog, data: await backend.downloadCurve(ppLog) }; } catch { pp = null; } }
       const model = buildModel(curves, mapped, { pseudoSonic, minerals });
       setCalibration(null);
       setPseudoError('');
       setWellData({
         wellId,
         model,
-        raw: { curves, mapped, minerals },
+        raw: { curves, mapped, minerals, pp },
         builtWith: JSON.stringify(pseudoSonic),
         inventory: Object.entries(mapped).map(([key, log]) => ({ key, log })),
         published: publishedBy(logs),
@@ -192,9 +201,33 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wellData, pseudoKey]);
   const activeZone = zones.find((z) => z.id === zoneId) || zones[0] || null;
+  // U2-011: Sw at each sample from the chosen SCAL Studio saturation-height
+  // function (Petrophysics Studio's reader), for fluid B
+  const shmCfg = scenario.fluidB?.shm;
+  const shmKey = shmCfg?.on && shmCfg.projectId && baseModel ? `${wellData?.wellId}|${shmCfg.projectId}|${shmCfg.fwlTvdssM ?? ''}|${baseModel.n}` : null;
+  useEffect(() => {
+    if (!shmKey) { setShm(null); return undefined; }
+    let live = true;
+    (async () => {
+      try {
+        const payload = await backend.loadScalProject(shmCfg.projectId);
+        if (!payload) throw new Error('That SCAL Studio project could not be opened.');
+        const r = await saturationHeightSw({ payload, depth: baseModel.depth, well: selected, fwlTvdssM: shmCfg.fwlTvdssM });
+        if (live) setShm({ key: shmKey, ...r });
+      } catch (e) {
+        if (live) setShm({ key: shmKey, ok: false, reason: e.message });
+      }
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shmKey, backend]);
+  const fluidModel = useMemo(
+    () => (baseModel && shm?.ok && shm.key === shmKey ? { ...baseModel, swB: shm.data, swBInfo: { name: shm.name, fwlTvdssM: shm.fwlTvdssM } } : baseModel),
+    [baseModel, shm, shmKey],
+  );
   const model = useMemo(
-    () => applyIterativeVs(baseModel, scenario, rock, activeZone),
-    [baseModel, scenario, rock, activeZone],
+    () => applyIterativeVs(fluidModel, scenario, rock, activeZone),
+    [fluidModel, scenario, rock, activeZone],
   );
 
   // RP-U1-013: reopen the saved project's well (once, after the list loads)
@@ -308,7 +341,25 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   ) : null;
 
   // what the other apps have published on this well, for the dock (U2-009, U2-011)
-  const wellInputs = useMemo(() => (wellData ? { minerals: wellData.raw?.minerals || null } : null), [wellData]);
+  const wellInputs = useMemo(() => {
+    if (!wellData) return { scalProjects };
+    let pp = null;
+    if (wellData.raw?.pp) {
+      let tvd = null;
+      try {
+        const frame = makeDepthFrame({ deviation: selected?.deviation, kbM: selected?.kb_m ?? 0, tdMdM: selected?.td_md_m });
+        tvd = (md) => { try { return frame.mdToTvdss(md).tvdss + (selected?.kb_m ?? 0); } catch { return NaN; } };
+      } catch { tvd = null; }
+      pp = zonePorePressure(wellData.raw.pp.log, wellData.raw.pp.data, activeZone, tvd);
+    }
+    const shmNote = !shmKey ? null : !shm || shm.key !== shmKey
+      ? { ok: true, text: 'Reading the saturation-height function...' }
+      : shm.ok
+        ? { ok: true, text: `${shm.name}: Sw from the height above the free-water level at ${(units.depth === 'ft' ? shm.fwlTvdssM / 0.3048 : shm.fwlTvdssM).toFixed(1)} ${units.depth === 'ft' ? 'ft' : 'm'} TVDSS, on ${shm.n} samples.` }
+        : { ok: false, text: `${shm.reason} The typed Sw is used.` };
+    return { minerals: wellData.raw?.minerals || null, pp, scalProjects, shm: shmNote };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wellData, activeZone, selected, scalProjects, shm, shmKey, units.depth]);
 
   const unitSelect = (key, options, title) => (
     <select

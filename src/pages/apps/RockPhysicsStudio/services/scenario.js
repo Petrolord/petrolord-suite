@@ -152,7 +152,20 @@ export function makeSampler(model, scenario, rock) {
   const hcA = useSwLog && scenario.fluidA.hc ? hcProps(cond, scenario.fluidA.hc) : null;
   const vshMax = Number.isFinite(rock.vshMax) ? rock.vshMax : 1;
   const phiMin = Number.isFinite(rock.phiMin) ? rock.phiMin : 0;
+  // U2-011: fluid B's Sw per sample from a saturation-height function
+  // (model.swB, set by the workstation from a SCAL Studio project)
+  const useShm = !!scenario.fluidB?.shm?.on && !!model.swB;
+  const hcB = useShm && scenario.fluidB.hc ? hcProps(cond, scenario.fluidB.hc) : null;
   return {
+    useShm,
+    labelB: useShm ? `brine and ${scenario.fluidB.hc?.kind === 'gas' ? 'gas' : scenario.fluidB.hc?.kind} at the saturation-height Sw` : flB.label,
+    /** fluid B's water saturation at the sample, and whether the typed value stood in */
+    swB: (i) => {
+      if (!useShm) return { sw: scenario.fluidB.sw, fallback: false };
+      const sw = model.swB[i];
+      if (!Number.isFinite(sw)) return { sw: scenario.fluidB.sw, fallback: true };
+      return { sw: Math.min(1, Math.max(0, sw)), fallback: false };
+    },
     flA,
     flB,
     brine: brineAt,
@@ -183,7 +196,13 @@ export function makeSampler(model, scenario, rock) {
       const s = Math.min(1, Math.max(0, sw));
       return s >= 1 ? brineAt : s <= 0 ? hcA : woodMix([{ ...brineAt, sat: s }, { ...hcA, sat: 1 - s }]);
     },
-    fluidB: () => flB,
+    fluidB: (i) => {
+      if (!useShm) return flB;
+      const sw = model.swB[i];
+      if (!Number.isFinite(sw)) return flB;
+      const s = Math.min(1, Math.max(0, sw));
+      return s >= 1 ? brineAt : s <= 0 ? hcB : woodMix([{ ...brineAt, sat: s }, { ...hcB, sat: 1 - s }]);
+    },
     kmin: (i) => {
       if (usePetro) {
         const k = kminFromFractions(model.minerals, i);
@@ -216,6 +235,11 @@ export function substituteZone(model, indices, scenario, rock) {
     outside: 0,
     swFallback: 0,
     mineralFallback: 0,
+    swBFromShm: sm.useShm,
+    swBFallback: 0,
+    swBMin: Infinity,
+    swBMax: -Infinity,
+    labelB: sm.labelB,
     firstError: null,
     kmin: sm.kminTable,
     kminMin: Infinity,
@@ -237,6 +261,8 @@ export function substituteZone(model, indices, scenario, rock) {
     if (sm.outside(i)) { out.outside += 1; continue; }
     try {
       if (sm.swA(i).fallback) out.swFallback += 1;
+      const sb = sm.swB(i);
+      if (sb.fallback) out.swBFallback += 1;
       const kmin = sm.kmin(i);
       if (sm.mineralFallback(i)) out.mineralFallback += 1;
       const r = substituteVels(vp, vs, rho, kmin, phi, sm.fluidA(i), sm.fluidB(i));
@@ -246,6 +272,8 @@ export function substituteZone(model, indices, scenario, rock) {
       out.done += 1;
       out.kminMin = Math.min(out.kminMin, kmin);
       out.kminMax = Math.max(out.kminMax, kmin);
+      out.swBMin = Math.min(out.swBMin, sb.sw);
+      out.swBMax = Math.max(out.swBMax, sb.sw);
     } catch (e) {
       out.skipped += 1;
       if (!out.firstError) out.firstError = plainMessage(e.message);
@@ -274,5 +302,5 @@ export function substitutedHalfspace(model, from, to, scenario, rock) {
     const v = idx.map((i) => arr[i]).filter(Number.isFinite);
     return v.reduce((s, x) => s + x, 0) / v.length;
   };
-  return { vp: mean(sub.vp), vs: mean(sub.vs), rho: mean(sub.rho), labelA: sub.labelA, labelB: flB.label };
+  return { vp: mean(sub.vp), vs: mean(sub.vs), rho: mean(sub.rho), labelA: sub.labelA, labelB: sub.labelB || flB.label };
 }

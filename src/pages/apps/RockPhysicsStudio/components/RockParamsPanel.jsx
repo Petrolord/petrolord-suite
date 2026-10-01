@@ -16,7 +16,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
-import { convert } from '@/lib/units/registry';
+import { convert, M_PER_FT } from '@/lib/units/registry';
 
 const num = (v, fallback) => {
   const x = parseFloat(v);
@@ -89,7 +89,7 @@ function Check2({ id, label, checked, onChange, title }) {
   );
 }
 
-function FluidSide({ side, label, draft, setDraft, gorUnit, onGorUnit }) {
+function FluidSide({ side, label, draft, setDraft, gorUnit, onGorUnit, wellInputs = null, depthUnit = 'm' }) {
   const d = draft[side];
   const patch = (p) => setDraft({ ...draft, [side]: { ...d, ...p } });
   const patchHc = (p) => patch({ hc: { ...d.hc, ...p } });
@@ -97,6 +97,53 @@ function FluidSide({ side, label, draft, setDraft, gorUnit, onGorUnit }) {
     <div className="mt-2">
       <div className="text-[11px] uppercase tracking-wider text-pl-muted">{label}</div>
       <Field id={`${side}-sw`} label="Water saturation Sw" value={d.sw} onChange={(v) => patch({ sw: v })} unit="v/v" />
+      {side === 'fluidB' && (
+        <>
+          <Check2
+            id="fluidB-shm"
+            label="Sw from saturation-height"
+            checked={d.shm?.on}
+            onChange={(v) => patch({ shm: { ...(d.shm || {}), on: v, projectId: d.shm?.projectId || wellInputs?.scalProjects?.[0]?.id || '' } })}
+            title="Per sample, fluid B is brine and the hydrocarbon at the Sw a SCAL Studio saturation-height function gives for the sample's height above the free-water level (through Petrophysics Studio's reader). Move the free-water level to ask what the logs would look like with the contact elsewhere. The typed Sw stands in where the function has no value."
+          />
+          {d.shm?.on && (
+            <>
+              <label className="flex items-center justify-between gap-2 py-0.5 text-[12px] text-pl-text">
+                <span>SCAL Studio project</span>
+                <select
+                  data-testid="rp-param-fluidB-shm-project"
+                  value={d.shm?.projectId || ''}
+                  onChange={(e) => patch({ shm: { ...d.shm, projectId: e.target.value } })}
+                  className="w-32 bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-pl-text"
+                >
+                  {!(wellInputs?.scalProjects || []).length && <option value="">none saved</option>}
+                  {(wellInputs?.scalProjects || []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center justify-between gap-2 py-0.5 text-[12px] text-pl-text" title="Free-water level, true vertical depth subsea. Blank uses the level saved in the SCAL Studio project.">
+                <span>Free-water level (TVDSS)</span>
+                <span className="flex items-center gap-1">
+                  <input
+                    data-testid="rp-param-fluidB-shm-fwl"
+                    type="text"
+                    inputMode="decimal"
+                    value={d.shm?.fwlDisplay ?? ''}
+                    placeholder="project"
+                    onChange={(e) => patch({ shm: { ...d.shm, fwlDisplay: e.target.value } })}
+                    className="w-20 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-right text-pl-text focus:outline-none focus:border-pl-focus"
+                  />
+                  <span className="w-16 text-[11px] text-pl-muted">{depthUnit}</span>
+                </span>
+              </label>
+              {wellInputs?.shm && (
+                <p className={`pb-0.5 text-[11px] ${wellInputs.shm.ok ? 'text-pl-muted' : 'text-pl-warning-text'}`} data-testid="rp-param-fluidB-shm-note">
+                  {wellInputs.shm.text}
+                </p>
+              )}
+            </>
+          )}
+        </>
+      )}
       {side === 'fluidA' && (
         <Check2
           id="fluidA-swlog"
@@ -149,11 +196,17 @@ export default function RockParamsPanel({ scenario, rock, onApply, units = {}, o
   }), [units.temperature, units.pressure, units.gor, salUnit]);
   const setUnit = (key, value) => { if (key === 'salinity') setSalUnit(value); else onUnit?.(key, value); };
 
+  const zU = units.depth === 'ft' ? 'ft' : 'm';
   const toDraft = () => {
-    const side = (s) => ({ ...s, hc: { ...s.hc, ...(s.hc.kind === 'oil-live' ? { gorDisplay: gorToDisplay(s.hc.gorLL ?? 100, u.gor) } : {}) } });
+    const side = (s) => ({
+      ...s,
+      hc: { ...s.hc, ...(s.hc.kind === 'oil-live' ? { gorDisplay: gorToDisplay(s.hc.gorLL ?? 100, u.gor) } : {}) },
+      ...(s.shm ? { shm: { ...s.shm, fwlDisplay: Number.isFinite(s.shm.fwlTvdssM) ? tidy(zU === 'ft' ? s.shm.fwlTvdssM / M_PER_FT : s.shm.fwlTvdssM, 2) : '' } } : {}),
+    });
     return {
       ...scenario,
-      conditions: condToDisplay(scenario.conditions, u),
+      // U2-011: where the pore pressure came from rides with the number
+      conditions: { ...condToDisplay(scenario.conditions, u), pSource: scenario.conditions.pSource || null },
       fluidA: side(scenario.fluidA),
       fluidB: side(scenario.fluidB),
       rock,
@@ -162,7 +215,7 @@ export default function RockParamsPanel({ scenario, rock, onApply, units = {}, o
   const [draft, setDraft] = useState(toDraft);
   const [note, setNote] = useState('');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setDraft(toDraft()); }, [scenario, rock, u]);
+  useEffect(() => { setDraft(toDraft()); }, [scenario, rock, u, zU]);
 
   const patchCond = (p) => setDraft({ ...draft, conditions: { ...draft.conditions, ...p } });
   const patchRock = (p) => setDraft({ ...draft, rock: { ...draft.rock, ...p } });
@@ -180,6 +233,13 @@ export default function RockParamsPanel({ scenario, rock, onApply, units = {}, o
     const parseSide = (s, name) => ({
       sw: take(s.sw, name === 'A' ? 1 : 0, `Sw ${name}`),
       ...(name === 'A' ? { swFromLog: !!s.swFromLog } : {}),
+      ...(name === 'B' && s.shm ? {
+        shm: {
+          on: !!s.shm.on,
+          projectId: s.shm.projectId || '',
+          fwlTvdssM: Number.isFinite(parseFloat(s.shm.fwlDisplay)) ? parseFloat(s.shm.fwlDisplay) * (zU === 'ft' ? M_PER_FT : 1) : null,
+        },
+      } : {}),
       hc: {
         kind: s.hc.kind,
         ...(s.hc.kind === 'gas'
@@ -199,6 +259,7 @@ export default function RockParamsPanel({ scenario, rock, onApply, units = {}, o
       tC: Number.isFinite(c.tC) ? c.tC : take('', 60, 'temperature'),
       pMPa: Number.isFinite(c.pMPa) ? c.pMPa : take('', 25, 'pressure'),
       salinity: Number.isFinite(c.salinity) ? c.salinity : take('', 0.035, 'salinity'),
+      ...(draft.conditions.pSource ? { pSource: draft.conditions.pSource } : {}),
     };
     onApply({
       scenario: {
@@ -229,11 +290,27 @@ export default function RockParamsPanel({ scenario, rock, onApply, units = {}, o
     <div className="p-3 border-b border-pl-border" data-testid="rp-params">
       <div className="text-[11px] uppercase tracking-wider text-pl-muted">Reservoir conditions</div>
       <Field id="tC" label="Temperature" value={draft.conditions.tC} onChange={(v) => patchCond({ tC: v })} unit={u.temperature} units={TEMPERATURE_UNITS} onUnit={(v) => setUnit('temperature', v)} />
-      <Field id="pMPa" label="Pore pressure" value={draft.conditions.pMPa} onChange={(v) => patchCond({ pMPa: v })} unit={u.pressure} units={PRESSURE_UNITS} onUnit={(v) => setUnit('pressure', v)} title="Pore (fluid) pressure for Batzle-Wang, absolute" />
+      <Field id="pMPa" label="Pore pressure" value={draft.conditions.pMPa} onChange={(v) => patchCond({ pMPa: v, pSource: null })} unit={u.pressure} units={PRESSURE_UNITS} onUnit={(v) => setUnit('pressure', v)} title="Pore (fluid) pressure for Batzle-Wang, absolute" />
+      {wellInputs?.pp && (wellInputs.pp.ok ? (
+        <div className="flex items-center justify-between gap-2 pb-0.5 text-[11px] text-pl-muted">
+          <span data-testid="rp-param-pp-note">{draft.conditions.pSource ? `From ${draft.conditions.pSource}.` : 'This well has a pore pressure curve.'}</span>
+          <button
+            type="button"
+            data-testid="rp-param-pp-use"
+            title={`${wellInputs.pp.source}. Fills the pore pressure; press Apply to use it.`}
+            className="shrink-0 px-1.5 py-0.5 rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken"
+            onClick={() => patchCond({ pMPa: tidy(convert('pressure', wellInputs.pp.mpa, 'MPa', u.pressure), 4), pSource: wellInputs.pp.source })}
+          >
+            Use {tidy(convert('pressure', wellInputs.pp.mpa, 'MPa', u.pressure), 2)} {u.pressure}
+          </button>
+        </div>
+      ) : (
+        <p className="pb-0.5 text-[11px] text-pl-muted" data-testid="rp-param-pp-note">{wellInputs.pp.reason}</p>
+      ))}
       <Field id="salinity" label="Salinity (NaCl)" value={draft.conditions.salinity} onChange={(v) => patchCond({ salinity: v })} unit={u.salinity} units={SALINITY_UNITS} onUnit={(v) => setUnit('salinity', v)} />
 
       <FluidSide side="fluidA" label="Fluid A (in situ)" draft={draft} setDraft={setDraft} gorUnit={u.gor} onGorUnit={(v) => setUnit('gor', v)} />
-      <FluidSide side="fluidB" label="Fluid B (substitute)" draft={draft} setDraft={setDraft} gorUnit={u.gor} onGorUnit={(v) => setUnit('gor', v)} />
+      <FluidSide side="fluidB" label="Fluid B (substitute)" draft={draft} setDraft={setDraft} gorUnit={u.gor} onGorUnit={(v) => setUnit('gor', v)} wellInputs={wellInputs} depthUnit={zU} />
 
       <div className="mt-2 text-[11px] uppercase tracking-wider text-pl-muted">Rock model</div>
       {Object.keys(draft.rock.minerals).map((m) => (
