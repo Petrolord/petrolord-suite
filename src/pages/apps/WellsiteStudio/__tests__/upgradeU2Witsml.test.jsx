@@ -158,6 +158,9 @@ test('screen: a WITSML mudLog file is read on Import and its good intervals beco
   await waitFor(() => expect(screen.getByTestId('ws-status')).toHaveTextContent('pasted table: 2 cuttings description(s) added from the WITSML mudLog, marked externally observed.'));
   const descs = await backend.listRecords(w.id, { subtype: 'cuttings_description' });
   expect(descs.map((d) => d.payload.source)).toEqual(['external', 'external']);
-  expect(descs[0].md_calc_m).toBeCloseTo(9900 * FT, 6);
+  // both rows share one instant, so their order in the store is not fixed: compare by depth
+  const mds = descs.map((d) => d.md_calc_m).sort((x, y) => x - y);
+  expect(mds[0]).toBeCloseTo(9900 * FT, 6);
+  expect(mds[1]).toBeCloseTo(9940 * FT, 6);
   await waitFor(() => expect(screen.getByTestId('ws-explorer-counts')).toHaveTextContent('2 description(s)'));
 });
