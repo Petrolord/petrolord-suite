@@ -34,7 +34,7 @@ export default function ContactSweepChart() {
     const h = ContactVolumetricsEngine.buildHypsometry({
       topSurface: top, baseSurface: base,
       constantThickness: inputMethod === 'hybrid' ? parseFloat(inputs.thickness) : null,
-      unitSystem, aoiPolygon: aoi, options: { resolution: 100, interpolation: 'idw' },
+      unitSystem, aoiPolygon: aoi, options: { resolution: 100, interpolation: 'idw', fillToSpill: inputs.fillToSpill === true },
     });
     return ContactVolumetricsEngine.contactSweep(h, inputs, 60);
   }, [structural, top, base, inputMethod, inputs, unitSystem, aoi]);

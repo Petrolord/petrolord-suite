@@ -207,6 +207,8 @@ export class MonteCarloEngine {
                 const edge = hyps.edgeElevation;
                 const deepest = config.fluidType === 'gas' ? (Number.isFinite(goc) ? goc : owc) : owc;
                 if (Number.isFinite(edge) && Number.isFinite(deepest) && deepest < edge) diagnostics.openRealizations = (diagnostics.openRealizations || 0) + 1;
+                // U2-008: a sampled contact below the spill point fills to the spill
+                if (hyps.belowSpill && hyps.belowSpill(deepest)) diagnostics.filledToSpill = (diagnostics.filledToSpill || 0) + 1;
                 const gOil = grvOil * grvFactor;
                 const gGas = grvGas * grvFactor;
                 grv = gOil + gGas;
@@ -273,6 +275,9 @@ export class MonteCarloEngine {
         }
         if (diagnostics.openRealizations) {
             diagnostics.warnings.push(`${diagnostics.openRealizations.toLocaleString('en-US')} of ${iterations.toLocaleString('en-US')} realizations put the contact below the shallowest edge of the mapped surface (${Math.round(hyps.edgeElevation).toLocaleString('en-US')} TVDSS): the closure is open there, so those volumes are minimums, not trap volumes.`);
+        }
+        if (diagnostics.filledToSpill) {
+            diagnostics.warnings.push(`${diagnostics.filledToSpill.toLocaleString('en-US')} of ${iterations.toLocaleString('en-US')} realizations drew the contact below the spill point (${Math.round(hyps.spillElevation).toLocaleString('en-US')} TVDSS); the trap was filled to the spill point in those.`);
         }
         if (diagnostics.gocBelowOwc) {
             diagnostics.warnings.push(`${diagnostics.gocBelowOwc.toLocaleString('en-US')} realizations drew the GOC below the OWC; the gas cap was stopped at the OWC (no oil leg) in those. Check that the contact ranges do not overlap.`);

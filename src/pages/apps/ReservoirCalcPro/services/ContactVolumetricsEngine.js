@@ -4,6 +4,7 @@ import { hypsometryFromTable } from './hypsometry';
 import { latticeOf } from './lattice';
 import { areaDepthFromCells } from './areaDepth';
 import { gridXY, sampleAtXY, isNull as isNullZ } from '@/lib/gridding/gridmath';
+import { spillAnalysis } from '@/lib/gridding/closure';
 
 const FT_PER_M = 3.280839895;
 const SQFT_PER_ACRE = 43560;
@@ -42,9 +43,17 @@ export class ContactVolumetricsEngine {
     static calculate(p) {
         const built = this._buildCells(p);
         if (built.error) return { error: built.error };
-        const { cells, meta } = built;
-        const inputs = p.inputs || {};
+        const { meta } = built;
         const warnings = [...built.warnings];
+        // U2-008: with fill to spill, only the crest's trap counts and no
+        // contact sits below its spill point
+        let trap = p.options?.fillToSpill ? trapOf(built) : null;
+        if (trap?.noTrap) {
+            warnings.push('Trap only is on, but no closed culmination was found on the map (the highest ground is on its edge), so every cell above the contact is counted.');
+            trap = null;
+        }
+        const cells = trap ? trap.cells : built.cells;
+        const inputs = trap ? { ...(p.inputs || {}), ...clampContactsToSpill(p.inputs || {}, trap, meta, warnings) } : (p.inputs || {});
 
         const ntg = clampFrac(inputs.ntg, 1.0);
         const phi = clampFrac(inputs.porosity, 0.2);
@@ -79,10 +88,14 @@ export class ContactVolumetricsEngine {
         const lenUnit = meta.isField ? 'ft' : 'm';
         // RCP-U1-012: a column that reaches the edge of the mapped surface is
         // not closed inside the map at this contact
-        const openEdge = openCells > 0
+        let openEdge = openCells > 0
             ? { open: true, cells: openCells, edgeElevation: Number.isFinite(meta.edgeTop) ? -meta.edgeTop : null }
             : { open: false, cells: 0, edgeElevation: Number.isFinite(meta.edgeTop) ? -meta.edgeTop : null };
-        if (openEdge.open) {
+        if (trap && trap.limitedByEdge && trap.filledToSpill) {
+            // U2-008: the trap is filled to a spill point on the map edge
+            openEdge = { open: true, cells: Math.max(openCells, 1), edgeElevation: trap.spillElevation, atSpill: true };
+            warnings.push(`Open closure: the trap spills at the edge of the mapped surface (${Math.round(trap.spillElevation).toLocaleString('en-US')} ${lenUnit} TVDSS), so the structure may close deeper off the map. This volume is a minimum, not a trap volume.`);
+        } else if (openEdge.open) {
             warnings.push(`Open closure: the hydrocarbon column reaches the edge of the mapped surface at ${openCells.toLocaleString('en-US')} cells, so the structure does not close inside the map at this contact. This volume is a minimum, not a trap volume. The shallowest edge of the surface is at ${Number.isFinite(openEdge.edgeElevation) ? Math.round(openEdge.edgeElevation).toLocaleString('en-US') : 'n/a'} ${lenUnit} TVDSS: a contact below that spills or runs off the map.`);
         }
         // RCP-U1-022: a contact typed as a positive depth sits above the datum
@@ -146,6 +159,7 @@ export class ContactVolumetricsEngine {
             // the report say what produced the number
             gridding: { interpolation: meta.interpolation, nx: meta.nx, ny: meta.ny, dx: meta.dx, dy: meta.dy, xyUnit: meta.xyUnit },
             openEdge,
+            trap: trap ? { spillElevation: trap.spillElevation, limitedByEdge: trap.limitedByEdge, merges: trap.merges, excludedCells: trap.excludedCells, filledToSpill: !!trap.filledToSpill } : null,
             condensate: cond.inPlace, recoverableCondensate: cond.recoverable, cgr: cond.cgr,
             cellCount: cells.length,
             maskedCount: meta.maskedCount,
@@ -173,7 +187,10 @@ export class ContactVolumetricsEngine {
     static buildHypsometry(p) {
         const built = this._buildCells(p);
         if (built.error) return { error: built.error };
-        const { cells, meta } = built;
+        const { meta } = built;
+        let trap = p.options?.fillToSpill ? trapOf(built) : null;
+        if (trap?.noTrap) trap = null;
+        const cells = trap ? trap.cells : built.cells;
 
         if (cells.length === 0) return { error: 'No cells inside the surveyed area / AOI to integrate.' };
 
@@ -209,13 +226,16 @@ export class ContactVolumetricsEngine {
                 kind: 'hypsometry-table',
                 zLo, zHi, volume, totalArea,
                 // RCP-U1-012: contacts (TVDSS elevation) deeper than this are open
-                edgeElevation: Number.isFinite(meta.edgeTop) ? -meta.edgeTop : null,
+                edgeElevation: trapEdgeElevation(cells, meta, trap),
+                // U2-008: sampled contacts below the spill fill to the spill
+                spillElevation: trap ? trap.spillElevation : null,
                 isField: meta.isField,
                 volUnit: meta.volUnit,
                 areaUnit: meta.areaUnit,
                 source: 'grid',
             }),
             meta,
+            trap: trap ? { spillElevation: trap.spillElevation, limitedByEdge: trap.limitedByEdge } : null,
         };
     }
 
@@ -276,7 +296,7 @@ export class ContactVolumetricsEngine {
         if (!top || typeof top !== 'object') return this._buildCellsRaw(p);
         const key = JSON.stringify([
             objectId(p.baseSurface), p.constantThickness ?? null, p.unitSystem || 'field',
-            p.aoiPolygon?.vertices || null, p.options || {},
+            p.aoiPolygon?.vertices || null, { ...(p.options || {}), fillToSpill: undefined },
         ]);
         let byKey = CELL_CACHE.get(top);
         if (!byKey) { byKey = new Map(); CELL_CACHE.set(top, byKey); }
@@ -412,6 +432,111 @@ export class ContactVolumetricsEngine {
 }
 
 // ---- helpers ----
+
+/**
+ * U2-008: the trap of a built cell set. The cells are put on their grid
+ * (elevation = minus top depth, target units; empty nodes null) and
+ * Mapping's closure engine floods from the crest (spillAnalysis): the
+ * trap is the flood up to its spill point, which is the deepest closing
+ * contour. Cached on the built object.
+ */
+function trapOf(built) {
+    if (built._trap) return built._trap;
+    const { cells, meta } = built;
+    const { nx, ny } = meta;
+    const z = new Float64Array(nx * ny).fill(1e30);
+    const at = new Map();
+    for (const c of cells) {
+        const k = c.j * nx + c.i;
+        // the shallowest top when a node holds more than one cell
+        if (z[k] >= 1e29 || -c.td > z[k]) z[k] = -c.td;
+        at.set(k, (at.get(k) || []).concat([c]));
+    }
+    if (!cells.length) { built._trap = { cells: [], spillElevation: null, limitedByEdge: true, merges: 0, excludedCells: 0 }; return built._trap; }
+    // The crest of the trap: the interior culmination (a node above its
+    // four neighbours) whose trap holds the most rock above its spill.
+    // The global highest node can sit on an up-dip map edge, where it
+    // traps nothing.
+    const spec = { x0: 0, y0: 0, dx: 1, dy: 1, nx, ny };
+    const live = (k) => z[k] < 1e29;
+    const peaks = [];
+    for (let j = 1; j < ny - 1; j++) {
+        for (let i = 1; i < nx - 1; i++) {
+            const k = j * nx + i;
+            if (!live(k)) continue;
+            const nb = [k - 1, k + 1, k - nx, k + nx];
+            if (nb.some((q) => !live(q))) continue;
+            if (nb.every((q) => z[q] <= z[k]) && nb.some((q) => z[q] < z[k])) peaks.push(k);
+        }
+    }
+    peaks.sort((a, b) => z[b] - z[a]);
+    let sp = null; let best = -Infinity;
+    for (const k of peaks.slice(0, 6)) {
+        const cand = spillAnalysis(z, spec, { seed: k });
+        let n = 0;
+        while (n < cand.order.length && cand.runMin[n] > cand.spillZ) n++;
+        const vol = n ? cand.prefixSum[n - 1] - n * cand.spillZ : 0;
+        if (vol > best) { best = vol; sp = cand; }
+    }
+    if (!sp || best <= 0) {
+        built._trap = { cells: [], spillElevation: null, limitedByEdge: true, merges: 0, excludedCells: cells.length, noTrap: true };
+        return built._trap;
+    }
+    // the trap: the flood while its running minimum is above the spill;
+    // nodes popped at or after the spill level lie past the saddle
+    const inTrap = new Set();
+    for (let q = 0; q < sp.order.length; q++) if (sp.runMin[q] > sp.spillZ) inTrap.add(sp.order[q]);
+    const trapCells = [];
+    for (const k of inTrap) for (const c of at.get(k) || []) trapCells.push(c);
+    built._trap = {
+        cells: trapCells,
+        spillElevation: sp.spillZ,
+        limitedByEdge: sp.limitedByEdge,
+        merges: sp.merges.length,
+        excludedCells: cells.length - trapCells.length,
+        crestElevation: sp.crest.z,
+    };
+    return built._trap;
+}
+
+/** Contacts held at the spill point, with the reason said. */
+function clampContactsToSpill(inputs, trap, meta, warnings) {
+    const out = {};
+    const lenU = meta.isField ? 'ft' : 'm';
+    const sp = trap.spillElevation;
+    const fmtZ = (v) => `${Math.round(v).toLocaleString('en-US')} ${lenU}`;
+    if (!Number.isFinite(sp)) return out;
+    let filled = false;
+    for (const k of ['owc', 'goc']) {
+        const v = parseFloat(inputs[k]);
+        if (isNum(inputs[k]) && v < sp) { out[k] = sp; filled = true; }
+    }
+    // a contact left empty means "to the base": the trap still stops at the spill
+    if (!isNum(inputs.owc) && (inputs.fluidType || 'oil') !== 'gas') { out.owc = sp; filled = true; }
+    trap.filledToSpill = filled;
+    if (filled) {
+        warnings.push(`Filled to spill: the contact is below the spill point at ${fmtZ(sp)} TVDSS, deeper than the trap can hold, so the volumes are taken to the spill point.`);
+    }
+    if (trap.excludedCells > 0) {
+        warnings.push(`${trap.excludedCells.toLocaleString('en-US')} cells outside the crest's trap (other closures or the flank beyond the spill) are not counted.`);
+    }
+    if (trap.merges > 0) {
+        warnings.push(`The trap joins ${trap.merges} neighbouring culmination${trap.merges === 1 ? '' : 's'} above its spill point (fill and spill); they are one accumulation here.`);
+    }
+    return out;
+}
+
+/**
+ * Contacts deeper than this elevation are open. With a trap (U2-008) only
+ * a spill on the map edge is open; otherwise the shallowest edge cell.
+ */
+function trapEdgeElevation(cells, meta, trap = null) {
+    if (trap) return trap.limitedByEdge && Number.isFinite(trap.spillElevation) ? trap.spillElevation : null;
+    let e = Infinity;
+    for (const c of cells) if (c.edge && c.td < e) e = c.td;
+    if (Number.isFinite(e)) return -e;
+    return Number.isFinite(meta.edgeTop) ? -meta.edgeTop : null;
+}
 
 /**
  * U2-005: cells on a registry lattice. Each live node is one cell of

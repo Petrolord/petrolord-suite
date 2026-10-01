@@ -51,5 +51,6 @@ export function runSignature(state = {}) {
     i.recovery, i.recoveryGas, state.activeAoiId || null,
     // U2-001: the area/depth table and its spill point
     i.areaDepth ? JSON.stringify(i.areaDepth) : null,
+    i.fillToSpill === true,
   ]);
 }

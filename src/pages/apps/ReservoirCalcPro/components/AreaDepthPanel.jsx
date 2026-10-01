@@ -10,6 +10,7 @@ import { parseAreaDepthText, areaDepthCsv } from '../services/areaDepth';
 import { ContactVolumetricsEngine } from '../services/ContactVolumetricsEngine';
 import { loadSettings } from '../hooks/useReservoirSettings';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import NumberField from './common/NumberField';
 
 const fmt = (v, d = 2) => (Number.isFinite(v) ? Number(v.toFixed(d)).toLocaleString('en-US') : EMPTY_VALUE);
 
@@ -69,6 +70,12 @@ export default function AreaDepthPanel() {
         <Button size="sm" className="h-7 text-[11px]" data-testid="rcp-ad-read" onClick={read}>Read table</Button>
         <Button size="sm" variant="outline" className="h-7 text-[11px]" data-testid="rcp-ad-from-surface" onClick={fromSurface}>From the top surface</Button>
         <Button size="sm" variant="outline" className="h-7 text-[11px]" data-testid="rcp-ad-export" onClick={exportCsv} disabled={!ad?.rows?.length}>Export CSV</Button>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-[10px] text-pl-muted">Spill point, TVDSS {len} (empty: none)</Label>
+        <NumberField className="h-7 text-xs" data-testid="rcp-ad-spill" value={ad?.spill ?? null}
+          onCommit={(v) => updateInputs({ areaDepth: { ...(ad || { rows: [] }), spill: v } })} />
+        <p className="text-[10px] text-pl-muted">A contact below the spill point is taken at the spill point (the trap cannot hold more).</p>
       </div>
       {msg && (
         <div data-testid="rcp-ad-msg" className={`text-[10px] rounded border px-2 py-1 ${msg.error ? 'border-pl-danger/40 text-pl-danger-text' : 'border-pl-border text-pl-muted'}`}>

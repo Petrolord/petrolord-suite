@@ -67,7 +67,11 @@ const initialState = {
         gasCapFraction: null,
         // Condensate-gas ratio (STB/MMscf field, sm³ per 10⁶ sm³ metric);
         // empty means no condensate stream (RCP-U1-017)
-        cgr: null
+        cgr: null,
+        // U2-008: only the crest's trap counts, filled at most to its spill
+        // point. New projects start with it on; a project saved before
+        // U2-008 has no key and keeps the volumes it was saved with (off).
+        fillToSpill: true
     },
     
     surfaces: {},
@@ -323,6 +327,8 @@ const reducer = (state, action) => {
             // Legacy single-reservoir project: materialise its contents as the
             // one and only reservoir entry.
             const det = { ...initialState.inputs, ...(p.inputs?.deterministic || {}) };
+            // U2-008: a project saved before fill-to-spill keeps its volumes
+            det.fillToSpill = p.inputs?.deterministic?.fillToSpill === true;
             const surfaces = (p.inputs?.surfaces || []).reduce((m, s) => {
                 if (s && s.id) m[s.id] = s;
                 return m;
@@ -710,7 +716,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
                         constantThickness: state.inputMethod === 'hybrid' ? parseFloat(state.inputs.thickness) : null,
                         unitSystem: state.unitSystem,
                         aoiPolygon: activeAoi,
-                        options: { resolution: gridResolution, interpolation }
+                        options: { resolution: gridResolution, interpolation, fillToSpill: state.inputs.fillToSpill === true }
                     });
                     if (hypsometry?.error) throw new Error(hypsometry.error);
                 }
@@ -767,7 +773,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
                     state.unitSystem,
                     state.inputMethod,
                     state.surfaces,
-                    { aoiPolygon: activeAoi, contactOptions: { resolution: gridResolution, interpolation } }
+                    { aoiPolygon: activeAoi, contactOptions: { resolution: gridResolution, interpolation, fillToSpill: state.inputs.fillToSpill === true } }
                 );
 
                 if (results.error) {
