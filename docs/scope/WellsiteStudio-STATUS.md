@@ -438,3 +438,38 @@ sub-path) is registered in `src/design/rollout/w4a.js`.
   database and fake transport, every view light and dark, a competing
   top call with the resolver, the sync drawer, the help guide). No
   record, lag, sync or report logic changed.
+
+## 2026-10-01: comprehensive upgrade, Step 1 (practitioner lens)
+
+App #12 of the Geoscience upgrade programme. Working doc with every finding,
+the evidence kit and the Step 2 backlog: `docs/upgrade/WellsiteStudio-UPGRADE.md`.
+
+- 12 checks run; 26 findings; 18 fixed (5 S2, 11 S3, 2 S4), one of them in
+  part; 8 open (7 S3, 1 S4), all carried into the Step 2 backlog. No S1
+  found; no S2 open. No migration; engines unchanged.
+- Fixed: a hand prognosis uncertainty converted in the wrong unit; the
+  sharing pill saying "shared" before any sharing pass; `.pld` imports that
+  brought resolved conflicts back and broke evidence chains; sideways
+  scrolling on a tablet held upright and on a phone (the workstation now
+  stacks below 900 px); people printed as user ids in tops history, the
+  conflict resolver and the signed PDF and DOCX; reports with no depth
+  reference, KB, preparer or build.
+- Added for the practitioner: call TVDSS and high or low to prognosis on
+  Tops; annular volume, pump output and flow on the lag panel (bbl or m3
+  from the unit profile); ROP on Live; Fill from Well Design in Config;
+  fractional sizes ("12 1/4"); Config lengths in the depth unit; the
+  photograph chooser for Publish; a warning when the registry KB is 0; a
+  note when Publish leaves two tops of one name in the registry.
+- Gates: `__tests__/upgradeU1Services.test.js` (19),
+  `__tests__/upgradeU1.test.jsx` (6), `__tests__/upgradeU1Report.test.js`
+  (3, pdftotext), `src/lib/portability/__tests__/wellsiteFamilyRefs.test.js`
+  (4), `e2e/wellsite-upgrade.spec.js` (11).
+- Open, to Step 2: lag check and washout, importers (CSV, LAS, WITSML),
+  chromatograph and gas ratios, surveys on the rig, the composite log, the
+  KB and datum model with Well Data Manager, an atomic publish, names kept
+  on the record.
+- Step 2 analysed: 19 items in batches A, B and C for the programme lead
+  (A needs no schema change: composite log, gas ratios, mudlog import, lag
+  check, rig surveys, d-exponent, office view).
+- Owner actions unchanged: WS1 validation review, WS6 PWA install, WS9
+  simulated shift. Try the stacked layout on the tablet in the WS6 walk.

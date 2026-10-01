@@ -7,7 +7,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { listWells as listRegistry, listTops as listRegistryTops, getWell as getRegistryWell, saveTop as saveRegistryTop, deleteTop as deleteRegistryTop } from '@/lib/wellsRegistry';
 import { listIntervals as listRegistryIntervals, saveInterval as saveRegistryInterval, deleteInterval as deleteRegistryInterval, listCoreImages, uploadCoreImage } from '@/lib/stratRegistry';
 import { writeStamped, registerStateKind } from '@/lib/stateVersion';
-import { getGeometry } from '@/pages/apps/TorqueDragStudio/services/tdApi';
+import { getGeometry, getDefinitiveTrajectory } from '@/pages/apps/TorqueDragStudio/services/tdApi';
 
 export const WS_WELL_KIND = 'ws-well';
 registerStateKind(WS_WELL_KIND, { current: 1, label: 'wellsite well' });
@@ -82,10 +82,15 @@ export function makeSupabaseTransport() {
       if (wb) {
         // Resolved through the shared Drilling lookup (tester fix 2026-09-08):
         // the saved spine row, else the Casing & Tubing programme.
-        const geom = await getGeometry(wb.id).catch(() => null);
+        // WS-U1-018: the shared resolver (definitive, actual surveys, latest draft, registry), as every
+        // Drilling studio reads it since #433; a design never set definitive left the prognosis without one
+        const traj = await getDefinitiveTrajectory(wb.id).catch(() => null);
+        const geom = await getGeometry(wb.id, { trajectory: traj }).catch(() => null);
         holeSections = (geom && geom.hole_sections) || [];
-        const { data: d } = await supabase.from('wp_designs').select('id, stations, revision').eq('wellbore_id', wb.id).eq('status', 'definitive').limit(1).maybeSingle();
-        if (d) { design = { id: d.id, revision: d.revision }; plannedTrajectory = d.stations || null; }
+        if (traj && Array.isArray(traj.stations) && traj.stations.length >= 2) {
+          design = { id: traj.design ? traj.design.id : null, revision: traj.design ? traj.design.revision : null, source: traj.source, label: traj.label };
+          plannedTrajectory = traj.stations;
+        }
       }
       return { geoWell, tops, offsetWells, holeSections, casingPoints: holeSections.filter((h) => h.cased).map((h) => ({ md_m: h.to_md_m, description: h.description || null })), plannedTrajectory, pressureCurves: null, design, loadedFrom: 'registry' };
     },

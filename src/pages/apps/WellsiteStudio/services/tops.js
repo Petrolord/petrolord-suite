@@ -105,3 +105,21 @@ export function evidenceChain(start, { tops, records }) {
   walk(start.id, 0);
   return out;
 }
+
+/**
+ * WS-U1-006 (PL1, PL8): the call against the prognosis the way an operations
+ * geologist reports it: subsea (TVDSS, positive down), "came in N high" when
+ * the top is shallower than prognosed. MD differences mislead on a deviated
+ * well and across wells, so the comparison is vertical.
+ */
+export function prognosisDifference(row, ctx) {
+  if (!row || !ctx || !Number.isFinite(ctx.kbElevM)) return null;
+  const callMd = row.call ? row.call.md_calc_m : null;
+  const progMd = row.prognosis ? row.prognosis.md_m : null;
+  const callTvdss = Number.isFinite(callMd) ? mdToTvd(callMd, ctx).tvdssM : null;
+  const progTvdss = Number.isFinite(progMd) ? mdToTvd(progMd, ctx).tvdssM : null;
+  if (!Number.isFinite(callTvdss) || !Number.isFinite(progTvdss)) return { callTvdssM: callTvdss, progTvdssM: progTvdss, diffM: null, word: null };
+  const diffM = callTvdss - progTvdss;
+  const word = Math.abs(diffM) < 0.05 ? 'on prognosis' : (diffM < 0 ? 'high' : 'low');
+  return { callTvdssM: callTvdss, progTvdssM: progTvdss, diffM, word };
+}

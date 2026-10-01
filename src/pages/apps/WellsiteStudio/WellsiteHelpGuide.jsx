@@ -174,6 +174,13 @@ export default function WellsiteHelpGuide() {
           logging on the timeline, when it is held where it was, so start and end those events as they happen.
         </Para>
         <Para>
+          The panel also shows the annular volume from the bit to surface, the pump output per stroke and the flow now, in barrels or
+          cubic metres after your Suite units, so the geometry can be checked against the driller's figures. Live shows the rate of
+          penetration from the last two bit depths over drilling time only. In Config, sizes can be typed the way they are written on
+          the rig (12 1/4, 8-1/2), lengths follow the depth unit, and Fill from Well Design brings in the casing programme loaded with
+          the prognosis for you to check before recording.
+        </Para>
+        <Para>
           On a drillship or a semi-submersible the returns travel up the marine riser above the BOP, and the booster pump adds mud at
           the riser base, so the lag runs in two legs: bit to BOP on the main pump alone, riser to surface on main plus booster. Set the
           rig type in Config, enter the BOP depth below the rotary table and the riser inside diameter, describe the booster pump, and
@@ -251,6 +258,11 @@ export default function WellsiteHelpGuide() {
           each version cites, so a reviewer months later can walk from the event back to the observations.
         </Para>
         <Para>
+          The table shows each call subsea (TVDSS) and how it came in against the prognosis, also subsea: high means shallower than
+          prognosed, low means deeper. The approach panel shows the prognosis and the bit subsea beside the offset wells. On a tablet
+          held upright or a phone the workstation stacks into one column with a well chooser at the top and the lag panel under the view.
+        </Para>
+        <Para>
           A first call is preliminary or confirmed; final needs an approver role on the well; a withdrawn call is not current and never
           publishes. The approach panel in the dock shows the next prognosed top ahead of the bit, its uncertainty window, the distance
           in MD and TVD, the offset wells' subsea depths, the current interpretation and call, and recent evidence. It presents; you call.
@@ -314,7 +326,7 @@ export default function WellsiteHelpGuide() {
         <Para>
           Wellsite Studio writes to the shared registry only through Publish on Tops, by the owner of the registry well and with a
           connection: final official calls become registry tops, current cuttings descriptions become lithology intervals with the
-          components in their properties, and chosen photographs become core images. A republish replaces only the rows this app wrote earlier. It never touches a hand-typed row or another app's. Well Correlation, Petrophysics Studio and Stratigraphy Studio read them from there.
+          components in their properties, and the photographs ticked under Photographs to publish become core images. A republish replaces only the rows this app wrote earlier. It never touches a hand-typed row or another app's. When a formation already has a registry top from another source, such as a prognosis typed in Well Data Manager, the publish says that the registry now holds two tops of that name so you can tidy them there. Well Correlation, Petrophysics Studio and Stratigraphy Studio read them from there.
         </Para>
       </GuideSection>
 
