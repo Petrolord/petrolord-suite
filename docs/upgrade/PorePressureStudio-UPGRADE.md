@@ -197,3 +197,27 @@ Batches:
 1. Playwright e2e is still not in CI: this app's e2e was red since #830 unnoticed (PP-U1-000), as RCP's and EM's were; Geomechanics T1 was red on main too.
 2. Published curves from before U1 (pp-1.0.0) on wells with sonic gaps are shifted below the first gap, and offshore wells published with the mudline MD at 0 are shallow by the mudline. Republishing from Pore Pressure Studio replaces them (overwrite-own). Live check suggested: `select well_id, count(*) from geo_wells_logs where provenance->>'pipeline_version' = 'pp-1.0.0' group by 1`.
 3. No migration in this work.
+
+## Batch decision (programme lead, 2026-10-01)
+
+Recorded verbatim:
+
+> BUILD in order, one commit per item:
+> - Batch A: U2-003 kick and trip margins plus casing-seat selection (validate against a published worked casing-seat example; negative control); U2-002 calibration imports (RFT/MDT pressure points, LOT/FIT tables, mud-weight files; hostile-file tested; units declared at the door); U2-001 resistivity Eaton (validate against Eaton's published exponent case; negative control with the sonic exponent); U2-004 depth-reference choice (TVD below RKB, TVDSS, MD; conversion through the survey and datum); U2-005 NCT on a semi-log axis, Vsh-filtered picks, segmented trends; U2-011 prognosis plot in the PDF (read back with pdftotext).
+> - Batch B: U2-006 fit the Eaton exponent n to calibration points; U2-008 layer cake sampled along the hole with the seismic datum declared (fixes PP-U1-027); U2-013 Geomechanics reads the published grid at TVD (fixes PP-U1-018; run the Geomechanics suites); U2-010 a worked example project; U2-007 Bowers unloading crossplot; U2-012 fracture-gradient methods (Eaton/Matthews-Kelly/Daines where validated against published examples).
+> - DEFERRED (record reasons): U2-009 multiwell and 3D cube (L); U2-014 d-exponent and real time (L; with Wellsite later); U2-015 several projects per user (M; touches the project model: revisit with the Suite Project programme).
+
+Deferred, with reasons:
+
+| ID | Item | Reason |
+|---|---|---|
+| U2-009 | Multiwell and 3D pressure cube | Size L; needs parameters mapped across wells and a velocity cube reader. After NAPE. |
+| U2-014 | d-exponent and real time | Size L; the drilling parameters and gas come from Wellsite Studio (#12), so it is built with Wellsite later. |
+| U2-015 | Several projects per user | Size M; it touches the project model, so it is revisited with the Suite Project programme (`docs/scope/SuiteProject-DESIGN.md`). |
+
+## Step 2 build (branch `feat/pp-u2`)
+
+Engines: Petrolord/petrolord-engines PR #293 (`engines/porepressure/{casingSeats,resistivity,calibrationFit}.js`, segments in `nct.js`, methods in `fracgrad.js`, `profile.js` extended; gates in `__tests__/porepressure.u2.test.js`, each with a negative control). `computeProfile` is backward compatible: with no new parameter it reproduces the goldens.
+
+| ID | Status | What was built | Proving test |
+|---|---|---|---|
