@@ -1,6 +1,7 @@
 import { ContactVolumetricsEngine, condensateFrom } from './ContactVolumetricsEngine';
 import { checkAreaDepthRows, areaDepthHypsometry } from './areaDepth';
 import { solutionGasFrom, applySaturationHeight } from './hydrocarbons';
+import { provenanceLines } from './emProvenance';
 
 export class VolumeCalculationEngine {
     // Physical-consistency check on the deterministic inputs. Returns human
@@ -138,6 +139,8 @@ export class VolumeCalculationEngine {
             condensateKind: fluidType === 'oil_gas' ? 'vaporised oil' : 'condensate',
             solutionGas: sg.inPlace, recoverableSolutionGas: sg.recoverable, rs: sg.rs,
         };
+        // U2-004: the Earth Modeling model's provenance and flags travel with the result
+        if (inputs.emProspect) out.warnings = [...(out.warnings || []), ...provenanceLines(inputs).filter((l) => !/^Unchanged since/.test(l))];
         if (Number.isFinite(sg.inPlace)) out.totalGasInPlace = (res.giip || 0) + sg.inPlace;
         if (fluidType === 'oil_gas' && Number.isFinite(cond.inPlace)) out.totalOilInPlace = (res.stooip || 0) + cond.inPlace;
         return out;

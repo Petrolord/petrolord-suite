@@ -8,9 +8,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useReservoirCalc } from '../contexts/ReservoirCalcContext';
 import { readProspectHandoff, prospectZoneToRcpInputs } from '@/lib/earthModelProspect';
+import { provenanceFromPayload } from '../services/emProvenance';
 
 export default function EarthModelProspectNote() {
-  const { state, updateInputs, setInputMethod } = useReservoirCalc();
+  const { state, updateInputs, setInputMethod, logEvent } = useReservoirCalc();
   const [params] = useSearchParams();
   const id = params.get('emProspect');
   const zone = Number(params.get('zone') || 0);
@@ -25,10 +26,15 @@ export default function EarthModelProspectNote() {
       const { inputs, notes } = prospectZoneToRcpInputs(payload, Number.isInteger(zone) ? zone : 0, state.unitSystem || 'field');
       if (state.inputMethod !== 'simple') setInputMethod('simple');
       // after the panel's own first-load defaults (its effect runs after this child's)
-      setTimeout(() => updateInputs(inputs), 0);
+      // RCP U2-004: the case keeps where its inputs came from (saved, printed, repeated with the results)
+      const zi = Number.isInteger(zone) ? zone : 0;
+      setTimeout(() => {
+        updateInputs({ ...inputs, emProspect: provenanceFromPayload(payload, zi, inputs) });
+        logEvent?.('Earth Modeling prospect', `${payload.model?.name || 'model'}, ${payload.zones?.[zi]?.name || `zone ${zi + 1}`}`);
+      }, 0);
       setNote({ error: false, lines: notes });
     } catch (e) { setNote({ error: true, lines: [e.message] }); }
-  }, [id, zone, state.unitSystem, state.inputMethod, updateInputs, setInputMethod]);
+  }, [id, zone, state.unitSystem, state.inputMethod, updateInputs, setInputMethod]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!note) return null;
   return (
     <div data-testid="rcp-em-prospect" className={`rounded border px-2 py-1.5 text-[11px] flex-shrink-0 ${note.error ? 'border-pl-warning-text/40 text-pl-warning-text' : 'border-pl-border text-pl-muted bg-pl-surface'}`}>

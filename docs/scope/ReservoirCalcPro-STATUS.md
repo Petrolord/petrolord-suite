@@ -5,7 +5,7 @@ volumetrics flagship; deterministic + Monte Carlo STOIIP/GIIP.
 
 ## 2026-10-01: App upgrade U2 (Step 2 batches A, B, C)
 
-Doc: docs/upgrade/ReservoirCalcPro-UPGRADE.md (branch feat/rcp-u2). 11 items
+Doc: docs/upgrade/ReservoirCalcPro-UPGRADE.md (branch feat/rcp-u2). 12 items
 built, each with a gate that calls the shipped engine and a negative control.
 
 - Monte Carlo in a Web Worker with progress, Cancel, 100k/250k and a
@@ -25,8 +25,9 @@ built, each with a gate that calls the shipped engine and a negative control.
   read back); success-case economics through `calculateEconomics` handed
   to Risked Reserves Valuation; gridding saved with the project; spider
   plot and distribution fitting (KS ranked).
-- Not built: U2-004 (Earth Modeling contract not on main), U2-015 (the
-  legacy exports are still written by Seismolord); deferred U2-003, 010,
+- Earth Modeling prospects (U2-004) carry their model, zone, wells and
+  flags into the results and reports, and say when edited since.
+- Not built: U2-015 (the legacy exports are still written by Seismolord); deferred U2-003, 010,
   014 (owner, migration), 016.
 
 ## 2026-10-01: App upgrade U1 (practitioner lens)

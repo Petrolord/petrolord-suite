@@ -273,3 +273,27 @@ test('U2-017: fit porosity from pasted values, run, and read the spider plot', a
   expect(await spider.locator('.recharts-line').count()).toBeGreaterThan(2);
   expect(errors).toEqual([]);
 });
+
+test('U2-004: an Earth Modeling prospect opens with its provenance and the model flags in the results', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const payload = {
+    schema: 'em-prospect/1', id: 'e2e01', createdAt: '2026-10-01T08:00:00Z',
+    model: { name: 'Keta model', crs: null, xyUnit: 'm', frame: { nx: 40, ny: 30, dxM: 50, dyM: 50 } },
+    wells: ['KETA-1'], report: { field: 'Keta', analyst: '' },
+    zones: [{ name: 'Upper Sand', registryZone: 'US', cells: 400, areaM2: 1e6,
+      volumes: { bulk_m3: 3e7, net_m3: 2.4e7, pore_m3: 4.8e6, hcpv_m3: 3.36e6, gas_bulk_m3: null, oil_bulk_m3: null, gas_hcpv_m3: null, oil_hcpv_m3: null, stoiip_m3: 2.8e6, giip_m3: null },
+      fluids: { goc_m: null, owc_m: 1550, bo: 1.2, bg_rm3_sm3: null, blocks: null },
+      flags: ['The trap spills at the model edge; the volume is a minimum.'] }],
+  };
+  await page.addInitScript((p) => { try { localStorage.setItem(`em.prospect.${p.id}`, JSON.stringify(p)); } catch { /* none */ } }, payload);
+  await page.goto('/dev/reservoircalc-pro?emProspect=e2e01&zone=0');
+  await expect(page.getByTestId('rcp-harness')).toBeVisible({ timeout: 60000 });
+  await expect(page.getByTestId('rcp-em-prospect')).toContainText('From Earth Modeling: Keta model, Upper Sand');
+  await expect.poll(async () => Number(await page.getByTestId('rcp-stooip').getAttribute('data-value')), { timeout: 30000 }).toBeGreaterThan(0);
+  await page.getByRole('button', { name: /View Full Results/ }).click();
+  await page.getByRole('button', { name: /^Detailed$/ }).click();
+  await expect(page.getByText(/Inputs from Earth Modeling: model Keta model, Upper Sand/).first()).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/Earth Modeling: The trap spills at the model edge/).first()).toBeVisible();
+  expect(errors).toEqual([]);
+});

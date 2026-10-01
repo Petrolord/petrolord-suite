@@ -9,6 +9,7 @@
 
 import { buildLabel } from '@/lib/platformBuild';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { provenanceLines } from './emProvenance';
 
 /** Replace anything jsPDF's standard fonts cannot print. */
 export const latin1 = (t) => String(t ?? '')
@@ -70,6 +71,8 @@ export function reviewerLines(p) {
   ];
   const grid = describeGridding(results);
   if (grid) lines.push(grid);
+  // U2-004: inputs handed over from an Earth Modeling model zone
+  lines.push(...provenanceLines(inputs));
   if (results?.openEdge?.open) lines.push(`OPEN CLOSURE: the hydrocarbon column reaches the edge of the mapped surface at ${results.openEdge.cells} cells; the volume is a minimum, not a trap volume.`);
   if (probResults?.stats) {
     const m = probResults.meta || {};
