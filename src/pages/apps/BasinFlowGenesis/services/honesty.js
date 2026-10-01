@@ -96,6 +96,10 @@ export function modelNotes(state, { chartFlags = [] } = {}) {
   for (const [k, names] of same) {
     if (names.length > 1) { const [a0, a1] = k.split('|'); out.push({ key: `same-${k}`, level: 'warn', text: `${names.join(', ')} share the deposition interval ${a0} to ${a1} Ma, so the engine deposits them at the same instant.` }); }
   }
+  // BF-U1-018: the plots key their series by layer name, so two layers with one name draw as one
+  const names = new Map();
+  for (const l of layers) names.set(l.name, (names.get(l.name) || 0) + 1);
+  for (const [n, c] of names) if (c > 1) out.push({ key: `dup-${n}`, level: 'warn', text: `${c} layers are named "${n}": the plots and the CSV tell them apart by name, so rename them.` });
   for (const f of chartFlags) out.push({ key: `chart-${f.layer}`, level: 'warn', text: f.message });
   return out;
 }

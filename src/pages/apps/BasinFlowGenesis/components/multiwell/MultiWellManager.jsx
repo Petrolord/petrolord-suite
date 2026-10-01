@@ -21,6 +21,7 @@ import { useMultiWell } from '@/pages/apps/BasinFlowGenesis/contexts/MultiWellCo
 import { useBasinFlow } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowContext';
 import { depthToDisplay } from '@/pages/apps/BasinFlowGenesis/services/units';
 import { useToast } from '@/components/ui/use-toast';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -270,7 +271,7 @@ const MultiWellManager = () => {
                             </div>
 
                             <div className="text-[10px] text-pl-muted flex gap-3 border-t border-pl-border pt-2 mt-1">
-                                <span className="flex items-center"><MapPin className="w-2.5 h-2.5 mr-1" /> {well.location?.name || 'N/A'}</span>
+                                <span className="flex items-center"><MapPin className="w-2.5 h-2.5 mr-1" /> {well.location?.name || EMPTY_VALUE}</span>
                                 <span className="flex items-center">TD: {wellTd(well)}</span>
                             </div>
                         </div>

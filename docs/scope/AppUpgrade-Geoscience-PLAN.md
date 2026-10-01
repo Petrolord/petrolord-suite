@@ -127,5 +127,5 @@ Each is assigned to the app whose Step 2c will fix it:
 | 8 | ReservoirCalc Pro | done 2026-10-01: 12 checks, 39 findings, 31 fixed (4 S1, 11 S2, 14 S3, 2 S4; no S1/S2 open), EM U2-009 contract carried; `rcp_prospects` in `.pld` | analysed 2026-10-01: 17 items, batches A/B/C for the programme lead | | `docs/upgrade/ReservoirCalcPro-UPGRADE.md` |
 | 9 | Pore Pressure Studio | done 2026-10-01: 12 checks, 31 findings, 19 fixed (2 S1, 4 S2, 12 S3, 1 S4; no S1/S2 open); e2e follows the unit profile (PP-U1-000); Drilling readers convert by declared unit (`src/lib/ppfgUnits.js`); layer cakes verified; 1 carried to Geomechanics (018) | analysed 2026-10-01: 15 items, batches A/B/C for the programme lead | | `docs/upgrade/PorePressureStudio-UPGRADE.md` |
 | 10 | Rock Physics Studio | not started | not started | | |
-| 11 | Basin & Charge Modeling | not started | not started | | |
+| 11 | Basin & Charge Modeling | done 2026-10-01: 12 checks, 32 findings, 23 fixed (1 S1 engines-first, 10 S2, 10 S3, 2 S4; no S1/S2 open); route protection verified (#828); `bf_wells` in `.pld`; orphan bf_* tables verified dropped (2026-07-14) | analysed 2026-10-01: 18 items, batches A/B/C for the programme lead | engines PR #294 open, vendored at aeddb4b (re-pin to the merge commit) | `docs/upgrade/BasinFlowGenesis-UPGRADE.md` |
 | 12 | Wellsite Studio | not started | not started | | |

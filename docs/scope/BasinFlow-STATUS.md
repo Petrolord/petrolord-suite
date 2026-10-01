@@ -65,10 +65,9 @@ Active (migration `20260714120000`, applied live).
 
 ## Open items / owner decisions (plan §4)
 
-- **Q3 pending**: orphaned `bf_team_members` / `bf_activity_log` /
-  `bf_comments` / `bf_projects` tables have zero code references —
-  recommend row-count check then drop migration (owner-gated, not
-  executed). `bf_wells` stays (core persistence). Its RLS should get a
+- ~~**Q3 pending**: orphaned bf_* tables~~ DONE: dropped by
+  `20260714150000_drop_orphan_legacy_tables.sql` (applied 2026-07-14);
+  verified live 2026-10-01, `bf_wells` is the only bf_* table. `bf_wells` stays (core persistence). Its RLS should get a
   pentest block when next touched.
 - **Q4 (deferred)**: seismic-velocity-driven pore-pressure prediction
   (fed by Seismolord velocity models) — separable G7 follow-on.
@@ -150,3 +149,29 @@ panel) and dark stays a per-user choice through the header toggle.
   export, scenario and new-well dialogs, a full run with every results
   tab, the Guided wizard steps and the help guide). Engines and
   calculations untouched; the existing suites pass unchanged.
+
+## 2026-10-01: Upgrade programme U1 (practitioner lens), app #11
+
+Doc: docs/upgrade/BasinFlowGenesis-UPGRADE.md. 32 findings, 23 fixed (1 S1,
+10 S2), no S1/S2 open; Step 2 ranked backlog with batches A/B/C.
+
+- S1 (engines first, engines PR #294, vendored aeddb4b): a basal age not on a
+  whole 1 Ma step (every ICS column) stopped the run at the fraction, so
+  "present day" was 0.5 Ma and the youngest layer never deposited. The run
+  now ends at 0 Ma; oracle anchor A13; existing goldens byte-identical.
+- State: saved scenarios were wiped on every open and a switch carried the
+  previous model's result and scenarios; a guided run overwrote the active
+  model and ran the previous inputs; batch runs dropped erosion and the
+  surface temperature.
+- Chain: Send to Basin was refused by `bf_wells.location_coords` (a point)
+  for any well with coordinates; a re-send erased the source rock and typed
+  erosion; the registry door now uses the same TVD, dated, log-typed build;
+  chart versions travel and older-chart ages are flagged; `bf_wells` is in
+  `.pld` (bf_model root, the tied well comes along).
+- Expert mode edits the source rock (TOC, HI, kerogen) and layer thermal and
+  compaction properties; notes say when a result is out of date, erosion
+  has no amount, ages are placeholders or on an older chart, or a layer
+  carries an earlier release's preset; the reviewer PDF report.
+- Open (Step 2): eroded section on the burial plot (BF-T1-E3), Ro through
+  the column, maximum-burial compaction, BHT correction, worker, pressure,
+  traps and migration.
