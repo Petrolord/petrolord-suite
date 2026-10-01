@@ -81,7 +81,7 @@ export function lagContextWithWashout(lagCtx, washout) {
 /** One line for lists, the timeline and the report. */
 export function lagCheckLabel(record) {
   const p = (record && record.payload) || {};
-  const m = Number.isFinite(p.measured_lag_strokes) ? `${p.measured_lag_strokes.toFixed(0)} stk measured` : 'no lag measured';
+  const m = p.measured_lag_strokes > 0 ? `${p.measured_lag_strokes.toFixed(0)} stk measured` : 'no lag measured';
   const c = Number.isFinite(p.calculated_lag_strokes) ? `${p.calculated_lag_strokes.toFixed(0)} stk calculated` : '';
   const w = Number.isFinite(p.washout_fraction) ? `, washout ${(p.washout_fraction * 100).toFixed(1)} percent` : '';
   return `Lag check (${p.tracer || 'tracer'}): ${m}${c ? `, ${c}` : ''}${w}`;

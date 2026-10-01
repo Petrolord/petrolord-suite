@@ -37,6 +37,7 @@ async function make() {
   return { db, transport, backend, well, registry };
 }
 const names = (r) => r.tops.map((t) => t.name).sort();
+const publications = async (db) => (await db.outbox.toArray()).filter((o) => o.table === 'ws_publications').length;
 
 describe('the plan: prognosis and actual kept apart, duplicates named', () => {
   test('the same-name top from another source is named with the name it would take; the other is untouched', async () => {
@@ -61,7 +62,7 @@ describe('the plan: prognosis and actual kept apart, duplicates named', () => {
     expect(prog.notes).toMatch(/^Renamed from "Top Agbada" by a Wellsite Studio publish on \d{4}-\d{2}-\d{2}: kept apart from the top as drilled\.$/);
     expect(r.tops.find((t) => t.name === 'Top Agbada').notes).toMatch(/Wellsite Studio ws-1\.0\.0 \| top /);
     expect(r.intervals).toHaveLength(1);
-    expect(await db.outbox.where('table').equals('ws_publications').count()).toBe(1);
+    expect(await publications(db)).toBe(1);
     // a republish replaces only its own row and finds no duplicate left to name
     const again = await backend.publishToRegistry(well.id, {});
     expect(again.plan.duplicates).toEqual([]);
@@ -90,7 +91,7 @@ describe('staged with rollback: a failure at any step leaves the registry as it 
     // a first good publish, so there are earlier own rows to replace (and to put back)
     await backend.publishToRegistry(well.id, {});
     const before = registry();
-    const pubs = await db.outbox.where('table').equals('ws_publications').count();
+    const pubs = await publications(db);
     transport._server.knobs.registryFail = { op, after, once: true, message: 'Failed to fetch' };
     let err = null;
     try { await backend.publishToRegistry(well.id, { renameIds: ['wdm-agbada'] }); } catch (e) { err = e; }
@@ -102,7 +103,7 @@ describe('staged with rollback: a failure at any step leaves the registry as it 
     const key = (t) => `${t.name}|${t.md_m}|${t.notes || ''}`;
     expect(after2.tops.map(key).sort()).toEqual(before.tops.map(key).sort());
     expect(after2.intervals.map((i) => `${i.top_md_m}|${i.base_md_m}|${i.code}`).sort()).toEqual(before.intervals.map((i) => `${i.top_md_m}|${i.base_md_m}|${i.code}`).sort());
-    expect(await db.outbox.where('table').equals('ws_publications').count()).toBe(pubs);
+    expect(await publications(db)).toBe(pubs);
     // and the next publish goes through
     expect((await backend.publishToRegistry(well.id, {})).result.ok).toBe(true);
   });

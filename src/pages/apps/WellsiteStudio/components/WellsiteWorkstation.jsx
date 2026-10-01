@@ -60,11 +60,11 @@ import LogView from './LogView';
 import OfficeView from './OfficeView';
 import { dExponentSeries, currentDxcSettings, dxcSettingsParams } from '../services/dexponent';
 import { buildStripLog } from '../services/stripLog';
-import { SURVEY_SUBTYPE, activeSurvey, wellWithSurvey, surveyRuns, staleDepths } from '../services/surveys';
+import { SURVEY_SUBTYPE, SURVEY_PUBLISHED_SUBTYPE, activeSurvey, wellWithSurvey, surveyRuns, staleDepths } from '../services/surveys';
 import { LAG_CHECK_SUBTYPE, currentWashout, lagCheckParams, washoutParams } from '../services/lagCheck';
 
 // record types added by the upgrade that belong with the typed observations (lists, evidence, reports)
-const EXTRA_OBSERVATION_SUBTYPES = [GAS_SUBTYPE, 'lag_check', SURVEY_SUBTYPE];
+const EXTRA_OBSERVATION_SUBTYPES = [GAS_SUBTYPE, 'lag_check', SURVEY_SUBTYPE, SURVEY_PUBLISHED_SUBTYPE];
 
 export const VIEWS = [
   { id: 'live', label: 'Live', icon: Activity },
@@ -320,6 +320,13 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setStatus(`${params.payload.statement}.`);
     setTick((t) => t + 1);
   }, [backend, well, dxcSettings, user]);
+  const registrySurveyPlan = useCallback(async () => (await backend.registrySurveyPlanFor(well.id)).plan, [backend, well]);
+  const sendSurveyToRegistry = useCallback(async () => {
+    const { plan, result } = await backend.publishSurveyToRegistry(well.id);
+    setStatus(`Survey ${plan.provenance.survey_version} sent to the well registry: ${result.stations} station(s) now held, replacing ${plan.provenance.previous.stations}.${result.provenanceSaved ? '' : ` The survey is in the registry, but its source note could not be saved (${result.provenanceError}); Well Data Manager will not show where it came from.`}`);
+    setTick((t) => t + 1);
+  }, [backend, well]);
+  const lastSurveySent = useMemo(() => observations.filter((r) => r.subtype === SURVEY_PUBLISHED_SUBTYPE).sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))[0] || null, [observations]);
   const recordSurveyRun = useCallback(async (p) => {
     const { row } = await backend.addRecord(well.id, p);
     setStatus(`${row.payload.text} TVD and subsea depths now follow it.`);
@@ -408,7 +415,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setTick((t) => t + 1);
   }, [backend, well, ctx, prognosis]);
   const myRole = useMemo(() => memberRole(user, members), [user, members]);
-  const staleNow = useMemo(() => (ctx ? staleDepths([...bitDepths, ...descriptions, ...shows, ...observations.filter((r) => r.subtype !== SURVEY_SUBTYPE), ...tops], ctx) : null), [ctx, bitDepths, descriptions, shows, observations, tops]);
+  const staleNow = useMemo(() => (ctx ? staleDepths([...bitDepths, ...descriptions, ...shows, ...observations.filter((r) => r.subtype !== SURVEY_SUBTYPE && r.subtype !== SURVEY_PUBLISHED_SUBTYPE), ...tops], ctx) : null), [ctx, bitDepths, descriptions, shows, observations, tops]);
   const reportData = useMemo(() => ({
     records: [...observations, ...descriptions, ...shows, ...bitDepths, ...pumpEvents, ...narratives, ...eventRecords],
     samples, stages, tops, photos, events, lag,
@@ -556,7 +563,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   } else if (view === 'import') {
     center = <ImportView ctx={ctx} defaults={entryDefaults} unit={units.depth} pressureUnit={units.pressure} offsetMin={offsetMin} imports={mudlogImports} series={mudlog} onImport={importMudlog} onWithdraw={withdrawImport} onTypedRow={recordTypedRow} onStatus={setStatus} userName={user ? user.name || user.email : ''} />;
   } else if (view === 'surveys') {
-    center = <SurveysView inUse={surveyInUse} ctx={ctx} unit={units.depth} offsetMin={offsetMin} stale={staleNow} runs={surveyRuns(surveyRecords)} onRecord={recordSurveyRun} onStatus={setStatus} nameOf={nameOf} />;
+    center = <SurveysView inUse={surveyInUse} ctx={ctx} unit={units.depth} offsetMin={offsetMin} stale={staleNow} runs={surveyRuns(surveyRecords)} onRecord={recordSurveyRun} onStatus={setStatus} nameOf={nameOf} online={backend.online()} onRegistryPlan={registrySurveyPlan} onRegistrySend={sendSurveyToRegistry} lastSent={lastSurveySent} />;
   } else if (view === 'log') {
     center = <LogView win={logModel.win} tracks={logModel.tracks} markers={logModel.markers} dxc={dxc} dxcSettings={dxcSettings} onSaveDxc={saveDxcSettings} unit={units.depth} onStatus={setStatus} title={`${well.name}.`} notes={logModel.notes} legend={logModel.legend} onPdf={exportLogPdf} />;
   } else if (view === 'tops') {

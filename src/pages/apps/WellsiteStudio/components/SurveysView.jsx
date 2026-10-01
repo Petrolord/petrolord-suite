@@ -12,7 +12,9 @@ import { toRigLocal } from '@/lib/wellsite/time';
 import { fmtDepth, parseFieldNumber, depthToDisplay } from '../services/units';
 import { parseStationTable, buildRun, surveyListing, AZIMUTH_REFS } from '../services/surveys';
 
-export default function SurveysView({ inUse, ctx, unit, offsetMin, stale, runs = [], onRecord, onStatus, nameOf, extraSlot = null }) {
+export default function SurveysView({ inUse, ctx, unit, offsetMin, stale, runs = [], onRecord, onStatus, nameOf, extraSlot = null, online = true, onRegistryPlan = null, onRegistrySend = null, lastSent = null }) {
+  const [regPlan, setRegPlan] = useState(null);
+  const [sending, setSending] = useState(false);
   const [md, setMd] = useState('');
   const [inc, setInc] = useState('');
   const [azi, setAzi] = useState('');
@@ -95,6 +97,24 @@ export default function SurveysView({ inUse, ctx, unit, offsetMin, stale, runs =
               {m.name || String(m.subtype).replace(/_/g, ' ')}: stored at {fmtDepth(m.mdM, unit, unit === 'ft' ? 1 : 2)} MD with survey {m.storedVersion || 'none'}; the survey in use puts the same {m.enteredAs} at {fmtDepth(m.mdNowM, unit, unit === 'ft' ? 1 : 2)} MD ({m.mdDiffM > 0 ? '+' : ''}{fmtDepth(m.mdDiffM, unit, unit === 'ft' ? 1 : 2)}). Record it again if the entered TVD is what was meant.
             </div>
           ))}
+        </section>
+      )}
+
+      {onRegistryPlan && (
+        <section className="space-y-1" data-testid="ws-survey-registry">
+          <h3 className="text-xs font-semibold text-pl-text">The registry survey</h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" variant="outline" disabled={!online} data-testid="ws-survey-registry-compare" title={online ? 'Read the survey the shared well registry holds and compare it with the survey in use' : 'Needs a connection'}
+              onClick={async () => { try { setRegPlan(await onRegistryPlan()); } catch (e) { setRegPlan(null); onStatus?.(e.message); } }}>Compare with the registry</Button>
+            {lastSent && <span className="text-[11px] text-pl-muted" data-testid="ws-survey-registry-last">Last sent: {lastSent.payload.text} {toRigLocal(Date.parse(lastSent.occurred_at), offsetMin).iso.replace('T', ' ')} rig time.</span>}
+          </div>
+          {regPlan && !regPlan.can && <div className="text-[11px] text-pl-muted" data-testid="ws-survey-registry-reason">{regPlan.reason}</div>}
+          {regPlan && regPlan.can && (
+            <div className="space-y-1 text-[11px] text-pl-text" data-testid="ws-survey-registry-plan">
+              <ul className="list-disc pl-5">{regPlan.lines.map((l) => <li key={l}>{l}</li>)}</ul>
+              <Button size="sm" disabled={sending} data-testid="ws-survey-registry-send" onClick={async () => { setSending(true); try { await onRegistrySend(); setRegPlan(null); } catch (e) { onStatus?.(e.message); } finally { setSending(false); } }}>{sending ? 'Sending' : 'Send the rig survey to the registry'}</Button>
+            </div>
+          )}
         </section>
       )}
 

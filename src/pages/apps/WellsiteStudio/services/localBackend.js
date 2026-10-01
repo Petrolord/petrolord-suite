@@ -20,7 +20,7 @@ import { mergeProfile } from '@/lib/wellsite/abbreviations';
 import { wellContext, offsetMinOf } from './wellContext';
 import { newId } from '@/lib/wellsite/ids';
 import { memberChangeError } from './members';
-import { wellWithSurvey, SURVEY_SUBTYPE } from './surveys';
+import { wellWithSurvey, SURVEY_SUBTYPE, activeSurvey, registrySurveyPlan, surveyPublishedParams } from './surveys';
 
 export const WS_ENGINE_VERSION = 'wellsite-0.1.0';
 
@@ -414,6 +414,25 @@ export function makeLocalBackend({ transport, db = wellsiteDb(), autoSync = true
       });
       notify();
       return { plan, result };
+    },
+
+    // ---- U2-009: the rig survey to the shared wells registry (explicit, online, owner only) ----
+    /** What sending the survey in use would do (reads only). */
+    async registrySurveyPlanFor(wellId) {
+      if (!transport.online()) throw new Error('Comparing with the registry needs a connection.');
+      const well = await requireWellRow(wellId);
+      const u = await currentUser();
+      const runs = await db.records.where('[well_id+subtype+occurred_at]').between([wellId, SURVEY_SUBTYPE, ''], [wellId, SURVEY_SUBTYPE, '\uffff']).toArray();
+      const registryWell = await transport.registryWell(well.geo_well_id);
+      return { well, plan: registrySurveyPlan({ well, inUse: activeSurvey(well, runs), registryWell, user: u }) };
+    },
+    /** Replace the registry survey with the survey in use and record that it was sent. */
+    async publishSurveyToRegistry(wellId) {
+      const { well, plan } = await this.registrySurveyPlanFor(wellId);
+      if (!plan.can) throw new Error(plan.reason);
+      const res = await transport.writeRegistrySurvey(well.geo_well_id, { stations: plan.stations, provenance: plan.provenance });
+      const { row } = await addRecord(wellId, surveyPublishedParams(plan, well.geo_well_id));
+      return { plan, result: res, record: row };
     },
 
     // ---- office view (U2-007): read-only follow of the wells this user can see ----

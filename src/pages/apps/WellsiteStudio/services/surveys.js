@@ -27,6 +27,9 @@ import { resolveTrajectory } from '@/pages/apps/well-planning/services/trajector
 import { computeActualTable } from '@/pages/apps/well-planning/services/surveyUtils';
 import { mdToTvd, recalculate, M_PER_FT } from '@/lib/wellsite/depth';
 import { parseFieldNumber } from './units';
+import { registrySurveySourceText, SURVEY_SOURCE } from '@/lib/wellsite/registrySurveySource';
+
+export { SURVEY_SOURCE };
 
 export const SURVEY_SUBTYPE = 'survey_run';
 export const AZIMUTH_REFS = Object.freeze([
@@ -194,3 +197,48 @@ export function staleDepths(rows, ctx) {
   const moved = out.filter((x) => Number.isFinite(x.mdDiffM) && Math.abs(x.mdDiffM) > 0.05);
   return { rows: out, count: out.length, maxTvdDiffM: maxTvd, moved, currentVersion: current };
 }
+
+// ---- U2-009: the rig survey to the shared wells registry (closes Well Data Manager U2-009) ----
+
+export const SURVEY_PUBLISHED_SUBTYPE = 'survey_published';
+
+const sameStations = (a, b) => a.length === b.length && a.every((s, i) => Math.abs(s.md - b[i].md) < 1e-6 && Math.abs(s.inc - b[i].inc) < 1e-9 && Math.abs(s.azi - b[i].azi) < 1e-9);
+
+/**
+ * What sending the survey in use to the registry would do. Only a rig
+ * survey is offered (the snapshot came from the registry in the first
+ * place), and only to the registry well's owner.
+ * @param {Object} p { well, inUse (activeSurvey), registryWell: {id, name, deviation, ownedByMe}, user }
+ */
+export function registrySurveyPlan({ well, inUse, registryWell, user = null, at = new Date().toISOString() }) {
+  const reg = registryWell && Array.isArray(registryWell.deviation) ? registryWell.deviation : [];
+  const base = { can: false, reason: '', lines: [], stations: [], provenance: null, registryStations: reg.length };
+  if (!registryWell) return { ...base, reason: 'The registry well could not be read.' };
+  if (!inUse || inUse.source !== 'actual') return { ...base, reason: 'No rig survey has been recorded: the survey in use is the one the registry already holds.' };
+  const stations = inUse.survey.stations.map((s) => ({ md: s.md, inc: s.inc, azi: s.azi }));
+  if (sameStations(stations, reg)) return { ...base, reason: `The registry already holds this survey (${reg.length} stations).` };
+  if (!registryWell.ownedByMe) return { ...base, stations, reason: 'Only the owner of the registry well can update its survey (org sharing is read-only). Ask the owner to open this view and send it.' };
+  const td = (st) => (st.length ? st[st.length - 1].md : null);
+  const provenance = {
+    source: SURVEY_SOURCE, ws_well_id: well.id, ws_well_name: well.name, survey_version: inUse.survey.version, runs: inUse.runs, stations: stations.length, td_md_m: td(stations),
+    method: 'minimum_curvature', azimuth_reference: 'grid', published_at: at, published_by: user ? user.name || user.email || user.id : null,
+    previous: { stations: reg.length, td_md_m: td(reg) },
+  };
+  const lines = [
+    `The registry holds ${reg.length ? `${reg.length} station(s) to ${td(reg).toFixed(1)} m MD` : 'no survey'}.`,
+    `The rig survey in use (${inUse.survey.version}, ${inUse.runs} run(s)) holds ${stations.length} station(s) to ${td(stations).toFixed(1)} m MD.`,
+    'Sending it replaces the registry survey for every app that reads this well (Well Data Manager, Well Correlation, Petrophysics, Seismolord, the Drilling studios).',
+  ];
+  return { can: true, reason: '', lines, stations, provenance, registryStations: reg.length };
+}
+
+/** The record of a survey sent to the registry (shared with every device on the well). */
+export function surveyPublishedParams(plan, geoWellId) {
+  const p = plan.provenance;
+  return {
+    kind: 'observation', subtype: SURVEY_PUBLISHED_SUBTYPE,
+    payload: { ...p, geo_well_id: geoWellId, text: `Survey ${p.survey_version} sent to the well registry: ${p.stations} station(s) to ${p.td_md_m.toFixed(1)} m MD, replacing ${p.previous.stations} station(s).` },
+  };
+}
+
+export { registrySurveySourceText };

@@ -4,7 +4,7 @@
 // keeps (rig offset, tours, default depth entry, mandatory sample stages,
 // overdue tolerance, approver roles) and the header fields.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import RowGridEditor from '@/components/wells/RowGridEditor';
 import { Button } from '@/components/ui/button';
 import { displacementFromField } from '@/lib/wellsite/pumps';
@@ -94,9 +94,16 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
   // same rule for the rig: a reload after saving hands over an equal payload and must not overwrite a
   // value being typed; only a configuration with different content resets the editors
   const rigKey = JSON.stringify(rigConfig || null);
+  // the configuration this screen just recorded is already what the editors show: when it comes back
+  // from the store it must not reset them, or a value typed right after Record is wiped by the reload
+  const savedKey = useRef(null);
+  const shownUnit = useRef(unit);
   useEffect(() => {
     const rigConfig = JSON.parse(rigKey);
     if (!rigConfig) return;
+    // (a change of the depth unit still redraws every length in the new unit)
+    if (savedKey.current === rigKey && shownUnit.current === unit) return;
+    shownUnit.current = unit;
     setSections(sectionsToRows(rigConfig.hole_sections)); setBha(bhaToRows(rigConfig.bha));
     if (rigConfig.drillpipe) setDp(dpToState(rigConfig.drillpipe));
     if (rigConfig.pump) setPump(Object.fromEntries(Object.entries(rigConfig.pump).map(([k, v]) => [k, String(v)])));
@@ -138,6 +145,7 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
         const inside = payload.hole_sections.filter((x) => x.from_md_m < bopM - 1e-6);
         if (inside.length) throw new Error(`On a floating rig the hole sections start at the BOP (${riser.bop_ft} ${LU}); the riser is entered above. Move the top of the first section to ${riser.bop_ft} ${LU}.`);
       }
+      savedKey.current = JSON.stringify(payload);
       await backend.addRecord(well.id, { kind: 'observation', subtype: 'rig_config', payload });
       onStatus?.('Rig configuration recorded.');
       onSaved?.();

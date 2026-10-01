@@ -4,7 +4,7 @@
 // record sync (push, pull) arrives in WS6 on the same object.
 
 import { supabase } from '@/lib/customSupabaseClient';
-import { listWells as listRegistry, listTops as listRegistryTops, getWell as getRegistryWell, saveTop as saveRegistryTop, deleteTop as deleteRegistryTop, updateTop as updateRegistryTop } from '@/lib/wellsRegistry';
+import { listWells as listRegistry, listTops as listRegistryTops, getWell as getRegistryWell, saveTop as saveRegistryTop, deleteTop as deleteRegistryTop, updateTop as updateRegistryTop, updateWellData as updateRegistryWellData, updateWell as updateRegistryWell } from '@/lib/wellsRegistry';
 import { listIntervals as listRegistryIntervals, saveInterval as saveRegistryInterval, deleteInterval as deleteRegistryInterval, listCoreImages, uploadCoreImage } from '@/lib/stratRegistry';
 import { writeStamped, registerStateKind } from '@/lib/stateVersion';
 import { getGeometry, getDefinitiveTrajectory } from '@/pages/apps/TorqueDragStudio/services/tdApi';
@@ -136,6 +136,20 @@ export function makeSupabaseTransport() {
       const geo = await getRegistryWell(geoWellId);
       const [tops, intervals, coreImages] = await Promise.all([listRegistryTops(geoWellId), listRegistryIntervals(geoWellId, 'lithology'), listCoreImages(geoWellId).catch(() => [])]);
       return { ownedByMe: !!(geo && user && geo.user_id === user.id), tops, intervals, coreImages };
+    },
+    // ---- U2-009: the rig survey to the registry, through the existing registry writer (owner only under RLS) ----
+    async registryWell(geoWellId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const geo = await getRegistryWell(geoWellId);
+      return { id: geo.id, name: geo.name, deviation: geo.deviation || [], crs_provenance: geo.crs_provenance || null, ownedByMe: !!(user && geo.user_id === user.id) };
+    },
+    async writeRegistrySurvey(geoWellId, { stations, provenance }) {
+      const before = await getRegistryWell(geoWellId);
+      const saved = await updateRegistryWellData(geoWellId, { deviation: stations });
+      // where the survey came from rides in the well's provenance object beside the CRS provenance
+      let provenanceSaved = true; let provenanceError = null;
+      try { await updateRegistryWell(geoWellId, { crs_provenance: { ...(before.crs_provenance || {}), deviation: provenance } }); } catch (e) { provenanceSaved = false; provenanceError = e.message; }
+      return { stations: (saved.deviation || []).length, provenanceSaved, provenanceError };
     },
     /** U2-010: the registry port the staged publish runs on, through the registry services (never direct table calls). */
     registryOps(geoWellId) {

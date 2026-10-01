@@ -89,7 +89,7 @@ export default function LagCheckPanel({ lag, washout, checks = [], onRecord, onA
       {error && <div className="text-pl-warning-text" data-testid="ws-lagcheck-form-error">{error}</div>}
       {last && (
         <div className="text-[10px] text-pl-muted" data-testid="ws-lagcheck-last">
-          Last check {toRigLocal(Date.parse(last.occurred_at), offsetMin).hhmm} at {fmtDepth(last.payload.bit_md_m, unit)}: {Number.isFinite(last.payload.measured_lag_strokes) ? `${last.payload.measured_lag_strokes.toFixed(0)} stk measured` : 'no lag measured'}, {last.payload.calculated_lag_strokes.toFixed(0)} stk calculated{Number.isFinite(last.payload.washout_fraction) ? `, washout ${pct(last.payload.washout_fraction)}` : ''}. {checks.length} check(s) on record.
+          Last check {toRigLocal(Date.parse(last.occurred_at), offsetMin).hhmm} at {fmtDepth(last.payload.bit_md_m, unit)}: {last.payload.measured_lag_strokes > 0 ? `${last.payload.measured_lag_strokes.toFixed(0)} stk measured` : 'no lag measured'}, {last.payload.calculated_lag_strokes.toFixed(0)} stk calculated{Number.isFinite(last.payload.washout_fraction) ? `, washout ${pct(last.payload.washout_fraction)}` : ''}. {checks.length} check(s) on record.
         </div>
       )}
       <div className="text-[10px] text-pl-muted">The strokes to pump the tracer down the string are taken off the count. The excess volume is put in the open hole; cased hole and the riser are steel.</div>

@@ -95,6 +95,22 @@ export function makeFakeTransport({ user, registryWells = [], online = true, pro
       const t = tableOf('registry_tops'); const i = tableOf('registry_intervals');
       return { ownedByMe: !!(geo && geo.user_id === u.id), tops: [...t.values()].filter((r) => r.well_id === geoWellId), intervals: [...i.values()].filter((r) => r.well_id === geoWellId), coreImages: [...tableOf('registry_core').values()].filter((r) => r.well_id === geoWellId) };
     },
+    // ---- U2-009: the rig survey to the registry ----
+    async registryWell(geoWellId) {
+      check();
+      const geo = registryWells.find((w) => w.id === geoWellId);
+      if (!geo) throw new Error('Could not load well: not found');
+      return { id: geo.id, name: geo.name, deviation: geo.deviation || [], crs_provenance: geo.crs_provenance || null, ownedByMe: geo.user_id === u.id };
+    },
+    async writeRegistrySurvey(geoWellId, { stations, provenance }) {
+      check();
+      const geo = registryWells.find((w) => w.id === geoWellId);
+      if (!geo || geo.user_id !== u.id) throw new Error('Could not update well data: only the owner can change a registry well.');
+      geo.deviation = stations.map((s) => ({ md: s.md, inc: s.inc, azi: s.azi }));
+      if (knobs.provenanceFail) return { stations: geo.deviation.length, provenanceSaved: false, provenanceError: 'Failed to fetch' };
+      geo.crs_provenance = { ...(geo.crs_provenance || {}), deviation: provenance };
+      return { stations: geo.deviation.length, provenanceSaved: true, provenanceError: null };
+    },
     /** U2-010: the registry port the staged publish runs on. knobs.registryFail = { op, after } fails that op after `after` successes. */
     registryOps(geoWellId) {
       const t = tableOf('registry_tops'); const i = tableOf('registry_intervals'); const c = tableOf('registry_core');
