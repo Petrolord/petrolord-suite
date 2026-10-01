@@ -91,8 +91,8 @@ Engines untouched.
 
 ## 2026-10-01: Upgrade U1 (practitioner lens), app #10 of the Geoscience programme
 
-Doc: docs/upgrade/RockPhysicsStudio-UPGRADE.md (branch `feat/rp-u1`). 20
-findings, 17 fixed, no S1 or S2 open.
+Doc: docs/upgrade/RockPhysicsStudio-UPGRADE.md (branch `feat/rp-u1`). 21
+findings, 18 fixed, no S1 or S2 open.
 
 - Save had never worked on the registry: it wrote a `scenario` column the
   table does not have (`scenarios`); the live table held 0 rows. The save

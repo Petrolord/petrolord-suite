@@ -34,7 +34,7 @@ analysis only; batches are chosen before anything is built.
 | PL7 Report a reviewer can sign | Failed, partly fixed | 010 | CSV with a reviewer header. A PDF report is Step 2 (U2-004). |
 | PL8 Practitioner's day | Gaps recorded | 018, 019, 020 | Persona walks below. |
 | PL9 The chain | Failed, fixed | 002, 003, 009, 013 | Upstream: WDM and Petrophysics curves (PHIE post-PT9a, PHIT, SW, VSH) map; pre-PT9a PHIE is read as total. Downstream: DT_SUB and RHOB_SUB now reach Seismolord synthetics. `.pld`: the project now carries its well, zone and top. |
-| PL10 Real scale | Pass | none | 5000 m well, 32,809 samples, a 4000 m zone (26,247 samples): load, substitute and draw 2.6 s; next click 0.9 s (Playwright, staging box). Chart draws every sample (decimation is U2-014). |
+| PL10 Real scale | Pass after fix | 021 | 5000 m well, 32,809 samples, a 4000 m zone (26,247 samples): load, substitute and draw 2.6 s, next click 0.9 s at load 3. At load 13 the same run took 46 s (the whole box was about 50x slower: a 32k sort took 0.7 s); the chart now draws at most 2,000 rows and says so (18 s at load 11). Greenberg-Castagna per sample is the largest remaining cost (3.7 s for 32k samples at load 13), an engines-first hoist for Step 2 (U2-014). |
 | PL11 Inputs a person can type | Failed, fixed | 011 | Wedge fields went to NaN and wiped "-" and cleared text; theta max snapped to 40 when cleared. The dock fields and AVO halfspaces already kept text. |
 | PL12 House standards | Pass after fix | 015 | Engine messages with dashes reached the screen; prep messages had em dashes. Route protected; EMPTY_VALUE in tables. |
 
@@ -80,11 +80,12 @@ Severity: S1 wrong answer with no warning; S2 wrong or lost data, or a door that
 | RP-U1-015 | S4 | PL12 | Engine messages with dashes reached the screen; prep messages had em dashes. | Test. | Fixed: `plainMessage`; prep text. |
 | RP-U1-016 | S3 | PL4, PL8 | AVO manual halfspaces were unreachable without a well (the panel showed "Select a well" with no mode buttons). | e2e. | Fixed: the panel always shows; top mode says to pick a well or go manual. |
 | RP-U1-017 | S3 | PL6 | When the view differed from the profile, the unit note in the ribbon wrapped into a 400 px column. | Screenshot. | Fixed: note in the status bar, one line. |
+| RP-U1-021 | S4 | PL10 | The fluids chart drew every zone sample (26k rows on a 4000 m zone). | e2e timing. | Fixed: at most 2,000 rows drawn, every k-th, said under the chart; tables, CSV and publish use every sample. |
 | RP-U1-018 | S3 | PL1, PL8 | Greenberg-Castagna is a brine-rock regression but is applied to the in-situ Vp in a hydrocarbon zone (RokDoc and HRS iterate: brine-substitute Vp, estimate Vs, substitute back). | Code read. | Open: Step 2 U2-005. |
 | RP-U1-019 | S3 | PL8 | 10 of 12 live wells have no DT; there is no pseudo-sonic (Faust, Gardner inverse) or Vp-from-velocity-curve path, so the app cannot open them. | Live data. | Open: Step 2 U2-007. |
 | RP-U1-020 | S3 | PL7, PL8 | No PDF report, no AI vs Vp/Vs crossplot, no angle gather. | Walk. | Open: Step 2 U2-001, U2-003, U2-004. |
 
-Totals: 20 findings. Fixed 17 (1 S1, 6 S2, 8 S3, 2 S4); open 3 (S3, all to Step 2). No S1 or S2 open.
+Totals: 21 findings. Fixed 18 (1 S1, 6 S2, 8 S3, 3 S4); open 3 (S3, all to Step 2). No S1 or S2 open.
 
 Cross-app changes in this PR (same door): `src/components/wells/curveUnits.js` DT range (median below 140 us/m) and per-foot-spelling rules (Petrophysics gains them; Pore Pressure U1 (#838) keeps its own 160 us/m overburden rule for what the shared door leaves unknown, and its hostile test now accepts the shared sentence); Seismolord `SyntheticsPanel.jsx` (substituted curves, unit door) and its harness; `src/lib/portability/geoscienceSpec.js` rp_projects refs.
 
@@ -150,7 +151,7 @@ Sizes: S under a day, M two to four days, L a week or more.
 | 3 | U2-003 | Angle-gather synthetic for in situ and substituted (Zoeppritz and Aki-Richards, the shared Ricker or the extracted wavelet), with AVO picked off the gather | M | The demo moment: the gas sand brightens with angle | A |
 | 4 | U2-004 | PDF report (reviewer header, conditions, fluids, interval table, charts), read back with pdftotext | M | The page a reviewer signs | A |
 | 5 | U2-005 | Iterative Vs prediction in hydrocarbon zones (substitute to brine, Greenberg-Castagna, substitute back), validated on the oracle (negative control: direct GC) | S | Estimated shear that respects the fluid (RP-U1-018) | A |
-| 6 | U2-014 | Chart decimation (min/max per bucket) for long zones | S | Smooth on 30k-sample wells | A |
+| 6 | U2-014 | Long wells: min/max-per-bucket chart decimation (U1 draws every k-th) and the engines-first hoist of Greenberg-Castagna's per-sample setup | S | Smooth on 30k-sample wells | A |
 | 7 | U2-007 | Pseudo-sonic for wells without DT (Faust from RT, Gardner inverse from RHOB), badged like estimated Vs | M | Opens the 10 of 12 live wells with no sonic | B |
 | 8 | U2-006 | Rock physics models: Xu-White and soft/stiff sand (engines-first, published examples) | L | Model-based Vs and dry rock for shaly sands | B |
 | 9 | U2-012 | Gathers in Seismolord's synthetics window from DT_SUB/VS_SUB/RHOB_SUB with the extracted wavelet (Seismolord U2-020 second half) | M | Modelled gathers beside the real CDP gathers | B |

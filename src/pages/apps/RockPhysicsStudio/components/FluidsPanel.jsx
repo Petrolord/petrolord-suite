@@ -28,6 +28,7 @@ import {
 } from '../services/units';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
+const CHART_MAX_POINTS = 2000;
 const gpa = (pa) => (Number.isFinite(pa) ? (pa / 1e9).toFixed(3) : EMPTY_VALUE);
 
 const AXIS_TICK = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
@@ -107,7 +108,10 @@ export default function FluidsPanel({
   const chartData = useMemo(() => {
     if (!result?.indices) return [];
     const v = (x) => { const d = velocityToDisplay(x, vU); return Number.isFinite(d) ? d : null; };
-    return result.indices.map((i) => ({
+    // RP-U1-018 (PL10): a long zone draws at most CHART_MAX_POINTS rows (every
+    // k-th sample, said under the chart); tables and publish use every sample
+    const step = Math.max(1, Math.ceil(result.indices.length / CHART_MAX_POINTS));
+    return result.indices.filter((_, k) => k % step === 0).map((i) => ({
       depth: depthToDisplay(model.depth[i], zU),
       vpA: v(model.vp[i]),
       vpB: v(result.sub.vp[i]),
@@ -319,6 +323,11 @@ export default function FluidsPanel({
               </LineChart>
             </ResponsiveContainer>
             <ChartLogo />
+            {result.indices.length > CHART_MAX_POINTS && (
+              <div className="absolute bottom-1 right-3 text-[10px] text-slate-500" data-testid="rp-chart-decimated">
+                every {Math.ceil(result.indices.length / CHART_MAX_POINTS)}th of {result.indices.length} samples drawn
+              </div>
+            )}
           </div>
         </>
       )}

@@ -152,6 +152,7 @@ test('PL10: a 5000 m well (32,809 samples) loads and substitutes a 4000 m zone w
   await page.locator('[data-well-name="LONG RP-3 (5000 m)"]').click();
   await expect(page.getByTestId('rp-sub-after-vp')).toBeVisible({ timeout: 60000 });
   const loadMs = Date.now() - t0;
+  await expect(page.getByTestId('rp-chart-decimated')).toContainText('of 26247 samples drawn');
   // the page answers a click while the chart is on screen
   const t1 = Date.now();
   await page.getByTestId('rp-view-wedge').click();
