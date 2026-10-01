@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS } from '@/utils/chartTheme';
-import { alignSeriesByAge, seriesColor, ageAxisProps, maxAgeOf } from '../../services/resultsView';
+import { alignSeriesByAge, seriesColor, ageAxisProps, maxAgeOf, layerKey } from '../../services/resultsView';
 
 /**
  * Shared per-layer-lines-vs-age plot on the suite white chartTheme.
@@ -41,9 +41,10 @@ const LayerLinesPlot = ({ results, field, title, yLabel, yDomain, children, yCon
                         {children}
                         {meta.layers.map((layer, idx) => (
                             <Line
-                                key={layer.id || layer.name}
+                                key={layerKey(layer, idx)}
                                 type="monotone"
-                                dataKey={layer.name}
+                                dataKey={layerKey(layer, idx)}
+                                name={layer.name}
                                 stroke={seriesColor(idx)}
                                 strokeWidth={2}
                                 dot={false}

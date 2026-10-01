@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { SimulationEngine } from '@/pages/apps/BasinFlowGenesis/services/SimulationEngine';
+import { runBasin } from '@/pages/apps/BasinFlowGenesis/services/runClient';
 import { getThermalProps } from '@/pages/apps/BasinFlowGenesis/services/ThermalPropertiesLibrary';
 import { getCompactionParams } from '@/pages/apps/BasinFlowGenesis/services/CompactionModelLibrary';
 import { useMultiWell } from './MultiWellContext';
@@ -67,6 +67,8 @@ const initialState = {
       rightPanelOpen: true,
       activeTab: 'stratigraphy'
   },
+  // U2-010: the model before the last layer replacement (one level)
+  undo: null,
   isLoading: false,
   isSaving: false,
   progress: 0,
@@ -96,6 +98,7 @@ function reducer(state, action) {
           ...state,
           ...action.payload,
           ...(isModel ? {
+              undo: null,
               results: action.payload.results ?? null,
               scenarios: Array.isArray(action.payload.scenarios) ? action.payload.scenarios : state.scenarios,
               activeScenarioId: null,
@@ -136,6 +139,29 @@ function reducer(state, action) {
         };
     case 'REORDER_LAYERS':
         return { ...state, stratigraphy: action.payload };
+    // U2-010 (BF-U1-023): a template, a tops file or a registry well replaces
+    // the model's layers (and with the registry its erosion surfaces and
+    // tie); the model as it was is kept so one click puts it back.
+    case 'REPLACE_LAYERS': {
+        const p = action.payload || {};
+        const undo = {
+            label: p.label || 'Replace the layers',
+            at: new Date().toISOString(),
+            stratigraphy: state.stratigraphy,
+            erosionEvents: state.erosionEvents,
+            settings: state.settings,
+        };
+        return {
+            ...state,
+            undo,
+            stratigraphy: Array.isArray(p.stratigraphy) ? p.stratigraphy : state.stratigraphy,
+            ...(Array.isArray(p.erosionEvents) ? { erosionEvents: p.erosionEvents } : {}),
+            ...(p.settings ? { settings: { ...state.settings, ...p.settings } } : {}),
+        };
+    }
+    case 'UNDO_REPLACE':
+        if (!state.undo) return state;
+        return { ...state, stratigraphy: state.undo.stratigraphy, erosionEvents: state.undo.erosionEvents, settings: state.undo.settings, undo: null };
     case 'UPDATE_HEAT_FLOW':
         return { ...state, heatFlow: { ...state.heatFlow, ...action.payload } };
     case 'SET_EROSION_EVENTS':
@@ -259,8 +285,15 @@ export const BasinFlowProvider = ({ children, appPaths = {} }) => {
   // BF-U1-007: a caller that has just dispatched new inputs passes them, since
   // this closure still holds the previous render's state (the guided run
   // computed the PREVIOUS model and showed it under the guided inputs)
+  // BF-U2-009: the run goes to a Web Worker (progress, Cancel); the page
+  // path stays where no worker can start
+  const abortRef = useRef(null);
+  const cancelSimulation = () => { if (abortRef.current) abortRef.current.abort(); };
   const runSimulation = async (override = null) => {
       const inputs = override ? { ...state, ...override } : state;
+      if (abortRef.current) abortRef.current.abort();
+      const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      abortRef.current = ctl;
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_PROGRESS', payload: 0 });
       
@@ -270,25 +303,31 @@ export const BasinFlowProvider = ({ children, appPaths = {} }) => {
           }
 
           // Use the SimulationEngine
-          const results = stampRun(await SimulationEngine.run(inputs, (progress) => {
-              dispatch({ type: 'SET_PROGRESS', payload: progress });
+          const results = stampRun(await runBasin(inputs, {
+              signal: ctl?.signal,
+              onProgress: (progress) => dispatch({ type: 'SET_PROGRESS', payload: progress }),
           }), inputs, override?.wellId ?? mwState.activeWellId);
           
           dispatch({ type: 'SET_RESULTS', payload: results });
           
           return results;
       } catch (e) {
+          if (e?.cancelled) {
+              toast({ title: 'Run cancelled', description: 'The previous result, if any, is kept.' });
+              throw e;
+          }
           console.error("Simulation Failed", e);
           toast({ variant: "destructive", title: "Simulation Error", description: e.message });
           throw e;
       } finally {
+          if (abortRef.current === ctl) abortRef.current = null;
           dispatch({ type: 'SET_LOADING', payload: false });
           dispatch({ type: 'SET_PROGRESS', payload: 100 });
       }
   };
 
   return (
-    <BasinFlowContext.Provider value={{ state, dispatch, runSimulation, stats: { totalThickness, maxAge }, units, setUnit, unitsHook, appPaths }}>
+    <BasinFlowContext.Provider value={{ state, dispatch, runSimulation, cancelSimulation, stats: { totalThickness, maxAge }, units, setUnit, unitsHook, appPaths }}>
       {children}
     </BasinFlowContext.Provider>
   );

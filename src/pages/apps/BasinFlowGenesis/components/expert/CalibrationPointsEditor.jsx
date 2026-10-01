@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Plus, Trash2 } from 'lucide-react';
 import { depthToDisplay, depthFromDisplay, tempToDisplay, tempFromDisplay, tidy, tempSymbol } from '../../services/units';
 
-function PointTable({ kind, label, unit, points, onChange, defaults, depthUnit, toDisp, fromDisp }) {
+function PointTable({ kind, label, unit, points, onChange, defaults, depthUnit, toDisp, fromDisp, bht = false }) {
   const set = (i, patch) => onChange(points.map((p, k) => (k === i ? { ...p, ...patch } : p)));
   const add = () => onChange([...points, { id: Date.now(), ...defaults }]);
   const remove = (i) => onChange(points.filter((_, k) => k !== i));
@@ -29,6 +29,8 @@ function PointTable({ kind, label, unit, points, onChange, defaults, depthUnit, 
             <tr className="text-pl-muted text-left">
               <th className="font-normal">Depth ({depthUnit})</th>
               <th className="font-normal">{unit}</th>
+              {bht && <th className="font-normal" title="Hours since circulation stopped (Horner)">Shut-in (h)</th>}
+              {bht && <th className="font-normal">Kind</th>}
               <th />
             </tr>
           </thead>
@@ -37,6 +39,13 @@ function PointTable({ kind, label, unit, points, onChange, defaults, depthUnit, 
               <tr key={p.id ?? i} className="border-t border-pl-border">
                 <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-depth-${i}`} value={tidy(depthToDisplay(p.depth, depthUnit))} onChange={(e) => set(i, { depth: depthFromDisplay(parseFloat(e.target.value), depthUnit) })} className="h-7 text-xs" /></td>
                 <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-value-${i}`} value={tidy(toDisp(p.value), 3)} onChange={(e) => set(i, { value: fromDisp(parseFloat(e.target.value)) })} className="h-7 text-xs" /></td>
+                {bht && <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-shutin-${i}`} value={p.shutInH ?? ''} placeholder="h" onChange={(e) => { const v = parseFloat(e.target.value); set(i, { shutInH: Number.isFinite(v) && v > 0 ? v : undefined }); }} className="h-7 text-xs w-16" /></td>}
+                {bht && <td className="py-0.5 pr-1">
+                  <select data-testid={`bf-cal-${kind}-kind-${i}`} value={p.kind === 'DST' ? 'DST' : 'BHT'} onChange={(e) => set(i, { kind: e.target.value === 'DST' ? 'DST' : undefined })}
+                    className="h-7 text-xs bg-pl-surface border border-pl-border-strong rounded px-1 text-pl-text">
+                    <option value="BHT">BHT</option><option value="DST">DST</option>
+                  </select>
+                </td>}
                 <td className="py-0.5 text-right"><Button variant="ghost" size="icon" className="h-6 w-6 text-pl-muted hover:text-pl-danger-text" data-testid={`bf-cal-${kind}-remove-${i}`} onClick={() => remove(i)}><Trash2 className="w-3 h-3" /></Button></td>
               </tr>
             ))}
@@ -52,7 +61,7 @@ export default function CalibrationPointsEditor({ ro, temp, onChange, units = { 
   return (
     <div className="space-y-3">
       <PointTable kind="ro" label="Vitrinite reflectance" unit="Ro (%)" points={ro} onChange={(pts) => onChange({ ro: pts, temp })} defaults={{ depth: 2000, value: 0.6 }} depthUnit={units.depth} toDisp={id} fromDisp={id} />
-      <PointTable kind="temp" label="Temperature (BHT, DST)" unit={`T (${tempSymbol(units.temp)})`} points={temp} onChange={(pts) => onChange({ ro, temp: pts })} defaults={{ depth: 2000, value: 80 }} depthUnit={units.depth} toDisp={(v) => tempToDisplay(v, units.temp)} fromDisp={(v) => tempFromDisplay(v, units.temp)} />
+      <PointTable kind="temp" label="Temperature (BHT, DST)" unit={`T (${tempSymbol(units.temp)})`} points={temp} onChange={(pts) => onChange({ ro, temp: pts })} defaults={{ depth: 2000, value: 80 }} depthUnit={units.depth} toDisp={(v) => tempToDisplay(v, units.temp)} fromDisp={(v) => tempFromDisplay(v, units.temp)} bht />
     </div>
   );
 }

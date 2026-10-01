@@ -11,7 +11,9 @@ import { buildLabel } from '@/lib/platformBuild';
 import { drawBrandHeader } from '@/lib/pdfBrand';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { depthToDisplay, tempToDisplay, tempDeltaToDisplay } from './units';
-import { finalDepthProfile, eventsChartRows } from './resultsView';
+import { finalDepthProfile, calibrationProfile, eventsChartRows, withLayerRoles } from './resultsView';
+import { withCorrectedTemps, bhtMethodText } from './bht';
+import { drawBurialChart, drawMaturityChart, drawEventsChart } from './reportCharts';
 import { presentDayHeatFlow } from './history';
 import { getThermalProps } from './ThermalPropertiesLibrary';
 import { getCompactionParams } from './CompactionModelLibrary';
@@ -28,8 +30,9 @@ const f = (v, d = 1) => (Number.isFinite(v) ? Number(v.toFixed(d)).toLocaleStrin
 
 /** Ro and temperature misfit of a result against the calibration points (SI). */
 export function calibrationSummary(results, calibration) {
-  const prof = finalDepthProfile(results);
-  const ro = calibration?.ro || []; const temp = calibration?.temp || [];
+  const prof = calibrationProfile(results);
+  // BF-U2-006: temperatures as corrected (the raw BHTs read cool)
+  const ro = calibration?.ro || []; const temp = withCorrectedTemps(calibration).temp || [];
   if (!prof.length) return { n: ro.length + temp.length, roRms: NaN, tRms: NaN, run: false, nRo: ro.length, nT: temp.length };
   const depths = prof.map((p) => p.depth);
   const mRo = CalibrationCalculator.interpolateToMeasured(depths, prof.map((p) => p.ro), ro.map((p) => p.depth));
@@ -57,7 +60,7 @@ export function reviewerLines(p) {
   const lines = [
     `Model: ${modelName || 'not named'} | Well: ${st.registryWellName || 'not tied to a registry well'} | Field: ${field} | Analyst: ${analyst} | Date: ${now.toISOString().slice(0, 10)} | ${build}`,
     `Units: depth ${zU}, temperature ${tU}; engine SI (m, C, Ma, mW/m2). Ages: ${st.timescale || (st.fromStratigraphyStudio ? 'ICS 2023/09 (sent before chart versions travelled)' : 'as typed')}; current chart ${TIMESCALE_VERSION}`,
-    'Engine: 1D forward model; Athy (Sclater and Christie) decompaction, elastic (porosity follows present burial, no maximum-burial memory); implicit conduction on cells up to 100 m; Easy%Ro (Sweeney and Burnham 1990); kerogen transformation by parallel Arrhenius reactions; 1 Ma steps ending at 0 Ma',
+    'Engine: 1D forward model; Athy (Sclater and Christie) decompaction, elastic (porosity follows present burial, no maximum-burial memory); implicit conduction on cells up to 100 m; Easy%Ro (Sweeney and Burnham 1990) at each layer centre and through the column in slices up to about 100 m; kerogen transformation by parallel Arrhenius reactions; 1 Ma steps ending at 0 Ma',
     hf.type === 'variable'
       ? `Basal heat flow: history ${(hf.history || []).slice().sort((a, b) => b.age - a.age).map((q) => `${q.age} Ma ${q.value}`).join(', ')} mW/m2 (present ${f(presentDayHeatFlow(hf), 1)})`
       : `Basal heat flow: constant ${f(Number(hf.value), 1)} mW/m2`,
@@ -71,6 +74,7 @@ export function reviewerLines(p) {
   if (!cal.n) lines.push('Calibration: none (no measured Ro or temperature); the model is uncalibrated');
   else if (!cal.run) lines.push(`Calibration: ${cal.nRo} Ro and ${cal.nT} temperature points; no run to compare`);
   else lines.push(`Calibration: ${cal.nRo} Ro point${cal.nRo === 1 ? '' : 's'}${cal.nRo ? `, RMS ${f(cal.roRms, 3)} %Ro` : ''}; ${cal.nT} temperature point${cal.nT === 1 ? '' : 's'}${cal.nT ? `, RMS ${f(tempDeltaToDisplay(cal.tRms, tU), 1)} ${tU}` : ''}`);
+  if (cal.nT) lines.push(`BHT correction: ${bhtMethodText(state?.calibration?.bht)}`);
   if (!results?.data) lines.push('Result: no run');
   else lines.push(stale?.stale ? `Result: ${stale.text}` : `Result: computed ${results.runOf?.at ? new Date(results.runOf.at).toISOString().replace('T', ' ').slice(0, 16) : ''} from the inputs above`);
   for (const n of notes) lines.push(`Note: ${n.text}`);
@@ -92,9 +96,10 @@ export function inputRows(state, units) {
 /** Present-day rows (shallow to deep) in the display units. */
 export function presentRows(results, units) {
   const zU = units.depth; const tU = units.temp;
-  const tr = new Map((results?.meta?.layers || []).map((l, i) => [l.name, results.data.transformation?.[i]]));
+  // U2-012: by layer id (two layers with one name had one transformation)
+  const tr = new Map((results?.meta?.layers || []).map((l, i) => [l.id ?? l.name, results.data.transformation?.[i]]));
   return finalDepthProfile(results).map((r) => {
-    const s = tr.get(r.name); const last = s && s.length ? s[s.length - 1].value : null;
+    const s = tr.get(r.id ?? r.name); const last = s && s.length ? s[s.length - 1].value : null;
     return [r.name, f(depthToDisplay(r.top, zU), zU === 'ft' ? 0 : 1), f(depthToDisplay(r.bottom, zU), zU === 'ft' ? 0 : 1),
       f(tempToDisplay(r.temp, tU), 1), r.ro.toFixed(3), last > 0 ? `${(100 * last).toFixed(1)} %` : EMPTY_VALUE].map(latin1);
   });
@@ -152,8 +157,21 @@ export function basinReportPdf(JsPDF, args, { logo = null } = {}) {
   } else {
     doc.text('No run: simulate the model to report its present-day state.', margin, y);
   }
+  // BF-U2-011: the plots the reviewer signs, drawn as vectors (the report
+  // claimed plots and had none)
+  if (results?.data?.timeSteps?.length) {
+    const footer = () => { doc.setFontSize(7); doc.setTextColor(100, 116, 139); doc.text(latin1('Depths below the model surface; time from the oldest layer to the present. Trap formation and migration are not modelled (1D).'), margin, pageH - 8); };
+    footer();
+    doc.addPage();
+    const roles = withLayerRoles(results, args.state?.stratigraphy || []);
+    const w = pageW - 2 * margin;
+    drawBurialChart(doc, { x: margin, y: 14, w, h: 100 }, { results: roles, units, latin1, logo });
+    drawMaturityChart(doc, { x: margin, y: 118, w, h: 82 }, { results: roles, latin1, logo });
+    drawEventsChart(doc, { x: margin, y: 204, w, h: 72 }, { results: roles, latin1, logo });
+    doc.setTextColor(30, 41, 59);
+  }
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
-  doc.text(latin1('Depths below the model surface; Ro by Easy%Ro at each layer centre; transformation of the source kerogen. Trap formation and migration are not modelled (1D).'), margin, pageH - 8);
+  doc.text(latin1('Depths below the model surface; Ro by Easy%Ro at each layer centre, and through the column for calibration; transformation of the source kerogen. Trap formation and migration are not modelled (1D).'), margin, pageH - 8);
   return doc;
 }

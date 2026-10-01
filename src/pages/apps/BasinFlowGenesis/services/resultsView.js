@@ -7,6 +7,10 @@
  * ages. Always align by each entry's own age.
  */
 
+// U2-004: the profile calibration compares against (the column slices when
+// the result carries them, the layer centres for a result saved before)
+export { calibrationProfile } from '../../../../../packages/engines/engines/basin/results';
+
 // Categorical palette legible on the white chartTheme background.
 export const SERIES_COLORS = ['#2563eb', '#d97706', '#059669', '#db2777', '#7c3aed', '#0891b2', '#65a30d', '#dc2626'];
 
@@ -102,7 +106,7 @@ export const MATURITY_WINDOWS = Object.freeze([
  * The chart key of a layer (U2-012, BF-U1-018): its id, so two layers with
  * one name are two series; the name is only the label.
  */
-export const layerKey = (layer, li = 0) => String(layer?.name ?? `layer-${li}`);
+export const layerKey = (layer, li = 0) => String(layer?.id ?? `layer-${li}`);
 
 const put = (obj, key, value) => Object.defineProperty(obj, key, { value, writable: true, enumerable: true, configurable: true });
 

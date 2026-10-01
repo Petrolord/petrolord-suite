@@ -123,8 +123,9 @@ const AdvancedDataImport = () => {
 
   const applyTops = () => {
     if (!previewLayers.length) return;
-    dispatch({ type: 'REORDER_LAYERS', payload: previewLayers });
-    toast({ title: 'Stratigraphy replaced', description: `${previewLayers.length} layers from ${tops.name}. The ages are placeholders: type them in Properties.` });
+    // U2-010: kept for Undo
+    dispatch({ type: 'REPLACE_LAYERS', payload: { stratigraphy: previewLayers, label: `Tops from ${tops.name}` } });
+    toast({ title: 'Stratigraphy replaced', description: `${previewLayers.length} layers from ${tops.name}. The ages are placeholders: type them in Properties. Undo in Properties puts the previous layers back.` });
     setTops(null);
   };
 
@@ -150,9 +151,11 @@ const AdvancedDataImport = () => {
   const applyRegistry = () => {
     if (!registryLayers.length) return;
     const b = registryBuild;
-    dispatch({ type: 'REORDER_LAYERS', payload: registryLayers });
-    dispatch({ type: 'SET_EROSION_EVENTS', payload: b.row.erosion_events });
-    dispatch({ type: 'UPDATE_SETTINGS', payload: { registryWellId: registryWell.id, registryWellName: registryWell.name, registryKbM: b.row.settings.registryKbM, timescale: b.row.settings.timescale } });
+    // U2-010: one replacement (layers, erosion surfaces and the tie), kept for Undo
+    dispatch({ type: 'REPLACE_LAYERS', payload: {
+      stratigraphy: registryLayers, erosionEvents: b.row.erosion_events, label: `Registry well ${registryWell.name}`,
+      settings: { registryWellId: registryWell.id, registryWellName: registryWell.name, registryKbM: b.row.settings.registryKbM, timescale: b.row.settings.timescale },
+    } });
     toast({ title: 'Stratigraphy from the registry', description: `${b.layerCount} layers from ${registryWell.name}: ${b.datedCount} dated, ${b.erosionCount} erosion event${b.erosionCount === 1 ? '' : 's'}. ${b.problems.join(' ')}` });
   };
 
