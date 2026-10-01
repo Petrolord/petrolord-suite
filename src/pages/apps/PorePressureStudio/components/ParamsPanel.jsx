@@ -8,6 +8,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { parseCalibration } from '../services/honesty';
+import { marginsOf } from '../services/drillingWindow';
 import {
   DEFAULT_UNITS, depthToDisplay, depthFromDisplay, slownessToDisplay, slownessFromDisplay, slownessUnit,
   compactionToDisplay, compactionFromDisplay, compactionUnit, densityToDisplay, densityFromDisplay, densityUnit,
@@ -49,6 +50,9 @@ const toDraft = (params, calibration, units) => {
     bowersU: params.bowers?.U != null ? String(params.bowers.U) : '',
     bowersSigmaMax: sMax != null ? tidy(pressureToDisplay(sMax, stressUnit(pU)), pressureDigits(stressUnit(pU))) : '',
     nu: String(params.nu),
+    tripMargin: tidy(densityToDisplay(marginsOf(params).tripKgM3, pU), densityDigits(pU)),
+    kickMargin: tidy(densityToDisplay(marginsOf(params).kickKgM3, pU), densityDigits(pU)),
+    minSeat: tidy(depthToDisplay(marginsOf(params).minShallowSeatBmlM, zU), 2),
     field: params.report?.field || '',
     analyst: params.report?.analyst || '',
     calText: (calibration || []).map((c) => {
@@ -88,6 +92,12 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
       bowers,
       nu: num(d.nu),
       report: { field: d.field.trim(), analyst: d.analyst.trim() },
+      // U2-003: margins are density differences, so the unit converts by its factor alone
+      margins: {
+        tripKgM3: Math.max(0, densityFromDisplay(num(d.tripMargin), pU) || 0),
+        kickKgM3: Math.max(0, densityFromDisplay(num(d.kickMargin), pU) || 0),
+        minShallowSeatBmlM: Math.max(0, depthFromDisplay(num(d.minSeat), zU) || 0),
+      },
     };
     // calibration lines are "depth, pressure" in the display units; an
     // EMW pressure converts at that depth below the datum
@@ -140,6 +150,11 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
         </>
       )}
       <Field id="pp-param-nu" label="Poisson's ratio ν" value={d.nu} onChange={set('nu')} />
+
+      <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Drilling margins and casing seats</div>
+      <Field id="pp-param-trip" label={`Trip margin (${dU})`} value={d.tripMargin} onChange={set('tripMargin')} />
+      <Field id="pp-param-kick" label={`Kick margin (${dU})`} value={d.kickMargin} onChange={set('kickMargin')} />
+      <Field id="pp-param-minseat" label={`Shallowest seat at least (${zU} bml)`} value={d.minSeat} onChange={set('minSeat')} />
 
       <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">
         Calibration points (z {zU} bml, P {pU})

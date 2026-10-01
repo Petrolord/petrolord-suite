@@ -9,12 +9,12 @@
 import React, { useMemo } from 'react';
 import {
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  Legend, ResponsiveContainer,
+  Legend, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS } from '@/utils/chartTheme';
 import {
-  DEFAULT_UNITS, depthToDisplay, pressureToDisplay, pressureDigits, pressureLabel, emwReferenceDepthM, emwDatumLabel, isEmw,
+  DEFAULT_UNITS, depthToDisplay, pressureToDisplay, pressureFromDisplay, pressureDigits, pressureLabel, emwReferenceDepthM, emwDatumLabel, isEmw,
 } from '../services/units';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { thinIndices } from '../services/thin';
@@ -26,13 +26,16 @@ const SERIES = [
   { key: 'fg', name: 'Fracture pressure', color: '#456990' },
 ];
 
-export default function PrognosisChart({ profile, zBmlM, calibration, units = DEFAULT_UNITS, params = null }) {
+export default function PrognosisChart({
+  profile, zBmlM, calibration, units = DEFAULT_UNITS, params = null, casing = null,
+}) {
   const pU = units.pressure;
   const zU = units.depth;
   const data = useMemo(() => {
     if (!profile) return [];
     const conv = (pa, zM) => { const v = pressureToDisplay(pa, pU, emwReferenceDepthM(zM, params)); return Number.isFinite(v) ? v : null; };
-    const rows = thinIndices(zBmlM.length).map((i) => {
+    const thinned = thinIndices(zBmlM.length);
+    const rows = thinned.map((i) => {
       const z = zBmlM[i];
       return {
         z: depthToDisplay(z, zU),
@@ -44,6 +47,19 @@ export default function PrognosisChart({ profile, zBmlM, calibration, units = DE
     });
     // drilling window band between PP and FG (T1-E1)
     rows.forEach((r) => { if (r.pp != null && r.fg != null) r.win = [r.pp, r.fg]; });
+    // U2-003: the planned mud (PP + trip margin) and the design fracture
+    // line (FG - kick margin) below the conductor cut-off, in the display unit
+    if (casing) {
+      const fromPpg = (ppg, zM) => conv(pressureFromDisplay(ppg, 'ppg', emwReferenceDepthM(zM, params)), zM);
+      const zLast = casing.zBmlM[casing.zBmlM.length - 1];
+      rows.forEach((r, k) => {
+        const zM = zBmlM[thinned[k]];
+        if (!(zM >= casing.fromBmlM) || zM > zLast) return;
+        const a = casing.at(zM);
+        r.mw = fromPpg(a.mudPpg, zM);
+        r.dfg = fromPpg(a.designFgPpg, zM);
+      });
+    }
     for (const c of calibration || []) {
       if (Number.isFinite(c.z) && Number.isFinite(c.pMpa)) {
         rows.push({ z: depthToDisplay(c.z, zU), cal: conv(c.pMpa * 1e6, c.z) });
@@ -51,14 +67,14 @@ export default function PrognosisChart({ profile, zBmlM, calibration, units = DE
     }
     rows.sort((a, b) => a.z - b.z);
     return rows;
-  }, [profile, zBmlM, calibration, pU, zU, params]);
+  }, [profile, zBmlM, calibration, pU, zU, params, casing]);
   const digits = pressureDigits(pU);
   const hasCal = data.some((r) => r.cal != null);
 
   if (!profile) return null;
 
   return (
-    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="pp-prognosis-chart" data-rows={data.length}>
+    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="pp-prognosis-chart" data-rows={data.length} data-seats={casing ? casing.seats.length : 0}>
       <h3 className="text-center text-sm font-semibold" style={{ color: CHART_COLORS.axisLabel }}>
         Pressure prognosis
       </h3>
@@ -102,6 +118,14 @@ export default function PrognosisChart({ profile, zBmlM, calibration, units = DE
                 connectNulls
                 isAnimationActive={false}
               />
+            ))}
+            {casing && <Line dataKey="mw" name="Mud weight (PP + trip margin)" stroke="#7c3aed" strokeWidth={1.5}
+              strokeDasharray="4 2" dot={false} connectNulls isAnimationActive={false} />}
+            {casing && <Line dataKey="dfg" name="Design FG (FG - kick margin)" stroke="#456990" strokeWidth={1.2}
+              strokeDasharray="2 3" dot={false} connectNulls isAnimationActive={false} />}
+            {casing && casing.seats.map((s, k) => (
+              <ReferenceLine key={`seat-${k}`} y={depthToDisplay(s.zBmlM, zU)} stroke="#334155" strokeWidth={1.5}
+                ifOverflow="extendDomain" label={{ value: `Shoe ${k + 1}`, position: 'insideTopRight', fill: '#334155', fontSize: 10 }} />
             ))}
             {/* a Scatter does not plot in a vertical-layout chart: a dot-only Line
                 does (T1-002); no legend entry without points */}

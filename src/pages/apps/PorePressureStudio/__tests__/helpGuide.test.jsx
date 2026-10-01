@@ -14,7 +14,7 @@ describe('PorePressureStudioHelpGuide', () => {
     renderGuide();
     expect(screen.getByRole('heading', { level: 1, name: /Pore Pressure Studio Help Guide/ })).toBeInTheDocument();
     for (const { id } of HELP_SECTIONS) expect(document.getElementById(`section-${id}`)).not.toBeNull();
-    expect(HELP_SECTIONS.length).toBe(11);
+    expect(HELP_SECTIONS.length).toBe(12);
   });
 
   test('quotes the live unit choices and the EMW datum rule', () => {
@@ -24,6 +24,8 @@ describe('PorePressureStudioHelpGuide', () => {
     expect(text).toMatch(/rotary table when the dock's mudline MD is set/);
     expect(text).toMatch(/0\.052/);
     expect(text).toMatch(/PP, FP and OBG/);
+    // U2-003
+    expect(text).toMatch(/trip margin is added to the pore pressure/);
   });
 
   test('copy carries no em dashes (owner rule)', () => {

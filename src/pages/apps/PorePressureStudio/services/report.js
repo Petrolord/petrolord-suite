@@ -29,7 +29,7 @@ const r1 = (v, d = 1) => (Number.isFinite(v) ? Number(v.toFixed(d)).toLocaleStri
 export function reviewerLines(p) {
   const {
     wellName = '', source = 'well', sourceName = '', report = {}, params, units, input, result, calibration = [],
-    nctFitted = false, window = null, now = new Date(), build = buildLabel(),
+    nctFitted = false, window = null, casing = null, now = new Date(), build = buildLabel(),
   } = p;
   const zU = units.depth;
   const z = (m) => `${r1(depthToDisplay(m, zU), zU === 'ft' ? 0 : 1)} ${zU}`;
@@ -58,6 +58,13 @@ export function reviewerLines(p) {
   }
   if (window?.narrowest) {
     lines.push(`Drilling window: narrowest ${window.narrowest.windowPpg.toFixed(2)} ppg (PP ${window.narrowest.ppPpg.toFixed(2)}, FG ${window.narrowest.fgPpg.toFixed(2)} ppg EMW) at ${z(window.narrowest.zBmlM)} bml${window.maxPp ? `; highest PP ${window.maxPp.ppPpg.toFixed(2)} ppg at ${z(window.maxPp.zBmlM)} bml` : ''}`);
+  }
+  // U2-003: the margins and the bottom-up casing seats
+  if (casing && !casing.error) {
+    const seats = casing.seats.length
+      ? casing.seats.map((s, k) => `shoe ${k + 1} at least ${z(s.zBmlM)} bml (${s.mudBelowPpg.toFixed(2)} ppg below)`).join('; ')
+      : 'none needed above TD';
+    lines.push(`Casing seats (bottom-up from TD, below ${z(casing.fromBmlM)} bml; trip margin ${casing.tripPpg.toFixed(2)} ppg, kick margin ${casing.kickPpg.toFixed(2)} ppg): ${seats}${casing.closedAtBmlM != null ? `; window closed by the margins at ${z(casing.closedAtBmlM)} bml` : ''}`);
   }
   return lines.map(latin1);
 }

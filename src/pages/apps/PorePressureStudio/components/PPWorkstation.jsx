@@ -39,7 +39,7 @@ import { layerCakeProfile } from '@/lib/velocityModels';
 import { preparePublishLogs, publishBlocker } from '../services/publish';
 import { inputNotes, trendDepthM } from '../services/honesty';
 import { reviewerLines, prognosisPdf } from '../services/report';
-import { drillingWindow, WINDOW_FROM_BML_M } from '../services/drillingWindow';
+import { drillingWindow, casingDesign, WINDOW_FROM_BML_M } from '../services/drillingWindow';
 import {
   UNITS_KEY, PRESSURE_UNITS, DEPTH_UNITS, readUnits, depthFromDisplay, tidyDepth,
   fmtPressure, fmtDepth, emwReferenceDepthM, emwDatumLabel, isEmw, prognosisCsv,
@@ -247,6 +247,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
 
   const result = profile?.result || null;
   const windowInfo = useMemo(() => (result && input ? drillingWindow(result, input.zBmlM, params) : null), [result, input, params]);
+  // U2-003: kick and trip margins and the bottom-up casing seats
+  const casing = useMemo(() => (result && input ? casingDesign(result, input.zBmlM, params) : null), [result, input, params]);
   const computeError = input?.error || profile?.error || null;
 
   // PL4: what the prognosis rests on (datum, TVD, gaps, density, NCT, calibration)
@@ -294,6 +296,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     calibration,
     nctFitted: !notes.some((n) => n.key === 'nct'),
     window: windowInfo,
+    casing,
   });
 
   // PP-U1-008: the reviewer PDF (jsPDF loaded on demand)
@@ -347,7 +350,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     const n0 = params.nct; const n1 = p.nct || {};
     if (Math.abs(n0.dtMlUsPerM - n1.dtMlUsPerM) > 1e-6 * n0.dtMlUsPerM || Math.abs(n0.cPerM - n1.cPerM) > 1e-6 * Math.abs(n0.cPerM || 1)
       || Math.abs(n0.dtMaUsPerM - n1.dtMaUsPerM) > 1e-6 * n0.dtMaUsPerM) setNctFittedFor(null);
-    setParams(p);
+    // keep what the dock does not edit (trend segments, resistivity trend, ...)
+    setParams((prev) => ({ ...prev, ...p }));
     setCalibration(cal);
     setStatus(skipped.length
       ? `Parameters applied. ${skipped.length} calibration line${skipped.length === 1 ? '' : 's'} not read (two numbers per line: depth, pressure): ${skipped.slice(0, 3).join(' | ')}`
@@ -606,6 +610,27 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
           {windowInfo.narrowest.windowPpg < 0.5 && <span className="text-pl-warning-text"> · under 0.5 ppg: plan a casing point or managed pressure</span>}
         </div>
       )}
+      {casing && (
+        casing.error ? (
+          <div className="text-[11px] text-pl-muted px-1" data-testid="pp-casing-seats">{casing.error}</div>
+        ) : (
+          <div className="text-[11px] text-pl-text px-1" data-testid="pp-casing-seats" data-seats={casing.seats.length}>
+            Casing seats, bottom-up (trip margin {casing.tripPpg.toFixed(2)} ppg, kick margin {casing.kickPpg.toFixed(2)} ppg):
+            {casing.seats.length === 0 && <span> none needed above TD; one open-hole section from {fmtDepth(casing.fromBmlM, units.depth)} {units.depth} holds</span>}
+            {casing.seats.map((s, k) => (
+              <span key={k} data-testid={`pp-casing-seat-${k}`}>
+                {k ? ';' : ''} shoe at least {fmtDepth(s.zBmlM, units.depth)} {units.depth} bml{s.driver === 'minimum shallow seat' ? ' (your minimum)' : ''}, then {s.mudBelowPpg.toFixed(2)} ppg below
+              </span>
+            ))}
+            {casing.closedAtBmlM != null && (
+              <span className="text-pl-warning-text" data-testid="pp-casing-closed"> · window closed by the margins at {fmtDepth(casing.closedAtBmlM, units.depth)} {units.depth} bml: no seat opens it; managed pressure or smaller margins</span>
+            )}
+            <span className="block text-pl-muted" data-testid="pp-casing-sections">
+              Window per section: {casing.sections.map((sec) => `${fmtDepth(sec.topBmlM, units.depth)} to ${fmtDepth(sec.baseBmlM, units.depth)} ${units.depth}: mud ${sec.mudPpg.toFixed(2)} ppg, margin to the design FG ${sec.marginPpg.toFixed(2)} ppg`).join(' | ')}
+            </span>
+          </div>
+        )
+      )}
       {notes.length > 0 && (
         <ul className="text-[11px] px-1 flex flex-wrap gap-x-3 gap-y-0.5" data-testid="pp-notes">
           {notes.map((n) => (
@@ -614,7 +639,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         </ul>
       )}
       <div className="flex-1 min-h-0">
-        <PrognosisChart profile={result} zBmlM={input.zBmlM} calibration={calibration} units={units} params={params} />
+        <PrognosisChart profile={result} zBmlM={input.zBmlM} calibration={calibration} units={units} params={params} casing={casing && !casing.error ? casing : null} />
       </div>
     </div>
   );

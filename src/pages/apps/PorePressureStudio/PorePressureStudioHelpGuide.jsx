@@ -7,7 +7,7 @@
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
 import {
-  BookOpen, Zap, Database, Ruler, TrendingDown, Gauge, Layers, UploadCloud, Link2, AlertTriangle, BookMarked,
+  BookOpen, Zap, Database, Ruler, TrendingDown, Gauge, Layers, UploadCloud, Link2, AlertTriangle, BookMarked, Anchor,
 } from 'lucide-react';
 import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Callout, Step, Table,
@@ -24,6 +24,7 @@ export const HELP_SECTIONS = [
   { id: 'nct', icon: TrendingDown, title: 'The normal compaction trend' },
   { id: 'methods', icon: Gauge, title: 'Eaton, Bowers and the fracture gradient' },
   { id: 'overburden', icon: Layers, title: 'Overburden and hydrostatic' },
+  { id: 'casing', icon: Anchor, title: 'Drilling margins and casing seats' },
   { id: 'deliver', icon: UploadCloud, title: 'Publishing, the CSV and saving' },
   { id: 'links', icon: Link2, title: 'Working with the other apps' },
   { id: 'pitfalls', icon: AlertTriangle, title: 'Pitfalls and FAQ' },
@@ -152,6 +153,27 @@ export default function PorePressureStudioHelpGuide() {
           Without a density curve, Gardner's relation converts the velocity to density. Hydrostatic is the pore fluid
           density times gravity times depth below the sea surface. Both are reported at every sample and in the readout.
         </Para>
+      </GuideSection>
+
+      <GuideSection id="casing">
+        <SectionHeading icon={Anchor}>Drilling margins and casing seats</SectionHeading>
+        <Para>
+          Under Drilling margins in the dock, the trip margin is added to the pore pressure to give the planned mud
+          weight, and the kick margin is taken off the fracture pressure to give the design fracture line (both 0.5 ppg
+          by default, in the dock's density unit). The chart draws both lines dashed. The casing seats are chosen
+          bottom-up, as in Applied Drilling Engineering (Bourgoyne and others, 1986): the mud needed at TD sets how high
+          the open hole may reach, so the next shoe up goes at least to the depth where the design fracture line equals
+          that mud weight; the mud needed at that shoe sets the next one, and so on to the top 300 m below the mudline.
+          The line above the chart lists each shoe, the mud below it and the window per section. A minimum depth for
+          the shallowest string (an aquifer or a regulation) can be typed; margins too large for the window are said
+          with the depth where they close it.
+        </Para>
+        <Callout tone="info" title="Checked against the published example">
+          The selection reproduces the textbook's equivalent mud weight table to its printed digit and places every
+          shoe at or above the textbook's chart readings (11,700 ft and 6,600 ft), which are the depths it must at
+          least reach. Well Design Studio's mud window carries the same margins and seats on the planned trajectory, in
+          TVD and MD.
+        </Callout>
       </GuideSection>
 
       <GuideSection id="deliver">
