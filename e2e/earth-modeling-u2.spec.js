@@ -25,6 +25,12 @@ async function stack(page, url = '/dev/earth-modeling', names = ['TopA', 'TopB',
   for (const n of names) await page.getByTestId(`em-add-${n}`).click();
 }
 
+/** Depth in metres and metric volumes (the harness profile opens on field units). */
+async function metric(page) {
+  if ((await page.getByTestId('em-depth-unit').textContent()).includes('ft')) await page.getByTestId('em-depth-unit').click();
+  await page.getByTestId('em-volume-units').selectOption('metric');
+}
+
 async function buildNow(page) {
   await page.getByTestId('em-build').click();
   await expect(page.getByTestId('em-status')).toContainText('Built', { timeout: 60000 });
@@ -48,3 +54,27 @@ test('U2-004: the build runs on a Web Worker with progress, and Cancel stops a l
   await expect(page.getByTestId('em-build-progress')).toHaveCount(0);
   expect(errs).toEqual([]);
 });
+
+for (const [w, h, theme] of [[1366, 768, 'light'], [1440, 900, 'dark']]) {
+  test(`U2-003: the model report PDF downloads and reads back (${w}x${h} ${theme})`, async ({ page }) => {
+    const errs = errorsOf(page);
+    await page.setViewportSize({ width: w, height: h });
+    await page.addInitScript(() => { try { localStorage.setItem('em.report', JSON.stringify({ field: 'Keta', analyst: 'E2E Reviewer' })); } catch { /* private mode */ } });
+    await stack(page);
+    if (theme === 'dark') await page.getByTestId('theme-toggle').click();
+    await metric(page);
+    await page.getByTestId('em-owc-0').fill('1580');
+    await page.getByTestId('em-bo-0').fill('1.25');
+    await buildNow(page);
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('em-report-pdf').click()]);
+    const f = path.join(SHOTS, `report-${w}-${theme}.pdf`);
+    await dl.saveAs(f);
+    const text = execFileSync('pdftotext', ['-layout', f, '-'], { encoding: 'utf8' });
+    for (const s of ['Model report', 'Keta', 'E2E Reviewer', 'In-place volumes per zone', 'Contacts and FVFs as used', 'OWC 1580.0 m', 'Prepared by (analyst)', 'Reviewed by', 'Map:']) expect(text).toContain(s);
+    // the PDF STOIIP equals the QC panel's
+    await page.getByTestId('em-view-qc').click();
+    const qc = (await page.getByTestId('em-vol-zone-1-total-stoiip').textContent()).trim();
+    expect(text).toContain(qc);
+    expect(errs).toEqual([]);
+  });
+}

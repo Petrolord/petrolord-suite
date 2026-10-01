@@ -10,7 +10,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck, ImageDown, Route, FileDown, ExternalLink, HelpCircle, Box } from 'lucide-react';
+import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck, ImageDown, Route, FileDown, ExternalLink, HelpCircle, Box, FileText } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -33,6 +33,7 @@ import { minCurvature, positionAtMd } from '../engine/wellties';
 import { useWellCurvesCache } from '@/components/wells/useWellCurvesCache';
 import { downloadBlob } from '@/components/maps/mapPng';
 import { volumesCsv } from '../services/volumesCsv';
+import { buildModelReportPdf } from '../services/modelReportPdf';
 import { appPath, mapSurfaceHref, reservoirCalcSurfaceHref, MAPPING_ID, RESERVOIRCALC_ID, EARTH_MODELING_ID } from '@/components/wells/appLinks';
 import { toDisplay } from '@/components/wells/depthModes';
 import { validatePolygon } from '../engine/blocks';
@@ -89,6 +90,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   const [lastPublished, setLastPublished] = useState(null); // EM5: the row the launchers point at
   const curvesCache = useWellCurvesCache(backend);
   const [status, setStatus] = useState('Ready.');
+  const [reporting, setReporting] = useState(false); // U2-003: a report PDF is being made
   // T1 (EM-T1-009): the depth sign shared with Mapping (mapping.depthPositive);
   // unset keeps Earth Modeling's positive TVDSS
   const [depthPositive, setDepthPositive] = useState(() => {
@@ -462,6 +464,11 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           disabled={!built} onClick={() => exportVolumesCsv()}>
           <FileDown className="w-3.5 h-3.5" /> Volumes CSV
         </button>
+        <button type="button" data-testid="em-report-pdf" title="Download the model report (PDF): reviewer header, volumes, contacts as used, flags, provenance, ties and the map"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
+          disabled={!built || reporting} onClick={() => exportReportPdf()}>
+          <FileText className="w-3.5 h-3.5" /> Report PDF
+        </button>
         {lastPublished && (
           <>
             <Link to={reservoirCalcSurfaceHref(lastPublished.id, appPath(RESERVOIRCALC_ID, appPaths))} data-testid="em-open-rcp"
@@ -581,6 +588,21 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       downloadBlob(new Blob([text], { type: 'text/csv' }), fileName);
       setStatus(`Volumes exported as ${fileName}.`);
     } catch (e) { setStatus(e.message); }
+  };
+  // U2-003: the model report a reviewer signs (PDF); the map on screen goes in as a picture
+  const exportReportPdf = async () => {
+    if (!built) return;
+    setReporting(true);
+    try {
+      const images = [];
+      const canvas = document.querySelector('[data-testid="em-map-canvas"] canvas') || document.querySelector('canvas[data-testid="em-map-canvas"]');
+      if (canvas && canvas.width > 0) {
+        try { images.push({ title: `Map: ${zoneName} ${layerLabel}`, dataUrl: canvas.toDataURL('image/png'), w: canvas.width, h: canvas.height }); } catch { /* a tainted canvas is skipped */ }
+      }
+      const { doc, fileName } = await buildModelReportPdf({ built, name: definition.name, volumeUnits, report, images });
+      downloadBlob(doc.output('blob'), fileName);
+      setStatus(`Model report exported as ${fileName}.`);
+    } catch (e) { setStatus(e.message); } finally { setReporting(false); }
   };
   const exportSectionPng = async () => {
     try {
