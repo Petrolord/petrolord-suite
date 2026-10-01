@@ -15,7 +15,10 @@ import { listExportedSurfaces, downloadExportedSurface } from '@/pages/apps/Seis
 // Cross-app handoff (G4): surfaces Mapping & Surface Studio published to
 // geo_surfaces (f32 grids). Bridged to XYZ via the byte-golden writeXYZ,
 // then parsed on the same path — no filesystem round-trip.
-import { listSurfaces, downloadSurfaceGrid, surfaceToXyzText, zConventionForImport } from '@/lib/surfacesRegistry';
+import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
+import { surfaceDomainOf, DOMAIN_LABEL } from '@/lib/readDepthSurface';
+// U1 (RCP-U1-002, 010, 011, 016): one door per source; see services/surfaceDoor.js
+import { surfaceFromRegistryRow, seismolordExportUnits, pointsFromSurfaceFile, buildImportedSurface } from '../../services/surfaceDoor';
 
 const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null }) => {
     // EM5: the registry row a deep link asked for is loaded once it is listed
@@ -27,7 +30,8 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
         format: 'xyz',
         rawData: '',
         file: null,
-        xyUnit: 'm',            // horizontal + vertical coordinate unit of the file
+        xyUnit: 'm',            // horizontal coordinate unit of the file
+        depthUnit: 'm',         // depth unit of the file (RCP-U1-011: no longer tied to XY)
         zConvention: 'elevation', // 'elevation' = Z negative downward; 'depth' = Z positive downward (TVDSS)
         crs: ''                 // coordinate reference system, e.g. "EPSG:32631"; auto-detected when the file carries it
     });
@@ -38,13 +42,15 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
     //             non-fatal quality warnings the user should see first.
     const [error, setError] = useState(null);
     const [pending, setPending] = useState(null); // { surface, warnings }
+    // a registry or Seismolord surface already read through its door
+    const [ready, setReady] = useState(null);     // { surface, notes }
     // Seismolord handoff source
     const [seismolordSurfaces, setSeismolordSurfaces] = useState(null);
     const [fetchingHandoffId, setFetchingHandoffId] = useState(null);
     // Mapping & Surface Studio handoff source (geo_surfaces)
     const [mappingSurfaces, setMappingSurfaces] = useState(null);
 
-    const resetFeedback = () => { setError(null); setPending(null); };
+    const resetFeedback = () => { setError(null); setPending(null); setReady(null); };
 
     // RC0: the registry reads go through the app backend (the harness
     // injects in-memory stores)
@@ -68,49 +74,23 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
         loadMappingSurface(row);
     }, [open, preselectId, mappingSurfaces]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // geo_surfaces grid -> XYZ (byte-golden writeXYZ) -> the same parse
-    // path as a manual XYZ upload. The registry now records what the
-    // row actually is (CRS program): z_unit is honored instead of the
-    // old hard 'm' (Seismolord publishes depth in feet into the same
-    // registry), the z sign convention is the registry's (elevation), and
-    // the row's structured CRS lands in the provenance field instead of
-    // whatever CRS string a previous manual import left behind.
+    // geo_surfaces row -> the shared door (readDepthSurface): depth
+    // structures only, metres elevation, the row's own XY frame and its
+    // metres per unit, rotation honoured (RCP-U1-002). The row is refused
+    // with the door's reason when it is time, an isochore or an attribute.
     const loadMappingSurface = async (row) => {
         setFetchingHandoffId(row.id);
         resetFeedback();
         try {
             const grid = await surfacesApi.downloadSurfaceGrid(row);
-            let text = surfaceToXyzText(row, grid);
-            let xyUnit = 'm';
-            if (row.z_unit === 'ft') {
-                // one-unit import model: XY metres -> feet so the surface
-                // is self-consistently in feet with z preserved
-                text = rescaleXyToFeet(text);
-                xyUnit = 'ft';
+            const r = surfaceFromRegistryRow(row, grid);
+            if (!r.ok) {
+                setError({ title: 'This surface cannot be used for volumetrics', message: r.reason, guidance: [] });
+                return;
             }
-            const file = new File([text], `${row.name.replace(/[^\w-]+/g, '_')}.xyz`, { type: 'text/plain' });
-            setImportData(prev => ({
-                ...prev,
-                file,
-                rawData: text,
-                name: row.name,
-                format: 'xyz',
-                // RC3: remember the registry row so the surface card can open
-                // it in Mapping and Earth Modeling
-                registryId: row.id,
-                registryName: row.name,
-                xyUnit,
-                // Every depth surface in the registry is elevation
-                // (negative below datum) since 2026-09-05, whichever app
-                // published it; attribute rows pass through unchanged.
-                zConvention: zConventionForImport(row),
-                crs: xyUnit === 'ft'
-                    ? ''    // rescaled XY are no longer coordinates in any CRS
-                    : (row.crs || ''),
-            }));
-            const unitNote = row.z_unit == null && row.z_domain !== 'attribute'
-                ? ' The row records no z unit; metres were assumed. Verify before volumetrics.' : '';
-            toast({ title: 'Surface loaded from Mapping Studio', description: `${row.name}.${unitNote}` });
+            setReady({ surface: r.surface, notes: r.notes, source: 'Mapping & Surface Studio' });
+            // RC3: the card keeps the registry row for Open in Mapping / Earth Modeling
+            setImportData(prev => ({ ...prev, name: row.name, file: null, registryId: row.id, registryName: row.name }));
         } catch (e) {
             setError({ title: 'Could not load mapped surface', message: e.message, guidance: [] });
         } finally {
@@ -118,57 +98,30 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
         }
     };
 
-    // Seismolord writes XY in metres but Z in feet (depth_ft exports); RCP's
-    // import model carries ONE unit for XY and Z. Reconcile by converting XY
-    // metres -> feet so the whole surface is self-consistently in feet with
-    // the interpreter's depth values preserved (no silent ft-labelled-as-m,
-    // which was off by ~3.28x). TWT-ms exports are not a length surface — flag
-    // that and leave the values untouched.
-    const FT_PER_M = 3.280839895013123;
-    /** XY metres -> feet, z untouched. The result is a self-consistent
-     *  all-feet surface for RCP's one-unit model; the rescaled XY are
-     *  deliberately NOT coordinates in any CRS anymore, and the loaders
-     *  blank the CRS field accordingly. */
-    const rescaleXyToFeet = (text) => text.split('\n').map((line) => {
-        const t = line.trim();
-        if (!t) return line;
-        const parts = t.split(/\s+/);
-        if (parts.length < 3) return line;
-        const x = Number(parts[0]) * FT_PER_M;
-        const y = Number(parts[1]) * FT_PER_M;
-        return `${x.toFixed(2)} ${y.toFixed(2)} ${parts[2]}`;   // z unchanged
-    }).join('\n');
-    const normalizeHandoff = (text, domain) => {
-        if (domain !== 'depth_ft') return { text, xyUnit: 'm', warning: domain === 'twt_ms'
-            ? 'This is a two-way-time (ms) surface. It is not depth, so volumetric results will not be meaningful.'
-            : null };
-        return { text: rescaleXyToFeet(text), xyUnit: 'ft', warning: null };
-    };
-
+    // Seismolord's legacy exports: depth in feet over XY in metres (the
+    // depth unit is now its own choice, so the XY stay coordinates in
+    // their CRS); two-way time is refused (RCP-U1-010).
     const loadSeismolordSurface = async (row) => {
         setFetchingHandoffId(row.id);
         resetFeedback();
         try {
+            const units = seismolordExportUnits(row);
+            if (!units.ok) {
+                setError({ title: 'This surface cannot be used for volumetrics', message: units.reason, guidance: [] });
+                return;
+            }
             const raw = await surfacesApi.downloadExportedSurface(row);
-            const { text, xyUnit, warning } = normalizeHandoff(raw, row.domain);
-            const file = new File([text], `${row.name.replace(/[^\w-]+/g, '_')}.xyz`, { type: 'text/plain' });
-            setImportData(prev => ({
-                ...prev,
-                file,
-                rawData: text,
-                name: row.name,
-                format: 'xyz',
-                xyUnit,                      // 'ft' for depth exports, 'm' for TWT
-                zConvention: 'elevation',    // z negative downward
-                // never carry a CRS typed for a previous manual import;
-                // rescaled-to-feet XY are not in any CRS at all
-                crs: '',
-            }));
-            toast({
-                title: 'Surface loaded from Seismolord',
-                description: warning ? `${row.name}: ${warning}` : row.name,
-                ...(warning ? { variant: 'destructive' } : {}),
+            const r = pointsFromSurfaceFile(raw);
+            if (!r.ok) {
+                setError({ title: 'Could not read the Seismolord surface', message: r.reason, guidance: [] });
+                return;
+            }
+            const surface = buildImportedSurface(r.points, {
+                name: row.name, format: 'seismolord', xyUnit: units.xyUnit, depthUnit: units.depthUnit,
+                zConvention: 'elevation', notes: r.notes,
             });
+            setReady({ surface, notes: r.notes, source: 'Seismolord' });
+            setImportData(prev => ({ ...prev, name: row.name, file: null, registryId: null, registryName: null }));
         } catch (e) {
             setError({ title: 'Could not load Seismolord surface', message: e.message, guidance: [] });
         } finally {
@@ -201,77 +154,63 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
     });
 
     // Turn a successful parse into the surface object the app consumes.
-    const buildSurface = (points) => {
-        // Single-pass min/max/sum + bbox. Never spread (Math.min(...arr)) over
-        // the point array: a full-survey grid (100k+ nodes) blows the argument
-        // limit and throws RangeError, surfaced only as a generic "Import failed".
-        let minZ = Infinity; let maxZ = -Infinity; let sumZ = 0;
-        let minX = Infinity; let maxX = -Infinity; let minY = Infinity; let maxY = -Infinity;
-        for (const p of points) {
-            if (p.z < minZ) minZ = p.z;
-            if (p.z > maxZ) maxZ = p.z;
-            sumZ += p.z;
-            if (p.x < minX) minX = p.x;
-            if (p.x > maxX) maxX = p.x;
-            if (p.y < minY) minY = p.y;
-            if (p.y > maxY) maxY = p.y;
-        }
-        const avgZ = sumZ / points.length;
-        // Bounding-box extent as a first-order area estimate; the volume engine
-        // reads estimatedArea/avgZ for its surface + hybrid methods.
-        const estimatedArea = Math.abs((maxX - minX) * (maxY - minY));
-
-        // Downsample by an even STRIDE, not slice(0,N): Seismolord XYZ is
-        // row-major south-first, so slice() kept only the southernmost strip
-        // while stats claimed the whole surface. Stride preserves full extent.
-        const MAX_POINTS = 5000;
-        const stride = Math.max(1, Math.ceil(points.length / MAX_POINTS));
-        const sampled = stride === 1 ? points : points.filter((_, i) => i % stride === 0);
-
-        return {
-            id: crypto.randomUUID(),
-            name: importData.name || 'Imported Surface',
-            format: importData.format,
-            points: sampled,
-            minZ,
-            maxZ,
-            avgZ,
-            estimatedArea,
-            pointCount: points.length,
-            // Geometry metadata consumed by ContactVolumetricsEngine so areas and
-            // depths convert to physical units correctly.
-            xyUnit: importData.xyUnit,
-            depthUnit: importData.xyUnit,
-            zConvention: importData.zConvention,
-            // Coordinate reference system (optional). Carried for provenance and
-            // cross-app hand-off; a blank value means "unspecified / local grid".
-            crs: (importData.crs || '').trim() || null,
-            registryId: importData.registryId || null,
-            registryName: importData.registryName || null,
-            createdAt: new Date().toISOString()
-        };
-    };
+    const buildSurface = (points, notes = []) => buildImportedSurface(points, {
+        name: importData.name || 'Imported Surface',
+        format: importData.format,
+        xyUnit: importData.xyUnit,
+        depthUnit: importData.depthUnit,
+        zConvention: importData.zConvention,
+        crs: importData.crs,
+        registryId: importData.registryId,
+        registryName: importData.registryName,
+        notes,
+    });
 
     const finalizeImport = (surface) => {
         onImport(surface);
         onOpenChange(false);
         setStep(1);
         resetFeedback();
-        setImportData(prev => ({ name: '', format: 'xyz', rawData: '', file: null, xyUnit: prev.xyUnit, zConvention: prev.zConvention, crs: '', registryId: null, registryName: null }));
+        setImportData(prev => ({ name: '', format: 'xyz', rawData: '', file: null, xyUnit: prev.xyUnit, depthUnit: prev.depthUnit, zConvention: prev.zConvention, crs: '', registryId: null, registryName: null }));
     };
 
     const parseData = async () => {
         setIsParsing(true);
         resetFeedback();
         try {
+            // A registry or Seismolord surface was already read through its door.
+            if (ready) {
+                finalizeImport({ ...ready.surface, name: importData.name || ready.surface.name });
+                return;
+            }
             let points = null;
             let warnings = [];
+            let doorNotes = [];
 
-            // Prefer the multi-format parser (ESRI ASCII grid, ZMap+, GeoJSON, and
+            // U1 (RCP-U1-016): the shared surface file door first (Petrel
+            // CPS-3, Kingdom ZMAP+, Irap, XYZ with headers, semicolons,
+            // columns in any order, rotated lattices). It refuses TWT.
+            if (importData.file) {
+                const text = await readFileText(importData.file);
+                const door = pointsFromSurfaceFile(text);
+                if (door.ok) {
+                    points = door.points;
+                    doorNotes = door.notes;
+                    if (door.hint?.zUnit && door.hint.zUnit !== importData.depthUnit) {
+                        doorNotes.push(`The file header says depths are in ${door.hint.zUnit}, but the depth unit is set to ${importData.depthUnit}. Check the Depth unit before you import.`);
+                        warnings.push(doorNotes[doorNotes.length - 1]);
+                    }
+                } else if (!door.fallback) {
+                    setError({ title: "This file can't be used as a depth surface", message: door.reason, guidance: [] });
+                    return;
+                }
+            }
+
+            // Then the multi-format parser (ESRI ASCII grid, ZMap+, GeoJSON, and
             // robust delimited CSV/DAT/XYZ). It raises a SurfaceParseError with a
             // plain-language explanation when the file clearly isn't a surface — we
             // show that to the user rather than silently limping on with bad data.
-            if (importData.file) {
+            if (!points && importData.file) {
                 try {
                     const parsed = await SurfaceParser.parse(importData.file);
                     if (parsed?.points?.length >= 3) {
@@ -323,7 +262,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                 return;
             }
 
-            const surface = buildSurface(points);
+            const surface = buildSurface(points, doorNotes);
             if (warnings.length) {
                 // Soft problems (too few points, collinear, all-flat…). Let the user
                 // see them and decide whether to proceed rather than guessing.
@@ -358,11 +297,11 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                             type="file" 
                             className="absolute inset-0 opacity-0 cursor-pointer" 
                             onChange={handleFileChange}
-                            accept=".txt,.csv,.dat,.xyz,.asc,.grd,.json,.geojson,.zmap,.dat"
+                            accept=".txt,.csv,.dat,.xyz,.asc,.grd,.json,.geojson,.zmap,.cps,.irap,.gri"
                         />
                         <UploadCloud className="w-12 h-12 mx-auto text-pl-muted mb-2" />
                         <p className="text-sm text-pl-text font-medium">Click to upload or drag and drop</p>
-                        <p className="text-xs text-pl-muted mt-1">Supported: XYZ, CSV, CPS-3</p>
+                        <p className="text-xs text-pl-muted mt-1">Supported: XYZ (any column order, headers), CSV, Petrel CPS-3, ZMAP+, Irap classic, ESRI ASCII, GeoJSON points</p>
                     </div>
                     
                     {importData.file && (
@@ -418,8 +357,8 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                                     <li key={s.id} className="flex items-center justify-between gap-2 text-sm">
                                         <div className="min-w-0">
                                             <span className="text-pl-text truncate block">{s.name}</span>
-                                            <span className="text-[11px] text-pl-muted">
-                                                {s.kind} · {s.nx}×{s.ny} · {new Date(s.created_at).toLocaleString()}
+                                            <span className="text-[11px] text-pl-muted" data-testid={`rcp-registry-domain-${s.name}`}>
+                                                {surfaceDomainOf(s) === 'elevation' ? 'depth structure' : DOMAIN_LABEL[surfaceDomainOf(s)]} · {s.nx}×{s.ny}{s.xy_unit ? ` · XY ${s.xy_unit}` : ''}{s.z_unit ? ` · Z ${s.z_unit}` : ''} · {new Date(s.created_at).toLocaleString()}
                                             </span>
                                         </div>
                                         <Button
@@ -454,6 +393,21 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                                     )}
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* A registry or Seismolord surface read through its door: what was read */}
+                    {ready && (
+                        <div className="rounded-lg border border-pl-border bg-pl-surface p-3 text-[11px] text-pl-text" data-testid="rcp-import-ready">
+                            <p className="font-semibold">{ready.surface.name} from {ready.source}</p>
+                            <p className="text-pl-muted mt-0.5">
+                                {ready.surface.pointCount.toLocaleString()} live nodes · depth {ready.surface.depthUnit}, elevation (negative below datum) · XY {ready.surface.xyUnit}{ready.surface.crs ? ` · ${ready.surface.crs}` : ' · no CRS'}
+                            </p>
+                            {ready.notes?.length > 0 && (
+                                <ul className="mt-1 list-disc pl-4 text-pl-warning-text" data-testid="rcp-import-notes">
+                                    {ready.notes.map((n, i) => <li key={i}>{n}</li>)}
+                                </ul>
+                            )}
                         </div>
                     )}
 
@@ -495,13 +449,23 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                         </Tabs>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    {!ready && (<>
+                    <div className="grid grid-cols-3 gap-3">
                         <div className="space-y-2">
-                            <Label>Coordinate Units</Label>
+                            <Label>XY unit</Label>
                             <Tabs value={importData.xyUnit} onValueChange={v => setImportData({...importData, xyUnit: v})}>
                                 <TabsList className="grid grid-cols-2 w-full">
-                                    <TabsTrigger value="m">Meters</TabsTrigger>
-                                    <TabsTrigger value="ft">Feet</TabsTrigger>
+                                    <TabsTrigger value="m" data-testid="rcp-import-xy-m">m</TabsTrigger>
+                                    <TabsTrigger value="ft" data-testid="rcp-import-xy-ft">ft</TabsTrigger>
+                                </TabsList>
+                            </Tabs>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Depth unit</Label>
+                            <Tabs value={importData.depthUnit} onValueChange={v => setImportData({...importData, depthUnit: v})}>
+                                <TabsList className="grid grid-cols-2 w-full">
+                                    <TabsTrigger value="m" data-testid="rcp-import-z-m">m</TabsTrigger>
+                                    <TabsTrigger value="ft" data-testid="rcp-import-z-ft">ft</TabsTrigger>
                                 </TabsList>
                             </Tabs>
                         </div>
@@ -516,7 +480,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                         </div>
                     </div>
                     <p className="text-[11px] text-pl-muted -mt-1">
-                        Used to convert areas &amp; depths to physical volumes. XY&nbsp;=&nbsp;Z unit; contacts (OWC/GOC) must use the same convention.
+                        Used to convert areas and depths to physical volumes. A UTM grid in metres with depths in feet is common: set each unit on its own. Contacts are typed separately, as TVDSS elevations.
                     </p>
 
                     <div className="space-y-2">
@@ -530,6 +494,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                             Auto-detected from GeoJSON/gridded files when present. Recorded for provenance &amp; cross-app hand-off; leave blank for a local grid.
                         </p>
                     </div>
+                    </>)}
                 </div>
             );
         }
@@ -559,7 +524,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                         <Button
                             data-testid="rcp-import-confirm"
                             onClick={parseData}
-                            disabled={!importData.file || !importData.name || isParsing}
+                            disabled={(!importData.file && !ready) || !importData.name || isParsing}
                         >
                             {isParsing ? "Importing..." : "Import Surface"}
                         </Button>

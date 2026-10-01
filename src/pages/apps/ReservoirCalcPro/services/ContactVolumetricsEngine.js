@@ -296,8 +296,19 @@ export class ContactVolumetricsEngine {
         const sampleSpacing = Math.sqrt((width * height) / topSurface.points.length);
         const hullRadius = (options.hullFactor || 2.0) * sampleSpacing;
 
-        // XY→(acres|m²) and depth→(ft|m) conversions.
-        const xyToTargetLen = xyUnit === 'm' ? (isField ? FT_PER_M : 1) : (isField ? 1 : 1 / FT_PER_M);
+        // XY→(acres|m²) and depth→(ft|m) conversions. A surface that carries
+        // its metres per map unit (registry rows through readDepthSurface,
+        // RCP-U1-002: US survey feet, any CRS unit) uses it exactly; older
+        // surfaces know only 'm' or feet.
+        const xyToM = Number.isFinite(options.xyToM) ? options.xyToM
+            : (Number.isFinite(topSurface.xyToM) && topSurface.xyToM > 0 && !options.xyUnit ? topSurface.xyToM : null);
+        if (hasBaseSurface && Number.isFinite(baseSurface.xyToM) && Number.isFinite(topSurface.xyToM)
+            && Math.abs(baseSurface.xyToM - topSurface.xyToM) > 1e-9) {
+            return { error: 'The top and base surfaces are in different XY units. Import both in the same frame.' };
+        }
+        const xyToTargetLen = xyToM
+            ? (isField ? xyToM * FT_PER_M : xyToM)
+            : (xyUnit === 'm' ? (isField ? FT_PER_M : 1) : (isField ? 1 : 1 / FT_PER_M));
         const depthToTargetLen = depthUnit === 'm' ? (isField ? FT_PER_M : 1) : (isField ? 1 : 1 / FT_PER_M);
         const cellAreaTargetRaw = cellAreaXY * xyToTargetLen * xyToTargetLen; // ft² or m²
         const cellArea = isField ? cellAreaTargetRaw / SQFT_PER_ACRE : cellAreaTargetRaw; // acres or m²
