@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 1e5d394443631c54ef207ae0b8114764b3d42c42
+# commit 6dd39d75ebf8d40e71707f2377b91d7ad207e89c
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 b451f8875cb04da4b1b29c77a2a032b42a6aecb7 README.md
@@ -17,7 +17,7 @@ c074a5a41b74124809e04ac48348c196664873ff __tests__/assurance.moc.test.js
 c91937938e3031f16b175ed9dc3b69713a406be6 __tests__/assurance.peerReview.test.js
 08cf37a2403c072de69c04d5523c0d05489b97c5 __tests__/assurance.quality.test.js
 a8c2c7336a4a7636ecdf56915fde5530f3d8d8e4 __tests__/assurance.risk.test.js
-375827102427b3f26e86dd217659b6e80ae69f72 __tests__/basin.test.js
+64c78bc711e48200210995a0b4be3ffd1b38bf1f __tests__/basin.test.js
 17552372b2f1ad85fd1cd0b6b33ab0e0b50f95fe __tests__/conventions.percentile.test.js
 6bc26dff76f9760be2e86a63196db9e3fefb06e4 __tests__/crs.affine.test.js
 481a120e2fd78f97d1c7dc3d8741554a7c5a7df5 __tests__/crs.catalog.test.js
@@ -268,7 +268,7 @@ d6827f79206d20a21b0a1c0ecdfc3d2e9c315b3e engines/basin/HeatTransportEngine.js
 b9957871cd6f14a8a9826862da5be9d89eda6600 engines/basin/KerogenLibrary.js
 1009e3fe861b89187dbc240433c70ad46c61ed60 engines/basin/MaturityEngine.js
 42c370ca37b402ebe30a607e13ddb44686947038 engines/basin/PhysicsUtils.js
-7b07bdac85e1c0bb9e7feae6319843f0fe53587b engines/basin/SimulationEngine.js
+fd24aaac4f962c3d43153af7df5d2e12e94f6168 engines/basin/SimulationEngine.js
 517e371a65d09d7cd6a7f843c32a4d2e14246a4b engines/basin/ThermalPropertiesLibrary.js
 1ecc4966a918ae877e25b4835f6556f6e7812385 engines/basin/results.js
 7a80ae1b87054cb30df4ba3950d1d77a85f689da engines/dataai/cluster.js
@@ -610,8 +610,8 @@ af8a4a9c6befbcc94d5887e69c9b24ab23770131 test-data/assurance/goldens/managementO
 70e85bcf13ad9eebabd6982d9a48b6b52cd80c56 test-data/assurance/goldens/peerReview_cases.json
 b129488287f575558ccedfffd439f0350a5fe7ef test-data/assurance/goldens/qualityAssurance_cases.json
 79c826b89b8ba8a82c8dc8eaaf1226ebfecfd1b4 test-data/assurance/goldens/riskScoring_cases.json
-097c823aff784eec4d9cf9d826654403398e624b test-data/basin/README.md
-fea7984e626d8c7b4e7671d7ca2d1c60aca1547d test-data/basin/goldens.json
+57c8369f4e372a5128108b88752e467999b7d797 test-data/basin/README.md
+9336f9686a31aa25baa2def35ff3ce92758bb81b test-data/basin/goldens.json
 d48d79ef6eccb94be4afe8cc69d732abe9ce6f91 test-data/crs/README.md
 b8b641fd2a3bc4b12fed1d2b4ed091a9397e5a17 test-data/crs/generate_minna_goldens.py
 a68fddd7a0f4eaa38ce359a9a7a10240754229da test-data/crs/goldens/minna_epsg_goldens.json
@@ -911,8 +911,8 @@ cfea3ede7a3d20d9a13a381d7cfd8ba0dfb5a112 tools/validation/assurance/oracle_moc.p
 df5531c727a4851383abd13c5146543f5ff2ce98 tools/validation/assurance/oracle_peer_review.py
 dfcca3075c05f76421d563ebcaeed47c57afce17 tools/validation/assurance/oracle_quality.py
 28bcb512c210d567b4beffe060fee967de59154d tools/validation/assurance/oracle_risk.py
-bb7e40c744f43eee571d0eb764fa6a0b10ce8c61 tools/validation/basin/genfixtures.py
-63170e1025eeeb9cfdf030377a347d22dc8afa17 tools/validation/basin/oracle.py
+0c92923d5e5cfe8e46059db5df2eb08b07bc2705 tools/validation/basin/genfixtures.py
+e444852fa07a88eae74be5ab30fdeb990e8ec343 tools/validation/basin/oracle.py
 05c6861c0d46b538fbfd3c808068857f5e1d49cc tools/validation/dataai/FINDINGS-cluster.md
 a00e4fb8ac7c6587368ae861a016f9080f07b21a tools/validation/dataai/FINDINGS-evaluate.md
 8a134a2756480e2da8c014a22f55d968fc8ebc14 tools/validation/dataai/FINDINGS-forecast.md

@@ -7,6 +7,9 @@ import {
   defaultSpec, parseSpec, evaluate, fitFinal,
 } from '@/utils/dataAi/mlWorkflows';
 import { buildDesign } from '@/utils/dataAi/mlData';
+// the vendored engine pin (VENDOR.json): these labels move with every re-pin
+const VENDOR_PIN = require('../../../../packages/engines/VENDOR.json').canonical.commit;
+
 
 const NOISE = [0.3, -0.2, 0.1, -0.4, 0.25, -0.15, 0.05, 0.35, -0.3, 0.2];
 const table = (() => {
@@ -46,7 +49,7 @@ describe('regression CSV', () => {
     expect(rows.find((r) => r.name === 'data').value).toBe('wells, "quoted".csv');
     expect(rows.find((r) => r.name === 'model').value).toBe('ordinary least squares');
     expect(rows.find((r) => r.name === 'validation').value).toBe('group k-fold, k = 3, seed 11');
-    expect(rows.find((r) => r.name === 'engine').value).toMatch(/^petrolord-engines 1e5d394/);
+    expect(rows.find((r) => r.name === 'engine').value).toMatch(new RegExp(`^petrolord-engines ${VENDOR_PIN.slice(0, 7)}`));
   });
 
   it('writes fold, pooled and coefficient figures at full round-trip precision', () => {

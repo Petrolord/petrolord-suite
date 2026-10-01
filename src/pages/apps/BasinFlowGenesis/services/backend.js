@@ -9,6 +9,7 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { listWellsWithTops } from '@/lib/wellsRegistry';
 import { getDepthUnit } from '@/lib/crs/settingsService';
+import { listIntervals } from '@/lib/stratRegistry';
 
 const nowIso = () => new Date().toISOString();
 
@@ -40,8 +41,11 @@ export function makeRegistryBackend() {
       const { error } = await supabase.from('bf_wells').delete().eq('id', id);
       if (error) throw new Error(`Could not delete the well: ${error.message}`);
     },
-    // BF2: the shared registry's wells with their tops (the stratigraphy door)
+    // BF2: the shared registry's wells with their tops (the stratigraphy door);
+    // BF-U1-009: the dated tops (age_ma, hiatus_to_ma) and the lithology log
+    // build the layers exactly as Stratigraphy Studio's Send to Basin does
     listRegistryWells: listWellsWithTops,
+    listRegistryIntervals: (wellId) => listIntervals(wellId, 'lithology'),
     // BF3: the account's Geoscience depth unit (the Mapping setting)
     getDepthUnit,
   };
@@ -57,6 +61,27 @@ export const REGISTRY_WELLS_DEV = [{
     { id: 't4', name: 'Top Base Sand', md_m: 3200 },
   ],
 }];
+
+/** BF-U1-009: a dated, deviated harness well with a lithology log (KETA-2), the
+ *  Send to Basin case: the registry door builds TVD layers with their ages. */
+REGISTRY_WELLS_DEV.push({
+  id: 'reg-well-2', name: 'KETA-2', td_md_m: 3000, kb_m: 30, user_id: 'user-dev', organization_id: null, is_own: true,
+  deviation: [{ md: 0, inc: 0, azi: 0 }, { md: 1000, inc: 0, azi: 0 }, { md: 3000, inc: 40, azi: 90 }],
+  tops: [
+    { id: 'k2-t1', name: 'Top Miocene', md_m: 0, age_ma: 0, surface_type: 'sequence_boundary' },
+    { id: 'k2-t2', name: 'Top Oligocene Shale', md_m: 800, age_ma: 23.03, surface_type: 'unconformity', hiatus_to_ma: 28.1 },
+    { id: 'k2-t3', name: 'Top Eocene Sand', md_m: 1600, age_ma: 33.9, surface_type: 'sequence_boundary' },
+    { id: 'k2-t4', name: 'Top Paleocene Source', md_m: 2400, age_ma: 56.0, surface_type: 'maximum_flooding_surface' },
+    { id: 'k2-t5', name: 'Top Cretaceous', md_m: 2800, age_ma: 66.0, surface_type: 'sequence_boundary' },
+  ],
+});
+export const REGISTRY_INTERVALS_DEV = {
+  'reg-well-2': [
+    { kind: 'lithology', code: 'shale', top_md_m: 800, base_md_m: 1600 },
+    { kind: 'lithology', code: 'sandstone', top_md_m: 1600, base_md_m: 2400 },
+    { kind: 'lithology', code: 'shale', top_md_m: 2400, base_md_m: 2800 },
+  ],
+};
 
 // ---- in-memory (harness, jest) -------------------------------------------------
 /** The oracle's reference basin (test-data/basinflow/goldens.json
@@ -127,6 +152,7 @@ export function makeInMemoryBackend({ persist = true } = {}) {
     },
     async deleteWell(id) { rows = rows.filter((r) => r.id !== id); save(); },
     async listRegistryWells() { return REGISTRY_WELLS_DEV.map((w) => ({ ...w, tops: w.tops.map((t) => ({ ...t })) })); },
+    async listRegistryIntervals(wellId) { return (REGISTRY_INTERVALS_DEV[wellId] || []).map((r) => ({ ...r })); },
     // the fixture is SI so the oracle-anchored e2e reads metres by default
     async getDepthUnit() { return 'm'; },
     /** test seam: the stored rows */

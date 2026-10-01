@@ -37,6 +37,9 @@ import {
 } from '@/utils/dataAi/faciesWriteBack';
 import { buildFaciesCsv, CSV_COLUMNS } from '@/utils/dataAi/faciesReport';
 import { createFaciesWorker } from '@/utils/dataAi/faciesWorkerFactory';
+// the vendored engine pin (VENDOR.json): these labels move with every re-pin
+const VENDOR_PIN = require('../../../../packages/engines/VENDOR.json').canonical.commit;
+
 
 beforeEach(() => { mockCalls.length = 0; mockResult = { data: [], error: null }; });
 
@@ -183,7 +186,7 @@ describe('the saved run payload', () => {
     expect(payload.snapshot.facies).toEqual(table.facies);
     const s = payload.summary;
     expect(s.fingerprint).toBe(fingerprint(design));
-    expect(s.engine).toMatch(/^petrolord-engines 1e5d394/);
+    expect(s.engine).toMatch(new RegExp(`^petrolord-engines ${VENDOR_PIN.slice(0, 7)}`));
     expect(s.pca.explainedVarianceRatio).toEqual(results.pca.result.explainedVarianceRatio);
     const km = results.kmeans.result;
     expect(s.methods.kmeans).toMatchObject({

@@ -126,9 +126,9 @@ export default function BasinFlowHelpGuide() {
       <GuideSection id="import">
         <SectionHeading icon={Upload}>Import and the registry</SectionHeading>
         <Table headers={['Import', 'File', 'What it does']} rows={[
-          ['Calibration data', 'Delimited text with depth and Ro and/or temperature columns', 'Previews the points and every row it could not read; replaces or adds to the points.'],
+          ['Calibration data', 'Delimited text with depth (TVD preferred to MD) and Ro and/or temperature columns', 'Reads units stated in the header (Depth (ft), BHT (degF)) and converts them, says which column and unit it read, previews the points and every row it could not read; replaces or adds to the points.'],
           ['Formation tops', 'Delimited text with name and depth', 'Previews the layers it would make (thickness from the gaps, optional total depth, a lithology guess) and replaces the stratigraphy; ages are placeholders to type.'],
-          ['Registry well', 'A well in the shared registry with tops', 'The same from Well Data Manager tops, and the well becomes this model\'s tie for the launchers.'],
+          ['Registry well', 'A well in the shared registry with tops', 'The same build as Send to Basin in Stratigraphy Studio: vertical (TVD) thicknesses through the survey, ages from dated tops, lithology from the log, each hiatus as an erosion event whose amount you type. The well becomes this model\'s tie for the launchers.'],
         ]} />
         <Callout tone="info" title="File units">
           Files are read in the display depth unit shown on the import tab; switch it if a file is in the other unit.
@@ -139,7 +139,8 @@ export default function BasinFlowHelpGuide() {
       <GuideSection id="results">
         <SectionHeading icon={BarChart2}>Reading the results</SectionHeading>
         <Table headers={['View', 'Shows']} rows={[
-          ['Summary', 'Present-day top, base, temperature and Ro per layer; the source layers that passed 10% transformation.'],
+          ['Notes above the results', 'Say when the inputs changed after the run or the result belongs to another model, erosion events with no amount (not modelled), placeholder ages, ages entered under an older chart, layers sharing a deposition interval or a name, and layer properties left by an earlier release.'],
+          ['Summary', 'Present-day top, base, temperature and Ro per layer at 0 Ma; the source layers that passed 10% transformation.'],
           ['Burial', 'Every layer\'s top and base through time, decompacted, with erosion as a bulge before the event. Time runs from the oldest age on the left to the present on the right on every plot. Overlay the %Ro isolines at the window boundaries or the 60, 100 and 150 °C isotherms.'],
           ['Temperature', 'Layer temperature through time.'],
           ['Maturity', 'Easy%Ro through time with the windows labelled: oil 0.55 to 1.3 %Ro, wet gas 1.3 to 2.0, dry gas above 2.0 (Tissot and Welte).'],
@@ -198,6 +199,8 @@ export default function BasinFlowHelpGuide() {
           ['Easy%Ro', 'The Sweeney and Burnham vitrinite reflectance kinetics used for maturity.'],
           ['Transformation ratio', 'The fraction of a source rock\'s generative potential already converted to hydrocarbons.'],
           ['HI', 'Hydrogen index, mg of hydrocarbon per g of organic carbon: the generative potential of the kerogen.'],
+          ['Layer details', 'Source rock and properties on a layer card: the source flag with TOC (wt %), HI and kerogen type, and the matrix conductivity, radiogenic heat, heat capacity, surface porosity and compaction coefficient (per km) the engine uses, with a button back to the lithology library values.'],
+          ['Report', 'Export, PDF: model, tied well, field, analyst, date, build, units, engine, heat flow, erosion, calibration misfit, the result status and notes, the stratigraphy and the present-day table.'],
           ['Phantom section', 'The eroded thickness the engine adds and removes to model an erosion event.'],
           ['Ma', 'Millions of years before present.'],
         ]} />

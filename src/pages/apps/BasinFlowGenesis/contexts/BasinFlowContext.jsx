@@ -7,10 +7,14 @@ import { useMultiWell } from './MultiWellContext';
 import { useToast } from '@/components/ui/use-toast';
 import { UNITS_KEY, DEPTH_UNITS, TEMP_UNITS, readUnits } from '../services/units';
 import { useAppUnits } from '@/lib/units/useAppUnits';
+import { engineInputsKey } from '../services/honesty';
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 
 const BasinFlowContext = createContext(null);
+
+/** BF-U1-012: a result remembers the inputs and the model it was run on. */
+export const stampRun = (results, inputs, wellId = null) => (results ? { ...results, runOf: { key: engineInputsKey(inputs), wellId, at: new Date().toISOString() } } : results);
 
 // Helper to safely create a layer with all required properties
 const createSafeLayer = (overrides = {}) => ({
@@ -75,7 +79,7 @@ function reducer(state, action) {
       return { ...state, mode: action.payload };
     case 'LOAD_PROJECT':
       // When loading project data, sanitize layers
-      const sanitizedStratigraphy = (action.payload.stratigraphy || []).map(layer => {
+      const sanitizedStratigraphy = (action.payload.stratigraphy || state.stratigraphy || []).map(layer => {
           // Ensure sourceRock object exists
           if (!layer.sourceRock) {
               return { ...layer, sourceRock: { isSource: false, toc: 0, hi: 0, kerogen: 'type2' } };
@@ -83,10 +87,20 @@ function reducer(state, action) {
           return layer;
       });
       
+      // BF-U1-002/003: a model load (it carries stratigraphy) drops the
+      // previous model's result and takes its own scenarios when given, so
+      // well B never shows well A's result and the auto-save never writes
+      // A's scenarios into B
+      const isModel = Array.isArray(action.payload.stratigraphy);
       return {
           ...state,
           ...action.payload,
-          stratigraphy: sanitizedStratigraphy,
+          ...(isModel ? {
+              results: action.payload.results ?? null,
+              scenarios: Array.isArray(action.payload.scenarios) ? action.payload.scenarios : state.scenarios,
+              activeScenarioId: null,
+          } : {}),
+          stratigraphy: isModel ? sanitizedStratigraphy : state.stratigraphy,
           // BF0: a well without these keeps the defaults (they used to
           // leak from the previous well)
           erosionEvents: Array.isArray(action.payload.erosionEvents) ? action.payload.erosionEvents : (action.payload.stratigraphy ? [] : state.erosionEvents),
@@ -137,6 +151,9 @@ function reducer(state, action) {
             timestamp: new Date(),
             stratigraphy: JSON.parse(JSON.stringify(state.stratigraphy)),
             heatFlow: JSON.parse(JSON.stringify(state.heatFlow)),
+            // BF-U1-022: the erosion and the surface temperature are inputs too
+            erosionEvents: JSON.parse(JSON.stringify(state.erosionEvents || [])),
+            settings: JSON.parse(JSON.stringify(state.settings || {})),
             results: state.results,
             parameters: { description: action.payload.description || '' }
         };
@@ -151,6 +168,9 @@ function reducer(state, action) {
             activeScenarioId: action.id,
             stratigraphy: targetScenario.stratigraphy,
             heatFlow: targetScenario.heatFlow,
+            // scenarios saved before U1 carry no erosion or settings: keep the current ones
+            ...(Array.isArray(targetScenario.erosionEvents) ? { erosionEvents: targetScenario.erosionEvents } : {}),
+            ...(targetScenario.settings ? { settings: { ...state.settings, ...targetScenario.settings } } : {}),
             results: targetScenario.results
         };
     case 'SET_CALIBRATION_DATA':
@@ -186,6 +206,8 @@ export const BasinFlowProvider = ({ children, appPaths = {} }) => {
   
   // Auto-save Debounce Ref
   const saveTimeoutRef = useRef(null);
+  const savedWellRef = useRef(null);
+  const savedKeyRef = useRef(null);
   const isFirstRender = useRef(true);
 
   // Helper to calculate total thickness/age just for quick reference
@@ -208,7 +230,13 @@ export const BasinFlowProvider = ({ children, appPaths = {} }) => {
           if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
           
           saveTimeoutRef.current = setTimeout(() => {
-              // Perform save
+              // BF-U1-002: opening a model is not an edit; its status (say
+              // Calibrated) is kept until an input really changes
+              const key = engineInputsKey(state);
+              const opened = savedWellRef.current !== mwState.activeWellId;
+              const edited = !opened && savedKeyRef.current !== key;
+              savedWellRef.current = mwState.activeWellId;
+              savedKeyRef.current = key;
               const updates = {
                   stratigraphy: state.stratigraphy,
                   heatFlow: state.heatFlow,
@@ -216,8 +244,7 @@ export const BasinFlowProvider = ({ children, appPaths = {} }) => {
                   settings: state.settings,
                   calibration: state.calibration,
                   scenarios: state.scenarios,
-                  // Auto-update status to in-progress if we are editing properties
-                  status: 'in-progress' 
+                  ...(edited ? { status: 'in-progress' } : {}),
               };
               
               updateWell(mwState.activeWellId, updates);
@@ -229,7 +256,11 @@ export const BasinFlowProvider = ({ children, appPaths = {} }) => {
   }, [state.stratigraphy, state.heatFlow, state.erosionEvents, state.settings, state.calibration, state.scenarios, mwState.activeWellId, updateWell]);
 
 
-  const runSimulation = async () => {
+  // BF-U1-007: a caller that has just dispatched new inputs passes them, since
+  // this closure still holds the previous render's state (the guided run
+  // computed the PREVIOUS model and showed it under the guided inputs)
+  const runSimulation = async (override = null) => {
+      const inputs = override ? { ...state, ...override } : state;
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_PROGRESS', payload: 0 });
       
@@ -239,9 +270,9 @@ export const BasinFlowProvider = ({ children, appPaths = {} }) => {
           }
 
           // Use the SimulationEngine
-          const results = await SimulationEngine.run(state, (progress) => {
+          const results = stampRun(await SimulationEngine.run(inputs, (progress) => {
               dispatch({ type: 'SET_PROGRESS', payload: progress });
-          });
+          }), inputs, override?.wellId ?? mwState.activeWellId);
           
           dispatch({ type: 'SET_RESULTS', payload: results });
           

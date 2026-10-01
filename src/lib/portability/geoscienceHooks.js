@@ -107,9 +107,19 @@ async function rowsOfModels(col, collectRow) {
   }
 }
 
+/** BF-U1-021: a basin model travels with the registry well it is tied to. */
+async function wellsOfBasinModels(col, collectRow) {
+  if (!col.tables.bf_wells?.size) return;
+  for (const row of Array.from(col.tables.bf_wells.values())) {
+    const id = row.settings?.registryWellId;
+    if (typeof id === 'string' && id) await collectRow('geo_wells', id, { reason: `tied to basin model "${row.name || row.id}"` });
+  }
+}
+
 async function afterRoots(source, col, { includeInterpretations, collectRow }) {
   await wellsOfStateRoots(col, collectRow);
   await rowsOfModels(col, collectRow);
+  await wellsOfBasinModels(col, collectRow);
   await zoneSchemesOfProjects(source, col);
   if (includeInterpretations) await interpretationsForWells(source, col);
   await unitsOfTops(col, collectRow);

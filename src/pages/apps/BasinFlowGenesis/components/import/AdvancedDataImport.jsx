@@ -23,7 +23,9 @@ import { useToast } from '@/components/ui/use-toast';
 import { useBasinFlow } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowContext';
 import { useMultiWell } from '@/pages/apps/BasinFlowGenesis/contexts/MultiWellContext';
 import { parseCalibrationText, parseTopsText, layersFromTops } from '../../services/calibrationImport';
-import { depthFromDisplay, fmtDepth, DEPTH_UNITS } from '../../services/units';
+import { buildBasinModelRow } from '@/lib/basinHandoff';
+import { depthFromDisplay, tempFromDisplay, fmtDepth, DEPTH_UNITS } from '../../services/units';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const ACCEPT = { 'text/csv': ['.csv'], 'text/plain': ['.txt', '.dat', '.prn', '.asc'], 'text/tab-separated-values': ['.tsv'] };
 
@@ -80,9 +82,14 @@ const AdvancedDataImport = () => {
     return () => { live = false; };
   }, [backend]);
 
+  // BF-U1-010: a unit the header states wins over the picker and is said;
+  // temperatures in F are converted to C (they were read as C)
   const readCalibration = (text, name) => {
     const r = parseCalibrationText(text);
-    setCal({ name, ...r, ro: r.ro.map((p) => ({ ...p, depth: toM(p.depth) })), temp: r.temp.map((p) => ({ ...p, depth: toM(p.depth) })) });
+    const zU = r.units?.depth || fileUnit; const tU = r.units?.temp || 'C';
+    const z = (v) => depthFromDisplay(v, zU); const t = (v) => tempFromDisplay(v, tU);
+    const read = `Read: depth from "${r.columns?.depth ?? EMPTY_VALUE}" in ${zU}${r.units?.depth ? ' (stated in the header)' : ' (the unit picked below)'}${r.columns?.ro ? `, Ro from "${r.columns.ro}" in %` : ''}${r.columns?.temp ? `, temperature from "${r.columns.temp}" in ${tU === 'F' ? 'F, converted to C' : 'C'}${r.units?.temp ? ' (stated in the header)' : ' (no unit in the header, C assumed)'}` : ''}.`;
+    setCal({ name, ...r, read, ro: r.ro.map((p) => ({ ...p, depth: z(p.depth) })), temp: r.temp.map((p) => ({ ...p, depth: z(p.depth), value: t(p.value) })) });
   };
   const readTops = (text, name) => {
     const r = parseTopsText(text);
@@ -122,29 +129,43 @@ const AdvancedDataImport = () => {
   };
 
   const registryWell = (registryWells || []).find((w) => w.id === registryId) || null;
-  const registryLayers = useMemo(() => {
-    if (!registryWell?.tops?.length) return [];
-    const td = Number(registryWell.td_md_m);
-    return layersFromTops(registryWell.tops.map((t) => ({ name: t.name, depth: t.md_m })), { baseDepth: Number.isFinite(td) && td > 0 ? td : null, idFor: (i) => `reg-${registryWell.id}-${i}` });
-  }, [registryWell]);
+  // BF-U1-009: the same build as Stratigraphy Studio's Send to Basin: vertical
+  // (TVD) thicknesses through the survey, ages from the dated surfaces,
+  // lithology from the log, hiatuses as erosion events. This door used MD
+  // differences and placeholder ages whatever the well carried.
+  const [registryIntervals, setRegistryIntervals] = useState([]);
+  useEffect(() => {
+    let live = true;
+    setRegistryIntervals([]);
+    if (!registryWell || !backend?.listRegistryIntervals) return undefined;
+    backend.listRegistryIntervals(registryWell.id).then((r) => { if (live) setRegistryIntervals(r || []); }).catch(() => { if (live) setRegistryIntervals([]); });
+    return () => { live = false; };
+  }, [registryWell, backend]);
+  const registryBuild = useMemo(() => {
+    if (!registryWell?.tops?.length) return null;
+    return buildBasinModelRow({ well: registryWell, tops: registryWell.tops, intervals: registryIntervals, userId: null });
+  }, [registryWell, registryIntervals]);
+  const registryLayers = registryBuild?.row.stratigraphy || [];
 
   const applyRegistry = () => {
     if (!registryLayers.length) return;
+    const b = registryBuild;
     dispatch({ type: 'REORDER_LAYERS', payload: registryLayers });
-    dispatch({ type: 'UPDATE_SETTINGS', payload: { registryWellId: registryWell.id, registryWellName: registryWell.name } });
-    toast({ title: 'Stratigraphy from the registry', description: `${registryLayers.length} layers from the tops of ${registryWell.name}. The ages are placeholders: type them in Properties.` });
+    dispatch({ type: 'SET_EROSION_EVENTS', payload: b.row.erosion_events });
+    dispatch({ type: 'UPDATE_SETTINGS', payload: { registryWellId: registryWell.id, registryWellName: registryWell.name, registryKbM: b.row.settings.registryKbM, timescale: b.row.settings.timescale } });
+    toast({ title: 'Stratigraphy from the registry', description: `${b.layerCount} layers from ${registryWell.name}: ${b.datedCount} dated, ${b.erosionCount} erosion event${b.erosionCount === 1 ? '' : 's'}. ${b.problems.join(' ')}` });
   };
 
   const LayerPreview = ({ layers, testid }) => (
     <table className="w-full text-xs text-pl-text" data-testid={testid}>
-      <thead><tr className="text-pl-muted text-left"><th className="font-normal">Layer</th><th className="font-normal text-right">Thickness ({units.depth})</th><th className="font-normal">Lithology guess</th><th className="font-normal text-right">Ages (placeholder)</th></tr></thead>
+      <thead><tr className="text-pl-muted text-left"><th className="font-normal">Layer</th><th className="font-normal text-right">Thickness ({units.depth})</th><th className="font-normal">Lithology</th><th className="font-normal text-right">Ages (Ma)</th></tr></thead>
       <tbody>
         {layers.map((l) => (
-          <tr key={l.id} className="border-t border-pl-border">
+          <tr key={l.id} className="border-t border-pl-border" data-testid={`${testid}-row`}>
             <td className="py-0.5">{l.name}</td>
             <td className="py-0.5 text-right font-mono">{fmtDepth(l.thickness, units.depth)}</td>
-            <td className="py-0.5 capitalize">{l.lithology}</td>
-            <td className="py-0.5 text-right font-mono">{l.ageStart} to {l.ageEnd} Ma</td>
+            <td className="py-0.5 capitalize">{l.lithology}{l.provenance?.lithology_guessed === false ? ' (log)' : ' (guess)'}</td>
+            <td className="py-0.5 text-right font-mono">{l.ageStart} to {l.ageEnd}{l.agesGuessed ? ' (placeholder)' : ''}</td>
           </tr>
         ))}
       </tbody>
@@ -177,6 +198,7 @@ const AdvancedDataImport = () => {
                   <Button variant="ghost" size="icon" className="ml-auto h-6 w-6 text-pl-muted" data-testid="bf-import-clear-calibration" onClick={() => setCal(null)}><X className="w-4 h-4" /></Button>
                 </div>
                 <div className="text-xs text-pl-text" data-testid="bf-import-preview-calibration">{cal.ro.length} Ro points, {cal.temp.length} temperature points read.</div>
+                {cal.read && <div className="text-[11px] text-pl-muted" data-testid="bf-import-read-units">{cal.read}</div>}
                 <Problems items={cal.problems} kind="calibration" />
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" size="sm" data-testid="bf-import-apply-calibration-append" disabled={!cal.ro.length && !cal.temp.length} onClick={() => applyCalibration('append')}>Add to the points</Button>
@@ -229,6 +251,7 @@ const AdvancedDataImport = () => {
               </select>
               {registryWell && registryLayers.length === 0 && <p className="text-xs text-pl-warning-text">This well has no tops yet.</p>}
               {registryLayers.length > 0 && <LayerPreview layers={registryLayers} testid="bf-registry-preview" />}
+              {registryBuild && <p className="text-[11px] text-pl-muted" data-testid="bf-registry-notes">{registryBuild.problems.join(' ')}{registryBuild.erosionCount ? ` ${registryBuild.erosionCount} erosion event${registryBuild.erosionCount === 1 ? '' : 's'} with the amount to type.` : ''}</p>}
               <div className="flex justify-end">
                 <Button size="sm" data-testid="bf-registry-apply" disabled={!registryLayers.length} onClick={applyRegistry}>Replace the stratigraphy</Button>
               </div>
