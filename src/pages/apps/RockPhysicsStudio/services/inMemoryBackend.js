@@ -16,6 +16,11 @@
 // A second, org-shared well has NO DTS so the estimated-Vs provenance
 // badge path is drivable.
 
+import { brine, gas, woodMix } from '../engine/fluids';
+import { MINERALS } from '../engine/minerals';
+import { substituteVels } from '../engine/gassmann';
+import { gardnerRho } from '../engine/pseudoSonic';
+
 let seq = 0;
 const nextId = (p) => { seq += 1; return `${p}-${seq}`; };
 
@@ -98,7 +103,45 @@ function longCurves() {
   return { curves: c, n, step };
 }
 
-export function makeInMemoryBackend({ hostile = false, long = false } = {}) {
+// RP-U2-002 evidence well (?trend=1): 400 m of 6 m sand and shale beds on a
+// brine trend (mudrock-line shear with a deterministic scatter, Gardner
+// density), measured shear, and one gas bed (2000 to 2012 m, Sw 0.2) whose
+// logged Vp, Vs and density are the Gassmann gas state of its wet rock at
+// the default conditions, with an SW log. Taking the gas out through the
+// SW log returns the wet trend, so the fluid line has a known answer.
+export const TREND_GAS = Object.freeze({ top: 2000, base: 2012, sw: 0.2, phi: 0.24 });
+function trendCurves() {
+  const cond = { tC: 60, pMPa: 25, salinity: 0.035 };
+  const br = brine(cond.tC, cond.pMPa, cond.salinity);
+  const g = gas(cond.tC, cond.pMPa, 0.6);
+  const mixed = woodMix([{ ...br, sat: TREND_GAS.sw }, { ...g, sat: 1 - TREND_GAS.sw }]);
+  const kmin = MINERALS.quartz.k;
+  const c = { DEPT: [], DT: [], DTS: [], RHOB: [], PHIE: [], VSH: [], SW: [] };
+  const wet = { vp: [], vs: [], rho: [] };
+  for (let d = 1800; d <= 2200 + 1e-9; d += 0.5) {
+    const bed = Math.floor((d - 1800) / 6);
+    const sand = bed % 2 === 0;
+    const vp = 2650 + 55 * ((bed * 7) % 11) + 3 * bed + (sand ? 180 : 0);
+    const vs = 0.8621 * vp - 1172.4 + 6 * (((bed * 5) % 7) - 3);
+    const rho = gardnerRho(vp);
+    const inGas = d >= TREND_GAS.top && d <= TREND_GAS.base;
+    let s = { vp, vs, rho };
+    if (inGas) s = substituteVels(vp, vs, rho, kmin, TREND_GAS.phi, br, mixed);
+    wet.vp.push(vp); wet.vs.push(vs); wet.rho.push(rho);
+    c.DEPT.push(d);
+    c.DT.push(1e6 / s.vp);
+    c.DTS.push(1e6 / s.vs);
+    c.RHOB.push(s.rho / 1000);
+    c.PHIE.push(inGas ? TREND_GAS.phi : sand ? 0.24 : 0.08);
+    c.VSH.push(inGas ? 0.05 : sand ? 0.1 : 0.8);
+    c.SW.push(inGas ? TREND_GAS.sw : 1);
+  }
+  return { curves: c, wet };
+}
+/** The wet (brine) truth of the trend well, for tests. */
+export const trendWellTruth = () => trendCurves().wet;
+
+export function makeInMemoryBackend({ hostile = false, long = false, trend = false } = {}) {
   const curveStore = new Map();
   const logsByWell = new Map();
   const topsByWell = new Map();
@@ -121,6 +164,9 @@ export function makeInMemoryBackend({ hostile = false, long = false } = {}) {
       units_note: 'SI',
       deviation: [],
       checkshots: [],
+      // U2-003: the tie QC record Seismolord stores when a tie is committed
+      // (Seismolord U2-013, lib/wellWavelet.tieQcRecord), on the first well only
+      ...(withDts ? { checkshots_derived: { provenance: { qc: { version: 1, mean_corr: 0.82, min_corr: 0.61, bulk_shift_ms: 4, phase_deg: 40, anchors: 2, wavelet: { kind: 'well', length_ms: 120, peak_hz: 28, phase_deg: 40 }, measured_at: '2026-10-01T09:00:00.000Z' } } } } : {}),
       created_at: new Date(2026, 6, 14).toISOString(),
       updated_at: new Date(2026, 6, 14).toISOString(),
       is_own: isOwn,
@@ -197,6 +243,11 @@ export function makeInMemoryBackend({ hostile = false, long = false } = {}) {
     const { curves, step } = longCurves();
     addRawWell('LONG RP-3 (5000 m)', curves, { DEPT: 'M', DT: 'US/M', RHOB: 'G/C3', PHIE: 'V/V', VSH: 'V/V' },
       [{ name: 'LONG ZONE', top: 900, base: 4900 }], { start: 500, stop: 500 + (curves.DEPT.length - 1) * step, step });
+  }
+
+  if (trend) {
+    addRawWell('TREND RP-5 (wet trend, gas bed)', trendCurves().curves, { DEPT: 'M', DT: 'US/M', DTS: 'US/M', RHOB: 'G/C3', PHIE: 'V/V', VSH: 'V/V', SW: 'V/V' },
+      [{ name: 'GAS BED', top: TREND_GAS.top, base: TREND_GAS.base }], { start: 1800, stop: 2200, step: 0.5 });
   }
 
   // project persistence survives page reloads via sessionStorage so

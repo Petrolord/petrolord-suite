@@ -9,9 +9,10 @@
 // Publish writes the substituted case to the well as logs.
 
 import React, { useMemo, useState } from 'react';
-import { Upload, Loader2, Download } from 'lucide-react';
+import { Upload, Loader2, Download, FileText } from 'lucide-react';
 import { downloadText } from '@/lib/fullPrecision';
 import { substitutionCsv, substitutionCsvName } from '../services/substitutionCsv';
+import { substitutionPdf, substitutionPdfName } from '../services/report';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label,
 } from 'recharts';
@@ -19,9 +20,12 @@ import ChartLogo from '@/components/charts/ChartLogo';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
 } from '@/utils/chartTheme';
-import { sideFluid, substituteZone } from '../services/scenario';
-import { elasticMeans, impedanceDisplay } from '../services/elastic';
-import { zoneIndices, meanAt } from '../services/prep';
+import { sideFluid } from '../services/scenario';
+import { computeZoneResult } from '../services/zoneResult';
+import { shearSourceText } from '../services/iterativeVs';
+import { minMaxDecimate } from '../services/decimate';
+import { impedanceDisplay } from '../services/elastic';
+import { meanAt } from '../services/prep';
 import {
   DEFAULT_UNITS, velocityToDisplay, velocityDigits, velocityLabel, densityLabel, depthLabel, depthToDisplay,
   fmtVelocity, fmtDensity, tidyDepth,
@@ -66,6 +70,7 @@ export default function FluidsPanel({
     return next;
   });
   const [exported, setExported] = useState('');
+  const [pdfBusy, setPdfBusy] = useState(false);
   // RP-U1-013: the workstation owns the zone when it passes one (Save keeps it)
   const [zoneIdLocal, setZoneIdLocal] = useState('');
   const zoneId = zoneIdProp !== undefined ? zoneIdProp : zoneIdLocal;
@@ -84,34 +89,19 @@ export default function FluidsPanel({
 
   const result = useMemo(() => {
     if (!model || !zone || !fluids.a || !fluids.b) return null;
-    const indices = zoneIndices(model.depth, zone.top_md_m, zone.base_md_m);
-    if (!indices.length) return { error: 'The zone has no samples in this well.' };
-    let sub;
-    try { sub = substituteZone(model, indices, scenario, rock); } catch (e) { return { error: e.message }; }
-    // RP-U1-006/007: "after" is the case that publishes: substituted where
-    // the sample was substituted, in situ where it was left (outside the
-    // limits) or skipped; both sides average the same zone samples
-    const merged = (key) => model[key].map((v, i) => (Number.isFinite(sub[key][i]) ? sub[key][i] : v));
-    const side = (vp, vs, rho) => ({
-      vp: meanAt(vp, indices), vs: meanAt(vs, indices), rho: meanAt(rho, indices), ...elasticMeans(vp, vs, rho, indices),
-    });
-    return {
-      indices,
-      sub,
-      kmin: sub.kmin,
-      before: side(model.vp, model.vs, model.rho),
-      after: side(merged('vp'), merged('vs'), merged('rho')),
-    };
+    return computeZoneResult(model, zone, scenario, rock);
   }, [model, zone, fluids, rock, scenario]);
 
   // chart samples in the display units (slowness inverts the axis sense)
   const chartData = useMemo(() => {
     if (!result?.indices) return [];
     const v = (x) => { const d = velocityToDisplay(x, vU); return Number.isFinite(d) ? d : null; };
-    // RP-U1-018 (PL10): a long zone draws at most CHART_MAX_POINTS rows (every
-    // k-th sample, said under the chart); tables and publish use every sample
-    const step = Math.max(1, Math.ceil(result.indices.length / CHART_MAX_POINTS));
-    return result.indices.filter((_, k) => k % step === 0).map((i) => ({
+    // U2-014 (PL10): a long zone draws at most CHART_MAX_POINTS rows: the
+    // minimum and maximum in-situ Vp of each bucket, so no streak or spike
+    // is stepped over (U1 drew every k-th sample); tables, exports and
+    // publish use every sample
+    const dec = minMaxDecimate(result.indices, model.vp, CHART_MAX_POINTS);
+    return dec.indices.map((i) => ({
       depth: depthToDisplay(model.depth[i], zU),
       vpA: v(model.vp[i]),
       vpB: v(result.sub.vp[i]),
@@ -207,6 +197,31 @@ export default function FluidsPanel({
               >
                 <Download className="w-3.5 h-3.5" /> CSV
               </button>
+              <button
+                type="button"
+                data-testid="rp-export-pdf"
+                disabled={pdfBusy}
+                title="Download the report as a PDF: the reviewer header, the interval means before and after, the AVO of the zone top in situ and substituted, and plots of velocity against depth, impedance against Vp/Vs and reflectivity against angle"
+                className="flex items-center gap-1 px-2 py-0.5 text-xs rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken disabled:opacity-40"
+                onClick={async () => {
+                  setPdfBusy(true);
+                  try {
+                    const { jsPDF } = await import('jspdf');
+                    const { loadPetrolordLogo } = await import('@/lib/pdfBrand');
+                    const logo = await loadPetrolordLogo().catch(() => null);
+                    const doc = substitutionPdf(jsPDF, { well, zone, model, result, scenario, rock, units, reviewer }, { logo });
+                    const name = substitutionPdfName(well, zone);
+                    doc.save(name);
+                    setExported(`Saved ${name}.`);
+                  } catch (e) {
+                    setExported(`The PDF could not be made: ${e.message}`);
+                  } finally {
+                    setPdfBusy(false);
+                  }
+                }}
+              >
+                {pdfBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />} PDF
+              </button>
               {onPublish && (
                 <button
                   type="button"
@@ -226,6 +241,7 @@ export default function FluidsPanel({
               Porosity: {model.phiCurve ? `${model.phiCurve} (${model.phiBasis === 'total' ? 'total' : 'effective'} porosity)` : `constant ${rock.phiConst} (no PHIE or PHIT curve)`}
               {' · '}fluid A Sw: {result.sub.swFromLog ? `from the SW log${result.sub.swFallback ? ` (${result.sub.swFallback} null samples used ${scenario.fluidA.sw})` : ''}` : `${scenario.fluidA.sw} as typed${scenario.fluidA.swFromLog && !model.sw ? ' (no SW curve on this well)' : ''}`}
               {' · '}limits: VSH up to {rock.vshMax ?? 1}, porosity from {rock.phiMin ?? 0}
+              {model.vsSource === 'estimated' ? ` · ${shearSourceText(model)}` : ''}
             </p>
             {model.phiBasis === 'effective' && result.sub.kminSource === 'table' && !(rock.minerals?.clay > 0)
               && Number.isFinite(meanAt(model.vsh || [], result.indices)) && meanAt(model.vsh, result.indices) > 0.1 && (
@@ -325,7 +341,7 @@ export default function FluidsPanel({
             <ChartLogo />
             {result.indices.length > CHART_MAX_POINTS && (
               <div className="absolute bottom-1 right-3 text-[10px] text-slate-500" data-testid="rp-chart-decimated">
-                every {Math.ceil(result.indices.length / CHART_MAX_POINTS)}th of {result.indices.length} samples drawn
+                {chartData.length} of {result.indices.length} samples drawn: the minimum and maximum Vp of each of {Math.floor(CHART_MAX_POINTS / 2)} depth buckets
               </div>
             )}
           </div>

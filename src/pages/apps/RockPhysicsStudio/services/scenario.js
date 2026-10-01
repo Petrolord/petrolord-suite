@@ -31,6 +31,10 @@ export const DEFAULT_ROCK = {
   // samples above vshMax or below phiMin keep their in-situ values, counted
   vshMax: 0.5,
   phiMin: 0.03,
+  // U2-005: with no shear log, Vs in hydrocarbon-bearing samples is found
+  // by iteration through the brine state (Greenberg-Castagna holds for
+  // brine rock); off = the regression applied straight to the in-situ Vp
+  iterativeVs: true,
 };
 
 /** Hydrocarbon phase {rho, k, vp?} from the hc spec at conditions. */
@@ -122,13 +126,14 @@ export function kminAtVsh(rock, vsh) {
 export const plainMessage = (m) => String(m || '').replace(/\s*—\s*/g, ': ');
 
 /**
- * The zone substitution the Fluids panel, the AVO replacement and the
- * publish all use (RP-U1-004/005/006). Per sample: fluid A from the SW log
- * when asked, K_min from VSH when asked, and the validity cutoffs. Returns
- * substituteInterval's shape plus {outside, swFromLog, swFallback,
- * kminMin, kminMax, kminSource, phiBasis}.
+ * What each sample is given before Gassmann runs on it (U2, 2026-10-01):
+ * its in-situ fluid (the SW log when asked, else the typed Sw), its
+ * mineral modulus (clay at VSH when asked, else the table or the override)
+ * and whether it is inside the Gassmann limits. One sampler serves the
+ * zone substitution, the iterative Vs and the wet trend, so they cannot
+ * read a sample differently.
  */
-export function substituteZone(model, indices, scenario, rock) {
+export function makeSampler(model, scenario, rock) {
   const cond = scenario.conditions;
   const flA = sideFluid(cond, scenario.fluidA);
   const flB = sideFluid(cond, scenario.fluidB);
@@ -137,10 +142,57 @@ export function substituteZone(model, indices, scenario, rock) {
   const kminTable = kminFromRock(rock);
   const useClay = !!rock.clayFromVsh && !hasOverride && !!model.vsh;
   const useSwLog = !!scenario.fluidA?.swFromLog && !!model.sw;
-  const brineA = useSwLog ? brine(cond.tC, cond.pMPa, cond.salinity) : null;
+  const brineAt = brine(cond.tC, cond.pMPa, cond.salinity);
   const hcA = useSwLog && scenario.fluidA.hc ? hcProps(cond, scenario.fluidA.hc) : null;
   const vshMax = Number.isFinite(rock.vshMax) ? rock.vshMax : 1;
   const phiMin = Number.isFinite(rock.phiMin) ? rock.phiMin : 0;
+  return {
+    flA,
+    flB,
+    brine: brineAt,
+    kminTable,
+    useSwLog,
+    kminSource: hasOverride ? 'override' : useClay ? 'vsh' : 'table',
+    labelA: useSwLog ? `brine and ${scenario.fluidA.hc?.kind === 'gas' ? 'gas' : scenario.fluidA.hc?.kind} at the SW log` : flA.label,
+    phi: (i) => (model.phi ? model.phi[i] : rock.phiConst),
+    /** true when the sample is outside the Gassmann limits */
+    outside: (i) => {
+      const vsh = model.vsh ? model.vsh[i] : NaN;
+      const phi = model.phi ? model.phi[i] : rock.phiConst;
+      return (Number.isFinite(vsh) && vsh > vshMax) || phi < phiMin;
+    },
+    /** in-situ water saturation at the sample, and whether the typed value stood in for a null */
+    swA: (i) => {
+      if (!useSwLog) return { sw: scenario.fluidA.sw, fallback: false };
+      const sw = model.sw[i];
+      if (!Number.isFinite(sw)) return { sw: scenario.fluidA.sw, fallback: true };
+      return { sw: Math.min(1, Math.max(0, sw)), fallback: false };
+    },
+    /** the in-situ pore fluid {k, rho} at the sample */
+    fluidA: (i) => {
+      if (!useSwLog) return flA;
+      const sw = model.sw[i];
+      if (!Number.isFinite(sw)) return flA;
+      const s = Math.min(1, Math.max(0, sw));
+      return s >= 1 ? brineAt : s <= 0 ? hcA : woodMix([{ ...brineAt, sat: s }, { ...hcA, sat: 1 - s }]);
+    },
+    fluidB: () => flB,
+    kmin: (i) => {
+      const vsh = model.vsh ? model.vsh[i] : NaN;
+      return useClay && Number.isFinite(vsh) ? kminAtVsh(rock, vsh) : kminTable;
+    },
+  };
+}
+
+/**
+ * The zone substitution the Fluids panel, the AVO replacement and the
+ * publish all use (RP-U1-004/005/006). Per sample: fluid A from the SW log
+ * when asked, K_min from VSH when asked, and the validity cutoffs. Returns
+ * substituteInterval's shape plus {outside, swFromLog, swFallback,
+ * kminMin, kminMax, kminSource, phiBasis}.
+ */
+export function substituteZone(model, indices, scenario, rock) {
+  const sm = makeSampler(model, scenario, rock);
   const n = model.n;
   const out = {
     vp: new Array(n).fill(NaN),
@@ -151,35 +203,27 @@ export function substituteZone(model, indices, scenario, rock) {
     outside: 0,
     swFallback: 0,
     firstError: null,
-    kmin: kminTable,
+    kmin: sm.kminTable,
     kminMin: Infinity,
     kminMax: -Infinity,
-    kminSource: hasOverride ? 'override' : useClay ? 'vsh' : 'table',
-    swFromLog: useSwLog,
+    kminSource: sm.kminSource,
+    swFromLog: sm.useSwLog,
     phiBasis: model.phi ? (model.phiBasis || 'effective') : 'constant',
-    flA,
-    flB,
-    labelA: useSwLog ? `brine and ${scenario.fluidA.hc?.kind === 'gas' ? 'gas' : scenario.fluidA.hc?.kind} at the SW log` : flA.label,
+    flA: sm.flA,
+    flB: sm.flB,
+    labelA: sm.labelA,
   };
   for (const i of indices) {
     const vp = model.vp[i];
     const vs = model.vs[i];
     const rho = model.rho[i];
-    const phi = model.phi ? model.phi[i] : rock.phiConst;
+    const phi = sm.phi(i);
     if (![vp, vs, rho, phi].every(Number.isFinite)) { out.skipped += 1; continue; }
-    const vsh = model.vsh ? model.vsh[i] : NaN;
-    if ((Number.isFinite(vsh) && vsh > vshMax) || phi < phiMin) { out.outside += 1; continue; }
+    if (sm.outside(i)) { out.outside += 1; continue; }
     try {
-      let a = flA;
-      if (useSwLog) {
-        const sw = model.sw[i];
-        if (Number.isFinite(sw)) {
-          const s = Math.min(1, Math.max(0, sw));
-          a = s >= 1 ? brineA : s <= 0 ? hcA : woodMix([{ ...brineA, sat: s }, { ...hcA, sat: 1 - s }]);
-        } else out.swFallback += 1;
-      }
-      const kmin = useClay && Number.isFinite(vsh) ? kminAtVsh(rock, vsh) : kminTable;
-      const r = substituteVels(vp, vs, rho, kmin, phi, a, flB);
+      if (sm.swA(i).fallback) out.swFallback += 1;
+      const kmin = sm.kmin(i);
+      const r = substituteVels(vp, vs, rho, kmin, phi, sm.fluidA(i), sm.fluidB(i));
       out.vp[i] = r.vp;
       out.vs[i] = r.vs;
       out.rho[i] = r.rho;

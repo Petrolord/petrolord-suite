@@ -7,7 +7,7 @@
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
 import {
-  BookOpen, Zap, Database, Ruler, Droplets, Activity, Triangle, UploadCloud, Link2, AlertTriangle, BookMarked,
+  BookOpen, Zap, Database, Ruler, Droplets, Activity, Triangle, UploadCloud, Link2, AlertTriangle, BookMarked, ScatterChart, AreaChart,
 } from 'lucide-react';
 import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Callout, Step, Table,
@@ -24,7 +24,9 @@ export const HELP_SECTIONS = [
   { id: 'inputs', icon: Database, title: 'Wells, curves and zones' },
   { id: 'units', icon: Ruler, title: 'Display units' },
   { id: 'fluids', icon: Droplets, title: 'Fluids and Gassmann substitution' },
-  { id: 'avo', icon: Activity, title: 'AVO' },
+  { id: 'crossplot', icon: ScatterChart, title: 'Impedance against Vp/Vs' },
+  { id: 'avo', icon: Activity, title: 'AVO and the wet trend' },
+  { id: 'gather', icon: AreaChart, title: 'Angle gather' },
   { id: 'wedge', icon: Triangle, title: 'Wedge and tuning' },
   { id: 'publish', icon: UploadCloud, title: 'Publishing and saving' },
   { id: 'links', icon: Link2, title: 'Working with the other apps' },
@@ -64,8 +66,8 @@ function RockPhysicsStudioHelpGuideContent() {
           can be published back to the well as logs for Seismolord synthetics and Well Correlation displays.
         </Para>
         <Para>
-          Three panels: the registry wells and their curve inventory on the left, the Fluids &amp; Gassmann, AVO and
-          Wedge views in the centre, and the scenario and rock model in the right dock. Every stored and computed
+          Three panels: the registry wells and their curve inventory on the left, the Fluids &amp; Gassmann,
+          Crossplot, AVO, Gather and Wedge views in the centre, and the scenario and rock model in the right dock. Every stored and computed
           value is SI; the ribbon's unit selectors change only what you see.
         </Para>
       </GuideSection>
@@ -76,7 +78,7 @@ function RockPhysicsStudioHelpGuideContent() {
         <Step n={2} title="Choose the zone">In Fluids &amp; Gassmann pick the zone. Zones come from Petrophysics Studio; a well without zones has nothing to substitute over.</Step>
         <Step n={3} title="Set the fluids">In the dock set the reservoir conditions, fluid A (in situ) and fluid B (substitute), each brine mixed with one hydrocarbon at its water saturation, and press Apply.</Step>
         <Step n={4} title="Read the result">The fluid table gives density and modulus of each fluid; the interval table gives Vp, Vs and density before and after; the chart shows both cases against depth.</Step>
-        <Step n={5} title="Deliver">Publish substituted logs writes VP_SUB, VS_SUB, RHOB_SUB and DT_SUB to the well. CSV downloads the substitution with a reviewer header (type the field and your name beside it). Save keeps the well, zone, scenario, rock model, AVO and wedge settings in your account.</Step>
+        <Step n={5} title="Deliver">Publish substituted logs writes VP_SUB, VS_SUB, RHOB_SUB and DT_SUB to the well. CSV downloads the substitution with a reviewer header (type the field and your name beside it); PDF gives the same header with the interval table, the zone-top AVO and three plots on one page to sign. Save keeps the well, zone, scenario, rock model, AVO and wedge settings in your account.</Step>
       </GuideSection>
 
       <GuideSection id="inputs">
@@ -98,6 +100,15 @@ function RockPhysicsStudioHelpGuideContent() {
           A well with no shear sonic gets Vs from the Greenberg-Castagna (1992) relations on the VSH sand and shale
           split, and the ribbon shows a Vs estimated badge for the whole well. Measured and estimated shear are never
           mixed within one well.
+        </Callout>
+        <Callout tone="info" title="Estimated Vs where the rock holds hydrocarbon">
+          The Greenberg-Castagna relations are for brine-filled rock. In a gas sand the in-situ Vp is low, so applying
+          them straight to it gives a Vs that is too low (16 to 26 percent in the validation cases). With Iterative Vs
+          in hydrocarbon rock ticked (the default), each hydrocarbon sample is taken to brine with Gassmann, the
+          relation is applied to the brine Vp, and the shear modulus is carried back; this repeats until Vs settles.
+          With the SW log read, every sample whose Sw is below 1 is treated this way; with a typed Sw, only the
+          selected zone. The basis line under the substitution heading says how many samples were iterated, and the
+          CSV, the PDF and the published curves say the same.
         </Callout>
       </GuideSection>
 
@@ -153,8 +164,26 @@ function RockPhysicsStudioHelpGuideContent() {
         </Callout>
       </GuideSection>
 
+      <GuideSection id="crossplot">
+        <SectionHeading icon={ScatterChart}>Impedance against Vp/Vs</SectionHeading>
+        <Para>
+          Crossplot draws the zone&apos;s samples as acoustic impedance against Vp/Vs: the in-situ samples as dots
+          coloured by Sw, VSH, porosity or depth, and the fluid-substituted samples as open diamonds. A gas sand plots
+          at lower impedance and lower Vp/Vs than its brine state, so the two clouds show the size of the fluid effect
+          at a glance. Impedance is in the display units; a long zone draws every n-th sample and says so.
+        </Para>
+        <SubHeading>Template lines</SubHeading>
+        <Para>
+          Three reference lines are computed at the conditions and mineral in Scenario &amp; rock. The brine sand line
+          and the fluid B sand line use the critical-porosity model (Nur): the dry frame weakens linearly from the
+          mineral at zero porosity to nothing at a porosity of 0.40, and Gassmann puts the fluid in; porosity is
+          marked at 0.10, 0.20 and 0.30. The mudrock line is Castagna&apos;s (1985) brine trend with Gardner density.
+          They are guides for reading the cloud. Soft-sand, stiff-sand and Xu-White models are not in this release.
+        </Para>
+      </GuideSection>
+
       <GuideSection id="avo">
-        <SectionHeading icon={Activity}>AVO</SectionHeading>
+        <SectionHeading icon={Activity}>AVO and the wet trend</SectionHeading>
         <Para>
           From top averages the curves over a window either side of a registry top ({DEFAULT_AVO.windowM} m by default,
           typed in the depth unit) to give the upper and lower halfspaces. Manual halfspaces takes the six numbers
@@ -176,6 +205,38 @@ function RockPhysicsStudioHelpGuideContent() {
           to what the rock holds. On the harness gas sand, gas in situ and brine as fluid B shows the sand moving from
           class III to class II: the answer to what the sand would look like if it were wet. When fluid A is not what
           the rock holds, the substitution is unphysical and the panel says so.
+        </Para>
+        <SubHeading>The wet trend</SubHeading>
+        <Para>
+          Brine-filled sands and shales plot along a line through the origin of the intercept-gradient plane;
+          hydrocarbons pull an interface off it. With Wet trend ticked the panel blocks the well&apos;s logs within
+          the fit window around the top (150 m either side and 5 m blocks by default), takes the hydrocarbon out
+          through the SW log where there is one, fits the line through the block boundaries and draws it with the
+          background points. The distance of the in situ point and of the fluid B point from the line is printed:
+          negative is the hydrocarbon side. When the window holds fewer than 8 interfaces, and for manual halfspaces,
+          the line is Castagna, Swan and Foster&apos;s (1998) for the Vs/Vp at hand (B = -A at Vp/Vs = 2), and the
+          panel says which line it drew and why. With no SW log any hydrocarbon in the window is part of the fit, and
+          with estimated Vs the trend follows the Greenberg-Castagna line by construction; both are said.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="gather">
+        <SectionHeading icon={AreaChart}>Angle gather</SectionHeading>
+        <Para>
+          Gather draws the zone and a pad of rock above and below it as a synthetic angle gather, in situ beside the
+          fluid-substituted case at one gain: one trace per incidence angle, the reflection coefficient of every
+          interface at that angle (exact Zoeppritz, or Aki-Richards) placed in two-way time and convolved with the
+          wavelet. Time runs downward from the top of the window. The chart below picks the amplitude at the zone top
+          on each trace, and the table fits the intercept and gradient to the picks up to 30 degrees beside the
+          single-interface values.
+        </Para>
+        <Para>
+          The wavelet is a Ricker with the frequency and constant phase you type, or the wavelet Seismolord measured
+          at this well when its tie was committed. Seismolord stores that wavelet&apos;s peak frequency and phase, so
+          it is rebuilt here as a phase-rotated Ricker, and the summary line says so. The gather is primaries only,
+          with one incidence angle per trace and no transmission loss or spreading; past the critical angle the real
+          part of the exact coefficient is drawn and a note says so. The exact curve reproduces the two polarity
+          reversals at 25 and 49 degrees published by van der Baan and Smit (2006) for their model.
         </Para>
       </GuideSection>
 

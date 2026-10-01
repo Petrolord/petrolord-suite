@@ -213,6 +213,7 @@ export default function RockParamsPanel({ scenario, rock, onApply, units = {}, o
         kminOverrideGPa: draft.rock.kminOverrideGPa,
         phiConst: take(draft.rock.phiConst, 0.2, 'porosity constant'),
         clayFromVsh: !!draft.rock.clayFromVsh,
+        iterativeVs: draft.rock.iterativeVs !== false,
         vshMax: take(draft.rock.vshMax, 0.5, 'VSH limit'),
         phiMin: take(draft.rock.phiMin, 0.03, 'porosity limit'),
       },
@@ -246,6 +247,13 @@ export default function RockParamsPanel({ scenario, rock, onApply, units = {}, o
         checked={draft.rock.clayFromVsh}
         onChange={(v) => patchRock({ clayFromVsh: v })}
         title="K_min mixes clay in at each sample's VSH (Voigt-Reuss-Hill with the other minerals in the table, rescaled). Use it with effective porosity, where the clay belongs to the solid."
+      />
+      <Check2
+        id="iterativeVs"
+        label="Iterative Vs in hydrocarbon rock"
+        checked={draft.rock.iterativeVs !== false}
+        onChange={(v) => patchRock({ iterativeVs: v })}
+        title="Only used when the well has no shear log. Greenberg-Castagna is a brine-rock regression: where a sample holds hydrocarbon, Vs is found by taking the rock to brine, applying the regression and coming back, repeated until it settles. Off applies the regression straight to the in-situ Vp, which reads low in gas."
       />
       <label className="flex items-center justify-between gap-2 py-0.5 text-[12px] text-pl-text">
         <span title="Blank = Voigt-Reuss-Hill mix of the mineral table">K_min override (GPa)</span>

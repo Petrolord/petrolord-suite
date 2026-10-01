@@ -35,6 +35,8 @@ import WellExplorer from './WellExplorer';
 import RockParamsPanel, { TEMPERATURE_UNITS, PRESSURE_UNITS, GOR_UNITS } from './RockParamsPanel';
 import FluidsPanel from './FluidsPanel';
 import AvoPanel from './AvoPanel';
+import CrossplotPanel from './CrossplotPanel';
+import GatherPanel from './GatherPanel';
 import WedgePanel from './WedgePanel';
 import { mapLogs, buildModel } from '../services/prep';
 import { DEFAULT_SCENARIO, DEFAULT_ROCK } from '../services/scenario';
@@ -44,6 +46,7 @@ import {
 } from '../services/units';
 import { preparePublishLogs, ENGINE } from '../services/publish';
 import { projectRowFromState, projectStateFromRow } from '../services/projectState';
+import { applyIterativeVs, shearSourceText } from '../services/iterativeVs';
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 const publishedBy = (logs) => logs.filter((l) => l.provenance?.computed && l.provenance?.engine === ENGINE);
@@ -65,7 +68,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const [rock, setRock] = useState(DEFAULT_ROCK);
   const [avo, setAvo] = useState(DEFAULT_AVO);
   const [wedge, setWedge] = useState(DEFAULT_WEDGE);
-  const [view, setView] = useState('fluids'); // 'fluids' | 'avo' | 'wedge'
+  const [view, setView] = useState('fluids'); // 'fluids' | 'crossplot' | 'avo' | 'gather' | 'wedge'
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -157,7 +160,14 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     }
   }, [backend]);
 
-  const model = wellData?.model || null;
+  // U2-005: with no shear log, Vs in hydrocarbon samples is iterated through
+  // the brine state; the zone matters when the in-situ Sw is typed
+  const baseModel = wellData?.model || null;
+  const activeZone = zones.find((z) => z.id === zoneId) || zones[0] || null;
+  const model = useMemo(
+    () => applyIterativeVs(baseModel, scenario, rock, activeZone),
+    [baseModel, scenario, rock, activeZone],
+  );
 
   // RP-U1-013: reopen the saved project's well (once, after the list loads)
   useEffect(() => {
@@ -193,7 +203,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     if (!wellData || !backend.publishCurves) return;
     setPublishing(true);
     try {
-      const prepared = preparePublishLogs(wellData.model, sub, indices, zone, {
+      const prepared = preparePublishLogs(model, sub, indices, zone, {
         scenario, rock, kmin, projectId,
         inputLogIds: wellData.inventory.map(({ log }) => log?.id).filter(Boolean),
       });
@@ -243,13 +253,15 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
       <span className="hidden min-w-0 truncate text-[11px] text-pl-muted 2xl:inline">fluid substitution, AVO and tuning on the shared well registry</span>
       <div className="ml-4 flex items-center gap-1">
         {viewButton('fluids', 'Fluids & Gassmann')}
+        {viewButton('crossplot', 'Crossplot')}
         {viewButton('avo', 'AVO')}
+        {viewButton('gather', 'Gather')}
         {viewButton('wedge', 'Wedge')}
       </div>
       {model?.vsSource === 'estimated' && (
         <span
           data-testid="rp-vs-badge"
-          title="This well has no shear log, so Vs is estimated with Greenberg-Castagna on the VSH sand/shale split"
+          title={`This well has no shear log. ${shearSourceText(model)}.`}
           className="rounded px-1.5 py-0.5 bg-pl-warning-bg border border-pl-warning text-pl-warning-text text-[11px]"
         >
           Vs estimated
@@ -330,7 +342,15 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     </div>
   );
 
-  const center = view === 'wedge' ? (
+  const center = view === 'crossplot' ? (
+    model ? (
+      <CrossplotPanel model={model} zones={zones} scenario={scenario} rock={rock} units={units} zoneId={zoneId} onZoneChange={setZoneId} />
+    ) : needsWell
+  ) : view === 'gather' ? (
+    model ? (
+      <GatherPanel model={model} zones={zones} scenario={scenario} rock={rock} avo={avo} onAvoChange={setAvo} units={units} zoneId={zoneId} onZoneChange={setZoneId} well={selected} />
+    ) : needsWell
+  ) : view === 'wedge' ? (
     <WedgePanel wedge={wedge} onWedgeChange={setWedge} units={units} />
   ) : view === 'avo' ? (
     // RP-U1-016: the panel (and its Manual halfspaces button) shows with no

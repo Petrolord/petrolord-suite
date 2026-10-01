@@ -50,7 +50,7 @@ export function preparePublishLogs(model, sub, indices, zone, meta) {
     }
     return {
       mnemonic: spec.mnemonic,
-      description: `${spec.what}, Gassmann ${label} in ${zone.name}${spec.key === 'vs' && model.vsSource === 'estimated' ? ' (Vs estimated, Greenberg-Castagna)' : ''}`,
+      description: `${spec.what}, Gassmann ${label} in ${zone.name}${spec.key === 'vs' && model.vsSource === 'estimated' ? ` (Vs estimated, Greenberg-Castagna${model.vsMethod === 'iterative' ? ', iterated through brine in hydrocarbon samples' : ''})` : ''}`,
       unit: spec.unit,
       data,
       startMdM: model.depth[0],
@@ -68,6 +68,8 @@ export function preparePublishLogs(model, sub, indices, zone, meta) {
         rock: meta.rock || null,
         kmin_pa: meta.kmin ?? null,
         vs_source: model.vsSource || 'measured',
+        vs_method: model.vsSource === 'estimated' ? (model.vsMethod === 'iterative' ? 'greenberg-castagna-iterative' : 'greenberg-castagna') : null,
+        vs_iterated_samples: model.vsIter?.applied || 0,
         fluids: label,
         phi_basis: sub.phiBasis || (model.phi ? (model.phiBasis || 'effective') : 'constant'),
         phi_curve: model.phiCurve || null,

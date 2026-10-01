@@ -153,6 +153,8 @@ test('PL10: a 5000 m well (32,809 samples) loads and substitutes a 4000 m zone w
   await expect(page.getByTestId('rp-sub-after-vp')).toBeVisible({ timeout: 60000 });
   const loadMs = Date.now() - t0;
   await expect(page.getByTestId('rp-chart-decimated')).toContainText('of 26247 samples drawn');
+  // U2-014: the thinning keeps each bucket's extremes
+  await expect(page.getByTestId('rp-chart-decimated')).toContainText('minimum and maximum Vp of each of 1000 depth buckets');
   // the page answers a click while the chart is on screen
   const t1 = Date.now();
   await page.getByTestId('rp-view-wedge').click();
