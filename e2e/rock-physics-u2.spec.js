@@ -366,3 +366,52 @@ test('U2-011: pore pressure from Pore Pressure Studio and fluid B Sw from the sa
   await expect(page.getByTestId('rp-sub-basis')).not.toContainText('pore pressure from');
   expect(errors).toEqual([]);
 });
+
+test('U2-012: Rock Physics publishes the gather with the project; Seismolord synthetics show a published gather', async ({ page }) => {
+  const errors = await open(page);
+  await pick(page, 'KETA RP-1');
+  await page.getByTestId('rp-view-gather').click();
+  await expect(page.getByTestId('rp-gather-insitu')).toBeVisible();
+  await expect(page.getByTestId('rp-gather-published')).toHaveCount(0);
+  await page.getByTestId('rp-gather-publish').click();
+  await expect(page.getByTestId('rp-status')).toHaveText('Gather published to Seismolord and the project saved.');
+  await expect(page.getByTestId('rp-gather-published')).toContainText('Published for KETA RP-1, BRINE SAND');
+  // the payload is in the saved project row, under the documented contract
+  const saved = await page.evaluate(() => JSON.parse(window.sessionStorage.getItem('rp.dev.project.v1')));
+  expect(saved.avo.published_gather.contract).toBe('rock-physics-gather');
+  expect(saved.avo.published_gather.version).toBe(1);
+  expect(saved.avo.published_gather.cases.map((c) => c.key)).toEqual(['in-situ', 'substituted']);
+  expect(saved.avo.published_gather.cases[0].traces).toHaveLength(9);
+  expect(saved.well_ids).toHaveLength(1);
+  // after a reload the panel still says what is published
+  await page.reload();
+  await expect(page.getByTestId('rp-sub-after-vp')).toBeVisible({ timeout: 60000 });
+  await page.getByTestId('rp-view-gather').click();
+  await expect(page.getByTestId('rp-gather-published')).toContainText('for KETA RP-1, BRINE SAND');
+  expect(errors).toEqual([]);
+
+  // Seismolord's synthetics window (its own harness): a published gather is offered and drawn
+  const errors2 = [];
+  page.on('pageerror', (e) => errors2.push(e.message));
+  await page.goto('/dev/seismolord-synthetics');
+  await expect(page.getByTestId('synth-well')).toBeVisible({ timeout: 120000 });
+  await expect(page.locator('[data-testid="synth-well"] option[value="w-syn"]')).toHaveCount(1);
+  await page.getByTestId('synth-well').selectOption('w-syn');
+  await page.getByTestId('synth-rp-gather-toggle').click();
+  await expect(page.getByTestId('synth-rp-gather-caption')).toContainText('Rock Physics angle gather of Layer 2 · 5 angles to 40 degrees');
+  for (const key of ['in-situ', 'substituted']) {
+    const dark = await page.getByTestId(`synth-rp-gather-${key}`).locator('canvas').evaluate((c) => {
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let n = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i] < 80 && d[i + 1] < 80 && d[i + 2] < 80) n += 1;
+      return n;
+    });
+    expect(dark).toBeGreaterThan(300);
+  }
+  await expect(page.getByTestId('synth-rp-gather-ab')).toContainText('gradient -0.3300');
+  // the estimated sonic is listed in words that say so and is not the default
+  await expect(page.locator('[data-testid="synth-sonic"] option', { hasText: 'ESTIMATED sonic' })).toHaveCount(1);
+  await expect(page.getByTestId('synth-sonic')).toHaveValue('log-dt');
+  await page.screenshot({ path: `${SHOTS}/rp-u2-seismolord-gather.png` });
+  expect(errors2).toEqual([]);
+});

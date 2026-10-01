@@ -49,6 +49,8 @@ import { pseudoConfig, calibrateOn, calibratedConfig, savedPseudo } from '../ser
 import PseudoSonicBox from './PseudoSonicBox';
 import { mineralModelLogs, buildMineralSet, porePressureLog, zonePorePressure, saturationHeightSw } from '../services/petroInputs';
 import { makeDepthFrame } from '@/pages/apps/WellDataManager/engine/checkshots';
+import { packGather } from '@/lib/rockPhysicsGather';
+import { PIPELINE_VERSION } from '../services/publish';
 import { projectRowFromState, projectStateFromRow } from '../services/projectState';
 import { applyIterativeVs, shearSourceText } from '../services/iterativeVs';
 
@@ -91,6 +93,9 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   // U2-011: SCAL Studio projects and the saturation-height Sw on this well
   const [scalProjects, setScalProjects] = useState([]);
   const [shm, setShm] = useState(null); // {key, ok, data?, name?, fwlTvdssM?, n?, reason?}
+  // U2-012: the gather published for Seismolord
+  const [publishingGather, setPublishingGather] = useState(false);
+  const [gatherNote, setGatherNote] = useState('');
   // Suite unit profile: velocity, density and depth start from the
   // profile; the selectors change this view for the session only, and the
   // older remembered 'rp.units' choice no longer beats the profile
@@ -277,6 +282,29 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     } finally {
       setPublishing(false);
     }
+  };
+
+  // U2-012: the gather goes into the project row (avo.published_gather, the
+  // rock-physics-gather contract) and is saved at once, so Seismolord's
+  // synthetics window can show it for this well
+  const publishGather = async ({ gather, zone, substitutedLabel }) => {
+    if (!wellData || !selected) return;
+    setPublishingGather(true);
+    setGatherNote('');
+    try {
+      const payload = packGather({ well: selected, zone, gather, substitutedLabel, model, pipelineVersion: PIPELINE_VERSION });
+      const nextAvo = { ...avo, published_gather: payload };
+      const saved = await backend.saveProject(projectRowFromState({
+        scenario, rock, avo: nextAvo, wedge, wellId: wellData.wellId, zoneId: zoneId || null,
+      }));
+      if (saved?.id) setProjectId(saved.id);
+      setAvo(nextAvo);
+      setGatherNote(`Published for ${selected.name}, ${zone.name}: Seismolord's synthetics window shows it for this well.`);
+      setStatus('Gather published to Seismolord and the project saved.');
+    } catch (e) {
+      setGatherNote('');
+      setStatus(e.message);
+    } finally { setPublishingGather(false); }
   };
 
   // U2-007: the wells that have a sonic log, found when the user asks (one
@@ -500,7 +528,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     ) : needsWell
   ) : view === 'gather' ? (
     model ? (
-      <GatherPanel model={model} zones={zones} scenario={scenario} rock={rock} avo={avo} onAvoChange={setAvo} units={units} zoneId={zoneId} onZoneChange={setZoneId} well={selected} />
+      <GatherPanel model={model} zones={zones} scenario={scenario} rock={rock} avo={avo} onAvoChange={setAvo} units={units} zoneId={zoneId} onZoneChange={setZoneId} well={selected} onPublishGather={publishGather} publishingGather={publishingGather} publishNote={gatherNote} />
     ) : needsWell
   ) : view === 'wedge' ? (
     <WedgePanel wedge={wedge} onWedgeChange={setWedge} units={units} />

@@ -268,6 +268,13 @@ function RockPhysicsStudioHelpGuideContent() {
           part of the exact coefficient is drawn and a note says so. The exact curve reproduces the two polarity
           reversals at 25 and 49 degrees published by van der Baan and Smit (2006) for their model.
         </Para>
+        <Para>
+          Publish gather to Seismolord saves the gather on screen (both cases, the angles, the wavelet and the picks)
+          with your project. In Seismolord, open the synthetics window, pick the same well and press Show the Rock
+          Physics angle gather: it is drawn there with the same picture, beside the well synthetic. It is your own
+          project&apos;s gather (other users do not see it), time is from the top of the gather window, and publishing
+          again replaces it.
+        </Para>
       </GuideSection>
 
       <GuideSection id="wedge">
@@ -304,7 +311,7 @@ function RockPhysicsStudioHelpGuideContent() {
           ['Pore Pressure Studio', 'Its published PP curve fills the pore pressure of the fluids (the zone mean), on request.'],
           ['Petrophysics Studio and SCAL Studio', 'The published mineral model can set K_min per sample; a SCAL Studio saturation-height function can set fluid B Sw per sample.'],
           ['Petrophysics Studio, Well Correlation, Mapping & Surface Studio and the rest', 'Open in lists the Geoscience apps for the selected well; Petrophysics and Well Correlation open on that well.'],
-          ['Seismolord', 'The synthetics window lists DT_SUB and RHOB_SUB (labelled fluid substituted) beside the measured sonic and density; pick them to see the substituted synthetic. A published DT_EST is listed last, labelled ESTIMATED sonic, with a warning that it is no basis for a tie.'],
+          ['Seismolord', 'The synthetics window lists DT_SUB and RHOB_SUB (labelled fluid substituted) beside the measured sonic and density; pick them to see the substituted synthetic. A published DT_EST is listed last, labelled ESTIMATED sonic, with a warning that it is no basis for a tie. The gather published from the Gather view is shown there on request.'],
           ['Geoscience home', 'The home icon at the left of the ribbon.'],
         ]} />
       </GuideSection>

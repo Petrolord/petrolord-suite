@@ -7,6 +7,7 @@
 // Settings live in avo.gather and save with the project.
 
 import React, { useMemo } from 'react';
+import { Send, Loader2 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label, ReferenceLine,
 } from 'recharts';
@@ -29,7 +30,8 @@ const INPUT = 'bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.
 const same = (v) => v;
 
 export default function GatherPanel({
-  model, zones, scenario, rock, avo, onAvoChange, units = DEFAULT_UNITS, zoneId, onZoneChange, well = null, extra = null,
+  model, zones, scenario, rock, avo, onAvoChange, units = DEFAULT_UNITS, zoneId, onZoneChange, well = null,
+  onPublishGather = null, publishingGather = false, publishNote = '',
 }) {
   const zone = zones.find((z) => z.id === zoneId) || zones[0] || null;
   const cfg = gatherConfig(avo.gather);
@@ -181,7 +183,26 @@ export default function GatherPanel({
               <p className="mt-1 text-[11px] text-pl-muted">
                 The picks carry the wavelet and any interference from the zone base and nearby beds, so they differ from the single-interface values when the zone is near tuning. Amplitudes are reflection coefficients (unit-peak wavelet).
               </p>
-              {extra}
+              {onPublishGather && (
+                <div className="mt-2 flex flex-wrap items-center gap-2" data-testid="rp-gather-publish-row">
+                  <button
+                    type="button"
+                    data-testid="rp-gather-publish"
+                    disabled={publishingGather}
+                    title="Save this gather (both cases, the angles, the wavelet and the picks) with your project so Seismolord's synthetics window shows it for this well. It replaces the gather published before."
+                    className="flex items-center gap-1 px-2 py-0.5 text-xs rounded border border-pl-primary text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40"
+                    onClick={() => onPublishGather({ gather, zone, substitutedLabel: `Zone with ${fluidB}` })}
+                  >
+                    {publishingGather ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    Publish gather to Seismolord
+                  </button>
+                  {(publishNote || avo.published_gather) && (
+                    <span className="text-[11px] text-pl-success-text" data-testid="rp-gather-published">
+                      {publishNote || `Published ${String(avo.published_gather.published_at || '').slice(0, 10)} for ${avo.published_gather.well_name || 'a well'}, ${avo.published_gather.zone?.name || ''}.`}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </>
