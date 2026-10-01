@@ -17,7 +17,7 @@ describe('EarthModelingHelpGuide', () => {
     renderGuide();
     expect(screen.getByRole('heading', { level: 1, name: /Earth Modeling Help Guide/ })).toBeInTheDocument();
     for (const { id } of HELP_SECTIONS) expect(document.getElementById(`section-${id}`)).not.toBeNull();
-    expect(HELP_SECTIONS.length).toBe(14);
+    expect(HELP_SECTIONS.length).toBe(15);
   });
 
   test('quotes the live methods, derived kinds and units', () => {
@@ -28,6 +28,8 @@ describe('EarthModelingHelpGuide', () => {
     for (const u of Object.values(VOLUME_UNIT_SETS)) expect(text).toContain(u.label);
     expect(text).toMatch(/four wells/i);
     expect(text).toMatch(/positive means the pick is deeper/i);
+    // U2: the Step 2 tools are described
+    for (const t of ['Contacts per fault block', 'closure and spill', 'saturation-height', 'Volume distribution', 'P90 is the low case', 'GRDECL', 'Prospect to RCP', 'Isopach']) expect(text).toContain(t);
   });
 
   test('copy carries no em dashes (owner rule)', () => {

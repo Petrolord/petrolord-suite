@@ -114,7 +114,7 @@ export function prospectZoneToRcpInputs(payload, zoneIndex = 0, unitSystem = 'fi
     `From Earth Modeling: ${payload.model.name}, ${z.name}${payload.report?.field ? `, field ${payload.report.field}` : ''} (${payload.createdAt.slice(0, 10)}).`,
     `Area is the zone's mapped area; thickness is the average hydrocarbon column (GRV of the legs / area), so GRV matches the model.`,
     `Sw ${sw.toFixed(4)} is the saturation that keeps the model's HCPV (pore volume weighted over the hydrocarbon legs).`,
-    ...(fluidType === 'oil_gas' ? ['With a gas cap, oil and gas share these averages; the model splits them node by node, so the split here is close but not exact.'] : []),
+    ...(fluidType === 'oil_gas' ? ['With a gas cap, oil and gas share these averages; the model splits them node by node, so the split here is approximate.'] : []),
     ...(payload.wells?.length ? [`Wells used: ${payload.wells.join(', ')}.`] : []),
     ...z.flags,
   ];
