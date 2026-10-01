@@ -20,6 +20,9 @@ import { mergeProfile } from '@/lib/wellsite/abbreviations';
 import { wellContext, offsetMinOf } from './wellContext';
 import { newId } from '@/lib/wellsite/ids';
 import { memberChangeError } from './members';
+import { prepareEvidenceLogs, staleEvidence } from '@/lib/wellsite/evidence';
+import { mudlogSeries } from './mudlogImport';
+import { dExponentSeries, currentDxcSettings } from './dexponent';
 import { wellWithSurvey, SURVEY_SUBTYPE, activeSurvey, registrySurveyPlan, surveyPublishedParams } from './surveys';
 
 export const WS_ENGINE_VERSION = 'wellsite-0.1.0';
@@ -414,6 +417,27 @@ export function makeLocalBackend({ transport, db = wellsiteDb(), autoSync = true
       });
       notify();
       return { plan, result };
+    },
+
+    // ---- U2-008: the d-exponent, gas, ROP and mud weight curves to the registry for Pore Pressure Studio ----
+    /** Publish the evidence curves of this live well (explicit, online, registry owner only; replaces only its own). */
+    async publishEvidenceToRegistry(wellId) {
+      if (!transport.online()) throw new Error('Sending curves to the registry needs a connection.');
+      const well = await requireWell(wellId);
+      const records = await db.records.where('[well_id+kind+occurred_at]').between([wellId, ''], [wellId, '\uffff']).toArray();
+      const series = mudlogSeries(records.filter((r) => r.kind === 'observation'));
+      const cfgs = records.filter((r) => r.subtype === 'rig_config').sort((a, b) => Date.parse(a.occurred_at) - Date.parse(b.occurred_at));
+      const settings = currentDxcSettings(records.filter((r) => r.kind === 'decision'));
+      const dxc = dExponentSeries({ points: series.points, rigConfig: cfgs.length ? cfgs[cfgs.length - 1].payload : null, ctx: wellContext(well), settings });
+      const prepared = prepareEvidenceLogs({ points: series.points, dxcRows: dxc.rows, wsWell: { id: well.id, name: well.name }, settings });
+      if (!prepared.length) throw new Error('There is nothing to send yet: import the mudlogging data or type at least two rows of drilling parameters.');
+      const state = await transport.registryLogs(well.geo_well_id);
+      if (!state.ownedByMe) throw new Error('Only the owner of the registry well can add curves to it (org sharing is read-only).');
+      const stale = staleEvidence(state.logs, prepared, well.id);
+      const result = await transport.writeEvidenceLogs(well.geo_well_id, prepared, stale);
+      const names = prepared.map((l) => l.mnemonic);
+      const { row } = await addRecord(wellId, { kind: 'observation', subtype: 'evidence_published', payload: { geo_well_id: well.geo_well_id, curves: names, replaced: result.replaced, text: `Curves sent to the well registry for Pore Pressure Studio: ${names.join(', ')}${result.replaced ? ` (${result.replaced} earlier curve(s) of this live well replaced)` : ''}.` } });
+      return { curves: names, result, record: row };
     },
 
     // ---- U2-009: the rig survey to the shared wells registry (explicit, online, owner only) ----

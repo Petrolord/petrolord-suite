@@ -58,13 +58,15 @@ import { newId } from '@/lib/wellsite/ids';
 import SurveysView from './SurveysView';
 import LogView from './LogView';
 import OfficeView from './OfficeView';
+import { mudWindowAtBit, pressureEmwSeries } from '../services/pressure';
+import { displayUnit } from '../services/mudlogImport';
 import { dExponentSeries, currentDxcSettings, dxcSettingsParams } from '../services/dexponent';
 import { buildStripLog } from '../services/stripLog';
 import { SURVEY_SUBTYPE, SURVEY_PUBLISHED_SUBTYPE, activeSurvey, wellWithSurvey, surveyRuns, staleDepths } from '../services/surveys';
 import { LAG_CHECK_SUBTYPE, currentWashout, lagCheckParams, washoutParams } from '../services/lagCheck';
 
 // record types added by the upgrade that belong with the typed observations (lists, evidence, reports)
-const EXTRA_OBSERVATION_SUBTYPES = [GAS_SUBTYPE, 'lag_check', SURVEY_SUBTYPE, SURVEY_PUBLISHED_SUBTYPE];
+const EXTRA_OBSERVATION_SUBTYPES = [GAS_SUBTYPE, 'lag_check', SURVEY_SUBTYPE, SURVEY_PUBLISHED_SUBTYPE, 'evidence_published'];
 
 export const VIEWS = [
   { id: 'live', label: 'Live', icon: Activity },
@@ -351,9 +353,22 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const prognosis = useMemo(() => currentPrognosis(prognoses), [prognoses]);
   const latestBitMd = bitDepths.length ? bitDepths[bitDepths.length - 1].md_calc_m : null;
   const topsBoard = useMemo(() => (well && ctx ? formationBoard({ tops, prognosis, bitMdM: latestBitMd, ctx }) : { rows: [], next: null, conflicts: [] }), [well, ctx, tops, prognosis, latestBitMd]);
+  // U2-008: the pore pressure prognosis loaded with the prognosis, read at the bit against the mud weight in use
+  const pressureCurves = prognosis ? prognosis.pressure_curves : null;
+  const mudWindow = useMemo(() => {
+    const [u, conv] = displayUnit('mw', units.depth);
+    return mudWindowAtBit({ pressureCurves, bitMdM: latestBitMd, ctx, points: mudlog.points, fmtMw: (kg) => `${conv(kg).toFixed(2)} ${u}` });
+  }, [pressureCurves, latestBitMd, ctx, mudlog, units.depth]);
+  const pressureSeries = useMemo(() => pressureEmwSeries(pressureCurves, ctx), [pressureCurves, ctx]);
   // U2-001: the composite log model (tracks and markers) from the record
-  const logModel = useMemo(() => buildStripLog({ well, unit: units.depth, mudlog, bitDepths, events, descriptions, shows, observations, topsBoard, rigConfig, dxc }),
-    [well, units.depth, mudlog, bitDepths, events, descriptions, shows, observations, topsBoard, rigConfig, dxc]);
+  const logModel = useMemo(() => buildStripLog({ well, unit: units.depth, mudlog, bitDepths, events, descriptions, shows, observations, topsBoard, rigConfig, dxc, pressure: pressureSeries }),
+    [well, units.depth, mudlog, bitDepths, events, descriptions, shows, observations, topsBoard, rigConfig, dxc, pressureSeries]);
+  const sendEvidence = useCallback(async () => {
+    const { record } = await backend.publishEvidenceToRegistry(well.id);
+    setStatus(record.payload.text);
+    setTick((t) => t + 1);
+  }, [backend, well]);
+  const lastEvidence = useMemo(() => observations.filter((r) => r.subtype === 'evidence_published').sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))[0] || null, [observations]);
   const exportLogPdf = useCallback(async ({ window: w, scale }) => {
     const { exportStripLogPdf } = await import('../services/stripLogPdf');
     const name = await exportStripLogPdf(logModel, { well, unit: units.depth, toDisplay: (m) => (units.depth === 'ft' ? m / 0.3048 : m), scale, window: w,
@@ -565,7 +580,19 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   } else if (view === 'surveys') {
     center = <SurveysView inUse={surveyInUse} ctx={ctx} unit={units.depth} offsetMin={offsetMin} stale={staleNow} runs={surveyRuns(surveyRecords)} onRecord={recordSurveyRun} onStatus={setStatus} nameOf={nameOf} online={backend.online()} onRegistryPlan={registrySurveyPlan} onRegistrySend={sendSurveyToRegistry} lastSent={lastSurveySent} />;
   } else if (view === 'log') {
-    center = <LogView win={logModel.win} tracks={logModel.tracks} markers={logModel.markers} dxc={dxc} dxcSettings={dxcSettings} onSaveDxc={saveDxcSettings} unit={units.depth} onStatus={setStatus} title={`${well.name}.`} notes={logModel.notes} legend={logModel.legend} onPdf={exportLogPdf} />;
+    center = <LogView win={logModel.win} tracks={logModel.tracks} markers={logModel.markers} dxc={dxc} dxcSettings={dxcSettings} onSaveDxc={saveDxcSettings} unit={units.depth} onStatus={setStatus} title={`${well.name}.`} notes={logModel.notes} legend={logModel.legend} onPdf={exportLogPdf}
+      belowSlot={(
+        <section className="space-y-1 text-[11px] text-pl-text" data-testid="ws-pp-link">
+          <h3 className="text-xs font-semibold">Pore Pressure Studio</h3>
+          <div data-testid="ws-pp-window" className={mudWindow.state === 'below_pore' || mudWindow.state === 'above_fracture' ? 'text-pl-warning-text' : ''}>{mudWindow.text}</div>
+          {pressureCurves && (pressureCurves.skipped || []).map((x) => <div key={x} className="text-pl-warning-text" data-testid="ws-pp-skipped">{x}</div>)}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button type="button" disabled={!backend.online()} className="px-2 py-1 rounded border border-pl-border hover:bg-pl-sunken disabled:opacity-40" data-testid="ws-pp-send" title={backend.online() ? 'Publish the d-exponent, total gas, ROP and mud weight curves of this live well to the well registry, where Pore Pressure Studio reads them (registry owner only)' : 'Needs a connection'}
+              onClick={() => sendEvidence().catch((e) => setStatus(e.message))}>Send the d-exponent, gas, ROP and mud weight curves to the registry</button>
+            {lastEvidence && <span className="text-pl-muted" data-testid="ws-pp-last">Last sent {toRigLocal(Date.parse(lastEvidence.occurred_at), offsetMin).iso.replace('T', ' ')} rig time: {lastEvidence.payload.curves.join(', ')}.</span>}
+          </div>
+        </section>
+      )} />;
   } else if (view === 'tops') {
     center = <TopsView board={topsBoard} tops={tops} records={allObservationRecords} prognosis={prognosis} ctx={ctx} defaults={entryDefaults} unit={units.depth} offsetMin={offsetMin}
       approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} geoWellId={well.geo_well_id} loadRegistryWells={loadRegistryWells} onAddPrognosisTop={addPrognosisTop} onPublish={publishToRegistry} onPublishPlan={loadPublishPlan} onStatus={setStatus} userName={user ? user.name || user.email : ''} nameOf={nameOf} photos={photos} />;
@@ -578,7 +605,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     center = <ConfigView backend={backend} well={well} rigConfig={rigConfig} canAdmin={isMember} unit={units.depth} prognosis={prognosis} onStatus={setStatus} onSaved={() => { refreshWells(); setTick((t) => t + 1); }}
       membersSlot={<MembersPanel backend={backend} well={well} members={members} user={user} onStatus={setStatus} onChanged={() => setTick((t) => t + 1)} />} />;
   } else {
-    center = <LiveWellView rop={rop} backend={backend} well={well} ctx={ctx} bitDepths={bitDepths} pumpEvents={pumpEvents} events={events} onStartEvent={startEvent} onEndEvent={endEvent} descriptions={descriptions} lag={lag} board={board} onStage={recordStage} defaults={entryDefaults} offsetMin={offsetMin} unit={units.depth} floater={floater} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+    center = <LiveWellView mudWindow={mudWindow} rop={rop} backend={backend} well={well} ctx={ctx} bitDepths={bitDepths} pumpEvents={pumpEvents} events={events} onStartEvent={startEvent} onEndEvent={endEvent} descriptions={descriptions} lag={lag} board={board} onStage={recordStage} defaults={entryDefaults} offsetMin={offsetMin} unit={units.depth} floater={floater} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   }
 
   const statusBar = (

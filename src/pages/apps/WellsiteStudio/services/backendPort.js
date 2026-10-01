@@ -22,6 +22,8 @@ export const PORT = Object.freeze([
   'listReports', 'saveReport', 'listSignoffs', 'addSignoff', 'memberRole',
   // registry publish (WS9)
   'publishToRegistry', 'registryState', 'publishPlanFor',
+  // Pore Pressure link (U2-008)
+  'publishEvidenceToRegistry',
   // rig survey to the registry (U2-009)
   'registrySurveyPlanFor', 'publishSurveyToRegistry',
   // office view (U2-007)

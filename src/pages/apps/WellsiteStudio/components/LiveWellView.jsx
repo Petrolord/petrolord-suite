@@ -11,7 +11,7 @@ import { mdToTvd } from '@/lib/wellsite/depth';
 import EventBar from './EventBar';
 import { abbreviate, descriptionOf, mergeProfile } from '../services/describe';
 
-export default function LiveWellView({ rop = null, backend, well, ctx, bitDepths, pumpEvents, events = [], onStartEvent, onEndEvent, descriptions = [], lag = { available: false }, board = null, onStage, defaults, offsetMin, unit, floater = false, onChanged, onStatus }) {
+export default function LiveWellView({ mudWindow = null, rop = null, backend, well, ctx, bitDepths, pumpEvents, events = [], onStartEvent, onEndEvent, descriptions = [], lag = { available: false }, board = null, onStage, defaults, offsetMin, unit, floater = false, onChanged, onStatus }) {
   const openEvent = events.filter((e) => e.duration && e.endUtcMs == null).slice(-1)[0] || null;
   const lastDesc = descriptions[descriptions.length - 1] || null;
   const profile = mergeProfile(well.settings && well.settings.abbreviation_profile ? well.settings.abbreviation_profile : null);
@@ -63,6 +63,9 @@ export default function LiveWellView({ rop = null, backend, well, ctx, bitDepths
         <Card label="Current operation" testId="ws-live-event" value={openEvent ? openEvent.label : 'none open'} sub={openEvent ? `since ${local(new Date(openEvent.startUtcMs).toISOString())}` : ''} />
         <Card label="Current lithology" testId="ws-live-lithology" value={lastDesc ? abbreviate(descriptionOf(lastDesc), profile).text : 'not described'} sub={lastDesc ? `${fmtDepth(lastDesc.md_calc_m, unit)} to ${fmtDepth(lastDesc.md2_calc_m, unit)}` : ''} />
       </div>
+      {mudWindow && mudWindow.state !== 'no_prognosis' && (
+        <div className={`text-xs ${mudWindow.state === 'below_pore' || mudWindow.state === 'above_fracture' ? 'text-pl-warning-text' : 'text-pl-text'}`} data-testid="ws-live-mud-window" data-state={mudWindow.state}>{mudWindow.text}</div>
+      )}
       {board && board.nextDue && onStage && (board.nextDue.state === 'due' || board.nextDue.state === 'overdue') && (
         <div className="flex items-center gap-2 text-xs" data-testid="ws-live-catch">
           <span className={board.nextDue.state === 'overdue' ? 'text-pl-warning-text' : 'text-pl-primary-text'}>Sample {board.nextDue.sample.sample_no} at {fmtDepth(board.nextDue.sample.md_calc_m, unit)} is {board.nextDue.state === 'overdue' ? 'overdue for review' : 'due at surface'}.</span>

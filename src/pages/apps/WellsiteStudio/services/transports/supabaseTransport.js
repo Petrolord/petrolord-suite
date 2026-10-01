@@ -4,6 +4,8 @@
 // record sync (push, pull) arrives in WS6 on the same object.
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { listLogs as listRegistryLogs, downloadCurve as downloadRegistryCurve, saveLogs as saveRegistryLogs, deleteLog as deleteRegistryLog } from '@/lib/wellsRegistry';
+import { pressureCurvesFrom } from '../pressure';
 import { listWells as listRegistry, listTops as listRegistryTops, getWell as getRegistryWell, saveTop as saveRegistryTop, deleteTop as deleteRegistryTop, updateTop as updateRegistryTop, updateWellData as updateRegistryWellData, updateWell as updateRegistryWell } from '@/lib/wellsRegistry';
 import { listIntervals as listRegistryIntervals, saveInterval as saveRegistryInterval, deleteInterval as deleteRegistryInterval, listCoreImages, uploadCoreImage } from '@/lib/stratRegistry';
 import { writeStamped, registerStateKind } from '@/lib/stateVersion';
@@ -92,7 +94,10 @@ export function makeSupabaseTransport() {
           plannedTrajectory = traj.stations;
         }
       }
-      return { geoWell, tops, offsetWells, holeSections, casingPoints: holeSections.filter((h) => h.cased).map((h) => ({ md_m: h.to_md_m, description: h.description || null })), plannedTrajectory, pressureCurves: null, design, loadedFrom: 'registry' };
+      // U2-008: the pore pressure prognosis Pore Pressure Studio published for this well (PP, FP, OBG by their declared unit)
+      let pressureCurves = null;
+      try { pressureCurves = await pressureCurvesFrom(await listRegistryLogs(geoWellId), downloadRegistryCurve); } catch (e) { pressureCurves = { source: 'geo_wells_logs', loaded_at: new Date().toISOString(), curves: {}, skipped: [`The pressure curves could not be read: ${e.message}`] }; }
+      return { geoWell, tops, offsetWells, holeSections, casingPoints: holeSections.filter((h) => h.cased).map((h) => ({ md_m: h.to_md_m, description: h.description || null })), plannedTrajectory, pressureCurves, design, loadedFrom: 'registry' };
     },
     // ---- sync (WS6) ----
     /** Idempotent batch insert: on conflict (id) do nothing (PostgREST resolution=ignore-duplicates). */
@@ -136,6 +141,19 @@ export function makeSupabaseTransport() {
       const geo = await getRegistryWell(geoWellId);
       const [tops, intervals, coreImages] = await Promise.all([listRegistryTops(geoWellId), listRegistryIntervals(geoWellId, 'lithology'), listCoreImages(geoWellId).catch(() => [])]);
       return { ownedByMe: !!(geo && user && geo.user_id === user.id), tops, intervals, coreImages };
+    },
+    // ---- U2-008: evidence curves to the registry through the registry log writer (owner only under RLS) ----
+    async registryLogs(geoWellId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const geo = await getRegistryWell(geoWellId);
+      return { logs: await listRegistryLogs(geoWellId), ownedByMe: !!(user && geo.user_id === user.id) };
+    },
+    async writeEvidenceLogs(geoWellId, prepared, stale) {
+      // new curves in first, the earlier ones of this live well removed after: never a gap
+      const saved = await saveRegistryLogs(geoWellId, prepared);
+      const removeErrors = [];
+      for (const l of stale) { try { await deleteRegistryLog(l); } catch (e) { removeErrors.push(`${l.mnemonic}: ${e.message}`); } }
+      return { ids: saved.map((l) => l.id), replaced: stale.length - removeErrors.length, removeErrors };
     },
     // ---- U2-009: the rig survey to the registry, through the existing registry writer (owner only under RLS) ----
     async registryWell(geoWellId) {

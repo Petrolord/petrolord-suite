@@ -95,6 +95,19 @@ export function makeFakeTransport({ user, registryWells = [], online = true, pro
       const t = tableOf('registry_tops'); const i = tableOf('registry_intervals');
       return { ownedByMe: !!(geo && geo.user_id === u.id), tops: [...t.values()].filter((r) => r.well_id === geoWellId), intervals: [...i.values()].filter((r) => r.well_id === geoWellId), coreImages: [...tableOf('registry_core').values()].filter((r) => r.well_id === geoWellId) };
     },
+    // ---- U2-008: evidence curves in the fake registry ----
+    async registryLogs(geoWellId) {
+      check();
+      const geo = registryWells.find((w) => w.id === geoWellId);
+      return { logs: [...tableOf('registry_logs').values()].filter((l) => l.well_id === geoWellId), ownedByMe: !!(geo && geo.user_id === u.id) };
+    },
+    async writeEvidenceLogs(geoWellId, prepared, stale) {
+      check();
+      const t = tableOf('registry_logs');
+      const ids = prepared.map((l) => { const id = newId(); t.set(id, { id, well_id: geoWellId, mnemonic: l.mnemonic, description: l.description, unit: l.unit, start_md_m: l.startMdM, stop_md_m: l.stopMdM, step_m: l.stepM, n_samples: l.nSamples, null_count: l.nullCount, provenance: l.provenance, data: l.data, created_at: new Date().toISOString() }); return id; });
+      for (const l of stale) t.delete(l.id);
+      return { ids, replaced: stale.length, removeErrors: [] };
+    },
     // ---- U2-009: the rig survey to the registry ----
     async registryWell(geoWellId) {
       check();
@@ -146,7 +159,7 @@ export function makeFakeTransport({ user, registryWells = [], online = true, pro
       const geoWell = registryWells.find((w) => w.id === geoWellId) || null;
       const src = prognosisSources ? prognosisSources(geoWellId) : {};
       const offsets = registryWells.filter((w) => offsetWellIds.includes(w.id) && w.id !== geoWellId).map((w) => ({ id: w.id, name: w.name, kb_m: w.kb_m, deviation: w.deviation, tops: w.tops || [] }));
-      return { geoWell, tops: (geoWell && geoWell.tops) || [], offsetWells: offsets, holeSections: src.holeSections || [], casingPoints: src.casingPoints || [], plannedTrajectory: src.plannedTrajectory || null, pressureCurves: null, loadedFrom: 'fake-registry' };
+      return { geoWell, tops: (geoWell && geoWell.tops) || [], offsetWells: offsets, holeSections: src.holeSections || [], casingPoints: src.casingPoints || [], plannedTrajectory: src.plannedTrajectory || null, pressureCurves: src.pressureCurves || null, loadedFrom: 'fake-registry' };
     },
     _wells: wsWells,
   };

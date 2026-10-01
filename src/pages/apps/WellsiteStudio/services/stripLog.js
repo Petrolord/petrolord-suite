@@ -107,7 +107,7 @@ export function gasSeries({ observations = [], points = [] }) {
  * The composite log model: the depth window, the tracks and the markers.
  * @param {Object} p { well, unit, pressureUnit, mudlog, bitDepths, events, descriptions, shows, observations, topsBoard, prognosis, rigConfig, dxc, latestBitMdM }
  */
-export function buildStripLog({ well, unit = 'm', mudlog, bitDepths = [], events = [], descriptions = [], shows = [], observations = [], topsBoard = null, rigConfig = null, dxc = null }) {
+export function buildStripLog({ well, unit = 'm', mudlog, bitDepths = [], events = [], descriptions = [], shows = [], observations = [], topsBoard = null, rigConfig = null, dxc = null, pressure = null }) {
   const points = (mudlog && mudlog.points) || [];
   const profile = mergeProfile(well && well.settings && well.settings.abbreviation_profile ? well.settings.abbreviation_profile : null);
   const liths = lithologyIntervals(descriptions);
@@ -146,6 +146,17 @@ export function buildStripLog({ well, unit = 'm', mudlog, bitDepths = [], events
   }
   // d-exponent
   if (dxc && dxc.rows.length) tracks.push(dExponentTrack(dxc));
+  // U2-008: the pore pressure prognosis as equivalent mud weight with the mud weight in use
+  if (pressure && (pressure.pp.length || pressure.fp.length)) {
+    const [mwUnit, mwConv] = displayUnit('mw', unit);
+    const conv = (arr) => arr.map((p) => ({ mdM: p.mdM, v: mwConv(p.v) }));
+    const mw = points.filter((p) => Number.isFinite(p.values.ecd) || Number.isFinite(p.values.mw)).map((p) => ({ mdM: p.mdM, v: mwConv(Number.isFinite(p.values.ecd) ? p.values.ecd : p.values.mw) }));
+    const all = [...pressure.pp, ...pressure.fp].map((p) => mwConv(p.v)).concat(mw.map((p) => p.v));
+    const lo = Math.floor(Math.min(...all) * (unit === 'ft' ? 1 : 10)) / (unit === 'ft' ? 1 : 10);
+    const hi = Math.ceil(Math.max(...all) * (unit === 'ft' ? 1 : 10)) / (unit === 'ft' ? 1 : 10);
+    tracks.push({ id: 'pressure', type: 'curve', title: 'Pressure prognosis', unit: `${mwUnit} equivalent mud weight`, width: 170, scale: { min: lo, max: hi > lo ? hi : lo + 1, log: false },
+      series: [{ id: 'pp', label: 'pore', color: '#2563eb', points: conv(pressure.pp) }, { id: 'fp', label: 'fracture', color: '#b91c1c', points: conv(pressure.fp) }, ...(mw.length ? [{ id: 'mw', label: 'mud', color: SERIES_COLORS.mw, points: mw, markers: mw.length < 40, gapM: 200 }] : [])] });
+  }
   // the labels of tops, prognosis and casing shoes get a track of their own so they never sit on a curve or a description
   if (markers.length) tracks.push({ id: 'tops', type: 'markers', title: 'Tops and casing', unit: 'called, prognosis, shoe', width: 210 });
   // descriptions and shows
