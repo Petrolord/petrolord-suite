@@ -51,9 +51,8 @@ test('type well loads, tracks render, zone summaries match the oracle', async ({
   // tracks canvas up and sized
   const canvas = page.getByTestId('petro-tracks-canvas');
   await expect(canvas).toBeVisible();
-  const box = await canvas.boundingBox();
-  expect(box.width).toBeGreaterThan(300);
-  expect(box.height).toBeGreaterThan(200);
+  await expect.poll(async () => (await canvas.boundingBox())?.width ?? 0).toBeGreaterThan(300);
+  await expect.poll(async () => (await canvas.boundingBox())?.height ?? 0).toBeGreaterThan(200);
 
   // the seeded zone reads the oracle's SAND_A summary
   await expect(page.getByTestId('petro-zone-net-SAND A')).toHaveText(goldenNet('SAND_A'));
@@ -304,8 +303,9 @@ test('PS1: z-color with colorbar, point identify tooltip, Buckles plot, zoom res
   // Buckles plot renders with iso-BVW overlays (canvas up and sized)
   await page.getByTestId('petro-plot-buckles').click();
   await expect(canvas).toBeVisible();
-  const bbox = await canvas.boundingBox();
-  expect(bbox.width).toBeGreaterThan(300);
+  // a canvas that has not been laid out yet is the HTML default 300 px wide, and the plot
+  // remounts on the switch, so wait for the measured size instead of reading it once
+  await expect.poll(async () => (await canvas.boundingBox())?.width ?? 0).toBeGreaterThan(300);
 });
 
 test('PS3: per-zone overrides drive the summary; named interpretations round-trip them', async ({ page }) => {
