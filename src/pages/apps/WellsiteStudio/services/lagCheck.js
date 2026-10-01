@@ -37,12 +37,13 @@ export function lagCheckParams({ result, tracer = 'carbide', note = null, bit = 
   const p = {
     kind: 'observation', subtype: LAG_CHECK_SUBTYPE,
     payload: {
-      tracer, note, source: 'manual', bit_md_m: result.bitMdM, total_strokes: result.totalStrokes, surface_line_m3: result.surfaceLineM3,
+      text: null, tracer, note, source: 'manual', bit_md_m: result.bitMdM, total_strokes: result.totalStrokes, surface_line_m3: result.surfaceLineM3,
       down_strokes: result.downStrokes, measured_lag_strokes: result.measuredLagStrokes, calculated_lag_strokes: result.calculatedLagStrokes,
       difference_strokes: result.differenceStrokes, excess_m3: result.excessM3, open_hole_gauge_m3: result.openHoleGaugeM3,
       washout_fraction: result.washoutFraction, diameter_factor: result.diameterFactor, applies: result.applies, engine_note: result.note || null,
     },
   };
+  p.payload.text = lagCheckLabel(p);
   if (bit) p.depth = { value: bit.depth_value, unit: bit.depth_unit, reference: bit.depth_ref, datum: bit.depth_datum, kind: 'bit_depth' };
   return p;
 }

@@ -33,6 +33,7 @@ import ObservationsView from './ObservationsView';
 import PhotosPanel from './PhotosPanel';
 import { SHOW_SUBTYPE } from '../services/shows';
 import { OBSERVATION_CODES } from '../services/observations';
+import { GAS_SUBTYPE } from '../services/gas';
 import TopsView from './TopsView';
 import SyncStatusPill, { useSyncState } from './SyncStatusPill';
 import ReportScreen from './ReportScreen';
@@ -52,6 +53,9 @@ import { buildLabel } from '@/lib/platformBuild';
 import { useNarrowViewport } from './useNarrowViewport';
 import LagCheckPanel from './LagCheckPanel';
 import { LAG_CHECK_SUBTYPE, currentWashout, lagCheckParams, washoutParams } from '../services/lagCheck';
+
+// record types added by the upgrade that belong with the typed observations (lists, evidence, reports)
+const EXTRA_OBSERVATION_SUBTYPES = [GAS_SUBTYPE, 'lag_check'];
 
 export const VIEWS = [
   { id: 'live', label: 'Live', icon: Activity },
@@ -192,7 +196,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setMembers(mem);
     setEventRecords(evs);
     setShows(currentObservations(shw));
-    setObservations(currentObservations(obs.filter((r) => OBSERVATION_CODES.includes(r.subtype))));
+    setObservations(currentObservations(obs.filter((r) => OBSERVATION_CODES.includes(r.subtype) || EXTRA_OBSERVATION_SUBTYPES.includes(r.subtype))));
     setPhotos(pho);
     setSamples(smp);
     setStages(stg);

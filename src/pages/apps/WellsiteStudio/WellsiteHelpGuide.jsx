@@ -254,6 +254,21 @@ export default function WellsiteHelpGuide() {
         <Para>
           Observations are immutable. To correct one, record the correction; the earlier observation stays in the audit view as superseded.
         </Para>
+        <SubHeading>Chromatograph readings and gas ratios</SubHeading>
+        <Para>
+          Choose Chromatograph on the Observations view and type C1, C2, C3, iC4, nC4, iC5 and nC5 as read, in ppm, percent or
+          chromatograph units. All seven share one unit; a component that was not read is left empty. Before you save, the app
+          shows the Haworth ratios (wetness, the heavier gases as a percent of the total; balance, C1 plus C2 over C3 plus C4 plus
+          C5; character, C4 plus C5 over C3) and the Pixler ratios (C1 over C2, C3, C4 and C5), each with its reading: very dry
+          gas, gas, wet gas or condensate, gas with oil, oil or residual oil from Haworth; oil, gas or non-productive from C1 over
+          C2, with a note when a ratio falls below the one before it. Recorded readings are listed in a gas table with their
+          ratios.
+        </Para>
+        <Callout tone="info" title="An indication from the gas alone">
+          The ratios are a reading of the gas, to be weighed with the cuttings, the shows and the drilling data. A ratio whose
+          denominator was not read is shown as n/a with the reason; nothing is filled in for it. Shale density can be recorded in
+          g/cc, sg or kg/m3.
+        </Callout>
       </GuideSection>
 
       <GuideSection id="photos">

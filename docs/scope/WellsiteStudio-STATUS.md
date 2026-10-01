@@ -480,3 +480,4 @@ Batch decision by the programme lead (2026-10-01), recorded in `docs/upgrade/Wel
 with the per-item build record. Branch `feat/ws-u2`; engines PR Petrolord/petrolord-engines #297
 (vendored byte-identical as recorded deviations until the lead merges it). No DDL, no migration.
 - **U2-004** (done): lag check and washout in the dock (carbide or tracer count, strokes down the string taken off, washout of the open hole and equivalent diameter, applied as a decision that corrects the lag). Engine `lagCheck.js` validated against the published INTEQ carbide cases. Gate `upgradeU2Lag.test.jsx`.
+- **U2-002** (done): chromatograph C1 to C5 as an observation with Haworth (wetness, balance, character) and Pixler ratios and their readings; a gas table. Engine `gasRatios.js`: formulas and limits read on the page, numeric cases hand-derived (no published numeric example was readable). Gate `upgradeU2Gas.test.jsx`.
