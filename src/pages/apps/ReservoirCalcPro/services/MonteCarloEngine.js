@@ -187,6 +187,11 @@ export class MonteCarloEngine {
                             }
                             const grvFactor = Math.max(0, resolve1('grvFactor', 1));
                             const { grvOil, grvGas } = config.hypsometry.zoneVolumes(config.fluidType, owc, goc);
+                            // RCP-U1-012: the deepest contact below the shallowest
+                            // edge of the mapped surface leaves the closure open
+                            const edge = config.hypsometry.edgeElevation;
+                            const deepest = config.fluidType === 'gas' ? (Number.isFinite(goc) ? goc : owc) : owc;
+                            if (Number.isFinite(edge) && Number.isFinite(deepest) && deepest < edge) diagnostics.openRealizations = (diagnostics.openRealizations || 0) + 1;
                             const gOil = grvOil * grvFactor;
                             const gGas = grvGas * grvFactor;
                             grv = gOil + gGas;
@@ -237,6 +242,9 @@ export class MonteCarloEngine {
 
                     for (const [key, n] of Object.entries(diagnostics.clamped)) {
                         diagnostics.warnings.push(`${n.toLocaleString('en-US')} of ${iterations.toLocaleString('en-US')} realizations drew ${CLAMP_LABEL[key] || key} outside 0 to 1 and were held at the bound; the distribution is truncated there. Narrow it or add Min/Max bounds.`);
+                    }
+                    if (diagnostics.openRealizations) {
+                        diagnostics.warnings.push(`${diagnostics.openRealizations.toLocaleString('en-US')} of ${iterations.toLocaleString('en-US')} realizations put the contact below the shallowest edge of the mapped surface (${Math.round(config.hypsometry.edgeElevation).toLocaleString('en-US')} TVDSS): the closure is open there, so those volumes are minimums, not trap volumes.`);
                     }
                     if (diagnostics.gocBelowOwc) {
                         diagnostics.warnings.push(`${diagnostics.gocBelowOwc.toLocaleString('en-US')} realizations drew the GOC below the OWC; the gas cap was stopped at the OWC (no oil leg) in those. Check that the contact ranges do not overlap.`);

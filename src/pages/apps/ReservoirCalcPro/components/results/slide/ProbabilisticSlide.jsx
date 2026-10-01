@@ -13,6 +13,7 @@ import {
 } from './slideParts';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { inPlaceScale, headlineStream, runContext } from '../../../services/volumeDisplay';
+import { reviewerLines } from '../../../services/reportInfo';
 
 // Rasterise an inline <svg> element to a PNG data URL so it can be embedded in the
 // branded PDF. Renders at the SVG's viewBox size × 2 for a crisp result; resolves
@@ -149,7 +150,10 @@ const ProbabilisticSlide = () => {
             const cdfImg = curveRef.current ? await svgToPng(curveRef.current, 600, 250) : null;
             const tornadoImg = tornadoSvgRef.current ? await svgToPng(tornadoSvgRef.current, 520, 180) : null;
             await ReportGenerator.generateProbabilisticReport(
-                project, probResults, state.unitSystem, { cdf: cdfImg, tornado: tornadoImg }, { template: 'technical', fluidType: ft, reservoirName: reservoir },
+                project, probResults, run.unitSystem, { cdf: cdfImg, tornado: tornadoImg }, {
+                    template: 'technical', fluidType: ft, reservoirName: reservoir,
+                    reviewer: reviewerLines({ report: state.inputs?.report, unitSystem: run.unitSystem, inputMethod: state.inputMethod, fluidType: ft, inputs: state.inputs, probResults }),
+                },
             );
             toast({ title: 'Report downloaded', description: 'The full branded PDF was saved.' });
         } catch (e) {

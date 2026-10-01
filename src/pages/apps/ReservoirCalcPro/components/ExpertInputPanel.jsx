@@ -21,7 +21,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import UnitInput from './common/UnitInput';
 import NumberField from './common/NumberField';
-import { defaultInputUnits } from '../services/unitsCatalog';
+import ReportDetails from './common/ReportDetails';
+import { defaultInputUnits, cgrUnitLabel, CGR_METRIC_PER_FIELD } from '../services/unitsCatalog';
 
 const ExpertInputPanel = () => {
     const {
@@ -81,6 +82,8 @@ const ExpertInputPanel = () => {
             updateInputs({
                 fvf: p.bo || state.inputs.fvf,
                 bg: p.bg || state.inputs.bg,
+                // gas presets carry a condensate yield in STB/MMscf (RCP-U1-017)
+                ...(type === 'gas' ? { cgr: p.yield > 0 ? (state.unitSystem === 'metric' ? p.yield * CGR_METRIC_PER_FIELD : p.yield) : null } : {}),
             });
         }
     };
@@ -133,6 +136,7 @@ const ExpertInputPanel = () => {
                         </div>
                     </div>
                     <FluidTypeSelector value={fluidType} onChange={handleFluidChange} />
+                    <ReportDetails />
                 </Card>
                 <div className="flex-1 overflow-hidden rounded-lg border border-pl-border">
                     <ProbabilisticPanel />
@@ -180,6 +184,7 @@ const ExpertInputPanel = () => {
                         </div>
 
                         <FluidTypeSelector value={fluidType} onChange={handleFluidChange} />
+                        <ReportDetails />
 
                         <div className="space-y-2 pt-2 border-t border-pl-border">
                             <Label className="text-[10px] text-pl-muted">Input Method</Label>
@@ -325,6 +330,11 @@ const ExpertInputPanel = () => {
                                         <Label className="text-xs">Recovery Factor (%)</Label>
                                         <NumberField value={state.inputs?.recoveryGas} onCommit={v => handleDetChange('recoveryGas', v ?? 0)} className="h-8" />
                                     </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-xs">Condensate-gas ratio, CGR ({cgrUnitLabel(state.unitSystem)})</Label>
+                                    <NumberField value={state.inputs?.cgr} onCommit={v => handleDetChange('cgr', v)} className="h-8" data-testid="rcp-cgr" />
+                                    <p className="text-[10px] text-pl-muted">Leave empty for dry gas. Condensate in place = GIIP x CGR; recoverable condensate takes the gas recovery factor.</p>
                                 </div>
                                 <UnitInput label="Gas FVF (Bg)" {...unitInputProps('bg')}
                                     hint="Pick the convention your PVT report uses. Values in rb/scf and rb/Mscf are converted internally (5.614583 ft³/bbl)." />

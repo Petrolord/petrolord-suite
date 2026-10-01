@@ -10,6 +10,7 @@ import {
     OIL_RESULT_UNITS, GAS_RESULT_UNITS, convertResultVolume,
     resultUnitLabel, defaultResultUnits
 } from '../../services/unitsCatalog';
+import { describeGridding } from '../../services/reportInfo';
 
 // Compact selector rendered inside a result card header.
 const ResultUnitSelect = ({ value, onChange, options }) => (
@@ -103,13 +104,18 @@ const DeterministicResultsDisplay = () => {
                     <Card className="p-6 relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-2 opacity-10 text-9xl font-bold leading-none text-pl-muted select-none">G</div>
                         <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-sm uppercase text-pl-muted font-bold tracking-wider">GIIP</h3>
+                            <h3 className="text-sm uppercase text-pl-muted font-bold tracking-wider" title={ft === 'oil_gas' ? 'Free gas in the gas cap; solution gas in the oil leg is not included' : undefined}>{ft === 'oil_gas' ? 'GIIP (free gas)' : 'GIIP'}</h3>
                             <ResultUnitSelect value={gasUnit} onChange={setGasUnit} options={GAS_RESULT_UNITS} />
                         </div>
                         <div className="text-4xl font-bold font-pl-mono tabular-nums text-pl-text tracking-tight">
                             {gasVol(results.giip)} <span className="text-lg text-pl-muted font-normal">{resultUnitLabel(gasUnit, 'gas')}</span>
                         </div>
                         <p className="text-pl-muted text-sm mt-2">Recoverable: {gasVol(results.recoverableGas)} {resultUnitLabel(gasUnit, 'gas')}</p>
+                        {Number.isFinite(results.condensate) && (
+                            <p className="text-pl-muted text-sm mt-1" data-testid="rcp-condensate">
+                                Condensate in place: {fmtVol(results.condensate / 1e6)} {rSystem === 'field' ? 'MMSTB' : 'MMsm³'} (CGR {results.cgr}); recoverable {fmtVol(results.recoverableCondensate / 1e6)} at the gas RF
+                            </p>
+                        )}
                     </Card>
                 )}
                 
@@ -128,6 +134,10 @@ const DeterministicResultsDisplay = () => {
                     </div>
                 </Card>
             </div>
+
+            {results.gridding && (
+                <p className="text-[11px] text-pl-muted -mt-3" data-testid="rcp-gridding">{describeGridding(results)}</p>
+            )}
 
             <ContactSweepChart />
 

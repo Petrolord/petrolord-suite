@@ -63,7 +63,10 @@ const initialState = {
         goc: -7000,
         // Gas-cap GRV fraction for the analytic (simple) oil+gas split; structural
         // methods derive the split from the GOC instead.
-        gasCapFraction: null
+        gasCapFraction: null,
+        // Condensate-gas ratio (STB/MMscf field, sm³ per 10⁶ sm³ metric);
+        // empty means no condensate stream (RCP-U1-017)
+        cgr: null
     },
     
     surfaces: {},

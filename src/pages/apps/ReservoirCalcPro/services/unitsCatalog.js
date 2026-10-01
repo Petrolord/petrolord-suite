@@ -96,6 +96,9 @@ export function fromCanonical(field, value, displayUnit, unitSystem) {
 }
 
 const isNum = (v) => typeof v === 'number' && isFinite(v);
+export const CGR_METRIC_PER_FIELD = 0.158987 / 0.0283168;
+/** The CGR unit label of a unit system. */
+export const cgrUnitLabel = (unitSystem) => (unitSystem === 'metric' ? 'sm³/10⁶ sm³' : 'STB/MMscf');
 
 /**
  * Convert the canonical inputs when the Field/Metric system toggles, so the
@@ -117,6 +120,10 @@ export function convertInputsOnSystemChange(inputs, fromSystem, toSystem) {
         const v = parseFloat(next[key]);
         if (isNum(v)) next[key] = UnitConversionEngine.convert(v, lenFrom, lenTo, 'length');
     }
+    // RCP-U1-017: condensate-gas ratio, STB/MMscf (field) and sm3 per
+    // million sm3 (metric); 1 STB/MMscf = 0.158987 / 0.0283168 sm3/10^6 sm3
+    const cgr = parseFloat(next.cgr);
+    if (isNum(cgr)) next.cgr = toSystem === 'metric' ? cgr * CGR_METRIC_PER_FIELD : cgr / CGR_METRIC_PER_FIELD;
     return next;
 }
 

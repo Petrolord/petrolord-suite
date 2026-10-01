@@ -97,6 +97,11 @@ const FluidContactManager = () => {
                 <div className="text-[10px] text-pl-muted italic mt-1 px-1" data-testid="rcp-contact-note">
                     Elevation below the datum (TVDSS): negative numbers, deeper is more negative, the same convention as the registry surfaces.
                 </div>
+                {state.inputMethod === 'simple' && (
+                    <div className="text-[10px] text-pl-warning-text mt-1 px-1" data-testid="rcp-contact-simple">
+                        The Simple method has no structure, so these contacts do not change the volume. Use Hybrid or Surfaces to cut the structure at the contacts{fluidType === 'oil_gas' ? ', or the gas-cap fraction (Fluid tab) to split oil and gas' : ''}.
+                    </div>
+                )}
             </Card>
         </div>
     );

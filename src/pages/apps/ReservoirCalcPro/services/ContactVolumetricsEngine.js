@@ -57,6 +57,8 @@ export class ContactVolumetricsEngine {
 
         let grvOil = 0, grvGas = 0;
         let areaOil = 0, areaGas = 0, areaAny = 0;
+        let openCells = 0;
+        let crest = Infinity;
         for (const c of cells) {
             const gasThk = intervalOverlap(c.td, c.bd, zone.gasTop, zone.gasBot);
             const oilThk = intervalOverlap(c.td, c.bd, zone.oilTop, zone.oilBot);
@@ -64,7 +66,28 @@ export class ContactVolumetricsEngine {
             grvOil += oilThk * c.area;
             if (gasThk > 0) areaGas += c.area;
             if (oilThk > 0) areaOil += c.area;
-            if (gasThk > 0 || oilThk > 0) areaAny += c.area;
+            if (gasThk > 0 || oilThk > 0) {
+                areaAny += c.area;
+                if (c.edge) openCells += 1;
+            }
+            if (c.td < crest) crest = c.td;
+        }
+        const lenUnit = meta.isField ? 'ft' : 'm';
+        // RCP-U1-012: a column that reaches the edge of the mapped surface is
+        // not closed inside the map at this contact
+        const openEdge = openCells > 0
+            ? { open: true, cells: openCells, edgeElevation: Number.isFinite(meta.edgeTop) ? -meta.edgeTop : null }
+            : { open: false, cells: 0, edgeElevation: Number.isFinite(meta.edgeTop) ? -meta.edgeTop : null };
+        if (openEdge.open) {
+            warnings.push(`Open closure: the hydrocarbon column reaches the edge of the mapped surface at ${openCells.toLocaleString('en-US')} cells, so the structure does not close inside the map at this contact. This volume is a minimum, not a trap volume. The shallowest edge of the surface is at ${Number.isFinite(openEdge.edgeElevation) ? Math.round(openEdge.edgeElevation).toLocaleString('en-US') : 'n/a'} ${lenUnit} TVDSS: a contact below that spills or runs off the map.`);
+        }
+        // RCP-U1-022: a contact typed as a positive depth sits above the datum
+        for (const [k, label] of [['owc', fluidType === 'gas' ? 'GWC' : 'OWC'], ['goc', fluidType === 'gas' ? 'GWC' : 'GOC']]) {
+            const v = parseFloat(inputs[k]);
+            const used = k === 'owc' ? fluidType !== 'gas' || !isNum(inputs.goc) : fluidType !== 'oil';
+            if (used && isNum(inputs[k]) && v > 0 && Number.isFinite(crest) && crest > 0) {
+                warnings.push(`The ${label} is +${v.toLocaleString('en-US')} ${lenUnit}, above the datum, while the whole structure is below it. Contacts are TVDSS elevations, negative below sea level: did you mean -${v.toLocaleString('en-US')}?`);
+            }
         }
 
         // Per-zone roll-up so oil and gas never share pore volume.
@@ -79,6 +102,7 @@ export class ContactVolumetricsEngine {
         const giip = meta.isField ? (hcpvGas * GAS_CONST) / Bg : hcpvGas / Bg;
         const recoverableOil = stooip * (oilRecovery / 100);
         const recoverableGas = giip * (gasRecovery / 100);
+        const cond = condensateFrom(giip, inputs.cgr, gasRecovery);
 
         // productive area for display: acres (field) or km² (metric)
         const areaDisplay = (a) => meta.isField ? a : a / M2_PER_KM2;
@@ -114,6 +138,11 @@ export class ContactVolumetricsEngine {
             resVolUnit: meta.resVolUnit,
             areaUnit: meta.areaUnit,
             resolution: { nx: meta.nx, ny: meta.ny, dx: meta.dx, dy: meta.dy },
+            // RCP-U1-023: how the surface was gridded, so a reloaded result and
+            // the report say what produced the number
+            gridding: { interpolation: meta.interpolation, nx: meta.nx, ny: meta.ny, dx: meta.dx, dy: meta.dy, xyUnit: meta.xyUnit },
+            openEdge,
+            condensate: cond.inPlace, recoverableCondensate: cond.recoverable, cgr: cond.cgr,
             cellCount: cells.length,
             maskedCount: meta.maskedCount,
             clippedCount: meta.clippedCount,
@@ -124,7 +153,7 @@ export class ContactVolumetricsEngine {
             inputs: {
                 ntg, porosity: phi, sw, fvf: Bo, bg: Bg,
                 recovery: oilRecovery, recoveryGas: gasRecovery,
-                owc: inputs.owc, goc: inputs.goc, fluidType
+                owc: inputs.owc, goc: inputs.goc, fluidType, cgr: cond.cgr
             }
         };
     }
@@ -207,6 +236,8 @@ export class ContactVolumetricsEngine {
             vTotal,
             totalArea,
             zLo, zHi,
+            // RCP-U1-012: contacts (TVDSS elevation) deeper than this are open
+            edgeElevation: Number.isFinite(meta.edgeTop) ? -meta.edgeTop : null,
             rockToContact,
             zoneVolumes,
             isField: meta.isField,
@@ -252,6 +283,27 @@ export class ContactVolumetricsEngine {
      * or m² (metric), already reduced by AOI coverage and hull masking.
      */
     static _buildCells(p) {
+        // RCP-U1-030 (PL10): the grid is the slow part (kriging at 150 x 150
+        // took 5 to 12 s) and depends only on the geometry, so a porosity,
+        // Sw, FVF or contact edit reuses it instead of re-gridding on every
+        // keystroke. Keyed on the surface objects (replaced, never mutated,
+        // in the workspace) and every geometry parameter.
+        const top = p.topSurface;
+        if (!top || typeof top !== 'object') return this._buildCellsRaw(p);
+        const key = JSON.stringify([
+            objectId(p.baseSurface), p.constantThickness ?? null, p.unitSystem || 'field',
+            p.aoiPolygon?.vertices || null, p.options || {},
+        ]);
+        let byKey = CELL_CACHE.get(top);
+        if (!byKey) { byKey = new Map(); CELL_CACHE.set(top, byKey); }
+        if (byKey.has(key)) return byKey.get(key);
+        const built = this._buildCellsRaw(p);
+        if (byKey.size >= 6) byKey.delete(byKey.keys().next().value);
+        byKey.set(key, built);
+        return built;
+    }
+
+    static _buildCellsRaw(p) {
         const {
             topSurface,
             baseSurface = null,
@@ -315,6 +367,9 @@ export class ContactVolumetricsEngine {
 
         const cells = [];
         let maskedCount = 0, clippedCount = 0;
+        // RCP-U1-012: which nodes have no surface (outside the frame or the
+        // data hull) so a hydrocarbon column touching them can be called open
+        const hullOut = new Uint8Array(nx * ny);
         for (let j = 0; j < ny; j++) {
             const cy = b.minY + (j + 0.5) * dy;
             for (let i = 0; i < nx; i++) {
@@ -325,7 +380,7 @@ export class ContactVolumetricsEngine {
                     coverage = cellCoverage(cx, cy, dx, dy, aoiPolygon.vertices);
                     if (coverage <= 0) { clippedCount++; continue; }
                 }
-                if (hullMask && nearestDist(topInterp, cx, cy) > hullRadius) { maskedCount++; continue; }
+                if (hullMask && nearestDist(topInterp, cx, cy) > hullRadius) { maskedCount++; hullOut[j * nx + i] = 1; continue; }
 
                 const tdNative = toDepth(topInterp.predict(cx, cy));
                 // constant gross thickness is in workspace units (ft field, m metric);
@@ -334,8 +389,18 @@ export class ContactVolumetricsEngine {
                 const td = Math.min(tdNative, bdNative) * depthToTargetLen; // shallow, target units
                 const bd = Math.max(tdNative, bdNative) * depthToTargetLen; // deep
                 if (bd - td <= 0) continue;
-                cells.push({ td, bd, area: cellArea * coverage });
+                cells.push({ td, bd, area: cellArea * coverage, i, j });
             }
+        }
+        // a cell is on the edge of the mapped surface when it sits on the
+        // frame or beside a node outside the data hull
+        let edgeTop = Infinity;
+        for (const c of cells) {
+            const { i, j } = c;
+            const edge = i === 0 || j === 0 || i === nx - 1 || j === ny - 1
+                || hullOut[j * nx + i - 1] || hullOut[j * nx + i + 1] || hullOut[(j - 1) * nx + i] || hullOut[(j + 1) * nx + i];
+            c.edge = !!edge;
+            if (c.edge && c.td < edgeTop) edgeTop = c.td;
         }
 
         return {
@@ -346,6 +411,10 @@ export class ContactVolumetricsEngine {
                 unitSystem,
                 xyUnit, depthUnit, zConvention, depthToTargetLen,
                 nx, ny, dx, dy, maskedCount, clippedCount,
+                // shallowest top depth (target units, positive down) on the
+                // edge of the mapped surface: a contact below it is open
+                edgeTop,
+                interpolation: method,
                 volumeUnit: isField ? 'STB' : 'sm³',
                 volUnit: isField ? 'Ac-ft' : 'm³',
                 resVolUnit: isField ? 'Ac-ft' : 'm³',
@@ -356,6 +425,29 @@ export class ContactVolumetricsEngine {
 }
 
 // ---- helpers ----
+
+const CELL_CACHE = new WeakMap();
+const OBJECT_IDS = new WeakMap();
+let nextObjectId = 1;
+function objectId(o) {
+    if (!o || typeof o !== 'object') return null;
+    if (!OBJECT_IDS.has(o)) OBJECT_IDS.set(o, nextObjectId++);
+    return OBJECT_IDS.get(o);
+}
+
+/**
+ * Condensate in place from a gas volume and a condensate-gas ratio
+ * (RCP-U1-017). CGR is STB per MMscf in field units and sm3 per million
+ * sm3 in metric, so in both systems condensate = GIIP / 1e6 x CGR. The
+ * recoverable condensate takes the gas recovery factor (stated in the
+ * results), the usual screening assumption for a lean gas condensate.
+ */
+export function condensateFrom(giip, cgr, gasRecoveryPct = 0) {
+    const y = parseFloat(cgr);
+    if (!(y > 0) || !Number.isFinite(giip)) return { inPlace: null, recoverable: null, cgr: null };
+    const inPlace = (giip / 1e6) * y;
+    return { inPlace, recoverable: inPlace * ((parseFloat(gasRecoveryPct) || 0) / 100), cgr: y };
+}
 
 function isNum(v) { return v !== null && v !== undefined && v !== '' && !isNaN(parseFloat(v)); }
 

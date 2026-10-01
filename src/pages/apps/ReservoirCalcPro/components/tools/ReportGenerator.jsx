@@ -9,6 +9,24 @@ import { tornadoSwings } from '@/lib/monteCarlo';
 import { loadPetrolordLogo, drawBrandHeader } from '@/lib/pdfBrand';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { inPlaceScale } from '../../services/volumeDisplay';
+import { latin1 } from '../../services/reportInfo';
+
+// RCP-U1-019 (PL7): the reviewer block under the banner (field, analyst,
+// date, build, units, method, contacts with their datum, gridding, open
+// closure, Monte Carlo basis). Lines come from services/reportInfo.js.
+function drawReviewer(doc, lines, margin, yPos, maxWidth) {
+    if (!Array.isArray(lines) || !lines.length) return yPos;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+    let y = yPos;
+    for (const line of lines) {
+        const wrapped = typeof doc.splitTextToSize === 'function' ? doc.splitTextToSize(latin1(line), maxWidth) : [latin1(line)];
+        for (const w of wrapped) { doc.text(w, margin, y); y += 3.6; }
+    }
+    doc.setTextColor(0, 0, 0);
+    return y + 4;
+}
 
 // ── Text-fitting helpers ────────────────────────────────────────────────────
 // Long project/reservoir names used to be drawn at full length and collided
@@ -75,7 +93,7 @@ export class ReportGenerator {
             doc.setFontSize(8);
             doc.setTextColor(150);
             doc.text(`Page ${pageNo} of ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-            doc.text('Petrolord Suite • ReservoirCalc Pro', pageWidth - margin, pageHeight - 10, { align: 'right' });
+            doc.text('Petrolord Suite | ReservoirCalc Pro', pageWidth - margin, pageHeight - 10, { align: 'right' });
         };
 
         // Start a fresh page when the next block wouldn't fit.
@@ -111,7 +129,7 @@ export class ReportGenerator {
 
         // ── Page 1: summary ──
         addHeader();
-        let yPos = 45;
+        let yPos = drawReviewer(doc, options.reviewer, margin, 43, pageWidth - margin * 2) + 3;
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
@@ -121,7 +139,7 @@ export class ReportGenerator {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.text('Probabilistic volumetric estimate from Monte Carlo simulation (correlated inputs).', margin, yPos);
-        doc.text(`Fluid: ${fluidType === 'oil_gas' ? 'Oil & Gas' : fluidType.charAt(0).toUpperCase() + fluidType.slice(1)}   •   Unit system: ${unitSystem.charAt(0).toUpperCase() + unitSystem.slice(1)}`, margin, yPos + 5);
+        doc.text(`Fluid: ${fluidType === 'oil_gas' ? 'Oil & Gas' : fluidType.charAt(0).toUpperCase() + fluidType.slice(1)}   |   Unit system: ${unitSystem.charAt(0).toUpperCase() + unitSystem.slice(1)}`, margin, yPos + 5);
 
         // KPI band (P90 / P50 / P10)
         yPos += 15;
@@ -275,7 +293,7 @@ export class ReportGenerator {
                 'Monte Carlo simulation with a Gaussian copula: correlated standard normals are mapped',
                 'through each variable\'s marginal distribution (triangular / normal / lognormal / uniform).',
                 'A default porosity-water-saturation correlation of -0.8 is applied. Out-of-bounds draws for',
-                'unbounded (normal/lognormal) marginals are rejected. Volumetrics: HCPV = GRV·NTG·φ·(1-Sw);',
+                'unbounded (normal/lognormal) marginals are rejected. Volumetrics: HCPV = GRV x NTG x phi x (1-Sw);',
                 'STOOIP = HCPV·7758/Bo (field) or HCPV/Bo (metric); GIIP = HCPV·43560/Bg (field) or HCPV/Bg.',
                 'P90/P50/P10 follow the petroleum convention (P90 = low, P10 = high). Screening estimate:',
                 'confirm against reservoir simulation before use in reserves booking.',
@@ -327,7 +345,7 @@ export class ReportGenerator {
             doc.setFontSize(8);
             doc.setTextColor(150);
             doc.text(`Page ${pageNo} of ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-            doc.text('Petrolord Suite • ReservoirCalc Pro', pageWidth - margin, pageHeight - 10, { align: 'right' });
+            doc.text('Petrolord Suite | ReservoirCalc Pro', pageWidth - margin, pageHeight - 10, { align: 'right' });
         };
 
         const ensureSpace = (needed, yPos) => {
@@ -336,7 +354,7 @@ export class ReportGenerator {
         };
 
         addHeader();
-        let yPos = 45;
+        let yPos = drawReviewer(doc, options.reviewer, margin, 43, pageWidth - margin * 2) + 3;
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
@@ -345,13 +363,13 @@ export class ReportGenerator {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         const fluidLabel = fluidType === 'oil_gas' ? 'Oil & Gas' : fluidType.charAt(0).toUpperCase() + fluidType.slice(1);
-        doc.text(`Fluid: ${fluidLabel}   •   Unit system: ${isField ? 'Field' : 'Metric'}`, margin, yPos);
+        doc.text(`Fluid: ${fluidLabel}   |   Unit system: ${isField ? 'Field' : 'Metric'}`, margin, yPos);
 
         // KPI band
         yPos += 12;
         const cards = [];
-        if (showOil) cards.push({ label: 'STOOIP', value: `${num(results.stooip)} ${oilUnit}`, accent: true });
-        if (showGas) cards.push({ label: 'GIIP', value: `${num((results.giip || 0) / 1e9, 3)} ${gasB}`, accent: true });
+        if (showOil) cards.push({ label: 'STOIIP', value: `${num(results.stooip)} ${oilUnit}`, accent: true });
+        if (showGas) cards.push({ label: fluidType === 'oil_gas' ? 'GIIP (FREE GAS)' : 'GIIP', value: `${num((results.giip || 0) / 1e9, 3)} ${gasB}`, accent: true });
         cards.push({ label: 'GROSS ROCK VOLUME', value: `${num(results.bulkVolume)} ${results.volUnit || ''}`, accent: false });
         const cardW = (pageWidth - margin * 2 - (cards.length - 1) * 5) / cards.length;
         const cardH = 26;
@@ -378,17 +396,17 @@ export class ReportGenerator {
         doc.setFont('helvetica', 'normal');
         const inputRows = [
             ['Net-to-Gross (NTG)', num(inputs.ntg, 3)],
-            ['Porosity (φ)', num(inputs.porosity, 3)],
+            ['Porosity (phi)', num(inputs.porosity, 3)],
             ['Water Saturation (Sw)', num(inputs.sw, 3)],
         ];
         if (showOil) {
             inputRows.push(['Oil FVF (Bo)', num(inputs.fvf, 3)]);
-            inputRows.push(['Oil–Water Contact (OWC)', inputs.owc != null ? String(inputs.owc) : EMPTY_VALUE]);
+            inputRows.push(['Oil-Water Contact (OWC), TVDSS', inputs.owc != null && inputs.owc !== '' ? `${inputs.owc} ${isField ? 'ft' : 'm'}` : EMPTY_VALUE]);
             inputRows.push(['Oil Recovery Factor', num(inputs.recovery, 2)]);
         }
         if (showGas) {
             inputRows.push(['Gas FVF (Bg)', num(inputs.bg, 5)]);
-            inputRows.push(['Gas–Oil Contact (GOC)', inputs.goc != null ? String(inputs.goc) : EMPTY_VALUE]);
+            inputRows.push([fluidType === 'gas' ? 'Gas-Water Contact (GWC), TVDSS' : 'Gas-Oil Contact (GOC), TVDSS', inputs.goc != null && inputs.goc !== '' ? `${inputs.goc} ${isField ? 'ft' : 'm'}` : EMPTY_VALUE]);
             inputRows.push(['Gas Recovery Factor', num(inputs.recoveryGas, 2)]);
         }
         doc.autoTable({
@@ -417,7 +435,7 @@ export class ReportGenerator {
             volRows.push(['Recoverable Oil', num(results.recoverableOil ?? results.recoverable), oilUnit]);
         }
         if (showGas) {
-            volRows.push(['GIIP', num((results.giip || 0) / 1e9, 3), gasB]);
+            volRows.push([fluidType === 'oil_gas' ? 'GIIP (free gas)' : 'GIIP', num((results.giip || 0) / 1e9, 3), gasB]);
             volRows.push(['Recoverable Gas', num((results.recoverableGas || 0) / 1e9, 3), gasB]);
         }
         doc.autoTable({
@@ -447,12 +465,12 @@ export class ReportGenerator {
         }
         if (warnings.length === 0) {
             doc.setTextColor(16, 130, 90);
-            doc.text('Inputs are physically consistent — no issues detected.', margin, yPos);
+            doc.text('Inputs are physically consistent: no issues detected.', margin, yPos);
             yPos += 6;
         } else {
             doc.setTextColor(160, 90, 0);
             warnings.forEach((w) => {
-                const lines = doc.splitTextToSize(`• ${w}`, pageWidth - margin * 2);
+                const lines = doc.splitTextToSize(latin1(`- ${w}`), pageWidth - margin * 2);
                 lines.forEach((ln) => { yPos = ensureSpace(6, yPos); doc.text(ln, margin, yPos); yPos += 5; });
             });
         }
@@ -467,10 +485,10 @@ export class ReportGenerator {
         doc.setFontSize(8);
         doc.setTextColor(70, 70, 70);
         const notes = [
-            'Deterministic (single-value) volumetric calculation. HCPV = GRV·NTG·φ·(1−Sw);',
-            `STOOIP = HCPV·${isField ? '7758/Bo' : '1/Bo'};  GIIP = HCPV·${isField ? '43560/Bg' : '1/Bg'}.`,
+            'Deterministic (single-value) volumetric calculation. HCPV = GRV x NTG x phi x (1-Sw);',
+            `STOIIP = HCPV x ${isField ? '7758/Bo' : '1/Bo'};  GIIP = HCPV x ${isField ? '43560/Bg' : '1/Bg'}.`,
             'Gross rock volume is derived from the mapped structure surface and fluid contacts.',
-            'A screening estimate — confirm against a probabilistic run and reservoir simulation',
+            'A screening estimate: confirm it against a probabilistic run and reservoir simulation',
             'before use in reserves booking.',
         ];
         notes.forEach((line, i) => doc.text(line, margin, yPos + 6 + i * 5));
