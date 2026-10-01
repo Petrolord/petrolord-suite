@@ -60,12 +60,14 @@ export function reviewerLines(p) {
   const lines = [
     `Model: ${modelName || 'not named'} | Well: ${st.registryWellName || 'not tied to a registry well'} | Field: ${field} | Analyst: ${analyst} | Date: ${now.toISOString().slice(0, 10)} | ${build}`,
     `Units: depth ${zU}, temperature ${tU}; engine SI (m, C, Ma, mW/m2). Ages: ${st.timescale || (st.fromStratigraphyStudio ? 'ICS 2023/09 (sent before chart versions travelled)' : 'as typed')}; current chart ${TIMESCALE_VERSION}`,
-    'Engine: 1D forward model; Athy (Sclater and Christie) decompaction, elastic (porosity follows present burial, no maximum-burial memory); implicit conduction on cells up to 100 m; Easy%Ro (Sweeney and Burnham 1990) at each layer centre and through the column in slices up to about 100 m; kerogen transformation by parallel Arrhenius reactions; 1 Ma steps ending at 0 Ma',
+    `Engine: 1D forward model; Athy (Sclater and Christie) decompaction, ${st.compaction === 'irreversible' ? 'maximum-burial compaction (an unroofed layer keeps its deepest compaction)' : 'elastic (porosity follows present burial, no maximum-burial memory)'}; implicit conduction on cells up to 100 m; Easy%Ro (Sweeney and Burnham 1990) at each layer centre and through the column in slices up to about 100 m; kerogen transformation by parallel Arrhenius reactions; 1 Ma steps ending at 0 Ma`,
     hf.type === 'variable'
       ? `Basal heat flow: history ${(hf.history || []).slice().sort((a, b) => b.age - a.age).map((q) => `${q.age} Ma ${q.value}`).join(', ')} mW/m2 (present ${f(presentDayHeatFlow(hf), 1)})`
       : `Basal heat flow: constant ${f(Number(hf.value), 1)} mW/m2`,
     `Surface temperature: ${f(tempToDisplay(Number.isFinite(Number(st.surfaceTemp)) ? Number(st.surfaceTemp) : 20, tU), 1)} ${tU}`,
   ];
+  const comp = results?.meta?.compaction;
+  if (comp?.mode === 'irreversible') lines.push(`Compaction: maximum burial; the present thicknesses are reproduced to ${f(comp.presentThicknessErrorM, 3)} m after ${comp.iterations} pass${comp.iterations === 1 ? '' : 'es'}`);
   const ero = state?.erosionEvents || [];
   lines.push(ero.length
     ? `Erosion: ${ero.map((e) => `${e.surface ? `${e.surface} ` : ''}${e.age} Ma ${Number(e.amount) > 0 ? `${z(Number(e.amount))} removed` : 'amount unknown, NOT modelled'}`).join('; ')}`

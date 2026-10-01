@@ -79,6 +79,18 @@ const GlobalHistoryPanel = () => {
                                 depthUnit={units.depth}
                                 onChange={(events) => dispatch({ type: 'SET_EROSION_EVENTS', payload: events })}
                             />
+                            {/* BF-U2-005: what an unroofed layer does */}
+                            <div className="mt-4 bg-pl-surface p-3 rounded border border-pl-border space-y-1">
+                                <Label className="text-xs text-pl-muted" htmlFor="bf-compaction-mode">Compaction on unroofing</Label>
+                                <select id="bf-compaction-mode" data-testid="bf-compaction-mode"
+                                    value={settings?.compaction === 'irreversible' ? 'irreversible' : 'elastic'}
+                                    onChange={(e) => dispatch({ type: 'UPDATE_SETTINGS', payload: { compaction: e.target.value === 'irreversible' ? 'irreversible' : 'elastic' } })}
+                                    className="w-full h-8 bg-pl-surface border border-pl-border-strong rounded px-2 text-xs text-pl-text">
+                                    <option value="elastic">Elastic: porosity follows the present depth</option>
+                                    <option value="irreversible">Maximum burial: a layer keeps its deepest compaction</option>
+                                </select>
+                                <p className="text-[11px] text-pl-muted">With erosion, Maximum burial keeps an uplifted layer as thin and tight as it was at its deepest; Elastic lets it re-expand. With no erosion the two agree.</p>
+                            </div>
                         </div>
                     </ScrollArea>
                 </TabsContent>

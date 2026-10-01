@@ -140,3 +140,27 @@ describe('U2-018 the worked example', () => {
     expect(raw.heatFlow.value).toBeLessThan(WORKED_EXAMPLE_TRUTH_HEAT_FLOW - 3);
   }, 600000);
 });
+
+describe('U2-005 maximum-burial compaction in the app', () => {
+  test('the mode is an input of the run: the uplifted source shale stays thinner, the key changes, the report says it', async () => {
+    const { engineInputsKey } = require('../services/honesty');
+    const { reviewerLines } = require('../services/report');
+    const base = { ...ref(), erosionEvents: [{ age: 10, amount: 2500 }] };
+    const irr = { ...base, settings: { ...base.settings, compaction: 'irreversible' } };
+    expect(engineInputsKey(irr)).not.toBe(engineInputsKey(base));
+    expect(engineInputsKey({ ...base, settings: { ...base.settings, compaction: 'elastic' } })).toBe(engineInputsKey(base));
+    const a = await SimulationEngine.run(base);
+    const b = await SimulationEngine.run(irr);
+    expect(b.meta.compaction).toMatchObject({ mode: 'irreversible' });
+    expect(b.meta.compaction.presentThicknessErrorM).toBeLessThan(1e-3);
+    const li = a.meta.layers.findIndex((l) => l.id === 'source_shale');
+    const at = (r, age) => r.data.burial[li].find((e) => e.age === age).thickness;
+    // elastic: re-expands after the 10 Ma unroofing; maximum burial: keeps its 11 Ma thickness
+    expect(at(a, 0) - at(a, 11)).toBeGreaterThan(20);
+    expect(Math.abs(at(b, 0) - at(b, 11))).toBeLessThan(1e-6);
+    expect(Math.abs(at(b, 0) - 400)).toBeLessThan(1e-3);
+    const lines = reviewerLines({ modelName: 'M', state: irr, results: b, units: { depth: 'm', temp: 'C' } }).join('\n');
+    expect(lines).toMatch(/maximum-burial compaction/);
+    expect(lines).toMatch(/Compaction: maximum burial; the present thicknesses are reproduced to 0(\.\d+)? m/);
+  }, 300000);
+});

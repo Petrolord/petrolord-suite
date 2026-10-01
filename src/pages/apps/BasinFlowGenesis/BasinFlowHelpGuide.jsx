@@ -111,6 +111,7 @@ export default function BasinFlowHelpGuide() {
           or a custom event in the wizard:
         </Para>
         <Table headers={['Option', 'Removed']} rows={ErosionPresets.map((p) => [p.name, p.amount > 0 ? `${p.amount} m` : 'none'])} />
+        <Para>Compaction on unroofing (under the erosion events) sets what an uplifted layer does. Elastic lets its porosity follow the present depth, so it re-expands. Maximum burial keeps the layer as thin and tight as it was at its deepest, which is what rocks do; the engine then finds the solid thickness that reproduces today's thickness. With no erosion the two give the same answer.</Para>
       </GuideSection>
 
       <GuideSection id="calibration">

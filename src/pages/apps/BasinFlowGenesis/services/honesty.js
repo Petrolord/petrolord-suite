@@ -35,6 +35,8 @@ export function engineInputsKey(state) {
     hf: { type: hf.type || 'constant', value: num(hf.value), history: hf.type === 'variable' ? (hf.history || []).map((p) => [num(p.age), num(p.value)]) : null },
     ero: (state?.erosionEvents || []).map((e) => [num(e.age), num(e.amount)]),
     ts: num(state?.settings?.surfaceTemp),
+    // U2-005: the compaction mode is an input (elastic, the default, adds no key)
+    ...(state?.settings?.compaction === 'irreversible' ? { comp: 'irreversible' } : {}),
   });
 }
 
