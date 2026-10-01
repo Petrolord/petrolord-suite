@@ -184,6 +184,33 @@ Batches:
 - **Batch B:** U2-008, U2-009, U2-010, U2-011, U2-012, U2-013 (the only one needing DDL, on app-private ws_* tables).
 - **Batch C:** U2-014, U2-015, U2-016, U2-017, U2-018, U2-019.
 
+## Batch decision (programme lead, 2026-10-01)
+
+Recorded verbatim.
+
+> BUILD in this order, one commit per item:
+> - Batch A, all: U2-004 lag check and washout (engines-first, validated against a published carbide-lag worked example or, if none is readable, hand-derived arithmetic with a negative control; say which); U2-002 gas chromatograph C1 to C5 with Haworth (wetness, balance, character) and Pixler ratios (validate against published ratio examples, negative control); U2-003 mudlog import (CSV and LAS, header-detected columns, declared units, 5 hostile files); U2-005 rig surveys (MWD station entry and import, minimum curvature through the shared trajectory resolver, the prognosis follows the updated survey; closes WS-U1-022); U2-006 d-exponent and corrected d-exponent (first half of Pore Pressure U2-014; engines-first, validated against a published worked example; plotted on a depth track with a normal trend); U2-001 composite (strip) log (depth-down tracks: ROP, lithology column, gas, tops, descriptions; print/PDF export read back with pdftotext; white chartTheme + ChartLogo); U2-007 office view (read-only follow of a shared well).
+> - Batch B: U2-010 publish plan (prognosis and actual kept apart, duplicates named, atomic or honestly staged with rollback reporting; closes WS-U1-025 and the rest of 013); U2-009 rig survey to the shared wells registry (WDM U2-009; through the existing registry writer, with provenance); U2-008 Pore Pressure link both ways (d-exponent and gas as calibration evidence out; pore pressure prognosis and mud window in); U2-011 WITSML file import/export (1.4.1.1 mudLog/trajectory/log objects as files, round trip tested, hostile files); U2-012 top scoring only if time remains.
+> - U2-013 names on the record: build ONLY if an existing JSON or text column on the ws_* tables can carry the display name with no DDL; otherwise defer with the migration sketched in the doc.
+> DEFERRED (record reasons): U2-014 live WITSML/ETP gateway (L, needs a server component, after NAPE); U2-015 real-time pressure (L); U2-016 end of well report (after the composite log lands, next round); U2-017 sidewall cores; U2-018 assisted description; U2-019 KB/datum model (geo_wells migration, shared with WDM U2-007, second engineer).
+> No DDL and no migrations in this PR.
+
+### Deferred by the decision
+
+| ID | Item | Reason |
+|---|---|---|
+| U2-014 | Live WITSML or ETP gateway | Size L; needs a server component (a gateway and a store); after NAPE. Files come first (U2-003, U2-011). |
+| U2-015 | Real-time pore pressure surveillance | Size L; rests on U2-014 and on Pore Pressure Studio's real-time half of PP U2-014. |
+| U2-016 | End of well report | Built on the composite log (U2-001); next round, once that has been used on a well. |
+| U2-017 | Sidewall cores and laboratory custody | Size M, not demo-visible; after NAPE. |
+| U2-018 | Assisted description | Size L; the record must stay the geologist's; after NAPE. |
+| U2-019 | KB and datum model | A geo_wells migration shared with WDM U2-007; shared-registry DDL needs a second engineer. |
+
+### Step 2 build record (branch `feat/ws-u2`)
+
+| ID | Status | What was built | Proving test |
+|---|---|---|---|
+
 ### Test record (2026-10-01)
 
 - jest on CI (8 shards): green, with the four new suites (32 tests) and every existing Wellsite, lag engine, portability and `src/__tests__` suite.
