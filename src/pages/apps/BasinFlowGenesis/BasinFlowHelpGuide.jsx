@@ -151,6 +151,7 @@ export default function BasinFlowHelpGuide() {
           ['Timing', 'The petroleum system events chart: deposition of the source, reservoir, seal and overburden rocks, the generation and expulsion windows, and the critical moment at the peak expulsion rate. Trap formation is not modelled in 1D.'],
         ]} />
         <Para>Each layer is its own series on every plot, keyed by the layer and labelled by its name, so two layers with the same name are both drawn; rename them to tell them apart in the legend.</Para>
+        <Para>A run computes in the background: the run dialog shows its progress, Cancel run stops it and keeps the previous result, and Keep working closes the dialog while it finishes.</Para>
       </GuideSection>
 
       <GuideSection id="export">
