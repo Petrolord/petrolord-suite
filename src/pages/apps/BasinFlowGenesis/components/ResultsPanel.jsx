@@ -9,6 +9,10 @@ import TemperatureHistoryPlot from './plots/TemperatureHistoryPlot';
 import MaturityPlot from './plots/MaturityPlot';
 import GenerationExpulsionPlot from './plots/GenerationExpulsionPlot';
 import ChargeTimingPlot from './plots/ChargeTimingPlot';
+import PressurePlot from './plots/PressurePlot';
+import { buildBasinPressure, writeBasinPressure } from '@/lib/basinPressure';
+import { appPath } from '@/components/wells/appLinks';
+import { useMultiWell } from '../contexts/MultiWellContext';
 import { withLayerRoles } from '../services/resultsView';
 import ResultsSummaryTab from './ResultsSummaryTab';
 import RunNotes from './common/RunNotes';
@@ -17,7 +21,8 @@ import { ExportEngine } from '../services/ExportEngine';
 import html2canvas from 'html2canvas';
 
 const ResultsPanel = () => {
-    const { state, units } = useBasinFlow();
+    const { state, units, appPaths } = useBasinFlow();
+    const { state: mwState } = useMultiWell();
     // layer roles (deposition ages, source flag) for the events chart and source-layer plots
     const results = useMemo(() => withLayerRoles(state.results, state.stratigraphy || []), [state.results, state.stratigraphy]);
     const [activeTab, setActiveTab] = useState('burial');
@@ -25,6 +30,15 @@ const ResultsPanel = () => {
 
     // Check if we have results
     const hasResults = results && results.data && results.data.timeSteps && results.data.timeSteps.length > 0;
+
+    // BF-U2-015: the pressure column goes to Pore Pressure Studio through
+    // src/lib/basinPressure.js (declared units); the link carries its id
+    const pressureSend = useMemo(() => {
+        try {
+            const payload = buildBasinPressure(state.results, { name: mwState?.wellDataMap?.[mwState?.activeWellId]?.name || 'Basin model', settings: state.settings, stratigraphy: state.stratigraphy });
+            return { payload, href: `${appPath('pore-pressure-studio', appPaths)}?bfPressure=${payload.id}` };
+        } catch { return null; }
+    }, [state.results, state.settings, state.stratigraphy, mwState, appPaths]);
 
     const handleDownloadImage = async (type = 'png') => {
         if (!printRef.current) return;
@@ -72,6 +86,7 @@ const ResultsPanel = () => {
                         <TabsTrigger value="temperature" data-testid="bf-results-tab-temperature" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Thermal</TabsTrigger>
                         <TabsTrigger value="maturity" data-testid="bf-results-tab-maturity" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Maturity</TabsTrigger>
                         <TabsTrigger value="generation" data-testid="bf-results-tab-generation" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Expulsion</TabsTrigger>
+                        <TabsTrigger value="pressure" data-testid="bf-results-tab-pressure" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Pressure</TabsTrigger>
                         <TabsTrigger value="timing" data-testid="bf-results-tab-timing" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-1 pb-2">Timing</TabsTrigger>
                     </TabsList>
                 </div>
@@ -88,6 +103,7 @@ const ResultsPanel = () => {
                                  <TransformationRatioPlot results={results} />
                              </div>
                          </TabsContent>
+                         <TabsContent value="pressure" className="h-full m-0"><PressurePlot results={results} units={units} sendHref={pressureSend?.href || null} onSend={() => pressureSend && writeBasinPressure(pressureSend.payload)} /></TabsContent>
                          <TabsContent value="timing" className="h-full m-0"><ChargeTimingPlot results={results} /></TabsContent>
                      </div>
                 </div>

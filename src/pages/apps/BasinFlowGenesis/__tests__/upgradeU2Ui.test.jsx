@@ -96,3 +96,23 @@ describe('U2-018 the worked example opens from the welcome screen', () => {
     expect(screen.getByTestId('bf-cal-bht-circ')).toHaveValue(6);
   }, 180000);
 });
+
+describe('U2-015 the pressure tab and its handoff', () => {
+  test('the reference basin reports its pressure and the link carries the handoff id', async () => {
+    const be = makeInMemoryBackend({ persist: false });
+    render(<MemoryRouter><BasinFlowShell backend={be} /></MemoryRouter>);
+    fireEvent.click(await screen.findByTestId('bf-mode-expert'));
+    await waitFor(() => expect(screen.getAllByTestId('bf-layer-card')).toHaveLength(4), { timeout: 30000 });
+    fireEvent.click(screen.getByTestId('bf-simulate'));
+    await waitFor(() => expect(screen.getByTestId('bf-sim-status')).toHaveTextContent('Complete'), { timeout: 60000 });
+    fireEvent.click(screen.getByTestId('bf-sim-view'));
+    selectTab(await screen.findByTestId('bf-results-tab-pressure'));
+    expect(await screen.findByTestId('bf-pressure-note')).toHaveTextContent(/compaction disequilibrium/);
+    const link = screen.getByTestId('bf-send-pressure');
+    expect(link.getAttribute('href')).toMatch(/pore-pressure-studio\?bfPressure=\w+/);
+    fireEvent.click(link);
+    const id = link.getAttribute('href').split('bfPressure=')[1];
+    const { readBasinPressure } = require('@/lib/basinPressure');
+    expect(readBasinPressure(id).ok).toBe(true);
+  }, 180000);
+});
