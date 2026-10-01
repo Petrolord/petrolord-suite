@@ -11,7 +11,7 @@ import { buildModel, handoverPeriod, dailyPeriod, reportRowParams, dailyTemplate
 import { periodText } from '../services/reportText';
 import { toRigLocal } from '@/lib/wellsite/time';
 
-export default function ReportScreen({ kind, backend, well, data, tourCfg, nowMs, unit, offsetMin, role, userName, reports, signoffs, onNarrativeSave, onStatus, onChanged }) {
+export default function ReportScreen({ kind, backend, well, data, tourCfg, nowMs, unit, offsetMin, role, userName, nameOf = null, reviewer = {}, reports, signoffs, onNarrativeSave, onStatus, onChanged }) {
   const [which, setWhich] = useState(kind === 'handover' ? 'last' : 'today');
   const [dayOffset, setDayOffset] = useState(0);
   const [showSources, setShowSources] = useState(false);
@@ -43,10 +43,11 @@ export default function ReportScreen({ kind, backend, well, data, tourCfg, nowMs
       onChanged?.();
     } catch (e) { onStatus?.(e.message); }
   };
-  const signoffRows = chainSignoffs.map((s) => ({ ...s, user_name: s.user_id === (backend.__userId || 'user-a') ? userName : s.user_id }));
+  // WS-U1-009: every signer by name (production ids are uuids; only the harness id was mapped before)
+  const signoffRows = chainSignoffs.map((s) => ({ ...s, user_name: nameOf ? nameOf(s.user_id) : (s.user_id === (backend.__userId || 'user-a') ? userName : s.user_id) }));
   // the PDF and DOCX writers load on demand: jsPDF is heavy and must stay out of the workstation's mount graph
-  const exportPdf = async () => { try { const { exportReportPdf } = await import('../services/wsExport'); await exportReportPdf(model, { unit, offsetMin, signoffs: signoffRows }); onStatus?.('PDF exported.'); } catch (e) { onStatus?.(e.message); } };
-  const exportDocx = async () => { try { const { exportReportDocx } = await import('../services/wsExport'); await exportReportDocx(model, { unit, offsetMin, signoffs: signoffRows }); onStatus?.('DOCX exported.'); } catch (e) { onStatus?.(e.message); } };
+  const exportPdf = async () => { try { const { exportReportPdf } = await import('../services/wsExport'); await exportReportPdf(model, { unit, offsetMin, signoffs: signoffRows, reviewer }); onStatus?.('PDF exported.'); } catch (e) { onStatus?.(e.message); } };
+  const exportDocx = async () => { try { const { exportReportDocx } = await import('../services/wsExport'); await exportReportDocx(model, { unit, offsetMin, signoffs: signoffRows, reviewer }); onStatus?.('DOCX exported.'); } catch (e) { onStatus?.(e.message); } };
 
   if (model.error) return <div className="p-4 text-xs text-pl-warning-text" data-testid="ws-report-error">{model.error}</div>;
   return (

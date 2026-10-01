@@ -27,7 +27,7 @@ import TimelineView from './TimelineView';
 import { eventsFromRecords, startEventParams } from '../services/events';
 import SamplesView from './SamplesView';
 import LagPanel from './LagPanel';
-import { lagNow, sampleBoard, currentProgramme, programmeChange, samplesToSchedule, scheduleHorizonM, programmeStartMdM, bitHistoryOf, PROGRAMME_SUBTYPE, isFloater } from '../services/samples';
+import { lagNow, sampleBoard, currentProgramme, programmeChange, samplesToSchedule, scheduleHorizonM, programmeStartMdM, bitHistoryOf, PROGRAMME_SUBTYPE, isFloater, ropNow } from '../services/samples';
 import ShowsView from './ShowsView';
 import ObservationsView from './ObservationsView';
 import PhotosPanel from './PhotosPanel';
@@ -47,6 +47,9 @@ import { depthFromDisplay } from '../services/units';
 import { toCanonicalMd } from '@/lib/wellsite/depth';
 import WellSetup from './WellSetup';
 import MembersPanel from './MembersPanel';
+import { memberName } from '../services/members';
+import { buildLabel } from '@/lib/platformBuild';
+import { useNarrowViewport } from './useNarrowViewport';
 
 export const VIEWS = [
   { id: 'live', label: 'Live', icon: Activity },
@@ -98,11 +101,15 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   // Suite unit profile: depth starts from the profile; the header selector
   // changes this view for the session only, and the older remembered
   // 'ws.units' choice no longer beats the profile
-  const unitsHook = useAppUnits('wellsite', { depth: { family: 'depth', allowed: DEPTH_UNITS } },
-    { fallback: readUnits(typeof localStorage !== 'undefined' ? localStorage : null), legacyKeys: [UNITS_KEY] });
+  const unitsHook = useAppUnits('wellsite', { depth: { family: 'depth', allowed: DEPTH_UNITS }, volume: { family: 'liquidVolume', allowed: ['bbl', 'm3'] } },
+    { fallback: { volume: 'bbl', ...readUnits(typeof localStorage !== 'undefined' ? localStorage : null) }, legacyKeys: [UNITS_KEY] });
   const { units } = unitsHook;
   const [tick, setTick] = useState(0);
   const [user, setUser] = useState(null);
+  // WS-U1-009: names for the people on a record. Production ids are uuids, and the
+  // screens printed them raw (only the harness user 'user-a' was mapped to a name)
+  const [people, setPeople] = useState([]);
+  const narrow = useNarrowViewport();
   void appPaths;
 
   const track = useCallback(async (fn) => { setLoading((n) => n + 1); try { return await fn(); } finally { setLoading((n) => n - 1); } }, []);
@@ -197,10 +204,19 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   useEffect(() => { const id = setInterval(() => setTick((t) => t + 1), 30000); return () => clearInterval(id); }, []);
 
   const ctx = useMemo(() => (well ? wellContext(well) : null), [well]);
+  useEffect(() => {
+    let alive = true;
+    if (!well || !backend.listOrgPeople || !backend.online()) return undefined;
+    backend.listOrgPeople(well.id).then((p) => { if (alive) setPeople(p || []); }).catch(() => {});
+    return () => { alive = false; };
+  }, [backend, well]);
+  const nameOf = useCallback((userId) => (userId ? memberName({ user_id: userId }, people, user) : 'n/a'), [people, user]);
+  const entryDefaults = useMemo(() => defaultDepthEntry(well, units.depth), [well, units.depth]);
   const nowForLag = Date.now() + tick * 0;
   const events = useMemo(() => eventsFromRecords(eventRecords), [eventRecords]);
   const lag = useMemo(() => (well ? lagNow({ well, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag }) : { available: false, note: '' }), [well, rigConfig, bitDepths, pumpEvents, events, nowForLag]);
   const floater = isFloater(rigConfig);
+  const rop = useMemo(() => ropNow(bitDepths, events), [bitDepths, events]);
   const programme = useMemo(() => currentProgramme(programmeRecords), [programmeRecords]);
   const board = useMemo(() => (well ? sampleBoard({ samples, stages, well, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag }) : null), [well, samples, stages, rigConfig, bitDepths, pumpEvents, events, nowForLag]);
   const scheduling = useRef(false);
@@ -288,12 +304,12 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     } catch (e) { setStatus(e.message); }
   }, [backend, well, prognosis]);
   const loadRegistryWells = useCallback(() => backend.listRegistryWells(), [backend]);
-  const addPrognosisTop = useCallback(async ({ name, depth, uncertaintyDisplay }) => {
+  const addPrognosisTop = useCallback(async ({ name, depth, uncertaintyDisplay, uncertaintyUnit }) => {
     if (!(name && name.trim())) throw new Error('A formation name is required.');
     const c = toCanonicalMd({ ...depth, kind: 'prognosis' }, ctx);
     if (!c.ok) throw new Error(c.errors[0]);
     const base = prognosis || { tops: [], offset_tops: [], casing_points: [], hole_sections: [], source: {} };
-    const next = editedPrognosis(base, [...(base.tops || []), { name: name.trim(), formation_key: formationKey(name), md_m: c.mdM, uncertainty_m: depthFromDisplay(uncertaintyDisplay, depth.unit) || 0, source: 'manual' }]);
+    const next = editedPrognosis(base, [...(base.tops || []), { name: name.trim(), formation_key: formationKey(name), md_m: c.mdM, uncertainty_m: depthFromDisplay(uncertaintyDisplay, uncertaintyUnit || depth.unit) || 0, source: 'manual' }]);
     const row = await backend.addPrognosis(well.id, { ...next, wellId: well.id });
     setStatus(`Prognosis version ${row.version}: ${name.trim()} added by hand.`);
     setTick((t) => t + 1);
@@ -313,10 +329,13 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       setTick((t) => t + 1);
     } catch (e) { setStatus(e.message); }
   }, [backend, well, narratives]);
-  const publishToRegistry = useCallback(async () => {
+  const publishToRegistry = useCallback(async (photoIds) => {
     try {
-      const { plan, result } = await backend.publishToRegistry(well.id);
-      setStatus(`Published to the registry: ${result.tops.ids.length} final top(s) (${result.tops.replaced} replaced), ${result.intervals.ids.length} lithology interval(s) (${result.intervals.replaced} replaced); ${plan.untouchedTops + plan.untouchedIntervals} row(s) from other sources untouched.`);
+      const { plan, result } = await backend.publishToRegistry(well.id, { photoIds: Array.isArray(photoIds) ? photoIds : [] });
+      const photosOut = result.photos && result.photos.ids ? result.photos.ids.length : 0;
+      const dup = plan.sameNameOther && plan.sameNameOther.length
+        ? ` ${plan.sameNameOther.join(', ')} already had a registry top from another source (left as it is), so the registry now holds two tops of that name; tidy them in Well Data Manager.` : '';
+      setStatus(`Published to the registry: ${result.tops.ids.length} final top(s) (${result.tops.replaced} replaced), ${result.intervals.ids.length} lithology interval(s) (${result.intervals.replaced} replaced)${photosOut ? `, ${photosOut} photograph(s)` : ''}; ${plan.untouchedTops + plan.untouchedIntervals} row(s) from other sources untouched.${dup}`);
       setTick((t) => t + 1);
     } catch (e) { setStatus(e.message); }
   }, [backend, well]);
@@ -426,30 +445,30 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       onDescribe={(smp) => { setDescribeSample(smp); setView('describe'); }} unit={units.depth} offsetMin={offsetMin} nowMs={nowForLag} onStatus={setStatus} />;
   } else if (view === 'describe') {
     center = <DescribeView backend={backend} well={well} ctx={ctx} descriptions={descriptions} sample={describeSample} onSampleDone={async (smp) => { try { await backend.addStage(well.id, smp.id, 'described'); } catch (e) { setStatus(e.message); } setDescribeSample(null); }}
-      defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+      defaults={entryDefaults} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   } else if (view === 'shows') {
-    center = <ShowsView backend={backend} well={well} ctx={ctx} shows={shows} samples={samples} defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+    center = <ShowsView backend={backend} well={well} ctx={ctx} shows={shows} samples={samples} defaults={entryDefaults} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   } else if (view === 'observations') {
-    center = <ObservationsView backend={backend} well={well} ctx={ctx} observations={observations} latestBit={latestBit} lag={lag} defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin} tourCfg={tourConfigOf(well)} nowMs={nowForLag} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+    center = <ObservationsView backend={backend} well={well} ctx={ctx} observations={observations} latestBit={latestBit} lag={lag} defaults={entryDefaults} unit={units.depth} offsetMin={offsetMin} tourCfg={tourConfigOf(well)} nowMs={nowForLag} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   } else if (view === 'photos') {
     center = <PhotosPanel backend={backend} well={well} photos={photos} samples={samples} sampleId={photoSampleId} onSampleChange={setPhotoSampleId} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   } else if (view === 'tops') {
-    center = <TopsView board={topsBoard} tops={tops} records={allObservationRecords} prognosis={prognosis} ctx={ctx} defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin}
-      approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} geoWellId={well.geo_well_id} loadRegistryWells={loadRegistryWells} onAddPrognosisTop={addPrognosisTop} onPublish={publishToRegistry} onStatus={setStatus} userName={user ? user.name || user.email : ''} />;
+    center = <TopsView board={topsBoard} tops={tops} records={allObservationRecords} prognosis={prognosis} ctx={ctx} defaults={entryDefaults} unit={units.depth} offsetMin={offsetMin}
+      approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} geoWellId={well.geo_well_id} loadRegistryWells={loadRegistryWells} onAddPrognosisTop={addPrognosisTop} onPublish={publishToRegistry} onStatus={setStatus} userName={user ? user.name || user.email : ''} nameOf={nameOf} photos={photos} />;
   } else if (view === 'handover' || view === 'report') {
     center = <ReportScreen key={view} kind={view === 'handover' ? 'handover' : 'daily'} backend={backend} well={well} data={reportData} tourCfg={tourConfigOf(well)} nowMs={nowForLag} unit={units.depth} offsetMin={offsetMin}
-      role={myRole} userName={user ? user.name || user.email : ''} reports={reports} signoffs={signoffs} onNarrativeSave={saveNarrative} onStatus={setStatus} onChanged={() => setTick((t) => t + 1)} />;
+      role={myRole} userName={user ? user.name || user.email : ''} nameOf={nameOf} reviewer={{ kbElevM: ctx ? ctx.kbElevM : null, preparedBy: user ? user.name || user.email : null, build: `${buildLabel()}, Wellsite Studio` }} reports={reports} signoffs={signoffs} onNarrativeSave={saveNarrative} onStatus={setStatus} onChanged={() => setTick((t) => t + 1)} />;
   } else if (view === 'timeline') {
     center = <TimelineView events={events} onStart={startEvent} onEnd={endEvent} tourCfg={tourConfigOf(well)} offsetMin={offsetMin} unit={units.depth} nowMs={nowMs} currentUserName={user ? user.name || user.email : ''} />;
   } else if (view === 'config') {
-    center = <ConfigView backend={backend} well={well} rigConfig={rigConfig} canAdmin={isMember} onStatus={setStatus} onSaved={() => { refreshWells(); setTick((t) => t + 1); }}
+    center = <ConfigView backend={backend} well={well} rigConfig={rigConfig} canAdmin={isMember} unit={units.depth} prognosis={prognosis} onStatus={setStatus} onSaved={() => { refreshWells(); setTick((t) => t + 1); }}
       membersSlot={<MembersPanel backend={backend} well={well} members={members} user={user} onStatus={setStatus} onChanged={() => setTick((t) => t + 1)} />} />;
   } else {
-    center = <LiveWellView backend={backend} well={well} ctx={ctx} bitDepths={bitDepths} pumpEvents={pumpEvents} events={events} onStartEvent={startEvent} onEndEvent={endEvent} descriptions={descriptions} lag={lag} board={board} onStage={recordStage} defaults={defaultDepthEntry(well)} offsetMin={offsetMin} unit={units.depth} floater={floater} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+    center = <LiveWellView rop={rop} backend={backend} well={well} ctx={ctx} bitDepths={bitDepths} pumpEvents={pumpEvents} events={events} onStartEvent={startEvent} onEndEvent={endEvent} descriptions={descriptions} lag={lag} board={board} onStage={recordStage} defaults={entryDefaults} offsetMin={offsetMin} unit={units.depth} floater={floater} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   }
 
   const statusBar = (
-    <div className="flex items-center gap-4 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="ws-status" className="truncate">{loading ? <Loader2 className="inline w-3 h-3 animate-spin mr-1" /> : null}{status}</span>
       <span className="ml-auto" data-testid="ws-status-bit">Bit {latestBit ? fmtDepth(latestBit.md_calc_m, units.depth) : 'n/a'}</span>
       <span data-testid="ws-status-lagged">Lagged {lag.available && Number.isFinite(lag.laggedMdM) ? fmtDepth(lag.laggedMdM, units.depth) : 'n/a'}</span>
@@ -461,20 +480,47 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     </div>
   );
 
+  const dockContent = dockView === 'sync' ? (
+    <SyncDrawer backend={backend} wellId={well ? well.id : null} offsetMin={offsetMin} onClose={() => setDockView('panels')} onOpenConflicts={() => { setView('tops'); setDockView('panels'); }} onKeepOffline={keepOffline} offlineReady={offlineReady} />
+  ) : well ? (
+    <>
+      <LagPanel lag={lag} pumpEvents={pumpEvents} onPump={recordPump} unit={units.depth} volumeUnit={units.volume} offsetMin={offsetMin} nowMs={nowForLag} floater={floater} />
+      <div className="border-t border-pl-border" />
+      <ApproachPanel next={topsBoard.next} evidence={approachEvidence} unit={units.depth} offsetMin={offsetMin} onOpenTops={() => setView('tops')} />
+    </>
+  ) : null;
+
+  // WS-U1-004 (PL6): a rig tablet in portrait (768 to 834 px) and a phone (390 px)
+  // got the desktop shell with a 1000 px minimum, so the whole screen scrolled
+  // sideways. Below 900 px the workstation stacks: the ribbon, a well chooser,
+  // the view, then the lag and approach panels, and a wrapping status bar.
+  if (narrow) {
+    return (
+      <div className="h-full min-h-0 flex flex-col bg-pl-bg overflow-x-hidden" data-testid="ws-compact">
+        <div className="shrink-0">{ribbon}</div>
+        <div className="shrink-0 flex items-center gap-2 px-3 py-1 bg-pl-surface border-b border-pl-border">
+          <label className="text-[11px] text-pl-muted" htmlFor="ws-compact-well">Live well</label>
+          <select id="ws-compact-well" data-testid="ws-compact-well" value={selectedId || ''} className="flex-1 min-w-0 bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text"
+            onChange={(e) => { wellParam.current = null; setSetupGeoId(null); setSelectedId(e.target.value || null); if (view === 'setup') setView('live'); }}>
+            {!(wells || []).length && <option value="">{wells === null ? 'Loading' : 'No live well yet'}</option>}
+            {(wells || []).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+          </select>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
+          {center}
+          {dockOpen && dockContent ? <div className="border-t border-pl-border bg-pl-surface" data-testid="ws-compact-dock">{dockContent}</div> : null}
+        </div>
+        <div className="shrink-0">{statusBar}</div>
+      </div>
+    );
+  }
+
   return (
     <WorkspaceShell autoSaveId="wellsite.workspace.v2" minWidth={1000} dockDefaultSize={22} dockOpen={dockOpen} onDockOpenChange={setDockOpen}
       ribbon={ribbon} explorer={explorer} center={<ScrollArea className="h-full min-h-0 bg-pl-bg">{center}</ScrollArea>} statusBar={statusBar}
       dock={(
         <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
-          {dockView === 'sync' ? (
-            <SyncDrawer backend={backend} wellId={well ? well.id : null} offsetMin={offsetMin} onClose={() => setDockView('panels')} onOpenConflicts={() => { setView('tops'); setDockView('panels'); }} onKeepOffline={keepOffline} offlineReady={offlineReady} />
-          ) : well ? (
-            <>
-              <LagPanel lag={lag} pumpEvents={pumpEvents} onPump={recordPump} unit={units.depth} offsetMin={offsetMin} nowMs={nowForLag} floater={floater} />
-              <div className="border-t border-pl-border" />
-              <ApproachPanel next={topsBoard.next} evidence={approachEvidence} unit={units.depth} offsetMin={offsetMin} onOpenTops={() => setView('tops')} />
-            </>
-          ) : null}
+          {dockContent}
         </ScrollArea>
       )} />
   );

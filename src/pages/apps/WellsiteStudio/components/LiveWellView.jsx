@@ -10,7 +10,7 @@ import { fmtDepth } from '../services/units';
 import EventBar from './EventBar';
 import { abbreviate, descriptionOf, mergeProfile } from '../services/describe';
 
-export default function LiveWellView({ backend, well, ctx, bitDepths, pumpEvents, events = [], onStartEvent, onEndEvent, descriptions = [], lag = { available: false }, board = null, onStage, defaults, offsetMin, unit, floater = false, onChanged, onStatus }) {
+export default function LiveWellView({ rop = null, backend, well, ctx, bitDepths, pumpEvents, events = [], onStartEvent, onEndEvent, descriptions = [], lag = { available: false }, board = null, onStage, defaults, offsetMin, unit, floater = false, onChanged, onStatus }) {
   const openEvent = events.filter((e) => e.duration && e.endUtcMs == null).slice(-1)[0] || null;
   const lastDesc = descriptions[descriptions.length - 1] || null;
   const profile = mergeProfile(well.settings && well.settings.abbreviation_profile ? well.settings.abbreviation_profile : null);
@@ -55,6 +55,8 @@ export default function LiveWellView({ backend, well, ctx, bitDepths, pumpEvents
         <Card label="Next sample" testId="ws-live-next-sample" value={board && board.nextDue ? `No ${board.nextDue.sample.sample_no}, ${fmtDepth(board.nextDue.sample.md_calc_m, unit)}` : (board && board.nextScheduled ? `No ${board.nextScheduled.sample.sample_no} at ${fmtDepth(board.nextScheduled.sample.md_calc_m, unit)}` : 'none scheduled')}
           sub={board && board.nextDue ? (board.nextDue.arrival && board.nextDue.arrival.arrivalUtcMs ? `arrives ${toRigLocal(board.nextDue.arrival.arrivalUtcMs, offsetMin).hhmm}` : 'in transit') : ''} />
         <Card label="Samples" testId="ws-live-samples" value={board ? `${board.inTransit.length} in transit${board.overdue.length ? `, ${board.overdue.length} overdue for review` : ''}` : ''} sub="" />
+        <Card label="ROP" testId="ws-live-rop" value={rop && Number.isFinite(rop.mPerHr) ? `${(unit === 'ft' ? rop.mPerHr / 0.3048 : rop.mPerHr).toFixed(1)} ${unit}/hr` : 'n/a'}
+          sub={rop && Number.isFinite(rop.mPerHr) ? `${fmtDepth(rop.fromMdM, unit)} to ${fmtDepth(rop.toMdM, unit)}, drilling time only` : (rop ? rop.note : '')} />
         <Card label="Current operation" testId="ws-live-event" value={openEvent ? openEvent.label : 'none open'} sub={openEvent ? `since ${local(new Date(openEvent.startUtcMs).toISOString())}` : ''} />
         <Card label="Current lithology" testId="ws-live-lithology" value={lastDesc ? abbreviate(descriptionOf(lastDesc), profile).text : 'not described'} sub={lastDesc ? `${fmtDepth(lastDesc.md_calc_m, unit)} to ${fmtDepth(lastDesc.md2_calc_m, unit)}` : ''} />
       </div>
@@ -75,10 +77,10 @@ export default function LiveWellView({ backend, well, ctx, bitDepths, pumpEvents
       </section>
       <section className="space-y-2">
         <h3 className="text-xs font-semibold text-pl-text">Pump rate change</h3>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <input className={`${inp} w-24`} type="number" placeholder="spm" value={spm} onChange={(e) => setSpm(e.target.value)} data-testid="ws-pump-spm" />
           {floater && <input className={`${inp} w-28`} type="number" placeholder="booster spm" title="Booster pump strokes per minute" value={boosterSpm} onChange={(e) => setBoosterSpm(e.target.value)} data-testid="ws-pump-booster" />}
-          <input className={`${inp} w-60`} placeholder="note (connection, survey, wiper trip)" value={note} onChange={(e) => setNote(e.target.value)} data-testid="ws-pump-note" />
+          <input className={`${inp} w-60 max-w-full`} placeholder="note (connection, survey, wiper trip)" value={note} onChange={(e) => setNote(e.target.value)} data-testid="ws-pump-note" />
           <Button size="sm" onClick={recordPump} data-testid="ws-pump-save">Record</Button>
           <Button size="sm" variant="outline" onClick={() => { setSpm('0'); }} data-testid="ws-pump-off">Pumps off</Button>
         </div>

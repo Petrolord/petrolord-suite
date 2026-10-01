@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { fmtDepth } from '../services/units';
 import { toRigLocal } from '@/lib/wellsite/time';
 
-export default function ConflictResolver({ heads, approver, onResolve, unit, offsetMin, userName }) {
+export default function ConflictResolver({ heads, approver, onResolve, unit, offsetMin, userName, nameOf = null }) {
   const [chosen, setChosen] = useState(heads[0] ? heads[0].id : '');
   const [basis, setBasis] = useState('');
   const local = (iso) => toRigLocal(Date.parse(iso), offsetMin).hhmm;
@@ -21,7 +21,7 @@ export default function ConflictResolver({ heads, approver, onResolve, unit, off
             <td className="pr-2 whitespace-nowrap">{fmtDepth(h.md_calc_m, unit)}</td>
             <td className="pr-2">{h.status}{h.confidence ? `, ${h.confidence}` : ''}</td>
             <td className="pr-2 text-pl-muted">{h.basis || ''}</td>
-            <td className="whitespace-nowrap text-pl-muted">{local(h.occurred_at)} v{h.version_no} by {h.created_by === 'user-a' ? userName : h.created_by}</td>
+            <td className="whitespace-nowrap text-pl-muted">{local(h.occurred_at)} v{h.version_no} by {nameOf ? nameOf(h.created_by) : (h.created_by === 'user-a' ? userName : h.created_by)}</td>
           </tr>
         ))}
       </tbody></table>

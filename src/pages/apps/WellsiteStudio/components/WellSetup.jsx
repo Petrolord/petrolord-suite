@@ -6,6 +6,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { kbStatus } from '../services/wellContext';
 
 export default function WellSetup({ backend, onCreated, onStatus, initialGeoId = null }) {
   const [registry, setRegistry] = useState(null);
@@ -53,6 +54,7 @@ export default function WellSetup({ backend, onCreated, onStatus, initialGeoId =
           {(registry || []).map((w) => <option key={w.id} value={w.id}>{w.name}{Number.isFinite(w.kb_m) ? ` (KB ${w.kb_m} m)` : ''}</option>)}
         </select>
       </label>
+      {(() => { const g = (registry || []).find((w) => w.id === geoId); const k = g ? kbStatus(g.kb_m == null ? NaN : Number(g.kb_m)) : { ok: true }; return k.ok ? null : <div className="text-xs text-pl-warning-text" data-testid="ws-setup-kb-note">{k.note}</div>; })()}
       <div className="grid grid-cols-2 gap-2">
         {[['field', 'Field'], ['operator', 'Operator'], ['rig', 'Rig'], ['country', 'Country']].map(([k, label]) => (
           <label key={k} className="block text-xs text-pl-text">{label}
