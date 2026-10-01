@@ -472,9 +472,13 @@ test('WS9: publish to the registry writes the final calls and descriptions once 
   await page.getByTestId('ws-top-basis').fill('Agreed with town');
   await page.getByTestId('ws-top-submit').click();
   await expect(page.getByTestId('ws-top-row-top_agbada')).toHaveAttribute('data-status', 'final');
+  // U2-010: the plan is shown first, then confirmed
   await page.getByTestId('ws-top-publish').click();
+  await expect(page.getByTestId('ws-publish-plan-lines')).toContainText('1 final top(s) will be added as drilled');
+  await page.getByTestId('ws-publish-confirm').click();
   await expect(page.getByTestId('ws-status')).toHaveText('Published to the registry: 1 final top(s) (0 replaced), 1 lithology interval(s) (0 replaced); 0 row(s) from other sources untouched.');
   await page.getByTestId('ws-top-publish').click();
+  await page.getByTestId('ws-publish-confirm').click();
   await expect(page.getByTestId('ws-status')).toHaveText('Published to the registry: 1 final top(s) (1 replaced), 1 lithology interval(s) (1 replaced); 0 row(s) from other sources untouched.');
   // the help guide is a protected route (jest renders it in full); the ribbon link points at it
   await expect(page.getByTestId('ws-help')).toHaveAttribute('href', '/dashboard/apps/geoscience/wellsite-studio/help');

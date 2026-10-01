@@ -10,12 +10,22 @@ import DepthEntry from './DepthEntry';
 import ConflictResolver from './ConflictResolver';
 import { versionChain, CONFIDENCES, TOP_STATUSES, canTransition, interpretationParams, callParams, evidenceChain, prognosisDifference } from '../services/tops';
 import { fmtDepth, depthToDisplay } from '../services/units';
+import { planLines } from '../services/publish';
 import { toRigLocal } from '@/lib/wellsite/time';
 
-export default function TopsView({ board, tops, records, prognosis, ctx, defaults, unit, offsetMin, approver, online, canAdmin, onInterpret, onCall, onResolve, onLoadPrognosis, onAddPrognosisTop, onPublish, onStatus, userName, geoWellId = null, loadRegistryWells = null, nameOf = null, photos = [] }) {
+export default function TopsView({ board, tops, records, prognosis, ctx, defaults, unit, offsetMin, approver, online, canAdmin, onInterpret, onCall, onResolve, onLoadPrognosis, onAddPrognosisTop, onPublish, onPublishPlan = null, onStatus, userName, geoWellId = null, loadRegistryWells = null, nameOf = null, photos = [] }) {
   const who = (id) => (nameOf ? nameOf(id) : (id === 'user-a' ? userName : id));
   // WS-U1-016: the help promised chosen photographs publish as core images, but nothing chose them
   const [publishPhotoIds, setPublishPhotoIds] = useState([]);
+  // U2-010: the plan is shown, and the same-name tops to keep apart are chosen, before anything is written
+  const [plan, setPlan] = useState(null);
+  const [renameIds, setRenameIds] = useState([]);
+  const [publishing, setPublishing] = useState(false);
+  const openPlan = async () => {
+    if (!onPublishPlan) { onPublish(publishPhotoIds); return; }
+    try { const p = await onPublishPlan(); setPlan(p); setRenameIds((p.duplicates || []).map((d) => d.id)); } catch (e) { onStatus?.(e.message); }
+  };
+  const confirmPublish = async () => { setPublishing(true); try { const ok = await onPublish(publishPhotoIds, renameIds); if (ok !== false) setPlan(null); } finally { setPublishing(false); } };
   const [open, setOpen] = useState(null);
   const [form, setForm] = useState(null); // { kind:'interpret'|'call', key, name }
   const [name, setName] = useState('');
@@ -116,8 +126,31 @@ export default function TopsView({ board, tops, records, prognosis, ctx, default
             <div className="text-pl-muted mt-1">Chosen photographs go to the registry as core images with the next Publish.</div>
           </details>
         )}
-        {onPublish && <Button size="sm" variant="outline" disabled={!online} onClick={() => onPublish(publishPhotoIds)} data-testid="ws-top-publish" title={online ? 'Publish final calls and current descriptions to the shared well registry (registry owner only)' : 'Needs a connection'}>Publish to registry</Button>}
+        {onPublish && <Button size="sm" variant="outline" disabled={!online} onClick={openPlan} data-testid="ws-top-publish" title={online ? 'Publish final calls and current descriptions to the shared well registry (registry owner only)' : 'Needs a connection'}>Publish to registry</Button>}
       </div>
+
+      {plan && (
+        <div className="rounded border border-pl-border bg-pl-surface p-3 space-y-2 text-xs text-pl-text" data-testid="ws-publish-plan">
+          <div className="font-semibold">Publish plan</div>
+          <ul className="list-disc pl-5 space-y-0.5" data-testid="ws-publish-plan-lines">{planLines(plan, { photos: publishPhotoIds.length }).map((l) => <li key={l}>{l}</li>)}</ul>
+          {(plan.duplicates || []).length > 0 && (
+            <div className="space-y-1" data-testid="ws-publish-duplicates">
+              <div className="text-pl-warning-text">The registry already holds a top of the same name from another source. Downstream apps pick tops by name, so keep the earlier one apart as the prognosis, or leave both under one name.</div>
+              {plan.duplicates.map((d) => (
+                <label key={d.id} className="flex items-center gap-1"><input type="checkbox" checked={renameIds.includes(d.id)} data-testid={`ws-publish-rename-${d.id}`}
+                  onChange={() => setRenameIds((cur) => (cur.includes(d.id) ? cur.filter((x) => x !== d.id) : [...cur, d.id]))} />
+                  Rename the earlier {d.name} at {fmtDepth(d.md_m, unit)}{d.interpreter ? ` (${d.interpreter})` : ''} to {d.newName}</label>
+              ))}
+            </div>
+          )}
+          <div className="text-pl-muted">The new rows are written first and this app's earlier ones removed after, so the well is never without its tops. If a step fails, the steps already taken are undone and the result says what the registry holds.</div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={confirmPublish} disabled={publishing || (plan.tops.length === 0 && plan.intervals.length === 0)} data-testid="ws-publish-confirm">{publishing ? 'Publishing' : 'Publish'}</Button>
+            <Button size="sm" variant="ghost" onClick={() => setPlan(null)} data-testid="ws-publish-cancel">Cancel</Button>
+            {plan.tops.length === 0 && plan.intervals.length === 0 && <span className="text-pl-muted" data-testid="ws-publish-nothing">Nothing to publish yet: no final call and no description.</span>}
+          </div>
+        </div>
+      )}
 
       <table className="text-xs text-pl-text w-full">
         <thead><tr className="text-[10px] uppercase text-pl-muted"><th className="text-left pr-3">Formation</th><th className="text-left pr-3">Prognosis</th><th className="text-left pr-3">Interpretation</th><th className="text-left pr-3">Call</th><th className="text-left pr-3" title="True vertical depth subsea, positive below MSL">Call TVDSS</th><th className="text-left pr-3" title="Call against prognosis, subsea: high is shallower than prognosed">vs prognosis</th><th className="text-left">Actions</th></tr></thead>

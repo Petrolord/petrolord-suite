@@ -423,15 +423,20 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       setTick((t) => t + 1);
     } catch (e) { setStatus(e.message); }
   }, [backend, well, narratives]);
-  const publishToRegistry = useCallback(async (photoIds) => {
+  const loadPublishPlan = useCallback(async () => (await backend.publishPlanFor(well.id)).plan, [backend, well]);
+  const publishToRegistry = useCallback(async (photoIds, renameIds = []) => {
     try {
-      const { plan, result } = await backend.publishToRegistry(well.id, { photoIds: Array.isArray(photoIds) ? photoIds : [] });
+      const { plan, result } = await backend.publishToRegistry(well.id, { photoIds: Array.isArray(photoIds) ? photoIds : [], renameIds });
       const photosOut = result.photos && result.photos.ids ? result.photos.ids.length : 0;
-      const dup = plan.sameNameOther && plan.sameNameOther.length
-        ? ` ${plan.sameNameOther.join(', ')} already had a registry top from another source (left as it is), so the registry now holds two tops of that name; tidy them in Well Data Manager.` : '';
-      setStatus(`Published to the registry: ${result.tops.ids.length} final top(s) (${result.tops.replaced} replaced), ${result.intervals.ids.length} lithology interval(s) (${result.intervals.replaced} replaced)${photosOut ? `, ${photosOut} photograph(s)` : ''}; ${plan.untouchedTops + plan.untouchedIntervals} row(s) from other sources untouched.${dup}`);
+      const left = (plan.duplicates || []).filter((d) => !result.renamed.some((r) => r.id === d.id)).map((d) => d.name);
+      const dup = left.length
+        ? ` ${[...new Set(left)].join(', ')} already had a registry top from another source (left as it is), so the registry now holds two tops of that name; tidy them in Well Data Manager.` : '';
+      const ren = result.renamed.length ? ` ${result.renamed.map((r) => `${r.from} from the earlier source is now ${r.to}`).join('; ')}.` : '';
+      const failed = result.photos.failed && result.photos.failed.length ? ` ${result.photos.failed.length} photograph(s) could not be uploaded (${result.photos.failed[0].error}); the tops and intervals are published.` : '';
+      setStatus(`Published to the registry: ${result.tops.ids.length} final top(s) (${result.tops.replaced} replaced), ${result.intervals.ids.length} lithology interval(s) (${result.intervals.replaced} replaced)${photosOut ? `, ${photosOut} photograph(s)` : ''}; ${plan.untouchedTops + plan.untouchedIntervals - result.renamed.length} row(s) from other sources untouched.${ren}${dup}${failed}`);
       setTick((t) => t + 1);
-    } catch (e) { setStatus(e.message); }
+      return true;
+    } catch (e) { setStatus(e.message); return false; }
   }, [backend, well]);
   const keepOffline = useCallback(async () => {
     try {
@@ -556,7 +561,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     center = <LogView win={logModel.win} tracks={logModel.tracks} markers={logModel.markers} dxc={dxc} dxcSettings={dxcSettings} onSaveDxc={saveDxcSettings} unit={units.depth} onStatus={setStatus} title={`${well.name}.`} notes={logModel.notes} legend={logModel.legend} onPdf={exportLogPdf} />;
   } else if (view === 'tops') {
     center = <TopsView board={topsBoard} tops={tops} records={allObservationRecords} prognosis={prognosis} ctx={ctx} defaults={entryDefaults} unit={units.depth} offsetMin={offsetMin}
-      approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} geoWellId={well.geo_well_id} loadRegistryWells={loadRegistryWells} onAddPrognosisTop={addPrognosisTop} onPublish={publishToRegistry} onStatus={setStatus} userName={user ? user.name || user.email : ''} nameOf={nameOf} photos={photos} />;
+      approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} geoWellId={well.geo_well_id} loadRegistryWells={loadRegistryWells} onAddPrognosisTop={addPrognosisTop} onPublish={publishToRegistry} onPublishPlan={loadPublishPlan} onStatus={setStatus} userName={user ? user.name || user.email : ''} nameOf={nameOf} photos={photos} />;
   } else if (view === 'handover' || view === 'report') {
     center = <ReportScreen key={view} kind={view === 'handover' ? 'handover' : 'daily'} backend={backend} well={well} data={reportData} tourCfg={tourConfigOf(well)} nowMs={nowForLag} unit={units.depth} offsetMin={offsetMin}
       role={myRole} userName={user ? user.name || user.email : ''} nameOf={nameOf} reviewer={{ kbElevM: ctx ? ctx.kbElevM : null, preparedBy: user ? user.name || user.email : null, build: `${buildLabel()}, Wellsite Studio` }} reports={reports} signoffs={signoffs} onNarrativeSave={saveNarrative} onStatus={setStatus} onChanged={() => setTick((t) => t + 1)} />;
