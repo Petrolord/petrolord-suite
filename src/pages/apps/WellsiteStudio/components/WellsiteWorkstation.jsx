@@ -51,6 +51,7 @@ import MembersPanel from './MembersPanel';
 import { memberName } from '../services/members';
 import { buildLabel } from '@/lib/platformBuild';
 import { useNarrowViewport } from './useNarrowViewport';
+import { namesOnRecord, displayName } from '../services/names';
 import LagCheckPanel from './LagCheckPanel';
 import ImportView from './ImportView';
 import { IMPORT_SUBTYPE, DATA_SUBTYPE, mudlogRecords, mudlogSeries, importsOf, withdrawParams, typedRowParams } from '../services/mudlogImport';
@@ -246,7 +247,10 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     backend.listOrgPeople(well.id).then((p) => { if (alive) setPeople(p || []); }).catch(() => {});
     return () => { alive = false; };
   }, [backend, well]);
-  const nameOf = useCallback((userId) => (userId ? memberName({ user_id: userId }, people, user) : 'n/a'), [people, user]);
+  // U2-013: the organisation list first; when it does not know the person (offline, or someone who has
+  // left), the name the record itself carries (a sign-off statement, the event of a call)
+  const recordNames = useMemo(() => namesOnRecord({ signoffs, records: eventRecords }), [signoffs, eventRecords]);
+  const nameOf = useCallback((userId) => displayName(userId, { people, user, recordNames }), [people, user, recordNames]);
   const entryDefaults = useMemo(() => defaultDepthEntry(well, units.depth), [well, units.depth]);
   const nowForLag = Date.now() + tick * 0;
   const events = useMemo(() => eventsFromRecords(eventRecords), [eventRecords]);
@@ -414,10 +418,10 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     const res = prev ? await backend.addTopVersion(prev, p) : await backend.addTop(well.id, p);
     // the event on the timeline that a top was called, citing the decision (the evidence chain of spec section 35)
     await backend.addRecord(well.id, { kind: 'event', subtype: 'top_called', occurredAt: res.row.occurred_at, endedAt: res.row.occurred_at, evidenceIds: [res.row.id],
-      depth: { ...p.depth, kind: 'event' }, payload: { label: `${res.row.name} called at ${fmtDepth(res.row.md_calc_m, units.depth)} (${res.row.status})`, family: 'geology', duration: false, top_id: res.row.id } });
+      depth: { ...p.depth, kind: 'event' }, payload: { label: `${res.row.name} called at ${fmtDepth(res.row.md_calc_m, units.depth)} (${res.row.status})`, family: 'geology', duration: false, top_id: res.row.id, by_name: user ? user.name || user.email || null : null } });
     setStatus(`${res.row.name} called at ${fmtDepth(res.row.md_calc_m, units.depth)}, ${res.row.status}${prev ? ` (version ${res.row.version_no})` : ''}.`);
     setTick((t) => t + 1);
-  }, [backend, well, units.depth]);
+  }, [backend, well, units.depth, user]);
   const resolveTop = useCallback(async (chosen, why, heads) => {
     try {
       await backend.addTopVersion(chosen, {
