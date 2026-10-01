@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 import os from 'os';
 import { writeSyntheticScan, expectedValueAt, SCAN } from './helpers/syntheticScan.js';
 import { EMPTY_VALUE } from '../src/lib/emptyValue.js';
+import { seedUnitView } from './helpers/unitView.js';
 
 // expected zone numbers come from the committed goldens, not hardcoded
 // literals — fixture regeneration cannot silently drift past this spec
@@ -25,6 +26,11 @@ const analytic = JSON.parse(fs.readFileSync(
 ));
 // PT9: the pipeline runs on shale-corrected PHIE, whose goldens live in EFFECTIVE
 const goldenNet = (zone) => goldens.EFFECTIVE.ZONES[zone].summary.net_m.toFixed(1);
+
+// Since the Suite unit profile (#830) the harness opens in feet; the goldens
+// and every typed depth here are metres, so each tab starts on a metric view
+// override. PL0 below asserts the profile default itself.
+test.beforeEach(async ({ page }) => { await seedUnitView(page, 'petrophysics'); });
 
 const netOf = async (page, zone) => parseFloat(await page.getByTestId(`petro-zone-net-${zone}`).innerText());
 
