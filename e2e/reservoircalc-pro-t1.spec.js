@@ -66,8 +66,10 @@ test('T1-002/003/004/005: the Monte Carlo run reaches Prospect Risking in MMSTB,
   await page.getByText(/Prospect Risking/i).first().click();
   await expect(page.getByText(/from the last Monte Carlo run/)).toBeVisible();
   await expect(page.getByTestId('vol-unit')).toHaveValue('MMbbl');
-  await expect.poll(async () => Number(await page.getByTestId('vol-mean').inputValue())).toBeGreaterThan(100);
-  expect(Number(await page.getByTestId('vol-mean').inputValue())).toBeLessThan(1000);
+  // RCP-U1-003: recoverable (STOIIP about 228 MMSTB x RF 25%), not in place
+  await expect(page.getByTestId('vol-basis')).toHaveValue('recoverable');
+  await expect.poll(async () => Number(await page.getByTestId('vol-mean').inputValue())).toBeGreaterThan(30);
+  expect(Number(await page.getByTestId('vol-mean').inputValue())).toBeLessThan(100);
   await page.getByTestId('prospect-name').fill('T1 Dome');
   await page.getByTestId('prospect-add').click();
   await expect(page.getByTestId('prospect-status')).toContainText('Added T1 Dome');
