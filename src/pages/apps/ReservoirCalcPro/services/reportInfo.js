@@ -24,7 +24,7 @@ const METHOD_LABEL = {
   hybrid: 'Hybrid (top surface + constant gross thickness, cut by the contacts)',
   surfaces: 'Surfaces (top and base surfaces, cut by the contacts)',
 };
-const INTERP_LABEL = { kriging: 'ordinary kriging', idw: 'inverse distance' };
+const INTERP_LABEL = { kriging: 'ordinary kriging', idw: 'inverse distance', lattice: 'the registry grid\'s own nodes (no re-gridding)' };
 
 const round = (v, d = 1) => (Number.isFinite(v) ? Number(v.toFixed(d)).toLocaleString('en-US') : EMPTY_VALUE);
 
@@ -33,6 +33,7 @@ export function describeGridding(results) {
   const g = results?.gridding;
   if (!g) return null;
   const unit = g.xyUnit || 'map units';
+  if (g.interpolation === 'lattice') return `Integrated on ${g.nx} x ${g.ny} nodes of ${round(g.dx)} x ${round(g.dy)} ${unit}: ${INTERP_LABEL.lattice}, the midpoint rule Mapping & Surface Studio uses.`;
   return `Gridded on ${g.nx} x ${g.ny} cells of ${round(g.dx)} x ${round(g.dy)} ${unit} by ${INTERP_LABEL[g.interpolation] || g.interpolation || 'inverse distance'} (Tools > Settings); a different grid or method can change the volume slightly.`;
 }
 

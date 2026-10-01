@@ -1,6 +1,8 @@
 import { makeInterpolator } from './GriddingEngine';
 import { PolygonClippingEngine } from './PolygonClippingEngine';
 import { hypsometryFromTable } from './hypsometry';
+import { latticeOf } from './lattice';
+import { gridXY, sampleAtXY, isNull as isNullZ } from '@/lib/gridding/gridmath';
 
 const FT_PER_M = 3.280839895;
 const SQFT_PER_ACRE = 43560;
@@ -274,6 +276,9 @@ export class ContactVolumetricsEngine {
     }
 
     static _buildCellsRaw(p) {
+        // U2-005: a registry surface that kept its lattice is integrated on
+        // the lattice's own nodes (Mapping's midpoint rule), not re-gridded
+        if (p.options?.lattice !== false && latticeOf(p.topSurface)) return this._buildLatticeCells(p);
         const {
             topSurface,
             baseSurface = null,
@@ -395,6 +400,99 @@ export class ContactVolumetricsEngine {
 }
 
 // ---- helpers ----
+
+/**
+ * U2-005: cells on a registry lattice. Each live node is one cell of
+ * |dx dy| map units (in square metres through the row's metres per unit),
+ * the midpoint rule Mapping's closure engine uses, so the two apps give
+ * one GRV on one surface. A base surface on the same frame is read node
+ * by node; on another frame it is sampled bilinearly (a lattice) or by
+ * the interpolator (points).
+ */
+ContactVolumetricsEngine._buildLatticeCells = function buildLatticeCells(p) {
+    const { topSurface, baseSurface = null, constantThickness = null, unitSystem = 'field', aoiPolygon = null, options = {} } = p;
+    const { spec, z } = latticeOf(topSurface);
+    const isField = unitSystem === 'field';
+    const constThick = parseFloat(constantThickness);
+    const baseL = latticeOf(baseSurface);
+    const hasBasePoints = !baseL && !!(baseSurface && Array.isArray(baseSurface.points) && baseSurface.points.length >= 3);
+    if (!baseL && !hasBasePoints && !(constThick > 0)) return { error: 'Provide either a base surface or a positive gross thickness.' };
+    const xyToM = Number.isFinite(topSurface.xyToM) && topSurface.xyToM > 0 ? topSurface.xyToM : 1;
+    if (baseSurface && Number.isFinite(baseSurface.xyToM) && Math.abs(baseSurface.xyToM - xyToM) > 1e-9) {
+        return { error: 'The top and base surfaces are in different XY units. Import both in the same frame.' };
+    }
+    // lattice values are metres elevation (readDepthSurface)
+    const mToTarget = isField ? FT_PER_M : 1;
+    const areaM2 = Math.abs(spec.dx * spec.dy) * xyToM * xyToM;
+    const cellArea = isField ? (areaM2 * FT_PER_M * FT_PER_M) / SQFT_PER_ACRE : areaM2;
+    const sameFrame = baseL && ['x0', 'y0', 'dx', 'dy', 'nx', 'ny'].every((k) => baseL.spec[k] === spec[k]) && (baseL.spec.rotation_deg || 0) === (spec.rotation_deg || 0);
+    const baseInterp = hasBasePoints ? makeInterpolator(baseSurface.points, options.interpolation || 'idw') : null;
+    const baseToDepthTarget = (() => {
+        if (!baseSurface) return null;
+        const conv = baseSurface.zConvention || 'elevation';
+        const du = baseSurface.depthUnit || 'm';
+        const toT = du === 'm' ? mToTarget : (isField ? 1 : 1 / FT_PER_M);
+        return (v) => (conv === 'elevation' ? -v : v) * toT;
+    })();
+    const { nx, ny } = spec;
+    const cells = [];
+    let maskedCount = 0, clippedCount = 0;
+    const dead = new Uint8Array(nx * ny);
+    const verts = aoiPolygon && Array.isArray(aoiPolygon.vertices) && aoiPolygon.vertices.length >= 3 ? aoiPolygon.vertices : null;
+    for (let r = 0; r < ny; r++) {
+        for (let c = 0; c < nx; c++) {
+            const k = r * nx + c;
+            const zt = z[k];
+            if (isNullZ(zt)) { dead[k] = 1; maskedCount++; continue; }
+            const w = gridXY(spec, r, c);
+            let coverage = 1;
+            if (verts) {
+                coverage = cellCoverage(w.x, w.y, Math.abs(spec.dx), Math.abs(spec.dy), verts);
+                if (coverage <= 0) { clippedCount++; continue; }
+            }
+            const td0 = -zt * mToTarget;
+            let bd0;
+            if (baseL) {
+                const zb = sameFrame ? baseL.z[k] : sampleAtXY(baseL.z, baseL.spec, w.x, w.y);
+                if (isNullZ(zb)) { maskedCount++; continue; }
+                bd0 = -zb * mToTarget;
+            } else if (baseInterp) {
+                bd0 = baseToDepthTarget(baseInterp.predict(w.x, w.y));
+            } else {
+                bd0 = td0 + constThick; // workspace units (ft field, m metric)
+            }
+            const td = Math.min(td0, bd0);
+            const bd = Math.max(td0, bd0);
+            if (bd - td <= 0) continue;
+            cells.push({ td, bd, area: cellArea * coverage, i: c, j: r });
+        }
+    }
+    let edgeTop = Infinity;
+    for (const cl of cells) {
+        const { i, j } = cl;
+        const edge = i === 0 || j === 0 || i === nx - 1 || j === ny - 1
+            || dead[j * nx + i - 1] || dead[j * nx + i + 1] || dead[(j - 1) * nx + i] || dead[(j + 1) * nx + i];
+        cl.edge = !!edge;
+        if (cl.edge && cl.td < edgeTop) edgeTop = cl.td;
+    }
+    const xyUnit = topSurface.xyUnit || 'm';
+    return {
+        cells,
+        warnings: [],
+        lattice: { spec, z },
+        meta: {
+            isField, unitSystem,
+            xyUnit, depthUnit: 'm', zConvention: 'elevation', depthToTargetLen: mToTarget,
+            nx, ny, dx: Math.abs(spec.dx), dy: Math.abs(spec.dy), maskedCount, clippedCount,
+            edgeTop,
+            interpolation: 'lattice',
+            volumeUnit: isField ? 'STB' : 'sm³',
+            volUnit: isField ? 'Ac-ft' : 'm³',
+            resVolUnit: isField ? 'Ac-ft' : 'm³',
+            areaUnit: isField ? 'Acres' : 'km²',
+        },
+    };
+};
 
 const CELL_CACHE = new WeakMap();
 const OBJECT_IDS = new WeakMap();
