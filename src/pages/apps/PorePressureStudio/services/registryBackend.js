@@ -15,34 +15,56 @@ import {
   listWells, listLogs, downloadCurve, saveLogs, deleteLog,
 } from '@/lib/wellsRegistry';
 import { listVolumes, getManifest } from '@/pages/apps/Seismolord/services/volumesService';
-import { isLinearVelocityModel } from '../engine/velocitySource';
+import {
+  listPublishedVelocityModels, resolveLayerCake, boundariesAt,
+} from '@/lib/velocityModels';
+import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
+import { compareTags } from '@/lib/crs/tags';
+import { getTransformer } from '@/lib/crs';
 import { staleOwnCurves } from './publish';
 import { getDepthUnit } from '@/lib/crs/settingsService';
 
-// ---- Seismolord velocity models (P4) -----------------------------------------
-// Per-volume manifest.velocity, well-tie calibrated in Seismolord.
-// Only v1-samplable single-function models are offered (layer-cake
-// boundaries are horizon times per column — a follow-on).
+// ---- Seismolord velocity models (P4; layer cakes from Seismolord U2-006) ----
+// Through the shared reader (src/lib/velocityModels): the volume row's
+// model first (W0.2), the manifest as the fallback. A single V(z) samples
+// directly; a layer cake is read at a well, through the boundary horizons
+// Seismolord published as time surfaces.
 
 async function listVelocityModels() {
-  const volumes = await listVolumes();
-  const models = [];
-  for (const v of volumes) {
-    if (v.kind === 'attribute') continue;   // derived volumes carry no velocity of their own
+  const entries = await listPublishedVelocityModels({ listVolumes, getManifest });
+  return entries.map((e) => (e.kind === 'linear'
+    ? {
+      id: e.id, name: e.name, kind: 'linear', calibration: e.calibration,
+      velocity: { v0: Number(e.model.v0), k: Number(e.model.k ?? 0) },
+    }
+    : {
+      id: e.id, name: e.name, kind: 'layercake', calibration: e.calibration, velocity: e.velocity, entry: e,
+    }));
+}
 
-    try {
-      const manifest = await getManifest(v);
-      if (isLinearVelocityModel(manifest.velocity)) {
-        models.push({
-          id: v.id,
-          name: v.name || v.file_name || v.id,
-          velocity: { v0: Number(manifest.velocity.v0), k: Number(manifest.velocity.k ?? 0) },
-          calibration: manifest.velocity_calibration || null,
-        });
-      }
-    } catch { /* volume without a readable manifest — skip */ }
+/** The layer cake's boundary times at a well's surface location. */
+async function layerCakeBoundariesAt(model, well) {
+  const resolved = await resolveLayerCake(model.entry, { surfaces: await listSurfaces(), downloadGrid: downloadSurfaceGrid });
+  if (!resolved.ok) throw new Error(resolved.reason);
+  let x = Number(well.surface_x);
+  let y = Number(well.surface_y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error(`${well.name} has no surface location, so the layer cake cannot be read there.`);
+  const surfCrs = resolved.boundaries[0]?.row?.crs || null;
+  const rel = compareTags(well.crs, surfCrs);
+  if (rel === 'transformable') {
+    const p = getTransformer(well.crs, surfCrs).forward(x, y);
+    x = p.x; y = p.y;
+  } else if (rel === 'local-mismatch') {
+    throw new Error(`${well.name} is on a local grid and the layer boundaries are not, so the layer cake cannot be read there.`);
   }
-  return models;
+  const boundaryTwtMs = boundariesAt(resolved, x, y);
+  const missing = boundaryTwtMs.map((v, i) => (v == null ? resolved.boundaries[i].row.name : null)).filter(Boolean);
+  return {
+    boundaryTwtMs,
+    names: resolved.boundaries.map((b) => b.row.name),
+    note: missing.length ? `${missing.join(', ')} ${missing.length === 1 ? 'has' : 'have'} no value at ${well.name}; the layer above extends there.` : null,
+    crsStatus: rel,
+  };
 }
 
 // ---- publish (P4, plan Q4) ----------------------------------------------------
@@ -98,6 +120,7 @@ export function makeRegistryBackend() {
     listLogs,
     downloadCurve,
     listVelocityModels,
+    layerCakeBoundariesAt,
     getDepthUnit,
     publishCurves,
     loadProject,

@@ -57,3 +57,40 @@ export function sessionVolumeProblem(payload, volumes) {
   if ((volumes || []).some((v) => v.id === payload.volume_id)) return null;
   return 'The volume this session points at no longer exists (deleted, or no longer shared). Nothing was changed.';
 }
+
+// ---- U2-017: the co-render overlay in sessions ------------------------------
+
+const BLENDS = ['mix', 'multiply'];
+
+/** The overlay part of a session, or null when co-rendering is off. */
+export function captureOverlay({ volumeId, colormap, opacity, blend }) {
+  if (!volumeId) return null;
+  return {
+    volume_id: volumeId,
+    colormap: colormap || null,
+    opacity: Number.isFinite(opacity) ? Math.min(1, Math.max(0, opacity)) : 0.5,
+    blend: BLENDS.includes(blend) ? blend : 'mix',
+  };
+}
+
+/**
+ * What to do with a saved overlay once the session's volume is open: the
+ * overlay volume must still be a same-lattice candidate. Sessions saved
+ * before U2-017 carry no overlay and restore with it off.
+ * @param {?Object} saved payload.overlay
+ * @param {{id: string, name?: string}[]} candidates same-lattice volumes
+ * @param {string[]} colormapKeys known colormap keys
+ * @returns {null|{select: string, colormap: ?string, opacity: number, blend: string}|{problem: string}}
+ */
+export function overlayRestorePlan(saved, candidates, colormapKeys = []) {
+  if (!saved || typeof saved !== 'object' || !saved.volume_id) return null;
+  if (!(candidates || []).some((c) => c.id === saved.volume_id)) {
+    return { problem: 'The co-render volume saved with this session is no longer on this survey (deleted, unshared or on another lattice); the session opened without it.' };
+  }
+  return {
+    select: saved.volume_id,
+    colormap: colormapKeys.includes(saved.colormap) ? saved.colormap : null,
+    opacity: Number.isFinite(saved.opacity) ? Math.min(1, Math.max(0, saved.opacity)) : 0.5,
+    blend: BLENDS.includes(saved.blend) ? saved.blend : 'mix',
+  };
+}

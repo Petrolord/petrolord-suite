@@ -41,8 +41,9 @@ const CASES = [
   ['line2d_cdp21.sgy', { text: /looks like a 2D line/ }],
   ['depth_psdm.sgy', { text: /Seismolord interprets volumes in two-way time/, blocked: true }],
   ['bin_ns_lies.sgy', { error: /disagree on the number of samples per trace.*fits 40/ }],
-  ['rev2_little_endian.sgy', { error: /byte-swapped \(little-endian\)/ }],
-  ['fmt3_int16.sgy', { error: /2-byte two's complement integer \(format code 3\)/ }],
+  // U2-009: little-endian and integer files import, converted on read
+  ['rev2_little_endian.sgy', { text: /Byte-swapped \(little-endian\) SEG-Y with 4-byte IEEE floating point samples/ }],
+  ['fmt3_int16.sgy', { text: /2-byte two's complement integer samples \(format code 3\)/ }],
 ];
 
 test('PL2: the hostile SEG-Y set through the import dialog', async ({ page }) => {

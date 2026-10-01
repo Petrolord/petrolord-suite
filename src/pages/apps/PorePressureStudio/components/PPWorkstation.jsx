@@ -35,6 +35,7 @@ import NctPanel from './NctPanel';
 import { mapLogs, buildProfileInput } from '../services/prep';
 import { computeProfile } from '../engine/profile';
 import { pseudoSonicFromLinearVelocity } from '../engine/velocitySource';
+import { layerCakeProfile } from '@/lib/velocityModels';
 import { preparePublishLogs } from '../services/publish';
 import { drillingWindow, WINDOW_FROM_BML_M } from '../services/drillingWindow';
 import {
@@ -149,16 +150,50 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     }
   }, [backend]);
 
+  // Seismolord U2-006: a layer cake is read at a well (the well selected
+  // when the model is chosen); its boundary times come from the published
+  // boundary surfaces
+  const [layerCakeAt, setLayerCakeAt] = useState(null);   // {wellName, boundaryTwtMs, note}|{error}
   const selectVelocityModel = useCallback((model) => {
+    const at = (wells || []).find((w) => w.id === selectedId) || null;
     setSeismicModel(model);
     setSelectedId(null);
     setCurves(null);
     setPicks([]);
+    setLayerCakeAt(null);
+    if (model.kind === 'layercake') {
+      if (!at) {
+        setLayerCakeAt({ error: 'A layer cake changes across the survey: select a well first, then choose the layer cake; it is read at that well.' });
+        setStatus('Select a well first: the layer cake is read at its location.');
+        return;
+      }
+      if (!backend.layerCakeBoundariesAt) {
+        setLayerCakeAt({ error: 'This backend cannot read layer cakes.' });
+        return;
+      }
+      setStatus(`Reading the layer cake of ${model.name} at ${at.name}...`);
+      backend.layerCakeBoundariesAt(model, at)
+        .then((r) => {
+          setLayerCakeAt({ ...r, wellName: at.name });
+          setStatus(`Velocity trend from the ${model.name} layer cake at ${at.name}: a trend-grade prognosis (no local anomaly).${r.note ? ` ${r.note}` : ''}`);
+        })
+        .catch((e) => { setLayerCakeAt({ error: e.message }); setStatus(e.message); });
+      return;
+    }
     setStatus(`Velocity trend from ${model.name}: a trend-grade prognosis (no local anomaly).`);
-  }, []);
+  }, [wells, selectedId, backend]);
 
   const input = useMemo(() => {
     try {
+      if (seismicModel?.kind === 'layercake') {
+        if (!layerCakeAt) return null;
+        if (layerCakeAt.error) return { error: layerCakeAt.error };
+        return layerCakeProfile(seismicModel.velocity, layerCakeAt.boundaryTwtMs, {
+          datumToMudlineM: params.waterDepthM,
+          zMaxM: 4000,
+          stepM: 10,
+        });
+      }
       if (seismicModel) {
         // model datum = sea level; the water column is the offset
         return pseudoSonicFromLinearVelocity(seismicModel.velocity, {
@@ -172,7 +207,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     } catch (e) {
       return { error: e.message };
     }
-  }, [curves, seismicModel, params.mudlineMdM, params.waterDepthM]);
+  }, [curves, seismicModel, layerCakeAt, params.mudlineMdM, params.waterDepthM]);
 
   const profile = useMemo(() => {
     if (!input || input.error) return null;
@@ -348,7 +383,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       {seismicModel && (
         <span
           data-testid="pp-trend-badge"
-          title="Analytic v0+k velocity model. It constrains the regional trend only; it carries no local overpressure anomaly"
+          title="Seismic velocity model (v0+k, or a layer cake read at a well). It constrains the regional trend only; it carries no local overpressure anomaly"
           className="rounded px-1.5 py-0.5 bg-pl-warning-bg border border-pl-warning/40 text-pl-warning-text text-[11px]"
         >
           Trend-grade (seismic velocity)
@@ -434,7 +469,9 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       <span data-testid="pp-status" className="truncate">{computeError || status}</span>
       <span className="ml-auto whitespace-nowrap">
         {seismicModel
-          ? `${seismicModel.name} · V(z) = ${seismicModel.velocity.v0} + ${seismicModel.velocity.k}·z`
+          ? (seismicModel.kind === 'layercake'
+            ? `${seismicModel.name} · layer cake${layerCakeAt?.wellName ? ` at ${layerCakeAt.wellName}` : ''}`
+            : `${seismicModel.name} · V(z) = ${seismicModel.velocity.v0} + ${seismicModel.velocity.k}·z`)
           : selected
             ? `${selected.name} · ${input && !input.error ? `${input.zBmlM.length} samples` : '…'}`
             : `${wells?.length ?? '…'} wells`}

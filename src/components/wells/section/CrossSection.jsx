@@ -36,6 +36,9 @@ import TopNamePopover from '@/components/wells/TopNamePopover';
 import DepthNavigator from '@/components/wells/DepthNavigator';
 import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
 import { trackPlotPng } from '@/components/wells/plotPng';
+import {
+  backdropBlocked, backdropSpans, backdropRgba, anchorCols, paintBackdrop,
+} from './seismicBackdrop';
 
 
 export const AXIS_W = 56;      // depth axis gutter (TrackViewer)
@@ -96,12 +99,13 @@ const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.roun
  * @param {?{w: number, h: number, pixelRatio?: number}} [p.printSize] U2-006: an offscreen print render at this css size (no navigator, hints or scrollbar)
  * @param {(canvas: HTMLCanvasElement) => void} [p.onPainted] U2-006: the static layer after each paint
  * @param {?Object<string, Array<{key, title, intervals, note?}>>} [p.strips] U2-008: narrow strips per well id (pay, zones, units; petroStrips.wellStrips)
+ * @param {?{data, ns, nTraces, dtMs, rms, anchors: {id, col}[]}} [p.backdrop] Seismolord U2-002: a seismic traverse through the section wells, drawn between the columns on a TWT section
  */
 const CrossSection = forwardRef(function CrossSection({
   wells, datum, depthUnit = 'm', depthRef = 'md', spacing = 'equal', zoneMode = 'consecutive', zonePair = null,
   shownTops, pickMode = null, onTopMove, onTopCreate, onPickCancel, onNotice, topNames = [],
   bands = null, ghost = null, columnWidth = 'auto', printSize = null, onPainted = null, strips = null, lineDistances = null,
-  view: viewProp, onViewChange,
+  view: viewProp, onViewChange, backdrop = null,
 }, exportRef) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
@@ -244,6 +248,25 @@ const CrossSection = forwardRef(function CrossSection({
     [columns, boxes, stripW],
   );
   const yOf = useCallback((d) => plotTop + ((d - vTop) / (vBase - vTop || 1)) * plotH, [plotTop, plotH, vTop, vBase]);
+  // Seismolord U2-002: the seismic backdrop, an image once per traverse
+  const backdropImage = useMemo(() => {
+    if (!backdrop?.data || typeof document === 'undefined') return null;
+    const c = document.createElement('canvas');
+    c.width = backdrop.nTraces;
+    c.height = backdrop.ns;
+    const ctx = c.getContext('2d');
+    if (!ctx) return null;
+    const img = ctx.createImageData(backdrop.nTraces, backdrop.ns);
+    img.data.set(backdropRgba(backdrop));
+    ctx.putImageData(img, 0, 0);
+    return c;
+  }, [backdrop]);
+  const backdropNote = backdrop ? backdropBlocked({ depthRef, datumMode: datum.mode }) : null;
+  const bdSpans = useMemo(() => (backdrop && !backdropNote
+    ? backdropSpans(boxes, colVisible, anchorCols(wells, backdrop)) : []), [backdrop, backdropNote, boxes, colVisible, wells]);
+  useEffect(() => {
+    if (backdropNote && onNotice) onNotice(backdropNote);
+  }, [backdropNote]); // eslint-disable-line react-hooks/exhaustive-deps
   const dOf = (y) => vTop + ((y - plotTop) / plotH) * (vBase - vTop);
   const colorOf = (name) => topColor(name);
   const columnAt = (x) => (x < AXIS_W ? -1 : boxes.findIndex((b, i) => colVisible[i] && x >= b.x0 && x < b.x0 + b.w));
@@ -303,6 +326,12 @@ const CrossSection = forwardRef(function CrossSection({
     // pinned depth axis, so scrolled columns slide under it
     const clipBand = () => { ctx.save(); ctx.beginPath(); ctx.rect(AXIS_W, 0, size.w - AXIS_W, size.h); ctx.clip(); };
     clipBand();
+    // Seismolord U2-002: seismic between the columns, under everything
+    if (backdropImage && bdSpans.length) {
+      paintBackdrop(ctx, { image: backdropImage, dtMs: backdrop.dtMs, ns: backdrop.ns }, bdSpans, {
+        plotTop, plotH, vTop, vBase,
+      });
+    }
     // zone bands under everything
     if (zoneMode !== 'none') {
       const pairs = zoneMode === 'pair' ? (zonePair ? [zonePair] : []) : null;
@@ -540,7 +569,7 @@ const CrossSection = forwardRef(function CrossSection({
     ctx.restore();
     setTick((t) => t + 1);
     if (onPainted) onPainted(canvas, { plotTop, plotH, vTop, vBase });
-  }, [size.w, size.h, printSize, onPainted, strips, stripW, wells, columns, columnNotes, boxes, colVisible, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, unitTxt, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, bandSpans, ghost]);
+  }, [backdropImage, bdSpans, backdrop, size.w, size.h, printSize, onPainted, strips, stripW, wells, columns, columnNotes, boxes, colVisible, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, unitTxt, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, bandSpans, ghost]);
 
   // ---- CURSOR layer -------------------------------------------------------
   useEffect(() => {
@@ -815,6 +844,8 @@ const CrossSection = forwardRef(function CrossSection({
       data-pick-mode={pickMode || ''}
       data-top-types={topTypes}
       data-datum-mode={datum.mode}
+      data-backdrop-spans={bdSpans.length}
+      data-backdrop-note={backdropNote || ''}
       data-band-count={bands ? bands.length : 0}
       data-band-spans={columns.map((c, i) => `${c.well.name}:${bandSpans[i].map(({ d0, d1 }) => `${Math.min(d0, d1).toFixed(1)}-${Math.max(d0, d1).toFixed(1)}`).join('|')}`).join(';')}
       data-ghost={ghost?.sourceWellId ? `${ghost.sourceWellId}>${ghost.targetWellId}:${ghost.shiftM || 0}${ghost.stretch && ghost.stretch !== 1 ? `:x${ghost.stretch}` : ''}${ghost.tracks === 'all' ? ':all' : ''}` : ''}

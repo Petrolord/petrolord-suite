@@ -13,6 +13,8 @@
 // same PP0 state kind as the registry (a newer-build row is refused).
 
 import { sampleWells, sampleSurfaces, sampleUnits, samplePetro, SAMPLE_UNIT_OF } from './sampleSection';
+import { KETA3D, ketaBrickSource } from './sampleSeismic';
+import { assembleSectionBackdrop } from '@/pages/apps/Seismolord/services/sectionBackdrop';
 import { openSectionRow } from '@/components/wells/section/sectionState';
 import { sectionNameProblem, DEFAULT_SECTION_NAME } from '@/components/wells/section/sectionNames';
 
@@ -85,6 +87,19 @@ export function makeInMemoryBackend({ seedWells = [], sample = true, section: se
       const s = (seedSurfaces ?? (sample ? sampleSurfaces() : [])).find((x) => x.id === row.id);
       if (!s) throw new Error('Surface grid not found.');
       return Float32Array.from(s.grid);
+    },
+
+    // Seismolord U2-002: the synthetic KETA 3D volume under the sample wells
+    async listSeismicVolumes() {
+      return sample ? [{ id: KETA3D.id, name: KETA3D.name, crs: KETA3D.crs, status: 'ready', kind: 'seismic' }] : [];
+    },
+    async loadSeismicBackdrop(volume, sectionWells) {
+      if (volume.id !== KETA3D.id) throw new Error('Volume not found.');
+      const { geom, getBrick } = ketaBrickSource();
+      const out = await assembleSectionBackdrop({
+        getBrick, geom, geometry: KETA3D.geometry, wells: sectionWells, volumeCrs: KETA3D.crs,
+      });
+      return { ...out, volumeName: KETA3D.name };
     },
 
     async listZones(wellId) { return (zonesByWell.get(wellId) || []).map((z) => ({ ...z, properties: { ...(z.properties || {}) } })); },

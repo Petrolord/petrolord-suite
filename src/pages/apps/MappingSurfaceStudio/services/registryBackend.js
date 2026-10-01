@@ -4,6 +4,7 @@
 // pattern). Wells + tops + zones come from the shared well registry;
 // surfaces from the new geo_surfaces registry.
 
+import { listPublishedVelocityModels } from '@/lib/velocityModels';
 import { listWellsWithTops, listZones } from '@/lib/wellsRegistry';
 import { listIntervals } from '@/lib/stratRegistry';
 import {
@@ -14,7 +15,6 @@ import {
   listCulture, downloadCultureFeatures, saveCulture, updateCulture, deleteCulture,
 } from '@/lib/cultureRegistry';
 import { listVolumes, getManifest } from '@/pages/apps/Seismolord/services/volumesService';
-import { normalizeVelocity } from '@/pages/apps/Seismolord/engine/velocityModel';
 import { resolveUserOrgId } from '@/lib/orgContext';
 import { getDepthUnit, setDepthUnit } from '@/lib/crs/settingsService';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -76,19 +76,9 @@ export function makeRegistryBackend() {
     // MS3 time-to-depth: Seismolord volumes' velocity models (linear
     // usable here; layer cakes listed so the refusal can name them)
     async listVelocityModels() {
-      const out = [];
-      let volumes = [];
-      try { volumes = await listVolumes(); } catch { return out; }
-      for (const v of volumes) {
-        if (v.kind === 'attribute') continue;
-        try {
-          const manifest = await getManifest(v);
-          const m = normalizeVelocity(manifest?.velocity);
-          if (!m) continue;
-          out.push({ id: v.id, name: v.name, kind: m.kind, velocity: manifest.velocity });
-        } catch { /* a volume without a readable manifest has no model to offer */ }
-      }
-      return out;
+      // Seismolord U2-006: the shared reader (row model first, manifest as
+      // the pre-W0.2 fallback; layer cakes with their boundary horizons)
+      return listPublishedVelocityModels({ listVolumes, getManifest });
     },
   };
 }
