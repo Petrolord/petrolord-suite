@@ -23,11 +23,23 @@ const P = W.params;
 const idxAt = (z) => W.z_bml_m.findIndex((v) => v === z);
 const mpa = (pa) => (pa / 1e6).toFixed(2);
 
-async function openWell(page) {
+// PP-U1-000: since the Suite unit profile (#830) the harness opens in the
+// profile's units; signed out that is the built-in oilfield preset (ft and
+// psi). The oracle specs below assert the goldens' SI numbers, so they pin
+// the view to m and MPa with the ribbon selectors (a session view override,
+// the route a user takes); the PP0 spec follows the profile first and then
+// converts, so the profile default itself stays asserted.
+async function pinSi(page) {
+  await page.getByTestId('pp-unit-pressure').selectOption('MPa');
+  await page.getByTestId('pp-unit-depth').selectOption('m');
+}
+
+async function openWell(page, { si = true } = {}) {
   await page.goto('/dev/pore-pressure-studio');
   await expect(page.getByTestId('pp-well-row')).toHaveCount(1);
   await page.getByTestId('pp-well-row').click();
   await expect(page.getByTestId('pp-prognosis-chart')).toBeVisible();
+  if (si) await pinSi(page);
 }
 
 test('depth readout reproduces the oracle pressures on the ramp and hydrostatic sections', async ({ page }) => {
@@ -129,9 +141,20 @@ const PA_PER_PSI = 6894.757293168361;
 const FT = 0.3048;
 
 test('PP0: pressure and depth display units convert the readout, the NCT, the dock and the prognosis CSV, and are remembered', async ({ page }) => {
-  await openWell(page);
+  await openWell(page, { si: false });
   const i = idxAt(3500);
   const pp = W.pore_pressure_pa[i];
+  // the harness follows the unit profile: signed out, the built-in oilfield preset
+  await expect(page.getByTestId('pp-unit-depth')).toHaveValue('ft');
+  await expect(page.getByTestId('pp-unit-pressure')).toHaveValue('psi');
+  await expect(page.getByTestId('unit-profile-note')).toHaveAttribute('data-state', 'follows');
+  await expect(page.getByTestId('pp-readout-depth')).toHaveValue('11482.9');
+  await expect(page.getByTestId('pp-readout-pp')).toHaveText(`PP ${(pp / PA_PER_PSI).toFixed(0)}`);
+
+  // metres: the readout keeps its sample, the text converts
+  await page.getByTestId('pp-unit-depth').selectOption('m');
+  await expect(page.getByTestId('pp-readout-depth')).toHaveValue('3500');
+  await page.getByTestId('pp-unit-pressure').selectOption('MPa');
   await expect(page.getByTestId('pp-readout-pp')).toHaveText(`PP ${mpa(pp)}`);
 
   // psi, then equivalent mud weight: mudline MD is 0 so the datum is
@@ -170,7 +193,7 @@ test('PP0: pressure and depth display units convert the readout, the NCT, the do
   expect(Number(cols[7])).toBeCloseTo(ppg, 2);
   await expect(page.getByTestId('pp-status')).toHaveText('Prognosis CSV in MPa and ft downloaded.');
 
-  // remembered across a reload
+  // remembered across a reload (a session view override; the profile stays ft)
   await page.reload();
   await expect(page.getByTestId('pp-unit-depth')).toHaveValue('ft');
   await expect(page.getByTestId('pp-unit-pressure')).toHaveValue('MPa');
