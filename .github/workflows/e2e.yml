@@ -13,7 +13,7 @@ name: e2e
 on:
   workflow_dispatch:
   push:
-    branches: [ main, ci/e2e ]
+    branches: [ main ]
   pull_request:
 
 concurrency:
