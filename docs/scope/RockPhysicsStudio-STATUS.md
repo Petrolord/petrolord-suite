@@ -88,3 +88,34 @@ Engines untouched.
   pixels unchanged.
 - No engine or calculation change. Theme test:
   `src/pages/apps/RockPhysicsStudio/__tests__/RockPhysicsStudio.theme.test.jsx`.
+
+## 2026-10-01: Upgrade U1 (practitioner lens), app #10 of the Geoscience programme
+
+Doc: docs/upgrade/RockPhysicsStudio-UPGRADE.md (branch `feat/rp-u1`). 20
+findings, 17 fixed, no S1 or S2 open.
+
+- Save had never worked on the registry: it wrote a `scenario` column the
+  table does not have (`scenarios`); the live table held 0 rows. The save
+  now writes real columns, keeps the well (`well_ids`, carried by `.pld`)
+  and the zone, and a tolerant reader opens every shape
+  (`services/projectState.js`).
+- Curves read through the shared door: shared aliases (RHOZ, TDEP...),
+  `normalizeInputCurve` for sonic and density (a unitless us/ft sonic was
+  read as us/m, Vp 3.28x; the DT range rule is shared with Petrophysics),
+  shear in the unit giving a physical Vp/Vs, percent fractions by range;
+  every reading is listed under the curve inventory.
+- PHIE and PHIT separate with the basis shown (pre-PT9a PHIE is total);
+  clay from VSH in K_min; fluid A Sw from the SW log; Gassmann limits
+  (VSH, porosity) with samples outside left in situ and counted
+  (`services/scenario.substituteZone`).
+- AI, Vp/Vs and Poisson's ratio (`services/elastic.js`); dock conditions,
+  GOR and salinity in profile units; wedge Vp in the velocity unit.
+- Publish adds DT_SUB (us/m, pipeline `rp-1.1.0`); Seismolord's synthetics
+  list DT_SUB and RHOB_SUB by provenance (`src/lib/rockPhysicsCurves.js`).
+- CSV with a reviewer header; typed inputs keep their text; AVO manual mode
+  reachable without a well; critical angle stated; the unit note moved to
+  the status bar.
+- Harness flags `?hostile=1` and `?long=1`; e2e
+  `e2e/rock-physics-upgrade.spec.js`; the older RP e2e (red since #830) fixed.
+- Engines untouched. No migration.
+

@@ -1,0 +1,175 @@
+# Rock Physics Studio: comprehensive upgrade
+
+App #10 of the Geoscience upgrade programme (`docs/scope/AppUpgrade-Geoscience-PLAN.md`).
+Step 1 (practitioner lens, `docs/scope/AppUpgrade-BestPractices.md`) was run and
+fixed on 2026-10-01 on branch `feat/rp-u1`. Step 2 (advancement review) is
+analysis only; batches are chosen before anything is built.
+
+- Route: `/dashboard/apps/geoscience/rock-physics-studio` (ProtectedAppRoute), help at `.../help`.
+- Harness: `/dev/rock-physics-studio` (in-memory backend, the oracle wells). New for this upgrade: `?hostile=1` adds a vendor-export well (TDEP, DTCO and DTSM in us/ft with no unit, RHOZ in kg/m3 with a -999, PHIT in percent with no unit, a shaly band, an SW log over a gas leg); `?long=1` adds a 5000 m well at 0.1524 m (32,809 samples).
+- The T1 cycle (`docs/testing/RockPhysicsStudio-T1.md`) fixes still hold (T1 e2e green after RP-U1-012).
+- Carried in: plan row 10 (angle-gather synthetic, wet trend on the I-G crossplot), Seismolord U2-020 (rock physics to synthetics and an AVO path), PETRO-U2-013 (pre-PT9a PHIE is total porosity), PETRO-U2-001 (shared unit families), the Suite unit profile (#830).
+- Live data read 2026-10-01 (read-only): `rp_projects` has 0 rows; its columns are `id, user_id, name, well_ids, scenarios, rock, avo, wedge, created_at, updated_at, schema_version, app_build, engine_version`. Of 12 registry wells with logs, 2 carry a DT (US/M); none carries a shear sonic; one RHOB has no unit; PHIE/PHIT units are V/V, m3/m3 and ft3/ft3.
+
+## Evidence kit made for this app
+
+| Kit | Where | What it holds |
+|---|---|---|
+| Hostile logs (PL2, PL3) | `services/inMemoryBackend.js` (`?hostile=1`), `__tests__/upgradeU1.test.js` | Schlumberger names, unitless us/ft sonic and shear, kg/m3 density with a vendor null, percent porosity, kg/m3 label on g/cc values, PHIT only, a pre-PT9a PHIE |
+| Saved state (PL5) | `__tests__/upgradeU1Project.test.js` | A fake PostgREST that refuses unknown columns, with the column list read from the migration file; the pre-U1 harness shape (`scenario`, hydrocarbon as a bare string); empty column defaults; a `.pld` import plan |
+| Chain (PL9) | `src/lib/__tests__/rockPhysicsCurves.test.js`, `Seismolord/__tests__/syntheticsPanel.test.jsx` | Rock Physics' own publish read by Seismolord's synthetics door and engine |
+| Report (PL7) | `__tests__/upgradeU1Csv.test.js` | The CSV header read back; rows carry the oracle golden; field units |
+| Browser (PL3 to PL11) | `e2e/rock-physics-upgrade.spec.js` (13) | Hostile read and notes; CSV read back from the download; save and reload keep the well and zone; typing "-", clearing; critical angle; 1366x768, 1440x900 and 390 wide in light and dark (ink, no sideways scroll, no page errors, screenshots); the 5000 m well |
+
+## Step 1: the twelve checks
+
+| Check | Result | Findings | Notes |
+|---|---|---|---|
+| PL1 Labels mean the textbook | Failed, fixed | 004, 005, 007 | Quantity table below. PHIT was read under the PHIE label; the SW log was loaded and never used; AI, Vp/Vs and Poisson's ratio were not shown anywhere. |
+| PL2 Hostile logs | Failed, fixed | 002, 003 | RHOZ, TDEP and other shared aliases were unknown (the well refused to load); a unitless us/ft sonic read as us/m (Vp 3.28x); unitless shear the same; percent porosity with no unit made every sample fail; -999 not declared stayed data. Missing shear: estimated and badged (pass). |
+| PL3 Units, datums and frames | Failed, fixed | 008, 017 | Unit profile adoption (#830) verified: velocity, density and depth start from the profile (`unitProfile.test.jsx`). Temperature, pressure, GOR and salinity were SI only (a field user typing 140 degF or 500 scf/STB got a wrong fluid); wedge Vp was m/s only. Depths are MD and say so. |
+| PL4 No claim without the event | Failed, fixed | 001, 006, 009, 014, 016 | Save never worked on the registry (refused column); Gassmann ran on shale and tight samples; the help promised Seismolord could use the substituted logs; past the critical angle nothing was said; AVO manual mode was unreachable without a well. Blank dock fields now say which default Apply used. |
+| PL5 Real saved state | Failed, fixed | 001, 013 | 0 live rows, so no data repair. The tolerant reader opens every shape; the well and zone are saved and reopen. |
+| PL6 Real browser | Failed, fixed | 012, 017 | The RP e2e had 8 of 11 red since #830 (not in CI). The unit-profile note made the ribbon a 400 px column. Three viewports, two themes: ink, no page scroll; 390 wide keeps the desktop shell layout (the WDM decision). Depth runs down (T1-001 holds). Charts white with ChartLogo; fluid chart animation off. |
+| PL7 Report a reviewer can sign | Failed, partly fixed | 010 | CSV with a reviewer header. A PDF report is Step 2 (U2-004). |
+| PL8 Practitioner's day | Gaps recorded | 018, 019, 020 | Persona walks below. |
+| PL9 The chain | Failed, fixed | 002, 003, 009, 013 | Upstream: WDM and Petrophysics curves (PHIE post-PT9a, PHIT, SW, VSH) map; pre-PT9a PHIE is read as total. Downstream: DT_SUB and RHOB_SUB now reach Seismolord synthetics. `.pld`: the project now carries its well, zone and top. |
+| PL10 Real scale | Pass | none | 5000 m well, 32,809 samples, a 4000 m zone (26,247 samples): load, substitute and draw 2.6 s; next click 0.9 s (Playwright, staging box). Chart draws every sample (decimation is U2-014). |
+| PL11 Inputs a person can type | Failed, fixed | 011 | Wedge fields went to NaN and wiped "-" and cleared text; theta max snapped to 40 when cleared. The dock fields and AVO halfspaces already kept text. |
+| PL12 House standards | Pass after fix | 015 | Engine messages with dashes reached the screen; prep messages had em dashes. Route protected; EMPTY_VALUE in tables. |
+
+### PL1 quantity table
+
+| Quantity | Standard meaning | What the code computes | Same? |
+|---|---|---|---|
+| Vp, Vs | 1e6 / slowness (us/m) | Through the shared unit door; shear unit chosen by a physical Vp/Vs | Yes (003) |
+| Bulk density | RHOB in kg/m3 | Shared door (g/cc, kg/m3, mislabels by range) | Yes |
+| Porosity for Gassmann | Total porosity with bound water as fluid, or effective porosity with clay in the solid (Mavko et al., RPH 7.1; Dvorkin 2014) | PHIE first, then PHIT, basis shown; pre-PT9a PHIE read as total; clay from VSH optional | Fixed (004) |
+| K_min | VRH of the mineral fractions | Same, or per sample with clay at VSH, or the override; the source is shown | Yes |
+| Fluid A | The in-situ pore fluid | Typed Sw, or per sample from the SW log (Wood mix) | Fixed (005) |
+| Batzle-Wang brine, gas, oil | BW 1992 at pore pressure and temperature | Oracle-locked engine; inputs now converted from profile units | Yes (008) |
+| Gassmann K_sat, K_dry | Gassmann 1951 low-frequency, connected pores | Engine; outside the VSH and porosity limits the sample stays in situ | Fixed (006) |
+| AI, SI | Vp x rho, Vs x rho | `elastic.js` | Added (007) |
+| Vp/Vs, Poisson's ratio | Vp/Vs; (Vp^2 - 2Vs^2) / (2(Vp^2 - Vs^2)) | `elastic.js`, invariant tested | Added (007) |
+| Intercept A, gradient B | Shuey (1985) two-term as rewritten from Aki-Richards: A = 1/2(dVp/Vp + drho/rho), B = 1/2 dVp/Vp - 2(Vs/Vp)^2(drho/rho + 2dVs/Vs) | Same (engine `shuey`, averages of the two halfspaces) | Yes |
+| Aki-Richards 3-term | AR 1980 with p = sin(theta)/Vp1 | Same; null past critical | Yes |
+| Zoeppritz Rpp | Exact, complex past critical | Real part drawn; the critical angle is now stated | Fixed (014) |
+| AVO class | Rutherford-Williams I to III plus Castagna IV | |A| <= 0.02 is II, documented | Yes |
+| Tuning thickness | Thickness of maximum constructive interference | Oracle-locked; depth from wedge Vp in the velocity unit | Yes |
+
+### Findings
+
+Severity: S1 wrong answer with no warning; S2 wrong or lost data, or a door that misleads; S3 workflow gap or misleading text; S4 polish.
+
+| ID | Sev | Check | Finding | Evidence | Status |
+|---|---|---|---|---|---|
+| RP-U1-001 | S2 | PL4, PL5 | Save wrote `{scenario, rock, avo, wedge}`; `scenario` is not an `rp_projects` column (`scenarios` is), so PostgREST refused every registry save. Live table: 0 rows. | Live column list; fake PostgREST with the migration's columns: the old shape is refused (negative control). | Fixed: `services/projectState.js` writes `scenarios`, `well_ids`, the zone in `rock`; a tolerant reader opens every shape. Test `upgradeU1Project.test.js`. |
+| RP-U1-002 | S2 | PL2, PL9 | A private alias table: RHOZ (the Schlumberger density), TDEP, DT24, DTP and others unknown, so such a well refused to load ("no density curve"). | Old table lacks them. | Fixed: aliases build on the shared `curveMap` table; shear and fraction rows kept. Negative control: old prep fails 7 of 14 U1 tests. |
+| RP-U1-003 | S1 | PL2, PL3 | A sonic or shear with no unit (or an unknown spelling) read as us/m; a us/ft log gave Vp and Vs 3.28x high with no warning. Percent porosity with no unit failed every sample; undeclared -999 stayed data; a kg/m3 label on g/cc values. | `upgradeU1.test.js` (Vp 3048 m/s, not 10000). | Fixed: sonic and density through the shared `normalizeInputCurve` (new DT range rule: a median below 140 us/m is us/ft; per-foot spellings read per foot; shared, so Petrophysics gains it); shear in the unit giving Vp/Vs in 1.35 to 4; fractions by range; every reading listed under the curve inventory. |
+| RP-U1-004 | S2 | PL1 | PHIT, PHI and POR were read under the PHIE label; the basis was never shown; with effective porosity the clay sat in neither the pores nor the clay-free K_min. | Test. | Fixed: PHIE and PHIT separate (`phiBasis`, `phiCurve`), pre-PT9a PHIE flagged total; "Clay from VSH" mixes clay into K_min per sample; an amber note when the basis is effective, the mineral clay-free and VSH above 0.1. |
+| RP-U1-005 | S3 | PL1, PL8 | The SW log was loaded and never used: fluid A was one typed Sw for the whole zone. | Test (round trip to the log's own fluid is the identity to 1e-9; typed Sw 1 misses the gas). | Fixed: "Sw from the SW log" (default on; the typed Sw stands in where the log is null, counted). |
+| RP-U1-006 | S2 | PL4 | Gassmann ran on every zone sample: shales were moved, tight samples failed with a K_dry message to decode. | Test (old code moved the shale and failed the tight sample). | Fixed: Gassmann limits (VSH <= 0.5, porosity >= 0.03 by default) in the dock; outside samples stay in situ, are counted, and publish their in-situ values; the after mean is the published case. |
+| RP-U1-007 | S3 | PL1, PL8 | No AI, SI, Vp/Vs or Poisson's ratio anywhere, the first numbers a rock physicist reads. | Walk. | Fixed: interval table and AVO halfspaces show AI, Vp/Vs and Poisson's ratio (`services/elastic.js`, invariant test). |
+| RP-U1-008 | S2 | PL3 | Temperature (degC), pressure (MPa), GOR (L/L) and salinity (weight fraction) were SI only; the profile was ignored; wedge Vp was m/s only. | Test: 140 degF and 3626 psi equal 60 degC and 25 MPa; negative control: 140 read as degC is a different brine. | Fixed: dock fields follow the profile with a unit choice; salinity as fraction, ppm or wt%; "Pore pressure" named; wedge Vp in the velocity unit. |
+| RP-U1-009 | S2 | PL4, PL9 | The help said Seismolord ties with VP_SUB and RHOB_SUB; Seismolord's sonic picker matches exact mnemonics, so the substituted case never reached a synthetic. Seismolord read DT and RHOB with no unit check. | `guessCurveKind('DT_SUB')` is null (negative control). | Fixed: Rock Physics also publishes DT_SUB (us/m, `rp-1.1.0`); `src/lib/rockPhysicsCurves.js` names substituted curves by provenance; the synthetics pickers list DT_SUB and RHOB_SUB, labelled, with the measured curves as the default; DT and RHOB pass the shared door (kg/m3 RHOB_SUB read as g/cc). The RC at the sand top through Seismolord's engine is the substituted case. |
+| RP-U1-010 | S3 | PL7 | No export with identity: nothing a reviewer could sign. | Test (header read back). | Fixed: CSV with field, well, zone, analyst, date, build, units, conditions, fluids as used (K, density), K_min and source, porosity basis, shear source, limits, counts, method; rows per sample in display units with status. |
+| RP-U1-011 | S3 | PL11 | Wedge fields stored NaN and wiped "-" and a cleared box; theta max snapped to 40. | e2e. | Fixed: text-keeping inputs (UnitInput). |
+| RP-U1-012 | S3 | PL6 | `rock-physics-studio.spec.js` and `rock-physics-t1.spec.js` had 8 of 11 red since #830 (the harness opens oilfield); two stale assertions. | Run on origin/main. | Fixed: specs seed a metric view once per tab; assertions updated. |
+| RP-U1-013 | S3 | PL5, PL9 | Save did not keep the well or zone; `well_ids` stayed empty, so a `.pld` carried no wells; the soft reference named zones for `avo.topId`. | Test (`planImport` rewrites well, zone and top). | Fixed: well and zone saved and reopened; `geoscienceSpec` refs corrected. |
+| RP-U1-014 | S4 | PL4 | Past the critical angle the exact curve showed its real part with no note. | e2e. | Fixed: the critical angle is stated. |
+| RP-U1-015 | S4 | PL12 | Engine messages with dashes reached the screen; prep messages had em dashes. | Test. | Fixed: `plainMessage`; prep text. |
+| RP-U1-016 | S3 | PL4, PL8 | AVO manual halfspaces were unreachable without a well (the panel showed "Select a well" with no mode buttons). | e2e. | Fixed: the panel always shows; top mode says to pick a well or go manual. |
+| RP-U1-017 | S3 | PL6 | When the view differed from the profile, the unit note in the ribbon wrapped into a 400 px column. | Screenshot. | Fixed: note in the status bar, one line. |
+| RP-U1-018 | S3 | PL1, PL8 | Greenberg-Castagna is a brine-rock regression but is applied to the in-situ Vp in a hydrocarbon zone (RokDoc and HRS iterate: brine-substitute Vp, estimate Vs, substitute back). | Code read. | Open: Step 2 U2-005. |
+| RP-U1-019 | S3 | PL8 | 10 of 12 live wells have no DT; there is no pseudo-sonic (Faust, Gardner inverse) or Vp-from-velocity-curve path, so the app cannot open them. | Live data. | Open: Step 2 U2-007. |
+| RP-U1-020 | S3 | PL7, PL8 | No PDF report, no AI vs Vp/Vs crossplot, no angle gather. | Walk. | Open: Step 2 U2-001, U2-003, U2-004. |
+
+Totals: 20 findings. Fixed 17 (1 S1, 6 S2, 8 S3, 2 S4); open 3 (S3, all to Step 2). No S1 or S2 open.
+
+Cross-app changes in this PR (same door): `src/components/wells/curveUnits.js` DT range and per-foot-spelling rules (Petrophysics gains them; its input-units test stays green); Seismolord `SyntheticsPanel.jsx` (substituted curves, unit door) and its harness; `src/lib/portability/geoscienceSpec.js` rp_projects refs.
+
+### Persona walks (PL8)
+
+**1. RokDoc / Hampson-Russell rock physicist (brings a Schlumberger LAS export, no units on the sonics).** Opens the well: *before*, "no density curve" (RHOZ unknown); after mapping by hand, Vp 3.28x. *Now*: loads, and the inventory lists how DTCO, DTSM, RHOZ and PHIT were read. Checks the porosity basis and Sw: *now* shown, and the log Sw drives fluid A. Expects a Vsh cutoff: *now* the Gassmann limits, with a count. Would now: an AI vs Vp/Vs crossplot coloured by Sw with the substituted points (U2-001), RPT and trend templates (U2-002), an angle-gather synthetic for in situ and substituted (U2-003), the iterative Vs workflow (U2-005), Xu-White for shaly sands and carbonates (U2-006).
+
+**2. Seismic interpreter wanting AVO.** Starts on the AVO tab with no well: *before*, stuck on "Select a well"; *now* manual halfspaces open. Reads A, B, class, and now AI, Vp/Vs and Poisson's ratio per halfspace; widens theta to 60 and is told where critical lies. Publishes the gas case and opens Seismolord synthetics: *now* DT_SUB and RHOB_SUB are listed. Would now: a wet background trend on the I-G crossplot with the anomaly's distance from it (U2-002), gathers to compare with the real CDP gathers (U2-003), AVO attributes from the substituted logs as a track (U2-008).
+
+**3. Graduate engineer (field profile).** Types 180 degF, 3500 psi and 35000 ppm: *before*, the engine read them as degC, MPa and a fraction (salinity refused); *now* converted at the door. Clears the wedge RC to type a negative: *now* keeps "-". Hands the CSV to a supervisor: *now* with the reviewer header. Would now: a PDF one-pager (U2-004) and a guided first walk in the help.
+
+## Step 2: advancement review (analysis only)
+
+### 2a. Competitor parity
+
+Sources: [RokDoc Rock Physics product sheet](https://www.ikonscience.com/wp-content/uploads/2020/04/RokDoc-Rock-Physics-Module-product-sheet-v12.pdf), [RokDoc rock physics modelling](https://ikonscience.com/rokdoc-geoprediction-software-platform/rockphysics/), [RokDoc fluid substitution and feasibility](https://rokdoc.ikonscience.com/the-most-efficient-fluid-substitution-and-feasibility-workflow-is-in-rokdoc), [RokDoc 2026.1](https://rokdoc.ikonscience.com/rock-physics-rokdoc-2026.1), [HampsonRussell](https://www.geosoftware.com/hampsonrussell), [Petrel quantitative interpretation](https://www.software.slb.com/products/petrel/petrel-geophysics/quantitative-interpretation), [Petrel rock physics and inversion plug-in](https://www.software.slb.com/products/petrel/petrel-geophysics/rock-physics-inversion-plug-in), [Kingdom Geophysics brochure (AVOPAK)](https://cdn.ihsmarkit.com/www/pdf/0621/Kingdom-Geophysics-Brochure.pdf). Rows rest on public product pages and brochures, not manuals.
+
+| Capability | Leader and how | Ours | Gap | Demo-visible |
+|---|---|---|---|---|
+| Log conditioning and QC | RokDoc and HRS: log editing, despike, sonic and shear prediction, unit handling | Shared unit door with reading notes (U1) | partial (no editing, no pseudo-sonic) | yes |
+| Fluid properties | Batzle-Wang (all), FLAG in RokDoc | Batzle-Wang, oracle-locked, profile units | parity | no |
+| Gassmann substitution | All: per sample, Sw from logs, Vsh cutoffs, iterative Vs | Per sample, Sw log, clay, limits (U1) | partial (no iterative Vs, no patchy mixing) | yes |
+| Rock physics models | RokDoc and Petrel: model libraries (Xu-White, soft/stiff sand, contact cement), calibration | Gassmann + VRH only | missing (U2-006) | yes |
+| Crossplots and templates | RokDoc RPTs; HRS crossplots coloured by a third log with zones | Velocity-depth plot, I-G with class bands | missing (U2-001, U2-002) | yes |
+| AVO modelling | HRS AVO: Zoeppritz and Aki-Richards synthetic gathers; Petrel and Kingdom AVOPAK the same | Interface curves and A/B for in situ and substituted | missing (gathers, U2-003) | yes |
+| Wedge / tuning | RokDoc 2D wedges with fluid and porosity perturbation | Ricker wedge, tuning in time and depth | partial (no impedance-driven wedge from the logs) | yes |
+| Feasibility / scenarios | RokDoc multi-2D modelling, Monte Carlo of properties | One scenario | missing (U2-010) | no |
+| Inversion | HRS Strata, Petrel, RokDoc Ji-Fi | none | out of scope | no |
+| Reporting | Templates and plots exported | CSV with reviewer header | partial (U2-004) | yes |
+| Integration | One project per vendor | Shared registry, publish to well, Seismolord synthetics, `.pld` | ahead in principle | yes |
+
+### 2b. Deferred backlog harvest
+
+| Item | Source | Decision |
+|---|---|---|
+| E3 angle-gather synthetic | T1, plan row 10 | Still wanted, Batch A (U2-003) |
+| E4 wet background trend on the I-G crossplot | T1, plan row 10 | Still wanted, Batch A (U2-002) |
+| Seismolord U2-020 rock physics to synthetics and AVO | Seismolord U2 | First half done in U1 (RP-U1-009, substituted logs in synthetics). Second half: gathers from the well into Seismolord's synthetics window (U2-012, Batch B) |
+| No Seismolord export (STATUS key facts) | STATUS | Superseded by RP-U1-009 |
+| Multiple projects per user | STATUS ("v1 keeps one implicit project") | Still wanted, Batch C (U2-013; app-private table, no shared-table review) |
+
+### 2c. Suite integration
+
+Reads: geo_wells, geo_wells_logs (DT, DTS, RHOB, PHIE/PHIT, VSH, SW through the shared door), tops, zones, the unit profile. Writes: rp_projects, geo_wells_logs VP_SUB, VS_SUB, RHOB_SUB, DT_SUB. Deep links: Well data, Open in. `.pld`: rp_projects with its well, zone and top.
+
+| Finding | Kind | Detail |
+|---|---|---|
+| Petrophysics facies and mineral model | upstream ignored | Petrophysics rule facies and mineral fractions (VQTZ, VCL...) could set K_min per sample and colour crossplots (U2-009). |
+| Petrophysics saturation-height | upstream ignored | Fluid B Sw could follow the saturation-height function for a "what if the contact moved" case (U2-011). |
+| Seismolord wavelet and tie | downstream partly used | Seismolord U2-013's extracted well wavelet could drive the wedge and the gathers instead of a Ricker (U2-012). |
+| Seismolord AVO attributes | downstream not fed | Intercept and gradient volumes in Seismolord could be compared with the modelled A/B (U2-008). |
+| Pore Pressure | upstream ignored | PP's pore pressure at the zone could fill the Batzle-Wang pressure (U2-011). |
+| Wells without DT | upstream gap | 10 of 12 live wells: pseudo-sonic from RT or RHOB (U2-007). |
+
+### Ranked backlog
+
+Sizes: S under a day, M two to four days, L a week or more.
+
+| Rank | ID | Item | Size | Value in one line | Batch |
+|---|---|---|---|---|---|
+| 1 | U2-001 | AI vs Vp/Vs crossplot of the zone, coloured by Sw or VSH, in situ and substituted points together | S | The picture every QI person draws first | A |
+| 2 | U2-002 | Wet background trend on the I-G crossplot (from the well's brine-substituted shale and sand, or Castagna's mudrock line), with each point's distance from it | M | Classes read against the local trend, as HRS and RokDoc do | A |
+| 3 | U2-003 | Angle-gather synthetic for in situ and substituted (Zoeppritz and Aki-Richards, the shared Ricker or the extracted wavelet), with AVO picked off the gather | M | The demo moment: the gas sand brightens with angle | A |
+| 4 | U2-004 | PDF report (reviewer header, conditions, fluids, interval table, charts), read back with pdftotext | M | The page a reviewer signs | A |
+| 5 | U2-005 | Iterative Vs prediction in hydrocarbon zones (substitute to brine, Greenberg-Castagna, substitute back), validated on the oracle (negative control: direct GC) | S | Estimated shear that respects the fluid (RP-U1-018) | A |
+| 6 | U2-014 | Chart decimation (min/max per bucket) for long zones | S | Smooth on 30k-sample wells | A |
+| 7 | U2-007 | Pseudo-sonic for wells without DT (Faust from RT, Gardner inverse from RHOB), badged like estimated Vs | M | Opens the 10 of 12 live wells with no sonic | B |
+| 8 | U2-006 | Rock physics models: Xu-White and soft/stiff sand (engines-first, published examples) | L | Model-based Vs and dry rock for shaly sands | B |
+| 9 | U2-012 | Gathers in Seismolord's synthetics window from DT_SUB/VS_SUB/RHOB_SUB with the extracted wavelet (Seismolord U2-020 second half) | M | Modelled gathers beside the real CDP gathers | B |
+| 10 | U2-009 | K_min from Petrophysics mineral fractions; facies colouring | S | One mineral model across the Suite | B |
+| 11 | U2-008 | Modelled A/B against Seismolord AVO attribute volumes at the well | M | Calibrate the seismic anomaly | B |
+| 12 | U2-011 | Pore pressure from Pore Pressure Studio and Sw from saturation-height as scenario inputs | S | Fewer typed numbers, one story | B |
+| 13 | U2-010 | Scenario Monte Carlo (porosity, Sw, fluid) through the canonical MonteCarloEngine | M | Feasibility ranges, RokDoc-style | C |
+| 14 | U2-013 | Several named projects per user (app-private table, UI only) | S | Keep scenarios for several wells | C |
+| 15 | U2-015 | Log editing (despike, splice) for the substitution inputs | M | Clean inputs inside the app | C |
+| 16 | U2-016 | Patchy saturation (Voigt) option beside Wood | S | Bounds for the gas effect | C |
+
+Batches:
+- **Batch A** (demo-visible, NAPE-safe, no schema change): U2-001, U2-002, U2-003, U2-004, U2-005, U2-014.
+- **Batch B:** U2-007, U2-006 (engines-first), U2-012, U2-009, U2-008, U2-011.
+- **Batch C:** U2-010, U2-013, U2-015, U2-016.
+
+No item needs DDL.
+
+### Owner items
+
+1. Playwright e2e is not in CI: the Rock Physics specs went red with #830 unnoticed (RP-U1-012), the third app after Earth Modeling and ReservoirCalc Pro.
+2. Save had never worked on the registry backend (RP-U1-001); live table empty, nothing to repair. After this merges, a staging save is worth a click.
