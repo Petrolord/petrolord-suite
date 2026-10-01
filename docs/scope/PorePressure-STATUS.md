@@ -122,3 +122,35 @@ loaders.
 - Tests: new `src/pages/apps/PorePressureStudio/__tests__/PorePressureStudio.theme.test.jsx`
   (the shared `describeAppTheme` checks on the real workstation, plus the
   views, the dark theme and the help guide). No calculation, engine, export or plotting change; the existing suites pass unchanged.
+
+## 2026-10-01: Upgrade U1 (Geoscience upgrade programme #9)
+
+Working doc: docs/upgrade/PorePressureStudio-UPGRADE.md (branch feat/pp-u1).
+Twelve practitioner-lens checks, 31 findings, 19 fixed (2 S1, 4 S2, 12 S3,
+1 S4), none S1/S2 open.
+
+- Publish writes PP/FP/OBG on the well's own MD (pp-1.1.0): a sonic gap no
+  longer shifts deeper values up (S1). Deviated wells computed at TVD from
+  the survey. An offshore well with the mudline MD unset is said and its
+  publish held; new projects start with no water column.
+- Hostile curves (kg/m3 density with no unit, -999 nulls, us/ft sonic under
+  an unknown spelling) read through the shared normaliser (S1).
+- Notes under the ribbon: datum, TVD, gaps, density share, NCT fitted or
+  not, calibration misfit and extrapolation. NCT picks drawn. Saved well
+  reopened. Plots thinned for long wells; trends run to the well TD.
+- Reviewer PDF and CSV block (well, field, analyst, build, datum, method,
+  NCT, calibration, window).
+- Drilling handoff: `src/lib/ppfgUnits.js`; Well Design's mud window,
+  Casing & Tubing, Hydraulics, Geomechanics and Perforation & Sand Control
+  read PP/FP/OBG by their declared unit; Well Design shows ppg on a feet
+  wellbore. Geomechanics accepts any pp-1.x and aligns DT to the grid.
+- `pp_projects.well_ids` written, so a well's `.pld` carries its project.
+- e2e follows the Suite unit profile (oracle specs pin SI); new
+  `e2e/pore-pressure-upgrade.spec.js`.
+- Seismolord U2-006 layer cakes verified end to end on the harness.
+
+Open: Geomechanics treats the published MD grid as TVD (PP-U1-018); Step 2
+backlog (resistivity Eaton, calibration imports, kick/trip margins and
+casing seats, depth-reference choice) in the upgrade doc. Owner: curves
+published as pp-1.0.0 on wells with sonic gaps or an unset offshore mudline
+should be republished.
