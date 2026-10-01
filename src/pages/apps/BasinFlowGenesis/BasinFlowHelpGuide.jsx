@@ -162,6 +162,7 @@ export default function BasinFlowHelpGuide() {
           units), and the project as JSON.
         </Para>
         <Para>To compare scenarios, tick two to four in the Scenario Manager. The table marks the inputs that differ (with an asterisk) and shows each scenario's own present-day Ro, temperature, transformation and critical moment, with the Ro profiles overlaid. A scenario keeps the result that was on screen when it was saved, so run before saving; a column whose result does not belong to its inputs says so and shows no numbers.</Para>
+        <Para>The PDF report now carries a plot page: the burial history with the eroded section, the maturity history on the maturity windows, and the petroleum-system events chart with the critical moment.</Para>
       </GuideSection>
 
       <GuideSection id="units">
