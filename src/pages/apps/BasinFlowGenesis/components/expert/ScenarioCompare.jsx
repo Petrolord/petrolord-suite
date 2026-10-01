@@ -55,7 +55,7 @@ export default function ScenarioCompare({ scenarios }) {
                             <XAxis type="number" dataKey="ro" domain={['auto', 'auto']} stroke={CHART_COLORS.axisLine}
                                 tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                                 label={{ value: '%Ro', position: 'bottom', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-                            <YAxis type="number" dataKey="depth" reversed domain={[0, 'auto']} stroke={CHART_COLORS.axisLine}
+                            <YAxis type="number" dataKey="depth" domain={[0, 'auto']} stroke={CHART_COLORS.axisLine}
                                 tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                                 label={{ value: depthLabel(units.depth), angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
                             <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} />

@@ -28,16 +28,17 @@ describe('resultsView helpers', () => {
         const rows = alignSeriesByAge(results.data.timeSteps, results.data.temperature, results.meta.layers);
         // Oldest step: only the oldest layer exists.
         expect(rows[0].age).toBe(140);
-        expect(rows[0].Base).toBeDefined();
-        expect(rows[0].Upper).toBeUndefined();
+        // U2-012: series are keyed by layer id (c = Base, a = Upper)
+        expect(rows[0].c).toBeDefined();
+        expect(rows[0].a).toBeUndefined();
         // The Upper layer's first defined row is at its deposition age,
         // not shifted to the start of the run.
-        const firstUpper = rows.find(r => r.Upper !== undefined);
+        const firstUpper = rows.find(r => r.a !== undefined);
         expect(firstUpper.age).toBe(60);
         // Final step has everyone.
         const last = rows[rows.length - 1];
         expect(last.age).toBe(0);
-        results.meta.layers.forEach(l => expect(last[l.name]).toBeDefined());
+        results.meta.layers.forEach(l => expect(last[l.id]).toBeDefined());
     });
 
     test('finalDepthProfile is depth-ordered with Ro increasing downward', () => {

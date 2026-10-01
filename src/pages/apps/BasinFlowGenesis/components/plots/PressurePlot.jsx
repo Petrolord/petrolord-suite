@@ -37,7 +37,7 @@ const PressurePlot = ({ results, units = { depth: 'm' }, onSend = null, sendHref
                         <XAxis type="number" domain={[0, 'auto']} stroke={CHART_COLORS.axisLine}
                             tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                             label={{ value: `Pressure (${pU})`, position: 'bottom', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }} />
-                        <YAxis type="number" dataKey="depth" reversed domain={[0, 'auto']} stroke={CHART_COLORS.axisLine}
+                        <YAxis type="number" dataKey="depth" domain={[0, 'auto']} stroke={CHART_COLORS.axisLine}
                             tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                             label={{ value: depthLabel(units.depth), angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }} />
                         <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} />
