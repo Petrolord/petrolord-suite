@@ -22,6 +22,7 @@ import { convert } from '@/lib/units/registry';
 import { isPrePt9aZone } from '@/lib/petroProvenance';
 import { boundLegByClosure } from './trapBound';
 import { shmSwGrid } from './shmGrid';
+import { hangingWallAtSurface } from './seismicFaultZones';
 
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
@@ -548,6 +549,25 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
   const polygons = (definition.faultPolygons || []).map((p) => p.vertices.map(([x, y]) => [x * k, y * k]));
   const labels = polygons.length ? labelBlocks(specM, polygons) : null;
   const census = labels ? blockCensus(labels) : { 0: specM.nx * specM.ny };
+  // U2-001: a Seismolord fault (rails down its surface) is cut with each zone
+  // top, so a sloping fault moves its block boundary from zone to zone
+  let polygonsByZone = null;
+  if ((definition.faultPolygons || []).some((p) => Array.isArray(p.rails) && p.rails.length >= 2)) {
+    polygonsByZone = [];
+    for (let i = 0; i + 1 < framework.clamped.length; i++) {
+      polygonsByZone.push((definition.faultPolygons || []).map((p, q) => {
+        if (!Array.isArray(p.rails) || p.rails.length < 2) return polygons[q];
+        const rails = p.rails.map((rail) => rail.map(([x, y, d]) => ({ x: x * k, y: y * k, d })));
+        const r = hangingWallAtSurface(rails, framework.clamped[i], specM);
+        if (r.error) {
+          notes.push(`${p.name}: ${r.error} (zone ${i + 1}), so its polygon at the first top is used there.`);
+          return polygons[q];
+        }
+        return r.polygon;
+      }));
+    }
+  }
+  const labelsByZone = polygonsByZone ? polygonsByZone.map((ps) => labelBlocks(specM, ps)) : null;
 
   const ties = wellTies(eWells, framework.clamped, specM, surfIndexByTop).map((t) => {
     const before = adjustment?.tiesBefore.find((b) => b.well === t.well && b.top === t.top);
@@ -561,6 +581,9 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
   for (const f of parsedFluids) for (const n of f?.notes || []) notes.push(n);
   const zones = (definition.zones || []).map((zdef, i) => {
     const zThickness = framework.thickness[i];
+    // U2-001: this zone's own blocks when a fault slopes
+    const zLabels = labelsByZone ? labelsByZone[i] : labels;
+    const zPolygons = polygonsByZone ? polygonsByZone[i] : polygons;
     const props = {};
     const variance = {};
     const provenance = {};
@@ -585,16 +608,16 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       const byBlock = {};
       for (const p of all) {
         let lab = 0;
-        for (let q = 0; q < polygons.length; q++) {
-          if (pointInPolygon(p.x, p.y, polygons[q])) { lab = q + 1; break; }
+        for (let q = 0; q < zPolygons.length; q++) {
+          if (pointInPolygon(p.x, p.y, zPolygons[q])) { lab = q + 1; break; }
         }
         (byBlock[lab] = byBlock[lab] || []).push(p);
       }
       const method = definition.methods?.[prop] || 'constant';
       // EM4: ordinary kriging with a fitted variogram and a variance grid
       const out = method === 'okrige'
-        ? populateZonePropertyOk(specM, labels, byBlock, all, definition.krige || DEFAULT_KRIGE)
-        : populateZoneProperty(specM, labels, byBlock, all, method, definition.krige || DEFAULT_KRIGE);
+        ? populateZonePropertyOk(specM, zLabels, byBlock, all, definition.krige || DEFAULT_KRIGE)
+        : populateZoneProperty(specM, zLabels, byBlock, all, method, definition.krige || DEFAULT_KRIGE);
       // EM-U1-005: a trend or kriging extrapolated past the wells stays a fraction
       const n = clampFractionGrid(out.z);
       if (n) propertyClamps.push({ zone: zdef.name, prop, nodes: n });
@@ -605,12 +628,12 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     }
     const fluids = parsedFluids[i] || null;
     const nNodes = specM.nx * specM.ny;
-    const eng = engineFluids(fluids, labels, nNodes);
+    const eng = engineFluids(fluids, zLabels, nNodes);
     const topI = framework.clamped[i];
     // U2-006: the leg bounded by Mapping's closure and spill engine
     let trap = null;
     if (fluids?.trap === 'closure') {
-      const owcGrid = contactGrid(fluids, 'owc', labels, nNodes);
+      const owcGrid = contactGrid(fluids, 'owc', zLabels, nNodes);
       if (owcGrid) {
         trap = boundLegByClosure(specM, topI, owcGrid);
         eng.owc = trap.owc;
@@ -641,15 +664,15 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     }
     const volFluids = shmPending && shm?.fwlAsContact ? (eng || { owc: shm.fwlM }) : eng;
     const volumes = (hasFluids(fluids) || (shmPending && shm?.fwlAsContact))
-      ? zoneVolumesWithContacts(specM, top, base, labels, props, volFluids)
-      : zoneVolumes(specM, zThickness, labels, props);
-    const zone = { name: zdef.name, registryZone: zdef.registryZone, thickness: zThickness, props, variance, provenance, volumes, fluids, ...(shm ? { shm } : {}) };
-    zone.range = volumeRange(specM, zone, labels, volFluids, top, base);
+      ? zoneVolumesWithContacts(specM, top, base, zLabels, props, volFluids)
+      : zoneVolumes(specM, zThickness, zLabels, props);
+    const zone = { name: zdef.name, registryZone: zdef.registryZone, ...(labelsByZone ? { labels: zLabels, census: blockCensus(zLabels) } : {}), thickness: zThickness, props, variance, provenance, volumes, fluids, ...(shm ? { shm } : {}) };
+    zone.range = volumeRange(specM, zone, zLabels, volFluids, top, base);
     if (trap) {
       zone.trap = { traps: trap.traps, cutNodes: trap.cutNodes, openEdge: trap.openEdge };
       zone.openEdge = trap.openEdge ? { open: true, nodes: 0, spillAtEdge: true } : { open: false, nodes: 0 };
     } else {
-      zone.openEdge = contactEdgeReport(specM, top, fluids, labels);
+      zone.openEdge = contactEdgeReport(specM, top, fluids, zLabels);
     }
     progress(`${zdef.name}: volumes`);
     return zone;
@@ -666,6 +689,7 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
 
   return {
     spec, specM, xyToM: k, xyUnit, crs, ...framework, clampMasks, labels, census, ties, zones, boundary, adjustment,
+    ...(polygonsByZone ? { polygonsByZone: polygonsByZone.map((ps) => ps.map((ring) => ring.map(([x, y]) => [x / k, y / k]))) } : {}),
     fallbacks, misties, totalPhi, propertyClamps, notes,
   };
 }

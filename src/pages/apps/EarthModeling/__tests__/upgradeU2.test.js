@@ -321,3 +321,89 @@ describe('U2-002: Sw from the SCAL saturation-height function', () => {
     await expect(buildModel({ ...def, shmResolved: await resolveShm({}, f.backend) }, f.wells, f.surfaces, f.backend)).rejects.toThrow(/Pick one in the dock/);
   });
 });
+
+describe('U2-001: Seismolord faults as a polygon per zone top (hook + fixture)', () => {
+  // The fixture fault strikes north and dips 60 degrees east through x = 1500
+  // m at 1500 m depth; on a planar horizon d = a + b (x - 1000) + c (y - 2000)
+  // its trace is x = (1500 + k (a - 1500 - 1000 b + c (y - 2000))) / (1 - k b), k = 1 / tan 60.
+  const K = 1 / Math.tan(Math.PI / 3);
+  const PL = { TopA: [1500, 0.05, 0.02], TopB: [1530, 0.06, 0.02], BaseB: [1561, 0.02, 0.02] };
+  const traceX = (name, y) => { const [a, b, c] = PL[name]; return (1500 + K * (a - 1500 - 1000 * b + c * (y - 2000))) / (1 - K * b); };
+
+  test('the contract shapes normalise; a time-only fault and a single stick are refused with the reason', async () => {
+    const { normalizeSeismicFault } = await import('../services/seismicFaultZones');
+    const { seismicFaultFixture } = await import('../services/fixture');
+    const ok = normalizeSeismicFault(seismicFaultFixture());
+    expect(ok.ok).toBe(true);
+    expect(ok.rails).toHaveLength(3);
+    const doc = normalizeSeismicFault({ id: 'd', name: 'Doc shape', z_domain: 'depth', sticks: [[[0, 0, 1000], [10, 0, 1100]], [[0, 50, 1000], [10, 50, 1100]]] });
+    expect(doc.ok).toBe(true);
+    expect(doc.rails[1][1]).toEqual({ x: 10, y: 50, d: 1100 });
+    const t = seismicFaultFixture();
+    t.surface = t.surface.map((r) => r.map((p) => ({ ...p, depthM: null })));
+    expect(normalizeSeismicFault(t).reason).toMatch(/no velocity model/);
+    expect(normalizeSeismicFault({ name: 'one', sticks: [[{ x: 0, y: 0, depthM: 1 }, { x: 1, y: 0, depthM: 2 }]] }).reason).toMatch(/two or more sticks/);
+  });
+
+  test('the trace on each zone top is the analytic plane-plane intersection', async () => {
+    const { normalizeSeismicFault, faultTraceOnSurface } = await import('../services/seismicFaultZones');
+    const { seismicFaultFixture, planeGrid, MODEL_SPEC } = await import('../services/fixture');
+    const { rails } = normalizeSeismicFault(seismicFaultFixture());
+    for (const name of ['TopA', 'TopB', 'BaseB']) {
+      const { trace, dip } = faultTraceOnSurface(rails, Float64Array.from(planeGrid(name)), MODEL_SPEC);
+      // rails at y = 1950 and 3000 are outside the frame (2000..2950), the middle one is inside
+      expect(trace.length).toBeGreaterThanOrEqual(1);
+      for (const p of trace) expect(Math.abs(p.x - traceX(name, p.y))).toBeLessThan(1e-3);
+      expect(dip.x).toBeGreaterThan(0.99);
+    }
+    // a sloping fault: the trace moves east with depth (TopA to BaseB)
+    expect(traceX('BaseB', 2475) - traceX('TopA', 2475)).toBeGreaterThan(20);
+  });
+
+  test('through buildModel: each zone gets its own hanging-wall block; a vertical polygon misplaces nodes', async () => {
+    const f = await fixture();
+    const sf = (await f.backend.listSeismicFaults()).faults[0];
+    const { normalizeSeismicFault } = await import('../services/seismicFaultZones');
+    const n = normalizeSeismicFault(sf);
+    // the frame rect, padded; the rails extend past it so every top is cut
+    const def = baseDef(f.byName, {
+      faultPolygons: [{ name: 'F-East 60 hanging wall', vertices: [[1500, 1990], [2300, 1990], [2300, 3000], [1500, 3000]], rails: n.rails.map((r) => r.map((p) => [p.x, p.y, p.d])), seismicFaultId: sf.id, source: 'seismolord' }],
+      // a 10 m cell puts nodes between the traces on TopA (x 1520 m) and TopB (x 1542 m)
+      frame: { cellM: '10', boundaryId: '' },
+    });
+    const b = await buildModel(def, f.wells, f.surfaces, f.backend);
+    const S = b.specM;
+    let misVertical = 0;
+    for (let z = 0; z < 2; z++) {
+      const lab = b.zones[z].labels;
+      const name = z === 0 ? 'TopA' : 'TopB';
+      for (let r = 0; r < S.ny; r++) {
+        for (let c = 0; c < S.nx; c++) {
+          const x = S.x0 + c * S.dx; const y = S.y0 + r * S.dy;
+          const tx = traceX(name, y);
+          if (Math.abs(x - tx) < 1e-6) continue;
+          expect(lab[r * S.nx + c]).toBe(x > tx ? 1 : 0); // hanging wall = east
+          if (z === 1 && b.zones[0].labels[r * S.nx + c] !== (x > tx ? 1 : 0)) misVertical += 1;
+        }
+      }
+    }
+    // negative control: zone A's polygon used for zone B (a vertical fault) puts nodes in the wrong block
+    expect(misVertical).toBeGreaterThan(0);
+    expect(b.zones[0].census).not.toEqual(b.zones[1].census);
+    expect(b.polygonsByZone).toHaveLength(2);
+    // volumes add up per zone over its own blocks
+    for (const zz of b.zones) {
+      const v = zz.volumes;
+      expect(Math.abs(v.total.bulk_m3 - (v['0'].bulk_m3 + v['1'].bulk_m3))).toBeLessThan(1e-3);
+    }
+  });
+
+  test('the hook names the contract and the way out', async () => {
+    const { SEISMIC_FAULTS_HOOK } = await import('../services/seismicFaultZones');
+    expect(SEISMIC_FAULTS_HOOK.method).toBe('listSeismicFaults');
+    expect(SEISMIC_FAULTS_HOOK.contract).toMatch(/seismicFaultsReader/);
+    expect(SEISMIC_FAULTS_HOOK.reason).toMatch(/not on main yet/);
+    const { makeRegistryBackend } = await import('../services/registryBackend');
+    expect(typeof makeRegistryBackend()[SEISMIC_FAULTS_HOOK.method]).toBe('undefined');
+  });
+});

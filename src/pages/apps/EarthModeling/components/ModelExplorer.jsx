@@ -16,6 +16,7 @@ const btnCls = 'p-0.5 rounded hover:bg-pl-sunken text-pl-muted hover:text-pl-tex
 export default function ModelExplorer({
   surfaces, wells, definition, onAddSurface, onRemoveSurface, onMoveSurface,
   onDeletePolygon, culturePolygons = [], onAddCulturePolygon, mappingPath = undefined,
+  seismicFaults = null, seismicHookReason = null, onAddSeismicFault = null,
 }) {
   const inModel = new Set((definition.faultPolygons || []).map((p) => p.cultureId).filter(Boolean));
   const inStack = new Set(definition.surfaceIds);
@@ -58,7 +59,7 @@ export default function ModelExplorer({
           <div className={rowCls} key={p.name}>
             <Spline className="w-3 h-3 text-pl-muted shrink-0" />
             <span className="truncate flex-1">{p.name}</span>
-            <span className="text-[10px] text-pl-muted">{p.vertices.length} pts</span>
+            <span className="text-[10px] text-pl-muted">{p.rails ? 'per zone top' : `${p.vertices.length} pts`}</span>
             <button type="button" className={btnCls} onClick={() => onDeletePolygon(i)} title="Delete"><X className="w-3 h-3" /></button>
           </div>
         ))}
@@ -80,6 +81,30 @@ export default function ModelExplorer({
         ))}
         {!culturePolygons.length && (
           <p className="px-2 text-[11px] text-pl-muted">No fault polygons in the registry. Draw them in Mapping &amp; Surface Studio (Polygons, fault block).</p>
+        )}
+
+        {/* U2-001: interpreted faults, a polygon per zone top */}
+        <div className={secCls}>Faults from Seismolord</div>
+        {seismicHookReason && <p className="px-2 text-[11px] text-pl-muted" data-testid="em-seis-hook">{seismicHookReason}</p>}
+        {(seismicFaults?.faults || []).map((sf) => {
+          const added = (definition.faultPolygons || []).some((p) => p.seismicFaultId === sf.id);
+          return (
+            <div className={rowCls} key={sf.id} data-testid={`em-seis-row-${sf.name}`} title={sf.ok ? `${sf.rails.length} rails${sf.volumeName ? ` in ${sf.volumeName}` : ''}; cut with each zone top` : sf.reason}>
+              <Spline className="w-3 h-3 text-pl-muted shrink-0" />
+              <span className="truncate flex-1">{sf.name}</span>
+              <span className="text-[10px] text-pl-muted whitespace-nowrap">{sf.ok ? 'sloping' : 'time only'}</span>
+              <button type="button" className={btnCls} data-testid={`em-seis-add-${sf.name}`} disabled={added || !sf.ok}
+                onClick={() => onAddSeismicFault?.(sf)} title={added ? 'Already in the model' : sf.ok ? 'Add its hanging-wall block, a polygon per zone top' : sf.reason}>
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+          );
+        })}
+        {(seismicFaults?.skipped || []).map((k) => (
+          <p key={k.name} className="px-2 text-[10px] text-pl-muted" data-testid="em-seis-skipped">{k.name}: {k.reason}</p>
+        ))}
+        {seismicFaults && !seismicFaults.faults.length && !(seismicFaults.skipped || []).length && (
+          <p className="px-2 text-[11px] text-pl-muted">No interpreted faults. Pick fault sticks in Seismolord to use them here.</p>
         )}
 
         <div className={secCls}>Wells ({(wells || []).length})</div>

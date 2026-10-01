@@ -109,6 +109,13 @@ export function buildFrameworkScene(built, wells, opts = {}) {
       return [nx(x), ny(isNull(d) ? zMin : d), nz(y)];
     });
     for (let i = 0; i < ring.length; i++) faultSoup.push(...ring[i], ...ring[(i + 1) % ring.length]);
+    // U2-001: a Seismolord fault's rails down its surface, in depth
+    for (const rail of p.rails || []) {
+      for (let i = 0; i + 1 < rail.length; i++) {
+        const [x1, y1, d1] = rail[i]; const [x2, y2, d2] = rail[i + 1];
+        faultSoup.push(nx(x1), ny(d1), nz(y1), nx(x2), ny(d2), nz(y2));
+      }
+    }
   }
 
   // cube edges in ext space (unscaled) and ticks along three edges

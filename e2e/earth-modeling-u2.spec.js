@@ -78,3 +78,23 @@ for (const [w, h, theme] of [[1366, 768, 'light'], [1440, 900, 'dark']]) {
     expect(errs).toEqual([]);
   });
 }
+
+test('U2-001: a Seismolord fault joins as a polygon per zone top (fixture through the hook)', async ({ page }) => {
+  const errs = errorsOf(page);
+  await stack(page);
+  await metric(page);
+  await page.getByTestId('em-frame-cell').fill('10');
+  await buildNow(page);
+  await expect(page.getByTestId('em-seis-add-F-Time (Seismolord)')).toBeDisabled();
+  await page.getByTestId('em-seis-add-F-East 60 (Seismolord)').click();
+  await expect(page.getByTestId('em-status')).toContainText('cut with each zone top');
+  await buildNow(page);
+  await expect(page.getByTestId('em-status')).toContainText('2 blocks');
+  await page.getByTestId('em-map-layer').selectOption('blocks');
+  await page.screenshot({ path: path.join(SHOTS, 'u2-001-blocks-zone1.png') });
+  await page.getByTestId('em-map-zone').selectOption({ index: 1 });
+  await page.screenshot({ path: path.join(SHOTS, 'u2-001-blocks-zone2.png') });
+  await page.getByTestId('em-view-qc').click();
+  await expect(page.getByTestId('em-qc')).toBeVisible();
+  expect(errs).toEqual([]);
+});

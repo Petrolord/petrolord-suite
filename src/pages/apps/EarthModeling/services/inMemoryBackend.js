@@ -5,7 +5,7 @@
 // planar properties — so Playwright asserts the oracle's numbers off
 // the rendered UI. Same interface as registryBackend.
 
-import { MODEL_SPEC, planeGrid, fixtureWells, FAULT_POLYGON } from './fixture';
+import { MODEL_SPEC, planeGrid, fixtureWells, FAULT_POLYGON, seismicFaultFixture } from './fixture';
 import { depthDownToSurfaceZ } from '@/lib/surfaceConvention';
 import { SAVED_MODELS, resolveSavedModel } from './savedFixtures';
 
@@ -97,6 +97,14 @@ export function makeInMemoryBackend({ savedModels = false } = {}) {
     // goldens' two-block census without drawing
     async listFaultPolygons() {
       return [{ id: 'cult-fault-dev', name: 'Fixture fault (Mapping)', vertices: FAULT_POLYGON.map(([x, y]) => [x, y]), is_own: true, source: 'geo_culture' }];
+    },
+    // U2-001: Seismolord faults through the reader contract's shape (the
+    // registry backend gains this method when Seismolord U2-003 lands)
+    async listSeismicFaults() {
+      const time = { ...seismicFaultFixture(), id: 'sf-time', name: 'F-Time (Seismolord)' };
+      time.surface = time.surface.map((r) => r.map((p) => ({ ...p, depthM: null })));
+      time.sticks = time.surface;
+      return { faults: [seismicFaultFixture(), time], skipped: [] };
     },
     // EM0: a boundary polygon (geo_culture kind boundary) over the
     // western 60% of the frame, so clipping changes the census
