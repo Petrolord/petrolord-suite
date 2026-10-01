@@ -15,6 +15,7 @@
 import { listLogs, downloadCurve } from '@/lib/wellsRegistry';
 import { ppfgUnit, unreadableUnitReason, KG_M3_PER_PPG } from '@/lib/ppfgUnits';
 import { computeWellPath, positionAtMd } from '../engine/surveyMath';
+import { casingSeatsBottomUp, lineAt } from '../../PorePressureStudio/engine/casingSeats';
 
 export const PPFG_MNEMONICS = ['PP', 'FP', 'OBG'];
 const G = 9.80665;
@@ -162,4 +163,42 @@ export function ppfgSourceLine(curves) {
     return `${m} ${c.unit} (${who})`;
   });
   return parts.join(', ');
+}
+
+// ---- U2-003 (Pore Pressure Studio): kick and trip margins, casing seats ----
+// The bottom-up casing-seat selection on this window, through the engine the
+// Pore Pressure app uses (engines/porepressure/casingSeats.js, gated on the
+// published Applied Drilling Engineering example). Rows are on the design
+// trajectory, so the seats come out in TVD and are carried to MD on the
+// same rows. EMW in ppg (exact g, as the rows are).
+
+export const DEFAULT_TRIP_PPG = 0.5;
+export const DEFAULT_KICK_PPG = 0.5;
+
+/**
+ * @param {Array} rows buildMudWindow rows
+ * @param {{tripPpg?: number, kickPpg?: number, fromTvdM?: number}} opts
+ * @returns {null|{error: string}|{seats: {tvd: number, md: number, mudBelowPpg: number}[],
+ *   sections: {topTvd, baseTvd, mudPpg, marginPpg}[], closedAtTvd: ?number, rows: Array}}
+ */
+export function casingSeatsOnWindow(rows, { tripPpg = DEFAULT_TRIP_PPG, kickPpg = DEFAULT_KICK_PPG, fromTvdM = 0 } = {}) {
+  const use = (rows || []).filter((r) => r.ppPpg != null && r.fpPpg != null && r.tvd >= fromTvdM);
+  const pts = [];
+  for (const r of use) if (!pts.length || r.tvd > pts[pts.length - 1].tvd) pts.push(r);
+  if (pts.length < 2) return null;
+  const depths = pts.map((r) => r.tvd);
+  try {
+    const r = casingSeatsBottomUp({
+      depths, ppEmw: pts.map((p) => p.ppPpg), fgEmw: pts.map((p) => p.fpPpg), tripMargin: tripPpg, kickMargin: kickPpg,
+    });
+    const mds = pts.map((p) => p.md);
+    return {
+      seats: r.seats.map((s) => ({ tvd: s.depth, md: lineAt(depths, mds, s.depth), mudBelowPpg: s.mudBelow })),
+      sections: r.sections.map((s) => ({ topTvd: s.top, baseTvd: s.base, mudPpg: s.mud, marginPpg: s.margin })),
+      closedAtTvd: r.closedAt,
+      rows: pts.map((p, i) => ({ tvd: p.tvd, mudPpg: r.mud[i], designFgPpg: r.designFg[i] })),
+    };
+  } catch (e) {
+    return { error: e.message };
+  }
 }

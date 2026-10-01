@@ -154,3 +154,31 @@ backlog (resistivity Eaton, calibration imports, kick/trip margins and
 casing seats, depth-reference choice) in the upgrade doc. Owner: curves
 published as pp-1.0.0 on wells with sonic gaps or an unset offshore mudline
 should be republished.
+
+## 2026-10-01: Upgrade U2 (Step 2, batches A and B)
+
+Working doc: docs/upgrade/PorePressureStudio-UPGRADE.md (branch feat/pp-u2,
+batch decision recorded verbatim). Engines: Petrolord/petrolord-engines PR
+#293 (casing seats, resistivity Eaton, NCT segments, calibration fits,
+fracture methods), vendored and recorded in the VENDOR.json ledger until it
+merges. No schema change; no migration.
+
+- Batch A: kick and trip margins and bottom-up casing seats on the prognosis
+  and Well Design's mud window (U2-003, gated on the published Applied
+  Drilling Engineering example); calibration imports for RFT/MDT, LOT/FIT/XLOT
+  and mud weights with declared units and a hostile file set (U2-002);
+  resistivity Eaton with n 1.2 (U2-001); depth frames below mudline, TVD RKB,
+  TVDSS and MD (U2-004); semi-log NCT, VSH-filtered shale picks and trend
+  segments (U2-005); the prognosis plot in the PDF (U2-011).
+- Batch B: n (or Bowers A, B, U) fitted to measured pressures (U2-006); layer
+  cakes read along the hole with the seismic datum declared (U2-008, closes
+  PP-U1-027); Geomechanics at TVD through the trajectory (U2-013, closes
+  PP-U1-018); the worked example project (U2-010); the Bowers unloading
+  crossplot (U2-007); Eaton, Matthews and Kelly (constant k0) and Daines
+  fracture methods calibrated to LOT (U2-012; the Ki(z) chart not built).
+- Deferred: U2-009 multiwell and 3D cube, U2-014 d-exponent and real time
+  (with Wellsite), U2-015 several projects per user (Suite Project programme).
+
+Open: re-pin the vendored engines when engines #293 merges (the ledger rows
+say how). Matthews and Kelly's depth-varying Ki chart waits for a published
+example to validate against.

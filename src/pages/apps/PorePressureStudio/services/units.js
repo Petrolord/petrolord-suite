@@ -131,11 +131,13 @@ export function prognosisCsv(input, result, params, units, meta = {}) {
     `# Pore Pressure Studio prognosis, ${new Date().toISOString().slice(0, 10)}`,
     // PP-U1-008: the reviewer block (well, field, analyst, build, datum, NCT, calibration)
     ...(meta.reviewer || []).map((l) => `# ${l}`),
-    `# source: ${meta.source || 'well'}; method: ${params.method}${params.method === 'eaton' ? ` n=${params.eatonN}` : ` Bowers A=${params.bowers?.A} B=${params.bowers?.B}`}; nu=${params.nu}`,
+    `# source: ${meta.source || 'well'}; method: ${params.method}${params.method === 'eaton' ? ` n=${params.eatonN}` : params.method === 'eaton-resistivity' ? ` n=${params.eatonNRes ?? 1.2} R0=${params.resNct?.r0OhmM} ohm.m b=${params.resNct?.bPerM} 1/m` : ` Bowers A=${params.bowers?.A} B=${params.bowers?.B}`}; nu=${params.nu}`,
     `# NCT: dt_ml ${params.nct.dtMlUsPerM} us/m, dt_ma ${params.nct.dtMaUsPerM} us/m, c ${params.nct.cPerM} 1/m; water depth ${params.waterDepthM} m; mudline MD ${params.mudlineMdM || 0} m`,
     `# EMW datum: ${datum} (depth below ${datum} = depth below mudline + ${params.mudlineMdM > 0 ? params.mudlineMdM : params.waterDepthM} m); ppg = psi / (0.052 x TVD ft); sg = ppg / ${PPG_PER_SG}`,
+    // U2-004: every depth frame the source supports, side by side
+    ...(meta.refs?.reasons ? Object.entries(meta.refs.reasons).map(([k, r]) => `# ${k.toUpperCase()} not given: ${r}`) : []),
     [
-      `Depth bml (${zU})`, `Depth below ${datum} (${zU})`,
+      `Depth bml (${zU})`, ...(meta.refs?.tvdrkb ? [`TVD below RKB (${zU})`] : []), ...(meta.refs?.tvdss ? [`TVDSS (${zU})`] : []), ...(meta.refs?.md ? [`MD below RKB (${zU})`] : []), `Depth below ${datum} (${zU})`,
       `OBG (${pU})`, `Ph (${pU})`, `PP (${pU})`, `FP (${pU})`,
       'OBG EMW (ppg)', 'PP EMW (ppg)', 'FP EMW (ppg)', 'PP EMW (sg)', 'FP EMW (sg)',
     ].map(csvCell).join(','),
@@ -145,7 +147,9 @@ export function prognosisCsv(input, result, params, units, meta = {}) {
     const z = input.zBmlM[i];
     const ref = emwReferenceDepthM(z, params);
     const cols = [
-      tidy(depthToDisplay(z, zU), 2), tidy(depthToDisplay(ref, zU), 2),
+      tidy(depthToDisplay(z, zU), 2),
+      ...['tvdrkb', 'tvdss', 'md'].filter((k) => meta.refs?.[k]).map((k) => tidy(depthToDisplay(meta.refs[k][i], zU), 2)),
+      tidy(depthToDisplay(ref, zU), 2),
       ...[result.overburdenPa[i], result.hydrostaticPa[i], result.porePressurePa[i], result.fracPressurePa[i]]
         .map((pa) => { const v = pressureToDisplay(pa, pU, ref); return Number.isFinite(v) ? v.toFixed(pd) : ''; }),
       ...[result.overburdenPa[i], result.porePressurePa[i], result.fracPressurePa[i]]

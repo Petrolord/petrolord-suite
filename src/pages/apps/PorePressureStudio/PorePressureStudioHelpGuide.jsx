@@ -7,7 +7,7 @@
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
 import {
-  BookOpen, Zap, Database, Ruler, TrendingDown, Gauge, Layers, UploadCloud, Link2, AlertTriangle, BookMarked,
+  BookOpen, Zap, Database, Ruler, TrendingDown, Gauge, Layers, UploadCloud, Link2, AlertTriangle, BookMarked, Anchor, GraduationCap,
 } from 'lucide-react';
 import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Callout, Step, Table,
@@ -16,14 +16,26 @@ import { PRESSURE_UNITS, DEPTH_UNITS, PPG_PER_SG } from './services/units';
 
 const APP_PATH = '/dashboard/apps/geoscience/pore-pressure-studio';
 
+// U2-010: the numbers the worked example walk quotes; upgradeU2Example.test.js
+// recomputes them from the example project and fails on any drift
+export const WORKED_EXAMPLE_NUMBERS = Object.freeze({
+  ppMpaAt3500: '40.36',
+  ppPpgAt3500: '9.45',
+  seats: [881],
+  calibrationNote: 'Calibration: 4 points, PP misfit RMS 0.00 MPa, largest 0.00 MPa. Below 3700 m the prognosis is extrapolated beyond the deepest point.',
+  fitN: '3.00',
+});
+
 export const HELP_SECTIONS = [
   { id: 'overview', icon: BookOpen, title: 'What Pore Pressure Studio is' },
   { id: 'quickstart', icon: Zap, title: 'Quick start (10 min)' },
+  { id: 'example', icon: GraduationCap, title: 'Worked example' },
   { id: 'inputs', icon: Database, title: 'Wells, curves and velocity trends' },
   { id: 'units', icon: Ruler, title: 'Display units and the EMW datum' },
   { id: 'nct', icon: TrendingDown, title: 'The normal compaction trend' },
   { id: 'methods', icon: Gauge, title: 'Eaton, Bowers and the fracture gradient' },
   { id: 'overburden', icon: Layers, title: 'Overburden and hydrostatic' },
+  { id: 'casing', icon: Anchor, title: 'Drilling margins and casing seats' },
   { id: 'deliver', icon: UploadCloud, title: 'Publishing, the CSV and saving' },
   { id: 'links', icon: Link2, title: 'Working with the other apps' },
   { id: 'pitfalls', icon: AlertTriangle, title: 'Pitfalls and FAQ' },
@@ -68,6 +80,23 @@ export default function PorePressureStudioHelpGuide() {
         <Step n={5} title="Deliver">Prognosis CSV downloads the table in your units with EMW columns; Publish writes PP, FP and OBG to the well; Save keeps the parameters and picks.</Step>
       </GuideSection>
 
+      <GuideSection id="example">
+        <SectionHeading icon={GraduationCap}>Worked example</SectionHeading>
+        <Para>
+          Open the worked example from the empty workstation (New to pore pressure? Open the worked example) or with{' '}
+          <a href={`${APP_PATH}?example=1`} className="underline" data-testid="pp-help-example-link">this link</a>. It runs on
+          ORACLE PP-1, a synthetic offshore well: 100 m of water, the KB 30 m above sea level, the mudline at 130 m MD,
+          normally pressured to 2,500 m below the mudline and then overpressured by a 4 kPa/m ramp. Nothing reaches your
+          account: Save keeps it in the browser tab and Publish is off. Work in m and MPa (the Units selectors).
+        </Para>
+        <Step n={1} title="Read what the prognosis rests on">The line under the ribbon says the trend was fitted on this well, the density is logged throughout, and gives the calibration: {WORKED_EXAMPLE_NUMBERS.calibrationNote}</Step>
+        <Step n={2} title="Look at the trend">In NCT the eleven shale picks sit on the VSH shales between 300 and 2,300 m, on a log axis. Clear them, then Pick shales from 200 to 2,390 m one per 200 m, and Fit NCT: the trend comes back the same, because the picks avoid the sand beds.</Step>
+        <Step n={3} title="Read the pressure">Type 3500 in the ribbon depth: PP {WORKED_EXAMPLE_NUMBERS.ppMpaAt3500} MPa, or {WORKED_EXAMPLE_NUMBERS.ppPpgAt3500} ppg with ppg chosen (EMW against the rotary table, 3,630 m below it).</Step>
+        <Step n={4} title="Calibrate">Type 2.5 as the Eaton exponent and Apply: the misfit to the four MDT points grows. Fit n to calibration brings n back to {WORKED_EXAMPLE_NUMBERS.fitN}. With the three LOTs, Calibrate FG to LOT sets Poisson's ratio from the tests.</Step>
+        <Step n={5} title="Plan the casing">Above the chart, the casing seats with 0.5 ppg trip and kick margins: one shoe at least {WORKED_EXAMPLE_NUMBERS.seats.join(' and ')} m below the mudline, then the mud below it, and the window per section. Change the margins under Drilling margins to see the shoe move.</Step>
+        <Step n={6} title="Report">Choose TVDSS in the depth selector and download the PDF: the reviewer block, the plot with the margins, the shoe and the points, and the table, all in TVDSS.</Step>
+      </GuideSection>
+
       <GuideSection id="inputs">
         <SectionHeading icon={Database}>Wells, curves and velocity trends</SectionHeading>
         <Para>
@@ -97,6 +126,13 @@ export default function PorePressureStudioHelpGuide() {
           The result is trend-grade and badged as such: it constrains the regional trend and carries no local
           overpressure anomaly. Publish is unavailable for a trend because there is no well to write to.
         </Para>
+        <Para>
+          A layer cake is read along the hole: on a well with a deviation survey each boundary is read where the hole
+          crosses it, which on a dipping boundary differs from the wellhead, and the note under the ribbon says how far
+          from the wellhead that was. The model's depths are below the seismic datum (SRD). Type its elevation above sea
+          level in the dock (Seismic datum); until you do, the note says it is taken at sea level. Onshore, the ground
+          is placed below the KB by the mudline MD.
+        </Para>
       </GuideSection>
 
       <GuideSection id="units">
@@ -112,6 +148,16 @@ export default function PorePressureStudioHelpGuide() {
           ['Pressure', PRESSURE_UNITS.map((u) => u.label).join(', ')],
           ['Depth', DEPTH_UNITS.join(', ')],
         ]} />
+        <SubHeading>Reading depth as TVD below RKB, TVDSS or MD</SubHeading>
+        <Para>
+          The depth selector beside Units reads the readout, the chart, the drilling window and casing seat lines and the
+          PDF table in the frame the well plan uses: below mudline (the engine's own), TVD below the rotary table, TVDSS or
+          MD below the rotary table. Each comes from the depth below mudline through the deviation survey and the datum:
+          TVD below RKB adds the mudline's TVD, TVDSS adds the water depth offshore (onshore it takes the KB elevation off
+          the TVD), and MD is the log's own depth of each sample. A frame the source cannot give is greyed with the reason
+          in the tooltip (TVD below RKB needs the mudline MD offshore; a velocity trend has no MD). The CSV always carries
+          every frame the source supports, side by side. The NCT view stays below mudline, where the trend is defined.
+        </Para>
         <Callout tone="warn" title="An equivalent mud weight needs a datum">
           EMW divides the pressure by the depth below a datum. The datum is the rotary table when the dock's mudline MD
           is set (depth below RKB = mudline MD + depth below mudline), otherwise sea level (water depth + depth below
@@ -129,19 +175,63 @@ export default function PorePressureStudioHelpGuide() {
           value is taken from the nearest sample) and Fit NCT solves the mudline transit time and the constant
           exactly from the picks; the matrix transit time is kept from the dock.
         </Para>
+        <SubHeading>Semi-log axis, shale picks and trend breaks</SubHeading>
+        <Para>
+          The trend is read on a log axis, as the trade draws it (Log axis turns it off). When the well has a shale
+          volume (VSH, VCL or the Petrophysics _CND curves) or a gamma ray, Pick shales takes one shale point per interval
+          between two depths, at or above the cutoff (0.6 v/v for VSH; for a gamma ray, halfway between the sand and
+          shale lines of the well); a hand pick in a sand is flagged. A trend break at a depth (an unconformity or a
+          change of lithology) starts a new segment below it; Fit NCT then fits each segment on the picks inside it and
+          says which segment kept its values for want of two picks. The breaks are drawn dashed, saved with the project
+          and listed in the report.
+        </Para>
       </GuideSection>
 
       <GuideSection id="methods">
         <SectionHeading icon={Gauge}>Eaton, Bowers and the fracture gradient</SectionHeading>
         <Table headers={['Method', 'What it does', 'Parameters']} rows={[
-          ['Eaton', 'Scales the effective stress by the ratio of the normal to the measured transit time raised to the exponent; the classic sonic method.', 'Exponent n (3 for sonic)'],
+          ['Eaton sonic', 'Scales the effective stress by the ratio of the normal to the measured transit time raised to the exponent; the classic sonic method.', 'Exponent n (3 for sonic)'],
+          ['Eaton resistivity', "Scales the effective stress by the ratio of the measured to the normal shale resistivity raised to the exponent (Eaton 1975). The normal trend is log-linear in depth, fitted on shale picks in the NCT view on a log axis. Use it where the sonic is poor or absent; the deep resistivity (RT, ILD, LLD, AT90 and similar) is read in ohm.m, a conductivity in mS/m converted.", 'Exponent n (1.2 for resistivity, Eaton\'s published value); R at the mudline and the slope b'],
           ['Bowers', 'Inverts the velocity to effective stress through the loading curve; with U and the maximum stress set, the unloading curve applies where the velocity has reversed.', 'A and B in ft/s and psi as published; U; sigma max'],
         ]} />
+        <SubHeading>Choosing Bowers unloading on the crossplot</SubHeading>
+        <Para>
+          The Crossplot view plots velocity against the logged density. Under loading both rise along one trend; where
+          the pressure comes from fluid expansion the velocity falls while the density holds, so those samples drop
+          below the trend. The view fits the loading trend above the unloading top (by default where the velocity
+          peaks), counts the samples below it more than 3% under the trend, and gives V max with the sigma max the
+          loading curve reaches there. Use for Bowers unloading sets the method to Bowers with that sigma max and the U
+          you type (Fit U to calibration refines U against measured pressures).
+        </Para>
+        <Para>
+          The fracture method is chosen under Fracture gradient in the dock. All three add a share of the effective
+          overburden to the pore pressure: Eaton (1969) takes the share nu over one minus nu from Poisson's ratio;
+          Matthews and Kelly (1967) take a matrix stress coefficient k0 directly (0.75 is the most likely value in
+          Zhang and Yin's study of leak-off tests); Daines (1982) adds a tectonic share beta to Eaton's. Eaton equals
+          Matthews and Kelly when k0 is nu over one minus nu, and Daines equals Eaton when beta is zero. With leak-off
+          tests imported, Calibrate FG to LOT sets the method's coefficient (nu, k0 or beta) from the median over the
+          LOT and XLOT tests (FITs, being lower bounds, only when no LOT is there, and said).
+        </Para>
         <Para>
           The fracture pressure is the minimum horizontal stress from Poisson's ratio: the pore pressure plus the
           effective overburden scaled by nu over one minus nu. The dock's calibration points (a depth and a pressure
           per line, in the display units) are drawn on the prognosis as dots and compared with the pore pressure (the
-          misfit is stated under the ribbon and in the report); they do not change the computation.
+          misfit is stated under the ribbon and in the report). They change the computation only when you ask:
+          Fit n to calibration (Eaton sonic or resistivity), Fit A and B (Bowers loading) or Fit U (Bowers unloading,
+          with sigma max held) fits that parameter to the pressure points and kicks by least squares on the pore
+          pressure, writes it into the dock and says the misfit before and after. Leak-off tests are not used for it.
+        </Para>
+        <SubHeading>Importing RFT/MDT, LOT/FIT and mud weights</SubHeading>
+        <Para>
+          Import RFT/MDT, LOT/FIT or mud weights, under the calibration box, reads a CSV, TXT or tab table (or pasted
+          cells): any separator, comma decimals, units in the header or in a second header line, a Type column, and
+          no header at all. It shows what it read and asks you to declare the depth column and reference (MD below RKB,
+          TVD below RKB, TVDSS or below mudline), the depth unit, the value unit (psi, psia, kPa, bar, MPa, ppg, sg,
+          g/cc, kg/m3, psi/ft, kPa/m) and what the values are; what it found in the header is filled in, and nothing
+          is assumed. MD goes through the well's survey, TVDSS through its KB, a mud weight converts at the TVD below
+          the rotary table. Rows with a -999 null, text or a depth above the mudline are listed with the reason.
+          Pressure points and kicks are compared with the pore pressure, LOT, FIT and XLOT with the fracture pressure
+          (a FIT is a lower bound), and mud weights are drawn as a step line. Spreadsheets are saved as CSV first.
         </Para>
       </GuideSection>
 
@@ -154,6 +244,27 @@ export default function PorePressureStudioHelpGuide() {
         </Para>
       </GuideSection>
 
+      <GuideSection id="casing">
+        <SectionHeading icon={Anchor}>Drilling margins and casing seats</SectionHeading>
+        <Para>
+          Under Drilling margins in the dock, the trip margin is added to the pore pressure to give the planned mud
+          weight, and the kick margin is taken off the fracture pressure to give the design fracture line (both 0.5 ppg
+          by default, in the dock's density unit). The chart draws both lines dashed. The casing seats are chosen
+          bottom-up, as in Applied Drilling Engineering (Bourgoyne and others, 1986): the mud needed at TD sets how high
+          the open hole may reach, so the next shoe up goes at least to the depth where the design fracture line equals
+          that mud weight; the mud needed at that shoe sets the next one, and so on to the top 300 m below the mudline.
+          The line above the chart lists each shoe, the mud below it and the window per section. A minimum depth for
+          the shallowest string (an aquifer or a regulation) can be typed; margins too large for the window are said
+          with the depth where they close it.
+        </Para>
+        <Callout tone="info" title="Checked against the published example">
+          The selection reproduces the textbook's equivalent mud weight table to its printed digit and places every
+          shoe at or above the textbook's chart readings (11,700 ft and 6,600 ft), which are the depths it must at
+          least reach. Well Design Studio's mud window carries the same margins and seats on the planned trajectory, in
+          TVD and MD.
+        </Callout>
+      </GuideSection>
+
       <GuideSection id="deliver">
         <SectionHeading icon={UploadCloud}>Publishing, the CSV and saving</SectionHeading>
         <Para>
@@ -163,7 +274,8 @@ export default function PorePressureStudioHelpGuide() {
           profile in the chosen units with EMW columns in ppg and sg and the datum in the header, the table a well plan
           needs, with the reviewer block in its header. PDF downloads the report a reviewer signs: well, field, analyst
           (typed under Report in the dock), date, build, units, datum, method, NCT status, calibration, the drilling
-          window and the table with EMW in ppg. Save keeps the parameters, picks and calibration as your project and
+          window, the prognosis plot (the curves, the margin lines, the casing shoes and the measured points, drawn as
+          vector lines on white with depth downward in the chosen depth frame) and the table with EMW in ppg. Save keeps the parameters, picks and calibration as your project and
           reopens the well next time. Well Design Studio's mud window reads the published curves in ppg or g/cc EMW
           against its own trajectory TVD.
         </Para>

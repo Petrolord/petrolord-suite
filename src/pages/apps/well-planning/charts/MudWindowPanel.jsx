@@ -5,12 +5,15 @@
 // PP-U1-005: ppg EMW (the driller's unit; the default on a feet wellbore),
 // TVD in the wellbore's depth unit, and the curves' source and unit named.
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import {
   ResponsiveContainer, ComposedChart, Line, Area, XAxis, YAxis,
-  CartesianGrid, Tooltip, Legend,
+  CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from 'recharts';
+import { KG_M3_PER_PPG } from '@/lib/ppfgUnits';
+import { casingSeatsOnWindow, DEFAULT_TRIP_PPG, DEFAULT_KICK_PPG } from '../services/ppfg';
+import { lineAt } from '../../PorePressureStudio/engine/casingSeats';
 import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE } from '@/utils/chartTheme';
 import ChartLogo from '@/components/charts/ChartLogo';
 
@@ -20,6 +23,10 @@ const axisProps = {
 };
 
 const FT = 0.3048;
+const G = 9.80665;
+// the conductor section, where PP and FG converge on the seawater gradient,
+// is left out of the seat selection (the Pore Pressure Studio convention)
+export const SEATS_BELOW_TOP_M = 300;
 const MODES = {
   ppg: { pp: 'ppPpg', fp: 'fpPpg', obg: 'obgPpg', unit: 'ppg EMW', digits: 2, label: 'ppg' },
   emw: { pp: 'ppEmw', fp: 'fpEmw', obg: 'obgEmw', unit: 'g/cc EMW', digits: 2, label: 'g/cc' },
@@ -31,12 +38,27 @@ const MudWindowPanel = ({ rows = [], summary = null, sourceLabel = '', note = nu
   const [mode, setMode] = useState(depthUnit === 'ft' ? 'ppg' : 'emw'); // ppg | emw | mpa
   const keys = MODES[mode] || MODES.emw;
   const dz = (m) => (depthUnit === 'ft' ? m / FT : m);
+  // U2-003: kick and trip margins (ppg) and the bottom-up casing seats
+  const [trip, setTrip] = useState(String(DEFAULT_TRIP_PPG));
+  const [kick, setKick] = useState(String(DEFAULT_KICK_PPG));
+  const tripPpg = Number(trip); const kickPpg = Number(kick);
+  const marginsOk = Number.isFinite(tripPpg) && tripPpg >= 0 && Number.isFinite(kickPpg) && kickPpg >= 0 && trip !== '' && kick !== '';
+  const fromTvd = rows.length ? Math.min(...rows.map((r) => r.tvd)) + SEATS_BELOW_TOP_M : 0;
+  const seats = useMemo(() => (marginsOk ? casingSeatsOnWindow(rows, { tripPpg, kickPpg, fromTvdM: fromTvd }) : null),
+    [rows, tripPpg, kickPpg, fromTvd, marginsOk]);
+  const fromPpg = (ppg, tvd) => (mode === 'ppg' ? ppg : mode === 'emw' ? (ppg * KG_M3_PER_PPG) / 1000 : (ppg * KG_M3_PER_PPG * G * tvd) / 1e6);
+  const sd = seats && !seats.error ? seats : null;
 
-  const data = rows.map((r) => ({
-    ...r,
-    tvdShown: dz(r.tvd),
-    window: r[keys.pp] != null && r[keys.fp] != null ? [r[keys.pp], r[keys.fp]] : null,
-  }));
+  const data = rows.map((r) => {
+    const inSeats = sd && r.tvd >= sd.rows[0].tvd && r.tvd <= sd.rows[sd.rows.length - 1].tvd;
+    return {
+      ...r,
+      tvdShown: dz(r.tvd),
+      window: r[keys.pp] != null && r[keys.fp] != null ? [r[keys.pp], r[keys.fp]] : null,
+      mw: inSeats ? fromPpg(lineAt(sd.rows.map((q) => q.tvd), sd.rows.map((q) => q.mudPpg), r.tvd), r.tvd) : null,
+      dfg: inSeats ? fromPpg(lineAt(sd.rows.map((q) => q.tvd), sd.rows.map((q) => q.designFgPpg), r.tvd), r.tvd) : null,
+    };
+  });
 
   return (
     <div className="bg-white relative flex h-full w-full min-h-0 min-w-0 flex-col" data-testid="mud-window-panel" data-canvas="chart">
@@ -61,6 +83,25 @@ const MudWindowPanel = ({ rows = [], summary = null, sourceLabel = '', note = nu
           tightest window {summary.tightest.windowMpa.toFixed(2)} MPa at {dz(summary.tightest.tvd).toFixed(0)} {depthUnit}
         </div>
       )}
+      <div className="flex flex-wrap items-center gap-2 px-3 text-[9px] text-slate-600" data-testid="mud-window-margins">
+        <label htmlFor="mw-trip">Trip margin (ppg)</label>
+        <input id="mw-trip" data-testid="mud-window-trip" value={trip} onChange={(e) => setTrip(e.target.value)}
+          className="w-12 rounded border border-slate-300 px-1 text-right text-slate-800" />
+        <label htmlFor="mw-kick">Kick margin (ppg)</label>
+        <input id="mw-kick" data-testid="mud-window-kick" value={kick} onChange={(e) => setKick(e.target.value)}
+          className="w-12 rounded border border-slate-300 px-1 text-right text-slate-800" />
+        {!marginsOk && <span className="text-amber-700">Enter margins of 0 or more to see the casing seats.</span>}
+      </div>
+      {sd && (
+        <div className="px-3 text-[9px] text-slate-700" data-testid="mud-window-seats" data-seats={sd.seats.length}>
+          Casing seats bottom-up (below the top {dz(SEATS_BELOW_TOP_M).toFixed(0)} {depthUnit}):{' '}
+          {sd.seats.length
+            ? sd.seats.map((q, k) => `shoe ${k + 1} at least TVD ${dz(q.tvd).toFixed(0)} ${depthUnit} (MD ${dz(q.md).toFixed(0)}), ${q.mudBelowPpg.toFixed(2)} ppg below`).join('; ')
+            : 'none needed above TD'}
+          {sd.closedAtTvd != null && <span className="text-amber-700"> · window closed by the margins at TVD {dz(sd.closedAtTvd).toFixed(0)} {depthUnit}</span>}
+        </div>
+      )}
+      {seats?.error && <div className="px-3 text-[9px] text-amber-700" data-testid="mud-window-seats">{seats.error}</div>}
       <div className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={CHART_MARGINS.compact} layout="vertical">
@@ -85,6 +126,14 @@ const MudWindowPanel = ({ rows = [], summary = null, sourceLabel = '', note = nu
               dot={false} isAnimationActive={false} connectNulls />
             <Line dataKey={keys.obg} name="Overburden" stroke="#57534e" strokeWidth={1.5}
               strokeDasharray="5 3" dot={false} isAnimationActive={false} connectNulls />
+            {sd && <Line dataKey="mw" name="Mud weight (PP + trip)" stroke="#7c3aed" strokeWidth={1.2}
+              strokeDasharray="4 2" dot={false} isAnimationActive={false} connectNulls />}
+            {sd && <Line dataKey="dfg" name="Design FG (FG - kick)" stroke="#0e7490" strokeWidth={1.2}
+              strokeDasharray="2 3" dot={false} isAnimationActive={false} connectNulls />}
+            {sd && sd.seats.map((q, k) => (
+              <ReferenceLine key={k} y={dz(q.tvd)} stroke="#334155" strokeWidth={1.2}
+                label={{ value: `Shoe ${k + 1}`, position: 'insideTopRight', fill: '#334155', fontSize: 9 }} />
+            ))}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
