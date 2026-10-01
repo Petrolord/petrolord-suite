@@ -19,7 +19,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Waves, Loader2, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { guessCurveKind } from '@/pages/apps/WellDataManager/engine/lasImport';
-import { substitutedCurveKind, substitutedCurveLabel } from '@/lib/rockPhysicsCurves';
+import { substitutedCurveKind, substitutedCurveLabel, estimatedCurveKind, estimatedCurveLabel } from '@/lib/rockPhysicsCurves';
 import { normalizeInputCurve } from '@/components/wells/curveUnits';
 import {
   isGap, rickerWavelet, extractStatisticalWavelet, suggestBulkShift,
@@ -425,8 +425,10 @@ export default function SyntheticsPanel({
 
   // RP-U1-009: Rock Physics' substituted DT_SUB / RHOB_SUB are a sonic and a
   // density too (listed after the measured curves, labelled as substituted)
-  const kindOf = (log) => guessCurveKind(log.mnemonic) || substitutedCurveKind(log);
-  const curveLabel = (l) => (substitutedCurveKind(l) ? substitutedCurveLabel(l) : `${l.mnemonic} (${l.unit || '?'})`);
+  // RP-U2-007: the pseudo-sonic DT_EST (a well with no sonic log) is listed
+  // too, last, under a label that says it is an estimate
+  const kindOf = (log) => guessCurveKind(log.mnemonic) || substitutedCurveKind(log) || estimatedCurveKind(log);
+  const curveLabel = (l) => (substitutedCurveKind(l) ? substitutedCurveLabel(l) : estimatedCurveKind(l) ? estimatedCurveLabel(l) : `${l.mnemonic} (${l.unit || '?'})`);
   const sonicWells = useMemo(
     () => (wells || []).filter((w) => (logsByWell[w.id] || []).some((l) => kindOf(l) === 'sonic')),
     [wells, logsByWell],
@@ -444,7 +446,7 @@ export default function SyntheticsPanel({
     setPhase(null);
     setPhiApplied(false);
     const logs = logsByWell[id] || [];
-    const measured = (k) => logs.find((l) => kindOf(l) === k && !substitutedCurveKind(l)) || logs.find((l) => kindOf(l) === k);
+    const measured = (k) => logs.find((l) => kindOf(l) === k && !substitutedCurveKind(l) && !estimatedCurveKind(l)) || logs.find((l) => kindOf(l) === k && !estimatedCurveKind(l)) || logs.find((l) => kindOf(l) === k);
     const sonic = measured('sonic');
     const dens = measured('density');
     setSonicId(sonic ? sonic.id : '');
@@ -1009,6 +1011,14 @@ export default function SyntheticsPanel({
         </Button>
       </div>
 
+      {(() => {
+        const chosen = wellLogs.find((l) => l.id === sonicId);
+        return chosen && (estimatedCurveKind(chosen) || chosen.provenance?.vp_source === 'estimated') ? (
+          <div className="text-xs text-pl-warning-text shrink-0" data-testid="synth-estimated-sonic">
+            The chosen sonic is an estimate, with no sonic log behind it: the synthetic is indicative only and is no basis for a tie.
+          </div>
+        ) : null;
+      })()}
       {error && <div className="text-xs text-pl-danger-text shrink-0" data-testid="synth-error">{error}</div>}
 
       {view && (

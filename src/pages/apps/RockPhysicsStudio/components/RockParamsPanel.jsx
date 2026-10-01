@@ -207,6 +207,9 @@ export default function RockParamsPanel({ scenario, rock, onApply, units = {}, o
         fluidB: parseSide(draft.fluidB, 'B'),
       },
       rock: {
+        // fields this panel does not edit (the pseudo-sonic setting, the mineral
+        // source) ride through an Apply untouched
+        ...rock,
         minerals: Object.fromEntries(
           Object.entries(draft.rock.minerals).map(([k, v]) => [k, num(v, 0)]),
         ),

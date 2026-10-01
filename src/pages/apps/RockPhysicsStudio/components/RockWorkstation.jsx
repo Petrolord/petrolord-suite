@@ -19,7 +19,7 @@
 // Manager on the logs tab) and the help guide; `appPaths` lets the
 // harness point them at the /dev/* apps.
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isPrePt9aPhie, PRE_PT9A_PHIE_NOTE } from '@/lib/petroProvenance';
 import { Link } from 'react-router-dom';
 import { Waves, Loader2, Save, HelpCircle, Database } from 'lucide-react';
@@ -44,7 +44,9 @@ import { DEFAULT_AVO, DEFAULT_WEDGE } from '../services/defaults';
 import {
   UNITS_KEY, VELOCITY_UNITS, DENSITY_UNITS, DEPTH_UNITS, readUnits,
 } from '../services/units';
-import { preparePublishLogs, ENGINE } from '../services/publish';
+import { preparePublishLogs, prepareEstimatedSonicLog, ENGINE } from '../services/publish';
+import { pseudoConfig, calibrateOn, calibratedConfig, savedPseudo } from '../services/pseudoSonic';
+import PseudoSonicBox from './PseudoSonicBox';
 import { projectRowFromState, projectStateFromRow } from '../services/projectState';
 import { applyIterativeVs, shearSourceText } from '../services/iterativeVs';
 
@@ -77,6 +79,13 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   // RP-U1-013: the zone is workstation state so Save keeps it with the well
   const [zoneId, setZoneId] = useState('');
   const [restoreWellId, setRestoreWellId] = useState(null);
+  // U2-007: the pseudo-sonic for wells with no sonic log
+  const rockRef = useRef(rock);
+  rockRef.current = rock;
+  const [sonicWells, setSonicWells] = useState(null);
+  const [calibration, setCalibration] = useState(null);
+  const [pseudoBusy, setPseudoBusy] = useState(false);
+  const [pseudoError, setPseudoError] = useState('');
   // Suite unit profile: velocity, density and depth start from the
   // profile; the selectors change this view for the session only, and the
   // older remembered 'rp.units' choice no longer beats the profile
@@ -137,10 +146,15 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
       for (const [key, log] of Object.entries(mapped)) {
         if (log) curves[key] = await backend.downloadCurve(log);
       }
-      const model = buildModel(curves, mapped);
+      const pseudoSonic = rockRef.current?.pseudoSonic || null;
+      const model = buildModel(curves, mapped, { pseudoSonic });
+      setCalibration(null);
+      setPseudoError('');
       setWellData({
         wellId,
         model,
+        raw: { curves, mapped },
+        builtWith: JSON.stringify(pseudoSonic),
         inventory: Object.entries(mapped).map(([key, log]) => ({ key, log })),
         published: publishedBy(logs),
         tops,
@@ -149,7 +163,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
       setZones(zoneList);
       // PETRO-U2-013: a pre-PT9a Studio PHIE is total porosity; say so
       const oldPhie = mapped.PHIE && isPrePt9aPhie(mapped.PHIE) ? ` ${mapped.PHIE.mnemonic}: ${PRE_PT9A_PHIE_NOTE}` : '';
-      setStatus((restored ? 'Restored saved project. ' : '') + (model.vsSource === 'estimated'
+      setStatus((restored ? 'Restored saved project. ' : '') + (model.vpSource === 'estimated' ? `No sonic log, so Vp is ESTIMATED (${model.vpNote}). ` : '') + (model.vsSource === 'estimated'
         ? `Loaded ${model.n} samples. No DTS, so Vs is estimated (Greenberg-Castagna).`
         : `Loaded ${model.n} samples.`) + (model.notes?.length ? ` ${model.notes.length} reading note${model.notes.length === 1 ? '' : 's'} under the curve list.` : '') + oldPhie);
     } catch (e) {
@@ -162,7 +176,14 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
 
   // U2-005: with no shear log, Vs in hydrocarbon samples is iterated through
   // the brine state; the zone matters when the in-situ Sw is typed
-  const baseModel = wellData?.model || null;
+  // U2-007: a well with no sonic is rebuilt when the pseudo-sonic setting changes
+  const pseudoKey = JSON.stringify(rock.pseudoSonic || null);
+  const baseModel = useMemo(() => {
+    if (!wellData) return null;
+    if (wellData.model.vpSource !== 'estimated' || wellData.builtWith === pseudoKey) return wellData.model;
+    try { return buildModel(wellData.raw.curves, wellData.raw.mapped, { pseudoSonic: rock.pseudoSonic }); } catch { return wellData.model; }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wellData, pseudoKey]);
   const activeZone = zones.find((z) => z.id === zoneId) || zones[0] || null;
   const model = useMemo(
     () => applyIterativeVs(baseModel, scenario, rock, activeZone),
@@ -218,6 +239,67 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     }
   };
 
+  // U2-007: the wells that have a sonic log, found when the user asks (one
+  // log listing per well), and the calibration against one of them
+  const findSonicWells = async () => {
+    setPseudoBusy(true);
+    setPseudoError('');
+    try {
+      const found = [];
+      for (const w of wells || []) {
+        if (w.id === selectedId) continue;
+        try { if (mapLogs(await backend.listLogs(w.id)).DT) found.push({ id: w.id, name: w.name }); } catch { /* a well that cannot be listed is skipped */ }
+      }
+      setSonicWells(found);
+    } finally { setPseudoBusy(false); }
+  };
+  const calibratePseudo = async (wellId) => {
+    setPseudoBusy(true);
+    setPseudoError('');
+    try {
+      const mapped = mapLogs(await backend.listLogs(wellId));
+      const curves = {};
+      for (const key of ['DEPT', 'DT', 'RHOB', 'RT']) if (mapped[key]) curves[key] = await backend.downloadCurve(mapped[key]);
+      const result = calibrateOn(buildModel(curves, mapped));
+      const well = (wells || []).find((w) => w.id === wellId) || null;
+      setCalibration({ wellName: well?.name || 'the calibration well', result });
+      if (result.gardner || result.faust) {
+        setRock((r) => ({ ...r, pseudoSonic: calibratedConfig(pseudoConfig(r.pseudoSonic, { rhob: true, rt: !!baseModel?.rt }), result, well) }));
+        setStatus(`Pseudo-sonic calibrated on ${well?.name || 'the calibration well'}.`);
+      }
+    } catch (e) {
+      setPseudoError(e.message);
+    } finally { setPseudoBusy(false); }
+  };
+  const publishEstimatedSonic = async () => {
+    if (!wellData || !baseModel || !backend.publishCurves) return;
+    setPublishing(true);
+    try {
+      const prepared = [prepareEstimatedSonicLog(baseModel, { projectId, inputLogIds: wellData.inventory.map(({ log }) => log?.id).filter(Boolean) })];
+      await backend.publishCurves(wellData.wellId, prepared, projectId);
+      const logs = await backend.listLogs(wellData.wellId);
+      setWellData((d) => (d && d.wellId === wellData.wellId ? { ...d, published: publishedBy(logs) } : d));
+      setStatus('Published DT_EST (estimated sonic) to the well registry.');
+    } catch (e) {
+      setStatus(e.message);
+    } finally { setPublishing(false); }
+  };
+  const sonicBox = baseModel?.vpSource === 'estimated' ? (
+    <PseudoSonicBox
+      cfg={baseModel.pseudo || pseudoConfig(rock.pseudoSonic, { rhob: true, rt: !!baseModel.rt })}
+      note={baseModel.vpNote}
+      onChange={(p) => setRock((r) => ({ ...r, pseudoSonic: { ...savedPseudo(pseudoConfig(r.pseudoSonic, { rhob: true, rt: !!baseModel.rt })), ...p } }))}
+      sonicWells={sonicWells}
+      onFindWells={findSonicWells}
+      onCalibrate={calibratePseudo}
+      calibration={calibration}
+      busy={pseudoBusy}
+      error={pseudoError}
+      onPublish={backend.publishCurves ? publishEstimatedSonic : null}
+      publishing={publishing}
+    />
+  ) : null;
+
   const unitSelect = (key, options, title) => (
     <select
       data-testid={`rp-unit-${key}`}
@@ -258,6 +340,15 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         {viewButton('gather', 'Gather')}
         {viewButton('wedge', 'Wedge')}
       </div>
+      {model?.vpSource === 'estimated' && (
+        <span
+          data-testid="rp-vp-badge"
+          title={`This well has no sonic log. Vp is estimated: ${model.vpNote}. Every velocity, impedance and reflectivity is indicative only.`}
+          className="whitespace-nowrap rounded px-1.5 py-0.5 bg-pl-warning-bg border border-pl-warning text-pl-warning-text text-[11px]"
+        >
+          Vp estimated
+        </span>
+      )}
       {model?.vsSource === 'estimated' && (
         <span
           data-testid="rp-vs-badge"
@@ -386,7 +477,8 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
           loadingId={loadingId}
           curveInventory={wellData?.inventory}
           published={wellData?.published}
-          readNotes={wellData?.notes}
+          readNotes={baseModel?.notes || wellData?.notes}
+          sonicBox={sonicBox}
           onSelect={select}
         />
       )}

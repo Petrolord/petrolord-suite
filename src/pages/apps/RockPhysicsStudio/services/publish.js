@@ -9,7 +9,9 @@
 // rp-1.1.0 (RP-U1, 2026-10-01): DT_SUB added (us/m, so Seismolord's
 // synthetics list it as a sonic); provenance carries the porosity basis,
 // the Sw source, the K_min source and the Gassmann limits
-export const PIPELINE_VERSION = 'rp-1.1.0';
+// rp-1.2.0 (RP-U2, 2026-10-01): vp_source / vp_method say when the sonic
+// itself is an estimate; DT_EST publishes the pseudo-sonic as its own curve
+export const PIPELINE_VERSION = 'rp-1.2.0';
 export const ENGINE = 'rock-physics-studio';
 
 const SPECS = [
@@ -50,7 +52,7 @@ export function preparePublishLogs(model, sub, indices, zone, meta) {
     }
     return {
       mnemonic: spec.mnemonic,
-      description: `${spec.what}, Gassmann ${label} in ${zone.name}${spec.key === 'vs' && model.vsSource === 'estimated' ? ` (Vs estimated, Greenberg-Castagna${model.vsMethod === 'iterative' ? ', iterated through brine in hydrocarbon samples' : ''})` : ''}`,
+      description: `${spec.what}, Gassmann ${label} in ${zone.name}${model.vpSource === 'estimated' && spec.key !== 'rho' ? ` (from an ESTIMATED sonic: ${model.vpNote})` : ''}${spec.key === 'vs' && model.vsSource === 'estimated' ? ` (Vs estimated, Greenberg-Castagna${model.vsMethod === 'iterative' ? ', iterated through brine in hydrocarbon samples' : ''})` : ''}`,
       unit: spec.unit,
       data,
       startMdM: model.depth[0],
@@ -67,6 +69,9 @@ export function preparePublishLogs(model, sub, indices, zone, meta) {
         scenario: meta.scenario || null,
         rock: meta.rock || null,
         kmin_pa: meta.kmin ?? null,
+        vp_source: model.vpSource || 'measured',
+        vp_method: model.vpSource === 'estimated' ? model.vpMethod : null,
+        vp_note: model.vpSource === 'estimated' ? model.vpNote : null,
         vs_source: model.vsSource || 'measured',
         vs_method: model.vsSource === 'estimated' ? (model.vsMethod === 'iterative' ? 'greenberg-castagna-iterative' : 'greenberg-castagna') : null,
         vs_iterated_samples: model.vsIter?.applied || 0,
@@ -104,4 +109,52 @@ export function staleOwnCurves(existingLogs, preparedLogs, projectId) {
     && l.provenance?.engine === ENGINE
     && (l.provenance?.project_id || null) === (projectId || null)
     && mnemonics.has(l.mnemonic));
+}
+
+export const ESTIMATED_SONIC_MNEMONIC = 'DT_EST';
+
+/**
+ * The pseudo-sonic as a curve other apps can list (U2-007): DT_EST in
+ * us/m over the well's depth grid, described as an estimate, with the
+ * method, its constants and any calibration in the provenance. Overwrite
+ * own, like the substituted curves.
+ * @param {Object} model a model whose vpSource is 'estimated'
+ * @param {{projectId?: ?string, inputLogIds?: string[]}} meta
+ */
+export function prepareEstimatedSonicLog(model, meta = {}) {
+  if (!model?.depth?.length) throw new Error('Load a well first.');
+  if (model.vpSource !== 'estimated') throw new Error('This well has a sonic log; there is no estimated sonic to publish.');
+  const n = model.depth.length;
+  const data = new Float32Array(n);
+  let nullCount = 0;
+  for (let i = 0; i < n; i++) {
+    const v = slowness(model.vp[i]);
+    data[i] = Number.isFinite(v) ? v : NaN;
+    if (!Number.isFinite(v)) nullCount += 1;
+  }
+  if (nullCount === n) throw new Error('The estimate has no values to publish.');
+  const p = model.pseudo || {};
+  return {
+    mnemonic: ESTIMATED_SONIC_MNEMONIC,
+    description: `ESTIMATED compressional slowness (no sonic log): ${model.vpNote}`,
+    unit: 'US/M',
+    data,
+    startMdM: model.depth[0],
+    stopMdM: model.depth[n - 1],
+    stepM: n > 1 ? model.depth[1] - model.depth[0] : null,
+    nSamples: n,
+    nullCount,
+    provenance: {
+      computed: true,
+      estimated: true,
+      engine: ENGINE,
+      pipeline_version: PIPELINE_VERSION,
+      project_id: meta.projectId || null,
+      method: model.vpMethod,
+      note: model.vpNote,
+      constants: model.vpMethod === 'faust' ? { faust_gamma: p.faustGamma } : { gardner_a: p.gardnerA, gardner_b: 0.25 },
+      calibrated_on: p.calibratedOn || null,
+      input_log_ids: meta.inputLogIds || [],
+    },
+  };
 }

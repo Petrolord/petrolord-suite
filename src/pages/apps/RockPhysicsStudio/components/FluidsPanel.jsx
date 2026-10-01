@@ -242,6 +242,7 @@ export default function FluidsPanel({
               {' · '}fluid A Sw: {result.sub.swFromLog ? `from the SW log${result.sub.swFallback ? ` (${result.sub.swFallback} null samples used ${scenario.fluidA.sw})` : ''}` : `${scenario.fluidA.sw} as typed${scenario.fluidA.swFromLog && !model.sw ? ' (no SW curve on this well)' : ''}`}
               {' · '}limits: VSH up to {rock.vshMax ?? 1}, porosity from {rock.phiMin ?? 0}
               {model.vsSource === 'estimated' ? ` · ${shearSourceText(model)}` : ''}
+              {model.vpSource === 'estimated' ? ` · Vp ESTIMATED, no sonic log (${model.vpNote})` : ''}
             </p>
             {model.phiBasis === 'effective' && result.sub.kminSource === 'table' && !(rock.minerals?.clay > 0)
               && Number.isFinite(meanAt(model.vsh || [], result.indices)) && meanAt(model.vsh, result.indices) > 0.1 && (

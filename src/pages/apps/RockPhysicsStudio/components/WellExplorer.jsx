@@ -10,7 +10,7 @@ import { CircleDot, Building2, Lock, Loader2, Check, Minus } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function WellExplorer({
-  wells, selectedId, loadingId, curveInventory, published = [], readNotes = [], onSelect,
+  wells, selectedId, loadingId, curveInventory, published = [], readNotes = [], onSelect, sonicBox = null,
 }) {
   return (
     <div className="h-full min-h-0 flex flex-col bg-pl-surface" data-testid="rp-explorer">
@@ -63,6 +63,7 @@ export default function WellExplorer({
                       {readNotes.map((t) => <li key={t}>{t}</li>)}
                     </ul>
                   )}
+                  {sonicBox}
                   {published.length > 0 && (
                     <div className="mt-1 text-[11px] text-pl-success-text" data-testid="rp-published-curves" title="Curves this app has written to the well (fluid-substituted case)">
                       published: {published.map((l) => l.mnemonic).join(', ')}

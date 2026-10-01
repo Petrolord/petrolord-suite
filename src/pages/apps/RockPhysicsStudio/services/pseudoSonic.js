@@ -42,6 +42,9 @@ export const LIVE_CHECK = Object.freeze({
 
 const pos = (v, fallback) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : fallback);
 
+/** The four fields that are saved with the project (rock.pseudoSonic). */
+export const savedPseudo = (c) => ({ method: c.method, gardnerA: c.gardnerA, faustGamma: c.faustGamma, calibratedOn: c.calibratedOn || null });
+
 /** A saved or half-typed setting, resolved against what the well has. */
 export function pseudoConfig(cfg = {}, has = { rhob: true, rt: false }) {
   const c = { ...DEFAULT_PSEUDO, ...(cfg || {}) };
@@ -123,7 +126,7 @@ export const misfitText = (m) => (m && m.n ? `bias ${m.biasPct.toFixed(1)}%, RMS
 export function calibratedConfig(cfg, cal, well) {
   const m = cfg.method === 'faust' && cal.faust ? cal.faust.calibrated : cal.gardner?.calibrated;
   return {
-    ...cfg,
+    method: cfg.method,
     gardnerA: cal.gardner ? cal.gardner.a : cfg.gardnerA,
     faustGamma: cal.faust ? cal.faust.gamma : cfg.faustGamma,
     calibratedOn: {

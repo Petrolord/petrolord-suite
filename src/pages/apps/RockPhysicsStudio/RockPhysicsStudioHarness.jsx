@@ -15,10 +15,11 @@ import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 
 export default function RockPhysicsStudioHarness() {
   // RP-U1: ?hostile=1 adds the vendor-export evidence well, ?long=1 the 5000 m well;
-  // RP-U2: ?trend=1 the wet-trend well with a gas bed
+  // RP-U2: ?trend=1 the wet-trend well with a gas bed, ?nosonic=1 a well with no
+  // sonic log and a calibration well
   const backend = useMemo(() => {
     const q = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-    return makeInMemoryBackend({ hostile: q.has('hostile'), long: q.has('long'), trend: q.has('trend') });
+    return makeInMemoryBackend({ hostile: q.has('hostile'), long: q.has('long'), trend: q.has('trend'), nosonic: q.has('nosonic') });
   }, []);
   return (
     <div className="h-screen w-full overflow-hidden">

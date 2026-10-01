@@ -138,10 +138,37 @@ function trendCurves() {
   }
   return { curves: c, wet };
 }
+// RP-U2-007 evidence wells (?nosonic=1): a well with density, resistivity,
+// porosity and VSH but NO sonic, and a calibration well that has one. Both
+// follow Gardner with a = 0.245 and Faust with 2100 exactly, with a
+// deterministic 3 percent wobble on the true velocity, so a calibration has
+// a known answer and the misfit a known size.
+export const NOSONIC_TRUTH = Object.freeze({ gardnerA: 0.245, faustGamma: 2100 });
+function sonicPairCurves(withSonic, offset) {
+  const c = { DEPT: [], RHOB: [], RT: [], PHIE: [], VSH: [] };
+  if (withSonic) c.DT = [];
+  const truth = [];
+  for (let d = 1500; d <= 1700 + 1e-9; d += 0.5) {
+    const k = Math.round((d - 1500) * 2) + offset;
+    const sand = d >= 1560 && d <= 1600;
+    const rt = (sand ? 6 : 1.8) * (1 + 0.25 * Math.sin(k / 9));
+    const vpFaust = 0.3048 * NOSONIC_TRUTH.faustGamma * ((d / 0.3048) * rt) ** (1 / 6);
+    const vp = vpFaust * (1 + 0.03 * Math.sin(k / 5));
+    const rho = 1000 * NOSONIC_TRUTH.gardnerA * (vpFaust / 0.3048) ** 0.25;
+    truth.push(vp);
+    c.DEPT.push(d); c.RHOB.push(rho / 1000); c.RT.push(rt);
+    c.PHIE.push(sand ? 0.24 : 0.07); c.VSH.push(sand ? 0.1 : 0.8);
+    if (withSonic) c.DT.push(1e6 / vp);
+  }
+  return { curves: c, truth };
+}
+/** The true Vp of the no-sonic well, for tests. */
+export const noSonicTruth = () => sonicPairCurves(false, 0).truth;
+
 /** The wet (brine) truth of the trend well, for tests. */
 export const trendWellTruth = () => trendCurves().wet;
 
-export function makeInMemoryBackend({ hostile = false, long = false, trend = false } = {}) {
+export function makeInMemoryBackend({ hostile = false, long = false, trend = false, nosonic = false } = {}) {
   const curveStore = new Map();
   const logsByWell = new Map();
   const topsByWell = new Map();
@@ -248,6 +275,14 @@ export function makeInMemoryBackend({ hostile = false, long = false, trend = fal
   if (trend) {
     addRawWell('TREND RP-5 (wet trend, gas bed)', trendCurves().curves, { DEPT: 'M', DT: 'US/M', DTS: 'US/M', RHOB: 'G/C3', PHIE: 'V/V', VSH: 'V/V', SW: 'V/V' },
       [{ name: 'GAS BED', top: TREND_GAS.top, base: TREND_GAS.base }], { start: 1800, stop: 2200, step: 0.5 });
+  }
+
+  if (nosonic) {
+    const units = { DEPT: 'M', DT: 'US/M', RHOB: 'G/C3', RT: 'OHMM', PHIE: 'V/V', VSH: 'V/V' };
+    addRawWell('NOSONIC RP-6 (no sonic log)', sonicPairCurves(false, 0).curves, units,
+      [{ name: 'SAND', top: 1560, base: 1600 }], { start: 1500, stop: 1700, step: 0.5 });
+    addRawWell('SONIC RP-7 (calibration well)', sonicPairCurves(true, 37).curves, units,
+      [{ name: 'SAND', top: 1560, base: 1600 }], { start: 1500, stop: 1700, step: 0.5 });
   }
 
   // project persistence survives page reloads via sessionStorage so

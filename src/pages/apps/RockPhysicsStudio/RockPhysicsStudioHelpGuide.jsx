@@ -36,9 +36,10 @@ export const HELP_SECTIONS = [
 
 const CURVE_ROLES = {
   DEPT: 'Measured depth, metres or feet as the log records',
-  DT: 'Compressional sonic slowness (us/ft or us/m); Vp comes from it',
+  DT: 'Compressional sonic slowness (us/ft or us/m); Vp comes from it. When absent, Vp is estimated and badged',
   DTS: 'Shear sonic slowness; Vs comes from it when present',
   RHOB: 'Bulk density (g/cc or kg/m3)',
+  RT: 'Deep resistivity (ohm m); only used to estimate Vp with Faust when the well has no sonic',
   PHIE: 'Effective porosity, fraction or percent; used first. A Petrophysics PHIE published before 2026-09-07 is total porosity and is labelled so',
   PHIT: 'Total porosity, fraction or percent; used when there is no PHIE (the basis is shown)',
   VSH: 'Shale volume, fraction or percent; drives the Greenberg-Castagna sand/shale split, the Gassmann VSH limit and, when ticked, clay in K_min',
@@ -100,6 +101,19 @@ function RockPhysicsStudioHelpGuideContent() {
           A well with no shear sonic gets Vs from the Greenberg-Castagna (1992) relations on the VSH sand and shale
           split, and the ribbon shows a Vs estimated badge for the whole well. Measured and estimated shear are never
           mixed within one well.
+        </Callout>
+        <Callout tone="warn" title="Wells with no sonic log: Vp is estimated">
+          A well with a density curve but no sonic still opens. Vp is then estimated, by default with the Gardner
+          inverse from density (rho = 0.23 V^0.25, Gardner and others 1974), or with Faust from deep resistivity and
+          measured depth (V = 1948 (Z R)^(1/6), Faust 1953) when you choose it. The ribbon shows a Vp estimated badge,
+          and the status line, the CSV and PDF header, the published curves and their provenance all say estimated.
+          The box under the curve list sets the method and its constant, calibrates it on a registry well that has a
+          sonic (the misfit shown is the fit on that well, the best case) and publishes the estimate to the well as
+          DT_EST. Checked on 2026-10-01 against the two registry wells that have a sonic, the Gardner inverse missed
+          the measured Vp by 16 and 25 percent RMS and Faust by 17 and 70 percent, with little sample-to-sample
+          correlation, and constants fitted on one well made the other worse. Use an estimated sonic to screen the
+          size of a fluid effect; it is no basis for absolute impedance, an AVO class or a well tie. Faust reads
+          hydrocarbon and fresh water as fast rock.
         </Callout>
         <Callout tone="info" title="Estimated Vs where the rock holds hydrocarbon">
           The Greenberg-Castagna relations are for brine-filled rock. In a gas sand the in-situ Vp is low, so applying
@@ -272,7 +286,7 @@ function RockPhysicsStudioHelpGuideContent() {
         <Table headers={['App', 'Link']} rows={[
           ['Well Data Manager', 'Well data in the ribbon opens the selected well on its logs, where the published curves are listed and can be deleted.'],
           ['Petrophysics Studio, Well Correlation, Mapping & Surface Studio and the rest', 'Open in lists the Geoscience apps for the selected well; Petrophysics and Well Correlation open on that well.'],
-          ['Seismolord', 'The synthetics window lists DT_SUB and RHOB_SUB (labelled fluid substituted) beside the measured sonic and density; pick them to see the substituted synthetic.'],
+          ['Seismolord', 'The synthetics window lists DT_SUB and RHOB_SUB (labelled fluid substituted) beside the measured sonic and density; pick them to see the substituted synthetic. A published DT_EST is listed last, labelled ESTIMATED sonic, with a warning that it is no basis for a tie.'],
           ['Geoscience home', 'The home icon at the left of the ribbon.'],
         ]} />
       </GuideSection>
