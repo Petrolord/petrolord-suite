@@ -8,7 +8,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera, Tags, ClipboardList, FileText } from 'lucide-react';
+import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera, Tags, ClipboardList, FileText, FileUp } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -52,6 +52,9 @@ import { memberName } from '../services/members';
 import { buildLabel } from '@/lib/platformBuild';
 import { useNarrowViewport } from './useNarrowViewport';
 import LagCheckPanel from './LagCheckPanel';
+import ImportView from './ImportView';
+import { IMPORT_SUBTYPE, DATA_SUBTYPE, mudlogRecords, mudlogSeries, importsOf, withdrawParams, typedRowParams } from '../services/mudlogImport';
+import { newId } from '@/lib/wellsite/ids';
 import { LAG_CHECK_SUBTYPE, currentWashout, lagCheckParams, washoutParams } from '../services/lagCheck';
 
 // record types added by the upgrade that belong with the typed observations (lists, evidence, reports)
@@ -64,6 +67,7 @@ export const VIEWS = [
   { id: 'shows', label: 'Shows', icon: Droplets },
   { id: 'observations', label: 'Observations', icon: Eye },
   { id: 'photos', label: 'Photos', icon: Camera },
+  { id: 'import', label: 'Import', icon: FileUp },
   { id: 'tops', label: 'Tops', icon: Tags },
   { id: 'timeline', label: 'Timeline', icon: ListOrdered },
   { id: 'handover', label: 'Handover', icon: ClipboardList },
@@ -89,6 +93,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const [programmeRecords, setProgrammeRecords] = useState([]);
   const [decisionRecords, setDecisionRecords] = useState([]);
   const [lagChecks, setLagChecks] = useState([]);
+  const [mudlogRecordsState, setMudlogRecordsState] = useState([]);
   const [describeSample, setDescribeSample] = useState(null);
   const [shows, setShows] = useState([]);
   const [observations, setObservations] = useState([]);
@@ -109,8 +114,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   // Suite unit profile: depth starts from the profile; the header selector
   // changes this view for the session only, and the older remembered
   // 'ws.units' choice no longer beats the profile
-  const unitsHook = useAppUnits('wellsite', { depth: { family: 'depth', allowed: DEPTH_UNITS }, volume: { family: 'liquidVolume', allowed: ['bbl', 'm3'] } },
-    { fallback: { volume: 'bbl', ...readUnits(typeof localStorage !== 'undefined' ? localStorage : null) }, legacyKeys: [UNITS_KEY] });
+  const unitsHook = useAppUnits('wellsite', { depth: { family: 'depth', allowed: DEPTH_UNITS }, volume: { family: 'liquidVolume', allowed: ['bbl', 'm3'] }, pressure: { family: 'pressure', allowed: ['psi', 'kPa', 'bar', 'MPa'] } },
+    { fallback: { volume: 'bbl', pressure: 'psi', ...readUnits(typeof localStorage !== 'undefined' ? localStorage : null) }, legacyKeys: [UNITS_KEY] });
   const { units } = unitsHook;
   const [tick, setTick] = useState(0);
   const [user, setUser] = useState(null);
@@ -167,7 +172,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const refreshSeq = useRef(0);
   const refreshWellData = useCallback(async () => {
     const seq = ++refreshSeq.current;
-    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); setDecisionRecords([]); setLagChecks([]); setShows([]); setObservations([]); setPhotos([]); setTops([]); setPrognoses([]); setMembers([]); setNarratives([]); setReports([]); setSignoffs([]); return; }
+    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); setDecisionRecords([]); setLagChecks([]); setMudlogRecordsState([]); setShows([]); setObservations([]); setPhotos([]); setTops([]); setPrognoses([]); setMembers([]); setNarratives([]); setReports([]); setSignoffs([]); return; }
     const [bits, pumps, cfg, descs, evs, smp, stg, prog, shw, obs, pho, tps, prg, mem, nar, rep, sgn] = await Promise.all([
       backend.listRecords(well.id, { subtype: 'bit_depth' }),
       backend.listRecords(well.id, { subtype: 'pump_rate' }),
@@ -203,6 +208,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setProgrammeRecords(prog.filter((r) => r.subtype === PROGRAMME_SUBTYPE));
     setDecisionRecords(prog);
     setLagChecks(currentObservations(obs.filter((r) => r.subtype === LAG_CHECK_SUBTYPE)));
+    setMudlogRecordsState(obs.filter((r) => r.subtype === IMPORT_SUBTYPE || r.subtype === DATA_SUBTYPE));
     setBitDepths(currentObservations(bits));
     setPumpEvents(currentObservations(pumps));
     setDescriptions(currentObservations(descs).sort((a, b) => (a.md_calc_m ?? 0) - (b.md_calc_m ?? 0)));
@@ -269,6 +275,26 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       setTick((t) => t + 1);
     } catch (e) { setStatus(e.message); }
   }, [backend, well]);
+  // U2-003: imported and typed mudlogging data (depth-sorted points for the strip log and the d-exponent)
+  const mudlog = useMemo(() => mudlogSeries(mudlogRecordsState), [mudlogRecordsState]);
+  const mudlogImports = useMemo(() => importsOf(mudlogRecordsState).current, [mudlogRecordsState]);
+  const importMudlog = useCallback(async ({ conv, table, mapping, fileName, lag: lagRows }) => {
+    const { header, chunks } = mudlogRecords(conv, { importId: newId(), fileName, table, mapping });
+    const extra = lagRows ? [...lagRows.bitDepths, ...lagRows.pumpRates] : [];
+    await backend.addRecords(well.id, [header, ...chunks, ...extra]);
+    setStatus(`${fileName}: ${conv.rows.length} row(s) imported${conv.skipped.length ? `, ${conv.skipped.length} not read` : ''}${lagRows ? `; ${lagRows.bitDepths.length} bit depth(s) and ${lagRows.pumpRates.length} pump rate change(s) recorded for the lag` : ''}.`);
+    setTick((t) => t + 1);
+  }, [backend, well]);
+  const withdrawImport = useCallback(async (header, { reason, person }) => {
+    await backend.correctObservation(header, withdrawParams(header, { reason, person }));
+    setStatus(`Import ${header.payload.file_name} withdrawn; its rows are no longer used.`);
+    setTick((t) => t + 1);
+  }, [backend]);
+  const recordTypedRow = useCallback(async ({ depthEntry, values }) => {
+    const { row } = await backend.addRecord(well.id, typedRowParams({ depthEntry, values }));
+    setStatus(`Drilling parameters recorded at ${fmtDepth(row.md_calc_m, units.depth)}.`);
+    setTick((t) => t + 1);
+  }, [backend, well, units.depth]);
   const recordLagCheck = useCallback(async (result, { tracer }) => {
     const bit = bitDepths[bitDepths.length - 1] || null;
     const { row } = await backend.addRecord(well.id, lagCheckParams({ result, tracer, bit }));
@@ -370,7 +396,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const keepOffline = useCallback(async () => {
     try {
       // fetch this app's lazy chunks so the service worker holds them; the shell itself is precached
-      await Promise.all([import('../WellsiteStudio'), import('./ConfigView'), import('./DescribeView'), import('./SamplesView'), import('./TopsView'), import('./TimelineView'), import('./ShowsView'), import('./ObservationsView'), import('./PhotosPanel')]);
+      await Promise.all([import('../WellsiteStudio'), import('./ConfigView'), import('./DescribeView'), import('./SamplesView'), import('./TopsView'), import('./TimelineView'), import('./ShowsView'), import('./ObservationsView'), import('./PhotosPanel'), import('./ImportView')]);
       const persisted = await persistStorage();
       setOfflineReady(true);
       setStatus(persisted ? 'This app is cached for use without a connection and its storage is protected.' : 'This app is cached for use without a connection.');
@@ -480,6 +506,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     center = <ObservationsView backend={backend} well={well} ctx={ctx} observations={observations} latestBit={latestBit} lag={lag} defaults={entryDefaults} unit={units.depth} offsetMin={offsetMin} tourCfg={tourConfigOf(well)} nowMs={nowForLag} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   } else if (view === 'photos') {
     center = <PhotosPanel backend={backend} well={well} photos={photos} samples={samples} sampleId={photoSampleId} onSampleChange={setPhotoSampleId} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+  } else if (view === 'import') {
+    center = <ImportView ctx={ctx} defaults={entryDefaults} unit={units.depth} pressureUnit={units.pressure} offsetMin={offsetMin} imports={mudlogImports} series={mudlog} onImport={importMudlog} onWithdraw={withdrawImport} onTypedRow={recordTypedRow} onStatus={setStatus} userName={user ? user.name || user.email : ''} />;
   } else if (view === 'tops') {
     center = <TopsView board={topsBoard} tops={tops} records={allObservationRecords} prognosis={prognosis} ctx={ctx} defaults={entryDefaults} unit={units.depth} offsetMin={offsetMin}
       approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} geoWellId={well.geo_well_id} loadRegistryWells={loadRegistryWells} onAddPrognosisTop={addPrognosisTop} onPublish={publishToRegistry} onStatus={setStatus} userName={user ? user.name || user.email : ''} nameOf={nameOf} photos={photos} />;
