@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useBasinFlow } from './BasinFlowContext';
+import { useMultiWell } from './MultiWellContext';
 import { BasinTemplates } from '../data/BasinTemplates';
 import { StepValidator } from '../services/StepValidator';
 import { WizardDataConverter } from '../services/WizardDataConverter';
@@ -9,6 +10,7 @@ const GuidedModeContext = createContext(null);
 
 export const GuidedModeProvider = ({ children }) => {
     const { dispatch, runSimulation: engineRunSimulation } = useBasinFlow();
+    const { addWell, setActiveWell } = useMultiWell();
     
     const [currentStep, setCurrentStep] = useState(1);
     const totalSteps = 6;
@@ -150,17 +152,32 @@ export const GuidedModeProvider = ({ children }) => {
         // 2. Update Global Context
         // BF0: erosion events and the settings were dropped here, so the
         // wizard's Erosion step never reached the engine
-        dispatch({ type: 'LOAD_PROJECT', payload: {
-            name: `Guided Run - ${new Date().toLocaleTimeString()}`,
+        // BF-U1-007: the guided model is saved as a NEW model and made active.
+        // Before, it replaced whichever model was active (a model sent from
+        // Stratigraphy included), or was lost when Expert mode opened the
+        // first saved model under the guided result.
+        const name = `Guided run ${new Date().toLocaleString()}`;
+        const newId = await addWell({
+            name, status: 'in-progress', quiet: true,
             stratigraphy: simulationInput.stratigraphy,
             heatFlow: simulationInput.heatFlow,
             erosionEvents: simulationInput.erosionEvents,
             settings: simulationInput.settings,
+        });
+        if (newId) setActiveWell(newId);
+        dispatch({ type: 'LOAD_PROJECT', payload: {
+            name,
+            stratigraphy: simulationInput.stratigraphy,
+            heatFlow: simulationInput.heatFlow,
+            erosionEvents: simulationInput.erosionEvents,
+            settings: simulationInput.settings,
+            calibration: { ro: [], temp: [] },
+            scenarios: [],
         }});
         
         // 3. Run
         try {
-            await engineRunSimulation();
+            await engineRunSimulation({ ...simulationInput, wellId: newId || null });
             // Signal completion to parent
             window.dispatchEvent(new CustomEvent('GUIDED_MODE_COMPLETE'));
         } catch (e) {

@@ -7,37 +7,71 @@
 import { parseDelimitedText } from '@/lib/tabularFile';
 
 const norm = (s) => String(s || '').trim().toLowerCase().replace(/[^a-z0-9%]/g, '');
+// BF-U1-010: header cells are read as words. Matching by prefix read a TVD
+// or TOC column as temperature (both start with "t") and ignored the unit
+// in "Depth (ft)" or "BHT (degF)", so Fahrenheit was taken as Celsius.
+const tokens = (s) => String(s || '').toLowerCase().replace(/°/g, ' deg').split(/[^a-z0-9%]+/).filter(Boolean);
 const findCol = (header, names) => {
   if (!header) return -1;
-  const h = header.map(norm);
   for (const n of names) {
-    const i = h.findIndex((c) => c === n || c.startsWith(n));
+    const i = header.findIndex((c) => { const t = tokens(c); return t[0] === n || norm(c) === n; });
     if (i >= 0) return i;
   }
   return -1;
 };
+const DEPTH_FT = ['ft', 'feet', 'foot'];
+const DEPTH_M = ['m', 'metre', 'meter', 'metres', 'meters'];
+const TEMP_F = ['f', 'degf', 'fahrenheit', 'degreesf'];
+const TEMP_C = ['c', 'degc', 'celsius', 'degreesc'];
+/** The unit a header cell states, or null. */
+export function headerUnit(cell, kind) {
+  const t = tokens(cell).slice(1);
+  const j = norm(cell);
+  if (kind === 'depth') {
+    if (t.some((x) => DEPTH_FT.includes(x)) || /(ft|feet)$/.test(j)) return 'ft';
+    if (t.some((x) => DEPTH_M.includes(x)) || /m$/.test(j.replace(/^(md|tvd|tvdss|depth|z)$/, ''))) return 'm';
+    return null;
+  }
+  if (tokens(cell)[0] === 'tf') return 'F';
+  if (tokens(cell)[0] === 'tc') return 'C';
+  if (t.some((x) => TEMP_F.includes(x)) || /(degf|fahrenheit)$/.test(j)) return 'F';
+  if (t.some((x) => TEMP_C.includes(x)) || /(degc|celsius)$/.test(j)) return 'C';
+  return null;
+}
 const num = (s) => { const v = parseFloat(String(s).replace(',', '.')); return Number.isFinite(v) ? v : NaN; };
 
+const DEPTH_NAMES = ['tvd', 'depth', 'tvdkb', 'md', 'dept', 'z'];
+const RO_NAMES = ['ro', '%ro', 'ro%', 'vro', 'vr', 'vitrinite', 'reflectance', 'maturity', 'r0'];
+const TEMP_NAMES = ['temp', 'temperature', 'bht', 't', 'tc', 'tf', 'dst', 'formationtemperature'];
+
 /**
- * Calibration text -> { ro: [{depth, value}], temp: [{depth, value}], problems: string[] }.
- * Depth in metres (the caller converts display units before this if it
- * ever accepts them); Ro in % (a value above 10 is taken as a mistake),
- * temperature in degrees C.
+ * Calibration text -> { ro, temp, problems, units, columns }.
+ * Values are returned in the FILE's units: `units.depth` ('m' | 'ft' | null)
+ * and `units.temp` ('C' | 'F' | null) are what the header states, null when
+ * it says nothing (the caller then uses the unit the user picked, and C).
+ * Ro in % (a value above 10 is taken as a mistake). A TVD column is
+ * preferred to an MD one (a 1D basin model is vertical) and that is said.
  */
 export function parseCalibrationText(text) {
   const { header, rows } = parseDelimitedText(text);
   const problems = [];
-  const iDepth = findCol(header, ['depth', 'md', 'tvd', 'z']);
-  const iRo = findCol(header, ['ro', '%ro', 'vr', 'vitrinite', 'reflectance', 'maturity']);
-  const iT = findCol(header, ['temp', 'bht', 'tc', 't', 'temperature']);
+  const iDepth = findCol(header, DEPTH_NAMES);
+  const iRo = findCol(header, RO_NAMES);
+  const iT = findCol(header, TEMP_NAMES.filter(Boolean));
   if (!header) problems.push('No header row found; expected columns such as depth, Ro, temperature.');
-  else if (iDepth < 0) problems.push('No depth column found (depth, MD, TVD or z).');
+  else if (iDepth < 0) problems.push('No depth column found (depth, TVD, MD or z).');
   else if (iRo < 0 && iT < 0) problems.push('No Ro or temperature column found.');
+  const units = { depth: iDepth >= 0 ? headerUnit(header[iDepth], 'depth') : null, temp: iT >= 0 ? headerUnit(header[iT], 'temp') : null };
+  const columns = { depth: iDepth >= 0 ? header[iDepth] : null, ro: iRo >= 0 ? header[iRo] : null, temp: iT >= 0 ? header[iT] : null };
+  if (header && iDepth >= 0 && findCol(header, ['md']) >= 0 && findCol(header, ['tvd', 'tvdkb']) === iDepth) problems.push(`Depth read from "${header[iDepth]}" (vertical); the MD column is not used.`);
+  if (header && iDepth >= 0 && /tvdss|ss$/.test(norm(header[iDepth]))) problems.push(`"${header[iDepth]}" is below sea level; the model's depths are below its surface, so add the surface elevation or water depth if they differ.`);
+  const tMax = units.temp === 'F' ? 750 : 400; const tMin = units.temp === 'F' ? 14 : -10;
   const ro = []; const temp = [];
   if (header && iDepth >= 0 && (iRo >= 0 || iT >= 0)) {
     rows.forEach((r, k) => {
       const depth = num(r[iDepth]);
       if (!Number.isFinite(depth)) { problems.push(`Row ${k + 2}: depth "${r[iDepth]}" is not a number.`); return; }
+      if (depth < 0) { problems.push(`Row ${k + 2}: depth ${depth} is negative (an elevation?); depths are positive downward.`); return; }
       let any = false;
       if (iRo >= 0 && String(r[iRo] ?? '').trim() !== '') {
         const v = num(r[iRo]);
@@ -46,14 +80,14 @@ export function parseCalibrationText(text) {
       }
       if (iT >= 0 && String(r[iT] ?? '').trim() !== '') {
         const v = num(r[iT]);
-        if (!Number.isFinite(v) || v < -10 || v > 400) problems.push(`Row ${k + 2}: temperature "${r[iT]}" is not in degrees C.`);
+        if (!Number.isFinite(v) || v < tMin || v > tMax) problems.push(`Row ${k + 2}: temperature "${r[iT]}" is not in degrees ${units.temp || 'C'}.`);
         else { temp.push({ depth, value: v }); any = true; }
       }
       if (!any) problems.push(`Row ${k + 2}: no Ro or temperature value.`);
     });
   }
   ro.sort((a, b) => a.depth - b.depth); temp.sort((a, b) => a.depth - b.depth);
-  return { ro, temp, problems };
+  return { ro, temp, problems, units, columns };
 }
 
 /** Tops text -> { tops: [{name, depth}], problems } sorted by depth. */

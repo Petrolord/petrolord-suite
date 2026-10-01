@@ -34,6 +34,9 @@ import {
   defaultSpec, parseSpec, evaluate, fitFinal, predictWith, importance, learning, leakage, leakageVerdict, slimFit, slimScaler,
 } from '@/utils/dataAi/mlWorkflows';
 import { buildPredictedLog, mlProvenance, suggestMnemonic, mnemonicProblem } from '@/utils/dataAi/mlWriteBack';
+// the vendored engine pin (VENDOR.json): these labels move with every re-pin
+const VENDOR_PIN = require('../../../../packages/engines/VENDOR.json').canonical.commit;
+
 
 const FIX = path.join(__dirname, 'fixtures', 'ml');
 
@@ -320,7 +323,7 @@ describe('(a) the predicted curve goes to a well as a new curve with its provena
     expect(p).toMatchObject({
       computed: true, engine: 'ml-workbench', method: 'ols', standardised: true, target: 'RHOB',
       features: ['GR', 'DT', 'log10(RT)'], training_wells: TRAIN.map((n) => `Ekene-${n}`), training_rows: 2624,
-      predicted_well: 'Ekene-9', engine_commit: '1e5d394443631c54ef207ae0b8114764b3d42c42',
+      predicted_well: 'Ekene-9', engine_commit: VENDOR_PIN,
     });
     expect(p.validation.pooled_r2).toBe(evaluation.pooled.r2);
     expect(p.validation.scheme).toBe('group k-fold, k = 5');

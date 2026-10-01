@@ -20,9 +20,14 @@ export class BatchEngine {
 
                 // Prepare input (similar to standard run)
                 // Assuming well object structure matches context state
+                // BF-U1-008: the erosion events and the surface temperature are
+                // inputs too; without them a batch Ro differed from the same
+                // model's single run with nothing said
                 const simInput = {
                     stratigraphy: well.stratigraphy,
-                    heatFlow: well.heatFlow || well.heat_flow || { type: 'constant', value: 60 }
+                    heatFlow: well.heatFlow || well.heat_flow || { type: 'constant', value: 60 },
+                    erosionEvents: well.erosionEvents || well.erosion_events || [],
+                    settings: well.settings || {},
                 };
 
                 if (onProgress) onProgress(completed, wells.length, well.name);

@@ -11,10 +11,10 @@ import GenerationExpulsionPlot from './plots/GenerationExpulsionPlot';
 import ChargeTimingPlot from './plots/ChargeTimingPlot';
 import { withLayerRoles } from '../services/resultsView';
 import ResultsSummaryTab from './ResultsSummaryTab';
+import RunNotes from './common/RunNotes';
 import { useBasinFlow } from '../contexts/BasinFlowContext';
 import { ExportEngine } from '../services/ExportEngine';
 import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 
 const ResultsPanel = () => {
     const { state, units } = useBasinFlow();
@@ -28,7 +28,7 @@ const ResultsPanel = () => {
 
     const handleDownloadImage = async (type = 'png') => {
         if (!printRef.current) return;
-        const canvas = await html2canvas(printRef.current, { backgroundColor: '#0f172a' });
+        const canvas = await html2canvas(printRef.current, { backgroundColor: '#ffffff' });
         const image = canvas.toDataURL(`image/${type}`);
         const link = document.createElement('a');
         link.href = image;
@@ -63,6 +63,7 @@ const ResultsPanel = () => {
                 </div>
             </div>
 
+            <div className="px-3 pt-2 bg-pl-surface shrink-0"><RunNotes /></div>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden w-full">
                 <div className="px-4 pt-2 bg-pl-surface shrink-0 overflow-x-auto no-scrollbar">
                     <TabsList className="w-full justify-start h-9 bg-transparent border-b border-pl-border rounded-none p-0 gap-4 min-w-max">

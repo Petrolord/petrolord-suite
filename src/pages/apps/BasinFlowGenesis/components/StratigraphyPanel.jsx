@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { NumText } from '@/components/wells/LayoutPanel';
+import LayerDetails from './expert/LayerDetails';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +12,10 @@ import { useBasinFlow } from '../contexts/BasinFlowContext';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
 import { depthToDisplay, depthFromDisplay, tidy, fmtDepth } from '../services/units';
 
+const numCls = 'h-7 w-full rounded-md border border-pl-border-strong bg-pl-surface px-2 text-xs text-pl-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus';
+
 const LayerCard = ({ layer, index, dispatch, readOnly = false, depthUnit = 'm' }) => {
+    const [open, setOpen] = useState(false);
     if (!layer) return null;
 
     return (
@@ -59,35 +64,22 @@ const LayerCard = ({ layer, index, dispatch, readOnly = false, depthUnit = 'm' }
                                     <div className="grid grid-cols-3 gap-2 text-xs">
                                         <div>
                                             <Label className="text-[10px] text-pl-muted">Start Age (Ma)</Label>
-                                            <Input 
-                                                type="number" 
-                                                value={layer.ageStart || 0} 
-                                                onChange={(e) => dispatch({ type: 'UPDATE_LAYER', id: layer.id, payload: { ageStart: parseFloat(e.target.value), agesGuessed: false } })}
-                                                className="h-7 text-xs"
-                                                readOnly={readOnly}
-                                            />
+                                            <NumText className={numCls} value={layer.ageStart} data-testid="bf-layer-age-start"
+                                                onCommit={(v) => dispatch({ type: 'UPDATE_LAYER', id: layer.id, payload: { ageStart: v, agesGuessed: false } })}
+                                                readOnly={readOnly} />
                                         </div>
                                         <div>
                                             <Label className="text-[10px] text-pl-muted">End Age (Ma)</Label>
-                                            <Input 
-                                                type="number" 
-                                                value={layer.ageEnd || 0} 
-                                                onChange={(e) => dispatch({ type: 'UPDATE_LAYER', id: layer.id, payload: { ageEnd: parseFloat(e.target.value), agesGuessed: false } })}
-                                                className="h-7 text-xs"
-                                                readOnly={readOnly}
-                                            />
+                                            <NumText className={numCls} value={layer.ageEnd} data-testid="bf-layer-age-end"
+                                                onCommit={(v) => dispatch({ type: 'UPDATE_LAYER', id: layer.id, payload: { ageEnd: v, agesGuessed: false } })}
+                                                readOnly={readOnly} />
                                         </div>
                                          <div>
                                             <Label className="text-[10px] text-pl-muted">Thick ({depthUnit})</Label>
-                                            <Input 
-                                                type="number" 
-                                                step="any"
-                                                data-testid="bf-layer-thickness"
-                                                value={tidy(depthToDisplay(layer.thickness || 0, depthUnit))} 
-                                                onChange={(e) => dispatch({ type: 'UPDATE_LAYER', id: layer.id, payload: { thickness: depthFromDisplay(parseFloat(e.target.value), depthUnit) } })}
-                                                className="h-7 text-xs"
-                                                readOnly={readOnly}
-                                            />
+                                            <NumText className={numCls} data-testid="bf-layer-thickness"
+                                                value={tidy(depthToDisplay(Number(layer.thickness), depthUnit))}
+                                                onCommit={(v) => dispatch({ type: 'UPDATE_LAYER', id: layer.id, payload: { thickness: depthFromDisplay(v, depthUnit) } })}
+                                                readOnly={readOnly} />
                                         </div>
                                     </div>
 
@@ -117,11 +109,16 @@ const LayerCard = ({ layer, index, dispatch, readOnly = false, depthUnit = 'm' }
                                     {layer.agesGuessed && (
                                         <div className="text-[11px] text-pl-warning-text" data-testid="bf-layer-ages-guessed">Ages are placeholders from the tops import. Type the deposition ages.</div>
                                     )}
+                                    <button type="button" className="text-[11px] text-pl-primary-text hover:underline" data-testid="bf-layer-details-toggle"
+                                        onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+                                        {open ? 'Hide layer details' : 'Source rock and properties'}
+                                    </button>
+                                    {open && <LayerDetails layer={layer} dispatch={dispatch} readOnly={readOnly} />}
                                     {/* Safety Check for sourceRock object using optional chaining */}
                                     {layer.sourceRock?.isSource && (
                                          <div className="flex items-center gap-2 p-2 bg-pl-success-bg rounded border border-pl-success/40">
                                             <div className="w-2 h-2 rounded-full bg-pl-success" />
-                                            <span className="text-xs text-pl-success-text">Active Source Rock (TOC: {layer.sourceRock.toc || 0}%)</span>
+                                            <span className="text-xs text-pl-success-text" data-testid="bf-layer-source-badge">Source rock: TOC {layer.sourceRock.toc ?? 0} wt %, HI {layer.sourceRock.hi ?? 0}</span>
                                          </div>
                                     )}
                                 </div>
