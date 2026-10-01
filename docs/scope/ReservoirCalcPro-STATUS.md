@@ -3,6 +3,32 @@
 App: `src/pages/apps/ReservoirCalcPro/` (Geoscience module). Contact-based
 volumetrics flagship; deterministic + Monte Carlo STOIIP/GIIP.
 
+## 2026-10-01: App upgrade U1 (practitioner lens)
+
+Doc: docs/upgrade/ReservoirCalcPro-UPGRADE.md (branch feat/rcp-u1). 39
+findings, 31 fixed (4 S1, 11 S2, 14 S3, 2 S4), no S1/S2 open.
+
+- S1: Monte Carlo GIIP units 1000x in four views (one divisor and label
+  per stream, `services/volumeDisplay.js`); registry surfaces on a feet
+  frame 10.8x and TWT/attribute rows accepted (`services/surfaceDoor.js`
+  through `readDepthSurface`); Prospect Risking received in-place STOIIP
+  that Risked Reserves Valuation valued as recoverable (MC now reports
+  recoverable oil, gas and boe; prospects carry unit and basis); Risked
+  Reserves Valuation scaled Pg by the volume unit.
+- S2: expectation curve now probability of exceeding; GOC below OWC stops
+  at the OWC; distributions recentre with their shape and follow the input
+  method; runs carry their unit system; separate depth unit on import;
+  Petrel/Kingdom grids through Mapping's file door; open closures said;
+  saved MC runs thinned (25 MB to under 2 MB at 50k); portfolio in MMboe;
+  oil with a gas cap handed over in MMboe.
+- Also: NTG, gas-cap fraction and recovery factors as distributions; CGR
+  and condensate in place; volumetric zone averages and PHIT flag; every
+  boundary polygon an AOI; reviewer block in both PDFs (pdftotext tested);
+  gridding stamped; grid reuse (kriging no longer re-runs per keystroke);
+  `rcp_prospects` in `.pld`; saved fixtures per release (`?saved=1`).
+- Open, Step 2: MC worker, correlation editor, solution gas, registry
+  lattice sampling, area/depth table, segments. Batches A/B/C in the doc.
+
 ## 2026-09-28: Design system rollout W1B
 
 The app is on the Petrolord design system (docs/scope/DesignSystem-Rollout.md,
