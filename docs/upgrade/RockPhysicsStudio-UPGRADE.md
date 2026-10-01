@@ -86,7 +86,7 @@ Severity: S1 wrong answer with no warning; S2 wrong or lost data, or a door that
 
 Totals: 20 findings. Fixed 17 (1 S1, 6 S2, 8 S3, 2 S4); open 3 (S3, all to Step 2). No S1 or S2 open.
 
-Cross-app changes in this PR (same door): `src/components/wells/curveUnits.js` DT range and per-foot-spelling rules (Petrophysics gains them; its input-units test stays green); Seismolord `SyntheticsPanel.jsx` (substituted curves, unit door) and its harness; `src/lib/portability/geoscienceSpec.js` rp_projects refs.
+Cross-app changes in this PR (same door): `src/components/wells/curveUnits.js` DT range (median below 140 us/m) and per-foot-spelling rules (Petrophysics gains them; Pore Pressure U1 (#838) keeps its own 160 us/m overburden rule for what the shared door leaves unknown, and its hostile test now accepts the shared sentence); Seismolord `SyntheticsPanel.jsx` (substituted curves, unit door) and its harness; `src/lib/portability/geoscienceSpec.js` rp_projects refs.
 
 ### Persona walks (PL8)
 

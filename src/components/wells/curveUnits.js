@@ -108,8 +108,8 @@ export function normalizeInputCurve(key, log, data, { unitOverride = null } = {}
       } else if (med > 0 && med < DT_PER_FOOT_BELOW) {
         apply(1 / 0.3048, 'US/FT', 'range', `${name} ${u ? `unit "${u}" is not in the unit table` : 'has no unit'} and its values sit near ${med.toFixed(0)}, which as us/m would be faster than any sedimentary rock: read as us/ft and converted to us/m. Set the unit to silence this.`);
       } else {
-        Object.assign(decision, { reason: 'unknown' });
-        notes.push(`${name} ${u ? `unit "${u}" is not in the unit table` : 'has no unit'}: read as us/m (values near ${Number.isFinite(med) ? med.toFixed(0) : 'n/a'}).`);
+        // left to the caller: Pore Pressure applies its own overburden rule here
+        Object.assign(decision, { reason: 'unknown', median: med });
       }
     }
   }

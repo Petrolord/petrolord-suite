@@ -67,6 +67,11 @@ const slownessUsPerM = (values) => Array.from(values, (dt) => (isGap(dt) || !(dt
 function sonicToVelocity(values, log, notes) {
   const r = normalizeInputCurve('DT', log || { mnemonic: 'DT' }, values);
   notes.push(...r.notes);
+  if (r.decision?.reason === 'unknown') {
+    const u = String(log?.unit || '').trim();
+    const med = r.decision.median;
+    notes.push(`${log?.mnemonic || 'DT'} ${u ? `unit "${u}" is not in the unit table` : 'has no unit'}: read as us/m (values near ${Number.isFinite(med) ? med.toFixed(0) : 'n/a'}).`);
+  }
   return { vp: slownessUsPerM(r.data), decision: r.decision };
 }
 
