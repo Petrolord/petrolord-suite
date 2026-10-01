@@ -111,10 +111,10 @@ The new jest suites copied onto a clean origin/main worktree (`/root/wt-upg-bf-n
 | Suite | On origin/main |
 |---|---|
 | engines `basin.test.js` A13 (engine reverted) | 2 of 2 fail |
-| `upgradeU1.test.js` | NEGCTL_SERVICES |
-| `upgradeU1Ui.test.jsx` | NEGCTL_UI |
+| `upgradeU1.test.js` (with the new pure `honesty.js` copied in) | does not load: the doors it calls (`pointLiteral`, `mergeBasinUpdate`, the KETA-2 fixture) do not exist; the engine probe (001), the live point cast (004) and the KETA-1 registry build (009) are the numeric controls |
+| `upgradeU1Ui.test.jsx` 002/003, 007/019, 006 | 3 of 3 fail (scenarios not loaded; a stray default model and the guided run on the active model; no layer details) |
 | `upgradeU1Report.test.js` | does not load (no `services/report.js`) |
-| `bfModelFamily.test.js` | NEGCTL_PLD |
+| `bfModelFamily.test.js` | 2 of 2 fail (no `bf_model` root) |
 
 ### The Stratigraphy chain (PL9)
 
