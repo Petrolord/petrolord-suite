@@ -188,6 +188,12 @@ export default function BuilderDock({
               <input className={inCls} value={f.bo ?? ''} placeholder="Bo rb/stb" data-testid={`em-bo-${i}`} onChange={(e) => setF('bo', e.target.value)} />
               <input className={inCls} value={f.bg ?? ''} placeholder={`Bg ${bgUnit === 'm3/m3' ? 'rm3/sm3' : bgUnit}`} data-testid={`em-bg-${i}`} onChange={(e) => setF('bg', e.target.value)} />
               {read && <span className="col-span-4 text-[10px] text-pl-muted" data-testid={`em-fluids-read-${i}`}>{read}</span>}
+              <label className="col-span-4 flex items-center gap-1 text-[10px] text-pl-muted"
+                title="Mapping's closure and spill engine on the zone top: a contact below the spill point fills the trap only to the spill, and nodes above the contact outside the trap hold no hydrocarbon">
+                <input type="checkbox" data-testid={`em-trap-${i}`} checked={f.trap === 'closure'}
+                  onChange={(e) => { const next = [...(definition.fluidsInput || [])]; next[i] = { ...f, trap: e.target.checked ? 'closure' : undefined }; patch({ fluidsInput: next }); }} />
+                bound the leg by the closure and spill
+              </label>
               {(definition.faultPolygons || []).length > 0 && (
                 <details className="col-span-4" data-testid={`em-block-contacts-${i}`} open={Object.keys(f.blocks || {}).length > 0}>
                   <summary className="cursor-pointer text-[10px] text-pl-primary-text" title="A fault block can hold its own GOC and OWC (a fault that seals). Blank = the zone contact.">Contacts per fault block</summary>

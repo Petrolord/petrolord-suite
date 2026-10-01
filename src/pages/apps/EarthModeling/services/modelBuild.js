@@ -20,6 +20,7 @@ import { NULL_VALUE } from '@/lib/gridding/numeric';
 import { readDepthSurface } from '@/lib/readDepthSurface';
 import { convert } from '@/lib/units/registry';
 import { isPrePt9aZone } from '@/lib/petroProvenance';
+import { boundLegByClosure } from './trapBound';
 
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
@@ -146,6 +147,8 @@ export function parseFluidsInput(inputs = []) {
       blocks[lab] = { goc: bg, owc: bw };
     }
     if (Object.keys(blocks).length) out.blocks = blocks;
+    // U2-006: bound the leg by the closure and spill of the zone top
+    if (f.trap === 'closure') out.trap = 'closure';
     if (out.bg !== null && out.bo === null && out.goc === null && !Object.values(blocks).some((b) => b.goc !== null)) {
       out.gasZone = true;
       notes.push(`Zone ${i + 1}: Bg with no Bo and no GOC, so the zone is gas from its top down to ${out.owc === null ? 'its base' : 'the contact'}.`);
@@ -593,6 +596,18 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     const fluids = parsedFluids[i] || null;
     const nNodes = specM.nx * specM.ny;
     const eng = engineFluids(fluids, labels, nNodes);
+    const topI = framework.clamped[i];
+    // U2-006: the leg bounded by Mapping's closure and spill engine
+    let trap = null;
+    if (fluids?.trap === 'closure') {
+      const owcGrid = contactGrid(fluids, 'owc', labels, nNodes);
+      if (owcGrid) {
+        trap = boundLegByClosure(specM, topI, owcGrid);
+        eng.owc = trap.owc;
+        if (fluids.gasZone) eng.goc = Float64Array.from(trap.owc, (v) => (Number.isFinite(v) ? v : 1e12));
+        trap.traps = trap.traps.map((t) => ({ ...t, spillXY: t.spillXY ? { x: t.spillXY.x / k, y: t.spillXY.y / k } : null }));
+      }
+    }
     const top = framework.clamped[i];
     const base = framework.clamped[i + 1];
     const volumes = hasFluids(fluids)
@@ -600,7 +615,12 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       : zoneVolumes(specM, zThickness, labels, props);
     const zone = { name: zdef.name, registryZone: zdef.registryZone, thickness: zThickness, props, variance, provenance, volumes, fluids };
     zone.range = volumeRange(specM, zone, labels, eng, top, base);
-    zone.openEdge = contactEdgeReport(specM, top, fluids, labels);
+    if (trap) {
+      zone.trap = { traps: trap.traps, cutNodes: trap.cutNodes, openEdge: trap.openEdge };
+      zone.openEdge = trap.openEdge ? { open: true, nodes: 0, spillAtEdge: true } : { open: false, nodes: 0 };
+    } else {
+      zone.openEdge = contactEdgeReport(specM, top, fluids, labels);
+    }
     progress(`${zdef.name}: volumes`);
     return zone;
   });

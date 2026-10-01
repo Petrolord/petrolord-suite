@@ -5,6 +5,7 @@
 // (SI internal); contacts and FVF per zone since T1.
 
 import React from 'react';
+import { describeTraps } from '../services/trapBound';
 import { fmtVolume, volumeUnitLabel, fmtDepth } from '../services/units';
 import { describeProvenance } from '../services/propertyKriging';
 import { hasFluids } from '../services/modelBuild';
@@ -141,9 +142,14 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
               No OWC given: the whole zone counts as hydrocarbon. Enter the contacts in the dock for a true HCPV.
             </div>
           )}
-          {zone.openEdge?.open && (
+          {zone.openEdge?.open && !zone.openEdge.spillAtEdge && (
             <div className="px-2 py-1 text-[11px] text-pl-warning-text border-b border-pl-border" data-testid={`em-openedge-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
               The hydrocarbon leg reaches the model edge at {zone.openEdge.nodes} node{zone.openEdge.nodes === 1 ? '' : 's'}: the accumulation is not closed inside the frame, so these volumes depend on where the frame or boundary stops. Tick bound the leg by the closure and spill in the dock, or check the spill point in Mapping &amp; Surface Studio.
+            </div>
+          )}
+          {zone.trap && (
+            <div className={`px-2 py-1 text-[11px] border-b border-pl-border ${zone.trap.openEdge ? 'text-pl-warning-text' : 'text-pl-muted'}`} data-testid={`em-trap-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
+              Leg bounded by the closure and spill: {describeTraps(zone.trap, (m) => `${fmtDepth(m, u, 1)} ${u}`)}.
             </div>
           )}
           {zone.fluids?.gasZone && (

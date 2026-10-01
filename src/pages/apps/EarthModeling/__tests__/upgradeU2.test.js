@@ -147,3 +147,93 @@ describe('U2-005: contacts per fault block', () => {
   });
 });
 
+describe('U2-006: the leg bounded by the closure and spill (Mapping\'s closure engine)', () => {
+  // A cone (depth 1800 + 0.1 r) whose flank meets a monocline shallowing to
+  // the east (depth 2000 - 0.05 x): the surface is the shallower of the two.
+  // Along the +x axis the cone reaches 1933.3 m where the monocline takes
+  // over and rises to 1850 m at the east edge, so the dome spills through a
+  // saddle at 1933.3 m (x = 1333 m). An OWC at 2000 m is below the spill.
+  const S = { x0: -3000, y0: -3000, dx: 20, dy: 20, nx: 301, ny: 301 };
+  const topAt = (x, y) => Math.min(1800 + 0.1 * Math.hypot(x, y), 2000 - 0.05 * x);
+  const topGrid = () => {
+    const g = new Float64Array(S.nx * S.ny);
+    for (let r = 0; r < S.ny; r++) for (let c = 0; c < S.nx; c++) g[r * S.nx + c] = topAt(S.x0 + c * S.dx, S.y0 + r * S.dy);
+    return g;
+  };
+
+  test('an OWC below the spill fills the trap to the spill only (analytic cone volume)', async () => {
+    const { boundLegByClosure } = await import('../services/trapBound');
+    const { zoneVolumesWithContacts } = await import('../engine/volumes');
+    const top = topGrid();
+    const base = Float64Array.from(top, (v) => v + 400);
+    const owc = new Float64Array(top.length).fill(2000);
+    const r = boundLegByClosure(S, top, owc);
+    expect(r.traps).toHaveLength(1);
+    const t = r.traps[0];
+    expect(t.closed).toBe(false);
+    expect(t.limitedByEdge).toBe(false);
+    expect(t.spillM).toBeGreaterThan(1925);
+    expect(t.spillM).toBeLessThan(1935);
+    expect(Math.abs(t.spillXY.x - 1333)).toBeLessThan(60);
+    const bounded = zoneVolumesWithContacts(S, top, base, null, {}, { owc: r.owc }).total;
+    // the cone above the spill: V = pi r^2 h / 3 with h = spill - 1800, r = h / 0.1
+    const h = t.spillM - 1800;
+    const cone = Math.PI * (h / 0.1) ** 2 * h / 3;
+    expect(Math.abs(bounded.oil_bulk_m3 / cone - 1)).toBeLessThan(0.02);
+    // negative control: the plain contact books the flank to the east edge, several times larger
+    const plain = zoneVolumesWithContacts(S, top, base, null, {}, { owc: 2000 }).total;
+    expect(plain.oil_bulk_m3 / bounded.oil_bulk_m3).toBeGreaterThan(3);
+    expect(r.cutNodes).toBeGreaterThan(0);
+  });
+
+  test('an OWC above the spill keeps the contact (closed trap)', async () => {
+    const { boundLegByClosure } = await import('../services/trapBound');
+    const top = topGrid();
+    const owc = new Float64Array(top.length).fill(1900);
+    const r = boundLegByClosure(S, top, owc);
+    const dome = r.traps.find((t) => t.crestM === 1800);
+    expect(dome.closed).toBe(true);
+    // every node within 900 m of the crest (inside the 1890 m contour) keeps 1900 m
+    for (let row = 0; row < S.ny; row++) {
+      for (let c = 0; c < S.nx; c++) {
+        const x = S.x0 + c * S.dx; const y = S.y0 + row * S.dy;
+        if (Math.hypot(x, y) < 880) expect(r.owc[row * S.nx + c]).toBe(1900);
+      }
+    }
+    // the monocline rises above 1900 m only at the east edge: that is no trap, it is cut and said
+    const edge = r.traps.find((t) => t.crestM < 1900 && t.crestM > 1800);
+    expect(edge.limitedByEdge).toBe(true);
+  });
+
+  test('a cone cut by the frame spills at the edge and is flagged open', async () => {
+    const { boundLegByClosure } = await import('../services/trapBound');
+    const small = { x0: -1000, y0: -1000, dx: 20, dy: 20, nx: 101, ny: 101 };
+    const top = new Float64Array(small.nx * small.ny);
+    for (let r = 0; r < small.ny; r++) for (let c = 0; c < small.nx; c++) top[r * small.nx + c] = 1800 + 0.1 * Math.hypot(small.x0 + c * small.dx, small.y0 + r * small.dy);
+    const res = boundLegByClosure(small, top, new Float64Array(top.length).fill(2000));
+    expect(res.openEdge).toBe(true);
+    expect(res.traps[0].limitedByEdge).toBe(true);
+    expect(res.traps[0].spillM).toBeCloseTo(1900, 0);
+  });
+
+  test('through buildModel: the tick bounds the leg and the model says where it spills', async () => {
+    const backend = makeInMemoryBackend();
+    // one well on the crest carrying the zone's properties (the constant method)
+    const wells = [{ id: 'wd', name: 'D-1', surface_x: 0, surface_y: 0, kb_m: 0, deviation: [], tops: [], zones: [{ name: 'Dome', top_md_m: 1800, base_md_m: 2100, properties: { phi_avg: 0.2, sw_avg: 0.3, ntg: 0.8 } }] }];
+    // a coarser lattice of the same structure keeps the build quick
+    const C = { x0: -3000, y0: -3000, dx: 40, dy: 40, nx: 151, ny: 151 };
+    const up = (name, g) => backend.saveSurface({ name, kind: 'structure', zDomain: 'depth', zUnit: 'm', spec: C, grid: Float32Array.from(g, (v) => -v) });
+    const top = new Float64Array(C.nx * C.ny);
+    for (let r = 0; r < C.ny; r++) for (let c = 0; c < C.nx; c++) top[r * C.nx + c] = topAt(C.x0 + c * C.dx, C.y0 + r * C.dy);
+    const a = await up('Dome top', top);
+    const b = await up('Dome base', Float64Array.from(top, (v) => v + 400));
+    const surfaces = await backend.listSurfaces();
+    const def = (trap) => ({ ...emptyDefinition(), surfaceIds: [a.id, b.id], topNames: ['', ''], zones: [{ name: 'Dome', registryZone: 'Dome' }], fluidsInput: [{ owc: '2000', owcUnit: 'm', bo: '1.2', ...(trap ? { trap: 'closure' } : {}) }] });
+    const plain = await buildModel(def(false), wells, surfaces, backend);
+    const bounded = await buildModel(def(true), wells, surfaces, backend);
+    expect(plain.zones[0].openEdge.open).toBe(true);
+    expect(bounded.zones[0].openEdge.open).toBe(false);
+    expect(bounded.zones[0].trap.traps[0].spillM).toBeLessThan(1935);
+    expect(plain.zones[0].volumes.total.stoiip_m3 / bounded.zones[0].volumes.total.stoiip_m3).toBeGreaterThan(3);
+  });
+});

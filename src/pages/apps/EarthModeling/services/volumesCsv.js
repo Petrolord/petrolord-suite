@@ -5,6 +5,7 @@
 import { volumeValue, volumeUnitLabel } from './units';
 import { describeProvenance } from './propertyKriging';
 import { buildLabel } from '@/lib/platformBuild';
+import { describeTraps } from './trapBound';
 
 const cell = (v) => (Math.abs(v - Math.round(v)) < 1e-6 ? String(Math.round(v)) : Number(v).toFixed(2));
 const latin1 = (t) => String(t).replace(/[^\n\x20-\x7e\xa0-\xff]/g, '?');
@@ -22,7 +23,8 @@ function fluidText(z) {
   if (Number.isFinite(f.bo)) bits.push(`Bo ${f.bo} rb/stb`);
   if (Number.isFinite(f.bg)) bits.push(`Bg ${Number(f.bg).toPrecision(4)} rm3/sm3`);
   if (f.gasZone) bits.push('gas zone');
-  if (z.openEdge?.open) bits.push(`OPEN: the hydrocarbon leg reaches the model edge at ${z.openEdge.nodes} nodes`);
+  if (z.trap) bits.push(`leg bounded by the closure and spill: ${describeTraps(z.trap)}`);
+  if (z.openEdge?.open) bits.push(z.openEdge.spillAtEdge ? 'OPEN: the trap spills at the model edge' : `OPEN: the hydrocarbon leg reaches the model edge at ${z.openEdge.nodes} nodes`);
   return bits.join(', ');
 }
 
