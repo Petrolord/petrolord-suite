@@ -7,7 +7,7 @@
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
 import {
-  BookOpen, Zap, Database, Ruler, TrendingDown, Gauge, Layers, UploadCloud, Link2, AlertTriangle, BookMarked, Anchor,
+  BookOpen, Zap, Database, Ruler, TrendingDown, Gauge, Layers, UploadCloud, Link2, AlertTriangle, BookMarked, Anchor, GraduationCap,
 } from 'lucide-react';
 import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Callout, Step, Table,
@@ -16,9 +16,20 @@ import { PRESSURE_UNITS, DEPTH_UNITS, PPG_PER_SG } from './services/units';
 
 const APP_PATH = '/dashboard/apps/geoscience/pore-pressure-studio';
 
+// U2-010: the numbers the worked example walk quotes; upgradeU2Example.test.js
+// recomputes them from the example project and fails on any drift
+export const WORKED_EXAMPLE_NUMBERS = Object.freeze({
+  ppMpaAt3500: '40.36',
+  ppPpgAt3500: '9.45',
+  seats: [881],
+  calibrationNote: 'Calibration: 4 points, PP misfit RMS 0.00 MPa, largest 0.00 MPa. Below 3700 m the prognosis is extrapolated beyond the deepest point.',
+  fitN: '3.00',
+});
+
 export const HELP_SECTIONS = [
   { id: 'overview', icon: BookOpen, title: 'What Pore Pressure Studio is' },
   { id: 'quickstart', icon: Zap, title: 'Quick start (10 min)' },
+  { id: 'example', icon: GraduationCap, title: 'Worked example' },
   { id: 'inputs', icon: Database, title: 'Wells, curves and velocity trends' },
   { id: 'units', icon: Ruler, title: 'Display units and the EMW datum' },
   { id: 'nct', icon: TrendingDown, title: 'The normal compaction trend' },
@@ -67,6 +78,23 @@ export default function PorePressureStudioHelpGuide() {
         <Step n={3} title="Fit the trend">In NCT add shale picks at depths in the normally pressured section and press Fit NCT: the mudline transit time and the compaction constant are written into the dock.</Step>
         <Step n={4} title="Read the prognosis">Back in Prognosis, type a depth in the ribbon and read OBG, hydrostatic, PP and FG in the chosen unit; the chart shows the whole profile with your calibration points and the drilling window between PP and FG shaded. Above the chart, the narrowest window in ppg EMW and its depth, below the top 300 m (the conductor section, where PP and FG meet the seawater gradient by construction); under 0.5 ppg is flagged as a casing point or managed pressure case.</Step>
         <Step n={5} title="Deliver">Prognosis CSV downloads the table in your units with EMW columns; Publish writes PP, FP and OBG to the well; Save keeps the parameters and picks.</Step>
+      </GuideSection>
+
+      <GuideSection id="example">
+        <SectionHeading icon={GraduationCap}>Worked example</SectionHeading>
+        <Para>
+          Open the worked example from the empty workstation (New to pore pressure? Open the worked example) or with{' '}
+          <a href={`${APP_PATH}?example=1`} className="underline" data-testid="pp-help-example-link">this link</a>. It runs on
+          ORACLE PP-1, a synthetic offshore well: 100 m of water, the KB 30 m above sea level, the mudline at 130 m MD,
+          normally pressured to 2,500 m below the mudline and then overpressured by a 4 kPa/m ramp. Nothing reaches your
+          account: Save keeps it in the browser tab and Publish is off. Work in m and MPa (the Units selectors).
+        </Para>
+        <Step n={1} title="Read what the prognosis rests on">The line under the ribbon says the trend was fitted on this well, the density is logged throughout, and gives the calibration: {WORKED_EXAMPLE_NUMBERS.calibrationNote}</Step>
+        <Step n={2} title="Look at the trend">In NCT the eleven shale picks sit on the VSH shales between 300 and 2,300 m, on a log axis. Clear them, then Pick shales from 200 to 2,390 m one per 200 m, and Fit NCT: the trend comes back the same, because the picks avoid the sand beds.</Step>
+        <Step n={3} title="Read the pressure">Type 3500 in the ribbon depth: PP {WORKED_EXAMPLE_NUMBERS.ppMpaAt3500} MPa, or {WORKED_EXAMPLE_NUMBERS.ppPpgAt3500} ppg with ppg chosen (EMW against the rotary table, 3,630 m below it).</Step>
+        <Step n={4} title="Calibrate">Type 2.5 as the Eaton exponent and Apply: the misfit to the four MDT points grows. Fit n to calibration brings n back to {WORKED_EXAMPLE_NUMBERS.fitN}. With the three LOTs, Calibrate FG to LOT sets Poisson's ratio from the tests.</Step>
+        <Step n={5} title="Plan the casing">Above the chart, the casing seats with 0.5 ppg trip and kick margins: one shoe at least {WORKED_EXAMPLE_NUMBERS.seats.join(' and ')} m below the mudline, then the mud below it, and the window per section. Change the margins under Drilling margins to see the shoe move.</Step>
+        <Step n={6} title="Report">Choose TVDSS in the depth selector and download the PDF: the reviewer block, the plot with the margins, the shoe and the points, and the table, all in TVDSS.</Step>
       </GuideSection>
 
       <GuideSection id="inputs">

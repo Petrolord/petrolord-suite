@@ -184,3 +184,22 @@ describe('U2-007 and U2-012 in the workstation', () => {
     expect(screen.queryByTestId('pp-param-nu')).toBeNull();
   });
 });
+
+describe('U2-010 the worked example', () => {
+  test('opens on its well with the banner, publish off, the seats and the calibration', async () => {
+    const { makeWorkedExampleBackend } = await import('../services/workedExample');
+    render(<MemoryRouter><PPWorkstation backend={makeWorkedExampleBackend()} /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('pp-readout-pp')).toBeInTheDocument(), { timeout: 60000 });
+    expect(screen.getByTestId('pp-example-banner')).toHaveTextContent(/Nothing reaches your account/);
+    expect(screen.queryByTestId('pp-publish')).toBeNull();
+    expect(screen.getByTestId('pp-casing-seats')).toHaveAttribute('data-seats', '1');
+    expect(screen.getByTestId('pp-note-calibration')).toHaveTextContent(/4 points/);
+    expect(screen.queryByTestId('pp-note-nct')).toBeNull();
+  });
+
+  test('the empty registry workstation offers the example', async () => {
+    mount();
+    await screen.findByTestId('pp-well-row', {}, { timeout: 15000 });
+    expect(screen.getByTestId('pp-open-example')).toHaveAttribute('href', expect.stringMatching(/\?example=1$/));
+  });
+});

@@ -9,19 +9,23 @@
 // tile) mounts the same PPWorkstation on makeRegistryBackend.
 
 import React, { useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import PPWorkstation from './components/PPWorkstation';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
+import { makeWorkedExampleBackend } from './services/workedExample';
 import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 
 export default function PorePressureStudioHarness() {
+  const { search } = useLocation();
   const backend = useMemo(() => {
-    const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-    // ?saved=p3|pp0|t1|u1 opens a project as that release saved it (PL5)
+    const q = new URLSearchParams(search);
+    // ?saved=p3|pp0|t1|u1 opens a project as that release saved it (PL5); ?example=1 the worked example (U2-010)
+    if (q.get('example') === '1') return makeWorkedExampleBackend();
     return makeInMemoryBackend({ layerCake: q.get('layercake') === '1', saved: q.get('saved') });
-  }, []);
+  }, [search]);
   return (
     <div className="h-screen w-full overflow-hidden" data-testid="pp-theme-scope">
-      <PPWorkstation backend={backend} appPaths={DEV_APP_PATHS} />
+      <PPWorkstation key={search} backend={backend} appPaths={DEV_APP_PATHS} />
     </div>
   );
 }

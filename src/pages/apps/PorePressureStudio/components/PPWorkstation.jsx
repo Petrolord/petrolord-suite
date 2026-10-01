@@ -698,6 +698,14 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     </div>
   );
 
+  // U2-010: the worked example says what it is, above everything
+  const exampleBanner = backend.isExample ? (
+    <div data-testid="pp-example-banner" className="px-3 py-1 text-[11px] bg-pl-warning-bg border-b border-pl-warning/40 text-pl-warning-text">
+      Worked example on the oracle's synthetic offshore well ORACLE PP-1. Nothing reaches your account: Save keeps it in this tab and Publish is off.
+      {' '}<Link to={`${appPath(PP_ID, appPaths)}/help#section-example`} className="underline">Follow the steps in the help guide</Link>.
+    </div>
+  ) : null;
+
   const statusBar = (
     <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="pp-status" className="truncate">{computeError || status}</span>
@@ -721,7 +729,14 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       ) : selectedId && !curves ? (
         loadingId ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading curves…</> : status
       ) : (
-        'Select a well to run the pressure prognosis.'
+        <span className="flex flex-col items-center gap-2">
+          <span>Select a well to run the pressure prognosis.</span>
+          {!backend.isExample && (
+            <Link to={`${appPath(PP_ID, appPaths)}?example=1`} data-testid="pp-open-example" className="text-pl-primary-text underline text-xs">
+              New to pore pressure? Open the worked example
+            </Link>
+          )}
+        </span>
       )}
     </div>
   );
@@ -815,7 +830,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       autoSaveId="porepressurestudio.workspace.v1"
       minWidth={1000}
       dockDefaultSize={24}
-      ribbon={ribbon}
+      ribbon={exampleBanner ? <>{exampleBanner}{ribbon}</> : ribbon}
       explorer={(
         <WellExplorer
           wells={wells || []}

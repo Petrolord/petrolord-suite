@@ -14,7 +14,7 @@ describe('PorePressureStudioHelpGuide', () => {
     renderGuide();
     expect(screen.getByRole('heading', { level: 1, name: /Pore Pressure Studio Help Guide/ })).toBeInTheDocument();
     for (const { id } of HELP_SECTIONS) expect(document.getElementById(`section-${id}`)).not.toBeNull();
-    expect(HELP_SECTIONS.length).toBe(12);
+    expect(HELP_SECTIONS.length).toBe(13);
   });
 
   test('quotes the live unit choices and the EMW datum rule', () => {
@@ -42,6 +42,8 @@ describe('PorePressureStudioHelpGuide', () => {
     expect(text).toMatch(/Calibrate FG to LOT sets the method's coefficient/);
     // U2-007
     expect(text).toMatch(/The Crossplot view plots velocity against the logged density/);
+    // U2-010
+    expect(text).toMatch(/Worked example on|It runs on\s+ORACLE PP-1/);
     // U2-002
     expect(text).toMatch(/declare the depth column and reference/);
   });

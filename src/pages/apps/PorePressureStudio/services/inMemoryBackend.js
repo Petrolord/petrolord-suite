@@ -48,7 +48,7 @@ export const RES_OHMM = WELL.z_bml_m.map((z, i) => {
 export const SAND_BEDS_BML_M = Object.freeze([[600, 640], [1200, 1240], [1800, 1840], [2700, 2740], [3300, 3340]]);
 export const VSH_HARNESS = WELL.z_bml_m.map((z) => (SAND_BEDS_BML_M.some(([a, b]) => z >= a && z <= b) ? 0.15 : 0.85));
 
-export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
+export function makeInMemoryBackend({ layerCake = false, saved = null, seedProject = null, projectKey = null } = {}) {
   const wellId = nextId('well');
   const curveStore = new Map();
   const logs = [];
@@ -101,7 +101,7 @@ export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
   // project persistence survives page reloads via sessionStorage so
   // the e2e can prove restore; first load seeds the goldens' own
   // parameters so the harness lands on the verifiable state
-  const PROJECT_KEY = 'pp.dev.project.v1';
+  const PROJECT_KEY = projectKey || 'pp.dev.project.v1';
   const P = WELL.params;
   const SEED_PROJECT = {
     id: 'pp-project-dev',
@@ -203,7 +203,7 @@ export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
 
     async loadProject() {
       // PL5: `saved` opens a project as an earlier release saved it
-      const seed = (saved && bindSaved(saved, wellId)) || SEED_PROJECT;
+      const seed = (saved && bindSaved(saved, wellId)) || (seedProject && { ...seedProject, source: { ...seedProject.source, wellId, nctFittedFor: seedProject.source?.nctFittedFor ? wellId : undefined } }) || SEED_PROJECT;
       try {
         const raw = window.sessionStorage.getItem(PROJECT_KEY);
         return raw ? JSON.parse(raw) : seed;
