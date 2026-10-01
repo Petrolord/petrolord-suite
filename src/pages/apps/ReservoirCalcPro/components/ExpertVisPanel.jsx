@@ -11,7 +11,8 @@ import {
     AlertCircle
 } from 'lucide-react';
 import { useReservoirCalc } from '../contexts/ReservoirCalcContext';
-import ContourMapViewer from './tools/ContourMapViewer';
+import RcpMapView from './RcpMapView';
+import { kitForSurface, kitFromRcpGrid } from '../services/mapKitGrid';
 import Surface3DViewer from './tools/Surface3DViewer';
 import MapGallery from './gallery/MapGallery';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -117,10 +118,16 @@ const ExpertVisPanel = () => {
     const gridData = activeLayer.grid;
     const isSurfaceLayer = activeLayer.isSurface;
 
+    // U2-009: the 2D view is the shared Mapping map kit; the structure layer
+    // shows a registry surface's own lattice when it kept one
+    const kit = useMemo(() => (isSurfaceLayer ? kitForSurface(activeSurface, gridData) : kitFromRcpGrid(gridData)), [isSurfaceLayer, activeSurface, gridData]);
     // AOI props threaded to the 2D viewer
     const aoiProps = {
-        colorscale: activeLayer.colorscale,
-        unit: activeLayer.unit,
+        kit,
+        label: activeLayer.name,
+        xyToM: Number.isFinite(activeSurface?.xyToM) ? activeSurface.xyToM : 1,
+        colormap: isSurfaceLayer ? 'structure' : 'viridis',
+        unit: isSurfaceLayer && kit?.unit ? kit.unit : activeLayer.unit,
         aois: state.aois || [],
         activeAoiId: state.activeAoiId,
         drawing: state.drawing || { isActive: false, currentPoints: [] },
@@ -311,7 +318,7 @@ const ExpertVisPanel = () => {
                         <>
                             {viewMode === '2d' && (
                                 <div className="w-full h-full">
-                                    <ContourMapViewer gridData={gridData} {...aoiProps} />
+                                    <RcpMapView {...aoiProps} />
                                 </div>
                             )}
 
@@ -325,7 +332,7 @@ const ExpertVisPanel = () => {
                                 <div className="w-full h-full flex flex-col md:flex-row">
                                     <div className="flex-1 min-w-0 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-pl-border relative overflow-hidden">
                                         <div className="absolute bottom-3 left-3 z-10 max-w-[40%] truncate pointer-events-none bg-pl-surface/80 px-2 py-0.5 rounded text-[10px] text-pl-text font-medium border border-pl-border">{activeLayer.name}{isSurfaceLayer ? ' (draw AOIs here)' : ''}</div>
-                                        <ContourMapViewer gridData={gridData} {...aoiProps} />
+                                        <RcpMapView {...aoiProps} />
                                     </div>
                                     <div className="flex-1 min-w-0 h-1/2 md:h-full relative overflow-hidden">
                                         <Surface3DViewer {...viewer3dProps} compact />

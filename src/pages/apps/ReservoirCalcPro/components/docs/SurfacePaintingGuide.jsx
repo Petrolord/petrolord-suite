@@ -24,6 +24,15 @@ const SurfacePaintingGuide = () => (
       API, which is worth using before a screen capture.
     </P>
 
+    <H2>The 2D map is the Suite map kit</H2>
+    <P>
+      The 2D map is the same viewport Mapping &amp; Surface Studio and Earth Modeling use: zoom at the cursor with the
+      wheel or + and -, drag to pan, double-click or 0 to fit, a live readout of X, Y and the value under the pointer,
+      labelled contours, a colour bar, a scale bar in metres and a north arrow. A surface taken from the registry is
+      drawn on its own grid (rotation kept); files and older projects show RCP&apos;s gridded surface. While drawing an AOI
+      a plain click adds a vertex and a drag still pans. Hidden AOIs are not drawn.
+    </P>
+
     <H2>The layer selector</H2>
     <P>
       The dropdown at the top right lists the structure surface first, marked with a frame glyph, then every

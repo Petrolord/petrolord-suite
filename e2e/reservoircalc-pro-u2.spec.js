@@ -170,3 +170,40 @@ test('U2-007: solution gas from Rs and Sw from a SCAL saturation-height project'
   await expect(page.getByTestId('rcp-shm-used')).toContainText('Sw from saturation height');
   expect(errors).toEqual([]);
 });
+
+test('U2-009: the 2D view is the shared map kit: ink, a scale in metres, and AOIs drawn by clicking', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/dev/reservoircalc-pro');
+  await expect(page.getByTestId('rcp-harness')).toBeVisible({ timeout: 60000 });
+  await page.getByTestId('rcp-tab-surfaces').click();
+  await page.getByTestId('rcp-import-open').click();
+  await page.getByTestId('rcp-registry-use-Harness Dome').click();
+  await page.getByTestId('rcp-import-confirm').click();
+  const anyway = page.getByTestId('rcp-import-anyway');
+  await Promise.race([
+    anyway.waitFor({ state: 'visible', timeout: 15000 }).then(() => anyway.click()).catch(() => {}),
+    page.locator('[role="dialog"]').waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {}),
+  ]);
+  await page.getByRole('button', { name: '2D map view' }).click();
+  const canvas = page.getByTestId('rcp-map-canvas');
+  await expect(canvas).toBeVisible({ timeout: 15000 });
+  const ink = await canvas.evaluate((c) => {
+    const ctx = c.getContext('2d');
+    const { data } = ctx.getImageData(0, 0, c.width, c.height);
+    const [r0, g0, b0] = data;
+    let n = 0;
+    for (let i = 0; i < data.length; i += 16) if (Math.abs(data[i] - r0) + Math.abs(data[i + 1] - g0) + Math.abs(data[i + 2] - b0) > 30) n += 1;
+    return n / (data.length / 16);
+  });
+  expect(ink).toBeGreaterThan(0.2);
+  // draw an AOI with three clicks on the kit
+  await page.getByTestId('rcp-tab-aoi').click();
+  await page.getByRole('button', { name: /Draw New Polygon/ }).click();
+  const box = await canvas.boundingBox();
+  for (const [fx, fy] of [[0.4, 0.4], [0.6, 0.4], [0.5, 0.6]]) {
+    await page.mouse.click(box.x + box.width * fx, box.y + box.height * fy);
+  }
+  await expect(page.getByText(/Click the 2D map to add points \(3\)/)).toBeVisible();
+  expect(errors).toEqual([]);
+});
