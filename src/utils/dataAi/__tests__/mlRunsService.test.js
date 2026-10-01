@@ -21,6 +21,9 @@ import {
 } from '@/utils/dataAi/mlStudy';
 import { defaultSpec, parseSpec, evaluate } from '@/utils/dataAi/mlWorkflows';
 import { buildDesign, MAX_SAVED_UPLOAD_VALUES } from '@/utils/dataAi/mlData';
+// the vendored engine pin (VENDOR.json): these labels move with every re-pin
+const VENDOR_PIN = require('../../../../packages/engines/VENDOR.json').canonical.commit;
+
 
 beforeEach(() => { mockCalls.length = 0; mockResult = { data: [], error: null }; });
 
@@ -111,7 +114,7 @@ describe('the saved run payload', () => {
     });
     expect(payload.summary.folds.map((f) => f.score.r2)).toEqual(evaluation.folds.map((f) => f.test.r2));
     expect(payload.summary.fingerprint).toBe(fingerprint(design));
-    expect(payload.summary.engine).toMatch(/^petrolord-engines 1e5d394/);
+    expect(payload.summary.engine).toMatch(new RegExp(`^petrolord-engines ${VENDOR_PIN.slice(0, 7)}`));
     expect(payload.summary.validation).toEqual({ scheme: 'kfold', k: 3, testFraction: null, seed: 5 });
     const back = studyFromPayload(JSON.parse(JSON.stringify(payload)));
     expect(back.spec).toEqual(spec);
