@@ -462,7 +462,21 @@ export default function WellsiteHelpGuide() {
         <Para>
           Wellsite Studio writes to the shared registry only through Publish on Tops, by the owner of the registry well and with a
           connection: final official calls become registry tops, current cuttings descriptions become lithology intervals with the
-          components in their properties, and the photographs ticked under Photographs to publish become core images. A republish replaces only the rows this app wrote earlier. It never touches a hand-typed row or another app's. When a formation already has a registry top from another source, such as a prognosis typed in Well Data Manager, the publish says that the registry now holds two tops of that name so you can tidy them there. Well Correlation, Petrophysics Studio and Stratigraphy Studio read them from there.
+          components in their properties, and the photographs ticked under Photographs to publish become core images. A republish
+          replaces only the rows this app wrote earlier.
+        </Para>
+        <Para>
+          Publish first shows the plan and writes nothing: the tops and intervals that will be added, the earlier rows of this app
+          that will be replaced, and how many rows from other sources stay as they are. When the registry already holds a top of the
+          same name from another source (usually the prognosis typed in Well Data Manager), the plan names it with its depth and
+          offers to rename it, for example Top Agbada (prognosis), so the top as drilled keeps the plain name the other apps look
+          for. The rename is your choice, row by row; untick it and both stay under one name, and the result says so.
+        </Para>
+        <Para>
+          The new rows are written first and the earlier ones removed after, so the well is never without its tops. If a step
+          fails, the steps already taken are undone and the message says the registry holds what it held before. If an undo itself
+          fails, the message names the rows left to tidy in Well Data Manager. A photograph that fails to upload is reported and
+          the tops and intervals stand.
         </Para>
       </GuideSection>
 
