@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 970c02169d5ef2cd18889432925b71ddd885ea85
+# commit 2ad4fe0ee3607e693be7654f207367d150ab1214
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 b451f8875cb04da4b1b29c77a2a032b42a6aecb7 README.md
@@ -146,6 +146,7 @@ b49f1bf2a40b079b94284e7867cf4567224898ad __tests__/mapping.t1.test.js
 9c445e72524f9470274c685dc9b97aaa43fffae8 __tests__/petrophysics.scanTrace.test.js
 77308d92c7c78d3ac9bef635366a406cd13f145a __tests__/petrophysics.u2.test.js
 b4b37ce00f342ce872fff7b3ddd63f0797216b59 __tests__/petrophysics.u2011.test.js
+2a008b30f6303274039bda30244622cfe0f103d4 __tests__/porepressure.u2.test.js
 108df75a86fcf168f4aa6129c47b7e7e97da981f __tests__/production.allocation.test.js
 58a0f6c7a6095cefb8e4dc5731698777a39cc32a __tests__/production.choke.test.js
 bdbc4b27a88b0f748346328b3dc603f03d2bb294 __tests__/production.esp.test.js
@@ -417,13 +418,16 @@ d0f766ccdda2e245f0f8362f0a66d5b4451b2d33 engines/petrophysics/sw.js
 4a8618aaba2138b5b75d3b4163722cd985d600e0 engines/petrophysics/temperature.js
 287721f0d078a78caa219887d9417e04c0c18dd1 engines/petrophysics/vsh.js
 2a99201266d5930414889ed1a9fe3876ad8270d4 engines/porepressure/bowers.js
+5f406785e56cb7b49461bbcc431b17858730a948 engines/porepressure/calibrationFit.js
+a040e91c4abcbc22ba17a43271ff812e2d224100 engines/porepressure/casingSeats.js
 885d2b36726f6f34a806955d65bc4a3f7eda4d48 engines/porepressure/constants.js
 46654f8a4fa9ade3c6a6c719d8c41fa5db0579e7 engines/porepressure/eaton.js
-09774657a579d8bdb871f5ff402f43a70b9e448a engines/porepressure/fracgrad.js
+eb771a270e52986a44c8dc60ff479c6e3fcc144f engines/porepressure/fracgrad.js
 c0908ac189b43b0852dc738b142cf0723c439b35 engines/porepressure/gardner.js
-c6e1731182122b57ac37e8a4c1088f2bd5110710 engines/porepressure/nct.js
+858181db35680195952d2417f9b6e85c4a4b3311 engines/porepressure/nct.js
 8cb2b6b656d3f62682f40025653efff465f77614 engines/porepressure/pressures.js
-05883059a23c3a7dfa3971b8b52bf086dd4f3b6d engines/porepressure/profile.js
+b1bc10166e926bff07d9757346b7d9c217b502b0 engines/porepressure/profile.js
+c0df4c34e5f20bc34fd831a04815dfc7e0c2dc8b engines/porepressure/resistivity.js
 4508783a93d74a3a18398008858ee22c6dced66b engines/porepressure/velocitySource.js
 e1c03fa1ad8c36cf754f9463df50d00c62551951 engines/production/allocation.js
 0925af553382ff09c11b12109deb97b8f9704e67 engines/production/chokePerformance.js
@@ -759,6 +763,7 @@ caf7299667578ed54135b47c085e57efb2fc0735 test-data/mbal/ahmed-ex-10-10-fetkovich
 f5bd1fdcf3d8675adf05aab3cb4c583e940f343a test-data/petrophysics/goldens.json
 cf64367a40561bdc9a6128b5cc69fc35a898f07b test-data/petrophysics/log_scan.png
 cc04a004913589bb23e71dfde5b16d5aa9231d3a test-data/petrophysics/typewell.json
+5fa3ad8aee4514770d5013b4fcd17cd953593301 test-data/porepressure/casing-seat-example.json
 502401441b78acda437e5d10fa7b5eca55b8a064 test-data/porepressure/goldens.json
 3efd9bb4079d3985d99b1bc28e8e5d7e7ef269c0 test-data/production/goldens/allocation_cases.json
 a7193195648ba2bc103194c2d803044d4c8055b6 test-data/production/goldens/choke_cases.json
