@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Play, Maximize2, AlertTriangle, BarChart3, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import ResultsModal from './results/ResultsModal';
+import { inPlaceScale, headlineStream, runContext } from '../services/volumeDisplay';
 
 const ExpertResultsPanel = () => {
     const { state, calculate } = useReservoirCalc(); 
@@ -29,10 +30,11 @@ const ExpertResultsPanel = () => {
     }
 
     if (calcMethod === 'probabilistic') {
-         const isGas = state.inputs?.fluidType === 'gas';
+         // RCP-U1-001/009: the run's own unit system and the stream's divisor
+         const run = runContext(probResults, state);
+         const isGas = run.fluidType === 'gas';
          const stats = isGas ? probResults?.stats?.giip : probResults?.stats?.stooip;
-         const denom = isGas ? 1e9 : 1e6;
-         const unitStr = isGas ? (state.unitSystem === 'field' ? 'Bscf' : 'MMsm³') : 'MMstb';
+         const { denom, label: unitStr } = inPlaceScale(headlineStream(run.fluidType), run.unitSystem);
          const titleStr = isGas ? 'GIIP' : 'STOOIP';
 
          return (

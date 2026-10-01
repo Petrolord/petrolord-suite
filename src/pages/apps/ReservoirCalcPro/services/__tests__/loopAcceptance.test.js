@@ -29,7 +29,8 @@ test('registry surface + zones -> RCP inputs -> volume -> risked volume', () => 
   const { patch, provenance } = buildRegistryInputs({ zones, surface, grid, areaUnit: 'acres' });
   expect(provenance.source).toBe('shared-registry');
   expect(patch.area).toBeGreaterThan(0);
-  expect(patch.porosity).toBeCloseTo(0.23, 10);
+  // RCP-U1-018: net-thickness weighted (superseded the plain mean 0.23)
+  expect(patch.porosity).toBeCloseTo((20 * 0.22 + 24 * 0.24) / 44, 10);
   expect(patch.thickness).toBeCloseTo((20 / 0.85 + 30) / 2, 10); // gross: RCP applies NTG
 
   // feed RCP's real deterministic volumetrics (simple/analytic method).

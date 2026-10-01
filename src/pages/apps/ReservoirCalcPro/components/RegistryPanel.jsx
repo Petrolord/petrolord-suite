@@ -81,10 +81,15 @@ export default function RegistryPanel() {
     setBusy(true);
     try {
       const feats = await backend.culture.downloadCultureFeatures(row);
-      const aoi = aoiFromBoundary(row, feats);
-      addAOI(aoi);
-      logEvent('AOI from registry', `${row.name} (${row.kind}, ${aoi.vertices.length} vertices)`);
-      setNote(`Added ${row.name} as an AOI (${aoi.vertices.length} vertices). Activate it in the AOI tab to clip the volumetrics.`);
+      // RCP-U1-027: every polygon of the layer, each its own AOI
+      const aois = aoiFromBoundary(row, feats);
+      for (const aoi of aois) {
+        addAOI(aoi);
+        logEvent('AOI from registry', `${aoi.name} (${row.kind}, ${aoi.vertices.length} vertices)`);
+      }
+      setNote(aois.length > 1
+        ? `Added ${row.name} as ${aois.length} AOIs, one per polygon (the largest is active). Volumetrics clip to one AOI at a time.`
+        : `Added ${row.name} as an AOI (${aois[0].vertices.length} vertices). Activate it in the AOI tab to clip the volumetrics.`);
     } catch (e) { setNote(e.message); } finally { setBusy(false); }
   };
 
@@ -107,6 +112,10 @@ export default function RegistryPanel() {
         )}
         {preview && !preview.error && (
           <div className="text-pl-text" data-testid="rcp-reg-preview">{describePatch(preview.patch, state.unitSystem)} from {preview.wellNames.join(', ')}</div>
+        )}
+        {preview?.provenance?.weighting && <div className="text-[10px] text-pl-muted">Averaged as {preview.provenance.weighting}.</div>}
+        {preview?.notes?.length > 0 && (
+          <div className="text-[10px] text-pl-warning-text" data-testid="rcp-reg-phit">{preview.notes.join(' ')}</div>
         )}
         {zone && wells && (
           <div className="flex flex-wrap gap-1">

@@ -25,6 +25,11 @@ export function fromRcpProspect(row) {
     const x = rawBig ? Number(v) / 1e6 : toMMboe(Number(v), unit || 'MMbbl');
     return Number(x.toPrecision(6));
   };
+  // RCP-U1-004: Pg is a probability. It used to go through the volume
+  // conversion above, so a gas prospect's Pg 0.30 arrived as 0.05 (divided
+  // by 6 Mscf per boe), a metric one as 1.89 (refused) and a legacy STB row
+  // as 0.0000003.
+  const prob = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(Number(v).toPrecision(6)) : '');
   // Pg as risked in ReservoirCalc Pro; else the product of its factors
   const f = row.pg_factors || {};
   const fromFactors = ['trap', 'reservoir', 'charge', 'seal', 'other']
@@ -35,11 +40,19 @@ export function fromRcpProspect(row) {
     source: 'rcp',
     rcpId: row.id,
     name: row.name,
-    pg: num(r.pg) === '' ? (Object.keys(f).length ? fromFactors : '') : num(r.pg),
+    pg: prob(r.pg) === '' ? (Object.keys(f).length ? fromFactors : '') : prob(r.pg),
     p90: num(sc.p90 ?? r.p90),
     p50: num(sc.p50 ?? r.p50),
     p10: num(sc.p10 ?? r.p10),
-    volumeNote: unit && unit !== 'MMbbl' ? `converted from ${unit} at 6 Mscf per boe` : (rawBig ? 'read as STB' : ''),
+    volumeNote: [
+      unit && unit !== 'MMbbl' && unit !== 'MMboe' ? `converted from ${unit} at 6 Mscf per boe` : (rawBig ? 'read as STB' : ''),
+      // RCP-U1-003: rows saved before the basis was recorded carry the
+      // in-place volume (STOIIP / GIIP); the valuation needs recoverable
+      row.inputs?.basis === 'recoverable' ? ''
+        : row.inputs?.basis === 'in-place' ? 'IN-PLACE volumes: enter recoverable volumes before valuing'
+          : 'saved before the basis was recorded: these may be in-place volumes, check before valuing',
+    ].filter(Boolean).join('; '),
+    basis: row.inputs?.basis || null,
     ...DEFAULT_ECONOMICS,
   };
 }

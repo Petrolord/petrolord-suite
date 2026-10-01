@@ -164,24 +164,24 @@ const SensitivityGuide = () => (
       </li>
     </UL>
 
-    <H2>6. The cumulative expectation curve</H2>
+    <H2>6. The expectation curve</H2>
     <P>
-      The Cumulative Probability chart plots the empirical cumulative distribution of the same
-      realisations. It is built from roughly 100 evenly spaced points along the sorted sample plus the
-      endpoint, with the x axis in display volume units and the y axis as cumulative percent from 0 to
-      100. Horizontal reference lines sit at 90, 50 and 10 percent.
+      The expectation curve plots, for every volume on the x axis, the probability of exceeding it: the
+      share of realisations at or above that volume. It is built from roughly 100 evenly spaced points
+      along the sorted sample plus the endpoint, with the x axis in display volume units and the y axis
+      from 100 percent at the smallest volume down to 0 at the largest. Horizontal reference lines sit at
+      90, 50 and 10 percent.
     </P>
-    <Note tone="danger" title="Read the axis in the statistical direction, then name the case in the petroleum direction">
-      The y axis is a plain cumulative percentage, so 10 percent means 10 percent of realisations fall
-      at or below that volume. That point is the P90 case in petroleum naming, because 90 percent of
-      realisations exceed it. The reference lines are drawn at 90, 50 and 10 on the cumulative axis,
-      so the low case is where the curve crosses the 10 percent line, and the high case is where it
-      crosses the 90 percent line.
+    <Note tone="info" title="The lines name the cases directly">
+      The curve meets the 90 percent line at the P90 (low estimate), the 50 percent line at the P50 and the
+      10 percent line at the P10 (high estimate), the petroleum convention. Before the U1 upgrade
+      (2026-09-30) this chart plotted the cumulative percentage the other way up under the same title, so
+      its 90 percent line met the P10 volume.
     </Note>
     <P>
-      The expectation curve is the chart to use when someone asks a question the three percentile
-      cards cannot answer, such as the probability of exceeding a commercial threshold. Find the
-      threshold volume on the x axis, read the cumulative percent, and subtract from 100.
+      Use the curve when someone asks a question the three percentile cards cannot answer, such as the
+      probability of exceeding a commercial threshold: find the threshold volume on the x axis and read the
+      percentage straight off the curve.
     </P>
 
     <H2>7. Practical reading guidance</H2>

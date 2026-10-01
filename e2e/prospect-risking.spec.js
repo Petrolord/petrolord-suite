@@ -43,8 +43,10 @@ test('set Pg factors, see risked volume, build inventory + portfolio', async ({ 
 
   // portfolio roll-up present with the two prospects
   await expect(page.getByTestId('portfolio')).toBeVisible();
-  // seed prospect risked_mean 25 + Alpha 12 = expected risked volume 37
-  await expect(page.getByTestId('portfolio-risked')).toHaveText('37');
+  // seed prospect risked_mean 25 + Alpha 12 = expected risked volume 37,
+  // added in one unit (RCP-U1-005)
+  await expect(page.getByTestId('portfolio-risked')).toHaveText('37 MMboe');
+  await expect(page.getByTestId('prospect-basis').first()).toHaveText('recoverable');
 
   // delete Alpha
   await page.getByTestId('prospect-delete-Alpha').click();

@@ -51,10 +51,12 @@ function seedDome(mapping) {
  * the Mapping harness backend plus a seeded depth dome, no Seismolord
  * exports, in-memory prospects, and a dev user so Save works.
  */
-export function makeInMemoryRcpBackend() {
+export function makeInMemoryRcpBackend({ savedRows = [], prospects = [] } = {}) {
   const mapping = makeMappingInMemoryBackend();
   const ready = seedDome(mapping);
-  const rows = [];
+  // U1 (PL5): rows saved by earlier releases (services/savedFixtures.js),
+  // newest first like the registry
+  const rows = [...savedRows].reverse().map((r) => JSON.parse(JSON.stringify(r)));
   let seq = 0;
   const projects = {
     async getProjects() { return rows.map(fromRow); },
@@ -101,7 +103,7 @@ export function makeInMemoryRcpBackend() {
       async listZones(wellId) { const w = (await mapping.listWells()).find((x) => x.id === wellId); return (w?.zones || []).map((z, i) => ({ id: `${wellId}-z${i}`, well_id: wellId, ...z })); },
     },
     culture: { listCulture: () => mapping.listCulture(), downloadCultureFeatures: (row) => mapping.downloadCultureFeatures(row) },
-    prospects: makeInMemoryProspectsBackend([]),
+    prospects: makeInMemoryProspectsBackend(prospects),
     async getDepthUnit() { return null; },
   };
 }

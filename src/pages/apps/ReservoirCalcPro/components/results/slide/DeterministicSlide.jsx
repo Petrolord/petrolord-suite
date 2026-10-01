@@ -10,6 +10,7 @@ import {
     fmtInt, fmtDec, scaleMM, scaleB, OIL, GAS, SLATE,
 } from './slideParts';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { reviewerLines } from '../../../services/reportInfo';
 
 // The volumetric chain: each stage as a fraction of Gross Rock Volume. These are
 // all reservoir-volume fractions (GRV·NTG·φ·(1−Sw)) so they share one honest axis.
@@ -87,15 +88,22 @@ const DeterministicSlide = () => {
         : quality >= 60 ? { c: '#b45309', b: 'border-amber-200 bg-amber-50', t: 'text-amber-700' }
             : { c: '#b91c1c', b: 'border-red-200 bg-red-50', t: 'text-red-700' };
 
-    const contactStr = [
-        showOil && inp.owc != null ? `OWC ${inp.owc}` : null,
-        showGas && inp.goc != null ? `GOC ${inp.goc}` : null,
-    ].filter(Boolean).join('  ·  ') || EMPTY_VALUE;
+    // contacts with their unit and datum; the Simple method does not use them
+    const lenU = isField ? 'ft' : 'm';
+    const contactParts = [
+        showOil && inp.owc != null && inp.owc !== '' ? `OWC ${inp.owc} ${lenU}` : null,
+        showGas && inp.goc != null && inp.goc !== '' ? `${ft === 'gas' ? 'GWC' : 'GOC'} ${inp.goc} ${lenU}` : null,
+    ].filter(Boolean);
+    const contactStr = (r.inputMethod || state.inputMethod) === 'simple' ? 'not used (Simple method)'
+        : (contactParts.length ? `${contactParts.join('  ·  ')} TVDSS` : EMPTY_VALUE);
 
     const exportPDF = async () => {
         setIsExporting(true);
         try {
-            await ReportGenerator.generateDeterministicReport(project, r, r.unitSystem || state.unitSystem, { fluidType: ft, inputs: inp, reservoirName: reservoir });
+            await ReportGenerator.generateDeterministicReport(project, r, r.unitSystem || state.unitSystem, {
+                fluidType: ft, inputs: inp, reservoirName: reservoir,
+                reviewer: reviewerLines({ report: state.inputs?.report, unitSystem: r.unitSystem || state.unitSystem, inputMethod: r.inputMethod || state.inputMethod, fluidType: ft, inputs: inp, results: r }),
+            });
             toast({ title: 'Report downloaded', description: 'The full branded PDF was saved.' });
         } catch (e) {
             toast({ variant: 'destructive', title: 'Export failed', description: e?.message || 'Could not generate the PDF.' });

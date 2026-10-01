@@ -49,7 +49,8 @@ test('RC1: the Wells tab pulls zone averages, a surface footprint and a Mapping 
   await page.goto('/dev/reservoircalc-pro');
   await page.getByTestId('rcp-tab-registry').click();
   await page.getByTestId('rcp-reg-zone').selectOption('Top Dome');
-  await expect(page.getByTestId('rcp-reg-preview')).toContainText(/porosity 0\.\d+, NTG 0\.\d+ from/);
+  // the preview carries the gross thickness since PETRO-U1-001 (this line was red since #815; e2e is not in CI)
+  await expect(page.getByTestId('rcp-reg-preview')).toContainText(/porosity 0\.\d+, NTG 0\.\d+, gross thickness [\d.]+ ft from/);
   await page.getByTestId('rcp-reg-apply-zone').click();
   await expect(page.getByTestId('rcp-reg-note')).toContainText(/Applied porosity/);
   await page.getByTestId('rcp-reg-surface').selectOption({ label: 'Harness Dome (16x11)' });

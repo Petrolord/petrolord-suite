@@ -13,8 +13,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Trash2, Plus, Layers } from 'lucide-react';
-import { RISK_FACTORS, chanceOfSuccess, riskProspect, portfolioRollup } from '../../services/ProspectRiskEngine';
-import { VOLUME_UNITS } from '../../services/prospectVolumes';
+import { RISK_FACTORS, chanceOfSuccess, riskProspect } from '../../services/ProspectRiskEngine';
+import { VOLUME_UNITS, portfolioInMMboe } from '../../services/prospectVolumes';
 import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
@@ -31,6 +31,9 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
   const [prospects, setProspects] = useState([]);
   const [status, setStatus] = useState(null);
   const [unit, setUnit] = useState(defaultUnit);
+  // RCP-U1-003: what the volumes are. The valuation reads recoverable
+  // volumes; a run from before U1 can only offer in-place ones.
+  const [basis, setBasis] = useState('recoverable');
   const [added, setAdded] = useState(false);
 
   // seed volumes from RCP's latest run when available
@@ -39,6 +42,7 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
       const r = (v) => (v != null && Number.isFinite(v) ? String(Number(v.toPrecision(4))) : '');
       setVol({ mean: r(unrisked.mean), p90: r(unrisked.p90), p50: r(unrisked.p50), p10: r(unrisked.p10) });
       if (unrisked.unit) setUnit(unrisked.unit);
+      setBasis(unrisked.basis || 'recoverable');
     }
   }, [unrisked]);
 
@@ -58,11 +62,9 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
     ? riskProspect({ name, factors, unrisked: unriskedObj })
     : null;
 
-  const rolled = useMemo(() => portfolioRollup(prospects.map((p) => ({
-    pg: chanceOfSuccess(p.pg_factors || {}),
-    riskedMean: (p.risked?.risked_mean ?? (chanceOfSuccess(p.pg_factors || {}) * (p.inputs?.mean || 0))),
-    successCase: { mean: p.inputs?.mean || 0 },
-  }))), [prospects]);
+  // RCP-U1-005: one unit for the portfolio (MMboe); rows with no stated
+  // unit are left out and counted
+  const rolled = useMemo(() => portfolioInMMboe(prospects, (p) => chanceOfSuccess(p.pg_factors || {})), [prospects]);
 
   const addToInventory = async () => {
     if (!name.trim()) { setStatus('Name the prospect.'); return; }
@@ -71,7 +73,7 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
       await backend.saveProspect({
         name: name.trim(),
         pgFactors: factors,
-        inputs: { mean: unriskedObj.mean, p90: unriskedObj.p90, p50: unriskedObj.p50, p10: unriskedObj.p10, unit },
+        inputs: { mean: unriskedObj.mean, p90: unriskedObj.p90, p50: unriskedObj.p50, p10: unriskedObj.p10, unit, basis },
         risked: { pg: live.pg, risked_mean: live.riskedMean, success: live.successCase },
       });
       setStatus(`Added ${name.trim()} to the inventory.`);
@@ -116,8 +118,20 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
           {/* unrisked volume */}
           <div className="rounded border border-pl-border p-2 space-y-1.5">
             <div className="text-[10px] uppercase tracking-wider text-pl-muted">
-              Unrisked volume {unrisked ? '(from the last Monte Carlo run)' : '(enter, or run Monte Carlo first)'}
+              Unrisked {basis === 'in-place' ? 'in-place' : 'recoverable'} volume {unrisked ? '(from the last Monte Carlo run)' : '(enter, or run Monte Carlo first)'}
             </div>
+            <label className="flex items-center gap-2 text-xs">
+              <span className="w-14 text-pl-muted">Basis</span>
+              <select className={`${inputCls} flex-1`} value={basis} data-testid="vol-basis" onChange={(e) => setBasis(e.target.value)}>
+                <option value="recoverable">Recoverable (prospective resources)</option>
+                <option value="in-place">In place (STOIIP / GIIP)</option>
+              </select>
+            </label>
+            {basis === 'in-place' && (
+              <p className="text-[10px] text-pl-warning-text" data-testid="vol-basis-warning">
+                These are in-place volumes. Risked Reserves Valuation values recoverable volumes; re-run the Monte Carlo (it now reports recoverable volumes) or enter recoverable ones.
+              </p>
+            )}
             <label className="flex items-center gap-2 text-xs">
               <span className="w-14 text-pl-muted">Unit</span>
               <select className={`${inputCls} flex-1`} value={unit} data-testid="vol-unit" onChange={(e) => setUnit(e.target.value)}>
@@ -175,6 +189,7 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
                 <th className="pr-2 pb-1 font-medium">Pg</th>
                 <th className="pr-2 pb-1 font-medium">Unrisked mean</th>
                 <th className="pr-2 pb-1 font-medium">Unit</th>
+                <th className="pr-2 pb-1 font-medium">Basis</th>
                 <th className="pr-2 pb-1 font-medium">Risked mean</th>
                 <th aria-label="actions" />
               </tr>
@@ -188,6 +203,7 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
                     <td className="pr-2 py-0.5">{pct(ppg)}</td>
                     <td className="pr-2 py-0.5">{fmt(p.inputs?.mean)}</td>
                     <td className="pr-2 py-0.5 text-pl-muted">{VOLUME_UNITS[p.inputs?.unit]?.label || 'not stated'}</td>
+                    <td className="pr-2 py-0.5 text-pl-muted" data-testid="prospect-basis">{p.inputs?.basis || 'not stated'}</td>
                     <td className="pr-2 py-0.5 font-pl-mono text-pl-text">{fmt(p.risked?.risked_mean ?? ppg * (p.inputs?.mean || 0))}</td>
                     <td className="py-0.5 text-right">
                       <button type="button" title={`Delete ${p.name}`} data-testid={`prospect-delete-${p.name}`}
@@ -206,11 +222,16 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
       {/* portfolio roll-up */}
       {prospects.length > 0 && (
         <div className="rounded border border-pl-border p-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs" data-testid="portfolio">
-          <div className="col-span-2 text-[10px] uppercase tracking-wider text-pl-muted">Portfolio ({rolled.count} prospects, treated independently)</div>
-          <div className="flex justify-between"><span className="text-pl-muted">Expected risked volume</span><span className="font-semibold" data-testid="portfolio-risked">{fmt(rolled.expectedRiskedVolume)}</span></div>
+          <div className="col-span-2 text-[10px] uppercase tracking-wider text-pl-muted">Portfolio ({rolled.count} prospects, treated independently, in MMboe at 6 Mscf per boe)</div>
+          <div className="flex justify-between"><span className="text-pl-muted">Expected risked volume</span><span className="font-semibold" data-testid="portfolio-risked">{fmt(rolled.expectedRiskedVolume)} MMboe</span></div>
           <div className="flex justify-between"><span className="text-pl-muted">Expected discoveries</span><span data-testid="portfolio-discoveries">{fmt(rolled.expectedDiscoveries, 2)}</span></div>
-          <div className="flex justify-between"><span className="text-pl-muted">Success-case total</span><span>{fmt(rolled.successCaseMeanTotal)}</span></div>
+          <div className="flex justify-between"><span className="text-pl-muted">Success-case total</span><span>{fmt(rolled.successCaseMeanTotal)} MMboe</span></div>
           <div className="flex justify-between"><span className="text-pl-muted">P(≥1 discovery)</span><span>{pct(rolled.pAtLeastOneDiscovery)}</span></div>
+          {rolled.unstated > 0 && (
+            <div className="col-span-2 text-[10px] text-pl-warning-text" data-testid="portfolio-unstated">
+              {rolled.unstated} prospect{rolled.unstated === 1 ? '' : 's'} saved without a volume unit {rolled.unstated === 1 ? 'is' : 'are'} left out of these totals. Add {rolled.unstated === 1 ? 'it' : 'them'} again with the unit stated.
+            </div>
+          )}
         </div>
       )}
     </div>

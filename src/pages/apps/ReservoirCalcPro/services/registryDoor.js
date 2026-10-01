@@ -9,7 +9,8 @@
 import { zoneAveragesToInputs, surfaceArea } from './registryInputs';
 import { canonicalUnitFor } from './unitsCatalog';
 import { AOIManager } from './AOIManager';
-import { ringOf } from '@/pages/apps/MappingSurfaceStudio/services/polygonTools';
+import { isPrePt9aZone, PRE_PT9A_ZONE_NOTE } from '@/lib/petroProvenance';
+import { polygonRingsOf } from '@/lib/culturePolygonFiles';
 
 export const BOUNDARY_KINDS = Object.freeze(['boundary', 'license_block', 'lease', 'aoi', 'prospect']);
 const M_PER_FT = 0.3048;
@@ -41,19 +42,26 @@ export function registryPatchForZone(wells, zoneName, unitSystem = 'field') {
   const avg = zoneAveragesToInputs(zones);
   const fromWells = avg.fromWells;
   const thicknessBasis = avg.thicknessBasis || null;
+  const weighting = avg.weighting || null;
   delete avg.fromWells;
   delete avg.thicknessBasis;
+  delete avg.weighting;
   if (!fromWells) throw new Error(`No well carries a published average for zone ${zoneName}. Publish zone summaries from Petrophysics Studio first.`);
   const patch = { ...avg };
   if (Number.isFinite(patch.thickness)) {
     patch.thickness = canonicalUnitFor('thickness', unitSystem) === 'ft' ? patch.thickness / M_PER_FT : patch.thickness;
   }
   const wellNames = carrying.filter((w) => (w.zones || []).some((z) => z.name === zoneName && (Number.isFinite(z.properties?.phi_avg) || Number.isFinite(z.properties?.net_m)))).map((w) => w.name);
+  // RCP-U1-018: a zone summary published before PT9a holds total porosity
+  // (PETRO-U2-013); every reader names such wells
+  const phitWells = carrying.filter((w) => (w.zones || []).some((z) => z.name === zoneName && isPrePt9aZone(z.properties))).map((w) => w.name);
+  const notes = phitWells.length ? [`${phitWells.join(', ')}: ${PRE_PT9A_ZONE_NOTE}`] : [];
   return {
     patch,
     fromWells,
     wellNames,
-    provenance: { source: 'shared-registry', zone: zoneName, wells: wellNames, fields: Object.keys(patch), thickness_basis: thicknessBasis, pulled_at: new Date().toISOString() },
+    notes,
+    provenance: { source: 'shared-registry', zone: zoneName, wells: wellNames, fields: Object.keys(patch), thickness_basis: thicknessBasis, weighting, total_porosity_wells: phitWells, pulled_at: new Date().toISOString() },
   };
 }
 
@@ -70,13 +78,24 @@ export const isBoundaryLayer = (row) => BOUNDARY_KINDS.includes(row?.kind) && (r
 
 /** An RCP AOI from a culture layer's first polygon ring. */
 export function aoiFromBoundary(row, features) {
-  const ring = ringOf(features?.[0]);
-  if (ring.length < 3) throw new Error(`${row.name} has no polygon to use as an AOI.`);
-  const aoi = AOIManager.createAOI(row.name, ring.map(([x, y]) => ({ x, y })), '#22d3ee');
-  aoi.source = { kind: 'geo_culture', id: row.id, name: row.name, layerKind: row.kind };
-  return aoi;
+  // RCP-U1-027: every polygon of the layer becomes its own AOI (the door
+  // took the first ring of the first feature, so a licence block in two
+  // parts lost one without a word); the largest comes first
+  const rings = polygonRingsOfFeatures(features);
+  if (!rings.length) throw new Error(`${row.name} has no polygon to use as an AOI.`);
+  return rings.map((ring, i) => {
+    const aoi = AOIManager.createAOI(rings.length > 1 ? `${row.name} (part ${i + 1} of ${rings.length})` : row.name, ring.map(([x, y]) => ({ x, y })), '#22d3ee');
+    aoi.source = { kind: 'geo_culture', id: row.id, name: row.name, layerKind: row.kind, part: i + 1, parts: rings.length, crs: row.crs || null };
+    return aoi;
+  });
 }
 
+/** Outer rings of every polygon in a feature list (the shared reader), largest first. */
+export function polygonRingsOfFeatures(features) {
+  const rings = polygonRingsOf(features);
+  const area = (r) => Math.abs(r.reduce((s, [x, y], i) => { const [x2, y2] = r[(i + 1) % r.length]; return s + x * y2 - x2 * y; }, 0) / 2);
+  return rings.sort((a, b) => area(b) - area(a));
+}
 /** Word a preview of what Apply would set. */
 export function describePatch(patch, unitSystem = 'field') {
   const parts = [];

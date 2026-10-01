@@ -86,9 +86,9 @@ const ProspectRiskingGuide = () => (
     <UL>
       <li>
         <strong>From last run.</strong> When a Monte Carlo study has been run in this workspace, the panel
-        seeds the four fields from it automatically, rounded to whole numbers. It searches the result for the
-        first block carrying a finite mean and P50, trying STOOIP, then GIIP, then the oil block, then the
-        gas block, then the flat result.
+        seeds the four fields from its RECOVERABLE volumes: each realization's in-place volume times its
+        recovery factor (sampled when you gave the recovery factor a distribution). Oil comes in MMSTB (MMsm³
+        metric), gas in Bscf (Bsm³), and oil with a gas cap in MMboe at 6 Mscf per boe.
       </li>
       <li>
         <strong>Typed by hand.</strong> Any field can be overwritten, and with no Monte Carlo result present
@@ -100,11 +100,13 @@ const ProspectRiskingGuide = () => (
       snapshot, and they play no part in Pg or in the risked mean. Clear the mean and the risked readout
       disappears and the Add button refuses to save.
     </P>
-    <Note tone="warn" title="The panel records no unit">
-      Nothing in this panel labels a unit. Whatever the seeded run was in, STB or standard cubic metres,
-      barrels or millions of barrels, the inventory just stores numbers. Fix one unit basis for the whole
-      inventory before you add the first prospect, and put it in the prospect name if there is any chance of
-      ambiguity, because the portfolio roll-up will happily add barrels to cubic metres.
+    <Note tone="info" title="Unit and basis travel with the prospect">
+      The Unit and Basis selectors are saved with the prospect. Risked Reserves Valuation reads recoverable
+      volumes (it multiplies them by an NPV per barrel and compares them with a minimum economic field
+      size), so it flags any prospect saved as in place, or saved before the basis was recorded. A run made
+      before the U1 upgrade (2026-09-30) has no recoverable volumes; the panel then offers its in-place
+      volumes and says so. The portfolio roll-up converts every row to MMboe before adding, and leaves out
+      (and counts) rows saved without a unit.
     </Note>
 
     <H2>Risked mean and success case, kept apart</H2>
@@ -263,8 +265,8 @@ const ProspectRiskingGuide = () => (
         Petroleum Economics Studio to turn it into an expected monetary value.
       </li>
       <li>
-        <strong>Nothing about recoverability past what you fed in.</strong> The volume is whatever you seeded
-        or typed. If that was in place volume, the risked mean is a risked in place volume.
+        <strong>Recoverability as fed in.</strong> A seeded volume is recoverable at the recovery factors of
+        the run; a typed one is whatever you typed, labelled by the Basis selector.
       </li>
       <li>
         <strong>Nothing about the spread of a portfolio outcome.</strong> A sum of means gives no P90 and no
@@ -277,9 +279,9 @@ const ProspectRiskingGuide = () => (
         the rest of the inventory. That judgement stays with you.
       </li>
       <li>
-        <strong>Nothing about whether the volumes are comparable.</strong> The roll-up adds whatever numbers
-        are in the rows. Mixed units or a mix of in place and recoverable volumes produce a total that looks
-        perfectly reasonable and means nothing.
+        <strong>Comparable volumes only.</strong> The roll-up converts each row to MMboe from its stated unit
+        and leaves out rows with no unit. It cannot tell an in-place row typed as recoverable; keep the basis
+        honest when you type volumes by hand.
       </li>
     </UL>
     <Note tone="success" title="A defensible way to use the panel">

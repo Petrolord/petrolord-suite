@@ -1,5 +1,6 @@
 import { saveAs } from 'file-saver';
 import { supabase } from '@/lib/customSupabaseClient';
+import { compactRun, compactReservoirs } from './runCompaction';
 
 // ReservoirCalc Pro project persistence.
 //
@@ -64,9 +65,10 @@ export const toBlob = (project, version) => ({
     calcMethod: project.calcMethod || 'deterministic',
     inputMethod: project.inputMethod || 'simple',
     reservoirName: project.reservoirName || '',
-    reservoirs: Array.isArray(project.reservoirs) ? project.reservoirs : null,
+    // RCP-U1-013: runs are saved with whole statistics and thinned realizations
+    reservoirs: Array.isArray(project.reservoirs) ? compactReservoirs(project.reservoirs) : null,
     activeReservoirId: project.activeReservoirId || null,
-    probResults: project.probResults || null,
+    probResults: compactRun(project.probResults) || null,
     auditTrail: project.auditTrail || [],
     updated_at: new Date().toISOString(),
 });

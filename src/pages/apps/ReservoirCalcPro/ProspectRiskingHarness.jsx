@@ -11,7 +11,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function ProspectRiskingHarness() {
   const backend = useMemo(() => makeInMemoryProspectsBackend([
-    { name: 'Seed Prospect', pg_factors: { trap: 0.5, reservoir: 0.5, charge: 1, seal: 1 }, inputs: { mean: 100 }, risked: { risked_mean: 25 } },
+    { name: 'Seed Prospect', pg_factors: { trap: 0.5, reservoir: 0.5, charge: 1, seal: 1 }, inputs: { mean: 100, unit: 'MMbbl', basis: 'recoverable' }, risked: { risked_mean: 25 } },
   ]), []);
   const unrisked = useMemo(() => ({ mean: 40, p90: 12, p50: 33, p10: 78 }), []);
   return (

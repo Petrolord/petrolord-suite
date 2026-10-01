@@ -17,8 +17,10 @@ import ChartFrame from '@/components/charts/ChartFrame';
 import TornadoChart from './TornadoChart';
 import { tornadoSwings } from '@/lib/monteCarlo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { inPlaceScale, headlineStream, runContext, runSignature } from '../../services/volumeDisplay';
+import { reviewerLines } from '../../services/reportInfo';
 
-const PARAM_LABELS = { area: 'Area', thickness: 'Thickness', ntg: 'NTG', phi: 'Porosity', sw: 'Water Sat.', fvf: 'Bo', bg: 'Bg', owc: 'OWC', goc: 'GOC', grvFactor: 'GRV Factor' };
+const PARAM_LABELS = { area: 'Area', thickness: 'Thickness', ntg: 'NTG', phi: 'Porosity', sw: 'Water Sat.', fvf: 'Bo', bg: 'Bg', owc: 'OWC', goc: 'GOC', grvFactor: 'GRV Factor', gasCapFraction: 'Gas cap fraction', recovery: 'Oil RF', recoveryGas: 'Gas RF' };
 // Per-variable formatting + short labels for the realization tracker (handles both
 // analytic area/thickness samples and structural contact/GRV-factor samples).
 const REALIZATION_FIELDS = {
@@ -26,18 +28,31 @@ const REALIZATION_FIELDS = {
     area: { label: 'Area', digits: 0 }, thickness: { label: 'Thick', digits: 1 },
     owc: { label: 'OWC', digits: 0 }, goc: { label: 'GOC', digits: 0 },
     grvFactor: { label: 'GRV×', digits: 2 }, ntg: { label: 'NTG', digits: 2 },
+    gasCapFraction: { label: 'Gas cap', digits: 2 }, recovery: { label: 'Oil RF %', digits: 1 }, recoveryGas: { label: 'Gas RF %', digits: 1 },
     fvf: { label: 'Bo', digits: 3 }, bg: { label: 'Bg', digits: 5 },
 };
 const AXIS_TICK = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
 
+/**
+ * The expectation curve as industry reads it (RCP-U1-006): the
+ * probability of EXCEEDING each volume, so the 90% line meets the curve at
+ * the P90 (low) volume. The engine's cdf points are non-exceedance
+ * (percent of realizations at or below x); they were plotted as they came
+ * under an "Expectation Curve" title with 90/50/10 guide lines, so the 90%
+ * line read off the P10 (high) volume.
+ */
+export function exceedanceCurve(cdf, denom = 1) {
+    return (cdf || []).map((p) => ({ x: +(p.x / denom).toFixed(3), y: +(100 - p.y).toFixed(2) }));
+}
+
 // Bin raw realizations + shape CDF / tornado series for the charts. Computed
 // before any early return so hook order stays stable.
-function buildChartData(probResults, fluidType) {
+export function buildChartData(probResults, fluidType, unitSystem = 'field') {
     if (!probResults || !probResults.stats) return { histogram: [], cdf: [], tornado: [], swings: [] };
     const gas = fluidType === 'gas';
     const st = gas ? probResults.stats.giip : probResults.stats.stooip;
     const raw = (gas ? probResults.raw.giip : probResults.raw.stooip) || [];
-    const d = gas ? 1e9 : 1e6;
+    const d = inPlaceScale(headlineStream(fluidType), unitSystem).denom;
     if (!st || raw.length === 0) return { histogram: [], cdf: [], tornado: [], swings: [] };
 
     const vals = raw.map((v) => v / d);
@@ -53,7 +68,7 @@ function buildChartData(probResults, fluidType) {
         counts[i] += 1;
     }
     const histogram = counts.map((c, i) => ({ x: +(mn + (i + 0.5) * w).toFixed(3), count: c }));
-    const cdf = (st.cdf || []).map((p) => ({ x: +(p.x / d).toFixed(3), y: +p.y.toFixed(2) }));
+    const cdf = exceedanceCurve(st.cdf, d);
     const tornado = (probResults.stats.sensitivity || []).map((s) => ({
         parameter: PARAM_LABELS[s.parameter] || s.parameter,
         contribution: +s.contribution.toFixed(1),
@@ -75,10 +90,10 @@ function buildChartData(probResults, fluidType) {
     return { histogram, cdf, tornado, swings, p10: st.p10 / d, p50: st.p50 / d, p90: st.p90 / d };
 }
 
-const RealizationCard = ({ title, realization, unit }) => {
+const RealizationCard = ({ title, realization, unit, denom = 1e6 }) => {
     if (!realization || !realization.inputs) return null;
     // Show whichever variables this run actually sampled, in a stable order.
-    const order = ['phi', 'sw', 'area', 'thickness', 'owc', 'goc', 'grvFactor', 'fvf', 'bg', 'ntg'];
+    const order = ['phi', 'sw', 'area', 'thickness', 'owc', 'goc', 'grvFactor', 'fvf', 'bg', 'ntg', 'gasCapFraction', 'recovery', 'recoveryGas'];
     const rows = order
         .filter((k) => Number.isFinite(realization.inputs[k]) && REALIZATION_FIELDS[k])
         .map((k) => ({ k, label: REALIZATION_FIELDS[k].label, val: realization.inputs[k].toFixed(REALIZATION_FIELDS[k].digits) }));
@@ -91,7 +106,7 @@ const RealizationCard = ({ title, realization, unit }) => {
                 ))}
             </div>
             <div className="pt-1 mt-1 border-t border-pl-border flex justify-between text-[10px] font-bold text-pl-text">
-                <span>Vol:</span> <span>{(realization.targetVol / 1e6).toFixed(2)} {unit}</span>
+                <span>Vol:</span> <span>{(realization.targetVol / denom).toFixed(2)} {unit}</span>
             </div>
         </div>
     );
@@ -111,24 +126,28 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
 
     const [isExporting, setIsExporting] = useState(false);
 
+    // RCP-U1-009: the run's own unit system and fluid, not the live workspace
+    const run = runContext(probResults, state);
     const chartData = useMemo(
-        () => buildChartData(probResults, inputs.fluidType || 'oil'),
-        [probResults, inputs.fluidType],
+        () => buildChartData(probResults, run.fluidType, run.unitSystem),
+        [probResults, run.fluidType, run.unitSystem],
     );
 
     if (!probResults || !probResults.stats) {
         return <div className="flex items-center justify-center h-full text-pl-muted">Run a simulation to see results.</div>;
     }
 
-    const ft = inputs.fluidType || 'oil';
+    const ft = run.fluidType;
     const isGas = ft === 'gas';
     
     const stats = isGas ? probResults.stats.giip : probResults.stats.stooip;
     const rawVolumes = isGas ? probResults.raw.giip : probResults.raw.stooip;
     const baseVal = probResults.stats.baseCaseValue;
     
-    const unitLabel = isGas ? (state.unitSystem === 'field' ? 'Bscf' : 'MMsm³') : 'MMstb';
-    const denom = isGas ? 1e9 : 1e6; 
+    const { denom, label: unitLabel } = inPlaceScale(headlineStream(ft), run.unitSystem);
+    // RCP-U1-028: the workspace changed after this run
+    const stale = !!probResults.meta?.signature && probResults.meta.signature !== runSignature(state);
+    const toggled = run.stamped && (run.unitSystem !== state.unitSystem || run.fluidType !== (inputs.fluidType || 'oil'));
     
     const diffBaseP50 = baseVal ? Math.abs(stats.p50 - baseVal) / baseVal * 100 : 0;
 
@@ -154,9 +173,12 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
             await ReportGenerator.generateProbabilisticReport(
                 state.currentProjectMeta?.name || 'Project',
                 probResults,
-                state.unitSystem,
+                run.unitSystem,
                 chartImages,
-                { template: reportTemplate, fluidType: ft, reservoirName: state.reservoirName || 'Reservoir 1' },
+                {
+                    template: reportTemplate, fluidType: ft, reservoirName: state.reservoirName || 'Reservoir 1',
+                    reviewer: reviewerLines({ report: inputs.report, unitSystem: run.unitSystem, inputMethod: state.inputMethod, fluidType: ft, inputs, probResults }),
+                },
             );
 
             toast({ title: "Success", description: "Report downloaded successfully." });
@@ -179,12 +201,13 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                         <h2 className="text-xl font-bold text-pl-text">Probabilistic Simulation Results</h2>
                         <div className="text-xs mt-1 flex items-center gap-3">
                             <span className="font-pl-mono font-bold text-pl-text bg-pl-sunken px-2 py-0.5 rounded border border-pl-border">
-                                {rawVolumes.length.toLocaleString()} Iterations
+                                {(probResults.meta?.iterations || probResults.stats?.iterations || rawVolumes.length).toLocaleString()} Iterations
+                                {probResults.raw?.thinned && <span className="font-normal text-pl-muted"> (saved: {probResults.raw.thinned.kept.toLocaleString()} kept for the charts)</span>}
                             </span>
                             {probResults.diagnostics.warnings.length > 0 ? (
                                 <span className="text-pl-warning-text flex items-center gap-1"><AlertCircle className="w-3 h-3"/> Warnings Present</span>
                             ) : (
-                                <span className="text-pl-success-text flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Fully Validated</span>
+                                <span className="text-pl-muted flex items-center gap-1" data-testid="rcp-mc-status"><CheckCircle2 className="w-3 h-3"/> No run warnings</span>
                             )}
                         </div>
                     </div>
@@ -201,6 +224,18 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                     </div>
                 </div>
              )}
+
+            {(stale || toggled) && (
+                <div className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-pl-warning/40 bg-pl-warning-bg px-3 py-2 text-xs text-pl-warning-text" data-testid="rcp-mc-stale">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>
+                        {toggled
+                            ? `This run was made in ${run.unitSystem} units for ${ft === 'oil_gas' ? 'oil and gas' : ft}; its numbers are shown in those units. `
+                            : ''}
+                        {stale ? 'The inputs have changed since this run. Run the simulation again to update it.' : ''}
+                    </span>
+                </div>
+            )}
 
             {!isCompact && probResults.diagnostics.warnings.length > 0 && (
                 <div className="mx-4 mt-4 space-y-2">
@@ -293,7 +328,7 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                     <Card className={`${cardClass} flex flex-col`}>
                         <div className="flex justify-between items-center mb-2 border-b border-pl-border pb-2">
                             <h3 className="text-xs font-bold text-pl-text flex items-center gap-2">
-                                <TrendingUp className="w-3 h-3 text-pl-muted" /> Cumulative Probability (Expectation Curve)
+                                <TrendingUp className="w-3 h-3 text-pl-muted" /> Expectation curve (probability of exceeding)
                             </h3>
                         </div>
                         <div ref={cdfRef} data-canvas="chart">
@@ -305,7 +340,7 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                                     <YAxis domain={[0, 100]} stroke={CHART_COLORS.axisLine} tick={AXIS_TICK}
                                         tickFormatter={(v) => `${v}%`} />
                                     <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }}
-                                        formatter={(v) => [`${v}%`, 'Cumulative']}
+                                        formatter={(v) => [`${v}%`, 'Probability of exceeding']}
                                         labelFormatter={(x) => `${Number(x).toFixed(2)} ${unitLabel}`} />
                                     <ReferenceLine y={90} stroke="#94a3b8" strokeDasharray="2 2" />
                                     <ReferenceLine y={50} stroke="#94a3b8" strokeDasharray="2 2" />
@@ -371,9 +406,9 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                          <Card className="lg:col-span-1 p-4 flex flex-col gap-2">
                             <h3 className="text-sm font-bold text-pl-text border-b border-pl-border pb-2">Realization Tracker</h3>
                             <div className="flex-1 overflow-y-auto pr-1 space-y-2">
-                                <RealizationCard title="P90" realization={probResults.diagnostics.tracking.P90} unit={unitLabel} />
-                                <RealizationCard title="P50" realization={probResults.diagnostics.tracking.P50} unit={unitLabel} />
-                                <RealizationCard title="P10" realization={probResults.diagnostics.tracking.P10} unit={unitLabel} />
+                                <RealizationCard title="P90" realization={probResults.diagnostics.tracking.P90} unit={unitLabel} denom={denom} />
+                                <RealizationCard title="P50" realization={probResults.diagnostics.tracking.P50} unit={unitLabel} denom={denom} />
+                                <RealizationCard title="P10" realization={probResults.diagnostics.tracking.P10} unit={unitLabel} denom={denom} />
                             </div>
                          </Card>
                     </div>
