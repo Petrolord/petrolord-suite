@@ -54,6 +54,10 @@ App: `apps/geoscience/pore-pressure-studio` (tile Active, migration
     dead shared_data_registry consumers). Importer closure verified
     file-by-file.
 
+## 2026-10-01: Seismolord layer cakes (Seismolord U2-006)
+
+Seismic velocity trends include layer cakes, read at the well selected before the model (boundary times from the published boundary surfaces, CRS converted); the trend stays trend-grade. Models are listed from the volume row first (W0.2).
+
 ## Verification
 
 - Jest 935 / 68 suites green (28 PP tests: goldens, harness glue,

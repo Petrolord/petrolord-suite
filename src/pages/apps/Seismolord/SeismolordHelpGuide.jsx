@@ -145,8 +145,10 @@ export default function SeismolordHelpGuide() {
           The scan also checks the headers against each other and says what it found. Extended textual headers (SEG-Y
           revision 1 and 2) are skipped. A sample interval or sample count missing from the binary header is read from
           the trace headers, with a note. The import stops, with the reason, when the binary and trace headers
-          disagree on either value, when the file is byte-swapped (little-endian), or when the samples are not IBM or
-          IEEE floating point. A survey with an irregular outline (positions with no trace) imports with those
+          disagree on either value. Byte-swapped (little-endian) files and samples stored as 1, 2 or 4-byte signed or
+          unsigned integers or 8-byte IEEE floating point import too: the scan says so, and they are converted to
+          32-bit float on import without changing the file (integers at their plain value, as segyio reads them).
+          Fixed point with gain (format 4) and 3 and 8-byte integers are refused with the list of what imports. A survey with an irregular outline (positions with no trace) imports with those
           positions as nulls, and a crossline-sorted file imports after one extra pass over its trace headers. A file
           with one inline is pointed at the 2D Lines import; missing coordinates and coordinates in degrees are named.
         </Para>
@@ -269,6 +271,11 @@ export default function SeismolordHelpGuide() {
           one, and each settings change or rename can be undone with Ctrl+Z.
         </Para>
         <Para>
+          Faults keep versions like horizons: right-click a fault for New version (snapshot), and History restores any
+          earlier version as a new one. Deleting a fault, or a horizon, and undoing it brings it back under its own
+          identity, so sessions and the other apps that name it still find it.
+        </Para>
+        <Para>
           Import fault sticks with the upload icon on the Faults section. Supported: Charisma fault sticks (split or
           joined INLINE markers, names with spaces), IESX fault sticks, x y z stick number, and any table through the
           column mapping (X, Y, time, stick, fault name; without a stick column a blank line ends each stick). Each
@@ -300,7 +307,7 @@ export default function SeismolordHelpGuide() {
           ['Chaos', '0 where reflectors are orderly and parallel, towards 1 where they are disordered: salt, gas chimneys, slumps and mass transport.'],
           ['Dip magnitude', 'Reflector dip in ms per trace from the local structure. Steep flanks and drag against faults stand out.'],
           ['Dip azimuth (lattice)', 'The down-dip direction in degrees, measured on the survey grid from increasing inline number towards increasing crossline number, so its zero follows the survey orientation. Opens with a cyclic colormap.'],
-          ['Dip azimuth (grid north)', 'The same down-dip direction on the map, in degrees clockwise from grid north (north of the projected coordinates; true north differs by the meridian convergence). It uses the survey orientation measured at import, so rotated surveys and unequal inline and crossline spacing read correctly. A survey imported before orientation was measured has to be re-imported first; the dialog says so.'],
+          ['Dip azimuth (grid north)', 'The same down-dip direction on the map, in degrees clockwise from grid north (north of the projected coordinates; true north differs by the meridian convergence). Choose True north in the dialog to measure from true north: the convergence at the survey centre is applied, and the dialog shows how much it varies across the survey. It uses the survey orientation measured at import, so rotated surveys and unequal inline and crossline spacing read correctly. A survey imported before orientation was measured has to be re-imported first; the dialog says so.'],
           ['Most positive and most negative curvature', 'How the reflectors bend (ms per trace squared). Most positive picks out crests, ridges and the upthrown edge of faults; most negative the troughs and the downthrown edge. Anticlines read positive.'],
         ]} />
         <Para>
@@ -338,6 +345,9 @@ export default function SeismolordHelpGuide() {
         <Para>
           Right-click a well in the explorer for Show or Hide, Well data (Well Data Manager on its tops) and Open in,
           which lists the other Geoscience apps for that well.
+        </Para>
+        <Para>
+          Zones published by Petrophysics Studio with net pay draw as a green band along the well on sections.
         </Para>
         <SubHeading>Wavelets and the stored tie QC</SubHeading>
         <Para>
@@ -429,7 +439,8 @@ export default function SeismolordHelpGuide() {
         </Para>
         <Para>
           With faults and horizons shown, each fault&apos;s polygon against each horizon draws as a closed loop on the
-          horizon (footwall cutoffs, then hanging-wall cutoffs). Right-click a fault, Fault polygons (GeoJSON), to
+          horizon (footwall cutoffs, then hanging-wall cutoffs). A co-rendered attribute volume draws on the 3D
+          planes as it does on sections. Right-click a fault, Fault polygons (GeoJSON), to
           export them: WGS 84 longitude and latitude when the survey CRS converts, otherwise the survey CRS, named in
           the file.
         </Para>
@@ -442,6 +453,11 @@ export default function SeismolordHelpGuide() {
           window, where horizons are picked along the line under the same names as in 3D. Where lines cross, the
           Misties tool measures the time difference at every crossing, solves least-squares bulk shifts per line and
           applies them as statics without changing the stored samples.
+        </Para>
+        <Para>
+          2D picks join the 3D map: Make surface on a horizon offers to include the 2D picks with the same name (in
+          their mistie-corrected time), and the map grows to cover the lines. Where a shown 2D line crosses the
+          inline or crossline on screen, a dashed marker with the line name is drawn.
         </Para>
         <Para>
           After the time solve, the same dialog measures what is left at each crossing in a 200 ms window about the
@@ -457,9 +473,22 @@ export default function SeismolordHelpGuide() {
         <Para>
           Seismic is stored and picked in two-way time in milliseconds. Depth displays (the section's Depth domain,
           the map's depth domain, the cursor readout) convert through the velocity model. The Depth unit selector in
-          Home (m or ft) starts from your Geoscience depth setting, the one Mapping &amp; Surface Studio, Earth
-          Modeling and the other apps use, and is remembered in this browser. Wells keep their registry depths in
-          metres and are converted at the edge like everything else.
+          Home (m or ft) starts from your units profile (the Suite setting the other apps use); a change there holds
+          for this session, and the note beside it offers Use my profile. Wells keep their registry depths in metres
+          and are converted at the edge like everything else.
+        </Para>
+        <SubHeading>Velocity models from stacking velocities</SubHeading>
+        <Para>
+          In the velocity dialog, From stacking (RMS) velocities takes a pasted table of two-way time and RMS (or
+          stacking) velocity, with the time unit (ms or s) and velocity unit (m/s or ft/s) declared. The Dix equation
+          gives the interval velocity between consecutive picks and the depth at each; Use as V0 + kZ fits a single
+          function to those depths, and Fill layer velocities sets each layer of a layer cake to the time-weighted
+          mean interval velocity across its span. Picks that give no real interval velocity are refused by name.
+        </Para>
+        <Para>
+          A layer cake reaches Mapping &amp; Surface Studio (time to depth) and Pore Pressure Studio (the seismic
+          velocity trend, read at the selected well) through its boundaries published as time surfaces: press Publish
+          boundaries in the velocity dialog. A boundary that is not published is named in the other app.
         </Para>
       </GuideSection>
 

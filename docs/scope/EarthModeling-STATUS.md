@@ -47,6 +47,10 @@ queried `ss_projects`, a table with no migration),
 pricing entry, and the hardcoded GeoscienceHub tile. All 5 legacy
 slugs 301 to `apps/geoscience/earth-modeling`.
 
+## 2026-10-01: Seismolord faults (Seismolord U2-003, EM-T1-010)
+
+The explorer lists Faults from Seismolord (read only, `src/lib/seismicFaultsReader.js`): Add closes the fault's trace at its middle TWT level with the model frame on its hanging-wall side as a fault block (provenance kept in the saved definition); sticks draw in the 3D view when the volume has a linear velocity model. EM-T1-010 is closed for interpreted faults.
+
 ## Open items
 
 - ~~Legacy DB orphan families~~ **DONE 2026-07-14** (owner-approved,
