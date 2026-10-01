@@ -49,7 +49,7 @@ test('PP-U1-003: an unset offshore mudline is said and holds the publish', async
   await openWell(page);
   await page.getByTestId('pp-param-mudline').fill('0');
   await page.getByTestId('pp-apply-params').click();
-  await expect(page.getByTestId('pp-note-datum')).toContainText('Set the mudline MD');
+  await expect(page.getByTestId('pp-note-datum')).toContainText('set the mudline MD to the air gap plus the water depth');
   await expect(page.getByTestId('pp-publish')).toHaveAttribute('data-blocked', 'true');
   await expect(page.getByTestId('pp-publish')).toBeDisabled(); // aria-disabled, with the reason as its title
   await page.getByTestId('pp-publish').dispatchEvent('click');

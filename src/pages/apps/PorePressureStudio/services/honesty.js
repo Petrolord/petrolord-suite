@@ -59,7 +59,7 @@ export function inputNotes({
   const wd = Number(params?.waterDepthM) || 0;
   const ml = Number(params?.mudlineMdM) || 0;
   if (source === 'well' && wd > 0 && ml < wd) {
-    notes.push({ key: 'datum', tone: 'warn', text: `Mudline MD ${fmtZ(ml)} is shallower than the water depth ${fmtZ(wd)}: the log MD is read as depth below mudline. Set the mudline MD to the air gap plus the water depth.` });
+    notes.push({ key: 'datum', tone: 'warn', text: `Mudline MD ${fmtZ(ml)} is shallower than the water depth ${fmtZ(wd)}: the log MD is read as depth below mudline. Offshore, set the mudline MD to the air gap plus the water depth; onshore, set the water depth to 0.` });
   }
   if (input.tvdFrom === 'survey') {
     notes.push({ key: 'tvd', tone: 'info', text: 'Depths are TVD from the deviation survey; published curves sit on the well MD.' });
@@ -101,4 +101,24 @@ export function inputNotes({
     notes.push({ key: 'calibration', tone: Number.isFinite(mis.rmsMpa) ? 'info' : 'warn', text });
   }
   return notes;
+}
+
+/**
+ * Calibration lines "depth, pressure" in the display units. Comma,
+ * semicolon, tab or spaces separate the two numbers; a header line or a
+ * line with a comma decimal does not read and is returned in `skipped`.
+ * @param {string} text
+ * @param {(depth: number, pressure: number) => {z: number, pMpa: number}} convert
+ */
+export function parseCalibration(text, convert) {
+  const points = []; const skipped = [];
+  for (const raw of String(text || '').split('\n')) {
+    const line = raw.trim();
+    if (!line) continue;
+    const parts = line.split(/[,;\t ]+/).filter(Boolean).map(Number);
+    if (parts.length !== 2 || !parts.every(Number.isFinite)) { skipped.push(line); continue; }
+    const c = convert(parts[0], parts[1]);
+    if (Number.isFinite(c.z) && Number.isFinite(c.pMpa)) points.push(c); else skipped.push(line);
+  }
+  return { points, skipped };
 }

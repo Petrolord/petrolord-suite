@@ -40,7 +40,7 @@ test('the p3 release (no mudline, no well id) opens on the well list and compute
   row.click();
   await waitFor(() => expect(screen.getByTestId('pp-readout-pp')).toBeInTheDocument(), { timeout: 10000 });
   // the old default (mudline MD unset on 100 m of water) is said, and publish is held
-  expect(screen.getByTestId('pp-note-datum')).toHaveTextContent(/Set the mudline MD/);
+  expect(screen.getByTestId('pp-note-datum')).toHaveTextContent(/set the mudline MD to the air gap plus the water depth/);
   expect(screen.getByTestId('pp-publish')).toHaveAttribute('data-blocked', 'true');
 });
 

@@ -7,6 +7,7 @@
 // unit); Apply converts back to the SI parameters.
 
 import React, { useEffect, useState } from 'react';
+import { parseCalibration } from '../services/honesty';
 import {
   DEFAULT_UNITS, depthToDisplay, depthFromDisplay, slownessToDisplay, slownessFromDisplay, slownessUnit,
   compactionToDisplay, compactionFromDisplay, compactionUnit, densityToDisplay, densityFromDisplay, densityUnit,
@@ -90,15 +91,14 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
     };
     // calibration lines are "depth, pressure" in the display units; an
     // EMW pressure converts at that depth below the datum
-    const cal = d.calText.split('\n').map((line) => line.trim()).filter(Boolean)
-      .map((line) => {
-        const [zd, pd] = line.split(',').map((s) => Number(s.trim()));
-        const z = depthFromDisplay(zd, zU);
-        const pa = pressureFromDisplay(pd, pU, emwReferenceDepthM(z, next));
-        return { z, pMpa: pa / 1e6 };
-      })
-      .filter((c) => Number.isFinite(c.z) && Number.isFinite(c.pMpa));
-    onApply({ params: next, calibration: cal });
+    // PP-U1-016: comma, semicolon, tab or space between the two numbers (a
+    // pasted RFT table); a line that does not read is counted and said
+    const { points: cal, skipped } = parseCalibration(d.calText, (zd, pd) => {
+      const z = depthFromDisplay(zd, zU);
+      const pa = pressureFromDisplay(pd, pU, emwReferenceDepthM(z, next));
+      return { z, pMpa: pa / 1e6 };
+    });
+    onApply({ params: next, calibration: cal, skipped });
   };
 
   return (

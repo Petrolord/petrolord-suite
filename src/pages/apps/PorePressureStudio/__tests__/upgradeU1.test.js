@@ -222,3 +222,19 @@ describe('Seismolord U2-006 layer cake, end to end on the harness', () => {
     expect(r.rhoSource.every((s) => s === 'gardner')).toBe(true);
   });
 });
+
+describe('PP-U1-016/017 calibration lines and the default water column', () => {
+  test('a pasted RFT table reads with any separator; a header line is counted', async () => {
+    const { parseCalibration } = await import('../services/honesty');
+    const conv = (z, p) => ({ z, pMpa: p });
+    const r = parseCalibration('Depth\tPressure\n3000\t34.5\n3100; 35.2\n3200 36.0\n3300,36.9\n3400,5;37', conv);
+    expect(r.points.map((c) => c.z)).toEqual([3000, 3100, 3200, 3300]);
+    expect(r.skipped).toEqual(['Depth\tPressure', '3400,5;37']);
+  });
+
+  test('a new project starts with no water column', async () => {
+    const { DEFAULT_PARAMS } = await import('../components/PPWorkstation');
+    expect(DEFAULT_PARAMS.waterDepthM).toBe(0);
+    expect(publishBlocker(DEFAULT_PARAMS)).toBeNull();
+  });
+});

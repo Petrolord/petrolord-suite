@@ -48,8 +48,10 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 
+// PP-U1-017: no invented water column; a new project starts onshore (water
+// depth 0) and an offshore well says to set the water depth and mudline MD
 export const DEFAULT_PARAMS = {
-  waterDepthM: 100,
+  waterDepthM: 0,
   rhoSeawaterKgM3: 1025,
   rhoFluidKgM3: 1030,
   mudlineMdM: 0,
@@ -340,14 +342,16 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     </select>
   );
 
-  const applyDock = ({ params: p, calibration: cal }) => {
+  const applyDock = ({ params: p, calibration: cal, skipped = [] }) => {
     // a hand-edited trend is no longer the fitted one (PL4)
     const n0 = params.nct; const n1 = p.nct || {};
     if (Math.abs(n0.dtMlUsPerM - n1.dtMlUsPerM) > 1e-6 * n0.dtMlUsPerM || Math.abs(n0.cPerM - n1.cPerM) > 1e-6 * Math.abs(n0.cPerM || 1)
       || Math.abs(n0.dtMaUsPerM - n1.dtMaUsPerM) > 1e-6 * n0.dtMaUsPerM) setNctFittedFor(null);
     setParams(p);
     setCalibration(cal);
-    setStatus('Parameters applied.');
+    setStatus(skipped.length
+      ? `Parameters applied. ${skipped.length} calibration line${skipped.length === 1 ? '' : 's'} not read (two numbers per line: depth, pressure): ${skipped.slice(0, 3).join(' | ')}`
+      : 'Parameters applied.');
   };
 
   const onNctFitted = (fit) => {
