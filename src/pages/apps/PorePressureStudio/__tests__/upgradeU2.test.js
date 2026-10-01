@@ -214,3 +214,63 @@ describe('U2-002 calibration imports', () => {
     expect(notes.find((n) => n.key === 'calibration').text).toMatch(/Not calibrated/);
   });
 });
+
+// ---- U2-001 resistivity Eaton in the app -------------------------------------
+import { makeInMemoryBackend, HARNESS_RES_NCT } from '../services/inMemoryBackend';
+import { mapLogs, buildProfileInput, normalizeResistivity, normalizePpCurves } from '../services/prep';
+import { fitResistivityNct } from '../engine/resistivity';
+
+async function harnessCurves() {
+  const b = makeInMemoryBackend();
+  const [well] = await b.listWells();
+  const mapped = mapLogs(await b.listLogs(well.id));
+  const [depth, dt, rho, res] = await Promise.all([mapped.DEPT, mapped.DT, mapped.RHOB, mapped.RES].map((l) => b.downloadCurve(l)));
+  const norm = normalizePpCurves({ depth, dt, rho, dtLog: mapped.DT, rhoLog: mapped.RHOB });
+  return { mapped, norm, res: normalizeResistivity(res, mapped.RES) };
+}
+
+describe('U2-001 resistivity Eaton (harness well, door to engine)', () => {
+  test('the harness RT read through prep and the engine reproduces the goldens pore pressure', async () => {
+    const { mapped, norm, res } = await harnessCurves();
+    expect(mapped.RES.mnemonic).toBe('RT');
+    expect(res.notes).toEqual([]);
+    const input = buildProfileInput({ ...norm, res: res.res }, norm.units, { mudlineMdM: 130, needs: 'res' });
+    expect(input.resOhmM).toHaveLength(401);
+    const params = { ...PARAMS, method: 'eaton-resistivity', resNct: { ...HARNESS_RES_NCT }, eatonNRes: 1.2 };
+    const r = computeProfile({ ...input, params });
+    let worst = 0;
+    r.porePressurePa.forEach((v, i) => { worst = Math.max(worst, Math.abs(v - W.pore_pressure_pa[i])); });
+    expect(worst).toBeLessThan(1); // Pa
+    // negative control: the sonic exponent on resistivity
+    const bad = computeProfile({ ...input, params: { ...params, eatonNRes: 3 } });
+    expect(Math.abs(bad.porePressurePa[380] - W.pore_pressure_pa[380])).toBeGreaterThan(2e6);
+    // the trend fit on hydrostatic-section picks recovers the generating trend
+    const picks = [500, 1000, 1500, 2000].map((z) => input.zBmlM.indexOf(z));
+    const fit = fitResistivityNct(picks.map((i) => input.zBmlM[i]), picks.map((i) => input.resOhmM[i]));
+    expect(fit.r0OhmM).toBeCloseTo(HARNESS_RES_NCT.r0OhmM, 9);
+    expect(fit.bPerM).toBeCloseTo(HARNESS_RES_NCT.bPerM, 13);
+  });
+
+  test('hostile resistivity: nulls and negatives are gaps, a conductivity in mS/m converts, an odd unit is said', () => {
+    const a = normalizeResistivity([1, -999.25, 0, 2.5, NaN], { mnemonic: 'ILD', unit: 'OHMM' });
+    expect(a.res.map((v) => (Number.isNaN(v) ? null : v))).toEqual([1, null, null, 2.5, null]);
+    expect(a.notes[0]).toMatch(/3 ILD samples with nulls/);
+    const c = normalizeResistivity([500, 1000], { mnemonic: 'CILD', unit: 'MMHO/M' });
+    expect(c.res).toEqual([2, 1]);
+    expect(c.notes[0]).toMatch(/conductivity/);
+    expect(normalizeResistivity([1], { mnemonic: 'RT', unit: 'API' }).notes[0]).toMatch(/not ohm.m/);
+  });
+
+  test('samples without resistivity are dropped and counted; no sonic is fine where density is logged', async () => {
+    const { norm, res } = await harnessCurves();
+    const r = res.res.slice(); for (let i = 50; i < 60; i++) r[i] = NaN;
+    const dt = norm.dt.slice(); dt[100] = NaN;
+    const input = buildProfileInput({ ...norm, dt, res: r }, norm.units, { mudlineMdM: 130, needs: 'res' });
+    expect(input.dropped.resGaps).toBe(10);
+    expect(input.dtUsPerM[input.zBmlM.indexOf(1000)]).toBeNull();
+    const notes = inputNotes({ input, result: computeProfile({ ...input, params: { ...PARAMS, method: 'eaton-resistivity', resNct: { ...HARNESS_RES_NCT } } }), params: PARAMS, nctFitted: false, trend: 'res' });
+    expect(notes.find((n) => n.key === 'dropped').text).toMatch(/10 without resistivity/);
+    expect(notes.find((n) => n.key === 'nct').text).toMatch(/Resistivity trend not fitted/);
+    expect(() => buildProfileInput({ ...norm, res: null }, norm.units, { needs: 'res' })).toThrow(/no resistivity curve/);
+  });
+});

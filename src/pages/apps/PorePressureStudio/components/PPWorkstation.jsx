@@ -32,7 +32,9 @@ import WellExplorer from './WellExplorer';
 import ParamsPanel from './ParamsPanel';
 import PrognosisChart from './PrognosisChart';
 import NctPanel from './NctPanel';
-import { mapLogs, buildProfileInput, normalizePpCurves, wellDepthFrame } from '../services/prep';
+import {
+  mapLogs, buildProfileInput, normalizePpCurves, wellDepthFrame, normalizeResistivity,
+} from '../services/prep';
 import { computeProfile } from '../engine/profile';
 import { pseudoSonicFromLinearVelocity } from '../engine/velocitySource';
 import { layerCakeProfile } from '@/lib/velocityModels';
@@ -60,6 +62,9 @@ export const DEFAULT_PARAMS = {
   eatonN: 3,
   bowers: { A: 10, B: 0.75 },
   nu: 0.4,
+  // U2-001: resistivity Eaton, Eaton's published exponent 1.2
+  resNct: { r0OhmM: 0.6, bPerM: 2e-4 },
+  eatonNRes: 1.2,
 };
 
 const PP_ID = 'pore-pressure-studio';
@@ -84,6 +89,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const [saving, setSaving] = useState(false);
   // PP-U1-010: the NCT was fitted on the open well (or comes from the project/default)
   const [nctFittedFor, setNctFittedFor] = useState(null);
+  // U2-001: the resistivity trend was fitted on the open well
+  const [resNctFittedFor, setResNctFittedFor] = useState(null);
   // Suite unit profile: depth and pressure start from the profile; the
   // selectors below change this view for the session only, and the older
   // remembered 'pp.units' choice no longer beats the profile
@@ -114,6 +121,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
         if (project.picks) setPicks(project.picks);
         if (project.source?.nctFittedFor) setNctFittedFor(project.source.nctFittedFor);
+        if (project.source?.resNctFittedFor) setResNctFittedFor(project.source.resNctFittedFor);
         if (project.calibration) setCalibration(project.calibration);
         setStatus('Restored saved project.');
         // PP-U1-013: reopen the well the project was saved on
@@ -145,19 +153,25 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         backend.downloadCurve(mapped.DEPT), backend.downloadCurve(mapped.DT),
       ]);
       const rho = mapped.RHOB ? await backend.downloadCurve(mapped.RHOB) : null;
+      const resRaw = mapped.RES ? await backend.downloadCurve(mapped.RES) : null;
       // PP-U1-004: vendor nulls, kg/m3 density and us/ft sonic are read for
       // what they are, and each decision is said
       const norm = normalizePpCurves({ depth, dt, rho, dtLog: mapped.DT, rhoLog: mapped.RHOB });
+      // U2-001: the deep resistivity, for resistivity Eaton
+      const resN = resRaw && resRaw.length === depth.length ? normalizeResistivity(resRaw, mapped.RES) : null;
       setCurves({
         depth: norm.depth,
         dt: norm.dt,
         rho: norm.rho,
+        res: resN ? resN.res : null,
+        resName: mapped.RES?.mnemonic || null,
         units: norm.units,
-        fileUnits: { DT: mapped.DT.unit, RHOB: mapped.RHOB?.unit },
-        notes: norm.notes,
+        fileUnits: { DT: mapped.DT.unit, RHOB: mapped.RHOB?.unit, RES: mapped.RES?.unit },
+        notes: [...norm.notes, ...(resN ? resN.notes : [])],
         logIds: Object.values(mapped).filter(Boolean).map((l) => l.id),
       });
       setNctFittedFor((prev) => (prev === wellId ? prev : null));
+      setResNctFittedFor((prev) => (prev === wellId ? prev : null));
       setStatus(`Loaded ${depth.length} samples${rho ? '' : '. No density log, so the overburden uses Gardner'}.${norm.notes.length ? ` ${norm.notes.join(' ')}` : ''}`);
     } catch (e) {
       setStatus(e.message);
@@ -209,8 +223,12 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     setStatus(`Velocity trend from ${model.name}: a trend-grade prognosis (no local anomaly).`);
   }, [wells, selectedId, backend]);
 
+  const byRes = params.method === 'eaton-resistivity';
   const input = useMemo(() => {
     try {
+      if (seismicModel && byRes) {
+        return { error: 'A velocity trend carries no resistivity: choose Eaton sonic or Bowers for a seismic trend.' };
+      }
       if (seismicModel?.kind === 'layercake') {
         if (!layerCakeAt) return null;
         if (layerCakeAt.error) return { error: layerCakeAt.error };
@@ -230,11 +248,13 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       }
       if (!curves) return null;
       // PP-U1-002: a deviated well is computed at TVD through its survey
-      return buildProfileInput(curves, curves.units, { mudlineMdM: params.mudlineMdM, frame: wellDepthFrame(selected) });
+      return buildProfileInput(curves, curves.units, {
+        mudlineMdM: params.mudlineMdM, frame: wellDepthFrame(selected), needs: byRes ? 'res' : 'dt',
+      });
     } catch (e) {
       return { error: e.message };
     }
-  }, [curves, seismicModel, layerCakeAt, params.mudlineMdM, params.waterDepthM, selected, trendZMaxM]);
+  }, [curves, seismicModel, layerCakeAt, params.mudlineMdM, params.waterDepthM, selected, trendZMaxM, byRes]);
 
   const profile = useMemo(() => {
     if (!input || input.error) return null;
@@ -257,11 +277,14 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     result,
     params,
     source: seismicModel ? 'seismic' : 'well',
-    nctFitted: !!nctFittedFor && nctFittedFor === (selectedId || (seismicModel ? `model:${seismicModel.id}` : null)),
+    nctFitted: byRes
+      ? !!resNctFittedFor && resNctFittedFor === selectedId
+      : !!nctFittedFor && nctFittedFor === (selectedId || (seismicModel ? `model:${seismicModel.id}` : null)),
+    trend: byRes ? 'res' : 'dt',
     calibration,
     fmtZ: (m) => `${fmtDepth(m, units.depth)} ${units.depth}`,
     fmtP: (mpa) => (units.pressure === 'psi' ? `${fmtPressure(mpa * 1e6, 'psi')} psi` : `${mpa.toFixed(2)} MPa`),
-  }), [input, result, params, seismicModel, nctFittedFor, selectedId, calibration, units]);
+  }), [input, result, params, seismicModel, nctFittedFor, resNctFittedFor, byRes, selectedId, calibration, units]);
 
   const readout = useMemo(() => {
     if (!result || !input) return null;
@@ -350,6 +373,9 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     const n0 = params.nct; const n1 = p.nct || {};
     if (Math.abs(n0.dtMlUsPerM - n1.dtMlUsPerM) > 1e-6 * n0.dtMlUsPerM || Math.abs(n0.cPerM - n1.cPerM) > 1e-6 * Math.abs(n0.cPerM || 1)
       || Math.abs(n0.dtMaUsPerM - n1.dtMaUsPerM) > 1e-6 * n0.dtMaUsPerM) setNctFittedFor(null);
+    const r0 = params.resNct || {}; const r1 = p.resNct || r0;
+    if (Math.abs((r0.r0OhmM ?? 0) - (r1.r0OhmM ?? 0)) > 1e-9 * Math.abs(r0.r0OhmM || 1)
+      || Math.abs((r0.bPerM ?? 0) - (r1.bPerM ?? 0)) > 1e-9 * Math.abs(r0.bPerM || 1)) setResNctFittedFor(null);
     // keep what the dock does not edit (trend segments, resistivity trend, ...)
     setParams((prev) => ({ ...prev, ...p }));
     setCalibration(cal);
@@ -371,6 +397,12 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     setStatus(`Imported ${summary.read} calibration point${summary.read === 1 ? '' : 's'} from ${summary.name}${summary.skipped.length ? `; ${summary.skipped.length} line${summary.skipped.length === 1 ? '' : 's'} not read` : ''}.`);
   };
 
+  const onResNctFitted = (fit) => {
+    setResNctFittedFor(selectedId);
+    setParams((p) => ({ ...p, resNct: { r0OhmM: fit.r0OhmM, bPerM: fit.bPerM } }));
+    setStatus(`Resistivity trend fitted: R0 ${fit.r0OhmM.toFixed(3)} ohm.m, b ${fit.bPerM.toExponential(3)} 1/m.`);
+  };
+
   const onNctFitted = (fit) => {
     setNctFittedFor(selectedId || (seismicModel ? `model:${seismicModel.id}` : null));
     setParams((p) => ({
@@ -390,7 +422,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         // nctFittedFor rides in the source jsonb (no schema change)
         source: seismicModel
           ? { kind: 'seismic', volumeId: seismicModel.id, nctFittedFor }
-          : { kind: 'well', wellId: selectedId, nctFittedFor },
+          : { kind: 'well', wellId: selectedId, nctFittedFor, resNctFittedFor },
       });
       if (saved?.id) setProjectId(saved.id);
       setStatus('Project saved.');
@@ -610,6 +642,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       picks={picks}
       onPicksChange={setPicks}
       onNctFitted={onNctFitted}
+      onResNctFitted={onResNctFitted}
+      byRes={byRes}
       depthUnit={units.depth}
     />
   ) : (

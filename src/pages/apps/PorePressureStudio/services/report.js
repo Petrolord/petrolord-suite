@@ -43,6 +43,8 @@ export function reviewerLines(p) {
     `Depth reference: depth below mudline = ${input?.tvdFrom === 'survey' ? 'TVD from the deviation survey' : 'MD (vertical well)'} minus the mudline; water depth ${z(wd)}; mudline MD ${ml > 0 ? `${z(ml)} below RKB (air gap ${z(Math.max(0, ml - wd))})` : 'not set (log MD read as depth below mudline)'}`,
     params.method === 'eaton'
       ? `Method: Eaton sonic, n = ${params.eatonN}; fracture: K = nu/(1-nu), nu = ${params.nu}`
+      : params.method === 'eaton-resistivity'
+        ? `Method: Eaton resistivity, n = ${params.eatonNRes ?? 1.2}, trend R_n = ${params.resNct?.r0OhmM} exp(${Number(params.resNct?.bPerM).toExponential(3)} z) ohm.m (z in m below mudline); fracture: K = nu/(1-nu), nu = ${params.nu}`
       : `Method: Bowers ${params.bowers?.U != null ? `unloading, U = ${params.bowers.U}` : 'loading'}, A = ${params.bowers?.A}, B = ${params.bowers?.B} (ft/s, psi); fracture: K = nu/(1-nu), nu = ${params.nu}`,
     `NCT: dt = dt_ma + (dt_ml - dt_ma) exp(-c z), dt_ml ${r1(params.nct.dtMlUsPerM, 2)} us/m, dt_ma ${r1(params.nct.dtMaUsPerM, 2)} us/m, c ${Number(params.nct.cPerM).toExponential(3)} 1/m; ${nctFitted ? 'fitted on this source' : 'NOT fitted on this source (project or default values)'}`,
   ];

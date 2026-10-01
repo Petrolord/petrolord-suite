@@ -31,6 +31,17 @@ export const AIR_GAP_M = 30;
 export const MUDLINE_MD_M = AIR_GAP_M + WELL.params.water_depth_m;
 const MD = WELL.z_bml_m.map((z) => z + MUDLINE_MD_M);
 
+// U2-001: a deep resistivity generated as the sonic was, by inverting
+// Eaton with the published resistivity exponent (1.2) on the imposed pore
+// pressure against the trend R_n = 0.6 exp(2e-4 z): resistivity Eaton with
+// these parameters must reproduce goldens.well.pore_pressure_pa
+export const HARNESS_RES_NCT = Object.freeze({ r0OhmM: 0.6, bPerM: 2.0e-4 });
+export const RES_OHMM = WELL.z_bml_m.map((z, i) => {
+  const S = WELL.overburden_pa[i]; const Ph = WELL.hydrostatic_pa[i]; const PP = WELL.pore_pressure_pa[i];
+  const ratio = S - Ph > 1 ? ((S - PP) / (S - Ph)) ** (1 / 1.2) : 1;
+  return ratio * HARNESS_RES_NCT.r0OhmM * Math.exp(HARNESS_RES_NCT.bPerM * z);
+});
+
 export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
   const wellId = nextId('well');
   const curveStore = new Map();
@@ -59,6 +70,7 @@ export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
   addLog('DEPT', 'M', MD);
   addLog('DT', 'US/M', WELL.dt_us_per_m);
   addLog('RHOB', 'G/C3', WELL.rho_kg_m3.map((r) => r / 1000.0));
+  addLog('RT', 'OHMM', RES_OHMM);
 
   const wells = [{
     id: wellId,
@@ -101,6 +113,8 @@ export function makeInMemoryBackend({ layerCake = false, saved = null } = {}) {
       eatonN: P.eaton_n,
       bowers: { A: 10, B: 0.75 },
       nu: P.nu,
+      resNct: { ...HARNESS_RES_NCT },
+      eatonNRes: 1.2,
     },
     picks: [],
     calibration: [],

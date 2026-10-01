@@ -56,7 +56,7 @@ export function calibrationMisfit(calibration, zBmlM, ppPa, compare = 'pp') {
  * @returns {{key: string, text: string, tone: 'warn'|'info'}[]}
  */
 export function inputNotes({
-  input, result, params, source = 'well', nctFitted = false, calibration = [], fmtZ = (m) => `${Math.round(m)} m`, fmtP = (mpa) => `${mpa.toFixed(2)} MPa`,
+  input, result, params, source = 'well', nctFitted = false, trend = 'dt', calibration = [], fmtZ = (m) => `${Math.round(m)} m`, fmtP = (mpa) => `${mpa.toFixed(2)} MPa`,
 }) {
   const notes = [];
   if (!input || input.error || !result) return notes;
@@ -70,9 +70,12 @@ export function inputNotes({
   }
   const d = input.dropped || {};
   const gaps = (d.dtGaps || 0); const up = (d.upturn || 0); const off = (d.offSurvey || 0);
-  if (gaps || up || off) {
+  const rg = (d.resGaps || 0); const nd = (d.noDensity || 0);
+  if (gaps || up || off || rg || nd) {
     const parts = [];
     if (gaps) parts.push(`${gaps} without sonic`);
+    if (rg) parts.push(`${rg} without resistivity`);
+    if (nd) parts.push(`${nd} with neither density nor sonic for the overburden`);
     if (up) parts.push(`${up} where the hole turns back up`);
     if (off) parts.push(`${off} above the first survey station`);
     notes.push({ key: 'dropped', tone: 'info', text: `${parts.join(', ')} left out (published as gaps).` });
@@ -89,7 +92,13 @@ export function inputNotes({
     }
   }
   if (!nctFitted) {
-    notes.push({ key: 'nct', tone: 'warn', text: 'NCT not fitted on this source (project or default values): fit it on shale picks in the NCT view.' });
+    notes.push({
+      key: 'nct',
+      tone: 'warn',
+      text: trend === 'res'
+        ? 'Resistivity trend not fitted on this well (project or default values): fit it on shale picks in the NCT view (Resistivity).'
+        : 'NCT not fitted on this source (project or default values): fit it on shale picks in the NCT view.',
+    });
   }
   const mis = calibrationMisfit(calibration, input.zBmlM, result.porePressurePa);
   if (!mis.points.length) {

@@ -135,7 +135,8 @@ export default function PorePressureStudioHelpGuide() {
       <GuideSection id="methods">
         <SectionHeading icon={Gauge}>Eaton, Bowers and the fracture gradient</SectionHeading>
         <Table headers={['Method', 'What it does', 'Parameters']} rows={[
-          ['Eaton', 'Scales the effective stress by the ratio of the normal to the measured transit time raised to the exponent; the classic sonic method.', 'Exponent n (3 for sonic)'],
+          ['Eaton sonic', 'Scales the effective stress by the ratio of the normal to the measured transit time raised to the exponent; the classic sonic method.', 'Exponent n (3 for sonic)'],
+          ['Eaton resistivity', "Scales the effective stress by the ratio of the measured to the normal shale resistivity raised to the exponent (Eaton 1975). The normal trend is log-linear in depth, fitted on shale picks in the NCT view on a log axis. Use it where the sonic is poor or absent; the deep resistivity (RT, ILD, LLD, AT90 and similar) is read in ohm.m, a conductivity in mS/m converted.", 'Exponent n (1.2 for resistivity, Eaton\'s published value); R at the mudline and the slope b'],
           ['Bowers', 'Inverts the velocity to effective stress through the loading curve; with U and the maximum stress set, the unloading curve applies where the velocity has reversed.', 'A and B in ft/s and psi as published; U; sigma max'],
         ]} />
         <Para>

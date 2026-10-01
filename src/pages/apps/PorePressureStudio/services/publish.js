@@ -21,7 +21,7 @@ export const PIPELINE_MAJOR = /^pp-1\./;
 const MPA = 1e6;
 
 const SPECS = [
-  { mnemonic: 'PP', key: 'porePressurePa', description: (p) => `Pore pressure (${p.method}${p.method === 'eaton' ? ` n=${p.eatonN}` : ''})` },
+  { mnemonic: 'PP', key: 'porePressurePa', description: (p) => `Pore pressure (${p.method}${p.method === 'eaton' ? ` n=${p.eatonN}` : p.method === 'eaton-resistivity' ? ` n=${p.eatonNRes ?? 1.2}` : ''})` },
   { mnemonic: 'FP', key: 'fracPressurePa', description: (p) => `Fracture pressure (K from nu=${p.nu})` },
   { mnemonic: 'OBG', key: 'overburdenPa', description: () => 'Overburden stress (density integration)' },
 ];

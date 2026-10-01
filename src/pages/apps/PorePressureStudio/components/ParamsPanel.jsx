@@ -47,6 +47,9 @@ const toDraft = (params, calibration, units) => {
     cPerM: tidy(compactionToDisplay(params.nct.cPerM, zU), 9),
     method: params.method,
     eatonN: String(params.eatonN),
+    eatonNRes: String(params.eatonNRes ?? 1.2),
+    resR0: tidy(params.resNct?.r0OhmM ?? 0.6, 6),
+    resB: tidy(compactionToDisplay(params.resNct?.bPerM ?? 2e-4, zU), 9),
     bowersA: String(params.bowers?.A ?? 10),
     bowersB: String(params.bowers?.B ?? 0.75),
     bowersU: params.bowers?.U != null ? String(params.bowers.U) : '',
@@ -94,6 +97,8 @@ export default function ParamsPanel({
       },
       method: d.method,
       eatonN: num(d.eatonN),
+      eatonNRes: num(d.eatonNRes),
+      resNct: { r0OhmM: num(d.resR0), bPerM: compactionFromDisplay(num(d.resB), zU) },
       bowers,
       nu: num(d.nu),
       report: { field: d.field.trim(), analyst: d.analyst.trim() },
@@ -131,21 +136,27 @@ export default function ParamsPanel({
 
       <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Method</div>
       <div className="flex gap-1">
-        {['eaton', 'bowers'].map((m) => (
+        {[['eaton', 'Eaton sonic'], ['eaton-resistivity', 'Eaton resistivity'], ['bowers', 'Bowers']].map(([m, label]) => (
           <button
             key={m}
             type="button"
             data-testid={`pp-method-${m}`}
-            className={`px-2 py-1 text-xs rounded border capitalize
+            className={`px-2 py-1 text-xs rounded border
               ${d.method === m ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
             onClick={() => setD((prev) => ({ ...prev, method: m }))}
           >
-            {m}
+            {label}
           </button>
         ))}
       </div>
       {d.method === 'eaton' ? (
-        <Field id="pp-param-eatonn" label="Eaton exponent n" value={d.eatonN} onChange={set('eatonN')} />
+        <Field id="pp-param-eatonn" label="Eaton exponent n (3.0 sonic)" value={d.eatonN} onChange={set('eatonN')} />
+      ) : d.method === 'eaton-resistivity' ? (
+        <>
+          <Field id="pp-param-eatonnres" label="Eaton exponent n (1.2 resistivity)" value={d.eatonNRes} onChange={set('eatonNRes')} />
+          <Field id="pp-param-resr0" label="Shale R at mudline (ohm.m)" value={d.resR0} onChange={set('resR0')} />
+          <Field id="pp-param-resb" label={`R trend slope b (${cU})`} value={d.resB} onChange={set('resB')} />
+        </>
       ) : (
         <>
           <Field id="pp-param-bowersa" label="Bowers A (ft/s, psi)" value={d.bowersA} onChange={set('bowersA')} />
