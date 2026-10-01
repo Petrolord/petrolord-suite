@@ -8,7 +8,7 @@ import { drawBrandHeader, loadPetrolordLogo } from '@/lib/pdfBrand';
 import { buildDocxBlob, docxFileName } from '@/utils/reportAutopilotDocx';
 import { fmtDepth } from './units';
 import { toRigLocal } from '@/lib/wellsite/time';
-import { reportTitle, periodText } from './reportText';
+import { reportTitle, periodText, reviewerLines } from './reportText';
 
 const cellText = (c, unit) => {
   if (c == null) return '';
@@ -17,10 +17,10 @@ const cellText = (c, unit) => {
 };
 const kvText = (r, unit) => (r.text != null ? r.text : Number.isFinite(r.value_m) ? `${fmtDepth(r.value_m, unit)}${Number.isFinite(r.tvd_m) ? ` (TVD ${fmtDepth(r.tvd_m, unit)})` : ''}` : '');
 
-export { reportTitle, periodText };
+export { reportTitle, periodText, reviewerLines };
 
 /** The PDF document for a model. signoffs: [{user_name, role, signed_at, local_offset_min, content_hash, countersignature}] */
-export async function buildReportPdf(model, { unit = 'ft', offsetMin = 0, signoffs = [], logo: logoIn } = {}) {
+export async function buildReportPdf(model, { unit = 'ft', offsetMin = 0, signoffs = [], logo: logoIn, reviewer = {} } = {}) {
   const doc = new jsPDF();
   const logo = logoIn === undefined ? await loadPetrolordLogo().catch(() => null) : logoIn;
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -29,8 +29,10 @@ export async function buildReportPdf(model, { unit = 'ft', offsetMin = 0, signof
   doc.setTextColor(30, 41, 59);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Generated ${toRigLocal(Date.parse(model.generated_at), offsetMin).iso.replace('T', ' ')} rig time from the well record. Template ${model.template.name} v${model.template.version}. Depths in ${unit}.`, margin, y);
-  y += 6;
+  doc.text(`Generated ${toRigLocal(Date.parse(model.generated_at), offsetMin).iso.replace('T', ' ')} rig time from the well record. Template ${model.template.name} v${model.template.version}.`, margin, y);
+  y += 5;
+  for (const line of reviewerLines(model, { unit, ...reviewer })) { doc.text(line, margin, y); y += 5; }
+  y += 1;
   const ensure = (h) => { if (y + h > doc.internal.pageSize.getHeight() - 14) { doc.addPage(); y = 14; } };
   for (const s of model.sections) {
     ensure(12);
@@ -82,7 +84,7 @@ export async function exportReportPdf(model, opts) {
 }
 
 /** The DOCX report (sections as headings and paragraphs). */
-export function docxReport(model, { unit = 'ft', offsetMin = 0, signoffs = [] } = {}) {
+export function docxReport(model, { unit = 'ft', offsetMin = 0, signoffs = [], reviewer = {} } = {}) {
   const sections = model.sections.map((s) => {
     let content = '';
     if (s.kind === 'kv') content = s.rows.map((r) => `${r.label}: ${kvText(r, unit)}`).join('\n');
@@ -92,7 +94,7 @@ export function docxReport(model, { unit = 'ft', offsetMin = 0, signoffs = [] } 
     return { title: s.title, content };
   });
   sections.push({ title: 'Sign-off', content: signoffs.length ? signoffs.map((so) => `Signed by ${so.user_name || so.user_id} (${String(so.role).replace(/_/g, ' ')}) at ${so.signed_at} UTC, report version ${so.report_version}, content hash ${so.content_hash}. ${so.countersignature ? `Countersigned by Petrolord (key ${so.countersignature.key_id}).` : 'Platform countersignature pending until synchronised.'}`).join('\n') : 'Not signed.' });
-  return { title: reportTitle(model), meta: [periodText(model, offsetMin), `Generated from the well record; template ${model.template.name} v${model.template.version}; depths in ${unit}.`], sections, footNote: 'Petrolord Suite, Wellsite Studio. Every value above traces to a record on the well.' };
+  return { title: reportTitle(model), meta: [periodText(model, offsetMin), `Generated from the well record; template ${model.template.name} v${model.template.version}.`, ...reviewerLines(model, { unit, ...reviewer })], sections, footNote: 'Petrolord Suite, Wellsite Studio. Every value above traces to a record on the well.' };
 }
 
 export async function exportReportDocx(model, opts) {
