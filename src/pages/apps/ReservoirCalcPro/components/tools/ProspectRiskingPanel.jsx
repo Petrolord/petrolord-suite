@@ -17,6 +17,7 @@ import { RISK_FACTORS, chanceOfSuccess, riskProspect } from '../../services/Pros
 import { VOLUME_UNITS, portfolioInMMboe } from '../../services/prospectVolumes';
 import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
 import { buildProspectSummaryPdf } from '../../services/prospectSummaryPdf';
+import { prospectEconomics, ECONOMICS_DEFAULTS } from '../../services/prospectEconomics';
 import { reviewerLines } from '../../services/reportInfo';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
@@ -37,6 +38,9 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
   // volumes; a run from before U1 can only offer in-place ones.
   const [basis, setBasis] = useState('recoverable');
   const [added, setAdded] = useState(false);
+  // U2-012: success-case economics through the canonical screening NPV
+  const [econOn, setEconOn] = useState(false);
+  const [econ, setEcon] = useState({ ...ECONOMICS_DEFAULTS });
 
   // seed volumes from RCP's latest run when available
   useEffect(() => {
@@ -60,6 +64,7 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
   }), [vol]);
 
   const pg = chanceOfSuccess(factors);
+  const econRes = useMemo(() => (econOn ? prospectEconomics(num(vol.mean), unit, econ) : null), [econOn, vol.mean, unit, econ]); // eslint-disable-line react-hooks/exhaustive-deps
   const live = Number.isFinite(unriskedObj.mean)
     ? riskProspect({ name, factors, unrisked: unriskedObj })
     : null;
@@ -75,7 +80,10 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
       await backend.saveProspect({
         name: name.trim(),
         pgFactors: factors,
-        inputs: { mean: unriskedObj.mean, p90: unriskedObj.p90, p50: unriskedObj.p50, p10: unriskedObj.p10, unit, basis },
+        inputs: {
+          mean: unriskedObj.mean, p90: unriskedObj.p90, p50: unriskedObj.p50, p10: unriskedObj.p10, unit, basis,
+          ...(econRes?.ok ? { economics: { npvMM: econRes.npvMM, unitValue: econRes.unitValue, devCost: econRes.devCost, assumptions: econRes.assumptions, engine: econRes.engine } } : {}),
+        },
         risked: { pg: live.pg, risked_mean: live.riskedMean, success: live.successCase },
       });
       setStatus(`Added ${name.trim()} to the inventory.`);
@@ -160,6 +168,38 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
             <div className="flex justify-between"><span className="text-pl-muted">P10 / mean</span><span>{fmt(live.successCase.p10)} / {fmt(live.successCase.mean)}</span></div>
           </div>
         )}
+
+        <div className="mt-2 rounded border border-pl-border p-2 space-y-1.5" data-testid="prospect-econ">
+          <label className="flex items-center gap-2 text-xs">
+            <input type="checkbox" checked={econOn} data-testid="prospect-econ-on" onChange={(e) => setEconOn(e.target.checked)} />
+            <span>Success-case economics (the Suite&apos;s screening NPV, Tax/Royalty, mid-year discounting)</span>
+          </label>
+          {econOn && (
+            <>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  ['price', 'Price, $/boe'], ['life', 'Producing years'], ['decline', 'Decline, %/yr'],
+                  ['capex', 'Development, $MM'], ['opexPerBoe', 'Opex, $/boe'], ['opexFixed', 'Fixed opex, $MM/yr'],
+                  ['royalty', 'Royalty, %'], ['tax', 'Tax, %'], ['discount', 'Discount, %'],
+                ].map(([k, label]) => (
+                  <label key={k} className="flex flex-col text-[10px] text-pl-muted">{label}
+                    <input className={inputCls} value={econ[k]} data-testid={`econ-${k}`}
+                      onChange={(e) => setEcon((s) => ({ ...s, [k]: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                  </label>
+                ))}
+              </div>
+              {econRes && !econRes.ok && <p className="text-[10px] text-pl-warning-text">{econRes.reason}</p>}
+              {econRes?.ok && (
+                <div className="grid grid-cols-3 gap-2 text-xs" data-testid="econ-result">
+                  <div><span className="text-pl-muted">NPV{econ.discount} success case</span><div className="font-semibold" data-testid="econ-npv">{fmt(econRes.npvMM)} $MM</div></div>
+                  <div><span className="text-pl-muted">Value per boe before development</span><div className="font-semibold" data-testid="econ-unit">{fmt(econRes.unitValue, 2)} $</div></div>
+                  <div><span className="text-pl-muted">Development (discounted, after tax)</span><div className="font-semibold">{fmt(econRes.devCost)} $MM</div></div>
+                  <p className="col-span-3 text-[10px] text-pl-muted">Production declines from first oil the year after development and recovers the success-case mean ({fmt(econRes.meanMMboe, 2)} MMboe). Saved with the prospect; Risked Reserves Valuation takes the value per barrel and the development cost from it.</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
         <div className="mt-2 flex items-center gap-2">
           <input className={`${inputCls} flex-1`} placeholder="Prospect name" value={name}

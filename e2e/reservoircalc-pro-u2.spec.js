@@ -231,3 +231,22 @@ test('U2-011: the one-page prospect summary PDF reads back with its reviewer hea
   expect(text).toMatch(/risked percentiles are not quoted/);
   expect(errors).toEqual([]);
 });
+
+test('U2-012: success-case economics from the screening NPV, saved with the prospect', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/dev/prospect-risking');
+  await expect(page.getByTestId('prospect-risking')).toBeVisible({ timeout: 60000 });
+  await page.getByTestId('vol-unit').selectOption('MMbbl');
+  await page.getByTestId('vol-mean').fill('42.5');
+  await page.getByTestId('prospect-econ-on').check();
+  await expect(page.getByTestId('econ-npv')).toContainText('$MM');
+  const npv1 = await page.getByTestId('econ-npv').innerText();
+  // a higher price raises the NPV
+  await page.getByTestId('econ-price').fill('90');
+  await expect(page.getByTestId('econ-npv')).not.toHaveText(npv1);
+  await page.getByTestId('prospect-name').fill('Keta Econ');
+  await page.getByTestId('prospect-add').click();
+  await expect(page.getByTestId('prospect-status')).toContainText('Added Keta Econ');
+  expect(errors).toEqual([]);
+});

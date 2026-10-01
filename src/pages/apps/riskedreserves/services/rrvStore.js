@@ -54,6 +54,11 @@ export function fromRcpProspect(row) {
     ].filter(Boolean).join('; '),
     basis: row.inputs?.basis || null,
     ...DEFAULT_ECONOMICS,
+    // RCP-U2-012: a prospect valued in ReservoirCalc Pro brings its value
+    // per barrel and development cost (the Suite's screening NPV)
+    ...(Number.isFinite(Number(row.inputs?.economics?.unitValue)) && Number(row.inputs.economics.unitValue) >= 0 && Number(row.inputs.economics.devCost) >= 0
+      ? { unitValue: Number(Number(row.inputs.economics.unitValue).toPrecision(6)), devCost: Number(Number(row.inputs.economics.devCost).toPrecision(6)), economicsNote: 'value per barrel and development cost from ReservoirCalc Pro success-case economics' }
+      : {}),
   };
 }
 
