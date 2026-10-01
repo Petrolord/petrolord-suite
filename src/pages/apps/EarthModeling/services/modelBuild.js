@@ -225,24 +225,33 @@ export const hasFluids = (f) => !!f && (['goc', 'owc', 'bo', 'bg'].some((k) => N
  * down and Sw up for P90, the reverse for P10, every node moving together
  * (a fully correlated property case). Null when no property was kriged.
  */
+/**
+ * The zone's property grids shifted by z kriging standard deviations each
+ * (every node moving together), held to 0..1. `zs` is {phi, sw, ntg}; a
+ * property without a variance grid is returned unshifted.
+ */
+export function shiftProps(zone, zs = {}) {
+  const vars = zone.variance || {};
+  const out = {};
+  for (const k of ['phi', 'sw', 'ntg']) {
+    const g = zone.props[k];
+    if (!g) continue;
+    const v = vars[k];
+    const z = Number(zs[k]) || 0;
+    if (!v || z === 0) { out[k] = g; continue; }
+    out[k] = Float64Array.from(g, (x, i) => {
+      if (!Number.isFinite(v[i]) || v[i] < 0 || Math.abs(x) >= 1e29) return x;
+      return Math.min(1, Math.max(0, x + z * Math.sqrt(v[i])));
+    });
+  }
+  return out;
+}
+
 export function volumeRange(spec, zone, labels, fluids, top, base) {
   const vars = zone.variance || {};
   if (!['phi', 'sw', 'ntg'].some((k) => vars[k])) return null;
   const K = 1.2815515655446004;
-  const shifted = (sgn) => {
-    const out = {};
-    for (const k of ['phi', 'sw', 'ntg']) {
-      const g = zone.props[k];
-      if (!g) continue;
-      const v = vars[k];
-      const dir = k === 'sw' ? -sgn : sgn;
-      out[k] = Float64Array.from(g, (x, i) => {
-        if (!v || !Number.isFinite(v[i]) || v[i] < 0 || Math.abs(x) >= 1e29) return x;
-        return Math.min(1, Math.max(0, x + dir * K * Math.sqrt(v[i])));
-      });
-    }
-    return out;
-  };
+  const shifted = (sgn) => shiftProps(zone, { phi: sgn * K, sw: -sgn * K, ntg: sgn * K });
   const vol = (props) => (hasFluids(fluids)
     ? zoneVolumesWithContacts(spec, top, base, labels, props, fluids)
     : zoneVolumes(spec, zone.thickness, labels, props)).total;
@@ -668,6 +677,8 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       : zoneVolumes(specM, zThickness, zLabels, props);
     const zone = { name: zdef.name, registryZone: zdef.registryZone, ...(labelsByZone ? { labels: zLabels, census: blockCensus(zLabels) } : {}), thickness: zThickness, props, variance, provenance, volumes, fluids, ...(shm ? { shm } : {}) };
     zone.range = volumeRange(specM, zone, zLabels, volFluids, top, base);
+    // U2-010: what a volume distribution needs to re-run this zone's volumes
+    zone.mc = { fluids: volFluids || null, trap: !!trap, owcBase: trap ? contactGrid(fluids, 'owc', zLabels, nNodes) : null, hasFluids: !!(hasFluids(fluids) || (shmPending && shm?.fwlAsContact)) };
     if (trap) {
       zone.trap = { traps: trap.traps, cutNodes: trap.cutNodes, openEdge: trap.openEdge };
       zone.openEdge = trap.openEdge ? { open: true, nodes: 0, spillAtEdge: true } : { open: false, nodes: 0 };

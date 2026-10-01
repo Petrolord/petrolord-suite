@@ -125,3 +125,23 @@ test('U2-009: the zone goes to ReservoirCalc Pro as a prospect and its inputs fi
   await page.screenshot({ path: path.join(SHOTS, 'u2-009-rcp.png') });
   expect(errs).toEqual([]);
 });
+
+test('U2-010: the volume distribution runs in QC and orders P90 <= P50 <= P10', async ({ page }) => {
+  const errs = errorsOf(page);
+  await stack(page);
+  await metric(page);
+  await page.getByTestId('em-method-phi').selectOption('okrige');
+  await page.getByTestId('em-owc-0').fill('1580');
+  await page.getByTestId('em-bo-0').fill('1.25');
+  await buildNow(page);
+  await page.getByTestId('em-view-qc').click();
+  await page.getByTestId('em-dist-n').fill('200');
+  await page.getByTestId('em-dist-run').click();
+  await expect(page.getByTestId('em-dist-table')).toBeVisible({ timeout: 60000 });
+  const v = async (k) => Number((await page.getByTestId(`em-dist-zone-1-stoiip-${k}`).textContent()).trim());
+  const [p90, p50, p10] = [await v('p90'), await v('p50'), await v('p10')];
+  expect(p90).toBeLessThanOrEqual(p50);
+  expect(p50).toBeLessThanOrEqual(p10);
+  expect(p10).toBeGreaterThan(p90);
+  expect(errs).toEqual([]);
+});

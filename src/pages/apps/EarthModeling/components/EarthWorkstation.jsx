@@ -692,7 +692,8 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry…
     </div>
   ) : view === 'qc' ? (
-    <QcPanel built={built} surfaceNames={surfaceNames} depthUnit={depthUnit} volumeUnits={volumeUnits} />
+    <QcPanel built={built} surfaceNames={surfaceNames} depthUnit={depthUnit} volumeUnits={volumeUnits}
+      onDistribution={(d) => { setBuilt((b) => (b ? { ...b, distribution: d } : b)); setStatus(`Volume distribution: ${d.iterations} trials, seed ${d.seed}. P90 is the low case.`); }} />
   ) : view === '3d' ? (
     <div className="p-3 h-full min-h-0">
       {built ? (

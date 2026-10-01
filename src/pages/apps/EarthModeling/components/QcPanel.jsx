@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { describeTraps } from '../services/trapBound';
+import DistributionCard from './DistributionCard';
 import { fmtVolume, volumeUnitLabel, fmtDepth } from '../services/units';
 import { describeProvenance } from '../services/propertyKriging';
 import { hasFluids } from '../services/modelBuild';
@@ -16,7 +17,7 @@ const td = 'px-2 py-1 text-xs text-pl-text whitespace-nowrap';
 const card = 'rounded border border-pl-border bg-pl-surface';
 
 
-export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', volumeUnits = 'metric' }) {
+export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', volumeUnits = 'metric', onDistribution = null }) {
   const u = depthUnit;
   const vu = (col) => volumeUnitLabel(col, volumeUnits);
   if (!built) {
@@ -126,6 +127,8 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
           </tbody>
         </table>
       </div>
+
+      {onDistribution && <DistributionCard built={built} volumeUnits={volumeUnits} onResult={onDistribution} />}
 
       {built.zones.map((zone) => (
         <div className={card} key={zone.name}>

@@ -407,3 +407,56 @@ describe('U2-001: Seismolord faults as a polygon per zone top (hook + fixture)',
     expect(typeof makeRegistryBackend()[SEISMIC_FAULTS_HOOK.method]).toBe('undefined');
   });
 });
+
+describe('U2-010: volume distribution through the canonical Monte Carlo module', () => {
+  const okDef = (byName, fluidsInput) => baseDef(byName, { methods: { phi: 'okrige', sw: 'okrige', ntg: 'constant' }, fluidsInput });
+
+  test('no spread: every trial is the deterministic volume', async () => {
+    const f = await fixture();
+    const b = await buildModel(okDef(f.byName, [{ owc: '1580', bo: '1.25' }, null]), f.wells, f.surfaces, f.backend);
+    const { runVolumeDistribution } = await import('../services/volumeDistribution');
+    const d = await runVolumeDistribution(b, { iterations: 100, seed: 7 });
+    const s = d.zones[0].stats.stoiip_m3;
+    const det = b.zones[0].volumes.total.stoiip_m3;
+    for (const k of ['p90', 'p50', 'p10', 'min', 'max']) expect(Math.abs(s[k] / det - 1)).toBeLessThan(1e-12);
+    expect(d.zones[0].varying).toEqual([]);
+  });
+
+  test('Bo alone: the percentiles of STOIIP = HCPV / Bo are the analytic triangular quantiles (P90 is the low case)', async () => {
+    const f = await fixture();
+    const b = await buildModel(okDef(f.byName, [{ owc: '1580', bo: '1.25' }, null]), f.wells, f.surfaces, f.backend);
+    const { runVolumeDistribution } = await import('../services/volumeDistribution');
+    const { triInvCDF } = await import('@/lib/monteCarlo');
+    const d = await runVolumeDistribution(b, { iterations: 2000, seed: 11, boPct: 20 });
+    const hcpv = b.zones[0].volumes.total.oil_hcpv_m3;
+    const s = d.zones[0].stats.stoiip_m3;
+    // STOIIP falls as Bo rises: its 10th percentile is HCPV over Bo's 90th
+    const q = (u) => triInvCDF(u, 1.0, 1.25, 1.5);
+    expect(Math.abs(s.p90 / (hcpv / q(0.9)) - 1)).toBeLessThan(0.01);
+    expect(Math.abs(s.p50 / (hcpv / q(0.5)) - 1)).toBeLessThan(0.01);
+    expect(Math.abs(s.p10 / (hcpv / q(0.1)) - 1)).toBeLessThan(0.01);
+    expect(s.p90).toBeLessThan(s.p50);
+    expect(s.p50).toBeLessThan(s.p10);
+    // negative control: reading P90 as the 90th percentile would give the high case, 20% off
+    expect(Math.abs((hcpv / q(0.1)) / s.p90 - 1)).toBeGreaterThan(0.15);
+    // HCPV does not depend on Bo
+    expect(Math.abs(d.zones[0].stats.hcpv_m3.p10 / d.zones[0].stats.hcpv_m3.p90 - 1)).toBeLessThan(1e-12);
+  });
+
+  test('contacts and kriged properties vary; the same seed reproduces the result', async () => {
+    const f = await fixture();
+    const b = await buildModel(okDef(f.byName, [{ owc: '1580', bo: '1.25' }, null]), f.wells, f.surfaces, f.backend);
+    const { runVolumeDistribution } = await import('../services/volumeDistribution');
+    const cfg = { iterations: 300, seed: 3, owcPlusMinusM: 10, properties: true, rhoPhiSw: -0.5 };
+    const a = await runVolumeDistribution(b, cfg);
+    const c = await runVolumeDistribution(b, cfg);
+    expect(c.zones[0].stats).toEqual(a.zones[0].stats);
+    expect(a.zones[0].varying).toEqual(expect.arrayContaining(['owcShift', 'phiZ', 'swZ']));
+    const s = a.zones[0].stats.hcpv_m3;
+    const det = b.zones[0].volumes.total.hcpv_m3;
+    expect(s.p90).toBeLessThan(det);
+    expect(s.p10).toBeGreaterThan(det);
+    expect(Math.abs(s.p50 / det - 1)).toBeLessThan(0.05);
+    await expect(runVolumeDistribution(null, {})).rejects.toThrow(/Build the model first/);
+  });
+});

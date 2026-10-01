@@ -75,5 +75,16 @@ export function volumesCsv(built, { name = 'earth-model', volumeUnits = 'metric'
   const fileName = `${String(name).replace(/[^\w-]+/g, '_') || 'earth-model'}-volumes-${volumeUnits}.csv`;
   for (const c of built.propertyClamps || []) lines.push(`# ${c.zone} ${c.prop}: ${c.nodes} nodes extrapolated outside 0 to 1 and held at the limit`);
   for (const n of built.notes || []) lines.push(`# note: ${n}`);
+  // U2-010: the volume distribution when one was run (P90 = low case)
+  if (built.distribution) {
+    const d = built.distribution;
+    lines.push(`# volume distribution: ${d.iterations} trials, seed ${d.seed}; P90 is the low case (10th percentile of outcomes)`);
+    lines.push(['zone', 'quantity', 'P90', 'P50', 'P10', 'mean'].join(','));
+    for (const z of d.zones) {
+      for (const [qn, st] of Object.entries(z.stats)) {
+        lines.push([z.name, `${qn.replace('_m3', '')} (${volumeUnitLabel(qn, volumeUnits)})`, ...['p90', 'p50', 'p10', 'mean'].map((k) => { const x = volumeValue(st[k], qn, volumeUnits); return x === null ? '' : x.toFixed(4); })].map(q).join(','));
+      }
+    }
+  }
   return { text: latin1(`${lines.join('\n')}\n`), fileName };
 }
