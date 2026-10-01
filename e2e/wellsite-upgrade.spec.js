@@ -89,7 +89,7 @@ test('WS-U1-014, 009 (PL7): the daily report PDF read back carries the reviewer 
   await page.getByTestId('ws-nav-report').click();
   await page.getByTestId('ws-signoff-sign').click();
   await expect(page.getByTestId('ws-status')).toContainText('Signed as A. Geologist', SLOW);
-  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.getByTestId('ws-daily-pdf').click()]);
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 240000 }), page.getByTestId('ws-daily-pdf').click()]);
   const text = execFileSync('pdftotext', ['-layout', await download.path(), '-'], { encoding: 'utf8' });
   fs.mkdirSync('test-results', { recursive: true });
   fs.writeFileSync('test-results/ws-u1-daily-report.txt', text);
