@@ -61,7 +61,8 @@ describe('U2-006 the canonical engine runs in the worker', () => {
   it('the worker handler calls MonteCarloEngine.simulate, not a copy', () => {
     const spy = jest.spyOn(MonteCarloEngine, 'simulate');
     viaWorkerHandler({ ...analyticConfig, iterations: 200, seed: 1 }, analyticInputs);
-    expect(spy).toHaveBeenCalledTimes(1);
+    // one run (the spider's own evaluations, U2-017, call it with spider: false)
+    expect(spy.mock.calls.filter(([c]) => c.spider !== false)).toHaveLength(1);
     spy.mockRestore();
   });
 
