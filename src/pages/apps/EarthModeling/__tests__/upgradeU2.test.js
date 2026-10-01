@@ -460,3 +460,51 @@ describe('U2-010: volume distribution through the canonical Monte Carlo module',
     await expect(runVolumeDistribution(null, {})).rejects.toThrow(/Build the model first/);
   });
 });
+
+describe('U2-008: Petrophysics net pay and HCPV maps as property trends', () => {
+  async function mapsFixture() {
+    const backend = makeInMemoryBackend({ propertyMaps: true });
+    const wells = await backend.listWells();
+    const surfaces = await backend.listSurfaces();
+    const byName = Object.fromEntries(surfaces.map((s) => [s.name, s]));
+    return { backend, wells, surfaces, byName };
+  }
+
+  test('NTG from the net pay map is the analytic 0.7; the zone HCPV equals the HCPV map times the cell area', async () => {
+    const f = await mapsFixture();
+    const def = baseDef(f.byName, {
+      methods: { phi: 'trend', sw: 'map', ntg: 'map' },
+      zones: [{ name: 'Zone A', registryZone: 'A', maps: { ntg: f.byName['A net pay (TVT)'].id, sw: f.byName['A HCPV (TVT)'].id } }, { name: 'Zone B', registryZone: 'B' }],
+    });
+    const b = await buildModel(def, f.wells, f.surfaces, f.backend);
+    const z = b.zones[0];
+    for (const v of z.props.ntg) expect(Math.abs(v - 0.7)).toBeLessThan(1e-5);
+    // the map's HCPV volume: sum of HCPV thickness x cell area over the live nodes
+    const hcpvMap = await f.backend.downloadSurfaceGrid(f.byName['A HCPV (TVT)']);
+    let mapVol = 0;
+    for (const v of hcpvMap) mapVol += v * 50 * 50;
+    expect(Math.abs(z.volumes.total.hcpv_m3 / mapVol - 1)).toBeLessThan(1e-5);
+    // negative control: the wells' constant Sw gives another HCPV
+    const constSw = await buildModel({ ...def, methods: { phi: 'trend', sw: 'constant', ntg: 'map' } }, f.wells, f.surfaces, f.backend);
+    expect(Math.abs(constSw.zones[0].volumes.total.hcpv_m3 / mapVol - 1)).toBeGreaterThan(0.05);
+    expect(z.provenance.sw[0].methodUsed).toBe('map');
+    // zone B has no map: the weighted mean, said as a fall-back
+    expect(b.zones[1].provenance.ntg[0].fellBack).toBe(true);
+    expect(b.zones[1].provenance.ntg[0].note).toMatch(/no Petrophysics map picked/);
+  });
+
+  test('the pure rules: clamping counted, no pore volume means water; a structure row is refused as a map', async () => {
+    const { ntgFromNetMap, swFromHcpvMap, mapKind, isMdKey } = await import('../services/propertyMaps');
+    const n = ntgFromNetMap(Float64Array.from([5, 12, -1]), Float64Array.from([10, 10, 10]));
+    expect(Array.from(n.z)).toEqual([0.5, 1, 0]);
+    expect(n.clamped).toBe(2);
+    const s = swFromHcpvMap(Float64Array.from([1, 1]), Float64Array.from([10, 0]), Float64Array.from([0.5, 0.5]), Float64Array.from([0.2, 0.2]));
+    expect(s.z[0]).toBeCloseTo(0, 12);
+    expect(s.z[1]).toBe(1);
+    expect(mapKind({ provenance: { source: { key: 'hcpv_tvt_m' } } })).toBe('hcpv');
+    expect(isMdKey({ provenance: { source: { key: 'net_m' } } })).toBe(true);
+    const f = await mapsFixture();
+    const def = baseDef(f.byName, { methods: { phi: 'trend', sw: 'trend', ntg: 'map' }, zones: [{ name: 'Zone A', registryZone: 'A', maps: { ntg: f.byName.TopB.id } }, { name: 'Zone B', registryZone: 'B' }] });
+    await expect(buildModel(def, f.wells, f.surfaces, f.backend)).rejects.toThrow(/net pay map of Zone A/);
+  });
+});

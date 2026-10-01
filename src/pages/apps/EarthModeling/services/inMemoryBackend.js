@@ -12,8 +12,12 @@ import { SAVED_MODELS, resolveSavedModel } from './savedFixtures';
 let seq = 0;
 const nid = (p) => { seq += 1; return `${p}-${seq}`; };
 
-/** @param {{savedModels?: boolean}} [opts] savedModels seeds one saved model per release (U1, PL5) */
-export function makeInMemoryBackend({ savedModels = false } = {}) {
+/**
+ * @param {{savedModels?: boolean, propertyMaps?: boolean}} [opts] savedModels seeds one saved
+ *   model per release (U1, PL5); propertyMaps seeds zone A's Petrophysics net pay and HCPV
+ *   maps as Mapping grids them (U2-008)
+ */
+export function makeInMemoryBackend({ savedModels = false, propertyMaps = false } = {}) {
   const wells = fixtureWells();
   const surfaces = [];
   const gridStore = new Map();
@@ -34,6 +38,27 @@ export function makeInMemoryBackend({ savedModels = false } = {}) {
       storage_path: `user-dev/${id}/grid.f32`,
       created_at: new Date(2026, 6, 14, 9, 0, seq).toISOString(),
     });
+  }
+
+  // U2-008: zone A's net pay is 70% of its vertical thickness (TopB - TopA =
+  // 30 + 0.01 (x - 1000) m) and its HCPV thickness is net x 0.22 x 0.7
+  if (propertyMaps) {
+    const { x0, y0, dx, dy, nx, ny } = MODEL_SPEC;
+    const net = new Float32Array(nx * ny); const hcpv = new Float32Array(nx * ny);
+    for (let r = 0; r < ny; r++) for (let c = 0; c < nx; c++) {
+      const t = 30 + 0.01 * (c * dx);
+      net[r * nx + c] = 0.7 * t; hcpv[r * nx + c] = 0.7 * t * 0.22 * 0.7;
+    }
+    for (const [name, key, g] of [['A net pay (TVT)', 'net_tvt_m', net], ['A HCPV (TVT)', 'hcpv_tvt_m', hcpv]]) {
+      const id = nid('surf');
+      gridStore.set(id, g);
+      surfaces.push({
+        id, user_id: 'user-dev', organization_id: null, is_own: true, name, kind: 'attribute',
+        origin_x: x0, origin_y: y0, nx, ny, dx, dy, z_domain: 'attribute', z_unit: 'm', crs: null, xy_unit: 'm',
+        provenance: { source: { type: 'zone', zoneName: 'A', key } }, storage_path: `user-dev/${id}/grid.f32`,
+        created_at: new Date(2026, 9, 1, 9, 0, seq).toISOString(),
+      });
+    }
   }
 
   // EM3: a synthetic GR per fixture well (10 m samples to TD), a sand

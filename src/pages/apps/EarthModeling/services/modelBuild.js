@@ -23,6 +23,8 @@ import { isPrePt9aZone } from '@/lib/petroProvenance';
 import { boundLegByClosure } from './trapBound';
 import { shmSwGrid } from './shmGrid';
 import { hangingWallAtSurface } from './seismicFaultZones';
+import { ntgFromNetMap, swFromHcpvMap, isMdKey } from './propertyMaps';
+import { resampleTo } from '@/lib/gridding/gridmath';
 
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
@@ -35,6 +37,8 @@ export const POPULATION_METHODS = Object.freeze([
   { key: 'krige', label: 'simple kriging (typed variogram, legacy)' },
   // U2-002: Sw only
   { key: 'shm', label: 'saturation-height (SCAL Studio), Sw only', only: 'sw' },
+  // U2-008: Petrophysics maps per zone (net pay for NTG, HCPV for Sw)
+  { key: 'map', label: 'Petrophysics map per zone (net pay, HCPV)', only: ['ntg', 'sw'] },
 ]);
 
 /** A fresh, empty model definition. */
@@ -77,7 +81,7 @@ export function upgradeDefinition(def) {
     name: typeof d.name === 'string' && d.name.trim() ? d.name : e.name,
     surfaceIds: ids,
     topNames: ids.map((_, i) => (Array.isArray(d.topNames) && typeof d.topNames[i] === 'string' ? d.topNames[i] : '')),
-    zones: Array.isArray(d.zones) ? d.zones.filter(Boolean).map((z, i) => ({ name: z.name || `Zone ${i + 1}`, registryZone: z.registryZone || '' })) : [],
+    zones: Array.isArray(d.zones) ? d.zones.filter(Boolean).map((z, i) => ({ name: z.name || `Zone ${i + 1}`, registryZone: z.registryZone || '', ...(z.maps ? { maps: z.maps } : {}) })) : [],
     faultPolygons: Array.isArray(d.faultPolygons) ? d.faultPolygons.filter((p) => Array.isArray(p?.vertices)).map((p, i) => ({ ...p, name: p.name || `Fault ${i + 1}`, vertices: p.vertices.map(vert) })) : [],
     methods: { ...e.methods, ...(d.methods || {}) },
     krige: { ...e.krige, ...(d.krige || {}) },
@@ -584,6 +588,21 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     return before ? { ...native, residualBeforeM: before.residualM } : native;
   });
 
+  // U2-008: each zone's Petrophysics maps (attribute rows in metres), on the model frame
+  const readMap = async (id, role) => {
+    if (!id) return null;
+    const row = surfaces.find((x) => x.id === id);
+    if (!row) throw new Error(`A Petrophysics map the model uses (${role}) is no longer in the registry. Pick another in the dock.`);
+    const r = await readRow(row, ['attribute'], role);
+    if (r.zUnit !== 'm') throw new Error(`${row.name} is not a thickness in metres or feet (z unit ${row.z_unit || 'none'}), so it cannot be ${role}.`);
+    if (isMdKey(row)) notes.push(`${row.name} is measured-depth thickness; in deviated wells it is longer than the vertical zone thickness. Grid the TVT key in Mapping for a true ratio.`);
+    return resampleTo(r.grid, scaleSpec(specOf(row), r.xyToM), specM);
+  };
+  const zoneMaps = await Promise.all((definition.zones || []).map(async (zd) => ({
+    ntg: definition.methods?.ntg === 'map' ? await readMap(zd.maps?.ntg, `the net pay map of ${zd.name}`) : null,
+    sw: definition.methods?.sw === 'map' ? await readMap(zd.maps?.sw, `the HCPV map of ${zd.name}`) : null,
+  })));
+
   const totalPhi = [];
   const propertyClamps = [];
   const parsedFluids = definition.fluidsInput ? parseFluidsInput(definition.fluidsInput) : (definition.fluids || []);
@@ -597,7 +616,22 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     const variance = {};
     const provenance = {};
     let shmPending = false;
+    let swMapPending = false;
     for (const [prop, key] of Object.entries(PROP_KEYS)) {
+      // U2-008: Sw from the HCPV map waits for NTG and porosity; NTG from the net pay map
+      if (prop === 'sw' && definition.methods?.sw === 'map' && zoneMaps[i].sw) {
+        swMapPending = true;
+        progress(`${zdef.name}: Sw from the HCPV map`);
+        continue;
+      }
+      if (prop === 'ntg' && definition.methods?.ntg === 'map' && zoneMaps[i].ntg) {
+        const r = ntgFromNetMap(zoneMaps[i].ntg, zThickness);
+        props.ntg = r.z;
+        if (r.clamped) propertyClamps.push({ zone: zdef.name, prop: 'ntg', nodes: r.clamped });
+        provenance.ntg = [{ block: 0, methodUsed: 'map', wells: 0, fellBack: false, note: 'net pay map / zone thickness' }];
+        progress(`${zdef.name}: NTG from the net pay map`);
+        continue;
+      }
       // U2-002: Sw from the SCAL saturation-height function waits for the contacts
       if (prop === 'sw' && definition.methods?.sw === 'shm') {
         shmPending = true;
@@ -622,7 +656,8 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
         }
         (byBlock[lab] = byBlock[lab] || []).push(p);
       }
-      const method = definition.methods?.[prop] || 'constant';
+      let method = definition.methods?.[prop] || 'constant';
+      if (method === 'map' || method === 'shm') method = 'constant'; // no map for this zone: the weighted mean, said in provenance
       // EM4: ordinary kriging with a fitted variogram and a variance grid
       const out = method === 'okrige'
         ? populateZonePropertyOk(specM, zLabels, byBlock, all, definition.krige || DEFAULT_KRIGE)
@@ -632,8 +667,16 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       if (n) propertyClamps.push({ zone: zdef.name, prop, nodes: n });
       props[prop] = out.z;
       if (out.variance) variance[prop] = out.variance;
-      provenance[prop] = out.provenance;
+      provenance[prop] = definition.methods?.[prop] === 'map'
+        ? out.provenance.map((r) => ({ ...r, fellBack: true, note: `no Petrophysics map picked for this zone${r.note ? `; ${r.note}` : ''}` }))
+        : out.provenance;
       progress(`${zdef.name}: ${prop === 'phi' ? 'porosity' : prop === 'sw' ? 'Sw' : 'NTG'} populated`);
+    }
+    if (swMapPending) {
+      const r = swFromHcpvMap(zoneMaps[i].sw, zThickness, props.ntg, props.phi);
+      props.sw = r.z;
+      if (r.clamped) propertyClamps.push({ zone: zdef.name, prop: 'sw', nodes: r.clamped });
+      provenance.sw = [{ block: 0, methodUsed: 'map', wells: 0, fellBack: false, note: '1 - HCPV map / (thickness x NTG x porosity)' }];
     }
     const fluids = parsedFluids[i] || null;
     const nNodes = specM.nx * specM.ny;

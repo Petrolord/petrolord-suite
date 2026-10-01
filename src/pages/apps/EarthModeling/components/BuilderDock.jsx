@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { DERIVED_KINDS, describeDerived } from '../services/derivedSurfaces';
 import { POPULATION_METHODS, parseFluidsInput, BG_UNITS } from '../services/modelBuild';
 import { VARIOGRAM_MODELS } from '../services/propertyKriging';
+import { mapKind } from '../services/propertyMaps';
 
 const selCls = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 const inCls = selCls;
@@ -226,11 +227,39 @@ export default function BuilderDock({
             <span className="w-10 text-pl-muted">{prop}</span>
             <select className={selCls} data-testid={`em-method-${prop}`} value={definition.methods[prop]}
               onChange={(e) => patch({ methods: { ...definition.methods, [prop]: e.target.value } })}>
-              {POPULATION_METHODS.filter((m) => !m.only || m.only === prop).map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+              {POPULATION_METHODS.filter((m) => !m.only || m.only === prop || (Array.isArray(m.only) && m.only.includes(prop))).map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
             </select>
           </div>
         ))}
         <p className="text-[10px] text-pl-muted">Per fault block; short blocks fall back kriging to trend to constant (recorded in QC).</p>
+        {(definition.methods.ntg === 'map' || definition.methods.sw === 'map') && (
+          <div className="space-y-1 rounded border border-pl-border p-1.5" data-testid="em-propmaps">
+            <div className="text-[10px] text-pl-muted">Petrophysics maps per zone (Mapping grids the zone net pay and HCPV as attribute maps; pick the TVT keys). NTG = net pay / thickness; Sw = 1 - HCPV / (thickness x NTG x porosity).</div>
+            {definition.zones.map((z, i) => {
+              const attrs = (registrySurfaces || surfaces).filter((s) => s.kind === 'attribute' && ['m', 'ft'].includes(s.z_unit));
+              const opt = (want) => attrs.slice().sort((a, b) => (mapKind(b) === want) - (mapKind(a) === want)).map((s) => (
+                <option key={s.id} value={s.id}>{s.name}{s.provenance?.source?.key ? ` [${s.provenance.source.key}]` : ''}</option>
+              ));
+              return (
+                <div key={`pm-${i}`} className="grid grid-cols-2 gap-1">
+                  <span className="col-span-2 text-[10px] text-pl-muted">{z.name}</span>
+                  {definition.methods.ntg === 'map' && (
+                    <select className={selCls} data-testid={`em-map-ntg-${i}`} value={z.maps?.ntg || ''} title="Net pay map for NTG"
+                      onChange={(e) => patchZone(i, { maps: { ...(z.maps || {}), ntg: e.target.value } })}>
+                      <option value="">net pay map…</option>{opt('net')}
+                    </select>
+                  )}
+                  {definition.methods.sw === 'map' && (
+                    <select className={selCls} data-testid={`em-map-sw-${i}`} value={z.maps?.sw || ''} title="HCPV map for Sw"
+                      onChange={(e) => patchZone(i, { maps: { ...(z.maps || {}), sw: e.target.value } })}>
+                      <option value="">HCPV map…</option>{opt('hcpv')}
+                    </select>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
         {definition.methods.sw === 'shm' && (
           <div className="space-y-1 rounded border border-pl-border p-1.5" data-testid="em-shm">
             <div className="text-[10px] text-pl-muted">Sw from a SCAL Studio saturation-height function: per node, the mean Sw over the hydrocarbon leg from its height above the free-water level.</div>

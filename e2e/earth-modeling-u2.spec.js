@@ -145,3 +145,19 @@ test('U2-010: the volume distribution runs in QC and orders P90 <= P50 <= P10', 
   expect(p10).toBeGreaterThan(p90);
   expect(errs).toEqual([]);
 });
+
+test('U2-008: zone A takes NTG and Sw from the Petrophysics net pay and HCPV maps', async ({ page }) => {
+  const errs = errorsOf(page);
+  await stack(page, '/dev/earth-modeling?maps=1');
+  await metric(page);
+  await page.getByTestId('em-method-ntg').selectOption('map');
+  await page.getByTestId('em-method-sw').selectOption('map');
+  await page.getByTestId('em-map-ntg-0').selectOption({ label: 'A net pay (TVT) [net_tvt_m]' });
+  await page.getByTestId('em-map-sw-0').selectOption({ label: 'A HCPV (TVT) [hcpv_tvt_m]' });
+  await buildNow(page);
+  await page.getByTestId('em-map-layer').selectOption('ntg');
+  await page.getByTestId('em-view-qc').click();
+  await expect(page.getByTestId('em-qc')).toContainText('Petrophysics map (net pay map / zone thickness)');
+  await expect(page.getByTestId('em-qc')).toContainText('no Petrophysics map picked for this zone');
+  expect(errs).toEqual([]);
+});
