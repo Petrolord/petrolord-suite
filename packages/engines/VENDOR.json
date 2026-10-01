@@ -2,14 +2,14 @@
   "$comment": "Vendoring contract for packages/engines. Checked by tools/check-vendored-engines.mjs; see that file for the model. The check is against the PINNED commit below and its committed manifest, never against engines HEAD: a guard pointed at HEAD goes red the moment canonical moves and then blocks every unrelated Suite PR. Moving the pin is a deliberate, reviewed vendoring pass. The Suite vendors the WHOLE canonical tree, so the expected state of this file is the one it is in: an EMPTY knownDeviations list. Any deviation that is genuinely deliberate goes in that list with a reason, a group and a burnDownWhen, and every differing or extra path is pinned to the blob currently vendored, so a second drift on an already-known path still fails. burnDownWhen states the condition under which the row must be removed, because a bare reason goes stale on its own: in NextGen a row reading \"pull only with the recut in the same deploy window\" became false the moment the recut merged and nothing in the file said so. A ledger entry whose deviation has gone is also a failure, so the list can only shrink.",
   "canonical": {
     "repo": "git@github.com:Petrolord/petrolord-engines.git",
-    "commit": "6dd39d75ebf8d40e71707f2377b91d7ad207e89c",
+    "commit": "2ad4fe0ee3607e693be7654f207367d150ab1214",
     "manifest": "VENDOR.manifest"
   },
   "vendoring": {
     "method": "file-by-file reconciliation against a canonical clone, verified by blob hash with this guard, hashed from the files on disk rather than from the git index",
     "$comment": "NOT a whole-tree `git subtree pull`. That silently DELETED 24 Suite-only downstream files on 2026-09-14. Vendor the paths the canonical range actually touched, then run the guard, which is what proves nothing else moved.",
     "lastVendored": "2026-10-01",
-    "lastVendoredRange": "1e5d394443631c54ef207ae0b8114764b3d42c42..6dd39d75ebf8d40e71707f2377b91d7ad207e89c (engines PR #294, Basin & Charge Modeling upgrade BF-U1-001: the forward run always ends at 0 Ma for fractional basal ages, oracle anchor A13; pinned at the branch head while #294 is open: re-pin to its merge commit, the tree is identical)"
+    "lastVendoredRange": "970c02169d5ef2cd18889432925b71ddd885ea85..2ad4fe0ee3607e693be7654f207367d150ab1214 (engines PR #293, Pore Pressure Studio U2 engines, merged after #295: the eight porepressure-u2 ledger rows are burnt down; the Suite matches canonical byte for byte)"
   },
   "testing": {
     "$comment": "The Suite needs no equivalent of NextGen's tools/run-vendored-engine-tests.mjs. jest.config.js uses testMatch '**/__tests__/**/*.test.(js|jsx|ts)' with no testPathIgnorePatterns, so all 179 suites under packages/engines/__tests__ already run in `npm test` beside the Suite's own. There is no allow-list of known engine test failures because there are none: the vendored suites are green.",
@@ -23,70 +23,6 @@
     "vendoredPaths": 750
   },
   "knownDeviations": [
-    {
-      "path": "engines/porepressure/fracgrad.js",
-      "kind": "differing",
-      "vendoredSha": "eb771a270e52986a44c8dc60ff479c6e3fcc144f",
-      "group": "porepressure-u2 (engines PR #293)",
-      "reason": "Pore Pressure Studio U2 engines, vendored from Petrolord/petrolord-engines PR #293 head 0e450aa (blob identical there); the PR could not be merged by the build agent, so the pin cannot move to a canonical main commit yet.",
-      "burnDownWhen": "engines PR #293 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every porepressure-u2 row."
-    },
-    {
-      "path": "engines/porepressure/nct.js",
-      "kind": "differing",
-      "vendoredSha": "858181db35680195952d2417f9b6e85c4a4b3311",
-      "group": "porepressure-u2 (engines PR #293)",
-      "reason": "Pore Pressure Studio U2 engines, vendored from Petrolord/petrolord-engines PR #293 head 0e450aa (blob identical there); the PR could not be merged by the build agent, so the pin cannot move to a canonical main commit yet.",
-      "burnDownWhen": "engines PR #293 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every porepressure-u2 row."
-    },
-    {
-      "path": "engines/porepressure/profile.js",
-      "kind": "differing",
-      "vendoredSha": "b1bc10166e926bff07d9757346b7d9c217b502b0",
-      "group": "porepressure-u2 (engines PR #293)",
-      "reason": "Pore Pressure Studio U2 engines, vendored from Petrolord/petrolord-engines PR #293 head 0e450aa (blob identical there); the PR could not be merged by the build agent, so the pin cannot move to a canonical main commit yet.",
-      "burnDownWhen": "engines PR #293 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every porepressure-u2 row."
-    },
-    {
-      "path": "__tests__/porepressure.u2.test.js",
-      "kind": "extra",
-      "vendoredSha": "2a008b30f6303274039bda30244622cfe0f103d4",
-      "group": "porepressure-u2 (engines PR #293)",
-      "reason": "Pore Pressure Studio U2 engines, vendored from Petrolord/petrolord-engines PR #293 head 0e450aa (blob identical there); the PR could not be merged by the build agent, so the pin cannot move to a canonical main commit yet.",
-      "burnDownWhen": "engines PR #293 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every porepressure-u2 row."
-    },
-    {
-      "path": "engines/porepressure/calibrationFit.js",
-      "kind": "extra",
-      "vendoredSha": "5f406785e56cb7b49461bbcc431b17858730a948",
-      "group": "porepressure-u2 (engines PR #293)",
-      "reason": "Pore Pressure Studio U2 engines, vendored from Petrolord/petrolord-engines PR #293 head 0e450aa (blob identical there); the PR could not be merged by the build agent, so the pin cannot move to a canonical main commit yet.",
-      "burnDownWhen": "engines PR #293 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every porepressure-u2 row."
-    },
-    {
-      "path": "engines/porepressure/casingSeats.js",
-      "kind": "extra",
-      "vendoredSha": "a040e91c4abcbc22ba17a43271ff812e2d224100",
-      "group": "porepressure-u2 (engines PR #293)",
-      "reason": "Pore Pressure Studio U2 engines, vendored from Petrolord/petrolord-engines PR #293 head 0e450aa (blob identical there); the PR could not be merged by the build agent, so the pin cannot move to a canonical main commit yet.",
-      "burnDownWhen": "engines PR #293 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every porepressure-u2 row."
-    },
-    {
-      "path": "engines/porepressure/resistivity.js",
-      "kind": "extra",
-      "vendoredSha": "c0df4c34e5f20bc34fd831a04815dfc7e0c2dc8b",
-      "group": "porepressure-u2 (engines PR #293)",
-      "reason": "Pore Pressure Studio U2 engines, vendored from Petrolord/petrolord-engines PR #293 head 0e450aa (blob identical there); the PR could not be merged by the build agent, so the pin cannot move to a canonical main commit yet.",
-      "burnDownWhen": "engines PR #293 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every porepressure-u2 row."
-    },
-    {
-      "path": "test-data/porepressure/casing-seat-example.json",
-      "kind": "extra",
-      "vendoredSha": "5fa3ad8aee4514770d5013b4fcd17cd953593301",
-      "group": "porepressure-u2 (engines PR #293)",
-      "reason": "Pore Pressure Studio U2 engines, vendored from Petrolord/petrolord-engines PR #293 head 0e450aa (blob identical there); the PR could not be merged by the build agent, so the pin cannot move to a canonical main commit yet.",
-      "burnDownWhen": "engines PR #293 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every porepressure-u2 row."
-    },
     {
       "path": "engines/rockphysics/fluids.js",
       "kind": "differing",

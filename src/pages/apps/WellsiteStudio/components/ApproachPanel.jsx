@@ -36,6 +36,9 @@ export default function ApproachPanel({ next, evidence = [], unit, offsetMin, on
         <Row label="Bit" value={Number.isFinite(p.bitMdM) ? fmtDepth(p.bitMdM, unit) : 'n/a'} />
         <Row label="Distance MD" value={Number.isFinite(p.distanceMdM) ? fmtDepth(p.distanceMdM, unit) : 'n/a'} testId="ws-approach-distance" />
         <Row label="Distance TVD" value={Number.isFinite(p.distanceTvdM) ? fmtDepth(p.distanceTvdM, unit) : 'n/a'} testId="ws-approach-distance-tvd" />
+        {/* WS-U1-015: the offsets are subsea, so the prognosis and the bit are shown subsea beside them */}
+        <Row label="Prognosis subsea" value={Number.isFinite(p.prognosisTvdssM) ? fmtDepth(p.prognosisTvdssM, unit) : 'n/a'} testId="ws-approach-prognosis-tvdss" />
+        <Row label="Bit subsea" value={Number.isFinite(p.bitTvdssM) ? fmtDepth(p.bitTvdssM, unit) : 'n/a'} testId="ws-approach-bit-tvdss" />
         <Row label="Offsets (subsea)" value={p.offset && p.offset.n ? `${p.offset.n} wells, ${fmtDepth(p.offset.minTvdssM, unit)} to ${fmtDepth(p.offset.maxTvdssM, unit)}` : 'none'} testId="ws-approach-offsets" />
         <Row label="Interpretation" value={next.interpretation ? `${fmtDepth(next.interpretation.range_top_md_m, unit)} to ${fmtDepth(next.interpretation.range_base_md_m, unit)}, ${next.interpretation.confidence}` : 'none'} testId="ws-approach-interp" />
         <Row label="Call" value={next.call ? `${fmtDepth(next.call.md_calc_m, unit)} (${next.call.status})` : 'not called'} testId="ws-approach-call" />

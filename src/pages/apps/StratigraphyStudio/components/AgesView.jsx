@@ -18,6 +18,7 @@ import { chartHeaderLines } from '@/components/wells/section/chartExport';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { fmtDepth, toDisp } from '@/pages/apps/WellDataManager/engine/displayUnits';
 import { appPath } from '@/components/wells/appLinks';
+import { decompactedRates, DECOMPACTION_LITHOLOGIES } from '@/lib/basinDecompaction';
 
 const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40';
 
@@ -43,6 +44,10 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
   const dated = useMemo(() => sortDated(surfaces), [surfaces]);
   const model = useMemo(() => ageDepthModel(dated), [dated]);
   const problems = useMemo(() => validateAgeDepth(dated), [dated]);
+  // STRAT-U2-020 / BF-U2-016: decompacted rates on Basin's engine (src/lib/basinDecompaction.js)
+  const [decompLith, setDecompLith] = useState('shale');
+  const [seabedM, setSeabedM] = useState(0);
+  const decomp = useMemo(() => (model ? decompactedRates(model.segments.map((s) => ({ ...s, top_m: s.top_md_m, base_m: s.base_md_m })), { lithology: decompLith, datumM: seabedM }) : null), [model, decompLith, seabedM]);
   const biozones = useMemo(() => (intervals || []).filter((r) => r.kind === 'biozone_interval'), [intervals]);
   const canEdit = !!well?.is_own;
 
@@ -137,7 +142,7 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
       {problems.length > 0 && <ul className="text-pl-danger-text" data-testid="strat-ages-problems">{problems.map((p, i) => <li key={i}>{p.message}</li>)}</ul>}
       {model && (
         <table className="text-xs" data-testid="strat-rates">
-          <thead><tr>{['From', 'To', `${basis} (${unit})`, 'Ages (Ma)', `Rate (${unit}/Ma)`].map((h) => <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>)}</tr></thead>
+          <thead><tr>{['From', 'To', `${basis} (${unit})`, 'Ages (Ma)', `Decompacted (${unit}/Ma)`, `Rate (${unit}/Ma)`].map((h) => <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>)}</tr></thead>
           <tbody>
             {model.segments.map((s, i) => (
               <tr key={i} data-testid={`strat-rate-${i}`}>
@@ -145,6 +150,7 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
                 <td className="pr-3 py-0.5 text-pl-text">{s.lower}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-text">{Number(fmtDepth(s.top_md_m, unit))} to {Number(fmtDepth(s.base_md_m, unit))}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-text">{s.age_top_ma} to {s.age_base_ma}</td>
+                <td className="pr-3 py-0.5 font-mono text-pl-text" data-testid={`strat-decomp-rate-${i}`}>{decomp?.rows[i]?.decompactedRate == null ? (s.rate_m_per_ma == null ? 'event' : EMPTY_VALUE) : toDisp(decomp.rows[i].decompactedRate, unit).toFixed(1)}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-text">{s.rate_m_per_ma == null ? 'event' : toDisp(s.rate_m_per_ma, unit).toFixed(1)}</td>
               </tr>
             ))}
@@ -153,6 +159,7 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
                 <td className="pr-3 py-0.5 text-pl-warning-text" colSpan={2}>hiatus at {h.name}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-text">{Number(fmtDepth(h.md_m, unit))}</td>
                 <td className="pr-3 py-0.5 font-mono text-pl-warning-text">{h.from_ma} to {h.to_ma}</td>
+                <td />
                 <td className="pr-3 py-0.5 text-pl-muted">no deposition</td>
               </tr>
             ))}
@@ -177,6 +184,19 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
           })}
         </tbody>
       </table>
+      {decomp && (
+        <div className="flex flex-wrap items-center gap-2 text-pl-muted" data-testid="strat-decomp-basis">
+          <span>{decomp.basis}</span>
+          <label className="flex items-center gap-1">as
+            <select value={decompLith} onChange={(e) => setDecompLith(e.target.value)} data-testid="strat-decomp-lith" className="bg-pl-surface border border-pl-border rounded px-1 text-pl-text">
+              {DECOMPACTION_LITHOLOGIES.map((l) => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </label>
+          <label className="flex items-center gap-1">sediment surface (seabed offshore) at
+            <input type="number" min="0" step="any" value={seabedM} onChange={(e) => { const v = parseFloat(e.target.value); setSeabedM(Number.isFinite(v) && v >= 0 ? v : 0); }} data-testid="strat-decomp-datum" className="w-16 bg-pl-surface border border-pl-border rounded px-1 text-pl-text" /> m below KB
+          </label>
+        </div>
+      )}
       <p className="text-pl-muted">Rates are constant between dated surfaces. A hiatus needs the unconformity's "Hiatus to" age in the Tops view. Biozone ranges come from the Intervals view (kind Biozone) with their scheme and ages; the datums button turns each range into two typed tops.</p>
     </div>
   );

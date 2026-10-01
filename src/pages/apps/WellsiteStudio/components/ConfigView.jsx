@@ -12,9 +12,12 @@ import { SAMPLE_STAGE_NAMES, WS_ROLES } from '../services/vocab';
 import { validateProfile, PETROLORD_PROFILE } from '@/lib/wellsite/abbreviations';
 import { validateTemplate, DEFAULT_DAILY_TEMPLATE } from '@/lib/wellsite/reports';
 import { RIG_TYPES, FLOATER_TYPES } from '../services/vocab';
+import { parseFieldNumber } from '../services/units';
+import { kbStatus } from '../services/wellContext';
 
 const IN = 0.0254;
-const num = (v) => (v === '' || v == null ? NaN : Number(v));
+// WS-U1-008: fractions and comma decimals as drillers type them ("12 1/4", "8-1/2", "12,25")
+const num = (v) => (v === '' || v == null ? NaN : parseFieldNumber(v));
 
 // Geometry is stored in metres and shown in feet and inches. The display keeps enough decimals to
 // round-trip what was typed (3 in feet, 4 in inches, trailing zeros dropped), and a value whose text
@@ -23,10 +26,25 @@ const num = (v) => (v === '' || v == null ? NaN : Number(v));
 const FT = 0.3048;
 const shown = (m, f, dp) => (Number.isFinite(m) ? String(Number((m / f).toFixed(dp))) : '');
 const kept = (text, m, f, dp) => (Number.isFinite(m) && String(text).trim() === shown(m, f, dp) ? m : num(text) * f);
-const ftShown = (m) => shown(m, FT, 3);
+// WS-U1-017: lengths along hole follow the display unit (ft or m); diameters stay in inches, as every rig quotes them
+let LEN = FT;
+const ftShown = (m) => shown(m, LEN, 3);
 const inShown = (m) => shown(m, IN, 4);
-const ftKept = (text, m) => kept(text, m, FT, 3);
+const ftKept = (text, m) => kept(text, m, LEN, 3);
 const inKept = (text, m) => kept(text, m, IN, 4);
+
+/** WS-U1-005: Well Design's hole sections (loaded with the prognosis) as rig geometry; on a floater they start at the BOP. */
+export function sectionsFromPrognosis(holeSections, { bopM = null } = {}) {
+  const out = [];
+  for (const h of holeSections || []) {
+    const idM = h.cased ? h.casing_id_m : h.hole_id_m;
+    if (!(h.to_md_m > h.from_md_m) || !(idM > 0)) continue;
+    let from = h.from_md_m;
+    if (bopM > 0) { if (h.to_md_m <= bopM) continue; from = Math.max(from, bopM); }
+    out.push({ from_md_m: from, to_md_m: h.to_md_m, cased: !!h.cased, hole_id_m: h.hole_id_m ?? null, casing_id_m: h.cased ? h.casing_id_m : null, description: h.description || (h.cased ? 'cased (Well Design)' : 'open hole (Well Design)') });
+  }
+  return out;
+}
 
 function sectionsToRows(sections) {
   return (sections || []).map((s) => {
@@ -47,7 +65,11 @@ function rowsToBha(rows) { return rows.map((r) => { const o = r._m || {}; return
 const dpToState = (d) => ({ od_in: inShown(d.odM), id_in: inShown(d.idM), _m: { od: d.odM, id: d.idM } });
 const riserToState = (r) => ({ bop_ft: r.to_md_m > 0 ? ftShown(r.to_md_m) : '', id_in: r.id_m > 0 ? inShown(r.id_m) : '19.5', _m: { bop: r.to_md_m, id: r.id_m } });
 
-export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus, canAdmin = true, membersSlot = null }) {
+export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus, canAdmin = true, membersSlot = null, unit = 'ft', prognosis = null }) {
+  LEN = unit === 'm' ? 1 : FT;
+  const LU = unit === 'm' ? 'm' : 'ft';
+  const kb = kbStatus(well && well.header ? Number(well.header.kb_elev_m) : NaN);
+  const wdSections = (prognosis && prognosis.hole_sections) || [];
   const [sections, setSections] = useState(() => sectionsToRows(rigConfig?.hole_sections));
   const [bha, setBha] = useState(() => bhaToRows(rigConfig?.bha));
   const [dp, setDp] = useState(() => (rigConfig?.drillpipe ? dpToState(rigConfig.drillpipe) : { od_in: '5', id_in: '4.276' }));
@@ -81,7 +103,7 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
     setRigType(rigConfig.rig_type || 'land');
     if (rigConfig.riser) setRiser(riserToState(rigConfig.riser));
     if (rigConfig.booster) setBooster(Object.fromEntries(Object.entries(rigConfig.booster).map(([k, v]) => [k, String(v)])));
-  }, [rigKey]);
+  }, [rigKey, unit]);
 
   const disp = useMemo(() => {
     try {
@@ -114,7 +136,7 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
         payload.riser = { to_md_m: bopM, id_m: idM };
         payload.booster = { type: booster.type, linerIn: num(booster.linerIn), strokeIn: num(booster.strokeIn), rodIn: num(booster.rodIn) || 0, efficiency: num(booster.efficiency) };
         const inside = payload.hole_sections.filter((x) => x.from_md_m < bopM - 1e-6);
-        if (inside.length) throw new Error(`On a floating rig the hole sections start at the BOP (${riser.bop_ft} ft); the riser is entered above. Move the top of the first section to ${riser.bop_ft} ft.`);
+        if (inside.length) throw new Error(`On a floating rig the hole sections start at the BOP (${riser.bop_ft} ${LU}); the riser is entered above. Move the top of the first section to ${riser.bop_ft} ${LU}.`);
       }
       await backend.addRecord(well.id, { kind: 'observation', subtype: 'rig_config', payload });
       onStatus?.('Rig configuration recorded.');
@@ -170,7 +192,7 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
           </label>
           {floater && (
             <>
-              <label className="text-xs text-pl-text">BOP depth below RT (ft)<br /><input className={inp} data-testid="ws-config-riser-bop" value={riser.bop_ft} onChange={(e) => setRiser({ ...riser, bop_ft: e.target.value })} placeholder="air gap + water depth" /></label>
+              <label className="text-xs text-pl-text">BOP depth below RT ({LU})<br /><input className={inp} data-testid="ws-config-riser-bop" value={riser.bop_ft} onChange={(e) => setRiser({ ...riser, bop_ft: e.target.value })} placeholder="air gap + water depth" /></label>
               <label className="text-xs text-pl-text">Riser ID (in)<br /><input className={inp} data-testid="ws-config-riser-id" value={riser.id_in} onChange={(e) => setRiser({ ...riser, id_in: e.target.value })} /></label>
             </>
           )}
@@ -178,16 +200,27 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
         {floater && (
           <p className="text-[11px] text-pl-info-text" data-testid="ws-config-floater-note">Floating rig: returns travel up the marine riser above the BOP, and the booster pump adds flow at the riser base. Enter the hole sections from the BOP down; the riser is the row above them.</p>
         )}
-        <div className="text-xs text-pl-text">Hole sections (ft MD, inside diameter in inches; cased sections use the casing ID{floater ? '; start at the BOP' : ''})</div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="text-xs text-pl-text">Hole sections ({LU} MD, inside diameter in inches, fractions such as 12 1/4 accepted; cased sections use the casing ID{floater ? '; start at the BOP' : ''})</div>
+          {wdSections.length > 0 && (
+            <Button size="sm" variant="outline" data-testid="ws-config-from-prognosis" title="Fill the hole sections from Well Design's casing programme, loaded with the prognosis"
+              onClick={() => {
+                const bopM = floater ? ftKept(riser.bop_ft, riser._m && riser._m.bop) : null;
+                const rows = sectionsFromPrognosis(wdSections, { bopM: bopM > 0 ? bopM : null });
+                setSections(sectionsToRows(rows));
+                onStatus?.(`${rows.length} hole section(s) filled from Well Design (prognosis version ${prognosis.version}). Check them, then record the rig configuration.`);
+              }}>Fill from Well Design ({wdSections.length})</Button>
+          )}
+        </div>
         <RowGridEditor testIdPrefix="ws-config-section" rows={sections} onChange={setSections} columns={[
-          { key: 'from_ft', label: 'From (ft)', type: 'number', width: 90 }, { key: 'to_ft', label: 'To (ft)', type: 'number', width: 90 },
+          { key: 'from_ft', label: `From (${LU})`, type: 'number', width: 90 }, { key: 'to_ft', label: `To (${LU})`, type: 'number', width: 90 },
           { key: 'cased', label: 'Cased', type: 'select', options: [{ value: 'no', label: 'open hole' }, { value: 'yes', label: 'cased' }], width: 100 },
-          { key: 'id_in', label: 'ID (in)', type: 'number', width: 90 }, { key: 'description', label: 'Description', type: 'text' },
+          { key: 'id_in', label: 'ID (in)', type: 'text', width: 90 }, { key: 'description', label: 'Description', type: 'text' },
         ]} />
         <div className="text-xs text-pl-text">Bottom hole assembly (bit up)</div>
         <RowGridEditor testIdPrefix="ws-config-bha" rows={bha} onChange={setBha} columns={[
-          { key: 'label', label: 'Component', type: 'text' }, { key: 'length_ft', label: 'Length (ft)', type: 'number', width: 90 },
-          { key: 'od_in', label: 'OD (in)', type: 'number', width: 90 }, { key: 'id_in', label: 'ID (in)', type: 'number', width: 90 },
+          { key: 'label', label: 'Component', type: 'text' }, { key: 'length_ft', label: `Length (${LU})`, type: 'number', width: 90 },
+          { key: 'od_in', label: 'OD (in)', type: 'text', width: 90 }, { key: 'id_in', label: 'ID (in)', type: 'text', width: 90 },
         ]} />
         <div className="flex items-end gap-3 flex-wrap">
           <label className="text-xs text-pl-text">Drillpipe OD (in)<br /><input className={inp} data-testid="ws-config-dp-od" value={dp.od_in} onChange={(e) => setDp({ ...dp, od_in: e.target.value })} /></label>
@@ -271,7 +304,8 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
           {[['field', 'Field'], ['operator', 'Operator'], ['rig', 'Rig'], ['country', 'Country']].map(([k, label]) => (
             <label key={k} className="text-xs text-pl-text">{label}<br /><input className={inp} data-testid={`ws-config-${k}`} value={header[k] || ''} onChange={(e) => setHeader({ ...header, [k]: e.target.value })} /></label>
           ))}
-          <label className="text-xs text-pl-text">KB above MSL (m, from the registry)<br /><input className={inp} disabled value={header.kb_elev_m ?? ''} data-testid="ws-config-kb" /></label>
+          <label className="text-xs text-pl-text">KB above MSL (m, from the registry)<br /><input className={inp} disabled value={header.kb_elev_m ?? ''} data-testid="ws-config-kb" />
+            {!kb.ok && <span className="block text-[11px] text-pl-warning-text" data-testid="ws-config-kb-note">{kb.note}</span>}</label>
           <label className="text-xs text-pl-text">Ground level above MSL (m)<br /><input className={inp} type="number" step="any" data-testid="ws-config-gl" value={header.gl_elev_m ?? ''} onChange={(e) => setHeader({ ...header, gl_elev_m: e.target.value })} /></label>
           <label className="text-xs text-pl-text">RT above KB (m)<br /><input className={inp} type="number" step="any" data-testid="ws-config-rt" value={header.rt_offset_m ?? 0} onChange={(e) => setHeader({ ...header, rt_offset_m: e.target.value })} /></label>
         </div>

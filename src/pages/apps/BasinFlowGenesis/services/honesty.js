@@ -17,6 +17,7 @@
 import { getThermalProps, ThermalProperties } from './ThermalPropertiesLibrary';
 import { ageOnChart, isTimescaleVersion, TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
 import { getCompactionParams, LithologyCompaction } from './CompactionModelLibrary';
+import { layerLibrary } from './lithologyMix';
 
 const LITHS = ['sandstone', 'shale', 'limestone', 'salt', 'coal'];
 const num = (v) => (v === null || v === undefined || v === '' ? NaN : Number(v));
@@ -28,6 +29,8 @@ export function engineInputsKey(state) {
     src: l.sourceRock?.isSource ? { toc: num(l.sourceRock.toc), hi: num(l.sourceRock.hi), k: typeof l.sourceRock.kerogen === 'string' ? l.sourceRock.kerogen : JSON.stringify(l.sourceRock.kerogen ?? null) } : null,
     th: l.thermal ? [num(l.thermal.conductivity), num(l.thermal.radiogenic), num(l.thermal.heatCapacity)] : null,
     co: l.compaction ? [num(l.compaction.phi0), num(l.compaction.c), num(l.compaction.grainDensity)] : null,
+    // U2-013: a mixed layer's fractions are inputs (keys added only when used, so earlier results keep their key)
+    ...(l.lithology === 'mixed' && l.lithologyMix ? { mix: Object.entries(l.lithologyMix).filter(([, w]) => Number(w) > 0).sort(([a], [b]) => (a < b ? -1 : 1)) } : {}),
   }));
   const hf = state?.heatFlow || {};
   return JSON.stringify({
@@ -35,6 +38,8 @@ export function engineInputsKey(state) {
     hf: { type: hf.type || 'constant', value: num(hf.value), history: hf.type === 'variable' ? (hf.history || []).map((p) => [num(p.age), num(p.value)]) : null },
     ero: (state?.erosionEvents || []).map((e) => [num(e.age), num(e.amount)]),
     ts: num(state?.settings?.surfaceTemp),
+    // U2-005: the compaction mode is an input (elastic, the default, adds no key)
+    ...(state?.settings?.compaction === 'irreversible' ? { comp: 'irreversible' } : {}),
   });
 }
 
@@ -65,8 +70,9 @@ export function staleOverrides(layer) {
 
 /** The layer with its thermal and compaction overrides set to its own lithology's library values. */
 export function withLibraryProperties(layer) {
-  const t = getThermalProps(layer.lithology); const c = getCompactionParams(layer.lithology);
-  return { ...layer, thermal: { conductivity: t.conductivity, radiogenic: t.radiogenic, heatCapacity: t.heatCapacity }, compaction: { model: 'exponential', phi0: c.phi0, c: c.c } };
+  // U2-013: a mixed layer's library is its mixture
+  const lib = layerLibrary(layer);
+  return { ...layer, thermal: lib.thermal, compaction: lib.compaction };
 }
 
 const FIELD_WORD = { conductivity: 'conductivity', radiogenic: 'radiogenic heat', heatCapacity: 'heat capacity', phi0: 'surface porosity', c: 'compaction coefficient' };
@@ -96,10 +102,11 @@ export function modelNotes(state, { chartFlags = [] } = {}) {
   for (const [k, names] of same) {
     if (names.length > 1) { const [a0, a1] = k.split('|'); out.push({ key: `same-${k}`, level: 'warn', text: `${names.join(', ')} share the deposition interval ${a0} to ${a1} Ma, so the engine deposits them at the same instant.` }); }
   }
-  // BF-U1-018: the plots key their series by layer name, so two layers with one name draw as one
+  // BF-U1-018 / U2-012: the plots key their series by layer id now, so two
+  // layers with one name draw as two; only the legend and the tables repeat the name
   const names = new Map();
   for (const l of layers) names.set(l.name, (names.get(l.name) || 0) + 1);
-  for (const [n, c] of names) if (c > 1) out.push({ key: `dup-${n}`, level: 'warn', text: `${c} layers are named "${n}": the plots and the CSV tell them apart by name, so rename them.` });
+  for (const [n, c] of names) if (c > 1) out.push({ key: `dup-${n}`, level: 'info', text: `${c} layers are named "${n}": the plots draw each one, but the legend and the tables show the name twice; rename them to tell them apart.` });
   for (const f of chartFlags) out.push({ key: `chart-${f.layer}`, level: 'warn', text: f.message });
   return out;
 }

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS } from '@/utils/chartTheme';
-import { alignSeriesByAge, seriesColor, ageAxisProps, maxAgeOf } from '../../services/resultsView';
+import { alignSeriesByAge, seriesColor, ageAxisProps, maxAgeOf, layerKey } from '../../services/resultsView';
 
 /**
  * Cumulative generated vs expelled hydrocarbon mass (kg HC per m²
@@ -14,15 +14,16 @@ const GenerationExpulsionPlot = ({ results }) => {
 
     const { chartData, sourceLayers } = useMemo(() => {
         if (!data?.timeSteps?.length) return { chartData: [], sourceLayers: [] };
-        const sources = meta.layers.filter((_, li) =>
+        const sources = meta.layers.map((l, li) => ({ ...l, key: layerKey(l, li) })).filter((_, li) =>
             (data.generation[li] || []).some(e => e.value > 0));
         const gen = alignSeriesByAge(data.timeSteps, data.generation, meta.layers);
         const exp = alignSeriesByAge(data.timeSteps, data.expulsion, meta.layers);
         const rows = gen.map((g, i) => {
             const point = { age: g.age };
             sources.forEach(layer => {
-                point[`${layer.name} generated`] = g[layer.name];
-                point[`${layer.name} expelled`] = exp[i][layer.name];
+                // U2-012: keyed by layer id, labelled by name
+                point[`${layer.key}:gen`] = g[layer.key];
+                point[`${layer.key}:exp`] = exp[i][layer.key];
             });
             return point;
         });
@@ -58,9 +59,9 @@ const GenerationExpulsionPlot = ({ results }) => {
                         <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} />
                         <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
                         {sourceLayers.map((layer, idx) => (
-                            <React.Fragment key={layer.id || layer.name}>
-                                <Line type="monotone" dataKey={`${layer.name} generated`} stroke={seriesColor(idx)} strokeWidth={2} dot={false} connectNulls={false} />
-                                <Line type="monotone" dataKey={`${layer.name} expelled`} stroke={seriesColor(idx)} strokeWidth={2} strokeDasharray="6 3" dot={false} connectNulls={false} />
+                            <React.Fragment key={layer.key}>
+                                <Line type="monotone" dataKey={`${layer.key}:gen`} name={`${layer.name} generated`} stroke={seriesColor(idx)} strokeWidth={2} dot={false} connectNulls={false} />
+                                <Line type="monotone" dataKey={`${layer.key}:exp`} name={`${layer.name} expelled`} stroke={seriesColor(idx)} strokeWidth={2} strokeDasharray="6 3" dot={false} connectNulls={false} />
                             </React.Fragment>
                         ))}
                     </LineChart>

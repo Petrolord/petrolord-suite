@@ -60,6 +60,12 @@ test('AgesView: rates table, Send to Basin writes through the backend, biozone d
   const onTopsChanged = jest.fn(async () => {});
   render(<MemoryRouter><AgesView well={well} tops={tops} intervals={intervals} backend={backend} onStatus={onStatus} onTopsChanged={onTopsChanged} /></MemoryRouter>);
   expect(screen.getAllByTestId(/^strat-rate-/)).toHaveLength(2);
+  // STRAT-U2-020 / BF-U2-016: decompacted on Basin's engine, never below the compacted rate
+  const decompRate = parseFloat(screen.getByTestId('strat-decomp-rate-0').textContent);
+  const rate = parseFloat(screen.getByTestId('strat-rate-0').lastChild.textContent);
+  expect(Number.isFinite(decompRate) && Number.isFinite(rate)).toBe(true);
+  expect(decompRate).toBeGreaterThanOrEqual(rate);
+  expect(screen.getByTestId('strat-decomp-basis').textContent).toMatch(/Basin & Charge Modeling's engine as shale/);
   expect(screen.getByTestId('strat-hiatus-0').textContent).toContain('10 to 14');
   expect(screen.getByTestId('strat-stage-Mid Shale').textContent).toContain('Zanclean');
   fireEvent.click(screen.getByTestId('strat-send-basin'));
