@@ -263,3 +263,7 @@ U2-017 note: the worker IndexedDB brick cache named in the backlog row was not i
 ## Verification (Step 1)
 
 See the PR for the final run. Jest in band: Seismolord suites, CRS, wells and surfaces registries, section kit, Mapping time-depth and surface export. Browser: `e2e/seismolord-upgrade.spec.js` and the Seismolord e2e specs against the branch dev server (port 8370), one worker. Production build after rebase.
+
+## Verification (Step 2)
+
+2026-10-01, after merging origin/main (aebc44c2f). Jest in band: Seismolord, src/lib (CRS, registries, velocity and fault contracts, units, portability), CRS components, the wells section kit, Well Correlation, Earth Modeling, Pore Pressure, Mapping, Stratigraphy, Data AI, src/__tests__, engines seismolord, earthmodel and dataai suites: 309 suites, 8,569 tests green. Browser (branch dev server, one worker): `e2e/seismolord-u2.spec.js` and the Seismolord, Well Correlation U2, Earth Modeling and Mapping specs green; `e2e/pore-pressure-studio.spec.js` has four failures that predate this branch (the Suite unit profile, PR #830, opens the harness in oilfield units while the spec expects SI; this branch did not touch those readouts). Engines: PR #292 CI green, merged, vendored at 1e5d394, guard clean (1,123 paths). Production build green (3 m 13 s; workers bundled).
