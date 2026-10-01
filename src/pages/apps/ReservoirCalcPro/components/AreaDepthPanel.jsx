@@ -9,6 +9,7 @@ import { useReservoirCalc } from '../contexts/ReservoirCalcContext';
 import { parseAreaDepthText, areaDepthCsv } from '../services/areaDepth';
 import { ContactVolumetricsEngine } from '../services/ContactVolumetricsEngine';
 import { loadSettings } from '../hooks/useReservoirSettings';
+import { effectiveGridding } from '../services/griddingSettings';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import NumberField from './common/NumberField';
 
@@ -34,7 +35,7 @@ export default function AreaDepthPanel() {
   const fromSurface = () => {
     const top = state.surfaces?.[state.inputs.topSurfaceId];
     if (!top) { setMsg({ error: true, lines: ['Select a top surface in the Surf tab first; the table is measured from it.'] }); return; }
-    const settings = loadSettings();
+    const settings = effectiveGridding(state.gridding, loadSettings());
     const res = ContactVolumetricsEngine.areaDepthTable({
       topSurface: top, constantThickness: parseFloat(state.inputs.thickness), unitSystem: state.unitSystem,
       options: { resolution: settings.gridResolution, interpolation: settings.interpolationMethod },

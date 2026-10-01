@@ -21,6 +21,7 @@ import { MapStorageService } from '../services/MapStorageService';
 import { useToast } from '@/components/ui/use-toast';
 import { gridSurface } from '../services/GriddingEngine';
 import { useReservoirSettings } from '../hooks/useReservoirSettings';
+import { effectiveGridding } from '../services/griddingSettings';
 
 const SURFACE_LAYER_ID = '__surface__';
 
@@ -55,7 +56,9 @@ class ErrorBoundary extends React.Component {
 const ExpertVisPanel = () => {
     const { state, getActiveSurface, addDrawingPoint } = useReservoirCalc();
     const { toast } = useToast();
-    const [settings] = useReservoirSettings();
+    const [browserSettings] = useReservoirSettings();
+    // U2-013: the project's gridding, else the browser's
+    const settings = { ...browserSettings, ...effectiveGridding(state.gridding, browserSettings) };
 
     const [viewMode, setViewMode] = useState('split');
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);

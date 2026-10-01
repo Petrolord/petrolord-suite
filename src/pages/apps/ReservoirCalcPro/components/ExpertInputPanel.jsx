@@ -73,7 +73,7 @@ const ExpertInputPanel = () => {
             }, 500); // debounce deterministic base case calculation
             return () => clearTimeout(timeout);
         }
-    }, [state.inputs, state.calcMethod, state.unitSystem, state.inputMethod]);
+    }, [state.inputs, state.calcMethod, state.unitSystem, state.inputMethod, state.gridding]);
 
     const handleDetChange = (field, val) => updateInputs({ [field]: val });
     const handleFluidChange = (val) => updateInputs({ fluidType: val });

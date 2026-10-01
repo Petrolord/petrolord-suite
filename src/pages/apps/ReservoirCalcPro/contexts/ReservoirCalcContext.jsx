@@ -6,6 +6,7 @@ import { ProjectService } from '../services/ProjectService';
 import { makeRegistryRcpBackend } from '../services/rcpBackend';
 import { AOIManager } from '../services/AOIManager';
 import { loadSettings } from '../hooks/useReservoirSettings';
+import { effectiveGridding, cleanGridding } from '../services/griddingSettings';
 import { defaultInputUnits, convertInputsOnSystemChange } from '../services/unitsCatalog';
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
 import { runSignature } from '../services/volumeDisplay';
@@ -94,6 +95,9 @@ const initialState = {
     maps: [],
 
     results: null,
+    // U2-013: the gridding this project calculates with (saved with it);
+    // null: the browser's setting (a new project, or one saved before U2-013)
+    gridding: null,
     baseCase: null, // Shared deterministic parameters & results for MC integration
     probResults: null,
     projects: [], // Saved projects for the current user (Project Manager)
@@ -171,6 +175,7 @@ const ACTIONS = {
     ADD_AOI: 'ADD_AOI',
     SET_PROB_RESULTS: 'SET_PROB_RESULTS',
     SET_CALCULATING: 'SET_CALCULATING',
+    SET_GRIDDING: 'SET_GRIDDING',
     SET_ERROR: 'SET_ERROR',
     RESET: 'RESET',
     SET_MODE: 'SET_MODE',
@@ -293,6 +298,8 @@ const reducer = (state, action) => {
             return { ...state, probResults: action.payload, isCalculating: false, error: null };
         case ACTIONS.SET_CALCULATING:
             return { ...state, isCalculating: action.payload };
+        case ACTIONS.SET_GRIDDING:
+            return { ...state, gridding: cleanGridding(action.payload), isDirty: true };
         case ACTIONS.SET_ERROR:
             return { ...state, error: action.payload, isCalculating: false };
         case ACTIONS.MARK_DIRTY:
@@ -302,6 +309,8 @@ const reducer = (state, action) => {
         case ACTIONS.LOAD_PROJECT: {
             const p = action.payload;
             const projectFields = {
+                // U2-013: the project's own gridding (absent before U2-013)
+                gridding: cleanGridding(p.gridding),
                 reservoirName: p.reservoirName || '',
                 auditTrail: p.auditTrail || [],
                 project: { name: p.name, id: p.id, created_at: p.created_at, version: p.version },
@@ -549,6 +558,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
     const setInputUnit = (field, unit) => dispatch({ type: ACTIONS.SET_INPUT_UNIT, payload: { field, unit } });
     const setInputMethod = (method) => dispatch({ type: ACTIONS.SET_INPUT_METHOD, payload: method });
     const setResults = (results) => dispatch({ type: ACTIONS.SET_RESULTS, payload: results });
+    const setGridding = (g) => dispatch({ type: ACTIONS.SET_GRIDDING, payload: g });
 
     // AOI drawing + management
     const startDrawing = () => dispatch({ type: ACTIONS.START_DRAWING });
@@ -603,7 +613,9 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
             reservoirs: folded.reservoirs,
             activeReservoirId: folded.activeReservoirId,
             // The audit trail travels with the project (also underpins collaboration handoff).
-            auditTrail: (state.auditTrail || []).slice(0, MAX_AUDIT)
+            auditTrail: (state.auditTrail || []).slice(0, MAX_AUDIT),
+            // U2-013: the gridding the volumes were calculated with
+            gridding: (() => { const g = effectiveGridding(state.gridding, loadSettings()); return { gridResolution: g.gridResolution, interpolationMethod: g.interpolationMethod }; })(),
         };
     };
 
@@ -612,6 +624,8 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
     const saveCurrentProject = async (userId, meta) => {
         if (!userId) throw new Error('Sign in to save projects.');
         const projectData = buildProjectData(userId, meta);
+        // U2-013: from now on this project keeps the gridding it was saved with
+        if (!state.gridding) dispatch({ type: ACTIONS.SET_GRIDDING, payload: projectData.gridding });
         const saved = await be.projects.saveProject(projectData, !projectData.id);
         dispatch({
             type: ACTIONS.SET_PROJECT,
@@ -681,7 +695,8 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
 
         // Grid resolution + interpolation method for the contact-based engine come
         // from user settings.
-        const settings = loadSettings();
+        // U2-013: the project's gridding, else the browser's setting
+        const settings = effectiveGridding(state.gridding, loadSettings());
         const gridResolution = settings.gridResolution;
         const interpolation = settings.interpolationMethod;
 
@@ -806,6 +821,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
         setInputUnit,
         setInputMethod,
         setResults,
+        setGridding,
         getActiveSurface,
         saveCurrentProject,
         loadProjects,
