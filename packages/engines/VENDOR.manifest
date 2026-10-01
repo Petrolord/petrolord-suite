@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit bf8376b9fc3e33948df9563c2282ae94503fdc9b
+# commit 1a1340bc0202c8309f6ed20db8dff95208402c11
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 29fb828f7173209a3b86294ecd4a53015b3ae902 README.md
@@ -78,6 +78,7 @@ ffb106cd4a256678f2679f4ddf6850858c300e02 __tests__/drilling.wellcost.test.js
 4c2942059989c7f09cff7e01d6f470b185e79dd2 __tests__/earthmodel.adjust.test.js
 8e4a73a0e7c5a989b0b7f8b23472799c7b949a94 __tests__/earthmodel.contacts.test.js
 50b8da7fa643dc40876b187db625f3672f02b91b __tests__/earthmodel.derived.test.js
+a1516fd50304c6df02a47918de4e4f3dca3162a2 __tests__/earthmodel.u2.test.js
 09798e45f5ecea1c3d1541fcbb84c5c45144c577 __tests__/economics.afe.test.js
 d52802c5df510237ab47d40f67ee23bb7b6ed879 __tests__/economics.breakeven.test.js
 b4ec0c70820eabf2c9623093d6493bad04b47552 __tests__/economics.cashflow.test.ts
@@ -327,7 +328,7 @@ b2bc46c90ddf2ebf5fb0f042eb5bb693c55191fe engines/drilling/wellIntegrity.js
 842f169c15b2d5de9f60734fa037127e4cb48861 engines/earthmodeling/derived.js
 32347520aa6771ebdf019f097ca60dd0fb662657 engines/earthmodeling/framework.js
 a3904c39ae34bf8b0fd2ba4c72554ff64eede52e engines/earthmodeling/properties.js
-f9e0dc5f955617d09289a6ae468144db0c2a9184 engines/earthmodeling/volumes.js
+81290ea7fc07303aacb55283c2003152e95ffb56 engines/earthmodeling/volumes.js
 3aa4cd1dd35ad60ede5d0f149a4004fed02a6e1b engines/earthmodeling/wellties.js
 52d840d950b16f55675bcc4862102e58760c2184 engines/economics/afe.js
 98e518c240a47e79ee0b35b7a669dcd71f647ace engines/economics/breakeven.js
@@ -579,7 +580,7 @@ f64c4fc41f49a4d53c3de345d024cb40ad939f63 lib/gridding/blockedGridding.js
 2cf7a6f8630b86ed596a4b8b06e9692b1e524c17 lib/gridding/gridding.js
 b826a59d23b93344fc6a72f5ffaffc5d38ad9e82 lib/gridding/gridmath.js
 3bdcbb9345b4f6a9b6313d366c9ee6b92114abc4 lib/gridding/isopach.js
-96baf552c9b6927dbbf0d6d366b3951aca98838f lib/gridding/kriging.js
+69e38e02f2b9e9f9f3f30e6a68f415def7f257ca lib/gridding/kriging.js
 ae6ab0759e28f7f6ee62af4a46224b567eda2bd6 lib/gridding/mapContours.js
 6781b836e8c152989ca9f84af0d8360acd0c8bcc lib/gridding/numeric.js
 732bc74ae164f70c092d5fe09a20f21b2e85ae43 lib/gridding/surfaceExport.js
