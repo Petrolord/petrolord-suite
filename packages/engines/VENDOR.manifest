@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit aeddb4b616a5994fa299360f8c4f430b4114cadf
+# commit 6dd39d75ebf8d40e71707f2377b91d7ad207e89c
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 b451f8875cb04da4b1b29c77a2a032b42a6aecb7 README.md
