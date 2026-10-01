@@ -157,16 +157,18 @@ test('PP0: pressure and depth display units convert the readout, the NCT, the do
   await page.getByTestId('pp-unit-pressure').selectOption('MPa');
   await expect(page.getByTestId('pp-readout-pp')).toHaveText(`PP ${mpa(pp)}`);
 
-  // psi, then equivalent mud weight: mudline MD is 0 so the datum is
-  // sea level and the reference depth is 3500 m + the water depth
+  // psi, then equivalent mud weight: the harness well is MD below the
+  // rotary table with the mudline at 130 m MD (air gap 30 m + water 100 m,
+  // PP-U1-003), so the EMW datum is RKB and the reference depth is
+  // 3500 m below mudline + 130 m
   await page.getByTestId('pp-unit-pressure').selectOption('psi');
   await expect(page.getByTestId('pp-readout-pp')).toHaveText(`PP ${(pp / PA_PER_PSI).toFixed(0)}`);
   await page.getByTestId('pp-unit-pressure').selectOption('ppg');
-  const ref = 3500 + P.water_depth_m;
+  const ref = 3500 + 30 + P.water_depth_m;
   const ppg = (pp / PA_PER_PSI) / (0.052 * (ref / FT));
   await expect(page.getByTestId('pp-readout-pp')).toHaveText(`PP ${ppg.toFixed(2)}`);
   await expect(page.getByTestId('pp-readout-unit')).toHaveText('ppg');
-  await expect(page.getByTestId('pp-readout-unit')).toHaveAttribute('title', /below sea level/);
+  await expect(page.getByTestId('pp-readout-unit')).toHaveAttribute('title', /below RKB/);
 
   // depth in feet: the readout keeps its sample, the text converts
   await page.getByTestId('pp-unit-depth').selectOption('ft');
@@ -185,7 +187,7 @@ test('PP0: pressure and depth display units convert the readout, the NCT, the do
   await page.getByTestId('pp-unit-pressure').selectOption('MPa');
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('pp-export-csv').click()]);
   const csv = fs.readFileSync(await download.path(), 'utf8');
-  expect(csv).toContain('Depth bml (ft),Depth below sea level (ft),OBG (MPa),Ph (MPa),PP (MPa),FP (MPa),OBG EMW (ppg),PP EMW (ppg),FP EMW (ppg),PP EMW (sg),FP EMW (sg)');
+  expect(csv).toContain('Depth bml (ft),Depth below RKB (ft),OBG (MPa),Ph (MPa),PP (MPa),FP (MPa),OBG EMW (ppg),PP EMW (ppg),FP EMW (ppg),PP EMW (sg),FP EMW (sg)');
   const row = csv.split('\n').find((l) => l.startsWith('11482.94,'));
   expect(row).toBeTruthy();
   const cols = row.split(',');

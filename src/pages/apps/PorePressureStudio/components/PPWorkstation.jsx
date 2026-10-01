@@ -32,11 +32,12 @@ import WellExplorer from './WellExplorer';
 import ParamsPanel from './ParamsPanel';
 import PrognosisChart from './PrognosisChart';
 import NctPanel from './NctPanel';
-import { mapLogs, buildProfileInput } from '../services/prep';
+import { mapLogs, buildProfileInput, normalizePpCurves, wellDepthFrame } from '../services/prep';
 import { computeProfile } from '../engine/profile';
 import { pseudoSonicFromLinearVelocity } from '../engine/velocitySource';
 import { layerCakeProfile } from '@/lib/velocityModels';
-import { preparePublishLogs } from '../services/publish';
+import { preparePublishLogs, publishBlocker } from '../services/publish';
+import { inputNotes, calibrationMisfit, trendDepthM } from '../services/honesty';
 import { drillingWindow, WINDOW_FROM_BML_M } from '../services/drillingWindow';
 import {
   UNITS_KEY, PRESSURE_UNITS, DEPTH_UNITS, readUnits, depthFromDisplay, tidyDepth,
@@ -78,6 +79,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
   const [saving, setSaving] = useState(false);
+  // PP-U1-010: the NCT was fitted on the open well (or comes from the project/default)
+  const [nctFittedFor, setNctFittedFor] = useState(null);
   // Suite unit profile: depth and pressure start from the profile; the
   // selectors below change this view for the session only, and the older
   // remembered 'pp.units' choice no longer beats the profile
@@ -107,8 +110,12 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         setProjectId(project.id || null);
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
         if (project.picks) setPicks(project.picks);
+        if (project.source?.nctFittedFor) setNctFittedFor(project.source.nctFittedFor);
         if (project.calibration) setCalibration(project.calibration);
         setStatus('Restored saved project.');
+        // PP-U1-013: reopen the well the project was saved on
+        const savedWell = project.source?.kind === 'well' ? project.source.wellId : null;
+        if (savedWell && list.some((w) => w.id === savedWell)) setReopenId(savedWell);
       } catch (e) {
         if (live) { setStatus(e.message); setWells((w) => w || []); }
       }
@@ -117,13 +124,14 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   }, [backend]);
 
   const selected = (wells || []).find((w) => w.id === selectedId) || null;
+  const [reopenId, setReopenId] = useState(null);
 
-  const select = useCallback(async (wellId) => {
+  const select = useCallback(async (wellId, { keepPicks = false } = {}) => {
     setSelectedId(wellId);
     setSeismicModel(null);
     setLoadingId(wellId);
     setCurves(null);
-    setPicks([]);
+    if (!keepPicks) setPicks([]);
     try {
       const logs = await backend.listLogs(wellId);
       const mapped = mapLogs(logs);
@@ -134,14 +142,20 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         backend.downloadCurve(mapped.DEPT), backend.downloadCurve(mapped.DT),
       ]);
       const rho = mapped.RHOB ? await backend.downloadCurve(mapped.RHOB) : null;
+      // PP-U1-004: vendor nulls, kg/m3 density and us/ft sonic are read for
+      // what they are, and each decision is said
+      const norm = normalizePpCurves({ depth, dt, rho, dtLog: mapped.DT, rhoLog: mapped.RHOB });
       setCurves({
-        depth: Array.from(depth),
-        dt: Array.from(dt),
-        rho: rho ? Array.from(rho) : null,
-        units: { DT: mapped.DT.unit, RHOB: mapped.RHOB?.unit },
+        depth: norm.depth,
+        dt: norm.dt,
+        rho: norm.rho,
+        units: norm.units,
+        fileUnits: { DT: mapped.DT.unit, RHOB: mapped.RHOB?.unit },
+        notes: norm.notes,
         logIds: Object.values(mapped).filter(Boolean).map((l) => l.id),
       });
-      setStatus(`Loaded ${depth.length} samples${rho ? '' : '. No density log, so the overburden uses Gardner'}.`);
+      setNctFittedFor((prev) => (prev === wellId ? prev : null));
+      setStatus(`Loaded ${depth.length} samples${rho ? '' : '. No density log, so the overburden uses Gardner'}.${norm.notes.length ? ` ${norm.notes.join(' ')}` : ''}`);
     } catch (e) {
       setStatus(e.message);
       setCurves(null);
@@ -150,10 +164,19 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     }
   }, [backend]);
 
+  useEffect(() => {
+    if (!reopenId) return;
+    setReopenId(null);
+    select(reopenId, { keepPicks: true });
+  }, [reopenId, select]);
+
   // Seismolord U2-006: a layer cake is read at a well (the well selected
   // when the model is chosen); its boundary times come from the published
   // boundary surfaces
-  const [layerCakeAt, setLayerCakeAt] = useState(null);   // {wellName, boundaryTwtMs, note}|{error}
+  const [layerCakeAt, setLayerCakeAt] = useState(null);   // {wellName, boundaryTwtMs, note, td}|{error}
+  // PP-U1-012: a velocity trend runs to the well's TD (layer cake) or
+  // 6,000 m below mudline, not a fixed 4,000 m
+  const trendZMaxM = trendDepthM(layerCakeAt?.tdMdM, params);
   const selectVelocityModel = useCallback((model) => {
     const at = (wells || []).find((w) => w.id === selectedId) || null;
     setSeismicModel(model);
@@ -174,7 +197,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       setStatus(`Reading the layer cake of ${model.name} at ${at.name}...`);
       backend.layerCakeBoundariesAt(model, at)
         .then((r) => {
-          setLayerCakeAt({ ...r, wellName: at.name });
+          setLayerCakeAt({ ...r, wellName: at.name, tdMdM: at.td_md_m ?? null });
           setStatus(`Velocity trend from the ${model.name} layer cake at ${at.name}: a trend-grade prognosis (no local anomaly).${r.note ? ` ${r.note}` : ''}`);
         })
         .catch((e) => { setLayerCakeAt({ error: e.message }); setStatus(e.message); });
@@ -190,7 +213,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         if (layerCakeAt.error) return { error: layerCakeAt.error };
         return layerCakeProfile(seismicModel.velocity, layerCakeAt.boundaryTwtMs, {
           datumToMudlineM: params.waterDepthM,
-          zMaxM: 4000,
+          zMaxM: trendZMaxM,
           stepM: 10,
         });
       }
@@ -198,16 +221,17 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         // model datum = sea level; the water column is the offset
         return pseudoSonicFromLinearVelocity(seismicModel.velocity, {
           datumToMudlineM: params.waterDepthM,
-          zMaxM: 4000,
+          zMaxM: trendZMaxM,
           stepM: 10,
         });
       }
       if (!curves) return null;
-      return buildProfileInput(curves, curves.units, { mudlineMdM: params.mudlineMdM });
+      // PP-U1-002: a deviated well is computed at TVD through its survey
+      return buildProfileInput(curves, curves.units, { mudlineMdM: params.mudlineMdM, frame: wellDepthFrame(selected) });
     } catch (e) {
       return { error: e.message };
     }
-  }, [curves, seismicModel, layerCakeAt, params.mudlineMdM, params.waterDepthM]);
+  }, [curves, seismicModel, layerCakeAt, params.mudlineMdM, params.waterDepthM, selected, trendZMaxM]);
 
   const profile = useMemo(() => {
     if (!input || input.error) return null;
@@ -221,6 +245,18 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const result = profile?.result || null;
   const windowInfo = useMemo(() => (result && input ? drillingWindow(result, input.zBmlM, params) : null), [result, input, params]);
   const computeError = input?.error || profile?.error || null;
+
+  // PL4: what the prognosis rests on (datum, TVD, gaps, density, NCT, calibration)
+  const notes = useMemo(() => inputNotes({
+    input,
+    result,
+    params,
+    source: seismicModel ? 'seismic' : 'well',
+    nctFitted: !!nctFittedFor && nctFittedFor === (selectedId || (seismicModel ? `model:${seismicModel.id}` : null)),
+    calibration,
+    fmtZ: (m) => `${fmtDepth(m, units.depth)} ${units.depth}`,
+    fmtP: (mpa) => (units.pressure === 'psi' ? `${fmtPressure(mpa * 1e6, 'psi')} psi` : `${mpa.toFixed(2)} MPa`),
+  }), [input, result, params, seismicModel, nctFittedFor, selectedId, calibration, units]);
 
   const readout = useMemo(() => {
     if (!result || !input) return null;
@@ -274,12 +310,17 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   );
 
   const applyDock = ({ params: p, calibration: cal }) => {
+    // a hand-edited trend is no longer the fitted one (PL4)
+    const n0 = params.nct; const n1 = p.nct || {};
+    if (Math.abs(n0.dtMlUsPerM - n1.dtMlUsPerM) > 1e-6 * n0.dtMlUsPerM || Math.abs(n0.cPerM - n1.cPerM) > 1e-6 * Math.abs(n0.cPerM || 1)
+      || Math.abs(n0.dtMaUsPerM - n1.dtMaUsPerM) > 1e-6 * n0.dtMaUsPerM) setNctFittedFor(null);
     setParams(p);
     setCalibration(cal);
     setStatus('Parameters applied.');
   };
 
   const onNctFitted = (fit) => {
+    setNctFittedFor(selectedId || (seismicModel ? `model:${seismicModel.id}` : null));
     setParams((p) => ({
       ...p,
       nct: { ...p.nct, dtMlUsPerM: fit.dtMl, cPerM: fit.c },
@@ -294,9 +335,10 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         params,
         picks,
         calibration,
+        // nctFittedFor rides in the source jsonb (no schema change)
         source: seismicModel
-          ? { kind: 'seismic', volumeId: seismicModel.id }
-          : { kind: 'well', wellId: selectedId },
+          ? { kind: 'seismic', volumeId: seismicModel.id, nctFittedFor }
+          : { kind: 'well', wellId: selectedId, nctFittedFor },
       });
       if (saved?.id) setProjectId(saved.id);
       setStatus('Project saved.');
@@ -307,8 +349,10 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     }
   };
 
+  const blocker = selectedId ? publishBlocker(params, { fmt: (m) => `${fmtDepth(m, units.depth)} ${units.depth}` }) : null;
   const publish = async () => {
     if (!result || !input || !selectedId) return;
+    if (blocker) { setStatus(blocker); return; }
     setPublishing(true);
     try {
       const prepared = preparePublishLogs(input, result, params, {
@@ -431,9 +475,11 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
           <button
             type="button"
             data-testid="pp-publish"
-            title="Publish PP / FP / OBG curves to the well registry (overwrites this project's previous publish only)"
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-              border-pl-border text-pl-primary-text hover:bg-pl-sunken"
+            title={blocker || "Publish PP / FP / OBG curves in MPa on the well's MD to the well registry (overwrites this project's previous publish only)"}
+            aria-disabled={blocker ? 'true' : undefined}
+            data-blocked={blocker ? 'true' : undefined}
+            className={`flex items-center gap-1 px-2 py-1 text-xs rounded border
+              border-pl-border ${blocker ? 'text-pl-muted' : 'text-pl-primary-text hover:bg-pl-sunken'}`}
             onClick={publish}
           >
             {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
@@ -512,6 +558,13 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
           {windowInfo.maxPp && <> · highest PP {windowInfo.maxPp.ppPpg.toFixed(2)} ppg at {fmtDepth(windowInfo.maxPp.zBmlM, units.depth)} {units.depth}</>}
           {windowInfo.narrowest.windowPpg < 0.5 && <span className="text-pl-warning-text"> · under 0.5 ppg: plan a casing point or managed pressure</span>}
         </div>
+      )}
+      {notes.length > 0 && (
+        <ul className="text-[11px] px-1 flex flex-wrap gap-x-3 gap-y-0.5" data-testid="pp-notes">
+          {notes.map((n) => (
+            <li key={n.key} data-testid={`pp-note-${n.key}`} data-tone={n.tone} className={n.tone === 'warn' ? 'text-pl-warning-text' : 'text-pl-muted'}>{n.text}</li>
+          ))}
+        </ul>
       )}
       <div className="flex-1 min-h-0">
         <PrognosisChart profile={result} zBmlM={input.zBmlM} calibration={calibration} units={units} params={params} />
