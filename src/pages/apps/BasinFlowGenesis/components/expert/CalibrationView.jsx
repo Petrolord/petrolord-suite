@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { useBasinFlow } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowContext';
+import { useBasinFlow, stampRun } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowContext';
 import { useMultiWell } from '@/pages/apps/BasinFlowGenesis/contexts/MultiWellContext';
 import { CalibrationCalculator } from '@/pages/apps/BasinFlowGenesis/services/CalibrationCalculator';
 import { HeatFlowFitter } from '@/pages/apps/BasinFlowGenesis/services/HeatFlowFitter';
@@ -16,9 +16,11 @@ import { useToast } from '@/components/ui/use-toast';
 import ResidualPlot from '../plots/ResidualPlot';
 import CalibrationProfilePlot from '../plots/CalibrationProfilePlot';
 import CalibrationPointsEditor from './CalibrationPointsEditor';
+import RunNotes, { resultState } from '../common/RunNotes';
+import { calibrationCoverage, fitAtBound } from '@/pages/apps/BasinFlowGenesis/services/honesty';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { basinReportPdf } from '@/pages/apps/BasinFlowGenesis/services/report';
 import { depthToDisplay, tempToDisplay, tempDeltaToDisplay, depthLabel, tempLabel, tempSymbol } from '@/pages/apps/BasinFlowGenesis/services/units';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 
 const CalibrationView = () => {
     const { state, dispatch, runSimulation, units } = useBasinFlow();
@@ -39,6 +41,7 @@ const CalibrationView = () => {
     ]);
 
     const [isFitting, setIsFitting] = useState(false);
+    const [fitNote, setFitNote] = useState(null);
 
     useEffect(() => {
         if (state.calibration) {
@@ -59,8 +62,9 @@ const CalibrationView = () => {
         };
     }, [state.results]);
 
+    // BF-U1-013: with no result there is no misfit (it read 0.000 in green)
     const stats = useMemo(() => {
-        if(modelProfiles.depths.length === 0) return { roRMS: 0, tempRMS: 0, roR2: 0, residualsRo: [], residualsTemp: [] };
+        if(modelProfiles.depths.length === 0) return { roRMS: NaN, tempRMS: NaN, roR2: NaN, residualsRo: [], residualsTemp: [], none: true };
 
         const modeledRoAtPts = CalibrationCalculator.interpolateToMeasured(
             modelProfiles.depths,
@@ -75,9 +79,9 @@ const CalibrationView = () => {
         );
 
         return {
-            roRMS: CalibrationCalculator.calculateRMS(roPoints.map(p => p.value), modeledRoAtPts) || 0,
-            tempRMS: CalibrationCalculator.calculateRMS(bhtPoints.map(p => p.value), modeledTempAtPts) || 0,
-            roR2: CalibrationCalculator.calculateR2(roPoints.map(p => p.value), modeledRoAtPts) || 0,
+            roRMS: roPoints.length ? CalibrationCalculator.calculateRMS(roPoints.map(p => p.value), modeledRoAtPts) : NaN,
+            tempRMS: bhtPoints.length ? CalibrationCalculator.calculateRMS(bhtPoints.map(p => p.value), modeledTempAtPts) : NaN,
+            roR2: roPoints.length > 1 ? CalibrationCalculator.calculateR2(roPoints.map(p => p.value), modeledRoAtPts) : NaN,
             residualsRo: roPoints.map((p, i) => ({ depth: p.depth, residual: p.value - modeledRoAtPts[i] })),
             residualsTemp: bhtPoints.map((p, i) => ({ depth: p.depth, residual: p.value - modeledTempAtPts[i] }))
         };
@@ -106,12 +110,15 @@ const CalibrationView = () => {
             const fitted = await HeatFlowFitter.fit(state, roPoints, bhtPoints);
             dispatch({ type: 'UPDATE_HEAT_FLOW', payload: fitted.heatFlow });
             await runSimulationWith(fitted.heatFlow);
-            toast({
-                title: "Optimization Complete",
-                description: state.heatFlow?.type === 'variable'
-                    ? `Heat-flow history scaled; present-day ${fitted.heatFlow.value.toFixed(1)} mW/m²`
-                    : `Heat flow fitted to ${fitted.heatFlow.value.toFixed(1)} mW/m²`,
-            });
+            // BF-U1-013: a fit on the search bound is not a fit; say so
+            const variable = state.heatFlow?.type === 'variable';
+            const x = variable ? (fitted.heatFlow.value / (state.heatFlow.value || 60)) : fitted.heatFlow.value;
+            const bound = fitAtBound(x, HeatFlowFitter.bounds(state.heatFlow));
+            const msg = variable
+                ? `Heat-flow history scaled by ${x.toFixed(2)}; present-day ${presentDayHeatFlow(fitted.heatFlow).toFixed(1)} mW/m2. Weighted misfit ${fitted.misfit.toFixed(2)} (1 = 0.1 %Ro or 10 C per point).`
+                : `Heat flow fitted to ${fitted.heatFlow.value.toFixed(1)} mW/m2. Weighted misfit ${fitted.misfit.toFixed(2)} (1 = 0.1 %Ro or 10 C per point).`;
+            setFitNote(bound ? `${msg} The fit stopped at the ${bound} end of the search range (${HeatFlowFitter.bounds(state.heatFlow).join(' to ')}${variable ? ' times the history' : ' mW/m2'}): the data want a value outside it, so check the stratigraphy, erosion or the points.` : msg);
+            toast({ title: bound ? 'Fit on the search bound' : 'Optimization Complete', description: msg });
         } catch (e) {
             toast({ variant: "destructive", title: "Auto-fit failed", description: e.message });
         } finally {
@@ -122,7 +129,7 @@ const CalibrationView = () => {
     // runSimulation() reads context state, which won't include the
     // fitted heat flow until the next render — run explicitly.
     const runSimulationWith = async (heatFlow) => {
-        const results = await SimulationEngine.run({ ...state, heatFlow });
+        const results = stampRun(await SimulationEngine.run({ ...state, heatFlow }), { ...state, heatFlow }, mwState.activeWellId);
         dispatch({ type: 'SET_RESULTS', payload: results });
     };
 
@@ -133,14 +140,18 @@ const CalibrationView = () => {
         }
 
         dispatch({ type: 'SET_CALIBRATION_DATA', payload: { ro: roPoints, temp: bhtPoints } });
-        const newStatus = (stats.roRMS < 0.3 && stats.tempRMS < 10) ? 'calibrated' : 'in-progress';
+        // BF-U1-013: "Calibrated" only from a current result that fits every kind of point given
+        const rs = resultState(state.results, state, mwState.activeWellId);
+        const fits = !stats.none && rs && !rs.stale
+            && (roPoints.length === 0 || stats.roRMS < 0.3) && (bhtPoints.length === 0 || stats.tempRMS < 10);
+        const newStatus = fits ? 'calibrated' : 'in-progress';
 
         if (mwState.activeWellId) {
             await updateWell(mwState.activeWellId, {
                 calibration: { ro: roPoints, temp: bhtPoints },
                 status: newStatus
             });
-            toast({ title: "Calibration Saved", description: `Data saved. Well status: ${newStatus}` });
+            toast({ title: "Calibration Saved", description: fits ? 'Points saved; the current result fits them (Ro RMS under 0.3 %, temperature RMS under 10 C): marked Calibrated.' : `Points saved; not marked Calibrated: ${stats.none || !rs ? 'run the model first' : rs.stale ? 'the result is out of date, run the model again' : 'the misfit is above Ro RMS 0.3 % or temperature RMS 10 C'}.` });
         } else {
             toast({ variant: "destructive", title: "Save Failed", description: "No active well selected." });
         }
@@ -168,31 +179,26 @@ const CalibrationView = () => {
         document.body.removeChild(link);
     };
 
-    const exportToPDF = () => {
-        const doc = new jsPDF();
-        doc.text("Calibration Report", 14, 15);
-        doc.setFontSize(10);
-        doc.text(`Well ID: ${mwState.activeWellId}`, 14, 22);
-        doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 28);
-        doc.text("Statistics:", 14, 35);
-        doc.text(`Ro RMS: ${stats.roRMS.toFixed(3)}%`, 20, 40);
-        doc.text(`Temp RMS: ${tempDeltaToDisplay(stats.tempRMS, tU).toFixed(1)} ${tU}`, 20, 45);
-
-        const roData = roPoints.map(p => [zD(p.depth).toFixed(1), p.value]);
-        doc.autoTable({
-            startY: 50,
-            head: [[`Depth (${zU})`, 'Measured Ro (%)']],
-            body: roData,
-            theme: 'striped'
-        });
-
-        doc.save("calibration_report.pdf");
+    // BF-U1-016: the calibration PDF is the model report (reviewer block,
+    // calibration misfit, present day); it printed only the well's uuid
+    const exportToPDF = async () => {
+        try {
+            const [{ jsPDF }, { loadPetrolordLogo }] = await Promise.all([import('jspdf'), import('@/lib/pdfBrand')]);
+            const logo = await loadPetrolordLogo().catch(() => null);
+            const modelName = mwState.wellDataMap?.[mwState.activeWellId]?.name || '';
+            const st = { ...state, calibration: { ro: roPoints, temp: bhtPoints } };
+            const doc = basinReportPdf(jsPDF, { modelName, state: st, results: state.results, units, report: state.settings?.report || {}, notes: [], stale: resultState(state.results, state, mwState.activeWellId) }, { logo });
+            doc.save(`basin-calibration-${(modelName || 'model').replace(/[^\w.-]+/g, '_')}.pdf`);
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'The PDF could not be made', description: e.message });
+        }
     };
 
     const safeFixed = (num, digits) => {
-        if (typeof num !== 'number' || isNaN(num)) return '0.' + '0'.repeat(digits);
+        if (typeof num !== 'number' || isNaN(num)) return EMPTY_VALUE;
         return num.toFixed(digits);
     };
+    const coverage = calibrationCoverage([...roPoints, ...bhtPoints], modelProfiles.depths);
 
     // plots in the display units (the stats above stay SI)
     const modeledRoProfile = modelProfiles.depths.map((d, i) => ({ depth: zD(d), value: modelProfiles.ro[i] }));
@@ -206,6 +212,7 @@ const CalibrationView = () => {
 
     return (
         <div className="h-full grid grid-cols-12 gap-4 p-4 overflow-y-auto">
+            <div className="col-span-12"><RunNotes showModel={false} testid="bf-cal-run-notes" /></div>
             <div className="col-span-12 lg:col-span-3 space-y-4">
                 <Card>
                     <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Global Parameters</CardTitle></CardHeader>
@@ -247,16 +254,23 @@ const CalibrationView = () => {
                 <Card>
                     <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Misfit Statistics</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
+                        {stats.none && <p className="text-[11px] text-pl-muted" data-testid="bf-cal-no-run">No result yet: run the model to compare it with the points.</p>}
+                        {coverage.outside.length > 0 && (
+                            <p className="text-[11px] text-pl-warning-text" data-testid="bf-cal-outside">
+                                {coverage.outside.length} point{coverage.outside.length === 1 ? ' lies' : 's lie'} outside the modelled layer centres ({zD(coverage.top).toFixed(0)} to {zD(coverage.base).toFixed(0)} {zU}); {coverage.outside.length === 1 ? 'it is' : 'they are'} compared with the nearest centre's value, which is extrapolation.
+                            </p>
+                        )}
+                        {fitNote && <p className="text-[11px] text-pl-text" data-testid="bf-cal-fit-note">{fitNote}</p>}
                         <div className="flex justify-between items-center p-2 bg-pl-sunken rounded border border-pl-border">
                             <span className="text-xs text-pl-muted">Ro RMS Error</span>
-                            <span className={`font-mono text-sm ${stats.roRMS < 0.2 ? 'text-pl-success-text' : 'text-pl-warning-text'}`} data-testid="bf-cal-ro-rms">
-                                {safeFixed(stats.roRMS, 3)} %
+                            <span className={`font-mono text-sm ${Number.isNaN(stats.roRMS) ? 'text-pl-muted' : stats.roRMS < 0.2 ? 'text-pl-success-text' : 'text-pl-warning-text'}`} data-testid="bf-cal-ro-rms">
+                                {safeFixed(stats.roRMS, 3)}{Number.isNaN(stats.roRMS) ? '' : ' %'}
                             </span>
                         </div>
                         <div className="flex justify-between items-center p-2 bg-pl-sunken rounded border border-pl-border">
                             <span className="text-xs text-pl-muted">Temp RMS Error</span>
-                             <span className={`font-mono text-sm ${stats.tempRMS < 5 ? 'text-pl-success-text' : 'text-pl-warning-text'}`} data-testid="bf-cal-temp-rms">
-                                {safeFixed(tempDeltaToDisplay(stats.tempRMS, tU), 1)} {tempSymbol(tU)}
+                             <span className={`font-mono text-sm ${Number.isNaN(stats.tempRMS) ? 'text-pl-muted' : stats.tempRMS < 5 ? 'text-pl-success-text' : 'text-pl-warning-text'}`} data-testid="bf-cal-temp-rms">
+                                {safeFixed(tempDeltaToDisplay(stats.tempRMS, tU), 1)}{Number.isNaN(stats.tempRMS) ? '' : ` ${tempSymbol(tU)}`}
                             </span>
                         </div>
                          <div className="flex justify-between items-center p-2 bg-pl-sunken rounded border border-pl-border">

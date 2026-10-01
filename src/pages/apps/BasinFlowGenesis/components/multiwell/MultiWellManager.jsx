@@ -92,6 +92,7 @@ const MultiWellManager = () => {
                 erosionEvents: bfState.erosionEvents,
                 settings: bfState.settings,
                 calibration: bfState.calibration,
+                scenarios: bfState.scenarios,
             };
             saveWellData(mwState.activeWellId, currentData);
         }
@@ -106,7 +107,10 @@ const MultiWellManager = () => {
                 heatFlow: targetWellData.heatFlow || { type: 'constant', value: 60, history: [] },
                 erosionEvents: targetWellData.erosionEvents || [],
                 settings: targetWellData.settings || {},
-                calibration: targetWellData.calibration || { ro: [], temp: [] }
+                calibration: targetWellData.calibration || { ro: [], temp: [] },
+                // BF-U1-002: the well's own scenarios (they were never loaded, and the
+                // auto-save then wrote the previous well's list, or [], over them)
+                scenarios: Array.isArray(targetWellData.scenarios) ? targetWellData.scenarios : [],
             }});
             toast({ description: `Switched to ${targetWellData.name}` });
         }

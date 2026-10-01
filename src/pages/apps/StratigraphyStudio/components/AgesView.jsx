@@ -12,7 +12,7 @@ import AgeDepthPlot from '@/components/wells/section/AgeDepthPlot';
 import { ageDepthModel, validateAgeDepth, sortDated } from '@/lib/stratigraphy/ageDepth';
 import { unitAt, TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
 import { normalizeSurfaceType } from '@/lib/stratigraphy/vocabulary';
-import { buildBasinModelRow, verticalDepthOf } from '@/lib/basinHandoff';
+import { buildBasinModelRow, verticalDepthOf, mergeBasinUpdate } from '@/lib/basinHandoff';
 import ChartExportButtons from '@/components/wells/section/ChartExportButtons';
 import { chartHeaderLines } from '@/components/wells/section/chartExport';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
@@ -85,7 +85,7 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
     setBusy(true);
     try {
       const userId = backend.currentUserId ? await backend.currentUserId() : null;
-      const { row, problems: notes, layerCount, datedCount, erosionCount } = buildBasinModelRow({ well, tops, intervals, userId });
+      const { row, problems: notes, layerCount, datedCount, erosionCount } = buildBasinModelRow({ well, tops, intervals, userId, ageCharts });
       // STRAT-U2-018 (U1-032): the model this studio made for the well before is
       // updated in place (layers, erosion, location); what the modeller set in
       // Basin (name, heat flow, calibration, scenarios) is kept
@@ -94,12 +94,16 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
         : null;
       const counts = `${layerCount} layers, ${datedCount} dated, ${erosionCount} erosion event${erosionCount === 1 ? '' : 's'}`;
       if (existing && backend.updateBasinModel) {
+        // BF-U1-005: the modeller's source rock, layer properties and typed erosion amounts survive the re-send
+        const merged = mergeBasinUpdate(existing, row);
         await backend.updateBasinModel(existing.id, {
-          stratigraphy: row.stratigraphy, erosion_events: row.erosion_events, location_coords: row.location_coords,
-          settings: { ...(existing.settings || {}), registryWellName: row.settings.registryWellName, registryKbM: row.settings.registryKbM, fromStratigraphyStudio: row.settings.fromStratigraphyStudio },
+          stratigraphy: merged.stratigraphy, erosion_events: merged.erosion_events, location_coords: row.location_coords,
+          settings: { ...(existing.settings || {}), registryWellName: row.settings.registryWellName, registryKbM: row.settings.registryKbM, fromStratigraphyStudio: row.settings.fromStratigraphyStudio, timescale: row.settings.timescale },
           thermal_history: null, updated_at: row.updated_at,
         });
-        onStatus(`Basin model "${existing.name}" updated in place: ${counts}; its heat flow, calibration and scenarios were kept, and its thermal history cleared until you run it again in Basin${notes.length ? `. ${notes[0]}` : '.'}`);
+        const k = merged.kept;
+        const keptWords = [k.sources ? `${k.sources} source rock${k.sources === 1 ? '' : 's'}` : null, k.properties ? `layer properties on ${k.properties}` : null, k.erosion ? `${k.erosion} typed erosion amount${k.erosion === 1 ? '' : 's'}` : null].filter(Boolean);
+        onStatus(`Basin model "${existing.name}" updated in place: ${counts}; its heat flow, calibration and scenarios${keptWords.length ? `, ${keptWords.join(', ')}` : ''} were kept, and its thermal history cleared until you run it again in Basin${notes.length ? `. ${notes[0]}` : '.'}`);
       } else {
         await backend.createBasinModel(row);
         onStatus(`Basin model "${row.name}" created: ${counts}${notes.length ? `. ${notes[0]}` : '.'}`);

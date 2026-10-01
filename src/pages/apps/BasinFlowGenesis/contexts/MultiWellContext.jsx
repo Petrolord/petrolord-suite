@@ -132,10 +132,11 @@ export const MultiWellProvider = ({ children, backend = null }) => {
                 user_id: userId,
                 name: wellData.name || 'New Well',
                 status: wellData.status || 'not-started',
-                stratigraphy: [],
-                heat_flow: { type: 'constant', value: 60 },
-                erosion_events: [],
-                settings: {},
+                // BF-U1-007: a guided run arrives with its model (it used to overwrite the active one)
+                stratigraphy: Array.isArray(wellData.stratigraphy) ? wellData.stratigraphy : [],
+                heat_flow: wellData.heatFlow || { type: 'constant', value: 60 },
+                erosion_events: Array.isArray(wellData.erosionEvents) ? wellData.erosionEvents : [],
+                settings: wellData.settings || {},
                 calibration_data: {},
                 scenarios: [],
                 created_at: new Date().toISOString(),
@@ -143,7 +144,7 @@ export const MultiWellProvider = ({ children, backend = null }) => {
             };
             dispatch({ type: 'ADD_WELL_LOCAL', payload: fromRow(payload) });
             await be.insertWell(payload);
-            toast({ title: "Well Created", description: `${payload.name} added.` });
+            if (!wellData.quiet) toast({ title: "Well Created", description: `${payload.name} added.` });
             return newWellId;
         } catch (error) {
             console.error("Error creating well:", error);
