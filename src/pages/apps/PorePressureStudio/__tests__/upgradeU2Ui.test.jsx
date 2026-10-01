@@ -169,3 +169,18 @@ describe('U2-008 the seismic datum and the layer cake read at the well', () => {
     await waitFor(() => expect(screen.getByTestId('pp-readout-obg').textContent).not.toBe(before));
   });
 });
+
+describe('U2-007 and U2-012 in the workstation', () => {
+  test('the crossplot sets Bowers unloading; the fracture method switches the dock field', async () => {
+    mount();
+    await ready();
+    fireEvent.click(screen.getByTestId('pp-view-crossplot'));
+    await waitFor(() => expect(screen.getByTestId('pp-xp-summary')).toHaveTextContent(/Loading trend V =/));
+    fireEvent.click(screen.getByTestId('pp-xp-use'));
+    await waitFor(() => expect(screen.getByTestId('pp-status')).toHaveTextContent(/Bowers unloading set from the crossplot: U 3, sigma max/));
+    expect(screen.getByTestId('pp-param-bowersu')).toHaveValue(3);
+    fireEvent.change(screen.getByTestId('pp-param-fracmethod'), { target: { value: 'matthews-kelly' } });
+    expect(screen.getByTestId('pp-param-k0')).toHaveValue(0.75);
+    expect(screen.queryByTestId('pp-param-nu')).toBeNull();
+  });
+});

@@ -182,3 +182,44 @@ describe('U2-012 Eaton, Matthews and Kelly, Daines in the app', () => {
     expect(pub.find((l) => l.mnemonic === 'FP').description).toBe('Fracture pressure (Matthews and Kelly k0=0.75)');
   });
 });
+
+// ---- U2-007 Bowers unloading from the crossplot --------------------------------
+import { bowersCrossplot, suggestUnloadingTop } from '../services/bowersCrossplot';
+import { bowersVLoading, bowersVUnloading, bowersSigmaUnloading } from '../engine/bowers';
+
+describe('U2-007 Bowers unloading picked on the velocity-density crossplot', () => {
+  // a synthetic well: effective stress rises 6 kPa/m to 2,500 m (loading), then
+  // falls 4 kPa/m below it (fluid expansion: unloading with sigma max 15 MPa, U 4);
+  // density follows the loading velocity (Gardner) and does not unload: below the
+  // top it stays at the density of the maximum stress
+  const A = 10; const B = 0.75; const U = 4;
+  const z = []; for (let m = 0; m <= 4000; m += 10) z.push(m);
+  const sig = z.map((m) => (m <= 2500 ? 6000 * m : 6000 * 2500 - 4000 * (m - 2500)));
+  const smax = 6000 * 2500;
+  const v = sig.map((s, i) => (z[i] <= 2500 ? bowersVLoading(s, A, B) : bowersVUnloading(Math.max(s, 1), smax, A, B, U)));
+  const gardner = (vm) => 310 * vm ** 0.25;
+  const rho = z.map((m, i) => gardner(z[i] <= 2500 ? v[i] : bowersVLoading(smax, A, B)));
+  const input = { zBmlM: z, dtUsPerM: v.map((x) => 1e6 / x), rhoKgM3: rho };
+
+  test('the reversal is found, sigma max is the loading stress at V max, and U on it reproduces the stress', () => {
+    expect(suggestUnloadingTop(input)).toBeCloseTo(2500, -2);
+    const xp = bowersCrossplot(input, { topM: 2500, A, B });
+    expect(xp.unloadedCount).toBeGreaterThan(10); // the drop passes 3% some way below the top
+    expect(xp.points[xp.points.length - 1].branch).toBe("unloading");
+    expect(xp.sigmaMaxPa / smax).toBeGreaterThan(0.97);
+    expect(xp.sigmaMaxPa / smax).toBeLessThan(1.001);
+    // with the crossplot's sigma max the engine inverts the unloading velocities to the imposed stress
+    const i = z.indexOf(3500);
+    expect(bowersSigmaUnloading(v[i], xp.sigmaMaxPa, A, B, U) / sig[i]).toBeCloseTo(1, 1);
+    // negative control: the loading curve alone reads that sample's stress far too high
+    const loadingOnly = ((v[i] / 0.3048 - 5000) / A) ** (1 / B) * 6894.757293168361;
+    expect(loadingOnly / sig[i]).toBeGreaterThan(1.2);
+  });
+
+  test('a loading-only well shows no unloading; no density log is said', () => {
+    const vl = z.map((m) => bowersVLoading(6000 * m, A, B));
+    const xp = bowersCrossplot({ zBmlM: z, dtUsPerM: vl.map((x) => 1e6 / x), rhoKgM3: vl.map(gardner) }, { topM: 2500, A, B });
+    expect(xp.unloadedCount).toBe(0);
+    expect(bowersCrossplot({ zBmlM: z, dtUsPerM: input.dtUsPerM, rhoKgM3: z.map(() => null) }, { topM: 2500, A, B }).error).toMatch(/needs a density log/);
+  });
+});

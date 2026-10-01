@@ -40,6 +40,8 @@ describe('PorePressureStudioHelpGuide', () => {
     expect(text).toMatch(/A layer cake is read along the hole/);
     // U2-012
     expect(text).toMatch(/Calibrate FG to LOT sets the method's coefficient/);
+    // U2-007
+    expect(text).toMatch(/The Crossplot view plots velocity against the logged density/);
     // U2-002
     expect(text).toMatch(/declare the depth column and reference/);
   });

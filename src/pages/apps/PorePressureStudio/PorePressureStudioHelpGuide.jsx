@@ -166,6 +166,15 @@ export default function PorePressureStudioHelpGuide() {
           ['Eaton resistivity', "Scales the effective stress by the ratio of the measured to the normal shale resistivity raised to the exponent (Eaton 1975). The normal trend is log-linear in depth, fitted on shale picks in the NCT view on a log axis. Use it where the sonic is poor or absent; the deep resistivity (RT, ILD, LLD, AT90 and similar) is read in ohm.m, a conductivity in mS/m converted.", 'Exponent n (1.2 for resistivity, Eaton\'s published value); R at the mudline and the slope b'],
           ['Bowers', 'Inverts the velocity to effective stress through the loading curve; with U and the maximum stress set, the unloading curve applies where the velocity has reversed.', 'A and B in ft/s and psi as published; U; sigma max'],
         ]} />
+        <SubHeading>Choosing Bowers unloading on the crossplot</SubHeading>
+        <Para>
+          The Crossplot view plots velocity against the logged density. Under loading both rise along one trend; where
+          the pressure comes from fluid expansion the velocity falls while the density holds, so those samples drop
+          below the trend. The view fits the loading trend above the unloading top (by default where the velocity
+          peaks), counts the samples below it more than 3% under the trend, and gives V max with the sigma max the
+          loading curve reaches there. Use for Bowers unloading sets the method to Bowers with that sigma max and the U
+          you type (Fit U to calibration refines U against measured pressures).
+        </Para>
         <Para>
           The fracture method is chosen under Fracture gradient in the dock. All three add a share of the effective
           overburden to the pore pressure: Eaton (1969) takes the share nu over one minus nu from Poisson's ratio;

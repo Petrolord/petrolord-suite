@@ -32,6 +32,7 @@ import WellExplorer from './WellExplorer';
 import ParamsPanel from './ParamsPanel';
 import PrognosisChart from './PrognosisChart';
 import NctPanel from './NctPanel';
+import CrossplotPanel from './CrossplotPanel';
 import {
   mapLogs, buildProfileInput, normalizePpCurves, wellDepthFrame, normalizeResistivity,
 } from '../services/prep';
@@ -552,6 +553,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       <div className="ml-4 flex items-center gap-1">
         {viewButton('prognosis', 'Prognosis')}
         {viewButton('nct', 'NCT')}
+        {viewButton('crossplot', 'Crossplot')}
       </div>
       {result && (
         <div className="ml-4 flex items-center gap-2 text-[11px] text-pl-muted">
@@ -724,7 +726,14 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     </div>
   );
 
-  const center = !result ? empty : view === 'nct' ? (
+  // U2-007: Bowers unloading picked on the velocity-density crossplot
+  const useUnloading = ({ U, sigmaMaxPa }) => {
+    setParams((p) => ({ ...p, method: 'bowers', bowers: { ...p.bowers, U, sigmaMaxPa } }));
+    setStatus(`Bowers unloading set from the crossplot: U ${U}, sigma max ${(sigmaMaxPa / 1e6).toFixed(2)} MPa.`);
+  };
+  const center = !result ? empty : view === 'crossplot' ? (
+    <CrossplotPanel input={input} params={params} units={units} onUseUnloading={useUnloading} />
+  ) : view === 'nct' ? (
     <NctPanel
       input={input}
       profile={result}
