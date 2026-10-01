@@ -8,7 +8,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera, Tags, ClipboardList, FileText, FileUp } from 'lucide-react';
+import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera, Tags, ClipboardList, FileText, FileUp, Compass } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -55,10 +55,12 @@ import LagCheckPanel from './LagCheckPanel';
 import ImportView from './ImportView';
 import { IMPORT_SUBTYPE, DATA_SUBTYPE, mudlogRecords, mudlogSeries, importsOf, withdrawParams, typedRowParams } from '../services/mudlogImport';
 import { newId } from '@/lib/wellsite/ids';
+import SurveysView from './SurveysView';
+import { SURVEY_SUBTYPE, activeSurvey, wellWithSurvey, surveyRuns, staleDepths } from '../services/surveys';
 import { LAG_CHECK_SUBTYPE, currentWashout, lagCheckParams, washoutParams } from '../services/lagCheck';
 
 // record types added by the upgrade that belong with the typed observations (lists, evidence, reports)
-const EXTRA_OBSERVATION_SUBTYPES = [GAS_SUBTYPE, 'lag_check'];
+const EXTRA_OBSERVATION_SUBTYPES = [GAS_SUBTYPE, 'lag_check', SURVEY_SUBTYPE];
 
 export const VIEWS = [
   { id: 'live', label: 'Live', icon: Activity },
@@ -68,6 +70,7 @@ export const VIEWS = [
   { id: 'observations', label: 'Observations', icon: Eye },
   { id: 'photos', label: 'Photos', icon: Camera },
   { id: 'import', label: 'Import', icon: FileUp },
+  { id: 'surveys', label: 'Surveys', icon: Compass },
   { id: 'tops', label: 'Tops', icon: Tags },
   { id: 'timeline', label: 'Timeline', icon: ListOrdered },
   { id: 'handover', label: 'Handover', icon: ClipboardList },
@@ -94,6 +97,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const [decisionRecords, setDecisionRecords] = useState([]);
   const [lagChecks, setLagChecks] = useState([]);
   const [mudlogRecordsState, setMudlogRecordsState] = useState([]);
+  const [surveyRecords, setSurveyRecords] = useState([]);
   const [describeSample, setDescribeSample] = useState(null);
   const [shows, setShows] = useState([]);
   const [observations, setObservations] = useState([]);
@@ -172,7 +176,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const refreshSeq = useRef(0);
   const refreshWellData = useCallback(async () => {
     const seq = ++refreshSeq.current;
-    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); setDecisionRecords([]); setLagChecks([]); setMudlogRecordsState([]); setShows([]); setObservations([]); setPhotos([]); setTops([]); setPrognoses([]); setMembers([]); setNarratives([]); setReports([]); setSignoffs([]); return; }
+    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); setDecisionRecords([]); setLagChecks([]); setMudlogRecordsState([]); setSurveyRecords([]); setShows([]); setObservations([]); setPhotos([]); setTops([]); setPrognoses([]); setMembers([]); setNarratives([]); setReports([]); setSignoffs([]); return; }
     const [bits, pumps, cfg, descs, evs, smp, stg, prog, shw, obs, pho, tps, prg, mem, nar, rep, sgn] = await Promise.all([
       backend.listRecords(well.id, { subtype: 'bit_depth' }),
       backend.listRecords(well.id, { subtype: 'pump_rate' }),
@@ -208,6 +212,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setProgrammeRecords(prog.filter((r) => r.subtype === PROGRAMME_SUBTYPE));
     setDecisionRecords(prog);
     setLagChecks(currentObservations(obs.filter((r) => r.subtype === LAG_CHECK_SUBTYPE)));
+    setSurveyRecords(obs.filter((r) => r.subtype === SURVEY_SUBTYPE));
     setMudlogRecordsState(obs.filter((r) => r.subtype === IMPORT_SUBTYPE || r.subtype === DATA_SUBTYPE));
     setBitDepths(currentObservations(bits));
     setPumpEvents(currentObservations(pumps));
@@ -219,7 +224,11 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   useEffect(() => backend.subscribeSync(() => setTick((t) => t + 1)), [backend]);
   useEffect(() => { const id = setInterval(() => setTick((t) => t + 1), 30000); return () => clearInterval(id); }, []);
 
-  const ctx = useMemo(() => (well ? wellContext(well) : null), [well]);
+  // U2-005: the survey in use is the registry snapshot with the rig's survey runs applied; every
+  // depth on screen (TVD, subsea, the prognosis comparison, the lag) is calculated with it
+  const surveyInUse = useMemo(() => activeSurvey(well, surveyRecords), [well, surveyRecords]);
+  const wellEff = useMemo(() => wellWithSurvey(well, surveyRecords), [well, surveyRecords]);
+  const ctx = useMemo(() => (wellEff ? wellContext(wellEff) : null), [wellEff]);
   useEffect(() => {
     let alive = true;
     if (!well || !backend.listOrgPeople || !backend.online()) return undefined;
@@ -232,11 +241,11 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const events = useMemo(() => eventsFromRecords(eventRecords), [eventRecords]);
   // U2-004: the washout in force (a decision citing its lag check) enlarges the open hole before the lag is computed
   const washout = useMemo(() => currentWashout(decisionRecords), [decisionRecords]);
-  const lag = useMemo(() => (well ? lagNow({ well, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag, washout }) : { available: false, note: '' }), [well, rigConfig, bitDepths, pumpEvents, events, nowForLag, washout]);
+  const lag = useMemo(() => (well ? lagNow({ well: wellEff, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag, washout }) : { available: false, note: '' }), [well, wellEff, rigConfig, bitDepths, pumpEvents, events, nowForLag, washout]);
   const floater = isFloater(rigConfig);
   const rop = useMemo(() => ropNow(bitDepths, events), [bitDepths, events]);
   const programme = useMemo(() => currentProgramme(programmeRecords), [programmeRecords]);
-  const board = useMemo(() => (well ? sampleBoard({ samples, stages, well, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag, washout }) : null), [well, samples, stages, rigConfig, bitDepths, pumpEvents, events, nowForLag, washout]);
+  const board = useMemo(() => (well ? sampleBoard({ samples, stages, well: wellEff, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag, washout }) : null), [well, wellEff, samples, stages, rigConfig, bitDepths, pumpEvents, events, nowForLag, washout]);
   const scheduling = useRef(false);
   const scheduleAhead = useCallback(async () => {
     if (!well || !programme || scheduling.current) return 0;
@@ -295,6 +304,11 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setStatus(`Drilling parameters recorded at ${fmtDepth(row.md_calc_m, units.depth)}.`);
     setTick((t) => t + 1);
   }, [backend, well, units.depth]);
+  const recordSurveyRun = useCallback(async (p) => {
+    const { row } = await backend.addRecord(well.id, p);
+    setStatus(`${row.payload.text} TVD and subsea depths now follow it.`);
+    setTick((t) => t + 1);
+  }, [backend, well]);
   const recordLagCheck = useCallback(async (result, { tracer }) => {
     const bit = bitDepths[bitDepths.length - 1] || null;
     const { row } = await backend.addRecord(well.id, lagCheckParams({ result, tracer, bit }));
@@ -369,6 +383,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setTick((t) => t + 1);
   }, [backend, well, ctx, prognosis]);
   const myRole = useMemo(() => memberRole(user, members), [user, members]);
+  const staleNow = useMemo(() => (ctx ? staleDepths([...bitDepths, ...descriptions, ...shows, ...observations.filter((r) => r.subtype !== SURVEY_SUBTYPE), ...tops], ctx) : null), [ctx, bitDepths, descriptions, shows, observations, tops]);
   const reportData = useMemo(() => ({
     records: [...observations, ...descriptions, ...shows, ...bitDepths, ...pumpEvents, ...narratives, ...eventRecords],
     samples, stages, tops, photos, events, lag,
@@ -396,7 +411,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const keepOffline = useCallback(async () => {
     try {
       // fetch this app's lazy chunks so the service worker holds them; the shell itself is precached
-      await Promise.all([import('../WellsiteStudio'), import('./ConfigView'), import('./DescribeView'), import('./SamplesView'), import('./TopsView'), import('./TimelineView'), import('./ShowsView'), import('./ObservationsView'), import('./PhotosPanel'), import('./ImportView')]);
+      await Promise.all([import('../WellsiteStudio'), import('./ConfigView'), import('./DescribeView'), import('./SamplesView'), import('./TopsView'), import('./TimelineView'), import('./ShowsView'), import('./ObservationsView'), import('./PhotosPanel'), import('./ImportView'), import('./SurveysView')]);
       const persisted = await persistStorage();
       setOfflineReady(true);
       setStatus(persisted ? 'This app is cached for use without a connection and its storage is protected.' : 'This app is cached for use without a connection.');
@@ -508,6 +523,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     center = <PhotosPanel backend={backend} well={well} photos={photos} samples={samples} sampleId={photoSampleId} onSampleChange={setPhotoSampleId} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   } else if (view === 'import') {
     center = <ImportView ctx={ctx} defaults={entryDefaults} unit={units.depth} pressureUnit={units.pressure} offsetMin={offsetMin} imports={mudlogImports} series={mudlog} onImport={importMudlog} onWithdraw={withdrawImport} onTypedRow={recordTypedRow} onStatus={setStatus} userName={user ? user.name || user.email : ''} />;
+  } else if (view === 'surveys') {
+    center = <SurveysView inUse={surveyInUse} ctx={ctx} unit={units.depth} offsetMin={offsetMin} stale={staleNow} runs={surveyRuns(surveyRecords)} onRecord={recordSurveyRun} onStatus={setStatus} nameOf={nameOf} />;
   } else if (view === 'tops') {
     center = <TopsView board={topsBoard} tops={tops} records={allObservationRecords} prognosis={prognosis} ctx={ctx} defaults={entryDefaults} unit={units.depth} offsetMin={offsetMin}
       approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} geoWellId={well.geo_well_id} loadRegistryWells={loadRegistryWells} onAddPrognosisTop={addPrognosisTop} onPublish={publishToRegistry} onStatus={setStatus} userName={user ? user.name || user.email : ''} nameOf={nameOf} photos={photos} />;

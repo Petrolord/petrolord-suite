@@ -7,7 +7,7 @@
 import React from 'react';
 import {
   BookOpen, Zap, WifiOff, HardHat, Settings, Activity, FlaskConical, PenLine, Droplets, Eye, Camera, Tags, ListOrdered,
-  ClipboardList, FileText, RefreshCw, Upload, AlertTriangle, ListChecks, FileUp,
+  ClipboardList, FileText, RefreshCw, Upload, AlertTriangle, ListChecks, FileUp, Compass,
 } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Code, Callout, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import { SAMPLE_STAGES } from '@/lib/wellsite/sampleProgram';
@@ -34,6 +34,7 @@ export const HELP_SECTIONS = [
   { id: 'observations', icon: Eye, title: 'Observations' },
   { id: 'photos', icon: Camera, title: 'Photographs' },
   { id: 'import', icon: FileUp, title: 'Importing mudlogging data' },
+  { id: 'surveys', icon: Compass, title: 'Surveys on the rig' },
   { id: 'tops', icon: Tags, title: 'Formation tops' },
   { id: 'timeline', icon: ListOrdered, title: 'The timeline' },
   { id: 'handover', icon: ClipboardList, title: 'Shift handover' },
@@ -306,6 +307,28 @@ export default function WellsiteHelpGuide() {
         <Callout tone="info" title="Depths are measured depths">
           The importer reads measured depth. Rows are kept as recorded and work without a connection like every other record.
         </Callout>
+      </GuideSection>
+
+      <GuideSection id="surveys">
+        <SectionHeading icon={Compass}>Surveys on the rig</SectionHeading>
+        <Para>
+          A live well starts with the survey the registry held when it was created. As MWD surveys are taken, record them on the
+          Surveys view: type one station (measured depth, inclination, azimuth), or paste or load a table of stations. Each time,
+          declare the unit of the measured depths and the north the azimuths are measured from. Grid north needs nothing more;
+          for true or magnetic north enter the correction to grid, which is added to every azimuth.
+        </Para>
+        <Para>
+          A station below the survey in use is tied in to its last station. A run that starts at or above an existing station
+          replaces the survey from there down and keeps what is above, so a corrected survey is recorded the same way. Runs are
+          kept; the last one recorded wins. The view lists the stations in use with TVD, subsea depth, northing, easting and
+          dogleg severity by minimum curvature, the same survey table the Drilling apps use.
+        </Para>
+        <Para>
+          From then on every TVD and subsea depth on screen is calculated with the survey in use: Live, the tops against the
+          prognosis, the approach panel and the lag. A depth recorded earlier keeps its measured depth; its TVD is recalculated on
+          screen and the value recorded at the time is shown beside it. A depth that was entered as TVD or TVDSS is listed with the
+          measured depth the survey in use gives it, for you to record again if the TVD was what was meant.
+        </Para>
       </GuideSection>
 
       <GuideSection id="tops">

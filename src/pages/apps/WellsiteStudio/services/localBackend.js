@@ -19,6 +19,7 @@ import { mergeProfile } from '@/lib/wellsite/abbreviations';
 import { wellContext, offsetMinOf } from './wellContext';
 import { newId } from '@/lib/wellsite/ids';
 import { memberChangeError } from './members';
+import { wellWithSurvey, SURVEY_SUBTYPE } from './surveys';
 
 export const WS_ENGINE_VERSION = 'wellsite-0.1.0';
 
@@ -47,10 +48,17 @@ export function makeLocalBackend({ transport, db = wellsiteDb(), autoSync = true
     return w || null;
   }
 
-  async function requireWell(id) {
+  async function requireWellRow(id) {
     const w = await getWell(id);
     if (!w) throw new Error('Well not found locally. Open it while online once so it is cached.');
     return w;
+  }
+  // U2-005: every depth is calculated with the survey in use, the registry snapshot with the rig's
+  // survey runs applied, so a record made after an MWD station carries its true TVD and version
+  async function requireWell(id) {
+    const w = await requireWellRow(id);
+    const runs = await db.records.where('[well_id+subtype+occurred_at]').between([id, SURVEY_SUBTYPE, ''], [id, SURVEY_SUBTYPE, '\uffff']).toArray();
+    return runs.length ? wellWithSurvey(w, runs) : w;
   }
 
   async function addRecord(wellId, p) {
@@ -118,13 +126,13 @@ export function makeLocalBackend({ transport, db = wellsiteDb(), autoSync = true
       return saved.well;
     },
     async updateWellSettings(wellId, patch) {
-      const w = await requireWell(wellId);
+      const w = await requireWellRow(wellId);
       await commitWellPatch(db, wellId, { settings: { ...(w.settings || {}), ...patch } });
       notify();
       return getWell(wellId);
     },
     async updateWellHeader(wellId, patch) {
-      const w = await requireWell(wellId);
+      const w = await requireWellRow(wellId);
       await commitWellPatch(db, wellId, { header: { ...(w.header || {}), ...patch } });
       notify();
       return getWell(wellId);

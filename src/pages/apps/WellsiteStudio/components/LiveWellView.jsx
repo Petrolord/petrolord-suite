@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import DepthEntry from './DepthEntry';
 import { toRigLocal } from '@/lib/wellsite/time';
 import { fmtDepth } from '../services/units';
+import { mdToTvd } from '@/lib/wellsite/depth';
 import EventBar from './EventBar';
 import { abbreviate, descriptionOf, mergeProfile } from '../services/describe';
 
@@ -15,6 +16,8 @@ export default function LiveWellView({ rop = null, backend, well, ctx, bitDepths
   const lastDesc = descriptions[descriptions.length - 1] || null;
   const profile = mergeProfile(well.settings && well.settings.abbreviation_profile ? well.settings.abbreviation_profile : null);
   const latest = bitDepths[bitDepths.length - 1] || null;
+  // U2-005: TVD follows the survey in use; the value recorded with an earlier survey is shown beside it
+  const tvdNow = latest && ctx && Number.isFinite(ctx.kbElevM) ? mdToTvd(latest.md_calc_m, ctx) : null;
   const [entry, setEntry] = useState({ value: NaN, unit: defaults.unit, reference: defaults.reference, datum: defaults.datum });
   const [spm, setSpm] = useState('');
   const [boosterSpm, setBoosterSpm] = useState('');
@@ -48,7 +51,7 @@ export default function LiveWellView({ rop = null, backend, well, ctx, bitDepths
     <div className="p-4 space-y-5" data-testid="ws-live">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card label="Bit depth" testId="ws-live-bit" value={latest ? fmtDepth(latest.md_calc_m, unit) : 'not recorded'} sub={latest ? `${local(latest.occurred_at)} rig time, entered ${latest.depth_value} ${latest.depth_unit} ${latest.depth_ref} ${latest.depth_datum}` : ''} />
-        <Card label="TVD" testId="ws-live-tvd" value={latest && Number.isFinite(latest.tvd_calc_m) ? fmtDepth(latest.tvd_calc_m, unit) : ''} sub={latest ? `${latest.calc_method.replace(/_/g, ' ')}${latest.survey_version ? `, survey ${latest.survey_version}` : ''}` : ''} />
+        <Card label="TVD" testId="ws-live-tvd" value={tvdNow ? fmtDepth(tvdNow.tvdM, unit) : ''} sub={tvdNow ? `${tvdNow.method.replace(/_/g, ' ')}${tvdNow.surveyVersion ? `, survey ${tvdNow.surveyVersion}` : ''}${latest.survey_version !== tvdNow.surveyVersion ? `; recorded as ${fmtDepth(latest.tvd_calc_m, unit)} with ${latest.survey_version ? `survey ${latest.survey_version}` : 'no survey'}` : ''}` : ''} />
         <Card label="Pumps" testId="ws-live-spm" value={lastPump ? (lastPump.payload.spm > 0 ? `${lastPump.payload.spm} spm${lastPump.payload.boosterSpm > 0 ? ` + ${lastPump.payload.boosterSpm} booster` : ''}` : 'off') : 'unknown'} sub={lastPump ? `since ${local(lastPump.occurred_at)}${lastPump.payload.note ? `, ${lastPump.payload.note}` : ''}` : ''} />
         <Card label="Lagged sample depth" testId="ws-live-lagged" value={lag.available && Number.isFinite(lag.laggedMdM) ? fmtDepth(lag.laggedMdM, unit) : (lag.available ? 'not yet at surface' : 'no lag yet')}
           sub={lag.available ? `${Math.round(lag.lagStrokes)} strokes, ${lag.lagTimeMin == null ? 'pumps off' : `${Math.round(lag.lagTimeMin)} min at ${lag.spmNow} spm`}` : lag.note} />
