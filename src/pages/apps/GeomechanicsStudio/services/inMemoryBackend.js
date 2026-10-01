@@ -5,6 +5,7 @@
 // spec asserts oracle numbers off the UI.
 
 import golden from '../../../../../packages/engines/test-data/drilling/goldens/geomech_cases.json';
+import { tvdAt } from '../../../../../packages/engines/engines/drilling/wellControl.js';
 
 const PROFILE = golden.profile;
 const CASE = golden.cases.find((c) => c.well === 'slant');
@@ -21,8 +22,23 @@ const DESIGN = {
 };
 const GEO_WELL = { id: 'gw-1', name: 'Harness Well GW-1' };
 
-const grid = PROFILE.tvdM;
-const stepM = grid[1] - grid[0];
+// PP-U2-013: registry curves are indexed by MD below the rotary table, as
+// Pore Pressure Studio publishes them. The golden profile is on TVD, so it
+// is served on a regular MD grid along the golden slant trajectory (each
+// MD's TVD through the exact minimum-curvature tvdAt, the profile read
+// there); Geomechanics carries it back to TVD through the same trajectory.
+const TVD = PROFILE.tvdM;
+const stepM = TVD[1] - TVD[0];
+const lerp = (xs, ys, x) => {
+  let i = 1;
+  while (i < xs.length - 1 && xs[i] < x) i += 1;
+  const f = (x - xs[i - 1]) / (xs[i] - xs[i - 1]);
+  return ys[i - 1] + f * (ys[i] - ys[i - 1]);
+};
+const tdMd = CASE.stations[CASE.stations.length - 1].md;
+const grid = [];
+for (let md = TVD[0]; md <= tdMd + 1e-9 && tvdAt(CASE.stations, md) <= TVD[TVD.length - 1] + 1e-9; md += stepM) grid.push(md);
+const onGrid = (arr) => grid.map((md) => lerp(TVD, arr, tvdAt(CASE.stations, md)));
 const logRow = (id, mnemonic, unit, provenance = null) => ({
   id, well_id: 'gw-1', mnemonic, unit,
   start_md_m: grid[0], stop_md_m: grid[grid.length - 1], step_m: stepM,
@@ -38,9 +54,9 @@ const LOGS = [
 ];
 const CURVES = {
   'log-dept': Float32Array.from(grid),
-  'log-dt': Float32Array.from(PROFILE.dtUsPerM),
-  'log-pp': Float32Array.from(PROFILE.ppPa, (v) => v / 1e6),
-  'log-obg': Float32Array.from(PROFILE.svPa, (v) => v / 1e6),
+  'log-dt': Float32Array.from(onGrid(PROFILE.dtUsPerM)),
+  'log-pp': Float32Array.from(onGrid(PROFILE.ppPa), (v) => v / 1e6),
+  'log-obg': Float32Array.from(onGrid(PROFILE.svPa), (v) => v / 1e6),
 };
 
 const SEED_CASE = {

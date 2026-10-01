@@ -11,6 +11,7 @@ import { test, expect } from '@playwright/test';
 import {
   assembleBaseProfile, runMem, runWindow, emwOut,
 } from '../src/pages/apps/GeomechanicsStudio/services/gmRun.js';
+import { tvdAt } from '../packages/engines/engines/drilling/wellControl.js';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const golden = JSON.parse(fs.readFileSync(path.join(
@@ -32,11 +33,21 @@ function expected() {
   // Mirror the harness path: published pp-1.0.0 curves round-trip through
   // Float32 MPa (the in-memory backend serves them that way).
   const f32 = (arr) => Array.from(Float32Array.from(arr, (v) => v / 1e6), (v) => v * 1e6);
+  // PP-U2-013: the harness serves the TVD profile on a regular MD grid along
+  // the slant trajectory (as Pore Pressure publishes on MD); the app carries
+  // it back to TVD through the same trajectory
+  const T = PROF.tvdM; const step = T[1] - T[0];
+  const lerp = (xs, ys, x) => { let i = 1; while (i < xs.length - 1 && xs[i] < x) i += 1; const f = (x - xs[i - 1]) / (xs[i] - xs[i - 1]); return ys[i - 1] + f * (ys[i] - ys[i - 1]); };
+  const tdMd = CASE.stations[CASE.stations.length - 1].md;
+  const md = [];
+  for (let m = T[0]; m <= tdMd + 1e-9 && tvdAt(CASE.stations, m) <= T[T.length - 1] + 1e-9; m += step) md.push(m);
+  const onGrid = (arr) => md.map((m) => lerp(T, arr, tvdAt(CASE.stations, m)));
   const base = assembleBaseProfile({
     source: { ppSource: 'published' },
-    published: { tvdM: PROF.tvdM, ppPa: f32(PROF.ppPa), obgPa: f32(PROF.svPa) },
+    published: { tvdM: md, ppPa: f32(onGrid(PROF.ppPa)), obgPa: f32(onGrid(PROF.svPa)), dtAligned: Array.from(Float32Array.from(onGrid(PROF.dtUsPerM))) },
+    stations: CASE.stations,
   });
-  const dt = Array.from(Float32Array.from(PROF.dtUsPerM));
+  const dt = base.dtAligned;
   const mem = runMem({ base, dtUsPerM: dt, params: CASE_PARAMS });
   const win = runWindow({ stations: CASE.stations, mem, params: CASE_PARAMS });
   const last = win.rows[win.rows.length - 1];
