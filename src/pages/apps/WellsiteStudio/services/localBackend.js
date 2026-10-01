@@ -14,6 +14,7 @@ import { fromMetres } from '@/lib/wellsite/depth';
 import { makeSyncEngine } from '@/lib/wellsite/sync/engine';
 import { getSyncState, subscribeSyncState, syncHeadline } from '@/lib/wellsite/sync/syncStore';
 import { detectConflicts } from '@/lib/wellsite/sync/conflicts';
+import { pullWell } from '@/lib/wellsite/sync/pull';
 import { publishPlan } from './publish';
 import { mergeProfile } from '@/lib/wellsite/abbreviations';
 import { wellContext, offsetMinOf } from './wellContext';
@@ -407,6 +408,34 @@ export function makeLocalBackend({ transport, db = wellsiteDb(), autoSync = true
       });
       notify();
       return { plan, result };
+    },
+
+    // ---- office view (U2-007): read-only follow of the wells this user can see ----
+    /** Everything the office summary reads for a well, from the local store. Writes nothing. */
+    async wellSnapshot(wellId) {
+      const well = await requireWellRow(wellId);
+      const [records, samples, stages, tops, prognoses, reports, signoffs, follow] = await Promise.all([
+        db.records.where('[well_id+kind+occurred_at]').between([wellId, ''], [wellId, '\uffff']).toArray(),
+        this.listSamples(wellId), this.listStages(wellId), this.listTops(wellId), this.listPrognosis(wellId), this.listReports(wellId), this.listSignoffs(wellId),
+        db.meta.get(`follow:${wellId}`),
+      ]);
+      return { well, records, samples, stages, tops, prognoses, reports, signoffs, follow: follow ? follow.value : null };
+    },
+    /**
+     * Bring in what the rig has shared for a well (pull only; nothing of this device is pushed and
+     * no record is written). The outcome is kept so the screen can say when a well was last followed
+     * and whether that try worked.
+     */
+    async followWell(wellId) {
+      const atUtc = new Date().toISOString();
+      let value;
+      if (!transport.online()) value = { atUtc: null, error: null, received: 0, offline: true };
+      else {
+        try { const r = await pullWell({ db, transport, wellId }); value = { atUtc, error: null, received: r.received }; }
+        catch (e) { const prev = await db.meta.get(`follow:${wellId}`); value = { atUtc: prev && prev.value ? prev.value.atUtc : atUtc, error: String(e && e.message ? e.message : e), received: 0 }; }
+      }
+      if (!value.offline) await db.meta.put({ key: `follow:${wellId}`, value });
+      return value;
     },
 
     // ---- sync surface (WS6) ----

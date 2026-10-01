@@ -7,7 +7,7 @@
 import React from 'react';
 import {
   BookOpen, Zap, WifiOff, HardHat, Settings, Activity, FlaskConical, PenLine, Droplets, Eye, Camera, Tags, ListOrdered,
-  ClipboardList, FileText, RefreshCw, Upload, AlertTriangle, ListChecks, FileUp, Compass, LineChart,
+  ClipboardList, FileText, RefreshCw, Upload, AlertTriangle, ListChecks, FileUp, Compass, LineChart, Building2,
 } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Code, Callout, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import { SAMPLE_STAGES } from '@/lib/wellsite/sampleProgram';
@@ -40,6 +40,7 @@ export const HELP_SECTIONS = [
   { id: 'timeline', icon: ListOrdered, title: 'The timeline' },
   { id: 'handover', icon: ClipboardList, title: 'Shift handover' },
   { id: 'report', icon: FileText, title: 'Daily report and sign-off' },
+  { id: 'office', icon: Building2, title: 'The office view' },
   { id: 'sharing', icon: RefreshCw, title: 'Sharing and conflicts' },
   { id: 'publish', icon: Upload, title: 'Publishing to the registry' },
   { id: 'pitfalls', icon: AlertTriangle, title: 'Pitfalls and language' },
@@ -423,6 +424,22 @@ export default function WellsiteHelpGuide() {
           A sign-off is an authenticated record, made on the device even without a connection. When the record is shared the platform
           countersigns it, and the sign-off block then names the key and the certificate number; the device verifies the
           countersignature against the keys the Suite carries and says so in plain words, including when it cannot.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="office">
+        <SectionHeading icon={Building2}>The office view</SectionHeading>
+        <Para>
+          Office lists every live well shared with you on one page: where the bit is and when it was recorded, the depth now at
+          surface, the rate of penetration, the pumps, the last sample caught, and what awaits someone: calls that are not yet
+          final, conflicts to resolve, reports with no sign-off and samples overdue for review. Wells with something awaiting come
+          first. The figures come from the same lag and tops calculations the rig's screens use.
+        </Para>
+        <Para>
+          The page is read only. Follow now brings in what each rig has shared since the last time and writes nothing; the page
+          follows by itself every minute while it is open. The Followed column says when a well was last followed and whether
+          anything new came in. If a try fails it says so and keeps the time of the last one that worked; with no connection the
+          page says it is showing what this device holds. Open goes to the well's own screens.
         </Para>
       </GuideSection>
 

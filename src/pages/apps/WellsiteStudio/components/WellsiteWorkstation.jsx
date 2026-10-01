@@ -8,7 +8,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera, Tags, ClipboardList, FileText, FileUp, Compass, LineChart } from 'lucide-react';
+import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera, Tags, ClipboardList, FileText, FileUp, Compass, LineChart, Building2 } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -57,6 +57,7 @@ import { IMPORT_SUBTYPE, DATA_SUBTYPE, mudlogRecords, mudlogSeries, importsOf, w
 import { newId } from '@/lib/wellsite/ids';
 import SurveysView from './SurveysView';
 import LogView from './LogView';
+import OfficeView from './OfficeView';
 import { dExponentSeries, currentDxcSettings, dxcSettingsParams } from '../services/dexponent';
 import { buildStripLog } from '../services/stripLog';
 import { SURVEY_SUBTYPE, activeSurvey, wellWithSurvey, surveyRuns, staleDepths } from '../services/surveys';
@@ -80,6 +81,7 @@ export const VIEWS = [
   { id: 'handover', label: 'Handover', icon: ClipboardList },
   { id: 'report', label: 'Report', icon: FileText },
   { id: 'config', label: 'Config', icon: Settings },
+  { id: 'office', label: 'Office', icon: Building2 },
 ];
 
 export default function WellsiteWorkstation({ backend, appPaths = {} }) {
@@ -434,7 +436,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const keepOffline = useCallback(async () => {
     try {
       // fetch this app's lazy chunks so the service worker holds them; the shell itself is precached
-      await Promise.all([import('../WellsiteStudio'), import('./ConfigView'), import('./DescribeView'), import('./SamplesView'), import('./TopsView'), import('./TimelineView'), import('./ShowsView'), import('./ObservationsView'), import('./PhotosPanel'), import('./ImportView'), import('./SurveysView'), import('./LogView')]);
+      await Promise.all([import('../WellsiteStudio'), import('./ConfigView'), import('./DescribeView'), import('./SamplesView'), import('./TopsView'), import('./TimelineView'), import('./ShowsView'), import('./ObservationsView'), import('./PhotosPanel'), import('./ImportView'), import('./SurveysView'), import('./LogView'), import('./OfficeView')]);
       const persisted = await persistStorage();
       setOfflineReady(true);
       setStatus(persisted ? 'This app is cached for use without a connection and its storage is protected.' : 'This app is cached for use without a connection.');
@@ -474,7 +476,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       <span className="hidden 2xl:inline text-[11px] text-pl-muted">the geological record of a live well</span>
       <div className="flex flex-wrap items-center gap-1 ml-4">
         {VIEWS.map((v) => (
-          <button key={v.id} type="button" data-testid={`ws-nav-${v.id}`} disabled={!well && v.id !== 'live'}
+          <button key={v.id} type="button" data-testid={`ws-nav-${v.id}`} disabled={!well && v.id !== 'live' && v.id !== 'office'}
             className={`flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border ${view === v.id ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:bg-pl-sunken'} disabled:opacity-40`}
             onClick={() => setView(v.id)}>
             <v.icon className="w-3.5 h-3.5" /> {v.label}
@@ -530,6 +532,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   let center;
   if (view === 'setup' || (!well && wells && wells.length === 0)) {
     center = <WellSetup backend={backend} initialGeoId={setupGeoId} onStatus={setStatus} onCreated={async (w) => { wellParam.current = null; setSetupGeoId(null); await refreshWells(); setSelectedId(w.id); setView('live'); }} />;
+  } else if (view === 'office') {
+    center = <OfficeView backend={backend} wells={wells || []} unit={units.depth} nowMs={nowForLag} onStatus={setStatus} onOpen={(id) => { wellParam.current = null; setSelectedId(id); setView('live'); }} />;
   } else if (!well) {
     center = <div className="p-4 text-xs text-pl-muted" data-testid="ws-need-well">Choose a live well in the explorer.</div>;
   } else if (view === 'samples') {
