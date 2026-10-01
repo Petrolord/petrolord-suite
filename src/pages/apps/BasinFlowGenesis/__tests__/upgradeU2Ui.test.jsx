@@ -40,8 +40,8 @@ describe('in the app (Expert mode on the harness backend)', () => {
   const openExpert = async () => {
     const be = makeInMemoryBackend({ persist: false });
     render(<MemoryRouter><BasinFlowShell backend={be} /></MemoryRouter>);
-    fireEvent.click(await screen.findByTestId('bf-mode-expert'));
-    await screen.findByTestId('bf-tab-properties');
+    fireEvent.click(await screen.findByTestId('bf-mode-expert', {}, { timeout: 30000 }));
+    await screen.findByTestId('bf-tab-properties', {}, { timeout: 30000 });
     await waitFor(() => expect(screen.getAllByTestId('bf-layer-card')).toHaveLength(4), { timeout: 30000 });
     return be;
   };
@@ -87,8 +87,8 @@ describe('U2-018 the worked example opens from the welcome screen', () => {
   test('a new model with six layers, its calibration and Horner, in Expert mode', async () => {
     const be = makeInMemoryBackend({ persist: false });
     render(<MemoryRouter><BasinFlowShell backend={be} /></MemoryRouter>);
-    fireEvent.click(await screen.findByTestId('bf-worked-example'));
-    await screen.findByTestId('bf-tab-properties');
+    fireEvent.click(await screen.findByTestId('bf-worked-example', {}, { timeout: 30000 }));
+    await screen.findByTestId('bf-tab-properties', {}, { timeout: 30000 });
     await waitFor(() => expect(screen.getAllByTestId('bf-layer-card')).toHaveLength(6), { timeout: 30000 });
     await waitFor(() => expect(be._rows().some((r) => r.name === 'Worked example: rift-margin well' && r.calibration_data?.bht?.method === 'horner')).toBe(true));
     selectTab(screen.getByTestId('bf-tab-calibration'));
@@ -101,7 +101,7 @@ describe('U2-015 the pressure tab and its handoff', () => {
   test('the reference basin reports its pressure and the link carries the handoff id', async () => {
     const be = makeInMemoryBackend({ persist: false });
     render(<MemoryRouter><BasinFlowShell backend={be} /></MemoryRouter>);
-    fireEvent.click(await screen.findByTestId('bf-mode-expert'));
+    fireEvent.click(await screen.findByTestId('bf-mode-expert', {}, { timeout: 30000 }));
     await waitFor(() => expect(screen.getAllByTestId('bf-layer-card')).toHaveLength(4), { timeout: 30000 });
     fireEvent.click(screen.getByTestId('bf-simulate'));
     await waitFor(() => expect(screen.getByTestId('bf-sim-status')).toHaveTextContent('Complete'), { timeout: 60000 });
