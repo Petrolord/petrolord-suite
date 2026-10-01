@@ -1,5 +1,6 @@
 import { ContactVolumetricsEngine, condensateFrom } from './ContactVolumetricsEngine';
 import { checkAreaDepthRows, areaDepthHypsometry } from './areaDepth';
+import { solutionGasFrom, applySaturationHeight } from './hydrocarbons';
 
 export class VolumeCalculationEngine {
     // Physical-consistency check on the deterministic inputs. Returns human
@@ -87,6 +88,62 @@ export class VolumeCalculationEngine {
     }
 
     static calculateDeterministic(inputs, unitSystem = 'field', inputMethod = 'simple', surfaces = {}, opts = {}) {
+        const res = this._calculateDeterministic(inputs, unitSystem, inputMethod, surfaces, opts);
+        if (!res || res.error) return res;
+        return this.completeHydrocarbons(res, inputs, unitSystem, inputMethod, surfaces, opts);
+    }
+
+    /**
+     * U2-007: Sw per leg from saturation height (structural and area/depth
+     * methods), solution gas from Rs, vaporised oil from Rv (the CGR field
+     * for an oil with a gas cap), and the totals.
+     */
+    static completeHydrocarbons(resIn, inputs, unitSystem, inputMethod, surfaces = {}, opts = {}) {
+        let res = resIn;
+        const fluidType = inputs.fluidType || 'oil';
+        const sh = inputs.saturationHeight;
+        if (inputs.swSource === 'shm') {
+            if (!sh?.jSpec || !Number.isFinite(Number(sh.fwl))) {
+                res = { ...res, warnings: [...(res.warnings || []), 'Sw from saturation height is selected but no SCAL project and free-water level are set; the typed Sw was used.'] };
+            } else if (inputMethod === 'simple') {
+                res = { ...res, warnings: [...(res.warnings || []), 'Saturation height needs depths (Hybrid, Surfaces or Area-depth); the Simple method used the typed Sw.'] };
+            } else {
+                let hyps = null;
+                if (inputMethod === 'areadepth') {
+                    const chk = checkAreaDepthRows(inputs.areaDepth?.rows || []);
+                    if (chk.ok) hyps = areaDepthHypsometry(chk.rows, { unitSystem, thickness: chk.hasBase ? null : parseFloat(inputs.thickness), spill: inputs.areaDepth?.spill ?? null });
+                } else {
+                    const top = surfaces[inputs.topSurfaceId];
+                    const base = inputMethod === 'surfaces' ? surfaces[inputs.baseSurfaceId] : null;
+                    const h = ContactVolumetricsEngine.buildHypsometry({
+                        topSurface: top, baseSurface: base,
+                        constantThickness: inputMethod === 'hybrid' ? parseFloat(inputs.thickness) : null,
+                        unitSystem, aoiPolygon: opts.aoiPolygon || null, options: opts.contactOptions || {},
+                    });
+                    if (!h.error) hyps = h;
+                }
+                if (hyps) {
+                    const trapOwc = res.trap?.filledToSpill && Number.isFinite(res.trap.spillElevation) ? Math.max(Number(inputs.owc), res.trap.spillElevation) : inputs.owc;
+                    res = applySaturationHeight(res, hyps, { shm: sh, fwlElev: Number(sh.fwl), unitSystem, owc: trapOwc, goc: inputs.goc, fluidType });
+                }
+            }
+        }
+        const rfG = parseFloat(inputs.recoveryGas) || 0;
+        const cond = condensateFrom(res.giip, inputs.cgr, rfG);
+        const sg = fluidType === 'gas' ? { inPlace: null, recoverable: null, rs: null } : solutionGasFrom(res.stooip, inputs.rs, res.recoverableOil);
+        const out = {
+            ...res,
+            condensate: cond.inPlace, recoverableCondensate: cond.recoverable, cgr: cond.cgr,
+            // the CGR of an oil with a gas cap is the vaporised oil-gas ratio Rv
+            condensateKind: fluidType === 'oil_gas' ? 'vaporised oil' : 'condensate',
+            solutionGas: sg.inPlace, recoverableSolutionGas: sg.recoverable, rs: sg.rs,
+        };
+        if (Number.isFinite(sg.inPlace)) out.totalGasInPlace = (res.giip || 0) + sg.inPlace;
+        if (fluidType === 'oil_gas' && Number.isFinite(cond.inPlace)) out.totalOilInPlace = (res.stooip || 0) + cond.inPlace;
+        return out;
+    }
+
+    static _calculateDeterministic(inputs, unitSystem = 'field', inputMethod = 'simple', surfaces = {}, opts = {}) {
         const validation = this.validateInputs(inputs);
 
         // Structural methods (top + constant thickness, or top + base) delegate to the

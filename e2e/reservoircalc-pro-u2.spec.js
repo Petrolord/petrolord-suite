@@ -141,3 +141,32 @@ test('U2-002: the correlation editor refuses a set that cannot hold and runs a v
   await expect(page.getByTestId('rcp-mc-last-seed')).toBeVisible({ timeout: 60000 });
   expect(errors).toEqual([]);
 });
+
+test('U2-007: solution gas from Rs and Sw from a SCAL saturation-height project', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/dev/reservoircalc-pro');
+  await expect(page.getByTestId('rcp-harness')).toBeVisible({ timeout: 60000 });
+  await page.locator('label[for="im-areadepth"]').click();
+  await page.getByTestId('rcp-ad-text').fill('-6000,0\n-6100,300\n-6200,1200\n-6300,2700\n-6400,4800\n-6500,7500\n-6600,10800');
+  await page.getByTestId('rcp-ad-read').click();
+  await page.locator('#owc-input').fill('-6550');
+  await page.locator('#owc-input').blur();
+  const typed = await settledStooip(page);
+  // Sw from the sample SCAL project (FWL -6,758.53 ft from the project)
+  await page.getByTestId('rcp-sw-source').selectOption('shm');
+  await page.getByTestId('rcp-shm-project').selectOption('scal-sample');
+  await expect(page.getByTestId('rcp-shm-result')).toContainText(/Sw used: oil leg 0\.\d+/, { timeout: 30000 });
+  const fromShm = await settledStooip(page, typed);
+  expect(fromShm).not.toBe(typed);
+  // Rs on the Fluid tab: solution gas in the full results
+  await page.getByRole('tab', { name: 'Fluid' }).click();
+  await page.getByTestId('rcp-rs').fill('550');
+  await page.getByTestId('rcp-rs').blur();
+  await page.waitForTimeout(1500);
+  await page.getByRole('button', { name: /View Full Results/ }).click();
+  await page.getByRole('button', { name: /^Detailed$/ }).click();
+  await expect(page.getByTestId('rcp-solution-gas')).toContainText(/Solution gas in place: .* Bscf \(Rs 550\)/, { timeout: 15000 });
+  await expect(page.getByTestId('rcp-shm-used')).toContainText('Sw from saturation height');
+  expect(errors).toEqual([]);
+});
