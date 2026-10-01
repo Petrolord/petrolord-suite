@@ -21,8 +21,11 @@ test('T1: portfolio figures come from the tasks; tracker, stages and Gantt read 
 
   await page.locator('select').first().selectOption({ label: 'Harness Field Development' });
   await expect(page.getByText('Detailed Design').first()).toBeVisible({ timeout: 30000 });
-  const current = page.locator('span.text-lime-400', { hasText: 'Detailed Design' });
+  // the current stage wears the primary role (theme roles since the design migration);
+  // exactly one stage label does, and it is Detailed Design
+  const current = page.locator('span.text-pl-primary-text.font-semibold', { hasText: 'Detailed Design' });
   await expect(current).toHaveCount(1);
+  await expect(page.locator('span.text-pl-primary-text.font-semibold.absolute')).toHaveCount(1);
   const row = page.getByRole('row', { name: /Detailed Design/ });
   await expect(row).toContainText('Active');
 

@@ -14,7 +14,11 @@ test('T1: reconciliation checks, strapping visible and replaceable, loss in red'
   await expect(page.getByText('115.7 min')).toBeVisible();
   const margin = page.getByText('-$21,360');
   await expect(margin).toBeVisible();
-  expect(await margin.evaluate((el) => el.className)).toMatch(/text-red/);
+  // a loss wears the danger role (theme roles since the design migration), and it paints red
+  expect(await margin.evaluate((el) => el.className)).toMatch(/text-pl-danger-text/);
+  const [r, g, b] = await margin.evaluate((el) => getComputedStyle(el).color.match(/[\d.]+/g).slice(0, 3).map(Number));
+  expect(r).toBeGreaterThan(g + 60);
+  expect(r).toBeGreaterThan(b + 60);
   await expect(page.getByText('$-21,360')).toHaveCount(0);
   await expect(page.getByLabel('Day 1 unaccounted (m3)')).toHaveValue('-3');
 
