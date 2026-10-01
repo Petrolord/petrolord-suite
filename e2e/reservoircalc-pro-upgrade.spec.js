@@ -70,7 +70,8 @@ test('PL9: the registry door refuses a TWT row and an open closure is said', asy
   await page.getByRole('button', { name: /View Full Results/ }).click();
   await page.getByRole('button', { name: /^Detailed$/ }).click();
   await expect(page.getByText(/Open closure/).first()).toBeVisible({ timeout: 15000 });
-  await expect(page.getByTestId('rcp-gridding')).toContainText(/cells of/);
+  // RCP U2-005: a registry surface integrates on its own nodes
+  await expect(page.getByTestId('rcp-gridding')).toContainText(/cells of|nodes of/);
   expect(errors).toEqual([]);
 });
 

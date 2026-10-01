@@ -192,6 +192,21 @@ const FluidPropertiesGuide = () => (
       the physical case is preserved. See the Units and Conversions article.
     </P>
 
+    <H2>Solution gas, vaporised oil and saturation height</H2>
+    <P>
+      Rs (Fluid tab, oil): the solution gas-oil ratio. Solution gas in place is STOIIP x Rs (scf per STB in field units,
+      sm3 per sm3 in metric) and is reported beside the free GIIP, with the total; the recoverable solution gas takes the
+      oil recovery factor, a screening assumption. For an oil with a gas cap the CGR field reads as Rv, the vaporised
+      oil-gas ratio of the free gas: vaporised oil = free GIIP x Rv.
+    </P>
+    <P>
+      Water saturation from (Geo tab, Petrophysics): the Sw typed, or saturation height from a saved SCAL Studio project.
+      With saturation height, Sw at each depth comes from the project&apos;s Leverett J function and fluid gradients at its
+      height above the free-water level (SCAL&apos;s own chain, as Petrophysics Studio uses it), averaged over each fluid leg
+      with the rock at that depth as the weight; the gas cap and the oil leg get their own Sw. It applies to the
+      deterministic case with Hybrid, Surfaces or Area-depth; Monte Carlo keeps the Sw distribution.
+    </P>
+
     <H2>Recorded but unused inputs</H2>
     <P>
       Some fluid and reservoir-condition fields are stored on the case and shown in reports, and they do not

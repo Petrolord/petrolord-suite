@@ -97,6 +97,14 @@ const DeterministicResultsDisplay = () => {
                             {oilVol(results.stooip)} <span className="text-lg text-pl-muted font-normal">{resultUnitLabel(oilUnit, 'oil')}</span>
                         </div>
                         <p className="text-pl-muted text-sm mt-2">Recoverable: {oilVol(results.recoverableOil)} {resultUnitLabel(oilUnit, 'oil')}</p>
+                        {Number.isFinite(results.solutionGas) && (
+                            <p className="text-pl-muted text-sm mt-1" data-testid="rcp-solution-gas" data-value={results.solutionGas}>
+                                Solution gas in place: {fmtVol(results.solutionGas / 1e9)} {rSystem === 'field' ? 'Bscf' : 'billion sm³'} (Rs {results.rs}); recoverable {fmtVol(results.recoverableSolutionGas / 1e9)} at the oil RF
+                            </p>
+                        )}
+                        {results.saturationHeight && (
+                            <p className="text-pl-muted text-xs mt-1" data-testid="rcp-shm-used">Sw from saturation height: oil leg {Number.isFinite(results.saturationHeight.swOil) ? results.saturationHeight.swOil.toFixed(3) : 'n/a'}</p>
+                        )}
                     </Card>
                 )}
                 
@@ -113,7 +121,7 @@ const DeterministicResultsDisplay = () => {
                         <p className="text-pl-muted text-sm mt-2">Recoverable: {gasVol(results.recoverableGas)} {resultUnitLabel(gasUnit, 'gas')}</p>
                         {Number.isFinite(results.condensate) && (
                             <p className="text-pl-muted text-sm mt-1" data-testid="rcp-condensate">
-                                Condensate in place: {fmtVol(results.condensate / 1e6)} {rSystem === 'field' ? 'MMSTB' : 'MMsm³'} (CGR {results.cgr}); recoverable {fmtVol(results.recoverableCondensate / 1e6)} at the gas RF
+                                {results.condensateKind === 'vaporised oil' ? 'Vaporised oil in the gas cap' : 'Condensate in place'}: {fmtVol(results.condensate / 1e6)} {rSystem === 'field' ? 'MMSTB' : 'MMsm³'} ({results.condensateKind === 'vaporised oil' ? 'Rv' : 'CGR'} {results.cgr}); recoverable {fmtVol(results.recoverableCondensate / 1e6)} at the gas RF
                             </p>
                         )}
                     </Card>

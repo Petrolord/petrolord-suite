@@ -1,4 +1,7 @@
 import { ContactVolumetricsEngine, condensateFrom } from './ContactVolumetricsEngine';
+import { checkAreaDepthRows, areaDepthHypsometry } from './areaDepth';
+import { solutionGasFrom, applySaturationHeight } from './hydrocarbons';
+import { provenanceLines } from './emProvenance';
 
 export class VolumeCalculationEngine {
     // Physical-consistency check on the deterministic inputs. Returns human
@@ -35,7 +38,115 @@ export class VolumeCalculationEngine {
         return { warnings, qualityScore: Math.max(0, Math.round(score)) };
     }
 
+    /**
+     * U2-001: volumes from an area/depth table (inputs.areaDepth.rows) and
+     * the contacts, through the same hypsometry the Monte Carlo samples.
+     */
+    static fromAreaDepth(inputs, unitSystem = 'field') {
+        const chk = checkAreaDepthRows(inputs.areaDepth?.rows || []);
+        if (!chk.ok) return { error: `Area/depth table: ${chk.reason}` };
+        const isField = unitSystem === 'field';
+        const hyps = areaDepthHypsometry(chk.rows, {
+            unitSystem,
+            thickness: chk.hasBase ? null : parseFloat(inputs.thickness),
+            spill: inputs.areaDepth?.spill ?? null,
+        });
+        const fluidType = inputs.fluidType || 'oil';
+        const warnings = [...chk.notes];
+        const owc = inputs.owc; const goc = inputs.goc;
+        const { grvOil, grvGas } = hyps.zoneVolumes(fluidType, owc, fluidType === 'oil' ? null : goc);
+        const deepest = fluidType === 'gas' ? (goc ?? owc) : owc;
+        const lenU = isField ? 'ft' : 'm';
+        if (Number.isFinite(parseFloat(deepest)) && parseFloat(deepest) < hyps.edgeElevation) {
+            warnings.push(`The contact (${deepest} ${lenU}) is below the deepest row of the area/depth table (${hyps.edgeElevation} ${lenU}). The area is held at the last row below it, so the volume is a minimum. Extend the table to the contact or the spill point.`);
+        }
+        if (hyps.belowSpill(deepest)) warnings.push(`The contact is below the spill point (${hyps.spillElevation} ${lenU}); the trap is filled to the spill point.`);
+        if (!chk.hasBase && !(parseFloat(inputs.thickness) > 0)) warnings.push('No base column and no gross thickness: the reservoir is taken as filling the whole column from the top down to the contact.');
+        const ntg = clamp01(inputs.ntg, 1); const phi = clamp01(inputs.porosity, 0.2); const sw = clamp01(inputs.sw, 0.3);
+        const Bo = parseFloat(inputs.fvf) > 0 ? parseFloat(inputs.fvf) : 1.2;
+        const Bg = parseFloat(inputs.bg) > 0 ? parseFloat(inputs.bg) : 0.005;
+        const hcpvOil = grvOil * ntg * phi * (1 - sw);
+        const hcpvGas = grvGas * ntg * phi * (1 - sw);
+        const stooip = isField ? hcpvOil * 7758 / Bo : hcpvOil / Bo;
+        const giip = isField ? hcpvGas * 43560 / Bg : hcpvGas / Bg;
+        const rfO = parseFloat(inputs.recovery) || 0; const rfG = parseFloat(inputs.recoveryGas) || 0;
+        const grv = grvOil + grvGas;
+        const cond = condensateFrom(giip, inputs.cgr, rfG);
+        return {
+            method: 'area-depth', fluidType, unitSystem,
+            grv, grvOil, grvGas, bulkVolume: grv, netVolume: grv * ntg, poreVolume: grv * ntg * phi, poreVolumeRes: grv * ntg * phi,
+            hcPoreVolume: hcpvOil + hcpvGas, hcPoreVolumeOil: hcpvOil, hcPoreVolumeGas: hcpvGas,
+            stooip, giip,
+            recoverable: fluidType === 'gas' ? giip * rfG / 100 : stooip * rfO / 100,
+            recoverableOil: fluidType === 'gas' ? 0 : stooip * rfO / 100, recoverableGas: giip * rfG / 100,
+            condensate: cond.inPlace, recoverableCondensate: cond.recoverable, cgr: cond.cgr,
+            hcArea: chk.rows[chk.rows.length - 1].areaTop,
+            areaDepth: { rows: chk.rows, hasBase: !!chk.hasBase, spill: hyps.spillElevation },
+            volumeUnit: isField ? 'STB' : 'sm³', volUnit: isField ? 'Ac-ft' : 'm³', resVolUnit: isField ? 'Ac-ft' : 'm³', areaUnit: isField ? 'Acres' : 'km²',
+            warnings,
+            inputs: { ntg, porosity: phi, sw, fvf: Bo, bg: Bg, recovery: rfO, recoveryGas: rfG, owc, goc, fluidType, cgr: cond.cgr },
+        };
+    }
+
     static calculateDeterministic(inputs, unitSystem = 'field', inputMethod = 'simple', surfaces = {}, opts = {}) {
+        const res = this._calculateDeterministic(inputs, unitSystem, inputMethod, surfaces, opts);
+        if (!res || res.error) return res;
+        return this.completeHydrocarbons(res, inputs, unitSystem, inputMethod, surfaces, opts);
+    }
+
+    /**
+     * U2-007: Sw per leg from saturation height (structural and area/depth
+     * methods), solution gas from Rs, vaporised oil from Rv (the CGR field
+     * for an oil with a gas cap), and the totals.
+     */
+    static completeHydrocarbons(resIn, inputs, unitSystem, inputMethod, surfaces = {}, opts = {}) {
+        let res = resIn;
+        const fluidType = inputs.fluidType || 'oil';
+        const sh = inputs.saturationHeight;
+        if (inputs.swSource === 'shm') {
+            if (!sh?.jSpec || !Number.isFinite(Number(sh.fwl))) {
+                res = { ...res, warnings: [...(res.warnings || []), 'Sw from saturation height is selected but no SCAL project and free-water level are set; the typed Sw was used.'] };
+            } else if (inputMethod === 'simple') {
+                res = { ...res, warnings: [...(res.warnings || []), 'Saturation height needs depths (Hybrid, Surfaces or Area-depth); the Simple method used the typed Sw.'] };
+            } else {
+                let hyps = null;
+                if (inputMethod === 'areadepth') {
+                    const chk = checkAreaDepthRows(inputs.areaDepth?.rows || []);
+                    if (chk.ok) hyps = areaDepthHypsometry(chk.rows, { unitSystem, thickness: chk.hasBase ? null : parseFloat(inputs.thickness), spill: inputs.areaDepth?.spill ?? null });
+                } else {
+                    const top = surfaces[inputs.topSurfaceId];
+                    const base = inputMethod === 'surfaces' ? surfaces[inputs.baseSurfaceId] : null;
+                    const h = ContactVolumetricsEngine.buildHypsometry({
+                        topSurface: top, baseSurface: base,
+                        constantThickness: inputMethod === 'hybrid' ? parseFloat(inputs.thickness) : null,
+                        unitSystem, aoiPolygon: opts.aoiPolygon || null, options: opts.contactOptions || {},
+                    });
+                    if (!h.error) hyps = h;
+                }
+                if (hyps) {
+                    const trapOwc = res.trap?.filledToSpill && Number.isFinite(res.trap.spillElevation) ? Math.max(Number(inputs.owc), res.trap.spillElevation) : inputs.owc;
+                    res = applySaturationHeight(res, hyps, { shm: sh, fwlElev: Number(sh.fwl), unitSystem, owc: trapOwc, goc: inputs.goc, fluidType });
+                }
+            }
+        }
+        const rfG = parseFloat(inputs.recoveryGas) || 0;
+        const cond = condensateFrom(res.giip, inputs.cgr, rfG);
+        const sg = fluidType === 'gas' ? { inPlace: null, recoverable: null, rs: null } : solutionGasFrom(res.stooip, inputs.rs, res.recoverableOil);
+        const out = {
+            ...res,
+            condensate: cond.inPlace, recoverableCondensate: cond.recoverable, cgr: cond.cgr,
+            // the CGR of an oil with a gas cap is the vaporised oil-gas ratio Rv
+            condensateKind: fluidType === 'oil_gas' ? 'vaporised oil' : 'condensate',
+            solutionGas: sg.inPlace, recoverableSolutionGas: sg.recoverable, rs: sg.rs,
+        };
+        // U2-004: the Earth Modeling model's provenance and flags travel with the result
+        if (inputs.emProspect) out.warnings = [...(out.warnings || []), ...provenanceLines(inputs).filter((l) => !/^Unchanged since/.test(l))];
+        if (Number.isFinite(sg.inPlace)) out.totalGasInPlace = (res.giip || 0) + sg.inPlace;
+        if (fluidType === 'oil_gas' && Number.isFinite(cond.inPlace)) out.totalOilInPlace = (res.stooip || 0) + cond.inPlace;
+        return out;
+    }
+
+    static _calculateDeterministic(inputs, unitSystem = 'field', inputMethod = 'simple', surfaces = {}, opts = {}) {
         const validation = this.validateInputs(inputs);
 
         // Structural methods (top + constant thickness, or top + base) delegate to the
@@ -67,6 +178,13 @@ export class VolumeCalculationEngine {
                 warnings: [...(res.warnings || []), ...validation.warnings],
                 qualityScore: validation.qualityScore
             };
+        }
+
+        // U2-001: an area/depth table cut by the contacts
+        if (inputMethod === 'areadepth') {
+            const res = this.fromAreaDepth(inputs, unitSystem);
+            if (res.error) return res;
+            return { ...res, inputMethod, warnings: [...res.warnings, ...validation.warnings.filter((w) => !/Area and thickness/.test(w))], qualityScore: validation.qualityScore };
         }
 
         try {
@@ -195,4 +313,9 @@ export class VolumeCalculationEngine {
             return { error: e.message };
         }
     }
+}
+
+function clamp01(v, d) {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : d;
 }

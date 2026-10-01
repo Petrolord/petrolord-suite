@@ -15,6 +15,7 @@ import html2canvas from 'html2canvas';
 import ResultsModal from './ResultsModal';
 import ChartFrame from '@/components/charts/ChartFrame';
 import TornadoChart from './TornadoChart';
+import SpiderChart from './SpiderChart';
 import { tornadoSwings } from '@/lib/monteCarlo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { inPlaceScale, headlineStream, runContext, runSignature } from '../../services/volumeDisplay';
@@ -393,6 +394,18 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                         )}
                     </div>
                 </Card>
+
+                {!isCompact && probResults.stats?.spider && (
+                    <Card className="p-4 flex flex-col">
+                        <div className="flex justify-between items-center mb-2 border-b border-pl-border pb-2">
+                            <h3 className="text-xs font-bold text-pl-text flex items-center gap-2">
+                                <Activity className="w-3 h-3 text-pl-muted" /> Spider plot ({ft === 'gas' ? 'GIIP' : 'STOIIP'} as each input moves)
+                            </h3>
+                            <span className="text-[10px] text-pl-muted">steeper line = more sensitive; dashed = all inputs at their medians</span>
+                        </div>
+                        <SpiderChart spider={probResults.stats.spider} denom={denom} unit={unitLabel} />
+                    </Card>
+                )}
 
                 {!isCompact && (
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

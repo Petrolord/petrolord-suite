@@ -31,6 +31,7 @@
 import { readDepthSurface } from '@/lib/readDepthSurface';
 import { gridXY, isNull } from '@/lib/gridding/gridmath';
 import { readSurfaceFile } from '@/pages/apps/MappingSurfaceStudio/services/surfaceFileDoor';
+import { makeLattice } from './lattice';
 
 export const MAX_POINTS = 5000;
 const M_PER_FT = 0.3048;
@@ -84,6 +85,9 @@ export function buildImportedSurface(points, meta = {}) {
     registryName: meta.registryName || null,
     depthRef: meta.depthRef || null,
     importNotes: meta.notes?.length ? meta.notes : undefined,
+    // U2-005: the registry grid itself (frame, rotation, metres elevation);
+    // the engine integrates on its nodes instead of re-gridding the points
+    ...(meta.lattice ? { lattice: meta.lattice } : {}),
     createdAt: new Date().toISOString(),
   };
 }
@@ -116,6 +120,9 @@ export function surfaceFromRegistryRow(row, grid) {
     return { ok: false, code: 'depth-ref', reason: `"${row.name}" is referenced to ${r.depthRef.toUpperCase()}, not TVDSS; volumetrics need a structure below one datum.` };
   }
   if (Number(row.rotation_deg)) notes.push(`"${row.name}" is on a grid rotated ${Number(row.rotation_deg)} degrees; its nodes were placed with the rotation.`);
+  const lattice = makeLattice(r.spec, r.grid);
+  if (lattice) notes.push(`Volumes are integrated on the grid's own ${r.spec.nx} x ${r.spec.ny} nodes, as Mapping measures it (no re-gridding).`);
+  else notes.push(`The grid has ${(r.spec.nx * r.spec.ny).toLocaleString('en-US')} nodes, more than RCP keeps with a project; it was thinned to ${MAX_POINTS.toLocaleString('en-US')} points and re-gridded, so volumes can differ slightly from Mapping's.`);
   const surface = buildImportedSurface(points, {
     name: row.name,
     format: 'registry',
@@ -128,6 +135,7 @@ export function surfaceFromRegistryRow(row, grid) {
     registryName: row.name,
     depthRef: r.depthRef,
     notes,
+    lattice,
   });
   return { ok: true, surface, notes };
 }

@@ -107,6 +107,9 @@ export const cgrUnitLabel = (unitSystem) => (unitSystem === 'metric' ? 'sm³/10�
  * and pressure/temperature are stored system-independently, so only the
  * geometric fields move: area (acre↔km²), thickness + contacts (ft↔m).
  */
+/** 1 scf/STB in sm3/sm3. */
+export const RS_METRIC_PER_FIELD = 0.0283168 / 0.158987;
+
 export function convertInputsOnSystemChange(inputs, fromSystem, toSystem) {
     if (fromSystem === toSystem) return inputs;
     const next = { ...inputs };
@@ -120,6 +123,27 @@ export function convertInputsOnSystemChange(inputs, fromSystem, toSystem) {
         const v = parseFloat(next[key]);
         if (isNum(v)) next[key] = UnitConversionEngine.convert(v, lenFrom, lenTo, 'length');
     }
+    // U2-001: the area/depth table converts with the system (depth as a
+    // length, areas as areas), as the other inputs do
+    if (next.areaDepth && Array.isArray(next.areaDepth.rows)) {
+        const L = (v) => (isNum(parseFloat(v)) ? UnitConversionEngine.convert(parseFloat(v), lenFrom, lenTo, 'length') : v);
+        const A = (v) => (isNum(parseFloat(v)) ? UnitConversionEngine.convert(parseFloat(v), canonicalUnitFor('area', fromSystem), canonicalUnitFor('area', toSystem), 'area') : v);
+        next.areaDepth = {
+            ...next.areaDepth,
+            rows: next.areaDepth.rows.map((r) => ({ depth: L(r.depth), areaTop: A(r.areaTop), areaBase: r.areaBase === null || r.areaBase === undefined ? null : A(r.areaBase) })),
+            spill: next.areaDepth.spill === null || next.areaDepth.spill === undefined || next.areaDepth.spill === '' ? next.areaDepth.spill : L(next.areaDepth.spill),
+            text: undefined,
+        };
+    }
+    // U2-007: Rs (scf/STB and sm3/sm3) and the saturation-height FWL (a length)
+    const rs = parseFloat(next.rs);
+    if (isNum(rs)) next.rs = rs * (toSystem === 'metric' ? RS_METRIC_PER_FIELD : 1 / RS_METRIC_PER_FIELD);
+    if (next.saturationHeight && isNum(parseFloat(next.saturationHeight.fwl))) {
+        next.saturationHeight = { ...next.saturationHeight, fwl: UnitConversionEngine.convert(parseFloat(next.saturationHeight.fwl), lenFrom, lenTo, 'length') };
+    }
+    // U2-004: the Earth Modeling handoff record converts with the inputs, so
+    // a unit toggle is not mistaken for an edit
+    if (next.emProspect?.set) next.emProspect = { ...next.emProspect, set: convertInputsOnSystemChange(next.emProspect.set, fromSystem, toSystem) };
     // RCP-U1-017: condensate-gas ratio, STB/MMscf (field) and sm3 per
     // million sm3 (metric); 1 STB/MMscf = 0.158987 / 0.0283168 sm3/10^6 sm3
     const cgr = parseFloat(next.cgr);
