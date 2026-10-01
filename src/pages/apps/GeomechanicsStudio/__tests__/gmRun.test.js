@@ -25,14 +25,21 @@ function expectClose(a, b, rtol, atol = 0) {
   }
 }
 
+// interpolation of the oracle profile between its 50 m nodes (the harness
+// MD grid falls between them below the kick-off)
+const TOL = 2e-3;
+
 async function seeded() {
   const backend = makeInMemoryBackend();
   const { stations } = await backend.getDefinitiveTrajectory('wb-1');
   const [caseRow] = await backend.listCases('wb-1');
   const logs = await backend.listGeoLogs('gw-1');
   const by = (m) => logs.find((l) => l.mnemonic === m);
+  // PP-U2-013: the harness serves the curves on their MD grid along the slant
+  // trajectory (as Pore Pressure publishes); gmRun carries them to TVD
+  const pp = by('PP');
   const published = {
-    tvdM: PROF.tvdM,
+    tvdM: Array.from({ length: pp.n_samples }, (_, i) => pp.start_md_m + i * pp.step_m),
     ppPa: Array.from(await backend.downloadCurve(by('PP')), (v) => v * 1e6),
     obgPa: Array.from(await backend.downloadCurve(by('OBG')), (v) => v * 1e6),
   };
@@ -41,37 +48,47 @@ async function seeded() {
 }
 
 test('published-curve base profile + MEM matches the oracle profile', async () => {
-  const { caseRow, published, dt } = await seeded();
-  const base = assembleBaseProfile({ source: caseRow.source, published });
+  const { stations, caseRow, published, dt } = await seeded();
+  const base = assembleBaseProfile({ source: caseRow.source, published, stations });
+  expect(base.depthFrame).toBe('trajectory');
   const mem = runMem({ base, dtUsPerM: dt, params: caseRow.params });
-  for (let i = 0; i < PROF.tvdM.length; i += 8) {
-    expectClose(mem.profile.shminPa[i], PROF.shminPa[i], 1e-4, 1e3);
-    expectClose(mem.profile.shmaxPa[i], PROF.shmaxPa[i], 1e-4, 1e3);
-    expectClose(mem.profile.ucsPa[i], PROF.ucsPa[i], 1e-4, 1e3);
+  // the oracle profile at each sample's TVD (linear between the oracle's 50 m nodes,
+  // as the harness curves were made); on the vertical top the nodes coincide
+  const at = (arr, tvd) => {
+    let k = 1;
+    while (k < PROF.tvdM.length - 1 && PROF.tvdM[k] < tvd) k += 1;
+    const f = (tvd - PROF.tvdM[k - 1]) / (PROF.tvdM[k] - PROF.tvdM[k - 1]);
+    return arr[k - 1] + f * (arr[k] - arr[k - 1]);
+  };
+  for (let i = 0; i < base.tvdM.length; i += 8) {
+    expectClose(mem.profile.shminPa[i], at(PROF.shminPa, base.tvdM[i]), TOL, 1e3);
+    expectClose(mem.profile.shmaxPa[i], at(PROF.shmaxPa, base.tvdM[i]), TOL, 1e3);
+    expectClose(mem.profile.ucsPa[i], at(PROF.ucsPa, base.tvdM[i]), TOL, 1e3);
   }
   expect(mem.quality.score).toBeGreaterThan(0);
 });
 
 test('mud window along the golden slant trajectory matches the oracle', async () => {
   const { stations, caseRow, published, dt } = await seeded();
-  const base = assembleBaseProfile({ source: caseRow.source, published });
+  const base = assembleBaseProfile({ source: caseRow.source, published, stations });
   const mem = runMem({ base, dtUsPerM: dt, params: caseRow.params });
   const win = runWindow({ stations, mem, params: caseRow.params });
   expect(win.rows.length).toBe(CASE.expected.nRows);
   for (const cp of CASE.expected.checkpoints) {
     const row = win.rows.find((r) => Math.abs(r.md - cp.md) < 1e-6);
     expect(row).toBeTruthy();
-    // Float32 round-trip through the published curves costs ~1e-7 relative.
-    expectClose(row.collapseEmwKgM3, cp.collapseEmwKgM3, 1e-4, 0.05);
-    expectClose(row.fracInitEmwKgM3, cp.fracInitEmwKgM3, 1e-4, 0.05);
+    // Float32 round-trip costs ~1e-7 relative; the MD grid between the oracle's
+    // 50 m nodes costs up to ~2e-4 (linear interpolation of the profile)
+    expectClose(row.collapseEmwKgM3, cp.collapseEmwKgM3, TOL, 0.05);
+    expectClose(row.fracInitEmwKgM3, cp.fracInitEmwKgM3, TOL, 0.05);
   }
   expectClose(win.tightest.md, CASE.expected.tightestMd, 1e-6, 1e-6);
-  expectClose(win.tightest.widthKgM3, CASE.expected.tightestWidthKgM3, 1e-3, 0.1);
+  expectClose(win.tightest.widthKgM3, CASE.expected.tightestWidthKgM3, TOL, 0.1);
 });
 
 test('gm-1.0.0 publish round trip with overwrite-own', async () => {
-  const { backend, caseRow, published, dt } = await seeded();
-  const base = assembleBaseProfile({ source: caseRow.source, published });
+  const { backend, stations, caseRow, published, dt } = await seeded();
+  const base = assembleBaseProfile({ source: caseRow.source, published, stations });
   const mem = runMem({ base, dtUsPerM: dt, params: caseRow.params });
   const prepared = preparePublishLogs({ profile: mem.profile, params: caseRow.params, meta: { projectId: caseRow.id } });
   expect(prepared.map((l) => l.mnemonic)).toEqual(['SHMIN', 'SHMAX', 'UCS']);

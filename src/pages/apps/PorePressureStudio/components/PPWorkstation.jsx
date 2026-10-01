@@ -33,19 +33,29 @@ import ParamsPanel from './ParamsPanel';
 import PrognosisChart from './PrognosisChart';
 import NctPanel from './NctPanel';
 import BasinPressureNote from './BasinPressureNote';
-import { mapLogs, buildProfileInput, normalizePpCurves, wellDepthFrame } from '../services/prep';
+import CrossplotPanel from './CrossplotPanel';
+import {
+  mapLogs, buildProfileInput, normalizePpCurves, wellDepthFrame, normalizeResistivity,
+} from '../services/prep';
 import { computeProfile } from '../engine/profile';
 import { pseudoSonicFromLinearVelocity } from '../engine/velocitySource';
 import { layerCakeProfile } from '@/lib/velocityModels';
 import { preparePublishLogs, publishBlocker } from '../services/publish';
 import { inputNotes, trendDepthM } from '../services/honesty';
 import { reviewerLines, prognosisPdf } from '../services/report';
-import { drillingWindow, WINDOW_FROM_BML_M } from '../services/drillingWindow';
+import { drillingWindow, casingDesign, WINDOW_FROM_BML_M } from '../services/drillingWindow';
+import { pickShaleLog, normalizeShaleIndicator } from '../services/shalePicks';
+import { fitTarget, fitToCalibration, calibrateFracToLot } from '../services/calibrate';
+import { datumToMudline } from '../services/alongHole';
+import { comparesTo } from '../services/calibrationImport';
 import {
   UNITS_KEY, PRESSURE_UNITS, DEPTH_UNITS, readUnits, depthFromDisplay, tidyDepth,
   fmtPressure, fmtDepth, emwReferenceDepthM, emwDatumLabel, isEmw, prognosisCsv,
 } from '../services/units';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import {
+  DEPTH_REF_KEY, VIEW_REFS, depthReferences, refMapper, refShort, refLabel,
+} from '../services/depthRef';
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 
@@ -61,6 +71,9 @@ export const DEFAULT_PARAMS = {
   eatonN: 3,
   bowers: { A: 10, B: 0.75 },
   nu: 0.4,
+  // U2-001: resistivity Eaton, Eaton's published exponent 1.2
+  resNct: { r0OhmM: 0.6, bPerM: 2e-4 },
+  eatonNRes: 1.2,
 };
 
 const PP_ID = 'pore-pressure-studio';
@@ -85,6 +98,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const [saving, setSaving] = useState(false);
   // PP-U1-010: the NCT was fitted on the open well (or comes from the project/default)
   const [nctFittedFor, setNctFittedFor] = useState(null);
+  // U2-001: the resistivity trend was fitted on the open well
+  const [resNctFittedFor, setResNctFittedFor] = useState(null);
   // Suite unit profile: depth and pressure start from the profile; the
   // selectors below change this view for the session only, and the older
   // remembered 'pp.units' choice no longer beats the profile
@@ -94,9 +109,15 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   }, { fallback: readUnits(storage()), legacyKeys: [UNITS_KEY] });
   const { units, setUnit } = unitsHook;
   const [readoutText, setReadoutText] = useState(() => tidyDepth(3500, units.depth));
+  // U2-004: the depth frame the prognosis is read in (remembered per browser)
+  const [depthRefKey, setDepthRefKey] = useState(() => {
+    try { const v = window.localStorage.getItem(DEPTH_REF_KEY); return VIEW_REFS.some((r) => r.key === v) ? v : 'bml'; } catch { return 'bml'; }
+  });
+  const chooseDepthRef = (k) => { setDepthRefKey(k); try { window.localStorage.setItem(DEPTH_REF_KEY, k); } catch { /* per-viewer convenience */ } };
 
   // the readout text follows the depth unit; typing edits the SI depth
-  useEffect(() => { setReadoutText(tidyDepth(readoutDepthM, units.depth)); }, [units.depth]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setReadoutText(tidyDepth(mapperRef.current ? mapperRef.current.fromBml(readoutDepthM) : readoutDepthM, units.depth)); }, [units.depth, depthRefKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mapperRef = React.useRef(null);
 
   useEffect(() => {
     let live = true;
@@ -115,6 +136,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
         if (project.picks) setPicks(project.picks);
         if (project.source?.nctFittedFor) setNctFittedFor(project.source.nctFittedFor);
+        if (project.source?.resNctFittedFor) setResNctFittedFor(project.source.resNctFittedFor);
         if (project.calibration) setCalibration(project.calibration);
         setStatus('Restored saved project.');
         // PP-U1-013: reopen the well the project was saved on
@@ -146,19 +168,32 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         backend.downloadCurve(mapped.DEPT), backend.downloadCurve(mapped.DT),
       ]);
       const rho = mapped.RHOB ? await backend.downloadCurve(mapped.RHOB) : null;
+      const resRaw = mapped.RES ? await backend.downloadCurve(mapped.RES) : null;
+      // U2-005: the shale indicator for the NCT picks (VSH, else GR)
+      const shaleLog = pickShaleLog(logs);
+      const shaleRaw = shaleLog ? await backend.downloadCurve(shaleLog.log) : null;
+      const shaleN = shaleRaw && shaleRaw.length === depth.length ? normalizeShaleIndicator(shaleRaw, shaleLog) : null;
       // PP-U1-004: vendor nulls, kg/m3 density and us/ft sonic are read for
       // what they are, and each decision is said
       const norm = normalizePpCurves({ depth, dt, rho, dtLog: mapped.DT, rhoLog: mapped.RHOB });
+      // U2-001: the deep resistivity, for resistivity Eaton
+      const resN = resRaw && resRaw.length === depth.length ? normalizeResistivity(resRaw, mapped.RES) : null;
       setCurves({
         depth: norm.depth,
         dt: norm.dt,
         rho: norm.rho,
+        res: resN ? resN.res : null,
+        shale: shaleN ? shaleN.values : null,
+        shaleKind: shaleN ? shaleN.kind : null,
+        shaleName: shaleN ? shaleN.name : null,
+        resName: mapped.RES?.mnemonic || null,
         units: norm.units,
-        fileUnits: { DT: mapped.DT.unit, RHOB: mapped.RHOB?.unit },
-        notes: norm.notes,
+        fileUnits: { DT: mapped.DT.unit, RHOB: mapped.RHOB?.unit, RES: mapped.RES?.unit },
+        notes: [...norm.notes, ...(resN ? resN.notes : []), ...(shaleN ? shaleN.notes : [])],
         logIds: Object.values(mapped).filter(Boolean).map((l) => l.id),
       });
       setNctFittedFor((prev) => (prev === wellId ? prev : null));
+      setResNctFittedFor((prev) => (prev === wellId ? prev : null));
       setStatus(`Loaded ${depth.length} samples${rho ? '' : '. No density log, so the overburden uses Gardner'}.${norm.notes.length ? ` ${norm.notes.join(' ')}` : ''}`);
     } catch (e) {
       setStatus(e.message);
@@ -199,24 +234,44 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         return;
       }
       setStatus(`Reading the layer cake of ${model.name} at ${at.name}...`);
-      backend.layerCakeBoundariesAt(model, at)
+      backend.layerCakeBoundariesAt(model, at, { srdElevM: Number(params.seismicDatumElevM) || 0 })
         .then((r) => {
-          setLayerCakeAt({ ...r, wellName: at.name, tdMdM: at.td_md_m ?? null });
+          setLayerCakeAt({ ...r, wellName: at.name, wellId: at.id, modelId: model.id, srd: Number(params.seismicDatumElevM) || 0, tdMdM: at.td_md_m ?? null });
           setStatus(`Velocity trend from the ${model.name} layer cake at ${at.name}: a trend-grade prognosis (no local anomaly).${r.note ? ` ${r.note}` : ''}`);
         })
         .catch((e) => { setLayerCakeAt({ error: e.message }); setStatus(e.message); });
       return;
     }
     setStatus(`Velocity trend from ${model.name}: a trend-grade prognosis (no local anomaly).`);
-  }, [wells, selectedId, backend]);
+  }, [wells, selectedId, backend, params.seismicDatumElevM]);
 
+  // U2-008: a new seismic datum moves the crossings; read the layer cake again
+  useEffect(() => {
+    const srd = Number(params.seismicDatumElevM) || 0;
+    if (seismicModel?.kind !== 'layercake' || !layerCakeAt?.wellId || layerCakeAt.srd === srd || !backend.layerCakeBoundariesAt) return;
+    const at = (wells || []).find((w) => w.id === layerCakeAt.wellId);
+    if (!at) return;
+    let live = true;
+    backend.layerCakeBoundariesAt(seismicModel, at, { srdElevM: srd })
+      .then((r) => { if (live) setLayerCakeAt((prev) => ({ ...prev, ...r, srd })); })
+      .catch((e) => { if (live) setLayerCakeAt({ error: e.message }); });
+    return () => { live = false; };
+  }, [params.seismicDatumElevM, seismicModel, layerCakeAt, wells, backend]);
+
+  const byRes = params.method === 'eaton-resistivity';
+  // U2-008: the mudline below the declared seismic datum (SRD), not the water depth alone
+  const trendWell = seismicModel ? (wells || []).find((w) => w.name === layerCakeAt?.wellName) || null : null;
+  const datum = datumToMudline(params, { kbM: trendWell?.kb_m != null ? Number(trendWell.kb_m) : null });
   const input = useMemo(() => {
     try {
+      if (seismicModel && byRes) {
+        return { error: 'A velocity trend carries no resistivity: choose Eaton sonic or Bowers for a seismic trend.' };
+      }
       if (seismicModel?.kind === 'layercake') {
         if (!layerCakeAt) return null;
         if (layerCakeAt.error) return { error: layerCakeAt.error };
         return layerCakeProfile(seismicModel.velocity, layerCakeAt.boundaryTwtMs, {
-          datumToMudlineM: params.waterDepthM,
+          datumToMudlineM: datum.value,
           zMaxM: trendZMaxM,
           stepM: 10,
         });
@@ -224,18 +279,20 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       if (seismicModel) {
         // model datum = sea level; the water column is the offset
         return pseudoSonicFromLinearVelocity(seismicModel.velocity, {
-          datumToMudlineM: params.waterDepthM,
+          datumToMudlineM: datum.value,
           zMaxM: trendZMaxM,
           stepM: 10,
         });
       }
       if (!curves) return null;
       // PP-U1-002: a deviated well is computed at TVD through its survey
-      return buildProfileInput(curves, curves.units, { mudlineMdM: params.mudlineMdM, frame: wellDepthFrame(selected) });
+      return buildProfileInput(curves, curves.units, {
+        mudlineMdM: params.mudlineMdM, frame: wellDepthFrame(selected), needs: byRes ? 'res' : 'dt',
+      });
     } catch (e) {
       return { error: e.message };
     }
-  }, [curves, seismicModel, layerCakeAt, params.mudlineMdM, params.waterDepthM, selected, trendZMaxM]);
+  }, [curves, seismicModel, layerCakeAt, params.mudlineMdM, params.waterDepthM, selected, trendZMaxM, byRes, datum.value]);
 
   const profile = useMemo(() => {
     if (!input || input.error) return null;
@@ -248,6 +305,17 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
 
   const result = profile?.result || null;
   const windowInfo = useMemo(() => (result && input ? drillingWindow(result, input.zBmlM, params) : null), [result, input, params]);
+  // U2-003: kick and trip margins and the bottom-up casing seats
+  const casing = useMemo(() => (result && input ? casingDesign(result, input.zBmlM, params) : null), [result, input, params]);
+  // U2-004: every sample in each depth frame the source supports
+  const refs = useMemo(() => (input && !input.error ? depthReferences(input, params, {
+    frame: seismicModel ? null : wellDepthFrame(selected),
+    kbM: !seismicModel && selected?.kb_m != null && Number.isFinite(Number(selected.kb_m)) ? Number(selected.kb_m) : null,
+    source: seismicModel ? 'seismic' : 'well',
+  }) : null), [input, params, seismicModel, selected]);
+  const mapper = useMemo(() => refMapper(refs, depthRefKey), [refs, depthRefKey]);
+  mapperRef.current = mapper;
+  const zRef = (zBml) => `${fmtDepth(mapper.fromBml(zBml), units.depth)} ${units.depth} ${refShort(mapper.key)}`;
   const computeError = input?.error || profile?.error || null;
 
   // PL4: what the prognosis rests on (datum, TVD, gaps, density, NCT, calibration)
@@ -256,11 +324,15 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     result,
     params,
     source: seismicModel ? 'seismic' : 'well',
-    nctFitted: !!nctFittedFor && nctFittedFor === (selectedId || (seismicModel ? `model:${seismicModel.id}` : null)),
+    nctFitted: byRes
+      ? !!resNctFittedFor && resNctFittedFor === selectedId
+      : !!nctFittedFor && nctFittedFor === (selectedId || (seismicModel ? `model:${seismicModel.id}` : null)),
+    trend: byRes ? 'res' : 'dt',
     calibration,
     fmtZ: (m) => `${fmtDepth(m, units.depth)} ${units.depth}`,
     fmtP: (mpa) => (units.pressure === 'psi' ? `${fmtPressure(mpa * 1e6, 'psi')} psi` : `${mpa.toFixed(2)} MPa`),
-  }), [input, result, params, seismicModel, nctFittedFor, selectedId, calibration, units]);
+    seismicNote: seismicModel ? [datum.note, layerCakeAt?.note].filter(Boolean).join(' ') : null,
+  }), [input, result, params, seismicModel, nctFittedFor, resNctFittedFor, byRes, selectedId, calibration, units, datum.note, layerCakeAt]);
 
   const readout = useMemo(() => {
     if (!result || !input) return null;
@@ -295,6 +367,9 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     calibration,
     nctFitted: !notes.some((n) => n.key === 'nct'),
     window: windowInfo,
+    casing,
+    mapper,
+    refs,
   });
 
   // PP-U1-008: the reviewer PDF (jsPDF loaded on demand)
@@ -316,7 +391,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const exportCsv = () => {
     if (!result || !input) return;
     const source = seismicModel ? seismicModel.name : (selected?.name || 'well');
-    const csv = prognosisCsv(input, result, params, units, { source, reviewer: reviewerLines(reportArgs()) });
+    const csv = prognosisCsv(input, result, params, units, { source, reviewer: reviewerLines(reportArgs()), refs });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -348,11 +423,65 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     const n0 = params.nct; const n1 = p.nct || {};
     if (Math.abs(n0.dtMlUsPerM - n1.dtMlUsPerM) > 1e-6 * n0.dtMlUsPerM || Math.abs(n0.cPerM - n1.cPerM) > 1e-6 * Math.abs(n0.cPerM || 1)
       || Math.abs(n0.dtMaUsPerM - n1.dtMaUsPerM) > 1e-6 * n0.dtMaUsPerM) setNctFittedFor(null);
-    setParams(p);
+    const r0 = params.resNct || {}; const r1 = p.resNct || r0;
+    if (Math.abs((r0.r0OhmM ?? 0) - (r1.r0OhmM ?? 0)) > 1e-9 * Math.abs(r0.r0OhmM || 1)
+      || Math.abs((r0.bPerM ?? 0) - (r1.bPerM ?? 0)) > 1e-9 * Math.abs(r0.bPerM || 1)) setResNctFittedFor(null);
+    // keep what the dock does not edit (trend segments, resistivity trend, ...)
+    setParams((prev) => ({ ...prev, ...p }));
     setCalibration(cal);
     setStatus(skipped.length
       ? `Parameters applied. ${skipped.length} calibration line${skipped.length === 1 ? '' : 's'} not read (two numbers per line: depth, pressure): ${skipped.slice(0, 3).join(' | ')}`
       : 'Parameters applied.');
+  };
+
+  // U2-002: imported calibration points land on the engine frame through
+  // the selected well's survey and KB (TVDSS and MD need them)
+  const importCtx = useMemo(() => ({
+    frame: seismicModel ? null : wellDepthFrame(selected),
+    kbM: !seismicModel && Number.isFinite(Number(selected?.kb_m)) && selected?.kb_m != null ? Number(selected.kb_m) : null,
+    mudlineMdM: params.mudlineMdM,
+    waterDepthM: params.waterDepthM,
+  }), [seismicModel, selected, params.mudlineMdM, params.waterDepthM]);
+  const importCalibration = (points, summary) => {
+    setCalibration((c) => [...c, ...points]);
+    setStatus(`Imported ${summary.read} calibration point${summary.read === 1 ? '' : 's'} from ${summary.name}${summary.skipped.length ? `; ${summary.skipped.length} line${summary.skipped.length === 1 ? '' : 's'} not read` : ''}.`);
+  };
+
+  const onResNctFitted = (fit) => {
+    setResNctFittedFor(selectedId);
+    setParams((p) => ({ ...p, resNct: { r0OhmM: fit.r0OhmM, bPerM: fit.bPerM } }));
+    setStatus(`Resistivity trend fitted: R0 ${fit.r0OhmM.toFixed(3)} ohm.m, b ${fit.bPerM.toExponential(3)} 1/m.`);
+  };
+
+  // U2-006: fit the method's parameter to the measured pressures
+  const target = fitTarget(params);
+  const ppPoints = calibration.filter((c) => comparesTo(c) === 'pp').length;
+  const lotPoints = calibration.filter((c) => comparesTo(c) === 'fg').length;
+  const calibrateFrac = () => {
+    if (!result || !input) return;
+    const r = calibrateFracToLot(params, input, result, calibration);
+    if (r.error) { setStatus(r.error); return; }
+    setParams(r.params);
+    setStatus(r.text);
+  };
+  const fitCalibration = () => {
+    if (!result || !input) return;
+    const r = fitToCalibration(params, input, result, calibration);
+    if (r.error) { setStatus(r.error); return; }
+    setParams(r.params);
+    setStatus(r.text);
+  };
+
+  // U2-005: the trend segments fitted on their own picks; a new break unfits the trend
+  const onSegmentsFitted = (r) => {
+    setNctFittedFor(selectedId || (seismicModel ? `model:${seismicModel.id}` : null));
+    setParams((p) => ({ ...p, nct: { ...p.nct, dtMlUsPerM: r.nct.dtMlUsPerM, cPerM: r.nct.cPerM }, nctSegments: r.segments }));
+    setStatus(`NCT fitted: ${r.fitted.join(', ')}${r.kept.length ? `; ${r.kept.join(', ')} kept (fewer than two picks)` : ''}.`);
+  };
+  const onSegmentsChange = (segments) => {
+    setParams((p) => ({ ...p, nctSegments: segments }));
+    setNctFittedFor(null);
+    setStatus(segments.length ? `Trend breaks at ${segments.map((g) => `${fmtDepth(g.zTopM, units.depth)} ${units.depth}`).join(', ')} below mudline: fit the NCT again.` : 'Trend breaks removed: fit the NCT again.');
   };
 
   const onNctFitted = (fit) => {
@@ -374,7 +503,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         // nctFittedFor rides in the source jsonb (no schema change)
         source: seismicModel
           ? { kind: 'seismic', volumeId: seismicModel.id, nctFittedFor }
-          : { kind: 'well', wellId: selectedId, nctFittedFor },
+          : { kind: 'well', wellId: selectedId, nctFittedFor, resNctFittedFor },
       });
       if (saved?.id) setProjectId(saved.id);
       setStatus('Project saved.');
@@ -425,6 +554,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       <div className="ml-4 flex items-center gap-1">
         {viewButton('prognosis', 'Prognosis')}
         {viewButton('nct', 'NCT')}
+        {viewButton('crossplot', 'Crossplot')}
       </div>
       {result && (
         <div className="ml-4 flex items-center gap-2 text-[11px] text-pl-muted">
@@ -437,10 +567,10 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             onChange={(e) => {
               setReadoutText(e.target.value);
               const d = Number(e.target.value);
-              if (Number.isFinite(d)) setReadoutDepthM(depthFromDisplay(d, units.depth));
+              if (Number.isFinite(d)) setReadoutDepthM(mapper.toBml(depthFromDisplay(d, units.depth)));
             }}
           />
-          <span>{units.depth} bml:</span>
+          <span data-testid="pp-readout-ref">{units.depth} {refShort(mapper.key)}:</span>
           {readout && (
             <>
               <span data-testid="pp-readout-obg">OBG {readout.obg}</span>
@@ -490,6 +620,17 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
           <HelpCircle className="w-3.5 h-3.5" /> Help
         </Link>
         <span className="w-px h-4 bg-pl-border mx-1" />
+        <select
+          data-testid="pp-depth-ref"
+          title={`Depth frame for the readout, the chart, the CSV and the PDF${refs ? Object.entries(refs.reasons).map(([k, r]) => `; ${refLabel(k)} unavailable: ${r}`).join('') : ''}`}
+          value={mapper.key}
+          onChange={(e) => chooseDepthRef(e.target.value)}
+          className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-[11px] text-pl-text"
+        >
+          {VIEW_REFS.map((r) => (
+            <option key={r.key} value={r.key} disabled={!!(refs && !refs[r.key])}>{r.label}{refs && !refs[r.key] ? ' (unavailable)' : ''}</option>
+          ))}
+        </select>
         <span className="text-[11px] text-pl-muted mr-1">Units</span>
         {unitSelect('pressure', PRESSURE_UNITS, 'Pressure display unit, or an equivalent mud weight (the engine stays in Pa)')}
         {unitSelect('depth', DEPTH_UNITS, 'Depth display unit; starts from your Suite units and changes this view for the session. Sonic and the compaction constant follow it')}
@@ -558,6 +699,14 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     </div>
   );
 
+  // U2-010: the worked example says what it is, above everything
+  const exampleBanner = backend.isExample ? (
+    <div data-testid="pp-example-banner" className="px-3 py-1 text-[11px] bg-pl-warning-bg border-b border-pl-warning/40 text-pl-warning-text">
+      Worked example on the oracle's synthetic offshore well ORACLE PP-1. Nothing reaches your account: Save keeps it in this tab and Publish is off.
+      {' '}<Link to={`${appPath(PP_ID, appPaths)}/help#section-example`} className="underline">Follow the steps in the help guide</Link>.
+    </div>
+  ) : null;
+
   const statusBar = (
     <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="pp-status" className="truncate">{computeError || status}</span>
@@ -581,12 +730,26 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       ) : selectedId && !curves ? (
         loadingId ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading curves…</> : status
       ) : (
-        'Select a well to run the pressure prognosis.'
+        <span className="flex flex-col items-center gap-2">
+          <span>Select a well to run the pressure prognosis.</span>
+          {!backend.isExample && (
+            <Link to={`${appPath(PP_ID, appPaths)}?example=1`} data-testid="pp-open-example" className="text-pl-primary-text underline text-xs">
+              New to pore pressure? Open the worked example
+            </Link>
+          )}
+        </span>
       )}
     </div>
   );
 
-  const center = !result ? empty : view === 'nct' ? (
+  // U2-007: Bowers unloading picked on the velocity-density crossplot
+  const useUnloading = ({ U, sigmaMaxPa }) => {
+    setParams((p) => ({ ...p, method: 'bowers', bowers: { ...p.bowers, U, sigmaMaxPa } }));
+    setStatus(`Bowers unloading set from the crossplot: U ${U}, sigma max ${(sigmaMaxPa / 1e6).toFixed(2)} MPa.`);
+  };
+  const center = !result ? empty : view === 'crossplot' ? (
+    <CrossplotPanel input={input} params={params} units={units} onUseUnloading={useUnloading} />
+  ) : view === 'nct' ? (
     <NctPanel
       input={input}
       profile={result}
@@ -594,6 +757,12 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       picks={picks}
       onPicksChange={setPicks}
       onNctFitted={onNctFitted}
+      onResNctFitted={onResNctFitted}
+      onSegmentsFitted={onSegmentsFitted}
+      onSegmentsChange={onSegmentsChange}
+      shaleName={curves?.shaleName || null}
+      shaleKind={curves?.shaleKind || null}
+      byRes={byRes}
       depthUnit={units.depth}
     />
   ) : (
@@ -602,9 +771,46 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         <div className="text-[11px] text-pl-text px-1" data-testid="pp-drilling-window">
           Narrowest drilling window <b>{windowInfo.narrowest.windowPpg.toFixed(2)} ppg</b>
           {' '}(PP {windowInfo.narrowest.ppPpg.toFixed(2)}, FG {windowInfo.narrowest.fgPpg.toFixed(2)} ppg EMW)
-          {' '}at {fmtDepth(windowInfo.narrowest.zBmlM, units.depth)} {units.depth} below mudline (below the top {fmtDepth(WINDOW_FROM_BML_M, units.depth)} {units.depth}, the conductor section)
-          {windowInfo.maxPp && <> · highest PP {windowInfo.maxPp.ppPpg.toFixed(2)} ppg at {fmtDepth(windowInfo.maxPp.zBmlM, units.depth)} {units.depth}</>}
+          {' '}at {zRef(windowInfo.narrowest.zBmlM)} (below the top {fmtDepth(WINDOW_FROM_BML_M, units.depth)} {units.depth}, the conductor section)
+          {windowInfo.maxPp && <> · highest PP {windowInfo.maxPp.ppPpg.toFixed(2)} ppg at {zRef(windowInfo.maxPp.zBmlM)}</>}
           {windowInfo.narrowest.windowPpg < 0.5 && <span className="text-pl-warning-text"> · under 0.5 ppg: plan a casing point or managed pressure</span>}
+        </div>
+      )}
+      {casing && (
+        casing.error ? (
+          <div className="text-[11px] text-pl-muted px-1" data-testid="pp-casing-seats">{casing.error}</div>
+        ) : (
+          <div className="text-[11px] text-pl-text px-1" data-testid="pp-casing-seats" data-seats={casing.seats.length}>
+            Casing seats, bottom-up (trip margin {casing.tripPpg.toFixed(2)} ppg, kick margin {casing.kickPpg.toFixed(2)} ppg):
+            {casing.seats.length === 0 && <span> none needed above TD; one open-hole section from {zRef(casing.fromBmlM)} holds</span>}
+            {casing.seats.map((s, k) => (
+              <span key={k} data-testid={`pp-casing-seat-${k}`}>
+                {k ? ';' : ''} shoe at least {zRef(s.zBmlM)}{s.driver === 'minimum shallow seat' ? ' (your minimum)' : ''}, then {s.mudBelowPpg.toFixed(2)} ppg below
+              </span>
+            ))}
+            {casing.closedAtBmlM != null && (
+              <span className="text-pl-warning-text" data-testid="pp-casing-closed"> · window closed by the margins at {zRef(casing.closedAtBmlM)}: no seat opens it; managed pressure or smaller margins</span>
+            )}
+            <span className="block text-pl-muted" data-testid="pp-casing-sections">
+              Window per section: {casing.sections.map((sec) => `${fmtDepth(mapper.fromBml(sec.topBmlM), units.depth)} to ${zRef(sec.baseBmlM)}: mud ${sec.mudPpg.toFixed(2)} ppg, margin to the design FG ${sec.marginPpg.toFixed(2)} ppg`).join(' | ')}
+            </span>
+          </div>
+        )
+      )}
+      {((target && ppPoints > 0) || lotPoints > 0) && (
+        <div className="px-1 flex gap-2">
+          {lotPoints > 0 && (
+            <button type="button" data-testid="pp-fit-lot" onClick={calibrateFrac}
+              title="Set the fracture method's coefficient (nu, k0 or beta) from the leak-off tests: the median over the tests"
+              className="px-2 py-0.5 text-[11px] rounded border border-pl-primary text-pl-primary-text hover:bg-pl-primary/10">
+              Calibrate FG to LOT ({lotPoints} test{lotPoints === 1 ? '' : 's'})
+            </button>
+          )}
+          {target && ppPoints > 0 && <button type="button" data-testid="pp-fit-calibration" onClick={fitCalibration}
+            title="Fit the method parameter to the measured pressures (RFT/MDT, kicks) by least squares on the pore pressure"
+            className="px-2 py-0.5 text-[11px] rounded border border-pl-primary text-pl-primary-text hover:bg-pl-primary/10">
+            {target.label} ({ppPoints} point{ppPoints === 1 ? '' : 's'})
+          </button>}
         </div>
       )}
       {notes.length > 0 && (
@@ -615,7 +821,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         </ul>
       )}
       <div className="flex-1 min-h-0">
-        <PrognosisChart profile={result} zBmlM={input.zBmlM} calibration={calibration} units={units} params={params} />
+        <PrognosisChart profile={result} zBmlM={input.zBmlM} calibration={calibration} units={units} params={params} casing={casing && !casing.error ? casing : null} mapper={mapper} />
       </div>
     </div>
   );
@@ -625,7 +831,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       autoSaveId="porepressurestudio.workspace.v1"
       minWidth={1000}
       dockDefaultSize={24}
-      ribbon={ribbon}
+      ribbon={exampleBanner ? <>{exampleBanner}{ribbon}</> : ribbon}
       explorer={(
         <WellExplorer
           wells={wells || []}
@@ -642,7 +848,15 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       dock={(
         <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
           <BasinPressureNote />
-          <ParamsPanel params={params} calibration={calibration} onApply={applyDock} units={units} />
+          <ParamsPanel
+            params={params}
+            calibration={calibration}
+            onApply={applyDock}
+            units={units}
+            importCtx={importCtx}
+            onImportCalibration={importCalibration}
+            onClearImported={() => { setCalibration((c) => c.filter((p) => !p.source)); setStatus('Imported calibration cleared.'); }}
+          />
         </ScrollArea>
       )}
       dockOpen={dockOpen}

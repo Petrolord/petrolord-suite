@@ -16,6 +16,7 @@ import {
 } from '../engine/geomech';
 import { computeProfile } from '../engine/ppProfile';
 import { hydrostatic, overburden } from '../engine/ppPressures';
+import { tvdAt } from '../../../../../packages/engines/engines/drilling/wellControl.js';
 
 export const GM_ENGINE_VERSION = 'geomech-1.0.0';
 
@@ -28,32 +29,69 @@ export function depthOut(m, depthUnit) { return depthUnit === 'ft' ? m / FT : m;
 export function depthLabel(depthUnit) { return depthUnit === 'ft' ? 'ft' : 'm'; }
 export function pressureOutMPa(pa) { return pa / 1e6; }
 
+// PP-U2-013 (fixes PP-U1-018): the registry curves (published PP/OBG and the
+// raw logs) are indexed by MD below the rotary table. The MEM and the mud
+// window are indexed by TVD, so on a deviated well every MD is carried to
+// TVD through the definitive trajectory (exact minimum curvature, the
+// engine's tvdAt); samples where the hole turns back up (or runs past the
+// last station) are dropped and counted. With no trajectory the well is
+// taken as vertical, and the provenance says so. The wellbore's rotary
+// table is taken to be the registry well's.
+export function mdToTvdOnTrajectory(mdM, stations) {
+  const ok = Array.isArray(stations) && stations.length >= 2;
+  const keep = []; const tvd = [];
+  let last = -Infinity; let dropped = 0;
+  const top = ok ? stations[0].md : -Infinity; const td = ok ? stations[stations.length - 1].md : Infinity;
+  for (let i = 0; i < mdM.length; i++) {
+    const md = mdM[i];
+    if (!Number.isFinite(md) || md < top - 1e-9 || md > td + 1e-9) { dropped += 1; continue; }
+    const t = ok ? tvdAt(stations, md) : md;
+    if (!(t > last)) { dropped += 1; continue; }
+    last = t; keep.push(i); tvd.push(t);
+  }
+  return { keep, tvdM: tvd, dropped, onTrajectory: ok };
+}
+
+const pick = (arr, keep) => (arr ? keep.map((i) => arr[i]) : arr);
+const frameNote = (t) => (t.onTrajectory
+  ? ` at TVD through the definitive trajectory${t.dropped ? ` (${t.dropped} samples off the trajectory or where the hole turns up left out)` : ''}`
+  : ' (no trajectory: MD taken as TVD, a vertical well)');
+
 // Assemble the Sv/Pp base profile from one of three sources.
-//   published:   {tvdM, ppPa, obgPa} arrays from pp-1.0.0 curves
+//   published:   {tvdM (the curves' MD grid), ppPa, obgPa} from pp-1.x curves
 //   computed:    porepressure computeProfile over the DT/RHOB logs
 //   hydrostatic: density-integrated Sv + hydrostatic Pp
-export function assembleBaseProfile({ source = {}, logs = null, published = null }) {
+// stations: the definitive trajectory (MD to TVD, PP-U2-013)
+export function assembleBaseProfile({ source = {}, logs = null, published = null, stations = null }) {
   const mode = source.ppSource || 'hydrostatic';
   if (mode === 'published') {
     if (!published?.tvdM?.length || !published.ppPa || !published.obgPa) {
       throw new Error('No published pp-1.x PP/OBG curves (Pore Pressure Studio) found for this well.');
     }
+    const t = mdToTvdOnTrajectory(published.tvdM, stations);
     return {
-      tvdM: published.tvdM,
-      svPa: published.obgPa,
-      ppPa: published.ppPa,
-      ...(published.dtAligned ? { dtAligned: published.dtAligned } : {}),
-      provenance: 'published Pore Pressure Studio curves',
+      tvdM: t.tvdM,
+      mdM: pick(published.tvdM, t.keep),
+      svPa: pick(published.obgPa, t.keep),
+      ppPa: pick(published.ppPa, t.keep),
+      ...(published.dtAligned ? { dtAligned: pick(published.dtAligned, t.keep) } : {}),
+      depthFrame: t.onTrajectory ? 'trajectory' : 'md-as-tvd',
+      provenance: `published Pore Pressure Studio curves${frameNote(t)}`,
     };
   }
   if (!logs?.depthM?.length || !logs.dtUsPerM) {
     throw new Error('Need DEPT and DT curves from the source well.');
   }
   const mudline = source.mudlineMdM ?? 0;
-  const zBmlM = logs.depthM.map((d) => d - mudline).filter((z) => z >= 0);
-  const offset = logs.depthM.length - zBmlM.length;
-  const dt = logs.dtUsPerM.slice(offset);
-  const rho = logs.rhoKgM3 ? logs.rhoKgM3.slice(offset) : null;
+  const t = mdToTvdOnTrajectory(logs.depthM, stations);
+  const mudTvd = t.onTrajectory ? tvdAt(stations, Math.max(mudline, stations[0].md)) : mudline;
+  const tvdAll = t.tvdM;
+  const inBml = tvdAll.map((v, k) => (v - mudTvd >= 0 ? k : -1)).filter((k) => k >= 0);
+  const keep = inBml.map((k) => t.keep[k]);
+  const zBmlM = inBml.map((k) => tvdAll[k] - mudTvd);
+  const dt = pick(logs.dtUsPerM, keep);
+  const rho = logs.rhoKgM3 ? pick(logs.rhoKgM3, keep) : null;
+  const note = frameNote(t);
   if (mode === 'computed') {
     const res = computeProfile({
       zBmlM,
@@ -70,22 +108,24 @@ export function assembleBaseProfile({ source = {}, logs = null, published = null
       },
     });
     return {
-      tvdM: zBmlM.map((z) => z + mudline),
+      tvdM: zBmlM.map((z) => z + mudTvd),
       svPa: res.overburdenPa,
       ppPa: res.porePressurePa,
       dtAligned: dt,
-      provenance: `computed (${source.method ?? 'eaton'})`,
+      depthFrame: t.onTrajectory ? 'trajectory' : 'md-as-tvd',
+      provenance: `computed (${source.method ?? 'eaton'})${note}`,
     };
   }
   // hydrostatic fallback
   const sv = overburden(zBmlM, rho ?? zBmlM.map(() => 2300), source.waterDepthM ?? 0, source.rhoSeawaterKgM3 ?? 1025);
   const pp = zBmlM.map((z) => hydrostatic(z, source.waterDepthM ?? 0, source.rhoFluidKgM3 ?? 1030, source.rhoSeawaterKgM3 ?? 1025));
   return {
-    tvdM: zBmlM.map((z) => z + mudline),
+    tvdM: zBmlM.map((z) => z + mudTvd),
     svPa: sv,
     ppPa: pp,
     dtAligned: dt,
-    provenance: 'hydrostatic PP + density overburden',
+    depthFrame: t.onTrajectory ? 'trajectory' : 'md-as-tvd',
+    provenance: `hydrostatic PP + density overburden${note}`,
   };
 }
 

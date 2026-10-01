@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import PPWorkstation from './components/PPWorkstation';
 import { makeRegistryBackend } from './services/registryBackend';
@@ -12,7 +13,18 @@ import { makeRegistryBackend } from './services/registryBackend';
 // Design system rollout W4B: the page opts in to the Petrolord theme (light
 // by default, dark per user through the ribbon toggle).
 export default function PorePressureStudio() {
-  const backend = useMemo(() => makeRegistryBackend(), []);
+  // U2-010: ?example=1 opens the worked example on an in-memory backend (loaded on demand)
+  const [search] = useSearchParams();
+  const example = search.get('example') === '1';
+  const registry = useMemo(() => (example ? null : makeRegistryBackend()), [example]);
+  const [exampleBackend, setExampleBackend] = useState(null);
+  useEffect(() => {
+    if (!example) return undefined;
+    let live = true;
+    import('./services/workedExample').then((m) => { if (live) setExampleBackend(m.makeWorkedExampleBackend()); });
+    return () => { live = false; };
+  }, [example]);
+  const backend = example ? exampleBackend : registry;
   return (
     <>
       <Helmet>
@@ -24,7 +36,7 @@ export default function PorePressureStudio() {
       </Helmet>
 
       <div className="h-screen w-full overflow-hidden" data-testid="pp-theme-scope">
-        <PPWorkstation backend={backend} />
+        {backend && <PPWorkstation key={example ? 'example' : 'registry'} backend={backend} />}
       </div>
     </>
   );
