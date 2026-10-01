@@ -6,6 +6,7 @@
 
 import { pickPublishedPpfg, logGrid, PP_PIPELINE } from '../../GeomechanicsStudio/services/prepGm';
 import { GM_PIPELINE_VERSION } from '../../GeomechanicsStudio/services/publishGm';
+import { ppfgUnit, unreadableUnitReason } from '../../../../lib/ppfgUnits';
 
 export { pickPublishedPpfg, logGrid, PP_PIPELINE };
 export const GM_PIPELINE = GM_PIPELINE_VERSION;
@@ -39,16 +40,22 @@ export function publishedToCurves({ gm, ppfg, data }) {
       throw new Error(`Published ${name} curve is on a different grid; republish from its studio.`);
     }
   }
-  const toPa = (arr) => Array.from(arr, (v) => (Number.isFinite(v) ? v * 1e6 : null));
+  // PP-U1-006: each curve by its declared unit (the published curves are
+  // MPa; anything else converts or is refused with its reason)
+  const toPa = (name, log) => {
+    const conv = ppfgUnit(log.unit || 'MPA');
+    if (!conv || conv.needsTvd) throw new Error(conv ? `${name} is a mud weight or gradient (${log.unit}); republish it as a pressure.` : unreadableUnitReason(log));
+    return Array.from(data[name], (v) => (Number.isFinite(v) ? conv.toMpa(v) * 1e6 : null));
+  };
   return {
     missing: null,
     curves: {
       tvdM,
-      shminPa: toPa(data.SHMIN),
-      shmaxPa: toPa(data.SHMAX),
-      ucsPa: toPa(data.UCS),
-      ppPa: toPa(data.PP),
-      svPa: toPa(data.OBG),
+      shminPa: toPa('SHMIN', gm.SHMIN),
+      shmaxPa: toPa('SHMAX', gm.SHMAX),
+      ucsPa: toPa('UCS', gm.UCS),
+      ppPa: toPa('PP', ppfg.PP),
+      svPa: toPa('OBG', ppfg.OBG),
     },
   };
 }

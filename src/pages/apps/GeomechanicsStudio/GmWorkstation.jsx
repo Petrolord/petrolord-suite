@@ -17,7 +17,7 @@ import WindowTab from './components/WindowTab';
 import {
   assembleBaseProfile, runMem, runWindow, GM_ENGINE_VERSION,
 } from './services/gmRun';
-import { mapLogs, pickPublishedPpfg, publishedToBase, curvesToLogs } from './services/prepGm';
+import { mapLogs, pickPublishedPpfg, publishedToBase, curvesToLogs, alignToGrid } from './services/prepGm';
 import { preparePublishLogs } from './services/publishGm';
 import { exportWindowCsv, exportMemReportPdf } from './services/gmExport';
 
@@ -172,6 +172,9 @@ function GmWorkstationContent({ backend }) {
         const rhobData = mapped.RHOB ? await backend.downloadCurve(mapped.RHOB) : null;
         rawLogs = curvesToLogs({ deptData, dtLog: mapped.DT, dtData, rhobLog: mapped.RHOB, rhobData });
         dt = rawLogs.dtUsPerM;
+        // PP-U1-007: the published curves start at the mudline on their own
+        // MD grid; the UCS correlation needs DT on that grid
+        if (published) published.dtAligned = alignToGrid(rawLogs.depthM, rawLogs.dtUsPerM, published.tvdM);
       }
       setCurves({
         published,
@@ -180,7 +183,7 @@ function GmWorkstationContent({ backend }) {
         inputLogIds: [mapped?.DEPT?.id, mapped?.DT?.id, mapped?.RHOB?.id, ppfg.PP?.id, ppfg.OBG?.id].filter(Boolean),
         status: {
           DEPT: !!mapped?.DEPT, DT: !!mapped?.DT, RHOB: !!mapped?.RHOB,
-          'pp-1.0.0 PP': !!ppfg.PP, 'pp-1.0.0 OBG': !!ppfg.OBG,
+          'published PP': !!ppfg.PP, 'published OBG': !!ppfg.OBG,
         },
       });
       toast({ title: 'Curves loaded', description: 'Curve mapping updated.' });

@@ -153,7 +153,7 @@ const GeomechanicsHelpGuideContent = () => {
             <Section id="quickstart">
               <SectionHeading icon={Zap}>Quick Start (10 min)</SectionHeading>
               <Step n={1} title="Pick the wellbore and create a case">The bridged registry well is preselected when the wellbore is linked.</Step>
-              <Step n={2} title="Load curves">The Studio maps DEPT/DT/RHOB by mnemonic aliases and finds published pp-1.0.0 PP/OBG curves.</Step>
+              <Step n={2} title="Load curves">The Studio maps DEPT/DT/RHOB by mnemonic aliases and finds published pp-1.0.0 or pp-1.1.0 PP/OBG curves.</Step>
               <Step n={3} title="Choose the pore pressure source">Published curves when they exist; otherwise compute Eaton over DT or fall back to hydrostatic.</Step>
               <Step n={4} title="Set the parameters">Poisson, Biot, friction angle, tectonic strains, SHmax azimuth, regime and the UCS correlation. Lithology seeds fill sensible defaults.</Step>
               <Step n={5} title="Build the MEM and check quality">Stress and UCS tracks plus the quality score and warnings.</Step>
@@ -166,11 +166,11 @@ const GeomechanicsHelpGuideContent = () => {
                 Curves come from the shared wells registry (the same store Pore Pressure
                 Studio and the geoscience apps use). Sonic and density are matched through
                 the standard mnemonic aliases; published pore pressure and overburden are
-                recognized by their pp-1.0.0 provenance and are the preferred source, since
+                recognized by their pp-1.0.0 or pp-1.1.0 provenance and are the preferred source, since
                 they were built with fitted compaction trends and carry no assumed ones.
               </Para>
               <Callout tone="info" title="Order of preference">
-                Published pp-1.0.0 curves, then an in-app Eaton computation over DT, then a
+                Published pp-1.0.0 or pp-1.1.0 curves, then an in-app Eaton computation over DT, then a
                 plain hydrostatic assumption. The source used is always shown on the results
                 card and stored with the run.
               </Callout>
