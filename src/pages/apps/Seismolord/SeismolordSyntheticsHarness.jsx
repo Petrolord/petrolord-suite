@@ -57,7 +57,30 @@ for (let i = 0; i < N; i++) {
 }
 for (let i = 350; i < 360; i++) DT_CURVE[i] = -999.25;
 
+// RP-U1-009: the fluid-substituted case Rock Physics Studio publishes
+// (layer 2 to gas: Vp 2300 m/s, 2.05 g/cc), DT_SUB in us/m and RHOB_SUB in
+// kg/m3, listed FIRST so the pickers' measured-first default is exercised
+const DT_SUB_CURVE = new Float32Array(N);
+const RHOB_SUB_CURVE = new Float32Array(N);
+for (let i = 0; i < N; i++) {
+  const gasLayer = i >= 150 && i < 300;
+  DT_SUB_CURVE[i] = gasLayer ? 1e6 / 2300 : DT_CURVE[i];
+  RHOB_SUB_CURVE[i] = (gasLayer ? 2.05 : RHOB_CURVE[i]) * 1000;
+}
+const RP_PROVENANCE = {
+  computed: true, engine: 'rock-physics-studio', pipeline_version: 'rp-1.1.0',
+  fluids: '100% brine to 100% gas', zone: { name: 'Layer 2', top_md_m: 150, base_md_m: 299 },
+};
+
 const LOGS = [
+  {
+    id: 'log-dt-sub', well_id: 'w-syn', mnemonic: 'DT_SUB', unit: 'US/M',
+    start_md_m: 0, stop_md_m: 600, step_m: 1, n_samples: N, provenance: RP_PROVENANCE,
+  },
+  {
+    id: 'log-rhob-sub', well_id: 'w-syn', mnemonic: 'RHOB_SUB', unit: 'KG/M3',
+    start_md_m: 0, stop_md_m: 600, step_m: 1, n_samples: N, provenance: RP_PROVENANCE,
+  },
   {
     id: 'log-dt', well_id: 'w-syn', mnemonic: 'DT', unit: 'US/M',
     start_md_m: 0, stop_md_m: 600, step_m: 1, n_samples: N,
@@ -67,7 +90,7 @@ const LOGS = [
     start_md_m: 0, stop_md_m: 600, step_m: 1, n_samples: N,
   },
 ];
-const CURVES = { 'log-dt': DT_CURVE, 'log-rhob': RHOB_CURVE };
+const CURVES = { 'log-dt': DT_CURVE, 'log-rhob': RHOB_CURVE, 'log-dt-sub': DT_SUB_CURVE, 'log-rhob-sub': RHOB_SUB_CURVE };
 
 // "real seismic": the ideal wedge reflectivity (hand RCs at 150/270 ms)
 // convolved with the same 25 Hz Ricker, delayed by +8 ms (4 samples)

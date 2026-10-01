@@ -6,14 +6,19 @@
 // republish replaces only this engine's curves for the same well and
 // project. Pure; the backends do the I/O.
 
-export const PIPELINE_VERSION = 'rp-1.0.0';
+// rp-1.1.0 (RP-U1, 2026-10-01): DT_SUB added (us/m, so Seismolord's
+// synthetics list it as a sonic); provenance carries the porosity basis,
+// the Sw source, the K_min source and the Gassmann limits
+export const PIPELINE_VERSION = 'rp-1.1.0';
 export const ENGINE = 'rock-physics-studio';
 
 const SPECS = [
   { mnemonic: 'VP_SUB', key: 'vp', unit: 'M/S', what: 'P velocity' },
   { mnemonic: 'VS_SUB', key: 'vs', unit: 'M/S', what: 'S velocity' },
   { mnemonic: 'RHOB_SUB', key: 'rho', unit: 'KG/M3', what: 'Bulk density' },
+  { mnemonic: 'DT_SUB', key: 'dt', unit: 'US/M', what: 'Compressional slowness' },
 ];
+const slowness = (vp) => (Number.isFinite(vp) && vp > 0 ? 1e6 / vp : NaN);
 
 /**
  * @param {{depth: ArrayLike<number>, vp, vs, rho, vsSource?: string}} model the well model (SI)
@@ -32,12 +37,14 @@ export function preparePublishLogs(model, sub, indices, zone, meta) {
   const fluidA = meta.scenario?.fluidA; const fluidB = meta.scenario?.fluidB;
   const label = `${describeFluid(fluidA)} to ${describeFluid(fluidB)}`;
   return SPECS.map((spec) => {
-    const src = model[spec.key];
-    const alt = sub[spec.key];
+    const isDt = spec.key === 'dt';
+    const src = isDt ? model.vp : model[spec.key];
+    const alt = isDt ? sub.vp : sub[spec.key];
     const data = new Float32Array(n);
     let nullCount = 0;
     for (let i = 0; i < n; i++) {
-      const v = inZone[i] && Number.isFinite(alt[i]) ? alt[i] : src[i];
+      const raw = inZone[i] && Number.isFinite(alt[i]) ? alt[i] : src[i];
+      const v = isDt ? slowness(raw) : raw;
       data[i] = Number.isFinite(v) ? v : NaN;
       if (!Number.isFinite(v)) nullCount += 1;
     }
@@ -61,6 +68,13 @@ export function preparePublishLogs(model, sub, indices, zone, meta) {
         rock: meta.rock || null,
         kmin_pa: meta.kmin ?? null,
         vs_source: model.vsSource || 'measured',
+        fluids: label,
+        phi_basis: sub.phiBasis || (model.phi ? (model.phiBasis || 'effective') : 'constant'),
+        phi_curve: model.phiCurve || null,
+        sw_from_log: !!sub.swFromLog,
+        kmin_source: sub.kminSource || 'table',
+        limits: { vsh_max: meta.rock?.vshMax ?? null, phi_min: meta.rock?.phiMin ?? null },
+        samples_left_in_situ: sub.outside || 0,
         input_log_ids: meta.inputLogIds || [],
       },
     };

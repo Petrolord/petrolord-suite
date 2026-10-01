@@ -169,12 +169,12 @@ test('RP1: the substituted case publishes to the well as VP_SUB / VS_SUB / RHOB_
   await expect(page.getByTestId('rp-published-curves')).toHaveCount(0);
 
   await page.getByTestId('rp-publish').click();
-  await expect(page.getByTestId('rp-status')).toHaveText('Published VP_SUB/VS_SUB/RHOB_SUB to the well registry.');
+  await expect(page.getByTestId('rp-status')).toHaveText('Published VP_SUB/VS_SUB/RHOB_SUB/DT_SUB to the well registry.');
   await expect(page.getByTestId('rp-published-curves')).toHaveText('published: VP_SUB, VS_SUB, RHOB_SUB');
 
   // republish replaces this project's curves rather than adding a second set
   await page.getByTestId('rp-publish').click();
-  await expect(page.getByTestId('rp-status')).toHaveText('Published VP_SUB/VS_SUB/RHOB_SUB to the well registry.');
+  await expect(page.getByTestId('rp-status')).toHaveText('Published VP_SUB/VS_SUB/RHOB_SUB/DT_SUB to the well registry.');
   await expect(page.getByTestId('rp-published-curves')).toHaveText('published: VP_SUB, VS_SUB, RHOB_SUB');
 
   // the engine inputs are untouched by the publish (exact-name mapping)
