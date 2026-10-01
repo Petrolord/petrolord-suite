@@ -19,6 +19,7 @@ export default function StripLog({ topM, baseM, heightPx, tracks, markers = [], 
   let x = 0;
   const placed = tracks.map((t) => { const p = { ...t, x0: x }; x += t.width; return p; });
   const width = x;
+  const labelTrack = placed.find((t) => t.type === 'markers') || null;
   const font = { fontFamily: CHART_TYPOGRAPHY.fontFamily, fontSize: CHART_TYPOGRAPHY.annotationFontSize, fill: CHART_COLORS.axisText };
   return (
     <div className="relative inline-block bg-white rounded-lg border border-slate-300 p-2" data-canvas="chart" data-testid={testId} data-top-m={topM} data-base-m={baseM} data-height={heightPx} data-tracks={tracks.map((t) => t.id).join(',')}>
@@ -69,7 +70,9 @@ export default function StripLog({ topM, baseM, heightPx, tracks, markers = [], 
             return (
               <g key={m.id} data-testid={`${testId}-marker-${m.id}`} data-marker={m.kind} data-y={y.toFixed(1)}>
                 <line x1={0} x2={width} y1={y} y2={y} stroke={m.color} strokeWidth={1.2} strokeDasharray={m.dashed ? '6 4' : undefined} />
-                <text x={width - 4} y={y - 2} textAnchor="end" style={{ ...font, fill: m.color, fontWeight: 600 }}>{m.label}</text>
+                {labelTrack
+                  ? <text x={labelTrack.x0 + 4} y={Math.max(9, y - 2)} style={{ ...font, fill: m.color, fontWeight: 600 }}>{m.label}</text>
+                  : <text x={width - 4} y={y - 2} textAnchor="end" style={{ ...font, fill: m.color, fontWeight: 600 }}>{m.label}</text>}
               </g>
             );
           })}

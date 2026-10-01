@@ -58,14 +58,12 @@ import { newId } from '@/lib/wellsite/ids';
 import SurveysView from './SurveysView';
 import LogView from './LogView';
 import { dExponentSeries, currentDxcSettings, dxcSettingsParams } from '../services/dexponent';
-import { depthWindow, depthTrack, dExponentTrack } from '../services/stripLog';
+import { buildStripLog } from '../services/stripLog';
 import { SURVEY_SUBTYPE, activeSurvey, wellWithSurvey, surveyRuns, staleDepths } from '../services/surveys';
 import { LAG_CHECK_SUBTYPE, currentWashout, lagCheckParams, washoutParams } from '../services/lagCheck';
 
 // record types added by the upgrade that belong with the typed observations (lists, evidence, reports)
 const EXTRA_OBSERVATION_SUBTYPES = [GAS_SUBTYPE, 'lag_check', SURVEY_SUBTYPE];
-
-const latestBitMdForLog = (bits) => (bits.length ? bits[bits.length - 1].md_calc_m : null);
 
 export const VIEWS = [
   { id: 'live', label: 'Live', icon: Activity },
@@ -320,11 +318,6 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setStatus(`${params.payload.statement}.`);
     setTick((t) => t + 1);
   }, [backend, well, dxcSettings, user]);
-  const logModel = useMemo(() => {
-    const win = depthWindow({ points: mudlog.points, bitMdM: latestBitMdForLog(bitDepths) });
-    const tracks = win ? [depthTrack(units.depth), ...(dxc.rows.length ? [dExponentTrack(dxc)] : [])] : [];
-    return { win, tracks, markers: [] };
-  }, [mudlog, bitDepths, dxc, units.depth]);
   const recordSurveyRun = useCallback(async (p) => {
     const { row } = await backend.addRecord(well.id, p);
     setStatus(`${row.payload.text} TVD and subsea depths now follow it.`);
@@ -349,6 +342,15 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const prognosis = useMemo(() => currentPrognosis(prognoses), [prognoses]);
   const latestBitMd = bitDepths.length ? bitDepths[bitDepths.length - 1].md_calc_m : null;
   const topsBoard = useMemo(() => (well && ctx ? formationBoard({ tops, prognosis, bitMdM: latestBitMd, ctx }) : { rows: [], next: null, conflicts: [] }), [well, ctx, tops, prognosis, latestBitMd]);
+  // U2-001: the composite log model (tracks and markers) from the record
+  const logModel = useMemo(() => buildStripLog({ well, unit: units.depth, mudlog, bitDepths, events, descriptions, shows, observations, topsBoard, rigConfig, dxc }),
+    [well, units.depth, mudlog, bitDepths, events, descriptions, shows, observations, topsBoard, rigConfig, dxc]);
+  const exportLogPdf = useCallback(async ({ window: w, scale }) => {
+    const { exportStripLogPdf } = await import('../services/stripLogPdf');
+    const name = await exportStripLogPdf(logModel, { well, unit: units.depth, toDisplay: (m) => (units.depth === 'ft' ? m / 0.3048 : m), scale, window: w,
+      reviewer: { kbElevM: ctx ? ctx.kbElevM : null, preparedBy: user ? user.name || user.email : null, build: `${buildLabel()}, Wellsite Studio` } });
+    setStatus(`Strip log saved as ${name}.`);
+  }, [logModel, well, units.depth, ctx, user]);
   const approver = useMemo(() => canApprove(user, members, well), [user, members, well]);
   const isAdmin = useMemo(() => !!(user && members.some((m) => m.user_id === user.id && m.role === 'administrator' && m.status === 'active')), [user, members]);
   const allObservationRecords = useMemo(() => [...observations, ...descriptions, ...shows].sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at)), [observations, descriptions, shows]);
@@ -547,7 +549,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   } else if (view === 'surveys') {
     center = <SurveysView inUse={surveyInUse} ctx={ctx} unit={units.depth} offsetMin={offsetMin} stale={staleNow} runs={surveyRuns(surveyRecords)} onRecord={recordSurveyRun} onStatus={setStatus} nameOf={nameOf} />;
   } else if (view === 'log') {
-    center = <LogView win={logModel.win} tracks={logModel.tracks} markers={logModel.markers} dxc={dxc} dxcSettings={dxcSettings} onSaveDxc={saveDxcSettings} unit={units.depth} onStatus={setStatus} title={`${well.name}.`} />;
+    center = <LogView win={logModel.win} tracks={logModel.tracks} markers={logModel.markers} dxc={dxc} dxcSettings={dxcSettings} onSaveDxc={saveDxcSettings} unit={units.depth} onStatus={setStatus} title={`${well.name}.`} notes={logModel.notes} legend={logModel.legend} onPdf={exportLogPdf} />;
   } else if (view === 'tops') {
     center = <TopsView board={topsBoard} tops={tops} records={allObservationRecords} prognosis={prognosis} ctx={ctx} defaults={entryDefaults} unit={units.depth} offsetMin={offsetMin}
       approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} geoWellId={well.geo_well_id} loadRegistryWells={loadRegistryWells} onAddPrognosisTop={addPrognosisTop} onPublish={publishToRegistry} onStatus={setStatus} userName={user ? user.name || user.email : ''} nameOf={nameOf} photos={photos} />;

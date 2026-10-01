@@ -336,7 +336,17 @@ export default function WellsiteHelpGuide() {
         <SectionHeading icon={LineChart}>The strip log and the d-exponent</SectionHeading>
         <Para>
           The Log view draws the well against depth, with depth increasing down the page. Choose the depth window and the vertical
-          scale (fit the window, or 1:200, 1:500, 1:1000, 1:2000 as on paper).
+          scale (fit the window, or 1:200, 1:500, 1:1000, 1:2000 as on paper). The tracks, left to right: depth; rate of
+          penetration (the imported curve, or the recorded bit depths over drilling time when nothing was imported, and the log
+          says which); the lithology column, each description drawn as its percentages in the Suite lithology colours; gas in ppm
+          on a logarithmic scale (total gas, C1 to C5, typed and imported together; total gas in uncalibrated units on a track of
+          its own); the d-exponent; tops and casing (tops as called are solid lines, the prognosis dashed, casing shoes brown);
+          and the descriptions and shows as text at the top of their intervals.
+        </Para>
+        <Para>
+          PDF saves the same log as a document to the chosen scale, page after page down the hole. Every page states the well,
+          field, operator and rig, that depths are measured depths below KB with the KB elevation, the interval and the scale,
+          who prepared it and the software build. An interval too long for the scale is refused with what to change.
         </Para>
         <SubHeading>d-exponent</SubHeading>
         <Para>

@@ -12,7 +12,8 @@ import { NORMAL_UNITS, normalFromKgM3, dxcSummary } from '../services/dexponent'
 
 const SCALES = [{ key: 'fit', label: 'fit the window' }, { key: '200', label: '1:200' }, { key: '500', label: '1:500' }, { key: '1000', label: '1:1000' }, { key: '2000', label: '1:2000' }];
 
-export default function LogView({ win, tracks, markers, dxc, dxcSettings, onSaveDxc, unit, onStatus, title = '', toolbarSlot = null, belowSlot = null }) {
+export default function LogView({ win, tracks, markers, dxc, dxcSettings, onSaveDxc, unit, onStatus, title = '', toolbarSlot = null, belowSlot = null, notes = [], legend = [], onPdf = null }) {
+  const [pdfBusy, setPdfBusy] = useState(false);
   const [fromText, setFromText] = useState('');
   const [toText, setToText] = useState('');
   const [scaleKey, setScaleKey] = useState('fit');
@@ -58,6 +59,8 @@ export default function LogView({ win, tracks, markers, dxc, dxcSettings, onSave
         <label className="text-[10px] text-pl-muted">Vertical scale<br />
           <select className={sel} value={scaleKey} onChange={(e) => setScaleKey(e.target.value)} data-testid="ws-log-scale">{SCALES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}</select>
         </label>
+        {onPdf && <Button size="sm" variant="outline" disabled={pdfBusy || !winNow || !!winNow.error || tracks.length === 0} data-testid="ws-log-pdf" title="The strip log as a PDF to the chosen scale, with the well, depth reference, KB, preparer and build on every page"
+          onClick={async () => { setPdfBusy(true); try { await onPdf({ window: { topM: winNow.topM, baseM: winNow.baseM }, scale: scaleKey }); } catch (e) { onStatus?.(e.message); } finally { setPdfBusy(false); } }}>{pdfBusy ? 'Preparing PDF' : 'PDF'}</Button>}
         {toolbarSlot}
       </div>
       {winNow && winNow.error && <div className="text-[11px] text-pl-warning-text" data-testid="ws-log-window-error">{winNow.error}</div>}
@@ -93,6 +96,13 @@ export default function LogView({ win, tracks, markers, dxc, dxcSettings, onSave
         </div>
       ) : <div className="text-xs text-pl-muted" data-testid="ws-log-empty">Nothing to draw yet. Record bit depths, descriptions or tops, or import the mudlogging data.</div>}
 
+      {legend.length > 0 && (
+        <div className="flex items-center gap-3 flex-wrap text-[11px] text-pl-text" data-testid="ws-log-legend">
+          {legend.map((l) => <span key={l.name} className="inline-flex items-center gap-1"><span style={{ background: l.color }} className="inline-block w-3 h-3 border border-slate-500" />{l.name}</span>)}
+          <span className="text-pl-muted">Solid lines are tops as called, dashed lines the prognosis, brown lines casing shoes.</span>
+        </div>
+      )}
+      {notes.map((n) => <div key={n} className="text-[11px] text-pl-muted" data-testid="ws-log-note">{n}</div>)}
       {dxc && dxc.flagged.length > 0 && (
         <table className="text-xs text-pl-text" data-testid="ws-dxc-flagged">
           <thead><tr className="text-[10px] uppercase text-pl-muted text-left"><th className="pr-3">Depth</th><th className="pr-3">d</th><th className="pr-3">dc</th><th className="pr-3">Normal dc</th><th className="pr-3">dc over normal</th></tr></thead>

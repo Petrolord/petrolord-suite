@@ -178,7 +178,7 @@ test('screen: imported rows become a d-exponent track; the settings are a record
   fireEvent.click(screen.getByTestId('ws-nav-log'));
   await waitFor(() => expect(screen.getByTestId('ws-dxc-summary')).toHaveTextContent('19 row(s) with a d-exponent, 0 corrected for the mud weight.'));
   expect(screen.getByTestId('ws-dxc-settings')).toHaveTextContent('No settings recorded: the d-exponent is shown uncorrected.');
-  expect(screen.getByTestId('ws-striplog')).toHaveAttribute('data-tracks', 'depth,dxc');
+  expect(screen.getByTestId('ws-striplog')).toHaveAttribute('data-tracks', 'depth,rop,dxc');
   expect(screen.getByTestId('ws-striplog-series-dxc-d')).toHaveAttribute('data-points', '19');
   // an undeclared unit is refused
   fireEvent.change(screen.getByTestId('ws-dxc-normal'), { target: { value: '8.6' } });
