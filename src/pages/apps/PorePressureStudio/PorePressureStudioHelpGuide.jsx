@@ -167,6 +167,15 @@ export default function PorePressureStudioHelpGuide() {
           ['Bowers', 'Inverts the velocity to effective stress through the loading curve; with U and the maximum stress set, the unloading curve applies where the velocity has reversed.', 'A and B in ft/s and psi as published; U; sigma max'],
         ]} />
         <Para>
+          The fracture method is chosen under Fracture gradient in the dock. All three add a share of the effective
+          overburden to the pore pressure: Eaton (1969) takes the share nu over one minus nu from Poisson's ratio;
+          Matthews and Kelly (1967) take a matrix stress coefficient k0 directly (0.75 is the most likely value in
+          Zhang and Yin's study of leak-off tests); Daines (1982) adds a tectonic share beta to Eaton's. Eaton equals
+          Matthews and Kelly when k0 is nu over one minus nu, and Daines equals Eaton when beta is zero. With leak-off
+          tests imported, Calibrate FG to LOT sets the method's coefficient (nu, k0 or beta) from the median over the
+          LOT and XLOT tests (FITs, being lower bounds, only when no LOT is there, and said).
+        </Para>
+        <Para>
           The fracture pressure is the minimum horizontal stress from Poisson's ratio: the pore pressure plus the
           effective overburden scaled by nu over one minus nu. The dock's calibration points (a depth and a pressure
           per line, in the display units) are drawn on the prognosis as dots and compared with the pore pressure (the

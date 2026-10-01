@@ -11,6 +11,7 @@ import { fitEatonExponent, fitBowersLoading, fitBowersU } from '../engine/calibr
 import { computeProfile } from '../engine/profile';
 import { calibrationMisfit } from './honesty';
 import { comparesTo } from './calibrationImport';
+import { k0FromLot, dainesBetaFromLot, eatonK } from '../engine/fracgrad';
 
 /** Pore-pressure points matched to their samples (within the misfit tolerance). */
 export function matchedPoints(calibration, input, result) {
@@ -84,4 +85,64 @@ export function fitToCalibration(params, input, result, calibration) {
     rmsAfterMpa: rmsAfter,
     text: `Fitted ${what} to ${pts.length} measured pressure${pts.length === 1 ? '' : 's'}: misfit RMS ${before.toFixed(2)} MPa before, ${rmsAfter.toFixed(2)} MPa after.`,
   };
+}
+
+// ---- U2-012: the fracture method calibrated to leak-off tests ----------------
+
+export const FRAC_METHOD_LABELS = Object.freeze({
+  eaton: 'Eaton (Poisson ratio)', 'matthews-kelly': 'Matthews and Kelly (k0)', daines: 'Daines (Poisson ratio + tectonic beta)',
+});
+
+/** The fracture method in words, for the report and the publish description. */
+export function fracMethodText(p) {
+  const m = p.fracMethod || 'eaton';
+  if (m === 'matthews-kelly') return `Matthews and Kelly, FP = k0 (S - PP) + PP, k0 = ${p.k0 ?? 0.75}`;
+  if (m === 'daines') return `Daines, FP = (beta + nu/(1-nu)) (S - PP) + PP, nu = ${p.nu}, beta = ${p.beta ?? 0}`;
+  return `K = nu/(1-nu), nu = ${p.nu}`;
+}
+
+const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const n = s.length; return n % 2 ? s[(n - 1) / 2] : 0.5 * (s[n / 2 - 1] + s[n / 2]); };
+
+/**
+ * The method's coefficient from the LOT/XLOT points in the prognosis (the
+ * median over the tests; a FIT is a lower bound, so it is used only when no
+ * LOT or XLOT is there, and said).
+ * @returns {{params: object, text: string}|{error: string}}
+ */
+export function calibrateFracToLot(params, input, result, calibration) {
+  const lots = (calibration || []).filter((c) => comparesTo(c) === 'fg');
+  const mis = calibrationMisfit(lots, input.zBmlM, result.fracPressurePa, 'fg');
+  const ok = mis.points.map((p, k) => ({ p, c: lots[k] })).filter(({ p }) => p.inRange);
+  const firm = ok.filter(({ c }) => c.kind !== 'fit');
+  const use = firm.length ? firm : ok;
+  if (!use.length) return { error: 'Calibrating the fracture gradient needs a LOT, XLOT or FIT within the prognosis.' };
+  const at = ({ c }) => {
+    let best = 0;
+    for (let i = 1; i < input.zBmlM.length; i++) if (Math.abs(input.zBmlM[i] - c.z) < Math.abs(input.zBmlM[best] - c.z)) best = i;
+    return { lot: c.pMpa * 1e6, S: result.overburdenPa[best], PP: result.porePressurePa[best] };
+  };
+  const m = params.fracMethod || 'eaton';
+  let next; let what;
+  try {
+    const k0s = use.map(at).map((q) => k0FromLot(q.lot, q.S, q.PP));
+    if (m === 'matthews-kelly') {
+      const k0 = median(k0s);
+      if (!(k0 >= 0) || !(k0 <= 1.5)) return { error: `The tests give k0 ${k0.toFixed(3)}, outside 0 to 1.5: check the tests and the pore pressure there.` };
+      next = { ...params, k0: Number(k0.toFixed(4)) }; what = `k0 ${k0.toFixed(3)}`;
+    } else if (m === 'daines') {
+      const beta = median(use.map(at).map((q) => dainesBetaFromLot(q.lot, q.S, q.PP, params.nu)));
+      next = { ...params, beta: Number(beta.toFixed(4)) }; what = `beta ${beta.toFixed(3)} with nu ${params.nu}`;
+    } else {
+      const k0 = median(k0s);
+      const nu = k0 / (1 + k0); // K = nu/(1-nu) solved for nu
+      if (!(nu >= 0) || !(nu < 0.5)) return { error: `The tests give K ${k0.toFixed(3)}, which no Poisson ratio below 0.5 reaches: try Matthews and Kelly or Daines.` };
+      next = { ...params, nu: Number(nu.toFixed(4)) }; what = `nu ${nu.toFixed(3)} (K ${eatonK(nu).toFixed(3)})`;
+    }
+  } catch (e) {
+    return { error: e.message };
+  }
+  const after = computeProfile({ ...input, params: next });
+  const rms = calibrationMisfit(use.map(({ c }) => c), input.zBmlM, after.fracPressurePa, 'fg').rmsMpa;
+  const fitNote = firm.length ? '' : ' (FITs only: a FIT is a lower bound, so the line may sit low)';
+  return { params: next, text: `Fracture gradient calibrated to ${use.length} test${use.length === 1 ? '' : 's'}: ${what}, RMS ${rms.toFixed(2)} MPa at the tests${fitNote}.` };
 }

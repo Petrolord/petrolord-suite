@@ -142,3 +142,43 @@ describe('U2-008 the registry door reads a layer cake along the well', () => {
     expect(srd.boundaryTwtMs[0]).toBeLessThan(r.boundaryTwtMs[0]);
   });
 });
+
+// ---- U2-012 fracture methods, calibrated to leak-off tests ----------------------
+import { calibrateFracToLot, fracMethodText } from '../services/calibrate';
+import { preparePublishLogs } from '../services/publish';
+
+describe('U2-012 Eaton, Matthews and Kelly, Daines in the app', () => {
+  const params = {
+    waterDepthM: 100, rhoSeawaterKgM3: 1025, rhoFluidKgM3: 1030, mudlineMdM: 130,
+    nct: { dtMlUsPerM: 656, dtMaUsPerM: 220, cPerM: 6e-4 }, method: 'eaton', eatonN: 3, nu: 0.3,
+  };
+  const input = { zBmlM: W.z_bml_m, dtUsPerM: W.dt_us_per_m, rhoKgM3: W.rho_kg_m3 };
+  // LOTs on the goldens' own fracture line (nu 0.4, K 2/3)
+  const lots = [1000, 2000, 3000].map((z) => ({ z, pMpa: W.frac_pressure_pa[W.z_bml_m.indexOf(z)] / 1e6, kind: 'lot', source: 'lot.csv' }));
+
+  test('each method recovers the coefficient the tests were made with', () => {
+    const r0 = computeProfile({ ...input, params });
+    const e = calibrateFracToLot(params, input, r0, lots);
+    expect(e.params.nu).toBeCloseTo(0.4, 4);
+    expect(e.text).toMatch(/calibrated to 3 tests: nu 0.400 \(K 0.667\), RMS 0.00 MPa/);
+    const mk = calibrateFracToLot({ ...params, fracMethod: 'matthews-kelly', k0: 0.75 }, input, computeProfile({ ...input, params: { ...params, fracMethod: 'matthews-kelly', k0: 0.75 } }), lots);
+    expect(mk.params.k0).toBeCloseTo(2 / 3, 4);
+    const dp = { ...params, fracMethod: 'daines', nu: 0.25, beta: 0 };
+    const d = calibrateFracToLot(dp, input, computeProfile({ ...input, params: dp }), lots);
+    expect(d.params.beta).toBeCloseTo(2 / 3 - 1 / 3, 4);
+    // negative control: the uncalibrated Eaton line (nu 0.3) misses the tests by megapascals
+    const miss = Math.abs(r0.fracPressurePa[W.z_bml_m.indexOf(3000)] - lots[2].pMpa * 1e6);
+    expect(miss).toBeGreaterThan(3e6);
+  });
+
+  test('FITs alone are said to be lower bounds; none is refused; the words follow the method', () => {
+    const r0 = computeProfile({ ...input, params });
+    const fits = lots.map((l) => ({ ...l, kind: 'fit' }));
+    expect(calibrateFracToLot(params, input, r0, fits).text).toMatch(/FITs only: a FIT is a lower bound/);
+    expect(calibrateFracToLot(params, input, r0, []).error).toMatch(/needs a LOT/);
+    expect(fracMethodText({ fracMethod: 'daines', nu: 0.25, beta: 0.1 })).toBe('Daines, FP = (beta + nu/(1-nu)) (S - PP) + PP, nu = 0.25, beta = 0.1');
+    const mkParams = { ...params, fracMethod: 'matthews-kelly', k0: 0.75 };
+    const pub = preparePublishLogs({ ...input, mdM: W.z_bml_m.map((z) => z + 130) }, computeProfile({ ...input, params: mkParams }), mkParams, { projectId: 'p' });
+    expect(pub.find((l) => l.mnemonic === 'FP').description).toBe('Fracture pressure (Matthews and Kelly k0=0.75)');
+  });
+});

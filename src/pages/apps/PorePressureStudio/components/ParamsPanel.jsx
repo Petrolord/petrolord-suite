@@ -56,6 +56,9 @@ const toDraft = (params, calibration, units) => {
     bowersU: params.bowers?.U != null ? String(params.bowers.U) : '',
     bowersSigmaMax: sMax != null ? tidy(pressureToDisplay(sMax, stressUnit(pU)), pressureDigits(stressUnit(pU))) : '',
     nu: String(params.nu),
+    fracMethod: params.fracMethod || 'eaton',
+    k0: String(params.k0 ?? 0.75),
+    beta: String(params.beta ?? 0),
     tripMargin: tidy(densityToDisplay(marginsOf(params).tripKgM3, pU), densityDigits(pU)),
     kickMargin: tidy(densityToDisplay(marginsOf(params).kickKgM3, pU), densityDigits(pU)),
     minSeat: tidy(depthToDisplay(marginsOf(params).minShallowSeatBmlM, zU), 2),
@@ -103,6 +106,10 @@ export default function ParamsPanel({
       resNct: { r0OhmM: num(d.resR0), bPerM: compactionFromDisplay(num(d.resB), zU) },
       bowers,
       nu: num(d.nu),
+      // U2-012: the fracture method and its coefficient
+      fracMethod: d.fracMethod,
+      k0: num(d.k0),
+      beta: num(d.beta),
       report: { field: d.field.trim(), analyst: d.analyst.trim() },
       // U2-003: margins are density differences, so the unit converts by its factor alone
       margins: {
@@ -168,7 +175,21 @@ export default function ParamsPanel({
           <Field id="pp-param-bowerssmax" label={`σ'max (${stU})`} value={d.bowersSigmaMax} onChange={set('bowersSigmaMax')} />
         </>
       )}
-      <Field id="pp-param-nu" label="Poisson's ratio ν" value={d.nu} onChange={set('nu')} />
+      <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Fracture gradient</div>
+      <label htmlFor="pp-param-fracmethod" className="flex items-center justify-between gap-2 text-xs text-pl-muted">
+        <span>Method</span>
+        <select id="pp-param-fracmethod" data-testid="pp-param-fracmethod" value={d.fracMethod}
+          onChange={(e) => setD((prev) => ({ ...prev, fracMethod: e.target.value }))}
+          className="w-36 px-1 py-1 rounded bg-pl-surface border border-pl-border-strong text-pl-text text-xs">
+          <option value="eaton">Eaton (nu)</option>
+          <option value="matthews-kelly">Matthews and Kelly (k0)</option>
+          <option value="daines">Daines (nu + beta)</option>
+        </select>
+      </label>
+      {d.fracMethod === 'matthews-kelly'
+        ? <Field id="pp-param-k0" label="Matrix stress coefficient k0" value={d.k0} onChange={set('k0')} />
+        : <Field id="pp-param-nu" label="Poisson's ratio ν" value={d.nu} onChange={set('nu')} />}
+      {d.fracMethod === 'daines' && <Field id="pp-param-beta" label="Tectonic beta" value={d.beta} onChange={set('beta')} />}
 
       <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Drilling margins and casing seats</div>
       <Field id="pp-param-trip" label={`Trip margin (${dU})`} value={d.tripMargin} onChange={set('tripMargin')} />

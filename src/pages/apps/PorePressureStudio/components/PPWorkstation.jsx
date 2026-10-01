@@ -43,7 +43,7 @@ import { inputNotes, trendDepthM } from '../services/honesty';
 import { reviewerLines, prognosisPdf } from '../services/report';
 import { drillingWindow, casingDesign, WINDOW_FROM_BML_M } from '../services/drillingWindow';
 import { pickShaleLog, normalizeShaleIndicator } from '../services/shalePicks';
-import { fitTarget, fitToCalibration } from '../services/calibrate';
+import { fitTarget, fitToCalibration, calibrateFracToLot } from '../services/calibrate';
 import { datumToMudline } from '../services/alongHole';
 import { comparesTo } from '../services/calibrationImport';
 import {
@@ -454,6 +454,14 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   // U2-006: fit the method's parameter to the measured pressures
   const target = fitTarget(params);
   const ppPoints = calibration.filter((c) => comparesTo(c) === 'pp').length;
+  const lotPoints = calibration.filter((c) => comparesTo(c) === 'fg').length;
+  const calibrateFrac = () => {
+    if (!result || !input) return;
+    const r = calibrateFracToLot(params, input, result, calibration);
+    if (r.error) { setStatus(r.error); return; }
+    setParams(r.params);
+    setStatus(r.text);
+  };
   const fitCalibration = () => {
     if (!result || !input) return;
     const r = fitToCalibration(params, input, result, calibration);
@@ -764,13 +772,20 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
           </div>
         )
       )}
-      {target && ppPoints > 0 && (
-        <div className="px-1">
-          <button type="button" data-testid="pp-fit-calibration" onClick={fitCalibration}
+      {((target && ppPoints > 0) || lotPoints > 0) && (
+        <div className="px-1 flex gap-2">
+          {lotPoints > 0 && (
+            <button type="button" data-testid="pp-fit-lot" onClick={calibrateFrac}
+              title="Set the fracture method's coefficient (nu, k0 or beta) from the leak-off tests: the median over the tests"
+              className="px-2 py-0.5 text-[11px] rounded border border-pl-primary text-pl-primary-text hover:bg-pl-primary/10">
+              Calibrate FG to LOT ({lotPoints} test{lotPoints === 1 ? '' : 's'})
+            </button>
+          )}
+          {target && ppPoints > 0 && <button type="button" data-testid="pp-fit-calibration" onClick={fitCalibration}
             title="Fit the method parameter to the measured pressures (RFT/MDT, kicks) by least squares on the pore pressure"
             className="px-2 py-0.5 text-[11px] rounded border border-pl-primary text-pl-primary-text hover:bg-pl-primary/10">
             {target.label} ({ppPoints} point{ppPoints === 1 ? '' : 's'})
-          </button>
+          </button>}
         </div>
       )}
       {notes.length > 0 && (
