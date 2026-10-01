@@ -160,7 +160,9 @@ function RockPhysicsStudioHelpGuideContent() {
           The mineral modulus is the Voigt-Reuss-Hill average of the mineral fractions in the dock, or the K_min
           override when typed. Porosity comes from PHIE (effective), else PHIT (total), else the constant; the panel
           says which. With effective porosity the clay belongs to the solid: tick Clay from VSH and each sample's
-          K_min mixes clay in at its VSH. Dry rock moduli are inverted from the in-situ curves with fluid A, then
+          K_min mixes clay in at its VSH. When Petrophysics Studio&apos;s mineral model has been published on the well,
+          tick Minerals from Petrophysics and each sample&apos;s K_min is the Voigt-Reuss-Hill mix of those fractions (their
+          share of the solid); samples with no fractions use the table, and the heading counts them. Dry rock moduli are inverted from the in-situ curves with fluid A, then
           refilled with fluid B, sample by sample over the zone. With Sw from the SW log ticked, fluid A at each sample
           is brine and the hydrocarbon at that sample's log Sw.
         </Para>

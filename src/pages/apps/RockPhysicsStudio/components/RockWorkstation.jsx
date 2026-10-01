@@ -47,6 +47,7 @@ import {
 import { preparePublishLogs, prepareEstimatedSonicLog, ENGINE } from '../services/publish';
 import { pseudoConfig, calibrateOn, calibratedConfig, savedPseudo } from '../services/pseudoSonic';
 import PseudoSonicBox from './PseudoSonicBox';
+import { mineralModelLogs, buildMineralSet } from '../services/petroInputs';
 import { projectRowFromState, projectStateFromRow } from '../services/projectState';
 import { applyIterativeVs, shearSourceText } from '../services/iterativeVs';
 
@@ -147,13 +148,19 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         if (log) curves[key] = await backend.downloadCurve(log);
       }
       const pseudoSonic = rockRef.current?.pseudoSonic || null;
-      const model = buildModel(curves, mapped, { pseudoSonic });
+      // U2-009: the mineral fractions Petrophysics Studio published on this well
+      const mineralEntries = [];
+      for (const { key, log } of mineralModelLogs(logs)) {
+        try { mineralEntries.push({ key, data: await backend.downloadCurve(log) }); } catch { /* an unreadable fraction curve is left out; the model then falls back */ }
+      }
+      const minerals = mineralEntries.length ? buildMineralSet(mineralEntries) : null;
+      const model = buildModel(curves, mapped, { pseudoSonic, minerals });
       setCalibration(null);
       setPseudoError('');
       setWellData({
         wellId,
         model,
-        raw: { curves, mapped },
+        raw: { curves, mapped, minerals },
         builtWith: JSON.stringify(pseudoSonic),
         inventory: Object.entries(mapped).map(([key, log]) => ({ key, log })),
         published: publishedBy(logs),
@@ -181,7 +188,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const baseModel = useMemo(() => {
     if (!wellData) return null;
     if (wellData.model.vpSource !== 'estimated' || wellData.builtWith === pseudoKey) return wellData.model;
-    try { return buildModel(wellData.raw.curves, wellData.raw.mapped, { pseudoSonic: rock.pseudoSonic }); } catch { return wellData.model; }
+    try { return buildModel(wellData.raw.curves, wellData.raw.mapped, { pseudoSonic: rock.pseudoSonic, minerals: wellData.raw.minerals }); } catch { return wellData.model; }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wellData, pseudoKey]);
   const activeZone = zones.find((z) => z.id === zoneId) || zones[0] || null;
@@ -299,6 +306,9 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
       publishing={publishing}
     />
   ) : null;
+
+  // what the other apps have published on this well, for the dock (U2-009, U2-011)
+  const wellInputs = useMemo(() => (wellData ? { minerals: wellData.raw?.minerals || null } : null), [wellData]);
 
   const unitSelect = (key, options, title) => (
     <select
@@ -485,7 +495,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
       center={center}
       dock={(
         <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
-          <RockParamsPanel scenario={scenario} rock={rock} onApply={applyParams} units={units} onUnit={setUnit} />
+          <RockParamsPanel scenario={scenario} rock={rock} onApply={applyParams} units={units} onUnit={setUnit} wellInputs={wellInputs} />
         </ScrollArea>
       )}
       dockOpen={dockOpen}

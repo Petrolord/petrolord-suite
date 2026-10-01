@@ -165,10 +165,34 @@ function sonicPairCurves(withSonic, offset) {
 /** The true Vp of the no-sonic well, for tests. */
 export const noSonicTruth = () => sonicPairCurves(false, 0).truth;
 
+// RP-U2-009 evidence well (?minerals=1): a mixed carbonate and sand section
+// with measured sonic and shear, and the three mineral-fraction curves
+// Petrophysics Studio's mineral model publishes (bulk fractions: they sum
+// to one with the porosity), with its provenance. 2100 to 2110 m is pure
+// calcite, 2110 to 2120 m half quartz and half dolomite, 2120 to 2130 m
+// has no fractions (a refused sample).
+function mineralCurves() {
+  const c = { DEPT: [], DT: [], DTS: [], RHOB: [], PHIE: [], VSH: [], V_QUARTZ: [], V_CALCITE: [], V_DOLOMITE: [] };
+  for (let d = 2090; d <= 2140 + 1e-9; d += 0.5) {
+    const phi = 0.15;
+    const solid = 1 - phi;
+    let q = 1; let ca = 0; let dol = 0;
+    if (d >= 2100 && d < 2110) { q = 0; ca = 1; } else if (d >= 2110 && d < 2120) { q = 0.5; dol = 0.5; }
+    const none = d >= 2120 && d < 2130;
+    c.DEPT.push(d); c.DT.push(1e6 / 4200); c.DTS.push(1e6 / 2400); c.RHOB.push(2.45); c.PHIE.push(phi); c.VSH.push(0.02);
+    c.V_QUARTZ.push(none ? NaN : q * solid); c.V_CALCITE.push(none ? NaN : ca * solid); c.V_DOLOMITE.push(none ? NaN : dol * solid);
+  }
+  return c;
+}
+const MINERAL_PROVENANCE = Object.freeze({
+  computed: true, engine: 'petrophysics-studio', operation: 'mineral-model', pipeline_version: 7,
+  model: { minerals: ['quartz', 'calcite', 'dolomite'] }, tools: ['RHOB', 'NPHI', 'PEF'],
+});
+
 /** The wet (brine) truth of the trend well, for tests. */
 export const trendWellTruth = () => trendCurves().wet;
 
-export function makeInMemoryBackend({ hostile = false, long = false, trend = false, nosonic = false } = {}) {
+export function makeInMemoryBackend({ hostile = false, long = false, trend = false, nosonic = false, minerals = false } = {}) {
   const curveStore = new Map();
   const logsByWell = new Map();
   const topsByWell = new Map();
@@ -238,7 +262,7 @@ export function makeInMemoryBackend({ hostile = false, long = false, trend = fal
   addWell({ name: 'KETA RP-1', isOwn: true, withDts: true });
   addWell({ name: 'AKOMA-2 (org shared)', isOwn: false, org: 'org-dev', withDts: false });
 
-  const addRawWell = (name, curves, units, zones, { start, stop, step }) => {
+  const addRawWell = (name, curves, units, zones, { start, stop, step }, provenanceFor = null) => {
     const id = nextId('well');
     wells.push({
       id, user_id: 'user-dev', organization_id: null, name, uwi: name, surface_x: 501000, surface_y: 6700200,
@@ -252,7 +276,8 @@ export function makeInMemoryBackend({ hostile = false, long = false, trend = fal
       logs.push({
         id: logId, well_id: id, mnemonic, description: `${mnemonic} (RP-U1 evidence well)`, unit: units[mnemonic] ?? null,
         start_md_m: start, stop_md_m: stop, step_m: step, n_samples: vals.length, null_count: 0,
-        source_file: 'inMemoryBackend.js', provenance: { synthetic: true }, storage_path: `dev/${id}/${logId}.f32`,
+        source_file: 'inMemoryBackend.js', provenance: (provenanceFor && provenanceFor(mnemonic)) || { synthetic: true }, storage_path: `dev/${id}/${logId}.f32`,
+        created_at: new Date(2026, 9, 1).toISOString(),
       });
     }
     logsByWell.set(id, logs);
@@ -277,6 +302,12 @@ export function makeInMemoryBackend({ hostile = false, long = false, trend = fal
       [{ name: 'GAS BED', top: TREND_GAS.top, base: TREND_GAS.base }], { start: 1800, stop: 2200, step: 0.5 });
   }
 
+  if (minerals) {
+    addRawWell('MINERAL RP-8 (Petrophysics mineral model)', mineralCurves(),
+      { DEPT: 'M', DT: 'US/M', DTS: 'US/M', RHOB: 'G/C3', PHIE: 'V/V', VSH: 'V/V', V_QUARTZ: 'V/V', V_CALCITE: 'V/V', V_DOLOMITE: 'V/V' },
+      [{ name: 'MIXED', top: 2095, base: 2135 }], { start: 2090, stop: 2140, step: 0.5 },
+      (m) => (/^V_/.test(m) ? MINERAL_PROVENANCE : null));
+  }
   if (nosonic) {
     const units = { DEPT: 'M', DT: 'US/M', RHOB: 'G/C3', RT: 'OHMM', PHIE: 'V/V', VSH: 'V/V' };
     addRawWell('NOSONIC RP-6 (no sonic log)', sonicPairCurves(false, 0).curves, units,

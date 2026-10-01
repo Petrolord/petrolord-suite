@@ -37,7 +37,9 @@ export function reportHeader({ well, zone, model, sub, indices, scenario, rock, 
   const dU = units.density;
   const zU = units.depth;
   const c = scenario.conditions;
-  const kmin = sub.kminSource === 'vsh'
+  const kmin = sub.kminSource === 'petro-minerals' && sub.done
+    ? `${(sub.kminMin / 1e9).toFixed(3)} to ${(sub.kminMax / 1e9).toFixed(3)} GPa (Petrophysics mineral model per sample: ${(sub.mineralKeys || []).join(', ')}; Voigt-Reuss-Hill${sub.mineralFallback ? `; ${sub.mineralFallback} samples without fractions used the mineral table` : ''})`
+    : sub.kminSource === 'vsh'
     ? `${(sub.kminMin / 1e9).toFixed(3)} to ${(sub.kminMax / 1e9).toFixed(3)} GPa (clay at VSH, Voigt-Reuss-Hill)`
     : `${(sub.kmin / 1e9).toFixed(3)} GPa (${sub.kminSource === 'override' ? 'override' : 'Voigt-Reuss-Hill of the mineral table'})`;
   const minerals = Object.entries(rock.minerals || {}).filter(([, f]) => f > 0).map(([m, f]) => `${m} ${f}`).join(', ');

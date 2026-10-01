@@ -152,7 +152,7 @@ function toFraction(values, log, notes) {
  * 'estimated' (U2-007: no sonic log, a pseudo-sonic stands in); vsSource is 'measured' | 'estimated' (never silently
  * mixed); phiBasis is 'effective' | 'total' | null (no porosity curve).
  */
-export function buildModel(curves, mapped, { pseudoSonic = null } = {}) {
+export function buildModel(curves, mapped, { pseudoSonic = null, minerals = null } = {}) {
   if (!curves.DEPT) throw new Error('This well has no depth curve. Import LAS logs in Well Data Manager first.');
   if (!curves.RHOB) throw new Error(curves.DT ? 'This well has no density (RHOB) curve.' : 'This well has no sonic (DT) and no density (RHOB) curve; rock physics needs at least one of them with a depth curve.');
   const notes = [];
@@ -207,6 +207,8 @@ export function buildModel(curves, mapped, { pseudoSonic = null } = {}) {
     vp,
     vs,
     vsSource,
+    // U2-009: Petrophysics Studio's published mineral fractions (petroInputs.buildMineralSet), or null
+    minerals: minerals && minerals.n === depth.length ? minerals : null,
     vpSource,
     vpMethod,
     vpNote,

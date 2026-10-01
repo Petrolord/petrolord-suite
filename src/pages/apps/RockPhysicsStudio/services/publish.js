@@ -80,6 +80,7 @@ export function preparePublishLogs(model, sub, indices, zone, meta) {
         phi_curve: model.phiCurve || null,
         sw_from_log: !!sub.swFromLog,
         kmin_source: sub.kminSource || 'table',
+        kmin_minerals: sub.mineralKeys || null,
         limits: { vsh_max: meta.rock?.vshMax ?? null, phi_min: meta.rock?.phiMin ?? null },
         samples_left_in_situ: sub.outside || 0,
         input_log_ids: meta.inputLogIds || [],

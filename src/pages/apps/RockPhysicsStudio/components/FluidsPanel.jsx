@@ -162,7 +162,9 @@ export default function FluidsPanel({
           <div className="rounded border border-pl-border p-2">
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <div className="text-[11px] uppercase tracking-wider text-pl-muted" data-testid="rp-sub-header">
-                Gassmann substitution A → B · {zone.name} · K_min {result.sub.kminSource === 'vsh' && result.sub.done
+                Gassmann substitution A → B · {zone.name} · K_min {result.sub.kminSource === 'petro-minerals' && result.sub.done
+                  ? `${gpa(result.sub.kminMin)} to ${gpa(result.sub.kminMax)} GPa (Petrophysics mineral model${result.sub.mineralFallback ? `, ${result.sub.mineralFallback} samples on the table` : ''})`
+                  : result.sub.kminSource === 'vsh' && result.sub.done
                   ? `${gpa(result.sub.kminMin)} to ${gpa(result.sub.kminMax)} GPa (clay at VSH)`
                   : `${gpa(result.kmin)} GPa${result.sub.kminSource === 'override' ? ' (override)' : ''}`} ·{' '}
                 {result.sub.done} samples{result.sub.skipped ? ` (${result.sub.skipped} skipped)` : ''}

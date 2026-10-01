@@ -139,7 +139,7 @@ function FluidSide({ side, label, draft, setDraft, gorUnit, onGorUnit }) {
  * @param {{temperature?: string, pressure?: string, gor?: string}} [p.units] profile units for the conditions
  * @param {(key: string, unit: string) => void} [p.onUnit] change one of them for the session
  */
-export default function RockParamsPanel({ scenario, rock, onApply, units = {}, onUnit = null }) {
+export default function RockParamsPanel({ scenario, rock, onApply, units = {}, onUnit = null, wellInputs = null }) {
   const [salUnit, setSalUnit] = useState('frac');
   const u = useMemo(() => ({
     temperature: TEMPERATURE_UNITS.includes(units.temperature) ? units.temperature : 'degC',
@@ -216,6 +216,7 @@ export default function RockParamsPanel({ scenario, rock, onApply, units = {}, o
         kminOverrideGPa: draft.rock.kminOverrideGPa,
         phiConst: take(draft.rock.phiConst, 0.2, 'porosity constant'),
         clayFromVsh: !!draft.rock.clayFromVsh,
+        mineralsFromPetro: !!draft.rock.mineralsFromPetro,
         iterativeVs: draft.rock.iterativeVs !== false,
         vshMax: take(draft.rock.vshMax, 0.5, 'VSH limit'),
         phiMin: take(draft.rock.phiMin, 0.03, 'porosity limit'),
@@ -251,6 +252,22 @@ export default function RockParamsPanel({ scenario, rock, onApply, units = {}, o
         onChange={(v) => patchRock({ clayFromVsh: v })}
         title="K_min mixes clay in at each sample's VSH (Voigt-Reuss-Hill with the other minerals in the table, rescaled). Use it with effective porosity, where the clay belongs to the solid."
       />
+      <Check2
+        id="mineralsFromPetro"
+        label="Minerals from Petrophysics (per sample)"
+        checked={draft.rock.mineralsFromPetro}
+        onChange={(v) => patchRock({ mineralsFromPetro: v })}
+        title="K_min at each sample is the Voigt-Reuss-Hill mix of the mineral fractions Petrophysics Studio's mineral model published on this well (their share of the solid). The K_min override wins; samples with no fractions use the mineral table above."
+      />
+      {wellInputs && (
+        <p className="pb-0.5 text-[11px] text-pl-muted" data-testid="rp-param-minerals-note">
+          {wellInputs.minerals?.keys?.length && !wellInputs.minerals.unknown.length
+            ? `This well has a published mineral model: ${wellInputs.minerals.keys.join(', ')}.`
+            : wellInputs.minerals?.unknown?.length
+              ? `This well's mineral model holds ${wellInputs.minerals.unknown.join(', ')}, which Rock Physics has no modulus for; the table is used.`
+              : 'This well has no published mineral model (run and publish one in Petrophysics Studio); the table is used.'}
+        </p>
+      )}
       <Check2
         id="iterativeVs"
         label="Iterative Vs in hydrocarbon rock"

@@ -307,3 +307,26 @@ test('U2-007: a well with no sonic opens on an estimated Vp, says so everywhere,
   await expect(page.getByTestId('rp-pseudo-box')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test('U2-009: K_min follows the Petrophysics mineral model per sample when asked, and the heading says so', async ({ page }) => {
+  const errors = await open(page, '?minerals=1');
+  await pick(page, 'MINERAL RP-8 (Petrophysics mineral model)');
+  await expect(page.getByTestId('rp-param-minerals-note')).toContainText('This well has a published mineral model');
+  // the harness project carries a 37 GPa override: the header says override until it is cleared
+  await expect(page.getByTestId('rp-sub-header')).toContainText('37.000 GPa (override)');
+  const before = Number(await page.getByTestId('rp-sub-after-vp').textContent());
+  await page.getByTestId('rp-param-kmin').fill('');
+  await page.getByTestId('rp-param-mineralsFromPetro').check();
+  await page.getByTestId('rp-apply-params').click();
+  await expect(page.getByTestId('rp-sub-header')).toContainText('36.600 to 76.800 GPa (Petrophysics mineral model, 20 samples on the table)');
+  const after = Number(await page.getByTestId('rp-sub-after-vp').textContent());
+  expect(after).not.toBeCloseTo(before, 1);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('rp-export-csv').click()]);
+  expect(fs.readFileSync(await dl.path(), 'utf8')).toMatch(/# Mineral modulus: 36\.600 to 76\.800 GPa \(Petrophysics mineral model per sample/);
+  // a well with no published model says so, and the tick box changes nothing there
+  await page.locator('[data-well-name="KETA RP-1"]').click();
+  await expect(page.getByTestId('rp-param-minerals-note')).toContainText('no published mineral model');
+  await expect(page.getByTestId('rp-sub-header')).toContainText('GPa');
+  await expect(page.getByTestId('rp-sub-header')).not.toContainText('Petrophysics mineral model');
+  expect(errors).toEqual([]);
+});
