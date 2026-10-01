@@ -43,6 +43,8 @@ import { inputNotes, trendDepthM } from '../services/honesty';
 import { reviewerLines, prognosisPdf } from '../services/report';
 import { drillingWindow, casingDesign, WINDOW_FROM_BML_M } from '../services/drillingWindow';
 import { pickShaleLog, normalizeShaleIndicator } from '../services/shalePicks';
+import { fitTarget, fitToCalibration } from '../services/calibrate';
+import { comparesTo } from '../services/calibrationImport';
 import {
   UNITS_KEY, PRESSURE_UNITS, DEPTH_UNITS, readUnits, depthFromDisplay, tidyDepth,
   fmtPressure, fmtDepth, emwReferenceDepthM, emwDatumLabel, isEmw, prognosisCsv,
@@ -431,6 +433,17 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     setStatus(`Resistivity trend fitted: R0 ${fit.r0OhmM.toFixed(3)} ohm.m, b ${fit.bPerM.toExponential(3)} 1/m.`);
   };
 
+  // U2-006: fit the method's parameter to the measured pressures
+  const target = fitTarget(params);
+  const ppPoints = calibration.filter((c) => comparesTo(c) === 'pp').length;
+  const fitCalibration = () => {
+    if (!result || !input) return;
+    const r = fitToCalibration(params, input, result, calibration);
+    if (r.error) { setStatus(r.error); return; }
+    setParams(r.params);
+    setStatus(r.text);
+  };
+
   // U2-005: the trend segments fitted on their own picks; a new break unfits the trend
   const onSegmentsFitted = (r) => {
     setNctFittedFor(selectedId || (seismicModel ? `model:${seismicModel.id}` : null));
@@ -732,6 +745,15 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             </span>
           </div>
         )
+      )}
+      {target && ppPoints > 0 && (
+        <div className="px-1">
+          <button type="button" data-testid="pp-fit-calibration" onClick={fitCalibration}
+            title="Fit the method parameter to the measured pressures (RFT/MDT, kicks) by least squares on the pore pressure"
+            className="px-2 py-0.5 text-[11px] rounded border border-pl-primary text-pl-primary-text hover:bg-pl-primary/10">
+            {target.label} ({ppPoints} point{ppPoints === 1 ? '' : 's'})
+          </button>
+        </div>
       )}
       {notes.length > 0 && (
         <ul className="text-[11px] px-1 flex flex-wrap gap-x-3 gap-y-0.5" data-testid="pp-notes">

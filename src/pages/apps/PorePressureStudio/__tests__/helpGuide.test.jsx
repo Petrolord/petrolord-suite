@@ -34,6 +34,8 @@ describe('PorePressureStudioHelpGuide', () => {
     expect(text).toMatch(/Pick shales takes one shale point per interval/);
     // U2-011
     expect(text).toMatch(/the prognosis plot \(the curves/);
+    // U2-006
+    expect(text).toMatch(/Fit n to calibration \(Eaton sonic or resistivity\)/);
     // U2-002
     expect(text).toMatch(/declare the depth column and reference/);
   });

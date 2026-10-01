@@ -163,7 +163,10 @@ export default function PorePressureStudioHelpGuide() {
           The fracture pressure is the minimum horizontal stress from Poisson's ratio: the pore pressure plus the
           effective overburden scaled by nu over one minus nu. The dock's calibration points (a depth and a pressure
           per line, in the display units) are drawn on the prognosis as dots and compared with the pore pressure (the
-          misfit is stated under the ribbon and in the report); they do not change the computation.
+          misfit is stated under the ribbon and in the report). They change the computation only when you ask:
+          Fit n to calibration (Eaton sonic or resistivity), Fit A and B (Bowers loading) or Fit U (Bowers unloading,
+          with sigma max held) fits that parameter to the pressure points and kicks by least squares on the pore
+          pressure, writes it into the dock and says the misfit before and after. Leak-off tests are not used for it.
         </Para>
         <SubHeading>Importing RFT/MDT, LOT/FIT and mud weights</SubHeading>
         <Para>

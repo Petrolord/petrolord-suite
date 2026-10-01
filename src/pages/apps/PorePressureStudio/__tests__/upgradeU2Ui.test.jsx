@@ -132,3 +132,20 @@ describe('U2-005 the NCT view: shale picks, trend breaks', () => {
     expect(screen.getByTestId('pp-nct-chart')).toHaveAttribute('data-log', 'false');
   });
 });
+
+describe('U2-006 fit to calibration', () => {
+  test('n typed off, points entered, the fit brings n back and says the misfit before and after', async () => {
+    mount();
+    await ready();
+    fireEvent.change(screen.getByTestId('pp-unit-depth'), { target: { value: 'm' } });
+    fireEvent.change(screen.getByTestId('pp-unit-pressure'), { target: { value: 'MPa' } });
+    await waitFor(() => expect(screen.getByTestId('pp-param-eatonn')).toHaveValue(3));
+    setField('pp-param-eatonn', '2.2');
+    setField('pp-param-cal', '2700, 29.08\n3000, 33.31\n3300, 37.54\n3700, 43.18');
+    apply();
+    await waitFor(() => expect(screen.getByTestId('pp-fit-calibration')).toHaveTextContent('Fit n to calibration (4 points)'));
+    fireEvent.click(screen.getByTestId('pp-fit-calibration'));
+    await waitFor(() => expect(screen.getByTestId('pp-status')).toHaveTextContent(/Fitted n 3\.0\d\d to 4 measured pressures/));
+    await waitFor(() => expect(Number(screen.getByTestId('pp-param-eatonn').value)).toBeCloseTo(3, 1));
+  });
+});
