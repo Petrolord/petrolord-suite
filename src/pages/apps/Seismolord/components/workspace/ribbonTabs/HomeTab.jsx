@@ -28,7 +28,7 @@ export default function HomeTab({
   overlayColormap, setOverlayColormap, overlayOpacity, setOverlayOpacity,
   overlayBlend, setOverlayBlend,
   onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel, onOpenSessions,
-  sectionDomain, setSectionDomain, depthReady, depthUnit = 'm', setDepthUnit = null,
+  sectionDomain, setSectionDomain, depthReady, depthUnit = 'm', setDepthUnit = null, unitNote = null,
   flattenHorizonId = null, setFlattenHorizonId = null, flattenChoices = [], flattenInfo = null,
   player = null,
 }) {
@@ -131,11 +131,12 @@ export default function HomeTab({
           onChange={(e) => setDepthUnit && setDepthUnit(e.target.value)}
           disabled={!setDepthUnit}
           testId="sl-depth-unit"
-          title="Depth display unit for sections, the map and the cursor readout; defaults to your Geoscience depth setting"
+          title="Depth display unit for sections, the map and the cursor readout; starts from your units profile, a change here holds for this session"
         >
           <option value="m">m</option>
           <option value="ft">ft</option>
         </RibbonSelect>
+        {unitNote}
       </RibbonGroup>
 
       <RibbonGroup label="Display">

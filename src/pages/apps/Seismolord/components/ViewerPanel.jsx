@@ -2,6 +2,9 @@ import { Link as RouterLink } from 'react-router-dom';
 import { HelpCircle as HelpIcon } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { getDepthUnit as getAccountDepthUnit } from '@/lib/crs/settingsService';
+import { useAppUnits } from '@/lib/units/useAppUnits';
+import UnitProfileNote from '@/components/units/UnitProfileNote';
+import { SEISMOLORD_UNIT_APP, SEISMOLORD_UNITS, SEISMOLORD_LEGACY_UNIT_KEYS } from '../lib/unitProfile';
 import { appPath as appRoutePath } from '@/components/wells/appLinks';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -3314,18 +3317,21 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
   // exactly "per slice keyed on velocityKey" from the plan. Overlays
   // convert through the SAME converter closure; wells plot native TVD.
   const [sectionDomain, setSectionDomain] = useState('twt');
-  // SL0: depth display unit for sections, the map and the cursor; the
-  // account's Geoscience depth unit is the default until chosen here
-  const [depthUnitChoice, setDepthUnitChoice] = useState(() => {
-    try { const u = localStorage.getItem('seismolord.depthUnit.v1'); return u === 'ft' || u === 'm' ? u : null; } catch { return null; }
-  });
+  // Depth display unit for sections, the map and the cursor (Suite unit
+  // profile, 2026-10-01): it starts from the profile; the Home tab toggle
+  // changes this view for the session only, and the older per-browser
+  // choice (seismolord.depthUnit.v1) no longer beats the profile (removed
+  // once). Without a profile provider the account's Geoscience depth
+  // unit stands in, as before.
   const [accountDepthUnit, setAccountDepthUnit] = useState(null);
   useEffect(() => {
     let live = true;
     getAccountDepthUnit().then((u) => { if (live && (u === 'm' || u === 'ft')) setAccountDepthUnit(u); }).catch(() => {});
     return () => { live = false; };
   }, []);
-  const depthUnit = depthUnitChoice || accountDepthUnit || 'm';
+  const unitsHook = useAppUnits(SEISMOLORD_UNIT_APP, SEISMOLORD_UNITS,
+    { fallback: { depth: accountDepthUnit || 'm' }, legacyKeys: [...SEISMOLORD_LEGACY_UNIT_KEYS] });
+  const depthUnit = unitsHook.units.depth || 'm';
 
   // SEIS-U1-011/013: what a picture of the section says about itself
   const sectionLine = useMemo(
@@ -3343,10 +3349,8 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     crsName: volume?.crs ? crsDisplayName(volume.crs) : null,
     build: buildLabel(),
   }), [volume, depthUnit, velocityForDisplay, display]);
-  const setDepthUnit = useCallback((u) => {
-    setDepthUnitChoice(u);
-    try { localStorage.setItem('seismolord.depthUnit.v1', u); } catch { /* private mode */ }
-  }, []);
+  const setUnitView = unitsHook.setUnit;
+  const setDepthUnit = useCallback((u) => setUnitView('depth', u), [setUnitView]);
   const isDepthSection = sectionDomain === 'depth'
     && (orientation === 'inline' || orientation === 'xline');
 
@@ -3861,6 +3865,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
               flattenInfo={flatten}
               depthUnit={depthUnit}
               setDepthUnit={setDepthUnit}
+              unitNote={<UnitProfileNote u={unitsHook} className="max-w-[16rem]" />}
               depthReady={Boolean(depthConv)}
               orientation={orientation}
               setOrientation={setOrientation}
