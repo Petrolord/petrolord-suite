@@ -22,6 +22,7 @@ import FrameworkView3D from './FrameworkView3D';
 import QcPanel from './QcPanel';
 import { emptyDefinition, MISTIE_WARN_M, publishPayload, BG_UNITS, upgradeDefinition } from '../services/modelBuild';
 import { runBuild } from '../services/buildClient';
+import { resolveShm } from '../services/shmResolve';
 import { contourPlan, colorbarLevelsFor } from '@/pages/apps/MappingSurfaceStudio/components/MapCanvas';
 import { DEPTH_UNIT_KEY, VOLUME_UNITS_KEY, VOLUME_UNIT_SETS, readSetting, fmtDepth } from '../services/units';
 import { useAppUnits } from '@/lib/units/useAppUnits';
@@ -126,9 +127,12 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     return next;
   });
   const [boundaries, setBoundaries] = useState([]);
+  const [scalProjects, setScalProjects] = useState([]);
   useEffect(() => {
     let live = true;
     if (backend.listBoundaries) backend.listBoundaries().then((b) => { if (live) setBoundaries(b); }).catch(() => {});
+    // U2-002: SCAL Studio projects for Sw from saturation-height
+    if (backend.listScalProjects) backend.listScalProjects().then((p) => { if (live) setScalProjects(p || []); }).catch(() => {});
     return () => { live = false; };
   }, [backend]);
   const changeDepthUnit = (u) => unitsHook.setUnit('depth', u);
@@ -230,8 +234,10 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     const ctrl = new AbortController();
     buildAbortRef.current = ctrl;
     try {
+      // U2-002: the SCAL project is read here, so the worker gets plain data
+      const def = definition.methods?.sw === 'shm' ? { ...definition, shmResolved: await resolveShm(definition.shm, backend) } : definition;
       const { built: result, where } = await runBuild({
-        definition, wells, surfaces, backend, signal: ctrl.signal,
+        definition: def, wells, surfaces, backend, signal: ctrl.signal,
         onProgress: (p) => setBuildProgress({ label: p.label, fraction: p.fraction }),
       });
       setBuilt(result);
@@ -725,6 +731,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           onBgUnit={(u) => unitsHook.setUnit('bg', u)}
           onLoadProject={loadProject}
           boundaries={boundaries}
+          scalProjects={scalProjects}
         />
       )}
       dockOpen={dockOpen}

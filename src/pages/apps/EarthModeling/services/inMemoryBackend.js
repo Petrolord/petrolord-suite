@@ -107,6 +107,18 @@ export function makeInMemoryBackend({ savedModels = false } = {}) {
       const yn = y0 + (ny - 1) * dy;
       return [{ id: 'cult-lease-dev', name: 'Fixture lease (Mapping)', vertices: [[x0 - 1, y0 - 1], [xw, y0 - 1], [xw, yn + 1], [x0 - 1, yn + 1]], is_own: true, source: 'geo_culture' }];
     },
+    // U2-002: one sample SCAL Studio project (inputs_data, schema 1), the
+    // Petrophysics harness sample: Leverett J a 0.25, b 1.4, Swirr 0.15,
+    // k 150 mD, phi 0.22; FWL 1,640 m (5,380.58 ft) under the fixture zones
+    async listScalProjects() { return [{ id: 'scal-sample', name: 'Fixture SAND J (sample)', updatedAt: '2026-10-01T00:00:00Z' }]; },
+    async loadScalProject(id) {
+      if (id !== 'scal-sample') return null;
+      return {
+        id, name: 'Fixture SAND J (sample)', schema: 1, samples: [],
+        capillary: { jMode: 'manual', manual: { a: '0.25', b: '1.4', Swirr: '0.15' }, SwirrOverride: '', includedSampleIds: [], reservoir: { k_md: '150', phi: '0.22', sigma_dyncm: '26', thetaDeg: '30' } },
+        height: { gammaW: '1.05', gammaHc: '0.80', fwl_tvdss: String(1640 / 0.3048), swMin: '0.2', swMax: '0.95' },
+      };
+    },
     async getDepthUnit() { return depthUnit; },
     async setDepthUnit(u) { if (!['m', 'ft'].includes(u)) throw new Error(`Depth unit must be m or ft, got "${u}".`); depthUnit = u; return u; },
     async listProjects() { return projects.map((p) => ({ ...p })); },

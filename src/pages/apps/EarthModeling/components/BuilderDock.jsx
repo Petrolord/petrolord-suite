@@ -21,6 +21,7 @@ export default function BuilderDock({
   projects, onSaveProject, onLoadProject, boundaries = [],
   registrySurfaces = null, depthUnit = 'm', onAddDerived, onRemoveDerived,
   bgUnit = 'm3/m3', onBgUnit, projectId = null, onSaveAsNew, report = null, onReport,
+  scalProjects = [],
 }) {
   // EM2 derived-horizon form (thickness typed in the display unit)
   const [dv, setDv] = useState({ kind: 'parallel', sourceId: '', thickness: '', isochoreId: '', baseId: '', fraction: '0.5', name: '' });
@@ -225,11 +226,32 @@ export default function BuilderDock({
             <span className="w-10 text-pl-muted">{prop}</span>
             <select className={selCls} data-testid={`em-method-${prop}`} value={definition.methods[prop]}
               onChange={(e) => patch({ methods: { ...definition.methods, [prop]: e.target.value } })}>
-              {POPULATION_METHODS.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+              {POPULATION_METHODS.filter((m) => !m.only || m.only === prop).map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
             </select>
           </div>
         ))}
         <p className="text-[10px] text-pl-muted">Per fault block; short blocks fall back kriging to trend to constant (recorded in QC).</p>
+        {definition.methods.sw === 'shm' && (
+          <div className="space-y-1 rounded border border-pl-border p-1.5" data-testid="em-shm">
+            <div className="text-[10px] text-pl-muted">Sw from a SCAL Studio saturation-height function: per node, the mean Sw over the hydrocarbon leg from its height above the free-water level.</div>
+            <select className={selCls} data-testid="em-shm-project" value={definition.shm?.projectId || ''}
+              onChange={(e) => patch({ shm: { ...(definition.shm || {}), projectId: e.target.value, projectName: (scalProjects.find((p) => p.id === e.target.value) || {}).name || '' } })}>
+              <option value="">SCAL Studio project…</option>
+              {scalProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            {!scalProjects.length && <p className="text-[10px] text-pl-muted">No saved SCAL Studio projects. Fit a J function and save it in SCAL Studio.</p>}
+            <div className="grid grid-cols-2 gap-1">
+              <input className={inCls} data-testid="em-shm-fwl" value={definition.shm?.fwl ?? ''} placeholder={`FWL ${depthUnit} (blank: the project's)`}
+                title="Free-water level as depth below datum; blank uses the SCAL project's"
+                onChange={(e) => patch({ shm: { ...(definition.shm || {}), fwl: e.target.value, fwlUnit: depthUnit } })} />
+              <select className={selCls} data-testid="em-shm-rock" value={definition.shm?.rock || 'project'} title="Porosity for the Leverett scaling"
+                onChange={(e) => patch({ shm: { ...(definition.shm || {}), rock: e.target.value } })}>
+                <option value="project">rock of the project</option>
+                <option value="model">modelled porosity</option>
+              </select>
+            </div>
+          </div>
+        )}
 
         {(Object.values(definition.methods).includes('krige') || Object.values(definition.methods).includes('okrige')) && (
           <>

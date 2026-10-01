@@ -21,6 +21,7 @@ import { readDepthSurface } from '@/lib/readDepthSurface';
 import { convert } from '@/lib/units/registry';
 import { isPrePt9aZone } from '@/lib/petroProvenance';
 import { boundLegByClosure } from './trapBound';
+import { shmSwGrid } from './shmGrid';
 
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
@@ -31,6 +32,8 @@ export const POPULATION_METHODS = Object.freeze([
   { key: 'trend', label: 'trend (LSQ plane)' },
   { key: 'okrige', label: 'ordinary kriging (fitted variogram)' },
   { key: 'krige', label: 'simple kriging (typed variogram, legacy)' },
+  // U2-002: Sw only
+  { key: 'shm', label: 'saturation-height (SCAL Studio), Sw only', only: 'sw' },
 ]);
 
 /** A fresh, empty model definition. */
@@ -213,7 +216,7 @@ export class BuildCancelled extends Error {
 export const MISTIE_WARN_M = 10;
 
 /** True when a zone's fluids carry any contact or FVF. */
-export const hasFluids = (f) => !!f && (['goc', 'owc', 'bo', 'bg'].some((k) => Number.isFinite(f[k])) || Object.keys(f.blocks || {}).length > 0);
+export const hasFluids = (f) => !!f && (['goc', 'owc', 'bo', 'bg'].some((k) => Number.isFinite(f[k]) || ArrayBuffer.isView(f[k]) || Array.isArray(f[k])) || Object.keys(f.blocks || {}).length > 0);
 
 /**
  * HCPV and in-place volumes at a low and a high property case (T1 E1): the
@@ -561,7 +564,14 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     const props = {};
     const variance = {};
     const provenance = {};
+    let shmPending = false;
     for (const [prop, key] of Object.entries(PROP_KEYS)) {
+      // U2-002: Sw from the SCAL saturation-height function waits for the contacts
+      if (prop === 'sw' && definition.methods?.sw === 'shm') {
+        shmPending = true;
+        progress(`${zdef.name}: Sw from saturation-height`);
+        continue;
+      }
       const base = zoneControlPoints(eWells, zdef.registryZone);
       const all = [];
       for (const cp of base) {
@@ -610,11 +620,31 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     }
     const top = framework.clamped[i];
     const base = framework.clamped[i + 1];
-    const volumes = hasFluids(fluids)
-      ? zoneVolumesWithContacts(specM, top, base, labels, props, eng)
+    let shm = null;
+    if (shmPending) {
+      const r = definition.shmResolved;
+      if (!r?.ok) throw new Error(r?.errors?.[0] || 'Sw from saturation-height needs a SCAL Studio project. Pick one in the dock.');
+      const fwlM = Number.isFinite(r.fwlM) ? r.fwlM : r.fwlTvdssM;
+      if (!Number.isFinite(fwlM)) throw new Error('Sw from saturation-height needs a free-water level: the SCAL project has none, so type one in the dock.');
+      const owcAt = eng && eng.owc !== null && eng.owc !== undefined
+        ? (typeof eng.owc === 'number' ? new Float64Array(nNodes).fill(eng.owc) : eng.owc) : null;
+      const g = shmSwGrid({ spec: specM, top, base, contact: owcAt, shm: r, fwlM, rock: definition.shm?.rock || 'project', phi: props.phi });
+      props.sw = g.sw;
+      const usedFwl = !owcAt || !Array.from(owcAt).some(Number.isFinite);
+      provenance.sw = [{ block: 0, methodUsed: 'shm', wells: 0, fellBack: false, note: `${r.name || 'SCAL project'}, FWL ${fwlM.toFixed(1)} m, rock from ${definition.shm?.rock === 'model' ? 'the modelled porosity' : 'the project'}` }];
+      shm = { project: r.name || 'SCAL project', fwlM, rock: definition.shm?.rock || 'project', transitionNodes: g.transitionNodes, fwlAsContact: usedFwl };
+      if (usedFwl) {
+        // no OWC typed: the FWL bounds the hydrocarbon leg, or the water below it would count
+        if (eng) eng.owc = fwlM;
+        notes.push(`${zdef.name}: no OWC typed, so the free-water level (${fwlM.toFixed(1)} m) bounds the hydrocarbon leg; the transition zone above it is in Sw.`);
+      }
+    }
+    const volFluids = shmPending && shm?.fwlAsContact ? (eng || { owc: shm.fwlM }) : eng;
+    const volumes = (hasFluids(fluids) || (shmPending && shm?.fwlAsContact))
+      ? zoneVolumesWithContacts(specM, top, base, labels, props, volFluids)
       : zoneVolumes(specM, zThickness, labels, props);
-    const zone = { name: zdef.name, registryZone: zdef.registryZone, thickness: zThickness, props, variance, provenance, volumes, fluids };
-    zone.range = volumeRange(specM, zone, labels, eng, top, base);
+    const zone = { name: zdef.name, registryZone: zdef.registryZone, thickness: zThickness, props, variance, provenance, volumes, fluids, ...(shm ? { shm } : {}) };
+    zone.range = volumeRange(specM, zone, labels, volFluids, top, base);
     if (trap) {
       zone.trap = { traps: trap.traps, cutNodes: trap.cutNodes, openEdge: trap.openEdge };
       zone.openEdge = trap.openEdge ? { open: true, nodes: 0, spillAtEdge: true } : { open: false, nodes: 0 };

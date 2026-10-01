@@ -18,6 +18,10 @@ import { listCulture, downloadCultureFeatures } from '@/lib/cultureRegistry';
 import { POLYGON_KINDS, ringOf } from '@/pages/apps/MappingSurfaceStudio/services/polygonTools';
 import { polygonRingsOf } from '@/lib/culturePolygonFiles';
 import { getDepthUnit, setDepthUnit } from '@/lib/crs/settingsService';
+import { createSavedProjectsService } from '@/utils/savedProjects';
+
+// U2-002: the user's saved SCAL Studio projects, read only (Petrophysics reads them the same way)
+const scalProjects = createSavedProjectsService('saved_scal_projects');
 
 /**
  * Polygons from geo_culture as vertex lists the block engine takes
@@ -115,5 +119,7 @@ export function makeRegistryBackend() {
     saveProject,
     updateProject,
     deleteProject,
+    listScalProjects: () => scalProjects.list(),
+    loadScalProject: (id) => scalProjects.load(id),
   };
 }

@@ -237,3 +237,87 @@ describe('U2-006: the leg bounded by the closure and spill (Mapping\'s closure e
     expect(plain.zones[0].volumes.total.stoiip_m3 / bounded.zones[0].volumes.total.stoiip_m3).toBeGreaterThan(3);
   });
 });
+
+describe('U2-002: Sw from the SCAL saturation-height function', () => {
+  // Petrophysics PETRO-U2-010's published hand example (SCAL Studio's
+  // default rock and J: a 0.25, b 1.4, Swirr 0.15; k 150 mD, phi 0.22;
+  // sigma 26, theta 30; gamma 1.05 and 0.80): 100 ft above the FWL,
+  // Sw = 0.304502 (checked in Python, 2026-09-29).
+  const project = {
+    name: 'P', schema: 1, samples: [],
+    capillary: { jMode: 'manual', manual: { a: '0.25', b: '1.4', Swirr: '0.15' }, SwirrOverride: '', includedSampleIds: [], reservoir: { k_md: '150', phi: '0.22', sigma_dyncm: '26', thetaDeg: '30' } },
+    height: { gammaW: '1.05', gammaHc: '0.80', fwl_tvdss: '6000' },
+  };
+  let shm; let swAtHeight; let shmGrid;
+  beforeAll(async () => {
+    const petro = await import('@/pages/apps/PetrophysicsStudio/services/saturationHeight');
+    swAtHeight = petro.swAtHeight;
+    shm = petro.shmFromScalProject(project);
+    shmGrid = await import('../services/shmGrid');
+  });
+
+  test('the table gives the published hand example and Petrophysics\' bisection everywhere', () => {
+    const t = shmGrid.shmTable(shm);
+    expect(Math.abs(shmGrid.swFromTable(t, 100) - 0.30450244384574077)).toBeLessThan(1e-4);
+    for (const h of [0.5, 2, 5, 10, 20, 35, 50, 75, 150, 300, 600, 2000]) {
+      expect(Math.abs(shmGrid.swFromTable(t, h) - swAtHeight(shm.jSpec, shm.reservoir, shm.fluids, h))).toBeLessThan(1e-4);
+    }
+    expect(shmGrid.swFromTable(t, 0)).toBe(1);
+    expect(shmGrid.swFromTable(t, -5)).toBe(1);
+  });
+
+  test('modelled porosity scales the height as Leverett does (checked against swAtHeight run with that porosity)', () => {
+    const t = shmGrid.shmTable(shm);
+    for (const phi of [0.12, 0.3]) {
+      const viaScale = shmGrid.swFromTable(t, 100 * Math.sqrt(0.22 / phi));
+      const direct = swAtHeight(shm.jSpec, { ...shm.reservoir, phi }, shm.fluids, 100);
+      expect(Math.abs(viaScale - direct)).toBeLessThan(1e-4);
+    }
+  });
+
+  test('per node: the mean Sw over the leg above the contact; negative control on the height sign', () => {
+    const spec = { nx: 2, ny: 1, dx: 50, dy: 50, x0: 0, y0: 0 };
+    const fwlM = 1640;
+    const top = Float64Array.from([1600, 1630]);
+    const base = Float64Array.from([1620, 1700]);
+    const g = shmGrid.shmSwGrid({ spec, top, base, shm, fwlM });
+    // reference: 400 sub-samples of Petrophysics' Sw over each leg
+    const ref = (a, b) => { let s = 0; for (let k = 0; k < 400; k++) { const d = a + ((k + 0.5) / 400) * (b - a); s += swAtHeight(shm.jSpec, shm.reservoir, shm.fluids, (fwlM - d) / 0.3048); } return s / 400; };
+    expect(Math.abs(g.sw[0] - ref(1600, 1620))).toBeLessThan(2e-3);
+    expect(Math.abs(g.sw[1] - ref(1630, 1640))).toBeLessThan(2e-3);
+    expect(g.sw[1]).toBeGreaterThan(g.sw[0]); // closer to the FWL, wetter
+    // negative control: heights taken as depth minus FWL read every sample above the FWL as water
+    const flipped = (() => { let s = 0; for (let k = 0; k < 24; k++) { const d = 1600 + ((k + 0.5) / 24) * 20; s += swAtHeight(shm.jSpec, shm.reservoir, shm.fluids, (d - fwlM) / 0.3048); } return s / 24; })();
+    expect(flipped).toBe(1);
+    expect(g.sw[0]).toBeLessThan(0.6);
+    // an OWC above the FWL ends the leg there
+    const withOwc = shmGrid.shmSwGrid({ spec, top, base, shm, fwlM, contact: Float64Array.from([1610, 1610]) });
+    expect(Math.abs(withOwc.sw[0] - ref(1600, 1610))).toBeLessThan(2e-3);
+    expect(() => shmGrid.shmSwGrid({ spec, top, base, shm, fwlM: NaN })).toThrow(/free-water level/);
+  });
+
+  test('through buildModel: Sw rises toward the FWL, the FWL bounds the leg when no OWC is typed', async () => {
+    const f = await fixture();
+    const { resolveShm } = await import('../services/shmResolve');
+    const def = baseDef(f.byName, { methods: { phi: 'constant', sw: 'shm', ntg: 'constant' }, shm: { projectId: 'scal-sample', fwl: '1640', fwlUnit: 'm' } });
+    const shmResolved = await resolveShm(def.shm, f.backend);
+    expect(shmResolved.ok).toBe(true);
+    expect(shmResolved.fwlM).toBe(1640);
+    const b = await buildModel({ ...def, shmResolved }, f.wells, f.surfaces, f.backend);
+    const z = b.zones[0];
+    expect(z.shm.fwlAsContact).toBe(true);
+    expect(b.notes.some((n) => /free-water level \(1640.0 m\) bounds the hydrocarbon leg/.test(n))).toBe(true);
+    // the shallowest node (the frame's south-west corner, top 1500 m) is drier than the deepest
+    const sw = z.props.sw;
+    const top = b.clamped[0];
+    let shallow = 0; let deep = 0;
+    for (let j = 0; j < top.length; j++) { if (top[j] < top[shallow]) shallow = j; if (top[j] > top[deep]) deep = j; }
+    expect(sw[shallow]).toBeLessThan(sw[deep]);
+    expect(z.provenance.sw[0].methodUsed).toBe('shm');
+    // the typed FWL in feet reads the same
+    const ft = await resolveShm({ projectId: 'scal-sample', fwl: String(1640 / 0.3048), fwlUnit: 'ft' }, f.backend);
+    expect(ft.fwlM).toBeCloseTo(1640, 9);
+    // no project picked: the build says what to do
+    await expect(buildModel({ ...def, shmResolved: await resolveShm({}, f.backend) }, f.wells, f.surfaces, f.backend)).rejects.toThrow(/Pick one in the dock/);
+  });
+});
