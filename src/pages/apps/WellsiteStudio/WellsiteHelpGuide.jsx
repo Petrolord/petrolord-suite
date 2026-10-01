@@ -371,6 +371,21 @@ export default function WellsiteHelpGuide() {
           on the logarithmic scale against TVD, drawn dashed down the whole track; rows more than 10 percent below it are marked
           and listed. The settings are a record with your name on it. A row that cannot be computed is counted with the reason.
         </Para>
+        <SubHeading>The link with Pore Pressure Studio</SubHeading>
+        <Para>
+          Coming in: when Pore Pressure Studio has published a prognosis for the registry well, Load from registry on Tops brings
+          its pore pressure, fracture pressure and overburden curves in with the prognosis, read by the unit each curve declares.
+          Live and the Log view then show the prognosis at the bit as equivalent mud weights, at the TVD from the survey in use,
+          beside the mud weight in use (the ECD of the latest data row, otherwise its mud weight in): how far it sits over the
+          prognosed pore pressure and under the prognosed fracture pressure. The strip log gains a pressure track. A mud weight
+          outside the window is shown as an indication to check with the driller.
+        </Para>
+        <Para>
+          Going out: the button under the log sends this well's d-exponent, corrected d-exponent, total gas, rate of penetration,
+          mud weight in and ECD to the well registry as curves, with where they came from, replacing only the curves this live
+          well sent before. In Pore Pressure Studio, Mud weights from Wellsite Studio in the calibration import reads them into
+          its table for you to check and add as mud weights used. Sending needs a connection and the owner of the registry well.
+        </Para>
         <Callout tone="info" title="An indication, with no pressure computed">
           A dc falling below its normal trend is one sign of rising pore pressure, to weigh with gas, cavings and hole condition.
           The app does not turn it into a pore pressure here.
