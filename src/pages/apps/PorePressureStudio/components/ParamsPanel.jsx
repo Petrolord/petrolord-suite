@@ -9,6 +9,8 @@
 import React, { useEffect, useState } from 'react';
 import { parseCalibration } from '../services/honesty';
 import { marginsOf } from '../services/drillingWindow';
+import { kindOf, kindLabel } from '../services/calibrationImport';
+import CalibrationImport from './CalibrationImport';
 import {
   DEFAULT_UNITS, depthToDisplay, depthFromDisplay, slownessToDisplay, slownessFromDisplay, slownessUnit,
   compactionToDisplay, compactionFromDisplay, compactionUnit, densityToDisplay, densityFromDisplay, densityUnit,
@@ -55,14 +57,17 @@ const toDraft = (params, calibration, units) => {
     minSeat: tidy(depthToDisplay(marginsOf(params).minShallowSeatBmlM, zU), 2),
     field: params.report?.field || '',
     analyst: params.report?.analyst || '',
-    calText: (calibration || []).map((c) => {
+    // U2-002: the text box edits typed points; imported points are kept apart
+    calText: (calibration || []).filter((c) => !c.source).map((c) => {
       const ref = emwReferenceDepthM(c.z, params);
       return `${tidy(depthToDisplay(c.z, zU), 2)}, ${tidy(pressureToDisplay(c.pMpa * 1e6, pU, ref), pressureDigits(pU))}`;
     }).join('\n'),
   };
 };
 
-export default function ParamsPanel({ params, calibration, onApply, units = DEFAULT_UNITS }) {
+export default function ParamsPanel({
+  params, calibration, onApply, units = DEFAULT_UNITS, importCtx = {}, onImportCalibration = null, onClearImported = null,
+}) {
   const zU = units.depth; const pU = units.pressure;
   const sU = slownessUnit(zU); const cU = compactionUnit(zU); const dU = densityUnit(pU); const stU = stressUnit(pU);
   const [d, setD] = useState(() => toDraft(params, calibration, units));
@@ -108,7 +113,7 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
       const pa = pressureFromDisplay(pd, pU, emwReferenceDepthM(z, next));
       return { z, pMpa: pa / 1e6 };
     });
-    onApply({ params: next, calibration: cal, skipped });
+    onApply({ params: next, calibration: [...cal, ...(calibration || []).filter((c) => c.source)], skipped });
   };
 
   return (
@@ -167,6 +172,30 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
         value={d.calText}
         onChange={(e) => set('calText')(e.target.value)}
       />
+      {(() => {
+        const imported = (calibration || []).filter((c) => c.source);
+        if (!imported.length) return null;
+        const byKind = {};
+        for (const c of imported) byKind[kindOf(c)] = (byKind[kindOf(c)] || 0) + 1;
+        const files = [...new Set(imported.map((c) => c.source))];
+        return (
+          <div className="text-[11px] text-pl-muted flex flex-wrap items-center gap-1" data-testid="pp-cal-imported">
+            Imported: {Object.entries(byKind).map(([k, n]) => `${n} ${kindLabel(k)}`).join(', ')} from {files.join(', ')}
+            {onClearImported && (
+              <button type="button" data-testid="pp-cal-clear-imported" onClick={onClearImported}
+                className="px-1.5 rounded border border-pl-border text-pl-muted hover:text-pl-text">Clear imported</button>
+            )}
+          </div>
+        );
+      })()}
+      {onImportCalibration && (
+        <CalibrationImport
+          ctx={importCtx}
+          onImport={onImportCalibration}
+          fmtZ={(m) => `${tidy(depthToDisplay(m, zU), 1)} ${zU}`}
+          fmtP={(mpa) => (pU === 'psi' ? `${Math.round(pressureToDisplay(mpa * 1e6, 'psi'))} psi` : `${mpa.toFixed(2)} MPa`)}
+        />
+      )}
 
       <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Report</div>
       {[['field', 'Field'], ['analyst', 'Analyst']].map(([k, label]) => (

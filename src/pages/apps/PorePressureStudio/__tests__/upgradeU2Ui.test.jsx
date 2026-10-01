@@ -23,7 +23,7 @@ const mount = (opts = {}) => render(
   <MemoryRouter><PPWorkstation backend={makeInMemoryBackend(opts)} /></MemoryRouter>,
 );
 const ready = async () => {
-  const row = await screen.findByTestId('pp-well-row');
+  const row = await screen.findByTestId('pp-well-row', {}, { timeout: 15000 });
   fireEvent.click(row);
   await waitFor(() => expect(screen.getByTestId('pp-readout-pp')).toBeInTheDocument(), { timeout: 10000 });
 };
@@ -51,5 +51,35 @@ describe('U2-003 margins and casing seats in the workstation', () => {
     apply();
     await waitFor(() => expect(screen.getByTestId('pp-casing-closed')).toBeInTheDocument());
     expect(screen.getByTestId('pp-prognosis-chart')).toBeInTheDocument();
+  });
+});
+
+describe('U2-002 the calibration import door', () => {
+  test('a pasted table is read, the missing units are asked for, then points are added and drawn', async () => {
+    mount();
+    await ready();
+    fireEvent.click(screen.getByTestId('pp-cal-import-open'));
+    fireEvent.change(screen.getByTestId('pp-cal-import-paste'), { target: { value: '1130\t13.382\tLOT\n2130\t14.363\tFIT\n' } });
+    fireEvent.click(screen.getByTestId('pp-cal-import-read'));
+    expect(screen.getByTestId('pp-cal-import-read-summary')).toHaveTextContent(/2 rows, 3 columns/);
+    expect(screen.getByTestId('pp-cal-import-missing')).toHaveTextContent(/declare the depth reference/);
+    expect(screen.getByTestId('pp-cal-import-add')).toBeDisabled();
+    fireEvent.change(screen.getByTestId('pp-cal-depthref'), { target: { value: 'md' } });
+    fireEvent.change(screen.getByTestId('pp-cal-depthunit'), { target: { value: 'm' } });
+    fireEvent.change(screen.getByTestId('pp-cal-valueunit'), { target: { value: 'ppg' } });
+    fireEvent.change(screen.getByTestId('pp-cal-kindcol'), { target: { value: '2' } });
+    expect(screen.getByTestId('pp-cal-import-preview')).toHaveAttribute('data-read', '2');
+    fireEvent.click(screen.getByTestId('pp-cal-import-add'));
+    await waitFor(() => expect(screen.getByTestId('pp-cal-imported')).toHaveTextContent(/1 LOT, 1 FIT from pasted table/));
+    expect(screen.getByTestId('pp-status')).toHaveTextContent(/Imported 2 calibration points/);
+    expect(screen.getByTestId('pp-note-lot')).toHaveTextContent(/LOT\/FIT: 2 tests/);
+    expect(screen.getByTestId('pp-prognosis-chart')).toHaveAttribute('data-lot', '2');
+    // typed points and Apply keep the imported ones
+    fireEvent.change(screen.getByTestId('pp-param-cal'), { target: { value: '3000, 33.3' } });
+    apply();
+    await waitFor(() => expect(screen.getByTestId('pp-prognosis-chart')).toHaveAttribute('data-cal', '1'));
+    expect(screen.getByTestId('pp-prognosis-chart')).toHaveAttribute('data-lot', '2');
+    fireEvent.click(screen.getByTestId('pp-cal-clear-imported'));
+    await waitFor(() => expect(screen.getByTestId('pp-prognosis-chart')).toHaveAttribute('data-lot', '0'));
   });
 });

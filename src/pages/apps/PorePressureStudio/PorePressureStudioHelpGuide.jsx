@@ -144,6 +144,18 @@ export default function PorePressureStudioHelpGuide() {
           per line, in the display units) are drawn on the prognosis as dots and compared with the pore pressure (the
           misfit is stated under the ribbon and in the report); they do not change the computation.
         </Para>
+        <SubHeading>Importing RFT/MDT, LOT/FIT and mud weights</SubHeading>
+        <Para>
+          Import RFT/MDT, LOT/FIT or mud weights, under the calibration box, reads a CSV, TXT or tab table (or pasted
+          cells): any separator, comma decimals, units in the header or in a second header line, a Type column, and
+          no header at all. It shows what it read and asks you to declare the depth column and reference (MD below RKB,
+          TVD below RKB, TVDSS or below mudline), the depth unit, the value unit (psi, psia, kPa, bar, MPa, ppg, sg,
+          g/cc, kg/m3, psi/ft, kPa/m) and what the values are; what it found in the header is filled in, and nothing
+          is assumed. MD goes through the well's survey, TVDSS through its KB, a mud weight converts at the TVD below
+          the rotary table. Rows with a -999 null, text or a depth above the mudline are listed with the reason.
+          Pressure points and kicks are compared with the pore pressure, LOT, FIT and XLOT with the fracture pressure
+          (a FIT is a lower bound), and mud weights are drawn as a step line. Spreadsheets are saved as CSV first.
+        </Para>
       </GuideSection>
 
       <GuideSection id="overburden">

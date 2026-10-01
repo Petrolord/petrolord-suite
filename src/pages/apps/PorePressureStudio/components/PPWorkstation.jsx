@@ -358,6 +358,19 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       : 'Parameters applied.');
   };
 
+  // U2-002: imported calibration points land on the engine frame through
+  // the selected well's survey and KB (TVDSS and MD need them)
+  const importCtx = useMemo(() => ({
+    frame: seismicModel ? null : wellDepthFrame(selected),
+    kbM: !seismicModel && Number.isFinite(Number(selected?.kb_m)) && selected?.kb_m != null ? Number(selected.kb_m) : null,
+    mudlineMdM: params.mudlineMdM,
+    waterDepthM: params.waterDepthM,
+  }), [seismicModel, selected, params.mudlineMdM, params.waterDepthM]);
+  const importCalibration = (points, summary) => {
+    setCalibration((c) => [...c, ...points]);
+    setStatus(`Imported ${summary.read} calibration point${summary.read === 1 ? '' : 's'} from ${summary.name}${summary.skipped.length ? `; ${summary.skipped.length} line${summary.skipped.length === 1 ? '' : 's'} not read` : ''}.`);
+  };
+
   const onNctFitted = (fit) => {
     setNctFittedFor(selectedId || (seismicModel ? `model:${seismicModel.id}` : null));
     setParams((p) => ({
@@ -665,7 +678,15 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       center={center}
       dock={(
         <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
-          <ParamsPanel params={params} calibration={calibration} onApply={applyDock} units={units} />
+          <ParamsPanel
+            params={params}
+            calibration={calibration}
+            onApply={applyDock}
+            units={units}
+            importCtx={importCtx}
+            onImportCalibration={importCalibration}
+            onClearImported={() => { setCalibration((c) => c.filter((p) => !p.source)); setStatus('Imported calibration cleared.'); }}
+          />
         </ScrollArea>
       )}
       dockOpen={dockOpen}

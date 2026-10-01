@@ -8,6 +8,8 @@
 // but never compared. These pure helpers turn the state into sentences the
 // workstation shows under the ribbon.
 
+import { comparesTo, kindOf } from './calibrationImport';
+
 const G_PER_M = 1; // depths are metres here; the caller formats them
 
 /** Deepest depth a velocity trend is sampled to (m below mudline). */
@@ -27,8 +29,10 @@ export function trendDepthM(tdMdM, params) {
  * @param {number[]} zBmlM computed depths
  * @param {number[]} ppPa computed pore pressure
  */
-export function calibrationMisfit(calibration, zBmlM, ppPa) {
-  const pts = (calibration || []).filter((c) => Number.isFinite(c.z) && Number.isFinite(c.pMpa));
+export function calibrationMisfit(calibration, zBmlM, ppPa, compare = 'pp') {
+  // U2-002: pressure points and kicks compare with the pore pressure, leak-off
+  // tests with the fracture pressure; mud weights are drawn, never compared
+  const pts = (calibration || []).filter((c) => Number.isFinite(c.z) && Number.isFinite(c.pMpa) && comparesTo(c) === compare);
   if (!pts.length || !zBmlM?.length) return { points: [], rmsMpa: null, maxAbsMpa: null, deepestM: null };
   const steps = [];
   for (let i = 1; i < Math.min(zBmlM.length, 50); i++) steps.push(zBmlM[i] - zBmlM[i - 1]);
@@ -44,7 +48,7 @@ export function calibrationMisfit(calibration, zBmlM, ppPa) {
   const used = points.filter((p) => p.inRange && Number.isFinite(p.residualMpa));
   const rmsMpa = used.length ? Math.sqrt(used.reduce((a, p) => a + p.residualMpa ** 2, 0) / used.length) : null;
   const maxAbsMpa = used.length ? Math.max(...used.map((p) => Math.abs(p.residualMpa))) : null;
-  return { points, rmsMpa, maxAbsMpa, deepestM: Math.max(...pts.map((c) => c.z)) };
+  return { points: points.map((p, k) => ({ ...p, kind: kindOf(pts[k]) })), rmsMpa, maxAbsMpa, deepestM: Math.max(...pts.map((c) => c.z)) };
 }
 
 /**
@@ -100,6 +104,20 @@ export function inputNotes({
     if (mis.deepestM != null && zMax > mis.deepestM + 1) text += ` Below ${fmtZ(mis.deepestM)} the prognosis is extrapolated beyond the deepest point.`;
     notes.push({ key: 'calibration', tone: Number.isFinite(mis.rmsMpa) ? 'info' : 'warn', text });
   }
+  // U2-002: leak-off and integrity tests against the fracture pressure
+  const lot = calibrationMisfit(calibration, input.zBmlM, result.fracPressurePa, 'fg');
+  if (lot.points.length) {
+    const inR = lot.points.filter((p) => p.inRange);
+    notes.push({
+      key: 'lot',
+      tone: 'info',
+      text: Number.isFinite(lot.rmsMpa)
+        ? `LOT/FIT: ${inR.length} test${inR.length === 1 ? '' : 's'} against the fracture pressure, RMS ${fmtP(lot.rmsMpa)} (a FIT is a lower bound on the fracture pressure).`
+        : 'LOT/FIT: no test falls within the prognosis.',
+    });
+  }
+  const mw = (calibration || []).filter((c) => comparesTo(c) === 'mw').length;
+  if (mw) notes.push({ key: 'mw', tone: 'info', text: `Mud weights used: ${mw} drawn for comparison.` });
   return notes;
 }
 

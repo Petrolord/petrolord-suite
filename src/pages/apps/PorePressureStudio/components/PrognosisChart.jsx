@@ -18,6 +18,7 @@ import {
 } from '../services/units';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { thinIndices } from '../services/thin';
+import { comparesTo } from '../services/calibrationImport';
 
 const SERIES = [
   { key: 'obg', name: 'Overburden', color: '#31363b' },
@@ -60,9 +61,11 @@ export default function PrognosisChart({
         r.dfg = fromPpg(a.designFgPpg, zM);
       });
     }
+    // U2-002: pressure points and kicks (cal), leak-off tests (lot), mud weights used (mwu)
+    const KEY = { pp: 'cal', fg: 'lot', mw: 'mwu' };
     for (const c of calibration || []) {
       if (Number.isFinite(c.z) && Number.isFinite(c.pMpa)) {
-        rows.push({ z: depthToDisplay(c.z, zU), cal: conv(c.pMpa * 1e6, c.z) });
+        rows.push({ z: depthToDisplay(c.z, zU), [KEY[comparesTo(c)]]: conv(c.pMpa * 1e6, c.z) });
       }
     }
     rows.sort((a, b) => a.z - b.z);
@@ -70,11 +73,13 @@ export default function PrognosisChart({
   }, [profile, zBmlM, calibration, pU, zU, params, casing]);
   const digits = pressureDigits(pU);
   const hasCal = data.some((r) => r.cal != null);
+  const hasLot = data.some((r) => r.lot != null);
+  const hasMw = data.some((r) => r.mwu != null);
 
   if (!profile) return null;
 
   return (
-    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="pp-prognosis-chart" data-rows={data.length} data-seats={casing ? casing.seats.length : 0}>
+    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="pp-prognosis-chart" data-rows={data.length} data-seats={casing ? casing.seats.length : 0} data-cal={data.filter((r) => r.cal != null).length} data-lot={data.filter((r) => r.lot != null).length} data-mw={data.filter((r) => r.mwu != null).length}>
       <h3 className="text-center text-sm font-semibold" style={{ color: CHART_COLORS.axisLabel }}>
         Pressure prognosis
       </h3>
@@ -131,6 +136,10 @@ export default function PrognosisChart({
                 does (T1-002); no legend entry without points */}
             {hasCal && <Line dataKey="cal" name="Calibration" stroke="none" legendType="circle"
               dot={{ r: 4, fill: '#e76f51', stroke: '#9a3412' }} activeDot={false} isAnimationActive={false} />}
+            {hasLot && <Line dataKey="lot" name="LOT/FIT" stroke="none" legendType="diamond"
+              dot={{ r: 4, fill: '#1d4ed8', stroke: '#1e3a8a' }} activeDot={false} isAnimationActive={false} />}
+            {hasMw && <Line dataKey="mwu" name="Mud weight used" stroke="#a16207" strokeWidth={1.5} type="stepAfter"
+              dot={false} connectNulls isAnimationActive={false} />}
           </ComposedChart>
         </ResponsiveContainer>
       </div>

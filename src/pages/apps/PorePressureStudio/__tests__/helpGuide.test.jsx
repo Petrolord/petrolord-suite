@@ -26,6 +26,8 @@ describe('PorePressureStudioHelpGuide', () => {
     expect(text).toMatch(/PP, FP and OBG/);
     // U2-003
     expect(text).toMatch(/trip margin is added to the pore pressure/);
+    // U2-002
+    expect(text).toMatch(/declare the depth column and reference/);
   });
 
   test('copy carries no em dashes (owner rule)', () => {

@@ -56,6 +56,13 @@ export function reviewerLines(p) {
   else {
     lines.push(`Calibration: ${mis.points.length} point${mis.points.length === 1 ? '' : 's'} (${mis.points.map((c) => `${z(c.z)} bml ${r1(c.measuredMpa, 2)} MPa`).join('; ')}); PP misfit RMS ${Number.isFinite(mis.rmsMpa) ? `${r1(mis.rmsMpa, 2)} MPa` : 'n/a'}${mis.deepestM != null ? `; below ${z(mis.deepestM)} bml the prognosis is extrapolated` : ''}`);
   }
+  // U2-002: imported tests and mud weights
+  const lot = calibrationMisfit(calibration, input?.zBmlM || [], result?.fracPressurePa || [], 'fg');
+  if (lot.points.length) {
+    lines.push(`Leak-off and integrity tests: ${lot.points.map((c) => `${String(c.kind).toUpperCase()} ${z(c.z)} bml ${r1(c.measuredMpa, 2)} MPa`).join('; ')}; against the fracture pressure RMS ${Number.isFinite(lot.rmsMpa) ? `${r1(lot.rmsMpa, 2)} MPa` : 'n/a'}`);
+  }
+  const sources = [...new Set((calibration || []).map((c) => c.source).filter(Boolean))];
+  if (sources.length) lines.push(`Imported from: ${sources.join(', ')}`);
   if (window?.narrowest) {
     lines.push(`Drilling window: narrowest ${window.narrowest.windowPpg.toFixed(2)} ppg (PP ${window.narrowest.ppPpg.toFixed(2)}, FG ${window.narrowest.fgPpg.toFixed(2)} ppg EMW) at ${z(window.narrowest.zBmlM)} bml${window.maxPp ? `; highest PP ${window.maxPp.ppPpg.toFixed(2)} ppg at ${z(window.maxPp.zBmlM)} bml` : ''}`);
   }
