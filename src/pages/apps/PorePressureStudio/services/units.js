@@ -129,6 +129,8 @@ export function prognosisCsv(input, result, params, units, meta = {}) {
   const datum = emwDatumLabel(params);
   const lines = [
     `# Pore Pressure Studio prognosis, ${new Date().toISOString().slice(0, 10)}`,
+    // PP-U1-008: the reviewer block (well, field, analyst, build, datum, NCT, calibration)
+    ...(meta.reviewer || []).map((l) => `# ${l}`),
     `# source: ${meta.source || 'well'}; method: ${params.method}${params.method === 'eaton' ? ` n=${params.eatonN}` : ` Bowers A=${params.bowers?.A} B=${params.bowers?.B}`}; nu=${params.nu}`,
     `# NCT: dt_ml ${params.nct.dtMlUsPerM} us/m, dt_ma ${params.nct.dtMaUsPerM} us/m, c ${params.nct.cPerM} 1/m; water depth ${params.waterDepthM} m; mudline MD ${params.mudlineMdM || 0} m`,
     `# EMW datum: ${datum} (depth below ${datum} = depth below mudline + ${params.mudlineMdM > 0 ? params.mudlineMdM : params.waterDepthM} m); ppg = psi / (0.052 x TVD ft); sg = ppg / ${PPG_PER_SG}`,

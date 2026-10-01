@@ -19,7 +19,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Gauge, Loader2, Save, Upload, Download, HelpCircle, Database } from 'lucide-react';
+import { Gauge, Loader2, Save, Upload, Download, HelpCircle, Database, FileText } from 'lucide-react';
 import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import { useAppUnits } from '@/lib/units/useAppUnits';
 import UnitProfileNote from '@/components/units/UnitProfileNote';
@@ -37,7 +37,8 @@ import { computeProfile } from '../engine/profile';
 import { pseudoSonicFromLinearVelocity } from '../engine/velocitySource';
 import { layerCakeProfile } from '@/lib/velocityModels';
 import { preparePublishLogs, publishBlocker } from '../services/publish';
-import { inputNotes, calibrationMisfit, trendDepthM } from '../services/honesty';
+import { inputNotes, trendDepthM } from '../services/honesty';
+import { reviewerLines, prognosisPdf } from '../services/report';
 import { drillingWindow, WINDOW_FROM_BML_M } from '../services/drillingWindow';
 import {
   UNITS_KEY, PRESSURE_UNITS, DEPTH_UNITS, readUnits, depthFromDisplay, tidyDepth,
@@ -279,10 +280,40 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     };
   }, [result, input, readoutDepthM, units.pressure, params]);
 
+  const reportArgs = () => ({
+    wellName: selected?.name || '',
+    source: seismicModel ? 'seismic' : 'well',
+    sourceName: seismicModel?.name || '',
+    report: params.report || {},
+    params,
+    units,
+    input,
+    result,
+    calibration,
+    nctFitted: !notes.some((n) => n.key === 'nct'),
+    window: windowInfo,
+  });
+
+  // PP-U1-008: the reviewer PDF (jsPDF loaded on demand)
+  const exportPdf = async () => {
+    if (!result || !input) return;
+    try {
+      const { jsPDF } = await import('jspdf');
+      const { loadPetrolordLogo } = await import('@/lib/pdfBrand');
+      const logo = await loadPetrolordLogo().catch(() => null);
+      const doc = prognosisPdf(jsPDF, reportArgs(), { logo });
+      const name = (seismicModel ? seismicModel.name : (selected?.name || 'well')).replace(/[^\w.-]+/g, '_');
+      doc.save(`prognosis-${name}.pdf`);
+      setStatus('Prognosis PDF downloaded.');
+    } catch (e) {
+      setStatus(`The PDF could not be made: ${e.message}`);
+    }
+  };
+
   const exportCsv = () => {
     if (!result || !input) return;
     const source = seismicModel ? seismicModel.name : (selected?.name || 'well');
-    const csv = prognosisCsv(input, result, params, units, { source });
+    const csv = prognosisCsv(input, result, params, units, { source, reviewer: reviewerLines(reportArgs()) });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -469,6 +500,18 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             onClick={exportCsv}
           >
             <Download className="w-3.5 h-3.5" /> Prognosis CSV
+          </button>
+        )}
+        {result && (
+          <button
+            type="button"
+            data-testid="pp-export-pdf"
+            title="Download the prognosis report: well, field, analyst, datum, method, NCT, calibration and the table in the chosen units with EMW"
+            className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+              border-pl-border text-pl-text hover:bg-pl-sunken"
+            onClick={exportPdf}
+          >
+            <FileText className="w-3.5 h-3.5" /> PDF
           </button>
         )}
         {result && selectedId && backend.publishCurves && (

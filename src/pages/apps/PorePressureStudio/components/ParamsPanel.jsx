@@ -48,6 +48,8 @@ const toDraft = (params, calibration, units) => {
     bowersU: params.bowers?.U != null ? String(params.bowers.U) : '',
     bowersSigmaMax: sMax != null ? tidy(pressureToDisplay(sMax, stressUnit(pU)), pressureDigits(stressUnit(pU))) : '',
     nu: String(params.nu),
+    field: params.report?.field || '',
+    analyst: params.report?.analyst || '',
     calText: (calibration || []).map((c) => {
       const ref = emwReferenceDepthM(c.z, params);
       return `${tidy(depthToDisplay(c.z, zU), 2)}, ${tidy(pressureToDisplay(c.pMpa * 1e6, pU, ref), pressureDigits(pU))}`;
@@ -84,6 +86,7 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
       eatonN: num(d.eatonN),
       bowers,
       nu: num(d.nu),
+      report: { field: d.field.trim(), analyst: d.analyst.trim() },
     };
     // calibration lines are "depth, pressure" in the display units; an
     // EMW pressure converts at that depth below the datum
@@ -149,6 +152,20 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
         value={d.calText}
         onChange={(e) => set('calText')(e.target.value)}
       />
+
+      <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Report</div>
+      {[['field', 'Field'], ['analyst', 'Analyst']].map(([k, label]) => (
+        <label key={k} htmlFor={`pp-param-${k}`} className="flex items-center justify-between gap-2 text-xs text-pl-muted">
+          <span>{label}</span>
+          <input
+            id={`pp-param-${k}`}
+            data-testid={`pp-param-${k}`}
+            className="w-28 px-2 py-1 rounded bg-pl-surface border border-pl-border-strong text-pl-text"
+            value={d[k]}
+            onChange={(e) => set(k)(e.target.value)}
+          />
+        </label>
+      ))}
 
       <button
         type="button"

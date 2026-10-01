@@ -199,3 +199,26 @@ describe('PL10 long wells', () => {
     expect(trendDepthM(null, {})).toBe(6000);
   });
 });
+
+describe('Seismolord U2-006 layer cake, end to end on the harness', () => {
+  test('boundary read at the well, closed-form velocities, profile to the well TD', async () => {
+    const { layerCakeProfile } = await import('@/lib/velocityModels');
+    const backend = makeInMemoryBackend({ layerCake: true });
+    const [well] = await backend.listWells();
+    const models = await backend.listVelocityModels();
+    const lc = models.find((m) => m.kind === 'layercake');
+    const at = await backend.layerCakeBoundariesAt(lc, well);
+    const params = { ...PARAMS, mudlineMdM: MUDLINE_MD_M };
+    const zMax = trendDepthM(well.td_md_m, params);
+    expect(zMax).toBe(4000);
+    const prof = layerCakeProfile(lc.velocity, at.boundaryTwtMs, { datumToMudlineM: params.waterDepthM, zMaxM: zMax, stepM: 10 });
+    // layer 1: 1,800 m/s to 1,000 ms TWT = 900 m below sea level; layer 2: 2,600 + 0.3 (z - 900)
+    const v = (zb) => 1e6 / prof.dtUsPerM[prof.zBmlM.indexOf(zb)];
+    expect(v(500)).toBeCloseTo(1800, 9);
+    expect(v(1500)).toBeCloseTo(2600 + 0.3 * (1600 - 900), 9);
+    expect(prof.zBmlM[prof.zBmlM.length - 1]).toBe(4000);
+    const r = computeProfile({ ...prof, params });
+    expect(r.porePressurePa.every(Number.isFinite)).toBe(true);
+    expect(r.rhoSource.every((s) => s === 'gardner')).toBe(true);
+  });
+});
