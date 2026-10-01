@@ -115,7 +115,7 @@ function RrvWorkstationContent({ backend }) {
                   <tr key={p.id} className={`border-t border-pl-border ${selected?.p.id === p.id ? 'bg-pl-primary/10' : ''}`} onClick={() => setSelectedId(p.id)} data-testid={`rrv-row-${p.name}`}>
                     <td className="px-2 py-1 min-w-[140px]">
                       <input className={cell} value={p.name} onChange={(e) => patch(p.id, 'name', e.target.value)} data-testid={`rrv-name-${p.name}`} />
-                      <span className="text-[10px] text-pl-muted">{p.source === 'rcp' ? `from ReservoirCalc Pro${p.volumeNote ? `, ${p.volumeNote}` : ''}` : 'typed here'}</span>
+                      <span className={`text-[10px] ${p.source === 'rcp' && p.basis !== 'recoverable' ? 'text-pl-warning-text' : 'text-pl-muted'}`} data-testid={`rrv-note-${p.name}`}>{p.source === 'rcp' ? `from ReservoirCalc Pro${p.volumeNote ? `, ${p.volumeNote}` : ''}` : 'typed here'}</span>
                     </td>
                     {FIELDS.map(([k]) => (
                       <td key={k} className="px-1 py-1 w-[72px]">
