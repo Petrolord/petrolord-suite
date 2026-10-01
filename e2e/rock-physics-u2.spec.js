@@ -345,7 +345,8 @@ test('U2-011: pore pressure from Pore Pressure Studio and fluid B Sw from the sa
   await page.getByTestId('rp-param-fluidB-shm').check();
   await expect(page.getByTestId('rp-param-fluidB-shm-project')).toHaveValue('scal-sample');
   await page.getByTestId('rp-apply-params').click();
-  await expect(page.getByTestId('rp-param-fluidB-shm-note')).toContainText('Keta SAND J (sample): Sw from the height above the free-water level at 2060.0 m TVDSS, on 201 samples.');
+  // the Petrophysics reader (with SCAL Studio's engine) loads on demand: allow for a cold dev server
+  await expect(page.getByTestId('rp-param-fluidB-shm-note')).toContainText('Keta SAND J (sample): Sw from the height above the free-water level at 2060.0 m TVDSS, on 201 samples.', { timeout: 180000 });
   await expect(page.getByTestId('rp-sub-basis')).toContainText('fluid B Sw: from the saturation-height function (Keta SAND J (sample))');
   const rhoShm = Number(await page.getByTestId('rp-sub-after-rho').textContent());
   expect(rhoShm).toBeGreaterThan(rhoAllGas + 10);
