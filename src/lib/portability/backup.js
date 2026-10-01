@@ -24,7 +24,7 @@ import { PackageSet, DEFAULT_PART_BYTES } from './packageSet';
 
 /** Root kinds a backup enumerates, beyond wells, surfaces and culture. */
 export const BACKUP_KINDS = [
-  'petro_project', 'pp_project', 'rp_project', 'correlation_section', 'em_model',
+  'petro_project', 'pp_project', 'rp_project', 'correlation_section', 'em_model', 'rcp_prospect',
   'seismic_project', 'seismic_volume', 'seismic_line',
   'wp_site', 'po_field', 'epe_case', 'epe_assumption_set', 'sim_case', 'saved_project',
 ];

@@ -38,6 +38,8 @@ const EXTRA_SECTIONS = [
   },
   // EM-U1-013: Earth Modeling models bring the surfaces and polygons they name
   { key: 'em', title: 'Earth models', kinds: ['em_model'], testPrefix: 'pld-em', emptyText: 'No saved earth models.' },
+  // RCP-U1-026: ReservoirCalc Pro prospects (the inventory Risked Reserves Valuation reads)
+  { key: 'rcp', title: 'ReservoirCalc Pro prospects', kinds: ['rcp_prospect'], testPrefix: 'pld-rcp', emptyText: 'No saved prospects.' },
   // PP3b
   { key: 'wp_site', title: 'Well planning sites', kinds: ['wp_site'], testPrefix: 'pld-wpsite', emptyText: 'No well planning sites.' },
   { key: 'fields', title: 'Production fields', kinds: ['po_field'], testPrefix: 'pld-field', emptyText: 'No production fields.' },

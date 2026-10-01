@@ -208,6 +208,17 @@ export const GEOSCIENCE_SPEC = {
         { path: 'crs', form: 'custom-crs', table: 'geoscience_custom_crs', optional: false },
       ],
     },
+    // ReservoirCalc Pro prospect inventory (RCP-U1-026, 2026-09-30): the
+    // risking the geologist did (Pg factors, the unrisked distribution with
+    // its unit and basis, the risked mean) that Risked Reserves Valuation
+    // reads. Owner-only; the row holds no ids of other rows.
+    rcp_prospects: {
+      pk: 'id',
+      kind: 'rcp-prospect',
+      stamped: true,
+      scope: ['user_id'],
+      softRefs: [],
+    },
     // STRAT-U2-008: organisation-wide biozone schemes (migration 20260930180000).
     // They land in the importer's organisation; the creator column is left to
     // its default (the importer), as RLS requires.

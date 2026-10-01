@@ -51,6 +51,11 @@ export async function listRootCandidates(kind) {
       const rows = await rowsOf(supabase.from('em_models').select('id, name, user_id, updated_at').order('updated_at', { ascending: false }));
       return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `Earth model ${String(r.id).slice(0, 8)}`, subtitle: 'earth model' }));
     }
+    case 'rcp_prospect': {
+      // RCP-U1-026: ReservoirCalc Pro prospects (owner-only)
+      const rows = await rowsOf(supabase.from('rcp_prospects').select('id, name, user_id, updated_at').order('updated_at', { ascending: false }));
+      return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `Prospect ${String(r.id).slice(0, 8)}`, subtitle: 'prospect' }));
+    }
     case 'seismic_project': {
       const rows = await rowsOf(supabase.from('seismic_projects').select('id, name, user_id').order('name'));
       return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `Project ${String(r.id).slice(0, 8)}` }));

@@ -9,10 +9,15 @@ import React, { useMemo } from 'react';
 import { ReservoirCalcProvider } from './contexts/ReservoirCalcContext';
 import { ReservoirCalcProContent } from './ReservoirCalcPro';
 import { makeInMemoryRcpBackend } from './services/rcpBackend';
+import { SAVED_PROJECT_ROWS, SAVED_PROSPECT_ROWS } from './services/savedFixtures';
 import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 
 export default function ReservoirCalcProHarness() {
-  const backend = useMemo(() => makeInMemoryRcpBackend(), []);
+  // U1 (PL5): ?saved=1 seeds one saved project and one prospect per release
+  const saved = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('saved') === '1';
+  const backend = useMemo(() => makeInMemoryRcpBackend(saved
+    ? { savedRows: SAVED_PROJECT_ROWS.map((r) => r.row), prospects: SAVED_PROSPECT_ROWS.map((r) => r.row) }
+    : {}), [saved]);
   return (
     <div className="h-screen w-screen" data-testid="rcp-harness">
       <ReservoirCalcProvider backend={backend} appPaths={DEV_APP_PATHS}>

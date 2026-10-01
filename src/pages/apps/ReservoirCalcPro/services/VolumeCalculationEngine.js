@@ -1,4 +1,4 @@
-import { ContactVolumetricsEngine } from './ContactVolumetricsEngine';
+import { ContactVolumetricsEngine, condensateFrom } from './ContactVolumetricsEngine';
 
 export class VolumeCalculationEngine {
     // Physical-consistency check on the deterministic inputs. Returns human
@@ -139,6 +139,8 @@ export class VolumeCalculationEngine {
             const recoverableOil = isGasFluid ? 0 : stooip * (oilRecovery / 100);
             const recoverableGas = giip * (gasRecovery / 100);
             const recoverable = isGasFluid ? recoverableGas : recoverableOil;
+            // RCP-U1-017: condensate in place from the CGR (was unused)
+            const cond = condensateFrom(giip, inputs.cgr, gasRecovery);
 
             // Return results object. `inputs`/`unitSystem` are echoed back so the
             // results tables can render the case parameters without reaching into
@@ -160,6 +162,9 @@ export class VolumeCalculationEngine {
                 hcPoreVolumeOil: hcpvOil,
                 hcPoreVolumeGas: hcpvGas,
                 hcArea: calculatedArea,
+                condensate: cond.inPlace,
+                recoverableCondensate: cond.recoverable,
+                cgr: cond.cgr,
                 volumeUnit,
                 volUnit: isField ? 'Ac-ft' : 'm³',
                 resVolUnit: isField ? 'Ac-ft' : 'm³',
@@ -178,7 +183,8 @@ export class VolumeCalculationEngine {
                     gasCapFraction: parseFloat(inputs.gasCapFraction),
                     owc: inputs.owc,
                     goc: inputs.goc,
-                    fluidType
+                    fluidType,
+                    cgr: cond.cgr
                 },
                 warnings,
                 qualityScore: validation.qualityScore

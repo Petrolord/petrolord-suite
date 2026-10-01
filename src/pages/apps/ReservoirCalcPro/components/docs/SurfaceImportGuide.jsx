@@ -4,13 +4,18 @@ import { Article, H2, H3, P, UL, OL, Code, Formula, Note, Table } from './DocPar
 const SurfaceImportGuide = () => (
   <Article
     title="Surface Import"
-    lead="How ReservoirCalc Pro reads a structural surface, what it does with no-data values, and what the three declarations on the import dialog (coordinate unit, depth convention, CRS) actually control."
+    lead="How ReservoirCalc Pro reads a structural surface, what it does with no-data values, and what the declarations on the import dialog (XY unit, depth unit, depth convention, CRS) actually control."
   >
     <H2>Accepted formats</H2>
     <P>
-      The parser sniffs the file content first and falls back to the file extension. The format buttons on
-      the dialog (XYZ, CPS-3, ZMap) are a label recorded on the surface record; they do not change how the
-      file is read.
+      Since the U1 upgrade (2026-09-30) every file goes first through the Suite's surface file door, the one
+      Mapping and Surface Studio uses. It reads Petrel CPS-3 (with its "-&gt;" name line), Kingdom ZMAP+,
+      Irap classic, XYZ with a header row, columns in any order with units in the header, Petrel points with
+      attributes, semicolon files with comma decimals, and a rotated seismic lattice as points. It lists what
+      it changed, refuses a file whose header names two-way time, and refuses a ZMAP+ lines (polygon) file.
+      Before U1 the grid formats were read as a handful of header numbers. Files the door cannot read (ESRI
+      ASCII grids, GeoJSON points) fall back to the parser below. The format buttons on the dialog are a
+      label recorded on the surface record; they do not change how the file is read.
     </P>
     <Table
       headers={['Format', 'Typical extension', 'How it is read']}
@@ -25,8 +30,8 @@ const SurfaceImportGuide = () => (
       ]}
     />
     <P>
-      The file chooser accepts <Code>.txt .csv .dat .xyz .asc .grd .json .geojson .zmap</Code>. Both the
-      Seismolord and Mapping Studio handoffs go through the same XYZ path.
+      The file chooser accepts <Code>.txt .csv .dat .xyz .asc .grd .json .geojson .zmap .cps .irap .gri</Code>.
+      The Seismolord and Mapping Studio handoffs have their own doors, described below.
     </P>
 
     <Note tone="warn" title="Limit on ZMap+ and CPS-3">
@@ -89,10 +94,12 @@ const SurfaceImportGuide = () => (
       volumetrics engine reads them back to turn cell areas and depth intervals into physical volumes.
     </P>
 
-    <H3>1. Coordinate Units (xyUnit)</H3>
+    <H3>1. XY unit and depth unit</H3>
     <P>
-      Meters or Feet. This single choice is applied to X, Y and Z together. The surface record receives
-      <Code>xyUnit</Code> and <Code>depthUnit</Code> set to the same value. See the one-unit model below.
+      Two separate choices, metres or feet (U1 upgrade, 2026-09-30). A UTM grid in metres with depths in
+      feet, common in Petrel field projects, is declared as XY m and depth ft. The surface record receives
+      <Code>xyUnit</Code>, <Code>xyToM</Code> (metres per map unit) and <Code>depthUnit</Code>. If the file
+      header names a depth unit that differs from your choice, the dialog says so before importing.
     </P>
 
     <H3>2. Depth Convention (zConvention)</H3>
@@ -105,14 +112,13 @@ const SurfaceImportGuide = () => (
     />
     <P>
       Internally the engine normalises to depth-increasing-downward before doing any interval arithmetic, so
-      either convention gives the same volume as long as the contacts you type use the same convention as
-      the surface.
+      either convention gives the same volume.
     </P>
-    <Note tone="warn" title="Two captions in the app disagree">
-      The Geometry tab shows a banner saying the Z axis is negative downward, while the caption under the
-      Fluid Contacts card says Z values are assumed to be positive downward. Ignore both captions and follow
-      the surface. The engine converts contacts using the <Code>zConvention</Code> recorded on the surface at
-      import, so type OWC and GOC in whatever convention you declared there.
+    <Note tone="info" title="Contacts are always TVDSS elevations">
+      Whatever the surface's convention and unit, OWC and GOC are typed as TVDSS elevations (negative below
+      the datum) in the contact unit chosen on the Fluid Contacts card. A positive contact over a structure
+      that lies wholly below the datum is named in the results: it usually means a depth was typed without
+      its minus sign.
     </Note>
 
     <H3>3. Coordinate Reference System (CRS)</H3>
@@ -139,76 +145,33 @@ const SurfaceImportGuide = () => (
       not overlay. Reproject to a common CRS in your mapping package before import.
     </Note>
 
-    <H2>The one-unit model, and what it costs</H2>
-    <P>
-      A surface in ReservoirCalc Pro carries one length unit for XY and Z. There is no separate vertical
-      unit. Most exports are self-consistent, so this is invisible. It matters for a Seismolord depth
-      surface, which is published with XY in metres and Z in feet.
-    </P>
-    <P>
-      The import path reconciles that by rescaling XY from metres to feet and leaving Z untouched, giving a
-      self-consistent all-feet surface with the interpreter depth values preserved.
-    </P>
-    <Formula>FT_PER_M = 3.280839895013123 ; x_ft = x_m * FT_PER_M ; y_ft = y_m * FT_PER_M ; z unchanged</Formula>
-    <P>
-      Rescaled XY are written back with two decimal places. The CRS field is then blanked, because
-      metre-based eastings and northings multiplied by 3.2808 are no longer coordinates in any coordinate
-      reference system. Recording an EPSG code against them would be a false claim of provenance.
-    </P>
-    <Note tone="info" title="The alternative was worse">
-      Labelling feet depths as metres, or vice versa, put a factor of about 3.28 straight into GRV. Rescaling
-      XY keeps the volume right and gives up only the CRS tag.
-    </Note>
-
     <H2>Importing from other Suite apps</H2>
     <P>
-      The dialog lists surfaces published by two other apps when any exist. Both land on the same parse path
-      as a manual upload.
-    </P>
-
-    <H3>From Seismolord (seismic_exported_surfaces)</H3>
-    <P>
-      Each row shows its domain and export time. What happens on Use depends on the domain.
-    </P>
-    <Table
-      headers={['Domain', 'XY handling', 'Declarations set']}
-      rows={[
-        ['depth_ft', 'XY rescaled from metres to feet', 'xyUnit ft, zConvention elevation, CRS blanked'],
-        ['twt_ms', 'Left untouched', 'xyUnit m, zConvention elevation, CRS blanked'],
-      ]}
-    />
-    <Note tone="danger" title="Two-way time surfaces give meaningless volumes">
-      Loading a TWT surface in milliseconds raises a warning toast. The values are times, so gross rock
-      volume computed from them has no physical meaning and volumetric results will be wrong. Depth-convert
-      the horizon in Seismolord and export it as depth in feet before using it here.
-    </Note>
-    <P>
-      The CRS is deliberately cleared for both domains, so a CRS typed for an earlier manual import is never
-      carried onto a Seismolord surface.
+      The dialog lists surfaces published by two other apps when any exist. Each row says what it is.
+      Rows that are not depth structures are refused with the reason, before anything is imported.
     </P>
 
     <H3>From Mapping and Surface Studio (geo_surfaces)</H3>
     <P>
-      Each row shows its kind and grid size. The float32 grid is downloaded and converted to XYZ text in
-      memory, then parsed as usual. The registry row drives the declarations.
+      Every registry row goes through the shared surface door (<Code>readDepthSurface</Code>, the same door
+      Mapping and Earth Modeling use). The dialog then shows what it read: live nodes, depth in metres as
+      elevation, the XY unit and the CRS, and any note the door made.
     </P>
     <UL>
-      <li>
-        <Code>z_unit</Code> is honoured. A value of <Code>ft</Code> triggers the same XY rescale to feet and
-        the same CRS blanking. Anything else is treated as metres.
-      </li>
-      <li>
-        <Code>zConvention</Code> follows the producing app. Rows whose provenance names Seismolord are
-        negative-down (elevation); Mapping Studio structure grids are positive-down (depth).
-      </li>
-      <li>
-        The row <Code>crs</Code> is carried into the CRS field when XY were not rescaled.
-      </li>
-      <li>
-        When a row records no z unit and is not an attribute grid, metres are assumed and the toast says so.
-        Verify that before running volumetrics.
-      </li>
+      <li>Depth structures are read in metres as elevation, whatever unit they were stored in.</li>
+      <li>The XY frame keeps its own coordinates and CRS; its exact metres per unit (US survey feet included) drive the cell areas. Before U1, a state-plane surface in feet read its square feet as square metres (10.76 times the volume).</li>
+      <li>A rotated grid places its nodes with the rotation.</li>
+      <li>Two-way-time horizons, isochores, attribute maps (MD, TVD below KB, porosity) and structures referenced to TVD or MD are refused, with the way out.</li>
     </UL>
+
+    <H3>From Seismolord (seismic_exported_surfaces)</H3>
+    <Table
+      headers={['Domain', 'What happens', 'Declarations set']}
+      rows={[
+        ['depth_ft', 'Imported; XY stay in their CRS', 'XY m, depth ft, elevation'],
+        ['twt_ms', 'Refused: depth-convert first', 'none'],
+      ]}
+    />
 
     <H2>Geometry sanity checks</H2>
     <P>
@@ -240,7 +203,7 @@ const SurfaceImportGuide = () => (
       <li>ESRI ASCII grids: <Code>XLLCENTER</Code> is treated as if it were <Code>XLLCORNER</Code>, so a centre-registered grid is offset by half a cell. Also, a <Code>NODATA_VALUE</Code> of exactly 0 falls back to -9999, so zero-valued cells are kept.</li>
       <li>Only a single Z column is read. Multi-attribute grids lose the extra columns.</li>
       <li>Faults, polygons and grid boundaries in a file are ignored. Only point triples are extracted.</li>
-      <li>No check that two surfaces share a CRS or a unit. Selecting a metric top with a feet base gives a wrong thickness silently.</li>
+      <li>A top and base in different XY units are refused; depths in different units are converted. Two surfaces in different CRSs are not checked against each other.</li>
     </UL>
   </Article>
 );

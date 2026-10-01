@@ -12,6 +12,8 @@ import {
     fmtDec, OIL, GAS, SLATE,
 } from './slideParts';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { inPlaceScale, headlineStream, runContext } from '../../../services/volumeDisplay';
+import { reviewerLines } from '../../../services/reportInfo';
 
 // Rasterise an inline <svg> element to a PNG data URL so it can be embedded in the
 // branded PDF. Renders at the SVG's viewBox size × 2 for a crisp result; resolves
@@ -43,12 +45,13 @@ const svgToPng = (svg, w, h, scale = 2) =>
 
 const PARAM_LABELS = { area: 'Area', thickness: 'Thickness', ntg: 'NTG', phi: 'Porosity', sw: 'Water Sat.', fvf: 'Bo', bg: 'Bg', owc: 'OWC', goc: 'GOC', grvFactor: 'GRV Factor' };
 
-// Expectation curve (cumulative probability) drawn as a self-contained SVG so it
+// Expectation curve (probability of exceeding) drawn as a self-contained SVG so it
 // captures crisply in the screenshot without a charting runtime.
 const ExpectationCurve = ({ cdf, denom, unit, p90, p50, p10, svgRef }) => {
     const W = 600, H = 250, padL = 46, padR = 18, padT = 14, padB = 32;
     const plotW = W - padL - padR, plotH = H - padT - padB;
-    const pts = (cdf || []).map((p) => ({ x: p.x / denom, y: p.y })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+    // RCP-U1-006: probability of exceeding (the 90% line meets the P90 volume)
+    const pts = (cdf || []).map((p) => ({ x: p.x / denom, y: 100 - p.y })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
     if (pts.length < 2) return <div className="flex h-full items-center justify-center text-[13px] text-slate-400">No distribution data.</div>;
     let xmin = Infinity, xmax = -Infinity;
     for (const p of pts) { if (p.x < xmin) xmin = p.x; if (p.x > xmax) xmax = p.x; }
@@ -105,12 +108,12 @@ const ProbabilisticSlide = () => {
         );
     }
 
-    const ft = inputs?.fluidType || 'oil';
+    // RCP-U1-001/009: the run's own unit system and the stream's divisor
+    const run = runContext(probResults, state);
+    const ft = run.fluidType;
     const isGas = ft === 'gas';
-    const isField = state.unitSystem === 'field';
     const stats = isGas ? probResults.stats.giip : probResults.stats.stooip;
-    const denom = isGas ? 1e9 : 1e6;
-    const unit = isGas ? (isField ? 'Bscf' : 'MMsm³') : (isField ? 'MMstb' : 'MMsm³');
+    const { denom, label: unit } = inPlaceScale(headlineStream(ft), run.unitSystem);
     const palette = isGas ? GAS : OIL;
 
     const project = state.currentProjectMeta?.name || 'Untitled Project';
@@ -147,7 +150,10 @@ const ProbabilisticSlide = () => {
             const cdfImg = curveRef.current ? await svgToPng(curveRef.current, 600, 250) : null;
             const tornadoImg = tornadoSvgRef.current ? await svgToPng(tornadoSvgRef.current, 520, 180) : null;
             await ReportGenerator.generateProbabilisticReport(
-                project, probResults, state.unitSystem, { cdf: cdfImg, tornado: tornadoImg }, { template: 'technical', fluidType: ft, reservoirName: reservoir },
+                project, probResults, run.unitSystem, { cdf: cdfImg, tornado: tornadoImg }, {
+                    template: 'technical', fluidType: ft, reservoirName: reservoir,
+                    reviewer: reviewerLines({ report: state.inputs?.report, unitSystem: run.unitSystem, inputMethod: state.inputMethod, fluidType: ft, inputs: state.inputs, probResults }),
+                },
             );
             toast({ title: 'Report downloaded', description: 'The full branded PDF was saved.' });
         } catch (e) {
@@ -184,7 +190,7 @@ const ProbabilisticSlide = () => {
                 {/* Expectation curve + statistics / sensitivity */}
                 <div className="flex min-h-0 flex-1 gap-4">
                     <Panel
-                        title="Expectation Curve"
+                        title="Expectation curve (probability of exceeding)"
                         icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
                         right={<span className="text-[11px] font-medium text-slate-400">cumulative probability</span>}
                         className="flex-[1.4]"

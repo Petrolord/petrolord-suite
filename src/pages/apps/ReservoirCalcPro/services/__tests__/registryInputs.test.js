@@ -19,9 +19,11 @@ const ZONES = [
 test('zoneAveragesToInputs averages published properties only', () => {
   const o = zoneAveragesToInputs(ZONES);
   expect(o.fromWells).toBe(2);
-  expect(o.porosity).toBeCloseTo(0.22, 10);
-  expect(o.sw).toBeCloseTo(0.32, 10);
-  expect(o.ntg).toBeCloseTo(0.85, 10);
+  // RCP-U1-018 (superseded plain means 0.22 / 0.32 / 0.85): net-weighted
+  // porosity, pore-weighted Sw, NTG = total net / total gross
+  expect(o.porosity).toBeCloseTo((18 * 0.20 + 22 * 0.24) / 40, 10);
+  expect(o.sw).toBeCloseTo((18 * 0.20 * 0.30 + 22 * 0.24 * 0.34) / (18 * 0.20 + 22 * 0.24), 10);
+  expect(o.ntg).toBeCloseTo(40 / (22.5 + 22 / 0.9), 10);
   // RCP applies NTG to its thickness, so the thickness is GROSS
   expect(o.thickness).toBeCloseTo((22.5 + 22 / 0.9) / 2, 10);
 });
@@ -84,7 +86,7 @@ test('buildRegistryInputs merges zone + surface with provenance', () => {
   const { patch, provenance } = buildRegistryInputs({
     zones: ZONES, surface: { name: 'Top Dome structure', dx: 200, dy: 200 }, grid, areaUnit: 'acres',
   });
-  expect(patch.porosity).toBeCloseTo(0.22, 10);
+  expect(patch.porosity).toBeCloseTo((18 * 0.20 + 22 * 0.24) / 40, 10);
   expect(patch.thickness).toBeCloseTo((22.5 + 22 / 0.9) / 2, 10);
   expect(patch.area).toBeCloseTo((3 * 200 * 200) / 4046.8564224, 8);
   expect(provenance).toMatchObject({ source: 'shared-registry', wells_averaged: 2, surface: 'Top Dome structure', area_unit: 'acres' });
