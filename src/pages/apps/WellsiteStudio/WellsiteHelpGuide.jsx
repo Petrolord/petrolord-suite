@@ -187,6 +187,23 @@ export default function WellsiteHelpGuide() {
           enter the hole sections from the BOP down. Record the booster rate beside the main rate on every pump change; the panel shows
           the riser leg's share of the lag. A land rig, jack-up or platform has neither and the lag is the single leg it always was.
         </Para>
+        <SubHeading>Lag check and washout</SubHeading>
+        <Para>
+          A calculated lag assumes a gauge hole. To check it, drop carbide (or rice, or a paint marker) into the pipe at a
+          connection, count the pump strokes until it comes back, and type the count under Lag check and washout in the dock. The
+          strokes it took to travel down the string (the inside volume of the pipe and collars over the pump output, plus a surface
+          line if you enter one) are taken off the count; what is left is the measured lag. The panel shows it beside the calculated
+          lag, the difference in strokes and in volume, the washout as a percent of the gauge open hole volume, and the equivalent
+          hole diameter.
+        </Para>
+        <Para>
+          Record check keeps the count as it was made. Record and apply washout also corrects the lag: the open hole is enlarged by
+          that percent for the lag strokes, the sample arrival times and the lagged depth, and the lag panel says it is corrected.
+          Cased hole and the riser are steel and are never enlarged. A later check always measures against the gauge hole, so one
+          washout is never stacked on another. A caliper figure can be applied by hand, and Clear returns to the gauge hole; each is
+          a new version on the record. A count shorter than the calculated lag is not a washout: the panel says to check the pump
+          output, the sizes and the count, and corrects nothing.
+        </Para>
         <Para>
           The sampling programme (an interval per depth range) is an authorised decision; changing it needs the person who authorised
           it and makes a new version. Samples are scheduled three intervals ahead of the bit, with their predicted arrival, starting from

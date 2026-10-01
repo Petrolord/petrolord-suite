@@ -50,6 +50,8 @@ import MembersPanel from './MembersPanel';
 import { memberName } from '../services/members';
 import { buildLabel } from '@/lib/platformBuild';
 import { useNarrowViewport } from './useNarrowViewport';
+import LagCheckPanel from './LagCheckPanel';
+import { LAG_CHECK_SUBTYPE, currentWashout, lagCheckParams, washoutParams } from '../services/lagCheck';
 
 export const VIEWS = [
   { id: 'live', label: 'Live', icon: Activity },
@@ -81,6 +83,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const [samples, setSamples] = useState([]);
   const [stages, setStages] = useState([]);
   const [programmeRecords, setProgrammeRecords] = useState([]);
+  const [decisionRecords, setDecisionRecords] = useState([]);
+  const [lagChecks, setLagChecks] = useState([]);
   const [describeSample, setDescribeSample] = useState(null);
   const [shows, setShows] = useState([]);
   const [observations, setObservations] = useState([]);
@@ -159,7 +163,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const refreshSeq = useRef(0);
   const refreshWellData = useCallback(async () => {
     const seq = ++refreshSeq.current;
-    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); setShows([]); setObservations([]); setPhotos([]); setTops([]); setPrognoses([]); setMembers([]); setNarratives([]); setReports([]); setSignoffs([]); return; }
+    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); setDecisionRecords([]); setLagChecks([]); setShows([]); setObservations([]); setPhotos([]); setTops([]); setPrognoses([]); setMembers([]); setNarratives([]); setReports([]); setSignoffs([]); return; }
     const [bits, pumps, cfg, descs, evs, smp, stg, prog, shw, obs, pho, tps, prg, mem, nar, rep, sgn] = await Promise.all([
       backend.listRecords(well.id, { subtype: 'bit_depth' }),
       backend.listRecords(well.id, { subtype: 'pump_rate' }),
@@ -168,7 +172,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       backend.listRecords(well.id, { kind: 'event' }),
       backend.listSamples(well.id),
       backend.listStages(well.id),
-      backend.listRecords(well.id, { subtype: PROGRAMME_SUBTYPE }),
+      backend.listRecords(well.id, { kind: 'decision' }),
       backend.listRecords(well.id, { subtype: SHOW_SUBTYPE }),
       backend.listRecords(well.id, { kind: 'observation' }),
       backend.listPhotos(well.id),
@@ -192,7 +196,9 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setPhotos(pho);
     setSamples(smp);
     setStages(stg);
-    setProgrammeRecords(prog);
+    setProgrammeRecords(prog.filter((r) => r.subtype === PROGRAMME_SUBTYPE));
+    setDecisionRecords(prog);
+    setLagChecks(currentObservations(obs.filter((r) => r.subtype === LAG_CHECK_SUBTYPE)));
     setBitDepths(currentObservations(bits));
     setPumpEvents(currentObservations(pumps));
     setDescriptions(currentObservations(descs).sort((a, b) => (a.md_calc_m ?? 0) - (b.md_calc_m ?? 0)));
@@ -214,11 +220,13 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const entryDefaults = useMemo(() => defaultDepthEntry(well, units.depth), [well, units.depth]);
   const nowForLag = Date.now() + tick * 0;
   const events = useMemo(() => eventsFromRecords(eventRecords), [eventRecords]);
-  const lag = useMemo(() => (well ? lagNow({ well, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag }) : { available: false, note: '' }), [well, rigConfig, bitDepths, pumpEvents, events, nowForLag]);
+  // U2-004: the washout in force (a decision citing its lag check) enlarges the open hole before the lag is computed
+  const washout = useMemo(() => currentWashout(decisionRecords), [decisionRecords]);
+  const lag = useMemo(() => (well ? lagNow({ well, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag, washout }) : { available: false, note: '' }), [well, rigConfig, bitDepths, pumpEvents, events, nowForLag, washout]);
   const floater = isFloater(rigConfig);
   const rop = useMemo(() => ropNow(bitDepths, events), [bitDepths, events]);
   const programme = useMemo(() => currentProgramme(programmeRecords), [programmeRecords]);
-  const board = useMemo(() => (well ? sampleBoard({ samples, stages, well, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag }) : null), [well, samples, stages, rigConfig, bitDepths, pumpEvents, events, nowForLag]);
+  const board = useMemo(() => (well ? sampleBoard({ samples, stages, well, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag, washout }) : null), [well, samples, stages, rigConfig, bitDepths, pumpEvents, events, nowForLag, washout]);
   const scheduling = useRef(false);
   const scheduleAhead = useCallback(async () => {
     if (!well || !programme || scheduling.current) return 0;
@@ -257,6 +265,22 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       setTick((t) => t + 1);
     } catch (e) { setStatus(e.message); }
   }, [backend, well]);
+  const recordLagCheck = useCallback(async (result, { tracer }) => {
+    const bit = bitDepths[bitDepths.length - 1] || null;
+    const { row } = await backend.addRecord(well.id, lagCheckParams({ result, tracer, bit }));
+    setStatus(result.applies
+      ? `Lag check recorded: ${result.measuredLagStrokes.toFixed(0)} stk measured against ${result.calculatedLagStrokes.toFixed(0)} calculated, washout ${(result.washoutFraction * 100).toFixed(1)} percent of the open hole.`
+      : `Lag check recorded. ${result.note}`);
+    setTick((t) => t + 1);
+    return row;
+  }, [backend, well, bitDepths]);
+  const applyWashout = useCallback(async (fraction, { lagCheckId = null, basis = null } = {}) => {
+    const p = washoutParams({ washoutFraction: fraction, basis, person: user ? user.name || user.email : null, lagCheckId });
+    if (washout && washout.record) await backend.addVersion(washout.record, { payload: p.payload, evidenceIds: p.evidenceIds });
+    else await backend.addRecord(well.id, p);
+    setStatus(`${p.payload.statement}.`);
+    setTick((t) => t + 1);
+  }, [backend, well, washout, user]);
   const prognosis = useMemo(() => currentPrognosis(prognoses), [prognoses]);
   const latestBitMd = bitDepths.length ? bitDepths[bitDepths.length - 1].md_calc_m : null;
   const topsBoard = useMemo(() => (well && ctx ? formationBoard({ tops, prognosis, bitMdM: latestBitMd, ctx }) : { rows: [], next: null, conflicts: [] }), [well, ctx, tops, prognosis, latestBitMd]);
@@ -485,6 +509,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   ) : well ? (
     <>
       <LagPanel lag={lag} pumpEvents={pumpEvents} onPump={recordPump} unit={units.depth} volumeUnit={units.volume} offsetMin={offsetMin} nowMs={nowForLag} floater={floater} />
+      <div className="border-t border-pl-border" />
+      <LagCheckPanel lag={lag} washout={washout} checks={lagChecks} onRecord={recordLagCheck} onApply={applyWashout} unit={units.depth} volumeUnit={units.volume} offsetMin={offsetMin} />
       <div className="border-t border-pl-border" />
       <ApproachPanel next={topsBoard.next} evidence={approachEvidence} unit={units.depth} offsetMin={offsetMin} onOpenTops={() => setView('tops')} />
     </>

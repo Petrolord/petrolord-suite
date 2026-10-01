@@ -86,6 +86,78 @@
       "group": "porepressure-u2 (engines PR #293)",
       "reason": "Pore Pressure Studio U2 engines, vendored from Petrolord/petrolord-engines PR #293 head 0e450aa (blob identical there); the PR could not be merged by the build agent, so the pin cannot move to a canonical main commit yet.",
       "burnDownWhen": "engines PR #293 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every porepressure-u2 row."
+    },
+    {
+      "path": "__tests__/wellsite.dexponent.test.js",
+      "kind": "extra",
+      "vendoredSha": "2a291c8dbca960209f49c795923f9fe8b77997d6",
+      "group": "wellsite-u2 (engines PR #297)",
+      "reason": "Wellsite Studio U2 engines, vendored byte-identical from Petrolord/petrolord-engines PR #297 head bc08ee3; build agents do not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #297 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every wellsite-u2 row."
+    },
+    {
+      "path": "__tests__/wellsite.gasratios.test.js",
+      "kind": "extra",
+      "vendoredSha": "06f62de85515ef6ce00419fc6b1cfb4bebe2ff73",
+      "group": "wellsite-u2 (engines PR #297)",
+      "reason": "Wellsite Studio U2 engines, vendored byte-identical from Petrolord/petrolord-engines PR #297 head bc08ee3; build agents do not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #297 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every wellsite-u2 row."
+    },
+    {
+      "path": "__tests__/wellsite.lagcheck.test.js",
+      "kind": "extra",
+      "vendoredSha": "7f43bebbe3874eefb1cc43606cf4de16b851d1f5",
+      "group": "wellsite-u2 (engines PR #297)",
+      "reason": "Wellsite Studio U2 engines, vendored byte-identical from Petrolord/petrolord-engines PR #297 head bc08ee3; build agents do not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #297 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every wellsite-u2 row."
+    },
+    {
+      "path": "engines/wellsite/dExponent.js",
+      "kind": "extra",
+      "vendoredSha": "0526446ba3f5e807b26df0b6d2f35487afeb3f5d",
+      "group": "wellsite-u2 (engines PR #297)",
+      "reason": "Wellsite Studio U2 engines, vendored byte-identical from Petrolord/petrolord-engines PR #297 head bc08ee3; build agents do not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #297 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every wellsite-u2 row."
+    },
+    {
+      "path": "engines/wellsite/gasRatios.js",
+      "kind": "extra",
+      "vendoredSha": "3cc4f840becd6c47920152aa7dbe066910f903b5",
+      "group": "wellsite-u2 (engines PR #297)",
+      "reason": "Wellsite Studio U2 engines, vendored byte-identical from Petrolord/petrolord-engines PR #297 head bc08ee3; build agents do not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #297 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every wellsite-u2 row."
+    },
+    {
+      "path": "engines/wellsite/lagCheck.js",
+      "kind": "extra",
+      "vendoredSha": "276a66ac0d4931f0054a8c7556373250108a2d76",
+      "group": "wellsite-u2 (engines PR #297)",
+      "reason": "Wellsite Studio U2 engines, vendored byte-identical from Petrolord/petrolord-engines PR #297 head bc08ee3; build agents do not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #297 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every wellsite-u2 row."
+    },
+    {
+      "path": "test-data/wellsite/README.md",
+      "kind": "differing",
+      "vendoredSha": "8782d35eb7a15d6018666ba8f70ddcb9ef1da92a",
+      "group": "wellsite-u2 (engines PR #297)",
+      "reason": "Wellsite Studio U2 engines, vendored byte-identical from Petrolord/petrolord-engines PR #297 head bc08ee3; build agents do not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #297 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every wellsite-u2 row."
+    },
+    {
+      "path": "test-data/wellsite/lagcheck-goldens.json",
+      "kind": "extra",
+      "vendoredSha": "614711e87a8d7eef56e7527fd69ee545221e6d89",
+      "group": "wellsite-u2 (engines PR #297)",
+      "reason": "Wellsite Studio U2 engines, vendored byte-identical from Petrolord/petrolord-engines PR #297 head bc08ee3; build agents do not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #297 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every wellsite-u2 row."
+    },
+    {
+      "path": "tools/validation/wellsite/oracle_lagcheck.py",
+      "kind": "extra",
+      "vendoredSha": "14b3db8ab9e5dc4f35124750fc0a78174bca81e3",
+      "group": "wellsite-u2 (engines PR #297)",
+      "reason": "Wellsite Studio U2 engines, vendored byte-identical from Petrolord/petrolord-engines PR #297 head bc08ee3; build agents do not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #297 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every wellsite-u2 row."
     }
   ]
 }

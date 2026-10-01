@@ -473,3 +473,10 @@ the evidence kit and the Step 2 backlog: `docs/upgrade/WellsiteStudio-UPGRADE.md
   check, rig surveys, d-exponent, office view).
 - Owner actions unchanged: WS1 validation review, WS6 PWA install, WS9
   simulated shift. Try the stacked layout on the tablet in the WS6 walk.
+
+## 2026-10-01: comprehensive upgrade, Step 2 (batches A and B)
+
+Batch decision by the programme lead (2026-10-01), recorded in `docs/upgrade/WellsiteStudio-UPGRADE.md`
+with the per-item build record. Branch `feat/ws-u2`; engines PR Petrolord/petrolord-engines #297
+(vendored byte-identical as recorded deviations until the lead merges it). No DDL, no migration.
+- **U2-004** (done): lag check and washout in the dock (carbide or tracer count, strokes down the string taken off, washout of the open hole and equivalent diameter, applied as a decision that corrects the lag). Engine `lagCheck.js` validated against the published INTEQ carbide cases. Gate `upgradeU2Lag.test.jsx`.

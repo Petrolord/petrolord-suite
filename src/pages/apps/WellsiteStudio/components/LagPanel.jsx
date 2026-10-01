@@ -28,6 +28,7 @@ export default function LagPanel({ lag, pumpEvents, onPump, unit, volumeUnit = '
         <div className="space-y-1">
           <Row label="Bit" value={fmtDepth(lag.bitMdM, unit)} testId="ws-lag-bit" />
           <Row label="Lag strokes" value={Number.isFinite(lag.lagStrokes) ? `${Math.round(lag.lagStrokes)} stk` : ''} testId="ws-lag-strokes" />
+          {lag.washoutFraction > 0 && <Row label="Corrected for washout" value={`${(lag.washoutFraction * 100).toFixed(1)} % of the open hole`} testId="ws-lag-washout" />}
           <Row label="Pumps" value={lag.spmNow > 0 ? `${lag.spmNow} spm` : 'off'} testId="ws-lag-spm" />
           {floater && <Row label="Booster" value={lag.boosterSpmNow > 0 ? `${lag.boosterSpmNow} spm` : 'off'} testId="ws-lag-booster" />}
           {floater && <Row label="Riser leg" value={Number.isFinite(lag.riserStrokes) ? `${Math.round(lag.riserStrokes)} stk of the lag` : ''} testId="ws-lag-riser" />}
