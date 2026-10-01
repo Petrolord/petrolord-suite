@@ -14,10 +14,15 @@
 // the Surveys door; mudLog intervals become cuttings descriptions through
 // the description vocabulary, and the ones that do not fit are listed.
 //
-// The element names follow the published 1.4.1.1 schema. The files are
-// round-trip tested here; they have not been run through a schema
-// validator or a third-party WITSML store, and the upgrade document says
-// so. Pure apart from DOMParser (present in the browser and in jsdom).
+// The element names, their order and the enumerated values written
+// (typeTrajStation unknown, aziRef grid north, indexType measured depth,
+// typeLithology cuttings, the uom strings) were checked against the
+// published Energistics 1.4.1.1 XSD files (obj_, grp_ and cs_ schemas for
+// trajectory, log and mudLog, and enumValues.xml). The files are round-trip
+// tested here; they have not been run through a schema validator or loaded
+// into a third-party WITSML store, and the upgrade document says so. A
+// lithology outside the standard's list is written by its Suite name.
+// Pure apart from DOMParser (present in the browser and in jsdom).
 
 import { resolveLithology } from '@/lib/wellsite/descriptionVocabulary';
 
