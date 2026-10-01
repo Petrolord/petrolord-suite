@@ -98,3 +98,30 @@ test('U2-001: a Seismolord fault joins as a polygon per zone top (fixture throug
   await expect(page.getByTestId('em-qc')).toBeVisible();
   expect(errs).toEqual([]);
 });
+
+test('U2-009: the zone goes to ReservoirCalc Pro as a prospect and its inputs fill', async ({ page }) => {
+  const errs = errorsOf(page);
+  await stack(page);
+  await metric(page);
+  await page.getByTestId('em-owc-0').fill('1580');
+  await page.getByTestId('em-bo-0').fill('1.25');
+  await buildNow(page);
+  await page.getByTestId('em-view-qc').click();
+  const emStoiip = Number((await page.getByTestId('em-vol-zone-1-total-stoiip').textContent()).trim()); // 10^6 sm3
+  await page.getByTestId('em-send-rcp').click();
+  await expect(page).toHaveURL(/\/dev\/reservoircalc-pro\?emProspect=.+&zone=0/);
+  const note = page.getByTestId('rcp-em-prospect');
+  await expect(note).toBeVisible({ timeout: 30000 });
+  await expect(note).toContainText('From Earth Modeling: New model, Zone 1');
+  await expect(note).toContainText('keeps the model');
+  // ReservoirCalc Pro computes the same STOIIP (its project opens in field units: STB)
+  const kpi = page.getByTestId('rcp-stooip');
+  await expect(kpi).not.toHaveAttribute('data-value', '', { timeout: 15000 }).catch(async () => {
+    await page.getByRole('button', { name: /Recalculate/ }).click();
+  });
+  await expect(kpi).not.toHaveAttribute('data-value', '', { timeout: 15000 });
+  const stb = Number(await kpi.getAttribute('data-value'));
+  expect(Math.abs(stb / ((emStoiip * 1e6) / 0.158987294928) - 1)).toBeLessThan(2e-3);
+  await page.screenshot({ path: path.join(SHOTS, 'u2-009-rcp.png') });
+  expect(errs).toEqual([]);
+});

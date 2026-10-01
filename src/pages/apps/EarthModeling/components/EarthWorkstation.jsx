@@ -8,7 +8,7 @@
 // recomputed on demand (plan decision 2).
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck, ImageDown, Route, FileDown, ExternalLink, HelpCircle, Box, FileText } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
@@ -34,6 +34,7 @@ import { useWellCurvesCache } from '@/components/wells/useWellCurvesCache';
 import { downloadBlob } from '@/components/maps/mapPng';
 import { volumesCsv } from '../services/volumesCsv';
 import { buildModelReportPdf } from '../services/modelReportPdf';
+import { buildEarthModelProspect, writeProspectHandoff, rcpProspectHref } from '@/lib/earthModelProspect';
 import { SEISMIC_FAULTS_HOOK, normalizeSeismicFault, hangingWallAtSurface } from '../services/seismicFaultZones';
 import { appPath, mapSurfaceHref, reservoirCalcSurfaceHref, MAPPING_ID, RESERVOIRCALC_ID, EARTH_MODELING_ID } from '@/components/wells/appLinks';
 import { toDisplay } from '@/components/wells/depthModes';
@@ -492,6 +493,11 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           disabled={!built} onClick={() => exportVolumesCsv()}>
           <FileDown className="w-3.5 h-3.5" /> Volumes CSV
         </button>
+        <button type="button" data-testid="em-send-rcp" title="Open ReservoirCalc Pro with the zone on the map as a prospect: area, column, NTG, porosity, Sw, contacts and FVFs as the model has them"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
+          disabled={!built} onClick={() => sendToRcp()}>
+          <ExternalLink className="w-3.5 h-3.5" /> Prospect to ReservoirCalc Pro
+        </button>
         <button type="button" data-testid="em-report-pdf" title="Download the model report (PDF): reviewer header, volumes, contacts as used, flags, provenance, ties and the map"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           disabled={!built || reporting} onClick={() => exportReportPdf()}>
@@ -618,6 +624,16 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     } catch (e) { setStatus(e.message); }
   };
   // U2-003: the model report a reviewer signs (PDF); the map on screen goes in as a picture
+  // U2-009: the model to ReservoirCalc Pro as a prospect (the zone on the map)
+  const navigate = useNavigate();
+  const sendToRcp = () => {
+    try {
+      const usedWells = (wells || []).filter((w) => (w.zones || []).some((z) => definition.zones.some((d) => d.registryZone && d.registryZone === z.name)));
+      const payload = buildEarthModelProspect(built, { name: definition.name, wells: usedWells, report });
+      const id = writeProspectHandoff(payload);
+      navigate(rcpProspectHref(id, zoneIdx, appPath(RESERVOIRCALC_ID, appPaths)));
+    } catch (e) { setStatus(e.message); }
+  };
   const exportReportPdf = async () => {
     if (!built) return;
     setReporting(true);

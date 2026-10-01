@@ -14,6 +14,7 @@ import FluidContactManager from './tools/FluidContactManager';
 import MapGenerationPanel from './tools/MapGenerationPanel';
 import SurfaceDataManager from './tools/SurfaceDataManager';
 import AOIPanel from './AOIPanel';
+import EarthModelProspectNote from './EarthModelProspectNote'; // Earth Modeling U2-009 handoff
 import RegistryPanel from './RegistryPanel';
 import ProbabilisticPanel from './probabilistic/ProbabilisticPanel';
 import { FLUID_PRESETS, FluidPropertyCalculator } from '../services/FluidPropertyLibrary';
@@ -143,6 +144,7 @@ const ExpertInputPanel = () => {
 
     return (
         <div className="h-full flex flex-col p-2 overflow-hidden space-y-2">
+            <EarthModelProspectNote />
             <Collapsible open={isSettingsOpen} onOpenChange={setSettingsOpen} className="space-y-2 flex-shrink-0">
                 <Card className="overflow-hidden">
                     <div className="flex items-center justify-between p-3 bg-pl-surface cursor-pointer hover:bg-pl-sunken transition-colors" onClick={() => setSettingsOpen(!isSettingsOpen)}>
