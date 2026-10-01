@@ -8,9 +8,15 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { seedUnitView } from './helpers/unitView.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const LAS = path.join(here, '..', 'packages', 'engines', 'test-data', 'wells', 'las', 'basic_20.las');
+
+// Since the Suite unit profile (#830) the harness opens in feet (signed out:
+// the built-in oilfield preset). The fixtures, typed depths and expected
+// values here are metres, so each tab starts on a metric view override.
+test.beforeEach(async ({ page }) => { await seedUnitView(page, 'well-data-manager'); });
 
 test('full LAS import → view → share → delete flow in the harness', async ({ page }) => {
   await page.goto('/dev/well-data-manager');
