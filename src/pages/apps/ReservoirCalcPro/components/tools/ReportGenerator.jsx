@@ -8,6 +8,7 @@ import { tornadoSwings } from '@/lib/monteCarlo';
 // Suite's report header reaches every report.
 import { loadPetrolordLogo, drawBrandHeader } from '@/lib/pdfBrand';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { inPlaceScale } from '../../services/volumeDisplay';
 
 // ── Text-fitting helpers ────────────────────────────────────────────────────
 // Long project/reservoir names used to be drawn at full length and collided
@@ -50,8 +51,8 @@ export class ReportGenerator {
 
         const gas = fluidType === 'gas';
         const stats = (gas ? results.stats.giip : results.stats.stooip) || {};
-        const denom = gas ? 1e9 : 1e6;
-        const unit = gas ? (unitSystem === 'field' ? 'Bscf' : 'MMsm³') : (unitSystem === 'field' ? 'MMstb' : 'MMsm³');
+        // RCP-U1-001: one divisor and label per stream (GIIP in sm3 over 1e9 is Bsm3)
+        const { denom, label: unit } = inPlaceScale(gas ? 'gas' : 'oil', results.meta?.unitSystem || unitSystem);
         const fmt = (v) => (Number.isFinite(v) ? (v / denom).toFixed(2) : EMPTY_VALUE);
 
         const doc = new jsPDF();
@@ -175,7 +176,7 @@ export class ReportGenerator {
         // Executive: histogram only. Technical/Audit: histogram + CDF + tornado.
         yPos = addChart(chartImages.histogram, `Volume Distribution (${unit})`, yPos);
         if (includeTechnical) {
-            yPos = addChart(chartImages.cdf, 'Expectation Curve (Cumulative Probability)', yPos);
+            yPos = addChart(chartImages.cdf, 'Expectation curve (probability of exceeding each volume)', yPos);
             yPos = addChart(chartImages.tornado, 'Sensitivity Tornado (P50 swing per parameter)', yPos, 90);
 
             // Sensitivity table — variance share plus the conditional P50 swing

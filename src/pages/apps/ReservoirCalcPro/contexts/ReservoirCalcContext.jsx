@@ -8,6 +8,7 @@ import { AOIManager } from '../services/AOIManager';
 import { loadSettings } from '../hooks/useReservoirSettings';
 import { defaultInputUnits, convertInputsOnSystemChange } from '../services/unitsCatalog';
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
+import { runSignature } from '../services/volumeDisplay';
 
 // Families that decide RCP's system from the Suite unit profile
 const RCP_PROFILE_FAMILIES = ['area', 'rockVolume', 'depth'];
@@ -703,6 +704,12 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
                     baseCase: state.baseCase,
                     grvMode: structural ? 'structural' : 'analytic',
                     gasCapFraction: state.inputs.gasCapFraction,
+                    // U1: deterministic recovery factors when the panel sends no
+                    // distribution for them, and the workspace signature the run
+                    // is stamped with (stale detection, RCP-U1-028)
+                    recovery: state.inputs.recovery,
+                    recoveryGas: state.inputs.recoveryGas,
+                    signature: runSignature(state),
                     hypsometry,
                     deterministicContacts: { owc: state.inputs.owc, goc: state.inputs.goc }
                 };

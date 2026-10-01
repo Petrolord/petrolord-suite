@@ -191,7 +191,10 @@ export class ContactVolumetricsEngine {
                 return { grvOil: 0, grvGas: rockToContact(gwc) };
             }
             if (fluidType === 'oil_gas' && isNum(goc)) {
-                const vGoc = rockToContact(goc);
+                // RCP-U1-007: a GOC below the OWC stops at the OWC (gas never
+                // sits under the water leg)
+                const g = isNum(owc) ? Math.max(parseFloat(goc), parseFloat(owc)) : parseFloat(goc);
+                const vGoc = rockToContact(g);
                 const vOwc = rockToContact(owc);
                 return { grvGas: vGoc, grvOil: Math.max(0, vOwc - vGoc) };
             }
@@ -371,10 +374,13 @@ function fluidZoneWindows(fluidType, owc, goc, meta, warnings) {
             if (warnings) warnings.push('Oil+gas selected but no GOC provided — modelled as undersaturated oil (no gas cap).');
             oilTop = -Infinity; oilBot = owcD;
         } else {
-            gasTop = -Infinity; gasBot = gocD;
-            oilTop = gocD; oilBot = owcD;
+            // RCP-U1-007: a GOC entered below the OWC used to count gas
+            // under the water leg; the gas cap now stops at the OWC
+            const gasBase = Math.min(gocD, owcD);
+            gasTop = -Infinity; gasBot = gasBase;
+            oilTop = gasBase; oilBot = owcD;
             if (owcD !== Infinity && owcD < gocD && warnings) {
-                warnings.push('OWC is shallower than GOC — check contact depths (expected GOC above OWC).');
+                warnings.push('The GOC is below the OWC. The gas cap is taken down to the OWC and there is no oil leg; check the contact depths (the GOC should be above the OWC).');
             }
         }
     }
