@@ -15,6 +15,10 @@ function fluidText(z) {
   const bits = [];
   bits.push(Number.isFinite(f.goc) ? `GOC ${f.goc.toFixed(1)} m` : 'no GOC');
   bits.push(Number.isFinite(f.owc) ? `OWC ${f.owc.toFixed(1)} m` : 'no OWC (whole zone counted as hydrocarbon)');
+  // U2-005: contacts per fault block
+  for (const [lab, b] of Object.entries(f.blocks || {})) {
+    bits.push(`block ${lab}${Number.isFinite(b.goc) ? ` GOC ${b.goc.toFixed(1)} m` : ''}${Number.isFinite(b.owc) ? ` OWC ${b.owc.toFixed(1)} m` : ''}`);
+  }
   if (Number.isFinite(f.bo)) bits.push(`Bo ${f.bo} rb/stb`);
   if (Number.isFinite(f.bg)) bits.push(`Bg ${Number(f.bg).toPrecision(4)} rm3/sm3`);
   if (f.gasZone) bits.push('gas zone');

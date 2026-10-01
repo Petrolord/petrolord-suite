@@ -176,6 +176,7 @@ export default function BuilderDock({
             if (p?.bo != null) bits.push(`Bo ${p.bo}`);
             if (p?.bg != null) bits.push(`Bg ${p.bg.toPrecision(3)} rm3/sm3`);
             if (p?.gasZone) bits.push('gas zone');
+            for (const [lab, b] of Object.entries(p?.blocks || {})) bits.push(`block ${lab}${b.goc != null ? ` GOC ${b.goc.toFixed(1)} m` : ''}${b.owc != null ? ` OWC ${b.owc.toFixed(1)} m` : ''}`);
             read = bits.length ? `reads as ${bits.join(', ')} below datum` : null;
           } catch (e) { read = e.message; }
           return (
@@ -187,6 +188,27 @@ export default function BuilderDock({
               <input className={inCls} value={f.bo ?? ''} placeholder="Bo rb/stb" data-testid={`em-bo-${i}`} onChange={(e) => setF('bo', e.target.value)} />
               <input className={inCls} value={f.bg ?? ''} placeholder={`Bg ${bgUnit === 'm3/m3' ? 'rm3/sm3' : bgUnit}`} data-testid={`em-bg-${i}`} onChange={(e) => setF('bg', e.target.value)} />
               {read && <span className="col-span-4 text-[10px] text-pl-muted" data-testid={`em-fluids-read-${i}`}>{read}</span>}
+              {(definition.faultPolygons || []).length > 0 && (
+                <details className="col-span-4" data-testid={`em-block-contacts-${i}`} open={Object.keys(f.blocks || {}).length > 0}>
+                  <summary className="cursor-pointer text-[10px] text-pl-primary-text" title="A fault block can hold its own GOC and OWC (a fault that seals). Blank = the zone contact.">Contacts per fault block</summary>
+                  {[{ lab: '0', name: 'Outside the fault polygons' }, ...(definition.faultPolygons || []).map((p, k) => ({ lab: String(k + 1), name: p.name }))].map(({ lab, name }) => {
+                    const b = (f.blocks || {})[lab] || {};
+                    const setB = (k, v) => {
+                      const next = [...(definition.fluidsInput || [])];
+                      const blocks = { ...(f.blocks || {}), [lab]: { ...b, [k]: v, [unitKey[k]]: depthUnit } };
+                      next[i] = { ...f, blocks };
+                      patch({ fluidsInput: next });
+                    };
+                    return (
+                      <div key={lab} className="grid grid-cols-3 gap-1 mt-1 items-center">
+                        <span className="text-[10px] text-pl-muted truncate" title={name}>{lab}: {name}</span>
+                        <input className={inCls} value={b.goc ?? ''} placeholder={`GOC ${b.gocUnit || depthUnit}`} data-testid={`em-goc-${i}-b${lab}`} onChange={(e) => setB('goc', e.target.value)} />
+                        <input className={inCls} value={b.owc ?? ''} placeholder={`OWC ${b.owcUnit || depthUnit}`} data-testid={`em-owc-${i}-b${lab}`} onChange={(e) => setB('owc', e.target.value)} />
+                      </div>
+                    );
+                  })}
+                </details>
+              )}
             </div>
           );
         })}

@@ -99,3 +99,51 @@ describe('U2-004: the build on a worker, with progress and cancel', () => {
     expect(w.where).toBe('worker');
   });
 });
+
+describe('U2-005: contacts per fault block', () => {
+  // Zone A spans about 1500 to 1640 m. Block 1 (inside the L-shaped fault)
+  // gets its own OWC at 1540 m; the zone OWC 1580 m applies to block 0.
+  const withFault = (byName, fluidsInput) => baseDef(byName, { faultPolygons: [{ name: 'F1', vertices: FAULT_POLYGON }], fluidsInput });
+
+  test('each block equals a build with that block\'s contact for the whole zone', async () => {
+    const f = await fixture();
+    const per = await buildModel(withFault(f.byName, [{ owc: '1580', owcUnit: 'm', bo: '1.2', blocks: { 1: { owc: '1540', owcUnit: 'm' } } }]), f.wells, f.surfaces, f.backend);
+    const at1580 = await buildModel(withFault(f.byName, [{ owc: '1580', owcUnit: 'm', bo: '1.2' }]), f.wells, f.surfaces, f.backend);
+    const at1540 = await buildModel(withFault(f.byName, [{ owc: '1540', owcUnit: 'm', bo: '1.2' }]), f.wells, f.surfaces, f.backend);
+    const v = per.zones[0].volumes;
+    for (const k of ['hcpv_m3', 'oil_hcpv_m3', 'stoiip_m3', 'oil_bulk_m3']) {
+      expect(Math.abs(v['0'][k] - at1580.zones[0].volumes['0'][k])).toBeLessThanOrEqual(1e-6 * at1580.zones[0].volumes['0'][k]);
+      expect(Math.abs(v['1'][k] - at1540.zones[0].volumes['1'][k])).toBeLessThanOrEqual(1e-6 * at1540.zones[0].volumes['1'][k]);
+      expect(Math.abs(v.total[k] - (v['0'][k] + v['1'][k]))).toBeLessThanOrEqual(1e-6 * v.total[k]);
+    }
+    // negative control: the one zone contact books block 1 more than 10% higher
+    expect(at1580.zones[0].volumes['1'].stoiip_m3 / v['1'].stoiip_m3).toBeGreaterThan(1.1);
+    expect(per.zones[0].fluids.blocks).toEqual({ 1: { goc: null, owc: 1540 } });
+  });
+
+  test('a block contact in feet keeps its unit; a GOC below the block OWC is refused', async () => {
+    const f = await fixture();
+    const ft = await buildModel(withFault(f.byName, [{ owc: '1580', owcUnit: 'm', blocks: { 1: { owc: String(1540 / 0.3048), owcUnit: 'ft' } } }]), f.wells, f.surfaces, f.backend);
+    expect(ft.zones[0].fluids.blocks['1'].owc).toBeCloseTo(1540, 6);
+    await expect(buildModel(withFault(f.byName, [{ owc: '1580', blocks: { 1: { goc: '1600' } } }]), f.wells, f.surfaces, f.backend))
+      .rejects.toThrow(/block 1: the GOC is deeper than the OWC/);
+  });
+
+  test('a block without a contact while the zone has none counts its whole column (said in QC)', async () => {
+    const f = await fixture();
+    const b = await buildModel(withFault(f.byName, [{ blocks: { 1: { owc: '1540' } } }]), f.wells, f.surfaces, f.backend);
+    const whole = await buildModel(withFault(f.byName, []), f.wells, f.surfaces, f.backend);
+    const v = b.zones[0].volumes;
+    expect(Math.abs(v['0'].hcpv_m3 - whole.zones[0].volumes['0'].hcpv_m3)).toBeLessThanOrEqual(1e-6 * v['0'].hcpv_m3);
+    expect(v['1'].hcpv_m3).toBeLessThan(whole.zones[0].volumes['1'].hcpv_m3);
+  });
+
+  test('the open-edge report reads each block\'s contact', async () => {
+    const f = await fixture();
+    // a deep block-0 contact reaches the frame edge; block 1 shallow alone does too at its own edge nodes
+    const deep = await buildModel(withFault(f.byName, [{ owc: '1700', blocks: { 1: { owc: '1501' } } }]), f.wells, f.surfaces, f.backend);
+    const shallow = await buildModel(withFault(f.byName, [{ owc: '1501', blocks: { 1: { owc: '1501' } } }]), f.wells, f.surfaces, f.backend);
+    expect(deep.zones[0].openEdge.nodes).toBeGreaterThan(shallow.zones[0].openEdge.nodes);
+  });
+});
+

@@ -133,7 +133,20 @@ export function parseFluidsInput(inputs = []) {
     if (out.bo !== null && !(out.bo > 0)) throw new Error(`Zone ${i + 1}: Bo must be greater than zero.`);
     if (out.bg !== null && !(out.bg > 0)) throw new Error(`Zone ${i + 1}: Bg must be greater than zero.`);
     if (out.goc !== null && out.owc !== null && out.goc > out.owc) throw new Error(`Zone ${i + 1}: the GOC is deeper than the OWC.`);
-    if (out.bg !== null && out.bo === null && out.goc === null) {
+    // U2-005: contacts per fault block override the zone's (block 0 is
+    // outside every fault polygon); each keeps the unit it was typed in
+    const blocks = {};
+    for (const [lab, b] of Object.entries(f.blocks || {})) {
+      if (!b) continue;
+      const bg = depth(b.goc, b.gocUnit, `the GOC of block ${lab}`);
+      const bw = depth(b.owc, b.owcUnit, `the OWC of block ${lab}`);
+      if (bg === null && bw === null) continue;
+      const eg = bg ?? out.goc; const ew = bw ?? out.owc;
+      if (eg !== null && ew !== null && eg > ew) throw new Error(`Zone ${i + 1}, block ${lab}: the GOC is deeper than the OWC.`);
+      blocks[lab] = { goc: bg, owc: bw };
+    }
+    if (Object.keys(blocks).length) out.blocks = blocks;
+    if (out.bg !== null && out.bo === null && out.goc === null && !Object.values(blocks).some((b) => b.goc !== null)) {
       out.gasZone = true;
       notes.push(`Zone ${i + 1}: Bg with no Bo and no GOC, so the zone is gas from its top down to ${out.owc === null ? 'its base' : 'the contact'}.`);
     }
@@ -142,10 +155,48 @@ export function parseFluidsInput(inputs = []) {
   });
 }
 
-/** Engine fluids for a zone: a gas zone puts the GOC at the contact (or deeper than any node). */
-export function engineFluids(f) {
+/**
+ * The contact of one kind ('goc' or 'owc') at every node (U2-005, U2-006):
+ * the block's own contact when one was typed, else the zone's; NaN where
+ * none applies (the engine's "no contact given"). Null when the zone has
+ * no contact of that kind anywhere.
+ */
+export function contactGrid(f, kind, labels, n) {
+  if (!f) return null;
+  const zoneV = Number.isFinite(f[kind]) ? f[kind] : null;
+  const byBlock = {};
+  for (const [lab, b] of Object.entries(f.blocks || {})) if (Number.isFinite(b?.[kind])) byBlock[lab] = b[kind];
+  if (zoneV === null && !Object.keys(byBlock).length) return null;
+  const out = new Float64Array(n);
+  for (let j = 0; j < n; j++) {
+    const lab = String(labels ? labels[j] : 0);
+    out[j] = lab in byBlock ? byBlock[lab] : (zoneV ?? NaN);
+  }
+  return out;
+}
+
+/** The contact of one kind in a block (the block's own, else the zone's), or null. */
+export const blockContact = (f, kind, lab) => {
+  const b = f?.blocks?.[String(lab)]?.[kind];
+  if (Number.isFinite(b)) return b;
+  return Number.isFinite(f?.[kind]) ? f[kind] : null;
+};
+
+/**
+ * Engine fluids for a zone: a gas zone puts the GOC at the contact (or
+ * deeper than any node). With contacts per block (U2-005) the contacts go
+ * to the engine per node, so a block with none typed falls back to the zone's.
+ */
+export function engineFluids(f, labels = null, n = 0) {
   if (!f) return f;
-  const { notes, gasZone, ...rest } = f;
+  const { notes, gasZone, blocks, ...rest } = f;
+  if (blocks && n > 0) {
+    const owc = contactGrid(f, 'owc', labels, n);
+    const goc = gasZone
+      ? (owc ? Float64Array.from(owc, (v) => (Number.isFinite(v) ? v : 1e12)) : 1e12)
+      : contactGrid(f, 'goc', labels, n);
+    return { ...rest, goc, owc };
+  }
   if (gasZone) return { ...rest, goc: rest.owc === null ? 1e12 : rest.owc };
   return rest;
 }
@@ -159,7 +210,7 @@ export class BuildCancelled extends Error {
 export const MISTIE_WARN_M = 10;
 
 /** True when a zone's fluids carry any contact or FVF. */
-export const hasFluids = (f) => !!f && ['goc', 'owc', 'bo', 'bg'].some((k) => Number.isFinite(f[k]));
+export const hasFluids = (f) => !!f && (['goc', 'owc', 'bo', 'bg'].some((k) => Number.isFinite(f[k])) || Object.keys(f.blocks || {}).length > 0);
 
 /**
  * HCPV and in-place volumes at a low and a high property case (T1 E1): the
@@ -270,16 +321,18 @@ export function clampFractionGrid(z) {
  * where the frame stops. Null when there is no contact (the no-OWC
  * warning covers that case).
  */
-export function contactEdgeReport(spec, top, fluids) {
-  const contact = fluids && Number.isFinite(fluids.owc) ? fluids.owc : null;
-  if (!Number.isFinite(contact)) return { open: null, nodes: 0 };
+export function contactEdgeReport(spec, top, fluids, labels = null) {
+  // U2-005: the contact of each node's own block
+  const grid = contactGrid(fluids, 'owc', labels, top.length);
+  if (!grid) return { open: null, nodes: 0 };
   const { nx, ny } = spec;
   let nodes = 0;
   for (let r = 0; r < ny; r++) {
     for (let c = 0; c < nx; c++) {
       const j = r * nx + c;
       const v = top[j];
-      if (isNull(v) || v >= contact) continue;
+      const contact = grid[j];
+      if (isNull(v) || !Number.isFinite(contact) || v >= contact) continue;
       const edge = r === 0 || c === 0 || r === ny - 1 || c === nx - 1
         || isNull(top[j - 1]) || isNull(top[j + 1]) || isNull(top[j - nx]) || isNull(top[j + nx]);
       if (edge) nodes += 1;
@@ -538,7 +591,8 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       progress(`${zdef.name}: ${prop === 'phi' ? 'porosity' : prop === 'sw' ? 'Sw' : 'NTG'} populated`);
     }
     const fluids = parsedFluids[i] || null;
-    const eng = engineFluids(fluids);
+    const nNodes = specM.nx * specM.ny;
+    const eng = engineFluids(fluids, labels, nNodes);
     const top = framework.clamped[i];
     const base = framework.clamped[i + 1];
     const volumes = hasFluids(fluids)
@@ -546,7 +600,7 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       : zoneVolumes(specM, zThickness, labels, props);
     const zone = { name: zdef.name, registryZone: zdef.registryZone, thickness: zThickness, props, variance, provenance, volumes, fluids };
     zone.range = volumeRange(specM, zone, labels, eng, top, base);
-    zone.openEdge = contactEdgeReport(specM, top, fluids);
+    zone.openEdge = contactEdgeReport(specM, top, fluids, labels);
     progress(`${zdef.name}: volumes`);
     return zone;
   });
