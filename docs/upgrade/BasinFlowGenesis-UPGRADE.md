@@ -215,3 +215,27 @@ Batches:
 3. `bf_wells` RLS: one policy with no WITH CHECK clause; a 4-policy split and pentest is U2-019 (migration, second engineer).
 4. Playwright is still not in CI; the Basin e2e could not be confirmed at this load (see Test results in the PR).
 5. No migration in this work.
+
+## Batch decision (programme lead, 2026-10-01)
+
+Recorded verbatim:
+
+> BUILD in order, one commit per item:
+> - Batch A: U2-001 eroded section drawn on the burial plot (BF-T1-E3); U2-012 plots keyed by layer id; U2-004 Ro through the whole column (validate Easy%Ro against Sweeney and Burnham's published example; negative control); U2-006 BHT correction (Horner or AAPG, validated on a published example); U2-008 scenario compare (make the claim true); U2-010 undo for template and tops replace; U2-011 plots in the PDF report (read back with pdftotext).
+> - Batch B: U2-009 long runs in a Web Worker with progress and cancel; U2-016 Stratigraphy decompacted sedimentation rates (STRAT-U2-020: the decompaction stays in Basin's engine; Stratigraphy reads it through a small documented contract; keep Stratigraphy-side edits minimal and run its suites); U2-018 a worked example project; U2-015 1D overpressure handed to Pore Pressure (through Pore Pressure's existing readers and src/lib/ppfgUnits.js; declared units); U2-005 maximum-burial (irreversible) compaction (engines-first, validated); U2-007 Petrophysics porosity and TOC as inputs; U2-013 kinetics and lithology mixing (engines-first, validated against published kinetics).
+> - Batch C: U2-017 charge into ReservoirCalc Pro and Risked Reserves (a documented contract; RCP-side edits minimal).
+>
+> DEFERRED (record reasons): U2-014 multi-1D maps and migration (L, after NAPE); U2-002 lithosphere heat flow; U2-019 bf_wells RLS WITH CHECK (needs a migration and a second engineer: write it up for the owner, do not write the migration here).
+
+Deferred, with reasons:
+
+- **U2-014 multi-1D maps and migration** (L): a map view needs Mapping surfaces sampled into many 1D runs and a flow-path charge model; a week or more, after NAPE.
+- **U2-002 lithosphere heat flow** (McKenzie rifting): a new thermal boundary model with its own validation; the basal heat-flow history covers today's wells.
+- **U2-019 `bf_wells` RLS**: needs a migration and a second engineer's review; written up for the owner under Owner items (no migration in this PR).
+
+## Step 2 build (branch `feat/bf-u2`)
+
+Engine changes first, in engines PR (see the table): every Basin engine addition is in the canonical engines repo with its gate in `__tests__/basin.u2.test.js`, and the Suite vendors the merge commit.
+
+| ID | Status | Proving test | Notes |
+|---|---|---|---|
