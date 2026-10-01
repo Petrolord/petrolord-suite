@@ -5,7 +5,7 @@
 // can never disagree about what an amplitude looks like.
 
 import {
-  SAMPLING_GLSL, DISPLAY_GLSL, buildLut, linkProgram,
+  SAMPLING_GLSL, DISPLAY_GLSL, OVERLAY_GLSL, makeSamplingGlsl, buildLut, linkProgram,
 } from './shaderChunks';
 
 const PLANE_VERT = `#version 300 es
@@ -27,9 +27,14 @@ precision highp sampler2D;
 in vec2 v_uv;
 out vec4 outColor;
 ${SAMPLING_GLSL}
+${makeSamplingGlsl('B')}
 ${DISPLAY_GLSL}
+${OVERLAY_GLSL}
 void main() {
-  outColor = shadeAmp(v_uv);
+  vec4 c = shadeAmp(v_uv);
+  // U2-017 co-render in 3D: the same blend as the 2D window (shaderChunks)
+  if (u_overlayOn == 1 && !primaryIsNull(v_uv)) c = blendOverlay(v_uv, c);
+  outColor = c;
 }`;
 
 // Lines and meshes take positions in NORMALIZED cube space (interpMesh
@@ -98,6 +103,13 @@ export class CubeRenderer {
     };
     this.colormapKey = null;
     this.lut = null;
+    // U2-017 co-render: overlay display params (null = off), its LUT, and
+    // per-plane overlay slices (drawn only where dims match the plane's)
+    this.overlay = null;
+    this.colormapKeyB = 'viridis';
+    this.reverseB = false;
+    this.lutB = null;
+    this.pendingSlicesB = new Map();
     this.background = 'dark';
     this.edges = null;            // Float32Array segment soup
     this.contextLost = false;
@@ -116,6 +128,7 @@ export class CubeRenderer {
       for (const [id, entry] of this.pendingSlices) {
         this.setPlane(id, entry.slice, entry.quad);
       }
+      for (const [id, slice] of this.pendingSlicesB) this.setPlaneB(id, slice);
       for (const [id, spec] of this.pendingMeshes) this.setMesh(id, spec);
       for (const [id, spec] of this.pendingLineSets) this.setLineSet(id, spec);
       if (this.edges) this.setEdges(this.edges);
@@ -145,7 +158,11 @@ export class CubeRenderer {
     this.pu = {};
     for (const n of ['u_mvp', 'u_origin', 'u_du', 'u_dv', 'u_data', 'u_lut',
       'u_traceRms', 'u_traceBalance', 'u_interp', 'u_gain', 'u_polarity',
-      'u_clip', 'u_nullColor']) {
+      'u_clip', 'u_nullColor',
+      // U2-017 overlay family (same names as the 2D renderer)
+      'u_dataB', 'u_lutB', 'u_traceRmsB', 'u_agcB', 'u_traceBalanceB',
+      'u_useAgcB', 'u_interpB', 'u_gainB', 'u_polarityB', 'u_clipB',
+      'u_overlayOn', 'u_blendMode', 'u_overlayOpacity']) {
       this.pu[n] = gl.getUniformLocation(this.planeProg, n);
     }
     this.lu = {
@@ -182,10 +199,67 @@ export class CubeRenderer {
     gl.uniform1i(this.pu.u_lut, 1);
     gl.uniform1i(this.pu.u_traceRms, 2);
     gl.uniform4f(this.pu.u_nullColor, 0.25, 0.25, 0.28, 1.0);
+    gl.uniform1i(this.pu.u_dataB, 4);
+    gl.uniform1i(this.pu.u_lutB, 5);
+    gl.uniform1i(this.pu.u_traceRmsB, 6);
+    gl.uniform1i(this.pu.u_agcB, 7);
+    gl.uniform1i(this.pu.u_useAgcB, 0);
+    gl.uniform1i(this.pu.u_overlayOn, 0);
+    this.lutTexB = this.#makeTex();
 
     if (this.colormapKey) {
       this.setColormap(this.colormapKey, { force: true, reverse: this.reverse });
     }
+    this.setColormapB(this.colormapKeyB, { force: true, reverse: this.reverseB });
+  }
+
+  /** U2-017: the overlay LUT (same no-op / force semantics as setColormap). */
+  setColormapB(key, { force = false, reverse = false } = {}) {
+    if (!force && key === this.colormapKeyB && reverse === this.reverseB && this.lutB) return;
+    this.lutB = buildLut(key, reverse);
+    this.colormapKeyB = key;
+    this.reverseB = reverse;
+    if (this.contextLost) return;
+    const { gl } = this;
+    gl.activeTexture(gl.TEXTURE5);
+    gl.bindTexture(gl.TEXTURE_2D, this.lutTexB);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, this.lutB);
+  }
+
+  /** U2-017: overlay display params ({gain, polarity, clip, traceBalance, opacity, mode}) or null. */
+  setOverlay(p) {
+    this.overlay = p || null;
+  }
+
+  /**
+   * U2-017: the overlay volume's slice for one plane (same orientation and
+   * index on the same lattice), or null to clear it.
+   */
+  setPlaneB(id, slice) {
+    const entry = this.planes.get(id);
+    if (!slice) {
+      this.pendingSlicesB.delete(id);
+      if (entry) entry.bDims = null;
+      return;
+    }
+    this.pendingSlicesB.set(id, slice);
+    if (this.contextLost || !entry) return;
+    const { gl } = this;
+    if (!entry.texB) { entry.texB = this.#makeTex(); entry.rmsTexB = this.#makeTex(); }
+    gl.activeTexture(gl.TEXTURE4);
+    gl.bindTexture(gl.TEXTURE_2D, entry.texB);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, slice.width, slice.height, 0, gl.RED, gl.FLOAT, slice.data);
+    gl.activeTexture(gl.TEXTURE6);
+    gl.bindTexture(gl.TEXTURE_2D, entry.rmsTexB);
+    const rms = slice.traceRms || new Float32Array(slice.height).fill(1);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, rms.length, 1, 0, gl.RED, gl.FLOAT, rms);
+    entry.bDims = [slice.width, slice.height];
+  }
+
+  /** The overlay draws on a plane only when armed and its dims match. */
+  overlayActiveFor(id) {
+    const p = this.planes.get(id);
+    return Boolean(this.overlay && p && p.bDims && p.dims && p.bDims[0] === p.dims[0] && p.bDims[1] === p.dims[1]);
   }
 
   #makeTex() {
@@ -231,9 +305,11 @@ export class CubeRenderer {
       if (old && !this.contextLost) {
         this.gl.deleteTexture(old.tex);
         this.gl.deleteTexture(old.rmsTex);
+        if (old.texB) { this.gl.deleteTexture(old.texB); this.gl.deleteTexture(old.rmsTexB); }
       }
       this.planes.delete(id);
       this.pendingSlices.delete(id);
+      this.pendingSlicesB.delete(id);
       return;
     }
     this.pendingSlices.set(id, { slice, quad });
@@ -249,6 +325,7 @@ export class CubeRenderer {
     gl.bindTexture(gl.TEXTURE_2D, entry.tex);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, slice.width, slice.height, 0,
       gl.RED, gl.FLOAT, slice.data);
+    entry.dims = [slice.width, slice.height];
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, entry.rmsTex);
     const rms = slice.traceRms || new Float32Array(slice.height).fill(1);
@@ -387,6 +464,18 @@ export class CubeRenderer {
     gl.uniform1i(this.pu.u_interp, display.interpolate ? 1 : 0);
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, this.lutTex);
+    const ov = this.overlay;
+    if (ov) {
+      gl.activeTexture(gl.TEXTURE5);
+      gl.bindTexture(gl.TEXTURE_2D, this.lutTexB);
+      gl.uniform1f(this.pu.u_gainB, ov.gain ?? 1);
+      gl.uniform1f(this.pu.u_polarityB, ov.polarity ?? 1);
+      gl.uniform1f(this.pu.u_clipB, Math.max(ov.clip ?? 1, 1e-30));
+      gl.uniform1i(this.pu.u_traceBalanceB, ov.traceBalance ? 1 : 0);
+      gl.uniform1i(this.pu.u_interpB, display.interpolate ? 1 : 0);
+      gl.uniform1i(this.pu.u_blendMode, ov.mode === 'multiply' ? 1 : 0);
+      gl.uniform1f(this.pu.u_overlayOpacity, Math.min(1, Math.max(0, ov.opacity ?? 0.5)));
+    }
     gl.bindVertexArray(this.quadVao);
     // planes are opaque; the depth buffer resolves intersections, so
     // draw order does not matter for correctness
@@ -400,6 +489,14 @@ export class CubeRenderer {
       gl.bindTexture(gl.TEXTURE_2D, p.tex);
       gl.activeTexture(gl.TEXTURE2);
       gl.bindTexture(gl.TEXTURE_2D, p.rmsTex);
+      const on = this.overlayActiveFor(id);
+      gl.uniform1i(this.pu.u_overlayOn, on ? 1 : 0);
+      if (on) {
+        gl.activeTexture(gl.TEXTURE4);
+        gl.bindTexture(gl.TEXTURE_2D, p.texB);
+        gl.activeTexture(gl.TEXTURE6);
+        gl.bindTexture(gl.TEXTURE_2D, p.rmsTexB);
+      }
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
@@ -474,7 +571,9 @@ export class CubeRenderer {
     for (const p of this.planes.values()) {
       gl.deleteTexture(p.tex);
       gl.deleteTexture(p.rmsTex);
+      if (p.texB) { gl.deleteTexture(p.texB); gl.deleteTexture(p.rmsTexB); }
     }
+    this.pendingSlicesB.clear();
     this.planes.clear();
     this.pendingSlices.clear();
     for (const m of this.meshes.values()) {

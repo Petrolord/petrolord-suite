@@ -718,8 +718,8 @@ export default function SeismicExplorer({ tree, actions }) {
               visible={visibleFaultIds.has(f.id)}
               onToggleVisible={() => actions.toggleFault(f)}
               busy={faultBusyId === f.id}
-              meta={f.is_own === false ? 'teammate'
-                : `${f.sticks.length} stick${f.sticks.length === 1 ? '' : 's'}`}
+              meta={[f.version > 1 ? `v${f.version}` : '', f.is_own === false ? 'teammate'
+                : `${f.sticks.length} stick${f.sticks.length === 1 ? '' : 's'}`].filter(Boolean).join(' ')}
               onClick={() => actions.toggleFault(f)}
               menu={(
                 <>
@@ -784,9 +784,38 @@ export default function SeismicExplorer({ tree, actions }) {
                       </ContextMenuSubContent>
                     </ContextMenuSub>
                   )}
+                  {(() => {
+                    // U2-017: the fault version chain (History, New version)
+                    const chain = actions.faultChainOf ? actions.faultChainOf(f) : [];
+                    if (!chain.length || f.is_own === false) return null;
+                    return (
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger>
+                          <History className="w-3.5 h-3.5 mr-1.5" />
+                          {`History (${chain.length})`}
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-64">
+                          {chain.map((v) => (
+                            <ContextMenuItem key={v.id} onSelect={() => actions.restoreFaultVersion(f, v)}>
+                              {`Restore v${v.version} as new version`}
+                              <span className="ml-auto pl-2 text-[10px] text-pl-muted truncate">
+                                {`${(v.sticks || []).length} sticks${v.interpreter ? ` · ${v.interpreter}` : ''}`}
+                              </span>
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                    );
+                  })()}
                   {f.is_own !== false && (
                     <>
                       <ContextMenuSeparator />
+                      {actions.newFaultVersion && (
+                        <ContextMenuItem onSelect={() => actions.newFaultVersion(f)}>
+                          <History className="w-3.5 h-3.5 mr-1.5" />
+                          New version (snapshot)
+                        </ContextMenuItem>
+                      )}
                       <ContextMenuItem onSelect={() => actions.editFaultSticks(f)}>
                         <Pencil className="w-3.5 h-3.5 mr-1.5" />
                         Edit sticks…

@@ -359,3 +359,56 @@ test('U2-006 1366x768: Pore Pressure reads the layer cake at the selected well',
   await expect(page.getByTestId('pp-trend-badge')).toBeVisible();
   await expect(page.getByTestId('pp-prognosis-chart')).toBeVisible();
 });
+
+// U2-017: co-render in the 3D window (element screenshot, never the drawing buffer)
+async function greenInCube(page, q) {
+  await page.goto(`/dev/seismolord-cubeview?dim=64${q}`);
+  await expect(page.getByTestId('harness-status')).toHaveAttribute('data-harness-status', 'ready', { timeout: 60000 });
+  await page.waitForTimeout(1200);
+  const png = await page.locator('canvas').first().screenshot();
+  return page.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const { data } = ctx.getImageData(0, 0, c.width, c.height);
+    let n = 0;
+    for (let i = 0; i < data.length; i += 4) if (data[i + 1] > data[i] + 30 && data[i + 1] > data[i + 2] - 10 && data[i + 1] > 80) n++;
+    return n;
+  }, png.toString('base64'));
+}
+
+test('U2-017 1440x900: the co-render overlay draws on the 3D planes', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const off = await greenInCube(page, '');
+  const on = await greenInCube(page, '&corender=1');
+  expect(on).toBeGreaterThan(off + 2000);
+  await page.screenshot({ path: '/tmp/claude-0/seis-upg2/u2-017-corender.png' });
+});
+
+// U2-017: published pay zones as a band on the well track (2D overlay canvas)
+async function payInk(page, q) {
+  await page.goto(`/dev/seismolord-u2${q}`);
+  await expect(page.getByTestId('u2-status')).toHaveText('ready', { timeout: 60000 });
+  await page.waitForTimeout(500);
+  return page.evaluate(() => {
+    let n = 0;
+    for (const c of document.querySelectorAll('[data-testid="u2-section"] canvas')) {
+      const ctx = c.getContext('2d');
+      if (!ctx) continue;
+      const { data } = ctx.getImageData(0, 0, c.width, c.height);
+      for (let i = 0; i < data.length; i += 4) if (data[i] < 60 && data[i + 1] > 150 && data[i + 2] > 100 && data[i + 2] < 160 && data[i + 3] > 150) n++;
+    }
+    return n;
+  });
+}
+
+test('U2-017 1366x768: a published pay zone is drawn on the well track', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  const without = await payInk(page, '?pay=0&lines=0');
+  const withPay = await payInk(page, '?lines=0');
+  expect(withPay).toBeGreaterThan(without + 100);
+});

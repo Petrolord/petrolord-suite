@@ -125,6 +125,7 @@ function CubeView({
   horizons, faults, wells, onSelectPlane, onRendered, height = 520,
   depthConv = null, steps = null, activeOrientation = 'inline',
   sliceVis = null, onToggleSlicePlane = null, depthUnit = 'm', faultPolygons = null,
+  getOverlaySlice = null, overlayDisplay = null,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -499,6 +500,36 @@ function CubeView({
     scheduleRender();
   }, [display, prefs.smooth, prefs.bg, geom, scheduleRender]);
 
+  // ---- U2-017 co-render: the overlay volume on every plane -------------
+  const coRenderRef = useRef({ get: null, on: false });
+  coRenderRef.current = { get: getOverlaySlice, on: Boolean(overlayDisplay && getOverlaySlice) };
+  const loadPlaneB = useCallback(async (id, orientation, index) => {
+    const r = rendererRef.current;
+    const ov = coRenderRef.current;
+    if (!r) return;
+    if (!ov.on) { r.setPlaneB?.(id, null); return; }
+    try {
+      const sB = await ov.get(orientation, index);
+      const meta = planesMetaRef.current.get(id);
+      if (!meta || meta.orientation !== orientation || meta.index !== index || !coRenderRef.current.on) return;
+      rendererRef.current?.setPlaneB?.(id, sB);
+      scheduleRender();
+    } catch { /* overlay plane unavailable: the primary still draws */ }
+  }, [scheduleRender]);
+
+  useEffect(() => {
+    const r = rendererRef.current;
+    if (!r) return;
+    if (overlayDisplay && getOverlaySlice) {
+      r.setColormapB?.(overlayDisplay.colormap || 'viridis', { reverse: Boolean(overlayDisplay.reverse) });
+      r.setOverlay?.(overlayDisplay);
+    } else {
+      r.setOverlay?.(null);
+    }
+    for (const [id, m] of planesMetaRef.current) loadPlaneB(id, m.orientation, m.index);
+    scheduleRender();
+  }, [overlayDisplay, getOverlaySlice, loadPlaneB, scheduleRender]);
+
   // ---- plane loading -----------------------------------------------------
 
   const putPlane = useCallback((id, orientation, index, slice) => {
@@ -507,8 +538,9 @@ function CubeView({
     if (!r || !e) return;
     planesMetaRef.current.set(id, { orientation, index, slice });
     r.setPlane(id, slice, planeQuad(orientation, index, propsRef.current.geom, e));
+    loadPlaneB(id, orientation, index);
     scheduleRender();
-  }, [scheduleRender]);
+  }, [scheduleRender, loadPlaneB]);
 
   const dropPlane = useCallback((id) => {
     if (!planesMetaRef.current.has(id)) return;

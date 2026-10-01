@@ -112,7 +112,7 @@ export default function SeismolordU2Harness() {
   const overlays = useMemo(() => {
     const stick = [0, 1, 2].map((k) => ({ il: WELL.il, xl: 20 + k, s: 12 + 14 * k }));
     const wellPts = [];
-    for (let s = 2; s <= DIM - 2; s += 1) wellPts.push({ il: WELL.il, xl: WELL.xl, s });
+    for (let s = 2; s <= DIM - 2; s += 1) wellPts.push({ il: WELL.il, xl: WELL.xl, s, md: 1000 + s * 10 });
     const guidedGrid = (() => {
       if (!guided?.picks) return null;
       const g = new Float32Array(DIM * DIM).fill(Math.fround(1e30));
@@ -133,6 +133,8 @@ export default function SeismolordU2Harness() {
       seedPick: null,
       wells: [{
         id: 'w1', name: 'OKAN-1', color: '#fbbf24', points: wellPts, tops: [{ name: 'Top A', il: WELL.il, xl: WELL.xl, s: 30 }],
+        // U2-017: a published pay zone 1,300 to 1,400 m MD (samples 30 to 40)
+        pay: new URLSearchParams(window.location.search).get('pay') === '0' ? [] : [{ name: 'Sand A', top: 1300, base: 1400, net: 60 }],
       }],
     };
   }, [horizon, guided, lineIndex]);

@@ -3,6 +3,7 @@ import { buildTestBricks } from './viewer/selfTest';
 import CubeView from './components/CubeView';
 import { faultHorizonIntersection } from './engine/faultObjects';
 import { polygonLoopLines } from './lib/faultPolygons';
+import { assembleSlice } from './engine/sliceAssembly';
 
 // Dev-only harness route (/dev/seismolord-cubeview): mounts the real 3D
 // CubeView on the deterministic synthetic volume so the Playwright suite
@@ -14,6 +15,8 @@ const DIM = Math.min(320, Math.max(32, Number(q.get('dim')) || 128));
 // U2-007 e2e: ?fpoly=1 adds a faulted horizon, its fault and the fault
 // polygon (the W3.1 cutoffs) drawn on it; ?fpoly=0 the same without the polygon
 const FPOLY = q.get('fpoly');
+// U2-017 e2e: ?corender=1 co-renders |amplitude| of the same volume in viridis at full opacity
+const CORENDER = q.get('corender') === '1';
 
 function faultedScene() {
   const k = DIM / 64;
@@ -48,6 +51,11 @@ const DISPLAY_CYCLE = [
 export default function SeismolordCubeViewHarness() {
   const { geom, getBrick } = useMemo(() => buildTestBricks(DIM), []);
   const scene = useMemo(() => (FPOLY != null ? faultedScene() : null), []);
+  const getOverlaySlice = useCallback((o, idx) => assembleSlice(getBrick, geom, o, idx)
+    .then((sl) => ({ ...sl, data: sl.data.map((v) => (Math.abs(v) > 1e29 ? v : Math.abs(v))) })), [getBrick, geom]);
+  const overlayDisplay = useMemo(() => (CORENDER ? {
+    colormap: 'viridis', reverse: false, gain: 1, polarity: 1, clip: 1.5, traceBalance: false, opacity: 1, mode: 'mix',
+  } : null), []);
   const [indices, setIndices] = useState({
     inline: Math.floor(DIM / 2),
     xline: Math.floor(DIM / 2),
@@ -133,6 +141,8 @@ export default function SeismolordCubeViewHarness() {
           onSelectPlane={setLastPlane}
           onRendered={onRendered}
           height={480}
+          getOverlaySlice={CORENDER ? getOverlaySlice : null}
+          overlayDisplay={overlayDisplay}
           {...(scene ? {
             horizons: scene.horizons,
             faults: [],

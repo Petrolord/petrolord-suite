@@ -27,7 +27,7 @@ import { agcGainMap, wiggleDeviations, varAreaRuns } from '../engine/displayEnha
 import { snapPick } from '../engine/horizonTrack';
 import { shiftedSample } from '../engine/flatten';
 import { projectStickToTraverse } from '../engine/traverse';
-import { wellSectionMarks } from '../lib/wellDisplay';
+import { wellSectionMarks, payMask } from '../lib/wellDisplay';
 import { ViewTransform, MIN_ZOOM, MAX_ZOOM } from '../viewer/viewTransform';
 import {
   drawAxes, drawScaleBar, drawNorthArrow, drawColorbar,
@@ -66,6 +66,7 @@ export function captionCanvas(pic, lines) {
 }
 
 const NULL_F32 = Math.fround(NULL_VALUE);
+const PAY_COLOR = 'rgba(16, 185, 129, 0.85)';   // U2-017 pay zones on well tracks
 // v2: interpolate now defaults ON (shader bicubic, no GPU extension
 // needed). v1 sessions all persisted interpolate:false (the old default),
 // so that key is dropped when migrating — every other pref carries over.
@@ -598,6 +599,28 @@ function SliceView({
             else { ctx.moveTo(s.x, s.y); pen = true; }
           }
           ctx.stroke();
+          // U2-017: published pay zones as a thick band along the track
+          // (proj is index-aligned with w.points on sections)
+          if (w.pay?.length && ori !== 'traverse') {
+            const mask = payMask(w.points, w.pay);
+            ctx.save();
+            ctx.strokeStyle = PAY_COLOR;
+            ctx.lineWidth = Math.max(5, 4.5 * dpr);
+            ctx.lineCap = 'butt';
+            ctx.beginPath();
+            let penP = false;
+            for (let k = 0; k < proj.length; k++) {
+              const q = proj[k];
+              if (!q || q.s == null || !mask[k]) { penP = false; continue; }
+              const s = t.worldToScreen(q.trace + 0.5, sh(q.s, q.trace) + 0.5);
+              if (penP) ctx.lineTo(s.x, s.y);
+              else { ctx.moveTo(s.x, s.y); penP = true; }
+            }
+            ctx.stroke();
+            ctx.restore();
+            ctx.strokeStyle = w.color;
+            ctx.lineWidth = Math.max(2, 1.8 * dpr);
+          }
         }
         const topMarks = sectionTops || (w.tops || []).map((tp) => {
           const tv = projectStickToTraverse([tp], posn);

@@ -19,6 +19,7 @@
 //   {type:'compute:done', id, result}        ({brickGrid, stats, traceCount})
 //   {type:'error', id, message}
 
+import { affineForNorth } from '../lib/northReference';
 import { BrickCache, storageBrickFetcher } from '../engine/brickCache';
 import { v4BrickFetcher } from '../engine/brickCodecV4';
 import { geomFromManifest, brickKey } from '../engine/sliceAssembly';
@@ -91,8 +92,9 @@ async function handleCompute({ id, config }) {
   if (neighborhood) {
     // variance runs per trace; the fault likelihood a brick column at a time
     // map-frame attributes (Dip azimuth, grid north) need the survey affine
+    // U2-017: true-north azimuth = the affine rotated by the convergence
     const job = makeDiscontinuityJob(name, params, {
-      dtUs, nIl: geom.nIl, nXl: geom.nXl, ns: geom.ns, affine: surveyAffine(manifest.geometry),
+      dtUs, nIl: geom.nIl, nXl: geom.nXl, ns: geom.ns, affine: affineForNorth(surveyAffine(manifest.geometry), config.attribute.north),
     });
     result = await runNeighborhoodJob({ ...shared, ...job });
   } else {

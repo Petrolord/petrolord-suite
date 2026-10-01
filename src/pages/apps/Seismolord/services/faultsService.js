@@ -16,11 +16,15 @@ import { loftFaultSurface } from '../engine/faultObjects';
  *  The lofted surface (W3.1) is derived here — the single write choke
  *  point — so every writer (draft save, undo restore, stick import)
  *  persists it consistently; single-stick faults store null. */
-export async function saveFault({ volumeId, name, sticks, params }) {
+export async function saveFault({
+  volumeId, name, sticks, params, id = null,
+}) {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) throw new Error('You must be signed in to save faults.');
   const { data, error } = await supabase.from('seismic_faults')
     .insert({
+      // U2-017: an undo of a delete restores the fault under its own id
+      ...(id ? { id } : {}),
       user_id: user.id,
       volume_id: volumeId,
       name,
@@ -45,10 +49,66 @@ export async function listFaults(volumeId) {
     supabase.auth.getUser(),
   ]);
   if (error) throw new Error(`Could not load faults: ${error.message}`);
-  // is_own drives read-only affordances on org-shared volumes (W4.1)
-  return (data || []).map((f) => ({
+  // is_own drives read-only affordances on org-shared volumes (W4.1);
+  // U2-017: archived versions are listed by listFaultVersions, not here
+  return (data || []).filter((f) => !f.archived_at).map((f) => ({
     ...f, is_own: !!user && f.user_id === user.id,
   }));
+}
+
+/** U2-017: a fault's archived versions on a volume (the History menu). */
+export async function listFaultVersions(volumeId) {
+  const { data, error } = await supabase.from('seismic_faults')
+    .select('*')
+    .eq('volume_id', volumeId)
+    .not('archived_at', 'is', null)
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(`Could not load fault versions: ${error.message}`);
+  return data || [];
+}
+
+/** Archived ancestors of a head, newest first (parent_version_id walk). */
+export function faultChainOf(head, versions) {
+  const byId = new Map((versions || []).map((v) => [v.id, v]));
+  const chain = [];
+  const seen = new Set();
+  let cur = byId.get(head?.parent_version_id);
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    chain.push(cur);
+    cur = byId.get(cur.parent_version_id);
+  }
+  return chain;
+}
+
+/**
+ * U2-017: a new head version of a fault (the W4.3 chain columns): a fresh
+ * row with version + 1 pointing at the old head, which is archived.
+ * History never rewrites; restoring a version is another new head.
+ */
+export async function saveFaultVersion({ fault, sticks = null, params = null }) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error('You must be signed in to save versions.');
+  const useSticks = sticks || fault.sticks;
+  const { data: head, error } = await supabase.from('seismic_faults')
+    .insert({
+      user_id: user.id,
+      volume_id: fault.volume_id,
+      name: fault.name,
+      sticks: useSticks,
+      surface: loftFaultSurface(useSticks),
+      params: { ...(fault.params || {}), ...(params || {}) },
+      version: (fault.version || 1) + 1,
+      parent_version_id: fault.id,
+      interpreter: user.user_metadata?.full_name || user.user_metadata?.name || user.email || null,
+    })
+    .select().single();
+  if (error) throw new Error(`Could not save the fault version: ${error.message}`);
+  const { error: archiveError } = await supabase.from('seismic_faults')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('id', fault.id);
+  if (archiveError) throw new Error(`Version created, but the old head could not be archived: ${archiveError.message}`);
+  return head;
 }
 
 /** Replace a fault's sticks in place (stick edit session save). Goes
@@ -95,8 +155,9 @@ export async function updateFaultMeta({ fault, display, name }) {
   return data;
 }
 
-export async function deleteFault(fault) {
+export async function deleteFault(fault, chain = []) {
+  const ids = [fault.id, ...(chain || []).map((v) => v.id)];
   const { error } = await supabase.from('seismic_faults')
-    .delete().eq('id', fault.id);
+    .delete().in('id', ids);
   if (error) throw new Error(`Could not delete fault: ${error.message}`);
 }

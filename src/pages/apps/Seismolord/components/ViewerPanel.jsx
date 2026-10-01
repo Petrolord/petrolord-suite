@@ -26,6 +26,7 @@ import {
 } from '../services/horizonsService';
 import {
   saveFault, listFaults, deleteFault, updateFaultSticks, updateFaultMeta,
+  listFaultVersions, saveFaultVersion, faultChainOf,
 } from '../services/faultsService';
 import { placeWellsForHost } from '@/lib/crs/guards';
 import { faultSticksToRows, writeCharismaFaultSticks } from '../engine/pickExport';
@@ -81,7 +82,9 @@ import { amplitudePercentile, percentileOfSorted } from '../engine/displayEnhanc
 import { UndoStack } from '../lib/undoStack';
 import { EditHistory } from '../lib/horizonEditHistory';
 import { createdHorizonCommand, rewriteHorizonCommand } from '../lib/horizonUndoCommands';
-import { captureLocal, applyLocal, clampIndices, sessionVolumeProblem } from '../lib/sessionSnapshot';
+import {
+  captureLocal, applyLocal, clampIndices, sessionVolumeProblem, captureOverlay, overlayRestorePlan,
+} from '../lib/sessionSnapshot';
 import SessionsDialog from './workspace/dialogs/SessionsDialog';
 import CultureImportDialog from '@/components/culture/CultureImportDialog';
 import {
@@ -1054,6 +1057,10 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     flattenHorizonId,
     terminations,
     sliceVis,
+    // U2-017: the co-render overlay rides in the session
+    overlay: captureOverlay({
+      volumeId: overlayVolumeId, colormap: overlayColormap, opacity: overlayOpacity, blend: overlayBlend,
+    }),
     local: captureLocal(window.localStorage),
   });
 
@@ -1092,6 +1099,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
       setWiggleMode(d.wiggle ?? d.wiggleMode);
     }
     if (typeof d.reverseCmap === 'boolean') setReverseCmap(d.reverseCmap);
+    pendingOverlayRef.current = payload?.overlay ? { forVolume: payload.volume_id, overlay: payload.overlay } : null;
     if (payload?.volume_id) await restoreBookmark(payload);
     else pendingRestoreRef.current = null;
   };
@@ -1363,6 +1371,12 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     return sourceRef.current.getSlice({ orientation: o, index: idx, prefetch: false });
   }, [volume]);   // eslint-disable-line react-hooks/exhaustive-deps
 
+  // U2-017: the 3D window co-renders the overlay volume on its planes
+  const getCubeOverlaySlice = useCallback((o, idx) => {
+    if (!sourceBRef.current) return Promise.reject(new Error('No co-render volume.'));
+    return sourceBRef.current.getSlice({ orientation: o, index: idx, prefetch: false });
+  }, [overlayInfo]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   // ---- W2.4 co-render overlay ------------------------------------------
 
   /** Same-lattice candidates for the overlay picker, judged from the
@@ -1403,6 +1417,27 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
       setOverlayVolumeId(null);
     }
   }, [volumes, manifest, toast]);
+
+  // U2-017: a session's co-render overlay, applied once its volume's
+  // manifest and the same-lattice candidates are in
+  const pendingOverlayRef = useRef(null);
+  useEffect(() => {
+    const pending = pendingOverlayRef.current;
+    if (!pending || !manifest || !volume || volume.id !== pending.forVolume) return;
+    pendingOverlayRef.current = null;
+    const plan = overlayRestorePlan(pending.overlay, overlayCandidates, SEISMIC_COLORMAPS.map((c) => c.key));
+    if (!plan) return;
+    if (plan.problem) {
+      toast({ title: 'Co-render not restored', description: plan.problem });
+      return;
+    }
+    (async () => {
+      await selectOverlayVolume(plan.select);
+      if (plan.colormap) setOverlayColormap(plan.colormap);
+      setOverlayOpacity(plan.opacity);
+      setOverlayBlend(plan.blend);
+    })();
+  }, [manifest, volume, overlayCandidates, selectOverlayVolume, toast]);
 
   // Assemble the overlay's matching slice AFTER the primary lands (the
   // overlay lags one beat on scrub by design); errors degrade to a toast
@@ -1992,22 +2027,58 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     }
   };
 
-  const onDeleteFault = async (f) => {
-    // eslint-disable-next-line no-alert
-    if (!window.confirm(`Delete fault "${f.name}"? (Undo restores it)`)) return false;
+  // ---- U2-017 fault version chain (W4.3 columns, no schema change) ------
+  const [faultVersions, setFaultVersions] = useState([]);
+  const reloadFaultVersions = useCallback(async (vid) => {
+    try { setFaultVersions(vid ? await listFaultVersions(vid) : []); } catch { setFaultVersions([]); }
+  }, []);
+  useEffect(() => { reloadFaultVersions(volume && !volume.local ? volume.id : null); }, [volume, reloadFaultVersions]);
+  const faultChain = useCallback((head) => faultChainOf(head, faultVersions), [faultVersions]);
+
+  /** Snapshot the fault's current sticks as a new head version. */
+  const onNewFaultVersion = async (f, restoreFrom = null) => {
     setFaultBusyId(f.id);
     try {
-      await deleteFault(f);
+      const head = await saveFaultVersion({
+        fault: f,
+        sticks: restoreFrom ? restoreFrom.sticks : null,
+        params: restoreFrom ? { restored_from_version: restoreFrom.version } : { versioned_from: f.id },
+      });
+      setVisibleFaultIds((sv) => { const n = new Set(sv); if (n.delete(f.id)) n.add(head.id); return n; });
+      setFaults(await listFaults(volume.id));
+      await reloadFaultVersions(volume.id);
+      toast({
+        title: restoreFrom ? 'Fault version restored' : 'New fault version',
+        description: restoreFrom
+          ? `${f.name} v${head.version} now carries the v${restoreFrom.version} sticks.`
+          : `${f.name} is now v${head.version}; v${f.version || 1} moved to History.`,
+      });
+    } catch (e) {
+      toast({ title: 'Version failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setFaultBusyId(null);
+    }
+  };
+
+  const onDeleteFault = async (f) => {
+    const chain = faultChain(f);
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`Delete fault "${f.name}"${chain.length ? ` and its ${chain.length} archived version(s)` : ''}? (Undo restores the head)`)) return false;
+    setFaultBusyId(f.id);
+    try {
+      await deleteFault(f, chain);
       setVisibleFaultIds((s) => { const n = new Set(s); n.delete(f.id); return n; });
       setFaults(await listFaults(volume.id));
+      if (chain.length) await reloadFaultVersions(volume.id);
       // delete-with-restore: the row carries its sticks + params, so a
-      // full re-create is possible (under a new id, tracked in the box)
+      // full re-create is possible, under its own id (U2-017) so sessions,
+      // links and exports that name it still find it
       const box = { row: f };
       undoStack.push({
         label: `delete fault "${f.name}"`,
         undo: async () => {
           box.row = await saveFault({
-            volumeId: volume.id, name: f.name, sticks: f.sticks, params: f.params,
+            volumeId: volume.id, name: f.name, sticks: f.sticks, params: f.params, id: f.id,
           });
           setFaults(await listFaults(volume.id));
           setVisibleFaultIds((s) => new Set([...s, box.row.id]));
@@ -2785,6 +2856,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
       // capture the pick grid BEFORE the blob goes away, so undo can
       // re-create the horizon in full (new id, tracked in the box)
       const grid = gridCacheRef.current.get(h.id) || await loadHorizonGrid(h);
+      const conf = await loadHorizonConfidence(h).catch(() => null);
       await deleteHorizon(h, chain);
       chain.forEach((v) => {
         gridCacheRef.current.delete(v.id);
@@ -2800,8 +2872,9 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
       undoStack.push({
         label: `delete horizon "${h.name}"`,
         undo: async () => {
+          // U2-017: under its own id, with its tracking confidence
           box.row = await saveHorizon({
-            volume, name: h.name, picks: grid, seed: h.seed, params: h.params, dtUs,
+            volume, name: h.name, picks: grid, seed: h.seed, params: h.params, dtUs, id: h.id, confidence: conf,
           });
           await reloadHorizons(volume);
         },
@@ -3707,6 +3780,9 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     exportFaultSurface: onExportFaultSurface,
     exportFaultPolygon: onExportFaultPolygon,
     exportFaultPolygonsGeoJson: onExportFaultPolygonsGeoJson,
+    newFaultVersion: (f) => onNewFaultVersion(f),
+    restoreFaultVersion: (head, v) => onNewFaultVersion(head, v),
+    faultChainOf: faultChain,
     toggleWell: wellsApi.toggle,
     deleteWell: wellsApi.remove,
     openTraverse: (t) => handleTraverse(t.vertices, t.id),
@@ -4269,6 +4345,8 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                   manifest={manifest}
                   getBrick={getBrick}
                   getSlice={getCubeSlice}
+                  getOverlaySlice={overlayInfo ? getCubeOverlaySlice : null}
+                  overlayDisplay={overlayDisplay}
                   indices={indices}
                   onChangeIndex={changeIndex}
                   steps={player.steps}
