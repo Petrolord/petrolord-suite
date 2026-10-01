@@ -225,3 +225,43 @@ Built on branch `feat/rcp-u2`, one commit per item.
 | U2-013 | Done | `__tests__/upgradeU2Gridding.test.jsx` (3, through the shipped context, in-memory backend and ProjectService): the rules (a clean project record wins, else the browser; malformed records ignored); a structural project calculated and saved on a browser set to IDW at 80 is opened on one set to kriging at 250 and gives the same STOIIP with the project's gridding (the saved row carries `gridding`); negative control: a project saved before U2-013 follows the browser, and the coarse and fine grids give different volumes | `services/griddingSettings.js` (`effectiveGridding`, `cleanGridding`); `state.gridding` loaded from and saved into the project blob (`ProjectService`), pinned on first save; every calculation, the hypsometry, the 2D/3D display grid, map generation and the area/depth export use the effective gridding; Settings says whose gridding applies and a change with a project open updates the project. Closes the storage half of RCP-U1-023. |
 | U2-015 | Not retired (the condition failed) | Search on origin/main at ea6ca3556 (after Seismolord U2, #837): `seismic_exported_surfaces` is still WRITTEN by Seismolord's Export panel (destination "Send to ReservoirCalc Pro", `ExportPanel.jsx` `publishSurface`) and by the AI panel (`AiPanel.jsx`, `sendToRcp`), and those surfaces go nowhere else; ReservoirCalc Pro's import dialog is their only reader; the `.pld` seismic family and `org-export` carry the rows | Retiring RCP's list now would orphan Seismolord's own "Send to ReservoirCalc Pro" button. The order is: Seismolord sends that button to `geo_surfaces` (its Save as surface path already does), then one release later RCP drops the legacy list and the table becomes export-only history. Recorded as a Seismolord follow-up; no code changed here. RCP keeps refusing TWT legacy rows (RCP-U1-010). |
 | U2-017 | Done | `__tests__/upgradeU2Fit.test.js` (9). Fitting on samples drawn from known distributions with the engine's own marginals and a seeded stream: normal(0.20, 0.03) ranks first with the mean within 0.003, the sd within 6 percent and KS under the 5 percent critical value; lognormal(100, 40) ranks first with both moments within 5 percent (negative control: the normal fitted to the same skewed data fails KS); uniform(10, 20) and triangular(0.10, 0.15, 0.30) rank first with their parameters close; the KS distance of a perfect grid is 1/(2n); pasted text and refusals; the fitted shape runs through the panel's formatter and the engine. Spider: one line per uncertain input with five points and the median point at the base; each point is the engine's volume (STOIIP scales exactly with area and with 1/Bo across the line); negative control: no uncertain input, no spider. e2e: porosity fitted from 16 pasted values, used, run, and the spider plot draws one line per legend item | `services/spider.js` (`spiderFromRun`, called by `MonteCarloEngine.simulate` on constants at the inputs' sampled percentiles; `stats.spider`), `components/results/SpiderChart.jsx` (white chartTheme, ChartFrame with the logo), `services/distributionFit.js`, `components/probabilistic/FitFromData.jsx`. Help: Probabilistic 11a. |
+
+### Deferred by the batch decision (reasons)
+
+| Item | Reason |
+|---|---|
+| U2-003 segments or zones with per-segment contacts and dependencies | L. After NAPE. Mapping's contactVolumes already splits by fault block for one GOC and OWC; RCP would need segment contacts, a segment table and dependent aggregation. |
+| U2-010 play and prospect chance split | Deferred by the decision. Pg stays the product of four independent factors and other. |
+| U2-014 org-shared projects and prospects | Needs a migration on `saved_quickvol_projects` / `rcp_prospects` RLS and a second engineer (shared-table rule). Owner item. |
+| U2-016 portfolio Monte Carlo with dependencies | L. The portfolio stays the independent MMboe roll-up, labelled as such. |
+
+### Owner item 3 (prospects saved before U1)
+
+A one-click "Re-run this prospect" in Risked Reserves Valuation is not S-sized, so it is recorded, not built. A saved prospect row (`rcp_prospects`) does not name the project, reservoir or run it came from, so the valuation cannot reopen and re-run it. It needs three things (M):
+- the prospect saves its source (project id, reservoir id, run seed and signature);
+- ReservoirCalc Pro accepts a deep link that loads that project and reservoir, re-runs the Monte Carlo with the recorded seed and updates the prospect;
+- the valuation shows the button on flagged rows.
+
+Until then the flag stays as built in U1: the valuation marks in-place and unstated-basis rows, and the user re-runs in ReservoirCalc Pro and adds the prospect again.
+
+### Build summary (2026-10-01)
+
+- Built: Batch A, U2-006, U2-005, U2-001, U2-008 and U2-002. U2-004 was skipped because the Earth Modeling contract is not on main (PR #836 owns the mount).
+- Built: Batch B, U2-007, U2-009, U2-011, U2-012 and U2-013.
+- Built: Batch C, U2-017. U2-015 was not retired because the condition failed (Seismolord still writes the legacy exports).
+- Closed from Step 1: RCP-U1-032 (U2-006), 033 (U2-002), 034 (U2-007) and 036 (U2-005). RCP-U1-023 is now stored as well as stamped (U2-013).
+- Shared-layer edits were kept small:
+  - `src/lib/monteCarlo.js` gained `symmetricEigenvalues` and `correlationMatrixProblem` (additive).
+  - `riskedreserves/rrvStore.js` and the workstation note read `inputs.economics`.
+- No DDL and no migrations. The prospect economics live in the existing jsonb `inputs`.
+- Found and fixed in the browser walks:
+  - The Monte Carlo cleared its own "calculating" flag (SET_ERROR order). This was invisible while the run was synchronous.
+  - The spill trap first took nodes past the saddle (the flood climbs the far side before it reaches the edge). It is now the flood before its running minimum reaches the spill.
+
+### Owner items (Step 2)
+
+1. U2-014 org sharing needs a migration and a second engineer.
+2. Seismolord's "Send to ReservoirCalc Pro" still writes `seismic_exported_surfaces`. Route it to `geo_surfaces`, then retire RCP's legacy list (U2-015).
+3. Earth Modeling PR #836 adds `EarthModelProspectNote` to `ExpertInputPanel`. It does not overlap this branch's lines; whichever merges second resolves it. U2-004's remaining wiring (open-edge flags, contacts, model provenance) follows #836.
+4. Re-run for pre-U1 prospects (above) is an M follow-up.
+5. Playwright e2e is still not in CI (U1 owner item 1). `e2e/reservoircalc-pro-u2.spec.js` was run locally with 1 worker.

@@ -48,7 +48,7 @@ describe('U2-017 fitting recovers known distributions', () => {
     expect(Math.abs(f.best.dist.mode - 0.15)).toBeLessThan(0.01);
   });
 
-  it('the KS distance itself: a perfect uniform grid against its own CDF is 1/n', () => {
+  it('the KS distance itself: a perfect uniform grid against its own CDF is 1/(2n)', () => {
     const xs = Array.from({ length: 10 }, (_, i) => (i + 0.5) / 10);
     expect(ksDistance(xs, (v) => v)).toBeCloseTo(0.05, 12);
   });
