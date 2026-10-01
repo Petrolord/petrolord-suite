@@ -147,6 +147,7 @@ export default function BasinFlowHelpGuide() {
           ['Expulsion', 'Generated and expelled mass per square metre for the source layers, and their transformation ratio.'],
           ['Timing', 'The petroleum system events chart: deposition of the source, reservoir, seal and overburden rocks, the generation and expulsion windows, and the critical moment at the peak expulsion rate. Trap formation is not modelled in 1D.'],
         ]} />
+        <Para>Each layer is its own series on every plot, keyed by the layer and labelled by its name, so two layers with the same name are both drawn; rename them to tell them apart in the legend.</Para>
       </GuideSection>
 
       <GuideSection id="export">

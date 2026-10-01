@@ -235,8 +235,11 @@ Deferred, with reasons:
 
 ## Step 2 build (branch `feat/bf-u2`)
 
-Engine changes first, in engines PR (see the table): every Basin engine addition is in the canonical engines repo with its gate in `__tests__/basin.u2.test.js`, and the Suite vendors the merge commit.
+Engine changes first, in engines PR [#295](https://github.com/Petrolord/petrolord-engines/pull/295) (merged; the Suite pins its merge commit 970c021): every Basin engine addition is in the canonical engines repo with its gate in `__tests__/basin.u2.test.js`, and the Suite vendors the merge commit.
+
+A session restart interrupted the build after U2-001: the programme lead saved the in-progress code of U2-012, -004, -006, -008, -010, -011, -009 and -016 as one commit (`577e7685b`, "wip"). Each item is then closed by its own commit (doc row, help, any remaining code); the rows name the wip commit where the code landed.
 
 | ID | Status | Proving test | Notes |
 |---|---|---|---|
 | U2-001 | Done | engines `basin.u2.test.js` U2-001 (2); Suite `upgradeU2.test.js` U2-001 (2), `upgradeU2Ui.test.jsx` U2-001 | The engine reports each eroded (phantom) section with its burial history (`meta.phantoms`, `data.phantoms`). The burial plot draws it hatched grey on top of the column from its deposition (the youngest age before the event) until the erosion event, and says it under the title: the reference basin shows 600 m (1,969 ft) deposited at 20 Ma and removed at 10 Ma. A result saved before U2 has no phantoms and draws without one. Closes BF-T1-E3 and BF-U1-026. |
+| U2-012 | Done (code in `577e7685b`) | `upgradeU2.test.js` U2-012 | Every per-layer plot (burial, temperature, maturity, transformation, generation and expulsion) and the report table key their series by layer id and label them by name (`layerKey`, `alignSeriesByAge`); two layers named "Shale" are two series. The model note about duplicate names is now informational (the legend and tables repeat the name). The CSV already carried the layer id. Closes BF-U1-018. |
