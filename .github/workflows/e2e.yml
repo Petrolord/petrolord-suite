@@ -1,0 +1,71 @@
+# Playwright browser specs (e2e/*.spec.js) on clean runners.
+#
+# The specs drive the /dev/* harness routes, which exist only under the Vite
+# dev server, so each shard starts one on the runner and points Playwright at
+# it with E2E_BASE_URL. Until 2026-10-01 these specs ran only by hand on the
+# shared studio box; several went red unnoticed after shared changes (the unit
+# profile, route protection), which is why they run here now.
+#
+# Benchmarks that need local data or a real GPU stay opt-in through their own
+# env switches (SEIS_BENCH, PERF_STRICT) and skip themselves here.
+name: e2e
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, ci/e2e ]
+  pull_request:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    name: playwright (shard ${{ matrix.shard }}/6)
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      # PDF and image exports are read back in the specs.
+      - name: PDF tools for the export read-back checks
+        run: sudo apt-get install -y -qq poppler-utils
+
+      - name: Generate the demo kit some specs read
+        run: npx tsx tools/demo-dataset/generate.mjs
+
+      - name: Start the Vite dev server
+        run: |
+          nohup npx vite --host 127.0.0.1 --port 5199 --strictPort > vite-dev.log 2>&1 &
+          for i in $(seq 1 90); do
+            curl -sf -o /dev/null http://127.0.0.1:5199/ && exit 0
+            sleep 2
+          done
+          cat vite-dev.log
+          exit 1
+
+      - name: playwright shard ${{ matrix.shard }}
+        run: npx playwright test --shard=${{ matrix.shard }}/6 --workers=2 --retries=1
+        env:
+          E2E_BASE_URL: http://127.0.0.1:5199
+
+      - name: Dev server log
+        if: failure()
+        run: tail -n 200 vite-dev.log
