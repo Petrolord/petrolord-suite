@@ -86,6 +86,7 @@ export default function BasinFlowHelpGuide() {
           mass based: the layer's organic mass times its potential, converted by the kinetic model as the layer heats.
           Expulsion starts once the generated mass exceeds the retention threshold and is reported per square metre.
         </Para>
+        <Para>Kinetics: besides the three kerogen types a source rock can use a Pepper and Corvi (1995) organofacies (A marine carbonate, B marine clastic, C lacustrine, D/E waxy coastal plain, F terrigenous) or Custom kinetics from a frequency factor, a mean activation energy and its spread. Lithology Mixed takes sandstone, shale and limestone parts in the layer details: porosity, compaction and heat capacity mix by fraction and conductivity by the geometric mean.</Para>
       </GuideSection>
 
       <GuideSection id="thermal">
