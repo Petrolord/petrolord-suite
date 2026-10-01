@@ -17,7 +17,7 @@ const VE = [1, 2, 5, 10];
 const AXIS = [0.58, 0.64, 0.72];
 
 export default function FrameworkView3D({
-  built, wells = [], surfaceNames = [], faultPolygons = [], depthUnit = 'm', height = 520, onStatus,
+  built, wells = [], surfaceNames = [], faultPolygons = [], depthUnit = 'm', height = 520, onStatus, fenceLine = null,
 }) {
   const canvasRef = useRef(null);
   const rendererRef = useRef(null);
@@ -26,6 +26,9 @@ export default function FrameworkView3D({
   const fittedRef = useRef(false);
   const [ve, setVe] = useState(2);
   const [colorBy, setColorBy] = useState('depth');
+  // U2-018: properties on the surfaces and a fence along the section line
+  const [property, setProperty] = useState('phi');
+  const [showFence, setShowFence] = useState(false);
   const [hidden, setHidden] = useState(() => new Set());
   const [frame, setFrame] = useState(0);
   const [glError, setGlError] = useState(null);
@@ -35,11 +38,12 @@ export default function FrameworkView3D({
     if (!built) return null;
     try {
       return buildFrameworkScene(built, wells, {
-        ve, surfaceNames, faultPolygons, depthUnit, colorBy,
+        ve, surfaceNames, faultPolygons, depthUnit, colorBy, property,
+        fence: showFence ? fenceLine : null,
         visible: built.clamped.map((_, i) => !hidden.has(i)),
       });
     } catch (e) { onStatus?.(e.message); return null; }
-  }, [built, wells, ve, surfaceNames, faultPolygons, depthUnit, colorBy, hidden]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [built, wells, ve, surfaceNames, faultPolygons, depthUnit, colorBy, hidden, property, showFence, fenceLine]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -66,9 +70,12 @@ export default function FrameworkView3D({
     if (!renderer || !c || !scene) return;
     const keep = new Set();
     renderer.setScale(scene.ext.X, scene.ext.D, scene.ext.Z);
-    for (const s of scene.surfaces) { keep.add(s.id); renderer.setMesh(s.id, { positions: s.positions, colors: s.colors, indices: s.indices, alpha: 0.96 }); }
+    // U2-018: with the fence on the surfaces turn translucent so the fence shows through
+    const surfAlpha = scene.fence && scene.fence.quads ? 0.45 : 0.96;
+    for (const s of scene.surfaces) { keep.add(s.id); renderer.setMesh(s.id, { positions: s.positions, colors: s.colors, indices: s.indices, alpha: surfAlpha }); }
     for (const w of scene.wells) { keep.add(w.id); renderer.setLineSet(w.id, { positions: w.positions, color: w.color, alpha: 1 }); }
     if (scene.tops.length) { keep.add('tops'); renderer.setLineSet('tops', { positions: scene.tops, color: [0.98, 0.98, 0.99], alpha: 1 }); }
+    if (scene.fence && scene.fence.quads) { keep.add('fence'); renderer.setMesh('fence', { positions: scene.fence.positions, colors: scene.fence.colors, indices: scene.fence.indices, alpha: 1 }); }
     if (scene.faults.length) { keep.add('faults'); renderer.setLineSet('faults', { positions: scene.faults, color: hexToRgb('#eab308'), alpha: 1 }); }
     keep.add('edges'); renderer.setLineSet('edges', { positions: scene.axes.edges, color: AXIS, alpha: 0.9, scaled: false });
     renderer.prune(keep);
@@ -146,7 +153,8 @@ export default function FrameworkView3D({
       // design system (W4B): the 3D viewer stays dark in both themes; its
       // overlays and everything drawn inside are unchanged
       data-canvas="dark"
-      data-yaw={cam.yaw.toFixed(3)} data-pitch={cam.pitch.toFixed(3)} data-dist={cam.dist.toFixed(3)} data-ve={ve} data-surfaces={scene?.surfaces.length ?? 0}>
+      data-yaw={cam.yaw.toFixed(3)} data-pitch={cam.pitch.toFixed(3)} data-dist={cam.dist.toFixed(3)} data-ve={ve} data-surfaces={scene?.surfaces.length ?? 0}
+      data-fence-quads={scene?.fence?.quads ?? 0} data-colorby={colorBy}>
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full touch-none" data-testid="em-3d-canvas" />
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         {projected.labels.map((l, i) => (
@@ -164,8 +172,16 @@ export default function FrameworkView3D({
             className={`rounded px-1.5 py-0.5 ${ve === v ? 'bg-pl-primary text-pl-primary-fg' : 'bg-pl-sunken text-pl-muted hover:text-pl-text'}`}>{v}x</button>
         ))}
         <span className="mx-1 text-pl-border-strong">|</span>
-        <button type="button" data-testid="em-3d-colorby" onClick={() => setColorBy((c) => (c === 'depth' ? 'surface' : 'depth'))}
-          className="rounded bg-pl-sunken px-1.5 py-0.5" title="Colour the surfaces by depth or one colour per surface">colour: {colorBy}</button>
+        <button type="button" data-testid="em-3d-colorby" onClick={() => setColorBy((c) => (c === 'depth' ? 'surface' : c === 'surface' ? 'property' : 'depth'))}
+          className="rounded bg-pl-sunken px-1.5 py-0.5" title="Colour the surfaces by depth, one colour per surface, or a property of the zone below">colour: {colorBy}</button>
+        {colorBy === 'property' && (
+          <select data-testid="em-3d-property" value={property} onChange={(e) => setProperty(e.target.value)} className="rounded bg-pl-sunken px-1 py-0.5 text-[10px] text-pl-text">
+            <option value="phi">porosity</option><option value="sw">Sw</option><option value="ntg">NTG</option>
+          </select>
+        )}
+        <button type="button" data-testid="em-3d-fence" disabled={!fenceLine} onClick={() => setShowFence((f) => !f)}
+          className={`rounded px-1.5 py-0.5 disabled:opacity-40 ${showFence ? 'bg-pl-primary text-pl-primary-fg' : 'bg-pl-sunken'}`}
+          title={fenceLine ? 'A fence section along the section line (Section view: draw a line or pick two wells)' : 'Set a section line first (Section view)'}>fence</button>
         <button type="button" data-testid="em-3d-fit" onClick={fit} className="rounded bg-pl-sunken px-1.5 py-0.5" title="Fit the model"><Maximize2 className="inline h-3 w-3" /></button>
         <button type="button" data-testid="em-3d-png" onClick={snapshot} className="rounded bg-pl-sunken px-1.5 py-0.5" title="Download a PNG"><Camera className="inline h-3 w-3" /> PNG</button>
       </div>
@@ -178,6 +194,11 @@ export default function FrameworkView3D({
           </label>
         ))}
       </div>
+      {scene?.propertyRange && (
+        <div className="absolute bottom-6 left-2 rounded border border-pl-border bg-pl-raised/90 px-2 py-1 text-[10px] text-pl-text" data-testid="em-3d-prop-legend">
+          {property === 'phi' ? 'porosity' : property === 'sw' ? 'Sw' : 'NTG'}: <span style={{ color: '#3b82f6' }}>{scene.propertyRange.lo.toFixed(3)}</span> to <span style={{ color: '#ef4444' }}>{scene.propertyRange.hi.toFixed(3)}</span> (zone below each surface)
+        </div>
+      )}
       <div className="absolute bottom-1 right-2 text-[9px] text-pl-muted">drag orbit, shift-drag pan, wheel zoom, depth in {depthUnit}</div>
     </div>
   );

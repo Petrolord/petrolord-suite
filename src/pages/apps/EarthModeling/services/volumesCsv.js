@@ -5,6 +5,7 @@
 import { volumeValue, volumeUnitLabel } from './units';
 import { describeProvenance } from './propertyKriging';
 import { buildLabel } from '@/lib/platformBuild';
+import { describeTraps } from './trapBound';
 
 const cell = (v) => (Math.abs(v - Math.round(v)) < 1e-6 ? String(Math.round(v)) : Number(v).toFixed(2));
 const latin1 = (t) => String(t).replace(/[^\n\x20-\x7e\xa0-\xff]/g, '?');
@@ -15,10 +16,15 @@ function fluidText(z) {
   const bits = [];
   bits.push(Number.isFinite(f.goc) ? `GOC ${f.goc.toFixed(1)} m` : 'no GOC');
   bits.push(Number.isFinite(f.owc) ? `OWC ${f.owc.toFixed(1)} m` : 'no OWC (whole zone counted as hydrocarbon)');
+  // U2-005: contacts per fault block
+  for (const [lab, b] of Object.entries(f.blocks || {})) {
+    bits.push(`block ${lab}${Number.isFinite(b.goc) ? ` GOC ${b.goc.toFixed(1)} m` : ''}${Number.isFinite(b.owc) ? ` OWC ${b.owc.toFixed(1)} m` : ''}`);
+  }
   if (Number.isFinite(f.bo)) bits.push(`Bo ${f.bo} rb/stb`);
   if (Number.isFinite(f.bg)) bits.push(`Bg ${Number(f.bg).toPrecision(4)} rm3/sm3`);
   if (f.gasZone) bits.push('gas zone');
-  if (z.openEdge?.open) bits.push(`OPEN: the hydrocarbon leg reaches the model edge at ${z.openEdge.nodes} nodes`);
+  if (z.trap) bits.push(`leg bounded by the closure and spill: ${describeTraps(z.trap)}`);
+  if (z.openEdge?.open) bits.push(z.openEdge.spillAtEdge ? 'OPEN: the trap spills at the model edge' : `OPEN: the hydrocarbon leg reaches the model edge at ${z.openEdge.nodes} nodes`);
   return bits.join(', ');
 }
 
@@ -69,5 +75,16 @@ export function volumesCsv(built, { name = 'earth-model', volumeUnits = 'metric'
   const fileName = `${String(name).replace(/[^\w-]+/g, '_') || 'earth-model'}-volumes-${volumeUnits}.csv`;
   for (const c of built.propertyClamps || []) lines.push(`# ${c.zone} ${c.prop}: ${c.nodes} nodes extrapolated outside 0 to 1 and held at the limit`);
   for (const n of built.notes || []) lines.push(`# note: ${n}`);
+  // U2-010: the volume distribution when one was run (P90 = low case)
+  if (built.distribution) {
+    const d = built.distribution;
+    lines.push(`# volume distribution: ${d.iterations} trials, seed ${d.seed}; P90 is the low case (10th percentile of outcomes)`);
+    lines.push(['zone', 'quantity', 'P90', 'P50', 'P10', 'mean'].join(','));
+    for (const z of d.zones) {
+      for (const [qn, st] of Object.entries(z.stats)) {
+        lines.push([z.name, `${qn.replace('_m3', '')} (${volumeUnitLabel(qn, volumeUnits)})`, ...['p90', 'p50', 'p10', 'mean'].map((k) => { const x = volumeValue(st[k], qn, volumeUnits); return x === null ? '' : x.toFixed(4); })].map(q).join(','));
+      }
+    }
+  }
   return { text: latin1(`${lines.join('\n')}\n`), fileName };
 }

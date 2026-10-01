@@ -28,6 +28,10 @@ export async function listSeismicFaults() {
     supabase, hostCrs: tag && tag !== 'UNKNOWN' ? tag : null, getTransformer, customDefs,
   });
 }
+import { createSavedProjectsService } from '@/utils/savedProjects';
+
+// U2-002: the user's saved SCAL Studio projects, read only (Petrophysics reads them the same way)
+const scalProjects = createSavedProjectsService('saved_scal_projects');
 
 /**
  * Polygons from geo_culture as vertex lists the block engine takes
@@ -126,5 +130,7 @@ export function makeRegistryBackend() {
     saveProject,
     updateProject,
     deleteProject,
+    listScalProjects: () => scalProjects.list(),
+    loadScalProject: (id) => scalProjects.load(id),
   };
 }

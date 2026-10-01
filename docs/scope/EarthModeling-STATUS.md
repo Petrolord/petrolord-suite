@@ -217,3 +217,27 @@ Step 2 backlog of 18 items in batches A/B/C).
   import (MAP-U1-032) now read through the same door.
 - e2e: `e2e/earth-modeling.spec.js` picks metric volumes (red since the
   unit profile, #830); new `e2e/earth-modeling-upgrade.spec.js` (9).
+
+## 2026-10-01: upgrade Step 2 (Batches A, B, C), branch `feat/em-u2`
+
+Batch decision and the build log per item: `docs/upgrade/EarthModeling-UPGRADE.md`
+("Batch decision" and "Step 2 build"). Built, each with a failing-first test:
+
+- A: U2-004 build on a Web Worker with progress and cancel (engines PR #291:
+  the variogram is checked once per kriging system); U2-005 contacts per fault
+  block; U2-006 hydrocarbon leg bounded by Mapping's closure and spill;
+  U2-002 Sw from a SCAL saturation-height function (Petrophysics'
+  `shmFromScalProject`, its published example); U2-003 PDF model report
+  (pdftotext read-back); U2-001 Seismolord faults as a polygon per zone top
+  (built behind `SEISMIC_FAULTS_HOOK`, then wired to Seismolord's reader once
+  Seismolord U2 #837 reached main).
+- B: U2-009 prospect to ReservoirCalc Pro (`src/lib/earthModelProspect.js`;
+  RCP-side: `EarthModelProspectNote.jsx` and a two-line mount); U2-010 volume
+  distribution through `src/lib/monteCarlo.js`; U2-008 Petrophysics net pay and
+  HCPV maps as NTG and Sw; U2-011 GRDECL export (Simulation's deck gate and
+  OPM Flow 2026.04 read it back: 760 active cells, PV 12,222,279 rm3); U2-018
+  3D properties and a fence.
+- C: U2-017 isopach beside the isochore.
+- Engines PR #291 merged; after merging main the pin is 1e5d394 (contains #291).
+- Deferred with reasons: U2-007, U2-015, U2-016, U2-012, U2-013, U2-014
+  (migration, second engineer), EM-U1-026 (Project programme).

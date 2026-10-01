@@ -5,6 +5,8 @@
 // (SI internal); contacts and FVF per zone since T1.
 
 import React from 'react';
+import { describeTraps } from '../services/trapBound';
+import DistributionCard from './DistributionCard';
 import { fmtVolume, volumeUnitLabel, fmtDepth } from '../services/units';
 import { describeProvenance } from '../services/propertyKriging';
 import { hasFluids } from '../services/modelBuild';
@@ -15,7 +17,7 @@ const td = 'px-2 py-1 text-xs text-pl-text whitespace-nowrap';
 const card = 'rounded border border-pl-border bg-pl-surface';
 
 
-export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', volumeUnits = 'metric' }) {
+export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', volumeUnits = 'metric', onDistribution = null }) {
   const u = depthUnit;
   const vu = (col) => volumeUnitLabel(col, volumeUnits);
   if (!built) {
@@ -126,19 +128,37 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
         </table>
       </div>
 
+      {onDistribution && <DistributionCard built={built} volumeUnits={volumeUnits} onResult={onDistribution} />}
+
       {built.zones.map((zone) => (
         <div className={card} key={zone.name}>
           <div className="px-2 py-1.5 text-xs font-semibold text-pl-text border-b border-pl-border">
             {zone.name}: volumes and population provenance
           </div>
-          {!Number.isFinite(zone.fluids?.owc) && (
+          {Object.keys(zone.fluids?.blocks || {}).length > 0 && (
+            <div className="px-2 py-1 text-[11px] text-pl-muted border-b border-pl-border" data-testid={`em-blockcontacts-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
+              Contacts per fault block: {Object.entries(zone.fluids.blocks).map(([lab, b]) => `block ${lab}${b.goc != null ? ` GOC ${fmtDepth(b.goc, u, 1)} ${u}` : ''}${b.owc != null ? ` OWC ${fmtDepth(b.owc, u, 1)} ${u}` : ''}`).join('; ')}. Other blocks use the zone contacts{Number.isFinite(zone.fluids?.owc) ? '' : ' (the zone has no OWC, so their whole column counts as hydrocarbon)'}.
+            </div>
+          )}
+          {!Number.isFinite(zone.fluids?.owc) && !Object.values(zone.fluids?.blocks || {}).some((b) => Number.isFinite(b?.owc)) && (
             <div className="px-2 py-1 text-[11px] text-pl-warning-text border-b border-pl-border" data-testid={`em-nocontact-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
               No OWC given: the whole zone counts as hydrocarbon. Enter the contacts in the dock for a true HCPV.
             </div>
           )}
-          {zone.openEdge?.open && (
+          {zone.openEdge?.open && !zone.openEdge.spillAtEdge && (
             <div className="px-2 py-1 text-[11px] text-pl-warning-text border-b border-pl-border" data-testid={`em-openedge-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
-              The hydrocarbon leg reaches the model edge at {zone.openEdge.nodes} node{zone.openEdge.nodes === 1 ? '' : 's'}: the accumulation is not closed inside the frame, so these volumes depend on where the frame or boundary stops. Check the spill point in Mapping &amp; Surface Studio.
+              The hydrocarbon leg reaches the model edge at {zone.openEdge.nodes} node{zone.openEdge.nodes === 1 ? '' : 's'}: the accumulation is not closed inside the frame, so these volumes depend on where the frame or boundary stops. Tick bound the leg by the closure and spill in the dock, or check the spill point in Mapping &amp; Surface Studio.
+            </div>
+          )}
+          {zone.isopach && Number.isFinite(zone.isopach.meanTstM) && (
+            <div className="px-2 py-1 text-[11px] text-pl-muted border-b border-pl-border" data-testid={`em-isopach-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}
+              title="Isochore: vertical thickness (TVT). Isopach: thickness perpendicular to bedding (TST = TVT x cos dip), dip from the zone's mid-surface.">
+              Mean isochore (TVT) {fmtDepth(zone.isopach.meanTvtM, u, 1)} {u}; mean isopach (TST) {fmtDepth(zone.isopach.meanTstM, u, 1)} {u}; steepest dip {Number.isFinite(zone.isopach.maxDipDeg) ? zone.isopach.maxDipDeg.toFixed(1) : EMPTY_VALUE} degrees. Volumes use the vertical thickness (cell area x TVT).
+            </div>
+          )}
+          {zone.trap && (
+            <div className={`px-2 py-1 text-[11px] border-b border-pl-border ${zone.trap.openEdge ? 'text-pl-warning-text' : 'text-pl-muted'}`} data-testid={`em-trap-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
+              Leg bounded by the closure and spill: {describeTraps(zone.trap, (m) => `${fmtDepth(m, u, 1)} ${u}`)}.
             </div>
           )}
           {zone.fluids?.gasZone && (

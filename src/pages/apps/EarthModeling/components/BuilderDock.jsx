@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { DERIVED_KINDS, describeDerived } from '../services/derivedSurfaces';
 import { POPULATION_METHODS, parseFluidsInput, BG_UNITS } from '../services/modelBuild';
 import { VARIOGRAM_MODELS } from '../services/propertyKriging';
+import { mapKind } from '../services/propertyMaps';
 
 const selCls = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 const inCls = selCls;
@@ -21,6 +22,7 @@ export default function BuilderDock({
   projects, onSaveProject, onLoadProject, boundaries = [],
   registrySurfaces = null, depthUnit = 'm', onAddDerived, onRemoveDerived,
   bgUnit = 'm3/m3', onBgUnit, projectId = null, onSaveAsNew, report = null, onReport,
+  scalProjects = [],
 }) {
   // EM2 derived-horizon form (thickness typed in the display unit)
   const [dv, setDv] = useState({ kind: 'parallel', sourceId: '', thickness: '', isochoreId: '', baseId: '', fraction: '0.5', name: '' });
@@ -176,6 +178,7 @@ export default function BuilderDock({
             if (p?.bo != null) bits.push(`Bo ${p.bo}`);
             if (p?.bg != null) bits.push(`Bg ${p.bg.toPrecision(3)} rm3/sm3`);
             if (p?.gasZone) bits.push('gas zone');
+            for (const [lab, b] of Object.entries(p?.blocks || {})) bits.push(`block ${lab}${b.goc != null ? ` GOC ${b.goc.toFixed(1)} m` : ''}${b.owc != null ? ` OWC ${b.owc.toFixed(1)} m` : ''}`);
             read = bits.length ? `reads as ${bits.join(', ')} below datum` : null;
           } catch (e) { read = e.message; }
           return (
@@ -187,6 +190,33 @@ export default function BuilderDock({
               <input className={inCls} value={f.bo ?? ''} placeholder="Bo rb/stb" data-testid={`em-bo-${i}`} onChange={(e) => setF('bo', e.target.value)} />
               <input className={inCls} value={f.bg ?? ''} placeholder={`Bg ${bgUnit === 'm3/m3' ? 'rm3/sm3' : bgUnit}`} data-testid={`em-bg-${i}`} onChange={(e) => setF('bg', e.target.value)} />
               {read && <span className="col-span-4 text-[10px] text-pl-muted" data-testid={`em-fluids-read-${i}`}>{read}</span>}
+              <label className="col-span-4 flex items-center gap-1 text-[10px] text-pl-muted"
+                title="Mapping's closure and spill engine on the zone top: a contact below the spill point fills the trap only to the spill, and nodes above the contact outside the trap hold no hydrocarbon">
+                <input type="checkbox" data-testid={`em-trap-${i}`} checked={f.trap === 'closure'}
+                  onChange={(e) => { const next = [...(definition.fluidsInput || [])]; next[i] = { ...f, trap: e.target.checked ? 'closure' : undefined }; patch({ fluidsInput: next }); }} />
+                bound the leg by the closure and spill
+              </label>
+              {(definition.faultPolygons || []).length > 0 && (
+                <details className="col-span-4" data-testid={`em-block-contacts-${i}`} open={Object.keys(f.blocks || {}).length > 0}>
+                  <summary className="cursor-pointer text-[10px] text-pl-primary-text" title="A fault block can hold its own GOC and OWC (a fault that seals). Blank = the zone contact.">Contacts per fault block</summary>
+                  {[{ lab: '0', name: 'Outside the fault polygons' }, ...(definition.faultPolygons || []).map((p, k) => ({ lab: String(k + 1), name: p.name }))].map(({ lab, name }) => {
+                    const b = (f.blocks || {})[lab] || {};
+                    const setB = (k, v) => {
+                      const next = [...(definition.fluidsInput || [])];
+                      const blocks = { ...(f.blocks || {}), [lab]: { ...b, [k]: v, [unitKey[k]]: depthUnit } };
+                      next[i] = { ...f, blocks };
+                      patch({ fluidsInput: next });
+                    };
+                    return (
+                      <div key={lab} className="grid grid-cols-3 gap-1 mt-1 items-center">
+                        <span className="text-[10px] text-pl-muted truncate" title={name}>{lab}: {name}</span>
+                        <input className={inCls} value={b.goc ?? ''} placeholder={`GOC ${b.gocUnit || depthUnit}`} data-testid={`em-goc-${i}-b${lab}`} onChange={(e) => setB('goc', e.target.value)} />
+                        <input className={inCls} value={b.owc ?? ''} placeholder={`OWC ${b.owcUnit || depthUnit}`} data-testid={`em-owc-${i}-b${lab}`} onChange={(e) => setB('owc', e.target.value)} />
+                      </div>
+                    );
+                  })}
+                </details>
+              )}
             </div>
           );
         })}
@@ -197,11 +227,60 @@ export default function BuilderDock({
             <span className="w-10 text-pl-muted">{prop}</span>
             <select className={selCls} data-testid={`em-method-${prop}`} value={definition.methods[prop]}
               onChange={(e) => patch({ methods: { ...definition.methods, [prop]: e.target.value } })}>
-              {POPULATION_METHODS.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+              {POPULATION_METHODS.filter((m) => !m.only || m.only === prop || (Array.isArray(m.only) && m.only.includes(prop))).map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
             </select>
           </div>
         ))}
         <p className="text-[10px] text-pl-muted">Per fault block; short blocks fall back kriging to trend to constant (recorded in QC).</p>
+        {(definition.methods.ntg === 'map' || definition.methods.sw === 'map') && (
+          <div className="space-y-1 rounded border border-pl-border p-1.5" data-testid="em-propmaps">
+            <div className="text-[10px] text-pl-muted">Petrophysics maps per zone (Mapping grids the zone net pay and HCPV as attribute maps; pick the TVT keys). NTG = net pay / thickness; Sw = 1 - HCPV / (thickness x NTG x porosity).</div>
+            {definition.zones.map((z, i) => {
+              const attrs = (registrySurfaces || surfaces).filter((s) => s.kind === 'attribute' && ['m', 'ft'].includes(s.z_unit));
+              const opt = (want) => attrs.slice().sort((a, b) => (mapKind(b) === want) - (mapKind(a) === want)).map((s) => (
+                <option key={s.id} value={s.id}>{s.name}{s.provenance?.source?.key ? ` [${s.provenance.source.key}]` : ''}</option>
+              ));
+              return (
+                <div key={`pm-${i}`} className="grid grid-cols-2 gap-1">
+                  <span className="col-span-2 text-[10px] text-pl-muted">{z.name}</span>
+                  {definition.methods.ntg === 'map' && (
+                    <select className={selCls} data-testid={`em-map-ntg-${i}`} value={z.maps?.ntg || ''} title="Net pay map for NTG"
+                      onChange={(e) => patchZone(i, { maps: { ...(z.maps || {}), ntg: e.target.value } })}>
+                      <option value="">net pay map…</option>{opt('net')}
+                    </select>
+                  )}
+                  {definition.methods.sw === 'map' && (
+                    <select className={selCls} data-testid={`em-map-sw-${i}`} value={z.maps?.sw || ''} title="HCPV map for Sw"
+                      onChange={(e) => patchZone(i, { maps: { ...(z.maps || {}), sw: e.target.value } })}>
+                      <option value="">HCPV map…</option>{opt('hcpv')}
+                    </select>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {definition.methods.sw === 'shm' && (
+          <div className="space-y-1 rounded border border-pl-border p-1.5" data-testid="em-shm">
+            <div className="text-[10px] text-pl-muted">Sw from a SCAL Studio saturation-height function: per node, the mean Sw over the hydrocarbon leg from its height above the free-water level.</div>
+            <select className={selCls} data-testid="em-shm-project" value={definition.shm?.projectId || ''}
+              onChange={(e) => patch({ shm: { ...(definition.shm || {}), projectId: e.target.value, projectName: (scalProjects.find((p) => p.id === e.target.value) || {}).name || '' } })}>
+              <option value="">SCAL Studio project…</option>
+              {scalProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            {!scalProjects.length && <p className="text-[10px] text-pl-muted">No saved SCAL Studio projects. Fit a J function and save it in SCAL Studio.</p>}
+            <div className="grid grid-cols-2 gap-1">
+              <input className={inCls} data-testid="em-shm-fwl" value={definition.shm?.fwl ?? ''} placeholder={`FWL ${depthUnit} (blank: the project's)`}
+                title="Free-water level as depth below datum; blank uses the SCAL project's"
+                onChange={(e) => patch({ shm: { ...(definition.shm || {}), fwl: e.target.value, fwlUnit: depthUnit } })} />
+              <select className={selCls} data-testid="em-shm-rock" value={definition.shm?.rock || 'project'} title="Porosity for the Leverett scaling"
+                onChange={(e) => patch({ shm: { ...(definition.shm || {}), rock: e.target.value } })}>
+                <option value="project">rock of the project</option>
+                <option value="model">modelled porosity</option>
+              </select>
+            </div>
+          </div>
+        )}
 
         {(Object.values(definition.methods).includes('krige') || Object.values(definition.methods).includes('okrige')) && (
           <>
