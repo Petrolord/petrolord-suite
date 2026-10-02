@@ -309,7 +309,8 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
     straight.push(['Semilog skin', prepared?.skinWithheld ? 'withheld' : f2(semilogResult.skin)]);
     if (isBuildup && Number.isFinite(semilogResult.pStar)) straight.push([`Extrapolated p* (${uL('pressure')})`, f1(u('pressure', semilogResult.pStar))]);
     straight.push(['Semilog fit r2', f2(semilogResult.r2)]);
-    if (Number.isFinite(semilogResult.windowMin)) straight.push(['Semilog fit window (hr)', `${sig3(semilogResult.windowMin)} to ${sig3(semilogResult.windowMax)}`]);
+    // the basis is named: the flow regimes below are in equivalent time
+    if (Number.isFinite(semilogResult.windowMin)) straight.push([isBuildup ? 'Semilog fit window (shut-in time dt, hr)' : 'Semilog fit window (elapsed time, hr)', `${sig3(semilogResult.windowMin)} to ${sig3(semilogResult.windowMax)}`]);
   }
   if (sqrtResult) straight.push(['sqrt(t) slope', `${f2(u(dpKind, sqrtResult.slope))} ${dpUnit}/hr^0.5`]);
   if (pssResult) {
@@ -337,7 +338,7 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
   if (regimes?.length) {
     table('Flow regimes observed', ['Regime', 'From (hr)', 'To (hr)', 'Span (log cycles)'],
       regimes.map((r) => [r.label, sig3(r.xStart), sig3(r.xEnd), f1(r.spanDecades)]),
-      { note: `Detected on the Bourdet derivative; times are ${isBuildup ? 'Agarwal equivalent time' : 'elapsed time'}.` });
+      { note: `Detected on the Bourdet derivative; times are ${isBuildup ? 'Agarwal equivalent time, which runs behind shut-in time late in a buildup. The semilog fit window above is in shut-in time' : 'elapsed time'}.` });
   } else {
     heading('Flow regimes observed', 14);
     y += 5;

@@ -22,10 +22,11 @@ import { PLOT_RGB } from './pdfPlot.js';
 const sig = (v, n = 3) => (Number.isFinite(v) ? String(parseFloat(Number(v).toPrecision(n))) : 'n/a');
 const xy = (rows, xk, yk) => rows.map((r) => [r[xk], r[yk]]);
 
+// Where the semilog fit window came from, to close the sentence that states it.
 const WINDOW_WORDS = {
-  manual: 'window set by the analyst',
-  radial: 'window taken from the detected radial flow',
-  full: 'no radial flow detected, so the line runs through every point',
+  manual: 'set by the analyst',
+  radial: 'the detected radial flow',
+  full: 'every point, because no radial flow was detected',
 };
 
 /**
@@ -136,12 +137,23 @@ export function buildReportFigures(s) {
     const m = fromOilfield(slopeKind, s.semilogResult.m, unitSystem);
     const slopeText = `Slope m = ${isGas ? Number(m).toExponential(3) : Number(m).toFixed(1)} ${unitLabel(slopeKind, unitSystem)}`;
     const w = sl.window;
-    const windowText = w ? `Fit window ${sig(w.tMin)} to ${sig(w.tMax)} hr (${w.n} points)` : 'Fit window not set';
+    // The window is fitted in shut-in (or elapsed) time, while the flow
+    // regimes are reported on the diagnostic abscissa (Agarwal equivalent
+    // time for a buildup). Both are printed, each with its basis named, so
+    // the two tables do not read as a contradiction. The equivalent times
+    // are the diagnostic series' own abscissa at the window's end points.
+    const basis = isBuildup ? 'shut-in time' : 'elapsed time';
+    const eqAt = (t) => (s.loglog || []).find((p) => p.time === t)?.x;
+    const eq = w ? [eqAt(w.tMin), eqAt(w.tMax)] : [];
+    const eqText = isBuildup && eq.every(Number.isFinite) ? ` (${sig(eq[0])} to ${sig(eq[1])} hr equivalent ${timeName})` : '';
+    const windowText = w
+      ? `Fit window ${sig(w.tMin)} to ${sig(w.tMax)} hr ${basis}${eqText}, ${WINDOW_WORDS[s.semilogWindowSource] || 'as set'}`
+      : 'Fit window not set';
     figures.push({
       id: 'semilog',
       title: `${sl.name} semilog plot`,
       caption: `${isBuildup ? 'Shut-in pressure against the Horner time ratio' : 'Flowing pressure against elapsed time'}, with the fitted straight line. `
-        + `${slopeText}. ${windowText}; ${WINDOW_WORDS[s.semilogWindowSource] || 'window as set'}. The shaded band is the fit window.`
+        + `${slopeText}. ${windowText}${w ? ` (${w.n} points)` : ''}. The shaded band is the fit window.`
         + (isGas ? ' The line is fitted in pseudo-pressure and drawn back in pressure.' : ''),
       panels: [{
         height: 84,

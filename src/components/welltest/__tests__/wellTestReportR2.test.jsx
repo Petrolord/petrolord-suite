@@ -167,8 +167,19 @@ describe('the reviewed sample report', () => {
     expect(t).toMatch(/Horner time ratio \(tp \+ dt\)\/dt/);
     expect(t).toMatch(/Straight line/);
     expect(t).toMatch(/Slope m = \d+\.\d psi\/cycle/);
-    expect(t).toMatch(/Fit window [\d.]+ to [\d.]+ hr \(\d+ points\)/);
-    expect(t).toMatch(/window taken from the detected radial flow/);
+    // every printed window names its time basis: the fit window is shut-in
+    // time, the regimes are equivalent time, and the figure gives both
+    const c = studio.ctx;
+    const radial = c.regimes.find((r) => r.regime === 'radial');
+    const g = (v) => String(parseFloat(Number(v).toPrecision(3)));
+    const both = `Fit window ${g(c.semilogResult.windowMin)} to ${g(c.semilogResult.windowMax)} hr shut-in time (${g(radial.xStart)} to ${g(radial.xEnd)} hr equivalent time), the detected radial flow`;
+    expect(t).toContain(`${both} (`); // caption, followed by the point count
+    expect(t.split(both).length - 1).toBe(2); // and the annotation on the plot
+    expect(t).toContain(`Semilog fit window (shut-in time dt, hr) ${Number(c.semilogResult.windowMin).toPrecision(3)} to ${Number(c.semilogResult.windowMax).toPrecision(3)}`);
+    expect(t).toMatch(/times are Agarwal equivalent time, which runs behind shut-in time late in a buildup\. The semilog fit window above is in shut-in time/);
+    // the two bases really differ on this test, which is why both are stated
+    expect(c.semilogResult.windowMax).toBeGreaterThan(radial.xEnd * 1.5);
+    expect(t).not.toMatch(/Semilog fit window \(hr\)/);
     // 9 sqrt(t): not claimed on a radial sample, so a statement and no plot
     expect(t).toMatch(/Figure 4\. Square-root-of-time plot Does not apply: no linear flow regime was identified/);
     // 10 history match
