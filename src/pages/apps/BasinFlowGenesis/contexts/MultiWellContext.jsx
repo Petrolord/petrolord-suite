@@ -1,7 +1,12 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { makeRegistryBackend } from '../services/backend';
 import { useToast } from '@/components/ui/use-toast';
+import { useRecordSharing } from '@/lib/recordSharing/useRecordSharing';
+import { sharingOf, SHARING_COLUMNS } from '@/lib/recordSharing/rules';
+
+// U2-019: the sharing state a list row carries (owner, visibility, access, check-out, last author)
+const sharingFields = (w) => { const s = sharingOf(w) || {}; delete s.id; delete s.updated_at; return s; };
 
 const MultiWellContext = createContext(null);
 
@@ -33,7 +38,8 @@ const multiWellReducer = (state, action) => {
                     name: w.name,
                     status: w.status,
                     location: w.location_coords || { lat: 0, lng: 0 },
-                    updated_at: w.updated_at
+                    updated_at: w.updated_at,
+                    ...sharingFields(w),
                 })),
                 wellDataMap: dataMap
             };
@@ -45,7 +51,8 @@ const multiWellReducer = (state, action) => {
                     id: newWell.id, 
                     name: newWell.name, 
                     status: newWell.status,
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
+                    ...sharingFields(newWell),
                 }],
                 wellDataMap: {
                     ...state.wellDataMap,
@@ -76,6 +83,18 @@ const multiWellReducer = (state, action) => {
                 wellDataMap: { ...state.wellDataMap, [action.id]: updatedWellData }
             };
         }
+        case 'UPDATE_SHARING_LOCAL': {
+            // U2-019: the sharing state moved (share switch, check-out, a save's new
+            // version); not an edit of the model, so updated_at is left alone
+            const patch = {};
+            for (const c of SHARING_COLUMNS) if (c in action.payload && c !== 'updated_at') patch[c] = action.payload[c];
+            const current = state.wellDataMap[action.id];
+            return {
+                ...state,
+                wells: state.wells.map(w => (w.id === action.id ? { ...w, ...patch } : w)),
+                wellDataMap: current ? { ...state.wellDataMap, [action.id]: { ...current, ...patch } } : state.wellDataMap,
+            };
+        }
         default:
             return state;
     }
@@ -104,11 +123,33 @@ export const MultiWellProvider = ({ children, backend = null }) => {
         scenarios: w.scenarios || []
     });
 
+    // ---- U2-019 organisation sharing (src/lib/recordSharing) -----------------
+    // The provider stays mounted, so the check-out of the active model lasts
+    // while it is open. A model that is open read-only keeps the user's edits
+    // on screen only: the auto-save is skipped, never refused in a loop.
+    const activeRow = state.activeWellId ? state.wellDataMap[state.activeWellId] : null;
+    const sharing = useRecordSharing({
+        store: be.sharing,
+        table: 'bf_wells',
+        record: activeRow && activeRow.user_id ? activeRow : null,
+        onChange: (next) => dispatch({ type: 'UPDATE_SHARING_LOCAL', id: next.id, payload: next }),
+    });
+    const sharingRef = useRef(sharing); sharingRef.current = sharing;
+    const activeIdRef = useRef(state.activeWellId); activeIdRef.current = state.activeWellId;
+    // a model whose save was refused (a newer version elsewhere) stops saving until it is reloaded
+    const [blocked, setBlocked] = useState({});
+    const blockedRef = useRef(blocked); blockedRef.current = blocked;
+
     const fetchWells = useCallback(async () => {
         dispatch({ type: 'SET_LOADING', payload: true });
         try {
             const data = await be.listWells();
-            dispatch({ type: 'SET_WELLS', payload: (data || []).map(fromRow) });
+            // every listed model is loaded whole: saves carry the version read here
+            (data || []).forEach((row) => be.sharing?.trackOpened('bf_wells', row));
+            setBlocked({});
+            const mapped = (data || []).map(fromRow);
+            dispatch({ type: 'SET_WELLS', payload: mapped });
+            return mapped;
         } catch (error) {
             console.error("Error fetching wells:", error);
             toast({ variant: "destructive", title: "Sync Error", description: error.message || "Could not load wells." });
@@ -142,12 +183,14 @@ export const MultiWellProvider = ({ children, backend = null }) => {
                 settings: wellData.settings || {},
                 // BF-U2-018: the worked example arrives with its calibration
                 calibration_data: wellData.calibration || {},
-                scenarios: [],
+                // U2-019: "Save a copy" of a shared model brings its saved scenarios
+                scenarios: Array.isArray(wellData.scenarios) ? wellData.scenarios : [],
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             };
             dispatch({ type: 'ADD_WELL_LOCAL', payload: fromRow(payload) });
             await be.insertWell(payload);
+            be.sharing?.trackOpened('bf_wells', { id: newWellId, version: 1 });
             if (!wellData.quiet) toast({ title: "Well Created", description: `${payload.name} added.` });
             return newWellId;
         } catch (error) {
@@ -170,9 +213,21 @@ export const MultiWellProvider = ({ children, backend = null }) => {
             if (updates.scenarios) dbUpdates.scenarios = updates.scenarios;
             dbUpdates.updated_at = new Date().toISOString();
             if (Object.keys(dbUpdates).length > 1) {
-                await be.updateWell(id, dbUpdates);
+                // U2-019: read-only (shared for viewing, or not taken for editing, or a
+                // colleague is editing): the edit stays on screen and is not sent
+                const sh = sharingRef.current;
+                if (id === activeIdRef.current && sh.sharing && sh.ready && !sh.canWrite) return;
+                if (blockedRef.current[id]) return;
+                const saved = await be.updateWell(id, dbUpdates, { note: updates.name && Object.keys(dbUpdates).length === 2 ? 'Renamed' : 'Model saved' });
+                if (saved && typeof saved === 'object') dispatch({ type: 'UPDATE_SHARING_LOCAL', id, payload: saved });
             }
         } catch (error) {
+            if (error?.name === 'RecordConflict') {
+                // said once, then the model stops saving until it is reloaded
+                setBlocked((b) => ({ ...b, [id]: error.message }));
+                toast({ variant: "destructive", title: "Not saved", description: error.message, duration: 10000 });
+                return;
+            }
             console.error("Error updating well:", error);
             toast({ variant: "destructive", title: "Save Failed", description: error.message || "Changes might not be persisted." });
         }
@@ -206,7 +261,10 @@ export const MultiWellProvider = ({ children, backend = null }) => {
             updateWell,
             saveWellData,
             getWellData,
-            fetchWells
+            fetchWells,
+            // U2-019: the active model's sharing state and why a save is on hold
+            sharing,
+            saveBlocked: state.activeWellId ? blocked[state.activeWellId] || null : null,
         }}>
             {children}
         </MultiWellContext.Provider>

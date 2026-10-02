@@ -1,6 +1,6 @@
 // BasinFlow backend pair (BF0, 2026-09-06). Every data touch of the app
-// goes through one object: the registry backend wraps bf_wells (owner-
-// only RLS), the in-memory backend keeps the same row shape in a list
+// goes through one object: the registry backend wraps bf_wells (the
+// owner's rows, shareable with the organisation: U2-019), the in-memory backend keeps the same row shape in a list
 // seeded with the oracle's reference basin so /dev/basinflow-genesis
 // runs the whole app without auth or DB and the e2e can reproduce the
 // golden off the screen. Row shape is bf_wells' (snake_case columns);
@@ -10,6 +10,11 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { listWellsWithTops, listLogs, downloadCurve } from '@/lib/wellsRegistry';
 import { getDepthUnit } from '@/lib/crs/settingsService';
 import { listIntervals } from '@/lib/stratRegistry';
+import { supabaseSharingStore, makeHarnessSharing, colleagueShared } from '@/lib/recordSharing';
+
+// what a save reads back: enough to keep the version and the check-out in
+// step without pulling the whole model (scenario results can be large)
+const SAVE_RETURNS = 'id, version, updated_at, updated_by, editing_by, editing_since, editing_expires';
 
 const nowIso = () => new Date().toISOString();
 
@@ -20,11 +25,14 @@ export function makeRegistryBackend() {
       const { data: { user } } = await supabase.auth.getUser();
       return user?.id || null;
     },
+    // U2-019 organisation sharing: the user's own models and the ones
+    // colleagues shared with the organisation (row level security decides);
+    // each row carries its owner and sharing state
     async listWells() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
       const { data, error } = await supabase.from('bf_wells').select('*')
-        .eq('user_id', user.id).order('updated_at', { ascending: false });
+        .order('updated_at', { ascending: false });
       if (error) throw new Error(`Could not load wells: ${error.message}`);
       return data || [];
     },
@@ -33,9 +41,14 @@ export function makeRegistryBackend() {
       if (error) throw new Error(`Could not create the well: ${error.message}`);
       return row;
     },
-    async updateWell(id, patch) {
-      const { error } = await supabase.from('bf_wells').update(patch).eq('id', id);
-      if (error) throw new Error(`Could not save the well: ${error.message}`);
+    // the save carries the version the model was opened at; a refusal (a newer
+    // version, a colleague editing, view only) is thrown as a RecordConflict
+    // whose message is ready to show. Before the sharing migration this is the
+    // plain update it always was.
+    async updateWell(id, patch, { note = null } = {}) {
+      const { data, error } = await supabaseSharingStore().update('bf_wells', id, patch, { note, select: SAVE_RETURNS });
+      if (error) { if (error.name === 'RecordConflict') throw error; throw new Error(`Could not save the well: ${error.message}`); }
+      return data;
     },
     async deleteWell(id) {
       const { error } = await supabase.from('bf_wells').delete().eq('id', id);
@@ -51,6 +64,7 @@ export function makeRegistryBackend() {
     downloadRegistryCurve: downloadCurve,
     // BF3: the account's Geoscience depth unit (the Mapping setting)
     getDepthUnit,
+    sharing: supabaseSharingStore(),
   };
 }
 
@@ -149,7 +163,7 @@ export function referenceBasinRow(userId = 'user-dev') {
 
 const STORE_KEY = 'bf.dev.wells.v1';
 
-export function makeInMemoryBackend({ persist = true } = {}) {
+export function makeInMemoryBackend({ persist = true, shared = false, sharing: sharingOpts = {} } = {}) {
   const load = () => {
     if (persist) {
       try {
@@ -159,22 +173,42 @@ export function makeInMemoryBackend({ persist = true } = {}) {
     }
     return [referenceBasinRow()];
   };
-  let rows = load();
+  let rows = [];
   const save = () => {
     if (!persist) return;
     try { window.sessionStorage.setItem(STORE_KEY, JSON.stringify(rows)); } catch { /* keep in memory */ }
   };
+  // U2-019: the rows live in the in-memory mirror of the sharing rules
+  // (src/lib/recordSharing), still persisted to sessionStorage. `shared` adds
+  // two models a colleague shared (harness ?shared=1).
+  const sharing = makeHarnessSharing(sharingOpts);
+  const ME = sharing.me;
+  sharing.db.attach('bf_wells', { get: () => rows, set: (r) => { rows = r; save(); } });
+  const stored = load();
+  sharing.db.seed('bf_wells', stored, { owner: ME });
+  if (shared && !stored.some((r) => r.id === 'bf-well-ada-view')) {
+    sharing.db.seed('bf_wells', [
+      colleagueShared({ ...referenceBasinRow(), id: 'bf-well-ada-view', name: 'Keta Deep-1 (Ada)' }),
+      colleagueShared({ ...referenceBasinRow(), id: 'bf-well-ada-edit', name: 'Keta Shelf-2, team model' }, { access: 'edit' }),
+    ]);
+  }
   return {
-    async currentUserId() { return 'user-dev'; },
-    async listWells() { return rows.map((r) => ({ ...r })).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)); },
-    async insertWell(row) { rows = [{ ...row }, ...rows]; save(); return row; },
-    async updateWell(id, patch) {
-      const at = rows.findIndex((r) => r.id === id);
-      if (at < 0) throw new Error('Unknown well.');
-      rows[at] = { ...rows[at], ...patch };
-      save();
+    async currentUserId() { return ME; },
+    async listWells() { return (sharing.db.select('bf_wells', ME).data || []).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)); },
+    async insertWell(row) {
+      const { error } = sharing.db.insert('bf_wells', ME, { ...row });
+      if (error) throw new Error(`Could not create the well: ${error.message}`);
+      return row;
     },
-    async deleteWell(id) { rows = rows.filter((r) => r.id !== id); save(); },
+    async updateWell(id, patch, { note = null } = {}) {
+      const { data, error } = await sharing.store.update('bf_wells', id, patch, { note });
+      if (error) { if (error.name === 'RecordConflict') throw error; throw new Error('Unknown well.'); }
+      return data;
+    },
+    async deleteWell(id) { sharing.db.remove('bf_wells', ME, id); },
+    sharing: sharing.store,
+    /** test seam: the in-memory database and the colleague's store */
+    _sharing: sharing,
     async listRegistryWells() { return REGISTRY_WELLS_DEV.map((w) => ({ ...w, tops: w.tops.map((t) => ({ ...t })) })); },
     async listRegistryIntervals(wellId) { return (REGISTRY_INTERVALS_DEV[wellId] || []).map((r) => ({ ...r })); },
     async listRegistryLogs(wellId) { return (REGISTRY_LOGS_DEV[wellId] || []).map((r) => ({ ...r })); },
