@@ -15,9 +15,16 @@ import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 export default function ReservoirCalcProHarness() {
   // U1 (PL5): ?saved=1 seeds one saved project and one prospect per release
   const saved = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('saved') === '1';
-  const backend = useMemo(() => makeInMemoryRcpBackend(saved
-    ? { savedRows: SAVED_PROJECT_ROWS.map((r) => r.row), prospects: SAVED_PROSPECT_ROWS.map((r) => r.row) }
-    : {}), [saved]);
+  // U2-014 organisation sharing: ?shared=1 lists two projects and one prospect a
+  // colleague shared; ?sharing=off behaves as the database before the migration
+  const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const shared = q.get('shared') === '1';
+  const beforeApply = q.get('sharing') === 'off';
+  const backend = useMemo(() => makeInMemoryRcpBackend({
+    ...(saved ? { savedRows: SAVED_PROJECT_ROWS.map((r) => r.row), prospects: SAVED_PROSPECT_ROWS.map((r) => r.row) } : {}),
+    sharedRows: shared,
+    sharing: { applied: !beforeApply },
+  }), [saved, shared, beforeApply]);
   return (
     <div className="h-screen w-screen" data-testid="rcp-harness">
       <ReservoirCalcProvider backend={backend} appPaths={DEV_APP_PATHS}>

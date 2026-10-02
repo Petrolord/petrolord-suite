@@ -20,6 +20,7 @@ import { brine, gas, woodMix } from '../engine/fluids';
 import { MINERALS } from '../engine/minerals';
 import { substituteVels } from '../engine/gassmann';
 import { gardnerRho } from '../engine/pseudoSonic';
+import { makeHarnessSharing, colleagueShared } from '@/lib/recordSharing';
 
 let seq = 0;
 const nextId = (p) => { seq += 1; return `${p}-${seq}`; };
@@ -192,7 +193,7 @@ const MINERAL_PROVENANCE = Object.freeze({
 /** The wet (brine) truth of the trend well, for tests. */
 export const trendWellTruth = () => trendCurves().wet;
 
-export function makeInMemoryBackend({ hostile = false, long = false, trend = false, nosonic = false, minerals = false, pp = false } = {}) {
+export function makeInMemoryBackend({ hostile = false, long = false, trend = false, nosonic = false, minerals = false, pp = false, shared = false, sharing: sharingOpts = {} } = {}) {
   const curveStore = new Map();
   const logsByWell = new Map();
   const topsByWell = new Map();
@@ -342,6 +343,23 @@ export function makeInMemoryBackend({ hostile = false, long = false, trend = fal
     rock: { minerals: { quartz: 1, calcite: 0, dolomite: 0, clay: 0 }, kminOverrideGPa: '37', phiConst: 0.2 },
   };
 
+  // Organisation sharing: the project rows live in the in-memory mirror of the
+  // sharing rules. The user's own project still survives a reload through
+  // sessionStorage; `shared` adds a project a colleague shared for viewing
+  // (harness ?shared=1).
+  const sharing = makeHarnessSharing(sharingOpts);
+  const ME = sharing.me;
+  let stored = null;
+  try { const raw = window.sessionStorage.getItem(PROJECT_KEY); stored = raw ? JSON.parse(raw) : null; } catch { stored = null; }
+  sharing.db.seed('rp_projects', [{ ...(stored || SEED_PROJECT), user_id: ME }], { owner: ME });
+  if (shared) {
+    sharing.db.seed('rp_projects', [colleagueShared({
+      ...SEED_PROJECT, id: 'rp-project-ada', name: 'Gas sand study (Ada)',
+      rock: { ...SEED_PROJECT.rock, kminOverrideGPa: '40' }, updated_at: new Date(2026, 8, 30, 9, 0, 0).toISOString(),
+    })]);
+  }
+  const ownRow = () => (sharing.db.select('rp_projects', ME).data || []).find((r) => r.user_id === ME) || null;
+
   return {
     async listWells() { return [...wells]; },
     async listLogs(wellId) { return [...(logsByWell.get(wellId) || [])]; },
@@ -407,22 +425,19 @@ export function makeInMemoryBackend({ hostile = false, long = false, trend = fal
       };
     },
 
-    async loadProject() {
-      try {
-        const raw = window.sessionStorage.getItem(PROJECT_KEY);
-        return raw ? JSON.parse(raw) : SEED_PROJECT;
-      } catch {
-        return SEED_PROJECT;
+    async loadProject() { return ownRow(); },
+    async listSharedProjects() { return (sharing.db.select('rp_projects', ME).data || []).filter((r) => r.user_id !== ME); },
+    async saveProject(patch, { id = null, note = 'Project saved' } = {}) {
+      const target = id || ownRow().id;
+      const { data, error } = await sharing.store.update('rp_projects', target, patch, { note });
+      if (error) throw new Error(error.name === 'RecordConflict' ? error.message : `Could not save the project: ${error.message}`);
+      if (data.user_id === ME) {
+        try { window.sessionStorage.setItem(PROJECT_KEY, JSON.stringify(data)); } catch { /* jsdom without storage: keep in memory only */ }
       }
+      return data;
     },
-
-    async saveProject(patch) {
-      const prev = (await this.loadProject()) || SEED_PROJECT;
-      const next = { ...prev, ...patch, updated_at: new Date().toISOString() };
-      try {
-        window.sessionStorage.setItem(PROJECT_KEY, JSON.stringify(next));
-      } catch { /* jsdom without storage — keep in-memory only */ }
-      return next;
-    },
+    sharing: sharing.store,
+    /** test seam: the in-memory database and the colleague's store */
+    _sharing: sharing,
   };
 }

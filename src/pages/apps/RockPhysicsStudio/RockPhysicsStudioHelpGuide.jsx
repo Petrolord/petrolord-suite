@@ -5,6 +5,7 @@
 //
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
+import SharingHelp from '@/components/recordSharing/SharingHelp';
 import React from 'react';
 import {
   BookOpen, Zap, Database, Ruler, Droplets, Activity, Triangle, UploadCloud, Link2, AlertTriangle, BookMarked, ScatterChart, AreaChart,
@@ -314,6 +315,13 @@ function RockPhysicsStudioHelpGuideContent() {
           ['Seismolord', 'The synthetics window lists DT_SUB and RHOB_SUB (labelled fluid substituted) beside the measured sonic and density; pick them to see the substituted synthetic. A published DT_EST is listed last, labelled ESTIMATED sonic, with a warning that it is no basis for a tie. The gather published from the Gather view is shown there on request.'],
           ['Geoscience home', 'The home icon at the left of the ribbon.'],
         ]} />
+              <SharingHelp record="project" where="Press Share in the ribbon once the project is saved.">
+          <Para>
+            Sharing the project also lets colleagues see its published gather in Seismolord's synthetics window for the same well.
+            When colleagues have shared projects with you, a project list appears in the ribbon: My project, then Shared with me.
+            The studio keeps one project per user, so Save a copy replaces your own project with what is on screen, after asking.
+          </Para>
+        </SharingHelp>
       </GuideSection>
 
       <GuideSection id="pitfalls">

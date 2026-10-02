@@ -3,6 +3,7 @@
 // sheet whose articles described lithology mixing the engine ignores,
 // an API and keyboard shortcuts. Every control named here exists in the
 // app today. Copy rule: no em dashes. Guard: __tests__/helpGuide.test.jsx.
+import SharingHelp from '@/components/recordSharing/SharingHelp';
 import React from 'react';
 import {
   BookOpen, Zap, Layers, Thermometer, Mountain, Target, Upload, BarChart2, UploadCloud, Ruler, Link2, AlertTriangle, BookMarked,
@@ -214,6 +215,11 @@ export default function BasinFlowHelpGuide() {
         <Para>Check that a layer is marked as a source with TOC and HI above zero, and that it reached the oil window on the maturity plot.</Para>
         <SubHeading>The imported layers have odd ages</SubHeading>
         <Para>Tops files carry depths and no ages. The ages are placeholders flagged on the cards until you type them.</Para>
+              <SharingHelp record="model" where="The control is above the model list in Expert mode, for the model that is open; the list shows your models first, then Shared with me.">
+          <Para>
+            This app saves by itself a moment after each edit. On a model that is open read-only your edits stay on screen and are not saved (a note says so); Save a copy turns what is on screen into a model of your own, scenarios included.
+          </Para>
+        </SharingHelp>
       </GuideSection>
 
       <GuideSection id="glossary">

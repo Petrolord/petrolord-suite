@@ -5,6 +5,7 @@
 // backend so the /dev harness runs the identical app on
 // makeInMemoryBackend with no auth or DB (the harness philosophy).
 
+import { RecordSharingBar, useRecordSharing } from '@/components/recordSharing';
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Database, Loader2, Map as MapIcon, CircleDot, ClipboardList, HelpCircle, Table2 } from 'lucide-react';
@@ -94,6 +95,22 @@ export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/d
     () => (selectedId ? { wells: [selectedId], name: selectedName } : { wells: [] }),
     [selectedId, selectedName],
   );
+  // ---- U2-012 team editing of organisation wells (src/lib/recordSharing) ----
+  // The selected well's sharing state, check-out and history. The owner can
+  // let colleagues edit a shared well, one person at a time; the well's
+  // logs, tops, zones, intervals and core photos follow the same check-out.
+  const sharing = useRecordSharing({
+    store: backend.sharing,
+    table: 'geo_wells',
+    record: selected,
+    onChange: (next) => setWells((ws) => (ws || []).map((w) => (w.id === next.id ? { ...w, ...next } : w))),
+  });
+  // saves from the detail view name the version of the row it shows
+  const selectedVersion = selected?.version ?? null;
+  useEffect(() => { if (selected) backend.sharing?.trackOpened('geo_wells', selected); }, [backend, selectedId, selectedVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  // what the detail view may edit: before the team-editing migration, the owner (as always)
+  const canWriteSelected = !selected ? false : (sharing.ready && sharing.available ? sharing.canWrite : !!selected.is_own);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return list;
@@ -118,7 +135,7 @@ export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/d
         setStatus(`${well.name} is private again.`);
       } else {
         await backend.shareWell(well.id);
-        setStatus(`${well.name} shared with your organization (read-only for members).`);
+        setStatus(`${well.name} shared with your organization (members can view it; open the well to let them edit).`);
       }
       await refresh();
     } catch (e) {
@@ -261,8 +278,20 @@ export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/d
           <WellsMap wells={list} selectedId={selectedId} onSelect={select} />
         </div>
       ) : (
-        <WellDetail backend={backend} well={selected} unit={unit} onStatus={setStatus} refreshNonce={detailNonce}
+        <>
+          {backend.sharing && (
+            <div className="px-3 pt-3 empty:hidden" data-testid="wdm-sharing">
+              <RecordSharingBar
+                sharing={sharing}
+                label="well"
+                onReload={onWellChanged}
+                fieldLabels={{ kb_m: 'KB', td_md_m: 'TD', surface_x: 'surface X', surface_y: 'surface Y', deviation: 'the deviation survey', checkshots: 'checkshots', checkshots_provenance: 'checkshot entry', status: 'status', name: 'name', uwi: 'UWI', crs: 'CRS' }}
+              />
+            </div>
+          )}
+        <WellDetail backend={backend} well={selected} unit={unit} onStatus={setStatus} refreshNonce={detailNonce} canWrite={canWriteSelected}
           onWellChanged={onWellChanged} appPaths={appPaths} initialTab={deepLinkRef.current.well === selected.id ? deepLinkRef.current.tab : null} />
+        </>
       )}
     </div>
   );

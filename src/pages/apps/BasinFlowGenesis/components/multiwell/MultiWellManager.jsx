@@ -22,6 +22,8 @@ import { useBasinFlow } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowCo
 import { depthToDisplay } from '@/pages/apps/BasinFlowGenesis/services/units';
 import { useToast } from '@/components/ui/use-toast';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { RecordSharingBar, SharedRowNote, useSharingNames } from '@/components/recordSharing';
+import { splitOwnAndShared, copyName } from '@/lib/recordSharing/rules';
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -44,7 +46,7 @@ const StatusBadge = ({ status }) => {
 };
 
 const MultiWellManager = () => {
-    const { state: mwState, addWell, removeWell, setActiveWell, updateWell, saveWellData, getWellData } = useMultiWell();
+    const { state: mwState, addWell, removeWell, setActiveWell, updateWell, saveWellData, getWellData, fetchWells, sharing, saveBlocked, backend } = useMultiWell();
     const { state: bfState, dispatch: bfDispatch, units } = useBasinFlow();
     // TD from the stated depth range, else the stratigraphy's total thickness (Basin T1-006: the seeded well read TD 0m)
     const wellTd = (well) => {
@@ -78,7 +80,9 @@ const MultiWellManager = () => {
         // arrived created a stray "Exploration Well 1" every time
         if (!mwState.loaded) return;
         if (!mwState.activeWellId && mwState.wells && mwState.wells.length > 0) {
-            handleSwitchWell(mwState.wells[0].id);
+            // U2-019: the user's own model first; a shared one only when they have none
+            const mine = mwState.wells.find((w) => !w.user_id || !sharing?.userId || w.user_id === sharing.userId);
+            handleSwitchWell((mine || mwState.wells[0]).id);
         } else if (mwState.wells && mwState.wells.length === 0) {
             // Create default first well
             addWell({ name: 'Exploration Well 1', status: 'not-started' });
@@ -187,35 +191,40 @@ const MultiWellManager = () => {
         w.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    return (
-        <div className="h-full flex flex-col bg-pl-surface border-r border-pl-border w-full">
-            <div className="p-4 border-b border-pl-border space-y-4 shrink-0">
-                <div className="flex justify-between items-center">
-                    <h3 className="text-sm font-semibold text-pl-text">Project Wells</h3>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-pl-sunken hover:text-pl-primary-text" onClick={() => setIsCreateOpen(true)}>
-                        <Plus className="w-4 h-4" />
-                    </Button>
-                </div>
-                <div className="relative">
-                    <Search className="absolute left-2 top-1.5 h-3 w-3 text-pl-muted" />
-                    <Input 
-                        className="h-8 pl-8 text-xs" 
-                        placeholder="Search wells..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-            </div>
-
-            <ScrollArea className="flex-1">
-                <div className="p-2 space-y-2">
-                    {filteredWells.length === 0 && (
-                        <div className="text-center p-8 text-xs text-pl-muted flex flex-col items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-pl-sunken flex items-center justify-center"><Search className="w-4 h-4" /></div>
-                            No wells found.
-                        </div>
-                    )}
-                    {filteredWells.map(well => (
+    // ---- U2-019 organisation sharing ----------------------------------------
+    const userId = sharing?.userId || null;
+    const isOwn = (w) => !w?.user_id || !userId || w.user_id === userId;
+    const { own: ownWells, shared: sharedWells } = splitOwnAndShared(filteredWells, userId);
+    const names = useSharingNames(backend?.sharing, mwState.wells);
+    const loadIntoWorkspace = (d) => bfDispatch({ type: 'LOAD_PROJECT', payload: {
+        name: d.name,
+        stratigraphy: d.stratigraphy || [],
+        heatFlow: d.heatFlow || { type: 'constant', value: 60, history: [] },
+        erosionEvents: d.erosionEvents || [],
+        settings: d.settings || {},
+        calibration: d.calibration || { ro: [], temp: [] },
+        scenarios: Array.isArray(d.scenarios) ? d.scenarios : [],
+    }});
+    // a colleague saved a newer version: read the models again and show the saved one
+    const reloadActive = async () => {
+        const fresh = await fetchWells();
+        const row = (fresh || []).find((w) => w.id === mwState.activeWellId);
+        if (row) { loadIntoWorkspace(row); toast({ description: `Reloaded ${row.name}` }); }
+        else toast({ variant: 'destructive', title: 'Model not available', description: 'This model is no longer shared with you, or it was deleted.' });
+    };
+    // "Save a copy": what is on screen becomes a model of the user's own
+    const saveCopy = async () => {
+        const src = mwState.wells.find((w) => w.id === mwState.activeWellId);
+        if (!src) return;
+        const name = copyName(src.name, mwState.wells.filter(isOwn).map((w) => w.name));
+        const id = await addWell({
+            name, status: 'in-progress', quiet: true,
+            stratigraphy: bfState.stratigraphy, heatFlow: bfState.heatFlow, erosionEvents: bfState.erosionEvents,
+            settings: bfState.settings, calibration: bfState.calibration, scenarios: bfState.scenarios,
+        });
+        if (id) { setActiveWell(id); toast({ title: 'Copy saved', description: `"${name}" is now your own model.` }); }
+    };
+    const wellRow = (well) => (
                         <div 
                             key={well.id}
                             onClick={() => handleSwitchWell(well.id)}
@@ -248,7 +257,7 @@ const MultiWellManager = () => {
                                 ) : (
                                     <>
                                         <div className="font-medium text-sm text-pl-text truncate flex-1 mr-2" title={well.name}>{well.name}</div>
-                                        <div className="flex opacity-0 group-hover:opacity-100 transition-opacity gap-0.5">
+                                        <div className={`flex opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 ${isOwn(well) ? '' : 'hidden'}`}>
                                             <Button size="icon" variant="ghost" className="h-5 w-5 text-pl-muted hover:text-pl-primary-text" onClick={(e) => startEditing(well, e)}>
                                                 <Edit2 className="w-3 h-3" />
                                             </Button>
@@ -270,12 +279,67 @@ const MultiWellManager = () => {
                                 </span>
                             </div>
 
+                            <SharedRowNote table="bf_wells" row={well} userId={userId} names={names} className="mb-1" />
                             <div className="text-[10px] text-pl-muted flex gap-3 border-t border-pl-border pt-2 mt-1">
                                 <span className="flex items-center"><MapPin className="w-2.5 h-2.5 mr-1" /> {well.location?.name || EMPTY_VALUE}</span>
                                 <span className="flex items-center">TD: {wellTd(well)}</span>
                             </div>
                         </div>
-                    ))}
+    );
+
+    return (
+        <div className="h-full flex flex-col bg-pl-surface border-r border-pl-border w-full">
+            <div className="p-4 border-b border-pl-border space-y-4 shrink-0">
+                <div className="flex justify-between items-center">
+                    <h3 className="text-sm font-semibold text-pl-text">Project Wells</h3>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-pl-sunken hover:text-pl-primary-text" onClick={() => setIsCreateOpen(true)}>
+                        <Plus className="w-4 h-4" />
+                    </Button>
+                </div>
+                <div className="relative">
+                    <Search className="absolute left-2 top-1.5 h-3 w-3 text-pl-muted" />
+                    <Input 
+                        className="h-8 pl-8 text-xs" 
+                        placeholder="Search wells..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            {mwState.activeWellId && backend?.sharing && (
+                <div className="p-2 border-b border-pl-border shrink-0 empty:hidden" data-testid="bf-sharing">
+                    <RecordSharingBar
+                        sharing={sharing}
+                        label="model"
+                        onSaveCopy={saveCopy}
+                        onReload={reloadActive}
+                        fieldLabels={{ stratigraphy: 'layers', heat_flow: 'heat flow', erosion_events: 'erosion', calibration_data: 'calibration', scenarios: 'scenarios', settings: 'settings', status: 'status', name: 'name' }}
+                    />
+                    {sharing?.sharing && sharing.ready && !sharing.canWrite && (
+                        <p className="mt-1 text-[11px] text-pl-warning-text" data-testid="bf-read-only-note">Changes you make to this model are not saved. Save a copy to keep them.</p>
+                    )}
+                    {saveBlocked && (
+                        <p className="mt-1 text-[11px] text-pl-danger-text" data-testid="bf-save-blocked">
+                            {saveBlocked} <button type="button" className="underline" data-testid="bf-reload" onClick={reloadActive}>Reload</button>
+                        </p>
+                    )}
+                </div>
+            )}
+
+            <ScrollArea className="flex-1">
+                <div className="p-2 space-y-2">
+                    {filteredWells.length === 0 && (
+                        <div className="text-center p-8 text-xs text-pl-muted flex flex-col items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-pl-sunken flex items-center justify-center"><Search className="w-4 h-4" /></div>
+                            No wells found.
+                        </div>
+                    )}
+                    {ownWells.map(wellRow)}
+                    {sharedWells.length > 0 && (
+                        <div className="px-1 pt-2 text-[10px] uppercase tracking-wider text-pl-muted" data-testid="bf-shared-wells">Shared with me</div>
+                    )}
+                    {sharedWells.map(wellRow)}
                 </div>
             </ScrollArea>
 

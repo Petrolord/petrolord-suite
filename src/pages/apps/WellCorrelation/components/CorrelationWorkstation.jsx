@@ -16,7 +16,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { GitCompare, Loader2, Save, ImageDown, PanelRight, HelpCircle, Undo2, FileDown } from 'lucide-react';
+import { GitCompare, Loader2, Save, ImageDown, PanelRight, HelpCircle, Undo2, FileDown, Users } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -30,6 +30,7 @@ import { makeWellFrame } from '@/lib/wellDatum';
 import SectionExplorer from './SectionExplorer';
 import SectionControls from './SectionControls';
 import SectionPicker from './SectionPicker';
+import { RecordSharingBar, useRecordSharing, useSharingNames } from '@/components/recordSharing';
 import { copyName, freeName, DEFAULT_SECTION_NAME } from '@/components/wells/section/sectionNames';
 import CrossSection, { AXIS_W, PLOT_TOP, sectionHeightFor } from '@/components/wells/section/CrossSection';
 import { columnLayout, datumDefaultFor } from '@/components/wells/section/sectionFrame';
@@ -263,6 +264,21 @@ export default function CorrelationWorkstation({
     try { setSections(await backend.listSections()); } catch (e) { setStatus(e.message); }
   }, [backend, namedSections]);
   useEffect(() => { if (sectionLoaded) refreshSections(); }, [sectionLoaded, refreshSections]);
+  // ---- organisation sharing of the open section (src/lib/recordSharing) ------
+  // The list rows carry the owner and the sharing state; the hook keeps the
+  // check-out while the section is open. A section a colleague shared opens
+  // read-only unless colleagues can edit and this user has taken it.
+  const openRow = sections.find((x) => x.id === sectionId) || null;
+  const sharing = useRecordSharing({
+    store: backend.sharing,
+    table: 'geo_correlation_sections',
+    record: openRow && 'user_id' in openRow ? openRow : null,
+    onChange: (next) => setSections((list) => list.map((x) => (x.id === next.id ? { ...x, ...next } : x))),
+  });
+  const sectionNames = useSharingNames(backend.sharing, sections);
+  const [shareOpen, setShareOpen] = useState(false);
+  const sharedWithMe = !!openRow && !!sharing.userId && !!openRow.user_id && openRow.user_id !== sharing.userId;
+  const showSharing = !!openRow && !!backend.sharing && (shareOpen || sharedWithMe || !!sharing.access?.sharedEdit);
   // an action that would drop unsaved changes waits for Save or Discard
   const [pendingAction, setPendingAction] = useState(null); // {label, run}
   const guarded = (label, run) => { if (unsaved) setPendingAction({ label, run }); else run(); };
@@ -595,6 +611,11 @@ export default function CorrelationWorkstation({
       setStatus(`Section not saved: the saved section could not be opened by this build, and saving would replace it. ${sectionRefused}`);
       return;
     }
+    // organisation sharing: a section that is open read-only is never overwritten
+    if (sectionId && openRow && !sharing.canWrite) {
+      setStatus(`Section not saved. ${sharing.readOnlyReason || 'It is open read-only.'} Use the copy button to save it as your own section.`);
+      return false;
+    }
     try {
       // U2-001: a named row is saved by id; a first save creates a named row
       // (never the newest row of another section)
@@ -690,8 +711,19 @@ export default function CorrelationWorkstation({
             onClick={() => setPendingAction(null)}>Cancel</button>
         </div>
       ) : (
-        <SectionPicker sections={sections} currentId={sectionId} currentName={sectionName}
-          onOpen={openNamed} onName={nameAction} onDelete={deleteNamed} suggestName={suggestName} />
+        <>
+          <SectionPicker sections={sections} currentId={sectionId} currentName={sectionName}
+            onOpen={openNamed} onName={nameAction} onDelete={deleteNamed} suggestName={suggestName}
+            userId={sharing.userId} names={sectionNames} />
+          {openRow && backend.sharing && (
+            <button type="button" data-testid="corr-section-share" aria-pressed={showSharing}
+              title="Share this section with your organisation, see who is editing and the history"
+              className={`flex items-center gap-1 px-1.5 py-1 text-xs rounded border ${showSharing ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-text hover:bg-pl-sunken'}`}
+              onClick={() => setShareOpen((v) => !v)}>
+              <Users className="w-3.5 h-3.5" /> Share
+            </button>
+          )}
+        </>
       )) : <span className="text-[11px] text-pl-muted">cross-sections on the shared well registry</span>}
       <div className="ml-auto flex items-center gap-1">
         <Link to="/dashboard/apps/geoscience/well-correlation/help" data-testid="corr-help" title="Open the Well Correlation help guide"
@@ -793,7 +825,22 @@ export default function CorrelationWorkstation({
       autoSaveId="wellcorrelation.workspace.v1"
       minWidth={1000}
       dockDefaultSize={24}
-      ribbon={ribbon}
+      ribbon={(
+        <>
+          {ribbon}
+          {showSharing && (
+            <div className="px-3 py-1 bg-pl-surface border-b border-pl-border" data-testid="corr-sharing-strip">
+              <RecordSharingBar
+                sharing={sharing}
+                label="section"
+                onSaveCopy={() => nameAction('duplicate', suggestName('duplicate'))}
+                onReload={async () => { const row = await openSection(sectionId); if (row) pendingBaseline.current = true; await refreshSections(); }}
+                fieldLabels={{ well_ids: 'the wells', datum: 'the datum', track_layout: 'tracks and display', name: 'the name' }}
+              />
+            </div>
+          )}
+        </>
+      )}
       explorer={(
         <SectionExplorer
           wells={wells || []}

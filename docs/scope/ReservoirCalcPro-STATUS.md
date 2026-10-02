@@ -297,3 +297,9 @@ the convention note corrected and viewers labelled in the surface's unit
 (RC2), launchers into Mapping, Earth Modeling and Well Data Manager plus
 the registry chapter in the docs hub (RC3). ReservoirCalc Pro also
 consumes `?surface=` from Mapping and Earth Modeling (EM5).
+
+## 2026-10-02 Organisation sharing (built; migration NOT APPLIED, owner-run)
+
+U2-014: projects are shared from the Share button in the header (view, or edit one person at a time, with history); the Project Manager lists shared projects apart; prospects are shared for viewing from their inventory row. Tests: `__tests__/orgSharing.test.jsx`, `e2e/org-sharing.spec.js`.
+
+Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Until the migration is applied the control is a short note and saving works as before.

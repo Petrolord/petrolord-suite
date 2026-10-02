@@ -3,15 +3,21 @@
 // geo_correlation_sections is the section a user builds in Well
 // Correlation; Stratigraphy Studio opens and saves the SAME rows (plan
 // section 3.2 decision 7), so the service lives here and both backends
-// import it. Owner-only rows (app-private pattern), stamped through the
-// PP0 state kind.
+// import it. Rows are the owner's (the owner can share one with the
+// organisation), stamped through the PP0 state kind.
 //
 // AppUpgrade WC-U2-001 (2026-09-29): named sections. A user keeps many rows
 // (the table never had a one-per-user constraint and the name column was
-// always there); they stay owner-only (programme decision 2026-09-29: org
-// sharing would need an RLS change and a second engineer). No schema change.
-// Called with no id, loadSection and saveSection keep their old meaning (the
-// newest row), which is what Stratigraphy Studio opens.
+// always there). Called with no id, loadSection and saveSection keep their
+// old meaning (the user's OWN newest row), which is what Stratigraphy Studio
+// opens.
+//
+// Organisation sharing (2026-10-02, migration 20261002100000, second engineer
+// approved): the owner can share a section with the organisation, for
+// viewing or for editing one person at a time (src/lib/recordSharing). The
+// list then carries the sections colleagues shared; a save names the version
+// the section was opened at, and a refusal comes back as a sentence. Before
+// the migration is applied every call behaves as it did.
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { writeStamped } from '@/lib/stateVersion';
@@ -20,24 +26,49 @@ import { writeStamped } from '@/lib/stateVersion';
 // writes go through writeStamped.
 import { CORRELATION_SECTION_KIND, openSectionRow } from '@/components/wells/section/sectionState';
 import { sectionNameProblem, DEFAULT_SECTION_NAME } from '@/components/wells/section/sectionNames';
+import { supabaseSharingStore, SHARING_COLUMNS } from '@/lib/recordSharing';
 
 const TABLE = 'geo_correlation_sections';
 
-/** The caller's sections, newest first, as list rows (not opened). */
+const sharing = () => supabaseSharingStore();
+async function currentUserId() {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id || null;
+}
+const conflictOr = (error, prefix) => (error.name === 'RecordConflict' ? error.message : `${prefix}: ${error.message}`);
+
+/**
+ * The sections the caller can open, newest first, as list rows (not opened):
+ * their own, and those colleagues shared with the organisation. Each row
+ * carries its owner and sharing state (visibility, access, check-out, last
+ * author) once the sharing migration is applied.
+ */
 export async function listSections() {
-  const { data, error } = await supabase.from(TABLE)
-    .select('id, name, well_ids, updated_at, created_at').order('updated_at', { ascending: false });
+  const { available } = await sharing().capability(TABLE);
+  const cols = ['id', 'name', 'well_ids', 'updated_at', 'created_at', 'user_id', ...(available ? SHARING_COLUMNS.filter((c) => c !== 'updated_at') : [])];
+  const { data, error } = await supabase.from(TABLE).select(cols.join(', ')).order('updated_at', { ascending: false });
   if (error) throw new Error(`Could not list sections: ${error.message}`);
-  return (data || []).map((r) => ({ id: r.id, name: r.name, wellCount: (r.well_ids || []).length, updated_at: r.updated_at }));
+  return (data || []).map((r) => {
+    const item = { id: r.id, name: r.name, wellCount: (r.well_ids || []).length, updated_at: r.updated_at };
+    for (const c of ['user_id', ...SHARING_COLUMNS]) if (c !== 'updated_at' && r[c] !== undefined) item[c] = r[c];
+    return item;
+  });
 }
 
-/** One section by id, or the newest when no id is given. */
+/** One section by id, or the caller's own newest when no id is given. */
 export async function loadSection(id = null) {
   let q = supabase.from(TABLE).select('*');
-  q = id ? q.eq('id', id).limit(1) : q.order('updated_at', { ascending: false }).limit(1);
+  if (id) q = q.eq('id', id).limit(1);
+  else {
+    const uid = await currentUserId();
+    if (!uid) return openSectionRow(null);
+    q = q.eq('user_id', uid).order('updated_at', { ascending: false }).limit(1);
+  }
   const { data, error } = await q;
   if (error) throw new Error(`Could not load the section: ${error.message}`);
-  if (id && !data?.length) throw new Error('That section no longer exists (deleted in another tab?).');
+  if (id && !data?.length) throw new Error('That section no longer exists, or it is no longer shared with you.');
+  // saves from here carry the version this editor now shows
+  if (data?.[0]) sharing().trackOpened(TABLE, data[0]);
   return openSectionRow(data?.[0] || null);
 }
 
@@ -48,11 +79,14 @@ async function insertSection(name, patch) {
     { user_id: user.id, ...patch, name },
     (row) => supabase.from(TABLE).insert(row).select().single());
   if (error) throw new Error(`Could not save the section: ${error.message}`);
+  sharing().trackOpened(TABLE, data);
   return data;
 }
 
 async function assertNameFree(name, exceptId = null) {
-  const problem = sectionNameProblem(name, await listSections(), exceptId);
+  // names are unique among the caller's own sections
+  const uid = await currentUserId();
+  const problem = sectionNameProblem(name, (await listSections()).filter((r) => !r.user_id || r.user_id === uid), exceptId);
   if (problem) throw new Error(problem);
 }
 
@@ -65,8 +99,8 @@ export async function saveSection(patch, { id = null } = {}) {
   if (existing) {
     const { data, error } = await writeStamped(CORRELATION_SECTION_KIND,
       { ...patch, updated_at: new Date().toISOString() },
-      (row) => supabase.from(TABLE).update(row).eq('id', existing.id).select().single());
-    if (error) throw new Error(`Could not save the section: ${error.message}`);
+      (row) => sharing().update(TABLE, existing.id, row, { note: 'Section saved' }));
+    if (error) throw new Error(conflictOr(error, 'Could not save the section'));
     return data;
   }
   return insertSection(patch.name || DEFAULT_SECTION_NAME, patch);
@@ -82,10 +116,14 @@ export async function createSection(name, patch = {}) {
 export async function renameSection(id, name) {
   const n = String(name ?? '').trim();
   await assertNameFree(n, id);
-  const { data, error } = await supabase.from(TABLE).update({ name: n, updated_at: new Date().toISOString() }).eq('id', id).select('id, name');
+  // a rename is not a content save of the open editor: it does not move the
+  // version the editor will save from unless it was current
+  const { data, error } = await supabase.from(TABLE).update({ name: n, updated_at: new Date().toISOString() }).eq('id', id).select('*');
   if (error) throw new Error(`Could not rename the section: ${error.message}`);
   if (!data?.length) throw new Error('Only the owner can rename a section.');
-  return data[0];
+  const tracked = sharing().trackedVersion(TABLE, id);
+  if (tracked != null && Number.isInteger(data[0].version) && data[0].version === tracked + 1) sharing().trackOpened(TABLE, data[0]);
+  return { id: data[0].id, name: data[0].name };
 }
 
 export async function deleteSection(id) {

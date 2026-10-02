@@ -198,6 +198,12 @@ Doc: docs/upgrade/BasinFlowGenesis-UPGRADE.md. 32 findings, 23 fixed (1 S1,
   the column, maximum-burial compaction, BHT correction, worker, pressure,
   traps and migration.
 
+## 2026-10-02 Organisation sharing (built; migration NOT APPLIED, owner-run)
+
+U2-019: `bf_wells` gets the four policies with WITH CHECK (pentested) and organisation sharing; the model list shows shared models apart; the auto-save never writes a model that is open read-only. Tests: `__tests__/orgSharing.test.jsx`.
+
+Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Until the migration is applied the control is a short note and saving works as before.
+
 ## 2026-10-02: the well datum model (WDM U2-007, PR #848)
 
 `src/lib/basinHandoff.js` takes the well's TVD and reference elevation from

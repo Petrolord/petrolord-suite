@@ -4,6 +4,8 @@
 // model save/load. The definition is small persistable state; grids
 // are recomputed, never stored (plan decision 2).
 
+import { SharedRowNote, useSharingNames } from '@/components/recordSharing';
+import { splitOwnAndShared } from '@/lib/recordSharing/rules';
 import React, { useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DERIVED_KINDS, describeDerived } from '../services/derivedSurfaces';
@@ -22,6 +24,7 @@ export default function BuilderDock({
   projects, onSaveProject, onLoadProject, boundaries = [],
   registrySurfaces = null, depthUnit = 'm', onAddDerived, onRemoveDerived,
   bgUnit = 'm3/m3', onBgUnit, projectId = null, onSaveAsNew, report = null, onReport,
+  userId = null, sharingStore = null, sharingSlot = null,
   scalProjects = [],
 }) {
   // EM2 derived-horizon form (thickness typed in the display unit)
@@ -35,6 +38,20 @@ export default function BuilderDock({
   };
   const patchKrige = (p) => patch({ krige: { ...definition.krige, ...p } });
   const num = (v) => (v === '' ? '' : Number(v));
+
+  // U2-014: the user's own models, then the ones colleagues shared with the organisation
+  const { own, shared } = splitOwnAndShared(projects, userId);
+  const names = useSharingNames(sharingStore, projects);
+  const modelRow = (p) => (
+    <div key={p.id} className="flex flex-wrap items-center gap-x-1" data-testid="em-model-row" data-open={p.id === projectId ? 'true' : undefined}>
+      <span className={`truncate flex-1 ${p.id === projectId ? 'text-pl-text font-medium' : 'text-pl-muted'}`}>{p.name}</span>
+      <button type="button" className="px-1.5 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
+        onClick={() => onLoadProject(p)}>
+        load
+      </button>
+      <SharedRowNote table="em_models" row={p} userId={userId} names={names} className="basis-full" />
+    </div>
+  );
 
   return (
     <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
@@ -340,15 +357,14 @@ export default function BuilderDock({
             Save as a new model
           </button>
         )}
-        {(projects || []).map((p) => (
-          <div key={p.id} className="flex items-center gap-1">
-            <span className="truncate flex-1 text-pl-muted">{p.name}</span>
-            <button type="button" className="px-1.5 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
-              onClick={() => onLoadProject(p)}>
-              load
-            </button>
-          </div>
-        ))}
+        {sharingSlot}
+        {own.map(modelRow)}
+        {shared.length > 0 && (
+          <>
+            <div className={secCls} data-testid="em-shared-models">Shared with me</div>
+            {shared.map(modelRow)}
+          </>
+        )}
       </div>
     </ScrollArea>
   );

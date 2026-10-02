@@ -7,6 +7,8 @@
 // is cheap state, the computed model is derived, deterministic, and
 // recomputed on demand (plan decision 2).
 
+import { RecordSharingBar, useRecordSharing } from '@/components/recordSharing';
+import { copyName } from '@/lib/recordSharing/rules';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
@@ -443,22 +445,52 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   // U1 (EM-U1-009): Save overwrites the model that is open; a new row only
   // for a model never saved, or on Save as a new model
   const [projectId, setProjectId] = useState(null);
+  // U2-014 organisation sharing: the open model's sharing state, check-out and
+  // history (src/lib/recordSharing). A model a colleague shared opens read-only
+  // unless colleagues can edit and this user has taken it for editing.
+  const openRow = projects.find((p) => p.id === projectId) || null;
+  const sharing = useRecordSharing({
+    store: backend.sharing,
+    table: 'em_models',
+    record: openRow,
+    onChange: (next) => setProjects((ps) => ps.map((p) => (p.id === next.id ? { ...p, ...next } : p))),
+  });
   const saveProject = async ({ asNew = false } = {}) => {
     try {
-      const payload = { name: definition.name, definition, crs: built?.crs || null };
-      const saved = projectId && !asNew && backend.updateProject
-        ? await backend.updateProject(projectId, payload)
+      const overwrite = !!projectId && !asNew && !!backend.updateProject;
+      if (overwrite && !sharing.canWrite) {
+        setStatus(`${sharing.readOnlyReason || 'This model is open read-only.'} "Save as a new model" keeps your changes as your own copy.`);
+        return;
+      }
+      const copying = asNew && openRow && sharing.userId && openRow.user_id && openRow.user_id !== sharing.userId;
+      const name = copying ? copyName(definition.name, projects.filter((p) => p.user_id === sharing.userId).map((p) => p.name)) : definition.name;
+      const payload = { name, definition: copying ? { ...definition, name } : definition, crs: built?.crs || null };
+      const saved = overwrite
+        ? await backend.updateProject(projectId, payload, { note: 'Model definition saved' })
         : await backend.saveProject(payload);
+      if (!overwrite) backend.sharing?.trackOpened('em_models', saved);
+      if (copying) setDefinition((d) => ({ ...d, name }));
       setProjectId(saved.id);
       setProjects(await backend.listProjects());
-      setStatus(`Saved model "${saved.name}"${projectId && !asNew ? ' (updated)' : ''}.`);
+      setStatus(copying ? `Saved your own copy as "${saved.name}".` : `Saved model "${saved.name}"${overwrite ? ' (updated)' : ''}.`);
     } catch (e) { setStatus(e.message); }
   };
   const loadProject = (p) => {
     setDefinition(normalizeDefinition(upgradeDefinition(p.definition)));
     setProjectId(p.id);
+    backend.sharing?.trackOpened('em_models', p);
     setBuilt(null);
-    setStatus(`Loaded model "${p.name}". Build to compute.`);
+    const mine = !p.user_id || !sharing.userId || p.user_id === sharing.userId;
+    setStatus(`Loaded model "${p.name}"${mine ? '' : ' (shared by a colleague)'}. Build to compute.`);
+  };
+  // a colleague saved a newer version: read the model again from the database
+  const reloadProject = async () => {
+    try {
+      const fresh = await backend.listProjects();
+      setProjects(fresh);
+      const row = fresh.find((p) => p.id === projectId);
+      if (row) loadProject(row); else setStatus('This model is no longer shared with you, or it was deleted.');
+    } catch (e) { setStatus(e.message); }
   };
 
   const ribbon = (
@@ -841,6 +873,9 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           onReport={changeReport}
           onBgUnit={(u) => unitsHook.setUnit('bg', u)}
           onLoadProject={loadProject}
+          userId={sharing.userId}
+          sharingStore={backend.sharing}
+          sharingSlot={<RecordSharingBar sharing={sharing} label="model" onSaveCopy={() => saveProject({ asNew: true })} onReload={reloadProject} fieldLabels={{ definition: 'the model definition', crs: 'the CRS' }} className="mt-1" />}
           boundaries={boundaries}
           scalProjects={scalProjects}
         />

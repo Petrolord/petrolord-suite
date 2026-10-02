@@ -12,7 +12,12 @@ import { makeInMemoryBackend } from './services/backend';
 import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 
 export default function BasinFlowGenesisHarness() {
-  const backend = useMemo(() => makeInMemoryBackend(), []);
+  // U2-019 organisation sharing: ?shared=1 lists two models a colleague shared;
+  // ?sharing=off behaves as the database before the migration
+  const backend = useMemo(() => {
+    const q = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    return makeInMemoryBackend({ shared: q.get('shared') === '1', sharing: { applied: q.get('sharing') !== 'off' } });
+  }, []);
   return (
     <div className="h-screen w-full overflow-hidden" data-testid="bf-harness">
       <BasinFlowShell backend={backend} appPaths={DEV_APP_PATHS} />

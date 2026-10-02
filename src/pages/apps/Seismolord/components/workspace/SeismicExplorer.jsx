@@ -12,7 +12,7 @@ import {
   Database, Layers, Slash, CircleDot, Route, Eye, EyeOff, Loader2, Upload,
   Plus, RefreshCw, ChevronDown, ChevronRight, Pencil, ArrowLeft,
   Rows, Columns, Clock, Settings2, Mountain, Download, Building2, Globe2,
-  Activity, Folder, FolderPlus, History, Spline,
+  Activity, Folder, FolderPlus, History, Spline, Users,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { OpenInAppSubmenu } from '@/components/wells/OpenInAppMenu';
@@ -149,7 +149,7 @@ const PLANE_TITLES = {
  */
 export default function SeismicExplorer({ tree, actions }) {
   const {
-    volumes, projects, lines2d, visibleLineIds,
+    volumes, projects, lines2d, visibleLineIds, userId = null, projectOwnerNames = {},
     activeVolumeId, horizons, visibleIds, horizonBusyId, editTargetId,
     horizonVersions, visibleVersionIds, versionChainOf,
     surfaces, surfaceBusyId, visibleSurfaceIds,
@@ -256,7 +256,7 @@ export default function SeismicExplorer({ tree, actions }) {
                             Move to project
                           </ContextMenuSubTrigger>
                           <ContextMenuSubContent className="w-52">
-                            {(projects || []).map((pr) => (
+                            {(projects || []).filter((pr) => !pr.user_id || !userId || pr.user_id === userId || pr.org_access === 'edit').map((pr) => (
                               <ContextMenuItem
                                 key={pr.id}
                                 disabled={v.project_id === pr.id}
@@ -335,35 +335,77 @@ export default function SeismicExplorer({ tree, actions }) {
                 ))}
               </React.Fragment>
             );
+            // U2-008: the user's own projects, then the ones colleagues shared
+            // with the organisation. A shared project lists the volumes this
+            // user can read (those shared with the organisation) and says so.
+            const isOwnProject = (pr) => !pr.user_id || !userId || pr.user_id === userId;
+            const ownProjects = projList.filter(isOwnProject);
+            const sharedProjects = projList.filter((pr) => !isOwnProject(pr));
+            const projectRow = (pr) => {
+              const inProject = rootsIn(pr.id);
+              const own = isOwnProject(pr);
+              const sharedOut = own && pr.visibility === 'organization';
+              return (
+                <React.Fragment key={pr.id}>
+                  <Row
+                    icon={Folder}
+                    label={pr.name}
+                    meta={String(inProject.length || '')}
+                    title={own
+                      ? `Project (explorer grouping). Volumes inside are unchanged${sharedOut ? '. Shared with your organisation' : ''}`
+                      : `Shared by ${projectOwnerNames[pr.user_id] || 'a colleague'}. You see the volumes of this project that are shared with your organisation`}
+                    onClick={actions.openProjectSharing ? () => actions.openProjectSharing(pr) : undefined}
+                    badge={actions.openProjectSharing ? (
+                      <button
+                        type="button"
+                        data-testid="seis-project-share"
+                        data-project-name={pr.name}
+                        title={own ? 'Sharing and history' : `Shared by ${projectOwnerNames[pr.user_id] || 'a colleague'}: sharing and history`}
+                        className={`shrink-0 ${sharedOut || !own ? 'text-pl-primary-text' : 'text-pl-muted opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
+                        onClick={(e) => { e.stopPropagation(); actions.openProjectSharing(pr); }}
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                      </button>
+                    ) : null}
+                    menu={(
+                      <>
+                        {actions.openProjectSharing && (
+                          <ContextMenuItem onSelect={() => actions.openProjectSharing(pr)}>
+                            <Users className="w-3.5 h-3.5 mr-1.5" /> Sharing and history…
+                          </ContextMenuItem>
+                        )}
+                        {actions.renameProject && (
+                          <ContextMenuItem onSelect={() => actions.renameProject(pr)}>
+                            <Pencil className="w-3.5 h-3.5 mr-1.5" /> Rename project…
+                          </ContextMenuItem>
+                        )}
+                        {own && (
+                          <ContextMenuItem
+                            className="text-pl-danger-text focus:text-pl-danger-text"
+                            onSelect={() => actions.deleteProject(pr)}
+                          >
+                            Delete project (volumes stay)…
+                          </ContextMenuItem>
+                        )}
+                      </>
+                    )}
+                  />
+                  {inProject.map((v) => renderRoot(v, 1))}
+                  {!inProject.length && (
+                    <Hint>{own
+                      ? <>Empty project. Use a volume&apos;s &quot;Move to project&quot;.</>
+                      : 'No volume of this project is shared with your organisation yet.'}</Hint>
+                  )}
+                </React.Fragment>
+              );
+            };
             return (
               <>
-                {projList.map((pr) => {
-                  const inProject = rootsIn(pr.id);
-                  return (
-                    <React.Fragment key={pr.id}>
-                      <Row
-                        icon={Folder}
-                        label={pr.name}
-                        meta={String(inProject.length || '')}
-                        title="Project (explorer grouping). Volumes inside are unchanged"
-                        menu={(
-                          <>
-                            <ContextMenuItem
-                              className="text-pl-danger-text focus:text-pl-danger-text"
-                              onSelect={() => actions.deleteProject(pr)}
-                            >
-                              Delete project (volumes stay)…
-                            </ContextMenuItem>
-                          </>
-                        )}
-                      />
-                      {inProject.map((v) => renderRoot(v, 1))}
-                      {!inProject.length && (
-                        <Hint>Empty project. Use a volume&apos;s &quot;Move to project&quot;.</Hint>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
+                {ownProjects.map(projectRow)}
+                {sharedProjects.length > 0 && (
+                  <div className="px-2.5 pt-1.5 text-[10px] uppercase tracking-wider text-pl-muted" data-testid="seis-shared-projects">Shared with me</div>
+                )}
+                {sharedProjects.map(projectRow)}
                 {rootsIn(null).map((v) => renderRoot(v, 0))}
               </>
             );

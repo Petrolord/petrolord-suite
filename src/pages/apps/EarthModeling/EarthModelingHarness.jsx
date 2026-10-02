@@ -19,7 +19,11 @@ export default function EarthModelingHarness() {
   const saved = params.get('saved') === '1';
   // U2-008: ?maps=1 adds zone A's Petrophysics net pay and HCPV maps
   const maps = params.get('maps') === '1';
-  const backend = useMemo(() => makeInMemoryBackend({ savedModels: saved, propertyMaps: maps }), [saved, maps]);
+  // U2-014 organisation sharing: ?shared=1 lists two models a colleague shared;
+  // ?sharing=off behaves as the database before the migration
+  const shared = params.get('shared') === '1';
+  const beforeApply = params.get('sharing') === 'off';
+  const backend = useMemo(() => makeInMemoryBackend({ savedModels: saved, propertyMaps: maps, sharedModels: shared, sharing: { applied: !beforeApply } }), [saved, maps, shared, beforeApply]);
   return (
     <div className="h-screen w-full overflow-hidden" data-testid="em-theme-scope">
       <EarthWorkstation backend={backend} appPaths={{ 'mapping-surface-studio': '/dev/mapping-surface-studio', 'reservoircalc-pro': '/dev/reservoircalc-pro', 'earth-modeling': '/dev/earth-modeling' }} />

@@ -420,6 +420,12 @@ are in `docs/upgrade/WellDataManager-UPGRADE.md` ("Batch decision",
   the harness rejects null like live. A migration may be revisited with the
   U2-007 datum model.
 
+## 2026-10-02 Organisation sharing (built; migration NOT APPLIED, owner-run)
+
+U2-012 team editing: the owner of an organisation well can let colleagues edit it, one person at a time (the control is above the well's tabs); the header, surveys, tops, logs, zones, intervals and core photos follow the well's editing session; every change is in the well's history. Second migration `20261002110000_geo_wells_team_editing.sql`, apply after the first. Tests: `__tests__/orgSharing.test.jsx`.
+
+Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Until the migration is applied the control is a short note and saving works as before.
+
 ## Datum model (U2-007), 2026-10-02: built, migration pending the owner's apply
 
 PR #848, branch `feat/datum-digitizer`. Design and per-well plan:

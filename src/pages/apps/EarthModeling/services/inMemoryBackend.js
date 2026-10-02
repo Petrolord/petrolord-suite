@@ -9,6 +9,7 @@ import { MODEL_SPEC, planeGrid, fixtureWells, FAULT_POLYGON, seismicFaultFixture
 import { depthDownToSurfaceZ } from '@/lib/surfaceConvention';
 import { SAVED_MODELS, resolveSavedModel } from './savedFixtures';
 import { faultToModelObjects } from '@/lib/seismicFaultsReader';
+import { makeHarnessSharing, colleagueShared } from '@/lib/recordSharing';
 
 // Seismolord U2-003: a seismic volume over the model frame (50 m bins,
 // V0 2000 m/s) and one interpreted fault, three sticks dipping east from
@@ -39,11 +40,14 @@ const nid = (p) => { seq += 1; return `${p}-${seq}`; };
  *   model per release (U1, PL5); propertyMaps seeds zone A's Petrophysics net pay and HCPV
  *   maps as Mapping grids them (U2-008)
  */
-export function makeInMemoryBackend({ savedModels = false, propertyMaps = false } = {}) {
+export function makeInMemoryBackend({ savedModels = false, propertyMaps = false, sharedModels = false, sharing: sharingOpts = {} } = {}) {
+  // U2-014: em_models lives in the in-memory mirror of the sharing rules, so
+  // the harness shows the same control and refusals as the database
+  const sharing = makeHarnessSharing(sharingOpts);
+  const ME = sharing.me;
   const wells = fixtureWells();
   const surfaces = [];
   const gridStore = new Map();
-  const projects = [];
   let depthUnit = null; // EM0: unset in the harness, the app falls back to its default
 
   for (const name of ['TopA', 'TopB', 'BaseB']) {
@@ -101,8 +105,17 @@ export function makeInMemoryBackend({ savedModels = false, propertyMaps = false 
   if (savedModels) {
     for (const m of SAVED_MODELS) {
       const r = resolveSavedModel(m, surfaces);
-      projects.push({ id: nid('emp'), name: r.name, definition: r.definition, updated_at: new Date(2026, 6, 14, 12, 0, seq).toISOString() });
+      sharing.db.seed('em_models', [{ id: nid('emp'), name: r.name, definition: r.definition, updated_at: new Date(2026, 6, 14, 12, 0, seq).toISOString() }], { owner: ME });
     }
+  }
+
+  // U2-014: two models a colleague shared with the organisation, one for
+  // viewing and one colleagues can edit (harness ?shared=1)
+  if (sharedModels) {
+    sharing.db.seed('em_models', [
+      colleagueShared({ id: nid('emp'), name: 'Regional framework (Ada)', definition: { name: 'Regional framework (Ada)' }, updated_at: new Date(2026, 8, 30, 9, 0, 0).toISOString() }),
+      colleagueShared({ id: nid('emp'), name: 'Field model, team copy', definition: { name: 'Field model, team copy' }, updated_at: new Date(2026, 8, 30, 10, 0, 0).toISOString() }, { access: 'edit' }),
+    ]);
   }
 
   return {
@@ -178,21 +191,22 @@ export function makeInMemoryBackend({ savedModels = false, propertyMaps = false 
     },
     async getDepthUnit() { return depthUnit; },
     async setDepthUnit(u) { if (!['m', 'ft'].includes(u)) throw new Error(`Depth unit must be m or ft, got "${u}".`); depthUnit = u; return u; },
-    async listProjects() { return projects.map((p) => ({ ...p })); },
+    async listProjects() {
+      return (sharing.db.select('em_models', ME).data || []).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
+    },
     async saveProject(p) {
-      const row = { id: nid('emp'), name: p.name, definition: p.definition, updated_at: new Date(2026, 6, 14, 12, 0, seq).toISOString() };
-      projects.push(row);
-      return { ...row };
+      const { data, error } = sharing.db.insert('em_models', ME, { id: nid('emp'), user_id: ME, name: p.name, definition: p.definition, crs: p.crs ?? null });
+      if (error) throw new Error(`Could not save the model: ${error.message}`);
+      return data;
     },
-    async updateProject(id, patch) {
-      const row = projects.find((p) => p.id === id);
-      if (!row) throw new Error('Model not found.');
-      Object.assign(row, patch, { updated_at: new Date(2026, 6, 14, 13, 0, seq).toISOString() });
-      return { ...row };
+    async updateProject(id, patch, { note = null } = {}) {
+      const { data, error } = await sharing.store.update('em_models', id, patch, { note });
+      if (error) throw new Error(error.name === 'RecordConflict' ? error.message : 'Model not found.');
+      return data;
     },
-    async deleteProject(id) {
-      const i = projects.findIndex((p) => p.id === id);
-      if (i >= 0) projects.splice(i, 1);
-    },
+    async deleteProject(id) { sharing.db.remove('em_models', ME, id); },
+    sharing: sharing.store,
+    /** test seam: the in-memory database and the colleague's store */
+    _sharing: sharing,
   };
 }

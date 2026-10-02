@@ -28,7 +28,12 @@ export function makeRegistryBackend() {
     async currentUserId() { const { data: { user } } = await supabase.auth.getUser(); return user?.id || null; },
     createBasinModel: (row) => basin.insertWell(row),
     // STRAT-U2-018 (U1-032): one Basin model per well, updated in place
-    listBasinModels: () => basin.listWells(),
+    // organisation sharing: Basin's list now carries the models colleagues
+    // shared; Send to Basin keeps looking at the user's own model for the well
+    listBasinModels: async () => {
+      const uid = await basin.currentUserId();
+      return (await basin.listWells()).filter((m) => !m.user_id || m.user_id === uid);
+    },
     updateBasinModel: (id, patch) => basin.updateWell(id, patch),
     listIntervals, replaceIntervals, listCoreImages, uploadCoreImage, updateCoreImage, deleteCoreImage, coreImageUrl,
     // ST2: the shared section (same rows as Well Correlation) and the app-private view state

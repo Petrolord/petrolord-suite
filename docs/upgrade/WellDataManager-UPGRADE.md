@@ -140,7 +140,7 @@ Sources: public documentation and product pages (Petrel data import and well top
 | QC flags | Geoscience-ROADMAP G1 | Still wanted (U2-006) |
 | Bulk operations | Geoscience-ROADMAP G1 | Still wanted (U2-004, U2-005) |
 | Signed-in staging smoke: WDM well visible in Seismolord | STATUS G1.4 owner follow-up | Still wanted, owner run |
-| Org-wide editing of shared wells (v1 is read-only) | PLAN open question 1 | Still wanted, needs an RLS migration and second-engineer review (U2-012) |
+| Org-wide editing of shared wells (v1 is read-only) | PLAN open question 1 | Built 2026-10-02 (U2-012, organisation sharing wave), pending the owner's apply |
 | Registry writers do not stamp `app_build` | pp0 state-version memory | Still wanted, small (U2-013) |
 | Storage egress: revisit per-log objects if profiling says so | PLAN risks | Dropped: PL10 shows no need |
 | `.pld` import fails on duplicate names | Petrophysics inputs | Superseded: fixed 2026-09-03 (ProjectPortability-STATUS) |
@@ -262,3 +262,17 @@ Left open: the seismic reference datum stays declared in the apps that use one (
 | WDM-U2-F02 | S4 | The vendored LAS reader casts values to float32 before unit conversion, so a feet LAS of a metre-born depth returns up to one float32 step away (0.24 mm at 2,000 m). Curves are exact. | Documented in `wellExport.js` and the tests; engines repo if exactness in feet is wanted. |
 | WDM-U2-F03 | S4 | The stored `step_m` of an imported log is the first depth difference (vendored `uniformStepM`), so a 0.5 ft log shows 0.4998 ft at four decimals. Tables and the sheet print three decimals; the reorient uses the mean spacing. | Engines repo item. |
 
+## Organisation sharing wave (2026-10-02): U2-012 team editing built, pending apply
+
+Owner 2026-10-01: the second engineer approved the organisation sharing work, and the owner asked for edit rights "with decorum" and "the identity of who changed what". Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Migration `20261002110000_geo_wells_team_editing.sql`, NOT APPLIED (owner-run, after `20261002100000`). Until it is applied organisation wells are read-only for colleagues, as before.
+
+- **Sharing model kept.** A well is shared when `organization_id` is set (the tree's share button, unchanged). New: the owner chooses "Colleagues can view" (the default, today's behaviour) or "Colleagues can edit" in the control above the well's tabs.
+- **One editor at a time.** Whoever edits presses Start editing; the well shows "Being edited by" with the name and the time to everyone else. The session renews on each save, lapses 30 minutes after the last one, ends on Done editing or on leaving the well, and the owner can take over (logged).
+- **The whole well follows.** Header, deviation, checkshots, status and the child registries (`geo_wells_logs`, `_tops`, `_zones`, `_intervals`, `_core_images`) are writable by the owner unless a colleague is editing, and by the colleague who is. The same rule reaches the other apps that write a well (Petrophysics, Well Correlation, Stratigraphy, Rock Physics, Pore Pressure): their refusals now name who is editing.
+- **Curves in storage.** Everyone still uploads under their own user id. The well's owner can read, rewrite and remove every object under the well, and the editing colleague can rewrite and remove objects under it. Deleting a well removes the curves colleagues uploaded too.
+- **No silent overwrite.** The detail view's saves name the version of the well it shows; other apps patch a field or two and are not versioned.
+- **History.** Who created, shared, edited the well; tops, logs, zones, intervals and core photo changes appear as one line per save ("Tops: 3 added").
+- **Not offered.** Save a copy of a well (use Export or a project package). The Tops sheet view stays owner-only for now.
+- **Datum columns.** The datum branch owns the other `geo_wells` columns; this migration adds only `org_access`, the check-out columns, `version`, `updated_by` and `change_note`, and replaces the update policy and the children's write policies.
+- **Code.** `src/lib/wellsRegistry.js`, `services/registryBackend.js`, `services/inMemoryBackend.js`, `components/WellWorkstation.jsx`, `components/WellDetail.jsx`. Harness: `/dev/well-data-manager` (the seeded AKOMA-2 is an organisation well of another user), `?sharing=off`.
+- **Tests.** `__tests__/orgSharing.test.jsx`; the pentest covers wells, tops and the wells bucket.

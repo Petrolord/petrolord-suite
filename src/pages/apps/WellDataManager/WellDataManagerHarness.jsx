@@ -35,7 +35,9 @@ export default function WellDataManagerHarness() {
     // WDM-U2-007: ?datum=legacy stands in for the registry before the datum
     // migration (kb_m only), so both sides of the apply can be walked
     const datumColumns = q.get('datum') !== 'legacy';
-    return makeInMemoryBackend({ worker: true, saveDelayMs, datumColumns, ...(n > 0 ? { seedRows: scaleRows(Math.min(n, 20000)) } : {}) });
+    // U2-012 team editing: ?sharing=off behaves as the database before the migration
+    const sharing = { applied: q.get('sharing') !== 'off' };
+    return makeInMemoryBackend({ worker: true, saveDelayMs, datumColumns, sharing, ...(n > 0 ? { seedRows: scaleRows(Math.min(n, 20000)) } : {}) });
   }, []);
   return (
     <div className="h-screen w-full overflow-hidden" data-testid="wdm-theme-scope">

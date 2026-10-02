@@ -93,7 +93,7 @@ Severity: S1 wrong answer with no warning at scale; S2 wrong or lost data, or a 
 | SEIS-U1-021 | S3 | PL9 | Pore Pressure reads only linear velocity models from Seismolord and Mapping's time-to-depth refuses layer cakes, so a well-calibrated layer cake reaches neither. | Code read (`PorePressure registryBackend`, `timeDepth.usableModel`). | Open: Step 2 U2-006. |
 | SEIS-U1-022 | S3 | PL9 | Fault sticks, surfaces and polygons do not reach Earth Modeling (EM-T1-010). | Code read (no reader of `seismic_faults` outside Seismolord). | Open: Step 2 U2-003. |
 | SEIS-U1-023 | S3 | PL8 | Depth-domain sections are readout only: no picking in depth. | Walk. | Open: Step 2 U2-012. |
-| SEIS-U1-024 | S3 | PL8 | Projects are personal; org sharing is per volume, read-only. | Walk, Wave 4 open list. | Open: Step 2 U2-008 (RLS, second engineer). |
+| SEIS-U1-024 | S3 | PL8 | Projects are personal; org sharing is per volume, read-only. | Walk, Wave 4 open list. | Built 2026-10-02 in the organisation sharing wave (U2-008), pending the owner's apply. |
 | SEIS-U1-025 | S3 | PL8 | 2D picks are not gridding control; line markers not on 3D sections. | Walk, Wave 5 open list. | Open: Step 2 U2-005. |
 | SEIS-U1-026 | S4 | PL6 | Below 1,100 px the workspace pans inside its own scroll area. | Screenshot. | Closed by the WDM decision (desktop-first, narrow must not break; no page scroll holds). |
 
@@ -253,7 +253,7 @@ Branch `feat/seis-u2`. One row per item, in build order; each row names the test
 | U2-012 | Picking in depth | Depends on U2-004 and on picks living in time; a depth pick needs the inverse conversion per column and an undo story. | After NAPE, with U2-004 |
 | U2-011 | Dip-steered filters, fault thinning | Large engine work (dip field, structure-oriented median, thinned fault likelihood) with numpy oracles; not NAPE-critical. | After NAPE |
 | U2-015 | Fault cuts at wells | Owner Q3 decision: when built, compute fault-well intersections on the fly from `seismic_faults` (no new table). The U2-003 reader already gives sticks and surfaces in world XY and depth, the base for it. | After NAPE |
-| U2-008 | Org-shared projects | Owner Q2: needs an RLS change on `seismic_projects` and a second engineer; left for the owner. | Owner |
+| U2-008 | Org-shared projects | Owner Q2: needs an RLS change on `seismic_projects` and a second engineer; left for the owner. **Built 2026-10-02** (second engineer approved 2026-10-01), pending apply: see the last section. | Owner |
 | U2-019 | Range-read shards | Storage layout work for slow links; current bricked LOD meets the NAPE demo. | After NAPE |
 | U2-016 | Prospect sheet with RCP | Revisit at app #8 (ReservoirCalc Pro). | App #8 |
 | U2-020 | Rock physics to synthetics, AVO | Built with app #10 (Rock Physics Studio), 2026-10-01. First half (RP-U1-009): the synthetics pickers list Rock Physics' DT_SUB and RHOB_SUB. Second half (RP-U2-012): Rock Physics publishes its angle gather through the `rock-physics-gather` contract (`src/lib/rockPhysicsGather.js`) and the synthetics window shows it on request (`components/RockPhysicsGather.jsx`, one optional prop on `SyntheticsPanel`, one line in `ViewerPanel`); display only, beside the synthetic. Also RP-U2-007: a published pseudo-sonic DT_EST is listed last, labelled ESTIMATED, never the default while a measured sonic exists, with a warning when chosen. Not built: modelled AVO against attribute volumes (after NAPE). | Done with app #10 |
@@ -267,3 +267,15 @@ See the PR for the final run. Jest in band: Seismolord suites, CRS, wells and su
 ## Verification (Step 2)
 
 2026-10-01, after merging origin/main (aebc44c2f). Jest in band: Seismolord, src/lib (CRS, registries, velocity and fault contracts, units, portability), CRS components, the wells section kit, Well Correlation, Earth Modeling, Pore Pressure, Mapping, Stratigraphy, Data AI, src/__tests__, engines seismolord, earthmodel and dataai suites: 309 suites, 8,569 tests green. Browser (branch dev server, one worker): `e2e/seismolord-u2.spec.js` and the Seismolord, Well Correlation U2, Earth Modeling and Mapping specs green; `e2e/pore-pressure-studio.spec.js` has four failures that predate this branch (the Suite unit profile, PR #830, opens the harness in oilfield units while the spec expects SI; this branch did not touch those readouts). Engines: PR #292 CI green, merged, vendored at 1e5d394, guard clean (1,123 paths). Production build green (3 m 13 s; workers bundled).
+
+## Organisation sharing wave (2026-10-02): U2-008 built, pending apply
+
+Owner 2026-10-01: the second engineer approved the organisation sharing work. Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Migration `20261002100000_suite_record_sharing.sql`, NOT APPLIED (owner-run). Until it is applied the control is a short note and saving works as before.
+
+- **What a project is.** A `seismic_projects` row is an explorer folder (name, description); the live table had 0 rows. Volumes and 2D lines point at it and already carry their own organisation sharing; horizons, faults and picks read through the volume. So the migration touches `seismic_projects` only, and nothing changes for volumes or interpretations.
+- **Owner.** Each project folder has a share button and "Sharing and history" in its menu. The dialog has the shared control (share switch, colleagues can view or edit, history) and tells the owner which volumes of the project are still private, since colleagues will not see those.
+- **Colleague.** Shared projects are listed under "Shared with me" with the volumes of them that are shared with the organisation; when none is, the folder and the dialog say so. "Save a copy" makes a folder of the user's own.
+- **Editing.** When colleagues can edit, a colleague who has taken the project can rename it ("Rename project" is new in the menu). Each interpreter's horizons and faults stay their own, as before.
+- **Code.** `services/volumesService.js` (`makeProjectsBackend`, `makeInMemoryProjectsBackend`), `components/workspace/ProjectSharingDialog.jsx`, `SeismicExplorer.jsx`, `ViewerPanel.jsx` (a `projectsBackend` door so the harness runs signed out). Harness: `/dev/seismolord-workspace?projects=1`, `?shared=1`, `?sharing=off`.
+- **Tests.** `__tests__/orgSharing.test.jsx`; `e2e/org-sharing.spec.js` (two Seismolord tests).
+- **Not done.** Multi-author editing of one horizon or fault (each interpreter keeps their own rows on a shared volume); a count of the volumes a colleague cannot see (they are invisible to the colleague by design).

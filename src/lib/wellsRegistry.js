@@ -9,9 +9,12 @@
 //
 // Sharing model (locked in WellDataManager-PLAN.md): rows are private
 // by default; shareWell stamps the owner's organization_id on the WELL
-// row and children inherit visibility through it; org members read,
-// only the owner ever writes. RLS enforces all of this server-side —
-// nothing here filters by user id.
+// row and children inherit visibility through it; org members read.
+// Team editing (WDM U2-012, migration 20261002110000): the owner can let
+// colleagues edit a shared well, one person at a time (a check-out on the
+// well row, src/lib/recordSharing); the well's logs, tops, zones,
+// intervals and core photos follow that check-out. RLS enforces all of
+// this server-side — nothing here filters by user id.
 //
 // Curve samples are little-endian float32 objects in the private
 // `wells` bucket at {user_id}/{well_id}/logs/{log_id}.f32 — never large
@@ -27,6 +30,7 @@ import { wellNameKey, wellNameClashMessage } from '@/lib/wellNames';
 import { PLATFORM_BUILD } from '@/lib/platformBuild';
 import { isUnknownColumnError } from '@/lib/stateVersion';
 import { DATUM_COLUMNS, datumInsertFields, datumPatch, datumColumnsPresent, validateDatum } from '@/lib/wellDatum';
+import { supabaseSharingStore, accessOf, messages } from '@/lib/recordSharing';
 
 export { wellNameKey, wellNameClashMessage };
 
@@ -106,6 +110,34 @@ function datumOfNewWell(w) {
   if (!Number.isFinite(v)) throw new Error('KB must be a number (metres above datum).');
   return { refKind: 'KB', refElevM: v };
 }
+
+// ---- team editing (U2-012) ----------------------------------------------------
+const wellSharing = () => supabaseSharingStore();
+
+/**
+ * Why a write on a well, or on one of its children, was refused, in the words
+ * the sharing control uses ("Being edited by ... since ..."). `fallback` is the
+ * older owner-only sentence, kept when sharing does not explain the refusal
+ * (and always before the team-editing migration is applied).
+ */
+async function refusalReason(wellId, fallback) {
+  try {
+    const store = wellSharing();
+    if (!wellId || !(await store.capability('geo_wells')).available) return fallback;
+    const [row, ctx] = await Promise.all([store.refresh('geo_wells', wellId), store.context()]);
+    if (!row) return fallback;
+    const a = accessOf('geo_wells', row, { userId: ctx.userId });
+    if (a.lock.live && !a.lock.mine) return messages.locked((await store.names([a.lock.by]))[a.lock.by], a.lock.since);
+    if (a.sharedEdit && !a.isOwner) return messages.noCheckout();
+    return fallback;
+  } catch { return fallback; }
+}
+/** A refusal of a well row write as a sentence; a view-only well keeps the older one (a well has no Save a copy). */
+const wellConflict = (error) => {
+  if (error?.name !== 'RecordConflict') return null;
+  return error.kind === 'view_only' || error.kind === 'gone' ? 'Only the owner can edit this well (org sharing is read-only).' : error.message;
+};
+const isRlsRefusal = (error) => !!error && (String(error.code) === '42501' || /row-level security/i.test(String(error.message || '')));
 
 async function requireUser() {
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -206,7 +238,7 @@ export async function saveWell(w) {
  */
 export async function updateWellData(wellId, {
   surfaceX, surfaceY, kbM, tdMdM, deviation, checkshots, checkshotsProvenance,
-} = {}) {
+} = {}, { versioned = false, note = 'Well data edited' } = {}) {
   const patch = {};
   for (const [name, value, col] of [['Surface X', surfaceX, 'surface_x'], ['Surface Y', surfaceY, 'surface_y']]) {
     if (value === undefined) continue;
@@ -248,7 +280,9 @@ export async function updateWellData(wellId, {
   }
   if (checkshotsProvenance !== undefined) patch.checkshots_provenance = checkshotsProvenance;
   if (!Object.keys(patch).length) throw new Error('Nothing to update.');
-  const update = (p) => supabase.from('geo_wells').update(p).eq('id', wellId).select().single();
+  // U2-012: through the sharing store (the version when this caller is the
+  // well's editor, a summary for the history, refusals as sentences)
+  const update = (p) => wellSharing().update('geo_wells', wellId, p, { versioned, note });
   let { data, error } = await writeWithBuild({ ...patch, updated_at: new Date().toISOString() }, update);
   if (error && 'depth_ref_elev_m' in patch && isDatumColumnError(error)) {
     datumColumnsMissing = true;
@@ -260,7 +294,7 @@ export async function updateWellData(wellId, {
     delete patch.checkshots_provenance;
     ({ data, error } = await writeWithBuild({ ...patch, updated_at: new Date().toISOString() }, update));
   }
-  if (error) throw new Error(`Could not update well data: ${error.message}`);
+  if (error) throw new Error(wellConflict(error) || `Could not update well data: ${error.message}`);
   return data;
 }
 
@@ -276,19 +310,24 @@ export async function updateWellData(wellId, {
  *
  * @param {Object} well the registry row as loaded (decides which side of the migration it is on)
  * @param {Object} next a datum (metres); validated here
- * @param {{record?: ?Object, checkshots?: Array, checkshotsProvenance?: ?Object}} [opts]
+ * @param {{record?: ?Object, checkshots?: Array, checkshotsProvenance?: ?Object, versioned?: boolean}} [opts]
  *   record: datumChangeRecord(...) entry; checkshots: the table re-derived
- *   through the new elevation, saved in the same write
+ *   through the new elevation, saved in the same write; versioned: true from
+ *   the well's own editor, so a stale editor is refused
  * @returns {Promise<{row: Object, dropped: string[], columns: boolean}>}
  */
-export async function updateWellDatum(well, next, { record = null, checkshots, checkshotsProvenance } = {}) {
+export async function updateWellDatum(well, next, { record = null, checkshots, checkshotsProvenance, versioned = false } = {}) {
   if (!well || !well.id) throw new Error('Pick the well whose depth reference is being set.');
   const checked = validateDatum(next);
   if (checked.errors.length) throw new Error(checked.errors[0]);
   const extra = {};
   if (checkshots !== undefined) extra.checkshots = validateStoredCheckshotsShape(checkshots);
   if (checkshotsProvenance !== undefined) extra.checkshots_provenance = checkshotsProvenance;
-  const update = (p) => supabase.from('geo_wells').update(p).eq('id', well.id).select();
+  // U2-012: through the sharing store like every other write on the well row
+  // (the version when the caller is the well's editor, a line for the
+  // history, refusals as sentences). A colleague holding the check-out of a
+  // well shared for editing can correct the datum; the record says who did.
+  const update = (p) => wellSharing().update('geo_wells', well.id, p, { versioned, note: 'Depth reference changed' });
   let built = datumPatch(well, checked.datum, { record, columns: datumColumnsPresent(well) && !datumColumnsMissing });
   let { data, error } = await writeWithBuild({ ...built.patch, ...extra, updated_at: new Date().toISOString() }, update);
   if (error && built.columns && isDatumColumnError(error)) {
@@ -296,9 +335,8 @@ export async function updateWellDatum(well, next, { record = null, checkshots, c
     built = datumPatch(well, checked.datum, { record, columns: false });
     ({ data, error } = await writeWithBuild({ ...built.patch, ...extra, updated_at: new Date().toISOString() }, update));
   }
-  if (error) throw new Error(`Could not save the depth reference: ${error.message}`);
-  if (!data || !data.length) throw new Error('Only the owner can change the depth reference of this well (organisation sharing is read-only).');
-  return { row: data[0], dropped: built.dropped, columns: built.columns };
+  if (error) throw new Error(wellConflict(error) || `Could not save the depth reference: ${error.message}`);
+  return { row: data, dropped: built.dropped, columns: built.columns };
 }
 
 /** Stored-core shape check shared with the harness backend (the full
@@ -389,8 +427,14 @@ export async function getWell(wellId) {
   return data;
 }
 
-/** Owner-only header/survey updates (RLS rejects everyone else). */
-export async function updateWell(wellId, patch) {
+/**
+ * Header/survey updates: the owner, or a colleague holding the well's
+ * check-out when colleagues can edit (RLS rejects everyone else).
+ * `versioned` true is for the well's own editor (Well Data Manager): the save
+ * names the version it was opened at and a stale one is refused. Other apps
+ * patch a field or two and leave it false.
+ */
+export async function updateWell(wellId, patch, { versioned = false, note = null } = {}) {
   for (const [n, col] of [['Surface X', 'surface_x'], ['Surface Y', 'surface_y']]) {
     if (patch && col in patch) { const msg = surfaceCoordProblem(n, patch[col]); if (msg) throw new Error(msg); }
   }
@@ -400,8 +444,8 @@ export async function updateWell(wellId, patch) {
     patch = { ...patch, name: String(patch.name).trim() };
   }
   const { data, error } = await writeWithBuild({ ...patch, updated_at: new Date().toISOString() },
-    (p) => supabase.from('geo_wells').update(p).eq('id', wellId).select().single());
-  if (error) throw new Error(`Could not update well: ${error.message}`);
+    (p) => wellSharing().update('geo_wells', wellId, p, { versioned, note }));
+  if (error) throw new Error(wellConflict(error) || `Could not update well: ${error.message}`);
   return data;
 }
 
@@ -413,9 +457,15 @@ export async function deleteWell(well) {
   const user = await requireUser();
   const prefix = `${user.id}/${well.id}/logs`;
   const { data: objects } = await supabase.storage.from(BUCKET).list(prefix, { limit: 1000 });
-  if (objects && objects.length) {
-    const { error: rmError } = await supabase.storage.from(BUCKET)
-      .remove(objects.map((o) => `${prefix}/${o.name}`));
+  // U2-012: curves a colleague uploaded while editing sit under THEIR id;
+  // the log rows name them, and the well's owner may remove them
+  const { data: logRows } = await supabase.from('geo_wells_logs').select('storage_path').eq('well_id', well.id);
+  const paths = [...new Set([
+    ...(objects || []).map((o) => `${prefix}/${o.name}`),
+    ...(logRows || []).map((r) => r.storage_path).filter(Boolean),
+  ])];
+  for (let i = 0; i < paths.length; i += 1000) {
+    const { error: rmError } = await supabase.storage.from(BUCKET).remove(paths.slice(i, i + 1000));
     if (rmError) throw new Error(`Could not delete the well's log data: ${rmError.message}`);
   }
   // .select() so an RLS-filtered delete (not the owner: org-shared
@@ -439,7 +489,9 @@ export async function shareWell(wellId, organizationId) {
 
 /** Back to private. Org members lose read access immediately. */
 export async function unshareWell(wellId) {
-  return updateWell(wellId, { organization_id: null });
+  // back to view only as well, so sharing it again never starts as "can edit"
+  const { available } = await wellSharing().capability('geo_wells');
+  return updateWell(wellId, available ? { organization_id: null, org_access: 'view' } : { organization_id: null });
 }
 
 // ---- zones (normalized, Petrophysics Studio G2.2) -------------------------
@@ -462,7 +514,7 @@ export async function saveZone(wellId, z) {
   const properties = z.fromTops ? { from_tops: z.fromTops } : {};
   const { data, error } = await writeWithBuild({ well_id: wellId, name: z.name, top_md_m: z.topMdM, base_md_m: z.baseMdM, properties },
     (r) => supabase.from('geo_wells_zones').insert(r).select().single());
-  if (error) throw new Error(`Could not save zone: ${error.message}`);
+  if (error) throw new Error(isRlsRefusal(error) ? await refusalReason(wellId, `Could not save zone: ${error.message}`) : `Could not save zone: ${error.message}`);
   return data;
 }
 
@@ -471,7 +523,7 @@ export async function updateZone(zoneId, patch) {
     (p) => supabase.from('geo_wells_zones').update(p).eq('id', zoneId).select());
   if (error) throw new Error(`Could not update zone: ${error.message}`);
   if (!data || !data.length) {
-    throw new Error('Only the owner can edit zones (org sharing is read-only).');
+    throw new Error('Only the owner, or a colleague who has taken the well for editing, can edit zones.');
   }
   return data[0];
 }
@@ -481,7 +533,7 @@ export async function deleteZone(zone) {
     .delete().eq('id', zone.id).select('id');
   if (error) throw new Error(`Could not delete zone: ${error.message}`);
   if (!data || !data.length) {
-    throw new Error('Only the owner can delete zones (org sharing is read-only).');
+    throw new Error(await refusalReason(zone.well_id, 'Only the owner can delete zones (org sharing is read-only).'));
   }
 }
 
@@ -536,7 +588,7 @@ export function topRow(wellId, top) {
 export async function saveTop(wellId, top) {
   const { data, error } = await writeWithBuild(topRow(wellId, top),
     (r) => supabase.from('geo_wells_tops').insert(r).select().single());
-  if (error) throw new Error(`Could not add top: ${error.message}`);
+  if (error) throw new Error(isRlsRefusal(error) ? await refusalReason(wellId, `Could not add top: ${error.message}`) : `Could not add top: ${error.message}`);
   return data;
 }
 
@@ -548,7 +600,7 @@ export async function updateTop(topId, patch) {
   const { data, error } = await writeWithBuild(row, (r) => supabase.from('geo_wells_tops').update(r).eq('id', topId).select());
   if (error) throw new Error(`Could not update top: ${error.message}`);
   if (!data || !data.length) {
-    throw new Error('Only the owner can edit tops (org sharing is read-only).');
+    throw new Error('Only the owner, or a colleague who has taken the well for editing, can edit tops.');
   }
   return data[0];
 }
@@ -558,7 +610,7 @@ export async function deleteTop(top) {
     .delete().eq('id', top.id).select('id');
   if (error) throw new Error(`Could not delete top: ${error.message}`);
   if (!data || !data.length) {
-    throw new Error('Only the owner can delete tops (org sharing is read-only).');
+    throw new Error(await refusalReason(top.well_id, 'Only the owner can delete tops (org sharing is read-only).'));
   }
 }
 
@@ -629,7 +681,7 @@ export async function saveLog(wellId, log) {
     }, (r) => supabase.from('geo_wells_logs').insert(r).select().single());
   if (error) {
     await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
-    throw new Error(`Could not save log ${log.mnemonic}: ${error.message}`);
+    throw new Error(isRlsRefusal(error) ? await refusalReason(wellId, `Could not save log ${log.mnemonic}: ${error.message}`) : `Could not save log ${log.mnemonic}: ${error.message}`);
   }
   return data;
 }

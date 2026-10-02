@@ -19,6 +19,7 @@
 //
 // Nothing existing is ever updated or deleted: importing is copying.
 
+import { SHARING_TABLES } from '@/lib/recordSharing/rules';
 import JSZip from 'jszip';
 import { parseUnitProfileMeta, UNIT_PROFILE_FILE } from '@/lib/units/portability';
 import { customCrsId } from './geoscienceSpec';
@@ -47,6 +48,13 @@ const REGISTRY_READS_UP_TO = 1;
 // (petro-project v2, PT10a); it is for the status line, never a column
 const STRIP_ON_INSERT = new Set(['created_at', 'updated_at', '_migration']);
 const REGISTRY_STRIP = new Set(['schema_version', 'app_build', 'engine_version']);
+// Organisation sharing (migration 20261002100000): an imported record is the
+// importer's own and private. Its sharing state, check-out, row version and
+// author stamp belong to the database it came from, so they never travel;
+// the columns take their defaults (private, view, version 1). `version` is
+// stripped per table because seismic horizons and faults have a version
+// column of their own.
+const SHARING_STRIP = ['visibility', 'org_access', 'editing_by', 'editing_since', 'editing_expires', 'version', 'updated_by', 'change_note'];
 
 /** State kind that reads a table (familySpec `kind`), or null for "version 1 in this build". */
 export const tableKind = (table) => tableSpec(table)?.kind || null;
@@ -314,6 +322,12 @@ export function planImport(pkg, target) {
       if ('organization_id' in row || (spec.scope && spec.scope.includes('organization_id'))) row.organization_id = spec.orgWide ? target.organizationId : orgId;
       for (const c of spec.stripOnInsert || []) delete row[c]; // e.g. created_by: the column default stamps the importer
       for (const c of STRIP_ON_INSERT) delete row[c];
+      if (SHARING_TABLES[table]) {
+        for (const c of SHARING_STRIP) delete row[c];
+        // on the record tables the organisation is part of the sharing state
+        // (geo_wells keeps its own: shared when organization_id is set)
+        if (SHARING_TABLES[table].sharedWhen === 'visibility') delete row.organization_id;
+      }
       // blob location under the importer's prefix
       if (spec.blob?.pathColumn) {
         row.__oldStoragePath = original[spec.blob.pathColumn] || null;
