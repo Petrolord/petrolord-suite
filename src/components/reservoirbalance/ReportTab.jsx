@@ -60,10 +60,8 @@ const DataTable = ({ head, body, testId, compact = false }) => (
       </thead>
       <tbody>
         {body.map((row, i) => (
-          // eslint-disable-next-line react/no-array-index-key
           <tr key={i} className="border-b border-pl-border/60 align-top">
             {row.map((cell, j) => (
-              // eslint-disable-next-line react/no-array-index-key
               <td key={j} className={`py-1.5 pr-3 text-pl-text ${j > 0 && compact ? 'font-pl-mono tabular-nums whitespace-nowrap' : ''}`}>{cell}</td>
             ))}
           </tr>

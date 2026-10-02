@@ -19,8 +19,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
@@ -31,6 +29,7 @@ import { useMaterialBalanceStudio } from '@/contexts/MaterialBalanceStudioContex
 import { upsertCaseDefaultConfig, updateCase } from '@/pages/apps/reservoir-balance/lib/api';
 import { mapScreeningToAquiferParams } from '@/pages/apps/reservoir-balance/lib/aquiferScreeningMapping';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import UnitField from './UnitField';
 
 const METHODS = [
   { code: 'veh', label: 'van Everdingen-Hurst', blurb: 'Rigorous constant-terminal-pressure superposition for a radial (edge) aquifer. The reference method.' },
@@ -38,28 +37,28 @@ const METHODS = [
   { code: 'fetkovich', label: 'Fetkovich', blurb: 'Finite-aquifer productivity-index method. Needs aquifer volume W and index J (or geometry to derive them).' },
 ];
 
+// [key, label, quantity of lib/mbalUnits or null, unit text]. The screening
+// engine works in oilfield units; a field shows and takes the display unit.
 const PARAM_FIELDS = [
-  ['k', 'Permeability k', 'md'],
-  ['muw', 'Water viscosity μw', 'cp'],
-  ['phi', 'Porosity φ', 'frac'],
-  ['ct', 'Total compressibility ct', '1/psi'],
-  ['h', 'Aquifer thickness h', 'ft'],
-  ['rR', 'Reservoir radius rR', 'ft'],
-  ['theta', 'Encroachment angle θ', 'deg'],
+  ['k', 'Permeability k', null, 'mD'],
+  ['muw', 'Water viscosity', 'viscosity', ''],
+  ['phi', 'Porosity', null, 'fraction'],
+  ['ct', 'Total compressibility ct', 'compressibility', ''],
+  ['h', 'Aquifer thickness h', 'depth', ''],
+  ['rR', 'Reservoir radius rR', 'depth', ''],
+  ['theta', 'Encroachment angle', null, 'degrees'],
 ];
 
 const FETKOVICH_FIELDS = [
-  ['re', 'Aquifer outer radius re', 'ft'],
-  ['W', 'Aquifer volume W (optional)', 'rb'],
-  ['J', 'Productivity index J (optional)', 'rb/d/psi'],
+  ['re', 'Aquifer outer radius re', 'depth', ''],
+  ['W', 'Aquifer volume W (optional)', 'resVolumeMM', ''],
+  ['J', 'Productivity index J (optional)', 'aquiferIndex', ''],
 ];
 
 const s = (o) => Object.fromEntries(
   Object.entries(o).map(([k, v]) => [k, v == null ? '' : String(v)]),
 );
 
-const fmtWe = (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : `${(v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 3 })} MMrb`);
-const fmtRate = (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : `${v.toLocaleString('en-US', { maximumFractionDigits: 0 })} rb/d`);
 const fmtNum = (v, d = 0) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : v.toLocaleString('en-US', { maximumFractionDigits: d }));
 
 // Aquifer strength is a classification, so it reads in the text colour
@@ -87,7 +86,13 @@ export function historyFromProductionData(productionData) {
 
 const AquiferScreening = () => {
   const { toast } = useToast();
-  const { caseId, caseData, lastResult, refreshCase } = useMaterialBalanceStudio();
+  const {
+    caseId, caseData, lastResult, applyCasePatch, refreshRunInputs, units,
+  } = useMaterialBalanceStudio();
+  const weScale = units.scaled('resVolume', 1e6); // We in millions, on the axis and in the table
+  const fmtWe = (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : `${weScale.to(v).toLocaleString('en-US', { maximumFractionDigits: 3 })} ${weScale.label}`);
+  const fmtRate = (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : `${units.to('resRate', v).toLocaleString('en-US', { maximumFractionDigits: 0 })} ${units.label('resRate')}`);
+  const pDigits = units.unit('pressure') === 'psi' || units.unit('pressure') === 'kPa' ? 0 : 2;
 
   const sample = sampleAquiferData();
   const [method, setMethod] = useState('carter-tracy');
@@ -121,8 +126,9 @@ const AquiferScreening = () => {
   );
 
   const chartData = useMemo(
-    () => (result.series || []).map((pt) => ({ t: pt.t, p: pt.p, We: pt.We / 1e6 })),
-    [result],
+    () => (result.series || []).map((pt) => ({ t: pt.t, p: units.to('pressure', pt.p), We: weScale.to(pt.We) })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [result, units],
   );
 
   // Server-comparison overlay: the last run's We history (rb_results
@@ -132,8 +138,9 @@ const AquiferScreening = () => {
     if (!Array.isArray(we) || !we.some((v) => Number.isFinite(v) && v > 0)) return null;
     const t = historyFromProductionData(caseData?.production_data);
     if (!t || t.length !== we.length) return null;
-    return t.map((row, i) => ({ t: row.t, WeServer: (we[i] ?? 0) / 1e6 }));
-  }, [lastResult, caseData]);
+    return t.map((row, i) => ({ t: row.t, WeServer: weScale.to(we[i] ?? 0) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastResult, caseData, units]);
 
   const currentMethod = METHODS.find((m) => m.code === method);
   const finalTD = result.series?.length ? result.series[result.series.length - 1].tD : null;
@@ -165,8 +172,9 @@ const AquiferScreening = () => {
   };
 
   const exportCsv = () => {
-    const lines = ['time_days,pressure_psia,We_rb'];
-    (result.series || []).forEach((pt) => lines.push(`${pt.t},${pt.p},${pt.We.toFixed(2)}`));
+    // the display units, named in the header
+    const lines = [`Time (days),Pressure (${units.label('pressure')}),We (${units.label('resVolume')})`];
+    (result.series || []).forEach((pt) => lines.push(`${pt.t},${parseFloat(units.to('pressure', pt.p).toPrecision(8))},${parseFloat(units.to('resVolume', pt.We).toPrecision(8))}`));
     const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -190,7 +198,8 @@ const AquiferScreening = () => {
       aquifer_params: mapped.aquifer_params,
     });
     if (!error && caseData && !caseData.has_aquifer) {
-      await updateCase(caseId, { has_aquifer: true });
+      const res = await updateCase(caseId, { has_aquifer: true });
+      if (!res?.error) applyCasePatch?.({ has_aquifer: true });
     }
     setApplying(false);
     if (error) {
@@ -198,7 +207,8 @@ const AquiferScreening = () => {
       return;
     }
     toast({ title: 'Aquifer model applied', description: `${mapped.note} The next run uses it.` });
-    refreshCase();
+    // re-read the run settings without reloading the case: a file waiting on the Data tab stays there
+    refreshRunInputs?.();
   };
 
   const cls = result.classification || {};
@@ -246,11 +256,13 @@ const AquiferScreening = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {PARAM_FIELDS.map(([k, lbl, unit]) => (
-                  <Field key={k} label={`${lbl} (${unit})`} value={params[k] ?? ''} onChange={(v) => setParam(k, v)} />
+                {PARAM_FIELDS.map(([k, lbl, quantity, unitText]) => (
+                  <UnitField key={k} testId={`mbal-screen-${k}`} label={lbl} quantity={quantity} unitText={unitText} units={units}
+                    value={params[k] === '' || params[k] == null ? null : Number(params[k])} onCommit={(v) => setParam(k, v == null ? '' : String(v))} />
                 ))}
                 {method === 'carter-tracy' && (
-                  <Field label="Radius ratio reD (ra/rR)" value={params.reD ?? ''} onChange={(v) => setParam('reD', v)} />
+                  <UnitField testId="mbal-screen-reD" label="Radius ratio reD" unitText="aquifer over reservoir"
+                    value={params.reD === '' || params.reD == null ? null : Number(params.reD)} onCommit={(v) => setParam('reD', v == null ? '' : String(v))} placeholder="blank: infinite" />
                 )}
               </div>
               {method === 'carter-tracy' && (
@@ -261,15 +273,16 @@ const AquiferScreening = () => {
               )}
               {method === 'fetkovich' && (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pt-3 border-t border-pl-border">
-                  {FETKOVICH_FIELDS.map(([k, lbl, unit]) => (
-                    <Field key={k} label={`${lbl} (${unit})`} value={params[k] ?? ''} onChange={(v) => setParam(k, v)} />
+                  {FETKOVICH_FIELDS.map(([k, lbl, quantity, unitText]) => (
+                    <UnitField key={k} testId={`mbal-screen-${k}`} label={lbl} quantity={quantity} unitText={unitText} units={units}
+                      value={params[k] === '' || params[k] == null ? null : Number(params[k])} onCommit={(v) => setParam(k, v == null ? '' : String(v))} />
                   ))}
                 </div>
               )}
               {method === 'fetkovich' && (
                 <p className="text-xs text-pl-muted flex items-start gap-1.5">
                   <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  Leave W and J blank to derive them from the geometry (re, rR, θ, φ, h, k, μw) using a radial no-flow-boundary aquifer.
+                  Leave W and J blank to derive them from the geometry (outer radius, reservoir radius, angle, porosity, thickness, permeability and water viscosity) for a radial aquifer with a no-flow outer boundary.
                 </p>
               )}
             </CardContent>
@@ -286,7 +299,7 @@ const AquiferScreening = () => {
                   <thead className="sticky top-0 bg-pl-surface">
                     <tr className="text-pl-muted border-b border-pl-border">
                       <th className="text-left py-1.5 font-medium">Time (days)</th>
-                      <th className="text-left font-medium">Pressure (psia)</th>
+                      <th className="text-left font-medium">Pressure ({units.label('pressure')})</th>
                       <th className="w-8" />
                     </tr>
                   </thead>
@@ -294,13 +307,13 @@ const AquiferScreening = () => {
                     {rows.map((r, i) => (
                       <tr key={i} className="border-b border-pl-border">
                         <td className="py-1 pr-2">
-                          <Input value={r.t} onChange={(e) => setRow(i, 't', e.target.value)} className="h-8" />
+                          <UnitField bare label={`Time, row ${i + 1}`} value={r.t === '' ? null : Number(r.t)} onCommit={(v) => setRow(i, 't', v == null ? '' : String(v))} inputClassName="text-sm font-sans" />
                         </td>
                         <td className="py-1 pr-2">
-                          <Input value={r.p} onChange={(e) => setRow(i, 'p', e.target.value)} className="h-8" />
+                          <UnitField bare label={`Pressure, row ${i + 1}`} quantity="pressure" units={units} value={r.p === '' ? null : Number(r.p)} onCommit={(v) => setRow(i, 'p', v == null ? '' : String(v))} inputClassName="text-sm font-sans" />
                         </td>
                         <td className="text-center">
-                          <button onClick={() => delRow(i)} className="text-pl-muted hover:text-pl-danger-text"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button type="button" aria-label={`Delete row ${i + 1}`} onClick={() => delRow(i)} className="text-pl-muted hover:text-pl-danger-text"><Trash2 className="w-3.5 h-3.5" /></button>
                         </td>
                       </tr>
                     ))}
@@ -308,7 +321,7 @@ const AquiferScreening = () => {
                 </table>
               </div>
               <Button variant="outline" size="sm" className="mt-3 h-8" onClick={addRow}><Plus className="w-3.5 h-3.5 mr-1" /> Add row</Button>
-              <p className="text-xs text-pl-muted mt-2">First row sets the initial pressure pi at t = 0 (We = 0). Load case history pulls the dated pressures from the Data tab.</p>
+              <p className="text-xs text-pl-muted mt-2">The first row is the initial pressure at time zero, where the influx is zero. Load case history brings the dated pressures of the Data tab. The sheet opens on a sample aquifer: type the parameters of the reservoir before using its numbers.</p>
             </CardContent>
           </Card>
         </div>
@@ -325,15 +338,14 @@ const AquiferScreening = () => {
                     <XAxis dataKey="t" type="number" domain={['dataMin', 'dataMax']} stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                       label={{ value: 'Time (days)', position: 'insideBottom', offset: -4, fill: CHART_COLORS.axisText, fontSize: 11 }} />
                     <YAxis yAxisId="we" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                      label={{ value: 'We (MMrb)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }} />
+                      label={{ value: `We (${weScale.label})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }} />
                     <YAxis yAxisId="p" orientation="right" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                       domain={['auto', 'auto']}
-                      label={{ value: 'Pressure (psia)', angle: 90, position: 'insideRight', fill: CHART_COLORS.axisText, fontSize: 11 }} />
+                      label={{ value: `Pressure (${units.label('pressure')})`, angle: 90, position: 'insideRight', fill: CHART_COLORS.axisText, fontSize: 11 }} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }}
                       formatter={(v, name) => {
-                        if (name === 'We (screening)') return [fmtWe(v * 1e6), name];
-                        if (name === 'We (last run)') return [fmtWe(v * 1e6), name];
-                        return [`${fmtNum(v, 0)} psia`, 'Pressure'];
+                        if (name === 'We (screening)' || name === 'We (last run)') return [`${fmtNum(v, 3)} ${weScale.label}`, name];
+                        return [`${fmtNum(v, pDigits)} ${units.label('pressure')}`, 'Pressure'];
                       }}
                       labelFormatter={(t) => `t = ${t} d`} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -366,18 +378,18 @@ const AquiferScreening = () => {
                 <thead>
                   <tr className="text-pl-muted border-b border-pl-border">
                     <th className="text-left py-1.5 font-medium">t (days)</th>
-                    <th className="text-right font-medium">p (psia)</th>
+                    <th className="text-right font-medium">p ({units.label('pressure')})</th>
                     {method !== 'fetkovich' && <th className="text-right font-medium">tD</th>}
-                    <th className="text-right font-medium">We (MMrb)</th>
+                    <th className="text-right font-medium">We ({weScale.label})</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(result.series || []).map((pt, i) => (
                     <tr key={i} className="border-b border-pl-border">
                       <td className="py-1.5 text-pl-text">{fmtNum(pt.t, 0)}</td>
-                      <td className="text-right font-mono text-pl-muted">{fmtNum(pt.p, 0)}</td>
+                      <td className="text-right font-mono text-pl-muted">{fmtNum(units.to('pressure', pt.p), pDigits)}</td>
                       {method !== 'fetkovich' && <td className="text-right font-mono text-pl-muted">{fmtNum(pt.tD, 1)}</td>}
-                      <td className="text-right font-mono text-pl-text">{(pt.We / 1e6).toFixed(3)}</td>
+                      <td className="text-right font-mono text-pl-text">{weScale.to(pt.We).toFixed(3)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -402,13 +414,6 @@ const Kpi = ({ title, value, accent, valueClass, word = false }) => (
       <div className={`text-2xl font-semibold mt-1 ${word ? '' : 'font-pl-mono tabular-nums'} ${valueClass || 'text-pl-text'}`}>{value}</div>
     </CardContent>
   </Card>
-);
-
-const Field = ({ label, value, onChange }) => (
-  <div className="space-y-1">
-    <Label className="text-xs text-pl-muted">{label}</Label>
-    <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-9" />
-  </div>
 );
 
 export default AquiferScreening;

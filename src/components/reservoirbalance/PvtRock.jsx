@@ -511,7 +511,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
         duration: 6000,
       }),
     );
-  }, [caseData, fluidSystem, form, showOilProps, showGasProps, toast]);
+  }, [caseData, fluidSystem, form, showOilProps, showGasProps, isGas, toast]);
 
   // ── Save config ──
   const handleSave = async () => {
@@ -920,11 +920,11 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                           </TableHead>
                           {showOilProps && (
                             <>
-                              <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right">
+                              <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right normal-case">
                                 Bo
                                 <span className="text-[10px] block font-normal normal-case text-pl-muted">({units.label('fvfOil')})</span>
                               </TableHead>
-                              <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right">
+                              <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right normal-case">
                                 Rs
                                 <span className="text-[10px] block font-normal normal-case text-pl-muted">({units.label('gor')})</span>
                               </TableHead>
@@ -932,23 +932,23 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                           )}
                           {showGasProps && (
                             <>
-                              <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right">
+                              <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right normal-case">
                                 Z
                               </TableHead>
-                              <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right">
+                              <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right normal-case">
                                 Bg
                                 <span className="text-[10px] block font-normal normal-case text-pl-muted">({units.label('fvfGas')})</span>
                               </TableHead>
                             </>
                           )}
                           {showOilProps && (
-                            <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right pr-4">
+                            <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right pr-4 normal-case">
                               Oil viscosity
                               <span className="text-[10px] block font-normal normal-case text-pl-muted">({units.label('viscosity')})</span>
                             </TableHead>
                           )}
                           {showGasProps && (
-                            <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right pr-4">
+                            <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right pr-4 normal-case">
                               Gas viscosity
                               <span className="text-[10px] block font-normal normal-case text-pl-muted">({units.label('viscosity')})</span>
                             </TableHead>
@@ -1442,7 +1442,7 @@ const LabTableEditor = ({
                   {columns.map((col) => (
                     <TableHead
                       key={col.key}
-                      className="text-xs text-pl-muted font-semibold py-2"
+                      className="text-xs text-pl-muted font-semibold py-2 normal-case"
                     >
                       {col.label}
                       {col.required && <span className="text-pl-danger-text ml-0.5">*</span>}

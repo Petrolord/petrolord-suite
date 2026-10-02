@@ -23,8 +23,8 @@ import { shortReference } from '@/pages/apps/reservoir-balance/lib/reportModel';
 import {
   runSample, reportArgs, SAMPLE_CASE_IDS, AT, METRIC_UNITS,
 } from '@/pages/apps/reservoir-balance/lib/__tests__/mbalTestKit';
-import { buildEngineInputs } from '../../../../supabase/functions/_shared/mbal-run-mapping';
-import { AQUIFER_PARAM_KEYS } from '../../../../packages/engines/engines/mbal/mbalEngine';
+import { buildEngineInputs } from '../../../../supabase/functions/_shared/mbal-run-mapping.ts';
+import { AQUIFER_PARAM_KEYS } from '../../../../packages/engines/engines/mbal/mbalEngine.ts';
 
 const logo = chartLogo();
 const GOLDEN_DIR = path.join(__dirname, '__fixtures__', 'reportGolden');

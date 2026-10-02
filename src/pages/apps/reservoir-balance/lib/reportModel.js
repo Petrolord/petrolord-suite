@@ -392,6 +392,22 @@ export function datumRows(a) {
   ];
 }
 
+/** The contact geometry of the Contacts tab: recorded for the reader, with the depth reference of the datum. */
+export function contactRows(a) {
+  const u = a.units ?? OILFIELD_UNITS;
+  const c = a.study?.contacts ?? {};
+  const d = a.study?.datum ?? {};
+  const ref = d.reference && DEPTH_REFERENCES[d.reference] ? d.reference : 'TVDSS';
+  const isGas = a.caseData?.fluid_system === 'gas';
+  const depth = (v) => (finite(v) ? fmt(u.to('depth', v), 1) : EMPTY_VALUE);
+  const where = 'Entered on the Contacts tab; recorded for the reader, it does not enter the balance';
+  const rows = [
+    { key: 'initial_owc', label: isGas ? 'Initial gas-water contact' : 'Initial oil-water contact', value: depth(c.initial_owc_ft), unit: finite(c.initial_owc_ft) ? `${u.label('depth')} ${ref}` : '', source: finite(c.initial_owc_ft) ? where : NOT_PROVIDED },
+  ];
+  if (!isGas) rows.push({ key: 'initial_goc', label: 'Initial gas-oil contact', value: depth(c.initial_goc_ft), unit: finite(c.initial_goc_ft) ? `${u.label('depth')} ${ref}` : '', source: finite(c.initial_goc_ft) ? where : NOT_PROVIDED });
+  return rows;
+}
+
 export const DATUM_NOTE = 'All pressures are absolute. This app applies no correction to datum: the pressures of the data table enter the balance as they were entered. Where the surveys were taken away from the datum, correct them to the datum with the fluid gradient before entering them.';
 
 export const INPUTS_NOTE = 'Rows marked "Recorded for the reader" or "Does not apply" did not enter the calculation; every other row did. A default the app applied is printed as an assumption with its value.';
@@ -813,7 +829,7 @@ export function collectMbalReportArgs(ctx) {
     ...a,
     identification: identificationPairs(a),
     inputs: mbalInputRows(a),
-    datum: datumRows(a),
+    datum: [...datumRows(a), ...contactRows(a)],
     data: dataSummary(a),
     headline: headlineRows(a),
     regressionText: regressionStatement(a),

@@ -3,8 +3,8 @@
 // (supabase/functions/_shared/mbal-run-mapping.ts). Used by the /dev harness
 // and by the report tests, so what they exercise is the mapping production
 // runs.
-import { computeMaterialBalance, runHistoryMatch, generatePvtTable } from '../../../../../packages/engines/engines/mbal/mbalEngine';
-import { buildEngineInputs, buildResultColumns } from '../../../../../supabase/functions/_shared/mbal-run-mapping';
+import { computeMaterialBalance, runHistoryMatch, generatePvtTable } from '../../../../../packages/engines/engines/mbal/mbalEngine.ts';
+import { buildEngineInputs, buildResultColumns } from '../../../../../supabase/functions/_shared/mbal-run-mapping.ts';
 
 let seq = 0;
 const newId = (p) => `${p}-${Date.now()}-${++seq}`;

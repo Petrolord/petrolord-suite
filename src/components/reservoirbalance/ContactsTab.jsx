@@ -5,13 +5,14 @@
 // in the jest-guarded lib/contactMovement.js). Replaces the pre-Horizons
 // ContactsTracker shell, whose timeline and volumes were fabricated.
 import React, { useEffect, useMemo, useState } from 'react';
-import { Layers, Info, AlertTriangle } from 'lucide-react';
+import { Layers, Info, AlertTriangle, Save, Loader2 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
+import UnitField from './UnitField';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
@@ -23,15 +24,16 @@ import {
   CONTACT_DEFAULTS,
 } from '@/pages/apps/reservoir-balance/lib/contactMovement';
 
+// [form key, label, quantity of lib/mbalUnits or null, unit text, key in the study record]
 const FIELDS = [
-  ['initialOwcFt', 'Initial OWC depth', 'ft TVD'],
-  ['initialGocFt', 'Initial GOC depth (blank for none)', 'ft TVD'],
-  ['areaOwcAcres', 'Contact area at the OWC', 'acres'],
-  ['areaGocAcres', 'Contact area at the GOC', 'acres'],
-  ['porosity', 'Porosity', 'fraction'],
-  ['swi', 'Initial water saturation', 'fraction'],
-  ['sorWater', 'Residual oil to water', 'fraction'],
-  ['sorGas', 'Residual oil to gas', 'fraction'],
+  ['initialOwcFt', 'Initial OWC depth', 'depth', '', 'initial_owc_ft'],
+  ['initialGocFt', 'Initial GOC depth (blank for none)', 'depth', '', 'initial_goc_ft'],
+  ['areaOwcAcres', 'Contact area at the OWC', 'area', '', 'area_owc_acres'],
+  ['areaGocAcres', 'Contact area at the GOC', 'area', '', 'area_goc_acres'],
+  ['porosity', 'Porosity', null, 'fraction', 'porosity'],
+  ['swi', 'Initial water saturation', null, 'fraction', null],
+  ['sorWater', 'Residual oil to water', null, 'fraction', 'sor_water'],
+  ['sorGas', 'Residual oil to gas', null, 'fraction', 'sor_gas'],
 ];
 
 const num = (v) => {
@@ -39,9 +41,14 @@ const num = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 };
+const text = (v) => (v == null ? '' : String(v));
 
 const ContactsTab = () => {
-  const { caseId, caseData, lastResult } = useMaterialBalanceStudio();
+  const {
+    caseId, caseData, lastResult, units, study, saveStudy,
+  } = useMaterialBalanceStudio();
+  const { toast } = useToast();
+  const depthRef = study?.datum?.reference ?? 'TVDSS';
   const isGas = caseData?.fluid_system === 'gas';
 
   const [defaultCfg, setDefaultCfg] = useState(null);
@@ -68,6 +75,36 @@ const ContactsTab = () => {
       setForm((f) => ({ ...f, swi: String(caseData.initial_water_saturation) }));
     }
   }, [caseData?.initial_water_saturation]);
+
+  // The geometry is kept with the case (MBAL-U1-010): it used to live in this
+  // tab only, so it was lost on a visit to another tab and never reached the
+  // report.
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savedKey = JSON.stringify(study?.contacts ?? {});
+  useEffect(() => {
+    if (dirty) return;
+    const c = study?.contacts ?? {};
+    setForm((f) => ({
+      ...f,
+      initialOwcFt: text(c.initial_owc_ft), initialGocFt: text(c.initial_goc_ft),
+      areaOwcAcres: text(c.area_owc_acres), areaGocAcres: text(c.area_goc_acres),
+      porosity: c.porosity != null ? text(c.porosity) : f.porosity,
+      sorWater: c.sor_water != null ? text(c.sor_water) : f.sorWater,
+      sorGas: c.sor_gas != null ? text(c.sor_gas) : f.sorGas,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedKey]);
+  const onSave = async () => {
+    setSaving(true);
+    const contacts = {};
+    for (const [key, , , , saved] of FIELDS) if (saved) contacts[saved] = num(form[key]);
+    const { error } = await saveStudy({ ...study, contacts });
+    setSaving(false);
+    if (error) { toast({ title: 'The contact geometry was not saved', description: error.message, variant: 'destructive' }); return; }
+    setDirty(false);
+    toast({ title: 'Contact geometry saved', description: 'It is kept with the case and the initial contacts are printed in the report. The run stays current.' });
+  };
 
   // Gas cap ratio m: a matched value from a history-match run wins, then the
   // saved run config, then zero (GOC static with a warning from the lib).
@@ -109,10 +146,11 @@ const ContactsTab = () => {
   const chartData = result?.ok
     ? result.series.map((s) => ({
         step: s.step,
-        [waterLabel]: s.owcFt,
-        ...(s.gocFt != null ? { GOC: s.gocFt } : {}),
+        [waterLabel]: units.to('depth', s.owcFt),
+        ...(s.gocFt != null ? { GOC: units.to('depth', s.gocFt) } : {}),
       }))
     : [];
+  const depthText = (v) => `${units.to('depth', v).toFixed(1)} ${units.label('depth')}`;
 
   if (!lastResult?.plot_data) {
     return (
@@ -143,16 +181,21 @@ const ContactsTab = () => {
         </CardHeader>
         <CardContent className="space-y-3">
           {FIELDS.filter(([key]) => !(isGas && (key === 'initialGocFt' || key === 'areaGocAcres' || key === 'sorGas')))
-            .map(([key, label, unit]) => (
-              <div key={key} className="space-y-1">
-                <Label className="text-xs text-pl-muted">{label} ({unit})</Label>
-                <Input
-                  value={form[key]}
-                  onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                  className="h-8 font-mono text-xs"
-                />
-              </div>
+            .map(([key, label, quantity, unitText]) => (
+              <UnitField
+                key={key} testId={`mbal-contacts-${key}`}
+                label={(isGas ? label.replace('OWC', 'GWC') : label) + (quantity === 'depth' ? `, ${depthRef}` : '')}
+                quantity={quantity} unitText={unitText} units={units}
+                value={num(form[key])}
+                onCommit={(v) => { setForm((f) => ({ ...f, [key]: text(v) })); if (key !== 'swi') setDirty(true); }}
+              />
             ))}
+          <Button size="sm" onClick={onSave} disabled={!dirty || saving} data-testid="mbal-contacts-save">
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save contact geometry
+          </Button>
+          <p className="text-[11px] text-pl-muted">
+            Depths are {depthRef}, the reference of the pressure datum on the Report tab. Porosity and the residual saturations open on screening values; type the values of the reservoir.
+          </p>
           {!isGas && (
             <p className="text-[11px] text-pl-muted">
               Gas cap ratio m in use: {gasCapM > 0 ? gasCapM.toFixed(3) : 'none (GOC stays put)'}.
@@ -177,18 +220,18 @@ const ContactsTab = () => {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <div className="border border-pl-border rounded-md p-3 bg-pl-sunken">
                   <p className="text-[11px] text-pl-muted">Current {waterLabel}</p>
-                  <p className="text-base font-semibold text-pl-text">{result.currentOwcFt.toFixed(1)} ft</p>
+                  <p className="text-base font-semibold text-pl-text">{depthText(result.currentOwcFt)}</p>
                 </div>
                 {result.currentGocFt != null && (
                   <div className="border border-pl-border rounded-md p-3 bg-pl-sunken">
                     <p className="text-[11px] text-pl-muted">Current GOC</p>
-                    <p className="text-base font-semibold text-pl-text">{result.currentGocFt.toFixed(1)} ft</p>
+                    <p className="text-base font-semibold text-pl-text">{depthText(result.currentGocFt)}</p>
                   </div>
                 )}
                 {result.oilColumnFt != null && (
                   <div className="border border-pl-border rounded-md p-3 bg-pl-sunken">
                     <p className="text-[11px] text-pl-muted">Remaining oil column</p>
-                    <p className="text-base font-semibold text-pl-text">{result.oilColumnFt.toFixed(1)} ft</p>
+                    <p className="text-base font-semibold text-pl-text">{depthText(result.oilColumnFt)}</p>
                   </div>
                 )}
               </div>
@@ -207,12 +250,12 @@ const ContactsTab = () => {
                     domain={['auto', 'auto']}
                     stroke={CHART_COLORS.axisLine}
                     tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                    label={{ value: 'Depth (ft TVD)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }}
+                    label={{ value: `Depth (${units.label('depth')} ${depthRef})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }}
                   />
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
                     labelStyle={{ color: CHART_COLORS.tooltipText }}
-                    formatter={(v, name) => [`${Number(v).toFixed(1)} ft`, name]}
+                    formatter={(v, name) => [`${Number(v).toFixed(1)} ${units.label('depth')}`, name]}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Line dataKey={waterLabel} stroke="#0284c7" strokeWidth={2} dot={false} />

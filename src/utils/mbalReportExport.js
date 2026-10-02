@@ -87,7 +87,7 @@ export function buildMbalPdf(args, { logo = null, generatedAt = new Date() } = {
 
   // ---- inputs: every engine input, with unit and source (RL1) ----
   report.inputsTable(model.inputs, { title: 'Inputs of the analysis', note: INPUTS_NOTE, columnStyles: INPUT_COLUMNS });
-  report.inputsTable(model.datum, { title: 'Pressure datum', note: DATUM_NOTE, columnStyles: INPUT_COLUMNS });
+  report.inputsTable(model.datum, { title: 'Pressure datum and contacts', note: DATUM_NOTE, columnStyles: INPUT_COLUMNS });
   if (model.pvtTable) {
     table('PVT table of the run', model.pvtTable.head, model.pvtTable.body, { note: model.pvtTable.note });
   }

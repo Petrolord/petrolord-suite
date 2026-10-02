@@ -52,6 +52,9 @@ const QUANTITIES = Object.freeze({
   stockVolume: { family: 'liquidVolume', engine: 'STB', view: (c) => (metricLiquid(c) ? 'm3' : 'STB') },
   // reservoir volume (withdrawal F, influx We, aquifer water in place W)
   resVolume: { family: 'liquidVolume', engine: 'RB', view: (c) => (metricLiquid(c) ? 'm3' : 'RB') },
+  // in-place volumes as people state them: millions of stock-tank volume, billions of gas
+  stockVolumeMM: { family: 'liquidVolume', engine: 'STB', view: (c) => (metricLiquid(c) ? '10^6 m3' : 'MMSTB') },
+  gasVolumeB: { family: 'gasVolume', engine: 'scf', view: (c) => (metricGas(c) ? '10^9 m3' : 'Bscf') },
   // the same, typed in millions (the aquifer water in place)
   resVolumeMM: { family: 'liquidVolume', engine: 'RB', view: (c) => (metricLiquid(c) ? '10^6 m3' : 'MMRB') },
   gasVolume: { family: 'gasVolume', engine: 'scf', view: (c) => (metricGas(c) ? 'm3' : 'scf') },
@@ -61,6 +64,10 @@ const QUANTITIES = Object.freeze({
   // the gas expansion terms Eg, Efw and Et of a gas case are per scf
   expansionGas: { family: 'fvfGas', engine: 'RB/scf', view: (c) => (metricGas(c) ? 'm3/m3' : 'RB/scf') },
   gor: { family: 'gor', engine: 'scf/STB', view: (c) => (metricLiquid(c) || metricGas(c) ? 'm3/m3' : 'scf/STB') },
+  resRate: { family: 'liquidRate', engine: 'RB/d', view: (c) => (metricLiquid(c) ? 'm3/d' : 'RB/d') },
+  oilRate: { family: 'liquidRate', engine: 'STB/d', view: (c) => (metricLiquid(c) ? 'm3/d' : 'STB/d') },
+  gasRate: { family: 'gasRate', engine: 'scf/d', view: (c) => (metricGas(c) ? 'm3/d' : 'scf/d') },
+  gasRateK: { family: 'gasRate', engine: 'scf/d', view: (c) => (metricGas(c) ? '10^3 m3/d' : 'Mscf/d') },
   compressibility: { family: 'compressibility', engine: '1/psi', view: (c) => c.compressibility },
   depth: { family: 'depth', engine: 'ft', view: (c) => c.depth },
   viscosity: { family: 'viscosity', engine: 'cP', view: (c) => c.viscosity },
@@ -81,11 +88,17 @@ const LABELS = Object.freeze({
   stockVolume: { STB: 'STB', MSTB: 'MSTB', MMSTB: 'MMSTB', m3: 'sm3', '10^3 m3': '10^3 sm3', '10^6 m3': '10^6 sm3' },
   resVolume: { RB: 'RB', MRB: 'MRB', MMRB: 'MMRB', m3: 'rm3', '10^3 m3': '10^3 rm3', '10^6 m3': '10^6 rm3' },
   resVolumeMM: { MMRB: 'MMRB', '10^6 m3': '10^6 rm3' },
+  stockVolumeMM: { MMSTB: 'MMSTB', '10^6 m3': '10^6 sm3' },
+  gasVolumeB: { Bscf: 'Bscf', '10^9 m3': '10^9 sm3' },
   gasVolume: { scf: 'scf', Mscf: 'Mscf', MMscf: 'MMscf', Bscf: 'Bscf', m3: 'sm3', '10^3 m3': '10^3 sm3', '10^6 m3': '10^6 sm3', '10^9 m3': '10^9 sm3' },
   fvfOil: { 'RB/STB': 'RB/STB', 'm3/m3': 'rm3/sm3' },
   fvfGas: { 'RB/Mscf': 'RB/Mscf', 'm3/m3': 'rm3/sm3' },
   expansionGas: { 'RB/scf': 'RB/scf', 'm3/m3': 'rm3/sm3' },
   gor: { 'scf/STB': 'scf/STB', 'm3/m3': 'sm3/sm3' },
+  resRate: { 'RB/d': 'RB/d', 'm3/d': 'rm3/d' },
+  oilRate: { 'STB/d': 'STB/d', 'm3/d': 'sm3/d' },
+  gasRate: { 'scf/d': 'scf/d', 'm3/d': 'sm3/d' },
+  gasRateK: { 'Mscf/d': 'Mscf/d', '10^3 m3/d': '10^3 sm3/d' },
   aquiferIndex: { 'RB/d/psi': 'RB/d/psi', 'm3/d/kPa': 'rm3/d/kPa', 'm3/d/bar': 'rm3/d/bar' },
 });
 

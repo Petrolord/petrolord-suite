@@ -16,7 +16,6 @@ import {
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
@@ -28,18 +27,20 @@ import {
   applicableParameters,
   buildHistoryMatchRequest,
 } from '@/pages/apps/reservoir-balance/lib/historyMatchParams';
-import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { historyMatchBlock, fmt } from '@/pages/apps/reservoir-balance/lib/reportModel';
+import UnitField from './UnitField';
 
-const fmtValue = (key, v) => {
-  if (v == null || !Number.isFinite(v)) return EMPTY_VALUE;
-  if (key === 'ogip_scf') return `${(v / 1e9).toLocaleString('en-US', { maximumFractionDigits: 2 })} Bcf`;
-  if (key === 'stoiip_stb') return `${(v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 2 })} MM STB`;
-  if (key === 'aquifer_w_rb') return `${(v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 1 })} MM rb`;
-  if (key === 'gas_cap_m') return v.toLocaleString('en-US', { maximumFractionDigits: 3 });
-  return v.toLocaleString('en-US', { maximumFractionDigits: v >= 100 ? 0 : 2 });
+// The starting value of each parameter is typed in the display unit and
+// held in the engine unit (lib/mbalUnits.js); a parameter with no entry here
+// has no unit.
+const GUESS_QUANTITY = {
+  stoiip_stb: 'stockVolumeMM',
+  ogip_scf: 'gasVolumeB',
+  aquifer_w_rb: 'resVolumeMM',
+  aquifer_j_rb_d_psi: 'aquiferIndex',
+  aquifer_radius_ft: 'depth',
 };
-
-const fmtPsi = (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : `${v.toLocaleString('en-US', { maximumFractionDigits: 1 })} psi`);
+const GUESS_UNIT_TEXT = { gas_cap_m: 'fraction', aquifer_permeability_md: 'mD' };
 
 const Kpi = ({ label, value, hint }) => (
   <div className="border border-pl-border rounded-md p-3 bg-pl-sunken">
@@ -51,7 +52,7 @@ const Kpi = ({ label, value, hint }) => (
 
 const HistoryMatch = () => {
   const {
-    caseId, caseData, lastResult, running, handleHistoryMatch, runStaleness,
+    caseId, caseData, lastResult, running, handleHistoryMatch, runStaleness, units,
   } = useMaterialBalanceStudio();
   // H4: a match made before an input changed keeps its numbers on screen
   // and loses its status words.
@@ -117,11 +118,14 @@ const HistoryMatch = () => {
     return hm.observed_pressure_psia.map((obs, i) => ({
       step: i,
       date: hm.observation_date?.[i] ?? null,
-      observed: obs,
-      simulated: hm.simulated_pressure_psia[i],
-      residual: hm.residual_psi[i],
+      observed: units.to('pressure', obs),
+      simulated: units.to('pressure', hm.simulated_pressure_psia[i]),
+      residual: units.to('dp', hm.residual_psi[i]),
     }));
-  }, [hm]);
+  }, [hm, units]);
+  // the matched parameters as the report prints them (one builder, RL12)
+  const block = useMemo(() => (hm ? historyMatchBlock({ result: lastResult, units }) : null), [hm, lastResult, units]);
+  const fmtDp = (v) => (v == null || !Number.isFinite(v) ? '' : `${fmt(units.to('dp', v), 2)} ${units.label('dp')}`);
 
   return (
     <div className="space-y-4">
@@ -148,7 +152,7 @@ const HistoryMatch = () => {
                 return (
                   <div
                     key={p.key}
-                    className="grid grid-cols-[auto_1fr_180px] items-center gap-3 border border-pl-border rounded-md px-3 py-2"
+                    className="grid grid-cols-[auto_1fr] sm:grid-cols-[auto_1fr_200px] items-center gap-3 border border-pl-border rounded-md px-3 py-2"
                   >
                     <input
                       type="checkbox"
@@ -159,19 +163,23 @@ const HistoryMatch = () => {
                     />
                     <div>
                       <p className="text-sm text-pl-text">
-                        {p.label} <span className="text-pl-muted">({p.unit})</span>
+                        {p.label} <span className="text-pl-muted">({GUESS_QUANTITY[p.key] ? units.label(GUESS_QUANTITY[p.key]) : (GUESS_UNIT_TEXT[p.key] ?? p.unit)})</span>
                       </p>
                       <p className="text-[11px] text-pl-muted">
                         {sel.checked ? 'Fitted by the match.' : 'Held at the starting value.'}
                         {p.guessSource && ` Start seeded from ${p.guessSource}.`}
                       </p>
                     </div>
-                    <Input
-                      value={sel.guess}
-                      onChange={(e) => updateSelection(p.key, { guess: e.target.value })}
-                      placeholder="engine derived"
-                      className="h-8 text-right font-mono text-xs"
-                    />
+                    <div className="col-span-2 sm:col-span-1">
+                      <UnitField
+                        bare label={`Starting value of ${p.label}`} quantity={GUESS_QUANTITY[p.key] ?? null} units={units}
+                        testId={`mbal-hm-guess-${p.key}`}
+                        value={sel.guess === '' ? null : Number(sel.guess)}
+                        onCommit={(v) => updateSelection(p.key, { guess: v == null ? '' : String(v) })}
+                        placeholder="blank: from the regression"
+                        inputClassName="text-right"
+                      />
+                    </div>
                   </div>
                 );
               })}
@@ -229,8 +237,8 @@ const HistoryMatch = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Kpi label="RMS pressure error" value={fmtPsi(hm.rms_error_psi)} />
-              <Kpi label="Largest miss" value={fmtPsi(hm.max_abs_error_psi)} />
+              <Kpi label="RMS pressure error" value={fmtDp(hm.rms_error_psi)} />
+              <Kpi label="Largest miss" value={fmtDp(hm.max_abs_error_psi)} />
               <Kpi label="Iterations" value={hm.iterations} />
               <Kpi
                 label="Status"
@@ -248,26 +256,13 @@ const HistoryMatch = () => {
                     <th className="text-right py-1.5 pl-3 font-medium">95% confidence</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {(hm.matched_parameters ?? []).map((p) => (
-                    <tr key={p.key} className="border-b border-pl-border">
-                      <td className="py-1.5 pr-3 text-pl-text">
-                        {p.label}
-                        {p.at_bound && (
-                          <span className="ml-2 text-pl-warning-text">at bound</span>
-                        )}
-                      </td>
-                      <td className="py-1.5 px-3 text-right font-mono text-pl-muted">
-                        {fmtValue(p.key, p.initial_value)}
-                      </td>
-                      <td className="py-1.5 px-3 text-right font-mono text-pl-text">
-                        {fmtValue(p.key, p.matched_value)}
-                      </td>
-                      <td className="py-1.5 pl-3 text-right font-mono text-pl-muted">
-                        {p.ci95_low != null && p.ci95_high != null
-                          ? `${fmtValue(p.key, p.ci95_low)} to ${fmtValue(p.key, p.ci95_high)}`
-                          : EMPTY_VALUE}
-                      </td>
+                <tbody data-testid="mbal-hm-matched">
+                  {(block?.rows ?? []).map((row) => (
+                    <tr key={row[0]} className="border-b border-pl-border">
+                      <td className="py-1.5 pr-3 text-pl-text">{row[0]}</td>
+                      <td className="py-1.5 px-3 text-right font-mono text-pl-muted">{row[1]}</td>
+                      <td className="py-1.5 px-3 text-right font-mono text-pl-text">{row[2]}</td>
+                      <td className="py-1.5 pl-3 text-right font-mono text-pl-muted">{row[3]}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -292,20 +287,20 @@ const HistoryMatch = () => {
                     domain={['auto', 'auto']}
                     stroke={CHART_COLORS.axisLine}
                     tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                    label={{ value: 'Pressure (psia)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }}
+                    label={{ value: `Pressure (${units.label('pressure')})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }}
                   />
                   <YAxis
                     yAxisId="r"
                     orientation="right"
                     stroke={CHART_COLORS.axisLine}
                     tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                    label={{ value: 'Residual (psi)', angle: 90, position: 'insideRight', fill: CHART_COLORS.axisText, fontSize: 11 }}
+                    label={{ value: `Measured minus simulated (${units.label('dp')})`, angle: 90, position: 'insideRight', fill: CHART_COLORS.axisText, fontSize: 11 }}
                   />
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
                     labelStyle={{ color: CHART_COLORS.tooltipText }}
                     formatter={(v, name) => [
-                      name === 'Residual' ? fmtPsi(v) : `${Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })} psia`,
+                      name === 'Residual' ? `${fmt(Number(v), 2)} ${units.label('dp')}` : `${fmt(Number(v), 1)} ${units.label('pressure')}`,
                       name,
                     ]}
                     labelFormatter={(step) => {

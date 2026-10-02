@@ -23,7 +23,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Droplet, Wind, Layers } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { createCase, updateCase } from '@/pages/apps/reservoir-balance/lib/api';
+import { createCase, updateCase, upsertCaseDefaultConfig } from '@/pages/apps/reservoir-balance/lib/api';
+import { useMaterialBalanceStudio } from '@/contexts/MaterialBalanceStudioContext';
+import { emptyStudy, withStudy, DEFAULT_CORRELATIONS } from '@/pages/apps/reservoir-balance/lib/studyMeta';
+import UnitField from './UnitField';
 
 export const FLUID_SYSTEM_OPTIONS = [
   { value: 'oil', label: 'Oil reservoir', icon: Droplet, color: 'text-pl-primary-text' },
@@ -47,15 +50,22 @@ const EMPTY_FORM = {
   fluid_system: 'oil',
   initial_pressure_psia: '',
   reservoir_temperature_f: '',
-  initial_water_saturation: '0.20',
+  initial_water_saturation: '',
   bubble_point_psia: '',
+  volumetric_estimate: '',
+  volumetric_estimate_source: '',
 };
+
+// the form holds engine units as text; a field hands back a number or null
+const numText = (v) => (v == null ? '' : String(v));
+const numOf = (v) => (v === '' || v == null || !Number.isFinite(Number(v)) ? null : Number(v));
 
 // editCase (Material Balance T1): the same form edits an existing case's
 // name and initial conditions; they had no editor once created (the
 // "Overview tab" the studio pointed to no longer exists).
-const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill, editCase = null, onSaved }) => {
+const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill, handoffs = null, editCase = null, onSaved }) => {
   const { toast } = useToast();
+  const { units } = useMaterialBalanceStudio();
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
 
@@ -72,6 +82,8 @@ const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill, editCase = null
         fluid_system: editCase.fluid_system || 'oil', initial_pressure_psia: str(editCase.initial_pressure_psia),
         reservoir_temperature_f: str(editCase.reservoir_temperature_f), initial_water_saturation: str(editCase.initial_water_saturation),
         bubble_point_psia: str(editCase.bubble_point_psia),
+        volumetric_estimate: str(editCase.fluid_system === 'gas' ? editCase.volumetric_ogip_scf : editCase.volumetric_ooip_stb),
+        volumetric_estimate_source: editCase.volumetric_estimate_source || '',
       });
     }
   }, [open, editCase]);
@@ -80,14 +92,14 @@ const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill, editCase = null
     setForm((f) => ({ ...f, [key]: e?.target?.value ?? e }));
   };
 
+  const swi = numOf(form.initial_water_saturation);
+  const swiError = form.initial_water_saturation !== '' && !(swi >= 0 && swi < 1) ? 'A fraction from 0 to below 1.' : null;
+  const isGasForm = form.fluid_system === 'gas';
   const isValid =
     form.name.trim().length > 0 &&
-    form.initial_pressure_psia !== '' &&
-    !isNaN(parseFloat(form.initial_pressure_psia)) &&
-    form.reservoir_temperature_f !== '' &&
-    !isNaN(parseFloat(form.reservoir_temperature_f)) &&
-    form.initial_water_saturation !== '' &&
-    !isNaN(parseFloat(form.initial_water_saturation));
+    numOf(form.initial_pressure_psia) > 0 &&
+    numOf(form.reservoir_temperature_f) != null &&
+    swi != null && !swiError;
 
   const handleSubmit = async () => {
     if (!isValid) return;
@@ -100,12 +112,14 @@ const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill, editCase = null
       fluid_system: form.fluid_system,
       ...(editCase ? {} : { has_aquifer: false }), // default; user toggles in the Aquifer tab
       has_gas_cap: form.fluid_system === 'oil_with_gas_cap',
-      initial_pressure_psia: parseFloat(form.initial_pressure_psia),
-      reservoir_temperature_f: parseFloat(form.reservoir_temperature_f),
-      initial_water_saturation: parseFloat(form.initial_water_saturation),
-      bubble_point_psia: form.bubble_point_psia
-        ? parseFloat(form.bubble_point_psia)
-        : null,
+      initial_pressure_psia: numOf(form.initial_pressure_psia),
+      reservoir_temperature_f: numOf(form.reservoir_temperature_f),
+      initial_water_saturation: swi,
+      bubble_point_psia: isGasForm ? null : numOf(form.bubble_point_psia),
+      // the volumetric estimate is printed beside the material balance in the report
+      volumetric_ooip_stb: isGasForm ? null : numOf(form.volumetric_estimate),
+      volumetric_ogip_scf: isGasForm ? numOf(form.volumetric_estimate) : null,
+      volumetric_estimate_source: form.volumetric_estimate_source.trim() || null,
     };
 
     if (editCase) {
@@ -115,7 +129,7 @@ const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill, editCase = null
         toast({ title: 'Failed to save the case', description: error.message, variant: 'destructive' });
         return;
       }
-      toast({ title: 'Case saved', description: 'Run the material balance again to use the new initial conditions.' });
+      toast({ title: 'Case saved', description: 'A change of the fluid system or the initial conditions needs a new run. A new name does not.' });
       onOpenChange(false);
       onSaved?.(data);
       return;
@@ -131,6 +145,11 @@ const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill, editCase = null
         variant: 'destructive',
       });
       return;
+    }
+
+    // a value that came from another app is recorded with the case (RL11)
+    if (handoffs && Object.keys(handoffs).length) {
+      await upsertCaseDefaultConfig(data.id, { pvt_correlations: withStudy({ ...DEFAULT_CORRELATIONS }, { ...emptyStudy(), handoffs }) });
     }
 
     toast({
@@ -149,7 +168,7 @@ const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill, editCase = null
           <DialogTitle>{editCase ? 'Edit case' : 'New Material Balance Case'}</DialogTitle>
           <DialogDescription>
             {editCase
-              ? 'Change the name and the initial conditions. Runs already made keep their results; run again to use the new values.'
+              ? 'Change the name, the identification and the initial conditions. A change of an initial condition needs a new run.'
               : 'Define a new material balance study. You can edit any of these fields later from the case card (Edit case).'}
           </DialogDescription>
         </DialogHeader>
@@ -204,54 +223,29 @@ const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill, editCase = null
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="pi">Initial pressure (psia) *</Label>
-              <Input
-                id="pi"
-                type="number"
-                placeholder="e.g. 4500"
-                value={form.initial_pressure_psia}
-                onChange={update('initial_pressure_psia')}
-              />
-            </div>
-            <div>
-              <Label htmlFor="temp">Temperature (°F) *</Label>
-              <Input
-                id="temp"
-                type="number"
-                placeholder="e.g. 180"
-                value={form.reservoir_temperature_f}
-                onChange={update('reservoir_temperature_f')}
-              />
-            </div>
+            <UnitField id="pi" testId="mbal-case-pi" label="Initial pressure" quantity="pressure" units={units} required
+              value={numOf(form.initial_pressure_psia)} onCommit={(v) => setForm((f) => ({ ...f, initial_pressure_psia: numText(v) }))}
+              placeholder={units.unit('pressure') === 'psi' ? 'e.g. 4500' : undefined}
+              hint="Absolute pressure. The first data row must hold the same pressure." />
+            <UnitField id="temp" testId="mbal-case-temp" label="Reservoir temperature" quantity="temperature" units={units} required
+              value={numOf(form.reservoir_temperature_f)} onCommit={(v) => setForm((f) => ({ ...f, reservoir_temperature_f: numText(v) }))}
+              placeholder={units.unit('temperature') === 'degF' ? 'e.g. 180' : undefined} />
 
-            <div>
-              <Label htmlFor="swi">Initial water saturation *</Label>
-              <Input
-                id="swi"
-                type="number"
-                step="0.01"
-                min="0"
-                max="1"
-                value={form.initial_water_saturation}
-                onChange={update('initial_water_saturation')}
-              />
-            </div>
-            <div>
-              <Label htmlFor="pb">
-                Bubble point (psia){' '}
-                <span className="text-xs text-muted-foreground">
-                  {form.fluid_system === 'gas' ? '(not applicable)' : '(optional)'}
-                </span>
-              </Label>
-              <Input
-                id="pb"
-                type="number"
-                placeholder="e.g. 3200"
-                value={form.bubble_point_psia}
-                onChange={update('bubble_point_psia')}
-                disabled={form.fluid_system === 'gas'}
-              />
+            <UnitField id="swi" testId="mbal-case-swi" label="Initial water saturation" unitText="fraction" required
+              value={numOf(form.initial_water_saturation)} onCommit={(v) => setForm((f) => ({ ...f, initial_water_saturation: numText(v) }))}
+              placeholder="e.g. 0.20" error={swiError} />
+            <UnitField id="pb" testId="mbal-case-pb" label={isGasForm ? 'Bubble point (does not apply to gas)' : 'Bubble point (optional)'} quantity="pressure" units={units}
+              value={isGasForm ? null : numOf(form.bubble_point_psia)} onCommit={(v) => setForm((f) => ({ ...f, bubble_point_psia: numText(v) }))}
+              disabled={isGasForm} placeholder={isGasForm ? '' : 'blank: the initial pressure'} />
+
+            <UnitField id="vol" testId="mbal-case-volumetric" label={isGasForm ? 'Volumetric gas in place (optional)' : 'Volumetric oil in place (optional)'}
+              quantity={isGasForm ? 'gasVolumeB' : 'stockVolumeMM'} units={units}
+              value={numOf(form.volumetric_estimate)} onCommit={(v) => setForm((f) => ({ ...f, volumetric_estimate: numText(v) }))}
+              hint="Printed in the report beside the material balance value. It does not enter the calculation." />
+            <div className="space-y-1.5">
+              <Label htmlFor="volsrc" className="text-xs text-pl-text">Source of the volumetric estimate</Label>
+              <Input id="volsrc" className="h-9" placeholder="e.g. ReservoirCalc Pro, 2026 map" value={form.volumetric_estimate_source}
+                onChange={update('volumetric_estimate_source')} data-testid="mbal-case-volumetric-source" />
             </div>
           </div>
         </div>

@@ -55,6 +55,9 @@ export const PRESSURE_BASES = Object.freeze({
   average: 'Field average, already at datum',
 });
 
+/** The fields of the contact geometry, as the study record keeps them. */
+export const CONTACT_FIELDS = Object.freeze(['initial_owc_ft', 'initial_goc_ft', 'area_owc_acres', 'area_goc_acres', 'porosity', 'sor_water', 'sor_gas']);
+
 const isRecord = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const text = (v) => (v == null ? '' : String(v).trim());
 const num = (v) => {
@@ -69,6 +72,8 @@ export const emptyStudy = () => ({
   identification: { company: '', licence: '', zone: '', analyst: '' },
   datum: { datum_depth_ft: null, gauge_depth_ft: null, reference: 'TVDSS', basis: '', note: '' },
   inputMeta: {},
+  // the contact geometry of the Contacts tab (depths in ft, areas in acres, fractions)
+  contacts: { initial_owc_ft: null, initial_goc_ft: null, area_owc_acres: null, area_goc_acres: null, porosity: null, sor_water: null, sor_gas: null },
   // values that arrived from another app: { <input key>: { app, record, value, at, text } }
   handoffs: {},
 });
@@ -93,6 +98,8 @@ export function readStudy(cfg) {
     note: text(d.note),
   };
   out.inputMeta = deserializeProvenance(raw.inputMeta);
+  const c = isRecord(raw.contacts) ? raw.contacts : {};
+  for (const key of CONTACT_FIELDS) out.contacts[key] = num(c[key]);
   if (isRecord(raw.handoffs)) {
     for (const [key, h] of Object.entries(raw.handoffs)) {
       if (!isRecord(h)) continue;
@@ -113,12 +120,15 @@ export function serializeStudy(study) {
   if (s.datum?.reference && s.datum.reference !== 'TVDSS') datum.reference = s.datum.reference;
   if (s.datum?.basis) datum.basis = s.datum.basis;
   if (text(s.datum?.note)) datum.note = text(s.datum.note);
+  const contacts = {};
+  for (const key of CONTACT_FIELDS) if (num(s.contacts?.[key]) != null) contacts[key] = num(s.contacts[key]);
   const handoffs = {};
   for (const [key, h] of Object.entries(isRecord(s.handoffs) ? s.handoffs : {})) {
     if (isRecord(h) && text(h.app)) handoffs[key] = { app: text(h.app), record: text(h.record), value: num(h.value), at: text(h.at), text: text(h.text) };
   }
   return {
     v: STUDY_VERSION, identification, datum, inputMeta: serializeProvenance(s.inputMeta),
+    ...(Object.keys(contacts).length ? { contacts } : {}),
     ...(Object.keys(handoffs).length ? { handoffs } : {}),
   };
 }

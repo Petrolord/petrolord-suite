@@ -357,7 +357,6 @@ const ImportDoor = ({ read, choices, setChoices, fileName, units }) => {
           </summary>
           <ul className="mt-1 space-y-0.5 list-disc pl-5">
             {[...rowSkips, ...cellSkips].slice(0, 40).map((s, i) => (
-              // eslint-disable-next-line react/no-array-index-key
               <li key={i}>Line {s.line}: {s.reason}.</li>
             ))}
             {rowSkips.length + cellSkips.length > 40 && <li>and {rowSkips.length + cellSkips.length - 40} more.</li>}
@@ -726,7 +725,6 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                     Problems that stop the save ({validationErrors.length})
                   </p>
                   {validationErrors.map((err, i) => (
-                    // eslint-disable-next-line react/no-array-index-key
                     <p key={i} className="text-xs text-pl-danger-text flex items-start gap-2">
                       <X className="w-3 h-3 flex-shrink-0 mt-0.5" />
                       <span>{err.message}</span>
@@ -775,7 +773,7 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                         {visibleCols.map(({ col, label, unitLabel }) => (
                           <TableHead
                             key={col}
-                            className="text-xs text-pl-muted font-semibold py-2 whitespace-nowrap"
+                            className="text-xs text-pl-muted font-semibold py-2 whitespace-nowrap normal-case"
                           >
                             {label}
                             {unitLabel && (
@@ -790,7 +788,6 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                     <TableBody>
                       {visibleRows.map((r, i) => (
                         <TableRow
-                          // eslint-disable-next-line react/no-array-index-key
                           key={i}
                           className="border-pl-border hover:bg-pl-sunken"
                         >

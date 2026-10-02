@@ -286,7 +286,6 @@ const RunPanel = () => {
                 <AlertDescription>
                   <ul className="list-disc pl-5 mt-2 space-y-1 text-xs">
                     {lastResult.warnings.map((w2, idx) => (
-                      // eslint-disable-next-line react/no-array-index-key
                       <li key={idx}>{w2}</li>
                     ))}
                   </ul>
@@ -329,6 +328,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
   const [newCaseOpen, setNewCaseOpen] = useState(false);
   const [editCaseOpen, setEditCaseOpen] = useState(false);
   const [newCasePrefill, setNewCasePrefill] = useState(null);
+  const [newCaseHandoffs, setNewCaseHandoffs] = useState(null);
   // Aquifer tab segment (MB4): server model config vs client screening.
   const [aquiferSegment, setAquiferSegment] = useState('model');
   // Run tab segment (MB5): regression vs pressure history match.
@@ -344,12 +344,14 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
     if (!mapped || wtIntakeDone.current) return;
     wtIntakeDone.current = true;
     setNewCasePrefill(mapped.prefill);
+    setNewCaseHandoffs(mapped.handoffs ?? null);
     setNewCaseOpen(true);
     toast({ title: 'Well test results received', description: mapped.note });
   }, [location.state, toast]);
 
   const openCreate = () => {
     setNewCasePrefill(null);
+    setNewCaseHandoffs(null);
     setNewCaseOpen(true);
   };
 
@@ -489,6 +491,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
         onOpenChange={setNewCaseOpen}
         onCreated={handleCaseCreated}
         prefill={newCasePrefill}
+        handoffs={newCaseHandoffs}
       />
       <NewCaseDialog
         open={editCaseOpen}
