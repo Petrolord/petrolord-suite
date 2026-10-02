@@ -159,6 +159,11 @@ What the source application handed over and when. A value changed on this screen
 table.
 
 
+Handoff from Petroleum Economics Studio
+None: no Petroleum Economics Studio case was received for this prospect. The value per barrel and the development cost come from the source
+stated on their rows of the inputs table.
+
+
 Chance of success
  Factor                                                   Chance (fraction)                                     Chance (%)
 

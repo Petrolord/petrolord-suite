@@ -106,6 +106,9 @@ export default function RrvReportPanel({ model, prospect, readOnly = false, ownS
       {model.handoff
         ? <Table testId="rrv-report-handoff" title="Handoff from ReservoirCalc Pro" head={['Item', 'As recorded']} body={model.handoff} />
         : <div className={card} data-testid="rrv-report-handoff"><div className={h}>Handoff from ReservoirCalc Pro</div><p className="text-xs text-pl-muted">None: this prospect was typed in Risked Reserves Valuation.</p></div>}
+      {model.epeHandoff
+        ? <Table testId="rrv-report-epe" title="Handoff from Petroleum Economics Studio" head={['Item', 'As recorded']} body={model.epeHandoff} />
+        : <div className={card} data-testid="rrv-report-epe"><div className={h}>Handoff from Petroleum Economics Studio</div><p className="text-xs text-pl-muted">None: no Petroleum Economics Studio case was received for this prospect.</p></div>}
       {model.chance.rows
         ? <Table testId="rrv-report-chance" title="Chance of success" head={['Factor', 'Chance (fraction)', 'Chance (%)']} body={model.chance.rows} note={model.chance.note} />
         : <div className={card} data-testid="rrv-report-chance"><div className={h}>Chance of success</div><p className="text-xs text-pl-muted">{model.chance.statement}</p></div>}

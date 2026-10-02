@@ -11,7 +11,7 @@ import RrvWorkstation from '../components/RrvWorkstation';
 import { makeInMemoryRrvBackend } from '../services/rrvBackend';
 import { RRV_STORE_KEY, fromRcpProspect } from '../services/rrvStore';
 import { derivedMefs, ECON_MODEL_DEFAULTS } from '../services/rrvEconomics';
-import { RRV_SEED_PROSPECTS } from '../services/rrvFixtures';
+import { RRV_SEED_PROSPECTS, RRV_EPE_RUNS } from '../services/rrvFixtures';
 
 jest.mock('recharts', () => {
   const R = jest.requireActual('recharts');
@@ -141,5 +141,136 @@ describe('U2-002: the Economics tab', () => {
     expect(el('rrv-value-basis-model').disabled).toBe(true);
     expect(el('rrv-model-price').disabled).toBe(true);
     expect(fromRcpProspect({ id: 'x', ...RRV_SEED_PROSPECTS[0] }).econ.value).toBe('model');
+  });
+});
+
+describe('U2-001: the value per barrel from Petroleum Economics Studio', () => {
+  const withEpe = () => makeInMemoryRrvBackend(RRV_SEED_PROSPECTS, { epeRuns: RRV_EPE_RUNS });
+
+  test('pick a saved run by id: its value per barrel and capex are received, named, and the MEFS follows', async () => {
+    const backend = withEpe();
+    mount(backend);
+    await settled();
+    await importAll();
+    // before any handoff the screen names no such source
+    expect(text('rrv-unit-value-source')).toMatch(/No Petroleum Economics Studio case is in use for this prospect/);
+    fireEvent.click(el('rrv-tab-economics'));
+    expect(el('rrv-epe').getAttribute('data-state')).toBe('none');
+    expect(el('rrv-value-basis-epe').disabled).toBe(true); // nothing received yet
+    fireEvent.click(el('rrv-epe-pick'));
+    await waitFor(() => expect(el('rrv-epe-list')).toBeTruthy());
+    expect(text('rrv-epe-row-epe-run-1')).toMatch(/Ekene North development.*Base deck, 10%.*2026-10-01.*"Corporate base 2026": oil 72 \$\/bbl.*10% real, end-year discounting.*5\.56.*12\.67.*320\.0/);
+    expect(text('rrv-epe-row-epe-run-3')).toMatch(/Cannot be used: This run has no results\./);
+    expect(screen.queryByTestId('rrv-epe-use-epe-run-3')).toBeNull();
+    fireEvent.click(el('rrv-epe-use-epe-run-1'));
+    expect(el('rrv-value-basis').getAttribute('data-value')).toBe('epe');
+    expect(el('rrv-unitValue-Ekene North').value).toBe('12.6667');
+    expect(el('rrv-unitValue-Ekene North').getAttribute('data-basis')).toBe('received');
+    expect(el('rrv-devCost-Ekene North').value).toBe('320');
+    expect(el('rrv-mefs-Ekene North').value).toBe(shown(320 / (570 / 45)));
+    expect(text('rrv-epe-status')).toMatch(/In use: run "Base deck, 10%" of case "Ekene North development", received \d{4}-\d\d-\d\d\./);
+    expect(text('rrv-epe-source-now')).toBe('The run is unchanged since its value was received.');
+    expect(text('rrv-epe-handoff')).toMatch(/Price deck"Corporate base 2026": oil 72 \$\/bbl, gas 3\.5 \$\/Mscf, condensate 68 \$\/bbl/);
+    expect(text('rrv-epe-handoff')).toMatch(/Discount rate10% real, end-year discounting/);
+    expect(text('rrv-epe-handoff')).toMatch(/Engine buildPetroleum Economics Studio cash-flow engine 3\.12\.0/);
+    expect(text('rrv-status')).toMatch(/Ekene North now takes its value per barrel and development cost from Petroleum Economics Studio run "Base deck, 10%"/);
+    // the readout on the Valuation tab and the Report tab say the same
+    fireEvent.click(el('rrv-tab-valuation'));
+    expect(text('rrv-unit-value-source')).toMatch(/received from Petroleum Economics Studio run "Base deck, 10%" of case "Ekene North development".*The run is unchanged since\./);
+    fireEvent.click(el('rrv-tab-report'));
+    expect(text('rrv-report-epe')).toMatch(/Source recordRun "Base deck, 10%" of case "Ekene North development" \(epe_runs epe-run-1\)/);
+    expect(text('rrv-report-epe')).toMatch(/Source record nowUnchanged since it was received/);
+    // the other prospect received nothing and says so
+    fireEvent.click(el('rrv-row-Ekene Deep'));
+    expect(text('rrv-report-epe')).toMatch(/None: no Petroleum Economics Studio case was received for this prospect/);
+  });
+
+  test('it survives a save and a reload, and a run that changed since is said, with Refresh', async () => {
+    const backend = withEpe();
+    mount(backend);
+    await settled();
+    await importAll();
+    fireEvent.click(el('rrv-tab-economics'));
+    fireEvent.click(el('rrv-epe-pick'));
+    await waitFor(() => el('rrv-epe-use-epe-run-1'));
+    fireEvent.click(el('rrv-epe-use-epe-run-1'));
+    fireEvent.click(el('rrv-save'));
+    await waitFor(() => expect(text('rrv-save-state')).toBe('Saved to your account'));
+    expect(backend._rows().find((r) => r.name === 'Ekene North').valuation.econ.epe).toMatchObject({ runId: 'epe-run-1', priceDeckName: 'Corporate base 2026', discountRatePct: 10 });
+    // Petroleum Economics Studio re-runs the case; a new browser opens the valuation from the account
+    backend._setEpeRun('epe-run-1', (r) => ({ ...r, resultsAt: '2026-10-03T08:00:00.000Z', kpis: { ...r.kpis, npv: 205e6 } }));
+    cleanup();
+    localStorage.clear();
+    mount(backend);
+    await settled();
+    await waitFor(() => expect(el('rrv-unitValue-Ekene North').value).toBe('12.6667'));
+    fireEvent.click(el('rrv-tab-economics'));
+    await waitFor(() => expect(el('rrv-epe').getAttribute('data-state')).toBe('changed'));
+    expect(text('rrv-epe-source-now')).toMatch(/The Petroleum Economics Studio run changed after its value was received \(value per barrel before capex 12\.6667 to 11\.6667/);
+    fireEvent.click(el('rrv-tab-valuation'));
+    expect(text('rrv-unit-value-source')).toMatch(/run changed after its value was received/);
+    fireEvent.click(el('rrv-tab-economics'));
+    fireEvent.click(el('rrv-epe-refresh'));
+    expect(el('rrv-unitValue-Ekene North').value).toBe('11.6667');
+    expect(el('rrv-epe').getAttribute('data-state')).toBe('current');
+    expect(text('rrv-save-state')).toMatch(/not saved to your account/);
+  });
+
+  test('typing over the received value leaves the case, says so, and it can be used again', async () => {
+    mount(withEpe());
+    await settled();
+    await importAll();
+    fireEvent.click(el('rrv-tab-economics'));
+    fireEvent.click(el('rrv-epe-pick'));
+    await waitFor(() => el('rrv-epe-use-epe-run-2'));
+    fireEvent.click(el('rrv-epe-use-epe-run-2'));
+    expect(text('rrv-epe-handoff')).toMatch(/Discount rate12% real/);
+    type('rrv-unitValue-Ekene North', '14');
+    expect(el('rrv-value-basis').getAttribute('data-value')).toBe('entered');
+    expect(el('rrv-epe').getAttribute('data-in-use')).toBe('false');
+    expect(text('rrv-epe-status')).toMatch(/no longer in use: the value per barrel or the development cost was changed here/);
+    fireEvent.click(el('rrv-tab-valuation'));
+    expect(text('rrv-unit-value-source')).toMatch(/entered on this screen \(Petroleum Economics Studio run "Low deck, 12%" sent 9\.02222 \$\/bbl, no longer in use\)/);
+    fireEvent.click(el('rrv-tab-economics'));
+    fireEvent.click(el('rrv-epe-use-again'));
+    expect(el('rrv-unitValue-Ekene North').value).toBe('9.02222');
+    expect(el('rrv-value-basis-epe').checked).toBe(true);
+  });
+
+  test('the link from a Petroleum Economics Studio run (?epeRun=id) offers the run to the selected prospect', async () => {
+    mount(withEpe(), '/?epeRun=epe-run-2');
+    await settled();
+    await importAll();
+    await waitFor(() => expect(el('rrv-epe-offer')).toBeTruthy());
+    expect(text('rrv-link-note')).toMatch(/Petroleum Economics Studio sent run "Low deck, 12%"\. Select the prospect it values, then use it on the Economics tab\./);
+    expect(text('rrv-epe-offer')).toMatch(/Sent from Petroleum Economics Studio: run "Low deck, 12%" of case "Ekene North development", 9\.02222 \$\/boe before capex, development 310 \$MM, 12% real, end-year discounting/);
+    fireEvent.click(el('rrv-epe-offer-use'));
+    expect(el('rrv-unitValue-Ekene North').value).toBe('9.02222');
+    expect(screen.queryByTestId('rrv-epe-offer')).toBeNull();
+    expect(screen.queryByTestId('rrv-link-note')).toBeNull();
+    cleanup();
+    // a run that is not there says so and offers nothing
+    mount(withEpe(), '/?epeRun=nope');
+    await settled();
+    await waitFor(() => expect(text('rrv-link-note')).toMatch(/The Petroleum Economics Studio run in the link was not found on your account/));
+    expect(screen.queryByTestId('rrv-epe-offer')).toBeNull();
+  });
+
+  test('no runs, and a backend that cannot read them, are said plainly', async () => {
+    mount(makeInMemoryRrvBackend(RRV_SEED_PROSPECTS));
+    await settled();
+    await importAll();
+    fireEvent.click(el('rrv-tab-economics'));
+    fireEvent.click(el('rrv-epe-pick'));
+    await waitFor(() => expect(text('rrv-epe-list-empty')).toMatch(/You have no saved runs in Petroleum Economics Studio/));
+    cleanup();
+    const broken = makeInMemoryRrvBackend(RRV_SEED_PROSPECTS);
+    broken.listEpeCases = async () => { throw new Error('Could not read your Petroleum Economics Studio runs: permission denied'); };
+    mount(broken);
+    await settled();
+    await importAll();
+    fireEvent.click(el('rrv-tab-economics'));
+    fireEvent.click(el('rrv-epe-pick'));
+    await waitFor(() => expect(text('rrv-epe-list-error')).toMatch(/permission denied/));
   });
 });

@@ -5,6 +5,10 @@
 //   ?saved=1     one valuation already saved on the account
 //   ?shared=1    a colleague's shared prospect and shared valuation
 //   ?legacy=1    adds a prospect saved before units and the basis were recorded
+//   ?epe=off     no Petroleum Economics Studio runs to pick (the default has
+//                three: two that can be sent and one with no results)
+//   ?epeRun=id   as the link from a Petroleum Economics Studio run: the run
+//                is offered to the selected prospect on the Economics tab
 //   ?chain=1     ReservoirCalc Pro's own Prospect Risking panel above the
 //                workstation, on the SAME inventory: risk a prospect there,
 //                import it here (the chain the e2e walks)
@@ -15,7 +19,7 @@ import RrvWorkstation from './components/RrvWorkstation';
 import ProspectRiskingPanel from '../ReservoirCalcPro/components/tools/ProspectRiskingPanel';
 import { makeInMemoryRrvBackend } from './services/rrvBackend';
 import { fromRcpProspect, toRow } from './services/rrvStore';
-import { RRV_SEED_PROSPECTS, RRV_LEGACY_PROSPECT, CHAIN_RUN } from './services/rrvFixtures';
+import { RRV_SEED_PROSPECTS, RRV_LEGACY_PROSPECT, CHAIN_RUN, RRV_EPE_RUNS } from './services/rrvFixtures';
 
 export default function RiskedReservesHarness() {
   const backend = useMemo(() => {
@@ -24,7 +28,7 @@ export default function RiskedReservesHarness() {
     const saved = q.get('saved') === '1'
       ? [{ ...toRow({ ...fromRcpProspect({ id: 'prospect-1', ...RRV_SEED_PROSPECTS[0] }, { now: new Date('2026-10-02T15:00:00Z') }), mefs: 15, touched: { mefs: true }, ident: { company: 'Harness Energy', licence: 'OML 143', play: 'Agbada stacked sands', analyst: 'A. Analyst' } }), schema_version: 1, updated_at: '2026-10-02T15:01:00.000Z' }]
       : [];
-    const b = makeInMemoryRrvBackend(seed, { table: q.get('table') !== 'off', valuations: saved, sharedValuations: q.get('shared') === '1', sharedRows: q.get('shared') === '1' });
+    const b = makeInMemoryRrvBackend(seed, { table: q.get('table') !== 'off', valuations: saved, sharedValuations: q.get('shared') === '1', sharedRows: q.get('shared') === '1', epeRuns: q.get('epe') === 'off' ? [] : RRV_EPE_RUNS });
     if (typeof window !== 'undefined') window.__rrvHarness = b;
     return b;
   }, []);

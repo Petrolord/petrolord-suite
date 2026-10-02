@@ -16,6 +16,9 @@ import { supabaseSharingStore, makeHarnessSharing, colleagueShared } from '@/lib
 import { resolveUserOrgId } from '@/lib/orgContext';
 import { makeRegistryProspectsBackend, makeInMemoryProspectsBackend } from '../../ReservoirCalcPro/services/prospectsService';
 import { RRV_KIND, toRow, fromRcpProspect } from './rrvStore';
+import { buildEpeUnitValue } from '@/pages/apps/epe/epeUnitValue';
+import { listEpeUnitValues, getEpeUnitValue } from '@/pages/apps/epe/epeUnitValueService';
+import { buildLabel } from '@/lib/platformBuild';
 
 export const RRV_TABLE = 'rrv_valuations';
 
@@ -97,6 +100,10 @@ export function makeRegistryRrvBackend({ prospects = makeRegistryProspectsBacken
       if (error) gate(error, 'Could not delete the valuation');
       if (!data || !data.length) throw new Error('Only the owner can delete a valuation.');
     },
+    // U2-001: Petroleum Economics Studio runs as `epe-unit-value-1` contracts
+    // (the sender lives with that app: epe/epeUnitValue.js)
+    listEpeCases: () => listEpeUnitValues(supabase, { build: buildLabel() }),
+    getEpeCase: (runId) => getEpeUnitValue(supabase, runId, { build: buildLabel() }),
     /** The signed-in user's organisation name, for the report's Company line (editable there). */
     async organisationName() {
       try {
@@ -119,7 +126,13 @@ export function makeRegistryRrvBackend({ prospects = makeRegistryProspectsBacken
  * @param {{table?: boolean, valuations?: Array, sharedValuations?: boolean, organisation?: ?string,
  *   sharing?: object, sharedRows?: boolean}} [o]
  */
-export function makeInMemoryRrvBackend(seed = [], { table = true, valuations = [], sharedValuations = false, organisation = 'Harness Energy', sharing = makeHarnessSharing(), sharedRows = false } = {}) {
+export function makeInMemoryRrvBackend(seed = [], { table = true, valuations = [], sharedValuations = false, organisation = 'Harness Energy', sharing = makeHarnessSharing(), sharedRows = false, epeRuns = [] } = {}) {
+  // Petroleum Economics Studio runs as that app saves them: [{run, caseName, kpis, config, resultsAt}]
+  let epe = epeRuns.map((r) => ({ ...r }));
+  const epeSend = (r) => ({
+    runId: r.run.id, runName: r.run.run_name ?? null, caseName: r.caseName ?? null, runSavedAt: r.run.created_at ?? null,
+    ...buildEpeUnitValue({ run: r.run, caseName: r.caseName, kpis: r.kpis, config: r.config, resultsAt: r.resultsAt, build: 'harness' }),
+  });
   const prospects = makeInMemoryProspectsBackend(seed, { sharing, sharedRows });
   const T = RRV_TABLE;
   const ME = sharing.me;
@@ -176,6 +189,11 @@ export function makeInMemoryRrvBackend(seed = [], { table = true, valuations = [
       if (!data || !data.length) throw new Error('Only the owner can delete a valuation.');
     },
     async organisationName() { return organisation; },
+    async listEpeCases() { return epe.map(epeSend); },
+    async getEpeCase(runId) { const r = epe.find((x) => x.run.id === runId); return r ? epeSend(r) : null; },
+    /** test seams: Petroleum Economics Studio re-runs or deletes a run */
+    _setEpeRun(runId, change) { epe = epe.map((r) => (r.run.id === runId ? change(r) : r)); },
+    _removeEpeRun(runId) { epe = epe.filter((r) => r.run.id !== runId); },
     sharing: sharing.store,
     /** test seams */
     _sharing: sharing,

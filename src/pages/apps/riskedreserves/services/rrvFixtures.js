@@ -56,3 +56,37 @@ export const CHAIN_RUN = {
     recovery: { input: 28, effectiveMean: 0.28, distributed: false },
   },
 };
+
+/**
+ * Petroleum Economics Studio runs for the harness and the tests, in the
+ * shape that app saves (an epe_runs row, its case name, the KPIs of its
+ * epe_results row and its run configuration). The numbers are harness
+ * figures for a development of about 45 MMboe; the sender is also tested
+ * on a run the cash-flow engine itself computed (epe/__tests__/epeUnitValue).
+ */
+export const RRV_EPE_RUNS = [
+  {
+    run: { id: 'epe-run-1', case_id: 'epe-case-1', user_id: 'dev', run_name: 'Base deck, 10%', run_config_id: 'epe-cfg-1', created_at: '2026-10-01T09:00:00.000Z' },
+    caseName: 'Ekene North development',
+    resultsAt: '2026-10-01T09:00:07.000Z',
+    config: { id: 'epe-cfg-1', config_name: 'Corporate base 2026', oil_price_usd_bbl: 72, gas_price_usd_mscf: 3.5, condensate_price_usd_bbl: 68 },
+    kpis: {
+      engine_version: '3.12.0', npv: 250e6, total_boe: 45e6, pv_capex: 320e6, dpi: 250 / 320, discount_rate_applied_pct: 10, pv_basis: 'real',
+      discounting_convention: 'end_year', fiscal_regime: 'PIA', fiscal_framework: 'pia_only_then_nta_2025', working_interest_pct: 100,
+    },
+  },
+  {
+    run: { id: 'epe-run-2', case_id: 'epe-case-1', user_id: 'dev', run_name: 'Low deck, 12%', run_config_id: 'epe-cfg-2', created_at: '2026-10-01T09:30:00.000Z' },
+    caseName: 'Ekene North development',
+    resultsAt: '2026-10-01T09:30:06.000Z',
+    config: { id: 'epe-cfg-2', config_name: 'Low case 2026', oil_price_usd_bbl: 55, gas_price_usd_mscf: 3, condensate_price_usd_bbl: 52 },
+    kpis: {
+      engine_version: '3.12.0', npv: 96e6, total_boe: 45e6, pv_capex: 310e6, dpi: 96 / 310, discount_rate_applied_pct: 12, pv_basis: 'real',
+      discounting_convention: 'end_year', fiscal_regime: 'PIA', fiscal_framework: 'pia_only_then_nta_2025', working_interest_pct: 100,
+    },
+  },
+  {
+    run: { id: 'epe-run-3', case_id: 'epe-case-1', user_id: 'dev', run_name: 'Draft, not finished', run_config_id: 'epe-cfg-1', created_at: '2026-10-01T10:00:00.000Z' },
+    caseName: 'Ekene North development', resultsAt: null, config: null, kpis: null,
+  },
+];

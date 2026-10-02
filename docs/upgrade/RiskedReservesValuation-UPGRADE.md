@@ -282,6 +282,7 @@ valuation holds lives in its existing `valuation` JSON payload.
 | Item | State | Proving test | Notes |
 |---|---|---|---|
 | U2-002 derived MEFS and value by field size | Done | `__tests__/rrvU2Economics.test.js` (19): a worked hand calculation (model H: MEFS 5.5 MMboe, u 34.67137 $/boe, D 190.69252 $MM; with royalty and tax 8.97959; with a capex per barrel 6.37681) against the shipped functions, which call `calculateEconomics` (spied: one call per NPV, the case handed over is checked); negative controls (the undiscounted 5.0 and the old default 10 are not the size that pays; the Step 1 defaults give minus 20 at the MEFS); the cross-check integral against a brute-force sum. `rrvU2Store.test.js` (14), `rrvU2Report.test.js` (8, PDF read back, golden `model-prospect`), `rrvU2Workstation.test.jsx` (5) | See "U2-002" below. |
+| U2-001 value per barrel from Petroleum Economics Studio | Done | Sender: `src/pages/apps/epe/__tests__/epeUnitValue.test.js` (11): the contract built from the Ekene demo run the cash-flow engine itself computed (NPV 1.980235 $MM over 0.721833 MMboe is 2.7433 $/boe; before capex 18.3602 $/boe; the line gives the run NPV back at the run's size; the engine's own DPI agrees with the PV of capex read), refusals, the fingerprint, the service by id, the results-page card. Receiver: `__tests__/rrvU2Epe.test.js` (10, PDF read back) and `rrvU2Workstation.test.jsx` U2-001 block (5): pick by id, provenance kept, save and reload, "source changed since" with Refresh, typed over, the link from the run, no runs and an unreadable store | See "U2-001" below. Petroleum Economics Studio had no sender; one was built there. |
 
 ### U2-002: the derived MEFS and the value of a discovery
 
@@ -370,3 +371,91 @@ off, so it earns no tax relief: the derived MEFS is on the cautious side.
 This is printed under "Limits of this analysis". Changing it would move
 ReservoirCalc Pro's sent economics too, so it is an owner item, not done
 here.
+
+### U2-001: the value per barrel from Petroleum Economics Studio
+
+**There was no sender.** Petroleum Economics Studio saved runs and exported
+files; nothing published a value per barrel to another app (the H8 finding
+of the honesty sweep). A sender was built there, read-only, and that app's
+own numbers are untouched.
+
+**The contract `epe-unit-value-1`** (`src/pages/apps/epe/epeUnitValue.js`,
+documented in the file header; built by `buildEpeUnitValue`, read by id
+through `epeUnitValueService.js`):
+
+| Field | Meaning | Read from |
+|---|---|---|
+| `schema`, `app`, `table` | `epe-unit-value-1`, Petroleum Economics Studio, `epe_runs` | constants |
+| `runId`, `runName`, `runSavedAt` | the run that was sent | `epe_runs` |
+| `caseId`, `caseName` | its case | `epe_cases` |
+| `resultsAt` | when its results were written | `epe_results.created_at` |
+| `priceDeckName`, `prices` | the run configuration's name and its oil, gas and condensate prices | `epe_run_configs` |
+| `discountRatePct`, `pvBasis`, `discounting` | the rate, real or nominal, end-year or mid-year | `kpis.discount_rate_applied_pct`, `pv_basis`, `discounting_convention` |
+| `fiscalRegime`, `fiscalFramework`, `workingInterestPct` | the fiscal basis | `kpis` |
+| `engineVersion`, `sentBuild` | the cash-flow engine build that ran it; the Suite build that sent it | `kpis.engine_version`; `buildLabel()` |
+| `npvMM`, `totalMMboe` | the run NPV ($MM) and volume (MMboe, gas at 6 Mscf per boe as the engine counts it) | `kpis.npv`, `kpis.total_boe`, each divided by one million |
+| `npvPerBoe` | NPV per barrel, full cycle | `npv / total_boe` |
+| `pvCapexMM`, `split` | the present value of the run's capex, and whether it was recorded | `kpis.pv_capex` |
+| `unitValue`, `devCost` | what a field-size valuation reads: value(V) = unitValue x V - devCost | with the split: (`npv` + `pv_capex`) / `total_boe` and `pv_capex`; without: `npvPerBoe` and 0 |
+| `fingerprint` | changes when anything the run says changes (the sending build is not part of it) | FNV-1a over the fields above |
+
+A run with no results, no NPV, no volume, or a value before capex that is
+not positive is refused with the reason. Nothing is recomputed: the split is
+one addition and one division on the engine's own KPIs, and at the run's own
+size the line gives the run's NPV back (test). The engine's `dpi` (NPV over
+PV of capex) agrees with the PV of capex read (test).
+
+**Why the split.** The valuation engine values a discovery as u V - D. A
+full-cycle NPV per barrel already contains the capex, so using it with a
+development cost would count the capex twice (negative control in the
+test), and using it alone would make every size commercial. The split takes
+the case's capex as fixed and the rest of the case as proportional to
+volume: exact at the case's own size, an approximation elsewhere, and
+printed as that under "Limits of this analysis". The full-cycle NPV per
+barrel travels too and is printed.
+
+**The handoff here.** On the Economics tab the card "Petroleum Economics
+Studio case" lists the user's saved runs (case, run, date, price deck,
+discount rate, NPV per barrel, value before capex, capex), read by id from
+the account; a run that cannot be sent is listed with the reason. "Use"
+takes the run: the value per barrel and development cost become the value of
+a discovery (basis `epe`), the MEFS follows (D / u, unless typed), and the
+whole contract is kept in the valuation's `econ.epe` block with when and by
+which build it was received. So it survives a save and a reload (test), and
+is printed in the report: the two input rows name the run, and a section
+"Handoff from Petroleum Economics Studio" prints the run and case, the dates,
+the engine and sending builds, the price deck, the discount rate, the fiscal
+regime, the case NPV and volume, the NPV per barrel, the PV of capex, what
+was sent as u and D, how they are used, whether the case is still in use,
+and the state of the run now. The table "Value by field size" gains the row
+"The case" and the figure marks it.
+
+**Source changed since.** On load each run behind a valuation is read again
+by id and its fingerprint compared: unchanged, changed (with what moved, and
+Refresh), missing (deleted, or no longer shared), refused, or not readable.
+The sentence is shown on the Economics tab and the Valuation tab, printed in
+the handoff, and raises a flag in the report.
+
+**Honest status (H8 kept).** The app is named as the source only while a
+received case is the value in use. Before any handoff the screen says "No
+Petroleum Economics Studio case is in use for this prospect". If the user
+types over the value, the row says "Entered on this screen (Petroleum
+Economics Studio run ... sent ..., no longer in use)", the handoff is kept
+on record as not in use, and the report flags it. A prospect that never
+received a case prints "None" and names that app nowhere (tests).
+
+**The sending side.** The run's results page gains a read-only card "Value
+per barrel for a prospect valuation" with what will be sent and a link "Use
+in Risked Reserves Valuation" (`?epeRun=<id>`); the valuation opens with the
+run offered to the selected prospect. Runs are read with plain selects under
+the existing policies (own runs, and runs shared with the organisation); no
+policy or schema change.
+
+**Limits.** Petroleum Economics Studio discounts end-year on a real or
+nominal basis; the valuation's own economic model (U2-002) uses the
+screening engine's mid-year convention. The two are different engines by
+design (Economics roadmap D1); each handoff states its own. A run made by an
+engine older than 3.4 has no PV of capex: it sends the full-cycle value
+only, the derived MEFS is then zero, and the report flags it. Not walked on
+a live account: the reads were exercised on the in-memory twin and a
+PostgREST double; a first live pick is an owner item.

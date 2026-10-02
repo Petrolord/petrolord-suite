@@ -20,6 +20,7 @@ import {
 import {
   ECON_ENGINE, ECON_MODEL_FIELDS, ECON_MODEL_DEFAULTS, npvOfSize, emvOnCurve, valueSizeCurves,
 } from './rrvEconomics';
+import { epePriceDeckLine, epeDiscountLine } from '@/pages/apps/epe/epeUnitValue';
 import {
   emvParts, outcomes, volumeTable, volumeCurves, valueCurves, valueExceedance,
 } from './rrvMath';
@@ -127,6 +128,18 @@ function econSource(p, key, units) {
   }
   if (key === 'unitValue' && p.econ?.value === 'model') return 'Derived from the economic model below: the slope of its net present value between the MEFS and the mean commercial size';
   if (key === 'devCost' && p.econ?.value === 'model') return 'Derived from the economic model below: the offset of that line, so that value = u x V - D';
+  // U2-001: a Petroleum Economics Studio case, named only while it is the value in use
+  const epe = p.econ?.epe;
+  if ((key === 'unitValue' || key === 'devCost') && epe) {
+    const sent = key === 'unitValue' ? epe.unitValue : epe.devCost;
+    if (p.econ.value === 'epe') {
+      const what = key === 'unitValue'
+        ? (epe.split ? 'its NPV before development capex, per barrel' : 'its full-cycle NPV per barrel')
+        : (epe.split ? 'the present value of its capex' : 'zero: the run carries no present value of capex, so the value per barrel is full cycle');
+      return `${epeLine(epe)}: ${what}${note(p.inputMeta?.[key])}`;
+    }
+    return `Entered on this screen (${epe.app} run "${epe.runName}" sent ${F.plain(units.show(key, sent))} ${units.label(key)}, no longer in use)${note(p.inputMeta?.[key])}`;
+  }
   const v = numOrNull(p[key]);
   const meta = p.inputMeta?.[key];
   const sent = numOrNull(p.handoff?.values?.[key]);
@@ -212,6 +225,60 @@ export function modelRows(p, units) {
 /** The economic model assumptions with no row in the inputs table (RL1: must be empty on a model basis). */
 export const missingModelInputs = (rows, p) => (p.econ?.value === 'model' ? ECON_MODEL_FIELDS.map(([k]) => k).filter((k) => !rows.some((r) => r.key === `model.${k}`)) : []);
 
+/** 'Petroleum Economics Studio run "Base" of case "Ekene North development", saved 2026-10-01 09:00 UTC' */
+export function epeLine(epe) {
+  const at = time(epe?.runSavedAt);
+  return `${epe.app} run "${epe.runName}"${epe.caseName ? ` of case "${epe.caseName}"` : ''}${at ? `, saved ${at}` : ''}`;
+}
+
+/** What the check of the Petroleum Economics Studio run found, in one sentence (null when it is unchanged or there is none). */
+export function epeSentence(state, units) {
+  if (!state) return null;
+  switch (state.state) {
+    case 'changed': {
+      const list = (state.changes || []).map((c) => {
+        const show = (x) => (x === null ? 'none' : typeof x === 'number' ? F.plain(c.key === 'unitValue' || c.key === 'npvPerBoe' ? units.unitValue(x) : c.key === 'totalMMboe' ? units.volume(x) : x) : String(x));
+        return `${c.label} ${show(c.from)} to ${show(c.to)}`;
+      });
+      return `The Petroleum Economics Studio run changed after its value was received${list.length ? ` (${list.join('; ')})` : ''}.`;
+    }
+    case 'missing': return 'The Petroleum Economics Studio run is no longer there, or can no longer be read by this account; the value is as last received.';
+    case 'refused': return `The Petroleum Economics Studio run can no longer be sent: ${state.reason}`;
+    case 'unknown': return 'The Petroleum Economics Studio run could not be read, so the value was not checked against it.';
+    default: return null;
+  }
+}
+
+/** The handoff from Petroleum Economics Studio, as label and value rows (RL11, RL7). Null when no case was received. */
+export function epeHandoffRows(p, state, units) {
+  const h = p?.econ?.epe;
+  if (!h) return null;
+  const inUse = p.econ.value === 'epe';
+  const uv = (x) => `${F.plain(units.unitValue(x))} ${units.unitValueLabel}`;
+  return [
+    ['Source application', h.app],
+    ['Source record', `Run "${h.runName}"${h.caseName ? ` of case "${h.caseName}"` : ''} (${h.table} ${h.runId})`],
+    ['Run saved', time(h.runSavedAt) || EMPTY_VALUE],
+    ['Results written', time(h.resultsAt) || EMPTY_VALUE],
+    ['Engine build', h.engineVersion ? `Petroleum Economics Studio cash-flow engine ${h.engineVersion}` : EMPTY_VALUE],
+    ['Sent by build', h.sentBuild || EMPTY_VALUE],
+    ['Received here', `${time(h.receivedAt) || EMPTY_VALUE}${h.receivedBuild ? `, by ${h.receivedBuild}` : ''}`],
+    ['Price deck', epePriceDeckLine(h)],
+    ['Discount rate', epeDiscountLine(h)],
+    ['Fiscal regime', [h.fiscalRegime, h.fiscalFramework && h.fiscalFramework !== h.fiscalRegime ? `(${h.fiscalFramework})` : null, finite(h.workingInterestPct) ? `working interest ${F.plain(h.workingInterestPct)}%` : null].filter(Boolean).join(' ') || EMPTY_VALUE],
+    ['Case NPV and volume', `${F.n1(h.npvMM)} $MM over ${F.plain(units.volume(h.totalMMboe))} ${units.volumeLabel}`],
+    ['NPV per barrel, full cycle', uv(h.npvPerBoe)],
+    ['Present value of the case capex', h.split ? `${F.n1(h.pvCapexMM)} $MM` : 'Not recorded with the run'],
+    ['Value per barrel sent (u)', `${uv(h.unitValue)}${h.split ? ': the case NPV before its capex, per barrel' : ': the full-cycle NPV per barrel'}`],
+    ['Development cost sent (D)', `${F.plain(h.devCost)} $MM${h.split ? ': the present value of the case capex' : ''}`],
+    ['How they are used', h.split
+      ? `${LINE_FORMULA}: the case capex is taken as fixed and the rest of the case as proportional to volume. At the case's own size the line gives the case NPV back.`
+      : `${LINE_FORMULA} with D = 0: every size is worth the case's full-cycle NPV per barrel.`],
+    ['In use', inUse ? 'Yes: the value per barrel and development cost of this valuation are the ones sent' : 'No: the value per barrel or the development cost was changed here after the handoff. The case is recorded for the reader'],
+    ['Source record now', state?.state === 'current' ? 'Unchanged since it was received' : (epeSentence(state, units) || 'Not checked')],
+  ];
+}
+
 const LINE_FORMULA = 'value(V) = u x V - D';
 /** A value that rounds to zero at one decimal prints as 0.0, never as -0.0. */
 const tidy = (x) => (Math.abs(x) < 0.05 ? 0 : x);
@@ -231,7 +298,7 @@ export function economicsModel(p, e, v, units) {
   const basis = [
     ['Value of a discovery', onModel
       ? `Economic model of this valuation, on the canonical screening NPV: ${ECON_ENGINE}`
-      : p.econ?.value === 'epe' ? 'A Petroleum Economics Studio case (see the handoff below)'
+      : p.econ?.value === 'epe' ? `${epeLine(p.econ.epe)} (see the handoff from Petroleum Economics Studio)`
         : 'Entered value per barrel and development cost (see their rows in the inputs table)'],
     ['Value line read by the valuation', `${LINE_FORMULA} = ${F.plain(units.unitValue(e.unitValue))} ${units.unitValueLabel} x V - ${F.plain(e.devCost)} $MM`],
     ['MEFS', derived
@@ -250,6 +317,7 @@ export function economicsModel(p, e, v, units) {
   const named = [
     ['MEFS', e.mefs], ['P90', v.successCase.p90], ['P50', v.successCase.p50], ['Mean', v.successCase.mean],
     ['Mean if commercial', v.meanIfCommercial], ['P10', v.successCase.p10],
+    ...(p.econ?.value === 'epe' ? [['The case', p.econ.epe.totalMMboe]] : []),
   ].filter(([, x]) => finite(x) && x > 0).sort((x, y) => x[1] - y[1]);
   const lineAt = (x) => e.unitValue * x - e.devCost;
   const table = onModel
@@ -261,12 +329,15 @@ export function economicsModel(p, e, v, units) {
     : {
       head: ['Field size', `Size (${units.volumeLabel})`, 'Value on the line ($MM)', `Value per barrel, all in (${units.unitValueLabel})`],
       body: named.map(([label, x]) => [label, F.n1(vol(x)), F.n1(lineAt(x)), F.n2(units.unitValue(lineAt(x) / x))]),
-      note: `The value of a discovery is the straight line ${LINE_FORMULA} at every size: one value per barrel and one development cost. No economic model stands behind it here, so there is no engine NPV to print beside it. A size below the MEFS is not developed.`,
+      note: p.econ?.value === 'epe'
+        ? `The value of a discovery is the straight line ${LINE_FORMULA} with the value per barrel and development cost of the Petroleum Economics Studio case. The row "The case" is the case's own size, where the line gives its NPV (${F.n1(p.econ.epe.npvMM)} $MM); every other size is that one case scaled, with its capex held fixed. A size below the MEFS is not developed.`
+        : `The value of a discovery is the straight line ${LINE_FORMULA} at every size: one value per barrel and one development cost. No economic model stands behind it here, so there is no engine NPV to print beside it. A size below the MEFS is not developed.`,
     };
   // the plot: from zero to past the P10 (and past the MEFS)
+  const caseSize = p.econ?.value === 'epe' ? p.econ.epe.totalMMboe : null;
   const hi = Math.max(v.successCase.p10 * 1.25, e.mefs * 1.6, 1);
   const series = valueSizeCurves(a, { unitValue: e.unitValue, devCost: e.devCost }, 0, hi);
-  return { basis, table, series, hi, crossCheck, onModel, derived, derivedMefs: r.derivedMefs };
+  return { basis, table, series, hi, crossCheck, onModel, derived, derivedMefs: r.derivedMefs, caseSize };
 }
 
 /** The engine inputs that have no row in the inputs table (RL1: must be empty). */
@@ -335,7 +406,7 @@ export function chanceModel(p) {
  *   portfolio?: ?{rows: Array<{p, v}>, totals: object, leftOut: number}, savedWhere?: string,
  *   build?: string, company?: ?string}} a
  */
-export function buildRrvReportModel({ p, v, problem = null, units, upstream = null, portfolio = null, savedWhere = '', build = '', company = null }) {
+export function buildRrvReportModel({ p, v, problem = null, units, upstream = null, epe = null, portfolio = null, savedWhere = '', build = '', company = null }) {
   const e = engineInput(p);
   const ident = p.ident || {};
   const identification = [
@@ -360,6 +431,7 @@ export function buildRrvReportModel({ p, v, problem = null, units, upstream = nu
       note: 'Every input the valuation read is listed with its unit and its source. Rows marked "Recorded for the reader" or "Enters through Pg" did not enter the calculation directly. The lognormal success case is fitted to P90 and P10; the P50 enters only the Swanson cross-check. A derived input is computed here from the rows it names.',
     },
     handoff: handoffRows(p, upstream, units),
+    epeHandoff: epeHandoffRows(p, epe, units),
     chance: chanceModel(p),
     problem,
   };
@@ -422,18 +494,18 @@ export function buildRrvReportModel({ p, v, problem = null, units, upstream = nu
       note: `For context: the analyst's other valued prospects, added as INDEPENDENT prospects (expected commercial discoveries ${F.n2(portfolio.totals.expectedCommercial)}, chance of at least one ${F.pct(portfolio.totals.pAtLeastOneCommercial)}). Shared play risk and dependence between prospects are not modelled${portfolio.leftOut ? `; ${portfolio.leftOut} prospect${portfolio.leftOut === 1 ? '' : 's'} with unfinished inputs left out` : ''}.`,
     };
   }
-  model.limits = limitsOf({ p, v, e, parts, units, upstream });
+  model.limits = limitsOf({ p, v, e, parts, units, upstream, epe });
   model.figures = buildFigures({ p, v, e, units, chance: model.chance, economics: model.economics });
   return model;
 }
 
 /** "Limits of this analysis" (RL9): what the method assumes, then what to check on this prospect. */
-export function limitsOf({ p, v, e, units, upstream }) {
+export function limitsOf({ p, v, e, units, upstream, epe = null }) {
   const assumptions = [
     'Single prospect. Each prospect is valued on its own; dependence between prospects, shared play risk and a drilling sequence are not modelled, and the portfolio totals add prospects as if independent.',
     'The chance factors are treated as independent and multiplied. No play chance is separated from the prospect chance.',
     'Success-case volumes follow a lognormal fitted to the entered P90 and P10. The P50 does not shape the distribution.',
-    `The value of a discovery is deterministic and a straight line in its size, ${LINE_FORMULA}, with no price, cost, fiscal or timing uncertainty.${p.econ?.value === 'model' ? ' The line is read from the economic model between the MEFS and the mean commercial size; the table "Value by field size" shows where the model departs from it.' : ' One value per barrel and one development cost serve every commercial size.'}`,
+    `The value of a discovery is deterministic and a straight line in its size, ${LINE_FORMULA}, with no price, cost, fiscal or timing uncertainty.${p.econ?.value === 'model' ? ' The line is read from the economic model between the MEFS and the mean commercial size; the table "Value by field size" shows where the model departs from it.' : p.econ?.value === 'epe' ? ` The value per barrel and development cost come from one Petroleum Economics Studio case (${epeDiscountLine(p.econ.epe)}): its capex is taken as fixed and the rest of the case as proportional to volume, which is exact only at the case's own size.` : ' One value per barrel and one development cost serve every commercial size.'}`,
     p.econ?.mefs === 'derived'
       ? 'The MEFS is derived: the size at which a discovery is worth zero under the stated value. A discovery below it is not developed.'
       : 'The MEFS is typed and is not tied to the value per barrel and the development cost; the size that pays under them is printed beside it. A discovery below it is not developed.',
@@ -467,6 +539,12 @@ export function limitsOf({ p, v, e, units, upstream }) {
       const gap = emvOnCurve(e, p.econ.model) - v.emv;
       if (Math.abs(gap) > Math.max(1, 0.05 * Math.abs(v.emv + e.wellCost))) flags.push(`The straight value line departs from the economic model: the EMV with the value-by-size curve integrated differs by ${F.n1(gap)} $MM. Read the table "Value by field size".`);
     }
+  }
+  if (p.econ?.epe) {
+    const say = epe && epe.state !== 'current' && epe.state !== 'none' ? epeSentence(epe, units) : null;
+    if (say && p.econ.value === 'epe') flags.push(`${say}${epe.state === 'changed' ? ' Refresh the case on the Economics tab before signing.' : ''}`);
+    if (p.econ.value === 'epe' && !p.econ.epe.split) flags.push('The Petroleum Economics Studio run carries no present value of capex, so every field size is valued at its full-cycle NPV per barrel and the derived MEFS is zero. Type an MEFS, or re-run the case on a current engine.');
+    if (p.econ.value !== 'epe') flags.push(`A Petroleum Economics Studio case was received (${epeLine(p.econ.epe)}) and is no longer the value in use: the value per barrel or the development cost was changed here.`);
   }
   const ch = chanceModel(p);
   if (ch.rows && ch.closes === false) flags.push(`The Pg used (${F.frac(Number(p.pg))}) is not the product of the chance factors (${F.frac(ch.product)}).`);
@@ -526,12 +604,13 @@ export function buildFigures({ p, v, e, units, chance, economics = null }) {
     const cx = (pts) => pts.map(([x, y]) => [units.volume(x), y]);
     const marks = [{ x: units.volume(e.mefs), label: 'MEFS', rgb: SERIES_RGB.red, row: 1 }];
     for (const k of ['p90', 'p50', 'p10']) if (finite(v.successCase[k]) && v.successCase[k] <= economics.hi) marks.push({ x: units.volume(v.successCase[k]), label: k.toUpperCase(), dash: [1, 1] });
+    if (finite(economics.caseSize) && economics.caseSize <= economics.hi) marks.push({ x: units.volume(economics.caseSize), label: 'Case', rgb: SERIES_RGB.emerald, row: 2 });
     figures.push({
       id: 'valueSize',
       title: 'Value of a discovery against its size',
       caption: economics.onModel
         ? `The net present value of developing a discovery of a given size, before the exploration well. Engine: the canonical screening NPV under the economic model, size by size. Line: ${LINE_FORMULA}, which the valuation reads. They meet at the MEFS (${F.plain(units.volume(e.mefs))} ${units.volumeLabel}), where the value is zero${p.econ?.mefs === 'derived' ? '' : ' on the engine curve only if the typed MEFS is the size that pays'}, and at the mean commercial size.`
-        : `The value of developing a discovery of a given size, before the exploration well: the straight line ${LINE_FORMULA} with the stated value per barrel and development cost. The MEFS is marked at ${F.plain(units.volume(e.mefs))} ${units.volumeLabel}${p.econ?.mefs === 'derived' ? ', where the line is zero' : ''}.`,
+        : `The value of developing a discovery of a given size, before the exploration well: the straight line ${LINE_FORMULA} with ${p.econ?.value === 'epe' ? 'the value per barrel and development cost of the Petroleum Economics Studio case' : 'the stated value per barrel and development cost'}. The MEFS is marked at ${F.plain(units.volume(e.mefs))} ${units.volumeLabel}${p.econ?.mefs === 'derived' ? ', where the line is zero' : ''}.`,
       panels: [{
         height: 72,
         spec: {

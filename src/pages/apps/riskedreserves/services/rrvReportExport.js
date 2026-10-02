@@ -34,6 +34,13 @@ export function buildRrvReport(model, { logo = null, generatedAt = new Date() } 
   } else {
     r.section('Handoff from ReservoirCalc Pro', 'None: this prospect was typed in Risked Reserves Valuation. Its sources are the ones stated in the inputs table.');
   }
+  if (model.epeHandoff) {
+    r.table('Handoff from Petroleum Economics Studio', ['Item', 'As recorded'], model.epeHandoff, {
+      columnStyles: KEY_VALUE, note: 'The development case behind the value per barrel and the development cost: which run, on which price deck and discount rate, when, and whether the run still says what it said.',
+    });
+  } else {
+    r.section('Handoff from Petroleum Economics Studio', 'None: no Petroleum Economics Studio case was received for this prospect. The value per barrel and the development cost come from the source stated on their rows of the inputs table.');
+  }
   if (model.chance.rows) {
     r.table('Chance of success', ['Factor', 'Chance (fraction)', 'Chance (%)'], model.chance.rows, { note: model.chance.note, columnStyles: { 0: { cellWidth: 70 } } });
   } else {

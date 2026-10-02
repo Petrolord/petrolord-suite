@@ -204,6 +204,10 @@ export function unitValueSource(p) {
   // U2-002: derived from the valuation's own economic model
   if (p?.econ?.value === 'model') return 'derived here from the economic model of this valuation (the canonical screening NPV, read between the MEFS and the mean commercial size)';
   const value = Number(p?.unitValue);
+  // U2-001: named only when a case was received and is still the value in use
+  const epe = p?.econ?.epe;
+  if (p?.econ?.value === 'epe' && epe) return `received from Petroleum Economics Studio run "${epe.runName}"${epe.caseName ? ` of case "${epe.caseName}"` : ''}: its NPV before development capex per barrel`;
+  if (epe) return `entered on this screen (Petroleum Economics Studio run "${epe.runName}" sent ${Number(epe.unitValue.toPrecision(6))} $/bbl, no longer in use)`;
   if (Number.isFinite(p?.rcpUnitValue)) {
     return value === p.rcpUnitValue
       ? 'from ReservoirCalc Pro success-case economics (the Suite screening NPV), sent with the prospect'
@@ -279,6 +283,57 @@ export function setValueBasis(p, basis) {
   const next = { ...p, touched, econ: { ...(p.econ || newEcon()), value: basis } };
   if (basis === 'epe') { next.unitValue = p.econ.epe.unitValue; next.devCost = p.econ.epe.devCost; }
   return syncEconomics(next);
+}
+
+// ---- the Petroleum Economics Studio handoff (U2-001) --------------------------------
+
+/**
+ * Take a Petroleum Economics Studio case as the value of a discovery. The
+ * whole contract (run, case, price deck, discount rate, dates, builds, the
+ * numbers and its fingerprint) is kept with the valuation, with when and by
+ * which build it was received, so it survives a reload and can be printed
+ * and checked against the run later.
+ * @param {object} p a valuation
+ * @param {object} contract an `epe-unit-value-1` contract (epe/epeUnitValue.js)
+ */
+export function applyEpeCase(p, contract, { now = new Date(), build = null } = {}) {
+  if (!contract || contract.schema !== 'epe-unit-value-1' || !(Number(contract.unitValue) > 0)) return p;
+  const touched = { ...(p.touched || {}) };
+  delete touched.unitValue; delete touched.devCost;
+  return syncEconomics({
+    ...p, touched, unitValue: contract.unitValue, devCost: contract.devCost,
+    econ: { ...(p.econ || newEcon()), value: 'epe', epe: { ...contract, receivedAt: now.toISOString(), receivedBuild: build } },
+  });
+}
+
+const EPE_WATCHED = [
+  ['unitValue', 'value per barrel before capex'], ['devCost', 'development cost'], ['npvPerBoe', 'NPV per barrel'], ['npvMM', 'case NPV'],
+  ['totalMMboe', 'case volume'], ['discountRatePct', 'discount rate'], ['priceDeckName', 'price deck'], ['runName', 'run name'], ['engineVersion', 'engine build'],
+];
+
+/**
+ * How a valuation's Petroleum Economics Studio handoff stands against the
+ * run as it is NOW (read again by id after a page load).
+ *   none      no case was ever received
+ *   unknown   the run could not be read (`current` undefined)
+ *   current   the run says what it said when it was received
+ *   changed   the run says something else: `changes` lists what moved
+ *   missing   the run is gone, or can no longer be read by this user
+ *   refused   the run is there but can no longer be sent (`reason`)
+ * `inUse` says whether the case is still the value of the valuation.
+ * @param {object} p a valuation
+ * @param {?object|undefined} current what getEpeUnitValue(runId) returned
+ */
+export function epeState(p, current) {
+  const held = p?.econ?.epe;
+  if (!held) return { state: 'none', inUse: false };
+  const inUse = p.econ.value === 'epe';
+  if (current === undefined) return { state: 'unknown', inUse };
+  if (current === null) return { state: 'missing', inUse };
+  if (!current.ok) return { state: 'refused', inUse, reason: current.reason };
+  if (current.contract.fingerprint === held.fingerprint) return { state: 'current', inUse, contract: current.contract };
+  const changes = EPE_WATCHED.filter(([k]) => current.contract[k] !== held[k]).map(([k, label]) => ({ key: k, label, from: held[k] ?? null, to: current.contract[k] ?? null }));
+  return { state: 'changed', inUse, contract: current.contract, changes };
 }
 
 /** Derive the MEFS from the value of a discovery, or keep the one typed. */

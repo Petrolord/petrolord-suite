@@ -29,9 +29,9 @@ const MEFS_CHOICES = [
 function Choice({ name, value, choices, onChange, disabled, testId }) {
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1" role="radiogroup" aria-label={name} data-testid={testId} data-value={value}>
-      {choices.map(([id, label, hint]) => (
-        <label key={id} className="inline-flex items-center gap-1.5 text-xs text-pl-text" title={hint}>
-          <input type="radio" name={name} value={id} checked={value === id} disabled={disabled} onChange={() => onChange(id)} data-testid={`${testId}-${id}`} />
+      {choices.map(([id, label, hint, off]) => (
+        <label key={id} className={`inline-flex items-center gap-1.5 text-xs ${off ? 'text-pl-muted' : 'text-pl-text'}`} title={hint}>
+          <input type="radio" name={name} value={id} checked={value === id} disabled={disabled || !!off} onChange={() => onChange(id)} data-testid={`${testId}-${id}`} />
           {label}
         </label>
       ))}

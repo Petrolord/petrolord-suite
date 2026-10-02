@@ -50,7 +50,7 @@ describe('H8: where the value per barrel comes from', () => {
     fireEvent.click(screen.getByTestId('rrv-import'));
     const line = () => screen.getByTestId('rrv-unit-value-source').textContent;
     expect(document.body.textContent).not.toMatch(/comes from the Petroleum Economics Studio/);
-    expect(line()).toMatch(/Nothing is received from the Petroleum Economics Studio/);
+    expect(line()).toMatch(/No Petroleum Economics Studio case is in use for this prospect/); // U2-001: the handoff exists now, and none has happened here
     // the first prospect is selected: imported without economics, so the economic model
     expect(line()).toMatch(/derived here from the economic model/);
     // type a value: it is now the user's
