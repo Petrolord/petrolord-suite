@@ -14,6 +14,7 @@ import './familiesCore';
 import './familiesWellPlanning';
 import './familiesSeismic';
 import './familyWellsite';
+import './familyMaterialBalance';
 
 export const PACKAGE_FORMAT = 'pld';
 export const PACKAGE_VERSION = 1;
