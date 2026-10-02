@@ -137,11 +137,11 @@ function pageStreams(raw) {
  * @param {{raw: string}} pdf from readPdf
  * @param {number} page 1-based
  * @param {{x: number, y: number, w: number, h: number}} area the plot area in mm
- * A bar is a rectangle filled and stroked in one operation (the kit draws
- * nothing else that way inside a plot area), so it is told apart from a
- * square marker whatever its size.
- * @returns {{segments: number, markers: number, bars?: number, total: number, frame: boolean}}
- *   `bars` is present only when the plot holds one.
+ * Bars (./bars.js) are filled and stroked rectangles and are counted on
+ * their own, outside `total`; `bars` is present only when the area holds one.
+ * The stacked bars of a plot (`type: 'bar'` in ./plot.js) are drawn the same
+ * way and are counted with them.
+ * @returns {{segments: number, markers: number, total: number, bars?: number, frame: boolean}}
  */
 export function plotMarks(pdf, page, area) {
   const stream = pageStreams(pdf.raw)[page - 1];
@@ -175,15 +175,16 @@ export function plotMarks(pdf, page, area) {
       const next = ops[i + 1] || '';
       if (next.endsWith(' l') && ops[i + 2] === 'S') { if (inside(x, y)) out.segments += 1; }
       else if (next.endsWith(' c') && markerInside(x, y)) out.markers += 1;
-    } else if (op.endsWith(' re') && ops[i + 1] === 'B') {
-      const [x, y, w, h] = nums(op);
-      if (markerInside(x + w / 2, y + h / 2)) out.bars = (out.bars || 0) + 1;
     } else if (op.endsWith(' re') && ops[i + 1] === 'f') {
       const [x, y, w, h] = nums(op);
       if (Math.abs(w) <= 3 * PT_PER_MM && Math.abs(h) <= 3 * PT_PER_MM && markerInside(x + w / 2, y + h / 2)) out.markers += 1;
+    } else if (op.endsWith(' re') && ops[i + 1] === 'B') {
+      // a bar of a bar chart: filled and stroked, where a marker is only filled
+      const [x, y, w, h] = nums(op);
+      if (markerInside(x + w / 2, y + h / 2)) out.bars = (out.bars || 0) + 1;
     }
   }
-  out.total = out.segments + out.markers + (out.bars || 0);
+  out.total = out.segments + out.markers;
   return out;
 }
 
@@ -232,8 +233,9 @@ export function expectFigureDrawn(pdf, figure, { minPoints = 2, minColoured = 15
     if (logo && !p.logo) fail(`panel ${i + 1} has no Petrolord mark`);
     const marks = plotMarks(pdf, figure.page, p.plotArea);
     if (!marks.frame) fail(`panel ${i + 1}: no plot area frame found on page ${figure.page}`);
-    const expected = p.marks.segments + p.marks.markers + (p.marks.bars || 0) + (p.lines || 0);
+    const expected = p.marks.segments + p.marks.markers + (p.lines || 0);
     if (marks.total !== expected) fail(`panel ${i + 1}: the file holds ${marks.total} line segments and markers inside the plot area, the builder reports ${expected}`);
+    if ((marks.bars || 0) !== (p.marks.bars || 0)) fail(`panel ${i + 1}: the file holds ${marks.bars || 0} bars inside the plot area, the builder reports ${p.marks.bars || 0}`);
     let ink = null;
     if (pdf.ink) {
       ink = pdf.ink(figure.page, p.box);

@@ -56,6 +56,11 @@ export async function listRootCandidates(kind) {
       const rows = await rowsOf(supabase.from('rcp_prospects').select('id, name, user_id, updated_at').order('updated_at', { ascending: false }));
       return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `Prospect ${String(r.id).slice(0, 8)}`, subtitle: 'prospect' }));
     }
+    case 'rrv_valuation': {
+      // RRV-U1: saved risked valuations (an empty list while the table is not on the database)
+      const rows = await rowsOf(supabase.from('rrv_valuations').select('id, name, user_id, updated_at').order('updated_at', { ascending: false }));
+      return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `Valuation ${String(r.id).slice(0, 8)}`, subtitle: 'risked valuation' }));
+    }
     case 'bf_model': {
       // BF-U1-021: Basin & Charge Modeling models (owner-only)
       const rows = await rowsOf(supabase.from('bf_wells').select('id, name, user_id, updated_at').order('updated_at', { ascending: false }));

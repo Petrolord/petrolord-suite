@@ -9,6 +9,7 @@ export { createReport, headerPairs, pairRows, inputsBody, INPUTS_HEAD } from './
 export { createLayout } from './layout.js';
 export { engineInputKeys, missingInputRows } from './completeness.js';
 export { drawPlot, niceTicks, decadeTicks, tickText, dateTicks, dateTickText } from './plot.js';
+export { drawBars } from './bars.js';
 export { pdfText, unprintable, isPrintable, assertPrintable, textFilter } from './text.js';
 export {
   EMPTY_VALUE, sig, fixed, sci, plain, compact, thousands, percent, range, orNA, withUnit, timestampUtc,

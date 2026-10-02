@@ -101,7 +101,7 @@ const DeterministicSlide = () => {
         setIsExporting(true);
         try {
             await ReportGenerator.generateDeterministicReport(project, r, r.unitSystem || state.unitSystem, {
-                fluidType: ft, inputs: inp, reservoirName: reservoir,
+                fluidType: ft, inputs: inp, reservoirName: reservoir, report: state.inputs?.report, inputMethod: r.inputMethod || state.inputMethod,
                 reviewer: reviewerLines({ report: state.inputs?.report, unitSystem: r.unitSystem || state.unitSystem, inputMethod: r.inputMethod || state.inputMethod, fluidType: ft, inputs: inp, results: r }),
             });
             toast({ title: 'Report downloaded', description: 'The full branded PDF was saved.' });

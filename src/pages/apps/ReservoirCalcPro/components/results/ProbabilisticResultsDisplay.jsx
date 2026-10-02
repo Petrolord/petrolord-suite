@@ -177,7 +177,7 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                 run.unitSystem,
                 chartImages,
                 {
-                    template: reportTemplate, fluidType: ft, reservoirName: state.reservoirName || 'Reservoir 1',
+                    template: reportTemplate, fluidType: ft, reservoirName: state.reservoirName || 'Reservoir 1', report: inputs.report, inputMethod: state.inputMethod,
                     reviewer: reviewerLines({ report: inputs.report, unitSystem: run.unitSystem, inputMethod: state.inputMethod, fluidType: ft, inputs, probResults }),
                 },
             );

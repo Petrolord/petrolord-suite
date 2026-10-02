@@ -509,3 +509,16 @@ its own round, the way section 5 describes. Open for those rounds:
   colleague may run a shared case touches the run quota and is a decision
   for the Simulation round.
 - `rb_*` has no `.pld` family yet (plan owner question 5).
+
+## 2026-10-02: Risked Reserves Valuation joins (`rrv_valuations`)
+
+Migration `20261002151500_rrv_valuations.sql`, NOT APPLIED (owner-run). A new
+product table, one saved valuation per prospect and user, registered under
+these rules exactly as the record tables above (same columns, triggers and
+four policies), with one additive reader policy on `suite_record_changes`.
+The app shares a saved valuation for viewing (no check-out editing yet),
+lists colleagues' valuations under "Shared with me" outside the user's
+portfolio, and offers Save a copy. Before the migration is applied the app
+keeps valuations in the browser and shows no share control. Proof:
+`tools/validation/rrv-valuations/` (scratch run 43 checks, pentest 83 of 83,
+three negative controls; rolled-back dry run on the linked database).

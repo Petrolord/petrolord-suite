@@ -165,7 +165,7 @@ function layoutBars(bars, barWidth) {
  *     marker?: 'circle'|'square', markerSize?: number}>,
  *   bands?: Array<{x0: number, x1: number, label?: string, rgb?: number[]}>,
  *   yBands?: Array<{y0: number, y1: number, label?: string, rgb?: number[]}>,
- *   lines?: Array<{x?: number, y?: number, label?: string, rgb?: number[], dash?: number[]}>,
+ *   lines?: Array<{x?: number, y?: number, label?: string, rgb?: number[], dash?: number[], row?: number}>,
  *   notes?: string[], notesAt?: 'bottom-left'|'top-left'|'top-right',
  *   logo?: {dataUrl: string, w: number, h: number}}} spec
  *   `type` defaults to a line; 'both' is a line with a marker on each
@@ -374,7 +374,8 @@ export function drawPlot(doc, box, spec) {
       if (l.dash && doc.setLineDashPattern) doc.setLineDashPattern([], 0);
       if (l.label) {
         doc.setTextColor(...MUTED);
-        if (atX) doc.text(pdfText(l.label), px(l.x) + 0.8, Y0 + 2.4);
+        // `row` drops a label by one line per step, so neighbours do not overprint
+        if (atX) doc.text(pdfText(l.label), px(l.x) + 0.8, Y0 + 2.4 + (l.row || 0) * 2.4);
         else doc.text(pdfText(l.label), X0 + 0.8, py(l.y) - 0.8);
       }
       result.lines += 1;

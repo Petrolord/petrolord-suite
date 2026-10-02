@@ -9,6 +9,7 @@ import { makeRegistryProspectsBackend } from '../../services/prospectsService';
 import { unriskedFromRun, runVolumeUnit } from '../../services/prospectVolumes';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
 import { reviewerLines } from '../../services/reportInfo';
+import { prospectSourceFromState } from '../../services/prospectSource';
 
 // Prospect Risking wraps the shared panel with the real rcp_prospects
 // backend and the latest MC result (unrisked volume) from RCP context.
@@ -23,8 +24,10 @@ const ProspectRiskingTool = () => {
         report: state?.inputs?.report, unitSystem: state?.probResults?.meta?.unitSystem || state?.unitSystem, inputMethod: state?.inputMethod,
         fluidType, inputs: state?.inputs, results: state?.results, probResults: state?.probResults,
     }), [state, fluidType]);
+    // RL11: the project, reservoir and run behind the volumes travel with the saved prospect
+    const source = useMemo(() => prospectSourceFromState(state), [state]);
     return <ProspectRiskingPanel backend={backend} unrisked={unrisked} defaultUnit={runVolumeUnit(fluidType, state?.unitSystem)}
-        reviewer={reviewer} projectName={state?.project?.name || null} />;
+        reviewer={reviewer} projectName={state?.project?.name || null} source={source} />;
 };
 
 const TABS = [

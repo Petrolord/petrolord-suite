@@ -291,6 +291,9 @@ export class VolumeCalculationEngine {
                 fluidType,
                 unitSystem,
                 inputs: {
+                    // RL re-check (RL1): the two inputs the Simple method reads for its rock volume
+                    area: parseFloat(inputs.area),
+                    thickness: parseFloat(inputs.thickness),
                     ntg,
                     porosity: phi,
                     sw,
