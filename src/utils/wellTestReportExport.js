@@ -2,8 +2,9 @@
  * Well Test Analysis Studio PDF report (WT5; RTA and display units WT10;
  * header round 2026-09-28; reviewer round 2026-10-02).
  *
- * jsPDF + autotable, the stack of the other Suite report exports. Pure
- * formatting: every number, every table row and every plotted point comes
+ * Built on the shared Report Kit (src/lib/reportKit, which was taken from
+ * this report): jsPDF + autotable, the stack of the other Suite report
+ * exports. Pure formatting: every number, every table row and every plotted point comes
  * in already computed by the studio context (collectReportArgs gathers
  * them); nothing is recalculated here. Values print in the active display
  * system through the studio's unit registry. Text is Latin-1 only (jsPDF
@@ -16,10 +17,8 @@
  * log-log with the model and the regime windows, Horner or MDH with its
  * line and window, sqrt(t) when linear flow is in play, history match, RTA
  * plots when that section has data), drawn as vectors on the house chart
- * standard by welltest/pdfPlot.
+ * standard by the kit's drawPlot.
  */
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import { unitLabel, fromOilfield, kindForCatalogUnit } from '@/utils/welltest/units';
 import { gaugeTime, PWF_SOURCE_TEXT } from '@/utils/welltest/gaugeImport';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
@@ -28,29 +27,18 @@ import {
   buildIdentificationRows, skinBreakdownRows, flowSummaryHead, flowSummaryBody, inputsFootnote, orNA,
 } from '@/utils/welltest/reportModel';
 import { buildReportFigures } from '@/utils/welltest/reportFigures';
-import { drawPlot, pdfText } from '@/utils/welltest/pdfPlot';
+import {
+  createReport, headerPairs, pairRows, pdfText, displayUnitsText, sig, fixed, sci, range, percent, BODY,
+} from '@/lib/reportKit';
 
-const NAVY = [15, 23, 42];
-const SLATE = [100, 116, 139];
-const LEFT = 14;
-const RIGHT = 196;
-const WIDTH = RIGHT - LEFT;
-const PAGE_BOTTOM = 280;
+const TITLE = 'Well Test Analysis Report';
 
 // three significant figures; from 1,000 up written out in full rather than
 // toPrecision's "3.80e+3" (the screen's fmt.sig3, WTA-T1-003)
-const sig3 = (v) => {
-  if (!Number.isFinite(v)) return EMPTY_VALUE;
-  const r = Number(Number(v).toPrecision(3));
-  return Math.abs(r) >= 1000 && Math.abs(r) < 1e15 ? r.toLocaleString('en-US') : Number(v).toPrecision(3);
-};
-const f1 = (v) => (Number.isFinite(v) ? Number(v).toFixed(1) : EMPTY_VALUE);
-const f2 = (v) => (Number.isFinite(v) ? Number(v).toFixed(2) : EMPTY_VALUE);
-const sci = (v) => (Number.isFinite(v) ? Number(v).toExponential(3) : EMPTY_VALUE);
-const ci = (pair) =>
-  Array.isArray(pair) && pair.every(Number.isFinite)
-    ? `${Number(pair[0]).toPrecision(3)} to ${Number(pair[1]).toPrecision(3)}`
-    : EMPTY_VALUE;
+const sig3 = (v) => sig(v, 3);
+const f1 = (v) => fixed(v, 1);
+const f2 = (v) => fixed(v, 2);
+const ci = (pair) => range(pair);
 
 /**
  * Report header rows as [label, value, label, value] pairs: the well and
@@ -83,13 +71,7 @@ export const buildReportHeader = ({
   } else {
     cells.push(['Start of flow', `0 hr elapsed (gauge clock ${gaugeTime(prepared?.testStartTime)} hr)`]);
   }
-  cells.push(['Display units', unitSystem === 'si' ? 'SI / metric' : 'Oilfield']);
-  cells.push(['Generated', `${generatedAt.toISOString().slice(0, 16).replace('T', ' ')} UTC`]);
-  const rows = [];
-  for (let i = 0; i < cells.length; i += 2) {
-    rows.push([...cells[i], ...(cells[i + 1] || ['', ''])].map(pdfText));
-  }
-  return rows;
+  return pairRows(headerPairs({ identification: cells, displayUnits: displayUnitsText(unitSystem), generatedAt }));
 };
 
 /**
@@ -172,7 +154,8 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
     rtaResult, regimes, notes, unitSystem = 'oilfield',
     inputsTable = [], skinBreakdown = null, flowSummary = null, figures = [],
   } = a;
-  const doc = new jsPDF();
+  const report = createReport({ title: TITLE, appName: 'Petrolord Well Test Analysis Studio', logo });
+  const { table, section } = report;
   const isGas = reservoir?.fluid === 'gas';
   const isBuildup = config?.family === 'buildup';
   const u = (kind, v) => fromOilfield(kind, v, unitSystem);
@@ -180,78 +163,14 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
   const dpKind = isGas ? 'pseudoPressure' : 'pressure';
   const dpUnit = uL(dpKind);
   const rateKind = isGas ? 'gasRate' : 'oilRate';
-  let y = 20;
-
-  const ensure = (height) => {
-    if (y + height > PAGE_BOTTOM) { doc.addPage(); y = 20; }
-  };
-  const heading = (text, need = 24) => {
-    ensure(need);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12);
-    doc.setTextColor(...NAVY);
-    doc.text(pdfText(text), LEFT, y);
-  };
-  const paragraph = (text, { size = 8, color = SLATE, gap = 3 } = {}) => {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(size);
-    doc.setTextColor(...color);
-    const lines = doc.splitTextToSize(pdfText(text), WIDTH);
-    const lineH = size * 0.42;
-    ensure(lines.length * lineH + gap);
-    doc.text(lines, LEFT, y);
-    y += lines.length * lineH + gap;
-  };
-  const table = (title, head, body, { columnStyles, note } = {}) => {
-    if (!body.length) return;
-    // keep a table with its heading and note on one page when it can fit on one
-    const need = 12 + (body.length + 1) * 7.3 + (note ? 10 : 0);
-    heading(title, need <= PAGE_BOTTOM - 20 ? need : 24);
-    doc.autoTable({
-      startY: y + 2,
-      head: [head.map(pdfText)],
-      body: body.map((row) => row.map(pdfText)),
-      theme: 'grid',
-      styles: { fontSize: 8, overflow: 'linebreak' },
-      headStyles: { fillColor: NAVY },
-      columnStyles,
-      margin: { left: LEFT, right: LEFT },
-    });
-    y = doc.lastAutoTable.finalY + (note ? 4 : 8);
-    if (note) { paragraph(note, { gap: 5 }); }
-  };
-
-  doc.setFontSize(18);
-  doc.setTextColor(...NAVY);
-  doc.text('Well Test Analysis Report', LEFT, y);
-  y += 5;
-  doc.setFontSize(9);
-  doc.setTextColor(...SLATE);
-  doc.text('Petrolord Well Test Analysis Studio', LEFT, y);
-  y += 3;
 
   // Header block: who, where, which interval, which test, and the pressure
   // at shut-in with the time it refers to.
-  const header = buildReportHeader({
-    projectName, wellName, fieldName, analyst, identification, completion, config, prepared, isGas, unitSystem, generatedAt,
+  report.header({
+    rows: buildReportHeader({
+      projectName, wellName, fieldName, analyst, identification, completion, config, prepared, isGas, unitSystem, generatedAt,
+    }),
   });
-  doc.autoTable({
-    startY: y,
-    body: header,
-    theme: 'plain',
-    styles: { fontSize: 9, cellPadding: 1, textColor: SLATE },
-    columnStyles: {
-      0: { fontStyle: 'bold', textColor: NAVY, cellWidth: 30 },
-      1: { cellWidth: 61 },
-      2: { fontStyle: 'bold', textColor: NAVY, cellWidth: 30 },
-      3: { cellWidth: 61 },
-    },
-    margin: { left: LEFT, right: LEFT },
-  });
-  y = doc.lastAutoTable.finalY + 2;
-  doc.setDrawColor(...SLATE);
-  doc.line(LEFT, y, RIGHT, y);
-  y += 6;
 
   const skinValue = prepared?.skinWithheld ? 'withheld' : f2(derivedKpis?.skin);
   table('Headline results', ['Quantity', 'Value'], [
@@ -259,7 +178,7 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
     ['kh (md-ft)', sig3(derivedKpis?.kh)],
     [isGas ? "Apparent skin s'" : 'Skin factor (total)', skinValue],
     [`Pressure drop across skin (${uL('pressure')})`, f1(u('pressure', derivedKpis?.dpSkin))],
-    ['Flow efficiency', Number.isFinite(derivedKpis?.flowEfficiency) ? `${(derivedKpis.flowEfficiency * 100).toFixed(0)}%` : EMPTY_VALUE],
+    ['Flow efficiency', percent(derivedKpis?.flowEfficiency)],
     [`Radius of investigation (${uL('length')})`, f1(u('length', derivedKpis?.ri))],
     ['Analysis points', String(prepared?.points?.length ?? 0)],
     ['Headline values from', derivedKpis?.source === 'match' ? 'The working model match' : derivedKpis?.source === 'semilog' ? 'The semilog straight line (no model matched yet)' : EMPTY_VALUE],
@@ -340,19 +259,12 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
       regimes.map((r) => [r.label, sig3(r.xStart), sig3(r.xEnd), f1(r.spanDecades)]),
       { note: `Detected on the Bourdet derivative; times are ${isBuildup ? 'Agarwal equivalent time, which runs behind shut-in time late in a buildup. The semilog fit window above is in shut-in time' : 'elapsed time'}.` });
   } else {
-    heading('Flow regimes observed', 14);
-    y += 5;
-    paragraph('No sustained flow regime was detected on the derivative.', { gap: 6 });
+    section('Flow regimes observed', 'No sustained flow regime was detected on the derivative.');
   }
 
   // Reviewer round, items 1 and 2: every input with its unit and its source
   if (inputsTable.length) {
-    table('Reservoir and fluid inputs', ['Input', 'Value', 'Unit', 'Source and quality'],
-      inputsTable.map((r) => [r.label, r.value, r.unit, r.source]),
-      {
-        columnStyles: { 0: { cellWidth: 56 }, 1: { cellWidth: 28 }, 2: { cellWidth: 22 } },
-        note: inputsFootnote(isGas),
-      });
+    report.inputsTable(inputsTable, { title: 'Reservoir and fluid inputs', note: inputsFootnote(isGas) });
   }
 
   // Item 5: one row per flow or shut-in period
@@ -362,9 +274,7 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
         note: `${flowSummary.note} Volume is the rate held over the period; recovered volume and choke are as entered.`,
       });
     } else {
-      heading('Flow and shut-in summary', 14);
-      y += 5;
-      paragraph(flowSummary.note, { gap: 6 });
+      section('Flow and shut-in summary', flowSummary.note);
     }
   }
 
@@ -406,64 +316,15 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
   }
 
   if (notes) {
-    heading('Interpretation notes', 20);
-    y += 6;
-    paragraph(notes, { size: 9, color: [60, 60, 60], gap: 8 });
+    section('Interpretation notes', notes, { need: 20, lead: 6, size: 9, color: BODY, gap: 8 });
   }
 
   // ---- Figures (reviewer round, items 6 to 11) ----
-  const drawn = [];
-  if (figures.length) {
-    doc.addPage();
-    y = 20;
-    heading('Plots', 12);
-    y += 6;
-    for (const fig of figures) {
-      const title = `Figure ${fig.number}. ${fig.title}`;
-      if (!fig.panels?.length) {
-        ensure(16);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9.5);
-        doc.setTextColor(...NAVY);
-        doc.text(pdfText(title), LEFT, y);
-        y += 4.5;
-        paragraph(fig.statement || 'Not plotted.', { gap: 6 });
-        drawn.push({ id: fig.id, number: fig.number, page: doc.getNumberOfPages(), plotted: false, panels: [] });
-        continue;
-      }
-      doc.setFontSize(8);
-      const captionLines = doc.splitTextToSize(pdfText(fig.caption || ''), WIDTH);
-      const total = fig.panels.reduce((sum, p) => sum + p.height + 3, 0) + 6 + captionLines.length * 3.4 + 6;
-      ensure(total);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9.5);
-      doc.setTextColor(...NAVY);
-      doc.text(pdfText(title), LEFT, y);
-      y += 3;
-      const panels = [];
-      for (const panel of fig.panels) {
-        const box = { x: LEFT, y, w: WIDTH, h: panel.height };
-        panels.push({ box, ...drawPlot(doc, box, { ...panel.spec, logo }) });
-        y += panel.height + 3;
-      }
-      y += 1;
-      paragraph(fig.caption || '', { gap: 7 });
-      drawn.push({ id: fig.id, number: fig.number, page: doc.getNumberOfPages(), plotted: true, panels });
-    }
-  }
+  report.figures(figures);
 
   // page footer: who the report is for, and the page count
-  const pages = doc.getNumberOfPages();
   const who = [orNA(wellName) === EMPTY_VALUE ? null : `Well ${wellName}`, fieldName ? `Field ${fieldName}` : null].filter(Boolean).join(', ');
-  for (let i = 1; i <= pages; i += 1) {
-    doc.setPage(i);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...SLATE);
-    doc.text(pdfText(`Well Test Analysis Report${who ? `, ${who}` : ''}`), LEFT, 290);
-    doc.text(`Page ${i} of ${pages}`, RIGHT, 290, { align: 'right' });
-  }
-  return { doc, figures: drawn, pages };
+  return report.finish({ footer: `${TITLE}${who ? `, ${who}` : ''}` });
 };
 
 export const reportFileName = ({ projectName, wellName }) => {
