@@ -22,5 +22,78 @@
     "manifestPaths": 750,
     "vendoredPaths": 750
   },
-  "knownDeviations": []
+  "knownDeviations": [
+    {
+      "path": "engines/welltest/gas.js",
+      "kind": "differing",
+      "vendoredSha": "cef28dc91226b6cbb9e8b7a249f7b8dd85b10d72",
+      "group": "welltest-report-r2 (engines PR #298)",
+      "reason": "Well Test Analysis Studio tester round 2 engines (partial-penetration pseudo-skin, skin split, ct from components, flow summary, gas PVT source), vendored from Petrolord/petrolord-engines PR #298 head 1cf8d22 (blob identical there); the PR is left for the owner to merge, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #298 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete every welltest-report-r2 row."
+    },
+    {
+      "path": "engines/welltest/partialPenetration.js",
+      "kind": "extra",
+      "vendoredSha": "ab64f0b8b4f5bc37bbf437bc72f4c8c9779d7051",
+      "group": "welltest-report-r2 (engines PR #298)",
+      "reason": "Well Test Analysis Studio tester round 2 engines (partial-penetration pseudo-skin, skin split, ct from components, flow summary, gas PVT source), vendored from Petrolord/petrolord-engines PR #298 head 1cf8d22 (blob identical there); the PR is left for the owner to merge, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #298 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete every welltest-report-r2 row."
+    },
+    {
+      "path": "engines/welltest/compressibility.js",
+      "kind": "extra",
+      "vendoredSha": "b905674c40d68d87bf34d32a8bdcbfc7636fcb59",
+      "group": "welltest-report-r2 (engines PR #298)",
+      "reason": "Well Test Analysis Studio tester round 2 engines (partial-penetration pseudo-skin, skin split, ct from components, flow summary, gas PVT source), vendored from Petrolord/petrolord-engines PR #298 head 1cf8d22 (blob identical there); the PR is left for the owner to merge, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #298 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete every welltest-report-r2 row."
+    },
+    {
+      "path": "engines/welltest/flowSummary.js",
+      "kind": "extra",
+      "vendoredSha": "a89c9100cecef39b05f485a36b6e26432975e82b",
+      "group": "welltest-report-r2 (engines PR #298)",
+      "reason": "Well Test Analysis Studio tester round 2 engines (partial-penetration pseudo-skin, skin split, ct from components, flow summary, gas PVT source), vendored from Petrolord/petrolord-engines PR #298 head 1cf8d22 (blob identical there); the PR is left for the owner to merge, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #298 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete every welltest-report-r2 row."
+    },
+    {
+      "path": "__tests__/welltest.partialPenetration.test.js",
+      "kind": "extra",
+      "vendoredSha": "c910d26933130ca5361024ec554e664f232ffedd",
+      "group": "welltest-report-r2 (engines PR #298)",
+      "reason": "Well Test Analysis Studio tester round 2 engines (partial-penetration pseudo-skin, skin split, ct from components, flow summary, gas PVT source), vendored from Petrolord/petrolord-engines PR #298 head 1cf8d22 (blob identical there); the PR is left for the owner to merge, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #298 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete every welltest-report-r2 row."
+    },
+    {
+      "path": "__tests__/welltest.reportInputs.test.js",
+      "kind": "extra",
+      "vendoredSha": "c896ecd65563b9c47800254678ce2bfb1cecb4be",
+      "group": "welltest-report-r2 (engines PR #298)",
+      "reason": "Well Test Analysis Studio tester round 2 engines (partial-penetration pseudo-skin, skin split, ct from components, flow summary, gas PVT source), vendored from Petrolord/petrolord-engines PR #298 head 1cf8d22 (blob identical there); the PR is left for the owner to merge, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #298 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete every welltest-report-r2 row."
+    },
+    {
+      "path": "test-data/welltest/README.md",
+      "kind": "extra",
+      "vendoredSha": "c73da14b473c6ec24f23121cc007ff2887716cfb",
+      "group": "welltest-report-r2 (engines PR #298)",
+      "reason": "Well Test Analysis Studio tester round 2 engines (partial-penetration pseudo-skin, skin split, ct from components, flow summary, gas PVT source), vendored from Petrolord/petrolord-engines PR #298 head 1cf8d22 (blob identical there); the PR is left for the owner to merge, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #298 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete every welltest-report-r2 row."
+    },
+    {
+      "path": "test-data/welltest/partial-penetration-goldens.json",
+      "kind": "extra",
+      "vendoredSha": "4772bc919382edaee48d08e0e253c1fbc5a7b5b5",
+      "group": "welltest-report-r2 (engines PR #298)",
+      "reason": "Well Test Analysis Studio tester round 2 engines (partial-penetration pseudo-skin, skin split, ct from components, flow summary, gas PVT source), vendored from Petrolord/petrolord-engines PR #298 head 1cf8d22 (blob identical there); the PR is left for the owner to merge, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #298 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete every welltest-report-r2 row."
+    },
+    {
+      "path": "tools/validation/welltest/oracle_partial_penetration.py",
+      "kind": "extra",
+      "vendoredSha": "67f8873a6dffdaa789df18fff77e41387238c9ae",
+      "group": "welltest-report-r2 (engines PR #298)",
+      "reason": "Well Test Analysis Studio tester round 2 engines (partial-penetration pseudo-skin, skin split, ct from components, flow summary, gas PVT source), vendored from Petrolord/petrolord-engines PR #298 head 1cf8d22 (blob identical there); the PR is left for the owner to merge, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #298 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete every welltest-report-r2 row."
+    }
+  ]
 }
