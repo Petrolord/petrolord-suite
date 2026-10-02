@@ -42,7 +42,8 @@ export const UNIT_KINDS = {
   oilRate: linear('STB/D', 'm3/d', 1 / BBL_PER_M3),
   gasRate: linear('Mscf/D', '10³m³/d', 1 / MSCF_PER_E3M3),
   compressibility: linear('1/psi', '1/kPa', PSI_PER_KPA),
-  storage: linear('bbl/psi', 'm³/kPa', (1 / BBL_PER_M3) * (1 / PSI_PER_KPA)),
+  // a volume per pressure: m3 per bbl times psi per kPa (as compressibility)
+  storage: linear('bbl/psi', 'm³/kPa', (1 / BBL_PER_M3) * PSI_PER_KPA),
   poreVolume: linear('bbl', 'm³', 1 / BBL_PER_M3),
   area: linear('ft²', 'm²', 0.3048 * 0.3048),
   semilogSlope: linear('psi/cycle', 'kPa/cycle', 1 / PSI_PER_KPA),

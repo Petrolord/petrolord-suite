@@ -1,65 +1,65 @@
 Well Test Analysis Report
 Petrolord Well Test Analysis Studio
 
-Project                  Untitled interpretation                            Well                       Sample well 1
-Field                    Obodo                                              Licence                    OML 143
-Zone or sand             D-3 sand                                           Analyst                    A. Analyst
-Test type                Pressure buildup, drill stem test (DST)            Test dates                 2026-09-14 to 2026-09-17
-Perforations, MD         3002.3 to 3011.4 m                                 Perforations, TVD          2926.4 to 2935.2 m
+Project                  Untitled interpretation                            Well                        Sample well 1
+Field                    Obodo                                              Licence                     OML 143
+Zone or sand             D-3 sand                                           Analyst                     A. Analyst
+Test type                Pressure buildup, drill stem test (DST)            Test dates                  2026-09-14 to 2026-09-17
+Perforations, MD         3002.3 to 3011.4 m                                 Perforations, TVD           2926.4 to 2935.2 m
 Fluid                    Oil                                                Producing time tp 36.0 hr
-Shut-in time             0 hr elapsed (gauge clock 0 hr)                    pwf at shut-in             31238.8 kPa at shut-in time 0 hr (entered)
-Display units            SI / metric                                        Generated                  2026-10-02 09:00 UTC
+Shut-in time             0 hr elapsed (gauge clock 0 hr)                    pwf at shut-in              31238.8 kPa at shut-in time 0 hr (entered)
+Display units            SI / metric                                        Generated                   2026-10-02 09:00 UTC
 
 
 Headline results
- Quantity                                                                            Value
+ Quantity                                                                             Value
 
- Permeability k (md)                                                                 70.0
+ Permeability k (md)                                                                  70.0
 
- kh (md-ft)                                                                          3,150
+ kh (md-ft)                                                                           3,150
 
- Skin factor (total)                                                                 0.00
+ Skin factor (total)                                                                  0.00
 
- Pressure drop across skin (kPa)                                                     0.0
+ Pressure drop across skin (kPa)                                                      0.0
 
- Flow efficiency                                                                     100%
+ Flow efficiency                                                                      100%
 
- Radius of investigation (m)                                                         529.4
+ Radius of investigation (m)                                                          529.4
 
- Analysis points                                                                     45
+ Analysis points                                                                      45
 
- Headline values from                                                                The working model match
+ Headline values from                                                                 The working model match
 
 
 Skin components
- Component                                                         Value                    Basis
+ Component                                                         Value                     Basis
 
- Total skin s                                                      0.00                     From the interpretation
+ Total skin s                                                      0.00                      From the interpretation
 
- Partial-penetration pseudo-skin s_pp                              2.60                     Papatzacos (1987)
+ Partial-penetration pseudo-skin s_pp                              2.60                      Papatzacos (1987)
 
- Mechanical (damage) skin s_d                                      -1.67                    s_d = (hp/h) (s - s_pp)
+ Mechanical (damage) skin s_d                                      -1.67                     s_d = (hp/h) (s - s_pp)
 
- Net pay h (m)                                                     13.716                   Input
+ Net pay h (m)                                                     13.716                    Input
 
- Perforated length hp (m)                                          8.8392                   True vertical depth
+ Perforated length hp (m)                                          8.8392                    True vertical depth
 
- Top of pay to top of perforations h1 (m)                          0                        True vertical depth
+ Top of pay to top of perforations h1 (m)                          0                         True vertical depth
 
- kv/kh                                                             0.1                      Assumed default 0.1 (no value entered)
+ kv/kh                                                             0.1                       Assumed default 0.1 (no value entered)
 
 Papatzacos (1987): s_pp = (1/hpD - 1) ln(pi/(2 rD)) + (1/hpD) ln[hpD/(2 + hpD) sqrt((A - 1)/(B - 1))], with hpD = hp/h, rD = (rw/h) sqrt(kv/kh), h1D =
 h1/h, A = 1/(h1D + hpD/4), B = 1/(h1D + 3 hpD/4). Mechanical skin: s_d = (hp/h) (s - s_pp). kv/kh not entered: 0.1 is assumed.
 
 
 Model match: Homogeneous reservoir (manual match)
- Parameter                                                                   Value                      95% confidence
+ Parameter                                                                 Value                           95% confidence
 
- Permeability (md)                                                           70.0                       n/a
+ Permeability (md)                                                         70.0                            n/a
 
- Skin factor (dimensionless)                                                 0.00                       n/a
+ Skin factor (dimensionless)                                               0.00                            n/a
 
- Wellbore storage (m3/kPa)                                                   0.0110                     n/a
+ Wellbore storage (m3/kPa)                                                 0.000231                        n/a
 
 Manual match: no regression was run on these values, so no confidence intervals are given.
 

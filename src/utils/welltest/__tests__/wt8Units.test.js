@@ -50,6 +50,17 @@ describe('WT8 unit registry', () => {
     expect(displayInputString('length', '', 'si')).toBe('');
   });
 
+  test('wellbore storage converts with the pressure factor the right way up', () => {
+    // 0.01 bbl/psi = 0.01 x 0.158987294928 m3 / 6.894757293168361 kPa.
+    // The factor used to be multiplied by kPa per psi, 47.5 times too large,
+    // and the round trip hid it because toOil inverted the same factor.
+    const { fromOil, toOil } = UNIT_KINDS.storage;
+    expect(fromOil(0.01)).toBeCloseTo(2.305916e-4, 9);
+    expect(toOil(2.305916e-4)).toBeCloseTo(0.01, 6);
+    // a volume per pressure must shrink going to m3/kPa, as 1/psi to 1/kPa does
+    expect(fromOil(1) / UNIT_KINDS.poreVolume.fromOil(1)).toBeCloseTo(UNIT_KINDS.compressibility.fromOil(1), 12);
+  });
+
   test('catalog units map to the right kinds', () => {
     expect(kindForCatalogUnit('ft')).toBe('length');
     expect(kindForCatalogUnit('bbl/psi')).toBe('storage');
