@@ -109,6 +109,23 @@ describe('bar chart, read back from the PDF', () => {
     } finally { emptyPdf.close(); }
   });
 
+  test('reference line labels of a line plot can sit on separate rows', () => {
+    const r = createReport({ title: 'x', logo });
+    r.header({ generatedAt: AT });
+    const fig = r.figure({
+      id: 'rows', title: 'Two reference lines close together', caption: 'Their labels sit on two rows.',
+      panels: [{ height: 50, spec: { xTitle: 'x', yTitle: 'y', lines: [{ x: 1, label: 'First' }, { x: 1.1, label: 'Second', row: 1 }], series: [{ name: 'Line', pts: [[0, 0], [1, 2], [2, 3]] }] } }],
+    });
+    const out = r.finish();
+    const read = readPdf(out.doc);
+    // on one row the two words share a text line; on two rows they do not
+    const lines = read.text.split('\n');
+    expect(lines.some((l) => l.includes('First') && l.includes('Second'))).toBe(false);
+    expect(read.text).toContain('First');
+    expect(read.text).toContain('Second');
+    expect(fig.panels[0].lines).toBe(2);
+  });
+
   test('drawBars on its own returns what it drew', () => {
     const r = createReport({ title: 'x' });
     const out = drawBars(r.doc, { x: 14, y: 30, w: 182, h: 60 }, { categories: ['A', 'B'], series: [{ name: 'S', values: [1, 2] }] });

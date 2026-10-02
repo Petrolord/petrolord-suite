@@ -93,10 +93,12 @@ export function drawBars(doc, box, spec) {
     doc.text('No data to plot', box.x + box.w / 2, box.y + box.h / 2, { align: 'center' });
     return result;
   }
-  // head room for the value printed over the tallest bar
-  const ticks = niceTicks(lo, hi === lo ? lo + 1 : hi + (hi - lo) * 0.08, 5);
-  const yLo = Math.min(lo, ticks[0]);
-  const yHi = Math.max(hi, ticks[ticks.length - 1]);
+  // ticks on the data range; the axis runs a little past the tallest bar so
+  // the value printed over it has room (a percent axis ends just above 100)
+  const top = hi === lo ? lo + 1 : hi;
+  const ticks = niceTicks(lo, top, 5).filter((t) => t >= lo - 1e-9 && t <= top + 1e-9);
+  const yLo = lo < 0 ? lo - (top - lo) * 0.1 : lo;
+  const yHi = top + (top - lo) * 0.1;
   result.yRange = [yLo, yHi];
   result.plotArea = { x: X0, y: Y0, w: X1 - X0, h: Y1 - Y0 };
   const py = (v) => Y1 - ((v - yLo) / ((yHi - yLo) || 1)) * (Y1 - Y0);
