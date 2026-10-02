@@ -320,7 +320,7 @@ export default function WellImport({ onSave, crsContext }) {
         </label>
         <input className={inputCls} placeholder={`KB ${unitLabel(headUnit)} above datum (blank = not set)`} value={head.kb}
           onChange={setHeadField('kb')} data-testid="well-import-kb"
-          title="Kelly bushing elevation above the vertical datum. Leave it blank when it is not known: blank is kept as not set, never as 0. Another reference (RT, DF, GL), the ground level, water depth and datum name are set on the well's Header tab in Well Data Manager." />
+          title="Kelly bushing elevation above the vertical datum. Leave it blank when it is not known. A blank is kept as not set; it does not become 0. Another reference (RT, DF, GL), the ground level, water depth and datum name are set on the well's Header tab in Well Data Manager." />
         <input className={inputCls} placeholder={`TD ${unitLabel(headUnit)} MD (vertical wells)`} value={head.td}
           onChange={setHeadField('td')} data-testid="well-import-td"
           title="Required only when no deviation survey is pasted; defaults to the last station otherwise" />

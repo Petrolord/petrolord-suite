@@ -143,7 +143,7 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
             Wells saved before the datum model carry one number, the KB, with no datum name. It is read as a kelly bushing elevation above mean
             sea level and the Header says the datum is not named. A KB of 0 on such a well may mean it was never entered; until the registry
             is upgraded the app keeps showing TVDSS equal to TVD for it, with a note, and after the upgrade the well reads as not set.
-            The seismic reference datum of a survey is declared in the apps that use one (Pore Pressure, Seismolord), not on the well.
+            The seismic reference datum of a survey is declared in Pore Pressure and Seismolord, the apps that use one; the well does not carry it.
           </Callout>
         </GuideSection>
 

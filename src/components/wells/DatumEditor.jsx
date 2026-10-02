@@ -50,7 +50,7 @@ export function DatumFields({ fields, onChange, unit = 'm', columns = true, test
           <span className={lab}>Reference elevation ({u})</span>
           <input className={`${inp} w-24`} value={f.refElev} onChange={set('refElev')} disabled={disabled} inputMode="decimal"
             placeholder="not set" data-testid={elevTestId || `${testIdPrefix}-elev`}
-            title="Elevation of the depth reference above the vertical datum. Leave blank when it is not known: blank is kept as not set, never as 0." />
+            title="Elevation of the depth reference above the vertical datum. Leave it blank when it is not known. A blank is kept as not set; it does not become 0." />
         </label>
         <label>
           <span className={lab}>Vertical datum</span>
