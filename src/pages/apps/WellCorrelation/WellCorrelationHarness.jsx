@@ -21,10 +21,14 @@ export default function WellCorrelationHarness() {
   const [params] = useSearchParams();
   const n = Number(params.get('scaleWells')) || 0;
   const sample = params.get('sample') !== '0';
+  const shared = params.get('shared') === '1';
+  const beforeApply = params.get('sharing') === 'off';
   const backend = useMemo(() => {
     const seed = (typeof window !== 'undefined' && window.__CORR_SEED__) || {};
-    return makeInMemoryBackend({ sample, seedWells: [...(seed.wells || []), ...scaleWells(n)], section: seed.section || null, sections: seed.sections || [] });
-  }, [n, sample]);
+    // organisation sharing: ?shared=1 lists two sections a colleague shared;
+    // ?sharing=off behaves as the database before the migration
+    return makeInMemoryBackend({ sample, seedWells: [...(seed.wells || []), ...scaleWells(n)], section: seed.section || null, sections: seed.sections || [], sharedSections: shared, sharing: { applied: !beforeApply } });
+  }, [n, sample, shared, beforeApply]);
   return (
     <div className="h-screen w-full overflow-hidden" data-testid="corr-theme-scope">
       <CorrelationWorkstation backend={backend} wellDataManagerPath="/dev/well-data-manager" mappingPath="/dev/mapping-surface-studio" />
