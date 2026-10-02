@@ -8,8 +8,7 @@ Sample or fluid           BHS-2 recombined                                Sample
 Sampling date             2026-08-14                                      Sampling method          Bottomhole
 Laboratory                Core Lab Lagos                                  Lab report               RFL-2026-0412
 Analyst                   A. Analyst                                      Analysis date            2026-10-02
-Analysis type             PVT properties, Compositional,                  Build                    Petrolord Suite test (fixture)
-                          Peng-Robinson (1978) equation of state
+Analysis type             PVT, equation of state (PR78)                   Build                    Petrolord Suite test (fixture)
 Display units             Oilfield (psia, degF); Bg in RB/Mscf            Generated                2026-10-02 09:00 UTC
 
 

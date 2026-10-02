@@ -172,7 +172,7 @@ describe('RL4: identification, and an old project prints n/a', () => {
       ['Sampling method', IDENT.samplingMethod], ['Laboratory', IDENT.laboratory], ['Lab report', IDENT.labReport], ['Analyst', IDENT.analyst],
       ['Analysis date', IDENT.analysisDate], ['Build', 'Petrolord Suite test (fixture)'], ['Generated', '2026-10-02 09:00 UTC'],
     ]) expect(p1).toContain(`${label} ${value}`);
-    expect(p1).toMatch(/Analysis type PVT properties, Black-oil correlations/);
+    expect(p1).toMatch(/Analysis type PVT, black-oil correlations/);
     expect(p1).toMatch(/Display units Oilfield \(psia, degF\); Bg in RB\/Mscf Generated 2026-10-02 09:00 UTC/);
     expect(IDENTIFICATION_FIELDS.length).toBe(13);
   });
@@ -306,6 +306,10 @@ describe('RL7 and PL3: the basis is named, and the unit system converts', () => 
     const pbKpa = oil.results.pvt.kpis.pb * 6.894757293168361;
     expect(text).toContain(`Bubble point pressure Pb ${Math.round(pbKpa).toLocaleString('en-US')} kPa (abs)`);
     expect(text).toMatch(/Reservoir temperature 93\.3 degC/);
+    // one bubble point on every surface: the headline, the basis row and the plot label agree (RL12)
+    const label = `Pb ${Math.round(pbKpa).toLocaleString('en-US')} kPa (abs)`;
+    expect((text.split(label).length - 1)).toBeGreaterThanOrEqual(5);
+    expect(text).toContain(`Bubble point pressure ${Math.round(pbKpa).toLocaleString('en-US')} kPa (abs), solved from the solution GOR`);
     expect(text).toMatch(/Solution GOR at the bubble point Rsb 115\.77 m3\/m3/);
     expect(text).toMatch(/Standard conditions 101\.4 kPa \(abs\) and 15\.6 degC/);
     expect(text).toMatch(/Pressure \(kPa \(abs\)\)/);

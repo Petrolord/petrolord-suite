@@ -8,7 +8,7 @@ Sample or fluid           BHS-2 oil                                     Sample d
 Sampling date             2026-08-14                                    Sampling method         Bottomhole
 Laboratory                Core Lab Lagos                                Lab report              RFL-2026-0412
 Analyst                   A. Analyst                                    Analysis date           2026-10-02
-Analysis type             PVT properties, Black-oil correlations        Build                   Petrolord Suite test (fixture)
+Analysis type             PVT, black-oil correlations                   Build                   Petrolord Suite test (fixture)
 Display units             SI (kPa abs, degC); Bg in m3/m3               Generated               2026-10-02 09:00 UTC
 
 

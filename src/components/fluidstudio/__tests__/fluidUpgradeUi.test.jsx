@@ -125,7 +125,7 @@ describe('Fluid Systems Studio upgrade: the page', () => {
     fireEvent.click(await screen.findByRole('option', { name: /Compositional PR78 EOS/ }));
     await waitFor(() => expect(screen.getByTestId('fluid-kpi-basis')).toHaveTextContent('the report and the handoffs use the compositional table'));
     open(resultTab('Report'));
-    expect(screen.getByTestId('fluid-report-header')).toHaveTextContent('Compositional, Peng-Robinson (1978) equation of state');
+    expect(screen.getByTestId('fluid-report-header')).toHaveTextContent('PVT, equation of state (PR78)');
     expect(screen.getByTestId('fluid-report-tuning')).toHaveTextContent('No lab tuning. The C7+ fraction uses generalised correlations');
     expect(screen.getByTestId('fluid-report-figures')).toHaveTextContent('Not plotted: the envelope has not been traced in this session.');
   });

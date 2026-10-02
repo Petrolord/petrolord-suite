@@ -91,6 +91,17 @@ export function buildLabOverlay({ lab, flashPressure, flashTempF, modelPb, syste
 }
 
 /**
+ * The property plots a laboratory overlay can be drawn on: the ones with a
+ * measured point, or Bo and Rs both when only the measured saturation
+ * pressure (a line) is there. One rule for the screen and the report.
+ */
+export const labPlotIds = (lab) => {
+  if (!lab) return [];
+  const withPoints = ['bo', 'rs'].filter((k) => lab.points[k].length);
+  return withPoints.length ? withPoints : (lab.psat ? ['bo', 'rs'] : []);
+};
+
+/**
  * The phase envelope series in display units, from the envelope worker's
  * result ({ bubble, dew, satAtRes } with tF and pPsia).
  */

@@ -142,7 +142,7 @@ const SHOW = {
 
 // ---- identification ---------------------------------------------------------
 
-const MODEL_WORDS = { 'black-oil': 'Black-oil correlations', eos: 'Compositional, Peng-Robinson (1978) equation of state' };
+const MODEL_WORDS = { 'black-oil': 'black-oil correlations', eos: 'equation of state (PR78)' };
 
 /**
  * The header pairs of the report: what was analysed, by whom, with what.
@@ -166,7 +166,7 @@ export function identificationPairs({ inputs, projectName, organizationName, mod
     ['Lab report', id.labReport],
     ['Analyst', id.analyst],
     ['Analysis date', id.analysisDate],
-    ['Analysis type', `PVT properties, ${MODEL_WORDS[mode]}`],
+    ['Analysis type', `PVT, ${MODEL_WORDS[mode]}`],
     ['Build', text(build)],
   ].map(([k, v]) => [k, text(v)]);
 }
@@ -600,7 +600,8 @@ export function buildFluidReportModel({ inputs, results, eos, system = 'oilfield
   const std = mode === 'eos' ? eos.pvtTable.standardConditions : results.meta.standardConditions;
   const inputsBlock = mode === 'eos' ? eosInputRows({ inputs, eos, u }) : blackOilInputRows({ inputs, results, u });
   const rows = mode === 'eos' ? eos.pvtTable.table.rows : results.pvt.table;
-  const pb = mode === 'eos' ? eos.pvtTable.table.pb : results.pvt.pb;
+  // one bubble point on every surface: the rounded value the table's Pb row holds (RL12)
+  const pb = mode === 'eos' ? eos.pvtTable.table.pb : results.pvt.kpis.pb;
   const satKind = mode === 'eos' ? eos.pvtTable.table.satKind : 'bubble';
   const tempF = mode === 'eos' ? eos.pvtTable.model.tempF : results.meta.fluid.temp;
 

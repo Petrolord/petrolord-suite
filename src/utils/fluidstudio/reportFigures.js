@@ -9,7 +9,7 @@
  * or { id, title, statement }).
  */
 import {
-  buildPvtSeries, buildLabOverlay, buildEnvelopeSeries, PB_RGB, LAB_RGB,
+  buildPvtSeries, buildLabOverlay, buildEnvelopeSeries, labPlotIds, PB_RGB, LAB_RGB,
 } from './pvtSeries.js';
 import { fluidUnits } from './units.js';
 import { envelopeRequest } from './eosAnalysis.js';
@@ -66,16 +66,16 @@ export function buildFluidReportFigures({ model, inputs, results, eos, envelope 
     : null;
   const labPanels = [];
   if (lab) {
-    for (const id of ['bo', 'rs']) {
+    for (const id of labPlotIds(lab)) {
       const plot = series.plots.find((p) => p.id === id);
-      if (!lab.points[id].length || plot.points.length < 2) continue;
+      if (plot.points.length < 2) continue;
       labPanels.push({
         height: PANEL,
         spec: {
           xTitle: series.xTitle, yTitle: plot.yTitle, xInclude: [0],
           series: [
             { name: `Model ${plot.short}`, type: 'line', rgb: plot.rgb, pts: pts(plot.points), width: 0.5 },
-            { name: `Laboratory ${plot.short}`, type: 'scatter', rgb: [...LAB_RGB], pts: pts(lab.points[id]), marker: 'circle' },
+            ...(lab.points[id].length ? [{ name: `Laboratory ${plot.short}`, type: 'scatter', rgb: [...LAB_RGB], pts: pts(lab.points[id]), marker: 'circle' }] : []),
           ],
           lines: [...pbLine, ...(lab.psat ? [{ x: lab.psat.x, label: lab.psat.label, rgb: [...LAB_RGB], dash: [0.6, 0.9] }] : [])],
         },
@@ -86,7 +86,7 @@ export function buildFluidReportFigures({ model, inputs, results, eos, envelope 
     figures.push({
       id: 'lab',
       title: 'Laboratory values against the model',
-      caption: `Model curves with the measured separator-test values as points${lab.psat ? ' and the measured saturation pressure as the dotted line' : ''}. ${model.tuning.status === 'tuned' ? 'The model is tuned to these values; the tuning table gives the errors.' : 'The model is not tuned to these values.'}${lab.notes.length ? ` ${lab.notes.join(' ')}` : ''}`,
+      caption: `Model curves${lab.points.bo.length + lab.points.rs.length ? ' with the measured separator-test values as points' : ''}${lab.psat ? `${lab.points.bo.length + lab.points.rs.length ? ' and' : ' with'} the measured saturation pressure as the dotted line` : ''}. ${model.tuning.status === 'tuned' ? 'The model is tuned to these values; the tuning table gives the errors.' : 'The model is not tuned to these values.'}${lab.notes.length ? ` ${lab.notes.join(' ')}` : ''}`,
       panels: labPanels,
     });
   } else {

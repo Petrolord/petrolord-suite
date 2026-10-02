@@ -21,7 +21,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { PVT_PROJECT_PARAM } from '@/lib/inputProvenance/pvtContract';
 import { useFluidUnits } from '@/components/fluidstudio/FluidUnitsContext';
 import { pvtTableCsv, downloadText } from '@/utils/fluidstudio/csvExport';
-import { buildLabOverlay } from '@/utils/fluidstudio/pvtSeries';
+import { buildLabOverlay, labPlotIds } from '@/utils/fluidstudio/pvtSeries';
 import { screenWarnings } from '@/utils/fluidstudio/screenWarnings';
 
 const KPICard = ({ title, value, unit, icon: Icon }) => (
@@ -176,7 +176,7 @@ const FluidStudioResults = ({
         </div>
 
         <TabsContent value="pvt" className="mt-4">
-          <PvtChartsCard table={pvt.table} pb={pvt.pb} />
+          <PvtChartsCard table={pvt.table} pb={kpis.pb} />
         </TabsContent>
 
         {eos && (
@@ -185,10 +185,10 @@ const FluidStudioResults = ({
             {onUpdateTuning && (
               <LabTuningCard composition={composition} stages={sepStages} onUpdateTuning={onUpdateTuning} />
             )}
-            {eosTable && lab && (lab.points.bo.length > 0 || lab.points.rs.length > 0) && (
+            {eosTable && lab && labPlotIds(lab).length > 0 && (
               <div data-testid="fluid-lab-vs-model">
                 <p className="text-sm font-semibold text-pl-text mb-2">Laboratory values against the model</p>
-                <PvtChartsCard table={eosTable.rows} pb={eosTable.pb} satKind={eosTable.satKind} only={['bo', 'rs'].filter((k) => lab.points[k].length)} lab={lab} />
+                <PvtChartsCard table={eosTable.rows} pb={eosTable.pb} satKind={eosTable.satKind} only={labPlotIds(lab)} lab={lab} />
                 {lab.notes.map((n) => <p key={n} className="text-xs text-pl-muted mt-1">{n}</p>)}
               </div>
             )}

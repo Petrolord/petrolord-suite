@@ -8,7 +8,7 @@ Sample or fluid           n/a                                             Sample
 Sampling date             n/a                                             Sampling method         n/a
 Laboratory                n/a                                             Lab report              n/a
 Analyst                   n/a                                             Analysis date           n/a
-Analysis type             PVT properties, Black-oil correlations          Build                   Petrolord Suite test (fixture)
+Analysis type             PVT, black-oil correlations                     Build                   Petrolord Suite test (fixture)
 Display units             Oilfield (psia, degF); Bg in RB/Mscf            Generated               2026-10-02 09:00 UTC
 
 
