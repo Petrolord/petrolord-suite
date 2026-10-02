@@ -14,6 +14,10 @@
 //   pound                  0.45359237 kg                (1959 agreement)
 //   darcy                  9.869233e-13 m2              (API RP 40 convention)
 //   degF                   (F - 32) x 5/9 + 273.15 K
+//   inch                   0.0254 m                     (1959 agreement)
+//   dyne                   1e-5 N, so dyne/cm = mN/m    (CGS definition)
+//   year                   365.25 d (Julian year)       (IAU; SPE Metric Standard: 3.155 76 E+07 s)
+//   month                  1/12 of that year = 30.4375 d
 // Standard conditions (60 degF / 14.696 psia vs 15 degC / 101.325 kPa)
 // are NOT converted here: scf and sm3 are treated as plain volumes, which
 // is the convention every Suite app already uses. Gauge versus absolute
@@ -33,6 +37,9 @@ export const M3_PER_ACRE_FT = 1233.48183754752;
 export const KG_PER_LB = 0.45359237;
 export const M2_PER_DARCY = 9.869233e-13;
 export const M2_PER_FT2 = M_PER_FT * M_PER_FT;
+export const M_PER_IN = 0.0254;
+export const DAYS_PER_YEAR = 365.25;
+export const DAYS_PER_MONTH = DAYS_PER_YEAR / 12;
 
 const lin = (key, factor, label, system, extra = {}) => ({ key, factor, label: label || key, system, ...extra });
 
@@ -72,6 +79,10 @@ export const FAMILIES = Object.freeze({
     units: [
       lin('m3', 1, 'm3', 'metric'), lin('bbl', M3_PER_BBL, 'bbl', 'oilfield'),
       lin('STB', M3_PER_BBL, 'STB (stock-tank bbl)', 'oilfield'), lin('10^3 bbl', 1e3 * M3_PER_BBL, '10^3 bbl', 'oilfield'),
+      // Reservoir round: the multiples the Reservoir apps print, and the reservoir barrel
+      lin('MSTB', 1e3 * M3_PER_BBL, 'MSTB (10^3 STB)', 'oilfield'), lin('MMSTB', 1e6 * M3_PER_BBL, 'MMSTB (10^6 STB)', 'oilfield'),
+      lin('MMbbl', 1e6 * M3_PER_BBL, 'MMbbl (10^6 bbl)', 'oilfield'), lin('RB', M3_PER_BBL, 'RB (reservoir bbl)', 'oilfield'),
+      lin('10^6 m3', 1e6, '10^6 m3', 'metric'),
     ],
   },
   gasVolume: {
@@ -80,6 +91,7 @@ export const FAMILIES = Object.freeze({
       lin('m3', 1, 'm3', 'metric'), lin('10^3 m3', 1e3, '10^3 m3', 'metric'),
       lin('scf', M3_PER_FT3, 'scf', 'oilfield'), lin('Mscf', 1e3 * M3_PER_FT3, 'Mscf', 'oilfield'),
       lin('MMscf', 1e6 * M3_PER_FT3, 'MMscf', 'oilfield'), lin('Bscf', 1e9 * M3_PER_FT3, 'Bscf', 'oilfield'),
+      lin('10^6 m3', 1e6, '10^6 m3', 'metric'), lin('10^9 m3', 1e9, '10^9 m3', 'metric'),
     ],
   },
   pressure: {
@@ -100,13 +112,17 @@ export const FAMILIES = Object.freeze({
   },
   liquidRate: {
     label: 'Liquid rate', base: 'm3/d', canonical: 'm3/d',
-    units: [lin('m3/d', 1, 'm3/d', 'metric'), lin('bbl/d', M3_PER_BBL, 'bbl/d', 'oilfield'), lin('STB/d', M3_PER_BBL, 'STB/d', 'oilfield')],
+    units: [
+      lin('m3/d', 1, 'm3/d', 'metric'), lin('bbl/d', M3_PER_BBL, 'bbl/d', 'oilfield'), lin('STB/d', M3_PER_BBL, 'STB/d', 'oilfield'),
+      lin('RB/d', M3_PER_BBL, 'RB/d (reservoir bbl)', 'oilfield'),
+    ],
   },
   gasRate: {
     label: 'Gas rate', base: 'm3/d', canonical: 'm3/d',
     units: [
       lin('m3/d', 1, 'm3/d', 'metric'), lin('10^3 m3/d', 1e3, '10^3 m3/d', 'metric'),
       lin('Mscf/d', 1e3 * M3_PER_FT3, 'Mscf/d', 'oilfield'), lin('MMscf/d', 1e6 * M3_PER_FT3, 'MMscf/d', 'oilfield'),
+      lin('scf/d', M3_PER_FT3, 'scf/d', 'oilfield'),
     ],
   },
   fvfOil: {
@@ -118,6 +134,8 @@ export const FAMILIES = Object.freeze({
     units: [
       lin('m3/m3', 1, 'm3/m3', 'metric'), lin('rcf/scf', 1, 'rcf/scf', 'oilfield'),
       lin('RB/Mscf', M3_PER_BBL / (1e3 * M3_PER_FT3), 'RB/Mscf', 'oilfield'),
+      // 1000 times RB/Mscf: Fluid Systems prints rb/scf on screen and RB/Mscf in one CSV
+      lin('RB/scf', M3_PER_BBL / M3_PER_FT3, 'RB/scf', 'oilfield'),
     ],
   },
   density: {
@@ -150,7 +168,60 @@ export const FAMILIES = Object.freeze({
   },
   gor: {
     label: 'Gas-oil ratio', base: 'm3/m3', canonical: 'm3/m3',
-    units: [lin('m3/m3', 1, 'm3/m3', 'metric'), lin('scf/STB', M3_PER_FT3 / M3_PER_BBL, 'scf/STB', 'oilfield')],
+    units: [
+      lin('m3/m3', 1, 'm3/m3', 'metric'), lin('scf/STB', M3_PER_FT3 / M3_PER_BBL, 'scf/STB', 'oilfield'),
+      lin('Mscf/STB', (1e3 * M3_PER_FT3) / M3_PER_BBL, 'Mscf/STB', 'oilfield'),
+    ],
+  },
+  // ---- Reservoir round (Step 0a, 2026-10-02) --------------------------------
+  declineRate: {
+    label: 'Decline rate', base: '1/d', canonical: '1/yr',
+    note: 'The time basis only. Nominal or effective is a label the app supplies; converting between the two uses De = 1 - exp(-Dn) (see decline.js). A year is 365.25 days here.',
+    units: [
+      lin('1/d', 1, '1/day', 'both'), lin('1/month', 1 / DAYS_PER_MONTH, '1/month', 'both'),
+      lin('1/yr', 1 / DAYS_PER_YEAR, '1/year', 'both'), lin('%/yr', 0.01 / DAYS_PER_YEAR, '% per year', 'both'),
+    ],
+  },
+  productivityIndex: {
+    label: 'Productivity and injectivity index (liquid)', base: 'm3/d/Pa', canonical: 'm3/d/kPa',
+    note: 'One family for a producer and an injector. RB/d/psi is the reservoir-volume form an aquifer index uses.',
+    units: [
+      lin('m3/d/kPa', 1e-3, 'sm3/d/kPa', 'metric'), lin('m3/d/bar', 1e-5, 'sm3/d/bar', 'metric'),
+      lin('STB/d/psi', M3_PER_BBL / PA_PER_PSI, 'STB/d/psi', 'oilfield'), lin('RB/d/psi', M3_PER_BBL / PA_PER_PSI, 'RB/d/psi', 'oilfield'),
+    ],
+  },
+  pseudoPressure: {
+    label: 'Gas pseudo-pressure', base: 'Pa/s', canonical: 'kPa2/mPa.s',
+    units: [lin('kPa2/mPa.s', 1e6 / 1e-3, 'kPa2/mPa.s', 'metric'), lin('psi2/cP', (PA_PER_PSI * PA_PER_PSI) / 1e-3, 'psi2/cP', 'oilfield')],
+  },
+  gasProductivityIndex: {
+    label: 'Gas productivity index (pseudo-pressure basis)', base: 'm3/d per Pa/s', canonical: '10^3 m3/d/(kPa2/mPa.s)',
+    note: 'Rate per unit of pseudo-pressure drawdown, as Well Test rate-transient analysis prints it.',
+    units: [
+      lin('10^3 m3/d/(kPa2/mPa.s)', 1e3 / (1e6 / 1e-3), '10^3 m3/d per kPa2/mPa.s', 'metric'),
+      lin('Mscf/d/(psi2/cP)', (1e3 * M3_PER_FT3) / ((PA_PER_PSI * PA_PER_PSI) / 1e-3), 'Mscf/d per psi2/cP', 'oilfield'),
+    ],
+  },
+  capillaryPressure: {
+    label: 'Capillary pressure', base: 'Pa', canonical: 'kPa',
+    note: 'A pressure difference: never gauge or absolute.',
+    units: [lin('kPa', 1e3, 'kPa', 'metric'), lin('bar', 1e5, 'bar', 'metric'), lin('psi', PA_PER_PSI, 'psi', 'oilfield')],
+  },
+  interfacialTension: {
+    label: 'Interfacial tension', base: 'N/m', canonical: 'mN/m',
+    units: [lin('mN/m', 1e-3, 'mN/m', 'metric'), lin('dyne/cm', 1e-5 / 1e-2, 'dyne/cm', 'oilfield')],
+  },
+  wellboreStorage: {
+    label: 'Wellbore storage coefficient', base: 'm3/Pa', canonical: 'm3/kPa',
+    units: [lin('m3/kPa', 1e-3, 'm3/kPa', 'metric'), lin('bbl/psi', M3_PER_BBL / PA_PER_PSI, 'bbl/psi', 'oilfield')],
+  },
+  flowCapacity: {
+    label: 'Flow capacity (kh)', base: 'm3', canonical: 'mD.m',
+    units: [lin('mD.m', M2_PER_DARCY / 1000, 'mD.m', 'metric'), lin('mD.ft', (M2_PER_DARCY / 1000) * M_PER_FT, 'mD.ft', 'oilfield')],
+  },
+  diameter: {
+    label: 'Diameter (choke, tubing, wellbore)', base: 'm', canonical: 'mm',
+    units: [lin('mm', 1e-3, 'mm', 'metric'), lin('in', M_PER_IN, 'in', 'oilfield'), lin('1/64 in', M_PER_IN / 64, '1/64 in', 'oilfield')],
   },
 });
 
