@@ -9,15 +9,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import UnitField from '@/components/fluidstudio/UnitField';
+import { useFluidUnits } from '@/components/fluidstudio/FluidUnitsContext';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { Loader2, SlidersHorizontal, RotateCcw, AlertTriangle } from 'lucide-react';
 import FluidStudioTierBadge, { TuneStatusBadge } from '@/components/fluidstudio/FluidStudioTierBadge';
 import { createEnvelopeClient } from '@/utils/fluidstudio/envelopeClient';
-import { labTuneRequest, tuningStatus } from '@/utils/fluidstudio/eosAnalysis';
+import { labTuneRequest, tuningStatus, tuneRecord } from '@/utils/fluidstudio/eosAnalysis';
 import { untunedKnobs } from '@/utils/fluidstudio/eos/labTune';
 
-const fmt = (v, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : 'n/a');
+const fmt = (v, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : EMPTY_VALUE);
+// the kind of each tuning target, for display units
+const TARGET_KIND = { psat: 'pressure', totalGor: 'gor', stoApi: 'api', bo: 'fvfOil' };
 
 const TARGET_LABELS = {
   psat: 'Saturation pressure',
@@ -26,22 +29,12 @@ const TARGET_LABELS = {
   bo: 'Bo at reservoir P/T',
 };
 
-const Field = ({ id, label, unit, value, onChange, placeholder }) => (
-  <div>
-    <Label htmlFor={id} className="text-xs text-pl-muted">{label}</Label>
-    <div className="flex items-center mt-1">
-      <Input
-        id={id}
-        type="number"
-        step="any"
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}
-        placeholder={placeholder}
-        className="h-8 text-sm"
-      />
-      {unit && <span className="ml-2 text-xs text-pl-muted whitespace-nowrap">{unit}</span>}
-    </div>
-  </div>
+// measured values convert at the door (FLUID-U1, PL3): stored in oilfield units
+const Field = ({ id, label, kind, value, onChange, placeholder }) => (
+  <UnitField
+    id={id} label={label} kind={kind} value={value == null || value === '' ? null : Number(value)} placeholder={placeholder}
+    onChange={onChange} labelClassName="text-xs text-pl-muted" inputClassName="h-8 text-sm" unitClassName="ml-2 text-xs text-pl-muted"
+  />
 );
 
 const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
@@ -51,6 +44,7 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
   const clientRef = useRef(null);
   useEffect(() => () => clientRef.current?.dispose(), []);
 
+  const u = useFluidUnits();
   const lab = composition?.tuning?.lab ?? {};
   const applied = composition?.tuning?.applied ?? null;
   // H10: does the applied tune still belong to this fluid?
@@ -79,8 +73,9 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
       } else {
         setLastFit(fit);
         // H10: keep what the fit consumed beside the knobs, so a later edit
-        // of the fluid, the lab values or the separator train is noticed
-        onUpdateTuning({ applied: fit.tuning, fittedOn: JSON.stringify(request) });
+        // of the fluid, the lab values or the separator train is noticed.
+        // FLUID-U1: and the record of the match itself, for the report.
+        onUpdateTuning({ applied: fit.tuning, fittedOn: JSON.stringify(request), fit: tuneRecord(fit, composition) });
       }
     } catch (err) {
       setError(err?.message || 'The regression failed.');
@@ -92,7 +87,7 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
   const resetTune = () => {
     setLastFit(null);
     setError(null);
-    onUpdateTuning({ applied: null, fittedOn: null });
+    onUpdateTuning({ applied: null, fittedOn: null, fit: null });
   };
 
   return (
@@ -120,11 +115,11 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Field id="lt-psat" label="Measured Psat" unit="psia" value={lab.psatPsia} onChange={(v) => setLab('psatPsia', v)} />
-          <Field id="lt-psat-t" label="Psat temperature" unit="°F" value={lab.psatTF} onChange={(v) => setLab('psatTF', v)} placeholder={composition?.temp != null ? String(composition.temp) : ''} />
-          <Field id="lt-gor" label="Total GOR" unit="scf/STB" value={lab.totalGor} onChange={(v) => setLab('totalGor', v)} />
-          <Field id="lt-api" label="Stock-tank API" unit="°API" value={lab.stoApi} onChange={(v) => setLab('stoApi', v)} />
-          <Field id="lt-bo" label="Bo at res P/T" unit="rb/STB" value={lab.bo} onChange={(v) => setLab('bo', v)} />
+          <Field id="lt-psat" label="Measured Psat" kind="pressure" value={lab.psatPsia} onChange={(v) => setLab('psatPsia', v)} />
+          <Field id="lt-psat-t" label="Psat temperature" kind="temperature" value={lab.psatTF} onChange={(v) => setLab('psatTF', v)} placeholder={composition?.temp != null ? u.text('temperature', composition.temp) : ''} />
+          <Field id="lt-gor" label="Total GOR" kind="gor" value={lab.totalGor} onChange={(v) => setLab('totalGor', v)} />
+          <Field id="lt-api" label="Stock-tank API" kind="api" value={lab.stoApi} onChange={(v) => setLab('stoApi', v)} />
+          <Field id="lt-bo" label="Bo at res P/T" kind="fvfOil" value={lab.bo} onChange={(v) => setLab('bo', v)} />
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -160,10 +155,10 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
                 <tbody>
                   {lastFit.report.map((r) => (
                     <tr key={r.name} className="border-b border-pl-border">
-                      <td className="py-1 pr-2 text-pl-text">{TARGET_LABELS[r.name] || r.name} <span className="text-pl-muted">({r.unit})</span></td>
-                      <td className="text-right py-1 px-2">{fmt(r.measured, r.name === 'bo' ? 3 : 1)}</td>
-                      <td className="text-right py-1 px-2 text-pl-muted">{fmt(r.untuned, r.name === 'bo' ? 3 : 1)}</td>
-                      <td className="text-right py-1 px-2 font-semibold text-pl-text">{fmt(r.tuned, r.name === 'bo' ? 3 : 1)}</td>
+                      <td className="py-1 pr-2 text-pl-text">{TARGET_LABELS[r.name] || r.name} <span className="text-pl-muted">({u.label(TARGET_KIND[r.name]) || r.unit})</span></td>
+                      <td className="text-right py-1 px-2">{fmt(u.show(TARGET_KIND[r.name], r.measured), r.name === 'bo' ? 3 : 1)}</td>
+                      <td className="text-right py-1 px-2 text-pl-muted">{fmt(u.show(TARGET_KIND[r.name], r.untuned), r.name === 'bo' ? 3 : 1)}</td>
+                      <td className="text-right py-1 px-2 font-semibold text-pl-text">{fmt(u.show(TARGET_KIND[r.name], r.tuned), r.name === 'bo' ? 3 : 1)}</td>
                       <td className="text-right py-1 pl-2 font-semibold text-pl-text">
                         {r.name === 'stoApi' ? `${fmt(r.tunedErr, 2)} API` : `${fmt(r.tunedErr, 2)}%`}
                       </td>

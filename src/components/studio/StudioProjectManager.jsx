@@ -1,7 +1,7 @@
 // Studio shell project manager — project Select + create dialog + guarded
 // delete. Props-driven (generalized from DCAProjectManager).
 import React, { useState } from 'react';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2 } from 'lucide-react';
@@ -24,6 +24,11 @@ const StudioProjectManager = ({
   // button then delegates to the app's own dialog instead of the built-in
   // name-only one.
   onRequestCreate,
+  // Record sharing (an app that adopted it): projects colleagues shared with
+  // the organisation, listed under the user's own. `canDelete` false hides
+  // the delete button while a colleague's project is open.
+  sharedProjects = [],
+  canDelete = true,
 }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -52,6 +57,14 @@ const StudioProjectManager = ({
               projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
               ))
+            )}
+            {sharedProjects.length > 0 && (
+              <SelectGroup data-testid="shared-with-me">
+                <SelectLabel>Shared with me</SelectLabel>
+                {sharedProjects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectGroup>
             )}
           </SelectContent>
         </Select>
@@ -94,7 +107,7 @@ const StudioProjectManager = ({
         </Dialog>
         )}
 
-        {currentProjectId && (
+        {currentProjectId && canDelete && (
           <Button
             variant="outline" size="icon"
             className="text-pl-muted hover:text-pl-danger-text"

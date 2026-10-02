@@ -16,4 +16,7 @@ export {
 export {
   PVT_CONTRACT_VERSION, PVT_HANDOFF_STATE_KEY, PVT_PRODUCER, PVT_SOURCES, PVT_PROPERTIES,
   pvtMethod, pvtPropertyProvenance, describePvtHandoff, validatePvtHandoff, pvtIntake, intakeSourceText,
+  PVT1_SCHEMA, PVT_PROJECT_PARAM, PVT_CONTRACT_PAYLOAD_KEY, PVT1_PROPERTIES, PVT1_UNITS, PVT1_PB_SOURCES, PVT1_TUNING_STATES,
+  buildPvtContract, pvtContractOf, validatePvtContract, pvtContractOrigin, pvtContractTuningText, pvtContractSourceText,
+  describePvtContract, pvtContractCsvHeader, pvtContractSummary, editedAfterHandoffText,
 } from './pvtContract.js';

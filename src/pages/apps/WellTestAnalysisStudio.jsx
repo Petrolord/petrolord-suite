@@ -30,6 +30,7 @@ import ReportResults from '@/components/welltest/ReportResults';
 import DiagnosticsRail from '@/components/welltest/DiagnosticsRail';
 import WTSHelpContent from '@/components/welltest/WTSHelpContent';
 import { pvtIntakeFromBackbone } from '@/utils/welltest/reportModel';
+import { readFluidProjectPvt, handoffFromContract, PVT_PROJECT_PARAM } from '@/lib/pvtSource';
 
 const TABS = [
   { value: 'data', label: 'Data' },
@@ -53,22 +54,42 @@ const WellTestStudioContent = () => {
     setReservoirField, isFitting, setPvtIntake,
   } = useWellTestStudio();
 
-  // PVT intake from Fluid Systems Studio (navigate-state handoff, the
-  // Pipeline Sizer contract): backbone carries bo_at_pb and mu_o_at_pb.
+  // PVT intake from Fluid Systems Studio. The handoff arrives through
+  // router state (the fluid backbone with its pvt-1 block). Router state is
+  // lost on a page refresh, so the sender also names its saved project in
+  // the URL (?fluidProject=<id>) and the block is read again from there.
   const location = useLocation();
   const intakeDone = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const fluidProjectId = searchParams.get(PVT_PROJECT_PARAM);
   useEffect(() => {
+    if (intakeDone.current) return undefined;
+    const apply = (fluid, how) => {
+      // the handoff also says how the values were computed; the report's
+      // Source column prints that (reviewer round 2026-10-02)
+      const intake = pvtIntakeFromBackbone(fluid);
+      if (!intake) return false;
+      for (const [key, value] of Object.entries(intake.patch)) setReservoirField(key, value);
+      setPvtIntake(intake.intake);
+      addNotification(`Fluid properties ${how}: ${intake.applied.join(', ')} applied. Review total compressibility manually.`, 'success');
+      return true;
+    };
     const fluid = location.state?.fluidStudioData;
-    if (!fluid || intakeDone.current) return;
+    if (fluid) {
+      intakeDone.current = true;
+      apply(fluid, 'received from Fluid Systems Studio');
+      return undefined;
+    }
+    if (!fluidProjectId) return undefined;
     intakeDone.current = true;
-    // the handoff also says how the values were computed; the report's
-    // Source column prints that (reviewer round 2026-10-02)
-    const intake = pvtIntakeFromBackbone(fluid);
-    if (!intake) return;
-    for (const [key, value] of Object.entries(intake.patch)) setReservoirField(key, value);
-    setPvtIntake(intake.intake);
-    addNotification(`Fluid properties received from Fluid Systems Studio: ${intake.applied.join(', ')} applied. Review total compressibility manually.`, 'success');
-  }, [location.state, setReservoirField, setPvtIntake, addNotification]);
+    readFluidProjectPvt(fluidProjectId).then((res) => {
+      if (!mounted.current) return;
+      if (!res.ok) { addNotification(`Fluid Systems Studio project not applied. ${res.reason}`, 'error'); return; }
+      apply(handoffFromContract(res.contract), `read from the saved Fluid Systems Studio project "${res.projectName || fluidProjectId}"`);
+    });
+    return undefined;
+  }, [location.state, fluidProjectId, setReservoirField, setPvtIntake, addNotification]);
 
   const leftPanel = (
     <div className="space-y-6">

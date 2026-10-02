@@ -49,7 +49,8 @@ describe('LabTuningCard', () => {
     const onUpdateTuning = jest.fn();
     render(<LabTuningCard composition={sampleComposition()} stages={stages} onUpdateTuning={onUpdateTuning} />);
     fireEvent.change(screen.getByLabelText(/Measured Psat/i), { target: { value: '2500' } });
-    expect(onUpdateTuning).toHaveBeenCalledWith({ lab: expect.objectContaining({ psatPsia: '2500' }) });
+    // FLUID-U1: lab values are stored as numbers in oilfield units (the field converts at the door)
+    expect(onUpdateTuning).toHaveBeenCalledWith({ lab: expect.objectContaining({ psatPsia: 2500 }) });
   });
 
   it('runs a psat tune end to end and applies the knobs', async () => {
@@ -61,10 +62,12 @@ describe('LabTuningCard', () => {
     render(<LabTuningCard composition={composition} stages={stages} onUpdateTuning={onUpdateTuning} />);
     fireEvent.click(screen.getByRole('button', { name: /Tune to lab data/i }));
     await waitFor(
-      // H10: the applied knobs travel with a record of what they were fitted on
+      // H10: the applied knobs travel with a record of what they were fitted on;
+      // FLUID-U1: and with the record of the match, for the report
       () => expect(onUpdateTuning).toHaveBeenCalledWith({
         applied: expect.objectContaining({ kC1: expect.any(Number) }),
         fittedOn: expect.any(String),
+        fit: expect.objectContaining({ converged: expect.any(Boolean), report: expect.any(Array) }),
       }),
       { timeout: 20000 },
     );

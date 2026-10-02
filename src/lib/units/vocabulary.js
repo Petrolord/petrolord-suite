@@ -8,6 +8,7 @@ import { FAMILIES, unitInfo } from './registry';
 /** Per-app names for the two unit systems. */
 export const SYSTEM_VOCAB = Object.freeze({
   welltest: { oilfield: 'oilfield', metric: 'si' },
+  fluid: { oilfield: 'oilfield', metric: 'si' },
   nodal: { oilfield: 'oilfield', metric: 'si' },
   rcp: { oilfield: 'field', metric: 'metric' },
   petro: { oilfield: 'field', metric: 'si' },

@@ -134,7 +134,7 @@ describe('PhaseEnvelopeCard', () => {
     render(<PhaseEnvelopeCard composition={comp} />);
     fireEvent.click(screen.getByRole('button', { name: /Trace envelope/ }));
     await waitFor(
-      () => expect(screen.getByText(/Saturation pressure at 100 °F/)).toBeInTheDocument(),
+      () => expect(screen.getByText(/Saturation pressure at 100 degF/)).toBeInTheDocument(),
       { timeout: 20000 },
     );
     expect(screen.getByText(/psia/)).toBeInTheDocument();
