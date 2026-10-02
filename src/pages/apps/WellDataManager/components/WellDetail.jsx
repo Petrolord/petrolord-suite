@@ -12,7 +12,7 @@ import { Loader2, Trash2, Building2, Lock, Pencil, Download } from 'lucide-react
 import LogTracks from './LogTracks';
 import ExportDialog from './ExportDialog';
 import ZonesPanel from './ZonesPanel';
-import { curveOrigin } from '../engine/provenance';
+import { curveOrigin, assignedCrsProvenance } from '../engine/provenance';
 import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import { mapTopHref, appPath, MAPPING_ID } from '@/components/wells/appLinks';
 import CrsBadge from '@/components/crs/CrsBadge';
@@ -144,7 +144,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
   }, [refreshChildren, refreshNonce]);
 
   // PT1: leave any edit mode when the well changes
-  useEffect(() => { setEditor(null); setCsView(null); setStatusValue(null); setTopsUndo(null); }, [well.id]);
+  useEffect(() => { setEditor(null); setCsView(null); setStatusValue(null); setTopsUndo(null); setCrsPatch(null); setAssigningCrs(false); }, [well.id]);
 
   // PT8: the frame the surface coordinates are already in. Editing them
   // never transforms anything, so the label states the frame plainly.
@@ -590,11 +590,10 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                       try {
                         const patch = {
                           crs: tag === 'UNKNOWN' ? null : tag,
-                          crs_provenance: {
-                            assigned_manually: true,
-                            declared_crs: tag,
-                            date: new Date().toISOString(),
-                          },
+                          // merged: Wellsite's survey source, the site datum
+                          // transformation and the reprojection chain live in
+                          // the same object and are kept
+                          crs_provenance: assignedCrsProvenance(well.crs_provenance, tag),
                         };
                         await backend.updateWell(well.id, patch);
                         setCrsPatch(patch);
