@@ -103,7 +103,7 @@ that misleads; S3 workflow gap or misleading text; S4 polish.
 | RRV-U1-016 | S3 | RL9 | The starting defaults contradict each other: a 10 MMboe discovery at 8 $/boe with a 100 $MM development loses 20 $MM, yet 10 is the MEFS. | The report flags an MEFS below the size that pays. The defaults are left as they are (owner question 2). Report RL9 test. |
 | RRV-U1-017 | S3 | Contract | Record sharing was not adopted. | Share for viewing on a saved valuation; "Shared with me" read-only, outside the portfolio, with Save a copy. Workstation "sharing". |
 | RRV-U1-018 | S4 | PL12 | The help guide said everything is kept in this browser and gave volumes in MMbbl. | Guide rewritten for saving, sharing, the handoff, units and the report. Help guide suites. |
-| RRV-U1-019 | S3 | RL6, PL8 | No sensitivity analysis: a committee asks what moves the EMV. | Open: U2-003. The report states the figure is absent and why. |
+| RRV-U1-019 | S3 | RL6, PL8 | No sensitivity analysis: a committee asks what moves the EMV. | Closed by U2-003 (Step 2): the tornado on screen and as Figure 5. |
 | RRV-U1-020 | S4 | PL5 | The harness seeded prospects with no unit or basis, so every walk showed the legacy warning. | Modern seeds; the legacy row is a fixture behind `?legacy=1`. |
 | RRV-U1-021 | S4 | PL6 | At 390 wide the prospect table scrolls sideways inside its card. | Kept (the T1 decision): eight numeric inputs do not fit a phone. The page itself does not scroll. |
 | RRV-U1-022 | S3 | PL8, RL11 | "Re-run prospect": the valuation can now refresh from a changed prospect, but cannot open ReservoirCalc Pro on the source project and run and re-run it. | Open: U2-006. The source block (012) is the first of the three needs. |
@@ -283,6 +283,7 @@ valuation holds lives in its existing `valuation` JSON payload.
 |---|---|---|---|
 | U2-002 derived MEFS and value by field size | Done | `__tests__/rrvU2Economics.test.js` (19): a worked hand calculation (model H: MEFS 5.5 MMboe, u 34.67137 $/boe, D 190.69252 $MM; with royalty and tax 8.97959; with a capex per barrel 6.37681) against the shipped functions, which call `calculateEconomics` (spied: one call per NPV, the case handed over is checked); negative controls (the undiscounted 5.0 and the old default 10 are not the size that pays; the Step 1 defaults give minus 20 at the MEFS); the cross-check integral against a brute-force sum. `rrvU2Store.test.js` (14), `rrvU2Report.test.js` (8, PDF read back, golden `model-prospect`), `rrvU2Workstation.test.jsx` (5) | See "U2-002" below. |
 | U2-001 value per barrel from Petroleum Economics Studio | Done | Sender: `src/pages/apps/epe/__tests__/epeUnitValue.test.js` (11): the contract built from the Ekene demo run the cash-flow engine itself computed (NPV 1.980235 $MM over 0.721833 MMboe is 2.7433 $/boe; before capex 18.3602 $/boe; the line gives the run NPV back at the run's size; the engine's own DPI agrees with the PV of capex read), refusals, the fingerprint, the service by id, the results-page card. Receiver: `__tests__/rrvU2Epe.test.js` (10, PDF read back) and `rrvU2Workstation.test.jsx` U2-001 block (5): pick by id, provenance kept, save and reload, "source changed since" with Refresh, typed over, the link from the run, no runs and an unreadable store | See "U2-001" below. Petroleum Economics Studio had no sender; one was built there. |
+| U2-003 EMV tornado | Done | `__tests__/rrvU2Sensitivity.test.js` (9): a worked hand calculation (Pg 0.25, P90 10, P10 60, MEFS 10, 8 $/boe, 100 $MM, 25 $MM: well cost, development cost, value per barrel and Pg by 25%, and the charge factor 0.5 by 0.1, each to three decimals) against `emvSensitivity`, which asks `valueProspect` again for every case; negative control (a tornado that scales the EMV itself, forgetting the dry hole, misses by more than 6 $MM); ordering, clamping, refusals. `rrvU2Report.test.js` (2 more: the figure drawn as bars and counted in the file, the table, the well-cost row by hand, the analyst's own ranges). `rrvU2Workstation.test.jsx` (Sensitivity tab) | See "U2-003" below. Fills the figure Step 1 stated as absent (RRV-U1-019 closed). |
 
 ### U2-002: the derived MEFS and the value of a discovery
 
@@ -459,3 +460,34 @@ engine older than 3.4 has no PV of capex: it sends the full-cycle value
 only, the derived MEFS is then zero, and the report flags it. Not walked on
 a live account: the reads were exercised on the in-memory twin and a
 PostgREST double; a first live pick is an owner item.
+
+### U2-003: the sensitivity of the EMV
+
+`emvSensitivity` (services/rrvMath.js) moves one input at a time to a low
+and a high case, holds the others, and asks the valuation engine again
+(`valueProspect`); it has no arithmetic of its own beyond setting the case.
+Stated ranges, saved with the valuation (`sens` in the payload) and set on
+the Sensitivity tab: Pg, the success-case volumes (P90, P50 and P10
+together), the value per barrel, the development cost, the exploration well
+cost and the MEFS by a swing in percent (default 25); each chance factor by
+a step in absolute chance (default 0.1), with Pg following in proportion,
+only when Pg is the product of the factors (otherwise the reason is given
+and only the total Pg moves). Chances stay between 0 and 1; an input at zero
+has no percentage swing and is listed as left out.
+
+On the screen: a Sensitivity tab with the tornado (Recharts, white chart
+template, ChartLogo), the two range fields and the table of cases. In the
+report: the table "Sensitivity of the EMV" (input, unit, base, low case and
+its EMV, high case and its EMV, swing) and Figure 5, the change in EMV per
+input as the kit's bar panel (`kind: 'bars'`, two bars per input, largest
+swing first, every bar value printed as text). The limits say these are
+stated ranges, not probabilities, and that inputs which move together in
+practice are not moved together here. With a derived MEFS the inputs still
+move one at a time, so the MEFS bar shows that the derived MEFS is the best
+cut-off (both cases lower the EMV), and the caption says a derived MEFS does
+not follow the value per barrel in these cases.
+
+**Reference.** Rose (2001) and the PRMS were not available to read; the
+one-at-a-time tornado is the common practice the Step 2 parity table names
+for REP and RoseRA, from their public product pages. The validation is the
+hand calculation above, on the engine.

@@ -274,3 +274,36 @@ describe('U2-001: the value per barrel from Petroleum Economics Studio', () => {
     await waitFor(() => expect(text('rrv-epe-list-error')).toMatch(/permission denied/));
   });
 });
+
+describe('U2-003: the Sensitivity tab', () => {
+  test('the tornado on the white chart template, the cases as a table, and the ranges the analyst sets', async () => {
+    const backend = makeInMemoryRrvBackend(RRV_SEED_PROSPECTS);
+    mount(backend);
+    await settled();
+    await importAll();
+    fireEvent.click(el('rrv-tab-sensitivity'));
+    const chart = el('rrv-tornado');
+    expect(chart.getAttribute('data-canvas')).toBe('chart');
+    expect(chart.querySelector('img')).toBeTruthy(); // ChartLogo
+    expect(Number(chart.getAttribute('data-bars'))).toBe(20); // Pg, four factors, volumes, u, D, W, MEFS: low and high
+    expect(text('rrv-tornado-legend')).toMatch(/Low case.*High case.*Largest swing first/);
+    expect(text('rrv-sens-base')).toBe(text('rrv-emv-Ekene North'));
+    expect(el('rrv-sens-swing').value).toBe('25');
+    expect(text('rrv-sens-row-wellCost')).toMatch(/^Exploration well cost\$MM2518\.75.*31\.25.*12\.5$/);
+    expect(text('rrv-sens-row-factor.charge')).toMatch(/^Charge chancefraction0\.5000\.400.*0\.600/);
+    expect(text('rrv-sens-note')).toMatch(/by 25% either way; each chance factor by 0\.1 in absolute chance/);
+    // the analyst sets the ranges; they are saved with the valuation
+    type('rrv-sens-swing', '10');
+    expect(text('rrv-sens-row-wellCost')).toMatch(/22\.5.*27\.5.*5\.0$/);
+    expect(JSON.parse(localStorage.getItem(RRV_STORE_KEY)).list[0].sens).toEqual({ swing: 10 });
+    expect(text('rrv-save-state')).toMatch(/not saved to your account/);
+    // the Report tab lists the figure as drawn and shows the same table
+    fireEvent.click(el('rrv-tab-report'));
+    expect(text('rrv-report-figures')).toMatch(/Sensitivity of the EMV\. Change in the EMV when one input is moved/);
+    expect(text('rrv-report-sensitivity')).toMatch(/by 10% either way/);
+    // a prospect that cannot be valued says why there is no tornado
+    type('rrv-pg-Ekene North', '');
+    fireEvent.click(el('rrv-tab-sensitivity'));
+    expect(text('rrv-sensitivity-empty')).toMatch(/needs a valued prospect/);
+  });
+});

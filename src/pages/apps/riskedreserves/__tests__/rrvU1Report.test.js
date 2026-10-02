@@ -158,8 +158,9 @@ describe('the report of a prospect handed over by ReservoirCalc Pro', () => {
     // the value over each bar is text: the four factors, Pg and Pc
     const bars = flat(pdf.pageText[fig.chance.page - 1]);
     for (const s of ['80.0%', '50.0%', '100.0%', '32.0%', F.pct(built.model.parts.pCommercialGivenSuccess * 0.32), 'Trap', 'Reservoir', 'Charge', 'Seal', 'Pg used', 'Commercial chance Pc']) expect(bars).toContain(s);
-    expectFigureStatement(pdf, fig.sensitivity, /Not plotted: this application has no sensitivity analysis\. The break-even Pg/);
-    expect(fig.sensitivity.plotted).toBe(false);
+    // U2-003: the figure Step 1 stated as absent is now drawn (rrvU2Report reads it)
+    expect(fig.sensitivity.plotted).toBe(true);
+    expectFigureDrawn(pdf, fig.sensitivity, { logo: true });
   });
 
   test('RL7: the basis is named beside the numbers (a lexicon over the report text)', () => {

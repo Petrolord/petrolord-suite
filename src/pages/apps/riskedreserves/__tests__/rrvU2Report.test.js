@@ -148,6 +148,40 @@ describe('U2-002: the derived MEFS and the value by field size, on the page', ()
     expect(si.headline.body[5][1]).toBe(oil.headline.body[5][1]); // the EMV
   });
 
+  test('U2-003, RL6: the sensitivity figure is drawn as bars, two per input, and its numbers are in a table', () => {
+    const fig = Object.fromEntries(built.figures.map((f) => [f.id, f]));
+    const s = model.sensitivity;
+    expect(fig.sensitivity.plotted).toBe(true);
+    expectFigureDrawn(pdf, fig.sensitivity, { logo: true });
+    expect(fig.sensitivity.panels[0].marks.bars).toBe(s.rows.length * 2);
+    expect(pointCounts(built.figures).sensitivity[0]).toEqual({ 'Low case': s.rows.length, 'High case': s.rows.length });
+    // Pg, four chance factors, volumes, value per barrel, development cost, well cost, MEFS
+    expect(s.rows).toHaveLength(10);
+    const page = flat(pdf.pageText[fig.sensitivity.page - 1]);
+    for (const c of ['Pg', 'Trap', 'Charge', 'Volumes', 'Value per barrel', 'Well cost', 'MEFS', 'Low case', 'High case', 'Change in EMV ($MM)']) expect(page).toContain(c);
+    expect(page).toContain(`largest swing first (base EMV ${F.n1(s.base)} $MM)`);
+    expect(page).toContain('by 25% either way; each chance factor by 0.1 in absolute chance either way');
+    // the table: the well cost row by hand (EMV moves by a quarter of the 30 $MM well, the other way)
+    expect(text).toContain('Sensitivity of the EMV');
+    const well = s.rows.find((r) => r.key === 'wellCost');
+    expect(well.low.emv).toBeCloseTo(s.base + 7.5, 9);
+    expect(well.high.emv).toBeCloseTo(s.base - 7.5, 9);
+    expect(text).toContain(`Exploration well cost $MM 30 22.5 ${F.n1(s.base + 7.5)} 37.5 ${F.n1(s.base - 7.5)} 15.0`);
+    expect(text).toContain('These are stated ranges, chosen by the analyst: they are not probabilities and the bars do not add.');
+    expect(text).toContain('a derived MEFS does not follow the value per barrel in these cases');
+    expect(text).toContain('The sensitivity moves one input at a time over a range the analyst states');
+    // every bar value is text on the page (the largest swing, signed)
+    const top = s.rows[0];
+    expect(page).toContain(`+${F.n1(Math.max(top.high.emv, top.low.emv) - s.base)}`);
+  });
+
+  test('U2-003: the analyst\'s own ranges are used and printed', () => {
+    const m = buildRrvReportModel(args({ ...p, sens: { swing: 10, factorSwing: 0.05 } }));
+    expect(m.sensitivity).toMatchObject({ swing: 10, factorSwing: 0.05 });
+    expect(m.sensitivity.table.note).toContain('by 10% either way; each chance factor by 0.05 in absolute chance either way');
+    expect(m.sensitivity.rows.find((r) => r.key === 'wellCost').low.input).toBe(27);
+  });
+
   test('golden: text line for line, pages, figures and the document hash', () => {
     checkGolden(build(p), { dir: path.join(__dirname, '__fixtures__/reportGolden'), name: 'model-prospect', update: process.env.UPDATE_REPORT_GOLDENS === '1' });
   });

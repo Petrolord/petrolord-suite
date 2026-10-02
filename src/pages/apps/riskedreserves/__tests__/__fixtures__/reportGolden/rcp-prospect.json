@@ -1,6 +1,6 @@
 {
-  "pages": 7,
-  "sha256": "9756510e0af39059ff6dde45746f518e3b6b5d06af4af72fe0280dfd09cc89d7",
+  "pages": 8,
+  "sha256": "e38ccfbc3524b537888eb6bd9a0a4b6c3159d8f8fa15f3fc6e9b0d2350b894c5",
   "figures": [
     {
       "id": "volume",
@@ -95,9 +95,25 @@
     {
       "id": "sensitivity",
       "number": 5,
-      "page": 7,
-      "plotted": false,
-      "panels": []
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 74
+          },
+          "drawn": {
+            "Low case": 10,
+            "High case": 10
+          },
+          "total": 20,
+          "bands": 0,
+          "logo": true
+        }
+      ]
     }
   ]
 }

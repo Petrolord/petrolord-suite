@@ -29,11 +29,12 @@ import ExpectationChart from './ExpectationChart';
 import RrvReportPanel from './RrvReportPanel';
 import RrvEconomicsPanel from './RrvEconomicsPanel';
 import RrvEpePanel from './RrvEpePanel';
+import RrvSensitivityPanel from './RrvSensitivityPanel';
 import NumCell, { cell } from './NumCell';
 import {
   fromRcpProspect, blankProspect, inputProblem, loadStored, storeLocal, mergeSaved, fromRow, valuationCsv, unitValueSource,
   engineInput, editedKeys, upstreamState, refreshFromRcp, ECON_KEYS, HANDOFF_KEYS,
-  setInput, setValueBasis, setMefsBasis, setModelField, resolveEconomics, applyEpeCase, epeState,
+  setInput, setValueBasis, setMefsBasis, setModelField, resolveEconomics, applyEpeCase, epeState, setSens,
 } from '../services/rrvStore';
 import { valueOrProblem, volumeCurves } from '../services/rrvMath';
 import { rrvUnits, RRV_UNIT_SPEC, RRV_UNIT_FALLBACK } from '../services/rrvUnits';
@@ -496,7 +497,7 @@ function RrvWorkstationContent({ backend }) {
         {selected && (
           <div className="flex flex-wrap items-center gap-2" data-testid="rrv-tabs">
             <div className="inline-flex rounded border border-pl-border overflow-hidden" role="tablist" aria-label="Views of the selected prospect">
-              {[['valuation', 'Valuation'], ['economics', 'Economics'], ['report', 'Report']].map(([id, label]) => (
+              {[['valuation', 'Valuation'], ['economics', 'Economics'], ['sensitivity', 'Sensitivity'], ['report', 'Report']].map(([id, label]) => (
                 <button key={id} type="button" role="tab" aria-selected={tab === id} data-testid={`rrv-tab-${id}`}
                   className={`px-3 py-1 text-xs ${tab === id ? 'bg-pl-primary text-pl-primary-fg' : 'bg-pl-surface text-pl-text hover:bg-pl-sunken'}`} onClick={() => setTab(id)}>{label}</button>
               ))}
@@ -539,6 +540,11 @@ function RrvWorkstationContent({ backend }) {
               }}
               onUseAgain={() => touch(selected.p.id, (p) => setValueBasis(p, 'epe'))} />
           </RrvEconomicsPanel>
+        )}
+
+        {selected && tab === 'sensitivity' && (
+          <RrvSensitivityPanel prospect={selected.p} sensitivity={model?.valued ? model.sensitivity : null} readOnly={readOnly}
+            onSens={(k, val) => touch(selected.p.id, (p) => setSens(p, k, val))} />
         )}
 
         {v && tab === 'valuation' && (

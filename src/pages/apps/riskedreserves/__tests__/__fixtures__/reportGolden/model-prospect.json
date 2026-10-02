@@ -1,11 +1,11 @@
 {
-  "pages": 7,
-  "sha256": "5f55957fa43ba231dff02dca515e4c78aaa0565f641184755cca2a0b73c6af8b",
+  "pages": 9,
+  "sha256": "5fce6f5be829690b135d57daeec9e9ba74f33ea0f3d975884162e92b61c3381c",
   "figures": [
     {
       "id": "volume",
       "number": 1,
-      "page": 6,
+      "page": 7,
       "plotted": true,
       "panels": [
         {
@@ -28,7 +28,7 @@
     {
       "id": "value",
       "number": 2,
-      "page": 6,
+      "page": 7,
       "plotted": true,
       "panels": [
         {
@@ -51,7 +51,7 @@
     {
       "id": "valueSize",
       "number": 3,
-      "page": 7,
+      "page": 8,
       "plotted": true,
       "panels": [
         {
@@ -74,7 +74,7 @@
     {
       "id": "chance",
       "number": 4,
-      "page": 7,
+      "page": 8,
       "plotted": true,
       "panels": [
         {
@@ -96,9 +96,25 @@
     {
       "id": "sensitivity",
       "number": 5,
-      "page": 7,
-      "plotted": false,
-      "panels": []
+      "page": 9,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 74
+          },
+          "drawn": {
+            "Low case": 10,
+            "High case": 10
+          },
+          "total": 20,
+          "bands": 0,
+          "logo": true
+        }
+      ]
     }
   ]
 }

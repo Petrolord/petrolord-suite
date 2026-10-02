@@ -34,7 +34,7 @@ Volumes are recoverable and oil equivalent. P90 is the low case and P10 the high
 
 
 
-Risked Prospect Valuation Report, Ekene North                                                                                      Page 1 of 7
+Risked Prospect Valuation Report, Ekene North                                                                                      Page 1 of 9
 Inputs, with unit and source
  Input                                          Value                  Unit       Source and quality
 
@@ -114,7 +114,7 @@ Risked Prospect Valuation Report, Ekene North                                   
 
 
 
-Risked Prospect Valuation Report, Ekene North                                                                                      Page 2 of 7
+Risked Prospect Valuation Report, Ekene North                                                                                      Page 2 of 9
 Every input the valuation read is listed with its unit and its source. Rows marked "Recorded for the reader" or "Enters through Pg" did not enter the
 calculation directly. The lognormal success case is fitted to P90 and P10; the P50 enters only the Swanson cross-check. A derived input is
 computed here from the rows it names.
@@ -184,7 +184,7 @@ Pg = trap x reservoir x charge x seal = 0.800 x 0.800 x 0.500 x 1.000 = 0.320. T
 
 
 
-Risked Prospect Valuation Report, Ekene North                                                                                            Page 3 of 7
+Risked Prospect Valuation Report, Ekene North                                                                                            Page 3 of 9
 Volumes: unrisked and risked
  Case                                             Entered (MMboe)         Unrisked, fitted lognormal (MMboe)               Risked (MMboe)
 
@@ -247,35 +247,65 @@ commercial size. A size below the MEFS is not developed, so its row is for readi
 
 
 
-Risked Prospect Valuation Report, Ekene North                                                                                           Page 4 of 7
+Risked Prospect Valuation Report, Ekene North                                                                                           Page 4 of 9
 Expected monetary value, in its parts
- Term                                              Value ($MM)         How
+ Term                                              Value ($MM)           How
 
- Chance-weighted value of the barrels                         239.5    Pg x u x E(V; V >= MEFS) = 0.320 x 20.9997 $/boe x 35.6 MMboe
+ Chance-weighted value of the barrels                         239.5      Pg x u x E(V; V >= MEFS) = 0.320 x 20.9997 $/boe x 35.6 MMboe
 
- Chance-weighted development cost                              -92.9   Pg x D x P(V >= MEFS) = 0.320 x 384.477 x 0.755
+ Chance-weighted development cost                               -92.9    Pg x D x P(V >= MEFS) = 0.320 x 384.477 x 0.755
 
- Exploration well                                              -30.0   W, spent in every outcome
+ Exploration well                                               -30.0    W, spent in every outcome
 
- Expected monetary value EMV                                  116.6    The sum of the three terms
+ Expected monetary value EMV                                  116.6      The sum of the three terms
 
 EMV = Pg x [ u x E(V; V >= MEFS) - D x P(V >= MEFS) ] - W, with u the value per barrel, V the success-case volume, D the development cost and
 W the exploration well cost. E(V; V >= MEFS) is the part of the mean volume that lies at or above the MEFS (35.6 MMboe of 38.7).
 
 
 Outcomes of the exploration well
- Outcome                                              Chance        Mean volume (MMboe)                Value ($MM)         Chance x value ($MM)
+ Outcome                                              Chance        Mean volume (MMboe)                Value ($MM)          Chance x value ($MM)
 
- Dry hole                                             68.0%         0.0                                -30.0               -20.4
+ Dry hole                                             68.0%         0.0                                -30.0                -20.4
 
- Discovery below the MEFS (not developed)             7.8%          below the MEFS                     -30.0               -2.4
+ Discovery below the MEFS (not developed)             7.8%          below the MEFS                     -30.0                -2.4
 
- Commercial discovery (mean case)                     24.2%         47.2                               576.7               139.4
+ Commercial discovery (mean case)                     24.2%         47.2                               576.7                139.4
 
- All outcomes                                         100.0%        12.4                               n/a                 116.6
+ All outcomes                                         100.0%        12.4                               n/a                  116.6
 
 The risked value split into chance and unrisked value. The chances sum to 100% and the chance-weighted values to the EMV. A discovery below
 the MEFS is not developed, so it costs the well.
+
+
+Sensitivity of the EMV
+ Input                          Unit                  Base        Low case      EMV, low ($MM)        High case     EMV, high ($MM)        Swing ($MM)
+
+ Value per barrel               $/boe                 20.9997     15.7498       56.7                  26.2496       176.5                  119.8
+
+ Success-case volumes           of P90, P50, P10      x1          x 0.75        58.9                  x 1.25        177.8                  118.9
+
+ Chance of success Pg           fraction              0.320       0.240         80.0                  0.400         153.3                  73.3
+
+ Charge chance                  fraction              0.500       0.400         87.3                  0.600         145.9                  58.6
+
+ Development cost               $MM                   384.477     288.358       139.8                 480.596       93.4                   46.5
+
+ Trap chance                    fraction              0.800       0.700         98.3                  0.900         134.9                  36.7
+
+ Reservoir chance               fraction              0.800       0.700         98.3                  0.900         134.9                  36.7
+
+ Exploration well cost          $MM                   30          22.5          124.1                 37.5          109.1                  15.0
+
+ Seal chance                    fraction              1.000       0.900         101.9                 1.000         116.6                  14.7
+
+ MEFS                           MMboe                 18.3087     13.7315       115.0                 22.8859       115.0                  0.0
+
+One input at a time is moved to its low and its high case and the others are held; the base EMV is 116.6 $MM. Ranges: Pg, the volumes, the value
+per barrel, the costs and the MEFS by 25% either way; each chance factor by 0.1 in absolute chance either way (Pg follows in proportion);
+chances are kept between 0 and 1. The swing is the gap between the two cases. These are stated ranges, chosen by the analyst: they are not
+probabilities and the bars do not add. The MEFS, the value per barrel and the development cost are moved one at a time here, so a derived MEFS
+does not follow the value per barrel in these cases.
 
 
 Limits of this analysis
@@ -290,7 +320,14 @@ departs from it.
 - The economic model is a screening model: one flat price, one exponential decline, royalty and tax, and the development capex in the year before
 first production. That capex earns no tax relief (the canonical screening case expenses it in a year with no income), so the derived MEFS is on the
 cautious side.
-- Volumes are oil equivalent; gas handed over in gas units is converted at 6 Mscf per boe.
+
+
+
+
+Risked Prospect Valuation Report, Ekene North                                                                                                     Page 5 of 9
+- Volumes are oil equivalent; gas handed over in gas units is converted at 6 Mscf per boe.
+- The sensitivity moves one input at a time over a range the analyst states. It shows which input matters most; it is not a probability range, and
+inputs that move together in practice (volumes and development cost, price and value per barrel) are not moved together.
 - A screening valuation for ranking and for a drill decision in principle. It is not a reserves estimate and not a development economics model.
 
 Flags on this prospect
@@ -299,7 +336,7 @@ No input on this prospect raises a flag.
 
 
 
-Risked Prospect Valuation Report, Ekene North                                                                                                   Page 5 of 7
+Risked Prospect Valuation Report, Ekene North                                                                                              Page 6 of 9
 Plots
 Figure 1. Expectation curve of volume
 
@@ -384,7 +421,7 @@ curve is the EMV, 116.6 $MM.
 
 
 
-Risked Prospect Valuation Report, Ekene North                                                                                                                 Page 6 of 7
+Risked Prospect Valuation Report, Ekene North                                                                                                                 Page 7 of 9
 Figure 3. Value of a discovery against its size
 
                                                    Engine NPV by size (economic model)       Value line (20.9997 $/boe x V - 384.477 $MM)
@@ -453,11 +490,51 @@ The chance factors as received, the chance of geological success used in the val
 chance of at least the MEFS.
 
 
-Figure 5. Sensitivity of the EMV
-Not plotted: this application has no sensitivity analysis. The break-even Pg in the headline results is the one sensitivity it computes.
+
+
+Risked Prospect Valuation Report, Ekene North                                                                                                                             Page 8 of 9
+Figure 5. Sensitivity of the EMV
+
+                                Low case      High case
+
+
+                                  +59.9        +61.2
+
+                        50
+                                                              +36.7
+                                                                          +29.3
+  Change in EMV ($MM)
 
 
 
 
-Risked Prospect Valuation Report, Ekene North                                                                                                                             Page 7 of 7
+                                                                                   +23.2
+                        25                                                                          +18.3       +18.3
+                                                                                                                        +7.5
+                                                                                                                                              0.0
+                         0
+                                                                                                                                                    -1.6 -1.6
+                                                                                                                               -7.5
+                                                                                                                                      -14.7
+                        -25                                                                     -18.3       -18.3
+                                                                                       -23.2
+                                                                      -29.3
+                                                          -36.7
+                        -50
+
+                              -59.9        -57.7
+
+                              Value per    Volumes           Pg        Charge     Development     Trap      Reservoir   Well cost       Seal         MEFS
+                               barrel                                                cost
+
+
+Change in the EMV when one input is moved to its low and its high case and the others are held, largest swing first (base EMV 116.6 $MM).
+Ranges: Pg, the volumes, the value per barrel, the costs and the MEFS by 25% either way; each chance factor by 0.1 in absolute chance either
+way (Pg follows in proportion); chances are kept between 0 and 1. Value per barrel moves the EMV most: 56.7 to 176.5 $MM. The numbers are in
+the table "Sensitivity of the EMV".
+
+
+
+
+Risked Prospect Valuation Report, Ekene North                                                                                                           Page 9 of 9
 

@@ -351,6 +351,12 @@ export function setModelField(p, key, value) {
   return syncEconomics({ ...p, econ: { ...econ, model: { ...econ.model, [key]: value }, modelTouched: { ...(econ.modelTouched || {}), [key]: true } } });
 }
 
+/** The stated ranges of the EMV sensitivity (U2-003), kept with the valuation. */
+export function setSens(p, key, value) {
+  if (key !== 'swing' && key !== 'factorSwing') return p;
+  return { ...p, sens: { ...(p.sens || {}), [key]: value } };
+}
+
 /** A blank typed prospect. */
 export const blankProspect = (n) => syncEconomics({
   id: `own-${Date.now()}-${n}`, source: 'own', name: `Prospect ${n}`, pg: 0.25, p90: 10, p50: 25, p10: 60, ...DEFAULT_ECONOMICS,

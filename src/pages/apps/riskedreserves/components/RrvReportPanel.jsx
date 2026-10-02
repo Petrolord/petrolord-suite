@@ -120,6 +120,7 @@ export default function RrvReportPanel({ model, prospect, readOnly = false, ownS
           <Table testId="rrv-report-value-size" title="Value by field size" head={model.economics.table.head} body={model.economics.table.body} note={model.economics.table.note} />
           <Table testId="rrv-report-value" title="Expected monetary value, in its parts" head={model.value.head} body={model.value.body} note={model.value.note} />
           <Table testId="rrv-report-outcomes" title="Outcomes of the exploration well" head={model.outcomes.head} body={model.outcomes.body} note={model.outcomes.note} />
+          <Table testId="rrv-report-sensitivity" title="Sensitivity of the EMV" head={model.sensitivity.table.head} body={model.sensitivity.table.body} note={model.sensitivity.table.note} />
           {model.portfolio && <Table testId="rrv-report-portfolio" title="Portfolio context" head={model.portfolio.head} body={model.portfolio.body} note={model.portfolio.note} />}
           <div className={card} data-testid="rrv-report-limits">
             <div className={h}>Limits of this analysis</div>

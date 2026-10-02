@@ -51,6 +51,7 @@ export function buildRrvReport(model, { logo = null, generatedAt = new Date() } 
   r.table('Value by field size', model.economics.table.head, model.economics.table.body, { note: model.economics.table.note, columnStyles: { 0: { cellWidth: 34 } } });
   r.table('Expected monetary value, in its parts', model.value.head, model.value.body, { note: model.value.note, columnStyles: { 0: { cellWidth: 58 }, 1: { cellWidth: 24, halign: 'right' } } });
   r.table('Outcomes of the exploration well', model.outcomes.head, model.outcomes.body, { note: model.outcomes.note, columnStyles: { 0: { cellWidth: 62 } } });
+  r.table('Sensitivity of the EMV', model.sensitivity.table.head, model.sensitivity.table.body, { note: model.sensitivity.table.note, columnStyles: { 0: { cellWidth: 36 } } });
   if (model.portfolio) r.table('Portfolio context', model.portfolio.head, model.portfolio.body, { note: model.portfolio.note });
 
   // Limits of this analysis (RL9): what the method assumes, then the flags on this prospect

@@ -22,7 +22,7 @@ import {
 } from './rrvEconomics';
 import { epePriceDeckLine, epeDiscountLine } from '@/pages/apps/epe/epeUnitValue';
 import {
-  emvParts, outcomes, volumeTable, volumeCurves, valueCurves, valueExceedance,
+  emvParts, outcomes, volumeTable, volumeCurves, valueCurves, valueExceedance, emvSensitivity,
 } from './rrvMath';
 
 export const REPORT_TITLE = 'Risked Prospect Valuation Report';
@@ -279,6 +279,36 @@ export function epeHandoffRows(p, state, units) {
   ];
 }
 
+const SENS_SHORT = { pg: 'Pg', volumes: 'Volumes', unitValue: 'Value per barrel', devCost: 'Development cost', wellCost: 'Well cost', mefs: 'MEFS', 'factor.trap': 'Trap', 'factor.reservoir': 'Reservoir', 'factor.charge': 'Charge', 'factor.seal': 'Seal', 'factor.other': 'Other factor' };
+const signed = (x) => `${x > 0 ? '+' : ''}${F.n1(Math.abs(x) < 0.05 ? 0 : x)}`;
+
+/**
+ * "Sensitivity of the EMV" (U2-003): the tornado as rows and as the series
+ * of its figure. The screen chart and the PDF figure read these.
+ */
+export function sensitivityModel(p, e, units) {
+  const s = emvSensitivity(e, { pgFactors: p.pgFactors, swing: p.sens?.swing, factorSwing: p.sens?.factorSwing });
+  const show = (r, x) => {
+    if (r.key === 'volumes') return `x ${F.plain(x)}`;
+    if (r.key === 'pg' || r.key.startsWith('factor.')) return F.frac(x);
+    return F.plain(units.show(r.key, x));
+  };
+  const unit = (r) => (r.key === 'volumes' ? 'of P90, P50, P10' : r.key === 'pg' || r.key.startsWith('factor.') ? 'fraction' : units.label(r.key));
+  const ranges = `Pg, the volumes, the value per barrel, the costs and the MEFS by ${F.plain(s.swing)}% either way; each chance factor by ${F.plain(s.factorSwing)} in absolute chance either way (Pg follows in proportion); chances are kept between 0 and 1`;
+  return {
+    ...s,
+    ranges,
+    table: {
+      head: ['Input', 'Unit', 'Base', 'Low case', 'EMV, low ($MM)', 'High case', 'EMV, high ($MM)', 'Swing ($MM)'],
+      body: s.rows.map((r) => [r.label, unit(r), show(r, r.base), show(r, r.low.input), F.n1(r.low.emv), show(r, r.high.input), F.n1(r.high.emv), F.n1(r.range)]),
+      note: `One input at a time is moved to its low and its high case and the others are held; the base EMV is ${F.n1(s.base)} $MM. Ranges: ${ranges}. The swing is the gap between the two cases. These are stated ranges, chosen by the analyst: they are not probabilities and the bars do not add.${p.econ?.mefs === 'derived' || p.econ?.value === 'model' ? ' The MEFS, the value per barrel and the development cost are moved one at a time here, so a derived MEFS does not follow the value per barrel in these cases.' : ''}${s.factorsNote ? ` ${s.factorsNote}` : ''}${s.leftOut.length ? ` Left out because the input is zero: ${s.leftOut.join(', ')}.` : ''}`,
+    },
+    categories: s.rows.map((r) => SENS_SHORT[r.key] || r.label),
+    lowDelta: s.rows.map((r) => r.low.emv - s.base),
+    highDelta: s.rows.map((r) => r.high.emv - s.base),
+  };
+}
+
 const LINE_FORMULA = 'value(V) = u x V - D';
 /** A value that rounds to zero at one decimal prints as 0.0, never as -0.0. */
 const tidy = (x) => (Math.abs(x) < 0.05 ? 0 : x);
@@ -486,6 +516,7 @@ export function buildRrvReportModel({ p, v, problem = null, units, upstream = nu
     note: 'The risked value split into chance and unrisked value. The chances sum to 100% and the chance-weighted values to the EMV. A discovery below the MEFS is not developed, so it costs the well.',
   };
   model.economics = economicsModel(p, e, v, units);
+  model.sensitivity = sensitivityModel(p, e, units);
   if (portfolio && portfolio.rows.length > 1) {
     model.portfolio = {
       head: ['Prospect', 'Pg', 'Pc', `Risked mean (${units.volumeLabel})`, 'EMV ($MM)'],
@@ -495,7 +526,7 @@ export function buildRrvReportModel({ p, v, problem = null, units, upstream = nu
     };
   }
   model.limits = limitsOf({ p, v, e, parts, units, upstream, epe });
-  model.figures = buildFigures({ p, v, e, units, chance: model.chance, economics: model.economics });
+  model.figures = buildFigures({ p, v, e, units, chance: model.chance, economics: model.economics, sensitivity: model.sensitivity });
   return model;
 }
 
@@ -511,6 +542,7 @@ export function limitsOf({ p, v, e, units, upstream, epe = null }) {
       : 'The MEFS is typed and is not tied to the value per barrel and the development cost; the size that pays under them is printed beside it. A discovery below it is not developed.',
     ...(p.econ?.value === 'model' ? ['The economic model is a screening model: one flat price, one exponential decline, royalty and tax, and the development capex in the year before first production. That capex earns no tax relief (the canonical screening case expenses it in a year with no income), so the derived MEFS is on the cautious side.'] : []),
     `Volumes are oil equivalent; gas handed over in gas units is converted at ${BOE_BASIS}.`,
+    'The sensitivity moves one input at a time over a range the analyst states. It shows which input matters most; it is not a probability range, and inputs that move together in practice (volumes and development cost, price and value per barrel) are not moved together.',
     'A screening valuation for ranking and for a drill decision in principle. It is not a reserves estimate and not a development economics model.',
   ];
   const flags = [];
@@ -556,7 +588,7 @@ export function limitsOf({ p, v, e, units, upstream, epe = null }) {
 }
 
 /** The figures of the report, as Report Kit figure specs. The screen chart draws the same series. */
-export function buildFigures({ p, v, e, units, chance, economics = null }) {
+export function buildFigures({ p, v, e, units, chance, economics = null, sensitivity = null }) {
   const curves = volumeCurves(e);
   const conv = (pts) => pts.map(([x, y]) => [units.volume(x), y]);
   const lines = [];
@@ -644,6 +676,26 @@ export function buildFigures({ p, v, e, units, chance, economics = null }) {
   } else {
     figures.push({ id: 'chance', title: 'Chance factors and the chance of success', statement: `Not plotted: ${chance.statement.charAt(0).toLowerCase()}${chance.statement.slice(1)}` });
   }
-  figures.push({ id: 'sensitivity', title: 'Sensitivity of the EMV', statement: 'Not plotted: this application has no sensitivity analysis. The break-even Pg in the headline results is the one sensitivity it computes.' });
+  if (sensitivity && sensitivity.rows.length) {
+    const top = sensitivity.rows[0];
+    figures.push({
+      id: 'sensitivity',
+      title: 'Sensitivity of the EMV',
+      caption: `Change in the EMV when one input is moved to its low and its high case and the others are held, largest swing first (base EMV ${F.n1(sensitivity.base)} $MM). Ranges: ${sensitivity.ranges}. ${top.label} moves the EMV most: ${F.n1(top.low.emv)} to ${F.n1(top.high.emv)} $MM. The numbers are in the table "Sensitivity of the EMV".`,
+      panels: [{
+        kind: 'bars', height: 74,
+        spec: {
+          yTitle: 'Change in EMV ($MM)', categories: sensitivity.categories, valueText: (x) => signed(x),
+          lines: [{ y: 0 }],
+          series: [
+            { name: 'Low case', values: sensitivity.lowDelta, rgb: SERIES_RGB.slate },
+            { name: 'High case', values: sensitivity.highDelta, rgb: SERIES_RGB.blue },
+          ],
+        },
+      }],
+    });
+  } else {
+    figures.push({ id: 'sensitivity', title: 'Sensitivity of the EMV', statement: 'Not plotted: no input of this prospect could be moved.' });
+  }
   return figures;
 }
