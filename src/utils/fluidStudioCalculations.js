@@ -23,6 +23,7 @@
  */
 
 import { pvtCalcs } from './pvtCalculations.js';
+import { mccainBw, mccainMuW } from '../../packages/engines/engines/fluid/blackOil';
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -124,7 +125,8 @@ export const normalizeFluid = (inputs) => {
     rsb: num(bo.gor),
     salinity: num(bo.salinity),
     // null => auto-solve from Rsb; a finite value overrides the solve.
-    pb: pbRaw === '' || pbRaw === null || pbRaw === undefined ? null : num(pbRaw),
+    // A bubble point that is not a positive number is no bubble point (FLUID-U1-006).
+    pb: num(pbRaw) > 0 ? num(pbRaw) : null,
     correlations: {
       pb_rs_bo: corr.pb_rs_bo || 'standing',
       viscosity: corr.viscosity || 'beggs_robinson',
@@ -232,51 +234,76 @@ export const resolveEffectiveFluid = (inputs) => {
 // PVT primitives (dispatch + new physics the util lacks)
 // ---------------------------------------------------------------------------
 
+/**
+ * The selectable Pb / Rs / Bo correlations. One record holds the name a
+ * report prints AND the functions the engine calls, so the name can never
+ * drift from the calculation (FLUID-U1, RL1 and RL11): rsAt and boAt read
+ * `rs` and `bo` from the record whose `label` goes into meta.methods.
+ */
+export const PB_RS_BO_METHODS = Object.freeze({
+  standing: Object.freeze({
+    label: 'Standing',
+    reference: 'Standing (1947)',
+    rs: (p, f) => pvtCalcs.standing_rs(p, f.api, f.gasGravity, f.temp),
+    bo: (rs, f) => pvtCalcs.standing_bo(rs, f.api, f.gasGravity, f.temp),
+  }),
+  vasquez_beggs: Object.freeze({
+    label: 'Vasquez-Beggs',
+    reference: 'Vasquez and Beggs (1980)',
+    rs: (p, f) => pvtCalcs.vasquez_beggs_rs(p, f.api, f.gasGravity, f.temp),
+    bo: (rs, f) => pvtCalcs.vasquez_beggs_bo(rs, f.api, f.gasGravity, f.temp),
+  }),
+  glaso: Object.freeze({
+    label: 'Glaso',
+    reference: 'Glaso (1980)',
+    rs: (p, f) => pvtCalcs.glaso_rs(p, f.api, f.gasGravity, f.temp),
+    bo: (rs, f) => pvtCalcs.glaso_bo(rs, f.api, f.gasGravity, f.temp),
+  }),
+});
+
+/** The selectable oil viscosity correlations, name and functions in one record. */
+export const OIL_VISCOSITY_METHODS = Object.freeze({
+  beggs_robinson: Object.freeze({
+    label: 'Beggs-Robinson',
+    reference: 'Beggs and Robinson (1975)',
+    live: (rs, f) => pvtCalcs.beggs_robinson_viscosity(f.api, f.temp, true, rs),
+    dead: (f) => pvtCalcs.beggs_robinson_viscosity(f.api, f.temp, false),
+  }),
+  beal_cook_spillman: Object.freeze({
+    label: 'Beal-Cook-Spillman',
+    reference: 'Beal (1946), Cook and Spillman chart fit (simplified form)',
+    live: (rs, f) => pvtCalcs.beal_cook_spillman_viscosity(f.api, f.temp, true, null, rs),
+    dead: (f) => pvtCalcs.beal_cook_spillman_viscosity(f.api, f.temp, false),
+  }),
+});
+
+/** The record the engine uses for a fluid: an unknown key runs Standing, and says so. */
+export const pbRsBoMethod = (fluid) => PB_RS_BO_METHODS[fluid?.correlations?.pb_rs_bo] || PB_RS_BO_METHODS.standing;
+/** The record the engine uses for oil viscosity: an unknown key runs Beggs-Robinson. */
+export const oilViscosityMethod = (fluid) => OIL_VISCOSITY_METHODS[fluid?.correlations?.viscosity] || OIL_VISCOSITY_METHODS.beggs_robinson;
+
 /** Solution GOR at pressure p for the selected correlation (scf/STB). */
-export const rsAt = (p, fluid) => {
-  const { api, gasGravity, temp, correlations } = fluid;
-  switch (correlations.pb_rs_bo) {
-    case 'vasquez_beggs':
-      return pvtCalcs.vasquez_beggs_rs(p, api, gasGravity, temp);
-    case 'glaso':
-      return pvtCalcs.glaso_rs(p, api, gasGravity, temp);
-    case 'standing':
-    default:
-      return pvtCalcs.standing_rs(p, api, gasGravity, temp);
-  }
-};
+export const rsAt = (p, fluid) => pbRsBoMethod(fluid).rs(p, fluid);
 
 /** Oil FVF for a given Rs and the selected correlation (rb/STB). */
-export const boAt = (rs, fluid) => {
-  const { api, gasGravity, temp, correlations } = fluid;
-  switch (correlations.pb_rs_bo) {
-    case 'vasquez_beggs':
-      return pvtCalcs.vasquez_beggs_bo(rs, api, gasGravity, temp);
-    case 'glaso':
-      return pvtCalcs.glaso_bo(rs, api, gasGravity, temp);
-    case 'standing':
-    default:
-      return pvtCalcs.standing_bo(rs, api, gasGravity, temp);
-  }
-};
+export const boAt = (rs, fluid) => pbRsBoMethod(fluid).bo(rs, fluid);
 
 /** Saturated (bubble-point) oil viscosity at a given Rs (cp). */
-export const muObAt = (rs, fluid) => {
-  const { api, temp, correlations } = fluid;
-  if (correlations.viscosity === 'beal_cook_spillman') {
-    return pvtCalcs.beal_cook_spillman_viscosity(api, temp, true, null, rs);
-  }
-  return pvtCalcs.beggs_robinson_viscosity(api, temp, true, rs);
-};
+export const muObAt = (rs, fluid) => oilViscosityMethod(fluid).live(rs, fluid);
+
+/** Dead (gas-free) oil viscosity at the fluid temperature (cp). */
+export const muOdAt = (fluid) => oilViscosityMethod(fluid).dead(fluid);
 
 /**
  * Bubble-point pressure consistent with the chosen Rs correlation: the pressure
  * at which Rs(p) equals the input solution GOR (Rsb). Bisection over a physical
  * bracket; falls back to Standing's explicit Pb if Rsb is unreachable in range.
+ * `route` says which happened: 'solved', 'standing-explicit' (the fallback,
+ * which a report has to name) or 'no-solution-gas'.
  */
-export const solveBubblePoint = (fluid) => {
+export const solveBubblePointDetail = (fluid) => {
   const target = fluid.rsb;
-  if (!(target > 0)) return 14.7;
+  if (!(target > 0)) return { pb: 14.7, route: 'no-solution-gas' };
 
   let lo = 14.7;
   let hi = 15000;
@@ -287,18 +314,38 @@ export const solveBubblePoint = (fluid) => {
   // at the low end), fall back to Standing's explicit bubble-point correlation.
   if (!(rsHi >= target) || !(rsLo <= target)) {
     const pb = pvtCalcs.standing_pb(target, fluid.api, fluid.gasGravity, fluid.temp);
-    return Math.min(Math.max(pb, 14.7), 15000);
+    return { pb: Math.min(Math.max(pb, 14.7), 15000), route: 'standing-explicit' };
   }
 
   for (let i = 0; i < 60; i += 1) {
     const mid = 0.5 * (lo + hi);
     const rsMid = rsAt(mid, fluid);
-    if (Math.abs(rsMid - target) / target < 1e-4) return mid;
+    if (Math.abs(rsMid - target) / target < 1e-4) return { pb: mid, route: 'solved' };
     if (rsMid < target) lo = mid;
     else hi = mid;
   }
-  return 0.5 * (lo + hi);
+  return { pb: 0.5 * (lo + hi), route: 'solved' };
 };
+
+/**
+ * An entered bubble point with the constant that makes the Rs correlation
+ * meet the solution GOR there: Rs(p) = scale x Rs_correlation(p) below Pb,
+ * scale = Rsb / Rs_correlation(Pb). Without it the table jumps at Pb (the
+ * correlation's own Rs at the entered pressure is not Rsb) and Bo at the
+ * bubble point disagrees with the headline Bo. One-point matching of a
+ * correlation to a measured bubble point by a multiplier is the usual
+ * practice (the "Parameter 1" multiplier of black-oil matching); `scale`
+ * is reported so a reviewer sees how far the correlation was moved.
+ */
+export const enteredBubblePoint = (fluid) => {
+  const pb = fluid.pb;
+  const rsCorr = rsAt(pb, fluid);
+  const rsScale = fluid.rsb > 0 && rsCorr > 0 ? fluid.rsb / rsCorr : 1;
+  return { pb, route: 'entered', rsScale, correlationPb: solveBubblePointDetail({ ...fluid, pb: null }).pb };
+};
+
+/** The bubble point alone (psia); solveBubblePointDetail also says how it was reached. */
+export const solveBubblePoint = (fluid) => solveBubblePointDetail(fluid).pb;
 
 /** Sutton (1985) gas pseudo-critical properties from gas gravity. */
 const suttonPseudoCriticals = (gasGravity) => ({
@@ -350,6 +397,14 @@ export const undersaturatedMuO = (muob, p, pb) => {
   const m = 2.6 * Math.pow(p, 1.187) * Math.exp(-11.513 - 8.98e-5 * p);
   return muob * Math.pow(p / pb, m);
 };
+
+/**
+ * Formation water FVF (RB/STB) and viscosity (cp) from the canonical
+ * engines library (McCain 1990 and 1991). Salinity enters the viscosity
+ * only: the engine's Bw is the pure-water form and says so.
+ */
+export const bwAt = (p, tempF) => mccainBw(p, tempF);
+export const muWaterAt = (p, tempF, salinityPpm) => mccainMuW(p, tempF, Math.max(0, num(salinityPpm)));
 
 // ---------------------------------------------------------------------------
 // Flow assurance (Phase 2) — hydrate screening + WAT resolution
@@ -483,8 +538,12 @@ export const computePvtRow = (p, fluid, pb) => {
   const saturated = p <= pb;
   const z = zFactor(p, fluid.temp, fluid.gasGravity);
 
-  // Solution GOR: capped at Rsb at/above the bubble point.
-  const rs = saturated ? Math.min(rsAt(p, fluid), fluid.rsb) : fluid.rsb;
+  // Solution GOR: capped at Rsb at/above the bubble point. With an entered
+  // bubble point the correlation is scaled by one constant (fluid.rsScale,
+  // set by analyzeFluidSystem) so that Rs meets Rsb at that pressure; the
+  // scale is exactly 1 when the bubble point was solved (FLUID-U1-005).
+  const rsScale = Number.isFinite(fluid.rsScale) && fluid.rsScale > 0 ? fluid.rsScale : 1;
+  const rs = saturated ? Math.min(rsAt(p, fluid) * rsScale, fluid.rsb) : fluid.rsb;
 
   // Bubble-point anchors (Rs = Rsb).
   const boPb = boAt(fluid.rsb, fluid);
@@ -511,6 +570,8 @@ export const computePvtRow = (p, fluid, pb) => {
     mu_o: Number(muO.toFixed(4)),
     mu_g: Number(muGas(p, fluid.temp, fluid.gasGravity, z).toFixed(5)),
     co: co === null ? null : Number(co.toExponential(3)),
+    Bw: Number(bwAt(p, fluid.temp).toFixed(4)),
+    mu_w: Number(muWaterAt(p, fluid.temp, fluid.salinity).toFixed(4)),
     phase: saturated ? 'saturated' : 'undersaturated',
   };
 };
@@ -543,6 +604,9 @@ export const computePvtTable = (fluid) => {
     bg_at_pb: Number(bgAt(pb, fluid.temp, zFactor(pb, fluid.temp, fluid.gasGravity)).toFixed(6)),
     z_at_pb: Number(zFactor(pb, fluid.temp, fluid.gasGravity).toFixed(4)),
     co_at_pb: Number(coAt(fluid, pb).toExponential(3)),
+    mu_od: Number(muOdAt(fluid).toFixed(4)),
+    bw_at_pb: Number(bwAt(pb, fluid.temp).toFixed(4)),
+    mu_w_at_pb: Number(muWaterAt(pb, fluid.temp, fluid.salinity).toFixed(4)),
     api: fluid.api,
     gasSg: fluid.gasGravity,
     temp: fluid.temp,
@@ -629,6 +693,183 @@ export const flashSeparatorTrain = (fluid, stages, pb) => {
     },
   };
 };
+
+// ---------------------------------------------------------------------------
+// What the engine used: the method per property, the bubble point source and
+// the published ranges (FLUID-U1: the report, the limits block and the pvt-1
+// contract all read these; nothing downstream restates a correlation name)
+// ---------------------------------------------------------------------------
+
+/** Standard conditions of the black-oil stream (psia, degF). */
+export const BLACK_OIL_STANDARD_CONDITIONS = Object.freeze({ pressure_psia: STOCK_TANK.pressure, temperature_degF: STOCK_TANK.temperature });
+
+/**
+ * Published data ranges of the fixed correlations (the selectable Pb / Rs /
+ * Bo ones are in CORRELATION_RANGES). Each entry is [low, high]. Sources:
+ * the primary publications as documented in the engines library
+ * (packages/engines/engines/fluid/blackOil.ts viscosityValidityWarnings and
+ * mccainMuW) for Beggs-Robinson, Beal, the Vasquez-Beggs undersaturated
+ * viscosity and Lee-Gonzalez-Eakin; Vasquez and Beggs (1980) for the oil
+ * compressibility (the same data set as their Rs and Bo); Sutton (1985) for
+ * the pseudo-critical fit; McCain (1990) for the water FVF. Papay's Z has
+ * no range here: none could be verified, and the engine clamps Z instead.
+ */
+export const FIXED_CORRELATION_RANGES = Object.freeze({
+  beggs_robinson: { api: [16, 58], temp: [70, 295], rs: [20, 2070] },
+  beal_cook_spillman: { api: [18, 50], temp: [100, 220] },
+  vasquez_beggs_co: { rs: [20, 2199], temp: [75, 294], api: [15.3, 59.5], gasGravity: [0.511, 1.351] },
+  vasquez_beggs_undersaturated: { pressure: [141, 9515] },
+  sutton: { gasGravity: [0.57, 1.68] },
+  lee_gonzalez_eakin: { pressure: [100, 8000], temp: [100, 340], gasGravity: [0.55, 1.0] },
+  mccain_bw: { pressure: [0, 5000], temp: [0, 260] },
+  mccain_mu_w: { pressure: [0, 10000], temp: [100, 400], salinity: [0, 260000] },
+});
+/** Published pressure ranges of the Pb / Rs / Bo correlations (psia). */
+export const PB_RS_BO_PRESSURE_RANGES = Object.freeze({ standing: [130, 7000], vasquez_beggs: [50, 5250], glaso: [150, 7127] });
+/** The band the engine holds Papay's Z inside (zFactor clamps to it). */
+export const Z_CLAMP = Object.freeze([0.25, 1.15]);
+
+/** The liberation basis of the black-oil correlation table, in words. */
+export const BLACK_OIL_BASIS = Object.freeze({
+  kind: 'correlation-separator',
+  text: 'Black-oil correlations on a surface separation (flash) basis: Rs and Bo are per stock-tank barrel, and the correlations do not distinguish differential from flash liberation below the bubble point.',
+});
+
+const RANGE_VARIABLES = Object.freeze({
+  rs: { label: 'solution GOR', unit: 'scf/STB', family: 'gor' },
+  temp: { label: 'temperature', unit: 'degF', family: 'temperature' },
+  api: { label: 'API gravity', unit: 'degAPI', family: null },
+  gasGravity: { label: 'gas gravity', unit: 'air = 1', family: null },
+  pressure: { label: 'pressure', unit: 'psia', family: 'pressure' },
+  salinity: { label: 'salinity', unit: 'ppm', family: null },
+});
+
+/**
+ * The method behind every property of the black-oil table, read from the
+ * same records and branches the calculation ran through.
+ * @param {object} fluid the normalized fluid the table was computed for
+ * @param {{route: string}} pbDetail how the bubble point was reached
+ * @returns {Array<{key: string, label: string, method: string, reference: string,
+ *   kind: 'correlation'|'entered'|'definition', rangeKey: ?string, note?: string}>}
+ */
+export function blackOilMethods(fluid, pbDetail) {
+  const prb = pbRsBoMethod(fluid);
+  const prbKey = Object.keys(PB_RS_BO_METHODS).find((k) => PB_RS_BO_METHODS[k] === prb);
+  const visc = oilViscosityMethod(fluid);
+  const viscKey = Object.keys(OIL_VISCOSITY_METHODS).find((k) => OIL_VISCOSITY_METHODS[k] === visc);
+  const route = pbDetail?.route;
+  let pb;
+  if (route === 'entered') {
+    const scale = Number(pbDetail.rsScale ?? 1);
+    pb = {
+      method: 'Entered by the user', reference: '', kind: 'entered', rangeKey: null,
+      note: `${prb.label} alone puts the bubble point at ${Math.round(pbDetail.correlationPb)} psia. Below the entered pressure its Rs is multiplied by ${scale.toFixed(3)} so that Rs meets the solution GOR there.`,
+    };
+  } else if (route === 'standing-explicit') {
+    pb = { method: 'Standing explicit bubble point', reference: 'Standing (1947)', kind: 'correlation', rangeKey: 'standing', note: `${prb.label} Rs could not reach the solution GOR between 14.7 and 15,000 psia, so the engine fell back to Standing.` };
+  } else if (route === 'no-solution-gas') {
+    pb = { method: 'Set to 14.7 psia (no solution gas)', reference: '', kind: 'definition', rangeKey: null };
+  } else {
+    pb = { method: `${prb.label} Rs(p) solved for the solution GOR`, reference: prb.reference, kind: 'correlation', rangeKey: prbKey, note: 'Bisection between 14.7 and 15,000 psia.' };
+  }
+  const row = (key, label, rec) => ({ key, label, ...rec });
+  return [
+    row('pb', 'Bubble point pressure', pb),
+    row('rs', 'Solution GOR Rs', {
+      method: route === 'entered' ? `${prb.label}, scaled to the entered bubble point` : prb.label,
+      reference: prb.reference, kind: 'correlation', rangeKey: prbKey, note: 'Held at the solution GOR above the bubble point.',
+    }),
+    row('bo', 'Oil formation volume factor Bo', { method: prb.label, reference: prb.reference, kind: 'correlation', rangeKey: prbKey, note: 'Above the bubble point: Bo(Pb) exp(-co (p - Pb)).' }),
+    row('co', 'Oil compressibility co (undersaturated)', { method: 'Vasquez-Beggs', reference: 'Vasquez and Beggs (1980)', kind: 'correlation', rangeKey: 'vasquez_beggs_co' }),
+    row('mu_od', 'Dead oil viscosity', { method: visc.label, reference: visc.reference, kind: 'correlation', rangeKey: viscKey }),
+    row('mu_o', 'Live (saturated) oil viscosity', { method: visc.label, reference: visc.reference, kind: 'correlation', rangeKey: viscKey }),
+    row('mu_o_undersaturated', 'Undersaturated oil viscosity', { method: 'Vasquez-Beggs', reference: 'Vasquez and Beggs (1980)', kind: 'correlation', rangeKey: 'vasquez_beggs_undersaturated' }),
+    row('z', 'Gas deviation factor Z', { method: 'Papay, with Sutton pseudo-critical properties', reference: 'Papay (1968); Sutton (1985)', kind: 'correlation', rangeKey: 'sutton', note: `Held between ${Z_CLAMP[0]} and ${Z_CLAMP[1]}.` }),
+    row('mu_g', 'Gas viscosity', { method: 'Lee-Gonzalez-Eakin', reference: 'Lee, Gonzalez and Eakin (1966)', kind: 'correlation', rangeKey: 'lee_gonzalez_eakin' }),
+    row('bg', 'Gas formation volume factor Bg', { method: 'Real gas law, Bg = 0.00504 Z T / p', reference: '', kind: 'definition', rangeKey: null, note: 'RB/scf at 14.7 psia and 60 degF, T in degR.' }),
+    row('bw', 'Water formation volume factor Bw', { method: 'McCain', reference: 'McCain (1990)', kind: 'correlation', rangeKey: 'mccain_bw', note: 'Pure water form: salinity is not applied to Bw.' }),
+    row('mu_w', 'Water viscosity', { method: 'McCain', reference: 'McCain (1991)', kind: 'correlation', rangeKey: 'mccain_mu_w' }),
+  ];
+}
+
+/** The published range record behind a method's rangeKey, or null. */
+export const publishedRange = (rangeKey) => {
+  if (!rangeKey) return null;
+  if (CORRELATION_RANGES[rangeKey]) {
+    const { label: _label, ...vars } = CORRELATION_RANGES[rangeKey];
+    return { ...vars, pressure: PB_RS_BO_PRESSURE_RANGES[rangeKey] };
+  }
+  return FIXED_CORRELATION_RANGES[rangeKey] || null;
+};
+
+/**
+ * Every input, and every stretch of the pressure table, that sits outside
+ * the published range of a correlation the engine used.
+ * @returns {Array<{key: string, method: string, variable: string, label: string, unit: string,
+ *   family: ?string, value: number, low: number, high: number, scope: 'input'|'table', rows?: number, text: string}>}
+ */
+export function blackOilRangeFlags(fluid, methods, table = []) {
+  const values = { rs: fluid.rsb, temp: fluid.temp, api: fluid.api, gasGravity: fluid.gasGravity, salinity: fluid.salinity };
+  // one flag per (correlation range, variable), listing every property it reaches
+  const groups = new Map();
+  for (const m of methods || []) {
+    const range = publishedRange(m.rangeKey);
+    if (!range) continue;
+    for (const [variable, bounds] of Object.entries(range)) {
+      if (!bounds) continue;
+      const id = `${m.rangeKey}:${variable}`;
+      if (!groups.has(id)) groups.set(id, { id, rangeKey: m.rangeKey, variable, low: bounds[0], high: bounds[1], members: [] });
+      groups.get(id).members.push(m);
+    }
+  }
+  const nameOf = (rangeKey, members) => CORRELATION_RANGES[rangeKey]?.label
+    || (rangeKey === 'sutton' ? 'Sutton pseudo-critical properties' : members[0].method);
+  const out = [];
+  for (const g of groups.values()) {
+    const word = RANGE_VARIABLES[g.variable];
+    const name = nameOf(g.rangeKey, g.members);
+    const base = { id: g.id, key: g.members[0].key, method: name, variable: g.variable, label: word.label, unit: word.unit, family: word.family, low: g.low, high: g.high };
+    const bounds = `${g.low} to ${g.high} ${word.unit}`;
+    if (g.variable !== 'pressure') {
+      const v = Number(values[g.variable]);
+      if (!Number.isFinite(v) || (v >= g.low && v <= g.high)) continue;
+      out.push({
+        ...base, scope: 'input', value: v, properties: g.members.map((m) => m.label),
+        text: `${name}: ${word.label} ${v} ${word.unit} is outside its published range (${bounds}).`,
+      });
+      continue;
+    }
+    // the bubble point is one pressure: judge its own value
+    const pbMember = g.members.find((m) => m.key === 'pb');
+    if (pbMember && Number.isFinite(fluid.pb) && (fluid.pb < g.low || fluid.pb > g.high)) {
+      out.push({
+        ...base, id: `${g.id}:pb`, key: 'pb', scope: 'result', value: fluid.pb, properties: [pbMember.label],
+        text: `${name}: the bubble point ${Math.round(fluid.pb)} psia is outside its published pressure range (${bounds}).`,
+      });
+    }
+    // the table sweeps pressure: count the rows that leave the range
+    const swept = g.members.filter((m) => m.key !== 'pb');
+    if (!swept.length) continue;
+    const undersatOnly = swept.every((m) => m.key === 'mu_o_undersaturated' || m.key === 'co');
+    const rows = table.filter((r) => (r.pressure < g.low || r.pressure > g.high) && (!undersatOnly || r.phase === 'undersaturated'));
+    if (!rows.length) continue;
+    const lo = Math.min(...rows.map((r) => r.pressure));
+    const hi = Math.max(...rows.map((r) => r.pressure));
+    out.push({
+      ...base, key: swept[0].key, scope: 'table', value: null, valueLow: lo, valueHigh: hi, rows: rows.length, properties: swept.map((m) => m.label),
+      text: `${name}: ${rows.length} table row${rows.length === 1 ? '' : 's'} (${lo === hi ? lo : `${lo} to ${hi}`} psia) outside its published pressure range (${bounds}).`,
+    });
+  }
+  // Papay's Z has no verified range; the clamp acting is the flag
+  const clamped = table.filter((r) => r.Z <= Z_CLAMP[0] || r.Z >= Z_CLAMP[1]);
+  if (clamped.length) {
+    out.push({
+      id: 'papay:z', key: 'z', method: 'Papay', variable: 'z', label: 'Z', unit: '', family: null, value: null, low: Z_CLAMP[0], high: Z_CLAMP[1], scope: 'table', rows: clamped.length, properties: ['Gas deviation factor Z'],
+      text: `Papay: ${clamped.length} table row${clamped.length === 1 ? '' : 's'} sit on the ${Z_CLAMP[0]} to ${Z_CLAMP[1]} limit the engine holds Z inside.`,
+    });
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // Fluid backbone (the ecosystem handoff object)
@@ -726,10 +967,14 @@ export const analyzeFluidSystem = (inputs) => {
   const missing = !(fluid.api > 0) || !(fluid.rsb > 0) || !(fluid.gasGravity > 0) || !(fluid.temp > 0);
   if (missing) return emptyResult('Enter API, GOR, gas SG and temperature to run the analysis.');
 
-  const pb = fluid.pb ?? solveBubblePoint(fluid);
-  const withPb = { ...fluid, pb };
+  // how the bubble point was reached travels with the result (FLUID-U1)
+  const pbDetail = fluid.pb != null ? enteredBubblePoint(fluid) : solveBubblePointDetail(fluid);
+  const { pb } = pbDetail;
+  const withPb = { ...fluid, pb, rsScale: pbDetail.rsScale ?? 1 };
 
   const pvt = computePvtTable(withPb);
+  const methods = blackOilMethods(withPb, pbDetail);
+  const rangeFlags = blackOilRangeFlags(withPb, methods, pvt.table);
   const separator = flashSeparatorTrain(withPb, inputs?.separatorTrain?.stages, pb);
   const backbone = buildBackbone(withPb, pvt, separator);
 
@@ -750,6 +995,10 @@ export const analyzeFluidSystem = (inputs) => {
   if (suspectVisc) warnings.push(suspectVisc);
   if (inputs?.streamA?.blackOil?.pb && !inputs?.blending?.enabled) {
     warnings.push('Bubble point is user-specified; leave it blank to solve it from the GOR.');
+    const scale = pbDetail.rsScale ?? 1;
+    if (Math.abs(scale - 1) > 0.005) {
+      warnings.push(`${pbRsBoMethod(fluid).label} alone puts the bubble point at ${Math.round(pbDetail.correlationPb)} psia. Its Rs is multiplied by ${scale.toFixed(3)} below the entered bubble point so that Rs, Bo and viscosity are continuous there.`);
+    }
   }
   if (blending) {
     warnings.push('Blended fluid: API is blended on a specific-gravity (volume) basis; salinity/temperature blends are labeled proxies. See the Blending tab for compatibility.');
@@ -776,6 +1025,15 @@ export const analyzeFluidSystem = (inputs) => {
       correlations: fluid.correlations,
       warnings: [...new Set(warnings)],
       batch: batchMeta,
+      // FLUID-U1: what the engine used, for the report and the pvt-1 contract
+      fluid: withPb,
+      blended: !!blending,
+      methods,
+      pbSource: pbDetail.route,
+      pbDetail,
+      rangeFlags,
+      basis: BLACK_OIL_BASIS,
+      standardConditions: BLACK_OIL_STANDARD_CONDITIONS,
     },
   };
 };
