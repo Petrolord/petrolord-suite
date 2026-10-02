@@ -473,3 +473,27 @@ the evidence kit and the Step 2 backlog: `docs/upgrade/WellsiteStudio-UPGRADE.md
   check, rig surveys, d-exponent, office view).
 - Owner actions unchanged: WS1 validation review, WS6 PWA install, WS9
   simulated shift. Try the stacked layout on the tablet in the WS6 walk.
+
+## 2026-10-01: comprehensive upgrade, Step 2 (batches A and B)
+
+Batch decision by the programme lead (2026-10-01), recorded in `docs/upgrade/WellsiteStudio-UPGRADE.md`
+with the per-item build record. Branch `feat/ws-u2` (PR #847); engines PR Petrolord/petrolord-engines #297
+(merged, engines main fec3788; the Suite is pinned to it). No DDL, no migration.
+- **U2-004** (done): lag check and washout in the dock (carbide or tracer count, strokes down the string taken off, washout of the open hole and equivalent diameter, applied as a decision that corrects the lag). Engine `lagCheck.js` validated against the published INTEQ carbide cases. Gate `upgradeU2Lag.test.jsx`.
+- **U2-002** (done): chromatograph C1 to C5 as an observation with Haworth (wetness, balance, character) and Pixler ratios and their readings; a gas table. Engine `gasRatios.js`: formulas and limits read on the page, numeric cases hand-derived (no published numeric example was readable). Gate `upgradeU2Gas.test.jsx`.
+- **U2-003** (done): a new Import view for mudlogging exports (CSV, delimited text, LAS 2.0 and 3.0; depth or time based; columns detected from the header, units and datum declared at the door, rows not read listed with reasons; withdraw with a reason; a typed row). Six hostile files under `e2e/fixtures/wellsite/hostile/`. Gate `upgradeU2Import.test.jsx`.
+- **U2-005** (done): a new Surveys view: MWD stations typed or imported with the depth unit and the north declared, resolved through the shared trajectory resolver and the shared minimum curvature table; every depth on screen and in new records follows the survey in use; stale depths are counted and TVD entries listed. Gate `upgradeU2Surveys.test.jsx`.
+- **U2-006** (done): d-exponent and corrected d-exponent from the data rows on a depth track with a fitted normal trend and the rows below it marked (new Log view). Engine `dExponent.js` validated against Lapeyrouse and drillingformulas.com. Gate `upgradeU2Dxc.test.jsx`.
+- **U2-001** (done): the composite strip log (ROP, lithology percentages, gas, d-exponent, tops and casing, descriptions and shows; depth downward; white chart standard) with a PDF to scale carrying the reviewer lines on every page. Gate `upgradeU2StripLog.test.js` (pdftotext).
+- **U2-007** (done): a read-only Office view following every shared well (bit, depth at surface, last sample, what awaits approval, sign-off or review), with honest follow status. Gate `upgradeU2Office.test.jsx`.
+- **U2-010** (done): Publish shows a plan first, names same-name tops from other sources and can keep them apart as the prognosis, and is staged with rollback and honest reporting (never delete-first). Gate `upgradeU2Publish.test.jsx`.
+- **U2-009** (done): the rig survey can be compared with and sent to the shared wells registry by its owner, through the registry writer, with its source kept and shown in Well Data Manager. Gate `upgradeU2RegistrySurvey.test.jsx`.
+- **U2-008** (done): Pore Pressure link both ways: the published prognosis at the bit as a mud window (Live, Log view, strip log track), and d-exponent, gas, ROP and mud weight curves published to the registry and read by PP's calibration import. Gate `upgradeU2Pressure.test.jsx`.
+- **U2-011** (done): WITSML 1.4.1.1 trajectory, log and mudLog files in and out, each through the app's existing doors; round trip tested; six hostile files. Checked against the published XSDs, not schema-validated. Gate `upgradeU2Witsml.test.jsx`.
+- **U2-013** (done in part (no ddl)): signer and caller names are kept on the record where an existing column carries them (sign-off statement, the call's event) and used when the organisation list does not know the person; interpretations need the sketched migration. Gate `upgradeU2Names.test.js`.
+- **U2-012** (not built): top scoring was not built this round (conditional on time in the decision).
+- **Deferred by the decision**: U2-014 live WITSML or ETP gateway, U2-015 real-time pore pressure, U2-016 end of well report, U2-017 sidewall cores, U2-018 assisted description, U2-019 KB and datum model (a geo_wells migration, second engineer).
+- **Result**: 12 of 13 chosen items built (U2-013 in part, with no DDL; U2-012 not built). New views: Import, Surveys, Log, Office. New record types, all `ws_records` rows (offline, queued, shared, in `.pld`): `lag_check`, `washout`, `gas_chromatograph`, `mudlog_import`, `mudlog_data`, `survey_run`, `survey_published`, `dxc_settings`, `evidence_published`. Closed from Step 1: WS-U1-019, 020 (files), 021, 022, 023, 025, 013; 026 in part.
+- **Gates**: PR #847 CI green (jest 8 shards, build, vendored engines guard, Playwright 6 shards). Engines PR #297 merged by the programme lead (engines main fec3788); the Suite is re-pinned to it with 0 recorded deviations.
+- **Validation weaker than asked**: gas ratio numeric cases are hand-derived (formulas and limits were read on the page); WITSML was checked against the published XSDs but not schema-validated. Both are owner items in the upgrade doc.
+- **Help**: `WellsiteHelpGuide.jsx` now has 23 sections (Import with WITSML, Surveys, the strip log and d-exponent with the Pore Pressure link, the office view; lag check, gas ratios and the publish plan inside their sections).

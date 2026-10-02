@@ -8,7 +8,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera, Tags, ClipboardList, FileText } from 'lucide-react';
+import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera, Tags, ClipboardList, FileText, FileUp, Compass, LineChart, Building2 } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -33,6 +33,7 @@ import ObservationsView from './ObservationsView';
 import PhotosPanel from './PhotosPanel';
 import { SHOW_SUBTYPE } from '../services/shows';
 import { OBSERVATION_CODES } from '../services/observations';
+import { GAS_SUBTYPE } from '../services/gas';
 import TopsView from './TopsView';
 import SyncStatusPill, { useSyncState } from './SyncStatusPill';
 import ReportScreen from './ReportScreen';
@@ -50,6 +51,26 @@ import MembersPanel from './MembersPanel';
 import { memberName } from '../services/members';
 import { buildLabel } from '@/lib/platformBuild';
 import { useNarrowViewport } from './useNarrowViewport';
+import { namesOnRecord, displayName } from '../services/names';
+import LagCheckPanel from './LagCheckPanel';
+import ImportView from './ImportView';
+import { IMPORT_SUBTYPE, DATA_SUBTYPE, mudlogRecords, mudlogSeries, importsOf, withdrawParams, typedRowParams } from '../services/mudlogImport';
+import { newId } from '@/lib/wellsite/ids';
+import SurveysView from './SurveysView';
+import LogView from './LogView';
+import OfficeView from './OfficeView';
+import { mudWindowAtBit, pressureEmwSeries } from '../services/pressure';
+import { displayUnit } from '../services/mudlogImport';
+import { trajectoryXml, logXml, mudLogXml, descriptionRecordsFromIntervals, downloadText } from '../services/witsml';
+import { surveyListing } from '../services/surveys';
+import { abbreviate, descriptionOf, mergeProfile } from '../services/describe';
+import { dExponentSeries, currentDxcSettings, dxcSettingsParams } from '../services/dexponent';
+import { buildStripLog } from '../services/stripLog';
+import { SURVEY_SUBTYPE, SURVEY_PUBLISHED_SUBTYPE, activeSurvey, wellWithSurvey, surveyRuns, staleDepths, runText } from '../services/surveys';
+import { LAG_CHECK_SUBTYPE, currentWashout, lagCheckParams, washoutParams } from '../services/lagCheck';
+
+// record types added by the upgrade that belong with the typed observations (lists, evidence, reports)
+const EXTRA_OBSERVATION_SUBTYPES = [GAS_SUBTYPE, 'lag_check', SURVEY_SUBTYPE, SURVEY_PUBLISHED_SUBTYPE, 'evidence_published'];
 
 export const VIEWS = [
   { id: 'live', label: 'Live', icon: Activity },
@@ -58,11 +79,15 @@ export const VIEWS = [
   { id: 'shows', label: 'Shows', icon: Droplets },
   { id: 'observations', label: 'Observations', icon: Eye },
   { id: 'photos', label: 'Photos', icon: Camera },
+  { id: 'import', label: 'Import', icon: FileUp },
+  { id: 'surveys', label: 'Surveys', icon: Compass },
+  { id: 'log', label: 'Log', icon: LineChart },
   { id: 'tops', label: 'Tops', icon: Tags },
   { id: 'timeline', label: 'Timeline', icon: ListOrdered },
   { id: 'handover', label: 'Handover', icon: ClipboardList },
   { id: 'report', label: 'Report', icon: FileText },
   { id: 'config', label: 'Config', icon: Settings },
+  { id: 'office', label: 'Office', icon: Building2 },
 ];
 
 export default function WellsiteWorkstation({ backend, appPaths = {} }) {
@@ -81,6 +106,10 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const [samples, setSamples] = useState([]);
   const [stages, setStages] = useState([]);
   const [programmeRecords, setProgrammeRecords] = useState([]);
+  const [decisionRecords, setDecisionRecords] = useState([]);
+  const [lagChecks, setLagChecks] = useState([]);
+  const [mudlogRecordsState, setMudlogRecordsState] = useState([]);
+  const [surveyRecords, setSurveyRecords] = useState([]);
   const [describeSample, setDescribeSample] = useState(null);
   const [shows, setShows] = useState([]);
   const [observations, setObservations] = useState([]);
@@ -101,8 +130,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   // Suite unit profile: depth starts from the profile; the header selector
   // changes this view for the session only, and the older remembered
   // 'ws.units' choice no longer beats the profile
-  const unitsHook = useAppUnits('wellsite', { depth: { family: 'depth', allowed: DEPTH_UNITS }, volume: { family: 'liquidVolume', allowed: ['bbl', 'm3'] } },
-    { fallback: { volume: 'bbl', ...readUnits(typeof localStorage !== 'undefined' ? localStorage : null) }, legacyKeys: [UNITS_KEY] });
+  const unitsHook = useAppUnits('wellsite', { depth: { family: 'depth', allowed: DEPTH_UNITS }, volume: { family: 'liquidVolume', allowed: ['bbl', 'm3'] }, pressure: { family: 'pressure', allowed: ['psi', 'kPa', 'bar', 'MPa'] } },
+    { fallback: { volume: 'bbl', pressure: 'psi', ...readUnits(typeof localStorage !== 'undefined' ? localStorage : null) }, legacyKeys: [UNITS_KEY] });
   const { units } = unitsHook;
   const [tick, setTick] = useState(0);
   const [user, setUser] = useState(null);
@@ -159,7 +188,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const refreshSeq = useRef(0);
   const refreshWellData = useCallback(async () => {
     const seq = ++refreshSeq.current;
-    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); setShows([]); setObservations([]); setPhotos([]); setTops([]); setPrognoses([]); setMembers([]); setNarratives([]); setReports([]); setSignoffs([]); return; }
+    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); setDecisionRecords([]); setLagChecks([]); setMudlogRecordsState([]); setSurveyRecords([]); setShows([]); setObservations([]); setPhotos([]); setTops([]); setPrognoses([]); setMembers([]); setNarratives([]); setReports([]); setSignoffs([]); return; }
     const [bits, pumps, cfg, descs, evs, smp, stg, prog, shw, obs, pho, tps, prg, mem, nar, rep, sgn] = await Promise.all([
       backend.listRecords(well.id, { subtype: 'bit_depth' }),
       backend.listRecords(well.id, { subtype: 'pump_rate' }),
@@ -168,7 +197,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       backend.listRecords(well.id, { kind: 'event' }),
       backend.listSamples(well.id),
       backend.listStages(well.id),
-      backend.listRecords(well.id, { subtype: PROGRAMME_SUBTYPE }),
+      backend.listRecords(well.id, { kind: 'decision' }),
       backend.listRecords(well.id, { subtype: SHOW_SUBTYPE }),
       backend.listRecords(well.id, { kind: 'observation' }),
       backend.listPhotos(well.id),
@@ -188,11 +217,15 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setMembers(mem);
     setEventRecords(evs);
     setShows(currentObservations(shw));
-    setObservations(currentObservations(obs.filter((r) => OBSERVATION_CODES.includes(r.subtype))));
+    setObservations(currentObservations(obs.filter((r) => OBSERVATION_CODES.includes(r.subtype) || EXTRA_OBSERVATION_SUBTYPES.includes(r.subtype))));
     setPhotos(pho);
     setSamples(smp);
     setStages(stg);
-    setProgrammeRecords(prog);
+    setProgrammeRecords(prog.filter((r) => r.subtype === PROGRAMME_SUBTYPE));
+    setDecisionRecords(prog);
+    setLagChecks(currentObservations(obs.filter((r) => r.subtype === LAG_CHECK_SUBTYPE)));
+    setSurveyRecords(obs.filter((r) => r.subtype === SURVEY_SUBTYPE));
+    setMudlogRecordsState(obs.filter((r) => r.subtype === IMPORT_SUBTYPE || r.subtype === DATA_SUBTYPE));
     setBitDepths(currentObservations(bits));
     setPumpEvents(currentObservations(pumps));
     setDescriptions(currentObservations(descs).sort((a, b) => (a.md_calc_m ?? 0) - (b.md_calc_m ?? 0)));
@@ -203,22 +236,31 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   useEffect(() => backend.subscribeSync(() => setTick((t) => t + 1)), [backend]);
   useEffect(() => { const id = setInterval(() => setTick((t) => t + 1), 30000); return () => clearInterval(id); }, []);
 
-  const ctx = useMemo(() => (well ? wellContext(well) : null), [well]);
+  // U2-005: the survey in use is the registry snapshot with the rig's survey runs applied; every
+  // depth on screen (TVD, subsea, the prognosis comparison, the lag) is calculated with it
+  const surveyInUse = useMemo(() => activeSurvey(well, surveyRecords), [well, surveyRecords]);
+  const wellEff = useMemo(() => wellWithSurvey(well, surveyRecords), [well, surveyRecords]);
+  const ctx = useMemo(() => (wellEff ? wellContext(wellEff) : null), [wellEff]);
   useEffect(() => {
     let alive = true;
     if (!well || !backend.listOrgPeople || !backend.online()) return undefined;
     backend.listOrgPeople(well.id).then((p) => { if (alive) setPeople(p || []); }).catch(() => {});
     return () => { alive = false; };
   }, [backend, well]);
-  const nameOf = useCallback((userId) => (userId ? memberName({ user_id: userId }, people, user) : 'n/a'), [people, user]);
+  // U2-013: the organisation list first; when it does not know the person (offline, or someone who has
+  // left), the name the record itself carries (a sign-off statement, the event of a call)
+  const recordNames = useMemo(() => namesOnRecord({ signoffs, records: eventRecords }), [signoffs, eventRecords]);
+  const nameOf = useCallback((userId) => displayName(userId, { people, user, recordNames }), [people, user, recordNames]);
   const entryDefaults = useMemo(() => defaultDepthEntry(well, units.depth), [well, units.depth]);
   const nowForLag = Date.now() + tick * 0;
   const events = useMemo(() => eventsFromRecords(eventRecords), [eventRecords]);
-  const lag = useMemo(() => (well ? lagNow({ well, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag }) : { available: false, note: '' }), [well, rigConfig, bitDepths, pumpEvents, events, nowForLag]);
+  // U2-004: the washout in force (a decision citing its lag check) enlarges the open hole before the lag is computed
+  const washout = useMemo(() => currentWashout(decisionRecords), [decisionRecords]);
+  const lag = useMemo(() => (well ? lagNow({ well: wellEff, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag, washout }) : { available: false, note: '' }), [well, wellEff, rigConfig, bitDepths, pumpEvents, events, nowForLag, washout]);
   const floater = isFloater(rigConfig);
   const rop = useMemo(() => ropNow(bitDepths, events), [bitDepths, events]);
   const programme = useMemo(() => currentProgramme(programmeRecords), [programmeRecords]);
-  const board = useMemo(() => (well ? sampleBoard({ samples, stages, well, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag }) : null), [well, samples, stages, rigConfig, bitDepths, pumpEvents, events, nowForLag]);
+  const board = useMemo(() => (well ? sampleBoard({ samples, stages, well: wellEff, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag, washout }) : null), [well, wellEff, samples, stages, rigConfig, bitDepths, pumpEvents, events, nowForLag, washout]);
   const scheduling = useRef(false);
   const scheduleAhead = useCallback(async () => {
     if (!well || !programme || scheduling.current) return 0;
@@ -257,9 +299,107 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       setTick((t) => t + 1);
     } catch (e) { setStatus(e.message); }
   }, [backend, well]);
+  // U2-003: imported and typed mudlogging data (depth-sorted points for the strip log and the d-exponent)
+  const mudlog = useMemo(() => mudlogSeries(mudlogRecordsState), [mudlogRecordsState]);
+  const mudlogImports = useMemo(() => importsOf(mudlogRecordsState).current, [mudlogRecordsState]);
+  const importMudlog = useCallback(async ({ conv, table, mapping, fileName, lag: lagRows }) => {
+    const { header, chunks } = mudlogRecords(conv, { importId: newId(), fileName, table, mapping });
+    const extra = lagRows ? [...lagRows.bitDepths, ...lagRows.pumpRates] : [];
+    await backend.addRecords(well.id, [header, ...chunks, ...extra]);
+    setStatus(`${fileName}: ${conv.rows.length} row(s) imported${conv.skipped.length ? `, ${conv.skipped.length} not read` : ''}${lagRows ? `; ${lagRows.bitDepths.length} bit depth(s) and ${lagRows.pumpRates.length} pump rate change(s) recorded for the lag` : ''}.`);
+    setTick((t) => t + 1);
+  }, [backend, well]);
+  const withdrawImport = useCallback(async (header, { reason, person }) => {
+    await backend.correctObservation(header, withdrawParams(header, { reason, person }));
+    setStatus(`Import ${header.payload.file_name} withdrawn; its rows are no longer used.`);
+    setTick((t) => t + 1);
+  }, [backend]);
+  const recordTypedRow = useCallback(async ({ depthEntry, values }) => {
+    const { row } = await backend.addRecord(well.id, typedRowParams({ depthEntry, values }));
+    setStatus(`Drilling parameters recorded at ${fmtDepth(row.md_calc_m, units.depth)}.`);
+    setTick((t) => t + 1);
+  }, [backend, well, units.depth]);
+  // U2-006: d and dc from the data rows, the settings a decision on the record
+  const dxcSettings = useMemo(() => currentDxcSettings(decisionRecords), [decisionRecords]);
+  const dxc = useMemo(() => dExponentSeries({ points: mudlog.points, rigConfig, ctx, settings: dxcSettings }), [mudlog, rigConfig, ctx, dxcSettings]);
+  const saveDxcSettings = useCallback(async (p) => {
+    const params = dxcSettingsParams({ ...p, person: user ? user.name || user.email : null });
+    if (dxcSettings && dxcSettings.record) await backend.addVersion(dxcSettings.record, { payload: params.payload });
+    else await backend.addRecord(well.id, params);
+    const pl = params.payload;
+    setStatus(`Normal pore pressure gradient ${pl.normal_value} ${pl.normal_unit}${Number.isFinite(pl.trend_from_md_m) ? `; normal trend fitted from ${fmtDepth(pl.trend_from_md_m, units.depth)} to ${fmtDepth(pl.trend_to_md_m, units.depth)} MD` : '; no normal trend interval'}.`);
+    setTick((t) => t + 1);
+  }, [backend, well, dxcSettings, user, units.depth]);
+  const registrySurveyPlan = useCallback(async () => (await backend.registrySurveyPlanFor(well.id)).plan, [backend, well]);
+  const sendSurveyToRegistry = useCallback(async () => {
+    const { plan, result } = await backend.publishSurveyToRegistry(well.id);
+    setStatus(`Survey ${plan.provenance.survey_version} sent to the well registry: ${result.stations} station(s) now held, replacing ${plan.provenance.previous.stations}.${result.provenanceSaved ? '' : ` The survey is in the registry, but its source note could not be saved (${result.provenanceError}); Well Data Manager will not show where it came from.`}`);
+    setTick((t) => t + 1);
+  }, [backend, well]);
+  const lastSurveySent = useMemo(() => observations.filter((r) => r.subtype === SURVEY_PUBLISHED_SUBTYPE).sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))[0] || null, [observations]);
+  const recordSurveyRun = useCallback(async (p) => {
+    const { row } = await backend.addRecord(well.id, p);
+    setStatus(`${runText(row.payload, (m) => fmtDepth(m, units.depth))} TVD and subsea depths now follow it.`);
+    setTick((t) => t + 1);
+  }, [backend, well, units.depth]);
+  // U2-011: WITSML 1.4.1.1 files out, and mudLog intervals in as cuttings descriptions
+  const exportWitsml = useCallback((kind) => {
+    try {
+      const safe = String(well.name).replace(/[^\w]+/g, '-').toLowerCase();
+      if (kind === 'log') downloadText(`${safe}-log.witsml.xml`, logXml({ well, points: mudlog.points }));
+      else if (kind === 'mudLog') {
+        const profile = mergeProfile(well.settings && well.settings.abbreviation_profile ? well.settings.abbreviation_profile : null);
+        downloadText(`${safe}-mudlog.witsml.xml`, mudLogXml({ well, descriptions, textOf: (r) => abbreviate(descriptionOf(r), profile).text }));
+      } else downloadText(`${safe}-trajectory.witsml.xml`, trajectoryXml({ well, listing: surveyListing(surveyInUse.survey ? surveyInUse.survey.stations : [], ctx ? ctx.kbElevM : 0), version: surveyInUse.survey ? surveyInUse.survey.version : 'survey' }));
+      setStatus(`WITSML ${kind} file saved.`);
+    } catch (e) { setStatus(e.message); }
+  }, [well, mudlog, descriptions, surveyInUse, ctx]);
+  const importIntervals = useCallback(async (intervals, { fileName }) => {
+    await backend.addRecords(well.id, descriptionRecordsFromIntervals(intervals, { fileName }));
+    setStatus(`${fileName}: ${intervals.length} cuttings description(s) added from the WITSML mudLog, marked externally observed.`);
+    setTick((t) => t + 1);
+  }, [backend, well]);
+  const recordLagCheck = useCallback(async (result, { tracer }) => {
+    const bit = bitDepths[bitDepths.length - 1] || null;
+    const { row } = await backend.addRecord(well.id, lagCheckParams({ result, tracer, bit }));
+    setStatus(result.applies
+      ? `Lag check recorded: ${result.measuredLagStrokes.toFixed(0)} stk measured against ${result.calculatedLagStrokes.toFixed(0)} calculated, washout ${(result.washoutFraction * 100).toFixed(1)} percent of the open hole.`
+      : `Lag check recorded. ${result.note}`);
+    setTick((t) => t + 1);
+    return row;
+  }, [backend, well, bitDepths]);
+  const applyWashout = useCallback(async (fraction, { lagCheckId = null, basis = null } = {}) => {
+    const p = washoutParams({ washoutFraction: fraction, basis, person: user ? user.name || user.email : null, lagCheckId });
+    if (washout && washout.record) await backend.addVersion(washout.record, { payload: p.payload, evidenceIds: p.evidenceIds });
+    else await backend.addRecord(well.id, p);
+    setStatus(`${p.payload.statement}.`);
+    setTick((t) => t + 1);
+  }, [backend, well, washout, user]);
   const prognosis = useMemo(() => currentPrognosis(prognoses), [prognoses]);
   const latestBitMd = bitDepths.length ? bitDepths[bitDepths.length - 1].md_calc_m : null;
   const topsBoard = useMemo(() => (well && ctx ? formationBoard({ tops, prognosis, bitMdM: latestBitMd, ctx }) : { rows: [], next: null, conflicts: [] }), [well, ctx, tops, prognosis, latestBitMd]);
+  // U2-008: the pore pressure prognosis loaded with the prognosis, read at the bit against the mud weight in use
+  const pressureCurves = prognosis ? prognosis.pressure_curves : null;
+  const mudWindow = useMemo(() => {
+    const [u, conv] = displayUnit('mw', units.depth);
+    return mudWindowAtBit({ pressureCurves, bitMdM: latestBitMd, ctx, points: mudlog.points, fmtMw: (kg) => `${conv(kg).toFixed(2)} ${u}` });
+  }, [pressureCurves, latestBitMd, ctx, mudlog, units.depth]);
+  const pressureSeries = useMemo(() => pressureEmwSeries(pressureCurves, ctx), [pressureCurves, ctx]);
+  // U2-001: the composite log model (tracks and markers) from the record
+  const logModel = useMemo(() => buildStripLog({ well, unit: units.depth, mudlog, bitDepths, events, descriptions, shows, observations, topsBoard, rigConfig, dxc, pressure: pressureSeries }),
+    [well, units.depth, mudlog, bitDepths, events, descriptions, shows, observations, topsBoard, rigConfig, dxc, pressureSeries]);
+  const sendEvidence = useCallback(async () => {
+    const { record } = await backend.publishEvidenceToRegistry(well.id);
+    setStatus(record.payload.text);
+    setTick((t) => t + 1);
+  }, [backend, well]);
+  const lastEvidence = useMemo(() => observations.filter((r) => r.subtype === 'evidence_published').sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))[0] || null, [observations]);
+  const exportLogPdf = useCallback(async ({ window: w, scale }) => {
+    const { exportStripLogPdf } = await import('../services/stripLogPdf');
+    const name = await exportStripLogPdf(logModel, { well, unit: units.depth, toDisplay: (m) => (units.depth === 'ft' ? m / 0.3048 : m), scale, window: w,
+      reviewer: { kbElevM: ctx ? ctx.kbElevM : null, preparedBy: user ? user.name || user.email : null, build: `${buildLabel()}, Wellsite Studio` } });
+    setStatus(`Strip log saved as ${name}.`);
+  }, [logModel, well, units.depth, ctx, user]);
   const approver = useMemo(() => canApprove(user, members, well), [user, members, well]);
   const isAdmin = useMemo(() => !!(user && members.some((m) => m.user_id === user.id && m.role === 'administrator' && m.status === 'active')), [user, members]);
   const allObservationRecords = useMemo(() => [...observations, ...descriptions, ...shows].sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at)), [observations, descriptions, shows]);
@@ -279,10 +419,10 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     const res = prev ? await backend.addTopVersion(prev, p) : await backend.addTop(well.id, p);
     // the event on the timeline that a top was called, citing the decision (the evidence chain of spec section 35)
     await backend.addRecord(well.id, { kind: 'event', subtype: 'top_called', occurredAt: res.row.occurred_at, endedAt: res.row.occurred_at, evidenceIds: [res.row.id],
-      depth: { ...p.depth, kind: 'event' }, payload: { label: `${res.row.name} called at ${fmtDepth(res.row.md_calc_m, units.depth)} (${res.row.status})`, family: 'geology', duration: false, top_id: res.row.id } });
+      depth: { ...p.depth, kind: 'event' }, payload: { label: `${res.row.name} called at ${fmtDepth(res.row.md_calc_m, units.depth)} (${res.row.status})`, family: 'geology', duration: false, top_id: res.row.id, by_name: user ? user.name || user.email || null : null } });
     setStatus(`${res.row.name} called at ${fmtDepth(res.row.md_calc_m, units.depth)}, ${res.row.status}${prev ? ` (version ${res.row.version_no})` : ''}.`);
     setTick((t) => t + 1);
-  }, [backend, well, units.depth]);
+  }, [backend, well, units.depth, user]);
   const resolveTop = useCallback(async (chosen, why, heads) => {
     try {
       await backend.addTopVersion(chosen, {
@@ -315,6 +455,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setTick((t) => t + 1);
   }, [backend, well, ctx, prognosis]);
   const myRole = useMemo(() => memberRole(user, members), [user, members]);
+  const staleNow = useMemo(() => (ctx ? staleDepths([...bitDepths, ...descriptions, ...shows, ...observations.filter((r) => r.subtype !== SURVEY_SUBTYPE && r.subtype !== SURVEY_PUBLISHED_SUBTYPE), ...tops], ctx) : null), [ctx, bitDepths, descriptions, shows, observations, tops]);
   const reportData = useMemo(() => ({
     records: [...observations, ...descriptions, ...shows, ...bitDepths, ...pumpEvents, ...narratives, ...eventRecords],
     samples, stages, tops, photos, events, lag,
@@ -329,20 +470,25 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       setTick((t) => t + 1);
     } catch (e) { setStatus(e.message); }
   }, [backend, well, narratives]);
-  const publishToRegistry = useCallback(async (photoIds) => {
+  const loadPublishPlan = useCallback(async () => (await backend.publishPlanFor(well.id)).plan, [backend, well]);
+  const publishToRegistry = useCallback(async (photoIds, renameIds = []) => {
     try {
-      const { plan, result } = await backend.publishToRegistry(well.id, { photoIds: Array.isArray(photoIds) ? photoIds : [] });
+      const { plan, result } = await backend.publishToRegistry(well.id, { photoIds: Array.isArray(photoIds) ? photoIds : [], renameIds });
       const photosOut = result.photos && result.photos.ids ? result.photos.ids.length : 0;
-      const dup = plan.sameNameOther && plan.sameNameOther.length
-        ? ` ${plan.sameNameOther.join(', ')} already had a registry top from another source (left as it is), so the registry now holds two tops of that name; tidy them in Well Data Manager.` : '';
-      setStatus(`Published to the registry: ${result.tops.ids.length} final top(s) (${result.tops.replaced} replaced), ${result.intervals.ids.length} lithology interval(s) (${result.intervals.replaced} replaced)${photosOut ? `, ${photosOut} photograph(s)` : ''}; ${plan.untouchedTops + plan.untouchedIntervals} row(s) from other sources untouched.${dup}`);
+      const left = (plan.duplicates || []).filter((d) => !result.renamed.some((r) => r.id === d.id)).map((d) => d.name);
+      const dup = left.length
+        ? ` ${[...new Set(left)].join(', ')} already had a registry top from another source (left as it is), so the registry now holds two tops of that name; tidy them in Well Data Manager.` : '';
+      const ren = result.renamed.length ? ` ${result.renamed.map((r) => `${r.from} from the earlier source is now ${r.to}`).join('; ')}.` : '';
+      const failed = result.photos.failed && result.photos.failed.length ? ` ${result.photos.failed.length} photograph(s) could not be uploaded (${result.photos.failed[0].error}); the tops and intervals are published.` : '';
+      setStatus(`Published to the registry: ${result.tops.ids.length} final top(s) (${result.tops.replaced} replaced), ${result.intervals.ids.length} lithology interval(s) (${result.intervals.replaced} replaced)${photosOut ? `, ${photosOut} photograph(s)` : ''}; ${plan.untouchedTops + plan.untouchedIntervals - result.renamed.length} row(s) from other sources untouched.${ren}${dup}${failed}`);
       setTick((t) => t + 1);
-    } catch (e) { setStatus(e.message); }
+      return true;
+    } catch (e) { setStatus(e.message); return false; }
   }, [backend, well]);
   const keepOffline = useCallback(async () => {
     try {
       // fetch this app's lazy chunks so the service worker holds them; the shell itself is precached
-      await Promise.all([import('../WellsiteStudio'), import('./ConfigView'), import('./DescribeView'), import('./SamplesView'), import('./TopsView'), import('./TimelineView'), import('./ShowsView'), import('./ObservationsView'), import('./PhotosPanel')]);
+      await Promise.all([import('../WellsiteStudio'), import('./ConfigView'), import('./DescribeView'), import('./SamplesView'), import('./TopsView'), import('./TimelineView'), import('./ShowsView'), import('./ObservationsView'), import('./PhotosPanel'), import('./ImportView'), import('./SurveysView'), import('./LogView'), import('./OfficeView')]);
       const persisted = await persistStorage();
       setOfflineReady(true);
       setStatus(persisted ? 'This app is cached for use without a connection and its storage is protected.' : 'This app is cached for use without a connection.');
@@ -382,7 +528,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       <span className="hidden 2xl:inline text-[11px] text-pl-muted">the geological record of a live well</span>
       <div className="flex flex-wrap items-center gap-1 ml-4">
         {VIEWS.map((v) => (
-          <button key={v.id} type="button" data-testid={`ws-nav-${v.id}`} disabled={!well && v.id !== 'live'}
+          <button key={v.id} type="button" data-testid={`ws-nav-${v.id}`} disabled={!well && v.id !== 'live' && v.id !== 'office'}
             className={`flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border ${view === v.id ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:bg-pl-sunken'} disabled:opacity-40`}
             onClick={() => setView(v.id)}>
             <v.icon className="w-3.5 h-3.5" /> {v.label}
@@ -438,6 +584,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   let center;
   if (view === 'setup' || (!well && wells && wells.length === 0)) {
     center = <WellSetup backend={backend} initialGeoId={setupGeoId} onStatus={setStatus} onCreated={async (w) => { wellParam.current = null; setSetupGeoId(null); await refreshWells(); setSelectedId(w.id); setView('live'); }} />;
+  } else if (view === 'office') {
+    center = <OfficeView backend={backend} wells={wells || []} unit={units.depth} nowMs={nowForLag} onStatus={setStatus} onOpen={(id) => { wellParam.current = null; setSelectedId(id); setView('live'); }} />;
   } else if (!well) {
     center = <div className="p-4 text-xs text-pl-muted" data-testid="ws-need-well">Choose a live well in the explorer.</div>;
   } else if (view === 'samples') {
@@ -452,9 +600,27 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     center = <ObservationsView backend={backend} well={well} ctx={ctx} observations={observations} latestBit={latestBit} lag={lag} defaults={entryDefaults} unit={units.depth} offsetMin={offsetMin} tourCfg={tourConfigOf(well)} nowMs={nowForLag} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   } else if (view === 'photos') {
     center = <PhotosPanel backend={backend} well={well} photos={photos} samples={samples} sampleId={photoSampleId} onSampleChange={setPhotoSampleId} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+  } else if (view === 'import') {
+    center = <ImportView ctx={ctx} defaults={entryDefaults} unit={units.depth} pressureUnit={units.pressure} offsetMin={offsetMin} imports={mudlogImports} series={mudlog} onImport={importMudlog} onWithdraw={withdrawImport} onTypedRow={recordTypedRow} onStatus={setStatus} userName={user ? user.name || user.email : ''} onImportIntervals={importIntervals} onExport={exportWitsml} />;
+  } else if (view === 'surveys') {
+    center = <SurveysView inUse={surveyInUse} ctx={ctx} unit={units.depth} offsetMin={offsetMin} stale={staleNow} runs={surveyRuns(surveyRecords)} onRecord={recordSurveyRun} onStatus={setStatus} nameOf={nameOf} online={backend.online()} onRegistryPlan={registrySurveyPlan} onRegistrySend={sendSurveyToRegistry} lastSent={lastSurveySent} />;
+  } else if (view === 'log') {
+    center = <LogView win={logModel.win} tracks={logModel.tracks} markers={logModel.markers} dxc={dxc} dxcSettings={dxcSettings} onSaveDxc={saveDxcSettings} unit={units.depth} onStatus={setStatus} title={`${well.name}.`} notes={logModel.notes} legend={logModel.legend} onPdf={exportLogPdf}
+      belowSlot={(
+        <section className="space-y-1 text-[11px] text-pl-text" data-testid="ws-pp-link">
+          <h3 className="text-xs font-semibold">Pore Pressure Studio</h3>
+          <div data-testid="ws-pp-window" className={mudWindow.state === 'below_pore' || mudWindow.state === 'above_fracture' ? 'text-pl-warning-text' : ''}>{mudWindow.text}</div>
+          {pressureCurves && (pressureCurves.skipped || []).map((x) => <div key={x} className="text-pl-warning-text" data-testid="ws-pp-skipped">{x}</div>)}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button type="button" disabled={!backend.online()} className="px-2 py-1 rounded border border-pl-border hover:bg-pl-sunken disabled:opacity-40" data-testid="ws-pp-send" title={backend.online() ? 'Publish the d-exponent, total gas, ROP and mud weight curves of this live well to the well registry, where Pore Pressure Studio reads them (registry owner only)' : 'Needs a connection'}
+              onClick={() => sendEvidence().catch((e) => setStatus(e.message))}>Send the d-exponent, gas, ROP and mud weight curves to the registry</button>
+            {lastEvidence && <span className="text-pl-muted" data-testid="ws-pp-last">Last sent {toRigLocal(Date.parse(lastEvidence.occurred_at), offsetMin).iso.replace('T', ' ')} rig time: {lastEvidence.payload.curves.join(', ')}.</span>}
+          </div>
+        </section>
+      )} />;
   } else if (view === 'tops') {
     center = <TopsView board={topsBoard} tops={tops} records={allObservationRecords} prognosis={prognosis} ctx={ctx} defaults={entryDefaults} unit={units.depth} offsetMin={offsetMin}
-      approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} geoWellId={well.geo_well_id} loadRegistryWells={loadRegistryWells} onAddPrognosisTop={addPrognosisTop} onPublish={publishToRegistry} onStatus={setStatus} userName={user ? user.name || user.email : ''} nameOf={nameOf} photos={photos} />;
+      approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} geoWellId={well.geo_well_id} loadRegistryWells={loadRegistryWells} onAddPrognosisTop={addPrognosisTop} onPublish={publishToRegistry} onPublishPlan={loadPublishPlan} onStatus={setStatus} userName={user ? user.name || user.email : ''} nameOf={nameOf} photos={photos} />;
   } else if (view === 'handover' || view === 'report') {
     center = <ReportScreen key={view} kind={view === 'handover' ? 'handover' : 'daily'} backend={backend} well={well} data={reportData} tourCfg={tourConfigOf(well)} nowMs={nowForLag} unit={units.depth} offsetMin={offsetMin}
       role={myRole} userName={user ? user.name || user.email : ''} nameOf={nameOf} reviewer={{ kbElevM: ctx ? ctx.kbElevM : null, preparedBy: user ? user.name || user.email : null, build: `${buildLabel()}, Wellsite Studio` }} reports={reports} signoffs={signoffs} onNarrativeSave={saveNarrative} onStatus={setStatus} onChanged={() => setTick((t) => t + 1)} />;
@@ -464,7 +630,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     center = <ConfigView backend={backend} well={well} rigConfig={rigConfig} canAdmin={isMember} unit={units.depth} prognosis={prognosis} onStatus={setStatus} onSaved={() => { refreshWells(); setTick((t) => t + 1); }}
       membersSlot={<MembersPanel backend={backend} well={well} members={members} user={user} onStatus={setStatus} onChanged={() => setTick((t) => t + 1)} />} />;
   } else {
-    center = <LiveWellView rop={rop} backend={backend} well={well} ctx={ctx} bitDepths={bitDepths} pumpEvents={pumpEvents} events={events} onStartEvent={startEvent} onEndEvent={endEvent} descriptions={descriptions} lag={lag} board={board} onStage={recordStage} defaults={entryDefaults} offsetMin={offsetMin} unit={units.depth} floater={floater} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+    center = <LiveWellView mudWindow={mudWindow} rop={rop} backend={backend} well={well} ctx={ctx} bitDepths={bitDepths} pumpEvents={pumpEvents} events={events} onStartEvent={startEvent} onEndEvent={endEvent} descriptions={descriptions} lag={lag} board={board} onStage={recordStage} defaults={entryDefaults} offsetMin={offsetMin} unit={units.depth} floater={floater} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   }
 
   const statusBar = (
@@ -485,6 +651,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   ) : well ? (
     <>
       <LagPanel lag={lag} pumpEvents={pumpEvents} onPump={recordPump} unit={units.depth} volumeUnit={units.volume} offsetMin={offsetMin} nowMs={nowForLag} floater={floater} />
+      <div className="border-t border-pl-border" />
+      <LagCheckPanel lag={lag} washout={washout} checks={lagChecks} onRecord={recordLagCheck} onApply={applyWashout} unit={units.depth} volumeUnit={units.volume} offsetMin={offsetMin} />
       <div className="border-t border-pl-border" />
       <ApproachPanel next={topsBoard.next} evidence={approachEvidence} unit={units.depth} offsetMin={offsetMin} onOpenTops={() => setView('tops')} />
     </>

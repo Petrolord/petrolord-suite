@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<trajectorys xmlns="http://www.witsml.org/schemas/1series" version="1.4.1.1">
+  <trajectory uid="T">
+    <name>cut short</name>
+    <trajectoryStation uid="S1"><md uom="m">100</md>

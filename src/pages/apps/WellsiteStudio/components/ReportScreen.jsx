@@ -3,6 +3,7 @@
 // their records and the report regenerates, the version is recorded,
 // signed, and exported to PDF or DOCX. Generated facts cannot be edited
 // here (spec sections 30 and 31): correct the source record.
+import { statementWithName } from '../services/names';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import ReportRenderer from './ReportRenderer';
@@ -38,7 +39,8 @@ export default function ReportScreen({ kind, backend, well, data, tourCfg, nowMs
     try {
       let row = recorded && recorded.content_hash === (await reportRowParams(model, { templateId: template.id })).contentHash ? recorded : null;
       if (!row) row = await record();
-      await backend.addSignoff(well.id, row, { role, statement });
+      // U2-013: the signer's name is kept in the statement, so the report still says who signed offline and later
+      await backend.addSignoff(well.id, row, { role, statement: statementWithName(statement, userName) });
       onStatus?.(`Signed as ${userName}, ${String(role).replace(/_/g, ' ')}. Platform countersignature pending until synchronised.`);
       onChanged?.();
     } catch (e) { onStatus?.(e.message); }

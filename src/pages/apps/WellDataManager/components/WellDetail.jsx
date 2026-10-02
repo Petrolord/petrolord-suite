@@ -5,6 +5,7 @@
 // actions hide on org-shared read-only wells, mirroring what RLS would
 // reject server-side.
 
+import { registrySurveySourceText } from '@/lib/wellsite/registrySurveySource';
 import { Link } from 'react-router-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Trash2, Building2, Lock, Pencil, Download } from 'lucide-react';
@@ -647,6 +648,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
             <Field label="CRS note">{well.crs_note}</Field>
             <Field label="Units">{well.units_note}</Field>
             <Field label="Deviation stations">{(well.deviation || []).length}</Field>
+            {registrySurveySourceText(well.crs_provenance) && <Field label="Survey source"><span data-testid="wdm-survey-source">{registrySurveySourceText(well.crs_provenance)}</span></Field>}
             <Field label="Checkshot pairs">{(well.checkshots || []).length}</Field>
             {editor?.tab === 'Header' && (
               <div className="col-span-2 md:col-span-3 space-y-1">

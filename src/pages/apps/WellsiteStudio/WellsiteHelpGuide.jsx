@@ -7,7 +7,7 @@
 import React from 'react';
 import {
   BookOpen, Zap, WifiOff, HardHat, Settings, Activity, FlaskConical, PenLine, Droplets, Eye, Camera, Tags, ListOrdered,
-  ClipboardList, FileText, RefreshCw, Upload, AlertTriangle, ListChecks,
+  ClipboardList, FileText, RefreshCw, Upload, AlertTriangle, ListChecks, FileUp, Compass, LineChart, Building2,
 } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Code, Callout, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import { SAMPLE_STAGES } from '@/lib/wellsite/sampleProgram';
@@ -33,10 +33,14 @@ export const HELP_SECTIONS = [
   { id: 'shows', icon: Droplets, title: 'Shows' },
   { id: 'observations', icon: Eye, title: 'Observations' },
   { id: 'photos', icon: Camera, title: 'Photographs' },
+  { id: 'import', icon: FileUp, title: 'Importing mudlogging data' },
+  { id: 'surveys', icon: Compass, title: 'Surveys on the rig' },
+  { id: 'log', icon: LineChart, title: 'The strip log and the d-exponent' },
   { id: 'tops', icon: Tags, title: 'Formation tops' },
   { id: 'timeline', icon: ListOrdered, title: 'The timeline' },
   { id: 'handover', icon: ClipboardList, title: 'Shift handover' },
   { id: 'report', icon: FileText, title: 'Daily report and sign-off' },
+  { id: 'office', icon: Building2, title: 'The office view' },
   { id: 'sharing', icon: RefreshCw, title: 'Sharing and conflicts' },
   { id: 'publish', icon: Upload, title: 'Publishing to the registry' },
   { id: 'pitfalls', icon: AlertTriangle, title: 'Pitfalls and language' },
@@ -187,6 +191,23 @@ export default function WellsiteHelpGuide() {
           enter the hole sections from the BOP down. Record the booster rate beside the main rate on every pump change; the panel shows
           the riser leg's share of the lag. A land rig, jack-up or platform has neither and the lag is the single leg it always was.
         </Para>
+        <SubHeading>Lag check and washout</SubHeading>
+        <Para>
+          A calculated lag assumes a gauge hole. To check it, drop carbide (or rice, or a paint marker) into the pipe at a
+          connection, count the pump strokes until it comes back, and type the count under Lag check and washout in the dock. The
+          strokes it took to travel down the string (the inside volume of the pipe and collars over the pump output, plus a surface
+          line if you enter one) are taken off the count; what is left is the measured lag. The panel shows it beside the calculated
+          lag, the difference in strokes and in volume, the washout as a percent of the gauge open hole volume, and the equivalent
+          hole diameter.
+        </Para>
+        <Para>
+          Record check keeps the count as it was made. Record and apply washout also corrects the lag: the open hole is enlarged by
+          that percent for the lag strokes, the sample arrival times and the lagged depth, and the lag panel says it is corrected.
+          Cased hole and the riser are steel and are never enlarged. A later check always measures against the gauge hole, so one
+          washout is never stacked on another. A caliper figure can be applied by hand, and Clear returns to the gauge hole; each is
+          a new version on the record. A count shorter than the calculated lag is not a washout: the panel says to check the pump
+          output, the sizes and the count, and corrects nothing.
+        </Para>
         <Para>
           The sampling programme (an interval per depth range) is an authorised decision; changing it needs the person who authorised
           it and makes a new version. Samples are scheduled three intervals ahead of the bit, with their predicted arrival, starting from
@@ -237,6 +258,21 @@ export default function WellsiteHelpGuide() {
         <Para>
           Observations are immutable. To correct one, record the correction; the earlier observation stays in the audit view as superseded.
         </Para>
+        <SubHeading>Chromatograph readings and gas ratios</SubHeading>
+        <Para>
+          Choose Chromatograph on the Observations view and type C1, C2, C3, iC4, nC4, iC5 and nC5 as read, in ppm, percent or
+          chromatograph units. All seven share one unit; a component that was not read is left empty. Before you save, the app
+          shows the Haworth ratios (wetness, the heavier gases as a percent of the total; balance, C1 plus C2 over C3 plus C4 plus
+          C5; character, C4 plus C5 over C3) and the Pixler ratios (C1 over C2, C3, C4 and C5), each with its reading: very dry
+          gas, gas, wet gas or condensate, gas with oil, oil or residual oil from Haworth; oil, gas or non-productive from C1 over
+          C2, with a note when a ratio falls below the one before it. Recorded readings are listed in a gas table with their
+          ratios.
+        </Para>
+        <Callout tone="info" title="An indication from the gas alone">
+          The ratios are a reading of the gas, to be weighed with the cuttings, the shows and the drilling data. A ratio whose
+          denominator was not read is shown as n/a with the reason; nothing is filled in for it. Shale density can be recorded in
+          g/cc, sg or kg/m3.
+        </Callout>
       </GuideSection>
 
       <GuideSection id="photos">
@@ -247,6 +283,124 @@ export default function WellsiteHelpGuide() {
           appears in the sample, the handover and the report without being attached again. The sharing drawer counts photographs not yet
           backed up.
         </Para>
+      </GuideSection>
+
+      <GuideSection id="import">
+        <SectionHeading icon={FileUp}>Importing mudlogging data</SectionHeading>
+        <Para>
+          The Import view reads what the mudlogging unit exports: a CSV, a text file separated by tabs, semicolons or spaces, or a
+          LAS file (2.0 or 3.0), indexed by depth or by time. Choose the file or paste the table. The app shows every column it
+          found, the unit written in the file, and the first values, and suggests what each column is: hole depth, bit depth, date
+          and time, rate of penetration, weight on bit, rotary speed, torque, standpipe pressure, flow, pump strokes, mud weight,
+          ECD, total gas, C1 to C5 and bit size.
+        </Para>
+        <Para>
+          Nothing is stored until every column you keep has its unit declared and the depths have their datum (KB, RT, GL or MSL).
+          A unit found in the header only fills the choice in for you to check. A time file also asks whether dates are day first or
+          month first, and whether the clock is rig time or UTC. The preview then says how many rows will be imported, over what
+          depths, which rows were not read and why, and which values were left out as impossible. If most of a column falls
+          outside its possible range, the import stops and says the declared unit looks wrong.
+        </Para>
+        <Para>
+          From a time file you can also record the bit depths and the pump rate changes for the lag, marked externally observed.
+          Imported rows feed the strip log and the d-exponent. Every import is listed with what was declared; Withdraw takes its rows
+          out of use, with your reason, and keeps the record of it. One row of drilling parameters can be typed on the same view.
+        </Para>
+        <SubHeading>WITSML files</SubHeading>
+        <Para>
+          The same view reads and writes WITSML 1.4.1.1 files. A WITSML log file is read through the import above, with the units
+          the file names on its curves filled in for you to check. A WITSML mudLog file is read as lithology intervals and added as
+          cuttings descriptions marked externally observed: each interval needs its top and base with their units, lithologies the
+          description vocabulary knows, and percentages that add up to 100; the intervals that do not fit are listed with the
+          reason. A WITSML trajectory file is loaded on the Surveys view, its depths and angles converted by the units in the
+          file. Export log, Export mudLog and Export trajectory write this well's data rows, cuttings descriptions and survey in
+          use as WITSML files in metres and degrees. A version 2.0 file, another WITSML object or a damaged file is refused with
+          the reason. There is no live WITSML feed in this release.
+        </Para>
+        <Callout tone="info" title="Depths are measured depths">
+          The importer reads measured depth. Rows are kept as recorded and work without a connection like every other record.
+        </Callout>
+      </GuideSection>
+
+      <GuideSection id="surveys">
+        <SectionHeading icon={Compass}>Surveys on the rig</SectionHeading>
+        <Para>
+          A live well starts with the survey the registry held when it was created. As MWD surveys are taken, record them on the
+          Surveys view: type one station (measured depth, inclination, azimuth), or paste or load a table of stations. Each time,
+          declare the unit of the measured depths and the north the azimuths are measured from. Grid north needs nothing more;
+          for true or magnetic north enter the correction to grid, which is added to every azimuth.
+        </Para>
+        <Para>
+          A station below the survey in use is tied in to its last station. A run that starts at or above an existing station
+          replaces the survey from there down and keeps what is above, so a corrected survey is recorded the same way. Runs are
+          kept; the last one recorded wins. The view lists the stations in use with TVD, subsea depth, northing, easting and
+          dogleg severity by minimum curvature, the same survey table the Drilling apps use.
+        </Para>
+        <Para>
+          From then on every TVD and subsea depth on screen is calculated with the survey in use: Live, the tops against the
+          prognosis, the approach panel and the lag. A depth recorded earlier keeps its measured depth; its TVD is recalculated on
+          screen and the value recorded at the time is shown beside it. A depth that was entered as TVD or TVDSS is listed with the
+          measured depth the survey in use gives it, for you to record again if the TVD was what was meant.
+        </Para>
+        <SubHeading>Sending the rig survey to the well registry</SubHeading>
+        <Para>
+          The other apps read a well's survey from the shared registry. Compare with the registry, on the Surveys view, reads
+          what the registry holds and shows it beside the survey in use. The owner of the registry well can then send the rig
+          survey: it replaces the registry survey for every app that reads the well, and the registry records where it came from
+          (this live well, the survey version, when and by whom, and how many stations it replaced), which Well Data Manager shows
+          as the survey source. The send is recorded on the live well. It needs a connection, and nothing is sent by itself.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="log">
+        <SectionHeading icon={LineChart}>The strip log and the d-exponent</SectionHeading>
+        <Para>
+          The Log view draws the well against depth, with depth increasing down the page. Choose the depth window and the vertical
+          scale (fit the window, or 1:200, 1:500, 1:1000, 1:2000 as on paper). The tracks, left to right: depth; rate of
+          penetration (the imported curve, or the recorded bit depths over drilling time when nothing was imported, and the log
+          says which); the lithology column, each description drawn as its percentages in the Suite lithology colours; gas in ppm
+          on a logarithmic scale (total gas, C1 to C5, typed and imported together; total gas in uncalibrated units on a track of
+          its own); the d-exponent; tops and casing (tops as called are solid lines, the prognosis dashed, casing shoes brown);
+          and the descriptions and shows as text at the top of their intervals.
+        </Para>
+        <Para>
+          PDF saves the same log as a document to the chosen scale, page after page down the hole. Every page states the well,
+          field, operator and rig, that depths are measured depths below KB with the KB elevation, the interval and the scale,
+          who prepared it and the software build. An interval too long for the scale is refused with what to change.
+        </Para>
+        <SubHeading>d-exponent</SubHeading>
+        <Para>
+          For every data row with a rate of penetration, a rotary speed and a weight on bit (imported or typed on the Import view)
+          the app computes the d-exponent: log(R / 60N) over log(12W / 10^6 D), with R in ft/hr, N in rev/min, W in lbf and D the
+          bit size in inches, whatever units the data arrived in. The bit size is taken from the row, or from the open hole section
+          in Config at that depth. Record the normal pore pressure gradient of the area, with its unit (ppg, sg, kg/m3, psi/ft or
+          kPa/m), and the app also shows the corrected d-exponent: d times the normal gradient over the mud weight in use (the ECD
+          where the row has one, otherwise the mud weight in, and it says which).
+        </Para>
+        <Para>
+          Then give the depth interval you judge normally pressured. The normal trend is the straight line through its dc points
+          on the logarithmic scale against TVD, drawn dashed down the whole track; rows more than 10 percent below it are marked
+          and listed. The settings are a record with your name on it. A row that cannot be computed is counted with the reason.
+        </Para>
+        <SubHeading>The link with Pore Pressure Studio</SubHeading>
+        <Para>
+          Coming in: when Pore Pressure Studio has published a prognosis for the registry well, Load from registry on Tops brings
+          its pore pressure, fracture pressure and overburden curves in with the prognosis, read by the unit each curve declares.
+          Live and the Log view then show the prognosis at the bit as equivalent mud weights, at the TVD from the survey in use,
+          beside the mud weight in use (the ECD of the latest data row, otherwise its mud weight in): how far it sits over the
+          prognosed pore pressure and under the prognosed fracture pressure. The strip log gains a pressure track. A mud weight
+          outside the window is shown as an indication to check with the driller.
+        </Para>
+        <Para>
+          Going out: the button under the log sends this well's d-exponent, corrected d-exponent, total gas, rate of penetration,
+          mud weight in and ECD to the well registry as curves, with where they came from, replacing only the curves this live
+          well sent before. In Pore Pressure Studio, Mud weights from Wellsite Studio in the calibration import reads them into
+          its table for you to check and add as mud weights used. Sending needs a connection and the owner of the registry well.
+        </Para>
+        <Callout tone="info" title="An indication, with no pressure computed">
+          A dc falling below its normal trend is one sign of rising pore pressure, to weigh with gas, cavings and hole condition.
+          The app does not turn it into a pore pressure here.
+        </Callout>
       </GuideSection>
 
       <GuideSection id="tops">
@@ -307,6 +461,22 @@ export default function WellsiteHelpGuide() {
         </Para>
       </GuideSection>
 
+      <GuideSection id="office">
+        <SectionHeading icon={Building2}>The office view</SectionHeading>
+        <Para>
+          Office lists every live well shared with you on one page: where the bit is and when it was recorded, the depth now at
+          surface, the rate of penetration, the pumps, the last sample caught, and what awaits someone: calls that are not yet
+          final, conflicts to resolve, reports with no sign-off and samples overdue for review. Wells with something awaiting come
+          first. The figures come from the same lag and tops calculations the rig's screens use.
+        </Para>
+        <Para>
+          The page is read only. Follow now brings in what each rig has shared since the last time and writes nothing; the page
+          follows by itself every minute while it is open. The Followed column says when a well was last followed and whether
+          anything new came in. If a try fails it says so and keeps the time of the last one that worked; with no connection the
+          page says it is showing what this device holds. Open goes to the well's own screens.
+        </Para>
+      </GuideSection>
+
       <GuideSection id="sharing">
         <SectionHeading icon={RefreshCw}>Sharing and conflicts</SectionHeading>
         <Para>
@@ -326,7 +496,21 @@ export default function WellsiteHelpGuide() {
         <Para>
           Wellsite Studio writes to the shared registry only through Publish on Tops, by the owner of the registry well and with a
           connection: final official calls become registry tops, current cuttings descriptions become lithology intervals with the
-          components in their properties, and the photographs ticked under Photographs to publish become core images. A republish replaces only the rows this app wrote earlier. It never touches a hand-typed row or another app's. When a formation already has a registry top from another source, such as a prognosis typed in Well Data Manager, the publish says that the registry now holds two tops of that name so you can tidy them there. Well Correlation, Petrophysics Studio and Stratigraphy Studio read them from there.
+          components in their properties, and the photographs ticked under Photographs to publish become core images. A republish
+          replaces only the rows this app wrote earlier.
+        </Para>
+        <Para>
+          Publish first shows the plan and writes nothing: the tops and intervals that will be added, the earlier rows of this app
+          that will be replaced, and how many rows from other sources stay as they are. When the registry already holds a top of the
+          same name from another source (usually the prognosis typed in Well Data Manager), the plan names it with its depth and
+          offers to rename it, for example Top Agbada (prognosis), so the top as drilled keeps the plain name the other apps look
+          for. The rename is your choice, row by row; untick it and both stay under one name, and the result says so.
+        </Para>
+        <Para>
+          The new rows are written first and the earlier ones removed after, so the well is never without its tops. If a step
+          fails, the steps already taken are undone and the message says the registry holds what it held before. If an undo itself
+          fails, the message names the rows left to tidy in Well Data Manager. A photograph that fails to upload is reported and
+          the tops and intervals stand.
         </Para>
       </GuideSection>
 

@@ -21,7 +21,13 @@ export const PORT = Object.freeze([
   // reports and sign-off (WS7, WS8)
   'listReports', 'saveReport', 'listSignoffs', 'addSignoff', 'memberRole',
   // registry publish (WS9)
-  'publishToRegistry', 'registryState',
+  'publishToRegistry', 'registryState', 'publishPlanFor',
+  // Pore Pressure link (U2-008)
+  'publishEvidenceToRegistry',
+  // rig survey to the registry (U2-009)
+  'registrySurveyPlanFor', 'publishSurveyToRegistry',
+  // office view (U2-007)
+  'wellSnapshot', 'followWell',
   // sync surface (WS6 fills in)
   'syncStatus', 'subscribeSync', 'flush', 'setCurrentWell', 'retryRejected', 'listConflicts',
   // storage
