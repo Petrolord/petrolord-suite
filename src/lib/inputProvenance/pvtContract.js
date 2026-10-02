@@ -282,7 +282,7 @@ const PVT1_AT_PB_METHOD = Object.freeze({ pb: 'pb', bo_at_pb: 'bo', mu_o_at_pb: 
  *   basis: {kind: string, text: string}, pbSource: string, tuning?: object, rangeFlags?: Array,
  *   standardConditions: {pressure_psia: number, temperature_degF: number},
  *   separatorConditions?: Array<{pressure_psia: number, temperature_degF: number}>,
- *   inputs?: object, atSaturation?: object, table: object[], identification?: object}} a
+ *   inputs?: object, atSaturation?: object, table: object[], identification?: object, labData?: ?object}} a
  */
 export function buildPvtContract(a) {
   const methods = {};
@@ -321,6 +321,8 @@ export function buildPvtContract(a) {
     inputs: a.inputs || {},
     at_saturation: a.atSaturation || {},
     ...(a.identification ? { identification: a.identification } : {}),
+    // added 2026-10-02 (Fluid U2): the laboratory tables the project holds and the misfit of this table against them
+    ...(a.labData ? { lab_data: a.labData } : {}),
     table: a.table || [],
   };
 }

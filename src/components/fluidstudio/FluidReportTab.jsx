@@ -161,6 +161,18 @@ const FluidReportTab = ({ report, inputs, organizationName = '', onIdentificatio
         {model.tuning.parameters && <ModelTable head={model.tuning.parameters.head} rows={model.tuning.parameters.rows} />}
       </Section>
 
+      {model.lab && (
+        <Section title="Laboratory data against the model" testId="fluid-report-lab" note={model.lab.misfit.note}>
+          <ModelTable head={model.lab.tables.head} rows={model.lab.tables.rows} dense />
+          <ModelTable head={model.lab.misfit.head} rows={model.lab.misfit.rows} />
+          {model.lab.notes.length > 0 && (
+            <ul className="text-xs text-pl-muted list-disc list-inside space-y-1">
+              {model.lab.notes.map((n) => <li key={n}>{n}</li>)}
+            </ul>
+          )}
+        </Section>
+      )}
+
       <Section title="Limits of this analysis" testId="fluid-report-limits" note={model.limits.rangesNote}>
         <ul className="text-sm text-pl-text list-disc list-inside space-y-1">
           {model.limits.assumptions.map((a) => <li key={a}>{a}</li>)}

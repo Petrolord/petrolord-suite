@@ -47,7 +47,7 @@ Separator Train of this report.
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                Page 1 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                               Page 1 of 10
 Inputs and their sources
  Input                                        Value               Unit             Source and quality
 
@@ -109,7 +109,7 @@ applied, the tuning parameters. Salinity enters the water viscosity only. The me
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                             Page 2 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                            Page 2 of 10
 Method used for each property
  Property                             Method                                       Reference                 Note
 
@@ -161,7 +161,7 @@ The method names are written by the engine beside the calculation that used them
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                   Page 3 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                  Page 3 of 10
 Basis and conventions
  Item                                     As used in this report
 
@@ -229,7 +229,7 @@ Errors are model minus measured: percent, or API degrees for the stock-tank grav
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                      Page 4 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                     Page 4 of 10
 Tuning parameters
  Parameter                                                                                Before tuning                         Applied
 
@@ -277,9 +277,9 @@ No input is outside a published range.
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                      Page 5 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                    Page 5 of 10
 PVT table
- Pressure           Rs            Bo           Bg              Z          Oil visc.      Gas visc.         co          Bw           Water visc.    Region
+ Pressure           Rs            Bo           Bg              Z          Oil visc.      Gas visc.         co          Bw           Water visc.     Region
  (psia)             (scf/STB)     (RB/STB)     (RB/Mscf)                  (cP)           (cP)              (1/psi)     (RB/STB)     (cP)
           3,575           830.9       1.4531             n/a        n/a        0.3855                n/a         n/a       1.0325          0.4044 Above Pb
           3,163           830.9       1.4657             n/a        n/a        0.3596                n/a         n/a       1.0335          0.3958 Above Pb
@@ -328,7 +328,7 @@ Other Petrolord apps receive this block with the table and print it as the sourc
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                            Page 6 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                            Page 6 of 10
 Plots
 Figure 1. Oil formation volume factor Bo against pressure
 
@@ -423,7 +423,7 @@ screen chart. Above the saturation pressure the undersaturated method applies.
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                 Page 7 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                               Page 7 of 10
 Figure 4. Gas deviation factor Z against pressure
 
                              Z
@@ -484,8 +484,8 @@ series of the screen chart. Logarithmic scale.
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                               Page 8 of 9
-Figure 6. Laboratory values against the model
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                              Page 8 of 10
+Figure 6. Laboratory values against the model: oil properties
 
                                Model Bo        Laboratory Bo
                      1.5
@@ -508,7 +508,7 @@ Fluid Properties Report, BHS-2 recombined, Field Ekene                          
                       1
 
                      0.9
-                           0                                   1000                                 2000                                     3000            4000
+                           0                                   1000                                 2000                                     3000             4000
 
                                                                                                Pressure (psia)
 
@@ -536,15 +536,19 @@ Fluid Properties Report, BHS-2 recombined, Field Ekene                          
 
 
                       0
-                           0                                   1000                                 2000                                     3000            4000
+                           0                                   1000                                 2000                                     3000             4000
 
                                                                                                Pressure (psia)
 
-Model curves with the measured separator-test values as points and the measured saturation pressure as the dotted line. The model is tuned to
-these values; the tuning table gives the errors.
+Model curves with the laboratory values as points. The measured separator-test values of the Lab tuning card are among the points. The
+measured saturation pressure is the dotted line. The model is tuned to these values; the tuning table gives the errors.
 
 
-Figure 7. Pressure and temperature phase envelope
+Figure 7. Laboratory values against the model: gas properties and relative volume
+Does not apply: no laboratory table is loaded.
+
+
+Figure 8. Pressure and temperature phase envelope
 
                                Bubble points      Dew points          Reservoir conditions       Saturation point at reservoir temperature
                     4000
@@ -569,7 +573,7 @@ Figure 7. Pressure and temperature phase envelope
 
 
                       0
-                           0                                   100                                  200                                      300              400
+                           0                                   100                                  200                                      300               400
 
                                                                                              Temperature (degF)
 
@@ -577,11 +581,14 @@ Stability boundaries of the tuned equation of state: 15 bubble points and 1 dew 
 so the two branches need not meet.
 
 
-Figure 8. Hydrate screening against the flowline profile
+
+
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                                   Page 9 of 10
+Figure 9. Hydrate screening against the flowline profile
 Does not apply: flow assurance screening runs on the black-oil stream, which is not part of a compositional report.
 
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                                   Page 9 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                Page 10 of 10
 

@@ -66,6 +66,13 @@ export function buildFluidPdf(a, { logo = null, generatedAt = new Date() } = {})
     table('Tuning parameters', model.tuning.parameters.head, model.tuning.parameters.rows);
   }
 
+  // the laboratory tables and the misfit of the model against them
+  if (model.lab) {
+    table('Laboratory tables loaded', model.lab.tables.head, model.lab.tables.rows, { columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 14 }, 2: { cellWidth: 26 } } });
+    table('Laboratory data against the model', model.lab.misfit.head, model.lab.misfit.rows, { note: model.lab.misfit.note });
+    if (model.lab.notes.length) section('Notes on the laboratory comparison', model.lab.notes.map((n) => `- ${n}`).join('\n'), { need: 16 });
+  }
+
   report.limits({
     assumptions: model.limits.assumptions,
     ranges: { head: model.limits.ranges.head, body: model.limits.ranges.rows, note: model.limits.rangesNote, columnStyles: { 0: { cellWidth: 44 }, 1: { cellWidth: 56 } } },

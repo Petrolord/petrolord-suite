@@ -14,6 +14,7 @@
 import { buildPvtContract } from '@/lib/inputProvenance/pvtContract';
 import { blackOilRangeFlags } from '@/utils/fluidStudioCalculations';
 import { tuningState, isActiveStage } from '@/utils/fluidstudio/eosAnalysis';
+import { labContractBlock } from '@/utils/fluidstudio/labReport';
 
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 
@@ -97,6 +98,7 @@ export function buildFluidPvtContract({ inputs, results, eos, projectId = null, 
         pressure: t.pb, Rs: t.kpis.rsfb, Bo: t.kpis.bofb, mu_o: pbRow?.mu_o ?? null, Bg: pbRow?.Bg ?? null, Z: pbRow?.Z ?? null,
         Bw: pbRow?.Bw ?? null, mu_w: pbRow?.mu_w ?? null, Bod: t.kpis.bodb, Rsd: t.kpis.rsdb,
       },
+      labData: labContractBlock({ inputs, rows: t.rows, pb: t.pb }),
       table: t.rows,
     });
   }
@@ -125,6 +127,7 @@ export function buildFluidPvtContract({ inputs, results, eos, projectId = null, 
       pressure: k.pb, Rs: k.rsb, Bo: k.bo_at_pb, mu_o: k.mu_o_at_pb, co: k.co_at_pb, Bg: k.bg_at_pb, Z: k.z_at_pb,
       Bw: k.bw_at_pb, mu_w: k.mu_w_at_pb, mu_od: k.mu_od,
     },
+    labData: labContractBlock({ inputs, rows: results.pvt.table, pb: k.pb }),
     table: results.pvt.table,
   });
 }

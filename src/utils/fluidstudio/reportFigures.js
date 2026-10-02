@@ -13,6 +13,7 @@ import {
 } from './pvtSeries.js';
 import { fluidUnits } from './units.js';
 import { envelopeRequest } from './eosAnalysis.js';
+import { labDataForSeries } from './pvtSeries.js';
 
 const pts = (list) => list.map((p) => [p.x, p.y]);
 const PANEL = 58;
@@ -28,7 +29,7 @@ export const envelopeKey = (composition) => JSON.stringify(envelopeRequest(compo
 export function buildFluidReportFigures({ model, inputs, results, eos, envelope = null, system = 'oilfield' }) {
   if (!model) return [];
   const u = fluidUnits(system);
-  const series = buildPvtSeries({ rows: model.pvtRows, pb: model.pb, system, satKind: model.satKind });
+  const series = buildPvtSeries({ rows: model.pvtRows, pb: model.pb, system, satKind: model.satKind, labData: labDataForSeries(inputs) });
   const T = `${Number(u.show('temperature', model.tempF).toFixed(1))} ${u.label('temperature')}`;
   const pbLine = series.pb != null ? [{ x: series.pb, label: series.pbLabel, rgb: [...PB_RGB], dash: [1.5, 1.2] }] : [];
   const methodOf = (key) => model.methods.rows.find((r) => r[0] === key)?.[1] || '';
@@ -38,6 +39,7 @@ export function buildFluidReportFigures({ model, inputs, results, eos, envelope 
   const figures = [];
 
   for (const plot of series.plots) {
+    if (plot.id === 'relvol') continue; // a laboratory comparison: drawn with the lab figures below
     const id = `pvt-${plot.id}`;
     if (plot.points.length < 2) {
       figures.push({ id, title: `${plot.title} against pressure`, statement: `Not plotted: the table holds fewer than two values of ${plot.short}.` });
@@ -59,44 +61,68 @@ export function buildFluidReportFigures({ model, inputs, results, eos, envelope 
     });
   }
 
-  // laboratory values against the model
+  // laboratory values against the model: the tables loaded at the lab data
+  // door (FLUID-U2-001) and, in compositional mode, the single values of the
+  // Lab tuning card. A panel for each property with a laboratory value.
   const composition = inputs?.streamA?.composition;
   const lab = model.mode === 'eos'
     ? buildLabOverlay({ lab: composition?.tuning?.lab, flashPressure: Number(composition?.pressure), flashTempF: Number(composition?.temp), modelPb: model.pb, system })
     : null;
-  const labPanels = [];
-  if (lab) {
-    for (const id of labPlotIds(lab)) {
-      const plot = series.plots.find((p) => p.id === id);
-      if (plot.points.length < 2) continue;
-      labPanels.push({
-        height: PANEL,
-        spec: {
-          xTitle: series.xTitle, yTitle: plot.yTitle, xInclude: [0],
-          series: [
-            { name: `Model ${plot.short}`, type: 'line', rgb: plot.rgb, pts: pts(plot.points), width: 0.5 },
-            ...(lab.points[id].length ? [{ name: `Laboratory ${plot.short}`, type: 'scatter', rgb: [...LAB_RGB], pts: pts(lab.points[id]), marker: 'circle' }] : []),
-          ],
-          lines: [...pbLine, ...(lab.psat ? [{ x: lab.psat.x, label: lab.psat.label, rgb: [...LAB_RGB], dash: [0.6, 0.9] }] : [])],
-        },
-      });
-    }
+  const tuningIds = lab ? labPlotIds(lab) : [];
+  const stats = model.lab?.stats || [];
+  const labPanel = (plot) => {
+    const table = plot.lab;
+    const single = lab?.points?.[plot.id] || [];
+    const points = [...table, ...single];
+    return {
+      height: PANEL,
+      spec: {
+        xTitle: series.xTitle, yTitle: plot.yTitle, yLog: plot.yLog, xInclude: [0],
+        series: [
+          { name: `Model ${plot.short}`, type: 'line', rgb: plot.rgb, pts: pts(plot.points), width: 0.5 },
+          ...(points.length ? [{ name: `Laboratory ${plot.short}`, type: 'scatter', rgb: [...LAB_RGB], pts: pts(points), marker: 'circle' }] : []),
+        ],
+        lines: [...pbLine, ...(lab?.psat && tuningIds.includes(plot.id) ? [{ x: lab.psat.x, label: lab.psat.label, rgb: [...LAB_RGB], dash: [0.6, 0.9] }] : [])],
+      },
+    };
+  };
+  const withLab = series.plots.filter((p) => p.points.length >= 2 && (p.lab.length || tuningIds.includes(p.id)));
+  const sentence = (id) => {
+    const m = stats.find((x) => x.id === id);
+    return m ? model.lab.sentences[stats.indexOf(m)] : '';
+  };
+  const tuningParts = [];
+  if (lab && tuningIds.length) {
+    if (lab.points.bo.length + lab.points.rs.length) tuningParts.push('The measured separator-test values of the Lab tuning card are among the points.');
+    if (lab.psat) tuningParts.push('The measured saturation pressure is the dotted line.');
+    tuningParts.push(model.tuning.status === 'tuned' ? 'The model is tuned to these values; the tuning table gives the errors.' : 'The model is not tuned to these values.');
+    tuningParts.push(...lab.notes);
   }
-  if (labPanels.length) {
-    figures.push({
-      id: 'lab',
-      title: 'Laboratory values against the model',
-      caption: `Model curves${lab.points.bo.length + lab.points.rs.length ? ' with the measured separator-test values as points' : ''}${lab.psat ? `${lab.points.bo.length + lab.points.rs.length ? ' and' : ' with'} the measured saturation pressure as the dotted line` : ''}. ${model.tuning.status === 'tuned' ? 'The model is tuned to these values; the tuning table gives the errors.' : 'The model is not tuned to these values.'}${lab.notes.length ? ` ${lab.notes.join(' ')}` : ''}`,
-      panels: labPanels,
-    });
-  } else {
-    figures.push({
-      id: 'lab',
-      title: 'Laboratory values against the model',
-      statement: model.mode === 'eos'
-        ? (lab ? `Does not apply: the laboratory values entered are not pressure curves. ${lab.notes.join(' ')}`.trim() : 'Does not apply: no laboratory value is entered in the Lab tuning card.')
-        : 'Does not apply: the black-oil correlations take no laboratory PVT data in this app.',
-    });
+  const groups = [
+    { id: 'lab', title: 'Laboratory values against the model: oil properties', ids: ['bo', 'rs', 'muo'], none: 'oil property' },
+    { id: 'lab-gas', title: 'Laboratory values against the model: gas properties and relative volume', ids: ['z', 'bg', 'relvol'], none: 'gas property or relative volume' },
+  ];
+  for (const g of groups) {
+    const plots = withLab.filter((p) => g.ids.includes(p.id));
+    if (plots.length) {
+      const parts = ['Model curves with the laboratory values as points.'];
+      const misfit = plots.map((p) => sentence(p.id)).filter(Boolean);
+      if (misfit.length) parts.push(`Misfit of the model: ${misfit.join(' ')}`);
+      if (g.id === 'lab' && model.lab?.comparison.basis.text) parts.push(model.lab.comparison.basis.text);
+      if (g.id === 'lab') parts.push(...tuningParts);
+      figures.push({
+        id: g.id,
+        title: g.title,
+        caption: parts.join(' '),
+        panels: plots.map(labPanel),
+      });
+    } else {
+      let why;
+      if (model.lab) why = `Does not apply: the laboratory tables loaded hold no ${g.none}.`;
+      else if (g.id === 'lab' && model.mode === 'eos') why = lab ? `Does not apply: the laboratory values entered are not pressure curves. ${lab.notes.join(' ')}`.trim() : 'Does not apply: no laboratory table is loaded and no laboratory value is entered in the Lab tuning card.';
+      else why = 'Does not apply: no laboratory table is loaded.';
+      figures.push({ id: g.id, title: g.title, statement: why });
+    }
   }
 
   // phase envelope

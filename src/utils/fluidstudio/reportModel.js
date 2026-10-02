@@ -21,6 +21,8 @@ import { untunedKnobs } from '@/utils/fluidstudio/eos/labTune';
 import { fluidUnits } from '@/utils/fluidstudio/units';
 import { readPtProfile } from '@/utils/fluidstudio/ptProfileImport';
 import { isEosHandoff, eosRangeFlags } from '@/utils/fluidstudio/pvtHandoff';
+import { labDataOf, LAB_KINDS } from '@/utils/fluidstudio/labData';
+import { buildLabSection } from '@/utils/fluidstudio/labReport';
 
 export const REPORT_TITLE = 'Fluid Properties Report';
 export const APP_NAME = 'Petrolord Fluid Systems Studio';
@@ -186,6 +188,27 @@ const stageRows = (inputs, u, meta) => {
   return rows;
 };
 
+/** The laboratory tables as rows of the inputs table: what was loaded, from where, and the basis (FLUID-U2-001). */
+function labInputRows(inputs, u) {
+  const lab = labDataOf(inputs);
+  const rows = [];
+  for (const k of ['cce', 'dl', 'viscosity']) {
+    const t = lab[k];
+    if (!t) continue;
+    const temp = Number.isFinite(t.tempF) ? ` at ${SHOW.temperature(u, t.tempF)} ${u.label('temperature')}` : '';
+    rows.push({ key: `lab.${k}`, label: `Laboratory table: ${LAB_KINDS[k].label.toLowerCase()}${temp}`, value: `${t.rows.length} rows`, unit: '', source: `Measured (lab): ${[t.source?.name, t.source?.summary].filter(Boolean).join('. ')}` });
+  }
+  if (lab.dl) {
+    rows.push({ key: 'lab.basis', label: 'Basis of the differential liberation table', value: lab.dlBasis === 'separator' ? 'Separator' : 'Differential', unit: '', source: lab.dlBasis === 'separator' ? 'Entered: the table is already adjusted to the separator basis' : 'Entered: as the laboratory reports it, per barrel of residual oil' });
+    if (lab.dlBasis === 'differential') {
+      const given = lab.separatorTest.bofb != null && lab.separatorTest.rsfb != null;
+      rows.push({ key: 'lab.bofb', label: 'Separator test Bofb (oil formation volume factor at the bubble point)', value: lab.separatorTest.bofb != null ? SHOW.fvfOil(u, lab.separatorTest.bofb) : EMPTY_VALUE, unit: u.label('fvfOil'), source: lab.separatorTest.bofb != null ? 'Measured (lab), as entered at the lab data door' : `${NOT_PROVIDED}: the differential rows are not adjusted` });
+      rows.push({ key: 'lab.rsfb', label: 'Separator test Rsfb (total GOR at the bubble point)', value: lab.separatorTest.rsfb != null ? SHOW.gor(u, lab.separatorTest.rsfb) : EMPTY_VALUE, unit: u.label('gor'), source: lab.separatorTest.rsfb != null ? 'Measured (lab), as entered at the lab data door' : `${NOT_PROVIDED}${given ? '' : ': the differential rows are not adjusted'}` });
+    }
+  }
+  return rows;
+}
+
 function blackOilInputRows({ inputs, results, u }) {
   const meta = inputs?.inputMeta || {};
   const bo = inputs?.streamA?.blackOil ?? {};
@@ -233,9 +256,13 @@ function blackOilInputRows({ inputs, results, u }) {
   row({ key: 'oilRate', engineKeys: ['feed.oilRate'], label: 'Stock-tank oil basis for stage gas rates', value: SHOW.rate(u, fluid.feed.oilRate), unit: u.label('liquidRate'), source: rateGiven ? 'Entered (a reporting basis)' : 'Assumed default 1,000 STB/d (no value entered)' });
   rows.push(...stageRows(inputs, u, meta));
   rows.push({ key: 'stockTank', label: 'Stock tank (last stage)', value: `${SHOW.pressure1(u, m?.standardConditions?.pressure_psia ?? 14.7)} / ${SHOW.temperature(u, m?.standardConditions?.temperature_degF ?? 60)}`, unit: `${u.label('pressure')} / ${u.label('temperature')}`, source: 'Standard conditions, always added by the app' });
+  rows.push(...labInputRows(inputs, u));
+  if (fluid.sweep?.pCover != null) {
+    row({ key: 'sweep.pCover', engineKeys: ['sweep.pCover'], label: 'Pressure the table is carried up to', value: SHOW.pressure(u, fluid.sweep.pCover), unit: u.label('pressure'), source: 'Computed: the highest pressure of the laboratory tables' });
+  }
   return {
     rows,
-    note: 'The PVT table uses the API gravity, the solution GOR, the gas gravity, the temperature, the bubble point when one is entered and the two correlation choices. Salinity enters the water viscosity only. The stock-tank oil basis scales the stage gas rates and nothing else. Flowline geometry is recorded in the app and enters no calculation.',
+    note: `The PVT table uses the API gravity, the solution GOR, the gas gravity, the temperature, the bubble point when one is entered and the two correlation choices. Salinity enters the water viscosity only. The stock-tank oil basis scales the stage gas rates and nothing else. Flowline geometry is recorded in the app and enters no calculation.${rows.some((r) => String(r.key).startsWith('lab.')) ? ' The laboratory tables are compared with the model and enter no calculation.' : ''}`,
   };
 }
 
@@ -281,6 +308,7 @@ function eosInputRows({ inputs, eos, u }) {
     if (!given) continue;
     rows.push({ key: `lab.${key}`, label, value: show(u, Number(raw)), unit: u.label(kind), source: 'Measured (lab), as entered in the Lab tuning card' });
   }
+  rows.push(...labInputRows(inputs, u));
   const t = tuningState(c, inputs?.separatorTrain?.stages);
   if (t.applied) {
     const how = t.status === 'tuned' ? 'Computed: regression to the measured values above' : 'Computed by an earlier regression; see the lab tuning section';
@@ -657,6 +685,8 @@ export function buildFluidReportModel({ inputs, results, eos, system = 'oilfield
         : 'Ranges are those of the data each correlation was fitted to, as held in the Petrolord engines library and the app. Papay\'s Z has no range here: none could be verified, so the engine holds Z inside 0.25 to 1.15 and flags a row on that limit.',
       flags: flagLines,
     },
+    // FLUID-U2-001: the laboratory tables against the table this report prints
+    lab: buildLabSection({ inputs, rows, pb, tempF, u }),
     pvtTable: pvtTable({ rows, pb, u, satKind }),
     pvtRows: rows,
     pb,

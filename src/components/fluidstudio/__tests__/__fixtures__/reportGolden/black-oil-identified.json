@@ -1,6 +1,6 @@
 {
   "pages": 9,
-  "sha256": "f8af2109c0b6f4f1a1699cfa258e49b1efa72b6854fcd74377ef1980274dd12f",
+  "sha256": "aca08229fc80804197b41e6588e7d0fd605664277392306ebbb83c8cb2fe10dc",
   "figures": [
     {
       "id": "pvt-bo",
@@ -120,15 +120,22 @@
       "panels": []
     },
     {
-      "id": "envelope",
+      "id": "lab-gas",
       "number": 7,
       "page": 8,
       "plotted": false,
       "panels": []
     },
     {
-      "id": "hydrate",
+      "id": "envelope",
       "number": 8,
+      "page": 8,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "hydrate",
+      "number": 9,
       "page": 9,
       "plotted": true,
       "panels": [

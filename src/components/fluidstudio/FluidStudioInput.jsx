@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { MinusCircle, PlusCircle, Atom, SlidersHorizontal, Beaker, Combine, Route, Snowflake } from 'lucide-react';
 import CompositionInput from '@/components/fluidstudio/CompositionInput';
+import LabDataDoor from '@/components/fluidstudio/LabDataDoor';
 import UnitField from '@/components/fluidstudio/UnitField';
 import { useFluidUnits } from '@/components/fluidstudio/FluidUnitsContext';
 import { readPtProfile, PT_PRESSURE_UNITS, PT_TEMPERATURE_UNITS, DEFAULT_PT_UNITS } from '@/utils/fluidstudio/ptProfileImport';
@@ -101,6 +102,7 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
         <TabsList className="flex flex-wrap h-auto justify-start">
           <TabsTrigger value="stream-a">Stream A</TabsTrigger>
           {fluidModel === 'eos' && <TabsTrigger value="composition">Composition</TabsTrigger>}
+          <TabsTrigger value="lab-data">Lab data</TabsTrigger>
           <TabsTrigger value="correlations">Correlations</TabsTrigger>
           <TabsTrigger value="separators">Separators</TabsTrigger>
           <TabsTrigger value="blending">Blending</TabsTrigger>
@@ -125,6 +127,14 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
               <CompositionInput composition={inputs.streamA?.composition} onChange={setComposition} />
             </TabsContent>
           )}
+
+          <TabsContent value="lab-data">
+            <LabDataDoor
+              inputs={inputs}
+              setInputs={setInputs}
+              modelTempF={fluidModel === 'eos' ? (inputs.streamA?.composition?.temp ?? null) : (streamA.temp ?? null)}
+            />
+          </TabsContent>
 
           <TabsContent value="correlations">
             <div className="space-y-4 p-1">

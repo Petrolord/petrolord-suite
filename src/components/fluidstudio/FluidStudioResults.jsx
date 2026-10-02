@@ -21,7 +21,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { PVT_PROJECT_PARAM } from '@/lib/inputProvenance/pvtContract';
 import { useFluidUnits } from '@/components/fluidstudio/FluidUnitsContext';
 import { pvtTableCsv, downloadText } from '@/utils/fluidstudio/csvExport';
-import { buildLabOverlay, labPlotIds } from '@/utils/fluidstudio/pvtSeries';
+import { buildLabOverlay, labPlotIds, labDataForSeries } from '@/utils/fluidstudio/pvtSeries';
 import { screenWarnings } from '@/utils/fluidstudio/screenWarnings';
 import { tuningStatus } from '@/utils/fluidstudio/eosAnalysis';
 
@@ -125,6 +125,8 @@ const FluidStudioResults = ({
       modelPb: eos.pvtTable.table.pb, system: u.system,
     })
     : null), [eos, composition, u.system]);
+  // FLUID-U2-001: the laboratory tables, drawn on every PVT plot
+  const labData = useMemo(() => labDataForSeries(inputs), [inputs]);
   if (!kpis) return null;
 
   // the table the app hands over and exports: the EOS table in compositional mode
@@ -179,7 +181,19 @@ const FluidStudioResults = ({
         </div>
 
         <TabsContent value="pvt" className="mt-4">
-          <PvtChartsCard table={pvt.table} pb={kpis.pb} />
+          <PvtChartsCard table={pvt.table} pb={kpis.pb} labData={labData} />
+          {report?.model?.lab && (
+            <Card className="mt-4" data-testid="fluid-lab-misfit">
+              <CardHeader className="pb-2"><CardTitle className="text-base text-pl-text">Laboratory data against the model</CardTitle></CardHeader>
+              <CardContent className="space-y-1 text-sm text-pl-text">
+                {report.model.mode === 'eos' && <p className="text-xs text-pl-muted">The misfit below is of the compositional table, the table the report and the handoffs use. The plots above are the black-oil stream.</p>}
+                <ul className="list-disc list-inside space-y-0.5">
+                  {report.model.lab.sentences.map((t) => <li key={t}>{t}</li>)}
+                </ul>
+                {report.model.lab.notes.map((n) => <p key={n} className="text-xs text-pl-muted">{n}</p>)}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {eos && (
@@ -199,7 +213,7 @@ const FluidStudioResults = ({
                 the fluid is the one the tune was fitted on. */}
             <CompositionalSeparatorCard separator={eos.separator} tuned={tuneStatus} />
             <EosPvtTableCard result={eos.pvtTable} tuned={tuneStatus} contract={report?.contract} />
-            {eosTable && <PvtChartsCard table={eosTable.rows} pb={eosTable.pb} satKind={eosTable.satKind} />}
+            {eosTable && <PvtChartsCard table={eosTable.rows} pb={eosTable.pb} satKind={eosTable.satKind} labData={labData} />}
             <PhaseEnvelopeCard composition={composition} tuned={tuneStatus} envelope={envelope} onEnvelope={onEnvelope} />
           </TabsContent>
         )}

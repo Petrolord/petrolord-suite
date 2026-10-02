@@ -1,11 +1,11 @@
 {
-  "pages": 9,
-  "sha256": "d7e6a54bd3fdc6fe81035b6dbbd72e85dc55c13e231a1c233b75952107477542",
+  "pages": 11,
+  "sha256": "1481133235aa4c17be52620c974a76bcd45fe75ec49d39fef5c7cbc15e9d21ac",
   "figures": [
     {
       "id": "pvt-bo",
       "number": 1,
-      "page": 7,
+      "page": 8,
       "plotted": true,
       "panels": [
         {
@@ -27,7 +27,7 @@
     {
       "id": "pvt-rs",
       "number": 2,
-      "page": 7,
+      "page": 8,
       "plotted": true,
       "panels": [
         {
@@ -49,7 +49,7 @@
     {
       "id": "pvt-muo",
       "number": 3,
-      "page": 7,
+      "page": 8,
       "plotted": true,
       "panels": [
         {
@@ -71,7 +71,7 @@
     {
       "id": "pvt-z",
       "number": 4,
-      "page": 8,
+      "page": 9,
       "plotted": true,
       "panels": [
         {
@@ -93,7 +93,7 @@
     {
       "id": "pvt-bg",
       "number": 5,
-      "page": 8,
+      "page": 9,
       "plotted": true,
       "panels": [
         {
@@ -115,28 +115,7 @@
     {
       "id": "lab",
       "number": 6,
-      "page": 8,
-      "plotted": false,
-      "panels": []
-    },
-    {
-      "id": "lab-gas",
-      "number": 7,
-      "page": 8,
-      "plotted": false,
-      "panels": []
-    },
-    {
-      "id": "envelope",
-      "number": 8,
-      "page": 8,
-      "plotted": false,
-      "panels": []
-    },
-    {
-      "id": "hydrate",
-      "number": 9,
-      "page": 9,
+      "page": 10,
       "plotted": true,
       "panels": [
         {
@@ -144,18 +123,114 @@
             "x": 14,
             "y": 23,
             "w": 182,
-            "h": 64
+            "h": 58
           },
           "drawn": {
-            "Hydrate curve": 30,
-            "Flowline profile, outside the hydrate region": 2,
-            "Flowline profile, inside the hydrate region": 1
+            "Model Bo": 41,
+            "Laboratory Bo": 21
           },
-          "total": 33,
+          "total": 62,
+          "bands": 0,
+          "logo": true
+        },
+        {
+          "box": {
+            "x": 14,
+            "y": 84,
+            "w": 182,
+            "h": 58
+          },
+          "drawn": {
+            "Model Rs": 41,
+            "Laboratory Rs": 11
+          },
+          "total": 52,
+          "bands": 0,
+          "logo": true
+        },
+        {
+          "box": {
+            "x": 14,
+            "y": 145,
+            "w": 182,
+            "h": 58
+          },
+          "drawn": {
+            "Model Oil viscosity": 41,
+            "Laboratory Oil viscosity": 18
+          },
+          "total": 59,
           "bands": 0,
           "logo": true
         }
       ]
+    },
+    {
+      "id": "lab-gas",
+      "number": 7,
+      "page": 11,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 58
+          },
+          "drawn": {
+            "Model Z": 41,
+            "Laboratory Z": 10
+          },
+          "total": 51,
+          "bands": 0,
+          "logo": true
+        },
+        {
+          "box": {
+            "x": 14,
+            "y": 84,
+            "w": 182,
+            "h": 58
+          },
+          "drawn": {
+            "Model Bg": 41,
+            "Laboratory Bg": 10
+          },
+          "total": 51,
+          "bands": 0,
+          "logo": true
+        },
+        {
+          "box": {
+            "x": 14,
+            "y": 145,
+            "w": 182,
+            "h": 58
+          },
+          "drawn": {
+            "Model V/Vsat": 41,
+            "Laboratory V/Vsat": 24
+          },
+          "total": 65,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "envelope",
+      "number": 8,
+      "page": 11,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "hydrate",
+      "number": 9,
+      "page": 11,
+      "plotted": false,
+      "panels": []
     }
   ]
 }

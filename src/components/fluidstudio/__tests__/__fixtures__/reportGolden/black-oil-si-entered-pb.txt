@@ -498,18 +498,22 @@ Bg at 93.3 degC. Method: Real gas law, Bg = 0.00504 Z T / p. The dashed line mar
 the screen chart. Logarithmic scale.
 
 
-Figure 6. Laboratory values against the model
-Does not apply: the black-oil correlations take no laboratory PVT data in this app.
+Figure 6. Laboratory values against the model: oil properties
+Does not apply: no laboratory table is loaded.
 
 
-Figure 7. Pressure and temperature phase envelope
+Figure 7. Laboratory values against the model: gas properties and relative volume
+Does not apply: no laboratory table is loaded.
+
+
+Figure 8. Pressure and temperature phase envelope
 Does not apply: a phase envelope needs a composition, and this report is of the black-oil correlations.
 
 
 
 
 Fluid Properties Report, BHS-2 oil, Field Ekene                                                                                       Page 8 of 9
-Figure 8. Hydrate screening against the flowline profile
+Figure 9. Hydrate screening against the flowline profile
 
                                      Hydrate curve   Flowline profile, outside the hydrate region     Flowline profile, inside the hydrate region
                          25000

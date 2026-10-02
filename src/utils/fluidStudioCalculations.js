@@ -25,6 +25,7 @@
 import { pvtCalcs } from './pvtCalculations.js';
 import { mccainBw, mccainMuW } from '../../packages/engines/engines/fluid/blackOil';
 import { readPtProfile } from './fluidstudio/ptProfileImport.js';
+import { labDataOf } from './fluidstudio/labData.js';
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -133,7 +134,18 @@ export const normalizeFluid = (inputs) => {
       viscosity: corr.viscosity || 'beggs_robinson',
     },
     feed: { oilRate: num(inputs?.feed?.oilRate, 1000) },
+    // FLUID-U2-001: with laboratory tables loaded the pressure table is
+    // carried up to their highest pressure, so every lab row has a model
+    // value beside it. Absent when no table is loaded.
+    ...labSweep(inputs),
   };
+};
+
+/** The highest pressure of the loaded laboratory tables (psia), as the table's cover, or nothing. */
+const labSweep = (inputs) => {
+  const d = labDataOf(inputs);
+  const top = Math.max(0, ...[d.cce, d.dl, d.viscosity].filter(Boolean).flatMap((t) => t.rows.map((r) => r.pressure)));
+  return top > 0 ? { sweep: { pCover: Math.ceil(top) } } : {};
 };
 
 // ---------------------------------------------------------------------------
@@ -612,7 +624,8 @@ export const computePvtTable = (fluid) => {
   const pb = fluid.pb ?? solveBubblePoint(fluid);
   const sweep = fluid.sweep ?? {};
   const pMin = num(sweep.pMin, 14.7);
-  const pMax = num(sweep.pMax, Math.max(pb * 1.4, pb + 2000));
+  // the default span, widened to cover the laboratory pressures when there are any
+  const pMax = num(sweep.pMax, Math.max(pb * 1.4, pb + 2000, num(sweep.pCover, 0)));
   const nPoints = Math.max(8, Math.round(num(sweep.nPoints, 40)));
 
   const pressures = new Set([pMin, pMax, pb, 14.7]);

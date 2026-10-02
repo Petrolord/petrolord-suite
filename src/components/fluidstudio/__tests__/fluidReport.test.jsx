@@ -23,7 +23,7 @@ import { inputsFromPayload } from '@/components/fluidstudio/useFluidStudioProjec
 import { LEGACY_PRE_SHELL, SCHEMA_1_TUNED_EOS } from '@/components/fluidstudio/__fixtures__/savedProjects';
 import FluidReportTab from '@/components/fluidstudio/FluidReportTab';
 import {
-  AT, GOLDEN_DIR, UPDATE, logo, sampleWorkspace, identifiedBlackOil, eosWithLab, tune, traceEnvelope, run, pdfOf, IDENT,
+  AT, GOLDEN_DIR, UPDATE, logo, sampleWorkspace, identifiedBlackOil, eosWithLab, tune, traceEnvelope, run, pdfOf, IDENT, goodOilBlackOil,
 } from './fluidTestKit';
 
 jest.setTimeout(120000);
@@ -70,6 +70,10 @@ describe('goldens: the report as the Export button builds it', () => {
     const inputs = await tune(eosWithLab());
     const envelope = await traceEnvelope(inputs);
     checkGolden(pdfOf(run(inputs, { envelope })), { dir: GOLDEN_DIR, name: 'eos-tuned-envelope', update: UPDATE });
+  });
+
+  test('black oil with a published laboratory study loaded (Good Oil Co. Well No. 4)', () => {
+    checkGolden(pdfOf(run(goodOilBlackOil(), { projectName: 'Good Oil Well No. 4 PVT' })), { dir: GOLDEN_DIR, name: 'black-oil-lab-good-oil', update: UPDATE });
   });
 
   test('a project saved before the shell opens and reports', () => {
@@ -207,7 +211,8 @@ describe('RL6: every plot is in the PDF, drawn from the screen series', () => {
       expect(listCaptions(pdf).map((c) => c.title)).toEqual([
         'Oil formation volume factor Bo against pressure', 'Solution GOR Rs against pressure', 'Oil viscosity against pressure',
         'Gas deviation factor Z against pressure', 'Gas formation volume factor Bg against pressure',
-        'Laboratory values against the model', 'Pressure and temperature phase envelope', 'Hydrate screening against the flowline profile',
+        'Laboratory values against the model: oil properties', 'Laboratory values against the model: gas properties and relative volume',
+        'Pressure and temperature phase envelope', 'Hydrate screening against the flowline profile',
       ]);
       const screen = buildPvtSeries({ rows: ws.results.pvt.table, pb: ws.results.pvt.pb, system: 'oilfield' });
       const counts = pointCounts(built.figures);
@@ -223,7 +228,8 @@ describe('RL6: every plot is in the PDF, drawn from the screen series', () => {
       expect(text).toMatch(/Z at 200 degF\. Method: Papay, with Sutton pseudo-critical properties\./);
       // the sample has a P-T profile, so the hydrate figure is drawn; the other two say why they are not
       expectFigureDrawn(pdf, figureById(built, 'hydrate'), { logo: true });
-      expectFigureStatement(pdf, figureById(built, 'lab'), /Does not apply: the black-oil correlations take no laboratory PVT data in this app\./);
+      expectFigureStatement(pdf, figureById(built, 'lab'), /Does not apply: no laboratory table is loaded\./);
+      expectFigureStatement(pdf, figureById(built, 'lab-gas'), /Does not apply: no laboratory table is loaded\./);
       expectFigureStatement(pdf, figureById(built, 'envelope'), /Does not apply: a phase envelope needs a composition/);
     } finally { pdf.close(); }
   });
