@@ -53,6 +53,7 @@ withdrawn when the match is moved by hand (PR #810).
 | WTA-R2-013 | found here | PL9 | **Done.** The Fluid Systems Studio intake existed but nothing sent to it. Fluid Systems Studio now has a Send to Well Test Analysis Studio button, and its backbone names the correlations it used. |
 | WTA-R2-014 | found here | PL5 | **Done.** Export project JSON wrote a hand-picked list of fields, so anything new would have been dropped. It now writes the saved payload itself, and Import project JSON reads it back. |
 | WTA-R2-015 | found here | PL12 | **Done.** Missing values in the PDF printed as a dash; they now print as `n/a` (EMPTY_VALUE). kh from 1,000 up printed as "3.80e+3"; it now prints in full. |
+| WTA-R2-016 | found here | PL4 | **Done.** Any edit to the reservoir inputs marked the auto-fit stale. With report-only inputs now living beside them (API gravity, kv/kh, Sw as a record), typing one would have withdrawn a valid regression. Only the inputs the analysis reads now do. |
 
 ## 3. How it is built
 
@@ -120,8 +121,12 @@ arithmetic in the same oracle. The plots have no new math.
 | `src/utils/welltest/__tests__/reportModel.test.js` | Items 1 to 5 through the studio's own builders, hostile inputs, an old project. |
 | `src/utils/welltest/__tests__/gaugeImport.test.js` | The temperature column: found from the header, units, nothing guessed. |
 | `src/utils/welltest/__tests__/registryProposal.test.js` | TVD through a deviation survey, zone summary proposals. |
-| `src/components/welltest/__tests__/wellTestReportR2.test.jsx` (21) | The real provider is mounted, the sample fitted, and the PDF built by the function the Export button calls, then read back with pdfinfo, pdftotext, pdfimages and pdftoppm: every item, the figures by caption, page count, point counts against the screen series, ink in each plot box, the embedded Petrolord mark, the strengths, Latin-1 only, hostile inputs, gas, SI, RTA, an old saved project and the JSON round trip. |
+| `src/components/welltest/__tests__/wellTestReportR2.test.jsx` (23) | The real provider is mounted, the sample fitted, and the PDF built by the function the Export button calls, then read back with pdfinfo, pdftotext, pdfimages and pdftoppm: every item, the figures by caption, page count, point counts against the screen series, ink in each plot box, the embedded Petrolord mark, the strengths, Latin-1 only, hostile inputs, gas, SI, RTA, an old saved project and the JSON round trip. |
 | `e2e/well-test-report-r2.spec.js` | The report door at 1366x768, 1440x900 and 390 wide in light and dark; the exported PDF read back; a gauge file with a temperature column; the registry proposals; a refused skin split; SI. |
+
+Honest note on test order: the tests were written alongside the code, item
+by item, and the negative controls above were run against the finished
+engine by breaking it. They were not each committed red first.
 
 ## 6. Not built
 

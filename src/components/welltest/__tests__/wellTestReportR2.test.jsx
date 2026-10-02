@@ -250,6 +250,23 @@ describe('the reviewed sample report', () => {
     expect(pdf.text).not.toMatch(/undefined|NaN|\[object/);
   });
 
+  test('report-only inputs do not withdraw the regression; an input the analysis reads does (PL4)', async () => {
+    // API gravity, kv/kh, a source note and the completion are for the report
+    await studio.act((c) => {
+      c.setReservoirField('apiGravity', '36');
+      c.setReservoirField('kvkh', '0.2');
+      c.setInputMetaField('h', 'source', 'offset');
+      c.setCompletionField('payTopTvd', '9600');
+    });
+    expect(studio.ctx.matchMethod.kind).toBe('regression');
+    expect(studio.ctx.fitStale).toBe(false);
+    // net pay is read by the analysis: the fit now describes other inputs
+    await studio.act((c) => c.setReservoirField('h', '50'));
+    expect(studio.ctx.fitStale).toBe(true);
+    expect(studio.ctx.matchMethod.kind).toBe('manual');
+    expect(flat(readPdf(build(studio.ctx).doc).text)).not.toMatch(/regression converged/);
+  });
+
   test('a manual match loses the regression claims and the intervals, and says so (PL4)', async () => {
     await studio.act((c) => c.setMatchField('k', '70'));
     const t = flat(readPdf(build(studio.ctx).doc).text);

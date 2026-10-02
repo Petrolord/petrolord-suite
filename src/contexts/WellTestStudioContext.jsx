@@ -887,9 +887,17 @@ export const WellTestStudioProvider = ({ children }) => {
 
   // Data or configuration edits invalidate an existing fit result (the match
   // parameters it produced stay in the working match).
+  // Only inputs the analysis reads count. The report-only fields added in
+  // tester round 2 (Sw as a record, API gravity, GOR, kv/kh, the source
+  // notes) do not move the fit, so editing them must not withdraw it.
+  const analysisInputsKey = useMemo(() => {
+    const r = reservoirSpec.reservoir;
+    if (!r) return `invalid:${reservoirSpec.error || ''}`;
+    return [r.fluid, r.h, r.phi, r.rw, r.B, r.mu, r.ct, r.q, r.pi, r.tempR ?? '', r.gasGravity ?? ''].join('|');
+  }, [reservoirSpec]);
   useEffect(() => {
     if (hasFitResult.current) setFitStale(true);
-  }, [gaugeRows, reservoirInputs, testConfig]);
+  }, [gaugeRows, analysisInputsKey, testConfig]);
 
   // ---- Sample test ----
   const loadSampleTest = useCallback(() => {
