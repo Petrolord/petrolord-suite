@@ -1,6 +1,6 @@
 # Organisation sharing: design and status
 
-Status: BUILT, migrations NOT APPLIED (owner-run). Branch `feat/org-sharing`.
+Status: BUILT and merged (#849). Both migrations APPLIED by the owner on 2026-10-02 and verified; the live pentest passed 504 of 504, rolled back. Open: a two-account walk on staging.
 Written 2026-10-02. Owner statement 2026-10-01: "the organization-sharing
 work is approved by the second engineer". Target: solid before NAPE (early
 November 2026).
