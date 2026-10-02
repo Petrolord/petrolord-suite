@@ -43,7 +43,7 @@ export function planBatch(files, wells) {
   return (files || []).map((f, i) => {
     const row = {
       i, fileName: f.fileName, wellName: '', uwi: null, nameFromFile: false, action: 'skip', wellId: null, newKey: null,
-      reason: null, note: null, nCurves: 0, xy: null, kbM: null, tdMdM: null,
+      reason: null, note: null, nCurves: 0, xy: null, kbM: null, tdMdM: null, datum: null, datumConflicts: [],
     };
     const dupOf = seenFiles.get(String(f.fileName).toLowerCase());
     if (dupOf !== undefined) { row.reason = `the same file name as row ${dupOf + 1}`; return row; }
@@ -57,6 +57,10 @@ export function planBatch(files, wells) {
     if (!row.wellName) { row.wellName = stem(f.fileName); row.nameFromFile = true; }
     if (s.surfaceX != null && s.surfaceY != null) row.xy = { x: s.surfaceX, y: s.surfaceY, unit: s.xyUnit || null };
     row.kbM = Number.isFinite(s.kbM) ? s.kbM : null;
+    // WDM-U2-007: the header's datum proposal, shown in the batch table and
+    // saved with a new well when the user imports
+    row.datum = s.datumProposal && !s.datumProposal.empty ? s.datumProposal.fields : null;
+    row.datumConflicts = s.datumProposal?.conflicts || [];
     row.tdMdM = Number.isFinite(s.tdMdM) ? s.tdMdM : null;
 
     const byU = row.uwi ? byUwi.get(uwiKey(row.uwi)) : null;

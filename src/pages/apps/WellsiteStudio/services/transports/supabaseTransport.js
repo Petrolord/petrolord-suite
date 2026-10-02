@@ -6,7 +6,8 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { listLogs as listRegistryLogs, downloadCurve as downloadRegistryCurve, saveLogs as saveRegistryLogs, deleteLog as deleteRegistryLog } from '@/lib/wellsRegistry';
 import { pressureCurvesFrom } from '../pressure';
-import { listWells as listRegistry, listTops as listRegistryTops, getWell as getRegistryWell, saveTop as saveRegistryTop, deleteTop as deleteRegistryTop, updateTop as updateRegistryTop, updateWellData as updateRegistryWellData, updateWell as updateRegistryWell } from '@/lib/wellsRegistry';
+import { listWells as listRegistry, listTops as listRegistryTops, getWell as getRegistryWell, saveTop as saveRegistryTop, deleteTop as deleteRegistryTop, updateTop as updateRegistryTop, updateWellData as updateRegistryWellData, updateWell as updateRegistryWell, updateWellDatum as updateRegistryWellDatum } from '@/lib/wellsRegistry';
+import { refElevOrNull } from '@/lib/wellDatum';
 import { listIntervals as listRegistryIntervals, saveInterval as saveRegistryInterval, deleteInterval as deleteRegistryInterval, listCoreImages, uploadCoreImage } from '@/lib/stratRegistry';
 import { writeStamped, registerStateKind } from '@/lib/stateVersion';
 import { getGeometry, getDefinitiveTrajectory } from '@/pages/apps/TorqueDragStudio/services/tdApi';
@@ -75,7 +76,8 @@ export function makeSupabaseTransport() {
       for (const id of offsetWellIds) {
         const w = await getRegistryWell(id).catch(() => null);
         if (!w) continue;
-        offsetWells.push({ id: w.id, name: w.name, kb_m: w.kb_m, deviation: w.deviation, tops: await listRegistryTops(id).catch(() => []) });
+        // kb_m here is the reference elevation through the datum module, null when the well states none
+        offsetWells.push({ id: w.id, name: w.name, kb_m: refElevOrNull(w), deviation: w.deviation, tops: await listRegistryTops(id).catch(() => []) });
       }
       let holeSections = [];
       let plannedTrajectory = null;
@@ -168,6 +170,18 @@ export function makeSupabaseTransport() {
       let provenanceSaved = true; let provenanceError = null;
       try { await updateRegistryWell(geoWellId, { crs_provenance: { ...(before.crs_provenance || {}), deviation: provenance } }); } catch (e) { provenanceSaved = false; provenanceError = e.message; }
       return { stations: (saved.deviation || []).length, provenanceSaved, provenanceError };
+    },
+    // ---- U2-019: the registry well's datum, read and corrected through the shared registry door (owner only under RLS) ----
+    async registryDatum(geoWellId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const geo = await getRegistryWell(geoWellId);
+      const [tops, logs] = await Promise.all([listRegistryTops(geoWellId).catch(() => []), listRegistryLogs(geoWellId).catch(() => [])]);
+      return { row: geo, ownedByMe: !!(user && geo.user_id === user.id), counts: { tops: tops.length, curves: logs.length } };
+    },
+    async writeRegistryDatum(geoWellId, next, opts = {}) {
+      const before = await getRegistryWell(geoWellId);
+      const res = await updateRegistryWellDatum(before, next, opts);
+      return { row: res.row, dropped: res.dropped, columns: res.columns };
     },
     /** U2-010: the registry port the staged publish runs on, through the registry services (never direct table calls). */
     registryOps(geoWellId) {

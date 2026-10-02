@@ -4,7 +4,7 @@ import {
   curveMdGrid, pickPpfgLogs, sampleCurve, buildMudWindow, mudWindowSummary,
 } from '../services/ppfg';
 import {
-  preparePublishPayload, publishPatchFromPayload,
+  preparePublishPayload, publishPatchFromPayload, wellboreDatum,
 } from '../services/publishPlan';
 
 const G = 9.80665;
@@ -112,10 +112,24 @@ describe('publish payloads', () => {
     });
     const patch = publishPatchFromPayload(p);
     expect(patch.surface_x).toBe(500000);
-    expect(patch.kb_m).toBe(30);
+    // WDM-U2-007: a republish never overwrites the registry well's depth reference
+    expect(patch).not.toHaveProperty('kb_m');
     expect(patch.td_md_m).toBe(1000);
     expect(patch.deviation).toHaveLength(2);
     expect(patch).not.toHaveProperty('surfaceX');
+  });
+
+  test('the wellbore datum: a KB of 0 is "not entered", water makes it offshore, a ground level above the KB is dropped', () => {
+    expect(wellboreDatum({ kb_elev_m: 0 })).toBeNull();
+    expect(wellboreDatum({ kb_elev_m: null })).toBeNull();
+    expect(wellboreDatum({})).toBeNull();
+    expect(wellboreDatum({ kb_elev_m: 30 })).toEqual({ refKind: 'KB', refElevM: 30, environment: null, waterDepthM: null, groundElevM: null });
+    expect(wellboreDatum({ kb_elev_m: 30, water_depth_m: 120, ground_elev_m: 4 })).toEqual({ refKind: 'KB', refElevM: 30, environment: 'offshore', waterDepthM: 120, groundElevM: null });
+    expect(wellboreDatum({ kb_elev_m: 318.5, ground_elev_m: 312 })).toEqual({ refKind: 'KB', refElevM: 318.5, environment: 'onshore', waterDepthM: null, groundElevM: 312 });
+    expect(wellboreDatum({ kb_elev_m: 30, ground_elev_m: 312 }).environment).toBeNull();
+    const blank = preparePublishPayload({ site: SITE, wellbore: { ...WELLBORE, kb_elev_m: 0 }, design: DESIGN, stations });
+    expect(blank.kbM).toBeNull();
+    expect(blank.datum).toBeNull();
   });
 
   test('rejects unusable input loudly', () => {

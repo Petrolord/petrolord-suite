@@ -55,7 +55,7 @@ const PublishDialog = ({
         title: res.created ? 'Well published to the registry' : 'Registry well updated',
         description: `${res.geoWell.name}: ${stations.length} stations`
           + `${res.borrowedCheckshots ? `, ${res.borrowedCheckshots} checkshots borrowed` : ''}. `
-          + 'Now visible in Well Data Manager and Seismolord.',
+          + `Now visible in Well Data Manager and Seismolord.${res.datumNote ? ` ${res.datumNote}` : ''}`,
       });
       onPublished?.(res);
       onOpenChange(false);

@@ -18,6 +18,7 @@ import { depthDownToSurfaceZ } from '@/lib/surfaceConvention';
 import { maskOutsidePolygon, gridBBox, isNull } from '@/lib/gridding/gridmath';
 import { NULL_VALUE } from '@/lib/gridding/numeric';
 import { readDepthSurface } from '@/lib/readDepthSurface';
+import { readWellDatum, refElevOrNull } from '@/lib/wellDatum';
 import { convert } from '@/lib/units/registry';
 import { isPrePt9aZone } from '@/lib/petroProvenance';
 import { boundLegByClosure } from './trapBound';
@@ -317,7 +318,9 @@ export const engineWell = (w, k = 1) => ({
   name: w.name,
   x: w.surface_x * k,
   y: w.surface_y * k,
-  kb_m: w.kb_m || 0,
+  // the reference elevation through the shared datum module; a well with
+  // none never reaches the engine (buildModel leaves it out and says so)
+  kb_m: refElevOrNull(w) ?? 0,
   deviation: w.deviation || [],
   tops: w.tops || [],
   zones: w.zones || [],
@@ -493,12 +496,16 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
   // wells: a well in another known CRS cannot be placed on this frame
   const modelTag = crs ? normalizeTag(crs) : null;
   const skipped = [];
+  const noDatum = [];
   const placed = [];
   for (const w of wells || []) {
     const t = normalizeTag(w.crs);
     if (modelTag && isTransformableTag(t) && t !== modelTag) skipped.push(`${w.name} (${t})`);
+    // no reference elevation: its tops have no subsea depth to tie the surfaces to
+    else if (!readWellDatum(w).tvdssOk) noDatum.push(w.name);
     else placed.push(w);
   }
+  if (noDatum.length) notes.push(`${noDatum.length} well${noDatum.length === 1 ? ' has' : 's have'} no depth reference elevation, so ${noDatum.length === 1 ? 'its' : 'their'} tops have no subsea depth and ${noDatum.length === 1 ? 'it was' : 'they were'} left out of ties and properties: ${noDatum.join(', ')}. Set the depth reference in Well Data Manager (Header tab).`);
   if (skipped.length) notes.push(`${skipped.length} well${skipped.length === 1 ? ' is' : 's are'} in another CRS than the model (${modelTag}) and ${skipped.length === 1 ? 'was' : 'were'} left out of ties and properties: ${skipped.join(', ')}. Reproject them in Well Data Manager.`);
   const eWells = placed.map((w) => engineWell(w, k));
   const surfIndexByTop = {};

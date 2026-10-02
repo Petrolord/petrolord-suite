@@ -10,6 +10,7 @@
 import { CURVE_ALIASES } from '@/components/wells/curveMap';
 import { fmtDepth, unitText } from './displayUnits';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { readWellDatum } from '@/lib/wellDatum';
 
 const base = (m) => String(m || '').trim().toUpperCase().split(':')[0];
 const isDepth = (m) => CURVE_ALIASES.DEPT.includes(base(m));
@@ -23,7 +24,7 @@ export const QC_FLAGS = Object.freeze([
   { code: 'no_location', level: 'warn', label: 'No surface location', why: 'Not drawn on the map and not posted by Mapping or Seismolord.', fix: 'Header tab: Surface X and Y.' },
   { code: 'no_crs', level: 'warn', label: 'No CRS', why: 'The coordinates cannot be compared with other wells or reprojected.', fix: 'Header tab: Assign CRS.' },
   { code: 'mixed_frame', level: 'warn', label: 'CRS differs from most wells', why: 'Positions are not comparable on one map until reprojected to the Project CRS.', fix: 'Reproject to the Project CRS.' },
-  { code: 'no_kb', level: 'warn', label: 'KB not set', why: 'TVDSS equals TVD, and checkshot time assumes KB at the datum.', fix: 'Header tab: KB.' },
+  { code: 'no_kb', level: 'warn', label: 'Depth reference not set', why: 'TVDSS, elevations and time-depth conversion cannot be given for the well.', fix: 'Header tab: Depth reference.' },
   { code: 'bottom_up', level: 'warn', label: 'Curves stored bottom-up', why: 'Stored by an earlier release with depth decreasing; readers index them by sample.', fix: 'Logs tab: Reorient.' },
   { code: 'no_depth', level: 'warn', label: 'Logs without a depth curve', why: 'Downstream apps find no depth to plot the curves against.', fix: 'Re-import the LAS.' },
   { code: 'top_below_td', level: 'warn', label: 'Top deeper than TD', why: 'A pick below total depth is usually a unit or datum slip.', fix: 'Tops tab or Header tab: TD.' },
@@ -61,7 +62,10 @@ export function wellInventory(well, logs = [], tops = [], ctx = {}) {
   if (!located) flags.push('no_location');
   if (located && !well.crs) flags.push('no_crs');
   if (located && well.crs && ctx.frame && well.crs !== ctx.frame) flags.push('mixed_frame');
-  if (!(Number(well.kb_m) > 0)) flags.push('no_kb');
+  // WDM-U2-007: through the datum module. Flagged when no reference
+  // elevation is stated (or, before the registry upgrade, when the KB is 0)
+  const datum = readWellDatum(well);
+  if (!datum.tvdssOk || datum.state === 'legacy-zero') flags.push('no_kb');
   const depthLogs = logs.filter((l) => isDepth(l.mnemonic));
   const curves = logs.filter((l) => !isDepth(l.mnemonic));
   const bottomUp = logs.filter((l) => has(l.start_md_m) && has(l.stop_md_m) && Number(l.start_md_m) > Number(l.stop_md_m));
@@ -81,7 +85,8 @@ export function wellInventory(well, logs = [], tops = [], ctx = {}) {
     uwi: well.uwi || null,
     isOwn: !!well.is_own,
     crs: well.crs || null,
-    kbM: has(well.kb_m) ? Number(well.kb_m) : null,
+    kbM: datum.tvdssOk && datum.state !== 'legacy-zero' ? datum.refElevM : null,
+    refKind: datum.tvdssOk && datum.state !== 'legacy-zero' ? datum.refLabel : null,
     tdM: td,
     stations: (well.deviation || []).length,
     checkshots: (well.checkshots || []).length,
@@ -120,7 +125,7 @@ const csvCell = (v) => {
 /** The inventory as CSV, depths in the display unit. */
 export function inventoryCsv(rows, unit = 'm') {
   const u = unitText(unit);
-  const head = ['Well', 'UWI', 'CRS', `KB (${u})`, `TD (${u} MD)`, 'Survey stations', 'Checkshot pairs', 'Curves', 'Tops', `Logged from (${u} MD)`, `Logged to (${u} MD)`, 'Flags'];
+  const head = ['Well', 'UWI', 'CRS', `Reference elevation (${u})`, `TD (${u} MD)`, 'Survey stations', 'Checkshot pairs', 'Curves', 'Tops', `Logged from (${u} MD)`, `Logged to (${u} MD)`, 'Flags'];
   const lines = [head.map(csvCell).join(',')];
   for (const r of rows) {
     const d = (v) => (v === null ? '' : fmtDepth(v, u, 2));

@@ -27,8 +27,9 @@ import {
   buildDeviation, buildTops, buildCheckshotInputs,
 } from '@/lib/wellImport';
 import {
-  makeDepthFrame, toStoredCheckshots, makeCheckshotProvenance, PETREL_CHECKSHOT_CONVENTION, M_PER_FT,
+  toStoredCheckshots, makeCheckshotProvenance, PETREL_CHECKSHOT_CONVENTION, M_PER_FT,
 } from '@/pages/apps/WellDataManager/engine/checkshots';
+import { makeWellFrame } from '@/lib/wellDatum';
 import CrsPicker from '@/components/crs/CrsPicker';
 import { placeWellLocation, placeDeviation } from '@/lib/crs/wellPlacement';
 import { normalizeTag, isTransformableTag, UNKNOWN } from '@/lib/crs/tags';
@@ -78,7 +79,7 @@ const unitLabel = (u) => (u === 'ft' ? 'ft' : 'm');
  */
 export default function WellImport({ onSave, crsContext }) {
   const inputCls = INPUT_CLS;
-  const [head, setHead] = useState({ name: '', uwi: '', x: '', y: '', kb: '0', td: '' });
+  const [head, setHead] = useState({ name: '', uwi: '', x: '', y: '', kb: '', td: '' });  // WDM-U2-007: KB starts blank (not set), never 0
   const [headUnit, setHeadUnit] = useState('m');           // KB and TD as typed
   const [tab, setTab] = useState('deviation');
   const [texts, setTexts] = useState({ deviation: '', tops: '', checkshots: '' });
@@ -160,11 +161,17 @@ export default function WellImport({ onSave, crsContext }) {
     }
   };
 
+  /** KB in metres, or null when the field is blank: blank is "not set", never 0 (WDM-U2-007). */
   const kbMetres = () => {
-    const raw = head.kb.trim() === '' ? 0 : Number(head.kb);
+    if (head.kb.trim() === '') return null;
+    const raw = Number(head.kb.trim().replace(',', '.'));
     if (!Number.isFinite(raw)) throw new Error(`KB must be a number (${unitLabel(headUnit)} above datum).`);
     return headUnit === 'ft' ? raw * M_PER_FT : raw;
   };
+  /** The form's depth frame through the shared datum module: KB as typed, or no datum. */
+  const formFrame = (deviation, kbM, tdMdM = null) => makeWellFrame({
+    deviation, td_md_m: tdMdM, kb_m: kbM ?? 0, depth_ref_kind: kbM === null ? null : 'KB', depth_ref_elev_m: kbM, name: head.name.trim() || 'This well',
+  });
 
   // Live preview of the stored TVDSS / TWT for the checkshot tab, through
   // whatever survey and KB are on the form right now (best effort: a
@@ -176,7 +183,8 @@ export default function WellImport({ onSave, crsContext }) {
     try {
       const dev = texts.deviation.trim() ? parseTab(TABS[0]) : [];
       const kbM = kbMetres();
-      frame = makeDepthFrame({ deviation: dev, kbM });
+      frame = formFrame(dev, kbM);
+      if (kbM === null && conv.checkshots.depthRef !== 'tvdss') return { cell: () => EMPTY_VALUE, note: 'Enter the KB elevation to see the stored TVDSS: the table is kept against TVDSS, which needs it.' };
       if (conv.checkshots.depthRef === 'tvdss') note = 'Depth entered as TVDSS: no survey needed.';
       else if (frame.isVertical) note = 'No deviation survey pasted: treated as vertical, MD = TVD.';
       else note = `Using the pasted deviation survey (${frame.stations.length} stations${frame.assumedVerticalToFirstStation ? ', vertical above the first station' : ''}).`;
@@ -236,7 +244,10 @@ export default function WellImport({ onSave, crsContext }) {
     let checkshotsProvenance = null;
     const warnings = [];
     if (payloads.checkshots.length) {
-      const frame = makeDepthFrame({ deviation: dev.deviation, kbM, tdMdM });
+      if (kbM === null && conv.checkshots.depthRef !== 'tvdss') {
+        throw new Error('Checkshots: enter the KB elevation first. The table is stored against TVDSS, which needs the elevation of the depth reference.');
+      }
+      const frame = formFrame(dev.deviation, kbM, tdMdM);
       try {
         const res = toStoredCheckshots(payloads.checkshots, conv.checkshots, frame);
         checkshots = res.rows;
@@ -245,7 +256,7 @@ export default function WellImport({ onSave, crsContext }) {
         throw new Error(`Checkshots: ${e.message}`);
       }
       checkshotsProvenance = makeCheckshotProvenance(conv.checkshots, {
-        source: 'well-import', kbM, stations: frame.stations ? frame.stations.length : 0,
+        source: 'well-import', kbM: kbM ?? 0, stations: frame.stations ? frame.stations.length : 0,
       });
       if (conv.checkshots.elevation) checkshotsProvenance.z_elevation = true;
     }
@@ -281,7 +292,7 @@ export default function WellImport({ onSave, crsContext }) {
     setBusy(true);
     try {
       await onSave(draft);
-      setHead({ name: '', uwi: '', x: '', y: '', kb: '0', td: '' });
+      setHead({ name: '', uwi: '', x: '', y: '', kb: '', td: '' });
       setTexts({ deviation: '', tops: '', checkshots: '' });
       setMaps({ deviation: {}, tops: {}, checkshots: {} });
       setCsTouched(false);
@@ -307,8 +318,9 @@ export default function WellImport({ onSave, crsContext }) {
             <option value="ft">feet</option>
           </select>
         </label>
-        <input className={inputCls} placeholder={`KB ${unitLabel(headUnit)} above datum`} value={head.kb}
-          onChange={setHeadField('kb')} data-testid="well-import-kb" title="Kelly bushing elevation above the (seismic) datum" />
+        <input className={inputCls} placeholder={`KB ${unitLabel(headUnit)} above datum (blank = not set)`} value={head.kb}
+          onChange={setHeadField('kb')} data-testid="well-import-kb"
+          title="Kelly bushing elevation above the vertical datum. Leave it blank when it is not known: blank is kept as not set, never as 0. Another reference (RT, DF, GL), the ground level, water depth and datum name are set on the well's Header tab in Well Data Manager." />
         <input className={inputCls} placeholder={`TD ${unitLabel(headUnit)} MD (vertical wells)`} value={head.td}
           onChange={setHeadField('td')} data-testid="well-import-td"
           title="Required only when no deviation survey is pasted; defaults to the last station otherwise" />

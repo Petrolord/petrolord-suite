@@ -48,7 +48,7 @@ import { preparePublishLogs, prepareEstimatedSonicLog, ENGINE } from '../service
 import { pseudoConfig, calibrateOn, calibratedConfig, savedPseudo } from '../services/pseudoSonic';
 import PseudoSonicBox from './PseudoSonicBox';
 import { mineralModelLogs, buildMineralSet, porePressureLog, zonePorePressure, saturationHeightSw } from '../services/petroInputs';
-import { makeDepthFrame } from '@/pages/apps/WellDataManager/engine/checkshots';
+import { makeWellFrame } from '@/lib/wellDatum';
 import { packGather } from '@/lib/rockPhysicsGather';
 import { PIPELINE_VERSION } from '../services/publish';
 import { projectRowFromState, projectStateFromRow } from '../services/projectState';
@@ -375,8 +375,9 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     if (wellData.raw?.pp) {
       let tvd = null;
       try {
-        const frame = makeDepthFrame({ deviation: selected?.deviation, kbM: selected?.kb_m ?? 0, tdMdM: selected?.td_md_m });
-        tvd = (md) => { try { return frame.mdToTvdss(md).tvdss + (selected?.kb_m ?? 0); } catch { return NaN; } };
+        // TVD below the depth reference, through the shared datum module (no datum needed for TVD)
+        const frame = makeWellFrame(selected);
+        tvd = (md) => { try { return frame.mdToTvd(md); } catch { return NaN; } };
       } catch { tvd = null; }
       pp = zonePorePressure(wellData.raw.pp.log, wellData.raw.pp.data, activeZone, tvd);
     }

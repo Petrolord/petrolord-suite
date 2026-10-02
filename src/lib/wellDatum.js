@@ -36,7 +36,7 @@
 // (makeDepthFrame); this module hands it the elevation and applies the
 // datum itself. Pure functions, worker-safe, no I/O.
 
-import { makeDepthFrame } from '../../packages/engines/engines/welldata/checkshots.js';
+import { makeDepthFrame, rebaseStoredCheckshots } from '../../packages/engines/engines/welldata/checkshots.js';
 import { convert } from './units/registry.js';
 
 export const DEPTH_REF_KINDS = Object.freeze(['KB', 'RT', 'DF', 'GL', 'MSL', 'OTHER']);
@@ -194,6 +194,27 @@ export function tvdFromBelowSurface(depthM, datum) {
 /** Offshore air gap: the depth reference above the vertical datum. NaN onshore or unset. */
 export function airGapM(datum) {
   return datum && datum.environment === 'offshore' && datum.tvdssOk ? datum.refElevM : NaN;
+}
+
+/**
+ * A bare datum for callers that carry only a reference elevation (a KB
+ * number in a project file, a harness, an import context): enough for the
+ * conversions above. A non-number gives a datum that refuses TVDSS.
+ */
+export function datumFromElevation(refElevM, { refKind = 'KB', name = null } = {}) {
+  const ok = refElevM !== null && refElevM !== undefined && refElevM !== '' && Number.isFinite(Number(refElevM));
+  return {
+    state: ok ? 'set' : 'unset', columns: false, refKind, refLabel: refKind, refElevM: ok ? Number(refElevM) : null,
+    environment: null, groundElevM: null, waterDepthM: null, verticalDatum: null, elevUnit: null, changes: [], wellName: name,
+    tvdssOk: ok, tvdssReason: ok ? null : `${name || 'This well'} has no depth reference elevation, so TVDSS and elevations cannot be given. Set it in ${WDM_DATUM_PLACE}.`,
+    note: null, surfaceOk: false, surfaceName: null, surfaceReason: null,
+  };
+}
+
+/** The well's stated reference elevation in metres, or null when TVDSS cannot be given. */
+export function refElevOrNull(well) {
+  const d = readWellDatum(well);
+  return d.tvdssOk ? d.refElevM : null;
 }
 
 /**
@@ -384,23 +405,29 @@ export function validateDatum(input) {
  * set. Feet and metres go through the unit registry.
  * @param {{refKind, refLabel, refElev, environment, groundElev, waterDepth, verticalDatum}} fields
  * @param {'m'|'ft'} unit
+ * @param {{original?: Object, digits?: number}} [opts] the datum the fields
+ *   were filled from (datumToEntry with the same unit and digits)
  */
-export function datumFromEntry(fields, unit = 'm') {
+export function datumFromEntry(fields, unit = 'm', { original = null, digits = 3 } = {}) {
   const f = fields || {};
   const u = unit === 'ft' ? 'ft' : 'm';
-  const read = (raw) => {
+  // a cell the user did not touch keeps its stored metres bit for bit: it
+  // is never re-derived from its rounded display text
+  const shown = original ? datumToEntry(original, u, digits) : null;
+  const read = (raw, key, origM) => {
     const s = raw === null || raw === undefined ? '' : String(raw).trim().replace(',', '.');
     if (s === '') return null;
+    if (shown && Number.isFinite(origM) && s === shown[key]) return origM;
     const v = Number(s);
     return Number.isFinite(v) ? convert('depth', v, u, 'm') : NaN;
   };
   return validateDatum({
     refKind: f.refKind || null,
     refLabel: f.refLabel,
-    refElevM: read(f.refElev),
+    refElevM: read(f.refElev, 'refElev', original?.refElevM),
     environment: f.environment || null,
-    groundElevM: read(f.groundElev),
-    waterDepthM: read(f.waterDepth),
+    groundElevM: read(f.groundElev, 'groundElev', original?.groundElevM),
+    waterDepthM: read(f.waterDepth, 'waterDepth', original?.waterDepthM),
     verticalDatum: f.verticalDatum,
     elevUnit: u,
   });
@@ -636,6 +663,35 @@ export function datumChangeImpact(well, next, counts = {}) {
     if (Number(counts.wellsiteWells) > 0) lines.push(`${plural(Number(counts.wellsiteWells), 'Wellsite well')} linked to it: the KB copy follows this change; subsea depths of its calls and tops are recomputed.`);
   }
   return { kind, shiftM, hasData, needsConfirm: kind !== 'none' && hasData && kind !== 'details', lines };
+}
+
+/**
+ * The stored checkshot table of a well re-derived through a new reference
+ * elevation, for the same write that saves the datum. The table is keyed on
+ * TVDSS; rows entered as MD or TVD are recomputed (the engine keeps the
+ * reference they were entered in), a table with no entry record is left as
+ * stored and that is said.
+ *
+ * @param {Object} well row before the change
+ * @param {Object} next validated datum
+ * @param {{tdMdM?: ?number}} [over]
+ * @returns {{checkshots?: Array, checkshotsProvenance?: Object, note: string}}
+ */
+export function rebaseCheckshotsForDatum(well, next, over = {}) {
+  const rows = Array.isArray(well?.checkshots) ? well.checkshots : [];
+  const elev = numOrNull(next?.refElevM);
+  const prev = readWellDatum(well);
+  const prevElev = prev.state === 'set' || prev.state === 'legacy-kb' ? prev.refElevM : null;
+  if (!rows.length || elev === null || same(prevElev, elev)) return { note: '' };
+  if (!well.checkshots_provenance) return { note: ' Legacy checkshot table left as stored (assumed TVDSS).' };
+  const frame = makeWellFrame(well, { datum: datumFromElevation(elev, { refKind: next.refKind || 'KB', name: well.name }), ...(over.tdMdM !== undefined ? { tdMdM: over.tdMdM } : {}) });
+  const rb = rebaseStoredCheckshots(rows, well.checkshots_provenance, frame);
+  const ref = String(rb.provenance?.units_in?.depth_ref || 'tvdss').toUpperCase();
+  return {
+    checkshots: rb.rows,
+    checkshotsProvenance: rb.provenance,
+    note: ` Checkshots re-derived for the new elevation ${elev.toFixed(2)} m (${rb.rows.length} rows, ${ref} reference kept).`,
+  };
 }
 
 /**

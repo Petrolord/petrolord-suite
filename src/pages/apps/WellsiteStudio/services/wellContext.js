@@ -35,7 +35,7 @@ export function defaultDepthEntry(well, fallbackUnit = 'ft') {
  * 40 m, so a zero is said rather than used silently.
  */
 export function kbStatus(kbM) {
-  if (!Number.isFinite(kbM)) return { ok: false, note: 'This well has no KB elevation. TVDSS and the offset comparison need one: enter KB in Well Data Manager.' };
+  if (!Number.isFinite(kbM)) return { ok: false, note: 'This well has no KB elevation. TVDSS and the offset comparison need one: enter KB in Well Data Manager.', enterHere: true };
   if (kbM === 0) return { ok: false, note: 'KB elevation is 0 m above MSL (the registry default when none was entered). TVDSS then equals TVD below KB; if the real KB is not 0, correct it in Well Data Manager before drilling.' };
   return { ok: true, note: '' };
 }

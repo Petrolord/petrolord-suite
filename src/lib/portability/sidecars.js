@@ -14,6 +14,18 @@
 
 import { writeLas } from '@/pages/apps/WellDataManager/engine/lasWrite';
 import { writeZMAP } from '@/lib/gridding/surfaceExport';
+import { readWellDatum } from '../wellDatum.js';
+
+/** LAS parameters of a well's datum for the open-format sidecar. */
+function sidecarDatumParams(well) {
+  const d = readWellDatum(well);
+  if (!d.tvdssOk) return [];
+  const out = [{ name: d.refKind === 'KB' ? 'EKB' : 'APD', unit: 'M', value: d.refElevM, descr: d.refKind === 'KB' ? 'kelly bushing' : `${d.refLabel} elevation above the permanent datum` }];
+  if (d.refKind !== 'KB') out.push({ name: 'LMF', unit: '', value: d.refLabel, descr: 'log measured from' });
+  if (d.verticalDatum) out.push({ name: 'PDAT', unit: '', value: d.verticalDatum, descr: 'permanent datum' });
+  if (Number.isFinite(d.groundElevM)) out.push({ name: 'EGL', unit: 'M', value: d.groundElevM, descr: 'ground level' });
+  return out;
+}
 
 const DEPTH_MNEMONICS = new Set(['DEPT', 'DEPTH', 'MD']);
 const base = (m) => String(m || '').toUpperCase().split(':')[0];
@@ -69,7 +81,8 @@ export function wellLasText(well, logs, curvesById) {
     params: [
       { name: 'SOURCE', value: 'Petrolord Project Package', descr: 'open-format sidecar' },
       { name: 'WELLID', value: well.id, descr: 'registry id at export' },
-      ...(well.kb_m != null ? [{ name: 'EKB', unit: 'M', value: well.kb_m, descr: 'kelly bushing' }] : []),
+      // the datum as the well states it (src/lib/wellDatum.js); a well with no reference elevation writes none
+      ...sidecarDatumParams(well),
     ],
     other: 'Written by Petrolord Project Package export. Curves are the registry logs of this well; computed curves carry their method in the log description.',
   });

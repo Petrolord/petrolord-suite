@@ -4,7 +4,10 @@
 // carries its depth in each frame the source can support, converted through
 // the well's survey (MD to TVD, PP-U1-002) and the datum (mudline MD, water
 // depth, KB elevation); a frame the source cannot support is withheld with
-// its reason. Pure.
+// its reason. Pure. The datum arithmetic itself is the shared module's
+// (src/lib/wellDatum.js).
+
+import { tvdssFromTvd, datumFromElevation } from '../../../../lib/wellDatum';
 
 export const DEPTH_REF_KEY = 'pp.depthRef';
 export const VIEW_REFS = Object.freeze([
@@ -19,11 +22,13 @@ export const refShort = (key) => VIEW_REFS.find((r) => r.key === key)?.short || 
 /**
  * @param {{zBmlM: number[], mdM?: number[]}} input
  * @param {{waterDepthM?: number, mudlineMdM?: number}} params
- * @param {{frame?: ?{mdToPosition: Function}, kbM?: ?number, source?: 'well'|'seismic'}} ctx
+ * @param {{frame?: ?{mdToPosition: Function}, kbM?: ?number, datum?: ?Object, source?: 'well'|'seismic'}} ctx
+ *   datum: the registry well's datum (readWellDatum); kbM is kept for sources that carry only an elevation
  * @returns {{bml: number[], tvdrkb: ?number[], tvdss: ?number[], md: ?number[],
  *   reasons: Object<string,string>, mudlineTvdM: ?number}}
  */
-export function depthReferences(input, params = {}, { frame = null, kbM = null, source = 'well' } = {}) {
+export function depthReferences(input, params = {}, { frame = null, kbM = null, datum = null, source = 'well' } = {}) {
+  const d = datum || datumFromElevation(kbM);
   const zs = input?.zBmlM || [];
   const wd = Number(params.waterDepthM) || 0;
   const ml = Number(params.mudlineMdM) || 0;
@@ -45,8 +50,8 @@ export function depthReferences(input, params = {}, { frame = null, kbM = null, 
   const tvdrkb = mudlineTvdM == null ? null : zs.map((z) => z + mudlineTvdM);
   let tvdss = null;
   if (wd > 0) tvdss = zs.map((z) => z + wd); // offshore: the mudline is the water depth below sea level
-  else if (tvdrkb && Number.isFinite(kbM)) tvdss = tvdrkb.map((t) => t - kbM);
-  else reasons.tvdss = Number.isFinite(kbM) ? 'set the mudline MD in Parameters' : 'onshore TVDSS needs the KB elevation, and this source has none';
+  else if (tvdrkb && d.tvdssOk) tvdss = tvdrkb.map((t) => tvdssFromTvd(t, d));
+  else reasons.tvdss = d.tvdssOk ? 'set the mudline MD in Parameters' : 'onshore TVDSS needs the KB elevation, and this source has none';
   let md = null;
   if (source !== 'well') reasons.md = 'a velocity trend has no measured depth';
   else if (Array.isArray(input?.mdM) && input.mdM.length === zs.length) md = input.mdM;

@@ -57,6 +57,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import {
   DEPTH_REF_KEY, VIEW_REFS, depthReferences, refMapper, refShort, refLabel,
 } from '../services/depthRef';
+import { refElevOrNull } from '@/lib/wellDatum';
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 
@@ -262,7 +263,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const byRes = params.method === 'eaton-resistivity';
   // U2-008: the mudline below the declared seismic datum (SRD), not the water depth alone
   const trendWell = seismicModel ? (wells || []).find((w) => w.name === layerCakeAt?.wellName) || null : null;
-  const datum = datumToMudline(params, { kbM: trendWell?.kb_m != null ? Number(trendWell.kb_m) : null });
+  const datum = datumToMudline(params, { kbM: trendWell ? refElevOrNull(trendWell) : null });
   const input = useMemo(() => {
     try {
       if (seismicModel && byRes) {
@@ -311,7 +312,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   // U2-004: every sample in each depth frame the source supports
   const refs = useMemo(() => (input && !input.error ? depthReferences(input, params, {
     frame: seismicModel ? null : wellDepthFrame(selected),
-    kbM: !seismicModel && selected?.kb_m != null && Number.isFinite(Number(selected.kb_m)) ? Number(selected.kb_m) : null,
+    kbM: !seismicModel && selected ? refElevOrNull(selected) : null,
     source: seismicModel ? 'seismic' : 'well',
   }) : null), [input, params, seismicModel, selected]);
   const mapper = useMemo(() => refMapper(refs, depthRefKey), [refs, depthRefKey]);
@@ -439,7 +440,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   // the selected well's survey and KB (TVDSS and MD need them)
   const importCtx = useMemo(() => ({
     frame: seismicModel ? null : wellDepthFrame(selected),
-    kbM: !seismicModel && Number.isFinite(Number(selected?.kb_m)) && selected?.kb_m != null ? Number(selected.kb_m) : null,
+    kbM: !seismicModel && selected ? refElevOrNull(selected) : null,
     mudlineMdM: params.mudlineMdM,
     waterDepthM: params.waterDepthM,
   }), [seismicModel, selected, params.mudlineMdM, params.waterDepthM]);

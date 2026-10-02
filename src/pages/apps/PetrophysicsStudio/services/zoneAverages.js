@@ -28,7 +28,7 @@
 import { netPay, sampleThickness } from '../engine/netpay';
 import { zoneSummary, zonePropertiesSnapshot, zoneHydrocarbon, isTotalSwModel as engineIsTotal, TOTAL_SW_MODELS as ENGINE_TOTAL, DEFAULT_PARAMS } from '../engine/pipeline';
 import { clampDisplay } from '../engine/porosity';
-import { makeDepthFrame } from '../../WellDataManager/engine/checkshots';
+import { makeWellFrame } from '@/lib/wellDatum';
 
 /** Sw models defined on total porosity (they return Swt on PHIT): the engine's list (PETRO-U2-012). */
 export const TOTAL_SW_MODELS = ENGINE_TOTAL;
@@ -54,7 +54,7 @@ export function verticalSampleThickness(depth, well) {
   if (!well || n < 2) return null;
   let frame;
   try {
-    frame = makeDepthFrame({ deviation: well.deviation, kbM: well.kb_m ?? 0, tdMdM: well.td_md_m });
+    frame = makeWellFrame(well); // TVD only: no datum is needed for thickness
   } catch {
     return null;
   }

@@ -10,6 +10,7 @@
 
 import { wellNameClashMessage, validateStoredCheckshotsShape, LogsStoppedError, surfaceCoordProblem } from '@/lib/wellsRegistry';
 import { PLATFORM_BUILD } from '@/lib/platformBuild';
+import { DATUM_COLUMNS, datumInsertFields, datumPatch, validateDatum } from '@/lib/wellDatum';
 import { parseLas } from '../engine/lasParse';
 import { prepareLasForRegistry } from '../engine/lasIndex';
 import { prepareTextChannels } from '../engine/lasTextChannels';
@@ -20,7 +21,12 @@ const DEV_ORG = 'org-dev';
 let seq = 0;
 const nextId = (p) => { seq += 1; return `${p}-${seq}`; };
 
-/** @param {{seedSharedWell?: boolean, worker?: boolean}} [opts]
+/** @param {{seedSharedWell?: boolean, worker?: boolean, datumColumns?: boolean}} [opts]
+ *  datumColumns (default true): the registry has the datum model's columns
+ *  (migration 20261002090000 applied). false stands in for the registry
+ *  before the migration: new wells carry kb_m only and a datum save keeps
+ *  the elevation alone. Seeded rows are taken as given either way, so a
+ *  fixture row saved by an older release stays an older row.
  *  worker: parse through the real worker facade (browser harness) vs
  *  inline on this thread (jest / jsdom, where module workers 404). */
 export function makeInMemoryBackend(opts = {}) {
@@ -31,6 +37,19 @@ export function makeInMemoryBackend(opts = {}) {
   const logsByWell = new Map();
   const zonesByWell = new Map();       // Petrophysics zones (U2-008: WDM reads them)
   const curveStore = new Map(); // storage_path -> Float32Array
+  const datumColumns = opts.datumColumns !== false;
+  const blankDatum = () => (datumColumns ? Object.fromEntries(DATUM_COLUMNS.map((c) => [c, null])) : {});
+  /** Same rule as the registry service: a blank KB is "not entered", never 0. */
+  const datumOfNewWell = (w) => {
+    if (w.datum) {
+      const { datum, errors } = validateDatum(w.datum);
+      if (errors.length) throw new Error(errors[0]);
+      return datum;
+    }
+    if (w.kbM === null || w.kbM === undefined || w.kbM === '') return { refKind: null, refElevM: null };
+    if (!Number.isFinite(Number(w.kbM))) throw new Error('KB must be a number (metres above datum).');
+    return { refKind: 'KB', refElevM: Number(w.kbM) };
+  };
 
   if (opts.seedSharedWell !== false) {
     const id = nextId('well');
@@ -120,6 +139,7 @@ export function makeInMemoryBackend(opts = {}) {
       // same one-name-per-registry rule as the live registry
       const msg = wellNameClashMessage(w.name, wells, { userId: DEV_USER });
       if (msg) throw new Error(msg);
+      const datum = datumOfNewWell(w);
       const well = {
         id: nextId('well'),
         user_id: DEV_USER,
@@ -128,7 +148,9 @@ export function makeInMemoryBackend(opts = {}) {
         uwi: w.uwi || null,
         surface_x: w.surfaceX,
         surface_y: w.surfaceY,
-        kb_m: w.kbM ?? 0,
+        kb_m: datum.refElevM ?? 0,
+        ...blankDatum(),
+        ...(datumColumns ? datumInsertFields(datum) : {}),
         td_md_m: w.tdMdM ?? null,
         // WDM-U1-018: the structured CRS the live registry stores (the
         // harness used to drop it, so no CRS path was ever exercised here)
@@ -171,6 +193,7 @@ export function makeInMemoryBackend(opts = {}) {
       if (kbM !== undefined) {
         if (!Number.isFinite(Number(kbM))) throw new Error('KB must be a number (metres above datum).');
         patch.kb_m = Number(kbM);
+        if ('depth_ref_elev_m' in w) { patch.depth_ref_kind = 'KB'; patch.depth_ref_elev_m = Number(kbM); }
       }
       if (tdMdM !== undefined) {
         if (tdMdM !== null && !(Number(tdMdM) > 0)) throw new Error('TD must be a positive number (m MD).');
@@ -191,6 +214,22 @@ export function makeInMemoryBackend(opts = {}) {
       Object.assign(w, patch, { updated_at: new Date(2026, 6, 13, 3, 0, seq++).toISOString() });
       return w;
     },
+
+    /** The datum door, same contract as wellsRegistry.updateWellDatum. */
+    async updateWellDatum(well, next, { record = null, checkshots, checkshotsProvenance } = {}) {
+      const w = ownWell(well.id, 'change the depth reference of');
+      const checked = validateDatum(next);
+      if (checked.errors.length) throw new Error(checked.errors[0]);
+      const built = datumPatch(w, checked.datum, { record, columns: datumColumns && 'depth_ref_elev_m' in w });
+      const extra = {};
+      if (checkshots !== undefined) extra.checkshots = validateStoredCheckshotsShape(checkshots);
+      if (checkshotsProvenance !== undefined) extra.checkshots_provenance = checkshotsProvenance;
+      Object.assign(w, built.patch, extra, { updated_at: new Date(2026, 6, 13, 4, 0, seq++).toISOString() });
+      return { row: w, dropped: built.dropped, columns: built.columns };
+    },
+
+    async currentUser() { return { id: DEV_USER, name: 'Dev User' }; },
+    hasDatumColumns: () => datumColumns,
 
     async saveTop(wellId, { name, mdM, interpreter = null, surface_type = 'formation_top', unit_id = null, confidence = null, age_ma = null, notes = null }) {
       ownWell(wellId, 'add tops to');

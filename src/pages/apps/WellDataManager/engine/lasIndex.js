@@ -23,6 +23,7 @@
 // prepareLogs) are untouched; this is the Suite's import policy on top.
 
 import { uniformStepM, prepareLogs, suggestWellHeader } from './lasImport';
+import { proposeDatumFromLas } from '@/lib/wellDatum';
 import { CURVE_ALIASES } from '@/components/wells/curveMap';
 
 const base = (m) => String(m || '').trim().toUpperCase().split(':')[0];
@@ -121,7 +122,12 @@ export function prepareLasForRegistry(parsed, opts = {}) {
   const deepest = Math.max(prep.startMdM ?? -Infinity, prep.stopMdM ?? -Infinity);
   if (Number.isFinite(deepest)) suggested.tdMdM = deepest;
   const loc = suggestSurfaceLocation(parsed);
-  return { prep, notes, suggestedHeader: { ...suggested, ...loc } };
+  // WDM-U2-007: what the header says about the depth reference (EKB, EGL,
+  // EDF, APD, EPD, LMF, DMF, PDAT), as a proposal for the user to confirm.
+  // It replaces the bare KB: an EKB of 0 or the null value is not an elevation.
+  const datumProposal = proposeDatumFromLas(parsed);
+  suggested.kbM = datumProposal.fields.refElevM;
+  return { prep, notes, suggestedHeader: { ...suggested, ...loc, datumProposal } };
 }
 
 const X_KEYS = ['XWELL', 'X', 'XCOORD', 'X_COORD', 'EAST', 'EASTING', 'XLOC', 'SURFX', 'XSURF'];

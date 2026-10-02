@@ -510,6 +510,7 @@ export async function executeImport(plan, sink, { resumeJobId = null, onProgress
       onProgress(`Writing ${table} (${pending.length})`);
       for (const batch of chunk(pending, INSERT_BATCH)) {
         await sink.insertRows(table, batch);
+        if (typeof sink.takeNotes === 'function') summary.notes.push(...sink.takeNotes());
         summary.rowsWritten += batch.length;
         if (jobId) {
           await sink.recordItems(jobId, batch.map((r) => { const it = plan.items.find((i) => i.newId === r.id); return { job_id: jobId, table_name: table, old_id: it.oldId, new_id: r.id }; }));

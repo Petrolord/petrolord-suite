@@ -40,6 +40,7 @@ import { buildEarthModelProspect, writeProspectHandoff, rcpProspectHref } from '
 import { SEISMIC_FAULTS_HOOK, normalizeSeismicFault, hangingWallAtSurface } from '../services/seismicFaultZones';
 import { appPath, mapSurfaceHref, reservoirCalcSurfaceHref, MAPPING_ID, RESERVOIRCALC_ID, EARTH_MODELING_ID } from '@/components/wells/appLinks';
 import { toDisplay } from '@/components/wells/depthModes';
+import { refElevOrNull } from '@/lib/wellDatum';
 import { validatePolygon } from '../engine/blocks';
 import { surfaceStats } from '@/lib/gridding/gridmath';
 
@@ -601,8 +602,9 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   const projectionM = built ? 2 * Math.max(built.spec.dx, built.spec.dy) : 100;
   const projected = useMemo(() => {
     if (!sectionVertices || !built) return [];
-    return projectWells(wells || [], sectionVertices, projectionM).map((p) => {
-      const traj = minCurvature(p.well.deviation || [], p.well.kb_m || 0, p.well.surface_x, p.well.surface_y);
+    // wells with no reference elevation have no subsea path to project (the build notes name them)
+    return projectWells((wells || []).filter((w) => refElevOrNull(w) !== null), sectionVertices, projectionM).map((p) => {
+      const traj = minCurvature(p.well.deviation || [], refElevOrNull(p.well), p.well.surface_x, p.well.surface_y);
       const tops = (p.well.tops || []).map((t) => {
         const tie = built.ties.find((r) => r.well === p.well.name && r.top === t.name);
         return { name: t.name, tvdss: positionAtMd(traj, t.md_m).tvdss, residualM: tie?.residualM ?? null };

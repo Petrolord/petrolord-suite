@@ -26,6 +26,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { wellNameKey, wellNameClashMessage } from '@/lib/wellNames';
 import { PLATFORM_BUILD } from '@/lib/platformBuild';
 import { isUnknownColumnError } from '@/lib/stateVersion';
+import { DATUM_COLUMNS, datumInsertFields, datumPatch, datumColumnsPresent, validateDatum } from '@/lib/wellDatum';
 
 export { wellNameKey, wellNameClashMessage };
 
@@ -69,6 +70,43 @@ async function writeWithBuild(payload, run) {
   return run(payload);
 }
 
+// ---- datum columns (Well Data Manager U2-007) ------------------------------
+// The datum model's columns arrive with migration 20261002090000. Staging
+// shares the production database, so until the owner applies it a write
+// that names them is refused: the write is then repeated without them and
+// the session stops sending them. Reads tell the same story from the rows
+// themselves (`'depth_ref_elev_m' in row`).
+
+let datumColumnsMissing = false;
+/** Test hook. */
+export function _resetDatumColumns() { datumColumnsMissing = false; }
+/** True once this session has seen that the registry has no datum columns. */
+export function datumColumnsKnownMissing() { return datumColumnsMissing; }
+const noteDatumColumns = (rows) => {
+  const first = Array.isArray(rows) ? rows[0] : rows;
+  if (first && typeof first === 'object') datumColumnsMissing = !datumColumnsPresent(first);
+};
+const isDatumColumnError = (error) => !!error && (isUnknownColumnError(error) || error.code === 'PGRST204' || /schema cache/i.test(String(error.message || '')))
+  && DATUM_COLUMNS.some((c) => String(error.message || '').includes(c));
+const withoutDatum = (row) => { const r = { ...row }; for (const c of DATUM_COLUMNS) delete r[c]; return r; };
+
+/**
+ * The datum a new well is saved with: `w.datum` (a validated datum from the
+ * editor or a confirmed LAS proposal), or a bare `w.kbM`. A missing or blank
+ * KB is "not entered" (NULL), never 0.
+ */
+function datumOfNewWell(w) {
+  if (w.datum) {
+    const { datum, errors } = validateDatum(w.datum);
+    if (errors.length) throw new Error(errors[0]);
+    return datum;
+  }
+  if (w.kbM === null || w.kbM === undefined || w.kbM === '') return { refKind: null, refElevM: null };
+  const v = Number(w.kbM);
+  if (!Number.isFinite(v)) throw new Error('KB must be a number (metres above datum).');
+  return { refKind: 'KB', refElevM: v };
+}
+
 async function requireUser() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) throw new Error('You must be signed in to use the well registry.');
@@ -110,15 +148,20 @@ export async function saveWell(w) {
     const msg = surfaceCoordProblem(n, v);
     if (msg) throw new Error(msg);
   }
+  const datum = datumOfNewWell(w);
   const user = await requireUser();
   await assertWellNameFree(w.name, { userId: user.id });
-  const row = {
+  let row = {
     user_id: user.id,
     name: String(w.name).trim(),
     uwi: w.uwi || null,
     surface_x: w.surfaceX,
     surface_y: w.surfaceY,
-    kb_m: w.kbM ?? 0,
+    // kb_m mirrors the reference elevation for builds that predate the
+    // datum model; 0 here only because the column is NOT NULL (the datum
+    // columns say "not entered")
+    kb_m: datum.refElevM ?? 0,
+    ...(datumColumnsMissing ? {} : datumInsertFields(datum)),
     td_md_m: w.tdMdM ?? null,
     crs: w.crs || null,
     xy_unit: w.xyUnit || null,
@@ -134,6 +177,12 @@ export async function saveWell(w) {
   if (w.checkshotsProvenance) row.checkshots_provenance = w.checkshotsProvenance;
   const insert = (r) => supabase.from('geo_wells').insert(r).select().single();
   let { data, error } = await writeWithBuild(row, insert);
+  if (error && !datumColumnsMissing && isDatumColumnError(error)) {
+    // migration 20261002090000 not applied here yet: save the well as before
+    datumColumnsMissing = true;
+    row = withoutDatum(row);
+    ({ data, error } = await writeWithBuild(row, insert));
+  }
   if (error && row.checkshots_provenance && isMissingColumn(error)) {
     delete row.checkshots_provenance;
     ({ data, error } = await writeWithBuild(row, insert));
@@ -166,9 +215,13 @@ export async function updateWellData(wellId, {
     patch[col] = Number(value);
   }
   if (kbM !== undefined) {
+    // Kept for callers that only know a KB. The datum door is
+    // updateWellDatum; this states the same elevation as a kelly bushing
+    // so the stated value and kb_m never disagree.
     const v = Number(kbM);
     if (!Number.isFinite(v)) throw new Error('KB must be a number (metres above datum).');
     patch.kb_m = v;
+    if (!datumColumnsMissing) { patch.depth_ref_kind = 'KB'; patch.depth_ref_elev_m = v; }
   }
   if (tdMdM !== undefined) {
     if (tdMdM === null) patch.td_md_m = null;
@@ -197,12 +250,55 @@ export async function updateWellData(wellId, {
   if (!Object.keys(patch).length) throw new Error('Nothing to update.');
   const update = (p) => supabase.from('geo_wells').update(p).eq('id', wellId).select().single();
   let { data, error } = await writeWithBuild({ ...patch, updated_at: new Date().toISOString() }, update);
+  if (error && 'depth_ref_elev_m' in patch && isDatumColumnError(error)) {
+    datumColumnsMissing = true;
+    delete patch.depth_ref_kind;
+    delete patch.depth_ref_elev_m;
+    ({ data, error } = await writeWithBuild({ ...patch, updated_at: new Date().toISOString() }, update));
+  }
   if (error && 'checkshots_provenance' in patch && isMissingColumn(error)) {
     delete patch.checkshots_provenance;
     ({ data, error } = await writeWithBuild({ ...patch, updated_at: new Date().toISOString() }, update));
   }
   if (error) throw new Error(`Could not update well data: ${error.message}`);
   return data;
+}
+
+/**
+ * Save a well's datum (depth reference kind and elevation, environment,
+ * ground level or water depth, vertical datum, unit): THE door for every
+ * app that corrects it (Well Data Manager Header, Wellsite Config).
+ *
+ * With the datum columns every field is saved and the change record is
+ * appended to datum_changes. Before the migration only the elevation can be
+ * kept (in kb_m), the record is merged into crs_provenance, and `dropped`
+ * names what was not saved so the caller can say so.
+ *
+ * @param {Object} well the registry row as loaded (decides which side of the migration it is on)
+ * @param {Object} next a datum (metres); validated here
+ * @param {{record?: ?Object, checkshots?: Array, checkshotsProvenance?: ?Object}} [opts]
+ *   record: datumChangeRecord(...) entry; checkshots: the table re-derived
+ *   through the new elevation, saved in the same write
+ * @returns {Promise<{row: Object, dropped: string[], columns: boolean}>}
+ */
+export async function updateWellDatum(well, next, { record = null, checkshots, checkshotsProvenance } = {}) {
+  if (!well || !well.id) throw new Error('Pick the well whose depth reference is being set.');
+  const checked = validateDatum(next);
+  if (checked.errors.length) throw new Error(checked.errors[0]);
+  const extra = {};
+  if (checkshots !== undefined) extra.checkshots = validateStoredCheckshotsShape(checkshots);
+  if (checkshotsProvenance !== undefined) extra.checkshots_provenance = checkshotsProvenance;
+  const update = (p) => supabase.from('geo_wells').update(p).eq('id', well.id).select();
+  let built = datumPatch(well, checked.datum, { record, columns: datumColumnsPresent(well) && !datumColumnsMissing });
+  let { data, error } = await writeWithBuild({ ...built.patch, ...extra, updated_at: new Date().toISOString() }, update);
+  if (error && built.columns && isDatumColumnError(error)) {
+    datumColumnsMissing = true;
+    built = datumPatch(well, checked.datum, { record, columns: false });
+    ({ data, error } = await writeWithBuild({ ...built.patch, ...extra, updated_at: new Date().toISOString() }, update));
+  }
+  if (error) throw new Error(`Could not save the depth reference: ${error.message}`);
+  if (!data || !data.length) throw new Error('Only the owner can change the depth reference of this well (organisation sharing is read-only).');
+  return { row: data[0], dropped: built.dropped, columns: built.columns };
 }
 
 /** Stored-core shape check shared with the harness backend (the full
@@ -234,6 +330,7 @@ export async function listWells() {
     supabase.auth.getUser(),
   ]);
   if (error) throw new Error(`Could not load wells: ${error.message}`);
+  noteDatumColumns(data);
   return (data || []).map((w) => ({ ...w, is_own: !!user && w.user_id === user.id }));
 }
 
@@ -288,6 +385,7 @@ export async function getWell(wellId) {
   const { data, error } = await supabase.from('geo_wells')
     .select('*').eq('id', wellId).single();
   if (error) throw new Error(`Could not load well: ${error.message}`);
+  noteDatumColumns(data);
   return data;
 }
 

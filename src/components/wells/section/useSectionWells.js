@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWellCurvesCache } from '@/components/wells/useWellCurvesCache';
 import { resolveTracks } from '@/components/wells/layout/resolveTracks';
 import { buildDefaultLayouts, migrateLayouts, activeTemplate } from '@/components/wells/layout/layoutSchema';
-import { makeDepthFrame } from '@/pages/apps/WellDataManager/engine/checkshots';
+import { makeWellFrame } from '@/lib/wellDatum';
 import { allTopNames } from '@/pages/apps/WellCorrelation/engine/section';
 import { orientSectionCurves } from './sectionFrame';
 import { useAppUnits } from '@/lib/units/useAppUnits';
@@ -231,7 +231,7 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
       if (!w || !d) return null;
       let frame = null;
       try {
-        frame = makeDepthFrame({ deviation: w.deviation, kbM: w.kb_m, tdMdM: w.td_md_m });
+        frame = makeWellFrame(w); // WDM-U2-007: the shared datum module; frame.datum says when TVDSS is withheld
       } catch { frame = null; }
       const tracks = resolveTracks(template, {
         curves: d.curves || {}, logs: d.logs || {}, outputs: {}, faciesData: null, facies: [], params: CORR_PARAMS,
