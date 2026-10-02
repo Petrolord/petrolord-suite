@@ -18,6 +18,7 @@
  *
  * Never import this from application code.
  */
+/* global process, Buffer */
 import fs from 'fs';
 import os from 'os';
 import path from 'path';

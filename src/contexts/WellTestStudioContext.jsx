@@ -16,6 +16,7 @@ import { autoFitModel } from '@/utils/welltest/autoFit';
 import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalizedPseudoTime, GAS } from '@/utils/welltest/gas';
 import { UNIT_SYSTEMS } from '@/utils/welltest/units';
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
+import { provenanceFromPayload, setProvenanceField } from '@/lib/inputProvenance';
 import {
   DEFAULT_IDENTIFICATION, DEFAULT_COMPLETION, resolveTotalCompressibility,
   buildSkinBreakdown, buildInputsTable, buildFlowSummary, buildIdentificationRows,
@@ -450,7 +451,7 @@ export const WellTestStudioProvider = ({ children }) => {
   const [pvtIntake, setPvtIntake] = useState(null); // { fields: [...], text } from a Fluid Systems Studio handoff
   const setIdentificationField = useCallback((k, v) => setIdentification((prev) => ({ ...prev, [k]: v })), []);
   const setCompletionField = useCallback((k, v) => setCompletion((prev) => ({ ...prev, [k]: v })), []);
-  const setInputMetaField = useCallback((key, k, v) => setInputMeta((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), [k]: v } })), []);
+  const setInputMetaField = useCallback((key, k, v) => setInputMeta((prev) => setProvenanceField(prev, key, k, v)), []);
   const setPeriodMetaField = useCallback((key, k, v) => setPeriodMeta((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), [k]: v } })), []);
   const [reservoirInputs, setReservoirInputs] = useState(DEFAULT_RESERVOIR);
   const [testConfig, setTestConfig] = useState(DEFAULT_TEST_CONFIG);
@@ -958,7 +959,7 @@ export const WellTestStudioProvider = ({ children }) => {
     // projects saved before tester round 2 carry none of these: defaults
     setIdentification({ ...DEFAULT_IDENTIFICATION, ...(payload?.identification || {}) });
     setCompletion({ ...DEFAULT_COMPLETION, ...(payload?.completion || {}) });
-    setInputMeta(payload?.inputMeta && typeof payload.inputMeta === 'object' ? payload.inputMeta : {});
+    setInputMeta(provenanceFromPayload(payload));
     setPeriodMeta(payload?.periodMeta && typeof payload.periodMeta === 'object' ? payload.periodMeta : {});
     setPvtIntake(payload?.pvtIntake && Array.isArray(payload.pvtIntake.fields) ? payload.pvtIntake : null);
     setReservoirInputs({ ...DEFAULT_RESERVOIR, ...(payload?.reservoirInputs || {}) });

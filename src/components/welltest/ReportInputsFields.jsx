@@ -10,9 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
-import {
-  TEST_OPERATIONS, INPUT_SOURCES, SOURCED_INPUTS, DEFAULT_KVKH, buildCompletion,
-} from '@/utils/welltest/reportModel';
+import { TEST_OPERATIONS, SOURCED_INPUTS, DEFAULT_KVKH, buildCompletion } from '@/utils/welltest/reportModel';
+import { countStated } from '@/lib/inputProvenance';
+import { InputSourceControl } from '@/lib/inputProvenance/InputSourceControl';
 import { proposeFromRegistry, completionPatchFromProposal, zonePatchFromProposal } from '@/utils/welltest/registryProposal';
 import { unitLabel, fromOilfield } from '@/utils/welltest/units';
 import { SectionLabel, Field, UnitField, fmt } from './primitives';
@@ -247,7 +247,7 @@ export const InputSourcesFields = () => {
   const [open, setOpen] = useState(false);
   const isGas = reservoirInputs.fluid === 'gas';
   const rows = SOURCED_INPUTS.filter((r) => !(isGas && (r.key === 'B' || r.key === 'apiGravity' || r.key === 'gor')));
-  const stated = rows.filter((r) => inputMeta?.[r.key]?.source || inputMeta?.[r.key]?.note).length;
+  const stated = countStated(inputMeta, rows.map((r) => r.key));
   return (
     <section data-testid="wts-input-sources">
       <button
@@ -264,26 +264,12 @@ export const InputSourcesFields = () => {
           <p className="text-[11px] text-pl-muted">
             For each input say whether it was measured, taken from a correlation (and which), borrowed from an offset well or assumed, and note the sample quality or contamination. The report prints this beside the value.
           </p>
-          {rows.map((r) => {
-            const m = inputMeta?.[r.key] || {};
-            return (
-              <div key={r.key} className="space-y-1" data-testid={`wts-source-${r.key}`}>
-                <Label className="text-xs text-pl-muted">{r.label}</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Select value={m.source || NONE} onValueChange={(v) => setInputMetaField(r.key, 'source', v === NONE ? '' : v)}>
-                    <SelectTrigger className="h-8" aria-label={`${r.label} source`}><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(INPUT_SOURCES).map(([k, label]) => <SelectItem key={k || NONE} value={k || NONE}>{label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  {m.source === 'correlation' ? (
-                    <Input className="h-8" placeholder="Which correlation" aria-label={`${r.label} correlation`} value={m.correlation || ''} onChange={(e) => setInputMetaField(r.key, 'correlation', e.target.value)} />
-                  ) : <span />}
-                </div>
-                <Input className="h-8" placeholder="Note: sample, quality, contamination" aria-label={`${r.label} note`} value={m.note || ''} onChange={(e) => setInputMetaField(r.key, 'note', e.target.value)} />
-              </div>
-            );
-          })}
+          {rows.map((r) => (
+            <InputSourceControl
+              key={r.key} testId={`wts-source-${r.key}`} label={r.label} meta={inputMeta?.[r.key]}
+              onChange={(field, value) => setInputMetaField(r.key, field, value)}
+            />
+          ))}
         </div>
       )}
     </section>

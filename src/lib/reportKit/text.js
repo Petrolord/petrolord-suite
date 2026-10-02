@@ -28,13 +28,11 @@ const spell = (value) => {
 
 /** Text safe for jsPDF's standard fonts: symbols spelled out, anything outside Latin-1 replaced by "?". */
 export function pdfText(value) {
-  // eslint-disable-next-line no-control-regex
   return spell(value).replace(/[^\x00-\xff]/g, '?');
 }
 
 /** The distinct characters of a string that have no spelling and would print as "?". */
 export function unprintable(value) {
-  // eslint-disable-next-line no-control-regex
   const found = spell(value).match(/[^\x00-\xff]/gu) || [];
   return [...new Set(found)];
 }
