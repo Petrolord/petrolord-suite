@@ -8,6 +8,12 @@
 // Both kinds end in the same table shape {header|null, rows} through
 // detectHeader, so column mapping downstream is identical.
 
+//
+// The typed reader (numbers with the file's decimal mark, dates with a
+// stated day and month order, null words, a row report) is the pure module
+// src/lib/tabularParse.js (Reservoir round, Step 0a), re-exported at the
+// foot of this file so that this stays the one door for tables.
+
 import * as XLSX from 'xlsx';
 
 export const DELIMITERS = [
@@ -249,3 +255,9 @@ export async function readTabularFile(file) {
   }
   return { kind, text: await file.text() };
 }
+
+// The typed, pure reader: see src/lib/tabularParse.js.
+export {
+  parseTabular, parseNumber, detectDecimalMark, detectTableDelimiter, parseDate, detectDateOrder, looksLikeDate,
+  headerUnit, isNullToken, columnValues, questionText, splitRows, NULL_TOKENS, DELIMITER_NAMES,
+} from './tabularParse';

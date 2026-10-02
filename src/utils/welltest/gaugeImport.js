@@ -14,8 +14,18 @@
  * found from its header (Temperature, Temp, BHT, degF, degC) and never
  * guessed from position. Its unit comes from the header or the user; rows
  * carry it as T in degF, and a file without one carries no T at all.
+ *
+ * Reservoir round, Step 0a (2026-10-02, gap matrix H12): numbers are read by
+ * the shared table reader (src/lib/tabularParse.js) with the file's own
+ * decimal mark, and the column delimiter is found by the same reader. A
+ * European export (semicolon or tab columns, decimal commas) used to read
+ * 250,75 as 25075. The table now carries `decimal` { mark, certain }; when
+ * the file cannot settle the mark (every marked number looks like 3,250) it
+ * is read as a decimal comma in a semicolon file and as thousands elsewhere
+ * (the historical reading), and `certain` is false.
  */
 import Papa from 'papaparse';
+import { detectTableDelimiter, detectDecimalMark, parseNumber, splitRows } from '@/lib/tabularParse';
 
 export const ATM_PSI = 14.695948775513449; // 101.325 kPa
 const PSI_PER_KPA = 1 / 6.894757293168361;
@@ -49,19 +59,28 @@ export const TEMPERATURE_UNITS = {
   degC: { label: 'degC', toF: (v) => v * 1.8 + 32 },
 };
 
-const num = (v) => {
-  if (v == null) return NaN;
-  const s = String(v).trim().replace(/,/g, '');
-  if (s === '') return NaN;
-  const n = Number(s);
-  return Number.isFinite(n) ? n : NaN;
-};
+// One number, read with the file's decimal mark ('.' unless the table says ',').
+const num = (v, decimal = '.') => parseNumber(v, { decimal });
 
-const stamp = (v) => {
+/** The decimal mark of a table's cells: the one it carries, or found from its rows. */
+function decimalOf(table) {
+  if (table?.decimal?.mark === ',' || table?.decimal?.mark === '.') return table.decimal.mark;
+  return findDecimal(table?.rows).mark;
+}
+function findDecimal(rows, delimiter = ',') {
+  const cells = [];
+  for (const r of rows || []) if (Array.isArray(r)) for (const c of r) cells.push(c);
+  // undecided (every marked number looks like 3,250): the shared reader's
+  // rule, a decimal comma in a semicolon file and thousands elsewhere (the
+  // reading this importer always had), with `certain` false
+  return detectDecimalMark(cells, { delimiter });
+}
+
+const stamp = (v, decimal = '.') => {
   if (v == null) return NaN;
   const s = String(v).trim();
   // a plain number is not a date stamp
-  if (s === '' || Number.isFinite(Number(s))) return NaN;
+  if (s === '' || Number.isFinite(Number(s)) || Number.isFinite(num(s, decimal))) return NaN;
   const ms = Date.parse(s.includes(' ') && !s.includes('T') && /^\d{4}-\d{2}-\d{2} /.test(s) ? s.replace(' ', 'T') : s);
   return Number.isFinite(ms) ? ms : NaN;
 };
@@ -71,17 +90,23 @@ const stamp = (v) => {
  * it carries text in a column whose later rows are numbers or dates.
  */
 export function readGaugeTable(text) {
-  const { data } = Papa.parse(String(text || '').trim(), { skipEmptyLines: true });
+  const src = String(text || '').trim();
+  const delimiter = detectTableDelimiter(src);
+  const data = delimiter === ' '
+    ? splitRows(src, ' ').map((r) => r.cells)
+    : Papa.parse(src, { skipEmptyLines: true, delimiter }).data;
   const table = (data || []).filter((r) => Array.isArray(r) && r.some((c) => String(c).trim() !== ''));
-  if (!table.length) return { headers: null, rows: [], columnCount: 0 };
+  if (!table.length) return { headers: null, rows: [], columnCount: 0, decimal: { mark: '.', certain: true } };
   const columnCount = Math.max(...table.map((r) => r.length));
   const first = table[0];
-  const looksLikeData = (c) => Number.isFinite(num(c)) || Number.isFinite(stamp(c));
+  const found = findDecimal(table, delimiter);
+  const decimal = { mark: found.mark, certain: found.certain, reason: found.reason };
+  const looksLikeData = (c) => Number.isFinite(num(c, decimal.mark)) || Number.isFinite(stamp(c, decimal.mark));
   const isHeader = first.some((c) => String(c).trim() !== '' && !looksLikeData(c));
   const headers = isHeader
     ? Array.from({ length: columnCount }, (_, i) => String(first[i] ?? '').trim() || `Column ${i + 1}`)
     : null;
-  return { headers, rows: isHeader ? table.slice(1) : table, columnCount };
+  return { headers, rows: isHeader ? table.slice(1) : table, columnCount, decimal };
 }
 
 // Header words. Temperature, rate and depth columns are never time or
@@ -131,11 +156,12 @@ export function timeUnitFromHeader(h) {
  * are read as time then pressure (the historical layout). defaultPressure
  * is the unit assumed when nothing in the file names one.
  */
-export function detectGaugeMapping({ headers, rows }, { defaultPressure = 'psia', defaultTemperature = 'degF' } = {}) {
+export function detectGaugeMapping({ headers, rows, decimal }, { defaultPressure = 'psia', defaultTemperature = 'degF' } = {}) {
+  const mark = decimalOf({ rows, decimal });
   const sample = rows.slice(0, 50);
   const columnCount = Math.max(headers?.length || 0, ...sample.map((r) => r.length), 0);
-  const numericCol = (i) => sample.filter((r) => Number.isFinite(num(r[i]))).length >= Math.max(1, sample.length / 2);
-  const stampCol = (i) => sample.filter((r) => Number.isFinite(stamp(r[i]))).length >= Math.max(1, sample.length / 2);
+  const numericCol = (i) => sample.filter((r) => Number.isFinite(num(r[i], mark))).length >= Math.max(1, sample.length / 2);
+  const stampCol = (i) => sample.filter((r) => Number.isFinite(stamp(r[i], mark))).length >= Math.max(1, sample.length / 2);
 
   let timeCol = -1;
   let pressureCol = -1;
@@ -183,9 +209,10 @@ export function detectGaugeMapping({ headers, rows }, { defaultPressure = 'psia'
  * at shut-in, and readings before a shut-in time set on the gauge clock are
  * the flowing period (prepareTestData separates them).
  */
-export function convertGaugeRows({ rows }, {
+export function convertGaugeRows({ rows, decimal }, {
   timeCol, pressureCol, timeUnit = 'hr', pressureUnit = 'psia', temperatureCol = -1, temperatureUnit = 'degF',
 }) {
+  const mark = decimalOf({ rows, decimal });
   const pu = PRESSURE_UNITS[pressureUnit] || PRESSURE_UNITS.psia;
   const tempU = TEMPERATURE_UNITS[temperatureUnit] || TEMPERATURE_UNITS.degF;
   const hasTemp = Number.isInteger(temperatureCol) && temperatureCol >= 0;
@@ -195,18 +222,18 @@ export function convertGaugeRows({ rows }, {
   let skipped = 0;
   let t0 = NaN;
   for (const raw of rows) {
-    const pRaw = num(raw[pressureCol]);
+    const pRaw = num(raw[pressureCol], mark);
     let t;
     if (tu.hrPer == null) {
-      const ms = stamp(raw[timeCol]);
+      const ms = stamp(raw[timeCol], mark);
       if (Number.isFinite(ms) && !Number.isFinite(t0)) t0 = ms;
       t = Number.isFinite(ms) ? (ms - t0) / 3.6e6 : NaN;
     } else {
-      t = num(raw[timeCol]) * tu.hrPer;
+      t = num(raw[timeCol], mark) * tu.hrPer;
     }
     if (!Number.isFinite(t) || !Number.isFinite(pRaw)) { skipped += 1; continue; }
     const p = pRaw * pu.psiPer + (pu.gauge ? ATM_PSI : 0);
-    const tempRaw = hasTemp ? num(raw[temperatureCol]) : NaN;
+    const tempRaw = hasTemp ? num(raw[temperatureCol], mark) : NaN;
     if (Number.isFinite(tempRaw)) {
       temperatureCount += 1;
       out.push({ t, p, T: tempU.toF(tempRaw) });

@@ -80,14 +80,14 @@ reload paints the right units at once.
 | xy | m, ft, ftUS | m | m |
 | area | m2, km2, ha, acre, ft2 | acre | km2 |
 | rockVolume | m3, 10^6 m3, acre-ft, bbl, ft3 | acre-ft | 10^6 m3 |
-| liquidVolume | m3, bbl, STB, 10^3 bbl | bbl | m3 |
-| gasVolume | m3, 10^3 m3, scf, Mscf, MMscf, Bscf | MMscf | 10^3 m3 |
+| liquidVolume | m3, bbl, STB, 10^3 bbl, MSTB, MMSTB, MMbbl, RB, 10^6 m3 | bbl | m3 |
+| gasVolume | m3, 10^3 m3, scf, Mscf, MMscf, Bscf, 10^6 m3, 10^9 m3 | MMscf | 10^3 m3 |
 | pressure | kPa, MPa, bar, psi | psi | kPa |
 | temperature | degC, degF, K | degF | degC |
-| liquidRate | m3/d, bbl/d, STB/d | STB/d | m3/d |
-| gasRate | m3/d, 10^3 m3/d, Mscf/d, MMscf/d | Mscf/d | 10^3 m3/d |
+| liquidRate | m3/d, bbl/d, STB/d, RB/d | STB/d | m3/d |
+| gasRate | m3/d, 10^3 m3/d, Mscf/d, MMscf/d, scf/d | Mscf/d | 10^3 m3/d |
 | fvfOil | m3/m3, RB/STB | RB/STB | m3/m3 |
-| fvfGas | m3/m3, rcf/scf, RB/Mscf | RB/Mscf | m3/m3 |
+| fvfGas | m3/m3, rcf/scf, RB/Mscf, RB/scf | RB/Mscf | m3/m3 |
 | density | kg/m3, g/cc, lb/ft3 | g/cc | kg/m3 |
 | sonic | us/m, us/ft | us/ft | us/m |
 | velocity | m/s, ft/s | ft/s | m/s |
@@ -95,7 +95,26 @@ reload paints the right units at once.
 | viscosity | cP, mPa.s, Pa.s | cP | mPa.s |
 | compressibility | 1/kPa, 1/psi, 1/bar | 1/psi | 1/kPa |
 | timeSeismic | ms, s | ms | ms |
-| gor | m3/m3, scf/STB | scf/STB | m3/m3 |
+| gor | m3/m3, scf/STB, Mscf/STB | scf/STB | m3/m3 |
+| declineRate | 1/d, 1/month, 1/yr, %/yr | %/yr | %/yr |
+| productivityIndex | m3/d/kPa, m3/d/bar, STB/d/psi, RB/d/psi | STB/d/psi | m3/d/kPa |
+| pseudoPressure | kPa2/mPa.s, psi2/cP | psi2/cP | kPa2/mPa.s |
+| gasProductivityIndex | 10^3 m3/d/(kPa2/mPa.s), Mscf/d/(psi2/cP) | Mscf/d/(psi2/cP) | 10^3 m3/d/(kPa2/mPa.s) |
+| capillaryPressure | kPa, bar, psi | psi | kPa |
+| interfacialTension | mN/m, dyne/cm | dyne/cm | mN/m |
+| wellboreStorage | m3/kPa, bbl/psi | bbl/psi | m3/kPa |
+| flowCapacity | mD.m, mD.ft | mD.ft | mD.m |
+| diameter | mm, in, 1/64 in | in | mm |
+
+The last nine families and the extra units on liquidVolume, gasVolume,
+liquidRate, gasRate, fvfGas and gor were added for the Reservoir round
+(Step 0a, 2026-10-02; `docs/upgrade/Reservoir-Step0a-Foundations.md`). Gate:
+`src/lib/units/__tests__/reservoirFamilies.test.js`. A decline rate converts
+its time basis only (a year is 365.25 days, a month one twelfth of it);
+nominal or effective is a label the app supplies, and the step between them
+is `effectiveFromNominal` / `nominalFromEffective` in
+`src/lib/units/decline.js`. No Reservoir app reads these families yet:
+adoption is inside each app round.
 
 Factors are exact definitions (0.3048 m/ft, 1200/3937 m/ftUS,
 6894.757293168361 Pa/psi, 0.158987294928 m3/bbl, 0.028316846592 m3/ft3,
