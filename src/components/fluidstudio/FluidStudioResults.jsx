@@ -23,6 +23,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { PVT_PROJECT_PARAM } from '@/lib/inputProvenance/pvtContract';
 import { useFluidUnits } from '@/components/fluidstudio/FluidUnitsContext';
 import { pvtTableCsv, downloadText } from '@/utils/fluidstudio/csvExport';
+import { buildSimKeywords } from '@/utils/fluidstudio/simKeywords';
 import { buildLabOverlay, labPlotIds, labDataForSeries } from '@/utils/fluidstudio/pvtSeries';
 import { screenWarnings } from '@/utils/fluidstudio/screenWarnings';
 import { tuningStatus } from '@/utils/fluidstudio/eosAnalysis';
@@ -140,6 +141,13 @@ const FluidStudioResults = ({
     'fluid_studio_pvt.csv',
   );
   const eosTable = eos?.pvtTable?.table;
+  // FLUID-U2-003: the table as PVTO, PVDG and PVTW keywords, and the pvt-1 block itself
+  const sim = report?.contract ? buildSimKeywords(report.contract) : { ok: false, reasons: ['There is no PVT block to export.'] };
+  const exportSim = () => { if (sim.ok) downloadText(sim.text, sim.fileName, 'text/plain'); };
+  const exportContract = () => {
+    if (!report?.contract) return;
+    downloadText(JSON.stringify(report.contract, null, 2), `${sim.ok ? sim.fileName.replace(/_PVT\.INC$/, '') : 'fluid'}_pvt-1.json`, 'application/json');
+  };
 
   return (
     <div className="space-y-4">
@@ -179,9 +187,20 @@ const FluidStudioResults = ({
             {batchSummary && <TabsTrigger value="batch">Batch Sweep</TabsTrigger>}
             {report?.model && <TabsTrigger value="report">Report</TabsTrigger>}
           </TabsList>
-          <Button variant="outline" size="sm" onClick={exportCsv}>
-            <Download className="w-4 h-4 mr-2" /> Export PVT CSV
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={exportCsv}>
+              <Download className="w-4 h-4 mr-2" /> Export PVT CSV
+            </Button>
+            <Button
+              variant="outline" size="sm" onClick={exportSim} disabled={!sim.ok} data-testid="fluid-export-sim"
+              title={sim.ok ? 'PVTO, PVDG and PVTW keywords in FIELD units, with the methods and conventions as comment lines' : sim.reasons.join(' ')}
+            >
+              <Download className="w-4 h-4 mr-2" /> Simulator keywords
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportContract} disabled={!report?.contract} data-testid="fluid-export-contract" title="The pvt-1 block other Petrolord apps receive, as a JSON file">
+              <Download className="w-4 h-4 mr-2" /> pvt-1 JSON
+            </Button>
+          </div>
         </div>
 
         <TabsContent value="pvt" className="mt-4">
