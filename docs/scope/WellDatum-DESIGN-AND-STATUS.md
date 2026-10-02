@@ -162,7 +162,7 @@ the rows it reads (`'depth_ref_elev_m' in row`).
 |---|---|---|
 | Reading | `kb_m` is the reference elevation (kind KB); a 0 is used as before with the note that the registry cannot tell 0 from not entered | The new columns; a well with no value refuses TVDSS-dependent output and says why |
 | Editing | The editor saves the elevation into `kb_m` and says the full datum (kind, ground level, water depth, datum name) will be kept once the registry is upgraded | Every field saved; "not set" can be saved |
-| Change record | A dated line appended to the well's `units_note` | An entry in `datum_changes` |
+| Change record | An entry merged into `crs_provenance.datum_changes` (the registry's existing provenance object; Wellsite's survey source and the other keys there are kept) | An entry in `datum_changes`; earlier entries in `crs_provenance` are still read, so the history is continuous |
 | `.pld` | Rows carry no datum fields | Rows carry them; an older package imports and reads as `legacy-kb` |
 
 ## 6. Correcting a datum

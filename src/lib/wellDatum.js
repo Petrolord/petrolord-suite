@@ -111,7 +111,12 @@ export function readWellDatum(well) {
     waterDepthM: columns ? numOrNull(w.water_depth_m) : null,
     verticalDatum: columns ? textOrNull(w.vertical_datum) : null,
     elevUnit: columns && ELEV_UNITS.includes(w.elev_unit) ? w.elev_unit : null,
-    changes: columns && Array.isArray(w.datum_changes) ? w.datum_changes : [],
+    // corrections made before the migration ride in crs_provenance (the
+    // registry's existing provenance object); later ones in datum_changes
+    changes: [
+      ...(Array.isArray(w.crs_provenance?.datum_changes) ? w.crs_provenance.datum_changes : []),
+      ...(columns && Array.isArray(w.datum_changes) ? w.datum_changes : []),
+    ],
     wellName: textOrNull(w.name),
   };
   datum.tvdssOk = state !== 'unset';
@@ -679,8 +684,10 @@ export function datumChangeLine(rec, unit = 'm') {
  * With the datum columns: every field, kb_m kept equal to the reference
  * elevation (0 while unset) for builds that predate the model, and the
  * change record appended. Without them (migration not applied): kb_m only,
- * a dated line appended to units_note, and `dropped` lists what could not
- * be kept.
+ * the change record MERGED into crs_provenance.datum_changes (the registry's
+ * existing provenance object, whose other keys are kept: Wellsite's survey
+ * source, the site datum transformation, the reprojection chain), and
+ * `dropped` lists what could not be kept.
  *
  * @param {Object} well row before the change
  * @param {Object} next validated datum
@@ -717,9 +724,9 @@ export function datumPatch(well, next, { record = null, columns = datumColumnsPr
   if (n.verticalDatum) dropped.push('vertical datum name');
   const patch = { kb_m: elev ?? 0 };
   if (record) {
-    const line = `Datum ${datumChangeLine(record)}`;
-    const prior = textOrNull(well?.units_note);
-    patch.units_note = [prior, line].filter(Boolean).join(' | ').slice(-1000);
+    const prov = well?.crs_provenance && typeof well.crs_provenance === 'object' && !Array.isArray(well.crs_provenance) ? well.crs_provenance : {};
+    const prior = Array.isArray(prov.datum_changes) ? prov.datum_changes : [];
+    patch.crs_provenance = { ...prov, datum_changes: [...prior, record].slice(-50) };
   }
   return { columns: false, dropped, patch };
 }

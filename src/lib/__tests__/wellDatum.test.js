@@ -439,16 +439,29 @@ describe('correcting a datum', () => {
     expect(patch.depth_ref_kind).toBeNull();
     expect(patch.kb_m).toBe(0);
   });
-  test('before the migration the patch is kb_m plus a dated note, and says what it could not keep', () => {
-    const old = { name: 'Old', kb_m: 25, units_note: 'entered: KB/TD ft; stored SI', checkshots: [] };
+  test('before the migration the patch is kb_m plus the record merged into crs_provenance, and says what it could not keep', () => {
+    const survey = { source: 'wellsite-studio', survey_version: 3 };
+    const old = { name: 'Old', kb_m: 25, units_note: 'entered: KB/TD ft; stored SI', checkshots: [], crs_provenance: { deviation: survey, datum_transform: 'EPSG:1168' } };
     const next = validateDatum({ refKind: 'RT', refElevM: 31.5, environment: 'offshore', waterDepthM: 100, verticalDatum: 'LAT' }).datum;
     const rec = datumChangeRecord(old, next, { userName: 'Ada Obi', at: '2026-10-02T09:00:00.000Z' });
     const { patch, dropped, columns } = datumPatch(old, next, { record: rec });
     expect(columns).toBe(false);
-    expect(Object.keys(patch).sort()).toEqual(['kb_m', 'units_note']);
+    expect(Object.keys(patch).sort()).toEqual(['crs_provenance', 'kb_m']);
     expect(patch.kb_m).toBe(31.5);
-    expect(patch.units_note).toBe('entered: KB/TD ft; stored SI | Datum 2026-10-02: Ada Obi changed the depth reference from KB 25.00 m to RT 31.50 m');
+    // the other apps' keys in crs_provenance are kept
+    expect(patch.crs_provenance.deviation).toEqual(survey);
+    expect(patch.crs_provenance.datum_transform).toBe('EPSG:1168');
+    expect(patch.crs_provenance.datum_changes).toEqual([rec]);
+    expect(datumChangeLine(rec)).toBe('2026-10-02: Ada Obi changed the depth reference from KB 25.00 m to RT 31.50 m');
     expect(dropped).toEqual(['reference kind', 'environment', 'water depth', 'vertical datum name']);
+    // a second correction appends; the history reads back from the row, before and after the migration
+    const after = { ...old, ...patch };
+    const rec2 = datumChangeRecord(after, validateDatum({ refKind: 'KB', refElevM: 30 }).datum, { at: '2026-10-03T09:00:00.000Z' });
+    const second = datumPatch(after, validateDatum({ refKind: 'KB', refElevM: 30 }).datum, { record: rec2 });
+    expect(second.patch.crs_provenance.datum_changes).toHaveLength(2);
+    expect(readWellDatum(after).changes).toEqual([rec]);
+    const migrated = { ...after, ...nullDatum, depth_ref_kind: 'KB', depth_ref_elev_m: 31.5, datum_changes: [rec2] };
+    expect(readWellDatum(migrated).changes).toEqual([rec, rec2]);
   });
   test('insert fields: a bare KB becomes kind KB; nothing becomes NULL, never 0', () => {
     expect(datumInsertFields({ refElevM: 25 })).toMatchObject({ depth_ref_kind: 'KB', depth_ref_elev_m: 25 });
