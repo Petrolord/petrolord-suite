@@ -145,6 +145,51 @@ export function gasPvtSourceText(source) {
   return `Correlation: ${parts.join(', ')} (computed by the studio)`;
 }
 
+/**
+ * A Fluid Systems Studio handoff (the fluid backbone) as a patch of the
+ * reservoir inputs and the words for the Source column. Bo and viscosity
+ * are results of that app's PVT model, so they carry the correlation names
+ * (or the equation of state) the backbone itself states; API gravity, GOR,
+ * gas gravity and temperature are inputs of that model and are named as
+ * such. A backbone that does not say how it was computed is reported as
+ * exactly that.
+ */
+export function pvtIntakeFromBackbone(fluid) {
+  if (!fluid || typeof fluid !== 'object') return null;
+  const patch = {};
+  const fields = [];
+  const inputFields = [];
+  const applied = [];
+  const take = (key, value, list, label, storeKey = key) => {
+    if (!Number.isFinite(value)) return;
+    patch[storeKey] = String(value);
+    list.push(key);
+    applied.push(label);
+  };
+  take('B', fluid.bo_at_pb, fields, 'Bo');
+  take('mu', fluid.mu_o_at_pb, fields, 'viscosity');
+  take('apiGravity', fluid.oil_gravity, inputFields, 'API gravity');
+  take('gor', fluid.rsb, inputFields, 'solution GOR');
+  take('gasGravity', fluid.gas_gravity, inputFields, 'gas gravity', 'solutionGasGravity');
+  take('temperature', fluid.inlet_temperature, inputFields, 'temperature', 'reservoirTempF');
+  if (!applied.length) return null;
+  const c = fluid.correlations || {};
+  let how;
+  if (fluid.source === 'eos') how = 'Equation of state (compositional model)';
+  else if (c.pb_rs_bo || c.viscosity) how = `Correlation: ${[c.pb_rs_bo ? `${c.pb_rs_bo} (Rs, Bo)` : null, c.viscosity ? `${c.viscosity} (viscosity)` : null].filter(Boolean).join(', ')}`;
+  else how = 'PVT model, method not stated by the handoff';
+  return {
+    patch,
+    applied,
+    intake: {
+      fields,
+      text: `${how}, at the bubble point, from Fluid Systems Studio`,
+      inputFields,
+      inputText: 'Input of the Fluid Systems Studio fluid model',
+    },
+  };
+}
+
 // ---- total compressibility --------------------------------------------------
 
 /**
@@ -323,7 +368,11 @@ export function buildInputsTable({
     add('gasGravity', 'Gas gravity', 'gasGravity', r.gasGravity, entered('gasGravity'));
     add('temperature', 'Reservoir temperature', 'temperature', r.tempF, entered('temperature'));
   } else {
-    const intake = (key) => (pvtIntake?.fields?.includes(key) ? pvtIntake.text : null);
+    const intake = (key) => {
+      if (pvtIntake?.fields?.includes(key)) return pvtIntake.text;
+      if (pvtIntake?.inputFields?.includes(key)) return pvtIntake.inputText;
+      return null;
+    };
     add('mu', 'Oil viscosity mu_o', 'viscosity', r.mu, entered('mu', meta('mu')?.source ? null : intake('mu')));
     add('B', 'Oil formation volume factor Bo', 'fvf', r.B, entered('B', meta('B')?.source ? null : intake('B')));
     const optional = (key, label, kind, v) => add(key, label, kind, v, Number.isFinite(num(v)) ? entered(key, meta(key)?.source ? null : intake(key)) : 'Not provided');

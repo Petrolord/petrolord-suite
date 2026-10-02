@@ -3,7 +3,8 @@
 import React, { useMemo } from 'react';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { OILFIELD } from '@/utils/welltest/models/modelCatalog';
-import { unitLabel, fromOilfield } from '@/utils/welltest/units';
+import { unitLabel } from '@/utils/welltest/units';
+import { buildLoglogData } from '@/utils/welltest/plotData';
 import { ChartCard, Kpi, WarningBanner, fmt } from './primitives';
 import LogLogChart from './LogLogChart';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
@@ -15,12 +16,9 @@ const REGIME_ROW = 'border-pl-border bg-pl-sunken text-pl-text';
 const DiagnosticsResults = () => {
   const { loglog, regimes, reservoirSpec, configSpec, unitSystem, pseudoTime } = useWellTestStudio();
   const dpKind = reservoirSpec.reservoir?.fluid === 'gas' ? 'pseudoPressure' : 'pressure';
+  // display-unit series from the shared builder (the PDF log-log uses it too)
   const displayLoglog = useMemo(
-    () => loglog.map((p) => ({
-      ...p,
-      dp: fromOilfield(dpKind, p.dp, unitSystem),
-      derivative: fromOilfield(dpKind, p.derivative, unitSystem),
-    })),
+    () => buildLoglogData({ loglog, dpKind, unitSystem }).points,
     [loglog, dpKind, unitSystem],
   );
 

@@ -48,6 +48,7 @@ export const LINE = {
   fit: '#d97706', // straight-line fits
   rate: '#0891b2',
   pressure: '#334155',
+  temperature: '#be185d',
 };
 
 export const SectionLabel = ({ children }) => (

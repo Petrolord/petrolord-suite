@@ -72,6 +72,21 @@ export const CORRELATION_RANGES = {
   vasquez_beggs: { label: 'Vasquez-Beggs', rs: [20, 2199], temp: [75, 294], api: [15.3, 59.5], gasGravity: [0.511, 1.351] },
   glaso: { label: 'Glaso', rs: [90, 2637], temp: [80, 280], api: [22.3, 48.1], gasGravity: [0.65, 1.276] },
 };
+// Oil viscosity correlations by key, as oilViscosityAt applies them.
+export const VISCOSITY_CORRELATION_LABELS = {
+  beggs_robinson: 'Beggs-Robinson',
+  beal_cook_spillman: 'Beal-Cook-Spillman',
+};
+
+/**
+ * Names of the correlations a normalized fluid was computed with, for a
+ * consumer that has to state them (the Well Test report's Source column).
+ */
+export const correlationLabels = (fluid) => ({
+  pb_rs_bo: CORRELATION_RANGES[fluid?.correlations?.pb_rs_bo]?.label || null,
+  viscosity: VISCOSITY_CORRELATION_LABELS[fluid?.correlations?.viscosity] || null,
+});
+
 const RANGE_WORDS = { rs: ['solution GOR', 'scf/STB'], temp: ['temperature', 'F'], api: ['API gravity', 'API'], gasGravity: ['gas gravity', ''] };
 
 /** Warnings for inputs outside the chosen correlation's published data range. */
@@ -625,6 +640,9 @@ export const flashSeparatorTrain = (fluid, stages, pb) => {
  * gor, inlet_temperature, wat); richer PVT is carried for future consumers.
  */
 export const buildBackbone = (fluid, pvt, separator) => ({
+  // how the PVT below was computed, so a consumer can say so
+  source: 'black-oil-correlations',
+  correlations: correlationLabels(fluid),
   oil_gravity: pvt.kpis.api,
   gas_gravity: pvt.kpis.gasSg,
   gor: separator?.totals?.surface_gor ?? pvt.kpis.rsb,

@@ -386,3 +386,39 @@ describe('WTA-R2-005 flow and shut-in summary', () => {
     expect(gfs.rows[0].volume).toBe('7500.0');
   });
 });
+
+describe('WTA-R2-002 the Fluid Systems Studio handoff names how its PVT was computed', () => {
+  const { pvtIntakeFromBackbone } = require('@/utils/welltest/reportModel');
+  const { analyzeFluidSystem, DEFAULT_FLUID_INPUTS, correlationLabels, normalizeFluid } = require('@/utils/fluidStudioCalculations');
+
+  test('the backbone the fluid app builds carries its own correlation names, and the report prints them', () => {
+    const inputs = DEFAULT_FLUID_INPUTS || { streamA: { blackOil: { api: 35, gasSg: 0.75, temp: 200, gor: 600, salinity: 0, pb: '' } }, correlations: { pb_rs_bo: 'vasquez_beggs', viscosity: 'beggs_robinson' }, feed: { oilRate: 1000 } };
+    const withVb = { ...inputs, correlations: { pb_rs_bo: 'vasquez_beggs', viscosity: 'beggs_robinson' } };
+    const backbone = analyzeFluidSystem(withVb).backbone;
+    expect(backbone.source).toBe('black-oil-correlations');
+    expect(backbone.correlations).toEqual(correlationLabels(normalizeFluid(withVb)));
+    expect(backbone.correlations).toEqual({ pb_rs_bo: 'Vasquez-Beggs', viscosity: 'Beggs-Robinson' });
+    const intake = pvtIntakeFromBackbone(backbone);
+    expect(intake.patch.B).toBe(String(backbone.bo_at_pb));
+    expect(intake.patch.mu).toBe(String(backbone.mu_o_at_pb));
+    expect(intake.intake.text).toBe('Correlation: Vasquez-Beggs (Rs, Bo), Beggs-Robinson (viscosity), at the bubble point, from Fluid Systems Studio');
+    const inputsNow = { ...DEFAULT_RESERVOIR, ...intake.patch };
+    const rows = byKey(buildInputsTable({ reservoirInputs: inputsNow, reservoirSpec: buildReservoirInputs(inputsNow), completion: DEFAULT_COMPLETION, pvtIntake: intake.intake }));
+    expect(rows.B.source).toBe(intake.intake.text);
+    expect(rows.mu.source).toBe(intake.intake.text);
+    expect(rows.apiGravity.source).toBe('Input of the Fluid Systems Studio fluid model');
+    expect(rows.gor.value).not.toBe(EMPTY_VALUE);
+    // negative control: a different choice in the fluid app changes what is printed
+    const standing = analyzeFluidSystem({ ...inputs, correlations: { pb_rs_bo: 'standing', viscosity: 'beal_cook_spillman' } }).backbone;
+    expect(pvtIntakeFromBackbone(standing).intake.text).toMatch(/^Correlation: Standing \(Rs, Bo\), Beal-Cook-Spillman \(viscosity\)/);
+  });
+
+  test('an EOS backbone and a backbone that does not say are reported as what they are', () => {
+    expect(pvtIntakeFromBackbone({ source: 'eos', bo_at_pb: 1.31, mu_o_at_pb: 0.6 }).intake.text)
+      .toBe('Equation of state (compositional model), at the bubble point, from Fluid Systems Studio');
+    expect(pvtIntakeFromBackbone({ bo_at_pb: 1.31 }).intake.text)
+      .toBe('PVT model, method not stated by the handoff, at the bubble point, from Fluid Systems Studio');
+    expect(pvtIntakeFromBackbone({})).toBeNull();
+    expect(pvtIntakeFromBackbone(null)).toBeNull();
+  });
+});

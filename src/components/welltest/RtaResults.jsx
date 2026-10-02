@@ -6,6 +6,7 @@ import { ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Leg
 import { CHART_COLORS, CHART_TYPOGRAPHY, PINNED_TOOLTIP_PROPS, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { unitLabel, fromOilfield } from '@/utils/welltest/units';
+import { buildRtaLoglogData, buildFmbData } from '@/utils/welltest/plotData';
 import { ChartCard, Kpi, LINE, WarningBanner, fmt, logTicks, logTickFormatter } from './primitives';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
@@ -37,31 +38,16 @@ const RtaResults = () => {
       : { value: fmt.f2(fmbResult.N / 1e6), unit: 'MMSTB' };
   }, [rtaResult, isGas, unitSystem]);
 
+  // Both plots come from the shared builders; the PDF report draws the same arrays.
   const loglogData = useMemo(
-    () => (rtaResult?.loglogRta || []).map((p) => ({
-      x: p.x,
-      y: p.y > 0 ? uNorm(p.y) : null,
-      derivative: p.derivative > 0 ? uNorm(p.derivative) : null,
-    })),
-    [rtaResult, unitSystem], // eslint-disable-line react-hooks/exhaustive-deps
+    () => buildRtaLoglogData({ rtaResult, unitSystem }).points,
+    [rtaResult, unitSystem],
   );
 
-  const fmbData = useMemo(() => {
-    const fmbResult = rtaResult?.fmb;
-    if (!fmbResult) return [];
-    // gas plots against material-balance pseudo-time; oil against te
-    const xs = isGas ? fmbResult.tca : rtaResult.rowsTe.map((r) => r.te);
-    const pts = isGas
-      ? rtaResult.rowsTe.filter((r) => r.q > 0 && r.pwf > 0 && r.pwf < reservoirSpec.reservoir.pi)
-      : rtaResult.rowsTe.filter((r) => r.te > 0);
-    const paOf = isGas ? reservoirSpec.reservoir.mOfP : (v) => v;
-    const paI = paOf(reservoirSpec.reservoir.pi);
-    return pts.map((r, i) => ({
-      x: xs[i],
-      observed: uNorm((paI - paOf(r.pwf)) / r.q),
-      line: uNorm(fmbResult.intercept + fmbResult.slope * xs[i]),
-    }));
-  }, [rtaResult, isGas, reservoirSpec, unitSystem]); // eslint-disable-line react-hooks/exhaustive-deps
+  const fmbData = useMemo(
+    () => buildFmbData({ rtaResult, reservoir: reservoirSpec.reservoir, unitSystem }).points,
+    [rtaResult, reservoirSpec, unitSystem],
+  );
 
   if (!rtaRows.length) {
     return (

@@ -235,15 +235,21 @@ describe('buildReportHeader (tester round 2026-09-28)', () => {
     expect(rows.flat().join(' ')).not.toMatch(/[^\x00-\xff]/);
   });
 
-  test('blank field and analyst print as dashes, SI pressure converts', () => {
+  // tester round 2 (2026-10-02): a missing value is the house EMPTY_VALUE
+  // (n/a), where the first header printed a dash
+  test('blank field and analyst print as n/a, SI pressure converts', () => {
     const config = buildTestConfig({ ...DEFAULT_TEST_CONFIG }).config;
     const rows = buildReportHeader({
       wellName: 'W-7', config, isGas: false, unitSystem: 'si',
       prepared: { pwfShutIn: 1000, pwfSource: { kind: 'gauge' }, testStartTime: 0 }, generatedAt: at,
     });
     const cells = Object.fromEntries(rows.flatMap((r) => [[r[0], r[1]], [r[2], r[3]]]));
-    expect(cells.Field).toBe('-');
-    expect(cells.Analyst).toBe('-');
+    expect(cells.Field).toBe('n/a');
+    expect(cells.Analyst).toBe('n/a');
+    expect(cells.Licence).toBe('n/a');
+    expect(cells['Zone or sand']).toBe('n/a');
+    expect(cells['Perforations, TVD']).toBe('n/a');
+    expect(cells['Display units']).toBe('SI / metric');
     expect(cells['pwf at shut-in']).toBe('6894.8 kPa at shut-in time 0 hr (gauge reading at the shut-in)');
   });
 });

@@ -62,6 +62,16 @@ const IntegrationSuite = ({ backbone }) => {
     });
   };
 
+  // Well Test Analysis Studio takes Bo and viscosity at the bubble point,
+  // with the correlations (or the EOS) that produced them named.
+  const wellTestReady = backbone && Number.isFinite(backbone.bo_at_pb) && Number.isFinite(backbone.mu_o_at_pb);
+  const sendToWellTest = () => {
+    if (!wellTestReady) return;
+    navigate('/dashboard/apps/reservoir/well-test-analysis-studio', {
+      state: { fluidStudioData: backbone },
+    });
+  };
+
   return (
     <Card className="mt-6">
       <CardHeader>
@@ -75,6 +85,9 @@ const IntegrationSuite = ({ backbone }) => {
         <div className="flex flex-col sm:flex-row gap-4">
           <Button onClick={sendToLineSizing} disabled={!ready} className="flex-1 disabled:opacity-40">
             <Zap className="w-4 h-4 mr-2" /> Send to Line Sizing Studio
+          </Button>
+          <Button onClick={sendToWellTest} disabled={!wellTestReady} variant="outline" className="flex-1 disabled:opacity-40">
+            <Zap className="w-4 h-4 mr-2" /> Send to Well Test Analysis Studio
           </Button>
         </div>
       </CardContent>

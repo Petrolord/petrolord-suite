@@ -5,7 +5,7 @@ import React, { useMemo } from 'react';
 import { ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { CHART_COLORS, CHART_TYPOGRAPHY, PINNED_TOOLTIP_PROPS, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
-import { hornerTime } from '@/utils/welltest/superposition';
+import { buildSemilogData, buildSqrtData } from '@/utils/welltest/plotData';
 import { unitLabel, fromOilfield } from '@/utils/welltest/units';
 import { ChartCard, Kpi, LINE, WarningBanner, fmt, fmtU, logTicks, logTickFormatter } from './primitives';
 
@@ -25,40 +25,16 @@ const SpecializedResults = () => {
   const dpKind = isGas ? 'pseudoPressure' : 'pressure';
   const slopeKind = isGas ? 'pseudoSlope' : 'semilogSlope';
   const dpUnit = unitLabel(dpKind, unitSystem);
-  const tp = configSpec.config?.tp;
 
-  const semilogData = useMemo(() => {
-    if (!prepared.points.length) return [];
-    return prepared.points
-      .map((p) => {
-        const x = isBuildup ? hornerTime(tp, p.time) : p.time;
-        if (!(x > 0)) return null;
-        // the straight line lives in analysis space (m(p), mirrored); convert
-        // each fitted value back to gauge psi so it overlays the gauge data
-        const fittedA = semilogResult
-          ? (isBuildup
-              ? semilogResult.pStarA - semilogResult.m * Math.log10(x)
-              : semilogResult.p1hrA - semilogResult.m * Math.log10(x))
-          : null;
-        const fitted = fittedA != null ? prepared.fromAnalysis(fittedA) : null;
-        return {
-          x,
-          pressure: Number(fromOilfield('pressure', p.p, unitSystem).toFixed(2)),
-          fitted: fitted != null ? Number(fromOilfield('pressure', fitted, unitSystem).toFixed(2)) : null,
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.x - b.x);
-  }, [prepared, isBuildup, tp, semilogResult, unitSystem]);
+  // Both straight-line plots come from the shared builders; the PDF report
+  // draws the same arrays.
+  const semilogData = useMemo(
+    () => buildSemilogData({ prepared, config: configSpec.config, semilogResult, unitSystem }).points,
+    [prepared, configSpec, semilogResult, unitSystem],
+  );
 
   const sqrtData = useMemo(
-    () => prepared.points.map((p) => ({
-      x: Number(Math.sqrt(p.time).toPrecision(4)),
-      dp: Number(fromOilfield(dpKind, p.dp, unitSystem).toFixed(2)),
-      fitted: sqrtResult
-        ? Number(fromOilfield(dpKind, sqrtResult.intercept + sqrtResult.slope * Math.sqrt(p.time), unitSystem).toFixed(2))
-        : null,
-    })),
+    () => buildSqrtData({ prepared, sqrtResult, dpKind, unitSystem }),
     [prepared, sqrtResult, dpKind, unitSystem],
   );
 

@@ -15,17 +15,19 @@ import { Switch } from '@/components/ui/switch';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { unitLabel, displayInputString, storeInputString } from '@/utils/welltest/units';
 import {
-  readGaugeTable, detectGaugeMapping, convertGaugeRows, PRESSURE_UNITS, TIME_UNITS, PWF_SOURCE_TEXT, gaugeTime,
+  readGaugeTable, detectGaugeMapping, convertGaugeRows, PRESSURE_UNITS, TIME_UNITS, TEMPERATURE_UNITS, PWF_SOURCE_TEXT, gaugeTime,
 } from '@/utils/welltest/gaugeImport';
 import { SectionLabel, Field, UnitField, fmt, valueWithUnit } from './primitives';
+import { IdentificationFields, CompletionFields, InputSourcesFields } from './ReportInputsFields';
 
 const defaultPressureUnit = (unitSystem) => (unitSystem === 'si' ? 'kpaa' : 'psia');
+const defaultTemperatureUnit = (unitSystem) => (unitSystem === 'si' ? 'degC' : 'degF');
 
 // Import a gauge file with automatic column and unit detection; rows come
 // back oilfield (hr, psia).
 export function parseGaugeCsv(text, { unitSystem = 'oilfield', mapping } = {}) {
   const table = readGaugeTable(text);
-  const m = { ...detectGaugeMapping(table, { defaultPressure: defaultPressureUnit(unitSystem) }), ...(mapping || {}) };
+  const m = { ...detectGaugeMapping(table, { defaultPressure: defaultPressureUnit(unitSystem), defaultTemperature: defaultTemperatureUnit(unitSystem) }), ...(mapping || {}) };
   return convertGaugeRows(table, m).rows;
 }
 
@@ -34,7 +36,7 @@ const columnName = (table, i) => table.headers?.[i] || `Column ${i + 1}`;
 // Column and unit choices for the file just imported. Every change
 // re-converts the file, so a wrong guess is one click to correct.
 const ImportMapping = ({ imported, onChange }) => {
-  const { table, mapping, fileName, skipped, count } = imported;
+  const { table, mapping, fileName, skipped, count, temperatureCount } = imported;
   const cols = Array.from({ length: table.columnCount }, (_, i) => i);
   const set = (k, v) => onChange({ ...mapping, [k]: v });
   const detected = [];
@@ -43,7 +45,7 @@ const ImportMapping = ({ imported, onChange }) => {
   return (
     <div className="rounded-md border border-pl-border p-3 space-y-2" data-testid="wts-import-mapping">
       <p className="text-[11px] text-pl-muted">
-        <span className="text-pl-text font-medium">{fileName}</span>: {count} readings loaded{skipped ? `, ${skipped} rows skipped` : ''}.
+        <span className="text-pl-text font-medium">{fileName}</span>: {count} readings loaded{skipped ? `, ${skipped} rows skipped` : ''}{mapping.temperatureCol >= 0 ? `, ${temperatureCount ?? 0} with a temperature` : ''}.
         {' '}{detected.length ? `Columns found from the headers (${detected.join(' and ')}).` : 'No column headers recognised: check the columns below.'}
       </p>
       <div className="grid grid-cols-2 gap-2">
@@ -83,8 +85,30 @@ const ImportMapping = ({ imported, onChange }) => {
             </SelectContent>
           </Select>
         </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-pl-muted">Temperature column</Label>
+          <Select value={String(mapping.temperatureCol ?? -1)} onValueChange={(v) => set('temperatureCol', Number(v))}>
+            <SelectTrigger className="h-8" aria-label="Temperature column"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="-1">None</SelectItem>
+              {cols.map((i) => <SelectItem key={i} value={String(i)}>{columnName(table, i)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-pl-muted">Temperature unit</Label>
+          <Select value={mapping.temperatureUnit || 'degF'} onValueChange={(v) => set('temperatureUnit', v)} disabled={!(mapping.temperatureCol >= 0)}>
+            <SelectTrigger className="h-8" aria-label="Temperature unit"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(TEMPERATURE_UNITS).map(([k, u]) => <SelectItem key={k} value={k}>{u.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <p className="text-[11px] text-pl-muted">
+        {mapping.temperatureCol >= 0
+          ? 'The temperature column is plotted on the test overview. '
+          : 'No temperature column was found from the headers; pick one above if the file has it. '}
         {PRESSURE_UNITS[mapping.pressureUnit]?.gauge
           ? 'Gauge readings are converted to absolute pressure by adding one standard atmosphere (14.696 psi, 101.325 kPa).'
           : 'Readings are taken as absolute pressure.'}
@@ -105,28 +129,30 @@ const DataPanel = () => {
     gaugeRows, setGaugeRows,
     rateRows, setRateRows,
     addNotification, loadSampleTest,
-    unitSystem, setUnitSystem, profileUnitSystem,
+    unitSystem, setUnitSystem, profileUnitSystem, reservoirSpec,
   } = useWellTestStudio();
   const fileRef = useRef(null);
   // the file just imported, held so its column/unit mapping can be changed
   const [imported, setImported] = useState(null);
   const isGas = reservoirInputs.fluid === 'gas';
+  const ctComponents = reservoirInputs.ctMode === 'components';
   const rateKind = isGas ? 'gasRate' : 'oilRate';
   const isBuildupFamily = testConfig.testType === 'buildup' || testConfig.testType === 'falloff';
 
   const applyImport = (table, mapping, fileName, announce) => {
-    const { rows, skipped } = convertGaugeRows(table, mapping);
+    const { rows, skipped, temperatureCount } = convertGaugeRows(table, mapping);
     if (rows.length < 5) {
       addNotification(`Could not read at least 5 (time, pressure) readings with the ${columnName(table, mapping.timeCol)} and ${columnName(table, mapping.pressureCol)} columns. Pick the time and pressure columns below.`, 'error');
-      setImported({ table, mapping, fileName, skipped, count: rows.length });
+      setImported({ table, mapping, fileName, skipped, count: rows.length, temperatureCount });
       return;
     }
     setGaugeRows(rows);
-    setImported({ table, mapping, fileName, skipped, count: rows.length });
+    setImported({ table, mapping, fileName, skipped, count: rows.length, temperatureCount });
     if (announce) {
       const pu = PRESSURE_UNITS[mapping.pressureUnit]?.label;
       const tu = TIME_UNITS[mapping.timeUnit]?.label;
-      addNotification(`Loaded ${rows.length} gauge points from ${fileName} (time in ${tu}, pressure in ${pu}).`, 'success');
+      const temp = mapping.temperatureCol >= 0 ? `, temperature in ${TEMPERATURE_UNITS[mapping.temperatureUnit]?.label || 'degF'}` : '';
+      addNotification(`Loaded ${rows.length} gauge points from ${fileName} (time in ${tu}, pressure in ${pu}${temp}).`, 'success');
     }
   };
 
@@ -141,7 +167,7 @@ const DataPanel = () => {
         addNotification('The file has no data rows.', 'error');
         return;
       }
-      const mapping = detectGaugeMapping(table, { defaultPressure: defaultPressureUnit(unitSystem) });
+      const mapping = detectGaugeMapping(table, { defaultPressure: defaultPressureUnit(unitSystem), defaultTemperature: defaultTemperatureUnit(unitSystem) });
       applyImport(table, mapping, file.name, true);
     };
     reader.onerror = () => addNotification('Could not read the file', 'error');
@@ -162,6 +188,7 @@ const DataPanel = () => {
             <Field label="Field" value={fieldName} onChange={setFieldName} placeholder="Optional" />
             <Field label="Analyst" value={analyst} onChange={setAnalyst} placeholder="Optional" />
           </div>
+          <IdentificationFields />
           <div className="space-y-1">
             <Label className="text-xs text-pl-muted">Unit system</Label>
             <Select value={unitSystem} onValueChange={setUnitSystem}>
@@ -225,7 +252,7 @@ const DataPanel = () => {
             </Button>
           </div>
           <p className="text-[11px] text-pl-muted">
-            A time column and a pressure column, in any order: headers such as Time (hr), Elapsed (min), Date, Pressure (psig) or BHP (kPa) are recognised, and the units can be changed after import.
+            A time column and a pressure column, in any order: headers such as Time (hr), Elapsed (min), Date, Pressure (psig) or BHP (kPa) are recognised, and the units can be changed after import. A temperature column (Temperature, Temp, BHT, in degF or degC) is read too when the file has one.
             {gaugeRows.length ? ` Loaded: ${gaugeRows.length} points.` : ' No data loaded yet.'}
           </p>
           {imported && (
@@ -258,19 +285,59 @@ const DataPanel = () => {
               <>
                 <Field label="Gas gravity" suffix="air = 1" value={reservoirInputs.gasGravity} onChange={(v) => setReservoirField('gasGravity', v)} />
                 <UnitField kind="temperature" system={unitSystem} label="Temperature" value={reservoirInputs.tempF} onChange={(v) => setReservoirField('tempF', v)} />
-                <UnitField kind="compressibility" system={unitSystem} label="Total ct" suffixNote="blank = cg(pi)" value={reservoirInputs.ct} onChange={(v) => setReservoirField('ct', v)} />
+                {!ctComponents && <UnitField kind="compressibility" system={unitSystem} label="Total ct" suffixNote="blank = cg(pi)" value={reservoirInputs.ct} onChange={(v) => setReservoirField('ct', v)} />}
                 <UnitField kind="gasRate" system={unitSystem} label="Rate q" value={reservoirInputs.q} onChange={(v) => setReservoirField('q', v)} />
               </>
             ) : (
               <>
-                <UnitField kind="compressibility" system={unitSystem} label="Total ct" value={reservoirInputs.ct} onChange={(v) => setReservoirField('ct', v)} />
+                {!ctComponents && <UnitField kind="compressibility" system={unitSystem} label="Total ct" value={reservoirInputs.ct} onChange={(v) => setReservoirField('ct', v)} />}
                 <UnitField kind="fvf" system={unitSystem} label="Oil FVF B" value={reservoirInputs.B} onChange={(v) => setReservoirField('B', v)} />
                 <UnitField kind="viscosity" system={unitSystem} label="Viscosity" value={reservoirInputs.mu} onChange={(v) => setReservoirField('mu', v)} />
                 <UnitField kind="oilRate" system={unitSystem} label="Rate q" value={reservoirInputs.q} onChange={(v) => setReservoirField('q', v)} />
               </>
             )}
             <UnitField kind="pressureAbs" system={unitSystem} label="Initial pressure pi" value={reservoirInputs.pi} onChange={(v) => setReservoirField('pi', v)} />
+            {ctComponents
+              ? <Field label="Water saturation Sw" suffix="frac" value={reservoirInputs.sw ?? ''} onChange={(v) => setReservoirField('sw', v)} />
+              : <Field label="Water saturation Sw" suffix="frac, optional" value={reservoirInputs.sw ?? ''} onChange={(v) => setReservoirField('sw', v)} />}
+            {!isGas && (
+              <>
+                <Field label="API gravity" suffix="degAPI, optional" value={reservoirInputs.apiGravity ?? ''} onChange={(v) => setReservoirField('apiGravity', v)} />
+                <UnitField kind="gor" system={unitSystem} label="Solution GOR" suffixNote="optional" value={reservoirInputs.gor ?? ''} onChange={(v) => setReservoirField('gor', v)} />
+                <Field label="Gas gravity" suffix="air = 1, optional" value={reservoirInputs.solutionGasGravity ?? ''} onChange={(v) => setReservoirField('solutionGasGravity', v)} />
+                <UnitField kind="temperature" system={unitSystem} label="Reservoir temperature" suffixNote="optional" value={reservoirInputs.reservoirTempF ?? ''} onChange={(v) => setReservoirField('reservoirTempF', v)} />
+              </>
+            )}
           </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-pl-muted">Total compressibility ct</Label>
+            <Select value={ctComponents ? 'components' : 'total'} onValueChange={(v) => setReservoirField('ctMode', v)}>
+              <SelectTrigger className="h-9" aria-label="Total compressibility entry"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="total">Entered as total</SelectItem>
+                <SelectItem value="components">Built from components</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {ctComponents && (
+            <div className="space-y-2" data-testid="wts-ct-components">
+              <div className="grid grid-cols-2 gap-3">
+                <UnitField kind="compressibility" system={unitSystem} label="Formation cf" value={reservoirInputs.cf ?? ''} onChange={(v) => setReservoirField('cf', v)} />
+                <span />
+                <Field label="Oil saturation So" suffix="frac" value={reservoirInputs.so ?? ''} onChange={(v) => setReservoirField('so', v)} />
+                <UnitField kind="compressibility" system={unitSystem} label="Oil co" value={reservoirInputs.co ?? ''} onChange={(v) => setReservoirField('co', v)} />
+                <p className="text-xs text-pl-muted self-end pb-2">Sw {reservoirInputs.sw || 'not entered'} (the field above)</p>
+                <UnitField kind="compressibility" system={unitSystem} label="Water cw" value={reservoirInputs.cw ?? ''} onChange={(v) => setReservoirField('cw', v)} />
+                <Field label="Gas saturation Sg" suffix="frac" value={reservoirInputs.sg ?? ''} onChange={(v) => setReservoirField('sg', v)} />
+                <UnitField kind="compressibility" system={unitSystem} label="Gas cg" suffixNote={isGas ? 'blank = cg(pi)' : undefined} value={reservoirInputs.cg ?? ''} onChange={(v) => setReservoirField('cg', v)} />
+              </div>
+              <p className="text-[11px] text-pl-muted" data-testid="wts-ct-readout">
+                {reservoirSpec.ctInfo?.breakdown
+                  ? `ct = cf + So co + Sw cw + Sg cg = ${valueWithUnit('compressibility', reservoirSpec.ctInfo.ct, unitSystem, fmt.sci)}. The analysis uses this value.`
+                  : (reservoirSpec.ctInfo?.error || 'Enter cf and each saturation with its compressibility; the saturations must sum to 1.')}
+              </p>
+            </div>
+          )}
           {isGas && (
             <p className="text-[11px] text-pl-muted">
               Analyses run in real-gas pseudo-pressure m(p). Gas viscosity and z come from the Lee-Gonzalez-Eakin and Papay correlations at reservoir temperature; leave ct blank to use the computed gas compressibility at pi.
@@ -278,6 +345,10 @@ const DataPanel = () => {
           )}
         </div>
       </section>
+
+      <CompletionFields />
+
+      <InputSourcesFields />
 
       <section>
         <SectionLabel>Rate history</SectionLabel>

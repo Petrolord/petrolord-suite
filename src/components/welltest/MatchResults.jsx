@@ -5,7 +5,7 @@ import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { CHART_COLORS, CHART_TYPOGRAPHY, PINNED_TOOLTIP_PROPS, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
-import { evaluateModelTest } from '@/utils/welltest/models/modelCatalog';
+import { buildLoglogData } from '@/utils/welltest/plotData';
 import { unitLabel, fromOilfield, kindForCatalogUnit } from '@/utils/welltest/units';
 import { ChartCard, Kpi, LINE, WarningBanner, fmt, fmtU } from './primitives';
 import LogLogChart from './LogLogChart';
@@ -25,39 +25,17 @@ const MatchResults = () => {
   const {
     loglog, modelSeries, prepared, matchParams, model,
     reservoirSpec, configSpec, fitResult, fitStale, matchKpis, matchMethod,
-    unitSystem, pseudoTime,
+    unitSystem, pseudoTime, historyMatch,
   } = useWellTestStudio();
   const dpKind = reservoirSpec.reservoir?.fluid === 'gas' ? 'pseudoPressure' : 'pressure';
-  const uDp = (v) => fromOilfield(dpKind, v, unitSystem);
 
-  // Pressure-history overlay: observed gauge pressure and the model pressure
-  // at the same times. The model works in analysis space (m(p) for gas,
-  // mirrored for injection/falloff), so its dp is converted back to gauge psi
-  // through the prepared-data transform.
-  const historyOverlay = useMemo(() => {
-    if (!prepared.points.length) return [];
-    let modelP = null;
-    if (matchParams && reservoirSpec.reservoir && configSpec.config) {
-      try {
-        const cfg = configSpec.config;
-        const times = prepared.points.map((p) => p.time);
-        const series = evaluateModelTest({
-          testType: cfg.family, model, params: matchParams,
-          reservoir: reservoirSpec.reservoir, tp: cfg.tp, times, dts: times,
-        });
-        modelP = series.map((s) => prepared.dpToGauge(s.dp));
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return prepared.points.map((p, i) => ({
-      time: Number(p.time.toPrecision(4)),
-      observed: Number(fromOilfield('pressure', p.p, unitSystem).toFixed(2)),
-      model: modelP && Number.isFinite(modelP[i])
-        ? Number(fromOilfield('pressure', modelP[i], unitSystem).toFixed(2))
-        : null,
-    }));
-  }, [prepared, matchParams, model, reservoirSpec, configSpec, unitSystem]);
+  // Pressure-history overlay: the context's historyMatch (plotData
+  // buildHistoryMatch), the same series the PDF report draws. The period
+  // before a shut-in is left to the report; this card shows the analysed one.
+  const historyOverlay = useMemo(
+    () => historyMatch.points.filter((p) => !p.prior),
+    [historyMatch],
+  );
 
   if (!loglog.length) {
     return (
@@ -73,10 +51,10 @@ const MatchResults = () => {
     ? `Agarwal equivalent ${timeName} (hr)`
     : `Elapsed ${timeName} (hr)`;
   const isGas = reservoirSpec.reservoir?.fluid === 'gas';
-  const displayLoglog = loglog.map((p) => ({ ...p, dp: uDp(p.dp), derivative: uDp(p.derivative) }));
-  const displayModel = modelSeries
-    ? modelSeries.map((m) => ({ ...m, modelDp: uDp(m.modelDp), modelDerivative: uDp(m.modelDerivative) }))
-    : undefined;
+  // display-unit series from the shared builder (the PDF log-log uses it too)
+  const ll = buildLoglogData({ loglog, modelSeries, dpKind, unitSystem });
+  const displayLoglog = ll.points;
+  const displayModel = ll.model || undefined;
 
   return (
     <div className="space-y-4 overflow-y-auto">
