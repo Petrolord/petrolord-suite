@@ -1,7 +1,10 @@
-// Risked expectation curve (Risked Reserves Valuation T1): the chance of
-// finding at least a given volume, P(V >= x) = Pg x P(success volume >= x),
-// on a log volume axis, with the MEFS and the success-case P90 / P50 / P10
-// marked. The white Petrolord chart template.
+// Expectation curves (Risked Reserves Valuation T1; unrisked curve and one
+// series builder with the report, upgrade U1): the chance of finding at
+// least a given volume on a log volume axis. Unrisked is the success case,
+// P(V >= x given a discovery); risked is Pg times that. The MEFS and the
+// success-case P90 / P50 / P10 are marked. The points are the ones the PDF
+// report plots (services/rrvMath volumeCurves). The white Petrolord chart
+// template.
 
 import React from 'react';
 import {
@@ -20,31 +23,47 @@ export function logTicks(lo, hi) {
 }
 
 const AXIS = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText };
+const RISKED = '#2563eb';
+const UNRISKED = '#475569';
 
-export default function ExpectationChart({ curve, mefs, pg, successCase }) {
-  if (!curve?.length) return null;
-  const data = curve.map((p) => ({ volume: p.volume, chance: p.exceedance * 100 }));
+/**
+ * @param {{success: Array<[number, number]>, risked: Array<[number, number]>, mefs: number,
+ *   marks: {p90?: number, p50?: number, p10?: number}, volumeLabel: string, pg: number}} props
+ *   every volume already in the display unit; chances in percent
+ */
+export default function ExpectationChart({ success, risked, mefs, marks, volumeLabel = 'MMboe', pg }) {
+  if (!risked?.length) return null;
+  const data = risked.map(([x, y], i) => ({ volume: x, risked: y, unrisked: success?.[i]?.[1] }));
   const ticks = logTicks(data[0].volume, data[data.length - 1].volume);
   return (
-    <div className="relative h-72 bg-white rounded border border-slate-200" data-canvas="chart" data-testid="rrv-expectation-chart">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 16, right: 20, left: 4, bottom: 8 }}>
-          <CartesianGrid {...GRID_STYLE} />
-          <XAxis dataKey="volume" type="number" scale="log" domain={['dataMin', 'dataMax']} ticks={ticks} tick={AXIS}
-            tickFormatter={(v) => (v >= 1 ? Math.round(v).toLocaleString() : String(Number(v.toPrecision(1))))}
-            label={{ value: 'Volume, MMbbl (log)', position: 'insideBottom', offset: -4, style: AXIS }} height={36} />
-          <YAxis tick={AXIS} domain={[0, Math.ceil(pg * 100 / 10) * 10 || 10]} width={42}
-            label={{ value: 'Chance of at least this volume, %', angle: -90, position: 'insideLeft', style: AXIS, dx: 12, dy: 90 }} />
-          <Tooltip {...PINNED_TOOLTIP_PROPS} labelFormatter={(v) => `${Number(v).toFixed(1)} MMbbl`} formatter={(v) => [`${Number(v).toFixed(1)} %`, 'chance']} />
-          <Line dataKey="chance" stroke="#2563eb" strokeWidth={2} dot={false} isAnimationActive={false} />
-          {mefs > 0 && <ReferenceLine x={mefs} stroke="#dc2626" label={{ value: 'MEFS', position: 'insideTopRight', style: { ...AXIS, fill: '#b91c1c' } }} />}
-          {successCase && ['p90', 'p50', 'p10'].map((k) => (Number.isFinite(successCase[k]) ? (
-            <ReferenceLine key={k} x={successCase[k]} stroke="#94a3b8" strokeDasharray="4 3"
-              label={{ value: k.toUpperCase(), position: 'insideBottomRight', style: { ...AXIS, fill: '#475569' } }} />
-          ) : null))}
-        </LineChart>
-      </ResponsiveContainer>
-      <ChartLogo style={{ height: '22px', top: 6, bottom: 'auto', right: 24 }} />
+    <div className="relative h-80 bg-white rounded border border-slate-200 flex flex-col" data-canvas="chart" data-testid="rrv-expectation-chart"
+      data-points={data.length} data-series="unrisked,risked">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 pt-2 pr-24 text-[11px] text-slate-600" data-testid="rrv-chart-legend">
+        <span className="inline-flex items-center gap-1.5"><svg width="22" height="6" aria-hidden><line x1="0" y1="3" x2="22" y2="3" stroke={UNRISKED} strokeWidth="2" strokeDasharray="5 3" /></svg>Unrisked (success case)</span>
+        <span className="inline-flex items-center gap-1.5"><svg width="22" height="6" aria-hidden><line x1="0" y1="3" x2="22" y2="3" stroke={RISKED} strokeWidth="2.5" /></svg>Risked (x Pg {(pg * 100).toFixed(1)}%)</span>
+      </div>
+      <div className="flex-1 min-h-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 14, right: 20, left: 14, bottom: 8 }}>
+            <CartesianGrid {...GRID_STYLE} />
+            <XAxis dataKey="volume" type="number" scale="log" domain={['dataMin', 'dataMax']} ticks={ticks} tick={AXIS}
+              tickFormatter={(v) => (v >= 1 ? Math.round(v).toLocaleString('en-US') : String(Number(v.toPrecision(1))))}
+              label={{ value: `Volume, ${volumeLabel} (log)`, position: 'insideBottom', offset: -4, style: AXIS }} height={36} />
+            <YAxis tick={AXIS} domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} width={40}
+              label={{ value: 'Chance of at least this volume, %', angle: -90, position: 'insideLeft', offset: -4, style: { ...AXIS, textAnchor: 'middle' } }} />
+            <Tooltip {...PINNED_TOOLTIP_PROPS} labelFormatter={(v) => `${Number(v).toFixed(1)} ${volumeLabel}`}
+              formatter={(v, name) => [`${Number(v).toFixed(1)} %`, name === 'risked' ? 'risked' : 'unrisked']} />
+            <Line dataKey="unrisked" stroke={UNRISKED} strokeWidth={1.5} strokeDasharray="5 3" dot={false} isAnimationActive={false} />
+            <Line dataKey="risked" stroke={RISKED} strokeWidth={2.5} dot={false} isAnimationActive={false} />
+            {mefs > 0 && <ReferenceLine x={mefs} stroke="#dc2626" label={{ value: 'MEFS', position: 'insideTopRight', style: { ...AXIS, fill: '#b91c1c' } }} />}
+            {marks && ['p90', 'p50', 'p10'].map((k) => (Number.isFinite(marks[k]) ? (
+              <ReferenceLine key={k} x={marks[k]} stroke="#94a3b8" strokeDasharray="4 3"
+                label={{ value: k.toUpperCase(), position: 'insideBottomRight', style: { ...AXIS, fill: '#475569' } }} />
+            ) : null))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <ChartLogo style={{ height: '22px', top: 6, bottom: 'auto', right: 16 }} />
     </div>
   );
 }

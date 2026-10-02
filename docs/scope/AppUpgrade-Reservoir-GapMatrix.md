@@ -351,6 +351,13 @@ Saves to browser storage only.
 | RL11 | Pa | ReservoirCalc Pro sends prospects; notes, basis and the Basin charge record do not reach the CSV. A prospect re-risked in ReservoirCalc Pro is skipped on re-import. |
 | RL12 | F | The economics exist in one browser. |
 
+Checked in Step 1 (2026-10-02, `docs/upgrade/RiskedReservesValuation-UPGRADE.md`):
+the grades held. Corrections: under RL11 an in-place edit upstream was
+skipped, and a prospect added again was imported as a duplicate; the matrix
+missed that a cleared Pg was valued as zero (S2) and that the starting
+defaults contradict each other. All but two S3 items are fixed; the app now
+grades P on every applicable check except RL6 (no sensitivity plot, stated).
+
 ### 4.13 Well Spacing Optimizer
 
 Exports: `well_spacing_results.csv` and `well_spacing_summary.json`
@@ -383,6 +390,12 @@ Reports: `P/ReservoirCalcPro/components/tools/ReportGenerator.jsx`,
 | RL9 | Pa | "Screening estimate" lines only. |
 | RL11 | Pa | The prospect PDF does not print the Basin charge record or the economics; a prospect row holds no source project, seed or run signature. |
 | RL12 | Pa | Follows from RL6 and RL8. |
+
+Checked in the RL re-check (2026-10-02, `docs/upgrade/ReservoirCalcPro-UPGRADE.md`):
+confirmed, and one addition: the deterministic PDF did not print area and
+gross thickness for the Simple method. RL1, RL3, RL4, RL8, RL9 and RL11 are
+now P; RL6 and RL12 stay Pa (two charts are still screen captures; the
+reports are not on the kit).
 
 ## 5. Platform contracts today
 

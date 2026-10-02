@@ -17,6 +17,24 @@ export function toBoe(oil, gas, isField) {
     return oilBbl + gasScf / 6000;
 }
 
+/**
+ * The distributions of a run as plain data for its meta: per key the type
+ * and the parameters that type reads, and whether it has a spread.
+ */
+export function recordInputs(inputs, keys, isVariable) {
+    const out = {};
+    const num = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : null);
+    for (const k of keys) {
+        const d = inputs?.[k];
+        if (d === undefined || d === null) continue;
+        if (typeof d !== 'object') { out[k] = { type: 'constant', value: num(d), variable: false }; continue; }
+        const rec = { type: d.type || 'constant', variable: !!isVariable(d) };
+        for (const f of ['min', 'mode', 'max', 'mean', 'stdDev', 'value']) if (d[f] !== undefined && num(d[f]) !== null) rec[f] = num(d[f]);
+        out[k] = rec;
+    }
+    return out;
+}
+
 export class MonteCarloEngine {
 
     static cholesky(matrix) {
@@ -283,6 +301,12 @@ export class MonteCarloEngine {
             seed,
             correlations: applied,
             boeBasis: '6 Mscf per boe',
+            // RL re-check (2026-10-02, RL1): what was sampled, as it was
+            // handed to this run, so the report can print every input
+            // distribution with its type and parameters. A record only: the
+            // sampling above never reads it.
+            inputs: recordInputs(inputs, params, (d) => this.isVariable(d)),
+            constants: { recovery: recoveryDefault.oil, recoveryGas: recoveryDefault.gas, ...(config.fluidType === 'oil_gas' && !structural && Number.isFinite(gcf) ? { gasCapFraction: gcf } : {}) },
         };
         if (onProgress) onProgress(iterations, iterations);
 

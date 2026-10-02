@@ -110,6 +110,18 @@ test('PL1 and PL7: a Monte Carlo run reads its own units, hands recoverable volu
   expect(text).toMatch(/Field: Keta \| Analyst: E2E Analyst/);
   expect(text).toMatch(/Monte Carlo: 10,000 realizations/);
   expect(text).toMatch(/MMSTB/);
+  // Reviewer-lens re-check (2026-10-02): the input distributions with type, unit
+  // and source, the basis of the headline, the vector expectation curve drawn
+  // from the run itself, and the limits of the method
+  const flatText = text.replace(/\s+/g, ' ');
+  expect(flatText).toContain('Company: not given | Licence or block: not given | Well control: not given');
+  expect(flatText).toContain('Basis: STOIIP is stock-tank oil initially in place at surface conditions (STB). These are IN-PLACE volumes');
+  expect(flatText).toMatch(/Input Distributions Input Distribution Parameters Unit Source/);
+  expect(flatText).toMatch(/Porosity Triangular min [\d.]+, most likely [\d.]+, fraction Entered in the Probabilistic panel, max [\d.]+ source not stated/);
+  expect(flatText).toMatch(/Recoverable oil [\d.]+ [\d.]+ [\d.]+ [\d.]+ MMSTB/);
+  expect(flatText).toContain('Figure 1. Expectation curve (probability of exceeding each volume)');
+  expect(flatText).toMatch(/Exceedance, 200 points of [\d,]+ realizations/);
+  expect(flatText).toContain('Limits of this analysis');
   expect(errors).toEqual([]);
 });
 

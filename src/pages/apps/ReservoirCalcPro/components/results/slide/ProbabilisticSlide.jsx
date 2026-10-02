@@ -151,7 +151,7 @@ const ProbabilisticSlide = () => {
             const tornadoImg = tornadoSvgRef.current ? await svgToPng(tornadoSvgRef.current, 520, 180) : null;
             await ReportGenerator.generateProbabilisticReport(
                 project, probResults, run.unitSystem, { cdf: cdfImg, tornado: tornadoImg }, {
-                    template: 'technical', fluidType: ft, reservoirName: reservoir,
+                    template: 'technical', fluidType: ft, reservoirName: reservoir, report: state.inputs?.report, inputMethod: state.inputMethod,
                     reviewer: reviewerLines({ report: state.inputs?.report, unitSystem: run.unitSystem, inputMethod: state.inputMethod, fluidType: ft, inputs: state.inputs, probResults }),
                 },
             );

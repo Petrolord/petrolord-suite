@@ -41,6 +41,9 @@ export const SHARING_TABLES = {
   saved_rf_projects: { label: 'project', nameColumn: 'project_name', sharedWhen: 'visibility' },
   rb_cases: { label: 'case', nameColumn: 'name', sharedWhen: 'visibility' },
   sim_cases: { label: 'case', nameColumn: 'name', sharedWhen: 'visibility' },
+  // Risked Reserves Valuation U1 (migration 20261002151500_rrv_valuations.sql):
+  // one saved valuation per prospect and user
+  rrv_valuations: { label: 'valuation', nameColumn: 'name', sharedWhen: 'visibility' },
 };
 
 /** The columns the sharing model adds (what `sharingOf` keeps). */

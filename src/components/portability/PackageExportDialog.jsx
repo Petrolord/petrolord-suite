@@ -40,6 +40,8 @@ const EXTRA_SECTIONS = [
   { key: 'em', title: 'Earth models', kinds: ['em_model'], testPrefix: 'pld-em', emptyText: 'No saved earth models.' },
   // RCP-U1-026: ReservoirCalc Pro prospects (the inventory Risked Reserves Valuation reads)
   { key: 'rcp', title: 'ReservoirCalc Pro prospects', kinds: ['rcp_prospect'], testPrefix: 'pld-rcp', emptyText: 'No saved prospects.' },
+  // RRV-U1: saved risked valuations (pick the prospect too and the valuation stays linked to it)
+  { key: 'rrv', title: 'Risked valuations', kinds: ['rrv_valuation'], testPrefix: 'pld-rrv', emptyText: 'No saved valuations.' },
   // BF-U1-021: Basin & Charge Modeling models bring their tied registry well
   { key: 'bf', title: 'Basin models', kinds: ['bf_model'], testPrefix: 'pld-bf', emptyText: 'No saved basin models.' },
   // PP3b

@@ -2,15 +2,16 @@
 // prospects risked in ReservoirCalc Pro. The previous page ran its own
 // NPV Monte Carlo over five variables with P10 and P90 read as the min
 // and max of a triangle and called P(NPV > 0) the chance of success; it is
-// retired (report docs/testing/RiskedReservesValuation-T1.md).
+// retired (report docs/testing/RiskedReservesValuation-T1.md). Upgrade U1
+// (2026-10-02): valuations are saved to the account (rrv_valuations).
 
 import React, { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import RrvWorkstation from './riskedreserves/components/RrvWorkstation';
-import { makeRegistryProspectsBackend } from './ReservoirCalcPro/services/prospectsService';
+import { makeRegistryRrvBackend } from './riskedreserves/services/rrvBackend';
 
 export default function RiskedReservesValuation() {
-  const backend = useMemo(() => makeRegistryProspectsBackend(), []);
+  const backend = useMemo(() => makeRegistryRrvBackend(), []);
   return (
     <>
       <Helmet>

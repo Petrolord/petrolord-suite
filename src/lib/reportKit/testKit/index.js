@@ -137,7 +137,9 @@ function pageStreams(raw) {
  * @param {{raw: string}} pdf from readPdf
  * @param {number} page 1-based
  * @param {{x: number, y: number, w: number, h: number}} area the plot area in mm
- * @returns {{segments: number, markers: number, total: number, frame: boolean}}
+ * Bars (./bars.js) are filled and stroked rectangles and are counted on
+ * their own, outside `total`; `bars` is present only when the area holds one.
+ * @returns {{segments: number, markers: number, total: number, bars?: number, frame: boolean}}
  */
 export function plotMarks(pdf, page, area) {
   const stream = pageStreams(pdf.raw)[page - 1];
@@ -174,6 +176,10 @@ export function plotMarks(pdf, page, area) {
     } else if (op.endsWith(' re') && ops[i + 1] === 'f') {
       const [x, y, w, h] = nums(op);
       if (Math.abs(w) <= 3 * PT_PER_MM && Math.abs(h) <= 3 * PT_PER_MM && markerInside(x + w / 2, y + h / 2)) out.markers += 1;
+    } else if (op.endsWith(' re') && ops[i + 1] === 'B') {
+      // a bar of a bar chart: filled and stroked, where a marker is only filled
+      const [x, y, w, h] = nums(op);
+      if (markerInside(x + w / 2, y + h / 2)) out.bars = (out.bars || 0) + 1;
     }
   }
   out.total = out.segments + out.markers;
@@ -227,6 +233,7 @@ export function expectFigureDrawn(pdf, figure, { minPoints = 2, minColoured = 15
     if (!marks.frame) fail(`panel ${i + 1}: no plot area frame found on page ${figure.page}`);
     const expected = p.marks.segments + p.marks.markers + (p.lines || 0);
     if (marks.total !== expected) fail(`panel ${i + 1}: the file holds ${marks.total} line segments and markers inside the plot area, the builder reports ${expected}`);
+    if ((marks.bars || 0) !== (p.marks.bars || 0)) fail(`panel ${i + 1}: the file holds ${marks.bars || 0} bars inside the plot area, the builder reports ${p.marks.bars || 0}`);
     let ink = null;
     if (pdf.ink) {
       ink = pdf.ink(figure.page, p.box);
