@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { v4 as uuidv4 } from 'uuid';
 import { fitArpsModel, getFitQuality } from '@/utils/declineCurve/dcaEngine';
 import { getStreamRate } from '@/utils/declineCurve/csvParser';
-import { forecastFromHistory } from '@/utils/declineCurve/forecastFromHistory';
+import { forecastFromHistory, scenarioForecastSnapshot } from '@/utils/declineCurve/forecastFromHistory';
 import { runMonteCarloSimulation } from '@/utils/dcaMonteCarlo';
 import { normalizeByTime, normalizeByRate, normalizeByTimeAndRate, applyTypeCurve } from '@/utils/declineCurve/typeCurveEngine';
 import {
@@ -711,16 +711,13 @@ export const DeclineCurveProvider = ({ children }) => {
         confidenceIntervals: fit.confidenceIntervals
       },
       forecastConfig: { ...fcConfig },
-      forecastResults: {
-        eur: fcResults.eur,
-        timeToLimit: fcResults.timeToLimit,
-        rates: fcResults.rates,
-        probabilistic: fcResults.probabilistic
-      }
+      // H3: produced, remaining and EUR are kept apart so the workbook and
+      // the comparison table never print one of them under another's name
+      forecastResults: scenarioForecastSnapshot(fcResults)
     };
 
     setScenarios(prev => [...prev, newScenario]);
-    addNotification(`Scenario "${name}" saved (${stream}, EUR: ${Math.round(fcResults.eur).toLocaleString()})`, "success");
+    addNotification(`Scenario "${name}" saved (${stream}, remaining: ${Math.round(fcResults.eur).toLocaleString()})`, "success");
   }, [selectedStream, streamState, currentWellId, wells, addNotification]);
 
   const deleteScenario = useCallback((id) => {

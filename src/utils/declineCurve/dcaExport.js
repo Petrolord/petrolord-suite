@@ -27,6 +27,39 @@ export const exportForecastToCSV = (forecastData, wellName, stream) => {
   saveAs(blob, `${wellName}_${stream}_forecast.csv`);
 };
 
+const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : EMPTY_VALUE);
+
+/**
+ * The rows of the "Comparison Summary" sheet, one per scenario (H3).
+ *
+ * EUR is the cumulative produced to date plus the remaining volume after the
+ * last history date, to the economic limit when the curve reaches it inside
+ * the horizon and to the horizon otherwise. The sheet used to write the
+ * remaining volume into both the EUR and the Remaining Reserves column. A
+ * scenario saved before the fix holds only the remaining volume, so its EUR
+ * and cumulative cells read EMPTY_VALUE instead of a wrong number.
+ */
+export const buildScenarioSummaryRows = (scenarios) => (scenarios || []).map((s) => {
+  const fc = s.forecastResults || {};
+  const remaining = fc.remaining ?? fc.eur;
+  const config = s.forecastConfig || s.config || {};
+  return {
+    'Scenario Name': s.name,
+    'Stream': s.stream ?? EMPTY_VALUE,
+    'Model Type': s.fitResults?.modelType || EMPTY_VALUE,
+    'Initial Rate (qi)': num(s.fitResults?.qi),
+    // H2: the fit holds Di per day; the sheet states both bases and the unit
+    'Di (nominal, %/yr)': nominalAnnualPct(s.fitResults?.Di) ?? EMPTY_VALUE,
+    'Di (nominal, 1/day)': s.fitResults?.Di ?? EMPTY_VALUE,
+    'b-Factor': num(s.fitResults?.b),
+    'Cumulative to date': num(fc.produced),
+    'Remaining Reserves': num(remaining),
+    'EUR': num(fc.eurTotal),
+    'Remaining ends at': fc.limitReached == null ? EMPTY_VALUE : fc.limitReached ? 'economic limit' : 'forecast horizon',
+    'Economic Limit': num(config.economicLimit),
+  };
+});
+
 /**
  * Exports scenarios comparison to Excel
  */
@@ -36,18 +69,7 @@ export const exportScenarioComparison = (scenarios, wellName) => {
   const wb = XLSX.utils.book_new();
   
   // 1. Summary Sheet
-  const summaryData = scenarios.map(s => ({
-    'Scenario Name': s.name,
-    'Model Type': s.fitResults?.modelType || 'N/A',
-    'Initial Rate (qi)': s.fitResults?.qi || 0,
-    // H2: the fit holds Di per day; the sheet states both bases and the unit
-    'Di (nominal, %/yr)': nominalAnnualPct(s.fitResults?.Di) ?? EMPTY_VALUE,
-    'Di (nominal, 1/day)': s.fitResults?.Di ?? EMPTY_VALUE,
-    'b-Factor': s.fitResults?.b || 0,
-    'EUR': s.forecastResults?.eur || 0,
-    'Remaining Reserves': s.forecastResults?.eur || 0, 
-    'Economic Limit': s.config?.economicLimit || 0
-  }));
+  const summaryData = buildScenarioSummaryRows(scenarios);
 
   const wsSummary = XLSX.utils.json_to_sheet(summaryData);
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Comparison Summary');
