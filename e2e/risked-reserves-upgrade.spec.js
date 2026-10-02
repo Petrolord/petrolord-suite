@@ -76,6 +76,11 @@ test('chain: risk a prospect in ReservoirCalc Pro, import it, value it, save it,
   await page.getByTestId('rrv-ident-play').fill('Agbada stacked sands');
   await page.getByTestId('rrv-ident-analyst').fill('A. Analyst');
   await expect(page.getByTestId('rrv-header-Company')).toHaveText('Lordsway Energy');
+  // the identification is part of the valuation: typing it makes the valuation unsaved, and Save keeps it
+  await expect(page.getByTestId('rrv-header-Valuation saved')).toContainText('later edits are in this browser only');
+  await page.getByTestId('rrv-save').click();
+  await expect(page.getByTestId('rrv-save-state')).toHaveText('Saved to your account');
+  await expect(page.getByTestId('rrv-header-Valuation saved')).toHaveText(/^Petrolord account, \d{4}-\d\d-\d\d \d\d:\d\d UTC$/);
   await expect(page.getByTestId('rrv-report-handoff')).toContainText('seed 777, 20,000 realizations');
   await expect(page.getByTestId('rrv-report-headline')).toContainText(emv);
   const downloadPromise = page.waitForEvent('download');
@@ -92,6 +97,7 @@ test('chain: risk a prospect in ReservoirCalc Pro, import it, value it, save it,
   // RL4
   for (const s of ['Risked Prospect Valuation Report', 'Company Lordsway Energy', 'Prospect Chain North', 'Licence or block OML 143', 'Play Agbada stacked sands', 'Analyst A. Analyst', 'Build Petrolord Suite']) expect(text).toContain(s);
   expect(text).toMatch(/Display units Oilfield \(MMboe, \$\/boe, \$MM\)/);
+  expect(text).toMatch(/Valuation saved Petrolord account, \d{4}-\d\d-\d\d \d\d:\d\d UTC Build/);
   // RL11: the upstream record, its run and its conventions, written by ReservoirCalc Pro and printed here
   for (const s of ['Source application ReservoirCalc Pro', 'Source record Prospect "Chain North"', 'Volumes sent in MMSTB', 'Volume basis Recoverable (prospective resources), success case',
     'Volumes method Monte Carlo in ReservoirCalc Pro', 'Source project and reservoir Project "Chain Block", reservoir "C-01 sand"',
