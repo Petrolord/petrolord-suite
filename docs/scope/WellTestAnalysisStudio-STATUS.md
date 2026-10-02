@@ -535,3 +535,68 @@ Tests: `src/utils/welltest/__tests__/gaugeImport.test.js` (new); the
 wiring suite gains the gauge-clock shut-in cases, `resolveMatchMethod` and
 `buildReportHeader`; the smoke test checks the pwf readout, the report
 identity line and that nothing says "converged" without an auto-fit.
+
+## 2026-10-02: tester round 2, the report (branch `fix/welltest-report-r2`)
+
+A second human tester reviewed the PDF report as the person who would sign
+it: eleven recommendations and four strengths to keep. Findings, outcomes,
+validation and what was not built are in
+`docs/upgrade/WellTestAnalysis-TesterRound2.md` (WTA-R2-001 to -015).
+
+**Engines** (Petrolord/petrolord-engines PR #298, left for the owner to
+merge; vendored byte-identical with nine ledger rows in
+`packages/engines/VENDOR.json`):
+- `partialPenetration.js`: Papatzacos (1987) partial-penetration
+  pseudo-skin, Brons and Marting (1961) as a second estimate, and the split
+  s_d = (hp/h)(s - s_pp). Gate: an independent uniform-flux series solution
+  in a stdlib Python oracle, a band of 0.6 skin units, and a negative
+  control. No published worked example could be read; the tester-round doc
+  says exactly what was.
+- `compressibility.js`: ct = cf + So co + Sw cw + Sg cg with its terms.
+- `flowSummary.js`: per-period duration, volume and running total.
+- `gas.js`: the PVT table names the correlations it was built with.
+
+**State (project jsonb, no migration):** `identification` (licence, zone,
+test dates, how the test was run, registry well), `completion` (perforations
+top and base in MD and TVD, top of net pay, TVD source), `inputMeta` (source,
+correlation and note per input), `periodMeta` (choke, recovered volume,
+remark per period), `pvtIntake` (what a Fluid Systems Studio handoff said
+about its PVT), and in `reservoirInputs` the ct mode and components, Sw, API
+gravity, GOR, solution gas gravity, reservoir temperature and kv/kh. Gauge
+rows may carry `T` (degF). A project saved before this round opens with the
+defaults; the new fields print as n/a.
+
+**Report (PDF and Report tab, same rows):** identification block; headline
+results; skin components; model match with its confidence intervals and the
+regression statement; straight-line analyses with the fit window;
+cross-check of methods; flow regimes with their windows; reservoir and fluid
+inputs with unit and source; flow and shut-in summary; then six figures.
+
+**Figures** (`reportFigures.js`, drawn by `pdfPlot.js` as jsPDF vectors on
+the house chart standard, from the `plotData.js` series the tabs also draw):
+1. Test overview (pressure and rate; temperature panel when imported).
+2. Log-log with the model match and the flow-regime windows.
+3. Horner or MDH with the line, the fit window and the slope.
+4. sqrt(t), only when linear flow is detected or its window is set.
+5. History match, including the period before a shut-in when the gauge
+   record holds it.
+6. Flowing material balance and RTA log-log, only with production data.
+A figure that does not apply is one line saying why.
+
+**Data tab:** identification fields with "Propose from the wells registry";
+a Completion section; "Input sources and quality"; ct as a total or from
+components; an optional temperature column in the gauge import mapping; the
+Test overview chart (it replaces the separate rate chart) and a temperature
+chart when there is one; the flow and shut-in summary with choke, recovered
+volume and remark per period.
+
+**Also:** Fluid Systems Studio gained a Send to Well Test Analysis Studio
+button and its backbone names its correlations (the intake existed with no
+sender). Export project JSON writes the saved payload; Import project JSON
+reads it back. Missing values in the PDF are n/a.
+
+**Tests:** see section 5 of the tester-round doc. The PDF tests mount the
+real provider and read the built file back with poppler.
+
+**Open:** engines PR #298 to merge and re-pin; a lab PVT table input; a
+limited-entry transient model (named future scope, unchanged).
