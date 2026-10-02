@@ -28,6 +28,9 @@ jest.mock('@/pages/apps/reservoir-balance/lib/api', () => ({
   getRunConfig: jest.fn(async () => ({ data: mockDb.runConfig, error: null })),
   upsertCaseDefaultConfig: jest.fn(async (caseId, patch) => { mockDb.defaultCfg = { ...mockDb.defaultCfg, ...patch }; return { data: mockDb.defaultCfg, error: null }; }),
   updateCase: jest.fn(async (caseId, patch) => { mockDb.caseData = { ...mockDb.caseData, ...patch }; return { data: mockDb.caseData, error: null }; }),
+  setCaseReadOnly: jest.fn(),
+  createCase: jest.fn(),
+  replaceProductionData: jest.fn(),
 }));
 const mockExportPdf = jest.fn();
 jest.mock('@/utils/mbalReportExport', () => {
@@ -86,7 +89,7 @@ const Probe = () => {
 };
 
 const mount = () => render(
-  <MaterialBalanceStudioProvider caseId="c1">
+  <MaterialBalanceStudioProvider caseId="c1" sharingStore={null}>
     <Probe />
     <ReportTab />
     <HistoryMatch />

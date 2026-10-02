@@ -29,7 +29,13 @@ import {
   getRunConfig,
   upsertCaseDefaultConfig,
   updateCase,
+  setCaseReadOnly,
+  createCase,
+  replaceProductionData,
 } from '@/pages/apps/reservoir-balance/lib/api';
+import { supabaseSharingStore } from '@/lib/recordSharing';
+import { useRecordSharing } from '@/lib/recordSharing/useRecordSharing';
+import { copyCaseAsOwn } from '@/pages/apps/reservoir-balance/lib/copyCase';
 import { assessRunStaleness, buildRunConfigInput } from '@/pages/apps/reservoir-balance/lib/runStaleness';
 import {
   readStudy, withStudy, DEFAULT_CORRELATIONS,
@@ -61,7 +67,21 @@ const useOrganizationName = () => {
   }
 };
 
-export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) => {
+// Record sharing (docs/scope/OrgSharing-DESIGN-AND-STATUS.md; rb_cases and
+// its children since migration 20261002130000). This round adopts sharing
+// for VIEWING: the owner shares a case with the organisation, colleagues see
+// it under "Shared with me" and open it read-only, with its results, plots
+// and report. Colleague editing with the check-out is the first item of the
+// Step 2 backlog (docs/upgrade/MaterialBalanceStudio-UPGRADE.md).
+export const RB_CASES_TABLE = 'rb_cases';
+
+/**
+ * @param {{caseId: ?string, onOpenCase: Function, sharingStore?: object, children: any}} props
+ *   sharingStore: a record sharing store (the Supabase one by default; the
+ *   /dev harness and the tests hand in their own)
+ */
+export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, sharingStore = undefined, children }) => {
+  const store = useMemo(() => (sharingStore === undefined ? supabaseSharingStore() : sharingStore), [sharingStore]);
   const { toast } = useToast();
   const organizationName = useOrganizationName();
 
@@ -169,6 +189,40 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
   const applyCasePatch = useCallback((patch) => {
     setCaseData((prev) => (prev ? { ...prev, ...patch } : prev));
   }, []);
+
+  // Record sharing: the open case's sharing state, and whose case it is.
+  const sharing = useRecordSharing({ store, table: RB_CASES_TABLE, record: caseData, onChange: applyCasePatch });
+  const userId = sharing.userId;
+  const viewingShared = !!caseData?.user_id && !!userId && caseData.user_id !== userId;
+  const readOnlyReason = viewingShared
+    ? `${sharing.readOnlyReason || 'This case was shared with your organisation for viewing.'} Nothing you change here is saved to it.`
+    : null;
+  // every write of lib/api.js to this case answers with the reason while it is read-only
+  useEffect(() => {
+    setCaseReadOnly(caseId, readOnlyReason);
+    return () => setCaseReadOnly(null, null);
+  }, [caseId, readOnlyReason]);
+  const ownCases = useMemo(() => (userId ? cases.filter((c) => !c.user_id || c.user_id === userId) : cases), [cases, userId]);
+  const sharedCases = useMemo(() => (userId ? cases.filter((c) => c.user_id && c.user_id !== userId) : []), [cases, userId]);
+
+  // "Save a copy": the reader's own case with the same inputs. The run is not copied.
+  const [copying, setCopying] = useState(false);
+  const saveCopy = useCallback(async () => {
+    if (!caseData || copying) return;
+    setCopying(true);
+    const { data: created, error } = await copyCaseAsOwn(
+      { createCase, replaceProductionData, upsertCaseDefaultConfig, deleteCase },
+      caseData, defaultCfg, ownCases.map((c) => c.name),
+    );
+    setCopying(false);
+    if (error || !created) {
+      toast({ title: 'Copy not made', description: error?.message ?? 'Unknown error.', variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Copy saved as your own case', description: `"${created.name}" holds the same conditions, production data and run settings. Run it to get its results.` });
+    setCases((prev) => [created, ...prev]);
+    onOpenCase?.(created.id);
+  }, [caseData, copying, defaultCfg, ownCases, onOpenCase, toast]);
 
   const runStaleness = useMemo(
     () => assessRunStaleness({
@@ -343,7 +397,9 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
     // units, report
     units, unitsHook, organizationName, study, saveStudy, series, plotModels, reportArgs,
     // case list
-    cases, casesLoading, casesError, refreshCases,
+    cases, ownCases, sharedCases, casesLoading, casesError, refreshCases,
+    // record sharing
+    sharing, sharingStore: store, viewingShared, readOnlyReason, saveCopy, copying,
     // current case
     caseId, caseData, caseLoading, caseError, refreshCase, applyCasePatch,
     // run

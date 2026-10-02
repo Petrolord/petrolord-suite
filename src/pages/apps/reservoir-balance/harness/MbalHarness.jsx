@@ -10,13 +10,30 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import ReservoirBalance from '../ReservoirBalance';
-import { seedSampleStore, SAMPLE_USER } from './sampleCases';
+import {
+  seedSampleStore, addSharingToStore, SAMPLE_USER, SAMPLE_ORG_ID, SAMPLE_COLLEAGUE, SAMPLE_SHARED_CONFIG_ID, SAMPLE_SHARED_CASE_ID,
+} from './sampleCases';
+import { makeSharingStore } from '@/lib/recordSharing';
+import { buildRunConfigInput } from '../lib/runStaleness';
 import { runEngineOnStore, pvtPreviewStandIn } from './engineStandIn';
 
 const USER = SAMPLE_USER;
 const NOW = () => new Date().toISOString();
 
-let DB = seedSampleStore();
+const DB = addSharingToStore(seedSampleStore());
+// the colleague's shared case arrives with its last run, made the way the
+// studio makes one: a run config that carries the snapshot of what it was run on
+{
+  const shared = DB.rb_cases.find((c) => c.id === SAMPLE_SHARED_CASE_ID);
+  const defaultCfg = DB.rb_run_configs.find((c) => c.id === SAMPLE_SHARED_CONFIG_ID);
+  const production = DB.rb_production_data.filter((r) => r.case_id === shared.id).sort((a, b) => a.timestep_index - b.timestep_index);
+  const runCfg = {
+    id: 'cfg-colleague-run', case_id: shared.id, user_id: shared.user_id, is_scenario: true, name: 'Run 2026-10-01 09:12:00',
+    created_at: NOW(), updated_at: NOW(), ...buildRunConfigInput({ ...shared, production_data: production }, defaultCfg),
+  };
+  DB.rb_run_configs.push(runCfg);
+  runEngineOnStore(DB, { run_config_id: runCfg.id }, { now: NOW });
+}
 let seq = 0;
 const newId = (p) => `${p}-${Date.now()}-${++seq}`;
 
@@ -84,6 +101,32 @@ async function calculateMbal(body) {
   return runEngineOnStore(DB, body, { now: NOW });
 }
 
+// Record sharing on the harness: the sharing store over the same rows. The
+// signed-in user owns the three sample cases and belongs to one organisation
+// with one colleague, who shares one case for viewing. Only the owner's
+// writes land, as row level security has it.
+const SHARED_WRITE_COLUMNS = ['change_note'];
+const sharingTransport = {
+  async user() { return { id: USER.id, organizationId: SAMPLE_ORG_ID }; },
+  async probe() { return true; },
+  async getSharing(table, id) { return (DB[table] || []).find((r) => r.id === id) || null; },
+  async update(table, id, body) {
+    const row = (DB[table] || []).find((r) => r.id === id);
+    if (!row || row.user_id !== USER.id) return { data: [], error: null };
+    const patch = Object.fromEntries(Object.entries(body).filter(([k]) => !SHARED_WRITE_COLUMNS.includes(k) && k !== 'version'));
+    const next = { ...row, ...patch, version: (row.version || 1) + 1, updated_by: USER.id };
+    DB[table] = DB[table].map((r) => (r.id === id ? next : r));
+    return { data: [next], error: null };
+  },
+  async rpc() { return { data: { ok: false, reason: 'not_available' }, error: null }; },
+  async changes() { return { data: [], error: null }; },
+  async names(ids) {
+    const known = { [USER.id]: 'You', [SAMPLE_COLLEAGUE.id]: SAMPLE_COLLEAGUE.name };
+    return Object.fromEntries((ids || []).filter((id) => known[id]).map((id) => [id, known[id]]));
+  },
+};
+const SHARING_STORE = makeSharingStore(sharingTransport);
+
 export default function MbalHarness() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -109,5 +152,5 @@ export default function MbalHarness() {
       supabase.auth.getUser = saved.getUser;
     };
   }, []);
-  return ready ? <div data-testid="mbal-harness"><ReservoirBalance /></div> : null;
+  return ready ? <div data-testid="mbal-harness"><ReservoirBalance sharingStore={SHARING_STORE} /></div> : null;
 }

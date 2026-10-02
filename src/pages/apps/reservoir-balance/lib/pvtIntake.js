@@ -11,35 +11,32 @@
 // property, the liberation basis, how the bubble point was obtained, the lab
 // tuning and the range flags. The report prints that as the source.
 //
-// The block is read by its documented shape (docs/scope/
-// ReportKit-DESIGN-AND-STATUS.md section 4; plan Step 0c; the writer is
-// src/utils/fluidstudio/pvtHandoff.js of the Fluid Systems round, PR #859).
-// This file names no correlation and computes nothing: it converts units
-// with the Suite registry and copies names. When the Fluid Systems round is
-// on main, `blockOf` and `checkPvtBlock` give way to its `pvtContractOf` and
-// `validatePvtContract` (src/lib/inputProvenance/pvtContract.js) and the
-// read by id to src/lib/pvtSource.js `readFluidProjectPvt`.
+// The block is read with the contract's own readers and gate
+// (src/lib/inputProvenance/pvtContract.js: `pvtContractOf`,
+// `validatePvtContract`) and the project by id through src/lib/pvtSource.js
+// (`readFluidProjectPvt`, the `?fluidProject=<id>` parameter). This file names
+// no correlation and computes nothing: it converts units with the Suite
+// registry and copies the names the fluid study gave.
 //
-// Pure, except `listFluidProjects` and `readFluidProjectBlock`, which read
-// saved_fluid_studio_projects through the Supabase client they are handed.
+// Pure, except `listFluidProjects`, which reads saved_fluid_studio_projects
+// through the Supabase client it is handed.
 import { convert, isKnownUnit } from '@/lib/units/registry';
 import { UNIT_ALIASES } from '@/lib/units/vocabulary';
+import {
+  pvtContractOf, validatePvtContract, PVT1_SCHEMA, PVT1_PB_SOURCES, PVT_PROJECT_PARAM, pvtContractTuningText,
+} from '@/lib/inputProvenance/pvtContract';
 
-export const PVT_SCHEMA = 'pvt-1';
-export const PVT_PAYLOAD_KEY = 'pvt';
+export const PVT_SCHEMA = PVT1_SCHEMA;
 export const FLUID_PROJECTS_TABLE = 'saved_fluid_studio_projects';
 export const PVT_ORIGIN_KIND = 'pvt_contract';
 /** The query parameter a sender puts on the Material Balance address to name its project. */
-export const FLUID_PROJECT_PARAM = 'fluidProject';
+export const FLUID_PROJECT_PARAM = PVT_PROJECT_PARAM;
 
 const isRecord = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 
 /** The pvt-1 block of a saved project payload, a handoff or the block itself; null when there is none. */
-export function blockOf(carrier) {
-  const block = carrier?.schema === PVT_SCHEMA ? carrier : (carrier?.contract || carrier?.[PVT_PAYLOAD_KEY]);
-  return isRecord(block) && block.schema === PVT_SCHEMA ? block : null;
-}
+export const blockOf = pvtContractOf;
 
 // block column, the lab-table column it fills, its registry family and the unit the table holds
 const COLUMN_MAP = Object.freeze([
@@ -69,9 +66,11 @@ export function checkPvtBlock(block) {
   const errors = [];
   const warnings = [];
   if (!isRecord(block) || block.schema !== PVT_SCHEMA) return { ok: false, errors: ['The project carries no PVT block of the pvt-1 contract.'], warnings };
+  // the gate of the contract first: every property names its method, every column its unit
+  const gate = validatePvtContract(block);
+  if (!gate.ok) errors.push(`The PVT block is incomplete: ${gate.errors.join(' ')}`);
   if (!Array.isArray(block.table) || block.table.length < 2) errors.push('The PVT block holds no table of at least two pressures.');
-  if (!isRecord(block.units)) errors.push('The PVT block does not state its units.');
-  else {
+  if (isRecord(block.units)) {
     if (registryUnit('pressure', block.units.pressure === 'psia' ? 'psi' : block.units.pressure) == null) errors.push(`The PVT block states its pressures in "${block.units.pressure}", a unit this app does not know.`);
     for (const col of COLUMN_MAP) {
       if (!col.family) continue;
@@ -80,7 +79,6 @@ export function checkPvtBlock(block) {
       if (has && registryUnit(col.family, stated) == null) errors.push(`The PVT block states ${col.from} in "${stated}", a unit this app does not know.`);
     }
   }
-  if (!isRecord(block.methods)) warnings.push('The PVT block names no method for its properties.');
   if (!block.project_name) warnings.push('The PVT block does not name the project it came from.');
   return { ok: errors.length === 0, errors, warnings };
 }
@@ -88,10 +86,11 @@ export function checkPvtBlock(block) {
 /**
  * The PVT table of a case, from a pvt-1 block.
  * @param {object} block
- * @param {{fluidSystem?: string, temperatureF?: number}} [o] the case the table is for
+ * @param {{fluidSystem?: string, temperatureF?: number, casePressures?: number[]}} [o] the case the table is for:
+ *   its fluid system, its temperature and the pressures it holds (initial and surveyed), psia
  * @returns {{ok: boolean, error?: string, rows?: object[], origin?: object, warnings?: string[]}}
  */
-export function tableFromPvtBlock(block, { fluidSystem = 'oil', temperatureF = null } = {}) {
+export function tableFromPvtBlock(block, { fluidSystem = 'oil', temperatureF = null, casePressures = [] } = {}) {
   const check = checkPvtBlock(block);
   if (!check.ok) return { ok: false, error: check.errors.join(' ') };
   const isGas = fluidSystem === 'gas';
@@ -124,10 +123,20 @@ export function tableFromPvtBlock(block, { fluidSystem = 'oil', temperatureF = n
   if (finite(blockT) && finite(temperatureF) && Math.abs(blockT - temperatureF) > 1) {
     warnings.push(`The PVT of the project was computed at ${blockT.toFixed(1)} degF and the case is at ${temperatureF.toFixed(1)} degF. The table is taken as it is.`);
   }
+  // The engine interpolates inside the table only; outside it, it falls back on the correlations of the PVT tab.
+  const tableMin = rows[0].pressure_psia;
+  const tableMax = rows[rows.length - 1].pressure_psia;
+  const held = (casePressures || []).filter((p) => finite(p) && p > 0);
+  const above = held.filter((p) => p > tableMax + 1e-6);
+  const below = held.filter((p) => p < tableMin - 1e-6);
+  if (above.length || below.length) {
+    const side = [above.length ? `${above.length} above it (up to ${Math.round(Math.max(...above)).toLocaleString('en-US')} psia)` : null, below.length ? `${below.length} below it` : null].filter(Boolean).join(' and ');
+    warnings.push(`The table of the project runs from ${Math.round(tableMin).toLocaleString('en-US')} to ${Math.round(tableMax).toLocaleString('en-US')} psia and the case holds ${side}. Outside the table the engine uses the correlations chosen on this tab, so those pressures do not carry the PVT of the fluid study. Widen the pressure range in Fluid Systems Studio, or add the missing rows by hand.`);
+  }
   const methods = {};
   for (const key of ['pb', 'rs', 'bo', 'co', 'mu_o', 'z', 'bg', 'mu_g', 'bw']) {
     const m = block.methods?.[key];
-    if (isRecord(m) && typeof m.method === 'string' && m.method.trim()) methods[key] = { method: m.method.trim(), kind: m.kind || 'correlation' };
+    if (isRecord(m) && typeof m.method === 'string' && m.method.trim()) methods[key] = { method: m.method.trim(), kind: m.kind || 'correlation', ...(m.reference ? { reference: m.reference } : {}) };
   }
   const origin = {
     kind: PVT_ORIGIN_KIND,
@@ -145,6 +154,8 @@ export function tableFromPvtBlock(block, { fluidSystem = 'oil', temperatureF = n
     range_flags: (block.range_flags || []).map((f) => f?.text).filter(Boolean).slice(0, 12),
     temperature_f: finite(blockT) ? blockT : null,
     rows: rows.length,
+    pressure_range_psia: [tableMin, tableMax],
+    case_pressures_outside: above.length + below.length,
     taken_at: new Date().toISOString(),
     edited: false,
   };
@@ -152,15 +163,8 @@ export function tableFromPvtBlock(block, { fluidSystem = 'oil', temperatureF = n
 }
 
 const MODEL_WORDS = Object.freeze({ 'black-oil-correlations': 'black-oil correlations', eos: 'equation of state', lab: 'laboratory table' });
-const PB_WORDS = Object.freeze({
-  solved: 'bubble point solved from the solution GOR', entered: 'bubble point entered by the user',
-  'standing-explicit': 'bubble point by the Standing explicit form', 'no-solution-gas': 'no solution gas',
-  eos: 'saturation pressure of the equation of state', lab: 'bubble point measured in the laboratory',
-});
-const TUNING_WORDS = Object.freeze({
-  tuned: 'C7+ tuned to lab data', stale: 'tuning parameters applied, with inputs changed after the fit',
-  'tuned-unrecorded': 'tuning parameters applied, with no record of the match',
-});
+const PB_WORDS = Object.freeze(Object.fromEntries(Object.entries(PVT1_PB_SOURCES).map(([k, v]) => [k, k === 'no-solution-gas' ? v : `bubble point ${v}`])));
+const tuningWords = (status) => pvtContractTuningText({ tuning: { status } });
 const METHOD_LABELS = Object.freeze([
   ['pb', 'Pb'], ['rs', 'Rs'], ['bo', 'Bo'], ['mu_o', 'oil viscosity'], ['z', 'Z'], ['bg', 'Bg'], ['mu_g', 'gas viscosity'], ['bw', 'Bw'],
 ]);
@@ -187,10 +191,11 @@ export function describePvtOrigin(origin, { isGas = false } = {}) {
   const model = MODEL_WORDS[origin.model] ?? origin.model;
   const methods = originMethodsText(origin, { isGas });
   if (model || methods) parts.push([model, methods].filter(Boolean).join(': '));
-  if (origin.basis) parts.push(origin.basis);
-  if (PB_WORDS[origin.pb_source] && !isGas) parts.push(PB_WORDS[origin.pb_source]);
-  if (TUNING_WORDS[origin.tuning]) parts.push(TUNING_WORDS[origin.tuning]);
-  if (origin.range_flags?.length) parts.push(`${origin.range_flags.length} input(s) outside a published range in the fluid study`);
+  if (origin.basis) parts.push(String(origin.basis).replace(/\.$/, ''));
+  if (PB_WORDS[origin.pb_source] && !isGas && !origin.methods?.pb) parts.push(PB_WORDS[origin.pb_source]);
+  if (tuningWords(origin.tuning)) parts.push(tuningWords(origin.tuning));
+  if (origin.range_flags?.length) parts.push(`${origin.range_flags.length} range flag(s) raised by the fluid study`);
+  if (origin.case_pressures_outside > 0) parts.push(`${origin.case_pressures_outside} pressure(s) of the case lay outside the table when it was taken`);
   if (origin.edited) parts.push('rows were edited in this app after the table was taken');
   return `${parts.join('. ')}.`;
 }
@@ -205,8 +210,9 @@ export function pvtOriginRows(origin, { isGas = false } = {}) {
     ['Build of the source', origin.app_build],
     ['Fluid model', MODEL_WORDS[origin.model] ?? origin.model],
     ['Liberation basis', origin.basis],
-    ['Lab tuning', TUNING_WORDS[origin.tuning] ?? 'none'],
+    ['Lab tuning', tuningWords(origin.tuning) || 'none'],
     ['Temperature of the fluid study', finite(origin.temperature_f) ? `${origin.temperature_f.toFixed(1)} degF` : null],
+    ['Pressure range of the table', Array.isArray(origin.pressure_range_psia) ? `${Math.round(origin.pressure_range_psia[0]).toLocaleString('en-US')} to ${Math.round(origin.pressure_range_psia[1]).toLocaleString('en-US')} psia, ${origin.rows} rows${origin.case_pressures_outside > 0 ? `; ${origin.case_pressures_outside} pressure(s) of the case lay outside it, where the engine uses the correlations of the PVT tab` : ''}` : null],
     ['Taken into this case', when(origin.taken_at)],
     ['Edited after it was taken', origin.edited ? 'Yes: rows were changed on the PVT tab' : 'No'],
   ];
@@ -214,7 +220,7 @@ export function pvtOriginRows(origin, { isGas = false } = {}) {
   for (const [key, label] of METHOD_LABELS) {
     if (isGas && ['pb', 'rs', 'bo', 'mu_o'].includes(key)) continue;
     const m = origin.methods?.[key];
-    rows.push([`Method, ${label}`, m?.method ?? 'not stated by the source']);
+    rows.push([`Method, ${label}`, m?.method ? `${m.method}${m.reference ? ` (${m.reference})` : ''}` : 'not stated by the source']);
   }
   rows.push(['Range flags of the fluid study', origin.range_flags?.length ? origin.range_flags.join(' ') : 'none']);
   return rows;
@@ -234,26 +240,14 @@ export async function listFluidProjects(supabase) {
 }
 
 /**
- * The pvt-1 block of one saved project.
+ * The pvt-1 block of one saved project, read through the shared reader.
+ * @param {(id: string) => Promise<object>} read src/lib/pvtSource.js readFluidProjectPvt
  * @returns {Promise<{ok: boolean, block: ?object, projectName: ?string, reason: ?string}>}
  */
-export async function readFluidProjectBlock(supabase, projectId) {
-  const none = (reason, projectName = null) => ({ ok: false, block: null, projectName, reason });
-  if (!projectId) return none('Choose a Fluid Systems Studio project.');
-  let row;
-  try {
-    const res = await supabase.from(FLUID_PROJECTS_TABLE).select('*').eq('id', projectId).maybeSingle();
-    if (res.error) return none(`The Fluid Systems Studio project could not be read: ${res.error.message}`);
-    row = res.data;
-  } catch (e) {
-    return none(`The Fluid Systems Studio project could not be read: ${e?.message ?? e}`);
-  }
-  if (!row) return none('The Fluid Systems Studio project was not found, or it is not yours to read.');
-  const projectName = row.project_name || row.inputs_data?.name || null;
-  const block = blockOf(row.inputs_data);
-  if (!block) return none('This project was saved before Fluid Systems Studio kept a record of how its PVT was computed. Open it in Fluid Systems Studio, run it and save it once, then read it here.', projectName);
-  const named = { ...block, project_id: block.project_id ?? row.id, project_name: block.project_name ?? projectName };
-  const check = checkPvtBlock(named);
-  if (!check.ok) return none(check.errors.join(' '), projectName);
-  return { ok: true, block: named, projectName, reason: null };
+export async function readFluidProjectBlock(read, projectId) {
+  if (!projectId) return { ok: false, block: null, projectName: null, reason: 'Choose a Fluid Systems Studio project.' };
+  const r = await read(projectId);
+  if (!r.ok) return { ok: false, block: null, projectName: r.projectName ?? null, reason: r.reason };
+  const block = { ...r.contract, project_id: r.contract.project_id ?? projectId, project_name: r.contract.project_name ?? r.projectName };
+  return { ok: true, block, projectName: r.projectName ?? block.project_name ?? null, reason: null };
 }

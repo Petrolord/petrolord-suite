@@ -21,6 +21,27 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { STUDY_KEY } from './studyMeta';
 
 // =============================================================================
+// READ-ONLY GUARD (record sharing)
+// =============================================================================
+// A case a colleague shared with the organisation opens read-only. The
+// database refuses every write to it (row level security on rb_cases and its
+// children, migration 20261002130000); this guard gives the same answer
+// first, with the reason in words, so no tab has to know about sharing. The
+// studio context sets it for the open case and clears it on the way out.
+// Creating a case of one's own is never guarded.
+let readOnly = null; // { caseId, reason }
+/**
+ * @param {?string} caseId the open case
+ * @param {?string} reason the sentence to show, or null when the open case can be written
+ */
+export function setCaseReadOnly(caseId, reason) { readOnly = caseId && reason ? { caseId, reason } : null; }
+export const caseReadOnlyReason = () => readOnly?.reason ?? null;
+// `caseId` undefined: a write addressed by run config id, which is always of the open case
+const refused = (caseId) => (readOnly && (caseId === undefined || caseId === readOnly.caseId)
+  ? { data: null, error: { code: 'MBAL_READ_ONLY', message: readOnly.reason } }
+  : null);
+
+// =============================================================================
 // CASE CRUD (rb_cases)
 // =============================================================================
 
@@ -84,6 +105,7 @@ export async function createCase(input) {
  * Update fields on an existing case.
  */
 export async function updateCase(caseId, patch) {
+  { const no = refused(caseId); if (no) return no; }
   // Whether a change makes a stored run stale is decided by comparing the
   // run's own snapshot with the case (lib/runStaleness.js), so nothing is
   // stamped here. (Step 0e stamped updated_at; the record sharing guard
@@ -101,6 +123,7 @@ export async function updateCase(caseId, patch) {
  * Soft-delete: set archived_at. Case stays in the database for recovery.
  */
 export async function archiveCase(caseId) {
+  { const no = refused(caseId); if (no) return no; }
   return updateCase(caseId, { archived_at: new Date().toISOString() });
 }
 
@@ -109,6 +132,7 @@ export async function archiveCase(caseId) {
  * Use with confirmation in the UI.
  */
 export async function deleteCase(caseId) {
+  { const no = refused(caseId); if (no) return no; }
   const { error } = await supabase
     .from('rb_cases')
     .delete()
@@ -147,6 +171,7 @@ export async function listProductionData(caseId) {
  * case_id is added to each row automatically.
  */
 export async function replaceProductionData(caseId, rows) {
+  { const no = refused(caseId); if (no) return no; }
   if (!rows || rows.length === 0) {
     const { error } = await supabase
       .from('rb_production_data')
@@ -186,6 +211,7 @@ export async function replaceProductionData(caseId, rows) {
  * Upsert a single production data row (by case_id + timestep_index).
  */
 export async function upsertProductionRow(caseId, row) {
+  { const no = refused(caseId); if (no) return no; }
   const stamped = { ...row, case_id: caseId };
   const { data, error } = await supabase
     .from('rb_production_data')
@@ -228,6 +254,7 @@ export async function getRunConfig(configId) {
  * Schema defaults handle name, pvt_correlations, etc. if not provided.
  */
 export async function createRunConfig(caseId, input = {}) {
+  { const no = refused(caseId); if (no) return no; }
   const payload = {
     case_id: caseId,
     formation_compressibility_psi: input.formation_compressibility_psi ?? 6e-6,
@@ -246,6 +273,7 @@ export async function createRunConfig(caseId, input = {}) {
  * Update an existing run config.
  */
 export async function updateRunConfig(configId, patch) {
+  { const no = refused(); if (no) return no; }
   const { data, error } = await supabase
     .from('rb_run_configs')
     .update(patch)
@@ -259,6 +287,7 @@ export async function updateRunConfig(configId, patch) {
  * Delete a run config.
  */
 export async function deleteRunConfig(configId) {
+  { const no = refused(); if (no) return no; }
   const { error } = await supabase
     .from('rb_run_configs')
     .delete()
@@ -331,6 +360,7 @@ export async function getResultByRunId(runId) {
  * to the UI.
  */
 export async function runMBAL(runConfigId, options = {}) {
+  { const no = refused(); if (no) return no; }
   if (!runConfigId) {
     return {
       data: null,
@@ -511,6 +541,7 @@ export async function getCaseDefaultConfig(caseId) {
  * NOT atomic — read-then-write. Acceptable for single-user editing.
  */
 export async function upsertCaseDefaultConfig(caseId, patch) {
+  { const no = refused(caseId); if (no) return no; }
   if (!caseId) {
     return { data: null, error: { message: 'Missing caseId' } };
   }
@@ -562,6 +593,7 @@ export async function upsertCaseDefaultConfig(caseId, patch) {
  *   });
  */
 export async function savePvtConfig(caseId, pvtFields) {
+  { const no = refused(caseId); if (no) return no; }
   if (!pvtFields || typeof pvtFields !== 'object') {
     return { data: null, error: { message: 'pvtFields must be an object' } };
   }

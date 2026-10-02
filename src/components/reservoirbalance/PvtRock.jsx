@@ -81,6 +81,7 @@ import {
   getCaseDefaultConfig,
   getPvtPreview,
   savePvtConfig,
+  listProductionData,
 } from '@/pages/apps/reservoir-balance/lib/api';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { buildPvtPrefillRows } from '@/pages/apps/reservoir-balance/lib/fluidStudioPvtPrefill';
@@ -107,6 +108,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   listFluidProjects, readFluidProjectBlock, tableFromPvtBlock, FLUID_PROJECT_PARAM,
 } from '@/pages/apps/reservoir-balance/lib/pvtIntake';
+import { readFluidProjectPvt } from '@/lib/pvtSource';
 import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
 import { RUN_INPUT_DEFAULTS } from '@/pages/apps/reservoir-balance/lib/runStaleness';
 
@@ -1034,6 +1036,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
       {form.pvt_source === 'lab_table' && (
         <PvtIntakeCard
           caseData={caseData}
+          caseId={caseId}
           onTaken={(rows, note, origin) => {
             setForm((prev) => ({
               ...prev,
@@ -1309,7 +1312,7 @@ const CorrelationSelect = ({ label, value, options, onChange }) => {
 // project, with what that study says about itself (the pvt-1 contract,
 // lib/pvtIntake.js). The report prints the source and the method of each
 // property; nothing is recalculated here.
-const PvtIntakeCard = ({ caseData, onTaken }) => {
+const PvtIntakeCard = ({ caseId, caseData, onTaken }) => {
   const [searchParams] = useSearchParams();
   const named = searchParams.get(FLUID_PROJECT_PARAM) || '';
   const [projects, setProjects] = useState(null);
@@ -1331,10 +1334,13 @@ const PvtIntakeCard = ({ caseData, onTaken }) => {
   const take = async () => {
     setBusy(true);
     setMessage(null);
-    const read = await readFluidProjectBlock(supabase, projectId);
+    const read = await readFluidProjectBlock(readFluidProjectPvt, projectId);
     setBusy(false);
     if (!read.ok) { setMessage({ kind: 'error', text: read.reason }); return; }
-    const made = tableFromPvtBlock(read.block, { fluidSystem: caseData?.fluid_system, temperatureF: Number(caseData?.reservoir_temperature_f) });
+    // the pressures the case holds: the table has to cover them, or the engine leaves it there
+    const prod = await listProductionData(caseId);
+    const casePressures = [Number(caseData?.initial_pressure_psia), ...((prod?.data ?? []).map((r) => Number(r.pressure_psia)))];
+    const made = tableFromPvtBlock(read.block, { fluidSystem: caseData?.fluid_system, temperatureF: Number(caseData?.reservoir_temperature_f), casePressures });
     if (!made.ok) { setMessage({ kind: 'error', text: made.error }); return; }
     const note = [`${made.rows.length} rows taken from "${read.projectName ?? 'the project'}".`, ...made.warnings, 'Save the PVT tab to keep it.'].join(' ');
     setMessage(made.warnings.length ? { kind: 'warning', text: made.warnings.join(' ') } : null);

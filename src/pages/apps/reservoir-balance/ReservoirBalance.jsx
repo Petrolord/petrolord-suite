@@ -57,6 +57,7 @@ import { validationTierOf, fmt, r2Text, INJECTION_NOTE } from './lib/reportModel
 import { driveIndexDefs, inPlaceOf } from './lib/mbalSeries';
 import { MBAL_OILFIELD_VIEW, MBAL_METRIC_VIEW, MBAL_UNIT_SPEC } from './lib/mbalUnits';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { RecordSharingBar } from '@/components/recordSharing';
 
 const TABS = [
   { value: 'data', label: 'Data' },
@@ -299,6 +300,16 @@ const RunPanel = () => {
   );
 };
 
+// column names of rb_cases as the change history words them
+const CASE_FIELD_LABELS = Object.freeze({
+  name: 'name', description: 'description', fluid_system: 'fluid system',
+  initial_pressure_psia: 'initial pressure', reservoir_temperature_f: 'temperature',
+  initial_water_saturation: 'initial water saturation', bubble_point_psia: 'bubble point',
+  rock_compressibility: 'rock compressibility', water_compressibility: 'water compressibility',
+  has_gas_cap: 'gas cap', gas_cap_ratio_m: 'gas cap ratio m', has_aquifer: 'aquifer',
+  ooip_volumetric_stb: 'volumetric oil in place', ogip_volumetric_scf: 'volumetric gas in place',
+});
+
 const NoCaseSelected = ({ onCreate }) => (
   <div className="flex flex-col items-center justify-center h-full py-24 text-center">
     <Database className="h-12 w-12 text-pl-muted mb-4" />
@@ -318,7 +329,8 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
     TABS.some((t) => t.value === requested) ? requested : 'data',
   );
   const {
-    cases, casesError, refreshCases,
+    ownCases, sharedCases, casesError, refreshCases,
+    sharing, viewingShared, readOnlyReason, saveCopy,
     caseId, caseData, caseLoading, caseError, refreshCase,
     running, refreshRunInputs,
     handleCaseCreated, handleDeleteCase,
@@ -360,7 +372,9 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
       <section>
         <StudioProjectManager
           label="Case"
-          projects={cases}
+          projects={ownCases}
+          sharedProjects={sharedCases}
+          canDelete={!viewingShared}
           currentProjectId={caseId || ''}
           onOpen={(id) => onOpenCase(id)}
           onDelete={handleDeleteCase}
@@ -370,8 +384,18 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
         {casesError && (
           <p className="text-[11px] text-pl-danger-text mt-2">{casesError}</p>
         )}
+        {caseData && (
+          <RecordSharingBar
+            sharing={sharing}
+            label="case"
+            className="mt-2"
+            allowEdit={false}
+            onSaveCopy={saveCopy}
+            fieldLabels={CASE_FIELD_LABELS}
+          />
+        )}
       </section>
-      <CaseSummary onEdit={() => setEditCaseOpen(true)} />
+      <CaseSummary onEdit={viewingShared ? undefined : () => setEditCaseOpen(true)} />
       {caseData && <UnitsControl />}
       {caseData && (
         <p className="text-[11px] text-pl-muted leading-relaxed">
@@ -394,6 +418,14 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
     </Alert>
   ) : (
     <>
+      {readOnlyReason && (
+        <Alert className="mb-4" data-testid="mbal-read-only">
+          <AlertTitle>Open read-only</AlertTitle>
+          <AlertDescription>
+            {readOnlyReason} The results, the plots and the report are those of its owner's last run. A copy takes the conditions, the production data and the run settings, and you run it yourself.
+          </AlertDescription>
+        </Alert>
+      )}
       {RESULT_TABS.includes(activeTab) && <StaleRunNotice />}
       {/* DataHub stays mounted (hidden) on other tabs so a parsed-but-unsaved
           CSV survives a visit to PVT/Aquifer/etc. Case switches still reset it:
@@ -504,7 +536,8 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
 };
 
 // ─── Page (routing wrapper) ──────────────────────────────────────────────────
-export default function ReservoirBalance() {
+/** @param {{sharingStore?: object}} props a record sharing store; the Supabase one when omitted (the /dev harness hands in its own) */
+export default function ReservoirBalance({ sharingStore = undefined } = {}) {
   const { caseId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -522,7 +555,7 @@ export default function ReservoirBalance() {
   // toggle switches it to dark per user. Charts keep the white standard.
   return (
     <div data-testid="mbal-theme-scope">
-      <MaterialBalanceStudioProvider caseId={caseId ?? null} onOpenCase={handleOpenCase}>
+      <MaterialBalanceStudioProvider caseId={caseId ?? null} onOpenCase={handleOpenCase} sharingStore={sharingStore}>
         <MaterialBalanceStudioContent onOpenCase={handleOpenCase} />
       </MaterialBalanceStudioProvider>
     </div>

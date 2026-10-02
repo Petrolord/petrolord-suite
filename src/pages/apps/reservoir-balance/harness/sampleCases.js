@@ -13,7 +13,8 @@
 // The numbers are the published ones; the dates of the Pletcher and Dake
 // cases are nominal (the books give years 0 to 10).
 
-import { rsAt, computePvtRow } from '@/utils/fluidStudioCalculations';
+import { analyzeFluidSystem, sampleFluidStudioData } from '@/utils/fluidStudioCalculations';
+import { buildFluidPvtContract } from '@/utils/fluidstudio/pvtHandoff';
 
 const DEFAULT_CORRELATIONS = { pb_rs_bo: 'standing', oil_viscosity: 'beggs_robinson', z_factor: 'hall_yarborough', water: 'mccain', gas_viscosity: 'lee_gonzalez_eakin' };
 export const SAMPLE_USER = { id: 'dev-user', email: 'harness@petrolord.dev' };
@@ -49,52 +50,24 @@ const PLETCHER = [
 
 // A saved Fluid Systems Studio project carrying its pvt-1 block, for the PVT
 // intake of the PVT tab: the Ahmed Example 11-3 fluid (35 degAPI, gas gravity
-// 0.7, 175 degF, bubble point 1,500 psia) by Standing and Beggs-Robinson. The
-// rows come from the Fluid Systems black-oil engine; the block is laid out as
-// the contract documents it (docs/scope/ReportKit-DESIGN-AND-STATUS.md
-// section 4, and the writer of the Fluid Systems round).
+// 0.7, 175 degF, bubble point 1,500 psia entered) by Standing and
+// Beggs-Robinson. The block is the one Fluid Systems Studio itself writes
+// (src/utils/fluidstudio/pvtHandoff.js), from its own engine call.
 export const SAMPLE_FLUID_PROJECT_ID = 'fluid-ahmed-11-3';
 export const SAMPLE_FLUID_LEGACY_ID = 'fluid-legacy-no-block';
+export function sampleFluidInputs() {
+  const inputs = sampleFluidStudioData();
+  inputs.streamA.blackOil = { api: 35, gor: 500, gasSg: 0.7, temp: 175, pb: 1500, salinity: 0 };
+  inputs.separatorTrain = { stages: [] };
+  return inputs;
+}
 export function sampleFluidBlock() {
-  const fluid = { api: 35, gasGravity: 0.7, temp: 175, rsb: 0, salinity: 0, pb: null, correlations: { pb_rs_bo: 'standing', viscosity: 'beggs_robinson' } };
-  const pb = 1500;
-  fluid.rsb = rsAt(pb, fluid);
-  const pressures = [200, 500, 800, 1100, 1300, 1500, 2000, 2500, 3000, 3500, 3685, 4000];
-  const table = pressures.map((p) => computePvtRow(p, fluid, pb));
-  return {
-    schema: 'pvt-1',
-    source_app: 'Fluid Systems Studio',
-    project_id: SAMPLE_FLUID_PROJECT_ID,
-    project_name: 'Virginia Hills oil PVT',
-    generated_at: '2026-10-01T14:30:00.000Z',
-    app_build: 'Petrolord Suite harness',
-    model: 'black-oil-correlations',
-    units: { pressure: 'psia', temperature: 'degF', Rs: 'scf/STB', Bo: 'RB/STB', Bg: 'RB/scf', Z: 'dimensionless', mu_o: 'cP', mu_g: 'cP', co: '1/psi', Bw: 'RB/STB', mu_w: 'cP' },
-    columns: ['pressure', 'Rs', 'Bo', 'Bg', 'Z', 'mu_o', 'mu_g', 'co'],
-    standard_conditions: { pressure_psia: 14.7, temperature_degF: 60 },
-    separator_conditions: [],
-    methods: {
-      pb: { method: 'Standing (1947)', kind: 'correlation' },
-      rs: { method: 'Standing (1947)', kind: 'correlation' },
-      bo: { method: 'Standing (1947)', kind: 'correlation' },
-      co: { method: 'Vasquez-Beggs (1980)', kind: 'correlation' },
-      mu_od: { method: 'Beggs-Robinson (1975)', kind: 'correlation' },
-      mu_o: { method: 'Beggs-Robinson (1975)', kind: 'correlation' },
-      mu_o_undersaturated: { method: 'Vasquez-Beggs (1980)', kind: 'correlation' },
-      z: { method: 'Papay (1968) with Sutton pseudo-criticals', kind: 'correlation' },
-      mu_g: { method: 'Lee-Gonzalez-Eakin (1966)', kind: 'correlation' },
-      bg: { method: 'Real gas law from Z', kind: 'definition' },
-      bw: { method: 'McCain (1990)', kind: 'correlation' },
-      mu_w: { method: 'McCain (1991)', kind: 'correlation' },
-    },
-    basis: { kind: 'flash', text: 'Flash (single-stage separator) basis' },
-    pb_source: 'entered',
-    tuning: { status: 'none' },
-    range_flags: [],
-    inputs: { oil_gravity: 35, gas_gravity: 0.7, rsb: Number(fluid.rsb.toFixed(1)), temperature: 175, salinity: 0 },
-    at_saturation: { pressure: pb },
-    table,
-  };
+  const inputs = sampleFluidInputs();
+  return buildFluidPvtContract({
+    inputs, results: analyzeFluidSystem(inputs), eos: null,
+    projectId: SAMPLE_FLUID_PROJECT_ID, projectName: 'Virginia Hills oil PVT',
+    generatedAt: '2026-10-01T14:30:00.000Z', appBuild: 'Petrolord Suite harness',
+  });
 }
 
 export const SAMPLE_CASE_IDS = Object.freeze({ ahmed: 'case-ahmed-11-3', dake: 'case-dake-9-2', pletcher: 'case-pletcher-gas' });
@@ -173,7 +146,7 @@ export function seedSampleStore(now = new Date().toISOString()) {
   const fluidProjects = [
     {
       id: SAMPLE_FLUID_PROJECT_ID, user_id: SAMPLE_USER.id, project_name: 'Virginia Hills oil PVT', created_at: t, updated_at: '2026-10-01T14:30:00.000Z',
-      inputs_data: { name: 'Virginia Hills oil PVT', schema: 2, inputs: {}, pvt: sampleFluidBlock() },
+      inputs_data: { name: 'Virginia Hills oil PVT', schema: 2, inputs: sampleFluidInputs(), pvt: sampleFluidBlock() },
     },
     {
       // a project saved before the fluid study kept its PVT block
@@ -185,4 +158,34 @@ export function seedSampleStore(now = new Date().toISOString()) {
     rb_cases: cases, rb_production_data: production, rb_run_configs: configs, rb_runs: [], rb_results: [],
     saved_fluid_studio_projects: fluidProjects,
   };
+}
+
+// ---- record sharing on the harness ----------------------------------------
+export const SAMPLE_ORG_ID = 'org-dev';
+export const SAMPLE_COLLEAGUE = { id: 'user-colleague', name: 'Ada Colleague' };
+export const SAMPLE_SHARED_CASE_ID = 'case-colleague-shared';
+export const SAMPLE_SHARED_CONFIG_ID = 'cfg-colleague-shared';
+
+/**
+ * Gives every seeded case the sharing columns of migration 20261002130000
+ * (private, version 1) and adds one case a colleague owns and shares with
+ * the organisation for viewing: the Ahmed example under her name, with its
+ * production data and run settings. The caller runs the engine on
+ * SAMPLE_SHARED_CONFIG_ID so the case has a result to show.
+ */
+export function addSharingToStore(store, now = new Date().toISOString()) {
+  const sharingDefaults = { visibility: 'private', organization_id: null, org_access: 'view', editing_by: null, editing_since: null, editing_expires: null, version: 1, updated_by: null };
+  store.rb_cases = store.rb_cases.map((c) => ({ ...sharingDefaults, ...c }));
+  const src = store.rb_cases.find((c) => c.id === SAMPLE_CASE_IDS.ahmed);
+  store.rb_cases.push({
+    ...src, id: SAMPLE_SHARED_CASE_ID, user_id: SAMPLE_COLLEAGUE.id, name: 'North flank oil (shared by Ada)',
+    field_name: 'North flank', description: 'A case a colleague shared with the organisation for viewing.',
+    visibility: 'organization', organization_id: SAMPLE_ORG_ID, org_access: 'view', version: 3, updated_by: SAMPLE_COLLEAGUE.id, updated_at: now,
+  });
+  for (const r of store.rb_production_data.filter((x) => x.case_id === SAMPLE_CASE_IDS.ahmed)) {
+    store.rb_production_data.push({ ...r, id: `${r.id}-shared`, case_id: SAMPLE_SHARED_CASE_ID });
+  }
+  const cfg = store.rb_run_configs.find((x) => x.case_id === SAMPLE_CASE_IDS.ahmed);
+  store.rb_run_configs.push({ ...cfg, id: SAMPLE_SHARED_CONFIG_ID, case_id: SAMPLE_SHARED_CASE_ID, user_id: SAMPLE_COLLEAGUE.id });
+  return store;
 }
