@@ -273,7 +273,7 @@ current app's Step 2 builds, at most two upgrade agents at once.
 | 1 | Fluid Systems Studio | Done 2026-10-02 on `feat/fluid-u1` (PR open, not merged): 30 findings, 21 fixed (6 S2, no S1), the report on the kit, the `pvt-1` writer with Well Test as first reader, units, record sharing, the P-T door on the shared reader; three engine corrections (entered bubble point, Bo above Pb, separator totals) | Analysis done: 23 items ranked, batches A, B, C proposed; awaiting the lead's choice | | `docs/upgrade/FluidSystemsStudio-UPGRADE.md` |
 | 2 | Material Balance Studio | | | | `docs/upgrade/MaterialBalanceStudio-UPGRADE.md` |
 | 3 | Decline Curve Analysis, Forecast Scenario Hub | | | | `docs/upgrade/DeclineCurveAnalysis-UPGRADE.md` |
-| 4 | Risked Reserves Valuation, ReservoirCalc Pro RL re-check | | | | `docs/upgrade/RiskedReservesValuation-UPGRADE.md` |
+| 4 | Risked Reserves Valuation, ReservoirCalc Pro RL re-check | done 2026-10-02 on `feat/rrv-u1`: 23 findings, 19 fixed, no S1, no S2 open; report on the kit; `rrv_valuations` migration file NOT APPLIED (owner-run); ReservoirCalc Pro re-check: 8 of 10 fixed | analysis done 2026-10-02: 12 items, batches A, B, C; 6 owner questions | | `docs/upgrade/RiskedReservesValuation-UPGRADE.md`; `docs/upgrade/ReservoirCalcPro-UPGRADE.md` (RL re-check) |
 | 5 | SCAL Studio | | | | `docs/upgrade/SCALStudio-UPGRADE.md` |
 | 6 | Waterflood Design Studio | | | | `docs/upgrade/WaterfloodDesignStudio-UPGRADE.md` |
 | 7 | Voidage Replacement Monitor | | | | `docs/upgrade/VoidageReplacementMonitor-UPGRADE.md` |

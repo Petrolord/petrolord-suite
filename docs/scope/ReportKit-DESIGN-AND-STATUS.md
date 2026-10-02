@@ -251,3 +251,11 @@ For the Geoscience reports, should they move later:
   plotted figure; assert `pointCounts` against the screen series.
 - Changing `src/lib/reportKit` must leave the Well Test goldens untouched
   unless the Well Test report is meant to change.
+
+## 8. Additions since Step 0
+
+| Date | From | What |
+|---|---|---|
+| 2026-10-02 | Risked Reserves Valuation U1 | `bars.js`: `drawBars(doc, box, spec)`, a bar chart on the house standard (categories on X, one bar per series, per-bar colours, value text over each bar, reference lines). A figure panel asks for it with `kind: 'bars'`. The test kit counts bars in the page content stream (`plotMarks().bars`, present only when the area holds one) and `expectFigureDrawn` holds them against `marks.bars`. Self-test `__tests__/reportKitBars.test.js`. This covers the bar part of gap 1 in section 6; histograms can use it with bins as categories; a tornado (horizontal bars from a base) is still open. |
+| 2026-10-02 | Risked Reserves Valuation U1 | `plot.js`: a reference line takes `row` to drop its label by one line per step, so neighbouring labels do not overprint. Default 0: existing reports are unchanged (Well Test goldens byte-identical). |
+| 2026-10-02 | ReservoirCalc Pro RL re-check | `drawPlot` used on a report that is not on the kit (its own jsPDF document and layout), with the kit test side reading it back: a way to give an older report a vector figure without changing its look. |

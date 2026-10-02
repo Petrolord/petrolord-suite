@@ -513,3 +513,16 @@ the migrator in the same change.
 - Deploy procedure: write `build-info.json` `{ "sha": "<full sha>" }` at
   the clean-checkout root before zipping (untracked, gitignored) so the
   Hostinger build stamps the real sha.
+
+## 2026-10-02: `rrv_valuations` in the geoscience family
+
+Risked Reserves Valuation U1: root kind `rrv_valuation`, table
+`rrv_valuations`, after `rcp_prospects` in the import order, in backups, the
+manifest schema and the export dialog ("Risked valuations"). A valuation
+names its prospect in a column, in its key and in its payload; all three
+follow the prospect when both are in the package (soft references, the last
+two through the `.*` form). Alone, it keeps the old id as provenance. The
+sharing state does not travel. Test:
+`src/lib/portability/__tests__/rrvValuationFamily.test.js`. The table exists
+only once migration `20261002151500` is applied; until then the picker list
+is empty.
