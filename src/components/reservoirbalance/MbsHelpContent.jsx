@@ -1,7 +1,9 @@
 // Help drawer content for the Material Balance Studio. Replaces the retired
 // HelpGuideDialog, whose step list described tabs that did not exist yet; this
 // guide covers the full shipped surface through MB7 (Cole and Campbell
-// diagnostics, the cf-corrected p/z overlay, PVT prefill and chart exports).
+// diagnostics, the cf-corrected p/z overlay, PVT prefill and chart exports)
+// and the MBAL-U1 upgrade (display units, the import door, PVT taken from a
+// Fluid Systems Studio project, the rebuilt report, sharing and packages).
 import React from 'react';
 
 const H = ({ children }) => <h4 className="text-sm font-semibold text-pl-text mt-5 mb-1.5">{children}</h4>;
@@ -24,17 +26,39 @@ const MbsHelpContent = () => (
       says the results are from an earlier run, withholds their status and holds the report until you run again.
     </P>
 
+    <H>Units</H>
+    <P>
+      The studio opens in the units of your Suite unit profile, and the switch in the left rail changes the view for
+      this session: oilfield (psia, degF, STB, RB, scf, ft) or metric (kPa abs, degC, sm3, rm3, m). Every field,
+      table, plot axis, the series file and the report follow it. Pressures are absolute. STB and sm3 are volumes at
+      surface conditions; RB and rm3 are volumes in the reservoir. The case is stored in oilfield units whichever
+      view you work in, so a colleague on the other view reads the same case.
+    </P>
+
     <H>2. Data</H>
     <P>
       Load the production history as cumulative volumes per observation date: pressure plus cumulative oil, gas and
-      water (and injection where present). Upload CSV files or edit the table directly, then save. The first row is
-      the initial state and must carry zero cumulative production.
+      water. Drop a file (CSV, text with tab, semicolon or space columns, or an Excel sheet), paste a table, or edit
+      the rows directly, then save. The first row is the initial state and must carry zero cumulative production.
     </P>
     <P>
-      A CSV upload is a two-stage operation. The file is parsed and shown to you as a preview first, marked as parsed
-      but not yet saved, and nothing reaches the case until you save it. That is deliberate, so a mis-mapped column is
-      caught before it overwrites history you already have. The panel stays mounted while you move between tabs, so a
-      pending preview is still waiting when you come back.
+      The door finds each column by its name, in any order, and reads the unit from the header where one is written,
+      for example Pressure (kPag) or Gp (MMscf). Where the header names no unit you choose it, and the door tells you
+      which unit it assumed. Gauge pressures are raised by the atmospheric pressure shown, which you can change.
+      Dates such as 03/04/2015 that could be day first or month first are asked for; the door never guesses them. A
+      decimal comma is read as a decimal comma. Under the mapping you see what was read and every line that was left
+      out with its reason: a title, a comment, a repeated header, a totals row, a row with no pressure.
+    </P>
+    <P>
+      A load is a two-stage operation. The file is read and shown to you as a preview first, marked as not saved yet,
+      and nothing reaches the case until you save it. That is deliberate, so a mis-mapped column is caught before it
+      overwrites history you already have. The panel stays mounted while you move between tabs, so a pending preview
+      is still waiting when you come back.
+    </P>
+    <P>
+      Injected water and gas can be kept on the table and are printed in the report, but this engine version has no
+      injection term: they are left out of the balance, and the Data tab, the Run tab and the report all say so. For
+      a reservoir under injection the oil in place from this studio is therefore too high.
     </P>
     <P>
       A regression needs at least two rows in total, counting the initial state, which means one observed pressure
@@ -63,6 +87,18 @@ const MbsHelpContent = () => (
       rest. A table built this way is reported as built from correlations, with the correlation names, and as
       edited by hand once you change a row. It is never reported as lab data.
     </P>
+    <P>
+      Take the PVT of a Fluid Systems Studio project fills the table from a saved fluid study and keeps what that
+      study says about itself: the project, the fluid model, the method of every property, the liberation basis, the
+      lab tuning and its range flags. The report prints them as the source of the PVT. The table has to cover every
+      pressure of the case. Outside the table the engine would use the correlations of this tab, so one balance
+      would mix two PVT descriptions; a table that stops short is refused with the reason, and a table typed by
+      hand that stops short is flagged on the Run tab and in the limits of the report.
+    </P>
+    <P>
+      A case whose Bo, Rs and Bg (or Z) come on the data rows needs no separate table. The tab says so and the rest
+      of it (gravities, salinity, compressibilities) saves as usual.
+    </P>
 
     <H>4. Aquifer</H>
     <P>
@@ -70,7 +106,9 @@ const MbsHelpContent = () => (
       Carter-Tracy. Pot solves aquifer size from the regression itself; Fetkovich and Carter-Tracy march water influx
       from your aquifer geometry and properties. Carter-Tracy supports a finite aquifer through the radius ratio, and
       defaults water viscosity from the McCain correlation and the reservoir radius from area when you leave them
-      blank; every defaulted value is named in the run warnings. Each aquifer model carries its validation tier badge
+      blank; every defaulted value is named in the run warnings and printed in the report as a default. The reservoir
+      radius, the area, the water viscosity and the salinity have their own fields. Saving a model also tells the
+      case that it has an aquifer, which the pressure history match reads. Each aquifer model carries its validation tier badge
       here on the configuration itself, so you can see what a choice is backed by before you commit a run to it
       as well as afterwards on the result.
     </P>
@@ -81,7 +119,8 @@ const MbsHelpContent = () => (
       from geometry). Load the case's dated pressures, explore aquifer sizes until the influx looks right, compare
       against the dashed We from the last engine run, then press Use in model to write the screened parameters into
       the case. First-row time zero sets the initial pressure. The screen is an estimate; the engine run and its
-      validation tier remain the authority.
+      validation tier remain the authority. The tab opens on the aquifer of a built-in example and says so until you
+      change a value.
     </P>
     <P>
       Expect the screen and the engine to differ slightly on Carter-Tracy with a finite aquifer. The browser screen
@@ -133,10 +172,15 @@ const MbsHelpContent = () => (
 
     <H>6. Plots</H>
     <P>
-      Diagnostic plots for the latest run. A gas case shows four charts: the Havlena-Odeh straight line, p over z,
-      the Cole plot and the drive indices through time. An oil case shows three: Havlena-Odeh, the Campbell plot and
-      the drive indices. A straight line with scatter tells you more than a forced fit; curvature usually means the
-      aquifer model or the gas cap size is wrong.
+      Diagnostic plots for the latest run, the same ones the report prints. The regression plot is drawn in the space
+      the engine regressed in, which depends on the aquifer model: F against Et with no aquifer, F minus We against
+      Et with a Fetkovich or Carter-Tracy aquifer, and the pot aquifer plot (F over the expansion against the
+      pressure drop over the expansion) with a pot aquifer. Its line is the engine's own slope and intercept, filled
+      circles are the points the fit used, and hollow squares are the points it left out. Beside it: the Campbell
+      plot for oil or the Cole plot for gas, p over z for gas, measured against simulated pressure when a history
+      match was run, the water influx, and the drive indices through time. A plot that does not apply to the run says
+      why. A straight line with scatter tells you more than a forced fit; curvature usually means the aquifer model
+      or the gas cap size is wrong.
     </P>
     <P>
       The Cole plot is the gas aquifer diagnostic and the Campbell plot is its oil counterpart, so you see whichever
@@ -174,20 +218,52 @@ const MbsHelpContent = () => (
       influx (We minus produced water) and the gas-oil contact descends by the gas-cap expansion the material
       balance attributed, both spread over the contact areas you provide as piston-like fronts. Assumptions are
       uniform area with depth, no coning and no gravity smearing; treat the output as a screening view and confirm
-      with surveillance logs.
+      with surveillance logs. The contact depths and areas you type are saved with the case and printed in the
+      report beside the pressure datum.
     </P>
 
     <H>9. Report</H>
     <P>
-      Exports a PDF of the latest run (case summary, headline volumes with validation tier and benchmark reference,
-      drive indices, pressure history, the history match with confidence intervals when one was run, and all engine
-      warnings) plus a CSV with every per-timestep series for spreadsheet work.
+      Exports a PDF of the latest run for a reviewer. It carries the identification (company, field, licence,
+      reservoir, zone, analyst, data dates, units, build), every input the engine read with its unit and its source,
+      the pressure datum as you stated it, the data used with the timesteps left out of the fit and why, the result
+      with the regression statement, the in-place volume by each method side by side, the drive indices with the
+      convention they are computed by, the expansion terms, the PVT the engine used, the limits of the method with
+      the published range of each correlation, and the plots. The series file (CSV) carries every per-timestep
+      series with its units.
+    </P>
+    <P>
+      Fill the report details on this tab: the identification, the datum depth and reference, whether the pressures
+      were referred to the datum, and where each input came from (measured, a correlation, an offset, an
+      assumption). An input with no source prints as entered, source not stated; a value the app filled by default
+      prints as an assumption. Saving the details does not change a result, so the run stays current. The studio
+      applies no correction to datum: pressures enter the balance as you typed them, and the report says so.
+    </P>
+    <P>
+      The report always describes the run on screen. When an input, the PVT, the aquifer or the data changed after
+      that run, the result is named an earlier run, its status words are withheld and the export waits for a new
+      run. Putting the input back makes the result current again. A case run before October 2026 kept no record of
+      what its run was made on, so it asks for one new run before it reports.
     </P>
     <P>
       Individual charts can also be lifted out on their own. Every chart in the studio carries a download button
       that saves the current view as a PNG, including all of the diagnostic plots as well as the history match,
       forecast, contacts and aquifer screening charts. That is usually what you want when a single plot has to go
       into a partner deck or a well review.
+    </P>
+
+    <H>Sharing and packages</H>
+    <P>
+      Share with my organisation, under the case picker, lets colleagues in your organisation open the case with its
+      data, results, plots and report. They see it under Shared with me and it opens read-only: nothing they change
+      is saved to your case. Save a copy gives a colleague a case of their own with the same conditions, production
+      data and run settings, which they run themselves. Turn the switch off to make the case private again. Editing
+      of one case by several people is planned.
+    </P>
+    <P>
+      A case travels in a Petrolord package (.pld) with its production data, run settings, runs and results, from
+      the package export of the Suite. Imported, it is your own private case, and its last run is current exactly
+      when it was current where it came from.
     </P>
 
     <H>Validation</H>

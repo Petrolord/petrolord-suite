@@ -83,6 +83,9 @@ export const FAMILIES = Object.freeze({
       lin('MSTB', 1e3 * M3_PER_BBL, 'MSTB (10^3 STB)', 'oilfield'), lin('MMSTB', 1e6 * M3_PER_BBL, 'MMSTB (10^6 STB)', 'oilfield'),
       lin('MMbbl', 1e6 * M3_PER_BBL, 'MMbbl (10^6 bbl)', 'oilfield'), lin('RB', M3_PER_BBL, 'RB (reservoir bbl)', 'oilfield'),
       lin('10^6 m3', 1e6, '10^6 m3', 'metric'),
+      // Material Balance round: reservoir volumes (F, We, aquifer water in place) print in thousands and millions
+      lin('MRB', 1e3 * M3_PER_BBL, 'MRB (10^3 reservoir bbl)', 'oilfield'), lin('MMRB', 1e6 * M3_PER_BBL, 'MMRB (10^6 reservoir bbl)', 'oilfield'),
+      lin('10^3 m3', 1e3, '10^3 m3', 'metric'),
     ],
   },
   gasVolume: {

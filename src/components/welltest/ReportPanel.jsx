@@ -70,6 +70,10 @@ const ReportPanel = () => {
           source: projectName || wellName || 'Well Test Analysis Studio',
           wellName,
           pAvg_psia: pBar,
+          // how the pressure was obtained and when it was sent, so the
+          // receiving report can cite it (reviewer lens RL11)
+          pressureMethod: Number.isFinite(semilogResult?.pStar) ? 'extrapolated p* of the semilog straight line' : 'initial pressure as entered on the test',
+          sentAt: new Date().toISOString(),
           k_md: kBest,
           skin: skinBest,
           fluid: reservoirSpec.reservoir?.fluid || 'oil',

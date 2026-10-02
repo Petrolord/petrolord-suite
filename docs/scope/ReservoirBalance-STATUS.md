@@ -2,7 +2,8 @@
 
 > Companion to `docs/scope/ReservoirBalance.md` (full scope, decision log,
 > process patterns). This file is the fast-read snapshot.
-> Last updated: 2026-09-11 · **MB PROGRAM COMPLETE (MB1-MB7)**; prior state
+> Last updated: 2026-10-02 (upgrade Step 1, MBAL-U1; see the last section).
+> Before that: 2026-09-11 · **MB PROGRAM COMPLETE (MB1-MB7)**; prior state
 > as of the 2026-05-17 patch series. Newest entries: the oil drive-index
 > denominator fix (engines #165), the physical-sanity guards (engines #166) and
 > the drive-index rename (engines #167) and the solver_method/provenance fixes
@@ -817,3 +818,52 @@ Doc: `docs/upgrade/Reservoir-Step0e-HonestySweep.md` (branch `fix/reservoir-hone
 - **H12 (comma decimals in the data hub) is not in this change:** it moves
   onto the shared parser `src/lib/tabularFile.js` in Step 0a.
 - Not verified: whether production sets `rb_cases.updated_at` by trigger.
+
+## 2026-10-02: comprehensive upgrade, Step 1 (MBAL-U1, branch `feat/mbal-u1`)
+
+Doc: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md` (the twenty-four checks,
+29 findings, the Step 2 analysis and ranked backlog).
+
+- **Engine math unchanged.** No engines repo change.
+- **Owner deploy owed:** `supabase functions deploy calculate-mbal`. The
+  function now builds the engine inputs and the stored result through
+  `supabase/functions/_shared/mbal-run-mapping.ts`, shared with the /dev
+  harness and the report tests.
+- **S1 fixed (MBAL-U1-003):** the pressure history match read the aquifer
+  from the case flag `has_aquifer`, which the Aquifer tab never set, so it
+  could match a closed tank beside an aquifer regression (Dake 9.2: 535
+  against 312 MMSTB). The mapping derives the flag from the aquifer model;
+  the Aquifer tab and the Run action keep the flag in step.
+- **The stale rule (H4) is now a snapshot.** The live database does not move
+  `updated_at` the way the sweep's rule assumed (answering its "not
+  verified"): `rb_cases` moves it on a change of content only, since the
+  sharing guard; `rb_run_configs` on every update, by a trigger. A run
+  config now carries `pvt_correlations.run_snapshot` (case inputs and a
+  digest of the data) and no time stamp is read. A run made before this
+  release asks for one new run before it reports.
+- **Report** rebuilt on the Report Kit (`utils/mbalReportExport.js`,
+  `lib/reportModel.js`, `lib/plotModels.js`, `lib/mbalSeries.js`): 10 pages
+  for the oil sample, 8 for the gas sample, seven figures.
+- **Study record** (identification, pressure datum, input sources, contacts,
+  handoffs) under `pvt_correlations.study` of the default config. No DDL.
+- **Units:** `lib/mbalUnits.js` on the Suite unit profile; the database and
+  the engine stay in oilfield units.
+- **Import door:** `lib/productionImport.js` on `src/lib/tabularParse.js`;
+  twelve hostile files under `e2e/fixtures/material-balance/hostile/`.
+- **PVT intake** from a saved Fluid Systems Studio project (`pvt-1`):
+  `lib/pvtIntake.js`. A table that does not cover the pressures of the case
+  is refused, and a hand-typed one that stops short is flagged on the Run
+  tab and in the report.
+- **Known and stated, still open:** the engine has no injection term
+  (MBAL-U1-008); excluded timesteps have no screen (020); colleague editing
+  of a shared case (019, viewing is adopted); nothing is sent out of the app.
+- **Saved state:** `.pld` family `material_balance` (root kind `rb_case`);
+  backfill file `20260718220500_backfill_rb_run_configs_updated_at_trigger.sql`
+  (not applied, a no-op live); fixture of a September case.
+- **Record sharing for viewing:** the picker lists "Shared with me"; a shared
+  case opens read-only (every write of `lib/api.js` answers with the reason);
+  Save a copy makes the reader's own case.
+- Tests: `mbalReportU1` (47), `mbalRunMapping` (11), `mbalUnits` (11),
+  `productionImport` (19), `pvtIntake` (16), `mbalInputsU1` (12),
+  `mbalSharing` (9), `mbalSavedCase` (4), `materialBalanceFamily` (5),
+  `reportKitStackedBars` (12); e2e `material-balance-upgrade.spec.js` (20).

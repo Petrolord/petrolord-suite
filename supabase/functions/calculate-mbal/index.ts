@@ -42,11 +42,8 @@ import {
   type HistoryMatchParameterKey,
   type HistoryMatchResult,
   type MBALInputs,
-  type ProductionDataPoint,
-  type PerTimestepResult,
-  type FluidSystem,
-  type AquiferModel,
 } from "../_shared/mbal-engine.ts";
+import { buildEngineInputs, buildResultColumns } from "../_shared/mbal-run-mapping.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CORS
@@ -266,58 +263,11 @@ serve(async (req: Request) => {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // Build MBALInputs from loaded rows
+  // Build MBALInputs from loaded rows (the mapping lives in
+  // _shared/mbal-run-mapping.ts, shared with the /dev harness and the report's
+  // completeness test)
   // ──────────────────────────────────────────────────────────────────────────
-  const production_data: ProductionDataPoint[] = prodData.map((row: any) => ({
-    timestep_index: row.timestep_index,
-    pressure_psia: row.pressure_psia,
-    // MB5 bugfix (2026-07-18): observation_date was never mapped from the DB
-    // rows, so Fetkovich/Carter-Tracy runs threw the missing-date engine
-    // error even when the Data tab had uploaded dates.
-    observation_date: row.observation_date ?? undefined,
-    cum_oil_stb: row.cum_oil_stb ?? 0,
-    cum_gas_scf: row.cum_gas_scf ?? 0,
-    cum_water_stb: row.cum_water_stb ?? 0,
-    cum_water_inj_stb: row.cum_water_inj_stb ?? 0,
-    cum_gas_inj_scf: row.cum_gas_inj_scf ?? 0,
-    bo_rb_stb: row.bo_rb_stb ?? undefined,
-    rs_scf_stb: row.rs_scf_stb ?? undefined,
-    bg_rb_mscf: row.bg_rb_mscf ?? undefined,
-    bw_rb_stb: row.bw_rb_stb ?? undefined,
-    z_factor: row.z_factor ?? undefined,
-    observed_we_rb: row.observed_we_rb ?? undefined,
-  }));
-
-  const inputs: MBALInputs = {
-    fluid_system: rbCase.fluid_system as FluidSystem,
-    has_aquifer: rbCase.has_aquifer,
-    has_gas_cap: rbCase.has_gas_cap,
-    initial_pressure_psia: rbCase.initial_pressure_psia,
-    reservoir_temperature_f: rbCase.reservoir_temperature_f,
-    initial_water_saturation: rbCase.initial_water_saturation,
-    bubble_point_psia: rbCase.bubble_point_psia ?? undefined,
-    oil_gravity_api: runConfig.oil_gravity_api ?? undefined,
-    gas_specific_gravity: runConfig.gas_specific_gravity ?? undefined,
-    water_salinity_ppm: runConfig.water_salinity_ppm ?? undefined,
-    formation_compressibility_psi: runConfig.formation_compressibility_psi,
-    water_compressibility_psi: runConfig.water_compressibility_psi,
-    aquifer_model: (runConfig.aquifer_model ?? "none") as AquiferModel,
-    aquifer_params: runConfig.aquifer_params ?? undefined,
-    gas_cap_ratio_m: runConfig.gas_cap_ratio_m ?? undefined,
-    pvt_source: runConfig.pvt_source,
-    pvt_correlations: runConfig.pvt_correlations,
-    // Capsule 4C chunk (b): standalone PVT lab table. Optional; engine falls
-    // back to correlations when absent. The column is added to rb_run_configs
-    // via migration: 2026-05-15_rb_run_configs_pvt_lab_table.sql
-    pvt_lab_table: runConfig.pvt_lab_table ?? undefined,
-    // solver_method is deliberately NOT forwarded. The engine never branched on
-    // it and now reports what it actually ran as solver_method_used (engines
-    // #168); passing the stored value would only raise a mismatch warning on
-    // cases the config's coarse gas/oil guess gets wrong. rb_run_configs keeps
-    // the column as a record of intent.
-    excluded_timesteps: runConfig.excluded_timesteps ?? [],
-    production_data,
-  };
+  const inputs: MBALInputs = buildEngineInputs(rbCase, runConfig, prodData);
 
   // ──────────────────────────────────────────────────────────────────────────
   // Run engine
@@ -359,112 +309,15 @@ serve(async (req: Request) => {
   const duration_ms = completedAt.getTime() - startedAt.getTime();
 
   // ──────────────────────────────────────────────────────────────────────────
-  // Insert results
+  // Insert results. buildResultColumns builds the scalar columns and the
+  // plot_data jsonb (per-timestep series for every plot and for the report).
   // ──────────────────────────────────────────────────────────────────────────
-  // Build plot_data JSONB from per_timestep arrays.
-  //
-  // Capsule 3B (2026-05-15) adds: cum_oil_stb, cum_gas_scf, cum_water_stb,
-  // point_in_fit. These give the Plots tab everything it needs to render
-  // Havlena-Odeh, p/z, Campbell, Cole, and drive-index plots without any
-  // additional engine math.
-  // ──────────────────────────────────────────────────────────────────────────
-  const excludedSet = new Set<number>(runConfig.excluded_timesteps ?? []);
-  const plot_data = {
-    timestep_index: engineResult.per_timestep.map((p: PerTimestepResult) => p.timestep_index),
-    pressure: engineResult.per_timestep.map((p: PerTimestepResult) => p.pressure_psia),
-    delta_p: engineResult.per_timestep.map((p: PerTimestepResult) => p.delta_p_psi),
-    F: engineResult.per_timestep.map((p: PerTimestepResult) => p.F_rb),
-    Et: engineResult.per_timestep.map((p: PerTimestepResult) => p.Et_rb),
-    Eo: engineResult.per_timestep.map((p: PerTimestepResult) => p.Eo_rb_stb ?? null),
-    Eg_rb_mscf: engineResult.per_timestep.map((p: PerTimestepResult) => p.Eg_rb_mscf ?? null),
-    // MB6: oil-side gas-cap expansion term (RB/STB, Pletcher Eq. 23) and Bw,
-    // consumed by the Contacts tab (GOC descent = m·N·Eg_oil; OWC rise nets
-    // Wp·Bw out of We). Null on results stored before MB6.
-    Eg_oil: engineResult.per_timestep.map((p: PerTimestepResult) => p.Eg_rb_stb ?? null),
-    Bw: engineResult.per_timestep.map((p: PerTimestepResult) => p.bw_rb_stb ?? null),
-    Efw: engineResult.per_timestep.map((p: PerTimestepResult) => p.Efw_rb),
-    We: engineResult.per_timestep.map((p: PerTimestepResult) => p.We_rb ?? null),
-    p_over_z: engineResult.per_timestep.map((p: PerTimestepResult) => p.p_over_z ?? null),
-    ddi: engineResult.per_timestep.map((p: PerTimestepResult) => p.ddi ?? null),
-    gdi: engineResult.per_timestep.map((p: PerTimestepResult) => p.gdi ?? null),
-    wdi: engineResult.per_timestep.map((p: PerTimestepResult) => p.wdi ?? null),
-    // cdi is the rock and connate water expansion on BOTH fluid systems since
-    // engines #167. `sdi` is a DEPRECATED MIRROR of it, written only so a front
-    // end deployed before this function keeps rendering oil results; nothing in
-    // this repo reads it any more. Safe to drop once no stale client remains.
-    cdi: engineResult.per_timestep.map((p: PerTimestepResult) => p.cdi ?? null),
-    sdi: engineResult.per_timestep.map((p: PerTimestepResult) => p.cdi ?? null),
-    drive_index_sum: engineResult.per_timestep.map((p: PerTimestepResult) => p.drive_index_sum ?? null),
-    // Production cumulatives from input (passed through for plotting)
-    cum_oil_stb: production_data.map((p: ProductionDataPoint) => p.cum_oil_stb ?? null),
-    cum_gas_scf: production_data.map((p: ProductionDataPoint) => p.cum_gas_scf ?? null),
-    cum_water_stb: production_data.map((p: ProductionDataPoint) => p.cum_water_stb ?? null),
-    // Which points were used in the least-squares regression. true = in fit,
-    // false = excluded (either user-excluded or the always-excluded initial timestep 0).
-    point_in_fit: engineResult.per_timestep.map((p: PerTimestepResult) =>
-      p.timestep_index > 0 && !excludedSet.has(p.timestep_index)
-    ),
-    // Which regression actually ran, straight from the engine (engines #168).
-    // Lives here rather than in a new rb_results column so no migration is
-    // needed; the report prefers it over the run config's stored intent.
-    solver_method_used: engineResult.solver_method_used ?? null,
-    // MB5: history-match block (null on regression runs). Feeds the
-    // pressure-match plot and the matched-parameter card in the studio.
-    history_match: historyMatch
-      ? {
-          observed_pressure_psia: historyMatch.observed_pressure_psia,
-          simulated_pressure_psia: historyMatch.simulated_pressure_psia,
-          residual_psi: historyMatch.residual_psi,
-          point_in_fit: historyMatch.point_in_fit,
-          rms_error_psi: historyMatch.rms_error_psi,
-          max_abs_error_psi: historyMatch.max_abs_error_psi,
-          ssr_psi2: historyMatch.ssr_psi2,
-          iterations: historyMatch.iterations,
-          converged: historyMatch.converged,
-          matched_parameters: historyMatch.matched_parameters,
-          validation_tier: historyMatch.validation_tier,
-          validation_reference: historyMatch.validation_reference ?? null,
-          observation_date: production_data.map(
-            (p: ProductionDataPoint) => p.observation_date ?? null,
-          ),
-        }
-      : null,
-  };
-
   const { data: resultRow, error: resultErr } = await supabaseUser
     .from("rb_results")
     .insert({
       run_id: runRow.id,
       case_id: rbCase.id,
-      // History match: headline in-place values are the MATCHED ones (the
-      // forward regression estimates remain available inside plot_data).
-      estimated_ooip_stb: historyMatch
-        ? historyMatch.matched_ooip_stb ?? null
-        : engineResult.estimated_ooip_stb ?? null,
-      estimated_ogip_scf: historyMatch
-        ? historyMatch.matched_ogip_scf ?? null
-        : engineResult.estimated_ogip_scf ?? null,
-      r_squared: engineResult.r_squared,
-      regression_slope: engineResult.regression_slope,
-      regression_intercept: engineResult.regression_intercept,
-      n_data_points: engineResult.n_data_points,
-      aquifer_owip_rb: engineResult.aquifer_owip_rb ?? null,
-      aquifer_cumulative_we_rb: engineResult.aquifer_cumulative_we_rb ?? null,
-      aquifer_fit_quality: engineResult.aquifer_fit_quality ?? null,
-      final_ddi: engineResult.final_ddi ?? null,
-      final_gdi: engineResult.final_gdi ?? null,
-      final_wdi: engineResult.final_wdi ?? null,
-      // Deprecated mirror, see plot_data above. The rb_results column stays
-      // populated so older rows and this one read the same way.
-      final_sdi: engineResult.final_cdi ?? null,
-      final_cdi: engineResult.final_cdi ?? null,
-      final_drive_index_sum: engineResult.final_drive_index_sum ?? null,
-      drive_mechanism: engineResult.drive_mechanism,
-      aquifer_strength: engineResult.aquifer_strength,
-      warnings: historyMatch
-        ? [...historyMatch.warnings, ...engineResult.warnings]
-        : engineResult.warnings,
-      plot_data,
+      ...buildResultColumns(engineResult, inputs, historyMatch),
     })
     .select()
     .single();

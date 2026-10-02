@@ -32,7 +32,7 @@ async function listSavedProjects() {
 }
 
 /**
- * @param {'seismic_project'|'seismic_volume'|'seismic_line'|'wp_site'|'po_field'|'epe_case'|'epe_assumption_set'|'sim_case'|'saved_project'} kind
+ * @param {'seismic_project'|'seismic_volume'|'seismic_line'|'wp_site'|'po_field'|'epe_case'|'epe_assumption_set'|'rb_case'|'sim_case'|'saved_project'} kind
  * @returns {Promise<Array<{ id: string, name: string, table?: string, subtitle?: string, organization_id?: string|null }>>}
  */
 export async function listRootCandidates(kind) {
@@ -93,6 +93,11 @@ export async function listRootCandidates(kind) {
     case 'epe_assumption_set': {
       const rows = await rowsOf(supabase.from('epe_assumption_sets').select('id, name, user_id').order('name'));
       return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `Assumption set ${String(r.id).slice(0, 8)}`, subtitle: 'assumption set' }));
+    }
+    case 'rb_case': {
+      // MBAL-U1: Material Balance Studio cases (the user's own and those shared with them)
+      const rows = await rowsOf(supabase.from('rb_cases').select('id, name, field_name, fluid_system, user_id, updated_at').is('archived_at', null).order('updated_at', { ascending: false }));
+      return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `Case ${String(r.id).slice(0, 8)}`, subtitle: [r.field_name, r.fluid_system === 'gas' ? 'gas' : 'oil', 'material balance'].filter(Boolean).join(', ') }));
     }
     case 'sim_case': {
       const rows = await rowsOf(supabase.from('sim_cases').select('id, name, deck_source, user_id').order('name'));

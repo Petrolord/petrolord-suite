@@ -1,244 +1,234 @@
 /**
- * Material Balance Studio — PDF report export (MB6).
- * jsPDF + autotable, same stack and layout conventions as the Well Test
- * Analysis Studio report (src/utils/wellTestReportExport.js, WT5/WT10).
- * Data in, one PDF out; no fetching here.
+ * Material Balance Studio: the PDF report, on the shared Report Kit
+ * (src/lib/reportKit), and the series CSV.
+ *
+ * Rebuilt in the Material Balance round of the app upgrade programme
+ * (MBAL-U1). The report before it was two pages of tables with no plot, no
+ * PVT value and no aquifer input. This one is what a reviewer signs against:
+ * identification, every engine input with unit and source, the pressure
+ * datum, the data the analysis used and left out, the results with the
+ * regression statement, the in-place volume by each method, the drive
+ * indices with their convention and closure, the terms that make up Et, the
+ * PVT the engine used, the limits of the method, and the plots, drawn as
+ * vectors from the same models the Plots tab draws.
+ *
+ * Pure formatting: every row and every plotted point arrives already built
+ * by lib/reportModel.js collectMbalReportArgs and lib/plotModels.js. Nothing
+ * is fetched and nothing is recalculated here.
+ *
+ * A report pairs the inputs with the run made on them (H4). When an input
+ * changed after the run there is no such pair, so nothing is exported.
  */
-import { describePvtSource } from '@/pages/apps/reservoir-balance/lib/pvtSource';
+import { createReport } from '@/lib/reportKit';
+import { loadPetrolordLogo } from '@/lib/pdfBrand';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { staleRunMessage } from '@/pages/apps/reservoir-balance/lib/runStaleness';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import {
+  REPORT_TITLE, REPORT_APP_NAME, collectMbalReportArgs, DATUM_NOTE, INPUTS_NOTE, CROSS_CHECK_NOTE, TIER_LABELS, shortReference,
+} from '@/pages/apps/reservoir-balance/lib/reportModel';
+import { buildPlotModels, toKitFigures } from '@/pages/apps/reservoir-balance/lib/plotModels';
+import { buildRunRows } from '@/pages/apps/reservoir-balance/lib/mbalSeries';
 
-const NAVY = [15, 23, 42];
-const SLATE = [100, 116, 139];
+export { collectMbalReportArgs };
 
-const f1 = (v) => (Number.isFinite(v) ? Number(v).toFixed(1) : '-');
-const f2 = (v) => (Number.isFinite(v) ? Number(v).toFixed(2) : '-');
-const f3 = (v) => (Number.isFinite(v) ? Number(v).toFixed(3) : '-');
-const mm = (v, div, unit, digits = 2) =>
-  (Number.isFinite(v) ? `${(v / div).toFixed(digits)} ${unit}` : '-');
+// Input, Value, Unit: the value column holds method names as well as numbers
+const INPUT_COLUMNS = Object.freeze({ 0: { cellWidth: 54 }, 1: { cellWidth: 42 }, 2: { cellWidth: 20 } });
 
-const TIER_LABELS = {
-  benchmark_verified: 'Benchmark verified',
-  published_method: 'Published method',
-  engineering_basis: 'Engineering basis',
-};
-
-const FLUID_LABELS = {
-  oil: 'Oil',
-  gas: 'Gas',
-  oil_with_gas_cap: 'Oil with gas cap',
-};
+/** Rows of the data table before the report says where the rest is. */
+export const MAX_DATA_ROWS = 150;
 
 /**
- * The rows of the "Case summary" table. `defaultCfg` is the config of the
- * run being reported.
+ * Build the report document.
+ * @param {object} args the studio's report inputs: { caseData, result, runConfig, run, study,
+ *   organizationName, build, units, staleness }, or the model collectMbalReportArgs made of them
+ * @param {{logo?: ?{dataUrl: string, w: number, h: number}, generatedAt?: Date}} [opts]
+ * @returns {{doc: object, figures: Array, pages: number, model: object, plots: Array}}
  */
-export const caseSummaryRows = ({ caseData, lastResult, defaultCfg }) => [
-  ['Initial pressure (psia)', f1(caseData?.initial_pressure_psia)],
-  ['Reservoir temperature (F)', f1(caseData?.reservoir_temperature_f)],
-  ['Initial water saturation', f3(caseData?.initial_water_saturation)],
-  ['Bubble point (psia)', caseData?.bubble_point_psia ? f1(caseData.bubble_point_psia) : '-'],
-  ['Production rows', String(caseData?.production_data?.length ?? 0)],
-  ['Aquifer model', defaultCfg?.aquifer_model ?? (caseData?.has_aquifer ? 'pot' : 'none')],
-  // What the engine actually ran, not what the config asked for. The engine
-  // never branched on the requested value (engines #168); reports built
-  // before that printed the request as though it were the method.
-  [
-    'Solver method',
-    lastResult?.plot_data?.solver_method_used ?? defaultCfg?.solver_method ?? '-',
-  ],
-  // H5: the true source in words, with the correlation names. The raw
-  // column value said "lab_table" for a table built from correlations.
-  ['PVT source', describePvtSource(defaultCfg)],
-];
-
-export const exportMbalPdf = ({ caseData, lastResult, defaultCfg, staleness }) => {
-  // H4: a report pairs the inputs with the run made on them. When an input
-  // changed after the run there is no such pair, so nothing is exported.
-  // `defaultCfg` is the config snapshot of the run being reported.
-  if (staleness?.stale) {
-    throw new Error(`The report was not exported. ${staleRunMessage(staleness)}`);
+export function buildMbalPdf(args, { logo = null, generatedAt = new Date() } = {}) {
+  if (args?.staleness?.stale) {
+    throw new Error(`The report was not exported. ${staleRunMessage(args.staleness)}`);
   }
-  const doc = new jsPDF();
-  const isGas = caseData?.fluid_system === 'gas';
-  const plot = lastResult?.plot_data ?? {};
-  const hm = plot.history_match ?? null;
-  let y = 20;
+  if (!args?.result?.plot_data?.timestep_index?.length) {
+    throw new Error('The report was not exported. Run the engine first: there is no result to report.');
+  }
+  const model = args.identification ? args : collectMbalReportArgs(args);
+  const u = model.units;
+  const plots = buildPlotModels({ series: model.series, result: model.result, units: u });
+  const report = createReport({ title: REPORT_TITLE, appName: REPORT_APP_NAME, logo });
+  const { table, section } = report;
 
-  doc.setFontSize(18);
-  doc.setTextColor(...NAVY);
-  doc.text('Material Balance Report', 14, y);
-  y += 8;
-  doc.setFontSize(10);
-  doc.setTextColor(...SLATE);
-  doc.text(
-    [
-      caseData?.name || 'Untitled case',
-      caseData?.field_name ? `Field ${caseData.field_name}` : null,
-      caseData?.reservoir_name ? `Reservoir ${caseData.reservoir_name}` : null,
-      FLUID_LABELS[caseData?.fluid_system] ?? caseData?.fluid_system,
-    ].filter(Boolean).join('  |  '),
-    14, y,
-  );
-  y += 5;
-  doc.text(
-    `Generated ${new Date().toISOString().slice(0, 16).replace('T', ' ')}  |  Petrolord Material Balance Studio`,
-    14, y,
-  );
-  y += 4;
-  doc.setDrawColor(...SLATE);
-  doc.line(14, y, 196, y);
-  y += 6;
+  // ---- who, what, when (RL4) ----
+  report.header({ identification: model.identification, displayUnits: u.displayUnits(), generatedAt });
 
-  const table = (title, head, body) => {
-    if (!body.length) return;
-    doc.setFontSize(12);
-    doc.setTextColor(...NAVY);
-    doc.text(title, 14, y);
-    doc.autoTable({
-      startY: y + 2,
-      head: [head],
-      body,
-      theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: NAVY },
-      margin: { left: 14, right: 14 },
+  // ---- headline (RL8) ----
+  table('Headline results', ['Quantity', 'Value'], model.headline.rows, {
+    columnStyles: { 0: { cellWidth: 92 } },
+    note: model.headline.tier.reference
+      ? `Engine path validation, ${TIER_LABELS[model.headline.tier.tier] ?? model.headline.tier.tier}: ${shortReference(model.headline.tier.reference)}`
+      : undefined,
+  });
+  section('Regression statement', model.regressionText);
+
+  if (model.historyMatch) {
+    table(model.historyMatch.title, model.historyMatch.head, model.historyMatch.rows, { note: model.historyMatch.note });
+  }
+
+  table('In-place volume by each method', ['Method', 'In place', 'Against the headline', 'Basis'],
+    model.crossCheck.map((r) => [r.method, r.text, r.difference, r.basis]), {
+      columnStyles: { 0: { cellWidth: 56 }, 1: { cellWidth: 30 }, 2: { cellWidth: 24 } },
+      note: CROSS_CHECK_NOTE,
     });
-    y = doc.lastAutoTable.finalY + 8;
-    if (y > 260) { doc.addPage(); y = 20; }
-  };
 
-  table('Case summary', ['Quantity', 'Value'], caseSummaryRows({ caseData, lastResult, defaultCfg }));
+  // ---- drive indices: split, convention named, closure stated (RL3, RL7) ----
+  table('Drive indices at the last timestep', model.drive.head, model.drive.rows, {
+    columnStyles: { 0: { cellWidth: 64 }, 1: { cellWidth: 60 } },
+    note: model.drive.note,
+  });
 
-  if (lastResult) {
-    const tierLabel = TIER_LABELS[lastResult.validation_tier] ?? lastResult.validation_tier ?? '-';
-    table('Headline results (latest run)', ['Quantity', 'Value'], [
-      isGas
-        ? ['OGIP', mm(lastResult.estimated_ogip_scf, 1e9, 'Bcf')]
-        : ['OOIP', mm(lastResult.estimated_ooip_stb, 1e6, 'MM STB')],
-      ['Regression R2', f3(lastResult.r_squared)],
-      ['Drive mechanism', (lastResult.drive_mechanism ?? '-').replace(/_/g, ' ')],
-      ['Aquifer strength', lastResult.aquifer_strength ?? '-'],
-      ['Aquifer W', mm(lastResult.aquifer_owip_rb, 1e6, 'MM rb', 1)],
-      ['Cumulative We', mm(lastResult.aquifer_cumulative_we_rb, 1e6, 'MM rb', 1)],
-      ['Drive index sum', f3(lastResult.final_drive_index_sum)],
-      ['Validation tier', tierLabel],
-      ['Validation reference', lastResult.validation_reference ?? '-'],
-    ]);
-
-    const di = [];
-    if (isGas) {
-      di.push(['Gas expansion (GDI)', f3(lastResult.final_gdi)]);
-      di.push(['Rock and water (CDI)', f3(lastResult.final_cdi)]);
-      di.push(['Water drive (WDI)', f3(lastResult.final_wdi)]);
-    } else {
-      di.push(['Depletion (DDI)', f3(lastResult.final_ddi)]);
-      di.push(['Gas cap (GDI)', f3(lastResult.final_gdi)]);
-      di.push(['Water drive (WDI)', f3(lastResult.final_wdi)]);
-      di.push(['Rock and water (EDI)', f3(lastResult.final_cdi ?? lastResult.final_sdi)]);
-    }
-    table('Drive indices at the final timestep', ['Drive', 'Index'], di);
+  // ---- inputs: every engine input, with unit and source (RL1) ----
+  report.inputsTable(model.inputs, { title: 'Inputs of the analysis', note: INPUTS_NOTE, columnStyles: INPUT_COLUMNS });
+  report.inputsTable(model.datum, { title: 'Pressure datum and contacts', note: DATUM_NOTE, columnStyles: INPUT_COLUMNS });
+  if (model.pvtProvenance) {
+    table('PVT provenance', ['Item', 'As stated by the source'], model.pvtProvenance, {
+      columnStyles: { 0: { cellWidth: 54 } },
+      note: 'The PVT table was taken from a saved Fluid Systems Studio project. The methods are the ones that study named for each property; this app computed none of them.',
+    });
+  }
+  if (model.pvtTable) {
+    table('PVT table of the run', model.pvtTable.head, model.pvtTable.body, { note: model.pvtTable.note });
+  }
+  if (model.pvtUsed.stored) {
+    table('PVT used by the engine at each timestep', model.pvtUsed.head, model.pvtUsed.body, { note: model.pvtUsed.note });
+  } else {
+    section('PVT used by the engine at each timestep', model.pvtUsed.statement);
   }
 
-  if (hm) {
-    table(
-      `Pressure history match${hm.converged ? ` (converged in ${hm.iterations} iterations)` : ` (stopped at the iteration cap, ${hm.iterations})`}`,
-      ['Parameter', 'Start', 'Matched', '95% confidence'],
-      (hm.matched_parameters ?? []).map((p) => [
-        `${p.label} (${p.unit})${p.at_bound ? ' [at bound]' : ''}`,
-        Number(p.initial_value).toPrecision(4),
-        Number(p.matched_value).toPrecision(5),
-        p.ci95_low != null && p.ci95_high != null
-          ? `${Number(p.ci95_low).toPrecision(4)} to ${Number(p.ci95_high).toPrecision(4)}`
-          : '-',
-      ]),
-    );
-    table('Match quality', ['Quantity', 'Value'], [
-      ['RMS pressure error (psi)', f2(hm.rms_error_psi)],
-      ['Largest miss (psi)', f2(hm.max_abs_error_psi)],
-      ['Fit points', String((hm.point_in_fit ?? []).filter(Boolean).length)],
-    ]);
-  }
-
-  const steps = plot.timestep_index ?? [];
-  if (steps.length) {
-    const MAX_ROWS = 60;
-    const body = steps.slice(0, MAX_ROWS).map((step, i) => [
-      String(step),
-      f1(plot.pressure?.[i]),
-      isGas ? mm(plot.cum_gas_scf?.[i], 1e9, 'Bcf', 3) : mm(plot.cum_oil_stb?.[i], 1e6, 'MM STB', 3),
-      mm(plot.cum_water_stb?.[i], 1e3, 'M STB', 1),
-      mm(plot.We?.[i], 1e6, 'MM rb', 2),
-      hm ? f1(hm.simulated_pressure_psia?.[i]) : '-',
-    ]);
-    table(
-      `Pressure and production history${steps.length > MAX_ROWS ? ` (first ${MAX_ROWS} of ${steps.length} rows)` : ''}`,
-      ['Step', 'p (psia)', isGas ? 'Gp' : 'Np', 'Wp', 'We', hm ? 'p simulated' : ''],
-      body,
-    );
-  }
-
-  const warnings = lastResult?.warnings ?? [];
-  if (warnings.length) {
-    table('Engine warnings', ['#', 'Warning'], warnings.map((w, i) => [String(i + 1), w]));
-  }
-
-  doc.setFontSize(8);
-  doc.setTextColor(...SLATE);
-  doc.text(
-    'Results computed by the Petrolord material balance engine. The validation tier names the published benchmark backing the specific engine path used.',
-    14, 285,
+  // ---- data: what was used and what was left out (RL5) ----
+  table('Data summary', ['Quantity', 'Value'], model.data.totals, { columnStyles: { 0: { cellWidth: 92 } } });
+  const dataRows = model.data.body;
+  table(
+    `Pressure and production history${dataRows.length > MAX_DATA_ROWS ? ` (first ${MAX_DATA_ROWS} of ${dataRows.length} timesteps; the series CSV holds them all)` : ''}`,
+    model.data.head, dataRows.slice(0, MAX_DATA_ROWS), { note: model.data.note },
   );
 
-  const stamp = new Date().toISOString().slice(0, 10);
-  doc.save(`mbal-report-${(caseData?.name ?? 'case').replace(/[^a-z0-9-]+/gi, '-').toLowerCase()}-${stamp}.pdf`);
-  return true;
+  // ---- the terms of the fit (RL2) ----
+  table('Withdrawal and expansion terms', model.expansion.head, model.expansion.body.slice(0, MAX_DATA_ROWS), { note: model.expansion.formula });
+  if (model.driveTable.body.length) {
+    table('Drive indices by timestep', model.driveTable.head, model.driveTable.body.slice(0, MAX_DATA_ROWS));
+  }
+
+  // ---- what the engine said, and where the method stops (RL9) ----
+  if (model.warnings.length) {
+    table('Engine warnings', ['#', 'Warning'], model.warnings.map((w, i) => [String(i + 1), w]), { columnStyles: { 0: { cellWidth: 10 } } });
+  } else {
+    section('Engine warnings', 'The engine raised no warning on this run.');
+  }
+  report.limits({
+    assumptions: model.limits.assumptions,
+    ranges: model.limits.ranges,
+    flags: model.limits.flags,
+    noFlagsText: model.limits.noFlagsText,
+  });
+
+  // ---- the plots (RL6) ----
+  const figures = toKitFigures(plots);
+  if (!figures.some((f) => f.panels?.length)) {
+    throw new Error('The report was not exported: it would have no plot.');
+  }
+  report.figures(figures);
+
+  const who = [model.caseData?.name, model.caseData?.field_name ? `Field ${model.caseData.field_name}` : null].filter(Boolean).join(', ');
+  const built = report.finish({ footer: `${REPORT_TITLE}${who ? `, ${who}` : ''}` });
+  return { ...built, model, plots };
+}
+
+export const reportFileName = (caseData, date = new Date()) => {
+  const base = (caseData?.name ?? 'case').replace(/[^a-z0-9-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'case';
+  return `mbal-report-${base}-${date.toISOString().slice(0, 10)}.pdf`;
 };
 
 /**
- * CSV of the latest run's per-timestep series (plot_data columns), for
- * spreadsheet work. Returns the CSV string; caller downloads it.
+ * Build and save the report. The Petrolord mark for the plots is loaded
+ * first; the report still builds without it. Throws with the reason when
+ * the report cannot be exported (a stale run, no result).
+ * @returns {Promise<{pages: number, fileName: string}>}
  */
-export const buildPlotDataCsv = (lastResult) => {
+export async function exportMbalPdf(args) {
+  if (args?.staleness?.stale) {
+    throw new Error(`The report was not exported. ${staleRunMessage(args.staleness)}`);
+  }
+  let logo = null;
+  try { logo = await loadPetrolordLogo(); } catch { logo = null; }
+  const built = buildMbalPdf(args, { logo });
+  const fileName = reportFileName(args.caseData);
+  built.doc.save(fileName);
+  return { pages: built.pages, fileName };
+}
+
+const csvCell = (v) => {
+  if (v == null || (typeof v === 'number' && !Number.isFinite(v))) return '';
+  const s = String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+
+/**
+ * CSV of the run's per-timestep series, for spreadsheet work. The first
+ * lines (starting with #) say what the file is and in which units; the
+ * columns are in the engine's units whatever the display units, and each
+ * column head names its unit.
+ * @param {object} lastResult the rb_results row
+ * @param {{caseData?: object, runConfig?: object, generatedAt?: Date}} [o]
+ * @returns {?string} null when there is no result
+ */
+export const buildPlotDataCsv = (lastResult, { caseData = null, runConfig = null, generatedAt = new Date() } = {}) => {
   const plot = lastResult?.plot_data;
   if (!plot?.timestep_index?.length) return null;
-  const hm = plot.history_match ?? null;
-  const withData = (primary, fallback) => {
-    const hasData = (arr) => Array.isArray(arr) && arr.some((v) => v != null);
-    return hasData(primary) ? primary : (hasData(fallback) ? fallback : primary);
-  };
+  const rows = buildRunRows(plot, { productionData: caseData?.production_data });
+  const isGas = caseData?.fluid_system === 'gas';
   const cols = [
-    ['timestep_index', plot.timestep_index],
-    ['pressure_psia', plot.pressure],
-    ['cum_oil_stb', plot.cum_oil_stb],
-    ['cum_gas_scf', plot.cum_gas_scf],
-    ['cum_water_stb', plot.cum_water_stb],
-    ['F_rb', plot.F],
-    ['Et_rb', plot.Et],
-    ['Eo_rb_stb', plot.Eo],
-    ['Eg_oil_rb_stb', plot.Eg_oil],
-    ['Efw_rb', plot.Efw],
-    ['We_rb', plot.We],
-    ['p_over_z', plot.p_over_z],
-    ['ddi', plot.ddi],
-    ['gdi', plot.gdi],
-    ['wdi', plot.wdi],
+    ['timestep_index', (r) => r.timestep_index],
+    ['observation_date', (r) => (r.date ? String(r.date).slice(0, 10) : null)],
+    ['pressure_psia', (r) => r.pressure],
+    ['cum_oil_stb', (r) => r.cum_oil_stb],
+    ['cum_gas_scf', (r) => r.cum_gas_scf],
+    ['cum_water_stb', (r) => r.cum_water_stb],
+    ['cum_water_inj_stb', (r) => r.cum_water_inj_stb],
+    ['cum_gas_inj_scf', (r) => r.cum_gas_inj_scf],
+    ['F_rb', (r) => r.F],
+    [isGas ? 'Et_rb_per_scf' : 'Et_rb_per_stb', (r) => r.Et],
+    ['Eo_rb_per_stb', (r) => r.Eo],
+    ['Eg_gas_cap_rb_per_stb', (r) => r.Eg_oil],
+    ['Eg_rb_per_mscf', (r) => r.Eg_rb_mscf],
+    [isGas ? 'Efw_rb_per_scf' : 'Efw_rb_per_stb', (r) => r.Efw],
+    ['We_rb', (r) => r.We],
+    ['p_over_z_psia', (r) => r.p_over_z],
+    ['Bo_rb_per_stb', (r) => r.Bo],
+    ['Rs_scf_per_stb', (r) => r.Rs],
+    ['Bg_rb_per_mscf', (r) => r.Bg_rb_mscf],
+    ['z', (r) => r.z],
+    ['Bw_rb_per_stb', (r) => r.Bw],
+    ['ddi', (r) => r.ddi],
+    ['gdi', (r) => r.gdi],
+    ['wdi', (r) => r.wdi],
     // cdi carries the rock and connate water expansion for both fluid systems
     // since engines #167. Oil results stored before it have that array under
-    // `sdi` with `cdi` present but all null, so pick whichever array has data
-    // rather than whichever key exists.
-    ['cdi', withData(plot.cdi, plot.sdi)],
-    ['simulated_pressure_psia', hm?.simulated_pressure_psia],
-    ['pressure_residual_psi', hm?.residual_psi],
-  ].filter(([, arr]) => Array.isArray(arr));
-  const n = plot.timestep_index.length;
-  const lines = [cols.map(([name]) => name).join(',')];
-  for (let i = 0; i < n; i++) {
-    lines.push(cols.map(([, arr]) => {
-      const v = arr[i];
-      return v == null || Number.isNaN(v) ? '' : String(v);
-    }).join(','));
-  }
+    // `sdi` with `cdi` present but all null; buildRunRows picks whichever
+    // holds the data.
+    ['cdi', (r) => r.cdi],
+    ['drive_index_sum', (r) => r.drive_index_sum],
+    ['in_fit', (r) => (r.point_in_fit ? 1 : 0)],
+    ['simulated_pressure_psia', (r) => r.simulated_pressure],
+    ['pressure_residual_psi', (r) => r.residual],
+  ].filter(([name, get]) => ['timestep_index', 'pressure_psia', 'cdi', 'in_fit'].includes(name) || rows.some((r) => get(r) != null));
+  const head = [
+    '# Material Balance Studio, per-timestep series of one engine run',
+    `# Case: ${caseData?.name ?? EMPTY_VALUE}${caseData?.field_name ? `, field ${caseData.field_name}` : ''}${caseData?.reservoir_name ? `, reservoir ${caseData.reservoir_name}` : ''}`,
+    `# Fluid system: ${caseData?.fluid_system ?? EMPTY_VALUE}; aquifer model: ${runConfig?.aquifer_model ?? EMPTY_VALUE}`,
+    `# Generated: ${generatedAt.toISOString().slice(0, 16).replace('T', ' ')} UTC`,
+    '# Units: the engine units named in each column head, whatever the display units of the studio. Pressures are absolute (psia). rb is a reservoir barrel, stb a stock-tank barrel.',
+    '# Drive indices are fractions of the hydrocarbon voidage (F minus Wp Bw for oil, Gp Bg for gas).',
+  ];
+  const lines = [...head, cols.map(([name]) => name).join(',')];
+  for (const r of rows) lines.push(cols.map(([, get]) => csvCell(get(r))).join(','));
   return lines.join('\n');
 };
