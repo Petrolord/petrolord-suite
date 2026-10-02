@@ -35,6 +35,18 @@ begin
   return _parts[1:array_length(_parts, 1) - 1];
 end $$;
 grant execute on function storage.foldername(text) to anon, authenticated;
+-- the live guard against direct SQL deletes (read from the live database 2026-10-02)
+create or replace function storage.protect_delete() returns trigger language plpgsql as $$
+BEGIN
+    IF COALESCE(current_setting('storage.allow_delete_query', true), 'false') != 'true' THEN
+        RAISE EXCEPTION 'Direct deletion from storage tables is not allowed. Use the Storage API instead.'
+            USING HINT = 'This prevents accidental data loss from orphaned objects.',
+                  ERRCODE = '42501';
+    END IF;
+    RETURN NULL;
+END;
+$$;
+create trigger protect_objects_delete before delete on storage.objects for each statement execute function storage.protect_delete();
 alter table storage.objects enable row level security;
 grant all on storage.objects, storage.buckets to anon, authenticated;
 

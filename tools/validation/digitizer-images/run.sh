@@ -32,6 +32,13 @@ echo "=== 1. a wrapped dry run rolls back ==="
 check "after rollback no bucket" "$(echo "select count(*) from storage.buckets where id='digitizer-images'" | Q)" "0"
 check "after rollback no policy" "$(echo "select count(*) from pg_policies where policyname like 'digitizer_images_%'" | Q)" "0"
 
+echo "=== 1b. the single-statement dry run (dry-run-sql.sh): migration and pentest together, nothing kept ==="
+DRY=$(bash dry-run-sql.sh | docker exec -i $C psql -U postgres -tAq 2>&1 || true)
+check "the dry run raises the pentest result" "$(echo "$DRY" | grep -oE 'DIGITIZER PENTEST: [0-9]+ passed, [0-9]+ failed' | head -1)" "DIGITIZER PENTEST: 19 passed, 0 failed"
+check "after the dry run no bucket" "$(echo "select count(*) from storage.buckets where id='digitizer-images'" | Q)" "0"
+check "after the dry run no policy" "$(echo "select count(*) from pg_policies where policyname like 'digitizer_images_%'" | Q)" "0"
+check "after the dry run no object" "$(echo "select count(*) from storage.objects" | Q)" "0"
+
 echo "=== 2. apply twice ==="
 P < "$M" && echo "  first apply ok"
 P < "$M" && echo "  second apply ok"
@@ -47,6 +54,8 @@ echo "=== 3. pentest ==="
 check "pentest" "$(pentest)" "DIGITIZER PENTEST: 19 passed, 0 failed"
 check "the pentest keeps nothing" "$(echo "select count(*) from storage.objects" | Q)" "0"
 
+check "a direct SQL delete outside the pentest is still refused by the storage guard" "$(printf '%s\n' "\\set VERBOSITY verbose" "delete from storage.objects;" | docker exec -i $C psql -U postgres -tAq 2>&1 | grep -oE 'Direct deletion from storage tables is not allowed' | head -1)" "Direct deletion from storage tables is not allowed"
+
 echo "=== 4. negative controls: the pentest has teeth ==="
 # (a) the read policy widened to the whole bucket: another user reads, and the
 #     bucket-less "Allow user to update own files" policy then lets an owner
@@ -60,6 +69,14 @@ check "re-applied: green again" "$(pentest)" "DIGITIZER PENTEST: 19 passed, 0 fa
 echo "drop policy \"digitizer_images_insert_own\" on storage.objects; create policy \"digitizer_images_insert_own\" on storage.objects for insert to authenticated with check (bucket_id = 'digitizer-images')" | P
 check "insert policy widened: the pentest fails" "$(pentest)" "DIGITIZER PENTEST: 16 passed, 3 failed"
 echo "  $(pentest_detail)"
+P < "$M"
+check "re-applied: green again" "$(pentest)" "DIGITIZER PENTEST: 19 passed, 0 failed"
+# (c2) the delete policy without the folder rule does nothing alone (a delete only reaches rows the caller can
+#      read); with the read policy widened too, another user deletes the owner's image, and the pentest says so
+echo "drop policy \"digitizer_images_delete_own\" on storage.objects; create policy \"digitizer_images_delete_own\" on storage.objects for delete to authenticated using (bucket_id = 'digitizer-images')" | P
+check "delete policy widened alone: still green (the read policy holds the line)" "$(pentest)" "DIGITIZER PENTEST: 19 passed, 0 failed"
+echo "drop policy \"digitizer_images_select_own\" on storage.objects; create policy \"digitizer_images_select_own\" on storage.objects for select to authenticated using (bucket_id = 'digitizer-images')" | P
+check "read and delete widened: another user deletes, and the pentest says so" "$(pentest_detail | grep -c 'B deleted 1 of A')" "1"
 P < "$M"
 check "re-applied: green again" "$(pentest)" "DIGITIZER PENTEST: 19 passed, 0 failed"
 # (c) the bucket made public by hand is put back by the migration (section 2); and with no policy at all the owner is locked out

@@ -2,7 +2,8 @@
 # Local scratch-Postgres dry run for 20261002090000_geo_wells_datum_model.sql.
 # Never points at a Supabase database. Needs docker. Usage: bash run.sh
 # Proves: the file carries no begin/commit; wrapped in begin ... rollback it
-# leaves nothing behind; it applies twice cleanly; the 9 columns are nullable
+# leaves nothing behind; the single-statement dry run (dry-run-sql.sh)
+# reports per well and keeps nothing; it applies twice cleanly; the 9 columns are nullable
 # with no default; kb_m, the policies and the grants are untouched; the
 # backfill does to the 13 live wells what the design doc says (12 stated as
 # KB, Lad unset, 4 entered in feet); the second apply changes no row; the
@@ -43,6 +44,13 @@ echo "=== 1. a wrapped dry run rolls back ==="
 check "inside the dry run the 9 columns exist" "$(grep -E '^ *[0-9]+ *$' /tmp/datum-dry-$$.out | tr -d ' ' | head -1)" "9"
 check "after rollback no datum column remains" "$(echo "select count(*) from information_schema.columns where table_name='geo_wells' and column_name in ($NEWCOLS)" | Q)" "0"
 rm -f /tmp/datum-dry-$$.out
+
+echo "=== 1b. the single-statement dry run (dry-run-sql.sh) reports per well and keeps nothing ==="
+DRY=$(bash dry-run-sql.sh | docker exec -i $C psql -U postgres -tAq 2>&1 || true)
+check "the dry run raises its report" "$(echo "$DRY" | grep -oE 'DATUM DRY RUN: 13 wells before, 13 after; kb_m unchanged; 12 stated, 1 unset; columns added 9; constraints 9' | head -1)" "DATUM DRY RUN: 13 wells before, 13 after; kb_m unchanged; 12 stated, 1 unset; columns added 9; constraints 9"
+check "it names what happens to Lad" "$(echo "$DRY" | grep -oE 'Lad \[kb_m 0\] -> unset null' | head -1)" "Lad [kb_m 0] -> unset null"
+check "and to a well entered in feet" "$(echo "$DRY" | grep -oE 'W-3 \[kb_m 7.06063104\] -> KB 7.06063104 entered in ft' | head -1)" "W-3 [kb_m 7.06063104] -> KB 7.06063104 entered in ft"
+check "after the dry run no datum column remains" "$(echo "select count(*) from information_schema.columns where table_name='geo_wells' and column_name in ($NEWCOLS)" | Q)" "0"
 
 echo "=== 2. apply ==="
 P < "$M" && echo "  first apply ok"

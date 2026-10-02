@@ -139,13 +139,17 @@ select o.name, o.created_at, (o.metadata ->> 'size')::bigint as bytes
 ## 6. Validation
 
 - `tools/validation/digitizer-images/run.sh`: scratch Postgres with the
-  storage tables, `storage.foldername` and the live bucket-less policies.
-  17 checks: a wrapped begin/rollback leaves nothing; applies twice; the
-  bucket row (and a bucket made public by hand is forced back to private);
-  four policies, one per command, to authenticated only; other buckets'
-  policies byte-identical; the pentest green; and three negative controls in
-  which the pentest fails as it should (read policy widened, insert policy
-  widened, read policy dropped).
+  storage tables, `storage.foldername`, the live bucket-less policies and the
+  live guard against direct SQL deletes. 25 checks: a wrapped begin/rollback
+  leaves nothing; the single-statement dry run keeps nothing; applies twice;
+  the bucket row (and a bucket made public by hand is forced back to
+  private); four policies, one per command, to authenticated only; other
+  buckets' policies byte-identical; the pentest green; and negative controls
+  in which the pentest fails as it should (read policy widened, insert policy
+  widened, read and delete widened, read policy dropped).
+- `tools/validation/digitizer-images/dry-run-sql.sh`: prints the migration
+  body and the pentest as ONE `DO` statement that always raises, for a dry run
+  on the linked database that cannot commit however it is sent.
 - `tools/validation/digitizer-images/pentest.sql`: 19 checks in one `DO` block
   that always ends by raising its result, so it cannot commit anywhere it is
   run. The owner writes, reads, replaces and deletes under their own folder;
@@ -157,6 +161,26 @@ select o.name, o.created_at, (o.metadata ->> 'size')::bigint as bytes
 - `e2e/contour-map-digitizer.spec.js`: the image is saved with the project and
   restored on load in the harness.
 
-## 7. Status
+## 7. Status (2026-10-02)
 
-See the end of this file (filled in as the work lands).
+- Migration file written, logged in MIGRATIONS.md as NOT APPLIED. The owner
+  applies it.
+- Scratch dry run and pentest: 25 of 25, pentest 19 of 19.
+- Live rolled-back dry run and pentest (one statement that always raises):
+  `DIGITIZER PENTEST: 19 passed, 0 failed` against the live `storage.objects`.
+  Checked afterwards: 18 buckets, 45 storage policies, no `digitizer-images`
+  bucket, no object. One thing the live run taught: the storage tables refuse
+  a direct SQL delete unless `storage.allow_delete_query` is on, so the
+  pentest turns it on for its own (always rolled back) transaction, as the
+  Storage service does for its deletes.
+- App: built and tested on both sides of the apply (jest
+  `src/lib/digitizer/__tests__/imageStore.test.js`, 19 tests; e2e
+  `e2e/contour-map-digitizer.spec.js`, including the harness with
+  `?bucket=missing`).
+- After the owner applies: load a real project on staging, check the image
+  comes back, and flip the MIGRATIONS.md row.
+
+Open: organisation read of a shared project's image (with the organisation
+sharing wave, together with the restrictive update policy of section 3); the
+bucket-less update policy on the existing organisation-readable buckets
+(owner item, section 3); TIFF scans (would need conversion in the browser).
