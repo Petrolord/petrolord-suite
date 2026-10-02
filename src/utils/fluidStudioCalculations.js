@@ -251,6 +251,8 @@ export const PB_RS_BO_METHODS = Object.freeze({
   vasquez_beggs: Object.freeze({
     label: 'Vasquez-Beggs',
     reference: 'Vasquez and Beggs (1980)',
+    // what the primitive does with the gas gravity, said where the report can read it
+    note: 'The gas gravity is corrected to the 114.7 psia reference separator with a fixed 100 psia separator at the reservoir temperature; the Separator Train does not enter.',
     rs: (p, f) => pvtCalcs.vasquez_beggs_rs(p, f.api, f.gasGravity, f.temp),
     bo: (rs, f) => pvtCalcs.vasquez_beggs_bo(rs, f.api, f.gasGravity, f.temp),
   }),
@@ -382,12 +384,37 @@ export const muGas = (p, tempF, gasGravity, z) => {
   return 1e-4 * K * Math.exp(X * Math.pow(rhoG, Y));
 };
 
+/** The floor coAt holds the compressibility above (1/psi). */
+const CO_FLOOR = 1e-6;
+
 /** Undersaturated oil isothermal compressibility (1/psi), Vasquez-Beggs. */
 export const coAt = (fluid, p) => {
   const { rsb, temp, gasGravity, api } = fluid;
   const co =
     (-1433 + 5 * rsb + 17.2 * temp - 1180 * gasGravity + 12.61 * api) / (1e5 * Math.max(p, 1));
-  return Math.max(co, 1e-6);
+  return Math.max(co, CO_FLOOR);
+};
+
+/**
+ * Oil FVF above the bubble point (rb/STB) from the Vasquez-Beggs
+ * compressibility. co = A / p with A constant for a fluid, so the definition
+ * co = -(1/Bo) dBo/dp integrates to Bo = Bob (pb/p)^A (the form Vasquez and
+ * Beggs give, Bo = Bob exp(-A ln(p/pb))). Before FLUID-U1-007 the table used
+ * Bob exp(-co(p) (p - pb)), the compressibility at p times the whole
+ * pressure step: its Bo fell too slowly, by a compressibility up to 38
+ * percent below the co printed in the same row. Where coAt holds co at its
+ * floor (A not positive) the compressibility is constant and the
+ * exponential form is exact.
+ */
+export const undersaturatedBo = (fluid, p, pb, boPb) => {
+  if (!(p > pb)) return boPb;
+  const { rsb, temp, gasGravity, api } = fluid;
+  const A = (-1433 + 5 * rsb + 17.2 * temp - 1180 * gasGravity + 12.61 * api) / 1e5;
+  // co = A / p down to the floor of coAt; the floor acts above pFloor
+  const pFloor = A > 0 ? A / CO_FLOOR : 0;
+  const pSwitch = Math.min(Math.max(pFloor, pb), p);
+  const power = pSwitch > pb ? Math.pow(pb / pSwitch, A) : 1;
+  return boPb * power * Math.exp(-CO_FLOOR * (p - pSwitch));
 };
 
 /**
@@ -558,7 +585,7 @@ export const computePvtRow = (p, fluid, pb) => {
     muO = muObAt(rs, fluid);
   } else {
     co = coAt(fluid, p);
-    bo = boPb * Math.exp(-co * (p - pb)); // undersaturated shrinkage
+    bo = undersaturatedBo(fluid, p, pb, boPb); // undersaturated shrinkage
     muO = undersaturatedMuO(muobPb, p, pb); // rises above Pb
   }
 
@@ -780,9 +807,9 @@ export function blackOilMethods(fluid, pbDetail) {
     row('pb', 'Bubble point pressure', pb),
     row('rs', 'Solution GOR Rs', {
       method: route === 'entered' ? `${prb.label}, scaled to the entered bubble point` : prb.label,
-      reference: prb.reference, kind: 'correlation', rangeKey: prbKey, note: 'Held at the solution GOR above the bubble point.',
+      reference: prb.reference, kind: 'correlation', rangeKey: prbKey, note: ['Held at the solution GOR above the bubble point.', prb.note].filter(Boolean).join(' '),
     }),
-    row('bo', 'Oil formation volume factor Bo', { method: prb.label, reference: prb.reference, kind: 'correlation', rangeKey: prbKey, note: 'Above the bubble point: Bo(Pb) exp(-co (p - Pb)).' }),
+    row('bo', 'Oil formation volume factor Bo', { method: prb.label, reference: prb.reference, kind: 'correlation', rangeKey: prbKey, note: 'Above the bubble point: Bo(Pb) (Pb / p)^A, the Vasquez-Beggs compressibility co = A / p integrated.' }),
     row('co', 'Oil compressibility co (undersaturated)', { method: 'Vasquez-Beggs', reference: 'Vasquez and Beggs (1980)', kind: 'correlation', rangeKey: 'vasquez_beggs_co' }),
     row('mu_od', 'Dead oil viscosity', { method: visc.label, reference: visc.reference, kind: 'correlation', rangeKey: viscKey }),
     row('mu_o', 'Live (saturated) oil viscosity', { method: visc.label, reference: visc.reference, kind: 'correlation', rangeKey: viscKey }),

@@ -10,7 +10,7 @@ import {
   analyzeFluidSystem, sampleFluidStudioData, normalizeFluid, computePvtRow, computePvtTable,
   PB_RS_BO_METHODS, OIL_VISCOSITY_METHODS, pbRsBoMethod, rsAt, boAt, muObAt, muOdAt,
   solveBubblePointDetail, solveBubblePoint, enteredBubblePoint, blackOilMethods, blackOilRangeFlags,
-  publishedRange, bwAt, muWaterAt, zFactor, Z_CLAMP,
+  publishedRange, bwAt, muWaterAt, zFactor, Z_CLAMP, coAt, undersaturatedBo,
 } from '../fluidStudioCalculations';
 import { pvtCalcs } from '../pvtCalculations';
 import { mccainBw, mccainMuW } from '../../../packages/engines/engines/fluid/blackOil';
@@ -156,6 +156,49 @@ describe('an entered bubble point is honoured by the table (FLUID-U1-005)', () =
     // other callers of the table (no rsScale on the fluid) are untouched
     const { rsScale: _omit, ...plain } = f;
     expect(computePvtTable(plain).table).toEqual(solved.pvt.table);
+  });
+});
+
+describe('Bo above the bubble point is the integral of the co the table prints (FLUID-U1-007)', () => {
+  // the definition: co = -(1/Bo) dBo/dp. The gate differentiates the engine's own Bo.
+  const numericCo = (f, p, pb, boPb) => {
+    const h = 0.5;
+    return -(undersaturatedBo(f, p + h, pb, boPb) - undersaturatedBo(f, p - h, pb, boPb)) / (2 * h) / undersaturatedBo(f, p, pb, boPb);
+  };
+
+  test.each(Object.keys(PB_RS_BO_METHODS))('%s: the compressibility of the Bo curve is the co of the same row, at every pressure', (key) => {
+    const res = analyzeFluidSystem(withInputs({}, { pb_rs_bo: key }));
+    const f = res.meta.fluid;
+    const boPb = boAt(f.rsb, f);
+    for (const p of [res.pvt.pb + 50, res.pvt.pb * 1.2, res.pvt.pb * 1.5, res.pvt.pb * 2]) {
+      expect(numericCo(f, p, res.pvt.pb, boPb) / coAt(f, p)).toBeCloseTo(1, 4);
+    }
+    // continuous at the bubble point, and the table rows are this function
+    expect(undersaturatedBo(f, res.pvt.pb, res.pvt.pb, boPb)).toBe(boPb);
+    const row = res.pvt.table.find((r) => r.phase === 'undersaturated');
+    expect(computePvtRow(row.pressure, f, res.pvt.pb).Bo).toBe(Number(undersaturatedBo(f, row.pressure, res.pvt.pb, boPb).toFixed(4)));
+  });
+
+  test('negative control: the form the table used before understates the compressibility by a third at the top of the table', () => {
+    const res = analyzeFluidSystem(sampleFluidStudioData());
+    const f = res.meta.fluid;
+    const boPb = boAt(f.rsb, f);
+    const old = (p) => boPb * Math.exp(-coAt(f, p) * (p - res.pvt.pb));
+    const p = 4870;
+    const oldCo = -(old(p + 0.5) - old(p - 0.5)) / old(p);
+    expect(oldCo / coAt(f, p)).toBeLessThan(0.65);
+    // the oil expansion from 4,870 psia to the bubble point, the term a material balance reads
+    const eoOld = boPb - old(p);
+    const eoNow = boPb - undersaturatedBo(f, p, res.pvt.pb, boPb);
+    expect(eoNow / eoOld).toBeGreaterThan(1.25);
+  });
+
+  test('where the compressibility sits on its floor the curve is still its integral', () => {
+    // a dead, heavy, cold oil: the Vasquez-Beggs constant is negative, co is the floor
+    const f = normalizeFluid(withInputs({ api: 10, gor: 20, gasSg: 1.2, temp: 70 }));
+    expect(coAt(f, 3000)).toBe(1e-6);
+    expect(undersaturatedBo(f, 4000, 1000, 1.05)).toBeCloseTo(1.05 * Math.exp(-1e-6 * 3000), 12);
+    expect(numericCo(f, 3000, 1000, 1.05)).toBeCloseTo(1e-6, 9);
   });
 });
 
