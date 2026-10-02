@@ -52,6 +52,8 @@ const QUANTITIES = Object.freeze({
   stockVolume: { family: 'liquidVolume', engine: 'STB', view: (c) => (metricLiquid(c) ? 'm3' : 'STB') },
   // reservoir volume (withdrawal F, influx We, aquifer water in place W)
   resVolume: { family: 'liquidVolume', engine: 'RB', view: (c) => (metricLiquid(c) ? 'm3' : 'RB') },
+  // the same, typed in millions (the aquifer water in place)
+  resVolumeMM: { family: 'liquidVolume', engine: 'RB', view: (c) => (metricLiquid(c) ? '10^6 m3' : 'MMRB') },
   gasVolume: { family: 'gasVolume', engine: 'scf', view: (c) => (metricGas(c) ? 'm3' : 'scf') },
   fvfOil: { family: 'fvfOil', engine: 'RB/STB', view: (c) => (metricLiquid(c) ? 'm3/m3' : 'RB/STB') },
   // Bg as the Data and PVT tabs hold it
@@ -78,6 +80,7 @@ const LABELS = Object.freeze({
   temperature: { degF: 'degF', degC: 'degC' },
   stockVolume: { STB: 'STB', MSTB: 'MSTB', MMSTB: 'MMSTB', m3: 'sm3', '10^3 m3': '10^3 sm3', '10^6 m3': '10^6 sm3' },
   resVolume: { RB: 'RB', MRB: 'MRB', MMRB: 'MMRB', m3: 'rm3', '10^3 m3': '10^3 rm3', '10^6 m3': '10^6 rm3' },
+  resVolumeMM: { MMRB: 'MMRB', '10^6 m3': '10^6 rm3' },
   gasVolume: { scf: 'scf', Mscf: 'Mscf', MMscf: 'MMscf', Bscf: 'Bscf', m3: 'sm3', '10^3 m3': '10^3 sm3', '10^6 m3': '10^6 sm3', '10^9 m3': '10^9 sm3' },
   fvfOil: { 'RB/STB': 'RB/STB', 'm3/m3': 'rm3/sm3' },
   fvfGas: { 'RB/Mscf': 'RB/Mscf', 'm3/m3': 'rm3/sm3' },

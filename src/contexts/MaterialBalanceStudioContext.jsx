@@ -164,6 +164,12 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
     setDefaultCfg(cfg ?? null);
   }, [caseId]);
 
+  // A case field changed by a tab (the aquifer flag): held in state at once,
+  // without the reload that swaps the tab tree for the loader.
+  const applyCasePatch = useCallback((patch) => {
+    setCaseData((prev) => (prev ? { ...prev, ...patch } : prev));
+  }, []);
+
   const runStaleness = useMemo(
     () => assessRunStaleness({
       caseData, defaultCfg, run: lastRun, runConfig: lastRunConfig, result: lastResult,
@@ -339,7 +345,7 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
     // case list
     cases, casesLoading, casesError, refreshCases,
     // current case
-    caseId, caseData, caseLoading, caseError, refreshCase,
+    caseId, caseData, caseLoading, caseError, refreshCase, applyCasePatch,
     // run
     lastResult, running, runVersion, handleRun, handleHistoryMatch,
     // H4: is lastResult still the run of the current inputs?
