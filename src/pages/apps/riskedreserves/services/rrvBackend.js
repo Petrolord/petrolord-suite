@@ -4,7 +4,7 @@
 // (the house harness pattern).
 //
 // Valuations are saved one row per prospect and user in rrv_valuations
-// (migration 20261003090000_rrv_valuations.sql, under the organisation
+// (migration 20261002151500_rrv_valuations.sql, under the organisation
 // sharing rules of 20261002100000). THE APP MUST WORK BEFORE THAT MIGRATION
 // IS APPLIED: `capability()` asks the database whether the table is there,
 // and while it is not the workstation keeps valuations in the browser and
