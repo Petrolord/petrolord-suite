@@ -259,3 +259,20 @@ Batches:
 | 4 | Batch A needs a sender in the Petroleum Economics Studio (an Economics app). Build it in this round or in the Economics round? | In this round, as a small sender on the canonical NPV, because it closes the NAPE chain. |
 | 5 | Play-level chance (U2-004) changes how Pg is entered in ReservoirCalc Pro. Before or after NAPE? | After NAPE. |
 | 6 | Will a reviewer read the sample report before NAPE? | Yes if available: `/root/rrv-report-sample.pdf` with the RL checklist as the form. |
+
+## Batch decision (2026-10-02)
+
+Programme lead, 2026-10-02. Recorded verbatim:
+
+> BUILD in this order, one commit per item:
+> - Batch A, all four: U2-002 derived MEFS and value by field size (the minimum economic field size and the value of a discovery follow from a small stated economic model instead of two unrelated typed numbers; this also resolves the contradictory defaults found in Step 1, where a 10 MMboe discovery lost money at the default economics while MEFS said 15: after this the defaults are consistent by construction, and the report shows the value-against-size curve with the MEFS marked; any economics arithmetic goes through `calculateEconomics`, never a private loop); U2-001 value per barrel from Petroleum Economics Studio (a real handoff: a saved EPE case is picked by id, its NPV per barrel, price deck name, discount rate, date and build travel with it as provenance, survive a refresh, are printed in the report, and "source changed since" is shown; if EPE has no sender for this, build the sender there with a minimal, documented contract and tests; keep EPE's own numbers untouched); U2-003 EMV tornado (sensitivity of EMV to Pg, each chance factor, volumes, value per barrel, well cost and MEFS over stated ranges; on screen with the house chart standard and in the report through the kit's bar panel; this fills the figure Step 1 stated as absent); U2-006 "Re-run prospect" deep link (from a valuation whose upstream prospect changed, open ReservoirCalc Pro on that prospect ready to re-run, and return with the refreshed handoff; a colleague's shared prospect opens read-only with the reason).
+> - Batch B: U2-008 ranking (a portfolio table of the user's and shared valuations ranked by EMV, risked volume and chance, with the basis of each stated, exportable with a provenance header); U2-009 send to Capital Portfolio only if time remains and that app has, or cheaply gains, a typed intake.
+> - DEFERRED (record reasons): U2-004 play and prospect chance split (after NAPE, with ReservoirCalc Pro U2-010); U2-007 portfolio distribution with dependence (L; needs the canonical Monte Carlo module and a dependence model); U2-005 multi-zone (L); U2-010 colleague editing (sharing stays view-only for valuations for now); U2-011 upstream distribution in place of the lognormal (M, after NAPE); U2-012 staged decision (L).
+
+Note on the wording above: the Step 1 starting default MEFS was 10 MMboe (the
+saved harness fixture typed 15). Finding RRV-U1-016 stands as written: at the
+Step 1 defaults a 10 MMboe discovery was worth minus 20 $MM while 10 was the
+MEFS.
+
+Built on branch `feat/rrv-u2`, one commit per item. No DDL: everything new a
+valuation holds lives in its existing `valuation` JSON payload.
