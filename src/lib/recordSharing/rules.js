@@ -1,8 +1,9 @@
 // Organisation sharing of saved records: the rules, with no I/O.
 //
-// One model for every Geoscience record table (migrations
-// 20261002100000_suite_record_sharing.sql and
-// 20261002110000_geo_wells_team_editing.sql; design in
+// One model for every Geoscience and Reservoir record table (migrations
+// 20261002100000_suite_record_sharing.sql,
+// 20261002110000_geo_wells_team_editing.sql and
+// 20261002130000_reservoir_record_sharing.sql; design in
 // docs/scope/OrgSharing-DESIGN-AND-STATUS.md):
 //
 //   The owner chooses per record: private, or shared with the organisation
@@ -27,6 +28,19 @@ export const SHARING_TABLES = {
   geo_correlation_sections: { label: 'section', nameColumn: 'name', sharedWhen: 'visibility' },
   bf_wells: { label: 'model', nameColumn: 'name', sharedWhen: 'visibility' },
   geo_wells: { label: 'well', nameColumn: 'name', sharedWhen: 'organization_id' },
+  // Reservoir round, Step 0a (migration 20261002130000_reservoir_record_sharing.sql).
+  // Registered here so the store, the in-memory mirror and the .pld import
+  // know these tables; each app adopts the share bar in its own round.
+  saved_fluid_studio_projects: { label: 'project', nameColumn: 'project_name', sharedWhen: 'visibility' },
+  saved_scal_projects: { label: 'project', nameColumn: 'project_name', sharedWhen: 'visibility' },
+  saved_dca_projects: { label: 'project', nameColumn: 'project_name', sharedWhen: 'visibility' },
+  saved_scenario_hub_projects: { label: 'project', nameColumn: 'project_name', sharedWhen: 'visibility' },
+  saved_well_test_projects: { label: 'project', nameColumn: 'project_name', sharedWhen: 'visibility' },
+  saved_waterflood_design_projects: { label: 'project', nameColumn: 'project_name', sharedWhen: 'visibility' },
+  saved_vrr_projects: { label: 'project', nameColumn: 'project_name', sharedWhen: 'visibility' },
+  saved_rf_projects: { label: 'project', nameColumn: 'project_name', sharedWhen: 'visibility' },
+  rb_cases: { label: 'case', nameColumn: 'name', sharedWhen: 'visibility' },
+  sim_cases: { label: 'case', nameColumn: 'name', sharedWhen: 'visibility' },
 };
 
 /** The columns the sharing model adds (what `sharingOf` keeps). */
