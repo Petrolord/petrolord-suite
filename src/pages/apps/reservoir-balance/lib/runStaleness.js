@@ -15,16 +15,39 @@
 //   2. The result echoes the pressures and the produced cumulatives it ran
 //      on (plot_data). They are compared with the rows on the Data tab.
 //   3. The case conditions and the columns the result does not echo
-//      (injection, per-row lab PVT, observed influx, dates) have no
-//      snapshot, so a time stamp decides: the case is stamped when one of
-//      them is saved (lib/api.js), and a stamp later than the run start
-//      makes the run stale.
+//      (injection, per-row lab PVT, observed influx, dates). Since MBAL-U1 a
+//      run keeps a snapshot of both with its config (the seven case fields
+//      and a digest of the data rows, under one key of pvt_correlations the
+//      engine is not handed), and they are compared like the rest. A run
+//      made before that has no snapshot, so a time stamp decides: the case
+//      is stamped when one of them is saved (lib/api.js), and a stamp later
+//      than the run start makes the run stale.
+//
+// Why the snapshot. Production has a trigger that sets rb_cases.updated_at on
+// EVERY update of the row (update_rb_cases_updated_at, read from the live
+// catalog 2026-10-02), so with the time stamp alone a rename, or any field
+// that only the report prints, withdrew a valid result. A claim is withdrawn
+// by a change the analysis reads and by nothing else (reviewer lens RL8).
+import {
+  DEFAULT_CORRELATIONS, RUN_SNAPSHOT_KEY, dataDigest, engineSideCorrelations,
+} from './studyMeta';
 
 /** The case fields the engine reads (supabase/functions/calculate-mbal). */
 export const CASE_RUN_INPUT_FIELDS = [
   'fluid_system', 'has_aquifer', 'has_gas_cap', 'initial_pressure_psia',
   'reservoir_temperature_f', 'initial_water_saturation', 'bubble_point_psia',
 ];
+
+/** The words the screen uses for them. */
+export const CASE_INPUT_LABELS = {
+  fluid_system: 'fluid system',
+  has_aquifer: 'aquifer flag',
+  has_gas_cap: 'gas cap flag',
+  initial_pressure_psia: 'initial pressure',
+  reservoir_temperature_f: 'reservoir temperature',
+  initial_water_saturation: 'initial water saturation',
+  bubble_point_psia: 'bubble point',
+};
 
 /** The run config fields the engine reads, with the words the screen uses. */
 export const RUN_CONFIG_INPUT_LABELS = {
@@ -47,20 +70,59 @@ export const RUN_CONFIG_INPUT_LABELS = {
  * tab sends them. One function builds them for the run and for the stale
  * check, so the two cannot drift apart.
  */
+/** The values the Run tab fills in when the PVT and Aquifer tabs hold none. */
+export const RUN_INPUT_DEFAULTS = Object.freeze({
+  gas_specific_gravity_gas: 0.65,
+  gas_specific_gravity_oil: 0.7,
+  formation_compressibility_psi: 6e-6,
+  water_compressibility_psi: 3e-6,
+  pvt_source: 'correlated',
+});
+
+/**
+ * What a run was made on that its config row does not hold: the case
+ * conditions, a digest of the data, and which inputs were filled by a
+ * default (so the report can print them as assumptions, RL1).
+ */
+export function runSnapshotOf(caseData, defaults = []) {
+  const fields = {};
+  for (const key of CASE_RUN_INPUT_FIELDS) fields[key] = caseData?.[key] ?? null;
+  return { v: 1, case: fields, data: dataDigest(caseData?.production_data), defaults };
+}
+
 export function buildRunConfigInput(caseData, defaultCfg) {
   const isGas = caseData?.fluid_system === 'gas';
   const aquiferModel = defaultCfg?.aquifer_model ?? (caseData?.has_aquifer ? 'pot' : 'none');
+  const defaults = [];
+  const orDefault = (key, fallback) => {
+    if (defaultCfg?.[key] != null) return defaultCfg[key];
+    defaults.push(key);
+    return fallback;
+  };
+  const gasGravity = orDefault('gas_specific_gravity', isGas ? RUN_INPUT_DEFAULTS.gas_specific_gravity_gas : RUN_INPUT_DEFAULTS.gas_specific_gravity_oil);
+  const cf = orDefault('formation_compressibility_psi', RUN_INPUT_DEFAULTS.formation_compressibility_psi);
+  const cw = orDefault('water_compressibility_psi', RUN_INPUT_DEFAULTS.water_compressibility_psi);
+  const pvtSource = orDefault('pvt_source', RUN_INPUT_DEFAULTS.pvt_source);
+  if (defaultCfg?.aquifer_model == null) defaults.push('aquifer_model');
+  if (!defaultCfg?.pvt_correlations) defaults.push('pvt_correlations');
+  // The correlation choices and the origin of a generated table go to the
+  // run; the study record (identification, datum, input sources) stays on
+  // the default config, where the report reads the current one.
+  const correlations = {
+    ...(engineSideCorrelations(defaultCfg?.pvt_correlations) ?? DEFAULT_CORRELATIONS),
+    [RUN_SNAPSHOT_KEY]: runSnapshotOf(caseData, defaults),
+  };
   return {
     // PVT
     oil_gravity_api: defaultCfg?.oil_gravity_api ?? null,
-    gas_specific_gravity: defaultCfg?.gas_specific_gravity ?? (isGas ? 0.65 : 0.7),
+    gas_specific_gravity: gasGravity,
     water_salinity_ppm: defaultCfg?.water_salinity_ppm ?? null,
-    pvt_source: defaultCfg?.pvt_source ?? 'correlated',
-    pvt_correlations: defaultCfg?.pvt_correlations ?? undefined,
+    pvt_source: pvtSource,
+    pvt_correlations: correlations,
     pvt_lab_table: defaultCfg?.pvt_lab_table ?? null,
     // Rock
-    formation_compressibility_psi: defaultCfg?.formation_compressibility_psi ?? 6e-6,
-    water_compressibility_psi: defaultCfg?.water_compressibility_psi ?? 3e-6,
+    formation_compressibility_psi: cf,
+    water_compressibility_psi: cw,
     // Aquifer
     aquifer_model: aquiferModel,
     aquifer_params: defaultCfg?.aquifer_params ?? null,
@@ -112,9 +174,10 @@ export function changedConfigFields(caseData, defaultCfg, runConfig) {
   if (!runConfig) return [];
   const next = buildRunConfigInput(caseData, defaultCfg);
   return Object.keys(RUN_CONFIG_INPUT_LABELS).filter((key) => {
-    // pvt_correlations left undefined takes the table default on insert, in
-    // the stored run as in the next one, so there is nothing to compare.
-    if (next[key] === undefined) return false;
+    if (key === 'pvt_correlations') {
+      // the records of the study and the run's own snapshot are not inputs
+      return canon(engineSideCorrelations(next[key])) !== canon(engineSideCorrelations(runConfig[key] ?? DEFAULT_CORRELATIONS));
+    }
     const stored = key === 'excluded_timesteps' ? (runConfig[key] ?? []) : runConfig[key];
     return canon(next[key]) !== canon(stored);
   });
@@ -156,6 +219,20 @@ export function assessRunStaleness({ caseData, defaultCfg, run, runConfig, resul
     reasons.push('The pressure and production table differs from the one the run used.');
   }
 
+  const snapshot = runConfig?.pvt_correlations?.[RUN_SNAPSHOT_KEY];
+  if (snapshot && typeof snapshot === 'object') {
+    // The run kept what it was made on: compare it, and let no clock decide.
+    const moved = CASE_RUN_INPUT_FIELDS.filter((k) => canon(snapshot.case?.[k]) !== canon(caseData?.[k]));
+    if (moved.length) {
+      reasons.push(`Changed on the case since the run: ${moved.map((k) => CASE_INPUT_LABELS[k]).join(', ')}.`);
+    }
+    if (dataSame !== false && snapshot.data && snapshot.data !== dataDigest(caseData?.production_data)) {
+      reasons.push('The data table was changed after the run (dates, injection, per-row PVT or observed influx).');
+    }
+    return { stale: reasons.length > 0, reasons };
+  }
+
+  // A run made before the snapshot existed: the time stamp on the case.
   const started = ms(run?.started_at);
   if (started != null) {
     const caseStamp = ms(caseData?.updated_at);
@@ -163,7 +240,7 @@ export function assessRunStaleness({ caseData, defaultCfg, run, runConfig, resul
     if (dataSame !== false && rowStamp > started) {
       reasons.push('Production data rows were added after the run.');
     } else if (caseStamp != null && caseStamp > started && dataSame !== false) {
-      reasons.push('The case conditions or its data were saved after the run.');
+      reasons.push('The case was saved after the run, and this run kept no record of the case conditions it used.');
     }
   }
 

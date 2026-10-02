@@ -162,17 +162,19 @@ function layoutBars(bars, barWidth) {
  *   xDate?: boolean, barWidth?: number,
  *   series: Array<{name: string, type?: 'line'|'scatter'|'both'|'bar', rgb?: number[],
  *     pts: Array<[number, number]>, axis?: 'y'|'y2', width?: number, dash?: number[],
- *     marker?: 'circle'|'square'}>,
+ *     marker?: 'circle'|'square', markerSize?: number}>,
  *   bands?: Array<{x0: number, x1: number, label?: string, rgb?: number[]}>,
  *   yBands?: Array<{y0: number, y1: number, label?: string, rgb?: number[]}>,
  *   lines?: Array<{x?: number, y?: number, label?: string, rgb?: number[], dash?: number[]}>,
- *   notes?: string[], logo?: {dataUrl: string, w: number, h: number}}} spec
+ *   notes?: string[], notesAt?: 'bottom-left'|'top-left'|'top-right',
+ *   logo?: {dataUrl: string, w: number, h: number}}} spec
  *   `type` defaults to a line; 'both' is a line with a marker on each
  *   point. `bands` shade a span of X (fit windows, flow regimes), `yBands`
  *   a span of the left Y axis (a target range, a maturity window). `lines`
  *   are straight reference lines at one X or one Y. `xInclude` and
  *   `yInclude` are values the axis must span even when no series reaches
- *   them. `yReversed` puts the smallest value at the top (depth). A series of
+ *   them. `yReversed` puts the smallest value at the top (depth). `markerSize`
+ *   is the half width of a marker in mm (0.5 unless given). A series of
  *   `type: 'bar'` draws one bar per point from the zero line; bars of several
  *   series at the same X stack in series order (`barWidth`, in X units,
  *   defaults to 0.7 of the smallest gap between bar positions). `xDate` makes
@@ -415,7 +417,7 @@ export function drawPlot(doc, box, spec) {
       result.marks.segments += Math.max(0, s.q.length - 1);
     }
     if (hasMarkers(type)) {
-      for (const p of s.q) mark(s, px(p[0]), yOf(p[1]), 0.5);
+      for (const p of s.q) mark(s, px(p[0]), yOf(p[1]), s.markerSize > 0 ? s.markerSize : 0.5);
       result.marks.markers += s.q.length;
     }
     result.drawn[s.name] = s.q.length;
@@ -436,11 +438,17 @@ export function drawPlot(doc, box, spec) {
     doc.text(item.name, lx + 5, ly + 0.9);
   }
 
-  // annotations inside the plot, bottom left
+  // annotations inside the plot: bottom left, or the corner `notesAt` names
+  // ('top-left', 'top-right') when the data sits in the bottom left
   if (spec.notes?.length) {
     doc.setFontSize(6.5);
     doc.setTextColor(...TEXT);
-    spec.notes.forEach((n, i) => doc.text(pdfText(n), X0 + 1.5, Y1 - 1.6 - (spec.notes.length - 1 - i) * 3));
+    if (spec.notesAt === 'top-left' || spec.notesAt === 'top-right') {
+      const right = spec.notesAt === 'top-right';
+      spec.notes.forEach((n, i) => doc.text(pdfText(n), right ? X1 - 1.5 : X0 + 1.5, Y0 + 3.2 + i * 3, right ? { align: 'right' } : undefined));
+    } else {
+      spec.notes.forEach((n, i) => doc.text(pdfText(n), X0 + 1.5, Y1 - 1.6 - (spec.notes.length - 1 - i) * 3));
+    }
   }
 
   // the Petrolord mark (ChartLogo) in the bottom right of the plot area
