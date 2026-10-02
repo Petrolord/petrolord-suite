@@ -17,7 +17,10 @@ import {
   bgAt,
   muGas,
   computePvtRow,
+  CORRELATION_RANGES,
+  VISCOSITY_CORRELATION_LABELS,
 } from '@/utils/fluidStudioCalculations';
+import { MBAL_CORRELATION_LABELS } from './pvtSource';
 
 const DEFAULT_POINTS = 20;
 
@@ -32,17 +35,63 @@ const DEFAULT_POINTS = 20;
  *   gorScfStb (oil; solution GOR Rsb — derived from Pb when omitted),
  *   maxPressurePsia (usually a bit above initial pressure),
  *   nPoints,
+ *   correlations (the PVT tab's selection: pb_rs_bo, oil_viscosity, z_factor),
  * }
- * Returns { ok: true, rows, pb, derivedGor } or { ok: false, error }.
+ * Returns { ok: true, rows, pb, derivedGor, origin } or { ok: false, error }.
+ * `origin` names every method the table was built with (H5): it is what the
+ * report prints in place of "lab_table".
  */
+
+// The Fluid Systems engine computes Z and gas viscosity one way only.
+const Z_METHOD = { key: 'papay', label: 'Papay with Sutton pseudo-criticals' };
+const GAS_VISCOSITY_METHOD = { key: 'lee_gonzalez_eakin', label: 'Lee-Gonzalez-Eakin' };
+
+/**
+ * Map the PVT tab's selection onto what the Fluid Systems engine can run,
+ * and say where it could not follow the selection.
+ */
+export function resolvePrefillMethods(correlations, isGas) {
+  const sel = correlations ?? {};
+  const substitutions = [];
+  const pbKey = CORRELATION_RANGES[sel.pb_rs_bo] ? sel.pb_rs_bo : 'standing';
+  // Beal-Standing (a dead-oil baseline in the Material Balance engine) has
+  // no live-oil equivalent in the Fluid Systems engine.
+  const viscKey = VISCOSITY_CORRELATION_LABELS[sel.oil_viscosity] ? sel.oil_viscosity : 'beggs_robinson';
+  if (!isGas && sel.oil_viscosity && sel.oil_viscosity !== viscKey) {
+    substitutions.push(`Oil viscosity uses ${VISCOSITY_CORRELATION_LABELS[viscKey]}: the table builder has no ${MBAL_CORRELATION_LABELS[sel.oil_viscosity] ?? sel.oil_viscosity}.`);
+  }
+  if (sel.z_factor) {
+    substitutions.push(`Z uses ${Z_METHOD.label}: the table builder does not run ${MBAL_CORRELATION_LABELS[sel.z_factor] ?? sel.z_factor}.`);
+  }
+  const methods = {
+    ...(isGas ? {} : {
+      pb_rs_bo: { key: pbKey, label: CORRELATION_RANGES[pbKey].label },
+      oil_viscosity: { key: viscKey, label: VISCOSITY_CORRELATION_LABELS[viscKey] },
+    }),
+    z_factor: Z_METHOD,
+    gas_viscosity: GAS_VISCOSITY_METHOD,
+  };
+  return { methods, substitutions, engineCorrelations: { pb_rs_bo: pbKey, viscosity: viscKey } };
+}
+
+const originOf = (resolved) => ({
+  kind: 'correlation_prefill',
+  engine: 'Fluid Systems Studio black-oil correlations',
+  methods: resolved.methods,
+  substitutions: resolved.substitutions,
+  generated_at: new Date().toISOString(),
+  edited: false,
+});
+
 export function buildPvtPrefillRows(opts) {
   const {
     fluidSystem, apiGravity, gasSg, temperatureF,
     bubblePointPsia, gorScfStb, maxPressurePsia,
-    nPoints = DEFAULT_POINTS,
+    nPoints = DEFAULT_POINTS, correlations,
   } = opts ?? {};
 
   const isGas = fluidSystem === 'gas';
+  const resolved = resolvePrefillMethods(correlations, isGas);
   if (!Number.isFinite(gasSg) || gasSg <= 0) {
     return { ok: false, error: 'Set the gas specific gravity on this tab first.' };
   }
@@ -70,7 +119,7 @@ export function buildPvtPrefillRows(opts) {
         gas_viscosity_cp: Number(muGas(p, temperatureF, gasSg, z).toFixed(5)),
       };
     });
-    return { ok: true, rows, pb: null, derivedGor: null };
+    return { ok: true, rows, pb: null, derivedGor: null, origin: originOf(resolved) };
   }
 
   if (!Number.isFinite(apiGravity) || apiGravity <= 0) {
@@ -86,7 +135,9 @@ export function buildPvtPrefillRows(opts) {
     rsb: 0,
     salinity: 0,
     pb: null,
-    correlations: { pb_rs_bo: 'standing', viscosity: 'beggs_robinson' },
+    // H5: the PVT tab's selection, where the engine has it. This was fixed
+    // at Standing and Beggs-Robinson whatever the tab had selected.
+    correlations: resolved.engineCorrelations,
   };
   let rsb = Number.isFinite(gorScfStb) && gorScfStb > 0 ? gorScfStb : null;
   let derivedGor = null;
@@ -126,5 +177,5 @@ export function buildPvtPrefillRows(opts) {
       };
     });
 
-  return { ok: true, rows, pb, derivedGor };
+  return { ok: true, rows, pb, derivedGor, origin: originOf(resolved) };
 }

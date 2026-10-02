@@ -59,7 +59,9 @@ const MbsHelpContent = () => (
     <P>
       Working from a laboratory table, Prefill from correlations fills the table with correlated values at your
       pressures so you have a starting grid to paste your measured numbers over, so you do not type every row from
-      blank.
+      blank. It uses the Pb, Rs and Bo correlation selected on the tab and tells you which methods it used for the
+      rest. A table built this way is reported as built from correlations, with the correlation names, and as
+      edited by hand once you change a row. It is never reported as lab data.
     </P>
 
     <H>4. Aquifer</H>

@@ -82,6 +82,9 @@ import {
 } from '@/pages/apps/reservoir-balance/lib/api';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { buildPvtPrefillRows } from '@/pages/apps/reservoir-balance/lib/fluidStudioPvtPrefill';
+import {
+  describePvtSource, markTableEdited, clearTableOrigin, PVT_TABLE_ORIGIN_KEY,
+} from '@/pages/apps/reservoir-balance/lib/pvtSource';
 
 // MBAL charts overlay the logo directly on the plot area, so the suite
 // default (180px) overflows them; keep the mark small in this app.
@@ -176,9 +179,9 @@ const PVT_SOURCE_OPTIONS = [
   },
   {
     value: 'lab_table',
-    label: 'Lab table',
+    label: 'PVT table',
     description:
-      'Engine interpolates PVT from your uploaded lab data at each timestep pressure. Pressures outside the table fall through to correlations.',
+      'Engine interpolates PVT from the table on this tab at each timestep pressure: measured lab data, or a table built from correlations and named as such in the report. Pressures outside the table fall through to correlations.',
   },
 ];
 
@@ -386,7 +389,8 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
     setForm((prev) => {
       const next = [...prev.pvt_lab_table];
       next[idx] = { ...next[idx], [key]: value };
-      return { ...prev, pvt_lab_table: next };
+      // H5: a generated table that is then edited says so in the report
+      return { ...prev, pvt_lab_table: next, correlations: markTableEdited(prev.correlations) };
     });
     setDirty(true);
   };
@@ -395,7 +399,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
     setForm((prev) => {
       const blank = {};
       for (const col of LAB_TABLE_COLUMNS) blank[col.key] = '';
-      return { ...prev, pvt_lab_table: [...prev.pvt_lab_table, blank] };
+      return { ...prev, pvt_lab_table: [...prev.pvt_lab_table, blank], correlations: markTableEdited(prev.correlations) };
     });
     setDirty(true);
   };
@@ -404,12 +408,14 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
     setForm((prev) => ({
       ...prev,
       pvt_lab_table: prev.pvt_lab_table.filter((_, i) => i !== idx),
+      correlations: markTableEdited(prev.correlations),
     }));
     setDirty(true);
   };
 
   const labTableClear = () => {
-    setForm((prev) => ({ ...prev, pvt_lab_table: [] }));
+    // a cleared table is no longer the generated one: its origin goes with it
+    setForm((prev) => ({ ...prev, pvt_lab_table: [], correlations: clearTableOrigin(prev.correlations) }));
     setDirty(true);
   };
 
@@ -991,9 +997,12 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
           caseData={caseData}
           form={form}
           isGas={isGas}
-          onGenerated={(rows, note) => {
+          onGenerated={(rows, note, origin) => {
             setForm((prev) => ({
               ...prev,
+              // H5: the table carries how it was built, so the report never
+              // calls a correlation estimate a lab table
+              correlations: { ...clearTableOrigin(prev.correlations), [PVT_TABLE_ORIGIN_KEY]: origin },
               pvt_lab_table: rows.map((row) => {
                 const out = {};
                 for (const col of LAB_TABLE_COLUMNS) {
@@ -1004,9 +1013,16 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
               }),
             }));
             setDirty(true);
-            toast({ title: 'Lab table generated', description: note });
+            toast({ title: 'Table generated from correlations', description: note });
           }}
         />
+      )}
+      {form.pvt_source === 'lab_table' && form.pvt_lab_table.length > 0 && (
+        <p className="text-[11px] text-pl-muted" data-testid="mbal-pvt-table-origin">
+          Source as the report will state it: {describePvtSource({
+            pvt_source: form.pvt_source, pvt_lab_table: form.pvt_lab_table, pvt_correlations: form.correlations,
+          })}
+        </p>
       )}
 
       {/* ─── Lab Table Editor ─── */}
@@ -1246,18 +1262,22 @@ const PvtPrefillCard = ({ caseData, form, isGas, onGenerated }) => {
       gorScfStb: gor === '' ? null : Number(gor),
       maxPressurePsia: Number(maxP),
       nPoints: 20,
+      // H5: the correlations selected on this tab, where the builder has them
+      correlations: form.correlations,
     });
     if (!result.ok) {
       setError(result.error);
       return;
     }
     setError(null);
-    const notes = [`${result.rows.length} rows generated from Standing and Beggs-Robinson correlations at case conditions.`];
+    const m = result.origin.methods;
+    const used = [m.pb_rs_bo?.label, m.oil_viscosity?.label, m.z_factor?.label, m.gas_viscosity?.label].filter(Boolean).join(', ');
+    const notes = [`${result.rows.length} rows generated at case conditions with ${used}.`, ...result.origin.substitutions];
     if (result.derivedGor != null) {
       notes.push(`Solution GOR ${result.derivedGor.toFixed(0)} scf/STB derived from the case bubble point.`);
     }
     notes.push('Review the rows and replace them with measured data where you have it, then save.');
-    onGenerated(result.rows, notes.join(' '));
+    onGenerated(result.rows, notes.join(' '), result.origin);
   };
 
   return (
@@ -1268,8 +1288,9 @@ const PvtPrefillCard = ({ caseData, form, isGas, onGenerated }) => {
         </CardTitle>
         <p className="text-[11px] text-pl-muted mt-0.5">
           Generates the table with the Fluid Systems Studio black-oil engine at this case&apos;s temperature and
-          gravity, so the editor starts filled with a consistent grid. Generated values are correlation
-          estimates; overwrite them with measured lab data wherever you have it.
+          gravity, using the Pb, Rs and Bo correlation selected on this tab, so the editor starts filled with a
+          consistent grid. Generated values are correlation estimates and the report says so; overwrite them
+          with measured lab data wherever you have it.
         </p>
       </CardHeader>
       <CardContent className="p-4 pt-2">
