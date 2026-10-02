@@ -23,14 +23,28 @@ import { test, expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
+import { Buffer } from 'buffer';
 
 const OUT = 'test-results/well-test-report-r2';
 fs.mkdirSync(OUT, { recursive: true });
 
+// Below 768 px the left rail is a drawer: it is opened to reach the inputs
+// and closed again to see the results.
+const isNarrow = (page) => (page.viewportSize()?.width ?? 1280) < 768;
+async function openRail(page) {
+  if (isNarrow(page)) await page.getByRole('button', { name: 'Show left panel' }).click();
+}
+async function closeRail(page) {
+  if (isNarrow(page)) await page.getByRole('button', { name: 'Close panel' }).first().click();
+}
+
 async function openWithSample(page) {
   await page.goto('/dev/well-test-analysis-studio');
-  await expect(page.getByText('Well Test Analysis Studio').first()).toBeVisible();
+  // a cold harness can take a while to open on a loaded box
+  await expect(page.getByRole('tab', { name: 'Data' })).toBeVisible({ timeout: 120000 });
+  await openRail(page);
   await page.getByRole('button', { name: /Sample/i }).click();
+  await closeRail(page);
   await expect(page.getByText(/Points used/i)).toBeVisible();
 }
 

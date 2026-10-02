@@ -437,6 +437,60 @@ describe('hostile inputs and the other paths', () => {
     studio.unmount();
   }, 300000);
 
+  test('WTA-R2-010: a gauge record that holds the flow period is matched over the full test', async () => {
+    const { evaluateDrawdown, evaluateBuildup, getModel } = await import('@/utils/welltest/models/modelCatalog');
+    const model = getModel('homogeneous');
+    const truth = { k: 85, skin: 6.5, C: 0.015 };
+    const reservoir = { h: 45, phi: 0.18, rw: 0.354, B: 1.25, mu: 0.9, ct: 0.000012, q: 450, pi: 4800 };
+    const flowTimes = Array.from({ length: 24 }, (_, i) => 0.05 * 1.33 ** i).filter((t) => t < 36);
+    const flow = evaluateDrawdown({ model, params: truth, reservoir, times: flowTimes });
+    const dts = Array.from({ length: 40 }, (_, i) => 10 ** (-2 + (3.8 * i) / 39));
+    const shut = evaluateBuildup({ model, params: truth, reservoir, tp: 36, dts });
+    // one file on the gauge clock: flowing from 0, shut in at 36 hr
+    const gaugeRows = [
+      ...flow.map((p) => ({ t: p.t, p: p.pw })),
+      { t: 36, p: shut.pwfAtShutIn },
+      ...shut.map((p) => ({ t: 36 + p.dt, p: p.pws })),
+    ];
+    const studio = mountStudio();
+    await studio.act((c) => c.loadSampleTest());
+    await studio.act((c) => {
+      c.setGaugeRows(gaugeRows);
+      c.setTestField('testStartTime', '36');
+      c.setTestField('pwfShutIn', '');
+      c.setMatchField('k', '85'); c.setMatchField('skin', '6.5'); c.setMatchField('C', '0.015');
+    });
+    const c = studio.ctx;
+    expect(c.prepared.preTestPoints).toBe(flow.length);
+    expect(c.prepared.pwfSource.kind).toBe('gauge');
+    const hm = c.historyMatch;
+    expect(hm.hasPrior).toBe(true);
+    const prior = hm.points.filter((p) => p.prior);
+    expect(prior).toHaveLength(flow.length);
+    expect(prior[0].time).toBeLessThan(-35);
+    // the model at the generating parameters reproduces BOTH periods
+    for (const p of hm.points) {
+      expect(p.model).not.toBeNull();
+      expect(Math.abs(p.model - p.observed)).toBeLessThan(0.6);
+    }
+    // negative control: a model with the wrong permeability misses the flow period by tens of psi
+    await studio.act((cc) => cc.setMatchField('k', '40'));
+    const off = studio.ctx.historyMatch.points.filter((p) => p.prior);
+    expect(Math.max(...off.map((p) => Math.abs(p.model - p.observed)))).toBeGreaterThan(30);
+    await studio.act((cc) => cc.setMatchField('k', '85'));
+    // the overview puts the shut-in at 36 hr on the test clock and starts at the first reading
+    expect(studio.ctx.overview.anchor).toBe(36);
+    expect(studio.ctx.overview.pressure[0].t).toBeCloseTo(flowTimes[0], 6);
+    const built = build(studio.ctx);
+    const t = flat(readPdf(built.doc).text);
+    const fig = built.figures.find((f) => f.id === 'history');
+    expect(fig.panels[0].drawn.Gauge).toBe(studio.ctx.historyMatch.points.length);
+    expect(fig.panels[0].drawn.Model).toBe(studio.ctx.historyMatch.points.length);
+    expect(t).toMatch(/including the period before the shut-in held in the gauge record \(negative hours\)/);
+    expect(t).toMatch(/Shut-in time 0 hr elapsed \(gauge clock 36 hr\)/);
+    studio.unmount();
+  }, 300000);
+
   test('no gauge data at all: figures state it, nothing is drawn', () => {
     const figs = buildReportFigures({ configSpec: {}, reservoirSpec: {}, prepared: { points: [] }, loglog: [], regimes: [], overview: { pressure: [] } });
     expect(figs.map((f) => !!f.panels)).toEqual([false, false, false, false, false, false]);

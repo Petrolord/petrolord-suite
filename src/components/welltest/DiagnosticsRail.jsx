@@ -17,7 +17,7 @@ const DiagnosticsRail = ({ activeTab }) => {
   const {
     gaugeRows, prepared, configSpec, regimes, matchParams,
     semilogResult, derivedKpis, fitResult, matchMethod, flowPeriods,
-    reservoirSpec, unitSystem,
+    reservoirSpec, unitSystem, skinBreakdown,
   } = useWellTestStudio();
   const isBuildup = configSpec.config?.family === 'buildup';
   const isGas = reservoirSpec.reservoir?.fluid === 'gas';
@@ -76,6 +76,12 @@ const DiagnosticsRail = ({ activeTab }) => {
         <Row label={`Radius of inv. (${uL('length')})`} value={fmtU('length', derivedKpis?.ri, unitSystem, fmt.int)} />
         <Row label={`Δp skin (${uL('pressure')})`} value={fmtU('pressure', derivedKpis?.dpSkin, unitSystem, fmt.f1)} />
         <Row label="Flow efficiency" value={fmt.pct(derivedKpis?.flowEfficiency)} />
+        {(skinBreakdown?.status === 'ok' || skinBreakdown?.status === 'full') && (
+          <>
+            <Row label="Partial-penetration skin" value={fmt.f2(skinBreakdown.spp)} />
+            <Row label="Mechanical skin" value={fmt.f2(skinBreakdown.mechanicalSkin)} />
+          </>
+        )}
       </section>
     </div>
   );
