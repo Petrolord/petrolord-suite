@@ -1,8 +1,9 @@
 /**
  * Report Kit additions of the Material Balance round (MBAL-U1): stacked
  * bars (`type: 'bar'`) and a calendar X axis (`xDate`), for drive indices
- * against time. Built, then read back from the PDF file. The Well Test
- * goldens guard everything the kit drew before.
+ * against time; the corner the annotations go in (`notesAt`) and the size
+ * of a marker (`markerSize`). Built, then read back from the PDF file. The
+ * Well Test goldens guard everything the kit drew before.
  */
 import {
   createReport, dateTicks, dateTickText, SERIES_RGB,
@@ -139,5 +140,44 @@ describe('stacked bars on a calendar axis, read back from the PDF', () => {
     // without xDate the axis prints numbers
     const numeric = build({ xDate: false });
     expect(flat(readPdf(numeric.doc).pageText[numeric.figures[0].page - 1])).not.toContain('2013');
+  });
+});
+
+describe('annotation corner and marker size', () => {
+  const pts = [[0, 0], [1, 2], [2, 4], [3, 6]];
+  const one = (spec) => {
+    const r = createReport({ title: 'Kit notes', appName: 'Report Kit self-test' });
+    r.header({ identification: [['Case', 'notes']], generatedAt: AT });
+    r.figures([{ id: 'f', title: 'Line through the origin', caption: 'c', panels: [{ height: 70, spec: { xTitle: 'x', yTitle: 'y', series: [{ name: 'Data', type: 'scatter', pts, ...spec.series }], notes: ['N = 2.00 MMSTB', 'r2 = 1.0000'], notesAt: spec.notesAt } }] }]);
+    return r.finish();
+  };
+  // the Y (points, from the page bottom) at which a text was placed
+  const yOf = (built, text) => {
+    const raw = readPdf(built.doc).raw;
+    const m = new RegExp(`([\\d.]+) ([\\d.]+) Td\\n\\(${text.replace(/[.()]/g, '\\$&')}\\) Tj`).exec(raw);
+    return m ? Number(m[2]) : null;
+  };
+
+  test('notes go bottom left unless a top corner is named', () => {
+    const bottom = one({});
+    const top = one({ notesAt: 'top-left' });
+    const area = top.figures[0].panels[0].plotArea;
+    const ptPerMm = 72 / 25.4;
+    const pageH = 297 * ptPerMm;
+    const mid = pageH - (area.y + area.h / 2) * ptPerMm;
+    expect(yOf(bottom, 'N = 2.00 MMSTB')).toBeLessThan(mid);
+    expect(yOf(top, 'N = 2.00 MMSTB')).toBeGreaterThan(mid);
+    // the first note is the top line in both
+    expect(yOf(top, 'N = 2.00 MMSTB')).toBeGreaterThan(yOf(top, 'r2 = 1.0000'));
+    expect(yOf(bottom, 'N = 2.00 MMSTB')).toBeGreaterThan(yOf(bottom, 'r2 = 1.0000'));
+    expect(yOf(one({ notesAt: 'top-right' }), 'N = 2.00 MMSTB')).toBeGreaterThan(mid);
+  });
+
+  test('a larger marker leaves more ink, and the same number of marks', () => {
+    const small = one({});
+    const large = one({ series: { markerSize: 1.2 } });
+    const ink = (built) => { const pdf = readPdf(built.doc, { ink: true }); try { return pdf.ink(built.figures[0].page, built.figures[0].panels[0].box).dark; } finally { pdf.close(); } };
+    expect(ink(large)).toBeGreaterThan(ink(small));
+    expect(large.figures[0].panels[0].marks).toEqual(small.figures[0].panels[0].marks);
   });
 });
