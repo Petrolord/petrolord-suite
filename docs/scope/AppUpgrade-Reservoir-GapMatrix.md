@@ -78,7 +78,7 @@ Well Test is the only app that passes RL6.
 
 | App | 1 | 2 | 3 |
 |---|---|---|---|
-| Fluid Systems Studio | No report and no identification | The handoff and both CSVs drop correlation names, ranges, tuning and time; five consumers recompute with Standing hardcoded | The Material Balance CSV has no door to receive it |
+| Fluid Systems Studio | No report and no identification | The handoff and both CSVs drop correlation names, ranges, tuning and time; four consumers recompute with Standing hardcoded | The Material Balance CSV has no door to receive it |
 | SCAL Studio | No report; CSVs are bare numbers | No sample pedigree (lab, method, wettability, analog) and no fitted or entered trail | Waterflood discards the source on arrival; Simulation says "SCAL Studio model" with no link |
 | Material Balance Studio | PDF has no plots, no PVT values, no aquifer inputs | The report can print an old run beside edited inputs and still say "converged" | No pressure datum, no dates in the step table, drive index convention unstated |
 | Decline Curve Analysis | No report; the XLSX writes the same number as "EUR" and "Remaining Reserves" | Di shown on two bases on one screen (365 times apart); no fit window or economic limit on the plot | The NPV and FDP "sync" cards show success and send nothing |
