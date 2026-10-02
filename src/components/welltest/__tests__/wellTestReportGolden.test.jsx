@@ -34,7 +34,7 @@ jest.mock('@/lib/customSupabaseClient', () => ({
 import { buildWellTestPdf, collectReportArgs } from '@/utils/wellTestReportExport';
 import { periodKey } from '@/utils/welltest/reportModel';
 import wtGoldens from '@/utils/welltest/__tests__/goldens.json';
-import { checkGolden } from '@/lib/reportKit/testKit';
+import { checkGolden, expectFigureDrawn } from '@/lib/reportKit/testKit';
 import { mountStudio, chartLogo } from './reportTestKit';
 
 const AT = new Date('2026-10-02T09:00:00Z');
@@ -124,8 +124,10 @@ describe('Well Test report: golden output', () => {
     const built = buildWellTestPdf(collectReportArgs(studio.ctx), { logo, generatedAt: AT });
     studio.unmount();
     // line for line, page count, figure records, document bytes
-    const { meta, golden } = checkGolden(built, { dir: DIR, name, update: UPDATE });
+    const { pdf, meta, golden } = checkGolden(built, { dir: DIR, name, update: UPDATE });
     expect(meta).toEqual(golden);
+    // and the points the builder reports are the marks in the file, inside each plot area
+    for (const f of built.figures.filter((x) => x.plotted)) expectFigureDrawn(pdf, f, { logo: true, minPoints: 20 });
   }, 600000);
 
   test('the goldens cover the paths the report has', () => {

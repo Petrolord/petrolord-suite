@@ -12,7 +12,7 @@
  *   expect(pdf.pages).toBe(built.pages);
  *   expect(flat(pdf.text)).toMatch(/Net pay h 45 ft/);
  *   expect(listCaptions(pdf).map((c) => c.title)).toEqual(['Rate history', 'p/z plot']);
- *   for (const f of built.figures.filter((x) => x.plotted)) expectFigureDrawn(pdf, f);
+ *   for (const f of built.figures.filter((x) => x.plotted)) expectFigureDrawn(pdf, f);   // title, points, marks in the file, ink
  *   expect(pointCounts(built.figures).rate[0]).toEqual({ Rate: screenSeries.length });
  *   pdf.close();
  *
@@ -53,7 +53,7 @@ export function readPdf(doc, { ink = false } = {}) {
     const images = execFileSync('pdfimages', ['-list', file], { encoding: 'utf8' })
       .split('\n').slice(2).filter((l) => l.trim())
       .map((l) => { const c = l.trim().split(/\s+/); return { page: Number(c[0]), type: c[2], width: Number(c[3]), height: Number(c[4]) }; });
-    const out = { pages, text, pageText, images, file: null };
+    const out = { pages, text, pageText, images, file: null, raw: fs.readFileSync(file).toString('latin1') };
     if (ink) out.ink = (page, box) => pageInk(file, page, box);
     if (!ink) return out;
     // ink() needs the file: the caller cleans up through out.close()
@@ -111,6 +111,75 @@ export function pageInk(file, page, box) {
   }
 }
 
+// ---- the drawing in the file -------------------------------------------------
+
+const PT_PER_MM = 72 / 25.4;
+
+/** The content stream of each page of an uncompressed jsPDF file: [{ height (pt), ops: string[] }]. */
+function pageStreams(raw) {
+  const out = [];
+  const pageRe = /\/Type \/Page\n[^]*?\/MediaBox \[0 0 [\d.]+ ([\d.]+)\][^]*?\/Contents (\d+) 0 R/g;
+  let m;
+  while ((m = pageRe.exec(raw))) {
+    const body = new RegExp(`\\n${m[2]} 0 obj\\n<<[^]*?>>\\nstream\\n([^]*?)\\nendstream`).exec(raw);
+    out.push({ height: Number(m[1]), ops: body ? body[1].split('\n') : [] });
+  }
+  return out;
+}
+
+/**
+ * Count what is drawn inside a plot area, from the page's content stream in
+ * the file: the line segments and the markers (circles and small squares)
+ * painted after the frame of the plot area, inside it. Bands and gridlines
+ * are painted before the frame and are not counted; reference lines are
+ * painted after it and are. This is the file's own account of the data in
+ * a plot, to hold against the counts the builder reports.
+ * @param {{raw: string}} pdf from readPdf
+ * @param {number} page 1-based
+ * @param {{x: number, y: number, w: number, h: number}} area the plot area in mm
+ * @returns {{segments: number, markers: number, total: number, frame: boolean}}
+ */
+export function plotMarks(pdf, page, area) {
+  const stream = pageStreams(pdf.raw)[page - 1];
+  const out = { segments: 0, markers: 0, total: 0, frame: false };
+  if (!stream || !area) return out;
+  const tol = 0.3 * PT_PER_MM;
+  const x0 = area.x * PT_PER_MM;
+  const x1 = (area.x + area.w) * PT_PER_MM;
+  const yTop = stream.height - area.y * PT_PER_MM;
+  const yBot = stream.height - (area.y + area.h) * PT_PER_MM;
+  const within = (x, y, t) => x >= x0 - t && x <= x1 + t && y >= yBot - t && y <= yTop + t;
+  const inside = (x, y) => within(x, y, tol);
+  // a circle's path starts on its rim, so a marker on the edge of the plot
+  // area starts just outside it
+  const markerInside = (x, y) => within(x, y, 1 * PT_PER_MM);
+  const near = (a, b) => Math.abs(a - b) <= tol;
+  const nums = (line) => line.trim().split(/\s+/).slice(0, -1).map(Number);
+  const { ops } = stream;
+  let i = 0;
+  // the frame of the plot area: a stroked rectangle of exactly its size
+  for (; i < ops.length; i += 1) {
+    if (!ops[i].endsWith(' re') || ops[i + 1] !== 'S') continue;
+    const [x, y, w, h] = nums(ops[i]);
+    if (near(x, x0) && near(y, yTop) && near(w, x1 - x0) && near(-h, yTop - yBot)) { out.frame = true; break; }
+  }
+  if (!out.frame) return out;
+  for (i += 2; i < ops.length; i += 1) {
+    const op = ops[i];
+    if (op.endsWith(' m')) {
+      const [x, y] = nums(op);
+      const next = ops[i + 1] || '';
+      if (next.endsWith(' l') && ops[i + 2] === 'S') { if (inside(x, y)) out.segments += 1; }
+      else if (next.endsWith(' c') && markerInside(x, y)) out.markers += 1;
+    } else if (op.endsWith(' re') && ops[i + 1] === 'f') {
+      const [x, y, w, h] = nums(op);
+      if (Math.abs(w) <= 3 * PT_PER_MM && Math.abs(h) <= 3 * PT_PER_MM && markerInside(x + w / 2, y + h / 2)) out.markers += 1;
+    }
+  }
+  out.total = out.segments + out.markers;
+  return out;
+}
+
 /**
  * The figure captions on the pages, in reading order: every line that
  * starts "Figure n. Title".
@@ -131,12 +200,17 @@ export function listCaptions(pdf) {
 export const pointCounts = (figures) => Object.fromEntries((figures || []).map((f) => [f.id, f.panels.map((p) => p.drawn)]));
 
 /**
- * Assert that a plotted figure is really on its page and is not a blank
- * frame: its caption line is on the page it reports, every panel drew
- * points, and there is ink inside each plot box (an empty frame with its
- * grid is a few hundred pixels at 60 dpi; data adds thousands). `pdf` must
- * come from readPdf(doc, { ink: true }). Throws with the reason; returns
- * the ink counts per panel.
+ * Assert that a plotted figure is really on its page and really holds its
+ * data. Four checks, each against the FILE:
+ *  - its "Figure n." title is on the page the builder reports;
+ *  - every panel drew at least `minPoints` points;
+ *  - the content stream of the page holds, inside the plot area, exactly
+ *    the line segments and markers the builder reports for the series (so
+ *    the point counts a test asserts are the points on the page);
+ *  - there is ink inside each panel box when the page is rasterized (needs
+ *    readPdf(doc, { ink: true }); this catches a "No data to plot" panel
+ *    and white-on-white drawing, and is skipped without `ink`).
+ * Throws with the reason; returns { marks, ink } per panel.
  * @param {object} pdf
  * @param {{number: number, page: number, plotted: boolean, panels: Array}} figure
  * @param {{minPoints?: number, minColoured?: number, minDark?: number, logo?: boolean}} [o]
@@ -144,15 +218,21 @@ export const pointCounts = (figures) => Object.fromEntries((figures || []).map((
  */
 export function expectFigureDrawn(pdf, figure, { minPoints = 2, minColoured = 1500, minDark = 150, logo = false } = {}) {
   const fail = (why) => { throw new Error(`Figure ${figure.number} (${figure.id}): ${why}`); };
-  if (!pdf.ink) fail('read the PDF with readPdf(doc, { ink: true }) to check a figure');
   if (!figure.plotted || !figure.panels.length) fail('is a statement, with no plot to check');
   if (!listCaptions(pdf).some((c) => c.number === figure.number && c.page === figure.page)) fail(`no "Figure ${figure.number}." title on page ${figure.page}`);
   return figure.panels.map((p, i) => {
-    if (!(p.total >= minPoints)) fail(`panel ${i + 1} drew ${p.total} points`);
+    if (!(p.total >= minPoints)) fail(`panel ${i + 1} drew ${p.total} points, fewer than ${minPoints}`);
     if (logo && !p.logo) fail(`panel ${i + 1} has no Petrolord mark`);
-    const ink = pdf.ink(figure.page, p.box);
-    if (!(ink.coloured >= minColoured && ink.dark >= minDark)) fail(`panel ${i + 1} looks blank: ${ink.coloured} coloured and ${ink.dark} dark pixels in its box`);
-    return ink;
+    const marks = plotMarks(pdf, figure.page, p.plotArea);
+    if (!marks.frame) fail(`panel ${i + 1}: no plot area frame found on page ${figure.page}`);
+    const expected = p.marks.segments + p.marks.markers + (p.lines || 0);
+    if (marks.total !== expected) fail(`panel ${i + 1}: the file holds ${marks.total} line segments and markers inside the plot area, the builder reports ${expected}`);
+    let ink = null;
+    if (pdf.ink) {
+      ink = pdf.ink(figure.page, p.box);
+      if (!(ink.coloured >= minColoured && ink.dark >= minDark)) fail(`panel ${i + 1} looks blank: ${ink.coloured} coloured and ${ink.dark} dark pixels in its box`);
+    }
+    return { marks, ink };
   });
 }
 

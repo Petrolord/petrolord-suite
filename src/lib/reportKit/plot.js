@@ -84,10 +84,14 @@ const hasMarkers = (type) => type === 'scatter' || type === 'both';
  *   are straight reference lines at one X or one Y. `xInclude` and
  *   `yInclude` are values the axis must span even when no series reaches
  *   them. `yReversed` puts the smallest value at the top (depth).
- * @returns {{drawn: Object<string, number>, total: number, bands: number,
+ * @returns {{drawn: Object<string, number>, total: number,
+ *   marks: {segments: number, markers: number}, bands: number,
  *   yBands: number, lines: number, xRange: ?number[], yRange: ?number[],
  *   y2Range: ?number[], plotArea: ?{x: number, y: number, w: number, h: number},
  *   logo: boolean}}
+ *   `drawn` is the number of points per series, `marks` the line segments
+ *   and markers that went into the page for them (the test kit counts the
+ *   same in the file), `plotArea` the rectangle inside the axes.
  */
 export function drawPlot(doc, box, spec) {
   const xLog = !!spec.xLog;
@@ -136,7 +140,7 @@ export function drawPlot(doc, box, spec) {
   doc.rect(box.x, box.y, box.w, box.h, 'FD');
 
   const result = {
-    drawn: {}, total: 0, bands: 0, yBands: 0, lines: 0,
+    drawn: {}, total: 0, marks: { segments: 0, markers: 0 }, bands: 0, yBands: 0, lines: 0,
     xRange: xr ? [xr.lo, xr.hi] : null, yRange: yr ? [yr.lo, yr.hi] : null, y2Range: y2r ? [y2r.lo, y2r.hi] : null,
     plotArea: null, logo: false,
   };
@@ -287,9 +291,11 @@ export function drawPlot(doc, box, spec) {
       if (s.dash && doc.setLineDashPattern) doc.setLineDashPattern(s.dash, 0);
       for (let k = 1; k < s.q.length; k += 1) doc.line(px(s.q[k - 1][0]), yOf(s.q[k - 1][1]), px(s.q[k][0]), yOf(s.q[k][1]));
       if (s.dash && doc.setLineDashPattern) doc.setLineDashPattern([], 0);
+      result.marks.segments += Math.max(0, s.q.length - 1);
     }
     if (hasMarkers(type)) {
       for (const p of s.q) mark(s, px(p[0]), yOf(p[1]), 0.5);
+      result.marks.markers += s.q.length;
     }
     result.drawn[s.name] = s.q.length;
     result.total += s.q.length;
