@@ -84,7 +84,7 @@ test('U2-002 and U2-011: LAS, tops CSV and the data sheet PDF download and read 
   expect(text).toContain('Well OKAN PX-4');
   expect(text).toContain('UWI 00-1234-5678');
   expect(text).toContain('Depth unit feet (the registry stores metres)');
-  expect(text).toContain('Vertical datum mean sea level (assumed; not stored per well)');
+  expect(text).toContain('Vertical datum not named (elevations read as above mean sea level)');
   expect(text).toMatch(/KB 83\.01 ft above datum/);
   expect(text).toContain('Prepared by E2E Analyst');
   expect(text).toMatch(/GR gAPI 6561\.7 6586\.2 0\.500 50 0 measured/);

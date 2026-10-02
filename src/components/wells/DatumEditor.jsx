@@ -68,14 +68,14 @@ export function DatumFields({ fields, onChange, unit = 'm', columns = true, test
             <option value="offshore">Offshore</option>
           </select>
         </label>
-        {f.environment !== 'offshore' && (
+        {(f.environment !== 'offshore' || String(f.groundElev).trim() !== '') && (
           <label>
             <span className={lab}>Ground level ({u})</span>
             <input className={`${inp} w-24`} value={f.groundElev} onChange={set('groundElev')} disabled={off} inputMode="decimal" placeholder="not set"
               data-testid={`${testIdPrefix}-ground`} title="Ground elevation above the vertical datum (onshore wells)" />
           </label>
         )}
-        {f.environment !== 'onshore' && (
+        {(f.environment !== 'onshore' || String(f.waterDepth).trim() !== '') && (
           <label>
             <span className={lab}>Water depth ({u})</span>
             <input className={`${inp} w-24`} value={f.waterDepth} onChange={set('waterDepth')} disabled={off} inputMode="decimal" placeholder="not set"

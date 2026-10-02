@@ -729,9 +729,12 @@ export function datumChangeLine(rec, unit = 'm') {
   const e = (v) => (Number.isFinite(v) ? fmt(v, unit, 2) : 'not set');
   const who = rec.by_name || rec.by || 'someone';
   const day = String(rec.at || '').slice(0, 10);
-  const from = rec.from || {};
-  const to = rec.to || {};
-  return `${day}: ${who} changed the depth reference from ${from.depth_ref_kind || 'not set'} ${e(from.depth_ref_elev_m)} to ${to.depth_ref_kind || 'not set'} ${e(to.depth_ref_elev_m)}${rec.reason ? ` (${rec.reason})` : ''}`;
+  const side = (x) => {
+    const s = x || {};
+    if (!s.depth_ref_kind && !Number.isFinite(s.depth_ref_elev_m)) return 'not set';
+    return Number.isFinite(s.depth_ref_elev_m) ? `${s.depth_ref_kind || 'reference'} ${e(s.depth_ref_elev_m)}` : `${s.depth_ref_kind} (no elevation)`;
+  };
+  return `${day}: ${who} changed the depth reference from ${side(rec.from)} to ${side(rec.to)}${rec.reason ? ` (${rec.reason})` : ''}`;
 }
 
 /**

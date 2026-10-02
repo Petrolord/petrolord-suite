@@ -12,7 +12,7 @@ import { readWellDatum, refElevOrNull, datumChangeImpact, datumChangeRecord, dat
 import { updateWellbore, updateDesign } from './wpApi';
 
 export {
-  PUBLISH_ENGINE, preparePublishPayload, publishPatchFromPayload,
+  PUBLISH_ENGINE, preparePublishPayload, publishPatchFromPayload, wellboreDatum,
 } from './publishPayload';
 
 import {

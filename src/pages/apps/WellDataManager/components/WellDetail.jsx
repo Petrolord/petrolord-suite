@@ -162,8 +162,10 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
   const csDisplay = csView || entered;
   // WDM-U2-007: the well's datum and its depth frame come from the shared
   // datum module; nothing here subtracts a KB
-  const datum = useMemo(() => readWellDatum(well), [well]);
-  const frame = useMemo(() => makeWellFrame(well), [well]);
+  // (read on every render: it is cheap, and a row updated in place must show)
+  const datum = readWellDatum(well);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const frame = useMemo(() => makeWellFrame(well), [well.deviation, well.td_md_m, datum.state, datum.refElevM, datum.environment, datum.waterDepthM, datum.groundElevM]);
   const csRows = useMemo(() => {
     try { return fromStoredCheckshots(well.checkshots || [], csDisplay, frame); } catch (e) { return []; }
   }, [well.checkshots, csDisplay, frame]);
@@ -455,12 +457,12 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
     : null;
 
   // WDM-U2-007: the datum as typed, checked on every keystroke by the shared module
-  const headerDatumCheck = useMemo(() => {
+  const headerDatumCheck = (() => {
     if (editor?.tab !== 'Header' || !editor.datum) return { errors: [], warnings: [] };
     const typed = { ...editor.datum, refKind: editor.datum.refKind || (editor.datum.refElev.trim() !== '' ? 'KB' : '') };
     const r = datumFromEntry(typed, editor.fields.unit, { original: datum, digits: 3 });
     return { errors: r.errors, warnings: r.warnings };
-  }, [editor, datum]);
+  })();
 
   // WDM-U2-016: put the tops back as they were before the last save
   const undoTops = async () => {
