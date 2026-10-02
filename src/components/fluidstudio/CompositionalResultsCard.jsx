@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, FlaskConical, Layers } from 'lucide-react';
-import FluidStudioTierBadge from '@/components/fluidstudio/FluidStudioTierBadge';
+import FluidStudioTierBadge, { TuneStatusBadge } from '@/components/fluidstudio/FluidStudioTierBadge';
 
 const fmt = (v, d = 3) => (v == null || !Number.isFinite(v) ? 'n/a' : Number(v).toFixed(d));
 
@@ -32,7 +32,7 @@ const PhaseColumn = ({ phase }) => (
  * Recomputes synchronously with the inputs; the envelope card handles
  * the slow path.
  */
-const CompositionalResultsCard = ({ eos }) => {
+const CompositionalResultsCard = ({ eos, tuneStatus }) => {
   if (!eos) return null;
   const { parsed, flash, characterization } = eos;
 
@@ -60,7 +60,8 @@ const CompositionalResultsCard = ({ eos }) => {
             Compositional flash at {fmt(parsed.pressurePsia, 0)} psia / {fmt(parsed.tempF, 0)} °F
           </CardTitle>
           <div className="flex gap-2">
-            {parsed?.tuning && <FluidStudioTierBadge tier="lab_tuned" />}
+            {/* H10: the status says whether the tune still fits this fluid */}
+            <TuneStatusBadge status={tuneStatus ?? (parsed?.tuning ? 'unrecorded' : 'none')} />
             <FluidStudioTierBadge tier="oracle_gated" />
             <FluidStudioTierBadge
               tier="screening"

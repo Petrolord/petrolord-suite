@@ -12,9 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, SlidersHorizontal, RotateCcw, AlertTriangle } from 'lucide-react';
-import FluidStudioTierBadge from '@/components/fluidstudio/FluidStudioTierBadge';
+import FluidStudioTierBadge, { TuneStatusBadge } from '@/components/fluidstudio/FluidStudioTierBadge';
 import { createEnvelopeClient } from '@/utils/fluidstudio/envelopeClient';
-import { labTuneRequest } from '@/utils/fluidstudio/eosAnalysis';
+import { labTuneRequest, tuningStatus } from '@/utils/fluidstudio/eosAnalysis';
 import { untunedKnobs } from '@/utils/fluidstudio/eos/labTune';
 
 const fmt = (v, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : 'n/a');
@@ -53,6 +53,8 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
 
   const lab = composition?.tuning?.lab ?? {};
   const applied = composition?.tuning?.applied ?? null;
+  // H10: does the applied tune still belong to this fluid?
+  const status = tuningStatus(composition, stages);
   const setLab = (field, value) => onUpdateTuning({ lab: { ...lab, [field]: value } });
 
   const start = useMemo(() => {
@@ -76,7 +78,9 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
         setError(fit.reason || 'The regression could not run.');
       } else {
         setLastFit(fit);
-        onUpdateTuning({ applied: fit.tuning });
+        // H10: keep what the fit consumed beside the knobs, so a later edit
+        // of the fluid, the lab values or the separator train is noticed
+        onUpdateTuning({ applied: fit.tuning, fittedOn: JSON.stringify(request) });
       }
     } catch (err) {
       setError(err?.message || 'The regression failed.');
@@ -88,7 +92,7 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
   const resetTune = () => {
     setLastFit(null);
     setError(null);
-    onUpdateTuning({ applied: null });
+    onUpdateTuning({ applied: null, fittedOn: null });
   };
 
   return (
@@ -100,7 +104,7 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
             Lab tuning
           </CardTitle>
           {applied
-            ? <FluidStudioTierBadge tier="lab_tuned" />
+            ? <TuneStatusBadge status={status} />
             : (
               <FluidStudioTierBadge
                 tier="screening"
@@ -183,12 +187,24 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
           </div>
         )}
 
+        {applied && status !== 'current' && (
+          <p className="text-xs text-pl-warning-text flex items-start gap-1" data-testid="lab-tuning-stale">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>
+              {status === 'stale'
+                ? 'The composition, the C7+ description, the lab values, the flash conditions or the separator train changed after the fluid was tuned.'
+                : 'This fluid was tuned before the app kept a record of what it was tuned on, so the match cannot be confirmed.'}
+              {' '}The tuned C7+ properties are still applied, so the results may no longer reproduce the lab values. Run Tune to lab data again, or reset to untuned.
+            </span>
+          </p>
+        )}
+
         {applied && (
           <div className="text-xs text-pl-muted">
             Applied knobs: Tc ×{fmt(applied.fTc, 4)}, Pc ×{fmt(applied.fPc, 4)},
             k(C1-C7+) {fmt(applied.kC1, 4)}{start ? ` (untuned ${fmt(start.kC1, 4)})` : ''},
             shift {fmt(applied.sPlus, 4)}{start ? ` (untuned ${fmt(start.sPlus, 4)})` : ''}.
-            All compositional results, the envelope and the handoffs use the tuned fluid.
+            All compositional results, the envelope and the handoffs use these C7+ properties.
             {!lastFit && ' Run "Tune to lab data" again to regenerate the before and after table.'}
           </div>
         )}

@@ -458,6 +458,33 @@ export const labTuneRequest = (composition, stages) => {
   };
 };
 
+/**
+ * H10: is the applied lab tune still the tune of this fluid?
+ *
+ * The regression consumes exactly the worker request (feed, C7+ description,
+ * the measured values, the flash conditions and the enabled separator
+ * stages). The request is kept as text beside the applied knobs
+ * (`tuning.fittedOn`) when a tune is applied, and compared here. An edit to
+ * anything in it leaves the tuned C7+ properties applied to a fluid they
+ * were not fitted to, so "Lab tuned" is no longer true.
+ *
+ *   'none'        no tune applied
+ *   'current'     the inputs are the ones the tune was fitted on
+ *   'stale'       an input changed after the tune
+ *   'unrecorded'  a tune saved before this record existed: cannot be confirmed
+ */
+export const tuningFingerprint = (composition, stages) => {
+  const { request } = labTuneRequest(composition, stages);
+  return request ? JSON.stringify(request) : null;
+};
+
+export const tuningStatus = (composition, stages) => {
+  if (!composition?.tuning?.applied) return 'none';
+  const fittedOn = composition.tuning.fittedOn;
+  if (!fittedOn) return 'unrecorded';
+  return fittedOn === tuningFingerprint(composition, stages) ? 'current' : 'stale';
+};
+
 export const envelopeRequest = (composition) => {
   const parsed = parseComposition(composition);
   if (!parsed.valid) return null;
