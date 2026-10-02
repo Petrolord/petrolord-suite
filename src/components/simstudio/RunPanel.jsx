@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useSimStudio } from '@/contexts/SimStudioContext';
-import { fmtElapsed } from '@/components/simstudio/resultAdapters';
+import { fmtElapsed, RUN_STEPS_TITLE } from '@/components/simstudio/resultAdapters';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const STATUS_TONE = {
@@ -71,7 +71,7 @@ const RunPanel = () => {
                   <TableHead>Queued</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Elapsed</TableHead>
-                  <TableHead>Steps</TableHead>
+                  <TableHead title={RUN_STEPS_TITLE}>Steps</TableHead>
                   <TableHead>Failure</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>

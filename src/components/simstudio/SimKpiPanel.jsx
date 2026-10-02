@@ -4,7 +4,7 @@ import React from 'react';
 import { Info } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSimStudio } from '@/contexts/SimStudioContext';
-import { fmtElapsed } from '@/components/simstudio/resultAdapters';
+import { fmtElapsed, RUN_STEPS_TITLE } from '@/components/simstudio/resultAdapters';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const TONE = {
@@ -16,8 +16,8 @@ const TONE = {
   none: 'text-pl-muted border-pl-border-strong bg-pl-sunken',
 };
 
-const Kpi = ({ title, value }) => (
-  <Card>
+const Kpi = ({ title, value, hint }) => (
+  <Card title={hint}>
     <CardContent className="p-3">
       <div className="text-[10px] uppercase tracking-wide text-pl-muted">{title}</div>
       <div className="text-sm font-semibold mt-0.5 text-pl-text break-words [overflow-wrap:anywhere]">{value}</div>
@@ -48,7 +48,8 @@ const SimKpiPanel = () => {
         <>
           <Kpi title="Engine" value={latest.opm_version || 'OPM Flow'} />
           <Kpi title="Elapsed" value={fmtElapsed(latest.elapsed_seconds)} />
-          <Kpi title="Report steps" value={latest.report_steps ?? EMPTY_VALUE} />
+          {/* H13: see RUN_STEPS_TITLE for what an older run stored here */}
+          <Kpi title="Steps" value={latest.report_steps ?? EMPTY_VALUE} hint={RUN_STEPS_TITLE} />
           <Kpi title="Attempt" value={latest.attempt || 1} />
         </>
       )}
