@@ -7,7 +7,7 @@
 import { buildPvtPrefillRows } from '../fluidStudioPvtPrefill';
 import { describePvtSource, markTableEdited, PVT_TABLE_ORIGIN_KEY } from '../pvtSource';
 import { computePvtRow, rsAt } from '@/utils/fluidStudioCalculations';
-import { caseSummaryRows } from '@/utils/mbalReportExport';
+import { mbalInputRows } from '../reportModel';
 
 jest.mock('jspdf', () => jest.fn());
 jest.mock('jspdf-autotable', () => jest.fn());
@@ -95,10 +95,12 @@ describe('H5: the report and the screen state the true source', () => {
     expect(describePvtSource(null)).toBe('n/a');
   });
 
-  it('the report case summary prints that text, never the raw enum', () => {
-    const rows = caseSummaryRows({ caseData: { initial_pressure_psia: 3000 }, lastResult: null, defaultCfg: built });
-    const pvt = rows.find(([k]) => k === 'PVT source')[1];
-    expect(pvt).toBe(describePvtSource(built));
-    expect(pvt).not.toBe('lab_table');
+  it('the report inputs table prints that text, never the raw enum', () => {
+    const rows = mbalInputRows({ caseData: { fluid_system: 'oil', initial_pressure_psia: 3000 }, runConfig: built, study: null, result: null });
+    const source = rows.find((r) => r.key === 'pvt_source');
+    expect(source.source).toBe(describePvtSource(built));
+    expect(`${source.value} ${source.source}`).not.toMatch(/lab_table/);
+    // the generated table names its origin in its own row too
+    expect(rows.find((r) => r.key === 'pvt_table').source).toBe(describePvtSource(built));
   });
 });

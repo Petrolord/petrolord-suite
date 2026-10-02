@@ -97,9 +97,17 @@ export function pickCorrelations(raw: Row | null | undefined): Row {
 
 /** The object the engine is called with, from the case, the run config and the data rows. */
 export function buildEngineInputs(rbCase: Row, runConfig: Row, prodRows: Row[]): MBALInputs {
+  const aquiferModel = (runConfig.aquifer_model ?? "none") as AquiferModel;
   return {
     fluid_system: rbCase.fluid_system as FluidSystem,
-    has_aquifer: rbCase.has_aquifer,
+    // MBAL-U1-003. The engine reads the aquifer twice: the regression from
+    // aquifer_model, the pressure history match from has_aquifer. The two
+    // come from different rows (run config and case) and the Aquifer tab
+    // saved only the first, so a history match simulated a closed tank
+    // beside an aquifer regression: on Dake Exercise 9.2 it matched 535 MMSTB
+    // against 330 with the flag set (truth 312). The run config's model is
+    // the one statement of the aquifer, and the flag is derived from it.
+    has_aquifer: aquiferModel !== "none",
     has_gas_cap: rbCase.has_gas_cap,
     initial_pressure_psia: rbCase.initial_pressure_psia,
     reservoir_temperature_f: rbCase.reservoir_temperature_f,
@@ -110,7 +118,7 @@ export function buildEngineInputs(rbCase: Row, runConfig: Row, prodRows: Row[]):
     water_salinity_ppm: runConfig.water_salinity_ppm ?? undefined,
     formation_compressibility_psi: runConfig.formation_compressibility_psi,
     water_compressibility_psi: runConfig.water_compressibility_psi,
-    aquifer_model: (runConfig.aquifer_model ?? "none") as AquiferModel,
+    aquifer_model: aquiferModel,
     aquifer_params: runConfig.aquifer_params ?? undefined,
     gas_cap_ratio_m: runConfig.gas_cap_ratio_m ?? undefined,
     pvt_source: runConfig.pvt_source,

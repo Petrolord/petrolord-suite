@@ -1,0 +1,155 @@
+{
+  "pages": 8,
+  "sha256": "b512a7b399efcf6d1679a55fb7a7510123b87140c95da4244e564e669f7a8641",
+  "figures": [
+    {
+      "id": "regression",
+      "number": 1,
+      "page": 6,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "In the fit": 9,
+            "Not in the fit": 1,
+            "Fitted line": 2
+          },
+          "total": 12,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "campbell",
+      "number": 2,
+      "page": 6,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "cole",
+      "number": 3,
+      "page": 6,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 141.58,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "In the fit": 9,
+            "Not in the fit": 1
+          },
+          "total": 10,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "pz",
+      "number": 4,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "In the fit": 10,
+            "Not in the fit": 1,
+            "Fitted line to p/z = 0": 2,
+            "Corrected for rock and water (Ramagost-Farshad)": 11
+          },
+          "total": 24,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "pressure",
+      "number": 5,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 125.08,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "Measured, in the fit": 9,
+            "Measured, not in the fit": 2
+          },
+          "total": 11,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "influx",
+      "number": 6,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "Water influx We": 11,
+            "Water produced Wp Bw": 11
+          },
+          "total": 22,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "drive",
+      "number": 7,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 118.36,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "Gas expansion (GDI)": 10,
+            "Rock and connate water (CDI)": 10,
+            "Water drive (WDI)": 10
+          },
+          "total": 30,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    }
+  ]
+}

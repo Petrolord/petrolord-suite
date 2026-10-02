@@ -1,0 +1,560 @@
+Material Balance Report
+Petrolord Material Balance Studio
+
+Case                       Pletcher gas with pot aquifer                     Company                 Lordsway Energy
+Field                      SPE 75354 two-cell model                          Licence or block        n/a
+Reservoir                  n/a                                               Zone or sand            n/a
+Fluid system               Gas                                               Analysis type           Material balance, gas, pot aquifer plot
+Data dates                 2000-01-01 to 2010-01-01                          Analyst                 n/a
+Engine run                 2026-10-02 08:00 UTC                              Build                   Petrolord Suite test
+Display units              Oilfield (psia, degF, STB, RB, scf, ft)           Generated               2026-10-02 09:00 UTC
+
+
+Headline results
+ Quantity                                                                     Value
+
+ Gas initially in place (OGIP)                                                100.99 Bscf
+
+ Headline value from                                                          The intercept of the pot aquifer plot
+
+ Regression r2                                                                0.9997
+
+ Points in the fit                                                            9
+
+ Drive mechanism (classified at the last timestep)                            gas expansion drive
+
+ Aquifer strength (from the water drive index)                                weak
+
+ Aquifer water in place W (from the slope)                                    69.04 MMRB
+
+ Cumulative water influx We at the last timestep                              2.344 MMRB
+
+ Engine path validation                                                       Benchmark verified (0.19 percent against the reference)
+
+Engine path validation, Benchmark verified: Pletcher SPE 75354 (2002) Tables 1-3, two-cell gas simulation. Matched within stated tolerance.
+
+Regression statement
+Pot aquifer plot (Pletcher 2002, Eq. 13): F/Eg against (pi - p)/Eg, ordinary least squares. The intercept is G and the slope gives the aquifer water in
+place W. 9 points entered the fit; r2 = 0.9997. G = intercept = 100.995 Bscf.
+
+
+In-place volume by each method
+ Method                                          In place                Against the         Basis
+                                                                         headline
+
+ Pot aquifer plot (intercept)                    100.99 Bscf             headline            Least squares on 9 points, r2 0.9997
+
+ p/z straight line to p/z = 0                    107.75 Bscf             +6.7%               Apparent value: no aquifer or compaction term, r2
+                                                                                             0.9993
+
+ p/z corrected for rock and water                104.67 Bscf             +3.6%               Compressibility corrected; no aquifer term
+ (Ramagost-Farshad)
+
+ Volumetric estimate                             100.80 Bscf             -0.2%               Entered on the case: Pletcher (2002), Table 1,
+                                                                                             simulation model volume
+
+Independent routes to the same in-place volume. Agreement supports the tank model; an apparent value above the regression value is the
+signature of pressure support the simpler method leaves out. No volumetric estimate is printed unless one is entered on the case.
+
+
+
+
+Material Balance Report, Pletcher gas with pot aquifer, Field SPE 75354 two-cell model                                                     Page 1 of 8
+Drive indices at the last timestep
+ Drive                                                  Energy term                                  Index
+
+ Gas expansion (GDI)                                    G Eg                                         0.9418
+
+ Rock and connate water (CDI)                           G Efw                                        0.0258
+
+ Water drive (WDI)                                      We - Wp Bw                                   0.0328
+
+ Sum                                                    (G Et + We - Wp Bw)                          1.0005
+
+Convention: each index is its energy term over the hydrocarbon voidage Gp Bg (Pletcher, SPE 75354, Eqs. 8 to 10). Water produced is netted
+inside the water drive index, WDI = (We - Wp Bw) / (Gp Bg). CDI is the rock and connate water expansion (Pletcher calls it ICD). The indices sum
+to 1.0005. The departure from 1 is the misfit of the fitted in-place volume at this one timestep, (G Et + We - F) over the hydrocarbon voidage: the
+fitted line lies above the last point by 0.05 percent of the voidage.
+
+
+Inputs of the analysis
+ Input                                        Value                               Unit         Source and quality
+
+ Fluid system                                 Gas                                              Case definition
+
+ Initial reservoir pressure pi                6,411.0                             psia         Entered, source not stated
+
+ Reservoir temperature                        239.0                               degF         Entered, source not stated
+
+ Initial water saturation Swi                 0.150                               fraction     Entered, source not stated
+
+ Bubble point pressure                        n/a                                              Does not apply to a gas case
+
+ PVT source                                   Table and per-row values                         Per-row PVT on the Data tab
+
+ PVT table                                    none                                             No table: PVT comes from the Data tab rows
+                                                                                               where they carry it, and from the correlations
+                                                                                               elsewhere
+
+ Oil gravity                                  n/a                                              Not read for a gas case
+
+ Gas specific gravity                         0.650                               air = 1      Entered, source not stated
+
+ Formation water salinity                     n/a                                 ppm          Not provided: fresh water (0 ppm) where the
+                                                                                               engine needs a salinity
+
+ Pb, Rs and Bo correlation                    n/a                                              Not read for a gas case
+
+ Gas deviation factor Z correlation           Hall-Yarborough                                  Selected on the PVT tab; used only where the
+                                                                                               table or a data row gives no value
+
+ Water formation volume factor                McCain                                           Selected on the PVT tab; used only where the
+ correlation                                                                                   table or a data row gives no value
+
+ Oil and gas viscosity correlations           Beggs-Robinson;                                  Recorded for the reader: viscosity does not enter
+                                              Lee-Gonzalez-Eakin                               the material balance
+
+ Formation compressibility cf                 6.00e-6                             1/psi        Entered, source not stated
+
+ Water compressibility cw                     3.00e-6                             1/psi        Entered, source not stated
+
+ Gas cap ratio m                              n/a                                              Does not apply to a gas case
+
+ Aquifer model                                Pot aquifer                                      Selected on the Aquifer tab
+
+ Aquifer water in place W (start value)       n/a                                              Not an input of the regression: W is a result of the
+                                                                                               pot aquifer plot (see the results)
+
+ Other aquifer parameters                     none                                             None held
+
+ Timesteps excluded from the fit by the       1                                                Set on the Data tab; listed with the reason in the
+ analyst                                                                                       data table
+
+ Pressure and production table                11 rows                                          Entered, source not stated
+
+Rows marked "Recorded for the reader" or "Does not apply" did not enter the calculation; every other row did. A default the app applied is printed
+as an assumption with its value.
+
+
+
+
+Material Balance Report, Pletcher gas with pot aquifer, Field SPE 75354 two-cell model                                                   Page 2 of 8
+Pressure datum
+ Input                                        Value                                Unit            Source and quality
+
+ Pressure datum depth                         n/a                                                  Not provided
+
+ Gauge or survey depth                        n/a                                                  Not provided
+
+ Pressures on the Data tab are                Not stated                                           Not provided
+
+All pressures are absolute. This app applies no correction to datum: the pressures of the data table enter the balance as they were entered. Where
+the surveys were taken away from the datum, correct them to the datum with the fluid gradient before entering them.
+
+
+PVT used by the engine at each timestep
+ Step                  p (psia)                Bg (RB/Mscf)                               Z                       Bw (RB/STB)
+
+ 0                     6,411.0                 0.6279                                     1.1192                  1.0452
+
+ 1                     5,947.0                 0.6587                                     1.0890                  1.0467
+
+ 2                     5,509.0                 0.6933                                     1.0618                  1.0480
+
+ 3                     5,093.0                 0.7327                                     1.0374                  1.0493
+
+ 4                     4,697.0                 0.7778                                     1.0156                  1.0506
+
+ 5                     4,319.0                 0.8300                                     0.9966                  1.0517
+
+ 6                     3,957.0                 0.8910                                     0.9801                  1.0529
+
+ 7                     3,610.0                 0.9628                                     0.9663                  1.0540
+
+ 8                     3,276.0                 1.049                                      0.9551                  1.0551
+
+ 9                     2,953.0                 1.153                                      0.9467                  1.0560
+
+ 10                    2,638.0                 1.283                                      0.9409                  1.0571
+
+The values the engine used at each timestep pressure: a value on the data row first, then the PVT table, then the correlation. Bo and Bw are
+reservoir volume per stock-tank volume; Bg is reservoir volume per standard volume of gas.
+
+
+Data summary
+ Quantity                                                                     Value
+
+ Timesteps in the table                                                       11
+
+ In the fit                                                                   9
+
+ Left out of the fit                                                          2: initial state 1, excluded by the analyst 1, no expansion above zero
+                                                                              0
+
+ Points the engine reports in the fit                                         9
+
+ Data cut-off                                                                 2010-01-01
+
+ Period covered                                                               2000-01-01 to 2010-01-01, 10.00 years
+
+ Pressure, first to last (psia)                                               6,411.0 to 2,638.0
+
+ Cumulative gas at the cut-off (Bscf)                                         54.750
+
+ Cumulative water produced at the cut-off (MSTB)                              37.256
+
+
+
+
+Material Balance Report, Pletcher gas with pot aquifer, Field SPE 75354 two-cell model                                                     Page 3 of 8
+Pressure and production history
+ Step       Date                p (psia)       Gp (Bscf)         Wp (MSTB)               We (MMRB)       Fit
+
+ 0          2000-01-01          6,411.0        0.000             0.000                   0.000           Initial state (no production yet)
+
+ 1          2001-01-01          5,947.0        5.475             0.378                   0.288           Excluded by the analyst
+
+ 2          2002-01-01          5,509.0        10.950            1.434                   0.560           In the fit
+
+ 3          2003-01-01          5,093.0        16.425            3.056                   0.819           In the fit
+
+ 4          2004-01-01          4,697.0        21.900            5.284                   1.065           In the fit
+
+ 5          2005-01-01          4,319.0        27.375            8.183                   1.300           In the fit
+
+ 6          2006-01-01          3,957.0        32.850            11.864                  1.525           In the fit
+
+ 7          2007-01-01          3,610.0        38.325            16.425                  1.740           In the fit
+
+ 8          2008-01-01          3,276.0        43.800            22.019                  1.948           In the fit
+
+ 9          2009-01-01          2,953.0        49.275            28.860                  2.149           In the fit
+
+ 10         2010-01-01          2,638.0        54.750            37.256                  2.344           In the fit
+
+Volumes are cumulative from the initial state. Np, Wp and injected water are stock-tank volumes; We is a reservoir volume.
+
+Withdrawal and expansion terms
+ Step              F (MMRB)                       Eg (RB/scf)                       Efw (RB/scf)                      Et (RB/scf)
+
+ 0                 0.0000                         0                                 0                                 0
+
+ 1                 3.6068                         3.080e-5                          2.211e-6                          3.301e-5
+
+ 2                 7.5931                         6.540e-5                          4.298e-6                          6.970e-5
+
+ 3                 12.0378                        1.048e-4                          6.280e-6                          1.111e-4
+
+ 4                 17.0394                        1.499e-4                          8.167e-6                          1.581e-4
+
+ 5                 22.7299                        2.021e-4                          9.968e-6                          2.121e-4
+
+ 6                 29.2818                        2.631e-4                          1.169e-5                          2.748e-4
+
+ 7                 36.9166                        3.349e-4                          1.335e-5                          3.482e-4
+
+ 8                 45.9563                        4.208e-4                          1.494e-5                          4.357e-4
+
+ 9                 56.8544                        5.253e-4                          1.648e-5                          5.418e-4
+
+ 10                70.2782                        6.550e-4                          1.798e-5                          6.730e-4
+
+Et = Eg + Efw, with Eg = Bg - Bgi and Efw = Bgi (Swi cw + cf) (pi - p) / (1 - Swi). F = Gp Bg + Wp Bw.
+
+
+
+
+Material Balance Report, Pletcher gas with pot aquifer, Field SPE 75354 two-cell model                                                       Page 4 of 8
+Drive indices by timestep
+ Step                 Date                                   GDI                     CDI                    WDI                    Sum
+
+ 1                    2001-01-01                             0.863                   0.062                  0.080                  1.004
+
+ 2                    2002-01-01                             0.870                   0.057                  0.074                  1.001
+
+ 3                    2003-01-01                             0.879                   0.053                  0.068                  1.000
+
+ 4                    2004-01-01                             0.889                   0.048                  0.062                  0.999
+
+ 5                    2005-01-01                             0.898                   0.044                  0.057                  0.999
+
+ 6                    2006-01-01                             0.908                   0.040                  0.052                  1.000
+
+ 7                    2007-01-01                             0.917                   0.037                  0.047                  1.000
+
+ 8                    2008-01-01                             0.925                   0.033                  0.042                  1.000
+
+ 9                    2009-01-01                             0.934                   0.029                  0.037                  1.000
+
+ 10                   2010-01-01                             0.942                   0.026                  0.033                  1.000
+
+
+Engine warnings
+The engine raised no warning on this run.
+
+
+Limits of this analysis
+- Tank model: the reservoir is one cell at one average pressure, in equilibrium, with PVT read at that pressure. It does not see compartments,
+pressure gradients or a moving contact.
+- The measured pressures are taken as the average reservoir pressure at each date. A survey that had not built up, or that was not referred to the
+datum, enters as it was typed.
+- Pot aquifer: the aquifer is small enough to follow the reservoir pressure at once, so influx is proportional to the pressure drop and carries no time.
+It understates the lag of a large aquifer.
+- The regression is ordinary least squares with a free intercept. It weights every point of the fit equally and gives no confidence interval; the
+pressure history match does.
+- Gas case: dry gas, one phase in the reservoir. Condensate drop-out and water vapour are not modelled.
+- Injected water and gas are not in the withdrawal term of this engine version.
+- Pressure datum: not stated. No correction to datum is applied.
+
+Published ranges of the methods used
+ Correlation                                                           Published range, as the engine checks it
+
+ Hall-Yarborough (1973), Z                                             Pseudo-reduced temperature 1.2 and above
+
+ McCain (1990), water formation volume factor                          Used as published; no range is checked by the engine
+
+The correlations are used only where the PVT table or a data row gives no value.
+
+Inputs outside a published range
+The engine flagged no input outside the published range of a correlation in use.
+
+
+
+
+Material Balance Report, Pletcher gas with pot aquifer, Field SPE 75354 two-cell model                                                       Page 5 of 8
+Plots
+Figure 1. Pot aquifer plot: F/Eg against dp/Eg
+
+                              In the fit         Not in the fit       Fitted line
+                120
+                          G = 100.99 Bscf (intercept)
+                          slope = 1,103 RB per psi
+                          intercept = 101.0 Bscf
+                          r2 = 0.9997, 9 points
+                115
+  F/Eg (Bscf)
+
+
+
+
+                110
+
+
+
+
+                105
+
+
+
+
+                100
+                      0                                           5                                  10                     15                   20
+
+                                                                                         dp/Eg (10^6 psi per RB/scf)
+
+Pot aquifer plot (Pletcher 2002, Eq. 13): F/Eg against (pi - p)/Eg, ordinary least squares. The intercept is G and the slope gives the aquifer water in
+place W. Points left out of the fit: 1 initial state, 1 excluded by the analyst (squares). The line is the engine's own slope and intercept.
+
+
+Figure 2. Campbell plot: F/Et against F
+Does not apply: the Campbell plot is an oil reservoir diagnostic. The Cole plot is its gas equivalent.
+
+
+Figure 3. Cole plot: F/Eg against Gp
+
+                              In the fit         Not in the fit
+                120
+
+
+
+
+                115
+  F/Eg (Bscf)
+
+
+
+
+                110
+
+
+
+
+                105
+
+
+
+                          OGIP of this run 100.99 Bscf
+
+                100
+                      0                              10                             20               30                40        50              60
+
+                                                                                                 Gp (Bscf)
+
+Apparent gas in place at each timestep with no aquifer or compressibility term. A level line means depletion drive; a rising or humped line means
+water influx, and the points sit above the gas in place of the run.
+
+
+
+
+Material Balance Report, Pletcher gas with pot aquifer, Field SPE 75354 two-cell model                                                     Page 6 of 8
+Figure 4. p/z against cumulative gas
+
+                                            In the fit      Not in the fit          Fitted line to p/z = 0          Corrected for rock and water (Ramagost-Farshad)
+                              6000
+                                                                                                                                                                                   OGIP of this run
+
+
+
+                              5000
+
+
+
+                              4000
+  p/z (psia)
+
+
+
+
+                              3000
+
+
+
+                              2000
+
+
+
+                              1000
+                                         p/z line to zero: 107.75 Bscf (apparent)
+                                         OGIP of this run: 100.99 Bscf
+                                         p/z at Gp = 0: 5,776 psia, r2 = 0.9993
+                                 0
+                                     0                             20                          40                           60                       80                      100                           120
+
+                                                                                                                         Gp (Bscf)
+
+Least squares through the initial point and the points of the fit, taken to p/z = 0. With water influx the line overstates the gas in place, because the
+influx holds the pressure up: compare its end with the gas in place of the run. The corrected points remove the rock and connate water
+compressibility term (Ramagost and Farshad, 1981).
+
+
+Figure 5. Measured pressure history
+
+                                            Measured, in the fit          Measured, not in the fit
+                              7000
+
+
+
+
+                              6000
+  Reservoir pressure (psia)
+
+
+
+
+                              5000
+
+
+
+
+                              4000
+
+
+
+
+                              3000
+
+
+
+
+                              2000
+                                 2000                                   2002                                 2004                         2006                        2008                                2010
+
+                                                                                                                           Date
+
+Measured pressures only. This run is a regression: it solves the in-place volume from the measured pressures and simulates none, so there is no
+model line. A pressure history match on the Run tab adds it.
+
+
+
+
+Material Balance Report, Pletcher gas with pot aquifer, Field SPE 75354 two-cell model                                                                                                                Page 7 of 8
+Figure 6. Cumulative water influx against time
+
+                                                               Water influx We       Water produced Wp Bw
+                                                      2.5
+
+
+
+
+                                                       2
+  Reservoir volume (MMRB)
+
+
+
+
+                                                      1.5
+
+
+
+
+                                                       1
+
+
+
+
+                                                      0.5
+
+
+
+
+                                                       0
+                                                       2000                             2002                       2004                       2006          2008              2010
+
+                                                                                                                             Date
+
+We of the pot aquifer: the fitted water in place times the aquifer compressibility times the pressure drop, so it follows the pressure with no lag.
+
+
+Figure 7. Drive indices against time
+
+                                                               Gas expansion (GDI)         Rock and connate water (CDI)   Water drive (WDI)
+                                                      1.2
+  Drive index (fraction of the hydrocarbon voidage)
+
+
+
+
+                                                            Sum 1
+                                                       1
+
+
+
+                                                      0.8
+
+
+
+                                                      0.6
+
+
+
+                                                      0.4
+
+
+
+                                                      0.2
+
+
+
+                                                       0
+                                                       2000                      2002                    2004                 2006                   2008          2010       2012
+
+                                                                                                                             Date
+
+Stacked in the order of the legend, one bar per timestep after the initial state. Denominator Gp Bg, water produced netted inside the water drive
+index. A stack that ends away from 1 measures how far the fitted in-place volume is from that timestep.
+
+
+
+
+Material Balance Report, Pletcher gas with pot aquifer, Field SPE 75354 two-cell model                                                                                    Page 8 of 8
+

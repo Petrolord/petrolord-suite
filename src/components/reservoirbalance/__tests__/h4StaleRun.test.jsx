@@ -26,6 +26,8 @@ jest.mock('@/pages/apps/reservoir-balance/lib/api', () => ({
   getResultByRunId: jest.fn(async () => ({ data: mockDb.result, error: null })),
   getCaseDefaultConfig: jest.fn(async () => ({ data: mockDb.defaultCfg, error: null })),
   getRunConfig: jest.fn(async () => ({ data: mockDb.runConfig, error: null })),
+  upsertCaseDefaultConfig: jest.fn(async (caseId, patch) => { mockDb.defaultCfg = { ...mockDb.defaultCfg, ...patch }; return { data: mockDb.defaultCfg, error: null }; }),
+  updateCase: jest.fn(async (caseId, patch) => { mockDb.caseData = { ...mockDb.caseData, ...patch }; return { data: mockDb.caseData, error: null }; }),
 }));
 const mockExportPdf = jest.fn();
 jest.mock('@/utils/mbalReportExport', () => {
@@ -119,10 +121,26 @@ describe('H4: a stored run made before an input changed', () => {
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('current'));
     expect(screen.queryByTestId('mbal-report-stale')).toBeNull();
     expect(screen.getByTestId('mbal-hm-status-line')).toHaveTextContent('Converged in 7 iterations.');
+    mockExportPdf.mockResolvedValue({ pages: 7, fileName: 'x.pdf' });
     fireEvent.click(screen.getByTestId('mbal-export-pdf'));
     expect(mockExportPdf).toHaveBeenCalledTimes(1);
     // the report prints the config the run was made on, not today's default
-    expect(mockExportPdf.mock.calls[0][0].defaultCfg.id).toBe('rc1');
+    expect(mockExportPdf.mock.calls[0][0].runConfig.id).toBe('rc1');
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Report exported' })));
+  });
+
+  it('a field only the report prints does not withdraw the result (RL8, the other direction)', async () => {
+    seed({ editedAfterRun: false });
+    mount();
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('current'));
+    fireEvent.change(screen.getByTestId('mbal-id-analyst'), { target: { value: 'A. Okafor' } });
+    fireEvent.click(screen.getByTestId('mbal-study-save'));
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Report details saved' })));
+    // the study record is on the default config now, and the run is still the run of the inputs
+    expect(mockDb.defaultCfg.pvt_correlations.study.identification.analyst).toBe('A. Okafor');
+    expect(screen.getByTestId('probe')).toHaveTextContent('current');
+    expect(screen.getByTestId('mbal-export-pdf')).not.toBeDisabled();
+    expect(screen.getByTestId('mbal-preview-identification')).toHaveTextContent('A. Okafor');
   });
 
   it('a new run on the edited inputs is current again', async () => {
@@ -137,9 +155,10 @@ describe('H4: a stored run made before an input changed', () => {
     expect(screen.getByTestId('mbal-export-pdf')).not.toBeDisabled();
   });
 
-  it('the PDF builder itself refuses a stale pair', () => {
-    const { exportMbalPdf } = jest.requireActual('@/utils/mbalReportExport');
-    expect(() => exportMbalPdf({ caseData: {}, lastResult: {}, defaultCfg: {}, staleness: { stale: true, reasons: ['Changed since the run: oil gravity.'] } }))
-      .toThrow(/not exported.*earlier run.*oil gravity/);
+  it('the PDF builder itself refuses a stale pair', async () => {
+    const { exportMbalPdf, buildMbalPdf } = jest.requireActual('@/utils/mbalReportExport');
+    const args = { caseData: {}, result: {}, runConfig: {}, staleness: { stale: true, reasons: ['Changed since the run: oil gravity.'] } };
+    await expect(exportMbalPdf(args)).rejects.toThrow(/not exported.*earlier run.*oil gravity/);
+    expect(() => buildMbalPdf(args)).toThrow(/not exported.*earlier run.*oil gravity/);
   });
 });

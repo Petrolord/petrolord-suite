@@ -73,13 +73,60 @@ describe('H4: is the stored run still the run of the current inputs', () => {
     expect(dataMatchesRun(caseData.production_data, result.plot_data)).toBe(true);
   });
 
-  it('a case stamped after the run start is stale (case conditions, injection, lab columns)', () => {
+  // MBAL-U1: a run keeps a snapshot of the case conditions and a digest of
+  // the data rows, so the comparison needs no clock. Production has a
+  // trigger that sets rb_cases.updated_at on EVERY update, and with the time
+  // stamp alone a rename withdrew a valid result.
+  it('a rename, or any save that changes no engine input, does not make the run stale', () => {
+    const renamed = { ...caseData, name: 'Renamed', description: 'new words', updated_at: '2026-10-05T10:00:00.000Z' };
+    expect(assessRunStaleness({ ...fresh, caseData: renamed })).toEqual({ stale: false, reasons: [] });
+    // negative control: without the snapshot the same save reads as stale
+    const noSnapshot = { ...runConfig, pvt_correlations: { pb_rs_bo: 'standing', oil_viscosity: 'beggs_robinson' } };
+    expect(assessRunStaleness({ ...fresh, caseData: renamed, runConfig: noSnapshot }).stale).toBe(true);
+  });
+
+  it.each([
+    ['initial pressure', { initial_pressure_psia: 3690 }],
+    ['reservoir temperature', { reservoir_temperature_f: 180 }],
+    ['initial water saturation', { initial_water_saturation: 0.25 }],
+    ['bubble point', { bubble_point_psia: 1600 }],
+    ['gas cap flag', { has_gas_cap: false }],
+    ['aquifer flag', { has_aquifer: true }],
+  ])('a change of the %s on the case makes the run stale and is named', (label, patch) => {
+    const s = assessRunStaleness({ ...fresh, caseData: { ...caseData, ...patch } });
+    expect(s.stale).toBe(true);
+    expect(s.reasons.join(' ')).toContain(label);
+  });
+
+  it('a change the result does not echo (a date, injection, a per-row Bo) makes the run stale', () => {
+    const withRow = (patch) => ({ ...caseData, production_data: [caseData.production_data[0], { ...caseData.production_data[1], ...patch }] });
+    for (const patch of [{ observation_date: '2024-05-01' }, { cum_water_inj_stb: 5000 }, { bo_rb_stb: 1.31 }, { observed_we_rb: 100 }]) {
+      const s = assessRunStaleness({ ...fresh, caseData: withRow(patch) });
+      expect(s.stale).toBe(true);
+      expect(s.reasons.join(' ')).toMatch(/data table was changed after the run/);
+    }
+    // a column the engine is not handed does not count
+    expect(assessRunStaleness({ ...fresh, caseData: withRow({ id: 'other-id', created_at: '2026-12-01T00:00:00Z' }) }).stale).toBe(false);
+  });
+
+  it('a study record on the default config (identification, datum, sources) does not make the run stale', () => {
+    const withStudy = { ...defaultCfg, pvt_correlations: { ...defaultCfg.pvt_correlations, study: { v: 1, identification: { analyst: 'A. Okafor' }, datum: { datum_depth_ft: 9000 } } } };
+    expect(assessRunStaleness({ ...fresh, defaultCfg: withStudy })).toEqual({ stale: false, reasons: [] });
+    // and the record is not copied into the run
+    expect(buildRunConfigInput(caseData, withStudy).pvt_correlations.study).toBeUndefined();
+    expect(buildRunConfigInput(caseData, withStudy).pvt_correlations.run_snapshot.case.initial_pressure_psia).toBe(3685);
+  });
+
+  it('a run made before the snapshot existed falls back on the time stamp of the case', () => {
+    const oldRunConfig = { ...runConfig, pvt_correlations: { pb_rs_bo: 'standing', oil_viscosity: 'beggs_robinson' } };
+    const old = { ...fresh, runConfig: oldRunConfig };
+    expect(assessRunStaleness(old).stale).toBe(false);
     const stamped = { ...caseData, updated_at: '2026-10-01T10:00:00.001Z' };
-    const s = assessRunStaleness({ ...fresh, caseData: stamped });
+    const s = assessRunStaleness({ ...old, caseData: stamped });
     expect(s.stale).toBe(true);
     expect(s.reasons[0]).toMatch(/saved after the run/);
     const before = { ...caseData, updated_at: '2026-10-01T09:59:59.999Z' };
-    expect(assessRunStaleness({ ...fresh, caseData: before }).stale).toBe(false);
+    expect(assessRunStaleness({ ...old, caseData: before }).stale).toBe(false);
   });
 
   it('a run whose config cannot be read back is not presented as current', () => {

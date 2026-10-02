@@ -27,8 +27,19 @@ import {
   getResultByRunId,
   getCaseDefaultConfig,
   getRunConfig,
+  upsertCaseDefaultConfig,
+  updateCase,
 } from '@/pages/apps/reservoir-balance/lib/api';
 import { assessRunStaleness, buildRunConfigInput } from '@/pages/apps/reservoir-balance/lib/runStaleness';
+import {
+  readStudy, withStudy, DEFAULT_CORRELATIONS,
+} from '@/pages/apps/reservoir-balance/lib/studyMeta';
+import { createMbalUnits, MBAL_UNIT_APP, MBAL_UNIT_SPEC, MBAL_OILFIELD_VIEW } from '@/pages/apps/reservoir-balance/lib/mbalUnits';
+import { buildMbalSeries } from '@/pages/apps/reservoir-balance/lib/mbalSeries';
+import { buildPlotModels } from '@/pages/apps/reservoir-balance/lib/plotModels';
+import { useAppUnits } from '@/lib/units/useAppUnits';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { buildLabel } from '@/lib/platformBuild';
 
 const MaterialBalanceStudioContext = createContext(null);
 
@@ -40,8 +51,26 @@ export const useMaterialBalanceStudio = () => {
   return ctx;
 };
 
+// The organisation name for the report header. The studio also renders
+// outside the auth provider (the /dev harness, unit tests), where there is none.
+const useOrganizationName = () => {
+  try {
+    return useAuth()?.organization?.name || '';
+  } catch {
+    return '';
+  }
+};
+
 export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) => {
   const { toast } = useToast();
+  const organizationName = useOrganizationName();
+
+  // Display units (PL3): the Suite unit profile, with a view override for
+  // this session. State, the engine and the database stay in oilfield units.
+  const unitsHook = useAppUnits(MBAL_UNIT_APP, MBAL_UNIT_SPEC, { fallback: MBAL_OILFIELD_VIEW });
+  const unitsKey = JSON.stringify(unitsHook.units);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const units = useMemo(() => createMbalUnits(unitsHook.units), [unitsKey]);
 
   // Case list (left-rail project manager)
   const [cases, setCases] = useState([]);
@@ -188,10 +217,24 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
     // of what a run inherits; the stale check reads the same list.
     const { data: defaultCfgNow } = await getCaseDefaultConfig(caseId);
 
+    // MBAL-U1-003: the engine's history match reads the aquifer from the
+    // case flag (has_aquifer) and the regression reads it from the run
+    // config. The Aquifer tab used to save the model and leave the flag, so
+    // a history match simulated a closed tank beside an aquifer regression.
+    // The run config's model is the one statement; the flag follows it.
+    let caseNow = caseData;
+    const modelNow = defaultCfgNow?.aquifer_model ?? (caseData?.has_aquifer ? 'pot' : 'none');
+    const flagNow = modelNow !== 'none';
+    if (Boolean(caseData?.has_aquifer) !== flagNow) {
+      await updateCase(caseId, { has_aquifer: flagNow });
+      caseNow = { ...caseData, has_aquifer: flagNow };
+      setCaseData(caseNow);
+    }
+
     const { data: runConfig, error: configErr } = await createRunConfig(caseId, {
       name: `${isHistoryMatch ? 'History match' : 'Run'} ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`,
       is_scenario: true, // mark this row as an executed run, not a default
-      ...buildRunConfigInput(caseData, defaultCfgNow),
+      ...buildRunConfigInput(caseNow, defaultCfgNow),
     });
 
     if (configErr || !runConfig) {
@@ -261,7 +304,38 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
     [executeRun],
   );
 
+  // The study record: identification, pressure datum and input sources.
+  // Report-only, kept with the case default config (lib/studyMeta.js).
+  const study = useMemo(() => readStudy(defaultCfg), [defaultCfg]);
+  const saveStudy = useCallback(async (nextStudy) => {
+    if (!caseId) return { error: { message: 'No case open.' } };
+    const { data: cfgNow } = await getCaseDefaultConfig(caseId);
+    const base = cfgNow?.pvt_correlations ?? { ...DEFAULT_CORRELATIONS };
+    const { data, error } = await upsertCaseDefaultConfig(caseId, { pvt_correlations: withStudy(base, nextStudy) });
+    if (!error) setDefaultCfg(data ?? null);
+    return { data, error };
+  }, [caseId]);
+
+  // One set of series and plot models for the Plots tab and the report (RL12).
+  const series = useMemo(
+    () => (lastResult?.plot_data?.timestep_index?.length
+      ? buildMbalSeries({ result: lastResult, runConfig: lastRunConfig, caseData })
+      : null),
+    [lastResult, lastRunConfig, caseData],
+  );
+  const plotModels = useMemo(
+    () => (series ? buildPlotModels({ series, result: lastResult, units }) : []),
+    [series, lastResult, units],
+  );
+  // What the report builder is handed (utils/mbalReportExport.js).
+  const reportArgs = useMemo(() => ({
+    caseData, result: lastResult, runConfig: lastRunConfig, run: lastRun, study,
+    organizationName, build: buildLabel(), units, staleness: runStaleness,
+  }), [caseData, lastResult, lastRunConfig, lastRun, study, organizationName, units, runStaleness]);
+
   const value = {
+    // units, report
+    units, unitsHook, organizationName, study, saveStudy, series, plotModels, reportArgs,
     // case list
     cases, casesLoading, casesError, refreshCases,
     // current case

@@ -19,6 +19,7 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { CASE_RUN_INPUT_FIELDS } from './runStaleness';
+import { STUDY_KEY } from './studyMeta';
 
 // =============================================================================
 // CASE CRUD (rb_cases)
@@ -573,8 +574,15 @@ export async function upsertCaseDefaultConfig(caseId, patch) {
   if (readErr) return { data: null, error: readErr };
 
   if (existing) {
-    // Update path
-    return updateRunConfig(existing.id, patch);
+    // Update path. The study record (identification, datum, input sources)
+    // lives under one key of pvt_correlations; a tab that saves the
+    // correlation choices sends the jsonb whole and must not drop it.
+    let next = patch;
+    const kept = existing.pvt_correlations?.[STUDY_KEY];
+    if (kept && patch.pvt_correlations && typeof patch.pvt_correlations === 'object' && !(STUDY_KEY in patch.pvt_correlations)) {
+      next = { ...patch, pvt_correlations: { ...patch.pvt_correlations, [STUDY_KEY]: kept } };
+    }
+    return updateRunConfig(existing.id, next);
   }
 
   // Insert path — stamp case_id + is_scenario=false + name

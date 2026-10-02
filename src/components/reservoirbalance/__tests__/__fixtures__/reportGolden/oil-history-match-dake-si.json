@@ -1,0 +1,137 @@
+{
+  "pages": 9,
+  "sha256": "70a30bc613f200738b19b65fe90ccf119e43310c3a17f47dbf3c8b40b6b7a129",
+  "figures": [
+    {
+      "id": "regression",
+      "number": 1,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "In the fit": 10,
+            "Not in the fit": 1,
+            "Fitted line": 2
+          },
+          "total": 13,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "campbell",
+      "number": 2,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 127.72,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "In the fit": 10
+          },
+          "total": 10,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "cole",
+      "number": 3,
+      "page": 7,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "pz",
+      "number": 4,
+      "page": 7,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "pressure",
+      "number": 5,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "Measured, in the fit": 10,
+            "Measured, not in the fit": 1,
+            "Model (simulated)": 11
+          },
+          "total": 22,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "influx",
+      "number": 6,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 121.72,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "Water influx We": 11
+          },
+          "total": 11,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "drive",
+      "number": 7,
+      "page": 9,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "Depletion (DDI)": 10,
+            "Gas cap (GDI)": 10,
+            "Rock and connate water (CDI)": 10,
+            "Water drive (WDI)": 10
+          },
+          "total": 40,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    }
+  ]
+}

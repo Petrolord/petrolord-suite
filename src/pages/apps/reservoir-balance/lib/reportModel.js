@@ -15,7 +15,7 @@
 // Pure: no React, no I/O.
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import {
-  sourceText, assumedDefaultText, computedText, NOT_PROVIDED,
+  sourceText, assumedDefaultText, computedText, NOT_PROVIDED, isStated,
 } from '@/lib/inputProvenance';
 import { describePvtSource, MBAL_CORRELATION_LABELS, tableOrigin } from './pvtSource';
 import { RUN_SNAPSHOT_KEY, DEPTH_REFERENCES, PRESSURE_BASES } from './studyMeta';
@@ -61,14 +61,16 @@ const volFmt = (scale, v, digits = 3) => fmt(scale.to(v), BASE_UNITS.has(scale.u
  * benchmark and how closely it was matched. The engine's full text goes on
  * with its own change history, which belongs in the engine notes.
  */
-export function shortReference(text, max = 330) {
+export function shortReference(text, max = 420) {
   if (!text) return null;
   const cut = String(text).split(/ (?:These figures were|RE-MEASURED|\(The figures|Scope note:|Implementation corrections|The CT math is shared|For Carter-Tracy the index sum)/)[0].trim();
   if (cut.length <= max) return cut;
-  const sentences = cut.match(/[^.]+\.(?:\d[^.]*\.)*\s*/g) || [cut];
-  let out = '';
-  for (const part of sentences) { if ((out + part).length > max && out) break; out += part; }
-  return out.trim();
+  // the last full stop or comma before the limit that is not inside a number
+  const head = cut.slice(0, max);
+  const stop = Math.max(head.search(/\.\s(?!.*\.\s)/), -1);
+  if (stop > max * 0.5) return head.slice(0, stop + 1);
+  const comma = head.lastIndexOf(', ');
+  return `${head.slice(0, comma > 0 ? comma : max).trim()}.`;
 }
 
 export const TIER_LABELS = Object.freeze({
@@ -288,7 +290,11 @@ export function mbalInputRows(a) {
 
   // ── aquifer ──
   row('Aquifer', 'aquifer_model', ['aquifer_model', 'has_aquifer'], 'Aquifer model', AQUIFER_LABELS[aquifer] ?? aquifer, '',
-    defaulted.has('aquifer_model') ? assumedDefaultText(aquifer === 'pot' ? 'the pot aquifer, from the aquifer flag of the case' : 'no aquifer') : src('aquifer', 'Selected on the Aquifer tab'));
+    defaulted.has('aquifer_model')
+      ? assumedDefaultText(aquifer === 'pot' ? 'the pot aquifer, from the aquifer flag of the case' : 'no aquifer')
+      : (isStated(meta.aquifer) ? src('aquifer') : 'Selected on the Aquifer tab'));
+  // one statement of source covers the aquifer description: its model and its parameters
+  const aqSrc = () => src('aquifer');
   const pnum = (k) => numOrNull(params[k]);
   const covered = new Set();
   const prow = (key, label, value, unit, source) => { covered.add(key); row('Aquifer', `aquifer_${key}`, [`aquifer_params.${key}`], label, value, unit, source); };
@@ -306,49 +312,49 @@ export function mbalInputRows(a) {
     const wUsed = wMatch ? wMatch.matched_value : w;
     const scale = u.scaled('resVolume', wUsed ?? 0);
     prow('initial_aquifer_water_in_place_rb', 'Aquifer water in place W', fmt(scale.to(wUsed), 2), scale.label,
-      wMatch ? `Fitted by the pressure history match from a start value of ${fmt(scale.to(wMatch.initial_value), 2)} ${scale.label}` : src('aquifer_w', null));
+      wMatch ? `Fitted by the pressure history match from a start value of ${fmt(scale.to(wMatch.initial_value), 2)} ${scale.label}` : aqSrc());
     const j = pnum('aquifer_pi_rb_d_psi');
     const jMatch = matched('aquifer_j_rb_d_psi');
     const jUsed = jMatch ? jMatch.matched_value : j;
     prow('aquifer_pi_rb_d_psi', 'Aquifer productivity index J', sigFmt(u.to('aquiferIndex', jUsed), 4), u.label('aquiferIndex'),
-      jMatch ? `Fitted by the pressure history match from a start value of ${sigFmt(u.to('aquiferIndex', jMatch.initial_value), 4)} ${u.label('aquiferIndex')}` : src('aquifer_j', null));
+      jMatch ? `Fitted by the pressure history match from a start value of ${sigFmt(u.to('aquiferIndex', jMatch.initial_value), 4)} ${u.label('aquiferIndex')}` : aqSrc());
     const ct = pnum('aquifer_total_compressibility_psi');
     prow('aquifer_total_compressibility_psi', 'Aquifer total compressibility ct', sigFmt(u.to('compressibility', ct ?? (cf ?? 0) + (cw ?? 0)), 3), cUnit,
-      ct == null ? computedText('ct = cf + cw (no value entered)') : src('aquifer_ct', null));
+      ct == null ? computedText('ct = cf + cw (no value entered)') : aqSrc());
   } else if (aquifer === 'carter_tracy') {
     const kMatch = matched('aquifer_permeability_md');
     const k = kMatch ? kMatch.matched_value : pnum('aquifer_permeability_md');
-    prow('aquifer_permeability_md', 'Aquifer permeability k', sigFmt(k, 4), 'mD', kMatch ? `Fitted by the pressure history match from a start value of ${sigFmt(kMatch.initial_value, 4)} mD` : src('aquifer_k', null));
-    prow('aquifer_thickness_ft', 'Aquifer thickness h', fmt(u.to('depth', pnum('aquifer_thickness_ft')), 1), u.label('depth'), src('aquifer_h', null));
-    prow('aquifer_porosity', 'Aquifer porosity', fmt(pnum('aquifer_porosity'), 3), 'fraction', src('aquifer_phi', null));
+    prow('aquifer_permeability_md', 'Aquifer permeability k', sigFmt(k, 4), 'mD', kMatch ? `Fitted by the pressure history match from a start value of ${sigFmt(kMatch.initial_value, 4)} mD` : aqSrc());
+    prow('aquifer_thickness_ft', 'Aquifer thickness h', fmt(u.to('depth', pnum('aquifer_thickness_ft')), 1), u.label('depth'), aqSrc());
+    prow('aquifer_porosity', 'Aquifer porosity', fmt(pnum('aquifer_porosity'), 3), 'fraction', aqSrc());
     const theta = pnum('theta_degrees');
-    prow('theta_degrees', 'Encroachment angle', fmt(theta ?? 360, 0), 'degrees', theta == null ? assumedDefaultText('360 degrees, a full circle') : src('aquifer_theta', null));
+    prow('theta_degrees', 'Encroachment angle', fmt(theta ?? 360, 0), 'degrees', theta == null ? assumedDefaultText('360 degrees, a full circle') : aqSrc());
     const red = pnum('radius_ratio');
-    prow('radius_ratio', 'Aquifer to reservoir radius ratio reD', red == null ? 'infinite' : sigFmt(red, 4), '', red == null ? assumedDefaultText('an infinite-acting aquifer') : src('aquifer_red', null));
+    prow('radius_ratio', 'Aquifer to reservoir radius ratio reD', red == null ? 'infinite' : sigFmt(red, 4), '', red == null ? assumedDefaultText('an infinite-acting aquifer') : aqSrc());
     const rMatch = matched('aquifer_radius_ft');
     const rr = rMatch ? rMatch.matched_value : pnum('aquifer_radius_ft');
     const area = pnum('reservoir_area_acres');
     if (rr != null) {
       prow('aquifer_radius_ft', 'Reservoir radius at the contact r_R', fmt(u.to('depth', rr), 0), u.label('depth'),
-        rMatch ? `Fitted by the pressure history match from a start value of ${fmt(u.to('depth', rMatch.initial_value), 0)} ${u.label('depth')}` : src('aquifer_rr', null));
+        rMatch ? `Fitted by the pressure history match from a start value of ${fmt(u.to('depth', rMatch.initial_value), 0)} ${u.label('depth')}` : aqSrc());
     } else {
       const derived = area != null && area > 0 ? Math.sqrt((area * 43560) / (Math.PI * ((theta ?? 360) / 360))) : 2980;
       prow('aquifer_radius_ft', 'Reservoir radius at the contact r_R', fmt(u.to('depth', derived), 0), u.label('depth'),
         area != null && area > 0 ? computedText('r_R from the reservoir area and the encroachment angle (no radius entered)') : assumedDefaultText('2,980 ft, the radius of a 640 acre cell'));
     }
     prow('reservoir_area_acres', 'Reservoir area', area == null ? null : fmt(u.to('area', area), 2), area == null ? '' : u.label('area'),
-      area == null ? NOT_PROVIDED : (rr != null ? 'Entered; not used, because a radius is entered' : src('aquifer_area', null)));
+      area == null ? NOT_PROVIDED : (rr != null ? 'Entered; not used, because a radius is entered' : aqSrc()));
     const mu = pnum('aquifer_water_viscosity_cp');
     const muNote = engineNote(/water viscosity defaulted to ([\d.]+)/i);
     const muDefault = muNote ? Number(/defaulted to ([\d.]+)/i.exec(muNote)[1]) : null;
     prow('aquifer_water_viscosity_cp', 'Aquifer water viscosity', sigFmt(u.to('viscosity', mu ?? muDefault), 3), u.label('viscosity'),
-      mu == null ? 'Correlation: McCain (1991), at the initial pressure and the reservoir temperature (no value entered)' : src('aquifer_muw', null));
+      mu == null ? 'Correlation: McCain (1991), at the initial pressure and the reservoir temperature (no value entered)' : aqSrc());
     const asal = pnum('water_salinity_ppm');
     prow('water_salinity_ppm', 'Aquifer water salinity', asal == null ? null : fmt(asal, 0), asal == null ? '' : 'ppm',
-      asal == null ? `${NOT_PROVIDED}: the formation water salinity above is used` : (mu != null ? 'Entered; not used, because a water viscosity is entered' : src('aquifer_salinity', null)));
+      asal == null ? `${NOT_PROVIDED}: the formation water salinity above is used` : (mu != null ? 'Entered; not used, because a water viscosity is entered' : aqSrc()));
     const ct = pnum('aquifer_total_compressibility_psi');
     prow('aquifer_total_compressibility_psi', 'Aquifer total compressibility ct', sigFmt(u.to('compressibility', ct ?? (cf ?? 0) + (cw ?? 0)), 3), cUnit,
-      ct == null ? computedText('ct = cf + cw (no value entered)') : src('aquifer_ct', null));
+      ct == null ? computedText('ct = cf + cw (no value entered)') : aqSrc());
   }
   // what the selected model does not read, and anything the engine does not know
   const rest = AQUIFER_ENGINE_KEYS.filter((k) => !covered.has(k));
@@ -358,7 +364,8 @@ export function mbalInputRows(a) {
     const say = [];
     if (held.length) say.push(`Held on the case and not read by this model: ${held.map((k) => AQUIFER_PARAM_WORDS[k]).join(', ')}`);
     if (unknown.length) say.push(`Not a parameter the engine knows, so ignored: ${unknown.join(', ')}`);
-    row('Aquifer', 'aquifer_other', [...rest.map((k) => `aquifer_params.${k}`), ...unknown.map((k) => `aquifer_params.${k}`)],
+    // 'aquifer_params' itself is the leaf the engine is handed when the case holds no parameters at all
+    row('Aquifer', 'aquifer_other', ['aquifer_params', ...rest.map((k) => `aquifer_params.${k}`), ...unknown.map((k) => `aquifer_params.${k}`)],
       aquifer === 'none' ? 'Aquifer parameters' : 'Other aquifer parameters', held.length || unknown.length ? `${held.length + unknown.length} held` : 'none', '',
       say.join('. ') || (aquifer === 'none' ? 'None read: the tank is closed' : 'None held'), false);
   }

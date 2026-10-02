@@ -156,9 +156,9 @@ export function createMbalUnits(choice = {}) {
     /** "Initial pressure (psia)": a field label or a column head. */
     head: (text, name) => `${text} (${label(name)})`,
     /** The header line of a report: the system word and the units in use. */
-    displayUnits: () => `${SYSTEM_WORDS[system]} (${[
+    displayUnits: () => `${SYSTEM_WORDS[system]} (${[...new Set([
       label('pressure'), label('temperature'), label('stockVolume'), label('resVolume'), label('gasVolume'), label('depth'),
-    ].join(', ')})`,
+    ])].join(', ')})`,
   };
 }
 

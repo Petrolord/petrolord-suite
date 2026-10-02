@@ -13,7 +13,8 @@
 import { buildPlotDataCsv } from '../mbalReportExport.js';
 
 const columnOf = (csv, name) => {
-  const [header, ...rows] = csv.split('\n');
+  // the file opens with lines that say what it is and in which units (MBAL-U1)
+  const [header, ...rows] = csv.split('\n').filter((line) => !line.startsWith('#'));
   const idx = header.split(',').indexOf(name);
   if (idx === -1) return null;
   return rows.map((r) => r.split(',')[idx]);

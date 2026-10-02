@@ -213,7 +213,7 @@ export const buildPlotDataCsv = (lastResult, { caseData = null, runConfig = null
     ['in_fit', (r) => (r.point_in_fit ? 1 : 0)],
     ['simulated_pressure_psia', (r) => r.simulated_pressure],
     ['pressure_residual_psi', (r) => r.residual],
-  ].filter(([name, get]) => ['timestep_index', 'pressure_psia', 'in_fit'].includes(name) || rows.some((r) => get(r) != null));
+  ].filter(([name, get]) => ['timestep_index', 'pressure_psia', 'cdi', 'in_fit'].includes(name) || rows.some((r) => get(r) != null));
   const head = [
     '# Material Balance Studio, per-timestep series of one engine run',
     `# Case: ${caseData?.name ?? EMPTY_VALUE}${caseData?.field_name ? `, field ${caseData.field_name}` : ''}${caseData?.reservoir_name ? `, reservoir ${caseData.reservoir_name}` : ''}`,
