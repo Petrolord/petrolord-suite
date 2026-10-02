@@ -4,5 +4,6 @@ export * from './registry';
 export * from './presets';
 export * from './profile';
 export * from './vocabulary';
+export * from './decline';
 export { useUnitProfile, UnitProfileProvider, StaticUnitProfileProvider } from './UnitProfileContext';
 export { useAppUnits } from './useAppUnits';
