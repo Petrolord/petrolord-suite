@@ -40,12 +40,14 @@ import { fluidUnits, toDisplay, fromDisplay, inputText, inputValue, FLUID_KINDS 
 import { screenWarnings } from '@/utils/fluidstudio/screenWarnings';
 import { inputsFromPayload } from '@/components/fluidstudio/useFluidStudioProjects';
 import { LEGACY_PRE_SHELL } from '@/components/fluidstudio/__fixtures__/savedProjects';
-import { __rows as savedRows } from '@/lib/customSupabaseClient';
 import {
   sampleWorkspace, identifiedBlackOil, eosWithLab, tune, run, AT, BUILD,
 } from './fluidTestKit';
 
 jest.setTimeout(120000);
+
+// the rows the mocked client serves (see the mock at the top)
+const { __rows: savedRows } = jest.requireMock('@/lib/customSupabaseClient');
 
 const wtTable = (reservoirInputs, intake) => Object.fromEntries(buildInputsTable({
   reservoirInputs, reservoirSpec: buildReservoirInputs(reservoirInputs), completion: DEFAULT_COMPLETION, pvtIntake: intake,
