@@ -17,10 +17,12 @@
 --               read: unchanged (through the well). write: the well's owner,
 --               unless a colleague holds the unexpired check-out; or the
 --               member who holds it. The children follow the parent's lock.
---   wells bucket  the well's owner can read and remove every object filed
---               under the well, including curves a colleague uploaded into
---               their own folder while editing (the insert rule is unchanged:
---               everyone uploads under their own user id).
+--   wells bucket  the well's owner can read, rewrite and remove every object
+--               filed under the well, including curves a colleague uploaded
+--               into their own folder while editing; the colleague holding
+--               the check-out can rewrite and remove objects under the well
+--               (the upload rule is unchanged: everyone uploads under their
+--               own user id).
 --   change log  the well row logs like every other record; a child statement
 --               logs one 'updated' entry on its well ("Tops: 3 added").
 --
@@ -146,23 +148,35 @@ create policy "suite_record_changes_select_geo_wells" on public.suite_record_cha
   using (table_name = 'geo_wells' and exists (select 1 from public.geo_wells r where r.id = record_id));
 
 -- ---------------------------------------------------------------------------
--- wells bucket: the well's owner reads and removes every object under the well
--- (path {uploader user id}/{well id}/...). Uploads stay under the uploader's id.
+-- wells bucket (path {uploader user id}/{well id}/...). Uploads stay under the
+-- uploader's own id (unchanged). Added:
+--   the well's owner reads, rewrites and removes every object under the well,
+--   including curves a colleague uploaded while editing;
+--   the colleague holding the check-out rewrites and removes objects under
+--   the well (a curve reorient, a deleted log), whoever uploaded them.
 -- ---------------------------------------------------------------------------
-do $$ begin
+do $$
+declare
+    owner_of text := 'bucket_id = ''wells'' and exists (
+        select 1 from public.geo_wells w
+        where w.id::text = (storage.foldername(name))[2] and w.user_id = auth.uid())';
+    editor_of text := 'bucket_id = ''wells'' and exists (
+        select 1 from public.geo_wells w
+        where w.id::text = (storage.foldername(name))[2]
+          and w.organization_id is not null and w.org_access = ''edit'' and public.is_org_member(w.organization_id)
+          and w.editing_by = auth.uid() and w.editing_expires > now())';
+begin
     if to_regclass('storage.objects') is not null then
         drop policy if exists "wells_objects_select_well_owner" on storage.objects;
-        create policy "wells_objects_select_well_owner" on storage.objects
-          for select to authenticated
-          using (bucket_id = 'wells' and exists (
-            select 1 from public.geo_wells w
-            where w.id::text = (storage.foldername(name))[2] and w.user_id = auth.uid()));
+        drop policy if exists "wells_objects_update_well_owner" on storage.objects;
         drop policy if exists "wells_objects_delete_well_owner" on storage.objects;
-        create policy "wells_objects_delete_well_owner" on storage.objects
-          for delete to authenticated
-          using (bucket_id = 'wells' and exists (
-            select 1 from public.geo_wells w
-            where w.id::text = (storage.foldername(name))[2] and w.user_id = auth.uid()));
+        drop policy if exists "wells_objects_update_editor" on storage.objects;
+        drop policy if exists "wells_objects_delete_editor" on storage.objects;
+        execute format('create policy "wells_objects_select_well_owner" on storage.objects for select to authenticated using (%s)', owner_of);
+        execute format('create policy "wells_objects_update_well_owner" on storage.objects for update to authenticated using (%s) with check (%s)', owner_of, owner_of);
+        execute format('create policy "wells_objects_delete_well_owner" on storage.objects for delete to authenticated using (%s)', owner_of);
+        execute format('create policy "wells_objects_update_editor" on storage.objects for update to authenticated using (%s) with check (%s)', editor_of, editor_of);
+        execute format('create policy "wells_objects_delete_editor" on storage.objects for delete to authenticated using (%s)', editor_of);
     end if;
 end $$;
 

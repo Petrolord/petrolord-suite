@@ -81,14 +81,18 @@ export const WELL_STATUS_LABELS = Object.freeze({
   dry: 'Dry', injector_water: 'Water injector', injector_gas: 'Gas injector', suspended: 'Suspended', abandoned: 'Abandoned',
 });
 
-export default function WellDetail({ backend, well, unit = 'm', onStatus, refreshNonce = 0, onWellChanged, initialTab = null, appPaths = {} }) {
+export default function WellDetail({ backend, well, unit = 'm', onStatus, refreshNonce = 0, onWellChanged, initialTab = null, appPaths = {}, canWrite = null }) {
+  // U2-012 team editing: `canWrite` is what the sharing control says for this
+  // user right now (the owner, or a colleague who has taken the well for
+  // editing); null keeps the older rule, owner only
+  const mayEdit = canWrite === null ? !!well.is_own : !!canWrite;
   const u = unitText(unit); // WDM-U2-001: every depth on screen reads in the display unit
   const [tab, setTab] = useState(() => TABS.find((t) => t.toLowerCase() === String(initialTab || '').toLowerCase()) || 'Header');
   // PT1 edit modes: one tab edits at a time; `editor` holds the draft
   const [editor, setEditor] = useState(null); // {tab, rows|fields, conv, mode:'grid'|'paste', pasted, error, busy}
   const [statusValue, setStatusValue] = useState(null); // T1: well status picked here (null = as loaded)
   const [csView, setCsView] = useState(null); // display convention for the checkshot tab (null = as entered)
-  const canEdit = !!well.is_own && typeof backend.updateWellData === 'function';
+  const canEdit = mayEdit && typeof backend.updateWellData === 'function';
   const [tops, setTops] = useState(null);       // null = loading
   const [units, setUnits] = useState([]);       // stratigraphic column (ST0), for the Unit column
   const [intervals, setIntervals] = useState([]);   // ST1 interval logs of the well
@@ -255,7 +259,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
             note = ' Legacy checkshot table left as stored (assumed TVDSS).';
           }
         }
-        const row = await backend.updateWellData(well.id, patch);
+        const row = await backend.updateWellData(well.id, patch, { versioned: true });
         await finish(row, `Header saved.${note}`);
         return;
       }
@@ -277,7 +281,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
           patch.checkshotsProvenance = rb.provenance;
           note = ` Checkshots re-derived through the new survey (${rb.rows.length} rows).`;
         }
-        const row = await backend.updateWellData(well.id, patch);
+        const row = await backend.updateWellData(well.id, patch, { versioned: true });
         await finish(row, `Deviation survey saved (${stations.length} stations).${note}`);
         return;
       }
@@ -299,7 +303,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
           if (editor.mode === 'paste' && editor.conv.elevation) prov.z_elevation = true;
           if (res.warnings.length) onStatus(res.warnings[0]);
         }
-        const row = await backend.updateWellData(well.id, { checkshots: rows, checkshotsProvenance: prov });
+        const row = await backend.updateWellData(well.id, { checkshots: rows, checkshotsProvenance: prov }, { versioned: true, note: 'Checkshots edited' });
         await finish(row, rows.length ? `Checkshots saved (${rows.length} rows, entered as ${REF_LABEL[editor.conv.depthRef]} ${editor.conv.depthUnit} / ${editor.conv.time.toUpperCase()}).` : 'Checkshots cleared.');
         return;
       }
@@ -471,7 +475,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
           ${shared ? 'bg-pl-primary/10 text-pl-primary-text' : 'bg-pl-sunken text-pl-muted'}`}
         >
           {shared ? <Building2 className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-          {shared ? (well.is_own ? 'shared with org' : 'org well (read-only)') : 'private'}
+          {shared ? (well.is_own ? 'shared with org' : (well.org_access === 'edit' ? 'org well (colleagues can edit)' : 'org well (read-only)')) : 'private'}
         </span>
         <button type="button" data-testid="wdm-export" onClick={() => setExportOpen(true)}
           title="Export this well as LAS, tops CSV, survey CSV or a well data sheet PDF, depths in the display unit"
@@ -595,7 +599,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                             date: new Date().toISOString(),
                           },
                         };
-                        await backend.updateWell(well.id, patch);
+                        await backend.updateWell(well.id, patch, { versioned: true, note: 'Header edited' });
                         setCrsPatch(patch);
                         setAssigningCrs(false);
                         onStatus(`CRS assigned: ${tag}`);
@@ -625,12 +629,12 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
             <Field label="Status">
               {/* Mapping T1 (MAP-T1-015): drives the map well symbols */}
               <select className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs"
-                data-testid="wdm-header-status" value={statusValue ?? well.status ?? ''} disabled={well.is_own === false}
+                data-testid="wdm-header-status" value={statusValue ?? well.status ?? ''} disabled={!mayEdit}
                 title="Well status: maps post the matching well symbol"
                 onChange={async (e) => {
                   const next = e.target.value || null;
                   try {
-                    await backend.updateWell(well.id, { status: next });
+                    await backend.updateWell(well.id, { status: next }, { versioned: true, note: 'Status changed' });
                     setStatusValue(next ?? '');
                     onStatus(next ? `Status set to ${WELL_STATUS_LABELS[next]}.` : 'Status cleared.');
                     onWellChanged?.();
@@ -675,7 +679,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                     {upLogs.length} curve{upLogs.length === 1 ? ' was' : 's were'} stored bottom-up by an earlier release ({upLogs.map((l) => l.mnemonic).join(', ')}).
                     The quick view shows them with depth increasing; other apps read them by sample until they are reoriented.
                   </span>
-                  {well.is_own ? (
+                  {mayEdit ? (
                     <button type="button" className={primaryCls} disabled={reorientBusy} onClick={reorient} data-testid="wdm-reorient"
                       title="Reverse these curves in place so depth increases (same log ids; nothing else changes)">
                       {reorientBusy ? 'Reorienting…' : 'Reorient'}
@@ -727,7 +731,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                         <td className={tdCls}>{log.null_count}</td>
                         <td className={`${tdCls} text-pl-muted`}>{log.source_file || EMPTY_VALUE}</td>
                         <td className={tdCls}>
-                          {well.is_own && confirmDelete !== log.id && (
+                          {mayEdit && confirmDelete !== log.id && (
                             <button
                               type="button"
                               title={`Delete log ${log.mnemonic}`}
@@ -738,7 +742,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
-                          {well.is_own && confirmDelete === log.id && (
+                          {mayEdit && confirmDelete === log.id && (
                             <span className="inline-flex items-center gap-1" data-testid={`wdm-log-confirm-${log.mnemonic}`}>
                               <span className="text-pl-danger-text">Delete {log.mnemonic} and its samples?</span>
                               <button type="button" className="px-1.5 rounded bg-pl-danger text-pl-danger-fg" onClick={() => { setConfirmDelete(null); deleteLog(log); }}
@@ -843,7 +847,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                   ))}
                 </tbody>
               </table>
-              {topsUndo?.wellId === well.id && well.is_own && (
+              {topsUndo?.wellId === well.id && mayEdit && (
                 <button type="button" className={btnCls} onClick={undoTops} data-testid="wdm-tops-undo"
                   title="Put every top back as it was before the last save on this well">
                   Undo last tops save ({topsUndo.what})
@@ -861,7 +865,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
             ) : (
               <div className="space-y-1">
                 <p className="text-xs text-pl-muted">No tops on this well.</p>
-                {topsUndo?.wellId === well.id && well.is_own && (
+                {topsUndo?.wellId === well.id && mayEdit && (
                   <button type="button" className={btnCls} onClick={undoTops} data-testid="wdm-tops-undo">
                     Undo last tops save ({topsUndo.what})
                   </button>
@@ -877,14 +881,14 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
 
         {tab === 'Intervals' && (
           <div className="max-w-5xl" data-testid="wdm-intervals-tab">
-            <IntervalsEditor well={well} intervals={intervals} canEdit={!!well.is_own} testIdPrefix="wdm-intervals" onStatus={onStatus}
+            <IntervalsEditor well={well} intervals={intervals} canEdit={mayEdit} testIdPrefix="wdm-intervals" onStatus={onStatus}
               onReplace={async (kind, rows) => { await backend.replaceIntervals(well.id, kind, rows); setIntervals(await backend.listIntervals(well.id)); }} />
           </div>
         )}
 
         {tab === 'Core' && (
           <div className="max-w-5xl" data-testid="wdm-core-tab">
-            <CoreImagesPanel well={well} images={coreImages} canEdit={!!well.is_own} testIdPrefix="wdm-core" onStatus={onStatus}
+            <CoreImagesPanel well={well} images={coreImages} canEdit={mayEdit} testIdPrefix="wdm-core" onStatus={onStatus}
               urlOf={(img) => backend.coreImageUrl(img)}
               onUpload={async (file, meta) => { await backend.uploadCoreImage(well.id, file, meta); setCoreImages(await backend.listCoreImages(well.id)); }}
               onUpdate={async (img, patch) => { await backend.updateCoreImage(img.id, patch); setCoreImages(await backend.listCoreImages(well.id)); }}

@@ -103,10 +103,12 @@ export function makeSharingStore(transport) {
    * back as a RecordConflict whose message is ready to show.
    * Before the migration it is the plain update the app always made.
    */
-  async function update(table, id, patch, { note = null, select = '*' } = {}) {
+  async function update(table, id, patch, { note = null, select = '*', versioned = true } = {}) {
     const { available } = await capability(table);
     const body = { ...patch };
-    const v = trackedVersion(table, id);
+    // versioned false: a patch of a few fields by an app that is not the
+    // record's editor (a well's checkshots from Seismolord): no stale check
+    const v = versioned ? trackedVersion(table, id) : null;
     if (available) {
       if (v != null) body.version = v;
       if (note) body.change_note = String(note).slice(0, 500);
@@ -121,7 +123,7 @@ export function makeSharingStore(transport) {
       if (available && isUnknownColumn(error) && /version|change_note/.test(String(error.message || ''))) {
         // the answer changed under us (schema cache): once more, the old way
         caps.set(table, { available: false, at: Date.now() });
-        return update(table, id, patch, { select });
+        return update(table, id, patch, { select, versioned });
       }
       return { data: null, error: (await conflictFrom(table, id, error)) || error };
     }
@@ -129,7 +131,11 @@ export function makeSharingStore(transport) {
       if (!available) return { data: null, error: { code: 'PGRST116', message: 'The record was not found, or it belongs to someone else.' } };
       return { data: null, error: await whyNoRow(table, id) };
     }
-    if (available && Number.isInteger(data[0].version)) versions.set(key(table, id), data[0].version);
+    // an unversioned patch moves the tracked version only when it was current
+    if (available && Number.isInteger(data[0].version)) {
+      const tracked = trackedVersion(table, id);
+      if (versioned || tracked == null || tracked === data[0].version - 1) versions.set(key(table, id), data[0].version);
+    }
     return { data: data[0], error: null };
   }
 

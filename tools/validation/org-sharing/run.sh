@@ -73,7 +73,7 @@ check "check-out functions are SECURITY DEFINER with a fixed search_path" "$(ech
 check "guard trigger is SECURITY INVOKER" "$(echo "select prosecdef from pg_proc where proname='suite_record_guard'" | Q)" "f"
 check "anon cannot execute take/renew/release" "$(echo "select bool_or(has_function_privilege('anon', oid, 'execute')) from pg_proc where proname in ('suite_record_take','suite_record_renew','suite_record_release')" | Q)" "f"
 check "geo_wells children: three writer policies each" "$(echo "select count(*) from pg_policies where tablename like 'geo_wells_%' and policyname like '%_writer'" | Q)" "15"
-check "wells bucket: the two owner policies" "$(echo "select count(*) from pg_policies where schemaname='storage' and policyname like 'wells_objects_%_well_owner'" | Q)" "2"
+check "wells bucket: three owner policies and two editor policies" "$(echo "select count(*) filter (where policyname like 'wells_objects_%_well_owner')||'/'||count(*) filter (where policyname like 'wells_objects_%_editor') from pg_policies where schemaname='storage'" | Q)" "3/2"
 
 echo "=== pentest (rolled back) ==="
 out=$(pentest); echo "$out"

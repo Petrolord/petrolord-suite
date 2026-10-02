@@ -48,7 +48,11 @@ export async function listSections() {
   const cols = ['id', 'name', 'well_ids', 'updated_at', 'created_at', 'user_id', ...(available ? SHARING_COLUMNS.filter((c) => c !== 'updated_at') : [])];
   const { data, error } = await supabase.from(TABLE).select(cols.join(', ')).order('updated_at', { ascending: false });
   if (error) throw new Error(`Could not list sections: ${error.message}`);
-  return (data || []).map((r) => ({ ...r, wellCount: (r.well_ids || []).length, well_ids: undefined }));
+  return (data || []).map((r) => {
+    const item = { id: r.id, name: r.name, wellCount: (r.well_ids || []).length, updated_at: r.updated_at };
+    for (const c of ['user_id', ...SHARING_COLUMNS]) if (c !== 'updated_at' && r[c] !== undefined) item[c] = r[c];
+    return item;
+  });
 }
 
 /** One section by id, or the caller's own newest when no id is given. */

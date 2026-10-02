@@ -11,15 +11,18 @@ export const HARNESS_COLLEAGUE = 'user-colleague';
 export const HARNESS_ORG = 'org-dev';
 
 /**
- * @param {{ me?: string, applied?: boolean, inOrganisation?: boolean }} opts
- * @returns {{ db: Object, store: Object, me: string, colleagueStore: Object }}
+ * @param {{ me?: string, applied?: boolean, inOrganisation?: boolean, members?: Object }} opts
+ *   members: more people, user id -> { orgId, name } (a harness that already
+ *   has its own second user)
+ * @returns {{ db: Object, store: Object, me: string, colleagueStore: Object, storeAs: (id: string) => Object }}
  */
-export function makeHarnessSharing({ me = HARNESS_ME, applied = true, inOrganisation = true } = {}) {
+export function makeHarnessSharing({ me = HARNESS_ME, applied = true, inOrganisation = true, members = {} } = {}) {
   const db = makeSharingDb({
     applied,
     members: {
       [me]: { orgId: inOrganisation ? HARNESS_ORG : null, name: 'You' },
       [HARNESS_COLLEAGUE]: { orgId: HARNESS_ORG, name: 'Ada Colleague' },
+      ...members,
     },
   });
   return {
@@ -28,6 +31,7 @@ export function makeHarnessSharing({ me = HARNESS_ME, applied = true, inOrganisa
     store: makeSharingStore(memoryTransport(db, me)),
     /** The colleague's side, for tests that act as the second user. */
     colleagueStore: makeSharingStore(memoryTransport(db, HARNESS_COLLEAGUE)),
+    storeAs: (id) => makeSharingStore(memoryTransport(db, id)),
   };
 }
 

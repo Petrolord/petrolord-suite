@@ -11,7 +11,9 @@ jest.mock('@/lib/customSupabaseClient', () => {
         if (st.op === 'update') {
             const row = store.rows.find((r) => r.id === st.id);
             if (row) Object.assign(row, st.payload);
-            return { data: row, error: null };
+            // PostgREST: an array of the rows written unless .single() was asked for
+            // (the sharing store reads zero rows as "the policies hid it")
+            return { data: st.single ? row : (row ? [row] : []), error: null };
         }
         if (st.op === 'delete') {
             store.rows = store.rows.filter((r) => r.id !== st.id);

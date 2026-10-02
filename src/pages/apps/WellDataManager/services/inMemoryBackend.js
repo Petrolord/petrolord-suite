@@ -10,6 +10,7 @@
 
 import { wellNameClashMessage, validateStoredCheckshotsShape, LogsStoppedError, surfaceCoordProblem } from '@/lib/wellsRegistry';
 import { PLATFORM_BUILD } from '@/lib/platformBuild';
+import { makeHarnessSharing, accessOf, messages } from '@/lib/recordSharing';
 import { parseLas } from '../engine/lasParse';
 import { prepareLasForRegistry } from '../engine/lasIndex';
 import { prepareTextChannels } from '../engine/lasTextChannels';
@@ -25,6 +26,20 @@ const nextId = (p) => { seq += 1; return `${p}-${seq}`; };
  *  inline on this thread (jest / jsdom, where module workers 404). */
 export function makeInMemoryBackend(opts = {}) {
   const wells = [];
+  // U2-012 team editing: geo_wells lives in the in-memory mirror of the
+  // sharing rules (src/lib/recordSharing): the well row has the check-out,
+  // the version and the history, and its tops, logs, zones, intervals and core
+  // photos follow the check-out. opts.sharing = { applied: false } behaves as
+  // the database before the migration (owner-only writes, as it always was).
+  const sharing = makeHarnessSharing({ me: DEV_USER, members: { 'user-other': { orgId: DEV_ORG, name: 'Ama Other' } }, ...(opts.sharing || {}) });
+  sharing.db.attach('geo_wells', {
+    get: () => wells,
+    set: (rows) => { wells.length = 0; wells.push(...rows.map((r) => ({ ...r, is_own: r.user_id === DEV_USER }))); },
+  });
+  // rows pushed straight into `wells` (seeds, new wells) get the migration's defaults
+  const withDefaults = (w) => (sharing.db.applied
+    ? Object.assign(w, { org_access: w.org_access || 'view', version: w.version || 1, editing_by: w.editing_by ?? null, editing_since: w.editing_since ?? null, editing_expires: w.editing_expires ?? null, updated_by: w.updated_by ?? null })
+    : w);
   const topsByWell = new Map();
   const intervalsByWell = new Map();   // ST1 interval logs
   const coreImagesByWell = new Map();  // ST1 core photos (metadata only; the harness shows a placeholder)
@@ -86,15 +101,44 @@ export function makeInMemoryBackend(opts = {}) {
     }
   }
 
-  const ownWell = (wellId, what) => {
+  wells.forEach(withDefaults);
+
+  /** The owner only (delete the well). */
+  const ownerOnly = (wellId, what) => {
     const w = wells.find((x) => x.id === wellId);
     if (!w) throw new Error(`Well not found.`);
     if (!w.is_own) throw new Error(`Only the owner can ${what} this well (org sharing is read-only).`);
     return w;
   };
+  /**
+   * A write on the well's children (tops, logs, zones, intervals, core
+   * photos), as the database decides it: the owner unless a colleague holds
+   * the check-out, or the member who holds it. The refusal says which.
+   */
+  const ownWell = (wellId, what) => {
+    const w = wells.find((x) => x.id === wellId);
+    if (!w) throw new Error(`Well not found.`);
+    if (sharing.db.canWriteChild(DEV_USER, wellId)) return w;
+    const a = accessOf('geo_wells', w, { userId: DEV_USER, now: sharing.db.now(), available: sharing.db.applied });
+    if (a.lock.live && !a.lock.mine) throw new Error(messages.locked(sharing.db.members[a.lock.by]?.name, a.lock.since));
+    if (a.sharedEdit && !a.isOwner) throw new Error(messages.noCheckout());
+    throw new Error(`Only the owner can ${what} this well (org sharing is read-only).`);
+  };
+  /** One line in the well's history for a change to its children. */
+  const logged = (wellId, what, verb, n = 1) => sharing.db.logChild(DEV_USER, wellId, what, verb, n);
 
-  const update = async (wellId, patch) => {
-    const w = ownWell(wellId, 'edit');
+  /** The well row itself, through the sharing store (version, check-out, history). */
+  // versioned false by default, like the registry: only the well's own editor
+  // (the detail view) names the version it opened. A view-only well keeps the
+  // older sentence (a well has no Save a copy).
+  const writeWell = async (wellId, patch, { note = 'Well edited', versioned = false } = {}) => {
+    if (!wells.some((x) => x.id === wellId)) throw new Error('Well not found.');
+    const { data, error } = await sharing.store.update('geo_wells', wellId, patch, { note, versioned });
+    if (error) throw new Error(error.name === 'RecordConflict' && error.kind !== 'view_only' && error.kind !== 'gone' ? error.message : 'Only the owner can edit this well (org sharing is read-only).');
+    return wells.find((x) => x.id === data.id);
+  };
+
+  const update = async (wellId, patch, opts2 = {}) => {
     for (const [n, col] of [['Surface X', 'surface_x'], ['Surface Y', 'surface_y']]) {
       if (patch && col in patch) { const bad = surfaceCoordProblem(n, patch[col]); if (bad) throw new Error(bad); }
     }
@@ -103,8 +147,7 @@ export function makeInMemoryBackend(opts = {}) {
       if (msg) throw new Error(msg);
       patch = { ...patch, name: String(patch.name).trim() };
     }
-    Object.assign(w, patch, { updated_at: new Date(2026, 6, 13, 1, 0, seq).toISOString() });
-    return w;
+    return writeWell(wellId, { ...patch, updated_at: new Date(2026, 6, 13, 1, 0, seq).toISOString() }, opts2);
   };
 
   return {
@@ -144,7 +187,7 @@ export function makeInMemoryBackend(opts = {}) {
         updated_at: new Date(2026, 6, 13, 0, 0, seq).toISOString(),
         is_own: true,
       };
-      wells.push(well);
+      wells.push(withDefaults(well));
       topsByWell.set(well.id, []);
       logsByWell.set(well.id, []);
       return well;
@@ -156,8 +199,7 @@ export function makeInMemoryBackend(opts = {}) {
      *  validation rules (PT1). */
     async updateWellData(wellId, {
       surfaceX, surfaceY, kbM, tdMdM, deviation, checkshots, checkshotsProvenance,
-    } = {}) {
-      const w = ownWell(wellId, 'edit');
+    } = {}, opts2 = {}) {
       const patch = {};
       // PT8: surface coordinates are already in the well's CRS — validate
       // that they are finite, transform nothing.
@@ -188,8 +230,7 @@ export function makeInMemoryBackend(opts = {}) {
       if (checkshots !== undefined) patch.checkshots = validateStoredCheckshotsShape(checkshots);
       if (checkshotsProvenance !== undefined) patch.checkshots_provenance = checkshotsProvenance;
       if (!Object.keys(patch).length) throw new Error('Nothing to update.');
-      Object.assign(w, patch, { updated_at: new Date(2026, 6, 13, 3, 0, seq++).toISOString() });
-      return w;
+      return writeWell(wellId, { ...patch, updated_at: new Date(2026, 6, 13, 3, 0, seq++).toISOString() }, { note: 'Well data edited', ...opts2 });
     },
 
     async saveTop(wellId, { name, mdM, interpreter = null, surface_type = 'formation_top', unit_id = null, confidence = null, age_ma = null, notes = null }) {
@@ -282,7 +323,7 @@ export function makeInMemoryBackend(opts = {}) {
     },
 
     async deleteWell(well) {
-      ownWell(well.id, 'delete');
+      ownerOnly(well.id, 'delete');
       const i = wells.findIndex((x) => x.id === well.id);
       wells.splice(i, 1);
       (logsByWell.get(well.id) || []).forEach((l) => curveStore.delete(l.storage_path));
@@ -292,7 +333,10 @@ export function makeInMemoryBackend(opts = {}) {
 
     async myOrgId() { return DEV_ORG; },
     shareWell: (wellId) => update(wellId, { organization_id: DEV_ORG }),
-    unshareWell: (wellId) => update(wellId, { organization_id: null }),
+    unshareWell: (wellId) => update(wellId, sharing.db.applied ? { organization_id: null, org_access: 'view' } : { organization_id: null }),
+    sharing: sharing.store,
+    /** test seam: the in-memory database; storeAs('user-other') acts as the colleague */
+    _sharing: sharing,
 
     async listTops(wellId) {
       return [...(topsByWell.get(wellId) || [])].sort((a, b) => a.md_m - b.md_m);
