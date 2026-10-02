@@ -250,7 +250,7 @@ describe('the store: sentences for refusals, version tracking, the before-migrat
     expect(h[0]).toMatchObject({ action: 'updated', changed_by_name: 'Chidi Colleague', summary: 'Renamed' });
   });
 
-  test('names stay inside the organisation: another organisation sees "A colleague", never an email', async () => {
+  test('names stay inside the organisation: a person in another organisation reads "A colleague"', async () => {
     const { store } = world();
     expect(await store('u-col').names(['u-owner', 'u-other'])).toEqual({ 'u-owner': 'Olu Owner', 'u-other': 'A colleague' });
   });

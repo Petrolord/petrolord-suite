@@ -11,7 +11,7 @@
 //   take / renew / release       the check-out
 //   refresh(table, id)           the row's current sharing state
 //   history(table, id)           the change log, names resolved
-//   names(ids)                   user id -> display name (never an email)
+//   names(ids)                   user id -> display name, inside the user's own organisation only
 
 import { RecordConflict, messages, tableSpec, sharingOf, accessOf, COLLEAGUE } from './rules';
 

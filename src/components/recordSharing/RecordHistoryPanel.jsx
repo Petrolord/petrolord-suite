@@ -1,6 +1,6 @@
 // Who changed what on a record: the rows of suite_record_changes the user may
-// read, newest first. Names come from the user's own organisation; an author
-// outside it reads "A colleague". Emails are never shown.
+// read, newest first. Names come from the member list of the user's own
+// organisation; an author outside it reads "A colleague".
 
 import React, { useEffect, useState } from 'react';
 import { describeChange, whenText } from '@/lib/recordSharing/rules';

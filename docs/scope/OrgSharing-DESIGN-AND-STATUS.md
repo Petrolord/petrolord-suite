@@ -267,8 +267,11 @@ version 1: applying the migrations changes nobody's access.
   edit, who is editing, Start editing, Done editing, Take over, Save a copy,
   last saved by, History), `RecordHistoryPanel`, `SharedRowNote` for lists.
 
-Names come from `organization_members.full_name`, readable inside one's own
-organisation only; anyone else reads "A colleague". Emails are never shown.
+Names come from the organisation's member list (`organization_members`: the
+full name, or the member's email where no name is set), the lookup Wellsite
+Studio already uses. Row level security shows a member only their own
+organisation's rows, so nothing about a person crosses organisations: anyone
+outside reads "A colleague".
 
 **Before the migration is applied** the store finds no sharing columns
 (asked again each minute), the bar is a short note ("Sharing with your

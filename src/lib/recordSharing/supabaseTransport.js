@@ -40,12 +40,20 @@ export const supabaseTransport = {
       .eq('table_name', table).eq('record_id', id)
       .order('id', { ascending: false }).limit(limit);
   },
-  /** Display names from the membership table, readable inside one's own organisation only. Never emails. */
+  /**
+   * Display names from the membership list (the lookup Wellsite Studio uses):
+   * the member's full name, or their email where no name is set. Row level
+   * security shows a member only the rows of their own organisation, so a
+   * person outside it has no entry here and reads "A colleague".
+   */
   async names(ids) {
-    const { data, error } = await supabase.from('organization_members').select('user_id, full_name').in('user_id', ids);
+    const { data, error } = await supabase.from('organization_members').select('user_id, full_name, email').in('user_id', ids);
     if (error) return {};
     const out = {};
-    for (const r of data || []) if (r.user_id && r.full_name && !out[r.user_id]) out[r.user_id] = r.full_name;
+    for (const r of data || []) {
+      const name = r.full_name || r.email || null;
+      if (r.user_id && name && (!out[r.user_id] || r.full_name)) out[r.user_id] = name;
+    }
     return out;
   },
 };

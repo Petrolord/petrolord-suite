@@ -121,3 +121,17 @@ surfaces display in the Map window via lattice resampling.
 - The CrsPicker browses by region with an empty search (Nigeria first,
   the 120 WGS 84 / UTM zones folded into one group) and shows match
   counts when searching (src/components/crs/crsBrowse.js).
+
+## Sharing (organisation sharing wave, 2026-10-02)
+- Volumes and 2D lines are shared one by one with the owner's organisation
+  (`organization_id`), read-only, with everyone's horizons and faults on them.
+  That model is unchanged.
+- A project (`seismic_projects`, an explorer folder) can be shared with the
+  organisation, for viewing or for renaming one person at a time, through the
+  shared control (`src/lib/recordSharing`, `src/components/recordSharing`).
+  A shared project lists, for a colleague, only the volumes that are
+  themselves shared; the dialog tells the owner which volumes of the project
+  are still private. Design: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`.
+- The workspace takes projects through `makeProjectsBackend()`
+  (`services/volumesService.js`); `/dev/seismolord-workspace?projects=1` runs
+  them signed out on the in-memory mirror.
