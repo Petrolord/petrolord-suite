@@ -38,7 +38,7 @@ import TopsView from './TopsView';
 import SyncStatusPill, { useSyncState } from './SyncStatusPill';
 import ReportScreen from './ReportScreen';
 import { narrativeParams, currentNarrative } from '../services/reports';
-import { memberRole } from '../services/tops';
+import { memberRole, offsetWellsWithoutDatum } from '../services/tops';
 import SyncDrawer from './SyncDrawer';
 import { persistStorage } from '@/lib/wellsite/db';
 import ApproachPanel from './ApproachPanel';
@@ -439,7 +439,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       const ids = Array.isArray(offsetWellIds) ? offsetWellIds : ((prognosis && prognosis.source && prognosis.source.offset_well_ids) || []);
       const sources = await backend.loadPrognosisSources(well.id, { offsetWellIds: ids });
       const row = await backend.addPrognosis(well.id, buildPrognosis({ wellId: well.id, version: 0, sources, offsetWells: sources.offsetWells, offsetMin: offsetMinOf(well) }));
-      setStatus(`Prognosis version ${row.version} loaded: ${row.tops.length} top(s), ${row.offset_tops.length} offset top(s).`);
+      const noDatum = offsetWellsWithoutDatum(sources.offsetWells);
+      setStatus(`Prognosis version ${row.version} loaded: ${row.tops.length} top(s), ${row.offset_tops.length} offset top(s).${noDatum.length ? ` Left out of the offset comparison: ${noDatum.map((w) => w.name).join(', ')} (no depth reference elevation; set it in Well Data Manager).` : ''}`);
       setTick((t) => t + 1);
     } catch (e) { setStatus(e.message); }
   }, [backend, well, prognosis]);

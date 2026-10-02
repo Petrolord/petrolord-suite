@@ -7,11 +7,12 @@
 // Optional checkshot borrow copies another registry well's
 // time-depth so the published well can hang in time domains.
 
-import { saveWell, updateWell, getWell, updateWellData } from '@/lib/wellsRegistry';
+import { saveWell, updateWell, getWell, updateWellData, updateWellDatum } from '@/lib/wellsRegistry';
+import { readWellDatum, refElevOrNull, datumChangeImpact, datumChangeRecord, datumLine } from '@/lib/wellDatum';
 import { updateWellbore, updateDesign } from './wpApi';
 
 export {
-  PUBLISH_ENGINE, preparePublishPayload, publishPatchFromPayload,
+  PUBLISH_ENGINE, preparePublishPayload, publishPatchFromPayload, wellboreDatum,
 } from './publishPayload';
 
 import {
@@ -34,8 +35,27 @@ export async function publishPlan({
 
   let geoWell;
   let created = false;
+  let datumNote = null;
   if (wellbore.geo_well_id) {
-    geoWell = await updateWell(wellbore.geo_well_id, publishPatchFromPayload(payload));
+    let before = null;
+    try { before = await getWell(wellbore.geo_well_id); } catch { before = null; }
+    const patch = publishPatchFromPayload(payload);
+    // datum corrections recorded before the registry upgrade ride in crs_provenance: keep them
+    if (Array.isArray(before?.crs_provenance?.datum_changes)) patch.crs_provenance = { ...patch.crs_provenance, datum_changes: before.crs_provenance.datum_changes };
+    geoWell = await updateWell(wellbore.geo_well_id, patch);
+    if (payload.datum) {
+      const reg = readWellDatum(geoWell);
+      const stated = reg.state === 'set' || reg.state === 'legacy-kb';
+      if (!stated) {
+        // the registry well has no reference elevation yet: the wellbore's becomes it, on record
+        const impact = datumChangeImpact(geoWell, payload.datum);
+        const record = datumChangeRecord(geoWell, payload.datum, { app: 'well-design-studio', reason: `published from ${design?.name ?? 'a design'}`, impact });
+        ({ row: geoWell } = await updateWellDatum(geoWell, payload.datum, { record }));
+        datumNote = `Depth reference set from the wellbore: ${datumLine(readWellDatum(geoWell))}.`;
+      } else if (Math.abs(reg.refElevM - payload.datum.refElevM) > 1e-6) {
+        datumNote = `The registry well keeps its depth reference (${datumLine(reg)}); this wellbore says KB ${payload.datum.refElevM} m. A depth reference is corrected in Well Data Manager, which shows what moves first.`;
+      }
+    }
   } else {
     geoWell = await saveWell(payload);
     created = true;
@@ -57,7 +77,7 @@ export async function publishPlan({
         checkshotsProvenance: {
           units_in: donorUnits,
           source: 'well-planning-borrow',
-          kb_m_used: donor.kb_m ?? 0,
+          kb_m_used: refElevOrNull(donor) ?? 0,
           deviation_stations_used: 0,
           edited_at: publishedAt,
           note: `borrowed from ${donor.name}`,
@@ -79,5 +99,5 @@ export async function publishPlan({
       published_at: publishedAt,
     });
   }
-  return { geoWell, created, borrowedCheckshots };
+  return { geoWell, created, borrowedCheckshots, datumNote };
 }

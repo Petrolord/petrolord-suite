@@ -2698,3 +2698,12 @@ a `testId`. Details: docs/scope/StratigraphyStudio-STATUS.md, ST5.
 U2-008: a project folder can be shared with the organisation (share button on the folder, "Sharing and history" in its menu). Colleagues see it under "Shared with me" with the volumes of it that are shared with the organisation. Volumes, horizons and faults keep their per-volume sharing. Tests: `__tests__/orgSharing.test.jsx`, `e2e/org-sharing.spec.js`.
 
 Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Until the migration is applied the control is a short note and saving works as before.
+
+## 2026-10-02: the well datum model (WDM U2-007, PR #848)
+
+A registry well that states no depth reference elevation is no longer placed
+as if its KB were 0. Visible wells carry `datumOk` (`hooks/useWells.js`);
+`lib/wellDisplay.js` skips such a well with the new reason `noDatum`, shown
+on its Explorer row by `WellDrawBadge`; a synthetic, a well tie and Tops to
+Horizons refuse it with the same reason. Wells saved before the model keep
+drawing as they did. The engine and the display math are untouched.

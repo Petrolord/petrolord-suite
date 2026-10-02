@@ -254,3 +254,13 @@ Owner 2026-10-01: the second engineer approved the organisation sharing work, wh
 - **Tops** belong to the wells, so picking on a shared section follows each well's own sharing (Well Data Manager team editing, same wave).
 - **Code.** `src/lib/sectionsRegistry.js`, `services/inMemoryBackend.js`, `components/SectionPicker.jsx`, `components/CorrelationWorkstation.jsx`. Harness: `/dev/well-correlation?shared=1`, `?sharing=off`.
 - **Tests.** `__tests__/orgSharing.test.jsx`; one test in `e2e/org-sharing.spec.js`.
+
+## U2-018 datum in TVDSS: built 2026-10-02 with the well datum model (pending apply)
+
+Built on PR #848 with WDM U2-007 (`docs/scope/WellDatum-DESIGN-AND-STATUS.md`).
+
+- The section's wells take their depth frame from the shared datum module (`makeWellFrame` in `useSectionWells`, the line corridor and the tops file door). TVDSS is below the well's vertical datum from the reference the well states (KB, RT, DF, GL, MSL or a named point), read in one place.
+- A well with no reference elevation says `no depth reference: TVDSS withheld`, is not drawn in TVDSS or in time, and a TVDSS or elevation tops file is refused for it with the reason; a TVD file is read (TVD needs no datum). A well saved before the model with KB 0 keeps `no KB: TVDSS = TVD`.
+- Ground level and water depth are on the well's Header in Well Data Manager; the section does not draw a ground or mudline marker yet (open, S).
+- The seismic reference datum is not a property of the well and stays out of this item.
+- Evidence: `src/lib/__tests__/wellDatumReaders.test.js` (section kit and tops file), `src/components/wells/section/__tests__/upgradeU1Frame.test.js` (unchanged, legacy wells), the help guide.

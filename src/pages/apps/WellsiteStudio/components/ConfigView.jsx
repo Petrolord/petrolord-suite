@@ -14,6 +14,7 @@ import { validateTemplate, DEFAULT_DAILY_TEMPLATE } from '@/lib/wellsite/reports
 import { RIG_TYPES, FLOATER_TYPES } from '../services/vocab';
 import { parseFieldNumber } from '../services/units';
 import { kbStatus } from '../services/wellContext';
+import { DatumImpact } from '@/components/wells/DatumEditor';
 
 const IN = 0.0254;
 // WS-U1-008: fractions and comma decimals as drillers type them ("12 1/4", "8-1/2", "12,25")
@@ -151,6 +152,32 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
       onSaved?.();
     } catch (e) { onStatus?.(e.message); }
   };
+  // U2-019: correct the KB through the registry's datum door. Review first (what moves, who
+  // owns the well), then confirm; nothing is written until Confirm.
+  const [kbEdit, setKbEdit] = useState(null); // { value, plan, reason, busy, error }
+  const reviewKb = async () => {
+    const raw = String(kbEdit.value).trim().replace(',', '.');
+    if (raw === '' || !Number.isFinite(Number(raw))) { setKbEdit({ ...kbEdit, error: 'Type the KB elevation in metres above the vertical datum.' }); return; }
+    setKbEdit({ ...kbEdit, busy: true, error: null });
+    try {
+      const plan = await backend.kbCorrectionPlan(well.id, Number(raw));
+      if (plan.errors.length) throw new Error(plan.errors[0]);
+      if (!plan.reg.ownedByMe) throw new Error('Only the owner of the registry well can correct its depth reference. Ask them to correct it here or in Well Data Manager.');
+      if (plan.impact.kind === 'none') throw new Error('That is the elevation the registry already holds.');
+      setKbEdit((k) => ({ ...k, busy: false, plan }));
+    } catch (e) { setKbEdit((k) => ({ ...k, busy: false, plan: null, error: e.message })); }
+  };
+  const confirmKb = async () => {
+    setKbEdit((k) => ({ ...k, busy: true, error: null }));
+    try {
+      const res = await backend.correctKb(well.id, kbEdit.plan.next.refElevM, { reason: kbEdit.reason });
+      setHeader((h) => ({ ...h, kb_elev_m: kbEdit.plan.next.refElevM }));
+      setKbEdit(null);
+      onStatus?.(`KB corrected to ${kbEdit.plan.next.refElevM} m in the registry and on this well.${res.note || ''}${res.dropped && res.dropped.length ? ' The registry on this server keeps the elevation only for now.' : ''} Subsea depths of calls and tops are recomputed from it.`);
+      onSaved?.();
+    } catch (e) { setKbEdit((k) => ({ ...k, busy: false, error: e.message })); }
+  };
+
   const saveSettings = async () => {
     try {
       const s = { ...settings, rig_offset_min: Number(settings.rig_offset_min) || 0, overdue_tolerance_min: Number(settings.overdue_tolerance_min) || 0 };
@@ -312,11 +339,39 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
           {[['field', 'Field'], ['operator', 'Operator'], ['rig', 'Rig'], ['country', 'Country']].map(([k, label]) => (
             <label key={k} className="text-xs text-pl-text">{label}<br /><input className={inp} data-testid={`ws-config-${k}`} value={header[k] || ''} onChange={(e) => setHeader({ ...header, [k]: e.target.value })} /></label>
           ))}
-          <label className="text-xs text-pl-text">KB above MSL (m, from the registry)<br /><input className={inp} disabled value={header.kb_elev_m ?? ''} data-testid="ws-config-kb" />
-            {!kb.ok && <span className="block text-[11px] text-pl-warning-text" data-testid="ws-config-kb-note">{kb.note}</span>}</label>
+          <div className="text-xs text-pl-text">
+            <label>KB above MSL (m, from the registry)<br /><input className={inp} disabled value={header.kb_elev_m ?? ''} placeholder="not set" data-testid="ws-config-kb" /></label>
+            {!kb.ok && <span className="block text-[11px] text-pl-warning-text" data-testid="ws-config-kb-note">{kb.note}</span>}
+            {/* U2-019 (closes WS-U1-024): KB is corrected here through the registry's datum door */}
+            {canAdmin && typeof backend.correctKb === 'function' && !kbEdit && (
+              <button type="button" className="mt-1 text-pl-primary-text hover:underline" data-testid="ws-config-kb-correct"
+                onClick={() => setKbEdit({ value: Number.isFinite(Number(header.kb_elev_m)) && header.kb_elev_m !== null && header.kb_elev_m !== '' && Number(header.kb_elev_m) !== 0 ? String(header.kb_elev_m) : '', plan: null, reason: '', busy: false, error: null })}>
+                {kb.ok ? 'Correct KB' : 'Enter KB'}
+              </button>
+            )}
+          </div>
           <label className="text-xs text-pl-text">Ground level above MSL (m)<br /><input className={inp} type="number" step="any" data-testid="ws-config-gl" value={header.gl_elev_m ?? ''} onChange={(e) => setHeader({ ...header, gl_elev_m: e.target.value })} /></label>
           <label className="text-xs text-pl-text">RT above KB (m)<br /><input className={inp} type="number" step="any" data-testid="ws-config-rt" value={header.rt_offset_m ?? 0} onChange={(e) => setHeader({ ...header, rt_offset_m: e.target.value })} /></label>
         </div>
+        {kbEdit && (
+          <div className="rounded border border-pl-border p-2 space-y-1.5 max-w-2xl" data-testid="ws-config-kb-panel">
+            <p className="text-[11px] text-pl-muted">The KB elevation belongs to the well in the registry, so a correction here changes it for every app that reads this well. Only the owner of the registry well can save it.</p>
+            <label className="text-xs text-pl-text">KB elevation above the vertical datum (m)<br />
+              <input className={inp} inputMode="decimal" value={kbEdit.value} data-testid="ws-config-kb-input"
+                onChange={(e) => setKbEdit({ ...kbEdit, value: e.target.value, plan: null, error: null })} /></label>
+            {kbEdit.error && <div className="text-[11px] text-pl-danger-text" data-testid="ws-config-kb-error">{kbEdit.error}</div>}
+            {kbEdit.plan && kbEdit.plan.warnings.map((w) => <div key={w} className="text-[11px] text-pl-warning-text">{w}</div>)}
+            {kbEdit.plan && kbEdit.plan.impact.lines.length > 0 ? (
+              <DatumImpact impact={kbEdit.plan.impact} reason={kbEdit.reason} busy={kbEdit.busy} testIdPrefix="ws-config-kb"
+                onReason={(v) => setKbEdit({ ...kbEdit, reason: v })} onConfirm={confirmKb} onCancel={() => setKbEdit({ ...kbEdit, plan: null })} />
+            ) : (
+              <div className="flex gap-2">
+                <Button size="sm" onClick={reviewKb} disabled={kbEdit.busy} data-testid="ws-config-kb-review">Review the change</Button>
+                <Button size="sm" variant="outline" onClick={() => setKbEdit(null)} data-testid="ws-config-kb-close">Close</Button>
+              </div>
+            )}
+          </div>
+        )}
         <Button size="sm" onClick={saveSettings} disabled={!canAdmin} data-testid="ws-config-save-settings">Save well settings</Button>
       </section>
     </div>

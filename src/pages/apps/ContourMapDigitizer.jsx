@@ -30,6 +30,7 @@ const ContourMapDigitizerContent = ({ backend, mappingPath }) => {
     handlePublishSurface,
     handleSaveProject,
     handleLoadProject,
+    handleDeleteProject,
     handleExport,
     isProcessing,
     status,
@@ -76,6 +77,7 @@ const ContourMapDigitizerContent = ({ backend, mappingPath }) => {
               onPublishSurface={handlePublishSurface}
               onSaveProject={handleSaveProject}
               onLoadProject={handleLoadProject}
+              onDeleteProject={handleDeleteProject}
               onExport={handleExport}
               {...(mappingPath ? { mappingPath } : {})}
               isProcessing={isProcessing}

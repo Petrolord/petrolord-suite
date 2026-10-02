@@ -585,3 +585,9 @@ events and range charts done; age model partial to done (events fitted, no
 drag nodes); zonation libraries shared per organisation; chart exports now
 include a PDF; assisted tract picking suggest-only; Wheeler from seismic,
 graphic correlation and chemostratigraphy remain missing (deferred).
+
+## 2026-10-02: the well datum model (WDM U2-007, PR #848)
+
+Through the shared section kit: a well with no depth reference elevation is
+not drawn in TVDSS or in time and says so. Thickness maps and the Basin
+handoff use TVD only and are unchanged.

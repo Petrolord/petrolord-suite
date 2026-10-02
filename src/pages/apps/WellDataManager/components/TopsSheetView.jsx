@@ -265,7 +265,7 @@ export default function TopsSheetView({ backend, wells, unit = 'm', onStatus, on
                     ) : fmtDepth(r.md_m, u, 2)}
                   </td>
                   <td className={tdCls}>{fmtDepth(r.tvd, u)}{r.extrapolated ? ' †' : ''}</td>
-                  <td className={tdCls} title={r.kbSet ? '' : 'KB not set on this well: TVDSS equals TVD'}>{fmtDepth(r.tvdss, u)}{r.kbSet ? '' : ' *'}</td>
+                  <td className={tdCls} title={r.datumFlag === 'unset' ? 'No depth reference elevation on this well: TVDSS is withheld. Set it on the well\'s Header tab.' : r.datumFlag === 'zero' ? 'KB is 0 on this well, which may mean not entered: TVDSS equals TVD' : ''}>{fmtDepth(r.tvdss, u)}{r.datumFlag ? ' *' : ''}</td>
                   <td className={tdCls}>{displayLabel(normalizeSurfaceType(r.surface_type), scheme, { kind: 'surface', short: true }).label}</td>
                   <td className={tdCls}>{r.interpreter || EMPTY_VALUE}</td>
                 </tr>
@@ -280,7 +280,7 @@ export default function TopsSheetView({ backend, wells, unit = 'm', onStatus, on
           Save {dirty.length || ''} change{dirty.length === 1 ? '' : 's'}
         </button>
         <button type="button" className={btnCls} disabled={busy || !Object.keys(edits).length} onClick={() => setEdits({})}>Discard</button>
-        <span className="text-pl-muted">* KB not set: TVDSS equals TVD · † below the last survey station</span>
+        <span className="text-pl-muted">* depth reference not set: TVDSS withheld, or equal to TVD where the KB is 0 · † below the last survey station</span>
       </div>
     </div>
   );

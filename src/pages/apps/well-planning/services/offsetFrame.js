@@ -15,6 +15,7 @@
 
 import { M_TO_FT, computeWellPath } from '../engine/surveyMath';
 import { MAX_TARGET_REACH_M } from './targetFrame';
+import { refElevOrNull } from '../../../../lib/wellDatum.js';
 
 const DEG = Math.PI / 180;
 
@@ -29,6 +30,21 @@ export function projectToSection(n, e, vsAzimuthDeg) {
 export function pickOffsetDesign(designs) {
   const withStations = (designs || []).filter((d) => Array.isArray(d.stations) && d.stations.length >= 2);
   return withStations.find((d) => d.status === 'definitive') || withStations[withStations.length - 1] || null;
+}
+
+const isRegistryOffset = (g, wellbore, siteCrs) => g.id !== wellbore?.geo_well_id
+  && Array.isArray(g.deviation) && g.deviation.length >= 2
+  && (g.crs || null) === (siteCrs || null)
+  && Number.isFinite(g.surface_x) && Number.isFinite(g.surface_y);
+
+/**
+ * Registry wells that would be offset candidates but state no depth
+ * reference elevation, so their vertical position against the reference
+ * well is not known. They are left out of the scan, and the tab says so.
+ * @returns {string[]} well names
+ */
+export function registryOffsetsWithoutDatum({ geoWells = [], wellbore = null, siteCrs = null }) {
+  return (geoWells || []).filter((g) => isRegistryOffset(g, wellbore, siteCrs) && refElevOrNull(g) === null).map((g) => g.name);
 }
 
 /**
@@ -56,10 +72,10 @@ export function assembleOffsetCandidates({
     });
   }
   for (const g of (geoWells || [])) {
-    if (g.id === wellbore?.geo_well_id) continue;
-    if (!Array.isArray(g.deviation) || g.deviation.length < 2) continue;
-    if ((g.crs || null) !== (siteCrs || null)) continue;
-    if (!Number.isFinite(g.surface_x) || !Number.isFinite(g.surface_y)) continue;
+    if (!isRegistryOffset(g, wellbore, siteCrs)) continue;
+    // WDM-U2-007: a registry well with no reference elevation cannot be
+    // placed vertically against this well; registryOffsetsWithoutDatum names it
+    if (refElevOrNull(g) === null) continue;
     out.push({
       id: `geo:${g.id}`,
       name: g.name,
@@ -68,7 +84,7 @@ export function assembleOffsetCandidates({
       stations: g.deviation,
       headX: g.surface_x,
       headY: g.surface_y,
-      kbElevM: g.kb_m || 0,
+      kbElevM: refElevOrNull(g),
     });
   }
   return out;

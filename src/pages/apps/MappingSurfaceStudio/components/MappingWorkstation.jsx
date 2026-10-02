@@ -62,8 +62,10 @@ import { resolveLayerCake } from '@/lib/velocityModels';
 import { fitLinearVelocityToTops, elevationFromLinear, elevationFromVelocityMap, convertWithLayerCake, LAYER_CAKE_HOOK } from '../services/depthConversion';
 import { averageVelocityTies } from '../engine/wellTie';
 import {
-  topsToControlPoints, zoneAttrToPoints, specForPoints, surfaceStats, maskOutsidePolygon,
+  zoneAttrToPoints, specForPoints, surfaceStats, maskOutsidePolygon,
 } from '../engine/surface';
+// WDM-U2-007: top control points through the shared datum module
+import { topsToControlPoints } from '../services/topControlPoints';
 import { resampleTo } from '@/lib/gridding/gridmath';
 import { describeGridResult, topMapKind } from '../services/gridStatus';
 import { xyUnitOf, metresPerXy, metresToXy, XY_UNIT_LABEL, controlPointsInWellFrame } from '../services/xyUnits';

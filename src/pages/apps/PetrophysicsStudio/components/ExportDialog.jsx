@@ -17,6 +17,7 @@ import { curvesCsv, zonesCsv, buildLas, exportBaseName } from '../services/petro
 import { buildReport } from '../services/petroReport';
 import { zoneSensitivities } from '../services/cutoffSensitivity';
 import { verticalSampleThickness } from '../services/zoneAverages';
+import { readWellDatum } from '@/lib/wellDatum';
 
 /** @param {Object} [p.well] the registry well row (survey + KB) for TVD /
  *  TVDSS columns; @param {'m'|'ft'} [p.depthUnit] the workstation's display
@@ -40,9 +41,10 @@ export default function ExportDialog({
   const columns = ['md', 'tvd', 'tvdss'].filter((k) => cols[k]);
   const depthOpts = { well, depthUnit: unit, columns: columns.length ? columns : ['md'], primary: columns.includes(primary) ? primary : (columns[0] || 'md') };
   const hasSurvey = Array.isArray(well?.deviation) && well.deviation.length >= 2;
+  const wellDatum = readWellDatum(well);
   const depthNote = [
     columns.some((k) => k !== 'md') ? (hasSurvey ? `TVD from the ${well.deviation.length}-station survey` : 'no survey: TVD assumes a vertical well') : null,
-    columns.includes('tvdss') ? `TVDSS uses KB ${Number(well?.kb_m ?? 0).toFixed(2)} m` : null,
+    columns.includes('tvdss') ? (wellDatum.tvdssOk ? `TVDSS uses ${wellDatum.refLabel} ${Number(wellDatum.refElevM).toFixed(2)} m` : `${wellDatum.tvdssReason} The TVDSS column will be empty`) : null,
     unit === 'ft' ? 'depths in feet; DT stays US/M' : null,
   ].filter(Boolean).join(' · ');
   const [packageOpen, setPackageOpen] = useState(false); // PP1 sibling dialog

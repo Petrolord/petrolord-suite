@@ -8,7 +8,7 @@
 // (read-only well, no such well, a name the well already has), so nothing
 // is dropped silently (PL4).
 
-import { makeDepthFrame } from './checkshots';
+import { makeWellFrame } from '@/lib/wellDatum';
 import { wellNameKey } from '@/lib/wellNames';
 import { fromDisp } from './displayUnits';
 
@@ -24,7 +24,7 @@ export function sheetRows(wells, tops) {
   const byId = new Map((wells || []).map((w) => [w.id, w]));
   const frames = new Map();
   const frameOf = (w) => {
-    if (!frames.has(w.id)) frames.set(w.id, makeDepthFrame({ deviation: w.deviation, kbM: w.kb_m ?? 0, tdMdM: w.td_md_m }));
+    if (!frames.has(w.id)) frames.set(w.id, makeWellFrame(w));
     return frames.get(w.id);
   };
   const rows = [];
@@ -35,9 +35,12 @@ export function sheetRows(wells, tops) {
     try { pos = frameOf(w).mdToPosition(Number(t.md_m)); } catch (e) { pos = null; }
     rows.push({
       topId: t.id, wellId: w.id, wellName: w.name, uwi: w.uwi || null, isOwn: !!w.is_own,
-      name: t.name, md_m: Number(t.md_m), tvd: pos ? pos.tvd : null, tvdss: pos ? pos.tvdss : null,
+      name: t.name, md_m: Number(t.md_m), tvd: pos ? pos.tvd : null, tvdss: pos && Number.isFinite(pos.tvdss) ? pos.tvdss : null,
       extrapolated: !!pos?.extrapolated, surface_type: t.surface_type || null, interpreter: t.interpreter || null,
-      kbSet: Number(w.kb_m) > 0,
+      // WDM-U2-007: null when the datum gives a TVDSS; 'unset' when the well
+      // has no reference elevation (TVDSS withheld); 'zero' before the
+      // registry upgrade, when a KB of 0 may mean not entered
+      datumFlag: (() => { const d = frameOf(w).datum; return !d.tvdssOk ? 'unset' : d.state === 'legacy-zero' ? 'zero' : null; })(),
     });
   }
   rows.sort((a, b) => a.wellName.localeCompare(b.wellName) || a.md_m - b.md_m);

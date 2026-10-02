@@ -7,7 +7,7 @@
 // columns, so MD and TVD are read together instead of one standing in for
 // the other. Sample indexing and every computation stay MD either way.
 
-import { makeDepthFrame } from '../../../packages/engines/engines/welldata/checkshots';
+import { makeWellFrame } from '../../lib/wellDatum.js';
 import { EMPTY_VALUE } from '../../lib/emptyValue.js';
 
 // ---- display units (PT0, 2026-09-03) -------------------------------------
@@ -54,7 +54,9 @@ export function snapToSample(mdM, depth) {
 // The conversion is the canonical welldata frame (makeDepthFrame), the one
 // the checkshot door and the LAS/CSV depth columns already use: TVD below
 // KB, TVDSS = TVD - KB, a well with no survey is vertical, and past the
-// last station the final tangent continues.
+// last station the final tangent continues. Since WDM-U2-007 the datum
+// arithmetic is the shared module's (src/lib/wellDatum.js): the frame is
+// makeWellFrame, and a well with no reference elevation prints no TVDSS.
 
 export const DEPTH_TRACK_KEYS = ['md', 'tvd', 'tvdss'];
 export const DEPTH_TRACK_TITLE = { md: 'MD', tvd: 'TVD', tvdss: 'TVDSS' };
@@ -78,7 +80,7 @@ export function makeDepthAxes(keys, { well = null, unit = 'm' } = {}) {
   const cols = wanted.length ? wanted : ['md'];
   const needsFrame = cols.some((k) => k !== 'md');
   const frame = needsFrame
-    ? makeDepthFrame({ deviation: well?.deviation, kbM: well?.kb_m ?? 0, tdMdM: well?.td_md_m })
+    ? makeWellFrame(well) // WDM-U2-007: TVDSS is NaN (printed as the empty value) when the well states no reference elevation
     : null;
   // an MD outside the survey throws rather than guessing; the column
   // prints a dash there instead of taking the whole axis down

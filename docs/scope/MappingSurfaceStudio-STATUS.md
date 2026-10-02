@@ -422,3 +422,18 @@ Doc: `docs/upgrade/MappingSurfaceStudio-UPGRADE.md` ("Batch decision" and "Step 
 - **Batch C:** a `.pld` carries the re-grid archives (U2-017).
 - **Deferred:** 011, 014, 010, 015, 016, 019, 020, 018 (owner), and MAP-U1-025.
 - **Units:** the Suite unit profile was not on main, so Mapping keeps its depth-unit behaviour.
+
+## 2026-10-02: Digitizer image kept with the project (U2-020), and the datum model
+
+PR #848. Migration `20261002091000_digitizer_images_bucket.sql` is NOT
+APPLIED (owner: `supabase db query --linked -f supabase/migrations/20261002091000_digitizer_images_bucket.sql`).
+
+- Contour Map Digitizer: Save Project keeps the map image in the private
+  `digitizer-images` bucket under the owner's own folder; Load restores it
+  through a signed URL; Replace image and Delete project act on the stored
+  object; hostile files are refused with the reason. Before the bucket exists
+  the project saves as before and says the image is not kept.
+  Design: `docs/scope/DigitizerImageStorage-DESIGN-AND-STATUS.md`.
+- Top maps (WDM U2-007): a TVDSS top map leaves out a well with no depth
+  reference elevation and says why; MD and TVD maps keep it
+  (`services/topControlPoints.js`).

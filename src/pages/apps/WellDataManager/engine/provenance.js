@@ -42,3 +42,18 @@ export function curveOrigin(log) {
   }
   return null;
 }
+
+/**
+ * crs_provenance after a CRS is assigned by hand. The assignment MERGES:
+ * other apps keep their own keys in this object (Wellsite Studio's
+ * `deviation` survey source, Well Design's `datum_transform`, the
+ * reprojection chain), and declaring what the stored coordinates already
+ * are must not erase them.
+ * @param {?Object} prev the row's crs_provenance
+ * @param {string} tag the CRS tag picked ('EPSG:<code>', 'LOCAL', 'UNKNOWN', ...)
+ * @param {Date} [now]
+ */
+export function assignedCrsProvenance(prev, tag, now = new Date()) {
+  const base = prev && typeof prev === 'object' && !Array.isArray(prev) ? prev : {};
+  return { ...base, assigned_manually: true, declared_crs: tag, date: now.toISOString() };
+}

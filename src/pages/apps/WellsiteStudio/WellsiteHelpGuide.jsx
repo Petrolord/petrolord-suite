@@ -114,7 +114,12 @@ export default function WellsiteHelpGuide() {
       <GuideSection id="setup">
         <SectionHeading icon={HardHat}>Starting a live well</SectionHeading>
         <Para>
-          A live well is anchored to a registry well from Well Data Manager (its name, KB and survey come from there). New well needs
+          A live well is anchored to a registry well from Well Data Manager (its name, KB and survey come from there). If the
+          registry well states no KB elevation the live well starts with none, depths are held until one is entered, and nothing
+          assumes 0. The KB is entered or corrected in Config, Header, with Enter KB or Correct KB: the app shows what the change
+          moves (every subsea depth of the well, its tops, checkshots and anything built on them in the other apps), asks for a
+          confirmation and a reason, saves it to the registry well with who changed it and when, and brings this well's own copy
+          along. Only the owner of the registry well can save it. New well needs
           a connection; whoever starts it is its first administrator and adds the other members with their roles:
           {' '}{WS_ROLES.map((r) => r.name.toLowerCase()).join(', ')}. Which roles may approve (finalise a top, resolve a conflict) is
           a setting per well and is never a fixed title.

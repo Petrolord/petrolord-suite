@@ -150,6 +150,7 @@ describe('a well with no KB says why TVDSS equals TVD (WDM-U1-019)', () => {
     rows.wells[0].kb_m = 0;
     mockBackend = makeInMemoryBackend({ seedSharedWell: false, seedRows: rows });
     await openWell('GULF SP-2', 'Tops');
-    expect(await screen.findByTestId('wdm-tops-kb-note')).toHaveTextContent('KB is not set on this well (0 m), so TVDSS equals TVD.');
+    // a row saved before the datum model: the earlier behaviour holds, and is said (WDM-U2-007)
+    expect(await screen.findByTestId('wdm-tops-kb-note')).toHaveTextContent('KB is 0 in the registry, which cannot yet tell 0 from not entered. TVDSS is shown equal to TVD until the reference elevation is entered.');
   });
 });

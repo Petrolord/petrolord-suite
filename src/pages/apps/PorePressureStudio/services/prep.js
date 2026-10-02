@@ -5,7 +5,7 @@
 // engine only ever sees SI.
 
 import { normalizeInputCurve } from '../../../../components/wells/curveUnits';
-import { makeDepthFrame } from '../../../../../packages/engines/engines/welldata/checkshots';
+import { makeWellFrame } from '../../../../lib/wellDatum';
 
 /**
  * The well's depth frame (deviation survey + KB) for MD -> TVD, or null
@@ -15,7 +15,7 @@ export function wellDepthFrame(well) {
   const dev = Array.isArray(well?.deviation) ? well.deviation : [];
   if (dev.length < 2) return null;
   try {
-    const frame = makeDepthFrame({ deviation: dev, kbM: well.kb_m ?? 0, tdMdM: well.td_md_m ?? null });
+    const frame = makeWellFrame(well); // through the shared datum module; this door uses TVD only
     return frame.isVertical ? null : frame;
   } catch { return null; }
 }

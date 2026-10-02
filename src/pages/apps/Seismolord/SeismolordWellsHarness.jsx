@@ -44,7 +44,8 @@ export default function SeismolordWellsHarness() {
   const aff = useMemo(() => surveyAffine(MANIFEST.geometry), []);
 
   const onSave = async (draft) => {
-    const opts = { surfaceX: draft.surfaceX, surfaceY: draft.surfaceY, kb: draft.kbM };
+    // plan-view placement only: a blank KB (not set) draws the same map position
+    const opts = { surfaceX: draft.surfaceX, surfaceY: draft.surfaceY, kb: draft.kbM ?? 0 };
     const path = draft.deviation.length >= 2
       ? computeWellPath(draft.deviation, opts)
       : verticalWellPath({ ...opts, td: draft.tdMdM });

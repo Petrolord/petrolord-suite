@@ -12,7 +12,7 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { resolveUserOrgId } from '@/lib/orgContext';
 import {
-  saveWell, listWells, updateWell, updateWellData, deleteWell,
+  saveWell, listWells, updateWell, updateWellData, updateWellDatum, deleteWell, datumColumnsKnownMissing,
   shareWell, unshareWell,
   listTops, replaceTops, saveTop, updateTop, deleteTop,
   listLogs, saveLogs, deleteLog, downloadCurve,
@@ -40,6 +40,15 @@ export function makeRegistryBackend() {
     saveWell,
     updateWell,
     updateWellData,
+    updateWellDatum,
+    /** false once a read or a write has shown the registry has no datum columns yet. */
+    hasDatumColumns: () => !datumColumnsKnownMissing(),
+    /** Who is signed in, for the datum change record (id and a readable name). */
+    async currentUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      return { id: user.id, name: user.user_metadata?.full_name || user.user_metadata?.name || user.email || null };
+    },
     deleteWell,
     listTops,
     replaceTops,

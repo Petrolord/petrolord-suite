@@ -35,6 +35,7 @@ import {
 } from '../engine/tieWarp';
 import { effectiveCheckshots } from '../services/wellsService';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { readWellDatum, refElevOrNull } from '@/lib/wellDatum';
 
 const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 
@@ -474,8 +475,12 @@ export default function SyntheticsPanel({
       throw new Error(`Well "${well.name}" has no deviation survey and no TD, so `
         + 'a synthetic cannot be placed in depth.');
     }
+    // WDM-U2-007: a synthetic is placed in time through the well's subsea
+    // depth, so a well with no reference elevation is refused with the reason
+    const wd = readWellDatum(well);
+    if (!wd.tvdssOk) throw new Error(`${wd.tvdssReason} A synthetic and a well tie are placed through the well's subsea depth.`);
     const path = computeWellPath(stations, {
-      surfaceX: well.surface_x, surfaceY: well.surface_y, kb: well.kb_m || 0,
+      surfaceX: well.surface_x, surfaceY: well.surface_y, kb: wd.refElevM,
     });
     let ilxl = null;
     if (affine && geom) {
@@ -550,7 +555,7 @@ export default function SyntheticsPanel({
         mdStartM: sonicLog.start_md_m,
         mdStepM: sonicLog.step_m,
         stations,
-        kbM: well.kb_m || 0,
+        kbM: refElevOrNull(well) ?? 0, // locateWell above refused a well with none
         surfaceX: well.surface_x,
         surfaceY: well.surface_y,
         checkshots: effectiveCheckshots(well).rows,
@@ -826,7 +831,7 @@ export default function SyntheticsPanel({
     const r = view.result;
     const { stations } = view;
     const path = computeWellPath(stations, {
-      surfaceX: view.well.surface_x, surfaceY: view.well.surface_y, kb: view.well.kb_m || 0,
+      surfaceX: view.well.surface_x, surfaceY: view.well.surface_y, kb: refElevOrNull(view.well) ?? 0,
     });
     const mds = [];
     const twts = [];

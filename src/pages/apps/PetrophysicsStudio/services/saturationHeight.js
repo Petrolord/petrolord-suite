@@ -15,7 +15,7 @@
 
 import { makeJFunction, pcFromJ, heightFromPc } from '@/utils/scalCalculations';
 import { buildJSpec, buildReservoirProps } from '@/contexts/ScalStudioContext';
-import { makeDepthFrame } from '../../WellDataManager/engine/checkshots';
+import { makeWellFrame } from '@/lib/wellDatum';
 
 const M_PER_FT = 0.3048;
 const num = (v) => (v === '' || v === null || v === undefined ? NaN : Number(v));
@@ -86,7 +86,9 @@ export function shmCurve({ shm, depth, well, fwlTvdssM = null, rock = 'project',
   if (!shm?.ok) return { ok: false, reason: shm?.errors?.[0] || 'No saturation-height function.' };
   const fwl = Number.isFinite(fwlTvdssM) ? fwlTvdssM : shm.fwlTvdssM;
   if (!Number.isFinite(fwl)) return { ok: false, reason: 'No free-water level: the SCAL project has none; type one.' };
-  const frame = makeDepthFrame({ deviation: well?.deviation, kbM: well?.kb_m ?? 0, tdMdM: well?.td_md_m });
+  const frame = makeWellFrame(well);
+  // height above the free-water level is read in TVDSS: no reference elevation, no curve
+  if (!frame.datum.tvdssOk) return { ok: false, reason: `${frame.datum.tvdssReason} Saturation height is measured from the free-water level in TVDSS.` };
   const n = depth.length;
   const data = new Float64Array(n).fill(NaN);
   for (let i = 0; i < n; i++) {

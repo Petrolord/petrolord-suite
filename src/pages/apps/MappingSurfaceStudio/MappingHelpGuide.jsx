@@ -16,7 +16,7 @@ import {
 } from '@/components/helpguide/HelpGuideLayout';
 import { EXPORT_FORMATS } from './services/surfaceExport';
 import { ARITH_OPS } from './services/arithmetic';
-import { CONTROL_POINT_SKIP_REASONS } from './engine/surface';
+import { CONTROL_POINT_SKIP_REASONS } from './services/topControlPoints';
 
 const APP_PATH = '/dashboard/apps/geoscience/mapping-surface-studio';
 
@@ -100,6 +100,7 @@ export default function MappingHelpGuide() {
             bad_md: 'The top depth is not a number.',
             bad_survey: 'The deviation survey cannot be used (fewer than two stations, or a station out of order).',
             above_survey: 'The top depth is negative, above the wellhead.',
+            no_datum: 'The well states no depth reference elevation (KB, RT, DF or ground level above the vertical datum), so its top has no subsea depth. A TVDSS map leaves it out; an MD or TVD map keeps it. Set it in Well Data Manager, Header tab, Depth reference.',
           }[k]])} />
       </GuideSection>
 
@@ -271,6 +272,18 @@ export default function MappingHelpGuide() {
           exports to Irap classic only; CPS-3, ZMAP+ and XYZ have no rotation field and refuse it with a message, so
           resample it onto an unrotated frame first (surface arithmetic, A plus 0, onto another surface's frame is one
           way). A rotated grid is imported in the project CRS only.
+        </Para>
+        <SubHeading>Scanned maps: the Contour Map Digitizer</SubHeading>
+        <Para>
+          A paper or scanned contour map comes in through the Contour Map Digitizer: drop the image, georeference it on
+          control points, trace and value the contours, grid, and publish the surface to the registry. Save Project keeps
+          the lines, the control points and the settings, and keeps the map image with the project in private storage that
+          only you can read (PNG, JPEG or WebP, up to 25 MB), so loading the project puts the image back under the lines.
+          Replace image swaps the stored image for another one and keeps the work; Delete project removes the project and
+          its stored image. A file that is not an image by its content, an empty file, a TIFF or a file over the limit is
+          refused with the reason. Where image storage is not switched on yet, the project still saves and says that the
+          image is not kept; loading then asks for the image, as before. Colleagues do not see a project's image: Digitizer
+          projects are personal.
         </Para>
 </GuideSection>
 

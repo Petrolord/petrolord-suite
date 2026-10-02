@@ -425,3 +425,27 @@ are in `docs/upgrade/WellDataManager-UPGRADE.md` ("Batch decision",
 U2-012 team editing: the owner of an organisation well can let colleagues edit it, one person at a time (the control is above the well's tabs); the header, surveys, tops, logs, zones, intervals and core photos follow the well's editing session; every change is in the well's history. Second migration `20261002110000_geo_wells_team_editing.sql`, apply after the first. Tests: `__tests__/orgSharing.test.jsx`.
 
 Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Until the migration is applied the control is a short note and saving works as before.
+
+## Datum model (U2-007), 2026-10-02: built, migration pending the owner's apply
+
+PR #848, branch `feat/datum-digitizer`. Design and per-well plan:
+`docs/scope/WellDatum-DESIGN-AND-STATUS.md`.
+
+- A well states its depth reference (KB, RT, DF, GL, MSL or a named point),
+  its elevation above the vertical datum, the datum's name, onshore or
+  offshore, ground level or water depth, and the entry unit. Not entered is
+  NULL, never 0.
+- `src/lib/wellDatum.js` is the one place that converts MD, TVD, TVDSS,
+  elevation and depth below mudline or ground; every app reads through it.
+- Header: Depth reference block with checks, a confirmation that lists what a
+  correction moves, checkshots re-derived, the change recorded (who, when,
+  from, to, reason). LAS headers propose the datum; the user confirms.
+- Migration `20261002090000_geo_wells_datum_model.sql` is NOT APPLIED. Owner:
+  `supabase db query --linked -f supabase/migrations/20261002090000_geo_wells_datum_model.sql`.
+  Until then the app reads `kb_m` as the KB elevation (a 0 with a note) and
+  saves the elevation only, saying so.
+- After apply: 12 live wells state a KB, Lad (KB 0, a Well Design publish) is
+  not set until its elevation is entered. Alaoma-1 (1 m) and Alaoma-2 (2 m)
+  are implausibly small for a kelly bushing: owner to check.
+- Also fixed: Assign CRS merged into `crs_provenance` (it dropped Wellsite's
+  survey source).

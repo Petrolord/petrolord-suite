@@ -33,7 +33,7 @@ import { orderedUnits } from '@/lib/stratigraphy/column';
 import { listLogs, downloadCurve, effectiveCheckshots } from '../../../services/wellsService';
 import { saveHorizon } from '../../../services/horizonsService';
 import {
-  pipelineWells, loadTieLogs, fieldTopOrder, saveFramework,
+  pipelineWells, loadTieLogs, fieldTopOrder, saveFramework, NO_DATUM_REASON,
 } from '../../../services/topsToHorizons';
 import {
   applyChoices, defaultAoi, LOWO_MAX_TRACES,
@@ -286,7 +286,8 @@ export default function TopsToHorizonsDialog({
                   <tbody>
                     {wellInfo.map((w) => {
                       const tie = match?.ties.find((t) => t.name === w.name);
-                      const skip = match?.skipped.find((s) => s.name === w.name);
+                      const noDatum = wells.find((x) => x.id === w.id)?.datumOk === false;
+                      const skip = noDatum ? { reason: NO_DATUM_REASON } : match?.skipped.find((s) => s.name === w.name);
                       return (
                         <tr key={w.id} className="border-t border-pl-border">
                           <td className="py-1">{w.name}</td>

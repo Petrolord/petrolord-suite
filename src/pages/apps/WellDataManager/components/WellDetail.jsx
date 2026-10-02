@@ -12,7 +12,7 @@ import { Loader2, Trash2, Building2, Lock, Pencil, Download } from 'lucide-react
 import LogTracks from './LogTracks';
 import ExportDialog from './ExportDialog';
 import ZonesPanel from './ZonesPanel';
-import { curveOrigin } from '../engine/provenance';
+import { curveOrigin, assignedCrsProvenance } from '../engine/provenance';
 import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import { mapTopHref, appPath, MAPPING_ID } from '@/components/wells/appLinks';
 import CrsBadge from '@/components/crs/CrsBadge';
@@ -27,10 +27,14 @@ import IntervalsEditor from '@/components/wells/IntervalsEditor';
 import CoreImagesPanel from '@/components/wells/CoreImagesPanel';
 import { useScheme } from '@/lib/stratigraphy/scheme';
 import {
-  makeDepthFrame, toStoredCheckshots, fromStoredCheckshots, rebaseStoredCheckshots,
+  toStoredCheckshots, fromStoredCheckshots, rebaseStoredCheckshots,
   makeCheckshotProvenance, LEGACY_CHECKSHOT_PROVENANCE, PETREL_CHECKSHOT_CONVENTION,
 } from '../engine/checkshots';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import {
+  readWellDatum, makeWellFrame, datumFromEntry, datumToEntry, datumChangeImpact, datumChangeRecord, rebaseCheckshotsForDatum,
+} from '@/lib/wellDatum';
+import { DatumFields, DatumProblems, DatumImpact, DatumSummary } from '@/components/wells/DatumEditor';
 import { fmtDepth, editCell, parseDisplayed, unitText, toDisp } from '../engine/displayUnits';
 import { bottomUpLogs, orientForDisplay, planReorient } from '../engine/reorient';
 import { isDepthAlias } from '../engine/lasIndex';
@@ -148,7 +152,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
   }, [refreshChildren, refreshNonce]);
 
   // PT1: leave any edit mode when the well changes
-  useEffect(() => { setEditor(null); setCsView(null); setStatusValue(null); setTopsUndo(null); }, [well.id]);
+  useEffect(() => { setEditor(null); setCsView(null); setStatusValue(null); setTopsUndo(null); setCrsPatch(null); setAssigningCrs(false); }, [well.id]);
 
   // PT8: the frame the surface coordinates are already in. Editing them
   // never transforms anything, so the label states the frame plainly.
@@ -160,7 +164,12 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
 
   const entered = useMemo(() => conventionOf(well), [well]);
   const csDisplay = csView || entered;
-  const frame = useMemo(() => makeDepthFrame({ deviation: well.deviation, kbM: well.kb_m ?? 0, tdMdM: well.td_md_m }), [well.deviation, well.kb_m, well.td_md_m]);
+  // WDM-U2-007: the well's datum and its depth frame come from the shared
+  // datum module; nothing here subtracts a KB
+  // (read on every render: it is cheap, and a row updated in place must show)
+  const datum = readWellDatum(well);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const frame = useMemo(() => makeWellFrame(well), [well.deviation, well.td_md_m, datum.state, datum.refElevM, datum.environment, datum.waterDepthM, datum.groundElevM]);
   const csRows = useMemo(() => {
     try { return fromStoredCheckshots(well.checkshots || [], csDisplay, frame); } catch (e) { return []; }
   }, [well.checkshots, csDisplay, frame]);
@@ -173,9 +182,10 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
     }
     return out;
   }, [tops, frame]);
+  const refText = datum.tvdssOk ? `${datum.refLabel} ${fmtDepth(datum.refElevM, unit)} ${u}` : 'no reference elevation (TVDSS not available)';
   const frameNote = frame.isVertical
-    ? 'No deviation survey: the well is treated as vertical (MD = TVD, TVDSS = MD - KB).'
-    : `Converting through the ${frame.stations.length}-station survey and KB ${fmtDepth(well.kb_m, unit)} ${u}${frame.assumedVerticalToFirstStation ? ' (vertical above the first station)' : ''}.`;
+    ? `No deviation survey: the well is treated as vertical (MD = TVD, TVDSS = MD less the reference elevation; ${refText}).`
+    : `Converting through the ${frame.stations.length}-station survey and ${refText}${frame.assumedVerticalToFirstStation ? ' (vertical above the first station)' : ''}.`;
 
   /** Re-express the grid rows when the user switches convention mid-edit. */
   const regridRows = (rows, from, to) => {
@@ -197,10 +207,13 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
           // NOT touched by the m/ft selector below (that is a depth unit).
           x: well.surface_x == null ? '' : numCell(Number(well.surface_x), 3),
           y: well.surface_y == null ? '' : numCell(Number(well.surface_y), 3),
-          kb: editCell(well.kb_m ?? 0, unit, 3),
           td: editCell(well.td_md_m, unit, 2),
           unit: u,
         },
+        // WDM-U2-007: the datum fields in the display unit; blank = not set
+        datum: datumToEntry(datum, u, 3),
+        confirm: null,
+        reason: '',
         error: null,
         busy: false });
     } else if (which === 'Tops') {
@@ -224,7 +237,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
     if (onWellChanged) await onWellChanged(row);
   };
 
-  const saveEditor = async () => {
+  const saveEditor = async ({ confirmed = false } = {}) => {
     if (!editor) return;
     setEditor((ed) => ({ ...ed, busy: true, error: null }));
     try {
@@ -242,26 +255,48 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
         };
         const surfaceX = coord(f.x, 'Surface X');
         const surfaceY = coord(f.y, 'Surface Y');
-        // WDM-U2-001: an untouched KB or TD keeps its stored metres exactly
-        const kbM = parseDisplayed(f.kb, f.unit, well.kb_m ?? 0, 3);
-        if (!Number.isFinite(kbM)) throw new Error(`KB must be a number (${f.unit} above datum).`);
+        // WDM-U2-001: an untouched TD keeps its stored metres exactly
         const tdMdM = f.td.trim() === '' ? null : parseDisplayed(f.td, f.unit, well.td_md_m, 2);
         if (tdMdM !== null && !(tdMdM > 0)) throw new Error(`TD must be a positive number (${f.unit} MD).`);
-        const patch = { surfaceX, surfaceY, kbM, tdMdM };
-        let note = '';
-        if ((well.checkshots || []).length && Math.abs(kbM - (well.kb_m ?? 0)) > 1e-9) {
-          if (well.checkshots_provenance) {
-            const next = makeDepthFrame({ deviation: well.deviation, kbM, tdMdM });
-            const rb = rebaseStoredCheckshots(well.checkshots, well.checkshots_provenance, next);
-            patch.checkshots = rb.rows;
-            patch.checkshotsProvenance = rb.provenance;
-            note = ` Checkshots re-derived for KB ${fmt(kbM, 2)} m (${rb.rows.length} rows, ${REF_LABEL[rb.provenance.units_in.depth_ref]} reference kept).`;
-          } else {
-            note = ' Legacy checkshot table left as stored (assumed TVDSS).';
-          }
+        // WDM-U2-007: the datum, checked by the shared module. An elevation
+        // typed with no kind is a KB (the field used to be the KB field).
+        const typed = { ...editor.datum, refKind: editor.datum.refKind || (editor.datum.refElev.trim() !== '' ? 'KB' : '') };
+        const entry = datumFromEntry(typed, f.unit, { original: datum, digits: 3 });
+        if (entry.errors.length) throw new Error(entry.errors[0]);
+        const next = entry.datum;
+        const counts = { tops: (tops || []).length, curves: (logs || []).length, zones: (zones || []).length, unit };
+        const impact = datumChangeImpact(well, next, counts);
+        if (impact.needsConfirm && !confirmed) {
+          // a correction with consequences: show what moves and wait
+          setEditor((ed) => ({ ...ed, busy: false, confirm: impact }));
+          return;
         }
-        const row = await backend.updateWellData(well.id, patch, { versioned: true });
-        await finish(row, `Header saved.${note}`);
+        let row = well;
+        const coordsChanged = surfaceX !== Number(well.surface_x) || surfaceY !== Number(well.surface_y) || (tdMdM ?? null) !== (well.td_md_m ?? null);
+        // U2-012: versioned writes, so a stale editor is refused with the reason
+        if (coordsChanged) row = await backend.updateWellData(well.id, { surfaceX, surfaceY, tdMdM }, { versioned: true });
+        let note = '';
+        if (impact.kind !== 'none') {
+          // the checkshot table re-derived through the new elevation, in the same write
+          const cs = rebaseCheckshotsForDatum(well, next, { tdMdM });
+          const opts = { ...(cs.checkshots ? { checkshots: cs.checkshots, checkshotsProvenance: cs.checkshotsProvenance } : {}) };
+          note = cs.note;
+          const who = backend.currentUser ? await backend.currentUser().catch(() => null) : null;
+          opts.record = datumChangeRecord(well, next, { userId: who?.id, userName: who?.name, reason: editor.reason, app: 'well-data-manager', impact, counts });
+          if (typeof backend.updateWellDatum === 'function') {
+            const res = await backend.updateWellDatum({ ...well, ...row }, next, { ...opts, versioned: true });
+            row = res.row;
+            if (res.dropped.length) note += ` Saved the elevation only: the ${res.dropped.join(', ')} cannot be kept until the registry is upgraded.`;
+          } else {
+            // a backend without the datum door keeps the elevation as the KB
+            row = await backend.updateWellData(well.id, { kbM: next.refElevM ?? 0, ...(opts.checkshots ? { checkshots: opts.checkshots, checkshotsProvenance: opts.checkshotsProvenance } : {}) }, { versioned: true });
+          }
+        } else if (!coordsChanged) {
+          setEditor(null);
+          onStatus('Nothing changed.');
+          return;
+        }
+        await finish(row, `Header saved.${impact.kind !== 'none' ? ' Depth reference recorded.' : ''}${note}`);
         return;
       }
       if (editor.tab === 'Deviation') {
@@ -276,7 +311,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
         const patch = { deviation: stations };
         let note = '';
         if ((well.checkshots || []).length && well.checkshots_provenance?.units_in?.depth_ref === 'md') {
-          const next = makeDepthFrame({ deviation: stations, kbM: well.kb_m ?? 0, tdMdM: well.td_md_m });
+          const next = makeWellFrame(well, { deviation: stations });
           const rb = rebaseStoredCheckshots(well.checkshots, well.checkshots_provenance, next);
           patch.checkshots = rb.rows;
           patch.checkshotsProvenance = rb.provenance;
@@ -298,9 +333,11 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
         let rows = [];
         let prov = null;
         if (inputs.length) {
+          // the stored table is keyed on TVDSS, so it needs the datum
+          if (!datum.tvdssOk) throw new Error(`${datum.tvdssReason} Checkshots are stored against TVDSS and cannot be saved before that.`);
           const res = toStoredCheckshots(inputs, editor.conv, frame);
           rows = res.rows;
-          prov = makeCheckshotProvenance(editor.conv, { source: 'wdm-edit', kbM: well.kb_m ?? 0, stations: frame.stations ? frame.stations.length : 0 });
+          prov = makeCheckshotProvenance(editor.conv, { source: 'wdm-edit', kbM: frame.kbM, stations: frame.stations ? frame.stations.length : 0 });
           if (editor.mode === 'paste' && editor.conv.elevation) prov.z_elevation = true;
           if (res.warnings.length) onStatus(res.warnings[0]);
         }
@@ -424,6 +461,14 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
     ? (surfaceCoordProblem('Surface X', editor.fields.x, `${xyUnitLabel}, ${crsLabel}`) || surfaceCoordProblem('Surface Y', editor.fields.y, `${xyUnitLabel}, ${crsLabel}`))
     : null;
 
+  // WDM-U2-007: the datum as typed, checked on every keystroke by the shared module
+  const headerDatumCheck = (() => {
+    if (editor?.tab !== 'Header' || !editor.datum) return { errors: [], warnings: [] };
+    const typed = { ...editor.datum, refKind: editor.datum.refKind || (editor.datum.refElev.trim() !== '' ? 'KB' : '') };
+    const r = datumFromEntry(typed, editor.fields.unit, { original: datum, digits: 3 });
+    return { errors: r.errors, warnings: r.warnings };
+  })();
+
   // WDM-U2-016: put the tops back as they were before the last save
   const undoTops = async () => {
     if (!topsUndo || topsUndo.wellId !== well.id) return;
@@ -539,30 +584,33 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                   data-testid="wdm-header-y" inputMode="decimal" />
               ) : fmt(well.surface_y)}
             </Field>
-            <Field label={`KB (${u})`}>
-              {editor?.tab === 'Header' ? (
-                <span className="flex items-center gap-1">
-                  <input className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-24"
-                    value={editor.fields.kb} onChange={(e) => setEditor((ed) => ({ ...ed, fields: { ...ed.fields, kb: e.target.value } }))}
-                    data-testid="wdm-header-kb" />
-                  <select className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs" value={editor.fields.unit}
-                    onChange={(e) => {
-                      // PL3: switching the unit converts the typed values, it never relabels them
-                      const next = e.target.value;
-                      setEditor((ed) => {
-                        const conv = (txt, orig, d) => {
-                          const m = parseDisplayed(txt, ed.fields.unit, orig, d);
-                          return Number.isFinite(m) ? (Math.abs(m - (orig ?? NaN)) < 1e-12 ? editCell(orig, next, d) : String(Number(toDisp(m, next).toFixed(6)))) : txt;
-                        };
-                        return { ...ed, fields: { ...ed.fields, unit: next, kb: conv(ed.fields.kb, well.kb_m ?? 0, 3), td: conv(ed.fields.td, well.td_md_m, 2) } };
-                      });
-                    }} data-testid="wdm-header-unit">
-                    <option value="m">m</option>
-                    <option value="ft">ft</option>
-                  </select>
-                </span>
-              ) : fmtDepth(well.kb_m, unit)}
-            </Field>
+            {editor?.tab === 'Header' ? (
+              <Field label="Unit of the depths typed here">
+                <select className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs" value={editor.fields.unit}
+                  onChange={(e) => {
+                    // PL3: switching the unit converts the typed values, it never relabels them
+                    const next = e.target.value;
+                    setEditor((ed) => {
+                      const conv = (txt, orig, d) => {
+                        const m = parseDisplayed(txt, ed.fields.unit, orig, d);
+                        return Number.isFinite(m) ? (Math.abs(m - (orig ?? NaN)) < 1e-12 ? editCell(orig, next, d) : String(Number(toDisp(m, next).toFixed(6)))) : txt;
+                      };
+                      const dv = (txt, orig) => (String(txt).trim() === '' ? '' : conv(txt, orig, 3));
+                      return { ...ed, confirm: null,
+                        fields: { ...ed.fields, unit: next, td: conv(ed.fields.td, well.td_md_m, 2) },
+                        datum: { ...ed.datum, refElev: dv(ed.datum.refElev, datum.tvdssOk ? datum.refElevM : null),
+                          groundElev: dv(ed.datum.groundElev, datum.groundElevM), waterDepth: dv(ed.datum.waterDepth, datum.waterDepthM) } };
+                    });
+                  }} data-testid="wdm-header-unit" title="Unit of the elevations and TD typed here">
+                  <option value="m">m</option>
+                  <option value="ft">ft</option>
+                </select>
+              </Field>
+            ) : (
+              <Field label={`${datum.tvdssOk ? datum.refLabel : 'Reference'} elevation (${u})`}>
+                <span data-testid="wdm-header-ref-elev">{datum.tvdssOk && datum.state !== 'legacy-zero' ? fmtDepth(datum.refElevM, unit) : 'not set'}</span>
+              </Field>
+            )}
             <Field label={`TD (${u} MD)`}>
               {editor?.tab === 'Header' ? (
                 <input className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-24"
@@ -594,11 +642,10 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                       try {
                         const patch = {
                           crs: tag === 'UNKNOWN' ? null : tag,
-                          crs_provenance: {
-                            assigned_manually: true,
-                            declared_crs: tag,
-                            date: new Date().toISOString(),
-                          },
+                          // merged: Wellsite's survey source, the site datum
+                          // transformation and the reprojection chain live in
+                          // the same object and are kept
+                          crs_provenance: assignedCrsProvenance(well.crs_provenance, tag),
                         };
                         await backend.updateWell(well.id, patch, { versioned: true, note: 'Header edited' });
                         setCrsPatch(patch);
@@ -654,12 +701,26 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
             <Field label="Deviation stations">{(well.deviation || []).length}</Field>
             {registrySurveySourceText(well.crs_provenance) && <Field label="Survey source"><span data-testid="wdm-survey-source">{registrySurveySourceText(well.crs_provenance)}</span></Field>}
             <Field label="Checkshot pairs">{(well.checkshots || []).length}</Field>
+            <div className="col-span-2 md:col-span-3" data-testid="wdm-datum">
+              <div className="text-[11px] uppercase tracking-wider text-pl-muted">Depth reference</div>
+              {editor?.tab === 'Header' ? (
+                <div className="space-y-1.5 mt-1">
+                  <DatumFields fields={editor.datum} unit={editor.fields.unit} columns={datum.columns} testIdPrefix="wdm-datum" elevTestId="wdm-header-kb"
+                    onChange={(next) => setEditor((ed) => ({ ...ed, datum: next, confirm: null }))} />
+                  <DatumProblems {...headerDatumCheck} testIdPrefix="wdm-datum" />
+                  <DatumImpact impact={editor.confirm} reason={editor.reason} busy={editor.busy} testIdPrefix="wdm-datum"
+                    onReason={(v) => setEditor((ed) => ({ ...ed, reason: v }))}
+                    onConfirm={() => saveEditor({ confirmed: true })}
+                    onCancel={() => setEditor((ed) => ({ ...ed, confirm: null }))} />
+                </div>
+              ) : <DatumSummary datum={datum} unit={unit} testIdPrefix="wdm-datum" />}
+            </div>
             {editor?.tab === 'Header' && (
               <div className="col-span-2 md:col-span-3 space-y-1">
                 {headerProblem && <div className="text-xs text-pl-warning-text" data-testid="wdm-header-reason">{headerProblem}</div>}
                 {editor.error && <div className="text-xs text-pl-danger-text" data-testid="wdm-header-error">{editor.error}</div>}
                 <div className="flex gap-2">
-                  <button type="button" className={primaryCls} disabled={editor.busy || !!headerProblem} onClick={() => saveEditor()} data-testid="wdm-header-save">Save header</button>
+                  <button type="button" className={primaryCls} disabled={editor.busy || !!headerProblem || headerDatumCheck.errors.length > 0 || !!editor.confirm} onClick={() => saveEditor()} data-testid="wdm-header-save">Save header</button>
                   <button type="button" className={btnCls} onClick={() => setEditor(null)}>Cancel</button>
                 </div>
               </div>
@@ -855,9 +916,9 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                   Undo last tops save ({topsUndo.what})
                 </button>
               )}
-              {!(Number(well.kb_m) > 0) && (
+              {(!datum.tvdssOk || datum.note) && (
                 <p className="text-[11px] text-pl-warning-text" data-testid="wdm-tops-kb-note">
-                  KB is not set on this well (0 m), so TVDSS equals TVD. Set the KB on the Header tab.
+                  {datum.tvdssOk ? datum.note : `${datum.tvdssReason} MD and TVD are shown; TVDSS is withheld.`}
                 </p>
               )}
               {[...topDepths.values()].some((p) => p?.extrapolated) && (

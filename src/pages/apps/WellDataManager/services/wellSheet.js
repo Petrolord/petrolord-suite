@@ -13,7 +13,7 @@ import 'jspdf-autotable';
 import { loadPetrolordLogo, drawBrandHeader } from '@/lib/pdfBrand';
 import { buildLabel } from '@/lib/platformBuild';
 import { crsDisplayName, datumTransformInfo, rowDatumTransform } from '@/lib/crs';
-import { makeDepthFrame } from '../engine/checkshots';
+import { makeWellFrame, readWellDatum } from '@/lib/wellDatum';
 import { fmtDepth, unitText } from '../engine/displayUnits';
 import { wellInventory, FLAG_BY_CODE } from '../engine/inventory';
 import { curveOrigin } from '../engine/provenance';
@@ -52,7 +52,8 @@ export async function buildWellSheet({ well, logs = [], tops = [], zones = [], u
     logo, margin, pageWidth, appTitle: 'Well Data Manager', subtitle: 'Well data sheet', rightLines: [latin1(well.name)],
   }) + 8;
 
-  const frame = makeDepthFrame({ deviation: well.deviation, kbM: well.kb_m ?? 0, tdMdM: well.td_md_m });
+  const datum = readWellDatum(well);
+  const frame = makeWellFrame(well);
   const dt = rowDatumTransform(well);
   const dtInfo = dt ? datumTransformInfo(well.crs, dt) : null;
   const xyUnit = well.xy_unit || 'm';
@@ -68,8 +69,12 @@ export async function buildWellSheet({ well, logs = [], tops = [], zones = [], u
     ['Surface X, Y', well.surface_x != null && well.surface_y != null ? `${Number(well.surface_x).toFixed(2)}, ${Number(well.surface_y).toFixed(2)} ${xyUnit}` : EMPTY_VALUE],
     ...(dtInfo ? [['Datum transformation', `${dtInfo.transform.name} (${dtInfo.transform.code}), site choice`]] : []),
     ['Depth unit', `${u === 'ft' ? 'feet' : 'metres'} (the registry stores metres)`],
-    ['Vertical datum', 'mean sea level (assumed; not stored per well)'],
-    ['KB', Number(well.kb_m) > 0 ? `${fmtDepth(well.kb_m, u, 2)} ${u} above datum` : `not set (TVDSS equals TVD)`],
+    ['Vertical datum', datum.verticalDatum || 'not named (elevations read as above mean sea level)'],
+    ['Depth reference', datum.tvdssOk && datum.state !== 'legacy-zero'
+      ? `${datum.refLabel} ${fmtDepth(datum.refElevM, u, 2)} ${u} above datum`
+      : datum.tvdssOk ? 'KB not set (0 in the registry; TVDSS equals TVD)' : 'not set (TVDSS withheld)'],
+    ...(datum.environment === 'offshore' ? [['Water depth', Number.isFinite(datum.waterDepthM) ? `${fmtDepth(datum.waterDepthM, u, 2)} ${u} (offshore)` : 'not set (offshore)']] : []),
+    ...(datum.environment === 'onshore' ? [['Ground level', Number.isFinite(datum.groundElevM) ? `${fmtDepth(datum.groundElevM, u, 2)} ${u} above datum (onshore)` : 'not set (onshore)']] : []),
     ['TD', well.td_md_m != null ? `${fmtDepth(well.td_md_m, u, 1)} ${u} MD` : EMPTY_VALUE],
     ['Deviation survey', frame.isVertical ? 'none (treated as vertical)' : `${(well.deviation || []).length} stations, grid azimuths, minimum curvature`],
     ['Checkshots', cs.length ? `${cs.length} pairs${csIn ? `, entered as ${String(csIn.depth_ref).toUpperCase()} ${csIn.depth_unit} / ${String(csIn.time).toUpperCase()}` : ' (legacy, TVDSS / TWT)'}` : EMPTY_VALUE],
@@ -140,7 +145,7 @@ export async function buildWellSheet({ well, logs = [], tops = [], zones = [], u
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 110, 125);
-    doc.text(latin1(`${well.name} well data sheet, ${buildLabel()}. Depths in ${u}, MD below KB unless stated.`), margin, doc.internal.pageSize.getHeight() - 6);
+    doc.text(latin1(`${well.name} well data sheet, ${buildLabel()}. Depths in ${u}, MD below ${datum.refKind ? datum.refLabel : 'the depth reference'} unless stated.`), margin, doc.internal.pageSize.getHeight() - 6);
     doc.text(`Page ${i} of ${pages}`, pageWidth - margin, doc.internal.pageSize.getHeight() - 6, { align: 'right' });
   }
   return { doc, fileName: `${fileStem(latin1(well.name))}_data_sheet.pdf` };

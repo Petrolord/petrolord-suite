@@ -165,7 +165,15 @@ test('PT1: Petrel checkshots (MD ft + OWT) convert at the door, read back as ent
   await page.getByTestId('wdm-edit-header').click();
   await page.getByTestId('wdm-header-kb').fill('45');
   await page.getByTestId('wdm-header-save').click();
+  // WDM-U2-007: a datum correction on a well with data shows what moves and waits for a confirmation
+  const impact = page.getByTestId('wdm-datum-impact');
+  await expect(impact).toContainText('from 30.00 m to 45.00 m');
+  await expect(impact).toContainText('15.00 m shallower');
+  await expect(impact).toContainText('3 checkshot rows: re-derived');
+  await page.getByTestId('wdm-datum-reason').fill('rig survey report');
+  await page.getByTestId('wdm-datum-confirm').click();
   await expect(page.getByTestId('wdm-status')).toContainText('re-derived');
+  await expect(page.getByTestId('wdm-datum-history')).toContainText('changed the depth reference from KB 30.00 m to KB 45.00 m (rig survey report)');
   await page.getByTestId('wdm-detail-tab-checkshots').click();
   await expect(rows.first()).toContainText('259.80');
 

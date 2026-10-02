@@ -81,6 +81,7 @@ import { zoneReports, zonePublishProperties, verticalSampleThickness } from '../
 import { cpiImages } from '../services/cpiPages';
 import { swSystemOf, labelSaturation } from '../services/swSystem';
 import { depthLabel, DEPTH_TRACK_KEYS, DEPTH_TRACK_TITLE } from '../viewer/depthModes';
+import { readWellDatum } from '@/lib/wellDatum';
 
 /** @param {string} [p.wellDataManagerPath] route of the Well Data Manager
  *  the explorer's "Edit well data" link opens (the harness points at its
@@ -792,8 +793,8 @@ export default function PetroWorkstation({
   const trackPngBlob = useCallback(async () => {
     if (!trackExportRef.current) throw new Error('Open the Tracks view first, then export the plot.');
     const [top, base] = trackExportRef.current.visibleRange();
-    const kb = Number(selected?.kb_m);
-    const datum = Number.isFinite(kb) ? `datum KB ${depthLabel(kb, depthUnit)}` : 'datum: KB not recorded';
+    const wd = readWellDatum(selected);
+    const datum = wd.tvdssOk ? `datum ${wd.refLabel} ${depthLabel(wd.refElevM, depthUnit)}` : 'datum: reference elevation not set';
     const blob = await trackExportRef.current.toPng({
       title: `${selected.name} · Petrophysics Studio`,
       caption: `${depthLabel(top, depthUnit)} to ${depthLabel(base, depthUnit)} MD · ${datum}`

@@ -247,3 +247,10 @@ Batch decision and the build log per item: `docs/upgrade/EarthModeling-UPGRADE.m
 U2-014: a saved model can be shared with the organisation, for viewing or for editing one person at a time; shared models are listed under "Shared with me"; saves name the version opened. Tests: `__tests__/orgSharing.test.jsx`, `e2e/org-sharing.spec.js`.
 
 Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Until the migration is applied the control is a short note and saving works as before.
+
+## 2026-10-02: the well datum model (WDM U2-007, PR #848)
+
+A well that states no depth reference elevation is left out of the ties, the
+properties, the section and the 3D scene, and the build notes name it
+(`services/modelBuild.js`, `framework3d.js`). Wells saved before the model
+tie as they did. Test: `__tests__/upgradeDatum.test.js`.
