@@ -22,11 +22,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isPrePt9aPhie, PRE_PT9A_PHIE_NOTE } from '@/lib/petroProvenance';
 import { Link } from 'react-router-dom';
-import { Waves, Loader2, Save, HelpCircle, Database } from 'lucide-react';
+import { Waves, Loader2, Save, HelpCircle, Database, Users } from 'lucide-react';
 import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import { useAppUnits } from '@/lib/units/useAppUnits';
 import UnitProfileNote from '@/components/units/UnitProfileNote';
 import { appPath, wellDataManagerHref, WELL_DATA_MANAGER_ID } from '@/components/wells/appLinks';
+import { RecordSharingBar, useRecordSharing } from '@/components/recordSharing';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -80,6 +81,19 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [projectId, setProjectId] = useState(null);
+  // Organisation sharing (rp_projects): the open project's row (the user's own
+  // by default, or one a colleague shared), the shared ones on offer, and the
+  // sharing state, check-out and history of the open one.
+  const [projectRow, setProjectRow] = useState(null);
+  const [sharedProjects, setSharedProjects] = useState([]);
+  const [shareOpen, setShareOpen] = useState(false);
+  const sharing = useRecordSharing({
+    store: backend.sharing,
+    table: 'rp_projects',
+    record: projectRow,
+    onChange: (next) => setProjectRow((r) => (r && r.id === next.id ? { ...r, ...next } : r)),
+  });
+  const viewingShared = !!projectRow && !!sharing.userId && !!projectRow.user_id && projectRow.user_id !== sharing.userId;
   // RP-U1-013: the zone is workstation state so Save keeps it with the well
   const [zoneId, setZoneId] = useState('');
   const [restoreWellId, setRestoreWellId] = useState(null);
@@ -110,6 +124,26 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   }, { fallback: { ...readUnits(storage()), temperature: 'degC', pressure: 'MPa', gor: 'm3/m3' }, legacyKeys: [UNITS_KEY] });
   const { units, setUnit } = unitsHook;
 
+  // RP-U1-001: rows from any release open through one tolerant reader.
+  // `shared` names the colleague whose project this is.
+  const applyProjectRow = (project, list, { shared = false } = {}) => {
+    setProjectId(project.id || null);
+    setProjectRow(project);
+    backend.sharing?.trackOpened('rp_projects', project);
+    const st = projectStateFromRow(project);
+    if (st.scenario) setScenario((sc) => ({ ...sc, ...st.scenario }));
+    if (st.rock) setRock((r) => ({ ...r, ...st.rock }));
+    if (st.avo) setAvo((a) => ({ ...a, ...st.avo }));
+    if (st.wedge) setWedge((w) => ({ ...w, ...st.wedge }));
+    if (st.zoneId) setZoneId(st.zoneId);
+    const savedWell = st.wellId && (list || []).find((w) => w.id === st.wellId);
+    if (savedWell) setRestoreWellId(savedWell.id);
+    const what = shared ? `Opened "${project.name}", shared by a colleague.` : 'Restored saved project.';
+    setStatus(st.wellId && !savedWell
+      ? `${what} Its well is no longer in the registry you can see; pick a well.`
+      : what);
+  };
+
   useEffect(() => {
     let live = true;
     (async () => {
@@ -118,21 +152,10 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         if (!live) return;
         setWells(list);
         if (backend.listScalProjects) backend.listScalProjects().then((p) => { if (live) setScalProjects(p || []); }).catch(() => {});
+        if (backend.listSharedProjects) backend.listSharedProjects().then((p) => { if (live) setSharedProjects(p || []); }).catch(() => {});
         const project = await backend.loadProject();
         if (!live || !project) return;
-        setProjectId(project.id || null);
-        // RP-U1-001: rows from any release open through one tolerant reader
-        const st = projectStateFromRow(project);
-        if (st.scenario) setScenario((s) => ({ ...s, ...st.scenario }));
-        if (st.rock) setRock((r) => ({ ...r, ...st.rock }));
-        if (st.avo) setAvo((a) => ({ ...a, ...st.avo }));
-        if (st.wedge) setWedge((w) => ({ ...w, ...st.wedge }));
-        if (st.zoneId) setZoneId(st.zoneId);
-        const savedWell = st.wellId && list.find((w) => w.id === st.wellId);
-        if (savedWell) setRestoreWellId(savedWell.id);
-        setStatus(st.wellId && !savedWell
-          ? 'Restored saved project. Its well is no longer in the registry you can see; pick a well.'
-          : 'Restored saved project.');
+        applyProjectRow(project, list);
       } catch (e) {
         if (live) { setStatus(e.message); setWells((w) => w || []); }
       }
@@ -248,19 +271,58 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     setStatus('Parameters applied.');
   };
 
+  // One door for every save of the project row. A project a colleague shared
+  // is saved into THEIR row only while this user holds its check-out;
+  // otherwise the save is refused with the reason.
+  const persistProject = async (row, note) => {
+    if (viewingShared) {
+      if (!sharing.canWrite) throw new Error(`${sharing.readOnlyReason || 'This project is open read-only.'}`);
+      return backend.saveProject(row, { id: projectRow.id, note });
+    }
+    if (projectRow && !sharing.canWrite) throw new Error(sharing.readOnlyReason || 'Start editing first.');
+    return backend.saveProject(row, { note });
+  };
   const saveProject = async () => {
     setSaving(true);
     try {
-      const saved = await backend.saveProject(projectRowFromState({
+      const saved = await persistProject(projectRowFromState({
         scenario, rock, avo, wedge, wellId: wellData?.wellId || null, zoneId: zoneId || null,
-      }));
-      if (saved?.id) setProjectId(saved.id);
+      }), 'Project saved');
+      if (saved?.id) { setProjectId(saved.id); setProjectRow(saved); }
       setStatus('Project saved.');
     } catch (e) {
       setStatus(e.message);
     } finally {
       setSaving(false);
     }
+  };
+  // "Save a copy" of a colleague's project: this app keeps one project per
+  // user, so the copy takes the place of the user's own project (asked first).
+  const saveCopyAsMine = async () => {
+    if (typeof window !== 'undefined' && !window.confirm('Rock Physics Studio keeps one project per user. Saving a copy replaces your own project with what is on screen. Continue?')) return;
+    setSaving(true);
+    try {
+      const saved = await backend.saveProject(projectRowFromState({
+        scenario, rock, avo: { ...avo, published_gather: undefined }, wedge, wellId: wellData?.wellId || null, zoneId: zoneId || null,
+      }), { note: `Copied from a colleague's project "${projectRow?.name || ''}"` });
+      if (saved?.id) { setProjectId(saved.id); setProjectRow(saved); backend.sharing?.trackOpened('rp_projects', saved); }
+      setStatus('Saved as your own project.');
+    } catch (e) { setStatus(e.message); } finally { setSaving(false); }
+  };
+  const openProject = async (id) => {
+    try {
+      if (id === 'mine') {
+        const mine = await backend.loadProject();
+        if (mine) applyProjectRow(mine, wells);
+        else { setProjectRow(null); setProjectId(null); setStatus('You have no saved project yet. Save to create one.'); }
+        return;
+      }
+      const list = backend.listSharedProjects ? await backend.listSharedProjects() : [];
+      setSharedProjects(list);
+      const row = list.find((p) => p.id === id);
+      if (row) applyProjectRow(row, wells, { shared: true });
+      else setStatus('That project is no longer shared with you.');
+    } catch (e) { setStatus(e.message); }
   };
 
   // RP1: the substituted case (the Fluids panel's live result over its
@@ -294,10 +356,10 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     try {
       const payload = packGather({ well: selected, zone, gather, substitutedLabel, model, pipelineVersion: PIPELINE_VERSION });
       const nextAvo = { ...avo, published_gather: payload };
-      const saved = await backend.saveProject(projectRowFromState({
+      const saved = await persistProject(projectRowFromState({
         scenario, rock, avo: nextAvo, wedge, wellId: wellData.wellId, zoneId: zoneId || null,
-      }));
-      if (saved?.id) setProjectId(saved.id);
+      }), 'Gather published to Seismolord');
+      if (saved?.id) { setProjectId(saved.id); setProjectRow(saved); }
       setAvo(nextAvo);
       setGatherNote(`Published for ${selected.name}, ${zone.name}: Seismolord's synthetics window shows it for this well.`);
       setStatus('Gather published to Seismolord and the project saved.');
@@ -473,6 +535,33 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         {unitSelect('density', DENSITY_UNITS, 'Density display unit (the engine stays in kg/m3)')}
         {unitSelect('depth', DEPTH_UNITS, 'Depth display unit; starts from your Suite units and changes this view for the session')}
         <span className="w-px h-4 bg-pl-border mx-1" />
+        {sharedProjects.length > 0 && (
+          <select
+            data-testid="rp-project-select"
+            aria-label="Project"
+            title="Your own project, or one a colleague shared with your organisation"
+            className="rounded border border-pl-border-strong bg-pl-surface px-1.5 py-1 text-xs text-pl-text"
+            value={viewingShared ? projectRow.id : 'mine'}
+            onChange={(e) => openProject(e.target.value)}
+          >
+            <option value="mine">My project</option>
+            <optgroup label="Shared with me">
+              {sharedProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </optgroup>
+          </select>
+        )}
+        {projectRow && backend.sharing && (
+          <button
+            type="button"
+            data-testid="rp-share"
+            aria-pressed={shareOpen || viewingShared}
+            title="Share this project with your organisation, see who is editing and the history. A shared project also shows its published gather to colleagues in Seismolord."
+            className={`flex items-center gap-1 px-2 py-1 text-xs rounded border ${shareOpen || viewingShared ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border-strong text-pl-text hover:bg-pl-sunken'}`}
+            onClick={() => setShareOpen((v) => !v)}
+          >
+            <Users className="w-3.5 h-3.5" /> Share
+          </button>
+        )}
         <button
           type="button"
           data-testid="rp-save-project"
@@ -558,7 +647,22 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
       autoSaveId="rockphysicsstudio.workspace.v1"
       minWidth={1000}
       dockDefaultSize={24}
-      ribbon={ribbon}
+      ribbon={(
+        <>
+          {ribbon}
+          {projectRow && (shareOpen || viewingShared || sharing.access?.sharedEdit) && (
+            <div className="px-2 py-1 bg-pl-surface border-b border-pl-border" data-testid="rp-sharing-strip">
+              <RecordSharingBar
+                sharing={sharing}
+                label="project"
+                onSaveCopy={saveCopyAsMine}
+                onReload={() => openProject(viewingShared ? projectRow.id : 'mine')}
+                fieldLabels={{ scenarios: 'the fluid scenario', rock: 'rock parameters', avo: 'AVO and the published gather', wedge: 'the wedge', well_ids: 'the well' }}
+              />
+            </div>
+          )}
+        </>
+      )}
       explorer={(
         <WellExplorer
           wells={wells || []}
