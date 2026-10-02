@@ -10,7 +10,7 @@ import path from 'path';
 import {
   readPdf, chartLogo, flat, listCaptions, pointCounts, expectFigureDrawn, expectFigureStatement, checkGolden,
 } from '@/lib/reportKit/testKit';
-import { isPrintable } from '@/lib/reportKit';
+import { isPrintable, missingInputRows } from '@/lib/reportKit';
 import { valueProspect } from '@/utils/prospectValuation';
 import {
   fromRcpProspect, blankProspect, engineInput, upstreamState, inputProblem, upgradeProspect, INPUT_KEYS,
@@ -71,6 +71,9 @@ describe('the report of a prospect handed over by ReservoirCalc Pro', () => {
     const e = engineInput(north());
     expect(Object.keys(e).sort()).toEqual([...INPUT_KEYS].sort());
     expect(missingEngineInputs(model.inputs.rows, e)).toEqual([]);
+    // the shared kit's guard says the same of the rows that entered the calculation
+    expect(missingInputRows(e, model.inputs.rows.filter((r) => r.engine))).toEqual([]);
+    expect(missingInputRows(e, model.inputs.rows.filter((r) => r.engine && r.key !== 'mefs'))).toEqual(['mefs']);
     // negative control: take one row away and the guard names the key
     expect(missingEngineInputs(model.inputs.rows.filter((r) => r.key !== 'wellCost'), e)).toEqual(['wellCost']);
     // a recorded-for-the-reader row does not count as an engine row
