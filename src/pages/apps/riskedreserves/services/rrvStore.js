@@ -1,18 +1,73 @@
-// Risked Reserves Valuation store (T1 rebuild, 2026-09-26). Prospects come
-// from the ReservoirCalc Pro inventory (rcp_prospects: name, Pg from the
-// geologist's risking, success-case P90 / P50 / P10) or are typed here.
-// The economic inputs (MEFS, value per barrel, development and well cost)
-// are this app's own and are remembered per browser; the prospect rows
-// themselves stay in ReservoirCalc Pro. Pure mapping plus localStorage.
+// Risked Reserves Valuation store (T1 rebuild, 2026-09-26; saved valuations
+// and handoff provenance, upgrade U1, 2026-10-02). Prospects come from the
+// ReservoirCalc Pro inventory (rcp_prospects: name, Pg from the geologist's
+// risking, success-case P90 / P50 / P10) or are typed here. The economic
+// inputs (MEFS, value per barrel, development and well cost) are this
+// app's own.
+//
+// One valuation is one prospect as this app holds it: the inputs in ONE
+// unit system (MMboe, $/boe, $MM), what ReservoirCalc Pro handed over (the
+// `handoff` block: source record, time, unit, basis, percentile convention,
+// the values as received), who analysed it (`ident`), where each of this
+// app's own inputs came from (`inputMeta`) and which inputs the user has
+// touched. It is saved as one row of rrv_valuations per prospect and user
+// (services/rrvBackend.js) and kept in the browser as the fallback.
+// Pure mapping plus localStorage.
 
-import { toMMboe } from '@/pages/apps/ReservoirCalcPro/services/prospectVolumes';
+import { toMMboe, VOLUME_UNITS } from '@/pages/apps/ReservoirCalcPro/services/prospectVolumes';
+import { registerStateKind } from '@/lib/stateVersion';
 
+/** Browser key of the T1 build: a bare list of prospects. Read once, then left alone. */
 export const RRV_KEY = 'rrv.prospects.v1';
+/** Browser key of this build: { list: valuations }. The fallback store and the unsaved-edit draft. */
+export const RRV_STORE_KEY = 'rrv.valuations.v2';
+
+export const RRV_KIND = 'rrv-valuation';
+registerStateKind(RRV_KIND, { current: 1, label: 'valuation' });
 
 export const DEFAULT_ECONOMICS = Object.freeze({ mefs: 10, unitValue: 8, devCost: 100, wellCost: 25 });
+export const ECON_KEYS = Object.freeze(['mefs', 'unitValue', 'devCost', 'wellCost']);
+export const VOLUME_KEYS = Object.freeze(['p90', 'p50', 'p10']);
+/** Every input the valuation engine reads (RL1: each has a row in the report). */
+export const INPUT_KEYS = Object.freeze(['pg', ...VOLUME_KEYS, ...ECON_KEYS]);
+/** The inputs ReservoirCalc Pro can hand over. */
+export const HANDOFF_KEYS = Object.freeze(['pg', 'p90', 'p50', 'p10', 'unitValue', 'devCost']);
+export const FACTOR_KEYS = Object.freeze(['trap', 'reservoir', 'charge', 'seal', 'other']);
+export const IDENT_KEYS = Object.freeze(['company', 'licence', 'play', 'analyst']);
+
+export const PERCENTILE_CONVENTION = 'P90 is the low case and P10 the high case: the volume exceeded with 90 and 10 percent probability (exceedance convention, SPE PRMS)';
+export const BOE_BASIS = '6 Mscf per boe';
+
+const isNum = (v) => v !== '' && v !== null && v !== undefined && Number.isFinite(Number(v));
+const blank = (v) => v === '' || v === null || v === undefined;
+
+// ---- the upstream record ----------------------------------------------------
+
+// key order and undefined keys must not matter: a row read back from the
+// database has neither
+const stable = (v) => {
+  if (v === undefined || v === null) return 'null';
+  if (Array.isArray(v)) return `[${v.map(stable).join(',')}]`;
+  if (typeof v === 'object') {
+    return `{${Object.keys(v).filter((k) => v[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${stable(v[k])}`).join(',')}}`;
+  }
+  return JSON.stringify(v);
+};
+
+/**
+ * A fingerprint of what a ReservoirCalc Pro prospect row SAYS (name, chance
+ * factors, volumes, risked figures). Sharing the row or stamping it does
+ * not change it; re-risking does. FNV-1a over a key-sorted rendering.
+ */
+export function rcpFingerprint(row) {
+  const text = stable({ name: row?.name ?? null, pg_factors: row?.pg_factors || {}, inputs: row?.inputs || {}, risked: row?.risked || {} });
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16).padStart(8, '0');
+}
 
 /** A ReservoirCalc Pro inventory row as a valuation prospect. */
-export function fromRcpProspect(row) {
+export function fromRcpProspect(row, { now = new Date() } = {}) {
   const r = row.risked || {};
   const sc = { ...(row.inputs || {}), ...(r.success || r.success_case || r.successCase || {}) };
   // volumes arrive in the unit the row states (MMSTB, Bscf, MMsm3, Bsm3) and
@@ -35,17 +90,28 @@ export function fromRcpProspect(row) {
   const fromFactors = ['trap', 'reservoir', 'charge', 'seal', 'other']
     .filter((k) => f[k] !== undefined && f[k] !== null)
     .reduce((acc, k) => acc * Math.min(1, Math.max(0, Number(f[k]))), 1);
+  const pgAsRisked = prob(r.pg) !== '';
+  const pg = pgAsRisked ? prob(r.pg) : (Object.keys(f).length ? fromFactors : '');
+  const pgFactors = Object.fromEntries(FACTOR_KEYS.filter((k) => isNum(f[k])).map((k) => [k, Math.min(1, Math.max(0, Number(f[k])))]));
+  const sentEcon = Number.isFinite(Number(row.inputs?.economics?.unitValue)) && Number(row.inputs.economics.unitValue) >= 0 && Number(row.inputs.economics.devCost) >= 0;
+  const economics = sentEcon
+    ? { unitValue: Number(Number(row.inputs.economics.unitValue).toPrecision(6)), devCost: Number(Number(row.inputs.economics.devCost).toPrecision(6)) }
+    : {};
+  const conversion = unit && unit !== 'MMbbl' && unit !== 'MMboe' ? `converted from ${unit} at 6 Mscf per boe` : (rawBig ? 'read as STB' : '');
+  const p90 = num(sc.p90 ?? r.p90);
+  const p50 = num(sc.p50 ?? r.p50);
+  const p10 = num(sc.p10 ?? r.p10);
   return {
     id: `rcp-${row.id}`,
     source: 'rcp',
     rcpId: row.id,
     name: row.name,
-    pg: prob(r.pg) === '' ? (Object.keys(f).length ? fromFactors : '') : prob(r.pg),
-    p90: num(sc.p90 ?? r.p90),
-    p50: num(sc.p50 ?? r.p50),
-    p10: num(sc.p10 ?? r.p10),
+    pg,
+    p90,
+    p50,
+    p10,
     volumeNote: [
-      unit && unit !== 'MMbbl' && unit !== 'MMboe' ? `converted from ${unit} at 6 Mscf per boe` : (rawBig ? 'read as STB' : ''),
+      conversion,
       // RCP-U1-003: rows saved before the basis was recorded carry the
       // in-place volume (STOIIP / GIIP); the valuation needs recoverable
       row.inputs?.basis === 'recoverable' ? ''
@@ -60,11 +126,48 @@ export function fromRcpProspect(row) {
     ...DEFAULT_ECONOMICS,
     // RCP-U2-012: a prospect valued in ReservoirCalc Pro brings its value
     // per barrel and development cost (the Suite's screening NPV)
-    ...(Number.isFinite(Number(row.inputs?.economics?.unitValue)) && Number(row.inputs.economics.unitValue) >= 0 && Number(row.inputs.economics.devCost) >= 0
-      ? { unitValue: Number(Number(row.inputs.economics.unitValue).toPrecision(6)), devCost: Number(Number(row.inputs.economics.devCost).toPrecision(6)), economicsNote: 'value per barrel and development cost from ReservoirCalc Pro success-case economics',
+    ...(sentEcon
+      ? { ...economics, economicsNote: 'value per barrel and development cost from ReservoirCalc Pro success-case economics',
         // H8: what ReservoirCalc Pro sent, so a later edit here can be told apart
-        rcpUnitValue: Number(Number(row.inputs.economics.unitValue).toPrecision(6)) }
+        rcpUnitValue: economics.unitValue }
       : {}),
+    // U1 (RL11, RL2): the chance factors behind Pg, and everything the
+    // handoff said, kept with the valuation so the report can state it and
+    // a later edit or a later change upstream can be told apart
+    pgFactors: Object.keys(pgFactors).length ? pgFactors : null,
+    handoff: {
+      schema: 'rcp-prospect-1',
+      app: 'ReservoirCalc Pro',
+      table: 'rcp_prospects',
+      recordId: row.id,
+      recordName: row.name,
+      recordUpdatedAt: row.updated_at || row.created_at || null,
+      build: row.app_build || null,
+      receivedAt: now.toISOString(),
+      unit: unit || null,
+      unitLabel: unit ? (VOLUME_UNITS[unit]?.label || unit) : null,
+      basis: row.inputs?.basis || null,
+      conversion: conversion || null,
+      percentiles: PERCENTILE_CONVENTION,
+      pgMethod: pgAsRisked ? 'as risked in ReservoirCalc Pro' : (Object.keys(f).length ? 'the product of the chance factors' : null),
+      // canonical (MMboe, $/boe, $MM), as received: the baseline an edit is told from
+      values: { pg, p90, p50, p10, mean: num(sc.mean ?? r.mean), ...economics },
+      // as the row states them, in its own unit
+      sent: { p90: sc.p90 ?? r.p90 ?? null, p50: sc.p50 ?? r.p50 ?? null, p10: sc.p10 ?? r.p10 ?? null, mean: sc.mean ?? r.mean ?? null },
+      // ReservoirCalc Pro's own account of where the volumes came from
+      // (project, reservoir, Monte Carlo run, in-place volumes, recovery factor)
+      source: row.inputs?.source || null,
+      charge: row.inputs?.bfCharge?.model ? {
+        model: row.inputs.bfCharge.model, chargeMMboe: row.inputs.bfCharge.chargeMMboe ?? null,
+        suggestedFactor: row.inputs.bfCharge.suggestedFactor ?? null, appliedFactor: row.inputs.bfCharge.appliedFactor ?? f.charge ?? null,
+      } : null,
+      economics: sentEcon ? { engine: row.inputs.economics.engine || null, npvMM: row.inputs.economics.npvMM ?? null, assumptions: row.inputs.economics.assumptions || null } : null,
+      fingerprint: rcpFingerprint(row),
+    },
+    ident: { company: '', licence: '', play: '', analyst: '' },
+    inputMeta: {},
+    touched: {},
+    notes: '',
   };
 }
 
@@ -88,18 +191,129 @@ export function unitValueSource(p) {
 }
 
 /** A blank typed prospect. */
-export const blankProspect = (n) => ({ id: `own-${Date.now()}-${n}`, source: 'own', name: `Prospect ${n}`, pg: 0.25, p90: 10, p50: 25, p10: 60, ...DEFAULT_ECONOMICS });
+export const blankProspect = (n) => ({
+  id: `own-${Date.now()}-${n}`, source: 'own', name: `Prospect ${n}`, pg: 0.25, p90: 10, p50: 25, p10: 60, ...DEFAULT_ECONOMICS,
+  pgFactors: null, handoff: null, ident: { company: '', licence: '', play: '', analyst: '' }, inputMeta: {}, touched: {}, notes: '',
+});
 
-/** Why a prospect cannot be valued yet, or null. */
+/**
+ * A prospect as this build holds it, from whatever an earlier build or a
+ * saved row left: the T1 browser list had no identification, no handoff
+ * block and no record of what the user had typed. For those, an economic
+ * input that differs from the starting default is taken as typed; one that
+ * equals it stays an assumption.
+ */
+export function upgradeProspect(p) {
+  const q = { ...p };
+  q.source = q.source === 'rcp' ? 'rcp' : 'own';
+  q.pgFactors = q.pgFactors && typeof q.pgFactors === 'object' ? q.pgFactors : null;
+  q.handoff = q.handoff && typeof q.handoff === 'object' ? q.handoff : null;
+  q.ident = { company: '', licence: '', play: '', analyst: '', ...(q.ident && typeof q.ident === 'object' ? q.ident : {}) };
+  q.inputMeta = q.inputMeta && typeof q.inputMeta === 'object' ? q.inputMeta : {};
+  if (!q.touched || typeof q.touched !== 'object') {
+    q.touched = {};
+    for (const k of ECON_KEYS) if (!blank(q[k]) && Number(q[k]) !== DEFAULT_ECONOMICS[k] && !(k === 'unitValue' && Number(q[k]) === q.rcpUnitValue)) q.touched[k] = true;
+  }
+  q.notes = typeof q.notes === 'string' ? q.notes : '';
+  return q;
+}
+
+const LABEL = { pg: 'Pg', p90: 'P90', p50: 'P50', p10: 'P10', mefs: 'the MEFS', unitValue: 'the value per barrel', devCost: 'the development cost', wellCost: 'the exploration well cost' };
+
+/** Why a prospect cannot be valued yet, or null. A blank is never read as zero. */
 export function inputProblem(p) {
   const n = (v) => Number(v);
+  if (blank(p.pg)) return 'Enter Pg, the geological chance of success (0 to 1).';
   if (!(n(p.pg) >= 0 && n(p.pg) <= 1)) return 'Pg must be between 0 and 1.';
   if (!(n(p.p90) > 0) || !(n(p.p10) > n(p.p90))) return 'Volumes need 0 < P90 < P10 (P90 is the low case).';
   if (p.p50 !== '' && p.p50 != null && !(n(p.p50) >= n(p.p90) && n(p.p50) <= n(p.p10))) return 'P50 must lie between P90 and P10.';
-  for (const k of ['mefs', 'unitValue', 'devCost', 'wellCost']) if (!(n(p[k]) >= 0)) return 'MEFS, value per barrel and costs must be zero or more.';
+  for (const k of ECON_KEYS) if (blank(p[k])) return `Enter ${LABEL[k]} (zero is allowed).`;
+  for (const k of ECON_KEYS) if (!(n(p[k]) >= 0)) return 'MEFS, value per barrel and costs must be zero or more.';
   return null;
 }
 
+/** The object handed to the valuation engine: every key is an input the report must print (RL1). */
+export const engineInput = (p) => ({
+  pg: Number(p.pg), p90: Number(p.p90), p50: blank(p.p50) ? undefined : Number(p.p50), p10: Number(p.p10),
+  mefs: Number(p.mefs), unitValue: Number(p.unitValue), devCost: Number(p.devCost), wellCost: Number(p.wellCost),
+});
+
+// ---- handoff: edits and changes upstream ---------------------------------------
+
+/** The handed-over inputs whose value here no longer equals what ReservoirCalc Pro sent. */
+export function editedKeys(p) {
+  const sent = p?.handoff?.values;
+  if (!sent) return [];
+  return HANDOFF_KEYS.filter((k) => isNum(sent[k]) && Number(p[k]) !== Number(sent[k]));
+}
+
+const newest = (rows) => [...rows].sort((a, b) => String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || '')))[0];
+
+/**
+ * How a valuation stands against the ReservoirCalc Pro inventory as it is
+ * NOW (read by id after a page load, so the answer survives a refresh).
+ *   own        typed here, nothing upstream
+ *   unknown    the inventory could not be read
+ *   current    the source record says what it said when it was received
+ *   changed    the source record was edited since: `changes` lists what moved
+ *   replaced   the source record is gone and a newer one carries its name
+ *              (a prospect is re-risked by adding it again)
+ *   missing    the source record is gone
+ *   unrecorded imported by a build that kept no handoff record
+ * @param {object} p a valuation
+ * @param {?Array} rows the user's rcp_prospects rows (own, then shared)
+ */
+export function upstreamState(p, rows) {
+  if (p?.source !== 'rcp') return { state: 'own' };
+  if (!Array.isArray(rows)) return { state: 'unknown' };
+  const changesTo = (row) => {
+    const fresh = fromRcpProspect(row);
+    const base = p.handoff?.values || {};
+    return HANDOFF_KEYS
+      .filter((k) => isNum(fresh.handoff.values[k]) || isNum(base[k]))
+      .filter((k) => Number(fresh.handoff.values[k]) !== Number(base[k]))
+      .map((k) => ({ key: k, from: isNum(base[k]) ? Number(base[k]) : null, to: isNum(fresh.handoff.values[k]) ? Number(fresh.handoff.values[k]) : null }));
+  };
+  const row = rows.find((r) => r.id === p.rcpId);
+  if (row) {
+    if (!p.handoff?.fingerprint) return { state: 'unrecorded', row };
+    if (rcpFingerprint(row) === p.handoff.fingerprint) return { state: 'current', row };
+    return { state: 'changed', row, changes: changesTo(row) };
+  }
+  const name = p.handoff?.recordName ?? p.name;
+  const twins = rows.filter((r) => r.name === name);
+  if (twins.length) { const twin = newest(twins); return { state: 'replaced', row: twin, changes: p.handoff ? changesTo(twin) : [] }; }
+  return { state: 'missing' };
+}
+
+/**
+ * Take the source record as it is now. Pg, the volumes, their basis and the
+ * chance factors come from ReservoirCalc Pro; this app's own inputs (MEFS,
+ * well cost) are kept, and so are a value per barrel and a development cost
+ * the user typed here.
+ */
+export function refreshFromRcp(p, row, { now = new Date() } = {}) {
+  const fresh = fromRcpProspect(row, { now });
+  const touched = { ...(p.touched || {}) };
+  for (const k of ['pg', ...VOLUME_KEYS]) delete touched[k];
+  const keep = (k) => (touched[k] ? p[k] : (fresh.handoff.values[k] !== undefined ? fresh[k] : p[k]));
+  const renamed = p.handoff?.recordName != null && p.name !== p.handoff.recordName;
+  const out = {
+    ...p,
+    id: fresh.id, rcpId: fresh.rcpId, name: renamed ? p.name : fresh.name,
+    pg: fresh.pg, p90: fresh.p90, p50: fresh.p50, p10: fresh.p10,
+    volumeNote: fresh.volumeNote, basis: fresh.basis, chargeNote: fresh.chargeNote,
+    unitValue: keep('unitValue'), devCost: keep('devCost'),
+    pgFactors: fresh.pgFactors, handoff: fresh.handoff, touched,
+  };
+  delete out.economicsNote; delete out.rcpUnitValue;
+  if (fresh.economicsNote) { out.economicsNote = fresh.economicsNote; out.rcpUnitValue = fresh.rcpUnitValue; }
+  return out;
+}
+
+// ---- browser storage (the fallback, and the draft of unsaved edits) --------------
+
+/** The T1 browser list, as that build wrote it. */
 export function loadProspects() {
   try { const v = JSON.parse(localStorage.getItem(RRV_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
 }
@@ -107,18 +321,133 @@ export function saveProspects(list) {
   try { localStorage.setItem(RRV_KEY, JSON.stringify(list)); } catch { /* private mode */ }
 }
 
+/**
+ * The valuations this browser holds. A list left by the T1 build is read
+ * once (`fromLegacy` says how many came from it) and its key is left in
+ * place, so an older tab still open keeps working.
+ * @returns {{list: Array, fromLegacy: number}}
+ */
+export function loadStored() {
+  try {
+    const raw = localStorage.getItem(RRV_STORE_KEY);
+    if (raw) {
+      const v = JSON.parse(raw);
+      if (v && Array.isArray(v.list)) return { list: v.list.map(upgradeProspect), fromLegacy: 0 };
+    }
+  } catch { /* unreadable: fall through to the older list */ }
+  const old = loadProspects();
+  return { list: old.map((p) => ({ ...upgradeProspect(p), row: null, dirty: true })), fromLegacy: old.length };
+}
+/** True when the list was written; false in a browser that refuses storage. */
+export function storeLocal(list) {
+  try { localStorage.setItem(RRV_STORE_KEY, JSON.stringify({ v: 2, list })); return true; } catch { return false; }
+}
+
+// ---- the saved row ------------------------------------------------------------
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CLIENT_ONLY = ['row', 'dirty'];
+
+/** What goes into the row's `valuation` column: the valuation without the page's own bookkeeping. */
+export function payloadOf(p) {
+  const out = { ...p };
+  for (const k of CLIENT_ONLY) delete out[k];
+  return out;
+}
+
+/** A valuation as an rrv_valuations row (without the owner and the stamps, which the backend adds). */
+export const toRow = (p) => ({
+  prospect_key: p.id,
+  rcp_prospect_id: p.source === 'rcp' && UUID.test(String(p.rcpId || '')) ? p.rcpId : null,
+  name: String(p.name || '').trim() || 'Unnamed prospect',
+  valuation: payloadOf(p),
+});
+
+/** A saved row as a valuation; the row's sharing state rides along in `row`. */
+export function fromRow(row) {
+  const { valuation, ...rest } = row;
+  return { ...upgradeProspect({ ...(valuation || {}), id: row.prospect_key, name: row.name }), row: rest, dirty: false };
+}
+
+/**
+ * What the page shows once the account has answered: the saved rows, with
+ * the browser's own state laid over them.
+ *   a saved row with unsaved edits in this browser   the edits win and stay unsaved
+ *   a saved row with none                            the row
+ *   a browser valuation that was never saved         kept, marked unsaved
+ *   a browser valuation that WAS saved, whose row    dropped: it was deleted from
+ *   is gone and that has no unsaved edits            another tab or device
+ * @param {Array} local valuations from the browser
+ * @param {Array} rows rrv_valuations rows of this user
+ */
+export function mergeSaved(local, rows) {
+  const saved = (rows || []).map(fromRow);
+  const keys = new Set(saved.map((s) => s.id));
+  const out = saved.map((s) => {
+    const mine = (local || []).find((l) => l.id === s.id);
+    return mine && mine.dirty ? { ...mine, row: s.row, dirty: true } : s;
+  });
+  for (const l of local || []) {
+    if (keys.has(l.id)) continue;
+    if (l.row && !l.dirty) continue;
+    out.push({ ...l, row: null, dirty: true });
+  }
+  return out;
+}
+
+// ---- CSV ----------------------------------------------------------------------
+
 const q = (v) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
 
-/** The valuation table as CSV. */
-export function valuationCsv(rows) {
-  const head = ['prospect', 'source', 'pg', 'p90_mmbbl', 'p50_mmbbl', 'p10_mmbbl', 'mefs_mmbbl', 'value_usd_per_bbl', 'dev_cost_musd', 'well_cost_musd',
-    'p_commercial_given_success', 'pc', 'success_mean_mmbbl', 'swanson_mean_mmbbl', 'risked_mean_mmbbl', 'emv_musd', 'break_even_pg'];
-  const lines = [head.join(',')];
-  for (const { p, v } of rows) {
-    lines.push([p.name, p.source, p.pg, p.p90, p.p50, p.p10, p.mefs, p.unitValue, p.devCost, p.wellCost,
-      v ? v.pCommercialGivenSuccess.toFixed(4) : '', v ? v.pc.toFixed(4) : '', v ? v.successCase.mean.toFixed(3) : '',
-      v && v.successCase.swansonMean != null ? v.successCase.swansonMean.toFixed(3) : '', v ? v.riskedMean.toFixed(3) : '',
-      v ? v.emv.toFixed(3) : '', v && v.breakEvenPg != null ? v.breakEvenPg.toFixed(4) : ''].map(q).join(','));
+/**
+ * The valuation table as CSV. With `meta` the file opens with a provenance
+ * header (lines starting with "#": application, build, time, unit and
+ * percentile conventions, where the valuations are saved, and one line per
+ * prospect saying where its volumes came from), and the volume and value
+ * columns are in the display unit. Without it, the plain table in MMboe.
+ * @param {Array<{p: object, v: ?object}>} rows
+ * @param {?{build?: string, generatedAt?: Date, savedWhere?: string,
+ *   units?: {volumeLabel: string, volumeKey: string, unitValueLabel: string, unitValueKey: string,
+ *     volume: function(number): number, unitValue: function(number): number},
+ *   sourceLine?: function(object): string}} [meta]
+ */
+export function valuationCsv(rows, meta = null) {
+  const u = meta?.units || null;
+  const vol = (x) => (u ? u.volume(x) : x);
+  const uv = (x) => (u ? u.unitValue(x) : x);
+  const vk = u?.volumeKey || 'mmbbl';
+  const head = ['prospect', 'source', 'pg', `p90_${vk}`, `p50_${vk}`, `p10_${vk}`, `mefs_${vk}`, u?.unitValueKey || 'value_usd_per_bbl', 'dev_cost_musd', 'well_cost_musd',
+    'p_commercial_given_success', 'pc', `success_mean_${vk}`, `swanson_mean_${vk}`, `risked_mean_${vk}`, 'emv_musd', 'break_even_pg',
+    ...(meta ? [`mean_if_commercial_${vk}`, 'npv_if_commercial_musd', 'volume_basis', 'source_record', 'source_record_saved', 'edited_after_handoff', 'problem'] : [])];
+  const lines = [];
+  if (meta) {
+    const at = (meta.generatedAt || new Date()).toISOString().slice(0, 16).replace('T', ' ');
+    lines.push('# Risked Reserves Valuation, Petrolord Suite');
+    lines.push(`# Build: ${meta.build || 'not stated'}`);
+    lines.push(`# Generated: ${at} UTC`);
+    lines.push(`# Units: volumes ${u?.volumeLabel || 'MMboe'} (oil equivalent, gas at ${BOE_BASIS}); value per barrel ${u?.unitValueLabel || '$/boe'}; costs and values $MM`);
+    lines.push(`# Percentiles: ${PERCENTILE_CONVENTION}`);
+    lines.push('# Volumes are the success case (given a discovery); the risked mean is Pg x the success-case mean');
+    lines.push('# EMV = Pg x [ value per barrel x E(V; V >= MEFS) - development cost x P(V >= MEFS) ] - exploration well cost');
+    lines.push('# Prospects are valued one by one; nothing here assumes or models dependence between them');
+    if (meta.savedWhere) lines.push(`# Saved: ${meta.savedWhere}`);
+    for (const { p } of rows) lines.push(`# ${String(p.name).replace(/[\r\n]+/g, ' ')}: ${meta.sourceLine ? meta.sourceLine(p) : (p.source === 'rcp' ? 'from ReservoirCalc Pro' : 'typed in this app')}`);
+  }
+  lines.push(head.join(','));
+  const f = (x, d) => (Number.isFinite(x) ? x.toFixed(d) : '');
+  const cellNum = (x, conv) => (isNum(x) ? Number(conv(Number(x)).toPrecision(10)) : '');
+  for (const { p, v, problem } of rows) {
+    const row = [p.name, p.source, p.pg, cellNum(p.p90, vol), cellNum(p.p50, vol), cellNum(p.p10, vol), cellNum(p.mefs, vol), cellNum(p.unitValue, uv), p.devCost, p.wellCost,
+      v ? v.pCommercialGivenSuccess.toFixed(4) : '', v ? v.pc.toFixed(4) : '', v ? vol(v.successCase.mean).toFixed(3) : '',
+      v && v.successCase.swansonMean != null ? vol(v.successCase.swansonMean).toFixed(3) : '', v ? vol(v.riskedMean).toFixed(3) : '',
+      v ? v.emv.toFixed(3) : '', v && v.breakEvenPg != null ? v.breakEvenPg.toFixed(4) : ''];
+    if (meta) {
+      row.push(v && v.meanIfCommercial != null ? f(vol(v.meanIfCommercial), 3) : '', v && v.npvIfCommercial != null ? f(v.npvIfCommercial, 3) : '',
+        p.source === 'rcp' ? (p.basis || 'not stated') : 'as typed',
+        p.handoff ? `${p.handoff.app} ${p.handoff.recordName ?? ''} (${p.handoff.recordId})` : '',
+        p.handoff?.recordUpdatedAt || '', editedKeys(p).join(' '), problem || '');
+    }
+    lines.push(row.map(q).join(','));
   }
   return lines.join('\n');
 }
