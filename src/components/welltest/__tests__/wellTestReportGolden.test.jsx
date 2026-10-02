@@ -2,7 +2,8 @@
  * Golden output of the Well Test Analysis report (Report Kit, Step 0 of the
  * Reservoir round, 2026-10-02). The fixtures were written from the report
  * as it stood in production (main 8234bdc8c, PR #852) BEFORE the report was
- * moved onto src/lib/reportKit, and the report has to keep reproducing them:
+ * moved onto src/lib/reportKit (commit 48dd09670), and the report has to
+ * keep reproducing them:
  *
  *   - the pdftotext output, line for line;
  *   - the page count;
@@ -18,7 +19,6 @@
 import '@testing-library/jest-dom';
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
 
 jest.mock('@/lib/customSupabaseClient', () => ({
   supabase: {
@@ -34,32 +34,13 @@ jest.mock('@/lib/customSupabaseClient', () => ({
 import { buildWellTestPdf, collectReportArgs } from '@/utils/wellTestReportExport';
 import { periodKey } from '@/utils/welltest/reportModel';
 import wtGoldens from '@/utils/welltest/__tests__/goldens.json';
-import { mountStudio, chartLogo, readPdf } from './reportTestKit';
+import { checkGolden } from '@/lib/reportKit/testKit';
+import { mountStudio, chartLogo } from './reportTestKit';
 
 const AT = new Date('2026-10-02T09:00:00Z');
 const DIR = path.join(process.cwd(), 'src', 'components', 'welltest', '__tests__', '__fixtures__', 'reportGolden');
 const UPDATE = process.env.UPDATE_REPORT_GOLDENS === '1';
 const logo = chartLogo();
-
-/** The document with the two fields that change on every build blanked. */
-const stableBytes = (doc) => Buffer.from(doc.output('arraybuffer')).toString('latin1')
-  .replace(/\/CreationDate \(D:[^)]*\)/g, '/CreationDate (D:0)')
-  .replace(/\/ID \[ <[0-9A-Fa-f]+> <[0-9A-Fa-f]+> \]/g, '/ID [ <0> <0> ]');
-
-const round = (v) => Number(Number(v).toFixed(4));
-const figureRecord = (f) => ({
-  id: f.id,
-  number: f.number,
-  page: f.page,
-  plotted: f.plotted,
-  panels: f.panels.map((p) => ({
-    box: { x: round(p.box.x), y: round(p.box.y), w: round(p.box.w), h: round(p.box.h) },
-    drawn: p.drawn,
-    total: p.total,
-    bands: p.bands,
-    logo: p.logo,
-  })),
-});
 
 const identify = (c) => {
   c.setFieldName('Obodo');
@@ -136,41 +117,15 @@ const CASES = {
 };
 
 describe('Well Test report: golden output', () => {
-  if (UPDATE) fs.mkdirSync(DIR, { recursive: true });
-
   test.each(Object.keys(CASES))('%s reproduces its golden text, page count, figure point counts and bytes', async (name) => {
     const studio = mountStudio();
     await studio.act((c) => c.loadSampleTest());
     await CASES[name](studio);
     const built = buildWellTestPdf(collectReportArgs(studio.ctx), { logo, generatedAt: AT });
-    const pdf = readPdf(built.doc);
     studio.unmount();
-
-    const meta = {
-      pages: pdf.pages,
-      sha256: crypto.createHash('sha256').update(stableBytes(built.doc), 'latin1').digest('hex'),
-      figures: built.figures.map(figureRecord),
-    };
-    const textFile = path.join(DIR, `${name}.txt`);
-    const metaFile = path.join(DIR, `${name}.json`);
-    if (UPDATE) {
-      fs.writeFileSync(textFile, pdf.text);
-      fs.writeFileSync(metaFile, `${JSON.stringify(meta, null, 2)}\n`);
-    }
-    const goldenText = fs.readFileSync(textFile, 'utf8');
-    const golden = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
-
-    // line for line
-    const lines = pdf.text.split('\n');
-    const goldenLines = goldenText.split('\n');
-    expect(lines.length).toBe(goldenLines.length);
-    for (let i = 0; i < goldenLines.length; i += 1) {
-      if (lines[i] !== goldenLines[i]) throw new Error(`${name}: line ${i + 1} differs\n  golden: ${JSON.stringify(goldenLines[i])}\n  now:    ${JSON.stringify(lines[i])}`);
-    }
-    expect(built.pages).toBe(pdf.pages);
-    expect(meta.pages).toBe(golden.pages);
-    expect(meta.figures).toEqual(golden.figures);
-    expect(meta.sha256).toBe(golden.sha256);
+    // line for line, page count, figure records, document bytes
+    const { meta, golden } = checkGolden(built, { dir: DIR, name, update: UPDATE });
+    expect(meta).toEqual(golden);
   }, 600000);
 
   test('the goldens cover the paths the report has', () => {
