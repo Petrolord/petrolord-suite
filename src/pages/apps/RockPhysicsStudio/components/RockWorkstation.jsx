@@ -288,7 +288,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
       const saved = await persistProject(projectRowFromState({
         scenario, rock, avo, wedge, wellId: wellData?.wellId || null, zoneId: zoneId || null,
       }), 'Project saved');
-      if (saved?.id) { setProjectId(saved.id); setProjectRow(saved); }
+      if (saved?.id) { setProjectId(saved.id); setProjectRow(saved); backend.sharing?.trackOpened('rp_projects', saved); }
       setStatus('Project saved.');
     } catch (e) {
       setStatus(e.message);

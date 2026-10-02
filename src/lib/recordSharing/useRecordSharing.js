@@ -31,7 +31,7 @@ export function useRecordSharing({ store, table, record, onChange = null }) {
   const [now, setNow] = useState(() => Date.now());
   const lastActivity = useRef(Date.now());
   const lastBeat = useRef(Date.now());
-  const live = useRef({ sharing: null, mine: false });
+  const held = useRef(new Set());   // ids of the records this hook holds a check-out on
   const onChangeRef = useRef(onChange); onChangeRef.current = onChange;
   const id = record?.id || null;
 
@@ -57,7 +57,9 @@ export function useRecordSharing({ store, table, record, onChange = null }) {
     () => accessOf(table, sharing, { userId: ctx.userId, now, available: available !== false }),
     [table, sharing, ctx.userId, now, available],
   );
-  live.current = { sharing, mine: access.lock.mine };
+  // kept per id: when the app switches to another record, the cleanup of the
+  // previous one still knows it was held
+  if (id) { if (access.lock.mine) held.current.add(id); else held.current.delete(id); }
 
   const apply = useCallback((next) => {
     if (!next) return;
@@ -124,7 +126,7 @@ export function useRecordSharing({ store, table, record, onChange = null }) {
   // release on close, on switching record and when the page goes away
   useEffect(() => {
     if (!id || !store) return undefined;
-    const release = () => { if (live.current.mine) store.release(table, id); };
+    const release = () => { if (held.current.has(id)) { held.current.delete(id); store.release(table, id); } };
     window.addEventListener('pagehide', release);
     return () => { window.removeEventListener('pagehide', release); release(); };
   }, [store, table, id]);

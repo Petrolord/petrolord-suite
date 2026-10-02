@@ -157,12 +157,13 @@ create policy "suite_record_changes_select_geo_wells" on public.suite_record_cha
 -- ---------------------------------------------------------------------------
 do $$
 declare
+    -- objects.name, qualified: inside the sub-select a bare `name` is geo_wells.name
     owner_of text := 'bucket_id = ''wells'' and exists (
         select 1 from public.geo_wells w
-        where w.id::text = (storage.foldername(name))[2] and w.user_id = auth.uid())';
+        where w.id::text = (storage.foldername(objects.name))[2] and w.user_id = auth.uid())';
     editor_of text := 'bucket_id = ''wells'' and exists (
         select 1 from public.geo_wells w
-        where w.id::text = (storage.foldername(name))[2]
+        where w.id::text = (storage.foldername(objects.name))[2]
           and w.organization_id is not null and w.org_access = ''edit'' and public.is_org_member(w.organization_id)
           and w.editing_by = auth.uid() and w.editing_expires > now())';
 begin

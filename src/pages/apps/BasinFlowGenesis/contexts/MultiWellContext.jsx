@@ -223,6 +223,9 @@ export const MultiWellProvider = ({ children, backend = null }) => {
             }
         } catch (error) {
             if (error?.name === 'RecordConflict') {
+                // read-only after all (the sharing state had not arrived when the auto-save
+                // fired): the bar already says why, so nothing is announced
+                if (['view_only', 'no_checkout', 'locked'].includes(error.kind)) return;
                 // said once, then the model stops saving until it is reloaded
                 setBlocked((b) => ({ ...b, [id]: error.message }));
                 toast({ variant: "destructive", title: "Not saved", description: error.message, duration: 10000 });

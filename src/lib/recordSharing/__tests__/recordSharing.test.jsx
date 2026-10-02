@@ -377,6 +377,21 @@ describe('the shared control', () => {
     expect(screen.getByTestId('reload-record')).toBeInTheDocument();
   });
 
+  test('switching to another record releases the one that was being edited', async () => {
+    const { db, store } = world();
+    const a = make(db); const b = db.insert(T, 'u-owner', { user_id: 'u-owner', name: 'Model B' }).data;
+    for (const r of [a, b]) db.update(T, 'u-owner', r.id, { visibility: 'organization', organization_id: 'org-1', org_access: 'edit' });
+    const s = store('u-col');
+    const row = (id) => db._rows(T).find((r) => r.id === id);
+    let view;
+    await act(async () => { view = render(<Harness store={s} row={row(a.id)} />); });
+    await act(async () => { fireEvent.click(await screen.findByTestId('start-editing')); });
+    await waitFor(() => expect(row(a.id).editing_by).toBe('u-col'));
+    await act(async () => { view.rerender(<Harness store={s} row={row(b.id)} />); });
+    await waitFor(() => expect(row(a.id).editing_by).toBeNull());
+    expect(db._changes().filter((c) => c.record_id === a.id).at(-1)).toMatchObject({ action: 'released', changed_by: 'u-col', summary: 'Finished editing' });
+  });
+
   test('history panel: who, when, what', async () => {
     const { db, store } = world();
     const r = make(db);
