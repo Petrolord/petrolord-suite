@@ -8,6 +8,7 @@ import { supabaseTransport } from './supabaseTransport';
 export * from './rules';
 export { makeSharingStore, memoryTransport } from './store';
 export { makeSharingDb } from './memoryDb';
+export { makeHarnessSharing, colleagueShared, HARNESS_ME, HARNESS_COLLEAGUE, HARNESS_ORG } from './harness';
 
 let real = null;
 /** The store over the signed-in user's Supabase session (one per page). */

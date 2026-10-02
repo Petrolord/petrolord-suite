@@ -241,8 +241,25 @@ export function makeSharingDb({ members = {}, applied = true, clock = null } = {
     if (w && state.applied) logUpdated('geo_wells', w, uid, `${what.charAt(0).toUpperCase()}${what.slice(1)}: ${n} ${verb}`, [what]);
   }
 
+  /**
+   * Put existing rows in a table without logging (fixtures, rows from before
+   * the migration). Missing sharing columns get the migration's defaults.
+   */
+  function seed(table, rows, { owner = null } = {}) {
+    const acc = ensure(table);
+    const filled = (rows || []).map((row) => {
+      const r = { ...row, user_id: row.user_id ?? owner };
+      if (!state.applied) return r;
+      const d = { org_access: 'view', organization_id: null, editing_by: null, editing_since: null, editing_expires: null, version: 1, updated_by: null, change_note: null };
+      if (!byOrg(table)) d.visibility = 'private';
+      return { ...d, ...r };
+    });
+    acc.set([...acc.get(), ...filled]);
+    return filled.map((r) => ({ ...r }));
+  }
+
   return {
-    attach, select, insert, update, remove, rpc, listChanges, canWriteChild, logChild,
+    attach, seed, select, insert, update, remove, rpc, listChanges, canWriteChild, logChild,
     members,
     isMember,
     /** Move the clock (expiry tests). */

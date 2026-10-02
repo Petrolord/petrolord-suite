@@ -69,7 +69,9 @@ export function makeSharingStore(transport) {
   async function conflictFrom(table, id, error) {
     const d = parseDetail(error);
     if (error.code === 'SR001') {
-      return new RecordConflict('stale', messages.stale(await nameOf(d.updated_by), d.updated_at), d);
+      // the user's own other tab is the common case
+      const me = (await context()).userId;
+      return new RecordConflict('stale', messages.stale(d.updated_by && d.updated_by === me ? 'You' : await nameOf(d.updated_by), d.updated_at), d);
     }
     if (error.code === 'SR002') {
       if (d.editing_by && d.editing_expires && new Date(d.editing_expires).getTime() > Date.now()) {

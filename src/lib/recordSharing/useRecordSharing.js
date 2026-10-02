@@ -41,6 +41,7 @@ export function useRecordSharing({ store, table, record, onChange = null }) {
 
   useEffect(() => {
     let alive = true;
+    if (!store) { setAvailable(false); return undefined; }   // a backend without sharing: nothing to show, saves as before
     (async () => {
       const [c, cap] = await Promise.all([store.context().catch(() => ({ userId: null, organizationId: null })), store.capability(table).catch(() => ({ available: false }))]);
       if (!alive) return;
@@ -67,14 +68,14 @@ export function useRecordSharing({ store, table, record, onChange = null }) {
 
   // names of the owner, the editor and the last author
   useEffect(() => {
-    if (!sharing) return undefined;
+    if (!sharing || !store) return undefined;
     let alive = true;
     store.names([sharing.user_id, sharing.editing_by, sharing.updated_by]).then((n) => { if (alive) setNames((p) => ({ ...p, ...n })); }).catch(() => {});
     return () => { alive = false; };
   }, [store, sharing?.user_id, sharing?.editing_by, sharing?.updated_by]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = useCallback(async () => {
-    if (!id) return null;
+    if (!id || !store) return null;
     const fresh = await store.refresh(table, id).catch(() => null);
     if (fresh) apply(fresh);
     return fresh;
@@ -120,7 +121,7 @@ export function useRecordSharing({ store, table, record, onChange = null }) {
 
   // release on close, on switching record and when the page goes away
   useEffect(() => {
-    if (!id) return undefined;
+    if (!id || !store) return undefined;
     const release = () => { if (live.current.mine) store.release(table, id); };
     window.addEventListener('pagehide', release);
     return () => { window.removeEventListener('pagehide', release); release(); };
@@ -167,7 +168,7 @@ export function useRecordSharing({ store, table, record, onChange = null }) {
     return next;
   }), [run, store, table, id, apply]);
 
-  const loadHistory = useCallback(() => store.history(table, id), [store, table, id]);
+  const loadHistory = useCallback(() => (store ? store.history(table, id) : Promise.resolve([])), [store, table, id]);
 
   const ownerName = sharing?.user_id ? names[sharing.user_id] : null;
   const editorName = access.lock.by ? names[access.lock.by] : null;
@@ -180,7 +181,7 @@ export function useRecordSharing({ store, table, record, onChange = null }) {
   }
 
   return {
-    ready: ctx.ready && available !== null,
+    ready: !!store && ctx.ready && available !== null,
     available: available === true,
     userId: ctx.userId,
     organizationId: ctx.organizationId,
@@ -194,7 +195,7 @@ export function useRecordSharing({ store, table, record, onChange = null }) {
     notice,
     clearNotice: () => setNotice(null),
     /** False while the record is open read-only for this user. Unsaved records are writable. */
-    canWrite: !sharing || !ctx.ready ? true : access.canWrite,
+    canWrite: !store || !sharing || !ctx.ready ? true : access.canWrite,
     readOnlyReason,
     share, startEditing, stopEditing, refresh, loadHistory,
     takeOver: () => startEditing({ takeOver: true }),

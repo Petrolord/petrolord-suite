@@ -213,7 +213,7 @@ describe('the store: sentences for refusals, version tracking, the before-migrat
     expect((await tabOne.update(T, r.id, { name: 'one' })).error).toBeNull();
     const res = await tabTwo.update(T, r.id, { name: 'two' });
     expect(res.error).toMatchObject({ name: 'RecordConflict', kind: 'stale' });
-    expect(res.error.message).toMatch(/^Olu Owner saved a newer version at .*\. Reload, or save yours as a copy\.$/);
+    expect(res.error.message).toMatch(/^You saved a newer version at .*\. Reload, or save yours as a copy\.$/);
     // the first tab keeps saving: its version moved with its own save
     expect((await tabOne.update(T, r.id, { name: 'one again' })).data.version).toBe(3);
   });
@@ -241,7 +241,9 @@ describe('the store: sentences for refusals, version tracking, the before-migrat
     col.trackOpened(T, db._rows(T)[0]);
     await owner.update(T, r.id, { name: 'owner moved on' });
     expect(await col.take(T, r.id)).toMatchObject({ ok: true, stale: true });
-    expect((await col.update(T, r.id, { name: 'from the old copy' })).error.kind).toBe('stale');
+    const stale = await col.update(T, r.id, { name: 'from the old copy' });
+    expect(stale.error.kind).toBe('stale');
+    expect(stale.error.message).toMatch(/^Olu Owner saved a newer version at .*\. Reload, or save yours as a copy\.$/);
     col.trackOpened(T, db._rows(T)[0]);
     expect((await col.update(T, r.id, { name: 'after reload', updated_by: 'u-other' }, { note: 'Renamed' })).data).toMatchObject({ updated_by: 'u-col', version: 3 });
     const h = await owner.history(T, r.id);
