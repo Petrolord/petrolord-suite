@@ -15,8 +15,9 @@ import { useSimStudio } from '@/contexts/SimStudioContext';
 import { downloadBlob } from '@/lib/simService';
 import {
   availableFieldVectors, availableWellVectors, fieldSeries, wellSeries,
-  wellSeriesKeys, hasObservedField, VECTOR_META,
+  wellSeriesKeys, hasObservedField, VECTOR_META, summaryStepText,
 } from '@/components/simstudio/resultAdapters';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const LINE_COLORS = ['#166534', '#1d4ed8', '#b45309', '#b91c1c', '#7c3aed', '#0e7490', '#be185d', '#4d7c0f'];
 
@@ -152,7 +153,7 @@ const ResultsPanel = () => {
               <option value="" disabled>{completeRuns.length ? 'Pick a completed run…' : 'No completed runs yet'}</option>
               {completeRuns.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {new Date(r.queued_at).toLocaleString()}, {r.report_steps ?? '?'} steps
+                  {new Date(r.queued_at).toLocaleString()}, {r.report_steps ?? EMPTY_VALUE} steps
                 </option>
               ))}
             </select>
@@ -163,8 +164,10 @@ const ResultsPanel = () => {
         </CardHeader>
         {summary && (
           <CardContent className="pt-0 text-[11px] text-pl-muted">
-            {summary.opm_version} · start {summary.start_date?.slice(0, 10)} · {summary.days?.length} report steps
-            · deck sha {String(summary.deck_sha256 || '').slice(0, 12)}
+            {summary.opm_version} · start {summary.start_date?.slice(0, 10)} ·{' '}
+            {/* H13: the run's own counts, never the length of the plotted series */}
+            <span data-testid="sim-step-count">{summaryStepText(summary)}</span>
+            {' '}· deck sha {String(summary.deck_sha256 || '').slice(0, 12)}
           </CardContent>
         )}
       </Card>

@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Download, Table2 } from 'lucide-react';
-import FluidStudioTierBadge from '@/components/fluidstudio/FluidStudioTierBadge';
+import FluidStudioTierBadge, { TuneStatusBadge } from '@/components/fluidstudio/FluidStudioTierBadge';
 import { eosPvtTableCsv } from '@/utils/fluidstudio/eosAnalysis';
 
 const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? 'n/a' : Number(v).toFixed(d));
@@ -57,7 +57,7 @@ const EosPvtTableCard = ({ result, tuned = false }) => {
             EOS black-oil table
           </CardTitle>
           <div className="flex gap-2 items-center">
-            {tuned && <FluidStudioTierBadge tier="lab_tuned" />}
+            <TuneStatusBadge status={tuned} />
             <FluidStudioTierBadge tier="oracle_gated" />
             <FluidStudioTierBadge
               tier="published_method"

@@ -24,6 +24,12 @@ Tiers:
   published_method for the quantities the tune actually constrained;
   shown alongside oracle_gated (implementation correctness and data
   anchoring are orthogonal claims).
+- **lab_tuned_stale / lab_tuned_unrecorded** (H10, 2026-10-02): a tune is
+  applied but the feed, the C7+ description, the lab values, the flash
+  conditions or the enabled separator stages changed after it (or the tune
+  predates the record of what it was fitted on). The badge reads "Tuned on
+  earlier inputs" or "Tuned, not confirmed"; `lab_tuned` is shown only while
+  `tuningStatus()` returns `current`.
 
 ## Compositional path (EOS mode)
 

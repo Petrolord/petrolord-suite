@@ -1,3 +1,4 @@
+import { describeNominalAnnual } from '@/utils/declineCurve/declineDisplay';
 import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label } from 'recharts';
 import { Button } from '@/components/ui/button';
@@ -148,7 +149,7 @@ const DCATypeCurvePlot = ({ typeCurve }) => {
           <div className="flex flex-col gap-0.5">
             <div>Type: {typeCurve.fit.modelType || typeCurve.modelType}</div>
             <div>qi: {typeCurve.fit.qi.toFixed(3)}</div>
-            <div>Di: {typeCurve.fit.Di.toFixed(4)}/d</div>
+            <div>Di: {describeNominalAnnual(typeCurve.fit.Di, 1)}</div>
             <div>b: {typeCurve.fit.b.toFixed(2)}</div>
             <div>R²: {typeCurve.fit.R2.toFixed(3)}</div>
           </div>

@@ -22,6 +22,25 @@ const TIERS = {
     tooltip:
       'The C7+ plus fraction of this fluid has been regressed to the measured lab values you entered in the Lab tuning card. All compositional results use the tuned fluid; the before and after table on that card shows exactly how well each measurement is matched.',
   },
+  // H10: a tune made before the feed, the C7+ description, the lab values,
+  // the flash conditions or the separator train changed. The knobs are
+  // still applied; the claim "matched to lab data" is withdrawn.
+  lab_tuned_stale: {
+    label: 'Tuned on earlier inputs',
+    classes: 'bg-pl-warning-bg border-pl-warning/40 text-pl-warning-text',
+    iconClasses: 'text-pl-warning-text',
+    Icon: AlertTriangle,
+    tooltip:
+      'The C7+ plus fraction was tuned to lab values, and the composition, the lab values, the flash conditions or the separator train changed afterwards. The tuned C7+ properties are still applied, so these results no longer reproduce the lab match. Run Tune to lab data again on the Lab tuning card, or reset to untuned.',
+  },
+  lab_tuned_unrecorded: {
+    label: 'Tuned, not confirmed',
+    classes: 'bg-pl-warning-bg border-pl-warning/40 text-pl-warning-text',
+    iconClasses: 'text-pl-warning-text',
+    Icon: AlertTriangle,
+    tooltip:
+      'This fluid was tuned before the app kept a record of what it was tuned on, so it cannot confirm that the fluid is unchanged since. Run Tune to lab data again on the Lab tuning card to confirm the match.',
+  },
   oracle_gated: {
     label: 'Oracle gated',
     classes: 'bg-pl-success-bg border-pl-success/40 text-pl-success-text',
@@ -68,6 +87,17 @@ const FluidStudioTierBadge = ({ tier, note, className = '' }) => {
       </Tooltip>
     </TooltipProvider>
   );
+};
+
+/**
+ * The tuning badge of a compositional card, from tuningStatus()
+ * (utils/fluidstudio/eosAnalysis.js). `true` is accepted for a caller that
+ * only knows a tune is applied and current.
+ */
+const TUNE_TIER = { current: 'lab_tuned', stale: 'lab_tuned_stale', unrecorded: 'lab_tuned_unrecorded' };
+export const TuneStatusBadge = ({ status }) => {
+  const tier = status === true ? 'lab_tuned' : TUNE_TIER[status];
+  return tier ? <FluidStudioTierBadge tier={tier} /> : null;
 };
 
 export default FluidStudioTierBadge;

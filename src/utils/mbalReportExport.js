@@ -4,6 +4,8 @@
  * Analysis Studio report (src/utils/wellTestReportExport.js, WT5/WT10).
  * Data in, one PDF out; no fetching here.
  */
+import { describePvtSource } from '@/pages/apps/reservoir-balance/lib/pvtSource';
+import { staleRunMessage } from '@/pages/apps/reservoir-balance/lib/runStaleness';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -28,7 +30,36 @@ const FLUID_LABELS = {
   oil_with_gas_cap: 'Oil with gas cap',
 };
 
-export const exportMbalPdf = ({ caseData, lastResult, defaultCfg }) => {
+/**
+ * The rows of the "Case summary" table. `defaultCfg` is the config of the
+ * run being reported.
+ */
+export const caseSummaryRows = ({ caseData, lastResult, defaultCfg }) => [
+  ['Initial pressure (psia)', f1(caseData?.initial_pressure_psia)],
+  ['Reservoir temperature (F)', f1(caseData?.reservoir_temperature_f)],
+  ['Initial water saturation', f3(caseData?.initial_water_saturation)],
+  ['Bubble point (psia)', caseData?.bubble_point_psia ? f1(caseData.bubble_point_psia) : '-'],
+  ['Production rows', String(caseData?.production_data?.length ?? 0)],
+  ['Aquifer model', defaultCfg?.aquifer_model ?? (caseData?.has_aquifer ? 'pot' : 'none')],
+  // What the engine actually ran, not what the config asked for. The engine
+  // never branched on the requested value (engines #168); reports built
+  // before that printed the request as though it were the method.
+  [
+    'Solver method',
+    lastResult?.plot_data?.solver_method_used ?? defaultCfg?.solver_method ?? '-',
+  ],
+  // H5: the true source in words, with the correlation names. The raw
+  // column value said "lab_table" for a table built from correlations.
+  ['PVT source', describePvtSource(defaultCfg)],
+];
+
+export const exportMbalPdf = ({ caseData, lastResult, defaultCfg, staleness }) => {
+  // H4: a report pairs the inputs with the run made on them. When an input
+  // changed after the run there is no such pair, so nothing is exported.
+  // `defaultCfg` is the config snapshot of the run being reported.
+  if (staleness?.stale) {
+    throw new Error(`The report was not exported. ${staleRunMessage(staleness)}`);
+  }
   const doc = new jsPDF();
   const isGas = caseData?.fluid_system === 'gas';
   const plot = lastResult?.plot_data ?? {};
@@ -78,22 +109,7 @@ export const exportMbalPdf = ({ caseData, lastResult, defaultCfg }) => {
     if (y > 260) { doc.addPage(); y = 20; }
   };
 
-  table('Case summary', ['Quantity', 'Value'], [
-    ['Initial pressure (psia)', f1(caseData?.initial_pressure_psia)],
-    ['Reservoir temperature (F)', f1(caseData?.reservoir_temperature_f)],
-    ['Initial water saturation', f3(caseData?.initial_water_saturation)],
-    ['Bubble point (psia)', caseData?.bubble_point_psia ? f1(caseData.bubble_point_psia) : '-'],
-    ['Production rows', String(caseData?.production_data?.length ?? 0)],
-    ['Aquifer model', defaultCfg?.aquifer_model ?? (caseData?.has_aquifer ? 'pot' : 'none')],
-    // What the engine actually ran, not what the config asked for. The engine
-    // never branched on the requested value (engines #168); reports built
-    // before that printed the request as though it were the method.
-    [
-      'Solver method',
-      lastResult?.plot_data?.solver_method_used ?? defaultCfg?.solver_method ?? '-',
-    ],
-    ['PVT source', defaultCfg?.pvt_source ?? '-'],
-  ]);
+  table('Case summary', ['Quantity', 'Value'], caseSummaryRows({ caseData, lastResult, defaultCfg }));
 
   if (lastResult) {
     const tierLabel = TIER_LABELS[lastResult.validation_tier] ?? lastResult.validation_tier ?? '-';

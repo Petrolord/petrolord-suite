@@ -1,33 +1,32 @@
 // Report tab (MB6). PDF report on the WT5/WT10 jsPDF pattern
 // (src/utils/mbalReportExport.js) plus a CSV of the latest run's
 // per-timestep series. Replaces the pre-Horizons ReportsExport shell.
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { FileDown, FileSpreadsheet, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useMaterialBalanceStudio } from '@/contexts/MaterialBalanceStudioContext';
-import { getCaseDefaultConfig } from '@/pages/apps/reservoir-balance/lib/api';
+import { staleRunMessage } from '@/pages/apps/reservoir-balance/lib/runStaleness';
 import { exportMbalPdf, buildPlotDataCsv } from '@/utils/mbalReportExport';
 
 const ReportTab = () => {
-  const { caseId, caseData, lastResult } = useMaterialBalanceStudio();
+  const {
+    caseData, lastResult, lastRunConfig, runStaleness, refreshRunInputs,
+  } = useMaterialBalanceStudio();
   const { toast } = useToast();
-  const [defaultCfg, setDefaultCfg] = useState(null);
-  useEffect(() => {
-    let alive = true;
-    getCaseDefaultConfig(caseId).then(({ data }) => {
-      if (alive) setDefaultCfg(data ?? null);
-    });
-    return () => { alive = false; };
-  }, [caseId]);
+  // H4: the config printed beside the result is the one the run was made on
+  // (its own snapshot), never today's default config. The default config is
+  // re-read when the tab opens so an edit on another tab is seen here.
+  useEffect(() => { refreshRunInputs?.(); }, [refreshRunInputs]);
+  const stale = Boolean(runStaleness?.stale);
 
   const hasResult = Boolean(lastResult);
   const hm = lastResult?.plot_data?.history_match ?? null;
 
   const onPdf = () => {
     try {
-      exportMbalPdf({ caseData, lastResult, defaultCfg });
+      exportMbalPdf({ caseData, lastResult, defaultCfg: lastRunConfig, staleness: runStaleness });
       toast({ title: 'Report exported', description: 'The PDF has been downloaded.' });
     } catch (err) {
       toast({ title: 'Export failed', description: err.message, variant: 'destructive' });
@@ -35,6 +34,10 @@ const ReportTab = () => {
   };
 
   const onCsv = () => {
+    if (stale) {
+      toast({ title: 'Export refused', description: staleRunMessage(runStaleness), variant: 'destructive' });
+      return;
+    }
     const csv = buildPlotDataCsv(lastResult);
     if (!csv) {
       toast({ title: 'No data', description: 'Run the engine first.', variant: 'destructive' });
@@ -64,14 +67,29 @@ const ReportTab = () => {
           {!hasResult ? (
             <p className="text-sm text-pl-muted flex items-center gap-2">
               <Info className="h-4 w-4" />
-              Run the engine on the Run tab first. The report always describes a computed result. It does not show stored numbers.
+              Run the engine on the Run tab first. The report describes the last completed run, and only while the inputs are the ones that run was made on.
             </p>
+          ) : stale ? (
+            <div className="space-y-3">
+              <p className="text-sm text-pl-warning-text flex items-start gap-2" data-testid="mbal-report-stale">
+                <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>{staleRunMessage(runStaleness)} The report and the series file are not exported until then.</span>
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button disabled data-testid="mbal-export-pdf">
+                  <FileDown className="mr-2 h-4 w-4" /> Export PDF report
+                </Button>
+                <Button variant="outline" disabled data-testid="mbal-export-csv">
+                  <FileSpreadsheet className="mr-2 h-4 w-4" /> Export series CSV
+                </Button>
+              </div>
+            </div>
           ) : (
             <div className="flex flex-wrap items-center gap-3">
-              <Button onClick={onPdf}>
+              <Button onClick={onPdf} data-testid="mbal-export-pdf">
                 <FileDown className="mr-2 h-4 w-4" /> Export PDF report
               </Button>
-              <Button variant="outline" onClick={onCsv}>
+              <Button variant="outline" onClick={onCsv} data-testid="mbal-export-csv">
                 <FileSpreadsheet className="mr-2 h-4 w-4" /> Export series CSV
               </Button>
               <p className="text-[11px] text-pl-muted">

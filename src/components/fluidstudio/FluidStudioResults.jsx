@@ -17,6 +17,7 @@ import LabTuningCard from '@/components/fluidstudio/LabTuningCard';
 import EosPvtTableCard from '@/components/fluidstudio/EosPvtTableCard';
 import PhaseEnvelopeCard from '@/components/fluidstudio/PhaseEnvelopeCard';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { tuningStatus } from '@/utils/fluidstudio/eosAnalysis';
 
 const KPICard = ({ title, value, unit, icon: Icon }) => (
   <Card>
@@ -149,13 +150,15 @@ const FluidStudioResults = ({ results, eos, composition, sepStages, onUpdateTuni
 
         {eos && (
           <TabsContent value="compositional" className="mt-4 space-y-4">
-            <CompositionalResultsCard eos={eos} />
+            <CompositionalResultsCard eos={eos} tuneStatus={tuningStatus(composition, sepStages)} />
             {onUpdateTuning && (
               <LabTuningCard composition={composition} stages={sepStages} onUpdateTuning={onUpdateTuning} />
             )}
-            <CompositionalSeparatorCard separator={eos.separator} tuned={!!eos.parsed?.tuning} />
-            <EosPvtTableCard result={eos.pvtTable} tuned={!!eos.parsed?.tuning} />
-            <PhaseEnvelopeCard composition={composition} tuned={!!eos.parsed?.tuning} />
+            {/* H10: one status for every card. "Lab tuned" holds only while
+                the fluid is the one the tune was fitted on. */}
+            <CompositionalSeparatorCard separator={eos.separator} tuned={tuningStatus(composition, sepStages)} />
+            <EosPvtTableCard result={eos.pvtTable} tuned={tuningStatus(composition, sepStages)} />
+            <PhaseEnvelopeCard composition={composition} tuned={tuningStatus(composition, sepStages)} />
           </TabsContent>
         )}
 

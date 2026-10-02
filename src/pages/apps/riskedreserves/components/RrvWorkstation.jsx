@@ -14,8 +14,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { valueProspect, valuePortfolio, expectationCurve } from '@/utils/prospectValuation';
 import ExpectationChart from './ExpectationChart';
 import {
-  fromRcpProspect, blankProspect, inputProblem, loadProspects, saveProspects, valuationCsv,
-} from '../services/rrvStore';
+  fromRcpProspect, blankProspect, inputProblem, loadProspects, saveProspects, valuationCsv, unitValueSource } from '../services/rrvStore';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const cell = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus';
@@ -29,7 +28,7 @@ const FIELDS = [
   ['p50', 'P50', 'Success-case volume, best case, MMbbl'],
   ['p10', 'P10', 'Success-case volume, high case, MMbbl'],
   ['mefs', 'MEFS', 'Minimum economic field size, MMbbl'],
-  ['unitValue', '$/bbl', 'NPV per barrel of a developed discovery (from the Petroleum Economics Studio)'],
+  ['unitValue', '$/bbl', 'NPV per barrel of a developed discovery. Typed here (a new prospect starts at 8 $/bbl, an assumption), or sent with a prospect valued in ReservoirCalc Pro'],
   ['devCost', 'Dev $MM', 'Development cost of a commercial discovery, $MM'],
   ['wellCost', 'Well $MM', 'Exploration well cost, $MM (spent in every outcome)'],
 ];
@@ -117,9 +116,9 @@ function RrvWorkstationContent({ backend }) {
                       <input className={cell} value={p.name} onChange={(e) => patch(p.id, 'name', e.target.value)} data-testid={`rrv-name-${p.name}`} />
                       <span className={`text-[10px] ${p.source === 'rcp' && p.basis !== 'recoverable' ? 'text-pl-warning-text' : 'text-pl-muted'}`} data-testid={`rrv-note-${p.name}`}>{p.source === 'rcp' ? `from ReservoirCalc Pro${p.volumeNote ? `, ${p.volumeNote}` : ''}${p.economicsNote ? `; ${p.economicsNote}` : ''}${p.chargeNote ? `; ${p.chargeNote}` : ''}` : 'typed here'}</span>
                     </td>
-                    {FIELDS.map(([k]) => (
+                    {FIELDS.map(([k, , title]) => (
                       <td key={k} className="px-1 py-1 w-[72px]">
-                        <input className={`${cell} text-right font-pl-mono tabular-nums`} value={p[k]} inputMode="decimal" onChange={(e) => patch(p.id, k, e.target.value)} data-testid={`rrv-${k}-${p.name}`} />
+                        <input className={`${cell} text-right font-pl-mono tabular-nums`} value={p[k]} title={title} inputMode="decimal" onChange={(e) => patch(p.id, k, e.target.value)} data-testid={`rrv-${k}-${p.name}`} />
                       </td>
                     ))}
                     <td className="px-2 py-1 text-right font-pl-mono tabular-nums" data-testid={`rrv-pc-${p.name}`}>{pv ? pct(pv.pc) : EMPTY_VALUE}</td>
@@ -170,7 +169,12 @@ function RrvWorkstationContent({ backend }) {
               ))}
               <p className="text-[10px] text-pl-muted pt-1">
                 Volumes are the success case, the lognormal fitted to P90 and P10. The risked mean averages the dry hole in;
-                it is never a volume anyone will find. Value per barrel comes from the Petroleum Economics Studio.
+                it is never a volume anyone will find.
+              </p>
+              {/* H8: say where the number came from. No app sends it here. */}
+              <p className="text-[10px] text-pl-muted" data-testid="rrv-unit-value-source">
+                Value per barrel for this prospect: {unitValueSource(selected.p)}. Nothing is received from the
+                Petroleum Economics Studio; to use a development case from it, type its NPV per barrel here.
               </p>
             </div>
           </div>

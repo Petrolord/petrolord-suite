@@ -10,7 +10,7 @@ import ResultsPanel from '@/components/wellspacing/ResultsPanel';
 import EmptyState from '@/components/wellspacing/EmptyState';
 import { 
   validateInputs, 
-  calculateOptimalSpacing,
+  evaluateSpacingCases,
   generateCSV,
   generateJSON
 } from '@/utils/wellSpacingCalculations';
@@ -100,7 +100,7 @@ const WellSpacingOptimizerContent = () => {
       // The sweep is a few hundred closed-form evaluations and returns in
       // milliseconds. There used to be a hard-coded three second wait here,
       // which read as a heavy simulation running.
-      const spacingResults = await calculateOptimalSpacing(formData);
+      const spacingResults = await evaluateSpacingCases(formData);
 
       setResults(spacingResults);
 

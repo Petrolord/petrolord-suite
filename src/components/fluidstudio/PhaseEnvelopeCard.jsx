@@ -11,7 +11,7 @@ import {
 } from '@/utils/chartTheme';
 import { createEnvelopeClient } from '@/utils/fluidstudio/envelopeClient';
 import { envelopeRequest } from '@/utils/fluidstudio/eosAnalysis';
-import FluidStudioTierBadge from '@/components/fluidstudio/FluidStudioTierBadge';
+import FluidStudioTierBadge, { TuneStatusBadge } from '@/components/fluidstudio/FluidStudioTierBadge';
 
 const LINE = { bubble: '#059669', dew: '#2563eb', res: '#dc2626', sat: '#7c3aed' };
 
@@ -72,7 +72,7 @@ const PhaseEnvelopeCard = ({ composition, tuned = false }) => {
             <Mountain className="w-4 h-4 mr-2 text-pl-muted" />PT phase envelope
           </CardTitle>
           <div className="flex items-center gap-2">
-            {tuned && <FluidStudioTierBadge tier="lab_tuned" />}
+            <TuneStatusBadge status={tuned} />
             <FluidStudioTierBadge
               tier="oracle_gated"
               note="Each envelope point is a stability boundary located by bisection on the validated PR78 stability test. The boundary finder is cross-checked point by point against the independent Python oracle in the validation harness."

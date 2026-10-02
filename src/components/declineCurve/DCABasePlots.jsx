@@ -1,3 +1,4 @@
+import { describeNominalAnnual } from '@/utils/declineCurve/declineDisplay';
 import React, { useState, useMemo } from 'react';
 import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
 import { Button } from '@/components/ui/button';
@@ -307,7 +308,7 @@ const DCABasePlots = () => {
                   <div className="flex flex-col gap-0.5">
                     <div>Model: {fit.modelType}</div>
                     <div>qi: {fit.qi.toFixed(0)} {selectedStream === 'gas' ? 'Mscf/d' : 'bbl/d'}</div>
-                    <div>Di: {(fit.Di * 365 * 100).toFixed(1)}%/yr</div>
+                    <div>Di: {describeNominalAnnual(fit.Di, 1)}</div>
                     <div>b: {fit.b.toFixed(2)}</div>
                     <div>R²: {fit.R2.toFixed(3)}</div>
                   </div>

@@ -278,3 +278,21 @@ start at the last history date (they included the produced volume, about
 3 times too high on the test well); EUR and produced to date shown; life
 from the last data, limit or horizon; linear date axis; `/dev/dca` runs on
 the in-memory Supabase double (`src/dev/InMemorySupabase.jsx`).
+
+## 2026-10-02: Reservoir Step 0e honesty sweep (H1, H2, H3)
+
+Doc: `docs/upgrade/Reservoir-Step0e-HonestySweep.md` (branch `fix/reservoir-honesty-sweep`).
+
+- **H1:** the NPV and FDP "Integrations" cards showed a tick and sent
+  nothing. The panel and the placeholder senders are deleted; the help says
+  there is no direct send and names the CSV export and Forecast Scenario
+  Hub. A real sender is built in the DCA round.
+- **H2:** the Diagnostics card printed the per-day Di as "%/yr", 365 times
+  smaller than the KPI card. Every Di display goes through
+  `src/utils/declineCurve/declineDisplay.js`: nominal percent per year, with
+  the effective first-year decline beside it on the KPI and Diagnostics
+  cards.
+- **H3:** the scenario XLSX wrote the remaining volume as both EUR and
+  Remaining Reserves. A scenario now keeps produced, remaining and EUR
+  apart; the sheet, the comparison table and the scenario list name each
+  for what it is. A scenario saved before the fix prints `n/a` for EUR.

@@ -127,11 +127,13 @@ def process_run(run, version):
             "finished_at": supa.utcnow_iso(),
             "result_path": f"{result_prefix}/summary.json",
             "result_bytes": len(blob),
-            "report_steps": len(doc["days"]),
+            # H13: the run's report steps, not the length of the thinned series
+            "report_steps": results.stored_report_steps(doc),
             "failure_stage": None,
             "error_message": None,
         })
-        log.info("run %s complete (%d steps, %d wells)", run_id,
+        log.info("run %s complete (%d report steps, %d time steps, %d points, %d wells)",
+                 run_id, results.stored_report_steps(doc), doc["steps"]["time_steps"],
                  len(doc["days"]), len(doc["wells"]))
 
     except SimFailure as f:

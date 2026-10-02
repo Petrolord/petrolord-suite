@@ -12,9 +12,9 @@ const EmptyState = () => {
     >
       <div className="text-center py-12">
         <Target className="w-16 h-16 text-pl-muted mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-pl-text mb-4">Ready for Well Spacing Optimization</h2>
+        <h2 className="text-2xl font-bold text-pl-text mb-4">Ready to compare well spacings</h2>
         <p className="text-pl-muted mb-6">
-          Enter your field characteristics and economic parameters to find the optimal well spacing that maximizes NPV.
+          Enter your field characteristics and economic parameters to compare spacing cases on well count, capital, volume, cost per barrel and NPV. The app nominates no optimum.
         </p>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-8">

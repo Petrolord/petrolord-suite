@@ -7,7 +7,7 @@ import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import LabTuningCard from '../LabTuningCard';
-import { emptyComposition } from '@/utils/fluidstudio/eosAnalysis';
+import { emptyComposition, labTuneRequest } from '@/utils/fluidstudio/eosAnalysis';
 
 beforeAll(() => {
   global.ResizeObserver = class {
@@ -61,7 +61,11 @@ describe('LabTuningCard', () => {
     render(<LabTuningCard composition={composition} stages={stages} onUpdateTuning={onUpdateTuning} />);
     fireEvent.click(screen.getByRole('button', { name: /Tune to lab data/i }));
     await waitFor(
-      () => expect(onUpdateTuning).toHaveBeenCalledWith({ applied: expect.objectContaining({ kC1: expect.any(Number) }) }),
+      // H10: the applied knobs travel with a record of what they were fitted on
+      () => expect(onUpdateTuning).toHaveBeenCalledWith({
+        applied: expect.objectContaining({ kC1: expect.any(Number) }),
+        fittedOn: expect.any(String),
+      }),
       { timeout: 20000 },
     );
     // the before/after table appears with the psat row
@@ -70,9 +74,13 @@ describe('LabTuningCard', () => {
   }, 30000);
 
   it('shows the lab_tuned badge and applied knob summary when tuning is applied', () => {
+    const lab = { psatPsia: '2600', psatTF: null, totalGor: null, stoApi: null, bo: null };
+    // fitted on this very fluid (H10: the badge holds only while that is so)
+    const fittedOn = JSON.stringify(labTuneRequest(sampleComposition({ lab, applied: null }), stages).request);
     const composition = sampleComposition({
-      lab: { psatPsia: '2600', psatTF: null, totalGor: null, stoApi: null, bo: null },
+      lab,
       applied: { fTc: 1.01, fPc: 0.98, kC1: 0.05, sPlus: 0.1 },
+      fittedOn,
     });
     render(<LabTuningCard composition={composition} stages={stages} onUpdateTuning={() => {}} />);
     expect(screen.getByText(/Lab tuned/i)).toBeInTheDocument();

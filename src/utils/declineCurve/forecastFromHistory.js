@@ -61,3 +61,26 @@ export function forecastFromHistory(fit, config, data, stream) {
     horizonDays: horizon,
   };
 }
+
+/**
+ * What a saved scenario keeps of a forecast (H3). The workbook and the
+ * comparison table need the three volumes apart: produced to date, the
+ * remaining volume after the last history date, and EUR, their sum. `eur`
+ * is kept because older panels and saved scenarios read it; it is the
+ * remaining volume.
+ */
+export function scenarioForecastSnapshot(fc) {
+  return {
+    eur: fc.eur,
+    remaining: fc.remaining ?? fc.eur,
+    produced: fc.produced,
+    eurTotal: fc.eurTotal,
+    limitReached: fc.limitReached,
+    limitBeforeToday: fc.limitBeforeToday,
+    historyEndDate: fc.historyEndDate,
+    horizonDays: fc.horizonDays,
+    timeToLimit: fc.timeToLimit,
+    rates: fc.rates,
+    probabilistic: fc.probabilistic,
+  };
+}

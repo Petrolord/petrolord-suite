@@ -104,3 +104,55 @@ export function fmtElapsed(seconds) {
   if (s < 90) return `${s.toFixed(0)} s`;
   return `${Math.floor(s / 60)} min ${Math.round(s % 60)} s`;
 }
+
+// ---- Step counts (H13) ------------------------------------------------------
+// The worker thins the summary to at most SUMMARY_MAX_POINTS rows
+// (worker/sim-worker/simworker/config.py), and each row is a simulator time
+// step, of which a report step can hold several. The Results tab used to
+// print `days.length` as "report steps". Since the fix the worker writes the
+// real counts in `summary.steps`; a summary from an older build has none.
+export const SUMMARY_MAX_POINTS = 5000;
+
+const count = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : null);
+
+/**
+ * @returns {{ reportSteps: number|null, timeSteps: number|null, stride: number|null, points: number, recorded: boolean }}
+ *   timeSteps is null when an older summary may have been thinned.
+ */
+export function summaryStepCount(summary) {
+  const points = Array.isArray(summary?.days) ? summary.days.length : 0;
+  const st = summary?.steps;
+  if (st && count(st.time_steps) != null) {
+    return {
+      reportSteps: count(st.report_steps),
+      timeSteps: count(st.time_steps),
+      stride: count(st.stride) ?? 1,
+      points,
+      recorded: true,
+    };
+  }
+  // Older worker: a series of at most half the cap cannot have been thinned
+  // (thinning starts above the cap and leaves more than half of it).
+  const unthinned = points <= SUMMARY_MAX_POINTS / 2;
+  return { reportSteps: null, timeSteps: unthinned ? points : null, stride: unthinned ? 1 : null, points, recorded: false };
+}
+
+const n = (v) => Number(v).toLocaleString('en-US');
+
+/** The step sentence of the Results tab. */
+export function summaryStepText(summary) {
+  const c = summaryStepCount(summary);
+  if (c.recorded) {
+    const head = `${c.reportSteps != null ? `${n(c.reportSteps)} report steps, ` : ''}${n(c.timeSteps)} simulator time steps`;
+    return c.stride > 1
+      ? `${head}; 1 time step in ${c.stride} is plotted and exported (${n(c.points)} points)`
+      : head;
+  }
+  if (c.timeSteps != null) {
+    return `${n(c.timeSteps)} simulator time steps (the report step count was not recorded by the worker build that ran this)`;
+  }
+  return `${n(c.points)} plotted points (the run may hold more time steps; the worker build that ran this did not record the count)`;
+}
+
+/** Tooltip for the stored step number of a run row. */
+export const RUN_STEPS_TITLE = 'Report steps of the run. A run made before the worker recorded them (October 2026) stored the number of plotted points here.';

@@ -1,18 +1,19 @@
 import React from 'react';
 import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
+import { formatNominalAnnual, formatEffectiveFirstYear, DI_BASIS_LABEL } from '@/utils/declineCurve/declineDisplay';
 
 // Tiles follow the design-system StatTile look (surface, muted uppercase
 // label, mono tabular value). Values are neutral: colour is kept for status.
-const MetricCard = ({ label, value, unit, subtext }) => (
+const MetricCard = ({ label, value, unit, subtext, testId }) => (
   <div className="bg-pl-surface p-3 rounded-lg border border-pl-border shadow-pl-sm flex flex-col justify-between min-w-0">
     <div>
       <div className="text-[10px] text-pl-muted uppercase tracking-wider mb-1">{label}</div>
       <div className="flex flex-wrap items-baseline gap-x-1">
-        <span className="text-lg font-semibold text-pl-text font-pl-mono tabular-nums">{value}</span>
-        {unit && <span className="text-xs text-pl-muted">{unit}</span>}
+        <span className="text-lg font-semibold text-pl-text font-pl-mono tabular-nums" data-testid={testId}>{value}</span>
+        {unit && <span className="text-xs text-pl-muted" data-testid={testId ? `${testId}-basis` : undefined}>{unit}</span>}
       </div>
     </div>
-    {subtext && <div className="text-[10px] text-pl-muted mt-1 truncate">{subtext}</div>}
+    {subtext && <div className="text-[10px] text-pl-muted mt-1 truncate" data-testid={testId ? `${testId}-effective` : undefined}>{subtext}</div>}
   </div>
 );
 
@@ -56,9 +57,10 @@ const DCAKPICardsEnhanced = () => {
       />
       <MetricCard 
         label="Decline (Di)" 
-        value={formatNum(Di * 365 * 100)} 
-        unit="%/yr"
-        subtext="Nominal Annual"
+        value={formatNominalAnnual(Di)}
+        unit={DI_BASIS_LABEL}
+        subtext={`${formatEffectiveFirstYear(Di, b)} % effective, first year`}
+        testId="dca-di-kpi"
       />
       <MetricCard 
         label="b-Factor" 

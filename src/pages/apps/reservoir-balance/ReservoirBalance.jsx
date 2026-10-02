@@ -15,7 +15,10 @@
 // Persistence: rb_cases + rb_* tables via lib/api.js. Every write is explicit
 // and immediate (no debounced autosave here by design: production-data saves
 // are non-atomic delete+insert). Results are computed by the calculate-mbal
-// edge function and recomputed on demand, never trusted from stale state.
+// edge function. The studio shows the last completed run of the case and
+// checks it against the current inputs (H4, lib/runStaleness.js): a run
+// made before an input changed is named as an earlier run, its status words
+// are withheld and the report waits for a new run.
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
@@ -49,6 +52,7 @@ import ValidationTierBadge from '@/components/reservoirbalance/ValidationTierBad
 import NewCaseDialog, { fluidSystemDisplay } from '@/components/reservoirbalance/NewCaseDialog';
 import MbsHelpContent from '@/components/reservoirbalance/MbsHelpContent';
 import { mapWellTestIntake } from './lib/wellTestIntake';
+import { staleRunMessage } from './lib/runStaleness';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const TABS = [
@@ -123,9 +127,26 @@ const CaseSummary = ({ onEdit }) => {
   );
 };
 
+// ─── Stale run notice (H4) ───────────────────────────────────────────────────
+// Shown above every tab that reads the stored result when an input changed
+// after that run. Mirrors the Well Test rule for a stale auto-fit.
+const RESULT_TABS = ['run', 'plots', 'forecast', 'contacts', 'report'];
+export const StaleRunNotice = () => {
+  const { runStaleness } = useMaterialBalanceStudio();
+  if (!runStaleness?.stale) return null;
+  return (
+    <Alert variant="warning" className="mb-4" data-testid="mbal-stale-run">
+      <Info className="h-4 w-4" />
+      <AlertTitle>Results are from an earlier run</AlertTitle>
+      <AlertDescription className="text-xs">{staleRunMessage(runStaleness)}</AlertDescription>
+    </Alert>
+  );
+};
+
 // ─── Run tab main area (moved from the retired RbCaseDetail.jsx) ─────────────
 const RunPanel = () => {
-  const { caseData, lastResult, running, handleRun } = useMaterialBalanceStudio();
+  const { caseData, lastResult, running, handleRun, runStaleness } = useMaterialBalanceStudio();
+  const stale = Boolean(runStaleness?.stale);
   const rowCount = caseData?.production_data?.length ?? 0;
   return (
     <div className="space-y-4">
@@ -160,7 +181,7 @@ const RunPanel = () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Latest result</CardTitle>
+                <CardTitle data-testid="mbal-result-title">{stale ? 'Earlier result, inputs changed since' : 'Latest result'}</CardTitle>
                 <CardDescription>
                   Drive mechanism:{' '}
                   <span className="font-medium">
@@ -171,7 +192,9 @@ const RunPanel = () => {
                   <span className="font-medium">{lastResult.aquifer_strength}</span>
                 </CardDescription>
               </div>
-              {lastResult.validation_tier ? (
+              {stale ? (
+                <Badge variant="outline" data-testid="mbal-result-stale-badge">Not current</Badge>
+              ) : lastResult.validation_tier ? (
                 <ValidationTierBadge
                   tier={lastResult.validation_tier}
                   reference={lastResult.validation_reference}
@@ -275,7 +298,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
   const {
     cases, casesError, refreshCases,
     caseId, caseData, caseLoading, caseError, refreshCase,
-    running, runVersion,
+    running, runVersion, refreshRunInputs,
     handleCaseCreated, handleDeleteCase,
   } = useMaterialBalanceStudio();
   const { toast } = useToast();
@@ -326,7 +349,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
       <CaseSummary onEdit={() => setEditCaseOpen(true)} />
       {caseData && (
         <p className="text-[11px] text-pl-muted leading-relaxed">
-          Edits on every tab save straight to the case database when you apply them. Results always come from a fresh engine run and never from stored numbers.
+          Edits on every tab save straight to the case database when you apply them. Results are those of the last completed run. When an input changes after that run, the studio says so and the report waits for a new run.
         </p>
       )}
     </div>
@@ -345,6 +368,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
     </Alert>
   ) : (
     <>
+      {RESULT_TABS.includes(activeTab) && <StaleRunNotice />}
       {/* DataHub stays mounted (hidden) on other tabs so a parsed-but-unsaved
           CSV survives a visit to PVT/Aquifer/etc. Case switches still reset it:
           refreshCase flips caseLoading, which swaps in the loader branch and
@@ -353,7 +377,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
         <DataHub caseId={caseId} caseData={caseData} onDataSaved={refreshCase} />
       </div>
       {activeTab === 'pvt' && (
-        <PvtRock caseId={caseId} caseData={caseData} onConfigChange={() => {}} />
+        <PvtRock caseId={caseId} caseData={caseData} onConfigChange={refreshRunInputs} />
       )}
       {activeTab === 'aquifer' && (
         <div className="space-y-4">
@@ -369,7 +393,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
             </p>
           </div>
           {aquiferSegment === 'model' ? (
-            <AquiferModel caseId={caseId} caseData={caseData} onConfigChange={() => {}} />
+            <AquiferModel caseId={caseId} caseData={caseData} onConfigChange={refreshRunInputs} />
           ) : (
             <AquiferScreening />
           )}

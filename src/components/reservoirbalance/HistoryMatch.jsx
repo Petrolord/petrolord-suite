@@ -51,8 +51,11 @@ const Kpi = ({ label, value, hint }) => (
 
 const HistoryMatch = () => {
   const {
-    caseId, caseData, lastResult, running, handleHistoryMatch,
+    caseId, caseData, lastResult, running, handleHistoryMatch, runStaleness,
   } = useMaterialBalanceStudio();
+  // H4: a match made before an input changed keeps its numbers on screen
+  // and loses its status words.
+  const stale = Boolean(runStaleness?.stale);
 
   const [defaultCfg, setDefaultCfg] = useState(null);
   const [cfgLoaded, setCfgLoaded] = useState(false);
@@ -208,13 +211,15 @@ const HistoryMatch = () => {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Match result</CardTitle>
-                <CardDescription>
-                  {hm.converged
-                    ? `Converged in ${hm.iterations} iterations.`
-                    : `Stopped at the iteration cap (${hm.iterations} iterations); see warnings.`}
+                <CardDescription data-testid="mbal-hm-status-line">
+                  {stale
+                    ? 'This match was made on earlier inputs. Run the match again to report its status.'
+                    : hm.converged
+                      ? `Converged in ${hm.iterations} iterations.`
+                      : `Stopped at the iteration cap (${hm.iterations} iterations); see warnings.`}
                 </CardDescription>
               </div>
-              {hm.validation_tier && (
+              {!stale && hm.validation_tier && (
                 <ValidationTierBadge
                   tier={hm.validation_tier}
                   reference={hm.validation_reference}
@@ -229,7 +234,7 @@ const HistoryMatch = () => {
               <Kpi label="Iterations" value={hm.iterations} />
               <Kpi
                 label="Status"
-                value={hm.converged ? 'Converged' : 'Iteration cap'}
+                value={stale ? 'Earlier inputs' : hm.converged ? 'Converged' : 'Iteration cap'}
               />
             </div>
 
