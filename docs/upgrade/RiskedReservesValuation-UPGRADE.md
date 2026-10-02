@@ -276,3 +276,97 @@ MEFS.
 
 Built on branch `feat/rrv-u2`, one commit per item. No DDL: everything new a
 valuation holds lives in its existing `valuation` JSON payload.
+
+## Step 2 build (2026-10-02)
+
+| Item | State | Proving test | Notes |
+|---|---|---|---|
+| U2-002 derived MEFS and value by field size | Done | `__tests__/rrvU2Economics.test.js` (19): a worked hand calculation (model H: MEFS 5.5 MMboe, u 34.67137 $/boe, D 190.69252 $MM; with royalty and tax 8.97959; with a capex per barrel 6.37681) against the shipped functions, which call `calculateEconomics` (spied: one call per NPV, the case handed over is checked); negative controls (the undiscounted 5.0 and the old default 10 are not the size that pays; the Step 1 defaults give minus 20 at the MEFS); the cross-check integral against a brute-force sum. `rrvU2Store.test.js` (14), `rrvU2Report.test.js` (8, PDF read back, golden `model-prospect`), `rrvU2Workstation.test.jsx` (5) | See "U2-002" below. |
+
+### U2-002: the derived MEFS and the value of a discovery
+
+**What changed.** A valuation now says where its three economic inputs come
+from, in an `econ` block of its JSON payload (no DDL):
+
+- *Value of a discovery* (value per barrel u and development cost D): the
+  **economic model** of the valuation, or **entered values** (typed here, or
+  sent with a prospect valued in ReservoirCalc Pro).
+- *MEFS*: **derived** (the size at which a discovery is worth zero under that
+  value) or **typed**.
+
+The economic model is ten stated assumptions (price, variable and fixed
+operating cost, development capex as a fixed part plus a part per barrel,
+producing life, decline, royalty, tax, discount rate). It starts from
+ReservoirCalc Pro's screening defaults and builds the same cash-flow case
+(`economicsCase`), so the two ends of the prospect chain share one model.
+Every NPV is `calculateEconomics` (`src/utils/npvCalculations.js`);
+`services/rrvEconomics.js` holds no cash-flow or discounting arithmetic. It
+asks the engine for the NPV of a development of a given size and does three
+things with the answers:
+
+1. **Derived MEFS**: the smallest size whose engine NPV is at or above zero
+   (bisection on the engine's NPV).
+2. **The value line** the valuation engine reads, value(V) = u V - D: the
+   straight line through the engine NPV at the MEFS and at the mean
+   commercial size of the prospect. So a discovery of exactly the MEFS is
+   worth what the engine says (zero), and EMV = Pc x NPV(mean commercial
+   size) - W to 1e-8 (test).
+3. **A cross-check** printed in the report: the EMV with the value-by-size
+   curve integrated over the success case, segment by segment, in closed
+   form from the valuation engine's own lognormal exports (no sampling). On
+   the default model the engine NPV is a straight line above about 8 MMboe,
+   so the difference is 0.0; where late years lose money and pay no tax the
+   curve bends, the difference is printed, and above 5% it raises a flag.
+
+For entered values the derived MEFS is D / u (the zero of the same line).
+
+**The contradictory defaults (RRV-U1-016, owner question 2) are closed.** A
+new prospect, and an import that carries no economics, start on the model
+with a derived MEFS: consistent by construction. The default valuation
+(Pg 0.25, P90 10, P50 25, P10 60 MMboe, well 25 $MM):
+
+| | MEFS (MMboe) | u ($/boe) | D ($MM) | Value at the MEFS ($MM) | Pc | EMV ($MM) |
+|---|---|---|---|---|---|---|
+| Before (Step 1 typed defaults) | 10 | 8 | 100 | -20.0 | 22.5% | 13.6 |
+| After (default model, derived) | 20.58 | 21.00 | 432.1 | 0.0 | 15.0% | 46.4 |
+
+**What does not change.** A valuation saved before this build opens on
+entered values with a typed MEFS, exactly as it was valued (test). A
+prospect valued in ReservoirCalc Pro keeps the value per barrel and
+development cost it was sent; its MEFS is now derived (D / u) where Step 1
+gave it the unrelated default of 10. No other app's numbers move.
+
+**On the screen.** A new Economics tab: the two choices, the model's
+assumptions (prices follow the unit profile: 70 $/boe is 440.287 $/m3, pinned
+in a test), the derived values, the basis rows, the value-against-size chart
+(white chart template, ChartLogo) and the value-by-size table. In the
+prospect table a derived cell is dashed and italic and says what it is
+derived from; typing in it takes it over (a typed MEFS stops following the
+economics; a typed value per barrel or development cost leaves the model).
+
+**In the report.** The three derived inputs say what they were derived from;
+each model assumption is a row with unit and source ("Assumed: the starting
+screening default" until changed or its source stated; completeness guard
+`missingModelInputs`); a section "Economics: the MEFS and the value of a
+discovery" (basis, the value line, the MEFS, the value at the MEFS, the mean
+commercial size, the cross-check); the table "Value by field size" (engine
+NPV, engine NPV per barrel, the line and the difference at the MEFS, P90,
+P50, mean, mean if commercial and P10); a new figure "Value of a discovery
+against its size" with the engine curve, the line and the MEFS marked; limits
+updated (the line, the derived or typed MEFS, the screening model and its
+caution). The CSV gains `mefs_basis` and `value_basis`.
+
+**Reference.** Rose (2001), *Risk Analysis and Management of Petroleum
+Exploration Ventures*, AAPG Methods in Exploration 12, and the SPE PRMS were
+not available to read in this environment. The definition used (MEFS as the
+smallest recoverable volume whose development NPV is not negative; Pc = Pg x
+P(V >= MEFS)) is the standard one as recalled, and the GeoExpro article on
+the MEFS concept listed in section 2a was read in Step 1. The validation is
+therefore a hand calculation on the canonical engine, not a published case.
+
+**Limit to know.** In the screening case shared with ReservoirCalc Pro the
+development capex sits in a year with no income and `lossCarryForward` is
+off, so it earns no tax relief: the derived MEFS is on the cautious side.
+This is printed under "Limits of this analysis". Changing it would move
+ReservoirCalc Pro's sent economics too, so it is an owner item, not done
+here.

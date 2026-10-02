@@ -40,6 +40,8 @@ export function buildRrvReport(model, { logo = null, generatedAt = new Date() } 
     r.section('Chance of success', model.chance.statement);
   }
   r.table('Volumes: unrisked and risked', model.volumes.head, model.volumes.body, { note: model.volumes.note, columnStyles: { 0: { cellWidth: 58 } } });
+  r.table('Economics: the MEFS and the value of a discovery', ['Item', 'As used'], model.economics.basis, { columnStyles: KEY_VALUE });
+  r.table('Value by field size', model.economics.table.head, model.economics.table.body, { note: model.economics.table.note, columnStyles: { 0: { cellWidth: 34 } } });
   r.table('Expected monetary value, in its parts', model.value.head, model.value.body, { note: model.value.note, columnStyles: { 0: { cellWidth: 58 }, 1: { cellWidth: 24, halign: 'right' } } });
   r.table('Outcomes of the exploration well', model.outcomes.head, model.outcomes.body, { note: model.outcomes.note, columnStyles: { 0: { cellWidth: 62 } } });
   if (model.portfolio) r.table('Portfolio context', model.portfolio.head, model.portfolio.body, { note: model.portfolio.note });

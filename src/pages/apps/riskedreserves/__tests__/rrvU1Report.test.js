@@ -13,7 +13,7 @@ import {
 import { isPrintable, missingInputRows } from '@/lib/reportKit';
 import { valueProspect } from '@/utils/prospectValuation';
 import {
-  fromRcpProspect, blankProspect, engineInput, upstreamState, inputProblem, upgradeProspect, INPUT_KEYS,
+  fromRcpProspect, blankProspect, engineInput, upstreamState, inputProblem, upgradeProspect, INPUT_KEYS, DEFAULT_ECONOMICS,
 } from '../services/rrvStore';
 import { valueOrProblem, volumeCurves, valueCurves } from '../services/rrvMath';
 import { rrvUnits } from '../services/rrvUnits';
@@ -32,7 +32,11 @@ const row = { id: UUID, ...RRV_SEED_PROSPECTS[0] };
 const IDENT = { company: 'Lordsway Energy', licence: 'OML 143', play: 'Agbada stacked sands', analyst: 'A. Analyst' };
 const logo = chartLogo();
 
-const north = (over = {}) => ({ ...fromRcpProspect(row, { now: NOW }), ident: IDENT, ...over });
+// These Step 1 tests value on the Step 1 basis: an entered value per barrel and
+// development cost and a typed MEFS. Since U2-002 a new import starts on the
+// economic model; rrvU2Report.test.js reads that report.
+const STEP1 = { econ: { value: 'entered', mefs: 'typed' }, ...DEFAULT_ECONOMICS };
+const north = (over = {}) => ({ ...fromRcpProspect(row, { now: NOW }), ...STEP1, ident: IDENT, ...over });
 // as the workstation does: the input check first, then the engine
 const args = (p, over = {}) => {
   const bad = inputProblem(p);
@@ -133,7 +137,7 @@ describe('the report of a prospect handed over by ReservoirCalc Pro', () => {
 
   test('RL6: every claimed result has its plot, drawn with the screen series; the one that does not apply says why', () => {
     expect(listCaptions(pdf).map((c) => c.title)).toEqual([
-      'Expectation curve of volume', 'Expectation curve of value', 'Chance factors and the chance of success', 'Sensitivity of the EMV',
+      'Expectation curve of volume', 'Expectation curve of value', 'Value of a discovery against its size', 'Chance factors and the chance of success', 'Sensitivity of the EMV',
     ]);
     const fig = Object.fromEntries(built.figures.map((f) => [f.id, f]));
     for (const id of ['volume', 'value', 'chance']) expectFigureDrawn(pdf, fig[id], { logo: true });
@@ -182,7 +186,8 @@ describe('the report of a prospect handed over by ReservoirCalc Pro', () => {
     expect(text).toContain('Limits of this analysis');
     for (const s of ['Single prospect.', 'dependence between prospects, shared play risk and a drilling sequence are not modelled',
       'The chance factors are treated as independent and multiplied', 'lognormal fitted to the entered P90 and P10',
-      'The value per barrel is deterministic', 'The MEFS is an input and is not derived', 'It is not a reserves estimate']) expect(text).toContain(s);
+      'The value of a discovery is deterministic and a straight line in its size', 'One value per barrel and one development cost serve every commercial size',
+      'The MEFS is typed and is not tied to the value per barrel and the development cost', 'It is not a reserves estimate']) expect(text).toContain(s);
     expect(text).toContain('Flags on this prospect');
     expect(text).toMatch(/Development cost, exploration well cost: starting defaults that were never changed on this screen/);
     expect(model.limits.flags.some((f) => /MEFS/.test(f) && /below the size that pays/.test(f))).toBe(false); // 9.5 x 15 - 100 > 0
@@ -266,7 +271,7 @@ describe('the conditions of the report', () => {
 
   test('RL9: in-place volumes, an MEFS that loses money and untouched defaults are flagged', () => {
     const inPlace = { ...row, inputs: { ...row.inputs, basis: 'in-place' } };
-    const p = { ...fromRcpProspect(inPlace, { now: NOW }), ident: IDENT };
+    const p = { ...fromRcpProspect(inPlace, { now: NOW }), ...STEP1, ident: IDENT };
     const { text } = read(p, { upstream: upstreamState(p, [inPlace]) });
     expect(text).toContain('The volumes are IN PLACE (STOIIP or GIIP). A valuation needs recoverable volumes');
     expect(text).toContain('Volume basis IN PLACE (STOIIP or GIIP): not a recoverable volume');
@@ -299,7 +304,7 @@ describe('the conditions of the report', () => {
   });
 
   test('RL6: a typed prospect has no chance factors, and a zero value per barrel has no value curve: each says why', () => {
-    const typed = { ...blankProspect(1), name: 'Typed lead', ident: IDENT, inputMeta: { pg: { source: 'study', note: 'Regional play risking 2025' } } };
+    const typed = { ...blankProspect(1), ...STEP1, name: 'Typed lead', ident: IDENT, inputMeta: { pg: { source: 'study', note: 'Regional play risking 2025' } } };
     const b = build(typed, { upstream: { state: 'own' } });
     const pdf = readPdf(b.doc);
     const t = flat(pdf.text);
@@ -309,7 +314,7 @@ describe('the conditions of the report', () => {
     expect(t).toContain('Volumes from Typed in this app');
     expect(t).toMatch(/Chance of geological success Pg 0\.250 fraction Technical study or report\. Regional play risking 2025/);
     expect(t).toMatch(/Success-case volume P90 \(low\) 10 MMboe Entered, source not stated/);
-    expect(listCaptions(pdf).map((c) => c.title)).toHaveLength(4);
+    expect(listCaptions(pdf).map((c) => c.title)).toHaveLength(5);
     const zero = build({ ...typed, unitValue: 0, touched: { unitValue: true } }, { upstream: { state: 'own' } });
     const zf = Object.fromEntries(zero.figures.map((f) => [f.id, f]));
     expectFigureStatement(readPdf(zero.doc), zf.value, /Not plotted: the value per barrel is zero/);

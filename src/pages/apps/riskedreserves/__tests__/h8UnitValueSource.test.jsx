@@ -12,7 +12,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import RrvWorkstation from '../components/RrvWorkstation';
 import { makeInMemoryProspectsBackend } from '../../ReservoirCalcPro/services/prospectsService';
-import { fromRcpProspect, blankProspect, unitValueSource, DEFAULT_ECONOMICS } from '../services/rrvStore';
+import { fromRcpProspect, blankProspect, unitValueSource, setInput, upgradeProspect, DEFAULT_ECONOMICS } from '../services/rrvStore';
 
 jest.mock('recharts', () => {
   const R = jest.requireActual('recharts');
@@ -30,15 +30,18 @@ const mount = () => render(<MemoryRouter><RrvWorkstation backend={makeInMemoryPr
 
 describe('H8: where the value per barrel comes from', () => {
   it('the source is read off the prospect', () => {
-    expect(unitValueSource(blankProspect(1))).toMatch(/starting default of 8 \$\/bbl, an assumption/);
-    expect(unitValueSource({ ...blankProspect(1), unitValue: 9.5 })).toBe('entered on this screen');
+    // U2-002: a new prospect starts on the economic model, and says so
+    expect(unitValueSource(blankProspect(1))).toMatch(/^derived here from the economic model of this valuation/);
+    expect(unitValueSource(setInput(blankProspect(1), 'unitValue', 9.5))).toBe('entered on this screen');
+    // a valuation an earlier build left on its untouched default still says that
+    expect(unitValueSource(upgradeProspect({ id: 'own-1', source: 'own', name: 'Old', pg: 0.25, p90: 10, p50: 25, p10: 60, ...DEFAULT_ECONOMICS }))).toMatch(/starting default of 8 \$\/bbl, an assumption/);
     const valued = fromRcpProspect({ id: 'p2', ...seed[1] });
     expect(valued.unitValue).toBe(11.5);
     expect(unitValueSource(valued)).toMatch(/^from ReservoirCalc Pro success-case economics/);
     expect(unitValueSource({ ...valued, unitValue: 14 })).toMatch(/entered on this screen \(ReservoirCalc Pro sent 11\.5 \$\/bbl\)/);
     const plain = fromRcpProspect({ id: 'p1', ...seed[0] });
-    expect(plain.unitValue).toBe(DEFAULT_ECONOMICS.unitValue);
-    expect(unitValueSource(plain)).toMatch(/starting default/);
+    expect(plain.econ.value).toBe('model');
+    expect(unitValueSource(plain)).toMatch(/derived here from the economic model/);
   });
 
   it('the screen states the true source and claims no Petroleum Economics Studio handoff', async () => {
@@ -48,12 +51,12 @@ describe('H8: where the value per barrel comes from', () => {
     const line = () => screen.getByTestId('rrv-unit-value-source').textContent;
     expect(document.body.textContent).not.toMatch(/comes from the Petroleum Economics Studio/);
     expect(line()).toMatch(/Nothing is received from the Petroleum Economics Studio/);
-    // the first prospect is selected: imported without economics, so the default
-    expect(line()).toMatch(/starting default of 8 \$\/bbl/);
+    // the first prospect is selected: imported without economics, so the economic model
+    expect(line()).toMatch(/derived here from the economic model/);
     // type a value: it is now the user's
     fireEvent.change(screen.getByTestId('rrv-unitValue-North'), { target: { value: '9.5' } });
     expect(line()).toMatch(/entered on this screen/);
-    expect(line()).not.toMatch(/starting default/);
+    expect(line()).not.toMatch(/derived here/);
     // the tooltip on the column says the same
     const tip = screen.getByTestId('rrv-unitValue-North').getAttribute('title') || '';
     expect(tip).not.toMatch(/from the Petroleum Economics Studio/);

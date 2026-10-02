@@ -113,6 +113,8 @@ export default function RrvReportPanel({ model, prospect, readOnly = false, ownS
         <>
           <Table testId="rrv-report-headline" title="Headline results" head={model.headline.head} body={model.headline.body} note={model.headline.note} />
           <Table testId="rrv-report-volumes" title="Volumes: unrisked and risked" head={model.volumes.head} body={model.volumes.body} note={model.volumes.note} />
+          <Table testId="rrv-report-economics" title="Economics: the MEFS and the value of a discovery" head={['Item', 'As used']} body={model.economics.basis} />
+          <Table testId="rrv-report-value-size" title="Value by field size" head={model.economics.table.head} body={model.economics.table.body} note={model.economics.table.note} />
           <Table testId="rrv-report-value" title="Expected monetary value, in its parts" head={model.value.head} body={model.value.body} note={model.value.note} />
           <Table testId="rrv-report-outcomes" title="Outcomes of the exploration well" head={model.outcomes.head} body={model.outcomes.body} note={model.outcomes.note} />
           {model.portfolio && <Table testId="rrv-report-portfolio" title="Portfolio context" head={model.portfolio.head} body={model.portfolio.body} note={model.portfolio.note} />}
