@@ -98,16 +98,33 @@ An app that shows a decline rate states both the basis and the time unit.
   365.25. An app that adopts `declineRate` either moves its engine constant
   or converts with its own year and says so; the difference is 0.07 percent.
 
-## 2. Shared tabular-file parser (`src/lib/tabularFile.js`)
+## 2. Shared tabular-file parser (`src/lib/tabularParse.js`, through `src/lib/tabularFile.js`)
 
-One reader for pasted or imported tables. Pure: text in, a plain object out.
+One typed reader for pasted or imported tables. Pure: text in, a plain
+object out.
+
+**Where it lives, and why not in `tabularFile.js` itself.** The plan names
+`src/lib/tabularFile.js`. That file already existed (2026-09-03): it
+classifies files, reads Excel workbooks with SheetJS and splits delimited
+text into string cells for about fifteen Geoscience and Data AI import
+doors. It is not pure and it has no typed values, no decimal-mark rule and
+no row report. So the new reader is its own pure module,
+`src/lib/tabularParse.js`, and `tabularFile.js` re-exports it: `@/lib/tabularFile`
+stays the one door, nothing that file exported has changed, and a door that
+needs no workbook imports `tabularParse` directly and keeps SheetJS out of
+its bundle. Two names differ on purpose: `detectTableDelimiter` (weighs every
+line, returns the character) beside the older `detectDelimiter` (counts the
+first line, returns 'whitespace'), and `DELIMITER_NAMES` beside the older
+`DELIMITERS` list. Open item: the older first-line detector takes a
+header-less semicolon file with decimal commas for a comma file; moving the
+existing doors onto `detectTableDelimiter` is for their own rounds.
 
 ### API
 
 | Export | What it does |
 |---|---|
 | `parseTabular(text, options)` | The whole read. Options: `delimiter`, `decimal`, `dateOrder` ('dmy', 'mdy', or per column index), `header` (true or false), `nullTokens` |
-| `detectDelimiter(text)` | Comma, semicolon, tab or white space |
+| `detectTableDelimiter(text)` | Comma, semicolon, tab or white space |
 | `detectDecimalMark(cells, { delimiter })` | `{ mark, certain, reason, examples }` |
 | `parseNumber(value, { decimal })` | One number, or NaN. A misplaced group separator is refused |
 | `detectDateOrder(values)`, `parseDate(value, { order })` | Day first or month first; one date or date-time |
@@ -138,7 +155,7 @@ typed values), `report` (`skipped` with the reason, `padded`, `unreadable`),
   line, an empty row and a row with too many fields are left out and listed
   with the line number and the reason; a short row is padded and listed.
 
-### The hostile file set (`src/lib/__tests__/tabularFile.test.js`)
+### The hostile file set (`src/lib/__tests__/tabularParse.test.js`)
 
 Semicolon columns with decimal commas; tab columns with thousands
 separators; mixed blanks and null words; day-first dates; dates no value

@@ -1,7 +1,7 @@
 // H12 (Reservoir gap matrix): the Material Balance data hub read a decimal
 // comma as a thousands separator, so a European export (semicolon columns,
 // decimal commas) gave 325075 psia for 3250,75 and a Bo of 1245. The number
-// reading now comes from the shared table reader (src/lib/tabularFile.js).
+// reading now comes from the shared table reader (src/lib/tabularParse.js).
 import { readProductionCsv } from '../DataHub';
 
 describe('Material Balance data hub: decimal commas (H12)', () => {

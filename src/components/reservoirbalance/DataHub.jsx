@@ -32,7 +32,7 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
-import { detectDelimiter, detectDecimalMark, parseNumber, isNullToken } from '@/lib/tabularFile';
+import { detectTableDelimiter, detectDecimalMark, parseNumber, isNullToken } from '@/lib/tabularParse';
 import {
   Card,
   CardHeader,
@@ -392,7 +392,7 @@ export function readProductionCsv(text) {
   const src = String(text ?? '').replace(/^\ufeff/, '');
   // the delimiter comes from the shared reader: a field-count guess takes a
   // semicolon file with a decimal comma in every cell for a comma file
-  const found = detectDelimiter(src);
+  const found = detectTableDelimiter(src);
   const delimiter = found === ' ' ? '' : found;   // white-space columns: papaparse's own guess, as before
   const results = Papa.parse(src, { header: true, skipEmptyLines: true, dynamicTyping: false, delimiter });
   if (results.errors.length > 0) return { rows: [], warnings: [], colMap: {}, scales: {}, parseErrors: results.errors };

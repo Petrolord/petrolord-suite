@@ -16,7 +16,7 @@
  * carry it as T in degF, and a file without one carries no T at all.
  *
  * Reservoir round, Step 0a (2026-10-02, gap matrix H12): numbers are read by
- * the shared table reader (src/lib/tabularFile.js) with the file's own
+ * the shared table reader (src/lib/tabularParse.js) with the file's own
  * decimal mark, and the column delimiter is found by the same reader. A
  * European export (semicolon or tab columns, decimal commas) used to read
  * 250,75 as 25075. The table now carries `decimal` { mark, certain }; when
@@ -25,7 +25,7 @@
  * (the historical reading), and `certain` is false.
  */
 import Papa from 'papaparse';
-import { detectDelimiter, detectDecimalMark, parseNumber, splitRows } from '@/lib/tabularFile';
+import { detectTableDelimiter, detectDecimalMark, parseNumber, splitRows } from '@/lib/tabularParse';
 
 export const ATM_PSI = 14.695948775513449; // 101.325 kPa
 const PSI_PER_KPA = 1 / 6.894757293168361;
@@ -91,7 +91,7 @@ const stamp = (v, decimal = '.') => {
  */
 export function readGaugeTable(text) {
   const src = String(text || '').trim();
-  const delimiter = detectDelimiter(src);
+  const delimiter = detectTableDelimiter(src);
   const data = delimiter === ' '
     ? splitRows(src, ' ').map((r) => r.cells)
     : Papa.parse(src, { skipEmptyLines: true, delimiter }).data;

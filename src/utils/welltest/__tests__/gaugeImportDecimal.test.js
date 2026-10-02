@@ -1,7 +1,7 @@
 // H12 (Reservoir gap matrix): the gauge import read a decimal comma as a
 // thousands separator. A European export (semicolon columns, decimal
 // commas) gave 25075 bar for 250,75 bar. The number reading now comes from
-// the shared table reader (src/lib/tabularFile.js).
+// the shared table reader (src/lib/tabularParse.js).
 import { importGaugeCsv, readGaugeTable, detectGaugeMapping, convertGaugeRows, ATM_PSI } from '../gaugeImport';
 
 const PSI_PER_BAR = 100 / 6.894757293168361;
