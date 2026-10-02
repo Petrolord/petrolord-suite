@@ -17,6 +17,10 @@ import {
 } from '@/lib/wellsRegistry';
 import { getDepthUnit } from '@/lib/crs/settingsService';
 import { staleOwnCurves } from './publish';
+import { createSavedProjectsService } from '@/utils/savedProjects';
+
+// U2-011: SCAL Studio's saved projects, read only (the saturation-height link)
+const scalProjects = createSavedProjectsService('saved_scal_projects');
 
 // ---- publish (RP1) -----------------------------------------------------------
 // Overwrite-own: republish replaces only this engine's curves for the
@@ -76,5 +80,7 @@ export function makeRegistryBackend() {
     publishCurves,
     loadProject,
     saveProject,
+    listScalProjects: () => scalProjects.list(),
+    loadScalProject: (id) => scalProjects.load(id),
   };
 }

@@ -256,7 +256,7 @@ Branch `feat/seis-u2`. One row per item, in build order; each row names the test
 | U2-008 | Org-shared projects | Owner Q2: needs an RLS change on `seismic_projects` and a second engineer; left for the owner. | Owner |
 | U2-019 | Range-read shards | Storage layout work for slow links; current bricked LOD meets the NAPE demo. | After NAPE |
 | U2-016 | Prospect sheet with RCP | Revisit at app #8 (ReservoirCalc Pro). | App #8 |
-| U2-020 | Rock physics to synthetics, AVO | Revisit at app #10 (Rock Physics Studio). | App #10 |
+| U2-020 | Rock physics to synthetics, AVO | Built with app #10 (Rock Physics Studio), 2026-10-01. First half (RP-U1-009): the synthetics pickers list Rock Physics' DT_SUB and RHOB_SUB. Second half (RP-U2-012): Rock Physics publishes its angle gather through the `rock-physics-gather` contract (`src/lib/rockPhysicsGather.js`) and the synthetics window shows it on request (`components/RockPhysicsGather.jsx`, one optional prop on `SyntheticsPanel`, one line in `ViewerPanel`); display only, beside the synthetic. Also RP-U2-007: a published pseudo-sonic DT_EST is listed last, labelled ESTIMATED, never the default while a measured sonic exists, with a warning when chosen. Not built: modelled AVO against attribute volumes (after NAPE). | Done with app #10 |
 
 U2-017 note: the worker IndexedDB brick cache named in the backlog row was not in the batch decision's sub-item list and was not built.
 

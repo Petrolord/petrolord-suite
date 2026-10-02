@@ -46,3 +46,17 @@ export function impedanceDisplay(siValue, velocityUnit, densityUnit) {
   if (dens === 'g/cc') v /= 1000;
   return { text: dens === 'g/cc' ? v.toFixed(0) : v.toExponential(4), unit: `${speed}·${dens}` };
 }
+
+/**
+ * Impedance for a chart axis: SI (m/s kg/m3) to the display units, with
+ * kg/m3 views scaled to millions so the ticks stay short.
+ * @returns {{factor: number, unit: string, digits: number}} displayed = SI x factor
+ */
+export function impedanceAxis(velocityUnit, densityUnit) {
+  const speed = velocityUnit === 'ft/s' ? 'ft/s' : 'm/s';
+  const gcc = densityUnit === 'g/cc';
+  let factor = 1;
+  if (speed === 'ft/s') factor /= M_PER_FT;
+  if (gcc) return { factor: factor / 1000, unit: `${speed}·g/cc`, digits: 0 };
+  return { factor: factor / 1e6, unit: `10⁶ ${speed}·kg/m3`, digits: 2 };
+}

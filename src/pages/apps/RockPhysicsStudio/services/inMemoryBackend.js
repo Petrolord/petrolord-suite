@@ -16,6 +16,11 @@
 // A second, org-shared well has NO DTS so the estimated-Vs provenance
 // badge path is drivable.
 
+import { brine, gas, woodMix } from '../engine/fluids';
+import { MINERALS } from '../engine/minerals';
+import { substituteVels } from '../engine/gassmann';
+import { gardnerRho } from '../engine/pseudoSonic';
+
 let seq = 0;
 const nextId = (p) => { seq += 1; return `${p}-${seq}`; };
 
@@ -98,7 +103,96 @@ function longCurves() {
   return { curves: c, n, step };
 }
 
-export function makeInMemoryBackend({ hostile = false, long = false } = {}) {
+// RP-U2-002 evidence well (?trend=1): 400 m of 6 m sand and shale beds on a
+// brine trend (mudrock-line shear with a deterministic scatter, Gardner
+// density), measured shear, and one gas bed (2000 to 2012 m, Sw 0.2) whose
+// logged Vp, Vs and density are the Gassmann gas state of its wet rock at
+// the default conditions, with an SW log. Taking the gas out through the
+// SW log returns the wet trend, so the fluid line has a known answer.
+export const TREND_GAS = Object.freeze({ top: 2000, base: 2012, sw: 0.2, phi: 0.24 });
+function trendCurves() {
+  const cond = { tC: 60, pMPa: 25, salinity: 0.035 };
+  const br = brine(cond.tC, cond.pMPa, cond.salinity);
+  const g = gas(cond.tC, cond.pMPa, 0.6);
+  const mixed = woodMix([{ ...br, sat: TREND_GAS.sw }, { ...g, sat: 1 - TREND_GAS.sw }]);
+  const kmin = MINERALS.quartz.k;
+  const c = { DEPT: [], DT: [], DTS: [], RHOB: [], PHIE: [], VSH: [], SW: [] };
+  const wet = { vp: [], vs: [], rho: [] };
+  for (let d = 1800; d <= 2200 + 1e-9; d += 0.5) {
+    const bed = Math.floor((d - 1800) / 6);
+    const sand = bed % 2 === 0;
+    const vp = 2650 + 55 * ((bed * 7) % 11) + 3 * bed + (sand ? 180 : 0);
+    const vs = 0.8621 * vp - 1172.4 + 6 * (((bed * 5) % 7) - 3);
+    const rho = gardnerRho(vp);
+    const inGas = d >= TREND_GAS.top && d <= TREND_GAS.base;
+    let s = { vp, vs, rho };
+    if (inGas) s = substituteVels(vp, vs, rho, kmin, TREND_GAS.phi, br, mixed);
+    wet.vp.push(vp); wet.vs.push(vs); wet.rho.push(rho);
+    c.DEPT.push(d);
+    c.DT.push(1e6 / s.vp);
+    c.DTS.push(1e6 / s.vs);
+    c.RHOB.push(s.rho / 1000);
+    c.PHIE.push(inGas ? TREND_GAS.phi : sand ? 0.24 : 0.08);
+    c.VSH.push(inGas ? 0.05 : sand ? 0.1 : 0.8);
+    c.SW.push(inGas ? TREND_GAS.sw : 1);
+  }
+  return { curves: c, wet };
+}
+// RP-U2-007 evidence wells (?nosonic=1): a well with density, resistivity,
+// porosity and VSH but NO sonic, and a calibration well that has one. Both
+// follow Gardner with a = 0.245 and Faust with 2100 exactly, with a
+// deterministic 3 percent wobble on the true velocity, so a calibration has
+// a known answer and the misfit a known size.
+export const NOSONIC_TRUTH = Object.freeze({ gardnerA: 0.245, faustGamma: 2100 });
+function sonicPairCurves(withSonic, offset) {
+  const c = { DEPT: [], RHOB: [], RT: [], PHIE: [], VSH: [] };
+  if (withSonic) c.DT = [];
+  const truth = [];
+  for (let d = 1500; d <= 1700 + 1e-9; d += 0.5) {
+    const k = Math.round((d - 1500) * 2) + offset;
+    const sand = d >= 1560 && d <= 1600;
+    const rt = (sand ? 6 : 1.8) * (1 + 0.25 * Math.sin(k / 9));
+    const vpFaust = 0.3048 * NOSONIC_TRUTH.faustGamma * ((d / 0.3048) * rt) ** (1 / 6);
+    const vp = vpFaust * (1 + 0.03 * Math.sin(k / 5));
+    const rho = 1000 * NOSONIC_TRUTH.gardnerA * (vpFaust / 0.3048) ** 0.25;
+    truth.push(vp);
+    c.DEPT.push(d); c.RHOB.push(rho / 1000); c.RT.push(rt);
+    c.PHIE.push(sand ? 0.24 : 0.07); c.VSH.push(sand ? 0.1 : 0.8);
+    if (withSonic) c.DT.push(1e6 / vp);
+  }
+  return { curves: c, truth };
+}
+/** The true Vp of the no-sonic well, for tests. */
+export const noSonicTruth = () => sonicPairCurves(false, 0).truth;
+
+// RP-U2-009 evidence well (?minerals=1): a mixed carbonate and sand section
+// with measured sonic and shear, and the three mineral-fraction curves
+// Petrophysics Studio's mineral model publishes (bulk fractions: they sum
+// to one with the porosity), with its provenance. 2100 to 2110 m is pure
+// calcite, 2110 to 2120 m half quartz and half dolomite, 2120 to 2130 m
+// has no fractions (a refused sample).
+function mineralCurves() {
+  const c = { DEPT: [], DT: [], DTS: [], RHOB: [], PHIE: [], VSH: [], V_QUARTZ: [], V_CALCITE: [], V_DOLOMITE: [] };
+  for (let d = 2090; d <= 2140 + 1e-9; d += 0.5) {
+    const phi = 0.15;
+    const solid = 1 - phi;
+    let q = 1; let ca = 0; let dol = 0;
+    if (d >= 2100 && d < 2110) { q = 0; ca = 1; } else if (d >= 2110 && d < 2120) { q = 0.5; dol = 0.5; }
+    const none = d >= 2120 && d < 2130;
+    c.DEPT.push(d); c.DT.push(1e6 / 4200); c.DTS.push(1e6 / 2400); c.RHOB.push(2.45); c.PHIE.push(phi); c.VSH.push(0.02);
+    c.V_QUARTZ.push(none ? NaN : q * solid); c.V_CALCITE.push(none ? NaN : ca * solid); c.V_DOLOMITE.push(none ? NaN : dol * solid);
+  }
+  return c;
+}
+const MINERAL_PROVENANCE = Object.freeze({
+  computed: true, engine: 'petrophysics-studio', operation: 'mineral-model', pipeline_version: 7,
+  model: { minerals: ['quartz', 'calcite', 'dolomite'] }, tools: ['RHOB', 'NPHI', 'PEF'],
+});
+
+/** The wet (brine) truth of the trend well, for tests. */
+export const trendWellTruth = () => trendCurves().wet;
+
+export function makeInMemoryBackend({ hostile = false, long = false, trend = false, nosonic = false, minerals = false, pp = false } = {}) {
   const curveStore = new Map();
   const logsByWell = new Map();
   const topsByWell = new Map();
@@ -121,6 +215,9 @@ export function makeInMemoryBackend({ hostile = false, long = false } = {}) {
       units_note: 'SI',
       deviation: [],
       checkshots: [],
+      // U2-003: the tie QC record Seismolord stores when a tie is committed
+      // (Seismolord U2-013, lib/wellWavelet.tieQcRecord), on the first well only
+      ...(withDts ? { checkshots_derived: { provenance: { qc: { version: 1, mean_corr: 0.82, min_corr: 0.61, bulk_shift_ms: 4, phase_deg: 40, anchors: 2, wavelet: { kind: 'well', length_ms: 120, peak_hz: 28, phase_deg: 40 }, measured_at: '2026-10-01T09:00:00.000Z' } } } } : {}),
       created_at: new Date(2026, 6, 14).toISOString(),
       updated_at: new Date(2026, 6, 14).toISOString(),
       is_own: isOwn,
@@ -165,7 +262,7 @@ export function makeInMemoryBackend({ hostile = false, long = false } = {}) {
   addWell({ name: 'KETA RP-1', isOwn: true, withDts: true });
   addWell({ name: 'AKOMA-2 (org shared)', isOwn: false, org: 'org-dev', withDts: false });
 
-  const addRawWell = (name, curves, units, zones, { start, stop, step }) => {
+  const addRawWell = (name, curves, units, zones, { start, stop, step }, provenanceFor = null) => {
     const id = nextId('well');
     wells.push({
       id, user_id: 'user-dev', organization_id: null, name, uwi: name, surface_x: 501000, surface_y: 6700200,
@@ -179,7 +276,8 @@ export function makeInMemoryBackend({ hostile = false, long = false } = {}) {
       logs.push({
         id: logId, well_id: id, mnemonic, description: `${mnemonic} (RP-U1 evidence well)`, unit: units[mnemonic] ?? null,
         start_md_m: start, stop_md_m: stop, step_m: step, n_samples: vals.length, null_count: 0,
-        source_file: 'inMemoryBackend.js', provenance: { synthetic: true }, storage_path: `dev/${id}/${logId}.f32`,
+        source_file: 'inMemoryBackend.js', provenance: (provenanceFor && provenanceFor(mnemonic)) || { synthetic: true }, storage_path: `dev/${id}/${logId}.f32`,
+        created_at: new Date(2026, 9, 1).toISOString(),
       });
     }
     logsByWell.set(id, logs);
@@ -197,6 +295,41 @@ export function makeInMemoryBackend({ hostile = false, long = false } = {}) {
     const { curves, step } = longCurves();
     addRawWell('LONG RP-3 (5000 m)', curves, { DEPT: 'M', DT: 'US/M', RHOB: 'G/C3', PHIE: 'V/V', VSH: 'V/V' },
       [{ name: 'LONG ZONE', top: 900, base: 4900 }], { start: 500, stop: 500 + (curves.DEPT.length - 1) * step, step });
+  }
+
+  if (trend) {
+    addRawWell('TREND RP-5 (wet trend, gas bed)', trendCurves().curves, { DEPT: 'M', DT: 'US/M', DTS: 'US/M', RHOB: 'G/C3', PHIE: 'V/V', VSH: 'V/V', SW: 'V/V' },
+      [{ name: 'GAS BED', top: TREND_GAS.top, base: TREND_GAS.base }], { start: 1800, stop: 2200, step: 0.5 });
+  }
+
+  if (pp) {
+    // U2-011: a pore pressure curve as Pore Pressure Studio publishes it, on
+    // its own grid (10 m from 1900 m), 0.0105 MPa per metre of MD: the mean
+    // over the BRINE SAND zone (2020, 2030, 2040 m) is 21.315 MPa
+    const wellId = wells[0].id;
+    const logId = nextId('log');
+    const vals = [];
+    for (let d = 1900; d <= 2200 + 1e-9; d += 10) vals.push(0.0105 * d);
+    curveStore.set(logId, Float64Array.from(vals));
+    logsByWell.get(wellId).push({
+      id: logId, well_id: wellId, mnemonic: 'PP', description: 'Pore pressure (eaton n=3)', unit: 'MPA',
+      start_md_m: 1900, stop_md_m: 2200, step_m: 10, n_samples: vals.length, null_count: 0, source_file: null,
+      provenance: { computed: true, engine: 'pore-pressure-studio', pipeline_version: 'pp-1.1.0', params: { method: 'eaton' } },
+      storage_path: `dev/${wellId}/${logId}.f32`, created_at: new Date(2026, 9, 1).toISOString(),
+    });
+  }
+  if (minerals) {
+    addRawWell('MINERAL RP-8 (Petrophysics mineral model)', mineralCurves(),
+      { DEPT: 'M', DT: 'US/M', DTS: 'US/M', RHOB: 'G/C3', PHIE: 'V/V', VSH: 'V/V', V_QUARTZ: 'V/V', V_CALCITE: 'V/V', V_DOLOMITE: 'V/V' },
+      [{ name: 'MIXED', top: 2095, base: 2135 }], { start: 2090, stop: 2140, step: 0.5 },
+      (m) => (/^V_/.test(m) ? MINERAL_PROVENANCE : null));
+  }
+  if (nosonic) {
+    const units = { DEPT: 'M', DT: 'US/M', RHOB: 'G/C3', RT: 'OHMM', PHIE: 'V/V', VSH: 'V/V' };
+    addRawWell('NOSONIC RP-6 (no sonic log)', sonicPairCurves(false, 0).curves, units,
+      [{ name: 'SAND', top: 1560, base: 1600 }], { start: 1500, stop: 1700, step: 0.5 });
+    addRawWell('SONIC RP-7 (calibration well)', sonicPairCurves(true, 37).curves, units,
+      [{ name: 'SAND', top: 1560, base: 1600 }], { start: 1500, stop: 1700, step: 0.5 });
   }
 
   // project persistence survives page reloads via sessionStorage so
@@ -260,6 +393,18 @@ export function makeInMemoryBackend({ hostile = false, long = false } = {}) {
     },
     async listZones(wellId) {
       return [...(zonesByWell.get(wellId) || [])].sort((a, b) => a.top_md_m - b.top_md_m);
+    },
+
+    // U2-011: one sample SCAL Studio project (the Petrophysics harness's own;
+    // inputs_data shape, schema 1), free-water level 6758.53 ft = 2060 m TVDSS
+    async listScalProjects() { return [{ id: 'scal-sample', name: 'Keta SAND J (sample)', updatedAt: '2026-09-29T00:00:00Z' }]; },
+    async loadScalProject(id) {
+      if (id !== 'scal-sample') return null;
+      return {
+        id, name: 'Keta SAND J (sample)', schema: 1, samples: [],
+        capillary: { jMode: 'manual', manual: { a: '0.25', b: '1.4', Swirr: '0.15' }, SwirrOverride: '', includedSampleIds: [], reservoir: { k_md: '150', phi: '0.22', sigma_dyncm: '26', thetaDeg: '30' } },
+        height: { gammaW: '1.05', gammaHc: '0.80', fwl_tvdss: '6758.53', swMin: '0.2', swMax: '0.95' },
+      };
     },
 
     async loadProject() {

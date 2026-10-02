@@ -4,6 +4,7 @@ import { surveyAffine } from './engine/surveyGeometry';
 import { makeTvdssToTwt } from './engine/wellSection';
 import { computeWellPath, positionAtMd } from './engine/wellPath';
 import { buildSynthetic, rickerWavelet, convolveSame } from './engine/synthetics';
+import { readGather } from '@/lib/rockPhysicsGather';
 
 // Dev-only harness route (/dev/seismolord-synthetics, DEV builds only):
 // the REAL SyntheticsPanel on the KNOWN 3-layer wedge from the oracle
@@ -72,7 +73,38 @@ const RP_PROVENANCE = {
   fluids: '100% brine to 100% gas', zone: { name: 'Layer 2', top_md_m: 150, base_md_m: 299 },
 };
 
+// RP-U2-012: a gather as Rock Physics Studio publishes it (the
+// rock-physics-gather contract, version 1), written out by hand here so the
+// harness proves a reader needs nothing but the payload: 5 angles, 81
+// samples at 2 ms, a 25 Hz Ricker at sample 30 scaled by the angle.
+const rpTrace = (rc) => Array.from({ length: 81 }, (_, k) => {
+  const t = ((k - 30) * 2) / 1000;
+  const x = (Math.PI * 25 * t) ** 2;
+  return Number((rc * (1 - 2 * x) * Math.exp(-x)).toPrecision(6));
+});
+const RP_ANGLES = [0, 10, 20, 30, 40];
+export const RP_GATHER_PAYLOAD = {
+  contract: 'rock-physics-gather', version: 1, published_at: '2026-10-01T12:00:00.000Z', engine: 'rock-physics-studio',
+  well_id: 'w-syn', well_name: 'W-SYN', zone: { name: 'Layer 2', top_md_m: 150, base_md_m: 299 }, pad_m: 40, dt_ms: 2,
+  angles_deg: RP_ANGLES, method: 'zoeppritz',
+  wavelet: { source: 'ricker', freq_hz: 25, phase_deg: 0, label: 'Ricker 25 Hz, zero phase' },
+  gain: 0.25,
+  cases: [
+    { key: 'in-situ', label: 'In situ', traces: RP_ANGLES.map((a) => rpTrace(0.08 - 0.001 * a)), top_sample: 30, base_sample: 60, picks: RP_ANGLES.map((a) => 0.08 - 0.001 * a), intercept: 0.08, gradient: -0.09 },
+    { key: 'substituted', label: 'Zone with 100% gas', traces: RP_ANGLES.map((a) => rpTrace(-0.1 - 0.00375 * a)), top_sample: 30, base_sample: 60, picks: RP_ANGLES.map((a) => -0.1 - 0.00375 * a), intercept: -0.1, gradient: -0.33 },
+  ],
+  vs_source: 'measured', vp_source: 'measured', notes: [],
+};
+const loadRockPhysicsGather = async (wellId) => (wellId === 'w-syn' ? readGather(RP_GATHER_PAYLOAD) : { ok: false, reason: 'No gather has been published for this well.' });
+
 const LOGS = [
+  // RP-U2-007: the pseudo-sonic Rock Physics publishes for a well with no
+  // sonic log; listed FIRST so the measured-first default is exercised
+  {
+    id: 'log-dt-est', well_id: 'w-syn', mnemonic: 'DT_EST', unit: 'US/M',
+    start_md_m: 0, stop_md_m: 600, step_m: 1, n_samples: N,
+    provenance: { computed: true, estimated: true, engine: 'rock-physics-studio', pipeline_version: 'rp-1.2.0', method: 'gardner', note: 'Gardner (1974) inverse from density, rho = 0.23 V^0.25, published constant' },
+  },
   {
     id: 'log-dt-sub', well_id: 'w-syn', mnemonic: 'DT_SUB', unit: 'US/M',
     start_md_m: 0, stop_md_m: 600, step_m: 1, n_samples: N, provenance: RP_PROVENANCE,
@@ -90,7 +122,7 @@ const LOGS = [
     start_md_m: 0, stop_md_m: 600, step_m: 1, n_samples: N,
   },
 ];
-const CURVES = { 'log-dt': DT_CURVE, 'log-rhob': RHOB_CURVE, 'log-dt-sub': DT_SUB_CURVE, 'log-rhob-sub': RHOB_SUB_CURVE };
+const CURVES = { 'log-dt-est': DT_CURVE, 'log-dt': DT_CURVE, 'log-rhob': RHOB_CURVE, 'log-dt-sub': DT_SUB_CURVE, 'log-rhob-sub': RHOB_SUB_CURVE };
 
 // "real seismic": the ideal wedge reflectivity (hand RCs at 150/270 ms)
 // convolved with the same 25 Hz Ricker, delayed by +8 ms (4 samples)
@@ -167,6 +199,7 @@ export default function SeismolordSyntheticsHarness() {
           dtUs={DT_US}
           velocity={null}
           boundaries={null}
+          loadRockPhysicsGather={loadRockPhysicsGather}
         />
       </div>
     </div>

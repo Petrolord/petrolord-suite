@@ -103,6 +103,7 @@ import ComputeAttributeDialog from './workspace/dialogs/ComputeAttributeDialog';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import SliceView from './SliceView';
 import SyntheticsPanel from './SyntheticsPanel';
+import { loadGatherForWell } from '@/lib/rockPhysicsGather';
 import CubeView from './CubeView';
 import MapView from './MapView';
 import ViewerWindows from './ViewerWindows';
@@ -153,6 +154,8 @@ import { surveyValueToIndex, indexToSurveyValue, stepIndex } from '../lib/sliceN
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
+// U2-020 (second half): the angle gather Rock Physics Studio published for a well
+const loadRockPhysicsGatherForWell = (wellId) => loadGatherForWell(supabase, wellId);
 
 const DRAFT_COLOR = '#facc15';
 // U2-005: 2D line markers on 3D sections
@@ -4470,6 +4473,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
                   onApplyVelocity={applyCalibratedModel}
                   onCommitCheckshots={commitDerivedCheckshots}
                   onClearCheckshots={clearDerivedCheckshots}
+                  loadRockPhysicsGather={loadRockPhysicsGatherForWell}
                 />
               ),
             },

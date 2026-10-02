@@ -18,6 +18,7 @@ import {
 import { zoeppritzRpp, akiRichards, shuey, avoClass } from '../engine/avo';
 import { meanAt } from '../services/prep';
 import { substitutedHalfspace, plainMessage } from '../services/scenario';
+import { wetTrend, castagnaTrend, anomaly, DEFAULT_TREND } from '../services/wetTrend';
 import { acousticImpedance, vpVs, poissonRatio, impedanceDisplay } from '../services/elastic';
 import UnitInput from './UnitInput';
 import {
@@ -89,6 +90,9 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
   const fd = (v) => fmtDensity(v, dU, 1);
 
   const top = tops.find((t) => t.id === avo.topId) || tops[0] || null;
+  // U2-002: the wet background trend the classes are read against
+  const trendCfg = { ...DEFAULT_TREND, ...(avo.trend || {}) };
+  const patchTrend = (p) => patch({ trend: { ...trendCfg, ...p } });
 
   const halfspaces = useMemo(() => {
     if (avo.mode === 'manual') return { upper: avo.upper, lower: avo.lower };
@@ -137,6 +141,21 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
       return { error: plainMessage(e.message) };
     }
   }, [halfspaces, avo.maxTheta, replaced]);
+
+  const trend = useMemo(() => {
+    if (!trendCfg.on) return null;
+    if (avo.mode === 'manual') return castagnaTrend(avo.upper?.vs, avo.upper?.vp);
+    if (!model || !top || !scenario || !rock) return null;
+    return wetTrend(model, { fromMd: top.md_m - trendCfg.windowM, toMd: top.md_m + trendCfg.windowM }, scenario, rock, { blockM: trendCfg.blockM });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trendCfg.on, trendCfg.windowM, trendCfg.blockM, avo.mode, avo.upper?.vs, avo.upper?.vp, model, top, scenario, rock]);
+  const trendLine = trend && !trend.error ? trend.line : null;
+  // the line cut to the plot box (A within 0.5, B within 0.6)
+  const trendSegment = trendLine ? (() => {
+    const x = Math.min(0.5, 0.6 / Math.max(1e-9, Math.abs(trendLine.slope)));
+    return [{ x: -x, y: -x * trendLine.slope }, { x, y: x * trendLine.slope }];
+  })() : null;
+  const dist = (a, b) => { const d = anomaly(a, b, trend); return Number.isFinite(d) ? d.toFixed(3) : EMPTY_VALUE; };
 
   return (
     <div className="h-full min-h-0 overflow-y-auto p-3 space-y-3" data-testid="rp-avo-panel">
@@ -202,6 +221,47 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
           />
           °
         </label>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 text-[12px] text-pl-text" data-testid="rp-avo-trend-controls">
+        <label className="flex items-center gap-1" title="The brine trend the classes are read against: fitted to the well's own logs around the top with the hydrocarbon taken out where the SW log shows any, or Castagna's line when the well cannot give a fit">
+          <input type="checkbox" data-testid="rp-avo-trend-on" checked={!!trendCfg.on} onChange={(e) => patchTrend({ on: e.target.checked })} className="accent-pl-primary" />
+          Wet trend
+        </label>
+        {trendCfg.on && avo.mode === 'top' && (
+          <>
+            <label className="flex items-center gap-1">
+              fit window ±
+              <UnitInput
+                testid="rp-avo-trend-window"
+                value={trendCfg.windowM}
+                unit={zU}
+                toDisplay={depthToDisplay}
+                fromDisplay={depthFromDisplay}
+                digits={0}
+                onChange={(si) => { if (Number.isFinite(si) && si > 0) patchTrend({ windowM: si }); }}
+                className="w-16 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-right text-pl-text"
+                title="Depth either side of the top whose interfaces are fitted"
+              />
+              {zU}
+            </label>
+            <label className="flex items-center gap-1">
+              blocks of
+              <UnitInput
+                testid="rp-avo-trend-block"
+                value={trendCfg.blockM}
+                unit={zU}
+                toDisplay={depthToDisplay}
+                fromDisplay={depthFromDisplay}
+                digits={1}
+                onChange={(si) => { if (Number.isFinite(si) && si > 0) patchTrend({ blockM: si }); }}
+                className="w-14 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-right text-pl-text"
+                title="The logs are averaged in blocks of this thickness; each block boundary is one interface"
+              />
+              {zU}
+            </label>
+          </>
+        )}
       </div>
 
       {avo.mode === 'manual' && (
@@ -297,6 +357,31 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
             </div>
           )}
           {replaced?.error && <p className="text-[12px] text-pl-warning-text">Fluid replacement: {replaced.error}</p>}
+          {trend?.error && <p className="text-[12px] text-pl-warning-text" data-testid="rp-avo-trend-error">Wet trend: {trend.error}</p>}
+          {trendLine && (
+            <div className="text-[12px] text-pl-text space-y-0.5" data-testid="rp-avo-trend">
+              <div>
+                Wet trend <b data-testid="rp-avo-trend-slope">B = {trendLine.slope.toFixed(2)} A</b>
+                {trend.source === 'fit'
+                  ? `, fitted to ${trend.points.length} interfaces (${tidyDepth(trend.blockM, zU)} ${zU} blocks, ±${tidyDepth(trendCfg.windowM, zU)} ${zU}); Castagna's line for the window's Vs/Vp ${trend.vsVp.toFixed(2)} would be B = ${trend.castagnaSlope.toFixed(2)} A`
+                  : `, Castagna, Swan and Foster's line for Vs/Vp ${trend.vsVp.toFixed(2)} (${trend.reason})`}
+                .
+              </div>
+              <div>
+                Distance from the trend: in situ <b data-testid="rp-avo-trend-distance">{dist(result.a, result.b)}</b>
+                {result.alt && <> · lower with {result.alt.labelB} <b data-testid="rp-avo-trend-distance-b">{dist(result.alt.a, result.alt.b)}</b></>}
+                <span className="text-pl-muted"> (negative is the hydrocarbon side: lower intercept and gradient)</span>
+              </div>
+              {avo.mode === 'top' && (
+                <div className="text-pl-muted" data-testid="rp-avo-trend-note">
+                  {trend.usedSwLog
+                    ? `Hydrocarbon taken out through the SW log at ${trend.substituted} sample${trend.substituted === 1 ? '' : 's'} before the fit.`
+                    : 'No SW log is read on this well, so any hydrocarbon interval in the window is part of the trend.'}
+                  {model?.vsSource === 'estimated' ? ' Vs is estimated from Vp, so the trend follows the Greenberg-Castagna line by construction.' : ''}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
             <div className="bg-white rounded-lg p-3 relative" data-canvas="chart" style={{ height: 360 }}>
@@ -339,9 +424,20 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
                   <ReferenceLine x={0} stroke={CHART_COLORS.axisLine} />
                   <ReferenceLine y={0} stroke={CHART_COLORS.axisLine} />
                   <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => f4(v)} />
+                  {trendSegment && <ReferenceLine segment={trendSegment} stroke="#0f766e" strokeWidth={1.5} strokeDasharray="6 3" ifOverflow="hidden" />}
+                  {trend?.points?.length > 0 && (
+                    <Scatter
+                      isAnimationActive={false}
+                      data={trend.points.filter((p) => Math.abs(p.a) <= 0.5 && Math.abs(p.b) <= 0.6)}
+                      fill="#94a3b8"
+                      shape={({ cx, cy }) => <circle cx={cx} cy={cy} r={2} fill="#94a3b8" />}
+                      name="wet background"
+                      legendType="circle"
+                    />
+                  )}
                   <Scatter isAnimationActive={false} data={[{ a: result.a, b: result.b }]} fill="#0f172a" name="in situ" />
                   {result.alt && <Scatter isAnimationActive={false} data={[{ a: result.alt.a, b: result.alt.b }]} fill="#d97706" name={`lower with ${result.alt.labelB}`} />}
-                  {result.alt && <Legend verticalAlign="top" wrapperStyle={{ fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`, color: CHART_COLORS.legendText }} />}
+                  {(result.alt || trend?.points?.length > 0) && <Legend verticalAlign="top" wrapperStyle={{ fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`, color: CHART_COLORS.legendText }} />}
                 </ScatterChart>
               </ResponsiveContainer>
               <ChartLogo />
