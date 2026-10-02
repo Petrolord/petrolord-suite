@@ -16,7 +16,7 @@
 // comma decimal as a thousands separator (gap matrix H12) or guessed a date
 // order. This module is the one place that decides how a table is read:
 //
-//   delimiter      comma, semicolon, tab or runs of white space, found from
+//   delimiter      comma, semicolon, tab, pipe or runs of white space, found from
 //                  the file (a semicolon file whose numbers carry decimal
 //                  commas is a semicolon file)
 //   header         the row whose text sits above columns of numbers or dates;
@@ -41,7 +41,7 @@
 // dates are numbers here (the caller knows whether a column is a date);
 // percent signs and currency symbols are not stripped.
 
-export const DELIMITER_NAMES = Object.freeze({ ',': 'comma', ';': 'semicolon', '\t': 'tab', ' ': 'white space' });
+export const DELIMITER_NAMES = Object.freeze({ ',': 'comma', ';': 'semicolon', '\t': 'tab', '|': 'pipe', ' ': 'white space' });
 
 /** Words that mean "no value", compared in lower case after trimming. */
 export const NULL_TOKENS = Object.freeze([
@@ -121,8 +121,9 @@ export function splitRows(text, delimiter = ',') {
 /**
  * The delimiter of a table: the candidate that gives the same number of
  * fields (two or more) on the most lines. When several do, tab wins over
- * semicolon and semicolon over comma, because a semicolon or tab file may
- * carry decimal commas in every cell while the reverse does not happen.
+ * semicolon, semicolon over pipe and pipe over comma, because a semicolon,
+ * tab or pipe file may carry decimal commas in every cell while the reverse
+ * does not happen.
  * White space is the fallback; a single column reads as comma.
  */
 export function detectTableDelimiter(text) {
@@ -136,7 +137,7 @@ export function detectTableDelimiter(text) {
     for (const [k, v] of counts) if (k >= 2 && (v > n || (v === n && k > fields))) { fields = k; n = v; }
     return { delim, share: n / rows.length, fields };
   };
-  for (const delim of ['\t', ';', ',']) {
+  for (const delim of ['\t', ';', '|', ',']) {
     const s = score(delim);
     if (s.fields >= 2 && s.share >= 0.6) return delim;
   }

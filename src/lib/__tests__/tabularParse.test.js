@@ -54,6 +54,11 @@ describe('delimiter', () => {
     expect(byComma).toEqual([4, 4, 4]);
     expect(detectTableDelimiter(HOSTILE.semicolonCommaDecimal)).toBe(';');
   });
+  test('pipe columns, with decimal commas', () => {
+    const t = parseTabular('t|p\n0,5|3000,25\n1,0|2990,75\n');
+    expect(t.delimiterName).toBe('pipe');
+    expect(columnValues(t, 1)).toEqual([3000.25, 2990.75]);
+  });
   test('a single column and an empty text read as comma', () => {
     expect(detectTableDelimiter('value\n1\n2\n')).toBe(',');
     expect(detectTableDelimiter('')).toBe(',');

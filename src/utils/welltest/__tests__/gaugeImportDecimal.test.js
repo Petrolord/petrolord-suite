@@ -29,6 +29,10 @@ describe('gauge import: decimal commas (H12)', () => {
     expect(out.rows[0].t).toBe(0.5);
     expect(out.rows[0].p).toBeCloseTo(3000.25 + ATM_PSI, 9);
   });
+  test('pipe columns still read (papaparse guessed them before)', () => {
+    const out = importGaugeCsv('time (hr)|pressure (psia)\n0|3000\n1|2950.5\n');
+    expect(out.rows).toEqual([{ t: 0, p: 3000 }, { t: 1, p: 2950.5 }]);
+  });
   test('thousands separators still read as thousands', () => {
     const out = importGaugeCsv('t (hr)\tp (psia)\n0\t3,250.5\n1\t3,198.0\n2\t13,141.25\n');
     expect(out.table.decimal).toMatchObject({ mark: '.', certain: true });

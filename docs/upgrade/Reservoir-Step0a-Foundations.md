@@ -124,7 +124,7 @@ existing doors onto `detectTableDelimiter` is for their own rounds.
 | Export | What it does |
 |---|---|
 | `parseTabular(text, options)` | The whole read. Options: `delimiter`, `decimal`, `dateOrder` ('dmy', 'mdy', or per column index), `header` (true or false), `nullTokens` |
-| `detectTableDelimiter(text)` | Comma, semicolon, tab or white space |
+| `detectTableDelimiter(text)` | Comma, semicolon, tab, pipe or white space |
 | `detectDecimalMark(cells, { delimiter })` | `{ mark, certain, reason, examples }` |
 | `parseNumber(value, { decimal })` | One number, or NaN. A misplaced group separator is refused |
 | `detectDateOrder(values)`, `parseDate(value, { order })` | Day first or month first; one date or date-time |
