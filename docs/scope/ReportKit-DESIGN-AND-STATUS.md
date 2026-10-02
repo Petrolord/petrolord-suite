@@ -214,13 +214,15 @@ runs under.
 
 For the Reservoir round, in the order it will be met:
 
-1. Bar, histogram and tornado charts, and stacked bars (Reservoir Balance
-   drive indices, DCA EUR distribution, Waterflood tornado and layer bars,
-   Recovery Factor range, Fluid separator stages).
+1. Histogram and tornado charts (DCA EUR distribution, Waterflood tornado
+   and layer bars, Recovery Factor range). Vertical bars, stacked at each X
+   in series order, are in the kit since the Material Balance round
+   (`type: 'bar'`, `barWidth`; the test kit counts them as `bars`).
 2. Filled areas between curves (Reservoir Balance aquifer influx, DCA
    forecast bands).
-3. A date X axis (DCA, VRR, Waterflood surveillance). Today a date has to be
-   passed as a number and the ticks print as numbers.
+3. A date X axis: in the kit since the Material Balance round (`xDate`,
+   values in milliseconds since 1970, ticks on calendar boundaries printed
+   as years, months or days; `dateTicks`, `dateTickText`).
 4. A unit switch in the seven oilfield-only apps. `reportUnits` gives the
    labels and conversions; each app still has to hold its values in known
    units.

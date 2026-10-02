@@ -9,7 +9,9 @@
  * for white, the Petrolord mark (ChartLogo) in the bottom right corner of
  * the plot area. Linear or log axes, either axis reversed, an optional
  * second Y axis, shaded bands with labels along X or Y, reference lines,
- * annotation text.
+ * annotation text. Bars (`type: 'bar'`), stacked at each X in series order,
+ * and a calendar X axis (`xDate`) were added in the Material Balance round
+ * for drive indices against time.
  *
  * Pure drawing on a passed document; all text goes through pdfText so
  * nothing outside Latin-1 reaches the standard fonts. drawPlot returns the
@@ -50,6 +52,52 @@ export const tickText = (v) => {
   return String(parseFloat(v.toPrecision(6)));
 };
 
+const DAY_MS = 86400000;
+const MONTH_STEPS = [1, 2, 3, 6, 12, 24, 60, 120, 240, 600, 1200];
+const DAY_STEPS = [1, 2, 7, 14];
+const pad2 = (v) => String(v).padStart(2, '0');
+
+/**
+ * Calendar ticks for an axis whose values are times in milliseconds since
+ * 1970 (Date.getTime(), UTC). Ticks fall on the first of a month, or on a
+ * day for a span under about two months, at a round step: 1, 2, 3 or 6
+ * months, then 1, 2, 5, 10, 20, 50 or 100 years. The first tick is at or
+ * before `lo` and the last at or after `hi`, as niceTicks does for numbers.
+ * @returns {{ticks: number[], unit: 'day'|'month'|'year', step: number}}
+ */
+export function dateTicks(lo, hi, n = 6) {
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return { ticks: [], unit: 'month', step: 1 };
+  if (hi < lo) [lo, hi] = [hi, lo];
+  if (hi === lo) { lo -= 15 * DAY_MS; hi += 15 * DAY_MS; }
+  const spanDays = (hi - lo) / DAY_MS;
+  if (spanDays < 62) {
+    const step = DAY_STEPS.find((d) => spanDays / d <= n) || 14;
+    const start = Math.floor(lo / (step * DAY_MS)) * step * DAY_MS;
+    const ticks = [];
+    for (let t = start; ; t += step * DAY_MS) { ticks.push(t); if (t >= hi) break; }
+    return { ticks, unit: 'day', step };
+  }
+  const a = new Date(lo);
+  const b = new Date(hi);
+  const m0 = a.getUTCFullYear() * 12 + a.getUTCMonth();
+  const m1 = b.getUTCFullYear() * 12 + b.getUTCMonth() + (b.getUTCDate() > 1 || b.getUTCHours() + b.getUTCMinutes() + b.getUTCSeconds() + b.getUTCMilliseconds() > 0 ? 1 : 0);
+  const step = MONTH_STEPS.find((m) => (m1 - m0) / m <= n) || 1200;
+  const at = (m) => Date.UTC(Math.floor(m / 12), m % 12, 1);
+  const ticks = [];
+  for (let m = Math.floor(m0 / step) * step; ; m += step) { ticks.push(at(m)); if (at(m) >= hi) break; }
+  return { ticks, unit: step >= 12 ? 'year' : 'month', step };
+}
+
+/** The label of a calendar tick: the year, the year and month, or the full date. */
+export const dateTickText = (ms, unit = 'month') => {
+  if (!Number.isFinite(ms)) return '';
+  const d = new Date(ms);
+  const y = d.getUTCFullYear();
+  if (unit === 'year') return String(y);
+  if (unit === 'month') return `${y}-${pad2(d.getUTCMonth() + 1)}`;
+  return `${y}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+};
+
 const finitePts = (pts, log) => (pts || []).filter((p) => p && Number.isFinite(p[0]) && Number.isFinite(p[1]) && (!log.x || p[0] > 0) && (!log.y || p[1] > 0));
 
 const axisRange = (values, log) => {
@@ -61,8 +109,48 @@ const axisRange = (values, log) => {
   return { lo: Math.min(lo, ticks[0] ?? lo), hi: Math.max(hi, ticks[ticks.length - 1] ?? hi), ticks };
 };
 
+const dateRange = (values) => {
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const v of values) { if (v < lo) lo = v; if (v > hi) hi = v; }
+  if (!(lo <= hi)) return null;
+  const { ticks, unit } = dateTicks(lo, hi, 6);
+  return { lo: Math.min(lo, ticks[0] ?? lo), hi: Math.max(hi, ticks[ticks.length - 1] ?? hi), ticks, unit };
+};
+
 const hasLine = (type) => type === 'line' || type === 'both';
 const hasMarkers = (type) => type === 'scatter' || type === 'both';
+const isBar = (s) => s.type === 'bar';
+
+/**
+ * Where each bar goes: bars at one X stack in series order, values above
+ * zero upward from the axis and values below zero downward. Returns the
+ * bar width in X units, the rectangles ({ series, x, y0, y1 }) and the
+ * extent the axes must span.
+ */
+function layoutBars(bars, barWidth) {
+  const xs = [...new Set(bars.flatMap((s) => s.q.map((p) => p[0])))].sort((a, b) => a - b);
+  let gap = Infinity;
+  for (let i = 1; i < xs.length; i += 1) gap = Math.min(gap, xs[i] - xs[i - 1]);
+  const width = Number.isFinite(barWidth) && barWidth > 0 ? barWidth : (Number.isFinite(gap) ? 0.7 * gap : 1);
+  const up = new Map();
+  const down = new Map();
+  const rects = [];
+  let lo = 0;
+  let hi = 0;
+  bars.forEach((s, index) => {
+    for (const [x, v] of s.q) {
+      const acc = v >= 0 ? up : down;
+      const y0 = acc.get(x) || 0;
+      const y1 = y0 + v;
+      acc.set(x, y1);
+      rects.push({ index, x, y0, y1 });
+      if (y1 < lo) lo = y1;
+      if (y1 > hi) hi = y1;
+    }
+  });
+  return { width, rects, lo, hi, xLo: xs.length ? xs[0] - width / 2 : null, xHi: xs.length ? xs[xs.length - 1] + width / 2 : null };
+}
 
 /**
  * Draw one plot in the box (mm).
@@ -71,7 +159,8 @@ const hasMarkers = (type) => type === 'scatter' || type === 'both';
  * @param {{xTitle: string, yTitle: string, y2Title?: string, xLog?: boolean,
  *   yLog?: boolean, xReversed?: boolean, yReversed?: boolean,
  *   xInclude?: number[], yInclude?: number[],
- *   series: Array<{name: string, type?: 'line'|'scatter'|'both', rgb?: number[],
+ *   xDate?: boolean, barWidth?: number,
+ *   series: Array<{name: string, type?: 'line'|'scatter'|'both'|'bar', rgb?: number[],
  *     pts: Array<[number, number]>, axis?: 'y'|'y2', width?: number, dash?: number[],
  *     marker?: 'circle'|'square'}>,
  *   bands?: Array<{x0: number, x1: number, label?: string, rgb?: number[]}>,
@@ -83,9 +172,14 @@ const hasMarkers = (type) => type === 'scatter' || type === 'both';
  *   a span of the left Y axis (a target range, a maturity window). `lines`
  *   are straight reference lines at one X or one Y. `xInclude` and
  *   `yInclude` are values the axis must span even when no series reaches
- *   them. `yReversed` puts the smallest value at the top (depth).
+ *   them. `yReversed` puts the smallest value at the top (depth). A series of
+ *   `type: 'bar'` draws one bar per point from the zero line; bars of several
+ *   series at the same X stack in series order (`barWidth`, in X units,
+ *   defaults to 0.7 of the smallest gap between bar positions). `xDate` makes
+ *   X a calendar axis: values are milliseconds since 1970 and the ticks print
+ *   as years, months or days.
  * @returns {{drawn: Object<string, number>, total: number,
- *   marks: {segments: number, markers: number}, bands: number,
+ *   marks: {segments: number, markers: number, bars?: number}, bands: number,
  *   yBands: number, lines: number, xRange: ?number[], yRange: ?number[],
  *   y2Range: ?number[], plotArea: ?{x: number, y: number, w: number, h: number},
  *   logo: boolean}}
@@ -104,11 +198,17 @@ export function drawPlot(doc, box, spec) {
   // xInclude: values the X axis must span even when no series reaches them
   // (stacked panels share one time axis this way)
   const xExtra = (spec.xInclude || []).filter((v) => Number.isFinite(v) && (!xLog || v > 0));
+  // bars: stacked at each X in series order, on the left axis
+  const barSeries = left.filter(isBar);
+  const bars = barSeries.length ? layoutBars(barSeries, spec.barWidth) : null;
+  if (bars && bars.xLo != null) xExtra.push(bars.xLo, bars.xHi);
   const xValues = series.flatMap((s) => s.q.map((p) => p[0]));
-  const xr = axisRange(xValues.length ? [...xValues, ...xExtra] : [], xLog);
+  const xAll = xValues.length ? [...xValues, ...xExtra] : [];
+  const xr = spec.xDate ? dateRange(xAll) : axisRange(xAll, xLog);
   const yExtra = (spec.yInclude || []).filter((v) => Number.isFinite(v) && (!yLog || v > 0));
-  const yValues = left.flatMap((s) => s.q.map((p) => p[1]));
-  const yr = axisRange(yValues.length && yExtra.length ? [...yValues, ...yExtra] : yValues, yLog);
+  if (bars) yExtra.push(bars.lo, bars.hi);
+  const yValues = left.flatMap((s) => (isBar(s) ? [] : s.q.map((p) => p[1])));
+  const yr = axisRange((yValues.length || bars) && yExtra.length ? [...yValues, ...yExtra] : yValues, yLog);
   const y2r = right.length ? axisRange(right.flatMap((s) => s.q.map((p) => p[1])), false) : null;
 
   // legend rows first: they set the top padding
@@ -222,7 +322,7 @@ export function drawPlot(doc, box, spec) {
   for (const t of xr.ticks) {
     if (t < xr.lo || t > xr.hi) continue;
     doc.line(px(t), Y0, px(t), Y1);
-    doc.text(tickText(t), px(t), Y1 + 3.2, { align: 'center' });
+    doc.text(spec.xDate ? dateTickText(t, xr.unit) : tickText(t), px(t), Y1 + 3.2, { align: 'center' });
   }
   if (yr) {
     for (const t of yr.ticks) {
@@ -279,9 +379,30 @@ export function drawPlot(doc, box, spec) {
     }
   }
 
+  // bars, under the lines and markers. Filled and outlined in white, so the
+  // parts of a stack stay apart and the file tells a bar from a marker.
+  if (bars && yr) {
+    doc.setDrawColor(255, 255, 255);
+    doc.setLineWidth(0.1);
+    let count = 0;
+    for (const r of bars.rects) {
+      if (r.y1 === r.y0) continue;
+      const xa = px(r.x - bars.width / 2);
+      const xb = px(r.x + bars.width / 2);
+      const ya = py(r.y0);
+      const yb = py(r.y1);
+      doc.setFillColor(...barSeries[r.index].rgb);
+      doc.rect(Math.min(xa, xb), Math.min(ya, yb), Math.abs(xb - xa), Math.abs(yb - ya), 'FD');
+      count += 1;
+    }
+    result.marks.bars = count;
+    for (const s of barSeries) { result.drawn[s.name] = s.q.length; result.total += s.q.length; }
+  }
+
   // series
   const mark = (s, x, y, r) => (s.marker === 'square' ? doc.rect(x - r, y - r, 2 * r, 2 * r, 'F') : doc.circle(x, y, r, 'F'));
   for (const s of series) {
+    if (bars && isBar(s) && s.axis === 'y') continue;
     const yOf = s.axis === 'y2' ? py2 : py;
     const type = s.type || 'line';
     doc.setDrawColor(...s.rgb);
@@ -310,6 +431,7 @@ export function drawPlot(doc, box, spec) {
     doc.setFillColor(...item.rgb);
     if (hasLine(item.type)) { doc.setLineWidth(0.6); doc.line(lx, ly, lx + 4, ly); }
     if (hasMarkers(item.type)) mark(item, lx + 2, ly, 0.6);
+    if (item.type === 'bar') doc.rect(lx + 0.5, ly - 1, 3, 2, 'F');
     doc.setTextColor(...TEXT);
     doc.text(item.name, lx + 5, ly + 0.9);
   }

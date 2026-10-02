@@ -137,7 +137,11 @@ function pageStreams(raw) {
  * @param {{raw: string}} pdf from readPdf
  * @param {number} page 1-based
  * @param {{x: number, y: number, w: number, h: number}} area the plot area in mm
- * @returns {{segments: number, markers: number, total: number, frame: boolean}}
+ * A bar is a rectangle filled and stroked in one operation (the kit draws
+ * nothing else that way inside a plot area), so it is told apart from a
+ * square marker whatever its size.
+ * @returns {{segments: number, markers: number, bars?: number, total: number, frame: boolean}}
+ *   `bars` is present only when the plot holds one.
  */
 export function plotMarks(pdf, page, area) {
   const stream = pageStreams(pdf.raw)[page - 1];
@@ -171,12 +175,15 @@ export function plotMarks(pdf, page, area) {
       const next = ops[i + 1] || '';
       if (next.endsWith(' l') && ops[i + 2] === 'S') { if (inside(x, y)) out.segments += 1; }
       else if (next.endsWith(' c') && markerInside(x, y)) out.markers += 1;
+    } else if (op.endsWith(' re') && ops[i + 1] === 'B') {
+      const [x, y, w, h] = nums(op);
+      if (markerInside(x + w / 2, y + h / 2)) out.bars = (out.bars || 0) + 1;
     } else if (op.endsWith(' re') && ops[i + 1] === 'f') {
       const [x, y, w, h] = nums(op);
       if (Math.abs(w) <= 3 * PT_PER_MM && Math.abs(h) <= 3 * PT_PER_MM && markerInside(x + w / 2, y + h / 2)) out.markers += 1;
     }
   }
-  out.total = out.segments + out.markers;
+  out.total = out.segments + out.markers + (out.bars || 0);
   return out;
 }
 
@@ -225,7 +232,7 @@ export function expectFigureDrawn(pdf, figure, { minPoints = 2, minColoured = 15
     if (logo && !p.logo) fail(`panel ${i + 1} has no Petrolord mark`);
     const marks = plotMarks(pdf, figure.page, p.plotArea);
     if (!marks.frame) fail(`panel ${i + 1}: no plot area frame found on page ${figure.page}`);
-    const expected = p.marks.segments + p.marks.markers + (p.lines || 0);
+    const expected = p.marks.segments + p.marks.markers + (p.marks.bars || 0) + (p.lines || 0);
     if (marks.total !== expected) fail(`panel ${i + 1}: the file holds ${marks.total} line segments and markers inside the plot area, the builder reports ${expected}`);
     let ink = null;
     if (pdf.ink) {
