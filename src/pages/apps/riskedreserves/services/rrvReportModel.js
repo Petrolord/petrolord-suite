@@ -143,7 +143,7 @@ export function inputRows(p, units) {
     const u = VOLUME_UNITS[ip.unit]?.label || ip.unit || '';
     const run = src.run?.ranAt ? `Monte Carlo run of ${time(src.run.ranAt)}${finite(src.run.seed) ? `, seed ${src.run.seed}` : ''}${finite(src.run.iterations) ? `, ${thousands(src.run.iterations)} realizations` : ''}` : 'run not recorded';
     const where = `${p.handoff.app}${src.projectName ? ` project "${src.projectName}"` : ''}${src.reservoirName ? `, reservoir "${src.reservoirName}"` : ''}: ${run}`;
-    rows.push({ key: 'inPlace', label: `In-place volume ${ip.stream || ''} P90 / P50 / P10 / mean`.replace('  ', ' '), value: [ip.p90, ip.p50, ip.p10, ip.mean].map((x) => (finite(x) ? F.plain(x) : EMPTY_VALUE)).join(' / '), unit: u, source: `${where}. Recorded for the reader`, engine: false });
+    rows.push({ key: 'inPlace', label: `In-place volume ${ip.stream || ''} P90 / P50 / P10 / mean`.replace('  ', ' '), value: [ip.p90, ip.p50, ip.p10, ip.mean].map((x) => (finite(x) ? String(parseFloat(x.toPrecision(3))) : EMPTY_VALUE)).join(' / '), unit: u, source: `${where}. Recorded for the reader`, engine: false });
   }
   if (src?.recovery && (finite(src.recovery.input) || finite(src.recovery.effectiveMean))) {
     const r = src.recovery;

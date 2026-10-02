@@ -21,6 +21,7 @@ import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
 import { buildProspectSummaryPdf } from '../../services/prospectSummaryPdf';
 import { prospectEconomics, ECONOMICS_DEFAULTS } from '../../services/prospectEconomics';
 import { reviewerLines } from '../../services/reportInfo';
+import { sourceForProspect } from '../../services/prospectSource';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import BasinChargeNote from './BasinChargeNote';
 
@@ -40,10 +41,13 @@ function ProspectSharing({ store, row, onChange }) {
   return <RecordSharingBar sharing={sharing} label="prospect" allowEdit={false} fieldLabels={{ pg_factors: 'chance factors', inputs: 'volumes', risked: 'risked volumes' }} />;
 }
 
-export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 'MMbbl', valuationHref = '/dashboard/apps/reservoir/risked-reserves-valuation', reviewer = null, context = null, projectName = null }) {
+export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 'MMbbl', valuationHref = '/dashboard/apps/reservoir/risked-reserves-valuation', reviewer = null, context = null, projectName = null, source = null }) {
   const [name, setName] = useState('');
   const [factors, setFactors] = useState(DEFAULT_FACTORS);
   const [vol, setVol] = useState({ mean: '', p90: '', p50: '', p10: '' });
+  // RL11: what the Monte Carlo run put in the volume fields, so a prospect
+  // saved after an edit says its volumes were edited
+  const [seeded, setSeeded] = useState(null);
   const [prospects, setProspects] = useState([]);
   // U2-014: prospects colleagues shared with the organisation, listed apart and never in the roll-up
   const [sharedProspects, setSharedProspects] = useState([]);
@@ -65,7 +69,9 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
   useEffect(() => {
     if (unrisked && Number.isFinite(unrisked.mean)) {
       const r = (v) => (v != null && Number.isFinite(v) ? String(Number(v.toPrecision(4))) : '');
-      setVol({ mean: r(unrisked.mean), p90: r(unrisked.p90), p50: r(unrisked.p50), p10: r(unrisked.p10) });
+      const fromRun = { mean: r(unrisked.mean), p90: r(unrisked.p90), p50: r(unrisked.p50), p10: r(unrisked.p10) };
+      setVol(fromRun);
+      setSeeded(fromRun);
       if (unrisked.unit) setUnit(unrisked.unit);
       setBasis(unrisked.basis || 'recoverable');
     }
@@ -119,6 +125,7 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
         inputs: {
           mean: unriskedObj.mean, p90: unriskedObj.p90, p50: unriskedObj.p50, p10: unriskedObj.p10, unit, basis,
           ...(bfCharge ? { bfCharge: { ...bfCharge, appliedFactor: factors.charge } } : {}),
+          ...(source ? { source: sourceForProspect(source, { seeded, vol }) } : {}),
           ...(econRes?.ok ? { economics: { npvMM: econRes.npvMM, unitValue: econRes.unitValue, devCost: econRes.devCost, assumptions: econRes.assumptions, engine: econRes.engine } } : {}),
         },
         risked: { pg: live.pg, risked_mean: live.riskedMean, success: live.successCase },
