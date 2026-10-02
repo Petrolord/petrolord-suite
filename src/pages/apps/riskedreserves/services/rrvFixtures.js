@@ -40,3 +40,19 @@ export const RRV_T1_BROWSER_LIST = [
   { id: 'rcp-prospect-1', source: 'rcp', rcpId: 'prospect-1', name: 'Ekene North', pg: 0.32, p90: 12, p50: 30, p10: 75, volumeNote: 'saved before the basis was recorded: these may be in-place volumes, check before valuing', basis: null, chargeNote: '', mefs: 15, unitValue: 9.5, devCost: 100, wellCost: 25 },
   { id: 'own-1758880000000-2', source: 'own', name: 'Typed lead', pg: 0.25, p90: 10, p50: 25, p10: 60, mefs: 10, unitValue: 8, devCost: 100, wellCost: 25 },
 ];
+
+/**
+ * What ReservoirCalc Pro hands its Prospect Risking panel after a Monte
+ * Carlo run (the chain harness): recoverable success-case volumes in MMSTB,
+ * and the source block of the project, reservoir and run behind them.
+ */
+export const CHAIN_RUN = {
+  unrisked: { mean: 44, p90: 18, p50: 39, p10: 82, unit: 'MMbbl', basis: 'recoverable' },
+  source: {
+    schema: 'rcp-source-1', app: 'ReservoirCalc Pro', build: 'harness', projectId: 'project-chain', projectName: 'Chain Block', reservoirId: 'reservoir-1', reservoirName: 'C-01 sand',
+    method: 'Surfaces (top and base surfaces, cut by the contacts)', fluidType: 'oil', unitSystem: 'field',
+    run: { ranAt: '2026-10-02T09:30:00.000Z', seed: 777, iterations: 20000, grvMode: 'structural', signature: 'sig-777', correlations: [{ a: 'porosity', b: 'sw', rho: -0.8 }] },
+    inPlace: { stream: 'STOIIP', unit: 'MMbbl', p90: 64, p50: 139, p10: 293, mean: 157 },
+    recovery: { input: 28, effectiveMean: 0.28, distributed: false },
+  },
+};

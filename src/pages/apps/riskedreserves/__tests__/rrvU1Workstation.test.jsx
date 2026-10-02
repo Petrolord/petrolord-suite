@@ -202,6 +202,21 @@ describe('RL11: the handoff on the screen', () => {
     expect(saved[0].version).toBe(2);
   });
 
+  test('PL5, two tabs: a prospect risked in ReservoirCalc Pro after this page opened is found by Import, and a change shows without a reload', async () => {
+    const backend = makeInMemoryRrvBackend(RRV_SEED_PROSPECTS);
+    mount(backend);
+    await settled();
+    await importAll();
+    // the other tab: a new prospect, and an edit to one already here
+    await backend.saveProspect({ name: 'Ekene South', pgFactors: { trap: 0.5, reservoir: 0.6, charge: 0.7, seal: 0.8 }, inputs: { mean: 20, p90: 8, p50: 17, p10: 38, unit: 'MMbbl', basis: 'recoverable' }, risked: { pg: 0.168, success: { p90: 8, p50: 17, p10: 38, mean: 20 } } });
+    const deep = (await backend.listProspects()).find((r) => r.name === 'Ekene Deep');
+    await backend.saveProspect({ id: deep.id, name: deep.name, pgFactors: deep.pg_factors, inputs: deep.inputs, risked: { ...deep.risked, pg: 0.2 } });
+    fireEvent.click(screen.getByTestId('rrv-import'));
+    await waitFor(() => expect(text('rrv-status')).toMatch(/Imported 1 prospect risked in ReservoirCalc Pro since this page opened: Ekene South/));
+    expect(screen.getByTestId('rrv-pg-Ekene South').value).toBe('0.168');
+    expect(text('rrv-upstream-Ekene Deep')).toMatch(/changed in ReservoirCalc Pro .*\(Pg 0\.18 to 0\.2\)/);
+  });
+
   test('the source record is deleted upstream: the row says so and keeps its inputs', async () => {
     const backend = makeInMemoryRrvBackend(RRV_SEED_PROSPECTS);
     mount(backend);

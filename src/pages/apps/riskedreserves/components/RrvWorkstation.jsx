@@ -200,10 +200,24 @@ function RrvWorkstationContent({ backend }) {
     const movedText = moved ? ` ${moved} changed there since ${moved === 1 ? 'it was' : 'they were'} valued: use Refresh on ${moved === 1 ? 'its' : 'their'} row.` : '';
     if (!fresh.length) {
       setStatus(inventory?.length ? `Every ReservoirCalc Pro prospect is already here.${movedText}` : 'Your ReservoirCalc Pro inventory is empty: risk a prospect there first, or add one here.');
-      return;
+    } else {
+      setProspects((ps) => [...ps, ...fresh]);
+      setStatus(`Imported ${fresh.length} prospect${fresh.length === 1 ? '' : 's'} from ReservoirCalc Pro. Set the MEFS, value per barrel and costs for each.${movedText}`);
     }
-    setProspects((ps) => [...ps, ...fresh]);
-    setStatus(`Imported ${fresh.length} prospect${fresh.length === 1 ? '' : 's'} from ReservoirCalc Pro. Set the MEFS, value per barrel and costs for each.${movedText}`);
+    // The inventory is also read again, so a prospect risked in ReservoirCalc
+    // Pro in another tab since this page opened is found, and a change to
+    // one already here shows on its row.
+    backend.listProspects().then(async (inv) => {
+      setInventory(inv);
+      if (backend.listSharedProspects) setSharedInventory((await backend.listSharedProspects()) || []);
+      setProspects((ps) => {
+        const have = new Set(ps.map((p) => p.id));
+        const late = inv.map((r) => ({ ...fromRcpProspect(r), row: null, dirty: true })).filter((r) => !have.has(r.id));
+        if (!late.length) return ps;
+        setStatus(`Imported ${late.length} prospect${late.length === 1 ? '' : 's'} risked in ReservoirCalc Pro since this page opened: ${late.map((l) => l.name).join(', ')}. Set the MEFS, value per barrel and costs.`);
+        return [...ps, ...late];
+      });
+    }).catch(() => { /* the cached inventory stands */ });
   };
   const add = () => { const p = { ...blankProspect(prospects.length + 1), row: null, dirty: true }; setProspects((ps) => [...ps, p]); setSelectedId(p.id); };
 
