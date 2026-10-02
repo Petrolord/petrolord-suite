@@ -88,8 +88,9 @@ Method used for each property
  Solution GOR Rs                        Standing, scaled to the entered bubble      Standing (1947)             Held at the solution GOR above the
                                         point                                                                   bubble point.
 
- Oil formation volume factor Bo         Standing                                    Standing (1947)             Above the bubble point: Bo(Pb)
-                                                                                                                exp(-co (p - Pb)).
+ Oil formation volume factor Bo         Standing                                    Standing (1947)             Above the bubble point: Bo(Pb) (Pb /
+                                                                                                                p)^A, the Vasquez-Beggs
+                                                                                                                compressibility co = A / p integrated.
 
  Oil compressibility co                 Vasquez-Beggs                               Vasquez and Beggs
  (undersaturated)                                                                   (1980)
@@ -117,7 +118,6 @@ Method used for each property
                                                                                                                 applied to Bw.
 
  Water viscosity                        McCain                                      McCain (1991)
-
 
 
 
@@ -246,7 +246,7 @@ Flow assurance screening
 
  P-T profile points                     6                                        6 points read. Pressure in psia (as chosen); temperature in degF
                                                                                  (as chosen). Column 1 is pressure and column 2 is temperature
-                                                                                 (no header).
+                                                                                 (no header). Separator: comma.
 
  Lowest profile temperature             10.0 degC                                From the profile
 
@@ -264,18 +264,18 @@ Fluid Properties Report, BHS-2 oil, Field Ekene                                 
 PVT table
  Pressure (kPa        Rs          Bo           Bg          Z        Oil visc.           Gas visc.       co         Bw          Water visc.     Region
  (abs))               (m3/m3)     (m3/m3)      (m3/m3)              (mPa.s)             (mPa.s)         (1/kPa)    (m3/m3)     (mPa.s)
-             42,747      284.97       1.8466      0.003464 1.1500          0.3978             0.03071    2.23e-6      1.0235            0.4678 Above Pb
-             41,651      284.97       1.8497      0.003554 1.1500          0.3918             0.02981    2.29e-6      1.0241            0.4635 Above Pb
-             40,562      284.97       1.8530      0.003649 1.1500          0.3860             0.02895    2.35e-6      1.0248            0.4593 Above Pb
-             39,466      284.97       1.8565      0.003751 1.1500          0.3802             0.02812    2.41e-6      1.0254            0.4552 Above Pb
-             38,376      284.97       1.8602      0.003857 1.1500          0.3746             0.02732    2.48e-6      1.0260            0.4511 Above Pb
-             37,280      284.97       1.8641      0.003941 1.1407          0.3690             0.02676    2.56e-6      1.0266            0.4471 Above Pb
-             36,184      284.97       1.8683      0.003964 1.1146          0.3636             0.02659    2.63e-6      1.0272            0.4431 Above Pb
-             35,094      284.97       1.8727      0.003998 1.0898          0.3582             0.02638    2.71e-6      1.0277            0.4392 Above Pb
-             33,998      284.97       1.8775      0.004037 1.0664          0.3530             0.02613    2.80e-6      1.0283            0.4353 Above Pb
-             32,909      284.97       1.8825      0.004087 1.0442          0.3480             0.02584    2.89e-6      1.0288            0.4315 Above Pb
-             31,812      284.97       1.8880      0.004144 1.0234          0.3430             0.02552    2.99e-6      1.0294            0.4277 Above Pb
-             30,716      284.97       1.8938      0.004211 1.0040          0.3383             0.02516    3.10e-6      1.0299            0.4240 Above Pb
+             42,747      284.97       1.8348      0.003464 1.1500          0.3978             0.03071    2.23e-6      1.0235            0.4678 Above Pb
+             41,651      284.97       1.8394      0.003554 1.1500          0.3918             0.02981    2.29e-6      1.0241            0.4635 Above Pb
+             40,562      284.97       1.8440      0.003649 1.1500          0.3860             0.02895    2.35e-6      1.0248            0.4593 Above Pb
+             39,466      284.97       1.8488      0.003751 1.1500          0.3802             0.02812    2.41e-6      1.0254            0.4552 Above Pb
+             38,376      284.97       1.8538      0.003857 1.1500          0.3746             0.02732    2.48e-6      1.0260            0.4511 Above Pb
+             37,280      284.97       1.8589      0.003941 1.1407          0.3690             0.02676    2.56e-6      1.0266            0.4471 Above Pb
+             36,184      284.97       1.8642      0.003964 1.1146          0.3636             0.02659    2.63e-6      1.0272            0.4431 Above Pb
+             35,094      284.97       1.8696      0.003998 1.0898          0.3582             0.02638    2.71e-6      1.0277            0.4392 Above Pb
+             33,998      284.97       1.8753      0.004037 1.0664          0.3530             0.02613    2.80e-6      1.0283            0.4353 Above Pb
+             32,909      284.97       1.8811      0.004087 1.0442          0.3480             0.02584    2.89e-6      1.0288            0.4315 Above Pb
+             31,812      284.97       1.8872      0.004144 1.0234          0.3430             0.02552    2.99e-6      1.0294            0.4277 Above Pb
+             30,716      284.97       1.8935      0.004211 1.0040          0.3383             0.02516    3.10e-6      1.0299            0.4240 Above Pb
              29,627      284.97       1.9001      0.004284 0.9858          0.3336             0.02476    3.22e-6      1.0304            0.4204 Above Pb
              28,958      284.97       1.9042      0.004340 0.9754          0.3309             0.02450        n/a      1.0307            0.4182 Pb
              28,531      279.96       1.8874      0.004374 0.9690          0.3344             0.02433        n/a      1.0309            0.4168 Below Pb

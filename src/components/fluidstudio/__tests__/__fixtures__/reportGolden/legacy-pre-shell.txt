@@ -80,10 +80,16 @@ Method used for each property
                                        solution GOR                                 (1980)
 
  Solution GOR Rs                       Vasquez-Beggs                                Vasquez and Beggs           Held at the solution GOR above the
-                                                                                    (1980)                      bubble point.
+                                                                                    (1980)                      bubble point. The gas gravity is
+                                                                                                                corrected to the 114.7 psia reference
+                                                                                                                separator with a fixed 100 psia
+                                                                                                                separator at the reservoir
+                                                                                                                temperature; the Separator Train
+                                                                                                                does not enter.
 
- Oil formation volume factor Bo        Vasquez-Beggs                                Vasquez and Beggs           Above the bubble point: Bo(Pb)
-                                                                                    (1980)                      exp(-co (p - Pb)).
+ Oil formation volume factor Bo        Vasquez-Beggs                                Vasquez and Beggs           Above the bubble point: Bo(Pb) (Pb /
+                                                                                    (1980)                      p)^A, the Vasquez-Beggs
+                                                                                                                compressibility co = A / p integrated.
 
  Oil compressibility co                Vasquez-Beggs                                Vasquez and Beggs
  (undersaturated)                                                                   (1980)
@@ -112,13 +118,13 @@ Method used for each property
 
  Water viscosity                       McCain                                       McCain (1991)
 
-The method names are written by the engine beside the calculation that used them.
-
 
 
 
 Fluid Properties Report                                                                                                                      Page 2 of 9
-Basis and conventions
+The method names are written by the engine beside the calculation that used them.
+
+Basis and conventions
  Item                                        As used in this report
 
  Liberation basis                            Black-oil correlations on a surface separation (flash) basis: Rs and Bo are per stock-tank barrel, and the
@@ -228,7 +234,7 @@ Flow assurance screening
 
  P-T profile points                    3                                            3 points read. Pressure in psia (as chosen); temperature in degF
                                                                                     (as chosen). Column 1 is pressure and column 2 is temperature
-                                                                                    (no header).
+                                                                                    (no header). Separator: comma.
 
  Lowest profile temperature            50.0 degF                                    From the profile
 
@@ -241,28 +247,28 @@ Screening only: sweet gas, no inhibitor, salt or acid gas correction.
 PVT table
  Pressure          Rs             Bo           Bg              Z        Oil visc.      Gas visc.       co          Bw           Water visc.    Region
  (psia)            (scf/STB)      (RB/STB)     (RB/Mscf)                (cP)           (cP)            (1/psi)     (RB/STB)     (cP)
-           4,536          480.0       1.2440          0.7170 1.0002            1.103        0.02791      7.81e-6       1.0247          0.4722 Above Pb
-           4,420          480.0       1.2446          0.7230 0.9832            1.087        0.02764      8.01e-6       1.0250          0.4692 Above Pb
-           4,304          480.0       1.2453          0.7300 0.9671            1.072        0.02735      8.23e-6       1.0254          0.4662 Above Pb
-           4,189          480.0       1.2460          0.7390 0.9519            1.057        0.02702      8.45e-6       1.0257          0.4633 Above Pb
-           4,073          480.0       1.2468          0.7480 0.9376            1.043        0.02666      8.69e-6       1.0261          0.4604 Above Pb
-           3,957          480.0       1.2476          0.7590 0.9241            1.029        0.02626      8.95e-6       1.0264          0.4576 Above Pb
-           3,841          480.0       1.2484          0.7720 0.9116            1.015        0.02585      9.22e-6       1.0267          0.4547 Above Pb
-           3,725          480.0       1.2493          0.7850 0.9000            1.001        0.02540      9.51e-6       1.0271          0.4519 Above Pb
+           4,536          480.0       1.2378          0.7170 1.0002            1.103        0.02791      7.81e-6       1.0247          0.4722 Above Pb
+           4,420          480.0       1.2389          0.7230 0.9832            1.087        0.02764      8.01e-6       1.0250          0.4692 Above Pb
+           4,304          480.0       1.2401          0.7300 0.9671            1.072        0.02735      8.23e-6       1.0254          0.4662 Above Pb
+           4,189          480.0       1.2413          0.7390 0.9519            1.057        0.02702      8.45e-6       1.0257          0.4633 Above Pb
+           4,073          480.0       1.2425          0.7480 0.9376            1.043        0.02666      8.69e-6       1.0261          0.4604 Above Pb
+           3,957          480.0       1.2438          0.7590 0.9241            1.029        0.02626      8.95e-6       1.0264          0.4576 Above Pb
+           3,841          480.0       1.2451          0.7720 0.9116            1.015        0.02585      9.22e-6       1.0267          0.4547 Above Pb
+           3,725          480.0       1.2465          0.7850 0.9000            1.001        0.02540      9.51e-6       1.0271          0.4519 Above Pb
 
 
 Fluid Properties Report                                                                                                                       Page 4 of 9
  Pressure          Rs             Bo           Bg            Z      Oil visc.      Gas visc.      co          Bw            Water visc.     Region
  (psia)            (scf/STB)      (RB/STB)     (RB/Mscf)            (cP)           (cP)           (1/psi)     (RB/STB)      (cP)
-           3,609          480.0       1.2503        0.8010 0.8892         0.9881        0.02493     9.81e-6        1.0274           0.4491 Above Pb
-           3,493          480.0       1.2513        0.8180 0.8794         0.9752        0.02444     1.01e-5        1.0277           0.4464 Above Pb
-           3,377          480.0       1.2524        0.8380 0.8704         0.9628        0.02392     1.05e-5        1.0280           0.4437 Above Pb
-           3,261          480.0       1.2536        0.8600 0.8623         0.9507        0.02340     1.09e-5        1.0283           0.4410 Above Pb
-           3,145          480.0       1.2549        0.8840 0.8551         0.9390        0.02286     1.13e-5        1.0286           0.4384 Above Pb
-           3,029          480.0       1.2563        0.9110 0.8488         0.9277        0.02231     1.17e-5        1.0288           0.4358 Above Pb
-           2,913          480.0       1.2578        0.9410 0.8434         0.9169        0.02175     1.22e-5        1.0291           0.4332 Above Pb
-           2,797          480.0       1.2594        0.9750 0.8389         0.9064        0.02119     1.27e-5        1.0294           0.4306 Above Pb
-           2,681          480.0       1.2611         1.013 0.8353         0.8964        0.02063     1.32e-5        1.0296           0.4281 Above Pb
+           3,609          480.0       1.2478        0.8010 0.8892         0.9881        0.02493     9.81e-6        1.0274           0.4491 Above Pb
+           3,493          480.0       1.2493        0.8180 0.8794         0.9752        0.02444     1.01e-5        1.0277           0.4464 Above Pb
+           3,377          480.0       1.2508        0.8380 0.8704         0.9628        0.02392     1.05e-5        1.0280           0.4437 Above Pb
+           3,261          480.0       1.2523        0.8600 0.8623         0.9507        0.02340     1.09e-5        1.0283           0.4410 Above Pb
+           3,145          480.0       1.2539        0.8840 0.8551         0.9390        0.02286     1.13e-5        1.0286           0.4384 Above Pb
+           3,029          480.0       1.2556        0.9110 0.8488         0.9277        0.02231     1.17e-5        1.0288           0.4358 Above Pb
+           2,913          480.0       1.2573        0.9410 0.8434         0.9169        0.02175     1.22e-5        1.0291           0.4332 Above Pb
+           2,797          480.0       1.2592        0.9750 0.8389         0.9064        0.02119     1.27e-5        1.0294           0.4306 Above Pb
+           2,681          480.0       1.2610         1.013 0.8353         0.8964        0.02063     1.32e-5        1.0296           0.4281 Above Pb
            2,565          480.0       1.2630         1.055 0.8326         0.8868        0.02007     1.38e-5        1.0299           0.4256 Above Pb
            2,536          480.0       1.2635         1.066 0.8320         0.8846        0.01994         n/a        1.0299           0.4250 Pb
            2,449          462.0       1.2566         1.103 0.8307         0.9060        0.01952         n/a        1.0301           0.4232 Below Pb

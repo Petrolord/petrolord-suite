@@ -15,5 +15,8 @@ with its twin.
 | `no-header-bar-degC.txt` | bar and degC with no header: the unit is chosen at the door |
 | `hostile-mixed.txt` | A header that names neither column, a unit typed in a cell, one value, comma decimals with a comma separator, a negative pressure |
 
+The table is read by the shared typed reader `src/lib/tabularParse.js`; the
+door adds the columns, the units and the read-back.
+
 Read by `src/components/fluidstudio/__tests__/fluidContract.test.jsx` and
 `e2e/fluid-systems-upgrade.spec.js`.

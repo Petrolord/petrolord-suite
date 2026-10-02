@@ -108,7 +108,7 @@ describe('Fluid Systems Studio upgrade: the page', () => {
     fireEvent.change(box, { target: { value: fs.readFileSync(path.join(process.cwd(), 'e2e/fixtures/fluid-systems/hostile/hostile-mixed.txt'), 'utf8') } });
     const back = screen.getByTestId('pt-readback');
     expect(back).toHaveTextContent('3 points read, 5 lines not read.');
-    expect(back).toHaveTextContent('Line 6 not read: Four comma-separated values');
+    expect(back).toHaveTextContent('Line 6 not read: 4 fields where 2 were expected');
     expect(back).toHaveTextContent('Line 3 not read: Not two numbers ("3000 psia, 180")');
   });
 

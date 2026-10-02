@@ -74,6 +74,49 @@ export function createSavedProjectsService(tableName, {
       return row?.inputs_data ?? null;
     },
 
+    /**
+     * The projects the caller can see with who owns each (record sharing,
+     * docs/scope/OrgSharing-DESIGN-AND-STATUS.md): the caller's own and, once
+     * the sharing migration is applied, those colleagues shared with the
+     * organisation. An app splits them with `userId`. Before the migration
+     * the sharing columns do not exist and every row is the caller's own.
+     */
+    async listRows() {
+      const base = 'id, project_name, created_at, updated_at, user_id';
+      let res = await supabase.from(tableName).select(`${base}, visibility, organization_id, org_access`).order('updated_at', { ascending: false });
+      if (res.error && (['42703', 'PGRST204'].includes(String(res.error.code)) || /column .* does not exist|Could not find the '.*' column/i.test(String(res.error.message || '')))) {
+        res = await supabase.from(tableName).select(base).order('updated_at', { ascending: false });
+      }
+      if (res.error) throw res.error;
+      return (res.data || []).map((r) => ({
+        id: r.id,
+        name: r.project_name,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        userId: r.user_id ?? null,
+        shared: r.visibility === 'organization' && !!r.organization_id,
+        orgAccess: r.org_access === 'edit' ? 'edit' : 'view',
+      }));
+    },
+
+    /**
+     * One project with its row: `payload` as load() gives it, and `row` (the
+     * columns beside the payload: owner, sharing state, version) for the
+     * sharing store. null when it does not exist or is not visible.
+     */
+    async loadRow(projectId) {
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .eq('id', projectId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const { row } = openState(kind, data);
+      const { inputs_data: payload, ...rest } = row || {};
+      return { payload: payload ?? null, row: rest };
+    },
+
     /** Delete one project. */
     async remove(projectId) {
       const { error } = await supabase.from(tableName).delete().eq('id', projectId);

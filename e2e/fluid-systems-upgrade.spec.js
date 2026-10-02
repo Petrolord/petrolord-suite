@@ -309,7 +309,7 @@ test('PL2 and RL10: hostile P-T profile files are read, read back, and equal the
   await box.fill(hostile('hostile-mixed.txt'));
   await expect(back).toContainText('3 points read, 5 lines not read.');
   await expect(back).toContainText('Line 3 not read: Not two numbers');
-  await expect(back).toContainText('Line 6 not read: Four comma-separated values');
+  await expect(back).toContainText('Line 6 not read: 4 fields where 2 were expected');
   await expect(back).toContainText('Line 7 not read: Pressure is not above zero absolute');
   expect(errors).toEqual([]);
 });
@@ -356,6 +356,11 @@ test('PL9 and RL11: the chain to Well Test, and delivery that survives a refresh
   await page.getByRole('option', { name: 'Glaso' }).click();
   await createProject(page, 'Ekene chain fluid');
   await expect(page.getByTestId('fluid-handoff-note')).toContainText('This fluid is a saved project');
+  // record sharing: the saved project carries the share control (the harness user is in no organisation)
+  await openRail(page);
+  await expect(page.getByTestId('record-sharing-bar')).toBeVisible();
+  await expect(page.getByTestId('share-switch')).toBeVisible();
+  await closeRail(page);
   const bo = (await kpi(page, 'Oil FVF @ Pb').locator('.text-2xl').innerText()).trim();
 
   await page.getByRole('button', { name: 'Send to Well Test Analysis Studio' }).click();

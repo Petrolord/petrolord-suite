@@ -317,7 +317,7 @@ describe('RL10 and PL2: the P-T profile door', () => {
     const r = readPtProfile('3000, 180\n2500, 165\n2000, 140');
     expect(r.points).toEqual([{ pressure: 3000, temp: 180 }, { pressure: 2500, temp: 165 }, { pressure: 2000, temp: 140 }]);
     expect(r.skipped).toEqual([]);
-    expect(r.summary).toBe('3 points read. Pressure in psia (as chosen); temperature in degF (as chosen). Column 1 is pressure and column 2 is temperature (no header).');
+    expect(r.summary).toBe('3 points read. Pressure in psia (as chosen); temperature in degF (as chosen). Column 1 is pressure and column 2 is temperature (no header). Separator: comma.');
     expect(parsePtProfile('3000, 180\n2500, 165')).toEqual([{ pressure: 3000, temp: 180 }, { pressure: 2500, temp: 165 }]);
   });
 
@@ -369,12 +369,15 @@ describe('RL10 and PL2: the P-T profile door', () => {
       [1, 'A header line that does not name a pressure and a temperature column'],
       [3, 'Not two numbers'],
       [5, 'One value only: a pressure and a temperature are needed'],
-      [6, 'Four comma-separated values: comma decimals need a semicolon or tab between the columns'],
+      [6, '4 fields where 2 were expected'],
       [7, 'Pressure is not above zero absolute'],
     ]);
     expect(r.summary).toMatch(/^3 points read, 5 lines not read\./);
     // before: the old door kept "3000 psia, 180" as nothing and read "1500,5,80,2" as 1500 psia and 5 degF
     expect(r.points.map((p) => p.temp)).not.toContain(5);
+    // the table itself is read by the shared typed reader of the Reservoir round
+    expect(readPtProfile(file('semicolon-comma-decimals.csv')).summary).toMatch(/Separator: semicolon\. Decimal commas\.$/);
+    expect(readPtProfile(file('tabs-header-bar-degC.txt')).summary).toMatch(/Separator: tab\.$/);
   });
 });
 

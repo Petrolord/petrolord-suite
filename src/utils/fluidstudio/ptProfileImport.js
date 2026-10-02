@@ -13,11 +13,14 @@
  * silent, gauge pressures brought to absolute with the atmosphere stated,
  * and a read-back of what was read and what was not, line by line.
  *
- * Pure. The shared tabular parser (src/lib/tabularFile.js, Reservoir Step
- * 0a) replaces the line splitter here once it is on main; the door, the
- * units and the read-back stay.
+ * Pure. The table is read by the shared typed reader of the Reservoir round
+ * (src/lib/tabularParse.js, Step 0a): delimiter, header, decimal mark and
+ * row report are its decisions. This module adds what is particular to the
+ * door: which column is pressure and which temperature, their units, gauge
+ * to absolute, and the words of the read-back.
  */
 import { convert } from '../../lib/units/registry.js';
+import { parseTabular } from '../../lib/tabularParse.js';
 
 /** Standard atmosphere added to a gauge pressure (psi). */
 export const ATMOSPHERE_PSI = 14.696;
@@ -55,24 +58,6 @@ const temperatureUnitFromText = (t) => {
   return null;
 };
 
-/** One line into cells, and whether a comma can be a decimal mark in it. */
-function splitLine(line) {
-  if (/[;\t]/.test(line)) return { cells: line.split(/[;\t]/).map((c) => c.trim()), commaDecimal: true };
-  if (line.includes(',')) return { cells: line.split(',').map((c) => c.trim()), commaDecimal: false };
-  return { cells: line.trim().split(/\s+/), commaDecimal: false };
-}
-
-const toNumber = (cell, commaDecimal) => {
-  if (cell == null) return NaN;
-  let t = String(cell).trim();
-  if (t === '') return NaN;
-  if (commaDecimal) t = t.replace(/\s/g, '').replace(',', '.');
-  // a number and nothing else: "3000 psia" in a cell is not read as 3000
-  return /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(t) ? Number(t) : NaN;
-};
-
-const isHeader = (cells, commaDecimal) => cells.some((c) => /[a-z]/i.test(c)) && cells.every((c) => !Number.isFinite(toNumber(c, commaDecimal)) || c === '');
-
 /**
  * Read a pasted P-T profile.
  * @param {string} raw the pasted text
@@ -80,7 +65,7 @@ const isHeader = (cells, commaDecimal) => cells.some((c) => /[a-z]/i.test(c)) &&
  * @returns {{points: Array<{pressure: number, temp: number}>, read: number,
  *   skipped: Array<{line: number, text: string, reason: string}>,
  *   units: {pressure: string, temperature: string, pressureFromHeader: boolean, temperatureFromHeader: boolean},
- *   columns: {pressure: number, temperature: number, header: ?string}, summary: string}}
+ *   columns: {pressure: number, temperature: number, header: ?string}, decimal: string, summary: string}}
  *   points are psia and degF, pressure descending (the engine's order)
  */
 export function readPtProfile(raw, chosen = {}) {
@@ -93,51 +78,50 @@ export function readPtProfile(raw, chosen = {}) {
   const columns = { pressure: 0, temperature: 1, header: null };
   const points = [];
   const skipped = [];
-  const lines = typeof raw === 'string' ? raw.split(/\r?\n/) : [];
-  let seenData = false;
+  // the shared typed reader decides the delimiter, the header, the decimal
+  // mark and which rows are not table rows
+  const table = parseTabular(typeof raw === 'string' ? raw : '');
+  const lineText = (line) => (String(raw || '').split(/\r\n|\r|\n/)[line - 1] || '').trim();
 
-  lines.forEach((text, i) => {
-    const line = text.trim();
-    if (!line) return;
-    const { cells, commaDecimal } = splitLine(line);
-    if (!seenData && isHeader(cells, commaDecimal)) {
-      const pIdx = cells.findIndex((c) => /^p\b|press/i.test(c));
-      const tIdx = cells.findIndex((c) => /^t\b|temp/i.test(c));
-      if (pIdx >= 0 && tIdx >= 0 && pIdx !== tIdx) {
-        columns.pressure = pIdx; columns.temperature = tIdx; columns.header = line;
-        const pu = pressureUnitFromText(cells[pIdx].replace(/^p\w*/i, ' '));
-        const tu = temperatureUnitFromText(cells[tIdx].replace(/^t\w*/i, ' '));
-        if (pu) { units.pressure = pu; units.pressureFromHeader = true; }
-        if (tu) { units.temperature = tu; units.temperatureFromHeader = true; }
-      } else {
-        skipped.push({ line: i + 1, text: line, reason: 'A header line that does not name a pressure and a temperature column' });
-      }
-      return;
+  if (table.header) {
+    const names = table.columns.map((c) => String(c.header ?? c.name ?? ''));
+    const pIdx = names.findIndex((c) => /^p\b|press/i.test(c.trim()));
+    const tIdx = names.findIndex((c) => /^t\b|temp/i.test(c.trim()));
+    if (pIdx >= 0 && tIdx >= 0 && pIdx !== tIdx) {
+      columns.pressure = pIdx; columns.temperature = tIdx; columns.header = table.header.cells.join(', ');
+      const pu = pressureUnitFromText(table.columns[pIdx].unit || '');
+      const tu = temperatureUnitFromText(table.columns[tIdx].unit || '');
+      if (pu) { units.pressure = pu; units.pressureFromHeader = true; }
+      if (tu) { units.temperature = tu; units.temperatureFromHeader = true; }
+    } else {
+      skipped.push({ line: table.header.line, text: table.header.cells.join(', '), reason: 'A header line that does not name a pressure and a temperature column' });
     }
-    if (cells.length < 2) { skipped.push({ line: i + 1, text: line, reason: 'One value only: a pressure and a temperature are needed' }); return; }
-    if (!commaDecimal && cells.length === 4 && columns.header == null) {
-      skipped.push({ line: i + 1, text: line, reason: 'Four comma-separated values: comma decimals need a semicolon or tab between the columns' });
-      return;
-    }
-    const p = toNumber(cells[columns.pressure], commaDecimal);
-    const t = toNumber(cells[columns.temperature], commaDecimal);
-    if (!Number.isFinite(p) || !Number.isFinite(t)) { skipped.push({ line: i + 1, text: line, reason: 'Not two numbers' }); return; }
-    seenData = true;
-    const pu = PT_PRESSURE_UNITS[units.pressure];
-    const psia = convert('pressure', p, pu.registry, 'psi') + (pu.gauge ? ATMOSPHERE_PSI : 0);
-    const degF = convert('temperature', t, PT_TEMPERATURE_UNITS[units.temperature].registry, 'degF');
-    if (!(psia > 0)) { skipped.push({ line: i + 1, text: line, reason: 'Pressure is not above zero absolute' }); return; }
-    points.push({ pressure: psia, temp: degF });
-  });
-
-  points.sort((a, b) => b.pressure - a.pressure);
+  }
+  for (const s of table.report.skipped) skipped.push({ line: s.line, text: String(s.text || '').trim(), reason: s.reason[0].toUpperCase() + s.reason.slice(1) });
+  const padded = new Set(table.report.padded.map((r) => r.line));
   const pu = PT_PRESSURE_UNITS[units.pressure];
-  const tu = PT_TEMPERATURE_UNITS[units.temperature];
+  const tuDef = PT_TEMPERATURE_UNITS[units.temperature];
+  for (const row of table.rows) {
+    const p = row.values[columns.pressure];
+    const t = row.values[columns.temperature];
+    const text = lineText(row.line) || row.cells.join(', ');
+    if (padded.has(row.line) && row.cells.filter((c) => String(c).trim() !== '').length < 2) { skipped.push({ line: row.line, text, reason: 'One value only: a pressure and a temperature are needed' }); continue; }
+    if (typeof p !== 'number' || typeof t !== 'number' || !Number.isFinite(p) || !Number.isFinite(t)) { skipped.push({ line: row.line, text, reason: 'Not two numbers' }); continue; }
+    const psia = convert('pressure', p, pu.registry, 'psi') + (pu.gauge ? ATMOSPHERE_PSI : 0);
+    const degF = convert('temperature', t, tuDef.registry, 'degF');
+    if (!(psia > 0)) { skipped.push({ line: row.line, text, reason: 'Pressure is not above zero absolute' }); continue; }
+    points.push({ pressure: psia, temp: degF });
+  }
+  skipped.sort((a, b) => a.line - b.line);
+  points.sort((a, b) => b.pressure - a.pressure);
+
   const said = (fromHeader) => (fromHeader ? 'read from the header' : 'as chosen');
+  const decimal = table.decimal?.mark === ',' ? ' Decimal commas.' : (table.decimal && table.decimal.certain === false ? ` Decimal mark taken as a ${table.decimal.mark === ',' ? 'comma' : 'point'}: the numbers do not settle it.` : '');
   const summary = `${points.length} point${points.length === 1 ? '' : 's'} read`
     + `${skipped.length ? `, ${skipped.length} line${skipped.length === 1 ? '' : 's'} not read` : ''}. `
     + `Pressure in ${pu.label} (${said(units.pressureFromHeader)})${pu.gauge ? `, brought to absolute with ${ATMOSPHERE_PSI} psi` : ''}; `
-    + `temperature in ${tu.label} (${said(units.temperatureFromHeader)}). `
-    + `Column ${columns.pressure + 1} is pressure and column ${columns.temperature + 1} is temperature${columns.header ? ', from the header' : ' (no header)'}.`;
-  return { points, read: points.length, skipped, units, columns, summary };
+    + `temperature in ${tuDef.label} (${said(units.temperatureFromHeader)}). `
+    + `Column ${columns.pressure + 1} is pressure and column ${columns.temperature + 1} is temperature${columns.header ? ', from the header' : ' (no header)'}. `
+    + `Separator: ${table.delimiterName}.${decimal}`;
+  return { points, read: points.length, skipped, units, columns, decimal: table.decimal?.mark || '.', summary };
 }

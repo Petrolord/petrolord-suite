@@ -40,6 +40,11 @@ import { PVT_CONTRACT_PAYLOAD_KEY } from '@/lib/inputProvenance/pvtContract';
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { buildLabel } from '@/lib/platformBuild';
+import { supabaseSharingStore } from '@/lib/recordSharing';
+import { RecordSharingBar } from '@/components/recordSharing';
+
+// one sharing store per page load (the signed-in user's session)
+const SHARING_STORE = supabaseSharingStore();
 
 // Design system rollout batch 1D (docs/scope/DesignSystem-Rollout.md): the
 // page sits in the dashboard scope, so every class below is a theme role.
@@ -130,13 +135,16 @@ const FluidSystemsStudioContent = () => {
 
   const inputsForSave = useMemo(() => ({ ...inputs, unitSystem: system }), [inputs, system]);
   const {
-    projects, currentProjectId, projectName, createProject, openProject, deleteProject,
-    manualSave, isSaving, saveError, lastSaveTime,
+    projects, sharedProjects, currentProjectId, projectName, projectRow, sharing, viewingShared,
+    createProject, openProject, deleteProject, manualSave, saveCopy,
+    isSaving, saveError, lastSaveTime,
     notifications, removeNotification, addNotification,
   } = useFluidStudioProjects({
     inputs: inputsForSave,
     setInputs: openInputs,
     extra: (id, name) => ({ [PVT_CONTRACT_PAYLOAD_KEY]: contractFor(id, name) }),
+    // record sharing: own projects, then those colleagues shared; one editor at a time
+    sharingStore: SHARING_STORE,
   });
 
   const contract = useMemo(
@@ -203,12 +211,29 @@ const FluidSystemsStudioContent = () => {
       <section>
         <StudioProjectManager
           projects={projects}
+          sharedProjects={sharedProjects}
+          canDelete={!viewingShared}
           currentProjectId={currentProjectId}
-          onCreate={createProject}
+          onCreate={(name) => createProject(name)}
           onOpen={openProject}
           onDelete={deleteProject}
           confirmDeleteMessage="Delete this project and its saved inputs? This cannot be undone."
         />
+        {projectRow && (
+          <RecordSharingBar
+            sharing={sharing}
+            label="project"
+            className="mt-2"
+            onSaveCopy={saveCopy}
+            onReload={() => openProject(currentProjectId)}
+            fieldLabels={{ project_name: 'name', inputs_data: 'fluid inputs and report fields' }}
+          />
+        )}
+        {projectRow && sharing.ready && !sharing.canWrite && (
+          <p className="mt-2 text-xs text-pl-warning-text" data-testid="fluid-read-only">
+            {sharing.readOnlyReason || 'This project is open read-only.'} Changes you make here are not saved to it.
+          </p>
+        )}
       </section>
       {hasSampleValues && (
         <p className="text-xs rounded-md border border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text px-3 py-2" data-testid="fluid-sample-banner">
@@ -281,7 +306,7 @@ const FluidSystemsStudioContent = () => {
               report={report}
               handoff={handoff}
               projectId={currentProjectId}
-              onBeforeSend={currentProjectId ? manualSave : undefined}
+              onBeforeSend={currentProjectId && sharing.canWrite ? manualSave : undefined}
               organizationName={organizationName}
               onIdentification={setIdentification}
               onSource={setSource}
