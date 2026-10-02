@@ -4,6 +4,7 @@
 //
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
+import SharingHelp from '@/components/recordSharing/SharingHelp';
 import React from 'react';
 import {
   BookOpen, Zap, Layers3, Ruler, Crosshair, GitBranch, Pentagon, Rows, Grid3x3, ClipboardCheck,
@@ -236,6 +237,9 @@ export default function EarthModelingHelpGuide() {
           ['Well Correlation and Petrophysics Studio', 'Tops and zone averages picked there are the ties and the control points here.'],
           ['Geoscience home', 'The home icon at the left of the ribbon.'],
         ]} />
+              <SharingHelp record="model" where="The control sits under the Save buttons of the builder dock once the model is saved, and saved models are listed as yours first, then Shared with me.">
+          <Para>A model a colleague shared for viewing still builds and reports on your screen; Save is refused, and Save as a new model keeps your changes as your own copy.</Para>
+        </SharingHelp>
       </GuideSection>
 
       <GuideSection id="step2">

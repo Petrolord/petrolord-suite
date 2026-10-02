@@ -243,3 +243,9 @@ migration; `sectionFrame` into petrolord-engines (U2-016).
 
 Shared kit changes (columns and scroll, TWT, strips, ghost, print render)
 reach Stratigraphy Studio; its suites were run on the branch.
+
+## 2026-10-02 Organisation sharing (built; migration NOT APPLIED, owner-run)
+
+Named sections can be shared with the organisation from the ribbon (view, or edit one person at a time, with history); the section list shows shared sections apart. Tests: `__tests__/orgSharing.test.jsx`, `e2e/org-sharing.spec.js`.
+
+Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Until the migration is applied the control is a short note and saving works as before.

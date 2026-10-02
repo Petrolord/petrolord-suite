@@ -286,7 +286,7 @@ until it is."), and every save is the plain update the app always made.
 | Rock Physics | `rp_projects` | A Share button in the ribbon | A project picker appears when colleagues have shared projects | A shared project makes its published gather readable in a colleague's Seismolord. Save a copy replaces the user's own project after a question (one project per user). |
 | Well Correlation | `geo_correlation_sections` | A Share button beside the section picker | The picker: own, then "Shared with me" with the owner's name | Save is refused with the reason; the copy button saves it as the user's own. Stratigraphy Studio still opens the user's own newest section. |
 | Basin | `bf_wells` | Above the model list, for the active model | Own models, then "Shared with me" | The auto-save skips a read-only model (the edit stays on screen, with a note) and stops, after saying so once, when a newer version was saved elsewhere. |
-| Well Data Manager | `geo_wells` and children | see section 7 | | |
+| Well Data Manager | `geo_wells` and children | Above the well's tabs; the tree's share button still shares for viewing | The tree marks organisation wells, as before | Read-only until taken for editing; no Save a copy for a well (section 7). |
 
 Check-out and history behave the same everywhere: the bar's banner, Start
 editing, Done editing, Take over (owner), the notice when a newer version
@@ -294,7 +294,28 @@ exists, and the History panel (who, when, what).
 
 ## 7. Well Data Manager: team editing of organisation wells (U2-012)
 
-See the Well Data Manager section added with `20261002110000` below.
+`20261002110000_geo_wells_team_editing.sql`, in its own file because another
+branch is changing `geo_wells` columns for the datum model.
+
+- The well keeps its sharing model (shared when `organization_id` is set).
+  The owner chooses "Colleagues can view" (the default: what a shared well
+  already was) or "Colleagues can edit", in the control above the well's tabs.
+- The well row has the check-out, the version, the author stamp and the log,
+  through the same guard, functions and log trigger.
+- The child registries (`geo_wells_logs`, `_tops`, `_zones`, `_intervals`,
+  `_core_images`) follow the well's check-out: writable by the owner unless a
+  colleague holds it, and by the colleague who holds it. Reads are unchanged.
+  One statement-level trigger per write kind logs a folded line on the well
+  ("Tops: 3 added").
+- The `wells` bucket: everyone still uploads under their own user id. The
+  well's owner can read, rewrite and remove every object under the well; the
+  colleague holding the check-out can rewrite and remove objects under it.
+- The rule reaches every app that writes a well. `src/lib/wellsRegistry.js`
+  turns a refusal into the same sentences ("Being edited by ..."). Only Well
+  Data Manager, the well's editor, sends the version; other apps patch a field
+  or two and are not versioned.
+- Not offered: Save a copy of a well (Export and project packages do that);
+  the Tops sheet view stays owner-only.
 
 ## 8. Migrations and how to apply them
 

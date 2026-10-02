@@ -160,7 +160,7 @@ Sources: [PetroMod product sheet](https://www.software.slb.com/-/media/software-
 | Eroded section on the burial plot | BF-T1-E3 | Still wanted (U2-001, A) |
 | Trap and migration | Plan row 11, STATUS | Still wanted, L (U2-014) |
 | Orphan bf_* tables | STATUS Q3 | Done 2026-07-14 (verified live); STATUS corrected |
-| bf_wells RLS pentest | STATUS | Still wanted (U2-019, owner and 2nd engineer) |
+| bf_wells RLS pentest | STATUS | Built 2026-10-02 (U2-019, organisation sharing wave): four policies with WITH CHECK and a pentest; pending the owner's apply |
 | Seismic-velocity pore pressure (Q4) | STATUS | Folded into U2-015 |
 | Lithology mixing in the wizard | ROADMAP | Still wanted (U2-013) |
 | STRAT-U2-020 decompaction | Stratigraphy U2 | U2-016 (Stratigraphy view on Basin's engine) |
@@ -296,3 +296,14 @@ Depth and temperature follow the unit profile everywhere new (burial plot note, 
 ### U2 browser checks (PL6)
 
 `e2e/basinflow-upgrade-u2.spec.js` (8) on the harness at 1366x768, 1440x900 and 390 wide, light and dark: the worked example runs in the Web Worker (the run log says so), the burial plot names its eroded section, depth runs downward on the burial and pressure plots (tick positions read from the page), the pressure tab links to Pore Pressure Studio, Horner changes the temperature misfit, two scenarios compare, a template is undone, and the downloaded PDF is read back with pdftotext (plots, eroded section, BHT line); no page errors, no sideways scroll. The earlier specs were run in the same window: `basinflow-upgrade.spec.js` (U1, 7) and `basinflow-t1.spec.js` (2) pass; `basinflow.spec.js` (BF0 to BF3, 6) had been red since the unit profile (#830: the harness opens in ft and F while the spec reads the oracle's SI values, and the auth-gate check read the URL before the gate answered) and is fixed to select m and C and to poll the redirect. 23 of 23 pass. The jest guard `verticalDepthAxes.test.js` caught the pressure and scenario Ro plots drawn upside down (a `reversed` axis on a vertical layout) in CI; fixed and now checked in the browser.
+
+## Organisation sharing wave (2026-10-02): U2-019 built, pending apply
+
+Owner 2026-10-01: the second engineer approved the organisation sharing work. Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Migration `20261002100000_suite_record_sharing.sql`, NOT APPLIED (owner-run). Until it is applied the control is a short note and saving works as before.
+
+- **The four-policy split.** The single `Users can manage their own wells` policy (ALL, USING only) is replaced by select, insert, update and delete policies, to `authenticated`, each with WITH CHECK where it applies, as proposed under Owner items. The pentest of that proposal (insert a row with another user's id, move a row to another user, read and delete another user's row, anon) is part of `tools/validation/org-sharing/pentest.sql`, which passes on a scratch copy of the live table and, rolled back, on the live database.
+- **Plus sharing** (the proposal said "no org sharing until the Suite Project design lands"; the owner has since approved it): the owner shares a model with the organisation, for viewing or for editing one person at a time.
+- **In the app.** The shared control is above the model list for the open model; the list shows the user's own models, then "Shared with me"; the user's own model opens first. Rename and delete are offered on the user's own models only.
+- **Auto-save.** This app saves 1.5 s after an edit. On a model that is open read-only the edit stays on screen and nothing is sent (a note says so); when a newer version was saved elsewhere the refusal is said once and the model stops saving until Reload. Save a copy turns what is on screen into a model of the user's own, scenarios included.
+- **Code.** `services/backend.js`, `contexts/MultiWellContext.jsx`, `components/multiwell/MultiWellManager.jsx`. Harness: `/dev/basinflow-genesis?shared=1`, `?sharing=off`.
+- **Tests.** `__tests__/orgSharing.test.jsx`.

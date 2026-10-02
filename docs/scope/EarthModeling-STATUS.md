@@ -241,3 +241,9 @@ Batch decision and the build log per item: `docs/upgrade/EarthModeling-UPGRADE.m
 - Engines PR #291 merged; after merging main the pin is 1e5d394 (contains #291).
 - Deferred with reasons: U2-007, U2-015, U2-016, U2-012, U2-013, U2-014
   (migration, second engineer), EM-U1-026 (Project programme).
+
+## 2026-10-02 Organisation sharing (built; migration NOT APPLIED, owner-run)
+
+U2-014: a saved model can be shared with the organisation, for viewing or for editing one person at a time; shared models are listed under "Shared with me"; saves name the version opened. Tests: `__tests__/orgSharing.test.jsx`, `e2e/org-sharing.spec.js`.
+
+Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Until the migration is applied the control is a short note and saving works as before.

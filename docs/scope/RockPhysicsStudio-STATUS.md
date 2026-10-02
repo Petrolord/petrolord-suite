@@ -167,3 +167,9 @@ migration.
 - Deferred: Xu-White and soft/stiff sand models, modelled AVO against
   Seismolord attribute volumes, scenario Monte Carlo, several projects per
   user, log editing.
+
+## 2026-10-02 Organisation sharing (built; migration NOT APPLIED, owner-run)
+
+The project can be shared with the organisation from the ribbon, which also shows its published gather to colleagues in Seismolord; projects colleagues shared are offered in a project list. Tests: `__tests__/orgSharing.test.jsx`.
+
+Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Until the migration is applied the control is a short note and saving works as before.

@@ -246,5 +246,16 @@ Validation that is weaker than asked, stated plainly:
 1. Engines PR #296 was merged by the programme lead (engines main 96e5963) and the Suite is re-pinned to it with no recorded deviations. Nothing is left to do here.
 2. The ten live wells with no sonic can now be opened, on an estimated Vp that the live check shows to be rough. For real rock physics on those wells, load a sonic (or a checkshot-calibrated velocity) into Well Data Manager. The Barracuda wells carry acoustic impedance and interval-velocity curves that would give a better Vp than either transform: a small follow-up (read Vp from AI over RHOB, labelled derived).
 3. Well W-3's depth index is in feet under a metre label (it runs to 8806 against a TD of 2682 m). It reads wrongly in every app that trusts the unit; worth fixing in Well Data Manager.
-4. A gather published to Seismolord is visible to its owner only, because `rp_projects` is owner-only. Sharing it across an organisation needs a registry home or an RLS change (second engineer); revisit with the Suite Project.
+4. A gather published to Seismolord is visible to its owner only, because `rp_projects` is owner-only. Sharing it across an organisation needs a registry home or an RLS change (second engineer); revisit with the Suite Project. **Built 2026-10-02** in the organisation sharing wave (approved 2026-10-01), pending apply: see the last section.
 5. Playwright e2e now runs in CI (#846). The Rock Physics U2 spec (`e2e/rock-physics-u2.spec.js`, 16 tests) and the three older Rock Physics specs pass there with no retry; on the shared studio box the cold harness and the long-well timing test (PL10, a 15 s limit) fail under load, so CI is the reference.
+
+## Organisation sharing wave (2026-10-02): the published gather can be shared, pending apply
+
+Owner 2026-10-01: the second engineer approved the organisation sharing work. Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Migration `20261002100000_suite_record_sharing.sql`, NOT APPLIED (owner-run). Until it is applied the control is a short note and saving works as before.
+
+- **Owner.** Share in the ribbon opens the shared control for the project. A shared project is readable by colleagues, so the gather it publishes (`avo.published_gather`) shows in a colleague's Seismolord synthetics window for the same well: `loadGatherForWell` already reads the rows row level security lets it read.
+- **Colleague.** When colleagues have shared projects, a project list appears in the ribbon: My project, then Shared with me. A shared project opens read-only (Save is refused with the reason) or, when colleagues can edit, is taken with Start editing.
+- **One project per user.** "My project" is now asked for by owner (it used to be "the newest row I can read", which would have opened a colleague's). Save a copy of a shared project replaces the user's own project after a question, and leaves the colleague's published gather behind.
+- **Code.** `services/registryBackend.js` (`loadProject` by owner, `listSharedProjects`, `saveProject(patch, { id })`), `services/inMemoryBackend.js`, `components/RockWorkstation.jsx`. Harness: `/dev/rock-physics-studio?shared=1`, `?sharing=off`.
+- **Tests.** `__tests__/orgSharing.test.jsx`.
+- **Still open.** Several named projects per user (the copy would then be a new project, with no question).

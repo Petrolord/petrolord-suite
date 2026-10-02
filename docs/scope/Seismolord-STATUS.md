@@ -2692,3 +2692,9 @@ sections, saved with the session. `viewer/shaderChunks.js` gained
 `FLATTEN_GLSL`; `SliceRenderer.setFlatten`; `SliceView` `flatten` prop and
 `data-flatten` / `data-terminations` on its wrapper; `RibbonButton` takes
 a `testId`. Details: docs/scope/StratigraphyStudio-STATUS.md, ST5.
+
+## 2026-10-02 Organisation sharing (built; migration NOT APPLIED, owner-run)
+
+U2-008: a project folder can be shared with the organisation (share button on the folder, "Sharing and history" in its menu). Colleagues see it under "Shared with me" with the volumes of it that are shared with the organisation. Volumes, horizons and faults keep their per-volume sharing. Tests: `__tests__/orgSharing.test.jsx`, `e2e/org-sharing.spec.js`.
+
+Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Until the migration is applied the control is a short note and saving works as before.

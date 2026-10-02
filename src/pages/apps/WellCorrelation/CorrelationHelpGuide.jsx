@@ -4,6 +4,7 @@
 //
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
+import SharingHelp from '@/components/recordSharing/SharingHelp';
 import React from 'react';
 import {
   BookOpen, Zap, Database, Columns, Ruler, ArrowDownToLine, Crosshair, Layers, GitBranch,
@@ -273,6 +274,9 @@ export default function CorrelationHelpGuide() {
           ['Seismolord', 'A top picked here is offered as a marker in the well tie.'],
           ['Geoscience home', 'The home icon at the left of the ribbon.'],
         ]} />
+              <SharingHelp record="section" where="Press Share beside the section list in the ribbon once the section is saved; the list shows your sections first, then Shared with me with the owner's name.">
+          <Para>Tops belong to the wells, so picking tops on a shared section follows each well's own sharing in Well Data Manager. The copy button saves a shared section as your own.</Para>
+        </SharingHelp>
       </GuideSection>
 
       <GuideSection id="pitfalls">
