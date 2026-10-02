@@ -1,0 +1,262 @@
+Well Test Analysis Report
+Petrolord Well Test Analysis Studio
+
+Project                   Untitled interpretation                             Well                    Sample well 1
+Field                     n/a                                                 Licence                 n/a
+Zone or sand              Sample sand                                         Analyst                 n/a
+Test type                 Pressure buildup, production test                   Test dates              n/a
+Perforations, MD          n/a                                                 Perforations, TVD       n/a
+Fluid                     Oil                                                 Producing time tp 36.0 hr
+Shut-in time              0 hr elapsed (gauge clock 0 hr)                     pwf at shut-in          4530.8 psi at shut-in time 0 hr (entered)
+Display units             Oilfield                                            Generated               2026-10-02 09:00 UTC
+
+
+Headline results
+ Quantity                                                     Value
+
+ Permeability k (md)                                          83.0
+
+ kh (md-ft)                                                   3,730
+
+ Skin factor (total)                                          6.15
+
+ Pressure drop across skin (psi)                              117.7
+
+ Flow efficiency                                              56%
+
+ Radius of investigation (ft)                                 1890.9
+
+ Analysis points                                              45
+
+ Headline values from                                         The semilog straight line (no model matched yet)
+
+
+Skin components
+ Component                                                            Value                Basis
+
+ Total skin s                                                         6.15                 From the interpretation
+
+ Partial-penetration pseudo-skin s_pp                                 n/a                  Not computed
+
+ Mechanical (damage) skin s_d                                         n/a                  Not computed
+
+Perforated interval not entered. The skin is reported as a total and is not split.
+
+Straight-line analyses
+ Analysis                                                                                                     Result
+
+ Horner slope m                                                                                               22.1 psi/cycle
+
+ Semilog k (md)                                                                                               83.0
+
+ Semilog skin                                                                                                 6.15
+
+ Extrapolated p* (psi)                                                                                        4800.1
+
+ Semilog fit r2                                                                                               1.00
+
+ Semilog fit window (shut-in time dt, hr)                                                                     4.56 to 35.1
+
+
+
+
+Well Test Analysis Report, Well Sample well 1                                                                                           Page 1 of 4
+Cross-check of methods
+ Method                                                k (md)                  Skin            Basis
+
+ Horner straight line                                  83.0                    6.15            Semilog slope, r2 1.00
+
+Only one method has produced a result so far.
+
+Flow regimes observed
+ Regime                                                         From (hr)                 To (hr)               Span (log cycles)
+
+ Transition between regimes                                     0.212                     1.57                  0.9
+
+ Radial flow                                                    4.05                      17.8                  0.6
+
+Detected on the Bourdet derivative; times are Agarwal equivalent time, which runs behind shut-in time late in a buildup. The semilog fit window
+above is in shut-in time.
+
+
+Reservoir and fluid inputs
+ Input                                          Value                    Unit             Source and quality
+
+ Net pay h                                      45                       ft               Entered, source not stated
+
+ Porosity phi                                   0.18                     fraction         Entered, source not stated
+
+ Wellbore radius rw                             0.354                    ft               Entered, source not stated
+
+ Water saturation Sw                            n/a                      fraction         Not provided
+
+ Total compressibility ct                       1.2e-5                   1/psi            Entered, source not stated (entered as total)
+
+ Oil viscosity mu_o                             0.9                      cp               Entered, source not stated
+
+ Oil formation volume factor Bo                 1.25                     RB/STB           Entered, source not stated
+
+ API gravity                                    n/a                      degAPI           Not provided
+
+ Solution GOR                                   n/a                      scf/STB          Not provided
+
+ Gas gravity                                    n/a                      air = 1          Not provided
+
+ Reservoir temperature                          n/a                      degF             Not provided
+
+ Initial pressure pi                            4800                     psia             Entered, source not stated
+
+ Oil rate q                                     450                      STB/D            Entered (test rate)
+
+ kv/kh                                          0.1                                       Assumed default 0.1 (no value entered)
+
+ Perforated interval, MD                        n/a                      ft               Not provided
+
+ Perforated interval, TVD                       n/a                      ft               Not provided
+
+ Perforated length hp                           n/a                      ft               Not provided
+
+The oil analysis uses h, phi, rw, ct, mu_o, Bo, pi and q. Sw, API gravity, GOR, gas gravity and temperature are recorded for the report and do not
+enter the calculation unless ct is built from its components.
+
+
+Flow and shut-in summary
+ Period       Type      Start     Duration       Choke (1/64           Rate           Volume           Cumulative          Recovered        Remark
+                        (hr)      (hr)           in)                   (STB/D)        (STB)            (STB)               (bbl)
+
+ 1            Flow      0         36             n/a                   450.0          675.0            675.0               n/a              n/a
+
+ 2            Shut-in   36        79.433         n/a                   0.0            0                675.0               n/a              n/a
+
+No rate history was entered: the periods are taken from the test setup (rate q for the producing time tp, then the shut-in). Volume is the rate held
+over the period; recovered volume and choke are as entered.
+
+
+
+
+Well Test Analysis Report, Well Sample well 1                                                                                              Page 2 of 4
+Plots
+Figure 1. Test overview
+
+                                       Gauge pressure        Rate (test setup)
+                            4800                                                                                                                       500
+
+
+                            4750
+                                                                                                                                                       400
+
+                            4700
+  Pressure (psi)
+
+
+
+
+                                                                                                                                                                   Rate (STB/D)
+                                                                                                                                                       300
+
+                            4650
+
+                                                                                                                                                       200
+                            4600
+
+                                                                                                                                                       100
+                            4550
+
+
+                            4500                                                                                                                       0
+                                   0                    20                       40              60                          80         100          120
+
+                                                                                            Test time (hr)
+
+Gauge pressure and rate against test time over the whole gauge record (45 readings plotted). Shut-in at 36 hr on the test clock. No rate history
+was entered: the rate is the test setup rate. No temperature column was imported with the gauge data, so temperature is not plotted.
+
+
+Figure 2. Log-log diagnostic plot
+
+                                       dp      Bourdet derivative
+                            1000
+                                                                                                    Transition between regimes
+                                                                                                                                  Radial flow
+  dp and derivative (psi)
+
+
+
+
+                            100
+
+
+
+
+                             10
+
+
+
+
+                              1
+                              0.001                          0.01                     0.1                                1                      10              100
+
+                                                                                        Agarwal equivalent time (hr)
+
+Pressure change and Bourdet derivative against Agarwal equivalent time. No model has been matched, so the plot shows the data only. Shaded
+bands mark the detected flow regimes: transition between regimes 0.212 to 1.57 hr; radial flow 4.05 to 17.8 hr.
+
+
+
+
+Well Test Analysis Report, Well Sample well 1                                                                                                              Page 3 of 4
+Figure 3. Horner semilog plot
+
+                              pws         Straight line
+                   4800
+                                                                                                                                    Fit window
+
+
+
+                   4750
+
+
+
+                   4700
+  Pressure (psi)
+
+
+
+
+                   4650
+
+
+
+                   4600
+
+
+
+                   4550
+
+                         Slope m = 22.1 psi/cycle
+                         Fit window 4.56 to 35.1 hr shut-in time (4.05 to 17.8 hr equivalent time), the detected radial flow
+                   4500
+                     10000                                    1000                                      100                    10                      1
+
+                                                                                          Horner time ratio (tp + dt)/dt
+
+Shut-in pressure against the Horner time ratio, with the fitted straight line. Slope m = 22.1 psi/cycle. Fit window 4.56 to 35.1 hr shut-in time (4.05 to
+17.8 hr equivalent time), the detected radial flow (11 points). The shaded band is the fit window.
+
+
+Figure 4. Square-root-of-time plot
+Does not apply: no linear flow regime was identified on the derivative and no linear-flow window was set.
+
+
+Figure 5. History match
+No model has been matched yet, so there is no history match to show. Adjust the sliders or run Auto-fit on the Match tab.
+
+
+Figure 6. Rate transient analysis plots
+Rate transient analysis was not run: no production data is loaded on the RTA tab.
+
+
+
+
+Well Test Analysis Report, Well Sample well 1                                                                                                    Page 4 of 4
+

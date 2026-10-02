@@ -13,6 +13,9 @@
  * not provided prints as EMPTY_VALUE, never as a blank or a zero.
  */
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import {
+  INPUT_SOURCES, sourceText, assumedDefaultText, pvtIntake as intakeFromHandoff, intakeSourceText,
+} from '@/lib/inputProvenance';
 import { unitLabel, fromOilfield } from './units.js';
 import { partialPenetrationSkin } from './partialPenetration.js';
 import { totalCompressibility } from './compressibility.js';
@@ -96,13 +99,9 @@ const interval = (kind, top, base, system) => (
 
 // ---- input sources ----------------------------------------------------------
 
-export const INPUT_SOURCES = Object.freeze({
-  '': 'Not stated',
-  lab: 'Measured (lab)',
-  correlation: 'Correlation',
-  offset: 'Offset well',
-  assumed: 'Assumed',
-});
+// The source model, its wording and the PVT handoff are the Suite's shared
+// input provenance (src/lib/inputProvenance), which was taken from here.
+export { INPUT_SOURCES, sourceText };
 
 /** Inputs that carry a source selector, in the order the Data rail lists them. */
 export const SOURCED_INPUTS = Object.freeze([
@@ -121,21 +120,6 @@ export const SOURCED_INPUTS = Object.freeze([
   { key: 'kvkh', label: 'kv/kh' },
 ]);
 
-/**
- * The words the Source column prints for one input. `auto` is a source the
- * studio itself knows (a value it computed, a default it applied); it wins
- * over the selector because it describes what actually happened.
- */
-export function sourceText(meta, auto = null) {
-  const note = text(meta?.note);
-  let base;
-  if (auto) base = auto;
-  else if (meta?.source === 'correlation') base = text(meta?.correlation) ? `Correlation: ${text(meta.correlation)}` : 'Correlation (not named)';
-  else if (meta?.source && INPUT_SOURCES[meta.source]) base = INPUT_SOURCES[meta.source];
-  else base = 'Entered, source not stated';
-  return note ? `${base}. ${note}` : base;
-}
-
 /** Engine PVT source (gas.js) as a sentence, or null when the engine gave none. */
 export function gasPvtSourceText(source) {
   if (!source) return null;
@@ -144,6 +128,17 @@ export function gasPvtSourceText(source) {
   if (source.pseudoCriticals) parts.push(`${source.pseudoCriticals} pseudo-criticals`);
   return `Correlation: ${parts.join(', ')} (computed by the studio)`;
 }
+
+// What this studio takes from the fluid backbone (the PVT provenance
+// contract, lib/inputProvenance/pvtContract), in the order it is applied.
+const WELLTEST_PVT_FIELDS = Object.freeze([
+  { property: 'bo_at_pb', key: 'B', label: 'Bo' },
+  { property: 'mu_o_at_pb', key: 'mu', label: 'viscosity' },
+  { property: 'oil_gravity', key: 'apiGravity', label: 'API gravity' },
+  { property: 'rsb', key: 'gor', label: 'solution GOR' },
+  { property: 'gas_gravity', key: 'gasGravity', storeKey: 'solutionGasGravity', label: 'gas gravity' },
+  { property: 'inlet_temperature', key: 'temperature', storeKey: 'reservoirTempF', label: 'temperature' },
+]);
 
 /**
  * A Fluid Systems Studio handoff (the fluid backbone) as a patch of the
@@ -155,39 +150,8 @@ export function gasPvtSourceText(source) {
  * exactly that.
  */
 export function pvtIntakeFromBackbone(fluid) {
-  if (!fluid || typeof fluid !== 'object') return null;
-  const patch = {};
-  const fields = [];
-  const inputFields = [];
-  const applied = [];
-  const take = (key, value, list, label, storeKey = key) => {
-    if (!Number.isFinite(value)) return;
-    patch[storeKey] = String(value);
-    list.push(key);
-    applied.push(label);
-  };
-  take('B', fluid.bo_at_pb, fields, 'Bo');
-  take('mu', fluid.mu_o_at_pb, fields, 'viscosity');
-  take('apiGravity', fluid.oil_gravity, inputFields, 'API gravity');
-  take('gor', fluid.rsb, inputFields, 'solution GOR');
-  take('gasGravity', fluid.gas_gravity, inputFields, 'gas gravity', 'solutionGasGravity');
-  take('temperature', fluid.inlet_temperature, inputFields, 'temperature', 'reservoirTempF');
-  if (!applied.length) return null;
-  const c = fluid.correlations || {};
-  let how;
-  if (fluid.source === 'eos') how = 'Equation of state (compositional model)';
-  else if (c.pb_rs_bo || c.viscosity) how = `Correlation: ${[c.pb_rs_bo ? `${c.pb_rs_bo} (Rs, Bo)` : null, c.viscosity ? `${c.viscosity} (viscosity)` : null].filter(Boolean).join(', ')}`;
-  else how = 'PVT model, method not stated by the handoff';
-  return {
-    patch,
-    applied,
-    intake: {
-      fields,
-      text: `${how}, at the bubble point, from Fluid Systems Studio`,
-      inputFields,
-      inputText: 'Input of the Fluid Systems Studio fluid model',
-    },
-  };
+  const out = intakeFromHandoff(fluid, WELLTEST_PVT_FIELDS);
+  return out && { patch: out.patch, applied: out.applied, intake: out.intake };
 }
 
 // ---- total compressibility --------------------------------------------------
@@ -221,7 +185,7 @@ export function resolveTotalCompressibility(r, { cgFallback = NaN } = {}) {
 
 /** kv/kh used when none is entered. Stated as an assumption wherever it is used. */
 export const DEFAULT_KVKH = 0.1;
-export const DEFAULT_KVKH_SOURCE = `Assumed default ${DEFAULT_KVKH} (no value entered)`;
+export const DEFAULT_KVKH_SOURCE = assumedDefaultText(DEFAULT_KVKH);
 
 /**
  * The perforated interval as lengths. True vertical depths are used when
@@ -368,11 +332,7 @@ export function buildInputsTable({
     add('gasGravity', 'Gas gravity', 'gasGravity', r.gasGravity, entered('gasGravity'));
     add('temperature', 'Reservoir temperature', 'temperature', r.tempF, entered('temperature'));
   } else {
-    const intake = (key) => {
-      if (pvtIntake?.fields?.includes(key)) return pvtIntake.text;
-      if (pvtIntake?.inputFields?.includes(key)) return pvtIntake.inputText;
-      return null;
-    };
+    const intake = (key) => intakeSourceText(pvtIntake, key);
     add('mu', 'Oil viscosity mu_o', 'viscosity', r.mu, entered('mu', meta('mu')?.source ? null : intake('mu')));
     add('B', 'Oil formation volume factor Bo', 'fvf', r.B, entered('B', meta('B')?.source ? null : intake('B')));
     const optional = (key, label, kind, v) => add(key, label, kind, v, Number.isFinite(num(v)) ? entered(key, meta(key)?.source ? null : intake(key)) : 'Not provided');

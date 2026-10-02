@@ -16,6 +16,7 @@ test('T1: electrical hints carry their inputs; system curve axis reads whole rat
   await expect(page.getByText('89.0 V').first()).toBeVisible();
   await page.getByRole('tab', { name: 'Performance' }).click();
   await page.getByRole('button', { name: /Run system curve/ }).click();
-  await expect(page.getByText('Operating point')).toBeVisible({ timeout: 60000 });
+  // exact: while the solve runs, two helper sentences contain "operating point"
+  await expect(page.getByText('Operating point', { exact: true })).toBeVisible({ timeout: 60000 });
   await expect(page.getByText(/\d+\.\d{5,}/)).toHaveCount(0);
 });

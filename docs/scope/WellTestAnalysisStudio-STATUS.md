@@ -600,3 +600,32 @@ real provider and read the built file back with poppler.
 
 **Open:** engines PR #298 to merge and re-pin; a lab PVT table input; a
 limited-entry transient model (named future scope, unchanged).
+
+## 2026-10-02: the report moved onto the shared Report Kit (branch `feat/report-kit`)
+
+Step 0 of the Reservoir module round. The report code of this studio was
+taken out into `src/lib/reportKit` (header block, tables, the inputs table,
+numbered vector figures, layout, Latin-1 text, number formats, and a jest
+test kit that reads the PDF back) and `src/lib/inputProvenance` (the source
+model, its wording, the source control of the Data tab, and the Fluid
+Systems Studio PVT contract), so the other Reservoir apps build their
+reports on the same parts.
+
+**No change in output.** Goldens were written from the report at main
+8234bdc8c before any kit code existed
+(`src/components/welltest/__tests__/__fixtures__/reportGolden/`, six cases:
+reviewed oil buildup with regression, bare sample, gas, linear flow with
+temperature in oilfield and SI, RTA). After the move every case reproduces
+its pdftotext output line for line, its page count, each figure's page, plot
+box and points per series, and the SHA-256 of the document with the creation
+date and file id blanked. `wellTestReportGolden.test.jsx` holds this from
+now on; `UPDATE_REPORT_GOLDENS=1` regenerates the fixtures for a deliberate
+change. The earlier tests pass with no assertion changed.
+
+**What moved:** `wellTestReportExport.js` builds through `createReport`;
+`welltest/pdfPlot.js` re-exports the kit's `drawPlot` and `pdfText` and keeps
+the studio's colours; `reportModel.js` takes `INPUT_SOURCES`, `sourceText`
+and the PVT intake from `lib/inputProvenance`; `ReportInputsFields.jsx`
+renders the shared `InputSourceControl`; the context reads `inputMeta`
+through `provenanceFromPayload`; `reportTestKit.jsx` re-exports the PDF
+readers from the kit and keeps `mountStudio`.

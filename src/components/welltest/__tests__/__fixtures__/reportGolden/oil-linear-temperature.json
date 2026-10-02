@@ -1,0 +1,144 @@
+{
+  "pages": 6,
+  "sha256": "b17dae7514b59da5890016c5daec3dffbac9ccf24eaa95bbe34592a2e026ca83",
+  "figures": [
+    {
+      "id": "overview",
+      "number": 1,
+      "page": 4,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 66
+          },
+          "drawn": {
+            "Gauge pressure": 45,
+            "Rate": 4
+          },
+          "total": 49,
+          "bands": 0,
+          "logo": true
+        },
+        {
+          "box": {
+            "x": 14,
+            "y": 98,
+            "w": 182,
+            "h": 40
+          },
+          "drawn": {
+            "Gauge temperature": 45
+          },
+          "total": 45,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "loglog",
+      "number": 2,
+      "page": 4,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 158.72,
+            "w": 182,
+            "h": 88
+          },
+          "drawn": {
+            "dp": 45,
+            "Bourdet derivative": 45,
+            "Model dp": 45,
+            "Model derivative": 45
+          },
+          "total": 180,
+          "bands": 2,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "semilog",
+      "number": 3,
+      "page": 5,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 84
+          },
+          "drawn": {
+            "pws": 45,
+            "Straight line": 45
+          },
+          "total": 90,
+          "bands": 1,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "sqrt",
+      "number": 4,
+      "page": 5,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 127.72,
+            "w": 182,
+            "h": 80
+          },
+          "drawn": {
+            "dp": 45,
+            "Fit": 45
+          },
+          "total": 90,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "history",
+      "number": 5,
+      "page": 6,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 80
+          },
+          "drawn": {
+            "Gauge": 45,
+            "Model": 45
+          },
+          "total": 90,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "rta",
+      "number": 6,
+      "page": 6,
+      "plotted": false,
+      "panels": []
+    }
+  ]
+}
