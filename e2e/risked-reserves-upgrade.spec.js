@@ -275,6 +275,9 @@ for (const [w, h] of [[1366, 768], [1440, 900], [390, 844]]) {
       expect(over).toBeLessThanOrEqual(1);
       // a colleague's shared valuation is listed read-only
       await expect(page.getByTestId('rrv-shared-head')).toContainText('Shared with me (1)');
+      await expect(page.getByTestId('rrv-name-Ada Deep (shared)')).toBeDisabled();
+      // its source prospect is in the shared inventory as it was received: no false alarm
+      await expect(page.getByTestId('rrv-upstream-Ada Deep (shared)')).toHaveCount(0);
       expect(errors).toEqual([]);
     });
   }

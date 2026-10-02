@@ -126,8 +126,17 @@ export function makeInMemoryRrvBackend(seed = [], { table = true, valuations = [
   let has = table;
   if (valuations.length) sharing.db.seed(T, valuations.map((r, i) => ({ id: `valuation-${i + 1}`, ...r })), { owner: ME });
   if (sharedValuations) {
-    const p = fromRcpProspect({ id: 'prospect-shared', name: 'Ada Deep (shared)', pg_factors: { trap: 0.6, reservoir: 0.5, charge: 0.8, seal: 0.7 }, inputs: { mean: 60, p90: 25, p50: 52, p10: 110, unit: 'MMbbl', basis: 'recoverable' }, risked: { pg: 0.168, risked_mean: 10.08 }, updated_at: '2026-10-01T09:00:00.000Z' }, { now: new Date('2026-10-01T10:00:00Z') });
-    sharing.db.seed(T, [colleagueShared({ id: 'valuation-shared', ...toRow({ ...p, ident: { company: 'Harness Energy', licence: 'OML 99', play: 'Agbada', analyst: 'Ada Colleague' } }), schema_version: 1 })]);
+    // the colleague valued the prospect they shared (the row the prospects
+    // backend seeds with `sharedRows`): it carried a mean only, so they
+    // typed the percentiles
+    const p = fromRcpProspect({
+      id: 'prospect-shared', name: 'Ada Deep (shared)', pg_factors: { trap: 0.6, reservoir: 0.5, charge: 0.8, seal: 0.7 },
+      inputs: { mean: 60, unit: 'MMbbl', basis: 'recoverable' }, risked: { pg: 0.168, risked_mean: 10.08 }, updated_at: '2026-10-01T09:00:00.000Z',
+    }, { now: new Date('2026-10-01T10:00:00Z') });
+    sharing.db.seed(T, [colleagueShared({
+      id: 'valuation-shared', updated_at: '2026-10-01T10:05:00.000Z', schema_version: 1,
+      ...toRow({ ...p, p90: 25, p50: 52, p10: 110, touched: { p90: true, p50: true, p10: true }, ident: { company: 'Harness Energy', licence: 'OML 99', play: 'Agbada', analyst: 'Ada Colleague' } }),
+    })]);
   }
   let seq = valuations.length;
   // the order the rows were created in (the database orders by created_at)
