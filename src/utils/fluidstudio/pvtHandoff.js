@@ -14,7 +14,8 @@
 import { buildPvtContract } from '@/lib/inputProvenance/pvtContract';
 import { blackOilRangeFlags } from '@/utils/fluidStudioCalculations';
 import { tuningState, isActiveStage } from '@/utils/fluidstudio/eosAnalysis';
-import { labContractBlock } from '@/utils/fluidstudio/labReport';
+import { labContractBlock, blackOilEvaluator } from '@/utils/fluidstudio/labReport';
+import { labMatchState } from '@/utils/fluidstudio/labMatch';
 
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 
@@ -41,6 +42,44 @@ export function tuningBlock(composition, stages) {
     block.matched = t.fit.report.map((r) => ({
       target: r.name, unit: r.unit, measured: r.measured, untuned: r.untuned, tuned: r.tuned,
       error_before: r.untunedErr, error_after: r.tunedErr, error_unit: r.name === 'stoApi' ? 'degAPI' : 'percent',
+    }));
+  }
+  return block;
+}
+
+/**
+ * The correlation match of the black-oil table to laboratory data, as the
+ * contract carries it (FLUID-U2-004): `tuned` only while the match still
+ * describes the fluid.
+ */
+export function blackOilTuningBlock(inputs) {
+  const st = labMatchState(inputs);
+  if (st.status === 'none' || st.status === 'not-applied') return { status: 'none' };
+  const a = st.applied;
+  const block = {
+    status: st.status === 'matched' ? 'tuned' : 'stale',
+    kind: 'black-oil-correlation-match',
+    parameters: {
+      bubble_point_psia: a.pb ?? null, rs_multiplier: a.rsMult ?? null, rs_shift_scf_per_STB: a.rsShift ?? 0,
+      bo_multiplier: Number(a.boMult), bo_shift_RB_per_STB: Number(a.boShift) || 0, mu_o_multiplier: Number(a.mu),
+    },
+    variables: 'Per property, value = multiplier x correlation + shift: the laboratory bubble point, Rs (meeting the solution GOR there), Bo, and a multiplier on the oil viscosity',
+  };
+  if (st.status === 'matched') {
+    const fit = st.fit;
+    block.at = fit.at;
+    block.oil_basis = fit.oilBasis;
+    block.matched = fit.matched.map((m) => (m.id === 'pb'
+      ? { target: 'pb', unit: 'psia', points: 1, measured: m.lab, untuned: m.before, tuned: m.after, error_before: m.errorBefore, error_after: m.errorAfter, error_unit: 'percent' }
+      : {
+        target: m.id === 'muo' ? 'mu_o' : m.id === 'bo' ? 'Bo' : 'Rs', points: m.n,
+        error_before: m.before?.meanAbsPct ?? null, error_after: m.after?.meanAbsPct ?? null,
+        max_error_before: m.before?.maxAbsPct ?? null, max_error_after: m.after?.maxAbsPct ?? null,
+        error_unit: 'percent, mean absolute deviation over the laboratory points',
+      }));
+    block.uncertainty = fit.parameters.map((p) => ({
+      parameter: p.key, unit: p.unit || 'dimensionless', value: p.value, points: p.n,
+      standard_error: p.standardError, ci95: p.ci95, note: p.ci95 ? 'Student t 95 percent interval of the least-squares estimate' : p.uncertainty,
     }));
   }
   return block;
@@ -111,12 +150,12 @@ export function buildFluidPvtContract({ inputs, results, eos, projectId = null, 
     model: 'black-oil-correlations',
     modelDetail: {
       blended: !!meta.blended,
-      ...(meta.pbSource === 'entered' ? { rs_scale: meta.pbDetail?.rsScale, correlation_pb: meta.pbDetail?.correlationPb } : {}),
+      ...(meta.pbSource === 'entered' || meta.pbSource === 'lab' ? { rs_scale: meta.pbDetail?.rsScale, correlation_pb: meta.pbDetail?.correlationPb } : {}),
     },
     methods: meta.methods,
     basis: meta.basis,
     pbSource: meta.pbSource,
-    tuning: { status: 'none' },
+    tuning: blackOilTuningBlock(inputs),
     rangeFlags: meta.rangeFlags,
     standardConditions: meta.standardConditions,
     inputs: {
@@ -127,7 +166,7 @@ export function buildFluidPvtContract({ inputs, results, eos, projectId = null, 
       pressure: k.pb, Rs: k.rsb, Bo: k.bo_at_pb, mu_o: k.mu_o_at_pb, co: k.co_at_pb, Bg: k.bg_at_pb, Z: k.z_at_pb,
       Bw: k.bw_at_pb, mu_w: k.mu_w_at_pb, mu_od: k.mu_od,
     },
-    labData: labContractBlock({ inputs, rows: results.pvt.table, pb: k.pb }),
+    labData: labContractBlock({ inputs, rows: results.pvt.table, pb: k.pb, evaluate: blackOilEvaluator(results) }),
     table: results.pvt.table,
   });
 }

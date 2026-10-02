@@ -17,6 +17,8 @@ import LabTuningCard from '@/components/fluidstudio/LabTuningCard';
 import EosPvtTableCard from '@/components/fluidstudio/EosPvtTableCard';
 import PhaseEnvelopeCard from '@/components/fluidstudio/PhaseEnvelopeCard';
 import FluidReportTab from '@/components/fluidstudio/FluidReportTab';
+import LabMatchCard from '@/components/fluidstudio/LabMatchCard';
+import { blackOilMatchSection } from '@/utils/fluidstudio/reportModel';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { PVT_PROJECT_PARAM } from '@/lib/inputProvenance/pvtContract';
 import { useFluidUnits } from '@/components/fluidstudio/FluidUnitsContext';
@@ -112,6 +114,8 @@ const FluidStudioResults = ({
   // FLUID-U1: the report door, the pvt-1 handoff and the lifted envelope
   inputs, report, handoff, projectId, onBeforeSend, organizationName,
   onIdentification, onSource, onExportPdf, exporting, envelope, onEnvelope,
+  // FLUID-U2-004: apply or remove the correlation match to laboratory data
+  onLabMatch,
 }) => {
   const u = useFluidUnits();
   const { pvt, separator, backbone, meta, blending, flowAssurance, batchSummary } = results;
@@ -193,6 +197,11 @@ const FluidStudioResults = ({
                 {report.model.lab.notes.map((n) => <p key={n} className="text-xs text-pl-muted">{n}</p>)}
               </CardContent>
             </Card>
+          )}
+          {labData && onLabMatch && (
+            <div className="mt-4">
+              <LabMatchCard inputs={inputs} onMatch={onLabMatch} section={blackOilMatchSection({ inputs, u })} />
+            </div>
           )}
         </TabsContent>
 

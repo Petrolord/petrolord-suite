@@ -23,7 +23,7 @@ import { inputsFromPayload } from '@/components/fluidstudio/useFluidStudioProjec
 import { LEGACY_PRE_SHELL, SCHEMA_1_TUNED_EOS } from '@/components/fluidstudio/__fixtures__/savedProjects';
 import FluidReportTab from '@/components/fluidstudio/FluidReportTab';
 import {
-  AT, GOLDEN_DIR, UPDATE, logo, sampleWorkspace, identifiedBlackOil, eosWithLab, tune, traceEnvelope, run, pdfOf, IDENT, goodOilBlackOil,
+  AT, GOLDEN_DIR, UPDATE, logo, sampleWorkspace, identifiedBlackOil, eosWithLab, tune, traceEnvelope, run, pdfOf, IDENT, goodOilBlackOil, matched,
 } from './fluidTestKit';
 
 jest.setTimeout(120000);
@@ -72,8 +72,8 @@ describe('goldens: the report as the Export button builds it', () => {
     checkGolden(pdfOf(run(inputs, { envelope })), { dir: GOLDEN_DIR, name: 'eos-tuned-envelope', update: UPDATE });
   });
 
-  test('black oil with a published laboratory study loaded (Good Oil Co. Well No. 4)', () => {
-    checkGolden(pdfOf(run(goodOilBlackOil(), { projectName: 'Good Oil Well No. 4 PVT' })), { dir: GOLDEN_DIR, name: 'black-oil-lab-good-oil', update: UPDATE });
+  test('black oil with a published laboratory study loaded and matched (Good Oil Co. Well No. 4)', () => {
+    checkGolden(pdfOf(run(matched(goodOilBlackOil()), { projectName: 'Good Oil Well No. 4 PVT' })), { dir: GOLDEN_DIR, name: 'black-oil-lab-good-oil', update: UPDATE });
   });
 
   test('a project saved before the shell opens and reports', () => {

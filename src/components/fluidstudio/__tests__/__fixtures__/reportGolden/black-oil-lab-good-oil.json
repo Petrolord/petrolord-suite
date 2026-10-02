@@ -1,11 +1,11 @@
 {
-  "pages": 11,
-  "sha256": "1481133235aa4c17be52620c974a76bcd45fe75ec49d39fef5c7cbc15e9d21ac",
+  "pages": 12,
+  "sha256": "19585e54405010f05d6a987476ff81f47394c2610d61480c10ed4e32ea510cd4",
   "figures": [
     {
       "id": "pvt-bo",
       "number": 1,
-      "page": 8,
+      "page": 9,
       "plotted": true,
       "panels": [
         {
@@ -27,13 +27,13 @@
     {
       "id": "pvt-rs",
       "number": 2,
-      "page": 8,
+      "page": 9,
       "plotted": true,
       "panels": [
         {
           "box": {
             "x": 14,
-            "y": 104.36,
+            "y": 107.72,
             "w": 182,
             "h": 58
           },
@@ -49,13 +49,13 @@
     {
       "id": "pvt-muo",
       "number": 3,
-      "page": 8,
+      "page": 9,
       "plotted": true,
       "panels": [
         {
           "box": {
             "x": 14,
-            "y": 179.72,
+            "y": 186.44,
             "w": 182,
             "h": 58
           },
@@ -71,7 +71,7 @@
     {
       "id": "pvt-z",
       "number": 4,
-      "page": 9,
+      "page": 10,
       "plotted": true,
       "panels": [
         {
@@ -93,7 +93,7 @@
     {
       "id": "pvt-bg",
       "number": 5,
-      "page": 9,
+      "page": 10,
       "plotted": true,
       "panels": [
         {
@@ -115,7 +115,7 @@
     {
       "id": "lab",
       "number": 6,
-      "page": 10,
+      "page": 11,
       "plotted": true,
       "panels": [
         {
@@ -127,9 +127,9 @@
           },
           "drawn": {
             "Model Bo": 41,
-            "Laboratory Bo": 21
+            "Laboratory Bo": 20
           },
-          "total": 62,
+          "total": 61,
           "bands": 0,
           "logo": true
         },
@@ -168,7 +168,7 @@
     {
       "id": "lab-gas",
       "number": 7,
-      "page": 11,
+      "page": 12,
       "plotted": true,
       "panels": [
         {
@@ -221,14 +221,14 @@
     {
       "id": "envelope",
       "number": 8,
-      "page": 11,
+      "page": 12,
       "plotted": false,
       "panels": []
     },
     {
       "id": "hydrate",
       "number": 9,
-      "page": 11,
+      "page": 12,
       "plotted": false,
       "panels": []
     }

@@ -59,11 +59,11 @@ export function buildFluidPdf(a, { logo = null, generatedAt = new Date() } = {})
   section('Lab tuning', model.tuning.text, { need: 20 });
   if (model.tuning.table) {
     table('Lab values matched', model.tuning.table.head, model.tuning.table.rows, {
-      note: 'Errors are model minus measured: percent, or API degrees for the stock-tank gravity.',
+      note: model.tuning.tableNote || 'Errors are model minus measured: percent, or API degrees for the stock-tank gravity.',
     });
   }
   if (model.tuning.parameters) {
-    table('Tuning parameters', model.tuning.parameters.head, model.tuning.parameters.rows);
+    table('Tuning parameters', model.tuning.parameters.head, model.tuning.parameters.rows, model.tuning.parameters.note ? { note: model.tuning.parameters.note } : {});
   }
 
   // the laboratory tables and the misfit of the model against them

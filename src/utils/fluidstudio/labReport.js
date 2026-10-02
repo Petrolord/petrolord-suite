@@ -8,7 +8,21 @@
  * Pure formatting: the numbers are labMisfit's.
  */
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { computePvtRow } from '@/utils/fluidStudioCalculations';
 import { labDataOf, labMisfit, labComparison, labSaturationPressure, LAB_KINDS } from './labData.js';
+
+/**
+ * The black-oil engine evaluated at one pressure, for the misfit: the row
+ * computePvtRow prints at that pressure, so a laboratory value is set
+ * against the model at its own pressure and no interpolation enters.
+ * @param {object} results analyzeFluidSystem's result
+ */
+export const blackOilEvaluator = (results) => {
+  const fluid = results?.meta?.fluid;
+  const pb = results?.pvt?.pb;
+  if (!fluid || !Number.isFinite(pb)) return null;
+  return (p) => computePvtRow(p, fluid, pb);
+};
 
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 const pct = (v, d = 1) => (finite(v) ? `${v >= 0 ? '+' : ''}${v.toFixed(d)}%` : EMPTY_VALUE);
@@ -30,18 +44,19 @@ export function misfitSentence(m, u) {
 }
 
 /**
- * @param {{inputs: object, rows: object[], pb: ?number, tempF: ?number, u: object}} a
- *   rows, pb and tempF are those of the table the report prints
+ * @param {{inputs: object, rows: object[], pb: ?number, tempF: ?number, u: object, evaluate?: ?function}} a
+ *   rows, pb and tempF are those of the table the report prints; `evaluate`
+ *   is the exact model at a pressure (blackOilEvaluator), when there is one
  * @returns {?{tables: {head: string[], rows: string[][]}, misfit: {head: string[], rows: string[][], note: string},
  *   sentences: string[], notes: string[], stats: object[], comparison: object, saturation: ?object}}
  *   null when no laboratory table is loaded
  */
-export function buildLabSection({ inputs, rows, pb, tempF, u }) {
+export function buildLabSection({ inputs, rows, pb, tempF, u, evaluate = null }) {
   const labData = labDataOf(inputs);
   const kinds = ['cce', 'dl', 'viscosity'].filter((k) => labData[k]);
   if (!kinds.length) return null;
   const comparison = labComparison(labData);
-  const stats = labMisfit({ labData, rows, pb });
+  const stats = labMisfit({ labData, rows, pb, evaluate });
   const saturation = labSaturationPressure(labData);
   const notes = [...comparison.notes];
 
@@ -75,13 +90,15 @@ export function buildLabSection({ inputs, rows, pb, tempF, u }) {
       m.label, String(m.n), absPct(m.meanAbsPct), pct(m.biasPct), absPct(m.maxAbsPct), m.n ? th(u.show('pressure', m.maxAt)) : EMPTY_VALUE,
       m.basis ? BASIS_WORDS[m.basis] : 'As measured',
     ]),
-    note: 'Deviation is model minus laboratory, as a percent of the laboratory value, with the model read at the laboratory pressure by linear interpolation in the table (never across the saturation pressure). Bias is the mean signed deviation.',
+    note: evaluate
+      ? 'Deviation is model minus laboratory, as a percent of the laboratory value, with the model computed at the laboratory pressure. Bias is the mean signed deviation.'
+      : 'Deviation is model minus laboratory, as a percent of the laboratory value, with the model read at the laboratory pressure by linear interpolation in the table, each side of the saturation pressure on its own rows. Bias is the mean signed deviation.',
   };
   return { tables, misfit, sentences: stats.map((m) => misfitSentence(m, u)), notes, stats, comparison, saturation, labData };
 }
 
 /** The lab data as the pvt-1 block carries it: what was loaded and how well the table matches it. */
-export function labContractBlock({ inputs, rows, pb }) {
+export function labContractBlock({ inputs, rows, pb, evaluate = null }) {
   const labData = labDataOf(inputs);
   const kinds = ['cce', 'dl', 'viscosity'].filter((k) => labData[k]);
   if (!kinds.length) return null;
@@ -95,7 +112,7 @@ export function labContractBlock({ inputs, rows, pb }) {
     oil_basis: comparison.basis.oil,
     separator_test: labData.dlBasis === 'differential' && labData.separatorTest.bofb ? { Bofb: labData.separatorTest.bofb, Rsfb: labData.separatorTest.rsfb } : null,
     saturation_pressure_psia: saturation ? saturation.pressure : null,
-    misfit: labMisfit({ labData, rows, pb }).map((m) => ({
+    misfit: labMisfit({ labData, rows, pb, evaluate }).map((m) => ({
       property: m.key, points: m.n, outside_table: m.outside,
       mean_abs_percent: finite(m.meanAbsPct) ? Number(m.meanAbsPct.toFixed(3)) : null,
       bias_percent: finite(m.biasPct) ? Number(m.biasPct.toFixed(3)) : null,

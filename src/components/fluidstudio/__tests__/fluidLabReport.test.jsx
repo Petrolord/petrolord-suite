@@ -11,6 +11,8 @@ import { missingInputRows } from '@/lib/reportKit/completeness';
 import { validatePvtContract } from '@/lib/inputProvenance/pvtContract';
 import { buildPvtSeries, labDataForSeries } from '@/utils/fluidstudio/pvtSeries';
 import { labMisfit, labDataOf } from '@/utils/fluidstudio/labData';
+import { blackOilEvaluator } from '@/utils/fluidstudio/labReport';
+import { computePvtRow } from '@/utils/fluidStudioCalculations';
 import LabDataDoor from '@/components/fluidstudio/LabDataDoor';
 import { FluidUnitsProvider } from '@/components/fluidstudio/FluidUnitsContext';
 import { goodOilBlackOil, goodOilLabData, eosWithLab, run, pdfOf, labFile } from './fluidTestKit';
@@ -40,7 +42,7 @@ describe('every PVT plot carries the laboratory points', () => {
     const inputs = goodOilBlackOil();
     const ws = run(inputs);
     const s = buildPvtSeries({ rows: ws.results.pvt.table, pb: ws.results.pvt.kpis.pb, labData: labDataForSeries(inputs) });
-    expect(s.plots.map((p) => [p.id, p.lab.length])).toEqual([['bo', 21], ['rs', 11], ['muo', 18], ['z', 10], ['bg', 10], ['relvol', 24]]);
+    expect(s.plots.map((p) => [p.id, p.lab.length])).toEqual([['bo', 20], ['rs', 11], ['muo', 18], ['z', 10], ['bg', 10], ['relvol', 24]]);
     // Bg in the display unit: 0.00685 ft3/scf is 1.2200 RB/Mscf
     expect(s.plots.find((p) => p.id === 'bg').lab.slice(-1)[0].y).toBeCloseTo((0.00685 / 5.614583) * 1000, 6);
     // SI: pressure in kPa, Rs in m3/m3
@@ -85,7 +87,7 @@ describe('the report states the laboratory data and the misfit', () => {
   });
 
   it('the misfit table of the PDF is the misfit the engine side computes, property by property', () => {
-    const stats = labMisfit({ labData: labDataOf(ws.inputs), rows: ws.results.pvt.table, pb: ws.results.pvt.kpis.pb });
+    const stats = labMisfit({ labData: labDataOf(ws.inputs), rows: ws.results.pvt.table, pb: ws.results.pvt.kpis.pb, evaluate: blackOilEvaluator(ws.results) });
     expect(stats.map((m) => m.id)).toEqual(['bo', 'rs', 'muo', 'z', 'bg', 'relvol']);
     const text = flat(pdf.text);
     const printed = ws.report.model.lab.misfit.rows;
@@ -98,10 +100,16 @@ describe('the report states the laboratory data and the misfit', () => {
       // and the numbers of the row are in the PDF, in order
       expect(text).toMatch(new RegExp(`${m.n} ${m.meanAbsPct.toFixed(1)}% [+-]${Math.abs(m.biasPct).toFixed(1)}% ${m.maxAbsPct.toFixed(1)}%`));
     });
-    expect(text).toMatch(/Deviation is model minus laboratory, as a percent of the laboratory value/);
+    expect(text).toMatch(/Deviation is model minus laboratory, as a percent of the laboratory value, with the model computed at the laboratory pressure\./);
+    // exact: each misfit point is the engine's own row at the laboratory pressure
+    const bo = stats.find((m) => m.id === 'bo');
+    for (const q of bo.points.slice(0, 5)) expect(q.model).toBe(computePvtRow(q.pressure, ws.results.meta.fluid, ws.results.pvt.pb).Bo);
+    // negative control: read from the 41-row table by interpolation, the Rs misfit is another number
+    const interpolated = labMisfit({ labData: labDataOf(ws.inputs), rows: ws.results.pvt.table, pb: ws.results.pvt.kpis.pb });
+    expect(Math.abs(interpolated.find((m) => m.id === 'rs').maxAbsPct - stats.find((m) => m.id === 'rs').maxAbsPct)).toBeGreaterThan(0.05);
     expect(text).toMatch(/Laboratory saturation pressure 2,635 psia; the model has 2,503 psia \(-5\.0%\)\./);
     expect(text).toMatch(/Differential liberation data adjusted to the separator basis with the separator test \(Bofb 1\.474, Rsfb 768 scf\/STB\)/);
-    expect(text).toMatch(/The adjustment gives a negative Rs at 1 low pressure; that row is left out of the Rs comparison\./);
+    expect(text).toMatch(/The residual oil row of the differential liberation \(Rsd = 0\) is the reference of the test and is no measurement on the separator basis: it is left out of the adjusted Bo and Rs\./);
     // the Report tab shows the same rows
     expect(ws.report.model.lab.misfit.rows).toHaveLength(6);
   });
@@ -114,7 +122,7 @@ describe('the report states the laboratory data and the misfit', () => {
     const screenSeries = buildPvtSeries({ rows: ws.results.pvt.table, pb: ws.results.pvt.kpis.pb, labData: labDataForSeries(ws.inputs) });
     const n = (id) => screenSeries.plots.find((p) => p.id === id);
     expect(counts.lab).toEqual([
-      { 'Model Bo': n('bo').points.length, 'Laboratory Bo': 21 },
+      { 'Model Bo': n('bo').points.length, 'Laboratory Bo': 20 },
       { 'Model Rs': n('rs').points.length, 'Laboratory Rs': 11 },
       { 'Model Oil viscosity': n('muo').points.length, 'Laboratory Oil viscosity': 18 },
     ]);
@@ -127,12 +135,12 @@ describe('the report states the laboratory data and the misfit', () => {
     expectFigureDrawn(pdf, figureById(built, 'lab-gas'), { logo: true });
     const text = flat(pdf.text);
     for (const sentence of ws.report.model.lab.sentences) expect(text).toContain(sentence);
-    expect(text).toMatch(/Misfit of the model: Oil formation volume factor Bo: 21 points, mean deviation \d+\.\d percent, largest \d+\.\d percent at [\d,]+ psia\./);
+    expect(text).toMatch(/Misfit of the model: Oil formation volume factor Bo: 20 points, mean deviation \d+\.\d percent, largest \d+\.\d percent at [\d,]+ psia\./);
   });
 
   it('negative control: a builder that claims lab markers the file does not hold fails the drawn check', () => {
     const fig = figureById(built, 'lab');
-    const broken = { ...fig, panels: fig.panels.map((p, i) => (i === 0 ? { ...p, marks: { ...p.marks, markers: p.marks.markers + 21 } } : p)) };
+    const broken = { ...fig, panels: fig.panels.map((p, i) => (i === 0 ? { ...p, marks: { ...p.marks, markers: p.marks.markers + 20 } } : p)) };
     expect(() => expectFigureDrawn(pdf, broken, { logo: true })).toThrow(/the file holds \d+ line segments and markers inside the plot area, the builder reports \d+/);
   });
 });

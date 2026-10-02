@@ -159,13 +159,13 @@ Separator train (staged liberation by the Rs correlation)
  Total                                                                                               650.0                          650.0
 
 Separator GOR 613.3 plus stock-tank GOR 36.7 gives the total 650.0 scf/STB, which is the solution GOR by construction. Bo by a single flash
-1.3718 RB/STB; the multistage Bo 1.3607 is an estimate of the staging benefit, not a flash calculation. Gas rates are for a stock-tank oil basis of
+1.3718 RB/STB; the multistage Bo 1.3607 is an estimate of the staging benefit and no flash calculation. Gas rates are for a stock-tank oil basis of
 1,000 STB/d.
 
 
 Lab tuning
-No lab tuning. Black-oil correlations are not matched to laboratory data in this app; a bubble point that is entered moves the Rs correlation as
-stated in the methods table.
+No lab tuning. The black-oil correlations are not matched to laboratory data. A bubble point that is entered moves the Rs correlation as stated in
+the methods table.
 
 
 Limits of this analysis

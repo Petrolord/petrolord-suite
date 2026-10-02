@@ -22,7 +22,8 @@ import { fluidUnits } from '@/utils/fluidstudio/units';
 import { readPtProfile } from '@/utils/fluidstudio/ptProfileImport';
 import { isEosHandoff, eosRangeFlags } from '@/utils/fluidstudio/pvtHandoff';
 import { labDataOf, LAB_KINDS } from '@/utils/fluidstudio/labData';
-import { buildLabSection } from '@/utils/fluidstudio/labReport';
+import { buildLabSection, blackOilEvaluator } from '@/utils/fluidstudio/labReport';
+import { labMatchState } from '@/utils/fluidstudio/labMatch';
 
 export const REPORT_TITLE = 'Fluid Properties Report';
 export const APP_NAME = 'Petrolord Fluid Systems Studio';
@@ -244,11 +245,31 @@ function blackOilInputRows({ inputs, results, u }) {
     rows.find((r) => r.key === 'temp').engineKeys = ['temp'];
     rows.find((r) => r.key === 'salinity').engineKeys = ['salinity'];
     const typed = fluid.pb != null && m?.pbSource === 'entered';
+    const fromLab = m?.pbSource === 'lab';
+    const typedToo = Number(bo.pb) > 0;
     row({
-      key: 'pb', engineKeys: ['pb'], label: 'Bubble point pressure (optional input)',
-      value: typed ? SHOW.pressure(u, fluid.pb) : EMPTY_VALUE, unit: u.label('pressure'),
-      source: typed ? sourceText(meta.pb) : `${NOT_PROVIDED}: solved from the solution GOR`,
+      key: 'pb', engineKeys: ['pb', 'pbFrom'], label: 'Bubble point pressure (optional input)',
+      value: typed ? SHOW.pressure(u, fluid.pb) : (fromLab && typedToo ? SHOW.pressure(u, Number(bo.pb)) : EMPTY_VALUE), unit: u.label('pressure'),
+      source: typed ? sourceText(meta.pb)
+        : fromLab ? (typedToo ? 'Entered, and not used: the laboratory saturation pressure of the correlation match takes its place' : `${NOT_PROVIDED}: the laboratory saturation pressure of the correlation match is used`)
+          : `${NOT_PROVIDED}: solved from the solution GOR`,
     });
+    if (fluid.match) {
+      const st = labMatchState(inputs).status;
+      const how = st === 'matched' ? 'Computed: fitted to the laboratory tables (see the laboratory match section)' : 'Computed by an earlier match; see the laboratory match section';
+      if (fromLab) row({ key: 'match.pb', label: 'Bubble point of the laboratory match', value: SHOW.pressure(u, fluid.pb), unit: u.label('pressure'), source: 'Measured (lab): the saturation pressure of the laboratory tables' });
+      const mm = fluid.match;
+      if (fromLab) {
+        row({ key: 'match.rsMult', engineKeys: ['match.rsMult'], label: 'Rs multiplier of the laboratory match', value: fx(m.pbDetail.rsScale, 4), unit: '', source: how });
+        row({ key: 'match.rsShift', engineKeys: ['match.rsShift'], label: 'Rs shift of the laboratory match', value: SHOW.gor(u, m.pbDetail.rsShift ?? 0), unit: u.label('gor'), source: 'Computed: Rs meets the solution GOR at the laboratory bubble point' });
+        row({ key: 'match.rsLowP', engineKeys: ['match.rsLowP'], label: 'Lowest laboratory pressure of the Rs fit', value: mm.rsLowP ? SHOW.pressure(u, mm.rsLowP) : EMPTY_VALUE, unit: u.label('pressure'), source: mm.rsLowP ? 'Measured (lab): below it the Rs shift is tapered out' : 'No Rs rows were fitted' });
+      } else {
+        row({ key: 'match.rs', engineKeys: ['match.rsMult', 'match.rsShift', 'match.rsLowP'], label: 'Rs of the laboratory match', value: 'Not matched', unit: '', source: 'The laboratory tables state no saturation pressure' });
+      }
+      row({ key: 'match.boMult', engineKeys: ['match.boMult'], label: 'Bo multiplier of the laboratory match', value: fx(mm.boMult, 4), unit: '', source: how });
+      row({ key: 'match.boShift', engineKeys: ['match.boShift'], label: 'Bo shift of the laboratory match', value: fx(mm.boShift, 4), unit: u.label('fvfOil'), source: how });
+      row({ key: 'match.mu', engineKeys: ['match.mu'], label: 'Oil viscosity multiplier of the laboratory match', value: fx(mm.mu, 4), unit: '', source: how });
+    }
   }
   row({ key: 'corr.pb_rs_bo', engineKeys: ['correlations.pb_rs_bo'], label: 'Bubble point, Rs and Bo correlation', value: pbRsBoMethod(fluid).label, unit: '', source: inputs?.correlations?.pb_rs_bo && PB_RS_BO_METHODS[inputs.correlations.pb_rs_bo] ? 'Selected in the app' : 'Assumed default (none selected)' });
   row({ key: 'corr.viscosity', engineKeys: ['correlations.viscosity'], label: 'Oil viscosity correlation', value: oilViscosityMethod(fluid).label, unit: '', source: inputs?.correlations?.viscosity && OIL_VISCOSITY_METHODS[inputs.correlations.viscosity] ? 'Selected in the app' : 'Assumed default (none selected)' });
@@ -339,7 +360,8 @@ export function engineInputOf({ inputs, results, eos, mode }) {
       tuning: p?.tuning || {},
     };
   }
-  const { rsScale: _scale, ...fluid } = results?.meta?.fluid || normalizeFluid(inputs);
+  // rsScale, rsShift and rsLowP are derived by the engine (the match parameters under `match` are the inputs)
+  const { rsScale: _scale, rsShift: _shift, rsLowP: _low, ...fluid } = results?.meta?.fluid || normalizeFluid(inputs);
   return fluid;
 }
 
@@ -491,10 +513,61 @@ const EOS_LIMITS = [
 
 const TARGET_WORDS = { psat: ['Saturation pressure', 'pressure', SHOW.pressure], totalGor: ['Total GOR', 'gor', SHOW.gor], stoApi: ['Stock-tank API gravity', 'api', SHOW.api], bo: ['Bo at reservoir conditions', 'fvfOil', SHOW.fvfOil] };
 
-function tuningSection({ inputs, mode, u }) {
-  if (mode !== 'eos') {
-    return { status: 'none', text: 'No lab tuning. Black-oil correlations are not matched to laboratory data in this app; a bubble point that is entered moves the Rs correlation as stated in the methods table.', table: null, parameters: null };
+const pctWord = (v, d = 1) => (finite(v) ? `${v.toFixed(d)}%` : EMPTY_VALUE);
+const signedPct = (v, d = 1) => (finite(v) ? `${v >= 0 ? '+' : ''}${v.toFixed(d)}%` : EMPTY_VALUE);
+/** The black-oil correlation match to laboratory data, as the report states it (FLUID-U2-004, -008). */
+export function blackOilMatchSection({ inputs, u }) {
+  const st = labMatchState(inputs);
+  if (st.status === 'none') {
+    return { status: 'none', text: 'No lab tuning. The black-oil correlations are not matched to laboratory data. A bubble point that is entered moves the Rs correlation as stated in the methods table.', table: null, parameters: null };
   }
+  const a = st.applied;
+  const num4 = (v, d = 4) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? EMPTY_VALUE : Number(v).toFixed(d));
+  const applied = {
+    head: ['Parameter', 'Applied'],
+    rows: [
+      ['Bubble point of the match', a.pb > 0 ? `${SHOW.pressure(u, Number(a.pb))} ${u.label('pressure')}` : 'Not matched'],
+      ['Rs multiplier and shift', a.pb > 0 ? `${num4(a.rsMult)}; ${SHOW.gor(u, Number(a.rsShift) || 0)} ${u.label('gor')}` : 'Not matched'],
+      ['Bo multiplier and shift', `${num4(a.boMult)}; ${num4(a.boShift)} ${u.label('fvfOil')}`],
+      ['Oil viscosity multiplier', num4(a.mu)],
+    ],
+  };
+  if (st.status === 'not-applied') return { status: 'not-applied', text: `A correlation match to laboratory data is saved with this project. ${st.reason}`, table: null, parameters: applied };
+  if (st.status === 'stale') {
+    return { status: 'stale', text: `Matched, not confirmed. ${st.reason}`, table: null, parameters: applied };
+  }
+  const fit = st.fit;
+  const rows = fit.matched.map((m) => {
+    if (m.id === 'pb') {
+      return [m.label, '1', `${SHOW.pressure(u, m.lab)} ${u.label('pressure')} measured`, `${SHOW.pressure(u, m.before)} (${signedPct(m.errorBefore)})`, `${SHOW.pressure(u, m.after)} (${signedPct(m.errorAfter)})`, EMPTY_VALUE, EMPTY_VALUE];
+    }
+    return [
+      m.label, String(m.n), 'Mean deviation over the laboratory points',
+      pctWord(m.before?.meanAbsPct), pctWord(m.after?.meanAbsPct), pctWord(m.before?.maxAbsPct), pctWord(m.after?.maxAbsPct),
+    ];
+  });
+  const basis = fit.oilBasis === 'adjusted' ? ' Bo and Rs are compared on the separator basis, the differential rows adjusted with the separator test.'
+    : fit.oilBasis === 'separator' ? ' Bo and Rs are compared on the separator basis, as the table was entered.' : '';
+  return {
+    status: 'matched',
+    text: `Matched to lab. The black-oil correlations (${fit.correlations.pb_rs_bo}; ${fit.correlations.viscosity}) were matched to the laboratory tables with one linear adjustment per property, value = multiplier x correlation + shift: the bubble point is set to the laboratory saturation pressure, Rs is fitted below it and still meets the solution GOR there, Bo is fitted over every laboratory row, and the oil viscosity takes a multiplier.${basis} Matched on ${String(fit.at).slice(0, 10)}.${fit.notes.length ? ` ${fit.notes.join(' ')}` : ''}`,
+    table: { head: ['Matched to', 'Lab points', 'Measure', 'Before', 'After', 'Largest before', 'Largest after'], rows },
+    tableNote: 'Deviation is model minus laboratory as a percent of the laboratory value. For Bo, Rs and viscosity the Before and After columns hold the mean deviation over the laboratory points, above and below the bubble point.',
+    parameters: {
+      head: ['Parameter', 'Value', '95 percent interval', 'How it was obtained'],
+      rows: fit.parameters.map((p) => {
+        const shown = (v) => (p.unit === 'scf/STB' ? SHOW.gor(u, v) : fx(v, 4));
+        const unit = p.unit === 'scf/STB' ? ` ${u.label('gor')}` : p.unit ? ` ${p.unit}` : '';
+        const interval = p.ci95 ? `${shown(p.ci95[0])} to ${shown(p.ci95[1])}${unit}` : (p.uncertainty || EMPTY_VALUE);
+        return [p.label, `${shown(p.value)}${unit}`, interval, p.how];
+      }),
+      note: 'Each interval is the Student t 95 percent interval of the least-squares estimate. It says how firmly the laboratory rows hold the parameter, and nothing about the accuracy of the laboratory data. Bo and the viscosity are fitted on the matched Rs.',
+    },
+  };
+}
+
+function tuningSection({ inputs, mode, u }) {
+  if (mode !== 'eos') return blackOilMatchSection({ inputs, u });
   const c = inputs?.streamA?.composition;
   const t = tuningState(c, inputs?.separatorTrain?.stages);
   if (t.status === 'none') {
@@ -575,7 +648,7 @@ function separatorTable({ results, eos, mode, u }) {
     title: 'Separator train (staged liberation by the Rs correlation)',
     head: ['Stage', u.head('Pressure', 'pressure'), u.head('Temperature', 'temperature'), u.head('Rs kept in the oil', 'gor'), u.head('Gas liberated', 'gor'), u.head('Gas rate', 'gasRate')],
     rows,
-    note: `Separator GOR ${SHOW.gor(u, s.totals.separator_gor)} plus stock-tank GOR ${SHOW.gor(u, s.totals.stock_tank_gor)} gives the total ${SHOW.gor(u, s.totals.total_gor)} ${u.label('gor')}, which is the solution GOR by construction. Bo by a single flash ${SHOW.fvfOil(u, s.totals.bo_single_stage)} ${u.label('fvfOil')}; the multistage Bo ${SHOW.fvfOil(u, s.totals.bo_multistage_approx)} is an estimate of the staging benefit, not a flash calculation. Gas rates are for a stock-tank oil basis of ${SHOW.rate(u, s.totals.stock_tank_oil_rate)} ${u.label('liquidRate')}.`,
+    note: `Separator GOR ${SHOW.gor(u, s.totals.separator_gor)} plus stock-tank GOR ${SHOW.gor(u, s.totals.stock_tank_gor)} gives the total ${SHOW.gor(u, s.totals.total_gor)} ${u.label('gor')}, which is the solution GOR by construction. Bo by a single flash ${SHOW.fvfOil(u, s.totals.bo_single_stage)} ${u.label('fvfOil')}; the multistage Bo ${SHOW.fvfOil(u, s.totals.bo_multistage_approx)} is an estimate of the staging benefit and no flash calculation. Gas rates are for a stock-tank oil basis of ${SHOW.rate(u, s.totals.stock_tank_oil_rate)} ${u.label('liquidRate')}.`,
   };
 }
 
@@ -686,7 +759,7 @@ export function buildFluidReportModel({ inputs, results, eos, system = 'oilfield
       flags: flagLines,
     },
     // FLUID-U2-001: the laboratory tables against the table this report prints
-    lab: buildLabSection({ inputs, rows, pb, tempF, u }),
+    lab: buildLabSection({ inputs, rows, pb, tempF, u, evaluate: mode === 'eos' ? null : blackOilEvaluator(results) }),
     pvtTable: pvtTable({ rows, pb, u, satKind }),
     pvtRows: rows,
     pb,

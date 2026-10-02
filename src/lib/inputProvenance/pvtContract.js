@@ -269,6 +269,10 @@ export const PVT1_PB_SOURCES = Object.freeze({
   lab: 'measured (lab)',
 });
 export const PVT1_TUNING_STATES = Object.freeze(['none', 'tuned', 'tuned-unrecorded', 'stale']);
+/** `tuning.kind` of a black-oil table whose correlations were matched to laboratory tables (absent for the C7+ regression). */
+export const PVT1_CORRELATION_MATCH = 'black-oil-correlation-match';
+/** The properties a correlation match moves. */
+const PVT1_MATCHED_PROPERTIES = Object.freeze(['pb', 'rs', 'bo', 'mu_od', 'mu_o', 'mu_o_undersaturated']);
 
 // which method row speaks for each version-1 scalar at the bubble point
 const PVT1_AT_PB_METHOD = Object.freeze({ pb: 'pb', bo_at_pb: 'bo', mu_o_at_pb: 'mu_o' });
@@ -397,6 +401,12 @@ export function pvtContractOrigin(block) {
 export function pvtContractTuningText(block) {
   const t = block?.tuning;
   if (!t || t.status === 'none') return '';
+  // added 2026-10-02 (Fluid U2): black-oil correlations matched to laboratory tables
+  if (t.kind === PVT1_CORRELATION_MATCH) {
+    return t.status === 'tuned'
+      ? 'correlations matched to lab data'
+      : 'correlation multipliers of a lab match applied, but the inputs or the lab data changed after the match';
+  }
   if (t.status === 'tuned') return 'C7+ tuned to lab data';
   if (t.status === 'stale') return 'C7+ tuning parameters applied, but the inputs changed after the fit';
   return 'C7+ tuning parameters applied, with no record of the match';
@@ -415,7 +425,7 @@ export function pvtContractSourceText(block, key, { where = 'at the bubble point
   const parts = [lead];
   if (key === 'pb' && PVT1_PB_SOURCES[block.pb_source]) parts.push(PVT1_PB_SOURCES[block.pb_source]);
   const tuning = pvtContractTuningText(block);
-  if (tuning && m.kind === 'eos') parts.push(tuning);
+  if (tuning && (m.kind === 'eos' || (block.tuning?.kind === PVT1_CORRELATION_MATCH && PVT1_MATCHED_PROPERTIES.includes(key)))) parts.push(tuning);
   const flags = (block.range_flags || []).filter((f) => f.scope !== 'table' && (f.properties || []).includes(def.label));
   if (flags.length) parts.push(`outside the published range: ${flags.map((f) => `${f.variable} ${f.value} ${f.unit}`.trim()).join('; ')}`);
   return `${parts.join(', ')}${where ? `, ${where}` : ''}${pvtContractOrigin(block)}`;

@@ -15,6 +15,7 @@ import { envelopeKey } from '@/utils/fluidstudio/reportFigures';
 import { createEnvelopeClient } from '@/utils/fluidstudio/envelopeClient';
 import { chartLogo } from '@/lib/reportKit/testKit';
 import { readLabTable, labTableOf, emptyLabData } from '@/utils/fluidstudio/labData';
+import { fitLabMatch, labMatchRecord } from '@/utils/fluidstudio/labMatch';
 
 export const AT = new Date('2026-10-02T09:00:00Z');
 export const BUILD = 'Petrolord Suite test (fixture)';
@@ -136,4 +137,11 @@ export function goodOilBlackOil(opts = {}) {
   };
   inputs.labData = goodOilLabData(opts);
   return inputs;
+}
+
+/** Apply the correlation match to laboratory data as the Match button does. */
+export function matched(inputs) {
+  const fitted = fitLabMatch(inputs, { at: AT });
+  if (!fitted.ok) throw new Error(`no match: ${fitted.reasons.join(' ')}`);
+  return { ...inputs, labMatch: labMatchRecord(fitted) };
 }

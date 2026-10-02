@@ -277,8 +277,9 @@ export const hasLabData = (inputs) => { const d = labDataOf(inputs); return !!(d
 
 /**
  * The saturation pressure the laboratory tables state: the CCE row whose
- * relative volume is 1, else the highest pressure of the differential
- * liberation (the test starts at the bubble point).
+ * relative volume is 1, else the pressure at which the differential
+ * liberation Rs reaches its largest value (the test starts at the bubble
+ * point, so that is its highest pressure).
  * @returns {?{pressure: number, from: 'cce'|'dl'}}
  */
 export function labSaturationPressure(labData) {
@@ -286,7 +287,18 @@ export function labSaturationPressure(labData) {
   const at = cce.find((r) => finite(r.relVol) && Math.abs(r.relVol - 1) < 5e-5);
   if (at) return { pressure: at.pressure, from: 'cce' };
   const dl = labData?.dl?.rows || [];
-  if (dl.length) return { pressure: Math.max(...dl.map((r) => r.pressure)), from: 'dl' };
+  if (dl.length) {
+    // a differential liberation starts at the bubble point. A table that
+    // also holds undersaturated rows keeps Rs constant above it: the bubble
+    // point is then the lowest pressure at which Rs has reached its largest value.
+    const withRs = dl.filter((r) => finite(r.Rs));
+    if (withRs.length) {
+      const rsMax = Math.max(...withRs.map((r) => r.Rs));
+      const atMax = withRs.filter((r) => r.Rs >= rsMax - 1e-9 * Math.max(1, Math.abs(rsMax)));
+      return { pressure: Math.min(...atMax.map((r) => r.pressure)), from: 'dl' };
+    }
+    return { pressure: Math.max(...dl.map((r) => r.pressure)), from: 'dl' };
+  }
   return null;
 }
 
@@ -354,18 +366,26 @@ export function labComparison(labData) {
       oil = 'differential';
       text = 'Differential liberation data as the laboratory reports them, per barrel of residual oil. The model table is per stock-tank barrel of the separator train, so Bo and Rs are drawn for reference and their misfit includes the difference of basis. Enter the separator test Bofb and Rsfb to compare like with like.';
     }
-    let negative = 0;
+    // The residual oil row (Rsd = 0, the end of the test) is the reference
+    // the differential volumes are divided by. Adjusted to the separator
+    // basis it is no measurement: the adjustment gives a negative Rs and a
+    // Bo below 1 there (Ahmed: both curves are drawn to Rs = 0 and Bo = 1 at
+    // atmospheric pressure by hand). It is left out of the adjusted Bo and Rs.
+    let residual = 0;
+    d.dl.rows.forEach((raw, i) => {
+      const r = rows[i];
+      const isResidual = oil === 'adjusted' && finite(raw.Rs) && raw.Rs === 0;
+      if (isResidual) { residual += 1; }
+      if (finite(r.Bo) && !isResidual) points.bo.push({ pressure: r.pressure, value: r.Bo });
+      if (finite(r.Rs) && !isResidual && !(oil === 'adjusted' && r.Rs < 0)) points.rs.push({ pressure: r.pressure, value: r.Rs });
+    });
     for (const r of rows) {
-      if (finite(r.Bo)) points.bo.push({ pressure: r.pressure, value: r.Bo });
-      // the adjustment runs below zero toward atmospheric pressure (Ahmed: the
-      // adjusted curve is drawn to Rs = 0 there by hand); such a row is no measurement
-      if (finite(r.Rs)) { if (oil === 'adjusted' && r.Rs < 0) negative += 1; else points.rs.push({ pressure: r.pressure, value: r.Rs }); }
       if (finite(r.Z)) points.z.push({ pressure: r.pressure, value: r.Z });
       if (finite(r.Bg)) points.bg.push({ pressure: r.pressure, value: r.Bg });
       if (finite(r.mu_o) && !d.viscosity) points.muo.push({ pressure: r.pressure, value: r.mu_o });
     }
     notes.push(text);
-    if (negative) notes.push(`The adjustment gives a negative Rs at ${negative} low pressure${negative === 1 ? '' : 's'}; ${negative === 1 ? 'that row is' : 'those rows are'} left out of the Rs comparison.`);
+    if (residual) notes.push('The residual oil row of the differential liberation (Rsd = 0) is the reference of the test and is no measurement on the separator basis: it is left out of the adjusted Bo and Rs.');
   }
   if (d.viscosity) for (const r of d.viscosity.rows) if (finite(r.mu_o)) points.muo.push({ pressure: r.pressure, value: r.mu_o });
   if (d.cce) {
@@ -442,16 +462,34 @@ export function modelAt(rows, pb, key, pressure) {
 /**
  * The misfit of the model against the laboratory values, per property.
  * Deviation is model minus laboratory, as a percent of the laboratory value.
- * @param {{labData: object, rows: object[], pb: ?number}} a rows are the model table (engine units)
+ * @param {{labData: object, rows: object[], pb: ?number, evaluate?: ?function(number): ?object}} a
+ *   rows are the model table (engine units). `evaluate(p)` returns the model
+ *   row at a pressure exactly (the black-oil engine can); without it the
+ *   model is read from the table by linear interpolation, never across the
+ *   saturation pressure.
  * @returns {Array<{id: string, key: string, label: string, kind: string, n: number, outside: number,
  *   meanAbsPct: ?number, biasPct: ?number, maxAbsPct: ?number, maxAt: ?number, basis: string,
  *   points: Array<{pressure: number, lab: number, model: number, pct: number}>}>}
  *   one entry per property with laboratory values
  */
-export function labMisfit({ labData, rows, pb }) {
+export function labMisfit({ labData, rows, pb, evaluate = null }) {
   const cmp = labComparison(labData);
   const rel = modelRelativeVolume(rows, pb);
   const withRel = [...(rows || [])].map((r) => ({ ...r, Vrel: rel.find((x) => x.pressure === r.pressure)?.Vrel ?? null }));
+  const sorted = withRel.filter((r) => finite(r.pressure)).sort((a, b) => a.pressure - b.pressure);
+  const lo = sorted.length ? sorted[0].pressure : null;
+  const hi = sorted.length ? sorted[sorted.length - 1].pressure : null;
+  // exact model values: the row at the laboratory pressure, and at the bubble point for the relative volume
+  const atPb = evaluate && finite(pb) ? evaluate(pb) : null;
+  const exact = (key, p) => {
+    if (lo === null || p < lo - 0.5 || p > hi + 0.5) return null; // outside the pressure range the report prints
+    const row = evaluate(Math.max(p, 14.7));
+    if (!row) return null;
+    if (key !== 'Vrel') return finite(row[key]) ? row[key] : null;
+    if (!atPb || !(atPb.Bo > 0) || !finite(row.Bo)) return null;
+    if (p >= pb) return row.Bo / atPb.Bo;
+    return finite(row.Rs) && finite(row.Bg) ? (row.Bo + Math.max(0, atPb.Rs - row.Rs) * row.Bg) / atPb.Bo : null;
+  };
   const out = [];
   for (const prop of LAB_PROPERTIES) {
     const lab = cmp.points[prop.id];
@@ -459,7 +497,7 @@ export function labMisfit({ labData, rows, pb }) {
     const points = [];
     let outside = 0;
     for (const p of lab) {
-      const model = modelAt(withRel, pb, prop.key, p.pressure);
+      const model = evaluate ? exact(prop.key, p.pressure) : modelAt(withRel, pb, prop.key, p.pressure);
       if (model === null || !finite(model) || !(Math.abs(p.value) > 0)) { outside += 1; continue; }
       points.push({ pressure: p.pressure, lab: p.value, model, pct: (100 * (model - p.value)) / p.value });
     }

@@ -199,6 +199,9 @@ const FluidSystemsStudioContent = () => {
     };
   });
 
+  // FLUID-U2-004: the correlation match to laboratory data (null removes it)
+  const setLabMatch = (record) => setInputs((prev) => ({ ...prev, labMatch: record || undefined }));
+
   const setIdentification = (key, value) => setInputsRaw((prev) => ({
     ...prev, identification: { ...identificationOf(prev), [key]: value },
   }));
@@ -314,6 +317,7 @@ const FluidSystemsStudioContent = () => {
               exporting={exporting}
               envelope={envelope}
               onEnvelope={setEnvelope}
+              onLabMatch={setLabMatch}
             />
           )
           : <FluidStudioEmptyState onRunSample={loadSample} />}

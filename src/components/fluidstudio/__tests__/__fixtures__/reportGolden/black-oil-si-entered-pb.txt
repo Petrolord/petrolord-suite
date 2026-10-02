@@ -161,13 +161,13 @@ Separator train (staged liberation by the Rs correlation)
  Total                                                                                               284.97                      45.3
 
 Separator GOR 278.44 plus stock-tank GOR 6.54 gives the total 284.97 m3/m3, which is the solution GOR by construction. Bo by a single flash
-1.9042 m3/m3; the multistage Bo 1.8771 is an estimate of the staging benefit, not a flash calculation. Gas rates are for a stock-tank oil basis of
+1.9042 m3/m3; the multistage Bo 1.8771 is an estimate of the staging benefit and no flash calculation. Gas rates are for a stock-tank oil basis of
 159 m3/d.
 
 
 Lab tuning
-No lab tuning. Black-oil correlations are not matched to laboratory data in this app; a bubble point that is entered moves the Rs correlation as
-stated in the methods table.
+No lab tuning. The black-oil correlations are not matched to laboratory data. A bubble point that is entered moves the Rs correlation as stated in
+the methods table.
 
 
 Limits of this analysis
