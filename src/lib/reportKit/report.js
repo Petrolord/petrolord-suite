@@ -24,6 +24,7 @@ import { timestampUtc } from './format.js';
 import { NAVY, SLATE, PAGE } from './theme.js';
 import { createLayout } from './layout.js';
 import { drawPlot } from './plot.js';
+import { drawBars } from './bars.js';
 
 /** The head of the inputs table. */
 export const INPUTS_HEAD = Object.freeze(['Input', 'Value', 'Unit', 'Source and quality']);
@@ -203,7 +204,7 @@ export function createReport({ title, appName = '', reportName, logo = null, str
    * the title and one line saying why the plot does not apply
    * (`statement`), so a reader never wonders whether a figure went missing.
    * @param {{id?: string, number?: number, title: string, caption?: string,
-   *   panels?: Array<{height: number, spec: object}>, statement?: string}} fig
+   *   panels?: Array<{height: number, spec: object, kind?: 'bars'}>, statement?: string}} fig
    * @returns {{id: string, number: number, title: string, page: number, plotted: boolean,
    *   panels: Array<{box: object, drawn: Object<string, number>, total: number}>}}
    */
@@ -237,7 +238,9 @@ export function createReport({ title, appName = '', reportName, logo = null, str
     const panels = [];
     for (const panel of fig.panels) {
       const box = { x: LEFT, y: layout.y, w: WIDTH, h: panel.height };
-      panels.push({ box, ...drawPlot(doc, box, { ...panel.spec, logo }) });
+      // a panel is a line or scatter plot unless it asks for bars (./bars.js)
+      const draw = panel.kind === 'bars' ? drawBars : drawPlot;
+      panels.push({ box, ...draw(doc, box, { ...panel.spec, logo }) });
       layout.y += panel.height + 3;
     }
     layout.y += 1;
