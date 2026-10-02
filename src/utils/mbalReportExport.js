@@ -4,6 +4,7 @@
  * Analysis Studio report (src/utils/wellTestReportExport.js, WT5/WT10).
  * Data in, one PDF out; no fetching here.
  */
+import { staleRunMessage } from '@/pages/apps/reservoir-balance/lib/runStaleness';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -28,7 +29,13 @@ const FLUID_LABELS = {
   oil_with_gas_cap: 'Oil with gas cap',
 };
 
-export const exportMbalPdf = ({ caseData, lastResult, defaultCfg }) => {
+export const exportMbalPdf = ({ caseData, lastResult, defaultCfg, staleness }) => {
+  // H4: a report pairs the inputs with the run made on them. When an input
+  // changed after the run there is no such pair, so nothing is exported.
+  // `defaultCfg` is the config snapshot of the run being reported.
+  if (staleness?.stale) {
+    throw new Error(`The report was not exported. ${staleRunMessage(staleness)}`);
+  }
   const doc = new jsPDF();
   const isGas = caseData?.fluid_system === 'gas';
   const plot = lastResult?.plot_data ?? {};

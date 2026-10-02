@@ -20,7 +20,8 @@ const MbsHelpContent = () => (
     <P>
       A case holds one reservoir study: fluid system (oil, gas, or oil with a gas cap), initial pressure, temperature
       and water saturation. Cases live in your account database; everything you save on the tabs is stored with the
-      case and results are recomputed by the engine on demand. They are not replayed from stored numbers.
+      case. Opening a case shows its last completed run. When an input was changed after that run, the studio
+      says the results are from an earlier run, withholds their status and holds the report until you run again.
     </P>
 
     <H>2. Data</H>
