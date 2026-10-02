@@ -1,0 +1,96 @@
+{
+  "pages": 4,
+  "sha256": "5c5d3d2e69ff41d66c325745471a82c95f62fc5295fbdaa04d6415a7dff21e24",
+  "figures": [
+    {
+      "id": "overview",
+      "number": 1,
+      "page": 3,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 66
+          },
+          "drawn": {
+            "Gauge pressure": 45,
+            "Rate (test setup)": 4
+          },
+          "total": 49,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "loglog",
+      "number": 2,
+      "page": 3,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 115.72,
+            "w": 182,
+            "h": 88
+          },
+          "drawn": {
+            "dp": 45,
+            "Bourdet derivative": 45
+          },
+          "total": 90,
+          "bands": 2,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "semilog",
+      "number": 3,
+      "page": 4,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 84
+          },
+          "drawn": {
+            "pws": 45,
+            "Straight line": 45
+          },
+          "total": 90,
+          "bands": 1,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "sqrt",
+      "number": 4,
+      "page": 4,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "history",
+      "number": 5,
+      "page": 4,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "rta",
+      "number": 6,
+      "page": 4,
+      "plotted": false,
+      "panels": []
+    }
+  ]
+}
