@@ -236,3 +236,42 @@ wrapped in `ProtectedAppRoute`.
 The lens does not replace human testers. When a human round happens, its
 findings are sorted into the twelve checks, and any finding that fits none
 of them becomes check thirteen.
+For report findings, the annex below is that extension.
+
+## 4. Annex: the reviewer lens (RL1 to RL12), added 2026-10-02
+
+The second Well Test Analysis tester (2026-10-02) read the PDF as the person
+who signs it, and found that a report which passed PL7 still could not be
+signed: no inputs, no sources, no components, an undivided skin, thin
+identification, no operations table and no plots. PL7 was too thin. The
+twelve checks below replace "header and three headline numbers" as the
+report standard. They start with the Reservoir round and apply to any app
+whose output is an analysis someone signs.
+
+Full text, with the tester items behind each check, why a reviewer cares
+and the test for each: `docs/scope/AppUpgrade-Reservoir-FeedbackLessons.md`.
+The Reservoir apps graded against them:
+`docs/scope/AppUpgrade-Reservoir-GapMatrix.md`.
+
+| Check | In one line | Deepens |
+|---|---|---|
+| RL1 | Every input the analysis read is on the page with unit and source; a default prints as an assumption; missing prints `n/a` | PL7 |
+| RL2 | A composite input prints its components and formula (ct from cf, co, cw, cg) | PL7, PL1 |
+| RL3 | A lumped result is split into its physical parts, the method named, the parts closing on the total | PL1 |
+| RL4 | Identification: company, field, licence, well or reservoir, zone, interval, data dates, analysis type, analyst, units, build | PL7 |
+| RL5 | A data and operations table: periods, rates, durations, volumes, cut-off, points used and excluded | PL8 |
+| RL6 | Every claimed result has its plot in the report, with the fitted line and the fit window; a plot that does not apply says why; no report ships without plots | PL6 |
+| RL7 | The basis is named beside every number: time basis, datum and absolute or gauge, STB or RB, nominal or effective decline, percentile convention | PL1, PL3 |
+| RL8 | Keep confidence intervals, windows, the cross-check of methods and the regression statement; no status word without its event, in both directions | PL4 |
+| RL9 | The limits of the method and the range of each correlation are printed; out-of-range inputs are flagged | PL1 |
+| RL10 | Import doors find columns by header, take the unit at the door, survive hostile files and show what they read | PL2, PL3 |
+| RL11 | Every cross-app intake has a sender, and the source, units and method names travel with the handoff | PL9 |
+| RL12 | Screen, report and saved project are one model: same rows, same series, same precision, full round trip | PL5, PL7 |
+
+How to run them without a human: build the PDF from the app's sample
+through the code the Export button calls, read it back with poppler
+(pdftotext, pdfimages, pdftoppm), and assert the rows, the captions, the ink
+in each plot box and the status words. The Well Test suite
+`src/components/welltest/__tests__/wellTestReportR2.test.jsx` and its kit
+`reportTestKit.jsx` are the model; the shared report kit of the Reservoir
+plan (Step 0b) makes them available to every app.
