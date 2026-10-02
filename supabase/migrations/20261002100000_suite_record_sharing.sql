@@ -13,7 +13,7 @@
 --   organization_id the organisation it is shared with
 --   org_access      'view' (default) | 'edit'                 what colleagues may do
 --   editing_by / editing_since / editing_expires              the check-out (one editor at a time)
---   version         bumped on every real change; a save made from an older version is refused
+--   version         bumped on every change of content; a save made from an older version is refused
 --   updated_by / updated_at  stamped by trigger from auth.uid(), never trusted from the client
 --   change_note     a transient column: the app sends a short summary with a save, the
 --                   trigger moves it into the change log and stores NULL
@@ -185,12 +185,13 @@ begin
         end if;
     end if;
 
-    if content_changed or sharing_changed then
+    if content_changed then
         new.version := old.version + 1;
         new.updated_at := now();
         if uid is not null then new.updated_by := uid; end if;
     else
-        -- a check-out change or an empty save is not a new version
+        -- a sharing change, a check-out change or an empty save is not a new
+        -- version of the content (the sharing change is in the log)
         new.version := old.version;
         new.updated_at := old.updated_at;
         new.updated_by := old.updated_by;
