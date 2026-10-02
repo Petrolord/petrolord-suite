@@ -1,0 +1,530 @@
+Fluid Properties Report
+Petrolord Fluid Systems Studio
+
+Project                   Pre-shell project (2026-07)                     Company                 Org from the profile
+Field                     n/a                                             Licence or block        n/a
+Well                      n/a                                             Reservoir or zone       n/a
+Sample or fluid           n/a                                             Sample depth            n/a
+Sampling date             n/a                                             Sampling method         n/a
+Laboratory                n/a                                             Lab report              n/a
+Analyst                   n/a                                             Analysis date           n/a
+Analysis type             PVT properties, Black-oil correlations          Build                   Petrolord Suite test (fixture)
+Display units             Oilfield (psia, degF); Bg in RB/Mscf            Generated               2026-10-02 09:00 UTC
+
+
+Headline results
+ Quantity                                       Value                Unit              Method
+
+ Bubble point pressure Pb                       2,536                psia              Vasquez-Beggs Rs(p) solved for the solution GOR (solved
+                                                                                       from the solution GOR)
+
+ Solution GOR at Pb                             480.0                scf/STB           Input (the solution GOR)
+
+ Oil formation volume factor at Pb              1.2635               RB/STB            Vasquez-Beggs
+
+ Oil viscosity at Pb                            0.8845               cP                Beggs-Robinson
+
+ Dead oil viscosity                             3.564                cP                Beggs-Robinson
+
+ Oil compressibility at Pb                      1.40e-5              1/psi             Vasquez-Beggs
+
+ Gas deviation factor Z at Pb                   0.8320                                 Papay, with Sutton pseudo-critical properties
+
+ Gas formation volume factor at Pb              1.066                RB/Mscf           Real gas law, Bg = 0.00504 Z T / p
+
+ Water formation volume factor at Pb            1.0299               RB/STB            McCain
+
+ Water viscosity at Pb                          0.4250               cP                McCain
+
+Values at the bubble point pressure and the reservoir temperature. Pressures are absolute.
+
+
+
+
+Fluid Properties Report                                                                                                                Page 1 of 9
+Inputs and their sources
+ Input                                          Value                 Unit                Source and quality
+
+ API gravity of the stock-tank oil              28.5                  degAPI              Entered, source not stated
+
+ Solution GOR at the bubble point Rsb           480.0                 scf/STB             Entered, source not stated
+
+ Gas gravity                                    0.820                 air = 1             Entered, source not stated
+
+ Reservoir temperature                          185.0                 degF                Entered, source not stated
+
+ Water salinity                                 42,000                ppm                 Entered, source not stated
+
+ Bubble point pressure (optional input)         n/a                   psia                Not provided: solved from the solution GOR
+
+ Bubble point, Rs and Bo correlation            Vasquez-Beggs                             Selected in the app
+
+ Oil viscosity correlation                      Beggs-Robinson                            Selected in the app
+
+ Stock-tank oil basis for stage gas rates       2,500                 STB/d               Entered (a reporting basis)
+
+ Separator stage 1, pressure and                300.0 / 110.0         psia / degF         Entered, source not stated
+ temperature
+
+ Stock tank (last stage)                        14.7 / 60.0           psia / degF         Standard conditions, always added by the app
+
+The PVT table uses the API gravity, the solution GOR, the gas gravity, the temperature, the bubble point when one is entered and the two
+correlation choices. Salinity enters the water viscosity only. The stock-tank oil basis scales the stage gas rates and nothing else. Flowline geometry
+is recorded in the app and enters no calculation.
+
+
+Method used for each property
+ Property                              Method                                       Reference                   Note
+
+ Bubble point pressure                 Vasquez-Beggs Rs(p) solved for the           Vasquez and Beggs           Solved by bisection on pressure.
+                                       solution GOR                                 (1980)
+
+ Solution GOR Rs                       Vasquez-Beggs                                Vasquez and Beggs           Held at the solution GOR above the
+                                                                                    (1980)                      bubble point.
+
+ Oil formation volume factor Bo        Vasquez-Beggs                                Vasquez and Beggs           Above the bubble point: Bo(Pb)
+                                                                                    (1980)                      exp(-co (p - Pb)).
+
+ Oil compressibility co                Vasquez-Beggs                                Vasquez and Beggs
+ (undersaturated)                                                                   (1980)
+
+ Dead oil viscosity                    Beggs-Robinson                               Beggs and Robinson
+                                                                                    (1975)
+
+ Live (saturated) oil viscosity        Beggs-Robinson                               Beggs and Robinson
+                                                                                    (1975)
+
+ Undersaturated oil viscosity          Vasquez-Beggs                                Vasquez and Beggs
+                                                                                    (1980)
+
+ Gas deviation factor Z                Papay, with Sutton pseudo-critical           Papay (1968); Sutton        Held between 0.25 and 1.15.
+                                       properties                                   (1985)
+
+ Gas viscosity                         Lee-Gonzalez-Eakin                           Lee, Gonzalez and
+                                                                                    Eakin (1966)
+
+ Gas formation volume factor Bg        Real gas law, Bg = 0.00504 Z T / p           n/a                         The constant is for field units (RB/scf,
+                                                                                                                T in degR, p in psia), at the standard
+                                                                                                                conditions of this report.
+
+ Water formation volume factor Bw      McCain                                       McCain (1990)               Pure water form: salinity is not
+                                                                                                                applied to Bw.
+
+ Water viscosity                       McCain                                       McCain (1991)
+
+The method names are written by the engine beside the calculation that used them.
+
+
+
+
+Fluid Properties Report                                                                                                                      Page 2 of 9
+Basis and conventions
+ Item                                        As used in this report
+
+ Liberation basis                            Black-oil correlations on a surface separation (flash) basis: Rs and Bo are per stock-tank barrel, and the
+                                             correlations do not distinguish differential from flash liberation below the bubble point.
+
+ Standard conditions                         14.7 psia and 60.0 degF
+
+ Table temperature                           185.0 degF
+
+ Bubble point pressure                       2,536 psia, solved from the solution GOR
+
+ Units of this report                        pressure psia; temperature degF; GOR scf/STB; oil and water FVF RB/STB; gas FVF RB/Mscf;
+                                             viscosity cP; compressibility 1/psi
+
+ Pressures                                   Absolute
+
+ Oil and water formation volume              RB/STB: reservoir volume per stock-tank volume
+ factors
+
+ Gas formation volume factor                 RB/Mscf: reservoir volume per thousand standard cubic feet of gas
+
+ Solution GOR                                scf/STB: standard gas volume per stock-tank oil volume
+
+
+Separator train (staged liberation by the Rs correlation)
+ Stage           Pressure (psia)      Temperature (degF)         Rs kept in the oil (scf/STB)        Gas liberated (scf/STB)        Gas rate (Mscf/d)
+
+ Sep 1           300.0                110.0                      54.4                                425.6                          1,064.0
+
+ Stock Tank      14.7                 60.0                       0.0                                 54.4                           136.0
+
+ Total                                                                                               480.0                          1,200.0
+
+Separator GOR 425.6 plus stock-tank GOR 54.4 gives the total 480.0 scf/STB, which is the solution GOR by construction. Bo by a single flash
+1.2635 RB/STB; the multistage Bo 1.2596 is an estimate of the staging benefit, not a flash calculation. Gas rates are for a stock-tank oil basis of
+2,500 STB/d.
+
+
+Lab tuning
+No lab tuning. Black-oil correlations are not matched to laboratory data in this app; a bubble point that is entered moves the Rs correlation as
+stated in the methods table.
+
+
+Limits of this analysis
+- Black-oil correlations: empirical fits to laboratory data of the oils their authors had. They are not a substitute for a laboratory PVT study of this
+fluid.
+- One reservoir temperature. The table is isothermal.
+- The correlations take no account of non-hydrocarbon gases (nitrogen, carbon dioxide, hydrogen sulphide).
+- Gas properties are computed at every pressure of the table. Above the bubble point there is no free gas in the reservoir, so Z, Bg and gas
+viscosity there describe the solution gas only as a reference.
+- The separator results are a staged liberation by the Rs correlation at each stage. It is an approximation and no compositional flash; the
+multistage Bo is an estimate.
+- Water properties are for water with no dissolved gas.
+
+
+
+
+Fluid Properties Report                                                                                                                        Page 3 of 9
+Published ranges of the methods used
+ Method                               Used for                                         Published range
+
+ Vasquez-Beggs                        Bubble point pressure; Solution GOR Rs;          Solution GOR 20 to 2,199 scf/STB; Temperature 75 to 294
+                                      Oil formation volume factor Bo                   degF; API gravity 15.3 to 59.5 degAPI; Gas gravity 0.511 to
+                                                                                       1.351 air = 1; Pressure 50 to 5,250 psia
+
+ Vasquez-Beggs (compressibility)      Oil compressibility co (undersaturated)          Solution GOR 20 to 2,199 scf/STB; Temperature 75 to 294
+                                                                                       degF; API gravity 15.3 to 59.5 degAPI; Gas gravity 0.511 to
+                                                                                       1.351 air = 1
+
+ Beggs-Robinson                       Dead oil viscosity; Live (saturated) oil         API gravity 16 to 58 degAPI; Temperature 70 to 295 degF;
+                                      viscosity                                        Solution GOR 20 to 2,070 scf/STB
+
+ Vasquez-Beggs (undersaturated        Undersaturated oil viscosity                     Pressure 141 to 9,515 psia
+ viscosity)
+
+ Sutton pseudo-critical properties    Gas deviation factor Z                           Gas gravity 0.57 to 1.68 air = 1
+
+ Lee-Gonzalez-Eakin                   Gas viscosity                                    Pressure 100 to 8,000 psia; Temperature 100 to 340 degF; Gas
+                                                                                       gravity 0.55 to 1 air = 1
+
+ McCain (water FVF)                   Water formation volume factor Bw                 Pressure 0 to 5,000 psia; Temperature 0 to 260 degF
+
+ McCain (water viscosity)             Water viscosity                                  Pressure 0 to 10,000 psia; Temperature 100 to 400 degF;
+                                                                                       Salinity 0 to 260,000 ppm
+
+Ranges are those of the data each correlation was fitted to, as held in the Petrolord engines library and the app. Papay's Z has no range here:
+none could be verified, so the engine holds Z inside 0.25 to 1.15 and flags a row on that limit.
+
+
+Inputs outside a published range
+- Vasquez-Beggs: 1 table row (15 psia) outside its published pressure range (50 to 5,250 psia). Affects: Solution GOR Rs; Oil formation volume
+factor Bo.
+- Lee-Gonzalez-Eakin: 1 table row (15 psia) outside its published pressure range (100 to 8,000 psia). Affects: Gas viscosity.
+
+
+Notes from the engine
+- Separator results use a black-oil staged-liberation approximation (a partition of the GOR by the Rs correlation). A compositional flash needs the
+compositional model.
+
+
+Flow assurance screening
+ Quantity                              Value                                        Basis
+
+ Wax appearance temperature            n/a                                          Not provided
+
+ Asphaltene onset pressure             n/a                                          Not computed: needs composition and SARA data
+
+ P-T profile points                    3                                            3 points read. Pressure in psia (as chosen); temperature in degF
+                                                                                    (as chosen). Column 1 is pressure and column 2 is temperature
+                                                                                    (no header).
+
+ Lowest profile temperature            50.0 degF                                    From the profile
+
+ Hydrate crossing                      Yes, near 500 psia and 50.0 degF             Hydrate curve: Motiee (1991), gas gravity screening
+
+ Largest subcooling                    10.0 degF                                    Hydrate temperature minus profile temperature
+
+Screening only: sweet gas, no inhibitor, salt or acid gas correction.
+
+PVT table
+ Pressure          Rs             Bo           Bg              Z        Oil visc.      Gas visc.       co          Bw           Water visc.    Region
+ (psia)            (scf/STB)      (RB/STB)     (RB/Mscf)                (cP)           (cP)            (1/psi)     (RB/STB)     (cP)
+           4,536          480.0       1.2440          0.7170 1.0002            1.103        0.02791      7.81e-6       1.0247          0.4722 Above Pb
+           4,420          480.0       1.2446          0.7230 0.9832            1.087        0.02764      8.01e-6       1.0250          0.4692 Above Pb
+           4,304          480.0       1.2453          0.7300 0.9671            1.072        0.02735      8.23e-6       1.0254          0.4662 Above Pb
+           4,189          480.0       1.2460          0.7390 0.9519            1.057        0.02702      8.45e-6       1.0257          0.4633 Above Pb
+           4,073          480.0       1.2468          0.7480 0.9376            1.043        0.02666      8.69e-6       1.0261          0.4604 Above Pb
+           3,957          480.0       1.2476          0.7590 0.9241            1.029        0.02626      8.95e-6       1.0264          0.4576 Above Pb
+           3,841          480.0       1.2484          0.7720 0.9116            1.015        0.02585      9.22e-6       1.0267          0.4547 Above Pb
+           3,725          480.0       1.2493          0.7850 0.9000            1.001        0.02540      9.51e-6       1.0271          0.4519 Above Pb
+
+
+Fluid Properties Report                                                                                                                       Page 4 of 9
+ Pressure          Rs             Bo           Bg            Z      Oil visc.      Gas visc.      co          Bw            Water visc.     Region
+ (psia)            (scf/STB)      (RB/STB)     (RB/Mscf)            (cP)           (cP)           (1/psi)     (RB/STB)      (cP)
+           3,609          480.0       1.2503        0.8010 0.8892         0.9881        0.02493     9.81e-6        1.0274           0.4491 Above Pb
+           3,493          480.0       1.2513        0.8180 0.8794         0.9752        0.02444     1.01e-5        1.0277           0.4464 Above Pb
+           3,377          480.0       1.2524        0.8380 0.8704         0.9628        0.02392     1.05e-5        1.0280           0.4437 Above Pb
+           3,261          480.0       1.2536        0.8600 0.8623         0.9507        0.02340     1.09e-5        1.0283           0.4410 Above Pb
+           3,145          480.0       1.2549        0.8840 0.8551         0.9390        0.02286     1.13e-5        1.0286           0.4384 Above Pb
+           3,029          480.0       1.2563        0.9110 0.8488         0.9277        0.02231     1.17e-5        1.0288           0.4358 Above Pb
+           2,913          480.0       1.2578        0.9410 0.8434         0.9169        0.02175     1.22e-5        1.0291           0.4332 Above Pb
+           2,797          480.0       1.2594        0.9750 0.8389         0.9064        0.02119     1.27e-5        1.0294           0.4306 Above Pb
+           2,681          480.0       1.2611         1.013 0.8353         0.8964        0.02063     1.32e-5        1.0296           0.4281 Above Pb
+           2,565          480.0       1.2630         1.055 0.8326         0.8868        0.02007     1.38e-5        1.0299           0.4256 Above Pb
+           2,536          480.0       1.2635         1.066 0.8320         0.8846        0.01994         n/a        1.0299           0.4250 Pb
+           2,449          462.0       1.2566         1.103 0.8307         0.9060        0.01952         n/a        1.0301           0.4232 Below Pb
+           2,333          438.1       1.2473         1.156 0.8298         0.9364        0.01898         n/a        1.0303           0.4207 Below Pb
+           2,218          414.4       1.2381         1.216 0.8297         0.9692        0.01845         n/a        1.0306           0.4184 Below Pb
+           2,102          390.8       1.2289         1.285 0.8306          1.005        0.01794         n/a        1.0308           0.4160 Below Pb
+           1,986          367.2       1.2198         1.363 0.8323          1.044        0.01744         n/a        1.0310           0.4137 Below Pb
+           1,870          343.9       1.2108         1.452 0.8349          1.086        0.01696         n/a        1.0312           0.4114 Below Pb
+           1,754          320.6       1.2018         1.554 0.8384          1.132        0.01650         n/a        1.0314           0.4091 Below Pb
+           1,638          297.5       1.1928         1.673 0.8428          1.183        0.01606         n/a        1.0316           0.4069 Below Pb
+           1,522          274.5       1.1839         1.811 0.8481          1.239        0.01564         n/a        1.0318           0.4047 Below Pb
+           1,406          251.8       1.1751         1.975 0.8542          1.301        0.01525         n/a        1.0320           0.4025 Below Pb
+           1,290          229.1       1.1663         2.170 0.8613          1.371        0.01487         n/a        1.0321           0.4004 Below Pb
+           1,174          206.7       1.1576         2.407 0.8693          1.450        0.01453         n/a        1.0323           0.3983 Below Pb
+           1,058          184.5       1.1490         2.698 0.8781          1.539        0.01420         n/a        1.0324           0.3962 Below Pb
+            942           162.5       1.1405         3.063 0.8878          1.640        0.01390         n/a        1.0326           0.3941 Below Pb
+            826           140.8       1.1321         3.535 0.8985          1.757        0.01362         n/a        1.0327           0.3921 Below Pb
+            710           119.3       1.1237         4.164 0.9100          1.894        0.01337         n/a        1.0329           0.3901 Below Pb
+            594            98.2       1.1156         5.045 0.9224          2.054        0.01314         n/a        1.0330           0.3882 Below Pb
+            478            77.4       1.1075         6.357 0.9357          2.246        0.01294         n/a        1.0331           0.3863 Below Pb
+            363            57.2       1.0997         8.518 0.9499          2.477        0.01276         n/a        1.0332           0.3844 Below Pb
+            247            37.5       1.0920         12.72 0.9650          2.759        0.01260         n/a        1.0333           0.3825 Below Pb
+            131            18.7       1.0848         24.41 0.9809          3.106        0.01248         n/a        1.0334           0.3807 Below Pb
+             15             1.7       1.0782         220.7 0.9978          3.517        0.01240         n/a        1.0335           0.3789 Below Pb
+
+The rows are the rows of the table the app exports and hands to other apps, in the units of the header of this report. Oil compressibility is reported
+above the saturation pressure only.
+
+
+
+
+Fluid Properties Report                                                                                                                    Page 5 of 9
+PVT contract handed to other apps
+ Item                              Value
+
+ PVT contract                      pvt-1
+
+ Source                            Fluid Systems Studio, project "Pre-shell project (2026-07)"
+
+ Generated                         2026-10-02 09:00 UTC
+
+ Build                             Petrolord Suite test (fixture)
+
+ Fluid model                       Black-oil correlations
+
+ Liberation basis                  Black-oil correlations on a surface separation (flash) basis: Rs and Bo are per stock-tank barrel, and the
+                                   correlations do not distinguish differential from flash liberation below the bubble point.
+
+ Bubble point                      solved from the solution GOR
+
+ Standard conditions               14.7 psia, 60 degF
+
+ Lab tuning                        none
+
+ Units of the block                As the engine holds them, whatever the display units: pressure psia, temperature degF, Rs scf/STB, Bo and Bw
+                                   RB/STB, Bg RB/scf, viscosities cP, co 1/psi
+
+Other Petrolord apps receive this block with the table and print it as the source of the fluid properties they take.
+
+
+
+
+Fluid Properties Report                                                                                                                   Page 6 of 9
+Plots
+Figure 1. Oil formation volume factor Bo against pressure
+
+                                  Bo (RB/STB)
+                        1.3
+                                                                               Pb 2,536 psia
+
+
+                       1.25
+  Bo (RB/STB)
+
+
+
+
+                        1.2
+
+
+                       1.15
+
+
+                        1.1
+
+
+                       1.05
+                              0                        1000   2000                         3000                  4000                      5000
+
+                                                                      Pressure (psia)
+
+Bo at 185 degF. Method: Vasquez-Beggs. The dashed line marks the bubble point (2,536 psia). 41 points, the series of the screen chart.
+
+
+Figure 2. Solution GOR Rs against pressure
+
+                                  Rs (scf/STB)
+                       500
+                                                                               Pb 2,536 psia
+
+
+                       400
+  Rs (scf/STB)
+
+
+
+
+                       300
+
+
+                       200
+
+
+                       100
+
+
+                         0
+                              0                        1000   2000                         3000                  4000                      5000
+
+                                                                      Pressure (psia)
+
+Rs at 185 degF. Method: Vasquez-Beggs. The dashed line marks the bubble point (2,536 psia). 41 points, the series of the screen chart.
+
+
+Figure 3. Oil viscosity against pressure
+
+                                  Oil viscosity (cP)
+                         4
+                                                                               Pb 2,536 psia
+
+                        3.5
+  Oil viscosity (cP)
+
+
+
+
+                         3
+
+                        2.5
+
+                         2
+
+                        1.5
+
+                         1
+
+                        0.5
+                              0                        1000   2000                         3000                  4000                      5000
+
+                                                                      Pressure (psia)
+
+Oil viscosity at 185 degF. Method: Beggs-Robinson. The dashed line marks the bubble point (2,536 psia). 41 points, the series of the screen chart.
+Above the saturation pressure the undersaturated method applies.
+
+
+
+
+Fluid Properties Report                                                                                                               Page 7 of 9
+Figure 4. Gas deviation factor Z against pressure
+
+                            Z
+                 1.05
+                                                                                 Pb 2,536 psia
+
+
+                   1
+
+
+                 0.95
+  Z
+
+
+
+
+                  0.9
+
+
+                 0.85
+
+
+                  0.8
+                        0                  1000                 2000                         3000                 4000                      5000
+
+                                                                        Pressure (psia)
+
+Z at 185 degF. Method: Papay, with Sutton pseudo-critical properties. The dashed line marks the bubble point (2,536 psia). 41 points, the series of
+the screen chart.
+
+
+Figure 5. Gas formation volume factor Bg against pressure
+
+                            Bg (RB/Mscf)
+                 1000
+                                                                                 Pb 2,536 psia
+
+
+
+                 100
+  Bg (RB/Mscf)
+
+
+
+
+                  10
+
+
+
+                   1
+
+
+
+                  0.1
+                        0                  1000                 2000                         3000                 4000                      5000
+
+                                                                        Pressure (psia)
+
+Bg at 185 degF. Method: Real gas law, Bg = 0.00504 Z T / p. The dashed line marks the bubble point (2,536 psia). 41 points, the series of the
+screen chart. Logarithmic scale.
+
+
+Figure 6. Laboratory values against the model
+Does not apply: the black-oil correlations take no laboratory PVT data in this app.
+
+
+Figure 7. Pressure and temperature phase envelope
+Does not apply: a phase envelope needs a composition, and this report is of the black-oil correlations.
+
+
+
+
+Fluid Properties Report                                                                                                                Page 8 of 9
+Figure 8. Hydrate screening against the flowline profile
+
+                            Hydrate curve        Flowline profile, outside the hydrate region     Flowline profile, inside the hydrate region
+                    4000
+
+
+
+                    3000
+  Pressure (psia)
+
+
+
+
+                    2000
+
+
+
+                    1000
+
+
+
+                      0
+                       25                   50                    75                     100                 125                     150        175        200
+
+                                                                                           Temperature (degF)
+
+Hydrate formation curve (Motiee (1991), gas gravity screening) and the 3 profile points read at the door. Points colder than the curve at their
+pressure are inside the hydrate region: 1 of 3.
+
+
+
+
+Fluid Properties Report                                                                                                                               Page 9 of 9
+

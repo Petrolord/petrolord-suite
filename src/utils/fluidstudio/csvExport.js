@@ -38,7 +38,7 @@ export const PVT_CSV_COLUMNS = Object.freeze([
  */
 export function pvtTableCsv({ rows, contract = null, system = 'oilfield' }) {
   const u = fluidUnits(system);
-  const header = pvtContractCsvHeader(contract, { extra: [`Display units of this file: ${u.line()}`, 'Pressures are absolute. Bg is reservoir volume per thousand standard cubic feet (RB/Mscf) or per standard cubic metre (m3/m3).'] });
+  const header = pvtContractCsvHeader(contract, { extra: [`Display units of this file: ${u.sentence()}`, 'Pressures are absolute. Bg is reservoir volume per thousand standard cubic feet (RB/Mscf) or per standard cubic metre (m3/m3).'] });
   const head = [...PVT_CSV_COLUMNS.map(([, text, kind]) => (kind ? u.head(text, kind) : text)), 'Region'].join(',');
   const body = (rows || []).map((r) => [
     ...PVT_CSV_COLUMNS.map(([key, , kind, digits]) => num(kind ? u.show(kind, r[key]) : r[key], digits)),

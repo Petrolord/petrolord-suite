@@ -49,7 +49,7 @@ const PvtChart = ({ plot, series, labPoints, labLine }) => {
               stroke={CHART_COLORS.axisLine}
               tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
               scale={plot.yLog ? 'log' : 'auto'}
-              domain={plot.yLog ? ['auto', 'auto'] : [plot.id === 'bo' ? 'auto' : 0, 'auto']}
+              domain={plot.yLog ? ['auto', 'auto'] : [plot.id === 'bo' ? (lo) => Math.floor(lo * 10) / 10 : 0, 'auto']}
               allowDataOverflow={false}
               tickFormatter={tick(plot.digits)}
               width={60}

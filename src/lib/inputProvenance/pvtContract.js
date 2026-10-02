@@ -434,6 +434,7 @@ export function describePvtContract(block) {
     ['Bubble point', PVT1_PB_SOURCES[b.pb_source] || ''],
     ['Standard conditions', `${sc.pressure_psia} psia, ${sc.temperature_degF} degF`],
     ['Lab tuning', pvtContractTuningText(b) || 'none'],
+    ['Units of the block', `As the engine holds them, whatever the display units: pressure ${b.units?.pressure}, temperature ${b.units?.temperature}, Rs ${b.units?.Rs}, Bo and Bw ${b.units?.Bo}, Bg ${b.units?.Bg}, viscosities ${b.units?.mu_o}, co ${b.units?.co}`],
   ];
 }
 

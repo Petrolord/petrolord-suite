@@ -619,6 +619,7 @@ export function buildFluidReportModel({ inputs, results, eos, system = 'oilfield
     ['Standard conditions', `${SHOW.pressure1(u, std.pressure_psia)} ${u.label('pressure')} and ${SHOW.temperature(u, std.temperature_degF)} ${u.label('temperature')}`],
     ['Table temperature', `${SHOW.temperature(u, tempF)} ${u.label('temperature')}`],
     [satKind === 'dew' ? 'Dew point pressure' : 'Bubble point pressure', `${SHOW.pressure(u, pb)} ${u.label('pressure')}, ${PVT1_PB_SOURCES[pbSourceKey]}`],
+    ['Units of this report', u.sentence()],
     ['Pressures', 'Absolute'],
     ['Oil and water formation volume factors', `${u.label('fvfOil')}: reservoir volume per stock-tank volume`],
     ['Gas formation volume factor', `${u.label('fvfGas')}: reservoir volume per ${u.system === 'si' ? 'standard cubic metre' : 'thousand standard cubic feet'} of gas`],

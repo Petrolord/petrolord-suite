@@ -1,0 +1,154 @@
+{
+  "pages": 9,
+  "sha256": "f7ea722586ec010ab375c26f474f3a4ef3c6d46da1d52330c82f311da34f9dca",
+  "figures": [
+    {
+      "id": "pvt-bo",
+      "number": 1,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 58
+          },
+          "drawn": {
+            "Bo (RB/STB)": 41
+          },
+          "total": 41,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "pvt-rs",
+      "number": 2,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 104.36,
+            "w": 182,
+            "h": 58
+          },
+          "drawn": {
+            "Rs (scf/STB)": 41
+          },
+          "total": 41,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "pvt-muo",
+      "number": 3,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 179.72,
+            "w": 182,
+            "h": 58
+          },
+          "drawn": {
+            "Oil viscosity (cP)": 41
+          },
+          "total": 41,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "pvt-z",
+      "number": 4,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 58
+          },
+          "drawn": {
+            "Z": 41
+          },
+          "total": 41,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "pvt-bg",
+      "number": 5,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 101.72,
+            "w": 182,
+            "h": 58
+          },
+          "drawn": {
+            "Bg (RB/Mscf)": 41
+          },
+          "total": 41,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "lab",
+      "number": 6,
+      "page": 8,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "envelope",
+      "number": 7,
+      "page": 8,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "hydrate",
+      "number": 8,
+      "page": 9,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 64
+          },
+          "drawn": {
+            "Hydrate curve": 30,
+            "Flowline profile, outside the hydrate region": 2,
+            "Flowline profile, inside the hydrate region": 1
+          },
+          "total": 33,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    }
+  ]
+}

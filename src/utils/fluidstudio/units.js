@@ -92,7 +92,7 @@ export function inputText(kind, stored, system) {
   if (sys(system) === 'oilfield' && !kindOf(kind).engineScale) return String(stored);
   const v = Number(stored);
   if (!Number.isFinite(v)) return String(stored);
-  return trim(toDisplay(kind, v, system), 10);
+  return trim(toDisplay(kind, v, system), 7);
 }
 
 /**
@@ -116,8 +116,17 @@ export const withUnit = (text, kind, system) => {
 /** The header line of a report or a CSV: the system and its units. */
 export function displayUnitsLine(system) {
   const s = sys(system);
-  const list = ['pressure', 'temperature', 'gor', 'fvfOil', 'fvfGas', 'viscosity', 'compressibility'].map((k) => unitLabel(k, s));
-  return `${s === 'si' ? 'SI / metric' : 'Oilfield'}: ${[...new Set(list)].join(', ')}; Bg in ${unitLabel('fvfGas', s)}`;
+  return `${s === 'si' ? 'SI' : 'Oilfield'} (${unitLabel('pressure', s).replace(/[()]/g, '')}, ${unitLabel('temperature', s)}); Bg in ${unitLabel('fvfGas', s)}`;
+}
+
+/** Every unit of the system in one sentence, for the basis table of a report and a CSV header. */
+export function unitsSentence(system) {
+  const s = sys(system);
+  const part = (text, kind) => `${text} ${unitLabel(kind, s)}`;
+  return [
+    part('pressure', 'pressure'), part('temperature', 'temperature'), part('GOR', 'gor'), part('oil and water FVF', 'fvfOil'),
+    part('gas FVF', 'fvfGas'), part('viscosity', 'viscosity'), part('compressibility', 'compressibility'),
+  ].join('; ');
 }
 
 /** A units helper bound to one system, for components and builders. */
@@ -133,5 +142,6 @@ export function fluidUnits(system = 'oilfield') {
     value: (kind, text) => inputValue(kind, text, s),
     head: (text, kind) => withUnit(text, kind, s),
     line: () => displayUnitsLine(s),
+    sentence: () => unitsSentence(s),
   });
 }

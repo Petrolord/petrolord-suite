@@ -773,7 +773,7 @@ export function blackOilMethods(fluid, pbDetail) {
   } else if (route === 'no-solution-gas') {
     pb = { method: 'Set to 14.7 psia (no solution gas)', reference: '', kind: 'definition', rangeKey: null };
   } else {
-    pb = { method: `${prb.label} Rs(p) solved for the solution GOR`, reference: prb.reference, kind: 'correlation', rangeKey: prbKey, note: 'Bisection between 14.7 and 15,000 psia.' };
+    pb = { method: `${prb.label} Rs(p) solved for the solution GOR`, reference: prb.reference, kind: 'correlation', rangeKey: prbKey, note: 'Solved by bisection on pressure.' };
   }
   const row = (key, label, rec) => ({ key, label, ...rec });
   return [
@@ -789,7 +789,7 @@ export function blackOilMethods(fluid, pbDetail) {
     row('mu_o_undersaturated', 'Undersaturated oil viscosity', { method: 'Vasquez-Beggs', reference: 'Vasquez and Beggs (1980)', kind: 'correlation', rangeKey: 'vasquez_beggs_undersaturated' }),
     row('z', 'Gas deviation factor Z', { method: 'Papay, with Sutton pseudo-critical properties', reference: 'Papay (1968); Sutton (1985)', kind: 'correlation', rangeKey: 'sutton', note: `Held between ${Z_CLAMP[0]} and ${Z_CLAMP[1]}.` }),
     row('mu_g', 'Gas viscosity', { method: 'Lee-Gonzalez-Eakin', reference: 'Lee, Gonzalez and Eakin (1966)', kind: 'correlation', rangeKey: 'lee_gonzalez_eakin' }),
-    row('bg', 'Gas formation volume factor Bg', { method: 'Real gas law, Bg = 0.00504 Z T / p', reference: '', kind: 'definition', rangeKey: null, note: 'RB/scf at 14.7 psia and 60 degF, T in degR.' }),
+    row('bg', 'Gas formation volume factor Bg', { method: 'Real gas law, Bg = 0.00504 Z T / p', reference: '', kind: 'definition', rangeKey: null, note: 'The constant is for field units (RB/scf, T in degR, p in psia), at the standard conditions of this report.' }),
     row('bw', 'Water formation volume factor Bw', { method: 'McCain', reference: 'McCain (1990)', kind: 'correlation', rangeKey: 'mccain_bw', note: 'Pure water form: salinity is not applied to Bw.' }),
     row('mu_w', 'Water viscosity', { method: 'McCain', reference: 'McCain (1991)', kind: 'correlation', rangeKey: 'mccain_mu_w' }),
   ];

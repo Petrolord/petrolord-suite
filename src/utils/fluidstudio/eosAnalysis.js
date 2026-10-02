@@ -56,7 +56,7 @@ export function eosMethods({ sat, plusMeta, tuned }) {
     row('mu_o_undersaturated', 'Undersaturated oil viscosity', LBC, 'correlation', '', 'Lohrenz, Bray and Clark (1964)'),
     row('z', 'Gas deviation factor Z', `${eos}: the gas liberated at each differential stage`, 'eos'),
     row('mu_g', 'Gas viscosity', LBC, 'correlation', '', 'Lohrenz, Bray and Clark (1964)'),
-    row('bg', 'Gas formation volume factor Bg', 'Real gas law with the EOS Z of the liberated gas', 'definition', 'RB/scf at 14.696 psia and 60 degF.'),
+    row('bg', 'Gas formation volume factor Bg', 'Real gas law with the EOS Z of the liberated gas', 'definition', 'At the standard conditions of this report.'),
     row('bw', 'Water formation volume factor Bw', 'McCain', 'correlation', 'Pure water form: salinity is not applied to Bw. Water is not part of the EOS.', 'McCain (1990)'),
     row('mu_w', 'Water viscosity', 'McCain', 'correlation', 'Water is not part of the EOS.', 'McCain (1991)'),
   ].map((m) => (m.key === 'bw' ? { ...m, rangeKey: 'mccain_bw' } : m.key === 'mu_w' ? { ...m, rangeKey: 'mccain_mu_w' } : m));
