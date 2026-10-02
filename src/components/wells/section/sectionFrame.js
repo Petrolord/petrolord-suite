@@ -19,6 +19,10 @@ import { zoneSpan, displayedDepth, topMd } from '@/pages/apps/WellCorrelation/en
 import { invertShift } from '@/lib/stratigraphy/stretch';
 import { unitToMetres } from '../../../../packages/engines/lib/crs/catalog';
 import { twtAtTvdss, tvdssAtTwt, checkshotRange } from './timeDepth';
+import { readWellDatum, tvdssFromTvd, tvdFromTvdss, datumFromElevation } from '../../../lib/wellDatum.js';
+
+/** The datum of a section well: the frame's when it came from the datum module, else read from the row. */
+const wellDatumOf = (well) => (well?.frame?.datum || readWellDatum(well));
 
 // U2-003: 'twt' plots two-way time (ms) from each well's checkshots
 export const DEPTH_REFS = ['md', 'tvd', 'tvdss', 'twt'];
@@ -53,11 +57,11 @@ export function datumDefaultFor(wells, name, depthRef = 'md') {
 export function depthOfFor(well, depthRef = 'md') {
   if (depthRef === 'twt') {
     // MD -> TVDSS (survey, or KB on a well with none) -> TWT through the checkshots
-    const kb = Number(well?.kb_m) || 0;
+    const datum = wellDatumOf(well);
     const cs = well?.checkshots;
     return (md) => {
       let tvdss;
-      try { tvdss = well?.frame ? well.frame.mdToTvdss(md).tvdss : md - kb; } catch { return NaN; }
+      try { tvdss = well?.frame ? well.frame.mdToTvdss(md).tvdss : tvdssFromTvd(md, datum); } catch { return NaN; }
       return twtAtTvdss(cs, tvdss);
     };
   }
@@ -122,11 +126,13 @@ export function mdFromDisplayed(displayed, shift, well, depthRef = 'md') {
   if (depthRef === 'twt') {
     const z = tvdssAtTwt(well?.checkshots, ref);
     if (!Number.isFinite(z)) return null;
-    if (!well?.frame) { const md = z + (Number(well?.kb_m) || 0); return md >= 0 ? { md, ambiguous: false, extrapolated: false } : null; }
+    if (!well?.frame) { const md = tvdFromTvdss(z, wellDatumOf(well)); return md >= 0 ? { md, ambiguous: false, extrapolated: false } : null; }
     return well.frame.tvdssToMd(z);
   }
   if (depthRef === 'md' || !well?.frame) return { md: ref, ambiguous: false, extrapolated: false };
-  const tvdss = depthRef === 'tvd' ? ref - (well.frame.kbM || 0) : ref;
+  // TVD needs no datum: a frame from the datum module inverts it directly
+  if (depthRef === 'tvd' && typeof well.frame.tvdToMd === 'function') return well.frame.tvdToMd(ref);
+  const tvdss = depthRef === 'tvd' ? tvdssFromTvd(ref, datumFromElevation(well.frame.kbM)) : ref;
   return well.frame.tvdssToMd(tvdss);
 }
 
@@ -306,7 +312,13 @@ export function frameNotes(well, depthRef = 'md') {
   const notes = [];
   if (depthRef === 'twt' && !hasTime(well)) return ['no checkshots: not drawn in time'];
   if (!well?.frame || well.frame.isVertical) notes.push('no survey: vertical');
-  if ((depthRef === 'tvdss' || depthRef === 'twt') && !(Number(well?.kb_m) > 0)) notes.push('no KB: TVDSS = TVD');
+  if (depthRef === 'tvdss' || depthRef === 'twt') {
+    // WDM-U2-007: withheld when the well states no reference elevation;
+    // before the registry upgrade a KB of 0 keeps the earlier reading, said
+    const datum = wellDatumOf(well);
+    if (!datum.tvdssOk) notes.push('no depth reference: TVDSS withheld');
+    else if (datum.state === 'legacy-zero') notes.push('no KB: TVDSS = TVD');
+  }
   return notes;
 }
 

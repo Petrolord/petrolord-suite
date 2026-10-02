@@ -39,8 +39,12 @@ const CollapsibleSection = ({ title, icon, children, defaultOpen = false }) => {
   );
 };
 
-const InputPanel = ({ state, setState, onFileUpload, onGeoref, onRemoveControlPoint, onAutoTrace, onDeleteLine, onSetLineValue, onGrid, onPublishSurface, onSaveProject, onLoadProject, onExport, isProcessing, isCvReady, mappingPath = '/dashboard/apps/geoscience/mapping-surface-studio' }) => {
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop: onFileUpload, accept: { 'image/*': ['.jpeg', '.jpg', '.png'] }, multiple: false });
+const InputPanel = ({ state, setState, onFileUpload, onGeoref, onRemoveControlPoint, onAutoTrace, onDeleteLine, onSetLineValue, onGrid, onPublishSurface, onSaveProject, onLoadProject, onDeleteProject, onExport, isProcessing, isCvReady, mappingPath = '/dashboard/apps/geoscience/mapping-surface-studio' }) => {
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop: onFileUpload, accept: { 'image/*': ['.jpeg', '.jpg', '.png', '.webp'] }, multiple: false });
+  // MAP-U2-020: Delete asks once before it removes the project and its stored image
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
+  React.useEffect(() => { setConfirmDelete(false); }, [state.id]);
+  const replaceInput = React.useRef(null);
   const { projectName, projects, controlPoints, layers, activeLayer, drawMode, gridCellSize, valuesAre, zUnit, surfaceName, results, publishedSurface, pixelToWorld, georef, crs } = state;
   // MAP-U1-008: the world coordinates are in a CRS; the Project CRS by default
   const { crsContext } = useCrsContext();
@@ -77,6 +81,32 @@ const InputPanel = ({ state, setState, onFileUpload, onGeoref, onRemoveControlPo
                 </SelectContent>
              </Select>
           </div>
+          {/* MAP-U2-020: the image kept with the project, replace and delete */}
+          <p className="text-xs text-pl-muted" data-testid="digitizer-image-status">
+            {state.savedImage?.path
+              ? `Map image kept with the project: ${state.savedImage.name || 'map image'}${state.imageDirty ? ' (a new image is attached; Save Project replaces the stored one)' : ''}.`
+              : state.imageFile
+                ? 'The map image is attached. Save Project keeps it with the project (PNG, JPEG or WebP, up to 25 MB).'
+                : 'No map image is attached.'}
+          </p>
+          {(state.id || state.imagePreview) && (
+            <div className="flex gap-2 flex-wrap">
+              <input ref={replaceInput} type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" className="hidden" data-testid="digitizer-replace-image-input"
+                onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) onFileUpload([f], { replace: true }); }} />
+              <Button type="button" variant="outline" size="sm" disabled={isProcessing} onClick={() => replaceInput.current?.click()} data-testid="digitizer-replace-image"
+                title="Put another image under the lines and control points of this project. Save Project then replaces the stored image.">Replace image</Button>
+              {state.id && onDeleteProject && (confirmDelete ? (
+                <>
+                  <Button type="button" variant="destructive" size="sm" disabled={isProcessing} data-testid="digitizer-delete-project-confirm"
+                    onClick={() => { setConfirmDelete(false); onDeleteProject(state.id); }}>Delete the project and its image</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>Keep</Button>
+                </>
+              ) : (
+                <Button type="button" variant="outline" size="sm" disabled={isProcessing} data-testid="digitizer-delete-project" onClick={() => setConfirmDelete(true)}
+                  title="Delete this saved project and the map image stored with it"><Trash2 className="w-3.5 h-3.5 mr-1" />Delete project</Button>
+              ))}
+            </div>
+          )}
         </CollapsibleSection>
 
         <CollapsibleSection title="Geo-Referencing" icon={<MapPin />} defaultOpen>

@@ -7,7 +7,6 @@
 
 import { jsPDF } from 'jspdf';
 import { EXCEEDANCE_DEFINITION, parameterPercentileLabel } from '@/lib/percentileConventions';
-import { makeDepthFrame } from '../../WellDataManager/engine/checkshots';
 import 'jspdf-autotable';
 import { loadPetrolordLogo, drawBrandHeader } from '@/lib/pdfBrand';
 import { METHOD_CITATIONS, PIPELINE_VERSION } from '../engine/pipeline';
@@ -17,6 +16,7 @@ import { FIELDS, visibleField, fieldLabel, RW_METHOD_LABELS } from './paramField
 import { AVERAGING_NOTE } from './zoneAverages';
 import { toDisplayValue, UNIT_LABELS } from './paramUnits';
 import { SENSITIVITY_CUTOFFS, pointsAround, relativeSwing } from './cutoffSensitivity';
+import { makeWellFrame, readWellDatum } from '@/lib/wellDatum';
 
 // jsPDF's standard fonts are Latin-1: a Greek letter or a math sign in a
 // label prints as mojibake with its letters spaced out (PETRO-U1-010,
@@ -61,14 +61,16 @@ export function overrideRows(zones, zoneParams = {}, system = 'si') {
 /** The header block a reviewer signs against (PL7). */
 export function headerRows({ wellName, well = null, header = {}, projectName = null, projectId = null, depthUnit = 'm', generatedAt = new Date(), paramUnits = 'si' }) {
   const t = (v) => (v === undefined || v === null || String(v).trim() === '' ? EMPTY_VALUE : latin1Safe(String(v).trim()));
-  const kb = Number(well?.kb_m);
+  const datum = well ? readWellDatum(well) : null;
   const xy = Number.isFinite(Number(well?.surface_x)) && well?.surface_x !== null && Number.isFinite(Number(well?.surface_y)) && well?.surface_y !== null
     ? `${Number(well.surface_x).toFixed(1)}, ${Number(well.surface_y).toFixed(1)}${well?.crs ? ` (${well.crs})` : (well?.crs_note ? ` (${well.crs_note})` : ' (CRS not recorded)')}`
     : EMPTY_VALUE;
   return [
     ['Company', t(header.company)], ['Field', t(header.field)],
     ['Well', t(wellName)], ['UWI', t(well?.uwi)],
-    ['Surface X, Y', xy], ['Depth reference', Number.isFinite(kb) ? `MD below KB; KB ${kb.toFixed(2)} m above the vertical datum` : 'MD below KB; KB not recorded'],
+    ['Surface X, Y', xy], ['Depth reference', !datum ? 'MD below KB; KB not recorded'
+      : datum.tvdssOk ? latin1Safe(`MD below ${datum.refLabel}; ${datum.refLabel} ${datum.refElevM.toFixed(2)} m above ${datum.verticalDatum || 'the vertical datum'}${datum.state === 'legacy-zero' ? ' (0 may mean not entered)' : ''}`)
+        : 'MD below the depth reference; reference elevation not set (TVDSS withheld)'],
     ['Analyst', t(header.analyst)], ['Interpretation', projectName ? `${projectName}${projectId ? ` (${projectId})` : ''}` : t(projectId)],
     ['Units', latin1Safe(`depths ${depthUnit === 'ft' ? 'ft' : 'm'}; porosity, Vsh and Sw v/v; k mD; resistivity ohm.m; parameters: slowness ${UNIT_LABELS[paramUnits === 'field' ? 'field' : 'si'].slowness}, temperature ${UNIT_LABELS[paramUnits === 'field' ? 'field' : 'si'].temperature}`)],
     ['Software', `Petrophysics Studio, pipeline v${PIPELINE_VERSION}, ${buildLabel()}`],
@@ -158,7 +160,7 @@ export async function buildReport({
   doc.setTextColor(60, 70, 90);
   const uTxt = depthUnit === 'ft' ? 'ft' : 'm';
   const toU = (v) => (depthUnit === 'ft' ? v / 0.3048 : v);
-  const frame = makeDepthFrame({ deviation: well?.deviation, kbM: well?.kb_m ?? 0, tdMdM: well?.td_md_m });
+  const frame = makeWellFrame(well);
   const depthIn = (md, key) => {
     if (key === 'md') return toU(md);
     try { const r = frame.mdToTvdss(md); return toU(key === 'tvd' ? r.tvd : r.tvdss); } catch (e) { return NaN; }
@@ -166,7 +168,7 @@ export async function buildReport({
   const extraKeys = (columns || []).filter((k) => k === 'tvd' || k === 'tvdss');
   doc.text(
     `Interval ${num(toU(depth[0]), 1)} to ${num(toU(depth[depth.length - 1]), 1)} ${uTxt} MD · ${depth.length} samples · inputs: ${mapped.join(', ')}`
-    + (extraKeys.length ? ` · TVD from ${frame.isVertical ? 'a vertical assumption' : 'the deviation survey'}, KB ${num(well?.kb_m ?? 0, 2)} m` : ''),
+    + (extraKeys.length ? ` · TVD from ${frame.isVertical ? 'a vertical assumption' : 'the deviation survey'}, ${frame.datum.tvdssOk ? `${frame.datum.refLabel} ${num(frame.datum.refElevM, 2)} m` : 'no reference elevation (TVDSS withheld)'}` : ''),
     margin, y,
   );
   y += 8;

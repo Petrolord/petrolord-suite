@@ -153,8 +153,9 @@ export default function PorePressureStudioHelpGuide() {
           The depth selector beside Units reads the readout, the chart, the drilling window and casing seat lines and the
           PDF table in the frame the well plan uses: below mudline (the engine's own), TVD below the rotary table, TVDSS or
           MD below the rotary table. Each comes from the depth below mudline through the deviation survey and the datum:
-          TVD below RKB adds the mudline's TVD, TVDSS adds the water depth offshore (onshore it takes the KB elevation off
-          the TVD), and MD is the log's own depth of each sample. A frame the source cannot give is greyed with the reason
+          TVD below RKB adds the mudline's TVD, TVDSS adds the water depth offshore (onshore it takes the well's reference
+          elevation off the TVD, read from the registry well's depth reference through the Suite's shared datum module; a
+          well that states none gives no onshore TVDSS, and the selector says why), and MD is the log's own depth of each sample. A frame the source cannot give is greyed with the reason
           in the tooltip (TVD below RKB needs the mudline MD offshore; a velocity trend has no MD). The CSV always carries
           every frame the source supports, side by side. The NCT view stays below mudline, where the trend is defined.
         </Para>

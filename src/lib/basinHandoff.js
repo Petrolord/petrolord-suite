@@ -8,7 +8,7 @@
 // The row is written through Basin's own backend (one door).
 
 import { layersFromDatedTops } from '@/lib/stratigraphy/basinLayers';
-import { makeDepthFrame } from '@/pages/apps/WellDataManager/engine/checkshots';
+import { makeWellFrame, refElevOrNull } from '@/lib/wellDatum';
 import { chartOf } from '@/lib/stratigraphy/ageCharts';
 import { TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
 
@@ -23,10 +23,10 @@ import { TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
  */
 export function verticalDepthOf(well) {
   let frame = null;
-  try { frame = makeDepthFrame({ deviation: well?.deviation, kbM: well?.kb_m, tdMdM: well?.td_md_m }); } catch { frame = null; }
+  try { frame = makeWellFrame(well); } catch { frame = null; } // TVD only, through the shared datum module
   if (!frame || frame.isVertical) return { tvd: (md) => md, basis: 'md', note: `${well?.name || 'The well'} has no survey: drawn vertical, thicknesses are MD differences.` };
   return {
-    tvd: (md) => { try { return frame.mdToTvdss(md).tvd; } catch { return md; } },
+    tvd: (md) => { try { return frame.mdToTvd(md); } catch { return md; } },
     basis: 'tvd',
     note: 'Layer thicknesses are vertical (TVD) through the survey; the MD of each top is kept in the layer provenance.',
   };
@@ -96,7 +96,7 @@ export function buildBasinModelRow({ well, tops, intervals = [], userId, name, a
     })),
     heat_flow: { type: 'constant', value: 60, history: [{ age: 0, value: 60 }, { age: Math.max(100, ...layers.map((l) => l.ageStart)), value: 60 }] },
     erosion_events: erosionEvents.map((e) => ({ age: e.age, amount: e.amount, from_ma: e.from_ma, to_ma: e.to_ma, surface: e.surface, amountUnknown: true })),
-    settings: { surfaceTemp: 15, timescale: TIMESCALE_VERSION, registryWellId: well.id, registryWellName: well.name, registryKbM: Number.isFinite(well?.kb_m) ? well.kb_m : null, fromStratigraphyStudio: t },
+    settings: { surfaceTemp: 15, timescale: TIMESCALE_VERSION, registryWellId: well.id, registryWellName: well.name, registryKbM: refElevOrNull(well), fromStratigraphyStudio: t },
     calibration_data: { ro: [], temp: [] },
     scenarios: [],
     thermal_history: null,

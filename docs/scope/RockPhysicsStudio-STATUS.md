@@ -173,3 +173,8 @@ migration.
 The project can be shared with the organisation from the ribbon, which also shows its published gather to colleagues in Seismolord; projects colleagues shared are offered in a project list. Tests: `__tests__/orgSharing.test.jsx`.
 
 Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Until the migration is applied the control is a short note and saving works as before.
+
+## 2026-10-02: the well datum model (WDM U2-007, PR #848)
+
+The TVD used to place the published pore pressure comes from the shared
+depth frame (`makeWellFrame`); no KB arithmetic remains in the app.

@@ -18,7 +18,7 @@
 import { parseDelimited, guessDepthUnit } from '@/lib/wellImport';
 import { pasteMapping, nonMdDepthHeader } from '@/pages/apps/WellDataManager/components/TopsSheetView';
 import { planTopsPaste } from '@/pages/apps/WellDataManager/engine/topsSheet';
-import { makeDepthFrame } from '@/pages/apps/WellDataManager/engine/checkshots';
+import { makeWellFrame, readWellDatum, tvdssFromTvd, tvdssFromElevation } from '@/lib/wellDatum';
 import { wellNameKey } from '@/lib/wellNames';
 import { buildLabel } from '@/lib/platformBuild';
 import { twtAtTvdss } from '@/components/wells/section/timeDepth';
@@ -83,7 +83,7 @@ export function planTopsFile(text, { wells = [], rows = [], unit = null, ref = n
   const frameOf = (w) => {
     if (!frames.has(w.id)) {
       let f = null;
-      try { f = makeDepthFrame({ deviation: w.deviation, kbM: w.kb_m, tdMdM: w.td_md_m }); } catch { f = null; }
+      try { f = makeWellFrame(w); } catch { f = null; }
       frames.set(w.id, f);
     }
     return frames.get(w.id);
@@ -103,11 +103,12 @@ export function planTopsFile(text, { wells = [], rows = [], unit = null, ref = n
     const vM = v * (useUnit === 'ft' ? M_PER_FT : 1);
     const f = frameOf(w);
     if (!f) { problems.push({ line, reason: `${w.name}: its survey cannot be read, so ${TOPS_FILE_REF_LABEL[useRef]} cannot be converted to MD` }); return ['', '', '']; }
-    const hasKb = Number(w.kb_m) > 0;
-    const tvdss = useRef === 'tvdss' ? vM : useRef === 'z' ? -vM : vM - (f.kbM || 0);
+    // WDM-U2-007: a TVD pick needs no datum; a TVDSS or elevation pick needs
+    // the well's reference elevation and is refused without one
+    if (useRef !== 'tvd' && !f.datum.tvdssOk) { problems.push({ line, reason: `${w.name}, ${name}: the well has no depth reference elevation, so a ${TOPS_FILE_REF_LABEL[useRef]} pick cannot be turned into MD. Set it in Well Data Manager (Header tab), or load the tops in MD` }); return ['', '', '']; }
     if (f.isVertical) addNote(w, 'no survey: drawn vertical, MD = TVD');
-    if (!hasKb && useRef !== 'tvd') addNote(w, 'no KB: TVDSS read as TVD');
-    const hit = f.tvdssToMd(tvdss);
+    if (f.datum.state === 'legacy-zero' && useRef !== 'tvd') addNote(w, 'no KB: TVDSS read as TVD');
+    const hit = useRef === 'tvd' ? f.tvdToMd(vM) : f.tvdssToMd(useRef === 'tvdss' ? vM : tvdssFromElevation(vM));
     if (!hit || !Number.isFinite(hit.md)) { problems.push({ line, reason: `${w.name}, ${name}: ${raw} ${useUnit} ${TOPS_FILE_REF_LABEL[useRef]} is above the depth reference or outside the survey` }); return ['', '', '']; }
     if (hit.ambiguous) { problems.push({ line, reason: `${w.name}, ${name}: that depth is reached twice along the well (it climbs); pick it in MD` }); return ['', '', '']; }
     if (hit.extrapolated) addNote(w, 'below the last survey station: continued on the last tangent');
@@ -158,7 +159,7 @@ export function topsCsv(wells, { unit = 'm', names = null, now = new Date(), bui
       if (names && !names.includes(t.name)) continue;
       let tvd = NaN; let tvdss = NaN;
       try {
-        if (frame) { const r = frame.mdToTvdss(t.md_m); tvd = r.tvd; tvdss = r.tvdss; } else { tvd = t.md_m; tvdss = t.md_m - (Number(w.kb_m) || 0); }
+        if (frame) { const r = frame.mdToTvdss(t.md_m); tvd = r.tvd; tvdss = r.tvdss; } else { tvd = t.md_m; tvdss = tvdssFromTvd(t.md_m, readWellDatum(w)); }
       } catch { /* above the first station: blank */ }
       const twt = twtAtTvdss(w.checkshots, tvdss);
       lines.push([w.name, w.uwi || '', t.name, t.surface_type || 'formation_top', fmt(t.md_m, F, 2), fmt(tvd, F, 2), fmt(tvdss, F, 2),

@@ -119,6 +119,7 @@ export default function BatchLasDialog({ open, onOpenChange, backend, wells, onD
                       <th className={thCls}>Curves</th>
                       <th className={thCls}>Load into</th>
                       <th className={thCls}>Surface X, Y</th>
+                      <th className={thCls} title="Read from each file's header (EKB, EGL, EDF, APD, EPD, LMF, PDAT). Saved with a new well as shown; correct it afterwards on the well's Header tab.">Depth reference (new wells)</th>
                       <th className={thCls}>Notes</th>
                     </tr>
                   </thead>
@@ -147,6 +148,11 @@ export default function BatchLasDialog({ open, onOpenChange, backend, wells, onD
                                 onChange={(e) => setTypedXy((m) => ({ ...m, [r.i]: { ...(m[r.i] || {}), y: e.target.value } }))} />
                             </span>
                           ) : r.action === 'new' && r.xy ? <span className="text-pl-muted">{r.xy.x}, {r.xy.y} (from file)</span> : ''}
+                        </td>
+                        <td className={`${tdCls} text-pl-muted`} data-testid={`wdm-batch-datum-${r.i}`} title={(r.datumConflicts || []).join(' ')}>
+                          {r.action !== 'new' ? '' : r.datum && Number.isFinite(r.datum.refElevM)
+                            ? `${r.datum.refKind || 'KB'} ${Number(r.datum.refElevM.toFixed(2))} m${r.datum.verticalDatum ? ` above ${r.datum.verticalDatum}` : ''}${Number.isFinite(r.datum.groundElevM) ? `, ground ${Number(r.datum.groundElevM.toFixed(2))} m` : ''}${(r.datumConflicts || []).length ? ' (check)' : ''}`
+                            : 'not in the file: left not set'}
                         </td>
                         <td className={`${tdCls} ${r.action === 'skip' ? 'text-pl-warning-text' : 'text-pl-muted'}`} data-testid={`wdm-batch-note-${r.i}`}>
                           {r.action === 'skip' ? `Skipped: ${r.reason}` : r.note}

@@ -60,7 +60,8 @@ test('the sheet in feet carries the reviewer header, tops, inventory and zones (
   expect(text).toContain('Surface X, Y 286131.31, 165839.51 m');
   expect(text).toMatch(/Datum transformation .*\(EPSG:1168\), site choice/);
   expect(text).toContain('Depth unit feet (the registry stores metres)');
-  expect(text).toContain('Vertical datum mean sea level (assumed; not stored per well)');
+  expect(text).toContain('Vertical datum not named (elevations read as above mean sea level)');
+  expect(text).toContain('Depth reference KB 100.00 ft above datum');
   expect(text).toContain('KB 100.00 ft above datum');
   expect(text).toContain('TD 10000.0 ft MD');
   expect(text).toContain('Deviation survey 3 stations, grid azimuths, minimum curvature');
@@ -81,10 +82,10 @@ test('the sheet in feet carries the reviewer header, tops, inventory and zones (
 test('a bare well prints n/a and says what is missing, in metres', async () => {
   const { doc } = await buildWellSheet({ well: { id: 'b', name: 'BARE-1', kb_m: 0, surface_x: 1, surface_y: 2, deviation: [] }, unit: 'm' });
   const text = pdfText(doc).replace(/[ \t]+/g, ' ');
-  expect(text).toContain('KB not set (TVDSS equals TVD)');
+  expect(text).toContain('Depth reference KB not set (0 in the registry; TVDSS equals TVD)');
   expect(text).toContain('Deviation survey none (treated as vertical)');
   expect(text).toContain('Coordinate system not assigned');
   expect(text).toContain('No tops on this well.');
   expect(text).toContain('Prepared by n/a');
-  expect(text).toMatch(/QC flags .*KB not set/);
+  expect(text).toMatch(/QC flags .*Depth reference not set/);
 });

@@ -16,6 +16,7 @@
 // one Suite door, src/lib/ppfgUnits.js. Pure, no I/O.
 
 import { ppfgUnit } from '../../../../lib/ppfgUnits';
+import { tvdFromTvdss, datumFromElevation } from '../../../../lib/wellDatum';
 
 export const CAL_KINDS = Object.freeze([
   { key: 'rft', label: 'RFT/MDT pressure', compare: 'pp' },
@@ -211,7 +212,7 @@ export function convertCalibration(table, mapping, ctx = {}) {
       if (mapping.depthRef === 'bml') { z = dm; tvd = z + rkbOffset; } else {
         if (mapping.depthRef === 'md') tvd = tvdAt(dm);
         else if (mapping.depthRef === 'tvd') tvd = dm;
-        else tvd = dm + Number(ctx.kbM);
+        else tvd = tvdFromTvdss(dm, datumFromElevation(ctx.kbM)); // TVDSS to TVD below the reference, shared datum module
         z = tvd - rkbOffset;
       }
     } catch (e) { skipped.push({ line, text, reason: e.message }); continue; }

@@ -20,7 +20,7 @@
 
 import { writeLas } from './lasWrite';
 import { findDepthLog } from './mergeImport';
-import { makeDepthFrame } from './checkshots';
+import { makeWellFrame, readWellDatum, datumLine } from '@/lib/wellDatum';
 import { toDisp, unitText } from './displayUnits';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
@@ -80,7 +80,23 @@ export function buildWellLas({ well, logs, data, selectedIds = null, unit = 'm',
     curves.push({ mnemonic: l.mnemonic, unit: l.unit || '', descr: `${l.description || l.mnemonic}${computed}`, data: d });
   }
   const params = [];
-  if (Number.isFinite(Number(well.kb_m))) params.push({ name: 'EKB', unit: u === 'ft' ? 'F' : 'M', value: toDisp(well.kb_m, u), descr: 'Kelly bushing elevation above datum' });
+  // WDM-U2-007: the datum as the well states it, in the standard mnemonics
+  // a LAS reader looks for. A well with no reference elevation writes none
+  // (an EKB of 0 would read as a real elevation).
+  const datum = readWellDatum(well);
+  const lu = u === 'ft' ? 'F' : 'M';
+  if (datum.tvdssOk) {
+    const elev = toDisp(datum.refElevM, u);
+    const above = datum.verticalDatum || 'datum';
+    if (datum.refKind === 'KB') params.push({ name: 'EKB', unit: lu, value: elev, descr: `Kelly bushing elevation above ${above}` });
+    else if (datum.refKind === 'DF' || datum.refKind === 'RT') params.push({ name: 'EDF', unit: lu, value: elev, descr: `${datum.refKind === 'RT' ? 'Rotary table' : 'Drill floor'} elevation above ${above}` });
+    if (datum.state !== 'legacy-zero' && datum.columns) {
+      params.push({ name: 'APD', unit: lu, value: elev, descr: 'Elevation of the depth reference above the permanent datum' });
+      params.push({ name: 'LMF', unit: '', value: datum.refLabel, descr: 'Log measured from' });
+      if (datum.verticalDatum) params.push({ name: 'PDAT', unit: '', value: datum.verticalDatum, descr: 'Permanent datum' });
+    }
+    if (Number.isFinite(datum.groundElevM)) params.push({ name: 'EGL', unit: lu, value: toDisp(datum.groundElevM, u), descr: `Ground level elevation above ${above}` });
+  }
   if (Number.isFinite(Number(well.td_md_m)) && well.td_md_m != null) params.push({ name: 'TD', unit: u === 'ft' ? 'F' : 'M', value: toDisp(well.td_md_m, u), descr: 'Total depth MD' });
   if (well.surface_x != null && well.surface_y != null) {
     const xy = String(well.xy_unit || 'm').toUpperCase();
@@ -90,7 +106,8 @@ export function buildWellLas({ well, logs, data, selectedIds = null, unit = 'm',
   if (well.crs) params.push({ name: 'CRS', unit: '', value: String(well.crs), descr: 'Coordinate reference system of XWELL and YWELL' });
   const other = [
     `Exported from Petrolord Well Data Manager${build ? ` build ${build}` : ''}.`,
-    `Depths in ${u === 'ft' ? 'feet' : 'metres'} MD below KB; the registry stores metres.`,
+    `Depths in ${u === 'ft' ? 'feet' : 'metres'} MD below ${datum.refKind ? datum.refLabel : 'the depth reference'}; the registry stores metres.`,
+    `Datum: ${datumLine(datum, u, 2)}.${datum.tvdssOk ? '' : ' No reference elevation is recorded for this well, so none is written.'}`,
     'Curve values are in the units named in the Curve section, as stored.',
   ].join('\n');
   const text = writeLas({ wellName: well.name, uwi: well.uwi || '', depthUnit: u === 'ft' ? 'F' : 'M', curves, params, other, date });
@@ -116,7 +133,7 @@ const num = (v, unit) => {
  */
 export function topsCsv(well, tops, unit = 'm', units = []) {
   const u = unitText(unit);
-  const frame = makeDepthFrame({ deviation: well.deviation, kbM: well.kb_m ?? 0, tdMdM: well.td_md_m });
+  const frame = makeWellFrame(well);
   const lines = [csvLine(['Well', 'UWI', 'Top', `MD (${u})`, `TVD (${u})`, `TVDSS (${u})`, 'Surface type', 'Unit', 'Confidence', 'Age (Ma)', 'Interpreter'])];
   for (const t of [...(tops || [])].sort((a, b) => a.md_m - b.md_m)) {
     let pos = null;
@@ -140,7 +157,7 @@ export function surveyCsv(well, unit = 'm') {
   const u = unitText(unit);
   const stations = (well.deviation || []).filter((s) => Number.isFinite(Number(s.md)));
   if (!stations.length) throw new Error('This well has no deviation survey to export (it is treated as vertical).');
-  const frame = makeDepthFrame({ deviation: well.deviation, kbM: well.kb_m ?? 0, tdMdM: well.td_md_m });
+  const frame = makeWellFrame(well);
   const lines = [csvLine([`MD (${u})`, 'Inc (deg)', 'Azi grid (deg)', `TVD (${u})`, `TVDSS (${u})`, `East offset (${u})`, `North offset (${u})`])];
   for (const s of stations) {
     let p = null;

@@ -182,3 +182,11 @@ merges. No schema change; no migration.
 Open: re-pin the vendored engines when engines #293 merges (the ledger rows
 say how). Matthews and Kelly's depth-varying Ki chart waits for a published
 example to validate against.
+
+## 2026-10-02: the well datum model
+
+With WDM U2-007 (PR #848) the well's reference elevation comes through
+`src/lib/wellDatum.js`; `depthRef.js`, `alongHole.js` and
+`calibrationImport.js` call its conversions instead of subtracting a KB. A
+registry well with no reference elevation gives no onshore TVDSS, with the
+reason. Open: start a project's water depth from the registry well's.

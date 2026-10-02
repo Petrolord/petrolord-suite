@@ -78,6 +78,12 @@ test('non-monotonic checkshots are rejected in the UI with the domain-rule messa
   await page.getByTestId('well-import-x').fill('500100');
   await page.getByTestId('well-import-y').fill('6700100');
   await page.getByTestId('well-import-td').fill('400');
+  // WDM-U2-007: checkshots entered in MD are stored against TVDSS, which needs the KB
+  await page.getByTestId('well-tab-checkshots').click();
+  await page.getByTestId('well-import-text').fill('0,0\n50,55\n40,60');
+  await page.getByTestId('well-import-save').click();
+  await expect(page.getByTestId('well-import-error')).toContainText('enter the KB elevation first');
+  await page.getByTestId('well-import-kb').fill('30');
 
   await page.getByTestId('well-tab-checkshots').click();
   await page.getByTestId('well-import-text').fill('0,0\n50,55\n40,60');

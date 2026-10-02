@@ -732,3 +732,13 @@ a per-user choice from the header toggle (beside Help).
   and site dialogs).
 - Known, unchanged: the Bottom hole KPI prints "Set well CRS" in the
   large mono value style when the site has no CRS.
+
+## 2026-10-02: the well datum model (WDM U2-007, PR #848)
+
+- Publish states the wellbore's datum in the registry (KB, with water depth
+  or ground level) when the wellbore has a KB; a wellbore KB of 0 (the
+  dialog's blank) publishes a well with no reference elevation. A republish
+  never overwrites a depth reference the registry well already states: the
+  publish message says when the two differ.
+- Anti-collision leaves out a registry well with no reference elevation and
+  names it; a target from a registry top is refused for such a well.

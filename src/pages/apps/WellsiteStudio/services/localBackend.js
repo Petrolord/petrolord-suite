@@ -19,6 +19,7 @@ import { publishPlan, runPublish, publishFailureText } from './publish';
 import { mergeProfile } from '@/lib/wellsite/abbreviations';
 import { wellContext, offsetMinOf } from './wellContext';
 import { newId } from '@/lib/wellsite/ids';
+import { refElevOrNull, readWellDatum, validateDatum, datumChangeImpact, datumChangeRecord, rebaseCheckshotsForDatum } from '@/lib/wellDatum';
 import { memberChangeError } from './members';
 import { prepareEvidenceLogs, staleEvidence } from '@/lib/wellsite/evidence';
 import { mudlogSeries } from './mudlogImport';
@@ -113,7 +114,9 @@ export function makeLocalBackend({ transport, db = wellsiteDb(), autoSync = true
         organization_id: geoWell.organization_id || u.organization_id,
         created_by: u.id,
         name: name || geoWell.name,
-        header: { kb_elev_m: geoWell.kb_m ?? 0, ...header },
+        // U2-019: the registry's reference elevation through the datum module; null when the
+        // well states none (the depth door then asks for it, and Config can enter it)
+        header: { kb_elev_m: refElevOrNull(geoWell), ...header },
         survey: survey || (Array.isArray(geoWell.deviation) && geoWell.deviation.length >= 2
           ? { version: 'registry-1', method: 'minimum_curvature', stations: geoWell.deviation, source: 'geo_wells.deviation' } : null),
         settings,
@@ -140,6 +143,36 @@ export function makeLocalBackend({ transport, db = wellsiteDb(), autoSync = true
       await commitWellPatch(db, wellId, { header: { ...(w.header || {}), ...patch } });
       notify();
       return getWell(wellId);
+    },
+    // ---- U2-019 (closes WS-U1-024): KB is correctable here, through the registry's own datum door ----
+    /** The registry well's datum, who owns it and what a correction would move. Online only. */
+    async registryDatumFor(wellId) {
+      if (!transport.online()) throw new Error('Reading the registry well needs a connection.');
+      const well = await requireWellRow(wellId);
+      const reg = await transport.registryDatum(well.geo_well_id);
+      return { ...reg, datum: readWellDatum(reg.row) };
+    },
+    /** What a new reference elevation would move, in words (nothing is written). */
+    async kbCorrectionPlan(wellId, refElevM) {
+      const reg = await this.registryDatumFor(wellId);
+      const d = reg.datum;
+      const checked = validateDatum({ refKind: d.refKind || 'KB', refLabel: d.refLabel, refElevM, environment: d.environment, groundElevM: d.groundElevM, waterDepthM: d.waterDepthM, verticalDatum: d.verticalDatum, elevUnit: d.elevUnit });
+      const counts = { ...reg.counts, wellsiteWells: 1, unit: 'm' };
+      return { reg, next: checked.datum, errors: checked.errors, warnings: checked.warnings, counts, impact: datumChangeImpact(reg.row, checked.datum, counts) };
+    },
+    /** Correct the reference elevation in the registry (the owner only) and bring this well's copy along. */
+    async correctKb(wellId, refElevM, { reason = null } = {}) {
+      const plan = await this.kbCorrectionPlan(wellId, refElevM);
+      if (plan.errors.length) throw new Error(plan.errors[0]);
+      if (!plan.reg.ownedByMe) throw new Error('Only the owner of the registry well can correct its depth reference. Ask them to correct it here or in Well Data Manager.');
+      if (plan.impact.kind === 'none') return { changed: false, plan };
+      const u = await currentUser();
+      const record = datumChangeRecord(plan.reg.row, plan.next, { userId: u.id, userName: u.name || u.email || null, reason, app: 'wellsite-studio', impact: plan.impact, counts: plan.counts });
+      const cs = rebaseCheckshotsForDatum(plan.reg.row, plan.next);
+      const well = await requireWellRow(wellId);
+      const res = await transport.writeRegistryDatum(well.geo_well_id, plan.next, { record, ...(cs.checkshots ? { checkshots: cs.checkshots, checkshotsProvenance: cs.checkshotsProvenance } : {}) });
+      await this.updateWellHeader(wellId, { kb_elev_m: plan.next.refElevM });
+      return { changed: true, plan, dropped: res.dropped, note: cs.note };
     },
     async listMembers(wellId) { return db.members.where('well_id').equals(wellId).toArray(); },
     /** The organisation's active people, to add as members (online only). */

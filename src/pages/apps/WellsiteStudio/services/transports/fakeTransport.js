@@ -3,6 +3,7 @@
 // The sync engine (WS6) treats it as a server that accepts everything.
 
 import { newId } from '@/lib/wellsite/ids';
+import { datumPatch, refElevOrNull } from '@/lib/wellDatum';
 
 export function makeFakeTransport({ user, registryWells = [], online = true, prognosisSources = null, orgPeople = null } = {}) {
   const wsWells = new Map();
@@ -124,6 +125,21 @@ export function makeFakeTransport({ user, registryWells = [], online = true, pro
       geo.crs_provenance = { ...(geo.crs_provenance || {}), deviation: provenance };
       return { stations: geo.deviation.length, provenanceSaved: true, provenanceError: null };
     },
+    // ---- U2-019: the registry well's datum (same contract as the Supabase transport) ----
+    async registryDatum(geoWellId) {
+      check();
+      const geo = registryWells.find((w) => w.id === geoWellId);
+      if (!geo) throw new Error('Could not load well: not found');
+      return { row: geo, ownedByMe: geo.user_id === u.id, counts: { tops: (geo.tops || []).length, curves: 0 } };
+    },
+    async writeRegistryDatum(geoWellId, next, opts = {}) {
+      check();
+      const geo = registryWells.find((w) => w.id === geoWellId);
+      if (!geo || geo.user_id !== u.id) throw new Error('Only the owner can change the depth reference of this well (organisation sharing is read-only).');
+      const built = datumPatch(geo, next, { record: opts.record || null });
+      Object.assign(geo, built.patch, opts.checkshots ? { checkshots: opts.checkshots, checkshots_provenance: opts.checkshotsProvenance || null } : {});
+      return { row: geo, dropped: built.dropped, columns: built.columns };
+    },
     /** U2-010: the registry port the staged publish runs on. knobs.registryFail = { op, after } fails that op after `after` successes. */
     registryOps(geoWellId) {
       const t = tableOf('registry_tops'); const i = tableOf('registry_intervals'); const c = tableOf('registry_core');
@@ -158,7 +174,7 @@ export function makeFakeTransport({ user, registryWells = [], online = true, pro
     async loadPrognosisSources(geoWellId, { offsetWellIds = [] } = {}) {
       const geoWell = registryWells.find((w) => w.id === geoWellId) || null;
       const src = prognosisSources ? prognosisSources(geoWellId) : {};
-      const offsets = registryWells.filter((w) => offsetWellIds.includes(w.id) && w.id !== geoWellId).map((w) => ({ id: w.id, name: w.name, kb_m: w.kb_m, deviation: w.deviation, tops: w.tops || [] }));
+      const offsets = registryWells.filter((w) => offsetWellIds.includes(w.id) && w.id !== geoWellId).map((w) => ({ id: w.id, name: w.name, kb_m: refElevOrNull(w), deviation: w.deviation, tops: w.tops || [] }));
       return { geoWell, tops: (geoWell && geoWell.tops) || [], offsetWells: offsets, holeSections: src.holeSections || [], casingPoints: src.casingPoints || [], plannedTrajectory: src.plannedTrajectory || null, pressureCurves: src.pressureCurves || null, loadedFrom: 'fake-registry' };
     },
     _wells: wsWells,

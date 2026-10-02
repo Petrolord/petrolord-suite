@@ -9,13 +9,19 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { getUserOrgRow } from '@/lib/orgContext';
+import { DATUM_COLUMNS } from '@/lib/wellDatum';
+import { isUnknownColumnError } from '@/lib/stateVersion';
 
 const isMissingRelation = (error) => error && (String(error.code) === '42P01' || /relation .* does not exist|Could not find the table/i.test(String(error.message || '')));
 
 export function makeSupabaseSink() {
   let userCache = null;
   let jobsAvailable = true;
+  const notes = [];
   return {
+    /** Notes the sink gathered while writing (read once by the importer). */
+    takeNotes() { return notes.splice(0, notes.length); },
+
     async currentUser() {
       if (userCache) return userCache;
       const { data, error } = await supabase.auth.getUser();
@@ -104,7 +110,17 @@ export function makeSupabaseSink() {
         }
         return;
       }
-      const { error } = await supabase.from(table).insert(rows);
+      let { error } = await supabase.from(table).insert(rows);
+      // WDM-U2-007: a package that carries the well datum model, imported
+      // where the registry has no datum columns yet (migration 20261002090000
+      // pending): the wells go in with their reference elevation in kb_m,
+      // and the import says what could not be kept
+      if (error && table === 'geo_wells' && (isUnknownColumnError(error) || /schema cache/i.test(String(error.message || '')))
+        && DATUM_COLUMNS.some((c) => String(error.message || '').includes(c))) {
+        const bare = rows.map((r) => { const o = { ...r }; for (const c of DATUM_COLUMNS) delete o[c]; return o; });
+        ({ error } = await supabase.from(table).insert(bare));
+        if (!error) notes.push(`${rows.length} well${rows.length === 1 ? '' : 's'} imported with the reference elevation only: this database does not hold the depth reference kind, environment, ground level, water depth or datum name yet.`);
+      }
       if (error) throw new Error(`Could not write ${table}: ${error.message}`);
     },
   };

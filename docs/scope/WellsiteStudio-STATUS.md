@@ -497,3 +497,13 @@ with the per-item build record. Branch `feat/ws-u2` (PR #847); engines PR Petrol
 - **Gates**: PR #847 CI green (jest 8 shards, build, vendored engines guard, Playwright 6 shards). Engines PR #297 merged by the programme lead (engines main fec3788); the Suite is re-pinned to it with 0 recorded deviations.
 - **Validation weaker than asked**: gas ratio numeric cases are hand-derived (formulas and limits were read on the page); WITSML was checked against the published XSDs but not schema-validated. Both are owner items in the upgrade doc.
 - **Help**: `WellsiteHelpGuide.jsx` now has 23 sections (Import with WITSML, Surveys, the strip log and d-exponent with the Pore Pressure link, the office view; lag check, gas ratios and the publish plan inside their sections).
+
+## 2026-10-02: KB correctable, datum model (U2-019, closes WS-U1-024)
+
+Built on PR #848 with WDM U2-007 (migration pending the owner's apply).
+Config, Header: Enter KB or Correct KB reviews what the change moves, then
+saves it to the registry well through the shared datum door (owner of the
+registry well only), with who, when and the reason, and updates this well's
+copy. A registry well with no reference elevation gives a new live well no
+KB (never 0); offset wells with none are left out of the offset comparison
+and named. Tests: `__tests__/upgradeU2Datum.test.jsx` (9).

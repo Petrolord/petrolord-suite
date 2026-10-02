@@ -13,6 +13,7 @@
 
 import { tvdssAtTwt, twtAtTvdss } from './timeDepth';
 import { unitToMetres } from '../../../../packages/engines/lib/crs/catalog';
+import { readWellDatum, tvdFromTvdss } from '../../../lib/wellDatum.js';
 
 const M_PER_FT = 0.3048;
 const isNull = (v, nullValue) => v == null || !Number.isFinite(v) || Math.abs(v) >= 1e29 || (Number.isFinite(nullValue) && Math.abs(v - nullValue) < 1e-6);
@@ -64,12 +65,13 @@ export function horizonAtWell(row, grid, well) {
   if (ws && ss && ws !== ss) return { problem: `in ${ws}, the horizon is in ${ss}` };
   const wm = metresPer(well.xy_unit); const smm = metresPer(row.xy_unit || well.xy_unit);
   if (!Number.isFinite(wm) || !Number.isFinite(smm)) return { problem: 'geographic coordinates' };
-  const kb = Number(well.kb_m) || 0;
+  const datum = well.frame?.datum || readWellDatum(well);
+  if (!datum.tvdssOk) return { problem: 'no depth reference elevation' };
   const time = row.z_domain === 'time';
   if (time && !(Array.isArray(well.checkshots) && well.checkshots.length >= 2)) return { problem: 'no checkshots for a time horizon' };
   // time rows are positive TWT; a negative value is a pre-2026-09-30 Seismolord row (SEIS-U1-008)
   const zToTvdss = (z) => (time ? tvdssAtTwt(well.checkshots, Math.abs(z)) : -z * (row.z_unit === 'ft' ? M_PER_FT : 1));
-  const tvdssToMd = (t) => (well.frame ? well.frame.tvdssToMd(t) : (t + kb >= 0 ? { md: t + kb, ambiguous: false } : null));
+  const tvdssToMd = (t) => { if (well.frame) return well.frame.tvdssToMd(t); const md = tvdFromTvdss(t, datum); return md >= 0 ? { md, ambiguous: false } : null; };
   let x = sx; let y = sy;
   let hit = null; let tvdss = NaN; let z = null;
   for (let k = 0; k < 12; k++) { // converges as (dip x tan(inclination))^k

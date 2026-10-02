@@ -127,10 +127,13 @@ export default function CorrelationHelpGuide() {
         </Callout>
         <Para>
           A well column also says when its vertical depth rests on an assumption: <Code>no survey: vertical</Code> when
-          the well has no deviation survey (TVD equals MD), <Code>no KB: TVDSS = TVD</Code> when no KB was entered (set
-          it in Well Data Manager, otherwise the well sits too deep by its KB height), and{' '}
+          the well has no deviation survey (TVD equals MD), <Code>no depth reference: TVDSS withheld</Code> when the well
+          states no reference elevation (it is then not drawn in TVDSS or in time, and a TVDSS tops file is refused for it;
+          set the depth reference in Well Data Manager, Header tab), <Code>no KB: TVDSS = TVD</Code> on a well saved before
+          the datum model with a KB of 0 (the well sits too deep by its KB height until it is entered), and{' '}
           <Code>stored bottom-up: read top-down</Code> for curves an early import stored in reverse order. TVDSS is below
-          mean sea level: the registry has no seismic reference datum yet.
+          the well's vertical datum (mean sea level when the well names none), through the same shared datum module every
+          app uses. The well's ground level and water depth are on its Header in Well Data Manager.
         </Para>
       </GuideSection>
 

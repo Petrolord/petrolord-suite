@@ -19,6 +19,7 @@ import { listWellsWithTops } from '@/lib/wellsRegistry';
 import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
 import { computeWellPath, positionAtMd } from '../engine/surveyMath';
 import { readDepthSurface, surfaceDomainOf } from '@/lib/readDepthSurface';
+import { readWellDatum } from '@/lib/wellDatum';
 
 const num = (v) => {
   const n = parseFloat(v);
@@ -101,8 +102,12 @@ const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
         if (!well || !top) throw new Error('Pick a well and a top.');
         const deviation = Array.isArray(well.deviation) && well.deviation.length >= 2
           ? well.deviation : [{ md: 0, inc: 0, azi: 0 }, { md: Math.max(top.md_m + 1, well.td_md_m || top.md_m + 1), inc: 0, azi: 0 }];
+        // WDM-U2-007: the target is placed at the top's subsea depth, so the
+        // well must state its reference elevation
+        const wd = readWellDatum(well);
+        if (!wd.tvdssOk) throw new Error(`${wd.tvdssReason} A target from a top is placed at the top's subsea depth.`);
         const path = computeWellPath(deviation, {
-          surfaceX: well.surface_x, surfaceY: well.surface_y, kb: well.kb_m || 0,
+          surfaceX: well.surface_x, surfaceY: well.surface_y, kb: wd.refElevM,
         });
         const pos = positionAtMd(deviation, path, Math.min(top.md_m, deviation[deviation.length - 1].md));
         if (!pos) throw new Error(`Top MD ${top.md_m} m is outside the well's surveyed range.`);

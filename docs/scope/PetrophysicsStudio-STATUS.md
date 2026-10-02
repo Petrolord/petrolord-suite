@@ -827,3 +827,11 @@ Branch `feat/petro-u2`, one commit per item; details and proving tests in
 - **C.** Parameter checks against the well's own logs (U2-015); a 25-per-day scan-read cap logged in `dai_llm_calls` (no migration) and backup-scale unwrapping in the digitizer (U2-018).
 - **Deferred:** U2-014 multi-mineral stage two, U2-016 preferences table (migration), U2-017 useProjectState extraction.
 - **Owner items:** merge engines PRs #285 and #286 (the Suite pins their commits; the merge was refused to this session as unreviewed); deploy `petro-scan-read`; Bateman-Konen 150/300 F chart readings; the equation page check. PETRO-U1-028 decided: the workstation stays desktop-first at 390 px (readable, no page scroll).
+
+## 2026-10-02: the well datum model (WDM U2-007, PR #848)
+
+Depth columns, exports, the report header, zone thickness and saturation
+height take the well's depth frame from `src/lib/wellDatum.js`. On a well with
+no reference elevation TVDSS is empty with the reason (exports, the depth
+note) and saturation height is refused (it is measured from the free-water
+level in TVDSS); MD and TVD are unaffected.

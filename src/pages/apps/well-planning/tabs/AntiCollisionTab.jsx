@@ -31,7 +31,7 @@ import {
   deserializeAcRun, DEFAULT_AC_PARAMS,
 } from '../services/acUtils';
 import { compositeStations } from '../services/surveyUtils';
-import { assembleOffsetCandidates } from '../services/offsetFrame';
+import { assembleOffsetCandidates, registryOffsetsWithoutDatum } from '../services/offsetFrame';
 import { loadSiteOffsetDesigns } from '../services/offsetLoader';
 import * as wpApi from '../services/wpApi';
 import LadderChart from '../charts/LadderChart';
@@ -118,6 +118,8 @@ const AntiCollisionTab = () => {
   const offsetCandidates = useMemo(() => assembleOffsetCandidates({
     wellbores, designsByWellbore, geoWells, wellbore, siteCrs: site?.crs,
   }), [wellbores, designsByWellbore, geoWells, wellbore, site?.crs]);
+
+  const offsetsNoDatum = useMemo(() => registryOffsetsWithoutDatum({ geoWells, wellbore, siteCrs: site?.crs }), [geoWells, wellbore, site?.crs]);
 
   const selectedOffsets = offsetCandidates.filter((c) => checkedOffsets[c.id]);
 
@@ -257,6 +259,12 @@ const AntiCollisionTab = () => {
                   <p className="text-[10px] text-pl-muted">
                     No candidates: other wellbores on this site need a saved design, and registry wells
                     need a deviation in the site CRS ({site?.crs || 'unset'}).
+                  </p>
+                )}
+                {offsetsNoDatum.length > 0 && (
+                  <p className="text-[10px] text-pl-warning-text" data-testid="ac-offsets-no-datum">
+                    Left out of the scan: {offsetsNoDatum.join(', ')}. {offsetsNoDatum.length === 1 ? 'This registry well states' : 'These registry wells state'} no
+                    depth reference elevation, so the vertical position against this well is not known. Set it in Well Data Manager (Header tab), then scan again.
                   </p>
                 )}
                 {offsetCandidates.map((c) => (

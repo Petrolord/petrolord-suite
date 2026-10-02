@@ -14,6 +14,7 @@ import { isDepthAlias } from '../engine/lasIndex';
 import { topsFromLasBlocks } from '../engine/lasTops';
 import { placeWellLocation } from '@/lib/crs/wellPlacement';
 import { UNKNOWN } from '@/lib/crs/tags';
+import { validateDatum } from '@/lib/wellDatum';
 
 /**
  * @param {Object} p
@@ -28,6 +29,14 @@ import { UNKNOWN } from '@/lib/crs/tags';
  * @param {{cancelled: boolean}} [p.cancel] set cancelled = true to stop after the current file
  * @returns {Promise<{results: Object[], autoSetProject: ?string}>}
  */
+/** A header proposal as a saveable datum: fields that fail the shared checks are left out, never guessed. */
+function batchDatum(fields) {
+  const full = validateDatum(fields);
+  if (!full.errors.length) return full.datum;
+  const bare = validateDatum({ refKind: fields.refKind, refElevM: fields.refElevM, elevUnit: fields.elevUnit });
+  return bare.errors.length ? { refKind: null, refElevM: null } : bare.datum;
+}
+
 export async function runBatchImport({
   backend, rows, files, typedXy = {}, xyUnit = 'm', crsTag = null, crsContext = {}, onProgress = () => {}, cancel = null,
 }) {
@@ -63,7 +72,10 @@ export async function runBatchImport({
           }, crsContext || {});
           const well = await backend.saveWell({
             name: row.wellName, uwi: row.uwi || null, surfaceX: placed.surfaceX, surfaceY: placed.surfaceY,
-            kbM: row.kbM ?? 0, tdMdM: row.tdMdM ?? null, crs: placed.crs, xyUnit: placed.xyUnit,
+            // a missing KB is "not set", never 0; the header's datum proposal
+            // is the one the batch table showed
+            ...(row.datum ? { datum: batchDatum(row.datum) } : { kbM: row.kbM ?? null }),
+            tdMdM: row.tdMdM ?? null, crs: placed.crs, xyUnit: placed.xyUnit,
             crsProvenance: { ...placed.crsProvenance, source: 'wdm-batch-las' }, unitsNote: parsed.meta?.suggestedHeader?.unitsNote || null,
           });
           if (!autoSetProject && placed.autoSetProject) autoSetProject = placed.autoSetProject;

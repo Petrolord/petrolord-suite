@@ -11,6 +11,7 @@ import { cubeEdges, niceTicks } from '@/components/viewer3d/math3d';
 import { STRUCTURE_LUT } from '@/components/maps/lut';
 import { isNull, sampleAtXY, gridXY } from '@/lib/gridding/gridmath';
 import { minCurvature } from '../engine/wellties';
+import { refElevOrNull } from '@/lib/wellDatum';
 
 export const SURFACE_COLORS = ['#4ade80', '#60a5fa', '#facc15', '#f472b6', '#c084fc', '#f87171'];
 
@@ -137,7 +138,10 @@ export function buildFrameworkScene(built, wells, opts = {}) {
   const margin = 0.15 * zRange;
   for (const w of wells || []) {
     if (!Number.isFinite(w.surface_x) || !Number.isFinite(w.surface_y)) continue;
-    const traj = minCurvature(w.deviation || [], w.kb_m || 0, w.surface_x * k, w.surface_y * k)
+    // a well with no reference elevation has no subsea path to draw (the build notes name it)
+    const refElev = refElevOrNull(w);
+    if (refElev === null) continue;
+    const traj = minCurvature(w.deviation || [], refElev, w.surface_x * k, w.surface_y * k)
       .map((st) => ({ ...st, x: st.x / k, y: st.y / k }));
     const pts = [];
     for (const st of traj) {

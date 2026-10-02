@@ -7,6 +7,10 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { kbStatus } from '../services/wellContext';
+import { readWellDatum, refElevOrNull } from '@/lib/wellDatum';
+
+// U2-019: the registry well's reference elevation through the shared datum module (null when it states none)
+const registryKb = (w) => refElevOrNull(w);
 
 export default function WellSetup({ backend, onCreated, onStatus, initialGeoId = null }) {
   const [registry, setRegistry] = useState(null);
@@ -51,10 +55,10 @@ export default function WellSetup({ backend, onCreated, onStatus, initialGeoId =
       <label className="block text-xs text-pl-text">Registry well
         <select value={geoId} onChange={(e) => setGeoId(e.target.value)} data-testid="ws-setup-well" className={inp}>
           <option value="">{registry ? 'choose a well' : 'loading wells'}</option>
-          {(registry || []).map((w) => <option key={w.id} value={w.id}>{w.name}{Number.isFinite(w.kb_m) ? ` (KB ${w.kb_m} m)` : ''}</option>)}
+          {(registry || []).map((w) => <option key={w.id} value={w.id}>{w.name}{registryKb(w) !== null ? ` (${readWellDatum(w).refLabel} ${registryKb(w)} m)` : ''}</option>)}
         </select>
       </label>
-      {(() => { const g = (registry || []).find((w) => w.id === geoId); const k = g ? kbStatus(g.kb_m == null ? NaN : Number(g.kb_m)) : { ok: true }; return k.ok ? null : <div className="text-xs text-pl-warning-text" data-testid="ws-setup-kb-note">{k.note}</div>; })()}
+      {(() => { const g = (registry || []).find((w) => w.id === geoId); const k = g ? kbStatus(registryKb(g) === null ? NaN : registryKb(g)) : { ok: true }; return k.ok ? null : <div className="text-xs text-pl-warning-text" data-testid="ws-setup-kb-note">{k.note}</div>; })()}
       <div className="grid grid-cols-2 gap-2">
         {[['field', 'Field'], ['operator', 'Operator'], ['rig', 'Rig'], ['country', 'Country']].map(([k, label]) => (
           <label key={k} className="block text-xs text-pl-text">{label}

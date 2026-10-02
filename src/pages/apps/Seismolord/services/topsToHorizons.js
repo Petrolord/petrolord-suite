@@ -8,6 +8,9 @@
 import { guessCurveKind } from '@/pages/apps/WellDataManager/engine/lasImport';
 import { effectiveCheckshots } from './wellsService';
 
+/** Why a well with no reference elevation is left out of Tops to Horizons. */
+export const NO_DATUM_REASON = 'left out: no depth reference elevation (set it in Well Data Manager, Header tab)';
+
 /**
  * Wells in the pipeline's shape (placed, CRS-converted viewer wells).
  * @param {Array} wells viewer wells {id, name, surfaceX, surfaceY, kbM,
@@ -15,7 +18,9 @@ import { effectiveCheckshots } from './wellsService';
  * @param {Map<string, ?Object>} [logsByWell] wellId -> {md, dtUsPerM, rho}
  */
 export function pipelineWells(wells, logsByWell = new Map()) {
-  return wells.map((w) => {
+  // WDM-U2-007: a well with no reference elevation has no subsea depth for
+  // its tops, so it takes no part (the dialog names it; see NO_DATUM_REASON)
+  return wells.filter((w) => w.datumOk !== false).map((w) => {
     const eff = effectiveCheckshots(w);
     const td = w.path && w.path.length ? w.path[w.path.length - 1].md : null;
     return {

@@ -26,7 +26,7 @@ import { useWellCurvesCache } from '@/components/wells/useWellCurvesCache';
 import { resolveTracks } from '@/components/wells/layout/resolveTracks';
 import { buildDefaultLayouts, migrateLayouts, activeTemplate } from '@/components/wells/layout/layoutSchema';
 import { depthLabel, fromDisplay } from '@/components/wells/depthModes';
-import { makeDepthFrame } from '../../WellDataManager/engine/checkshots';
+import { makeWellFrame } from '@/lib/wellDatum';
 import SectionExplorer from './SectionExplorer';
 import SectionControls from './SectionControls';
 import SectionPicker from './SectionPicker';
@@ -174,7 +174,7 @@ export default function CorrelationWorkstation({
     if (!ln) return;
     const framed = (wells || []).map((w) => {
       let frame = null;
-      try { frame = makeDepthFrame({ deviation: w.deviation, kbM: w.kb_m, tdMdM: w.td_md_m }); } catch { frame = null; }
+      try { frame = makeWellFrame(w); } catch { frame = null; }
       return { ...w, frame };
     });
     const r = wellsInCorridor(framed, ln.points, { halfWidthM: ln.halfWidthM, crs: ln.crs, unit: ln.unit });

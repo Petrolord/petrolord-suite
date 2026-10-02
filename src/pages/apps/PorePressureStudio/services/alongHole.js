@@ -7,6 +7,8 @@
 // onshore well whose ground is not at sea level, puts the mudline at
 // another depth below the model's datum. Pure.
 
+import { tvdssFromTvd, elevationFromTvdss, datumFromElevation } from '../../../../lib/wellDatum';
+
 /**
  * Depth of the mudline (or ground) below the seismic datum.
  * @param {{waterDepthM?: number, mudlineMdM?: number, seismicDatumElevM?: number}} params
@@ -19,7 +21,8 @@ export function datumToMudline(params = {}, { kbM = null } = {}) {
   const ml = Number(params.mudlineMdM) || 0;
   let mudlineElevM; let note = null;
   if (wd > 0) mudlineElevM = -wd;
-  else if (Number.isFinite(kbM) && ml > 0) mudlineElevM = kbM - ml; // onshore: ground below the KB by the mudline MD
+  // onshore: the ground is the mudline MD below the KB; its elevation through the shared datum module
+  else if (Number.isFinite(kbM) && ml > 0) mudlineElevM = elevationFromTvdss(tvdssFromTvd(ml, datumFromElevation(kbM)));
   else {
     mudlineElevM = 0;
     note = 'Onshore with no KB and mudline MD: the ground is taken at sea level.';

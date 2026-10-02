@@ -30,6 +30,8 @@ import { isDepthAlias } from '../engine/lasIndex';
 import { crsUnit } from '@/lib/crs';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { editCell, fromDisp, fmtDepth, unitText } from '../engine/displayUnits';
+import { datumFromEntry, datumToEntry } from '@/lib/wellDatum';
+import { DatumFields, DatumProblems, EMPTY_DATUM_FIELDS } from '@/components/wells/DatumEditor';
 
 const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs w-full';
 const thCls = 'text-left font-medium text-pl-muted pr-3 pb-1';
@@ -81,6 +83,10 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
   const [keep, setKeep] = useState({});             // mnemonic -> bool
   const [target, setTarget] = useState('new');      // 'new' | existing well id
   const [head, setHead] = useState(emptyHeader);
+  // WDM-U2-007: the datum of the new well, pre-filled from the LAS header as
+  // a proposal the user reads, corrects and confirms by importing
+  const [datumFields, setDatumFields] = useState(EMPTY_DATUM_FIELDS);
+  const datumColumns = typeof backend.hasDatumColumns === 'function' ? backend.hasDatumColumns() !== false : true;
   const [names, setNames] = useState({});           // mnemonic -> save-as name
   const [onClash, setOnClash] = useState({});       // mnemonic -> 'suffix' | 'replace'
   const [existing, setExisting] = useState({ wellId: null, logs: [], depth: null, busy: false });
@@ -168,10 +174,14 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
         uwi: s.uwi || '',
         x: s.surfaceX != null ? String(s.surfaceX) : '',
         y: s.surfaceY != null ? String(s.surfaceY) : '',
-        kb: s.kbM != null ? editCell(s.kbM, u, 3) : '',
+        kb: '',
         td: s.tdMdM != null ? editCell(s.tdMdM, u, 2) : '',
         crs: '',
       });
+      const prop = s.datumProposal?.fields;
+      setDatumFields(prop
+        ? datumToEntry({ refKind: prop.refKind, refElevM: prop.refElevM, groundElevM: prop.groundElevM, environment: prop.environment, verticalDatum: prop.verticalDatum }, u, 3)
+        : { ...EMPTY_DATUM_FIELDS, refElev: s.kbM != null ? editCell(s.kbM, u, 3) : '', refKind: s.kbM != null ? 'KB' : '' });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -211,8 +221,9 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
           throw new Error('Enter the surface X and Y in the coordinate system chosen below '
             + '(this file does not carry them).');
         }
-        const kbM = head.kb.trim() === '' ? 0 : fromDisp(head.kb, u);
-        if (!Number.isFinite(kbM)) throw new Error(`KB must be a number (${u} above datum).`);
+        // a blank elevation is "not set", never 0; an elevation with no kind is a KB
+        const entry = datumFromEntry({ ...datumFields, refKind: datumFields.refKind || (datumFields.refElev.trim() !== '' ? 'KB' : '') }, u);
+        if (entry.errors.length) throw new Error(entry.errors[0]);
         const tdMdM = head.td.trim() === '' ? null : fromDisp(head.td, u);
         if (tdMdM !== null && !(tdMdM > 0)) throw new Error(`TD must be a positive number (${u} MD).`);
         // Structured placement: declared CRS -> Project CRS (Phase 4).
@@ -231,7 +242,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
           uwi: head.uwi.trim() || null,
           surfaceX: placed.surfaceX,
           surfaceY: placed.surfaceY,
-          kbM,
+          datum: entry.datum,
           tdMdM,
           crs: placed.crs,
           xyUnit: placed.xyUnit,
@@ -556,9 +567,6 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                     <input className={inputCls} value={head.y} onChange={setHeadField('y')} data-testid="wdm-las-y"
                       title="Northing in the coordinate system chosen below" />
                   </HeadField>
-                  <HeadField label={`KB (${u} above datum)`}>
-                    <input className={inputCls} value={head.kb} onChange={setHeadField('kb')} data-testid="wdm-las-kb" />
-                  </HeadField>
                   <HeadField label={`TD (${u} MD)`}>
                     <input className={inputCls} value={head.td} onChange={setHeadField('td')} data-testid="wdm-las-td" />
                   </HeadField>
@@ -571,6 +579,22 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                   <HeadField label="CRS note (optional context)">
                     <input className={inputCls} value={head.crs} onChange={setHeadField('crs')} data-testid="wdm-las-crsnote" />
                   </HeadField>
+                  <div className="col-span-2 md:col-span-4 rounded border border-pl-border p-2 space-y-1.5" data-testid="wdm-las-datum">
+                    <div className="text-[11px] uppercase tracking-wider text-pl-muted">Depth reference</div>
+                    {(() => {
+                      const prop = parsed.meta.suggestedHeader?.datumProposal;
+                      if (!prop || !prop.found.length) return <p className="text-[11px] text-pl-muted" data-testid="wdm-las-datum-source">The file header says nothing about the depth reference. Enter it here, or leave it not set and enter it later on the Header tab.</p>;
+                      return (
+                        <div className="text-[11px] text-pl-muted space-y-0.5" data-testid="wdm-las-datum-source">
+                          <div>Proposed from the file header ({prop.found.map((x) => `${x.mnemonic} ${x.text}`).join(', ')}). Check it before importing: it is saved as shown below.</div>
+                          {prop.conflicts.map((c) => <div key={c} className="text-pl-warning-text" data-testid="wdm-las-datum-conflict">{c}</div>)}
+                          {prop.notes.map((n) => <div key={n}>{n}</div>)}
+                        </div>
+                      );
+                    })()}
+                    <DatumFields fields={datumFields} onChange={setDatumFields} unit={u} columns={datumColumns} testIdPrefix="wdm-las-datum" elevTestId="wdm-las-kb" />
+                    <DatumProblems {...(() => { const r = datumFromEntry({ ...datumFields, refKind: datumFields.refKind || (datumFields.refElev.trim() !== '' ? 'KB' : '') }, u); return { errors: r.errors, warnings: r.warnings }; })()} testIdPrefix="wdm-las-datum" />
+                  </div>
                   <div className="col-span-2 md:col-span-4">
                     <CrsPicker
                       value={crsTag || crsContext?.projectTag || null}

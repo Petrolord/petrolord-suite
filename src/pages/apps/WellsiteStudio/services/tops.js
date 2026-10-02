@@ -73,11 +73,17 @@ export function callParams({ name, depth, status, basis, confidence = null, evid
   return { role: 'official', status, name: name.trim(), formationKey: formationKey(name), confidence, basis: basis.trim(), evidenceIds, unitId, depth: { ...depth, kind: 'logged' } };
 }
 
+/** Offset wells that state no reference elevation: they have no subsea depth to compare (WS-U1-024). */
+export const offsetWellsWithoutDatum = (offsetWells) => (offsetWells || []).filter((w) => !Number.isFinite(w.kb_m));
+
 /** Offset tops from registry rows: TVDSS through each offset well's own survey. */
 export function offsetTopsFrom(offsetWells) {
   const out = [];
   for (const w of offsetWells) {
-    const ctx = { kbElevM: w.kb_m ?? 0, survey: Array.isArray(w.deviation) && w.deviation.length >= 2 ? { stations: w.deviation, version: 'registry' } : null };
+    if (!Number.isFinite(w.kb_m)) continue; // no reference elevation: left out, and the load says so
+    // w.kb_m is the offset well's reference elevation as the transport read it through the datum
+    // module: null when the well states none, and the comparison then leaves that well out
+    const ctx = { kbElevM: Number.isFinite(w.kb_m) ? w.kb_m : null, survey: Array.isArray(w.deviation) && w.deviation.length >= 2 ? { stations: w.deviation, version: 'registry' } : null };
     for (const t of w.tops || []) {
       const c = mdToTvd(t.md_m, ctx);
       out.push({ well_id: w.id, well_name: w.name, name: t.name, formation_key: formationKey(t.name), md_m: t.md_m, tvd_m: c.tvdM, tvdss_m: c.tvdssM, surface_type: t.surface_type || 'formation_top' });

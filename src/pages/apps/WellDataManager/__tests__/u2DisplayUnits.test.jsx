@@ -96,7 +96,7 @@ describe('the workstation in feet', () => {
     expect(screen.getByText('TVDSS (ft)')).toBeInTheDocument();
     expect(screen.getByTestId('wdm-status-units')).toHaveTextContent('Depths in ft (stored in m)');
     fireEvent.click(within(detail).getByRole('button', { name: /^Header/ }));
-    expect(screen.getByText('KB (ft)')).toBeInTheDocument();
+    expect(screen.getByText('KB elevation (ft)')).toBeInTheDocument();
     expect(screen.getByText('TD (ft MD)')).toBeInTheDocument();
     fireEvent.click(within(detail).getByRole('button', { name: /^Deviation/ }));
     expect(screen.getByText('MD (ft)')).toBeInTheDocument();

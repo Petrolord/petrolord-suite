@@ -6,6 +6,29 @@
 export const PUBLISH_ENGINE = 'well-design-studio-wd5';
 
 /**
+ * The wellbore's datum as the registry's datum model reads it (WDM-U2-007).
+ * The wellbore dialog stores a blank KB as 0, so a KB of 0 is "not
+ * entered" and gives no datum: the published well is then left not set.
+ * @returns {?{refKind: 'KB', refElevM: number, environment: ?string, waterDepthM: ?number, groundElevM: ?number}}
+ */
+export function wellboreDatum(wellbore) {
+  const kb = Number(wellbore?.kb_elev_m);
+  if (wellbore?.kb_elev_m == null || !Number.isFinite(kb) || kb === 0) return null;
+  const water = Number(wellbore?.water_depth_m);
+  const ground = Number(wellbore?.ground_elev_m);
+  const offshore = wellbore?.water_depth_m != null && Number.isFinite(water) && water > 0;
+  // a ground level above the KB is a leftover site default, never a datum
+  const onshore = !offshore && wellbore?.ground_elev_m != null && Number.isFinite(ground) && ground <= kb;
+  return {
+    refKind: 'KB',
+    refElevM: kb,
+    environment: offshore ? 'offshore' : onshore ? 'onshore' : null,
+    waterDepthM: offshore ? water : null,
+    groundElevM: onshore ? ground : null,
+  };
+}
+
+/**
  * The geo_wells shape for a design's grid-metre stations. Deviation is
  * the registry contract ({md, inc, azi} ascending, grid azimuths,
  * metres) — the same shape Seismolord's lattice path builder consumes.
@@ -32,7 +55,9 @@ export function preparePublishPayload({
     uwi: wellbore.uwi || null,
     surfaceX: wellbore.head_x,
     surfaceY: wellbore.head_y,
-    kbM: wellbore.kb_elev_m ?? 0,
+    // the reference elevation, or null when the wellbore has none (never 0)
+    kbM: wellboreDatum(wellbore)?.refElevM ?? null,
+    datum: wellboreDatum(wellbore),
     tdMdM: deviation[deviation.length - 1].md,
     crs: site?.crs || null,
     xyUnit: site?.xy_unit || null,
@@ -56,14 +81,19 @@ export function preparePublishPayload({
   };
 }
 
-/** The registry PATCH shape for a republish onto an existing row. */
+/**
+ * The registry PATCH shape for a republish onto an existing row. The datum
+ * is not part of it: a republish never overwrites a depth reference the
+ * registry well already states (publishPlan sets it only when the registry
+ * has none; a correction is made in Well Data Manager, which shows what
+ * moves first).
+ */
 export function publishPatchFromPayload(payload) {
   return {
     name: payload.name,
     uwi: payload.uwi,
     surface_x: payload.surfaceX,
     surface_y: payload.surfaceY,
-    kb_m: payload.kbM,
     td_md_m: payload.tdMdM,
     crs: payload.crs,
     xy_unit: payload.xyUnit,

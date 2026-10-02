@@ -78,7 +78,7 @@ describe('QC flags (engine)', () => {
     expect(g1.bottomUpLogs).toEqual(['TDEP', 'GR']);
     expect(inv.counts.bottom_up).toBe(1);
     const csv = inventoryCsv(inv.rows, 'ft').split('\n');
-    expect(csv[0]).toContain('KB (ft)');
+    expect(csv[0]).toContain('Reference elevation (ft)');
     expect(csv[1]).toContain('Curves stored bottom-up');
   });
 });

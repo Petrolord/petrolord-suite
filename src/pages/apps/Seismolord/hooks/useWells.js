@@ -8,13 +8,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { listWells, saveWell, deleteWell } from '../services/wellsService';
 import { listZones } from '@/lib/wellsRegistry';
+import { readWellDatum, refElevOrNull } from '@/lib/wellDatum';
 import { computeWellPath, verticalWellPath } from '../engine/wellPath';
 import { wellColor } from '../components/workspace/interpretationColors';
 
 /** World path of a well row (deviated via minimum curvature; header-only
  *  rows are vertical). Returns null when the row can't produce one. */
 export function wellWorldPath(row) {
-  const opts = { surfaceX: row.surface_x, surfaceY: row.surface_y, kb: row.kb_m || 0 };
+  // WDM-U2-007: the reference elevation through the shared datum module. A
+  // well with none still gets its plan-view path (x, y against MD and TVD),
+  // built on 0; its subsea depths are never used, because every depth and
+  // time consumer skips it on `datumOk` and says why.
+  const opts = { surfaceX: row.surface_x, surfaceY: row.surface_y, kb: refElevOrNull(row) ?? 0 };
   try {
     if (Array.isArray(row.deviation) && row.deviation.length >= 2) {
       return computeWellPath(row.deviation, opts);
@@ -69,7 +74,10 @@ export default function useWells() {
       crs_provenance: row.crs_provenance || null,
       surfaceX: row.surface_x,
       surfaceY: row.surface_y,
-      kbM: row.kb_m || 0,
+      kbM: refElevOrNull(row) ?? 0,
+      // false when the well states no reference elevation: not drawn in depth
+      // or time, with the reason on its Explorer row (WellDrawBadge)
+      datumOk: readWellDatum(row).tvdssOk,
       tops: row.tops || [],
       checkshots: row.checkshots || [],
       // W3.3 tie-derived set (effectiveCheckshots prefers it); it was

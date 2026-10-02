@@ -21,6 +21,7 @@ export const WELL_REASONS = {
   noPath: 'No well path; add a TD or a deviation survey in Well Data Manager.',
   outsideArea: 'The well path does not cross this survey.',
   outsideWindow: 'The well is outside the survey time window.',
+  noDatum: 'No depth reference elevation, so the well has no subsea depth to place on the seismic; set the depth reference in Well Data Manager (Header tab).',
 };
 
 /** Default corridor half-width in lattice cells (the engine default). */
@@ -49,6 +50,8 @@ export function buildWellSections({
   const maxTwtMs = ((geom.ns - 1) * dtUs) / 1000;
   const skip = (w, code) => skipped.push({ id: w.id, name: w.name, code, reason: WELL_REASONS[code] });
   for (const w of wells) {
+    // WDM-U2-007: a well with no reference elevation is refused, never placed on an assumed 0
+    if (w.datumOk === false) { skip(w, 'noDatum'); continue; }
     if (!normalizeStations(w)) { skip(w, 'noPath'); continue; }
     const timeConv = makeTvdssToTwt({
       checkshots: checkshotsOf ? checkshotsOf(w) : w.checkshots,

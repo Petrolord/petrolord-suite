@@ -7,10 +7,11 @@
 // float32 cast).
 
 import { writeLas } from '../../WellDataManager/engine/lasWrite';
-import { makeDepthFrame, M_PER_FT } from '../../WellDataManager/engine/checkshots';
+import { M_PER_FT } from '../../WellDataManager/engine/checkshots';
 import { PIPELINE_VERSION } from '../engine/pipeline';
 import { probabilisticCsv } from './probabilistic';
 import { derivedInputUnit } from '@/components/wells/curveUnits';
+import { makeWellFrame } from '@/lib/wellDatum';
 
 // canonical registry units for the mapped inputs (SI at import) and
 // the published outputs — used when the inventory has no unit string
@@ -65,7 +66,7 @@ const conv = (v, u) => (u === 'ft' ? v / M_PER_FT : v);
  */
 export function depthColumns(depthM, { well = null, depthUnit = 'm', columns = ['md'], primary = 'md' } = {}) {
   const o = normOpts({ well, depthUnit, columns, primary });
-  const frame = makeDepthFrame({ deviation: well?.deviation, kbM: well?.kb_m ?? 0, tdMdM: well?.td_md_m });
+  const frame = makeWellFrame(well);
   const notes = [];
   const needsFrame = o.columns.some((c) => c !== 'md');
   if (needsFrame && frame.isVertical) notes.push('No deviation survey: TVD assumes a vertical well (TVD = MD).');
@@ -88,7 +89,11 @@ export function depthColumns(depthM, { well = null, depthUnit = 'm', columns = [
     if (extrapolated) notes.push(`${extrapolated} samples lie below the last survey station; TVD there follows the final tangent.`);
     cols.tvd = tvd;
     cols.tvdss = tvdss;
-    if (o.columns.includes('tvdss')) notes.push(`TVDSS uses KB ${Number(well?.kb_m ?? 0)} m.`);
+    if (o.columns.includes('tvdss')) {
+      notes.push(frame.datum.tvdssOk
+        ? `TVDSS uses ${frame.datum.refLabel} ${Number(frame.datum.refElevM)} m.${frame.datum.state === 'legacy-zero' ? ' The KB is 0 in the registry, which may mean not entered.' : ''}`
+        : `${frame.datum.tvdssReason} The TVDSS column is empty.`);
+    }
   }
   const order = [o.primary, ...o.columns.filter((c) => c !== o.primary)];
   const ordered = order.map((key, i) => {
@@ -200,7 +205,7 @@ export function zonesCsv(zones, summaries, opts = null) {
     return `${lines.join('\n')}\n${probBlock}`;
   }
   const u = unitTxt(o.depthUnit);
-  const frame = makeDepthFrame({ deviation: o.well?.deviation, kbM: o.well?.kb_m ?? 0, tdMdM: o.well?.td_md_m });
+  const frame = makeWellFrame(o.well);
   const depthOf = (md, key) => {
     if (key === 'md') return conv(md, o.depthUnit);
     try {
@@ -243,7 +248,8 @@ export function buildLas(wellData, outputs, params, { wellName, projectId, well 
     ordered = [...dc.ordered.map((d) => ({ key: d.mnemonic, unit: d.unit, descr: d.descr, data: d.data })), ...cols.filter((_, i) => i !== depthIdx)];
     paramRows.push(
       { name: 'DEPTREF', value: DEPTH_MNEMONIC[o.primary], descr: 'depth reference of the DEPT curve' },
-      { name: 'EKB', value: Number(conv(o.well?.kb_m ?? 0, o.depthUnit).toFixed(4)), unit: unitStr(o.depthUnit), descr: 'KB elevation above datum' },
+      // the datum as the well states it; a well with no reference elevation writes none
+      ...(dc.frame.datum.tvdssOk ? [{ name: dc.frame.datum.refKind === 'KB' ? 'EKB' : 'APD', value: Number(conv(dc.frame.datum.refElevM, o.depthUnit).toFixed(4)), unit: unitStr(o.depthUnit), descr: `${dc.frame.datum.refLabel} elevation above ${dc.frame.datum.verticalDatum || 'datum'}` }] : []),
       { name: 'DEPTHSRC', value: dc.frame.isVertical ? 'vertical assumption' : 'deviation survey, minimum curvature', descr: 'how TVD was derived' },
     );
   } else {
