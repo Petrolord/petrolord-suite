@@ -84,9 +84,11 @@ test.describe('PL6: three viewports, both themes', () => {
         test.setTimeout(240000);
         const errors = watchErrors(page);
         await page.setViewportSize({ width: w, height: h });
-        await page.emulateMedia({ colorScheme: dark ? 'dark' : 'light' });
         await openCase(page, DAKE);
-        if (dark) await page.evaluate(() => document.documentElement.classList.add('dark'));
+        if (dark) {
+          await page.getByTestId('theme-toggle').click();
+          await expect(page.locator('html')).toHaveAttribute('data-pl-active-theme', 'dark');
+        }
         await run(page);
         await expect(page.getByTestId('mbal-result-card')).toContainText('OOIP');
         await expect(page.getByTestId('mbal-result-card')).toContainText('MMSTB');
