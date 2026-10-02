@@ -356,24 +356,18 @@ const DCAHelpContent = () => {
             11. Sending a Forecast Downstream
           </AccordionTrigger>
           <AccordionContent className="text-sm text-pl-muted space-y-3 pb-4 pt-1">
-            <div className="bg-pl-danger-bg border border-pl-danger/40 text-pl-text p-3 rounded flex gap-2">
-              <AlertTriangle aria-hidden="true" className="text-pl-danger-text shrink-0" size={16} />
-              <div className="text-xs">
-                <strong className="text-pl-danger-text block mb-1">The Integration panel does not transmit anything yet</strong>
-                The NPV &amp; Economics and FDP Accelerator cards in the right sidebar report a successful
-                sync, but the functions behind them are placeholders that log to the console and return
-                success after a short delay. No forecast data leaves this app through them, and the call
-                sites pass an empty payload. Ignore the success message.
-              </div>
-            </div>
             <p className="text-xs">
-              <strong>Use the CSV export instead.</strong> The Export CSV button on the Forecast Results tab
-              writes the rate and cumulative profile, and that file is the working handoff into NPV Scenario
-              Builder, Petroleum Economics Studio and FDP Accelerator until the panel is wired.
+              <strong>This app has no direct send to another app yet.</strong> The two cards that used to sit
+              in the right sidebar showed a tick and sent nothing, so they have been removed.
             </p>
             <p className="text-xs">
-              For a route that genuinely carries a profile between apps today, build the case in Forecast
-              Scenario Hub instead. Petroleum Economics Studio reads saved scenario sets from that app
+              <strong>Use the CSV export.</strong> The Export CSV button on the Forecast Results tab
+              writes the rate and cumulative profile, and that file is the working handoff into NPV Scenario
+              Builder, Petroleum Economics Studio and FDP Accelerator.
+            </p>
+            <p className="text-xs">
+              For a route that carries a profile between apps today, build the case in Forecast
+              Scenario Hub. Petroleum Economics Studio reads saved scenario sets from that app
               directly.
             </p>
           </AccordionContent>

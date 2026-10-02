@@ -37,14 +37,14 @@ const COVERAGE = {
     /Forecast Results/i,
     /well grouping/i,
     /group rollup/i,
-    /Integration panel/i,
     /gasRate/,
     // Live defect: the Monte Carlo curve consumes the per-day fitted decline
     // as if it were per year, so probabilistic EUR is ~25x high. The guide
     // must keep warning until the engine fix lands.
     /probabilistic EUR was overstated/i,
-    // The Integration panel cards report success but transmit nothing.
-    /does not transmit anything yet/i,
+    // H1: the Integration cards that showed success and sent nothing are
+    // removed; the guide says there is no direct send and names the CSV.
+    /has no direct send to another app yet/i,
     // Fits are keyed by stream, so switching wells silently reattributes them.
     /belongs to the stream and does not follow the well/i,
   ],
