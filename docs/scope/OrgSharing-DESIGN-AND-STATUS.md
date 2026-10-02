@@ -341,18 +341,24 @@ redeployed. Production shows them after the next upload.
   and policies as designed; `pentest.sql` passes inside a rolled-back
   transaction; with the guard trigger dropped the pentest fails (negative
   control); a pre-migration payload still saves.
-- `tools/validation/org-sharing/pentest.sql`: 495 checks as real roles
+- `tools/validation/org-sharing/pentest.sql`: 504 checks as real roles
   (`authenticated` with a JWT sub, `anon`): owner reads and writes; a
   colleague reads a shared record, cannot read a private one, cannot write a
   view-only one, writes only while holding the check-out; the check-out
   refused, expired, taken over and released; a stale version refused; forged
   `updated_by`, `version` and check-out columns ignored; nobody shares into a
   foreign organisation; another organisation and anon read nothing; nobody
-  writes the log; the same for wells and their tops. It ends by raising, so
+  writes the log; the same for wells, their tops and the wells bucket. It ends
+  by raising, so
   the transaction it runs in cannot commit.
 - The same pentest was run against the live database inside one rolled-back
-  transaction with both migrations (2026-10-02): 495 of 495; a read-only
-  check afterwards found nothing left behind.
+  transaction with both migrations (2026-10-02): 504 of 504; a read-only
+  check afterwards found nothing left behind. On a Supabase database every
+  direct SQL delete on storage tables is refused by the platform (deletes go
+  through the Storage API), so the delete policies of the wells bucket are
+  proved on the scratch run. The scratch pentest also caught a real defect
+  before it shipped: the first draft of the bucket policies read
+  `geo_wells.name` for the object path (a bare `name` inside the sub-select).
 - jest: `src/lib/recordSharing/__tests__/recordSharing.test.jsx` and one
   `orgSharing.test.jsx` per app, each with the before-apply state.
 - Playwright: `e2e/org-sharing.spec.js` on the `/dev` harnesses.

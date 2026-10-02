@@ -2,7 +2,7 @@
  * Organisation sharing: the rules, the store and the shared control, on the
  * in-memory database that mirrors the migrations
  * (20261002100000_suite_record_sharing.sql, 20261002110000_geo_wells_team_editing.sql).
- * The SQL itself is proved by tools/validation/org-sharing (495 checks on a
+ * The SQL itself is proved by tools/validation/org-sharing (504 checks on a
  * scratch Postgres and, rolled back, on the live database).
  * Negative control on origin/main be1fb3ef4: none of this existed (every
  * record owner-only, no version check, no author stamp, no log).
