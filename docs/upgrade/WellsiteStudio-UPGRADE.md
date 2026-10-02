@@ -205,7 +205,7 @@ Recorded verbatim.
 | U2-016 | End of well report | Built on the composite log (U2-001); next round, once that has been used on a well. |
 | U2-017 | Sidewall cores and laboratory custody | Size M, not demo-visible; after NAPE. |
 | U2-018 | Assisted description | Size L; the record must stay the geologist's; after NAPE. |
-| U2-019 | KB and datum model | A geo_wells migration shared with WDM U2-007; shared-registry DDL needs a second engineer. |
+| U2-019 | KB and datum model | Was deferred (a geo_wells migration shared with WDM U2-007). Built 2026-10-02 on PR #848, migration pending the owner's apply; see the end of this file. |
 
 ### Step 2 build record (branch `feat/ws-u2`)
 
@@ -277,3 +277,14 @@ Recorded verbatim.
 6. A registry survey sent from Wellsite records its source in `geo_wells.crs_provenance.deviation`. Assigning a CRS by hand in Well Data Manager rewrites that provenance object and drops the survey source line (the survey itself stays).
 7. Still open from Step 1: the three Release 1 walks (WS1 validation review, WS6 PWA install, WS9 simulated shift).
 8. Next round: U2-012 top scoring; U2-016 end of well report on the strip log; U2-014 the live WITSML feed; kicks and losses as typed, numeric records for Pore Pressure Studio.
+
+## U2-019 KB and datum model: built 2026-10-02 (closes WS-U1-024; migration pending apply)
+
+Built on PR #848 with WDM U2-007 (`docs/scope/WellDatum-DESIGN-AND-STATUS.md`). Wellsite was touched as little as the item allows.
+
+- **KB is correctable in Wellsite.** Config, Header: Enter KB or Correct KB opens a panel; Review shows what the change moves (the shift of every subsea depth, the registry well's tops and checkshots, this live well), Confirm saves it through the registry's datum door (`updateWellDatum`) with who, when and the reason, re-derives the registry checkshots, and updates this well's `header.kb_elev_m`. Only the owner of the registry well can save; anyone else is told before anything is written. Offline it is refused with the reason.
+- **0 and not entered are told apart.** A new live well takes the registry's reference elevation through the datum module; a registry well that states none gives the live well no KB (the depth door then holds entries until one is entered), never 0. A registry row saved before the model with KB 0 keeps the earlier reading and the existing note.
+- **Offset wells** with no reference elevation are left out of the offset comparison and named when the prognosis is loaded, instead of comparing subsea depths that are off by their KB.
+- Before the migration the elevation is kept in `kb_m` and the change record rides in `crs_provenance.datum_changes`, beside the survey source of U2-009.
+- Evidence: `src/pages/apps/WellsiteStudio/__tests__/upgradeU2Datum.test.jsx` (9: the plan and the send, the non-owner negative control, hostile elevations, offline, before the upgrade, the unset registry well, the offsets, the Config screen).
+- Open: ground level and RT offset stay in the live well's header (not yet read from the registry's datum); the datum is corrected by the registry owner only until the organisation sharing wave decides who else may.

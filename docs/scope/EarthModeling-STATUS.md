@@ -241,3 +241,10 @@ Batch decision and the build log per item: `docs/upgrade/EarthModeling-UPGRADE.m
 - Engines PR #291 merged; after merging main the pin is 1e5d394 (contains #291).
 - Deferred with reasons: U2-007, U2-015, U2-016, U2-012, U2-013, U2-014
   (migration, second engineer), EM-U1-026 (Project programme).
+
+## 2026-10-02: the well datum model (WDM U2-007, PR #848)
+
+A well that states no depth reference elevation is left out of the ties, the
+properties, the section and the 3D scene, and the build notes name it
+(`services/modelBuild.js`, `framework3d.js`). Wells saved before the model
+tie as they did. Test: `__tests__/upgradeDatum.test.js`.

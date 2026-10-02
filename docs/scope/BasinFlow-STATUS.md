@@ -197,3 +197,9 @@ Doc: docs/upgrade/BasinFlowGenesis-UPGRADE.md. 32 findings, 23 fixed (1 S1,
 - Open (Step 2): eroded section on the burial plot (BF-T1-E3), Ro through
   the column, maximum-burial compaction, BHT correction, worker, pressure,
   traps and migration.
+
+## 2026-10-02: the well datum model (WDM U2-007, PR #848)
+
+`src/lib/basinHandoff.js` takes the well's TVD and reference elevation from
+`src/lib/wellDatum.js`. Layer thickness needs TVD only, so every well still
+hands off; `registryKbM` is null for a well with no reference elevation.

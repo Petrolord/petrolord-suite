@@ -191,6 +191,53 @@ Negative controls: adding the elevation instead of subtracting it, and
 ignoring it, both fail. Hostile inputs: feet and metres through the unit
 registry, a negative KB, water depth on an onshore well.
 
-## 8. Status
+## 8. Status (2026-10-02)
 
-See the end of this file (filled in as the work lands).
+- Module, migration file, registry door, shared editor, Well Data Manager,
+  the shared viewers and section kit, Petrophysics, Rock Physics, Pore
+  Pressure, Basin handoff, Earth Modeling, Seismolord, Mapping, Well
+  Correlation, Stratigraphy (through the kit), Wellsite, Well Design, the
+  `.pld` sidecar and sink: built on PR #848.
+- Geomechanics reads no well elevation from the registry (its wellbore comes
+  from Well Design), so nothing changed there.
+- Migration: logged NOT APPLIED. Scratch dry run 46 of 46. Live rolled-back
+  dry run (one statement that always raises, nothing kept, verified): 13
+  wells before and after, `kb_m` unchanged, 12 stated as KB, Lad unset, the
+  four `entered: KB/TD ft` wells marked ft.
+- Tests: `wellDatum.test.js` (52), `wellDatumReaders.test.js` (15, with the
+  source guard), `wellsRegistryDatum.test.js` (11), WDM `u2Datum.test.jsx` (5)
+  and `crsAssignKeepsProvenance.test.jsx` (2), Wellsite `upgradeU2Datum.test.jsx`
+  (9), Earth Modeling `upgradeDatum.test.js` (3), portability
+  `wellDatumPortability.test.js` (6); e2e WDM and Seismolord wells specs
+  updated.
+
+### What each app does before and after the apply
+
+| App | Before apply | After apply |
+|---|---|---|
+| Well Data Manager | `kb_m` shown as the KB; a 0 noted; the editor saves the elevation only and says so; the change record in `crs_provenance` | Full datum saved; a well with none withholds TVDSS; record in `datum_changes` |
+| Petrophysics, Rock Physics | As today | TVDSS empty with the reason and saturation height refused on a well with none |
+| Well Correlation, Stratigraphy | As today (`no KB: TVDSS = TVD` on a 0) | `no depth reference: TVDSS withheld`; not drawn in TVDSS or time |
+| Seismolord | As today | Such a well is not drawn, with the reason; synthetics, ties and Tops to Horizons refuse it |
+| Mapping | As today | A TVDSS top map leaves it out with the reason |
+| Earth Modeling | As today | Left out of ties, properties and the scene; named in the build notes |
+| Pore Pressure | As today | No onshore TVDSS for it, with the reason |
+| Basin | As today | Unchanged (TVD only); `registryKbM` null |
+| Wellsite | KB correctable now (saved in `kb_m`) | A registry well with none gives a live well no KB; offsets with none left out and named |
+| Well Design | Publish writes the KB as before, a 0 as 0 | Publish states the datum; a 0 publishes not set; a stated registry datum is never overwritten |
+| `.pld` | Rows carry no datum fields | Rows carry them |
+
+Only Lad changes behaviour at the apply, and it has no tops, curves or
+checkshots.
+
+### Open
+
+- The seismic reference datum stays declared per app (Pore Pressure,
+  Seismolord), not on the well.
+- A datum per wellbore (sidetracks) is not modelled; the registry has one row
+  per well.
+- Wellsite keeps its own ground level and RT offset in the live well header.
+- Ground level and mudline are not drawn as markers on sections yet.
+- Who besides the owner may correct a datum is for the organisation sharing
+  wave (its lock and history columns are separate from `datum_changes`).
+- Alaoma-1 and Alaoma-2 KB values (1 m, 2 m): owner to check.

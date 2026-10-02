@@ -243,3 +243,12 @@ migration; `sectionFrame` into petrolord-engines (U2-016).
 
 Shared kit changes (columns and scroll, TWT, strips, ghost, print render)
 reach Stratigraphy Studio; its suites were run on the branch.
+
+## 2026-10-02: datum in TVDSS (U2-018) with the well datum model
+
+Built on PR #848 (WDM U2-007; migration pending the owner's apply). The
+section's wells take their depth frame from `src/lib/wellDatum.js`. A well
+with no reference elevation is not drawn in TVDSS or in time and says
+`no depth reference: TVDSS withheld`; a TVDSS tops file is refused for it,
+a TVD file is read. Wells saved before the model keep `no KB: TVDSS = TVD`.
+The same change reaches Stratigraphy Studio through the shared section kit.

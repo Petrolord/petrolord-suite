@@ -167,3 +167,8 @@ migration.
 - Deferred: Xu-White and soft/stiff sand models, modelled AVO against
   Seismolord attribute volumes, scenario Monte Carlo, several projects per
   user, log editing.
+
+## 2026-10-02: the well datum model (WDM U2-007, PR #848)
+
+The TVD used to place the published pore pressure comes from the shared
+depth frame (`makeWellFrame`); no KB arithmetic remains in the app.

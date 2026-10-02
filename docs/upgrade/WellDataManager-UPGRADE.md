@@ -82,7 +82,7 @@ Severity: S1 wrong answer with no warning at scale; S2 wrong or lost data, or a 
 | WDM-U1-023 | S3 | PL6 | At 390 wide the workstation keeps its 960 px minimum and scrolls inside the shell; tree and map are not both reachable. Shared `WorkspaceShell` (Seismolord identical). | Screenshot 390. | Closed by owner decision 2026-09-28: desktop-first for this upgrade; the narrow layout must not break (asserted by the U2 e2e at 390 wide, light and dark). |
 | WDM-U1-024 | S4 | PL2 | Comma-decimal LAS data is refused (clear, line-numbered); a truncated row is refused without a line number. | Hostile files. | Open: parser is vendored (engines repo first). |
 | WDM-U1-025 | S4 | PL6 | The quick view carries no ChartLogo. Petrophysics and Correlation log tracks do not either (logs treated as log paper, not charts). | Code read. | Closed by owner decision 2026-09-28: on-screen log tracks stay without ChartLogo (as in Petrophysics and Well Correlation); exported PDFs carry the logo (U2-011). |
-| WDM-U1-026 | S3 | PL1, PL3 | No datum model: KB is "above datum" without naming it; checkshot time assumes SRD = MSL; no GL, water depth or datum type fields. | Schema read. | Open: U2-007 deferred (needs a geo_wells migration and review; owner decision). The help guide and the data sheet now state the mean sea level assumption. |
+| WDM-U1-026 | S3 | PL1, PL3 | No datum model: KB is "above datum" without naming it; checkshot time assumes SRD = MSL; no GL, water depth or datum type fields. | Schema read. | Built 2026-10-02 (U2-007, migration pending apply; see the end of this file). Was: U2-007 deferred (needs a geo_wells migration and review; owner decision). The help guide and the data sheet now state the mean sea level assumption. |
 | WDM-U1-027 | S4 | PL5 | Two browser tabs: an edit in one is not seen in the other until reload. | Walk. | Open: not in the chosen batches. |
 | WDM-U1-028 | S3 | PL8 | Tops grid edits delete removed rows on save with no undo. | Walk. | Fixed in Step 2 (U2-016). |
 | WDM-U1-029 | S4 | PL10 | Import to the live registry uploads curves one by one with no progress or cancel (harness 0.2 s; live not measured). | Code read. | Fixed in Step 2 (U2-013). |
@@ -230,7 +230,29 @@ No DDL, no migration.
 | U2-017 LAS 3.0 text channels | Done | Text columns become coded curves (code table in provenance; over 250 distinct values named and not stored), date-time columns seconds after the first stamp (zone-less read as UTC and said); aligned for bottom-up files; offered only on the file's own grid. Vendored parser untouched (its exported splitter is reused). | `u2TextChannels.test.jsx` (fixture's closed-form rows; bottom-up variant; free text; grid refusal); e2e badges. |
 | U2-013 app_build + progress | Done | Every registry write in `src/lib/wellsRegistry.js` carries `app_build` (retry once without it where the column is missing); `saveLogs` reports progress and stops after the current curve (`LogsStoppedError` keeps and names what was saved); LAS dialog progress bar and Stop; harness `?saveDelayMs`. | `u2BuildStamp.test.jsx` (11 write paths stamped; retry; progress; stop); e2e stop. |
 
-Deferred, unchanged: U2-007, U2-012, U2-009, U2-018 (reasons in the decision above).
+Deferred, unchanged at 2026-09-29: U2-007, U2-012, U2-009, U2-018 (reasons in the decision above). U2-009 has since been closed by Wellsite U2-009; U2-007 is built below.
+
+### U2-007 datum model: built 2026-10-02, migration pending the owner's apply
+
+Owner released 2026-10-01. Design, live state and the per-well plan: `docs/scope/WellDatum-DESIGN-AND-STATUS.md`. PR #848 (branch `feat/datum-digitizer`).
+
+| Piece | What was built | Evidence |
+|---|---|---|
+| The one module | `src/lib/wellDatum.js`: the only place that turns MD, TVD, TVDSS, elevation and depth below mudline or ground into one another. `readWellDatum` (set, legacy-kb, unset, legacy-zero), `makeWellFrame`, scalar conversions, `validateDatum`, entry in metres or feet through the unit registry, LAS header proposals, correction impact, change record, the patch for both sides of the migration. | `src/lib/__tests__/wellDatum.test.js` (52): hand-worked offshore (KB 25 m, 100 m of water) and onshore (ground 312 m, KB 318.5 m) deviated wells; negative controls (sign swapped, KB ignored); hostile inputs; LAS proposals. `wellDatumReaders.test.js` (15): every app's own door on a set, an unset and an old well, and a source guard (no `kb_m ?? 0`, no direct `makeDepthFrame` outside the module). |
+| Migration | `supabase/migrations/20261002090000_geo_wells_datum_model.sql`: nine nullable columns, nine checks, KB backfill where `kb_m` is not 0; one DO statement; no policy change. **NOT APPLIED.** | `tools/validation/well-datum/run.sh` 46 of 46 on scratch; live rolled-back dry run (one statement that always raises): 12 wells stated as KB, Lad unset, 4 entered in feet, nothing kept. |
+| Registry door | `updateWellDatum` in `src/lib/wellsRegistry.js`; `saveWell` takes a datum or a KB and saves a blank as not set; reads tell which side of the migration the registry is on; a write refused for a missing column is repeated without the datum columns. | `wellsRegistryDatum.test.js` (11) against a fake PostgREST that answers PGRST204. |
+| Header editor | Depth reference block (shared `src/components/wells/DatumEditor.jsx`): kind, elevation, vertical datum, environment, ground level or water depth, in the display unit. Hostile entries refused with the reason; Save disabled meanwhile. | `u2Datum.test.jsx` (5). |
+| Correction with consequences | Changing the elevation of a well with tops, curves or checkshots shows the shift and what moves, waits for Confirm, re-derives the checkshots (the entry reference kept) and records who, when, from, to and the reason. The last changes are listed on the Header. | `u2Datum.test.jsx`; e2e `well-data-manager.spec.js` (PT1 walk: 30 to 45 m, confirmed). |
+| LAS proposals | EKB, EGL, EDF, APD, EPD, LMF, DMF, PDAT fill the LAS dialog's Depth reference block with what was found, conflicts and notes; the user confirms by importing. The batch dialog shows each file's proposal. A null value or an elevation of 0 is left out. | `wellDatum.test.js` (LAS section); `u2Datum.test.jsx` (Petrel export). |
+| Exports, sheet, inventory | LAS writes the datum mnemonics the well states (none for a well with none); CSV TVDSS blank when withheld; the data sheet names the reference, datum, water depth or ground level; the inventory flag reads "Depth reference not set". | Existing suites updated; `wellDatumReaders.test.js`. |
+| `.pld` | Rows carry the datum columns; an older package reads as before; a package with the datum model imported where the columns are missing goes in with the elevation and the import says so. | `src/lib/portability/__tests__/wellDatumPortability.test.js` (6). |
+| Before the apply | The columns are detected on the rows read. `kb_m` is the KB elevation; a 0 keeps the earlier reading with a note; the editor saves the elevation, says the rest cannot be kept yet, and merges the change record into `crs_provenance.datum_changes`. | `u2Datum.test.jsx` (legacy backend), `wellsRegistryDatum.test.js`. |
+
+WDM-U1-026 is closed by this (pending apply). WDM-U1-019 changes meaning: a well saved before the model with KB 0 keeps the note; a well with no reference elevation withholds TVDSS.
+
+Also fixed on this branch (found by the programme lead): assigning a CRS by hand replaced `crs_provenance`, dropping the survey source Wellsite U2-009 writes there. It now merges (`crsAssignKeepsProvenance.test.jsx`, failing first).
+
+Left open: the seismic reference datum stays declared in the apps that use one (Pore Pressure, Seismolord), not on the well; a datum per wellbore (sidetracks) is not modelled; U2-012 team editing is with the organisation sharing wave.
 
 ### Found while building (for the owner)
 

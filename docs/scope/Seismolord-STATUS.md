@@ -2692,3 +2692,12 @@ sections, saved with the session. `viewer/shaderChunks.js` gained
 `FLATTEN_GLSL`; `SliceRenderer.setFlatten`; `SliceView` `flatten` prop and
 `data-flatten` / `data-terminations` on its wrapper; `RibbonButton` takes
 a `testId`. Details: docs/scope/StratigraphyStudio-STATUS.md, ST5.
+
+## 2026-10-02: the well datum model (WDM U2-007, PR #848)
+
+A registry well that states no depth reference elevation is no longer placed
+as if its KB were 0. Visible wells carry `datumOk` (`hooks/useWells.js`);
+`lib/wellDisplay.js` skips such a well with the new reason `noDatum`, shown
+on its Explorer row by `WellDrawBadge`; a synthetic, a well tie and Tops to
+Horizons refuse it with the same reason. Wells saved before the model keep
+drawing as they did. The engine and the display math are untouched.

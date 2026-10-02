@@ -349,7 +349,7 @@ readDepthSurface(row, grid, { accept, as = 'elevation', xy = 'native', requirePr
 | U2-015 Digitizer polynomial and thin-plate warp | Deferred by the decision. The least-squares affine with per-point misfit stays. |
 | U2-016 collocated co-kriging | Deferred by the decision. |
 | U2-019 live remapping | Deferred by the decision. Re-grid in place from the recorded source stays. |
-| U2-020 storing the Digitizer image | It needs a storage policy (RLS review, second engineer). Saved projects keep the image name and size and ask for the image on load. |
+| U2-020 storing the Digitizer image | Was deferred (a storage policy). Built 2026-10-02 on PR #848, migration pending the owner's apply; see the end of this file. |
 | U2-018 geo_wells.status migration | The owner applies it. The app reads the column when it is present. |
 | MAP-U1-025 staircase map edge | Not S-sized (see its row above). After NAPE. |
 
@@ -368,3 +368,14 @@ The Suite unit profile (branch `feat/suite-unit-profile`) was not on main when t
   - The Digitizer's spline was singular on closed contours.
   - The Digitizer map had no height at 390 wide.
   - A T1 e2e pinned the old kriging refusal; it now expects the kriged map and its note.
+
+## U2-020 Digitizer image kept with the project: built 2026-10-02 (migration pending apply)
+
+Owner released 2026-10-01. Design, live state, policies and orphan handling: `docs/scope/DigitizerImageStorage-DESIGN-AND-STATUS.md`. PR #848.
+
+- A private bucket `digitizer-images` (no public URL, 25 MB, PNG / JPEG / WebP), one object per project at `<owner user id>/<project id>/map.<ext>`, four `storage.objects` policies limited to the owner's own folder, none for anon. Migration `20261002091000_digitizer_images_bucket.sql`, **NOT APPLIED**.
+- Save Project uploads the image and records its path in the project's own `contours.settings.image` (no column added); loading restores it through a signed URL; Replace image swaps the stored object and keeps the work; Delete project removes the image, then the row. A wrong type (by content), an empty file, a TIFF or a file over the limit is refused with the reason.
+- Before the bucket exists the project saves as before and says the image is not kept; loading asks for the image.
+- Organisation read of a shared project's image is not part of this (Digitizer projects are personal); the design doc gives the policy to add with it.
+- Evidence: `tools/validation/digitizer-images` (scratch 25 of 25, pentest 19 of 19, negative controls; live rolled-back pentest 19 of 19); `src/lib/digitizer/__tests__/imageStore.test.js` (19, a storage fake mirroring the policies); `e2e/contour-map-digitizer.spec.js` (save and restore, hostile files, replace, delete, and the harness with no bucket).
+- Also in Mapping on this PR (WDM U2-007): a TVDSS top map leaves out a well with no depth reference elevation and says why (`services/topControlPoints.js`); MD and TVD maps keep it.
