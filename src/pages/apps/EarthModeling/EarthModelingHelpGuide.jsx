@@ -206,7 +206,9 @@ export default function EarthModelingHelpGuide() {
           Recovery and full uncertainty stay in ReservoirCalc Pro.
         </Para>
         <Para>
-          The build status says what needs attention: well ties that miss by more than 10 m while adjustment is off,
+          The build status says what needs attention: wells left out of the ties and properties because they are in
+          another CRS than the model or because they state no depth reference elevation (their tops then have no subsea
+          depth; set it in Well Data Manager, Header tab), well ties that miss by more than 10 m while adjustment is off,
           any property that fell back to a simpler method (amber in the provenance lines), and clamped nodes, which
           are marked with orange crosses on the zone top and base maps. The depth button in the ribbon shows depths as
           positive TVDSS or as elevation and is shared with Mapping.

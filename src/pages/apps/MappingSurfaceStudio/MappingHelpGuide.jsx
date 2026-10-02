@@ -273,6 +273,18 @@ export default function MappingHelpGuide() {
           resample it onto an unrotated frame first (surface arithmetic, A plus 0, onto another surface's frame is one
           way). A rotated grid is imported in the project CRS only.
         </Para>
+        <SubHeading>Scanned maps: the Contour Map Digitizer</SubHeading>
+        <Para>
+          A paper or scanned contour map comes in through the Contour Map Digitizer: drop the image, georeference it on
+          control points, trace and value the contours, grid, and publish the surface to the registry. Save Project keeps
+          the lines, the control points and the settings, and keeps the map image with the project in private storage that
+          only you can read (PNG, JPEG or WebP, up to 25 MB), so loading the project puts the image back under the lines.
+          Replace image swaps the stored image for another one and keeps the work; Delete project removes the project and
+          its stored image. A file that is not an image by its content, an empty file, a TIFF or a file over the limit is
+          refused with the reason. Where image storage is not switched on yet, the project still saves and says that the
+          image is not kept; loading then asks for the image, as before. Colleagues do not see a project's image: Digitizer
+          projects are personal.
+        </Para>
 </GuideSection>
 
       <GuideSection id="export">

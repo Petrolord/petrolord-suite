@@ -16,6 +16,7 @@ import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Code, Callout, Step, Table,
 } from '@/components/helpguide/HelpGuideLayout';
 import { QC_FLAGS } from './engine/inventory';
+import { DEPTH_REF_LABELS } from '@/lib/wellDatum';
 import { CURVE_ALIASES } from '@/components/wells/curveMap';
 
 export const APP_PATH = '/dashboard/apps/geoscience/well-data-manager';
@@ -24,7 +25,7 @@ export const HELP_SECTIONS = [
   { id: 'overview', icon: BookOpen, title: 'What Well Data Manager is' },
   { id: 'quickstart', icon: Zap, title: 'Quick start (5 min)' },
   { id: 'map', icon: Map, title: 'Wells, the map and coordinate systems' },
-  { id: 'header', icon: Ruler, title: 'Header: KB, TD, datum and TVDSS' },
+  { id: 'header', icon: Ruler, title: 'Header: depth reference, datum and TVDSS' },
   { id: 'units', icon: Ruler, title: 'Display units: metres or feet' },
   { id: 'las', icon: Upload, title: 'Importing LAS files' },
   { id: 'batch', icon: Files, title: 'Batch LAS import' },
@@ -72,9 +73,9 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
         <GuideSection id="quickstart">
           <SectionHeading icon={Zap}>Quick start (5 min)</SectionHeading>
           <Step n={1} title="Load a LAS file">Import LAS, choose the file. The preview shows the version, the depth range and step, every curve with its unit and what was converted. Give a new well its name, surface X and Y and the coordinate system, then Import.</Step>
-          <Step n={2} title="Check the header">Open the Header tab. Set the KB (kelly bushing elevation above the datum) and TD. Without a KB, TVDSS equals TVD.</Step>
+          <Step n={2} title="Check the header">Open the Header tab. Set the depth reference (usually the KB) with its elevation above the vertical datum, and the TD. Without a reference elevation, TVDSS is withheld.</Step>
           <Step n={3} title="Add tops and a survey">On the Tops tab, Edit and type or paste the picks; on the Deviation tab paste MD, inclination and azimuth. The Tops tab then shows MD, TVD and TVDSS side by side.</Step>
-          <Step n={4} title="Check the registry">Open Inventory in the ribbon. Every well is listed with its flags: no CRS, KB not set, curves stored bottom-up and so on. Click a flag to list the wells that carry it.</Step>
+          <Step n={4} title="Check the registry">Open Inventory in the ribbon. Every well is listed with its flags: no CRS, depth reference not set, curves stored bottom-up and so on. Click a flag to list the wells that carry it.</Step>
           <Step n={5} title="Use it elsewhere">Open in (ribbon or the well header) takes the well to Petrophysics Studio, Well Correlation, Mapping and the other apps.</Step>
         </GuideSection>
 
@@ -100,23 +101,50 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
         </GuideSection>
 
         <GuideSection id="header">
-          <SectionHeading icon={Ruler}>Header: KB, TD, datum and TVDSS</SectionHeading>
+          <SectionHeading icon={Ruler}>Header: depth reference, datum and TVDSS</SectionHeading>
           <Table headers={['Quantity', 'Meaning here']} rows={[
-            ['MD', 'measured depth along the hole from the KB; every log and top is stored against MD'],
-            ['KB', 'elevation of the kelly bushing above the vertical datum'],
-            ['TVD', 'true vertical depth below the KB, through the deviation survey (minimum curvature)'],
-            ['TVDSS', 'true vertical depth below the datum: TVD minus KB'],
+            ['MD', 'measured depth along the hole from the depth reference (the KB on most wells); every log and top is stored against MD'],
+            ['Depth reference', 'where measured depth is zero: the kelly bushing (KB), rotary table (RT), drill floor (DF), ground level (GL), mean sea level (MSL), or another point that you name'],
+            ['Reference elevation', 'elevation of that point above the vertical datum. Left blank it is "not set", which is different from 0'],
+            ['Vertical datum', 'the level the elevations are measured from: MSL, LAT or a named national datum'],
+            ['TVD', 'true vertical depth below the depth reference, through the deviation survey (minimum curvature)'],
+            ['TVDSS', 'true vertical depth below the vertical datum: TVD minus the reference elevation'],
+            ['Elevation', 'the same level counted upwards: minus TVDSS'],
+            ['Water depth', 'offshore wells: vertical datum to mudline. The mudline is at TVDSS = water depth; the air gap is the reference elevation'],
+            ['Ground level', 'onshore wells: ground elevation above the vertical datum. The depth reference stands above ground by the reference elevation minus the ground level'],
             ['TD', 'total depth, MD'],
           ]} />
-          <Callout tone="warning" title="The datum is assumed to be mean sea level">
-            The registry does not yet store a named datum, a ground level or a seismic reference datum. KB is read as
-            height above mean sea level, and checkshot times assume the seismic datum is mean sea level too. A named
-            datum model is planned.
-          </Callout>
+          <SubHeading>Setting the depth reference</SubHeading>
           <Para>
-            On the Header tab, Edit changes the surface X and Y (in the well's CRS, nothing is transformed), the KB and
-            the TD. A KB change re-derives a checkshot table entered as MD or TVD and says so.
+            On the Header tab, Edit opens the Depth reference block: what the depths are measured from ({Object.values(DEPTH_REF_LABELS).join(', ')}),
+            its elevation, the vertical datum, whether the well is onshore or offshore, and the ground level or the water depth. The unit selector
+            sets the unit of what you type; the registry stores metres. Edit also changes the surface X and Y (in the well's CRS, nothing is
+            transformed) and the TD.
           </Para>
+          <Para>
+            A well with no reference elevation says so. Its MD and TVD are shown; TVDSS, elevations and time-depth conversion are withheld in
+            every app, with the reason, until the elevation is entered. Nothing assumes 0.
+          </Para>
+          <SubHeading>Correcting it later</SubHeading>
+          <Para>
+            Changing the reference elevation of a well that already has tops, curves or checkshots is a correction with consequences. Before
+            anything is saved the app lists what moves: by how much every TVDSS shifts, how many tops and curves read at a new subsea depth,
+            whether the checkshot table is re-derived (a table entered as MD or TVD is, keeping the reference it was entered in), and what must
+            be rebuilt elsewhere (Seismolord synthetics and ties, top maps, flattened sections). You confirm, optionally with the reason, and the
+            well keeps a record of who changed it and when; the last changes are listed under the depth reference.
+          </Para>
+          <SubHeading>What is refused</SubHeading>
+          <Para>
+            A water depth on an onshore well, a ground level on an offshore well, a negative water depth, an offshore rig floor below the datum,
+            a rig floor below ground level, an elevation with no reference kind, and an elevation outside any land or rig elevation (a likely
+            unit slip). A negative elevation on land and an elevation of exactly 0 are allowed with a warning.
+          </Para>
+          <Callout tone="warning" title="An unnamed datum is assumed to be mean sea level">
+            Wells saved before the datum model carry one number, the KB, with no datum name. It is read as a kelly bushing elevation above mean
+            sea level and the Header says the datum is not named. A KB of 0 on such a well may mean it was never entered; until the registry
+            is upgraded the app keeps showing TVDSS equal to TVD for it, with a note, and after the upgrade the well reads as not set.
+            The seismic reference datum of a survey is declared in the apps that use one (Pore Pressure, Seismolord), not on the well.
+          </Callout>
         </GuideSection>
 
         <GuideSection id="units">
@@ -155,8 +183,11 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
           ]} />
           <SubHeading>Header values from the file</SubHeading>
           <Para>
-            The well name, UWI, KB and TD are suggested from the ~Well section, and XWELL and YWELL (Petrel) or X and Y
-            with the unit the file states. You still choose the CRS those numbers are in, and the unit selector says
+            The well name, UWI and TD are suggested from the ~Well section, and XWELL and YWELL (Petrel) or X and Y
+            with the unit the file states. The depth reference is proposed from EKB, EGL, EDF, APD, EPD, LMF, DMF and PDAT:
+            the dialog shows what it found and what it made of it (for example a permanent datum at ground level, where EPD is
+            the ground elevation and APD the KB height above it), flags values that disagree, and leaves out a null value or an
+            elevation of 0. It is a proposal: check it, correct it, and it is saved when you import. You still choose the CRS those numbers are in, and the unit selector says
             what the X and Y are in; they convert to the CRS's own unit.
           </Para>
           <SubHeading>LAS 3.0 blocks</SubHeading>
@@ -319,7 +350,9 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
         <GuideSection id="pitfalls">
           <SectionHeading icon={AlertTriangle}>Pitfalls and FAQ</SectionHeading>
           <SubHeading>TVDSS equals TVD on my well</SubHeading>
-          <Para>The KB is not set (0). Set it on the Header tab; the Tops tab says so when it is missing.</Para>
+          <Para>The well was saved before the datum model with a KB of 0. Set the reference elevation on the Header tab; the Tops tab says so when it is missing.</Para>
+          <SubHeading>TVDSS shows n/a on my well</SubHeading>
+          <Para>The well has no reference elevation, so its subsea depths cannot be given. Set it on the Header tab, Depth reference.</Para>
           <SubHeading>My LAS file is refused</SubHeading>
           <Para>
             The message names the reason: a TVD, TVDSS or time index, a malformed row with its line number, or a
@@ -340,7 +373,7 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
             that way.
           </Para>
           <Callout tone="info" title="Values in formulas">
-            TVDSS is computed as <Code>TVDSS = TVD - KB</Code>; feet convert as <Code>ft = m / 0.3048</Code>.
+            TVDSS is computed as <Code>TVDSS = TVD - KB</Code> (KB standing for the elevation of whichever depth reference the well states), in one shared module that every app reads through; feet convert as <Code>ft = m / 0.3048</Code>.
           </Callout>
         </GuideSection>
 

@@ -338,7 +338,10 @@ export default function SeismolordHelpGuide() {
           imported one), or through the volume's velocity model when it has none. Seismolord never guesses a
           velocity: a visible well that cannot be drawn shows a warning on its explorer row with the reason, for
           example no time-depth relationship (add checkshots or a time-depth table in Well Data Manager, or save a
-          velocity model for this volume), outside the survey time window, or off the survey. Well projection
+          velocity model for this volume), no depth reference elevation (the well then has no subsea depth to place:
+          set the depth reference on its Header tab in Well Data Manager; nothing is drawn on an assumed 0), outside
+          the survey time window, or off the survey. A synthetic, a well tie and Tops to Horizons refuse such a well
+          with the same reason. Well projection
           distance in the Wells tab sets how far from a section, in metres, a well and its tops still draw on it;
           empty means 1.5 bins. Tops show as labelled ticks on sections and crosses in 3D.
         </Para>
