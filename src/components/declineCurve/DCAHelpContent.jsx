@@ -340,7 +340,7 @@ const DCAHelpContent = () => {
                 <li>In the right sidebar's Scenarios section, type a name such as "Base Case P50" and click <strong>+</strong>.</li>
                 <li>Re-fit with different parameters; save another scenario.</li>
                 <li>Click the empty circles to <strong>select</strong> scenarios. Selected ones appear in the comparison table below.</li>
-                <li>Compare Qi, Di, b, and EUR side by side.</li>
+                <li>Compare Qi, Di, b, and EUR side by side. Di is shown everywhere as a nominal decline in percent per year (the fitted per-day decline times 365); the Diagnostics and KPI cards add the effective first-year decline, the share of the initial rate lost in the first 365 days.</li>
               </ol>
             </div>
             <div className="text-xs">

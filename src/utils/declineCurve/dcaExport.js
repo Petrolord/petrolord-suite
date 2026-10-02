@@ -1,6 +1,8 @@
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import html2canvas from 'html2canvas';
+import { nominalAnnualPct } from '@/utils/declineCurve/declineDisplay';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 /**
  * Exports forecast data to CSV
@@ -38,7 +40,9 @@ export const exportScenarioComparison = (scenarios, wellName) => {
     'Scenario Name': s.name,
     'Model Type': s.fitResults?.modelType || 'N/A',
     'Initial Rate (qi)': s.fitResults?.qi || 0,
-    'Decline Rate (Di)': s.fitResults?.Di || 0,
+    // H2: the fit holds Di per day; the sheet states both bases and the unit
+    'Di (nominal, %/yr)': nominalAnnualPct(s.fitResults?.Di) ?? EMPTY_VALUE,
+    'Di (nominal, 1/day)': s.fitResults?.Di ?? EMPTY_VALUE,
     'b-Factor': s.fitResults?.b || 0,
     'EUR': s.forecastResults?.eur || 0,
     'Remaining Reserves': s.forecastResults?.eur || 0, 

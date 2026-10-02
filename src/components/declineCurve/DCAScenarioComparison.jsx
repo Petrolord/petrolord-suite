@@ -1,3 +1,4 @@
+import { formatNominalAnnual, DI_BASIS_LABEL } from '@/utils/declineCurve/declineDisplay';
 import React from 'react';
 import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -33,7 +34,7 @@ const DCAScenarioComparison = () => {
             <TableRow>
               <TableHead className="text-xs h-8">Scenario</TableHead>
               <TableHead className="text-xs h-8 text-right">Qi</TableHead>
-              <TableHead className="text-xs h-8 text-right">Di (%)</TableHead>
+              <TableHead className="text-xs h-8 text-right">Di ({DI_BASIS_LABEL})</TableHead>
               <TableHead className="text-xs h-8 text-right">b</TableHead>
               <TableHead className="text-xs h-8 text-right">EUR</TableHead>
             </TableRow>
@@ -43,7 +44,7 @@ const DCAScenarioComparison = () => {
               <TableRow key={s.id}>
                 <TableCell className="py-2 text-xs font-medium text-pl-text">{s.name}</TableCell>
                 <TableCell className="py-2 text-xs text-right font-pl-mono tabular-nums">{s.fitResults.qi.toFixed(1)}</TableCell>
-                <TableCell className="py-2 text-xs text-right font-pl-mono tabular-nums">{(s.fitResults.Di * 365 * 100).toFixed(1)}</TableCell>
+                <TableCell className="py-2 text-xs text-right font-pl-mono tabular-nums">{formatNominalAnnual(s.fitResults.Di, 1)}</TableCell>
                 <TableCell className="py-2 text-xs text-right font-pl-mono tabular-nums">{s.fitResults.b.toFixed(2)}</TableCell>
                 <TableCell className="py-2 text-xs text-right font-pl-mono tabular-nums font-semibold">{s.forecastResults.eur.toLocaleString(undefined, {maximumFractionDigits:0})}</TableCell>
               </TableRow>

@@ -9,6 +9,7 @@ import { calculateR2, calculateRMSE, calculateResiduals, getVerdictInfo, calcula
 import { detectSegmentBreakpoints } from '@/utils/dcaSegmentDetection';
 import { calculateArpsHyperbolic } from '@/utils/declineCurve/dcaEngine';
 import { getStreamRate } from '@/utils/declineCurve/csvParser';
+import { formatNominalAnnual, formatEffectiveFirstYear, describeNominalAnnual, DI_BASIS_LABEL } from '@/utils/declineCurve/declineDisplay';
 import { CHART_COLORS, TOOLTIP_STYLE, GRID_STYLE, CHART_TYPOGRAPHY } from '@/utils/chartTheme';
 
 const DCAFitDiagnostics = () => {
@@ -191,10 +192,18 @@ const DCAFitDiagnostics = () => {
             </div>
             <div>
               <div className="text-pl-muted mb-1">Di (Initial Decline)</div>
-              <div className="font-pl-mono tabular-nums text-pl-text">{Di ? (Di * 100).toFixed(2) : 'N/A'}%/yr</div>
+              {/* H2: the fit holds Di per day; shown as nominal percent per
+                  year through the one formatter the KPI card also uses */}
+              <div className="font-pl-mono tabular-nums text-pl-text">
+                <span data-testid="dca-di-diagnostics">{formatNominalAnnual(Di)}</span>{' '}
+                <span className="text-pl-muted" data-testid="dca-di-diagnostics-basis">{DI_BASIS_LABEL}</span>
+              </div>
               {confidenceIntervals.Di && (
-                <div className="text-pl-muted text-[10px]">±{(confidenceIntervals.Di * 100).toFixed(2)}%</div>
+                <div className="text-pl-muted text-[10px]">±{formatNominalAnnual(confidenceIntervals.Di)} %/yr</div>
               )}
+              <div className="text-pl-muted text-[10px]" data-testid="dca-di-diagnostics-effective">
+                {formatEffectiveFirstYear(Di, b)} % effective, first year
+              </div>
             </div>
             <div>
               <div className="text-pl-muted mb-1">b (Exponent)</div>
