@@ -91,7 +91,9 @@ export function makeSharingStore(transport) {
     if (a.isOwner) return new RecordConflict('gone', messages.gone());
     if (!a.sharedEdit) return new RecordConflict('view_only', messages.viewOnly(await nameOf(row.user_id)), row);
     if (a.lock.live && !a.lock.mine) return new RecordConflict('locked', messages.locked(await nameOf(a.lock.by), a.lock.since), row);
-    return new RecordConflict('no_checkout', a.lock.live ? messages.noCheckout() : messages.expired(), row);
+    // the user's own check-out that lapsed, or none taken yet
+    const lapsed = !a.lock.live && row.editing_by && row.editing_by === ctx.userId;
+    return new RecordConflict('no_checkout', lapsed ? messages.expired() : messages.noCheckout(), row);
   }
 
   /**
@@ -111,7 +113,8 @@ export function makeSharingStore(transport) {
     } else {
       delete body.version; delete body.change_note;
     }
-    const { data, error } = await transport.update(table, id, body, { select });
+    // a narrow select may name sharing columns, which exist only once the migration is applied
+    const { data, error } = await transport.update(table, id, body, { select: available || select === '*' ? select : 'id' });
     if (error) {
       if (available && isUnknownColumn(error)) {
         // the answer changed under us (schema cache): once more, the old way

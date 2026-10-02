@@ -10,7 +10,9 @@ import ProjectManager from './components/tools/ProjectManager';
 import ReservoirSwitcher from './components/tools/ReservoirSwitcher';
 import WorkspaceToolsHub from './components/tools/WorkspaceToolsHub';
 import PanelErrorBoundary from './components/common/PanelErrorBoundary';
-import { HelpCircle, Folder, ChevronLeft, ChevronRight, Sidebar, ArrowLeft, Home, Wrench } from 'lucide-react';
+import { HelpCircle, Folder, ChevronLeft, ChevronRight, Sidebar, ArrowLeft, Home, Wrench, Users } from 'lucide-react';
+import { RecordSharingBar, useRecordSharing } from '@/components/recordSharing';
+import { copyName } from '@/lib/recordSharing/rules';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
@@ -24,7 +26,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOpen }) => {
-    const { state, saveCurrentProject } = useReservoirCalc();
+    const { state, saveCurrentProject, patchProjectSharing, loadProjects, loadProject } = useReservoirCalc();
     const { user: authUser } = useAuth();
     const { backend } = useReservoirCalc();
     // the harness backend carries a dev user so Save works without auth (RC0)
@@ -38,11 +40,32 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
     const [meta, setMeta] = useState({ name: '', description: '' });
     const [settings] = useReservoirSettings();
 
+    // U2-014 organisation sharing: the open project's sharing state, check-out
+    // and history. The header stays mounted, so the check-out lasts while the
+    // project is open and is released when another project is opened.
+    const openProject = (state.projects || []).find((p) => p.id === state.project.id) || null;
+    const sharing = useRecordSharing({
+        store: backend?.sharing,
+        table: 'saved_quickvol_projects',
+        record: openProject?.sharing || null,
+        onChange: patchProjectSharing,
+    });
+    const [shareOpen, setShareOpen] = useState(false);
+    const sharedWithMe = !!openProject && !!sharing.userId && !!openProject.user_id && openProject.user_id !== sharing.userId;
+    const showSharing = !!openProject && (shareOpen || sharedWithMe || !!sharing.access?.sharedEdit);
+    const reloadOpenProject = async () => {
+        await loadProjects();
+        const fresh = backend?.projects ? (await backend.projects.getProjects()).find((p) => p.id === state.project.id) : null;
+        if (fresh) loadProject(fresh);
+        else toast({ variant: 'destructive', title: 'Project not available', description: 'This project is no longer shared with you, or it was deleted.' });
+    };
+
     // Auto-save: after a run, re-persist an already-saved project (never silently
     // creates a new one). Deduped on the results object identity.
     const lastAutoSave = useRef(null);
     useEffect(() => {
-        if (!settings.autoSave || !user?.id || !state.project.id) return;
+        // U2-014: never auto-save over a project that is open read-only
+        if (!settings.autoSave || !user?.id || !state.project.id || !sharing.canWrite) return;
         const sig = state.results || state.probResults;
         if (!sig || lastAutoSave.current === sig) return;
         lastAutoSave.current = sig;
@@ -58,7 +81,7 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
         setSaveOpen(true);
     };
 
-    const performSave = async () => {
+    const performSave = async ({ asCopy = false } = {}) => {
         if (!user) {
             setSaveError('You are not signed in. Sign in to save projects.');
             return;
@@ -67,11 +90,18 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
             setSaveError('Project name is required.');
             return;
         }
+        // U2-014: a shared project that is open read-only is never overwritten
+        if (!asCopy && state.project.id && !sharing.canWrite) {
+            setSaveError(`${sharing.readOnlyReason || 'This project is open read-only.'} "Save a copy" keeps your work as your own project.`);
+            return;
+        }
         setSaving(true);
         setSaveError(null);
         try {
-            await saveCurrentProject(user.id, meta);
-            toast({ title: 'Project saved', description: `"${meta.name.trim()}" is saved.` });
+            const own = (state.projects || []).filter((p) => !p.user_id || p.user_id === user.id).map((p) => p.name);
+            const copyMeta = asCopy ? { ...meta, name: copyName(meta.name.trim(), own) } : meta;
+            const saved = await saveCurrentProject(user.id, copyMeta, { asNew: asCopy });
+            toast({ title: asCopy ? 'Copy saved' : 'Project saved', description: `"${saved?.name || copyMeta.name.trim()}" is saved${asCopy ? ' as your own project' : ''}.` });
             setSaveOpen(false);
         } catch (e) {
             // Keep the dialog open and show the reason inline; a toast alone is
@@ -82,8 +112,14 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
             setSaving(false);
         }
     };
+    const saveCopyFromBar = () => {
+        setMeta({ name: state.currentProjectMeta?.name || '', description: state.currentProjectMeta?.description || '' });
+        setSaveError(null);
+        setSaveOpen(true);
+    };
 
     return (
+        <>
         <header className="h-12 border-b border-pl-border bg-pl-surface px-2 sm:px-4 gap-2 flex items-center justify-between shrink-0 select-none">
             <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-4">
                 {/* Navigation / Breadcrumbs */}
@@ -135,6 +171,9 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
                             {state.currentProjectMeta?.name || 'Unsaved Workspace'}
                         </span>
                         {state.isDirty && <Badge variant="warning" className="text-[9px] px-1 py-0 h-4">Modified</Badge>}
+                        {openProject && sharing.ready && !sharing.canWrite && (
+                            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4" data-testid="rcp-read-only" title={sharing.readOnlyReason || undefined}>Read-only</Badge>
+                        )}
                      </div>
                 </div>
 
@@ -168,6 +207,13 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
                     </SheetContent>
                 </Sheet>
 
+                {openProject && (
+                    <Button variant="outline" size="sm" className="gap-2 h-8 text-xs" data-testid="rcp-share" aria-pressed={showSharing} onClick={() => setShareOpen((v) => !v)} title="Share this project with your organisation, see who is editing and the history">
+                        <Users className="w-3 h-3" />
+                        <span className="hidden md:inline">Share</span>
+                    </Button>
+                )}
+
                 <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
                     <DialogTrigger asChild>
                         <Button size="sm" data-testid="rcp-save" onClick={handleSaveClick} className="h-8 text-xs">
@@ -192,7 +238,10 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
                             )}
                             <div className="flex justify-end gap-2 mt-4">
                                 <Button variant="ghost" onClick={() => setSaveOpen(false)} disabled={saving}>Cancel</Button>
-                                <Button data-testid="rcp-save-confirm" onClick={performSave} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
+                                {state.project.id && (sharedWithMe || !sharing.canWrite) && (
+                                    <Button variant="outline" data-testid="rcp-save-copy" onClick={() => performSave({ asCopy: true })} disabled={saving}>Save a copy</Button>
+                                )}
+                                <Button data-testid="rcp-save-confirm" onClick={() => performSave()} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
                             </div>
                         </div>
                     </DialogContent>
@@ -217,6 +266,18 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
                 </Button>
             </div>
         </header>
+        {showSharing && (
+            <div className="px-2 pt-2" data-testid="rcp-sharing-strip">
+                <RecordSharingBar
+                    sharing={sharing}
+                    label="project"
+                    onSaveCopy={saveCopyFromBar}
+                    onReload={reloadOpenProject}
+                    fieldLabels={{ inputs_data: 'inputs', results_data: 'results', project_name: 'name', mode: 'method' }}
+                />
+            </div>
+        )}
+        </>
     );
 };
 

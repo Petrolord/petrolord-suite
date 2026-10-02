@@ -1,6 +1,7 @@
 import { saveAs } from 'file-saver';
 import { supabase } from '@/lib/customSupabaseClient';
 import { compactRun, compactReservoirs } from './runCompaction';
+import { supabaseSharingStore, sharingOf } from '@/lib/recordSharing';
 
 // ReservoirCalc Pro project persistence.
 //
@@ -53,6 +54,11 @@ export const fromRow = (row) => {
         gridding: blob.gridding || null,
         created_at: row.created_at,
         updated_at: blob.updated_at || row.created_at,
+        // U2-014 organisation sharing: who owns the row and its sharing state
+        // (visibility, access, check-out, row version, last author). `version`
+        // above is the project's own save counter inside the blob.
+        user_id: row.user_id ?? null,
+        sharing: sharingOf(row),
     };
 };
 
@@ -77,7 +83,7 @@ export const toBlob = (project, version) => ({
 });
 
 export const ProjectService = {
-    /** Fetch the signed-in user's projects (RLS scopes to auth.uid()). */
+    /** The signed-in user's projects and the ones colleagues shared with the organisation (RLS decides). */
     async getProjects() {
         const { data, error } = await supabase
             .from(TABLE)
@@ -109,19 +115,18 @@ export const ProjectService = {
             return fromRow(data);
         }
 
+        // U2-014: the save carries the row version the project was opened at
+        // and a summary for the change log; a refusal (a newer version, a
+        // colleague editing, view only) comes back as a sentence. Before the
+        // sharing migration this is the plain update it always was.
         const nextVersion = (projectData.version || 1) + 1;
-        const { data, error } = await supabase
-            .from(TABLE)
-            .update({
-                project_name: projectData.name || 'Untitled Project',
-                mode: projectData.calcMethod || 'deterministic',
-                inputs_data: toBlob(projectData, nextVersion),
-                results_data: projectData.results || null,
-            })
-            .eq('id', projectData.id)
-            .select()
-            .single();
-        if (error) throw new Error(friendlyError(error));
+        const { data, error } = await supabaseSharingStore().update(TABLE, projectData.id, {
+            project_name: projectData.name || 'Untitled Project',
+            mode: projectData.calcMethod || 'deterministic',
+            inputs_data: toBlob(projectData, nextVersion),
+            results_data: projectData.results || null,
+        }, { note: `Project saved (v${nextVersion})` });
+        if (error) throw new Error(error.name === 'RecordConflict' ? error.message : friendlyError(error));
         return fromRow(data);
     },
 

@@ -22,7 +22,8 @@ const TeamCollaboration = () => {
 
     const email = user?.email || 'Not signed in';
     const initials = (user?.email || '?').slice(0, 2).toUpperCase();
-    const projects = state.projects || [];
+    // U2-014: the user's own projects (shared ones are listed in the Projects panel)
+    const projects = (state.projects || []).filter((p) => !p.user_id || !user?.id || p.user_id === user.id);
 
     const shareWorkspace = () => {
         exportWorkspace();
@@ -82,7 +83,7 @@ const TeamCollaboration = () => {
 
             <div className="flex items-start gap-2 text-[11px] text-pl-muted bg-pl-surface border border-pl-border rounded-lg px-3 py-2">
                 <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-pl-muted" />
-                <span>Live multi-user editing and in-app sharing aren&apos;t enabled yet: they require a project-sharing service. Until then, exporting/importing project files is the supported way to collaborate, and it transfers the complete model.</span>
+                <span>Share a saved project with your organisation from the Share button in the header: colleagues can view it, or edit it one person at a time, and every change is recorded with its author. Two people editing at the same moment is not supported. Exporting a project file still transfers the complete model to someone outside your organisation.</span>
             </div>
         </div>
     );

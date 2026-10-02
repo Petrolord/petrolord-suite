@@ -22,10 +22,11 @@ import RecordHistoryPanel from './RecordHistoryPanel';
  *   onSaveCopy?: () => void,  "Save a copy" as the user's own record
  *   onReload?: () => void,    reopen the record from the database (after a newer version)
  *   fieldLabels?: Object,     column name -> words, for the history
+ *   allowEdit?: boolean,      false where the app has no editing of a shared record yet (view sharing only)
  *   className?: string,
  * }} props
  */
-export default function RecordSharingBar({ sharing: s, label = 'record', onSaveCopy = null, onReload = null, fieldLabels = {}, className = '' }) {
+export default function RecordSharingBar({ sharing: s, label = 'record', onSaveCopy = null, onReload = null, fieldLabels = {}, allowEdit = true, className = '' }) {
   const [showHistory, setShowHistory] = useState(false);
   if (!s?.sharing || !s.ready) return null;
   const { access } = s;
@@ -68,7 +69,8 @@ export default function RecordSharingBar({ sharing: s, label = 'record', onSaveC
           <span data-testid="shared-by" className="inline-flex items-center gap-1.5 font-medium"><Users className="h-3.5 w-3.5" aria-hidden />Shared by {owner}</span>
         )}
         {access.isOwner && noOrg && <span data-testid="share-no-org" className="text-pl-muted">{messages.noOrganisation()}</span>}
-        {access.isOwner && shared && (
+        {access.isOwner && shared && !allowEdit && <span data-testid="share-view-only" className="text-pl-muted">Colleagues can view it and save their own copy.</span>}
+        {access.isOwner && shared && allowEdit && (
           <NativeSelect
             compact
             data-testid="share-access"

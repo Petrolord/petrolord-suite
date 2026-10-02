@@ -17,6 +17,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { SharedRowNote, useSharingNames } from '@/components/recordSharing';
+import { splitOwnAndShared, copyName } from '@/lib/recordSharing/rules';
 
 const ProjectManager = ({ onClose }) => {
     const { state, loadProjects, loadProject, createNewProject } = useReservoirCalc();
@@ -53,6 +55,25 @@ const ProjectManager = ({ onClose }) => {
             if (sortOrder === 'name_asc') return a.name.localeCompare(b.name);
             return 0;
         });
+
+    // U2-014: the user's own projects, then the ones colleagues shared
+    const sharingRows = (state.projects || []).map((p) => p.sharing).filter(Boolean);
+    const names = useSharingNames(backend?.sharing, sharingRows);
+    const { own: ownProjects, shared: sharedProjects } = splitOwnAndShared(filteredProjects, user?.id);
+    const isOwn = (p) => !p?.user_id || !user?.id || p.user_id === user.id;
+    const handleSaveCopy = async () => {
+        if (!selectedProject || !user?.id) return;
+        try {
+            const { id, created_at, updated_at, sharing, user_id, ...rest } = selectedProject;
+            const name = copyName(selectedProject.name, (state.projects || []).filter(isOwn).map((p) => p.name));
+            const saved = await projects.saveProject({ ...rest, user_id: user.id, name, version: 1 }, true);
+            await loadProjects();
+            setSelectedProject(saved);
+            toast({ title: 'Copy saved', description: `"${name}" is now your own project.` });
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Copy failed', description: e.message });
+        }
+    };
 
     // Handlers
     const handleSelectProject = (project) => {
@@ -163,9 +184,10 @@ const ProjectManager = ({ onClose }) => {
                                     No projects found.
                                 </div>
                             )}
-                            {filteredProjects.map(p => (
+                            {ownProjects.map(p => (
                                 <div 
                                     key={p.id}
+                                    data-testid="rcp-project-row"
                                     onClick={() => handleSelectProject(p)}
                                     className={`p-3 rounded-md cursor-pointer transition-colors text-left ${
                                         selectedProject?.id === p.id 
@@ -181,6 +203,32 @@ const ProjectManager = ({ onClose }) => {
                                         <Calendar className="w-3 h-3" />
                                         {new Date(p.updated_at).toLocaleDateString()}
                                     </div>
+                                    {p.sharing && <SharedRowNote table="saved_quickvol_projects" row={p.sharing} userId={user?.id} names={names} className="mt-1" />}
+                                </div>
+                            ))}
+                            {sharedProjects.length > 0 && (
+                                <div className="px-1 pt-3 pb-1 text-[10px] uppercase tracking-wider text-pl-muted" data-testid="rcp-shared-projects">Shared with me</div>
+                            )}
+                            {sharedProjects.map(p => (
+                                <div 
+                                    key={p.id}
+                                    data-testid="rcp-project-row"
+                                    onClick={() => handleSelectProject(p)}
+                                    className={`p-3 rounded-md cursor-pointer transition-colors text-left ${
+                                        selectedProject?.id === p.id 
+                                        ? 'bg-pl-surface border border-pl-primary' 
+                                        : 'hover:bg-pl-surface border border-transparent'
+                                    }`}
+                                >
+                                    <div className="flex justify-between items-start mb-1">
+                                        <span className="font-medium text-sm text-pl-text truncate pr-2">{p.name}</span>
+                                        <Badge variant="secondary" className="text-[10px] h-4 px-1">v{p.version}</Badge>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-xs text-pl-muted">
+                                        <Calendar className="w-3 h-3" />
+                                        {new Date(p.updated_at).toLocaleDateString()}
+                                    </div>
+                                    {p.sharing && <SharedRowNote table="saved_quickvol_projects" row={p.sharing} userId={user?.id} names={names} className="mt-1" />}
                                 </div>
                             ))}
                         </div>
@@ -207,6 +255,9 @@ const ProjectManager = ({ onClose }) => {
                                     </div>
                                     <Badge variant="neutral">Version {selectedProject.version}</Badge>
                                 </div>
+                                {selectedProject.sharing && (
+                                    <div className="mb-4 empty:hidden"><SharedRowNote table="saved_quickvol_projects" row={selectedProject.sharing} userId={user?.id} names={names} /></div>
+                                )}
 
                                 <div className="grid gap-6">
                                     <Card>
@@ -241,9 +292,15 @@ const ProjectManager = ({ onClose }) => {
 
                             <div className="p-4 border-t border-pl-border bg-pl-surface flex justify-between items-center">
                                 <div className="flex gap-2">
-                                    <Button variant="destructive" size="sm" onClick={handleDelete}>
-                                        <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                    </Button>
+                                    {isOwn(selectedProject) ? (
+                                        <Button variant="destructive" size="sm" onClick={handleDelete}>
+                                            <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                        </Button>
+                                    ) : (
+                                        <Button variant="outline" size="sm" data-testid="rcp-project-save-copy" onClick={handleSaveCopy}>
+                                            <Copy className="w-4 h-4 mr-2" /> Save a copy
+                                        </Button>
+                                    )}
                                     <Button variant="outline" size="sm" onClick={handleExport}>
                                         <Download className="w-4 h-4 mr-2" /> Export JSON
                                     </Button>

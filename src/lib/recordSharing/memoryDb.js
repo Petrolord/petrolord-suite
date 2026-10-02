@@ -146,8 +146,10 @@ export function makeSharingDb({ members = {}, applied = true, clock = null } = {
     const sharingChanged = !same(next.visibility, old.visibility) || !same(next.org_access, old.org_access) || !same(next.organization_id, old.organization_id);
     const fields = Object.keys(next).filter((k) => !META.includes(k) && !same(next[k], old[k]));
     const contentChanged = fields.length > 0;
-    if ('version' in patch && patch.version !== old.version) {
-      return { data: null, error: pgError('SR001', 'A newer version of this record has been saved.', JSON.stringify({ version: old.version, updated_by: old.updated_by, updated_at: old.updated_at })) };
+    // a row put in by a fixture may lack the column: it reads as version 1
+    const oldVersion = Number.isInteger(old.version) ? old.version : 1;
+    if ('version' in patch && patch.version !== oldVersion) {
+      return { data: null, error: pgError('SR001', 'A newer version of this record has been saved.', JSON.stringify({ version: oldVersion, updated_by: old.updated_by, updated_at: old.updated_at })) };
     }
     const lockDetail = JSON.stringify({ editing_by: old.editing_by, editing_since: old.editing_since, editing_expires: old.editing_expires });
     if (!isOwner) {
@@ -158,8 +160,8 @@ export function makeSharingDb({ members = {}, applied = true, clock = null } = {
     }
     if (!sharedEdit(table, next)) { next.editing_by = null; next.editing_since = null; next.editing_expires = null; }
     else if (holds) next.editing_expires = expiry();
-    if (contentChanged) { next.version = old.version + 1; next.updated_at = nowIso(); next.updated_by = uid; }
-    else { next.version = old.version; next.updated_at = old.updated_at; next.updated_by = old.updated_by; }
+    if (contentChanged) { next.version = oldVersion + 1; next.updated_at = nowIso(); next.updated_by = uid; }
+    else { next.version = oldVersion; next.updated_at = old.updated_at; next.updated_by = old.updated_by; }
     // with check
     if (!(ownOk(table, next, uid) || colleagueOk(table, next, uid))) return { data: null, error: RLS(table) };
     write(table, id, next);

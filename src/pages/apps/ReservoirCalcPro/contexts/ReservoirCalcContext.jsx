@@ -621,25 +621,37 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
 
     // Persist the current workspace as a project (create or update), then refresh
     // the project list. Throws on failure so the caller can surface a message.
-    const saveCurrentProject = async (userId, meta) => {
+    // U2-014: `asNew` saves the workspace as a new project of the user's own
+    // ("Save a copy" of a project a colleague shared).
+    const saveCurrentProject = async (userId, meta, { asNew = false } = {}) => {
         if (!userId) throw new Error('Sign in to save projects.');
         const projectData = buildProjectData(userId, meta);
+        if (asNew) { projectData.id = null; projectData.version = 1; }
         // U2-013: from now on this project keeps the gridding it was saved with
         if (!state.gridding) dispatch({ type: ACTIONS.SET_GRIDDING, payload: projectData.gridding });
-        const saved = await be.projects.saveProject(projectData, !projectData.id);
+        const isNew = !projectData.id;
+        const saved = await be.projects.saveProject(projectData, isNew);
+        // the row version the workspace now shows (no silent overwrite)
+        if (isNew && saved.sharing) be.sharing?.trackOpened('saved_quickvol_projects', saved.sharing);
         dispatch({
             type: ACTIONS.SET_PROJECT,
             payload: { id: saved.id, version: saved.version, meta: { name: saved.name, description: saved.description } }
         });
         const projects = await be.projects.getProjects();
         dispatch({ type: ACTIONS.SET_PROJECTS, payload: projects });
-        logEvent('Project saved', `${saved.name} (v${saved.version})`);
+        logEvent(asNew ? 'Project saved as a copy' : 'Project saved', `${saved.name} (v${saved.version})`);
         return saved;
     };
 
     // Export the current workspace (inputs, surfaces, results, audit) as a shareable
     // JSON file — the real handoff mechanism for collaborating with a colleague.
     const exportWorkspace = () => be.projects.exportToJSON(buildProjectData(null, null));
+
+    /** U2-014: the sharing state of a listed project changed (share switch, check-out). */
+    const patchProjectSharing = (next) => dispatch({
+        type: ACTIONS.SET_PROJECTS,
+        payload: (state.projects || []).map((p) => (p.id === next.id ? { ...p, sharing: { ...(p.sharing || {}), ...next } } : p)),
+    });
 
     const loadProjects = async () => {
         try {
@@ -653,6 +665,8 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
     };
 
     const loadProject = (project) => {
+        // U2-014: saves from here carry the row version this workspace opened
+        if (project?.sharing) be.sharing?.trackOpened('saved_quickvol_projects', project.sharing);
         dispatch({ type: ACTIONS.LOAD_PROJECT, payload: project });
         logEvent('Project loaded', project?.name || '');
     };
@@ -825,6 +839,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
         getActiveSurface,
         saveCurrentProject,
         loadProjects,
+        patchProjectSharing,
         loadProject,
         createNewProject,
         addReservoir,
