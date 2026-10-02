@@ -14,11 +14,16 @@ import { fromMetres } from '@/lib/wellsite/depth';
 import { makeSyncEngine } from '@/lib/wellsite/sync/engine';
 import { getSyncState, subscribeSyncState, syncHeadline } from '@/lib/wellsite/sync/syncStore';
 import { detectConflicts } from '@/lib/wellsite/sync/conflicts';
-import { publishPlan } from './publish';
+import { pullWell } from '@/lib/wellsite/sync/pull';
+import { publishPlan, runPublish, publishFailureText } from './publish';
 import { mergeProfile } from '@/lib/wellsite/abbreviations';
 import { wellContext, offsetMinOf } from './wellContext';
 import { newId } from '@/lib/wellsite/ids';
 import { memberChangeError } from './members';
+import { prepareEvidenceLogs, staleEvidence } from '@/lib/wellsite/evidence';
+import { mudlogSeries } from './mudlogImport';
+import { dExponentSeries, currentDxcSettings } from './dexponent';
+import { wellWithSurvey, SURVEY_SUBTYPE, activeSurvey, registrySurveyPlan, surveyPublishedParams } from './surveys';
 
 export const WS_ENGINE_VERSION = 'wellsite-0.1.0';
 
@@ -47,10 +52,17 @@ export function makeLocalBackend({ transport, db = wellsiteDb(), autoSync = true
     return w || null;
   }
 
-  async function requireWell(id) {
+  async function requireWellRow(id) {
     const w = await getWell(id);
     if (!w) throw new Error('Well not found locally. Open it while online once so it is cached.');
     return w;
+  }
+  // U2-005: every depth is calculated with the survey in use, the registry snapshot with the rig's
+  // survey runs applied, so a record made after an MWD station carries its true TVD and version
+  async function requireWell(id) {
+    const w = await requireWellRow(id);
+    const runs = await db.records.where('[well_id+subtype+occurred_at]').between([id, SURVEY_SUBTYPE, ''], [id, SURVEY_SUBTYPE, '\uffff']).toArray();
+    return runs.length ? wellWithSurvey(w, runs) : w;
   }
 
   async function addRecord(wellId, p) {
@@ -118,13 +130,13 @@ export function makeLocalBackend({ transport, db = wellsiteDb(), autoSync = true
       return saved.well;
     },
     async updateWellSettings(wellId, patch) {
-      const w = await requireWell(wellId);
+      const w = await requireWellRow(wellId);
       await commitWellPatch(db, wellId, { settings: { ...(w.settings || {}), ...patch } });
       notify();
       return getWell(wellId);
     },
     async updateWellHeader(wellId, patch) {
-      const w = await requireWell(wellId);
+      const w = await requireWellRow(wellId);
       await commitWellPatch(db, wellId, { header: { ...(w.header || {}), ...patch } });
       notify();
       return getWell(wellId);
@@ -374,31 +386,105 @@ export function makeLocalBackend({ transport, db = wellsiteDb(), autoSync = true
      * Publish final calls and current descriptions (and chosen photos) to the registry.
      * @returns {{ plan, result }} result: { tops:{inserted, replaced}, intervals:{inserted, replaced}, photos:{inserted} }
      */
-    async publishToRegistry(wellId, { photoIds = [] } = {}) {
+    /** U2-010: what a publish would do now, for the plan the user confirms (online; writes nothing). */
+    async publishPlanFor(wellId) {
       if (!transport.online()) throw new Error('Publishing to the registry needs a connection.');
-      const well = await requireWell(wellId);
-      const u = await currentUser();
+      const well = await requireWellRow(wellId);
       const state = await transport.registryState(well.geo_well_id);
       if (!state.ownedByMe) throw new Error('Only the owner of the registry well can publish to it (org sharing is read-only).');
       const tops = await this.listTops(wellId);
-      const records = await db.records.where('[well_id+kind+occurred_at]').between([wellId, 'observation', ''], [wellId, 'observation', '￿']).toArray();
+      const records = await db.records.where('[well_id+kind+occurred_at]').between([wellId, 'observation', ''], [wellId, 'observation', '\uffff']).toArray();
       const profile = mergeProfile(well.settings && well.settings.abbreviation_profile ? well.settings.abbreviation_profile : null);
-      const plan = publishPlan({ tops, records, profile, existingTops: state.tops, existingIntervals: state.intervals });
+      return { well, plan: publishPlan({ tops, records, profile, existingTops: state.tops, existingIntervals: state.intervals }) };
+    },
+    /**
+     * Publish final calls and current descriptions (and chosen photos) to the registry, staged so the
+     * well is never left without its tops and undone if a step fails (services/publish.js runPublish).
+     * renameIds: the same-name tops from other sources to keep apart as "... (prognosis)".
+     * @returns {{ plan, result }} result: { tops:{ids, replaced}, intervals:{ids, replaced}, renamed, photos:{ids, failed} }
+     */
+    async publishToRegistry(wellId, { photoIds = [], renameIds = [] } = {}) {
+      const u = await currentUser();
+      const { well, plan } = await this.publishPlanFor(wellId);
       const photos = photoIds.length ? (await this.listPhotos(wellId)).filter((p) => photoIds.includes(p.id)) : [];
       const blobs = [];
       for (const p of photos) { const b = await db.blobs.get(`${p.id}:working`); if (b && b.blob) blobs.push({ photo: p, blob: b.blob }); }
-      const result = await transport.publishToRegistry(well.geo_well_id, {
-        tops: plan.tops.map((t) => ({ ...t.row, interpreter: t.row.interpreter || u.name || u.email || null })),
-        replaceTopIds: plan.replaceTops.map((t) => t.id),
-        intervals: plan.intervals.map((i) => i.row), replaceIntervalIds: plan.replaceIntervals.map((i) => i.id),
-        photos: blobs,
-      });
-      const pub = { id: newId(), well_id: wellId, kind: 'tops', source_ids: plan.tops.map((t) => t.source.id), target_ids: result.tops.ids || [], published_by: u.id, published_at: new Date().toISOString(), notes: `${plan.tops.length} tops, ${plan.intervals.length} intervals, ${photos.length} photos` };
+      const result = await runPublish({ plan, ops: transport.registryOps(well.geo_well_id), renameIds, photos: blobs, interpreter: u.name || u.email || null });
+      if (!result.ok) { const e = new Error(publishFailureText(result)); e.report = result; throw e; }
+      const pub = { id: newId(), well_id: wellId, kind: 'tops', source_ids: plan.tops.map((t) => t.source.id), target_ids: result.tops.ids || [], published_by: u.id, published_at: new Date().toISOString(), notes: `${plan.tops.length} tops, ${plan.intervals.length} intervals, ${result.photos.ids.length} photos${result.renamed.length ? `, ${result.renamed.length} earlier tops renamed as the prognosis` : ''}` };
       await db.transaction('rw', db.outbox, async () => {
         await db.outbox.add({ well_id: wellId, store: 'publications', table: 'ws_publications', op: 'insert', entity_id: pub.id, status: 'pending', attempts: 0, next_attempt_at: 0, last_error: null, queued_at: Date.now(), row: pub });
       });
       notify();
       return { plan, result };
+    },
+
+    // ---- U2-008: the d-exponent, gas, ROP and mud weight curves to the registry for Pore Pressure Studio ----
+    /** Publish the evidence curves of this live well (explicit, online, registry owner only; replaces only its own). */
+    async publishEvidenceToRegistry(wellId) {
+      if (!transport.online()) throw new Error('Sending curves to the registry needs a connection.');
+      const well = await requireWell(wellId);
+      const records = await db.records.where('[well_id+kind+occurred_at]').between([wellId, ''], [wellId, '\uffff']).toArray();
+      const series = mudlogSeries(records.filter((r) => r.kind === 'observation'));
+      const cfgs = records.filter((r) => r.subtype === 'rig_config').sort((a, b) => Date.parse(a.occurred_at) - Date.parse(b.occurred_at));
+      const settings = currentDxcSettings(records.filter((r) => r.kind === 'decision'));
+      const dxc = dExponentSeries({ points: series.points, rigConfig: cfgs.length ? cfgs[cfgs.length - 1].payload : null, ctx: wellContext(well), settings });
+      const prepared = prepareEvidenceLogs({ points: series.points, dxcRows: dxc.rows, wsWell: { id: well.id, name: well.name }, settings });
+      if (!prepared.length) throw new Error('There is nothing to send yet: import the mudlogging data or type at least two rows of drilling parameters.');
+      const state = await transport.registryLogs(well.geo_well_id);
+      if (!state.ownedByMe) throw new Error('Only the owner of the registry well can add curves to it (org sharing is read-only).');
+      const stale = staleEvidence(state.logs, prepared, well.id);
+      const result = await transport.writeEvidenceLogs(well.geo_well_id, prepared, stale);
+      const names = prepared.map((l) => l.mnemonic);
+      const { row } = await addRecord(wellId, { kind: 'observation', subtype: 'evidence_published', payload: { geo_well_id: well.geo_well_id, curves: names, replaced: result.replaced, text: `Curves sent to the well registry for Pore Pressure Studio: ${names.join(', ')}${result.replaced ? ` (${result.replaced} earlier curve(s) of this live well replaced)` : ''}.` } });
+      return { curves: names, result, record: row };
+    },
+
+    // ---- U2-009: the rig survey to the shared wells registry (explicit, online, owner only) ----
+    /** What sending the survey in use would do (reads only). */
+    async registrySurveyPlanFor(wellId) {
+      if (!transport.online()) throw new Error('Comparing with the registry needs a connection.');
+      const well = await requireWellRow(wellId);
+      const u = await currentUser();
+      const runs = await db.records.where('[well_id+subtype+occurred_at]').between([wellId, SURVEY_SUBTYPE, ''], [wellId, SURVEY_SUBTYPE, '\uffff']).toArray();
+      const registryWell = await transport.registryWell(well.geo_well_id);
+      return { well, plan: registrySurveyPlan({ well, inUse: activeSurvey(well, runs), registryWell, user: u }) };
+    },
+    /** Replace the registry survey with the survey in use and record that it was sent. */
+    async publishSurveyToRegistry(wellId) {
+      const { well, plan } = await this.registrySurveyPlanFor(wellId);
+      if (!plan.can) throw new Error(plan.reason);
+      const res = await transport.writeRegistrySurvey(well.geo_well_id, { stations: plan.stations, provenance: plan.provenance });
+      const { row } = await addRecord(wellId, surveyPublishedParams(plan, well.geo_well_id));
+      return { plan, result: res, record: row };
+    },
+
+    // ---- office view (U2-007): read-only follow of the wells this user can see ----
+    /** Everything the office summary reads for a well, from the local store. Writes nothing. */
+    async wellSnapshot(wellId) {
+      const well = await requireWellRow(wellId);
+      const [records, samples, stages, tops, prognoses, reports, signoffs, follow] = await Promise.all([
+        db.records.where('[well_id+kind+occurred_at]').between([wellId, ''], [wellId, '\uffff']).toArray(),
+        this.listSamples(wellId), this.listStages(wellId), this.listTops(wellId), this.listPrognosis(wellId), this.listReports(wellId), this.listSignoffs(wellId),
+        db.meta.get(`follow:${wellId}`),
+      ]);
+      return { well, records, samples, stages, tops, prognoses, reports, signoffs, follow: follow ? follow.value : null };
+    },
+    /**
+     * Bring in what the rig has shared for a well (pull only; nothing of this device is pushed and
+     * no record is written). The outcome is kept so the screen can say when a well was last followed
+     * and whether that try worked.
+     */
+    async followWell(wellId) {
+      const atUtc = new Date().toISOString();
+      let value;
+      if (!transport.online()) value = { atUtc: null, error: null, received: 0, offline: true };
+      else {
+        try { const r = await pullWell({ db, transport, wellId }); value = { atUtc, error: null, received: r.received }; }
+        catch (e) { const prev = await db.meta.get(`follow:${wellId}`); value = { atUtc: prev && prev.value ? prev.value.atUtc : atUtc, error: String(e && e.message ? e.message : e), received: 0 }; }
+      }
+      if (!value.offline) await db.meta.put({ key: `follow:${wellId}`, value });
+      return value;
     },
 
     // ---- sync surface (WS6) ----

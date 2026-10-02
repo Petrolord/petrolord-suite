@@ -4,7 +4,9 @@
 // record sync (push, pull) arrives in WS6 on the same object.
 
 import { supabase } from '@/lib/customSupabaseClient';
-import { listWells as listRegistry, listTops as listRegistryTops, getWell as getRegistryWell, saveTop as saveRegistryTop, deleteTop as deleteRegistryTop } from '@/lib/wellsRegistry';
+import { listLogs as listRegistryLogs, downloadCurve as downloadRegistryCurve, saveLogs as saveRegistryLogs, deleteLog as deleteRegistryLog } from '@/lib/wellsRegistry';
+import { pressureCurvesFrom } from '../pressure';
+import { listWells as listRegistry, listTops as listRegistryTops, getWell as getRegistryWell, saveTop as saveRegistryTop, deleteTop as deleteRegistryTop, updateTop as updateRegistryTop, updateWellData as updateRegistryWellData, updateWell as updateRegistryWell } from '@/lib/wellsRegistry';
 import { listIntervals as listRegistryIntervals, saveInterval as saveRegistryInterval, deleteInterval as deleteRegistryInterval, listCoreImages, uploadCoreImage } from '@/lib/stratRegistry';
 import { writeStamped, registerStateKind } from '@/lib/stateVersion';
 import { getGeometry, getDefinitiveTrajectory } from '@/pages/apps/TorqueDragStudio/services/tdApi';
@@ -92,7 +94,10 @@ export function makeSupabaseTransport() {
           plannedTrajectory = traj.stations;
         }
       }
-      return { geoWell, tops, offsetWells, holeSections, casingPoints: holeSections.filter((h) => h.cased).map((h) => ({ md_m: h.to_md_m, description: h.description || null })), plannedTrajectory, pressureCurves: null, design, loadedFrom: 'registry' };
+      // U2-008: the pore pressure prognosis Pore Pressure Studio published for this well (PP, FP, OBG by their declared unit)
+      let pressureCurves = null;
+      try { pressureCurves = await pressureCurvesFrom(await listRegistryLogs(geoWellId), downloadRegistryCurve); } catch (e) { pressureCurves = { source: 'geo_wells_logs', loaded_at: new Date().toISOString(), curves: {}, skipped: [`The pressure curves could not be read: ${e.message}`] }; }
+      return { geoWell, tops, offsetWells, holeSections, casingPoints: holeSections.filter((h) => h.cased).map((h) => ({ md_m: h.to_md_m, description: h.description || null })), plannedTrajectory, pressureCurves, design, loadedFrom: 'registry' };
     },
     // ---- sync (WS6) ----
     /** Idempotent batch insert: on conflict (id) do nothing (PostgREST resolution=ignore-duplicates). */
@@ -137,22 +142,46 @@ export function makeSupabaseTransport() {
       const [tops, intervals, coreImages] = await Promise.all([listRegistryTops(geoWellId), listRegistryIntervals(geoWellId, 'lithology'), listCoreImages(geoWellId).catch(() => [])]);
       return { ownedByMe: !!(geo && user && geo.user_id === user.id), tops, intervals, coreImages };
     },
-    async publishToRegistry(geoWellId, { tops, replaceTopIds, intervals, replaceIntervalIds, photos }) {
-      const existingTops = await listRegistryTops(geoWellId);
-      for (const t of existingTops.filter((x) => replaceTopIds.includes(x.id))) await deleteRegistryTop(t);
-      const topIds = [];
-      for (const row of tops) { const saved = await saveRegistryTop(geoWellId, { name: row.name, mdM: row.md_m, interpreter: row.interpreter, surface_type: row.surface_type, confidence: row.confidence, unit_id: row.unit_id, notes: row.notes }); topIds.push(saved.id); }
-      const existingIntervals = await listRegistryIntervals(geoWellId, 'lithology');
-      for (const i of existingIntervals.filter((x) => replaceIntervalIds.includes(x.id))) await deleteRegistryInterval(i);
-      const intervalIds = [];
-      for (const row of intervals) { const saved = await saveRegistryInterval(geoWellId, row); intervalIds.push(saved.id); }
-      const photoIds = [];
-      for (const { photo, blob } of photos) {
-        const file = new File([blob], `${photo.id}.webp`, { type: 'image/webp' });
-        const saved = await uploadCoreImage(geoWellId, file, { top_md_m: photo.md_calc_m, base_md_m: photo.md_calc_m, caption: photo.caption || `Wellsite photo ${photo.id}`, width: photo.variants.working.w, height: photo.variants.working.h });
-        photoIds.push(saved.id);
-      }
-      return { tops: { ids: topIds, replaced: replaceTopIds.length }, intervals: { ids: intervalIds, replaced: replaceIntervalIds.length }, photos: { ids: photoIds } };
+    // ---- U2-008: evidence curves to the registry through the registry log writer (owner only under RLS) ----
+    async registryLogs(geoWellId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const geo = await getRegistryWell(geoWellId);
+      return { logs: await listRegistryLogs(geoWellId), ownedByMe: !!(user && geo.user_id === user.id) };
+    },
+    async writeEvidenceLogs(geoWellId, prepared, stale) {
+      // new curves in first, the earlier ones of this live well removed after: never a gap
+      const saved = await saveRegistryLogs(geoWellId, prepared);
+      const removeErrors = [];
+      for (const l of stale) { try { await deleteRegistryLog(l); } catch (e) { removeErrors.push(`${l.mnemonic}: ${e.message}`); } }
+      return { ids: saved.map((l) => l.id), replaced: stale.length - removeErrors.length, removeErrors };
+    },
+    // ---- U2-009: the rig survey to the registry, through the existing registry writer (owner only under RLS) ----
+    async registryWell(geoWellId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const geo = await getRegistryWell(geoWellId);
+      return { id: geo.id, name: geo.name, deviation: geo.deviation || [], crs_provenance: geo.crs_provenance || null, ownedByMe: !!(user && geo.user_id === user.id) };
+    },
+    async writeRegistrySurvey(geoWellId, { stations, provenance }) {
+      const before = await getRegistryWell(geoWellId);
+      const saved = await updateRegistryWellData(geoWellId, { deviation: stations });
+      // where the survey came from rides in the well's provenance object beside the CRS provenance
+      let provenanceSaved = true; let provenanceError = null;
+      try { await updateRegistryWell(geoWellId, { crs_provenance: { ...(before.crs_provenance || {}), deviation: provenance } }); } catch (e) { provenanceSaved = false; provenanceError = e.message; }
+      return { stations: (saved.deviation || []).length, provenanceSaved, provenanceError };
+    },
+    /** U2-010: the registry port the staged publish runs on, through the registry services (never direct table calls). */
+    registryOps(geoWellId) {
+      return {
+        insertTop: (row) => saveRegistryTop(geoWellId, { name: row.name, mdM: row.md_m, interpreter: row.interpreter, surface_type: row.surface_type, confidence: row.confidence, unit_id: row.unit_id, age_ma: row.age_ma, hiatus_to_ma: row.hiatus_to_ma, notes: row.notes }),
+        deleteTop: (row) => deleteRegistryTop(row),
+        renameTop: (row, name, notes) => updateRegistryTop(row.id, { name, notes }),
+        insertInterval: (row) => saveRegistryInterval(geoWellId, row),
+        deleteInterval: (row) => deleteRegistryInterval(row),
+        async uploadPhoto({ photo, blob }) {
+          const file = new File([blob], `${photo.id}.webp`, { type: 'image/webp' });
+          return uploadCoreImage(geoWellId, file, { top_md_m: photo.md_calc_m, base_md_m: photo.md_calc_m, caption: photo.caption || `Wellsite photo ${photo.id}`, width: photo.variants.working.w, height: photo.variants.working.h });
+        },
+      };
     },
     onAuthEvent(cb) {
       const { data } = supabase.auth.onAuthStateChange((event) => cb(event));

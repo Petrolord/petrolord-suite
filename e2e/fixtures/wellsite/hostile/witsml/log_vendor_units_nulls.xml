@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<logs xmlns="http://www.witsml.org/schemas/1series" version="1.4.1.1">
+  <log uidWell="W-1" uidWellbore="B-1" uid="L-1">
+    <nameWell>HOSTILE-L1</nameWell>
+    <nameWellbore>HOSTILE-L1</nameWellbore>
+    <name>Depth log 1 ft</name>
+    <indexType>measured depth</indexType>
+    <startIndex uom="ft">9800</startIndex>
+    <endIndex uom="ft">9840</endIndex>
+    <direction>increasing</direction>
+    <indexCurve>DEPT</indexCurve>
+    <nullValue>-9999</nullValue>
+    <logCurveInfo uid="DEPT"><mnemonic>DEPT</mnemonic><unit>ft</unit><typeLogData>double</typeLogData></logCurveInfo>
+    <logCurveInfo uid="ROPA"><mnemonic>ROPA</mnemonic><unit>ft/h</unit><typeLogData>double</typeLogData></logCurveInfo>
+    <logCurveInfo uid="WOBA"><mnemonic>WOBA</mnemonic><unit>klbf</unit><typeLogData>double</typeLogData></logCurveInfo>
+    <logCurveInfo uid="MDIA"><mnemonic>MDIA</mnemonic><unit>lbm/galUS</unit><typeLogData>double</typeLogData></logCurveInfo>
+    <logCurveInfo uid="GASX"><mnemonic>GASX</mnemonic><unit>Euc</unit><typeLogData>double</typeLogData></logCurveInfo>
+    <logData>
+      <mnemonicList>DEPT,ROPA,WOBA,MDIA,GASX</mnemonicList>
+      <unitList>ft,ft/h,klbf,lbm/galUS,Euc</unitList>
+      <data>9800,55,28,9.6,0.1</data>
+      <data>9810,-9999,28.5,9.6,0.2</data>
+      <data>9820,59,,9.6,0.3</data>
+      <data>9830,61,29.5,9.7,0.4</data>
+      <data>9840,63,30,9.7,0.5</data>
+    </logData>
+  </log>
+</logs>
