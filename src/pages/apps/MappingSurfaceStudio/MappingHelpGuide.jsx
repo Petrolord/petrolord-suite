@@ -16,7 +16,7 @@ import {
 } from '@/components/helpguide/HelpGuideLayout';
 import { EXPORT_FORMATS } from './services/surfaceExport';
 import { ARITH_OPS } from './services/arithmetic';
-import { CONTROL_POINT_SKIP_REASONS } from './engine/surface';
+import { CONTROL_POINT_SKIP_REASONS } from './services/topControlPoints';
 
 const APP_PATH = '/dashboard/apps/geoscience/mapping-surface-studio';
 
@@ -100,6 +100,7 @@ export default function MappingHelpGuide() {
             bad_md: 'The top depth is not a number.',
             bad_survey: 'The deviation survey cannot be used (fewer than two stations, or a station out of order).',
             above_survey: 'The top depth is negative, above the wellhead.',
+            no_datum: 'The well states no depth reference elevation (KB, RT, DF or ground level above the vertical datum), so its top has no subsea depth. A TVDSS map leaves it out; an MD or TVD map keeps it. Set it in Well Data Manager, Header tab, Depth reference.',
           }[k]])} />
       </GuideSection>
 

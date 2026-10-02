@@ -4,7 +4,7 @@
 // the engine could not place (never the ones that simply lack the top),
 // and counts tops placed along the final survey tangent.
 
-import { CONTROL_POINT_SKIP_REASONS } from '../engine/surface';
+import { CONTROL_POINT_SKIP_REASONS } from './topControlPoints';
 
 export const DEPTH_REF_LABEL = { md: 'MD', tvd: 'TVD', tvdss: 'TVDSS' };
 

@@ -13,7 +13,7 @@
 import { averageVelocityTies, depthFromAverageVelocity, tieResiduals, residualStats } from '../engine/wellTie';
 import { gridTensionSpline } from '@/lib/gridding/tensionSpline';
 import { residualField, applyCorrection, defaultRadius } from '@/pages/apps/EarthModeling/engine/adjust';
-import { topsToControlPoints } from '../engine/surface';
+import { topsToControlPoints } from './topControlPoints'; // through the shared datum module (WDM-U2-007)
 import { worldToGridIndex, isNull } from '@/lib/gridding/gridmath';
 
 /**

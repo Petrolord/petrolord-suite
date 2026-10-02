@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWellCurvesCache } from '@/components/wells/useWellCurvesCache';
 import { resolveTracks } from '@/components/wells/layout/resolveTracks';
 import { buildDefaultLayouts, migrateLayouts, activeTemplate } from '@/components/wells/layout/layoutSchema';
-import { makeWellFrame } from '@/lib/wellDatum';
+import { makeWellFrame, DATUM_COLUMNS } from '@/lib/wellDatum';
 import { allTopNames } from '@/pages/apps/WellCorrelation/engine/section';
 import { orientSectionCurves } from './sectionFrame';
 import { useAppUnits } from '@/lib/units/useAppUnits';
@@ -240,6 +240,8 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
       return {
         id: w.id, name: w.name, uwi: w.uwi, is_own: w.is_own, organization_id: w.organization_id,
         surface_x: w.surface_x, surface_y: w.surface_y, kb_m: w.kb_m, crs: w.crs ?? null, xy_unit: w.xy_unit ?? null,
+        // WDM-U2-007: the datum columns travel with the section well, so any reader of it sees the same datum as the frame
+        ...Object.fromEntries(DATUM_COLUMNS.filter((c) => c in w).map((c) => [c, w[c]])),
         checkshots: Array.isArray(w.checkshots) ? w.checkshots : null, // U2-003/U2-004 time-depth
         tops: d.tops || [], depth: d.curves?.DEPT || null, tracks, frame, reoriented: !!d.reoriented,
       };
