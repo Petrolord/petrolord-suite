@@ -72,7 +72,7 @@ test('the handover of the current tour generates from records; the narrative is 
   expect(reports[0].canonical.sections.some((s) => s.id === 'watch' && s.text === 'Watch the gas; shale density rising.')).toBe(true);
   const so = await backend.listSignoffs(well.id);
   expect(so).toHaveLength(1);
-  expect(so[0]).toMatchObject({ report_id: reports[0].id, role: 'administrator', report_version: 1, content_hash: reports[0].content_hash, statement: 'Handover complete.', countersignature: null });
+  expect(so[0]).toMatchObject({ report_id: reports[0].id, role: 'administrator', report_version: 1, content_hash: reports[0].content_hash, statement: 'Handover complete. Signed as A. Geologist.', countersignature: null }); // U2-013: the signer's name is kept in the statement
   await waitFor(() => expect(screen.getAllByTestId(/^ws-signoff-row-/)).toHaveLength(1));
   expect(screen.getByTestId(`ws-signoff-row-${so[0].id}`)).toHaveAttribute('data-countersigned', '0');
   // the hash is the canonical content's hash

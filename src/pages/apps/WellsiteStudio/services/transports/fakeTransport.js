@@ -95,15 +95,48 @@ export function makeFakeTransport({ user, registryWells = [], online = true, pro
       const t = tableOf('registry_tops'); const i = tableOf('registry_intervals');
       return { ownedByMe: !!(geo && geo.user_id === u.id), tops: [...t.values()].filter((r) => r.well_id === geoWellId), intervals: [...i.values()].filter((r) => r.well_id === geoWellId), coreImages: [...tableOf('registry_core').values()].filter((r) => r.well_id === geoWellId) };
     },
-    async publishToRegistry(geoWellId, { tops, replaceTopIds, intervals, replaceIntervalIds, photos }) {
+    // ---- U2-008: evidence curves in the fake registry ----
+    async registryLogs(geoWellId) {
       check();
+      const geo = registryWells.find((w) => w.id === geoWellId);
+      return { logs: [...tableOf('registry_logs').values()].filter((l) => l.well_id === geoWellId), ownedByMe: !!(geo && geo.user_id === u.id) };
+    },
+    async writeEvidenceLogs(geoWellId, prepared, stale) {
+      check();
+      const t = tableOf('registry_logs');
+      const ids = prepared.map((l) => { const id = newId(); t.set(id, { id, well_id: geoWellId, mnemonic: l.mnemonic, description: l.description, unit: l.unit, start_md_m: l.startMdM, stop_md_m: l.stopMdM, step_m: l.stepM, n_samples: l.nSamples, null_count: l.nullCount, provenance: l.provenance, data: l.data, created_at: new Date().toISOString() }); return id; });
+      for (const l of stale) t.delete(l.id);
+      return { ids, replaced: stale.length, removeErrors: [] };
+    },
+    // ---- U2-009: the rig survey to the registry ----
+    async registryWell(geoWellId) {
+      check();
+      const geo = registryWells.find((w) => w.id === geoWellId);
+      if (!geo) throw new Error('Could not load well: not found');
+      return { id: geo.id, name: geo.name, deviation: geo.deviation || [], crs_provenance: geo.crs_provenance || null, ownedByMe: geo.user_id === u.id };
+    },
+    async writeRegistrySurvey(geoWellId, { stations, provenance }) {
+      check();
+      const geo = registryWells.find((w) => w.id === geoWellId);
+      if (!geo || geo.user_id !== u.id) throw new Error('Could not update well data: only the owner can change a registry well.');
+      geo.deviation = stations.map((s) => ({ md: s.md, inc: s.inc, azi: s.azi }));
+      if (knobs.provenanceFail) return { stations: geo.deviation.length, provenanceSaved: false, provenanceError: 'Failed to fetch' };
+      geo.crs_provenance = { ...(geo.crs_provenance || {}), deviation: provenance };
+      return { stations: geo.deviation.length, provenanceSaved: true, provenanceError: null };
+    },
+    /** U2-010: the registry port the staged publish runs on. knobs.registryFail = { op, after } fails that op after `after` successes. */
+    registryOps(geoWellId) {
       const t = tableOf('registry_tops'); const i = tableOf('registry_intervals'); const c = tableOf('registry_core');
-      for (const id of replaceTopIds) t.delete(id);
-      for (const id of replaceIntervalIds) i.delete(id);
-      const topIds = tops.map((row) => { const id = newId(); t.set(id, { id, well_id: geoWellId, ...row }); return id; });
-      const intervalIds = intervals.map((row) => { const id = newId(); i.set(id, { id, well_id: geoWellId, ...row }); return id; });
-      const photoIds = photos.map(({ photo }) => { const id = newId(); c.set(id, { id, well_id: geoWellId, top_md_m: photo.md_calc_m, base_md_m: photo.md_calc_m, caption: photo.caption, storage_path: `${u.id}/${geoWellId}/core/${photo.id}.webp` }); return id; });
-      return { tops: { ids: topIds, replaced: replaceTopIds.length }, intervals: { ids: intervalIds, replaced: replaceIntervalIds.length }, photos: { ids: photoIds } };
+      const counts = {};
+      const gate = (op) => { check(); counts[op] = (counts[op] || 0) + 1; const f = knobs.registryFail; if (f && f.op === op && counts[op] > (f.after || 0)) { if (f.once) knobs.registryFail = null; throw new Error(f.message || 'Failed to fetch'); } };
+      return {
+        async insertTop(row) { gate('insertTop'); const id = newId(); t.set(id, { id, well_id: geoWellId, ...row }); return { id }; },
+        async deleteTop(row) { gate('deleteTop'); if (!t.delete(row.id)) throw new Error('Only the owner can delete tops (org sharing is read-only).'); },
+        async renameTop(row, name, notes) { gate('renameTop'); const cur = t.get(row.id); if (!cur) throw new Error('Only the owner can edit tops (org sharing is read-only).'); const next = { ...cur, name, notes }; t.set(row.id, next); return next; },
+        async insertInterval(row) { gate('insertInterval'); const id = newId(); i.set(id, { id, well_id: geoWellId, ...row }); return { id }; },
+        async deleteInterval(row) { gate('deleteInterval'); if (!i.delete(row.id)) throw new Error('Only the owner can delete intervals.'); },
+        async uploadPhoto({ photo }) { gate('uploadPhoto'); const id = newId(); c.set(id, { id, well_id: geoWellId, top_md_m: photo.md_calc_m, base_md_m: photo.md_calc_m, caption: photo.caption, storage_path: `${u.id}/${geoWellId}/core/${photo.id}.webp` }); return { id }; },
+      };
     },
     /** The fake platform countersigns anything it holds (a synthetic signature; verification is the client's business). */
     async countersign(signoffId) {
@@ -126,7 +159,7 @@ export function makeFakeTransport({ user, registryWells = [], online = true, pro
       const geoWell = registryWells.find((w) => w.id === geoWellId) || null;
       const src = prognosisSources ? prognosisSources(geoWellId) : {};
       const offsets = registryWells.filter((w) => offsetWellIds.includes(w.id) && w.id !== geoWellId).map((w) => ({ id: w.id, name: w.name, kb_m: w.kb_m, deviation: w.deviation, tops: w.tops || [] }));
-      return { geoWell, tops: (geoWell && geoWell.tops) || [], offsetWells: offsets, holeSections: src.holeSections || [], casingPoints: src.casingPoints || [], plannedTrajectory: src.plannedTrajectory || null, pressureCurves: null, loadedFrom: 'fake-registry' };
+      return { geoWell, tops: (geoWell && geoWell.tops) || [], offsetWells: offsets, holeSections: src.holeSections || [], casingPoints: src.casingPoints || [], plannedTrajectory: src.plannedTrajectory || null, pressureCurves: src.pressureCurves || null, loadedFrom: 'fake-registry' };
     },
     _wells: wsWells,
   };

@@ -64,6 +64,8 @@ test('prognosis, approach panel, interpretation, call lifecycle to final, event 
   type('ws-top-basis', 'Cuttings confirm sand');
   await act(async () => { fireEvent.click(screen.getByTestId('ws-top-submit')); });
   await waitFor(() => expect(screen.getByTestId('ws-status')).toHaveTextContent('confirmed (version 2)'));
+  // the row follows the status line (the form offers final only once the confirmed call is on screen)
+  await waitFor(() => expect(screen.getByTestId('ws-top-row-top_agbada')).toHaveAttribute('data-status', 'confirmed'));
   fireEvent.click(screen.getByTestId('ws-top-callbtn-top_agbada'));
   fireEvent.change(screen.getByTestId('ws-top-status'), { target: { value: 'final' } });
   type('ws-top-basis', 'Agreed with town');

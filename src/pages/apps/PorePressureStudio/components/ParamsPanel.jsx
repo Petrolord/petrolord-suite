@@ -73,7 +73,7 @@ const toDraft = (params, calibration, units) => {
 };
 
 export default function ParamsPanel({
-  params, calibration, onApply, units = DEFAULT_UNITS, importCtx = {}, onImportCalibration = null, onClearImported = null,
+  params, calibration, onApply, units = DEFAULT_UNITS, importCtx = {}, onImportCalibration = null, onClearImported = null, wellsiteSource = null,
 }) {
   const zU = units.depth; const pU = units.pressure;
   const sU = slownessUnit(zU); const cU = compactionUnit(zU); const dU = densityUnit(pU); const stU = stressUnit(pU);
@@ -227,6 +227,7 @@ export default function ParamsPanel({
         <CalibrationImport
           ctx={importCtx}
           onImport={onImportCalibration}
+          wellsiteSource={wellsiteSource}
           fmtZ={(m) => `${tidy(depthToDisplay(m, zU), 1)} ${zU}`}
           fmtP={(mpa) => (pU === 'psi' ? `${Math.round(pressureToDisplay(mpa * 1e6, 'psi'))} psi` : `${mpa.toFixed(2)} MPa`)}
         />

@@ -10,7 +10,7 @@ export const OBSERVATION_TYPES = Object.freeze([
   { code: 'trip_gas', name: 'Trip gas', numeric: true, units: ['%', 'ppm', 'units'], hotkey: 'T' },
   { code: 'rop_change', name: 'ROP change', numeric: true, units: ['ft/hr', 'm/hr'], hotkey: 'R' },
   { code: 'cavings', name: 'Cavings', numeric: false, hotkey: 'V', hint: 'size, shape, amount' },
-  { code: 'shale_density', name: 'Shale density', numeric: true, units: ['g/cc'], hotkey: 'S' },
+  { code: 'shale_density', name: 'Shale density', numeric: true, units: ['g/cc', 'sg', 'kg/m3'], hotkey: 'S' },
   { code: 'mud', name: 'Mud observation', numeric: false, hotkey: 'M', hint: 'weight, viscosity, losses' },
   { code: 'lwd', name: 'LWD observation', numeric: false, hotkey: 'L', hint: 'curve and what it did' },
   { code: 'drilling_parameter', name: 'Drilling parameter', numeric: false, hotkey: 'D', hint: 'parameter and value' },
@@ -38,6 +38,8 @@ export function observationParams({ type, value = null, unit = null, text = '', 
 export function observationLabel(record) {
   const t = observationType(record.subtype) || { name: record.subtype };
   const pl = record.payload || {};
+  // record types added by the upgrade (chromatograph, lag check, survey) carry their own one-line text
+  if (!observationType(record.subtype) && pl.text) return pl.text;
   if (Number.isFinite(pl.value)) return `${t.name} ${pl.value} ${pl.unit || ''}${pl.text ? `, ${pl.text}` : ''}`.trim();
   return `${t.name}: ${pl.text || ''}`;
 }

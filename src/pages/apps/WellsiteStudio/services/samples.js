@@ -15,6 +15,7 @@ export const PROGRAMME_SUBTYPE = 'sample_programme';
 export const LOOKAHEAD_SAMPLES = 3;
 
 import { FLOATER_TYPES } from './vocab';
+import { lagContextWithWashout } from './lagCheck';
 
 /** A floating rig returns through a marine riser and runs a booster pump (tester note 2026-09-07). */
 export const isFloater = (rigConfig) => !!(rigConfig && FLOATER_TYPES.includes(rigConfig.rig_type));
@@ -49,14 +50,19 @@ export function bitHistoryOf(bitDepths, events = []) {
 }
 export const pumpLogOf = (pumpEvents) => pumpEvents.map((r) => ({ utcMs: Date.parse(r.occurred_at), spm: Number(r.payload && r.payload.spm) || 0, boosterSpm: Number(r.payload && r.payload.boosterSpm) || 0 })).sort((a, b) => a.utcMs - b.utcMs);
 
-/** The status-bar lag readout, or a reason it is unavailable. */
-export function lagNow({ well, rigConfig, bitDepths, pumpEvents, events = [], nowUtcMs }) {
-  const lagCtx = lagContextOf(well, rigConfig);
-  if (!lagCtx) return { available: false, note: 'Record the rig geometry and pump in Config to see the lag.' };
+/**
+ * The status-bar lag readout, or a reason it is unavailable. With a washout in force (U2-004) the
+ * open hole is enlarged before the lag is computed; the gauge context is kept beside it for the
+ * next lag check, which always measures against gauge.
+ */
+export function lagNow({ well, rigConfig, bitDepths, pumpEvents, events = [], nowUtcMs, washout = null }) {
+  const gaugeLagCtx = lagContextOf(well, rigConfig);
+  if (!gaugeLagCtx) return { available: false, note: 'Record the rig geometry and pump in Config to see the lag.' };
   const history = bitHistoryOf(bitDepths, events);
   if (!history.length) return { available: false, note: 'Record a bit depth to see the lag.' };
+  const lagCtx = lagContextWithWashout(gaugeLagCtx, washout);
   const r = lagReadout({ nowUtcMs, bitMdM: history[history.length - 1].mdM, bitDepthHistory: history, pumpLog: pumpLogOf(pumpEvents), lagCtx });
-  return { available: true, ...r, lagCtx };
+  return { available: true, ...r, lagCtx, gaugeLagCtx, washoutFraction: washout && washout.fraction > 0 ? washout.fraction : 0 };
 }
 
 /** The current programme from its decision records (head of the chain), or null. */
@@ -114,14 +120,14 @@ export function scheduleHorizonM(programme, bitMdM) {
  * The sample board rows.
  * @param {Object} p { samples, stages, well, rigConfig, bitDepths, pumpEvents, nowUtcMs }
  */
-export function sampleBoard({ samples, stages, well, rigConfig, bitDepths, pumpEvents, events = [], nowUtcMs }) {
+export function sampleBoard({ samples, stages, well, rigConfig, bitDepths, pumpEvents, events = [], nowUtcMs, washout = null }) {
   const tolerance = (well.settings && well.settings.overdue_tolerance_min) ?? 15;
   const cfg = statusConfig({ mandatory: (well.settings && well.settings.mandatory_sample_stages) || DEFAULT_MANDATORY });
   const stagesBySample = new Map();
   for (const st of stages) { if (!stagesBySample.has(st.sample_id)) stagesBySample.set(st.sample_id, []); stagesBySample.get(st.sample_id).push(st); }
   const history = bitHistoryOf(bitDepths, events);
   const bitMdM = history.length ? history[history.length - 1].mdM : null;
-  const lagCtx = lagContextOf(well, rigConfig);
+  const lagCtx = lagContextWithWashout(lagContextOf(well, rigConfig), washout);
   const pumpLog = pumpLogOf(pumpEvents);
   const engineSamples = samples.map((s) => ({ id: s.id, mdM: s.md_calc_m, stages: stagesBySample.get(s.id) || [] }));
   let arrivals = new Map();

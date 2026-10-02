@@ -27,7 +27,20 @@ function Row({ label, children }) {
  * @param {{ctx: {frame?, kbM?, mudlineMdM?, waterDepthM?}, onImport: (points, summary) => void,
  *   fmtZ: (m) => string, fmtP: (mpa) => string}} props
  */
-export default function CalibrationImport({ ctx, onImport, fmtZ = (m) => `${m.toFixed(1)} m`, fmtP = (p) => `${p.toFixed(2)} MPa` }) {
+export default function CalibrationImport({ ctx, onImport, fmtZ = (m) => `${m.toFixed(1)} m`, fmtP = (p) => `${p.toFixed(2)} MPa`, wellsiteSource = null }) {
+  // Wellsite Studio U2-008: the mud weights a live well published come in through this same door,
+  // as a table with its units in the header, for the user to check and declare like any other file
+  const [wsNote, setWsNote] = useState(null);
+  const loadWellsite = async () => {
+    setError(null); setWsNote(null);
+    try {
+      const src = await wellsiteSource();
+      if (!src || !src.text) { setWsNote((src && src.note) || 'No mud weight curve from Wellsite Studio is on this well.'); return; }
+      setText(src.text);
+      read(src.text, src.name);
+      setWsNote(src.note || null);
+    } catch (e) { setError(e.message); }
+  };
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [text, setText] = useState('');
@@ -102,6 +115,11 @@ export default function CalibrationImport({ ctx, onImport, fmtZ = (m) => `${m.to
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
+      {wellsiteSource && (
+        <button type="button" data-testid="pp-cal-import-wellsite" onClick={loadWellsite} title="Mud weights in use (ECD where logged, otherwise mud weight in) published by the Wellsite Studio live well of this registry well"
+          className="self-start px-2 py-0.5 text-[11px] rounded border border-pl-border text-pl-text hover:bg-pl-sunken">Mud weights from Wellsite Studio</button>
+      )}
+      {wsNote && <div className="text-[11px] text-pl-muted" data-testid="pp-cal-import-wellsite-note">{wsNote}</div>}
       {text.trim() && (
         <button type="button" data-testid="pp-cal-import-read" onClick={() => read(text, 'pasted table')}
           className="self-start px-2 py-0.5 text-[11px] rounded border border-pl-border text-pl-text hover:bg-pl-sunken">Read pasted table</button>

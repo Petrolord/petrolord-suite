@@ -17,6 +17,7 @@
 // deliverable for the well plan. PP1: Well data, Open in and Help
 // launchers; `appPaths` lets the harness point them at the /dev/* apps.
 
+import { pickEvidence, evidenceText, mudWeightTable } from '@/lib/wellsite/evidence';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Gauge, Loader2, Save, Upload, Download, HelpCircle, Database, FileText } from 'lucide-react';
@@ -442,6 +443,17 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     mudlineMdM: params.mudlineMdM,
     waterDepthM: params.waterDepthM,
   }), [seismicModel, selected, params.mudlineMdM, params.waterDepthM]);
+  // Wellsite Studio U2-008: the mud weights a live well published to this registry well (ECD where
+  // logged, otherwise mud weight in) as a table for the calibration door, with what else it published
+  const wellsiteSource = useCallback(async () => {
+    const logs = await backend.listLogs(selected.id);
+    const e = pickEvidence(logs);
+    const log = e.ECD || e.MWIN || null;
+    const note = evidenceText(logs);
+    if (!log) return { text: null, note: note ? `${note} It carries no mud weight curve.` : null };
+    const t = mudWeightTable(log, await backend.downloadCurve(log));
+    return { text: t.text, name: `Wellsite Studio ${log.mnemonic === 'ECD' ? 'ECD' : 'mud weight in'} (${log.provenance.ws_well_name || 'live well'})`, note: `${note} ${t.rows} mud weight row(s) read from ${log.mnemonic}; choose Mud weight used and check the units before adding.` };
+  }, [backend, selected]);
   const importCalibration = (points, summary) => {
     setCalibration((c) => [...c, ...points]);
     setStatus(`Imported ${summary.read} calibration point${summary.read === 1 ? '' : 's'} from ${summary.name}${summary.skipped.length ? `; ${summary.skipped.length} line${summary.skipped.length === 1 ? '' : 's'} not read` : ''}.`);
@@ -855,6 +867,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             units={units}
             importCtx={importCtx}
             onImportCalibration={importCalibration}
+            wellsiteSource={seismicModel || !selected ? null : wellsiteSource}
             onClearImported={() => { setCalibration((c) => c.filter((p) => !p.source)); setStatus('Imported calibration cleared.'); }}
           />
         </ScrollArea>

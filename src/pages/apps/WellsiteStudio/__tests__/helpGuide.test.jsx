@@ -20,7 +20,7 @@ test('renders the header and every navigation section', () => {
   renderGuide();
   expect(screen.getByRole('heading', { level: 1, name: /Wellsite Studio Help Guide/ })).toBeInTheDocument();
   for (const { id } of HELP_SECTIONS) expect(document.getElementById(`section-${id}`)).not.toBeNull();
-  expect(HELP_SECTIONS.length).toBe(19);
+  expect(HELP_SECTIONS.length).toBe(23);
 });
 
 test('quotes the live vocabulary and the offline requirements', () => {
