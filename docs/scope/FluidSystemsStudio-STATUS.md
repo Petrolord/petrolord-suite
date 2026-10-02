@@ -411,7 +411,8 @@ What the app gained:
   (source of each input; sample values marked until edited), `unitSystem`
   and `streamA.composition.tuning.fit` (the record of the lab tune, with a
   signature of what it was fitted against).
-- **The P-T door.** `utils/fluidstudio/ptProfileImport.js`: any separator,
+- **The P-T door.** `utils/fluidstudio/ptProfileImport.js` on the shared
+  typed reader (`src/lib/tabularParse.js`): any separator,
   header, units at the door (`inputs.ptProfile.units`), gauge to absolute, a
   read-back.
 - **Water properties** in the table: Bw and water viscosity (McCain, from
@@ -436,17 +437,27 @@ as its negative control):
 - Separator totals are summed before rounding.
 - The black-oil snapshot pin (`blackOilSnapshot.json`) was updated on
   purpose for these: the separator totals, `backbone.gor`, the first
-  (undersaturated) pinned row, and the reworded separator warning.
+  (undersaturated) pinned row, and the reworded separator warning. The
+  Simulation `BUILT.DATA` fixture was regenerated (14 undersaturated PVTO
+  rows); its OPM acceptance is a worker test and was not re-run.
+
+- **Record sharing** (migration 20261002130000, applied): the hook takes a
+  sharing store; own projects, then "Shared with me"; a save goes through
+  the store with the opened version and only while the user may write; Save
+  a copy. `createSavedProjectsService` gained `listRows` and `loadRow`,
+  `StudioProjectManager` a "Shared with me" group (both additive).
+
+After the merge of Step 0e the app has one tuning status
+(`tuningStatus`, `tuning.fittedOn`); `tuning.fit` is the record of the match
+for the report.
 
 Open (Step 2 backlog in the upgrade doc): lab PVT table import, correlation
 matching to Bo, Rs and viscosity, simulator keyword export, Z from the
 canonical engines, tuned-parameter uncertainty shown, a composition door,
-the Vasquez-Beggs separator gas gravity, record sharing and the shared
-tabular parser (after Step 0a), CVD, C7+ splitting, SRK. H10 (the "Lab
-tuned" badge after a composition edit) is fixed by the honesty sweep.
+the Vasquez-Beggs separator gas gravity, CVD, C7+ splitting, SRK.
 
-Tests: jest `fluidStudioProvenance` , `fluidReport` (5 goldens),
-`fluidContract`, `fluidUpgradeUi`, `reportKitLimits`; e2e
+Tests: jest `fluidStudioProvenance`, `fluidReport` (5 goldens),
+`fluidContract`, `fluidUpgradeUi`, `fluidSharing`, `reportKitLimits`; e2e
 `e2e/fluid-systems-upgrade.spec.js` on `/dev/fluid-systems-studio`, which is
 now `src/dev/FluidStudioHarness.jsx` (in-memory Supabase, saved projects in
 sessionStorage, `?saved=1` for projects as earlier releases saved them).
