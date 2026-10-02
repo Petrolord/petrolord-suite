@@ -516,7 +516,7 @@ const InputPanel = ({
           {loading ? (
             <div className="flex items-center justify-center">
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current mr-2"></div>
-              Calculating Optimal Spacing...
+              Calculating spacing cases...
             </div>
           ) : (
             <div className="flex items-center justify-center">
