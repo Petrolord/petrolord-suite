@@ -3,9 +3,12 @@
 // and is jest-guarded).
 //
 // Input: location.state.wellTestData = {
-//   pAvg_psia, tempF, fluid ('oil'|'gas'), wellName, k_md, skin, source
+//   pAvg_psia, tempF, fluid ('oil'|'gas'), wellName, k_md, skin, source,
+//   pressureMethod, sentAt (both since MBAL-U1: how the pressure was
+//   obtained and when it was sent)
 // }
-// Output: { prefill, note } - prefill feeds the new-case dialog; note is the
+// Output: { prefill, note, handoffs } - prefill feeds the new-case dialog;
+// handoffs is the record kept with the case (lib/studyMeta.js); note is the
 // user-facing message naming what was applied (k and skin are context only:
 // material balance has no direct field for them). Returns null when the
 // payload carries nothing usable.
@@ -28,7 +31,31 @@ export function mapWellTestIntake(wt) {
   ].filter(Boolean).join(', ');
   const note =
     `Average pressure from ${wt.source || 'the Well Test Analysis Studio'} ` +
-    `prefilled as initial pressure${extras ? ` (${extras} for reference)` : ''}.`;
+    `prefilled as initial pressure${extras ? ` (${extras} for reference)` : ''}. ` +
+    'Keep it only if the test was run before production began; otherwise type the initial reservoir pressure.';
 
-  return { prefill, note };
+  // What was handed over, kept with the case so the report can cite it and
+  // can tell when the value was edited afterwards (reviewer lens RL11).
+  const handoffs = {};
+  if (prefill.initial_pressure_psia) {
+    const how = wt.pressureMethod ? `, ${wt.pressureMethod}` : '';
+    handoffs.initial_pressure_psia = {
+      app: 'Well Test Analysis Studio',
+      record: [wt.source && wt.source !== 'Well Test Analysis Studio' ? `project ${wt.source}` : null, wt.wellName ? `well ${wt.wellName}` : null].filter(Boolean).join(', '),
+      value: Number(prefill.initial_pressure_psia),
+      at: wt.sentAt || new Date().toISOString(),
+      text: `Handed over from Well Test Analysis Studio: average pressure${how}`,
+    };
+  }
+  if (prefill.reservoir_temperature_f) {
+    handoffs.reservoir_temperature_f = {
+      app: 'Well Test Analysis Studio',
+      record: wt.wellName ? `well ${wt.wellName}` : '',
+      value: Number(prefill.reservoir_temperature_f),
+      at: wt.sentAt || new Date().toISOString(),
+      text: 'Handed over from Well Test Analysis Studio: reservoir temperature of the test',
+    };
+  }
+
+  return { prefill, note, handoffs };
 }

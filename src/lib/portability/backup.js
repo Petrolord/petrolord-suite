@@ -26,7 +26,7 @@ import { PackageSet, DEFAULT_PART_BYTES } from './packageSet';
 export const BACKUP_KINDS = [
   'petro_project', 'pp_project', 'rp_project', 'correlation_section', 'em_model', 'rcp_prospect', 'rrv_valuation', 'bf_model',
   'seismic_project', 'seismic_volume', 'seismic_line',
-  'wp_site', 'po_field', 'epe_case', 'epe_assumption_set', 'sim_case', 'saved_project',
+  'wp_site', 'po_field', 'epe_case', 'epe_assumption_set', 'rb_case', 'sim_case', 'saved_project',
 ];
 
 const mineOnly = (scope) => scope === 'mine';

@@ -21,9 +21,17 @@
 //   - User picks model + (if needed) enters parameter values
 //   - Save → upsertCaseDefaultConfig with aquifer_model + aquifer_params
 //
-// Unit conventions on inputs:
-//   - W shown to user in MM rb (millions of reservoir barrels); engine takes raw rb
-//   - All other inputs are in engine-native units (mD, ft, fraction, degrees)
+// Units (MBAL-U1, PL3): every field shows and takes its value in the display
+// unit and holds it in the engine unit (UnitField, lib/mbalUnits.js). W is
+// typed in millions (MMRB or 10^6 rm3).
+//
+// MBAL-U1-003: saving a model also sets the case flag has_aquifer, which the
+// engine's history match reads. The tab used to leave it false.
+// MBAL-U1-005: the Carter-Tracy form now shows the reservoir radius, the
+// reservoir area, the water viscosity and the aquifer salinity. They were
+// read by the engine, written by the Screening segment, invisible here, and
+// DROPPED by this tab's Save, after which the engine fell back on a 2,980 ft
+// radius (the aquifer constant goes with the square of that radius).
 
 import React, { useEffect, useState, useMemo } from 'react';
 import {
@@ -36,7 +44,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -56,7 +63,10 @@ import ValidationTierBadge from '@/components/reservoirbalance/ValidationTierBad
 import {
   getCaseDefaultConfig,
   upsertCaseDefaultConfig,
+  updateCase,
 } from '@/pages/apps/reservoir-balance/lib/api';
+import { useMaterialBalanceStudio } from '@/contexts/MaterialBalanceStudioContext';
+import UnitField from './UnitField';
 
 // =============================================================================
 // CONFIG
@@ -78,25 +88,25 @@ const AQUIFER_MODEL_OPTIONS = [
     value: 'none',
     label: 'None (closed system)',
     description:
-      'Reservoir treated as a closed tank with no aquifer support. Pressure declines only from production and rock+water expansion.',
+      'A closed tank with no aquifer. Pressure falls with production and is held only by the expansion of the fluids, the rock and the connate water.',
   },
   {
     value: 'pot',
     label: 'Pot aquifer',
     description:
-      'Small bounded aquifer with instantaneous pressure communication (Pletcher Eq. 12). Aquifer water-in-place (W) is estimated automatically by regression, with no manual entry. Best for high-permeability reservoirs with bounded aquifer (faulting, pinchout).',
+      'Small bounded aquifer that follows the reservoir pressure at once (Pletcher Eq. 12). The regression estimates its water in place (W); nothing is entered. For a high-permeability reservoir with an aquifer bounded by faults or a pinch-out.',
   },
   {
     value: 'fetkovich',
     label: 'Fetkovich',
     description:
-      'Time-dependent aquifer with productivity-index marching scheme (Fetkovich 1971). Suitable for finite aquifers where flow is rate-limited. Requires W and J as user inputs.',
+      'Finite aquifer with a productivity index, marched through time (Fetkovich 1971). For an aquifer whose inflow is limited by its rate. Needs W and J.',
   },
   {
     value: 'carter_tracy',
     label: 'Carter-Tracy',
     description:
-      'Radial-diffusion aquifer model (Carter-Tracy 1960) with Lee-Wattenbarger pD/pD\u2032 polynomial fit to the infinite-aquifer pressure transient. Best for large/effectively-infinite aquifers where the marching-scheme limit of Fetkovich is unrealistic.',
+      'Unsteady-state radial aquifer (Carter-Tracy 1960, with the Lee-Wattenbarger fit to the van Everdingen-Hurst functions). For a large aquifer whose response lags the pressure, where the pseudo-steady state of Fetkovich does not hold.',
   },
 ];
 
@@ -115,10 +125,34 @@ const DEFAULT_FORM = {
     aquifer_porosity: null,
     theta_degrees: null,
     radius_ratio: null,
+    aquifer_radius_ft: null,
+    reservoir_area_acres: null,
+    aquifer_water_viscosity_cp: null,
+    water_salinity_ppm: null,
     // Shared optional override
     aquifer_total_compressibility_psi: null,
   },
 };
+
+/** The parameters each model keeps when the tab saves: every one the engine reads for it. */
+export const MODEL_PARAM_KEYS = Object.freeze({
+  none: [],
+  pot: [],
+  fetkovich: ['initial_aquifer_water_in_place_rb', 'aquifer_pi_rb_d_psi', 'aquifer_total_compressibility_psi'],
+  carter_tracy: [
+    'aquifer_permeability_md', 'aquifer_thickness_ft', 'aquifer_porosity', 'theta_degrees', 'radius_ratio',
+    'aquifer_radius_ft', 'reservoir_area_acres', 'aquifer_water_viscosity_cp', 'water_salinity_ppm', 'aquifer_total_compressibility_psi',
+  ],
+});
+
+/** aquifer_params as saved for a model: its own keys, the ones that hold a value. */
+export function paramsToSaveFor(model, params) {
+  const keys = MODEL_PARAM_KEYS[model] ?? [];
+  if (!keys.length) return null;
+  const out = {};
+  for (const key of keys) if (params?.[key] != null && Number.isFinite(Number(params[key]))) out[key] = Number(params[key]);
+  return out;
+}
 
 // =============================================================================
 // VALIDATION
@@ -150,7 +184,7 @@ function validateForm(form) {
       errors.push({ field: 'aquifer_porosity', message: 'Aquifer porosity must be between 0 and 1.' });
     }
     if (p.theta_degrees == null || !isFinite(p.theta_degrees) || p.theta_degrees <= 0 || p.theta_degrees > 360) {
-      errors.push({ field: 'theta_degrees', message: '\u03b8 must be between 0 and 360 degrees.' });
+      errors.push({ field: 'theta_degrees', message: 'The encroachment angle must be above 0 and at most 360 degrees.' });
     }
   }
   return errors;
@@ -162,6 +196,7 @@ function validateForm(form) {
 
 const AquiferModel = ({ caseId, caseData, onConfigChange }) => {
   const { toast } = useToast();
+  const { units, applyCasePatch } = useMaterialBalanceStudio();
   const [form, setForm] = useState(DEFAULT_FORM);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -214,14 +249,13 @@ const AquiferModel = ({ caseId, caseData, onConfigChange }) => {
     setDirty(true);
   };
 
-  // ── Param input change ──
-  const handleParamChange = (field, raw) => {
-    const parsed = raw === '' ? null : Number(raw);
+  // ── Param input change: UnitField commits a number in the engine unit, or null ──
+  const handleParamChange = (field, value) => {
     setForm((prev) => ({
       ...prev,
       aquifer_params: {
         ...prev.aquifer_params,
-        [field]: Number.isNaN(parsed) ? null : parsed,
+        [field]: value == null || !Number.isFinite(Number(value)) ? null : Number(value),
       },
     }));
     setDirty(true);
@@ -241,31 +275,7 @@ const AquiferModel = ({ caseId, caseData, onConfigChange }) => {
       return;
     }
 
-    // For Fetkovich/CT, only save the params that model needs.
-    let paramsToSave = null;
-    const p = form.aquifer_params;
-    if (form.aquifer_model === 'fetkovich') {
-      paramsToSave = {
-        initial_aquifer_water_in_place_rb: p.initial_aquifer_water_in_place_rb,
-        aquifer_pi_rb_d_psi: p.aquifer_pi_rb_d_psi,
-      };
-      if (p.aquifer_total_compressibility_psi != null) {
-        paramsToSave.aquifer_total_compressibility_psi = p.aquifer_total_compressibility_psi;
-      }
-    } else if (form.aquifer_model === 'carter_tracy') {
-      paramsToSave = {
-        aquifer_permeability_md: p.aquifer_permeability_md,
-        aquifer_thickness_ft: p.aquifer_thickness_ft,
-        aquifer_porosity: p.aquifer_porosity,
-        theta_degrees: p.theta_degrees,
-      };
-      if (p.radius_ratio != null) {
-        paramsToSave.radius_ratio = p.radius_ratio;
-      }
-      if (p.aquifer_total_compressibility_psi != null) {
-        paramsToSave.aquifer_total_compressibility_psi = p.aquifer_total_compressibility_psi;
-      }
-    }
+    const paramsToSave = paramsToSaveFor(form.aquifer_model, form.aquifer_params);
 
     setSaving(true);
     const { data, error } = await upsertCaseDefaultConfig(caseId, {
@@ -273,12 +283,20 @@ const AquiferModel = ({ caseId, caseData, onConfigChange }) => {
       aquifer_history_match: form.aquifer_history_match,
       aquifer_params: paramsToSave,
     });
+    // the case flag follows the model: the engine's history match reads it
+    const flag = form.aquifer_model !== 'none';
+    let flagError = null;
+    if (!error && Boolean(caseData?.has_aquifer) !== flag) {
+      const res = await updateCase(caseId, { has_aquifer: flag });
+      flagError = res?.error ?? null;
+      if (!flagError) applyCasePatch?.({ has_aquifer: flag });
+    }
     setSaving(false);
 
-    if (error) {
+    if (error || flagError) {
       toast({
         title: 'Save failed',
-        description: error.message,
+        description: (error || flagError).message,
         variant: 'destructive',
       });
       return;
@@ -288,7 +306,7 @@ const AquiferModel = ({ caseId, caseData, onConfigChange }) => {
     setDirty(false);
     toast({
       title: 'Aquifer config saved',
-      description: `Run MBAL will use the ${form.aquifer_model === 'none' ? 'no-aquifer' : form.aquifer_model.replace('_', '-')} model.`,
+      description: `The next run uses ${form.aquifer_model === 'none' ? 'no aquifer' : `the ${AQUIFER_MODEL_OPTIONS.find((o) => o.value === form.aquifer_model)?.label ?? form.aquifer_model} model`}.`,
     });
     onConfigChange?.(data);
   };
@@ -379,10 +397,10 @@ const AquiferModel = ({ caseId, caseData, onConfigChange }) => {
               <Calendar className="w-4 h-4 text-pl-warning-text flex-shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <p className="text-xs text-pl-warning-text font-medium">
-                  Production data must include observation_date
+                  The data rows need dates
                 </p>
                 <p className="text-[11px] text-pl-muted leading-relaxed">
-                  {currentOption.label} aquifer models need \u0394t between timesteps to march the water-influx solution forward in time. Open the Data tab and ensure every row has a date set; the engine will report a clear error at run time if a date is missing.
+                  The {currentOption.label} model marches the water influx through time, so it needs the time between timesteps. Give every row of the Data tab a date. The engine stops with a message that names the row when a date is missing.
                 </p>
               </div>
             </div>
@@ -410,26 +428,26 @@ const AquiferModel = ({ caseId, caseData, onConfigChange }) => {
                       Aquifer size (W) is estimated automatically
                     </p>
                     <p className="text-[11px] text-pl-muted leading-relaxed">
-                      The engine derives the original water in place (W) from the slope of the pot aquifer plot during the run. Cumulative water influx (We) is then computed at each timestep via Pletcher Eq. 12: We = (cw + cf) \u00b7 W \u00b7 (pi \u2212 p).
+                      The engine takes the water in place (W) from the slope of the pot aquifer plot during the run. The water influx at each timestep then follows Pletcher Eq. 12: We = (cw + cf) W (pi - p).
                     </p>
                     <p className="text-[11px] text-pl-muted leading-relaxed pt-1">
-                      No manual parameter entry required. After running MBAL, the estimated W appears in the result card.
+                      Nothing to enter. After a run the estimated W is on the result card and in the report.
                     </p>
                   </div>
                 </div>
                 <p className="text-[10px] text-pl-muted italic pt-1">
-                  Validated against Pletcher SPE 75354: 0.19% OGIP error for gas (Tables 1-3) and 0.13% OOIP error for oil (Tables 10-13). For best results, exclude very early-time data points where the line hasn't fully developed (the engine's excluded_timesteps field).
+                  Checked against Pletcher SPE 75354: 0.19 percent on OGIP for gas (Tables 1 to 3) and 0.13 percent on OOIP for oil (Tables 10 to 13). Early points taken before the line has developed can be left out of the fit on the Data tab.
                 </p>
               </CardContent>
             </Card>
           )}
 
           {form.aquifer_model === 'fetkovich' && (
-            <FetkovichParams form={form} errors={errors} onChange={handleParamChange} />
+            <FetkovichParams form={form} errors={errors} onChange={handleParamChange} units={units} />
           )}
 
           {form.aquifer_model === 'carter_tracy' && (
-            <CarterTracyParams form={form} errors={errors} onChange={handleParamChange} />
+            <CarterTracyParams form={form} errors={errors} onChange={handleParamChange} units={units} />
           )}
 
           {/* ── Form errors summary ── */}
@@ -440,7 +458,7 @@ const AquiferModel = ({ caseId, caseData, onConfigChange }) => {
               </p>
               {errors.map((err, i) => (
                 <p key={i} className="text-[11px] text-pl-danger-text">
-                  \u2022 {err.message}
+                  {err.message}
                 </p>
               ))}
             </div>
@@ -455,57 +473,9 @@ const AquiferModel = ({ caseId, caseData, onConfigChange }) => {
 // PARAMETER SUB-COMPONENTS
 // =============================================================================
 
-const NumericField = ({
-  label,
-  unit,
-  value,
-  onChange,
-  placeholder,
-  hint,
-  error,
-  step = 'any',
-}) => (
-  <div className="space-y-1.5">
-    <Label className="text-xs text-pl-text flex items-center justify-between">
-      <span>{label}</span>
-      {unit && <span className="text-[10px] text-pl-muted font-mono">{unit}</span>}
-    </Label>
-    <Input
-      type="number"
-      step={step}
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className={`h-9 ${error ? 'border-pl-danger' : ''}`}
-    />
-    {hint && !error && (
-      <p className="text-[10px] text-pl-muted leading-relaxed">{hint}</p>
-    )}
-    {error && (
-      <p className="text-[10px] text-pl-danger-text leading-relaxed">{error}</p>
-    )}
-  </div>
-);
-
-const FetkovichParams = ({ form, errors, onChange }) => {
+const FetkovichParams = ({ form, errors, onChange, units }) => {
   const p = form.aquifer_params;
   const errOf = (field) => errors.find((e) => e.field === field)?.message;
-
-  // W is shown in MM rb but stored in raw rb in state.
-  const W_MMrb = p.initial_aquifer_water_in_place_rb != null
-    ? p.initial_aquifer_water_in_place_rb / 1e6
-    : null;
-
-  const handleW = (raw) => {
-    const v = raw === '' ? null : Number(raw);
-    if (v == null || Number.isNaN(v)) {
-      onChange('initial_aquifer_water_in_place_rb', '');
-    } else {
-      // Convert MM rb → raw rb on the way into state
-      onChange('initial_aquifer_water_in_place_rb', (v * 1e6).toString());
-    }
-  };
-
   return (
     <Card>
       <CardHeader className="border-b border-pl-border p-4">
@@ -515,37 +485,34 @@ const FetkovichParams = ({ form, errors, onChange }) => {
       </CardHeader>
       <CardContent className="p-4 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <NumericField
-            label="Initial aquifer water in place (W)"
-            unit="MM rb"
-            value={W_MMrb}
-            onChange={handleW}
+          <UnitField
+            label="Initial aquifer water in place (W)" quantity="resVolumeMM" units={units} required testId="mbal-aq-w"
+            value={p.initial_aquifer_water_in_place_rb}
+            onCommit={(v) => onChange('initial_aquifer_water_in_place_rb', v)}
             placeholder="e.g. 633"
-            hint="Total water originally in the aquifer, in millions of reservoir barrels. Pletcher's modified Roach example uses 633 MM rb (10\u00d7 the hydrocarbon pore volume)."
+            hint="Water originally in the aquifer, in millions of reservoir volume. Pletcher's modified Roach example uses 633 MMRB, ten times the hydrocarbon pore volume."
             error={errOf('initial_aquifer_water_in_place_rb')}
           />
-          <NumericField
-            label="Aquifer productivity index (J)"
-            unit="rb/D/psi"
+          <UnitField
+            label="Aquifer productivity index (J)" quantity="aquiferIndex" units={units} required testId="mbal-aq-j"
             value={p.aquifer_pi_rb_d_psi}
-            onChange={(v) => onChange('aquifer_pi_rb_d_psi', v)}
+            onCommit={(v) => onChange('aquifer_pi_rb_d_psi', v)}
             placeholder="e.g. 485"
-            hint="Quasi-steady-state aquifer flow capacity. Higher J = stronger waterdrive response per unit pressure drawdown."
+            hint="Pseudo-steady-state flow capacity of the aquifer. A higher J answers a pressure drop faster."
             error={errOf('aquifer_pi_rb_d_psi')}
           />
         </div>
-        <NumericField
-          label="Total compressibility (ct)"
-          unit="1/psi"
+        <UnitField
+          label="Total compressibility (ct)" quantity="compressibility" units={units} testId="mbal-aq-ct"
           value={p.aquifer_total_compressibility_psi}
-          onChange={(v) => onChange('aquifer_total_compressibility_psi', v)}
-          placeholder="leave blank to use cw + cf"
-          hint="Optional. If blank, the engine uses the sum of water and formation compressibilities from the Rock + Water section. Override when the aquifer rock differs materially from the reservoir rock."
+          onCommit={(v) => onChange('aquifer_total_compressibility_psi', v)}
+          placeholder="blank: cw + cf"
+          hint="Optional. Blank uses the sum of the water and formation compressibilities of the PVT tab. Enter a value when the aquifer rock differs from the reservoir rock."
         />
         <div className="bg-pl-sunken border border-pl-border rounded p-3 mt-2">
           <p className="text-[10px] text-pl-muted leading-relaxed">
             <span className="font-semibold text-pl-muted">How it works.</span>{' '}
-            The engine marches the Fetkovich recurrence forward in time using \u0394t between successive observation_date values: \u0394We[n] = (Wei / pi) \u00b7 (p\u0304_aq[n\u22121] \u2212 p_wf[n]) \u00b7 (1 \u2212 exp(\u2212J \u00b7 pi \u00b7 \u0394t / Wei)), where Wei = ct \u00b7 W \u00b7 pi. The reservoir-aquifer interface pressure p_wf is taken as the midpoint of successive reservoir pressures.
+            The engine marches the Fetkovich recurrence through the dates of the Data tab: the influx of a step is (Wei / pi) times (average aquifer pressure minus boundary pressure) times (1 minus exp(minus J pi dt / Wei)), with Wei = ct W pi. The boundary pressure is the mean of the reservoir pressures at the two ends of the step.
           </p>
         </div>
       </CardContent>
@@ -553,7 +520,7 @@ const FetkovichParams = ({ form, errors, onChange }) => {
   );
 };
 
-const CarterTracyParams = ({ form, errors, onChange }) => {
+const CarterTracyParams = ({ form, errors, onChange, units }) => {
   const p = form.aquifer_params;
   const errOf = (field) => errors.find((e) => e.field === field)?.message;
 
@@ -566,67 +533,89 @@ const CarterTracyParams = ({ form, errors, onChange }) => {
       </CardHeader>
       <CardContent className="p-4 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <NumericField
-            label="Aquifer permeability (k)"
-            unit="mD"
+          <UnitField
+            label="Aquifer permeability (k)" unitText="mD" required testId="mbal-aq-k"
             value={p.aquifer_permeability_md}
-            onChange={(v) => onChange('aquifer_permeability_md', v)}
+            onCommit={(v) => onChange('aquifer_permeability_md', v)}
             placeholder="e.g. 100"
             error={errOf('aquifer_permeability_md')}
           />
-          <NumericField
-            label="Aquifer thickness (h)"
-            unit="ft"
+          <UnitField
+            label="Aquifer thickness (h)" quantity="depth" units={units} required testId="mbal-aq-h"
             value={p.aquifer_thickness_ft}
-            onChange={(v) => onChange('aquifer_thickness_ft', v)}
+            onCommit={(v) => onChange('aquifer_thickness_ft', v)}
             placeholder="e.g. 50"
             error={errOf('aquifer_thickness_ft')}
           />
-          <NumericField
-            label="Aquifer porosity (\u03c6)"
-            unit="fraction"
+          <UnitField
+            label="Aquifer porosity" unitText="fraction" required testId="mbal-aq-phi"
             value={p.aquifer_porosity}
-            onChange={(v) => onChange('aquifer_porosity', v)}
+            onCommit={(v) => onChange('aquifer_porosity', v)}
             placeholder="e.g. 0.18"
             hint="Between 0 and 1."
             error={errOf('aquifer_porosity')}
           />
-          <NumericField
-            label="Aquifer angle (\u03b8)"
-            unit="degrees"
+          <UnitField
+            label="Encroachment angle" unitText="degrees" required testId="mbal-aq-theta"
             value={p.theta_degrees}
-            onChange={(v) => onChange('theta_degrees', v)}
-            placeholder="360 (full encircling)"
-            hint="Use 360\u00b0 for a fully encircling aquifer, 180\u00b0 for a half-circle edge aquifer, etc."
+            onCommit={(v) => onChange('theta_degrees', v)}
+            placeholder="360 for a full circle"
+            hint="360 for an aquifer all round the reservoir, 180 for an edge aquifer on one side."
             error={errOf('theta_degrees')}
           />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <NumericField
-            label="Radius ratio (r\u2090 / r_R)"
-            unit="dimensionless"
-            value={p.radius_ratio}
-            onChange={(v) => onChange('radius_ratio', v)}
-            placeholder="leave blank for infinite aquifer"
-            hint="Optional. When set, the engine blends to the finite-aquifer pseudo-steady-state pD past tD = 0.4 reD squared; blank keeps the infinite-acting solution."
+          <UnitField
+            label="Reservoir radius at the contact (r_R)" quantity="depth" units={units} testId="mbal-aq-radius"
+            value={p.aquifer_radius_ft}
+            onCommit={(v) => onChange('aquifer_radius_ft', v)}
+            placeholder="blank: from the area, else 2,980 ft"
+            hint="The aquifer constant goes with the square of this radius. Blank takes it from the reservoir area and the angle, and with no area the engine uses 2,980 ft, the radius of a 640 acre cell."
           />
-          <NumericField
-            label="Total compressibility (ct)"
-            unit="1/psi"
+          <UnitField
+            label="Reservoir area" quantity="area" units={units} testId="mbal-aq-area"
+            value={p.reservoir_area_acres}
+            onCommit={(v) => onChange('reservoir_area_acres', v)}
+            placeholder="used when no radius is entered"
+            hint="Optional. Gives the radius when none is entered."
+          />
+          <UnitField
+            label="Radius ratio (aquifer over reservoir)" unitText="dimensionless" testId="mbal-aq-red"
+            value={p.radius_ratio}
+            onCommit={(v) => onChange('radius_ratio', v)}
+            placeholder="blank: infinite aquifer"
+            hint="Optional. With a value the engine moves to the bounded aquifer solution at late time; blank keeps the infinite-acting one."
+          />
+          <UnitField
+            label="Total compressibility (ct)" quantity="compressibility" units={units} testId="mbal-aq-ct"
             value={p.aquifer_total_compressibility_psi}
-            onChange={(v) => onChange('aquifer_total_compressibility_psi', v)}
-            placeholder="leave blank to use cw + cf"
-            hint="Optional. Defaults to the sum of water and formation compressibilities from the Rock + Water section."
+            onCommit={(v) => onChange('aquifer_total_compressibility_psi', v)}
+            placeholder="blank: cw + cf"
+            hint="Optional. Blank uses the sum of the water and formation compressibilities of the PVT tab."
+          />
+          <UnitField
+            label="Aquifer water viscosity" quantity="viscosity" units={units} testId="mbal-aq-muw"
+            value={p.aquifer_water_viscosity_cp}
+            onCommit={(v) => onChange('aquifer_water_viscosity_cp', v)}
+            placeholder="blank: McCain (1991)"
+            hint="Optional. Blank uses the McCain correlation at the initial pressure, the reservoir temperature and the salinity."
+          />
+          <UnitField
+            label="Aquifer water salinity" unitText="ppm" testId="mbal-aq-salinity"
+            value={p.water_salinity_ppm}
+            onCommit={(v) => onChange('water_salinity_ppm', v)}
+            placeholder="blank: the salinity of the PVT tab"
+            hint="Optional. Read only when the water viscosity is left blank."
           />
         </div>
         <div className="bg-pl-sunken border border-pl-border rounded p-3 mt-2 space-y-2">
           <p className="text-[10px] text-pl-muted leading-relaxed">
             <span className="font-semibold text-pl-muted">How it works.</span>{' '}
-            The engine uses the Carter-Tracy van Everdingen-Hurst approximation with the Lee-Wattenbarger pD/pD\u2032 polynomial for an infinite radial aquifer. Aquifer constant U is derived from \u03c6, h, ct, and a reservoir radius r_R; dimensionless time tD scales with k and t.
+            The engine uses the Carter-Tracy approximation of the van Everdingen-Hurst solution for a radial aquifer. The aquifer constant comes from the porosity, the thickness, ct, the radius and the angle; dimensionless time scales with k and with time.
           </p>
           <p className="text-[10px] text-pl-muted leading-relaxed">
-            <span className="font-semibold text-pl-muted">Defaults you inherit.</span>{' '}
-            Water viscosity \u03bc_w defaults to the McCain (1991) correlation at initial pressure, reservoir temperature and the water salinity from the PVT tab. Reservoir radius r_R defaults to sqrt(A / (\u03c0 \u00b7 \u03b8/360)) when a reservoir area is available, else the legacy 2,980 ft single-cell convention. Every defaulted value is named in the run warnings so you can see exactly what was used and pin it explicitly if your case differs.
+            <span className="font-semibold text-pl-muted">What a blank means.</span>{' '}
+            Every value the engine fills in for a blank is named in the run warnings and printed in the report as a default.
           </p>
         </div>
       </CardContent>

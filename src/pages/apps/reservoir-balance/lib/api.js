@@ -18,7 +18,28 @@
 // Pattern: matches the data flow used by EPE in this Suite.
 
 import { supabase } from '@/lib/customSupabaseClient';
-import { CASE_RUN_INPUT_FIELDS } from './runStaleness';
+import { STUDY_KEY } from './studyMeta';
+
+// =============================================================================
+// READ-ONLY GUARD (record sharing)
+// =============================================================================
+// A case a colleague shared with the organisation opens read-only. The
+// database refuses every write to it (row level security on rb_cases and its
+// children, migration 20261002130000); this guard gives the same answer
+// first, with the reason in words, so no tab has to know about sharing. The
+// studio context sets it for the open case and clears it on the way out.
+// Creating a case of one's own is never guarded.
+let readOnly = null; // { caseId, reason }
+/**
+ * @param {?string} caseId the open case
+ * @param {?string} reason the sentence to show, or null when the open case can be written
+ */
+export function setCaseReadOnly(caseId, reason) { readOnly = caseId && reason ? { caseId, reason } : null; }
+export const caseReadOnlyReason = () => readOnly?.reason ?? null;
+// `caseId` undefined: a write addressed by run config id, which is always of the open case
+const refused = (caseId) => (readOnly && (caseId === undefined || caseId === readOnly.caseId)
+  ? { data: null, error: { code: 'MBAL_READ_ONLY', message: readOnly.reason } }
+  : null);
 
 // =============================================================================
 // CASE CRUD (rb_cases)
@@ -84,21 +105,14 @@ export async function createCase(input) {
  * Update fields on an existing case.
  */
 export async function updateCase(caseId, patch) {
-  // H4: a change to a field the engine reads stamps the case, so a stored
-  // run made before it is recognised as stale (lib/runStaleness.js). A
-  // rename or a new description does not.
-  let stamped = patch;
-  if (patch && CASE_RUN_INPUT_FIELDS.some((k) => k in patch)) {
-    const { data: current } = await getCase(caseId);
-    const moved = !current || CASE_RUN_INPUT_FIELDS.some(
-      (k) => k in patch && String(patch[k] ?? '') !== String(current[k] ?? ''),
-    );
-    const stamp = moved ? await inputsEditedStamp(caseId) : null;
-    if (stamp) stamped = { ...patch, updated_at: stamp };
-  }
+  { const no = refused(caseId); if (no) return no; }
+  // Whether a change makes a stored run stale is decided by comparing the
+  // run's own snapshot with the case (lib/runStaleness.js), so nothing is
+  // stamped here. (Step 0e stamped updated_at; the record sharing guard
+  // trigger now owns that column and keeps it unless the content changed.)
   const { data, error } = await supabase
     .from('rb_cases')
-    .update(stamped)
+    .update(patch)
     .eq('id', caseId)
     .select()
     .single();
@@ -106,48 +120,10 @@ export async function updateCase(caseId, patch) {
 }
 
 /**
- * A time stamp for "an input of this case changed after its last run" (H4).
- * The run start is written by the edge function from the server clock. A
- * browser clock can be minutes off either way, so the stamp is taken from
- * the server's own time line: one millisecond after the latest run start.
- * The next run starts later than that and is current again. With no run
- * there is nothing to go stale and no stamp (null).
- */
-async function inputsEditedStamp(caseId) {
-  try {
-    const { data: runs } = await supabase
-      .from('rb_runs')
-      .select('started_at')
-      .eq('case_id', caseId)
-      .order('started_at', { ascending: false })
-      .limit(1);
-    const t = runs?.[0]?.started_at ? new Date(runs[0].started_at).getTime() : NaN;
-    return Number.isFinite(t) ? new Date(t + 1).toISOString() : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Stamp the case after its production data changed (H4). The rows carry no
- * updated_at, and an upsert leaves created_at alone, so the case row holds
- * the stamp. A failure here is not an error of the save it follows.
- */
-export async function stampCaseInputsEdited(caseId) {
-  try {
-    const stamp = await inputsEditedStamp(caseId);
-    if (!stamp) return { error: null };
-    const { error } = await supabase.from('rb_cases').update({ updated_at: stamp }).eq('id', caseId);
-    return { error: error ?? null };
-  } catch (err) {
-    return { error: { message: err?.message ?? String(err) } };
-  }
-}
-
-/**
  * Soft-delete: set archived_at. Case stays in the database for recovery.
  */
 export async function archiveCase(caseId) {
+  { const no = refused(caseId); if (no) return no; }
   return updateCase(caseId, { archived_at: new Date().toISOString() });
 }
 
@@ -156,6 +132,7 @@ export async function archiveCase(caseId) {
  * Use with confirmation in the UI.
  */
 export async function deleteCase(caseId) {
+  { const no = refused(caseId); if (no) return no; }
   const { error } = await supabase
     .from('rb_cases')
     .delete()
@@ -194,12 +171,12 @@ export async function listProductionData(caseId) {
  * case_id is added to each row automatically.
  */
 export async function replaceProductionData(caseId, rows) {
+  { const no = refused(caseId); if (no) return no; }
   if (!rows || rows.length === 0) {
     const { error } = await supabase
       .from('rb_production_data')
       .delete()
       .eq('case_id', caseId);
-    if (!error) await stampCaseInputsEdited(caseId);
     return { data: error ? null : [], error };
   }
 
@@ -227,7 +204,6 @@ export async function replaceProductionData(caseId, rows) {
     .delete()
     .eq('case_id', caseId)
     .gte('timestep_index', rows.length);
-  await stampCaseInputsEdited(caseId);
   return { data, error: delErr || null };
 }
 
@@ -235,13 +211,13 @@ export async function replaceProductionData(caseId, rows) {
  * Upsert a single production data row (by case_id + timestep_index).
  */
 export async function upsertProductionRow(caseId, row) {
+  { const no = refused(caseId); if (no) return no; }
   const stamped = { ...row, case_id: caseId };
   const { data, error } = await supabase
     .from('rb_production_data')
     .upsert(stamped, { onConflict: 'case_id,timestep_index' })
     .select()
     .single();
-  if (!error) await stampCaseInputsEdited(caseId);
   return { data, error };
 }
 
@@ -278,6 +254,7 @@ export async function getRunConfig(configId) {
  * Schema defaults handle name, pvt_correlations, etc. if not provided.
  */
 export async function createRunConfig(caseId, input = {}) {
+  { const no = refused(caseId); if (no) return no; }
   const payload = {
     case_id: caseId,
     formation_compressibility_psi: input.formation_compressibility_psi ?? 6e-6,
@@ -296,6 +273,7 @@ export async function createRunConfig(caseId, input = {}) {
  * Update an existing run config.
  */
 export async function updateRunConfig(configId, patch) {
+  { const no = refused(); if (no) return no; }
   const { data, error } = await supabase
     .from('rb_run_configs')
     .update(patch)
@@ -309,6 +287,7 @@ export async function updateRunConfig(configId, patch) {
  * Delete a run config.
  */
 export async function deleteRunConfig(configId) {
+  { const no = refused(); if (no) return no; }
   const { error } = await supabase
     .from('rb_run_configs')
     .delete()
@@ -381,6 +360,7 @@ export async function getResultByRunId(runId) {
  * to the UI.
  */
 export async function runMBAL(runConfigId, options = {}) {
+  { const no = refused(); if (no) return no; }
   if (!runConfigId) {
     return {
       data: null,
@@ -561,6 +541,7 @@ export async function getCaseDefaultConfig(caseId) {
  * NOT atomic — read-then-write. Acceptable for single-user editing.
  */
 export async function upsertCaseDefaultConfig(caseId, patch) {
+  { const no = refused(caseId); if (no) return no; }
   if (!caseId) {
     return { data: null, error: { message: 'Missing caseId' } };
   }
@@ -573,8 +554,15 @@ export async function upsertCaseDefaultConfig(caseId, patch) {
   if (readErr) return { data: null, error: readErr };
 
   if (existing) {
-    // Update path
-    return updateRunConfig(existing.id, patch);
+    // Update path. The study record (identification, datum, input sources)
+    // lives under one key of pvt_correlations; a tab that saves the
+    // correlation choices sends the jsonb whole and must not drop it.
+    let next = patch;
+    const kept = existing.pvt_correlations?.[STUDY_KEY];
+    if (kept && patch.pvt_correlations && typeof patch.pvt_correlations === 'object' && !(STUDY_KEY in patch.pvt_correlations)) {
+      next = { ...patch, pvt_correlations: { ...patch.pvt_correlations, [STUDY_KEY]: kept } };
+    }
+    return updateRunConfig(existing.id, next);
   }
 
   // Insert path — stamp case_id + is_scenario=false + name
@@ -605,6 +593,7 @@ export async function upsertCaseDefaultConfig(caseId, patch) {
  *   });
  */
 export async function savePvtConfig(caseId, pvtFields) {
+  { const no = refused(caseId); if (no) return no; }
   if (!pvtFields || typeof pvtFields !== 'object') {
     return { data: null, error: { message: 'pvtFields must be an object' } };
   }

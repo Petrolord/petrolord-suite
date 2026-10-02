@@ -8,7 +8,7 @@
 export { createReport, headerPairs, pairRows, inputsBody, INPUTS_HEAD } from './report.js';
 export { createLayout } from './layout.js';
 export { engineInputKeys, missingInputRows } from './completeness.js';
-export { drawPlot, niceTicks, decadeTicks, tickText } from './plot.js';
+export { drawPlot, niceTicks, decadeTicks, tickText, dateTicks, dateTickText } from './plot.js';
 export { drawBars } from './bars.js';
 export { pdfText, unprintable, isPrintable, assertPrintable, textFilter } from './text.js';
 export {

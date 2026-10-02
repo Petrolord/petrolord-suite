@@ -1,0 +1,121 @@
+{
+  "pages": 8,
+  "sha256": "f39002814edab0bd452e901d98e2c6e94936a1f95a8821b0dd63cd7b57c12beb",
+  "figures": [
+    {
+      "id": "regression",
+      "number": 1,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "In the fit": 12,
+            "Not in the fit": 1,
+            "Fitted line": 2
+          },
+          "total": 15,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "campbell",
+      "number": 2,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 127.72,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "In the fit": 12
+          },
+          "total": 12,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "cole",
+      "number": 3,
+      "page": 7,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "pz",
+      "number": 4,
+      "page": 7,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "pressure",
+      "number": 5,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "Measured, in the fit": 12,
+            "Measured, left out of the fit": 1
+          },
+          "total": 13,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "influx",
+      "number": 6,
+      "page": 8,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "drive",
+      "number": 7,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 135.58,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "Depletion (DDI)": 12,
+            "Gas cap (GDI)": 12,
+            "Rock and connate water (CDI)": 12,
+            "Water drive (WDI)": 12
+          },
+          "total": 48,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    }
+  ]
+}

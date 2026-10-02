@@ -132,7 +132,8 @@
                   "seismic_project",
                   "seismic_volume",
                   "seismic_line",
-                  "ws_well"
+                  "ws_well",
+                  "rb_case"
                 ]
               },
               "id": {

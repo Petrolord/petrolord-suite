@@ -23,7 +23,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import {
-  Scale, Play, Loader2, Database, Info, CheckCircle2,
+  Scale, Play, Loader2, Database, Info,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,7 +53,12 @@ import NewCaseDialog, { fluidSystemDisplay } from '@/components/reservoirbalance
 import MbsHelpContent from '@/components/reservoirbalance/MbsHelpContent';
 import { mapWellTestIntake } from './lib/wellTestIntake';
 import { staleRunMessage } from './lib/runStaleness';
+import { validationTierOf, fmt, r2Text, INJECTION_NOTE } from './lib/reportModel';
+import { driveIndexDefs, inPlaceOf } from './lib/mbalSeries';
+import { MBAL_OILFIELD_VIEW, MBAL_METRIC_VIEW, MBAL_UNIT_SPEC } from './lib/mbalUnits';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { pvtTableCoverage } from './lib/pvtSource';
+import { RecordSharingBar } from '@/components/recordSharing';
 
 const TABS = [
   { value: 'data', label: 'Data' },
@@ -65,12 +70,6 @@ const TABS = [
   { value: 'contacts', label: 'Contacts' },
   { value: 'report', label: 'Report' },
 ];
-
-function formatNumber(n, opts = {}) {
-  if (n === null || n === undefined || Number.isNaN(n)) return EMPTY_VALUE;
-  const { decimals = 2 } = opts;
-  return Number(n).toLocaleString(undefined, { maximumFractionDigits: decimals });
-}
 
 const Stat = ({ label, value, hint }) => (
   <div>
@@ -91,12 +90,14 @@ const DriveIndex = ({ label, value }) => (
 
 // ─── Left-rail case summary ──────────────────────────────────────────────────
 const CaseSummary = ({ onEdit }) => {
-  const { caseData } = useMaterialBalanceStudio();
+  const { caseData, units } = useMaterialBalanceStudio();
   if (!caseData) return null;
   const fluid = fluidSystemDisplay(caseData.fluid_system);
   const FluidIcon = fluid.icon;
+  const pDigits = units.unit('pressure') === 'psi' || units.unit('pressure') === 'kPa' ? 0 : 2;
+  const p = (v) => (v == null ? EMPTY_VALUE : `${fmt(units.to('pressure', Number(v)), pDigits)} ${units.label('pressure')}`);
   return (
-    <section className="rounded-lg border border-pl-border bg-pl-surface p-3 space-y-2">
+    <section className="rounded-lg border border-pl-border bg-pl-surface p-3 space-y-2" data-testid="mbal-case-summary">
       <div className="flex items-center gap-2">
         <FluidIcon className={`h-4 w-4 shrink-0 ${fluid.color}`} />
         <span className="text-sm font-medium text-pl-text truncate min-w-0 flex-1">{caseData.name}</span>
@@ -111,18 +112,51 @@ const CaseSummary = ({ onEdit }) => {
       </p>
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
         <span className="text-pl-muted">Initial P</span>
-        <span className="text-pl-text text-right">{formatNumber(caseData.initial_pressure_psia)} psia</span>
+        <span className="text-pl-text text-right">{p(caseData.initial_pressure_psia)}</span>
         <span className="text-pl-muted">Temperature</span>
-        <span className="text-pl-text text-right">{formatNumber(caseData.reservoir_temperature_f)} °F</span>
+        <span className="text-pl-text text-right">{fmt(units.to('temperature', Number(caseData.reservoir_temperature_f)), 0)} {units.label('temperature')}</span>
         <span className="text-pl-muted">Initial Sw</span>
-        <span className="text-pl-text text-right">{formatNumber(caseData.initial_water_saturation, { decimals: 3 })}</span>
+        <span className="text-pl-text text-right">{fmt(Number(caseData.initial_water_saturation), 3)}</span>
         <span className="text-pl-muted">Bubble point</span>
-        <span className="text-pl-text text-right">
-          {caseData.bubble_point_psia ? `${formatNumber(caseData.bubble_point_psia)} psia` : EMPTY_VALUE}
-        </span>
+        <span className="text-pl-text text-right">{caseData.bubble_point_psia ? p(caseData.bubble_point_psia) : EMPTY_VALUE}</span>
         <span className="text-pl-muted">Data rows</span>
         <span className="text-pl-text text-right">{caseData.production_data?.length ?? 0}</span>
       </div>
+    </section>
+  );
+};
+
+// ─── Display units (PL3) ─────────────────────────────────────────────────────
+// The Suite unit profile decides the units a case opens in. The switch here is
+// a view for this session; stored data and the engine stay in oilfield units.
+const sameView = (a, b) => Object.keys(MBAL_UNIT_SPEC).every((k) => a[k] === b[k]);
+const UnitsControl = () => {
+  const { unitsHook, units } = useMaterialBalanceStudio();
+  const current = sameView(unitsHook.units, MBAL_OILFIELD_VIEW) ? 'oilfield' : (sameView(unitsHook.units, MBAL_METRIC_VIEW) ? 'metric' : 'profile');
+  const apply = (view) => { for (const k of Object.keys(MBAL_UNIT_SPEC)) unitsHook.setUnit(k, view[k]); };
+  const options = [{ value: 'oilfield', label: 'Oilfield' }, { value: 'metric', label: 'Metric' }];
+  if (current === 'profile') options.push({ value: 'profile', label: 'My profile' });
+  return (
+    <section className="rounded-lg border border-pl-border bg-pl-surface p-3 space-y-2" data-testid="mbal-units">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-medium text-pl-text">Display units</span>
+        <SegmentedControl
+          size="sm"
+          label="Display units"
+          value={current}
+          onValueChange={(v) => { if (v === 'oilfield') apply(MBAL_OILFIELD_VIEW); else if (v === 'metric') apply(MBAL_METRIC_VIEW); }}
+          options={options}
+        />
+      </div>
+      <p className="text-[11px] text-pl-muted leading-relaxed" data-testid="mbal-units-line">
+        {units.label('pressure')}, {units.label('temperature')}, {units.label('stockVolume')}, {units.label('resVolume')}, {units.label('gasVolume')}, {units.label('depth')}.
+        {' '}Pressures are absolute. STB and sm3 are surface volumes; RB and rm3 are reservoir volumes.
+      </p>
+      {unitsHook.available && unitsHook.differs.length > 0 && (
+        <button type="button" className="text-[11px] underline text-pl-primary-text hover:text-pl-primary-text-hover" onClick={unitsHook.resetToProfile} data-testid="mbal-units-reset">
+          Use my units profile
+        </button>
+      )}
     </section>
   );
 };
@@ -143,22 +177,36 @@ export const StaleRunNotice = () => {
   );
 };
 
-// ─── Run tab main area (moved from the retired RbCaseDetail.jsx) ─────────────
+// ─── Run tab main area ───────────────────────────────────────────────────────
 const RunPanel = () => {
-  const { caseData, lastResult, running, handleRun, runStaleness } = useMaterialBalanceStudio();
+  const {
+    caseData, lastResult, lastRunConfig, running, handleRun, runStaleness, units, defaultCfg,
+  } = useMaterialBalanceStudio();
+  // what the next run would be made on: the PVT table of the case against its pressures
+  const coverage = pvtTableCoverage(caseData, defaultCfg);
   const stale = Boolean(runStaleness?.stale);
-  const rowCount = caseData?.production_data?.length ?? 0;
+  const rows = caseData?.production_data ?? [];
+  const rowCount = rows.length;
+  const isGas = caseData?.fluid_system === 'gas';
+  const injected = rows.some((r) => (r.cum_water_inj_stb ?? 0) > 0 || (r.cum_gas_inj_scf ?? 0) > 0);
+  const tier = lastResult ? validationTierOf({ result: lastResult, caseData, runConfig: lastRunConfig }) : null;
+  const inPlace = lastResult ? inPlaceOf(lastResult, isGas) : null;
+  const ips = units.scaled(isGas ? 'gasVolume' : 'stockVolume', inPlace ?? 0);
+  const w = lastResult?.aquifer_owip_rb;
+  const ws = units.scaled('resVolume', w ?? 0);
+  const sum = lastResult?.final_drive_index_sum;
+  const isHm = Boolean(lastResult?.plot_data?.history_match);
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
           <CardTitle>Run material balance</CardTitle>
           <CardDescription>
-            Invokes the validated engine. PVT correlations and aquifer model are inherited from the PVT and Aquifer tabs. Each computed result carries a validation tier badge indicating the evidence supporting that specific engine path.
+            Runs the regression on the data, the PVT and the aquifer model of the other tabs. The result names the published benchmark behind the engine path it used.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-3">
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button size="lg" onClick={handleRun} disabled={running || rowCount < 2}>
               {running ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -173,13 +221,31 @@ const RunPanel = () => {
               </p>
             )}
           </div>
+          {coverage?.outside.length > 0 && (
+            <Alert variant="warning" data-testid="mbal-pvt-coverage-note">
+              <Info className="h-4 w-4" />
+              <AlertTitle>The PVT table does not cover every pressure of the case</AlertTitle>
+              <AlertDescription className="text-xs">
+                {coverage.outside.length} timestep{coverage.outside.length === 1 ? '' : 's'} ({coverage.outside.slice(0, 8).map((o) => o.timestep_index).join(', ')}{coverage.outside.length > 8 ? ' and more' : ''}) lie outside the table
+                ({fmt(units.to('pressure', coverage.min), 0)} to {fmt(units.to('pressure', coverage.max), 0)} {units.label('pressure')}) and carry no PVT of their own.
+                The engine uses the correlations of the PVT tab for those and the table for the rest, so the balance would mix two PVT descriptions. Extend the table on the PVT tab before running.
+              </AlertDescription>
+            </Alert>
+          )}
+          {injected && (
+            <Alert variant="warning" data-testid="mbal-injection-note">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Injection is on the data table and is left out of the balance</AlertTitle>
+              <AlertDescription className="text-xs">{INJECTION_NOTE}</AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
 
       {lastResult && (
-        <Card>
+        <Card data-testid="mbal-result-card">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <CardTitle data-testid="mbal-result-title">{stale ? 'Earlier result, inputs changed since' : 'Latest result'}</CardTitle>
                 <CardDescription>
@@ -187,75 +253,46 @@ const RunPanel = () => {
                   <span className="font-medium">
                     {lastResult.drive_mechanism?.replace(/_/g, ' ')}
                   </span>
-                  {' • '}
-                  Aquifer:{' '}
+                  . Aquifer strength:{' '}
                   <span className="font-medium">{lastResult.aquifer_strength}</span>
+                  {isHm ? '. Headline from the pressure history match.' : '.'}
                 </CardDescription>
               </div>
               {stale ? (
                 <Badge variant="outline" data-testid="mbal-result-stale-badge">Not current</Badge>
-              ) : lastResult.validation_tier ? (
-                <ValidationTierBadge
-                  tier={lastResult.validation_tier}
-                  reference={lastResult.validation_reference}
-                  tolerancePct={lastResult.validation_tolerance_pct}
-                />
-              ) : (
-                <CheckCircle2 className="h-6 w-6 text-pl-success-text" />
-              )}
+              ) : tier?.tier ? (
+                <span data-testid="mbal-result-tier">
+                  <ValidationTierBadge tier={tier.tier} reference={tier.reference} tolerancePct={tier.tolerancePct} />
+                </span>
+              ) : null}
             </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {caseData.fluid_system === 'gas' ? (
-                <Stat
-                  label="OGIP"
-                  value={`${formatNumber(lastResult.estimated_ogip_scf / 1e9, { decimals: 2 })} Bcf`}
-                />
-              ) : (
-                <Stat
-                  label="OOIP"
-                  value={`${formatNumber(lastResult.estimated_ooip_stb / 1e6, { decimals: 2 })} MMSTB`}
-                />
-              )}
-              <Stat label="R²" value={formatNumber(lastResult.r_squared, { decimals: 4 })} />
-              {lastResult.aquifer_owip_rb && (
-                <Stat
-                  label="Aquifer W"
-                  value={`${formatNumber(lastResult.aquifer_owip_rb / 1e6, { decimals: 1 })} MM rb`}
-                />
+              <Stat
+                label={isGas ? 'OGIP' : 'OOIP'}
+                value={inPlace == null ? EMPTY_VALUE : `${fmt(ips.to(inPlace), 2)} ${ips.label}`}
+              />
+              <Stat label="Regression r2" value={r2Text(lastResult.r_squared)} hint={Number.isFinite(lastResult.n_data_points) ? `${lastResult.n_data_points} points in the fit` : undefined} />
+              {Number.isFinite(w) && (
+                <Stat label="Aquifer W" value={`${fmt(ws.to(w), 1)} ${ws.label}`} />
               )}
               <Stat
                 label="Drive index sum"
-                value={formatNumber(lastResult.final_drive_index_sum, { decimals: 3 })}
-                hint="(should be ≈ 1.00)"
+                value={fmt(sum, 3)}
+                hint="1.000 when the fitted volume reproduces the last timestep"
               />
             </div>
 
             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              {caseData.fluid_system === 'gas' ? (
-                <>
-                  <DriveIndex label="Gas drive" value={lastResult.final_gdi} />
-                  <DriveIndex label="cf+cw drive" value={lastResult.final_cdi} />
-                  <DriveIndex label="Water drive" value={lastResult.final_wdi} />
-                </>
-              ) : (
-                <>
-                  <DriveIndex label="Depletion (DDI)" value={lastResult.final_ddi} />
-                  <DriveIndex label="Gas cap (GDI)" value={lastResult.final_gdi} />
-                  <DriveIndex label="Water (WDI)" value={lastResult.final_wdi} />
-                  {/* Ahmed calls the gas cap SDI ("segregation"); this row is his EDI,
-                      the rock and connate water expansion, which the engine calls cdi.
-                      Until engines #167 it arrived in final_sdi and was labelled
-                      "Segregation (SDI)", naming it after the wrong drive entirely.
-                      Results stored before that carry the same value in final_cdi. */}
-                  <DriveIndex
-                    label="Rock and water (EDI)"
-                    value={lastResult.final_cdi ?? lastResult.final_sdi}
-                  />
-                </>
-              )}
+              {driveIndexDefs(isGas).map((d) => (
+                <DriveIndex key={d.key} label={d.label}
+                  value={d.key === 'cdi' ? (lastResult.final_cdi ?? lastResult.final_sdi) : lastResult[`final_${d.key}`]} />
+              ))}
             </div>
+            <p className="text-[11px] text-pl-muted mt-2">
+              Each index is its energy term over the hydrocarbon voidage ({isGas ? 'Gp Bg' : 'F minus Wp Bw'}), at the last timestep. CDI is the rock and connate water expansion.
+            </p>
 
             {lastResult.warnings && lastResult.warnings.length > 0 && (
               <Alert variant="warning" className="mt-6">
@@ -263,8 +300,8 @@ const RunPanel = () => {
                 <AlertTitle>Engine warnings</AlertTitle>
                 <AlertDescription>
                   <ul className="list-disc pl-5 mt-2 space-y-1 text-xs">
-                    {lastResult.warnings.map((w, idx) => (
-                      <li key={idx}>{w}</li>
+                    {lastResult.warnings.map((w2, idx) => (
+                      <li key={idx}>{w2}</li>
                     ))}
                   </ul>
                 </AlertDescription>
@@ -276,6 +313,16 @@ const RunPanel = () => {
     </div>
   );
 };
+
+// column names of rb_cases as the change history words them
+const CASE_FIELD_LABELS = Object.freeze({
+  name: 'name', description: 'description', fluid_system: 'fluid system',
+  initial_pressure_psia: 'initial pressure', reservoir_temperature_f: 'temperature',
+  initial_water_saturation: 'initial water saturation', bubble_point_psia: 'bubble point',
+  rock_compressibility: 'rock compressibility', water_compressibility: 'water compressibility',
+  has_gas_cap: 'gas cap', gas_cap_ratio_m: 'gas cap ratio m', has_aquifer: 'aquifer',
+  ooip_volumetric_stb: 'volumetric oil in place', ogip_volumetric_scf: 'volumetric gas in place',
+});
 
 const NoCaseSelected = ({ onCreate }) => (
   <div className="flex flex-col items-center justify-center h-full py-24 text-center">
@@ -296,9 +343,10 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
     TABS.some((t) => t.value === requested) ? requested : 'data',
   );
   const {
-    cases, casesError, refreshCases,
+    ownCases, sharedCases, casesError, refreshCases,
+    sharing, viewingShared, readOnlyReason, saveCopy,
     caseId, caseData, caseLoading, caseError, refreshCase,
-    running, runVersion, refreshRunInputs,
+    running, refreshRunInputs,
     handleCaseCreated, handleDeleteCase,
   } = useMaterialBalanceStudio();
   const { toast } = useToast();
@@ -306,6 +354,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
   const [newCaseOpen, setNewCaseOpen] = useState(false);
   const [editCaseOpen, setEditCaseOpen] = useState(false);
   const [newCasePrefill, setNewCasePrefill] = useState(null);
+  const [newCaseHandoffs, setNewCaseHandoffs] = useState(null);
   // Aquifer tab segment (MB4): server model config vs client screening.
   const [aquiferSegment, setAquiferSegment] = useState('model');
   // Run tab segment (MB5): regression vs pressure history match.
@@ -321,12 +370,14 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
     if (!mapped || wtIntakeDone.current) return;
     wtIntakeDone.current = true;
     setNewCasePrefill(mapped.prefill);
+    setNewCaseHandoffs(mapped.handoffs ?? null);
     setNewCaseOpen(true);
     toast({ title: 'Well test results received', description: mapped.note });
   }, [location.state, toast]);
 
   const openCreate = () => {
     setNewCasePrefill(null);
+    setNewCaseHandoffs(null);
     setNewCaseOpen(true);
   };
 
@@ -335,7 +386,9 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
       <section>
         <StudioProjectManager
           label="Case"
-          projects={cases}
+          projects={ownCases}
+          sharedProjects={sharedCases}
+          canDelete={!viewingShared}
           currentProjectId={caseId || ''}
           onOpen={(id) => onOpenCase(id)}
           onDelete={handleDeleteCase}
@@ -345,8 +398,19 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
         {casesError && (
           <p className="text-[11px] text-pl-danger-text mt-2">{casesError}</p>
         )}
+        {caseData && (
+          <RecordSharingBar
+            sharing={sharing}
+            label="case"
+            className="mt-2"
+            allowEdit={false}
+            onSaveCopy={saveCopy}
+            fieldLabels={CASE_FIELD_LABELS}
+          />
+        )}
       </section>
-      <CaseSummary onEdit={() => setEditCaseOpen(true)} />
+      <CaseSummary onEdit={viewingShared ? undefined : () => setEditCaseOpen(true)} />
+      {caseData && <UnitsControl />}
       {caseData && (
         <p className="text-[11px] text-pl-muted leading-relaxed">
           Edits on every tab save straight to the case database when you apply them. Results are those of the last completed run. When an input changes after that run, the studio says so and the report waits for a new run.
@@ -368,6 +432,14 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
     </Alert>
   ) : (
     <>
+      {readOnlyReason && (
+        <Alert className="mb-4" data-testid="mbal-read-only">
+          <AlertTitle>Open read-only</AlertTitle>
+          <AlertDescription>
+            {readOnlyReason} The results, the plots and the report are those of its owner's last run. A copy takes the conditions, the production data and the run settings, and you run it yourself.
+          </AlertDescription>
+        </Alert>
+      )}
       {RESULT_TABS.includes(activeTab) && <StaleRunNotice />}
       {/* DataHub stays mounted (hidden) on other tabs so a parsed-but-unsaved
           CSV survives a visit to PVT/Aquifer/etc. Case switches still reset it:
@@ -416,7 +488,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
         </div>
       )}
       {activeTab === 'plots' && (
-        <RbDiagnosticPlots caseId={caseId} caseData={caseData} runVersion={runVersion} />
+        <RbDiagnosticPlots />
       )}
       {activeTab === 'forecast' && <ForecastTab />}
       {activeTab === 'contacts' && <ContactsTab />}
@@ -465,6 +537,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
         onOpenChange={setNewCaseOpen}
         onCreated={handleCaseCreated}
         prefill={newCasePrefill}
+        handoffs={newCaseHandoffs}
       />
       <NewCaseDialog
         open={editCaseOpen}
@@ -477,7 +550,8 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
 };
 
 // ─── Page (routing wrapper) ──────────────────────────────────────────────────
-export default function ReservoirBalance() {
+/** @param {{sharingStore?: object}} props a record sharing store; the Supabase one when omitted (the /dev harness hands in its own) */
+export default function ReservoirBalance({ sharingStore = undefined } = {}) {
   const { caseId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -495,7 +569,7 @@ export default function ReservoirBalance() {
   // toggle switches it to dark per user. Charts keep the white standard.
   return (
     <div data-testid="mbal-theme-scope">
-      <MaterialBalanceStudioProvider caseId={caseId ?? null} onOpenCase={handleOpenCase}>
+      <MaterialBalanceStudioProvider caseId={caseId ?? null} onOpenCase={handleOpenCase} sharingStore={sharingStore}>
         <MaterialBalanceStudioContent onOpenCase={handleOpenCase} />
       </MaterialBalanceStudioProvider>
     </div>

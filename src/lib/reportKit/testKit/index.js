@@ -139,6 +139,8 @@ function pageStreams(raw) {
  * @param {{x: number, y: number, w: number, h: number}} area the plot area in mm
  * Bars (./bars.js) are filled and stroked rectangles and are counted on
  * their own, outside `total`; `bars` is present only when the area holds one.
+ * The stacked bars of a plot (`type: 'bar'` in ./plot.js) are drawn the same
+ * way and are counted with them.
  * @returns {{segments: number, markers: number, total: number, bars?: number, frame: boolean}}
  */
 export function plotMarks(pdf, page, area) {
