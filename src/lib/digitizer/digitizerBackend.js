@@ -6,6 +6,12 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { saveSurface } from '@/lib/surfacesRegistry';
+import { makeDigitizerImageStore, makeFakeDigitizerStorage } from './imageStore';
+
+const currentUserId = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user ? user.id : null;
+};
 
 export const registryDigitizerBackend = {
   async listProjects() {
@@ -32,15 +38,39 @@ export const registryDigitizerBackend = {
     return data;
   },
   saveSurface,
+  // MAP-U2-020: the map image kept with the project, in the private
+  // digitizer-images bucket under the owner's own folder
+  images: makeDigitizerImageStore({ storage: supabase.storage, getUserId: currentUserId }),
+  /** Delete a project: its stored image first, then the row (so a failed storage pass keeps the row). */
+  async deleteProject(id) {
+    await registryDigitizerBackend.images.removeAll(id);
+    const { data, error } = await supabase.from('contour_projects').delete().eq('id', id).select('id');
+    if (error) throw new Error(error.message);
+    if (!data || !data.length) throw new Error('The project was not deleted: it is not yours, or it is already gone.');
+  },
 };
 
-/** In-memory projects and surfaces for the dev harness and tests. */
-export function makeInMemoryDigitizerBackend() {
+/**
+ * In-memory projects, surfaces and image store for the dev harness and tests.
+ * @param {{imageBucket?: boolean, userId?: string}} [opts] imageBucket false
+ *   stands in for the server before the digitizer-images bucket exists
+ */
+export function makeInMemoryDigitizerBackend({ imageBucket = true, userId = 'user-dev' } = {}) {
   const projects = [];
   const surfaces = [];
   let n = 0;
+  const storage = makeFakeDigitizerStorage({ bucket: imageBucket, userId });
+  const images = makeDigitizerImageStore({ storage, getUserId: async () => userId, fetchBlob: (url) => storage.fetchBlob(url) });
   return {
     surfaces,
+    storage,
+    images,
+    async deleteProject(id) {
+      await images.removeAll(id);
+      const i = projects.findIndex((x) => x.id === id);
+      if (i < 0) throw new Error('The project was not deleted: it is not yours, or it is already gone.');
+      projects.splice(i, 1);
+    },
     async listProjects() { return projects.map(({ id, project_name, created_at }) => ({ id, project_name, created_at })); },
     async getProject(id) {
       const p = projects.find((x) => x.id === id);

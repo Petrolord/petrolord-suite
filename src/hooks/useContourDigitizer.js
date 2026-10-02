@@ -9,6 +9,7 @@ import { planDigitizedSurface, digitizedSurfacePayload } from '@/lib/digitizer/c
 import { layersFromSaved } from '@/lib/digitizer/savedProject';
 import { registryDigitizerBackend } from '@/lib/digitizer/digitizerBackend';
 import { assignValuesByDrag, describeDragAssign } from '@/lib/digitizer/dragAssign';
+import { checkDigitizerImage } from '@/lib/digitizer/imageStore';
 
 const downloadText = (text, fileName, type) => {
   const url = URL.createObjectURL(new Blob([text], { type }));
@@ -53,6 +54,8 @@ const useContourDigitizer = (toast, backend = registryDigitizerBackend) => {
     assignStart: '',         // MAP-U2-006: drag-assign start value and increment, as typed
     assignStep: '',
     publishedSurface: null,  // geo_surfaces row after Publish
+    savedImage: null,        // contours.settings.image of the saved project (name, size and, since U2-020, its storage path)
+    imageDirty: false,       // MAP-U2-020: an image was attached or replaced since the last save
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState('');
@@ -76,9 +79,27 @@ const useContourDigitizer = (toast, backend = registryDigitizerBackend) => {
     fetchProjects();
   }, [fetchProjects]);
 
-  const handleFileUpload = useCallback((acceptedFiles) => {
-    const file = acceptedFiles[0];
+  // MAP-U2-020: `replace` puts a new image under the open project's lines
+  // (the stored object is replaced on the next save) instead of starting a
+  // new project. Either way the file is checked first: a wrong type, an
+  // empty file or one over the limit is refused with its reason.
+  const handleFileUpload = useCallback(async (acceptedFiles, opts = {}) => {
+    // the dropzone calls this with (accepted, rejections): a file it turned
+    // away by its extension is said, like every other refusal
+    const rejected = Array.isArray(opts) ? opts : [];
+    const replace = !Array.isArray(opts) && !!opts.replace;
+    const file = (acceptedFiles || [])[0];
+    if (!file && rejected.length) {
+      const name = rejected[0]?.file?.name;
+      toast({ title: 'Image refused', description: `${name ? `"${name}"` : 'The file'} is not a PNG, JPEG or WebP image. Choose a PNG, JPEG or WebP scan.`, variant: 'destructive' });
+      return;
+    }
     if (file) {
+      const checked = await checkDigitizerImage(file);
+      if (!checked.ok) {
+        toast({ title: 'Image refused', description: checked.reason, variant: 'destructive' });
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
@@ -86,7 +107,8 @@ const useContourDigitizer = (toast, backend = registryDigitizerBackend) => {
           // MAP-U1-006: a loaded project has its lines and control points but
           // no image (the table never stored one); the image goes under them
           const cur = stateRef.current;
-          const hasWork = cur.id && !cur.imagePreview && (cur.layers.contours.length || cur.layers.faults.length || cur.controlPoints.length);
+          const hasWork = (cur.id && !cur.imagePreview && (cur.layers.contours.length || cur.layers.faults.length || cur.controlPoints.length))
+            || (replace && (cur.id || cur.layers.contours.length || cur.layers.faults.length || cur.controlPoints.length));
           if (hasWork) {
             const was = cur.savedImage;
             if (was?.width && (was.width !== img.width || was.height !== img.height)) {
@@ -94,7 +116,7 @@ const useContourDigitizer = (toast, backend = registryDigitizerBackend) => {
             } else {
               toast({ title: 'Image attached', description: `The map image is under ${cur.projectName}'s lines and control points. Check that the lines sit on the contours.` });
             }
-            setState((p) => ({ ...p, imageFile: file, imagePreview: e.target.result, imageDimensions: { width: img.width, height: img.height } }));
+            setState((p) => ({ ...p, imageFile: file, imagePreview: e.target.result, imageDimensions: { width: img.width, height: img.height }, imageDirty: true }));
             return;
           }
           setState(p => ({
@@ -104,6 +126,8 @@ const useContourDigitizer = (toast, backend = registryDigitizerBackend) => {
             imagePreview: e.target.result,
             imageDimensions: { width: img.width, height: img.height },
             projectName: file.name.split('.').slice(0, -1).join('.'),
+            savedImage: null,
+            imageDirty: true,
             controlPoints: [],
             geoTransform: null,
             pixelToWorld: null,
@@ -112,6 +136,7 @@ const useContourDigitizer = (toast, backend = registryDigitizerBackend) => {
             results: null,
           }));
         };
+        img.onerror = () => toast({ title: 'Image refused', description: `"${file.name}" could not be drawn. Choose a PNG, JPEG or WebP scan.`, variant: 'destructive' });
         img.src = e.target.result;
       };
       reader.readAsDataURL(file);
@@ -267,14 +292,26 @@ const useContourDigitizer = (toast, backend = registryDigitizerBackend) => {
       const controlPoints = Array.isArray(data.geo_points) ? data.geo_points : [];
       let georef = null;
       try { georef = fitGeoreference(controlPoints); } catch { georef = null; }
+      // MAP-U2-020: the image kept with the project comes back through a signed URL
+      const saved = settings.image || null;
+      let restored = null;
+      let imageNote = null;
+      if (saved?.path && backend.images) {
+        const r = await backend.images.load(saved);
+        if (r.ok) restored = r.url;
+        else imageNote = r.unavailable ? null : r.reason;
+      }
+      const preview = restored || data.map_image_url || null;
       setState(p => ({
         ...p,
         id: data.id,
         projectName: data.project_name,
-        imagePreview: data.map_image_url || null,
+        imagePreview: preview,
         map_image_url: data.map_image_url || null,
         imageFile: null,
-        savedImage: settings.image || null,
+        savedImage: saved,
+        imageDirty: false,
+        imageDimensions: restored && saved?.width && saved?.height ? { width: saved.width, height: saved.height } : p.imageDimensions,
         controlPoints,
         georef,
         geoTransform: georef ? georef.transform : null,
@@ -288,17 +325,18 @@ const useContourDigitizer = (toast, backend = registryDigitizerBackend) => {
         results: null,
         publishedSurface: null,
       }));
-      if (data.map_image_url) {
+      if (preview) {
         const img = new Image();
-        img.crossOrigin = 'anonymous';
+        if (!restored) img.crossOrigin = 'anonymous';
         img.onload = () => setState(p => ({ ...p, imageDimensions: { width: img.width, height: img.height } }));
         img.onerror = () => toast({ title: 'Image not found', description: 'The map image could not be loaded. It may have been deleted.', variant: 'destructive' });
-        img.src = data.map_image_url;
+        img.src = preview;
       }
-      const img = settings.image;
       toast({
         title: 'Project loaded',
-        description: `${data.project_name}: ${layers.contours.length} contour and ${layers.faults.length} fault lines, ${controlPoints.length} control points${georef ? ', georeferenced' : ''}.${data.map_image_url ? '' : ` Drop the map image${img?.name ? ` (${img.name})` : ''} to draw over it; the lines are kept.`}`,
+        description: `${data.project_name}: ${layers.contours.length} contour and ${layers.faults.length} fault lines, ${controlPoints.length} control points${georef ? ', georeferenced' : ''}.${preview
+          ? (restored ? ` The map image${saved?.name ? ` (${saved.name})` : ''} kept with the project is under the lines.` : '')
+          : `${imageNote ? ` ${imageNote}` : ''} Drop the map image${saved?.name ? ` (${saved.name})` : ''} to draw over it; the lines are kept.`}`,
       });
     } catch (error) {
       toast({ title: 'Load failed', description: error.message, variant: 'destructive' });
@@ -312,24 +350,44 @@ const useContourDigitizer = (toast, backend = registryDigitizerBackend) => {
     if (!state.projectName) return;
     setIsProcessing(true);
     try {
-      const savedData = await backend.saveProject({
-          project_name: state.projectName,
-          geo_points: state.controlPoints,
-          // MAP-U1-006: settings and the image's name and size ride in the
-          // same jsonb (no schema change), so a reload can resume
-          contours: {
-            ...state.layers,
-            settings: {
-              valuesAre: state.valuesAre, zUnit: state.zUnit, crs: state.crs, surfaceName: state.surfaceName,
-              image: { name: state.imageFile?.name || state.savedImage?.name || null, width: state.imageDimensions.width || state.savedImage?.width || null, height: state.imageDimensions.height || state.savedImage?.height || null },
-            },
-          },
-          grid_cell_size: Number(state.gridCellSize) > 0 ? Number(state.gridCellSize) : 50,
-          gridding_method: 'tps',
-          id: state.id,
-        });
-      setState(p => ({ ...p, id: savedData.id }));
-      toast({ title: 'Project Saved' });
+      // MAP-U1-006: settings and the image's name and size ride in the
+      // same jsonb (no schema change), so a reload can resume.
+      // MAP-U2-020: so does the stored image's path, once the image is kept.
+      const row = (image) => ({
+        project_name: state.projectName,
+        geo_points: state.controlPoints,
+        contours: {
+          ...state.layers,
+          settings: { valuesAre: state.valuesAre, zUnit: state.zUnit, crs: state.crs, surfaceName: state.surfaceName, image },
+        },
+        grid_cell_size: Number(state.gridCellSize) > 0 ? Number(state.gridCellSize) : 50,
+        gridding_method: 'tps',
+      });
+      const dims = { width: state.imageDimensions.width || state.savedImage?.width || null, height: state.imageDimensions.height || state.savedImage?.height || null };
+      // the image as the project knew it before this save (its path is kept when the image did not change)
+      const known = { ...(state.savedImage || {}), name: state.imageFile?.name || state.savedImage?.name || null, ...dims };
+      let savedData = await backend.saveProject({ ...row(known), id: state.id });
+      let image = known;
+      let note = '';
+      let variant;
+      const needsUpload = !!state.imageFile && !!backend.images && (state.imageDirty || !state.savedImage?.path);
+      if (needsUpload) {
+        const r = await backend.images.save(savedData.id, state.imageFile, dims);
+        if (r.saved) {
+          image = r.image;
+          savedData = await backend.saveProject({ ...row(image), id: savedData.id });
+          note = `The map image (${image.name}) is kept with the project${r.swept ? '; the earlier image was removed' : ''}.`;
+        } else {
+          note = r.reason;
+          if (!r.unavailable) variant = 'destructive';
+        }
+      } else if (state.savedImage?.path) {
+        note = 'The map image kept with the project is unchanged.';
+      } else if (!state.imageFile && !state.savedImage?.path) {
+        note = 'No map image is attached, so none is kept with the project.';
+      }
+      setState(p => ({ ...p, id: savedData.id, savedImage: image, imageDirty: needsUpload ? !image.path : p.imageDirty }));
+      toast({ title: 'Project Saved', description: note || undefined, ...(variant ? { variant } : {}) });
       fetchProjects();
     } catch (error) {
       toast({ title: 'Save Failed', description: error.message, variant: 'destructive' });
@@ -337,6 +395,24 @@ const useContourDigitizer = (toast, backend = registryDigitizerBackend) => {
       setIsProcessing(false);
     }
   }, [state, toast, fetchProjects, backend]);
+
+  // MAP-U2-020: deleting a project deletes its stored image first, then the row
+  const handleDeleteProject = useCallback(async (projectId = state.id) => {
+    if (!projectId) return;
+    setIsProcessing(true);
+    try {
+      const name = (state.projects.find((x) => x.id === projectId) || {}).project_name || state.projectName;
+      await backend.deleteProject(projectId);
+      // what is on the canvas stays as unsaved work; it no longer names a stored project or image
+      setState(p => (p.id === projectId ? { ...p, id: null, savedImage: p.savedImage ? { ...p.savedImage, path: null } : null, imageDirty: !!p.imageFile } : p));
+      toast({ title: 'Project deleted', description: `${name || 'The project'} and its stored map image are deleted. What is on the canvas stays until you close it; Save Project keeps it as a new project.` });
+      fetchProjects();
+    } catch (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [state.id, state.projects, state.projectName, toast, fetchProjects, backend]);
 
   // MAP-U1-007: map coordinates, values and fault lines; refused without a georeference
   const handleExport = useCallback((format) => {
@@ -356,7 +432,7 @@ const useContourDigitizer = (toast, backend = registryDigitizerBackend) => {
     state, setState, imgCanvasRef, ovrCanvasRef,
     handleFileUpload, handleGeoref, handleRemoveControlPoint, handleAutoTrace,
     handleManualDraw, handleDeleteLine, handleSetLineValue, handleDragAssign, handleGrid, handlePublishSurface,
-    handleSaveProject, handleLoadProject, handleExport, isProcessing, status, isCvReady,
+    handleSaveProject, handleLoadProject, handleDeleteProject, handleExport, isProcessing, status, isCvReady,
   };
 };
 

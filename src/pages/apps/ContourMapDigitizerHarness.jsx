@@ -10,7 +10,11 @@ import ContourMapDigitizer from './ContourMapDigitizer';
 import { makeInMemoryDigitizerBackend } from '@/lib/digitizer/digitizerBackend';
 
 export default function ContourMapDigitizerHarness() {
-  const backend = useMemo(() => makeInMemoryDigitizerBackend(), []);
+  // MAP-U2-020: ?bucket=missing stands in for the server before the
+  // digitizer-images bucket exists, so both sides of the apply can be walked
+  const backend = useMemo(() => makeInMemoryDigitizerBackend({
+    imageBucket: new URLSearchParams(window.location.search).get('bucket') !== 'missing',
+  }), []);
   if (typeof window !== 'undefined') window.__DIGITIZER_BACKEND__ = backend;
   return <ContourMapDigitizer backend={backend} mappingPath="/dev/mapping-surface-studio" />;
 }

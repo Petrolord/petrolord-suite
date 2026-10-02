@@ -5,6 +5,7 @@
 // in-memory backend (window.__DIGITIZER_BACKEND__).
 import { test, expect } from '@playwright/test';
 import path from 'path';
+import fs from 'fs';
 
 const SCAN = path.join(process.cwd(), 'e2e/fixtures/map/digitizer/concentric_contours.png');
 const IMG = 400;
@@ -79,9 +80,18 @@ for (const vp of [{ width: 1366, height: 768 }, { width: 1440, height: 900 }]) {
     await page.getByPlaceholder('Project Name').fill('Dome scan');
     await page.getByRole('button', { name: 'Save Project' }).click();
     await expect(page.getByText('Project Saved')).toBeVisible();
+    // MAP-U2-020: the image is kept with the project, under the owner and the project
+    await expect(page.getByText('The map image (concentric_contours.png) is kept with the project.')).toBeVisible();
+    const stored = await page.evaluate(() => window.__DIGITIZER_BACKEND__.storage.paths());
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toMatch(/^user-dev\/proj-\d+\/map\.png$/);
+    await expect(page.getByTestId('digitizer-image-status')).toHaveText('Map image kept with the project: concentric_contours.png.');
     await page.getByRole('combobox').filter({ hasText: 'Load a project' }).click();
     await page.getByRole('option', { name: /Dome scan/ }).click();
-    await expect(page.getByText(/Dome scan: 3 contour and 0 fault lines, 3 control points, georeferenced/)).toBeVisible();
+    await expect(page.getByText(/Dome scan: 3 contour and 0 fault lines, 3 control points, georeferenced\. The map image \(concentric_contours\.png\) kept with the project is under the lines\./)).toBeVisible();
+    // restored from storage: loading replaces the page's image with the stored one, and the map stays up
+    // (with no stored image the same load empties the canvas: see the last test)
+    await expect(page.getByTestId('digitizer-map-canvas')).toBeVisible();
     expect(await page.getByTestId('digitizer-line-value-contours').evaluateAll((els) => els.map((e) => Number(e.value)))).toEqual([1500, 1550, 1600]);
     expect(errs).toEqual([]);
   });
@@ -96,4 +106,67 @@ test('390 wide: the digitizer stacks and has no sideways page scroll', async ({ 
   expect(box.height).toBeGreaterThan(250); // the map had no height at 390 wide before this upgrade
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
+});
+
+// MAP-U2-020: the map image kept with the project
+test('hostile images are refused with the reason; replace and delete act on the stored object', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  const errs = []; page.on('pageerror', (e) => errs.push(e.message));
+  await page.goto('/dev/contour-map-digitizer');
+  const drop = page.locator('#image-upload-dropzone input');
+  // wrong type by content (a text file named .png), then zero bytes: neither opens
+  await drop.setInputFiles({ name: 'contours.png', mimeType: 'image/png', buffer: Buffer.from('well,x,y\nA,1,2\n') });
+  await expect(page.getByText('"contours.png" is not a PNG, JPEG or WebP image (its content says otherwise, whatever its name). Choose a PNG, JPEG or WebP scan.')).toBeVisible();
+  await drop.setInputFiles({ name: 'empty.png', mimeType: 'image/png', buffer: Buffer.alloc(0) });
+  await expect(page.getByText('"empty.png" is empty (0 bytes). Choose the scanned map image again.')).toBeVisible();
+  await expect(page.getByTestId('digitizer-map-canvas')).toHaveCount(0);
+  expect(await page.evaluate(() => window.__DIGITIZER_BACKEND__.storage.paths())).toEqual([]);
+
+  // a real scan, saved: one object
+  await drop.setInputFiles(SCAN);
+  await expect(page.getByTestId('digitizer-map-canvas')).toBeVisible();
+  await page.getByPlaceholder('Project Name').fill('Stored scan');
+  await page.getByRole('button', { name: 'Save Project' }).click();
+  await expect(page.getByText('The map image (concentric_contours.png) is kept with the project.')).toBeVisible();
+  const first = await page.evaluate(() => window.__DIGITIZER_BACKEND__.storage.paths());
+  expect(first).toHaveLength(1);
+
+  // too large is refused at Replace too (26 MB with a PNG signature), and nothing changes in storage
+  const big = Buffer.alloc(26 * 1024 * 1024); Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(big);
+  await page.getByTestId('digitizer-replace-image-input').setInputFiles({ name: 'huge.png', mimeType: 'image/png', buffer: big });
+  await expect(page.getByText('"huge.png" is 26.0 MB; the limit for a map image is 25.0 MB. Save the scan at a lower resolution or as a JPEG.')).toBeVisible();
+  expect(await page.evaluate(() => window.__DIGITIZER_BACKEND__.storage.paths())).toEqual(first);
+
+  // replace with the same scan under another name: still one object, and the status says which
+  await page.getByTestId('digitizer-replace-image-input').setInputFiles({ name: 'rescan.png', mimeType: 'image/png', buffer: fs.readFileSync(SCAN) });
+  await expect(page.getByTestId('digitizer-image-status')).toContainText('a new image is attached; Save Project replaces the stored one');
+  await page.getByRole('button', { name: 'Save Project' }).click();
+  await expect(page.getByText('The map image (rescan.png) is kept with the project.')).toBeVisible();
+  expect(await page.evaluate(() => window.__DIGITIZER_BACKEND__.storage.paths())).toEqual(first);
+  await expect(page.getByTestId('digitizer-image-status')).toHaveText('Map image kept with the project: rescan.png.');
+
+  // delete asks once, then removes the image and the project
+  await page.getByTestId('digitizer-delete-project').click();
+  await page.getByTestId('digitizer-delete-project-confirm').click();
+  await expect(page.getByText('Project deleted', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => window.__DIGITIZER_BACKEND__.storage.paths())).toEqual([]);
+  expect(await page.evaluate(() => window.__DIGITIZER_BACKEND__.listProjects())).toEqual([]);
+  expect(errs).toEqual([]);
+});
+
+test('before the bucket exists the project saves as before and says the image is not kept', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/dev/contour-map-digitizer?bucket=missing');
+  await page.locator('#image-upload-dropzone input').setInputFiles(SCAN);
+  await expect(page.getByTestId('digitizer-map-canvas')).toBeVisible();
+  await page.getByPlaceholder('Project Name').fill('No bucket yet');
+  await page.getByRole('button', { name: 'Save Project' }).click();
+  await expect(page.getByText('Project Saved')).toBeVisible();
+  await expect(page.getByText('The map image is not kept with the project on this server yet (image storage is waiting to be switched on). The project is saved; you will be asked for the image when you load it.')).toBeVisible();
+  expect(await page.evaluate(() => window.__DIGITIZER_BACKEND__.storage.paths())).toEqual([]);
+  // loading it asks for the image, as it did before this change
+  await page.getByRole('combobox').filter({ hasText: 'Load a project' }).click();
+  await page.getByRole('option', { name: /No bucket yet/ }).click();
+  await expect(page.getByText(/No bucket yet: 0 contour and 0 fault lines, 0 control points\. Drop the map image \(concentric_contours\.png\) to draw over it; the lines are kept\./)).toBeVisible();
+  await expect(page.getByTestId('digitizer-map-canvas')).toHaveCount(0);
 });
