@@ -199,10 +199,20 @@ export function handoffRows(p, upstream, units) {
     ['Source project and reservoir', src.projectName || src.reservoirName ? [src.projectName && `Project "${src.projectName}"`, src.reservoirName && `reservoir "${src.reservoirName}"`].filter(Boolean).join(', ') : EMPTY_VALUE],
     ['Monte Carlo run', src.run?.ranAt ? `${time(src.run.ranAt)}${finite(src.run.seed) ? `, seed ${src.run.seed}` : ''}${finite(src.run.iterations) ? `, ${thousands(src.run.iterations)} realizations` : ''}${src.run.grvMode ? `, ${src.run.grvMode === 'structural' ? 'GRV from the surface against sampled contacts' : 'area x thickness'}` : ''}` : EMPTY_VALUE],
     ['Volumetric method and fluid', src.method || src.fluidType ? [src.method, src.fluidType && (src.fluidType === 'oil_gas' ? 'oil with a gas cap' : src.fluidType)].filter(Boolean).join(', ') : EMPTY_VALUE],
+    // RL7: the basis of a value per barrel that ReservoirCalc Pro sent
+    ...(h.economics ? [['Economics sent with the prospect', economicsLine(h.economics)]] : []),
     ['Edited here after the handoff', edited.length ? edited.map((k) => `${SHORT_LABEL[k]} (sent ${F.plain(k === 'pg' ? Number(h.values[k]) : units.show(k, Number(h.values[k])))})`).join('; ') : 'Nothing: every handed-over input is as received'],
     ['Source record now', upstream?.state === 'current' ? 'Unchanged since it was received' : (upstreamSentence(upstream, units) || EMPTY_VALUE)],
   ];
   return rows;
+}
+
+const ECON_WORDS = { price: ['price', '$/boe'], discount: ['discount rate', '%'], life: ['producing life', 'years'], decline: ['decline', '%/yr'], capex: ['development', '$MM'], opexPerBoe: ['opex', '$/boe'], opexFixed: ['fixed opex', '$MM/yr'], royalty: ['royalty', '%'], tax: ['tax', '%'] };
+/** "calculateEconomics (...): price 70 $/boe, discount rate 10 %, ..." from the economics block a prospect carries. */
+export function economicsLine(econ) {
+  const a = econ?.assumptions || {};
+  const list = Object.entries(ECON_WORDS).filter(([k]) => finite(Number(a[k])) && a[k] !== '' && a[k] !== null).map(([k, [w, u]]) => `${w} ${F.plain(Number(a[k]))} ${u}`);
+  return `${econ?.engine || 'Engine not stated'}${list.length ? `: ${list.join(', ')}` : ''}${finite(Number(econ?.npvMM)) ? `. Success-case NPV ${F.n1(Number(econ.npvMM))} $MM` : ''}`;
 }
 
 /** The chance of success as the product of its factors (RL2), or the reason it cannot be shown. */

@@ -278,6 +278,21 @@ describe('the conditions of the report', () => {
     expect(read(clean).text).toContain('No input on this prospect raises a flag.');
   });
 
+  test('RL7, RL11: a value per barrel sent by ReservoirCalc Pro prints the engine and the assumptions behind it', () => {
+    const econ = { unitValue: 11.5, devCost: 240, npvMM: 197, engine: 'calculateEconomics (screening; src/utils/npvCalculations.js), mid-year discounting', assumptions: { price: 70, discount: 10, life: 15, decline: 12, capex: 400, opexPerBoe: 12, opexFixed: 10, royalty: 10, tax: 30 } };
+    const withEcon = { ...row, inputs: { ...row.inputs, economics: econ } };
+    const p = { ...fromRcpProspect(withEcon, { now: NOW }), ident: IDENT };
+    const { text, b } = read(p, { upstream: upstreamState(p, [withEcon]) });
+    expect(b.model.inputs.rows.find((r) => r.key === 'unitValue')).toMatchObject({ value: '11.5', unit: '$/boe', source: expect.stringMatching(/^ReservoirCalc Pro success-case economics \(calculateEconomics .*\), sent with the prospect$/) });
+    expect(text).toContain('ReservoirCalc Pro success-case economics (calculateEconomics');
+    expect(text).toContain('Economics sent with the prospect calculateEconomics (screening; src/utils/npvCalculations.js), mid-year discounting: price 70 $/boe, discount rate 10 %, producing life 15 years, decline 12 %/yr');
+    expect(text).toContain('Success-case NPV 197.0 $MM');
+    // typed over: the row says so and names what was sent
+    const { text: edited, b: eb } = read({ ...p, unitValue: 9, touched: { unitValue: true } }, { upstream: upstreamState(p, [withEcon]) });
+    expect(eb.model.inputs.rows.find((r) => r.key === 'unitValue').source).toBe('Entered on this screen (ReservoirCalc Pro sent 11.5 $/boe)');
+    expect(edited).toContain('Edited here after the handoff value per barrel (sent 11.5)');
+  });
+
   test('RL9: a P50 far from the fitted lognormal is flagged', () => {
     const { text } = read(north({ p50: 55, touched: { p50: true } }));
     expect(text).toMatch(/The entered P50 \(55\.0 MMboe\) differs from the P50 of the fitted lognormal \(30\.0\) by 83%/);
