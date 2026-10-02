@@ -4,8 +4,11 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, Download, Table2 } from 'lucide-react';
 import FluidStudioTierBadge from '@/components/fluidstudio/FluidStudioTierBadge';
 import { eosPvtTableCsv } from '@/utils/fluidstudio/eosAnalysis';
+import { useFluidUnits } from '@/components/fluidstudio/FluidUnitsContext';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
-const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? 'n/a' : Number(v).toFixed(d));
+const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toFixed(d));
+const sig = (v, n = 4) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toPrecision(n));
 
 const Stat = ({ label, value, unit }) => (
   <div className="rounded-md bg-pl-sunken border border-pl-border px-3 py-2">
@@ -14,8 +17,8 @@ const Stat = ({ label, value, unit }) => (
   </div>
 );
 
-const exportCsv = (table) => {
-  const blob = new Blob([eosPvtTableCsv(table)], { type: 'text/csv' });
+const exportCsv = (table, contract) => {
+  const blob = new Blob([eosPvtTableCsv(table, { contract })], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -29,7 +32,8 @@ const exportCsv = (table) => {
  * temperature composited with the separator-train flash (Amyx
  * adjustment), exported in MB Studio's PVT lab-table schema.
  */
-const EosPvtTableCard = ({ result, tuned = false }) => {
+const EosPvtTableCard = ({ result, tuned = false, contract = null }) => {
+  const u = useFluidUnits();
   if (!result) return null;
   const { table, warnings } = result;
 
@@ -63,13 +67,13 @@ const EosPvtTableCard = ({ result, tuned = false }) => {
               tier="published_method"
               note="Differential liberation composited with the separator flash by the standard Amyx and McCain adjustment: Bo = Bod x Bofb/Bodb and Rs = Rsfb minus (Rsdb minus Rsd) x Bofb/Bodb. The adjustment is exact at the bubble point and approximate toward atmospheric pressure, as in laboratory practice."
             />
-            <Button variant="outline" size="sm" onClick={() => exportCsv(table)}>
+            <Button variant="outline" size="sm" onClick={() => exportCsv(table, contract)}>
               <Download className="w-4 h-4 mr-2" /> Export CSV (MB schema)
             </Button>
           </div>
         </div>
         <p className="text-xs text-pl-muted mt-1">
-          Differential liberation at the flash temperature, adjusted to your separator train. The CSV columns match the Material Balance Studio PVT lab-table schema so the export drops straight into that workflow.
+          Differential liberation at the flash temperature, adjusted to your separator train. The CSV columns are the Material Balance Studio PVT lab-table schema (oilfield units, Bg in RB/Mscf), under a header that states the methods and the source project.
         </p>
         {table.warnings.length > 0 && (
           <div className="mt-2 text-xs text-pl-warning-text flex gap-2 items-start">
@@ -80,36 +84,36 @@ const EosPvtTableCard = ({ result, tuned = false }) => {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          <Stat label={table.satKind === 'dew' ? 'Dew point' : 'Bubble point'} value={fmt(table.pb, 0)} unit="psia" />
-          <Stat label="Rs at Pb (flash)" value={fmt(table.kpis.rsfb, 1)} unit="scf/STB" />
-          <Stat label="Bo at Pb (flash)" value={fmt(table.kpis.bofb, 4)} unit="rb/STB" />
-          <Stat label="Bod / Rsd at Pb (DL)" value={`${fmt(table.kpis.bodb, 4)} / ${fmt(table.kpis.rsdb, 0)}`} unit="rb/STB · scf/STB" />
-          <Stat label="Stock tank oil" value={fmt(table.kpis.stoApi, 1)} unit="°API" />
+          <Stat label={table.satKind === 'dew' ? 'Dew point' : 'Bubble point'} value={fmt(u.show('pressure', table.pb), 0)} unit={u.label('pressure')} />
+          <Stat label="Rs at Pb (flash)" value={fmt(u.show('gor', table.kpis.rsfb), 1)} unit={u.label('gor')} />
+          <Stat label="Bo at Pb (flash)" value={fmt(u.show('fvfOil', table.kpis.bofb), 4)} unit={u.label('fvfOil')} />
+          <Stat label="Bod / Rsd at Pb (DL)" value={`${fmt(u.show('fvfOil', table.kpis.bodb), 4)} / ${fmt(u.show('gor', table.kpis.rsdb), u.system === 'si' ? 1 : 0)}`} unit={`${u.label('fvfOil')} and ${u.label('gor')}`} />
+          <Stat label="Stock tank oil" value={fmt(table.kpis.stoApi, 1)} unit={u.label('api')} />
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-pl-muted border-b border-pl-border">
-                <th className="text-left py-1.5 pr-2 font-medium">P (psia)</th>
-                <th className="text-right py-1.5 px-2 font-medium">Rs (scf/STB)</th>
-                <th className="text-right py-1.5 px-2 font-medium">Bo (rb/STB)</th>
-                <th className="text-right py-1.5 px-2 font-medium">Bg (rb/scf)</th>
+                <th className="text-left py-1.5 pr-2 font-medium">{u.head('P', 'pressure')}</th>
+                <th className="text-right py-1.5 px-2 font-medium">{u.head('Rs', 'gor')}</th>
+                <th className="text-right py-1.5 px-2 font-medium">{u.head('Bo', 'fvfOil')}</th>
+                <th className="text-right py-1.5 px-2 font-medium">{u.head('Bg', 'fvfGas')}</th>
                 <th className="text-right py-1.5 px-2 font-medium">Z gas</th>
-                <th className="text-right py-1.5 px-2 font-medium">μo (cP)</th>
-                <th className="text-right py-1.5 pl-2 font-medium">μg (cP)</th>
+                <th className="text-right py-1.5 px-2 font-medium">{u.head('μo', 'viscosity')}</th>
+                <th className="text-right py-1.5 pl-2 font-medium">{u.head('μg', 'viscosity')}</th>
               </tr>
             </thead>
             <tbody>
               {table.rows.map((r) => (
                 <tr key={`${r.pressure}-${r.phase}`} className={`border-b border-pl-border ${r.phase === 'saturated' ? 'bg-pl-sunken text-pl-text font-semibold' : 'text-pl-text'}`}>
-                  <td className="py-1 pr-2 font-pl-mono tabular-nums text-xs">{fmt(r.pressure, 0)}{r.phase === 'saturated' ? ' (Pb)' : ''}</td>
-                  <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{fmt(r.Rs, 1)}</td>
-                  <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{fmt(r.Bo, 4)}</td>
-                  <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{r.Bg != null ? Number(r.Bg).toFixed(6) : 'n/a'}</td>
+                  <td className="py-1 pr-2 font-pl-mono tabular-nums text-xs">{fmt(u.show('pressure', r.pressure), 0)}{r.phase === 'saturated' ? ' (Pb)' : ''}</td>
+                  <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{fmt(u.show('gor', r.Rs), u.system === 'si' ? 2 : 1)}</td>
+                  <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{fmt(u.show('fvfOil', r.Bo), 4)}</td>
+                  <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{sig(u.show('fvfGas', r.Bg), 4)}</td>
                   <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{fmt(r.Z, 4)}</td>
-                  <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{fmt(r.mu_o, 4)}</td>
-                  <td className="text-right py-1 pl-2 font-pl-mono tabular-nums text-xs">{r.mu_g != null ? Number(r.mu_g).toFixed(5) : 'n/a'}</td>
+                  <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{fmt(u.show('viscosity', r.mu_o), 4)}</td>
+                  <td className="text-right py-1 pl-2 font-pl-mono tabular-nums text-xs">{sig(u.show('viscosity', r.mu_g), 4)}</td>
                 </tr>
               ))}
             </tbody>

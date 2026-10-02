@@ -51,18 +51,18 @@ const BATCH_VARS = {
 
 // Honest labels for the flow-assurance screening approximations.
 const FA_WARNINGS = {
-  hydrate: 'Hydrate curve uses the Motiee (1991) gas-gravity screening correlation (valid ~0.55–1.0 SG, ±5–8 °F; sweet-gas basis — no H2S/CO2/inhibitor correction). Not a rigorous hydrate flash.',
-  aop: 'Asphaltene onset pressure is not computable from black-oil inputs (needs SARA/compositional data and reservoir pressure); AOP is reported as N/A.',
-  watNull: 'Wax Appearance Temperature is not computable from black-oil PVT alone (set by wax/n-paraffin content, not API). Provide a measured WAT or wax content to populate it.',
-  watWax: 'WAT is a screening estimate from wax content (empirical, ±10 °F); confirm against a measured cloud point / CPM WAT.',
-  sgBand: 'Gas gravity is outside the Motiee 0.55–1.0 validity band; the hydrate curve is extrapolated — treat as indicative only.',
+  hydrate: 'The hydrate curve is the Motiee (1991) gas gravity screening correlation: gas gravity 0.55 to 1.0, within about 5 to 8 degF, sweet gas, with no correction for hydrogen sulphide, carbon dioxide or inhibitor. It is a screening curve and no hydrate flash.',
+  aop: 'Asphaltene onset pressure cannot be computed from black-oil inputs: it needs SARA or compositional data and the reservoir pressure, so it is left blank.',
+  watNull: 'The wax appearance temperature cannot be computed from black-oil PVT alone: the wax content sets it, and the API gravity does not. Enter a measured value or a wax content.',
+  watWax: 'The wax appearance temperature is a screening estimate from the wax content (empirical, within about 10 degF). Confirm it against a measured cloud point.',
+  sgBand: 'Gas gravity is outside the Motiee range of 0.55 to 1.0, so the hydrate curve is extrapolated. Treat it as indicative only.',
 };
 
 // Correlations flagged as non-standard / suspect in the pvtCalculations audit.
 // They remain selectable but the engine surfaces a warning so results are honest.
 const SUSPECT_CORRELATIONS = {
   beal_cook_spillman:
-    'Beal-Cook-Spillman saturated viscosity is a simplified form — Beggs-Robinson is the audited default.',
+    'Beal-Cook-Spillman saturated viscosity is a simplified form. Beggs-Robinson is the default.',
 };
 
 // Published data ranges of the black-oil correlations: Standing (1947) as
@@ -192,9 +192,9 @@ export const screenAsphalteneCompatibility = (apiA, apiB, fractionB) => {
   const asi = contrast * (0.4 + 0.6 * light) * mixExposure;
   const stable = asi < 0.35;
   let message;
-  if (asi < 0.35) message = 'Screens compatible — low asphaltene-destabilization risk. Confirm with an ASTM D7112/D7157 spot test before commingling.';
-  else if (asi < 0.6) message = 'Marginal — possible asphaltene destabilization on blending. Bench-test (ASTM D7112) before commingling.';
-  else message = 'High risk — strong heavy/light contrast likely to destabilize asphaltenes. Do not commingle without lab confirmation.';
+  if (asi < 0.35) message = 'Screens compatible: low risk of asphaltene destabilization. Confirm with an ASTM D7112 or D7157 spot test before commingling.';
+  else if (asi < 0.6) message = 'Marginal: asphaltenes may destabilize on blending. Bench-test (ASTM D7112) before commingling.';
+  else message = 'High risk: a strong heavy and light contrast is likely to destabilize asphaltenes. Do not commingle without lab confirmation.';
   return { stable, message, asi: Number(asi.toFixed(3)) };
 };
 
@@ -642,6 +642,7 @@ export const flashSeparatorTrain = (fluid, stages, pb) => {
   if (!last || last.pressure > STOCK_TANK.pressure + 1e-6) train.push({ ...STOCK_TANK });
 
   const stageRows = [];
+  const exact = [];
   let rsIn = fluid.rsb;
   train.forEach((s, i) => {
     const isStockTank = i === train.length - 1;
@@ -651,6 +652,7 @@ export const flashSeparatorTrain = (fluid, stages, pb) => {
     // telescopes exactly to Rsb.
     const rsOut = isStockTank ? 0 : Math.min(Math.max(rsAt(s.pressure, stageFluid), 0), rsIn);
     const gasLiberated = Math.max(0, rsIn - rsOut);
+    exact.push({ isStockTank, gas: gasLiberated });
     stageRows.push({
       index: i,
       name: isStockTank ? 'Stock Tank' : `Sep ${i + 1}`,
@@ -666,11 +668,11 @@ export const flashSeparatorTrain = (fluid, stages, pb) => {
     rsIn = rsOut;
   });
 
-  const separatorGor = stageRows
-    .filter((s) => s.name !== 'Stock Tank')
-    .reduce((sum, s) => sum + s.gas_liberated, 0);
-  const stockTankGor = stageRows.find((s) => s.name === 'Stock Tank')?.gas_liberated ?? 0;
-  const totalGasRate = stageRows.reduce((sum, s) => sum + s.gas_rate, 0);
+  // Totals are summed before rounding (FLUID-U1-008): summing the rounded
+  // stage values printed 650.1 scf/STB for a 650.0 solution GOR.
+  const separatorGor = exact.filter((s) => !s.isStockTank).reduce((sum, s) => sum + s.gas, 0);
+  const stockTankGor = exact.find((s) => s.isStockTank)?.gas ?? 0;
+  const totalGasRate = exact.reduce((sum, s) => sum + (s.gas * oilRate) / 1000, 0);
 
   const boSingleStage = boAt(fluid.rsb, fluid); // single flash to stock tank at Pb
   // Multistage separation shrinks the oil less than a single flash, so stock-tank
@@ -862,7 +864,8 @@ export function blackOilRangeFlags(fluid, methods, table = []) {
     });
   }
   // Papay's Z has no verified range; the clamp acting is the flag
-  const clamped = table.filter((r) => r.Z <= Z_CLAMP[0] || r.Z >= Z_CLAMP[1]);
+  const papay = (methods || []).some((m) => m.key === 'z' && m.rangeKey === 'sutton');
+  const clamped = papay ? table.filter((r) => Number.isFinite(r.Z) && (r.Z <= Z_CLAMP[0] || r.Z >= Z_CLAMP[1])) : [];
   if (clamped.length) {
     out.push({
       id: 'papay:z', key: 'z', method: 'Papay', variable: 'z', label: 'Z', unit: '', family: null, value: null, low: Z_CLAMP[0], high: Z_CLAMP[1], scope: 'table', rows: clamped.length, properties: ['Gas deviation factor Z'],
@@ -987,7 +990,7 @@ export const analyzeFluidSystem = (inputs) => {
 
   // Global warnings: cross-cutting caveats only.
   const warnings = [
-    'Separator results use a black-oil staged-liberation approximation (GOR partition), not a compositional flash.',
+    'Separator results use a black-oil staged-liberation approximation (a partition of the GOR by the Rs correlation). A compositional flash needs the compositional model.',
   ];
   const suspect = SUSPECT_CORRELATIONS[fluid.correlations.pb_rs_bo];
   if (suspect) warnings.push(suspect);
@@ -1002,7 +1005,7 @@ export const analyzeFluidSystem = (inputs) => {
     }
   }
   if (blending) {
-    warnings.push('Blended fluid: API is blended on a specific-gravity (volume) basis; salinity/temperature blends are labeled proxies. See the Blending tab for compatibility.');
+    warnings.push('Blended fluid: API gravity is blended on a specific gravity (volume) basis; the salinity and temperature of the blend are estimates. See the Blending tab for compatibility.');
   }
 
   // Batch sensitivity (recursion-guarded inside runBatch).

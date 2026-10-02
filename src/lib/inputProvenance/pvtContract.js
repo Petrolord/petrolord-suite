@@ -209,6 +209,8 @@ export function pvtIntake(fluid, fieldMap) {
       app: contract.source_app, recordId: contract.project_id ?? null, recordName: contract.project_name ?? null,
       at: contract.generated_at ?? null, build: contract.app_build ?? null, schema: contract.schema,
     };
+    // the receiver keeps the block (without the table) in its own project
+    intake.contract = pvtContractSummary(contract);
   }
   return { patch, applied, intake, sources };
 }
@@ -328,6 +330,22 @@ export function pvtContractOf(carrier) {
   const block = carrier?.schema === PVT1_SCHEMA ? carrier : (carrier?.contract || carrier?.[PVT_CONTRACT_PAYLOAD_KEY]);
   return isRecord(block) && block.schema === PVT1_SCHEMA ? block : null;
 }
+
+/** The block without its table: what a receiver that took scalars stores with its project. */
+export function pvtContractSummary(block) {
+  const b = pvtContractOf(block);
+  if (!b) return null;
+  const { table: _table, ...rest } = b;
+  return { ...rest, table_rows: Array.isArray(b.table) ? b.table.length : 0 };
+}
+
+/**
+ * The words for an input that was changed in the receiving app after the
+ * handoff (RL11): the handoff's source no longer describes the value.
+ */
+export const editedAfterHandoffText = (handoffText, receivedValue) => (
+  `Edited in this app after the handoff (received ${receivedValue}). The handoff said: ${handoffText}`
+);
 
 /**
  * Check a pvt-1 block. The gate of the contract: every property names its

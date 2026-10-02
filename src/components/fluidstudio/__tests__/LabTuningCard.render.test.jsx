@@ -49,7 +49,8 @@ describe('LabTuningCard', () => {
     const onUpdateTuning = jest.fn();
     render(<LabTuningCard composition={sampleComposition()} stages={stages} onUpdateTuning={onUpdateTuning} />);
     fireEvent.change(screen.getByLabelText(/Measured Psat/i), { target: { value: '2500' } });
-    expect(onUpdateTuning).toHaveBeenCalledWith({ lab: expect.objectContaining({ psatPsia: '2500' }) });
+    // FLUID-U1: lab values are stored as numbers in oilfield units (the field converts at the door)
+    expect(onUpdateTuning).toHaveBeenCalledWith({ lab: expect.objectContaining({ psatPsia: 2500 }) });
   });
 
   it('runs a psat tune end to end and applies the knobs', async () => {
@@ -61,7 +62,11 @@ describe('LabTuningCard', () => {
     render(<LabTuningCard composition={composition} stages={stages} onUpdateTuning={onUpdateTuning} />);
     fireEvent.click(screen.getByRole('button', { name: /Tune to lab data/i }));
     await waitFor(
-      () => expect(onUpdateTuning).toHaveBeenCalledWith({ applied: expect.objectContaining({ kC1: expect.any(Number) }) }),
+      // FLUID-U1: the record of the fit travels with the applied parameters
+      () => expect(onUpdateTuning).toHaveBeenCalledWith({
+        applied: expect.objectContaining({ kC1: expect.any(Number) }),
+        fit: expect.objectContaining({ converged: expect.any(Boolean), report: expect.any(Array), signature: expect.any(String) }),
+      }),
       { timeout: 20000 },
     );
     // the before/after table appears with the psat row

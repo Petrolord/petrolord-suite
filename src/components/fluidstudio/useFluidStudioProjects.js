@@ -3,9 +3,13 @@
 // StudioAutoSave), following the ScalStudioContext recipe. The page owns the
 // single `inputs` state object, so this stays a hook rather than a context.
 //
-// Payload shape: { name, schema: 1, inputs, modified }. Rows written by the
-// pre-shell SaveProjectDialog stored the raw inputs object as inputs_data;
-// openProject detects and restores those legacy rows too.
+// Payload shape: { name, schema: 2, inputs, pvt, modified }. `inputs` holds
+// the whole model (fluid inputs, identification, input sources, the unit
+// system and the saved tuning record); `pvt` is the pvt-1 contract block of
+// the fluid as last saved, which other apps read by project id
+// (src/lib/pvtSource.js). Schema 1 rows (no `pvt`, no identification) and
+// rows written by the pre-shell SaveProjectDialog (the raw inputs object as
+// inputs_data) open unchanged: what they never had prints as n/a.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
@@ -37,7 +41,14 @@ export const inputsFromPayload = (payload) => {
   return payload;
 };
 
-export function useFluidStudioProjects({ inputs, setInputs }) {
+export const PROJECT_SCHEMA = 2;
+
+/**
+ * @param {{inputs: object, setInputs: function, extra?: function(string, string): object}} a
+ *   `extra(projectId, projectName)` returns the payload keys saved beside the
+ *   inputs (the pvt-1 block)
+ */
+export function useFluidStudioProjects({ inputs, setInputs, extra }) {
   const { notifications, addNotification, removeNotification } = useStudioNotifications();
 
   const [projects, setProjects] = useState([]);
@@ -48,13 +59,17 @@ export function useFluidStudioProjects({ inputs, setInputs }) {
   const [lastSaveTime, setLastSaveTime] = useState(null);
   const [hydrated, setHydrated] = useState(false);
 
-  const serialize = useCallback((name) => ({
-    id: currentProjectId,
+  const extraRef = useRef(extra);
+  extraRef.current = extra;
+  const payloadFor = useCallback((id, name) => ({
+    id,
     name,
-    schema: 1,
+    schema: PROJECT_SCHEMA,
     inputs,
+    ...(extraRef.current ? extraRef.current(id, name) : {}),
     modified: new Date().toISOString(),
-  }), [currentProjectId, inputs]);
+  }), [inputs]);
+  const serialize = useCallback((name) => payloadFor(currentProjectId, name), [currentProjectId, payloadFor]);
 
   useEffect(() => {
     (async () => {
@@ -70,9 +85,7 @@ export function useFluidStudioProjects({ inputs, setInputs }) {
   const createProject = useCallback(async (name) => {
     const id = uuidv4();
     try {
-      await service.save(id, {
-        id, name, schema: 1, inputs, modified: new Date().toISOString(),
-      });
+      await service.save(id, payloadFor(id, name));
       setCurrentProjectId(id);
       setProjectName(name);
       setHydrated(true);
@@ -84,7 +97,7 @@ export function useFluidStudioProjects({ inputs, setInputs }) {
       console.error(e);
       addNotification(friendlyError(e), 'error');
     }
-  }, [inputs, addNotification]);
+  }, [payloadFor, addNotification]);
 
   const openProject = useCallback(async (id) => {
     try {
@@ -125,16 +138,18 @@ export function useFluidStudioProjects({ inputs, setInputs }) {
   const manualSave = useCallback(async () => {
     if (!currentProjectId) {
       addNotification('Create or open a project first', 'info');
-      return;
+      return false;
     }
     setIsSaving(true);
     try {
       await service.save(currentProjectId, serialize(projectName));
       setLastSaveTime(new Date());
       setSaveError(null);
+      return true;
     } catch (e) {
       console.error(e);
       setSaveError('Save failed');
+      return false;
     } finally {
       setIsSaving(false);
     }

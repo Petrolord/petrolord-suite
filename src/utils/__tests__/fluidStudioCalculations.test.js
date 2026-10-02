@@ -330,7 +330,7 @@ describe('Blending — mixing rules', () => {
     const res = analyzeFluidSystem(inputs);
     expect(res.blending).not.toBeNull();
     expect(res.pvt.kpis.api).toBeCloseTo(res.blending.properties.api, 2);
-    expect(res.meta.warnings.some((w) => /specific-gravity/i.test(w))).toBe(true);
+    expect(res.meta.warnings.some((w) => /specific gravity/i.test(w))).toBe(true);
   });
 
   it('robust when streamB missing while enabled', () => {
@@ -365,7 +365,7 @@ describe('Flow assurance — hydrate + WAT', () => {
   it('gas gravity clamped to validity band', () => {
     expect(hydrateTempMotiee(1000, 1.4)).toBeCloseTo(hydrateTempMotiee(1000, 1.0), 6);
     const fa = computeFlowAssurance({ gasGravity: 1.3 }, {}, '1000, 40');
-    expect(fa.meta.warnings.some((w) => /validity band/i.test(w))).toBe(true);
+    expect(fa.meta.warnings.some((w) => /outside the Motiee range/i.test(w))).toBe(true);
   });
 
   it('hydrateCurve ascending, length nPoints, no NaN', () => {
@@ -399,7 +399,7 @@ describe('Flow assurance — hydrate + WAT', () => {
     const none = computeFlowAssurance(fluid, {}, '500, 30');
     expect(none.wat).toBeNull();
     expect(none.wat_basis).toBeNull();
-    expect(none.meta.warnings.some((w) => /not computable from black-oil PVT/i.test(w))).toBe(true);
+    expect(none.meta.warnings.some((w) => /cannot be computed from black-oil PVT/i.test(w))).toBe(true);
 
     const wax = computeFlowAssurance(fluid, { waxContent: 8 }, '500, 30');
     expect(wax.wat).toBeGreaterThan(0);

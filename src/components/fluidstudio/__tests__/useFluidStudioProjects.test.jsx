@@ -40,13 +40,13 @@ describe('useFluidStudioProjects', () => {
     expect(result.current.projects[0]).toMatchObject({ id: 'p1', name: 'Case A' });
   });
 
-  it('createProject saves a schema-1 payload carrying the current inputs', async () => {
+  it('createProject saves a schema-2 payload carrying the current inputs', async () => {
     const { result } = setup({ marker: 42 });
     await act(async () => { await result.current.createProject('My Case'); });
     expect(mockService.save).toHaveBeenCalledTimes(1);
     const [id, payload] = mockService.save.mock.calls[0];
     expect(typeof id).toBe('string');
-    expect(payload).toMatchObject({ name: 'My Case', schema: 1, inputs: { marker: 42 } });
+    expect(payload).toMatchObject({ name: 'My Case', schema: 2, inputs: { marker: 42 } });
     expect(result.current.currentProjectId).toBe(id);
     expect(result.current.lastSaveTime).toBeInstanceOf(Date);
   });

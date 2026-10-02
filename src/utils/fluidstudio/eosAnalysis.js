@@ -23,6 +23,7 @@ import { saturationPressure } from './eos/envelope.js';
 import { eosBlackOilTable } from './eos/experiments.js';
 import { degFtoR, degRtoF } from './eos/units.js';
 import { bwAt, muWaterAt } from '../fluidStudioCalculations.js';
+import { pvtContractCsvHeader } from '../../lib/inputProvenance/pvtContract.js';
 
 /** Standard conditions of the compositional path (eos/separator.js stock tank). */
 export const EOS_STANDARD_CONDITIONS = Object.freeze({ pressure_psia: 14.696, temperature_degF: 60 });
@@ -497,7 +498,7 @@ export const runEosPvtTable = (composition, stages, { salinityPpm = 0 } = {}) =>
  * (fluidStudioPvtPrefill row keys, ascending pressure) so the export
  * drops straight into the Material Balance lab-table workflow.
  */
-export const eosPvtTableCsv = (table) => {
+export const eosPvtTableCsv = (table, { contract = null } = {}) => {
   const cols = ['pressure_psia', 'bo_rb_stb', 'rs_scf_stb', 'oil_viscosity_cp',
     'z_factor', 'bg_rb_mscf', 'gas_viscosity_cp'];
   const rows = table.rows.slice().sort((a, b) => a.pressure - b.pressure).map((r) => [
@@ -509,7 +510,12 @@ export const eosPvtTableCsv = (table) => {
     r.Bg != null ? round(r.Bg * 1000, 4) : '',
     r.mu_g ?? '',
   ].join(','));
-  return [cols.join(','), ...rows].join('\n');
+  // FLUID-U1: the same provenance header as the PVT CSV, when the pvt-1
+  // block is handed in (the schema's column names already carry the units)
+  const header = contract
+    ? pvtContractCsvHeader(contract, { extra: ['Units of this file: those in the column names (Material Balance Studio lab-table schema), whatever the display units. Pressures are absolute. Bg is RB/Mscf.'] })
+    : [];
+  return [...header, cols.join(','), ...rows].join('\n');
 };
 
 /**

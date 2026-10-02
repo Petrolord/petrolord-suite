@@ -116,9 +116,8 @@ export const withUnit = (text, kind, system) => {
 /** The header line of a report or a CSV: the system and its units. */
 export function displayUnitsLine(system) {
   const s = sys(system);
-  const list = ['pressure', 'temperature', 'gor', 'fvfOil', 'fvfGas', 'viscosity', 'compressibility']
-    .map((k) => `${k === 'fvfOil' ? 'oil and water FVF' : k === 'fvfGas' ? 'gas FVF' : k === 'gor' ? 'GOR' : k} ${unitLabel(k, s)}`);
-  return `${s === 'si' ? 'SI / metric' : 'Oilfield'} (${list.join(', ')})`;
+  const list = ['pressure', 'temperature', 'gor', 'fvfOil', 'fvfGas', 'viscosity', 'compressibility'].map((k) => unitLabel(k, s));
+  return `${s === 'si' ? 'SI / metric' : 'Oilfield'}: ${[...new Set(list)].join(', ')}; Bg in ${unitLabel('fvfGas', s)}`;
 }
 
 /** A units helper bound to one system, for components and builders. */

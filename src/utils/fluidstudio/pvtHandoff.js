@@ -46,6 +46,19 @@ export function tuningBlock(composition, stages) {
 }
 
 /**
+ * Range flags of the compositional path: what the composition parser says
+ * about the C7+ description, and the water correlations against the table.
+ */
+export function eosRangeFlags(inputs, eos) {
+  const pvt = eos?.pvtTable;
+  if (!pvt?.table) return [];
+  const fluidForWater = { temp: pvt.model?.tempF, salinity: Number(inputs?.streamA?.blackOil?.salinity) || 0 };
+  const waterFlags = blackOilRangeFlags(fluidForWater, pvt.methods.filter((m) => m.key === 'bw' || m.key === 'mu_w'), pvt.table.rows);
+  const parseFlags = (pvt.parsed?.warnings || []).map((text) => ({ method: 'C7+ characterisation', variable: 'C7+ description', scope: 'input', value: null, low: null, high: null, unit: '', family: null, properties: [], text }));
+  return [...parseFlags, ...waterFlags];
+}
+
+/**
  * The pvt-1 block of the current analysis.
  * @param {{inputs: object, results: object, eos: ?object, projectId?: ?string, projectName?: ?string,
  *   generatedAt?: Date, appBuild?: ?string, identification?: object}} a
@@ -61,8 +74,6 @@ export function buildFluidPvtContract({ inputs, results, eos, projectId = null, 
     const t = pvt.table;
     const pbRow = t.rows.find((r) => r.phase === 'saturated');
     const fluidForWater = { temp: pvt.model?.tempF, salinity: Number(inputs.streamA?.blackOil?.salinity) || 0 };
-    const waterFlags = blackOilRangeFlags(fluidForWater, pvt.methods.filter((m) => m.key === 'bw' || m.key === 'mu_w'), t.rows);
-    const parseFlags = (pvt.parsed?.warnings || []).map((text) => ({ method: 'C7+ characterisation', variable: 'C7+ description', scope: 'input', value: null, low: null, high: null, unit: '', properties: [], text }));
     return buildPvtContract({
       ...common,
       model: 'eos',
@@ -76,7 +87,7 @@ export function buildFluidPvtContract({ inputs, results, eos, projectId = null, 
       basis: pvt.basis,
       pbSource: 'eos',
       tuning: tuningBlock(composition, stages),
-      rangeFlags: [...parseFlags, ...waterFlags],
+      rangeFlags: eosRangeFlags(inputs, eos),
       standardConditions: pvt.standardConditions,
       inputs: {
         oil_gravity: t.kpis.stoApi, gas_gravity: t.kpis.surfaceGasGravity, rsb: t.kpis.rsfb,
