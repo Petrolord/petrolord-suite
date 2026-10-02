@@ -28,6 +28,7 @@
  *      divides by what is actually produced.
  */
 import { pvtCalcs } from './pvtCalculations';
+import { calculateEconomics } from './npvCalculations';
 
 const REQUIRED_NUMERIC = [
   { key: 'reservoirArea', label: 'Reservoir area', min: 0 },
@@ -146,6 +147,13 @@ export const NO_OPTIMUM_NOTE = 'The highest NPV here is arithmetic and does not 
 const DAYS_PER_YEAR = 365;
 
 /**
+ * H7: the discounting convention, printed wherever the NPV goes. The NPV
+ * comes from the Suite screening engine `calculateEconomics`; the app used
+ * to run its own year-end loop with the well cost undiscounted.
+ */
+export const NPV_CONVENTION_NOTE = 'NPV is computed by the Suite screening economics engine with mid-year discounting: each year\'s cash flow, the well cost in the first year included, is discounted to the middle of its year.';
+
+/**
  * One spacing case.
  *
  * The production model is a single exponential decline per well, anchored so
@@ -159,12 +167,60 @@ const DAYS_PER_YEAR = 365;
  *   =>  qi = EUR * Dn + qLimit
  *   life = ln(qi / qLimit) / Dn
  */
+// Volumes and life of one well at a spacing: the exponential decline
+// anchored on the EUR, integrated exactly over each project year.
+const wellProfile = (spacing, p) => {
+  const oiipPerWell = (spacing * p.avgNetPay * p.porosity * (1 - p.swi) * BBL_PER_ACRE_FT) / (p.bo || 1);
+  const eurPerWellBbl = oiipPerWell * p.recoveryFactor;
+  const Dn = -Math.log(1 - p.declineRate);
+  const qLimitAnnual = p.minEconomicRate * DAYS_PER_YEAR;
+  const qiAnnual = eurPerWellBbl * Dn + qLimitAnnual;
+  const economicLife = Math.log(qiAnnual / qLimitAnnual) / Dn;
+  const actualLife = Math.min(economicLife, p.projectDuration);
+  const years = [];
+  for (let year = 1; year <= Math.ceil(actualLife); year++) {
+    const from = year - 1;
+    const to = Math.min(year, actualLife);
+    if (to <= from) break;
+    // Exact integral of qi*exp(-Dn*t) over [from, to].
+    years.push({ oil: (qiAnnual / Dn) * (Math.exp(-Dn * from) - Math.exp(-Dn * to)), fraction: to - from });
+  }
+  return { eurPerWellBbl, qiAnnual, economicLife, actualLife, years };
+};
+
+/**
+ * The `calculateEconomics` inputs of one spacing case, for the whole field.
+ * Royalties and taxes are one percentage of gross revenue on the form, so
+ * they enter as the royalty rate with no income tax. Costs are in $MM, as
+ * the engine expects. Opex of a part year is pro-rated.
+ */
+export const spacingEconomicsInputs = (spacing, p) => {
+  const numberOfWells = Math.floor(p.reservoirArea / spacing);
+  const { years } = wellProfile(spacing, p);
+  const n = years.length;
+  return {
+    projectLife: n,
+    discountRate: p.discountRate * 100,
+    fiscalType: 'TaxRoyalty',
+    production: {
+      oil: years.map((y) => numberOfWells * y.oil),                  // bbl
+      gas: years.map((y) => (numberOfWells * y.oil * p.gor) / 1000), // Mscf
+    },
+    price: { oil: new Array(n).fill(p.oilPrice), gas: new Array(n).fill(p.gasPrice) },
+    capex: years.map((_, i) => (i === 0 ? (numberOfWells * p.wellCost) / 1e6 : 0)),
+    opexFixed: years.map((y) => (numberOfWells * p.opex * y.fraction) / 1e6),
+    opexVariable: new Array(n).fill(0),
+    abandonment: new Array(n).fill(0),
+    royaltyRate: p.royaltiesTaxes * 100,
+    taxRate: 0,
+  };
+};
+
 const evaluateSpacing = (spacing, p) => {
   const numberOfWells = Math.floor(p.reservoirArea / spacing);
   if (numberOfWells < 1) return null;
 
-  const oiipPerWell = (spacing * p.avgNetPay * p.porosity * (1 - p.swi) * BBL_PER_ACRE_FT) / (p.bo || 1);
-  const eurPerWellBbl = oiipPerWell * p.recoveryFactor;
+  const { eurPerWellBbl, qiAnnual, economicLife, actualLife, years } = wellProfile(spacing, p);
 
   // Areal coverage is the share of the field that whole wells actually drain.
   // It is what makes the field-recovery curve step: a spacing that divides
@@ -175,40 +231,11 @@ const evaluateSpacing = (spacing, p) => {
 
   const totalCapex = (numberOfWells * p.wellCost) / 1e6;
 
-  const Dn = -Math.log(1 - p.declineRate);
-  const qLimitAnnual = p.minEconomicRate * DAYS_PER_YEAR;
-  const qiAnnual = eurPerWellBbl * Dn + qLimitAnnual;
-  const economicLife = Math.log(qiAnnual / qLimitAnnual) / Dn;
-  const actualLife = Math.min(economicLife, p.projectDuration);
+  // H7: the canonical screening NPV. No discounting is done in this file.
+  const { metrics } = calculateEconomics(spacingEconomicsInputs(spacing, p), { skipIrr: true });
 
-  let npv = 0;
-  let opexTotalPerWell = 0;
-  let producedPerWell = 0;
-
-  const wholeYears = Math.floor(actualLife);
-  for (let year = 1; year <= Math.ceil(actualLife); year++) {
-    const from = year - 1;
-    const to = Math.min(year, actualLife);
-    if (to <= from) break;
-    const fraction = to - from;
-
-    // Exact integral of qi*exp(-Dn*t) over [from, to].
-    const oil = (qiAnnual / Dn) * (Math.exp(-Dn * from) - Math.exp(-Dn * to));
-    const gas = (oil * p.gor) / 1000;
-
-    const revenue = oil * p.oilPrice + gas * p.gasPrice;
-    const netRevenue = revenue * (1 - p.royaltiesTaxes);
-    const opexThisYear = p.opex * fraction;
-    const cashFlow = netRevenue - opexThisYear;
-
-    npv += cashFlow * Math.pow(1 + p.discountRate, -year);
-    opexTotalPerWell += opexThisYear;
-    producedPerWell += oil;
-  }
-
-  const wellNPV = npv - p.wellCost;
-  const totalNPV = (numberOfWells * wellNPV) / 1e6;
-
+  const producedPerWell = years.reduce((sum, y) => sum + y.oil, 0);
+  const opexTotalPerWell = years.reduce((sum, y) => sum + p.opex * y.fraction, 0);
   const totalProduction = numberOfWells * producedPerWell;
   const totalOpexAllWells = numberOfWells * opexTotalPerWell;
   const costPerBarrel = totalProduction > 0
@@ -223,12 +250,19 @@ const evaluateSpacing = (spacing, p) => {
     producedPerWell: producedPerWell / 1000,   // Mbbl actually produced
     totalFieldRecovery,
     totalCapex,
-    npv: totalNPV,
+    npv: metrics.npv,                          // $MM, field
+    // undiscounted field totals from the same run, $MM
+    economics: {
+      totalRevenue: metrics.totalRevenue,
+      totalRoyalty: metrics.totalRoyalty,
+      totalOpex: metrics.totalOpex,
+      totalCapex: metrics.totalCapex,
+    },
     costPerBarrel,
     economicLife: actualLife,
     truncatedByDuration: economicLife > p.projectDuration,
     initialRateBpd: qiAnnual / DAYS_PER_YEAR,
-    wholeYears,
+    wholeYears: Math.floor(actualLife),
   };
 };
 
@@ -282,6 +316,9 @@ export const evaluateSpacingCases = async (formData) => {
     spacingResults,
     boUsed: p.bo,
     boSource,
+    // the parsed inputs every case was run on, and how the NPV was computed
+    parameters: p,
+    npvConvention: { engine: 'calculateEconomics', discounting: 'mid-year', note: NPV_CONVENTION_NOTE },
   };
 };
 
@@ -289,7 +326,7 @@ export const generateCSV = (results) => {
   const header = [
     'Well Spacing (acres/well)', 'Number of Wells', 'Areal Coverage (%)',
     'EUR per Well (Mbbl)', 'Produced per Well (Mbbl)', 'Total Field Recovery (%)',
-    'Total Capex ($MM)', 'NPV ($MM)', 'Cost per Barrel ($/bbl)', 'Economic Life (years)',
+    'Total Capex ($MM)', 'NPV ($MM; mid-year discounting)', 'Cost per Barrel ($/bbl)', 'Economic Life (years)',
   ];
   const rows = results.spacingResults.map((r) => [
     r.spacing,
@@ -315,6 +352,7 @@ export const generateJSON = (formData, results) => ({
     optimumNominated: false,
     reading: NO_OPTIMUM_NOTE,
     bo: { value: results.boUsed, unit: 'rb/stb', source: results.boSource },
+    npv: { unit: '$MM', ...results.npvConvention },
     recoveryModel: 'stated recovery factor over the area covered by whole wells; no interference physics',
     version: 'WellSpacingOptimizer v2.1',
   },

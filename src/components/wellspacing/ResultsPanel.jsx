@@ -93,6 +93,9 @@ const ResultsPanel = ({
           )}
         </div>
 
+        {results.npvConvention?.note && (
+          <p className="text-xs text-pl-muted mb-2" data-testid="ws-npv-convention">{results.npvConvention.note}</p>
+        )}
         <div className="overflow-x-auto mb-6">
           <table className="w-full text-pl-text text-sm">
             <thead>
@@ -141,7 +144,7 @@ const ResultsPanel = ({
         <h2 className="text-2xl font-bold text-pl-text mb-6">Interactive Charts</h2>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ChartPanel title="NPV vs. Well Spacing">
+          <ChartPanel title="NPV vs. Well Spacing" subtitle="Mid-year discounting, Suite screening economics engine.">
             <div className="relative h-64">
               <SpacingLine data={rows} dataKey="npv" name="NPV" unit="NPV ($M)" color="#16a34a" fmt={(v) => Number(v).toFixed(1)} />
               <ChartLogo />

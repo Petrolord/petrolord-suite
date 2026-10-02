@@ -183,10 +183,15 @@ const WellSpacingHelpGuideContent = () => (
       <SubHeading>Cash flow</SubHeading>
       <Formula>revenue = oil * oil price + associated gas * gas price</Formula>
       <Formula>net revenue = revenue * (1 - royalties and taxes)</Formula>
-      <Formula>NPV per well = sum of (net revenue - opex) discounted at year end, minus well cost</Formula>
+      <Formula>NPV = sum over years of (net revenue - opex - well cost in year 1) / (1 + r)^(year - 0.5)</Formula>
       <Para>
-        Associated gas comes from the solution GOR applied to the oil rate. The well cost lands at
-        time zero and is not discounted. Discounting is at year end.
+        Associated gas comes from the solution GOR applied to the oil rate. NPV is computed by the
+        Suite screening economics engine, the same one NPV Scenario Builder uses, with mid-year
+        discounting: each year&apos;s cash flow is discounted to the middle of its year, and the well
+        cost is spent in the first year and discounted with it. Royalties and taxes enter as one
+        percentage of gross revenue. Until October 2026 this app ran its own loop with year-end
+        discounting and the well cost undiscounted, so an NPV from an older export is lower than the
+        one shown now for the same inputs (by about 6 to 17 percent on the example field).
       </Para>
       <Callout tone="warn" title="What the cash flow leaves out">
         There is no facilities or infrastructure capital, no abandonment cost, no drilling schedule

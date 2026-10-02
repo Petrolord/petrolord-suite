@@ -91,3 +91,12 @@ describe('H6: a fallback Bo is called a fallback', () => {
     expect(json.metadata.bo).toEqual({ value: 1, unit: 'rb/stb', source: 'fallback' });
   });
 });
+
+describe('H7: the discounting convention is labelled on the screen', () => {
+  it('the results state mid-year discounting and the engine', async () => {
+    const results = await evaluateSpacingCases(SAMPLE);
+    render(<ResultsPanel results={results} downloadCSV={() => {}} downloadJSON={() => {}} />);
+    expect(screen.getByTestId('ws-npv-convention')).toHaveTextContent(/mid-year discounting/);
+    expect(screen.getByTestId('ws-npv-convention')).toHaveTextContent(/Suite screening economics engine/);
+  });
+});
