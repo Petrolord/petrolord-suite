@@ -5,13 +5,16 @@
 // Tester round 2 (2026-10-02): the store also seeds one well in the shared
 // wells registry (a build to 35 degrees with a published zone summary), so
 // the "Propose from the wells registry" door can be walked end to end.
-import React from 'react';
+import React, { useState } from 'react';
 import WellTestAnalysisStudio from '@/pages/apps/WellTestAnalysisStudio';
 import InMemorySupabase, { createStore, DEV_USER } from './InMemorySupabase';
+import { loadFluidRows, FLUID_TABLE } from './fluidProjectsStore';
 
 const FT = 0.3048;
 const db = createStore({
   saved_well_test_projects: [],
+  // projects saved on the Fluid Systems Studio harness in this tab (the pvt-1 chain)
+  [FLUID_TABLE]: loadFluidRows(),
   geo_wells: [{
     id: 'harness-well-1', user_id: DEV_USER.id, name: 'Harness-7', uwi: 'HX-0007',
     surface_x: 500000, surface_y: 6000000, kb_m: 25, td_md_m: 3400,
@@ -26,5 +29,8 @@ const db = createStore({
 });
 
 export default function WellTestHarness() {
+  // read the Fluid Systems projects of this tab again on every mount: the
+  // module is loaded once, and a project may have been saved since
+  useState(() => { db[FLUID_TABLE] = loadFluidRows(); return null; });
   return <InMemorySupabase db={db}><WellTestAnalysisStudio /></InMemorySupabase>;
 }

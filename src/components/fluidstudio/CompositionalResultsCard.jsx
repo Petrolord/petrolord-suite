@@ -2,8 +2,10 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, FlaskConical, Layers } from 'lucide-react';
 import FluidStudioTierBadge, { TuneStatusBadge } from '@/components/fluidstudio/FluidStudioTierBadge';
+import { useFluidUnits } from '@/components/fluidstudio/FluidUnitsContext';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
-const fmt = (v, d = 3) => (v == null || !Number.isFinite(v) ? 'n/a' : Number(v).toFixed(d));
+const fmt = (v, d = 3) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toFixed(d));
 
 const PhaseStat = ({ label, value, unit }) => (
   <div className="rounded-md bg-pl-sunken border border-pl-border px-3 py-2">
@@ -12,15 +14,15 @@ const PhaseStat = ({ label, value, unit }) => (
   </div>
 );
 
-const PhaseColumn = ({ phase }) => (
+const PhaseColumn = ({ phase, u }) => (
   <div className="space-y-2">
     <p className="text-sm font-semibold text-pl-text">{phase.label}</p>
     <div className="grid grid-cols-2 gap-2">
       <PhaseStat label="Mole fraction" value={fmt(phase.moleFraction, 4)} unit="" />
-      <PhaseStat label="Density" value={fmt(phase.density, 2)} unit="lb/ft³" />
+      <PhaseStat label="Density" value={fmt(u.show('density', phase.density), u.system === 'si' ? 1 : 2)} unit={u.label('density')} />
       <PhaseStat label="Z factor" value={fmt(phase.zFactor, 4)} unit="" />
-      <PhaseStat label="Apparent MW" value={fmt(phase.apparentMw, 1)} unit="lb/lb-mol" />
-      <PhaseStat label="Viscosity (LBC)" value={fmt(phase.viscosityCp, 4)} unit="cP" />
+      <PhaseStat label="Apparent MW" value={fmt(phase.apparentMw, 1)} unit={u.label('molecularWeight')} />
+      <PhaseStat label="Viscosity (LBC)" value={fmt(u.show('viscosity', phase.viscosityCp), 4)} unit={u.label('viscosity')} />
       <PhaseStat label="Molar volume" value={fmt(phase.molarVolume, 3)} unit="ft³/lb-mol" />
     </div>
   </div>
@@ -33,6 +35,7 @@ const PhaseColumn = ({ phase }) => (
  * the slow path.
  */
 const CompositionalResultsCard = ({ eos, tuneStatus }) => {
+  const u = useFluidUnits();
   if (!eos) return null;
   const { parsed, flash, characterization } = eos;
 
@@ -57,7 +60,7 @@ const CompositionalResultsCard = ({ eos, tuneStatus }) => {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="flex items-center text-base">
             <FlaskConical className="w-4 h-4 mr-2 text-pl-muted" />
-            Compositional flash at {fmt(parsed.pressurePsia, 0)} psia / {fmt(parsed.tempF, 0)} °F
+            Compositional flash at {fmt(u.show('pressure', parsed.pressurePsia), 0)} {u.label('pressure')} and {fmt(u.show('temperature', parsed.tempF), 0)} {u.label('temperature')}
           </CardTitle>
           <div className="flex gap-2">
             {/* H10: the status says whether the tune still fits this fluid */}
@@ -86,7 +89,7 @@ const CompositionalResultsCard = ({ eos, tuneStatus }) => {
           </p>
           {twoPhase && (
             <p className="text-sm text-pl-text">
-              Gas and oil interfacial tension {fmt(flash.iftDynPerCm, 2)} dyn/cm
+              Gas and oil interfacial tension {fmt(flash.iftDynPerCm, 2)} {u.label('ift')}
               <FluidStudioTierBadge
                 tier="published_method"
                 className="ml-2"
@@ -99,11 +102,11 @@ const CompositionalResultsCard = ({ eos, tuneStatus }) => {
         <div className={`grid gap-4 ${twoPhase ? 'md:grid-cols-2' : ''}`}>
           {twoPhase ? (
             <>
-              <PhaseColumn phase={flash.liquid} />
-              <PhaseColumn phase={flash.vapor} />
+              <PhaseColumn phase={flash.liquid} u={u} />
+              <PhaseColumn phase={flash.vapor} u={u} />
             </>
           ) : (
-            <PhaseColumn phase={flash.feed} />
+            <PhaseColumn phase={flash.feed} u={u} />
           )}
         </div>
 
@@ -142,7 +145,7 @@ const CompositionalResultsCard = ({ eos, tuneStatus }) => {
               />
             </p>
             <p className="font-pl-mono tabular-nums">
-              Tc {fmt(characterization.tcR - 459.67, 1)} °F · Pc {fmt(characterization.pcPsia, 0)} psia · ω {fmt(characterization.omega, 4)} · s {fmt(characterization.shift, 4)} · k(C1) {fmt(characterization.bipC1, 4)}
+              Tc {fmt(u.show('temperature', characterization.tcR - 459.67), 1)} {u.label('temperature')} · Pc {fmt(u.show('pressure', characterization.pcPsia), 0)} {u.label('pressure')} · ω {fmt(characterization.omega, 4)} · s {fmt(characterization.shift, 4)} · k(C1) {fmt(characterization.bipC1, 4)}
               {characterization.meta?.tbSource === 'soreide' ? ' · Tb from Soreide' : ' · Tb measured'}
             </p>
           </div>

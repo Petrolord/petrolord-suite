@@ -270,7 +270,7 @@ current app's Step 2 builds, at most two upgrade agents at once.
 | # | App | Step 1 | Step 2 | Batches merged | Upgrade doc |
 |---|---|---|---|---|---|
 | 0 | Module foundations (0a to 0e) | planned 2026-10-02; report kit in progress on `feat/report-kit` | | | this plan |
-| 1 | Fluid Systems Studio | | | | `docs/upgrade/FluidSystemsStudio-UPGRADE.md` |
+| 1 | Fluid Systems Studio | Done 2026-10-02 on `feat/fluid-u1` (PR open, not merged): 30 findings, 21 fixed (6 S2, no S1), the report on the kit, the `pvt-1` writer with Well Test as first reader, units, record sharing, the P-T door on the shared reader; three engine corrections (entered bubble point, Bo above Pb, separator totals) | Analysis done: 23 items ranked, batches A, B, C proposed; awaiting the lead's choice | | `docs/upgrade/FluidSystemsStudio-UPGRADE.md` |
 | 2 | Material Balance Studio | | | | `docs/upgrade/MaterialBalanceStudio-UPGRADE.md` |
 | 3 | Decline Curve Analysis, Forecast Scenario Hub | | | | `docs/upgrade/DeclineCurveAnalysis-UPGRADE.md` |
 | 4 | Risked Reserves Valuation, ReservoirCalc Pro RL re-check | | | | `docs/upgrade/RiskedReservesValuation-UPGRADE.md` |

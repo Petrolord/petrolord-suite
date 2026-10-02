@@ -1,5 +1,5 @@
 {
- "_readme": "FS5 black-oil regression pin. Generated from the engine BEFORE any compositional UI wiring; the jest gate asserts the black-oil default path reproduces these numbers exactly (1e-9 rel). Regenerate ONLY for a deliberate, reviewed black-oil change: node tools with the snippet in blackOilSnapshot.test.js.",
+ "_readme": "FS5 black-oil regression pin. Generated from the engine BEFORE any compositional UI wiring; the jest gate asserts the black-oil default path reproduces these numbers exactly (1e-9 rel). Regenerate ONLY for a deliberate, reviewed black-oil change: node tools with the snippet in blackOilSnapshot.test.js. Changed on purpose 2026-10-02 (FLUID-U1-008): separator totals are summed before rounding (650.1 became 650 scf/STB for a 650 solution GOR), the separator warning was reworded, and (FLUID-U1-007) Bo above the bubble point is the integral of the co the table prints (1.3458 became 1.3387 at 4,998 psia).",
  "kpis": {
   "pb": 2998,
   "rsb": 650,
@@ -18,7 +18,7 @@
   {
    "pressure": 4998,
    "Rs": 650,
-   "Bo": 1.3458,
+   "Bo": 1.3387,
    "Bg": 0.000716,
    "Z": 1.076,
    "mu_o": 0.6913,
@@ -50,19 +50,19 @@
   }
  ],
  "separatorTotals": {
-  "separator_gor": 613.4,
+  "separator_gor": 613.3,
   "stock_tank_gor": 36.7,
-  "total_gor": 650.1,
+  "total_gor": 650,
   "bo_single_stage": 1.3718,
   "bo_multistage_approx": 1.3607,
   "stock_tank_oil_rate": 1000,
-  "total_gas_rate": 650.1,
-  "surface_gor": 650.1
+  "total_gas_rate": 650,
+  "surface_gor": 650
  },
  "backbone": {
   "oil_gravity": 32,
   "gas_gravity": 0.75,
-  "gor": 650.1,
+  "gor": 650,
   "inlet_temperature": 200,
   "wat": null,
   "pb": 2998,
@@ -71,6 +71,6 @@
   "mu_o_at_pb": 0.5613
  },
  "warnings": [
-  "Separator results use a black-oil staged-liberation approximation (GOR partition), not a compositional flash."
+  "Separator results use a black-oil staged-liberation approximation (a partition of the GOR by the Rs correlation). A compositional flash needs the compositional model."
  ]
 }

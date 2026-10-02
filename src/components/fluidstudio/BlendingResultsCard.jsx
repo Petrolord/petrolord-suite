@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Combine, CheckCircle, AlertTriangle, XCircle, Droplets, Wind, Beaker, Waves } from 'lucide-react';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { useFluidUnits } from '@/components/fluidstudio/FluidUnitsContext';
 
 const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d }));
 
@@ -19,6 +20,7 @@ const TotIt = ({ label, value, icon: Icon }) => (
  * risk) plus the blended fluid's black-oil properties. No chart (four scalars).
  */
 const BlendingResultsCard = ({ blending }) => {
+  const u = useFluidUnits();
   if (!blending) return null;
   const { compatibility, properties } = blending;
   const asi = compatibility.asi;
@@ -46,17 +48,17 @@ const BlendingResultsCard = ({ blending }) => {
         <div>
           <h4 className="text-sm font-semibold text-pl-text mb-2">Blended fluid properties</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <TotIt label="Blended API" value={`${fmt(properties.api, 1)} °API`} icon={Droplets} />
-            <TotIt label="Blended GOR" value={`${fmt(properties.gor, 0)} scf/STB`} icon={Wind} />
+            <TotIt label="Blended API" value={`${fmt(properties.api, 1)} ${u.label('api')}`} icon={Droplets} />
+            <TotIt label="Blended GOR" value={`${fmt(u.show('gor', properties.gor), u.system === 'si' ? 1 : 0)} ${u.label('gor')}`} icon={Wind} />
             <TotIt label="Blended gas SG" value={fmt(properties.gasSg, 3)} icon={Beaker} />
             <TotIt label="Blended salinity" value={`${fmt(properties.salinity, 0)} ppm`} icon={Waves} />
           </div>
         </div>
 
         <p className="text-xs text-pl-muted">
-          ASI is an API-contrast screening heuristic. It is not a SARA/CII calculation. Confirm marginal or high-risk blends
-          with an ASTM D7112/D7157 spot test. Blended API is on a specific-gravity (volume) basis. It is not a linear API average;
-          salinity/temperature blends are labeled proxies. The blend&apos;s bubble point is re-solved and drives the PVT &amp; Separator tabs.
+          ASI is a screening heuristic on the API contrast of the two streams, with no SARA or colloidal instability calculation behind it. Confirm marginal or high-risk blends
+          with an ASTM D7112 or D7157 spot test. Blended API is on a specific gravity (volume) basis, which differs from a linear API average;
+          the salinity and temperature of the blend are estimates. The bubble point of the blend is solved again and drives the PVT and Separator tabs.
         </p>
       </CardContent>
     </Card>

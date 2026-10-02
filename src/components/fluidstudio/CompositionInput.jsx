@@ -5,16 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Atom, Scale } from 'lucide-react';
 import { COMPONENT_ORDER, COMPONENTS, PLUS_FRACTION_KEY } from '@/utils/fluidstudio/eos/components';
 import { emptyComposition } from '@/utils/fluidstudio/eosAnalysis';
+import UnitField from '@/components/fluidstudio/UnitField';
 
-const Num = ({ id, label, value, onChange, unit, hint, step = 'any' }) => (
-  <div>
-    <Label htmlFor={id} className="text-sm font-medium text-pl-text">{label}</Label>
-    <div className="flex items-center mt-1">
-      <Input id={id} type="number" step={step} value={value ?? ''} onChange={(e) => onChange(e.target.value)} />
-      {unit && <span className="ml-2 text-sm text-pl-muted">{unit}</span>}
-    </div>
-    {hint && <p className="text-xs text-pl-muted mt-1">{hint}</p>}
-  </div>
+// numeric fields convert at the door (FLUID-U1, PL3): `kind` names the quantity
+const Num = ({ id, label, value, onChange, unit, kind, hint, step = 'any' }) => (
+  <UnitField id={id} label={label} value={value} kind={kind} unit={unit} hint={hint} step={step} onChange={(v) => onChange(v == null ? '' : v)} />
 );
 
 /**
@@ -100,7 +95,7 @@ const CompositionInput = ({ composition, onChange }) => {
         <>
           <h4 className="text-sm font-semibold text-pl-text pt-1">C7+ description</h4>
           <div className="grid grid-cols-2 gap-3">
-            <Num id="plus-mw" label="Molecular weight" value={comp.plus?.mw} onChange={(v) => setPlus('mw', v)} unit="lb/lb-mol" />
+            <Num id="plus-mw" label="Molecular weight" value={comp.plus?.mw} onChange={(v) => setPlus('mw', v)} kind="molecularWeight" />
             <Num id="plus-sg" label="Specific gravity" value={comp.plus?.sg} onChange={(v) => setPlus('sg', v)} unit="60/60" />
           </div>
           <Num
@@ -108,7 +103,7 @@ const CompositionInput = ({ composition, onChange }) => {
             label="Normal boiling point (optional)"
             value={comp.plus?.tbF}
             onChange={(v) => setPlus('tbF', v)}
-            unit="°F"
+            kind="temperature"
             hint="Leave blank to estimate it from MW and SG with the Soreide correlation."
           />
         </>
@@ -116,14 +111,14 @@ const CompositionInput = ({ composition, onChange }) => {
 
       <h4 className="text-sm font-semibold text-pl-text pt-1">Flash conditions</h4>
       <div className="grid grid-cols-2 gap-3">
-        <Num id="eos-p" label="Pressure" value={comp.pressure} onChange={(v) => patch({ pressure: v === '' ? null : Number(v) })} unit="psia" />
-        <Num id="eos-t" label="Temperature" value={comp.temp} onChange={(v) => patch({ temp: v === '' ? null : Number(v) })} unit="°F" />
+        <Num id="eos-p" label="Pressure" value={comp.pressure} onChange={(v) => patch({ pressure: v === '' ? null : Number(v) })} kind="pressure" />
+        <Num id="eos-t" label="Temperature" value={comp.temp} onChange={(v) => patch({ temp: v === '' ? null : Number(v) })} kind="temperature" />
       </div>
 
       <h4 className="text-sm font-semibold text-pl-text pt-1">Envelope window</h4>
       <div className="grid grid-cols-3 gap-3">
-        <Num id="env-tmin" label="T min" value={comp.envelope?.tMinF} onChange={(v) => setEnv('tMinF', v)} unit="°F" />
-        <Num id="env-tmax" label="T max" value={comp.envelope?.tMaxF} onChange={(v) => setEnv('tMaxF', v)} unit="°F" />
+        <Num id="env-tmin" label="T min" value={comp.envelope?.tMinF} onChange={(v) => setEnv('tMinF', v)} kind="temperature" />
+        <Num id="env-tmax" label="T max" value={comp.envelope?.tMaxF} onChange={(v) => setEnv('tMaxF', v)} kind="temperature" />
         <Num id="env-nt" label="Points" value={comp.envelope?.nT} onChange={(v) => setEnv('nT', v)} step="1" />
       </div>
       <p className="text-xs text-pl-muted">The envelope traces in a background worker from the Compositional results tab. Composition and conditions here feed the flash instantly.</p>

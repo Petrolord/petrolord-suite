@@ -14,7 +14,7 @@
  */
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import {
-  INPUT_SOURCES, sourceText, assumedDefaultText, pvtIntake as intakeFromHandoff, intakeSourceText,
+  INPUT_SOURCES, sourceText, assumedDefaultText, pvtIntake as intakeFromHandoff, intakeSourceText, editedAfterHandoffText,
 } from '@/lib/inputProvenance';
 import { unitLabel, fromOilfield } from './units.js';
 import { partialPenetrationSkin } from './partialPenetration.js';
@@ -332,7 +332,18 @@ export function buildInputsTable({
     add('gasGravity', 'Gas gravity', 'gasGravity', r.gasGravity, entered('gasGravity'));
     add('temperature', 'Reservoir temperature', 'temperature', r.tempF, entered('temperature'));
   } else {
-    const intake = (key) => intakeSourceText(pvtIntake, key);
+    // a value changed here after the handoff says so (RL11): the source the
+    // handoff gave no longer describes it
+    const INTAKE_VALUE = { mu: r.mu, B: r.B, apiGravity: r.apiGravity, gor: r.gor, gasGravity: r.solutionGasGravity, temperature: r.reservoirTempF };
+    const intake = (key) => {
+      const words = intakeSourceText(pvtIntake, key);
+      const received = pvtIntake?.values?.[key];
+      if (!words || received == null) return words;
+      const now = num(INTAKE_VALUE[key]);
+      const was = num(received);
+      const same = Number.isFinite(now) && Number.isFinite(was) && Math.abs(now - was) <= 1e-9 * Math.max(1, Math.abs(was));
+      return same ? words : editedAfterHandoffText(words, received);
+    };
     add('mu', 'Oil viscosity mu_o', 'viscosity', r.mu, entered('mu', meta('mu')?.source ? null : intake('mu')));
     add('B', 'Oil formation volume factor Bo', 'fvf', r.B, entered('B', meta('B')?.source ? null : intake('B')));
     const optional = (key, label, kind, v) => add(key, label, kind, v, Number.isFinite(num(v)) ? entered(key, meta(key)?.source ? null : intake(key)) : 'Not provided');
