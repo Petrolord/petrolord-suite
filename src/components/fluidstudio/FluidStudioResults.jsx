@@ -23,6 +23,7 @@ import { useFluidUnits } from '@/components/fluidstudio/FluidUnitsContext';
 import { pvtTableCsv, downloadText } from '@/utils/fluidstudio/csvExport';
 import { buildLabOverlay, labPlotIds } from '@/utils/fluidstudio/pvtSeries';
 import { screenWarnings } from '@/utils/fluidstudio/screenWarnings';
+import { tuningStatus } from '@/utils/fluidstudio/eosAnalysis';
 
 const KPICard = ({ title, value, unit, icon: Icon }) => (
   <Card>
@@ -116,6 +117,8 @@ const FluidStudioResults = ({
   const { pvt, separator, backbone, meta, blending, flowAssurance, batchSummary } = results;
   const kpis = pvt?.kpis;
   const warnings = useMemo(() => screenWarnings(results, u), [results, u]);
+  // H10: one tuning status for every compositional card
+  const tuneStatus = tuningStatus(composition, sepStages);
   const lab = useMemo(() => (eos?.pvtTable?.table
     ? buildLabOverlay({
       lab: composition?.tuning?.lab, flashPressure: Number(composition?.pressure), flashTempF: Number(composition?.temp),
@@ -181,7 +184,7 @@ const FluidStudioResults = ({
 
         {eos && (
           <TabsContent value="compositional" className="mt-4 space-y-4">
-            <CompositionalResultsCard eos={eos} />
+            <CompositionalResultsCard eos={eos} tuneStatus={tuneStatus} />
             {onUpdateTuning && (
               <LabTuningCard composition={composition} stages={sepStages} onUpdateTuning={onUpdateTuning} />
             )}
@@ -192,10 +195,12 @@ const FluidStudioResults = ({
                 {lab.notes.map((n) => <p key={n} className="text-xs text-pl-muted mt-1">{n}</p>)}
               </div>
             )}
-            <CompositionalSeparatorCard separator={eos.separator} tuned={!!eos.parsed?.tuning} />
-            <EosPvtTableCard result={eos.pvtTable} tuned={!!eos.parsed?.tuning} contract={report?.contract} />
+            {/* H10: one status for every card. "Lab tuned" holds only while
+                the fluid is the one the tune was fitted on. */}
+            <CompositionalSeparatorCard separator={eos.separator} tuned={tuneStatus} />
+            <EosPvtTableCard result={eos.pvtTable} tuned={tuneStatus} contract={report?.contract} />
             {eosTable && <PvtChartsCard table={eosTable.rows} pb={eosTable.pb} satKind={eosTable.satKind} />}
-            <PhaseEnvelopeCard composition={composition} tuned={!!eos.parsed?.tuning} envelope={envelope} onEnvelope={onEnvelope} />
+            <PhaseEnvelopeCard composition={composition} tuned={tuneStatus} envelope={envelope} onEnvelope={onEnvelope} />
           </TabsContent>
         )}
 

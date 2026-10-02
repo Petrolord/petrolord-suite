@@ -28,6 +28,7 @@
  *      divides by what is actually produced.
  */
 import { pvtCalcs } from './pvtCalculations';
+import { calculateEconomics } from './npvCalculations';
 
 const REQUIRED_NUMERIC = [
   { key: 'reservoirArea', label: 'Reservoir area', min: 0 },
@@ -120,11 +121,37 @@ const BBL_PER_ACRE_FT = 7758;
 // example). The form already asks for GOR, API, gas gravity and reservoir
 // temperature, which went unused; they give Standing's Bo through the
 // Suite's PVT module.
+//
+// H6: oil gravity, gas gravity and temperature are optional on the form.
+// When one is blank Standing's Bo cannot be computed and 1 is used. That is
+// a fallback and is reported as one: the note used to say "Bo 1.000 rb/stb,
+// from Standing's correlation".
 export const standingBo = (p) => {
   const bo = pvtCalcs.standing_bo(p.gor, p.api, p.gasGravity, p.temperatureF);
-  return Number.isFinite(bo) && bo > 0 ? bo : 1;
+  return Number.isFinite(bo) && bo > 0 ? { bo, source: 'standing' } : { bo: 1, source: 'fallback' };
 };
+
+/** The Bo sentence under the results, for the screen and the test. */
+export const boNote = (results) => {
+  if (!Number.isFinite(results?.boUsed)) return null;
+  return results.boSource === 'standing'
+    ? `Volumes are stock-tank barrels: oil in place is divided by Bo ${results.boUsed.toFixed(3)} rb/stb, from Standing's correlation on your GOR, oil gravity, gas gravity and temperature.`
+    : `Bo could not be computed: Standing's correlation needs the GOR, oil gravity, gas gravity and temperature, and one of them is blank or out of range. A fallback of ${results.boUsed.toFixed(3)} rb/stb is used, so the volumes shown are reservoir barrels counted as stock-tank barrels and are too high by the true Bo.`;
+};
+
+/**
+ * The sentence the screen and the JSON export both carry (H6). The export
+ * used to name an optimum the screen disclaims.
+ */
+export const NO_OPTIMUM_NOTE = 'The highest NPV here is arithmetic and does not amount to an engineering recommendation, so no optimum is nominated.';
 const DAYS_PER_YEAR = 365;
+
+/**
+ * H7: the discounting convention, printed wherever the NPV goes. The NPV
+ * comes from the Suite screening engine `calculateEconomics`; the app used
+ * to run its own year-end loop with the well cost undiscounted.
+ */
+export const NPV_CONVENTION_NOTE = 'NPV is computed by the Suite screening economics engine with mid-year discounting: each year\'s cash flow, the well cost in the first year included, is discounted to the middle of its year.';
 
 /**
  * One spacing case.
@@ -140,12 +167,60 @@ const DAYS_PER_YEAR = 365;
  *   =>  qi = EUR * Dn + qLimit
  *   life = ln(qi / qLimit) / Dn
  */
+// Volumes and life of one well at a spacing: the exponential decline
+// anchored on the EUR, integrated exactly over each project year.
+const wellProfile = (spacing, p) => {
+  const oiipPerWell = (spacing * p.avgNetPay * p.porosity * (1 - p.swi) * BBL_PER_ACRE_FT) / (p.bo || 1);
+  const eurPerWellBbl = oiipPerWell * p.recoveryFactor;
+  const Dn = -Math.log(1 - p.declineRate);
+  const qLimitAnnual = p.minEconomicRate * DAYS_PER_YEAR;
+  const qiAnnual = eurPerWellBbl * Dn + qLimitAnnual;
+  const economicLife = Math.log(qiAnnual / qLimitAnnual) / Dn;
+  const actualLife = Math.min(economicLife, p.projectDuration);
+  const years = [];
+  for (let year = 1; year <= Math.ceil(actualLife); year++) {
+    const from = year - 1;
+    const to = Math.min(year, actualLife);
+    if (to <= from) break;
+    // Exact integral of qi*exp(-Dn*t) over [from, to].
+    years.push({ oil: (qiAnnual / Dn) * (Math.exp(-Dn * from) - Math.exp(-Dn * to)), fraction: to - from });
+  }
+  return { eurPerWellBbl, qiAnnual, economicLife, actualLife, years };
+};
+
+/**
+ * The `calculateEconomics` inputs of one spacing case, for the whole field.
+ * Royalties and taxes are one percentage of gross revenue on the form, so
+ * they enter as the royalty rate with no income tax. Costs are in $MM, as
+ * the engine expects. Opex of a part year is pro-rated.
+ */
+export const spacingEconomicsInputs = (spacing, p) => {
+  const numberOfWells = Math.floor(p.reservoirArea / spacing);
+  const { years } = wellProfile(spacing, p);
+  const n = years.length;
+  return {
+    projectLife: n,
+    discountRate: p.discountRate * 100,
+    fiscalType: 'TaxRoyalty',
+    production: {
+      oil: years.map((y) => numberOfWells * y.oil),                  // bbl
+      gas: years.map((y) => (numberOfWells * y.oil * p.gor) / 1000), // Mscf
+    },
+    price: { oil: new Array(n).fill(p.oilPrice), gas: new Array(n).fill(p.gasPrice) },
+    capex: years.map((_, i) => (i === 0 ? (numberOfWells * p.wellCost) / 1e6 : 0)),
+    opexFixed: years.map((y) => (numberOfWells * p.opex * y.fraction) / 1e6),
+    opexVariable: new Array(n).fill(0),
+    abandonment: new Array(n).fill(0),
+    royaltyRate: p.royaltiesTaxes * 100,
+    taxRate: 0,
+  };
+};
+
 const evaluateSpacing = (spacing, p) => {
   const numberOfWells = Math.floor(p.reservoirArea / spacing);
   if (numberOfWells < 1) return null;
 
-  const oiipPerWell = (spacing * p.avgNetPay * p.porosity * (1 - p.swi) * BBL_PER_ACRE_FT) / (p.bo || 1);
-  const eurPerWellBbl = oiipPerWell * p.recoveryFactor;
+  const { eurPerWellBbl, qiAnnual, economicLife, actualLife, years } = wellProfile(spacing, p);
 
   // Areal coverage is the share of the field that whole wells actually drain.
   // It is what makes the field-recovery curve step: a spacing that divides
@@ -156,40 +231,11 @@ const evaluateSpacing = (spacing, p) => {
 
   const totalCapex = (numberOfWells * p.wellCost) / 1e6;
 
-  const Dn = -Math.log(1 - p.declineRate);
-  const qLimitAnnual = p.minEconomicRate * DAYS_PER_YEAR;
-  const qiAnnual = eurPerWellBbl * Dn + qLimitAnnual;
-  const economicLife = Math.log(qiAnnual / qLimitAnnual) / Dn;
-  const actualLife = Math.min(economicLife, p.projectDuration);
+  // H7: the canonical screening NPV. No discounting is done in this file.
+  const { metrics } = calculateEconomics(spacingEconomicsInputs(spacing, p), { skipIrr: true });
 
-  let npv = 0;
-  let opexTotalPerWell = 0;
-  let producedPerWell = 0;
-
-  const wholeYears = Math.floor(actualLife);
-  for (let year = 1; year <= Math.ceil(actualLife); year++) {
-    const from = year - 1;
-    const to = Math.min(year, actualLife);
-    if (to <= from) break;
-    const fraction = to - from;
-
-    // Exact integral of qi*exp(-Dn*t) over [from, to].
-    const oil = (qiAnnual / Dn) * (Math.exp(-Dn * from) - Math.exp(-Dn * to));
-    const gas = (oil * p.gor) / 1000;
-
-    const revenue = oil * p.oilPrice + gas * p.gasPrice;
-    const netRevenue = revenue * (1 - p.royaltiesTaxes);
-    const opexThisYear = p.opex * fraction;
-    const cashFlow = netRevenue - opexThisYear;
-
-    npv += cashFlow * Math.pow(1 + p.discountRate, -year);
-    opexTotalPerWell += opexThisYear;
-    producedPerWell += oil;
-  }
-
-  const wellNPV = npv - p.wellCost;
-  const totalNPV = (numberOfWells * wellNPV) / 1e6;
-
+  const producedPerWell = years.reduce((sum, y) => sum + y.oil, 0);
+  const opexTotalPerWell = years.reduce((sum, y) => sum + p.opex * y.fraction, 0);
   const totalProduction = numberOfWells * producedPerWell;
   const totalOpexAllWells = numberOfWells * opexTotalPerWell;
   const costPerBarrel = totalProduction > 0
@@ -204,16 +250,23 @@ const evaluateSpacing = (spacing, p) => {
     producedPerWell: producedPerWell / 1000,   // Mbbl actually produced
     totalFieldRecovery,
     totalCapex,
-    npv: totalNPV,
+    npv: metrics.npv,                          // $MM, field
+    // undiscounted field totals from the same run, $MM
+    economics: {
+      totalRevenue: metrics.totalRevenue,
+      totalRoyalty: metrics.totalRoyalty,
+      totalOpex: metrics.totalOpex,
+      totalCapex: metrics.totalCapex,
+    },
     costPerBarrel,
     economicLife: actualLife,
     truncatedByDuration: economicLife > p.projectDuration,
     initialRateBpd: qiAnnual / DAYS_PER_YEAR,
-    wholeYears,
+    wholeYears: Math.floor(actualLife),
   };
 };
 
-export const calculateOptimalSpacing = async (formData) => {
+export const evaluateSpacingCases = async (formData) => {
   const p = {
     reservoirArea: parseFloat(formData.reservoirArea),
     avgNetPay: parseFloat(formData.avgNetPayThickness),
@@ -234,7 +287,8 @@ export const calculateOptimalSpacing = async (formData) => {
     gasGravity: parseFloat(formData.gasGravity),
     temperatureF: parseFloat(formData.reservoirTemperature),
   };
-  p.bo = standingBo(p);
+  const { bo, source: boSource } = standingBo(p);
+  p.bo = bo;
 
   const minSpacing = parseFloat(formData.minSpacing);
   const maxSpacing = parseFloat(formData.maxSpacing);
@@ -254,57 +308,25 @@ export const calculateOptimalSpacing = async (formData) => {
     throw new Error('No spacing in the requested range fits a whole well into the reservoir area.');
   }
 
-  // The single objective maximised is total field NPV. Recovery, cost per
-  // barrel and economic life are reported and do not influence the choice.
-  const optimalResult = spacingResults.reduce(
-    (best, current) => (current.npv > best.npv ? current : best),
-  );
-
+  // H6: no case is singled out. Under a stated recovery factor with no
+  // interference the highest NPV is the widest spacing that divides the area
+  // with least waste, which is arithmetic. The screen says so, and the
+  // result and the export now say the same: the table is the output.
   return {
     spacingResults,
     boUsed: p.bo,
-    optimalSpacing: {
-      ...optimalResult,
-      totalWells: optimalResult.numberOfWells,
-      justification: generateJustification(optimalResult, spacingResults),
-    },
+    boSource,
+    // the parsed inputs every case was run on, and how the NPV was computed
+    parameters: p,
+    npvConvention: { engine: 'calculateEconomics', discounting: 'mid-year', note: NPV_CONVENTION_NOTE },
   };
-};
-
-/**
- * Plain-language reason the optimum was chosen. Reads from COPIES of the
- * results array: this previously sorted the caller's array in place, which is
- * what left the table and every chart ordered by cost per barrel.
- */
-const generateJustification = (optimal, allResults) => {
-  const byRecovery = [...allResults].sort((a, b) => b.totalFieldRecovery - a.totalFieldRecovery);
-  const byCost = [...allResults].sort((a, b) => a.costPerBarrel - b.costPerBarrel);
-  const recoveryRank = byRecovery.findIndex((r) => r.spacing === optimal.spacing) + 1;
-  const costRank = byCost.findIndex((r) => r.spacing === optimal.spacing) + 1;
-
-  const parts = [
-    `This spacing maximizes NPV at $${optimal.npv.toFixed(1)}M with ${optimal.numberOfWells} wells.`,
-  ];
-  if (recoveryRank <= 3) {
-    parts.push(`It also ranks number ${recoveryRank} on field recovery at ${optimal.totalFieldRecovery.toFixed(1)} percent.`);
-  }
-  if (costRank <= 3) {
-    parts.push(`Cost efficiency is strong at $${optimal.costPerBarrel.toFixed(2)} per barrel.`);
-  }
-  if (optimal.arealCoverage < 0.98) {
-    parts.push(`Whole wells cover ${(optimal.arealCoverage * 100).toFixed(1)} percent of the area, so the remainder is left undrained at this spacing.`);
-  }
-  if (optimal.truncatedByDuration) {
-    parts.push('The project duration ends these wells before they reach their economic rate, so the reported volume is not the full EUR.');
-  }
-  return parts.join(' ');
 };
 
 export const generateCSV = (results) => {
   const header = [
     'Well Spacing (acres/well)', 'Number of Wells', 'Areal Coverage (%)',
     'EUR per Well (Mbbl)', 'Produced per Well (Mbbl)', 'Total Field Recovery (%)',
-    'Total Capex ($MM)', 'NPV ($MM)', 'Cost per Barrel ($/bbl)', 'Economic Life (years)',
+    'Total Capex ($MM)', 'NPV ($MM; mid-year discounting)', 'Cost per Barrel ($/bbl)', 'Economic Life (years)',
   ];
   const rows = results.spacingResults.map((r) => [
     r.spacing,
@@ -323,16 +345,15 @@ export const generateCSV = (results) => {
 
 export const generateJSON = (formData, results) => ({
   inputParameters: formData,
-  optimizationResults: results.spacingResults,
-  optimalSpacing: results.optimalSpacing,
+  spacingCases: results.spacingResults,
   timestamp: new Date().toISOString(),
   metadata: {
     totalScenariosAnalyzed: results.spacingResults.length,
-    optimalNPV: results.optimalSpacing.npv,
-    optimalSpacing: results.optimalSpacing.spacing,
-    optimalWellCount: results.optimalSpacing.numberOfWells,
-    objective: 'total field NPV',
+    optimumNominated: false,
+    reading: NO_OPTIMUM_NOTE,
+    bo: { value: results.boUsed, unit: 'rb/stb', source: results.boSource },
+    npv: { unit: '$MM', ...results.npvConvention },
     recoveryModel: 'stated recovery factor over the area covered by whole wells; no interference physics',
-    version: 'WellSpacingOptimizer v2.0',
+    version: 'WellSpacingOptimizer v2.1',
   },
 });

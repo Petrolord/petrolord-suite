@@ -32,6 +32,7 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
+import { detectTableDelimiter, detectDecimalMark, parseNumber, isNullToken } from '@/lib/tabularParse';
 import {
   Card,
   CardHeader,
@@ -161,10 +162,12 @@ function detectUnitScale(header, type) {
   return 1;
 }
 
-function safeParseFloat(val) {
-  if (val === null || val === undefined || val === '') return null;
-  const parsed = parseFloat(String(val).replace(/,/g, ''));
-  return isNaN(parsed) ? null : parsed;
+// Reservoir round, Step 0a (gap matrix H12): numbers are read by the shared
+// table reader with the file's own decimal mark. The old reading stripped
+// every comma, so 3250,75 became 325075.
+function safeParseFloat(val, decimal = '.') {
+  const parsed = parseNumber(val, { decimal });
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 // ── Date normalization ──
@@ -264,11 +267,17 @@ function normalizeDate(raw, order) {
  * Returns { row: schemaRow, warnings: string[] } where warnings flag missing
  * recommended columns.
  */
-function mapAndScaleRows(rawRows) {
+function mapAndScaleRows(rawRows, { delimiter = ',' } = {}) {
   if (!rawRows || rawRows.length === 0) {
     throw new Error('CSV is empty.');
   }
   const headers = Object.keys(rawRows[0]);
+
+  // One decimal mark for the file, from its own numbers.
+  const allCells = [];
+  for (const raw of rawRows) for (const h of headers) allCells.push(raw[h]);
+  const decimal = detectDecimalMark(allCells, { delimiter });
+  const unreadable = [];
 
   // Resolve each schema column to a CSV header (or null)
   const colMap = {};
@@ -307,9 +316,10 @@ function mapAndScaleRows(rawRows) {
     for (const [schemaCol, header] of Object.entries(colMap)) {
       if (header == null || schemaCol === 'observation_date') continue;
       const rawVal = raw[header];
-      const num = safeParseFloat(rawVal);
+      const num = safeParseFloat(rawVal, decimal.mark);
       if (num == null) {
         row[schemaCol] = null;
+        if (!isNullToken(rawVal)) unreadable.push(String(rawVal).trim());
         continue;
       }
       const scale = scales[schemaCol] ?? 1;
@@ -347,6 +357,18 @@ function mapAndScaleRows(rawRows) {
       'No cumulative oil or gas column detected. At least one is needed for material balance.',
     );
   }
+  if (!decimal.certain) {
+    const eg = decimal.examples?.length ? ` such as ${decimal.examples[0]}` : '';
+    warnings.push(
+      `Numbers${eg} could use the comma for thousands or for decimals. They were read with a decimal ${decimal.mark === ',' ? 'comma' : 'point'}. Check the preview before saving.`,
+    );
+  }
+  if (unreadable.length > 0) {
+    const sample = unreadable.slice(0, 3).map((d) => `"${d}"`).join(', ');
+    warnings.push(
+      `${unreadable.length} value(s) could not be read as numbers (${sample}${unreadable.length > 3 ? ', and more' : ''}). Those cells were left empty, and a row with no pressure is left out.`,
+    );
+  }
   if (ambiguousDates > 0) {
     warnings.push(
       `Dates like 04/05/2024 were read as day/month/year. If your file uses month/day, switch the date column to ISO format (YYYY-MM-DD) and re-upload.`,
@@ -361,6 +383,29 @@ function mapAndScaleRows(rawRows) {
 
   return { rows: filtered, warnings, colMap, scales };
 }
+
+/**
+ * CSV text to mapped rows: the whole import path with no file or DOM, so it
+ * can be tested. Returns { rows, warnings, colMap, scales, parseErrors }.
+ */
+export function readProductionCsv(text) {
+  const src = String(text ?? '').replace(/^\ufeff/, '');
+  // the delimiter comes from the shared reader: a field-count guess takes a
+  // semicolon file with a decimal comma in every cell for a comma file
+  const found = detectTableDelimiter(src);
+  const delimiter = found === ' ' ? '' : found;   // white-space columns: papaparse's own guess, as before
+  const results = Papa.parse(src, { header: true, skipEmptyLines: true, dynamicTyping: false, delimiter });
+  if (results.errors.length > 0) return { rows: [], warnings: [], colMap: {}, scales: {}, parseErrors: results.errors };
+  return { ...mapAndScaleRows(results.data, { delimiter: results.meta?.delimiter || found }), parseErrors: [] };
+}
+
+/** A dropped file's text (FileReader, as papaparse read it before). */
+const readFileText = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result ?? ''));
+  reader.onerror = () => reject(reader.error || new Error('The file could not be read.'));
+  reader.readAsText(file);
+});
 
 /**
  * Validate parsed rows against engine invariants.
@@ -495,45 +540,39 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
     (acceptedFiles) => {
       if (acceptedFiles.length === 0) return;
       const file = acceptedFiles[0];
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        dynamicTyping: false, // we'll parse numbers ourselves with safeParseFloat
-        complete: (results) => {
-          if (results.errors.length > 0) {
+      readFileText(file).then((text) => {
+        try {
+          const { rows, warnings, colMap: cm, parseErrors } = readProductionCsv(text);
+          if (parseErrors.length > 0) {
             toast({
               title: 'CSV parse error',
-              description: results.errors[0].message,
+              description: parseErrors[0].message,
               variant: 'destructive',
             });
             return;
           }
-          try {
-            const { rows, warnings, colMap: cm } = mapAndScaleRows(results.data);
-            setPendingRows(rows);
-            setPendingFileName(file.name);
-            setParseWarnings(warnings);
-            setColMap(cm);
-            toast({
-              title: 'CSV parsed and not saved yet',
-              description: `${rows.length} rows mapped. Click "Save to case" below to write them to the case before running MBAL.`,
-              duration: 8000,
-            });
-          } catch (err) {
-            toast({
-              title: 'Column mapping failed',
-              description: err.message,
-              variant: 'destructive',
-            });
-          }
-        },
-        error: (err) => {
+          setPendingRows(rows);
+          setPendingFileName(file.name);
+          setParseWarnings(warnings);
+          setColMap(cm);
           toast({
-            title: 'File read error',
+            title: 'CSV parsed and not saved yet',
+            description: `${rows.length} rows mapped. Click "Save to case" below to write them to the case before running MBAL.`,
+            duration: 8000,
+          });
+        } catch (err) {
+          toast({
+            title: 'Column mapping failed',
             description: err.message,
             variant: 'destructive',
           });
-        },
+        }
+      }).catch((err) => {
+        toast({
+          title: 'File read error',
+          description: err.message,
+          variant: 'destructive',
+        });
       });
     },
     [toast],

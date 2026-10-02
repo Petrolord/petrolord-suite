@@ -61,9 +61,30 @@ export function fromRcpProspect(row) {
     // RCP-U2-012: a prospect valued in ReservoirCalc Pro brings its value
     // per barrel and development cost (the Suite's screening NPV)
     ...(Number.isFinite(Number(row.inputs?.economics?.unitValue)) && Number(row.inputs.economics.unitValue) >= 0 && Number(row.inputs.economics.devCost) >= 0
-      ? { unitValue: Number(Number(row.inputs.economics.unitValue).toPrecision(6)), devCost: Number(Number(row.inputs.economics.devCost).toPrecision(6)), economicsNote: 'value per barrel and development cost from ReservoirCalc Pro success-case economics' }
+      ? { unitValue: Number(Number(row.inputs.economics.unitValue).toPrecision(6)), devCost: Number(Number(row.inputs.economics.devCost).toPrecision(6)), economicsNote: 'value per barrel and development cost from ReservoirCalc Pro success-case economics',
+        // H8: what ReservoirCalc Pro sent, so a later edit here can be told apart
+        rcpUnitValue: Number(Number(row.inputs.economics.unitValue).toPrecision(6)) }
       : {}),
   };
+}
+
+/**
+ * Where a prospect's value per barrel came from, in words (H8). There are
+ * three true answers and the Petroleum Economics Studio is none of them:
+ * the starting default, a value sent with the prospect by ReservoirCalc Pro,
+ * or a value typed on this screen.
+ */
+export function unitValueSource(p) {
+  const value = Number(p?.unitValue);
+  if (Number.isFinite(p?.rcpUnitValue)) {
+    return value === p.rcpUnitValue
+      ? 'from ReservoirCalc Pro success-case economics (the Suite screening NPV), sent with the prospect'
+      : `entered on this screen (ReservoirCalc Pro sent ${p.rcpUnitValue} $/bbl)`;
+  }
+  // a prospect imported before the sent value was kept
+  if (p?.economicsNote) return 'sent by ReservoirCalc Pro success-case economics, and it may have been edited on this screen since';
+  if (value === DEFAULT_ECONOMICS.unitValue) return `the starting default of ${DEFAULT_ECONOMICS.unitValue} $/bbl, an assumption to replace`;
+  return 'entered on this screen';
 }
 
 /** A blank typed prospect. */

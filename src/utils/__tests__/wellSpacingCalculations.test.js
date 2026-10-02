@@ -7,7 +7,7 @@
 
 import {
   validateInputs,
-  calculateOptimalSpacing,
+  evaluateSpacingCases,
   generateCSV,
   generateJSON,
 } from '../wellSpacingCalculations';
@@ -94,7 +94,7 @@ describe('results are ordered by spacing', () => {
   // so the table and all three charts came out in ascending cost-per-barrel
   // order and the NPV curve was drawn across a non-monotonic x axis.
   test('spacingResults ascend by spacing after the optimum is chosen', async () => {
-    const { spacingResults } = await calculateOptimalSpacing(BASE);
+    const { spacingResults } = await evaluateSpacingCases(BASE);
     const spacings = spacingResults.map((r) => r.spacing);
     expect(spacings).toEqual([...spacings].sort((a, b) => a - b));
     expect(spacings[0]).toBe(20);
@@ -102,7 +102,7 @@ describe('results are ordered by spacing', () => {
   });
 
   test('a non-integer increment does not produce floating point spacing labels', async () => {
-    const { spacingResults } = await calculateOptimalSpacing(
+    const { spacingResults } = await evaluateSpacingCases(
       withOverrides({ minSpacing: '20', maxSpacing: '21', spacingIncrement: '0.1' }),
     );
     for (const r of spacingResults) {
@@ -116,7 +116,7 @@ describe('the rate stream agrees with the EUR', () => {
   // then multiplied by 365, so the production stream overshot the EUR in the
   // same row by orders of magnitude and NPV was inflated with it.
   test('produced volume equals EUR when the well reaches its economic rate', async () => {
-    const { spacingResults } = await calculateOptimalSpacing(
+    const { spacingResults } = await evaluateSpacingCases(
       withOverrides({ projectDuration: '100' }),   // long enough not to truncate
     );
     for (const r of spacingResults) {
@@ -127,7 +127,7 @@ describe('the rate stream agrees with the EUR', () => {
   });
 
   test('produced volume is strictly less than EUR when the duration truncates', async () => {
-    const { spacingResults } = await calculateOptimalSpacing(
+    const { spacingResults } = await evaluateSpacingCases(
       withOverrides({ projectDuration: '5' }),
     );
     for (const r of spacingResults) {
@@ -137,11 +137,13 @@ describe('the rate stream agrees with the EUR', () => {
   });
 
   test('the initial rate is a plausible daily rate, not an annual volume', async () => {
-    const { optimalSpacing } = await calculateOptimalSpacing(BASE);
+    const { spacingResults } = await evaluateSpacingCases(BASE);
     // A 40 acre well on 60 ft of 15 percent porosity rock is a few hundred
     // bbl/d, not a six figure number.
-    expect(optimalSpacing.initialRateBpd).toBeGreaterThan(10);
-    expect(optimalSpacing.initialRateBpd).toBeLessThan(20000);
+    for (const r of spacingResults) {
+      expect(r.initialRateBpd).toBeGreaterThan(10);
+      expect(r.initialRateBpd).toBeLessThan(20000);
+    }
   });
 });
 
@@ -149,7 +151,7 @@ describe('cost per barrel', () => {
   // Defect 3: opex was accumulated across the life inside the loop and then
   // multiplied by the life again, so it entered as N x opex x life squared.
   test('equals capex plus opex divided by produced volume', async () => {
-    const { spacingResults } = await calculateOptimalSpacing(
+    const { spacingResults } = await evaluateSpacingCases(
       withOverrides({ projectDuration: '100' }),
     );
     const r = spacingResults[4];
@@ -161,8 +163,8 @@ describe('cost per barrel', () => {
   });
 
   test('scales linearly with opex rather than quadratically', async () => {
-    const single = await calculateOptimalSpacing(withOverrides({ projectDuration: '100' }));
-    const doubled = await calculateOptimalSpacing(
+    const single = await evaluateSpacingCases(withOverrides({ projectDuration: '100' }));
+    const doubled = await evaluateSpacingCases(
       withOverrides({ projectDuration: '100', operatingExpense: '400000' }),
     );
     const a = single.spacingResults[4];
@@ -180,14 +182,14 @@ describe('the recovery model is coverage times the stated recovery factor', () =
   // pin what it actually computes so nobody mistakes the step pattern for
   // interference physics.
   test('field recovery is areal coverage times the recovery factor', async () => {
-    const { spacingResults } = await calculateOptimalSpacing(BASE);
+    const { spacingResults } = await evaluateSpacingCases(BASE);
     for (const r of spacingResults) {
       expect(r.totalFieldRecovery).toBeCloseTo(r.arealCoverage * 0.35 * 100, 9);
     }
   });
 
   test('a spacing that divides the area evenly covers all of it', async () => {
-    const { spacingResults } = await calculateOptimalSpacing(
+    const { spacingResults } = await evaluateSpacingCases(
       withOverrides({ minSpacing: '50', maxSpacing: '50', spacingIncrement: '10' }),
     );
     // 5000 / 50 = 100 wells exactly.
@@ -199,7 +201,7 @@ describe('the recovery model is coverage times the stated recovery factor', () =
   test('EUR per well rises linearly with spacing', async () => {
     // Each well drains exactly its spacing area, so doubling the spacing
     // doubles the EUR per well. That is the model, stated.
-    const { spacingResults } = await calculateOptimalSpacing(BASE);
+    const { spacingResults } = await evaluateSpacingCases(BASE);
     const at20 = spacingResults.find((r) => r.spacing === 20);
     const at40 = spacingResults.find((r) => r.spacing === 40);
     expect(at40.eurPerWell / at20.eurPerWell).toBeCloseTo(2, 9);
@@ -208,17 +210,17 @@ describe('the recovery model is coverage times the stated recovery factor', () =
 
 describe('volumetrics', () => {
   test('EUR per well matches the closed form', async () => {
-    const { spacingResults } = await calculateOptimalSpacing(BASE);
+    const { spacingResults } = await evaluateSpacingCases(BASE);
     const r = spacingResults.find((x) => x.spacing === 40);
     // 40 acres x 60 ft x 0.15 x (1 - 0.25) x 7758 x 0.35 / Bo, in Mbbl
     // (senior test T1: stock-tank barrels through Standing's Bo).
-    const { boUsed } = await calculateOptimalSpacing(BASE);
+    const { boUsed } = await evaluateSpacingCases(BASE);
     const expected = (40 * 60 * 0.15 * 0.75 * 7758 * 0.35) / boUsed / 1000;
     expect(r.eurPerWell).toBeCloseTo(expected, 6);
   });
 
   test('well count is the whole number that fits in the area', async () => {
-    const { spacingResults } = await calculateOptimalSpacing(BASE);
+    const { spacingResults } = await evaluateSpacingCases(BASE);
     for (const r of spacingResults) {
       expect(r.numberOfWells).toBe(Math.floor(5000 / r.spacing));
     }
@@ -227,7 +229,7 @@ describe('volumetrics', () => {
 
 describe('exports', () => {
   test('CSV carries a row per case and the new coverage column', async () => {
-    const results = await calculateOptimalSpacing(BASE);
+    const results = await evaluateSpacingCases(BASE);
     const csv = generateCSV(results);
     const lines = csv.split('\n');
     expect(lines[0]).toMatch(/Areal Coverage/);
@@ -235,12 +237,12 @@ describe('exports', () => {
     expect(lines).toHaveLength(results.spacingResults.length + 1);
   });
 
-  test('JSON records the objective and the recovery model it used', async () => {
-    const results = await calculateOptimalSpacing(BASE);
+  test('JSON records the recovery model it used and names no optimum (H6)', async () => {
+    const results = await evaluateSpacingCases(BASE);
     const json = generateJSON(BASE, results);
-    expect(json.metadata.objective).toMatch(/NPV/);
+    expect(json.metadata.optimumNominated).toBe(false);
     expect(json.metadata.recoveryModel).toMatch(/no interference/i);
-    expect(json.optimizationResults).toHaveLength(results.spacingResults.length);
+    expect(json.spacingCases).toHaveLength(results.spacingResults.length);
   });
 });
 
@@ -256,7 +258,7 @@ describe('formation volume factor', () => {
   };
 
   test('EUR per well is in stock-tank barrels: 7758 A h phi (1 - Sw) RF / Bo', async () => {
-    const r = await calculateOptimalSpacing(example);
+    const r = await evaluateSpacingCases(example);
     // Standing: 0.9759 + 0.00012 (500 sqrt(0.75/0.8498) + 1.25 x 180)^1.2 = 1.2846
     expect(r.boUsed).toBeCloseTo(1.2846, 3);
     const eur20 = r.spacingResults.find((x) => x.spacing === 20).eurPerWell;

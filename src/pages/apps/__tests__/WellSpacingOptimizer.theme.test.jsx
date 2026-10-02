@@ -47,7 +47,7 @@ describe('Well Spacing Optimizer theme, results and help', () => {
     await ready();
     fireEvent.click(screen.getByRole('button', { name: /Load example field/i }));
     fireEvent.click(screen.getByRole('button', { name: /Calculate|Optimi[sz]e|Run/i }));
-    expect(await screen.findByText('Optimization Results')).toBeInTheDocument();
+    expect(await screen.findByText('Spacing cases')).toBeInTheDocument();
     expect(screen.getByText('How to read this')).toBeInTheDocument();
     expectNoLegacyChrome();
 

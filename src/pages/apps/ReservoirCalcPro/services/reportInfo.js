@@ -54,6 +54,23 @@ export function describeContacts({ inputMethod, fluidType, inputs = {}, unitSyst
 }
 
 /**
+ * The correlations a Monte Carlo run applied, as one sentence (H9). Read
+ * from `meta.correlations`, which the engine writes with what it actually
+ * applied. The audit report used to print a fixed "-0.8 is applied" line
+ * whatever the correlation editor held.
+ * @param {object} [meta] probResults.meta
+ */
+export function correlationSentence(meta) {
+  const list = meta?.correlations;
+  if (!Array.isArray(list)) {
+    return 'Correlations: not recorded on this run (a run made before the correlation editor applied the porosity and water saturation default when both varied)';
+  }
+  return list.length
+    ? `Correlations (Gaussian copula): ${list.map((c) => `${c.a} with ${c.b} ${c.rho}`).join('; ')}`
+    : 'Correlations: none (inputs sampled independently)';
+}
+
+/**
  * The reviewer block printed under the report banner.
  * @param {{report?: {field?, analyst?}, unitSystem: string, inputMethod?: string, fluidType?: string,
  *          inputs?: Object, results?: Object, probResults?: Object, now?: Date, build?: string}} p
@@ -77,7 +94,7 @@ export function reviewerLines(p) {
   if (probResults?.stats) {
     const m = probResults.meta || {};
     lines.push(`Monte Carlo: ${(m.iterations || probResults.stats.iterations || 0).toLocaleString('en-US')} realizations, ${m.grvMode === 'structural' ? 'GRV from the surface against sampled contacts' : 'area x thickness'}${m.ranAt ? `, run ${m.ranAt.slice(0, 16).replace('T', ' ')} UTC` : ''}${Number.isFinite(m.seed) ? `, seed ${m.seed}` : ''}. P90 (low), P50 (best) and P10 (high) are the volumes exceeded with 90, 50 and 10 percent probability.`);
-    if (Array.isArray(m.correlations)) lines.push(m.correlations.length ? `Correlations (Gaussian copula): ${m.correlations.map((c) => `${c.a} with ${c.b} ${c.rho}`).join('; ')}` : 'Correlations: none (inputs sampled independently)');
+    if (Array.isArray(m.correlations)) lines.push(correlationSentence(m));
   }
   return lines.map(latin1);
 }

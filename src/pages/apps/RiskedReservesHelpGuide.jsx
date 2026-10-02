@@ -95,7 +95,7 @@ const RiskedReservesHelpGuideContent = () => (
           ['Pg', '0 to 1', 'Geological chance of success from the risking in ReservoirCalc Pro'],
           ['P90, P50, P10', 'MMbbl', 'Success-case volumes; P50 is optional and used for the Swanson check'],
           ['MEFS', 'MMbbl', 'Minimum economic field size: the smallest discovery worth developing'],
-          ['Value per barrel', '$/bbl', 'NPV per barrel of a developed discovery, from the Petroleum Economics Studio'],
+          ['Value per barrel', '$/bbl', 'NPV per barrel of a developed discovery. Typed here (a new prospect starts at 8 $/bbl, an assumption), or sent with a prospect valued in ReservoirCalc Pro'],
           ['Development cost', '$MM', 'Spent only when the discovery is commercial'],
           ['Well cost', '$MM', 'The exploration well, spent in every outcome'],
         ]}
@@ -148,9 +148,11 @@ const RiskedReservesHelpGuideContent = () => (
     <GuideSection id="pitfalls">
       <SectionHeading icon={AlertTriangle}>Pitfalls</SectionHeading>
       <Para>
-        Value per barrel is a single number per prospect. Run the development case in the
-        Petroleum Economics Studio to set it; it changes with field size, so revisit it for
-        prospects far larger or smaller than the case you ran.
+        Value per barrel is a single number per prospect. No app sends it here except ReservoirCalc
+        Pro, for a prospect valued there. To base it on a full development case, run that case in the
+        Petroleum Economics Studio and type its NPV per barrel into this screen; the readout under
+        the chart says where the current number came from. It changes with field size, so revisit it
+        for prospects far larger or smaller than the case you ran.
       </Para>
       <Para>
         Volumes are in MMbbl of oil. For a gas prospect enter barrels of oil equivalent with the

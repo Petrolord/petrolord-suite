@@ -303,3 +303,12 @@ consumes `?surface=` from Mapping and Earth Modeling (EM5).
 U2-014: projects are shared from the Share button in the header (view, or edit one person at a time, with history); the Project Manager lists shared projects apart; prospects are shared for viewing from their inventory row. Tests: `__tests__/orgSharing.test.jsx`, `e2e/org-sharing.spec.js`.
 
 Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Until the migration is applied the control is a short note and saving works as before.
+
+## 2026-10-02: Reservoir Step 0e honesty sweep (H9)
+
+Doc: `docs/upgrade/Reservoir-Step0e-HonestySweep.md` (branch `fix/reservoir-honesty-sweep`).
+
+The Detailed Audit report always printed "A default porosity-water-saturation
+correlation of -0.8 is applied". It now prints the correlations the run
+applied, from `results.meta.correlations`, through `correlationSentence` in
+`services/reportInfo.js`.

@@ -27,6 +27,18 @@ def _downsample(values, stride):
     return values[::stride] if stride > 1 else values
 
 
+def _report_step_count(summary):
+    """Number of report steps in the run, or None when it cannot be read."""
+    try:
+        return int(len(summary.report_dates))
+    except Exception:
+        pass
+    try:
+        return int(summary.last_report) - int(summary.first_report) + 1
+    except Exception:
+        return None
+
+
 def build_summary(case_path, opm_version, deck_sha256):
     try:
         summary = Summary(case_path)
@@ -40,6 +52,11 @@ def build_summary(case_path, opm_version, deck_sha256):
 
     n = len(days)
     stride = max(1, -(-n // config.SUMMARY_MAX_POINTS))  # ceil division
+    # H13: the series below is thinned to SUMMARY_MAX_POINTS rows, and each
+    # row is a simulator time step (a report step can hold several). The
+    # real counts travel in the document so the SPA never prints the length
+    # of the plotted series as "report steps".
+    report_steps = _report_step_count(summary)
 
     def vec(key):
         try:
@@ -74,12 +91,28 @@ def build_summary(case_path, opm_version, deck_sha256):
         "field": field,
         "wells": wells,
     }
+    doc["steps"] = {
+        "report_steps": report_steps,   # None when the summary does not say
+        "time_steps": n,                # rows of the summary before thinning
+        "stride": stride,               # 1 = not thinned
+        "points": len(doc["days"]),     # rows in this document and its CSV
+    }
     blob = json.dumps(doc).encode("utf-8")
     if len(blob) > config.SUMMARY_MAX_BYTES:
         raise SimFailure("output_too_large",
                          f"Summary JSON is {len(blob) / 1e6:.1f} MB "
                          f"(limit {config.SUMMARY_MAX_BYTES / 1e6:.0f} MB).")
     return doc, blob
+
+
+def stored_report_steps(doc):
+    """What sim_runs.report_steps holds: the report steps of the run, or the
+    time steps before thinning when the summary does not give report steps.
+    Never the length of the thinned series."""
+    steps = doc.get("steps") or {}
+    if steps.get("report_steps") is not None:
+        return int(steps["report_steps"])
+    return int(steps.get("time_steps", len(doc["days"])))
 
 
 def summary_csv(doc):

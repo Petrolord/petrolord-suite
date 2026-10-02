@@ -69,7 +69,7 @@ export async function tune(inputs) {
   if (!fit.ok) throw new Error(fit.reason);
   return {
     ...inputs,
-    streamA: { ...inputs.streamA, composition: { ...composition, tuning: { ...composition.tuning, applied: fit.tuning, fit: tuneRecord(fit, composition, stages, AT) } } },
+    streamA: { ...inputs.streamA, composition: { ...composition, tuning: { ...composition.tuning, applied: fit.tuning, fittedOn: JSON.stringify(request), fit: tuneRecord(fit, composition, AT) } } },
   };
 }
 

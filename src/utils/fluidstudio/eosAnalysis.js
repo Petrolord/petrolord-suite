@@ -73,30 +73,14 @@ export function plusFractionScheme(plusMeta) {
 // ---- lab tuning record ------------------------------------------------------
 
 /**
- * What a tune was run against: the feed, the C7+ description, the flash
- * conditions, the active separator stages and the measured values. A record
- * of a fit holds this signature; when the inputs move, the record no longer
- * describes the fluid and is withdrawn (RL8).
+ * The record of a fit that is saved with the project
+ * (composition.tuning.fit): the engine's own before and after rows, whether
+ * it converged and the bounds it hit. Whether the record still describes the
+ * fluid is decided by tuningStatus() below (H10: `tuning.fittedOn`, the
+ * request the regression consumed), the one staleness check of the app.
  */
-export const tuningSignature = (composition, stages) => JSON.stringify({
-  z: [...COMPONENT_ORDER, PLUS_FRACTION_KEY].map((k) => Number(composition?.zPct?.[k]) || 0),
-  plus: [composition?.plus?.mw ?? null, composition?.plus?.sg ?? null, composition?.plus?.tbF ?? null].map((v) => (v === '' ? null : v == null ? null : Number(v))),
-  flash: [Number(composition?.pressure) || null, Number(composition?.temp) || null],
-  stages: (stages || []).filter(isActiveStage).map((s) => [Number(s.pressure), stageTempF(s)]),
-  lab: ['psatPsia', 'psatTF', 'totalGor', 'stoApi', 'bo'].map((k) => {
-    const v = composition?.tuning?.lab?.[k];
-    return v === '' || v == null || !Number.isFinite(Number(v)) ? null : Number(v);
-  }),
-});
-
-/**
- * The record of a fit that is saved with the project (composition.tuning.fit):
- * the engine's own before and after rows, whether it converged, the bounds
- * it hit, and the signature of what it was run against.
- */
-export const tuneRecord = (fit, composition, stages, at = new Date()) => ({
+export const tuneRecord = (fit, composition, at = new Date()) => ({
   at: at.toISOString(),
-  signature: tuningSignature(composition, stages),
   converged: !!fit.converged,
   iterations: fit.iterations ?? null,
   boundsHit: [...(fit.boundsHit || [])],
@@ -108,18 +92,23 @@ export const tuneRecord = (fit, composition, stages, at = new Date()) => ({
 });
 
 /**
- * The tuning state a screen or a report may claim:
- *   none            no tuning applied
- *   tuned           applied, and the saved record describes the current inputs
- *   tuned-unrecorded applied, with no record of the match (a project saved before the record existed)
- *   stale           applied, but the inputs moved after the fit
+ * The tuning state a report or a contract may claim (RL8), from the app's
+ * one status (tuningStatus) and the saved record of the fit:
+ *   none             no tuning applied
+ *   tuned            applied, current, and the record of the match is there
+ *   tuned-unrecorded applied, with no record of the match or of what it was
+ *                    fitted on (a project saved before the records existed)
+ *   stale            applied, but an input changed after the fit
  */
 export function tuningState(composition, stages) {
   const applied = normalizeTuning(composition?.tuning?.applied);
-  if (!applied) return { status: 'none', applied: null, fit: null };
+  // eslint-disable-next-line no-use-before-define
+  const status = tuningStatus(composition, stages);
+  if (!applied || status === 'none') return { status: 'none', applied: null, fit: null };
   const fit = composition?.tuning?.fit;
-  if (!fit || !Array.isArray(fit.report)) return { status: 'tuned-unrecorded', applied, fit: null };
-  if (fit.signature !== tuningSignature(composition, stages)) return { status: 'stale', applied, fit };
+  const hasRecord = !!fit && Array.isArray(fit.report);
+  if (status === 'stale') return { status: 'stale', applied, fit: hasRecord ? fit : null };
+  if (status === 'unrecorded' || !hasRecord) return { status: 'tuned-unrecorded', applied, fit: null };
   return { status: 'tuned', applied, fit };
 }
 
@@ -574,6 +563,33 @@ export const labTuneRequest = (composition, stages) => {
     },
     reasons: [],
   };
+};
+
+/**
+ * H10: is the applied lab tune still the tune of this fluid?
+ *
+ * The regression consumes exactly the worker request (feed, C7+ description,
+ * the measured values, the flash conditions and the enabled separator
+ * stages). The request is kept as text beside the applied knobs
+ * (`tuning.fittedOn`) when a tune is applied, and compared here. An edit to
+ * anything in it leaves the tuned C7+ properties applied to a fluid they
+ * were not fitted to, so "Lab tuned" is no longer true.
+ *
+ *   'none'        no tune applied
+ *   'current'     the inputs are the ones the tune was fitted on
+ *   'stale'       an input changed after the tune
+ *   'unrecorded'  a tune saved before this record existed: cannot be confirmed
+ */
+export const tuningFingerprint = (composition, stages) => {
+  const { request } = labTuneRequest(composition, stages);
+  return request ? JSON.stringify(request) : null;
+};
+
+export const tuningStatus = (composition, stages) => {
+  if (!composition?.tuning?.applied) return 'none';
+  const fittedOn = composition.tuning.fittedOn;
+  if (!fittedOn) return 'unrecorded';
+  return fittedOn === tuningFingerprint(composition, stages) ? 'current' : 'stale';
 };
 
 export const envelopeRequest = (composition) => {

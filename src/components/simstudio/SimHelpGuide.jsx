@@ -60,7 +60,7 @@ const helpContent = [
     icon: LineChart,
     title: 'Step 3: Results',
     content:
-      'Completed runs expose their summary vectors: field rates, cumulatives, GOR, water cut and pressure where the deck requests them (the SUMMARY section of the deck decides what the simulator writes), plus per-well rates and BHP. Charts follow the suite standard, and the full table downloads as CSV.',
+      'Completed runs expose their summary vectors: field rates, cumulatives, GOR, water cut and pressure where the deck requests them (the SUMMARY section of the deck decides what the simulator writes), plus per-well rates and BHP. Charts follow the suite standard, and the plotted table downloads as CSV. The line under the run picker gives the run\'s report steps and simulator time steps. A run with more than 5,000 time steps is thinned for the charts and the CSV, and the line then says how many time steps one plotted point stands for.',
   },
   {
     id: 'engine',

@@ -14,7 +14,7 @@
 // AquiferModel, RbDiagnosticPlots) keep their existing props contracts and
 // their own toast-based notifications.
 import React, {
-  createContext, useCallback, useContext, useEffect, useState,
+  createContext, useCallback, useContext, useEffect, useMemo, useState,
 } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -26,7 +26,9 @@ import {
   listRuns,
   getResultByRunId,
   getCaseDefaultConfig,
+  getRunConfig,
 } from '@/pages/apps/reservoir-balance/lib/api';
+import { assessRunStaleness, buildRunConfigInput } from '@/pages/apps/reservoir-balance/lib/runStaleness';
 
 const MaterialBalanceStudioContext = createContext(null);
 
@@ -53,6 +55,12 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
 
   // Last completed run result + run action
   const [lastResult, setLastResult] = useState(null);
+  // H4: what the stored run was made on (its run row and its config
+  // snapshot) and what a run would be made on now (the case default
+  // config). Together with caseData they decide whether lastResult is stale.
+  const [lastRun, setLastRun] = useState(null);
+  const [lastRunConfig, setLastRunConfig] = useState(null);
+  const [defaultCfg, setDefaultCfg] = useState(null);
   const [running, setRunning] = useState(false);
   // Bumped on successful MBAL run; RbDiagnosticPlots re-fetches on change.
   const [runVersion, setRunVersion] = useState(0);
@@ -78,6 +86,9 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
     if (!caseId) {
       setCaseData(null);
       setLastResult(null);
+      setLastRun(null);
+      setLastRunConfig(null);
+      setDefaultCfg(null);
       return;
     }
     setCaseLoading(true);
@@ -90,18 +101,46 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
       setCaseLoading(false);
       return;
     }
+    // The run, its config snapshot and the current default config are read
+    // before the case is shown, so a stale stored result never renders for
+    // a moment as if it were current.
+    const [{ data: runs }, { data: cfg }] = await Promise.all([
+      listRuns(caseId),
+      getCaseDefaultConfig(caseId),
+    ]);
+    const lastCompletedRun = (runs ?? []).find((r) => r.status === 'completed');
+    let result = null;
+    let runCfg = null;
+    if (lastCompletedRun) {
+      const [res, rc] = await Promise.all([
+        getResultByRunId(lastCompletedRun.id),
+        getRunConfig(lastCompletedRun.run_config_id),
+      ]);
+      result = res?.data ?? null;
+      runCfg = rc?.data ?? null;
+    }
+    setDefaultCfg(cfg ?? null);
+    setLastRun(lastCompletedRun ?? null);
+    setLastRunConfig(runCfg);
+    setLastResult(result);
     setCaseData(data);
     setCaseLoading(false);
-
-    const { data: runs } = await listRuns(caseId);
-    const lastCompletedRun = (runs ?? []).find((r) => r.status === 'completed');
-    if (lastCompletedRun) {
-      const { data: result } = await getResultByRunId(lastCompletedRun.id);
-      setLastResult(result);
-    } else {
-      setLastResult(null);
-    }
   }, [caseId]);
+
+  // Re-read the case default config after the PVT or the Aquifer tab saved
+  // it. Cheap, and it does not swap the tab tree for the loader.
+  const refreshRunInputs = useCallback(async () => {
+    if (!caseId) return;
+    const { data: cfg } = await getCaseDefaultConfig(caseId);
+    setDefaultCfg(cfg ?? null);
+  }, [caseId]);
+
+  const runStaleness = useMemo(
+    () => assessRunStaleness({
+      caseData, defaultCfg, run: lastRun, runConfig: lastRunConfig, result: lastResult,
+    }),
+    [caseData, defaultCfg, lastRun, lastRunConfig, lastResult],
+  );
 
   useEffect(() => {
     refreshCase();
@@ -144,43 +183,15 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
 
     setRunning(true);
 
-    // Inherit PVT and rock settings from the case-default config saved by
-    // PvtRock. Fall back to sensible defaults if no default exists.
-    const isGas = caseData.fluid_system === 'gas';
-    const { data: defaultCfg } = await getCaseDefaultConfig(caseId);
+    // Inherit PVT, rock and aquifer settings from the case-default config
+    // saved by the PVT and Aquifer tabs. buildRunConfigInput is the one list
+    // of what a run inherits; the stale check reads the same list.
+    const { data: defaultCfgNow } = await getCaseDefaultConfig(caseId);
 
     const { data: runConfig, error: configErr } = await createRunConfig(caseId, {
       name: `${isHistoryMatch ? 'History match' : 'Run'} ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`,
       is_scenario: true, // mark this row as an executed run, not a default
-      // PVT — inherit from saved default config
-      oil_gravity_api: defaultCfg?.oil_gravity_api ?? null,
-      gas_specific_gravity:
-        defaultCfg?.gas_specific_gravity ?? (isGas ? 0.65 : 0.7),
-      water_salinity_ppm: defaultCfg?.water_salinity_ppm ?? null,
-      pvt_source: defaultCfg?.pvt_source ?? 'correlated',
-      pvt_correlations: defaultCfg?.pvt_correlations ?? undefined,
-      pvt_lab_table: defaultCfg?.pvt_lab_table ?? null,
-      // Rock — inherit
-      formation_compressibility_psi:
-        defaultCfg?.formation_compressibility_psi ?? 6e-6,
-      water_compressibility_psi:
-        defaultCfg?.water_compressibility_psi ?? 3e-6,
-      // Aquifer + solver — inherit from the Aquifer tab's saved default
-      aquifer_model:
-        defaultCfg?.aquifer_model ?? (caseData.has_aquifer ? 'pot' : 'none'),
-      aquifer_params: defaultCfg?.aquifer_params ?? null,
-      // Record of intent only: the engine derives the regression from the fluid
-      // system and the aquifer model, and reports it back as
-      // solver_method_used (engines #168). Store the same derivation the engine
-      // makes so the stored config is not a guess: the pot plot is the only
-      // alternative to Havlena-Odeh, and it follows the aquifer model, not the
-      // fluid. The old `isGas ? 'pot_aquifer_plot' : 'havlena_odeh'` was wrong
-      // for every gas case without a pot aquifer.
-      solver_method:
-        defaultCfg?.solver_method ??
-        ((defaultCfg?.aquifer_model ?? (caseData.has_aquifer ? 'pot' : 'none')) === 'pot'
-          ? 'pot_aquifer_plot'
-          : 'havlena_odeh'),
+      ...buildRunConfigInput(caseData, defaultCfgNow),
     });
 
     if (configErr || !runConfig) {
@@ -218,6 +229,13 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
     }
 
     const { data: result } = await getResultByRunId(runResp.run_id);
+    // The run just made is the run of the current inputs: record what it
+    // ran on so the stale check compares like with like.
+    const { data: runsNow } = await listRuns(caseId);
+    setDefaultCfg(defaultCfgNow ?? null);
+    setLastRunConfig(runConfig);
+    setLastRun((runsNow ?? []).find((r) => r.id === runResp.run_id)
+      ?? { id: runResp.run_id, run_config_id: runConfig.id, status: 'completed', started_at: null });
     setLastResult(result);
     setRunning(false);
     setRunVersion((v) => v + 1);
@@ -250,6 +268,8 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
     caseId, caseData, caseLoading, caseError, refreshCase,
     // run
     lastResult, running, runVersion, handleRun, handleHistoryMatch,
+    // H4: is lastResult still the run of the current inputs?
+    lastRun, lastRunConfig, defaultCfg, runStaleness, refreshRunInputs,
     // project-manager actions
     handleCaseCreated, handleDeleteCase,
   };

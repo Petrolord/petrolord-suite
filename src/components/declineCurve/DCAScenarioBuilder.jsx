@@ -64,7 +64,7 @@ const DCAScenarioBuilder = () => {
                   <div className="min-w-0">
                     <div className="text-xs font-medium truncate text-pl-text">{s.name}</div>
                     <div className="text-[10px] text-pl-muted flex gap-2">
-                      <span>EUR: {s.forecastResults.eur.toLocaleString(undefined, {maximumFractionDigits:0})}</span>
+                      <span>Remaining: {s.forecastResults.eur.toLocaleString(undefined, {maximumFractionDigits:0})}</span>
                       <Badge variant="outline" className="h-3 px-1 text-[8px] border-pl-border-strong text-pl-muted">{s.fitResults.modelType}</Badge>
                     </div>
                   </div>

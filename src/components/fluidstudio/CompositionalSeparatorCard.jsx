@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, Factory } from 'lucide-react';
-import FluidStudioTierBadge from '@/components/fluidstudio/FluidStudioTierBadge';
+import FluidStudioTierBadge, { TuneStatusBadge } from '@/components/fluidstudio/FluidStudioTierBadge';
 import { useFluidUnits } from '@/components/fluidstudio/FluidUnitsContext';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
@@ -35,7 +35,7 @@ const CompositionalSeparatorCard = ({ separator, tuned = false }) => {
             Compositional separator train
           </CardTitle>
           <div className="flex gap-2">
-            {tuned && <FluidStudioTierBadge tier="lab_tuned" />}
+            <TuneStatusBadge status={tuned} />
             <FluidStudioTierBadge tier="oracle_gated" />
           </div>
         </div>

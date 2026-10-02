@@ -373,3 +373,139 @@ redeployed. Production shows them after the next upload.
 5. When the Suite Project lands (`project_id`), `can_read_project` and
    `can_edit_project` take the place of the organisation test in these
    policies; the check-out, version and log stay as they are.
+
+## 11. Reservoir record tables (Reservoir round, Step 0a, 2026-10-02)
+
+Added by `supabase/migrations/20261002130000_reservoir_record_sharing.sql`.
+**File only: the owner applies it.** Plan of record:
+`docs/scope/AppUpgrade-Reservoir-PLAN.md`, owner question 2 (covered by the
+approval of 2026-10-01 because the policy shape is the approved one).
+
+### 11.1 The live state before (read-only catalog read, 2026-10-02)
+
+All fifteen tables exist under the names the plan gives. anon, authenticated
+and service_role hold every privilege on each of them (the Supabase default).
+
+| Table | Rows | Policies before (roles) |
+|---|---|---|
+| `saved_fluid_studio_projects` | 0 | four owner policies, one per command (PUBLIC) |
+| `saved_scal_projects` | 3 | `scal_owner_all` ALL (PUBLIC) |
+| `saved_dca_projects` | 12 | `dca_owner_all` and "Users can manage their own data" ALL (PUBLIC); the dormant "Allow admin full access" (PUBLIC) |
+| `saved_scenario_hub_projects` | 0 | `scenario_hub_owner_all` ALL (PUBLIC) |
+| `saved_well_test_projects` | 5 | `well_test_owner_all` ALL (PUBLIC) |
+| `saved_waterflood_design_projects` | 1 | `waterflood_design_owner_all` ALL (PUBLIC) |
+| `saved_vrr_projects` | 4 | `vrr_owner_all` ALL (PUBLIC) |
+| `saved_rf_projects` | 0 | `rf_owner_all` ALL (PUBLIC) |
+| `rb_cases` | 7 (none with `org_id`) | `rb_cases_owner_all` ALL (authenticated) |
+| `rb_production_data`, `rb_run_configs`, `rb_runs`, `rb_results` | 175, 43, 33, 16 | one `_via_case` ALL policy each, reading `rb_cases` (authenticated) |
+| `sim_cases` | 2 (none with `organization_id`) | four policies; read = owner, or a member when `organization_id` is set (PUBLIC) |
+| `sim_runs` | 5 (none with `organization_id`) | one read policy on the run's own `organization_id` (PUBLIC); no write policy |
+| `sim` bucket | | four own-folder policies (authenticated); none reads `sim_cases` |
+
+Also live and outside this file: `saved_mbal_projects` (0 rows, the older
+Material Balance table; Material Balance Studio saves to `rb_*`). It is not
+touched.
+
+**Policies granted to PUBLIC or anon that read a touched table:** none in any
+schema (`pg_policies` searched over every schema, `storage` included). The
+only policies that read one of the fifteen tables are the four `rb_*`
+`_via_case` policies, already to authenticated. The PUBLIC policies above sit
+ON the touched tables and are replaced by policies to authenticated. One
+match by text was checked and is a different table:
+`petrolord.cement_sim_runs`.
+
+### 11.2 What the migration does
+
+- **Ten record tables** take the rules of section 3 and section 4 unchanged:
+  the same nine columns, the guard and log triggers in `visibility` mode, the
+  four policies to authenticated, a row in `suite_record_tables`, and a third
+  read policy on the change log (`suite_record_changes_select_reservoir`).
+  The guard, log and check-out functions are not redefined.
+- **Material Balance children** (`rb_production_data`, `rb_run_configs`,
+  `rb_runs`, `rb_results`) follow the case, as the geo_wells children follow
+  the well: read by whoever can read the case; written by the case owner
+  unless a colleague holds the unexpired check-out, or by the member who
+  holds it. A statement on the production data or the run settings logs one
+  folded entry on the case ("Production data: 24 added") through
+  `suite_record_child_log_parent` (SECURITY DEFINER, no client execute; the
+  geo_wells function is left as it is). Runs and results are calculation
+  output and are not logged.
+- **Simulation**: `sim_runs` is read through the case (the run's own user, or
+  whoever can read the case); it still has no client write policy. The `sim`
+  bucket gains one read policy to authenticated,
+  `sim_objects_select_case_reader`: whoever can read the case reads the
+  objects filed under it (path `{user id}/{case id}/...`). Upload, rewrite
+  and remove stay with the uploader's own folder.
+- anon is revoked on all fifteen tables.
+
+Three decisions inside the approved shape:
+
+1. `rb_cases.org_id` (older column, unused by the app, no row sets it) is
+   left as it is. The rules read a new `organization_id` like every other
+   table, because the guard and log functions name that column.
+2. `sim_cases` was readable by the organisation whenever `organization_id`
+   was set. It now follows the one rule: the owner shares it. No live row
+   carries an organisation, so nobody loses access.
+3. The touch trigger `update_rb_cases_updated_at` is dropped. The guard
+   stamps `updated_at` on a change of content; the old trigger would also
+   stamp it on a check-out and on a sharing change.
+
+### 11.3 The storage lesson, enforced
+
+Revoking anon on a table breaks every anon query of any table that has a
+PUBLIC or anon policy reading it (the regression of 2026-10-02, fixed by
+`20261002120000`). Three guards:
+
+1. The catalog read of 11.1, before the file was written.
+2. Step 7 of the migration repeats the search at apply time and refuses to
+   apply if it finds such a policy.
+3. The pentest runs `select count(*) from storage.objects` as anon, and an
+   anon select on every table that has a policy reading a touched table. Each
+   must answer, or be refused on that table itself because anon holds no
+   privilege on it.
+
+### 11.4 Proof
+
+- `tools/validation/reservoir-sharing/run.sh` (scratch Postgres; the
+  org-sharing schema plus `schema.sql` here, written from the live catalog
+  read): the migration applies twice; 93 checks; existing rows private at
+  version 1; policies, roles and grants as designed; the pentest passes; a
+  build from before the migration still saves; `sim_enqueue_run` still
+  queues; account deletion still cascades.
+- `tools/validation/reservoir-sharing/pentest.sql`: 695 checks as real roles
+  in one DO statement that always raises its result.
+- Negative control 1: with the guard trigger dropped the pentest fails.
+- Negative control 2: with a PUBLIC policy on `storage.objects` that reads
+  `sim_cases`, the anon probe fails, the pentest fails and the migration
+  refuses to apply.
+- Dry run on the live database, 2026-10-02, as one DO statement that cannot
+  commit (`dry-run-sql.sh`): 695 of 695. A read-only check afterwards found
+  nothing left behind.
+
+### 11.5 Apply, and what comes after
+
+```
+supabase db query --linked -f supabase/migrations/20261002130000_reservoir_record_sharing.sql
+```
+
+Then flip the row in `MIGRATIONS.md`, and run the pentest once more, rolled
+back, against the applied state:
+`supabase db query --linked -f tools/validation/reservoir-sharing/pentest.sql`
+(it ends with `RESERVOIR-SHARING PENTEST PASS` in the error text).
+
+In the app, the ten tables are registered in
+`src/lib/recordSharing/rules.js` so that the store, the in-memory mirror and
+the `.pld` import know them (an import never carries a sharing state
+across). **No Reservoir app shows the share bar yet.** Each app adopts it in
+its own round, the way section 5 describes. Open for those rounds:
+
+- Material Balance: the case list and the child reads already go through the
+  parent; the run (`calculate-mbal`) writes with the caller's token, so a
+  view-only colleague's run is refused by the database and the app must
+  offer Save a copy.
+- Simulation: `sim_enqueue_run` and `sim_cancel_run` still act for the case
+  owner only. A colleague who may edit a shared case can change the case and
+  upload a deck into their own folder, and cannot queue a run. Whether a
+  colleague may run a shared case touches the run quota and is a decision
+  for the Simulation round.
+- `rb_*` has no `.pld` family yet (plan owner question 5).

@@ -9,7 +9,7 @@ import { tornadoSwings } from '@/lib/monteCarlo';
 import { loadPetrolordLogo, drawBrandHeader } from '@/lib/pdfBrand';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { inPlaceScale } from '../../services/volumeDisplay';
-import { latin1 } from '../../services/reportInfo';
+import { latin1, correlationSentence } from '../../services/reportInfo';
 
 // RCP-U1-019 (PL7): the reviewer block under the banner (field, analyst,
 // date, build, units, method, contacts with their datum, gridding, open
@@ -289,11 +289,15 @@ export class ReportGenerator {
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(9);
             doc.setTextColor(60, 60, 60);
+            // H9: the correlations line is the run's own record
+            // (results.meta.correlations), never a fixed sentence.
+            const wrap = (t) => (typeof doc.splitTextToSize === 'function' ? doc.splitTextToSize(latin1(t), pageWidth - 2 * margin) : [latin1(t)]);
             const notes = [
                 'Monte Carlo simulation with a Gaussian copula: correlated standard normals are mapped',
                 'through each variable\'s marginal distribution (triangular / normal / lognormal / uniform).',
-                'A default porosity-water-saturation correlation of -0.8 is applied. Out-of-bounds draws for',
-                'unbounded (normal/lognormal) marginals are rejected. Volumetrics: HCPV = GRV x NTG x phi x (1-Sw);',
+                ...wrap(`${correlationSentence(results.meta)}.`.replace(/\.\.$/, '.')),
+                'Out-of-bounds draws for unbounded (normal/lognormal) marginals are rejected.',
+                'Volumetrics: HCPV = GRV x NTG x phi x (1-Sw);',
                 'STOOIP = HCPV·7758/Bo (field) or HCPV/Bo (metric); GIIP = HCPV·43560/Bg (field) or HCPV/Bg.',
                 'P90/P50/P10 follow the petroleum convention (P90 = low, P10 = high). Screening estimate:',
                 'confirm against reservoir simulation before use in reserves booking.',

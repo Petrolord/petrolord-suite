@@ -17,12 +17,16 @@ export const PRESETS = Object.freeze({
     pressure: 'psi', temperature: 'degF', liquidRate: 'STB/d', gasRate: 'Mscf/d',
     fvfOil: 'RB/STB', fvfGas: 'RB/Mscf', density: 'g/cc', sonic: 'us/ft', velocity: 'ft/s',
     permeability: 'mD', viscosity: 'cP', compressibility: '1/psi', timeSeismic: 'ms', gor: 'scf/STB',
+    declineRate: '%/yr', productivityIndex: 'STB/d/psi', pseudoPressure: 'psi2/cP', gasProductivityIndex: 'Mscf/d/(psi2/cP)',
+    capillaryPressure: 'psi', interfacialTension: 'dyne/cm', wellboreStorage: 'bbl/psi', flowCapacity: 'mD.ft', diameter: 'in',
   }),
   metric: Object.freeze({
     depth: 'm', xy: 'm', area: 'km2', rockVolume: '10^6 m3', liquidVolume: 'm3', gasVolume: '10^3 m3',
     pressure: 'kPa', temperature: 'degC', liquidRate: 'm3/d', gasRate: '10^3 m3/d',
     fvfOil: 'm3/m3', fvfGas: 'm3/m3', density: 'kg/m3', sonic: 'us/m', velocity: 'm/s',
     permeability: 'mD', viscosity: 'mPa.s', compressibility: '1/kPa', timeSeismic: 'ms', gor: 'm3/m3',
+    declineRate: '%/yr', productivityIndex: 'm3/d/kPa', pseudoPressure: 'kPa2/mPa.s', gasProductivityIndex: '10^3 m3/d/(kPa2/mPa.s)',
+    capillaryPressure: 'kPa', interfacialTension: 'mN/m', wellboreStorage: 'm3/kPa', flowCapacity: 'mD.m', diameter: 'mm',
   }),
 });
 

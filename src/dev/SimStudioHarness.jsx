@@ -57,7 +57,8 @@ function workerStandIn(run, caseRow) {
     patchRun(run.id, {
       status: 'complete', finished_at: new Date().toISOString(), exit_code: 0,
       opm_version: summary.opm_version, deck_sha256: 'harness', elapsed_seconds: spe1 ? 1.9 : 3.4,
-      active_cells: spe1 ? 300 : 2000, report_steps: summary.days.length,
+      active_cells: spe1 ? 300 : 2000, // H13: as the worker stores it, the run's steps and never a thinned series length
+      report_steps: summary.steps?.report_steps ?? summary.steps?.time_steps ?? summary.days.length,
       result_path: `${base}/summary.json`, log_path: `${base}/prt_excerpt.txt`, result_bytes: json.length,
     });
   }, 4000);

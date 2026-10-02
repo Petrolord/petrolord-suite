@@ -27,7 +27,6 @@ import DCAGroupRollup from '@/components/declineCurve/DCAGroupRollup';
 import DCATypeCurve from '@/components/declineCurve/DCATypeCurve';
 import DCAWellGrouping from '@/components/declineCurve/DCAWellGrouping';
 import DCAWellFilters from '@/components/declineCurve/DCAWellFilters';
-import DCAIntegrationPanel from '@/components/declineCurve/DCAIntegrationPanel';
 import DCAWellMetadata from '@/components/declineCurve/DCAWellMetadata';
 import DCAHelpContent from '@/components/declineCurve/DCAHelpContent';
 import { Separator } from '@/components/ui/separator';
@@ -135,12 +134,8 @@ const DeclineCurveContent = () => {
         <SectionLabel>Diagnostics</SectionLabel>
         <DCAFitDiagnostics />
       </section>
-
-      <Separator />
-
-      <section>
-        <DCAIntegrationPanel />
-      </section>
+      {/* H1: the two "Integrations" cards that sat here showed a green tick
+          and sent nothing. They are removed until a real sender exists. */}
     </div>
   ) : (
     <div className="space-y-6">

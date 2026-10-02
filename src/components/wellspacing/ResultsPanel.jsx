@@ -7,6 +7,7 @@ import {
 } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { ChartPanel } from '@/components/ui/chart-panel';
+import { boNote, NO_OPTIMUM_NOTE } from '@/utils/wellSpacingCalculations';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 
 // Senior test T1 (2026-09-27): these three charts were the Suite's only
@@ -45,7 +46,7 @@ const ResultsPanel = ({
         className="bg-pl-surface border border-pl-border rounded-xl p-4 sm:p-6 shadow-pl-sm"
       >
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <h2 className="text-2xl font-bold text-pl-text">Optimization Results</h2>
+          <h2 className="text-2xl font-bold text-pl-text">Spacing cases</h2>
           <div className="flex space-x-2">
             <Button
               onClick={downloadCSV}
@@ -75,8 +76,8 @@ const ResultsPanel = ({
             This model gives every well the recovery factor you entered over the area it drains, and
             models no interference between wells. Under that assumption total field volume barely
             changes with spacing while capex falls as wells are removed, so NPV rises with spacing and
-            the highest NPV is simply the widest spacing that divides your area with least waste. That
-            is arithmetic and does not amount to an engineering recommendation, so no optimum is nominated here.
+            the highest NPV is simply the widest spacing that divides your area with least waste.{' '}
+            <span data-testid="ws-no-optimum">{NO_OPTIMUM_NOTE}</span> The JSON export carries the same sentence and names no case.
           </p>
           <p className="text-pl-warning-text text-sm">
             Use the table as spacing economics: for each case it gives you the well count, the capital,
@@ -85,13 +86,16 @@ const ResultsPanel = ({
             reservoir work says about drainage. Read the Coverage column alongside NPV, because a
             spacing that leaves part of the field undrained is penalised here purely for that.
           </p>
-          {Number.isFinite(results.boUsed) && (
-            <p className="text-pl-warning-text text-sm mt-3" data-testid="ws-bo-note">
-              {`Volumes are stock-tank barrels: oil in place is divided by Bo ${results.boUsed.toFixed(3)} rb/stb, from Standing's correlation on your GOR, oil gravity, gas gravity and temperature.`}
+          {boNote(results) && (
+            <p className="text-pl-warning-text text-sm mt-3" data-testid="ws-bo-note" data-bo-source={results.boSource}>
+              {boNote(results)}
             </p>
           )}
         </div>
 
+        {results.npvConvention?.note && (
+          <p className="text-xs text-pl-muted mb-2" data-testid="ws-npv-convention">{results.npvConvention.note}</p>
+        )}
         <div className="overflow-x-auto mb-6">
           <table className="w-full text-pl-text text-sm">
             <thead>
@@ -140,7 +144,7 @@ const ResultsPanel = ({
         <h2 className="text-2xl font-bold text-pl-text mb-6">Interactive Charts</h2>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ChartPanel title="NPV vs. Well Spacing">
+          <ChartPanel title="NPV vs. Well Spacing" subtitle="Mid-year discounting, Suite screening economics engine.">
             <div className="relative h-64">
               <SpacingLine data={rows} dataKey="npv" name="NPV" unit="NPV ($M)" color="#16a34a" fmt={(v) => Number(v).toFixed(1)} />
               <ChartLogo />

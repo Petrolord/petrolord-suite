@@ -20,7 +20,8 @@ const MbsHelpContent = () => (
     <P>
       A case holds one reservoir study: fluid system (oil, gas, or oil with a gas cap), initial pressure, temperature
       and water saturation. Cases live in your account database; everything you save on the tabs is stored with the
-      case and results are recomputed by the engine on demand. They are not replayed from stored numbers.
+      case. Opening a case shows its last completed run. When an input was changed after that run, the studio
+      says the results are from an earlier run, withholds their status and holds the report until you run again.
     </P>
 
     <H>2. Data</H>
@@ -58,7 +59,9 @@ const MbsHelpContent = () => (
     <P>
       Working from a laboratory table, Prefill from correlations fills the table with correlated values at your
       pressures so you have a starting grid to paste your measured numbers over, so you do not type every row from
-      blank.
+      blank. It uses the Pb, Rs and Bo correlation selected on the tab and tells you which methods it used for the
+      rest. A table built this way is reported as built from correlations, with the correlation names, and as
+      edited by hand once you change a row. It is never reported as lab data.
     </P>
 
     <H>4. Aquifer</H>

@@ -486,7 +486,7 @@ function tuningSection({ inputs, mode, u }) {
     return { status: 'stale', text: 'Tuning parameters are applied, but the composition, the reservoir conditions, the separator stages or the measured values changed after the fit. The record of the match no longer describes this fluid and is withdrawn. Run the tuning again.', table: null, parameters };
   }
   if (t.status === 'tuned-unrecorded') {
-    return { status: 'tuned-unrecorded', text: 'Tuning parameters are applied. This project was saved before the app kept the record of the match, so what was matched and how well cannot be printed. Run the tuning again to record it.', table: null, parameters };
+    return { status: 'tuned-unrecorded', text: 'Tuning parameters are applied. This project was saved before the app kept the record of the match, so what was matched and how well cannot be printed, and it cannot be confirmed that the fluid is unchanged since. Run the tuning again to record it.', table: null, parameters };
   }
   const fit = t.fit;
   const rows = fit.report.map((r) => {

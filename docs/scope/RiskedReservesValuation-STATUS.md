@@ -28,3 +28,13 @@ toggle (beside Help).
 - Test: `riskedreserves/__tests__/RiskedReservesValuation.theme.test.jsx`
   (the shared four checks, an imported prospect with its chart and
   readout in light and dark, the help guide). No calculation change.
+
+## 2026-10-02: Reservoir Step 0e honesty sweep (H8)
+
+Doc: `docs/upgrade/Reservoir-Step0e-HonestySweep.md` (branch `fix/reservoir-honesty-sweep`).
+
+The readout and the `$/bbl` tooltip said the value per barrel comes from
+the Petroleum Economics Studio. No handoff from that app exists. The
+readout now names the true source for the selected prospect (the starting
+default of 8 $/bbl, a value sent with a prospect valued in ReservoirCalc
+Pro, or a value typed here), through `unitValueSource` in `rrvStore.js`.
