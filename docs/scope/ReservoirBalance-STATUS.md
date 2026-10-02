@@ -792,3 +792,28 @@ export change.
   drawer and the edit-case dialog, the plot cards white in dark).
 - Screenshots: harness at 1440 and 390 in light, plus dark at 1440 (PVT, Run,
   Plots); no sideways page scroll.
+
+## 2026-10-02: Reservoir Step 0e honesty sweep (H4, H5)
+
+Doc: `docs/upgrade/Reservoir-Step0e-HonestySweep.md` (branch `fix/reservoir-honesty-sweep`).
+
+- **H4:** the last stored run was shown and reported against whatever the
+  inputs were today. `lib/runStaleness.js` now checks it (run config
+  snapshot, echoed pressures and cumulatives, a case stamp on the server
+  time line). A stale run is named as an earlier run, loses "Latest",
+  "Converged" and the validation tier, and the PDF and series CSV are not
+  exported. The report prints the config of the run it reports. No schema
+  change.
+- **Found with H4:** `gas_cap_ratio_m` and `excluded_timesteps` were never
+  copied from the default config to the run config, so a gas cap ratio
+  typed on the PVT tab did not reach a regression run. Fixed in
+  `buildRunConfigInput`. An oil case with a gas cap and a stated m gives a
+  different OOIP on its next run.
+- **H5:** "Prefill from correlations" follows the selected Pb, Rs and Bo
+  correlation, names every method it used, and the table carries that
+  origin (one extra key in the `pvt_correlations` jsonb). The report states
+  the PVT source in words through `lib/pvtSource.js` and never prints
+  `lab_table` for a correlation-built table.
+- **H12 (comma decimals in the data hub) is not in this change:** it moves
+  onto the shared parser `src/lib/tabularFile.js` in Step 0a.
+- Not verified: whether production sets `rb_cases.updated_at` by trigger.

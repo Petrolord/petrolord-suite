@@ -421,3 +421,16 @@ The studio opts in to the Petrolord design system (plan of record
   themes (its colours were tuned on a dark ground); the well legend is a dot
   key beside each word. Result charts keep the white chart standard.
 - Test: `src/pages/apps/__tests__/ReservoirSimulationStudio.theme.test.jsx`.
+
+## 2026-10-02: Reservoir Step 0e honesty sweep (H13)
+
+Doc: `docs/upgrade/Reservoir-Step0e-HonestySweep.md` (branch `fix/reservoir-honesty-sweep`).
+
+"N report steps" on the Results tab was the length of the plotted series,
+which the worker thins to at most 5,000 rows and whose rows are simulator
+time steps (SPE1: 123 rows for 120 report steps). The worker now writes
+`steps` (report steps, time steps, stride, points) into the summary and the
+report steps into `sim_runs.report_steps`; the screen prints the real
+counts. **Owner action:** redeploy the simulation worker
+(`worker/sim-worker/deploy.sh`) for the worker half to take effect. Until
+then the screen describes an older summary for what it holds.

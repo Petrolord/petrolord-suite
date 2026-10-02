@@ -150,3 +150,13 @@ handoffs added after the last help edit. Added:
   the displacement panel Sample/Reset loaders.
 
 Copy rule was already clean.
+
+## 2026-10-02: Reservoir Step 0e honesty sweep (H11)
+
+Doc: `docs/upgrade/Reservoir-Step0e-HonestySweep.md` (branch `fix/reservoir-honesty-sweep`).
+
+The Hall plot drew the integral on x and injection on y, against the slope
+it quotes. Axes now follow Hall (1963): cumulative water injected on x, the
+pressure-time integral on y, slope p/q rising with plugging. The engine
+was right and is unchanged; gated on a known case with the old mapping as
+the negative control.

@@ -363,3 +363,14 @@ canonical engine (the local form was about 100 times low); inputs outside a
 correlation's published data range raise a warning; the shared StudioLayout
 drops an absent right rail (also SCAL and Material Balance); KPI cards and
 pressure axes read cleanly at 1366 px; `/dev/fluid-systems-studio` harness.
+
+## 2026-10-02: Reservoir Step 0e honesty sweep (H10)
+
+Doc: `docs/upgrade/Reservoir-Step0e-HonestySweep.md` (branch `fix/reservoir-honesty-sweep`).
+
+Reproduced in a test and fixed: the "Lab tuned" badge stayed after the
+composition was edited. The applied knobs now travel with a record of what
+the regression consumed, `tuningStatus()` compares it with the current
+inputs, and the cards show "Tuned on earlier inputs" (or "Tuned, not
+confirmed" for a tune saved before the record) until the fluid is tuned
+again or reset. The tuned properties stay applied. Tier matrix updated.
