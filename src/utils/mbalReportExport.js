@@ -88,6 +88,12 @@ export function buildMbalPdf(args, { logo = null, generatedAt = new Date() } = {
   // ---- inputs: every engine input, with unit and source (RL1) ----
   report.inputsTable(model.inputs, { title: 'Inputs of the analysis', note: INPUTS_NOTE, columnStyles: INPUT_COLUMNS });
   report.inputsTable(model.datum, { title: 'Pressure datum and contacts', note: DATUM_NOTE, columnStyles: INPUT_COLUMNS });
+  if (model.pvtProvenance) {
+    table('PVT provenance', ['Item', 'As stated by the source'], model.pvtProvenance, {
+      columnStyles: { 0: { cellWidth: 54 } },
+      note: 'The PVT table was taken from a saved Fluid Systems Studio project. The methods are the ones that study named for each property; this app computed none of them.',
+    });
+  }
   if (model.pvtTable) {
     table('PVT table of the run', model.pvtTable.head, model.pvtTable.body, { note: model.pvtTable.note });
   }

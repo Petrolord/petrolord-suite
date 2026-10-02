@@ -13,6 +13,8 @@
 // The numbers are the published ones; the dates of the Pletcher and Dake
 // cases are nominal (the books give years 0 to 10).
 
+import { rsAt, computePvtRow } from '@/utils/fluidStudioCalculations';
+
 const DEFAULT_CORRELATIONS = { pb_rs_bo: 'standing', oil_viscosity: 'beggs_robinson', z_factor: 'hall_yarborough', water: 'mccain', gas_viscosity: 'lee_gonzalez_eakin' };
 export const SAMPLE_USER = { id: 'dev-user', email: 'harness@petrolord.dev' };
 
@@ -44,6 +46,56 @@ const PLETCHER = [
   [8, 3276, 43.800, 22019, 0.9551, 1.0487, 1.0551], [9, 2953, 49.275, 28860, 0.9467, 1.1532, 1.0560],
   [10, 2638, 54.750, 37256, 0.9409, 1.2829, 1.0571],
 ];
+
+// A saved Fluid Systems Studio project carrying its pvt-1 block, for the PVT
+// intake of the PVT tab: the Ahmed Example 11-3 fluid (35 degAPI, gas gravity
+// 0.7, 175 degF, bubble point 1,500 psia) by Standing and Beggs-Robinson. The
+// rows come from the Fluid Systems black-oil engine; the block is laid out as
+// the contract documents it (docs/scope/ReportKit-DESIGN-AND-STATUS.md
+// section 4, and the writer of the Fluid Systems round).
+export const SAMPLE_FLUID_PROJECT_ID = 'fluid-ahmed-11-3';
+export const SAMPLE_FLUID_LEGACY_ID = 'fluid-legacy-no-block';
+export function sampleFluidBlock() {
+  const fluid = { api: 35, gasGravity: 0.7, temp: 175, rsb: 0, salinity: 0, pb: null, correlations: { pb_rs_bo: 'standing', viscosity: 'beggs_robinson' } };
+  const pb = 1500;
+  fluid.rsb = rsAt(pb, fluid);
+  const pressures = [200, 500, 800, 1100, 1300, 1500, 2000, 2500, 3000, 3500, 3685, 4000];
+  const table = pressures.map((p) => computePvtRow(p, fluid, pb));
+  return {
+    schema: 'pvt-1',
+    source_app: 'Fluid Systems Studio',
+    project_id: SAMPLE_FLUID_PROJECT_ID,
+    project_name: 'Virginia Hills oil PVT',
+    generated_at: '2026-10-01T14:30:00.000Z',
+    app_build: 'Petrolord Suite harness',
+    model: 'black-oil-correlations',
+    units: { pressure: 'psia', temperature: 'degF', Rs: 'scf/STB', Bo: 'RB/STB', Bg: 'RB/scf', Z: 'dimensionless', mu_o: 'cP', mu_g: 'cP', co: '1/psi', Bw: 'RB/STB', mu_w: 'cP' },
+    columns: ['pressure', 'Rs', 'Bo', 'Bg', 'Z', 'mu_o', 'mu_g', 'co'],
+    standard_conditions: { pressure_psia: 14.7, temperature_degF: 60 },
+    separator_conditions: [],
+    methods: {
+      pb: { method: 'Standing (1947)', kind: 'correlation' },
+      rs: { method: 'Standing (1947)', kind: 'correlation' },
+      bo: { method: 'Standing (1947)', kind: 'correlation' },
+      co: { method: 'Vasquez-Beggs (1980)', kind: 'correlation' },
+      mu_od: { method: 'Beggs-Robinson (1975)', kind: 'correlation' },
+      mu_o: { method: 'Beggs-Robinson (1975)', kind: 'correlation' },
+      mu_o_undersaturated: { method: 'Vasquez-Beggs (1980)', kind: 'correlation' },
+      z: { method: 'Papay (1968) with Sutton pseudo-criticals', kind: 'correlation' },
+      mu_g: { method: 'Lee-Gonzalez-Eakin (1966)', kind: 'correlation' },
+      bg: { method: 'Real gas law from Z', kind: 'definition' },
+      bw: { method: 'McCain (1990)', kind: 'correlation' },
+      mu_w: { method: 'McCain (1991)', kind: 'correlation' },
+    },
+    basis: { kind: 'flash', text: 'Flash (single-stage separator) basis' },
+    pb_source: 'entered',
+    tuning: { status: 'none' },
+    range_flags: [],
+    inputs: { oil_gravity: 35, gas_gravity: 0.7, rsb: Number(fluid.rsb.toFixed(1)), temperature: 175, salinity: 0 },
+    at_saturation: { pressure: pb },
+    table,
+  };
+}
 
 export const SAMPLE_CASE_IDS = Object.freeze({ ahmed: 'case-ahmed-11-3', dake: 'case-dake-9-2', pletcher: 'case-pletcher-gas' });
 
@@ -118,5 +170,19 @@ export function seedSampleStore(now = new Date().toISOString()) {
       aquifer_model: 'pot', excluded_timesteps: [1], solver_method: 'pot_aquifer_plot',
     }),
   ];
-  return { rb_cases: cases, rb_production_data: production, rb_run_configs: configs, rb_runs: [], rb_results: [] };
+  const fluidProjects = [
+    {
+      id: SAMPLE_FLUID_PROJECT_ID, user_id: SAMPLE_USER.id, project_name: 'Virginia Hills oil PVT', created_at: t, updated_at: '2026-10-01T14:30:00.000Z',
+      inputs_data: { name: 'Virginia Hills oil PVT', schema: 2, inputs: {}, pvt: sampleFluidBlock() },
+    },
+    {
+      // a project saved before the fluid study kept its PVT block
+      id: SAMPLE_FLUID_LEGACY_ID, user_id: SAMPLE_USER.id, project_name: 'Older fluid project', created_at: t, updated_at: '2026-07-01T09:00:00.000Z',
+      inputs_data: { name: 'Older fluid project', schema: 1, inputs: {} },
+    },
+  ];
+  return {
+    rb_cases: cases, rb_production_data: production, rb_run_configs: configs, rb_runs: [], rb_results: [],
+    saved_fluid_studio_projects: fluidProjects,
+  };
 }

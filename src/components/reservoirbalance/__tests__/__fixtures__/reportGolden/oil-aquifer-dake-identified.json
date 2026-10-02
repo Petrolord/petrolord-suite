@@ -1,11 +1,11 @@
 {
-  "pages": 9,
-  "sha256": "b0eac1002eb6dc88918c48d168d0d92c13aa87a44f0405bbfbae5b3f7013d63b",
+  "pages": 10,
+  "sha256": "23d7bf84fd390930fc7b1360e5eaf3ad1a41388a2df4415bcecdfa602a647c5d",
   "figures": [
     {
       "id": "regression",
       "number": 1,
-      "page": 7,
+      "page": 8,
       "plotted": true,
       "panels": [
         {
@@ -29,7 +29,7 @@
     {
       "id": "campbell",
       "number": 2,
-      "page": 7,
+      "page": 8,
       "plotted": true,
       "panels": [
         {
@@ -51,21 +51,21 @@
     {
       "id": "cole",
       "number": 3,
-      "page": 7,
+      "page": 8,
       "plotted": false,
       "panels": []
     },
     {
       "id": "pz",
       "number": 4,
-      "page": 7,
+      "page": 8,
       "plotted": false,
       "panels": []
     },
     {
       "id": "pressure",
       "number": 5,
-      "page": 8,
+      "page": 9,
       "plotted": true,
       "panels": [
         {
@@ -88,7 +88,7 @@
     {
       "id": "influx",
       "number": 6,
-      "page": 8,
+      "page": 9,
       "plotted": true,
       "panels": [
         {
@@ -110,7 +110,7 @@
     {
       "id": "drive",
       "number": 7,
-      "page": 9,
+      "page": 10,
       "plotted": true,
       "panels": [
         {

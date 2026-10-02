@@ -60,7 +60,7 @@ signature of pressure support the simpler method leaves out. No volumetric estim
 
 
 
-Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                       Page 1 of 9
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                       Page 1 of 10
 Drive indices at the last timestep
  Drive                                                 Energy term                                    Index
 
@@ -83,7 +83,7 @@ voidage.
 
 
 
-Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                        Page 2 of 9
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                       Page 2 of 10
 Inputs of the analysis
  Input                                        Value                                 Unit       Source and quality
 
@@ -162,12 +162,12 @@ Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.
 
 
 
-Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                          Page 3 of 9
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                         Page 3 of 10
 Rows marked "Recorded for the reader" or "Does not apply" did not enter the calculation; every other row did. A default the app applied is printed
 as an assumption with its value.
 
 
-Pressure datum
+Pressure datum and contacts
  Input                                        Value                                 Unit             Source and quality
 
  Pressure datum depth                         9,200.0                               ft TVDSS         Entered on the Report tab
@@ -177,96 +177,104 @@ Pressure datum
  Pressures on the Data tab are                Corrected to the datum before                          Static surveys, corrected with a 0.35 psi/ft oil
                                               entry                                                  gradient
 
+ Initial oil-water contact                    n/a                                                    Not provided
+
+ Initial gas-oil contact                      n/a                                                    Not provided
+
 All pressures are absolute. This app applies no correction to datum: the pressures of the data table enter the balance as they were entered. Where
 the surveys were taken away from the datum, correct them to the datum with the fluid gradient before entering them.
 
 
 PVT used by the engine at each timestep
- Step           p (psia)           Bo (RB/STB)                  Rs (scf/STB)                   Bg (RB/Mscf)                   Bw (RB/STB)
+ Step          p (psia)           Bo (RB/STB)                   Rs (scf/STB)                   Bg (RB/Mscf)                   Bw (RB/STB)
 
- 0              2,740.0            1.4040                       650.0                          n/a                            1.0000
+ 0             2,740.0            1.4040                        650.0                          n/a                            1.0000
 
- 1              2,620.0            1.3740                       592.0                          0.9800                         1.0000
+ 1             2,620.0            1.3740                        592.0                          0.9800                         1.0000
 
- 2              2,395.0            1.3490                       545.0                          1.070                          1.0000
+ 2             2,395.0            1.3490                        545.0                          1.070                          1.0000
 
- 3              2,199.0            1.3290                       507.0                          1.170                          1.0000
+ 3             2,199.0            1.3290                        507.0                          1.170                          1.0000
 
- 4              2,029.0            1.3160                       471.0                          1.280                          1.0000
+ 4             2,029.0            1.3160                        471.0                          1.280                          1.0000
 
- 5              1,883.0            1.3030                       442.0                          1.390                          1.0000
+ 5             1,883.0            1.3030                        442.0                          1.390                          1.0000
 
- 6              1,760.0            1.2940                       418.0                          1.500                          1.0000
+ 6             1,760.0            1.2940                        418.0                          1.500                          1.0000
 
- 7              1,655.0            1.2870                       398.0                          1.600                          1.0000
+ 7             1,655.0            1.2870                        398.0                          1.600                          1.0000
 
- 8              1,571.0            1.2800                       383.0                          1.700                          1.0000
+ 8             1,571.0            1.2800                        383.0                          1.700                          1.0000
 
- 9              1,507.0            1.2760                       371.0                          1.760                          1.0000
+ 9             1,507.0            1.2760                        371.0                          1.760                          1.0000
 
- 10             1,460.0            1.2730                       364.0                          1.820                          1.0000
+ 10            1,460.0            1.2730                        364.0                          1.820                          1.0000
 
 The values the engine used at each timestep pressure: a value on the data row first, then the PVT table, then the correlation. Bo and Bw are
 reservoir volume per stock-tank volume; Bg is reservoir volume per standard volume of gas, and is printed only where the run has free gas (a gas
 cap, or a pressure below the bubble point).
 
 
-Data summary
- Quantity                                                                      Value
-
- Timesteps in the table                                                        11
-
- In the fit                                                                    10
-
- Left out of the fit                                                           1: initial state 1, excluded by the analyst 0, no expansion above zero
-                                                                               0
-
- Points the engine reports in the fit                                          10
-
- Data cut-off                                                                  1990-01-01
-
- Period covered                                                                1980-01-01 to 1990-01-01, 10.00 years
-
- Pressure, first to last (psia)                                                2,740.0 to 1,460.0
-
- Cumulative oil at the cut-off (MMSTB)                                         77.430
-
- Cumulative gas at the cut-off (Bscf)                                          89.819
-
- Cumulative water produced at the cut-off (STB)                                0
 
 
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                              Page 4 of 10
+Data summary
+ Quantity                                                                     Value
+
+ Timesteps in the table                                                       11
+
+ In the fit                                                                   10
+
+ Left out of the fit                                                          1: initial state 1, excluded by the analyst 0, no expansion above zero
+                                                                              0
+
+ Points the engine reports in the fit                                         10
+
+ Data cut-off                                                                 1990-01-01
+
+ Period covered                                                               1980-01-01 to 1990-01-01, 10.00 years
+
+ Pressure, first to last (psia)                                               2,740.0 to 1,460.0
+
+ Cumulative oil at the cut-off (MMSTB)                                        77.430
+
+ Cumulative gas at the cut-off (Bscf)                                         89.819
+
+ Cumulative water produced at the cut-off (STB)                               0
 
 
-Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                               Page 4 of 9
-Pressure and production history
- Step      Date              p (psia)     Np (MMSTB)          Gp (Bscf)       Wp (STB)         We (MMRB)          Fit
+Pressure and production history
+ Step         Date           p (psia)     Np (MMSTB)          Gp (Bscf)       Wp (STB)       We (MMRB)         Fit
 
- 0         1980-01-01        2,740.0      0.000               0.000           0                0.000              Initial state (no production yet)
+ 0            1980-01-01     2,740.0      0.000               0.000           0              0.000             Initial state (no production yet)
 
- 1         1981-01-01        2,620.0      7.880               5.989           0                3.119              In the fit
+ 1            1981-01-01     2,620.0      7.880               5.989           0              3.119             In the fit
 
- 2         1982-01-01        2,395.0      18.420              15.565          0                11.680             In the fit
+ 2            1982-01-01     2,395.0      18.420              15.565          0              11.680            In the fit
 
- 3         1983-01-01        2,199.0      29.150              26.818          0                22.489             In the fit
+ 3            1983-01-01     2,199.0      29.150              26.818          0              22.489            In the fit
 
- 4         1984-01-01        2,029.0      40.690              39.673          0                34.027             In the fit
+ 4            1984-01-01     2,029.0      40.690              39.673          0              34.027            In the fit
 
- 5         1985-01-01        1,883.0      50.140              51.394          0                45.492             In the fit
+ 5            1985-01-01     1,883.0      50.140              51.394          0              45.492            In the fit
 
- 6         1986-01-01        1,760.0      58.420              62.217          0                56.245             In the fit
+ 6            1986-01-01     1,760.0      58.420              62.217          0              56.245            In the fit
 
- 7         1987-01-01        1,655.0      65.390              71.602          0                66.064             In the fit
+ 7            1987-01-01     1,655.0      65.390              71.602          0              66.064            In the fit
 
- 8         1988-01-01        1,571.0      70.740              79.229          0                74.705             In the fit
+ 8            1988-01-01     1,571.0      70.740              79.229          0              74.705            In the fit
 
- 9         1989-01-01        1,507.0      74.540              85.348          0                82.049             In the fit
+ 9            1989-01-01     1,507.0      74.540              85.348          0              82.049            In the fit
 
- 10        1990-01-01        1,460.0      77.430              89.819          0                88.065             In the fit
+ 10           1990-01-01     1,460.0      77.430              89.819          0              88.065            In the fit
 
 Volumes are cumulative from the initial state. Np, Wp and injected water are stock-tank volumes; We is a reservoir volume.
 
-Withdrawal and expansion terms
+
+
+
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                         Page 5 of 10
+Withdrawal and expansion terms
  Step             F (MMRB)                     Eo (RB/STB)                          Efw (RB/STB)                          Et (RB/STB)
 
  0                0.0000                       0                                    0                                     0
@@ -295,31 +303,28 @@ Et = Eo + m Eg + Efw (m = 0, so the gas cap term is absent). Eo = Bt - Bti, Eg =
 F = Np [Bt + (Rp - Rsi) Bg] + Wp Bw.
 
 
+Drive indices by timestep
+ Step              Date                               DDI                 GDI                  CDI                WDI                   Sum
 
+ 1                 1981-01-01                         0.680               0.000                0.019              0.257                 0.956
 
-Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                              Page 5 of 9
-Drive indices by timestep
- Step              Date                              DDI                  GDI                 CDI                 WDI                 Sum
+ 2                 1982-01-01                         0.573               0.000                0.021              0.380                 0.974
 
- 1                 1981-01-01                        0.680                0.000               0.019               0.257               0.956
+ 3                 1983-01-01                         0.537               0.000                0.019              0.426                 0.982
 
- 2                 1982-01-01                        0.573                0.000               0.021               0.380               0.974
+ 4                 1984-01-01                         0.543               0.000                0.017              0.426                 0.987
 
- 3                 1983-01-01                        0.537                0.000               0.019               0.426               0.982
+ 5                 1985-01-01                         0.545               0.000                0.015              0.429                 0.990
 
- 4                 1984-01-01                        0.543                0.000               0.017               0.426               0.987
+ 6                 1986-01-01                         0.553               0.000                0.014              0.425                 0.992
 
- 5                 1985-01-01                        0.545                0.000               0.015               0.429               0.990
+ 7                 1987-01-01                         0.560               0.000                0.013              0.421                 0.993
 
- 6                 1986-01-01                        0.553                0.000               0.014               0.425               0.992
+ 8                 1988-01-01                         0.566               0.000                0.012              0.417                 0.995
 
- 7                 1987-01-01                        0.560                0.000               0.013               0.421               0.993
+ 9                 1989-01-01                         0.567               0.000                0.012              0.417                 0.996
 
- 8                 1988-01-01                        0.566                0.000               0.012               0.417               0.995
-
- 9                 1989-01-01                        0.567                0.000               0.012               0.417               0.996
-
- 10                1990-01-01                        0.568                0.000               0.011               0.418               0.997
+ 10                1990-01-01                         0.568               0.000                0.011              0.418                 0.997
 
 
 Engine warnings
@@ -339,7 +344,11 @@ pressure history match does.
 - Injected water and gas are not in the withdrawal term of this engine version.
 - Pressure datum: stated in the inputs. No correction to datum is applied.
 
-Published ranges of the methods used
+
+
+
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                               Page 6 of 10
+Published ranges of the methods used
  Correlation                                                            Published range, as the engine checks it
 
  Standing (1947), Pb, Rs and Bo                                         California crudes; no range is checked by the engine
@@ -356,7 +365,7 @@ The engine flagged no input outside the published range of a correlation in use.
 
 
 
-Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                             Page 6 of 9
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                              Page 7 of 10
 Plots
 Figure 1. Havlena-Odeh: F - We against Et
 
@@ -443,7 +452,7 @@ Does not apply: p/z is a gas reservoir plot. This case is an oil reservoir.
 
 
 
-Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                         Page 7 of 9
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                        Page 8 of 10
 Figure 5. Measured pressure history
 
                                         Measured, in the fit     Measured, not in the fit
@@ -521,7 +530,7 @@ We marched through time from the Carter-Tracy aquifer parameters of the inputs t
 
 
 
-Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                    Page 8 of 9
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                   Page 9 of 10
 Figure 7. Drive indices against time
 
                                                                Depletion (DDI)      Gas cap (GDI)   Rock and connate water (CDI)   Water drive (WDI)
@@ -553,7 +562,7 @@ Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.
 
 
                                                        0
-                                                       1980                      1982               1984                   1986                1988    1990       1992
+                                                       1980                      1982               1984                   1986                1988    1990         1992
 
                                                                                                                            Date
 
@@ -563,5 +572,5 @@ drive index. A stack that ends away from 1 measures how far the fitted in-place 
 
 
 
-Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                                             Page 9 of 9
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                                             Page 10 of 10
 

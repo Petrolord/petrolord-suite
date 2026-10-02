@@ -139,7 +139,7 @@ as an assumption with its value.
 
 
 Material Balance Report, Pletcher gas with pot aquifer, Field SPE 75354 two-cell model                                                   Page 2 of 8
-Pressure datum
+Pressure datum and contacts
  Input                                        Value                                Unit            Source and quality
 
  Pressure datum depth                         n/a                                                  Not provided
@@ -147,6 +147,8 @@ Material Balance Report, Pletcher gas with pot aquifer, Field SPE 75354 two-cell
  Gauge or survey depth                        n/a                                                  Not provided
 
  Pressures on the Data tab are                Not stated                                           Not provided
+
+ Initial gas-water contact                    n/a                                                  Not provided
 
 All pressures are absolute. This app applies no correction to datum: the pressures of the data table enter the balance as they were entered. Where
 the surveys were taken away from the datum, correct them to the datum with the fluid gradient before entering them.

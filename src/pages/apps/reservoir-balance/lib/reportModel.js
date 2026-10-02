@@ -18,6 +18,7 @@ import {
   sourceText, assumedDefaultText, computedText, NOT_PROVIDED, isStated,
 } from '@/lib/inputProvenance';
 import { describePvtSource, MBAL_CORRELATION_LABELS, tableOrigin } from './pvtSource';
+import { pvtOriginRows, PVT_ORIGIN_KIND } from './pvtIntake';
 import { RUN_SNAPSHOT_KEY, DEPTH_REFERENCES, PRESSURE_BASES } from './studyMeta';
 import { RUN_INPUT_DEFAULTS } from './runStaleness';
 import {
@@ -229,7 +230,7 @@ export function mbalInputRows(a) {
   }
 
   // ── fluid and PVT ──
-  const pvtWords = describePvtSource(cfg);
+  const pvtWords = describePvtSource(cfg, { isGas });
   row('Fluid and PVT', 'pvt_source', ['pvt_source'], 'PVT source', cfg.pvt_source === 'correlated' ? 'Correlations' : (cfg.pvt_source ? 'Table and per-row values' : null), '',
     defaulted.has('pvt_source') ? `${assumedDefaultText('correlations')}. ${pvtWords}` : pvtWords);
   const table = Array.isArray(cfg.pvt_lab_table) ? cfg.pvt_lab_table : [];
@@ -692,6 +693,13 @@ export function pvtUsedTable(a) {
   };
 }
 
+/** The provenance of a PVT table taken from Fluid Systems Studio, as label and value rows; null for any other table. */
+export function pvtProvenanceRows(a) {
+  const origin = tableOrigin(a.runConfig);
+  if (origin?.kind !== PVT_ORIGIN_KIND) return null;
+  return pvtOriginRows(origin, { isGas: a.caseData?.fluid_system === 'gas' }).map(([k, v]) => [k, v == null || v === '' ? EMPTY_VALUE : v]);
+}
+
 /** The PVT table of the run config, as entered or generated, capped for the page. */
 export function pvtTableAsEntered(a, { maxRows = 40 } = {}) {
   const u = a.units ?? OILFIELD_UNITS;
@@ -713,7 +721,7 @@ export function pvtTableAsEntered(a, { maxRows = 40 } = {}) {
   return {
     head: cols.map((c) => c[1]),
     body: shown.map((r) => cols.map((c) => c[2](num(r[c[0]])))),
-    note: `${describePvtSource(a.runConfig)}.${sorted.length > shown.length ? ` First ${shown.length} of ${sorted.length} rows.` : ''} The engine interpolates in this table at each timestep pressure.`.replace('..', '.'),
+    note: `${describePvtSource(a.runConfig, { isGas: a.caseData?.fluid_system === 'gas' })}.${sorted.length > shown.length ? ` First ${shown.length} of ${sorted.length} rows.` : ''} The engine interpolates in this table at each timestep pressure.`.replace('..', '.'),
   };
 }
 
@@ -839,6 +847,7 @@ export function collectMbalReportArgs(ctx) {
     expansion: expansionTable(a),
     pvtUsed: pvtUsedTable(a),
     pvtTable: pvtTableAsEntered(a),
+    pvtProvenance: pvtProvenanceRows(a),
     crossCheck: crossCheckRows(a),
     limits: limitsBlock(a),
     warnings: otherWarnings(ctx.result),

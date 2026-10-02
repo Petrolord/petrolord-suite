@@ -102,6 +102,12 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { useMaterialBalanceStudio } from '@/contexts/MaterialBalanceStudioContext';
 import { engineSideCorrelations } from '@/pages/apps/reservoir-balance/lib/studyMeta';
 import UnitField from './UnitField';
+import { supabase } from '@/lib/customSupabaseClient';
+import { useSearchParams } from 'react-router-dom';
+import {
+  listFluidProjects, readFluidProjectBlock, tableFromPvtBlock, FLUID_PROJECT_PARAM,
+} from '@/pages/apps/reservoir-balance/lib/pvtIntake';
+import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
 import { RUN_INPUT_DEFAULTS } from '@/pages/apps/reservoir-balance/lib/runStaleness';
 
 // =============================================================================
@@ -1024,6 +1030,29 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
         )}
       </Card>
 
+      {/* ─── PVT intake from a Fluid Systems Studio project (pvt-1) ─── */}
+      {form.pvt_source === 'lab_table' && (
+        <PvtIntakeCard
+          caseData={caseData}
+          onTaken={(rows, note, origin) => {
+            setForm((prev) => ({
+              ...prev,
+              correlations: { ...clearTableOrigin(prev.correlations), [PVT_TABLE_ORIGIN_KEY]: origin },
+              pvt_lab_table: rows.map((row) => {
+                const out = {};
+                for (const col of LAB_TABLE_COLUMNS) {
+                  const v = row[col.key];
+                  out[col.key] = v == null ? '' : String(v);
+                }
+                return out;
+              }),
+            }));
+            setDirty(true);
+            toast({ title: 'PVT taken from Fluid Systems Studio', description: note, duration: 9000 });
+          }}
+        />
+      )}
+
       {/* ─── Lab Table Prefill (MB7) ─── */}
       {form.pvt_source === 'lab_table' && (
         <PvtPrefillCard
@@ -1055,7 +1084,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
         <p className="text-[11px] text-pl-muted" data-testid="mbal-pvt-table-origin">
           Source as the report will state it: {describePvtSource({
             pvt_source: form.pvt_source, pvt_lab_table: form.pvt_lab_table, pvt_correlations: form.correlations,
-          })}
+          }, { isGas })}
         </p>
       )}
 
@@ -1273,6 +1302,76 @@ const CorrelationSelect = ({ label, value, options, onChange }) => {
         </div>
       )}
     </div>
+  );
+};
+
+// PVT intake (MBAL-U1, RL11): the table of a saved Fluid Systems Studio
+// project, with what that study says about itself (the pvt-1 contract,
+// lib/pvtIntake.js). The report prints the source and the method of each
+// property; nothing is recalculated here.
+const PvtIntakeCard = ({ caseData, onTaken }) => {
+  const [searchParams] = useSearchParams();
+  const named = searchParams.get(FLUID_PROJECT_PARAM) || '';
+  const [projects, setProjects] = useState(null);
+  const [listError, setListError] = useState(null);
+  const [projectId, setProjectId] = useState(named);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    listFluidProjects(supabase).then(({ data, error }) => {
+      if (!alive) return;
+      setProjects(data);
+      setListError(error ? error.message : null);
+    });
+    return () => { alive = false; };
+  }, []);
+
+  const take = async () => {
+    setBusy(true);
+    setMessage(null);
+    const read = await readFluidProjectBlock(supabase, projectId);
+    setBusy(false);
+    if (!read.ok) { setMessage({ kind: 'error', text: read.reason }); return; }
+    const made = tableFromPvtBlock(read.block, { fluidSystem: caseData?.fluid_system, temperatureF: Number(caseData?.reservoir_temperature_f) });
+    if (!made.ok) { setMessage({ kind: 'error', text: made.error }); return; }
+    const note = [`${made.rows.length} rows taken from "${read.projectName ?? 'the project'}".`, ...made.warnings, 'Save the PVT tab to keep it.'].join(' ');
+    setMessage(made.warnings.length ? { kind: 'warning', text: made.warnings.join(' ') } : null);
+    onTaken(made.rows, note, made.origin);
+  };
+
+  return (
+    <Card data-testid="mbal-pvt-intake">
+      <CardHeader className="p-4 pb-2">
+        <CardTitle className="text-sm font-bold text-pl-text uppercase tracking-wider">
+          Take the PVT of a Fluid Systems Studio project
+        </CardTitle>
+        <p className="text-[11px] text-pl-muted mt-0.5">
+          Fills the table from a saved fluid study and keeps what that study says about itself: the project, the fluid model, the method of every property, the liberation basis, the lab tuning and the range flags. The report prints them as the source of the PVT.
+        </p>
+      </CardHeader>
+      <CardContent className="p-4 pt-2 space-y-2">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1 min-w-[14rem] flex-1">
+            <Label htmlFor="mbal-pvt-intake-project" className="text-[11px] text-pl-muted">Saved project</Label>
+            <select id="mbal-pvt-intake-project" data-testid="mbal-pvt-intake-project" className={`${COMPACT_FIELD_THEMED} h-9 w-full text-xs`}
+              value={projectId} onChange={(e) => { setProjectId(e.target.value); setMessage(null); }}>
+              <option value="">{projects == null ? 'Loading the projects' : (projects.length ? 'Choose a project' : 'No saved Fluid Systems Studio project')}</option>
+              {(projects ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}{p.updatedAt ? ` (saved ${String(p.updatedAt).slice(0, 10)})` : ''}</option>)}
+            </select>
+          </div>
+          <Button size="sm" className="h-9" onClick={take} disabled={!projectId || busy} data-testid="mbal-pvt-intake-take">
+            {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+            Take its PVT
+          </Button>
+        </div>
+        {listError && <p className="text-xs text-pl-danger-text">The projects could not be listed: {listError}</p>}
+        {message && (
+          <p className={`text-xs ${message.kind === 'error' ? 'text-pl-danger-text' : 'text-pl-warning-text'}`} data-testid="mbal-pvt-intake-message">{message.text}</p>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

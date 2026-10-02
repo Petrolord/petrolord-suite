@@ -8,6 +8,7 @@
 // The origin of a generated table travels in the pvt_correlations jsonb,
 // under one extra key the engine does not read. No schema change.
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { describePvtOrigin, PVT_ORIGIN_KIND } from './pvtIntake';
 
 export const PVT_TABLE_ORIGIN_KEY = 'lab_table_origin';
 
@@ -59,8 +60,9 @@ const methodsText = (methods) => ROLES
 /**
  * One sentence for the report and the PVT tab.
  * @param {object|null} cfg an rb_run_configs row (the run's or the default)
+ * @param {{isGas?: boolean}} [o] a gas case names no oil property
  */
-export function describePvtSource(cfg) {
+export function describePvtSource(cfg, { isGas = false } = {}) {
   if (!cfg?.pvt_source) return EMPTY_VALUE;
   const corr = cfg.pvt_correlations ?? {};
   if (cfg.pvt_source === 'correlated') {
@@ -70,6 +72,10 @@ export function describePvtSource(cfg) {
   const hasTable = Array.isArray(cfg.pvt_lab_table) && cfg.pvt_lab_table.length > 0;
   if (!hasTable) return 'Per-row PVT on the Data tab';
   const origin = tableOrigin(cfg);
+  if (origin?.kind === PVT_ORIGIN_KIND) {
+    // a table taken from a saved Fluid Systems Studio project through the pvt-1 contract
+    return describePvtOrigin(origin, { isGas }).replace(/\.$/, '');
+  }
   if (origin?.kind === 'correlation_prefill') {
     return [
       `Table built from correlations, with no lab data: ${methodsText(origin.methods)}`,
