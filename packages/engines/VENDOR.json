@@ -22,5 +22,54 @@
     "manifestPaths": 750,
     "vendoredPaths": 750
   },
-  "knownDeviations": []
+  "knownDeviations": [
+    {
+      "path": "engines/fluid/blackOil.ts",
+      "kind": "differing",
+      "vendoredSha": "6b449161b696d239d79017b9e7c34f86a2c1216b",
+      "group": "fluid-u2 (engines PR #299)",
+      "reason": "Fluid Systems Studio upgrade Step 2 engines (gas z from gravity gated on the Standing-Katz chart with both solvers returning the first root, Vasquez-Beggs reference separator gas gravity, brine Bw, uncertainty of the tuned C7+ parameters), vendored from Petrolord/petrolord-engines PR #299 head bf008a2 (blob identical there); the PR is left for the programme lead to review and merge, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #299 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete every fluid-u2 row."
+    },
+    {
+      "path": "engines/fluid/labTune.js",
+      "kind": "differing",
+      "vendoredSha": "b3c7fad7a469f2e743cccf898fd1a1d774533747",
+      "group": "fluid-u2 (engines PR #299)",
+      "reason": "Fluid Systems Studio upgrade Step 2 engines (gas z from gravity gated on the Standing-Katz chart with both solvers returning the first root, Vasquez-Beggs reference separator gas gravity, brine Bw, uncertainty of the tuned C7+ parameters), vendored from Petrolord/petrolord-engines PR #299 head bf008a2 (blob identical there); the PR is left for the programme lead to review and merge, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #299 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete every fluid-u2 row."
+    },
+    {
+      "path": "README.md",
+      "kind": "differing",
+      "vendoredSha": "efa10144c65fe64aaf1b7ea82d10cd172cdb6379",
+      "group": "fluid-u2 (engines PR #299)",
+      "reason": "Fluid Systems Studio upgrade Step 2 engines (gas z from gravity gated on the Standing-Katz chart with both solvers returning the first root, Vasquez-Beggs reference separator gas gravity, brine Bw, uncertainty of the tuned C7+ parameters), vendored from Petrolord/petrolord-engines PR #299 head bf008a2 (blob identical there); the PR is left for the programme lead to review and merge, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #299 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete every fluid-u2 row."
+    },
+    {
+      "path": "__tests__/fluid.blackOilU2.test.js",
+      "kind": "extra",
+      "vendoredSha": "70d2cc64288a39ce96c155ddd8957af211b1f33b",
+      "group": "fluid-u2 (engines PR #299)",
+      "reason": "Fluid Systems Studio upgrade Step 2 engines (gas z from gravity gated on the Standing-Katz chart with both solvers returning the first root, Vasquez-Beggs reference separator gas gravity, brine Bw, uncertainty of the tuned C7+ parameters), vendored from Petrolord/petrolord-engines PR #299 head bf008a2 (blob identical there); the PR is left for the programme lead to review and merge, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #299 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete every fluid-u2 row."
+    },
+    {
+      "path": "__tests__/fluid.labTuneUncertainty.test.js",
+      "kind": "extra",
+      "vendoredSha": "d678abc8c23e4f64444b0efffd33a62faffe121b",
+      "group": "fluid-u2 (engines PR #299)",
+      "reason": "Fluid Systems Studio upgrade Step 2 engines (gas z from gravity gated on the Standing-Katz chart with both solvers returning the first root, Vasquez-Beggs reference separator gas gravity, brine Bw, uncertainty of the tuned C7+ parameters), vendored from Petrolord/petrolord-engines PR #299 head bf008a2 (blob identical there); the PR is left for the programme lead to review and merge, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #299 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete every fluid-u2 row."
+    },
+    {
+      "path": "test-data/fluid/standingKatzChart.json",
+      "kind": "extra",
+      "vendoredSha": "8985d22b5ad0b3376bbdbc5f0ae016dafd6ecf11",
+      "group": "fluid-u2 (engines PR #299)",
+      "reason": "Fluid Systems Studio upgrade Step 2 engines (gas z from gravity gated on the Standing-Katz chart with both solvers returning the first root, Vasquez-Beggs reference separator gas gravity, brine Bw, uncertainty of the tuned C7+ parameters), vendored from Petrolord/petrolord-engines PR #299 head bf008a2 (blob identical there); the PR is left for the programme lead to review and merge, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #299 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete every fluid-u2 row."
+    }
+  ]
 }
