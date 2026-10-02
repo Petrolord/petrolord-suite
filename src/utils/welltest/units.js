@@ -56,6 +56,18 @@ export const UNIT_KINDS = {
     fromOil: (v) => (v - 32) / 1.8,
     toOil: (v) => v * 1.8 + 32,
   },
+  // Tester round 2 (report): period volumes, solution GOR, choke size and
+  // API gravity. Exact factors: 1 scf/STB = 0.3048^3 / 0.158987294928 m3/m3;
+  // one sixty-fourth of an inch = 25.4/64 mm.
+  oilVolume: linear('STB', 'm³', 1 / BBL_PER_M3),
+  gasVolume: linear('Mscf', '10³m³', 1 / MSCF_PER_E3M3),
+  liquidVolume: linear('bbl', 'm³', 1 / BBL_PER_M3),
+  gor: linear('scf/STB', 'm³/m³', (0.3048 ** 3) * BBL_PER_M3),
+  choke: linear('1/64 in', 'mm', 25.4 / 64),
+  apiGravity: identity('degAPI'),
+  fraction: identity('fraction'),
+  ratio: identity('ratio'),
+  gasGravity: identity('air = 1'),
   permeability: identity('md'),
   viscosity: identity('cp', 'mPa·s'),
   fvf: identity('RB/STB', 'm³/m³'),

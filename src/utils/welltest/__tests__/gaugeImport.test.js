@@ -102,3 +102,65 @@ test('importGaugeCsv end to end with a mapping override', () => {
   const swapped = importGaugeCsv(text, { mapping: { timeUnit: 'day' } });
   expect(swapped.rows[1].t).toBeCloseTo(4.8, 12);
 });
+
+// Tester round 2 (2026-10-02, WTA-R2-006): the test overview plots
+// temperature, so the import reads an optional temperature column.
+describe('optional temperature column', () => {
+  const { TEMPERATURE_UNITS, temperatureUnitFromHeader } = require('@/utils/welltest/gaugeImport');
+
+  test('found from its header in any position, with its unit', () => {
+    const csv = 'Index,Temperature (degC),Pws (kPa),Elapsed (hr)\n1,82,20000,0.1\n2,82.5,20100,0.2\n3,83,20150,0.3\n';
+    const out = importGaugeCsv(csv);
+    expect(out.mapping.temperatureCol).toBe(1);
+    expect(out.mapping.temperatureUnit).toBe('degC');
+    expect(out.mapping.unitsFromHeader.temperature).toBe(true);
+    // rows carry T in degF beside oilfield time and pressure
+    expect(out.rows[0].T).toBeCloseTo(82 * 1.8 + 32, 10);
+    expect(out.rows[2].T).toBeCloseTo(83 * 1.8 + 32, 10);
+    expect(out.temperatureCount).toBe(3);
+    // and the pressure and time columns are still the ones their headers name
+    expect(out.mapping.pressureCol).toBe(2);
+    expect(out.mapping.timeCol).toBe(3);
+  });
+
+  test('degF passes through; the unit can be overridden after import', () => {
+    const table = readGaugeTable('Time (hr),BHP (psia),BHT (degF)\n0.1,4000,180\n0.2,4010,181\n');
+    const m = detectGaugeMapping(table);
+    expect(m).toMatchObject({ temperatureCol: 2, temperatureUnit: 'degF' });
+    expect(convertGaugeRows(table, m).rows.map((r) => r.T)).toEqual([180, 181]);
+    expect(convertGaugeRows(table, { ...m, temperatureUnit: 'degC' }).rows[0].T).toBeCloseTo(356, 10);
+    // un-mapping the column drops T and keeps the readings
+    const none = convertGaugeRows(table, { ...m, temperatureCol: -1 });
+    expect(none.rows).toEqual([{ t: 0.1, p: 4000 }, { t: 0.2, p: 4010 }]);
+    expect(none.temperatureCount).toBe(0);
+  });
+
+  test('no temperature header, no temperature: nothing is guessed from position', () => {
+    const three = importGaugeCsv('Time (hr),Pressure (psia),Rate (STB/D)\n0.1,4000,450\n0.2,4010,450\n');
+    expect(three.mapping.temperatureCol).toBe(-1);
+    expect(three.rows.every((r) => !('T' in r))).toBe(true);
+    const headerless = importGaugeCsv('0.1,4000,180\n0.2,4010,181\n');
+    expect(headerless.mapping.temperatureCol).toBe(-1);
+    expect(headerless.rows.every((r) => !('T' in r))).toBe(true);
+    expect(headerless.mapping.unitsFromHeader.temperature).toBe(false);
+  });
+
+  test('a header without a unit takes the default; a blank temperature keeps the pressure reading', () => {
+    const csv = 'Time (hr),Pressure (psia),Temp\n0.1,4000,82\n0.2,4010,\n0.3,4020,83\n';
+    const out = importGaugeCsv(csv, { defaultTemperature: 'degC' });
+    expect(out.mapping).toMatchObject({ temperatureCol: 2, temperatureUnit: 'degC' });
+    expect(out.mapping.unitsFromHeader.temperature).toBe(false);
+    expect(out.rows).toHaveLength(3);
+    expect(out.rows[1]).toEqual({ t: 0.2, p: 4010 });
+    expect(out.temperatureCount).toBe(2);
+    expect(out.skipped).toBe(0);
+  });
+
+  test('header unit words', () => {
+    expect(temperatureUnitFromHeader('Temperature (degF)')).toBe('degF');
+    expect(temperatureUnitFromHeader('BHT °C')).toBe('degC');
+    expect(temperatureUnitFromHeader('Temp_C')).toBe('degC');
+    expect(temperatureUnitFromHeader('Temp')).toBeNull();
+    expect(Object.keys(TEMPERATURE_UNITS)).toEqual(['degF', 'degC']);
+  });
+});

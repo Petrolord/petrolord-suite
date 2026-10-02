@@ -9,6 +9,11 @@
  * compare gauge pressure with the initial pressure pi (psia) and gas
  * pseudo-pressure needs absolute pressure. Gauge readings (psig, kPa g,
  * bar g) add one standard atmosphere.
+ *
+ * Tester round 2 (2026-10-02): an optional temperature column is read too,
+ * found from its header (Temperature, Temp, BHT, degF, degC) and never
+ * guessed from position. Its unit comes from the header or the user; rows
+ * carry it as T in degF, and a file without one carries no T at all.
  */
 import Papa from 'papaparse';
 
@@ -36,6 +41,12 @@ export const TIME_UNITS = {
   sec: { label: 'seconds', hrPer: 1 / 3600 },
   day: { label: 'days', hrPer: 24 },
   datetime: { label: 'date/time stamps', hrPer: null },
+};
+
+// Temperature units a gauge file can carry, to degF.
+export const TEMPERATURE_UNITS = {
+  degF: { label: 'degF', toF: (v) => v },
+  degC: { label: 'degC', toF: (v) => v * 1.8 + 32 },
 };
 
 const num = (v) => {
@@ -79,6 +90,16 @@ const OTHER_HINT = /temp|deg ?[fc]|°|rate|stb|bbl|mscf|m3|choke|depth|tvd|(^|[^
 const PRESSURE_HINT = /press|pws|pwf|bhp|psi|kpa|mpa|(^|[^a-z])(p|bar|barg|bara)([^a-z]|$)/i;
 const TIME_HINT = /time|elapsed|hour|minute|second|date|clock|duration|Δt|delta ?t|(^|[^a-z])(t|dt|hr|hrs|h|min|mins|sec|secs|s|day|days|d)([^a-z]|$)/i;
 
+const TEMPERATURE_HINT = /temp|bht|deg ?[fc]|°\s?[fc]|fahrenheit|celsius/i;
+
+/** Temperature unit implied by a header, or null. */
+export function temperatureUnitFromHeader(h) {
+  const s = String(h || '').toLowerCase();
+  if (/deg ?c|°\s?c|celsius|\(\s?c\s?\)|\[\s?c\s?\]|[_ ]c$/.test(s)) return 'degC';
+  if (/deg ?f|°\s?f|fahrenheit|\(\s?f\s?\)|\[\s?f\s?\]|[_ ]f$/.test(s)) return 'degF';
+  return null;
+}
+
 /** Unit implied by a header, or null. */
 export function pressureUnitFromHeader(h) {
   const s = String(h || '').toLowerCase();
@@ -110,7 +131,7 @@ export function timeUnitFromHeader(h) {
  * are read as time then pressure (the historical layout). defaultPressure
  * is the unit assumed when nothing in the file names one.
  */
-export function detectGaugeMapping({ headers, rows }, { defaultPressure = 'psia' } = {}) {
+export function detectGaugeMapping({ headers, rows }, { defaultPressure = 'psia', defaultTemperature = 'degF' } = {}) {
   const sample = rows.slice(0, 50);
   const columnCount = Math.max(headers?.length || 0, ...sample.map((r) => r.length), 0);
   const numericCol = (i) => sample.filter((r) => Number.isFinite(num(r[i]))).length >= Math.max(1, sample.length / 2);
@@ -130,27 +151,45 @@ export function detectGaugeMapping({ headers, rows }, { defaultPressure = 'psia'
   if (timeCol < 0) timeCol = usable.find((i) => i !== pressureCol) ?? 0;
   if (pressureCol < 0) pressureCol = usable.find((i) => i !== timeCol && numericCol(i)) ?? (timeCol === 0 ? 1 : 0);
 
+  // temperature: only from a header that names it, and never the time or
+  // pressure column; -1 means the file has none
+  let temperatureCol = -1;
+  if (headers) {
+    temperatureCol = headers.findIndex((h, i) => i !== timeCol && i !== pressureCol && TEMPERATURE_HINT.test(h) && numericCol(i));
+  }
+  const temperatureUnit = (temperatureCol >= 0 && temperatureUnitFromHeader(headers[temperatureCol])) || defaultTemperature;
+
   const timeUnit = (headers && timeUnitFromHeader(headers[timeCol]))
     || (stampCol(timeCol) && !numericCol(timeCol) ? 'datetime' : 'hr');
   const pressureUnit = (headers && pressureUnitFromHeader(headers[pressureCol])) || defaultPressure;
   return {
     timeCol, pressureCol, timeUnit, pressureUnit,
+    temperatureCol, temperatureUnit,
     detectedFrom,
     unitsFromHeader: {
       time: !!(headers && timeUnitFromHeader(headers[timeCol])),
       pressure: !!(headers && pressureUnitFromHeader(headers[pressureCol])),
+      temperature: !!(temperatureCol >= 0 && temperatureUnitFromHeader(headers[temperatureCol])),
     },
   };
 }
 
 /**
- * Convert the chosen columns to oilfield rows { t (hr), p (psia) }.
+ * Convert the chosen columns to oilfield rows { t (hr), p (psia) }, plus
+ * T (degF) on the rows that carry a temperature reading when a temperature
+ * column is mapped (temperatureCol >= 0). A missing or unreadable
+ * temperature never drops the pressure reading beside it.
  * Rows at or before time zero are kept: a reading at t = 0 is the pressure
  * at shut-in, and readings before a shut-in time set on the gauge clock are
  * the flowing period (prepareTestData separates them).
  */
-export function convertGaugeRows({ rows }, { timeCol, pressureCol, timeUnit = 'hr', pressureUnit = 'psia' }) {
+export function convertGaugeRows({ rows }, {
+  timeCol, pressureCol, timeUnit = 'hr', pressureUnit = 'psia', temperatureCol = -1, temperatureUnit = 'degF',
+}) {
   const pu = PRESSURE_UNITS[pressureUnit] || PRESSURE_UNITS.psia;
+  const tempU = TEMPERATURE_UNITS[temperatureUnit] || TEMPERATURE_UNITS.degF;
+  const hasTemp = Number.isInteger(temperatureCol) && temperatureCol >= 0;
+  let temperatureCount = 0;
   const tu = TIME_UNITS[timeUnit] || TIME_UNITS.hr;
   const out = [];
   let skipped = 0;
@@ -167,17 +206,23 @@ export function convertGaugeRows({ rows }, { timeCol, pressureCol, timeUnit = 'h
     }
     if (!Number.isFinite(t) || !Number.isFinite(pRaw)) { skipped += 1; continue; }
     const p = pRaw * pu.psiPer + (pu.gauge ? ATM_PSI : 0);
-    out.push({ t, p });
+    const tempRaw = hasTemp ? num(raw[temperatureCol]) : NaN;
+    if (Number.isFinite(tempRaw)) {
+      temperatureCount += 1;
+      out.push({ t, p, T: tempU.toF(tempRaw) });
+    } else {
+      out.push({ t, p });
+    }
   }
-  return { rows: out, skipped };
+  return { rows: out, skipped, temperatureCount };
 }
 
 /** One-call import with automatic detection. */
 export function importGaugeCsv(text, opts = {}) {
   const table = readGaugeTable(text);
   const mapping = { ...detectGaugeMapping(table, opts), ...(opts.mapping || {}) };
-  const { rows, skipped } = convertGaugeRows(table, mapping);
-  return { table, mapping, rows, skipped };
+  const { rows, skipped, temperatureCount } = convertGaugeRows(table, mapping);
+  return { table, mapping, rows, skipped, temperatureCount };
 }
 
 /** Gauge-clock time for display (shut-in / start of flow), hours. */
