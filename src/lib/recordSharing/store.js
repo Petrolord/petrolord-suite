@@ -116,7 +116,9 @@ export function makeSharingStore(transport) {
     // a narrow select may name sharing columns, which exist only once the migration is applied
     const { data, error } = await transport.update(table, id, body, { select: available || select === '*' ? select : 'id' });
     if (error) {
-      if (available && isUnknownColumn(error)) {
+      // only when the refusal is about the columns this store added: an app's own
+      // unknown column is the app's to handle
+      if (available && isUnknownColumn(error) && /version|change_note/.test(String(error.message || ''))) {
         // the answer changed under us (schema cache): once more, the old way
         caps.set(table, { available: false, at: Date.now() });
         return update(table, id, patch, { select });

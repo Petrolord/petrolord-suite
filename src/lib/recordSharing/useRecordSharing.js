@@ -37,7 +37,9 @@ export function useRecordSharing({ store, table, record, onChange = null }) {
 
   // the record prop is the app's copy: follow it when it moves
   const sig = record ? [record.id, record.version, record.visibility, record.organization_id, record.org_access, record.editing_by, record.editing_expires, record.updated_at].join('|') : '';
-  useEffect(() => { setSharing(record || null); setNotice(null); }, [sig]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setSharing(record || null); }, [sig]); // eslint-disable-line react-hooks/exhaustive-deps
+  // a notice belongs to the record it was raised on
+  useEffect(() => { setNotice(null); }, [id]);
 
   useEffect(() => {
     let alive = true;

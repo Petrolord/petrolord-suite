@@ -359,6 +359,24 @@ describe('the shared control', () => {
     expect(db._changes().some((c) => c.action === 'taken_over' && c.changed_by === 'u-owner')).toBe(true);
   });
 
+  test('a newer version saved meanwhile: starting to edit says who and when, and the notice stays while the app updates its copy', async () => {
+    const { db, store } = world();
+    const r = make(db);
+    db.update(T, 'u-owner', r.id, { visibility: 'organization', organization_id: 'org-1', org_access: 'edit' });
+    const s = store('u-col');
+    s.trackOpened(T, db._rows(T)[0]);
+    function App() {
+      const [row, setRow] = React.useState(db._rows(T)[0]);
+      const sh = useRecordSharing({ store: s, table: T, record: row, onChange: (next) => setRow((x) => ({ ...x, ...next })) });
+      return <RecordSharingBar sharing={sh} label="model" onReload={() => {}} />;
+    }
+    await act(async () => { render(<App />); });
+    db.update(T, 'u-owner', r.id, { name: 'owner moved on' });
+    await act(async () => { fireEvent.click(await screen.findByTestId('start-editing')); });
+    await waitFor(() => expect(screen.getByTestId('sharing-notice').textContent).toMatch(/^Olu Owner saved a newer version at .*\. Reload, or save yours as a copy\./));
+    expect(screen.getByTestId('reload-record')).toBeInTheDocument();
+  });
+
   test('history panel: who, when, what', async () => {
     const { db, store } = world();
     const r = make(db);

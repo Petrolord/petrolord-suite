@@ -13,9 +13,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
+import ProjectSharingDialog from './workspace/ProjectSharingDialog';
+import { useSharingNames } from '@/components/recordSharing';
+import { copyName } from '@/lib/recordSharing/rules';
 import {
   listVolumes, deleteVolume, getManifest, setVolumeShared,
-  listProjects, createProject, deleteProject, assignVolumeProject,
+  assignVolumeProject, makeProjectsBackend,
 } from '../services/volumesService';
 import {
   resolveInterpState, interpNeedsMigration, composeManifest,
@@ -191,7 +194,10 @@ const cacheGrid = (map, id, grid) => {
 // status bar). Presentational pieces receive grouped props from here.
 /** @param {Object<string,string>} [p.appPaths] route overrides for the launchers (harness) */
 /** @param {boolean} [p.autoTour] first visit opens Start here and the tour (harnesses opt in) */
-export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
+export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBackend = null } = {}) {
+  // U2-008: the project folders and their organisation sharing go through one
+  // door, so the /dev harness can run them signed out on the in-memory mirror
+  const projectsBe = useMemo(() => projectsBackend || makeProjectsBackend(), [projectsBackend]);
   const { toast } = useToast();
   // Stream L: the active volume's SliceSource (slice worker proxy) and
   // the co-render overlay's; a local SEG-Y opened for viewing lives in
@@ -229,6 +235,10 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     if (importStatusKey) setVolumesRefresh((k) => k + 1);
   }, [importStatusKey]);
   const [projects, setProjects] = useState([]);      // W4.2 explorer grouping
+  const [sharingProjectId, setSharingProjectId] = useState(null);   // U2-008 sharing dialog
+  const [meId, setMeId] = useState(null);
+  useEffect(() => { let on = true; projectsBe.sharing.context().then((c) => { if (on) setMeId(c.userId); }).catch(() => {}); return () => { on = false; }; }, [projectsBe]);
+  const projectOwnerNames = useSharingNames(projectsBe.sharing, projects);
   const [lines2d, setLines2d] = useState([]);        // W5 2D line registry
   const [visibleLineIds, setVisibleLineIds] = useState(new Set());
   const [lineNavs, setLineNavs] = useState(new Map()); // id -> nav (map layer)
@@ -504,7 +514,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
   const volumeIdRef = useRef(null);             // selected id for list-refresh checks
 
   useEffect(() => {
-    listProjects().then(setProjects).catch(() => setProjects([]));
+    projectsBe.listProjects().then(setProjects).catch(() => setProjects([]));
     listLines().then(setLines2d).catch(() => setLines2d([]));
     listVolumes()
       .then((vs) => {
@@ -1332,7 +1342,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     const name = window.prompt('Project name:');
     if (!name) return;
     try {
-      await createProject(name);
+      await projectsBe.createProject(name);
       setVolumesRefresh((k) => k + 1);
     } catch (e) {
       toast({ title: 'Could not create project', description: e.message, variant: 'destructive' });
@@ -1343,10 +1353,35 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     // eslint-disable-next-line no-alert
     if (!window.confirm(`Delete project "${p.name}"? Its volumes stay and return to the flat list.`)) return;
     try {
-      await deleteProject(p);
+      await projectsBe.deleteProject(p);
       setVolumesRefresh((k) => k + 1);
     } catch (e) {
       toast({ title: 'Could not delete project', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  // U2-008: rename (the owner, or a colleague who has taken a project colleagues can edit)
+  const onRenameProject = async (p) => {
+    // eslint-disable-next-line no-alert
+    const name = window.prompt('Project name:', p.name);
+    if (!name || name.trim() === p.name) return;
+    try {
+      await projectsBe.renameProject(p, name.trim());
+      setVolumesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Could not rename project', description: e.message, variant: 'destructive' });
+    }
+  };
+  // U2-008: "Save a copy" of a colleague's project is a folder of the user's own with its name
+  const onCopyProject = async (p) => {
+    try {
+      const mine = projects.filter((x) => !x.user_id || x.user_id === meId).map((x) => x.name);
+      const made = await projectsBe.createProject(copyName(p.name, mine), p.description || null);
+      toast({ title: 'Copy saved', description: `"${made.name}" is your own project. File your volumes under it from a volume's "Move to project".` });
+      setSharingProjectId(null);
+      setVolumesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Could not copy the project', description: e.message, variant: 'destructive' });
     }
   };
 
@@ -3711,6 +3746,8 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     faultColorById,
     volumes: allVolumes,
     projects,
+    userId: meId,
+    projectOwnerNames,
     lines2d,
     visibleLineIds,
     activeVolumeId: volume?.id || null,
@@ -3746,6 +3783,8 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     shareVolume: onShareVolume,
     createProject: onCreateProject,
     deleteProject: onDeleteProject,
+    renameProject: onRenameProject,
+    openProjectSharing: (p) => setSharingProjectId(p.id),
     moveVolumeToProject: onMoveVolumeToProject,
     shareLine: onShareLine,
     deleteLine: onDeleteLine,
@@ -4721,6 +4760,16 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
         onChange={(partial) => settingsHorizon && changeHorizonDisplay(settingsHorizon, partial)}
         onRename={(name) => settingsHorizon && renameHorizon(settingsHorizon, name)}
         saving={settingsSaving}
+      />
+
+      <ProjectSharingDialog
+        project={projects.find((p) => p.id === sharingProjectId) || null}
+        volumes={volumes}
+        store={projectsBe.sharing}
+        onClose={() => setSharingProjectId(null)}
+        onChange={(next) => setProjects((list) => list.map((p) => (p.id === next.id ? { ...p, ...next } : p)))}
+        onSaveCopy={onCopyProject}
+        onReload={() => setVolumesRefresh((k) => k + 1)}
       />
 
       <FaultSettingsDialog
