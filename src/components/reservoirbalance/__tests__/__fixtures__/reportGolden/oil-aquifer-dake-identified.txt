@@ -455,7 +455,7 @@ Does not apply: p/z is a gas reservoir plot. This case is an oil reservoir.
 Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                        Page 8 of 10
 Figure 5. Measured pressure history
 
-                                        Measured, in the fit     Measured, not in the fit
+                                        Measured, in the fit     Measured, left out of the fit
                               2750
 
 
@@ -483,9 +483,9 @@ Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.
 
 
                               1250
-                                 1980                          1982                         1984          1986     1988                  1990
+                                 1980                          1982                              1984          1986   1988               1990
 
-                                                                                                   Date
+                                                                                                        Date
 
 Measured pressures only. This run is a regression: it solves the in-place volume from the measured pressures and simulates none, so there is no
 model line. A pressure history match on the Run tab adds it.
@@ -521,9 +521,9 @@ Figure 6. Cumulative water influx against time
 
 
                                 0
-                                1980                           1982                         1984          1986     1988                  1990
+                                1980                           1982                              1984          1986   1988               1990
 
-                                                                                                   Date
+                                                                                                        Date
 
 We marched through time from the Carter-Tracy aquifer parameters of the inputs table. It is an input of the regression.
 

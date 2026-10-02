@@ -1,6 +1,6 @@
 {
   "pages": 10,
-  "sha256": "9b124ddec3e8e5f51c2bfb454df5c4498bfe6c0f250b03314cf413996471dfa8",
+  "sha256": "343c6054ce62942dd3fe7f7fa245195ae48ae19fb5d3e740fb76f0b2284a7258",
   "figures": [
     {
       "id": "regression",
@@ -77,7 +77,7 @@
           },
           "drawn": {
             "Measured, in the fit": 10,
-            "Measured, not in the fit": 1,
+            "Measured, left out of the fit": 1,
             "Model (simulated)": 11
           },
           "total": 22,

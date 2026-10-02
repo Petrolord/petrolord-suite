@@ -441,7 +441,7 @@ compressibility term (Ramagost and Farshad, 1981).
 
 Figure 5. Measured pressure history
 
-                                            Measured, in the fit          Measured, not in the fit
+                                            Measured, in the fit          Measured, left out of the fit
                               7000
 
 

@@ -220,7 +220,7 @@ export function buildPlotModels(a) {
       yTitle: `Reservoir pressure (${u.label('pressure')})`,
       series: [
         { key: 'measured', name: 'Measured, in the fit', type: 'scatter', colour: 'measured', pts: conv(p.measuredInFit), steps: null },
-        { key: 'measuredOut', name: 'Measured, not in the fit', type: 'scatter', colour: 'out', marker: 'square', pts: conv(p.measuredOut), steps: null },
+        { key: 'measuredOut', name: 'Measured, left out of the fit', type: 'scatter', colour: 'out', marker: 'square', pts: conv(p.measuredOut), steps: null },
         ...(sim ? [{ key: 'model', name: 'Model (simulated)', type: 'line', colour: 'model', pts: conv(p.simulated), steps: null }] : []),
       ],
       lines: [],

@@ -1,6 +1,6 @@
 {
   "pages": 10,
-  "sha256": "23d7bf84fd390930fc7b1360e5eaf3ad1a41388a2df4415bcecdfa602a647c5d",
+  "sha256": "0d514e70ffe30c115086a85d13deb3d4aac000f2dc487051eeb4f8daae57327a",
   "figures": [
     {
       "id": "regression",
@@ -77,7 +77,7 @@
           },
           "drawn": {
             "Measured, in the fit": 10,
-            "Measured, not in the fit": 1
+            "Measured, left out of the fit": 1
           },
           "total": 11,
           "bands": 0,

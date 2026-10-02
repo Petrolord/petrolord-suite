@@ -751,7 +751,7 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                     {source ? (
                       <>
                         <RefreshCw className="w-3 h-3 text-pl-warning-text" />
-                        Read from the file, not saved
+                        Read from the file and waiting to be saved
                       </>
                     ) : (
                       <>

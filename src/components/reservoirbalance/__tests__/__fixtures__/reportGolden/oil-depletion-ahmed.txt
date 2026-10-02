@@ -441,7 +441,7 @@ Does not apply: p/z is a gas reservoir plot. This case is an oil reservoir.
 Material Balance Report, Ahmed Example 11-3 (depletion drive), Field Ahmed REH Table 11-3                                                     Page 7 of 8
 Figure 5. Measured pressure history
 
-                                                                Measured, in the fit      Measured, not in the fit
+                                                                Measured, in the fit      Measured, left out of the fit
                                                       3700
 
 
@@ -469,9 +469,9 @@ Material Balance Report, Ahmed Example 11-3 (depletion drive), Field Ahmed REH T
 
 
                                                       3100
-                                                         2010                      2012                     2014                    2016                2018           2020          2022
+                                                         2010                      2012                      2014                    2016                2018           2020          2022
 
-                                                                                                                                    Date
+                                                                                                                                     Date
 
 Measured pressures only. This run is a regression: it solves the in-place volume from the measured pressures and simulates none, so there is no
 model line. A pressure history match on the Run tab adds it.
@@ -483,7 +483,7 @@ Does not apply: the run has no aquifer model, so the water influx We is zero at 
 
 Figure 7. Drive indices against time
 
-                                                                Depletion (DDI)        Gas cap (GDI)         Rock and connate water (CDI)   Water drive (WDI)
+                                                                Depletion (DDI)        Gas cap (GDI)          Rock and connate water (CDI)   Water drive (WDI)
                                                          3
   Drive index (fraction of the hydrocarbon voidage)
 
@@ -509,9 +509,9 @@ Figure 7. Drive indices against time
 
 
                                                       -0.5
-                                                         2010                  2012                  2014                 2016              2018                2020      2022       2024
+                                                         2010                  2012                  2014                  2016              2018                2020      2022       2024
 
-                                                                                                                                    Date
+                                                                                                                                     Date
 
 Stacked in the order of the legend, one bar per timestep after the initial state. Denominator F - Wp Bw, water produced netted inside the water
 drive index. A stack that ends away from 1 measures how far the fitted in-place volume is from that timestep.
@@ -519,5 +519,5 @@ drive index. A stack that ends away from 1 measures how far the fitted in-place 
 
 
 
-Material Balance Report, Ahmed Example 11-3 (depletion drive), Field Ahmed REH Table 11-3                                                                                        Page 8 of 8
+Material Balance Report, Ahmed Example 11-3 (depletion drive), Field Ahmed REH Table 11-3                                                                                         Page 8 of 8
 
