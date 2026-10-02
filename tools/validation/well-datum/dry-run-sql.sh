@@ -23,22 +23,36 @@ declare
   n_after int;
   kb_before text;
   kb_after text;
+  trig text;
 begin
   perform set_config('lock_timeout', '3000', true);
   select count(*), md5(string_agg(id::text || ':' || kb_m::text, '|' order by id)) into n_before, kb_before from public.geo_wells;
 $BODY
   select count(*), md5(string_agg(id::text || ':' || kb_m::text, '|' order by id)) into n_after, kb_after from public.geo_wells;
+  -- the effect of the team-editing triggers, where that migration is applied
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'geo_wells' and column_name = 'version')
+     and to_regclass('public.suite_record_changes') is not null then
+    execute \$q\$ select 'team-editing triggers present: ' || count(*) filter (where w.version > 1) || ' wells now past version 1, '
+      || (select count(*) from public.suite_record_changes c where c.table_name = 'geo_wells' and c.changed_at >= transaction_timestamp()
+            and c.summary like 'Datum model:%') || ' history lines written with the summary, '
+      || (select count(*) from public.suite_record_changes c where c.table_name = 'geo_wells' and c.changed_at >= transaction_timestamp()
+            and c.changed_by is not null) || ' of them with an author' from public.geo_wells w \$q\$ into trig;
+  else
+    trig := 'team-editing triggers not present';
+  end if;
   select string_agg(name || ' [kb_m ' || kb_m || '] -> ' || coalesce(depth_ref_kind, 'unset') || ' ' || coalesce(depth_ref_elev_m::text, 'null')
            || coalesce(' entered in ' || elev_unit, ''), '; ' order by created_at)
     into report from public.geo_wells;
-  raise exception 'DATUM DRY RUN: % wells before, % after; kb_m %; % stated, % unset; columns added %; constraints %. PER WELL: % (always raised: nothing is kept)',
+  raise exception 'DATUM DRY RUN: % wells before, % after; kb_m %; % stated, % unset; columns added %; constraints %. %. PER WELL: % (always raised: nothing is kept)',
     n_before, n_after, case when kb_before is not distinct from kb_after then 'unchanged' else 'CHANGED' end,
     (select count(*) from public.geo_wells where depth_ref_elev_m is not null),
     (select count(*) from public.geo_wells where depth_ref_elev_m is null),
     (select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'geo_wells'
        and column_name in ('depth_ref_kind', 'depth_ref_label', 'depth_ref_elev_m', 'well_environment', 'ground_elev_m', 'water_depth_m', 'vertical_datum', 'elev_unit', 'datum_changes')),
-    (select count(*) from pg_constraint where conrelid = 'public.geo_wells'::regclass and contype = 'c' and conname like 'geo_wells_%' and conname <> 'geo_wells_status_check'),
-    report;
+    (select count(*) from pg_constraint where conrelid = 'public.geo_wells'::regclass and contype = 'c'
+       and conname in ('geo_wells_depth_ref_kind_check', 'geo_wells_depth_ref_label_check', 'geo_wells_well_environment_check', 'geo_wells_elev_unit_check',
+                       'geo_wells_vertical_datum_check', 'geo_wells_water_depth_check', 'geo_wells_datum_environment_check', 'geo_wells_depth_ref_elev_kind_check', 'geo_wells_datum_changes_check')),
+    trig, report;
 end
 \$dryrun\$;
 SQL

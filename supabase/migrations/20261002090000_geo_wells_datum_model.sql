@@ -24,7 +24,9 @@
 -- the number they always read.
 --
 -- Additive and nullable. No column is dropped or retyped, no default is
--- changed, and there is NO policy, grant or trigger change. geo_wells is a
+-- changed, and there is NO policy, grant or trigger change. This file adds
+-- only the datum columns; the team-editing columns of 20261002110000 are
+-- another migration's, and the two apply in either order. geo_wells is a
 -- product-prefixed registry table; none of the four shared tables is touched.
 --
 -- Backfill (the only data written): a well whose kb_m is not 0 states it as
@@ -115,13 +117,35 @@ begin
     'Datum model: jsonb array of datum corrections [{at, by, by_name, app, reason, kind, shift_tvdss_m, from, to, affected}].';
 
   -- Backfill only what the stored data states unambiguously.
-  update public.geo_wells
-     set depth_ref_kind = 'KB',
-         depth_ref_elev_m = kb_m,
-         elev_unit = case when units_note like 'entered: KB/TD ft%' then 'ft' else elev_unit end
-   where depth_ref_elev_m is null
-     and depth_ref_kind is null
-     and kb_m is not null
-     and kb_m <> 0;
+  --
+  -- Where the team-editing migration (20261002110000) is applied, geo_wells
+  -- carries its guard and log triggers and they see this update as a service
+  -- write: each backfilled well gets version + 1, updated_at = now() and one
+  -- line in its history with no author. That history line is given its
+  -- summary through the triggers' own pass-through column (change_note, never
+  -- stored), named only when it exists so this file stands on its own.
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'geo_wells' and column_name = 'change_note') then
+    execute $backfill$
+      update public.geo_wells
+         set depth_ref_kind = 'KB',
+             depth_ref_elev_m = kb_m,
+             elev_unit = case when units_note like 'entered: KB/TD ft%' then 'ft' else elev_unit end,
+             change_note = 'Datum model: the earlier KB stated as the depth reference (migration, no depth changed)'
+       where depth_ref_elev_m is null
+         and depth_ref_kind is null
+         and kb_m is not null
+         and kb_m <> 0
+    $backfill$;
+  else
+    update public.geo_wells
+       set depth_ref_kind = 'KB',
+           depth_ref_elev_m = kb_m,
+           elev_unit = case when units_note like 'entered: KB/TD ft%' then 'ft' else elev_unit end
+     where depth_ref_elev_m is null
+       and depth_ref_kind is null
+       and kb_m is not null
+       and kb_m <> 0;
+  end if;
 end
 $datum$;

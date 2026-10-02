@@ -167,9 +167,10 @@ select o.name, o.created_at, (o.metadata ->> 'size')::bigint as bytes
   applies it.
 - Scratch dry run and pentest: 25 of 25, pentest 19 of 19.
 - Live rolled-back dry run and pentest (one statement that always raises):
-  `DIGITIZER PENTEST: 19 passed, 0 failed` against the live `storage.objects`.
-  Checked afterwards: 18 buckets, 45 storage policies, no `digitizer-images`
-  bucket, no object. One thing the live run taught: the storage tables refuse
+  `DIGITIZER PENTEST: 19 passed, 0 failed` against the live `storage.objects`,
+  before the organisation sharing apply (45 storage policies) and again after
+  it (50). Checked afterwards each time: 18 buckets, no `digitizer-images`
+  bucket, no policy of that name, no object. One thing the live run taught: the storage tables refuse
   a direct SQL delete unless `storage.allow_delete_query` is on, so the
   pentest turns it on for its own (always rolled back) transaction, as the
   Storage service does for its deletes.
@@ -179,6 +180,16 @@ select o.name, o.created_at, (o.metadata ->> 'size')::bigint as bytes
   `?bucket=missing`).
 - After the owner applies: load a real project on staging, check the image
   comes back, and flip the MIGRATIONS.md row.
+
+Seen on the live database while re-running the pentest (not caused by this
+change, reported to the programme lead): since the team-editing migration
+revoked anon on `geo_wells`, a signed-out (anon) read of `storage.objects`
+through row-level security is refused with "permission denied for table
+geo_wells" for every bucket, because the older `wells` read policy is open to
+every role and names that table. Public URLs are not affected (they do not go
+through row-level security) and the Suite reads its public buckets that way.
+For this bucket it changes nothing: anon was to read nothing, and reads
+nothing.
 
 Open: organisation read of a shared project's image (with the organisation
 sharing wave, together with the restrictive update policy of section 3); the

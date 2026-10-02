@@ -8,7 +8,8 @@
 # backfill does to the 13 live wells what the design doc says (12 stated as
 # KB, Lad unset, 4 entered in feet); the second apply changes no row; the
 # checks refuse bad rows and accept "not set" and an explicit 0; RLS still
-# decides who writes.
+# decides who writes; and, beside the team-editing migration's real guard and
+# log triggers, the backfill is one versioned, summarised history line per well.
 set -euo pipefail
 cd "$(dirname "$0")"; ROOT=../../..
 M=$ROOT/supabase/migrations/20261002090000_geo_wells_datum_model.sql
@@ -106,5 +107,62 @@ check "owner corrects own datum" "$(as $A "update geo_wells set depth_ref_elev_m
 check "another user's update touches no row" "$(as $B "with u as (update geo_wells set depth_ref_elev_m=99 where name='ok-off' returning 1) select count(*) from u")" "0"
 check "another user reads no private well" "$(as $B "select count(*) from geo_wells")" "0"
 check "anon reads nothing" "$(as anon "select count(*) from geo_wells")" "0"
+
+echo "=== 7. beside the team-editing migration (applied on the live database 2026-10-02): its real guard and log triggers ==="
+# A second scratch database with the change log table, the guard and log
+# functions read from the real migration files, the team-editing columns and
+# the two triggers on geo_wells, as 20261002100000 and 20261002110000 make them.
+S=$ROOT/supabase/migrations/20261002100000_suite_record_sharing.sql
+docker exec $C createdb -U postgres s2
+P2() { docker exec -i $C psql -U postgres -d s2 -q -v ON_ERROR_STOP=1 "$@"; }
+Q2() { docker exec -i $C psql -U postgres -d s2 -tAq "$@"; }
+P2 < schema.sql
+{
+  awk '/^create table if not exists public.suite_record_changes/{f=1} f{print} f && /^\);/{exit}' "$S"
+  for fn in suite_record_guard suite_record_log_updated suite_record_log; do
+    awk -v fn="create or replace function public.$fn(" 'index($0, fn) == 1 {f=1} f{print} f && /^end \$\$;/{exit}' "$S"
+  done
+  cat <<'SQL'
+alter table public.geo_wells
+    add column if not exists org_access text not null default 'view',
+    add column if not exists editing_by uuid,
+    add column if not exists editing_since timestamptz,
+    add column if not exists editing_expires timestamptz,
+    add column if not exists version integer not null default 1,
+    add column if not exists updated_by uuid,
+    add column if not exists change_note text;
+create trigger suite_record_guard before insert or update on public.geo_wells
+    for each row execute function public.suite_record_guard('organization_id');
+create trigger suite_record_log after insert or update or delete on public.geo_wells
+    for each row execute function public.suite_record_log('organization_id');
+SQL
+} | P2
+check "the real guard and log functions are in place" "$(echo "select count(*) from pg_proc where proname in ('suite_record_guard','suite_record_log','suite_record_log_updated')" | Q2)" "3"
+check "before: every well at version 1, no history" "$(echo "select (select count(*) from geo_wells where version = 1)||'/'||(select count(*) from suite_record_changes)" | Q2)" "13/0"
+KB2="select md5(string_agg(name||kb_m::text||coalesce(units_note,''), '|' order by name)) from geo_wells"
+kb2_before=$(echo "$KB2" | Q2)
+DRY2=$(bash dry-run-sql.sh | docker exec -i $C psql -U postgres -d s2 -tAq 2>&1 || true)
+check "the dry run reports the triggers' effect" "$(echo "$DRY2" | grep -oE 'team-editing triggers present: 12 wells now past version 1, 12 history lines written with the summary, 0 of them with an author' | head -1)" "team-editing triggers present: 12 wells now past version 1, 12 history lines written with the summary, 0 of them with an author"
+check "and keeps nothing" "$(echo "select (select count(*) from geo_wells where version = 1)||'/'||(select count(*) from suite_record_changes)" | Q2)" "13/0"
+P2 < "$M" && echo "  applied beside the triggers"
+check "12 wells stated, Lad unset" "$(echo "select (select count(*) from geo_wells where depth_ref_kind='KB' and depth_ref_elev_m = kb_m)||'/'||(select string_agg(name, ',') from geo_wells where depth_ref_elev_m is null)" | Q2)" "12/Lad"
+check "the 12 backfilled wells are at version 2, Lad stays at 1" "$(echo "select (select count(*) from geo_wells where version = 2)||'/'||(select version from geo_wells where name='Lad')" | Q2)" "12/1"
+check "one history line per backfilled well, a service write with the summary" "$(echo "select count(*)||'/'||count(*) filter (where changed_by is null and action='updated')||'/'||min(summary) from suite_record_changes" | Q2)" "12/12/Datum model: the earlier KB stated as the depth reference (migration, no depth changed)"
+check "the line names the datum fields only" "$(echo "select changed_fields::text from suite_record_changes c join geo_wells w on w.id = c.record_id where w.name = 'W-3'" | Q2)" '["depth_ref_elev_m", "depth_ref_kind", "elev_unit"]'
+check "the pass-through note is never stored" "$(echo "select count(*) from geo_wells where change_note is not null" | Q2)" "0"
+check "name, kb_m and units_note untouched beside the triggers too" "$(echo "$KB2" | Q2)" "$kb2_before"
+P2 < "$M"
+check "a second apply writes no further version or history" "$(echo "select (select count(*) from geo_wells where version = 2)||'/'||(select count(*) from suite_record_changes)" | Q2)" "12/12"
+as2() {
+  local who=$1; shift
+  local out
+  out=$(printf '%s\n' "\\set VERBOSITY verbose" "begin;" "set local role authenticated;" "select set_config('request.jwt.claim.sub', '$who', true);" "$1;" "commit;" \
+    | docker exec -i $C psql -U postgres -d s2 -tAq -v ON_ERROR_STOP=1 2>&1 || true)
+  if echo "$out" | grep -qE '^ERROR'; then echo "$out" | grep -E '^ERROR' | head -1 | sed -E 's/^ERROR:  ([0-9A-Z]{5}):.*/ERR:\1/'
+  else echo "$out" | grep -v '^$' | tail -1; fi
+}
+check "the owner then corrects a datum from the app, naming the version it opened" "$(as2 $A "update geo_wells set depth_ref_elev_m = 64, kb_m = 64, version = 2, change_note = 'Depth reference changed' where name = 'BX-1New' returning version")" "3"
+check "a stale editor is refused by the guard" "$(as2 $A "update geo_wells set depth_ref_elev_m = 65, kb_m = 65, version = 2 where name = 'BX-1New' returning version")" "ERR:SR001"
+check "and the correction is in the history with its author" "$(echo "select summary||'/'||(changed_by is not null) from suite_record_changes c join geo_wells w on w.id = c.record_id where w.name='BX-1New' order by c.id desc limit 1" | Q2)" "Depth reference changed/true"
 
 echo; echo "$ok passed, $bad failed"; [ "$bad" = 0 ]

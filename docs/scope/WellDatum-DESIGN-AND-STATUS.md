@@ -138,7 +138,8 @@ own. Checks: the reference kind list, environment list, unit list, water
 depth not negative, no water depth onshore, no ground level offshore, the
 change record is an array. No policy, grant or trigger change.
 
-Backfill rule (the only data written): where `depth_ref_elev_m` and
+Backfill rule (the only data this file writes itself; see section 8 for what
+the team-editing triggers add to the wells it touches): where `depth_ref_elev_m` and
 `depth_ref_kind` are both NULL and `kb_m` is not 0, set `depth_ref_kind =
 'KB'` and `depth_ref_elev_m = kb_m`; where the well's `units_note` starts
 with `entered: KB/TD ft`, set `elev_unit = 'ft'`. A `kb_m` of exactly 0 is
@@ -200,10 +201,17 @@ registry, a negative KB, water depth on an onshore well.
   `.pld` sidecar and sink: built on PR #848.
 - Geomechanics reads no well elevation from the registry (its wellbore comes
   from Well Design), so nothing changed there.
-- Migration: logged NOT APPLIED. Scratch dry run 46 of 46. Live rolled-back
-  dry run (one statement that always raises, nothing kept, verified): 13
-  wells before and after, `kb_m` unchanged, 12 stated as KB, Lad unset, the
-  four `entered: KB/TD ft` wells marked ft.
+- Migration: logged NOT APPLIED. Scratch dry run 60 of 60. Live rolled-back
+  dry run (one statement that always raises, nothing kept, verified), run
+  again after the team-editing migration was applied: 13 wells before and
+  after, `kb_m` unchanged, 12 stated as KB, Lad unset, the four
+  `entered: KB/TD ft` wells marked ft.
+- At the apply, beside the team-editing triggers now on `geo_wells`: the 12
+  backfilled wells each get version + 1, `updated_at` = the apply time and
+  one history line with no author and the summary "Datum model: the earlier
+  KB stated as the depth reference (migration, no depth changed)". An editor
+  open on one of them at that moment is told a newer version was saved and
+  reopens. Lad is not touched.
 - Tests: `wellDatum.test.js` (52), `wellDatumReaders.test.js` (15, with the
   source guard), `wellsRegistryDatum.test.js` (11), WDM `u2Datum.test.jsx` (5)
   and `crsAssignKeepsProvenance.test.jsx` (2), Wellsite `upgradeU2Datum.test.jsx`
@@ -238,8 +246,9 @@ the change history apply to it: from Well Data Manager's editor a stale save
 is refused with the reason, and a colleague who holds the check-out of a well
 shared for editing can correct the datum (the change record names them). The
 two geo_wells migrations are independent: this one adds only the datum
-columns, the team-editing one only its own, and they can be applied in either
-order. Wellsite's Correct KB stays with the owner of the registry well.
+columns, the team-editing one only its own, and they apply in either order
+(the team-editing one is applied; the backfill passes its summary through
+that migration's pass-through column only when the column exists). Wellsite's Correct KB stays with the owner of the registry well.
 
 ### Open
 
