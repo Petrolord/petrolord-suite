@@ -1,6 +1,6 @@
 # Fluid Systems & Flow Behavior Studio — STATUS
 
-Last updated: 2026-07-19 (FS8 — EOS program COMPLETE)
+Last updated: 2026-10-02 (Reservoir upgrade round, Step 1: FLUID-U1)
 
 ## What this app is
 
@@ -374,3 +374,90 @@ the regression consumed, `tuningStatus()` compares it with the current
 inputs, and the cards show "Tuned on earlier inputs" (or "Tuned, not
 confirmed" for a tune saved before the record) until the fluid is tuned
 again or reset. The tuned properties stay applied. Tier matrix updated.
+
+## 2026-10-02: Reservoir upgrade round, Step 1 (FLUID-U1)
+
+Working doc: `docs/upgrade/FluidSystemsStudio-UPGRADE.md` (the 24 checks,
+30 findings, the `pvt-1` contract as written, the Step 2 backlog). Branch
+`feat/fluid-u1`.
+
+What the app gained:
+
+- **A report.** `utils/fluidstudio/reportModel.js` (one model for the Report
+  tab and the PDF), `reportFigures.js`, `fluidReportExport.js` on the shared
+  Report Kit (`src/lib/reportKit`). Identification, inputs with unit and
+  source, the method of every property, basis, separator stages, lab tuning
+  record, limits with published ranges and flags, the PVT table, the `pvt-1`
+  block, eight figures (five always drawn, three conditional). The kit gained
+  a `limits` block and a completeness guard (`missingInputRows`).
+- **The `pvt-1` writer.** `utils/fluidstudio/pvtHandoff.js` builds the block
+  from what the engine calls report; `lib/inputProvenance/pvtContract.js`
+  holds the contract, its validator (every property must name its method)
+  and the words a consumer prints. The block is saved with the project
+  (`inputs_data.pvt`, payload schema 2), sent with every handoff, printed in
+  the report and at the head of both CSV files. `lib/pvtSource.js` reads it
+  by project id. Well Test Analysis Studio is the first reader.
+- **What the engine reports about itself.** `analyzeFluidSystem` returns
+  `meta.methods`, `meta.pbSource`, `meta.pbDetail`, `meta.rangeFlags`,
+  `meta.basis` and `meta.standardConditions`; `runEosPvtTable` returns
+  `methods`, `model`, `basis`, `standardConditions`. Correlation dispatch is
+  table-driven (`PB_RS_BO_METHODS`, `OIL_VISCOSITY_METHODS`): the name and
+  the function are one record.
+- **Display units.** `utils/fluidstudio/units.js` on the Suite registry,
+  `FluidUnitsContext`, `UnitField`. Oilfield or SI; a new workspace follows
+  the Suite unit profile, a saved project keeps its own, state stays
+  oilfield. Bg is RB/Mscf (or m3/m3) on every surface.
+- **One model.** `inputs` now also carries `identification`, `inputMeta`
+  (source of each input; sample values marked until edited), `unitSystem`
+  and `streamA.composition.tuning.fit` (the record of the lab tune, with a
+  signature of what it was fitted against).
+- **The P-T door.** `utils/fluidstudio/ptProfileImport.js` on the shared
+  typed reader (`src/lib/tabularParse.js`): any separator,
+  header, units at the door (`inputs.ptProfile.units`), gauge to absolute, a
+  read-back.
+- **Water properties** in the table: Bw and water viscosity (McCain, from
+  the engines library). Salinity enters the viscosity.
+- **One series builder** for the screen charts and the report figures
+  (`utils/fluidstudio/pvtSeries.js`); a Bg plot; plots for the EOS table; lab
+  values against the model.
+
+Engine corrections (each gated in
+`src/utils/__tests__/fluidStudioProvenance.test.js`, each with the old form
+as its negative control):
+
+- An entered bubble point is honoured: below it the Rs correlation is
+  scaled by one constant so Rs meets Rsb at that pressure (`fluid.rsScale`,
+  set by `analyzeFluidSystem`; other callers of `computePvtRow` are
+  untouched). Before: Rs 401 against 650 scf/STB at an entered 2,000 psia.
+- Bo above the bubble point is `Bo(Pb) (Pb / p)^A`, the integral of the
+  Vasquez-Beggs co = A / p (`undersaturatedBo`). Before: the curve's own
+  compressibility was up to 38 percent below the co printed beside it. This
+  also moves the Material Balance prefill and the Simulation PVTO rows above
+  Pb, which call the same function.
+- Separator totals are summed before rounding.
+- The black-oil snapshot pin (`blackOilSnapshot.json`) was updated on
+  purpose for these: the separator totals, `backbone.gor`, the first
+  (undersaturated) pinned row, and the reworded separator warning. The
+  Simulation `BUILT.DATA` fixture was regenerated (14 undersaturated PVTO
+  rows); its OPM acceptance is a worker test and was not re-run.
+
+- **Record sharing** (migration 20261002130000, applied): the hook takes a
+  sharing store; own projects, then "Shared with me"; a save goes through
+  the store with the opened version and only while the user may write; Save
+  a copy. `createSavedProjectsService` gained `listRows` and `loadRow`,
+  `StudioProjectManager` a "Shared with me" group (both additive).
+
+After the merge of Step 0e the app has one tuning status
+(`tuningStatus`, `tuning.fittedOn`); `tuning.fit` is the record of the match
+for the report.
+
+Open (Step 2 backlog in the upgrade doc): lab PVT table import, correlation
+matching to Bo, Rs and viscosity, simulator keyword export, Z from the
+canonical engines, tuned-parameter uncertainty shown, a composition door,
+the Vasquez-Beggs separator gas gravity, CVD, C7+ splitting, SRK.
+
+Tests: jest `fluidStudioProvenance`, `fluidReport` (5 goldens),
+`fluidContract`, `fluidUpgradeUi`, `fluidSharing`, `reportKitLimits`; e2e
+`e2e/fluid-systems-upgrade.spec.js` on `/dev/fluid-systems-studio`, which is
+now `src/dev/FluidStudioHarness.jsx` (in-memory Supabase, saved projects in
+sessionStorage, `?saved=1` for projects as earlier releases saved them).

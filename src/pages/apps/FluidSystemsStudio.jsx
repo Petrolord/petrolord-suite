@@ -5,9 +5,16 @@
 // compositional path (FS1-FS8, docs/scope/FluidSystemsStudio-STATUS.md).
 // Persistence follows the saved_<app>_projects convention via
 // useFluidStudioProjects (10 s autosave once a project is open).
-import React, { useState, useMemo } from 'react';
+//
+// Reservoir upgrade round, app 1 (FLUID-U1, docs/upgrade/
+// FluidSystemsStudio-UPGRADE.md): the page holds ONE model. `inputs` carries
+// the fluid inputs, the identification, the source of each input, the unit
+// system and the saved tuning record; the screen, the PDF report, the two
+// CSV files, the pvt-1 handoff and the saved project are all built from it.
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FlaskConical, Beaker } from 'lucide-react';
 import StudioLayout from '@/components/studio/StudioLayout';
 import StudioHeader from '@/components/studio/StudioHeader';
@@ -19,22 +26,69 @@ import FluidStudioResults from '@/components/fluidstudio/FluidStudioResults';
 import FluidStudioEmptyState from '@/components/fluidstudio/FluidStudioEmptyState';
 import { FluidStudioHelpContent } from '@/components/fluidstudio/FluidStudioHelpGuide';
 import { useFluidStudioProjects } from '@/components/fluidstudio/useFluidStudioProjects';
+import { FluidUnitsProvider } from '@/components/fluidstudio/FluidUnitsContext';
 import { analyzeFluidSystem, sampleFluidStudioData } from '@/utils/fluidStudioCalculations';
 import { runEosFlash, runEosSeparator, runEosPvtTable } from '@/utils/fluidstudio/eosAnalysis';
+import { FLUID_UNIT_SYSTEMS, FLUID_PROFILE_FAMILIES } from '@/utils/fluidstudio/units';
+import {
+  sampleInputMeta, emptyIdentification, clearEditedSampleMarks, identificationOf, SAMPLE_NOTE,
+} from '@/utils/fluidstudio/reportModel';
+import { buildFluidPvtContract, buildFluidHandoff } from '@/utils/fluidstudio/pvtHandoff';
+import { collectFluidReportArgs, exportFluidPdf } from '@/utils/fluidstudio/fluidReportExport';
+import { setProvenanceField } from '@/lib/inputProvenance';
+import { PVT_CONTRACT_PAYLOAD_KEY } from '@/lib/inputProvenance/pvtContract';
+import { useProfileSystem } from '@/lib/units/useProfileSystem';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { buildLabel } from '@/lib/platformBuild';
+import { supabaseSharingStore } from '@/lib/recordSharing';
+import { RecordSharingBar } from '@/components/recordSharing';
+
+// one sharing store per page load (the signed-in user's session)
+const SHARING_STORE = supabaseSharingStore();
 
 // Design system rollout batch 1D (docs/scope/DesignSystem-Rollout.md): the
 // page sits in the dashboard scope, so every class below is a theme role.
 
+/** The sample fluid as the app opens it: every value marked as a sample, with no field data behind it. */
+export const sampleWorkspace = () => ({
+  ...sampleFluidStudioData(),
+  identification: emptyIdentification(),
+  inputMeta: sampleInputMeta(),
+});
+
+// The organisation name for the report header. The page also renders
+// outside the auth provider (unit tests), where there is none.
+const useOrganizationName = () => {
+  try {
+    return useAuth()?.organization?.name || '';
+  } catch {
+    return '';
+  }
+};
+
 const FluidSystemsStudioContent = () => {
-  const [inputs, setInputs] = useState(sampleFluidStudioData);
+  const [inputs, setInputsRaw] = useState(sampleWorkspace);
+  // an input that is edited stops being a sample value (PL11, RL1)
+  const setInputs = useCallback((next) => setInputsRaw((prev) => {
+    const value = typeof next === 'function' ? next(prev) : next;
+    return clearEditedSampleMarks(prev, value);
+  }), []);
 
-  const {
-    projects, currentProjectId, createProject, openProject, deleteProject,
-    manualSave, isSaving, saveError, lastSaveTime,
-    notifications, removeNotification, addNotification,
-  } = useFluidStudioProjects({ inputs, setInputs });
+  // Suite unit profile: a workspace that has not chosen follows the profile;
+  // a saved project keeps the system it was saved with, and a project saved
+  // before the choice existed opens in oilfield units, as it was written.
+  const profileSystem = useProfileSystem('fluid', FLUID_PROFILE_FAMILIES);
+  const system = FLUID_UNIT_SYSTEMS.includes(inputs.unitSystem) ? inputs.unitSystem : (profileSystem || 'oilfield');
+  const setSystem = (v) => setInputsRaw((prev) => ({ ...prev, unitSystem: v }));
+  const openInputs = useCallback((restored) => setInputsRaw({
+    ...restored,
+    unitSystem: FLUID_UNIT_SYSTEMS.includes(restored?.unitSystem) ? restored.unitSystem : 'oilfield',
+  }), []);
 
-  // Pure, synchronous recompute on every keystroke — no backend, no spinner.
+  const organizationName = useOrganizationName();
+  const build = buildLabel();
+
+  // Pure, synchronous recompute on every keystroke: no backend, no spinner.
   const results = useMemo(() => analyzeFluidSystem(inputs), [inputs]);
   const hasResults = !!results?.pvt?.kpis;
 
@@ -48,6 +102,7 @@ const FluidSystemsStudioContent = () => {
   // immutably when and only when their own fields change.
   const eosComposition = inputs.fluidModel === 'eos' ? inputs.streamA?.composition : null;
   const sepStages = inputs.separatorTrain?.stages;
+  const eosSalinity = inputs.streamA?.blackOil?.salinity;
   const eosFlash = useMemo(
     () => (eosComposition ? runEosFlash(eosComposition) : null),
     [eosComposition],
@@ -57,8 +112,8 @@ const FluidSystemsStudioContent = () => {
     [eosComposition, sepStages],
   );
   const eosPvtTable = useMemo(
-    () => (eosComposition ? runEosPvtTable(eosComposition, sepStages) : null),
-    [eosComposition, sepStages],
+    () => (eosComposition ? runEosPvtTable(eosComposition, sepStages, { salinityPpm: eosSalinity }) : null),
+    [eosComposition, sepStages, eosSalinity],
   );
   const eos = useMemo(
     () => (eosComposition
@@ -67,14 +122,69 @@ const FluidSystemsStudioContent = () => {
     [eosComposition, eosFlash, eosSeparator, eosPvtTable],
   );
 
-  const loadSample = () => {
-    setInputs(sampleFluidStudioData());
-    addNotification('Sample fluid loaded', 'info');
+  // The pvt-1 block of the fluid on screen. The same builder writes the
+  // block that is saved with the project, sent with a handoff, printed in
+  // the report and put at the head of both CSV files.
+  const identification = useMemo(() => {
+    const id = identificationOf(inputs);
+    return { ...id, company: id.company || organizationName };
+  }, [inputs, organizationName]);
+  const contractFor = useCallback((projectId, projectName) => buildFluidPvtContract({
+    inputs, results, eos, projectId, projectName, generatedAt: new Date(), appBuild: build, identification,
+  }), [inputs, results, eos, build, identification]);
+
+  const inputsForSave = useMemo(() => ({ ...inputs, unitSystem: system }), [inputs, system]);
+  const {
+    projects, sharedProjects, currentProjectId, projectName, projectRow, sharing, viewingShared,
+    createProject, openProject, deleteProject, manualSave, saveCopy,
+    isSaving, saveError, lastSaveTime,
+    notifications, removeNotification, addNotification,
+  } = useFluidStudioProjects({
+    inputs: inputsForSave,
+    setInputs: openInputs,
+    extra: (id, name) => ({ [PVT_CONTRACT_PAYLOAD_KEY]: contractFor(id, name) }),
+    // record sharing: own projects, then those colleagues shared; one editor at a time
+    sharingStore: SHARING_STORE,
+  });
+
+  const contract = useMemo(
+    () => (hasResults ? contractFor(currentProjectId, projectName || null) : null),
+    [hasResults, contractFor, currentProjectId, projectName],
+  );
+  const handoff = useMemo(
+    () => (hasResults ? buildFluidHandoff({ inputs, results, eos, projectId: currentProjectId, projectName: projectName || null, generatedAt: new Date(), appBuild: build, identification }) : null),
+    [hasResults, inputs, results, eos, currentProjectId, projectName, build, identification],
+  );
+
+  // the envelope trace is held here so the report draws what the screen shows
+  const [envelope, setEnvelope] = useState(null);
+
+  // one model for the Report tab and the PDF
+  const report = useMemo(() => (hasResults
+    ? collectFluidReportArgs({ inputs, results, eos, envelope, system, projectName, organizationName, build, contract })
+    : null), [hasResults, inputs, results, eos, envelope, system, projectName, organizationName, build, contract]);
+
+  const [exporting, setExporting] = useState(false);
+  const exportingRef = useRef(false);
+  const exportPdf = async () => {
+    if (!report?.model || exportingRef.current) return;
+    exportingRef.current = true;
+    setExporting(true);
+    const ok = await exportFluidPdf(report, { projectName, sampleName: identification.sampleName });
+    exportingRef.current = false;
+    setExporting(false);
+    addNotification(ok ? 'Report exported as PDF' : 'The report could not be built', ok ? 'success' : 'error');
   };
 
-  // ET3: merge lab-tuning updates ({lab} and/or {applied}) into the
-  // composition. Replacing the composition object re-keys the EOS memos,
-  // so an applied tune recomputes every compositional result.
+  const loadSample = () => {
+    setInputsRaw((prev) => ({ ...sampleWorkspace(), unitSystem: prev.unitSystem }));
+    addNotification('Sample fluid loaded', 'info');
+  };
+  const hasSampleValues = Object.values(inputs.inputMeta || {}).some((m) => m?.note === SAMPLE_NOTE);
+
+  // ET3: merge lab-tuning updates ({lab}, {applied} and the record of the
+  // fit) into the composition. Replacing the composition object re-keys the
+  // EOS memos, so an applied tune recomputes every compositional result.
   const updateTuning = (next) => setInputs((prev) => {
     const composition = prev.streamA?.composition ?? {};
     return {
@@ -89,24 +199,53 @@ const FluidSystemsStudioContent = () => {
     };
   });
 
+  const setIdentification = (key, value) => setInputsRaw((prev) => ({
+    ...prev, identification: { ...identificationOf(prev), [key]: value },
+  }));
+  const setSource = (key, field, value) => setInputsRaw((prev) => ({
+    ...prev, inputMeta: setProvenanceField(prev.inputMeta, key, field, value),
+  }));
+
   const leftPanel = (
     <div className="space-y-6">
       <section>
         <StudioProjectManager
           projects={projects}
+          sharedProjects={sharedProjects}
+          canDelete={!viewingShared}
           currentProjectId={currentProjectId}
-          onCreate={createProject}
+          onCreate={(name) => createProject(name)}
           onOpen={openProject}
           onDelete={deleteProject}
           confirmDeleteMessage="Delete this project and its saved inputs? This cannot be undone."
         />
+        {projectRow && (
+          <RecordSharingBar
+            sharing={sharing}
+            label="project"
+            className="mt-2"
+            onSaveCopy={saveCopy}
+            onReload={() => openProject(currentProjectId)}
+            fieldLabels={{ project_name: 'name', inputs_data: 'fluid inputs and report fields' }}
+          />
+        )}
+        {projectRow && sharing.ready && !sharing.canWrite && (
+          <p className="mt-2 text-xs text-pl-warning-text" data-testid="fluid-read-only">
+            {sharing.readOnlyReason || 'This project is open read-only.'} Changes you make here are not saved to it.
+          </p>
+        )}
       </section>
+      {hasSampleValues && (
+        <p className="text-xs rounded-md border border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text px-3 py-2" data-testid="fluid-sample-banner">
+          Sample fluid: these are example values, with no field data behind them. Edit them, or state their source on the Report tab.
+        </p>
+      )}
       <FluidStudioInput inputs={inputs} setInputs={setInputs} />
     </div>
   );
 
   return (
-    <>
+    <FluidUnitsProvider system={system}>
       <Helmet>
         <title>Fluid Systems & Flow Behavior Studio - Petrolord Suite</title>
         <meta name="description" content="Client-side black-oil and compositional PVT, blending, separator and flow-assurance analysis from reservoir to stock tank." />
@@ -123,6 +262,15 @@ const FluidSystemsStudioContent = () => {
         }
         headerActions={
           <>
+            <Select value={system} onValueChange={setSystem}>
+              <SelectTrigger className="h-8 w-[104px] text-xs" aria-label="Display units" data-testid="fluid-unit-system" title={profileSystem && !inputs.unitSystem ? 'Following your Suite unit profile' : 'Display units of this project'}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="oilfield">Oilfield</SelectItem>
+                <SelectItem value="si">SI</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               variant="ghost"
               size="icon"
@@ -154,13 +302,25 @@ const FluidSystemsStudioContent = () => {
               composition={inputs.streamA?.composition}
               sepStages={sepStages}
               onUpdateTuning={updateTuning}
+              inputs={inputs}
+              report={report}
+              handoff={handoff}
+              projectId={currentProjectId}
+              onBeforeSend={currentProjectId && sharing.canWrite ? manualSave : undefined}
+              organizationName={organizationName}
+              onIdentification={setIdentification}
+              onSource={setSource}
+              onExportPdf={exportPdf}
+              exporting={exporting}
+              envelope={envelope}
+              onEnvelope={setEnvelope}
             />
           )
           : <FluidStudioEmptyState onRunSample={loadSample} />}
         notifications={notifications}
         onDismissNotification={removeNotification}
       />
-    </>
+    </FluidUnitsProvider>
   );
 };
 

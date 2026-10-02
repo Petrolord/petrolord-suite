@@ -1,0 +1,587 @@
+Fluid Properties Report
+Petrolord Fluid Systems Studio
+
+Project                   Ekene E-2000 PVT                                Company                  Lordsway Energy
+Field                     Ekene                                           Licence or block         OML 143
+Well                      Ekene-7                                         Reservoir or zone        E-2000 sand
+Sample or fluid           BHS-2 recombined                                Sample depth             9,850 ft MD below KB
+Sampling date             2026-08-14                                      Sampling method          Bottomhole
+Laboratory                Core Lab Lagos                                  Lab report               RFL-2026-0412
+Analyst                   A. Analyst                                      Analysis date            2026-10-02
+Analysis type             PVT, equation of state (PR78)                   Build                    Petrolord Suite test (fixture)
+Display units             Oilfield (psia, degF); Bg in RB/Mscf            Generated                2026-10-02 09:00 UTC
+
+
+Headline results
+ Quantity                                         Value              Unit              Method
+
+ Bubble point pressure Pb                         2,750              psia              Peng-Robinson (1978) with Peneloux volume translation,
+                                                                                       C7+ tuned to lab data: saturation pressure by stability
+                                                                                       scan and bisection
+
+ Solution GOR at Pb, separator basis              830.9              scf/STB           Separator train flash of the saturated oil
+
+ Oil formation volume factor at Pb, separator     1.4796             RB/STB            Separator train flash of the saturated oil
+ basis
+
+ Differential Bo at Pb (Bodb)                     1.6158             RB/STB            Differential liberation
+
+ Differential Rs at Pb (Rsdb)                     1,023.1            scf/STB           Differential liberation
+
+ Oil viscosity at Pb                              0.3339             cP                Lohrenz-Bray-Clark, untuned
+
+ Stock-tank oil gravity                           39.7               degAPI            Separator train flash
+
+ Surface gas gravity                              0.781              air = 1           Separator train flash
+
+ Water formation volume factor at Pb              1.0345             RB/STB            McCain
+
+ Water viscosity at Pb                            0.3875             cP                McCain
+
+ Phases at reservoir conditions (3,500 psia       One                                  Stability test: Single phase
+ and 200.0 degF)
+
+Values at the saturation pressure and the reservoir temperature. Pressures are absolute. "Separator basis" means per stock-tank barrel of the
+Separator Train of this report.
+
+
+
+
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                Page 1 of 9
+Inputs and their sources
+ Input                                        Value               Unit             Source and quality
+
+ CO2 in the feed                              2.000               mol%             Measured (lab). Report RFL-2026-0412, table 3
+
+ C1 in the feed                               40.000              mol%             Measured (lab). Report RFL-2026-0412, table 3
+
+ C2 in the feed                               7.000               mol%             Measured (lab). Report RFL-2026-0412, table 3
+
+ C3 in the feed                               6.000               mol%             Measured (lab). Report RFL-2026-0412, table 3
+
+ nC4 in the feed                              5.000               mol%             Measured (lab). Report RFL-2026-0412, table 3
+
+ nC6 in the feed                              6.000               mol%             Measured (lab). Report RFL-2026-0412, table 3
+
+ C7+ in the feed                              34.000              mol%             Measured (lab). Report RFL-2026-0412, table 3
+
+ Feed total                                   100.000             mol%             Computed: sum of the components
+
+ C7+ molecular weight                         190.0               lb/lb-mol        Measured (lab)
+
+ C7+ specific gravity                         0.8400              60/60            Measured (lab)
+
+ C7+ normal boiling point (optional)          n/a                 degF             Not provided: estimated from molecular weight and gravity
+                                                                                   (Soreide)
+
+ Reservoir (flash) pressure                   3,500               psia             Offset well. Ekene-3 static survey
+
+ Reservoir (flash) temperature                200.0               degF             Offset well. Ekene-3 static survey
+
+ Water salinity                               35,000              ppm              Entered, source not stated
+
+ Separator stage 1, pressure and              450.0 / 120.0       psia / degF      Entered, source not stated
+ temperature
+
+ Separator stage 2, pressure and              200.0 / 100.0       psia / degF      Entered, source not stated
+ temperature
+
+ Stock tank (last stage)                      14.7 / 60.0         psia / degF      Standard conditions, always added by the app
+
+ Measured saturation pressure                 2,750               psia             Measured (lab), as entered in the Lab tuning card
+
+ Measured total GOR of the separator test     830.0               scf/STB          Measured (lab), as entered in the Lab tuning card
+
+ Measured Bo of the separator test at         1.4600              RB/STB           Measured (lab), as entered in the Lab tuning card
+ reservoir conditions
+
+ C7+ critical temperature multiplier          0.9748                               Computed: regression to the measured values above
+
+ C7+ critical pressure multiplier             0.9545                               Computed: regression to the measured values above
+
+ Methane to C7+ interaction coefficient       0.0704                               Computed: regression to the measured values above
+
+ C7+ volume shift                             0.1126                               Computed: regression to the measured values above
+
+The compositional model uses the feed composition, the C7+ description, the reservoir pressure and temperature, the separator stages and, when
+applied, the tuning parameters. Salinity enters the water viscosity only. The measured values enter only through the tuning.
+
+
+
+
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                             Page 2 of 9
+Method used for each property
+ Property                             Method                                       Reference                 Note
+
+ Bubble point pressure                Peng-Robinson (1978) with Peneloux           n/a
+                                      volume translation, C7+ tuned to lab
+                                      data: saturation pressure by stability
+                                      scan and bisection
+
+ Solution GOR Rs                      Peng-Robinson (1978) with Peneloux           n/a                       Amyx and McCain adjustment.
+                                      volume translation, C7+ tuned to lab
+                                      data: differential liberation, adjusted to
+                                      the separator train
+
+ Oil formation volume factor Bo       Peng-Robinson (1978) with Peneloux           n/a                       Above the saturation pressure: the
+                                      volume translation, C7+ tuned to lab                                   EOS molar volume ratio.
+                                      data: differential liberation, adjusted to
+                                      the separator train
+
+ Oil compressibility co               Not reported by the EOS table                n/a                       Take it from the slope of Bo above
+ (undersaturated)                                                                                            the saturation pressure.
+
+ Dead oil viscosity                   Not reported by the EOS table                n/a
+
+ Live (saturated) oil viscosity       Lohrenz-Bray-Clark, untuned                  Lohrenz, Bray and Clark   Screening grade: up to a factor of two
+                                                                                   (1964)                    on oil.
+
+ Undersaturated oil viscosity         Lohrenz-Bray-Clark, untuned                  Lohrenz, Bray and Clark
+                                                                                   (1964)
+
+ Gas deviation factor Z               Peng-Robinson (1978) with Peneloux           n/a
+                                      volume translation, C7+ tuned to lab
+                                      data: the gas liberated at each
+                                      differential stage
+
+ Gas viscosity                        Lohrenz-Bray-Clark, untuned                  Lohrenz, Bray and Clark
+                                                                                   (1964)
+
+ Gas formation volume factor Bg       Real gas law with the EOS Z of the           n/a                       At the standard conditions of this
+                                      liberated gas                                                          report.
+
+ Water formation volume factor Bw     McCain                                       McCain (1990)             Pure water form: salinity is not
+                                                                                                             applied to Bw. Water is not part of the
+                                                                                                             EOS.
+
+ Water viscosity                      McCain                                       McCain (1991)             Water is not part of the EOS.
+
+The method names are written by the engine beside the calculation that used them.
+
+
+
+
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                   Page 3 of 9
+Basis and conventions
+ Item                                     As used in this report
+
+ Liberation basis                         Differential liberation at the flash temperature, converted to the separator (flash) basis of the Separator
+                                          Train by the Amyx and McCain adjustment: Bo = Bod x Bofb / Bodb and Rs = Rsfb - (Rsdb - Rsd) x
+                                          Bofb / Bodb. Exact at the saturation pressure, approximate toward atmospheric pressure.
+
+ Standard conditions                      14.7 psia and 60.0 degF
+
+ Table temperature                        200.0 degF
+
+ Bubble point pressure                    2,750 psia, saturation pressure of the equation of state
+
+ Units of this report                     pressure psia; temperature degF; GOR scf/STB; oil and water FVF RB/STB; gas FVF RB/Mscf;
+                                          viscosity cP; compressibility 1/psi
+
+ Pressures                                Absolute
+
+ Oil and water formation volume           RB/STB: reservoir volume per stock-tank volume
+ factors
+
+ Gas formation volume factor              RB/Mscf: reservoir volume per thousand standard cubic feet of gas
+
+ Solution GOR                             scf/STB: standard gas volume per stock-tank oil volume
+
+ Equation of state                        Peng-Robinson (1978) with Peneloux volume translation
+
+ C7+ characterisation                     Single pseudo-component: Soreide boiling point, Kesler-Lee Tc and Pc, Lee-Kesler acentric factor,
+                                          Jhaveri-Youngren volume shift, modified Chueh-Prausnitz methane interaction
+
+ Viscosity model                          Lohrenz-Bray-Clark (untuned)
+
+
+Separator train (compositional flash of each stage)
+ Stage               Pressure (psia)      Temperature (degF)              Vapour (mol% of feed)             Gas gravity         GOR (scf/STB)
+
+ Sep 1               450.0                120.0                           43.23                             0.711               656.4
+
+ Sep 2               200.0                100.0                           4.30                              0.775               65.3
+
+ Stock Tank          14.7                 60.0                            7.19                              1.208               109.2
+
+ Total                                                                                                      0.781               830.9
+
+Separator GOR 721.7 plus stock-tank GOR 109.2 gives the total 830.9 scf/STB. Bo of this train 1.4553 RB/STB; a single flash to stock tank would
+give 1.5208. GOR is per stock-tank barrel.
+
+
+Lab tuning
+The C7+ fraction was regressed to the measured values below (four bounded parameters, Levenberg-Marquardt). The regression converged in 7
+iterations. Tuned on 2026-10-02.
+
+
+Lab values matched
+ Matched to                                   Unit         Measured         Model before         Model after        Error before        Error after
+
+ Saturation pressure at 200.0 degF            psia         2,750            2,898                2,750              +5.37%              +0.00%
+
+ Total GOR                                    scf/STB      830.0            866.1                830.9              +4.35%              +0.10%
+
+ Bo at reservoir conditions                   RB/STB       1.4600           1.4651               1.4553             +0.35%              -0.32%
+
+Errors are model minus measured: percent, or API degrees for the stock-tank gravity.
+
+
+
+
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                      Page 4 of 9
+Tuning parameters
+ Parameter                                                                                Before tuning                         Applied
+
+ C7+ critical temperature multiplier                                                      1.0000                                0.9748
+
+ C7+ critical pressure multiplier                                                         1.0000                                0.9545
+
+ Methane to C7+ interaction coefficient                                                   0.0566                                0.0704
+
+ C7+ volume shift                                                                         0.1324                                0.1126
+
+
+Limits of this analysis
+- Peng-Robinson (1978) equation of state with one C7+ pseudo-component. A heavy fraction split into several pseudo-components is not
+modelled.
+- Without lab tuning the saturation pressure of heavy oils and lean condensates can be several percent off, and the stock-tank API gravity several
+degrees low.
+- Oil and gas viscosities are untuned Lohrenz-Bray-Clark values: screening grade, up to a factor of two on oil.
+- The black-oil table converts differential liberation to the separator basis by the Amyx and McCain adjustment: exact at the saturation pressure,
+approximate toward atmospheric pressure, where Bo can fall below 1.
+- Two hydrocarbon phases only. Water is outside the equation of state; water properties are correlations for water with no dissolved gas.
+- One reservoir temperature. Constant volume depletion is not simulated.
+- In compositional mode this report covers the equation of state results only. The black-oil stream of the app (its separator approximation, blending,
+flow assurance screening and sensitivity sweep) is not part of it.
+
+Published ranges of the methods used
+ Method                                Used for                                      Published range
+
+ C7+ characterisation                  C7+ critical properties                       Molecular weight 90 to 400; specific gravity 0.70 to 1.00 (the
+ (Kesler-Lee, Soreide)                                                               usual range the app checks)
+
+ Lohrenz-Bray-Clark, untuned           Live (saturated) oil viscosity;               No published range is held for this method
+                                       Undersaturated oil viscosity; Gas viscosity
+
+ McCain (water FVF)                    Water formation volume factor Bw              Pressure 0 to 5,000 psia; Temperature 0 to 260 degF
+
+ McCain (water viscosity)              Water viscosity                               Pressure 0 to 10,000 psia; Temperature 100 to 400 degF;
+                                                                                     Salinity 0 to 260,000 ppm
+
+The equation of state itself has no data range; its accuracy rests on the characterisation and the tuning.
+
+Inputs outside a published range
+No input is outside a published range.
+
+
+
+
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                      Page 5 of 9
+PVT table
+ Pressure           Rs            Bo           Bg              Z          Oil visc.      Gas visc.         co          Bw           Water visc.    Region
+ (psia)             (scf/STB)     (RB/STB)     (RB/Mscf)                  (cP)           (cP)              (1/psi)     (RB/STB)     (cP)
+          3,575           830.9       1.4531             n/a        n/a        0.3855                n/a         n/a       1.0325          0.4044 Above Pb
+          3,163           830.9       1.4657             n/a        n/a        0.3596                n/a         n/a       1.0335          0.3958 Above Pb
+          2,888           830.9       1.4748             n/a        n/a        0.3425                n/a         n/a       1.0342          0.3902 Above Pb
+          2,750           830.9       1.4796             n/a        n/a        0.3339                n/a         n/a       1.0345          0.3875 Pb
+          2,338           679.3       1.4060           1.203 0.8461            0.3933         0.01839            n/a       1.0354          0.3796 Below Pb
+          1,925           543.5       1.3401           1.470 0.8518            0.4649         0.01681            n/a       1.0362          0.3720 Below Pb
+          1,513           420.0       1.2798           1.899 0.8643            0.5518         0.01552            n/a       1.0369          0.3648 Below Pb
+          1,100           305.7       1.2235           2.670 0.8838            0.6586         0.01450            n/a       1.0375          0.3580 Below Pb
+              688         196.8       1.1686           4.399 0.9103            0.7933         0.01368            n/a       1.0380          0.3516 Below Pb
+              330          99.0       1.1165           9.456 0.9392            0.9516         0.01292            n/a       1.0384          0.3462 Below Pb
+               15           0.0       0.9656           223.7 0.9896              1.505        0.01046            n/a       1.0387          0.3418 Below Pb
+
+The rows are the rows of the table the app exports and hands to other apps, in the units of the header of this report. Oil compressibility is reported
+above the saturation pressure only.
+
+
+PVT contract handed to other apps
+ Item                              Value
+
+ PVT contract                      pvt-1
+
+ Source                            Fluid Systems Studio, project "Ekene E-2000 PVT"
+
+ Generated                         2026-10-02 09:00 UTC
+
+ Build                             Petrolord Suite test (fixture)
+
+ Fluid model                       Equation of state
+
+ Liberation basis                  Differential liberation at the flash temperature, converted to the separator (flash) basis of the Separator Train by
+                                   the Amyx and McCain adjustment: Bo = Bod x Bofb / Bodb and Rs = Rsfb - (Rsdb - Rsd) x Bofb / Bodb. Exact
+                                   at the saturation pressure, approximate toward atmospheric pressure.
+
+ Bubble point                      saturation pressure of the equation of state
+
+ Standard conditions               14.696 psia, 60 degF
+
+ Lab tuning                        C7+ tuned to lab data
+
+ Units of the block                As the engine holds them, whatever the display units: pressure psia, temperature degF, Rs scf/STB, Bo and Bw
+                                   RB/STB, Bg RB/scf, viscosities cP, co 1/psi
+
+Other Petrolord apps receive this block with the table and print it as the source of the fluid properties they take.
+
+
+
+
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                            Page 6 of 9
+Plots
+Figure 1. Oil formation volume factor Bo against pressure
+
+                                  Bo (RB/STB)
+                        1.5
+                                                                                                      Pb 2,750 psia
+
+                        1.4
+  Bo (RB/STB)
+
+
+
+
+                        1.3
+
+                        1.2
+
+                        1.1
+
+                         1
+
+                        0.9
+                              0                        1000                 2000                             3000                          4000
+
+                                                                       Pressure (psia)
+
+Bo at 200 degF. Method: Peng-Robinson (1978) with Peneloux volume translation, C7+ tuned to lab data: differential liberation, adjusted to the
+separator train. The dashed line marks the bubble point (2,750 psia). 11 points, the series of the screen chart.
+
+
+Figure 2. Solution GOR Rs against pressure
+
+                                  Rs (scf/STB)
+                       1000
+                                                                                                      Pb 2,750 psia
+
+
+                       800
+  Rs (scf/STB)
+
+
+
+
+                       600
+
+
+                       400
+
+
+                       200
+
+
+                         0
+                              0                        1000                 2000                             3000                          4000
+
+                                                                       Pressure (psia)
+
+Rs at 200 degF. Method: Peng-Robinson (1978) with Peneloux volume translation, C7+ tuned to lab data: differential liberation, adjusted to the
+separator train. The dashed line marks the bubble point (2,750 psia). 11 points, the series of the screen chart.
+
+
+Figure 3. Oil viscosity against pressure
+
+                                  Oil viscosity (cP)
+                        1.6
+                                                                                                      Pb 2,750 psia
+
+                        1.4
+  Oil viscosity (cP)
+
+
+
+
+                        1.2
+
+                         1
+
+                        0.8
+
+                        0.6
+
+                        0.4
+
+                        0.2
+                              0                        1000                 2000                             3000                          4000
+
+                                                                       Pressure (psia)
+
+Oil viscosity at 200 degF. Method: Lohrenz-Bray-Clark, untuned. The dashed line marks the bubble point (2,750 psia). 11 points, the series of the
+screen chart. Above the saturation pressure the undersaturated method applies.
+
+
+
+
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                 Page 7 of 9
+Figure 4. Gas deviation factor Z against pressure
+
+                             Z
+                    1
+
+                 0.975
+
+                  0.95
+
+                 0.925
+  Z
+
+
+
+
+                   0.9
+
+                 0.875
+
+                  0.85
+
+                 0.825
+                         0                  500               1000                      1500                     2000                     2500
+
+                                                                      Pressure (psia)
+
+Z at 200 degF. Method: Peng-Robinson (1978) with Peneloux volume translation, C7+ tuned to lab data: the gas liberated at each differential
+stage. The dashed line marks the bubble point (2,750 psia). 7 points, the series of the screen chart.
+
+
+Figure 5. Gas formation volume factor Bg against pressure
+
+                             Bg (RB/Mscf)
+                 1000
+  Bg (RB/Mscf)
+
+
+
+
+                  100
+
+
+
+
+                   10
+
+
+
+
+                    1
+                         0                  500               1000                      1500                     2000                     2500
+
+                                                                      Pressure (psia)
+
+Bg at 200 degF. Method: Real gas law with the EOS Z of the liberated gas. The dashed line marks the bubble point (2,750 psia). 7 points, the
+series of the screen chart. Logarithmic scale.
+
+
+
+
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                               Page 8 of 9
+Figure 6. Laboratory values against the model
+
+                               Model Bo        Laboratory Bo
+                     1.5
+                                                                                                                                    Pb 2,750
+                                                                                                                                    Lab Psat 2,750
+                                                                                                                                             psia psia
+
+                     1.4
+  Bo (RB/STB)
+
+
+
+
+                     1.3
+
+                     1.2
+
+                     1.1
+
+                      1
+
+                     0.9
+                           0                                   1000                                 2000                                     3000            4000
+
+                                                                                               Pressure (psia)
+
+
+                               Model Rs        Laboratory Rs
+                    1000
+                                                                                                                                    Pb 2,750
+                                                                                                                                    Lab Psat 2,750
+                                                                                                                                             psia psia
+
+
+                    800
+  Rs (scf/STB)
+
+
+
+
+                    600
+
+
+                    400
+
+
+                    200
+
+
+                      0
+                           0                                   1000                                 2000                                     3000            4000
+
+                                                                                               Pressure (psia)
+
+Model curves with the measured separator-test values as points and the measured saturation pressure as the dotted line. The model is tuned to
+these values; the tuning table gives the errors.
+
+
+Figure 7. Pressure and temperature phase envelope
+
+                               Bubble points      Dew points          Reservoir conditions       Saturation point at reservoir temperature
+                    4000
+
+
+
+
+                    3000
+  Pressure (psia)
+
+
+
+
+                    2000
+
+
+
+
+                    1000
+
+
+
+
+                      0
+                           0                                   100                                  200                                      300              400
+
+                                                                                             Temperature (degF)
+
+Stability boundaries of the tuned equation of state: 15 bubble points and 1 dew points, as traced on screen. The trace stops near the critical point,
+so the two branches need not meet.
+
+
+Figure 8. Hydrate screening against the flowline profile
+Does not apply: flow assurance screening runs on the black-oil stream, which is not part of a compositional report.
+
+
+
+
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                                   Page 9 of 9
+

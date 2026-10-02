@@ -130,6 +130,7 @@ const DeclineCurveAnalysis = lazy(() => import('@/pages/apps/DeclineCurveAnalysi
 const DcaHarness = lazy(() => import('@/dev/DcaHarness'));
 const ForecastScenarioHubHarness = lazy(() => import('@/dev/ForecastScenarioHubHarness'));
 const WellTestHarness = lazy(() => import('@/dev/WellTestHarness'));
+const FluidStudioHarness = lazy(() => import('@/dev/FluidStudioHarness'));
 const SimStudioHarness = lazy(() => import('@/dev/SimStudioHarness'));
 const FdpHarness = lazy(() => import('@/dev/FdpHarness'));
 const NodalHarness = lazy(() => import('@/dev/NodalHarness'));
@@ -1018,7 +1019,7 @@ function App() {
                                     <Route path="/dev/dca" element={<DcaHarness />} />
                                     <Route path="/dev/forecast-scenario-hub" element={<ForecastScenarioHubHarness />} />
                                     <Route path="/dev/fiscal-regime-designer" element={<FiscalRegimeDesigner />} />
-                                    <Route path="/dev/fluid-systems-studio" element={<FluidSystemsStudio />} />
+                                    <Route path="/dev/fluid-systems-studio" element={<FluidStudioHarness />} />
                                     <Route path="/dev/epe/*" element={<EpeHarness />} />
                                     <Route path="/dev/decision-studio" element={<DecisionStudioHarness />} />
                                     <Route path="/dev/well-test-analysis-studio" element={<WellTestHarness />} />

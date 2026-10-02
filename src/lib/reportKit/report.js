@@ -190,6 +190,29 @@ export function createReport({ title, appName = '', reportName, logo = null, str
     paragraph(value, { size, color, gap });
   };
 
+  /**
+   * "Limits of this analysis" (reviewer lens RL9): what the method assumes
+   * and does not cover, the published range of each correlation used, and
+   * every input that sits outside one. `flags` are sentences; with none the
+   * block says so, so a reader never wonders whether the check was run.
+   * @param {{assumptions?: string[], ranges?: {head: string[], body: Array<string[]>, note?: string,
+   *   columnStyles?: object}, flags?: string[], noFlagsText?: string, title?: string}} a
+   */
+  const limits = ({ assumptions = [], ranges = null, flags = [], noFlagsText = 'No input is outside a published range.', title: blockTitle = 'Limits of this analysis' } = {}) => {
+    heading(blockTitle, 22);
+    layout.y += 5;
+    for (const line of assumptions) paragraph(`- ${line}`, { gap: 1.5 });
+    layout.y += 3;
+    if (ranges?.body?.length) {
+      table('Published ranges of the methods used', ranges.head, ranges.body, { columnStyles: ranges.columnStyles, note: ranges.note });
+    }
+    heading('Inputs outside a published range', 14);
+    layout.y += 5;
+    if (flags.length) for (const line of flags) paragraph(`- ${line}`, { gap: 1.5 });
+    else paragraph(noFlagsText, { gap: 1.5 });
+    layout.y += 5;
+  };
+
   /** Start the plots on a new page under their own heading. */
   const startFigures = (sectionTitle = 'Plots') => {
     layout.newPage();
@@ -274,6 +297,6 @@ export function createReport({ title, appName = '', reportName, logo = null, str
 
   return {
     doc, layout, text,
-    header, heading, paragraph, table, inputsTable, section, startFigures, figure, figures, finish,
+    header, heading, paragraph, table, inputsTable, section, limits, startFigures, figure, figures, finish,
   };
 }
