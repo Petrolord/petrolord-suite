@@ -35,15 +35,19 @@ jest.mock('@/lib/pvtSource', () => ({ readFluidProjectPvt: jest.fn() }));
 const mockApplyCasePatch = jest.fn();
 let mockUnits;
 jest.mock('@/contexts/MaterialBalanceStudioContext', () => ({
-  useMaterialBalanceStudio: () => ({ units: mockUnits, applyCasePatch: mockApplyCasePatch }),
+  useMaterialBalanceStudio: () => ({ units: mockUnits, applyCasePatch: mockApplyCasePatch, caseId: 'c1', caseData: { id: 'c1', production_data: [] }, lastResult: null, refreshRunInputs: jest.fn() }),
 }));
 
 import { MemoryRouter } from 'react-router-dom';
 import AquiferModel, { paramsToSaveFor, MODEL_PARAM_KEYS } from '../AquiferModel';
 import PvtRock from '../PvtRock';
+import AquiferScreening from '../AquiferScreening';
 import UnitField, { numberForInput } from '../UnitField';
 import { createMbalUnits, MBAL_METRIC_VIEW, OILFIELD_UNITS } from '@/pages/apps/reservoir-balance/lib/mbalUnits';
 
+if (typeof globalThis.ResizeObserver !== 'function') {
+  globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
+}
 const METRIC = createMbalUnits(MBAL_METRIC_VIEW);
 const CT_PARAMS = {
   aquifer_permeability_md: 200, aquifer_thickness_ft: 100, aquifer_porosity: 0.25, theta_degrees: 140, radius_ratio: 5,
@@ -146,6 +150,18 @@ describe('MBAL-U1-011: the PVT tab of a case whose PVT comes with its data rows'
     expect(screen.getAllByText(/Lab table is empty/).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByTestId('mbal-pvt-cf'), { target: { value: '5e-6' } });
     expect(await screen.findByTestId('mbal-pvt-save')).toBeDisabled();
+  });
+});
+
+describe('MBAL-U1-022: the Screening tab names its example values', () => {
+  test('the built-in aquifer parameters are called an example until one is changed, and again when the sample is loaded', () => {
+    render(<AquiferScreening />);
+    expect(screen.getByTestId('mbal-screening-sample')).toHaveTextContent('those of a built-in example');
+    const field = document.querySelector('input[data-testid^="mbal-screen-"]');
+    fireEvent.change(field, { target: { value: '123' } });
+    expect(screen.queryByTestId('mbal-screening-sample')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Sample/ }));
+    expect(screen.getByTestId('mbal-screening-sample')).toBeInTheDocument();
   });
 });
 

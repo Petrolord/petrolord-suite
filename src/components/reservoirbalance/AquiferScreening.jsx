@@ -103,6 +103,9 @@ const AquiferScreening = () => {
     return src.map((r) => ({ t: String(r.t), p: String(r.p) }));
   });
   const [applying, setApplying] = useState(false);
+  // MBAL-U1-022: the tab opens on the parameters of a built-in example. They
+  // are named as such until one of them is changed.
+  const [sampleParams, setSampleParams] = useState(true);
 
   const numericParams = useMemo(() => {
     const out = {};
@@ -145,7 +148,7 @@ const AquiferScreening = () => {
   const currentMethod = METHODS.find((m) => m.code === method);
   const finalTD = result.series?.length ? result.series[result.series.length - 1].tD : null;
 
-  const setParam = (k, v) => setParams((p) => ({ ...p, [k]: v }));
+  const setParam = (k, v) => { setSampleParams(false); setParams((p) => ({ ...p, [k]: v })); };
   const setRow = (i, key, v) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, [key]: v } : r)));
   const addRow = () => setRows((rs) => [...rs, { t: '', p: '' }]);
   const delRow = (i) => setRows((rs) => rs.filter((_, idx) => idx !== i));
@@ -167,6 +170,7 @@ const AquiferScreening = () => {
   const loadSample = () => {
     const d = sampleAquiferData();
     setParams(s({ ...d.params, reD: '' }));
+    setSampleParams(true);
     setRows(d.history.map((r) => ({ t: String(r.t), p: String(r.p) })));
     toast({ title: 'Sample loaded', description: 'An edge-water-drive aquifer case is ready.' });
   };
@@ -231,6 +235,11 @@ const AquiferScreening = () => {
         </div>
       </div>
       {currentMethod && <p className="text-xs text-pl-muted">{currentMethod.blurb}</p>}
+      {sampleParams && (
+        <p className="text-xs text-pl-warning-text" data-testid="mbal-screening-sample">
+          The aquifer parameters below are those of a built-in example (an edge water drive), until you change one. The influx shown is theirs on the pressure history in the table. Type the aquifer of this case before using the result.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi title="Cumulative Influx We" value={fmtWe(result.cumulativeWe)} accent />
