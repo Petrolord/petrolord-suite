@@ -12,7 +12,9 @@
 // row, which Risked Reserves Valuation reads (RCP-T1-003).
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Trash2, Plus, Layers } from 'lucide-react';
+import { Trash2, Plus, Layers, Users, Copy } from 'lucide-react';
+import { RecordSharingBar, useRecordSharing, SharedRowNote, useSharingNames } from '@/components/recordSharing';
+import { copyName } from '@/lib/recordSharing/rules';
 import { RISK_FACTORS, chanceOfSuccess, riskProspect } from '../../services/ProspectRiskEngine';
 import { VOLUME_UNITS, portfolioInMMboe } from '../../services/prospectVolumes';
 import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
@@ -28,11 +30,25 @@ const pct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : EMPTY_VALU
 
 const DEFAULT_FACTORS = { trap: 0.6, reservoir: 0.7, charge: 0.8, seal: 0.7 };
 
+/**
+ * U2-014: the sharing control of one inventory row. A prospect is added and
+ * deleted, never edited in place, so sharing is for viewing: a colleague
+ * reads it and saves a copy into their own inventory.
+ */
+function ProspectSharing({ store, row, onChange }) {
+  const sharing = useRecordSharing({ store, table: 'rcp_prospects', record: row, onChange });
+  return <RecordSharingBar sharing={sharing} label="prospect" allowEdit={false} fieldLabels={{ pg_factors: 'chance factors', inputs: 'volumes', risked: 'risked volumes' }} />;
+}
+
 export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 'MMbbl', valuationHref = '/dashboard/apps/reservoir/risked-reserves-valuation', reviewer = null, context = null, projectName = null }) {
   const [name, setName] = useState('');
   const [factors, setFactors] = useState(DEFAULT_FACTORS);
   const [vol, setVol] = useState({ mean: '', p90: '', p50: '', p10: '' });
   const [prospects, setProspects] = useState([]);
+  // U2-014: prospects colleagues shared with the organisation, listed apart and never in the roll-up
+  const [sharedProspects, setSharedProspects] = useState([]);
+  const [shareRow, setShareRow] = useState(null);
+  const [me, setMe] = useState(null);
   const [status, setStatus] = useState(null);
   const [unit, setUnit] = useState(defaultUnit);
   // RCP-U1-003: what the volumes are. The valuation reads recoverable
@@ -56,10 +72,27 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
   }, [unrisked]);
 
   const refresh = async () => {
-    try { setProspects(await backend.listProspects()); }
+    try {
+      setProspects(await backend.listProspects());
+      if (backend.listSharedProspects) setSharedProspects(await backend.listSharedProspects());
+    }
     catch (e) { setStatus(e.message); }
   };
   useEffect(() => { refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [backend]);
+  useEffect(() => {
+    let alive = true;
+    if (backend.sharing) backend.sharing.context().then((c) => { if (alive) setMe(c.userId); }).catch(() => {});
+    return () => { alive = false; };
+  }, [backend]);
+  const names = useSharingNames(backend.sharing, [...prospects, ...sharedProspects]);
+  const saveCopy = async (p) => {
+    try {
+      const name = copyName(p.name, prospects.map((x) => x.name));
+      await backend.saveProspect({ name, pgFactors: p.pg_factors || {}, inputs: p.inputs || {}, risked: p.risked || {} });
+      setStatus(`Saved ${name} into your inventory.`);
+      await refresh();
+    } catch (e) { setStatus(e.message); }
+  };
 
   const num = (v) => (v === '' ? NaN : Number(v));
   const unriskedObj = useMemo(() => ({
@@ -259,17 +292,64 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
               {prospects.map((p) => {
                 const ppg = chanceOfSuccess(p.pg_factors || {});
                 return (
-                  <tr key={p.id} data-testid="prospect-row" data-prospect-name={p.name}>
+                  <React.Fragment key={p.id}>
+                  <tr data-testid="prospect-row" data-prospect-name={p.name}>
                     <td className="pr-2 py-0.5 text-pl-text">{p.name}</td>
                     <td className="pr-2 py-0.5">{pct(ppg)}</td>
                     <td className="pr-2 py-0.5">{fmt(p.inputs?.mean)}</td>
                     <td className="pr-2 py-0.5 text-pl-muted">{VOLUME_UNITS[p.inputs?.unit]?.label || 'not stated'}</td>
                     <td className="pr-2 py-0.5 text-pl-muted" data-testid="prospect-basis">{p.inputs?.basis || 'not stated'}</td>
                     <td className="pr-2 py-0.5 font-pl-mono text-pl-text">{fmt(p.risked?.risked_mean ?? ppg * (p.inputs?.mean || 0))}</td>
-                    <td className="py-0.5 text-right">
+                    <td className="py-0.5 text-right whitespace-nowrap">
+                      {backend.sharing && (
+                        <button type="button" title={`Share ${p.name} with your organisation`} data-testid={`prospect-share-${p.name}`} aria-expanded={shareRow === p.id}
+                          className={`mr-2 hover:text-pl-text ${p.visibility === 'organization' ? 'text-pl-primary-text' : 'text-pl-muted'}`} onClick={() => setShareRow(shareRow === p.id ? null : p.id)}>
+                          <Users className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       <button type="button" title={`Delete ${p.name}`} data-testid={`prospect-delete-${p.name}`}
                         className="text-pl-muted hover:text-pl-danger-text" onClick={() => remove(p)}>
                         <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                  {shareRow === p.id && (
+                    <tr data-testid="prospect-share-row">
+                      <td colSpan={7} className="pb-2">
+                        <ProspectSharing store={backend.sharing} row={p} onChange={(next) => setProspects((list) => list.map((x) => (x.id === next.id ? { ...x, ...next } : x)))} />
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : <p className="text-xs text-pl-muted">No prospects yet. Add one above.</p>}
+      </div>
+
+      {/* U2-014: prospects colleagues shared with the organisation */}
+      {sharedProspects.length > 0 && (
+        <div data-testid="prospect-shared">
+          <div className="text-[10px] uppercase tracking-wider text-pl-muted mb-1">
+            Shared with me <span data-testid="prospect-shared-count">{sharedProspects.length}</span>
+          </div>
+          <p className="mb-1 text-[11px] text-pl-muted">Read-only, and left out of your portfolio. Save a copy to count one in your inventory.</p>
+          <table className="w-full text-xs">
+            <tbody>
+              {sharedProspects.map((p) => {
+                const ppg = chanceOfSuccess(p.pg_factors || {});
+                return (
+                  <tr key={p.id} data-testid="prospect-shared-row" data-prospect-name={p.name}>
+                    <td className="pr-2 py-0.5 text-pl-text">{p.name}<br /><SharedRowNote table="rcp_prospects" row={p} userId={me} names={names} /></td>
+                    <td className="pr-2 py-0.5">{pct(ppg)}</td>
+                    <td className="pr-2 py-0.5">{fmt(p.inputs?.mean)} {VOLUME_UNITS[p.inputs?.unit]?.label || ''}</td>
+                    <td className="pr-2 py-0.5 text-pl-muted">{p.inputs?.basis || 'not stated'}</td>
+                    <td className="pr-2 py-0.5 font-pl-mono text-pl-text">{fmt(p.risked?.risked_mean ?? ppg * (p.inputs?.mean || 0))}</td>
+                    <td className="py-0.5 text-right">
+                      <button type="button" data-testid={`prospect-copy-${p.name}`} title={`Save a copy of ${p.name} into your inventory`}
+                        className="inline-flex items-center gap-1 text-pl-primary-text hover:text-pl-primary-text-hover" onClick={() => saveCopy(p)}>
+                        <Copy className="w-3.5 h-3.5" /> Save a copy
                       </button>
                     </td>
                   </tr>
@@ -277,8 +357,8 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
               })}
             </tbody>
           </table>
-        ) : <p className="text-xs text-pl-muted">No prospects yet. Add one above.</p>}
-      </div>
+        </div>
+      )}
 
       {/* portfolio roll-up */}
       {prospects.length > 0 && (

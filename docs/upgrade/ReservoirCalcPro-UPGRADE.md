@@ -143,7 +143,7 @@ Sources: [GeoX play and prospect assessment](https://www.software.slb.com/produc
 | `rcp_*` not in `.pld` | Plan section 3 | Done (026) |
 | Min-curvature gridding, DB-persisted grids | memory | Superseded by U2-005 (read the registry lattice) |
 | Simple-method 3D box schematic | memory | Dropped (low value) |
-| Live multi-user sharing | memory | Still wanted, schema and RLS (U2-014, owner) |
+| Live multi-user sharing | memory | Organisation sharing built 2026-10-02 (U2-014), pending the owner's apply; two people editing at the same moment is deliberately not built |
 | Staging tester walk | ROADMAP | Still wanted (owner or tester) |
 
 ### 2c. Suite integration
@@ -232,7 +232,7 @@ Built on branch `feat/rcp-u2`, one commit per item.
 |---|---|
 | U2-003 segments or zones with per-segment contacts and dependencies | L. After NAPE. Mapping's contactVolumes already splits by fault block for one GOC and OWC; RCP would need segment contacts, a segment table and dependent aggregation. |
 | U2-010 play and prospect chance split | Deferred by the decision. Pg stays the product of four independent factors and other. |
-| U2-014 org-shared projects and prospects | Needs a migration on `saved_quickvol_projects` / `rcp_prospects` RLS and a second engineer (shared-table rule). Owner item. |
+| U2-014 org-shared projects and prospects | Needs a migration on `saved_quickvol_projects` / `rcp_prospects` RLS and a second engineer (shared-table rule). Owner item. **Built 2026-10-02** (approved 2026-10-01), pending apply: see the last section. |
 | U2-016 portfolio Monte Carlo with dependencies | L. The portfolio stays the independent MMboe roll-up, labelled as such. |
 
 ### Owner item 3 (prospects saved before U1)
@@ -265,3 +265,15 @@ Until then the flag stays as built in U1: the valuation marks in-place and unsta
 3. Earth Modeling's handoff fills the Simple method; a model with a gas cap is split approximately (Earth Modeling's note). A handoff into a structural method is a possible follow-up.
 4. Re-run for pre-U1 prospects (above) is an M follow-up.
 5. Playwright e2e is still not in CI (U1 owner item 1). `e2e/reservoircalc-pro-u2.spec.js` was run locally with 1 worker.
+
+## Organisation sharing wave (2026-10-02): U2-014 built, pending apply
+
+Owner 2026-10-01: the second engineer approved the organisation sharing work. Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Migration `20261002100000_suite_record_sharing.sql`, NOT APPLIED (owner-run). Until it is applied the control is a short note and saving works as before.
+
+- **Projects, owner.** A Share button in the header (once the project is saved) opens the shared control under the header: share with the organisation, colleagues can view or edit, who is editing, history.
+- **Projects, colleague.** The Project Manager lists the user's own projects, then "Shared with me" with who shared each. A shared project shows a Read-only badge; Save and auto-save never overwrite it; Save a copy (Save dialog and Project Manager) makes it the user's own.
+- **One editor at a time, no silent overwrite.** As in every app of the wave. `saved_quickvol_projects` gains `updated_at` (it had none); the project's own `v` counter in the blob is unchanged.
+- **Prospects.** `listProspects` stays "my prospects", so the inventory, the portfolio and Risked Reserves Valuation count what they counted. Each inventory row has a share button, for viewing (a prospect is added and deleted, never edited in place). Prospects colleagues shared are listed under the inventory and copied in with Save a copy.
+- **Live table.** `saved_quickvol_projects` had two overlapping owner-only policy sets and a dormant `Allow admin full access` policy (a JWT claim nothing sets); the first two are replaced by the four policies of the wave, the dormant one is left.
+- **Code.** `services/ProjectService.js`, `services/rcpBackend.js`, `services/prospectsService.js`, `contexts/ReservoirCalcContext.jsx` (`saveCurrentProject(..., { asNew })`), `ReservoirCalcPro.jsx`, `components/tools/ProjectManager.jsx`, `ProspectRiskingPanel.jsx`, the Collaboration guide. Harness: `/dev/reservoircalc-pro?shared=1`, `?sharing=off`.
+- **Tests.** `__tests__/orgSharing.test.jsx`; three tests in `e2e/org-sharing.spec.js`.

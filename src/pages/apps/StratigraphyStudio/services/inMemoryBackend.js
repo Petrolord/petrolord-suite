@@ -211,11 +211,13 @@ export function makeInMemoryBackend({ sample = true, seedWells = [], sections: s
       topsByWell.get(wellId).sort((a, b) => a.md_m - b.md_m);
       return { ...row };
     },
-    async currentUserId() { return 'user-a'; },
+    // the Basin harness's own user: its model rows follow the sharing rules
+    // (src/lib/recordSharing), so a model is created as the user who will open it
+    currentUserId: () => basin.currentUserId(),
     async createBasinModel(row) { basinModels.push({ ...row }); await basin.insertWell({ ...row }); return { ...row }; },
     _basinModels: () => basinModels,
     // STRAT-U2-018 (U1-032): one Basin model per well, updated in place
-    listBasinModels: () => basin.listWells(),
+    listBasinModels: async () => { const uid = await basin.currentUserId(); return (await basin.listWells()).filter((m) => !m.user_id || m.user_id === uid); },
     async updateBasinModel(id, patch) { await basin.updateWell(id, patch); const m = basinModels.find((r) => r.id === id); if (m) Object.assign(m, patch); },
 
     async listUnits() { return units.map((u) => ({ ...u })); },

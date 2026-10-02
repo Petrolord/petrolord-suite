@@ -23,6 +23,7 @@ import {
   listUnits, listIntervals, replaceIntervals,
   listCoreImages, uploadCoreImage, updateCoreImage, deleteCoreImage, coreImageUrl,
 } from '@/lib/stratRegistry';
+import { supabaseSharingStore } from '@/lib/recordSharing';
 
 export function makeRegistryBackend() {
   let orgId; // resolved once per session (undefined = not yet)
@@ -72,5 +73,7 @@ export function makeRegistryBackend() {
       return shareWell(wellId, org);
     },
     unshareWell: (wellId) => unshareWell(wellId),
+    // U2-012 team editing: the well's sharing state, check-out and history
+    sharing: supabaseSharingStore(),
   };
 }

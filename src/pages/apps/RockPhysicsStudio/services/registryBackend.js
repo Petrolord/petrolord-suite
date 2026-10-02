@@ -6,7 +6,8 @@
 // Reads go straight to the shared registry (src/lib/wellsRegistry.js:
 // geo_wells, geo_wells_logs + f32 curve objects, geo_wells_tops,
 // geo_wells_zones — RLS enforces ownership/org sharing server-side).
-// Writes: rp_projects (app-private, owner-only) and, since RP1, the
+// Writes: rp_projects (the owner's project, which the owner can share
+// with the organisation) and, since RP1, the
 // fluid-substituted curves published back to geo_wells_logs with the
 // overwrite-own contract Pore Pressure Studio uses.
 
@@ -18,6 +19,7 @@ import {
 import { getDepthUnit } from '@/lib/crs/settingsService';
 import { staleOwnCurves } from './publish';
 import { createSavedProjectsService } from '@/utils/savedProjects';
+import { supabaseSharingStore } from '@/lib/recordSharing';
 
 // U2-011: SCAL Studio's saved projects, read only (the saturation-height link)
 const scalProjects = createSavedProjectsService('saved_scal_projects');
@@ -44,20 +46,45 @@ async function publishCurves(wellId, preparedLogs, projectId) {
 const RP_PROJECT_KIND = 'rp-project';
 registerStateKind(RP_PROJECT_KIND, { current: 1, label: 'rock physics project' });
 
+// Organisation sharing (migration 20261002100000): rp_projects rows now
+// include the projects colleagues shared, so "my project" is asked for by
+// owner, and the shared ones are listed apart. A save carries the version the
+// project was opened at; before the migration it is the plain update.
+async function currentUserId() {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id || null;
+}
+
 async function loadProject() {
+  const uid = await currentUserId();
+  if (!uid) return null;
   const { data, error } = await supabase.from('rp_projects')
-    .select('*').order('updated_at', { ascending: false }).limit(1);
+    .select('*').eq('user_id', uid).order('updated_at', { ascending: false }).limit(1);
   if (error) throw new Error(`Could not load the project: ${error.message}`);
   return openStateRow(RP_PROJECT_KIND, data?.[0] || null);
 }
 
-async function saveProject(patch) {
-  const existing = await loadProject();
+/** Projects colleagues shared with the organisation, newest first. */
+async function listSharedProjects() {
+  const uid = await currentUserId();
+  if (!uid) return [];
+  const { data, error } = await supabase.from('rp_projects')
+    .select('*').neq('user_id', uid).order('updated_at', { ascending: false });
+  if (error) throw new Error(`Could not load shared projects: ${error.message}`);
+  return (data || []).map((row) => openStateRow(RP_PROJECT_KIND, row));
+}
+
+/**
+ * Save the user's own project, or with `id` the shared project that is open
+ * (allowed only while this user holds its check-out; the database decides).
+ */
+async function saveProject(patch, { id = null, note = 'Project saved' } = {}) {
+  const existing = id ? { id } : await loadProject();
   if (existing) {
     const { data, error } = await writeStamped(RP_PROJECT_KIND,
       { ...patch, updated_at: new Date().toISOString() },
-      (row) => supabase.from('rp_projects').update(row).eq('id', existing.id).select().single());
-    if (error) throw new Error(`Could not save the project: ${error.message}`);
+      (row) => supabaseSharingStore().update('rp_projects', existing.id, row, { note }));
+    if (error) throw new Error(error.name === 'RecordConflict' ? error.message : `Could not save the project: ${error.message}`);
     return data;
   }
   const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -79,7 +106,9 @@ export function makeRegistryBackend() {
     getDepthUnit,
     publishCurves,
     loadProject,
+    listSharedProjects,
     saveProject,
+    sharing: supabaseSharingStore(),
     listScalProjects: () => scalProjects.list(),
     loadScalProject: (id) => scalProjects.load(id),
   };

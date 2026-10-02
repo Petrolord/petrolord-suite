@@ -12,6 +12,7 @@
 // `section` seeds a saved geo_correlation_sections row, opened through the
 // same PP0 state kind as the registry (a newer-build row is refused).
 
+import { makeHarnessSharing, colleagueShared } from '@/lib/recordSharing';
 import { sampleWells, sampleSurfaces, sampleUnits, samplePetro, SAMPLE_UNIT_OF } from './sampleSection';
 import { KETA3D, ketaBrickSource } from './sampleSeismic';
 import { assembleSectionBackdrop } from '@/pages/apps/Seismolord/services/sectionBackdrop';
@@ -29,7 +30,7 @@ const asCurves = (curves) => Object.fromEntries(Object.entries(curves || {})
  *   sections (U2-001) seeds several saved rows, newest last
  *   sample false drops the 3-well KETA section (a scale or hostile run alone)
  */
-export function makeInMemoryBackend({ seedWells = [], sample = true, section: seedSection = null, sections: seedSections = [], surfaces: seedSurfaces = null } = {}) {
+export function makeInMemoryBackend({ seedWells = [], sample = true, section: seedSection = null, sections: seedSections = [], surfaces: seedSurfaces = null, sharedSections = false, sharing: sharingOpts = {} } = {}) {
   // U2-008: the harness sample carries a published PAY, zones and unit links
   const sampleSet = sample ? sampleWells().map((w) => {
     const p = samplePetro(w);
@@ -50,10 +51,26 @@ export function makeInMemoryBackend({ seedWells = [], sample = true, section: se
   const logMeta = new Map(wells.map((w) => [w.id, w.logMeta]));
   // U2-001: named sections, owner-only rows like the registry; `clock` orders
   // them by last save (newest first), as updated_at does
+  // Organisation sharing: the rows live in the in-memory mirror of the
+  // sharing rules (src/lib/recordSharing), so the harness shows the same
+  // control and refusals as the database. `sharedSections` adds two sections
+  // a colleague shared (harness ?shared=1).
   let clock = 0;
-  const sections = [...(seedSection ? [seedSection] : []), ...seedSections]
-    .map((r) => ({ ...r, id: r.id || nid('section'), name: r.name || DEFAULT_SECTION_NAME, _t: ++clock }));
-  const newest = () => [...sections].sort((a, b) => b._t - a._t)[0] || null;
+  const T = 'geo_correlation_sections';
+  const sharing = makeHarnessSharing(sharingOpts);
+  const ME = sharing.me;
+  sharing.db.seed(T, [...(seedSection ? [seedSection] : []), ...seedSections]
+    .map((r) => ({ ...r, id: r.id || nid('section'), name: r.name || DEFAULT_SECTION_NAME, _t: ++clock })), { owner: ME });
+  if (sharedSections) {
+    const ids = wells.slice(0, 2).map((w) => w.id);
+    sharing.db.seed(T, [
+      colleagueShared({ id: 'section-ada-view', name: 'Regional dip line (Ada)', well_ids: ids, datum: { mode: 'structural' }, track_layout: {}, _t: ++clock }),
+      colleagueShared({ id: 'section-ada-edit', name: 'Field strike line, team', well_ids: ids, datum: { mode: 'structural' }, track_layout: {}, _t: ++clock }, { access: 'edit' }),
+    ]);
+  }
+  const visible = () => sharing.db.select(T, ME).data || [];
+  const mine = () => visible().filter((r) => r.user_id === ME);
+  const newest = () => [...mine()].sort((a, b) => b._t - a._t)[0] || null;
   const strip = (r) => { if (!r) return null; const { _t, ...rest } = r; return { ...rest }; };
 
   const own = (wellId, what) => {
@@ -180,44 +197,51 @@ export function makeInMemoryBackend({ seedWells = [], sample = true, section: se
     },
 
     async listSections() {
-      return [...sections].sort((a, b) => b._t - a._t)
-        .map((r) => ({ id: r.id, name: r.name, wellCount: (r.well_ids || []).length, updated_at: r.updated_at || null }));
+      return [...visible()].sort((a, b) => b._t - a._t)
+        .map((r) => { const { _t, well_ids, datum, track_layout, ...rest } = r; return { ...rest, wellCount: (well_ids || []).length, updated_at: r.updated_at || null }; });
     },
     async loadSection(id = null) {
-      if (id) {
-        const r = sections.find((x) => x.id === id);
-        if (!r) throw new Error('That section no longer exists (deleted in another tab?).');
-        return openSectionRow(strip(r));
-      }
-      return openSectionRow(strip(newest()));
+      const r = id ? visible().find((x) => x.id === id) : newest();
+      if (id && !r) throw new Error('That section no longer exists, or it is no longer shared with you.');
+      if (r) sharing.store.trackOpened(T, r);
+      return openSectionRow(strip(r));
     },
     async saveSection(patch, { id = null } = {}) {
-      const target = id ? sections.find((x) => x.id === id) : newest();
-      if (id && !target) throw new Error('That section no longer exists (deleted in another tab?).');
-      if (target) { Object.assign(target, patch, { _t: ++clock }); return strip(target); }
-      const row = { id: id || 'section-dev', name: DEFAULT_SECTION_NAME, ...patch, _t: ++clock };
-      sections.push(row);
-      return strip(row);
+      const target = id ? { id } : newest();
+      if (target) {
+        const { data, error } = await sharing.store.update(T, target.id, { ...patch, _t: ++clock }, { note: 'Section saved' });
+        if (error) throw new Error(error.name === 'RecordConflict' ? error.message : 'That section no longer exists (deleted in another tab?).');
+        return strip(data);
+      }
+      const { data, error } = sharing.db.insert(T, ME, { id: id || 'section-dev', user_id: ME, name: DEFAULT_SECTION_NAME, ...patch, _t: ++clock });
+      if (error) throw new Error(error.message);
+      sharing.store.trackOpened(T, data);
+      return strip(data);
     },
     async createSection(name, patch = {}) {
-      const problem = sectionNameProblem(name, sections);
+      const problem = sectionNameProblem(name, mine());
       if (problem) throw new Error(problem);
-      const row = { ...patch, id: nid('section'), name: String(name).trim(), _t: ++clock };
-      sections.push(row);
-      return strip(row);
+      const { data, error } = sharing.db.insert(T, ME, { ...patch, id: nid('section'), user_id: ME, name: String(name).trim(), _t: ++clock });
+      if (error) throw new Error(error.message);
+      sharing.store.trackOpened(T, data);
+      return strip(data);
     },
     async renameSection(id, name) {
-      const r = sections.find((x) => x.id === id);
+      const r = mine().find((x) => x.id === id);
       if (!r) throw new Error('Only the owner can rename a section.');
-      const problem = sectionNameProblem(name, sections, id);
+      const problem = sectionNameProblem(name, mine(), id);
       if (problem) throw new Error(problem);
-      r.name = String(name).trim();
-      return { id, name: r.name };
+      const { data, error } = sharing.db.update(T, ME, id, { name: String(name).trim() });
+      if (error || !data.length) throw new Error('Only the owner can rename a section.');
+      if (sharing.store.trackedVersion(T, id) != null) sharing.store.trackOpened(T, data[0]);
+      return { id, name: data[0].name };
     },
     async deleteSection(id) {
-      const i = sections.findIndex((x) => x.id === id);
-      if (i < 0) throw new Error('Only the owner can delete a section.');
-      sections.splice(i, 1);
+      const { data } = sharing.db.remove(T, ME, id);
+      if (!data || !data.length) throw new Error('Only the owner can delete a section.');
     },
+    sharing: sharing.store,
+    /** test seam: the in-memory database and the colleague's store */
+    _sharing: sharing,
   };
 }

@@ -2,6 +2,7 @@
 // shared HelpGuideLayout shell: the condensed, in-app companion of the
 // nine Seismolord handbooks. Every control named here exists in the
 // workspace today. Copy rule: no em dashes. Guard: __tests__/helpGuide.test.jsx.
+import SharingHelp from '@/components/recordSharing/SharingHelp';
 import React from 'react';
 import {
   BookOpen, Zap, Database, Layers, Activity, GitBranch, CircleDot, Map as MapIcon, Box, Rows, Ruler, Link2, AlertTriangle, BookMarked,
@@ -503,6 +504,13 @@ export default function SeismolordHelpGuide() {
           ['ReservoirCalc Pro', 'Reads published surfaces in its Surface import.'],
           ['Geoscience home', 'The Geoscience link at the left end of the ribbon, as in the other Geoscience studios.'],
         ]} />
+              <SharingHelp record="project" where="Each project folder in the Seismic Explorer has a share button, and Sharing and history in its right-click menu.">
+          <Para>
+            A project is an explorer folder. Volumes are shared one by one (Share with organization in a volume's menu), with everyone's horizons and faults on them.
+            So a colleague who opens a shared project sees the volumes of it that are shared with the organisation, and the dialog tells the owner which volumes of the project are still private.
+            Editing a shared project means renaming it; each interpreter's horizons and faults stay their own.
+          </Para>
+        </SharingHelp>
       </GuideSection>
 
       <GuideSection id="pitfalls">

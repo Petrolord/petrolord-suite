@@ -133,7 +133,7 @@ Sources: [Petrel structural modeling (petrofaq)](https://petrofaq.net/wiki/Fault
 | G8.5 3D window | STATUS | Superseded: EM6 |
 | MEM chart files on mock data | STATUS G8.4 | Dropped here (Drilling MEM rebuild owns them) |
 | Staging tester walk | ROADMAP close-out | Still wanted (owner or tester) |
-| Org-shared models | em_models RLS owner-only | Still wanted (U2-014), migration + second engineer |
+| Org-shared models | em_models RLS owner-only | Built 2026-10-02 (U2-014, organisation sharing wave), pending the owner's apply |
 
 ### 2c. Suite integration
 
@@ -202,7 +202,7 @@ Deferred, with reasons:
 | U2-016 fault throw | Size L; needs sticks with throw on main (Seismolord U2-003) and a horizon offset engine. |
 | U2-012 structural uncertainty | Size L; U2-010 samples contacts, FVFs and property shifts first. |
 | U2-013 sequential Gaussian simulation | Size L; engines-first geostatistics after NAPE. |
-| U2-014 org-shared models | Needs a migration on em_models and a second engineer's review (shared-table rule). |
+| U2-014 org-shared models | Needs a migration on em_models and a second engineer's review (shared-table rule). **Built 2026-10-02** (approved 2026-10-01), pending apply: see the last section. |
 | EM-U1-026 `.pld` carrying a model's wells | A note for the Suite Project programme (docs/scope/SuiteProject-DESIGN.md): a model package names zones, not wells; U2-009 records the wells used in the handoff. |
 
 ## Step 2 build (2026-10-01)
@@ -230,3 +230,13 @@ Branch `feat/em-u2`. One row per item in build order; each row names the test th
 - e2e (1 worker, the /dev harness): `earth-modeling.spec.js`, `earth-modeling-upgrade.spec.js` and `earth-modeling-u2.spec.js`, 35 tests green (two `earth-modeling.spec.js` timing checks went red once while jest ran beside them and passed on the re-run at low load; the auth-gate check needs the redirect before network idle).
 - One production build: green in 9 min 56 s, the build worker bundled as its own chunk (`buildModel.worker-*.js`).
 - Vendored engines guard clean at 1a1340b (1,111 paths); after merging main (Seismolord U2, #837) the pin is main's 1e5d394, which contains #291, guard clean (1,123 paths).
+
+## Organisation sharing wave (2026-10-02): U2-014 built, pending apply
+
+Owner 2026-10-01: the second engineer approved the organisation sharing work. Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-STATUS.md`. Migration `20261002100000_suite_record_sharing.sql`, NOT APPLIED (owner-run). Until it is applied the control is a short note and saving works as before.
+
+- **Owner.** Once a model is saved, the shared control sits under the Save buttons of the builder dock: share with the organisation, colleagues can view or edit, who is editing, history.
+- **Colleague.** Saved models list the user's own first, then "Shared with me" with who shared each one. A view-only model loads, builds and reports; Save is refused with the reason and "Save as a new model" or Save a copy keeps the work as the user's own (named "(copy)").
+- **One editor at a time.** A model colleagues can edit is taken with Start editing; others see who is editing. A save names the version the model was opened at, and a stale save is refused with who saved and when; Reload reads the model again.
+- **Code.** `services/registryBackend.js` and `inMemoryBackend.js` (`sharing`, `updateProject` through the sharing store), `components/EarthWorkstation.jsx`, `components/BuilderDock.jsx`. The CRS reproject and the CRS lock count keep reading the user's own models. Harness: `/dev/earth-modeling?shared=1`, `?sharing=off`.
+- **Tests.** `__tests__/orgSharing.test.jsx`; one test in `e2e/org-sharing.spec.js`.

@@ -5,8 +5,9 @@
 //
 // Reads: wells + tops + zones from the shared well registry, surfaces
 // from geo_surfaces. Writes: geo_surfaces (the publish action — the
-// ReservoirCalc Pro handoff) and em_models (app-private model
-// definitions, owner-only RLS; named em_models because a legacy
+// ReservoirCalc Pro handoff) and em_models (model definitions: the
+// owner's, plus those colleagues shared with the organisation, U2-014;
+// named em_models because a legacy
 // pre-G8 em_projects orphan exists in the live DB — see the
 // 20260714130000 migration header).
 
@@ -20,6 +21,7 @@ import { polygonRingsOf } from '@/lib/culturePolygonFiles';
 import { getDepthUnit, setDepthUnit, getProjectCrs } from '@/lib/crs/settingsService';
 import { listSeismicFaultsForModel } from '@/lib/seismicFaultsReader';
 import { getTransformer } from '@/lib/crs';
+import { supabaseSharingStore } from '@/lib/recordSharing';
 
 /** Seismolord U2-003 (EM-T1-010): interpreted faults, read only, in the Project CRS. */
 export async function listSeismicFaults() {
@@ -92,11 +94,15 @@ async function saveProject({ name, definition, crs = null }) {
   return data;
 }
 
-async function updateProject(id, patch) {
+// Organisation sharing (migration 20261002100000): the save carries the
+// version the model was opened at and a summary for the change log; a
+// refusal (a newer version, a colleague editing, view only) comes back as a
+// sentence. Before the migration this is the plain update it always was.
+async function updateProject(id, patch, { note = null } = {}) {
   const { data, error } = await writeStamped(EM_MODEL_KIND,
     { ...patch, updated_at: new Date().toISOString() },
-    (row) => supabase.from('em_models').update(row).eq('id', id).select().single());
-  if (error) throw new Error(`Could not update the model: ${error.message}`);
+    (row) => supabaseSharingStore().update('em_models', id, row, { note }));
+  if (error) throw new Error(error.name === 'RecordConflict' ? error.message : `Could not update the model: ${error.message}`);
   return data;
 }
 
@@ -130,6 +136,8 @@ export function makeRegistryBackend() {
     saveProject,
     updateProject,
     deleteProject,
+    // em_models rows now include the models colleagues shared with the organisation
+    sharing: supabaseSharingStore(),
     listScalProjects: () => scalProjects.list(),
     loadScalProject: (id) => scalProjects.load(id),
   };

@@ -7,6 +7,7 @@
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
 
+import SharingHelp from '@/components/recordSharing/SharingHelp';
 import React from 'react';
 import {
   BookOpen, Zap, Map, Ruler, Upload, GitMerge, Crosshair, Compass, Clock, ClipboardList, Download,
@@ -314,7 +315,14 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
             ['Mapping & Surface Studio', 'locations and tops (TVDSS)', 'surfaces (in its own registry)'],
             ['Seismolord', 'wells, survey, checkshots, tops', 'a tie-derived time-depth set'],
           ]} />
-        </GuideSection>
+                <SharingHelp record="well" where="Open the well: the control is above its tabs. The tree's share button still shares or unshares a well in one click, for viewing.">
+          <Para>
+            Team editing covers the whole well: the header, deviation, checkshots, tops, logs, zones, intervals and core photos all follow the well's editing session.
+            While a colleague is editing, the owner's other apps (Petrophysics, Well Correlation and the rest) cannot write to that well either, and say who is editing.
+            There is no Save a copy for a well; use Export or a project package to copy one.
+          </Para>
+        </SharingHelp>
+      </GuideSection>
 
         <GuideSection id="pitfalls">
           <SectionHeading icon={AlertTriangle}>Pitfalls and FAQ</SectionHeading>

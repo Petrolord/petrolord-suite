@@ -5,8 +5,8 @@
 //
 // Wells/curves/tops come from the shared registry
 // (src/lib/wellsRegistry.js — geo_wells, geo_wells_logs, geo_wells_tops
-// with owner-or-org RLS). Section state is app-private
-// (geo_correlation_sections, owner-only).
+// with owner-or-org RLS). Section state is the owner's
+// (geo_correlation_sections), shareable with the organisation.
 
 import {
   listWells, listLogs, downloadCurve, listTops, listAllTops, listZones,
@@ -18,6 +18,7 @@ import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
 import {
   loadSection, saveSection, listSections, createSection, renameSection, deleteSection,
 } from '@/lib/sectionsRegistry';
+import { supabaseSharingStore } from '@/lib/recordSharing';
 
 // Seismolord U2-002: a seismic backdrop read along the section (lazy: the
 // seismic code loads only when a volume is chosen)
@@ -31,5 +32,7 @@ export function makeRegistryBackend() {
     listZones, listUnits, // U2-008: Petrophysics zones, Stratigraphy column (read only)
     saveTop, updateTop, deleteTop, propagateTop,
     loadSection, saveSection, listSections, createSection, renameSection, deleteSection,
+    // organisation sharing of sections (src/lib/recordSharing)
+    sharing: supabaseSharingStore(),
   };
 }

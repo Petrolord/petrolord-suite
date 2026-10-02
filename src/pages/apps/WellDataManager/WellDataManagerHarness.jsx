@@ -32,7 +32,9 @@ export default function WellDataManagerHarness() {
     const n = Number(q.get('seedWells')) || 0;
     // U2-013: ?saveDelayMs=<ms> slows each curve save so the progress and stop controls can be driven
     const saveDelayMs = Math.min(Number(q.get('saveDelayMs')) || 0, 5000);
-    return makeInMemoryBackend({ worker: true, saveDelayMs, ...(n > 0 ? { seedRows: scaleRows(Math.min(n, 20000)) } : {}) });
+    // U2-012 team editing: ?sharing=off behaves as the database before the migration
+    const sharing = { applied: new URLSearchParams(window.location.search).get('sharing') !== 'off' };
+    return makeInMemoryBackend({ worker: true, saveDelayMs, sharing, ...(n > 0 ? { seedRows: scaleRows(Math.min(n, 20000)) } : {}) });
   }, []);
   return (
     <div className="h-screen w-full overflow-hidden" data-testid="wdm-theme-scope">
