@@ -453,10 +453,19 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
   };
 
   // ── Validation feedback for lab table ──
+  // MBAL-U1-011: the engine takes a "lab table" case whose PVT comes with its
+  // data rows (Bo, Rs, Bg or Z on the Data tab) and no separate table. The
+  // tab used to call that case invalid and block Save, so its compressibilities
+  // and fluid properties could not be changed here at all.
+  const rowsCarryPvt = useMemo(() => {
+    const rows = caseData?.production_data ?? [];
+    return rows.length >= 2 && rows.every((r) => (isGas ? (r.z_factor != null || r.bg_rb_mscf != null) : r.bo_rb_stb != null));
+  }, [caseData, isGas]);
   const labTableErrors = useMemo(() => {
     if (form.pvt_source !== 'lab_table') return [];
+    if (form.pvt_lab_table.length === 0 && rowsCarryPvt) return [];
     return validateLabTableClient(form.pvt_lab_table);
-  }, [form.pvt_source, form.pvt_lab_table]);
+  }, [form.pvt_source, form.pvt_lab_table, rowsCarryPvt]);
 
   // ── Recalculate preview ──
   const handleRecalculate = useCallback(async () => {
@@ -663,6 +672,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
             {dirty && (
               <Button
                 onClick={handleSave}
+                data-testid="mbal-pvt-save"
                 disabled={saving || (form.pvt_source === 'lab_table' && labTableErrors.length > 0)}
                 variant="accent"
               >
@@ -1088,6 +1098,12 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
           Source as the report will state it: {describePvtSource({
             pvt_source: form.pvt_source, pvt_lab_table: form.pvt_lab_table, pvt_correlations: form.correlations,
           }, { isGas })}
+        </p>
+      )}
+
+      {form.pvt_source === 'lab_table' && form.pvt_lab_table.length === 0 && rowsCarryPvt && (
+        <p className="text-[11px] text-pl-muted" data-testid="mbal-pvt-rows-carry">
+          The PVT of this case comes with its data rows ({isGas ? 'Z and Bg' : 'Bo, Rs and Bg'} on the Data tab), so no separate table is needed. A table entered here is used only for a row that carries no value of its own.
         </p>
       )}
 

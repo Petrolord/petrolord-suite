@@ -44,7 +44,11 @@ function query(table) {
   const match = (r) => st.filters.every(([k, op, v]) => (op === 'eq' ? r[k] === v : op === 'is' ? (r[k] ?? null) === v : op === 'in' ? v.includes(r[k]) : op === 'gte' ? r[k] >= v : op === 'gt' ? r[k] > v : op === 'lte' ? r[k] <= v : true));
   const run = () => {
     if (st.op === 'insert' || st.op === 'upsert') {
-      const list = (Array.isArray(st.payload) ? st.payload : [st.payload]).map((r) => ({ id: r.id || newId(table), created_at: NOW(), updated_at: NOW(), ...r }));
+      // a new case gets what the database gives it: the caller as owner, private, version 1
+      const defaults = table === 'rb_cases'
+        ? { user_id: USER.id, visibility: 'private', organization_id: null, org_access: 'view', version: 1, updated_by: USER.id, editing_by: null, editing_since: null, editing_expires: null }
+        : {};
+      const list = (Array.isArray(st.payload) ? st.payload : [st.payload]).map((r) => ({ id: r.id || newId(table), created_at: NOW(), updated_at: NOW(), ...defaults, ...r }));
       for (const r of list) {
         if (st.op === 'upsert' && st.onConflict) {
           const keys = st.onConflict.split(',');
@@ -100,6 +104,19 @@ function query(table) {
 async function calculateMbal(body) {
   return runEngineOnStore(DB, body, { now: NOW });
 }
+
+// Rows a test wants on the harness as well (a case as an earlier release
+// stored it): session storage key `mbal.harness.extra`, a JSON object of
+// table name to rows, read once per page load.
+export const HARNESS_EXTRA_KEY = 'mbal.harness.extra';
+try {
+  const extra = JSON.parse(window.sessionStorage.getItem(HARNESS_EXTRA_KEY) || 'null');
+  if (extra && typeof extra === 'object') {
+    for (const [table, rows] of Object.entries(extra)) {
+      if (Array.isArray(rows) && Array.isArray(DB[table])) DB[table] = [...DB[table], ...rows];
+    }
+  }
+} catch { /* no storage, or not JSON: the three sample cases alone */ }
 
 // Record sharing on the harness: the sharing store over the same rows. The
 // signed-in user owns the three sample cases and belongs to one organisation

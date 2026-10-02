@@ -256,7 +256,7 @@ const ImportDoor = ({ read, choices, setChoices, fileName, units }) => {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-xs font-semibold text-pl-text">What was read from {fileName}</p>
         <p className="text-[11px] text-pl-muted" data-testid="mbal-import-counts">
-          {rb.rowsRead} of {rb.rowsInFile} rows read, {rowSkips.length} left out. Columns split by {rb.delimiter}; decimal {rb.decimal.mark === ',' ? 'comma' : 'point'}{rb.header ? '' : '; no header row'}.
+          {rb.rowsRead} {rb.rowsRead === 1 ? 'row' : 'rows'} read; {rowSkips.length} {rowSkips.length === 1 ? 'line' : 'lines'} of the file left out. Columns split by {rb.delimiter}; decimal {rb.decimal.mark === ',' ? 'comma' : 'point'}{rb.header ? '' : '; no header row'}.
         </p>
       </div>
 

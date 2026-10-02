@@ -18,19 +18,29 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 const mockToast = jest.fn();
 jest.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 
-const mockDb = { cfg: null, saved: null, casePatch: null };
+const mockDb = { cfg: null, saved: null, casePatch: null, pvtSaved: null };
 jest.mock('@/pages/apps/reservoir-balance/lib/api', () => ({
   getCaseDefaultConfig: jest.fn(async () => ({ data: mockDb.cfg, error: null })),
   upsertCaseDefaultConfig: jest.fn(async (caseId, patch) => { mockDb.saved = patch; return { data: { id: 'cfg', ...mockDb.cfg, ...patch }, error: null }; }),
   updateCase: jest.fn(async (caseId, patch) => { mockDb.casePatch = patch; return { data: patch, error: null }; }),
+  getPvtPreview: jest.fn(async () => ({ data: null, error: { message: 'no preview on this test' } })),
+  savePvtConfig: jest.fn(async (caseId, fields) => { mockDb.pvtSaved = fields; return { data: { id: 'cfg', ...fields }, error: null }; }),
+  listProductionData: jest.fn(async () => ({ data: [], error: null })),
 }));
+jest.mock('@/lib/customSupabaseClient', () => {
+  const supabase = { from: () => ({ select: () => ({ order: async () => ({ data: [], error: null }) }) }) };
+  return { supabase, default: supabase };
+});
+jest.mock('@/lib/pvtSource', () => ({ readFluidProjectPvt: jest.fn() }));
 const mockApplyCasePatch = jest.fn();
 let mockUnits;
 jest.mock('@/contexts/MaterialBalanceStudioContext', () => ({
   useMaterialBalanceStudio: () => ({ units: mockUnits, applyCasePatch: mockApplyCasePatch }),
 }));
 
+import { MemoryRouter } from 'react-router-dom';
 import AquiferModel, { paramsToSaveFor, MODEL_PARAM_KEYS } from '../AquiferModel';
+import PvtRock from '../PvtRock';
 import UnitField, { numberForInput } from '../UnitField';
 import { createMbalUnits, MBAL_METRIC_VIEW, OILFIELD_UNITS } from '@/pages/apps/reservoir-balance/lib/mbalUnits';
 
@@ -99,6 +109,43 @@ describe('the Aquifer Model tab', () => {
     await waitFor(() => expect(mockDb.saved).not.toBeNull());
     expect(mockDb.saved.aquifer_params.aquifer_radius_ft).toBeCloseTo(10000, 6);
     expect(mockDb.saved.aquifer_params.aquifer_thickness_ft).toBe(100); // untouched fields keep the stored value exactly
+  });
+});
+
+describe('MBAL-U1-011: the PVT tab of a case whose PVT comes with its data rows', () => {
+  // the engine takes pvt_source "lab_table" with Bo, Rs and Bg on every data row and no separate table
+  const cfg = {
+    id: 'cfg', oil_gravity_api: 35, gas_specific_gravity: 0.7, water_salinity_ppm: 0, pvt_source: 'lab_table', pvt_lab_table: null,
+    pvt_correlations: { pb_rs_bo: 'standing' }, formation_compressibility_psi: 4e-6, water_compressibility_psi: 3e-6, gas_cap_ratio_m: 0,
+  };
+  const rows = (withBo) => [0, 1, 2].map((i) => ({ timestep_index: i, pressure_psia: 2740 - 100 * i, bo_rb_stb: withBo ? 1.4 - 0.01 * i : null, rs_scf_stb: 650, bg_rb_mscf: 0.93 }));
+  const open = async (withBo) => {
+    mockDb.cfg = cfg;
+    mockDb.pvtSaved = null;
+    render(<MemoryRouter><PvtRock caseId="c1" caseData={{ id: 'c1', fluid_system: 'oil', reservoir_temperature_f: 200, initial_pressure_psia: 2740, production_data: rows(withBo) }} onConfigChange={jest.fn()} /></MemoryRouter>);
+    await screen.findByTestId('mbal-pvt-cf');
+    await waitFor(() => expect(screen.getByTestId('mbal-pvt-cf')).toHaveValue('0.000004'));
+  };
+
+  test('it is valid as it stands: the tab says where the PVT comes from, and a compressibility can be saved', async () => {
+    await open(true);
+    expect(screen.getByTestId('mbal-pvt-rows-carry')).toHaveTextContent('The PVT of this case comes with its data rows (Bo, Rs and Bg on the Data tab)');
+    expect(screen.queryByText(/Lab table is empty/)).toBeNull();
+    fireEvent.change(screen.getByTestId('mbal-pvt-cf'), { target: { value: '5e-6' } });
+    const save = await screen.findByTestId('mbal-pvt-save');
+    expect(save).toBeEnabled();
+    await act(async () => { fireEvent.click(save); });
+    await waitFor(() => expect(mockDb.pvtSaved).not.toBeNull());
+    expect(mockDb.pvtSaved.formation_compressibility_psi).toBe(5e-6);
+    expect(mockDb.pvtSaved.pvt_source).toBe('lab_table');
+  });
+
+  test('negative control: with no Bo on the rows the empty table is still an error and Save stays off', async () => {
+    await open(false);
+    expect(screen.queryByTestId('mbal-pvt-rows-carry')).toBeNull();
+    expect(screen.getAllByText(/Lab table is empty/).length).toBeGreaterThan(0);
+    fireEvent.change(screen.getByTestId('mbal-pvt-cf'), { target: { value: '5e-6' } });
+    expect(await screen.findByTestId('mbal-pvt-save')).toBeDisabled();
   });
 });
 
