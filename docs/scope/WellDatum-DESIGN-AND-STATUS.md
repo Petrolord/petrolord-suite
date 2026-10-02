@@ -230,6 +230,17 @@ registry, a negative KB, water depth on an onshore well.
 Only Lad changes behaviour at the apply, and it has no tops, curves or
 checkshots.
 
+### With organisation sharing (#849, merged before this PR)
+
+The datum door (`updateWellDatum`) writes through the sharing store like
+every other write on the well row, so the version check, the check-out and
+the change history apply to it: from Well Data Manager's editor a stale save
+is refused with the reason, and a colleague who holds the check-out of a well
+shared for editing can correct the datum (the change record names them). The
+two geo_wells migrations are independent: this one adds only the datum
+columns, the team-editing one only its own, and they can be applied in either
+order. Wellsite's Correct KB stays with the owner of the registry well.
+
 ### Open
 
 - The seismic reference datum stays declared per app (Pore Pressure,
