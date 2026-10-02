@@ -11,7 +11,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import ReservoirBalance from '../ReservoirBalance';
 import { seedSampleStore, SAMPLE_USER } from './sampleCases';
-import { runEngineOnStore } from './engineStandIn';
+import { runEngineOnStore, pvtPreviewStandIn } from './engineStandIn';
 
 const USER = SAMPLE_USER;
 const NOW = () => new Date().toISOString();
@@ -94,9 +94,11 @@ export default function MbalHarness() {
     // supabase.functions is a getter that builds a new client on every read,
     // so patching .invoke on it does nothing: shadow the getter instead
     const fakeFunctions = {
-      invoke: async (name, opts = {}) => (name === 'calculate-mbal'
-        ? calculateMbal(opts.body || {})
-        : { data: null, error: { message: `${name} is not available on the harness` } }),
+      invoke: async (name, opts = {}) => {
+        if (name === 'calculate-mbal') return calculateMbal(opts.body || {});
+        if (name === 'generate-pvt-preview') return pvtPreviewStandIn(opts.body || {});
+        return { data: null, error: { message: `${name} is not available on the harness` } };
+      },
     };
     Object.defineProperty(supabase, 'functions', { configurable: true, get: () => fakeFunctions });
     supabase.auth.getUser = async () => ({ data: { user: USER }, error: null });

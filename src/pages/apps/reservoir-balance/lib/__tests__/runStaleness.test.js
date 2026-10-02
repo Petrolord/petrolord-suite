@@ -74,15 +74,13 @@ describe('H4: is the stored run still the run of the current inputs', () => {
   });
 
   // MBAL-U1: a run keeps a snapshot of the case conditions and a digest of
-  // the data rows, so the comparison needs no clock. Production has a
-  // trigger that sets rb_cases.updated_at on EVERY update, and with the time
-  // stamp alone a rename withdrew a valid result.
+  // the data rows, so the comparison needs no clock. The time stamp of Step
+  // 0e did not survive the database: a trigger first stamped every update
+  // (a rename withdrew a valid result), and since the record sharing guard
+  // the stamp written after a data save is discarded.
   it('a rename, or any save that changes no engine input, does not make the run stale', () => {
     const renamed = { ...caseData, name: 'Renamed', description: 'new words', updated_at: '2026-10-05T10:00:00.000Z' };
     expect(assessRunStaleness({ ...fresh, caseData: renamed })).toEqual({ stale: false, reasons: [] });
-    // negative control: without the snapshot the same save reads as stale
-    const noSnapshot = { ...runConfig, pvt_correlations: { pb_rs_bo: 'standing', oil_viscosity: 'beggs_robinson' } };
-    expect(assessRunStaleness({ ...fresh, caseData: renamed, runConfig: noSnapshot }).stale).toBe(true);
   });
 
   it.each([
@@ -117,16 +115,14 @@ describe('H4: is the stored run still the run of the current inputs', () => {
     expect(buildRunConfigInput(caseData, withStudy).pvt_correlations.run_snapshot.case.initial_pressure_psia).toBe(3685);
   });
 
-  it('a run made before the snapshot existed falls back on the time stamp of the case', () => {
+  it('a run made before the snapshot existed cannot be shown to be current, whatever the clock says', () => {
     const oldRunConfig = { ...runConfig, pvt_correlations: { pb_rs_bo: 'standing', oil_viscosity: 'beggs_robinson' } };
-    const old = { ...fresh, runConfig: oldRunConfig };
-    expect(assessRunStaleness(old).stale).toBe(false);
-    const stamped = { ...caseData, updated_at: '2026-10-01T10:00:00.001Z' };
-    const s = assessRunStaleness({ ...old, caseData: stamped });
+    const s = assessRunStaleness({ ...fresh, runConfig: oldRunConfig });
     expect(s.stale).toBe(true);
-    expect(s.reasons[0]).toMatch(/saved after the run/);
-    const before = { ...caseData, updated_at: '2026-10-01T09:59:59.999Z' };
-    expect(assessRunStaleness({ ...old, caseData: before }).stale).toBe(false);
+    expect(s.reasons.join(' ')).toMatch(/before the studio kept a record of the case conditions and the data/);
+    expect(staleRunMessage(s)).toMatch(/Run the engine again/);
+    // and no time stamp makes it current
+    expect(assessRunStaleness({ ...fresh, runConfig: oldRunConfig, caseData: { ...caseData, updated_at: '2020-01-01T00:00:00Z' } }).stale).toBe(true);
   });
 
   it('a run whose config cannot be read back is not presented as current', () => {

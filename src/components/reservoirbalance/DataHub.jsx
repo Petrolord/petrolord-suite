@@ -1,38 +1,35 @@
 // src/components/reservoirbalance/DataHub.jsx
 //
-// Reservoir Balance — Data Hub component
-// =========================================
+// Material Balance Studio: the Data tab.
 //
-// Phase 3 Capsule 3A rewrite. Replaces the 224-line Horizons-era version.
+// The pressure and production table of a case: imported from a file or a
+// paste, checked, saved to rb_production_data and shown in the display
+// units. Rebuilt in the Material Balance round of the app upgrade programme
+// (MBAL-U1, PL2, PL3, RL10) on the shared typed reader
+// (src/lib/tabularParse.js) through lib/productionImport.js:
 //
-// Single upload card that maps CSV input to the rb_production_data schema:
-//   - Required: timestep_index (auto-assigned), pressure_psia
-//   - Cumulatives: cum_oil_stb, cum_gas_scf, cum_water_stb,
-//                  cum_water_inj_stb, cum_gas_inj_scf
-//   - Per-row PVT overrides: bo_rb_stb, rs_scf_stb, bg_rb_mscf, bw_rb_stb, z_factor
-//   - Optional observation_date and observed_we_rb (Phase 4 / for validation)
+//   - columns are found by header name in any order, and any column can be
+//     placed by hand (which is how a file with no header is read);
+//   - each column's unit is read from its header, or chosen at the door.
+//     Gauge pressure is raised by the atmospheric pressure stated here;
+//   - a date order the file does not settle is asked for, never guessed;
+//   - the door shows what it read: which column became what, in which
+//     unit, how many rows were read, and each row left out with the reason;
+//   - CSV, semicolon, tab and white-space files, a paste, and Excel sheets.
 //
-// Features:
-//   - Drag-and-drop CSV via react-dropzone + papaparse (preserved from original)
-//   - Case-insensitive column-alias matching (preserved + extended)
-//   - Unit auto-detection from column headers (new): Mscf/Bscf/MMscf → scf,
-//     and similar for oil and Bg
-//   - Pre-save validation: row 0 zero cumulatives, pressure matches case
-//     initial_pressure_psia, monotone non-increasing pressures, ≥2 rows
-//   - Hydrates existing rows from rb_production_data on mount
-//   - Saves via replaceProductionData (atomic replace of all case rows)
+// The rows are held and saved in engine units (psia, STB, scf, RB/STB,
+// RB/Mscf); the table and the download show the display units.
 //
 // Data flow:
-//   1. On mount: listProductionData(caseId) → display in preview table
-//   2. User drops CSV → papaparse → column mapping → unit normalization
-//   3. Pre-save validation; show per-row errors if any
-//   4. User clicks Save → replaceProductionData(caseId, rows)
-//   5. onDataSaved callback fires so parent can refresh
+//   1. On mount: listProductionData(caseId), shown in the table
+//   2. A file or a paste goes through readProductionTable; the choices of
+//      the door (mapping, units, date order, decimal mark) re-read it
+//   3. Validation against the engine's rules; errors are listed by row
+//   4. Save to case: replaceProductionData(caseId, rows)
+//   5. onDataSaved, so the studio reloads the case
 
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
-import Papa from 'papaparse';
-import { detectTableDelimiter, detectDecimalMark, parseNumber, isNullToken } from '@/lib/tabularParse';
 import {
   Card,
   CardHeader,
@@ -41,6 +38,7 @@ import {
   CardContent,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import {
   Table as UiTable,
@@ -62,370 +60,116 @@ import {
   RefreshCw,
   Info,
   X,
+  ClipboardPaste,
 } from 'lucide-react';
 import {
   listProductionData,
   replaceProductionData,
 } from '@/pages/apps/reservoir-balance/lib/api';
+import {
+  readProductionTable, IMPORT_COLUMNS, DOOR_UNITS, STANDARD_ATMOSPHERE_PSI,
+} from '@/pages/apps/reservoir-balance/lib/productionImport';
+import { useMaterialBalanceStudio } from '@/contexts/MaterialBalanceStudioContext';
+import { OILFIELD_UNITS } from '@/pages/apps/reservoir-balance/lib/mbalUnits';
+import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import UnitField from './UnitField';
 
 // =============================================================================
-// CONFIG: COLUMN ALIASES AND UNIT DETECTION
+// THE TABLE ON SCREEN
 // =============================================================================
-//
-// Each schema column has a list of header-substring aliases (lowercase).
-// findColumnByAliases() returns the original-case header that matches.
-// Match is via substring, so "Pressure (psia)" matches "pressure" alias.
-//
-// Order in the alias list matters: earlier aliases win if multiple match.
-// We put more-specific aliases first to avoid false positives.
 
-const COLUMN_ALIASES = {
-  pressure_psia: ['pressure_psia', 'pressure (psia)', 'pressure', 'p_psia', 'static pressure', 'reservoir pressure', 'res pressure', 'p (psia)', ' p '],
-  cum_oil_stb: ['cum_oil_stb', 'cum oil', 'cumulative oil', 'oil produced', 'np_stb', 'np ', 'oil prod', 'np'],
-  cum_gas_scf: ['cum_gas_scf', 'cum_gas_mscf', 'cum_gas_bscf', 'cum_gas_mmscf', 'cum gas', 'cumulative gas', 'gas produced', 'gp_scf', 'gp_mscf', 'gp_bscf', 'gp_mmscf', 'gas prod', 'gp '],
-  cum_water_stb: ['cum_water_stb', 'cum water prod', 'cum water produced', 'cumulative water', 'water produced', 'wp_stb', 'wp '],
-  cum_water_inj_stb: ['cum_water_inj_stb', 'cum_water_inj', 'water inj', 'water injected', 'winj', 'wi_stb'],
-  cum_gas_inj_scf: ['cum_gas_inj_scf', 'cum_gas_inj_mscf', 'cum_gas_inj', 'gas inj', 'gas injected', 'ginj', 'gi_scf', 'gi_mscf'],
-  bo_rb_stb: ['bo_rb_stb', 'bo (rb/stb)', 'oil fvf', 'oil formation volume factor', ' bo ', 'bo,'],
-  rs_scf_stb: ['rs_scf_stb', 'rs_mscf_stb', 'rs (scf/stb)', 'rs (mscf/stb)', 'solution gor', 'solution gas', ' rs ', 'rs,'],
-  bg_rb_mscf: ['bg_rb_mscf', 'bg_rb_scf', 'bg (rb/mscf)', 'bg (rb/scf)', 'gas fvf', ' bg ', 'bg,'],
-  bw_rb_stb: ['bw_rb_stb', 'bw (rb/stb)', 'water fvf', ' bw ', 'bw,'],
-  z_factor: ['z_factor', 'z factor', 'compressibility factor', 'deviation factor', ' z ', 'z,'],
-  observation_date: ['observation_date', 'date', 'observed_date'],
-  observed_we_rb: ['observed_we_rb', 'cumulative water influx', 'water influx', 'we_rb', 'we '],
-};
-
-// Display labels for the preview table
+// Columns of the table, with the quantity each is shown in (lib/mbalUnits).
 const SCHEMA_DISPLAY = [
-  { col: 'timestep_index', label: '#', unit: '' },
-  { col: 'pressure_psia', label: 'Pressure', unit: 'psia' },
-  { col: 'cum_oil_stb', label: 'Np', unit: 'STB' },
-  { col: 'cum_gas_scf', label: 'Gp', unit: 'scf' },
-  { col: 'cum_water_stb', label: 'Wp', unit: 'STB' },
-  { col: 'cum_water_inj_stb', label: 'Winj', unit: 'STB' },
-  { col: 'cum_gas_inj_scf', label: 'Ginj', unit: 'scf' },
-  { col: 'bo_rb_stb', label: 'Bo', unit: 'RB/STB' },
-  { col: 'rs_scf_stb', label: 'Rs', unit: 'scf/STB' },
-  { col: 'bg_rb_mscf', label: 'Bg', unit: 'RB/Mscf' },
-  { col: 'bw_rb_stb', label: 'Bw', unit: 'RB/STB' },
-  { col: 'z_factor', label: 'z', unit: '' },
+  { col: 'timestep_index', label: 'Step', quantity: null },
+  { col: 'observation_date', label: 'Date', quantity: null },
+  { col: 'pressure_psia', label: 'Pressure', quantity: 'pressure' },
+  { col: 'cum_oil_stb', label: 'Np', quantity: 'stockVolume', volume: true },
+  { col: 'cum_gas_scf', label: 'Gp', quantity: 'gasVolume', volume: true },
+  { col: 'cum_water_stb', label: 'Wp', quantity: 'stockVolume', volume: true },
+  { col: 'cum_water_inj_stb', label: 'Winj', quantity: 'stockVolume', volume: true },
+  { col: 'cum_gas_inj_scf', label: 'Ginj', quantity: 'gasVolume', volume: true },
+  { col: 'bo_rb_stb', label: 'Bo', quantity: 'fvfOil', digits: 4 },
+  { col: 'rs_scf_stb', label: 'Rs', quantity: 'gor', digits: 1 },
+  { col: 'bg_rb_mscf', label: 'Bg', quantity: 'fvfGas', digits: 5 },
+  { col: 'bw_rb_stb', label: 'Bw', quantity: 'fvfOil', digits: 4 },
+  { col: 'z_factor', label: 'Z', quantity: null, digits: 4 },
+  { col: 'observed_we_rb', label: 'Observed We', quantity: 'resVolume', volume: true },
 ];
 
-// =============================================================================
-// HELPERS
-// =============================================================================
-
-/**
- * Find the original-case header that matches any alias for a given schema column.
- * Match is via case-insensitive substring of the lowercased header.
- */
-function findColumnByAliases(headers, aliases) {
-  for (const alias of aliases) {
-    const normalizedAlias = alias.toLowerCase().trim();
-    const idx = headers.findIndex((h) => {
-      const norm = ` ${h.toLowerCase()} `; // pad to allow word-boundary-ish matches
-      return norm.includes(` ${normalizedAlias} `) || norm.includes(normalizedAlias);
-    });
-    if (idx !== -1) return headers[idx];
-  }
-  return null;
-}
-
-/**
- * Detect unit scale factor from column header (substring matching).
- * Returns multiplier to convert to base unit (scf for gas, stb for oil).
- */
-function detectUnitScale(header, type) {
-  const h = header.toLowerCase();
-  if (type === 'gas') {
-    if (h.includes('bscf')) return 1e9;
-    if (h.includes('mmscf')) return 1e6;
-    if (h.includes('mscf')) return 1e3;
-    return 1; // assume scf
-  }
-  if (type === 'oil') {
-    if (h.includes('mmstb') || h.includes('mmbbl')) return 1e6;
-    if (h.includes('mstb') || h.includes('mbbl')) return 1e3;
-    return 1; // assume stb
-  }
-  if (type === 'bg') {
-    // bg_rb_scf in CSV → multiply by 1000 to get RB/Mscf (schema unit)
-    if (h.includes('rb/scf') || h.includes('rb_scf')) return 1e3;
-    return 1; // assume RB/Mscf
-  }
-  if (type === 'rs') {
-    // rs_mscf in CSV → multiply by 1000 to get scf/STB
-    if (h.includes('mscf')) return 1e3;
-    return 1; // assume scf
-  }
-  return 1;
-}
-
-// Reservoir round, Step 0a (gap matrix H12): numbers are read by the shared
-// table reader with the file's own decimal mark. The old reading stripped
-// every comma, so 3250,75 became 325075.
-function safeParseFloat(val, decimal = '.') {
-  const parsed = parseNumber(val, { decimal });
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-// ── Date normalization ──
-// observation_date is a postgres `date` column, and ONE unparseable string
-// (e.g. "31/12/2019" under postgres's default month-first parsing, or an
-// Excel serial) makes PostgREST reject the ENTIRE insert batch with a 400.
-// So every date is normalized to ISO YYYY-MM-DD client-side; anything
-// unrecognizable becomes null (the column is nullable) plus a parse warning.
-
-const MONTH_NAMES = {
-  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
-  jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
-};
-
-/**
- * Decide whether numeric 3-part dates in this file are day-first or
- * month-first by scanning the whole column once. Returns { order, certain }:
- * order is 'dmy' or 'mdy'; certain=false means every date was ambiguous
- * (both parts <= 12) and day-first was assumed.
- */
-function inferDateOrder(rawDates) {
-  let dayFirst = 0;
-  let monthFirst = 0;
-  for (const s of rawDates) {
-    const m = String(s ?? '').trim().match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
-    if (!m) continue;
-    if (Number(m[1]) > 12) dayFirst++;
-    if (Number(m[2]) > 12) monthFirst++;
-  }
-  if (dayFirst > 0 && monthFirst === 0) return { order: 'dmy', certain: true };
-  if (monthFirst > 0 && dayFirst === 0) return { order: 'mdy', certain: true };
-  return { order: 'dmy', certain: false };
-}
-
-/** Build a validated ISO date string, or null (rejects 31/02, year out of range). */
-function buildIsoDate(yRaw, mo, d) {
-  let y = yRaw;
-  if (y < 100) y += y < 50 ? 2000 : 1900;
-  if (y < 1900 || y > 2100 || !mo || !d) return null;
-  const dt = new Date(Date.UTC(y, mo - 1, d));
-  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
-  return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-}
-
-/**
- * Normalize a raw CSV date value to ISO YYYY-MM-DD, or null if unrecognizable.
- * Handles: ISO (with optional time), numeric d/m/y or m/d/y (order from
- * inferDateOrder), month names (31-May-2024, May-2024, May 31 2024),
- * month/year (05/2024), and Excel 1900-system serial numbers.
- */
-function normalizeDate(raw, order) {
-  const s = String(raw ?? '').trim();
-  if (!s) return null;
-  let m;
-  if ((m = s.match(/^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})([T ].*)?$/))) {
-    return buildIsoDate(+m[1], +m[2], +m[3]);
-  }
-  if ((m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/))) {
-    const a = +m[1];
-    const b = +m[2];
-    const y = +m[3];
-    if (a > 12 && b <= 12) return buildIsoDate(y, b, a);
-    if (b > 12 && a <= 12) return buildIsoDate(y, a, b);
-    return order === 'mdy' ? buildIsoDate(y, a, b) : buildIsoDate(y, b, a);
-  }
-  const monMatch = s.toLowerCase().match(/([a-z]{3,})/);
-  if (monMatch && MONTH_NAMES[monMatch[1].slice(0, 3)]) {
-    const mo = MONTH_NAMES[monMatch[1].slice(0, 3)];
-    const nums = (s.match(/\d{1,4}/g) || []).map(Number);
-    if (nums.length === 1) return buildIsoDate(nums[0], mo, 1);
-    if (nums.length >= 2) {
-      let d;
-      let y;
-      if (nums[0] > 31) { y = nums[0]; d = nums[1]; }
-      else { d = nums[0]; y = nums[1]; }
-      return buildIsoDate(y, mo, d);
-    }
-  }
-  if (/^(19|20)\d{2}$/.test(s)) {
-    return buildIsoDate(+s, 1, 1);
-  }
-  if (/^\d{5,6}$/.test(s)) {
-    const n = +s;
-    if (n >= 20000 && n <= 80000) {
-      const dt = new Date(Date.UTC(1899, 11, 30) + n * 86400000);
-      return buildIsoDate(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
-    }
-  }
-  if ((m = s.match(/^(\d{1,2})[/\-.](\d{4})$/))) {
-    return buildIsoDate(+m[2], +m[1], 1);
-  }
-  return null;
-}
-
-/**
- * Map a raw papaparse row to a schema row, using the column alias map.
- * Returns { row: schemaRow, warnings: string[] } where warnings flag missing
- * recommended columns.
- */
-function mapAndScaleRows(rawRows, { delimiter = ',' } = {}) {
-  if (!rawRows || rawRows.length === 0) {
-    throw new Error('CSV is empty.');
-  }
-  const headers = Object.keys(rawRows[0]);
-
-  // One decimal mark for the file, from its own numbers.
-  const allCells = [];
-  for (const raw of rawRows) for (const h of headers) allCells.push(raw[h]);
-  const decimal = detectDecimalMark(allCells, { delimiter });
-  const unreadable = [];
-
-  // Resolve each schema column to a CSV header (or null)
-  const colMap = {};
-  for (const [schemaCol, aliases] of Object.entries(COLUMN_ALIASES)) {
-    colMap[schemaCol] = findColumnByAliases(headers, aliases);
-  }
-
-  if (!colMap.pressure_psia) {
-    throw new Error(
-      'No pressure column detected. CSV must include a "Pressure" column (or alias: P, P_psia, pressure_psia, etc.).',
-    );
-  }
-
-  // Detect unit scaling for cumulatives and PVT
-  const scales = {
-    cum_oil_stb: colMap.cum_oil_stb ? detectUnitScale(colMap.cum_oil_stb, 'oil') : 1,
-    cum_gas_scf: colMap.cum_gas_scf ? detectUnitScale(colMap.cum_gas_scf, 'gas') : 1,
-    cum_water_stb: colMap.cum_water_stb ? detectUnitScale(colMap.cum_water_stb, 'oil') : 1,
-    cum_water_inj_stb: colMap.cum_water_inj_stb ? detectUnitScale(colMap.cum_water_inj_stb, 'oil') : 1,
-    cum_gas_inj_scf: colMap.cum_gas_inj_scf ? detectUnitScale(colMap.cum_gas_inj_scf, 'gas') : 1,
-    bg_rb_mscf: colMap.bg_rb_mscf ? detectUnitScale(colMap.bg_rb_mscf, 'bg') : 1,
-    rs_scf_stb: colMap.rs_scf_stb ? detectUnitScale(colMap.rs_scf_stb, 'rs') : 1,
-  };
-
-  // Date order (day-first vs month-first) is inferred once for the whole
-  // file so ambiguous dates like 04/05/2024 are read consistently.
-  const dateOrder = colMap.observation_date
-    ? inferDateOrder(rawRows.map((raw) => raw[colMap.observation_date]))
-    : null;
-  let ambiguousDates = 0;
-  const badDates = [];
-
-  // Map each row
-  const rows = rawRows.map((raw, idx) => {
-    const row = { timestep_index: idx };
-    for (const [schemaCol, header] of Object.entries(colMap)) {
-      if (header == null || schemaCol === 'observation_date') continue;
-      const rawVal = raw[header];
-      const num = safeParseFloat(rawVal, decimal.mark);
-      if (num == null) {
-        row[schemaCol] = null;
-        if (!isNullToken(rawVal)) unreadable.push(String(rawVal).trim());
-        continue;
-      }
-      const scale = scales[schemaCol] ?? 1;
-      row[schemaCol] = num * scale;
-    }
-    // Dates are normalized to ISO, never passed through raw: one string
-    // postgres can't parse 400s the whole insert (and the row loses no
-    // engine input — observation_date is display/validation metadata).
-    if (colMap.observation_date) {
-      const rawDate = raw[colMap.observation_date];
-      const iso = normalizeDate(rawDate, dateOrder?.order);
-      row.observation_date = iso;
-      if (iso == null && String(rawDate ?? '').trim() !== '') {
-        badDates.push(String(rawDate).trim());
-      } else if (iso && !dateOrder.certain && /^(\d{1,2})[/\-.](\d{1,2})[/\-.]/.test(String(rawDate).trim())) {
-        ambiguousDates++;
-      }
-    }
-    return row;
-  });
-
-  // Filter out completely blank rows (no pressure)
-  const filtered = rows.filter(
-    (r) => r.pressure_psia != null && !isNaN(r.pressure_psia),
-  );
-
-  // Reassign timestep_index sequentially after filtering
-  filtered.forEach((r, i) => {
-    r.timestep_index = i;
-  });
-
-  const warnings = [];
-  if (!colMap.cum_oil_stb && !colMap.cum_gas_scf) {
-    warnings.push(
-      'No cumulative oil or gas column detected. At least one is needed for material balance.',
-    );
-  }
-  if (!decimal.certain) {
-    const eg = decimal.examples?.length ? ` such as ${decimal.examples[0]}` : '';
-    warnings.push(
-      `Numbers${eg} could use the comma for thousands or for decimals. They were read with a decimal ${decimal.mark === ',' ? 'comma' : 'point'}. Check the preview before saving.`,
-    );
-  }
-  if (unreadable.length > 0) {
-    const sample = unreadable.slice(0, 3).map((d) => `"${d}"`).join(', ');
-    warnings.push(
-      `${unreadable.length} value(s) could not be read as numbers (${sample}${unreadable.length > 3 ? ', and more' : ''}). Those cells were left empty, and a row with no pressure is left out.`,
-    );
-  }
-  if (ambiguousDates > 0) {
-    warnings.push(
-      `Dates like 04/05/2024 were read as day/month/year. If your file uses month/day, switch the date column to ISO format (YYYY-MM-DD) and re-upload.`,
-    );
-  }
-  if (badDates.length > 0) {
-    const sample = badDates.slice(0, 3).map((d) => `"${d}"`).join(', ');
-    warnings.push(
-      `${badDates.length} date value(s) could not be read (${sample}${badDates.length > 3 ? ', …' : ''}). Those rows will save without a date.`,
-    );
-  }
-
-  return { rows: filtered, warnings, colMap, scales };
-}
-
-/**
- * CSV text to mapped rows: the whole import path with no file or DOM, so it
- * can be tested. Returns { rows, warnings, colMap, scales, parseErrors }.
- */
-export function readProductionCsv(text) {
-  const src = String(text ?? '').replace(/^\ufeff/, '');
-  // the delimiter comes from the shared reader: a field-count guess takes a
-  // semicolon file with a decimal comma in every cell for a comma file
-  const found = detectTableDelimiter(src);
-  const delimiter = found === ' ' ? '' : found;   // white-space columns: papaparse's own guess, as before
-  const results = Papa.parse(src, { header: true, skipEmptyLines: true, dynamicTyping: false, delimiter });
-  if (results.errors.length > 0) return { rows: [], warnings: [], colMap: {}, scales: {}, parseErrors: results.errors };
-  return { ...mapAndScaleRows(results.data, { delimiter: results.meta?.delimiter || found }), parseErrors: [] };
-}
-
-/** A dropped file's text (FileReader, as papaparse read it before). */
-const readFileText = (file) => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => resolve(String(reader.result ?? ''));
-  reader.onerror = () => reject(reader.error || new Error('The file could not be read.'));
-  reader.readAsText(file);
+// the door unit that matches the display unit of each kind of column, offered
+// where the file names no unit
+const doorDefaults = (units) => ({
+  pressure: { psi: 'psia', kPa: 'kPa', bar: 'bara', MPa: 'MPa' }[units.unit('pressure')] ?? 'psia',
+  stock: units.unit('stockVolume') === 'm3' ? 'm3' : 'STB',
+  gas: units.unit('gasVolume') === 'm3' ? 'm3' : 'scf',
+  res: units.unit('resVolume') === 'm3' ? 'm3' : 'RB',
+  gor: units.unit('gor') === 'm3/m3' ? 'm3/m3' : 'scf/STB',
+  fvfGas: units.unit('fvfGas') === 'm3/m3' ? 'm3/m3' : 'RB/Mscf',
 });
 
 /**
- * Validate parsed rows against engine invariants.
+ * CSV text to mapped rows with the choices a file needs taken at their
+ * defaults: the import path with no file and no DOM, kept for the tests of
+ * Step 0a (H12). Returns { rows, warnings, colMap, scales, parseErrors }.
+ */
+export function readProductionCsv(text) {
+  const src = String(text ?? '').replace(/^\ufeff/, '');
+  const read = readProductionTable(src);
+  const warnings = [...read.warnings];
+  for (const q of read.questions) warnings.push(q.text);
+  const cells = read.readBack.skipped.filter((s) => s.cell);
+  if (cells.length) {
+    warnings.push(`${cells.length} value(s) could not be read as numbers. Those cells were left empty, and a row with no pressure is left out.`);
+  }
+  if (!read.ok && read.refusal && !read.rows.length) {
+    return { rows: [], warnings, colMap: {}, scales: {}, parseErrors: [{ message: read.refusal }] };
+  }
+  const colMap = Object.fromEntries(IMPORT_COLUMNS.map((c) => [c.key, read.mapping[c.key] !== undefined ? (read.columns[read.mapping[c.key]].header ?? null) : null]));
+  return { rows: read.rows, warnings, colMap, scales: read.units, parseErrors: [] };
+}
+
+/** A dropped file as text: delimited text as it is, the first sheet of a workbook as tab-separated text. */
+async function fileToText(file) {
+  const name = String(file?.name ?? '').toLowerCase();
+  if (/\.(xlsx|xlsm|xls)$/.test(name)) {
+    const { readTabularFile } = await import('@/lib/tabularFile');
+    const wb = await readTabularFile(file);
+    const sheet = wb.sheets?.find((s) => s.rows.length) ?? wb.sheets?.[0];
+    if (!sheet || !sheet.rows.length) throw new Error('The workbook has no rows.');
+    return { text: sheet.rows.map((r) => r.map((c) => String(c).replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n'), note: wb.sheets.length > 1 ? `Sheet "${sheet.name}" was read; the workbook has ${wb.sheets.length} sheets.` : null };
+  }
+  const text = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(reader.error || new Error('The file could not be read.'));
+    reader.readAsText(file);
+  });
+  return { text: text.replace(/^\ufeff/, ''), note: null };
+}
+
+/**
+ * Validate rows against the engine's rules. Rows are in engine units; the
+ * messages print the display units.
  * Returns array of {row, message} errors. Empty array = valid.
  */
-function validateRows(rows, caseData) {
+export function validateRows(rows, caseData, units = OILFIELD_UNITS) {
   const errors = [];
+  const pText = (v) => `${fmtNum(units.to('pressure', v), units.unit('pressure') === 'psi' ? 1 : 2)} ${units.label('pressure')}`;
 
   if (rows.length < 2) {
-    errors.push({ row: null, message: `Need at least 2 rows; got ${rows.length}.` });
+    errors.push({ row: null, message: `At least 2 rows are needed: the initial state and one later survey. The table has ${rows.length}.` });
     return errors;
   }
 
   // Row 0: zero cumulatives
   const r0 = rows[0];
-  for (const cum of ['cum_oil_stb', 'cum_gas_scf', 'cum_water_stb', 'cum_water_inj_stb', 'cum_gas_inj_scf']) {
+  const CUMS = { cum_oil_stb: 'oil', cum_gas_scf: 'gas', cum_water_stb: 'water', cum_water_inj_stb: 'injected water', cum_gas_inj_scf: 'injected gas' };
+  for (const [cum, word] of Object.entries(CUMS)) {
     if (r0[cum] != null && r0[cum] > 0) {
       errors.push({
         row: 0,
-        message: `Row 0 must have zero cumulative production. ${cum} = ${r0[cum]}.`,
+        message: `The first row is the initial state and must have no cumulative ${word}. Add a row above it with the initial pressure and zero volumes.`,
       });
     }
   }
@@ -436,7 +180,7 @@ function validateRows(rows, caseData) {
     if (diff > 1) {
       errors.push({
         row: 0,
-        message: `Row 0 pressure (${r0.pressure_psia} psia) doesn't match the case initial pressure (${caseData.initial_pressure_psia} psia). Change the data, or the case's initial pressure with Edit case on the case card.`,
+        message: `The first row pressure (${pText(r0.pressure_psia)}) differs from the initial pressure of the case (${pText(Number(caseData.initial_pressure_psia))}). Change the data, or the initial pressure with Edit case on the case card.`,
       });
     }
   }
@@ -446,9 +190,20 @@ function validateRows(rows, caseData) {
     if (rows[i].pressure_psia > rows[i - 1].pressure_psia + 0.5) {
       errors.push({
         row: i,
-        message: `Row ${i} pressure (${rows[i].pressure_psia}) is higher than row ${i - 1} (${rows[i - 1].pressure_psia}). Pressures must be non-increasing.`,
+        message: `The pressure of row ${i} (${pText(rows[i].pressure_psia)}) is above the row before it (${pText(rows[i - 1].pressure_psia)}). The engine needs pressures that do not rise.`,
       });
     }
+  }
+
+  // Dates, where given, must run forward
+  let lastDate = null;
+  for (let i = 0; i < rows.length; i++) {
+    const d = rows[i].observation_date;
+    if (!d) continue;
+    if (lastDate && String(d) <= String(lastDate.value)) {
+      errors.push({ row: i, message: `The date of row ${i} (${String(d).slice(0, 10)}) is not after the date of row ${lastDate.index} (${String(lastDate.value).slice(0, 10)}).` });
+    }
+    lastDate = { value: d, index: i };
   }
 
   // Required cumulatives by fluid system
@@ -457,7 +212,7 @@ function validateRows(rows, caseData) {
     if (!hasGas) {
       errors.push({
         row: null,
-        message: 'Gas case but no gas production found. CSV must include a cum_gas column.',
+        message: 'This is a gas case and the table holds no gas production. It needs a cumulative gas column.',
       });
     }
   } else {
@@ -465,7 +220,7 @@ function validateRows(rows, caseData) {
     if (!hasOil) {
       errors.push({
         row: null,
-        message: 'Oil case but no oil production found. CSV must include a cum_oil column.',
+        message: 'This is an oil case and the table holds no oil production. It needs a cumulative oil column.',
       });
     }
   }
@@ -473,11 +228,144 @@ function validateRows(rows, caseData) {
   return errors;
 }
 
-const fmt = (v, decimals = 2) => {
-  if (v == null || v === '' || (typeof v === 'number' && isNaN(v))) return EMPTY_VALUE;
+const fmtNum = (v, decimals = 2) => {
+  if (v == null || v === '' || (typeof v === 'number' && !Number.isFinite(v))) return EMPTY_VALUE;
   if (typeof v !== 'number') return String(v);
-  if (Math.abs(v) >= 1e6) return v.toExponential(2);
-  return v.toFixed(decimals);
+  return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+};
+
+// =============================================================================
+// THE IMPORT DOOR: what was read, and the choices a file needs
+// =============================================================================
+
+const selectCls = `${COMPACT_FIELD_THEMED} h-7 text-[11px] max-w-full`;
+const UNIT_FROM_WORDS = { header: 'from the header', chosen: 'chosen here', assumed: 'not named in the file', fixed: '' };
+
+const ImportDoor = ({ read, choices, setChoices, fileName, units }) => {
+  const set = (patch) => setChoices((c) => ({ ...c, ...patch }));
+  const setMapping = (key, value) => set({ mapping: { ...(choices.mapping ?? {}), [key]: value === '' ? null : Number(value) } });
+  const setUnit = (key, value) => set({ units: { ...(choices.units ?? {}), [key]: value } });
+  const rb = read.readBack;
+  const dateQuestion = read.questions.find((q) => q.kind === 'dateOrder');
+  const decimalQuestion = read.questions.find((q) => q.kind === 'decimalMark');
+  const gauge = DOOR_UNITS.pressure.find((u) => u.key === read.units.pressure_psia)?.gauge;
+  const rowSkips = rb.skipped.filter((s) => !s.cell);
+  const cellSkips = rb.skipped.filter((s) => s.cell);
+  return (
+    <div className="bg-pl-surface border border-pl-border rounded p-3 space-y-3" data-testid="mbal-import-door">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-xs font-semibold text-pl-text">What was read from {fileName}</p>
+        <p className="text-[11px] text-pl-muted" data-testid="mbal-import-counts">
+          {rb.rowsRead} of {rb.rowsInFile} rows read, {rowSkips.length} left out. Columns split by {rb.delimiter}; decimal {rb.decimal.mark === ',' ? 'comma' : 'point'}{rb.header ? '' : '; no header row'}.
+        </p>
+      </div>
+
+      {(dateQuestion || decimalQuestion) && (
+        <div className="bg-pl-warning-bg border border-pl-warning/40 rounded p-3 space-y-2" data-testid="mbal-import-questions">
+          {dateQuestion && (
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs text-pl-warning-text flex-1 min-w-[16rem]">{dateQuestion.text}</p>
+              <select className={selectCls} aria-label="Date order" data-testid="mbal-import-date-order" value={choices.dateOrder ?? ''} onChange={(e) => set({ dateOrder: e.target.value || undefined })}>
+                <option value="">Choose the date order</option>
+                <option value="dmy">Day first (31/12/2024)</option>
+                <option value="mdy">Month first (12/31/2024)</option>
+              </select>
+            </div>
+          )}
+          {decimalQuestion && (
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs text-pl-warning-text flex-1 min-w-[16rem]">{decimalQuestion.text}</p>
+              <select className={selectCls} aria-label="Decimal mark" data-testid="mbal-import-decimal" value={choices.decimal ?? ''} onChange={(e) => set({ decimal: e.target.value || undefined })}>
+                <option value="">As read (decimal {rb.decimal.mark === ',' ? 'comma' : 'point'})</option>
+                <option value=".">Decimal point (1,234 is one thousand)</option>
+                <option value=",">Decimal comma (1,234 is one and a bit)</option>
+              </select>
+            </div>
+          )}
+        </div>
+      )}
+      {choices.dateOrder && !dateQuestion && (
+        <p className="text-[11px] text-pl-muted" data-testid="mbal-import-date-chosen">
+          Dates read {choices.dateOrder === 'dmy' ? 'day first' : 'month first'}, as chosen here.{' '}
+          <button type="button" className="underline" onClick={() => set({ dateOrder: undefined })}>Choose again</button>
+        </p>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-[11px]" data-testid="mbal-import-mapping">
+          <thead>
+            <tr className="text-left text-pl-muted">
+              <th className="font-semibold py-1 pr-3">Becomes</th>
+              <th className="font-semibold py-1 pr-3">Column of the file</th>
+              <th className="font-semibold py-1 pr-3">Unit in the file</th>
+              <th className="font-semibold py-1 pr-3 text-right">Values</th>
+            </tr>
+          </thead>
+          <tbody>
+            {IMPORT_COLUMNS.map((t) => {
+              const index = read.mapping[t.key];
+              const placed = index !== undefined;
+              const back = rb.columns.find((c) => c.key === t.key);
+              const options = DOOR_UNITS[t.units] ?? [];
+              return (
+                <tr key={t.key} className="border-t border-pl-border/60 align-middle" data-testid={`mbal-import-row-${t.key}`}>
+                  <td className="py-1 pr-3 text-pl-text whitespace-nowrap">{t.label}{t.required ? ' *' : ''}</td>
+                  <td className="py-1 pr-3">
+                    <select className={selectCls} aria-label={`File column for ${t.label}`} data-testid={`mbal-import-col-${t.key}`}
+                      value={placed ? String(index) : ''} onChange={(e) => setMapping(t.key, e.target.value)}>
+                      <option value="">{t.required ? 'Choose a column' : 'Not in the file'}</option>
+                      {read.columns.map((c) => <option key={c.index} value={String(c.index)}>{c.header || c.name}</option>)}
+                    </select>
+                  </td>
+                  <td className="py-1 pr-3">
+                    {!placed ? null : t.kind === 'date' ? (
+                      <span className="text-pl-muted">{back?.unit}</span>
+                    ) : options.length > 1 ? (
+                      <span className="inline-flex flex-wrap items-center gap-1.5">
+                        <select className={selectCls} aria-label={`Unit of ${t.label} in the file`} data-testid={`mbal-import-unit-${t.key}`}
+                          value={read.units[t.key]} onChange={(e) => setUnit(t.key, e.target.value)}>
+                          {options.map((u) => <option key={u.key} value={u.key}>{u.label}</option>)}
+                        </select>
+                        <span className={read.unitFrom[t.key] === 'assumed' ? 'text-pl-warning-text' : 'text-pl-muted'}>{UNIT_FROM_WORDS[read.unitFrom[t.key]]}</span>
+                      </span>
+                    ) : (
+                      <span className="text-pl-muted">{options[0]?.label ?? 'no unit'}</span>
+                    )}
+                  </td>
+                  <td className="py-1 pr-3 text-right font-pl-mono tabular-nums text-pl-text">{placed ? back?.values ?? 0 : ''}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {rb.unplaced?.length > 0 && (
+        <p className="text-[11px] text-pl-muted" data-testid="mbal-import-unplaced">
+          Columns of the file that were not used: {rb.unplaced.map((c) => c.name).join(', ')}.
+        </p>
+      )}
+      {gauge && (
+        <div className="max-w-xs">
+          <UnitField label="Atmospheric pressure added to gauge pressures" quantity="dp" units={units} testId="mbal-import-atmosphere"
+            value={choices.atmospherePsi ?? STANDARD_ATMOSPHERE_PSI} onCommit={(v) => set({ atmospherePsi: v == null ? undefined : v })} />
+        </div>
+      )}
+      {(rowSkips.length > 0 || cellSkips.length > 0) && (
+        <details className="text-[11px] text-pl-muted" data-testid="mbal-import-skipped" open={rowSkips.length + cellSkips.length <= 6}>
+          <summary className="cursor-pointer text-pl-text">
+            {rowSkips.length} row(s) left out{cellSkips.length ? `, ${cellSkips.length} cell(s) left empty` : ''}: the reasons
+          </summary>
+          <ul className="mt-1 space-y-0.5 list-disc pl-5">
+            {[...rowSkips, ...cellSkips].slice(0, 40).map((s, i) => (
+              // eslint-disable-next-line react/no-array-index-key
+              <li key={i}>Line {s.line}: {s.reason}.</li>
+            ))}
+            {rowSkips.length + cellSkips.length > 40 && <li>and {rowSkips.length + cellSkips.length - 40} more.</li>}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
 };
 
 // =============================================================================
@@ -486,16 +374,17 @@ const fmt = (v, decimals = 2) => {
 
 const DataHub = ({ caseId, caseData, onDataSaved }) => {
   const { toast } = useToast();
+  const { units } = useMaterialBalanceStudio();
 
   // Server state
   const [serverRows, setServerRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Parsed-but-unsaved state
-  const [pendingRows, setPendingRows] = useState(null); // null = no upload pending
-  const [pendingFileName, setPendingFileName] = useState(null);
-  const [parseWarnings, setParseWarnings] = useState([]);
-  const [colMap, setColMap] = useState(null);
+  // The file (or paste) at the door, and the choices made for it
+  const [source, setSource] = useState(null); // { text, name, note }
+  const [choices, setChoices] = useState({});
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
 
   // Save state
   const [saving, setSaving] = useState(false);
@@ -527,69 +416,63 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
     };
   }, [caseId, toast]);
 
-  // ── Computed: validation errors on pending rows ──
+  // The door re-reads the text whenever a choice changes. Where the file
+  // names no unit, the display unit is offered.
+  const defaults = useMemo(() => doorDefaults(units), [units]);
+  const read = useMemo(
+    () => (source ? readProductionTable(source.text, { ...choices, defaultUnits: defaults }) : null),
+    [source, choices, defaults],
+  );
+  const pendingRows = read?.ok ? read.rows : null;
+
   const validationErrors = useMemo(() => {
     if (!pendingRows || !caseData) return [];
-    return validateRows(pendingRows, caseData);
-  }, [pendingRows, caseData]);
+    return validateRows(pendingRows, caseData, units);
+  }, [pendingRows, caseData, units]);
 
-  const canSave = pendingRows && validationErrors.length === 0;
+  const canSave = Boolean(pendingRows) && validationErrors.length === 0;
 
-  // ── CSV drop handler ──
+  const open = useCallback((text, name, note = null) => {
+    setChoices({});
+    setSource({ text, name, note });
+    const first = readProductionTable(text);
+    toast({
+      title: first.ok ? 'File read and not saved yet' : 'The file needs a choice',
+      description: first.ok
+        ? `${first.rows.length} rows read. Check what was read, then press "Save to case" to write them to the case.`
+        : first.refusal,
+      duration: 8000,
+    });
+  }, [toast]);
+
+  // ── Drop handler ──
   const onDrop = useCallback(
-    (acceptedFiles) => {
+    (acceptedFiles, rejected) => {
+      if (rejected?.length && !acceptedFiles.length) {
+        toast({ title: 'That file type is not read here', description: 'Use a CSV, a text file with tab, semicolon or space columns, or an Excel workbook.', variant: 'destructive' });
+        return;
+      }
       if (acceptedFiles.length === 0) return;
       const file = acceptedFiles[0];
-      readFileText(file).then((text) => {
-        try {
-          const { rows, warnings, colMap: cm, parseErrors } = readProductionCsv(text);
-          if (parseErrors.length > 0) {
-            toast({
-              title: 'CSV parse error',
-              description: parseErrors[0].message,
-              variant: 'destructive',
-            });
-            return;
-          }
-          setPendingRows(rows);
-          setPendingFileName(file.name);
-          setParseWarnings(warnings);
-          setColMap(cm);
-          toast({
-            title: 'CSV parsed and not saved yet',
-            description: `${rows.length} rows mapped. Click "Save to case" below to write them to the case before running MBAL.`,
-            duration: 8000,
-          });
-        } catch (err) {
-          toast({
-            title: 'Column mapping failed',
-            description: err.message,
-            variant: 'destructive',
-          });
-        }
-      }).catch((err) => {
-        toast({
-          title: 'File read error',
-          description: err.message,
-          variant: 'destructive',
-        });
+      fileToText(file).then(({ text, note }) => open(text, file.name, note)).catch((err) => {
+        toast({ title: 'File read error', description: err.message, variant: 'destructive' });
       });
     },
-    [toast],
+    [toast, open],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { 'text/csv': ['.csv'] },
+    accept: {
+      'text/csv': ['.csv'], 'text/plain': ['.txt', '.tsv', '.dat', '.prn', '.asc'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'], 'application/vnd.ms-excel': ['.xls'],
+    },
     maxFiles: 1,
   });
 
-  // ── Discard pending upload ──
   const discardPending = () => {
-    setPendingRows(null);
-    setPendingFileName(null);
-    setParseWarnings([]);
-    setColMap(null);
+    setSource(null);
+    setChoices({});
   };
 
   // ── Save pending rows ──
@@ -615,21 +498,38 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
     onDataSaved?.();
   };
 
-  // ── Download current server data as CSV ──
+  const visibleRows = pendingRows ?? (read ? read.rows : null) ?? serverRows;
+  const maxOf = (col) => visibleRows.reduce((mx, r) => Math.max(mx, Math.abs(Number(r[col]) || 0)), 0);
+  const visibleCols = SCHEMA_DISPLAY.filter(({ col }) => col === 'timestep_index' || col === 'pressure_psia'
+    || visibleRows.some((r) => r[col] != null && r[col] !== 0 && r[col] !== ''))
+    .map((c) => {
+      if (!c.quantity) return { ...c, unitLabel: '', show: (v) => (c.col === 'observation_date' ? (v ? String(v).slice(0, 10) : EMPTY_VALUE) : (c.col === 'timestep_index' ? v : fmtNum(Number(v), c.digits ?? 4))) };
+      if (c.volume) {
+        const s = units.scaled(c.quantity, maxOf(c.col));
+        const digits = ['STB', 'RB', 'scf', 'm3'].includes(s.unit) ? 0 : 3;
+        return { ...c, unitLabel: s.label, show: (v) => (v == null ? EMPTY_VALUE : fmtNum(s.to(Number(v)), digits)) };
+      }
+      const digits = c.col === 'pressure_psia' ? (units.unit('pressure') === 'psi' ? 1 : units.unit('pressure') === 'kPa' ? 0 : 3) : (c.digits ?? 4);
+      return { ...c, unitLabel: units.label(c.quantity), show: (v) => (v == null ? EMPTY_VALUE : fmtNum(units.to(c.quantity, Number(v)), digits)) };
+    });
+
+  // ── Download the saved table, in the display units, with the unit in each header ──
   const downloadServerData = () => {
     if (serverRows.length === 0) return;
-    const cleaned = serverRows.map((r) => {
-      const out = {};
-      for (const { col } of SCHEMA_DISPLAY) {
-        if (r[col] != null) out[col] = r[col];
-      }
-      return out;
-    });
-    const csv = Papa.unparse(cleaned);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const cols = SCHEMA_DISPLAY.filter(({ col }) => col !== 'timestep_index' && serverRows.some((r) => r[col] != null && r[col] !== ''));
+    const unitOf = (c) => (c.quantity ? (c.volume ? units.label(c.quantity) : units.label(c.quantity)) : '');
+    const head = cols.map((c) => (unitOf(c) ? `${c.label} (${unitOf(c)})` : c.label));
+    const cell = (c, v) => {
+      if (v == null || v === '') return '';
+      if (c.col === 'observation_date') return String(v).slice(0, 10);
+      const n = c.quantity ? units.to(c.quantity, Number(v)) : Number(v);
+      return Number.isFinite(n) ? String(parseFloat(n.toPrecision(10))) : '';
+    };
+    const lines = [head.join(','), ...serverRows.map((r) => cols.map((c) => cell(c, r[c.col])).join(','))];
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `case_${caseId}_production_data.csv`;
+    a.download = `${(caseData?.name ?? 'case').replace(/[^a-z0-9-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'case'}-pressure-and-production.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -673,21 +573,14 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
     return (
       <Card>
         <CardContent className="py-12 text-center text-pl-muted">
-          No case data. DataHub must be mounted inside a case detail page.
+          Open a case to load its data.
         </CardContent>
       </Card>
     );
   }
 
-  const visibleRows = pendingRows ?? serverRows;
-  const visibleSchemaCols = SCHEMA_DISPLAY.filter(({ col }) =>
-    col === 'timestep_index' || col === 'pressure_psia' ||
-    visibleRows.some((r) => r[col] != null && r[col] !== 0)
-  );
+  const injected = (pendingRows ?? serverRows).some((r) => (r.cum_water_inj_stb ?? 0) > 0 || (r.cum_gas_inj_scf ?? 0) > 0);
 
-  // =============================================================================
-  // RENDER
-  // =============================================================================
   return (
     <div className="space-y-6">
       <Card>
@@ -695,16 +588,17 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
           <div>
             <CardTitle>Data Hub</CardTitle>
             <CardDescription>
-              Upload production history as CSV. Columns are auto-mapped to the case schema; units (Mscf, Bscf) auto-converted.
+              The pressure and production history of the case. Bring it in from a file or a paste; columns are found by name, and each unit is read from its header or chosen here.
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {serverRows.length > 0 && !pendingRows && (
+            {serverRows.length > 0 && !source && (
               <>
                 <Button
                   onClick={downloadServerData}
                   variant="outline"
                   size="sm"
+                  data-testid="mbal-data-download"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Download CSV
@@ -724,43 +618,68 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Upload zone — shown when no pending upload */}
-          {!pendingRows && (
-            <div
-              {...getRootProps()}
-              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                isDragActive
-                  ? 'border-pl-primary bg-pl-primary/10'
-                  : 'border-pl-border-strong hover:border-pl-primary bg-pl-surface'
-              }`}
-            >
-              <input {...getInputProps()} />
-              <Upload className="w-10 h-10 mx-auto mb-3 text-pl-primary-text" />
-              <p className="text-pl-text font-medium mb-1">
-                {isDragActive ? 'Drop the CSV file here…' : 'Drag a CSV file here, or click to select'}
-              </p>
-              <p className="text-xs text-pl-muted mt-2 leading-relaxed">
-                Required column: <span className="font-mono">Pressure</span> (psia).
-                Recommended: <span className="font-mono">Np / Gp / Wp</span> (cumulative oil/gas/water).
-                Optional per-row PVT: <span className="font-mono">Bo, Rs, Bg, Bw, z</span>.
-                Units auto-detect from headers (Mscf, Bscf, MMscf for gas; Mstb for oil).
-              </p>
+          {/* Upload zone, shown when nothing is at the door */}
+          {!source && (
+            <div className="space-y-3">
+              <div
+                {...getRootProps()}
+                data-testid="mbal-data-dropzone"
+                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                  isDragActive
+                    ? 'border-pl-primary bg-pl-primary/10'
+                    : 'border-pl-border-strong hover:border-pl-primary bg-pl-surface'
+                }`}
+              >
+                <input {...getInputProps()} data-testid="mbal-data-file" />
+                <Upload className="w-10 h-10 mx-auto mb-3 text-pl-primary-text" />
+                <p className="text-pl-text font-medium mb-1">
+                  {isDragActive ? 'Drop the file here' : 'Drag a file here, or click to select'}
+                </p>
+                <p className="text-xs text-pl-muted mt-2 leading-relaxed">
+                  CSV, text with tab, semicolon or space columns, or an Excel sheet. One row per survey, the initial state first.
+                  Needed: a <span className="font-mono">Pressure</span> column. Usual: <span className="font-mono">Date, Np, Gp, Wp</span>.
+                  Optional per-row PVT: <span className="font-mono">Bo, Rs, Bg, Bw, Z</span>.
+                  A unit in a header is read (for example <span className="font-mono">Pressure (psig)</span> or <span className="font-mono">Gp (MMscf)</span>); where there is none you choose it.
+                </p>
+              </div>
+              <div>
+                <Button variant="outline" size="sm" onClick={() => setPasteOpen((v) => !v)} data-testid="mbal-data-paste-toggle">
+                  <ClipboardPaste className="h-4 w-4 mr-2" />
+                  {pasteOpen ? 'Close the paste box' : 'Paste a table'}
+                </Button>
+                {pasteOpen && (
+                  <div className="mt-2 space-y-2">
+                    <Label htmlFor="mbal-paste" className="text-xs text-pl-text">Paste rows copied from a spreadsheet, with the header row</Label>
+                    <textarea id="mbal-paste" data-testid="mbal-data-paste" rows={6} value={pasteText} onChange={(e) => setPasteText(e.target.value)}
+                      className="w-full rounded-md border border-pl-border-strong bg-pl-surface text-pl-text text-xs font-mono p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus" />
+                    <Button size="sm" disabled={!pasteText.trim()} data-testid="mbal-data-paste-read"
+                      onClick={() => { open(pasteText, 'the pasted table'); setPasteOpen(false); setPasteText(''); }}>
+                      Read the pasted table
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Pending upload summary */}
-          {pendingRows && (
+          {/* A file at the door */}
+          {source && read && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between bg-pl-surface border border-pl-warning/40 rounded p-4">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-pl-surface border border-pl-warning/40 rounded p-4">
+                <div className="flex items-center gap-3 min-w-0">
                   <Info className="w-5 h-5 text-pl-warning-text flex-shrink-0" />
-                  <div>
-                    <p className="text-sm text-pl-text font-medium">
-                      Pending: {pendingFileName}
+                  <div className="min-w-0">
+                    <p className="text-sm text-pl-text font-medium truncate" data-testid="mbal-pending-name">
+                      Not saved yet: {source.name}
                     </p>
-                    <p className="text-xs text-pl-muted">
-                      {pendingRows.length} rows parsed. {validationErrors.length === 0 ? 'Ready to save.' : `${validationErrors.length} validation error(s). Fix and re-upload.`}
+                    <p className="text-xs text-pl-muted" data-testid="mbal-pending-status">
+                      {!read.ok
+                        ? read.refusal
+                        : validationErrors.length === 0
+                          ? `${read.rows.length} rows read. Ready to save.`
+                          : `${read.rows.length} rows read. ${validationErrors.length} problem(s) below stop the save.`}
                     </p>
+                    {source.note && <p className="text-[11px] text-pl-muted">{source.note}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -776,6 +695,7 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                     onClick={handleSave}
                     disabled={!canSave || saving}
                     className="font-semibold"
+                    data-testid="mbal-data-save"
                   >
                     {saving ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -787,30 +707,12 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                 </div>
               </div>
 
-              {/* Column mapping report */}
-              {colMap && (
-                <div className="bg-pl-surface border border-pl-border rounded p-3">
-                  <p className="text-xs font-medium text-pl-text mb-2">
-                    Column mapping
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-mono">
-                    {Object.entries(colMap).map(([schemaCol, header]) => (
-                      <div key={schemaCol} className="flex justify-between gap-2">
-                        <span className="text-pl-muted">{schemaCol}</span>
-                        <span className={header ? 'text-pl-primary-text' : 'text-pl-muted'}>
-                          {header ?? EMPTY_VALUE}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <ImportDoor read={read} choices={choices} setChoices={setChoices} fileName={source.name} units={units} />
 
-              {/* Parse warnings */}
-              {parseWarnings.length > 0 && (
-                <div className="bg-pl-warning-bg border border-pl-warning/40 rounded p-3 space-y-1">
-                  {parseWarnings.map((w, i) => (
-                    <p key={i} className="text-xs text-pl-warning-text flex items-start gap-2">
+              {read.warnings.length > 0 && (
+                <div className="bg-pl-warning-bg border border-pl-warning/40 rounded p-3 space-y-1" data-testid="mbal-import-warnings">
+                  {read.warnings.map((w) => (
+                    <p key={w} className="text-xs text-pl-warning-text flex items-start gap-2">
                       <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
                       {w}
                     </p>
@@ -818,20 +720,15 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                 </div>
               )}
 
-              {/* Validation errors */}
               {validationErrors.length > 0 && (
-                <div className="bg-pl-danger-bg border border-pl-danger/40 rounded p-3 space-y-1">
+                <div className="bg-pl-danger-bg border border-pl-danger/40 rounded p-3 space-y-1" data-testid="mbal-import-errors">
                   <p className="text-xs font-medium text-pl-danger-text mb-2">
-                    Validation errors ({validationErrors.length})
+                    Problems that stop the save ({validationErrors.length})
                   </p>
                   {validationErrors.map((err, i) => (
+                    // eslint-disable-next-line react/no-array-index-key
                     <p key={i} className="text-xs text-pl-danger-text flex items-start gap-2">
                       <X className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                      {err.row != null && (
-                        <span className="font-mono text-pl-danger-text flex-shrink-0">
-                          Row {err.row}:
-                        </span>
-                      )}
                       <span>{err.message}</span>
                     </p>
                   ))}
@@ -840,16 +737,23 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
             </div>
           )}
 
-          {/* Preview table — shows pending OR server rows */}
+          {injected && (
+            <p className="text-xs text-pl-warning-text flex items-start gap-2" data-testid="mbal-data-injection">
+              <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+              <span>The table holds injected volumes. They are kept and printed, and this engine version leaves them out of the balance: the withdrawal term has no injection term.</span>
+            </p>
+          )}
+
+          {/* The table: the file at the door, or the saved rows */}
           {visibleRows.length > 0 && (
             <Card>
               <CardHeader className="border-b border-pl-border p-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xs font-bold text-pl-text uppercase tracking-wider flex items-center gap-2">
-                    {pendingRows ? (
+                    {source ? (
                       <>
                         <RefreshCw className="w-3 h-3 text-pl-warning-text" />
-                        Pending preview
+                        Read from the file, not saved
                       </>
                     ) : (
                       <>
@@ -858,25 +762,25 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                       </>
                     )}
                   </CardTitle>
-                  <span className="text-[10px] text-pl-muted">
-                    {visibleRows.length} rows · {visibleSchemaCols.length} columns
+                  <span className="text-[10px] text-pl-muted" data-testid="mbal-data-count">
+                    {visibleRows.length} rows, {visibleCols.length} columns
                   </span>
                 </div>
               </CardHeader>
               <CardContent className="p-0">
                 <ScrollArea className="h-[360px] w-full">
-                  <UiTable>
+                  <UiTable data-testid="mbal-data-table">
                     <TableHeader className="bg-pl-sunken sticky top-0 z-10">
                       <TableRow>
-                        {visibleSchemaCols.map(({ col, label, unit }) => (
+                        {visibleCols.map(({ col, label, unitLabel }) => (
                           <TableHead
                             key={col}
                             className="text-xs text-pl-muted font-semibold py-2 whitespace-nowrap"
                           >
                             {label}
-                            {unit && (
-                              <span className="text-[10px] block font-normal text-pl-muted">
-                                ({unit})
+                            {unitLabel && (
+                              <span className="text-[10px] block font-normal normal-case text-pl-muted">
+                                ({unitLabel})
                               </span>
                             )}
                           </TableHead>
@@ -886,23 +790,16 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                     <TableBody>
                       {visibleRows.map((r, i) => (
                         <TableRow
+                          // eslint-disable-next-line react/no-array-index-key
                           key={i}
                           className="border-pl-border hover:bg-pl-sunken"
                         >
-                          {visibleSchemaCols.map(({ col }) => (
+                          {visibleCols.map(({ col, show }) => (
                             <TableCell
                               key={col}
                               className="font-mono text-xs text-pl-text py-1.5 whitespace-nowrap"
                             >
-                              {col === 'timestep_index'
-                                ? r[col]
-                                : col === 'pressure_psia'
-                                ? fmt(r[col], 0)
-                                : col === 'z_factor' || col === 'bo_rb_stb' || col === 'bg_rb_mscf' || col === 'bw_rb_stb'
-                                ? fmt(r[col], 4)
-                                : col === 'rs_scf_stb'
-                                ? fmt(r[col], 0)
-                                : fmt(r[col], 0)}
+                              {show(r[col])}
                             </TableCell>
                           ))}
                         </TableRow>
@@ -915,10 +812,10 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
           )}
 
           {/* Empty state */}
-          {!pendingRows && serverRows.length === 0 && (
+          {!source && serverRows.length === 0 && (
             <div className="text-center py-8 text-pl-muted">
               <p className="text-sm">No production data yet.</p>
-              <p className="text-xs mt-1">Upload a CSV above to get started.</p>
+              <p className="text-xs mt-1">Bring in a file or paste a table above.</p>
             </div>
           )}
         </CardContent>

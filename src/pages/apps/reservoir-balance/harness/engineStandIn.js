@@ -3,7 +3,7 @@
 // (supabase/functions/_shared/mbal-run-mapping.ts). Used by the /dev harness
 // and by the report tests, so what they exercise is the mapping production
 // runs.
-import { computeMaterialBalance, runHistoryMatch } from '../../../../../packages/engines/engines/mbal/mbalEngine';
+import { computeMaterialBalance, runHistoryMatch, generatePvtTable } from '../../../../../packages/engines/engines/mbal/mbalEngine';
 import { buildEngineInputs, buildResultColumns } from '../../../../../supabase/functions/_shared/mbal-run-mapping';
 
 let seq = 0;
@@ -53,4 +53,13 @@ export function runEngineOnStore(db, body, { now = () => new Date().toISOString(
     },
     error: null,
   };
+}
+
+/** generate-pvt-preview without a server: the engine's own preview table. */
+export function pvtPreviewStandIn(body) {
+  try {
+    return { data: generatePvtTable(body), error: null };
+  } catch (e) {
+    return { data: null, error: { message: 'Engine error generating PVT preview', context: { json: async () => ({ error: 'Engine error generating PVT preview', detail: e.message }) } } };
+  }
 }

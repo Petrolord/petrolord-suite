@@ -18,16 +18,23 @@
 //      (injection, per-row lab PVT, observed influx, dates). Since MBAL-U1 a
 //      run keeps a snapshot of both with its config (the seven case fields
 //      and a digest of the data rows, under one key of pvt_correlations the
-//      engine is not handed), and they are compared like the rest. A run
-//      made before that has no snapshot, so a time stamp decides: the case
-//      is stamped when one of them is saved (lib/api.js), and a stamp later
-//      than the run start makes the run stale.
+//      engine is not handed), and they are compared like the rest.
 //
-// Why the snapshot. Production has a trigger that sets rb_cases.updated_at on
-// EVERY update of the row (update_rb_cases_updated_at, read from the live
-// catalog 2026-10-02), so with the time stamp alone a rename, or any field
-// that only the report prints, withdrew a valid result. A claim is withdrawn
-// by a change the analysis reads and by nothing else (reviewer lens RL8).
+// No clock decides. The first version of this check (Step 0e) used a time
+// stamp for the third kind: the case row was stamped when an input was
+// saved, and a stamp later than the run start made the run stale. That rule
+// did not survive the database it runs on. Before 2026-10-02 a trigger set
+// rb_cases.updated_at on EVERY update, so a rename withdrew a valid result;
+// since the record sharing migration of that day the guard trigger keeps
+// updated_at unless a column of the case itself changed, so the stamp
+// written after a data save is discarded and an edit of a date, an injected
+// volume or a per-row Bo went unseen. A claim is withdrawn by a change the
+// analysis reads and by nothing else (reviewer lens RL8), and the snapshot
+// is what makes that checkable.
+//
+// A run made before the snapshot existed cannot be shown to be the run of
+// the current inputs, so it is treated as an earlier run: it stays on
+// screen, its status words are withheld and the report waits for a new run.
 import {
   DEFAULT_CORRELATIONS, RUN_SNAPSHOT_KEY, dataDigest, engineSideCorrelations,
 } from './studyMeta';
@@ -164,11 +171,6 @@ const numEq = (a, b) => {
   return Math.abs(x - y) <= 1e-9 * Math.max(1, Math.abs(x), Math.abs(y));
 };
 
-const ms = (t) => {
-  const v = t ? new Date(t).getTime() : NaN;
-  return Number.isFinite(v) ? v : null;
-};
-
 /** Config fields that differ between the stored run and what would run now. */
 export function changedConfigFields(caseData, defaultCfg, runConfig) {
   if (!runConfig) return [];
@@ -232,16 +234,9 @@ export function assessRunStaleness({ caseData, defaultCfg, run, runConfig, resul
     return { stale: reasons.length > 0, reasons };
   }
 
-  // A run made before the snapshot existed: the time stamp on the case.
-  const started = ms(run?.started_at);
-  if (started != null) {
-    const caseStamp = ms(caseData?.updated_at);
-    const rowStamp = Math.max(0, ...(caseData?.production_data ?? []).map((r) => ms(r.created_at) ?? 0));
-    if (dataSame !== false && rowStamp > started) {
-      reasons.push('Production data rows were added after the run.');
-    } else if (caseStamp != null && caseStamp > started && dataSame !== false) {
-      reasons.push('The case was saved after the run, and this run kept no record of the case conditions it used.');
-    }
+  // A run made before the snapshot existed.
+  if (run && runConfig) {
+    reasons.push('This run was made before the studio kept a record of the case conditions and the data of each run, so it cannot be shown to be the run of the current inputs.');
   }
 
   return { stale: reasons.length > 0, reasons };
