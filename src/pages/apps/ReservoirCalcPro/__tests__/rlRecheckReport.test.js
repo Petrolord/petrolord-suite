@@ -260,7 +260,7 @@ describe('RL11: a saved prospect says where its volumes came from, and the valua
     // the four in-place figures are the run's own statistics
     const model = buildRrvReportModel({ p, v, units: rrvUnits('MMbbl'), upstream: { state: 'current', row }, savedWhere: 'x', build: 'test' });
     const ip = model.inputs.rows.find((x) => x.key === 'inPlace');
-    expect(ip.value.split(' / ').map(Number)[3]).toBeCloseTo(run.stats.stooip.mean / 1e6, 3);
+    expect(Math.abs(ip.value.split(' / ').map(Number)[3] - run.stats.stooip.mean / 1e6) / (run.stats.stooip.mean / 1e6)).toBeLessThan(0.005); // printed to three figures
     expect(ip.unit).toBe('MMSTB');
     expect(t).toMatch(/MMSTB ReservoirCalc Pro project "Keta Project", reservoir "Upper/);
     expect(t).toMatch(/Monte Carlo run of \d{4}-\d\d-\d\d \d\d:\d\d UTC, seed 42, 4,000 realizations\. Recorded for the reader/);
