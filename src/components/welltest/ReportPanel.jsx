@@ -1,53 +1,58 @@
 // Left rail for the Report tab: interpretation notes, exports and result
 // handoffs (WT5): PDF report, project JSON, p-bar/k/s to Reservoir Balance
 // and k to the Waterflood Design Studio via the navigate-state contract.
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, FileText, Send } from 'lucide-react';
+import { Download, FileText, Send, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { exportProjectAsJSON } from '@/utils/savedProjects';
-import { exportWellTestPdf } from '@/utils/wellTestReportExport';
+import { exportProjectAsJSON, importProjectFromJSON } from '@/utils/savedProjects';
+import { exportWellTestPdf, collectReportArgs } from '@/utils/wellTestReportExport';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { SectionLabel } from './primitives';
 
 const ReportPanel = () => {
+  const ctx = useWellTestStudio();
   const {
-    notes, setNotes, projectName, wellName, fieldName, analyst, reservoirInputs, testConfig,
-    gaugeRows, rateRows, matchInputs, windows, addNotification,
-    configSpec, reservoirSpec, prepared, model, matchParams, fitResult,
-    derivedKpis, semilogResult, sqrtResult, pssResult, multiRateResult, sqrtMeaningful,
-    deliverabilityResult, regimes, rtaResult, rtaRows, rtaWindows,
-    deliverabilityInputs, unitSystem, matchMethod,
-  } = useWellTestStudio();
+    notes, setNotes, projectName, wellName, addNotification,
+    reservoirSpec, prepared, derivedKpis, semilogResult,
+    serializeInputs, importProjectPayload,
+  } = ctx;
   const navigate = useNavigate();
+  const importRef = useRef(null);
+  const [exporting, setExporting] = useState(false);
 
+  // The export is the saved payload itself, so whatever a project stores
+  // (identification, completion, input sources, period notes) travels too.
   const exportJson = () => {
     const result = exportProjectAsJSON({
+      ...serializeInputs(),
       id: 'export',
       name: projectName || wellName || 'well-test',
-      wellName, fieldName, analyst, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, notes,
-      deliverabilityInputs, rtaRows, rtaWindows, unitSystem,
     });
     if (result.success) addNotification('Project exported as JSON.', 'success');
     else addNotification('Export failed', 'error');
   };
 
-  const exportPdf = () => {
-    const ok = exportWellTestPdf({
-      projectName, wellName, fieldName, analyst,
-      config: configSpec.config,
-      reservoir: reservoirSpec.reservoir,
-      prepared, model,
-      // the untouched default match is not an interpretation (WTA-T1-002)
-      matchParams: derivedKpis?.source === 'match' ? matchParams : null,
-      // regression status and CIs only while the match IS the auto-fit
-      fitResult: matchMethod?.kind === 'regression' ? fitResult : null,
-      derivedKpis,
-      semilogResult, sqrtResult: sqrtMeaningful ? sqrtResult : null, pssResult, multiRateResult, deliverabilityResult,
-      rtaResult, regimes, notes, unitSystem,
-    });
-    addNotification(ok ? 'PDF report saved.' : 'PDF export failed', ok ? 'success' : 'error');
+  const importJson = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      importProjectPayload(await importProjectFromJSON(file));
+    } catch (err) {
+      addNotification('That file could not be read as a project export.', 'error');
+    }
+  };
+
+  const exportPdf = async () => {
+    setExporting(true);
+    try {
+      const ok = await exportWellTestPdf(collectReportArgs(ctx));
+      addNotification(ok ? 'PDF report saved.' : 'PDF export failed', ok ? 'success' : 'error');
+    } finally {
+      setExporting(false);
+    }
   };
 
   // p-bar for material balance: extrapolated p* when the test gives one,
@@ -102,11 +107,15 @@ const ReportPanel = () => {
       <section>
         <SectionLabel>Export</SectionLabel>
         <div className="space-y-2">
-          <Button size="sm" variant="outline" className="w-full" onClick={exportPdf} disabled={!prepared.points.length}>
+          <Button size="sm" variant="outline" className="w-full" onClick={exportPdf} disabled={!prepared.points.length || exporting}>
             <FileText className="w-4 h-4 mr-2" /> Export PDF report
           </Button>
           <Button size="sm" variant="outline" className="w-full" onClick={exportJson}>
             <Download className="w-4 h-4 mr-2" /> Export project JSON
+          </Button>
+          <input ref={importRef} type="file" accept=".json,application/json" className="hidden" onChange={importJson} data-testid="wts-import-json" />
+          <Button size="sm" variant="outline" className="w-full" onClick={() => importRef.current?.click()}>
+            <Upload className="w-4 h-4 mr-2" /> Import project JSON
           </Button>
         </div>
       </section>

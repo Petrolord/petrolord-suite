@@ -3,7 +3,37 @@ import React from 'react';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { unitLabel, fromOilfield, kindForCatalogUnit } from '@/utils/welltest/units';
 import { gaugeTime, PWF_SOURCE_TEXT } from '@/utils/welltest/gaugeImport';
+import { skinBreakdownRows, flowSummaryHead, flowSummaryBody, inputsFootnote } from '@/utils/welltest/reportModel';
+import { buildReportFigures } from '@/utils/welltest/reportFigures';
+import { buildCrossCheckRows } from '@/utils/wellTestReportExport';
 import { Kpi, fmt, fmtU, MATCH_METHOD_LABEL } from './primitives';
+
+const Card = ({ title, testId, children }) => (
+  <div className="rounded-lg border border-pl-border bg-pl-surface p-4" data-testid={testId}>
+    <p className="text-xs font-semibold text-pl-muted uppercase tracking-wider mb-2">{title}</p>
+    {children}
+  </div>
+);
+
+// A plain table that scrolls sideways inside its card on a narrow screen.
+const Table = ({ head, body, minWidth = 520 }) => (
+  <div className="overflow-x-auto">
+    <table className="w-full text-xs" style={{ minWidth }}>
+      <thead>
+        <tr className="text-pl-muted text-left">
+          {head.map((h) => <th key={h} className="py-1 pr-3 font-medium">{h}</th>)}
+        </tr>
+      </thead>
+      <tbody className="text-pl-text">
+        {body.map((row, i) => (
+          <tr key={i} className="border-t border-pl-border align-top">
+            {row.map((cell, j) => <td key={j} className={`py-1 pr-3 ${j === 0 ? 'whitespace-pre' : ''}`}>{cell}</td>)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
 
 const Row = ({ label, value, unit }) => (
   <tr className="border-t border-pl-border">
@@ -18,12 +48,14 @@ const ci = (pair) =>
     : null;
 
 const ReportResults = () => {
+  const ctx = useWellTestStudio();
   const {
     wellName, fieldName, analyst, projectName, configSpec, reservoirSpec, prepared,
     matchParams, semilogResult, sqrtResult, pssResult, derivedKpis, sqrtMeaningful,
     multiRateResult, deliverabilityResult, fitResult, matchMethod, regimes, notes, model,
     unitSystem, rtaResult,
-  } = useWellTestStudio();
+    identificationRows, inputsTable, skinBreakdown, flowSummary,
+  } = ctx;
   const uL = (kind) => unitLabel(kind, unitSystem);
 
   if (!prepared.points.length) {
@@ -38,6 +70,15 @@ const ReportResults = () => {
   const cfg = configSpec.config;
   const isBuildup = cfg?.family === 'buildup';
   const isGas = reservoirSpec.reservoir?.fluid === 'gas';
+  // the same rows and figure list the PDF prints
+  const crossCheck = buildCrossCheckRows({
+    model,
+    matchParams: derivedKpis?.source === 'match' ? matchParams : null,
+    matchMethodKind: matchMethod?.kind,
+    fitResult: matchMethod?.kind === 'regression' ? fitResult : null,
+    semilogResult, multiRateResult, isBuildup, isGas, skinWithheld: !!prepared.skinWithheld,
+  });
+  const figures = buildReportFigures(ctx);
   const TEST_LABELS = {
     buildup: 'Pressure buildup',
     drawdown: 'Pressure drawdown',
@@ -72,10 +113,21 @@ const ReportResults = () => {
         </div>
       </div>
 
+      <Card title="Well and test identification" testId="wts-report-identification">
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs">
+          {identificationRows.map(([label, value]) => (
+            <div key={label} className="flex justify-between gap-3 border-t border-pl-border py-1">
+              <dt className="text-pl-muted">{label}</dt>
+              <dd className="text-pl-text font-medium text-right">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </Card>
+
       <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
         <Kpi title="Permeability k" value={fmt.sig3(derivedKpis?.k)} unit="md" accent />
         <Kpi title="kh" value={fmt.sig3(derivedKpis?.kh)} unit="md·ft" />
-        <Kpi title="Skin" value={fmt.f2(derivedKpis?.skin)} />
+        <Kpi title="Skin (total)" value={fmt.f2(derivedKpis?.skin)} />
         <Kpi title="Δp across skin" value={fmtU('pressure', derivedKpis?.dpSkin, unitSystem, fmt.f1)} unit={uL('pressure')} />
         <Kpi title="Radius of investigation" value={fmtU('length', derivedKpis?.ri, unitSystem, fmt.int)} unit={uL('length')} />
       </div>
@@ -86,6 +138,16 @@ const ReportResults = () => {
             ? 'Headline values from the semilog straight line: the model match has not been adjusted or fitted yet.'
             : 'No interpretation yet: fit a model or set a semilog window.'}
       </p>
+
+      <Card title="Skin components" testId="wts-report-skin">
+        <Table head={['Component', 'Value', 'Basis']} body={skinBreakdownRows(skinBreakdown, unitSystem)} minWidth={420} />
+        {(skinBreakdown.status === 'ok' || skinBreakdown.status === 'full') && (
+          <p className="text-[11px] text-pl-muted mt-2">
+            {skinBreakdown.method}: {skinBreakdown.formula}.{skinBreakdown.splitFormula ? ` Mechanical skin: ${skinBreakdown.splitFormula}.` : ''}
+          </p>
+        )}
+        {skinBreakdown.message && <p className="text-[11px] text-pl-muted mt-1" data-testid="wts-report-skin-note">{skinBreakdown.message}</p>}
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
@@ -137,6 +199,22 @@ const ReportResults = () => {
           </table>
         </div>
       </div>
+
+      {crossCheck.length > 0 && (
+        <Card title="Cross-check of methods" testId="wts-report-crosscheck">
+          <Table head={['Method', 'k (md)', 'Skin', 'Basis']} body={crossCheck} minWidth={460} />
+        </Card>
+      )}
+
+      <Card title="Reservoir and fluid inputs" testId="wts-report-inputs">
+        <Table head={['Input', 'Value', 'Unit', 'Source and quality']} body={inputsTable.map((r) => [r.label, r.value, r.unit, r.source])} />
+        <p className="text-[11px] text-pl-muted mt-2">{inputsFootnote(isGas)}</p>
+      </Card>
+
+      <Card title="Flow and shut-in summary" testId="wts-report-flow">
+        {flowSummary.rows.length > 0 && <Table head={flowSummaryHead(flowSummary, unitSystem)} body={flowSummaryBody(flowSummary)} minWidth={640} />}
+        <p className="text-[11px] text-pl-muted mt-2">{flowSummary.note} Choke and recovered volume are entered on the Data tab.</p>
+      </Card>
 
       {deliverabilityResult && (
         <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
@@ -205,6 +283,17 @@ const ReportResults = () => {
           <p className="text-xs text-pl-muted">No sustained regimes detected.</p>
         )}
       </div>
+
+      <Card title="Plots in the PDF report" testId="wts-report-figures">
+        <ul className="space-y-1 text-xs">
+          {figures.map((f) => (
+            <li key={f.id} className="flex flex-col sm:flex-row sm:gap-2 border-t border-pl-border py-1" data-figure={f.id} data-plotted={f.panels ? 'yes' : 'no'}>
+              <span className="text-pl-text font-medium shrink-0">Figure {f.number}. {f.title}</span>
+              <span className="text-pl-muted">{f.panels ? 'Drawn from the same series as the tab plots.' : f.statement}</span>
+            </li>
+          ))}
+        </ul>
+      </Card>
 
       {(reservoirSpec.error || configSpec.error) && (
         <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text px-4 py-3 text-xs">

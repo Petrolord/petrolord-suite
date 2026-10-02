@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit fec3788010fe022264cc0c98d5d13fe3b7a5108c
+# commit 3fa4834aec9ed4ddb72fb267834ba97928a47cca
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 b451f8875cb04da4b1b29c77a2a032b42a6aecb7 README.md
@@ -249,6 +249,8 @@ e1027795d48f6f39090800c00228530559fed9e9 __tests__/welltest.goldens.test.js
 eca686c75f479ef7fac94e69cb6fab72ed7ef5f7 __tests__/welltest.homogeneousModel.test.js
 da62854815fff3fbbdcbd55fd292ab83f2d0fcd5 __tests__/welltest.lmFit.test.js
 05f15b877399150eb1b9ac2b54c1585ba946e728 __tests__/welltest.numerics.test.js
+c910d26933130ca5361024ec554e664f232ffedd __tests__/welltest.partialPenetration.test.js
+c896ecd65563b9c47800254678ce2bfb1cecb4be __tests__/welltest.reportInputs.test.js
 1eb2ab5767122dacd90370c5c900720753441435 __tests__/welltest.superposition.test.js
 ea505fd3053c92d5872880b5392d164bcbf91960 __tests__/welltest.wt3Models.test.js
 8127506003855d782ac6e4a05001feebc6920d0d __tests__/welltest.wt6Rectangle.test.js
@@ -571,8 +573,10 @@ c0c00b28c4102b2d6a549c080d02ebc90b177bf6 engines/wellsite/time.js
 36eab8c0bb60ae29da879fdc7c3530b239fb5c2f engines/wellsite/tops.js
 2560c225a3068ec34ce86dcef120be61eb75a745 engines/welltest/analysis.js
 701d4072a2dc4822de148d41825bba8c262f5f7f engines/welltest/autoFit.js
+b905674c40d68d87bf34d32a8bdcbfc7636fcb59 engines/welltest/compressibility.js
 b0c8522fc3f09400744cdae37b0dd9558855fe29 engines/welltest/derivative.js
-df73bf8de152b64a2d608e998376ea1112718d7f engines/welltest/gas.js
+a89c9100cecef39b05f485a36b6e26432975e82b engines/welltest/flowSummary.js
+cef28dc91226b6cbb9e8b7a249f7b8dd85b10d72 engines/welltest/gas.js
 62b2e0cf1dabd1979af499734d3c211032b63a0f engines/welltest/lmFit.js
 f2adf90723625d1d318adccb6cfbd31ca45fb862 engines/welltest/models/dualPorosity.js
 07990f09334c25e8d8a725de555c11bbdfd9baa2 engines/welltest/models/fracture.js
@@ -582,6 +586,7 @@ f8c42e9dd370a4f5b77747c39e60a47901aecb84 engines/welltest/models/modelCatalog.js
 56cb947d7164a7c0d6687d176ce112982a40f0d5 engines/welltest/models/radial.js
 50ccebe64b9437e8ccbe6d461914db938067fe0e engines/welltest/models/rectangle.js
 9171be7a4283a62044547ca000ba1d199a519469 engines/welltest/numerics.js
+ab64f0b8b4f5bc37bbf437bc72f4c8c9779d7051 engines/welltest/partialPenetration.js
 30557794f13777eca3d0e43aa21a23830266f6f7 engines/welltest/rta.js
 4865c684bb3a50f6558579d0d1034867261a7040 engines/welltest/superposition.js
 158a024ccb9282f0f4af7fe896e67ecb36e0f8b4 engines/welltest/units.js
@@ -910,7 +915,9 @@ e0d0ec19eacdee4e2d7fde538bf4f7ff2e350df5 test-data/wellsite/lag-goldens.json
 f6171432027bc000d93ddb0f16516ea9f503f09d test-data/wellsite/report-day.json
 22614aec5357c9cf484d7b5b09b6c80dc3b5ddbb test-data/wellsite/show-goldens.json
 b048061614f28bb0c0bff26ae51fd6ce38e301f5 test-data/wellsite/ws0-goldens.json
+c73da14b473c6ec24f23121cc007ff2887716cfb test-data/welltest/README.md
 9b919a6b50b7c829ee2587afd26cca7b1d07bbd9 test-data/welltest/goldens.json
+4772bc919382edaee48d08e0e253c1fbc5a7b5b5 test-data/welltest/partial-penetration-goldens.json
 7d8f8d3460c2c826783d77bc2c8fe174e2ae29cc tools/ekene-dynamic/generate.mjs
 7bfe014d304f2e4865d11df48e6445f5694852cc tools/validation/assurance/FINDINGS-audit.md
 646fa6079a9b52b2b7ed83b70e8cede541eaa319 tools/validation/assurance/FINDINGS-calendar.md
@@ -1148,3 +1155,4 @@ a67238b456738f8963e2e119744edbccb387434f tools/validation/wells/oracle.py
 018d6ecfefdf6825fbd15bf445a2dcbd1770a198 tools/validation/wellsite/oracle_lag.py
 14b3db8ab9e5dc4f35124750fc0a78174bca81e3 tools/validation/wellsite/oracle_lagcheck.py
 d5815ee1a45e0d31bc47dc339407900f78546048 tools/validation/wellsite/oracle_ws0.py
+67f8873a6dffdaa789df18fff77e41387238c9ae tools/validation/welltest/oracle_partial_penetration.py

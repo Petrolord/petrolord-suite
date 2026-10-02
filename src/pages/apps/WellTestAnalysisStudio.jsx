@@ -29,6 +29,7 @@ import ReportPanel from '@/components/welltest/ReportPanel';
 import ReportResults from '@/components/welltest/ReportResults';
 import DiagnosticsRail from '@/components/welltest/DiagnosticsRail';
 import WTSHelpContent from '@/components/welltest/WTSHelpContent';
+import { pvtIntakeFromBackbone } from '@/utils/welltest/reportModel';
 
 const TABS = [
   { value: 'data', label: 'Data' },
@@ -49,7 +50,7 @@ const WellTestStudioContent = () => {
     projects, currentProjectId, createProject, openProject, deleteProject,
     manualSave, isSaving, saveError, lastSaveTime,
     notifications, removeNotification, addNotification,
-    setReservoirField, isFitting,
+    setReservoirField, isFitting, setPvtIntake,
   } = useWellTestStudio();
 
   // PVT intake from Fluid Systems Studio (navigate-state handoff, the
@@ -60,19 +61,14 @@ const WellTestStudioContent = () => {
     const fluid = location.state?.fluidStudioData;
     if (!fluid || intakeDone.current) return;
     intakeDone.current = true;
-    const applied = [];
-    if (Number.isFinite(fluid.bo_at_pb)) {
-      setReservoirField('B', String(fluid.bo_at_pb));
-      applied.push('Bo');
-    }
-    if (Number.isFinite(fluid.mu_o_at_pb)) {
-      setReservoirField('mu', String(fluid.mu_o_at_pb));
-      applied.push('viscosity');
-    }
-    if (applied.length) {
-      addNotification(`Fluid properties received from Fluid Systems Studio: ${applied.join(' and ')} applied. Review total compressibility manually.`, 'success');
-    }
-  }, [location.state, setReservoirField, addNotification]);
+    // the handoff also says how the values were computed; the report's
+    // Source column prints that (reviewer round 2026-10-02)
+    const intake = pvtIntakeFromBackbone(fluid);
+    if (!intake) return;
+    for (const [key, value] of Object.entries(intake.patch)) setReservoirField(key, value);
+    setPvtIntake(intake.intake);
+    addNotification(`Fluid properties received from Fluid Systems Studio: ${intake.applied.join(', ')} applied. Review total compressibility manually.`, 'success');
+  }, [location.state, setReservoirField, setPvtIntake, addNotification]);
 
   const leftPanel = (
     <div className="space-y-6">

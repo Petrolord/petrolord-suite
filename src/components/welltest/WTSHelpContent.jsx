@@ -49,10 +49,50 @@ const WTSHelpContent = () => (
       per log cycle. The Sample button loads a synthetic homogeneous buildup so you can explore the workflow.
     </P>
     <P>
-      Fluid properties can also arrive from Fluid Systems Studio, so you need not type them in. A PVT handoff fills the
-      formation volume factor and viscosity from the fluid model you built there and tells you it has done so. Total
+      Fluid properties can also arrive from Fluid Systems Studio, so you need not type them in. Its Send to Well Test
+      Analysis Studio button fills the formation volume factor and viscosity at the bubble point, with API gravity,
+      solution GOR, gas gravity and temperature, and tells you it has done so. The handoff names the correlations (or
+      the equation of state) the fluid model used, and the report prints them beside those values. Total
       compressibility is deliberately left for you to review, because ct depends on the rock and the saturations as
       well as the fluid.
+    </P>
+    <P>
+      Identify the well and the test under Test setup: licence or block, zone or sand, the test dates and how the test
+      was run (drill stem test, production test, wireline formation test, injectivity test). These head the report
+      beside the well, field and analyst. Propose from the wells registry reads the wells you can see in Well Data
+      Manager. Choose the well and, if it has zones, the zone tested. The studio then proposes the well name, the zone,
+      the net pay, porosity and water saturation from a published Petrophysics zone summary, and the true vertical
+      depths of the perforations through the well's deviation survey. Each proposal has a tick box and nothing
+      changes until you press Apply.
+    </P>
+    <P>
+      Total compressibility can be entered as one number or built from its components. Choose Built from components
+      and enter the formation compressibility cf and each saturation with its fluid compressibility; the studio
+      computes ct = cf + So co + Sw cw + Sg cg, uses it in the analysis and lists every term in the report. The
+      saturations must sum to 1, and a phase that is present needs its compressibility. In gas mode a gas saturation
+      with no cg takes the gas compressibility at pi from the correlation.
+    </P>
+    <P>
+      Under Completion enter the perforated interval, top and base, in measured depth and in true vertical depth when
+      you have it, and the top of the net pay. When the perforated length is less than the net pay h the studio
+      computes the partial-penetration pseudo-skin with the Papatzacos (1987) correlation and the Report tab splits
+      the total skin into that geometric part and the mechanical (damage) skin, s_d = (hp/h)(s - s_pp). The
+      correlation needs kv/kh. Leave it blank and 0.1 is assumed, and the report says it is an assumption. True
+      vertical depths are used when both ends carry one; measured depths are exact for a vertical hole only. A
+      perforated length greater than h, or a kv/kh of zero, is refused with the reason and the skin stays undivided.
+    </P>
+    <P>
+      Input sources and quality opens a list of the inputs. For each one say whether it was measured in the lab, taken
+      from a correlation (and which one), borrowed from an offset well or assumed, and add a note on the sample
+      quality or contamination. The report prints this in the Source column. An input you leave unstated prints as
+      Entered, source not stated.
+    </P>
+    <P>
+      The gauge import also reads a temperature column when the file has one (Temperature, Temp or BHT in the header,
+      in degF or degC). It is plotted on the test overview with the pressure and the rate. The flow and shut-in
+      summary on the Data tab lists one row per period of the rate history with its start, duration, rate and the
+      volume produced; add the choke and the recovered volume for each period there. With no rate history the periods
+      are taken from the test setup and the table says so.
     </P>
 
     <H>2. Diagnostics</H>
@@ -166,10 +206,26 @@ const WTSHelpContent = () => (
       The report tab consolidates the match, straight-line answers, derived quantities (kh, skin pressure drop, flow
       efficiency, radius of investigation), the flow regimes read off the diagnostic plot, the rate transient results
       where production data was analyzed, and your interpretation notes. The PDF header lists the project, well,
-      field, analyst, test type, producing time, the shut-in time and the pwf at shut-in time 0 hr. Projects save automatically to your account;
+      field, licence, zone, analyst, test type and dates, the perforations in MD and TVD, producing time, the shut-in
+      time and the pwf at shut-in time 0 hr. Projects save automatically to your account;
       export a PDF report or a JSON snapshot for sharing. The JSON carries the whole study, including the gas
-      deliverability points, the rate transient inputs and the unit system, so a colleague opens it in the state you
-      left it.
+      deliverability points, the rate transient inputs, the unit system, the identification, the completion, the
+      input sources and the period notes, so a colleague opens it in the state you left it. Import project JSON
+      reads such a file back into the workspace.
+    </P>
+    <P>
+      The report is written for the person who has to sign it. It carries a Reservoir and fluid inputs table with
+      every value the analysis used, its unit and its source; the skin components; a cross-check that sets the
+      permeability and skin from the model match beside the Horner or MDH line and the multi-rate line; the flow
+      regimes with their time windows; and the flow and shut-in summary. Anything not provided prints as n/a.
+    </P>
+    <P>
+      The PDF also carries the plots, drawn from the same series as the tabs: the test overview (pressure and rate,
+      and temperature when it was imported), the log-log plot with the model match and the flow-regime windows
+      shaded, the Horner or MDH plot with its straight line, fit window and slope, the history match, and the rate
+      transient plots when production data is loaded. The square-root-of-time plot appears only when linear flow was
+      detected or you set its window. A plot that does not apply is replaced by one line saying why, and the Report
+      tab lists which plots the PDF will carry.
     </P>
     <P>
       Results also travel to other studios directly. Sending to Material Balance Studio opens a new case with the
