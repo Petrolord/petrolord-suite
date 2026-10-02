@@ -22,6 +22,105 @@ import { separatorTrain } from './eos/separator.js';
 import { saturationPressure } from './eos/envelope.js';
 import { eosBlackOilTable } from './eos/experiments.js';
 import { degFtoR, degRtoF } from './eos/units.js';
+import { bwAt, muWaterAt } from '../fluidStudioCalculations.js';
+
+/** Standard conditions of the compositional path (eos/separator.js stock tank). */
+export const EOS_STANDARD_CONDITIONS = Object.freeze({ pressure_psia: 14.696, temperature_degF: 60 });
+
+/** The liberation basis of the EOS black-oil table, in words. */
+export const EOS_BASIS = Object.freeze({
+  kind: 'differential-adjusted-to-separator',
+  text: 'Differential liberation at the flash temperature, converted to the separator (flash) basis of the Separator Train by the Amyx and McCain adjustment: Bo = Bod x Bofb / Bodb and Rs = Rsfb - (Rsdb - Rsd) x Bofb / Bodb. Exact at the saturation pressure, approximate toward atmospheric pressure.',
+});
+
+const EOS_NAME = 'Peng-Robinson (1978) with Peneloux volume translation';
+const LBC = 'Lohrenz-Bray-Clark, untuned';
+
+/**
+ * The method behind every property of the EOS black-oil table, written
+ * beside the calls that produce it (runEosPvtTable below): same keys as
+ * fluidStudioCalculations blackOilMethods, so a consumer reads one list.
+ */
+export function eosMethods({ sat, plusMeta, tuned }) {
+  const eos = tuned ? `${EOS_NAME}, C7+ tuned to lab data` : EOS_NAME;
+  const row = (key, label, method, kind, note, reference = '') => ({ key, label, method, reference, kind, rangeKey: null, ...(note ? { note } : {}) });
+  return [
+    row('pb', sat?.kind === 'dew' ? 'Dew point pressure' : 'Bubble point pressure', `${eos}: saturation pressure by stability scan and bisection`, 'eos',
+      sat?.kindSource === 'density-heuristic' ? 'Near critical: the boundary kind comes from the liquid-likeness heuristic.' : ''),
+    row('rs', 'Solution GOR Rs', `${eos}: differential liberation, adjusted to the separator train`, 'eos', 'Amyx and McCain adjustment.'),
+    row('bo', 'Oil formation volume factor Bo', `${eos}: differential liberation, adjusted to the separator train`, 'eos', 'Above the saturation pressure: the EOS molar volume ratio.'),
+    row('co', 'Oil compressibility co (undersaturated)', 'Not reported by the EOS table', 'not-computed', 'Take it from the slope of Bo above the saturation pressure.'),
+    row('mu_od', 'Dead oil viscosity', 'Not reported by the EOS table', 'not-computed'),
+    row('mu_o', 'Live (saturated) oil viscosity', LBC, 'correlation', 'Screening grade: up to a factor of two on oil.', 'Lohrenz, Bray and Clark (1964)'),
+    row('mu_o_undersaturated', 'Undersaturated oil viscosity', LBC, 'correlation', '', 'Lohrenz, Bray and Clark (1964)'),
+    row('z', 'Gas deviation factor Z', `${eos}: the gas liberated at each differential stage`, 'eos'),
+    row('mu_g', 'Gas viscosity', LBC, 'correlation', '', 'Lohrenz, Bray and Clark (1964)'),
+    row('bg', 'Gas formation volume factor Bg', 'Real gas law with the EOS Z of the liberated gas', 'definition', 'RB/scf at 14.696 psia and 60 degF.'),
+    row('bw', 'Water formation volume factor Bw', 'McCain', 'correlation', 'Pure water form: salinity is not applied to Bw. Water is not part of the EOS.', 'McCain (1990)'),
+    row('mu_w', 'Water viscosity', 'McCain', 'correlation', 'Water is not part of the EOS.', 'McCain (1991)'),
+  ].map((m) => (m.key === 'bw' ? { ...m, rangeKey: 'mccain_bw' } : m.key === 'mu_w' ? { ...m, rangeKey: 'mccain_mu_w' } : m));
+}
+
+/** How the C7+ fraction was characterised, from the characterisation's own record. */
+export function plusFractionScheme(plusMeta) {
+  if (!plusMeta) return null;
+  const tb = plusMeta.tbSource === 'measured' ? 'entered boiling point' : 'Soreide boiling point';
+  const omega = plusMeta.omegaMethod === 'edmister' ? 'Edmister acentric factor' : 'Lee-Kesler acentric factor';
+  return `Single pseudo-component: ${tb}, Kesler-Lee Tc and Pc, ${omega}, Jhaveri-Youngren volume shift, modified Chueh-Prausnitz methane interaction`;
+}
+
+// ---- lab tuning record ------------------------------------------------------
+
+/**
+ * What a tune was run against: the feed, the C7+ description, the flash
+ * conditions, the active separator stages and the measured values. A record
+ * of a fit holds this signature; when the inputs move, the record no longer
+ * describes the fluid and is withdrawn (RL8).
+ */
+export const tuningSignature = (composition, stages) => JSON.stringify({
+  z: [...COMPONENT_ORDER, PLUS_FRACTION_KEY].map((k) => Number(composition?.zPct?.[k]) || 0),
+  plus: [composition?.plus?.mw ?? null, composition?.plus?.sg ?? null, composition?.plus?.tbF ?? null].map((v) => (v === '' ? null : v == null ? null : Number(v))),
+  flash: [Number(composition?.pressure) || null, Number(composition?.temp) || null],
+  stages: (stages || []).filter(isActiveStage).map((s) => [Number(s.pressure), stageTempF(s)]),
+  lab: ['psatPsia', 'psatTF', 'totalGor', 'stoApi', 'bo'].map((k) => {
+    const v = composition?.tuning?.lab?.[k];
+    return v === '' || v == null || !Number.isFinite(Number(v)) ? null : Number(v);
+  }),
+});
+
+/**
+ * The record of a fit that is saved with the project (composition.tuning.fit):
+ * the engine's own before and after rows, whether it converged, the bounds
+ * it hit, and the signature of what it was run against.
+ */
+export const tuneRecord = (fit, composition, stages, at = new Date()) => ({
+  at: at.toISOString(),
+  signature: tuningSignature(composition, stages),
+  converged: !!fit.converged,
+  iterations: fit.iterations ?? null,
+  boundsHit: [...(fit.boundsHit || [])],
+  psatTF: Number.isFinite(Number(composition?.tuning?.lab?.psatTF)) && composition?.tuning?.lab?.psatTF !== null && composition?.tuning?.lab?.psatTF !== ''
+    ? Number(composition.tuning.lab.psatTF) : (Number(composition?.temp) || null),
+  report: (fit.report || []).map((r) => ({
+    name: r.name, unit: r.unit, measured: r.measured, untuned: r.untuned, tuned: r.tuned, untunedErr: r.untunedErr, tunedErr: r.tunedErr,
+  })),
+});
+
+/**
+ * The tuning state a screen or a report may claim:
+ *   none            no tuning applied
+ *   tuned           applied, and the saved record describes the current inputs
+ *   tuned-unrecorded applied, with no record of the match (a project saved before the record existed)
+ *   stale           applied, but the inputs moved after the fit
+ */
+export function tuningState(composition, stages) {
+  const applied = normalizeTuning(composition?.tuning?.applied);
+  if (!applied) return { status: 'none', applied: null, fit: null };
+  const fit = composition?.tuning?.fit;
+  if (!fit || !Array.isArray(fit.report)) return { status: 'tuned-unrecorded', applied, fit: null };
+  if (fit.signature !== tuningSignature(composition, stages)) return { status: 'stale', applied, fit };
+  return { status: 'tuned', applied, fit };
+}
 
 /** Empty composition state (mol%), used by sample data and the input tab. */
 export const emptyComposition = () => ({
@@ -313,7 +412,7 @@ export const runEosSeparator = (composition, stages) => {
  *            surface gas SG, gor = separator-flash total GOR, pb = EOS
  *            saturation pressure), with the table rows as pvt_table.
  */
-export const runEosPvtTable = (composition, stages) => {
+export const runEosPvtTable = (composition, stages, { salinityPpm = 0 } = {}) => {
   const parsed = parseComposition(composition);
   if (!parsed.valid) return { parsed, table: null, backbone: null };
 
@@ -344,6 +443,9 @@ export const runEosPvtTable = (composition, stages) => {
     Z: round(r.Z, 4),
     mu_o: round(r.mu_o, 4),
     mu_g: round(r.mu_g, 5),
+    // water is outside the EOS: the canonical McCain forms at the row pressure
+    Bw: round(bwAt(r.pressure, parsed.tempF), 4),
+    mu_w: round(muWaterAt(r.pressure, parsed.tempF, salinityPpm), 4),
     phase: r.phase,
   }));
 
@@ -377,7 +479,17 @@ export const runEosPvtTable = (composition, stages) => {
     pvt_table: rows,
   };
 
-  return { parsed, table, backbone };
+  // FLUID-U1: what this table was computed with, for the report and pvt-1
+  const methods = eosMethods({ sat, plusMeta: mix.plus?.meta, tuned: !!parsed.tuning });
+  const model = {
+    eos: EOS_NAME,
+    c7plus: plusFractionScheme(mix.plus?.meta),
+    viscosity: 'Lohrenz-Bray-Clark (untuned)',
+    tempF: parsed.tempF,
+    satKindSource: sat.kindSource ?? null,
+  };
+
+  return { parsed, table, backbone, methods, model, basis: EOS_BASIS, standardConditions: EOS_STANDARD_CONDITIONS };
 };
 
 /**

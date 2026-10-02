@@ -24,6 +24,7 @@
 
 import { pvtCalcs } from './pvtCalculations.js';
 import { mccainBw, mccainMuW } from '../../packages/engines/engines/fluid/blackOil';
+import { readPtProfile } from './fluidstudio/ptProfileImport.js';
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -442,16 +443,16 @@ export const hydrateCurve = (gasGravity, pMin = 100, pMax = 3500, nPoints = 30) 
   return out;
 };
 
-/** Parse a "P_psia, T_F" per-line profile into [{pressure, temp}] (descending P). */
-export const parsePtProfile = (raw) => {
+/**
+ * A pasted P-T profile as [{pressure (psia), temp (degF)}], pressure
+ * descending. The door (fluidstudio/ptProfileImport readPtProfile) reads any
+ * separator, a header and the units chosen with it; a bare string is read
+ * as psia and degF, as every saved project holds it.
+ */
+export const parsePtProfile = (raw, units) => {
+  if (Array.isArray(raw)) return raw;
   if (!raw || typeof raw !== 'string') return [];
-  return raw
-    .split(/\r?\n/)
-    .map((line) => line.split(','))
-    .filter((parts) => parts.length >= 2)
-    .map((parts) => ({ pressure: Number(parts[0]), temp: Number(parts[1]) }))
-    .filter((pt) => Number.isFinite(pt.pressure) && Number.isFinite(pt.temp) && pt.pressure > 0)
-    .sort((a, b) => b.pressure - a.pressure);
+  return readPtProfile(raw, units).points;
 };
 
 /** Opt-in screening WAT (°F) from wax content (wt%). Labeled, not a cited correlation. */
@@ -467,7 +468,7 @@ const watFromWax = (waxWtPct) => {
  * resolved measured > wax-screening > null (never fabricated from API). AOP is
  * structurally null. Returns null only when the fluid itself is invalid.
  */
-export const computeFlowAssurance = (fluid, fa, ptRaw) => {
+export const computeFlowAssurance = (fluid, fa, ptRaw, ptUnits) => {
   if (!fluid || !(fluid.gasGravity > 0)) return null;
   // Engaged only when the user gives it something to analyze: a P-T profile,
   // a measured WAT, or a wax content. Otherwise stay out of the results.
@@ -497,7 +498,7 @@ export const computeFlowAssurance = (fluid, fa, ptRaw) => {
   }
 
   const curve = hydrateCurve(fluid.gasGravity);
-  const profile = parsePtProfile(ptRaw).map((pt) => {
+  const profile = parsePtProfile(ptRaw, ptUnits).map((pt) => {
     const tHyd = hydrateTempMotiee(pt.pressure, fluid.gasGravity);
     const subcooling = tHyd != null ? tHyd - pt.temp : null;
     return {
@@ -981,7 +982,7 @@ export const analyzeFluidSystem = (inputs) => {
   // Flow assurance: engaged only when the user supplies a P-T profile or WAT/wax
   // data. Fills backbone.wat when a WAT is known. FA-specific caveats live on the
   // FA card, not the global banner.
-  const flowAssurance = computeFlowAssurance(withPb, inputs?.flowAssurance, inputs?.ptProfile?.raw);
+  const flowAssurance = computeFlowAssurance(withPb, inputs?.flowAssurance, inputs?.ptProfile?.raw, inputs?.ptProfile?.units);
   if (flowAssurance?.wat != null) backbone.wat = flowAssurance.wat;
 
   // Global warnings: cross-cutting caveats only.

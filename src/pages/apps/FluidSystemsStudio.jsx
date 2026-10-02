@@ -48,6 +48,7 @@ const FluidSystemsStudioContent = () => {
   // immutably when and only when their own fields change.
   const eosComposition = inputs.fluidModel === 'eos' ? inputs.streamA?.composition : null;
   const sepStages = inputs.separatorTrain?.stages;
+  const eosSalinity = inputs.streamA?.blackOil?.salinity;
   const eosFlash = useMemo(
     () => (eosComposition ? runEosFlash(eosComposition) : null),
     [eosComposition],
@@ -57,8 +58,8 @@ const FluidSystemsStudioContent = () => {
     [eosComposition, sepStages],
   );
   const eosPvtTable = useMemo(
-    () => (eosComposition ? runEosPvtTable(eosComposition, sepStages) : null),
-    [eosComposition, sepStages],
+    () => (eosComposition ? runEosPvtTable(eosComposition, sepStages, { salinityPpm: eosSalinity }) : null),
+    [eosComposition, sepStages, eosSalinity],
   );
   const eos = useMemo(
     () => (eosComposition
