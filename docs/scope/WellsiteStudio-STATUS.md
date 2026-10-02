@@ -477,8 +477,8 @@ the evidence kit and the Step 2 backlog: `docs/upgrade/WellsiteStudio-UPGRADE.md
 ## 2026-10-01: comprehensive upgrade, Step 2 (batches A and B)
 
 Batch decision by the programme lead (2026-10-01), recorded in `docs/upgrade/WellsiteStudio-UPGRADE.md`
-with the per-item build record. Branch `feat/ws-u2`; engines PR Petrolord/petrolord-engines #297
-(vendored byte-identical as recorded deviations until the lead merges it). No DDL, no migration.
+with the per-item build record. Branch `feat/ws-u2` (PR #847); engines PR Petrolord/petrolord-engines #297
+(merged, engines main fec3788; the Suite is pinned to it). No DDL, no migration.
 - **U2-004** (done): lag check and washout in the dock (carbide or tracer count, strokes down the string taken off, washout of the open hole and equivalent diameter, applied as a decision that corrects the lag). Engine `lagCheck.js` validated against the published INTEQ carbide cases. Gate `upgradeU2Lag.test.jsx`.
 - **U2-002** (done): chromatograph C1 to C5 as an observation with Haworth (wetness, balance, character) and Pixler ratios and their readings; a gas table. Engine `gasRatios.js`: formulas and limits read on the page, numeric cases hand-derived (no published numeric example was readable). Gate `upgradeU2Gas.test.jsx`.
 - **U2-003** (done): a new Import view for mudlogging exports (CSV, delimited text, LAS 2.0 and 3.0; depth or time based; columns detected from the header, units and datum declared at the door, rows not read listed with reasons; withdraw with a reason; a typed row). Six hostile files under `e2e/fixtures/wellsite/hostile/`. Gate `upgradeU2Import.test.jsx`.
@@ -494,6 +494,6 @@ with the per-item build record. Branch `feat/ws-u2`; engines PR Petrolord/petrol
 - **U2-012** (not built): top scoring was not built this round (conditional on time in the decision).
 - **Deferred by the decision**: U2-014 live WITSML or ETP gateway, U2-015 real-time pore pressure, U2-016 end of well report, U2-017 sidewall cores, U2-018 assisted description, U2-019 KB and datum model (a geo_wells migration, second engineer).
 - **Result**: 12 of 13 chosen items built (U2-013 in part, with no DDL; U2-012 not built). New views: Import, Surveys, Log, Office. New record types, all `ws_records` rows (offline, queued, shared, in `.pld`): `lag_check`, `washout`, `gas_chromatograph`, `mudlog_import`, `mudlog_data`, `survey_run`, `survey_published`, `dxc_settings`, `evidence_published`. Closed from Step 1: WS-U1-019, 020 (files), 021, 022, 023, 025, 013; 026 in part.
-- **Gates**: PR #847 CI green (jest 8 shards, build, vendored engines guard, Playwright 6 shards). Engines PR #297 green, unmerged (the programme lead merges; the Suite carries its nine files as recorded deviations).
+- **Gates**: PR #847 CI green (jest 8 shards, build, vendored engines guard, Playwright 6 shards). Engines PR #297 merged by the programme lead (engines main fec3788); the Suite is re-pinned to it with 0 recorded deviations.
 - **Validation weaker than asked**: gas ratio numeric cases are hand-derived (formulas and limits were read on the page); WITSML was checked against the published XSDs but not schema-validated. Both are owner items in the upgrade doc.
 - **Help**: `WellsiteHelpGuide.jsx` now has 23 sections (Import with WITSML, Surveys, the strip log and d-exponent with the Pore Pressure link, the office view; lag check, gas ratios and the publish plan inside their sections).

@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 96e59631f67bebcffd1e813642dae97fec9ac7a3
+# commit fec3788010fe022264cc0c98d5d13fe3b7a5108c
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 b451f8875cb04da4b1b29c77a2a032b42a6aecb7 README.md
@@ -231,8 +231,11 @@ c78a318b502a4be6b60d100e705149221df5eeb0 __tests__/waterflood.vrr.test.js
 f12c533b0ed35d549a8bfca9a0f4396fc1e0281a __tests__/welldata.las3blocks.test.js
 7398d1b77dee50db33dc6b18eb51bde22e20ab9b __tests__/wellsite.depth.test.js
 00294b62d269973e37bd108dd437c10db58469c2 __tests__/wellsite.description.test.js
+2a291c8dbca960209f49c795923f9fe8b77997d6 __tests__/wellsite.dexponent.test.js
 79beaa01ba5b4147e1b9da4b199f369066ad25b6 __tests__/wellsite.events.test.js
+06f62de85515ef6ce00419fc6b1cfb4bebe2ff73 __tests__/wellsite.gasratios.test.js
 8382fcddffd5a122a9c5938582b98c88b99ce5c4 __tests__/wellsite.lag.test.js
+7f43bebbe3874eefb1cc43606cf4de16b851d1f5 __tests__/wellsite.lagcheck.test.js
 5241fc370613b907ae6ee448ae66e2f2e2a9d916 __tests__/wellsite.pumps.test.js
 b8fede0736728d07204786dc53b744d724f29de2 __tests__/wellsite.reports.test.js
 44040e1cd9186f4438331369ec13b3aa3009c7d2 __tests__/wellsite.sampleprogram.test.js
@@ -553,10 +556,13 @@ b5c51c9ce94e7cbfabaa8643bb5d1b3e3db73b5d engines/waterflood/patternForecast.js
 49d124259282bb2c3e49b7f6a51f0e5c1da1b1e1 engines/welldata/lasParse.js
 6e54370724e2254a60d5889bba52008da45dc68d engines/welldata/lasWrite.js
 e83147b4171a4d2364d39fd3bd396babae2b549a engines/wellsite/abbreviations.js
+0526446ba3f5e807b26df0b6d2f35487afeb3f5d engines/wellsite/dExponent.js
 105fe1f53d1f06ca3adc8853eee75c6be39ba41b engines/wellsite/depth.js
 47d78db9f287093e19cd9fd452ffb6a6a5bd7489 engines/wellsite/descriptionVocabulary.js
 1bc4f2f6ab467e29f4937920e49772044aaae4e4 engines/wellsite/events.js
+3cc4f840becd6c47920152aa7dbe066910f903b5 engines/wellsite/gasRatios.js
 0d833d7d41238466bd7cc1077c8921d624e71229 engines/wellsite/lag.js
+276a66ac0d4931f0054a8c7556373250108a2d76 engines/wellsite/lagCheck.js
 2cf0d29a5b448b97cc7b02e3c0c627dd0bc28b34 engines/wellsite/pumps.js
 d0dec03d39af6b23818c6cdf9e85d11999f343ec engines/wellsite/reports.js
 c138332947f647c0911d2b43fc73441e32527e0a engines/wellsite/sampleProgram.js
@@ -897,9 +903,10 @@ df49fe14f72be31c5a08f635b63e1742ef672c31 test-data/wells/las/feet_20.las
 5f57c8152c5a82e004045390ed478ed16cef5472 test-data/wells/las/nullheavy_20.las
 9c4eca46b961287d192191b8b9d8cb4dedd1f1a0 test-data/wells/las/quirks_20.las
 397eb59bd0841291276635eeba444520fc1a4e76 test-data/wells/las/wrapped_12.las
-f03668ac62f11facf4f99c1e49dd28f3d1fbcf5c test-data/wellsite/README.md
+8782d35eb7a15d6018666ba8f70ddcb9ef1da92a test-data/wellsite/README.md
 4b4c298689998df1d57d7ab172e1489f341b790a test-data/wellsite/description-goldens.json
 e0d0ec19eacdee4e2d7fde538bf4f7ff2e350df5 test-data/wellsite/lag-goldens.json
+614711e87a8d7eef56e7527fd69ee545221e6d89 test-data/wellsite/lagcheck-goldens.json
 f6171432027bc000d93ddb0f16516ea9f503f09d test-data/wellsite/report-day.json
 22614aec5357c9cf484d7b5b09b6c80dc3b5ddbb test-data/wellsite/show-goldens.json
 b048061614f28bb0c0bff26ae51fd6ce38e301f5 test-data/wellsite/ws0-goldens.json
@@ -1139,4 +1146,5 @@ a67238b456738f8963e2e119744edbccb387434f tools/validation/wells/oracle.py
 54116fd8ed0cde1b34652668f99da55c75887e2f tools/validation/wellsite/gen_report_day.py
 3f8ffb485d2d61f4fcace6df69087b297383909e tools/validation/wellsite/genfixtures.py
 018d6ecfefdf6825fbd15bf445a2dcbd1770a198 tools/validation/wellsite/oracle_lag.py
+14b3db8ab9e5dc4f35124750fc0a78174bca81e3 tools/validation/wellsite/oracle_lagcheck.py
 d5815ee1a45e0d31bc47dc339407900f78546048 tools/validation/wellsite/oracle_ws0.py

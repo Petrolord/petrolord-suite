@@ -256,7 +256,7 @@ Recorded verbatim.
 ### Step 2 test record (2026-10-01 to 2026-10-02)
 
 - CI on PR #847 at the head of the branch: jest 8 shards, the production build, the vendored engines guard and Playwright 6 shards (all Wellsite specs: `wellsite-studio` 16, `wellsite-upgrade` 11, `wellsite-u2` 11): green.
-- Engines PR #297: its CI green.
+- Engines PR #297: its CI green; merged by the programme lead (engines main fec3788); the Suite is re-pinned to it with 0 recorded deviations (`node tools/check-vendored-engines.mjs --canonical /root/petrolord-engines`).
 - Local: the shared box ran at load 7 to 16 for most of the build, where one workstation suite takes 3 to 5 minutes and a Vite cold start exceeds the Playwright timeout, so CI was the reference for jest and e2e. Each new suite was also run locally at least once while it was written. At low load the strip log, d-exponent and viewport specs were run on the private dev server (port 8450) and the screenshots reviewed.
 - Found and fixed along the way: Config reset a value typed right after Record when its own reload arrived (a real race, now keyed on what the screen just saved); a tops test clicked before the row followed the status line.
 
@@ -269,7 +269,7 @@ Recorded verbatim.
 
 ### Step 2 owner items
 
-1. Engines PR Petrolord/petrolord-engines #297 (lagCheck, gasRatios, dExponent) is final and waits for the programme lead to merge. Then: re-pin `packages/engines/VENDOR.json` to its merge commit, regenerate the manifest, move the Data AI engine labels, delete the nine `wellsite-u2` ledger rows.
+1. Engines PR Petrolord/petrolord-engines #297 (lagCheck, gasRatios, dExponent) was merged by the programme lead (engines main fec3788). The Suite is re-pinned to fec3788 in this PR: manifest regenerated, the nine `wellsite-u2` ledger rows deleted (0 recorded deviations), the Data AI engine labels moved. Nothing is left to do here.
 2. U2-013: the names migration is sketched in the build record (three nullable text columns on `ws_tops`, `ws_signoffs`, `ws_records`); it needs the owner and a second reviewer. Until then interpretations show the short id when the organisation list does not know the person.
 3. Reports signed before this release keep their statements as signed; new sign-offs end "Signed as NAME.".
 4. WITSML files were checked against the published 1.4.1.1 XSDs but not run through a schema validator or a third-party store. A test against the customer's WITSML system is worth doing before it is promised in a demo.
