@@ -17,7 +17,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import {
   sourceText, assumedDefaultText, computedText, NOT_PROVIDED, isStated,
 } from '@/lib/inputProvenance';
-import { describePvtSource, MBAL_CORRELATION_LABELS, tableOrigin } from './pvtSource';
+import { describePvtSource, MBAL_CORRELATION_LABELS, tableOrigin, pvtCoverageWarning, pvtTableCoverage } from './pvtSource';
 import { pvtOriginRows, PVT_ORIGIN_KIND } from './pvtIntake';
 import { RUN_SNAPSHOT_KEY, DEPTH_REFERENCES, PRESSURE_BASES } from './studyMeta';
 import { RUN_INPUT_DEFAULTS } from './runStaleness';
@@ -374,7 +374,7 @@ export function mbalInputRows(a) {
   // ── the fit and the data ──
   const excluded = (cfg.excluded_timesteps ?? []).slice().sort((x, y) => x - y);
   row('Fit and data', 'excluded_timesteps', ['excluded_timesteps'], 'Timesteps excluded from the fit by the analyst', excluded.length ? excluded.join(', ') : 'none', '',
-    excluded.length ? 'Set on the Data tab; listed with the reason in the data table' : 'Every timestep after the initial state is offered to the fit');
+    excluded.length ? 'Held in the run settings of the case; each one is marked in the data table' : 'Every timestep after the initial state is offered to the fit');
   const nRows = result?.plot_data?.timestep_index?.length ?? caseData?.production_data?.length ?? 0;
   row('Fit and data', 'production_data', ['production_data'], 'Pressure and production table', `${nRows} rows`, '', src('production_data', null));
   return rows;
@@ -814,7 +814,11 @@ export function limitsBlock(a) {
       : 'The correlations are used only where the PVT table or a data row gives no value.',
   };
   const flags = (result?.warnings ?? []).filter(isRangeFlag);
-  return { assumptions, ranges, flags, noFlagsText: 'The engine flagged no input outside the published range of a correlation in use.' };
+  // the engine says nothing when a pressure falls outside the PVT table: the app does
+  const coverage = pvtCoverageWarning(a.caseData, runConfig);
+  if (coverage) flags.unshift(coverage);
+  const hasTable = pvtTableCoverage(a.caseData, runConfig) != null;
+  return { assumptions, ranges, flags, noFlagsText: `The engine flagged no input outside the published range of a correlation in use${hasTable ? ', and the PVT table covers every pressure of the case' : ''}.` };
 }
 
 /** Engine warnings that are not range flags (those go in the limits block). */

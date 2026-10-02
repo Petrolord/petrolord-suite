@@ -48,24 +48,33 @@ const PLETCHER = [
   [10, 2638, 54.750, 37256, 0.9409, 1.2829, 1.0571],
 ];
 
-// A saved Fluid Systems Studio project carrying its pvt-1 block, for the PVT
-// intake of the PVT tab: the Ahmed Example 11-3 fluid (35 degAPI, gas gravity
-// 0.7, 175 degF, bubble point 1,500 psia entered) by Standing and
-// Beggs-Robinson. The block is the one Fluid Systems Studio itself writes
+// Saved Fluid Systems Studio projects for the PVT intake of the PVT tab. Each
+// block is the one Fluid Systems Studio itself writes
 // (src/utils/fluidstudio/pvtHandoff.js), from its own engine call.
-export const SAMPLE_FLUID_PROJECT_ID = 'fluid-ahmed-11-3';
+//   wedge   a fluid for the Dake case: 200 degF, bubble point 2,740 psia
+//           entered, table to 4,740 psia, which covers the case
+//   ahmed   a fluid for the Ahmed case: 175 degF, bubble point 1,500 psia
+//           entered; its table ends at 3,500 psia and the case starts at
+//           3,685, so the intake refuses it and says why
+//   legacy  a project saved before the fluid study kept its PVT block
+export const SAMPLE_FLUID_PROJECT_ID = 'fluid-wedge';
+export const SAMPLE_FLUID_SHORT_ID = 'fluid-ahmed-11-3';
 export const SAMPLE_FLUID_LEGACY_ID = 'fluid-legacy-no-block';
-export function sampleFluidInputs() {
+const FLUIDS = {
+  [SAMPLE_FLUID_PROJECT_ID]: { name: 'Wedge reservoir oil PVT', blackOil: { api: 35, gor: 650, gasSg: 0.7, temp: 200, pb: 2740, salinity: 0 } },
+  [SAMPLE_FLUID_SHORT_ID]: { name: 'Virginia Hills oil PVT', blackOil: { api: 35, gor: 500, gasSg: 0.7, temp: 175, pb: 1500, salinity: 0 } },
+};
+export function sampleFluidInputs(id = SAMPLE_FLUID_PROJECT_ID) {
   const inputs = sampleFluidStudioData();
-  inputs.streamA.blackOil = { api: 35, gor: 500, gasSg: 0.7, temp: 175, pb: 1500, salinity: 0 };
+  inputs.streamA.blackOil = { ...FLUIDS[id].blackOil };
   inputs.separatorTrain = { stages: [] };
   return inputs;
 }
-export function sampleFluidBlock() {
-  const inputs = sampleFluidInputs();
+export function sampleFluidBlock(id = SAMPLE_FLUID_PROJECT_ID) {
+  const inputs = sampleFluidInputs(id);
   return buildFluidPvtContract({
     inputs, results: analyzeFluidSystem(inputs), eos: null,
-    projectId: SAMPLE_FLUID_PROJECT_ID, projectName: 'Virginia Hills oil PVT',
+    projectId: id, projectName: FLUIDS[id].name,
     generatedAt: '2026-10-01T14:30:00.000Z', appBuild: 'Petrolord Suite harness',
   });
 }
@@ -144,12 +153,11 @@ export function seedSampleStore(now = new Date().toISOString()) {
     }),
   ];
   const fluidProjects = [
+    ...[SAMPLE_FLUID_PROJECT_ID, SAMPLE_FLUID_SHORT_ID].map((id, k) => ({
+      id, user_id: SAMPLE_USER.id, project_name: FLUIDS[id].name, created_at: t, updated_at: `2026-10-01T14:3${1 - k}:00.000Z`,
+      inputs_data: { name: FLUIDS[id].name, schema: 2, inputs: sampleFluidInputs(id), pvt: sampleFluidBlock(id) },
+    })),
     {
-      id: SAMPLE_FLUID_PROJECT_ID, user_id: SAMPLE_USER.id, project_name: 'Virginia Hills oil PVT', created_at: t, updated_at: '2026-10-01T14:30:00.000Z',
-      inputs_data: { name: 'Virginia Hills oil PVT', schema: 2, inputs: sampleFluidInputs(), pvt: sampleFluidBlock() },
-    },
-    {
-      // a project saved before the fluid study kept its PVT block
       id: SAMPLE_FLUID_LEGACY_ID, user_id: SAMPLE_USER.id, project_name: 'Older fluid project', created_at: t, updated_at: '2026-07-01T09:00:00.000Z',
       inputs_data: { name: 'Older fluid project', schema: 1, inputs: {} },
     },

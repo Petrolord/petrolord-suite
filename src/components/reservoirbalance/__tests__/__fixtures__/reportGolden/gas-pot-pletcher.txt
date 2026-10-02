@@ -127,8 +127,8 @@ Inputs of the analysis
 
  Other aquifer parameters                     none                                             None held
 
- Timesteps excluded from the fit by the       1                                                Set on the Data tab; listed with the reason in the
- analyst                                                                                       data table
+ Timesteps excluded from the fit by the       1                                                Held in the run settings of the case; each one is
+ analyst                                                                                       marked in the data table
 
  Pressure and production table                11 rows                                          Entered, source not stated
 

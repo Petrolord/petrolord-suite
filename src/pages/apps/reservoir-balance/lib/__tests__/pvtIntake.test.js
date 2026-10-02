@@ -8,7 +8,9 @@ import {
   listFluidProjects, readFluidProjectBlock, PVT_ORIGIN_KIND,
 } from '../pvtIntake';
 import { describePvtSource, PVT_TABLE_ORIGIN_KEY } from '../pvtSource';
-import { sampleFluidBlock, seedSampleStore, SAMPLE_FLUID_PROJECT_ID, SAMPLE_FLUID_LEGACY_ID } from '../../harness/sampleCases';
+import {
+  sampleFluidBlock, seedSampleStore, SAMPLE_FLUID_PROJECT_ID, SAMPLE_FLUID_SHORT_ID, SAMPLE_FLUID_LEGACY_ID,
+} from '../../harness/sampleCases';
 
 const block = sampleFluidBlock();
 
@@ -24,7 +26,7 @@ describe('finding the block', () => {
 });
 
 describe('the table of the case', () => {
-  const made = tableFromPvtBlock(block, { fluidSystem: 'oil', temperatureF: 175 });
+  const made = tableFromPvtBlock(block, { fluidSystem: 'oil', temperatureF: 200, casePressures: [2740, 2620, 1460] });
 
   test('every pressure of the block, ascending, in the units of the lab table', () => {
     expect(made.ok).toBe(true);
@@ -36,15 +38,15 @@ describe('the table of the case', () => {
   test('the rows are ascending whatever the order of the block, and the block is the writer\'s own', () => {
     expect(block.table[0].pressure).toBeGreaterThan(block.table[1].pressure); // Fluid Systems writes it descending
     expect(made.rows[0].pressure_psia).toBe(15);
-    expect(made.rows[made.rows.length - 1].pressure_psia).toBe(3500);
+    expect(made.rows[made.rows.length - 1].pressure_psia).toBe(4740);
     expect(made.rows[0].bw_rb_stb).toBe(block.table[block.table.length - 1].Bw);
   });
 
   test('Bg goes from RB/scf to RB/Mscf: a known value', () => {
-    const src = block.table.find((r) => r.pressure === 1500);
-    const row = made.rows.find((r) => r.pressure_psia === 1500);
-    expect(src.Bg).toBeGreaterThan(0.001); // RB/scf at 1,500 psia and 175 degF is near 0.0018
-    expect(src.Bg).toBeLessThan(0.003);
+    const src = block.table.find((r) => r.pressure === 2740);
+    const row = made.rows.find((r) => r.pressure_psia === 2740);
+    expect(src.Bg).toBeGreaterThan(0.0008); // RB/scf at 2,740 psia and 200 degF is near 0.001
+    expect(src.Bg).toBeLessThan(0.0013);
     expect(row.bg_rb_mscf).toBeCloseTo(src.Bg * 1000, 9);
     expect(row.bo_rb_stb).toBe(src.Bo);
     expect(row.rs_scf_stb).toBe(src.Rs);
@@ -80,18 +82,21 @@ describe('the table of the case', () => {
   test('a study at another temperature is taken and said so', () => {
     const m = tableFromPvtBlock(block, { fluidSystem: 'oil', temperatureF: 210 });
     expect(m.ok).toBe(true);
-    expect(m.warnings.join(' ')).toMatch(/computed at 175\.0 degF and the case is at 210\.0 degF/);
+    expect(m.warnings.join(' ')).toMatch(/computed at 200\.0 degF and the case is at 210\.0 degF/);
   });
 
-  test('pressures of the case outside the table are counted and said: the engine leaves the table there', () => {
-    const m = tableFromPvtBlock(block, { fluidSystem: 'oil', temperatureF: 175, casePressures: [3685, 3680, 3400, 2400, NaN] });
-    expect(m.ok).toBe(true);
-    expect(m.warnings.join(' ')).toMatch(/runs from 15 to 3,500 psia and the case holds 2 above it \(up to 3,685 psia\)/);
-    expect(m.warnings.join(' ')).toMatch(/Outside the table the engine uses the correlations chosen on this tab/);
-    expect(m.origin.case_pressures_outside).toBe(2);
-    expect(m.origin.pressure_range_psia).toEqual([15, 3500]);
-    expect(describePvtOrigin(m.origin)).toMatch(/2 pressure\(s\) of the case lay outside the table when it was taken/);
-    expect(tableFromPvtBlock(block, { casePressures: [3000, 2000] }).origin.case_pressures_outside).toBe(0);
+  test('a table that does not cover the pressures of the case is not taken: the engine would mix two PVT descriptions', () => {
+    // the Ahmed fluid: bubble point 1,500 psia, so Fluid Systems Studio ends the table at 3,500; the case starts at 3,685
+    const short = sampleFluidBlock(SAMPLE_FLUID_SHORT_ID);
+    const m = tableFromPvtBlock(short, { fluidSystem: 'oil', temperatureF: 175, casePressures: [3685, 3680, 3400, 2400, NaN] });
+    expect(m.ok).toBe(false);
+    expect(m.rows).toBeUndefined();
+    expect(m.error).toMatch(/runs from 15 to 3,500 psia and the case holds 2 above it \(up to 3,685 psia\)/);
+    expect(m.error).toMatch(/one balance would mix two PVT descriptions\. The table is not taken\./);
+    expect(m.outside).toEqual({ min: 15, max: 3500, above: 2, below: 0 });
+    // the same block is taken by a case it covers
+    expect(tableFromPvtBlock(short, { casePressures: [3000, 2000] }).ok).toBe(true);
+    expect(tableFromPvtBlock(short, { casePressures: [3000, 10] }).error).toMatch(/1 below it \(down to 10 psia\)/);
   });
 
   test('refusals: the gate of the contract, no table, a unit nobody knows', () => {
@@ -107,15 +112,16 @@ describe('the table of the case', () => {
 });
 
 describe('what the report says about it', () => {
-  const { origin } = tableFromPvtBlock(block, { fluidSystem: 'oil', temperatureF: 175 });
+  const { origin } = tableFromPvtBlock(block, { fluidSystem: 'oil', temperatureF: 200 });
 
   test('the origin keeps what the block says about itself and computes nothing', () => {
     expect(origin).toMatchObject({
       kind: PVT_ORIGIN_KIND, schema: 'pvt-1', source_app: 'Fluid Systems Studio', project_id: SAMPLE_FLUID_PROJECT_ID,
-      project_name: 'Virginia Hills oil PVT', model: 'black-oil-correlations', pb_source: 'entered', tuning: 'none', edited: false,
+      project_name: 'Wedge reservoir oil PVT', model: 'black-oil-correlations', pb_source: 'entered', tuning: 'none', edited: false,
     });
     expect(origin.methods.bo).toEqual({ method: 'Standing', kind: 'correlation', reference: 'Standing (1947)' });
-    expect(origin.range_flags).toHaveLength(2);
+    expect(origin.range_flags.length).toBeGreaterThan(0);
+    expect(origin.pressure_range_psia).toEqual([15, 4740]);
     expect(origin.rows).toBe(block.table.length);
   });
 
@@ -126,10 +132,10 @@ describe('what the report says about it', () => {
 
   test('one sentence for the inputs table, through the source wording of the app', () => {
     const text = describePvtOrigin(origin);
-    expect(text).toMatch(/^Table from Fluid Systems Studio, project "Virginia Hills oil PVT" \(2026-10-01 14:30 UTC\)\./);
+    expect(text).toMatch(/^Table from Fluid Systems Studio, project "Wedge reservoir oil PVT" \(2026-10-01 14:30 UTC\)\./);
     expect(text).toMatch(/black-oil correlations: Entered by the user \(Pb\); Standing, scaled to the entered bubble point \(Rs\); Standing \(Bo\)/);
     expect(text).toMatch(/surface separation \(flash\) basis/);
-    expect(text).toMatch(/2 range flag\(s\) raised by the fluid study/);
+    expect(text).toMatch(/\d range flag\(s\) raised by the fluid study/);
     expect(text).not.toMatch(/\.\./);
     const cfg = { pvt_source: 'lab_table', pvt_lab_table: [{}, {}], pvt_correlations: { [PVT_TABLE_ORIGIN_KEY]: origin } };
     expect(describePvtSource(cfg)).toBe(text.replace(/\.$/, ''));
@@ -143,8 +149,8 @@ describe('what the report says about it', () => {
     expect(rows['Method, Bo']).toBe('Standing (Standing (1947))');
     expect(rows['Bubble point']).toBe('bubble point entered by the user');
     expect(rows['Lab tuning']).toBe('none');
-    expect(rows['Pressure range of the table']).toBe('15 to 3,500 psia, 41 rows');
-    expect(rows['Range flags of the fluid study']).toMatch(/Standing: 2 table rows/);
+    expect(rows['Pressure range of the table']).toBe('15 to 4,740 psia, 41 rows');
+    expect(rows['Range flags of the fluid study']).toMatch(/Standing: 1 table row \(15 psia\) outside its published pressure range/);
     const bare = Object.fromEntries(pvtOriginRows({ ...origin, methods: {} }));
     expect(bare['Method, Z']).toBe('not stated by the source');
     expect(pvtOriginRows(null)).toEqual([]);
@@ -167,7 +173,7 @@ describe('reading a saved project', () => {
   test('the list', async () => {
     const { data, error } = await listFluidProjects(client);
     expect(error).toBeNull();
-    expect(data.map((p) => p.id)).toEqual([SAMPLE_FLUID_PROJECT_ID, SAMPLE_FLUID_LEGACY_ID]);
+    expect(data.map((p) => p.id)).toEqual([SAMPLE_FLUID_PROJECT_ID, SAMPLE_FLUID_SHORT_ID, SAMPLE_FLUID_LEGACY_ID]);
     const broken = { from: () => ({ select: () => ({ order: () => Promise.reject(new Error('offline')) }) }) };
     expect((await listFluidProjects(broken)).error.message).toBe('offline');
   });
@@ -176,7 +182,7 @@ describe('reading a saved project', () => {
     const got = await readFluidProjectBlock(read, SAMPLE_FLUID_PROJECT_ID);
     expect(got.ok).toBe(true);
     expect(got.block.schema).toBe('pvt-1');
-    expect(got.projectName).toBe('Virginia Hills oil PVT');
+    expect(got.projectName).toBe('Wedge reservoir oil PVT');
   });
 
   test('a project saved before the block existed, one that is not there, and no id: each says why', async () => {

@@ -84,3 +84,41 @@ export function describePvtSource(cfg, { isGas = false } = {}) {
   }
   return 'Table entered on the PVT tab (origin not recorded)';
 }
+
+// ---- coverage of the PVT table ---------------------------------------------
+// The engine interpolates inside the PVT table only. At a pressure outside
+// it, a row with no PVT of its own gets the correlations of the run, with no
+// word from the engine: the balance then mixes two PVT descriptions (and when
+// the initial pressure is the one outside, Boi or Bgi comes from the
+// correlations while every later state comes from the table). The app says
+// so on the Run tab and in the Limits block of the report.
+
+/**
+ * @param {object|null} caseData the case with production_data
+ * @param {object|null} cfg the run config of the run (or the default)
+ * @returns {null|{min: number, max: number, outside: Array<{timestep_index: number, pressure_psia: number}>}}
+ *   null when the run has no PVT table to cover anything
+ */
+export function pvtTableCoverage(caseData, cfg) {
+  const table = (cfg?.pvt_lab_table ?? []).map((r) => Number(r?.pressure_psia)).filter((p) => Number.isFinite(p) && p > 0);
+  if (cfg?.pvt_source === 'correlated' || table.length < 2) return null;
+  const min = Math.min(...table);
+  const max = Math.max(...table);
+  const isGas = caseData?.fluid_system === 'gas';
+  const ownPvt = (r) => (isGas ? (r.z_factor != null || r.bg_rb_mscf != null) : r.bo_rb_stb != null);
+  const outside = (caseData?.production_data ?? [])
+    .filter((r) => Number.isFinite(Number(r.pressure_psia)) && (Number(r.pressure_psia) > max + 1e-6 || Number(r.pressure_psia) < min - 1e-6) && !ownPvt(r))
+    .map((r) => ({ timestep_index: r.timestep_index, pressure_psia: Number(r.pressure_psia) }));
+  return { min, max, outside };
+}
+
+/** The sentence for a run whose table does not cover its pressures; null when it does. */
+export function pvtCoverageWarning(caseData, cfg) {
+  const c = pvtTableCoverage(caseData, cfg);
+  if (!c || !c.outside.length) return null;
+  const n = (v) => Math.round(v).toLocaleString('en-US');
+  const steps = c.outside.map((o) => o.timestep_index);
+  const list = steps.length > 8 ? `${steps.slice(0, 8).join(', ')} and ${steps.length - 8} more` : steps.join(', ');
+  const initial = steps.includes(0) ? ' The initial state is one of them, so the initial volume factor and every later one come from different PVT descriptions.' : '';
+  return `PVT table coverage: ${c.outside.length} timestep${c.outside.length === 1 ? '' : 's'} (${list}) lie${c.outside.length === 1 ? 's' : ''} outside the PVT table of the run (${n(c.min)} to ${n(c.max)} psia) and carry no PVT of their own. There the engine used the correlations of the run in place of the table.${initial} Extend the table to cover every pressure of the case, then run again.`;
+}

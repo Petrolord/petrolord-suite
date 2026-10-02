@@ -123,15 +123,23 @@ export function tableFromPvtBlock(block, { fluidSystem = 'oil', temperatureF = n
   if (finite(blockT) && finite(temperatureF) && Math.abs(blockT - temperatureF) > 1) {
     warnings.push(`The PVT of the project was computed at ${blockT.toFixed(1)} degF and the case is at ${temperatureF.toFixed(1)} degF. The table is taken as it is.`);
   }
-  // The engine interpolates inside the table only; outside it, it falls back on the correlations of the PVT tab.
+  // The engine interpolates inside the table only. Outside it, it would use
+  // the correlations of the PVT tab for those pressures and the table for the
+  // rest, with no word: two PVT descriptions in one balance. A table that
+  // does not cover the case is therefore not taken.
   const tableMin = rows[0].pressure_psia;
   const tableMax = rows[rows.length - 1].pressure_psia;
   const held = (casePressures || []).filter((p) => finite(p) && p > 0);
   const above = held.filter((p) => p > tableMax + 1e-6);
   const below = held.filter((p) => p < tableMin - 1e-6);
   if (above.length || below.length) {
-    const side = [above.length ? `${above.length} above it (up to ${Math.round(Math.max(...above)).toLocaleString('en-US')} psia)` : null, below.length ? `${below.length} below it` : null].filter(Boolean).join(' and ');
-    warnings.push(`The table of the project runs from ${Math.round(tableMin).toLocaleString('en-US')} to ${Math.round(tableMax).toLocaleString('en-US')} psia and the case holds ${side}. Outside the table the engine uses the correlations chosen on this tab, so those pressures do not carry the PVT of the fluid study. Widen the pressure range in Fluid Systems Studio, or add the missing rows by hand.`);
+    const n = (v) => Math.round(v).toLocaleString('en-US');
+    const side = [above.length ? `${above.length} above it (up to ${n(Math.max(...above))} psia)` : null, below.length ? `${below.length} below it (down to ${n(Math.min(...below))} psia)` : null].filter(Boolean).join(' and ');
+    return {
+      ok: false,
+      outside: { min: tableMin, max: tableMax, above: above.length, below: below.length },
+      error: `The table of the project runs from ${n(tableMin)} to ${n(tableMax)} psia and the case holds ${side}. Outside the table the engine would use the correlations of this tab, so one balance would mix two PVT descriptions. The table is not taken. Fluid Systems Studio ends its table at the larger of 1.4 times the bubble point and the bubble point plus 2,000 psi; a case further above its bubble point than that is not covered yet.`,
+    };
   }
   const methods = {};
   for (const key of ['pb', 'rs', 'bo', 'co', 'mu_o', 'z', 'bg', 'mu_g', 'bw']) {
@@ -155,7 +163,6 @@ export function tableFromPvtBlock(block, { fluidSystem = 'oil', temperatureF = n
     temperature_f: finite(blockT) ? blockT : null,
     rows: rows.length,
     pressure_range_psia: [tableMin, tableMax],
-    case_pressures_outside: above.length + below.length,
     taken_at: new Date().toISOString(),
     edited: false,
   };
@@ -195,7 +202,6 @@ export function describePvtOrigin(origin, { isGas = false } = {}) {
   if (PB_WORDS[origin.pb_source] && !isGas && !origin.methods?.pb) parts.push(PB_WORDS[origin.pb_source]);
   if (tuningWords(origin.tuning)) parts.push(tuningWords(origin.tuning));
   if (origin.range_flags?.length) parts.push(`${origin.range_flags.length} range flag(s) raised by the fluid study`);
-  if (origin.case_pressures_outside > 0) parts.push(`${origin.case_pressures_outside} pressure(s) of the case lay outside the table when it was taken`);
   if (origin.edited) parts.push('rows were edited in this app after the table was taken');
   return `${parts.join('. ')}.`;
 }
@@ -212,7 +218,7 @@ export function pvtOriginRows(origin, { isGas = false } = {}) {
     ['Liberation basis', origin.basis],
     ['Lab tuning', tuningWords(origin.tuning) || 'none'],
     ['Temperature of the fluid study', finite(origin.temperature_f) ? `${origin.temperature_f.toFixed(1)} degF` : null],
-    ['Pressure range of the table', Array.isArray(origin.pressure_range_psia) ? `${Math.round(origin.pressure_range_psia[0]).toLocaleString('en-US')} to ${Math.round(origin.pressure_range_psia[1]).toLocaleString('en-US')} psia, ${origin.rows} rows${origin.case_pressures_outside > 0 ? `; ${origin.case_pressures_outside} pressure(s) of the case lay outside it, where the engine uses the correlations of the PVT tab` : ''}` : null],
+    ['Pressure range of the table', Array.isArray(origin.pressure_range_psia) ? `${Math.round(origin.pressure_range_psia[0]).toLocaleString('en-US')} to ${Math.round(origin.pressure_range_psia[1]).toLocaleString('en-US')} psia, ${origin.rows} rows` : null],
     ['Taken into this case', when(origin.taken_at)],
     ['Edited after it was taken', origin.edited ? 'Yes: rows were changed on the PVT tab' : 'No'],
   ];

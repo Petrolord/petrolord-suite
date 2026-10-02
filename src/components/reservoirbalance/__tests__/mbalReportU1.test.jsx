@@ -23,6 +23,9 @@ import { shortReference } from '@/pages/apps/reservoir-balance/lib/reportModel';
 import {
   runSample, reportArgs, SAMPLE_CASE_IDS, AT, METRIC_UNITS,
 } from '@/pages/apps/reservoir-balance/lib/__tests__/mbalTestKit';
+import { sampleFluidBlock } from '@/pages/apps/reservoir-balance/harness/sampleCases';
+import { tableFromPvtBlock } from '@/pages/apps/reservoir-balance/lib/pvtIntake';
+import { PVT_TABLE_ORIGIN_KEY, pvtTableCoverage, pvtCoverageWarning } from '@/pages/apps/reservoir-balance/lib/pvtSource';
 import { buildEngineInputs } from '../../../../supabase/functions/_shared/mbal-run-mapping.ts';
 import { AQUIFER_PARAM_KEYS } from '../../../../packages/engines/engines/mbal/mbalEngine.ts';
 
@@ -255,7 +258,7 @@ describe('RL5: the data the analysis used, and what it left out', () => {
     expect(text).toMatch(/Cumulative gas at the cut-off \(Bscf\) 54\.750/);
     // Wp 378 STB in MSTB, We = (cw + cf) W (pi - p) = 9e-6 x 69.04e6 x 464 = 0.288 MMRB
     expect(text).toMatch(/1 2001-01-01 5,947\.0 5\.475 0\.378 0\.288 Excluded by the analyst/);
-    expect(model.inputs.find((r) => r.key === 'excluded_timesteps')).toMatchObject({ value: '1', source: 'Set on the Data tab; listed with the reason in the data table' });
+    expect(model.inputs.find((r) => r.key === 'excluded_timesteps')).toMatchObject({ value: '1', source: 'Held in the run settings of the case; each one is marked in the data table' });
   });
 
   test('an undated table says so, and prints n/a for the date', () => {
@@ -502,6 +505,74 @@ describe('RL9: the limits of the method are printed', () => {
     expect(text).toMatch(/Vasquez-Beggs \(1980\), Rs and Bo Pressure to 5,250 psia; 75 to 294 degF/);
     // the flag is in the limits block and is not repeated as a plain warning
     expect(built.model.warnings.some((w) => /Vasquez-Beggs \(Rs\/Bo\)/.test(w))).toBe(false);
+  });
+});
+
+describe('RL11: PVT taken from a Fluid Systems Studio project keeps its provenance', () => {
+  // the Dake case with no per-row PVT, its table taken from the saved fluid project through the pvt-1 contract
+  const taken = tableFromPvtBlock(sampleFluidBlock(), { fluidSystem: 'oil', temperatureF: 200, casePressures: [2740, 1460] });
+  const noRowPvt = (db) => {
+    db.rb_production_data = db.rb_production_data.map((r) => (r.case_id === SAMPLE_CASE_IDS.dake ? { ...r, bo_rb_stb: null, rs_scf_stb: null, bg_rb_mscf: null, bw_rb_stb: null } : r));
+  };
+  const state = runSample(SAMPLE_CASE_IDS.dake, {
+    mutateStore: (db) => {
+      noRowPvt(db);
+      db.rb_run_configs = db.rb_run_configs.map((c) => (c.case_id === SAMPLE_CASE_IDS.dake
+        ? { ...c, pvt_source: 'lab_table', pvt_lab_table: taken.rows, pvt_correlations: { ...c.pvt_correlations, [PVT_TABLE_ORIGIN_KEY]: taken.origin } } : c));
+    },
+  });
+
+  test('the engine ran on the table of the fluid study', () => {
+    const i = state.result.plot_data.pressure.indexOf(2199);
+    const lo = taken.rows.filter((r) => r.pressure_psia <= 2199).pop();
+    const hi = taken.rows.find((r) => r.pressure_psia >= 2199);
+    const f = hi.pressure_psia === lo.pressure_psia ? 0 : (2199 - lo.pressure_psia) / (hi.pressure_psia - lo.pressure_psia);
+    expect(state.result.plot_data.Bo[i]).toBeCloseTo(lo.bo_rb_stb + f * (hi.bo_rb_stb - lo.bo_rb_stb), 6);
+    expect(state.staleness.stale).toBe(false);
+  });
+
+  test('the report names the project, the contract, the method of every property, the basis and the range flags', () => {
+    const { doc, model } = build(state);
+    const text = flat(readPdf(doc).text);
+    expect(model.pvtProvenance).not.toBeNull();
+    const rows = Object.fromEntries(model.pvtProvenance);
+    expect(rows['PVT contract']).toBe('pvt-1');
+    expect(rows.Source).toBe('Fluid Systems Studio, project "Wedge reservoir oil PVT"');
+    expect(rows['Method, Bo']).toBe('Standing (Standing (1947))');
+    expect(rows['Method, Z']).toMatch(/Papay/);
+    expect(rows['Bubble point']).toBe('bubble point entered by the user');
+    expect(rows['Pressure range of the table']).toBe('15 to 4,740 psia, 41 rows');
+    expect(text).toMatch(/PVT provenance/);
+    expect(text).toMatch(/Wedge reservoir oil PVT/);
+    expect(text).toMatch(/Standing, scaled to the entered bubble point/);
+    expect(text).toMatch(/this app computed none of them/);
+    expect(text).toMatch(/the PVT table covers every pressure of the case/);
+    // the inputs table states the same source
+    expect(JSON.stringify(model.inputs)).toMatch(/Table from Fluid Systems Studio, project \\"Wedge reservoir oil PVT\\"/);
+  });
+
+  test('negative control: a table typed by hand prints no provenance table', () => {
+    expect(build(ahmed).model.pvtProvenance).toBeNull();
+    expect(flat(readPdf(build(ahmed).doc).text)).not.toMatch(/PVT provenance/);
+  });
+
+  test('a PVT table that does not cover the pressures of the run is flagged in the Limits block', () => {
+    // the table cut at 2,500 psia: the initial state (2,740) and the first survey (2,620) are above it
+    const cut = taken.rows.filter((r) => r.pressure_psia <= 2500);
+    const short = runSample(SAMPLE_CASE_IDS.dake, {
+      mutateStore: (db) => {
+        noRowPvt(db);
+        db.rb_run_configs = db.rb_run_configs.map((c) => (c.case_id === SAMPLE_CASE_IDS.dake ? { ...c, pvt_source: 'lab_table', pvt_lab_table: cut } : c));
+      },
+    });
+    expect(pvtTableCoverage(short.caseData, short.runConfig).outside.map((o) => o.timestep_index)).toEqual([0, 1]);
+    const { doc, model } = build(short);
+    expect(model.limits.flags[0]).toMatch(/^PVT table coverage: 2 timesteps \(0, 1\) lie outside the PVT table of the run \(15 to 2,\d{3} psia\)/);
+    expect(model.limits.flags[0]).toMatch(/The initial state is one of them/);
+    expect(flat(readPdf(doc).text)).toMatch(/PVT table coverage: 2 timesteps/);
+    // rows that carry their own PVT need no table: the published case is not flagged
+    expect(pvtCoverageWarning(dake.caseData, { ...dake.runConfig, pvt_lab_table: cut })).toBeNull();
+    expect(pvtTableCoverage(dake.caseData, dake.runConfig)).toBeNull();
   });
 });
 

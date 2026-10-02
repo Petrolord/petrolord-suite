@@ -57,6 +57,7 @@ import { validationTierOf, fmt, r2Text, INJECTION_NOTE } from './lib/reportModel
 import { driveIndexDefs, inPlaceOf } from './lib/mbalSeries';
 import { MBAL_OILFIELD_VIEW, MBAL_METRIC_VIEW, MBAL_UNIT_SPEC } from './lib/mbalUnits';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { pvtTableCoverage } from './lib/pvtSource';
 import { RecordSharingBar } from '@/components/recordSharing';
 
 const TABS = [
@@ -179,8 +180,10 @@ export const StaleRunNotice = () => {
 // ─── Run tab main area ───────────────────────────────────────────────────────
 const RunPanel = () => {
   const {
-    caseData, lastResult, lastRunConfig, running, handleRun, runStaleness, units,
+    caseData, lastResult, lastRunConfig, running, handleRun, runStaleness, units, defaultCfg,
   } = useMaterialBalanceStudio();
+  // what the next run would be made on: the PVT table of the case against its pressures
+  const coverage = pvtTableCoverage(caseData, defaultCfg);
   const stale = Boolean(runStaleness?.stale);
   const rows = caseData?.production_data ?? [];
   const rowCount = rows.length;
@@ -218,6 +221,17 @@ const RunPanel = () => {
               </p>
             )}
           </div>
+          {coverage?.outside.length > 0 && (
+            <Alert variant="warning" data-testid="mbal-pvt-coverage-note">
+              <Info className="h-4 w-4" />
+              <AlertTitle>The PVT table does not cover every pressure of the case</AlertTitle>
+              <AlertDescription className="text-xs">
+                {coverage.outside.length} timestep{coverage.outside.length === 1 ? '' : 's'} ({coverage.outside.slice(0, 8).map((o) => o.timestep_index).join(', ')}{coverage.outside.length > 8 ? ' and more' : ''}) lie outside the table
+                ({fmt(units.to('pressure', coverage.min), 0)} to {fmt(units.to('pressure', coverage.max), 0)} {units.label('pressure')}) and carry no PVT of their own.
+                The engine uses the correlations of the PVT tab for those and the table for the rest, so the balance would mix two PVT descriptions. Extend the table on the PVT tab before running.
+              </AlertDescription>
+            </Alert>
+          )}
           {injected && (
             <Alert variant="warning" data-testid="mbal-injection-note">
               <Info className="h-4 w-4" />
