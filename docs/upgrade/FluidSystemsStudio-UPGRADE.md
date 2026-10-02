@@ -368,6 +368,31 @@ Batches:
 | 7 | Sharing: may a colleague's Fluid project be read by my Material Balance case? | Yes, by the same view permission as the project itself (the migration is applied). A two-account walk on staging is still owed, with the Geoscience one |
 | 8 | Will a reviewer read the sample report before NAPE? (plan question 11) | Send `/root/fluid-report-sample.pdf` with the RL checklist as the review form |
 
+## Batch decision (programme lead, 2026-10-02)
+
+Recorded verbatim from the build brief of `feat/fluid-u2`.
+
+BUILD in this order, one commit per item:
+
+- Batch A, all eight: (1) lab PVT table import for CCE and differential liberation as plain tables (CSV and xlsx through the shared readers, header-detected, units at the door, hostile file set; lab rows stored with the project, shown against the model on every PVT plot and in the report's "lab against model" figure with the misfit per property stated); (2) correlation matching to the lab Bo, Rs and viscosity (a stated shift or multiplier per property, what was matched and the error before and after recorded in `pvt-1.tuning`, the report and the handoff; honest status: "matched to lab" only while it holds); (3) PVTO / PVDG / PVTW keyword export for the simulator, units and conventions stated in comment lines, round-trip tested against the Simulation Studio deck builder's own reader, and the worker fixtures untouched unless you mean to change them; (4) Z factor from the canonical engines library with a Standing-Katz check against published chart values (engines-first if the engine lacks it; this replaces Papay and MOVES Z, Bg and gas viscosity: state before and after on the sample in the PR and the doc, re-pin tests, regenerate the Fluid report goldens deliberately); (5) tuned-parameter uncertainty shown where the tuning produces it; (6) the composition door on the shared typed reader with units and hostile files; (7) the Vasquez-Beggs separator gas-gravity correction made to follow the entered separator stage instead of the fixed 100 psia (validated against the published correction formula with a worked value; negative control); (8) a shared PVT intake card component (`src/lib/inputProvenance` or beside it) that any consuming app mounts: shows the source project, time, methods, range flags, "source changed since" and "edited after intake", with tests; adopt it in Well Test's intake as the first user without changing Well Test's report output unless deliberate.
+- Batch B: water salinity applied in Bw (published correlation with its reference and a worked value; today salinity enters water viscosity only); lab data QC (monotonic checks, material-balance style consistency of the DL data, flagged, never silently corrected); identification proposed from the wells registry (user confirms); the one-page summary and the sweep figure if time remains.
+- DEFERRED (record reasons): tuning to CCE/DL/viscosity rows for the EOS path, CVD, recombination (M to L each, after NAPE); all of Batch C (C7+ splitting, SRK, hydrate inhibitors, depth gradient, quality lines, OBM cleaning, per-component regression).
+
+Owner-question defaults in force: lab formats are plain CSV/xlsx tables; Bg shown in RB/Mscf; SI pressure stays kPa; consumers keep the block as sent and flag "source changed"; a colleague's shared fluid is readable by consumers.
+
+Backlog ids of the chosen items: A1 = U2-001, A2 = U2-004, A3 = U2-003, A4 = U2-006, A5 = U2-008, A6 = U2-009, A7 = U2-007, A8 = U2-005; Batch B = U2-022, U2-018, U2-025, U2-023, U2-021.
+
+| Deferred | Reason |
+|---|---|
+| U2-002 tuning to CCE, DL and viscosity rows for the EOS path | M to L, engine work in the regression; after NAPE |
+| U2-010 CVD | M, a new experiment in the engines with its oracle; after NAPE |
+| U2-020 recombination | M; after NAPE |
+| Batch C (U2-011, 012, 013, 016, 017, 019, 024) | L or specialist depth; none is needed by a consumer round |
+
+## Step 2 as built (`feat/fluid-u2`)
+
+One row per item is added below as it is built.
+
 ### Not done, and why
 
 - **Engines.** No change to `packages/engines` and no engines PR: the black-oil table of this app lives in the Suite (`src/utils/fluidStudioCalculations.js`, `pvtCalculations.js`), and the water properties call the vendored library as it is.
