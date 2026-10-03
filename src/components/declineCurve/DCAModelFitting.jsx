@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Play, Loader2 } from 'lucide-react';
+import DcaNumberField from '@/components/declineCurve/DcaNumberField';
 
 const DCAModelFitting = () => {
   const { 
@@ -19,8 +20,9 @@ const DCAModelFitting = () => {
 
   const config = streamState[selectedStream];
 
-  const handleConstraintChange = (key, val) => {
-    updateStreamConfig('constraints', { ...config.constraints, [key]: parseFloat(val) });
+  // PL11: an empty box or "0." stays as typed; a cleared field keeps the default
+  const handleConstraintChange = (key, val, fallback) => {
+    updateStreamConfig('constraints', { ...config.constraints, [key]: Number.isFinite(val) ? val : fallback });
   };
 
   // Helper to safely format date for input[type="date"] (YYYY-MM-DD)
@@ -67,29 +69,14 @@ const DCAModelFitting = () => {
       {/* Constraints */}
       {(config.modelType === 'Hyperbolic' || config.modelType === 'Auto') && (
         <div className="space-y-4 p-3 bg-pl-sunken rounded border border-pl-border">
-          <Label className="text-xs text-pl-muted uppercase">b-Factor Constraints</Label>
+          <Label className="text-xs text-pl-muted uppercase">b-Factor Limits</Label>
+          <p className="text-[10px] text-pl-muted">The hyperbolic fit searches b in steps of 0.05 between these limits. b above 1 implies transient or boundary-free flow and needs a terminal decline; see the help.</p>
           
           <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label className="text-[10px]">Min b</Label>
-              <Input 
-                type="number" 
-                step="0.1"
-                value={config.constraints.minB}
-                onChange={(e) => handleConstraintChange('minB', e.target.value)}
-                className="h-8"
-              />
-            </div>
-            <div>
-              <Label className="text-[10px]">Max b</Label>
-              <Input 
-                type="number" 
-                step="0.1"
-                value={config.constraints.maxB}
-                onChange={(e) => handleConstraintChange('maxB', e.target.value)}
-                className="h-8"
-              />
-            </div>
+            <DcaNumberField id="dca-min-b" label="Min b" value={config.constraints.minB} emptyValue={0}
+              onCommit={(v) => handleConstraintChange('minB', v, 0)} testId="dca-min-b" labelClassName="text-[10px]" />
+            <DcaNumberField id="dca-max-b" label="Max b" value={config.constraints.maxB} emptyValue={1}
+              onCommit={(v) => handleConstraintChange('maxB', v, 1)} testId="dca-max-b" labelClassName="text-[10px]" />
           </div>
         </div>
       )}

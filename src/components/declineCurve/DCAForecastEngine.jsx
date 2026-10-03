@@ -1,10 +1,12 @@
 import React from 'react';
 import { useDeclineCurve, DEFAULT_MC_SEED, DEFAULT_ECON_LIMIT_UNCERTAINTY } from '@/contexts/DeclineCurveContext';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, TrendingUp, Dices, RefreshCw } from 'lucide-react';
+import DcaNumberField from '@/components/declineCurve/DcaNumberField';
+import { useDcaUnits } from '@/components/declineCurve/DcaUnits';
+import { DCA_DAYS_PER_YEAR } from '@/utils/declineCurve/dcaUnits';
 
 const DCAForecastEngine = () => {
   const { 
@@ -12,11 +14,18 @@ const DCAForecastEngine = () => {
     streamState, 
     updateForecastConfig, 
     runForecast, 
-    isForecasting 
+    isForecasting,
+    status,
   } = useDeclineCurve();
 
+  const u = useDcaUnits();
   const config = streamState[selectedStream].forecastConfig;
+  const rateUnit = u.rateLabel(selectedStream);
+  const toView = (v) => u.rateTo(selectedStream, v);
+  const toEngine = (v) => u.rateFrom(selectedStream, v);
   const hasFit = !!streamState[selectedStream].fitResults;
+  // DCA-U1-003: a forecast is run on a fit that still describes the data
+  const fitStale = hasFit && status?.fit === 'stale';
   const hasConfidenceIntervals = streamState[selectedStream].fitResults?.confidenceIntervals?.hasIntervals;
   // Projects saved before these settings existed carry neither, so fall back.
   const seedValue = Number.isFinite(config.mcSeed) ? config.mcSeed : DEFAULT_MC_SEED;
@@ -29,6 +38,7 @@ const DCAForecastEngine = () => {
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-pl-text">Forecast Settings</h3>
         {!hasFit && <span className="text-[10px] text-pl-warning-text">Fit Model First</span>}
+        {fitStale && <span className="text-[10px] text-pl-warning-text">Fit again first</span>}
       </div>
 
       <div className="space-y-4">
@@ -68,14 +78,16 @@ const DCAForecastEngine = () => {
             <div className="space-y-1 pt-1 border-t border-pl-border">
               <Label className="text-xs">Random Seed</Label>
               <div className="flex items-center gap-2">
-                <Input
-                  type="number"
+                <DcaNumberField
+                  id="dca-mc-seed"
+                  label="Seed"
+                  labelClassName="sr-only"
                   value={seedValue}
-                  onChange={(e) => {
-                    const next = parseInt(e.target.value, 10);
-                    updateForecastConfig('mcSeed', Number.isFinite(next) ? next : DEFAULT_MC_SEED);
-                  }}
-                  className="h-8 text-xs"
+                  integer
+                  emptyValue={DEFAULT_MC_SEED}
+                  onCommit={(v) => updateForecastConfig('mcSeed', Number.isFinite(v) ? v : DEFAULT_MC_SEED)}
+                  className="flex-1"
+                  testId="dca-mc-seed"
                 />
                 <Button
                   variant="outline"
@@ -96,41 +108,43 @@ const DCAForecastEngine = () => {
 
         {/* Economic Limit */}
         <div className="space-y-2">
-          <Label className="text-xs">Economic Limit Rate ({selectedStream === 'gas' ? 'Mscf/d' : 'bbl/d'})</Label>
-          <div className="flex items-center gap-2">
-            <Input 
-              type="number" 
-              value={config.economicLimit}
-              onChange={(e) => updateForecastConfig('economicLimit', parseFloat(e.target.value))}
-              className="h-8 text-xs"
+          <DcaNumberField
+            id="dca-econ-limit"
+            label="Economic limit rate"
+            unit={rateUnit}
+            value={config.economicLimit}
+            toView={toView}
+            toEngine={toEngine}
+            emptyValue={0}
+            onCommit={(v) => updateForecastConfig('economicLimit', Number.isFinite(v) && v > 0 ? v : 0)}
+            testId="dca-econ-limit"
+            hint="The rate below which the well no longer pays. Remaining reserves and EUR stop there."
+          />
+          <div className="flex items-center gap-2 text-xs text-pl-muted whitespace-nowrap">
+            <Switch 
+              checked={config.stopAtLimit} 
+              onCheckedChange={(c) => updateForecastConfig('stopAtLimit', c)} 
+              className="scale-75"
+              aria-label="Stop at limit"
             />
-            <div className="flex items-center gap-2 text-xs text-pl-muted whitespace-nowrap">
-              <Switch 
-                checked={config.stopAtLimit} 
-                onCheckedChange={(c) => updateForecastConfig('stopAtLimit', c)} 
-                className="scale-75"
-                aria-label="Stop at limit"
-              />
-              <span>Stop at limit</span>
-            </div>
+            <span>Stop at limit</span>
           </div>
           {/* The Monte Carlo has always varied the economic limit, but on a
               hardcoded ±20% that nothing displayed and no one chose. It is a
               setting now, and 0 switches the draw off. */}
           {config.probabilisticMode && (
             <div className="space-y-1 pt-1">
-              <Label className="text-xs">Economic Limit Uncertainty (±%)</Label>
-              <Input
-                type="number"
-                min={0}
-                max={100}
+              <DcaNumberField
+                id="dca-econ-uncertainty"
+                label="Economic limit uncertainty (±%)"
+                unit="%"
                 value={econUncertaintyPct}
-                onChange={(e) => {
-                  const pct = parseFloat(e.target.value);
-                  const fraction = Number.isFinite(pct) ? Math.min(Math.max(pct, 0), 100) / 100 : DEFAULT_ECON_LIMIT_UNCERTAINTY;
+                emptyValue={0}
+                onCommit={(pct) => {
+                  const fraction = Number.isFinite(pct) ? Math.min(Math.max(pct, 0), 100) / 100 : 0;
                   updateForecastConfig('economicLimitUncertainty', fraction);
                 }}
-                className="h-8 text-xs"
+                testId="dca-econ-uncertainty"
               />
               <div className="text-[10px] text-pl-muted">
                 {econUncertaintyPct > 0
@@ -141,34 +155,41 @@ const DCAForecastEngine = () => {
           )}
         </div>
 
-        {/* Duration */}
-        <div className="space-y-2">
-          <Label className="text-xs">Max Duration (Days)</Label>
-          <Input 
-            type="number" 
-            value={config.durationDays}
-            onChange={(e) => updateForecastConfig('durationDays', parseInt(e.target.value))}
-            className="h-8 text-xs"
-          />
-        </div>
+        {/* Horizon, typed in years and held in days */}
+        <DcaNumberField
+          id="dca-horizon"
+          label="Forecast horizon after the last data"
+          unit="years"
+          value={config.durationDays}
+          toView={(d) => d / DCA_DAYS_PER_YEAR}
+          toEngine={(y) => Math.round(y * DCA_DAYS_PER_YEAR)}
+          emptyValue={3653}
+          onCommit={(v) => updateForecastConfig('durationDays', Number.isFinite(v) && v > 0 ? v : 3653)}
+          testId="dca-horizon"
+          hint={`${Math.round(config.durationDays || 0).toLocaleString()} days; a year is 365.25 days.`}
+        />
 
         {/* Facility Limit */}
-        <div className="space-y-2">
-          <Label className="text-xs">Facility Limit (Max Rate)</Label>
-          <Input 
-            type="number" 
-            value={config.facilityLimit}
-            onChange={(e) => updateForecastConfig('facilityLimit', parseFloat(e.target.value))}
-            className="h-8 text-xs"
-            placeholder="No Limit"
-          />
-        </div>
+        <DcaNumberField
+          id="dca-facility-limit"
+          label="Facility limit (maximum rate)"
+          unit={rateUnit}
+          value={config.facilityLimit > 0 ? config.facilityLimit : null}
+          toView={toView}
+          toEngine={toEngine}
+          emptyValue={0}
+          placeholder="No limit"
+          onCommit={(v) => updateForecastConfig('facilityLimit', Number.isFinite(v) && v > 0 ? v : 0)}
+          testId="dca-facility-limit"
+          hint="Caps the forecast rate in both the deterministic and the Monte Carlo forecast. Blank is no cap."
+        />
 
       </div>
 
       <Button 
         onClick={runForecast} 
-        disabled={isForecasting || !hasFit}
+        disabled={isForecasting || !hasFit || fitStale}
+        title={fitStale ? 'The fit is out of date: fit again before forecasting' : undefined}
         className="w-full"
         size="sm"
       >

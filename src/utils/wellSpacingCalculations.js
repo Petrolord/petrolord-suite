@@ -27,6 +27,7 @@
  *      truncated the well before it reached its economic limit. It now
  *      divides by what is actually produced.
  */
+import { DAYS_PER_YEAR as REGISTRY_YEAR } from '@/lib/units/registry';
 import { pvtCalcs } from './pvtCalculations';
 import { calculateEconomics } from './npvCalculations';
 
@@ -144,7 +145,8 @@ export const boNote = (results) => {
  * used to name an optimum the screen disclaims.
  */
 export const NO_OPTIMUM_NOTE = 'The highest NPV here is arithmetic and does not amount to an engineering recommendation, so no optimum is nominated.';
-const DAYS_PER_YEAR = 365;
+// one year is 365.25 days across the decline apps (DCA-U1-010), the registry's year
+const DAYS_PER_YEAR = REGISTRY_YEAR;
 
 /**
  * H7: the discounting convention, printed wherever the NPV goes. The NPV

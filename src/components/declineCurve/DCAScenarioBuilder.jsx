@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Trash2, CheckCircle2, Circle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useDcaUnits } from '@/components/declineCurve/DcaUnits';
 
 const DCAScenarioBuilder = () => {
   const { 
@@ -17,6 +18,7 @@ const DCAScenarioBuilder = () => {
     selectedStream 
   } = useDeclineCurve();
 
+  const u = useDcaUnits();
   const [newScenarioName, setNewScenarioName] = useState('');
   const canSave = !!streamState[selectedStream].forecastResults;
 
@@ -64,7 +66,7 @@ const DCAScenarioBuilder = () => {
                   <div className="min-w-0">
                     <div className="text-xs font-medium truncate text-pl-text">{s.name}</div>
                     <div className="text-[10px] text-pl-muted flex gap-2">
-                      <span>Remaining: {s.forecastResults.eur.toLocaleString(undefined, {maximumFractionDigits:0})}</span>
+                      <span>Remaining: {Math.round(u.volumeTo(s.stream, s.forecastResults.remaining ?? s.forecastResults.eur) || 0).toLocaleString()} {u.volumeLabel(s.stream)}</span>
                       <Badge variant="outline" className="h-3 px-1 text-[8px] border-pl-border-strong text-pl-muted">{s.fitResults.modelType}</Badge>
                     </div>
                   </div>

@@ -38,10 +38,23 @@ export function forecastFromHistory(fit, config, data, stream) {
   const histDays = Math.max(0, Math.round((lastMs - t0ms) / DAY));
   const horizon = config.forecastDurationDays || config.durationDays || 3650;
   const full = generateForecast(fit, { ...config, forecastDurationDays: histDays + horizon }, t0);
-  const rates = full.rates || [];
+  const raw = full.rates || [];
+  // DCA-U1-007: the facility limit caps the forecast rate (the Monte Carlo
+  // engine applies the same cap); the deterministic forecast used to show
+  // the field and ignore it. 0 or blank is no cap.
+  const cap = Number(config.facilityLimit) > 0 ? Number(config.facilityLimit) : null;
+  let cum = 0;
+  let cappedDays = 0;
+  const rates = raw.map((r, i) => {
+    let rate = r.rate;
+    if (cap !== null && i >= histDays && rate > cap) { rate = cap; cappedDays += 1; }
+    cum += rate;
+    return cap === null ? r : { ...r, rate, cumulative: cum };
+  });
+  const totalCum = cap === null ? (full.eur || 0) : cum;
   const cumAtHist = histDays > 0 && rates[histDays - 1] ? rates[histDays - 1].cumulative : 0;
   const future = rates.slice(histDays).map((r) => ({ ...r, cumulative: r.cumulative - cumAtHist }));
-  const remaining = Math.max(0, (full.eur || 0) - cumAtHist);
+  const remaining = Math.max(0, totalCum - cumAtHist);
   const produced = producedToDate(data, stream);
   const endDay = full.timeToLimit ?? histDays + horizon;
   const limitReached = Boolean(config.stopAtLimit && config.economicLimit && endDay < histDays + horizon);
@@ -59,6 +72,8 @@ export function forecastFromHistory(fit, config, data, stream) {
     limitBeforeToday,
     historyEndDate: new Date(lastMs).toISOString(),
     horizonDays: horizon,
+    facilityLimit: cap,
+    facilityLimitedDays: cappedDays,
   };
 }
 

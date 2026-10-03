@@ -7,9 +7,15 @@ import { Badge } from '@/components/ui/badge';
 import { Download, BarChart3 } from 'lucide-react';
 import { exportForecastToCSV } from '@/utils/declineCurve/dcaExport';
 import DCAEURDistribution from './DCAEURDistribution';
+import { useDcaUnits } from '@/components/declineCurve/DcaUnits';
+import { DCA_DAYS_PER_YEAR } from '@/utils/declineCurve/dcaUnits';
+import { staleText } from '@/utils/declineCurve/dcaModel';
 
 const DCAForecastResults = () => {
-  const { selectedStream, streamState, currentWell } = useDeclineCurve();
+  const { selectedStream, streamState, currentWell, status } = useDeclineCurve();
+  const u = useDcaUnits();
+  const vol = (v) => u.volumeTo(selectedStream, v);
+  const whole = (v) => (Number.isFinite(v) ? Math.round(v).toLocaleString() : 'n/a');
   const results = streamState[selectedStream]?.forecastResults;
   const config = streamState[selectedStream]?.forecastConfig;
 
@@ -31,17 +37,12 @@ const DCAForecastResults = () => {
 
   const handleExport = () => {
     if (safeData.length > 0) {
-      exportForecastToCSV(safeData, currentWell?.name || 'Well', selectedStream);
+      exportForecastToCSV(safeData, currentWell?.name || 'Well', selectedStream, { u, results, fit: streamState[selectedStream]?.fitResults, config });
     }
   };
 
-  const getUnits = () => {
-    switch(selectedStream) {
-      case 'gas': return 'Mscf';
-      case 'water': return 'bbl';
-      default: return 'bbl';
-    }
-  };
+  const getUnits = () => u.volumeLabel(selectedStream);
+  const stale = status && status.forecast !== 'current' ? staleText(status, 'forecast') : null;
 
   return (
     <div className="space-y-4 h-full flex flex-col">
@@ -59,57 +60,61 @@ const DCAForecastResults = () => {
         </Button>
       </div>
 
+      {stale && (
+        <div className="rounded-md border border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text text-xs px-3 py-2 shrink-0" data-testid="dca-forecast-stale">{stale}</div>
+      )}
       {/* EUR Summary Cards */}
       {isProbabilistic ? (
         <div className="grid grid-cols-3 gap-2 shrink-0">
           <Card>
             <CardContent className="p-3">
-              <div className="text-[10px] text-pl-muted uppercase mb-1">P10 EUR (Optimistic)</div>
+              <div className="text-[10px] text-pl-muted uppercase mb-1">P10 EUR (high case)</div>
               <div className="text-sm font-semibold text-pl-text font-pl-mono tabular-nums">
-                {probabilisticResults.p10?.toLocaleString(undefined, {maximumFractionDigits:0}) || '0'}
+                {whole(vol(probabilisticResults.p10))}
               </div>
               <div className="text-[10px] text-pl-muted">{getUnits()}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3">
-              <div className="text-[10px] text-pl-muted uppercase mb-1">P50 EUR (Most Likely)</div>
-              <div className="text-sm font-semibold text-pl-text font-pl-mono tabular-nums">
-                {probabilisticResults.p50?.toLocaleString(undefined, {maximumFractionDigits:0}) || '0'}
+              <div className="text-[10px] text-pl-muted uppercase mb-1">P50 EUR (median)</div>
+              <div className="text-sm font-semibold text-pl-text font-pl-mono tabular-nums" data-testid="dca-p50">
+                {whole(vol(probabilisticResults.p50))}
               </div>
               <div className="text-[10px] text-pl-muted">{getUnits()}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3">
-              <div className="text-[10px] text-pl-muted uppercase mb-1">P90 EUR (Conservative)</div>
+              <div className="text-[10px] text-pl-muted uppercase mb-1">P90 EUR (low case)</div>
               <div className="text-sm font-semibold text-pl-text font-pl-mono tabular-nums">
-                {probabilisticResults.p90?.toLocaleString(undefined, {maximumFractionDigits:0}) || '0'}
+                {whole(vol(probabilisticResults.p90))}
               </div>
               <div className="text-[10px] text-pl-muted">{getUnits()}</div>
             </CardContent>
           </Card>
+          <p className="col-span-3 text-[10px] text-pl-muted">Percentiles as exceedance: P90 is the low case (a 90% chance of at least this volume), P10 the high case. EUR from first production to the same end date as the fit's forecast.</p>
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-2 shrink-0 mb-2" data-testid="dca-forecast-summary">
           <div className="bg-pl-surface p-2 rounded border border-pl-border shadow-pl-sm">
             <div className="text-[10px] text-pl-muted uppercase">Rem. Reserves</div>
             <div className="text-sm font-semibold text-pl-text font-pl-mono tabular-nums" data-testid="dca-remaining">
-              {typeof safeEur === 'number' ? safeEur.toLocaleString(undefined, {maximumFractionDigits:0}) : '0'}
+              {whole(vol(safeEur))}
             </div>
-            <div className="text-[9px] text-pl-muted">after the last data, {results.historyEndDate ? new Date(results.historyEndDate).toLocaleDateString() : ''}</div>
+            <div className="text-[9px] text-pl-muted">{getUnits()} after the last data, {results.historyEndDate ? String(results.historyEndDate).slice(0, 10) : 'n/a'}</div>
           </div>
           <div className="bg-pl-surface p-2 rounded border border-pl-border shadow-pl-sm">
             <div className="text-[10px] text-pl-muted uppercase">EUR</div>
             <div className="text-sm font-semibold text-pl-text font-pl-mono tabular-nums" data-testid="dca-eur-total">
-              {Number.isFinite(results.eurTotal) ? results.eurTotal.toLocaleString(undefined, {maximumFractionDigits:0}) : '-'}
+              {whole(vol(results.eurTotal))}
             </div>
-            <div className="text-[9px] text-pl-muted">{Number.isFinite(results.produced) ? `${Math.round(results.produced).toLocaleString()} produced + remaining` : ''}</div>
+            <div className="text-[9px] text-pl-muted">{Number.isFinite(results.produced) ? `${getUnits()}: ${whole(vol(results.produced))} produced + remaining` : ''}</div>
           </div>
           <div className="bg-pl-surface p-2 rounded border border-pl-border shadow-pl-sm">
             <div className="text-[10px] text-pl-muted uppercase">{results.limitReached ? 'Time to Limit' : 'Forecast span'}</div>
             <div className="text-sm font-semibold text-pl-text font-pl-mono tabular-nums" data-testid="dca-time-to-limit">
-              {typeof safeTimeToLimit === 'number' ? (safeTimeToLimit/365).toFixed(1) : '0.0'} yrs
+              {typeof safeTimeToLimit === 'number' ? (safeTimeToLimit / DCA_DAYS_PER_YEAR).toFixed(1) : 'n/a'} yrs
             </div>
             <div className="text-[9px] text-pl-muted">{results.limitReached ? 'to the economic limit' : 'limit not reached in the horizon'}</div>
           </div>
@@ -155,24 +160,24 @@ const DCAForecastResults = () => {
                 <TableRow>
                   <TableHead className="text-xs h-8">Date</TableHead>
                   <TableHead className="text-xs h-8 text-right">
-                    {isProbabilistic ? 'P50 Rate' : 'Rate'}
+                    Rate ({u.rateLabel(selectedStream)})
                   </TableHead>
                   <TableHead className="text-xs h-8 text-right">
-                    {isProbabilistic ? 'P50 Cum' : 'Cum'}
+                    Cum after the last data ({getUnits()})
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {safeData.map((row, i) => i % 6 === 0 && row && ( // Show every 6th month approx to save rendering
+                {safeData.map((row, i) => i % 30 === 0 && row && ( // one row a month (the forecast is daily)
                   <TableRow key={i} className="h-8">
                     <TableCell className="py-1 text-xs font-pl-mono tabular-nums">
-                      {row.date ? new Date(row.date).toLocaleDateString() : 'N/A'}
+                      {row.date ? String(row.date).slice(0, 10) : 'n/a'}
                     </TableCell>
                     <TableCell className="py-1 text-xs text-right font-pl-mono tabular-nums">
-                      {typeof row.rate === 'number' ? row.rate.toFixed(1) : '0.0'}
+                      {typeof row.rate === 'number' ? u.rateTo(selectedStream, row.rate).toFixed(1) : 'n/a'}
                     </TableCell>
                     <TableCell className="py-1 text-xs text-right text-pl-muted font-pl-mono tabular-nums">
-                      {typeof row.cumulative === 'number' ? Math.round(row.cumulative).toLocaleString() : '0'}
+                      {typeof row.cumulative === 'number' ? whole(vol(row.cumulative)) : 'n/a'}
                     </TableCell>
                   </TableRow>
                 ))}

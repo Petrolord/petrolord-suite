@@ -29,6 +29,7 @@ import DCAWellGrouping from '@/components/declineCurve/DCAWellGrouping';
 import DCAWellFilters from '@/components/declineCurve/DCAWellFilters';
 import DCAWellMetadata from '@/components/declineCurve/DCAWellMetadata';
 import DCAHelpContent from '@/components/declineCurve/DCAHelpContent';
+import { DcaUnitsProvider, DcaUnitsControl } from '@/components/declineCurve/DcaUnits';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -81,6 +82,9 @@ const DeclineCurveContent = () => {
         <DCAWellSelector />
         <div className="mt-4">
           <DCADataImporter />
+        </div>
+        <div className="mt-4">
+          <DcaUnitsControl />
         </div>
       </section>
 
@@ -232,9 +236,11 @@ const DeclineCurveContent = () => {
 const DeclineCurveAnalysisPage = () => {
   return (
     <div data-testid="dca-theme-scope">
-      <DeclineCurveProvider>
-        <DeclineCurveContent />
-      </DeclineCurveProvider>
+      <DcaUnitsProvider>
+        <DeclineCurveProvider>
+          <DeclineCurveContent />
+        </DeclineCurveProvider>
+      </DcaUnitsProvider>
     </div>
   );
 };

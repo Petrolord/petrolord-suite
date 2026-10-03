@@ -16,8 +16,11 @@
 // Risked Reserves Valuation). No duplication of either.
 
 import { generateForecast } from '@/utils/declineCurve/dcaEngine';
+import { DAYS_PER_YEAR as REGISTRY_YEAR } from '@/lib/units/registry';
 
-export const DAYS_PER_YEAR = 365;
+// One year is 365.25 days in Decline Curve Analysis, this hub and Well
+// Spacing (DCA-U1-010): the Suite registry's year. It was 365 here.
+export const DAYS_PER_YEAR = REGISTRY_YEAR;
 
 /** Nominal annual decline (%/yr) to the DCA engine's per-day rate. */
 export const dailyDecline = (declineAnnualPct) => (declineAnnualPct / 100) / DAYS_PER_YEAR;
@@ -68,7 +71,7 @@ export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
   let eur = result.eur;
   let timeToLimitDays = limitInHorizon ? result.timeToLimit : null;
   if (!limitInHorizon) {
-    const maxDays = Math.max(horizonDays, EUR_MAX_YEARS * DAYS_PER_YEAR);
+    const maxDays = Math.max(horizonDays, Math.round(EUR_MAX_YEARS * DAYS_PER_YEAR));
     const long = maxDays > horizonDays ? run(maxDays) : result;
     eur = long.eur;
     if (hasLimit && long.rates.length < maxDays) timeToLimitDays = long.timeToLimit;

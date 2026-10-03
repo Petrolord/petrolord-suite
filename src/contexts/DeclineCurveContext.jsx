@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { fitArpsModel, getFitQuality } from '@/utils/declineCurve/dcaEngine';
 import { getStreamRate } from '@/utils/declineCurve/csvParser';
@@ -9,10 +9,12 @@ import {
   saveProject, loadProject, listProjects, deleteProject as deleteProjectRow,
   migrateLegacyLocalProjects,
 } from '@/utils/declineCurve/dcaDataPersistence';
-import { useKeyboardShortcuts } from '@/utils/declineCurve/dcaKeyboardShortcuts';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
-import { createUndoRedoManager } from '@/utils/declineCurve/dcaUndoRedo';
 import { validateFitInput, getErrorMessage } from '@/utils/declineCurve/dcaErrorHandling';
+import {
+  analysisOf, migrateDcaPayload, prepareFitData, fitBasisOf, forecastBasisOf, analysisStatus, staleText,
+  DCA_PAYLOAD_VERSION, DEFAULT_MC_SEED as MODEL_MC_SEED, DEFAULT_ECON_LIMIT_UNCERTAINTY as MODEL_ECON_UNC,
+} from '@/utils/declineCurve/dcaModel';
 
 const DeclineCurveContext = createContext();
 
@@ -22,13 +24,13 @@ const DeclineCurveContext = createContext();
 // and a reported EUR could not be re-derived by anyone holding the same inputs,
 // not even by the same user clicking Run Monte Carlo twice. Change the seed
 // from Forecast Settings to look at a different realization.
-export const DEFAULT_MC_SEED = 42;
+export const DEFAULT_MC_SEED = MODEL_MC_SEED;
 
 // Default half-width of the Monte Carlo economic-limit draw, as a fraction of
 // the limit the user set. The engine has always varied the limit, but on a
 // hardcoded +-20 percent that no one chose and nothing displayed; it is a user
 // setting now, and 0 switches the draw off.
-export const DEFAULT_ECON_LIMIT_UNCERTAINTY = 0.2;
+export const DEFAULT_ECON_LIMIT_UNCERTAINTY = MODEL_ECON_UNC;
 
 export const useDeclineCurve = () => {
   const context = useContext(DeclineCurveContext);
@@ -45,33 +47,12 @@ export const DeclineCurveProvider = ({ children }) => {
 
   // --- Analysis State ---
   const [selectedStream, setSelectedStream] = useState('oil'); 
-  const [fitWindow, setFitWindow] = useState({ startDate: null, endDate: null });
-  
-  const [dataQuality, setDataQuality] = useState({ issues: {}, score: 100, summary: null });
+  // DCA-U1-001: the fit, the forecast, their settings and the fit window
+  // belong to a well (well.analysis, src/utils/declineCurve/dcaModel.js).
+  // streamState and fitWindow are the current well's, read through here so
+  // the panels keep their shape.
 
-  const [streamState, setStreamState] = useState({
-    oil: { 
-      fitResults: null, 
-      modelType: 'Auto', 
-      constraints: { minB: 0, maxB: 1.0 },
-      forecastConfig: { economicLimit: 10, durationDays: 3650, facilityLimit: 0, stopAtLimit: true, mcSeed: DEFAULT_MC_SEED, economicLimitUncertainty: DEFAULT_ECON_LIMIT_UNCERTAINTY },
-      forecastResults: null
-    },
-    gas: { 
-      fitResults: null, 
-      modelType: 'Auto', 
-      constraints: { minB: 0, maxB: 1.0 },
-      forecastConfig: { economicLimit: 100, durationDays: 3650, facilityLimit: 0, stopAtLimit: true, mcSeed: DEFAULT_MC_SEED, economicLimitUncertainty: DEFAULT_ECON_LIMIT_UNCERTAINTY },
-      forecastResults: null
-    },
-    water: { 
-      fitResults: null, 
-      modelType: 'Auto', 
-      constraints: { minB: 0, maxB: 1.0 },
-      forecastConfig: { economicLimit: 0, durationDays: 3650, facilityLimit: 0, stopAtLimit: false, mcSeed: DEFAULT_MC_SEED, economicLimitUncertainty: DEFAULT_ECON_LIMIT_UNCERTAINTY },
-      forecastResults: null
-    }
-  });
+  const [dataQuality, setDataQuality] = useState({ issues: {}, score: 100, summary: null });
 
   const [scenarios, setScenarios] = useState([]); 
   const [selectedScenarios, setSelectedScenarios] = useState([]);
@@ -111,12 +92,31 @@ export const DeclineCurveProvider = ({ children }) => {
   // W5: notifications come from the shared Studio shell hook (same 5s
   // auto-dismiss semantics this context originally hand-rolled).
   const { notifications, addNotification, removeNotification } = useStudioNotifications();
-  const undoStack = useRef(createUndoRedoManager());
 
   // --- Helpers ---
   const currentProject = projects.find(p => p.id === currentProjectId);
   const currentWell = wells[currentWellId];
-  const currentData = currentWell?.data || [];
+  const currentData = useMemo(() => currentWell?.data || [], [currentWell]);
+  const currentAnalysis = analysisOf(currentWell);
+  const streamState = currentAnalysis.streams;
+  const fitWindow = currentAnalysis.fitWindow;
+  const status = analysisStatus(currentWell, selectedStream);
+
+  // write into one well's analysis; a no-op without a well
+  const updateAnalysis = useCallback((wellId, fn) => {
+    if (!wellId) return;
+    setWells((prev) => {
+      const w = prev[wellId];
+      if (!w) return prev;
+      return { ...prev, [wellId]: { ...w, analysis: fn(analysisOf(w)) } };
+    });
+  }, []);
+  const setFitWindow = useCallback((next) => {
+    updateAnalysis(currentWellId, (a) => ({ ...a, fitWindow: typeof next === 'function' ? next(a.fitWindow) : next }));
+  }, [currentWellId, updateAnalysis]);
+  const updateStream = useCallback((wellId, stream, fn) => {
+    updateAnalysis(wellId, (a) => ({ ...a, streams: { ...a.streams, [stream]: fn(a.streams[stream]) } }));
+  }, [updateAnalysis]);
   
   // --- Actions ---
 
@@ -142,6 +142,19 @@ export const DeclineCurveProvider = ({ children }) => {
     init();
   }, []);
 
+  // The saved payload (version 2: the analysis lives on each well).
+  const projectPayload = () => ({
+    id: currentProjectId,
+    name: currentProject?.name,
+    payloadVersion: DCA_PAYLOAD_VERSION,
+    wells,
+    scenarios,
+    typeCurves,
+    wellGroups,
+    dataQuality,
+    modified: new Date().toISOString(),
+  });
+
   // Auto-Save
   useEffect(() => {
     if (!currentProjectId) return;
@@ -149,20 +162,7 @@ export const DeclineCurveProvider = ({ children }) => {
     const saveTimer = setTimeout(async () => {
       setIsSaving(true);
       try {
-        const projectData = {
-          id: currentProjectId,
-          name: currentProject?.name,
-          wells,
-          streamState,
-          scenarios,
-          typeCurves,
-          wellGroups,
-          dataQuality, 
-          fitWindow,
-          modified: new Date().toISOString()
-        };
-        
-        await saveProject(currentProjectId, projectData);
+        await saveProject(currentProjectId, projectPayload());
         setLastSaveTime(new Date());
         setSaveError(null);
       } catch (err) {
@@ -174,25 +174,13 @@ export const DeclineCurveProvider = ({ children }) => {
     }, 10000);
 
     return () => clearTimeout(saveTimer);
-  }, [wells, streamState, scenarios, typeCurves, wellGroups, dataQuality, fitWindow, currentProjectId]);
+  }, [wells, scenarios, typeCurves, wellGroups, dataQuality, currentProjectId]);
 
   const manualSave = async () => {
     if (!currentProjectId) return;
     setIsSaving(true);
     try {
-        const projectData = {
-          id: currentProjectId,
-          name: currentProject?.name,
-          wells,
-          streamState,
-          scenarios,
-          typeCurves,
-          wellGroups,
-          dataQuality,
-          fitWindow,
-          modified: new Date().toISOString()
-        };
-        await saveProject(currentProjectId, projectData);
+        await saveProject(currentProjectId, projectPayload());
         setLastSaveTime(new Date());
         addNotification("Project saved successfully", "success");
     } catch (err) {
@@ -206,7 +194,7 @@ export const DeclineCurveProvider = ({ children }) => {
   const createProject = async (name) => {
     const newProject = { id: uuidv4(), name, createdAt: new Date().toISOString(), wellIds: [] };
     try {
-      await saveProject(newProject.id, { id: newProject.id, name, wells: {}, scenarios: [], typeCurves: [], wellGroups: [] });
+      await saveProject(newProject.id, { id: newProject.id, name, payloadVersion: DCA_PAYLOAD_VERSION, wells: {}, scenarios: [], typeCurves: [], wellGroups: [] });
     } catch (e) {
       console.error(e);
       addNotification(`Could not create project: ${e.message}`, 'error');
@@ -218,7 +206,7 @@ export const DeclineCurveProvider = ({ children }) => {
     setScenarios([]);
     setTypeCurves([]);
     setDataQuality({ issues: {}, score: 100, summary: null });
-    setFitWindow({ startDate: null, endDate: null });
+    setCurrentWellId(null);
     addNotification(`Project "${name}" created`, "success");
   };
 
@@ -275,22 +263,18 @@ export const DeclineCurveProvider = ({ children }) => {
   const openProject = async (id) => {
     setIsSaving(true);
     try {
-      const data = await loadProject(id);
+      const raw = await loadProject(id);
+      // version 1 kept one analysis per project: it moves onto its well
+      const data = raw ? migrateDcaPayload(raw) : null;
       if (data) {
         setCurrentProjectId(id);
         setWells(data.wells || {});
-        setStreamState(data.streamState || streamState); 
         setScenarios(data.scenarios || []);
         setTypeCurves(data.typeCurves || []);
         setWellGroups(data.wellGroups || []);
         setDataQuality(data.dataQuality || { issues: {}, score: 100, summary: null });
-        if (data.fitWindow) {
-          setFitWindow(data.fitWindow);
-        }
-        
-        if (Object.keys(data.wells || {}).length > 0) {
-            setCurrentWellId(Object.keys(data.wells)[0]);
-        }
+        const ids = Object.keys(data.wells || {});
+        setCurrentWellId(ids.length > 0 ? ids[0] : null);
         addNotification("Project loaded", "success");
       } else {
         setCurrentProjectId(id);
@@ -345,10 +329,13 @@ export const DeclineCurveProvider = ({ children }) => {
   };
 
   const importProductionData = (wellId, data, dataMeta = null) => {
-    setWells(prev => ({ ...prev, [wellId]: { ...prev[wellId], data, dataMeta } }));
-    if (data.length > 0) {
-      setFitWindow({ startDate: data[0].date, endDate: data[data.length-1].date });
-    }
+    setWells(prev => {
+      const w = prev[wellId];
+      if (!w) return prev;
+      const a = analysisOf(w);
+      const fitWindow = data.length > 0 ? { startDate: data[0].date, endDate: data[data.length - 1].date } : a.fitWindow;
+      return { ...prev, [wellId]: { ...w, data, dataMeta, analysis: { ...a, fitWindow } } };
+    });
     // Auto-set the uploaded well as current selection if none selected
     if (!currentWellId) {
       setCurrentWellId(wellId);
@@ -370,44 +357,50 @@ export const DeclineCurveProvider = ({ children }) => {
   // --- Analysis Logic ---
 
   const updateStreamConfig = (key, value) => {
-    setStreamState(prev => ({
-      ...prev,
-      [selectedStream]: { ...prev[selectedStream], [key]: value }
-    }));
+    updateStream(currentWellId, selectedStream, (st) => ({ ...st, [key]: value }));
   };
 
   const updateForecastConfig = (key, value) => {
-    setStreamState(prev => ({
-      ...prev,
-      [selectedStream]: { 
-        ...prev[selectedStream], 
-        forecastConfig: { ...prev[selectedStream].forecastConfig, [key]: value }
-      }
+    updateStream(currentWellId, selectedStream, (st) => ({ ...st, forecastConfig: { ...st.forecastConfig, [key]: value } }));
+  };
+
+  // RL5: a point left out of the fit is left out by the analyst, with a reason
+  const excludePoint = (date, reason) => {
+    updateStream(currentWellId, selectedStream, (st) => ({
+      ...st,
+      excluded: [...st.excluded.filter((e) => String(e.date).slice(0, 10) !== String(date).slice(0, 10)), { date, reason: (reason || '').trim() || 'excluded by the analyst' }],
+    }));
+  };
+  const restorePoint = (date) => {
+    updateStream(currentWellId, selectedStream, (st) => ({
+      ...st, excluded: st.excluded.filter((e) => String(e.date).slice(0, 10) !== String(date).slice(0, 10)),
     }));
   };
 
   const runFit = useCallback(async () => {
     if (isFitting) return;
+    if (!currentWellId) {
+      addNotification('Select a well before fitting.', 'warning');
+      return;
+    }
     setIsFitting(true);
 
     try {
-      // 1. Validate Input. getStreamRate never substitutes another stream's
-      // rates: a missing gas/water column yields no points here, not a
-      // duplicate fit of the oil curve.
-      const streamData = currentData
-        .map(d => ({ date: d.date, rate: getStreamRate(d, selectedStream) }))
-        .filter(d => d.rate != null && !isNaN(d.rate));
+      // getStreamRate never substitutes another stream's rates: a missing
+      // gas or water column yields no points here, not a duplicate fit of
+      // the oil curve.
+      const config = streamState[selectedStream];
+      const prepared = prepareFitData(currentData, selectedStream, fitWindow, config.excluded);
 
-      if (streamData.length === 0 && currentData.length > 0) {
-        addNotification(`No ${selectedStream} rates in this well's data. Import a CSV with a ${selectedStream} column to fit this stream.`, "error");
+      if (prepared.summary.withRate === 0 && currentData.length > 0) {
+        addNotification(`No ${selectedStream} rates in this well's data. Import a file with a ${selectedStream} column to fit this stream.`, "error");
         setIsFitting(false);
         return;
       }
 
-      const config = streamState[selectedStream];
-      
-      const validation = validateFitInput(streamData, fitWindow, config.modelType);
-      
+      // the window is applied by prepareFitData (with the user's exclusions)
+      const validation = validateFitInput(prepared.points, fitWindow, config.modelType);
+
       if (!validation.valid) {
         addNotification(validation.error, "error");
         setIsFitting(false);
@@ -417,17 +410,24 @@ export const DeclineCurveProvider = ({ children }) => {
       // 2. Run Fit (wrapped in timeout to allow UI to update spinner)
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      const result = fitArpsModel(streamData, config.modelType, fitWindow, config.constraints);
+      const result = fitArpsModel(prepared.points, config.modelType, null, config.constraints);
 
       // fitArpsModel returns a stub (qi 0, modelType 'None') when no model
-      // converges — treat that as a failure, not a fit.
+      // converges: treat that as a failure, not a fit.
       if (result && result.qi > 0 && result.modelType && result.modelType !== 'None') {
         const quality = getFitQuality(result.R2, result.RMSE);
         const level = quality.tier === 'Excellent' || quality.tier === 'Good'
           ? 'success' : quality.tier === 'Fair' ? 'info' : 'warning';
 
-        updateStreamConfig('fitResults', result);
-        addNotification(`${quality.tier} fit completed (R²=${(result.R2*100).toFixed(1)}%)`, level);
+        // DCA-U1-003: the fit records what it was made on
+        const fit = {
+          ...result,
+          fittedAt: new Date().toISOString(),
+          points: prepared.summary,
+          basis: fitBasisOf({ data: currentData, stream: selectedStream, window: fitWindow, modelType: config.modelType, constraints: config.constraints, excluded: config.excluded }),
+        };
+        updateStream(currentWellId, selectedStream, (st) => ({ ...st, fitResults: fit }));
+        addNotification(`${quality.tier} fit completed (R²=${(result.R2*100).toFixed(1)}%, ${prepared.summary.used} points)`, level);
       } else {
         addNotification("Fit failed - check data quality", "error");
       }
@@ -437,21 +437,28 @@ export const DeclineCurveProvider = ({ children }) => {
     } finally {
       setIsFitting(false);
     }
-  }, [currentData, selectedStream, streamState, fitWindow, addNotification]);
+  }, [currentData, currentWellId, selectedStream, streamState, fitWindow, addNotification, isFitting, updateStream]);
 
   const runForecast = useCallback(async () => {
     if (isForecasting || !streamState[selectedStream].fitResults) return;
-    
+    const fitState = analysisStatus(currentWell, selectedStream);
+    if (fitState.fit === 'stale') {
+      addNotification(staleText(fitState, 'fit'), 'warning');
+      return;
+    }
+
     setIsForecasting(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 300));
-      const fit = streamState[selectedStream].fitResults;
-      const config = streamState[selectedStream].forecastConfig;
+      const wellId = currentWellId;
+      const stream = selectedStream;
+      const fit = streamState[stream].fitResults;
+      const config = streamState[stream].forecastConfig;
 
-      // Always run the deterministic forecast — gives us the central curve
-      // from the last history date (T1: the engine curve runs from the fit's
-      // t0, and its whole sum was labelled remaining reserves)
-      const deterministic = forecastFromHistory(fit, config, currentData, selectedStream);
+      // Always run the deterministic forecast: the central curve from the
+      // last history date (T1: the engine curve runs from the fit's t0, and
+      // its whole sum was labelled remaining reserves)
+      const deterministic = forecastFromHistory(fit, config, currentData, stream);
 
       let combined = deterministic;
 
@@ -459,12 +466,10 @@ export const DeclineCurveProvider = ({ children }) => {
       if (config.probabilisticMode && fit.confidenceIntervals && fit.confidenceIntervals.hasIntervals) {
         const baseParams = { qi: fit.qi, Di: fit.Di, b: fit.b };
         const seed = Number.isFinite(config.mcSeed) ? config.mcSeed : DEFAULT_MC_SEED;
-        // startDate anchors the sampled curves to the fit's t0, the same origin
-        // the deterministic forecast above uses. Without it the engine fell
-        // back to Date.now() per point, so the P10/P50/P90 sample curves sat on
-        // a different time axis to the curve they are meant to bracket.
-        // the same span as the deterministic curve: history plus the horizon, so
-        // the P10/P50/P90 are EURs from first production over the same end date
+        // startDate anchors the sampled curves to the fit's t0, the same
+        // origin the deterministic forecast above uses; the same span as the
+        // deterministic curve (history plus the horizon), so the P10/P50/P90
+        // are EURs from first production over the same end date
         const histDays = Math.max(0, Math.round((new Date(deterministic.historyEndDate) - new Date(fit.t0 || Date.now())) / 86400000));
         const mcConfig = {
           ...config,
@@ -482,7 +487,6 @@ export const DeclineCurveProvider = ({ children }) => {
           null,  // onProgress
           seed   // reproducible run: same inputs and seed, same P10/P50/P90
         );
-        // Attach probabilistic results next to the deterministic forecast
         combined = {
           ...deterministic,
           probabilistic: {
@@ -505,7 +509,9 @@ export const DeclineCurveProvider = ({ children }) => {
       }
 
       if (combined) {
-        updateStreamConfig('forecastResults', combined);
+        // DCA-U1-003: the forecast records the fit and settings it was run on
+        const stamped = { ...combined, forecastAt: new Date().toISOString(), basis: forecastBasisOf(fit, config, currentData, stream) };
+        updateStream(wellId, stream, (st) => ({ ...st, forecastResults: stamped }));
       }
     } catch (error) {
       console.error('Forecast error:', error);
@@ -513,7 +519,7 @@ export const DeclineCurveProvider = ({ children }) => {
     } finally {
       setIsForecasting(false);
     }
-  }, [selectedStream, streamState, isForecasting, currentData]);
+  }, [selectedStream, streamState, isForecasting, currentData, currentWell, currentWellId, updateStream, addNotification]);
 
   // ===== Type Curve Actions =====
   const createTypeCurve = useCallback(async ({ name, wellIds, normalizationMethod, modelType }) => {
@@ -689,6 +695,11 @@ export const DeclineCurveProvider = ({ children }) => {
       addNotification("Run a fit and forecast before saving a scenario", "warning");
       return;
     }
+    const st = analysisStatus(wells[currentWellId], stream);
+    if (st.fit !== 'current' || st.forecast !== 'current') {
+      addNotification(staleText(st, st.fit !== 'current' ? 'fit' : 'forecast') || 'Run the fit and the forecast again before saving a scenario.', 'warning');
+      return;
+    }
 
     const wellId = currentWellId;
     const wellName = wells[wellId]?.name || 'Unknown';
@@ -708,7 +719,9 @@ export const DeclineCurveProvider = ({ children }) => {
         R2: fit.R2,
         RMSE: fit.RMSE,
         t0: fit.t0,
-        confidenceIntervals: fit.confidenceIntervals
+        confidenceIntervals: fit.confidenceIntervals,
+        fittedAt: fit.fittedAt,
+        points: fit.points,
       },
       forecastConfig: { ...fcConfig },
       // H3: produced, remaining and EUR are kept apart so the workbook and
@@ -750,6 +763,8 @@ export const DeclineCurveProvider = ({ children }) => {
     selectedStream,
     fitWindow,
     streamState,
+    currentAnalysis,
+    status,
     scenarios,
     selectedScenarios,
     groups,
@@ -794,6 +809,8 @@ export const DeclineCurveProvider = ({ children }) => {
     // Analysis
     updateStreamConfig,
     updateForecastConfig,
+    excludePoint,
+    restorePoint,
     runFit,
     runForecast,
     

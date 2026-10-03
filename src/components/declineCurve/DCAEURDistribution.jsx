@@ -2,6 +2,7 @@ import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Label } from 'recharts';
 import { createEURHistogram } from '@/utils/dcaMonteCarlo';
 import ChartLogo from '@/components/charts/ChartLogo';
+import { useDcaUnits } from '@/components/declineCurve/DcaUnits';
 import {
   CHART_COLORS,
   CHART_TYPOGRAPHY,
@@ -15,6 +16,7 @@ import {
 // when Forecast Results lived in the cramped bottom slot; the panel now has
 // a full-height tab, so the chart carries real axes.
 const DCAEURDistribution = ({ distribution, selectedStream }) => {
+  const u = useDcaUnits();
   if (!distribution || distribution.length === 0) {
     return (
       <div className="h-24 flex items-center justify-center text-pl-muted text-xs">
@@ -23,16 +25,11 @@ const DCAEURDistribution = ({ distribution, selectedStream }) => {
     );
   }
 
-  const histogramData = createEURHistogram(distribution, 15);
+  // the histogram of the volumes in the display unit
+  const histogramData = createEURHistogram(distribution.map((v) => u.volumeTo(selectedStream, v)), 15);
   const palette = getStreamPalette(selectedStream);
 
-  const getUnits = () => {
-    switch (selectedStream) {
-      case 'gas': return 'Mcf';
-      case 'water': return 'bbl';
-      default: return 'bbl';
-    }
-  };
+  const getUnits = () => u.volumeLabel(selectedStream);
 
   const formatEUR = (value) => {
     const v = Number(value);
