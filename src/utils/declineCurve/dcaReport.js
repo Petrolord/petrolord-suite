@@ -327,7 +327,7 @@ export function dcaFigures(m) {
   figs.push({
     id: 'rate-time',
     title: 'Rate against time (log rate)',
-    caption: `${m.wellName}, ${m.stream}. Data used in the fit, data left out, the fitted Arps model over the fit window (shaded) and the forecast from the data cut-off${s.limit != null ? `; the economic limit of ${num(s.limit, 2)} ${rateUnit} dashed` : ''}. The fit is one segment: no segment boundary to mark.`,
+    caption: `${m.wellName}, ${m.stream}. Data used in the fit, data left out, the fitted Arps model over the fit window (shaded) and the forecast from the data cut-off${s.limit != null ? `; the economic limit of ${num(s.limit, 2)} ${rateUnit} dashed` : ''}. The fit is one segment: no segment boundary to mark.${s.stride > 1 ? ` Every ${s.stride}th of the ${num(s.historyRows)} rows is drawn; the fit used them all.` : ''}`,
     panels: [{
       height: 82,
       spec: {

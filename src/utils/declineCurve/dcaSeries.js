@@ -14,6 +14,11 @@ const DAY = 86400000;
 const ms = (d) => new Date(d).getTime();
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 
+/** The most history points a plot draws; a longer history is drawn every k-th point and says so (PL10). */
+export const MAX_PLOTTED_POINTS = 800;
+const strideOf = (n) => Math.max(1, Math.ceil(n / MAX_PLOTTED_POINTS));
+const every = (arr, k) => (k <= 1 ? arr : arr.filter((_, i) => i % k === 0 || i === arr.length - 1));
+
 /** Every n-th point of a daily forecast, the last one always kept. */
 export function thin(points, every = 30) {
   if (!points?.length) return [];
@@ -43,8 +48,10 @@ export function buildDcaSeries({ data, stream, fit = null, forecast = null, fitW
     .filter((r) => r.rate != null && Number.isFinite(ms(r.date)))
     .map((r) => ({ t: ms(r.date), q: rate(r.rate), status: r.status, reason: r.reason }))
     .sort((a, b) => a.t - b.t);
-  const used = history.filter((h) => h.status === 'used').map((h) => [h.t, h.q]);
-  const left = history.filter((h) => h.status !== 'used').map((h) => [h.t, h.q]);
+  // a long (daily) history is drawn every k-th point; the fit used them all
+  const stride = strideOf(history.length);
+  const used = every(history.filter((h) => h.status === 'used'), stride).map((h) => [h.t, h.q]);
+  const left = every(history.filter((h) => h.status !== 'used'), stride).map((h) => [h.t, h.q]);
 
   // the fitted curve over the fit window, at the dates of the data in it
   let fitted = [];
@@ -54,7 +61,7 @@ export function buildDcaSeries({ data, stream, fit = null, forecast = null, fitW
     const wEnd = fitWindow?.endDate ? ms(fitWindow.endDate) : (history.length ? history[history.length - 1].t : t0);
     const wStart = fitWindow?.startDate ? ms(fitWindow.startDate) : t0;
     window = { t0: Math.min(wStart, t0), t1: wEnd };
-    const dates = history.filter((h) => h.t >= t0 && h.t <= wEnd).map((h) => h.t);
+    const dates = every(history.filter((h) => h.t >= t0 && h.t <= wEnd), stride).map((h) => h.t);
     fitted = dates.map((t) => [t, rate(calculateArpsHyperbolic(fit.qi, fit.Di, fit.b, (t - t0) / DAY))]);
   }
 
@@ -99,12 +106,12 @@ export function buildDcaSeries({ data, stream, fit = null, forecast = null, fitW
     return [p.t, cum];
   });
   const produced = forecast && finite(forecast.produced) ? forecast.produced : (cumHistoryEngine.length ? cumHistoryEngine[cumHistoryEngine.length - 1][1] : null);
-  const cumHistory = cumHistoryEngine.map(([t, c]) => [t, vol(c)]);
+  const cumHistory = every(cumHistoryEngine, stride).map(([t, c]) => [t, vol(c)]);
   const cumForecast = fThin.map((r) => [ms(r.date), vol((produced || 0) + r.cumulative)]);
 
   // rate against cumulative: the data, the fitted rate at the data dates, the forecast
   const cumAt = new Map(cumHistoryEngine.map(([t, c]) => [t, c]));
-  const rateCumHistory = raw.map((p) => [vol(cumAt.get(p.t)), rate(p.q)]);
+  const rateCumHistory = every(raw, stride).map((p) => [vol(cumAt.get(p.t)), rate(p.q)]);
   const rateCumFitted = fitted.map(([t, q]) => [vol(cumAt.get(t) ?? NaN), q]).filter((p) => finite(p[0]));
   const rateCumForecast = fThin.map((r) => [vol((produced || 0) + r.cumulative), rate(r.rate)]);
 
@@ -129,5 +136,8 @@ export function buildDcaSeries({ data, stream, fit = null, forecast = null, fitW
     eur: forecast && finite(forecast.eurTotal) ? vol(forecast.eurTotal) : null,
     units: { rate: u.rateLabel(stream), volume: u.volumeLabel(stream) },
     summary: prepared.summary,
+    // how the history was drawn: every k-th of the rows (1 when all)
+    stride,
+    historyRows: history.length,
   };
 }

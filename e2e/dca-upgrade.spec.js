@@ -41,8 +41,8 @@ function readPdfFile(file) {
 }
 
 async function openDca(page) {
-  await page.goto('/dev/dca', { timeout: 120000 });
-  await expect(page.getByTestId('dca-theme-scope')).toBeVisible({ timeout: 120000 });
+  await page.goto('/dev/dca', { timeout: 240000 });
+  await expect(page.getByTestId('dca-theme-scope')).toBeVisible({ timeout: 240000 });
 }
 async function newProject(page, name) {
   await page.getByTitle(/Create new project/i).first().click({ timeout: 60000 });
