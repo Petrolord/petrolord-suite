@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
-import { PlusCircle, Package, Edit, Trash2, Zap, BarChart2 } from 'lucide-react';
+import { PlusCircle, Package, Edit, Trash2, Zap, BarChart2, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -22,9 +23,45 @@ import { FullPrecisionProvider, FullPrecisionToggle, useFullPrecision } from '@/
 import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
 import { AppHeader } from '@/components/ui/app-shell';
 import { signedTone } from '@/components/ui/numeric-table';
+import { buildLabel } from '@/lib/platformBuild';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { getRrvPortfolioCandidate } from '@/pages/apps/riskedreserves/services/rrvPortfolioService';
+import {
+  isRrvProject, readRrvLink, rrvEditedFields, rrvLinkState, refreshRrvProject, rrvStateSentence, RRV_NPV_NOTE,
+} from '@/components/capitalportfoliostudio/rrvIntake';
 
 // right-aligned mono figures for the project inventory (NumericTable recipe)
 const numCell = (tone) => `text-right font-pl-mono tabular-nums whitespace-nowrap ${tone || 'text-pl-text'}`;
+
+/** Under a Risked Reserves project's name: where it came from, what moved there since, what was typed here. */
+function RrvRowNotes({ p, state, checking, onRefresh }) {
+  const link = readRrvLink(p);
+  const edited = rrvEditedFields(p);
+  const sentence = checking ? null : rrvStateSentence(state);
+  return (
+    <span className="block font-normal" data-testid={`cp-rrv-row-${p.name}`} data-state={checking ? 'checking' : state.state}>
+      <span className="ml-0 mt-0.5 inline-block text-[10px] text-pl-muted bg-pl-sunken border border-pl-border rounded px-1.5 py-0.5" title={link?.label || 'Risked Reserves valuation'}>
+        RRV{link?.contract?.sharedFromColleague ? ' (shared)' : ''}
+      </span>
+      <span className="ml-1 text-[10px] text-pl-muted">Pg {link ? `${(link.contract.pg * 100).toFixed(1)}%` : EMPTY_VALUE}, risk score not provided</span>
+      {sentence && (
+        <span className="block text-[10px] text-pl-warning-text" data-testid={`cp-rrv-state-${p.name}`}>
+          {sentence}{' '}
+          {state.state === 'changed' && state.contract && (
+            <button type="button" className="underline text-pl-primary-text" data-testid={`cp-rrv-refresh-${p.name}`} onClick={() => onRefresh(p, state.contract)}>
+              <RefreshCw className="inline w-3 h-3 mr-0.5" />Refresh
+            </button>
+          )}
+        </span>
+      )}
+      {edited.length > 0 && (
+        <span className="block text-[10px] text-pl-warning-text" data-testid={`cp-rrv-edited-${p.name}`}>
+          Edited after intake: {edited.map((e) => e.label).join(', ')}
+        </span>
+      )}
+    </span>
+  );
+}
 
 const CapitalPortfolioStudioInner = () => {
   const { full } = useFullPrecision();
@@ -46,6 +83,11 @@ const CapitalPortfolioStudioInner = () => {
   const [comparisonIds, setComparisonIds] = useState(new Set());
   const [isComparisonOpen, setComparisonOpen] = useState(false);
   const [comparisonData, setComparisonData] = useState([]);
+  // Risked Reserves Valuation U2-009: a valuation sent by link (?rrvValuation=<id>)
+  const [rrvOffer, setRrvOffer] = useState(null);
+  const [rrvNote, setRrvNote] = useState(null);
+  const [params, setParams] = useSearchParams();
+  const linkedValuation = params.get('rrvValuation');
 
   const fetchProjects = useCallback(async () => {
     if (!user) return;
@@ -88,6 +130,53 @@ const CapitalPortfolioStudioInner = () => {
     }
   }, [user, fetchProjects, fetchPortfolios]);
 
+  // a valuation sent from Risked Reserves Valuation opens the project form,
+  // filled. The link is read once and dropped from the address; the answer
+  // is kept for as long as the page is open (the param change re-runs this
+  // effect, so it must not cancel the read).
+  const linkDone = useRef(null);
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
+  useEffect(() => {
+    if (!user || !linkedValuation || linkDone.current === linkedValuation) return;
+    linkDone.current = linkedValuation;
+    getRrvPortfolioCandidate(supabase, linkedValuation, { build: buildLabel() }).then((r) => {
+      if (!mounted.current) return;
+      if (r?.ok) {
+        setRrvOffer(r.contract);
+        setEditingProject(null);
+        setProjectDialogOpen(true);
+        setRrvNote(`Risked Reserves Valuation sent "${r.contract.prospectName}". Check the project and create it to add it to your inventory.`);
+      } else {
+        setRrvNote(r ? `The Risked Reserves valuation in the link cannot be taken in: ${r.reason}` : 'The Risked Reserves valuation in the link was not found on your account, or is no longer shared with you.');
+      }
+    }).catch((e) => { if (mounted.current) setRrvNote(e.message); });
+    const next = new URLSearchParams(params); next.delete('rrvValuation'); setParams(next, { replace: true });
+  }, [user, linkedValuation]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // each Risked Reserves project's valuation is read again by id, so "source
+  // changed since" survives a reload; undefined in the map: not readable now
+  const [rrvNow, setRrvNow] = useState(() => new Map());
+  const rrvIds = useMemo(() => [...new Set(projects.filter(isRrvProject).map((p) => p.source_ref).filter(Boolean))].sort().join('|'), [projects]);
+  useEffect(() => {
+    if (!rrvIds) return undefined;
+    let live = true;
+    for (const id of rrvIds.split('|')) {
+      getRrvPortfolioCandidate(supabase, id, { build: buildLabel() }).then((r) => r, () => undefined).then((r) => { if (live) setRrvNow((m) => new Map(m).set(id, r)); });
+    }
+    return () => { live = false; };
+  }, [rrvIds]);
+
+  const refreshRrv = async (p, contract) => {
+    const { error } = await supabase.from('portfolio_projects').update(refreshRrvProject(p, contract, { build: buildLabel() })).eq('id', p.id);
+    if (error) {
+      toast({ variant: 'destructive', title: 'Refresh failed', description: error.message });
+      return;
+    }
+    toast({ title: 'Refreshed', description: `${p.name} now carries the valuation as it is in Risked Reserves Valuation. Values typed here are kept.` });
+    fetchProjects();
+  };
+
   useEffect(() => {
     if (activePortfolio) {
       const initialSelected = new Set(projects.map(p => p.id));
@@ -104,6 +193,7 @@ const CapitalPortfolioStudioInner = () => {
   const handleCloseProjectDialog = () => {
     setEditingProject(null);
     setProjectDialogOpen(false);
+    setRrvOffer(null);
   };
 
   const handleSaveProject = () => {
@@ -254,6 +344,12 @@ const CapitalPortfolioStudioInner = () => {
         )}
       />
       <div className="flex flex-col h-full p-4 md:p-8">
+        {rrvNote && (
+          <p className="mb-4 rounded-lg border border-pl-border bg-pl-surface px-3 py-2 text-sm text-pl-text" data-testid="cp-rrv-note">
+            {rrvNote}{' '}
+            <button type="button" className="underline text-pl-primary-text" onClick={() => setRrvNote(null)}>Dismiss</button>
+          </p>
+        )}
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-1">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-pl-surface border border-pl-border rounded-xl p-4 sm:p-6 h-full flex flex-col shadow-pl-sm">
@@ -380,9 +476,13 @@ const CapitalPortfolioStudioInner = () => {
                                 {p.source_type === 'epe_mc' && (
                                   <span className="ml-2 text-[10px] text-pl-muted bg-pl-sunken border border-pl-border rounded px-1.5 py-0.5" title={p.source_label || 'Linked EPE Monte Carlo run'}>EPE MC</span>
                                 )}
+                                {isRrvProject(p) && <RrvRowNotes p={p} state={rrvLinkState(p, rrvNow.has(p.source_ref) ? rrvNow.get(p.source_ref) : undefined)} checking={!rrvNow.has(p.source_ref)} onRefresh={refreshRrv} />}
                               </TableCell>
                               <TableCell className={numCell()}>{formatCurrency(p.capex)}</TableCell>
-                              <TableCell className={numCell(signedTone(Number(p.npv_p50)))}>{formatCurrency(p.npv_p50)}</TableCell>
+                              <TableCell className={numCell(signedTone(Number(p.npv_p50)))}>
+                                {formatCurrency(p.npv_p50)}
+                                {isRrvProject(p) && <span className="block text-[10px] text-pl-muted font-sans" title={`Success-case mean value: ${RRV_NPV_NOTE}`} data-testid={`cp-mean-${p.name}`}>success-case mean</span>}
+                              </TableCell>
                               <TableCell className={numCell()}>{posText(p, refusal)}</TableCell>
                               <TableCell className={numCell(emv === null ? '' : signedTone(emv))}>
                                 {emv === null ? <span className="text-pl-danger-text" title={refusal || undefined}>n/a</span> : (full ? `${formatFull(emv, MONEY_MM_DECIMALS)} $MM` : formatCurrency(emv))}
@@ -413,6 +513,11 @@ const CapitalPortfolioStudioInner = () => {
                         </TableBody>
                       </Table>
                     </div>
+                    {projects.some(isRrvProject) && (
+                      <p className="mt-2 text-xs text-pl-muted" data-testid="cp-rrv-footnote">
+                        Projects from Risked Reserves Valuation carry the success-case mean value in the NPV P50 column (marked), {RRV_NPV_NOTE}. Their CAPEX is the exploration well cost, their chance of success is Pg, and they have no risk score.
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -428,6 +533,8 @@ const CapitalPortfolioStudioInner = () => {
             <DialogTitle>{editingProject ? 'Edit' : 'Add'} Project</DialogTitle>
           </DialogHeader>
           <ProjectForm
+            key={editingProject?.id || (rrvOffer ? `rrv-${rrvOffer.valuationId}` : 'new')}
+            offer={editingProject ? null : rrvOffer}
             project={editingProject}
             onSave={handleSaveProject}
             onCancel={handleCloseProjectDialog}

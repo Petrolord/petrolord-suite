@@ -49,9 +49,9 @@ export default function RiskedReservesHarness() {
           <div className="mb-1 text-[11px] text-pl-muted">ReservoirCalc Pro, Prospect Risking (the sending side of the chain)</div>
           <ProspectRiskingPanel backend={backend} unrisked={CHAIN_RUN.unrisked} source={CHAIN_RUN.source} valuationHref="#valuation" />
         </div>
-        <div className="flex-1 min-h-0"><RrvWorkstation backend={backend} rcpHref="/dev/reservoircalc-pro" /></div>
+        <div className="flex-1 min-h-0"><RrvWorkstation backend={backend} rcpHref="/dev/reservoircalc-pro" cpHref="/dev/capital-portfolio-studio" /></div>
       </div>
     );
   }
-  return <div className="h-screen w-full overflow-hidden"><RrvWorkstation backend={backend} rcpHref="/dev/reservoircalc-pro" /></div>;
+  return <div className="h-screen w-full overflow-hidden"><RrvWorkstation backend={backend} rcpHref="/dev/reservoircalc-pro" cpHref="/dev/capital-portfolio-studio" /></div>;
 }

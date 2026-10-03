@@ -36,7 +36,7 @@ export const RRV_SCHEMA = 'rrv-portfolio-candidate-1';
 
 /** The words the page uses for the NPV slot of a Risked Reserves project. */
 export const RRV_NPV_LABEL = 'Success-case mean value';
-export const RRV_NPV_NOTE = 'a mean of the success case (a discovery), after the exploration well; not a median, not a P50';
+export const RRV_NPV_NOTE = 'a mean of the success case (a discovery), after the exploration well; it is neither a median nor a P50';
 export const RRV_RISK_SCORE_TEXT = 'not provided by Risked Reserves Valuation';
 
 /** The slots the intake fills, and the contract value each takes. */
@@ -178,7 +178,7 @@ export function rrvProvenanceRows(c, { receivedAt = null, receivedBuild = null }
     ['EMV after the well', `${num(c.emvMM, 2)} $MM`],
     ['Risked volume', `${num(c.riskedMeanMMboe, 2)} MMboe (Pg x success-case mean ${num(c.successMeanMMboe, 2)} MMboe; gas at 6 Mscf per boe)`],
     ['Well cost (budget line)', `${num(c.wellCostMM, 2)} $MM`],
-    ['Development cost (information)', `${num(c.devCostMM, 2)} $MM, spent only after a commercial discovery; not in the budget line`],
+    ['Development cost (information)', `${num(c.devCostMM, 2)} $MM, spent only after a commercial discovery; left out of the budget line`],
     ['Value of a discovery from', `${econ}; MEFS ${e.mefsBasis === 'derived' ? 'derived' : 'typed'}`],
     ['Volumes and Pg from', c.volumes?.from === 'ReservoirCalc Pro' ? `ReservoirCalc Pro "${c.volumes.recordName}", saved ${day(c.volumes.recordUpdatedAt)}` : 'typed in Risked Reserves Valuation'],
     ['Valuation saved', day(c.valuationSavedAt)],

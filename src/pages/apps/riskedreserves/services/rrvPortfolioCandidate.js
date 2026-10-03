@@ -52,7 +52,7 @@ import { valueOrProblem } from './rrvMath';
 export const RRV_PORTFOLIO_SCHEMA = 'rrv-portfolio-candidate-1';
 export const RRV_APP = 'Risked Reserves Valuation';
 
-export const SUCCESS_MEAN_BASIS = 'the mean of the success case (a discovery, chance Pg), not a median: the expected value of the well\'s outcome given a discovery, the exploration well cost included (a discovery below the MEFS is not developed and is worth minus the well cost)';
+export const SUCCESS_MEAN_BASIS = 'the mean of the success case (a discovery, chance Pg), which is neither a median nor a P50: the expected value of the well\'s outcome given a discovery, the exploration well cost included (a discovery below the MEFS is not developed and is worth minus the well cost)';
 
 const stable = (v) => {
   if (v === undefined || v === null) return 'null';
@@ -126,7 +126,7 @@ export function buildRrvPortfolioCandidate({ row, userId = null, build = null })
       successMeanValue: SUCCESS_MEAN_BASIS,
       emv: 'expected monetary value after the exploration well: Pg x success-case mean value minus (1 - Pg) x well cost',
       wellCost: 'the exploration well, spent in every outcome: the capital the drilling decision commits',
-      devCost: 'the development cost of a commercial discovery, spent only after one: information, not part of the budget line',
+      devCost: 'the development cost of a commercial discovery, spent only after one: carried as information and left out of the budget line',
       volumes: PERCENTILE_CONVENTION,
     },
     economics: {

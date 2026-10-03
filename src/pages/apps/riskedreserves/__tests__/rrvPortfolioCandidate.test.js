@@ -59,7 +59,7 @@ describe('the contract', () => {
     expect(c.wellCostMM).toBe(25);
     expect(c.economics.model).toEqual(expect.objectContaining({ price: expect.any(Number) }));
     expect(c.basis.successMeanValue).toMatch(/mean of the success case/);
-    expect(c.basis.successMeanValue).toMatch(/not a median/);
+    expect(c.basis.successMeanValue).toMatch(/neither a median nor a P50/);
     expect(c.fingerprint).toMatch(/^[0-9a-f]{8}$/);
   });
 
@@ -106,8 +106,9 @@ describe('the contract', () => {
     const c = send({ row: colleagueSharedRow() }).contract;
     expect(c.sharedFromColleague).toBe(true);
     expect(c.ownerId).toBe('user-colleague');
-    expect(c.prospectName).toBe('Ekene Deep');
-    expect(c.wellCostMM).toBe(40);
+    expect(c.prospectName).toBe('Ada Deep (shared)');
+    expect(c.ident.analyst).toBe('Ada Colleague');
+    expect(c.pg).toBeCloseTo(0.168, 12);
   });
 
   test('refusals: not saved, cannot be valued', () => {
@@ -153,13 +154,13 @@ describe('read by id', () => {
     expect(got).toMatchObject({ valuationId: 'valuation-1', name: 'Ekene North', ok: true });
     expect(got.contract.fingerprint).toBe(send().contract.fingerprint);
     expect(await getRrvPortfolioCandidate(client(rows), 'nope')).toBeNull();
-    const shared = await getRrvPortfolioCandidate(client(rows), 'valuation-colleague');
+    const shared = await getRrvPortfolioCandidate(client(rows), 'valuation-shared');
     expect(shared.contract.sharedFromColleague).toBe(true);
   });
 
   test('the list: own and shared, each a contract or a refusal', async () => {
     const list = await listRrvPortfolioCandidates(client([savedValuationRow(), colleagueSharedRow()]), { build: BUILD });
-    expect(list.map((x) => [x.name, x.ok, x.contract?.sharedFromColleague])).toEqual([['Ekene North', true, false], ['Ekene Deep', true, true]]);
+    expect(list.map((x) => [x.name, x.ok, x.contract?.sharedFromColleague])).toEqual([['Ekene North', true, false], ['Ada Deep (shared)', true, true]]);
   });
 
   test('a database without the table says so in words', async () => {

@@ -30,14 +30,24 @@ export function savedValuationRow({ id = 'valuation-1', userId = 'dev-user', val
   };
 }
 
-/** A colleague's valuation of Ekene Deep, shared with the organisation for viewing. */
-export function colleagueSharedRow({ id = 'valuation-colleague', colleagueId = 'user-colleague' } = {}) {
-  const p = {
-    ...fromRcpProspect({ id: 'prospect-2', ...RRV_SEED_PROSPECTS[1] }, { now: new Date('2026-10-02T16:00:00Z') }),
-    ident: { company: 'Harness Energy', licence: 'OML 143', play: 'Agbada', analyst: 'Ada Colleague' },
-  };
+/**
+ * The colleague's valuation of the prospect they shared (Ada Deep): it
+ * carried a mean only, so they typed the percentiles. The Risked Reserves
+ * harness seeds it with ?shared=1 as valuation-shared.
+ */
+export function colleagueValuationBody() {
+  const p = fromRcpProspect({
+    id: 'prospect-shared', name: 'Ada Deep (shared)', pg_factors: { trap: 0.6, reservoir: 0.5, charge: 0.8, seal: 0.7 },
+    inputs: { mean: 60, unit: 'MMbbl', basis: 'recoverable' }, risked: { pg: 0.168, risked_mean: 10.08 }, updated_at: '2026-10-01T09:00:00.000Z',
+  }, { now: new Date('2026-10-01T10:00:00Z') });
+  return toRow({ ...p, p90: 25, p50: 52, p10: 110, touched: { p90: true, p50: true, p10: true }, ident: { company: 'Harness Energy', licence: 'OML 99', play: 'Agbada', analyst: 'Ada Colleague' } });
+}
+
+/** That valuation as the database returns it to a member of the organisation. */
+export function colleagueSharedRow({ id = 'valuation-shared', colleagueId = 'user-colleague' } = {}) {
   return {
-    ...savedValuationRow({ id, userId: colleagueId, valuation: setInput(p, 'wellCost', 40), updatedAt: '2026-10-02T16:05:00.000Z' }),
-    visibility: 'organization', organization_id: 'org-harness', updated_by: colleagueId,
+    id, user_id: colleagueId, created_at: '2026-10-01T10:05:00.000Z', updated_at: '2026-10-01T10:05:00.000Z', schema_version: 1,
+    ...colleagueValuationBody(),
+    visibility: 'organization', organization_id: 'org-harness', org_access: 'view', updated_by: colleagueId,
   };
 }
