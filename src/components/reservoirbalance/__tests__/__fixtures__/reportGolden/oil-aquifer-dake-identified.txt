@@ -1,0 +1,576 @@
+Material Balance Report
+Petrolord Material Balance Studio
+
+Case                      Dake Exercise 9.2 (water drive)                    Company                 Lordsway Energy
+Field                     Dake Exercise 9.2                                  Licence or block        OML 143
+Reservoir                 Wedge reservoir                                    Zone or sand            E-2000 sand
+Fluid system              Oil                                                Analysis type           Material balance, oil, Havlena-Odeh
+                                                                                                     regression with aquifer influx
+Data dates                1980-01-01 to 1990-01-01                           Analyst                 A. Okafor
+Engine run                2026-10-02 08:00 UTC                               Build                   Petrolord Suite test
+Display units             Oilfield (psia, degF, STB, RB, scf, ft)            Generated               2026-10-02 09:00 UTC
+
+
+Headline results
+ Quantity                                                                     Value
+
+ Oil initially in place (OOIP)                                                307.22 MMSTB
+
+ Headline value from                                                          The slope of the Havlena-Odeh regression
+
+ Regression r2                                                                0.999975
+
+ Points in the fit                                                            10
+
+ Drive mechanism (classified at the last timestep)                            water drive with depletion
+
+ Aquifer strength (from the water drive index)                                strong
+
+ Cumulative water influx We at the last timestep                              88.065 MMRB
+
+ Engine path validation                                                       Benchmark verified (1.53 percent against the reference)
+
+Engine path validation, Benchmark verified: Carter-Tracy (1960) with Lee-Wattenbarger pD/pD' polynomial fits applied to oil material balance via
+Havlena-Odeh F/Eo vs We/Eo regression. Validated 2026-05-17 against Dake (1978) Exercise 9.2 (wedge reservoir, 140deg encroachment
+angle, reD=5, k=200 mD, h=100 ft, phi=0.25, muw=0.55 cP, r_o=9200 ft): engine OOIP = 307.2 MMSTB vs Dake truth 312 MMSTB (1.53% error),
+R2 = 0.999975.
+
+
+Regression statement
+Havlena-Odeh (1963): F - We against Et, ordinary least squares with a free intercept. We is marched from the Carter-Tracy aquifer parameters, so
+it is an input of the fit. The slope is N. 10 points entered the fit; r2 = 0.999975. N = slope = 307.221 MMSTB. The fitted intercept is 883,200 RB;
+theory puts the line through the origin, so an intercept that is large beside F points at a drive the model leaves out or at the data.
+
+
+In-place volume by each method
+ Method                                          In place                Against the        Basis
+                                                                         headline
+
+ Havlena-Odeh, F - We against Et (slope)         307.22 MMSTB            headline           Least squares on 10 points, r2 0.999975
+
+ F/Et at the last timestep (Campbell level)      530.34 MMSTB            +72.6%             Apparent value: equals N only when no water influx
+                                                                                            supports the pressure
+
+ Volumetric estimate                             312.00 MMSTB            +1.6%              Entered on the case: Dake (1978), Exercise 9.2,
+                                                                                            volumetric estimate
+
+Independent routes to the same in-place volume. Agreement supports the tank model; an apparent value above the regression value is the
+signature of pressure support the simpler method leaves out. No volumetric estimate is printed unless one is entered on the case.
+
+
+
+
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                       Page 1 of 10
+Drive indices at the last timestep
+ Drive                                                 Energy term                                    Index
+
+ Depletion (DDI)                                       N Eo                                           0.5678
+
+ Gas cap (GDI)                                         N m Eg                                         0.0000
+
+ Rock and connate water (CDI)                          N Efw                                          0.0114
+
+ Water drive (WDI)                                     We - Wp Bw                                     0.4179
+
+ Sum                                                   (N Et + We - Wp Bw)                            0.9972
+
+Convention: each index is its energy term over the hydrocarbon voidage A = F - Wp Bw = Np [Bt + (Rp - Rsi) Bg] (Ahmed, Reservoir Engineering
+Handbook, Example 11-1). Water produced is netted inside the water drive index, WDI = (We - Wp Bw) / A. CDI is the rock and connate water
+expansion (Ahmed calls it EDI); GDI is the gas cap (Ahmed calls it SDI). The indices sum to 0.9972. The departure from 1 is the misfit of the fitted
+in-place volume at this one timestep, (N Et + We - F) over the hydrocarbon voidage: the fitted line lies below the last point by 0.28 percent of the
+voidage.
+
+
+
+
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                       Page 2 of 10
+Inputs of the analysis
+ Input                                        Value                                 Unit       Source and quality
+
+ Fluid system                                 Oil                                              Case definition
+
+ Initial reservoir pressure pi                2,740.0                               psia       Measured (lab). RFT, discovery well, 1979
+
+ Reservoir temperature                        200.0                                 degF       Entered, source not stated
+
+ Initial water saturation Swi                 0.050                                 fraction   Offset well. Log average of three wells
+
+ Bubble point pressure pb                     2,740.0                               psia       Entered, source not stated
+
+ PVT source                                   Table and per-row values                         Per-row PVT on the Data tab
+
+ PVT table                                    none                                             No table: PVT comes from the Data tab rows
+                                                                                               where they carry it, and from the correlations
+                                                                                               elsewhere
+
+ Oil gravity                                  35.0                                  degAPI     Entered, source not stated
+
+ Gas specific gravity                         0.700                                 air = 1    Entered, source not stated
+
+ Formation water salinity                     n/a                                   ppm        Not provided: fresh water (0 ppm) where the
+                                                                                               engine needs a salinity
+
+ Pb, Rs and Bo correlation                    Standing                                         Selected on the PVT tab; used only where the
+                                                                                               table or a data row gives no value
+
+ Gas deviation factor Z correlation           Hall-Yarborough                                  Selected on the PVT tab; used only where the
+                                                                                               table or a data row gives no value
+
+ Water formation volume factor                McCain                                           Selected on the PVT tab; used only where the
+ correlation                                                                                   table or a data row gives no value
+
+ Oil and gas viscosity correlations           Beggs-Robinson;                                  Recorded for the reader: viscosity does not enter
+                                              Lee-Gonzalez-Eakin                               the material balance
+
+ Formation compressibility cf                 4.00e-6                               1/psi      Correlation: Hall (1953)
+
+ Water compressibility cw                     3.00e-6                               1/psi      Entered, source not stated
+
+ Gas cap ratio m                              0                                     fraction   No gas cap on this case
+
+ Aquifer model                                Carter-Tracy                                     Assumed. Geometry from the structure map
+
+ Aquifer permeability k                       200.0                                 mD         Assumed. Geometry from the structure map
+
+ Aquifer thickness h                          100.0                                 ft         Assumed. Geometry from the structure map
+
+ Aquifer porosity                             0.250                                 fraction   Assumed. Geometry from the structure map
+
+ Encroachment angle                           140                                   degrees    Assumed. Geometry from the structure map
+
+ Aquifer to reservoir radius ratio reD        5.000                                            Assumed. Geometry from the structure map
+
+ Reservoir radius at the contact r_R          9,200                                 ft         Assumed. Geometry from the structure map
+
+ Reservoir area                               n/a                                              Not provided
+
+ Aquifer water viscosity                      0.550                                 cP         Assumed. Geometry from the structure map
+
+ Aquifer water salinity                       n/a                                              Not provided: the formation water salinity above is
+                                                                                               used
+
+ Aquifer total compressibility ct             7.00e-6                               1/psi      Assumed. Geometry from the structure map
+
+ Other aquifer parameters                     none                                             None held
+
+ Timesteps excluded from the fit by the       none                                             Every timestep after the initial state is offered to
+ analyst                                                                                       the fit
+
+ Pressure and production table                11 rows                                          Entered, source not stated. Monthly allocation;
+                                                                                               yearly static surveys
+
+
+
+
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                         Page 3 of 10
+Rows marked "Recorded for the reader" or "Does not apply" did not enter the calculation; every other row did. A default the app applied is printed
+as an assumption with its value.
+
+
+Pressure datum and contacts
+ Input                                        Value                                 Unit             Source and quality
+
+ Pressure datum depth                         9,200.0                               ft TVDSS         Entered on the Report tab
+
+ Gauge or survey depth                        9,050.0                               ft TVDSS         Entered on the Report tab
+
+ Pressures on the Data tab are                Corrected to the datum before                          Static surveys, corrected with a 0.35 psi/ft oil
+                                              entry                                                  gradient
+
+ Initial oil-water contact                    n/a                                                    Not provided
+
+ Initial gas-oil contact                      n/a                                                    Not provided
+
+All pressures are absolute. This app applies no correction to datum: the pressures of the data table enter the balance as they were entered. Where
+the surveys were taken away from the datum, correct them to the datum with the fluid gradient before entering them.
+
+
+PVT used by the engine at each timestep
+ Step          p (psia)           Bo (RB/STB)                   Rs (scf/STB)                   Bg (RB/Mscf)                   Bw (RB/STB)
+
+ 0             2,740.0            1.4040                        650.0                          n/a                            1.0000
+
+ 1             2,620.0            1.3740                        592.0                          0.9800                         1.0000
+
+ 2             2,395.0            1.3490                        545.0                          1.070                          1.0000
+
+ 3             2,199.0            1.3290                        507.0                          1.170                          1.0000
+
+ 4             2,029.0            1.3160                        471.0                          1.280                          1.0000
+
+ 5             1,883.0            1.3030                        442.0                          1.390                          1.0000
+
+ 6             1,760.0            1.2940                        418.0                          1.500                          1.0000
+
+ 7             1,655.0            1.2870                        398.0                          1.600                          1.0000
+
+ 8             1,571.0            1.2800                        383.0                          1.700                          1.0000
+
+ 9             1,507.0            1.2760                        371.0                          1.760                          1.0000
+
+ 10            1,460.0            1.2730                        364.0                          1.820                          1.0000
+
+The values the engine used at each timestep pressure: a value on the data row first, then the PVT table, then the correlation. Bo and Bw are
+reservoir volume per stock-tank volume; Bg is reservoir volume per standard volume of gas, and is printed only where the run has free gas (a gas
+cap, or a pressure below the bubble point).
+
+
+
+
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                              Page 4 of 10
+Data summary
+ Quantity                                                                     Value
+
+ Timesteps in the table                                                       11
+
+ In the fit                                                                   10
+
+ Left out of the fit                                                          1: initial state 1, excluded by the analyst 0, no expansion above zero
+                                                                              0
+
+ Points the engine reports in the fit                                         10
+
+ Data cut-off                                                                 1990-01-01
+
+ Period covered                                                               1980-01-01 to 1990-01-01, 10.00 years
+
+ Pressure, first to last (psia)                                               2,740.0 to 1,460.0
+
+ Cumulative oil at the cut-off (MMSTB)                                        77.430
+
+ Cumulative gas at the cut-off (Bscf)                                         89.819
+
+ Cumulative water produced at the cut-off (STB)                               0
+
+
+Pressure and production history
+ Step         Date           p (psia)     Np (MMSTB)          Gp (Bscf)       Wp (STB)       We (MMRB)         Fit
+
+ 0            1980-01-01     2,740.0      0.000               0.000           0              0.000             Initial state (no production yet)
+
+ 1            1981-01-01     2,620.0      7.880               5.989           0              3.119             In the fit
+
+ 2            1982-01-01     2,395.0      18.420              15.565          0              11.680            In the fit
+
+ 3            1983-01-01     2,199.0      29.150              26.818          0              22.489            In the fit
+
+ 4            1984-01-01     2,029.0      40.690              39.673          0              34.027            In the fit
+
+ 5            1985-01-01     1,883.0      50.140              51.394          0              45.492            In the fit
+
+ 6            1986-01-01     1,760.0      58.420              62.217          0              56.245            In the fit
+
+ 7            1987-01-01     1,655.0      65.390              71.602          0              66.064            In the fit
+
+ 8            1988-01-01     1,571.0      70.740              79.229          0              74.705            In the fit
+
+ 9            1989-01-01     1,507.0      74.540              85.348          0              82.049            In the fit
+
+ 10           1990-01-01     1,460.0      77.430              89.819          0              88.065            In the fit
+
+Volumes are cumulative from the initial state. Np, Wp and injected water are stock-tank volumes; We is a reservoir volume.
+
+
+
+
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                         Page 5 of 10
+Withdrawal and expansion terms
+ Step             F (MMRB)                     Eo (RB/STB)                          Efw (RB/STB)                          Et (RB/STB)
+
+ 0                0.0000                       0                                    0                                     0
+
+ 1                12.1245                      0.02684                              7.360e-4                              0.02758
+
+ 2                30.7614                      0.05735                              0.002116                              0.05947
+
+ 3                52.8259                      0.09231                              0.003318                              0.09563
+
+ 4                79.7980                      0.1411                               0.004361                              0.1455
+
+ 5                105.9644                     0.1881                               0.005256                              0.1934
+
+ 6                132.2921                     0.2380                               0.006011                              0.2440
+
+ 7                157.0799                     0.2862                               0.006655                              0.2929
+
+ 8                179.1773                     0.3299                               0.007170                              0.3371
+
+ 9                196.6544                     0.3630                               0.007562                              0.3706
+
+ 10               210.7428                     0.3895                               0.007851                              0.3974
+
+Et = Eo + m Eg + Efw (m = 0, so the gas cap term is absent). Eo = Bt - Bti, Eg = Bti (Bg / Bgi - 1), Efw = Bti (1 + m) (Swi cw + cf) (pi - p) / (1 - Swi).
+F = Np [Bt + (Rp - Rsi) Bg] + Wp Bw.
+
+
+Drive indices by timestep
+ Step              Date                               DDI                 GDI                  CDI                WDI                   Sum
+
+ 1                 1981-01-01                         0.680               0.000                0.019              0.257                 0.956
+
+ 2                 1982-01-01                         0.573               0.000                0.021              0.380                 0.974
+
+ 3                 1983-01-01                         0.537               0.000                0.019              0.426                 0.982
+
+ 4                 1984-01-01                         0.543               0.000                0.017              0.426                 0.987
+
+ 5                 1985-01-01                         0.545               0.000                0.015              0.429                 0.990
+
+ 6                 1986-01-01                         0.553               0.000                0.014              0.425                 0.992
+
+ 7                 1987-01-01                         0.560               0.000                0.013              0.421                 0.993
+
+ 8                 1988-01-01                         0.566               0.000                0.012              0.417                 0.995
+
+ 9                 1989-01-01                         0.567               0.000                0.012              0.417                 0.996
+
+ 10                1990-01-01                         0.568               0.000                0.011              0.418                 0.997
+
+
+Engine warnings
+The engine raised no warning on this run.
+
+
+Limits of this analysis
+- Tank model: the reservoir is one cell at one average pressure, in equilibrium, with PVT read at that pressure. It does not see compartments,
+pressure gradients or a moving contact.
+- The measured pressures are taken as the average reservoir pressure at each date. A survey that had not built up, or that was not referred to the
+datum, enters as it was typed.
+- Carter-Tracy aquifer: an approximation of the van Everdingen-Hurst unsteady-state solution for a radial aquifer, exact at late time and up to about
+17 percent low at the first timestep on the Dake Exercise 9.2 benchmark. The influx depends on the aquifer geometry and properties as entered.
+- The regression is ordinary least squares with a free intercept. It weights every point of the fit equally and gives no confidence interval; the
+pressure history match does.
+- Oil case: black-oil PVT with the formation and connate water compressibilities held constant; the gas cap ratio m is fixed over the history.
+- Injected water and gas are not in the withdrawal term of this engine version.
+- Pressure datum: stated in the inputs. No correction to datum is applied.
+
+
+
+
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                               Page 6 of 10
+Published ranges of the methods used
+ Correlation                                                            Published range, as the engine checks it
+
+ Standing (1947), Pb, Rs and Bo                                         California crudes; no range is checked by the engine
+
+ Hall-Yarborough (1973), Z                                              Pseudo-reduced temperature 1.2 and above
+
+ McCain (1990), water formation volume factor                           Used as published; no range is checked by the engine
+
+The correlations are used only where the PVT table or a data row gives no value.
+
+Inputs outside a published range
+The engine flagged no input outside the published range of a correlation in use.
+
+
+
+
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                              Page 7 of 10
+Plots
+Figure 1. Havlena-Odeh: F - We against Et
+
+                                In the fit       Not in the fit   Fitted line
+                  150
+                            N = 307.22 MMSTB (slope)
+                            slope = 307.221 MMSTB
+                            intercept = 0.8832 MMRB
+                  125
+                            r2 = 0.999975, 10 points
+
+
+                  100
+  F - We (MMRB)
+
+
+
+
+                  75
+
+
+
+                  50
+
+
+
+                  25
+
+
+
+                   0
+                        0                                   0.1                 0.2                 0.3              0.4                        0.5
+
+                                                                                      Et (RB/STB)
+
+Havlena-Odeh (1963): F - We against Et, ordinary least squares with a free intercept. We is marched from the Carter-Tracy aquifer parameters, so
+it is an input of the fit. The slope is N. Points left out of the fit: 1 initial state (squares). The line is the engine's own slope and intercept.
+
+
+Figure 2. Campbell plot: F/Et against F
+
+                                In the fit
+                  600
+
+
+
+                  550
+
+
+
+                  500
+  F/Et (MMSTB)
+
+
+
+
+                  450
+
+
+
+                  400
+
+
+
+                  350
+
+                            OOIP of this run 307.22 MMSTB
+                  300
+                        0                                   50                  100                 150              200                       250
+
+                                                                                      F (MMRB)
+
+Apparent oil in place at each timestep with no aquifer term. A level line means depletion drive; points that rise with F mean water influx supports
+the pressure, and they sit above the oil in place of the run.
+
+
+Figure 3. Cole plot: F/Eg against Gp
+Does not apply: the Cole plot is a gas reservoir diagnostic. The Campbell plot is its oil equivalent.
+
+
+Figure 4. p/z against cumulative gas
+Does not apply: p/z is a gas reservoir plot. This case is an oil reservoir.
+
+
+
+
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                        Page 8 of 10
+Figure 5. Measured pressure history
+
+                                        Measured, in the fit     Measured, left out of the fit
+                              2750
+
+
+
+                              2500
+  Reservoir pressure (psia)
+
+
+
+
+                              2250
+
+
+
+                              2000
+
+
+
+                              1750
+
+
+
+                              1500
+
+
+
+                              1250
+                                 1980                          1982                              1984          1986   1988               1990
+
+                                                                                                        Date
+
+Measured pressures only. This run is a regression: it solves the in-place volume from the measured pressures and simulates none, so there is no
+model line. A pressure history match on the Run tab adds it.
+
+
+Figure 6. Cumulative water influx against time
+
+                                        Water influx We
+                               100
+
+
+
+
+                                80
+  Reservoir volume (MMRB)
+
+
+
+
+                                60
+
+
+
+
+                                40
+
+
+
+
+                                20
+
+
+
+
+                                0
+                                1980                           1982                              1984          1986   1988               1990
+
+                                                                                                        Date
+
+We marched through time from the Carter-Tracy aquifer parameters of the inputs table. It is an input of the regression.
+
+
+
+
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                   Page 9 of 10
+Figure 7. Drive indices against time
+
+                                                               Depletion (DDI)      Gas cap (GDI)   Rock and connate water (CDI)   Water drive (WDI)
+                                                            Sum 1
+                                                       1
+  Drive index (fraction of the hydrocarbon voidage)
+
+
+
+
+                                                      0.8
+
+
+
+
+                                                      0.6
+
+
+
+
+                                                      0.4
+
+
+
+
+                                                      0.2
+
+
+
+
+                                                       0
+                                                       1980                      1982               1984                   1986                1988    1990         1992
+
+                                                                                                                           Date
+
+Stacked in the order of the legend, one bar per timestep after the initial state. Denominator F - Wp Bw, water produced netted inside the water
+drive index. A stack that ends away from 1 measures how far the fitted in-place volume is from that timestep.
+
+
+
+
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                                             Page 10 of 10
+

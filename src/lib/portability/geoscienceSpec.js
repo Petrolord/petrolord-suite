@@ -224,6 +224,24 @@ export const GEOSCIENCE_SPEC = {
       scope: ['user_id'],
       softRefs: [],
     },
+    // Risked Reserves Valuation (RRV-U1, 2026-10-02): one saved valuation per
+    // prospect and user (migration 20261002151500). It names the prospect it
+    // was valued against three ways: the rcp_prospect_id column, the
+    // prospect_key ('rcp-<id>') and inside the payload (its own id, rcpId and
+    // the handoff record). All three follow the prospect when it travels in
+    // the same package; alone, the valuation keeps the old id as provenance
+    // and says the source record is not in the inventory.
+    rrv_valuations: {
+      pk: 'id',
+      kind: 'rrv-valuation',
+      stamped: true,
+      scope: ['user_id'],
+      softRefs: [
+        { path: 'rcp_prospect_id', table: 'rcp_prospects', optional: true },
+        { path: 'prospect_key.*', table: 'rcp_prospects', optional: true },
+        { path: 'valuation.*', table: 'rcp_prospects', optional: true },
+      ],
+    },
     // Basin & Charge Modeling models (BF-U1-021, 2026-10-01; plan cross-cutting
     // item): the layer stack, heat flow, erosion, calibration and scenarios.
     // Owner-only, not stamped (bf_wells predates the PP0 columns). A model

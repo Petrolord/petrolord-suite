@@ -121,6 +121,7 @@
                   "strat_zone_scheme",
                   "em_model",
                   "rcp_prospect",
+                  "rrv_valuation",
                   "bf_model",
                   "saved_project",
                   "po_field",
@@ -131,7 +132,8 @@
                   "seismic_project",
                   "seismic_volume",
                   "seismic_line",
-                  "ws_well"
+                  "ws_well",
+                  "rb_case"
                 ]
               },
               "id": {

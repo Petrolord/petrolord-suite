@@ -1,0 +1,344 @@
+Risked Prospect Valuation Report
+Petrolord Risked Reserves Valuation
+
+Company                 Lordsway Energy                                 Prospect                Ekene North
+Licence or block        OML 143                                         Play                    Agbada stacked sands
+Analyst                 A. Analyst                                      Analysis type           Risked prospect valuation, closed form
+Volumes from            ReservoirCalc Pro prospect "Ekene               Volume basis            Recoverable, success case
+                        North", saved 2026-10-02 14:05 UTC
+Valuation saved         Petrolord account, 2026-10-02 15:01 UTC Build                           Petrolord Suite 4.0.0 (abc1234)
+Display units           Oilfield (MMboe, $/boe, $MM); gas at 6          Generated               2026-10-02 15:05 UTC
+                        Mscf per boe
+
+
+Headline results
+ Quantity                                       Value            Unit              Basis
+
+ Chance of geological success Pg                        32.0%                      Chance of a discovery of any size
+
+ Commercial chance Pc                                   26.7%                      Pg x chance of at least the MEFS (83.4%)
+
+ Unrisked mean volume                                     38.7   MMboe             Success case: given a discovery
+
+ Risked mean volume                                       12.4   MMboe             Pg x unrisked mean, the dry hole averaged in
+
+ Unrisked value if commercial                            321.0   $MM               Mean commercial discovery, before the exploration well
+
+ Expected monetary value EMV                              60.7   $MM               Risked, after the exploration well
+
+ Break-even Pg                                           9.3%                      The Pg at which the EMV is zero
+
+Volumes are recoverable and oil equivalent. P90 is the low case and P10 the high case: the volume exceeded with 90 and 10 percent probability
+(exceedance convention, SPE PRMS).
+
+
+
+
+Risked Prospect Valuation Report, Ekene North                                                                                      Page 1 of 6
+Inputs, with unit and source
+ Input                                          Value                  Unit             Source and quality
+
+ In-place volume STOIIP P90 / P50 / P10 /       48 / 120 / 300 / 152   MMSTB            ReservoirCalc Pro project "Ekene Block", reservoir "D-07
+ mean                                                                                   sand": Monte Carlo run of 2026-10-01 11:00 UTC, seed
+                                                                                        123, 10,000 realizations. Recorded for the reader
+
+ Recovery factor                                25                     %                ReservoirCalc Pro: recoverable mean over in-place mean
+                                                                                        of the run (base input 25%). Recorded for the reader
+
+ Success-case volume P90 (low)                  12                     MMboe            ReservoirCalc Pro prospect "Ekene North", saved
+                                                                                        2026-10-02 14:05 UTC
+
+ Success-case volume P50 (best)                 30                     MMboe            ReservoirCalc Pro prospect "Ekene North", saved
+                                                                                        2026-10-02 14:05 UTC
+
+ Success-case volume P10 (high)                 75                     MMboe            ReservoirCalc Pro prospect "Ekene North", saved
+                                                                                        2026-10-02 14:05 UTC
+
+ Chance factor: trap                            0.800                  fraction         ReservoirCalc Pro prospect "Ekene North", saved
+                                                                                        2026-10-02 14:05 UTC. Enters through Pg
+
+ Chance factor: reservoir                       0.800                  fraction         ReservoirCalc Pro prospect "Ekene North", saved
+                                                                                        2026-10-02 14:05 UTC. Enters through Pg
+
+ Chance factor: charge                          0.500                  fraction         ReservoirCalc Pro prospect "Ekene North", saved
+                                                                                        2026-10-02 14:05 UTC. Enters through Pg
+
+ Chance factor: seal                            1.000                  fraction         ReservoirCalc Pro prospect "Ekene North", saved
+                                                                                        2026-10-02 14:05 UTC. Enters through Pg
+
+ Chance of geological success Pg                0.320                  fraction         ReservoirCalc Pro prospect "Ekene North", saved
+                                                                                        2026-10-02 14:05 UTC: as risked in ReservoirCalc Pro
+
+ Minimum economic field size MEFS               15                     MMboe            Economic model. Screening economics, September 2026
+
+ Value per barrel u (NPV of a developed         9.5                    $/boe            Entered, source not stated
+ barrel)
+
+ Development cost D                             100                    $MM              Assumed: the starting default of 100 $MM, never changed
+                                                                                        on this screen
+
+ Exploration well cost W                        25                     $MM              Assumed: the starting default of 25 $MM, never changed
+                                                                                        on this screen
+
+Every input the valuation read is listed with its unit and its source. Rows marked "Recorded for the reader" or "Enters through Pg" did not enter the
+calculation directly. The lognormal success case is fitted to P90 and P10; the P50 enters only the Swanson cross-check.
+
+
+
+
+Risked Prospect Valuation Report, Ekene North                                                                                            Page 2 of 6
+Handoff from ReservoirCalc Pro
+ Item                                      As recorded
+
+ Source application                        ReservoirCalc Pro
+
+ Source record                             Prospect "Ekene North" (rcp_prospects 7f3c1a52-9d1e-4b7a-8c55-2f6a0b9e1d11)
+
+ Record saved                              2026-10-02 14:05 UTC
+
+ Saved by build                            harness
+
+ Received here                             2026-10-02 15:00 UTC
+
+ Volumes sent in                           MMSTB
+
+ Volume basis                              Recoverable (prospective resources), success case
+
+ Percentile convention                     P90 is the low case and P10 the high case: the volume exceeded with 90 and 10 percent probability
+                                           (exceedance convention, SPE PRMS)
+
+ Chance of success                         As risked in ReservoirCalc Pro
+
+ Volumes method                            Monte Carlo in ReservoirCalc Pro
+
+ Source project and reservoir              Project "Ekene Block", reservoir "D-07 sand"
+
+ Monte Carlo run                           2026-10-01 11:00 UTC, seed 123, 10,000 realizations, GRV from the surface against sampled
+                                           contacts
+
+ Volumetric method and fluid               Hybrid (top surface + constant gross thickness, cut by the contacts), oil
+
+ Edited here after the handoff             Nothing: every handed-over input is as received
+
+ Source record now                         Unchanged since it was received
+
+What the source application handed over and when. A value changed on this screen after the handoff is named here and on its row of the inputs
+table.
+
+
+Chance of success
+ Factor                                                  Chance (fraction)                                      Chance (%)
+
+ Trap                                                    0.800                                                  80.0%
+
+ Reservoir                                               0.800                                                  80.0%
+
+ Charge                                                  0.500                                                  50.0%
+
+ Seal                                                    1.000                                                  100.0%
+
+ Product of the factors                                  0.320                                                  32.0%
+
+ Pg used in the valuation                                0.320                                                  32.0%
+
+Pg = trap x reservoir x charge x seal = 0.800 x 0.800 x 0.500 x 1.000 = 0.320. The factors are treated as independent.
+
+
+
+
+Risked Prospect Valuation Report, Ekene North                                                                                       Page 3 of 6
+Volumes: unrisked and risked
+ Case                                            Entered (MMboe)              Unrisked, fitted lognormal (MMboe)                Risked (MMboe)
+
+ P90 (exceeded with 90%)                         12.0                         12.0                                              0.0
+
+ P50 (exceeded with 50%)                         30.0                         30.0                                              0.0
+
+ P10 (exceeded with 10%)                         75.0                         75.0                                              42.5
+
+ Mean                                            n/a                          38.7                                              12.4
+
+ Swanson mean (cross-check)                      38.1                         n/a                                               n/a
+
+ Mean if commercial (at least the MEFS)          n/a                          44.3                                              n/a
+
+Unrisked volumes are the success case, the lognormal through the entered P90 and P10. Risked percentiles are read from the risked expectation
+curve: the volume exceeded with that probability over all outcomes, the dry hole included, so a risked percentile is zero whenever Pg (32.0%) is at
+or below its probability. Risked mean = Pg x unrisked mean = 0.320 x 38.7 = 12.4 MMboe. Swanson mean = 0.3 P90 + 0.4 P50 + 0.3 P10 on the
+entered values.
+
+
+Expected monetary value, in its parts
+ Term                                            Value ($MM)            How
+
+ Chance-weighted value of the barrels                          112.3    Pg x u x E(V; V >= MEFS) = 0.320 x 9.5 $/boe x 37.0 MMboe
+
+ Chance-weighted development cost                               -26.7   Pg x D x P(V >= MEFS) = 0.320 x 100 x 0.834
+
+ Exploration well                                               -25.0   W, spent in every outcome
+
+ Expected monetary value EMV                                    60.7    The sum of the three terms
+
+EMV = Pg x [ u x E(V; V >= MEFS) - D x P(V >= MEFS) ] - W, with u the value per barrel, V the success-case volume, D the development cost and
+W the exploration well cost. E(V; V >= MEFS) is the part of the mean volume that lies at or above the MEFS (37.0 MMboe of 38.7).
+
+
+Outcomes of the exploration well
+ Outcome                                               Chance       Mean volume (MMboe)              Value ($MM)        Chance x value ($MM)
+
+ Dry hole                                              68.0%        0.0                              -25.0              -17.0
+
+ Discovery below the MEFS (not developed)              5.3%         below the MEFS                   -25.0              -1.3
+
+ Commercial discovery (mean case)                      26.7%        44.3                             296.0              79.0
+
+ All outcomes                                          100.0%       12.4                             n/a                60.7
+
+The risked value split into chance and unrisked value. The chances sum to 100% and the chance-weighted values to the EMV. A discovery below
+the MEFS is not developed, so it costs the well.
+
+
+Limits of this analysis
+- Single prospect. Each prospect is valued on its own; dependence between prospects, shared play risk and a drilling sequence are not modelled,
+and the portfolio totals add prospects as if independent.
+- The chance factors are treated as independent and multiplied. No play chance is separated from the prospect chance.
+- Success-case volumes follow a lognormal fitted to the entered P90 and P10. The P50 does not shape the distribution.
+- The value per barrel is deterministic: one NPV per barrel for every field size, with no price, cost, fiscal or timing uncertainty. The development
+cost is one number for every commercial size.
+- The MEFS is an input and is not derived from the value per barrel and the development cost. A discovery below it is not developed.
+- Volumes are oil equivalent; gas handed over in gas units is converted at 6 Mscf per boe.
+- A screening valuation for ranking and for a drill decision in principle. It is not a reserves estimate and not a development economics model.
+
+Flags on this prospect
+- Development cost, exploration well cost: starting defaults that were never changed on this screen. Replace them with the prospect's own figures.
+
+
+
+
+Risked Prospect Valuation Report, Ekene North                                                                                               Page 4 of 6
+Plots
+Figure 1. Expectation curve of volume
+
+                                                    Unrisked (success case)        Risked (x Pg 32.0%)
+                                       100
+                                                                                                     P90                  P50              P10
+                                                                                                           MEFS
+  Chance of at least this volume (%)
+
+
+
+
+                                       80
+
+
+
+
+                                       60
+
+
+
+
+                                       40
+
+
+
+
+                                       20
+
+
+
+                                                 Unrisked mean 38.7, risked mean 12.4 MMboe
+                                        0
+                                             1                                                 10                                                100                     1000
+
+                                                                                                              Volume (MMboe, log scale)
+
+Chance of finding at least a given recoverable volume. Unrisked: the success case, given a discovery. Risked: Pg (32.0%) times the unrisked
+curve, so it starts at Pg. The curve crosses the MEFS at the commercial chance, 26.7% risked and 83.4% unrisked. P90, P50 and P10 mark the
+entered success-case volumes.
+
+
+Figure 2. Expectation curve of value
+
+                                                    Unrisked (given a discovery)      Risked (all outcomes)
+                                       100
+                                                                      Zero
+                                                                             EMV
+
+
+
+                                       80
+  Chance of at least this value (%)
+
+
+
+
+                                       60
+
+
+
+
+                                       40
+
+
+
+
+                                       20
+
+
+
+                                           EMV 60.7 $MM; chance of a positive outcome 26.7%
+                                        0
+                                        -250                0                     250                          500                750                  1000   1250       1500
+
+                                                                                                              Value of the outcome ($MM)
+
+Chance that the outcome of the well is worth at least a given value, after the exploration well. A dry hole or a discovery below the MEFS is worth
+minus the well cost (-25.0 $MM), which is the step on the left. Risked: over all outcomes; unrisked: given a discovery. The mean of the risked
+curve is the EMV, 60.7 $MM.
+
+
+
+
+Risked Prospect Valuation Report, Ekene North                                                                                                                        Page 5 of 6
+Figure 3. Chance factors and the chance of success
+
+
+
+                                                                                        100.0%
+               100
+
+                      80.0%                 80.0%
+               80
+  Chance (%)
+
+
+
+
+               60
+                                                                   50.0%
+
+               40
+                                                                                                               32.0%
+                                                                                                                                     26.7%
+
+               20
+
+
+                0
+                       Trap                Reservoir              Charge                  Seal                Pg used         Commercial chance Pc
+
+
+
+The chance factors as received, the chance of geological success used in the valuation (their product) and the commercial chance, Pg times the
+chance of at least the MEFS.
+
+
+Figure 4. Sensitivity of the EMV
+Not plotted: this application has no sensitivity analysis. The break-even Pg in the headline results is the one sensitivity it computes.
+
+
+
+
+Risked Prospect Valuation Report, Ekene North                                                                                                Page 6 of 6
+

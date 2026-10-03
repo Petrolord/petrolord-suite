@@ -18,7 +18,7 @@ test('T1: run, intercept, edit case, rail layout', async ({ page }) => {
   await page.getByRole('button', { name: 'Run MBAL' }).click();
   await expect(page.getByText('291.31 MMSTB')).toBeVisible({ timeout: 30000 });
   await page.locator('header').getByText('Plots', { exact: true }).click();
-  await expect(page.getByTestId('rb-ho-intercept')).toContainText('intercept =');
+  await expect(page.getByTestId('mbal-plot-notes-regression')).toContainText('intercept =');
   // edit the case: the initial pressure can be corrected after creation
   await page.getByTestId('mbal-edit-case').click();
   await expect(page.getByRole('dialog').getByText('Edit case', { exact: true })).toBeVisible();
@@ -31,15 +31,16 @@ test('T1: run, intercept, edit case, rail layout', async ({ page }) => {
   await page.locator('header').getByText('Report', { exact: true }).click();
   await expect(page.getByTestId('mbal-export-pdf')).toBeDisabled();
   // the engine refuses an initial pressure that differs from the first data
-  // row, so put 3,685 back; the case was still saved after the run, so the
-  // stored result stays an earlier one until the engine runs again
+  // row, so put 3,685 back. MBAL-U1-004: the stale rule compares what the
+  // run was made on with the case as it is now, so the result is current
+  // again the moment the input is back, with no new run
   await page.getByTestId('mbal-edit-case').click();
   await page.locator('#pi').fill('3685');
   await page.getByRole('button', { name: 'Save case' }).click();
   await expect(page.getByText('3,685 psia')).toBeVisible({ timeout: 15000 });
   await page.locator('header').getByText('Run', { exact: true }).click();
-  await expect(page.getByTestId('mbal-result-title')).toHaveText('Earlier result, inputs changed since');
-  await page.getByRole('button', { name: 'Run MBAL' }).click();
-  await expect(page.getByTestId('mbal-result-title')).toHaveText('Latest result', { timeout: 30000 });
+  await expect(page.getByTestId('mbal-result-title')).toHaveText('Latest result');
   await expect(page.getByTestId('mbal-stale-run')).toHaveCount(0);
+  await page.locator('header').getByText('Report', { exact: true }).click();
+  await expect(page.getByTestId('mbal-export-pdf')).toBeEnabled();
 });

@@ -27,8 +27,25 @@ import {
   getResultByRunId,
   getCaseDefaultConfig,
   getRunConfig,
+  upsertCaseDefaultConfig,
+  updateCase,
+  setCaseReadOnly,
+  createCase,
+  replaceProductionData,
 } from '@/pages/apps/reservoir-balance/lib/api';
+import { supabaseSharingStore } from '@/lib/recordSharing';
+import { useRecordSharing } from '@/lib/recordSharing/useRecordSharing';
+import { copyCaseAsOwn } from '@/pages/apps/reservoir-balance/lib/copyCase';
 import { assessRunStaleness, buildRunConfigInput } from '@/pages/apps/reservoir-balance/lib/runStaleness';
+import {
+  readStudy, withStudy, DEFAULT_CORRELATIONS,
+} from '@/pages/apps/reservoir-balance/lib/studyMeta';
+import { createMbalUnits, MBAL_UNIT_APP, MBAL_UNIT_SPEC, MBAL_OILFIELD_VIEW } from '@/pages/apps/reservoir-balance/lib/mbalUnits';
+import { buildMbalSeries } from '@/pages/apps/reservoir-balance/lib/mbalSeries';
+import { buildPlotModels } from '@/pages/apps/reservoir-balance/lib/plotModels';
+import { useAppUnits } from '@/lib/units/useAppUnits';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { buildLabel } from '@/lib/platformBuild';
 
 const MaterialBalanceStudioContext = createContext(null);
 
@@ -40,8 +57,40 @@ export const useMaterialBalanceStudio = () => {
   return ctx;
 };
 
-export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) => {
+// The organisation name for the report header. The studio also renders
+// outside the auth provider (the /dev harness, unit tests), where there is none.
+const useOrganizationName = () => {
+  try {
+    return useAuth()?.organization?.name || '';
+  } catch {
+    return '';
+  }
+};
+
+// Record sharing (docs/scope/OrgSharing-DESIGN-AND-STATUS.md; rb_cases and
+// its children since migration 20261002130000). This round adopts sharing
+// for VIEWING: the owner shares a case with the organisation, colleagues see
+// it under "Shared with me" and open it read-only, with its results, plots
+// and report. Colleague editing with the check-out is the first item of the
+// Step 2 backlog (docs/upgrade/MaterialBalanceStudio-UPGRADE.md).
+export const RB_CASES_TABLE = 'rb_cases';
+
+/**
+ * @param {{caseId: ?string, onOpenCase: Function, sharingStore?: object, children: any}} props
+ *   sharingStore: a record sharing store (the Supabase one by default; the
+ *   /dev harness and the tests hand in their own)
+ */
+export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, sharingStore = undefined, children }) => {
+  const store = useMemo(() => (sharingStore === undefined ? supabaseSharingStore() : sharingStore), [sharingStore]);
   const { toast } = useToast();
+  const organizationName = useOrganizationName();
+
+  // Display units (PL3): the Suite unit profile, with a view override for
+  // this session. State, the engine and the database stay in oilfield units.
+  const unitsHook = useAppUnits(MBAL_UNIT_APP, MBAL_UNIT_SPEC, { fallback: MBAL_OILFIELD_VIEW });
+  const unitsKey = JSON.stringify(unitsHook.units);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const units = useMemo(() => createMbalUnits(unitsHook.units), [unitsKey]);
 
   // Case list (left-rail project manager)
   const [cases, setCases] = useState([]);
@@ -135,6 +184,46 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
     setDefaultCfg(cfg ?? null);
   }, [caseId]);
 
+  // A case field changed by a tab (the aquifer flag): held in state at once,
+  // without the reload that swaps the tab tree for the loader.
+  const applyCasePatch = useCallback((patch) => {
+    setCaseData((prev) => (prev ? { ...prev, ...patch } : prev));
+  }, []);
+
+  // Record sharing: the open case's sharing state, and whose case it is.
+  const sharing = useRecordSharing({ store, table: RB_CASES_TABLE, record: caseData, onChange: applyCasePatch });
+  const userId = sharing.userId;
+  const viewingShared = !!caseData?.user_id && !!userId && caseData.user_id !== userId;
+  const readOnlyReason = viewingShared
+    ? `${sharing.readOnlyReason || 'This case was shared with your organisation for viewing.'} Nothing you change here is saved to it.`
+    : null;
+  // every write of lib/api.js to this case answers with the reason while it is read-only
+  useEffect(() => {
+    setCaseReadOnly(caseId, readOnlyReason);
+    return () => setCaseReadOnly(null, null);
+  }, [caseId, readOnlyReason]);
+  const ownCases = useMemo(() => (userId ? cases.filter((c) => !c.user_id || c.user_id === userId) : cases), [cases, userId]);
+  const sharedCases = useMemo(() => (userId ? cases.filter((c) => c.user_id && c.user_id !== userId) : []), [cases, userId]);
+
+  // "Save a copy": the reader's own case with the same inputs. The run is not copied.
+  const [copying, setCopying] = useState(false);
+  const saveCopy = useCallback(async () => {
+    if (!caseData || copying) return;
+    setCopying(true);
+    const { data: created, error } = await copyCaseAsOwn(
+      { createCase, replaceProductionData, upsertCaseDefaultConfig, deleteCase },
+      caseData, defaultCfg, ownCases.map((c) => c.name),
+    );
+    setCopying(false);
+    if (error || !created) {
+      toast({ title: 'Copy not made', description: error?.message ?? 'Unknown error.', variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Copy saved as your own case', description: `"${created.name}" holds the same conditions, production data and run settings. Run it to get its results.` });
+    setCases((prev) => [created, ...prev]);
+    onOpenCase?.(created.id);
+  }, [caseData, copying, defaultCfg, ownCases, onOpenCase, toast]);
+
   const runStaleness = useMemo(
     () => assessRunStaleness({
       caseData, defaultCfg, run: lastRun, runConfig: lastRunConfig, result: lastResult,
@@ -188,10 +277,24 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
     // of what a run inherits; the stale check reads the same list.
     const { data: defaultCfgNow } = await getCaseDefaultConfig(caseId);
 
+    // MBAL-U1-003: the engine's history match reads the aquifer from the
+    // case flag (has_aquifer) and the regression reads it from the run
+    // config. The Aquifer tab used to save the model and leave the flag, so
+    // a history match simulated a closed tank beside an aquifer regression.
+    // The run config's model is the one statement; the flag follows it.
+    let caseNow = caseData;
+    const modelNow = defaultCfgNow?.aquifer_model ?? (caseData?.has_aquifer ? 'pot' : 'none');
+    const flagNow = modelNow !== 'none';
+    if (Boolean(caseData?.has_aquifer) !== flagNow) {
+      await updateCase(caseId, { has_aquifer: flagNow });
+      caseNow = { ...caseData, has_aquifer: flagNow };
+      setCaseData(caseNow);
+    }
+
     const { data: runConfig, error: configErr } = await createRunConfig(caseId, {
       name: `${isHistoryMatch ? 'History match' : 'Run'} ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`,
       is_scenario: true, // mark this row as an executed run, not a default
-      ...buildRunConfigInput(caseData, defaultCfgNow),
+      ...buildRunConfigInput(caseNow, defaultCfgNow),
     });
 
     if (configErr || !runConfig) {
@@ -261,11 +364,44 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
     [executeRun],
   );
 
+  // The study record: identification, pressure datum and input sources.
+  // Report-only, kept with the case default config (lib/studyMeta.js).
+  const study = useMemo(() => readStudy(defaultCfg), [defaultCfg]);
+  const saveStudy = useCallback(async (nextStudy) => {
+    if (!caseId) return { error: { message: 'No case open.' } };
+    const { data: cfgNow } = await getCaseDefaultConfig(caseId);
+    const base = cfgNow?.pvt_correlations ?? { ...DEFAULT_CORRELATIONS };
+    const { data, error } = await upsertCaseDefaultConfig(caseId, { pvt_correlations: withStudy(base, nextStudy) });
+    if (!error) setDefaultCfg(data ?? null);
+    return { data, error };
+  }, [caseId]);
+
+  // One set of series and plot models for the Plots tab and the report (RL12).
+  const series = useMemo(
+    () => (lastResult?.plot_data?.timestep_index?.length
+      ? buildMbalSeries({ result: lastResult, runConfig: lastRunConfig, caseData })
+      : null),
+    [lastResult, lastRunConfig, caseData],
+  );
+  const plotModels = useMemo(
+    () => (series ? buildPlotModels({ series, result: lastResult, units }) : []),
+    [series, lastResult, units],
+  );
+  // What the report builder is handed (utils/mbalReportExport.js).
+  const reportArgs = useMemo(() => ({
+    caseData, result: lastResult, runConfig: lastRunConfig, run: lastRun, study,
+    organizationName, build: buildLabel(), units, staleness: runStaleness,
+  }), [caseData, lastResult, lastRunConfig, lastRun, study, organizationName, units, runStaleness]);
+
   const value = {
+    // units, report
+    units, unitsHook, organizationName, study, saveStudy, series, plotModels, reportArgs,
     // case list
-    cases, casesLoading, casesError, refreshCases,
+    cases, ownCases, sharedCases, casesLoading, casesError, refreshCases,
+    // record sharing
+    sharing, sharingStore: store, viewingShared, readOnlyReason, saveCopy, copying,
     // current case
-    caseId, caseData, caseLoading, caseError, refreshCase,
+    caseId, caseData, caseLoading, caseError, refreshCase, applyCasePatch,
     // run
     lastResult, running, runVersion, handleRun, handleHistoryMatch,
     // H4: is lastResult still the run of the current inputs?

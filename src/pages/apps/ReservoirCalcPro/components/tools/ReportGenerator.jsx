@@ -9,7 +9,13 @@ import { tornadoSwings } from '@/lib/monteCarlo';
 import { loadPetrolordLogo, drawBrandHeader } from '@/lib/pdfBrand';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { inPlaceScale } from '../../services/volumeDisplay';
-import { latin1, correlationSentence } from '../../services/reportInfo';
+import {
+    latin1, correlationSentence, distributionRows, deterministicInputRows, limitsLines, basisLine,
+} from '../../services/reportInfo';
+// RL re-check (2026-10-02): the expectation curve is drawn as vectors by the
+// shared Report Kit plot, from the run's own realizations, so the report
+// has its plot whether or not a screen chart was mounted to be captured.
+import { drawPlot } from '@/lib/reportKit/plot.js';
 
 // RCP-U1-019 (PL7): the reviewer block under the banner (field, analyst,
 // date, build, units, method, contacts with their datum, gridding, open
@@ -47,6 +53,45 @@ function textFitted(doc, text, x, y, maxWidth, startSize, minSize = 7) {
 }
 
 
+
+// "Limits of this analysis" (RL9), on both reports.
+function drawLimits(doc, lines, margin, yPos, maxWidth, ensureSpace) {
+    let y = ensureSpace(24, yPos);
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text('Limits of this analysis', margin, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(70, 70, 70);
+    y += 6;
+    for (const line of lines) {
+        const wrapped = doc.splitTextToSize(latin1(`- ${line}`), maxWidth);
+        y = ensureSpace(wrapped.length * 3.8 + 2, y);
+        doc.text(wrapped, margin, y);
+        y += wrapped.length * 3.8 + 1.2;
+    }
+    doc.setTextColor(0, 0, 0);
+    return y + 4;
+}
+
+/**
+ * The expectation curve of a run from its own realizations: the chance of
+ * exceeding each volume, as up to 200 points across the sorted outcomes.
+ * @returns {?Array<[number, number]>} [volume in the display unit, percent]
+ */
+export function expectationCurvePoints(values, denom, points = 200) {
+    const v = (values || []).filter((x) => Number.isFinite(x) && x > 0).sort((a, b) => a - b);
+    const n = v.length;
+    if (n < 20) return null;
+    const m = Math.min(points, n);
+    const out = [];
+    for (let k = 0; k < m; k += 1) {
+        const i = Math.round((k * (n - 1)) / (m - 1));
+        out.push([v[i] / denom, (1 - i / n) * 100]);
+    }
+    return out;
+}
 
 // Report presets. Each successive tier is a superset of the previous one.
 //   executive  — one-page decision summary: KPI band + key stats + histogram.
@@ -109,7 +154,15 @@ export class ReportGenerator {
         // Draw a captured chart preserving its aspect ratio (the old fixed
         // 170×70 box stretched/squashed the bitmap and clipped axis text).
         const addChart = (img, title, y, maxH = 90) => {
-            if (!img) return y;
+            if (!img) {
+                // RL6: a chart that was not captured is said, never skipped silently
+                const yy = ensureSpace(12, y);
+                doc.setFontSize(9);
+                doc.setTextColor(100, 116, 139);
+                doc.text(latin1(`${title}: not included. The chart was not on screen when the report was made; open the results view and export again to add it.`), margin, yy, { maxWidth: pageWidth - 2 * margin });
+                doc.setTextColor(0, 0, 0);
+                return yy + 11;
+            }
             let w = 170, h = 70;
             try {
                 const props = doc.getImageProperties(img);
@@ -140,9 +193,17 @@ export class ReportGenerator {
         doc.setFont('helvetica', 'normal');
         doc.text('Probabilistic volumetric estimate from Monte Carlo simulation (correlated inputs).', margin, yPos);
         doc.text(`Fluid: ${fluidType === 'oil_gas' ? 'Oil & Gas' : fluidType.charAt(0).toUpperCase() + fluidType.slice(1)}   |   Unit system: ${unitSystem.charAt(0).toUpperCase() + unitSystem.slice(1)}`, margin, yPos + 5);
+        // RL7: what the headline volumes are
+        doc.setFontSize(8);
+        doc.setTextColor(71, 85, 105);
+        const basis = doc.splitTextToSize(basisLine({ fluidType, unitSystem: results.meta?.unitSystem || unitSystem }), pageWidth - 2 * margin);
+        doc.text(basis, margin, yPos + 10);
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        yPos += basis.length * 3.6;
 
         // KPI band (P90 / P50 / P10)
-        yPos += 15;
+        yPos += 17;
         const cardWidth = (pageWidth - (margin * 2) - 10) / 3;
         const cardHeight = 30;
         const drawCard = (x, label, value, accent) => {
@@ -190,12 +251,116 @@ export class ReportGenerator {
         });
         yPos = doc.lastAutoTable.finalY + 12;
 
+        // RL3: in place and recoverable are different quantities; print the
+        // recoverable stream the run computed beside the in-place headline
+        const recOil = results.stats.recoverableOil;
+        const recGas = results.stats.recoverableGas;
+        const sys = results.meta?.unitSystem || unitSystem;
+        const recRows = [];
+        const recRow = (label, st, stream) => {
+            if (!st || !Number.isFinite(st.mean) || !(st.mean > 0)) return;
+            const sc = inPlaceScale(stream, sys);
+            const f = (v) => (Number.isFinite(v) ? (v / sc.denom).toFixed(2) : EMPTY_VALUE);
+            recRows.push([label, f(st.p90), f(st.p50), f(st.p10), f(st.mean), latin1(sc.label)]);
+        };
+        if (fluidType !== 'gas') recRow('Recoverable oil', recOil, 'oil');
+        if (fluidType !== 'oil') recRow(fluidType === 'oil_gas' ? 'Recoverable free gas' : 'Recoverable gas', recGas, 'gas');
+        if (recRows.length) {
+            yPos = ensureSpace(34 + recRows.length * 11, yPos);
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text('Recoverable Volumes', margin, yPos);
+            doc.setFont('helvetica', 'normal');
+            doc.autoTable({
+                startY: yPos + 5,
+                head: [['Stream', 'P90 (low)', 'P50 (best)', 'P10 (high)', 'Mean', 'Unit']],
+                body: recRows,
+                theme: 'grid',
+                headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
+                styles: { fontSize: 9, cellPadding: 3 },
+            });
+            yPos = doc.lastAutoTable.finalY + 12;
+        }
+
+        // RL1: every input distribution with its type, parameters, unit and source
+        const distRows = distributionRows(results.meta, options.report);
+        yPos = ensureSpace(distRows ? Math.min(34 + distRows.length * 12, 200) : 20, yPos);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('Input Distributions', margin, yPos);
+        doc.setFont('helvetica', 'normal');
+        if (distRows) {
+            doc.autoTable({
+                startY: yPos + 5,
+                head: [['Input', 'Distribution', 'Parameters', 'Unit', 'Source']],
+                body: distRows,
+                theme: 'grid',
+                headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
+                styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
+                columnStyles: { 0: { fontStyle: 'bold', cellWidth: 38 }, 1: { cellWidth: 26 }, 3: { cellWidth: 18 } },
+                margin: { left: margin, right: margin, top: 45 },
+            });
+            yPos = doc.lastAutoTable.finalY + 12;
+        } else {
+            doc.setFontSize(9);
+            doc.setTextColor(100, 116, 139);
+            doc.text(latin1('Not recorded on this run: it was made before the run kept its input distributions. Run the simulation again to print them.'), margin, yPos + 6, { maxWidth: pageWidth - 2 * margin });
+            doc.setTextColor(0, 0, 0);
+            yPos += 16;
+        }
+
+        // RL6: the expectation curve as a vector plot from the run's own
+        // realizations (drawn whether or not a screen chart was captured)
+        const figures = [];
+        const curve = expectationCurvePoints(gas ? results.raw?.giip : results.raw?.stooip, denom);
+        const figTitle = 'Figure 1. Expectation curve (probability of exceeding each volume)';
+        if (curve) {
+            yPos = ensureSpace(96, yPos);
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text(figTitle, margin, yPos);
+            doc.setFont('helvetica', 'normal');
+            const box = { x: margin, y: yPos + 3, w: pageWidth - 2 * margin, h: 70 };
+            const plabel = (k) => ({ x: stats[k] / denom, label: k.toUpperCase(), dash: [1, 1] });
+            const drawn = drawPlot(doc, box, {
+                xTitle: latin1(`${gas ? 'GIIP' : 'STOIIP'} in place (${unit})`), yTitle: 'Chance of exceeding (%)', yInclude: [0, 100],
+                lines: ['p90', 'p50', 'p10'].filter((k) => Number.isFinite(stats[k])).map((k, i) => ({ ...plabel(k), row: i % 2 })),
+                series: [{ name: `Exceedance, ${curve.length} points of ${(gas ? results.raw.giip : results.raw.stooip).length.toLocaleString('en-US')} realizations`, pts: curve, rgb: [37, 99, 235], width: 0.6 }],
+                logo,
+            });
+            figures.push({ id: 'expectation', number: 1, page: doc.internal.getNumberOfPages(), plotted: true, panels: [{ box, ...drawn }] });
+            yPos = box.y + box.h + 5;
+            doc.setFontSize(8);
+            doc.setTextColor(71, 85, 105);
+            const cap = doc.splitTextToSize(latin1('In-place volume against the chance of exceeding it, from the realizations saved with the run. P90 (low), P50 and P10 (high) are marked: the P90 is exceeded with 90 percent probability.'), pageWidth - 2 * margin);
+            doc.text(cap, margin, yPos);
+            doc.setTextColor(0, 0, 0);
+            yPos += cap.length * 3.6 + 8;
+        } else {
+            yPos = ensureSpace(16, yPos);
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text(figTitle, margin, yPos);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(100, 116, 139);
+            doc.text(latin1('Not plotted: the run holds too few saved realizations to draw a curve.'), margin, yPos + 5);
+            doc.setTextColor(0, 0, 0);
+            figures.push({ id: 'expectation', number: 1, page: doc.internal.getNumberOfPages(), plotted: false, panels: [] });
+            yPos += 14;
+        }
+
         // ── Charts ──
         // Executive: histogram only. Technical/Audit: histogram + CDF + tornado.
         yPos = addChart(chartImages.histogram, `Volume Distribution (${unit})`, yPos);
         if (includeTechnical) {
             yPos = addChart(chartImages.cdf, 'Expectation curve (probability of exceeding each volume)', yPos);
             yPos = addChart(chartImages.tornado, 'Sensitivity Tornado (P50 swing per parameter)', yPos, 90);
+            yPos += 4;
 
             // Sensitivity table — variance share plus the conditional P50 swing
             // (median volume when the parameter sits in its bottom / top decile).
@@ -209,7 +374,7 @@ export class ReportGenerator {
                 doc.setFont('helvetica', 'bold');
                 doc.text('Parameter Sensitivity', margin, yPos);
                 doc.setFont('helvetica', 'normal');
-                const PL = { area: 'Area', thickness: 'Thickness', ntg: 'NTG', phi: 'Porosity', sw: 'Water Saturation', fvf: 'Bo', bg: 'Bg', owc: 'OWC', goc: 'GOC', grvFactor: 'GRV Factor' };
+                const PL = { area: 'Area', thickness: 'Thickness', ntg: 'NTG', phi: 'Porosity', sw: 'Water Saturation', fvf: 'Bo', bg: 'Bg', owc: 'OWC', goc: 'GOC', grvFactor: 'GRV Factor', recovery: 'Oil Recovery Factor', recoveryGas: 'Gas Recovery Factor', gasCapFraction: 'Gas Cap Fraction' };
                 doc.autoTable({
                     startY: yPos + 5,
                     head: [hasSwings
@@ -303,6 +468,23 @@ export class ReportGenerator {
                 'confirm against reservoir simulation before use in reserves booking.',
             ];
             notes.forEach((line, i) => doc.text(line, margin, yPos + 5 + i * 5));
+            yPos += 5 + notes.length * 5;
+            doc.setTextColor(0, 0, 0);
+        }
+
+        // RL9: the limits, on every template
+        yPos = drawLimits(doc, limitsLines({ probabilistic: true, inputMethod: options.inputMethod || (results.meta?.grvMode === 'structural' ? 'hybrid' : 'simple'), fluidType }), margin, yPos + 6, pageWidth - 2 * margin, ensureSpace);
+        const runWarnings = results.diagnostics?.warnings || [];
+        if (runWarnings.length && !includeAudit) {
+            doc.setFontSize(8);
+            doc.setTextColor(160, 90, 0);
+            for (const w of runWarnings) {
+                const wrapped = doc.splitTextToSize(latin1(`- Run warning: ${w}`), pageWidth - 2 * margin);
+                yPos = ensureSpace(wrapped.length * 3.8 + 2, yPos);
+                doc.text(wrapped, margin, yPos);
+                yPos += wrapped.length * 3.8 + 1.2;
+            }
+            doc.setTextColor(0, 0, 0);
         }
 
         // Footers
@@ -314,6 +496,7 @@ export class ReportGenerator {
 
         const probName = [projectName, options.reservoirName].filter(Boolean).join('_').replace(/\s+/g, '_');
         doc.save(`${probName}_${template}_report.pdf`);
+        return { doc, figures, pages: totalPages };
     }
 
     // Branded, printable one/two-page deterministic volumetrics report.
@@ -398,27 +581,15 @@ export class ReportGenerator {
         doc.setTextColor(0, 0, 0);
         doc.text('Input Parameters', margin, yPos);
         doc.setFont('helvetica', 'normal');
-        const inputRows = [
-            ['Net-to-Gross (NTG)', num(inputs.ntg, 3)],
-            ['Porosity (phi)', num(inputs.porosity, 3)],
-            ['Water Saturation (Sw)', num(inputs.sw, 3)],
-        ];
-        if (showOil) {
-            inputRows.push(['Oil FVF (Bo)', num(inputs.fvf, 3)]);
-            inputRows.push(['Oil-Water Contact (OWC), TVDSS', inputs.owc != null && inputs.owc !== '' ? `${inputs.owc} ${isField ? 'ft' : 'm'}` : EMPTY_VALUE]);
-            inputRows.push(['Oil Recovery Factor', num(inputs.recovery, 2)]);
-        }
-        if (showGas) {
-            inputRows.push(['Gas FVF (Bg)', num(inputs.bg, 5)]);
-            inputRows.push([fluidType === 'gas' ? 'Gas-Water Contact (GWC), TVDSS' : 'Gas-Oil Contact (GOC), TVDSS', inputs.goc != null && inputs.goc !== '' ? `${inputs.goc} ${isField ? 'ft' : 'm'}` : EMPTY_VALUE]);
-            inputRows.push(['Gas Recovery Factor', num(inputs.recoveryGas, 2)]);
-        }
+        // RL1: every input with its unit and its source
         doc.autoTable({
             startY: yPos + 4,
-            body: inputRows,
+            head: [['Input', 'Value', 'Unit', 'Source']],
+            body: deterministicInputRows({ inputs, fluidType, unitSystem: isField ? 'field' : 'metric', inputMethod: options.inputMethod || results.inputMethod || 'simple', report: options.report }),
             theme: 'grid',
-            styles: { fontSize: 9, cellPadding: 3 },
-            columnStyles: { 0: { fontStyle: 'bold', cellWidth: 70 } },
+            headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
+            styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' },
+            columnStyles: { 0: { fontStyle: 'bold', cellWidth: 62 }, 1: { cellWidth: 24, halign: 'right' }, 2: { cellWidth: 20 } },
         });
         yPos = doc.lastAutoTable.finalY + 10;
 
@@ -441,6 +612,16 @@ export class ReportGenerator {
         if (showGas) {
             volRows.push([fluidType === 'oil_gas' ? 'GIIP (free gas)' : 'GIIP', num((results.giip || 0) / 1e9, 3), gasB]);
             volRows.push(['Recoverable Gas', num((results.recoverableGas || 0) / 1e9, 3), gasB]);
+        }
+        // RL3: the hydrocarbons the screen reports beside the headline streams
+        if (Number.isFinite(results.solutionGas) && results.solutionGas > 0) {
+            volRows.push([`Solution gas in place (Rs ${results.rs})`, num(results.solutionGas / 1e9, 3), gasB]);
+            if (Number.isFinite(results.recoverableSolutionGas)) volRows.push(['Recoverable solution gas', num(results.recoverableSolutionGas / 1e9, 3), gasB]);
+        }
+        if (Number.isFinite(results.condensate) && results.condensate > 0) {
+            const liq = isField ? 'MMSTB' : 'MMsm3';
+            volRows.push([results.condensateKind === 'vaporised oil' ? 'Vaporised oil in the gas cap' : 'Condensate in place', num(results.condensate / 1e6, 3), liq]);
+            if (Number.isFinite(results.recoverableCondensate)) volRows.push([results.condensateKind === 'vaporised oil' ? 'Recoverable vaporised oil' : 'Recoverable condensate', num(results.recoverableCondensate / 1e6, 3), liq]);
         }
         doc.autoTable({
             startY: yPos + 4,
@@ -496,11 +677,33 @@ export class ReportGenerator {
             'before use in reserves booking.',
         ];
         notes.forEach((line, i) => doc.text(line, margin, yPos + 6 + i * 5));
+        yPos += 6 + notes.length * 5 + 2;
+        // RL7: what the volumes are
+        const basis = doc.splitTextToSize(basisLine({ fluidType, unitSystem: isField ? 'field' : 'metric' }), pageWidth - margin * 2);
+        yPos = ensureSpace(basis.length * 4 + 4, yPos);
+        doc.text(basis, margin, yPos);
+        yPos += basis.length * 4 + 4;
+        // RL6: a single-value estimate has no distribution to plot, and says so
+        yPos = ensureSpace(14, yPos);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('Figure 1. Volume against contact depth', margin, yPos);
+        const figPage = doc.internal.getNumberOfPages();
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(70, 70, 70);
+        const why = doc.splitTextToSize(latin1('Not plotted in this report: a deterministic estimate is one value per input, so it has no distribution to draw. The volume against contact depth curve is on the Results screen for a structural method; the probabilistic report carries the expectation curve.'), pageWidth - margin * 2);
+        doc.text(why, margin, yPos + 4.5);
+        yPos += 4.5 + why.length * 3.8 + 6;
+        // RL9
+        drawLimits(doc, limitsLines({ probabilistic: false, inputMethod: options.inputMethod || results.inputMethod || 'simple', fluidType }), margin, yPos, pageWidth - margin * 2, ensureSpace);
 
         const totalPages = doc.internal.getNumberOfPages();
         for (let i = 1; i <= totalPages; i++) { doc.setPage(i); addFooter(i, totalPages); }
 
         const safeName = ([projectName || 'volumetrics', options.reservoirName].filter(Boolean).join('_')).replace(/\s+/g, '_');
         doc.save(`${safeName}_deterministic_report.pdf`);
+        return { doc, figures: [{ id: 'sweep', number: 1, page: figPage, plotted: false, panels: [] }], pages: totalPages };
     }
 }

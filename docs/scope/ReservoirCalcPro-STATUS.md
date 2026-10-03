@@ -312,3 +312,18 @@ The Detailed Audit report always printed "A default porosity-water-saturation
 correlation of -0.8 is applied". It now prints the correlations the run
 applied, from `results.meta.correlations`, through `correlationSentence` in
 `services/reportInfo.js`.
+
+## 2026-10-02: reviewer-lens re-check (Reservoir round)
+
+Recorded in `docs/upgrade/ReservoirCalcPro-UPGRADE.md`, section "RL
+re-check". Both PDFs now print the inputs with unit and source (the
+probabilistic one as an input distribution table from what the run records
+it sampled), the basis of the volumes, the recoverable stream, company,
+licence and well control, and "Limits of this analysis"; the probabilistic
+one draws the expectation curve as vectors from the run itself and says
+when a captured chart is missing. A saved prospect carries the project,
+reservoir and run behind its volumes (`inputs.source`). Report details gained
+company, licence, well control and input sources behind a disclosure.
+Open: histogram and tornado are still screen captures; sources are per group
+of inputs; the reports are not on the Report Kit (what a move would change is
+listed in the upgrade doc). Tests: `__tests__/rlRecheckReport.test.js`.

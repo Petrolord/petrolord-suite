@@ -277,3 +277,56 @@ Owner 2026-10-01: the second engineer approved the organisation sharing work. De
 - **Live table.** `saved_quickvol_projects` had two overlapping owner-only policy sets and a dormant `Allow admin full access` policy (a JWT claim nothing sets); the first two are replaced by the four policies of the wave, the dormant one is left.
 - **Code.** `services/ProjectService.js`, `services/rcpBackend.js`, `services/prospectsService.js`, `contexts/ReservoirCalcContext.jsx` (`saveCurrentProject(..., { asNew })`), `ReservoirCalcPro.jsx`, `components/tools/ProjectManager.jsx`, `ProspectRiskingPanel.jsx`, the Collaboration guide. Harness: `/dev/reservoircalc-pro?shared=1`, `?sharing=off`.
 - **Tests.** `__tests__/orgSharing.test.jsx`; three tests in `e2e/org-sharing.spec.js`.
+
+## RL re-check (2026-10-02, Reservoir round)
+
+ReservoirCalc Pro had its practitioner lens in the Geoscience round. The
+reviewer lens RL1 to RL12 (`docs/scope/AppUpgrade-Reservoir-FeedbackLessons.md`)
+was run on its three PDFs on branch `feat/rrv-u1`, with Risked Reserves
+Valuation. Proof: `__tests__/rlRecheckReport.test.js` (12, node, the real
+engine and the real jsPDF, read back through the Report Kit test side) and
+the extended PDF read-back in `e2e/reservoircalc-pro-upgrade.spec.js`.
+
+| Check | Before | Now | What changed |
+|---|---|---|---|
+| RL1 inputs with unit and source | Pa | P | Probabilistic PDF: an Input Distributions table on every template (input, type, parameters, unit, source), from `meta.inputs`, which the engine now records with what it sampled; a run made before that says so. Deterministic PDF: Input, Value, Unit, Source; area and gross thickness are printed for the Simple method (the result did not echo them). Sources are stated per group in Report details and print "source not stated" when blank. |
+| RL2 composites | P | P | Unchanged (HCPV chain in the methodology notes). |
+| RL3 lumped results | Pa | P | Recoverable oil and gas P90, P50, P10 and mean beside the in-place headline; solution gas, condensate and vaporised oil rows in the deterministic PDF. |
+| RL4 identification | Pa | P | Company, licence or block and well control join field, analyst, date, build, units and method. |
+| RL5 data summary | NA | NA | |
+| RL6 plots | Pa | Pa | The expectation curve is drawn as vectors by the kit's `drawPlot` from the run's own realizations, so it is there whether or not a screen chart was mounted. A captured chart that is missing is now said, never skipped. The deterministic PDF states why it has no plot. Still Pa: the histogram and tornado remain screen captures. |
+| RL7 basis | P | P | A basis line: STOIIP and GIIP are in place, at surface conditions, with the unit; recoverable is listed apart. |
+| RL8 honest status | Pa | P | H9 holds (the correlations line is the run's record). Report details are not part of the run signature, so typing them does not mark a run stale. |
+| RL9 limits | Pa | P | "Limits of this analysis" on both reports and every template; run warnings printed on every template. |
+| RL10 import doors | P | P | Unchanged. |
+| RL11 provenance travels | Pa | P | A saved prospect carries `inputs.source`: project, reservoir, method, the Monte Carlo run (time, seed, iterations, signature, correlations), the in-place volumes, the recovery factor, and whether the volumes were edited before saving. Risked Reserves Valuation prints it. |
+| RL12 one model | Pa | Pa | The PDFs still have their own layout code. See below. |
+
+Findings (RCP-RL-nnn):
+
+| ID | Sev | Check | Finding | Status |
+|---|---|---|---|---|
+| RCP-RL-001 | S2 | RL1 | The probabilistic PDF named no input distribution. | Fixed. |
+| RCP-RL-002 | S2 | RL1 | The deterministic PDF left out area and gross thickness for the Simple method, and no row had a source. | Fixed. |
+| RCP-RL-003 | S2 | RL6 | A chart not mounted at export was dropped with nothing said. | Fixed: vector expectation curve always; a line for each missing capture. |
+| RCP-RL-004 | S3 | RL3 | Solution gas, condensate and the recoverable Monte Carlo stream were on screen only. | Fixed. |
+| RCP-RL-005 | S3 | RL4 | No company, licence or well control. | Fixed. |
+| RCP-RL-006 | S3 | RL9 | No limits block. | Fixed. |
+| RCP-RL-007 | S3 | RL11 | A prospect row named no project, reservoir or run. | Fixed (`services/prospectSource.js`). |
+| RCP-RL-008 | S3 | PL6 | Found by the existing e2e while fixing: the taller Report details covered the surface import button at 1366 x 768, and a second label containing "porosity" shadowed the input's own. | Fixed: the new fields sit behind a closed disclosure with quiet captions. |
+| RCP-RL-009 | S3 | RL6, RL12 | Histogram and tornado are html2canvas captures. | Open. |
+| RCP-RL-010 | S3 | RL1 | Sources are stated per group of inputs, not per input, and there is no handoff record per input beyond the Earth Modeling one. | Open (per-input `inputMeta`, as Well Test has). |
+
+### Moving the reports onto the Report Kit: not done, and what it would change
+
+The three PDFs open with the brand banner of `lib/pdfBrand`, use KPI cards,
+striped tables at 9 and 10 point with a 20 mm margin, and a centred footer.
+On the kit they would get the plain title header, grid tables at 8 point
+with a 14 mm margin, the identification grid in place of the reviewer lines,
+numbered figures and the left and right footer: a different look on every
+page. The brief was to move only if the look does not change without a
+reviewer, so they stay. What was taken from the kit without changing the
+look: `drawPlot` for the vector figure, and the kit's test side for the
+read-back. A move needs: the banner header as a kit option (kit gap 6 in
+`docs/scope/ReportKit-DESIGN-AND-STATUS.md`), a KPI card block, histogram and
+tornado as kit figures, and a reviewer's eye on the result.

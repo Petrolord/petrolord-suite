@@ -1,1399 +1,335 @@
-// src/components/reservoirbalance/RbDiagnosticPlots.jsx
+// Material Balance Studio: the Plots tab.
 //
-// Reservoir Balance — Diagnostic Plots component
-// =================================================
+// Rewritten in the Material Balance round of the app upgrade programme
+// (MBAL-U1). The tab draws the plot models of lib/plotModels.js, the same
+// models the PDF report draws, so a point, a label and a unit on this tab
+// are the ones on the page (reviewer lens RL12). It reads the run the studio
+// context holds; it used to fetch the last run by itself, apart from the
+// Run and Report tabs.
 //
-// Phase 3 Capsule 3B (2026-05-15). Renders five diagnostic plots from a
-// completed MBAL run's plot_data:
+// What changed for the reader:
+//  - the regression plot is drawn in the space the engine regressed in (F
+//    against Et, F - We against Et, or the pot aquifer plot) with the
+//    engine's own line. The old plot drew that line on F against Et whatever
+//    the run was, which is the right line only when there is no aquifer;
+//  - the units follow the display units, and a gas case is labelled per scf
+//    (the old axis said RB/Mscf beside values that were RB/scf);
+//  - the numbers sit above the plot, where they used to cover the last points;
+//  - a plot that does not apply to the case says why.
 //
-//   1. Havlena-Odeh F vs Et    — both fluid systems
-//   2. p/z plot                — gas only
-//   3. Cole plot               — gas only (F/Eg vs Gp)
-//   4. Campbell plot           — oil only (F/Et vs F)
-//   5. Drive indices stacked   — both fluid systems
-//
-// All data comes from rb_results.plot_data + scalar fields on rb_results.
-// No re-running the engine; this is pure data binding + Recharts.
-//
-// Pressure history match plot is deferred to Phase 6 (needs forecast math
-// to generate predicted pressures).
-//
-// Polish pass (2026-05-16):
-//   - Auto-refresh when a new run completes (parent passes runVersion prop)
-//   - Drill-down: clicking a plot point expands an inline panel below the
-//     chart showing the full per-timestep payload (pressure, F, Et, drive
-//     indices, cumulatives, fit-status). Stays open until another point is
-//     clicked or the close button is pressed.
-//   - Export-as-image: each plot card has an Export button that captures the
-//     chart wrapper (id="rb-plot-..." already in place) as PNG using
-//     exportChartAsImage from the DCA helper.
-//
-// Petrolord chart conventions followed:
-//   - White background wrapper with slate-200 border
-//   - chartTheme tokens (CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS,
-//     GRID_STYLE, TOOLTIP_STYLE) for visual consistency with EPE/DCA
-//   - <ChartLogo style={MBAL_LOGO_STYLE} /> as bottom-right watermark inside each chart wrapper
-//   - ComposedChart for plots that mix scatter points + lines
-
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+// House chart standard: white chart surface whatever the page theme,
+// chartTheme tokens, the Petrolord mark bottom right.
+import React, { useMemo, useState } from 'react';
 import {
-  ResponsiveContainer,
-  ComposedChart,
-  Scatter,
-  Line,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  Label,
-  ReferenceLine,
+  ResponsiveContainer, ComposedChart, Scatter, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from 'recharts';
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
+  Card, CardHeader, CardTitle, CardDescription, CardContent,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Info, RefreshCw, FlaskConical, Download, X } from 'lucide-react';
+import { Info, FlaskConical, Download, X } from 'lucide-react';
 import ChartLogo from '@/components/charts/ChartLogo';
 import {
-  CHART_COLORS,
-  CHART_TYPOGRAPHY,
-  CHART_MARGINS,
-  GRID_STYLE,
-  TOOLTIP_STYLE,
+  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
 import { exportChartAsImage } from '@/utils/declineCurve/dcaExport';
-import {
-  listRuns,
-  getResultByRunId,
-  getCaseDefaultConfig,
-} from '@/pages/apps/reservoir-balance/lib/api';
-import { ramagostCorrectedPz } from '@/pages/apps/reservoir-balance/lib/pzRamagost';
+import { dateTicks, dateTickText, niceTicks } from '@/lib/reportKit/plot.js';
+import { useMaterialBalanceStudio } from '@/contexts/MaterialBalanceStudioContext';
+import { PLOT_COLOURS, hex } from '@/pages/apps/reservoir-balance/lib/plotModels';
+import { POINT_STATUS } from '@/pages/apps/reservoir-balance/lib/mbalSeries';
+import { fmt, sigFmt } from '@/pages/apps/reservoir-balance/lib/reportModel';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
-// MBAL charts overlay the logo directly on the plot area, so the suite
-// default (180px) overflows them; keep the mark small in this app.
+// MBAL charts overlay the mark on the plot area, so it stays small here.
 const MBAL_LOGO_STYLE = { height: '40px' };
+const MARGIN = { top: 16, right: 28, left: 28, bottom: 40 };
 
-// =============================================================================
-// COLOR PALETTE — local to MBAL plots
-// =============================================================================
-// Distinct from stream palettes used in DCA. These colors map to drive indices
-// and regression elements consistently across all five plots.
+const sanitizeFilename = (s) => (s ?? 'mbal').replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
 
-const MBAL_COLORS = {
-  // Regression and fit
-  regressionLine: '#0891b2',           // Cyan-600 — the fitted line
-  pointInFit: '#0e7490',                // Cyan-700 — included data points
-  pointExcluded: '#94a3b8',             // Slate-400 — excluded (early-time) points
-  extrapolation: '#94a3b8',             // Slate-400 — extrapolated portion (dashed)
-
-  // Drive indices (Pletcher conventions)
-  ddi: '#16a34a',                        // Green-600 — depletion drive
-  gdi: '#0891b2',                        // Cyan-600 — gas (or gas cap) drive
-  wdi: '#2563eb',                        // Blue-600 — water drive
-  cdi: '#a855f7',                        // Purple-500 — rock+water compressibility drive
-  // (oil results stored before engines #167 carry the same series under `sdi`)
-
-  // Annotations and references
-  truthLine: '#dc2626',                  // Red-600 — true value reference line
-  initialState: '#64748b',               // Slate-500 — initial timestep
-  highlight: '#f59e0b',                  // Amber-500 — selected/hover state
+/** An axis tick as a person writes it: no "2e7", no trailing zeros. */
+const tick = (v) => {
+  if (!Number.isFinite(v)) return '';
+  if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e5) return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  if (a < 1e-3) return v.toExponential(1);
+  return String(parseFloat(v.toPrecision(4)));
 };
 
-// =============================================================================
-// HELPERS
-// =============================================================================
+const axisTick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
+const axisLine = { stroke: CHART_COLORS.axisLine, strokeWidth: 1 };
 
-/** Format scientific notation for axis ticks where values span orders of magnitude. */
-const fmtSci = (n, decimals = 2) => {
-  if (n == null || !isFinite(n)) return '';
-  if (n === 0) return '0';
-  if (Math.abs(n) >= 1e9) return `${(n / 1e9).toFixed(decimals)}B`;
-  if (Math.abs(n) >= 1e6) return `${(n / 1e6).toFixed(decimals)}M`;
-  if (Math.abs(n) >= 1e3) return `${(n / 1e3).toFixed(decimals)}k`;
-  return n.toFixed(decimals);
-};
-
-/** Format a value for tooltips (more precise than tick fmt). */
-const fmtTip = (n) => {
-  if (n == null || !isFinite(n)) return 'N/A';
-  if (Math.abs(n) >= 1e6) return n.toExponential(3);
-  if (Math.abs(n) >= 1) return n.toFixed(3);
-  return n.toExponential(3);
-};
-
-/** Sanitize a string for filesystem use. */
-const sanitizeFilename = (s) =>
-  (s ?? 'mbal').replace(/[^a-zA-Z0-9_\-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
-
-/**
- * Build chart data rows by zipping plot_data array fields.
- * Returns an array of { timestep_index, pressure, F, Et, ..., included, excluded }
- * Where `included` and `excluded` are the F values for fit/exclude, used to
- * make two Scatter series render different shapes.
- */
-function buildBaseRows(plotData) {
-  if (!plotData) return [];
-  const n = plotData.timestep_index?.length ?? 0;
-  const rows = [];
-  for (let i = 0; i < n; i++) {
-    const inFit = plotData.point_in_fit?.[i] === true;
-    rows.push({
-      timestep_index: plotData.timestep_index[i],
-      pressure: plotData.pressure?.[i] ?? null,
-      delta_p: plotData.delta_p?.[i] ?? null,
-      F: plotData.F?.[i] ?? null,
-      Et: plotData.Et?.[i] ?? null,
-      Eo: plotData.Eo?.[i] ?? null,
-      Eg_rb_mscf: plotData.Eg_rb_mscf?.[i] ?? null,
-      Efw: plotData.Efw?.[i] ?? null,
-      We: plotData.We?.[i] ?? null,
-      p_over_z: plotData.p_over_z?.[i] ?? null,
-      cum_oil_stb: plotData.cum_oil_stb?.[i] ?? null,
-      cum_gas_scf: plotData.cum_gas_scf?.[i] ?? null,
-      cum_water_stb: plotData.cum_water_stb?.[i] ?? null,
-      ddi: plotData.ddi?.[i] ?? null,
-      gdi: plotData.gdi?.[i] ?? null,
-      wdi: plotData.wdi?.[i] ?? null,
-      // Rock and connate water expansion. Since engines #167 it is `cdi` on both
-      // fluid systems; oil results stored before that have it under `sdi` with
-      // `cdi` null, so fall back per row rather than per array.
-      cdi: plotData.cdi?.[i] ?? plotData.sdi?.[i] ?? null,
-      drive_index_sum: plotData.drive_index_sum?.[i] ?? null,
-      point_in_fit: inFit,
-      // Split F into two columns so Recharts can render included vs excluded
-      // points with different Scatter shapes.
-      F_included: inFit ? plotData.F?.[i] : null,
-      F_excluded: !inFit ? plotData.F?.[i] : null,
-    });
-  }
-  return rows;
-}
-
-// =============================================================================
-// SHARED SUB-COMPONENTS (polish pass)
-// =============================================================================
-
-/**
- * Export button rendered in each plot card's header. Calls the DCA helper
- * to capture the wrapper div by ID and save as PNG.
- */
-const ExportButton = ({ elementId, filename }) => (
-  <Button
-    onClick={() => exportChartAsImage(elementId, filename)}
-    variant="ghost"
-    size="sm"
-    className="h-7 px-2 text-xs text-pl-muted hover:text-pl-text hover:bg-pl-sunken"
-    title="Export plot as PNG"
-  >
-    <Download className="h-3.5 w-3.5 mr-1" />
-    Export
-  </Button>
+/** A hollow square for a point the fit did not use. */
+const SquareShape = ({ cx, cy, fill }) => (
+  Number.isFinite(cx) && Number.isFinite(cy)
+    ? <rect x={cx - 4} y={cy - 4} width={8} height={8} fill="#ffffff" stroke={fill} strokeWidth={1.8} />
+    : null
 );
 
-const DetailRow = ({ label, value, unit, accent }) => (
+const DetailRow = ({ label, value, unit }) => (
   <div className="flex justify-between items-baseline gap-2 text-[11px]">
     <span className="text-pl-muted">{label}</span>
-    <span
-      className={`font-mono ${accent ? 'text-pl-accent-text font-semibold' : 'text-pl-text'}`}
-    >
+    <span className="font-mono text-pl-text">
       {value}
-      <span className="text-[10px] text-pl-muted ml-1">{unit}</span>
+      {unit ? <span className="text-[10px] text-pl-muted ml-1">{unit}</span> : null}
     </span>
   </div>
 );
 
-/**
- * Inline drill-down panel. Renders below the chart when a point is clicked,
- * showing the timestep's full payload from the base row. Stays open until
- * another point is clicked or the close button is pressed.
- */
-const TimestepDetailPanel = ({ row, isGas, onClose }) => {
+/** The values of one timestep, in the display units, under the plot that was clicked. */
+const TimestepDetail = ({ row, status, isGas, units, onClose }) => {
   if (!row) return null;
-
-  const fmt = (v, decimals = 3) => {
-    if (v == null || !isFinite(v)) return EMPTY_VALUE;
-    if (Math.abs(v) >= 1e6) return v.toExponential(3);
-    if (Math.abs(v) >= 100) return v.toFixed(decimals > 1 ? 1 : decimals);
-    return v.toFixed(decimals);
-  };
-
-  const fitBadge = row.point_in_fit ? (
-    <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-pl-info-bg text-pl-info-text font-semibold">
-      In fit
-    </span>
-  ) : (
-    <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-pl-sunken text-pl-muted font-semibold">
-      Excluded
-    </span>
-  );
-
+  const u = units;
+  const dig = u.unit('pressure') === 'psi' ? 1 : (u.unit('pressure') === 'kPa' ? 0 : 3);
+  const vol = (q, v) => { const s = u.scaled(q, v ?? 0); return [Number.isFinite(v) ? fmt(s.to(v), 3) : EMPTY_VALUE, s.label]; };
+  const [np, npU] = vol('stockVolume', row.cum_oil_stb);
+  const [gp, gpU] = vol('gasVolume', row.cum_gas_scf);
+  const [wp, wpU] = vol('stockVolume', row.cum_water_stb);
+  const [f, fU] = vol('resVolume', row.F);
+  const [we, weU] = vol('resVolume', row.We);
+  const eQ = isGas ? 'expansionGas' : 'fvfOil';
   return (
-    <div className="border-t border-pl-border bg-pl-sunken px-4 py-3">
+    <div className="border-t border-pl-border bg-pl-sunken px-4 py-3" data-testid="mbal-timestep-detail">
       <div className="flex items-start justify-between mb-2 gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Info className="w-3.5 h-3.5 text-pl-info-text" />
           <span className="text-xs font-semibold text-pl-text">
-            Timestep {row.timestep_index}
+            Timestep {row.timestep_index}{row.date ? `, ${String(row.date).slice(0, 10)}` : ''}
           </span>
-          {fitBadge}
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-pl-surface border border-pl-border text-pl-muted">{status}</span>
         </div>
-        <Button
-          onClick={onClose}
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0 text-pl-muted hover:text-pl-text hover:bg-pl-border"
-          aria-label="Close detail panel"
-        >
+        <Button onClick={onClose} variant="ghost" size="sm" className="h-6 w-6 p-0 text-pl-muted hover:text-pl-text" aria-label="Close the timestep detail">
           <X className="w-3.5 h-3.5" />
         </Button>
       </div>
-
-      <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
         <div className="space-y-1">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-pl-muted mb-0.5">
-            Reservoir state
-          </p>
-          <DetailRow label="Pressure" value={fmt(row.pressure, 1)} unit="psia" />
-          <DetailRow label="Δp from initial" value={fmt(row.delta_p, 1)} unit="psi" />
-          {isGas ? (
-            <>
-              <DetailRow label="p/z" value={fmt(row.p_over_z, 1)} unit="psia" />
-              <DetailRow label="Cum gas (Gp)" value={fmt(row.cum_gas_scf, 0)} unit="scf" />
-              <DetailRow label="Cum water (Wp)" value={fmt(row.cum_water_stb, 0)} unit="STB" />
-            </>
-          ) : (
-            <>
-              <DetailRow label="Cum oil (Np)" value={fmt(row.cum_oil_stb, 0)} unit="STB" />
-              <DetailRow label="Cum gas (Gp)" value={fmt(row.cum_gas_scf, 0)} unit="scf" />
-              <DetailRow label="Cum water (Wp)" value={fmt(row.cum_water_stb, 0)} unit="STB" />
-            </>
-          )}
+          <DetailRow label="Pressure" value={fmt(u.to('pressure', row.pressure), dig)} unit={u.label('pressure')} />
+          <DetailRow label="Pressure drop from initial" value={fmt(u.to('dp', row.delta_p), dig)} unit={u.label('dp')} />
+          {isGas && <DetailRow label="p/z" value={fmt(u.to('pressure', row.p_over_z), dig)} unit={u.label('pressure')} />}
+          {!isGas && <DetailRow label="Cumulative oil Np" value={np} unit={npU} />}
+          <DetailRow label="Cumulative gas Gp" value={gp} unit={gpU} />
+          <DetailRow label="Cumulative water Wp" value={wp} unit={wpU} />
         </div>
-
         <div className="space-y-1">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-pl-muted mb-0.5">
-            MBE terms
-          </p>
-          <DetailRow label="F (voidage)" value={fmt(row.F)} unit="rb" />
-          <DetailRow
-            label={isGas ? 'Eg' : 'Et (total exp.)'}
-            value={fmt(isGas ? row.Eg_rb_mscf : row.Et)}
-            unit={isGas ? 'rb/Mscf' : 'rb/STB'}
-          />
-          {!isGas && row.Eo != null && (
-            <DetailRow label="Eo (oil exp.)" value={fmt(row.Eo)} unit="rb/STB" />
-          )}
-          <DetailRow label="Efw (rock+water)" value={fmt(row.Efw)} unit={isGas ? 'rb/scf' : 'rb/STB'} />
-          {row.We != null && (
-            <DetailRow label="We (water influx)" value={fmt(row.We, 0)} unit="rb" />
-          )}
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-pl-muted mt-2 mb-0.5">
-            Drive indices
-          </p>
-          {!isGas && row.ddi != null && (
-            <DetailRow label="DDI (depletion)" value={fmt(row.ddi, 3)} unit="—" />
-          )}
-          {row.gdi != null && (
-            <DetailRow label={isGas ? "GDI (gas)" : "GDI (gas cap)"} value={fmt(row.gdi, 3)} unit="—" />
-          )}
-          {row.wdi != null && (
-            <DetailRow label="WDI (water)" value={fmt(row.wdi, 3)} unit="—" />
-          )}
-          {row.cdi != null && (
-            <DetailRow label="CDI (rock and water)" value={fmt(row.cdi, 3)} unit="—" />
-          )}
-          {row.drive_index_sum != null && (
-            <DetailRow
-              label="Σ drive indices"
-              value={fmt(row.drive_index_sum, 3)}
-              unit="—"
-              accent={Math.abs((row.drive_index_sum ?? 1) - 1) > 0.05}
-            />
-          )}
+          <DetailRow label="Withdrawal F" value={f} unit={fU} />
+          <DetailRow label="Total expansion Et" value={sigFmt(u.to(eQ, row.Et), 4)} unit={u.label(eQ)} />
+          {!isGas && <DetailRow label="Oil expansion Eo" value={sigFmt(u.to(eQ, row.Eo), 4)} unit={u.label(eQ)} />}
+          <DetailRow label="Rock and water expansion Efw" value={sigFmt(u.to(eQ, row.Efw), 4)} unit={u.label(eQ)} />
+          <DetailRow label="Water influx We" value={we} unit={weU} />
+          <DetailRow label="Drive index sum" value={fmt(row.drive_index_sum, 3)} unit="" />
         </div>
       </div>
     </div>
   );
 };
 
-/**
- * Recharts onClick handler factory. Recharts passes the data row as the
- * first argument when a Scatter point or Bar segment is clicked. We look up
- * the canonical row from the base `rows` array by timestep_index, which
- * preserves all fields even when the plot's derived dataset is sparse.
- */
-function makePointClickHandler(rows, setExpandedRow) {
-  return (data) => {
-    if (!data || data.timestep_index == null) return;
-    const fullRow = rows.find((r) => r.timestep_index === data.timestep_index);
-    setExpandedRow(fullRow ?? null);
-  };
-}
+/** One plot model as a card: Recharts on the white chart surface. */
+const PlotCard = ({ model, caseName, onPick, picked, detail }) => {
+  const elementId = `rb-plot-${model.id}`;
+  const bars = model.series.filter((s) => s.type === 'bar');
+  const isBar = bars.length > 0;
+  const colour = (key) => hex(PLOT_COLOURS[key] ?? PLOT_COLOURS.fit);
 
-// =============================================================================
-// PLOT 1 — HAVLENA-ODEH F vs Et
-// =============================================================================
-
-const HavlenaOdehPlot = ({ rows, result, isGas, caseName }) => {
-  const [expandedRow, setExpandedRow] = useState(null);
-  const handlePointClick = useCallback(
-    makePointClickHandler(rows, setExpandedRow),
-    [rows],
-  );
-
-  // Compute regression line endpoints. Slope and intercept come from the
-  // engine result (for no-aquifer case, slope = N or G; for pot aquifer,
-  // intercept = N or G and slope is the aquifer-derived term).
-  const lineData = useMemo(() => {
-    const fitRows = rows.filter((r) => r.point_in_fit && r.Et != null && r.F != null);
-    if (fitRows.length < 2) return [];
-    const xs = fitRows.map((r) => r.Et);
-    const xMin = Math.min(...xs);
-    const xMax = Math.max(...xs);
-    const slope = result?.regression_slope ?? 0;
-    const intercept = result?.regression_intercept ?? 0;
-    // Extend slightly beyond the fit range for visual clarity
-    const x0 = 0;
-    const xN = xMax * 1.05;
-    return [
-      { Et: x0, F: intercept },
-      { Et: xN, F: slope * xN + intercept },
-    ];
-  }, [rows, result]);
-
-  const r2 = result?.r_squared;
-  const ooipMmstb = isGas
-    ? null
-    : (result?.estimated_ooip_stb ?? 0) / 1e6;
-  const ogipBcf = isGas
-    ? (result?.estimated_ogip_scf ?? 0) / 1e9
-    : null;
-  const slopeForLabel = result?.regression_slope;
-
-  return (
-    <Card data-canvas="chart" className="bg-pl-chart-surface">
-      <CardHeader className="pb-2 border-b border-pl-border">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
-            <CardTitle className="text-sm font-semibold text-pl-text flex items-center gap-2">
-              <FlaskConical className="w-4 h-4 text-pl-muted" />
-              Havlena-Odeh: F vs Et
-            </CardTitle>
-            <CardDescription className="text-xs text-pl-muted">
-              Reservoir voidage vs total expansion. For a depletion-drive case the points should lie on a straight line through the origin whose slope is {isGas ? 'OGIP' : 'OOIP'}; the fitted line carries a free intercept, shown in the box, and an intercept far from zero points to an unmodelled drive or data error. With aquifer support the points curve upward.
-            </CardDescription>
-          </div>
-          <ExportButton
-            elementId="rb-plot-havlena-odeh"
-            filename={`${sanitizeFilename(caseName)}_havlena_odeh`}
-          />
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="relative h-[380px] bg-white" id="rb-plot-havlena-odeh">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={rows} margin={CHART_MARGINS.withLegend}>
-              <CartesianGrid {...GRID_STYLE} />
-              <XAxis
-                dataKey="Et"
-                type="number"
-                domain={[0, 'auto']}
-                tickFormatter={(v) => fmtSci(v, 3)}
-                tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                axisLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-                tickLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-              >
-                <Label
-                  value={isGas ? 'Et (RB/Mscf)' : 'Et (RB/STB)'}
-                  position="insideBottom"
-                  offset={-5}
-                  style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
-                />
-              </XAxis>
-              <YAxis
-                dataKey="F"
-                type="number"
-                domain={[0, 'auto']}
-                tickFormatter={(v) => fmtSci(v, 2)}
-                tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                axisLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-                tickLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-              >
-                <Label
-                  value="F (res bbl)"
-                  angle={-90}
-                  position="insideLeft"
-                  style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
-                />
-              </YAxis>
-              <Tooltip
-                contentStyle={TOOLTIP_STYLE}
-                labelStyle={{ color: CHART_COLORS.tooltipText }}
-                itemStyle={{ color: CHART_COLORS.tooltipText }}
-                formatter={(value, name) => [fmtTip(value), name]}
-                labelFormatter={(label) => `Et = ${fmtTip(label)}`}
-              />
-              <Legend
-                verticalAlign="bottom"
-                height={36}
-                wrapperStyle={{
-                  fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`,
-                  paddingTop: '10px',
-                  color: CHART_COLORS.legendText,
-                }}
-              />
-              <Scatter
-                dataKey="F_included"
-                name="In fit"
-                fill={MBAL_COLORS.pointInFit}
-                shape="circle"
-                onClick={handlePointClick}
-                cursor="pointer"
-              />
-              <Scatter
-                dataKey="F_excluded"
-                name="Excluded"
-                fill="none"
-                stroke={MBAL_COLORS.pointExcluded}
-                strokeWidth={1.5}
-                shape="circle"
-                onClick={handlePointClick}
-                cursor="pointer"
-              />
-              <Line
-                data={lineData}
-                dataKey="F"
-                type="linear"
-                stroke={MBAL_COLORS.regressionLine}
-                strokeWidth={2}
-                dot={false}
-                name="Regression"
-                legendType="line"
-                isAnimationActive={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-          <ChartLogo style={MBAL_LOGO_STYLE} />
-          {/* Annotation box top-right */}
-          <div className="absolute top-3 right-3 bg-pl-chart-surface/95 border border-pl-border rounded px-3 py-2 text-[11px] font-mono leading-relaxed shadow-sm">
-            <div className="text-pl-text">
-              R² = <span className="font-semibold">{r2?.toFixed(4) ?? EMPTY_VALUE}</span>
-            </div>
-            <div className="text-pl-text">
-              slope = <span className="font-semibold">{slopeForLabel != null ? slopeForLabel.toExponential(3) : EMPTY_VALUE}</span>
-            </div>
-            {Number.isFinite(result?.regression_intercept) && (
-              <div className="text-pl-text" data-testid="rb-ho-intercept">
-                intercept = <span className="font-semibold">{result.regression_intercept.toExponential(2)} bbl</span>
-              </div>
-            )}
-            {ooipMmstb != null && (
-              <div className="text-pl-text">
-                OOIP = <span className="font-semibold">{ooipMmstb.toFixed(2)} MM STB</span>
-              </div>
-            )}
-            {ogipBcf != null && (
-              <div className="text-pl-text">
-                OGIP = <span className="font-semibold">{ogipBcf.toFixed(2)} Bcf</span>
-              </div>
-            )}
-          </div>
-        </div>
-        <TimestepDetailPanel
-          row={expandedRow}
-          isGas={isGas}
-          onClose={() => setExpandedRow(null)}
-        />
-      </CardContent>
-    </Card>
-  );
-};
-
-// =============================================================================
-// PLOT 2 — p/z (gas only)
-// =============================================================================
-
-const PZPlot = ({ rows, result, caseName, ramagost }) => {
-  const [expandedRow, setExpandedRow] = useState(null);
-  const handlePointClick = useCallback(
-    makePointClickHandler(rows, setExpandedRow),
-    [rows],
-  );
-
-  // Build data: (Gp_bcf, p/z) for each timestep. Add extrapolation line to p/z = 0.
-  const data = useMemo(() => {
-    const base = rows.filter((r) => r.p_over_z != null && r.cum_gas_scf != null);
-    // MB7: Ramagost-Farshad cf-corrected p/z overlay. The corrected points
-    // stay on the depletion straight line when formation compaction bends
-    // the raw curve (abnormally pressured reservoirs).
-    const corrected = ramagost
-      ? ramagostCorrectedPz({
-          pOverZ: base.map((r) => r.p_over_z),
-          pressure: base.map((r) => r.pressure),
-          pi: ramagost.pi,
-          swi: ramagost.swi,
-          cw: ramagost.cw,
-          cf: ramagost.cf,
-        })
-      : null;
-    return base.map((r, i) => ({
-      timestep_index: r.timestep_index,
-      Gp_bcf: r.cum_gas_scf / 1e9,
-      p_over_z: r.p_over_z,
-      point_in_fit: r.point_in_fit,
-      pz_included: r.point_in_fit ? r.p_over_z : null,
-      pz_excluded: !r.point_in_fit ? r.p_over_z : null,
-      pz_ramagost: corrected ? corrected[i] : null,
-    }));
-  }, [rows, ramagost]);
-
-  const hasRamagost = data.some((d) => d.pz_ramagost != null);
-
-  // Extrapolation line: linear fit on included points, extend to p/z = 0.
-  const extrapData = useMemo(() => {
-    const fit = data.filter((d) => d.point_in_fit);
-    if (fit.length < 2) return [];
-    // Simple least-squares
-    const n = fit.length;
-    const sumX = fit.reduce((s, d) => s + d.Gp_bcf, 0);
-    const sumY = fit.reduce((s, d) => s + d.p_over_z, 0);
-    const sumXY = fit.reduce((s, d) => s + d.Gp_bcf * d.p_over_z, 0);
-    const sumX2 = fit.reduce((s, d) => s + d.Gp_bcf * d.Gp_bcf, 0);
-    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-    const intercept = (sumY - slope * sumX) / n;
-    // x at p/z = 0
-    const xAtZero = -intercept / slope;
-    return [
-      { Gp_bcf: 0, pz_line: intercept },
-      { Gp_bcf: xAtZero, pz_line: 0 },
-    ];
-  }, [data]);
-
-  // Apparent OGIP from p/z extrapolation (the x at p/z=0)
-  const apparentOgipBcf = extrapData.length > 0 ? extrapData[1].Gp_bcf : null;
-
-  // True OGIP from engine regression for comparison
-  const ogipBcf = (result?.estimated_ogip_scf ?? 0) / 1e9;
-
-  return (
-    <Card data-canvas="chart" className="bg-pl-chart-surface">
-      <CardHeader className="pb-2 border-b border-pl-border">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
-            <CardTitle className="text-sm font-semibold text-pl-text flex items-center gap-2">
-              <FlaskConical className="w-4 h-4 text-pl-muted" />
-              p/z plot
-            </CardTitle>
-            <CardDescription className="text-xs text-pl-muted">
-              Classic gas reservoir diagnostic. Linear p/z vs Gp extrapolates to apparent OGIP at p/z=0. With aquifer support the extrapolation overestimates because water influx props up pressure. The dashed purple series is the Ramagost-Farshad correction (p/z scaled by 1 minus the rock and water compressibility term); it matters for abnormally pressured reservoirs where compaction bends the raw curve.
-            </CardDescription>
-          </div>
-          <ExportButton
-            elementId="rb-plot-pz"
-            filename={`${sanitizeFilename(caseName)}_pz`}
-          />
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="relative h-[380px] bg-white" id="rb-plot-pz">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data} margin={CHART_MARGINS.withLegend}>
-              <CartesianGrid {...GRID_STYLE} />
-              <XAxis
-                dataKey="Gp_bcf"
-                type="number"
-                domain={[0, 'auto']}
-                tickFormatter={(v) => fmtSci(v, 2)}
-                tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                axisLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-                tickLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-              >
-                <Label
-                  value="Gp (Bcf)"
-                  position="insideBottom"
-                  offset={-5}
-                  style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
-                />
-              </XAxis>
-              <YAxis
-                dataKey="p_over_z"
-                type="number"
-                domain={[0, 'auto']}
-                tickFormatter={(v) => fmtSci(v, 2)}
-                tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                axisLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-                tickLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-              >
-                <Label
-                  value="p/z (psia)"
-                  angle={-90}
-                  position="insideLeft"
-                  style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
-                />
-              </YAxis>
-              <Tooltip
-                contentStyle={TOOLTIP_STYLE}
-                labelStyle={{ color: CHART_COLORS.tooltipText }}
-                itemStyle={{ color: CHART_COLORS.tooltipText }}
-                formatter={(value, name) => [fmtTip(value), name]}
-                labelFormatter={(label) => `Gp = ${fmtTip(label)} Bcf`}
-              />
-              <Legend
-                verticalAlign="bottom"
-                height={36}
-                wrapperStyle={{
-                  fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`,
-                  paddingTop: '10px',
-                  color: CHART_COLORS.legendText,
-                }}
-              />
-              <Scatter
-                dataKey="pz_included"
-                name="In fit"
-                fill={MBAL_COLORS.pointInFit}
-                shape="circle"
-                onClick={handlePointClick}
-                cursor="pointer"
-              />
-              <Scatter
-                dataKey="pz_excluded"
-                name="Excluded"
-                fill="none"
-                stroke={MBAL_COLORS.pointExcluded}
-                strokeWidth={1.5}
-                shape="circle"
-                onClick={handlePointClick}
-                cursor="pointer"
-              />
-              <Line
-                data={extrapData}
-                dataKey="pz_line"
-                type="linear"
-                stroke={MBAL_COLORS.regressionLine}
-                strokeWidth={2}
-                strokeDasharray="6 3"
-                dot={false}
-                name="Linear extrapolation"
-                legendType="line"
-                isAnimationActive={false}
-              />
-              {hasRamagost && (
-                <Line
-                  dataKey="pz_ramagost"
-                  type="monotone"
-                  stroke="#9333ea"
-                  strokeWidth={1.5}
-                  strokeDasharray="3 3"
-                  dot={{ r: 2, fill: '#9333ea' }}
-                  name="Ramagost-Farshad corrected"
-                  legendType="line"
-                  isAnimationActive={false}
-                />
-              )}
-            </ComposedChart>
-          </ResponsiveContainer>
-          <ChartLogo style={MBAL_LOGO_STYLE} />
-          <div className="absolute top-3 right-3 bg-pl-chart-surface/95 border border-pl-border rounded px-3 py-2 text-[11px] font-mono leading-relaxed shadow-sm">
-            {apparentOgipBcf != null && (
-              <div className="text-pl-text">
-                p/z extrap: <span className="font-semibold">{apparentOgipBcf.toFixed(2)} Bcf</span>
-              </div>
-            )}
-            <div className="text-pl-text">
-              MBAL OGIP: <span className="font-semibold">{ogipBcf.toFixed(2)} Bcf</span>
-            </div>
-            {apparentOgipBcf != null && (
-              <div className="text-[10px] text-pl-muted italic mt-1">
-                {apparentOgipBcf > ogipBcf * 1.02
-                  ? '↑ p/z overestimates: aquifer support present'
-                  : 'p/z agrees with MBAL: likely depletion drive'}
-              </div>
-            )}
-          </div>
-        </div>
-        <TimestepDetailPanel
-          row={expandedRow}
-          isGas={true}
-          onClose={() => setExpandedRow(null)}
-        />
-      </CardContent>
-    </Card>
-  );
-};
-
-// =============================================================================
-// PLOT 3 — Cole plot (gas only)
-// =============================================================================
-// y = F / Eg   (in same units as G; Mscf or scf depending on Eg units)
-// x = Gp      (in Mscf or Bscf for readability)
-//
-// Pletcher's signature shapes:
-//   - Depletion drive: horizontal line at y = G (OGIP)
-//   - Strong waterdrive: positive-slope line
-//   - Moderate waterdrive: hump
-//   - Weak waterdrive: negative slope, points migrate down toward true G
-
-const ColePlot = ({ rows, result, caseName }) => {
-  const [expandedRow, setExpandedRow] = useState(null);
-  const handlePointClick = useCallback(
-    makePointClickHandler(rows, setExpandedRow),
-    [rows],
-  );
-
-  // Compute F/Eg per timestep. Eg_rb_mscf is in RB/Mscf (display unit).
-  // F is in res bbl. So F/Eg in Mscf. Convert to Bcf for x-axis.
-  const data = useMemo(
-    () =>
-      rows
-        .filter((r) => r.Eg_rb_mscf != null && r.Eg_rb_mscf > 0 && r.F != null && r.cum_gas_scf != null)
-        .map((r) => {
-          const f_over_eg_mscf = r.F / r.Eg_rb_mscf;
-          return {
-            timestep_index: r.timestep_index,
-            Gp_bcf: r.cum_gas_scf / 1e9,
-            f_over_eg_bcf: f_over_eg_mscf / 1e6, // Mscf → Bcf
-            point_in_fit: r.point_in_fit,
-            fEg_included: r.point_in_fit ? f_over_eg_mscf / 1e6 : null,
-            fEg_excluded: !r.point_in_fit ? f_over_eg_mscf / 1e6 : null,
-          };
-        }),
-    [rows],
-  );
-
-  // True OGIP reference line
-  const ogipBcf = (result?.estimated_ogip_scf ?? 0) / 1e9;
-
-  return (
-    <Card data-canvas="chart" className="bg-pl-chart-surface">
-      <CardHeader className="pb-2 border-b border-pl-border">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
-            <CardTitle className="text-sm font-semibold text-pl-text flex items-center gap-2">
-              <FlaskConical className="w-4 h-4 text-pl-muted" />
-              Cole plot
-            </CardTitle>
-            <CardDescription className="text-xs text-pl-muted">
-              Diagnostic for aquifer presence. Horizontal line = depletion drive; positive slope = strong waterdrive; negative slope = weak waterdrive (apparent OGIP decreases with time). The dashed red line shows the MBAL-derived OGIP for reference.
-            </CardDescription>
-          </div>
-          <ExportButton
-            elementId="rb-plot-cole"
-            filename={`${sanitizeFilename(caseName)}_cole`}
-          />
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="relative h-[380px] bg-white" id="rb-plot-cole">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data} margin={CHART_MARGINS.withLegend}>
-              <CartesianGrid {...GRID_STYLE} />
-              <XAxis
-                dataKey="Gp_bcf"
-                type="number"
-                domain={[0, 'auto']}
-                tickFormatter={(v) => fmtSci(v, 2)}
-                tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                axisLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-                tickLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-              >
-                <Label
-                  value="Gp (Bcf)"
-                  position="insideBottom"
-                  offset={-5}
-                  style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
-                />
-              </XAxis>
-              <YAxis
-                dataKey="f_over_eg_bcf"
-                type="number"
-                domain={['auto', 'auto']}
-                tickFormatter={(v) => fmtSci(v, 2)}
-                tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                axisLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-                tickLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-              >
-                <Label
-                  value="F / Eg (Bcf)"
-                  angle={-90}
-                  position="insideLeft"
-                  style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
-                />
-              </YAxis>
-              <Tooltip
-                contentStyle={TOOLTIP_STYLE}
-                labelStyle={{ color: CHART_COLORS.tooltipText }}
-                itemStyle={{ color: CHART_COLORS.tooltipText }}
-                formatter={(value, name) => [fmtTip(value), name]}
-              />
-              <Legend
-                verticalAlign="bottom"
-                height={36}
-                wrapperStyle={{
-                  fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`,
-                  paddingTop: '10px',
-                  color: CHART_COLORS.legendText,
-                }}
-              />
-              {ogipBcf > 0 && (
-                <ReferenceLine
-                  y={ogipBcf}
-                  stroke={MBAL_COLORS.truthLine}
-                  strokeDasharray="4 2"
-                  label={{
-                    value: `MBAL OGIP = ${ogipBcf.toFixed(2)} Bcf`,
-                    position: 'insideTopRight',
-                    fill: MBAL_COLORS.truthLine,
-                    fontSize: 10,
-                  }}
-                />
-              )}
-              <Scatter
-                dataKey="fEg_included"
-                name="In fit"
-                fill={MBAL_COLORS.pointInFit}
-                shape="circle"
-                onClick={handlePointClick}
-                cursor="pointer"
-              />
-              <Scatter
-                dataKey="fEg_excluded"
-                name="Excluded"
-                fill="none"
-                stroke={MBAL_COLORS.pointExcluded}
-                strokeWidth={1.5}
-                shape="circle"
-                onClick={handlePointClick}
-                cursor="pointer"
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-          <ChartLogo style={MBAL_LOGO_STYLE} />
-        </div>
-        <TimestepDetailPanel
-          row={expandedRow}
-          isGas={true}
-          onClose={() => setExpandedRow(null)}
-        />
-      </CardContent>
-    </Card>
-  );
-};
-
-// =============================================================================
-// PLOT 4 — Campbell plot (oil only)
-// =============================================================================
-// y = F / Et   (in STB if Et in RB/STB and F in res bbl)
-// x = F        (in res bbl)
-//
-// Same diagnostic logic as Cole but for oil:
-//   - Depletion drive: horizontal line at y = N (OOIP)
-//   - Weak waterdrive: negative slope, points migrate toward true N
-
-const CampbellPlot = ({ rows, result, caseName }) => {
-  const [expandedRow, setExpandedRow] = useState(null);
-  const handlePointClick = useCallback(
-    makePointClickHandler(rows, setExpandedRow),
-    [rows],
-  );
-
-  const data = useMemo(
-    () =>
-      rows
-        .filter((r) => r.Et != null && r.Et > 0 && r.F != null && r.F > 0)
-        .map((r) => {
-          const f_over_et = r.F / r.Et;
-          return {
-            timestep_index: r.timestep_index,
-            F: r.F,
-            f_over_et_mstb: f_over_et / 1e6,
-            point_in_fit: r.point_in_fit,
-            fEt_included: r.point_in_fit ? f_over_et / 1e6 : null,
-            fEt_excluded: !r.point_in_fit ? f_over_et / 1e6 : null,
-          };
-        }),
-    [rows],
-  );
-
-  const ooipMmstb = (result?.estimated_ooip_stb ?? 0) / 1e6;
-
-  return (
-    <Card data-canvas="chart" className="bg-pl-chart-surface">
-      <CardHeader className="pb-2 border-b border-pl-border">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
-            <CardTitle className="text-sm font-semibold text-pl-text flex items-center gap-2">
-              <FlaskConical className="w-4 h-4 text-pl-muted" />
-              Campbell plot
-            </CardTitle>
-            <CardDescription className="text-xs text-pl-muted">
-              Oil-side equivalent of the Cole plot. Horizontal = depletion drive; positive slope = strong waterdrive; negative slope = weak waterdrive. The dashed red line shows the MBAL-derived OOIP for reference.
-            </CardDescription>
-          </div>
-          <ExportButton
-            elementId="rb-plot-campbell"
-            filename={`${sanitizeFilename(caseName)}_campbell`}
-          />
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="relative h-[380px] bg-white" id="rb-plot-campbell">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data} margin={CHART_MARGINS.withLegend}>
-              <CartesianGrid {...GRID_STYLE} />
-              <XAxis
-                dataKey="F"
-                type="number"
-                domain={[0, 'auto']}
-                tickFormatter={(v) => fmtSci(v, 2)}
-                tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                axisLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-                tickLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-              >
-                <Label
-                  value="F (res bbl)"
-                  position="insideBottom"
-                  offset={-5}
-                  style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
-                />
-              </XAxis>
-              <YAxis
-                dataKey="f_over_et_mstb"
-                type="number"
-                domain={['auto', 'auto']}
-                tickFormatter={(v) => fmtSci(v, 2)}
-                tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                axisLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-                tickLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-              >
-                <Label
-                  value="F / Et (MM STB)"
-                  angle={-90}
-                  position="insideLeft"
-                  style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
-                />
-              </YAxis>
-              <Tooltip
-                contentStyle={TOOLTIP_STYLE}
-                labelStyle={{ color: CHART_COLORS.tooltipText }}
-                itemStyle={{ color: CHART_COLORS.tooltipText }}
-                formatter={(value, name) => [fmtTip(value), name]}
-              />
-              <Legend
-                verticalAlign="bottom"
-                height={36}
-                wrapperStyle={{
-                  fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`,
-                  paddingTop: '10px',
-                  color: CHART_COLORS.legendText,
-                }}
-              />
-              {ooipMmstb > 0 && (
-                <ReferenceLine
-                  y={ooipMmstb}
-                  stroke={MBAL_COLORS.truthLine}
-                  strokeDasharray="4 2"
-                  label={{
-                    value: `MBAL OOIP = ${ooipMmstb.toFixed(2)} MM STB`,
-                    position: 'insideTopRight',
-                    fill: MBAL_COLORS.truthLine,
-                    fontSize: 10,
-                  }}
-                />
-              )}
-              <Scatter
-                dataKey="fEt_included"
-                name="In fit"
-                fill={MBAL_COLORS.pointInFit}
-                shape="circle"
-                onClick={handlePointClick}
-                cursor="pointer"
-              />
-              <Scatter
-                dataKey="fEt_excluded"
-                name="Excluded"
-                fill="none"
-                stroke={MBAL_COLORS.pointExcluded}
-                strokeWidth={1.5}
-                shape="circle"
-                onClick={handlePointClick}
-                cursor="pointer"
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-          <ChartLogo style={MBAL_LOGO_STYLE} />
-        </div>
-        <TimestepDetailPanel
-          row={expandedRow}
-          isGas={false}
-          onClose={() => setExpandedRow(null)}
-        />
-      </CardContent>
-    </Card>
-  );
-};
-
-// =============================================================================
-// PLOT 5 — Drive indices stacked bar
-// =============================================================================
-// One stacked bar per timestep (excluding initial). Stacks: DDI/SDI/CDI for oil,
-// GDI/CDI for gas, both plus WDI for aquifer cases.
-//
-// Pletcher's drive indices sum to 1.0 when MBE solved correctly; the bars give
-// a quick visual sanity check.
-
-const DriveIndicesPlot = ({ rows, isGas, caseName }) => {
-  const [expandedRow, setExpandedRow] = useState(null);
-  const handlePointClick = useCallback(
-    makePointClickHandler(rows, setExpandedRow),
-    [rows],
-  );
-
-  // Filter to non-initial timesteps (drive indices undefined at t=0)
-  const data = useMemo(
-    () =>
-      rows
-        .filter((r) => r.timestep_index > 0 && r.drive_index_sum != null)
-        .map((r) => ({
-          timestep_index: r.timestep_index,
-          pressure: r.pressure,
-          // Use the values directly; engine sets unused ones to 0 or null
-          DDI: isGas ? null : (r.ddi ?? 0),
-          GDI: isGas ? (r.gdi ?? 0) : (r.gdi ?? 0),
-          CDI: r.cdi ?? 0,
-          WDI: r.wdi ?? 0,
-          sum: r.drive_index_sum ?? 0,
-        })),
-    [rows, isGas],
-  );
-
-  return (
-    <Card data-canvas="chart" className="bg-pl-chart-surface">
-      <CardHeader className="pb-2 border-b border-pl-border">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
-            <CardTitle className="text-sm font-semibold text-pl-text flex items-center gap-2">
-              <FlaskConical className="w-4 h-4 text-pl-muted" />
-              Drive indices by timestep
-            </CardTitle>
-            <CardDescription className="text-xs text-pl-muted">
-              {isGas
-                ? 'Gas drive (GDI) + rock/water compressibility (CDI) + water drive (WDI) = 1.0 for a correctly-solved material balance.'
-                : 'Depletion drive (DDI) + gas-cap drive (GDI) + rock/water compressibility (CDI) + water drive (WDI) = 1.0 for a correctly-solved material balance.'}
-              {' '}A consistent sum away from 1.0 indicates a problem with the solution.
-            </CardDescription>
-          </div>
-          <ExportButton
-            elementId="rb-plot-drive-indices"
-            filename={`${sanitizeFilename(caseName)}_drive_indices`}
-          />
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="relative h-[380px] bg-white" id="rb-plot-drive-indices">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data} margin={CHART_MARGINS.withLegend}>
-              <CartesianGrid {...GRID_STYLE} />
-              <XAxis
-                dataKey="timestep_index"
-                type="category"
-                tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                axisLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-                tickLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-              >
-                <Label
-                  value="Timestep"
-                  position="insideBottom"
-                  offset={-5}
-                  style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
-                />
-              </XAxis>
-              <YAxis
-                type="number"
-                domain={[0, 1.2]}
-                ticks={[0, 0.25, 0.5, 0.75, 1.0]}
-                tickFormatter={(v) => v.toFixed(2)}
-                tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                axisLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-                tickLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-              >
-                <Label
-                  value="Drive index (fraction)"
-                  angle={-90}
-                  position="insideLeft"
-                  style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
-                />
-              </YAxis>
-              <Tooltip
-                contentStyle={TOOLTIP_STYLE}
-                labelStyle={{ color: CHART_COLORS.tooltipText }}
-                itemStyle={{ color: CHART_COLORS.tooltipText }}
-                formatter={(value, name) => [typeof value === 'number' ? value.toFixed(3) : value, name]}
-                labelFormatter={(label) => `Timestep ${label}`}
-              />
-              <Legend
-                verticalAlign="bottom"
-                height={36}
-                wrapperStyle={{
-                  fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`,
-                  paddingTop: '10px',
-                  color: CHART_COLORS.legendText,
-                }}
-              />
-              <ReferenceLine
-                y={1.0}
-                stroke={MBAL_COLORS.truthLine}
-                strokeDasharray="4 2"
-                label={{
-                  value: 'Sum = 1.0 (correct MBE)',
-                  position: 'insideTopRight',
-                  fill: MBAL_COLORS.truthLine,
-                  fontSize: 10,
-                }}
-              />
-              {!isGas && (
-                <Bar
-                  dataKey="DDI"
-                  stackId="a"
-                  name="Depletion (DDI)"
-                  fill={MBAL_COLORS.ddi}
-                  onClick={handlePointClick}
-                  cursor="pointer"
-                />
-              )}
-              <Bar
-                dataKey="GDI"
-                stackId="a"
-                name={isGas ? 'Gas (GDI)' : 'Gas cap (GDI)'}
-                fill={MBAL_COLORS.gdi}
-                onClick={handlePointClick}
-                cursor="pointer"
-              />
-              <Bar
-                dataKey="CDI"
-                stackId="a"
-                name="Rock+water (CDI)"
-                fill={MBAL_COLORS.cdi}
-                onClick={handlePointClick}
-                cursor="pointer"
-              />
-              <Bar
-                dataKey="WDI"
-                stackId="a"
-                name="Water drive (WDI)"
-                fill={MBAL_COLORS.wdi}
-                onClick={handlePointClick}
-                cursor="pointer"
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-          <ChartLogo style={MBAL_LOGO_STYLE} />
-        </div>
-        <TimestepDetailPanel
-          row={expandedRow}
-          isGas={isGas}
-          onClose={() => setExpandedRow(null)}
-        />
-      </CardContent>
-    </Card>
-  );
-};
-
-// =============================================================================
-// MAIN COMPONENT — fetches latest result and renders applicable plots
-// =============================================================================
-
-const RbDiagnosticPlots = ({ caseId, caseData, runVersion = 0 }) => {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [result, setResult] = useState(null);
-  const [refreshTick, setRefreshTick] = useState(0);
-
-  const isGas = caseData?.fluid_system === 'gas';
-  const caseName = caseData?.case_name ?? caseData?.name ?? 'mbal';
-
-  // Load latest completed run + its result
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!caseId) {
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setError(null);
-
-      const { data: runs, error: runsErr } = await listRuns(caseId);
-      if (cancelled) return;
-      if (runsErr) {
-        setError(runsErr.message);
-        setLoading(false);
-        return;
-      }
-
-      const lastCompleted = (runs ?? []).find((r) => r.status === 'completed');
-      if (!lastCompleted) {
-        setResult(null);
-        setLoading(false);
-        return;
-      }
-
-      const { data: res, error: resErr } = await getResultByRunId(lastCompleted.id);
-      if (cancelled) return;
-      if (resErr) {
-        setError(resErr.message);
-        setLoading(false);
-        return;
-      }
-      setResult(res);
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [caseId, refreshTick, runVersion]);
-
-  const rows = useMemo(() => buildBaseRows(result?.plot_data), [result]);
-
-  // MB7: rock and water compressibilities for the Ramagost-Farshad overlay
-  // (same saved config the runs inherit).
-  const [rockCfg, setRockCfg] = useState(null);
-  useEffect(() => {
-    if (!caseId || !isGas) return undefined;
-    let cancelled = false;
-    getCaseDefaultConfig(caseId).then(({ data }) => {
-      if (!cancelled) setRockCfg(data ?? null);
+  // Bars share one category axis: one row per timestep with a value per drive.
+  const barData = useMemo(() => {
+    if (!isBar) return [];
+    const first = bars[0];
+    return first.pts.map(([x], i) => {
+      const row = { label: model.xDate ? dateTickText(x, 'month') : String(x), timestep_index: first.steps?.[i] };
+      for (const s of bars) row[s.key] = s.pts[i]?.[1] ?? 0;
+      return row;
     });
-    return () => { cancelled = true; };
-  }, [caseId, isGas, runVersion]);
+  }, [isBar, bars, model.xDate]);
 
-  const ramagost = useMemo(() => ({
-    pi: caseData?.initial_pressure_psia,
-    swi: caseData?.initial_water_saturation,
-    cw: rockCfg?.water_compressibility_psi ?? 3e-6,
-    cf: rockCfg?.formation_compressibility_psi ?? 6e-6,
-  }), [caseData, rockCfg]);
+  // A calendar axis takes the ticks the report uses.
+  const xValues = model.series.flatMap((s) => s.pts.map((p) => p[0]));
+  const dates = !isBar && model.xDate && xValues.length ? dateTicks(Math.min(...xValues), Math.max(...xValues)) : null;
 
-  // ── Loading ──
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-pl-muted" />
-        </CardContent>
-      </Card>
-    );
-  }
+  // Round axis ends and ticks, the ones the report prints.
+  const finiteOnly = (list) => list.filter((v) => Number.isFinite(v));
+  const yAll = finiteOnly([
+    ...model.series.flatMap((s) => s.pts.map((p) => p[1])), ...(model.yInclude ?? []), ...model.lines.map((l) => l.y),
+  ]);
+  const yTicks = !isBar && yAll.length ? niceTicks(Math.min(...yAll), Math.max(...yAll), 6) : null;
+  const xAll = finiteOnly([...xValues, ...model.lines.map((l) => l.x), 0]);
+  const xTicks = !isBar && !dates && xAll.length ? niceTicks(Math.min(...xAll), Math.max(...xAll), 6) : null;
 
-  // ── No case data ──
+  const counts = Object.fromEntries(model.series.map((s) => [`data-points-${s.key.toLowerCase()}`, s.pts.length]));
+  const click = (s) => (e) => {
+    const step = e?.timestep_index ?? e?.payload?.timestep_index;
+    if (step != null) onPick(model.id, step);
+    void s;
+  };
+
+  return (
+    <Card data-canvas="chart" className="bg-pl-chart-surface" data-testid={`mbal-plot-${model.id}`} {...counts}>
+      <CardHeader className="pb-2 border-b border-pl-border">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-sm font-semibold text-pl-text flex items-center gap-2">
+              <FlaskConical className="w-4 h-4 text-pl-muted shrink-0" />
+              <span>{model.title}</span>
+            </CardTitle>
+            <CardDescription className="text-xs text-pl-muted">{model.caption}</CardDescription>
+          </div>
+          <Button onClick={() => exportChartAsImage(elementId, `${sanitizeFilename(caseName)}_${model.id}`)} variant="ghost" size="sm"
+            className="h-7 px-2 text-xs text-pl-muted hover:text-pl-text hover:bg-pl-sunken shrink-0" title="Export this plot as PNG">
+            <Download className="h-3.5 w-3.5 mr-1" />
+            Export
+          </Button>
+        </div>
+        {model.notes?.length > 0 && (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-[11px] font-mono text-pl-text" data-testid={`mbal-plot-notes-${model.id}`}>
+            {model.notes.map((n) => <span key={n}>{n}</span>)}
+          </div>
+        )}
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="relative h-[360px] bg-white" id={elementId}>
+          <ResponsiveContainer width="100%" height="100%">
+            {isBar ? (
+              <ComposedChart data={barData} margin={MARGIN}>
+                <CartesianGrid {...GRID_STYLE} />
+                <XAxis dataKey="label" type="category" tick={axisTick} axisLine={axisLine} tickLine={axisLine}
+                  label={{ value: model.xTitle, position: 'insideBottom', offset: -22, style: { fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize } }} />
+                <YAxis type="number" domain={[(min) => Math.min(0, Math.floor(min * 10) / 10), (max) => Math.max(1, Math.ceil(max * 10) / 10)]} tickFormatter={tick} tick={axisTick} axisLine={axisLine} tickLine={axisLine}
+                  label={{ value: model.yTitle, angle: -90, position: 'insideLeft', offset: -12, style: { textAnchor: 'middle', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize } }} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }} itemStyle={{ color: CHART_COLORS.tooltipText }}
+                  formatter={(value, name) => [typeof value === 'number' ? value.toFixed(3) : value, name]} />
+                <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`, color: CHART_COLORS.legendText }} />
+                {model.lines.filter((l) => Number.isFinite(l.y)).map((l) => (
+                  <ReferenceLine key={l.label} y={l.y} stroke={colour(l.colour)} strokeDasharray="4 2"
+                    label={{ value: l.label, position: 'insideTopRight', fill: colour(l.colour), fontSize: 10 }} />
+                ))}
+                {bars.map((s) => (
+                  <Bar key={s.key} dataKey={s.key} stackId="drive" name={s.name} fill={colour(s.colour)} onClick={click(s)} cursor="pointer" isAnimationActive={false} />
+                ))}
+              </ComposedChart>
+            ) : (
+              <ComposedChart margin={MARGIN}>
+                <CartesianGrid {...GRID_STYLE} />
+                <XAxis dataKey="x" type="number" tick={axisTick} axisLine={axisLine} tickLine={axisLine} allowDuplicatedCategory={false}
+                  domain={dates ? [dates.ticks[0], dates.ticks[dates.ticks.length - 1]] : (xTicks ? [xTicks[0], xTicks[xTicks.length - 1]] : [0, 'auto'])}
+                  ticks={dates ? dates.ticks : (xTicks ?? undefined)}
+                  tickFormatter={dates ? (v) => dateTickText(v, dates.unit) : tick}
+                  label={{ value: model.xTitle, position: 'insideBottom', offset: -22, style: { fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize } }} />
+                <YAxis dataKey="y" type="number" tick={axisTick} axisLine={axisLine} tickLine={axisLine} tickFormatter={tick}
+                  domain={yTicks ? [yTicks[0], yTicks[yTicks.length - 1]] : ['auto', 'auto']}
+                  ticks={yTicks ?? undefined}
+                  label={{ value: model.yTitle, angle: -90, position: 'insideLeft', offset: -12, style: { textAnchor: 'middle', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize } }} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }} itemStyle={{ color: CHART_COLORS.tooltipText }}
+                  formatter={(value, name) => [typeof value === 'number' ? (dates && name === 'x' ? dateTickText(value, 'day') : tick(value)) : value, name === 'x' ? model.xTitle : (name === 'y' ? model.yTitle : name)]}
+                  labelFormatter={() => ''} />
+                <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`, color: CHART_COLORS.legendText }} />
+                {model.lines.filter((l) => Number.isFinite(l.y)).map((l) => (
+                  <ReferenceLine key={l.label} y={l.y} stroke={colour(l.colour)} strokeDasharray="4 2"
+                    label={{ value: l.label, position: 'insideBottomRight', fill: colour(l.colour), fontSize: 10 }} />
+                ))}
+                {model.lines.filter((l) => Number.isFinite(l.x)).map((l) => (
+                  <ReferenceLine key={l.label} x={l.x} stroke={colour(l.colour)} strokeDasharray="4 2"
+                    label={{ value: l.label, position: 'insideTopLeft', fill: colour(l.colour), fontSize: 10 }} />
+                ))}
+                {model.series.filter((s) => s.pts.length).map((s) => {
+                  const data = s.pts.map(([x, y], i) => ({ x, y, timestep_index: s.steps?.[i] }));
+                  if (s.type === 'scatter') {
+                    return (
+                      <Scatter key={s.key} data={data} name={s.name} fill={colour(s.colour)} isAnimationActive={false}
+                        shape={s.marker === 'square' ? <SquareShape /> : 'circle'} legendType={s.marker === 'square' ? 'square' : 'circle'}
+                        onClick={s.steps ? click(s) : undefined} cursor={s.steps ? 'pointer' : undefined} />
+                    );
+                  }
+                  return (
+                    <Line key={s.key} data={data} dataKey="y" name={s.name} type="linear" stroke={colour(s.colour)} strokeWidth={2}
+                      strokeDasharray={s.dash ? '5 4' : undefined} dot={s.type === 'both' ? { r: 2.5, fill: colour(s.colour) } : false}
+                      legendType="line" isAnimationActive={false} />
+                  );
+                })}
+              </ComposedChart>
+            )}
+          </ResponsiveContainer>
+          <ChartLogo style={MBAL_LOGO_STYLE} />
+        </div>
+        {picked ? detail : null}
+      </CardContent>
+    </Card>
+  );
+};
+
+const RbDiagnosticPlots = () => {
+  const {
+    caseData, lastResult, series, plotModels, units,
+  } = useMaterialBalanceStudio();
+  const [picked, setPicked] = useState(null); // { plot, step }
+  const isGas = caseData?.fluid_system === 'gas';
+  const caseName = caseData?.name ?? 'mbal';
+
   if (!caseData) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center text-pl-muted">
-          No case data. Diagnostic plots require an active case.
-        </CardContent>
-      </Card>
+      <Card><CardContent className="py-12 text-center text-pl-muted">Open a case to see its plots.</CardContent></Card>
     );
   }
-
-  // ── No run yet ──
-  if (!result) {
+  if (!lastResult) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
           <Info className="w-10 h-10 mx-auto text-pl-muted mb-3" />
-          <p className="text-pl-text font-medium">No MBAL results yet</p>
-          <p className="text-sm text-pl-muted mt-1">
-            Go to the Run tab and click Run MBAL. Diagnostic plots will appear here once a run completes.
-          </p>
+          <p className="text-pl-text font-medium">No result yet</p>
+          <p className="text-sm text-pl-muted mt-1">Run the engine on the Run tab. The plots of the run appear here.</p>
         </CardContent>
       </Card>
     );
   }
-
-  // ── Error state ──
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>Could not load plot data</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
-  }
-
-  // ── Insufficient plot data ──
-  if (!result.plot_data || (result.plot_data.timestep_index?.length ?? 0) < 2) {
+  if (!series || series.rows.length < 2) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
           <Info className="w-10 h-10 mx-auto text-pl-warning-text mb-3" />
-          <p className="text-pl-text font-medium">Insufficient data for plots</p>
-          <p className="text-sm text-pl-muted mt-1">
-            The latest run completed but its plot data has fewer than 2 timesteps. Re-run with more production observations.
-          </p>
+          <p className="text-pl-text font-medium">Too little data to plot</p>
+          <p className="text-sm text-pl-muted mt-1">The last run holds fewer than two timesteps. Add observations on the Data tab and run again.</p>
         </CardContent>
       </Card>
     );
   }
 
-  // =============================================================================
-  // RENDER
-  // =============================================================================
+  const shown = plotModels.filter((m) => m.applies);
+  const notShown = plotModels.filter((m) => !m.applies);
+  const statusBy = plotModels.find((m) => m.id === 'regression')?.detail?.statusBy ?? {};
+  const pick = (plot, step) => setPicked((cur) => (cur && cur.plot === plot && cur.step === step ? null : { plot, step }));
+  const pickedRow = picked ? series.rows.find((r) => r.timestep_index === picked.step) : null;
+
   return (
-    <div className="space-y-4">
-      {/* Header card — summary + refresh */}
+    <div className="space-y-4" data-testid="mbal-plots">
       <Card>
-        <CardHeader className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <CardTitle>Diagnostic Plots</CardTitle>
-            <CardDescription>
-              Five plots derived from the latest MBAL run on this case.
-              {' '}{isGas ? 'Gas reservoir: showing F vs Et, p/z, Cole, and drive indices.' : 'Oil reservoir: showing F vs Et, Campbell, and drive indices.'}
-              {' '}Click any data point to inspect that timestep's full payload.
-            </CardDescription>
-          </div>
-          <Button
-            onClick={() => setRefreshTick((n) => n + 1)}
-            variant="outline"
-            size="sm"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+        <CardHeader>
+          <CardTitle>Diagnostic Plots</CardTitle>
+          <CardDescription>
+            The plots of the last run, as the report prints them. Filled circles are the points the fit used and hollow squares are the points it did not use. Click a point or a bar to read that timestep.
+          </CardDescription>
         </CardHeader>
       </Card>
-
-      {/* Plots — 2-column grid on lg screens, stacked otherwise */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* F vs Et — always shown */}
-        <HavlenaOdehPlot rows={rows} result={result} isGas={isGas} caseName={caseName} />
-
-        {/* Gas-only plots */}
-        {isGas && <PZPlot rows={rows} result={result} caseName={caseName} ramagost={ramagost} />}
-        {isGas && <ColePlot rows={rows} result={result} caseName={caseName} />}
-
-        {/* Oil-only plot */}
-        {!isGas && <CampbellPlot rows={rows} result={result} caseName={caseName} />}
-
-        {/* Drive indices — always shown */}
-        <DriveIndicesPlot rows={rows} isGas={isGas} caseName={caseName} />
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        {shown.map((m) => (
+          <PlotCard key={m.id} model={m} caseName={caseName} onPick={pick} picked={picked?.plot === m.id}
+            detail={(
+              <TimestepDetail row={pickedRow} status={statusBy[picked?.step] ?? POINT_STATUS.fit} isGas={isGas} units={units} onClose={() => setPicked(null)} />
+            )} />
+        ))}
       </div>
-
-      {/* Honest footer note */}
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle className="text-sm text-pl-text">About these plots</AlertTitle>
-        <AlertDescription className="text-xs text-pl-muted leading-relaxed">
-          Hollow circles are points excluded from the regression fit (typically early-time points where the straight-line trend hasn't fully developed). Filled circles are the points used. The dashed red reference line on Campbell/Cole plots shows the MBAL-derived OOIP/OGIP for visual comparison with the apparent value the plot would suggest at each timestep.
-        </AlertDescription>
-      </Alert>
+      {notShown.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Plots that do not apply to this case</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1.5">
+            {notShown.map((m) => (
+              <p key={m.id} className="text-xs text-pl-muted" data-testid={`mbal-plot-na-${m.id}`}>
+                <span className="font-medium text-pl-text">{m.title}.</span> {m.statement}
+              </p>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

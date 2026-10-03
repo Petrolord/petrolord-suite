@@ -1,0 +1,81 @@
+{
+  "pages": 6,
+  "sha256": "e9b82bb5f0c13fb2da4953a1b62d2867cc5809ee72e98bea8dff8fb8f32ca574",
+  "figures": [
+    {
+      "id": "volume",
+      "number": 1,
+      "page": 5,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "Unrisked (success case)": 60,
+            "Risked (x Pg 32.0%)": 60
+          },
+          "total": 120,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "value",
+      "number": 2,
+      "page": 5,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 131.08,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "Unrisked (given a discovery)": 82,
+            "Risked (all outcomes)": 82
+          },
+          "total": 164,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "chance",
+      "number": 3,
+      "page": 6,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "Chance": 6
+          },
+          "total": 6,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "sensitivity",
+      "number": 4,
+      "page": 6,
+      "plotted": false,
+      "panels": []
+    }
+  ]
+}

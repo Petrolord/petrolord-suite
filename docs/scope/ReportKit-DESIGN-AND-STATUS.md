@@ -214,13 +214,15 @@ runs under.
 
 For the Reservoir round, in the order it will be met:
 
-1. Bar, histogram and tornado charts, and stacked bars (Reservoir Balance
-   drive indices, DCA EUR distribution, Waterflood tornado and layer bars,
-   Recovery Factor range, Fluid separator stages).
+1. Histogram and tornado charts (DCA EUR distribution, Waterflood tornado
+   and layer bars, Recovery Factor range). Vertical bars, stacked at each X
+   in series order, are in the kit since the Material Balance round
+   (`type: 'bar'`, `barWidth`; the test kit counts them as `bars`).
 2. Filled areas between curves (Reservoir Balance aquifer influx, DCA
    forecast bands).
-3. A date X axis (DCA, VRR, Waterflood surveillance). Today a date has to be
-   passed as a number and the ticks print as numbers.
+3. A date X axis: in the kit since the Material Balance round (`xDate`,
+   values in milliseconds since 1970, ticks on calendar boundaries printed
+   as years, months or days; `dateTicks`, `dateTickText`).
 4. A unit switch in the seven oilfield-only apps. `reportUnits` gives the
    labels and conversions; each app still has to hold its values in known
    units.
@@ -251,3 +253,13 @@ For the Geoscience reports, should they move later:
   plotted figure; assert `pointCounts` against the screen series.
 - Changing `src/lib/reportKit` must leave the Well Test goldens untouched
   unless the Well Test report is meant to change.
+
+## 8. Additions since Step 0
+
+| Date | From | What |
+|---|---|---|
+| 2026-10-02 | Risked Reserves Valuation U1 | `bars.js`: `drawBars(doc, box, spec)`, a bar chart on the house standard (categories on X, one bar per series, per-bar colours, value text over each bar, reference lines). A figure panel asks for it with `kind: 'bars'`. The test kit counts bars in the page content stream (`plotMarks().bars`, present only when the area holds one) and `expectFigureDrawn` holds them against `marks.bars`. Self-test `__tests__/reportKitBars.test.js`. This covers the bar part of gap 1 in section 6; histograms can use it with bins as categories; a tornado (horizontal bars from a base) is still open. |
+| 2026-10-02 | Risked Reserves Valuation U1 | `plot.js`: a reference line takes `row` to drop its label by one line per step, so neighbouring labels do not overprint. Default 0: existing reports are unchanged (Well Test goldens byte-identical). |
+| 2026-10-02 | ReservoirCalc Pro RL re-check | `drawPlot` used on a report that is not on the kit (its own jsPDF document and layout), with the kit test side reading it back: a way to give an older report a vector figure without changing its look. |
+| 2026-10-02 | Material Balance Studio U1 | `plot.js`: a series of `type: 'bar'` draws vertical bars stacked at each X in series order (drive indices against time), with `barWidth`; `xDate` puts a calendar on the X axis (`dateTicks`, `dateTickText`); `notesAt` moves the annotation box to a top corner; `markerSize` sizes a marker. These bars sit on a numeric or calendar X axis among lines and markers; `bars.js` above is the chart of named categories. Both draw a filled and stroked rectangle, so the test kit counts both as `bars`. Self-test `__tests__/reportKitStackedBars.test.js` (12). The limits block and the completeness guard were taken as written from the Fluid Systems round. Well Test goldens byte-identical. |
+| 2026-10-02 | Material Balance Studio U1 | Known limit, left as it is because changing it would move the Well Test goldens: `tickText` prints one significant figure from 1e5 up, so two neighbouring ticks of a large axis can print the same text ("2e7", "2e7"). An app scales the axis to a multiple (MMRB, 10^6 sm3) and names it in the axis title, as the Material Balance figures do. |

@@ -40,12 +40,16 @@ const EXTRA_SECTIONS = [
   { key: 'em', title: 'Earth models', kinds: ['em_model'], testPrefix: 'pld-em', emptyText: 'No saved earth models.' },
   // RCP-U1-026: ReservoirCalc Pro prospects (the inventory Risked Reserves Valuation reads)
   { key: 'rcp', title: 'ReservoirCalc Pro prospects', kinds: ['rcp_prospect'], testPrefix: 'pld-rcp', emptyText: 'No saved prospects.' },
+  // RRV-U1: saved risked valuations (pick the prospect too and the valuation stays linked to it)
+  { key: 'rrv', title: 'Risked valuations', kinds: ['rrv_valuation'], testPrefix: 'pld-rrv', emptyText: 'No saved valuations.' },
   // BF-U1-021: Basin & Charge Modeling models bring their tied registry well
   { key: 'bf', title: 'Basin models', kinds: ['bf_model'], testPrefix: 'pld-bf', emptyText: 'No saved basin models.' },
   // PP3b
   { key: 'wp_site', title: 'Well planning sites', kinds: ['wp_site'], testPrefix: 'pld-wpsite', emptyText: 'No well planning sites.' },
   { key: 'fields', title: 'Production fields', kinds: ['po_field'], testPrefix: 'pld-field', emptyText: 'No production fields.' },
   { key: 'cases', title: 'Economics cases', kinds: ['epe_case', 'epe_assumption_set'], testPrefix: 'pld-case', emptyText: 'No economics cases or assumption sets.' },
+  // MBAL-U1: Material Balance Studio cases, with production data, run settings, runs and results
+  { key: 'rb', title: 'Material balance cases', kinds: ['rb_case'], testPrefix: 'pld-rb', emptyText: 'No material balance cases.' },
   { key: 'sim', title: 'Simulation cases', kinds: ['sim_case'], testPrefix: 'pld-sim', emptyText: 'No simulation cases.' },
   { key: 'saved', title: 'Saved projects', kinds: ['saved_project'], testPrefix: 'pld-saved', emptyText: 'No saved projects.' },
 ];

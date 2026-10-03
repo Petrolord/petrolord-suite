@@ -10,8 +10,8 @@ import {
   ComposedChart, Line, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import UnitField from './UnitField';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -30,19 +30,6 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const MODELS = ['Auto-Select', 'Exponential', 'Hyperbolic', 'Harmonic'];
 
-const fmtVol = (v, isGas) => {
-  if (v == null || !Number.isFinite(v)) return EMPTY_VALUE;
-  return isGas
-    ? `${(v / 1e9).toLocaleString('en-US', { maximumFractionDigits: 2 })} Bcf`
-    : `${(v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 2 })} MM STB`;
-};
-const fmtRate = (v, isGas) => {
-  if (v == null || !Number.isFinite(v)) return EMPTY_VALUE;
-  return isGas
-    ? `${(v / 1e3).toLocaleString('en-US', { maximumFractionDigits: 0 })} Mscf/d`
-    : `${v.toLocaleString('en-US', { maximumFractionDigits: 0 })} STB/d`;
-};
-
 const Kpi = ({ label, value, hint }) => (
   <div className="border border-pl-border rounded-md p-3 bg-pl-sunken">
     <p className="text-[11px] text-pl-muted">{label}</p>
@@ -52,9 +39,18 @@ const Kpi = ({ label, value, hint }) => (
 );
 
 const ForecastTab = () => {
-  const { caseData, lastResult } = useMaterialBalanceStudio();
+  const { caseData, lastResult, units } = useMaterialBalanceStudio();
   const isGas = caseData?.fluid_system === 'gas';
   const phase = isGas ? 'gas' : 'oil';
+  // volumes and rates in the display units, with the multiple that suits them
+  const fmtVol = (v, gas) => {
+    if (v == null || !Number.isFinite(v)) return EMPTY_VALUE;
+    const s = units.scaled(gas ? 'gasVolume' : 'stockVolume', v);
+    return `${s.to(v).toLocaleString('en-US', { maximumFractionDigits: 2 })} ${s.label}`;
+  };
+  const rateQ = isGas ? 'gasRateK' : 'oilRate';
+  const fmtRate = (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE
+    : `${units.to(rateQ, v).toLocaleString('en-US', { maximumFractionDigits: units.to(rateQ, v) >= 100 ? 0 : 2 })} ${units.label(rateQ)}`);
 
   const [model, setModel] = useState('Auto-Select');
   const [econLimit, setEconLimit] = useState(isGas ? '100000' : '10');
@@ -109,14 +105,14 @@ const ForecastTab = () => {
   const chartData = useMemo(() => {
     const hist = (rates ?? []).map((r) => ({
       t: new Date(r.date).getTime(),
-      history: r.rate,
+      history: units.to(rateQ, r.rate),
     }));
     // Thin the forecast to weekly points so the chart stays light.
     const fc = (forecast?.points ?? [])
       .filter((_, i) => i % 7 === 0)
-      .map((p) => ({ t: new Date(p.date).getTime(), forecast: p.rate }));
+      .map((p) => ({ t: new Date(p.date).getTime(), forecast: units.to(rateQ, p.rate) }));
     return [...hist, ...fc];
-  }, [rates, forecast]);
+  }, [rates, forecast, units, rateQ]);
 
   if (!rates) {
     return (
@@ -159,26 +155,14 @@ const ForecastTab = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-pl-muted">
-                Economic limit ({isGas ? 'scf/d' : 'STB/d'})
-              </Label>
-              <Input value={econLimit} onChange={(e) => setEconLimit(e.target.value)} className="h-8 font-mono text-xs" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-pl-muted">Horizon (years)</Label>
-              <Input value={horizonYears} onChange={(e) => setHorizonYears(e.target.value)} className="h-8 font-mono text-xs" />
-            </div>
+            <UnitField label="Economic limit" quantity={isGas ? 'gasRate' : 'oilRate'} units={units} testId="mbal-forecast-limit"
+              value={econLimit === '' ? null : Number(econLimit)} onCommit={(v) => setEconLimit(v == null ? '' : String(v))} />
+            <UnitField label="Horizon" unitText="years" testId="mbal-forecast-horizon"
+              value={horizonYears === '' ? null : Number(horizonYears)} onCommit={(v) => setHorizonYears(v == null ? '' : String(v))} />
             {isGas && (
-              <div className="space-y-1.5">
-                <Label className="text-xs text-pl-muted">Abandonment pressure (psia)</Label>
-                <Input
-                  value={abandonment}
-                  onChange={(e) => setAbandonment(e.target.value)}
-                  placeholder="for p/z recoverable"
-                  className="h-8 font-mono text-xs"
-                />
-              </div>
+              <UnitField label="Abandonment pressure" quantity="pressure" units={units} testId="mbal-forecast-abandonment"
+                value={abandonment === '' ? null : Number(abandonment)} onCommit={(v) => setAbandonment(v == null ? '' : String(v))}
+                placeholder="for the p/z recoverable" />
             )}
           </div>
 
@@ -193,12 +177,12 @@ const ForecastTab = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Kpi
                   label={`Fit: ${fit.parameters.modelType}`}
-                  value={`R² ${fit.R2.toFixed(3)}`}
-                  hint={`qi ${fmtRate(fit.parameters.qi, isGas)}, Di ${(fit.parameters.Di * 365.25).toFixed(3)}/yr${fit.parameters.b ? `, b ${fit.parameters.b.toFixed(2)}` : ''}`}
+                  value={`r2 ${fit.R2.toFixed(3)}`}
+                  hint={`qi ${fmtRate(fit.parameters.qi)}, nominal Di ${(fit.parameters.Di * 365.25).toFixed(3)} per year${fit.parameters.b ? `, b ${fit.parameters.b.toFixed(2)}` : ''}`}
                 />
                 <Kpi
                   label="Rate at history end"
-                  value={fmtRate(forecast?.rateAtHistoryEnd, isGas)}
+                  value={fmtRate(forecast?.rateAtHistoryEnd)}
                 />
                 <Kpi
                   label="DCA remaining to limit"
@@ -228,13 +212,13 @@ const ForecastTab = () => {
                   <YAxis
                     stroke={CHART_COLORS.axisLine}
                     tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                    label={{ value: isGas ? 'Rate (scf/d)' : 'Rate (STB/d)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }}
+                    label={{ value: `Rate (${units.label(rateQ)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }}
                   />
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
                     labelStyle={{ color: CHART_COLORS.tooltipText }}
                     labelFormatter={(t) => new Date(t).toISOString().slice(0, 10)}
-                    formatter={(v, name) => [fmtRate(v, isGas), name]}
+                    formatter={(v, name) => [`${Number(v).toLocaleString('en-US', { maximumFractionDigits: 1 })} ${units.label(rateQ)}`, name]}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Scatter dataKey="history" name="History" fill="#dc2626" />
@@ -265,7 +249,7 @@ const ForecastTab = () => {
             <div className="space-y-3">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Kpi label="p/z recoverable" value={fmtVol(reconciliation.mbalRecoverable, true)}
-                  hint={`to ${abandonment} psia`} />
+                  hint={`to ${units.to('pressure', Number(abandonment)).toLocaleString('en-US', { maximumFractionDigits: 1 })} ${units.label('pressure')}`} />
                 <Kpi label="MBAL remaining" value={fmtVol(reconciliation.mbalRemaining, true)} />
                 <Kpi label="DCA remaining" value={fmtVol(reconciliation.dcaRemaining, true)} />
                 <Kpi
