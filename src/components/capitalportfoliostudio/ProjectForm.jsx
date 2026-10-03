@@ -10,7 +10,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { buildLabel } from '@/lib/platformBuild';
 import { listRrvPortfolioCandidates } from '@/pages/apps/riskedreserves/services/rrvPortfolioService';
 import {
-  RRV_SOURCE_TYPE, RRV_NPV_LABEL, RRV_NPV_NOTE, RRV_RISK_SCORE_TEXT, rrvIntakeProject, readRrvLink, rrvEditedFields, rrvProvenanceRows,
+  RRV_SOURCE_TYPE, RRV_NPV_LABEL, RRV_NPV_NOTE, RRV_RISK_SCORE_TEXT, RRV_P90_LABEL, RRV_P10_LABEL, RRV_SIZE_NOTE, rrvIntakeProject, readRrvLink, rrvEditedFields, rrvProvenanceRows,
 } from './rrvIntake';
 
 // Project form (D4): valuations can be typed manually or pulled from a
@@ -56,7 +56,7 @@ const ProjectForm = ({ project, onSave, onCancel, offer = null }) => {
   const rrvLink = isRrv ? readRrvLink(formData) : null;
   // the slots as they would be saved, to mark what was typed over since intake
   const rrvEdited = rrvLink ? rrvEditedFields({
-    ...formData, capex: parseFloat(formData.capex), npv_p50: parseFloat(formData.npv_p50), pos: parseFloat(formData.pos) / 100, fail_cost: parseFloat(formData.fail_cost),
+    ...formData, capex: parseFloat(formData.capex), npv_p50: parseFloat(formData.npv_p50), npv_p90: parseFloat(formData.npv_p90), npv_p10: parseFloat(formData.npv_p10), pos: parseFloat(formData.pos) / 100, fail_cost: parseFloat(formData.fail_cost),
   }) : [];
   const editedNote = (field) => {
     const e = rrvEdited.find((x) => x.field === field);
@@ -135,7 +135,7 @@ const ProjectForm = ({ project, onSave, onCancel, offer = null }) => {
     };
 
     const required = isRrv
-      ? [projectData.capex, projectData.npv_p50, projectData.pos]
+      ? [projectData.capex, projectData.npv_p10, projectData.npv_p50, projectData.npv_p90, projectData.pos]
       : [projectData.capex, projectData.npv_p10, projectData.npv_p50, projectData.npv_p90, projectData.risk_score, projectData.pos];
     if (!projectData.name || required.some((v) => isNaN(v))) {
       toast({ variant: 'destructive', title: 'Please fill all fields correctly.' });
@@ -198,14 +198,22 @@ const ProjectForm = ({ project, onSave, onCancel, offer = null }) => {
         </div>
         {isRrv ? (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div><Label htmlFor="npv_p90">NPV P90 ($MM)</Label><Input id="npv_p90" name="npv_p90" value="" placeholder={EMPTY_VALUE} disabled /><span className="block text-[10px] text-pl-muted">not provided by Risked Reserves Valuation</span></div>
+            <div>
+              <Label htmlFor="npv_p90">{RRV_P90_LABEL} ($MM)</Label>
+              <Input id="npv_p90" name="npv_p90" type="number" step="any" value={formData.npv_p90} onChange={handleChange} required data-testid="cp-rrv-p90" />
+              {editedNote('npv_p90')}
+            </div>
             <div>
               <Label htmlFor="npv_p50">{RRV_NPV_LABEL} ($MM)</Label>
               <Input id="npv_p50" name="npv_p50" type="number" step="any" value={formData.npv_p50} onChange={handleChange} required data-testid="cp-rrv-npv" />
               <span className="block text-[10px] text-pl-muted" data-testid="cp-rrv-npv-note">{RRV_NPV_NOTE}</span>
               {editedNote('npv_p50')}
             </div>
-            <div><Label htmlFor="npv_p10">NPV P10 ($MM)</Label><Input id="npv_p10" name="npv_p10" value="" placeholder={EMPTY_VALUE} disabled /><span className="block text-[10px] text-pl-muted">not provided by Risked Reserves Valuation</span></div>
+            <div>
+              <Label htmlFor="npv_p10">{RRV_P10_LABEL} ($MM)</Label>
+              <Input id="npv_p10" name="npv_p10" type="number" step="any" value={formData.npv_p10} onChange={handleChange} required data-testid="cp-rrv-p10" />
+              {editedNote('npv_p10')}
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -216,7 +224,7 @@ const ProjectForm = ({ project, onSave, onCancel, offer = null }) => {
         )}
         <p className="text-xs text-pl-muted mt-2">
           {isRrv
-            ? 'The valuation sends no spread of the success-case value, so the portfolio risk summary treats this project\'s success case at its mean.'
+            ? `P90 and P10 sizes: ${RRV_SIZE_NOTE}. The portfolio risk summary reads this project's spread from them.`
             : 'Petroleum convention: P90 is the low case. Linked runs also carry the NPV standard deviation into portfolio risk.'}
         </p>
       </div>

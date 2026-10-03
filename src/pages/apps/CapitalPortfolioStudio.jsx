@@ -515,7 +515,7 @@ const CapitalPortfolioStudioInner = () => {
                     </div>
                     {projects.some(isRrvProject) && (
                       <p className="mt-2 text-xs text-pl-muted" data-testid="cp-rrv-footnote">
-                        Projects from Risked Reserves Valuation carry the success-case mean value in the NPV P50 column (marked), {RRV_NPV_NOTE}. Their CAPEX is the exploration well cost, their chance of success is Pg, and they have no risk score.
+                        Projects from Risked Reserves Valuation carry the success-case mean value in the NPV P50 column (marked), {RRV_NPV_NOTE}. Their P90 and P10 are the values of the success-case P90 and P10 sizes, their CAPEX is the exploration well cost, their chance of success is Pg, and they have no risk score.
                       </p>
                     )}
                   </CardContent>

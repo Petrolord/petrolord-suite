@@ -35,8 +35,8 @@ describe('the mapping', () => {
       npv_p50: c.successMeanValueMM,
       pos: c.pg,
       fail_cost: c.wellCostMM,
-      npv_p90: null,
-      npv_p10: null,
+      npv_p90: c.p90SizeValueMM,
+      npv_p10: c.p10SizeValueMM,
       npv_stddev: null,
       risk_score: null,
       source_type: RRV_SOURCE_TYPE,
@@ -80,6 +80,21 @@ describe('the mapping', () => {
     // a project from another source has no link
     expect(readRrvLink(FIXTURE.projects[2])).toBeNull();
     expect(readRrvLink({ source_type: 'rrv', source_label: 'not json' })).toBeNull();
+  });
+});
+
+describe('the live schema (read 2026-10-03 by the programme lead)', () => {
+  // NOT NULL in the live portfolio_projects; risk_score and source_label are nullable
+  const NOT_NULL = ['capex', 'npv_p50', 'npv_p90', 'npv_p10'];
+  test('the intake fills every NOT NULL column with a finite number', () => {
+    for (const row of [savedValuationRow(), colleagueSharedRow(), savedValuationRow({ valuation: setInput(ekeneNorthValuation(), 'mefs', 5) })]) {
+      const p = intake(candidate(row));
+      for (const k of NOT_NULL) expect({ k, ok: Number.isFinite(p[k]) }).toEqual({ k, ok: true });
+    }
+  });
+  test('negative control: a payload with a blank P90 fails the same check', () => {
+    const p = { ...intake(), npv_p90: null };
+    expect(NOT_NULL.every((k) => Number.isFinite(p[k]))).toBe(false);
   });
 });
 

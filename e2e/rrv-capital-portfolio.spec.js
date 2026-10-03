@@ -35,7 +35,8 @@ test('U2-009: valuation to portfolio candidate', async ({ page }) => {
   await expect(dialog.getByTestId('cp-rrv-risk-score')).toContainText('not provided by Risked Reserves Valuation');
   await expect(dialog.getByTestId('cp-rrv-risk-score')).toContainText('Chance of success Pg 32.0%');
   await expect(dialog.locator('#capex')).toHaveValue('25');
-  await expect(dialog.locator('#npv_p90')).toBeDisabled();
+  await expect(dialog.locator('#npv_p90')).toHaveValue('-25');
+  await expect(dialog.getByText('Value of the success-case P10 size ($MM)')).toBeVisible();
   await dialog.getByRole('button', { name: 'Create Project' }).click();
   await expect(dialog).toBeHidden();
 

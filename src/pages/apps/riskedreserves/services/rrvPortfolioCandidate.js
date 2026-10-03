@@ -33,6 +33,11 @@
 //   pg, pc, pCommercialGivenSuccess        geological chance, commercial chance, P(V >= MEFS | discovery)
 //   successMeanValueMM                     the value for the NPV slot (above)
 //   valueIfDiscoveryMM                     the same before the well
+//   p90SizeMMboe, p10SizeMMboe             the success-case P90 and P10 sizes (engine)
+//   p90SizeValueMM, p10SizeValueMM         the value of each size after the well on the
+//                                          valuation's own value line (rrvMath.valueOfSize):
+//                                          u V - D - W at or above the MEFS, -W below it.
+//                                          Values of two sizes; percentiles of value differ.
 //   npvIfCommercialMM, meanIfCommercialMMboe   the commercial case at its mean size
 //   emvMM                                  EMV after the well
 //   wellCostMM, devCostMM, mefsMMboe, unitValuePerBoe   the economic inputs
@@ -47,10 +52,12 @@
 // A valuation that is not saved, or cannot be valued, is refused with a reason.
 
 import { fromRow, inputProblem, engineInput, valueBasisWord, BOE_BASIS, PERCENTILE_CONVENTION } from './rrvStore';
-import { valueOrProblem } from './rrvMath';
+import { valueOrProblem, valueOfSize } from './rrvMath';
 
 export const RRV_PORTFOLIO_SCHEMA = 'rrv-portfolio-candidate-1';
 export const RRV_APP = 'Risked Reserves Valuation';
+
+export const SIZE_VALUE_BASIS = 'the value, after the exploration well, of a discovery of the success-case P90 (low) or P10 (high) size on the valuation\'s own value line: value per barrel x size - development cost - well cost, or minus the well cost for a size below the MEFS (not developed). These are the values of two sizes; percentiles of value would differ';
 
 export const SUCCESS_MEAN_BASIS = 'the mean of the success case (a discovery, chance Pg), which is neither a median nor a P50: the expected value of the well\'s outcome given a discovery, the exploration well cost included (a discovery below the MEFS is not developed and is worth minus the well cost)';
 
@@ -95,6 +102,7 @@ export function buildRrvPortfolioCandidate({ row, userId = null, build = null })
   const W = Number(p.wellCost);
   const valueIfDiscovery = v.pCommercialGivenSuccess > 0 && v.npvIfCommercial !== null ? v.pCommercialGivenSuccess * v.npvIfCommercial : 0;
   const econ = p.econ || {};
+  const e = engineInput(p);
   const contract = {
     schema: RRV_PORTFOLIO_SCHEMA,
     app: RRV_APP,
@@ -112,6 +120,10 @@ export function buildRrvPortfolioCandidate({ row, userId = null, build = null })
     pCommercialGivenSuccess: v.pCommercialGivenSuccess,
     successMeanValueMM: valueIfDiscovery - W,
     valueIfDiscoveryMM: valueIfDiscovery,
+    p90SizeMMboe: v.successCase.p90,
+    p10SizeMMboe: v.successCase.p10,
+    p90SizeValueMM: valueOfSize(e, v.successCase.p90),
+    p10SizeValueMM: valueOfSize(e, v.successCase.p10),
     npvIfCommercialMM: v.npvIfCommercial,
     meanIfCommercialMMboe: v.meanIfCommercial,
     emvMM: v.emv,
@@ -124,6 +136,7 @@ export function buildRrvPortfolioCandidate({ row, userId = null, build = null })
     units: { money: '$MM', volume: 'MMboe', unitValue: '$/boe', boe: BOE_BASIS },
     basis: {
       successMeanValue: SUCCESS_MEAN_BASIS,
+      sizeValues: SIZE_VALUE_BASIS,
       emv: 'expected monetary value after the exploration well: Pg x success-case mean value minus (1 - Pg) x well cost',
       wellCost: 'the exploration well, spent in every outcome: the capital the drilling decision commits',
       devCost: 'the development cost of a commercial discovery, spent only after one: carried as information and left out of the budget line',

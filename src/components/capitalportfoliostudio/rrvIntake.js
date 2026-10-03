@@ -19,9 +19,14 @@
 //   npv_p50    = success-case mean value after the well
 //   pos        = Pg (the chance of success the success case is the mean of)
 //   fail_cost  = W (a dry hole loses the well)
-//   npv_p90, npv_p10, npv_stddev  = null: the valuation sends no spread of
-//                the success case's value, so the portfolio risk summary
-//                treats the success case at its mean (stated on the page)
+//   npv_p90, npv_p10 = the value, after the well, of the success-case P90
+//                (low) and P10 (high) SIZES on the valuation's own value
+//                line (the sender's rrvMath.valueOfSize): values of two
+//                sizes, labelled so; percentiles of value would differ. Both
+//                columns are NOT NULL in the live schema. The optimizer reads
+//                its spread from them (the (P10 - P90) / 2.5631 normal
+//                equivalent) as for any typed project.
+//   npv_stddev = null
 //   risk_score = null
 //   source_type 'rrv', source_ref = the valuation id
 //   source_label = the received contract, as JSON: {rrv: 1, label,
@@ -38,11 +43,16 @@ export const RRV_SCHEMA = 'rrv-portfolio-candidate-1';
 export const RRV_NPV_LABEL = 'Success-case mean value';
 export const RRV_NPV_NOTE = 'a mean of the success case (a discovery), after the exploration well; it is neither a median nor a P50';
 export const RRV_RISK_SCORE_TEXT = 'not provided by Risked Reserves Valuation';
+export const RRV_P90_LABEL = 'Value of the success-case P90 size';
+export const RRV_P10_LABEL = 'Value of the success-case P10 size';
+export const RRV_SIZE_NOTE = 'the value after the well of a discovery of that size on the valuation\'s value line (a size below the MEFS is not developed and loses the well); values of two sizes, so percentiles of value would differ';
 
 /** The slots the intake fills, and the contract value each takes. */
 export const RRV_SLOTS = Object.freeze([
   { field: 'capex', key: 'wellCostMM', label: 'CAPEX (well cost)' },
   { field: 'npv_p50', key: 'successMeanValueMM', label: RRV_NPV_LABEL },
+  { field: 'npv_p90', key: 'p90SizeValueMM', label: RRV_P90_LABEL },
+  { field: 'npv_p10', key: 'p10SizeValueMM', label: RRV_P10_LABEL },
   { field: 'pos', key: 'pg', label: 'Chance of success Pg' },
   { field: 'fail_cost', key: 'wellCostMM', label: 'Loss if it fails (the well)' },
 ]);
@@ -88,8 +98,8 @@ export function rrvIntakeProject(c, { now = new Date(), build = null } = {}) {
     name: c.prospectName,
     capex: c.wellCostMM,
     npv_p50: c.successMeanValueMM,
-    npv_p90: null,
-    npv_p10: null,
+    npv_p90: c.p90SizeValueMM,
+    npv_p10: c.p10SizeValueMM,
     npv_stddev: null,
     risk_score: null,
     pos: c.pg,
@@ -173,6 +183,8 @@ export function rrvProvenanceRows(c, { receivedAt = null, receivedBuild = null }
   return [
     ['Valuation', `"${c.prospectName}" (id ${c.valuationId})${c.sharedFromColleague ? ', a colleague\'s valuation shared with you: read-only provenance' : ''}`],
     [RRV_NPV_LABEL, `${num(c.successMeanValueMM, 2)} $MM: ${RRV_NPV_NOTE}`],
+    [RRV_P90_LABEL, `${num(c.p90SizeValueMM, 2)} $MM at ${num(c.p90SizeMMboe, 2)} MMboe`],
+    [RRV_P10_LABEL, `${num(c.p10SizeValueMM, 2)} $MM at ${num(c.p10SizeMMboe, 2)} MMboe: ${RRV_SIZE_NOTE}`],
     ['Chance of success Pg', pct(c.pg)],
     ['Commercial chance Pc', `${pct(c.pc)} (Pg x chance of at least the MEFS, ${num(c.mefsMMboe, 1)} MMboe)`],
     ['EMV after the well', `${num(c.emvMM, 2)} $MM`],

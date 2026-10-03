@@ -18,6 +18,7 @@ import { savedValuationRow, colleagueSharedRow, ekeneNorthValuation } from '../s
 import { applyEpeCase, setInput } from '../services/rrvStore';
 import { buildEpeUnitValue } from '@/pages/apps/epe/epeUnitValue';
 import { RRV_EPE_RUNS } from '../services/rrvFixtures';
+import { valueExceedance } from '../services/rrvMath';
 
 const BUILD = 'Petrolord Suite 4.0.0 (abc1234)';
 const send = (over = {}) => buildRrvPortfolioCandidate({ row: savedValuationRow(), userId: 'dev-user', build: BUILD, ...over });
@@ -86,6 +87,32 @@ describe('the contract', () => {
     // NPV if commercial is the mean of the commercial case only; put in the
     // slot it would not reproduce the EMV
     expect(Math.abs(c.pg * (c.npvIfCommercialMM - c.wellCostMM) - (1 - c.pg) * c.wellCostMM - c.emvMM)).toBeGreaterThan(1);
+  });
+
+  test('the values of the success-case P90 and P10 sizes, after the well, on the valuation\'s own value line', () => {
+    const c = send().contract;
+    expect(c.p90SizeMMboe).toBe(12);
+    expect(c.p10SizeMMboe).toBe(75);
+    // by hand: 12 MMboe is below the MEFS of 15, so it is not developed and loses the well
+    expect(c.p90SizeValueMM).toBe(-25);
+    // 75 MMboe is developed: u x 75 - D - W
+    expect(c.p10SizeValueMM).toBeCloseTo(c.unitValuePerBoe * 75 - c.devCostMM - 25, 9);
+    expect(c.basis.sizeValues).toMatch(/values of two sizes; percentiles of value would differ/);
+    // the engine agrees: given a discovery, the value of the P10 size is
+    // reached or beaten 10% of the time; and minus the well is where the
+    // engine puts every discovery below the MEFS (a step of 1 - P(V >= MEFS))
+    const e = { pg: c.pg, p90: 12, p50: 30, p10: 75, mefs: 15, unitValue: c.unitValuePerBoe, devCost: c.devCostMM, wellCost: 25 };
+    expect(valueExceedance(e, c.p10SizeValueMM, { given: 'success' })).toBeCloseTo(0.1, 6);
+    const step = valueExceedance(e, c.p90SizeValueMM, { given: 'success' }) - valueExceedance(e, c.p90SizeValueMM + 1e-9, { given: 'success' });
+    expect(step).toBeCloseTo(1 - c.pCommercialGivenSuccess, 9);
+    // negative control: forgetting the MEFS values the P90 size as if developed
+    expect(Math.abs((c.unitValuePerBoe * 12 - c.devCostMM - 25) - c.p90SizeValueMM)).toBeGreaterThan(1);
+  });
+
+  test('with the MEFS below the P90 size, both sizes are developed', () => {
+    const c = send({ row: savedValuationRow({ valuation: setInput(ekeneNorthValuation(), 'mefs', 5) }) }).contract;
+    expect(c.p90SizeValueMM).toBeCloseTo(c.unitValuePerBoe * 12 - c.devCostMM - 25, 9);
+    expect(c.p10SizeValueMM).toBeGreaterThan(c.p90SizeValueMM);
   });
 
   test('a Petroleum Economics Studio run that fed the economics travels as provenance', () => {

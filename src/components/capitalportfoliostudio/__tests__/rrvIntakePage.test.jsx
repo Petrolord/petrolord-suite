@@ -85,8 +85,10 @@ describe('U2-009: the intake of a Risked Reserves valuation', () => {
     expect(screen.getByLabelText('Success-case mean value ($MM)')).toHaveValue(c.successMeanValueMM);
     expect(screen.getByTestId('cp-rrv-npv-note')).toHaveTextContent('neither a median nor a P50');
     expect(screen.getByLabelText('CAPEX: the well cost ($MM)')).toHaveValue(25);
-    expect(screen.getByLabelText('NPV P90 ($MM)')).toBeDisabled();
-    expect(screen.getByLabelText('NPV P90 ($MM)')).toHaveAttribute('placeholder', 'n/a');
+    expect(screen.getByLabelText('Value of the success-case P90 size ($MM)')).toHaveValue(c.p90SizeValueMM);
+    expect(screen.getByLabelText('Value of the success-case P10 size ($MM)')).toHaveValue(c.p10SizeValueMM);
+    expect(intakeCard).toHaveTextContent('values of two sizes, so percentiles of value would differ');
+    expect(screen.queryByLabelText('NPV P90 ($MM)')).toBeNull();
     const risk = screen.getByTestId('cp-rrv-risk-score');
     expect(risk).toHaveTextContent('not provided by Risked Reserves Valuation');
     expect(risk).toHaveTextContent('Chance of success Pg 32.0%');
@@ -96,7 +98,7 @@ describe('U2-009: the intake of a Risked Reserves valuation', () => {
     await waitFor(() => expect(db.portfolio_projects).toHaveLength(1));
     const row = db.portfolio_projects[0];
     expect(row).toMatchObject({
-      name: 'Ekene North', capex: 25, risk_score: null, npv_p90: null, npv_p10: null, npv_stddev: null,
+      name: 'Ekene North', capex: 25, risk_score: null, npv_p90: c.p90SizeValueMM, npv_p10: c.p10SizeValueMM, npv_stddev: null,
       fail_cost: 25, source_type: 'rrv', source_ref: 'valuation-1', user_id: DEV_USER.id,
     });
     expect(row.pos).toBeCloseTo(0.32, 12);
