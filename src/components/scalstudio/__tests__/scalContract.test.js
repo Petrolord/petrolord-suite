@@ -140,7 +140,11 @@ describe('SCAL-U1-015: the saturation-height readers take a samples-mode project
   it('a schema 2 save of the same project reads the same (the kr-1 block and the new keys change nothing)', () => {
     const s = stateOf(inputsFromPayload(SCHEMA_1_SAMPLES));
     const resaved = { ...SCHEMA_1_SAMPLES, schema: 2, kr: s.contract, identification: {}, inputMeta: {}, unitSystem: 'si' };
-    expect(shmFromScalProject(resaved)).toEqual(shmFromScalProject(SCHEMA_1_SAMPLES));
+    const { sourceText: newSource, ...now } = shmFromScalProject(resaved);
+    const { sourceText: oldSource, ...before } = shmFromScalProject(SCHEMA_1_SAMPLES);
+    expect(now).toEqual(before);
+    expect(oldSource).toMatch(/saved before it carried its kr-1 block/);
+    expect(newSource).toBe('Leverett J averaged from 2 samples (Demo core A (synthetic), Demo core B (synthetic)), refit r2 1.000, scaled to k 150 md and porosity 0.22, from SCAL Studio project "Ekene E-2000 SCAL" (2026-10-03 09:00 UTC)');
     expect(shmFromScalProject(SCHEMA_1_MANUAL).ok).toBe(true);
   });
 });
