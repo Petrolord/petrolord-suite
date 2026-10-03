@@ -113,7 +113,7 @@ export function forecastFromHistory(fit, config, data, stream) {
     horizonDays: horizon,
     facilityLimit: cap,
     facilityLimitedDays: cappedDays,
-    ...(uptime !== 1 ? { downtimePct: (1 - uptime) * 100 } : {}),
+    ...(uptime !== 1 ? { downtimePct: Number(config.downtimePct) } : {}),
     // the switch to the terminal decline, dated; only present when one applies
     ...(full.terminalDecline ? { terminalDecline: terminalOf(full.terminalDecline, t0ms, lastMs, Dmin, config) } : {}),
   };
