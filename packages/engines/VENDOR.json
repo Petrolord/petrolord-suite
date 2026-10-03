@@ -32,14 +32,6 @@
       "burnDownWhen": "engines PR #300 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every mbal-u2 row."
     },
     {
-      "path": "README.md",
-      "kind": "differing",
-      "vendoredSha": "4c39912aeaa191f89ab7a9ccbe670bbc2503abf4",
-      "group": "mbal-u2 (engines PR #300)",
-      "reason": "Material Balance Studio U2 engines (injection in the balance, Bo above the bubble point, PVT table coverage), vendored from Petrolord/petrolord-engines PR #300 head f9a3afa (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
-      "burnDownWhen": "engines PR #300 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every mbal-u2 row."
-    },
-    {
       "path": "__tests__/mbalInjection.test.ts",
       "kind": "extra",
       "vendoredSha": "29da21629fec6f7e16f2285ce8d31c629192ea4f",
