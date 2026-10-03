@@ -52,6 +52,7 @@ import ValidationTierBadge from '@/components/reservoirbalance/ValidationTierBad
 import NewCaseDialog, { fluidSystemDisplay } from '@/components/reservoirbalance/NewCaseDialog';
 import MbsHelpContent from '@/components/reservoirbalance/MbsHelpContent';
 import VolumetricSource from '@/components/reservoirbalance/VolumetricSource';
+import VrrPressurePicker from '@/components/reservoirbalance/VrrPressurePicker';
 import { mapWellTestIntake } from './lib/wellTestIntake';
 import { staleRunMessage } from './lib/runStaleness';
 import {
@@ -497,6 +498,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
       <div className={activeTab === 'data' ? undefined : 'hidden'}>
         <DataHub caseId={caseId} caseData={caseData} onDataSaved={refreshCase} />
       </div>
+      {activeTab === 'data' && <div className="mt-4"><VrrPressurePicker /></div>}
       {activeTab === 'pvt' && (
         <PvtRock caseId={caseId} caseData={caseData} onConfigChange={refreshRunInputs} />
       )}

@@ -36,6 +36,11 @@ const DB = addSharingToStore(seedSampleStore());
   runEngineOnStore(DB, { run_config_id: runCfg.id }, { now: NOW });
 }
 // a saved ReservoirCalc Pro project, for the volumetric intake (Batch B)
+// and a saved Voidage Replacement Monitor project with pressure surveys on two survey months of the Ahmed case
+DB.saved_vrr_projects = [{
+  id: 'vrr-harness-1', user_id: USER.id, project_name: 'East pattern surveillance', created_at: '2026-09-20T09:00:00.000Z', updated_at: '2026-10-01T10:00:00.000Z',
+  inputs_data: { id: 'vrr-harness-1', name: 'East pattern surveillance', schema: 1, inputs: { pressureSurveys: [{ date: '2015-01', p_psia: 3642 }, { date: '2020-01-01', p_psia: 3358 }, { date: '2030-01', p_psia: 2900 }] } },
+}];
 DB.saved_quickvol_projects = [{ ...SAVED_PROJECT_ROWS[0].row, project_name: 'Main sand volumetrics', updated_at: '2026-10-01T12:00:00.000Z' }];
 let seq = 0;
 const newId = (p) => `${p}-${Date.now()}-${++seq}`;

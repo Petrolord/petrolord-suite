@@ -27,6 +27,7 @@ import {
 import { OILFIELD_UNITS } from './mbalUnits';
 import { excludedOf, exclusionRows } from './exclusions';
 import { volumetricBasis } from './rcpVolumetricIntake';
+import { pressureProvenance } from './vrrPressureIntake';
 import { readStudy } from './studyMeta';
 import tierMatrix from './tierMatrix.json';
 
@@ -475,6 +476,8 @@ export function dataSummary(a) {
   if (anyGinj) totals.push([`Cumulative gas injected at the cut-off (${ginj.label})`, volFmt(ginj, last?.cum_gas_inj_scf)]);
   const notes = ['Volumes are cumulative from the initial state. Np, Wp and injected water are stock-tank volumes; We is a reservoir volume.'];
   if (anyWinj || anyGinj) notes.push(injectionState(series).legacy ? INJECTION_LEGACY_NOTE : INJECTION_NOTE);
+  const taken = pressureProvenance(a.study, rows);
+  if (taken) notes.push(taken.text);
   return { head, body, totals, note: notes.join(' '), injection: anyWinj || anyGinj, counts };
 }
 
