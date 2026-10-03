@@ -54,6 +54,22 @@ export const ECON_MODEL_KEYS = Object.freeze(ECON_MODEL_FIELDS.map(([k]) => k));
 
 const num = (v) => (v === '' || v === null || v === undefined ? NaN : Number(v));
 
+// The page asks for the same model's answers on every render and keystroke;
+// the answers are pure, so the last few are kept (a small bounded cache).
+const memo = (limit = 64) => {
+  const m = new Map();
+  return (key, make) => {
+    if (m.has(key)) return m.get(key);
+    const v = make();
+    m.set(key, v);
+    if (m.size > limit) m.delete(m.keys().next().value);
+    return v;
+  };
+};
+const mefsMemo = memo();
+const curveMemo = memo();
+const keyOf = (a) => JSON.stringify(ECON_MODEL_KEYS.map((k) => a[k]).concat(a.startYear));
+
 /** The model with every assumption as a number (a blank stays NaN and is named by modelProblem). */
 export function modelOf(assumptions) {
   const a = { ...ECON_MODEL_DEFAULTS, ...(assumptions || {}) };
@@ -97,6 +113,10 @@ const SIZE_CAP = 1e6; // MMboe: beyond any field; a model that does not pay here
 export function derivedMefs(assumptions) {
   const bad = modelProblem(assumptions);
   if (bad) return { ok: false, reason: bad };
+  return mefsMemo(keyOf(modelOf(assumptions)), () => solveMefs(assumptions));
+}
+
+function solveMefs(assumptions) {
   const f = (v) => npvOfSize(v, assumptions);
   if (f(0) >= 0) return { ok: true, mefs: 0, npvAtMefs: f(0) };
   let lo = 0;
@@ -167,6 +187,10 @@ export function valueBySize(assumptions, sizes) {
  * @param {{pg: number, p90: number, p10: number, mefs: number, wellCost: number}} e engine input
  */
 export function emvOnCurve(e, assumptions, { nodes = 48 } = {}) {
+  return curveMemo(`${keyOf(modelOf(assumptions))}|${[e.pg, e.p90, e.p10, e.mefs, e.wellCost, nodes].join(',')}`, () => integrateCurve(e, assumptions, nodes));
+}
+
+function integrateCurve(e, assumptions, nodes) {
   const ln = lognormalFromP90P10(e.p90, e.p10);
   const m = Math.max(0, e.mefs || 0);
   const top = Math.max(ln.percentile(1e-4), m * 2, m + 1);

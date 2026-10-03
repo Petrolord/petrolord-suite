@@ -13,9 +13,9 @@
 // browser, and the page says so.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import {
-  PieChart, HelpCircle, Plus, Download, Trash2, RefreshCw, Save, Users, Copy, Undo2,
+  PieChart, HelpCircle, Plus, Download, Trash2, RefreshCw, Save, Users, Copy, Undo2, RotateCcw,
 } from 'lucide-react';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -78,7 +78,14 @@ function ValuationSharing({ store, row, onChange }) {
   return <RecordSharingBar sharing={sharing} label="valuation" allowEdit={false} fieldLabels={{ valuation: 'inputs and identification', name: 'name', prospect_key: 'source prospect', rcp_prospect_id: 'source prospect' }} />;
 }
 
-function RrvWorkstationContent({ backend }) {
+/** Where ReservoirCalc Pro opens (the /dev harness passes its own). */
+export const RCP_PATH = '/dashboard/apps/geoscience/reservoircalc-pro';
+
+/** Does this valuation's prospect want re-running: it changed upstream, was re-risked, or its volumes are flagged? */
+const wantsRerun = (p, up) => p.source === 'rcp' && !!up && (['changed', 'replaced', 'unrecorded'].includes(up.state) || (up.state === 'current' && p.basis !== 'recoverable'));
+
+function RrvWorkstationContent({ backend, rcpHref = RCP_PATH }) {
+  const location = useLocation();
   const au = useAppUnits('rrv', RRV_UNIT_SPEC, { fallback: RRV_UNIT_FALLBACK });
   const units = useMemo(() => rrvUnits(au.units.volume), [au.units.volume]);
   const FIELDS = useMemo(() => fields(units), [units]);
@@ -200,6 +207,31 @@ function RrvWorkstationContent({ backend }) {
     const rows = inventory ? [...inventory, ...sharedInventory] : null;
     return new Map([...prospects, ...sharedValuations].map((p) => [p.id, upstreamState(p, rows)]));
   }, [prospects, sharedValuations, inventory, sharedInventory]);
+
+  // U2-006: open ReservoirCalc Pro on the prospect, ready to re-run, with the way back here
+  const rerunHref = useCallback((p) => {
+    const up = upstream.get(p.id);
+    const id = up?.state === 'replaced' && up.row ? up.row.id : p.rcpId;
+    return `${rcpHref}?rerunProspect=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(location.pathname)}`;
+  }, [upstream, rcpHref, location.pathname]);
+
+  // back from ReservoirCalc Pro (?refresh=<prospect id>): take the re-run
+  const refreshAsked = params.get('refresh');
+  const refreshDone = useRef(null);
+  useEffect(() => {
+    if (!refreshAsked || inventory === null || storage.table === null || refreshDone.current === refreshAsked) return;
+    refreshDone.current = refreshAsked;
+    const p = prospects.find((x) => x.source === 'rcp' && (x.rcpId === refreshAsked || x.handoff?.recordId === refreshAsked));
+    const up = p ? upstream.get(p.id) : null;
+    if (!p) setLinkNote('ReservoirCalc Pro sent you back for a prospect that has no valuation here. Import it to value it.');
+    else if (up && ['changed', 'replaced'].includes(up.state) && up.row) {
+      const next = refreshFromRcp(p, up.row);
+      setProspects((ps) => ps.map((x) => (x.id === p.id ? { ...next, dirty: true } : x)));
+      setSelectedId(next.id);
+      setLinkNote(`Back from ReservoirCalc Pro: ${p.name} now takes the ${up.rerun || up.state === 'replaced' ? 're-run' : 'changed'} record. ${upstreamSentence(up, units)} Your economics, the well cost and any value you typed are kept. Save to keep it on your account.`);
+    } else setLinkNote(`Back from ReservoirCalc Pro: ${p.name} has no re-run there yet, and its source record is ${up?.state === 'current' ? 'unchanged' : 'as before'}.`);
+    const nextParams = new URLSearchParams(params); nextParams.delete('refresh'); setParams(nextParams, { replace: true });
+  }, [refreshAsked, inventory, sharedInventory, storage.table, prospects, upstream]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dirtyCount = prospects.filter((p) => p.dirty || !p.row).length;
   const savedWhere = useCallback((p) => {
@@ -377,6 +409,12 @@ function RrvWorkstationContent({ backend }) {
                 </button>
               )}
             </span>
+          )}
+          {wantsRerun(p, up) && (
+            <a href={rerunHref(p)} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-[10px] underline text-pl-primary-text" data-testid={`rrv-rerun-${p.name}`}
+              title="Open ReservoirCalc Pro on this prospect's project and run, ready to re-run, with a way back here">
+              <RotateCcw className="w-3 h-3" /> Re-run in ReservoirCalc Pro
+            </a>
           )}
           {!shared && <span className="block text-[10px] text-pl-muted" data-testid={`rrv-saved-${p.name}`}>{savedWhere(p)}</span>}
         </td>
@@ -580,7 +618,10 @@ function RrvWorkstationContent({ backend }) {
               </p>
               {selUp && selected.p.source === 'rcp' && (
                 <p className="text-[10px] text-pl-muted" data-testid="rrv-handoff-line">
-                  Volumes and Pg: {handoffLine(selected.p)}. {selUp.state === 'current' ? 'The source record is unchanged since.' : (upstreamSentence(selUp, units) || '')}
+                  Volumes and Pg: {handoffLine(selected.p)}. {selUp.state === 'current' ? 'The source record is unchanged since.' : (upstreamSentence(selUp, units) || '')}{' '}
+                  {selUp.state !== 'missing' && selUp.state !== 'unknown' && (
+                    <a href={rerunHref(selected.p)} className="underline text-pl-primary-text" data-testid="rrv-readout-rerun">Re-run in ReservoirCalc Pro</a>
+                  )}
                 </p>
               )}
               {model?.limits?.flags?.length > 0 && (
@@ -603,7 +644,7 @@ function RrvWorkstationContent({ backend }) {
 // Design system rollout batch 3E: the workstation opens light and follows
 // the user's theme choice from the toolbar toggle. The route page and the
 // /dev harness both mount this component, so they share the one scope.
-export default function RrvWorkstation(props) {
+export default function RrvWorkstation(props) { // eslint-disable-line react/function-component-definition
   return (
     <div className="h-full" data-testid="rrv-theme-scope">
       <RrvWorkstationContent {...props} />

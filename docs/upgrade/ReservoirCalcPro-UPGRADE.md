@@ -330,3 +330,19 @@ look: `drawPlot` for the vector figure, and the kit's test side for the
 read-back. A move needs: the banner header as a kit option (kit gap 6 in
 `docs/scope/ReportKit-DESIGN-AND-STATUS.md`), a KPI card block, histogram and
 tornado as kit figures, and a reviewer's eye on the result.
+
+## Owner item 3 built: "Re-run prospect" (2026-10-02, Risked Reserves Valuation U2-006)
+
+The M follow-up recorded above is built on branch `feat/rrv-u2`. ReservoirCalc
+Pro accepts `?rerunProspect=<id>&returnTo=<path>`: a bar under the header
+opens the prospect's project and reservoir, sets the recorded seed and
+realizations in the Probabilistic panel, and opens Prospect Risking filled in
+with the prospect's name and chance factors. The re-run is added as a new
+record naming the one it replaces (`inputs.source.replaces`) and the user's
+old record is retired; a colleague's shared prospect opens read-only with the
+reason. Code: `components/RerunProspectBar.jsx`, `services/prospectRerun.js`,
+the `rerun` state in `contexts/ReservoirCalcContext.jsx`, the Prospect
+Risking `rerun` prop, the Tools sheet now controlled by the page. Tests:
+`__tests__/prospectRerun.test.js`, `__tests__/rerunProspect.test.jsx`, and
+`e2e/risked-reserves-upgrade.spec.js`. Detail and the valuation side:
+`docs/upgrade/RiskedReservesValuation-UPGRADE.md`, section "U2-006".

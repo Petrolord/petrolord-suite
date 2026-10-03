@@ -7,9 +7,14 @@ import {
   render, screen, fireEvent, waitFor, cleanup,
 } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { configure } from '@testing-library/react';
+
+// the pages read in-memory stores asynchronously; on a loaded machine the
+// default one second for a findable element is too short
+configure({ asyncUtilTimeout: 15000 });
 import RrvWorkstation from '../components/RrvWorkstation';
 import { makeInMemoryRrvBackend } from '../services/rrvBackend';
-import { RRV_STORE_KEY, fromRcpProspect } from '../services/rrvStore';
+import { RRV_STORE_KEY, fromRcpProspect, toRow } from '../services/rrvStore';
 import { derivedMefs, ECON_MODEL_DEFAULTS } from '../services/rrvEconomics';
 import { RRV_SEED_PROSPECTS, RRV_EPE_RUNS } from '../services/rrvFixtures';
 
@@ -307,3 +312,63 @@ describe('U2-003: the Sensitivity tab', () => {
     expect(text('rrv-sensitivity-empty')).toMatch(/needs a valued prospect/);
   });
 });
+
+describe('U2-006: "Re-run prospect", to ReservoirCalc Pro and back', () => {
+  const savedNorth = () => [{ ...toRow(fromRcpProspect({ id: 'prospect-1', ...RRV_SEED_PROSPECTS[0] }, { now: new Date('2026-10-02T15:00:00Z') })), schema_version: 1, updated_at: '2026-10-02T15:01:00.000Z' }];
+  // what ReservoirCalc Pro's Prospect Risking does on a re-run: a new record naming the old one, the old one retired
+  const rerunUpstream = async (backend) => {
+    const old = (await backend.listProspects()).find((r) => r.id === 'prospect-1');
+    await backend.saveProspect({ name: old.name, pgFactors: old.pg_factors, inputs: { ...old.inputs, mean: 41, p90: 14, p50: 34, p10: 80, source: { ...old.inputs.source, replaces: 'prospect-1' } }, risked: { ...old.risked, success: { p90: 14, p50: 34, p10: 80, mean: 41 } } });
+    await backend.deleteProspect(old);
+  };
+
+  test('a valuation whose prospect was re-risked offers the re-run link; one that is current offers it in the readout only', async () => {
+    const backend = makeInMemoryRrvBackend(RRV_SEED_PROSPECTS, { valuations: savedNorth() });
+    await rerunUpstream(backend);
+    mount(backend, '/dashboard/apps/reservoir/risked-reserves-valuation');
+    await settled();
+    await waitFor(() => expect(el('rrv-upstream-Ekene North')).toBeTruthy());
+    const link = el('rrv-rerun-Ekene North');
+    const newId = (await backend.listProspects()).find((r) => r.name === 'Ekene North').id;
+    expect(link.getAttribute('href')).toBe(`/dashboard/apps/geoscience/reservoircalc-pro?rerunProspect=${newId}&returnTo=%2Fdashboard%2Fapps%2Freservoir%2Frisked-reserves-valuation`);
+    expect(text('rrv-upstream-Ekene North')).toMatch(/risked again in ReservoirCalc Pro as a new record/);
+    // Ekene Deep was imported fresh and is current and recoverable: no row link
+    await importAll();
+    expect(screen.queryByTestId('rrv-rerun-Ekene Deep')).toBeNull();
+    fireEvent.click(el('rrv-row-Ekene Deep'));
+    expect(el('rrv-readout-rerun').getAttribute('href')).toMatch(/^\/dashboard\/apps\/geoscience\/reservoircalc-pro\?rerunProspect=prospect-2&returnTo=/);
+  });
+
+  test('a prospect with in-place volumes is flagged and offered the re-run', async () => {
+    const seed = [{ ...RRV_SEED_PROSPECTS[0], inputs: { ...RRV_SEED_PROSPECTS[0].inputs, basis: 'in-place' } }];
+    mount(makeInMemoryRrvBackend(seed), '/');
+    await settled();
+    await importAll();
+    expect(el('rrv-rerun-Ekene North').getAttribute('href')).toBe('/dashboard/apps/geoscience/reservoircalc-pro?rerunProspect=prospect-1&returnTo=%2F');
+  });
+
+  test('back with ?refresh=<id>: the valuation takes the re-run, says what moved, keeps the economics, and is unsaved', async () => {
+    const backend = makeInMemoryRrvBackend(RRV_SEED_PROSPECTS, { valuations: savedNorth() });
+    await rerunUpstream(backend);
+    mount(backend, '/?refresh=prospect-1');
+    await settled();
+    await waitFor(() => expect(text('rrv-link-note')).toMatch(/^Back from ReservoirCalc Pro: Ekene North now takes the re-run record\./));
+    expect(text('rrv-link-note')).toMatch(/P90 12 to 14; P50 30 to 34; P10 75 to 80/);
+    expect(el('rrv-p90-Ekene North').value).toBe('14');
+    expect(screen.queryByTestId('rrv-upstream-Ekene North')).toBeNull(); // current again
+    expect(text('rrv-save-state')).toMatch(/1 not saved to your account/);
+    fireEvent.click(el('rrv-save'));
+    await waitFor(() => expect(text('rrv-save-state')).toBe('Saved to your account'));
+    const saved = backend._rows().find((r) => r.name === 'Ekene North');
+    expect(saved.valuation.handoff.recordId).not.toBe('prospect-1');
+  });
+
+  test('back with nothing re-run: said plainly, nothing changes', async () => {
+    const backend = makeInMemoryRrvBackend(RRV_SEED_PROSPECTS, { valuations: savedNorth() });
+    mount(backend, '/?refresh=prospect-1');
+    await settled();
+    await waitFor(() => expect(text('rrv-link-note')).toBe('Back from ReservoirCalc Pro: Ekene North has no re-run there yet, and its source record is unchanged. Dismiss'));
+    expect(text('rrv-save-state')).toBe('Saved to your account');
+  });
+});
+

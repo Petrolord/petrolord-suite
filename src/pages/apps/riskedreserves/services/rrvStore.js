@@ -430,7 +430,7 @@ export function editedKeys(p) {
   return HANDOFF_KEYS.filter((k) => isNum(sent[k]) && Number(p[k]) !== Number(sent[k]));
 }
 
-const newest = (rows) => [...rows].sort((a, b) => String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || '')))[0];
+const newest = (rows) => (rows.length ? [...rows].sort((a, b) => String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || '')))[0] : null);
 
 /**
  * How a valuation stands against the ReservoirCalc Pro inventory as it is
@@ -457,6 +457,9 @@ export function upstreamState(p, rows) {
       .filter((k) => Number(fresh.handoff.values[k]) !== Number(base[k]))
       .map((k) => ({ key: k, from: isNum(base[k]) ? Number(base[k]) : null, to: isNum(fresh.handoff.values[k]) ? Number(fresh.handoff.values[k]) : null }));
   };
+  // U2-006: a re-run made from ReservoirCalc Pro names the record it replaces
+  const rerun = newest(rows.filter((r) => r.id !== p.rcpId && r.inputs?.source?.replaces === p.rcpId));
+  if (rerun) return { state: 'replaced', row: rerun, changes: p.handoff ? changesTo(rerun) : [], rerun: true };
   const row = rows.find((r) => r.id === p.rcpId);
   if (row) {
     if (!p.handoff?.fingerprint) return { state: 'unrecorded', row };

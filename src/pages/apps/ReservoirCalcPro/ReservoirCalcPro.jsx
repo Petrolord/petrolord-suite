@@ -10,6 +10,7 @@ import ProjectManager from './components/tools/ProjectManager';
 import ReservoirSwitcher from './components/tools/ReservoirSwitcher';
 import WorkspaceToolsHub from './components/tools/WorkspaceToolsHub';
 import PanelErrorBoundary from './components/common/PanelErrorBoundary';
+import RerunProspectBar from './components/RerunProspectBar';
 import { HelpCircle, Folder, ChevronLeft, ChevronRight, Sidebar, ArrowLeft, Home, Wrench, Users } from 'lucide-react';
 import { RecordSharingBar, useRecordSharing } from '@/components/recordSharing';
 import { copyName } from '@/lib/recordSharing/rules';
@@ -25,7 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
-const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOpen }) => {
+const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOpen, toolsOpen, onToolsOpen, toolsTab = 'settings' }) => {
     const { state, saveCurrentProject, patchProjectSharing, loadProjects, loadProject } = useReservoirCalc();
     const { user: authUser } = useAuth();
     const { backend } = useReservoirCalc();
@@ -195,15 +196,15 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
                     </SheetContent>
                 </Sheet>
 
-                <Sheet>
+                <Sheet open={toolsOpen} onOpenChange={onToolsOpen}>
                     <SheetTrigger asChild>
-                        <Button variant="outline" size="sm" className="gap-2 h-8 text-xs border-pl-border bg-pl-sunken hover:bg-pl-sunken text-pl-text">
+                        <Button variant="outline" size="sm" data-testid="rcp-tools" className="gap-2 h-8 text-xs border-pl-border bg-pl-sunken hover:bg-pl-sunken text-pl-text">
                             <Wrench className="w-3 h-3" />
                             <span className="hidden md:inline">Tools</span>
                         </Button>
                     </SheetTrigger>
                     <SheetContent side="right" className="p-0 w-full sm:max-w-[720px] border-l">
-                        <WorkspaceToolsHub />
+                        <WorkspaceToolsHub key={toolsTab} initialTab={toolsTab} />
                     </SheetContent>
                 </Sheet>
 
@@ -283,6 +284,10 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
 
 export const ReservoirCalcProContent = () => {
     const [isDocsOpen, setIsDocsOpen] = useState(false);
+    // the Tools sheet, opened by the header or on Prospect Risking by the re-run bar
+    const [toolsOpen, setToolsOpen] = useState(false);
+    const [toolsTab, setToolsTab] = useState('settings');
+    const openTools = (open) => { setToolsOpen(open); if (!open) setToolsTab('settings'); };
     
     // Panel States (Persisted)
     const [showLeft, setShowLeft] = useState(() => localStorage.getItem('rc_showLeft') !== 'false');
@@ -313,7 +318,11 @@ export const ReservoirCalcProContent = () => {
                 onToggleRight={() => setShowRight(!showRight)}
                 isLeftOpen={showLeft}
                 isRightOpen={showRight}
+                toolsOpen={toolsOpen}
+                onToolsOpen={openTools}
+                toolsTab={toolsTab}
             />
+            <RerunProspectBar onOpenRisking={() => { setToolsTab('risking'); setToolsOpen(true); }} />
 
             <div className="flex-1 overflow-hidden flex p-2 gap-2">
                 {/* Left Panel: Inputs */}

@@ -16,7 +16,7 @@ import { prospectSourceFromState } from '../../services/prospectSource';
 const ProspectRiskingTool = () => {
     const { backend: rcp } = useReservoirCalc();
     const backend = useMemo(() => rcp?.prospects || makeRegistryProspectsBackend(), [rcp]);
-    const { state } = useReservoirCalc();
+    const { state, rerun } = useReservoirCalc();
     const fluidType = state?.inputs?.fluidType || 'oil';
     const unrisked = useMemo(() => unriskedFromRun(state?.probResults, fluidType, state?.unitSystem), [state?.probResults, fluidType, state?.unitSystem]);
     // U2-011: the one-page summary carries the workspace's reviewer block
@@ -27,7 +27,7 @@ const ProspectRiskingTool = () => {
     // RL11: the project, reservoir and run behind the volumes travel with the saved prospect
     const source = useMemo(() => prospectSourceFromState(state), [state]);
     return <ProspectRiskingPanel backend={backend} unrisked={unrisked} defaultUnit={runVolumeUnit(fluidType, state?.unitSystem)}
-        reviewer={reviewer} projectName={state?.project?.name || null} source={source} />;
+        reviewer={reviewer} projectName={state?.project?.name || null} source={source} rerun={rerun} />;
 };
 
 const TABS = [

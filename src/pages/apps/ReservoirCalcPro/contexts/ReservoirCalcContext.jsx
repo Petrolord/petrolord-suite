@@ -526,6 +526,10 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
     // U2-006: Monte Carlo progress (0 to 1, null when idle) and the
     // controller that cancels the running worker
     const [mcProgress, setMcProgress] = useState(null);
+    // Risked Reserves Valuation U2-006: a prospect opened to be re-run
+    // ({prospect, own, seed, iterations, returnTo}); the Probabilistic panel
+    // and Prospect Risking read it
+    const [rerun, setRerun] = useState(null);
     const mcAbortRef = useRef(null);
     const cancelSimulation = () => { mcAbortRef.current?.abort(); };
 
@@ -850,6 +854,8 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
         calculate,
         mcProgress,
         cancelSimulation,
+        rerun,
+        setRerun,
         // AOI
         startDrawing,
         addDrawingPoint,
@@ -866,7 +872,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
         // Audit
         logEvent,
         clearAudit
-    }), [state, profileUnitSystem, mcProgress]); // eslint-disable-line react-hooks/exhaustive-deps
+    }), [state, profileUnitSystem, mcProgress, rerun]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <ReservoirCalcContext.Provider value={value}>

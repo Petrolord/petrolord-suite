@@ -4,7 +4,7 @@
 // recorded (PL5: an old saved state must still open).
 
 const source = (reservoirName, inPlace, seed) => ({
-  schema: 'rcp-source-1', app: 'ReservoirCalc Pro', projectId: 'project-ekene', projectName: 'Ekene Block', reservoirName,
+  schema: 'rcp-source-1', app: 'ReservoirCalc Pro', projectId: 'project-ekene', projectName: 'Ekene Block', reservoirId: `r-${reservoirName.slice(0, 4).toLowerCase().replace(/[^a-z0-9]/g, '')}`, reservoirName,
   method: 'Hybrid (top surface + constant gross thickness, cut by the contacts)', fluidType: 'oil', unitSystem: 'field',
   volumesFrom: 'monte-carlo', volumesEdited: false,
   run: { ranAt: '2026-10-01T11:00:00.000Z', seed, iterations: 10000, grvMode: 'structural', signature: `sig-${seed}` },

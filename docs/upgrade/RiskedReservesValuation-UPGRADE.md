@@ -106,7 +106,7 @@ that misleads; S3 workflow gap or misleading text; S4 polish.
 | RRV-U1-019 | S3 | RL6, PL8 | No sensitivity analysis: a committee asks what moves the EMV. | Closed by U2-003 (Step 2): the tornado on screen and as Figure 5. |
 | RRV-U1-020 | S4 | PL5 | The harness seeded prospects with no unit or basis, so every walk showed the legacy warning. | Modern seeds; the legacy row is a fixture behind `?legacy=1`. |
 | RRV-U1-021 | S4 | PL6 | At 390 wide the prospect table scrolls sideways inside its card. | Kept (the T1 decision): eight numeric inputs do not fit a phone. The page itself does not scroll. |
-| RRV-U1-022 | S3 | PL8, RL11 | "Re-run prospect": the valuation can now refresh from a changed prospect, but cannot open ReservoirCalc Pro on the source project and run and re-run it. | Open: U2-006. The source block (012) is the first of the three needs. |
+| RRV-U1-022 | S3 | PL8, RL11 | "Re-run prospect": the valuation can now refresh from a changed prospect, but cannot open ReservoirCalc Pro on the source project and run and re-run it. | Closed by U2-006 (Step 2). |
 | RRV-U1-023 | S3 | RL7 | A typed value per barrel carries no discount rate, price deck or reference date; only a value sent by ReservoirCalc Pro prints its assumptions. | Partly fixed (the sent case prints engine and assumptions; a typed one prints its stated source and note). Open: U2-001. |
 
 Totals: 23 findings. Fixed 19 (5 S2, 12 S3, 2 S4), partly fixed 1 (023),
@@ -284,6 +284,9 @@ valuation holds lives in its existing `valuation` JSON payload.
 | U2-002 derived MEFS and value by field size | Done | `__tests__/rrvU2Economics.test.js` (19): a worked hand calculation (model H: MEFS 5.5 MMboe, u 34.67137 $/boe, D 190.69252 $MM; with royalty and tax 8.97959; with a capex per barrel 6.37681) against the shipped functions, which call `calculateEconomics` (spied: one call per NPV, the case handed over is checked); negative controls (the undiscounted 5.0 and the old default 10 are not the size that pays; the Step 1 defaults give minus 20 at the MEFS); the cross-check integral against a brute-force sum. `rrvU2Store.test.js` (14), `rrvU2Report.test.js` (8, PDF read back, golden `model-prospect`), `rrvU2Workstation.test.jsx` (5) | See "U2-002" below. |
 | U2-001 value per barrel from Petroleum Economics Studio | Done | Sender: `src/pages/apps/epe/__tests__/epeUnitValue.test.js` (11): the contract built from the Ekene demo run the cash-flow engine itself computed (NPV 1.980235 $MM over 0.721833 MMboe is 2.7433 $/boe; before capex 18.3602 $/boe; the line gives the run NPV back at the run's size; the engine's own DPI agrees with the PV of capex read), refusals, the fingerprint, the service by id, the results-page card. Receiver: `__tests__/rrvU2Epe.test.js` (10, PDF read back) and `rrvU2Workstation.test.jsx` U2-001 block (5): pick by id, provenance kept, save and reload, "source changed since" with Refresh, typed over, the link from the run, no runs and an unreadable store | See "U2-001" below. Petroleum Economics Studio had no sender; one was built there. |
 | U2-003 EMV tornado | Done | `__tests__/rrvU2Sensitivity.test.js` (9): a worked hand calculation (Pg 0.25, P90 10, P10 60, MEFS 10, 8 $/boe, 100 $MM, 25 $MM: well cost, development cost, value per barrel and Pg by 25%, and the charge factor 0.5 by 0.1, each to three decimals) against `emvSensitivity`, which asks `valueProspect` again for every case; negative control (a tornado that scales the EMV itself, forgetting the dry hole, misses by more than 6 $MM); ordering, clamping, refusals. `rrvU2Report.test.js` (2 more: the figure drawn as bars and counted in the file, the table, the well-cost row by hand, the analyst's own ranges). `rrvU2Workstation.test.jsx` (Sensitivity tab) | See "U2-003" below. Fills the figure Step 1 stated as absent (RRV-U1-019 closed). |
+| U2-006 "Re-run prospect" deep link | Done | `ReservoirCalcPro/__tests__/prospectRerun.test.js` (4, the plan: ready, read-only, missing, no source, typed, project gone, reservoir gone, return path kept inside the app) and `rerunProspect.test.jsx` (5: the project and reservoir open, the seed is set, Prospect Risking is filled, the re-run names the old record and retires it, the valuation's upstream check follows it, a colleague's prospect opens read-only and theirs is left alone). `rrvU2Workstation.test.jsx` U2-006 block (4: the link on a re-risked or flagged row and in the readout, back with `?refresh=` takes the re-run and keeps the economics, back with nothing re-run). e2e: valuation to ReservoirCalc Pro and back, and the read-only case | See "U2-006" below. Closes RRV-U1-022 and ReservoirCalc Pro owner item 3. |
+| U2-008 ranking | Building | `__tests__/rrvU2Ranking.test.js` (4): three prospects built so the three keys disagree, each order checked against the engine's own numbers, the unfinished one listed with its reason, shared rows owned and marked, the basis words, the CSV header line by line with one pinned conversion. `rrvU2Workstation.test.jsx` Ranking block (1) | See "U2-008" below. |
+| U2-009 send to Capital Portfolio | Deferred | none | Capital Portfolio Studio has a typed intake (`portfolio_projects` with `pos`, `fail_cost`, `source_type`, `source_ref`), so no DDL is needed, but the mapping has three questions for the owner. See "Deferred, with reasons". |
 
 ### U2-002: the derived MEFS and the value of a discovery
 
@@ -491,3 +494,55 @@ not follow the value per barrel in these cases.
 one-at-a-time tornado is the common practice the Step 2 parity table names
 for REP and RoseRA, from their public product pages. The validation is the
 hand calculation above, on the engine.
+
+### U2-006: "Re-run prospect"
+
+The three needs recorded in ReservoirCalc Pro's Step 2 (owner item 3), all
+built:
+
+1. *The prospect names its source.* Since the RL re-check a saved prospect
+   carries `inputs.source` (project, reservoir, run with its seed and
+   realizations). Nothing new was needed.
+2. *A deep link into ReservoirCalc Pro.* `?rerunProspect=<rcp_prospects
+   id>&returnTo=<path>` on the ReservoirCalc Pro route. A bar under the
+   header (`components/RerunProspectBar.jsx`, plan in
+   `services/prospectRerun.js`) reads the prospect (own, then shared), opens
+   its project, switches to its reservoir, puts the method on probabilistic
+   and sets the recorded seed and realizations in the Probabilistic panel, so
+   the same inputs give the same volumes and a changed input shows as a
+   change. "Open Prospect Risking" opens the Tools sheet on Prospect Risking
+   with the name, the chance factors and any economics assumptions filled
+   in. What cannot be opened says why: the prospect is gone, it was saved
+   before its source was recorded, its volumes were typed, its project is
+   not readable, its reservoir is no longer in the project.
+3. *A link from the valuation and the way back.* A valuation whose prospect
+   changed in ReservoirCalc Pro, was risked again, was imported before the
+   source was kept, or carries volumes flagged as in place or of unstated
+   basis shows "Re-run in ReservoirCalc Pro" on its row; every valuation from
+   ReservoirCalc Pro has the link in its readout. The return link carries
+   `?refresh=<id>`: the valuation takes the re-run (Pg, volumes and factors
+   from the new record, the economics, well cost and anything typed kept),
+   says what moved, and is left unsaved for the analyst to save.
+
+**One prospect, one record.** ReservoirCalc Pro never edits a prospect in
+place. A re-run is added as a new record whose source names the record it
+replaces (`inputs.source.replaces`), and the old record is retired when the
+user owns it; the valuation's upstream check follows a record that names it
+(`upstreamState`, state "replaced"). This also closes the Step 1 gap where a
+re-added prospect sat beside the stale one.
+
+**A colleague's shared prospect** opens read-only with the reason: the bar
+says it belongs to a colleague and is shared for viewing, the volumes can be
+run again, but only its owner can re-risk it; Prospect Risking then adds
+the user's own version and leaves theirs untouched (test). A colleague's
+project opens as they shared it (read-only unless shared for editing).
+
+**Return path.** Only a path inside the app is followed (`safeReturnPath`);
+anything else falls back to the valuation route.
+
+**Limit.** The harness pages each keep their own in-memory database, so the
+browser test walks the two halves and joins them with a harness seam
+(`/dev/risked-reserves?rerunDone=1`: the shared database after the re-run).
+On the live site both apps read the same `rcp_prospects` table, which jest
+covers on one in-memory database.
+
