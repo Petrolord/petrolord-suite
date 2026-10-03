@@ -114,6 +114,18 @@ describe('U2-009: the intake of a Risked Reserves valuation', () => {
     // the inventory's risked EMV is the valuation's EMV
     const cells = within(notes.closest('tr')).getAllByRole('cell');
     expect(cells[cells.length - 2]).toHaveTextContent(money(c.emvMM));
+
+    // no JSON reaches a rendered label: the stored label is plain words
+    expect(row.source_label).toBe(`Risked Reserves: Ekene North, saved 2026-10-02 15:01 UTC (version ${c.fingerprint})`);
+    const noJson = () => {
+      const texts = [document.body.textContent, ...[...document.querySelectorAll('[title]')].map((n) => n.getAttribute('title'))];
+      for (const t of texts) expect(t).not.toMatch(/rrv-portfolio-candidate-1|\{"|"schema"|"contract"/);
+    };
+    noJson();
+    fireEvent.click(within(notes.closest('tr')).getByTitle('Edit project'));
+    expect(await screen.findByTestId('cp-source-chip')).toHaveTextContent(row.source_label);
+    await screen.findByTestId('cp-rrv-intake');
+    noJson();
   });
 
   test('after a reload: the valuation is read again by id; source changed since, Refresh; a value typed over is marked', async () => {
@@ -128,7 +140,7 @@ describe('U2-009: the intake of a Risked Reserves valuation', () => {
     mount(db);
     await openPortfolio('Exploration 2027');
     const state = await screen.findByTestId('cp-rrv-state-Ekene North');
-    expect(state).toHaveTextContent(/Source changed since: .*well cost 25\.000 to 30\.000/);
+    expect(state).toHaveTextContent(/Source changed since \(version [0-9a-f]{8} to [0-9a-f]{8}\): .*CAPEX \(well cost\) there 30\.000 \(here 25\.000\)/);
     fireEvent.click(screen.getByTestId('cp-rrv-refresh-Ekene North'));
     await waitFor(() => expect(db.portfolio_projects[0].capex).toBe(30));
     const c2 = candidate(db.rrv_valuations[0]);

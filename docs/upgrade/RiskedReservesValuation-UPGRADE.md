@@ -601,11 +601,19 @@ $MM on about 415 $MM) and against the engine's EMV (1e-9).
 
 **The intake in Capital Portfolio Studio** (`capitalportfoliostudio/rrvIntake.js`):
 capex = well cost, npv_p50 = success-case mean value, pos = Pg, fail_cost =
-well cost, npv_p90 / npv_p10 / npv_stddev blank (no spread is sent; the
-risk summary treats the success case at its mean, and the form says so),
-risk_score blank, source_type `rrv`, source_ref the valuation id. The
-received contract is kept as JSON in `source_label` (the only free column;
-no migration). See the Capital Portfolio STATUS doc for what the page shows.
+well cost, npv_p90 / npv_p10 = the value after the well of the
+success-case P90 and P10 SIZES on the valuation's own value line
+(`rrvMath.valueOfSize`: u V - D - W at or above the MEFS, -W below it;
+labelled everywhere as values of those sizes, which differ from
+percentiles of value; checked by hand, against the engine's
+`valueExceedance` and with a negative control), npv_stddev and risk_score
+blank, source_type `rrv`, source_ref the valuation id (a uuid column),
+source_label a short human label "Risked Reserves: <prospect>, saved <date>
+UTC (version <fingerprint>)". The contract itself is never stored: it is
+read again by id wherever it is shown. "Edited after intake" is known while
+the valuation is still the version received; after it changes the page
+lists where the project and the valuation now differ, and Refresh takes
+every value from the valuation. See the Capital Portfolio STATUS doc.
 
 **The blank risk score.** The optimizer never reads `risk_score` (engines
 `economics/portfolio.js`: the knapsack, the EMV, the moments and the Monte
@@ -622,12 +630,12 @@ commit before any change; and the same set with the score blank, 1 or 10
 gives identical results. `rrvIntakePage.test.jsx` opens that fixture on the
 page and finds main's EMVs and funded set.
 
-**Open, for the owner:** whether the live `portfolio_projects.risk_score`
-(and `npv_p90`, `npv_p10`) allow NULL could not be read from this box (the
-table predates the migrations folder). If one does not, saving the intake
-fails with the database's message and a sentence that nothing was filled
-in; no value is invented. Check: `select column_name, is_nullable from
-information_schema.columns where table_name = 'portfolio_projects'`.
+**Live schema (read 2026-10-03 by the programme lead):** in
+`portfolio_projects`, `risk_score` and `source_label` are nullable;
+`capex`, `npv_p50`, `npv_p90` and `npv_p10` are NOT NULL. The intake fills
+all four (test `rrvIntake.test.js`, "the live schema", with a negative
+control), which is why P90 and P10 carry the values of the P90 and P10
+sizes.
 
 ## Deferred, with reasons (2026-10-02)
 

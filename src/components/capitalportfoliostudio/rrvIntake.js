@@ -28,11 +28,16 @@
 //                equivalent) as for any typed project.
 //   npv_stddev = null
 //   risk_score = null
-//   source_type 'rrv', source_ref = the valuation id
-//   source_label = the received contract, as JSON: {rrv: 1, label,
-//                contract, receivedAt, receivedBuild}. There is no other
-//                column for it without a migration; readRrvLink reads it
-//                back and the page shows `label`.
+//   source_type 'rrv', source_ref = the valuation id (a uuid column)
+//   source_label = a short human label the page shows as the link:
+//                "Risked Reserves: <prospect>, saved <date> (version <fp>)",
+//                the version being the contract's fingerprint. Nothing else
+//                is stored: the contract itself is read again by id
+//                (getRrvPortfolioCandidate) wherever it is shown. With the
+//                fingerprint, "source changed since" needs no stored copy;
+//                "edited after intake" compares the slots with the contract
+//                when it still has the received version, and is unknown
+//                once the valuation has changed (the page says so).
 
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
@@ -57,43 +62,30 @@ export const RRV_SLOTS = Object.freeze([
   { field: 'fail_cost', key: 'wellCostMM', label: 'Loss if it fails (the well)' },
 ]);
 
-const WATCHED = [
-  ['prospectName', 'prospect name'], ['successMeanValueMM', 'success-case mean value'], ['pg', 'Pg'], ['pc', 'Pc'],
-  ['wellCostMM', 'well cost'], ['devCostMM', 'development cost'], ['emvMM', 'EMV'], ['riskedMeanMMboe', 'risked volume'],
-  ['mefsMMboe', 'MEFS'], ['unitValuePerBoe', 'value per barrel'],
-];
-
 export const isRrvProject = (p) => p?.source_type === RRV_SOURCE_TYPE;
 
-const labelOf = (c) => `${c.prospectName}, Risked Reserves Valuation`;
+const day = (iso) => (iso ? String(iso).slice(0, 16).replace('T', ' ') : EMPTY_VALUE);
 
-const encode = (c, { now, build }) => JSON.stringify({ rrv: 1, label: labelOf(c), contract: c, receivedAt: now.toISOString(), receivedBuild: build ?? null });
+/** The link label: plain words and the version, never the contract. */
+export const rrvLabel = (c) => `Risked Reserves: ${c.prospectName}, saved ${day(c.valuationSavedAt)} UTC (version ${c.fingerprint})`;
 
 /**
- * What a Risked Reserves project received, read back from its row.
- * @returns {?{label: string, contract: object, receivedAt: ?string, receivedBuild: ?string}}
+ * What a Risked Reserves project holds of its source: the valuation id and
+ * the version (fingerprint) it was received at.
+ * @returns {?{valuationId: string, fingerprint: ?string, label: string}}
  */
 export function readRrvLink(project) {
-  if (!isRrvProject(project) || typeof project.source_label !== 'string') return null;
-  try {
-    const x = JSON.parse(project.source_label);
-    if (!x || x.rrv !== 1 || !x.contract || x.contract.schema !== RRV_SCHEMA) return null;
-    return { label: x.label || labelOf(x.contract), contract: x.contract, receivedAt: x.receivedAt ?? null, receivedBuild: x.receivedBuild ?? null };
-  } catch { return null; }
-}
-
-/** The label to show for a project's source (plain text for every source). */
-export function sourceLabelText(project) {
-  if (isRrvProject(project)) return readRrvLink(project)?.label || 'Risked Reserves valuation';
-  return project?.source_label || null;
+  if (!isRrvProject(project) || !project.source_ref) return null;
+  const label = typeof project.source_label === 'string' ? project.source_label : '';
+  const m = /\(version ([0-9a-f]{8})\)\s*$/.exec(label);
+  return { valuationId: project.source_ref, fingerprint: m ? m[1] : null, label: label || 'Risked Reserves valuation' };
 }
 
 /**
  * The project fields for a candidate.
  * @param {object} c an `rrv-portfolio-candidate-1` contract
- * @param {{now?: Date, build?: ?string}} [o]
  */
-export function rrvIntakeProject(c, { now = new Date(), build = null } = {}) {
+export function rrvIntakeProject(c) {
   return {
     name: c.prospectName,
     capex: c.wellCostMM,
@@ -106,28 +98,35 @@ export function rrvIntakeProject(c, { now = new Date(), build = null } = {}) {
     fail_cost: c.wellCostMM,
     source_type: RRV_SOURCE_TYPE,
     source_ref: c.valuationId,
-    source_label: encode(c, { now, build }),
+    source_label: rrvLabel(c),
   };
 }
 
 const differs = (a, b) => !(Number.isFinite(Number(a)) && Number.isFinite(Number(b)) && Math.abs(Number(a) - Number(b)) <= 1e-9 * Math.max(1, Math.abs(Number(b))));
 
-/** The slots typed over in the portfolio since the valuation was received: [{field, label, received, now}]. */
-export function rrvEditedFields(project) {
+/**
+ * The slots typed over since intake: [{field, label, received, now}], or
+ * null when it cannot be told (no contract, or the valuation has changed
+ * since, so the received values are no longer readable).
+ * @param {object} project a portfolio_projects row (or the form's values)
+ * @param {?object} contract the valuation as read now by id
+ */
+export function rrvEditedFields(project, contract) {
   const link = readRrvLink(project);
-  if (!link) return [];
+  if (!link || !contract || !link.fingerprint || contract.fingerprint !== link.fingerprint) return null;
   return RRV_SLOTS
-    .filter((s) => differs(project[s.field], link.contract[s.key]))
-    .map((s) => ({ field: s.field, label: s.label, received: link.contract[s.key], now: project[s.field] }));
+    .filter((sl) => differs(project[sl.field], contract[sl.key]))
+    .map((sl) => ({ field: sl.field, label: sl.label, received: contract[sl.key], now: project[sl.field] }));
 }
 
 /**
  * How a Risked Reserves project stands against its valuation as it is NOW
  * (read again by id after a page load, so the answer survives a refresh).
- *   none      not a Risked Reserves project, or its record is unreadable
+ *   none      not a Risked Reserves project
  *   unknown   the valuation could not be read (`current` undefined)
- *   current   it says what it said when it was received
- *   changed   it says something else: `changes` lists what moved
+ *   current   it is still the version received
+ *   changed   it was saved since with different values: `changes` lists
+ *             each slot whose value there now differs from the project's
  *   missing   it is gone, or no longer readable by this user
  *   refused   it is there but can no longer be valued (`reason`)
  * @param {object} project a portfolio_projects row
@@ -139,43 +138,38 @@ export function rrvLinkState(project, current) {
   if (current === undefined) return { state: 'unknown' };
   if (current === null) return { state: 'missing' };
   if (!current.ok) return { state: 'refused', reason: current.reason };
-  const held = link.contract;
-  if (current.contract.fingerprint === held.fingerprint) return { state: 'current', contract: current.contract };
-  const changes = WATCHED.filter(([k]) => current.contract[k] !== held[k]).map(([key, label]) => ({ key, label, from: held[key] ?? null, to: current.contract[key] ?? null }));
-  return { state: 'changed', contract: current.contract, changes };
+  if (link.fingerprint && current.contract.fingerprint === link.fingerprint) return { state: 'current', contract: current.contract };
+  const seen = new Set();
+  const changes = RRV_SLOTS
+    .filter((sl) => !seen.has(sl.key) && seen.add(sl.key))
+    .filter((sl) => differs(project[sl.field], current.contract[sl.key]))
+    .map((sl) => ({ key: sl.key, label: sl.label, here: project[sl.field] ?? null, there: current.contract[sl.key] ?? null }));
+  return { state: 'changed', contract: current.contract, changes, from: link.fingerprint, to: current.contract.fingerprint };
 }
 
-/**
- * Take the valuation as it is now. A slot typed over in the portfolio keeps
- * the typed value (and stays marked as edited); the rest follow.
- * @returns {object} the fields to update
- */
-export function refreshRrvProject(project, c, { now = new Date(), build = null } = {}) {
-  const edited = new Set(rrvEditedFields(project).map((e) => e.field));
-  const fresh = rrvIntakeProject(c, { now, build });
-  const out = { ...fresh };
-  for (const f of edited) out[f] = project[f];
-  // the name is the portfolio's own once typed
-  const held = readRrvLink(project);
-  if (project.name && held && project.name !== held.contract.prospectName) out.name = project.name;
+/** Take the valuation as it is now: every slot and the label. @returns {object} the fields to update */
+export function refreshRrvProject(project, c) {
+  const out = rrvIntakeProject(c);
+  // the name is the portfolio's own
+  if (project.name) out.name = project.name;
   return out;
 }
 
 const num = (v, d = 1) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v).toFixed(d) : EMPTY_VALUE);
 const pct = (v) => (Number.isFinite(Number(v)) && v !== null ? `${(Number(v) * 100).toFixed(1)}%` : EMPTY_VALUE);
-const day = (iso) => (iso ? String(iso).slice(0, 16).replace('T', ' ') : EMPTY_VALUE);
 
 /** One sentence for a link state (null when there is nothing to say). */
 export function rrvStateSentence(s) {
   if (!s || s.state === 'none' || s.state === 'current') return null;
   if (s.state === 'unknown') return 'The valuation could not be read just now.';
-  if (s.state === 'missing') return 'The valuation is gone from Risked Reserves Valuation, or is no longer shared with you. The values received are kept.';
+  if (s.state === 'missing') return 'The valuation is gone from Risked Reserves Valuation, or is no longer shared with you. The values here are kept.';
   if (s.state === 'refused') return `The valuation can no longer be valued: ${s.reason}`;
-  return `Source changed since: ${s.changes.length ? s.changes.map((x) => `${x.label} ${typeof x.from === 'number' ? num(x.from, 3) : x.from ?? EMPTY_VALUE} to ${typeof x.to === 'number' ? num(x.to, 3) : x.to ?? EMPTY_VALUE}`).join(', ') : 'its provenance moved'}.`;
+  const what = s.changes.length ? `: ${s.changes.map((x) => `${x.label} there ${num(x.there, 3)} (here ${num(x.here, 3)})`).join(', ')}` : '';
+  return `Source changed since (version ${s.from || EMPTY_VALUE} to ${s.to})${what}. Refresh takes every value from the valuation, replacing any typed here.`;
 }
 
 /** The provenance rows a reviewer reads: [label, value]. */
-export function rrvProvenanceRows(c, { receivedAt = null, receivedBuild = null } = {}) {
+export function rrvProvenanceRows(c) {
   const e = c.economics || {};
   const econ = e.valueBasis === 'epe' && e.epe
     ? `Petroleum Economics Studio run "${e.epe.runName}"${e.epe.caseName ? ` of case "${e.epe.caseName}"` : ''}${e.epe.priceDeckName ? `, price deck "${e.epe.priceDeckName}"` : ''}${e.epe.discountRatePct != null ? `, ${num(e.epe.discountRatePct, 1)}%${e.epe.pvBasis ? ` ${e.epe.pvBasis}` : ''}` : ''}, results ${day(e.epe.resultsAt)}`
@@ -194,7 +188,7 @@ export function rrvProvenanceRows(c, { receivedAt = null, receivedBuild = null }
     ['Value of a discovery from', `${econ}; MEFS ${e.mefsBasis === 'derived' ? 'derived' : 'typed'}`],
     ['Volumes and Pg from', c.volumes?.from === 'ReservoirCalc Pro' ? `ReservoirCalc Pro "${c.volumes.recordName}", saved ${day(c.volumes.recordUpdatedAt)}` : 'typed in Risked Reserves Valuation'],
     ['Valuation saved', day(c.valuationSavedAt)],
-    ['Received', `${day(receivedAt)}${receivedBuild ? `, ${receivedBuild}` : ''}; sent by ${c.sentBuild || 'a build not stated'}`],
+    ['Read', `by id from Risked Reserves Valuation; sent by ${c.sentBuild || 'a build not stated'}`],
     ['Fingerprint', c.fingerprint],
   ];
 }

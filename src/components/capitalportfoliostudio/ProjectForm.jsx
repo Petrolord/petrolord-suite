@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Label } from '@/components/ui/label';
@@ -8,7 +8,7 @@ import { DialogFooter } from '@/components/ui/dialog';
 import { Link2, X } from 'lucide-react';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { buildLabel } from '@/lib/platformBuild';
-import { listRrvPortfolioCandidates } from '@/pages/apps/riskedreserves/services/rrvPortfolioService';
+import { listRrvPortfolioCandidates, getRrvPortfolioCandidate } from '@/pages/apps/riskedreserves/services/rrvPortfolioService';
 import {
   RRV_SOURCE_TYPE, RRV_NPV_LABEL, RRV_NPV_NOTE, RRV_RISK_SCORE_TEXT, RRV_P90_LABEL, RRV_P10_LABEL, RRV_SIZE_NOTE, rrvIntakeProject, readRrvLink, rrvEditedFields, rrvProvenanceRows,
 } from './rrvIntake';
@@ -48,16 +48,29 @@ const fromProject = (project) => {
 
 const ProjectForm = ({ project, onSave, onCancel, offer = null }) => {
   const { toast } = useToast();
-  const [formData, setFormData] = useState(() => fromProject(project || (offer ? rrvIntakeProject(offer, { build: buildLabel() }) : null)));
+  const [formData, setFormData] = useState(() => fromProject(project || (offer ? rrvIntakeProject(offer) : null)));
+  // the valuation as it is now (the project stores only its id, version and
+  // label): the offer or the pick, or read by id for a saved project
+  const [rrvContract, setRrvContract] = useState(offer);
   const [mcRuns, setMcRuns] = useState(null);
   const [showMcPicker, setShowMcPicker] = useState(false);
   const [rrvList, setRrvList] = useState(null); // null closed; 'loading'; Array; {error}
   const isRrv = formData.source_type === RRV_SOURCE_TYPE;
   const rrvLink = isRrv ? readRrvLink(formData) : null;
+  const rrvRef = rrvLink?.valuationId || null;
+  useEffect(() => {
+    if (!rrvRef || (rrvContract && rrvContract.valuationId === rrvRef)) return undefined;
+    let live = true;
+    getRrvPortfolioCandidate(supabase, rrvRef, { build: buildLabel() })
+      .then((r) => { if (live) setRrvContract(r?.ok ? r.contract : null); }, () => { if (live) setRrvContract(null); });
+    return () => { live = false; };
+  }, [rrvRef]); // eslint-disable-line react-hooks/exhaustive-deps
+  const contractNow = rrvContract && rrvContract.valuationId === rrvRef ? rrvContract : null;
+  const sameVersion = !!(contractNow && rrvLink?.fingerprint === contractNow.fingerprint);
   // the slots as they would be saved, to mark what was typed over since intake
-  const rrvEdited = rrvLink ? rrvEditedFields({
+  const rrvEdited = (rrvLink && rrvEditedFields({
     ...formData, capex: parseFloat(formData.capex), npv_p50: parseFloat(formData.npv_p50), npv_p90: parseFloat(formData.npv_p90), npv_p10: parseFloat(formData.npv_p10), pos: parseFloat(formData.pos) / 100, fail_cost: parseFloat(formData.fail_cost),
-  }) : [];
+  }, contractNow)) || [];
   const editedNote = (field) => {
     const e = rrvEdited.find((x) => x.field === field);
     if (!e) return null;
@@ -108,7 +121,8 @@ const ProjectForm = ({ project, onSave, onCancel, offer = null }) => {
   };
 
   const takeRrv = (contract) => {
-    setFormData(fromProject(rrvIntakeProject(contract, { build: buildLabel() })));
+    setFormData(fromProject(rrvIntakeProject(contract)));
+    setRrvContract(contract);
     setRrvList(null);
   };
 
@@ -229,11 +243,16 @@ const ProjectForm = ({ project, onSave, onCancel, offer = null }) => {
         </p>
       </div>
 
-      {isRrv && rrvLink && (
+      {isRrv && contractNow && (
         <div className="rounded-lg border border-pl-border bg-pl-sunken p-3 text-xs" data-testid="cp-rrv-intake">
           <p className="font-semibold text-pl-text mb-1">From Risked Reserves Valuation</p>
+          {!sameVersion && (
+            <p className="text-pl-warning-text mb-1" data-testid="cp-rrv-version-note">
+              The valuation has been saved since this project took it in (version {rrvLink?.fingerprint || EMPTY_VALUE}, now {contractNow.fingerprint}). The rows below are the valuation as it is now; the project keeps its own values until it is refreshed.
+            </p>
+          )}
           <dl className="space-y-0.5">
-            {rrvProvenanceRows(rrvLink.contract, rrvLink).map(([k, v]) => (
+            {rrvProvenanceRows(contractNow).map(([k, v]) => (
               <div key={k} className="flex flex-wrap gap-x-2"><dt className="w-48 shrink-0 text-pl-muted">{k}</dt><dd className="flex-1 min-w-[180px] text-pl-text">{v}</dd></div>
             ))}
           </dl>
@@ -246,7 +265,7 @@ const ProjectForm = ({ project, onSave, onCancel, offer = null }) => {
           <div data-testid="cp-rrv-risk-score">
             <Label>Risk Score (1-10)</Label>
             <p className="text-xs text-pl-text mt-2">{RRV_RISK_SCORE_TEXT}</p>
-            <p className="text-xs text-pl-muted">Chance of success Pg {rrvLink ? `${(rrvLink.contract.pg * 100).toFixed(1)}%` : EMPTY_VALUE}; commercial chance Pc {rrvLink ? `${(rrvLink.contract.pc * 100).toFixed(1)}%` : EMPTY_VALUE}</p>
+            <p className="text-xs text-pl-muted">Chance of success Pg {contractNow ? `${(contractNow.pg * 100).toFixed(1)}%` : EMPTY_VALUE}; commercial chance Pc {contractNow ? `${(contractNow.pc * 100).toFixed(1)}%` : EMPTY_VALUE}</p>
           </div>
         ) : (
           <div><Label htmlFor="risk_score">Risk Score (1-10)</Label><Input id="risk_score" name="risk_score" type="number" min="1" max="10" value={formData.risk_score} onChange={handleChange} required /></div>

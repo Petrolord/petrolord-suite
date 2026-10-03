@@ -21,9 +21,8 @@ import { setInput } from '@/pages/apps/riskedreserves/services/rrvStore';
 import FIXTURE from './__fixtures__/existingPortfolio.json';
 import GOLDEN from './__fixtures__/existingPortfolio.results.json';
 
-const NOW = new Date('2026-10-03T10:00:00Z');
 const candidate = (row = savedValuationRow()) => buildRrvPortfolioCandidate({ row, userId: 'dev-user', build: 'test build' }).contract;
-const intake = (c = candidate()) => rrvIntakeProject(c, { now: NOW, build: 'test build' });
+const intake = (c = candidate()) => rrvIntakeProject(c);
 
 describe('the mapping', () => {
   test('the slots: success-case mean in npv_p50, well cost as the budget line and the dry-hole loss, Pg as pos, no risk score', () => {
@@ -69,17 +68,17 @@ describe('the mapping', () => {
     expect(good.capex).not.toBe(c.devCostMM);
   });
 
-  test('the provenance rides in the project and survives a reload (a plain row read back)', () => {
+  test('the project keeps a short human label, the valuation id and its version; never the contract', () => {
     const c = candidate();
     const row = JSON.parse(JSON.stringify({ id: 'pp-new', ...intake(c) }));
-    const link = readRrvLink(row);
-    expect(link.contract).toEqual(c);
-    expect(link.receivedAt).toBe('2026-10-03T10:00:00.000Z');
-    expect(link.receivedBuild).toBe('test build');
-    expect(link.label).toBe('Ekene North, Risked Reserves Valuation');
+    expect(row.source_label).toBe(`Risked Reserves: Ekene North, saved 2026-10-02 15:01 UTC (version ${c.fingerprint})`);
+    expect(row.source_label).not.toMatch(/[{}"]/);
+    expect(row.source_label.length).toBeLessThan(120);
+    expect(row.source_ref).toBe('valuation-1');
+    expect(readRrvLink(row)).toEqual({ valuationId: 'valuation-1', fingerprint: c.fingerprint, label: row.source_label });
     // a project from another source has no link
     expect(readRrvLink(FIXTURE.projects[2])).toBeNull();
-    expect(readRrvLink({ source_type: 'rrv', source_label: 'not json' })).toBeNull();
+    expect(readRrvLink({ source_type: 'rrv', source_ref: 'v', source_label: 'typed by hand' })).toMatchObject({ valuationId: 'v', fingerprint: null });
   });
 });
 
@@ -99,33 +98,42 @@ describe('the live schema (read 2026-10-03 by the programme lead)', () => {
 });
 
 describe('edited after intake, and the source changed since', () => {
-  test('a value typed over in the portfolio is marked, the others are not', () => {
-    const p = intake();
-    expect(rrvEditedFields(p)).toEqual([]);
-    expect(rrvEditedFields({ ...p, capex: 30, pos: 0.4 }).map((e) => e.field)).toEqual(['capex', 'pos']);
+  const now = (row) => ({ ok: true, contract: candidate(row) });
+
+  test('a value typed over in the portfolio is marked against the valuation read by id, while it is the version received', () => {
+    const c = candidate();
+    const p = intake(c);
+    expect(rrvEditedFields(p, c)).toEqual([]);
+    expect(rrvEditedFields({ ...p, capex: 30, pos: 0.4 }, c).map((e) => e.field)).toEqual(['capex', 'pos']);
+    expect(rrvEditedFields({ ...p, npv_p90: 0 }, c)).toEqual([expect.objectContaining({ field: 'npv_p90', received: c.p90SizeValueMM, now: 0 })]);
+    // once the valuation has changed, the received values are not readable: unknown
+    const c2 = candidate(savedValuationRow({ valuation: setInput(ekeneNorthValuation(), 'wellCost', 30) }));
+    expect(rrvEditedFields({ ...p, capex: 30 }, c2)).toBeNull();
+    expect(rrvEditedFields(p, null)).toBeNull();
   });
 
-  test('the valuation as it is now: current, changed (with what moved), missing, refused, unknown', () => {
+  test('the valuation as it is now: current, changed (with what differs), missing, refused, unknown', () => {
     const p = intake();
-    const now = (row) => ({ ok: true, contract: candidate(row) });
     expect(rrvLinkState(p, undefined).state).toBe('unknown');
     expect(rrvLinkState(p, null).state).toBe('missing');
     expect(rrvLinkState(p, { ok: false, reason: 'Volumes need 0 < P90 < P10' })).toMatchObject({ state: 'refused', reason: 'Volumes need 0 < P90 < P10' });
     expect(rrvLinkState(p, now(savedValuationRow({ updatedAt: '2026-10-09T00:00:00.000Z' }))).state).toBe('current');
     const moved = rrvLinkState(p, now(savedValuationRow({ valuation: setInput(ekeneNorthValuation(), 'wellCost', 30) })));
     expect(moved.state).toBe('changed');
-    expect(moved.changes.map((x) => x.key)).toEqual(expect.arrayContaining(['wellCostMM', 'successMeanValueMM', 'emvMM']));
+    expect(moved.changes.map((x) => x.key)).toEqual(expect.arrayContaining(['wellCostMM', 'successMeanValueMM']));
+    expect(moved.changes.find((x) => x.key === 'wellCostMM')).toMatchObject({ here: 25, there: 30 });
   });
 
-  test('Refresh takes the valuation as it is now and keeps a value typed in the portfolio', () => {
-    const p = { ...intake(), capex: 30 };
+  test('Refresh takes every value and the new version from the valuation, and keeps the portfolio\'s name', () => {
+    const p = { ...intake(), capex: 30, name: 'Ekene North (portfolio)' };
     const c2 = candidate(savedValuationRow({ valuation: setInput(ekeneNorthValuation(), 'pg', 0.4) }));
-    const next = refreshRrvProject(p, c2, { now: new Date('2026-10-04T10:00:00Z'), build: 'b2' });
+    const next = refreshRrvProject(p, c2);
     expect(next.pos).toBe(c2.pg);
     expect(next.npv_p50).toBe(c2.successMeanValueMM);
-    expect(next.capex).toBe(30);
-    expect(readRrvLink(next).contract.fingerprint).toBe(c2.fingerprint);
-    expect(rrvEditedFields(next).map((e) => e.field)).toEqual(['capex']);
+    expect(next.capex).toBe(c2.wellCostMM);
+    expect(next.name).toBe('Ekene North (portfolio)');
+    expect(readRrvLink({ ...p, ...next }).fingerprint).toBe(c2.fingerprint);
+    expect(rrvEditedFields({ ...p, ...next }, c2)).toEqual([]);
   });
 });
 

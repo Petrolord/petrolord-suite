@@ -36,14 +36,16 @@ const numCell = (tone) => `text-right font-pl-mono tabular-nums whitespace-nowra
 /** Under a Risked Reserves project's name: where it came from, what moved there since, what was typed here. */
 function RrvRowNotes({ p, state, checking, onRefresh }) {
   const link = readRrvLink(p);
-  const edited = rrvEditedFields(p);
+  // known only while the valuation is still the version received
+  const edited = rrvEditedFields(p, state.contract) || [];
+  const pos = Number(p.pos);
   const sentence = checking ? null : rrvStateSentence(state);
   return (
     <span className="block font-normal" data-testid={`cp-rrv-row-${p.name}`} data-state={checking ? 'checking' : state.state}>
       <span className="ml-0 mt-0.5 inline-block text-[10px] text-pl-muted bg-pl-sunken border border-pl-border rounded px-1.5 py-0.5" title={link?.label || 'Risked Reserves valuation'}>
-        RRV{link?.contract?.sharedFromColleague ? ' (shared)' : ''}
+        RRV{state.contract?.sharedFromColleague ? ' (shared)' : ''}
       </span>
-      <span className="ml-1 text-[10px] text-pl-muted">Pg {link ? `${(link.contract.pg * 100).toFixed(1)}%` : EMPTY_VALUE}, risk score not provided</span>
+      <span className="ml-1 text-[10px] text-pl-muted">Pg {Number.isFinite(pos) ? `${(pos * 100).toFixed(1)}%` : EMPTY_VALUE}, risk score not provided</span>
       {sentence && (
         <span className="block text-[10px] text-pl-warning-text" data-testid={`cp-rrv-state-${p.name}`}>
           {sentence}{' '}
@@ -173,7 +175,7 @@ const CapitalPortfolioStudioInner = () => {
       toast({ variant: 'destructive', title: 'Refresh failed', description: error.message });
       return;
     }
-    toast({ title: 'Refreshed', description: `${p.name} now carries the valuation as it is in Risked Reserves Valuation. Values typed here are kept.` });
+    toast({ title: 'Refreshed', description: `${p.name} now carries the valuation as it is in Risked Reserves Valuation. Every value comes from the valuation; any typed here was replaced.` });
     fetchProjects();
   };
 
