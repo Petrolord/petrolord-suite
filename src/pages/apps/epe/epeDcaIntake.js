@@ -30,9 +30,13 @@ export function dcaProvenanceOf(file) {
   return last && typeof last === 'object' && last[DCA_PROVENANCE_KEY] ? last[DCA_PROVENANCE_KEY] : null;
 }
 
-/** The volume rows of a file, without the provenance record. */
+/** The key a Forecast Scenario Hub case rides under (DCA U2-013, epeHubIntake.js). */
+export const HUB_PROVENANCE_KEY = 'fsh_case_1';
+const PROVENANCE_KEYS = [DCA_PROVENANCE_KEY, HUB_PROVENANCE_KEY];
+
+/** The volume rows of a file, without a provenance record. */
 export function volumeRowsOf(data) {
-  return (Array.isArray(data) ? data : []).filter((r) => !(r && typeof r === 'object' && r[DCA_PROVENANCE_KEY]));
+  return (Array.isArray(data) ? data : []).filter((r) => !(r && typeof r === 'object' && PROVENANCE_KEYS.some((k) => r[k])));
 }
 
 /** The file name a received forecast is stored under. */

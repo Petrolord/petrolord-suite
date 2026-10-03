@@ -3,6 +3,8 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { dcaProvenanceOf, volumeRowsOf, dcaProvenanceText } from '@/pages/apps/epe/epeDcaIntake';
 import { getDcaForecast } from '@/utils/declineCurve/dcaForecastService';
 import { compareWithSource } from '@/utils/declineCurve/dcaForecastContract';
+import { hubProvenanceOf, hubProvenanceText } from '@/pages/apps/epe/epeHubIntake';
+import { getHubCase, compareHubWithSource } from '@/utils/forecastScenarioContract';
 import { motion } from 'framer-motion';
 import {
   FileSpreadsheet, Loader2, Trash2, Play, CheckCircle2, AlertCircle, ChevronDown, ChevronUp
@@ -92,6 +94,17 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
   const rowCount = status === 'PROCESSED' ? rows.length : undefined;
   const previewRows = rows.slice(0, 3);
   const [sourceState, setSourceState] = useState(null);
+  // DCA U2-013: a file received from Forecast Scenario Hub
+  const hub = status === 'PROCESSED' ? hubProvenanceOf(file) : null;
+  const [hubState, setHubState] = useState(null);
+  useEffect(() => {
+    if (!hub) return undefined;
+    let alive = true;
+    getHubCase(supabase, { projectId: hub.projectId, caseId: hub.caseId })
+      .then((now) => { if (alive) setHubState(compareHubWithSource(hub, now)); })
+      .catch((e) => { if (alive) setHubState({ state: 'unreadable', text: `The source could not be read: ${e.message}` }); });
+    return () => { alive = false; };
+  }, [hub?.fingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!dca) return undefined;
     let alive = true;
@@ -171,6 +184,15 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
             <p className={sourceState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-dca-source-state">
               {sourceState.text}{sourceState.state === 'changed' ? ' Import it again from Decline Curve Analysis to take the new forecast.' : ''}
             </p>
+          )}
+        </div>
+      )}
+
+      {hub && (
+        <div className="mt-2 rounded border border-pl-border bg-pl-sunken p-2 text-[11px] text-pl-muted space-y-1" data-testid="epe-hub-provenance">
+          <p>{hubProvenanceText(hub)}</p>
+          {hubState && (
+            <p className={hubState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-hub-source-state">{hubState.text}</p>
           )}
         </div>
       )}
