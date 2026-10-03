@@ -276,7 +276,7 @@ test.describe('PL2: hostile production files at the Data door', () => {
     for (const reason of ['text before the table', 'comment line', 'repeated header', 'totals row', 'no pressure on this row']) await expect(skipped).toContainText(reason);
   });
 
-  test('twenty years of monthly surveys are read whole; injection columns are told from production and named as left out of the balance', async ({ page }) => {
+  test('twenty years of monthly surveys are read whole; injection columns are told from production and are in the balance (MBAL-U2-002)', async ({ page }) => {
     await load(page, '12-monthly-twenty-years.csv');
     await expect(page.getByTestId('mbal-import-counts')).toContainText('241 rows read');
     await load(page, '08-injection-before-production.csv');
@@ -284,7 +284,7 @@ test.describe('PL2: hostile production files at the Data door', () => {
     await page.getByTestId('mbal-data-save').click();
     await expect(page.getByTestId('mbal-data-injection')).toBeVisible({ timeout: 30000 });
     await tab(page, 'Run').click();
-    await expect(page.getByTestId('mbal-injection-note')).toContainText('left out of the balance');
+    await expect(page.getByTestId('mbal-injection-note')).toContainText('Injection is in the balance');
   });
 });
 
@@ -418,9 +418,70 @@ test.describe('record sharing, for viewing', () => {
     await page.setViewportSize({ width: 1366, height: 768 });
     await openCase(page, AHMED);
     await page.getByTestId('share-switch').click();
-    await expect(page.getByTestId('share-view-only')).toContainText('Colleagues can view it');
-    await expect(page.getByTestId('share-access')).toHaveCount(0);
+    // MBAL-U2-001: colleagues can now be let edit, one person at a time
+    await expect(page.getByTestId('share-access')).toHaveValue('view');
+    await page.getByTestId('share-access').selectOption('edit');
+    // the owner is the one editing it now, so the tabs stay writable
+    await expect(page.getByTestId('done-editing')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('mbal-read-only')).toHaveCount(0);
+    await page.getByTestId('done-editing').click();
+    await expect(page.getByTestId('mbal-read-only')).toContainText('Start editing first', { timeout: 15000 });
+    await page.getByTestId('start-editing').click();
+    await expect(page.getByTestId('mbal-read-only')).toHaveCount(0, { timeout: 15000 });
+    await page.getByTestId('history-button').click();
+    await expect(page.getByText('Started editing').first()).toBeVisible();
     await page.getByTestId('share-switch').click();
-    await expect(page.getByTestId('share-view-only')).toHaveCount(0);
+    await expect(page.getByTestId('share-access')).toHaveCount(0);
+  });
+});
+
+test.describe('MBAL U2: Step 2 Batch A and B on the harness', () => {
+  test('excluded timesteps: a point left out from the data table with a reason, the run uses it, and the report lists it', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openCase(page, AHMED, 'data');
+    await page.getByTestId('mbal-exclusion-exclude-2').click();
+    await page.getByTestId('mbal-exclusion-input-2').fill('Survey not built up');
+    await page.getByTestId('mbal-exclusion-confirm-2').click();
+    await expect(page.getByTestId('mbal-exclusion-reason-2')).toContainText('Survey not built up');
+    await tab(page, 'Run').click();
+    await run(page);
+    await expect(page.getByTestId('mbal-result-card')).toContainText('11 points in the fit');
+    // restore from the regression plot
+    await tab(page, 'Plots').click();
+    await expect(page.getByTestId('mbal-plot-regression')).toBeVisible({ timeout: 30000 });
+    await tab(page, 'Report').click();
+    const [download] = await Promise.all([page.waitForEvent('download', { timeout: 120000 }), page.getByTestId('mbal-export-pdf').click()]);
+    const file = path.join(OUT, 'u2-exclusions.pdf');
+    await download.saveAs(file);
+    const pdf = readPdfFile(file);
+    expect(pdf.flat).toMatch(/Timesteps excluded by the analyst/);
+    expect(pdf.flat).toMatch(/Survey not built up/);
+    expect(pdf.flat).toMatch(/Summary Item Value/);
+  });
+
+  test('the sender: Cross-check in ReservoirCalc Pro names the case by id; a stale run is not sent', async ({ page }) => {
+    await openCase(page, AHMED);
+    await run(page);
+    await expect(page.getByTestId('mbal-send-rcp')).toBeEnabled();
+    await expect(page.getByTestId('mbal-send')).toContainText('contract mbal-1');
+  });
+
+  test('the volumetric estimate is taken from a saved ReservoirCalc Pro project, and the source is printed', async ({ page }) => {
+    await openCase(page, AHMED);
+    await page.getByTestId('mbal-volumetric-from-rcp').click();
+    await page.getByTestId('mbal-volumetric-project').selectOption({ label: 'Main sand volumetrics' });
+    await page.getByTestId('mbal-volumetric-take').click();
+    await expect(page.getByTestId('mbal-volumetric-value')).toContainText('226.28 MMSTB', { timeout: 15000 });
+    await expect(page.getByTestId('mbal-volumetric-source')).toContainText('ReservoirCalc Pro project "Main sand volumetrics"');
+  });
+
+  test('pressures are taken from a saved VRR project onto the dated rows, with what changes shown first', async ({ page }) => {
+    await openCase(page, AHMED, 'data');
+    await page.getByTestId('mbal-vrr-open').click();
+    await page.getByTestId('mbal-vrr-project').selectOption({ label: 'East pattern surveillance' });
+    await expect(page.getByTestId('mbal-vrr-plan')).toContainText('Timestep 5, 2015-01-01');
+    await expect(page.getByTestId('mbal-vrr-plan')).toContainText('Surveys on no dated row of this case: 2030-01');
+    await page.getByTestId('mbal-vrr-take').click();
+    await expect(page.getByTestId('mbal-vrr-taken')).toContainText('Pressures of timesteps 5, 10', { timeout: 30000 });
   });
 });
