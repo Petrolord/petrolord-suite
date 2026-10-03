@@ -29,9 +29,9 @@ const same = (v) => v;
  */
 export default function DcaNumberField({
   id, label, unit = '', value, onCommit, toView = same, toEngine = same, emptyValue = null, placeholder, hint, testId, disabled = false,
-  integer = false, className, inputClassName, labelClassName,
+  integer = false, className, inputClassName, labelClassName, digits = 7,
 }) {
-  const shown = value == null || value === '' || !Number.isFinite(Number(value)) ? '' : numberForInput(toView(Number(value)), 7);
+  const shown = value == null || value === '' || !Number.isFinite(Number(value)) ? '' : numberForInput(toView(Number(value)), digits);
   const [text, setText] = useState(shown);
   const [focused, setFocused] = useState(false);
   useEffect(() => { if (!focused) setText(shown); }, [shown, focused]);
