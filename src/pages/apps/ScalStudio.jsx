@@ -27,6 +27,13 @@ import HeightPanel from '@/components/scalstudio/HeightPanel';
 import HeightResults from '@/components/scalstudio/HeightResults';
 import ExportTab from '@/components/scalstudio/ExportTab';
 import ScalHelpContent from '@/components/scalstudio/ScalHelpContent';
+import ScalReportTab from '@/components/scalstudio/ScalReportTab';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabaseSharingStore } from '@/lib/recordSharing';
+import { RecordSharingBar } from '@/components/recordSharing';
+import { useProfileSystem } from '@/lib/units/useProfileSystem';
+import { SCAL_PROFILE_FAMILIES } from '@/utils/scalstudio/units';
+import { buildLabel } from '@/lib/platformBuild';
 
 // Design system rollout batch 1D (docs/scope/DesignSystem-Rollout.md): the
 // page sits in the dashboard scope, so every class below is a theme role.
@@ -36,8 +43,12 @@ const TABS = [
   { value: 'labdata', label: 'Lab Data' },
   { value: 'capillary', label: 'Capillary' },
   { value: 'height', label: 'Height & Saturation' },
+  { value: 'report', label: 'Report' },
   { value: 'export', label: 'Export' },
 ];
+
+// One store per page; record sharing of saved_scal_projects (SCAL-U1, PL5).
+const SHARING_STORE = supabaseSharingStore();
 
 const ScalStudioContent = () => {
   const [searchParams] = useSearchParams();
@@ -48,9 +59,11 @@ const ScalStudioContent = () => {
   // Lab Data tab selection (page-level so panel and results stay in step).
   const [selectedSampleId, setSelectedSampleId] = useState(null);
   const {
-    projects, currentProjectId, createProject, openProject, deleteProject,
+    projects, sharedProjects, viewingShared, projectRow, sharing, saveCopy, canWrite,
+    currentProjectId, createProject, openProject, deleteProject,
     manualSave, isSaving, saveError, lastSaveTime,
     notifications, removeNotification,
+    unitSystem, setUnitSystem, followsProfile,
   } = useScalStudio();
 
   const leftPanel = (
@@ -58,11 +71,29 @@ const ScalStudioContent = () => {
       <section>
         <StudioProjectManager
           projects={projects}
+          sharedProjects={sharedProjects}
+          canDelete={!viewingShared}
           currentProjectId={currentProjectId}
           onCreate={createProject}
           onOpen={openProject}
           onDelete={deleteProject}
+          confirmDeleteMessage="Delete this SCAL project? Apps that read it by id (Waterflood, Petrophysics, Earth Modeling, Rock Physics, ReservoirCalc Pro) will no longer find it."
         />
+        {projectRow && (
+          <RecordSharingBar
+            sharing={sharing}
+            label="project"
+            className="mt-2"
+            onSaveCopy={saveCopy}
+            onReload={() => openProject(currentProjectId)}
+            fieldLabels={{ project_name: 'name', inputs_data: 'curves, samples and report fields' }}
+          />
+        )}
+        {projectRow && sharing.ready && !canWrite && (
+          <p className="mt-2 text-xs text-pl-warning-text" data-testid="scal-read-only">
+            {sharing.readOnlyReason || 'This project is open read-only.'} Changes you make here are not saved to it.
+          </p>
+        )}
       </section>
       {activeTab === 'curves' && <CurvesPanel />}
       {activeTab === 'labdata' && (
@@ -70,6 +101,13 @@ const ScalStudioContent = () => {
       )}
       {activeTab === 'capillary' && <CapillaryPanel />}
       {activeTab === 'height' && <HeightPanel />}
+      {activeTab === 'report' && (
+        <p className="text-xs text-pl-muted">
+          The report prints the identification, every input with its unit and source, the sample pedigree, the model and
+          its fit, the limits of the analysis and the figures of the other tabs. Fill the identification and the sources
+          in the main area.
+        </p>
+      )}
       {activeTab === 'export' && (
         <p className="text-xs text-pl-muted">
           Handoffs and downloads live in the main area. Everything exports the WORKING state: the Curves tab's
@@ -85,6 +123,7 @@ const ScalStudioContent = () => {
       {activeTab === 'labdata' && <LabDataResults selectedId={selectedSampleId} />}
       {activeTab === 'capillary' && <CapillaryResults />}
       {activeTab === 'height' && <HeightResults />}
+      {activeTab === 'report' && <ScalReportTab />}
       {activeTab === 'export' && <ExportTab />}
     </>
   );
@@ -113,6 +152,15 @@ const ScalStudioContent = () => {
         }
         headerActions={
           <>
+            <Select value={unitSystem} onValueChange={setUnitSystem}>
+              <SelectTrigger className="h-8 w-[104px] text-xs" aria-label="Display units" data-testid="scal-unit-system" title={followsProfile ? 'Following your Suite unit profile' : 'Display units of this project'}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="oilfield">Oilfield</SelectItem>
+                <SelectItem value="si">SI</SelectItem>
+              </SelectContent>
+            </Select>
             <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
             <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
@@ -135,9 +183,10 @@ const ScalStudioContent = () => {
 };
 
 export default function ScalStudio() {
+  const profileSystem = useProfileSystem('scal', SCAL_PROFILE_FAMILIES);
   return (
     <div data-testid="scal-theme-scope">
-      <ScalStudioProvider>
+      <ScalStudioProvider sharingStore={SHARING_STORE} profileSystem={profileSystem} build={buildLabel()}>
         <ScalStudioContent />
       </ScalStudioProvider>
     </div>

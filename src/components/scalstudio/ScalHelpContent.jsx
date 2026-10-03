@@ -1,89 +1,113 @@
-// Help drawer content for SCAL Studio. Covers all five shipped tabs (Curves,
-// Lab Data, Capillary, Height and Saturation, Export). Plain sentences, no em
-// dashes (owner copy rule).
+// Help drawer content for SCAL Studio. Covers every tab (Curves, Lab Data,
+// Capillary, Height and Saturation, Report, Export) and the upgrade of
+// 2026-10 (SCAL-U1: report, kr-1 handoff, units, lab doors, datum, sharing).
+// Plain sentences, no em dashes (owner copy rule).
 import React from 'react';
 
 const H = ({ children }) => <h4 className="text-sm font-semibold text-pl-text mt-5 mb-1.5">{children}</h4>;
 const P = ({ children }) => <p className="text-xs text-pl-muted leading-relaxed">{children}</p>;
 
 const ScalHelpContent = () => (
-  <div className="pb-8">
+  <div className="pb-8" data-testid="scal-help">
     <P>
-      SCAL Studio is the special core analysis workstation: design Corey relative permeability curves, build
-      capillary pressure through the Leverett J-function, and scale both to your reservoir rock. The scope is
-      deliberately thin and validated. Corey and Leverett J only, with the math golden-tested against the Leverett
-      collapse principle; LET correlations, hysteresis and three phase models are out of scope until this core has
-      earned its keep in real studies.
+      SCAL Studio is the special core analysis workstation: design Corey relative permeability curves, fit them to
+      core data, build capillary pressure through the Leverett J-function, and scale both to your reservoir rock.
+      The scope is deliberately thin: Corey and Leverett J only. There is no hysteresis between drainage and
+      imbibition, no three-phase model and no LET or Thomeer form; the report says so in its limits.
+    </P>
+
+    <H>Units</H>
+    <P>
+      The selector in the header shows the project in oilfield or SI units (Pc in psi or kPa, IFT in dyn/cm or
+      mN/m, depths and heights in ft or m, temperature in degF or degC). A new workspace follows your Suite unit
+      profile; a saved project keeps the system it was saved with. Values are stored in field units underneath,
+      which is what other apps read, so switching never changes a number, only how it is shown.
     </P>
 
     <H>1. Curves</H>
     <P>
-      Corey parameter sets for oil-water and gas-oil systems: endpoint saturations, endpoint kr values and the two
-      exponents. The chart draws the curves on a linear or semilog axis. The optional fractional flow preview shows
-      the mobility picture for the oil-water set at your viscosities; it is curves only, and displacement design
-      (Welge tangents, breakthrough, recovery) stays in the Waterflood Design Studio where it belongs.
+      Corey parameter sets for oil-water and gas-oil systems: end point saturations, end point kr values and the two
+      exponents. Under the oil-water set the app says where it came from: entered by you, or fitted to a sample's
+      lab table (with the fit's r2), or fitted and then edited, in which case the fit statistics no longer describe
+      it. The optional fractional flow preview is curves only; displacement design stays in the Waterflood Design
+      Studio.
     </P>
 
     <H>2. Lab Data</H>
     <P>
-      Core samples with their rock properties and lab tables. Import kr and Pc CSVs per sample (templates are a
-      click away; the lab system presets fill sigma and theta for air-brine, air-mercury and oil-brine
-      measurements). Each sample with a kr table gets a Corey fit with confidence intervals; apply a fit to the
-      Curves tab with one click. The normalized overlay compares curve shapes across samples so you can judge
-      whether one exponent set represents the rock. Averaging stays your decision; the studio shows the spread and
-      never silently blends. The synthetic demo pair is generated from one shared J curve, so the Capillary tab
-      shows the Leverett collapse working.
+      Core samples with their rock properties, their pedigree (lab or analog, the kr and Pc test methods, drainage
+      or imbibition, wettability, core condition, test temperature, laboratory and report number) and their lab
+      tables. The kr and Pc doors read CSV, tab, semicolon or space separated files, with comma decimals, a header
+      in any order or none, and units in the header such as Pc (kPa) or Sw (%). When the file names no unit, the
+      unit you choose above the buttons is used. After each import the app shows what it read: which column became
+      what, in which unit, how many rows were read and every row left out with the reason. The same record goes
+      into the report.
+    </P>
+    <P>
+      Each sample with a kr table gets a Corey fit of the two exponents with 95 percent confidence intervals; Swc
+      and Sor come from the first and last rows of the table, so the table needs both end points. Apply a fit to
+      the Curves tab with one click; the record of the fit travels with the set. The normalised overlay compares
+      curve shapes across samples. The synthetic demo pair is marked as an analog wherever it is printed.
     </P>
 
     <H>3. Capillary</H>
     <P>
       The working J-function. In manual mode you type a power law J = a times Sw-star to the minus b, with Sw-star
-      the saturation normalized above Swirr. In samples mode the studio averages the J tables computed from your
-      lab capillary data (geometric mean on a shared normalized axis) and refits the power law; a poor refit
-      usually means the shared Swirr needs the override. The reservoir rock inputs scale the J curve back to a
-      capillary pressure curve through Pc = J sigma cos theta divided by 0.21645 root k over phi.
+      the saturation normalised above Swirr. In samples mode the studio averages the J tables computed from your lab
+      capillary data (geometric mean on a normalised axis) and refits the power law. One Swirr is used for every
+      sample, both to normalise them and to map the fit back to Sw: the override when you type one (it must sit below
+      the lowest Sw of every sample), otherwise the lowest Sw of the included samples less 0.02. The reservoir rock
+      inputs scale the J curve to capillary pressure through Pc = J sigma cos theta divided by 0.21645 root k over
+      phi; the lab points scaled the same way are drawn over the curve.
     </P>
 
     <H>4. Height and Saturation</H>
     <P>
       Converts the reservoir Pc curve into a saturation-height profile with h equal to Pc over 0.4335 times the
-      water minus hydrocarbon specific gravity difference. Enter a free water level to read TVDSS alongside height
-      above FWL; the KPI row summarizes the transition zone.
+      water minus hydrocarbon specific gravity difference. The free water level is entered as TVDSS, or as TVD below
+      the depth reference of a well from the wells registry, which the Suite's datum module turns into TVDSS (or
+      refuses, with the reason, when the well has no reference elevation). The FWL is marked on the chart.
     </P>
 
-    <H>5. Export</H>
+    <H>5. Report</H>
     <P>
-      Sends the working oil-water Corey set straight into the Waterflood Design Studio displacement inputs (the
-      same handoff contract the Well Test Studio uses), and downloads the kr, reservoir Pc and saturation-height
-      tables as CSV. Gas-oil sets stay in SCAL because the Waterflood displacement is an oil-water calculation.
-    </P>
-    <P>
-      JSON moves core samples between projects. Export writes the project payload out; import reads the samples from
-      that file and merges them into the project you have open, leaving your curves, capillary settings and reservoir
-      rock inputs untouched. It is a way to carry lab work across projects. It does not restore a whole project.
-    </P>
-    <P>
-      Every chart in the studio has its own download button that saves the current view as a PNG for reports.
+      The Special Core Analysis Report as a PDF: identification (company, field, licence, well, zone, cored interval,
+      laboratory, report number, dates, analyst, build and units), headline results, every input with its unit and
+      source, the Leverett scaling by component, the samples and their pedigree, the lab tables imported, the Corey
+      fits, the averaged J, the model and its basis, the limits of the analysis with flags, the tables, the kr-1 block
+      and the figures of the other tabs. State the source of each input on this tab; a value still at the app's
+      starting value prints as an assumption.
     </P>
 
-    <H>Projects</H>
+    <H>6. Export</H>
     <P>
-      Projects save to your account (inputs only; every curve and fit is recomputed from inputs on load). Autosave
-      runs about ten seconds after your last change once a project is open, and the save indicator in the header
-      shows when the last save landed.
+      Send to Waterflood Design Studio hands over the working oil-water set with its kr-1 block: where it came from,
+      the sample pedigree, the project and the time. A saved project is saved first and its id goes in the address,
+      so Waterflood can read it again by id; Waterflood keeps the source with its own project and shows it on a card
+      that says when the SCAL project changed since or when a value was edited after the intake. Petrophysics,
+      Earth Modeling, Rock Physics and ReservoirCalc Pro read the saturation-height function of a saved project by
+      id and print its source.
+    </P>
+    <P>
+      The CSV files (kr, reservoir Pc, saturation-height) open with lines starting with # that say where they came
+      from and in which units. The project JSON is the saved payload itself; importing it restores the whole
+      project on screen. Every chart has a PNG download button.
+    </P>
+
+    <H>Projects and sharing</H>
+    <P>
+      Projects save to your account with autosave about ten seconds after a change. You can share a project with
+      your organisation for viewing or editing; a colleague edits one at a time with the check-out bar, a newer
+      save made elsewhere is refused with the reason, and Save a copy makes your own version.
     </P>
 
     <H>Validation</H>
     <P>
       The engine is pinned by jest suites: Corey identities and fitting recovery, the exact Pc to J round trip, and
-      the Leverett collapse test in which capillary data from three very different rocks must reduce to a single J
-      curve to machine precision, which is the 1941 paper's central claim.
-    </P>
-    <P>
-      Published worked examples are also committed as literature goldens, covering a textbook Corey relative
-      permeability construction and a J-function averaging case from the SPEE reserves literature. Where a gate is
-      waiting on the original source document it is recorded as pending and is not quietly passed, so the validation
-      state is always the real one.
+      the Leverett collapse test in which capillary data from three very different rocks reduce to a single J curve
+      to machine precision. The Leverett 1941 drainage curve is armed as a literature golden from its reproduction
+      in Ahmed, Reservoir Engineering Handbook (Figure 4-18 and Example 4-7). A re-read of the original 1941 scan is
+      recorded as pending until the source document is supplied, and is not quietly passed.
     </P>
   </div>
 );

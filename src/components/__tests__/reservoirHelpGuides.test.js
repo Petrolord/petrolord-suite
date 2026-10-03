@@ -69,7 +69,8 @@ const COVERAGE = {
     /Fluid Systems Studio/i,
     /rate transient results/i,
   ],
-  'SCAL Studio': [/PNG/i, /merges them into the project/i],
+  // SCAL-U1-010: the project file now restores the whole project (it merged samples only)
+  'SCAL Studio': [/PNG/i, /restores the whole\s+project/i, /kr-1 block/i, /drainage\s+or\s+imbibition/i],
   'Reservoir Simulation Studio': [/WCONINJH/, /Interval volume/i],
   'VRR Monitor': [/PVT override/i, /weakest pattern/i],
   'Recovery Factor Estimator': [/gravity drainage/i, /water-drive gas/i, /Sample button/i],

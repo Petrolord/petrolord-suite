@@ -6,10 +6,12 @@
 // Design-system rollout (Wave 0A): the harness adds no colours and no theme
 // scope of its own: the dev routes sit in one theme scope in App.jsx
 // (batch 7A), so each app paints itself as on its real route.
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import InMemorySupabase, { createStore, DEV_USER } from './InMemorySupabase';
 import DevAuth from './DevAuth';
+import { loadScalRows, watchScalRows, persistScalRows, SCAL_TABLE } from './scalProjectsStore';
+import { savedScalRows } from '@/components/scalstudio/__fixtures__/savedProjects';
 
 const APPS = {
   afe: lazy(() => import('@/pages/apps/AfeCostControlManager')),
@@ -42,6 +44,15 @@ const APPS = {
 const U = DEV_USER.id;
 const TS = '2026-09-26T00:00:00.000Z';
 const SEEDS = {
+  // SCAL-U1: projects saved on the SCAL harness in this tab (kr-1 chain to
+  // Waterflood); ?saved=1 adds two projects as earlier releases saved them.
+  scal: () => {
+    const rows = loadScalRows();
+    const wantFixtures = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('saved') === '1';
+    if (wantFixtures) for (const r of savedScalRows(U)) if (!rows.some((x) => x.id === r.id)) rows.push(r);
+    return { [SCAL_TABLE]: rows };
+  },
+  waterflood: () => ({ [SCAL_TABLE]: loadScalRows() }),
   // AFE: budget 8.5M; EAC max(budget, actual + commitment) unless entered:
   // RIG 5.0M, CSG 2.3M (entered), SVC 1.5M, so 8.8M and a 0.3M overrun;
   // EV 5.0 x 0.6 + 2.0 x 0.9 + 1.5 x 0.3 = 5.25M against 5.2M actual.
@@ -129,8 +140,23 @@ const FUNCTIONS = {
 const stores = {};
 const storeFor = (app) => (stores[app] ||= createStore(SEEDS[app] ? SEEDS[app]() : {}));
 
+// the SCAL rows of the tab: kept in sessionStorage while SCAL is open, read
+// again by Waterflood on every mount (a project may have been saved since)
+function useScalRows(app) {
+  // read during render, before the app's own mount effects ask for a project
+  // by id. /dev/studio/scal and /dev/studio/waterflood are one component, so
+  // the SCAL watcher's last tick runs after this render: write the SCAL store
+  // first, or a save made just before the handoff is missed (CI, PR #869).
+  if (app === 'waterflood') {
+    if (stores.scal) persistScalRows(stores.scal);
+    storeFor('waterflood')[SCAL_TABLE] = loadScalRows();
+  }
+  useEffect(() => (app === 'scal' ? watchScalRows(storeFor('scal')) : undefined), [app]);
+}
+
 export default function StudiosHarness() {
   const { app } = useParams();
+  useScalRows(app);
   const App = APPS[app];
   if (!App) return <div className="p-6 text-pl-text">Unknown app. Try one of: {Object.keys(APPS).join(', ')}</div>;
   return (

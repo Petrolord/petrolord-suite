@@ -15,8 +15,9 @@ import {
 // Senior test T1: one-decimal labels on auto ticks printed 0.25 as 0.3.
 const UNIT_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
 import { useScalStudio } from '@/contexts/ScalStudioContext';
-import { makeJFunction } from '@/utils/scalCalculations';
-import { Kpi, LINE, fmt, SCENARIO_COLORS } from '@/components/waterflooddesign/primitives';
+import { Kpi, LINE } from '@/components/waterflooddesign/primitives';
+import { jSeries, pcSeries } from '@/utils/scalstudio/series';
+import { sfmt } from '@/utils/scalstudio/format';
 
 const axisProps = {
   stroke: CHART_COLORS.axisLine,
@@ -24,7 +25,7 @@ const axisProps = {
 };
 
 const CapillaryResults = () => {
-  const { capillary, jResolved, reservoir, reservoirPc, samplesDerived } = useScalStudio();
+  const { capillary, jResolved, reservoir, reservoirPc, samplesDerived, unitSystem } = useScalStudio();
 
   const includedSamples = useMemo(
     () => samplesDerived.filter(
@@ -33,20 +34,16 @@ const CapillaryResults = () => {
     [samplesDerived, capillary.includedSampleIds],
   );
 
-  // Working J curve sampled for the chart (true-Sw axis).
-  const jCurveRows = useMemo(() => {
-    if (!jResolved.jSpec) return [];
-    const { j, domain } = makeJFunction(jResolved.jSpec);
-    const lo = Math.max(domain.SwMin + 0.005, 0.01);
-    const hi = Math.min(domain.SwMax, 0.999);
-    const rows = [];
-    for (let i = 0; i <= 80; i++) {
-      const Sw = lo + ((hi - lo) * i) / 80;
-      const J = j(Sw);
-      if (Number.isFinite(J) && J > 0) rows.push({ Sw, J });
-    }
-    return rows;
-  }, [jResolved]);
+  // One series builder for the screen and the report (SCAL-U1, RL12).
+  const js = useMemo(
+    () => jSeries({ jSpec: jResolved.jSpec, samples: samplesDerived, includedIds: capillary.includedSampleIds }),
+    [jResolved, samplesDerived, capillary.includedSampleIds],
+  );
+  const jCurveRows = useMemo(() => js.curve.map((p) => ({ Sw: p.x, J: p.y })), [js]);
+  const pcs = useMemo(
+    () => pcSeries({ reservoirPc, reservoir, samples: samplesDerived, includedIds: capillary.includedSampleIds, system: unitSystem }),
+    [reservoirPc, reservoir, samplesDerived, capillary.includedSampleIds, unitSystem],
+  );
 
   if (!jResolved.jSpec) {
     return (
@@ -65,13 +62,13 @@ const CapillaryResults = () => {
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi title="J source" value={jResolved.meta?.mode === 'samples' ? `${jResolved.meta.sampleCount} samples` : 'Manual'} />
-        <Kpi title="a (J at Sw* = 1)" value={fmt.f3(spec.a)} />
-        <Kpi title="b exponent" value={fmt.f2(spec.b)} />
-        <Kpi title="Swirr" value={fmt.f3(spec.Swirr)} />
+        <Kpi title="a (J at Sw* = 1)" value={sfmt.f3(spec.a)} />
+        <Kpi title="b exponent" value={sfmt.f2(spec.b)} />
+        <Kpi title="Swirr" value={sfmt.f3(spec.Swirr)} unit={jResolved.meta?.swirr ? (jResolved.meta.swirr.from === 'override' ? 'entered' : 'lowest Sw less 0.02') : undefined} />
       </div>
       {avgMeta?.fit && (
         <p className="text-xs text-pl-muted">
-          Averaged refit quality r² (log space) {fmt.f3(avgMeta.fit.r2Log)}. A low value usually means the shared
+          Averaged refit quality r² (log space) {sfmt.f3(avgMeta.fit.r2Log)}. A low value usually means the shared
           Swirr needs the override in the left rail.
         </p>
       )}
@@ -102,13 +99,13 @@ const CapillaryResults = () => {
               />
               <Legend {...LEGEND_PROPS} />
               <Line dataKey="J" name="Working J curve" stroke={LINE.fw} strokeWidth={2} dot={false} />
-              {includedSamples.map((s, i) => (
+              {js.samples.map((s) => (
                 <Scatter
                   key={s.id}
-                  data={s.jRows}
+                  data={s.points.map((p) => ({ Sw: p.x, J: p.y }))}
                   dataKey="J"
                   name={s.name}
-                  fill={SCENARIO_COLORS[i % SCENARIO_COLORS.length]}
+                  fill={s.color.hex}
                 />
               ))}
             </ComposedChart>
@@ -127,9 +124,9 @@ const CapillaryResults = () => {
           <CardTitle className="text-base">Reservoir capillary pressure</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {reservoir.props && reservoirPc?.length ? (
+          {reservoir.props && pcs.curve.length ? (
             <ChartFrame height={280} exportFilename="scal-reservoir-pc">
-              <LineChart data={reservoirPc} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
+              <ComposedChart data={pcs.curve.map((p) => ({ Sw: p.x, Pc: p.y }))} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
                 <CartesianGrid {...GRID_STYLE} vertical={false} />
                 <XAxis height={XAXIS_LABEL_HEIGHT}
                   dataKey="Sw" type="number" domain={[0, 1]}
@@ -139,16 +136,20 @@ const CapillaryResults = () => {
                 <YAxis
                   domain={[0, 'auto']}
                   tickFormatter={(v) => Number(v).toPrecision(2)} {...axisProps}
-                  label={{ value: 'Pc (psi)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }}
+                  label={{ value: pcs.yTitle, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }}
                 />
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
                   labelStyle={{ color: CHART_COLORS.tooltipText }}
-                  formatter={(v) => [`${Number(v).toFixed(2)} psi`, 'Pc']}
+                  formatter={(v, name) => [Number(v).toFixed(2), name]}
                   labelFormatter={(v) => `Sw = ${Number(v).toFixed(3)}`}
                 />
-                <Line dataKey="Pc_psi" name="Pc" stroke={LINE.alt} strokeWidth={2} dot={false} />
-              </LineChart>
+                <Legend {...LEGEND_PROPS} />
+                <Line dataKey="Pc" name="Reservoir Pc (working J)" stroke={LINE.alt} strokeWidth={2} dot={false} />
+                {pcs.overlay.map((o) => (
+                  <Scatter key={o.id} data={o.points.map((p) => ({ Sw: p.x, Pc: p.y }))} dataKey="Pc" name={o.name} fill={o.color.hex} />
+                ))}
+              </ComposedChart>
             </ChartFrame>
           ) : (
             <p className="py-8 text-center text-sm text-pl-muted">

@@ -1,0 +1,199 @@
+{
+  "pages": 11,
+  "sha256": "f60199a64298c5ebac93f43c479622b1980346e1365a8be0480a9a3bfd01fde7",
+  "figures": [
+    {
+      "id": "kr-ow",
+      "number": 1,
+      "page": 9,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "krw (working Corey)": 102,
+            "kro (working Corey)": 102,
+            "krw lab, Demo core A (synthetic)": 13,
+            "kro lab, Demo core A (synthetic)": 13
+          },
+          "total": 230,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "kr-lab-demo-0",
+      "number": 2,
+      "page": 9,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 111.72,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "krw lab": 13,
+            "kro lab": 13,
+            "krw Corey fit": 81,
+            "kro Corey fit": 81
+          },
+          "total": 188,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "kr-lab-demo-1",
+      "number": 3,
+      "page": 9,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 191.08,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "krw lab": 13,
+            "kro lab": 13,
+            "krw Corey fit": 81,
+            "kro Corey fit": 81
+          },
+          "total": 188,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "kr-normalised",
+      "number": 4,
+      "page": 10,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "Demo core A (synthetic) krwN": 13,
+            "Demo core A (synthetic) kroN": 13,
+            "Demo core B (synthetic) krwN": 13,
+            "Demo core B (synthetic) kroN": 13
+          },
+          "total": 52,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "kr-go",
+      "number": 5,
+      "page": 10,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 105.72,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "krg": 102,
+            "krog": 102
+          },
+          "total": 204,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "j",
+      "number": 6,
+      "page": 10,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 185.08,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "Working J": 81,
+            "Demo core A (synthetic)": 8,
+            "Demo core B (synthetic)": 8
+          },
+          "total": 97,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "pc",
+      "number": 7,
+      "page": 11,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "Pc from the working J": 62,
+            "Demo core A (synthetic) (lab J scaled)": 8,
+            "Demo core B (synthetic) (lab J scaled)": 8
+          },
+          "total": 78,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "height",
+      "number": 8,
+      "page": 11,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 105.72,
+            "w": 182,
+            "h": 70
+          },
+          "drawn": {
+            "Sw against height": 62
+          },
+          "total": 62,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    }
+  ]
+}

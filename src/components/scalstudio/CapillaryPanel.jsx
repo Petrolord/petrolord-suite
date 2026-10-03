@@ -4,13 +4,14 @@
 import React from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useScalStudio } from '@/contexts/ScalStudioContext';
-import { Field, SectionLabel } from '@/components/waterflooddesign/primitives';
+import { SectionLabel } from '@/components/waterflooddesign/primitives';
+import ScalField from './ScalField';
 
 const RESERVOIR_FIELDS = [
-  { k: 'k_md', label: 'k, reservoir permeability (md)' },
-  { k: 'phi', label: 'φ, reservoir porosity (frac)' },
-  { k: 'sigma_dyncm', label: 'σ, IFT at reservoir (dyn/cm)' },
-  { k: 'thetaDeg', label: 'θ, contact angle (deg)' },
+  { k: 'k_md', label: 'k, reservoir permeability', kind: 'permeability' },
+  { k: 'phi', label: 'φ, reservoir porosity', kind: 'fraction' },
+  { k: 'sigma_dyncm', label: 'σ, IFT at reservoir', kind: 'ift' },
+  { k: 'thetaDeg', label: 'θ, contact angle', kind: 'angle' },
 ];
 
 const CapillaryPanel = () => {
@@ -35,9 +36,9 @@ const CapillaryPanel = () => {
       {capillary.jMode === 'manual' ? (
         <section className="space-y-3">
           <SectionLabel>Power law J = a·Sw*^(-b)</SectionLabel>
-          <Field label="a, J at Sw* = 1" value={capillary.manual.a} onChange={(v) => setManualJField('a', v)} />
-          <Field label="b, curvature exponent" value={capillary.manual.b} onChange={(v) => setManualJField('b', v)} />
-          <Field label="Swirr, irreducible water" value={capillary.manual.Swirr} onChange={(v) => setManualJField('Swirr', v)} />
+          <ScalField label="a, J at Sw* = 1" value={capillary.manual.a} onChange={(v) => setManualJField('a', v)} />
+          <ScalField label="b, curvature exponent" value={capillary.manual.b} onChange={(v) => setManualJField('b', v)} />
+          <ScalField label="Swirr, irreducible water" kind="fraction" value={capillary.manual.Swirr} onChange={(v) => setManualJField('Swirr', v)} />
           <p className="text-[11px] text-pl-muted">
             Sw* is (Sw − Swirr)/(1 − Swirr). Type a published or field-calibrated J correlation here, or switch to
             From samples once lab capillary data is loaded on the Lab Data tab.
@@ -71,7 +72,7 @@ const CapillaryPanel = () => {
               ))}
             </div>
           )}
-          <Field
+          <ScalField
             label="Shared Swirr override (blank = data-driven)"
             value={capillary.SwirrOverride}
             onChange={(v) => setCapillaryField('SwirrOverride', v)}
@@ -86,8 +87,8 @@ const CapillaryPanel = () => {
 
       <section className="space-y-3">
         <SectionLabel>Reservoir rock and fluids</SectionLabel>
-        {RESERVOIR_FIELDS.map(({ k, label }) => (
-          <Field key={k} label={label} value={capillary.reservoir[k]} onChange={(v) => setReservoirField(k, v)} />
+        {RESERVOIR_FIELDS.map(({ k, label, kind }) => (
+          <ScalField key={k} label={label} kind={kind} testId={`reservoir-${k}`} value={capillary.reservoir[k]} onChange={(v) => setReservoirField(k, v)} />
         ))}
         <p className="text-[11px] text-pl-muted">
           The J curve scales to this rock as Pc = J·σcosθ / (0.21645·√(k/φ)). Height conversion happens on the

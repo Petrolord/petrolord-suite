@@ -8,17 +8,34 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useScalStudio, LAB_SYSTEM_PRESETS } from '@/contexts/ScalStudioContext';
-import { parseKrCsv, parsePcCsv } from '@/utils/scalCalculations';
-import { Field, SectionLabel } from '@/components/waterflooddesign/primitives';
+import { readKrTable, readPcTable, importRecord, PC_FILE_UNITS, SATURATION_FILE_UNITS } from '@/utils/scalstudio/labImport';
+import { SectionLabel } from '@/components/waterflooddesign/primitives';
+import ScalField from './ScalField';
+import { PEDIGREE_OPTIONS, LAB_SYSTEM_FLUIDS } from '@/utils/scalstudio/model';
 import { buildDemoSamples, KR_CSV_TEMPLATE, PC_CSV_TEMPLATE } from './demoSamples';
 
 const PROP_FIELDS = [
-  { k: 'depth_ft', label: 'Depth (ft)' },
-  { k: 'k_md', label: 'k, permeability (md)' },
-  { k: 'phi', label: 'φ, porosity (frac)' },
-  { k: 'sigma_dyncm', label: 'σ lab IFT (dyn/cm)' },
-  { k: 'thetaDeg', label: 'θ lab contact angle (deg)' },
+  { k: 'depth_ft', label: 'Sample depth', kind: 'length' },
+  { k: 'k_md', label: 'k, permeability', kind: 'permeability' },
+  { k: 'phi', label: 'φ, porosity', kind: 'fraction' },
+  { k: 'sigma_dyncm', label: 'σ lab IFT', kind: 'ift' },
+  { k: 'thetaDeg', label: 'θ lab contact angle', kind: 'angle' },
 ];
+
+// The sample pedigree (SCAL-U1, RL4): what a reviewer asks of a core result
+// before trusting it. Saved on the sample; printed in the report and carried
+// in the kr-1 block.
+const PEDIGREE_SELECTS = [
+  { k: 'origin', label: 'Lab or analog', list: 'origin' },
+  { k: 'depthRef', label: 'Depth reference', list: 'depthRef' },
+  { k: 'krMethod', label: 'kr test method', list: 'krMethod' },
+  { k: 'krProcess', label: 'kr test: drainage or imbibition', list: 'process' },
+  { k: 'pcMethod', label: 'Pc test method', list: 'pcMethod' },
+  { k: 'pcProcess', label: 'Pc test: drainage or imbibition', list: 'process' },
+  { k: 'wettability', label: 'Wettability', list: 'wettability' },
+  { k: 'condition', label: 'Core condition', list: 'condition' },
+];
+const NONE = '__none__';
 
 const downloadText = (text, filename) => {
   const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
@@ -39,23 +56,29 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
   const [importKind, setImportKind] = useState(null);
   const selected = samples.find((s) => s.id === selectedId) ?? null;
 
+  // SCAL-U1-007: the lab table doors on the shared typed reader, the unit of
+  // Pc and of Sw chosen at the door when the file does not say, and a
+  // read-back kept with the sample (columns, units, rows read, rows left out).
+  const { unitSystem } = useScalStudio();
+  const [pcUnit, setPcUnit] = useState(unitSystem === 'si' ? 'kPa' : 'psi');
+  const [satUnit, setSatUnit] = useState('auto');
   const importCsv = async (file, kind) => {
     if (!file || !selected) return;
     const text = await file.text();
-    const parsed = kind === 'kr' ? parseKrCsv(text) : parsePcCsv(text);
-    if (parsed.rows.length === 0) {
-      addNotification(parsed.errors[0] || 'No usable rows in that CSV.', 'error');
+    const res = kind === 'kr' ? readKrTable(text, { saturation: satUnit }) : readPcTable(text, { pc: pcUnit, saturation: satUnit });
+    if (!res.ok) {
+      addNotification(`${file.name}: ${res.error} ${res.summary || ''}`.trim(), 'error');
       return;
     }
-    updateSample(selected.id, kind === 'kr' ? { krRows: parsed.rows } : { pcRows: parsed.rows });
-    const note = parsed.errors.length ? ` ${parsed.errors.length} row(s) skipped.` : '';
-    addNotification(`${parsed.rows.length} ${kind === 'kr' ? 'kr' : 'Pc'} rows imported for "${selected.name}".${note}`, 'success');
+    const record = importRecord(res, file.name);
+    updateSample(selected.id, kind === 'kr' ? { krRows: res.rows, krImport: record } : { pcRows: res.rows, pcImport: record });
+    addNotification(`${file.name}: ${res.summary}`, res.skipped.length ? 'info' : 'success');
   };
 
   const applyPreset = (key) => {
     const preset = LAB_SYSTEM_PRESETS.find((p) => p.key === key);
     if (!preset || !selected) return;
-    updateSample(selected.id, { sigma_dyncm: preset.sigma, thetaDeg: preset.theta });
+    updateSample(selected.id, { sigma_dyncm: preset.sigma, thetaDeg: preset.theta, fluids: LAB_SYSTEM_FLUIDS[key] });
   };
 
   return (
@@ -111,7 +134,7 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
         <>
           <section className="space-y-3">
             <SectionLabel>Sample properties</SectionLabel>
-            <Field label="Name" value={selected.name} onChange={(v) => updateSample(selected.id, { name: v })} />
+            <ScalField label="Name" value={selected.name} onChange={(v) => updateSample(selected.id, { name: v })} />
             <div className="space-y-1">
               <Label className="text-xs text-pl-muted">Lab measurement system</Label>
               <Select onValueChange={applyPreset}>
@@ -127,19 +150,41 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
                 </SelectContent>
               </Select>
             </div>
-            {PROP_FIELDS.map(({ k, label }) => (
-              <Field key={k} label={label} value={selected[k] ?? ''} onChange={(v) => updateSample(selected.id, { [k]: v })} />
+            {PROP_FIELDS.map(({ k, label, kind }) => (
+              <ScalField key={k} label={label} kind={kind} testId={`sample-${k}`} value={selected[k] ?? ''} onChange={(v) => updateSample(selected.id, { [k]: v })} />
             ))}
+            <ScalField label="Lab fluids" value={selected.fluids ?? ''} placeholder="e.g. Oil and brine" onChange={(v) => updateSample(selected.id, { fluids: v })} />
+          </section>
+
+          <section className="space-y-3" data-testid="sample-pedigree">
+            <SectionLabel>Sample pedigree</SectionLabel>
+            {PEDIGREE_SELECTS.map(({ k, label, list }) => (
+              <div key={k} className="space-y-1">
+                <Label className="text-xs text-pl-muted">{label}</Label>
+                <Select value={selected[k] || NONE} onValueChange={(v) => updateSample(selected.id, { [k]: v === NONE ? '' : v })}>
+                  <SelectTrigger className="h-9" aria-label={label} data-testid={`pedigree-${k}`}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PEDIGREE_OPTIONS[list].map(([value, text]) => <SelectItem key={value || NONE} value={value || NONE}>{text}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+            {selected.origin === 'analog' && (
+              <ScalField label="Analog of what" value={selected.analogNote ?? ''} placeholder="Field, well or published set" onChange={(v) => updateSample(selected.id, { analogNote: v })} />
+            )}
+            <ScalField label="Test temperature" kind="temperature" testId="sample-testTempF" value={selected.testTempF ?? ''} onChange={(v) => updateSample(selected.id, { testTempF: v })} />
+            <ScalField label="Laboratory" value={selected.laboratory ?? ''} onChange={(v) => updateSample(selected.id, { laboratory: v })} />
+            <ScalField label="Lab report number" value={selected.labReport ?? ''} onChange={(v) => updateSample(selected.id, { labReport: v })} />
           </section>
 
           <section className="space-y-2">
             <SectionLabel>Lab tables</SectionLabel>
             <input
-              ref={krFileRef} type="file" accept=".csv,text/csv" className="hidden"
+              ref={krFileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,text/csv,text/plain" className="hidden"
               onChange={(e) => { importCsv(e.target.files?.[0], 'kr'); e.target.value = ''; }}
             />
             <input
-              ref={pcFileRef} type="file" accept=".csv,text/csv" className="hidden"
+              ref={pcFileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,text/csv,text/plain" className="hidden"
               onChange={(e) => { importCsv(e.target.files?.[0], 'pc'); e.target.value = ''; }}
             />
             <div className="grid grid-cols-2 gap-2">
@@ -156,10 +201,39 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
                 <Download className="w-3 h-3 mr-1" /> Pc template
               </Button>
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-pl-muted">Pc unit if the file does not say</Label>
+                <Select value={pcUnit} onValueChange={setPcUnit}>
+                  <SelectTrigger className="h-8" aria-label="Pc unit if the file does not say" data-testid="import-pc-unit"><SelectValue /></SelectTrigger>
+                  <SelectContent>{Object.entries(PC_FILE_UNITS).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-pl-muted">Sw in the file</Label>
+                <Select value={satUnit} onValueChange={setSatUnit}>
+                  <SelectTrigger className="h-8" aria-label="Sw in the file" data-testid="import-sat-unit"><SelectValue /></SelectTrigger>
+                  <SelectContent>{Object.entries(SATURATION_FILE_UNITS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
             <p className="text-[11px] text-pl-muted">
-              kr columns: Sw, krw, kro. Pc columns: Sw, Pc_psi. Rows with non-numeric cells are skipped and named
-              in the notification.
+              CSV, tab, semicolon or space separated text; columns found by name in any order (Sw, krw, kro; Sw, Pc),
+              or by position when there is no header; comma decimals read. A unit in the header, such as Pc (kPa) or
+              Sw (%), wins over the choice above.
             </p>
+            {['krImport', 'pcImport'].map((k) => selected[k] && (
+              <div key={k} className="rounded-md border border-pl-border bg-pl-sunken px-2.5 py-2 text-[11px] text-pl-text space-y-1" data-testid={`readback-${k}`}>
+                <p className="font-semibold">{k === 'krImport' ? 'kr table' : 'Pc table'} read from {selected[k].file || 'a file'}</p>
+                <p>{selected[k].summary}</p>
+                {selected[k].skipped?.length > 0 && (
+                  <ul className="list-disc list-inside text-pl-muted">
+                    {selected[k].skipped.slice(0, 8).map((x) => <li key={`${x.line}-${x.reason}`}>Line {x.line}: {x.reason}</li>)}
+                    {selected[k].skippedCount > 8 && <li>and {selected[k].skippedCount - 8} more</li>}
+                  </ul>
+                )}
+              </div>
+            ))}
           </section>
         </>
       )}
