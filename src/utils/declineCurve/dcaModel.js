@@ -55,6 +55,8 @@ export function defaultStream(stream) {
       // DCA U2-001: no default terminal decline (owner's default); the
       // analyst sets one as {value, unit, basis}
       terminalDecline: null,
+      // DCA U2-011: share of calendar time shut in after the cut-off; none by default
+      downtimePct: null,
     },
     forecastResults: null,
     excluded: [],
@@ -258,6 +260,8 @@ export function forecastConfigKey(config) {
     // DCA U2-001: present only when set, so a forecast saved before it
     // existed (or with none) keeps its key and stays current
     terminalDecline: normaliseTerminalDecline(c.terminalDecline) || undefined,
+    // DCA U2-011: present only when a downtime is set
+    downtimePct: Number(c.downtimePct) > 0 && Number(c.downtimePct) < 100 ? Number(c.downtimePct) : undefined,
   });
 }
 

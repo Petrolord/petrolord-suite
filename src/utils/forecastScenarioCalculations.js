@@ -105,13 +105,25 @@ export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
     // so the first day of the case is its start date
     new Date(Date.parse(start) - 86400000).toISOString(),
   );
-  const result = run(horizonDays);
+  // DCA U2-011: a downtime factor, the share of calendar time shut in. Each
+  // day delivers the curve rate times the uptime; the economic limit is
+  // tested on the curve (the rate while producing), as in Decline Curve
+  // Analysis. Blank or 0 is none.
+  const downtime = Number(caseDef.downtimePct);
+  const uptime = downtime > 0 && downtime < 100 ? 1 - downtime / 100 : 1;
+  const scaled = (r) => {
+    if (uptime === 1) return r;
+    let cum = 0;
+    const rates = r.rates.map((p) => { const rate = p.rate * uptime; cum += rate; return { ...p, rate, cumulative: cum }; });
+    return { ...r, rates, eur: r.eur * uptime };
+  };
+  const result = scaled(run(horizonDays));
   const limitInHorizon = hasLimit && result.rates.length < horizonDays;
   let eur = result.eur;
   let timeToLimitDays = limitInHorizon ? result.timeToLimit : null;
   if (!limitInHorizon) {
     const maxDays = Math.max(horizonDays, Math.round(EUR_MAX_YEARS * DAYS_PER_YEAR));
-    const long = maxDays > horizonDays ? run(maxDays) : result;
+    const long = maxDays > horizonDays ? scaled(run(maxDays)) : result;
     eur = long.eur;
     if (hasLimit && long.rates.length < maxDays) timeToLimitDays = long.timeToLimit;
   }
@@ -129,6 +141,7 @@ export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
     timeToLimitYears: timeToLimitDays == null ? null : timeToLimitDays / DAYS_PER_YEAR,
     // DCA U2-004: the decline the engine ran, whatever basis it was typed on
     diPerDay: Di,
+    uptime,
     // DCA U2-001: the switch to the terminal decline, days from the case start
     ...(result.terminalDecline ? { terminal: { ...result.terminalDecline, dminPerDay: Dmin, switchDate: new Date(Date.parse(start) + (result.terminalDecline.tSwitch - 1) * 86400000).toISOString().slice(0, 10) } } : {}),
   };

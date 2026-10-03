@@ -163,6 +163,8 @@ export function buildDcaForecastContract({ projectId, projectName = null, projec
       start: new Date(cutoff + DAY).toISOString().slice(0, 10),
       economicLimit: cfg.stopAtLimit && cfg.economicLimit > 0 ? cfg.economicLimit : null,
       facilityLimit: cfg.facilityLimit > 0 ? cfg.facilityLimit : null,
+      // DCA U2-011: the downtime factor the volumes carry; the key is absent when none
+      ...(fc.downtimePct ? { downtimePct: fc.downtimePct } : {}),
       horizonDays: cfg.durationDays,
       endReason,
       timeToLimitDays: finite(fc.timeToLimit) ? fc.timeToLimit : null,

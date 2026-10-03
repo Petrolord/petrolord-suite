@@ -95,6 +95,7 @@ export function engineInputsOf(well, stream) {
         mcSeed: s.forecastConfig.mcSeed,
         economicLimitUncertainty: s.forecastConfig.economicLimitUncertainty,
         terminalDecline: normaliseTerminalDecline(s.forecastConfig.terminalDecline),
+        downtimePct: Number(s.forecastConfig.downtimePct) > 0 ? Number(s.forecastConfig.downtimePct) : null,
       },
       history: well?.data || [],
     },
@@ -187,6 +188,7 @@ export function collectDcaReportArgs({ project = null, well, stream = 'oil', u =
     { key: 'econLimit', label: 'Economic limit rate', value: cfg.stopAtLimit && cfg.economicLimit > 0 ? num(rate(cfg.economicLimit), 2) : 'none', unit: cfg.stopAtLimit && cfg.economicLimit > 0 ? rateU : '', source: `${chosen(cfg.economicLimit, defaults.economicLimit)}. A fixed rate below which the well no longer pays; no cost model behind it`, engineKeys: ['forecast.config.economicLimit', 'forecast.config.stopAtLimit'] },
     { key: 'horizon', label: 'Forecast horizon after the data cut-off', value: `${num(cfg.durationDays / DCA_DAYS_PER_YEAR, 2)} years (${num(cfg.durationDays)} days)`, unit: '', source: chosen(cfg.durationDays, defaults.durationDays), engineKeys: ['forecast.config.durationDays'] },
     { key: 'terminal', label: 'Terminal decline Dmin (modified hyperbolic)', value: term ? describeTypedDecline(term.entered) : 'not set', unit: '', source: term ? `Chosen by the analyst. The forecast follows the fit until its nominal decline falls to Dmin, then declines exponentially at Dmin${fit.b > 0 ? '' : ' (an exponential fit is not changed by it)'}` : (cfg.terminalDecline ? 'Set by the analyst; it does not apply to an exponential fit (b = 0)' : 'Not set: the app has no default. The forecast is the fitted Arps curve to the end'), engineKeys: ['forecast.config.terminalDecline', 'forecast.config.terminalDecline.value', 'forecast.config.terminalDecline.unit', 'forecast.config.terminalDecline.basis'] },
+    { key: 'downtime', label: 'Downtime after the cut-off', value: fc.downtimePct ? `${num(fc.downtimePct, 1)}% of calendar time (uptime ${num(100 - fc.downtimePct, 1)}%)` : 'none', unit: '', source: fc.downtimePct ? 'Chosen by the analyst. Each forecast day delivers the fitted rate (capped at the facility limit) times the uptime; the economic limit is tested on the fitted rate while producing' : 'App default (none): the forecast is the fitted calendar-day rate', engineKeys: ['forecast.config.downtimePct'] },
     { key: 'facility', label: 'Facility limit (maximum rate)', value: cfg.facilityLimit > 0 ? num(rate(cfg.facilityLimit), 2) : 'none', unit: cfg.facilityLimit > 0 ? rateU : '', source: chosen(cfg.facilityLimit || 0, 0), engineKeys: ['forecast.config.facilityLimit'] },
     { key: 'mc', label: 'Probabilistic forecast (Monte Carlo)', value: cfg.probabilisticMode ? `on, ${fc.probabilistic?.iterations ?? EMPTY_VALUE} runs` : 'off', unit: '', source: cfg.probabilisticMode ? 'Chosen by the analyst' : 'App default (off)', engineKeys: ['forecast.config.probabilisticMode'] },
     { key: 'seed', label: 'Monte Carlo seed', value: cfg.probabilisticMode ? String(fc.probabilistic?.seed ?? cfg.mcSeed ?? EMPTY_VALUE) : 'not used', unit: '', source: cfg.probabilisticMode ? chosen(cfg.mcSeed, defaults.mcSeed) : 'Not used: the forecast is deterministic', engineKeys: ['forecast.config.mcSeed'] },
@@ -226,7 +228,7 @@ export function collectDcaReportArgs({ project = null, well, stream = 'oil', u =
       : 'The economic limit is not reached inside the horizon: remaining reserves stop at the horizon';
   const eurRows = [
     [`Produced to the data cut-off (${day(fc.historyEndDate)})`, num(vol(produced)), volU, 'Trapezoids of the rate history from the first row'],
-    [fc.limitReached ? 'Remaining, data cut-off to the economic limit' : 'Remaining, data cut-off to the horizon', num(vol(remaining)), volU, 'Daily sum of the fitted forecast after the cut-off'],
+    [fc.limitReached ? 'Remaining, data cut-off to the economic limit' : 'Remaining, data cut-off to the horizon', num(vol(remaining)), volU, fc.downtimePct ? `Daily sum of the fitted forecast after the cut-off, times the uptime (${num(100 - fc.downtimePct, 1)}%)` : 'Daily sum of the fitted forecast after the cut-off'],
     ['EUR (produced + remaining)', num(vol(eur)), volU, closes ? 'Closes on the sum above' : 'DOES NOT CLOSE: report it'],
   ];
   const lifeRows = [
@@ -373,6 +375,7 @@ export function collectDcaReportArgs({ project = null, well, stream = 'oil', u =
   if (fc.limitBeforeToday) flags.push('The fit is below the economic limit at the cut-off, so remaining reserves are zero.');
   if (!fc.limitReached && !fc.limitBeforeToday) flags.push('The economic limit is not reached inside the horizon: remaining reserves and EUR stop at the horizon and are not reserves to the limit.');
   if (well.sample) flags.push('This is the sample well, built from published test data. It is not field data.');
+  if (fc.downtimePct && isMc) flags.push(`The Monte Carlo percentiles are of the fitted curve without the downtime factor (${num(fc.downtimePct, 1)}%); the deterministic remaining volume and EUR above include it.`);
   if (a.carried) flags.push(a.carried);
 
   const assumptions = [
@@ -382,6 +385,7 @@ export function collectDcaReportArgs({ project = null, well, stream = 'oil', u =
     'Forecasting extrapolates the fitted curve beyond the data; the further it runs, the less the data constrain it.',
     'Rates are daily rates at stock-tank conditions from the imported history; produced to date is the trapezoid sum of those rates and can differ from metered cumulative production.',
     'The economic limit is a fixed rate with no cost model; remaining reserves stop there.',
+    'The fitted rates are calendar-day rates of the history, so the history\'s own downtime is already in them. A downtime factor, when set, is the further share of calendar time shut in after the cut-off: it lowers each forecast day\'s volume and leaves the decline and the limit date where the fitted curve puts them.',
     'Intervals are first-order (delta method) estimates from the linearised regression; the b interval is assumed. The probabilistic forecast samples those intervals and is not an independent uncertainty assessment.',
     'Units: state is held in bbl/d, Mscf/d and a per-day decline; this report prints the display units named in its header. A year is 365.25 days.',
   ];

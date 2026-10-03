@@ -90,6 +90,7 @@ const ForecastScenarioHubHelpGuideContent = () => (
           ['Horizon', 'years', 'How long the forecast runs if the economic limit is never reached.', '20'],
           ['Econ limit', 'bbl/d or sm3/d', 'Rate at which the forecast stops. Zero disables the cutoff.', '30'],
           ['Start date', 'date', 'The first day of the case. Blank takes the set start (the date box above the cases).', 'blank'],
+          ['Downtime', 'percent of calendar time', 'The share of time the well is shut in. Each day delivers the decline rate times the uptime; the economic limit is tested on the decline rate. A case from Decline Curve Analysis brings the downtime set there. Blank is none.', 'blank'],
           ['Terminal decline Dmin', 'percent per year, effective or nominal (the Dmin basis box)', 'The modified hyperbolic: the case follows its hyperbolic until the nominal decline falls to Dmin, then declines exponentially at Dmin. Effective is the share of rate lost in a year on that exponential tail. Blank is none. A case from Decline Curve Analysis brings the Dmin set there, as nominal.', 'blank (no default)'],
         ]}
       />

@@ -27,6 +27,8 @@ export function caseValuesFromContract(c) {
     // DCA U2-001: the terminal decline travels as its exact nominal %/yr
     terminalDeclinePct: c.decline.terminal ? r6(c.decline.terminal.dminNominalPctPerYear) : null,
     terminalDeclineBasis: c.decline.terminal ? 'nominal' : null,
+    // DCA U2-011: the downtime factor of the sender's forecast
+    downtimePct: c.forecast.downtimePct || null,
   };
 }
 
@@ -49,8 +51,8 @@ export function caseFromDcaContract(contract, { id = `dca-${Date.now()}`, receiv
   };
 }
 
-const KEYS = ['qi', 'declineAnnualPct', 'declineBasis', 'b', 'years', 'economicLimit', 'startDate', 'terminalDeclinePct', 'terminalDeclineBasis'];
-const LABELS = { qi: 'qi', declineAnnualPct: 'decline', declineBasis: 'decline basis', b: 'b', years: 'horizon', economicLimit: 'economic limit', startDate: 'start date', terminalDeclinePct: 'terminal decline', terminalDeclineBasis: 'terminal decline basis' };
+const KEYS = ['qi', 'declineAnnualPct', 'declineBasis', 'b', 'years', 'economicLimit', 'startDate', 'terminalDeclinePct', 'terminalDeclineBasis', 'downtimePct'];
+const LABELS = { qi: 'qi', declineAnnualPct: 'decline', declineBasis: 'decline basis', b: 'b', years: 'horizon', economicLimit: 'economic limit', startDate: 'start date', terminalDeclinePct: 'terminal decline', terminalDeclineBasis: 'terminal decline basis', downtimePct: 'downtime' };
 const TEXT_KEYS = new Set(['startDate', 'terminalDeclineBasis']);
 const numOrNull = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) || Number(v) === 0 ? null : Number(v));
 
@@ -61,7 +63,7 @@ export function editedAfterHandoff(c) {
   return KEYS.filter((k) => {
     if (k === 'declineBasis') return (c[k] || 'nominal') !== (sent[k] || 'nominal');
     if (TEXT_KEYS.has(k)) return String(c[k] || '') !== String(sent[k] || '');
-    if (k === 'terminalDeclinePct') {
+    if (k === 'terminalDeclinePct' || k === 'downtimePct') {
       const a = numOrNull(c[k]); const b = numOrNull(sent[k]);
       if (a == null || b == null) return a !== b;
       return Math.abs(a - b) > 1e-9 * Math.max(1, Math.abs(b));

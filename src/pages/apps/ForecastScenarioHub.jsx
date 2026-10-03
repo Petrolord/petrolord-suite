@@ -113,6 +113,11 @@ const CaseCard = ({ c, color, onChange, onDuplicate, onDelete, deletable, rateUn
             <Input id={`fsh-${c.id}-start`} type="date" value={c.startDate || ''} onChange={(e) => onChange({ startDate: e.target.value || null })}
               className="h-8 text-xs" disabled={disabled} data-testid={`fsh-${c.id}-start`} />
           </div>
+          {/* DCA U2-011: downtime, the share of calendar time shut in; blank is none */}
+          <DcaNumberField id={`fsh-${c.id}-downtime`} label="Downtime" unit="% of time" value={c.downtimePct > 0 ? c.downtimePct : null}
+            placeholder="None" emptyValue={null}
+            onCommit={(v) => onChange({ downtimePct: v > 0 && v < 100 ? v : null })}
+            labelClassName="text-[10px] text-pl-muted" testId={`fsh-${c.id}-downtime`} disabled={disabled} />
           {/* DCA U2-001: terminal decline Dmin, no default (blank is none) */}
           <DcaNumberField id={`fsh-${c.id}-dmin`} label="Terminal decline Dmin" unit="%/yr" value={c.terminalDeclinePct > 0 ? c.terminalDeclinePct : null}
             placeholder="None" emptyValue={null}

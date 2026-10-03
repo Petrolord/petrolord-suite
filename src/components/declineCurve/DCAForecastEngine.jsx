@@ -212,6 +212,19 @@ const DCAForecastEngine = () => {
           </p>
         </div>
 
+        {/* DCA U2-011: downtime factor after the cut-off; blank is none */}
+        <DcaNumberField
+          id="dca-downtime"
+          label="Downtime after the last data"
+          unit="% of time"
+          value={config.downtimePct > 0 ? config.downtimePct : null}
+          emptyValue={null}
+          placeholder="None"
+          onCommit={(v) => updateForecastConfig('downtimePct', Number.isFinite(v) && v > 0 && v < 100 ? v : null)}
+          testId="dca-downtime"
+          hint="The share of calendar time the well is expected to be shut in from the cut-off on. The fitted rates already carry the history's own downtime. Each forecast day delivers the fitted rate times the uptime; the economic limit is tested on the fitted rate."
+        />
+
         {/* Facility Limit */}
         <DcaNumberField
           id="dca-facility-limit"

@@ -123,6 +123,7 @@ export function collectHubReportArgs({ cases, econ, setStart = HUB_DEFAULT_START
       dmin ? `${num(Number(c.terminalDeclinePct), 2)} ${c.terminalDeclineBasis === 'nominal' ? 'nominal' : 'effective'}${s?.terminal ? `; switch ${s.terminal.fromStart ? 'at the start' : s.terminal.switchDate}` : ''}` : 'none',
       num(Number(c.years), 2),
       Number(c.economicLimit) > 0 ? num(rate(Number(c.economicLimit)), 1) : 'none',
+      Number(c.downtimePct) > 0 ? num(Number(c.downtimePct), 1) : 'none',
       s?.startDate || (c.startDate ? String(c.startDate).slice(0, 10) : setStart),
     ];
   });
@@ -243,8 +244,8 @@ export function buildHubPdf(model, { logo = null } = {}) {
   r.table('Results by case', ['Case', `EUR (${model.units.bigVolume})`, `To horizon (${model.units.bigVolume})`, `At 5 yr (${model.units.bigVolume})`, 'To limit (yr)', `Final rate (${model.units.rate})`, 'Indicative NPV ($MM)'], model.resultRows, {
     note: 'EUR runs to the economic limit (or the life cap); "To horizon" is the cumulative inside the horizon, which the annual profile and the indicative NPV use.',
   });
-  r.table('Cases', ['Case', 'Model', `qi (${model.units.rate})`, 'Decline (%/yr)', 'b', 'Dmin (%/yr)', 'Horizon (yr)', `Limit (${model.units.rate})`, 'Start'], model.caseRows, {
-    note: `Decline as typed with its basis, and the nominal it became when typed on another basis; a year is ${DAYS_PER_YEAR} days.`,
+  r.table('Cases', ['Case', 'Model', `qi (${model.units.rate})`, 'Decline (%/yr)', 'b', 'Dmin (%/yr)', 'Horizon (yr)', `Limit (${model.units.rate})`, 'Downtime (%)', 'Start'], model.caseRows, {
+    note: `Decline as typed with its basis, and the nominal it became when typed on another basis; a year is ${DAYS_PER_YEAR} days. Downtime is the share of calendar time shut in: each day delivers the decline rate times the uptime.`,
   });
   r.table('Where each case came from', ['Case', 'Source', 'Since the handoff', 'Source now'], model.sourceRows, {
     note: 'A case from Decline Curve Analysis carries the dca-forecast-1 contract it was made from; the hub reads the source again by id and says when it changed.',
