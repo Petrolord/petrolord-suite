@@ -105,6 +105,18 @@ export function valueExceedance(e, y, { given = 'all' } = {}) {
 }
 
 /**
+ * The value of the well's outcome for a discovery of one size, after the
+ * well ($MM): u V - D - W at or above the MEFS (developed), -W below it (not
+ * developed). It is the step valueExceedance counts over and the value line
+ * the engine reads (U2-009: the success-case P90 and P10 sizes sent to
+ * Capital Portfolio Studio).
+ */
+export function valueOfSize(e, volume) {
+  const W = e.wellCost || 0;
+  return volume >= (e.mefs || 0) ? (e.unitValue || 0) * volume - (e.devCost || 0) - W : -W;
+}
+
+/**
  * The value expectation curves as [value $MM, %], from the worst outcome to
  * the value of the 1 percent volume. Null when there is no value per barrel
  * (every commercial outcome is then worth the same).

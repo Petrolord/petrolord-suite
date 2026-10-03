@@ -8,6 +8,7 @@ import { ChartPanel } from '@/components/ui/chart-panel';
 import { signedTone } from '@/components/ui/numeric-table';
 import { AlertTriangle } from 'lucide-react';
 import { projectEmv } from '@/utils/portfolioOptimizer';
+import { isRrvProject, RRV_NPV_NOTE } from './rrvIntake';
 import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
 import {
@@ -20,11 +21,12 @@ const AXIS_TICK = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.
 
 // Design system (rollout 2E): KPI values are plain mono text; colour is kept
 // for status, and a negative figure reads in danger beside its minus sign.
-const Metric = ({ title, value, tone, detail }) => (
+const Metric = ({ title, value, tone, detail, note }) => (
   <div className="min-w-0">
     <p className="text-xs text-pl-muted uppercase tracking-wide">{title}</p>
     <p className={`font-semibold font-pl-mono tabular-nums break-words ${tone || 'text-pl-text'}`}>{value}</p>
     {detail && <p className="text-[11px] text-pl-muted" data-testid="risk-method">{detail}</p>}
+    {note && <p className="text-[11px] text-pl-muted" data-testid="metric-note">{note}</p>}
   </div>
 );
 
@@ -76,6 +78,8 @@ const OptimizationResults = ({ result }) => {
   const emvs = [...(frontierData || []).map((d) => d.emv), totalEmv || 0];
   const yAxis = niceAxis(Math.min(0, ...emvs), Math.max(...emvs, 0));
   const methodLabel = riskMethodLabel(risk);
+  // Risked Reserves Valuation U2-009: those projects' NPV is a success-case mean
+  const rrvFunded = optimalProjects.filter(isRrvProject).length;
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
@@ -84,7 +88,8 @@ const OptimizationResults = ({ result }) => {
           <CardTitle className="text-xl">Optimal Portfolio</CardTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-2">
             <Metric title="Risked EMV" value={money(totalEmv)} tone={signedTone(totalEmv)} />
-            <Metric title="Success-case NPV" value={money(totalNpvSuccess)} tone={signedTone(totalNpvSuccess)} />
+            <Metric title="Success-case NPV" value={money(totalNpvSuccess)} tone={signedTone(totalNpvSuccess)}
+              note={rrvFunded ? `includes ${rrvFunded} success-case mean value${rrvFunded === 1 ? '' : 's'} from Risked Reserves Valuation (each a mean; none is a P50)` : undefined} />
             <Metric title="Total CAPEX" value={formatCurrency(totalCapex)} />
             <Metric title="Projects" value={optimalProjects.length} />
             <Metric
@@ -156,7 +161,10 @@ const OptimizationResults = ({ result }) => {
                   <TableBody>
                     {optimalProjects.map(p => (
                       <TableRow key={p.id}>
-                        <TableCell className="font-medium">{p.name}</TableCell>
+                        <TableCell className="font-medium">
+                          {p.name}
+                          {isRrvProject(p) && <span className="ml-2 text-[10px] text-pl-muted bg-pl-sunken border border-pl-border rounded px-1.5 py-0.5" title={`From Risked Reserves Valuation. NPV is the success-case mean value: ${RRV_NPV_NOTE}`}>RRV</span>}
+                        </TableCell>
                         <TableCell className={numCell()}>{formatCurrency(p.capex)}</TableCell>
                         <TableCell className={numCell()}>{Math.round((p.pos ?? 1) * 100)}%</TableCell>
                         <TableCell className={numCell(signedTone(projectEmv(p)))}>{money(projectEmv(p))}</TableCell>
