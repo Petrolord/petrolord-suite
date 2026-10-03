@@ -205,12 +205,14 @@ test('PL9: the kr-1 handoff into Waterflood, by router state and by project id',
   await expect(page.getByTestId('kr-intake-origin')).toContainText('Corey fitted to sample "Demo core A (synthetic)"');
   await expect(page.getByTestId('kr-intake-status')).toHaveText('As received');
   const url = page.url();
-  // a fresh visit of the same address: no router state, the block is read by id
-  const fresh = await page.context().newPage();
-  await fresh.setViewportSize({ width: 1440, height: 900 });
-  await fresh.goto(url, { timeout: 120000 });
-  await expect(fresh.getByTestId('kr-intake-origin')).toContainText('Corey fitted to sample "Demo core A (synthetic)"', { timeout: 120000 });
-  await fresh.screenshot({ path: path.join(OUT, 'pl9-waterflood-intake.png') });
+  // a fresh visit of the same address: a new navigation carries no router
+  // state, so the block is read again by id (the harness keeps saved rows in
+  // this tab's sessionStorage, so the visit stays in the tab)
+  await page.goto('/dev/studio/scal', { timeout: 120000 });
+  await page.goto(url, { timeout: 120000 });
+  expect(await page.evaluate(() => window.history.state?.usr?.scalKr ?? null)).toBeNull();
+  await expect(page.getByTestId('kr-intake-origin')).toContainText('Corey fitted to sample "Demo core A (synthetic)"', { timeout: 120000 });
+  await page.screenshot({ path: path.join(OUT, 'pl9-waterflood-intake.png') });
   expect(errors).toEqual([]);
 });
 
