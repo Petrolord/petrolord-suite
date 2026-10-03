@@ -34,7 +34,7 @@ Headline results
 
  Surface gas gravity                              0.781              air = 1           Separator train flash
 
- Water formation volume factor at Pb              1.0345             RB/STB            McCain
+ Water formation volume factor at Pb              1.0354             RB/STB            McCain
 
  Water viscosity at Pb                            0.3875             cP                McCain
 
@@ -104,7 +104,7 @@ Fluid Properties Report, BHS-2 recombined, Field Ekene                          
  C7+ volume shift                             0.1126                               Computed: regression to the measured values above
 
 The compositional model uses the feed composition, the C7+ description, the reservoir pressure and temperature, the separator stages and, when
-applied, the tuning parameters. Salinity enters the water viscosity only. The measured values enter only through the tuning.
+applied, the tuning parameters. Salinity enters the water viscosity and Bw. The measured values enter only through the tuning.
 
 
 
@@ -284,17 +284,17 @@ Fluid Properties Report, BHS-2 recombined, Field Ekene                          
 PVT table
  Pressure           Rs            Bo           Bg              Z          Oil visc.      Gas visc.         co          Bw           Water visc.     Region
  (psia)             (scf/STB)     (RB/STB)     (RB/Mscf)                  (cP)           (cP)              (1/psi)     (RB/STB)     (cP)
-          3,575           830.9       1.4531             n/a        n/a        0.3855                n/a         n/a       1.0325          0.4044 Above Pb
-          3,163           830.9       1.4657             n/a        n/a        0.3596                n/a         n/a       1.0335          0.3958 Above Pb
-          2,888           830.9       1.4748             n/a        n/a        0.3425                n/a         n/a       1.0342          0.3902 Above Pb
-          2,750           830.9       1.4796             n/a        n/a        0.3339                n/a         n/a       1.0345          0.3875 Pb
-          2,338           679.3       1.4060           1.203 0.8461            0.3933         0.01839            n/a       1.0354          0.3796 Below Pb
-          1,925           543.5       1.3401           1.470 0.8518            0.4649         0.01681            n/a       1.0362          0.3720 Below Pb
-          1,513           420.0       1.2798           1.899 0.8643            0.5518         0.01552            n/a       1.0369          0.3648 Below Pb
-          1,100           305.7       1.2235           2.670 0.8838            0.6586         0.01450            n/a       1.0375          0.3580 Below Pb
-              688         196.8       1.1686           4.399 0.9103            0.7933         0.01368            n/a       1.0380          0.3516 Below Pb
-              330          99.0       1.1165           9.456 0.9392            0.9516         0.01292            n/a       1.0384          0.3462 Below Pb
-               15           0.0       0.9656           223.7 0.9896              1.505        0.01046            n/a       1.0387          0.3418 Below Pb
+          3,575           830.9       1.4531             n/a        n/a        0.3855                n/a         n/a       1.0335          0.4044 Above Pb
+          3,163           830.9       1.4657             n/a        n/a        0.3596                n/a         n/a       1.0345          0.3958 Above Pb
+          2,888           830.9       1.4748             n/a        n/a        0.3425                n/a         n/a       1.0351          0.3902 Above Pb
+          2,750           830.9       1.4796             n/a        n/a        0.3339                n/a         n/a       1.0354          0.3875 Pb
+          2,338           679.3       1.4060           1.203 0.8461            0.3933         0.01839            n/a       1.0362          0.3796 Below Pb
+          1,925           543.5       1.3401           1.470 0.8518            0.4649         0.01681            n/a       1.0370          0.3720 Below Pb
+          1,513           420.0       1.2798           1.899 0.8643            0.5518         0.01552            n/a       1.0376          0.3648 Below Pb
+          1,100           305.7       1.2235           2.670 0.8838            0.6586         0.01450            n/a       1.0382          0.3580 Below Pb
+              688         196.8       1.1686           4.399 0.9103            0.7933         0.01368            n/a       1.0386          0.3516 Below Pb
+              330          99.0       1.1165           9.456 0.9392            0.9516         0.01292            n/a       1.0389          0.3462 Below Pb
+               15           0.0       0.9656           223.7 0.9896              1.505        0.01046            n/a       1.0392          0.3418 Below Pb
 
 The rows are the rows of the table the app exports and hands to other apps, in the units of the header of this report. Oil compressibility is reported
 above the saturation pressure only.

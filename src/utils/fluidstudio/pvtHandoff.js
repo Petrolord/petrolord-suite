@@ -12,13 +12,29 @@
  * Pure.
  */
 import { buildPvtContract } from '@/lib/inputProvenance/pvtContract';
-import { blackOilRangeFlags } from '@/utils/fluidStudioCalculations';
+import { blackOilRangeFlags, bwAt, muWaterAt } from '@/utils/fluidStudioCalculations';
 import { tuningState, isActiveStage } from '@/utils/fluidstudio/eosAnalysis';
 import { labContractBlock, blackOilEvaluator } from '@/utils/fluidstudio/labReport';
 import { labMatchState } from '@/utils/fluidstudio/labMatch';
 import { pressureRangeBlock } from '@/utils/fluidstudio/tableRange';
 
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
+
+/**
+ * The water compressibility -(1/Bw) dBw/dp and viscosibility (1/muw) dmuw/dp
+ * at a pressure, from the engine's own water functions (central difference,
+ * 1 psi): what PVTW needs, without the rounding of the printed table.
+ */
+export function waterSlopes(p, tempF, salinity) {
+  if (!(p > 2) || !Number.isFinite(tempF)) return { cw: null, viscosibility: null };
+  const dp = 1;
+  const bw = bwAt(p, tempF, salinity);
+  const mu = muWaterAt(p, tempF, salinity);
+  return {
+    cw: -(bwAt(p + dp, tempF, salinity) - bwAt(p - dp, tempF, salinity)) / (2 * dp) / bw,
+    viscosibility: (muWaterAt(p + dp, tempF, salinity) - muWaterAt(p - dp, tempF, salinity)) / (2 * dp) / mu,
+  };
+}
 
 /** The enabled separator stages as the contract states them. */
 export const separatorConditions = (stages) => (stages || []).filter(isActiveStage).map((s) => ({
@@ -145,6 +161,8 @@ export function buildFluidPvtContract({ inputs, results, eos, projectId = null, 
       atSaturation: {
         pressure: t.pb, Rs: t.kpis.rsfb, Bo: t.kpis.bofb, mu_o: pbRow?.mu_o ?? null, Bg: pbRow?.Bg ?? null, Z: pbRow?.Z ?? null,
         Bw: pbRow?.Bw ?? null, mu_w: pbRow?.mu_w ?? null, Bod: t.kpis.bodb, Rsd: t.kpis.rsdb,
+        // added 2026-10-03 (Fluid U2): for PVTW
+        ...(() => { const w = waterSlopes(t.pb, pvt.model?.tempF, fluidForWater.salinity); return { cw: w.cw, viscosibility_w: w.viscosibility }; })(),
       },
       labData: labContractBlock({ inputs, rows: t.rows, pb: t.pb }),
       pressureRange: { ...pressureRangeBlock(inputs, t.rows), note: 'The compositional table keeps its own span; a set top applies to the black-oil table.' },
@@ -175,6 +193,8 @@ export function buildFluidPvtContract({ inputs, results, eos, projectId = null, 
     atSaturation: {
       pressure: k.pb, Rs: k.rsb, Bo: k.bo_at_pb, mu_o: k.mu_o_at_pb, co: k.co_at_pb, Bg: k.bg_at_pb, Z: k.z_at_pb,
       Bw: k.bw_at_pb, mu_w: k.mu_w_at_pb, mu_od: k.mu_od,
+      // added 2026-10-03 (Fluid U2): for PVTW
+      ...(() => { const w = waterSlopes(results.pvt.pb, meta.fluid.temp, meta.fluid.salinity); return { cw: w.cw, viscosibility_w: w.viscosibility }; })(),
     },
     labData: labContractBlock({ inputs, rows: results.pvt.table, pb: k.pb, evaluate: blackOilEvaluator(results) }),
     pressureRange: pressureRangeBlock(inputs, results.pvt.table),

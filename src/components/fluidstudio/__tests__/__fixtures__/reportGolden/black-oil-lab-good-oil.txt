@@ -34,7 +34,8 @@ Headline results
 
  Gas formation volume factor at Pb                 1.098             RB/Mscf           Real gas law, Bg = 0.00504 Z T / p
 
- Water formation volume factor at Pb               1.0419            RB/STB            McCain
+ Water formation volume factor at Pb               1.0425            RB/STB            McCain, with the Numbere-Brigham-Standing salinity
+                                                                                       correction
 
  Water viscosity at Pb                             0.3489            cP                McCain
 
@@ -136,63 +137,68 @@ Fluid Properties Report, Subsurface sample, Field Productive                    
  Pressure the table is carried up to            5,015                 psia              Computed: the highest pressure of the laboratory tables
 
 The PVT table uses the API gravity, the solution GOR, the gas gravity, the temperature, the bubble point when one is entered and the two
-correlation choices. Salinity enters the water viscosity only. The stock-tank oil basis scales the stage gas rates and nothing else. Flowline geometry
-is recorded in the app and enters no calculation. The laboratory tables are compared with the model and enter no calculation.
+correlation choices. Salinity enters the water viscosity and, through the brine correction, Bw. The stock-tank oil basis scales the stage gas rates
+and nothing else. Flowline geometry is recorded in the app and enters no calculation. The laboratory tables are compared with the model and
+enter no calculation.
 
 
 Method used for each property
- Property                              Method                                    Reference                   Note
+ Property                              Method                                     Reference                   Note
 
- Bubble point pressure                 Laboratory saturation pressure            n/a                         Standing alone puts the bubble point
-                                       (correlation match)                                                   at 2503 psia. Below the laboratory
-                                                                                                             pressure its Rs is multiplied by 0.791
-                                                                                                             and shifted by 122.3 scf/STB, so that
-                                                                                                             Rs meets the solution GOR there
-                                                                                                             and follows the laboratory Rs below
-                                                                                                             it. Below 174 psia, the lowest
-                                                                                                             laboratory pressure of the fit, Rs
-                                                                                                             follows the correlation scaled to meet
-                                                                                                             the matched curve there.
+ Bubble point pressure                 Laboratory saturation pressure             n/a                         Standing alone puts the bubble point
+                                       (correlation match)                                                    at 2503 psia. Below the laboratory
+                                                                                                              pressure its Rs is multiplied by 0.791
+                                                                                                              and shifted by 122.3 scf/STB, so that
+                                                                                                              Rs meets the solution GOR there
+                                                                                                              and follows the laboratory Rs below
+                                                                                                              it. Below 174 psia, the lowest
+                                                                                                              laboratory pressure of the fit, Rs
+                                                                                                              follows the correlation scaled to meet
+                                                                                                              the matched curve there.
 
- Solution GOR Rs                       Standing, multiplied by 0.7909 plus       Standing (1947)             Held at the solution GOR above the
-                                       122.3 scf/STB (laboratory match)                                      bubble point.
+ Solution GOR Rs                       Standing, multiplied by 0.7909 plus        Standing (1947)             Held at the solution GOR above the
+                                       122.3 scf/STB (laboratory match)                                       bubble point.
 
- Oil formation volume factor Bo        Standing, multiplied by 0.9059 plus       Standing (1947)             Above the bubble point: Bo(Pb) (Pb /
-                                       0.1281 RB/STB (laboratory match)                                      p)^A, the Vasquez-Beggs
-                                                                                                             compressibility co = A / p integrated.
+ Oil formation volume factor Bo        Standing, multiplied by 0.9059 plus        Standing (1947)             Above the bubble point: Bo(Pb) (Pb /
+                                       0.1281 RB/STB (laboratory match)                                       p)^A, the Vasquez-Beggs
+                                                                                                              compressibility co = A / p integrated.
 
- Oil compressibility co                Vasquez-Beggs                             Vasquez and Beggs
- (undersaturated)                                                                (1980)
+ Oil compressibility co                Vasquez-Beggs                              Vasquez and Beggs
+ (undersaturated)                                                                 (1980)
 
- Dead oil viscosity                    Beggs-Robinson, multiplied by 1.1606      Beggs and Robinson
-                                       (laboratory match)                        (1975)
+ Dead oil viscosity                    Beggs-Robinson, multiplied by 1.1606       Beggs and Robinson
+                                       (laboratory match)                         (1975)
 
- Live (saturated) oil viscosity        Beggs-Robinson, multiplied by 1.1606      Beggs and Robinson
-                                       (laboratory match)                        (1975)
+ Live (saturated) oil viscosity        Beggs-Robinson, multiplied by 1.1606       Beggs and Robinson
+                                       (laboratory match)                         (1975)
 
- Undersaturated oil viscosity          Vasquez-Beggs                             Vasquez and Beggs
-                                                                                 (1980)
+ Undersaturated oil viscosity          Vasquez-Beggs                              Vasquez and Beggs
+                                                                                  (1980)
 
- Gas deviation factor Z                Dranchuk-Abou-Kassem, with Sutton         Dranchuk and                Within 1.25 percent of the
-                                       pseudo-critical properties                Abou-Kassem (1975);         Standing-Katz chart from
-                                                                                 Sutton (1985)               pseudo-reduced temperature 1.2 to 3
-                                                                                                             and pressure 0.2 to 15. Between Tpr
-                                                                                                             1.05 and 1.2 it departs from the
-                                                                                                             Standing-Katz chart by up to 6
-                                                                                                             percent at Tpr 1.10 and 18 percent at
-                                                                                                             Tpr 1.05.
+ Gas deviation factor Z                Dranchuk-Abou-Kassem, with Sutton          Dranchuk and                Within 1.25 percent of the
+                                       pseudo-critical properties                 Abou-Kassem (1975);         Standing-Katz chart from
+                                                                                  Sutton (1985)               pseudo-reduced temperature 1.2 to 3
+                                                                                                              and pressure 0.2 to 15. Between Tpr
+                                                                                                              1.05 and 1.2 it departs from the
+                                                                                                              Standing-Katz chart by up to 6
+                                                                                                              percent at Tpr 1.10 and 18 percent at
+                                                                                                              Tpr 1.05.
 
- Gas viscosity                         Lee-Gonzalez-Eakin                        Lee, Gonzalez and
-                                                                                 Eakin (1966)
+ Gas viscosity                         Lee-Gonzalez-Eakin                         Lee, Gonzalez and
+                                                                                  Eakin (1966)
 
- Gas formation volume factor Bg        Real gas law, Bg = 0.00504 Z T / p        n/a                         The constant is for field units (RB/scf,
-                                                                                                             T in degR, p in psia), at the standard
-                                                                                                             conditions of this report.
+ Gas formation volume factor Bg        Real gas law, Bg = 0.00504 Z T / p         n/a                         The constant is for field units (RB/scf,
+                                                                                                              T in degR, p in psia), at the standard
+                                                                                                              conditions of this report.
 
- Water formation volume factor Bw      McCain                                    McCain (1990)               Pure water form: salinity is not
-                                                                                                             applied to Bw.
+ Water formation volume factor Bw      McCain, with the                           McCain (1990);              Gas-free water. The brine ratio for
+                                       Numbere-Brigham-Standing salinity          Numbere, Brigham and        35000 ppm is applied (Equation 10 of
+                                       correction                                 Standing (1977)             the Stanford report).
 
- Water viscosity                       McCain                                    McCain (1991)
+ Brine correction of Bw                Numbere, Brigham and Standing              Numbere, Brigham and
+                                                                                  Standing (1977)
+
+ Water viscosity                       McCain                                     McCain (1991)
 
 The method names are written by the engine beside the calculation that used them.
 
@@ -352,6 +358,45 @@ of the adjusted Bo and Rs.
 - Laboratory saturation pressure 2,635 psia; the model has 2,635 psia (+0.0%).
 
 
+Quality checks of the laboratory tables
+Checked: constant composition expansion: relative volume falls with pressure; the Y function is a straight line; differential liberation: Rsd and Bod
+rise with pressure; the relative total volume, Bg and the oil density fall; the mass balance of each stage; oil viscosity: falls with pressure below the
+bubble point and rises above it.
+Flagged (1), not corrected:
+- The Y function 2.574 at 2620 psia is -3.5 percent off the straight line through the others (2.668); near the saturation pressure a small error in the
+relative volume does this.
+
+
+Mass balance of the differential liberation
+ Stage pressure (psia)      Oil mass from density and Bod (lb per residual               From the stage below plus the gas                   Difference
+                            bbl)                                                         liberated
+
+ 174                        321.9                                                        321.8                                               +0.02%
+
+ 365                        327.9                                                        328.0                                               -0.04%
+
+ 615                        333.0                                                        333.1                                               -0.02%
+
+ 865                        337.2                                                        337.2                                               +0.00%
+
+ 1,115                      341.2                                                        341.1                                               +0.02%
+
+ 1,365                      344.9                                                        345.1                                               -0.06%
+
+ 1,615                      348.9                                                        348.8                                               +0.02%
+
+ 1,865                      352.9                                                        353.0                                               -0.03%
+
+ 2,115                      357.4                                                        357.3                                               +0.03%
+
+ 2,365                      362.5                                                        362.3                                               +0.05%
+
+ 2,635                      368.0                                                        368.3                                               -0.07%
+
+Mass of oil at each stage = density x Bod; it must equal the mass at the next lower stage plus 0.0764 lb/scf x the incremental gas gravity x the
+drop in Rsd. A difference above 1 percent is flagged. Nothing is corrected.
+
+
 Limits of this analysis
 - Black-oil correlations: empirical fits to laboratory data of the oils their authors had. They are not a substitute for a laboratory PVT study of this
 fluid.
@@ -361,35 +406,42 @@ fluid.
 viscosity there describe the solution gas only as a reference.
 - The separator results are a staged liberation by the Rs correlation at each stage. It is an approximation and no compositional flash; the
 multistage Bo is an estimate.
-- Water properties are for water with no dissolved gas.
+- Water properties are for water with no dissolved gas; the salinity correction of Bw is the brine ratio of Numbere, Brigham and Standing (1977).
 
-Published ranges of the methods used
- Method                                Used for                                       Published range
 
- Standing                              Solution GOR Rs; Oil formation volume          Solution GOR 20 to 1,425 scf/STB; Temperature 100 to 258
-                                       factor Bo                                      degF; API gravity 16.5 to 63.8 degAPI; Gas gravity 0.59 to 0.95
-                                                                                      air = 1; Pressure 130 to 7,000 psia
 
- Vasquez-Beggs (compressibility)       Oil compressibility co (undersaturated)        Solution GOR 20 to 2,199 scf/STB; Temperature 75 to 294
-                                                                                      degF; API gravity 15.3 to 59.5 degAPI; Gas gravity 0.511 to
-                                                                                      1.351 air = 1
 
- Beggs-Robinson                        Dead oil viscosity; Live (saturated) oil       API gravity 16 to 58 degAPI; Temperature 70 to 295 degF;
-                                       viscosity                                      Solution GOR 20 to 2,070 scf/STB
+Fluid Properties Report, Subsurface sample, Field Productive                                                                                  Page 6 of 12
+Published ranges of the methods used
+ Method                               Used for                                       Published range
 
- Vasquez-Beggs (undersaturated         Undersaturated oil viscosity                   Pressure 141 to 9,515 psia
+ Standing                             Solution GOR Rs; Oil formation volume          Solution GOR 20 to 1,425 scf/STB; Temperature 100 to 258
+                                      factor Bo                                      degF; API gravity 16.5 to 63.8 degAPI; Gas gravity 0.59 to 0.95
+                                                                                     air = 1; Pressure 130 to 7,000 psia
+
+ Vasquez-Beggs (compressibility)      Oil compressibility co (undersaturated)        Solution GOR 20 to 2,199 scf/STB; Temperature 75 to 294
+                                                                                     degF; API gravity 15.3 to 59.5 degAPI; Gas gravity 0.511 to
+                                                                                     1.351 air = 1
+
+ Beggs-Robinson                       Dead oil viscosity; Live (saturated) oil       API gravity 16 to 58 degAPI; Temperature 70 to 295 degF;
+                                      viscosity                                      Solution GOR 20 to 2,070 scf/STB
+
+ Vasquez-Beggs (undersaturated        Undersaturated oil viscosity                   Pressure 141 to 9,515 psia
  viscosity)
 
- Dranchuk-Abou-Kassem (Z), on          Gas deviation factor Z                         Gas gravity 0.57 to 1.68 air = 1; Pseudo-reduced temperature
- Sutton pseudo-critical properties                                                    1.2 to 3; Pseudo-reduced pressure 0 to 15
+ Dranchuk-Abou-Kassem (Z), on         Gas deviation factor Z                         Gas gravity 0.57 to 1.68 air = 1; Pseudo-reduced temperature
+ Sutton pseudo-critical properties                                                   1.2 to 3; Pseudo-reduced pressure 0 to 15
 
- Lee-Gonzalez-Eakin                    Gas viscosity                                  Pressure 100 to 8,000 psia; Temperature 100 to 340 degF; Gas
-                                                                                      gravity 0.55 to 1 air = 1
+ Lee-Gonzalez-Eakin                   Gas viscosity                                  Pressure 100 to 8,000 psia; Temperature 100 to 340 degF; Gas
+                                                                                     gravity 0.55 to 1 air = 1
 
- McCain (water FVF)                    Water formation volume factor Bw               Pressure 0 to 5,000 psia; Temperature 0 to 260 degF
+ McCain (water FVF)                   Water formation volume factor Bw               Pressure 0 to 5,000 psia; Temperature 0 to 260 degF
 
- McCain (water viscosity)              Water viscosity                                Pressure 0 to 10,000 psia; Temperature 100 to 400 degF;
-                                                                                      Salinity 0 to 260,000 ppm
+ Numbere, Brigham and Standing        Brine correction of Bw                         Pressure 0 to 10,000 psia; Temperature 60 to 400 degF;
+ (brine Bw)                                                                          Salinity 0 to 250,000 ppm
+
+ McCain (water viscosity)             Water viscosity                                Pressure 0 to 10,000 psia; Temperature 100 to 400 degF;
+                                                                                     Salinity 0 to 260,000 ppm
 
 Ranges are those of the data each correlation was fitted to, as held in the Petrolord engines library and the app. For the z-factor the window is the
 one over which the engines library checked the method against readings of the Standing-Katz chart; below a pseudo-reduced pressure of 0.2 Z
@@ -400,7 +452,8 @@ Inputs outside a published range
 - Standing: 1 table row (15 psia) outside its published pressure range (130 to 7,000 psia). Affects: Solution GOR Rs; Oil formation volume factor
 Bo.
 - Lee-Gonzalez-Eakin: 1 table row (15 psia) outside its published pressure range (100 to 8,000 psia). Affects: Gas viscosity.
-- McCain: 1 table row (5,015 psia) outside its published pressure range (0 to 5,000 psia). Affects: Water formation volume factor Bw.
+- McCain, with the Numbere-Brigham-Standing salinity correction: 1 table row (5,015 psia) outside its published pressure range (0 to 5,000 psia).
+Affects: Water formation volume factor Bw.
 
 
 Notes from the engine
@@ -410,62 +463,63 @@ compositional model.
 methods table of the report states the multiplier and shift of each property.
 
 
+PVT table
+ Pressure           Rs            Bo           Bg              Z      Oil visc.      Gas visc.      co          Bw           Water visc.     Region
+ (psia)             (scf/STB)     (RB/STB)     (RB/Mscf)              (cP)           (cP)           (1/psi)     (RB/STB)     (cP)
+            5,015         768.0       1.4223          0.6810 0.9964         0.5015        0.03150     1.14e-5       1.0359          0.3961 Above Pb
+            4,887         768.0       1.4244          0.6910 0.9852         0.4939        0.03095     1.17e-5       1.0363          0.3933 Above Pb
+            4,759         768.0       1.4266          0.7020 0.9741         0.4863        0.03040     1.20e-5       1.0367          0.3905 Above Pb
+            4,630         768.0       1.4288          0.7130 0.9633         0.4789        0.02984     1.23e-5       1.0371          0.3877 Above Pb
+            4,502         768.0       1.4311          0.7250 0.9526         0.4717        0.02927     1.26e-5       1.0376          0.3850 Above Pb
+            4,374         768.0       1.4334          0.7380 0.9423         0.4646        0.02870     1.30e-5       1.0380          0.3823 Above Pb
+            4,246         768.0       1.4358          0.7520 0.9322         0.4576        0.02812     1.34e-5       1.0383          0.3796 Above Pb
+            4,118         768.0       1.4384          0.7680 0.9224         0.4508        0.02754     1.38e-5       1.0387          0.3770 Above Pb
+            3,989         768.0       1.4410          0.7840 0.9129         0.4442        0.02695     1.43e-5       1.0391          0.3744 Above Pb
+            3,861         768.0       1.4436          0.8020 0.9038         0.4377        0.02635     1.47e-5       1.0395          0.3719 Above Pb
+            3,733         768.0       1.4464          0.8220 0.8951         0.4314        0.02575     1.53e-5       1.0398          0.3693 Above Pb
+            3,605         768.0       1.4493          0.8430 0.8868         0.4253        0.02515     1.58e-5       1.0402          0.3668 Above Pb
+            3,476         768.0       1.4523          0.8670 0.8790         0.4194        0.02454     1.64e-5       1.0405          0.3643 Above Pb
+            3,348         768.0       1.4554          0.8920 0.8718         0.4136        0.02393     1.70e-5       1.0408          0.3619 Above Pb
+            3,220         768.0       1.4586          0.9210 0.8651         0.4081        0.02332     1.77e-5       1.0411          0.3595 Above Pb
 
 
-Fluid Properties Report, Subsurface sample, Field Productive                                                                                  Page 6 of 12
-PVT table
- Pressure         Rs             Bo            Bg              Z     Oil visc.      Gas visc.      co          Bw           Water visc.     Region
- (psia)           (scf/STB)      (RB/STB)      (RB/Mscf)             (cP)           (cP)           (1/psi)     (RB/STB)     (cP)
-          5,015          768.0        1.4223         0.6810 0.9964        0.5015         0.03150     1.14e-5       1.0349           0.3961 Above Pb
-          4,887          768.0        1.4244         0.6910 0.9852        0.4939         0.03095     1.17e-5       1.0354           0.3933 Above Pb
-          4,759          768.0        1.4266         0.7020 0.9741        0.4863         0.03040     1.20e-5       1.0358           0.3905 Above Pb
-          4,630          768.0        1.4288         0.7130 0.9633        0.4789         0.02984     1.23e-5       1.0363           0.3877 Above Pb
-          4,502          768.0        1.4311         0.7250 0.9526        0.4717         0.02927     1.26e-5       1.0367           0.3850 Above Pb
-          4,374          768.0        1.4334         0.7380 0.9423        0.4646         0.02870     1.30e-5       1.0371           0.3823 Above Pb
-          4,246          768.0        1.4358         0.7520 0.9322        0.4576         0.02812     1.34e-5       1.0375           0.3796 Above Pb
-          4,118          768.0        1.4384         0.7680 0.9224        0.4508         0.02754     1.38e-5       1.0379           0.3770 Above Pb
-          3,989          768.0        1.4410         0.7840 0.9129        0.4442         0.02695     1.43e-5       1.0383           0.3744 Above Pb
-          3,861          768.0        1.4436         0.8020 0.9038        0.4377         0.02635     1.47e-5       1.0387           0.3719 Above Pb
-          3,733          768.0        1.4464         0.8220 0.8951        0.4314         0.02575     1.53e-5       1.0391           0.3693 Above Pb
-          3,605          768.0        1.4493         0.8430 0.8868        0.4253         0.02515     1.58e-5       1.0394           0.3668 Above Pb
-          3,476          768.0        1.4523         0.8670 0.8790        0.4194         0.02454     1.64e-5       1.0398           0.3643 Above Pb
-          3,348          768.0        1.4554         0.8920 0.8718        0.4136         0.02393     1.70e-5       1.0401           0.3619 Above Pb
-          3,220          768.0        1.4586         0.9210 0.8651        0.4081         0.02332     1.77e-5       1.0405           0.3595 Above Pb
-          3,092          768.0        1.4620         0.9520 0.8591        0.4027         0.02271     1.84e-5       1.0408           0.3571 Above Pb
-          2,964          768.0        1.4656         0.9870 0.8538        0.3976         0.02211     1.92e-5       1.0411           0.3548 Above Pb
-          2,835          768.0        1.4692          1.026 0.8492        0.3927         0.02150     2.01e-5       1.0414           0.3525 Above Pb
-          2,707          768.0        1.4731          1.070 0.8455        0.3880         0.02090     2.10e-5       1.0417           0.3502 Above Pb
-          2,635          768.0        1.4754          1.098 0.8437        0.3855         0.02057         n/a       1.0419           0.3489 Pb
-          2,579          751.7        1.4667          1.120 0.8426        0.3893         0.02031         n/a       1.0420           0.3479 Below Pb
-          2,451          714.6        1.4469          1.176 0.8408        0.3984         0.01973         n/a       1.0423           0.3457 Below Pb
-          2,323          677.8        1.4275          1.239 0.8399        0.4080         0.01916         n/a       1.0426           0.3435 Below Pb
-          2,194          641.5        1.4085          1.312 0.8401        0.4183         0.01860         n/a       1.0429           0.3414 Below Pb
-          2,066          605.6        1.3898          1.396 0.8415        0.4292         0.01806         n/a       1.0431           0.3392 Below Pb
-          1,938          570.1        1.3715          1.493 0.8440        0.4408         0.01754         n/a       1.0434           0.3371 Below Pb
-          1,810          535.1        1.3536          1.606 0.8478        0.4533         0.01704         n/a       1.0436           0.3351 Below Pb
-          1,681          500.6        1.3361          1.738 0.8527        0.4666         0.01656         n/a       1.0438           0.3330 Below Pb
-          1,553          466.6        1.3190          1.895 0.8588        0.4809         0.01611         n/a       1.0441           0.3311 Below Pb
-          1,425          433.2        1.3024          2.083 0.8660        0.4963         0.01568         n/a       1.0443           0.3291 Below Pb
-          1,297          400.4        1.2862          2.310 0.8743        0.5129         0.01529         n/a       1.0445           0.3272 Below Pb
-          1,169          368.3        1.2705          2.591 0.8835        0.5309         0.01492         n/a       1.0447           0.3252 Below Pb
-          1,040          336.8        1.2553          2.944 0.8938        0.5504         0.01458         n/a       1.0448           0.3234 Below Pb
-            912          306.1        1.2406          3.399 0.9048        0.5716         0.01426         n/a       1.0450           0.3215 Below Pb
-            784          276.3        1.2265          4.007 0.9166        0.5948         0.01398         n/a       1.0452           0.3197 Below Pb
-            656          247.4        1.2129          4.855 0.9291        0.6199         0.01373         n/a       1.0453           0.3180 Below Pb
-            528          219.6        1.2000          6.120 0.9421        0.6474         0.01350         n/a       1.0455           0.3162 Below Pb
-            399          193.1        1.1879          8.201 0.9556        0.6771         0.01330         n/a       1.0456           0.3145 Below Pb
-            271          168.2        1.1766          12.26 0.9695        0.7091         0.01313         n/a       1.0458           0.3128 Below Pb
-            143          123.1        1.1565          23.59 0.9838        0.7802         0.01300         n/a       1.0459           0.3112 Below Pb
-             15           21.9        1.1131          232.8 0.9983          1.068        0.01291         n/a       1.0460           0.3095 Below Pb
+
+
+Fluid Properties Report, Subsurface sample, Field Productive                                                                               Page 7 of 12
+ Pressure           Rs            Bo           Bg              Z       Oil visc.      Gas visc.      co          Bw             Water visc.     Region
+ (psia)             (scf/STB)     (RB/STB)     (RB/Mscf)               (cP)           (cP)           (1/psi)     (RB/STB)       (cP)
+          3,092           768.0       1.4620          0.9520 0.8591         0.4027         0.02271     1.84e-5         1.0415          0.3571 Above Pb
+          2,964           768.0       1.4656          0.9870 0.8538         0.3976         0.02211     1.92e-5         1.0418          0.3548 Above Pb
+          2,835           768.0       1.4692            1.026 0.8492        0.3927         0.02150     2.01e-5         1.0420          0.3525 Above Pb
+          2,707           768.0       1.4731            1.070 0.8455        0.3880         0.02090     2.10e-5         1.0423          0.3502 Above Pb
+          2,635           768.0       1.4754            1.098 0.8437        0.3855         0.02057         n/a         1.0425          0.3489 Pb
+          2,579           751.7       1.4667            1.120 0.8426        0.3893         0.02031         n/a         1.0426          0.3479 Below Pb
+          2,451           714.6       1.4469            1.176 0.8408        0.3984         0.01973         n/a         1.0429          0.3457 Below Pb
+          2,323           677.8       1.4275            1.239 0.8399        0.4080         0.01916         n/a         1.0431          0.3435 Below Pb
+          2,194           641.5       1.4085            1.312 0.8401        0.4183         0.01860         n/a         1.0434          0.3414 Below Pb
+          2,066           605.6       1.3898            1.396 0.8415        0.4292         0.01806         n/a         1.0436          0.3392 Below Pb
+          1,938           570.1       1.3715            1.493 0.8440        0.4408         0.01754         n/a         1.0438          0.3371 Below Pb
+          1,810           535.1       1.3536            1.606 0.8478        0.4533         0.01704         n/a         1.0441          0.3351 Below Pb
+          1,681           500.6       1.3361            1.738 0.8527        0.4666         0.01656         n/a         1.0443          0.3330 Below Pb
+          1,553           466.6       1.3190            1.895 0.8588        0.4809         0.01611         n/a         1.0445          0.3311 Below Pb
+          1,425           433.2       1.3024            2.083 0.8660        0.4963         0.01568         n/a         1.0447          0.3291 Below Pb
+          1,297           400.4       1.2862            2.310 0.8743        0.5129         0.01529         n/a         1.0448          0.3272 Below Pb
+          1,169           368.3       1.2705            2.591 0.8835        0.5309         0.01492         n/a         1.0450          0.3252 Below Pb
+          1,040           336.8       1.2553            2.944 0.8938        0.5504         0.01458         n/a         1.0452          0.3234 Below Pb
+              912         306.1       1.2406            3.399 0.9048        0.5716         0.01426         n/a         1.0453          0.3215 Below Pb
+              784         276.3       1.2265            4.007 0.9166        0.5948         0.01398         n/a         1.0455          0.3197 Below Pb
+              656         247.4       1.2129            4.855 0.9291        0.6199         0.01373         n/a         1.0456          0.3180 Below Pb
+              528         219.6       1.2000            6.120 0.9421        0.6474         0.01350         n/a         1.0457          0.3162 Below Pb
+              399         193.1       1.1879            8.201 0.9556        0.6771         0.01330         n/a         1.0459          0.3145 Below Pb
+              271         168.2       1.1766            12.26 0.9695        0.7091         0.01313         n/a         1.0460          0.3128 Below Pb
+              143         123.1       1.1565            23.59 0.9838        0.7802         0.01300         n/a         1.0461          0.3112 Below Pb
+               15          21.9       1.1131            232.8 0.9983          1.068        0.01291         n/a         1.0462          0.3095 Below Pb
 
 The rows are the rows of the table the app exports and hands to other apps, in the units of the header of this report. Oil compressibility is reported
 above the saturation pressure only.
 
 
-
-
-Fluid Properties Report, Subsurface sample, Field Productive                                                                              Page 7 of 12
-PVT contract handed to other apps
+PVT contract handed to other apps
  Item                              Value
 
  PVT contract                      pvt-1
@@ -495,7 +549,7 @@ Other Petrolord apps receive this block with the table and print it as the sourc
 
 
 
-Fluid Properties Report, Subsurface sample, Field Productive                                                                             Page 8 of 12
+Fluid Properties Report, Subsurface sample, Field Productive                                                                                  Page 8 of 12
 Plots
 Figure 1. Oil formation volume factor Bo against pressure
 

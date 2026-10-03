@@ -125,9 +125,14 @@ describe('round trip: the export read back is the table in deck units', () => {
     const rows = simRowsFromContract(ws.contract);
     expect(cwEngine).toBeGreaterThan(2e-6);
     expect(cwEngine).toBeLessThan(5e-6);
-    // the table prints Bw to four decimals over rows some 130 psi apart: within 5 percent of the exact slope
-    expect(Math.abs(rows.pvtw.cw - cwEngine) / cwEngine).toBeLessThan(0.05);
-    expect(Math.abs(rows.pvtw.viscosibility - cvEngine) / cvEngine).toBeLessThan(0.05);
+    // the producer states the slopes from the engine; the table's own slope (Bw printed to four decimals) is the fallback
+    expect(rows.pvtw.slopesFrom).toBe('engine');
+    // (the block prints the bubble point to the whole psia; the producer used the exact one)
+    expect(Math.abs(rows.pvtw.cw - cwEngine) / cwEngine).toBeLessThan(1e-3);
+    expect(Math.abs(rows.pvtw.viscosibility - cvEngine) / cvEngine).toBeLessThan(1e-3);
+    const old = simRowsFromContract({ ...ws.contract, at_saturation: { ...ws.contract.at_saturation, cw: undefined, viscosibility_w: undefined } });
+    expect(old.pvtw.slopesFrom).toBe('table');
+    expect(Math.abs(old.pvtw.cw - cwEngine) / cwEngine).toBeLessThan(0.25);
     expect(back.PVTW.cw).toBeCloseTo(rows.pvtw.cw, 8);
     // negative control: the slope with the wrong sign is a negative compressibility
     expect(-rows.pvtw.cw).toBeLessThan(0);
@@ -156,6 +161,7 @@ describe('round trip: the export read back is the table in deck units', () => {
     expect(c).toMatch(/PVTO: one record per saturated node, Rs ascending/);
     expect(c).toMatch(/PVDG: pressure, Bg, gas viscosity, pressure ascending\. Dry gas/);
     expect(c).toMatch(/PVTW: reference pressure, Bw, water compressibility, water viscosity, viscosibility, at the bubble point/);
+    expect(c).toMatch(/from the water correlations of the fluid model\./);
     expect(out.fileName).toBe('Good_Oil_Well_No_4_PVT_PVT.INC');
     // plain ASCII: a deck reader takes nothing else
     expect(/^[\x09\x0a\x20-\x7e]*$/.test(out.text)).toBe(true);

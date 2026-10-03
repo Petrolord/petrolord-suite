@@ -135,10 +135,10 @@ DENSITY
 -- Method, Gas deviation factor Z: Dranchuk-Abou-Kassem, with Sutton pseudo-critical properties (Dranchuk and Abou-Kassem (1975); Sutton (1985))
 -- Method, Gas viscosity: Lee-Gonzalez-Eakin (Lee, Gonzalez and Eakin (1966))
 -- Method, Gas formation volume factor Bg: Real gas law, Bg = 0.00504 Z T / p
--- Method, Water formation volume factor Bw: McCain (McCain (1990))
+-- Method, Water formation volume factor Bw: McCain, with the Numbere-Brigham-Standing salinity correction (McCain (1990); Numbere, Brigham and Standing (1977))
 -- Method, Water viscosity: McCain (McCain (1991))
 -- Separator stages: 450 psia / 120 degF; 200 psia / 100 degF
--- Range flags: Standing: 1 table row (15 psia) outside its published pressure range (130 to 7000 psia). Lee-Gonzalez-Eakin: 1 table row (15 psia) outside its published pressure range (100 to 8000 psia). McCain: 2 table rows (5068 to 5201 psia) outside its published pressure range (0 to 5000 psia).
+-- Range flags: Standing: 1 table row (15 psia) outside its published pressure range (130 to 7000 psia). Lee-Gonzalez-Eakin: 1 table row (15 psia) outside its published pressure range (100 to 8000 psia). McCain, with the Numbere-Brigham-Standing salinity correction: 2 table rows (5068 to 5201 psia) outside its published pressure range (0 to 5000 psia).
 -- Bubble point pressure: 3201 psia, solved from the solution GOR
 -- Table temperature: 190 degF
 --
@@ -157,8 +157,8 @@ DENSITY
 --         pressure, Bo, oil viscosity. Nodes of equal Rs are written once.
 --   PVDG: pressure, Bg, gas viscosity, pressure ascending. Dry gas: no vaporised oil.
 --   PVTW: reference pressure, Bw, water compressibility, water viscosity, viscosibility, at the bubble point.
---         The compressibility is -(1/Bw) dBw/dp and the viscosibility (1/muw) dmuw/dp, from the slope of the Bw and
---         water viscosity columns of the table at the reference pressure.
+--         The compressibility is -(1/Bw) dBw/dp and the viscosibility (1/muw) dmuw/dp at the reference pressure,
+--         from the water correlations of the fluid model.
 --   The rows are the rows of the PVT table of the project, as it hands them to other Petrolord apps.
 
 PVTO
@@ -250,7 +250,7 @@ PVDG
 /
 
 PVTW
-  3201 1.0301 0.00000219 0.4107 0.000051 /
+  3201 1.031 0.00000227 0.4107 0.000052 /
 
 ROCK
   4000 0.000004 /

@@ -1,5 +1,5 @@
 {
-  "_readme": "FS5 black-oil regression pin. Generated from the engine BEFORE any compositional UI wiring; the jest gate asserts the black-oil default path reproduces these numbers exactly (1e-9 rel). Regenerate ONLY for a deliberate, reviewed black-oil change: node tools with the snippet in blackOilSnapshot.test.js. Changed on purpose 2026-10-02 (FLUID-U1-008): separator totals are summed before rounding (650.1 became 650 scf/STB for a 650 solution GOR), the separator warning was reworded, and (FLUID-U1-007) Bo above the bubble point is the integral of the co the table prints (1.3458 became 1.3387 at 4,998 psia). Changed on purpose 2026-10-02 (FLUID-U2-006): the z-factor is Dranchuk-Abou-Kassem from the canonical engines library (was Papay): Z at Pb 0.8873 became 0.8710, Bg at Pb 0.000985 became 0.000966 RB/scf; gas viscosity moves with Z.",
+  "_readme": "FS5 black-oil regression pin. Generated from the engine BEFORE any compositional UI wiring; the jest gate asserts the black-oil default path reproduces these numbers exactly (1e-9 rel). Regenerate ONLY for a deliberate, reviewed black-oil change: node tools with the snippet in blackOilSnapshot.test.js. Changed on purpose 2026-10-02 (FLUID-U1-008): separator totals are summed before rounding (650.1 became 650 scf/STB for a 650 solution GOR), the separator warning was reworded, and (FLUID-U1-007) Bo above the bubble point is the integral of the co the table prints (1.3458 became 1.3387 at 4,998 psia). Changed on purpose 2026-10-02 (FLUID-U2-006): the z-factor is Dranchuk-Abou-Kassem from the canonical engines library (was Papay): Z at Pb 0.8873 became 0.8710, Bg at Pb 0.000985 became 0.000966 RB/scf; gas viscosity moves with Z. Changed on purpose 2026-10-03 (FLUID-U2-022): salinity enters Bw through the Numbere-Brigham-Standing brine ratio (35,000 ppm: Bw at Pb 1.0339 became 1.0349).",
   "kpis": {
     "pb": 2998,
     "rsb": 650,
@@ -9,7 +9,7 @@
     "z_at_pb": 0.871,
     "co_at_pb": 0.00001593,
     "mu_od": 2.248,
-    "bw_at_pb": 1.0339,
+    "bw_at_pb": 1.0349,
     "mu_w_at_pb": 0.3924,
     "api": 32,
     "gasSg": 0.75,
@@ -27,7 +27,7 @@
       "mu_o": 0.6913,
       "mu_g": 0.02842,
       "co": 0.000009555,
-      "Bw": 1.0281,
+      "Bw": 1.0293,
       "mu_w": 0.4369,
       "phase": "undersaturated"
     },
@@ -40,7 +40,7 @@
       "mu_o": 0.623,
       "mu_g": 0.01912,
       "co": null,
-      "Bw": 1.0349,
+      "Bw": 1.0358,
       "mu_w": 0.384,
       "phase": "saturated"
     },
@@ -53,7 +53,7 @@
       "mu_o": 2.194,
       "mu_g": 0.01301,
       "co": null,
-      "Bw": 1.0387,
+      "Bw": 1.0392,
       "mu_w": 0.3418,
       "phase": "saturated"
     }

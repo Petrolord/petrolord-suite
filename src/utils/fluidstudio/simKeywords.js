@@ -94,10 +94,12 @@ export function simRowsFromContract(contract) {
   const pref = finite(pb) ? pb : table[table.length - 1].pressure;
   const bw = valueAt(table, 'Bw', pref);
   const muw = valueAt(table, 'mu_w', pref);
-  const bwSlope = relativeSlopeAt(table, 'Bw', pref);
-  const muSlope = relativeSlopeAt(table, 'mu_w', pref);
+  // the producer states the slopes from its own water functions; an older block falls back to the table's slope
+  const exact = finite(b.at_saturation?.cw) && finite(pb);
+  const bwSlope = exact ? -b.at_saturation.cw : relativeSlopeAt(table, 'Bw', pref);
+  const muSlope = exact && finite(b.at_saturation?.viscosibility_w) ? b.at_saturation.viscosibility_w : relativeSlopeAt(table, 'mu_w', pref);
   const pvtw = finite(bw) && finite(muw) && bwSlope !== null
-    ? { pref, bw, cw: -bwSlope, muw, viscosibility: muSlope ?? 0 }
+    ? { pref, bw, cw: -bwSlope, muw, viscosibility: muSlope ?? 0, slopesFrom: exact ? 'engine' : 'table' }
     : null;
   return { ok: true, reasons: [], pvtoRecords, pvdg, pvtw, pb };
 }
@@ -116,7 +118,7 @@ export function buildSimKeywords(contract) {
   const blocks = {
     pvto: emitPVTO(rows.pvtoRecords),
     pvdg: emitPVDG(rows.pvdg),
-    pvtw: rows.pvtw ? emitPVTW(rows.pvtw) : null,
+    pvtw: rows.pvtw ? emitPVTW({ pref: rows.pvtw.pref, bw: rows.pvtw.bw, cw: rows.pvtw.cw, muw: rows.pvtw.muw, viscosibility: rows.pvtw.viscosibility }) : null,
   };
   const pbWords = finite(rows.pb) ? `${rows.pb} psia, ${PVT1_PB_SOURCES[b.pb_source] || 'source not stated'}` : 'not stated';
   const comment = [
@@ -140,8 +142,8 @@ export function buildSimKeywords(contract) {
     '        pressure, Bo, oil viscosity. Nodes of equal Rs are written once.',
     '  PVDG: pressure, Bg, gas viscosity, pressure ascending. Dry gas: no vaporised oil.',
     `  PVTW: reference pressure, Bw, water compressibility, water viscosity, viscosibility, at the ${finite(rows.pb) ? 'bubble point' : 'highest table pressure'}.`,
-    '        The compressibility is -(1/Bw) dBw/dp and the viscosibility (1/muw) dmuw/dp, from the slope of the Bw and',
-    '        water viscosity columns of the table at the reference pressure.',
+    '        The compressibility is -(1/Bw) dBw/dp and the viscosibility (1/muw) dmuw/dp at the reference pressure,',
+    rows.pvtw?.slopesFrom === 'engine' ? '        from the water correlations of the fluid model.' : '        from the slope of the Bw and water viscosity columns of the table.',
     ...(blocks.pvtw ? [] : ['        Not written: the table holds no water columns.']),
     '  The rows are the rows of the PVT table of the project, as it hands them to other Petrolord apps.',
   ].map((l) => (l === '' ? '--' : `-- ${ascii(l)}`));

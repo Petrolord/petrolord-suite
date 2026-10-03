@@ -32,7 +32,8 @@ Headline results
 
  Gas formation volume factor at Pb                0.004155           m3/m3           Real gas law, Bg = 0.00504 Z T / p
 
- Water formation volume factor at Pb              1.0307             m3/m3           McCain
+ Water formation volume factor at Pb              1.0318             m3/m3           McCain, with the Numbere-Brigham-Standing salinity
+                                                                                     correction
 
  Water viscosity at Pb                            0.4182             mPa.s           McCain
 
@@ -76,8 +77,8 @@ Fluid Properties Report, BHS-2 oil, Field Ekene                                 
                                                                       degC
 
 The PVT table uses the API gravity, the solution GOR, the gas gravity, the temperature, the bubble point when one is entered and the two
-correlation choices. Salinity enters the water viscosity only. The stock-tank oil basis scales the stage gas rates and nothing else. Flowline geometry
-is recorded in the app and enters no calculation.
+correlation choices. Salinity enters the water viscosity and, through the brine correction, Bw. The stock-tank oil basis scales the stage gas rates
+and nothing else. Flowline geometry is recorded in the app and enters no calculation.
 
 
 Method used for each property
@@ -129,8 +130,12 @@ Fluid Properties Report, BHS-2 oil, Field Ekene                                 
                                                                                                                   T in degR, p in psia), at the standard
                                                                                                                   conditions of this report.
 
- Water formation volume factor Bw       McCain                                       McCain (1990)                Pure water form: salinity is not
-                                                                                                                  applied to Bw.
+ Water formation volume factor Bw       McCain, with the                             McCain (1990);               Gas-free water. The brine ratio for
+                                        Numbere-Brigham-Standing salinity            Numbere, Brigham and         35000 ppm is applied (Equation 10 of
+                                        correction                                   Standing (1977)              the Stanford report).
+
+ Brine correction of Bw                 Numbere, Brigham and Standing                Numbere, Brigham and
+                                                                                     Standing (1977)
 
  Water viscosity                        McCain                                       McCain (1991)
 
@@ -191,40 +196,44 @@ fluid.
 viscosity there describe the solution gas only as a reference.
 - The separator results are a staged liberation by the Rs correlation at each stage. It is an approximation and no compositional flash; the
 multistage Bo is an estimate.
-- Water properties are for water with no dissolved gas.
 
 
 
 
 Fluid Properties Report, BHS-2 oil, Field Ekene                                                                                                Page 3 of 9
-Published ranges of the methods used
- Method                               Used for                                      Published range
+- Water properties are for water with no dissolved gas; the salinity correction of Bw is the brine ratio of Numbere, Brigham and Standing (1977).
 
- Standing                             Solution GOR Rs; Oil formation volume         Solution GOR 3.6 to 253.8 m3/m3; Temperature 37.8 to 125.6
-                                      factor Bo                                     degC; API gravity 16.5 to 63.8 degAPI; Gas gravity 0.59 to 0.95
-                                                                                    air = 1; Pressure 896 to 48,263 kPa (abs)
+Published ranges of the methods used
+ Method                               Used for                                     Published range
 
- Vasquez-Beggs (compressibility)      Oil compressibility co (undersaturated)       Solution GOR 3.6 to 391.7 m3/m3; Temperature 23.9 to 145.6
-                                                                                    degC; API gravity 15.3 to 59.5 degAPI; Gas gravity 0.511 to
-                                                                                    1.351 air = 1
+ Standing                             Solution GOR Rs; Oil formation volume        Solution GOR 3.6 to 253.8 m3/m3; Temperature 37.8 to 125.6
+                                      factor Bo                                    degC; API gravity 16.5 to 63.8 degAPI; Gas gravity 0.59 to 0.95
+                                                                                   air = 1; Pressure 896 to 48,263 kPa (abs)
 
- Beggs-Robinson                       Dead oil viscosity; Live (saturated) oil      API gravity 16 to 58 degAPI; Temperature 21.1 to 146.1 degC;
-                                      viscosity                                     Solution GOR 3.6 to 368.7 m3/m3
+ Vasquez-Beggs (compressibility)      Oil compressibility co (undersaturated)      Solution GOR 3.6 to 391.7 m3/m3; Temperature 23.9 to 145.6
+                                                                                   degC; API gravity 15.3 to 59.5 degAPI; Gas gravity 0.511 to
+                                                                                   1.351 air = 1
 
- Vasquez-Beggs (undersaturated        Undersaturated oil viscosity                  Pressure 972 to 65,604 kPa (abs)
+ Beggs-Robinson                       Dead oil viscosity; Live (saturated) oil     API gravity 16 to 58 degAPI; Temperature 21.1 to 146.1 degC;
+                                      viscosity                                    Solution GOR 3.6 to 368.7 m3/m3
+
+ Vasquez-Beggs (undersaturated        Undersaturated oil viscosity                 Pressure 972 to 65,604 kPa (abs)
  viscosity)
 
- Dranchuk-Abou-Kassem (Z), on         Gas deviation factor Z                        Gas gravity 0.57 to 1.68 air = 1; Pseudo-reduced temperature
- Sutton pseudo-critical properties                                                  1.2 to 3; Pseudo-reduced pressure 0 to 15
+ Dranchuk-Abou-Kassem (Z), on         Gas deviation factor Z                       Gas gravity 0.57 to 1.68 air = 1; Pseudo-reduced temperature
+ Sutton pseudo-critical properties                                                 1.2 to 3; Pseudo-reduced pressure 0 to 15
 
- Lee-Gonzalez-Eakin                   Gas viscosity                                 Pressure 689 to 55,158 kPa (abs); Temperature 37.8 to 171.1
-                                                                                    degC; Gas gravity 0.55 to 1 air = 1
+ Lee-Gonzalez-Eakin                   Gas viscosity                                Pressure 689 to 55,158 kPa (abs); Temperature 37.8 to 171.1
+                                                                                   degC; Gas gravity 0.55 to 1 air = 1
 
- McCain (water FVF)                   Water formation volume factor Bw              Pressure 0 to 34,474 kPa (abs); Temperature -17.8 to 126.7
-                                                                                    degC
+ McCain (water FVF)                   Water formation volume factor Bw             Pressure 0 to 34,474 kPa (abs); Temperature -17.8 to 126.7
+                                                                                   degC
 
- McCain (water viscosity)             Water viscosity                               Pressure 0 to 68,948 kPa (abs); Temperature 37.8 to 204.4
-                                                                                    degC; Salinity 0 to 260,000 ppm
+ Numbere, Brigham and Standing        Brine correction of Bw                       Pressure 0 to 68,948 kPa (abs); Temperature 15.6 to 204.4
+ (brine Bw)                                                                        degC; Salinity 0 to 250,000 ppm
+
+ McCain (water viscosity)             Water viscosity                              Pressure 0 to 68,948 kPa (abs); Temperature 37.8 to 204.4
+                                                                                   degC; Salinity 0 to 260,000 ppm
 
 Ranges are those of the data each correlation was fitted to, as held in the Petrolord engines library and the app. For the z-factor the window is the
 one over which the engines library checked the method against readings of the Standing-Katz chart; below a pseudo-reduced pressure of 0.2 Z
@@ -237,8 +246,8 @@ factor Bo.
 - Standing: 1 table row (103 kPa (abs)) outside its published pressure range (896 to 48,263 kPa (abs)). Affects: Solution GOR Rs; Oil formation
 volume factor Bo.
 - Lee-Gonzalez-Eakin: 1 table row (103 kPa (abs)) outside its published pressure range (689 to 55,158 kPa (abs)). Affects: Gas viscosity.
-- McCain: 8 table rows (35,094 to 42,747 kPa (abs)) outside its published pressure range (0 to 34,474 kPa (abs)). Affects: Water formation volume
-factor Bw.
+- McCain, with the Numbere-Brigham-Standing salinity correction: 8 table rows (35,094 to 42,747 kPa (abs)) outside its published pressure range
+(0 to 34,474 kPa (abs)). Affects: Water formation volume factor Bw.
 
 
 Notes from the engine
@@ -250,83 +259,85 @@ compositional model.
 continuous there.
 
 
-Flow assurance screening
- Quantity                               Value                                    Basis
-
- Wax appearance temperature             n/a                                      Not provided
-
- Asphaltene onset pressure              n/a                                      Not computed: needs composition and SARA data
-
- P-T profile points                     6                                        6 points read. Pressure in psia (as chosen); temperature in degF
-                                                                                 (as chosen). Column 1 is pressure and column 2 is temperature
-                                                                                 (no header). Separator: comma.
-
- Lowest profile temperature             10.0 degC                                From the profile
-
- Hydrate crossing                       Yes, near 3,447 kPa (abs) and 10.0       Hydrate curve: Motiee (1991), gas gravity screening
-                                        degC
-
- Largest subcooling                     4.1 degC                                 Hydrate temperature minus profile temperature
-
-Screening only: sweet gas, no inhibitor, salt or acid gas correction.
-
-
 
 
 Fluid Properties Report, BHS-2 oil, Field Ekene                                                                                           Page 4 of 9
-PVT table
- Pressure (kPa        Rs          Bo           Bg          Z        Oil visc.           Gas visc.       co         Bw          Water visc.     Region
- (abs))               (m3/m3)     (m3/m3)      (m3/m3)              (mPa.s)             (mPa.s)         (1/kPa)    (m3/m3)     (mPa.s)
-             42,747      284.97       1.8348      0.003301 1.0965          0.3978             0.03253    2.23e-6      1.0235            0.4678 Above Pb
-             41,651      284.97       1.8394      0.003346 1.0824          0.3918             0.03201    2.29e-6      1.0241            0.4635 Above Pb
-             40,562      284.97       1.8440      0.003391 1.0685          0.3860             0.03149    2.35e-6      1.0248            0.4593 Above Pb
-             39,466      284.97       1.8488      0.003442 1.0547          0.3802             0.03095    2.41e-6      1.0254            0.4552 Above Pb
-             38,376      284.97       1.8538      0.003492 1.0411          0.3746             0.03041    2.48e-6      1.0260            0.4511 Above Pb
-             37,280      284.97       1.8589      0.003548 1.0277          0.3690             0.02987    2.56e-6      1.0266            0.4471 Above Pb
-             36,184      284.97       1.8642      0.003610 1.0145          0.3636             0.02931    2.63e-6      1.0272            0.4431 Above Pb
-             35,094      284.97       1.8696      0.003678 1.0015          0.3582             0.02875    2.71e-6      1.0277            0.4392 Above Pb
-             33,998      284.97       1.8753      0.003745 0.9888          0.3530             0.02817    2.80e-6      1.0283            0.4353 Above Pb
-             32,909      284.97       1.8811      0.003824 0.9764          0.3480             0.02760    2.89e-6      1.0288            0.4315 Above Pb
-             31,812      284.97       1.8872      0.003902 0.9643          0.3430             0.02701    2.99e-6      1.0294            0.4277 Above Pb
-             30,716      284.97       1.8935      0.003992 0.9526          0.3383             0.02642    3.10e-6      1.0299            0.4240 Above Pb
-             29,627      284.97       1.9001      0.004093 0.9413          0.3336             0.02582    3.22e-6      1.0304            0.4204 Above Pb
-             28,958      284.97       1.9042      0.004155 0.9346          0.3309             0.02545        n/a      1.0307            0.4182 Pb
-             28,531      279.96       1.8874      0.004200 0.9304          0.3344             0.02521        n/a      1.0309            0.4168 Below Pb
-             27,441      267.16       1.8449      0.004318 0.9200          0.3438             0.02460        n/a      1.0313            0.4132 Below Pb
-             26,345      254.47       1.8030      0.004447 0.9102          0.3539             0.02398        n/a      1.0318            0.4097 Below Pb
-             25,249      241.88       1.7619      0.004593 0.9011          0.3647             0.02336        n/a      1.0322            0.4063 Below Pb
-             24,159      229.41       1.7215      0.004756 0.8926          0.3763             0.02274        n/a      1.0327            0.4029 Below Pb
-             23,063      217.04       1.6817      0.004941 0.8848          0.3889             0.02211        n/a      1.0331            0.3995 Below Pb
-             21,974      204.80       1.6428      0.005143 0.8780          0.4024             0.02149        n/a      1.0335            0.3963 Below Pb
-             20,877      192.68       1.6046      0.005379 0.8720          0.4172             0.02087        n/a      1.0339            0.3930 Below Pb
-             19,781      180.69       1.5671      0.005643 0.8671          0.4333             0.02026        n/a      1.0342            0.3898 Below Pb
-             18,692      168.83       1.5305      0.005946 0.8633          0.4509             0.01965        n/a      1.0346            0.3867 Below Pb
-             17,595      157.11       1.4947      0.006300 0.8607          0.4703             0.01905        n/a      1.0350            0.3837 Below Pb
-             16,506      145.54       1.4598      0.006704 0.8595          0.4918             0.01847        n/a      1.0353            0.3806 Below Pb
-             15,410      134.12       1.4257      0.007181 0.8596          0.5156             0.01790        n/a      1.0356            0.3777 Below Pb
-             14,314      122.87       1.3925      0.007748 0.8611          0.5424             0.01735        n/a      1.0359            0.3748 Below Pb
-             13,224      111.79       1.3603      0.008416 0.8642          0.5726             0.01683        n/a      1.0362            0.3719 Below Pb
-             12,128      100.89       1.3290      0.009225 0.8688          0.6070             0.01633        n/a      1.0365            0.3691 Below Pb
-             11,039       90.19       1.2987       0.01021 0.8748          0.6464             0.01586        n/a      1.0368            0.3663 Below Pb
-              9,942       79.70       1.2695       0.01143 0.8823          0.6923             0.01542        n/a      1.0370            0.3637 Below Pb
-              8,846       69.44       1.2414       0.01297 0.8912          0.7462             0.01501        n/a      1.0373            0.3610 Below Pb
-              7,757       59.43       1.2145       0.01497 0.9014          0.8104             0.01464        n/a      1.0375            0.3584 Below Pb
-              6,660       49.71       1.1887       0.01764 0.9127          0.8884             0.01429        n/a      1.0377            0.3559 Below Pb
-              5,571       40.29       1.1643       0.02139 0.9251          0.9849             0.01399        n/a      1.0379            0.3534 Below Pb
-              4,475       31.24       1.1414       0.02700 0.9384               1.107         0.01372        n/a      1.0381            0.3510 Below Pb
-              3,378       22.62       1.1200       0.03627 0.9525               1.266         0.01348        n/a      1.0383            0.3486 Below Pb
-              2,289       14.53       1.1003       0.05443 0.9673               1.480         0.01328        n/a      1.0384            0.3463 Below Pb
-              1,193        7.17       1.0829        0.1059 0.9827               1.774         0.01312        n/a      1.0386            0.3440 Below Pb
-                103        1.04       1.0688         1.269 0.9985               2.161         0.01301        n/a      1.0387            0.3418 Below Pb
+Flow assurance screening
+ Quantity                               Value                                           Basis
+
+ Wax appearance temperature             n/a                                             Not provided
+
+ Asphaltene onset pressure              n/a                                             Not computed: needs composition and SARA data
+
+ P-T profile points                     6                                               6 points read. Pressure in psia (as chosen); temperature in degF
+                                                                                        (as chosen). Column 1 is pressure and column 2 is temperature
+                                                                                        (no header). Separator: comma.
+
+ Lowest profile temperature             10.0 degC                                       From the profile
+
+ Hydrate crossing                       Yes, near 3,447 kPa (abs) and 10.0              Hydrate curve: Motiee (1991), gas gravity screening
+                                        degC
+
+ Largest subcooling                     4.1 degC                                        Hydrate temperature minus profile temperature
+
+Screening only: sweet gas, no inhibitor, salt or acid gas correction.
+
+PVT table
+ Pressure (kPa        Rs          Bo           Bg          Z        Oil visc.           Gas visc.          co         Bw          Water visc.     Region
+ (abs))               (m3/m3)     (m3/m3)      (m3/m3)              (mPa.s)             (mPa.s)            (1/kPa)    (m3/m3)     (mPa.s)
+             42,747      284.97       1.8348      0.003301 1.0965          0.3978               0.03253     2.23e-6      1.0249            0.4678 Above Pb
+             41,651      284.97       1.8394      0.003346 1.0824          0.3918               0.03201     2.29e-6      1.0255            0.4635 Above Pb
+             40,562      284.97       1.8440      0.003391 1.0685          0.3860               0.03149     2.35e-6      1.0261            0.4593 Above Pb
+             39,466      284.97       1.8488      0.003442 1.0547          0.3802               0.03095     2.41e-6      1.0267            0.4552 Above Pb
+             38,376      284.97       1.8538      0.003492 1.0411          0.3746               0.03041     2.48e-6      1.0273            0.4511 Above Pb
+             37,280      284.97       1.8589      0.003548 1.0277          0.3690               0.02987     2.56e-6      1.0279            0.4471 Above Pb
+             36,184      284.97       1.8642      0.003610 1.0145          0.3636               0.02931     2.63e-6      1.0284            0.4431 Above Pb
+             35,094      284.97       1.8696      0.003678 1.0015          0.3582               0.02875     2.71e-6      1.0290            0.4392 Above Pb
+             33,998      284.97       1.8753      0.003745 0.9888          0.3530               0.02817     2.80e-6      1.0295            0.4353 Above Pb
+             32,909      284.97       1.8811      0.003824 0.9764          0.3480               0.02760     2.89e-6      1.0300            0.4315 Above Pb
+             31,812      284.97       1.8872      0.003902 0.9643          0.3430               0.02701     2.99e-6      1.0305            0.4277 Above Pb
+             30,716      284.97       1.8935      0.003992 0.9526          0.3383               0.02642     3.10e-6      1.0310            0.4240 Above Pb
+             29,627      284.97       1.9001      0.004093 0.9413          0.3336               0.02582     3.22e-6      1.0315            0.4204 Above Pb
+             28,958      284.97       1.9042      0.004155 0.9346          0.3309               0.02545         n/a      1.0318            0.4182 Pb
+             28,531      279.96       1.8874      0.004200 0.9304          0.3344               0.02521         n/a      1.0319            0.4168 Below Pb
+             27,441      267.16       1.8449      0.004318 0.9200          0.3438               0.02460         n/a      1.0324            0.4132 Below Pb
+             26,345      254.47       1.8030      0.004447 0.9102          0.3539               0.02398         n/a      1.0328            0.4097 Below Pb
+             25,249      241.88       1.7619      0.004593 0.9011          0.3647               0.02336         n/a      1.0332            0.4063 Below Pb
+             24,159      229.41       1.7215      0.004756 0.8926          0.3763               0.02274         n/a      1.0337            0.4029 Below Pb
+             23,063      217.04       1.6817      0.004941 0.8848          0.3889               0.02211         n/a      1.0340            0.3995 Below Pb
+             21,974      204.80       1.6428      0.005143 0.8780          0.4024               0.02149         n/a      1.0344            0.3963 Below Pb
+             20,877      192.68       1.6046      0.005379 0.8720          0.4172               0.02087         n/a      1.0348            0.3930 Below Pb
+             19,781      180.69       1.5671      0.005643 0.8671          0.4333               0.02026         n/a      1.0351            0.3898 Below Pb
+             18,692      168.83       1.5305      0.005946 0.8633          0.4509               0.01965         n/a      1.0355            0.3867 Below Pb
+             17,595      157.11       1.4947      0.006300 0.8607          0.4703               0.01905         n/a      1.0358            0.3837 Below Pb
+             16,506      145.54       1.4598      0.006704 0.8595          0.4918               0.01847         n/a      1.0361            0.3806 Below Pb
+             15,410      134.12       1.4257      0.007181 0.8596          0.5156               0.01790         n/a      1.0364            0.3777 Below Pb
+             14,314      122.87       1.3925      0.007748 0.8611          0.5424               0.01735         n/a      1.0367            0.3748 Below Pb
+             13,224      111.79       1.3603      0.008416 0.8642          0.5726               0.01683         n/a      1.0370            0.3719 Below Pb
+             12,128      100.89       1.3290      0.009225 0.8688          0.6070               0.01633         n/a      1.0372            0.3691 Below Pb
+             11,039       90.19       1.2987       0.01021 0.8748          0.6464               0.01586         n/a      1.0375            0.3663 Below Pb
+              9,942       79.70       1.2695       0.01143 0.8823          0.6923               0.01542         n/a      1.0377            0.3637 Below Pb
+              8,846       69.44       1.2414       0.01297 0.8912          0.7462               0.01501         n/a      1.0379            0.3610 Below Pb
+              7,757       59.43       1.2145       0.01497 0.9014          0.8104               0.01464         n/a      1.0381            0.3584 Below Pb
+              6,660       49.71       1.1887       0.01764 0.9127          0.8884               0.01429         n/a      1.0383            0.3559 Below Pb
+              5,571       40.29       1.1643       0.02139 0.9251          0.9849               0.01399         n/a      1.0385            0.3534 Below Pb
+              4,475       31.24       1.1414       0.02700 0.9384               1.107           0.01372         n/a      1.0387            0.3510 Below Pb
+              3,378       22.62       1.1200       0.03627 0.9525               1.266           0.01348         n/a      1.0388            0.3486 Below Pb
+
+
+
+Fluid Properties Report, BHS-2 oil, Field Ekene                                                                                                  Page 5 of 9
+ Pressure (kPa         Rs         Bo           Bg           Z       Oil visc.           Gas visc.       co         Bw          Water visc.     Region
+ (abs))                (m3/m3)    (m3/m3)      (m3/m3)              (mPa.s)             (mPa.s)         (1/kPa)    (m3/m3)     (mPa.s)
+               2,289      14.53       1.1003      0.05443 0.9673                1.480         0.01328        n/a      1.0389            0.3463 Below Pb
+               1,193       7.17       1.0829       0.1059 0.9827                1.774         0.01312        n/a      1.0391            0.3440 Below Pb
+                103        1.04       1.0688        1.269 0.9985                2.161         0.01301        n/a      1.0392            0.3418 Below Pb
 
 The rows are the rows of the table the app exports and hands to other apps, in the units of the header of this report. Oil compressibility is reported
 above the saturation pressure only.
 
 
-
-
-Fluid Properties Report, BHS-2 oil, Field Ekene                                                                                               Page 5 of 9
-PVT contract handed to other apps
+PVT contract handed to other apps
  Item                              Value
 
  PVT contract                      pvt-1
@@ -356,7 +367,7 @@ Other Petrolord apps receive this block with the table and print it as the sourc
 
 
 
-Fluid Properties Report, BHS-2 oil, Field Ekene                                                                                           Page 6 of 9
+Fluid Properties Report, BHS-2 oil, Field Ekene                                                                                               Page 6 of 9
 Plots
 Figure 1. Oil formation volume factor Bo against pressure
 
