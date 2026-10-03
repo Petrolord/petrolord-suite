@@ -70,11 +70,12 @@ describe('the hub report', () => {
   afterAll(() => pdf && pdf.close());
 
   it('RL4: identification names the company, field, set, cases and the wells behind them', () => {
-    expect(text).toMatch(/Company Petrolord Sample Co/);
-    expect(text).toMatch(/Field Obodo/);
-    expect(text).toMatch(/Scenario set Obodo cases/);
-    expect(text).toMatch(/Cases 3 \(2 from Decline Curve Analysis, 1 entered here\)/);
-    expect(text).toMatch(/Wells behind the cases Obodo-7/);
+    const id = Object.fromEntries(model().identification);
+    expect(id).toEqual(expect.objectContaining({
+      Company: 'Petrolord Sample Co', Field: 'Obodo', 'Scenario set': 'Obodo cases',
+      Cases: '3 (2 from Decline Curve Analysis, 1 entered here)', 'Wells behind the cases': 'Obodo-7', Analyst: 'A. Analyst',
+    }));
+    expect(text).toMatch(/Company Petrolord Sample Co Field Obodo Scenario set Obodo cases/);
   });
 
   it('RL1: every engine input has a row; the guard names a removed one', () => {
@@ -84,13 +85,17 @@ describe('the hub report', () => {
   });
 
   it('RL7, RL11: decline basis and the nominal it became; sources; edited marks; source now', () => {
-    expect(text).toMatch(/30\.00 effective, secant \(with the case b\); 39\.\d\d nominal/);
-    expect(text).toMatch(/From Obodo-7, oil, Hyperbolic fitted 2026-10-03, project "Obodo DCA" \(Decline Curve Analysis\), received 2026-10-03/);
-    expect(text).toMatch(/Edited here after the handoff: qi/);
-    expect(text).toMatch(/Obodo-7 edited: received from Decline Curve Analysis and edited here after the handoff \(qi\)/);
-    expect(text).toMatch(/The source changed since it was received \(the fit\)/);
+    const m = model();
+    expect(m.caseRows[0][3]).toBe('30.00 effective, secant (with the case b); 39.77 nominal');
     // the terminal decline travelled from DCA as nominal and the switch is dated
-    expect(text).toMatch(/8\.3\d nominal; switch \d{4}-\d\d-\d\d/);
+    expect(m.caseRows[1][5]).toMatch(/^8\.34 nominal; switch \d{4}-\d\d-\d\d$/);
+    expect(m.sourceRows[0][1]).toBe('Entered in Forecast Scenario Hub');
+    expect(m.sourceRows[1][1]).toBe('From Obodo-7, oil, Hyperbolic fitted 2026-10-03, project "Obodo DCA" (Decline Curve Analysis), received 2026-10-03');
+    expect(m.sourceRows[1][2]).toBe('As received');
+    expect(m.sourceRows[2][2]).toBe('Edited here after the handoff: qi');
+    expect(m.sourceRows[2][3]).toMatch(/The source changed since it was received \(the fit\)/);
+    expect(text).toMatch(/Obodo-7 edited: received from Decline Curve Analysis and edited here after the handoff \(qi\); it no longer reproduces the source forecast/);
+    expect(text).toMatch(/Where each case came from/);
   });
 
   it('RL6: three figures drawn from the hub engine runs', () => {

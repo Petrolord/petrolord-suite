@@ -74,6 +74,5 @@ describe('scenarios in the report', () => {
     const pdf = readPdf(built.doc);
     expect(flat(pdf.text)).toMatch(/Scenarios compared None saved for this well and stream\./);
     expectFigureStatement(pdf, built.figuresBuilt.find((f) => f.id === 'scenarios'), 'Does not apply: no scenario is saved');
-    pdf.close();
   });
 });
