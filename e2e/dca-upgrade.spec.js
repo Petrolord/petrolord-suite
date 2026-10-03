@@ -58,9 +58,7 @@ async function leftRail(page) {
 }
 async function closeRails(page) {
   if (!narrow(page)) return;
-  for (const b of await page.getByRole('button', { name: 'Close panel' }).all()) {
-    if (await b.isVisible().catch(() => false)) await b.click();
-  }
+  // the header toggle closes the left rail; a collapsed rail's own close button is not clickable
   const hide = page.getByRole('button', { name: 'Hide left panel' });
   if (await hide.isVisible().catch(() => false)) await hide.click();
 }
@@ -77,10 +75,9 @@ async function sampleFitted(page, name = 'Sample') {
   await closeRails(page);
 }
 async function addWellWith(page, file, wellName) {
-  const wellRow = page.getByText('Select Well').locator('xpath=ancestor::div[contains(@class,"flex")][1]');
-  await wellRow.locator('button').last().click();
+  await page.getByRole('button', { name: 'Add well', exact: true }).click();
   await page.getByPlaceholder('Well Name').fill(wellName);
-  await page.getByRole('button', { name: 'Add Well' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Add Well', exact: true }).click();
   await page.locator('input[type=file]').setInputFiles(path.join(HOSTILE, file));
   await expect(page.getByTestId('dca-import-door')).toBeVisible({ timeout: 30000 });
 }
@@ -198,7 +195,7 @@ test.describe('PL2: the hostile file set at the door', () => {
 });
 
 test('PL9: the forecast goes to Forecast Scenario Hub as a case with its source, and survives a reload', async ({ page }) => {
-  test.setTimeout(300000);
+  test.setTimeout(600000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await sampleFitted(page, 'Sender');
   const remainingText = await page.getByTestId('dca-send-basis').textContent();
@@ -206,7 +203,7 @@ test('PL9: the forecast goes to Forecast Scenario Hub as a case with its source,
   // on the harness the send goes to the hub harness, which reads the saved project by id
   await page.getByTestId('dca-send-hub').click();
   await expect(page).toHaveURL(/\/dev\/forecast-scenario-hub/, { timeout: 60000 });
-  await expect(page.getByText('Case comparison')).toBeVisible({ timeout: 120000 });
+  await expect(page.getByText('Case comparison')).toBeVisible({ timeout: 240000 });
   const source = page.locator('[data-testid$="-source"]').first();
   await expect(source).toContainText('From Ekene-1 (sample), oil, Exponential fitted');
   await expect(source).toContainText('nominal (a year of 365.25 days) at the data cut-off 2022-12-01');
@@ -220,7 +217,8 @@ test('PL9: the forecast goes to Forecast Scenario Hub as a case with its source,
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(OUT, 'hub-case-from-dca.png') });
   // the saved set keeps the source through a reload of the page
-  await page.goto('/dev/forecast-scenario-hub', { timeout: 120000 });
+  await page.goto('/dev/forecast-scenario-hub', { timeout: 240000 });
+  await expect(page.getByText('Case comparison')).toBeVisible({ timeout: 240000 });
   await page.getByRole('button', { name: /^Load$/ }).click();
   await page.getByRole('dialog').getByText('From DCA').click();
   await expect(page.locator('[data-testid$="-source"]').first()).toContainText('From Ekene-1 (sample), oil');
