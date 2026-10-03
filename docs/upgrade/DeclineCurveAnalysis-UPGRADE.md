@@ -403,3 +403,24 @@ NAPE-safe and highest value; B next; C after NAPE.
 | 4 | The hub holds oil only. Add gas cases? | Not before NAPE; gas forecasts go to Petroleum Economics Studio |
 | 5 | Should the sample well be offered in production, or only in the harness? | In production, labelled sample everywhere (as Fluid Systems Studio does) |
 | 6 | Engines #301 (group roll-up) merge | Merge after review; then re-pin and delete the two ledger rows |
+
+## Batch decision (programme lead, 2026-10-03)
+
+Recorded verbatim:
+
+> BUILD in this order, one commit per item:
+> - Batch A, all six: U2-001 modified hyperbolic with a terminal decline Dmin (engines-first; the switch time where the hyperbolic decline falls to Dmin, exponential after; Dmin user-set with no default value, the owner's default; validated against a published worked example you can actually read, else an independent closed form with a negative control; report, figures and sender carry it); U2-002 rate against cumulative fitting (engines-first; a fit in rate-cum space with its own window, statistics and EUR, shown beside the rate-time fit as a cross-check in the report); U2-004 typed effective decline (enter Di as effective annual or nominal, converted through the declineRate unit family with the basis stated; pin known values); U2-008 scenarios in the report; U2-018 the Forecast Scenario Hub's own report on the kit (identification, cases with their sources from `dca-forecast-1`, edited-after-handoff marks, figures of the cases, limits); U2-013 the hub-to-EPE import keeps its source (the contract travels and EPE shows it).
+> - Batch B: U2-011 downtime factor (stated, applied to the forecast and the EUR, printed); U2-005 batch fit across wells if time remains.
+> - DEFERRED (record reasons): U2-003 segmented fitting (L, after NAPE), U2-007 group sender, U2-006 type wells (L), and all of Batch C.
+> Owner-question defaults in force: Dmin user-set, no default; the Group EUR change goes in the release note (write the note in docs/scope/release-notes or the STATUS doc); the hub stays oil-only before NAPE; the sample well stays, labelled as a sample.
+
+## Step 2 build (branch `feat/dca-u2`)
+
+Engines first: Petrolord/petrolord-engines **PR #302** (`engines/dca/arps.js`,
+`engines/dca/monteCarlo.js`, two gates and one fixture file), NOT merged.
+The Suite vendors the five files byte-identical with ledger rows in
+`packages/engines/VENDOR.json` (group `dca-u2 (engines PR #302)`). When #302
+merges: re-pin, regenerate the manifest, delete the rows.
+
+| Item | State | Proving test |
+|---|---|---|
