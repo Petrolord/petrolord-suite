@@ -11,7 +11,31 @@ Engine run                2026-10-02 08:00 UTC                               Bui
 Display units             Oilfield (psia, degF, STB, RB, scf, ft)            Generated               2026-10-02 09:00 UTC
 
 
-Headline results
+Summary
+ Item                                   Value
+
+ Oil initially in place                 307.22 MMSTB (Havlena-Odeh, F - We against Et (slope))
+
+ How it is backed                       Benchmark verified engine path, 1.53 percent against its benchmark; r2 0.999975 on 10 points
+
+ Other methods                          F/Et at the last timestep (Campbell level): 530.34 MMSTB (+72.6%); Volumetric estimate: 312.00 MMSTB
+                                        (+1.6%)
+
+ Drive at the last timestep             water drive with depletion; largest index Depletion (DDI) 0.568; aquifer strong
+
+ Data                                   11 timesteps, 1980-01-01 to 1990-01-01; 10 in the fit
+
+ Injection                              None on the data table
+
+ Flags                                  0 inputs outside a published range or the PVT table; 0 other engine warnings
+
+This page summarises the pages after it: every value here is printed there in full, with its inputs, sources, method and limits.
+
+
+
+
+Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                      Page 1 of 10
+Headline results
  Quantity                                                                     Value
 
  Oil initially in place (OOIP)                                                307.22 MMSTB
@@ -58,21 +82,18 @@ Independent routes to the same in-place volume. Agreement supports the tank mode
 signature of pressure support the simpler method leaves out. No volumetric estimate is printed unless one is entered on the case.
 
 
+Drive indices at the last timestep
+ Drive                                                 Energy term                                         Index
 
+ Depletion (DDI)                                       N Eo                                                0.5678
 
-Material Balance Report, Dake Exercise 9.2 (water drive), Field Dake Exercise 9.2                                                       Page 1 of 10
-Drive indices at the last timestep
- Drive                                                 Energy term                                    Index
+ Gas cap (GDI)                                         N m Eg                                              0.0000
 
- Depletion (DDI)                                       N Eo                                           0.5678
+ Rock and connate water (CDI)                          N Efw                                               0.0114
 
- Gas cap (GDI)                                         N m Eg                                         0.0000
+ Water drive (WDI)                                     We - Wp Bw                                          0.4179
 
- Rock and connate water (CDI)                          N Efw                                          0.0114
-
- Water drive (WDI)                                     We - Wp Bw                                     0.4179
-
- Sum                                                   (N Et + We - Wp Bw)                            0.9972
+ Sum                                                   (N Et + We - Wp Bw)                                 0.9972
 
 Convention: each index is its energy term over the hydrocarbon voidage A = F - Wp Bw = Np [Bt + (Rp - Rsi) Bg] (Ahmed, Reservoir Engineering
 Handbook, Example 11-1). Water produced is netted inside the water drive index, WDI = (We - Wp Bw) / A. CDI is the rock and connate water
@@ -341,7 +362,9 @@ datum, enters as it was typed.
 - The regression is ordinary least squares with a free intercept. It weights every point of the fit equally and gives no confidence interval; the
 pressure history match does.
 - Oil case: black-oil PVT with the formation and connate water compressibilities held constant; the gas cap ratio m is fixed over the history.
-- Injected water and gas are not in the withdrawal term of this engine version.
+- Injection: injected water and gas enter the withdrawal term F at the Bw and the reservoir gas Bg of each timestep, so the injected gas is taken to
+be the produced gas. Water injected into the aquifer is not in F and belongs in the aquifer model. A run made before the engine read injection
+leaves it out.
 - Pressure datum: stated in the inputs. No correction to datum is applied.
 
 

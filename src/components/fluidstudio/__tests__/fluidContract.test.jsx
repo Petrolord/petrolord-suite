@@ -96,8 +96,8 @@ describe('pvt-1: the block Fluid Systems Studio writes', () => {
     expect(g.methods.pb.method).toBe('Glaso Rs(p) solved for the solution GOR');
     expect(g.methods.mu_o.method).toBe('Beal-Cook-Spillman');
     expect(g.methods.mu_od.method).toBe('Beal-Cook-Spillman');
-    expect(g.methods.z.method).toBe('Papay, with Sutton pseudo-critical properties');
-    expect(g.methods.bw.method).toBe('McCain');
+    expect(g.methods.z.method).toBe('Dranchuk-Abou-Kassem, with Sutton pseudo-critical properties');
+    expect(g.methods.bw.method).toBe('McCain, with the Numbere-Brigham-Standing salinity correction');
   });
 
   test('NEGATIVE CONTROL: drop one name and the gate fails, naming the property', () => {

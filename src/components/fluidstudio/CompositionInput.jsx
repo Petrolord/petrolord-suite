@@ -6,6 +6,7 @@ import { Atom, Scale } from 'lucide-react';
 import { COMPONENT_ORDER, COMPONENTS, PLUS_FRACTION_KEY } from '@/utils/fluidstudio/eos/components';
 import { emptyComposition } from '@/utils/fluidstudio/eosAnalysis';
 import UnitField from '@/components/fluidstudio/UnitField';
+import CompositionDoor from '@/components/fluidstudio/CompositionDoor';
 
 // numeric fields convert at the door (FLUID-U1, PL3): `kind` names the quantity
 const Num = ({ id, label, value, onChange, unit, kind, hint, step = 'any' }) => (
@@ -45,6 +46,12 @@ const CompositionInput = ({ composition, onChange }) => {
   return (
     <div className="space-y-4 p-1">
       <h3 className="text-lg font-semibold text-pl-text flex items-center"><Atom className="w-5 h-5 mr-2" />Feed composition</h3>
+      <CompositionDoor
+        onApply={({ zPct: z, plus }) => patch({
+          zPct: z,
+          plus: { ...comp.plus, ...(plus?.mw != null ? { mw: plus.mw } : {}), ...(plus?.sg != null ? { sg: plus.sg } : {}) },
+        })}
+      />
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-2">
         {COMPONENT_ORDER.map((k) => (

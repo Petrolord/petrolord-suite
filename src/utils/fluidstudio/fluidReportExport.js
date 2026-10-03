@@ -59,11 +59,24 @@ export function buildFluidPdf(a, { logo = null, generatedAt = new Date() } = {})
   section('Lab tuning', model.tuning.text, { need: 20 });
   if (model.tuning.table) {
     table('Lab values matched', model.tuning.table.head, model.tuning.table.rows, {
-      note: 'Errors are model minus measured: percent, or API degrees for the stock-tank gravity.',
+      note: model.tuning.tableNote || 'Errors are model minus measured: percent, or API degrees for the stock-tank gravity.',
     });
   }
   if (model.tuning.parameters) {
-    table('Tuning parameters', model.tuning.parameters.head, model.tuning.parameters.rows);
+    table('Tuning parameters', model.tuning.parameters.head, model.tuning.parameters.rows, model.tuning.parameters.note ? { note: model.tuning.parameters.note } : {});
+  }
+
+  // the laboratory tables and the misfit of the model against them
+  if (model.lab) {
+    table('Laboratory tables loaded', model.lab.tables.head, model.lab.tables.rows, { columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 14 }, 2: { cellWidth: 26 } } });
+    table('Laboratory data against the model', model.lab.misfit.head, model.lab.misfit.rows, { note: model.lab.misfit.note });
+    if (model.lab.notes.length) section('Notes on the laboratory comparison', model.lab.notes.map((n) => `- ${n}`).join('\n'), { need: 16 });
+    const qc = model.lab.qc;
+    section('Quality checks of the laboratory tables', [
+      `Checked: ${qc.checked.join('; ')}.`,
+      qc.flags.length ? `Flagged (${qc.flags.length}), not corrected:\n${qc.flags.map((f) => `- ${f}`).join('\n')}` : 'Nothing was flagged.',
+    ].join('\n'), { need: 16 });
+    if (qc.massBalance) table('Mass balance of the differential liberation', qc.massBalance.head, qc.massBalance.rows, { note: qc.massBalance.note });
   }
 
   report.limits({

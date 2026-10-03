@@ -74,6 +74,7 @@ import { OILFIELD_UNITS } from '@/pages/apps/reservoir-balance/lib/mbalUnits';
 import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import UnitField from './UnitField';
+import ExclusionToggle from './ExclusionToggle';
 
 // =============================================================================
 // THE TABLE ON SCREEN
@@ -736,9 +737,9 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
           )}
 
           {injected && (
-            <p className="text-xs text-pl-warning-text flex items-start gap-2" data-testid="mbal-data-injection">
+            <p className="text-xs text-pl-muted flex items-start gap-2" data-testid="mbal-data-injection">
               <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
-              <span>The table holds injected volumes. They are kept and printed, and this engine version leaves them out of the balance: the withdrawal term has no injection term.</span>
+              <span>The table holds injected volumes. The engine nets them out of the withdrawal term F: water at the Bw of each timestep, gas at the Bg of the reservoir gas, so the injected gas is taken to be the produced gas. Enter only what was injected into the tank; water injected into the aquifer belongs in the aquifer model.</span>
             </p>
           )}
 
@@ -770,6 +771,9 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                   <UiTable data-testid="mbal-data-table">
                     <TableHeader className="bg-pl-sunken sticky top-0 z-10">
                       <TableRow>
+                        {!source && (
+                          <TableHead className="text-xs text-pl-muted font-semibold py-2 whitespace-nowrap normal-case">In the fit</TableHead>
+                        )}
                         {visibleCols.map(({ col, label, unitLabel }) => (
                           <TableHead
                             key={col}
@@ -791,6 +795,11 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                           key={i}
                           className="border-pl-border hover:bg-pl-sunken"
                         >
+                          {!source && (
+                            <TableCell className="text-xs py-1 whitespace-nowrap">
+                              <ExclusionToggle step={r.timestep_index} compact />
+                            </TableCell>
+                          )}
                           {visibleCols.map(({ col, show }) => (
                             <TableCell
                               key={col}

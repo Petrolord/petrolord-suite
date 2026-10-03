@@ -1,76 +1,85 @@
 {
- "_readme": "FS5 black-oil regression pin. Generated from the engine BEFORE any compositional UI wiring; the jest gate asserts the black-oil default path reproduces these numbers exactly (1e-9 rel). Regenerate ONLY for a deliberate, reviewed black-oil change: node tools with the snippet in blackOilSnapshot.test.js. Changed on purpose 2026-10-02 (FLUID-U1-008): separator totals are summed before rounding (650.1 became 650 scf/STB for a 650 solution GOR), the separator warning was reworded, and (FLUID-U1-007) Bo above the bubble point is the integral of the co the table prints (1.3458 became 1.3387 at 4,998 psia).",
- "kpis": {
-  "pb": 2998,
-  "rsb": 650,
-  "bo_at_pb": 1.3718,
-  "mu_o_at_pb": 0.5613,
-  "bg_at_pb": 0.000985,
-  "z_at_pb": 0.8873,
-  "co_at_pb": 0.00001593,
-  "api": 32,
-  "gasSg": 0.75,
-  "temp": 200
- },
- "pb": 2997.766159057617,
- "tableLength": 41,
- "tableRows": [
-  {
-   "pressure": 4998,
-   "Rs": 650,
-   "Bo": 1.3387,
-   "Bg": 0.000716,
-   "Z": 1.076,
-   "mu_o": 0.6913,
-   "mu_g": 0.02624,
-   "co": 0.000009555,
-   "phase": "undersaturated"
+  "_readme": "FS5 black-oil regression pin. Generated from the engine BEFORE any compositional UI wiring; the jest gate asserts the black-oil default path reproduces these numbers exactly (1e-9 rel). Regenerate ONLY for a deliberate, reviewed black-oil change: node tools with the snippet in blackOilSnapshot.test.js. Changed on purpose 2026-10-02 (FLUID-U1-008): separator totals are summed before rounding (650.1 became 650 scf/STB for a 650 solution GOR), the separator warning was reworded, and (FLUID-U1-007) Bo above the bubble point is the integral of the co the table prints (1.3458 became 1.3387 at 4,998 psia). Changed on purpose 2026-10-02 (FLUID-U2-006): the z-factor is Dranchuk-Abou-Kassem from the canonical engines library (was Papay): Z at Pb 0.8873 became 0.8710, Bg at Pb 0.000985 became 0.000966 RB/scf; gas viscosity moves with Z. Changed on purpose 2026-10-03 (FLUID-U2-022): salinity enters Bw through the Numbere-Brigham-Standing brine ratio (35,000 ppm: Bw at Pb 1.0339 became 1.0349).",
+  "kpis": {
+    "pb": 2998,
+    "rsb": 650,
+    "bo_at_pb": 1.3718,
+    "mu_o_at_pb": 0.5613,
+    "bg_at_pb": 0.000966,
+    "z_at_pb": 0.871,
+    "co_at_pb": 0.00001593,
+    "mu_od": 2.248,
+    "bw_at_pb": 1.0349,
+    "mu_w_at_pb": 0.3924,
+    "api": 32,
+    "gasSg": 0.75,
+    "temp": 200
   },
-  {
-   "pressure": 2570,
-   "Rs": 540.87,
-   "Bo": 1.3161,
-   "Bg": 0.001132,
-   "Z": 0.8743,
-   "mu_o": 0.623,
-   "mu_g": 0.01897,
-   "co": null,
-   "phase": "saturated"
+  "pb": 2997.766159057617,
+  "tableLength": 41,
+  "tableRows": [
+    {
+      "pressure": 4998,
+      "Rs": 650,
+      "Bo": 1.3387,
+      "Bg": 0.000662,
+      "Z": 0.9941,
+      "mu_o": 0.6913,
+      "mu_g": 0.02842,
+      "co": 0.000009555,
+      "Bw": 1.0293,
+      "mu_w": 0.4369,
+      "phase": "undersaturated"
+    },
+    {
+      "pressure": 2570,
+      "Rs": 540.87,
+      "Bo": 1.3161,
+      "Bg": 0.001114,
+      "Z": 0.861,
+      "mu_o": 0.623,
+      "mu_g": 0.01912,
+      "co": null,
+      "Bw": 1.0358,
+      "mu_w": 0.384,
+      "phase": "saturated"
+    },
+    {
+      "pressure": 15,
+      "Rs": 3.57,
+      "Bo": 1.0679,
+      "Bg": 0.225949,
+      "Z": 0.9985,
+      "mu_o": 2.194,
+      "mu_g": 0.01301,
+      "co": null,
+      "Bw": 1.0392,
+      "mu_w": 0.3418,
+      "phase": "saturated"
+    }
+  ],
+  "separatorTotals": {
+    "separator_gor": 613.3,
+    "stock_tank_gor": 36.7,
+    "total_gor": 650,
+    "bo_single_stage": 1.3718,
+    "bo_multistage_approx": 1.3607,
+    "stock_tank_oil_rate": 1000,
+    "total_gas_rate": 650,
+    "surface_gor": 650
   },
-  {
-   "pressure": 15,
-   "Rs": 3.57,
-   "Bo": 1.0679,
-   "Bg": 0.225899,
-   "Z": 0.9983,
-   "mu_o": 2.194,
-   "mu_g": 0.01301,
-   "co": null,
-   "phase": "saturated"
-  }
- ],
- "separatorTotals": {
-  "separator_gor": 613.3,
-  "stock_tank_gor": 36.7,
-  "total_gor": 650,
-  "bo_single_stage": 1.3718,
-  "bo_multistage_approx": 1.3607,
-  "stock_tank_oil_rate": 1000,
-  "total_gas_rate": 650,
-  "surface_gor": 650
- },
- "backbone": {
-  "oil_gravity": 32,
-  "gas_gravity": 0.75,
-  "gor": 650,
-  "inlet_temperature": 200,
-  "wat": null,
-  "pb": 2998,
-  "rsb": 650,
-  "bo_at_pb": 1.3718,
-  "mu_o_at_pb": 0.5613
- },
- "warnings": [
-  "Separator results use a black-oil staged-liberation approximation (a partition of the GOR by the Rs correlation). A compositional flash needs the compositional model."
- ]
+  "backbone": {
+    "oil_gravity": 32,
+    "gas_gravity": 0.75,
+    "gor": 650,
+    "inlet_temperature": 200,
+    "wat": null,
+    "pb": 2998,
+    "rsb": 650,
+    "bo_at_pb": 1.3718,
+    "mu_o_at_pb": 0.5613
+  },
+  "warnings": [
+    "Separator results use a black-oil staged-liberation approximation (a partition of the GOR by the Rs correlation). A compositional flash needs the compositional model."
+  ]
 }

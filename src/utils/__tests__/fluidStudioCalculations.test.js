@@ -321,7 +321,7 @@ describe('Blending — mixing rules', () => {
     };
     const { fluid, blending } = resolveEffectiveFluid(inputs);
     expect(fluid.pb).toBeNull();
-    expect(fluid.correlations).toEqual({ pb_rs_bo: 'vasquez_beggs', viscosity: 'beal_cook_spillman' });
+    expect(fluid.correlations).toEqual({ pb_rs_bo: 'vasquez_beggs', viscosity: 'beal_cook_spillman', z_factor: 'dranchuk_abou_kassem' });
     expect(blending.properties.api).toBeLessThan(32);
   });
 

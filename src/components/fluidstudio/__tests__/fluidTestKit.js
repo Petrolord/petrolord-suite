@@ -4,6 +4,7 @@
  * (utils/fluidstudio/workspace runFluidWorkspace); nothing is hand-made in
  * the engine's shape.
  */
+import fs from 'fs';
 import path from 'path';
 import { sampleFluidStudioData } from '@/utils/fluidStudioCalculations';
 import { runFluidWorkspace } from '@/utils/fluidstudio/workspace';
@@ -13,6 +14,8 @@ import { labTuneRequest, tuneRecord, envelopeRequest } from '@/utils/fluidstudio
 import { envelopeKey } from '@/utils/fluidstudio/reportFigures';
 import { createEnvelopeClient } from '@/utils/fluidstudio/envelopeClient';
 import { chartLogo } from '@/lib/reportKit/testKit';
+import { readLabTable, labTableOf, emptyLabData } from '@/utils/fluidstudio/labData';
+import { fitLabMatch, labMatchRecord } from '@/utils/fluidstudio/labMatch';
 
 export const AT = new Date('2026-10-02T09:00:00Z');
 export const BUILD = 'Petrolord Suite test (fixture)';
@@ -87,3 +90,58 @@ export const run = (inputs, ctx = {}) => runFluidWorkspace(inputs, {
 });
 
 export const pdfOf = (ws) => buildFluidPdf(ws.report, { logo, generatedAt: AT });
+
+// ---- FLUID-U2: a fluid with a published laboratory study behind it -----------
+
+export const LAB_DIR = path.join(process.cwd(), 'e2e', 'fixtures', 'fluid-systems', 'lab');
+export const labFile = (name) => fs.readFileSync(path.join(LAB_DIR, name), 'utf8');
+
+/** The three tables of the Good Oil Co. Well No. 4 study, read at the door as the app reads them. */
+export function goodOilLabData({ separator = true } = {}) {
+  const table = (file, name) => labTableOf(readLabTable(labFile(file)), { name, tempF: 220, at: AT });
+  return {
+    ...emptyLabData(),
+    cce: table('good-oil-cce-spaces.txt', 'good-oil-cce-spaces.txt'),
+    dl: table('good-oil-dl-twin.csv', 'good-oil-dl-twin.csv'),
+    viscosity: table('good-oil-viscosity.csv', 'good-oil-viscosity.csv'),
+    dlBasis: 'differential',
+    separatorTest: separator ? { bofb: 1.474, rsfb: 768 } : { bofb: null, rsfb: null },
+  };
+}
+
+export const GOOD_OIL_IDENT = Object.freeze({
+  company: 'Good Oil Company', field: 'Productive', licence: 'Samson County, Texas', well: 'Oil Well No. 4', reservoir: 'Cretaceous',
+  sampleName: 'Subsurface sample', sampleDepth: '8,500 ft', sampleDate: '', samplingMethod: 'Bottomhole',
+  laboratory: 'Core Laboratories', labReport: 'RFL 88001', analyst: 'A. Analyst', analysisDate: '2026-10-02',
+});
+
+/**
+ * Good Oil Co. Well No. 4 as a black-oil project: the stock-tank gravity,
+ * total GOR and separator of the optimum separator test (100 psig and 75
+ * degF), the reservoir temperature of the study, the gas gravity Ahmed
+ * tabulates for it (Example 2-18, oil 2), and the laboratory tables.
+ */
+export function goodOilBlackOil(opts = {}) {
+  const inputs = sampleWorkspace();
+  inputs.identification = { ...GOOD_OIL_IDENT };
+  inputs.streamA.blackOil = { api: 40.7, gor: 768, gasSg: 0.855, temp: 220, pb: null, salinity: 35000 };
+  inputs.separatorTrain = { stages: [{ pressure: 114.7, temperature: 75, enabled: true }] };
+  inputs.ptProfile = { raw: '' };
+  inputs.inputMeta = {
+    api: { source: 'lab', note: 'Separator test, report RFL 88001 page 9' },
+    gor: { source: 'lab', note: 'Separator test at 100 psig and 75 degF' },
+    gasSg: { source: 'lab', note: 'Gas gravity of the study as tabulated by Ahmed' },
+    temp: { source: 'lab', note: 'Reservoir temperature of the study' },
+    salinity: { source: 'assumed' },
+    separator: { source: 'lab', note: 'Optimum separator test' },
+  };
+  inputs.labData = goodOilLabData(opts);
+  return inputs;
+}
+
+/** Apply the correlation match to laboratory data as the Match button does. */
+export function matched(inputs) {
+  const fitted = fitLabMatch(inputs, { at: AT });
+  if (!fitted.ok) throw new Error(`no match: ${fitted.reasons.join(' ')}`);
+  return { ...inputs, labMatch: labMatchRecord(fitted) };
+}

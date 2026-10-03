@@ -14,6 +14,7 @@ import { seedSampleStore, SAMPLE_CASE_IDS } from '../../harness/sampleCases';
 import { runEngineOnStore } from '../../harness/engineStandIn';
 import {
   buildEngineInputs, buildPlotData, buildResultColumns, pickCorrelations, PVT_CORRELATION_KEYS, PRODUCTION_UNUSED_COLUMNS,
+  PRODUCTION_ENGINE_COLUMNS,
 } from '../../../../../../supabase/functions/_shared/mbal-run-mapping.ts';
 import { computeMaterialBalance, runHistoryMatch } from '../../../../../../packages/engines/engines/mbal/mbalEngine.ts';
 
@@ -88,13 +89,40 @@ describe('what is handed to the engine', () => {
     expect(inputs.excluded_timesteps).toEqual([]);
   });
 
-  test('injected volumes are handed over and change nothing: the engine has no injection term', () => {
-    const injected = prod.map((r) => ({ ...r, cum_water_inj_stb: r.timestep_index * 250000, cum_gas_inj_scf: r.timestep_index * 1e8 }));
+  test('MBAL-U2-002: injected volumes are handed over and netted out of F (Winj Bw, Ginj Bginj)', () => {
+    // pressure maintenance on the Ahmed history: water injected at 40 percent of the oil produced
+    const injected = prod.map((r) => ({ ...r, cum_water_inj_stb: r.cum_oil_stb * 0.4 }));
     const a = computeMaterialBalance(buildEngineInputs(rbCase, cfg, prod));
     const b = computeMaterialBalance(buildEngineInputs(rbCase, cfg, injected));
-    expect(PRODUCTION_UNUSED_COLUMNS).toEqual(['cum_water_inj_stb', 'cum_gas_inj_scf']);
-    expect(b.estimated_ooip_stb).toBe(a.estimated_ooip_stb);
-    expect(b.per_timestep.map((p) => p.F_rb)).toEqual(a.per_timestep.map((p) => p.F_rb));
+    expect(PRODUCTION_UNUSED_COLUMNS).toEqual([]);
+    expect(PRODUCTION_ENGINE_COLUMNS).toEqual(expect.arrayContaining(['cum_water_inj_stb', 'cum_gas_inj_scf']));
+    // F drops by exactly the injected reservoir volume at every step (Bw = 1 on these rows)
+    b.per_timestep.forEach((p, i) => {
+      expect(p.winj_bw_rb).toBeCloseTo(injected[i].cum_water_inj_stb * 1.0, 6);
+      expect(p.F_rb).toBeCloseTo(a.per_timestep[i].F_rb - p.winj_bw_rb, 4);
+    });
+    // so the oil in place falls, and the indices still close
+    expect(b.estimated_ooip_stb).toBeLessThan(0.7 * a.estimated_ooip_stb);
+    expect(b.final_winj_di).toBeGreaterThan(0.3);
+    expect(Math.abs(b.final_drive_index_sum - 1)).toBeLessThan(0.05);
+    // and the tier says no published example with injection backs it
+    expect(b.validation_tier).toBe('published_method');
+    // the stored series carry what was netted out
+    const plot = buildPlotData(b, buildEngineInputs(rbCase, cfg, injected));
+    expect(plot.winj_bw_rb[12]).toBeCloseTo(injected[12].cum_water_inj_stb, 6);
+    expect(plot.final_winj_di).toBe(b.final_winj_di);
+    expect(plot.winj_di).toHaveLength(13);
+  });
+
+  test('MBAL-U2-006: the coverage of the PVT table travels with the result', () => {
+    const table = prod.filter((r) => r.pressure_psia <= 3600).map((r) => ({ pressure_psia: r.pressure_psia, bo_rb_stb: r.bo_rb_stb, rs_scf_stb: 500 }));
+    const bare = prod.map(({ bo_rb_stb, rs_scf_stb, ...r }) => r);
+    const inputs = buildEngineInputs(rbCase, { ...cfg, pvt_source: 'lab_table', pvt_lab_table: table }, bare);
+    const res = computeMaterialBalance(inputs);
+    const plot = buildPlotData(res, inputs);
+    expect(plot.pvt_table_coverage.timesteps_outside).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(res.warnings.join(' ')).toMatch(/PVT table coverage: at 7 timesteps/);
+    expect(buildPlotData(computeMaterialBalance(buildEngineInputs(rbCase, cfg, prod)), buildEngineInputs(rbCase, cfg, prod)).pvt_table_coverage).toBeNull();
   });
 });
 

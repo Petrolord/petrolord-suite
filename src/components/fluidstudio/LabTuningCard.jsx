@@ -15,7 +15,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { Loader2, SlidersHorizontal, RotateCcw, AlertTriangle } from 'lucide-react';
 import FluidStudioTierBadge, { TuneStatusBadge } from '@/components/fluidstudio/FluidStudioTierBadge';
 import { createEnvelopeClient } from '@/utils/fluidstudio/envelopeClient';
-import { labTuneRequest, tuningStatus, tuneRecord } from '@/utils/fluidstudio/eosAnalysis';
+import { labTuneRequest, tuningStatus, tuneRecord, knobIntervalWords } from '@/utils/fluidstudio/eosAnalysis';
 import { untunedKnobs } from '@/utils/fluidstudio/eos/labTune';
 
 const fmt = (v, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : EMPTY_VALUE);
@@ -201,6 +201,30 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
             shift {fmt(applied.sPlus, 4)}{start ? ` (untuned ${fmt(start.sPlus, 4)})` : ''}.
             All compositional results, the envelope and the handoffs use these C7+ properties.
             {!lastFit && ' Run "Tune to lab data" again to regenerate the before and after table.'}
+          </div>
+        )}
+
+        {applied && status === 'current' && (
+          <div className="overflow-x-auto" data-testid="lab-tuning-uncertainty">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-pl-muted border-b border-pl-border">
+                  <th className="text-left py-1 pr-2">Tuned parameter</th>
+                  <th className="text-right py-1 px-2">Value</th>
+                  <th className="text-left py-1 pl-2">95 percent interval</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[['fTc', 'C7+ Tc multiplier'], ['fPc', 'C7+ Pc multiplier'], ['kC1', 'Methane to C7+ interaction'], ['sPlus', 'C7+ volume shift']].map(([k, label]) => (
+                  <tr key={k} className="border-b border-pl-border">
+                    <td className="py-1 pr-2 text-pl-text">{label}</td>
+                    <td className="py-1 px-2 text-right text-pl-text">{fmt(applied[k], 4)}</td>
+                    <td className="py-1 pl-2 text-pl-text">{knobIntervalWords(composition?.tuning?.fit?.uncertainty ?? null, k, (v) => fmt(v, 4))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-pl-muted mt-1">From the regression covariance: how firmly the measured values hold each parameter. Fewer measured values give wider intervals.</p>
           </div>
         )}
       </CardContent>

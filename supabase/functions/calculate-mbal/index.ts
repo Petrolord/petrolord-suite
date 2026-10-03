@@ -256,6 +256,18 @@ serve(async (req: Request) => {
     .single();
 
   if (runInsertErr || !runRow) {
+    // MBAL-U2-001: rb_runs follows the check-out of its case (migration
+    // 20261002130000). A refusal there is the sharing rule, not a fault.
+    if (runInsertErr?.code === "42501") {
+      return jsonResponse(
+        {
+          error: "Not allowed to run this case",
+          detail:
+            "This case is shared for editing, one person at a time, and you do not hold it. Start editing first, or save a copy and run that.",
+        },
+        403,
+      );
+    }
     return jsonResponse(
       { error: "Failed to create run record", detail: runInsertErr?.message },
       500,

@@ -302,3 +302,94 @@ Size: S under two days, M under a week, L more.
 | 5 | The pressure datum is stated and no correction is applied. Add a gradient correction later? | Keep as stated; a correction needs a fluid gradient per survey |
 | 6 | Apply the trigger backfill file for the record? | Optional; it is a no-op |
 | 7 | May a colleague's shared Fluid project feed my case? | Yes, by the view permission of the project, as the Fluid round proposed |
+
+## Batch decision (programme lead, 2026-10-02)
+
+Recorded verbatim:
+
+> BUILD in this order, one commit per item:
+> - Batch A: (1) water and gas injection in the balance (MBAL-U1-008): F gains the injection terms of the Havlena-Odeh form (cumulative water injected times Bw, cumulative gas injected times Bg), on the regression and every derived quantity; validated against a published worked example with injection that you can actually read (cite it; if none is readable, an independent hand calculation and a negative control, and say so); the Data tab, the report's inputs and data tables and the limits block follow; the "no injection term" statements are removed only when this is true. (2) the engine warns when it uses correlations outside the range of the lab PVT table (MBAL-U1-012 engine half), and the warning reaches the run result, the screen and the report. (3) excluded timesteps UI: pick and unpick points on the regression plot and the data table with a reason; the report lists them; saved; stale rule respected. (4) colleague editing with check-out on rb_cases (the owner granted edit rights with decorum on 2026-10-01): use the shared `src/lib/recordSharing` lock, version and history; child tables follow the case lock as the database enforces; Run and Save refused without the hold; the History panel; tests with two users in the in-memory store. (5) a sender out: send the case's in-place volume, drive mechanism and forecastable pressure to ReservoirCalc Pro (volumetric cross-check) and to the Petroleum Economics Studio or Forecast Scenario Hub if a typed intake exists, with provenance; document each contract.
+> - Batch B: ReservoirCalc Pro volumetric intake (the volumetric estimate on the case comes from a saved RCP project by id with its source printed, not typed); pressure rows from VRR Monitor or Well Test where a saved source exists (by id, provenance printed, edits marked); a one-page summary at the front of the report.
+> - DEFERRED (record reasons): history-match assist (M), forecast to Economics inside the report (M), sender to Simulation, multi-tank, prediction mode, more aquifer models with SCAL intake, condensate and volatile oil, Monte Carlo through the canonical engine, retiring `final_sdi`, kit tickText.
+> Owner-question defaults in force: datum stays a stated input without correction; a legacy run needs one rerun; a colleague's Fluid project can feed a case.
+
+### Deferred, with reasons
+
+| Item | Reason |
+|---|---|
+| U2-008 history-match assist | M; the match already prints 95 percent intervals; a sensitivity tool is safer after NAPE |
+| U2-009 forecast to Economics inside the report | M; Petroleum Economics Studio has no typed production-stream intake (it reads CSV columns), so there is no contract to send to yet |
+| U2-011 sender to Simulation | Simulation's intake has no source record to fill; it belongs with Simulation's own round (app 8) |
+| U2-012 multi-tank, U2-013 prediction mode | L each; engine work with no published benchmark readable before the freeze |
+| U2-014 more aquifer models with SCAL intake | Waits for SCAL's round and its `kr-1` contract |
+| U2-017 condensate and volatile oil | L; engines first, needs Rv in the PVT contract |
+| U2-018 Monte Carlo through the canonical engine | M; no change of method before NAPE |
+| U2-015 retiring `final_sdi` | A shared-schema drop; the deprecated mirror costs nothing meanwhile |
+| U2-019 kit tickText | Moves the Well Test goldens; not worth it before the freeze |
+
+### How the work landed in git
+
+A session restart interrupted the build before any commit. The programme lead
+saved the working tree as one commit, `fc659f9db` ("wip"), which holds the
+first pass of items 1 to 5 (engine, mapping, app, tests). The commits after it
+finish each item one at a time; history is not rewritten.
+
+## Step 2 build (branch `feat/mbal-u2`)
+
+### U2-002 Injection in the balance (MBAL-U1-008 closed)
+
+- **Engine** (engines PR #300, vendored byte-identical (six `mbal-u2` ledger rows in `packages/engines/VENDOR.json`; the engines README note arrives with the re-pin) until the lead merges it): F is the net withdrawal of the Havlena-Odeh form, `Np[Bt + (Rp - Rsi)Bg] + Wp Bw - Winj Bw - Ginj Bginj` for oil and `Gp Bg + Wp Bw - Winj Bw - Ginj Bg` for gas. Every derived quantity reads it: the three regressions, the pressure history match (its forward model calls the same per-timestep functions), the drive indices (two new ones, WIDI = Winj Bw / A and GIDI = Ginj Bginj / A, over A = F + Winj Bw + Ginj Bginj - Wp Bw, so the sum stays an identity) and the classification (`injection_pressure_maintenance` when injection supplies more than half the voidage). Injected gas is taken to be the produced gas, at its Bg at each pressure. Injection on the initial row, or a negative cumulative, is refused.
+- **Validation.** No published worked example with injection could be read (searched 2026-10-02: the open lecture notes reproduce Ahmed's equation without numbers; the textbook examples are not open). So, as the brief allows: an independent stdlib Python oracle (`packages/engines/test-data/mbal/injection/oracle.py`) that first reproduces Ahmed Example 11-1's printed influx (413,081 against 411,281 bbl; the book rounds Bt) and then gives F, We and all six indices with 100,000 STB of water and 100 MMscf of gas injection added; and exact synthetic oil (N = 50 MMSTB, water and gas injection) and gas (G = 100 Bscf, cycling) tanks. Engine gate `__tests__/mbalInjection.test.ts` GATE 11 (I-0 to I-9): F to 1e-12, We to 1e-9, N and G to round-off, closure to 1e-12, the history match within 1 percent. Negative controls: the same rows without the injection columns give N five times too high and G 1.5 times; re-breaking F in the engine fails 5 of the 10 injection gates (I-1, I-2, I-4, I-6, I-7).
+- **Honest tier.** A run with injection is capped at `published_method` with the reason in its reference, since the benchmarks of each path were reproduced on data without injection.
+- **Numbers that change:** only cases with injection on their rows (none of the seven live cases had any on 2026-10-02 as far as the U1 read showed; their runs need one rerun anyway). Zero injection is bit for bit unchanged (gate I-8).
+- **App.** The row mapping hands both columns to the engine (`PRODUCTION_UNUSED_COLUMNS` is empty) and stores `winj_bw_rb`, `ginj_bg_rb`, `winj_di`, `ginj_di` and the final injection indices in `plot_data` (no migration). The Data tab, the Run tab and the help say injection is in the balance; a run stored before this says it left injection out. The report prints Winj Bw and Ginj Bginj beside F, the formula with the injection terms, WIDI and GIDI in both drive index tables with the convention, and the limits line on the assumption. Tests: `mbalRunMapping.test.js`, `mbalReportU1.test.jsx` (two new, read back from the PDF).
+
+### U2-007 (found on the way, S1): Bo above the bubble point
+
+- An undersaturated case with no Bo on its initial row (correlations, or a PVT table) took Boi = Bob, the volume factor AT the bubble point, while each later row above Pb took Bob(1 - co(p - Pb)). Eo came out negative above Pb, those points were dropped from the fit or the run refused, and points below Pb carried an Eo too small, overstating N. Also the rows of a PVT table above Pb were never read (the table was consulted at Pb only). Fixed in the engine: Boi is Bo at pi by the rule of every row above Pb, and a table that covers p gives Bo at p.
+- Gate GATE 12: the published Ahmed Example 11-3 (13 points, all above Pb) supplied as a PVT table gives exactly its per-row answer (291.3 MMSTB); before the fix it refused to run. Negative control B-3 reproduces the old Boi and every Eo goes negative.
+- **Numbers that change:** undersaturated cases whose rows carry no Bo. In the Suite harness: CASE 4 and 5 (correlation substitution on Pletcher's oil data) move by 3 percent; CASE 7 (the lab-table path) moves toward the truth, OOIP error 4.90 to 2.63 percent and W 14.6 to 9.6 percent. The three published sample cases carry Bo on their rows and do not move.
+
+### U2-006 Engine warning outside the PVT table (MBAL-U1-012 closed)
+
+- Every table lookup goes through one recorder, so the engine reports the lookups that actually fell outside the table (no re-derivation): `pvt_table_coverage` on the result (table range, each fallback with its timestep, pressure, property and what was used: a correlation, or the fixed co above Pb) and one warning that starts "PVT table coverage:". Gate GATE 13 (C-1 to C-5), oil and gas.
+- The coverage is stored in `plot_data`; the Run tab shows it after a run; the report puts the engine's sentence at the top of the limits flags. A run stored before this falls back to the app's own check, which says it is the app's.
+
+### U2-003 Excluded timesteps with a reason (MBAL-U1-020 closed)
+
+- Picked on the Data tab (a column "In the fit") and under a clicked point of the regression plot; a reason is required; Restore puts the point back. The list is the engine input `excluded_timesteps` of the case default config, so a change withdraws the stored run (stale rule); the reasons live in the study record (`study.exclusions`), so a reason edit alone does not. The initial state and a fit of fewer than two points are refused.
+- The report lists each excluded timestep with date, pressure and reason ("No reason recorded" for one excluded before reasons were kept); the inputs table names where they were picked.
+- Tests: `lib/__tests__/mbalExclusions.test.js` (rules, study round trip, the real engine leaves the points out, stale both ways, the PDF read back, negative control); e2e excludes a point from the data table, runs, and reads the PDF.
+
+### U2-001 Colleague editing under the check-out
+
+- `rb_cases` and its four child tables follow one hold, as migration 20261002130000 enforces. The owner may choose "Colleagues can edit"; then everyone, the owner included, takes the case with Start editing; the others read it and see who holds it; Run, every tab's save and a data import are refused without the hold (the `lib/api.js` guard first, the database behind it); the case row is saved through the sharing store with the version it was opened at, so a stale save is refused with who saved the newer one; taking the case reloads it; History lists who did what. `calculate-mbal` now answers a run refused by the sharing rule with 403 and the reason (deploy owed).
+- Tests: `__tests__/mbalEditing.test.jsx`, two users on the in-memory mirror (`memoryDb` gained a generic child-of-parent rule, `canWriteChildOf`/`logChildOf`, beside the wells one): child writes by whoever holds; the owner refused while the colleague holds; stale save refused naming the colleague; the studio read-only until taken, Run refused without the hold, a run after taking; view-only sharing never offers editing (negative control); the owner can choose edit. `mbalSharing.test.jsx` updated (editing now offered). The /dev harness gained the check-out functions and a change log, so e2e walks share, edit, done, start and History.
+- Weaker than asked: no two-account walk on staging (owner item since U1).
+
+### U2-004 The sender: `mbal-1` to ReservoirCalc Pro
+
+- Contract in `src/lib/mbalCaseSource.js` (every field documented there): case, run (id, time, engine, solver, tier), in-place volume with method, r2, points and the history-match interval, drive mechanism and indices, the pressure history with the last average pressure (absolute, as entered), status current or earlier run. ReservoirCalc Pro reads it by id (`?mbalCase=<rb_cases id>`, row level security decides), prints it beside its deterministic STOIIP or GIIP with the difference and the provenance, and keeps a record with the project inputs (`mbalCheck`). The Run tab button is off for a stale run.
+- Petroleum Economics Studio and Forecast Scenario Hub: no typed intake for an in-place volume, a drive or a pressure exists (PES reads production CSV columns; the Hub exports profiles), so nothing is sent there; recorded under the deferrals.
+- Tests: `lib/__tests__/mbalCaseSource.test.jsx` (the record from the real engine run, read back by id, refusals, known unit factors, the ReservoirCalc Pro note with its negative control).
+- Not done: ReservoirCalc Pro's PDF does not print the cross-check yet; it is on screen and saved with the project.
+
+### Batch B
+
+- **ReservoirCalc Pro volumetric intake** (`lib/rcpVolumetricIntake.js`, left rail "Take from ReservoirCalc Pro"): by project id, per reservoir with a deterministic result, sm3 converted (1 m3 = 6.28981077 bbl pinned); the source sentence and a handoff record; the report says when the value was edited after. Tests `rcpVolumetricIntake.test.js` (ReservoirCalc Pro's own saved-row fixtures, the PDF read back, edit negative control); e2e on the harness.
+- **Pressure rows from Voidage Replacement Monitor** (`lib/vrrPressureIntake.js`, Data tab): by project id, surveys matched by day or month, a preview of every change, unmatched surveys listed; the handoff names the timesteps and the report says which were edited after. Tests `vrrPressureIntake.test.js`; e2e. Well Test Analysis Studio saves no average pressure with a project, so there is no saved source to read by id; its report handoff remains.
+- **One-page summary** at the front of the report (`summaryBlock`, page 1; the full report starts on page 2). Tests `mbalSummary.test.js` read page 1 of the PDF. Every report golden is regenerated on purpose for this page and for the U2 changes (injection limits line, the volumetric source sentence).
+
+### Where U2 validation is weaker than asked
+
+- **Injection has no published worked example behind it.** None was readable; the gate is an independent oracle (a hand calculation on published data with stated injection added, and exact synthetic tanks) with negative controls, and the tier says so on every run with injection. A field case with injection and a known answer would be the next check.
+- **Injected gas is taken to be the produced gas** (Bginj = Bg at p). A different injection gas needs its own Bg; not modelled, stated in the limits.
+- **Deno did not type-check the engine or the function** (no Deno binary on the studio box); jest (babel) and the vendored-engines guard ran. The first deploy is the check, as in U1.
+- **The edge function was not invoked** with the U2 engine; the mapping is shared with the harness and tested there.
+- **Colleague editing** is tested on the in-memory mirror with two users and on the harness; no two-account walk on staging, and no write was attempted as a colleague on the live database.
+- **ReservoirCalc Pro's PDF** does not yet print the material balance cross-check (screen and saved project only).
+- **Local jest under load:** the report suite takes close to an hour on the shared box; CI is the reference result.
+
+### Samples
+
+`/root/mbal-report-sample-oil.pdf` (Ahmed Example 11-3, 8 pages, summary on page 1) and `/root/mbal-report-sample-injection.pdf` (the same history with water injected at 40 percent of the oil produced and gas at 100 scf per STB, 8 pages: Winj Bw and Ginj Bginj beside F, WIDI and GIDI, tier published_method with the reason).

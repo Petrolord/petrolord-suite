@@ -16,6 +16,7 @@ import {
 import { makeSharingStore } from '@/lib/recordSharing';
 import { buildRunConfigInput } from '../lib/runStaleness';
 import { runEngineOnStore, pvtPreviewStandIn } from './engineStandIn';
+import { SAVED_PROJECT_ROWS } from '@/pages/apps/ReservoirCalcPro/services/savedFixtures';
 
 const USER = SAMPLE_USER;
 const NOW = () => new Date().toISOString();
@@ -34,6 +35,13 @@ const DB = addSharingToStore(seedSampleStore());
   DB.rb_run_configs.push(runCfg);
   runEngineOnStore(DB, { run_config_id: runCfg.id }, { now: NOW });
 }
+// a saved ReservoirCalc Pro project, for the volumetric intake (Batch B)
+// and a saved Voidage Replacement Monitor project with pressure surveys on two survey months of the Ahmed case
+DB.saved_vrr_projects = [{
+  id: 'vrr-harness-1', user_id: USER.id, project_name: 'East pattern surveillance', created_at: '2026-09-20T09:00:00.000Z', updated_at: '2026-10-01T10:00:00.000Z',
+  inputs_data: { id: 'vrr-harness-1', name: 'East pattern surveillance', schema: 1, inputs: { pressureSurveys: [{ date: '2015-01', p_psia: 3642 }, { date: '2020-01-01', p_psia: 3358 }, { date: '2030-01', p_psia: 2900 }] } },
+}];
+DB.saved_quickvol_projects = [{ ...SAVED_PROJECT_ROWS[0].row, project_name: 'Main sand volumetrics', updated_at: '2026-10-01T12:00:00.000Z' }];
 let seq = 0;
 const newId = (p) => `${p}-${Date.now()}-${++seq}`;
 
@@ -123,6 +131,7 @@ try {
 // with one colleague, who shares one case for viewing. Only the owner's
 // writes land, as row level security has it.
 const SHARED_WRITE_COLUMNS = ['change_note'];
+const HARNESS_LOG = [];
 const sharingTransport = {
   async user() { return { id: USER.id, organizationId: SAMPLE_ORG_ID }; },
   async probe() { return true; },
@@ -135,8 +144,39 @@ const sharingTransport = {
     DB[table] = DB[table].map((r) => (r.id === id ? next : r));
     return { data: [next], error: null };
   },
-  async rpc() { return { data: { ok: false, reason: 'not_available' }, error: null }; },
-  async changes() { return { data: [], error: null }; },
+  // MBAL-U2-001: the check-out functions for the signed-in user's own cases,
+  // with a change log, so the editing flow can be walked on the harness
+  async rpc(fn, { p_table: table, p_id: id, p_take_over: takeOver = false } = {}) {
+    const row = (DB[table] || []).find((x) => x.id === id);
+    if (!row) return { data: { ok: false, reason: 'not_found' }, error: null };
+    const now = Date.now();
+    const live = row.editing_by && new Date(row.editing_expires).getTime() > now;
+    const sharedEdit = row.visibility === 'organization' && row.organization_id && row.org_access === 'edit';
+    const set = (patch, action, summary) => {
+      DB[table] = DB[table].map((x) => (x.id === id ? { ...x, ...patch } : x));
+      HARNESS_LOG.unshift({ id: HARNESS_LOG.length + 1, table_name: table, record_id: id, changed_by: USER.id, changed_at: new Date().toISOString(), action, summary, changed_fields: [], change_count: 1 });
+    };
+    if (fn === 'suite_record_take') {
+      if (!sharedEdit) return { data: row.user_id === USER.id ? { ok: true, needed: false, version: row.version } : { ok: false, reason: 'view_only' }, error: null };
+      if (live && row.editing_by !== USER.id && !takeOver) return { data: { ok: false, reason: 'locked', editing_by: row.editing_by, editing_since: row.editing_since, editing_expires: row.editing_expires }, error: null };
+      const since = live && row.editing_by === USER.id ? row.editing_since : new Date(now).toISOString();
+      const expires = new Date(now + 30 * 60000).toISOString();
+      set({ editing_by: USER.id, editing_since: since, editing_expires: expires }, 'checked_out', 'Started editing');
+      return { data: { ok: true, needed: true, editing_by: USER.id, editing_since: since, editing_expires: expires, version: row.version }, error: null };
+    }
+    if (fn === 'suite_record_renew') {
+      if (!(live && row.editing_by === USER.id)) return { data: { ok: false, reason: 'not_holder' }, error: null };
+      const expires = new Date(now + 30 * 60000).toISOString();
+      DB[table] = DB[table].map((x) => (x.id === id ? { ...x, editing_expires: expires } : x));
+      return { data: { ok: true, needed: true, editing_by: USER.id, editing_since: row.editing_since, editing_expires: expires, version: row.version }, error: null };
+    }
+    if (fn === 'suite_record_release') {
+      if (row.editing_by) set({ editing_by: null, editing_since: null, editing_expires: null }, 'released', 'Finished editing');
+      return { data: { ok: true, needed: false }, error: null };
+    }
+    return { data: { ok: false, reason: 'not_available' }, error: null };
+  },
+  async changes(table, id) { return { data: HARNESS_LOG.filter((c) => c.table_name === table && c.record_id === id), error: null }; },
   async names(ids) {
     const known = { [USER.id]: 'You', [SAMPLE_COLLEAGUE.id]: SAMPLE_COLLEAGUE.name };
     return Object.fromEntries((ids || []).filter((id) => known[id]).map((id) => [id, known[id]]));

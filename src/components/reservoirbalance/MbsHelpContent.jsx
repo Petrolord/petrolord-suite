@@ -56,9 +56,13 @@ const MbsHelpContent = () => (
       is still waiting when you come back.
     </P>
     <P>
-      Injected water and gas can be kept on the table and are printed in the report, but this engine version has no
-      injection term: they are left out of the balance, and the Data tab, the Run tab and the report all say so. For
-      a reservoir under injection the oil in place from this studio is therefore too high.
+      Injected water and gas are in the balance. The withdrawal term F is the net withdrawal of the Havlena-Odeh form:
+      the production voidage less the injected water times Bw and the injected gas times the Bg of the reservoir gas at
+      each pressure, so the injected gas is taken to be the produced gas. The drive indices gain a water injection index
+      (WIDI) and a gas injection index (GIDI), and the sum still closes. Enter only what went into the tank: water
+      injected into the aquifer belongs in the aquifer model. No published worked example with injection backs this
+      path, so a run with injection is reported as a published method; its arithmetic is checked against an independent
+      hand calculation and exact synthetic tanks. A run made before this release left injection out; run it again.
     </P>
     <P>
       A regression needs at least two rows in total, counting the initial state, which means one observed pressure
@@ -257,13 +261,43 @@ const MbsHelpContent = () => (
       Share with my organisation, under the case picker, lets colleagues in your organisation open the case with its
       data, results, plots and report. They see it under Shared with me and it opens read-only: nothing they change
       is saved to your case. Save a copy gives a colleague a case of their own with the same conditions, production
-      data and run settings, which they run themselves. Turn the switch off to make the case private again. Editing
-      of one case by several people is planned.
+      data and run settings, which they run themselves. Turn the switch off to make the case private again.
+    </P>
+    <P>
+      Choose Colleagues can edit to let them work on the case itself, one person at a time. Whoever edits takes the
+      case with Start editing (the owner too, while it is shared for editing), and the others see who is editing and
+      read it until Done editing, or until 30 minutes pass without a save. Every save, the production data, the run
+      settings and a run, is refused without the hold; a save made from an older version is refused and says who saved
+      the newer one. History lists who changed what and when. The owner can take over.
+    </P>
+    <H>Points left out of the fit</H>
+    <P>
+      On the Data tab, or by clicking a point of the regression plot, Exclude leaves a timestep out of the next fit;
+      the reason you give is required and is printed in the report beside the point. Restore puts it back. A change of
+      the excluded points withdraws the last result until you run again; a change of a reason alone does not.
+    </P>
+    <H>Other apps</H>
+    <P>
+      Cross-check in ReservoirCalc Pro, on the Run tab, opens ReservoirCalc Pro with this case named by its id: it
+      reads the in-place volume with its method and run, the drive mechanism and the last average pressure, and prints
+      them beside its own volumetric result. Take from ReservoirCalc Pro, in the left rail, sets the volumetric
+      estimate of this case from a saved project (by its id, with the reservoir and method named in the report), and
+      the report says if you edit the value afterwards. Pressures from Voidage Replacement Monitor, on the Data tab,
+      shows which dated rows the surveys of a saved VRR project fall on and what would change before you take them.
     </P>
     <P>
       A case travels in a Petrolord package (.pld) with its production data, run settings, runs and results, from
       the package export of the Suite. Imported, it is your own private case, and its last run is current exactly
       when it was current where it came from.
+    </P>
+
+    <H>Injection and the PVT table</H>
+    <P>
+      When a pressure of the run falls outside the PVT table, the engine says so on the result: the timesteps, the
+      properties it took from the correlations instead, and whether the initial state is one of them. The report prints
+      that sentence at the top of its limits. Above the bubble point a table that reaches the pressure gives Bo there;
+      past the end of the table Bo is extrapolated from the bubble point value with a fixed oil compressibility, and the
+      sentence says that too.
     </P>
 
     <H>Validation</H>

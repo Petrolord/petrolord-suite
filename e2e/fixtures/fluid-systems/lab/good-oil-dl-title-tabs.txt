@@ -1,0 +1,21 @@
+Good Oil Co.	Oil Well No. 4	File RFL 88001
+DIFFERENTIAL VAPORIZATION AT 220 F
+
+Pressure	Solution Gas/Oil Ratio, Rsd	Relative Oil Volume, Bod	Relative Total Volume	Oil Density	Deviation Factor, Z	Gas Formation Volume Factor	Incremental Gas Gravity
+psig	scf/bbl	bbl/bbl	bbl/bbl	gm/cc		cu ft/cu ft	
+2,620	854	1.600	1.600	0.6562			
+2,350	763	1.554	1.665	0.6655	0.846	0.00685	0.831
+2,100	684	1.515	1.748	0.6731	0.851	0.00771	0.810
+1,850	612	1.479	1.859	0.6808	0.859	0.00882	0.797
+1,600	544	1.445	2.016	0.6889	0.872	0.01034	0.791
+# reported on page 7 of 18
+1,350	479	1.412	2.244	0.6969	0.887	0.01245	0.794
+1,100	416	1.382	2.593	0.7044	0.903	0.01552	0.809
+850	354	1.351	3.169	0.7121	0.922	0.02042	0.831
+
+600	292	1.320	4.254	0.7198	0.941	0.02931	0.881
+350	223	1.283	6.975	0.7291	0.965	0.05065	0.988
+159	157	1.244	14.693	0.7382	0.984	0.10834	1.213
+0	0	1.075		0.7892			2.039
+@ 60 F = 1.000
+Gravity of Residual Oil = 35.1 API @ 60 F

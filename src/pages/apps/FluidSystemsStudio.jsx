@@ -11,7 +11,9 @@
 // the fluid inputs, the identification, the source of each input, the unit
 // system and the saved tuning record; the screen, the PDF report, the two
 // CSV files, the pvt-1 handoff and the saved project are all built from it.
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { rangeRequestFromSearch } from '@/utils/fluidstudio/tableRange';
 import { Helmet } from 'react-helmet';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -147,6 +149,27 @@ const FluidSystemsStudioContent = () => {
     sharingStore: SHARING_STORE,
   });
 
+  // FLUID-U2-026: a consuming app asks for a longer table through the address
+  // (?fluidProject=<id>&pvtPMax=<psia>&pvtFor=<app>): open the project, then apply the request
+  const location = useLocation();
+  const requestDone = useRef(false);
+  useEffect(() => {
+    if (requestDone.current) return;
+    requestDone.current = true;
+    const search = location?.search || '';
+    const request = rangeRequestFromSearch(search);
+    const id = new URLSearchParams(search).get('fluidProject');
+    (async () => {
+      if (id) await openProject(id);
+      if (request) {
+        setInputsRaw((prev) => ({ ...prev, tableRange: request }));
+        addNotification(`The table is carried to ${request.pMax} psia${request.requestedBy ? ` for ${request.requestedBy}` : ''}. Save the project so it can read it.`, 'info');
+      }
+    })();
+    // once, on arrival
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const contract = useMemo(
     () => (hasResults ? contractFor(currentProjectId, projectName || null) : null),
     [hasResults, contractFor, currentProjectId, projectName],
@@ -198,6 +221,9 @@ const FluidSystemsStudioContent = () => {
       },
     };
   });
+
+  // FLUID-U2-004: the correlation match to laboratory data (null removes it)
+  const setLabMatch = (record) => setInputs((prev) => ({ ...prev, labMatch: record || undefined }));
 
   const setIdentification = (key, value) => setInputsRaw((prev) => ({
     ...prev, identification: { ...identificationOf(prev), [key]: value },
@@ -314,6 +340,7 @@ const FluidSystemsStudioContent = () => {
               exporting={exporting}
               envelope={envelope}
               onEnvelope={setEnvelope}
+              onLabMatch={setLabMatch}
             />
           )
           : <FluidStudioEmptyState onRunSample={loadSample} />}
