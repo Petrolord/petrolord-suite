@@ -26,6 +26,7 @@
 // Every number arrives from the analysis already made: nothing is fitted or
 // forecast here. A fit or a forecast that is out of date is refused (RL8).
 import { createReport, EMPTY_VALUE, missingInputRows } from '@/lib/reportKit';
+import { SERIES_CYCLE } from '@/lib/reportKit';
 import { buildDcaSeries } from './dcaSeries';
 import { analysisOf, analysisStatus, staleText, prepareFitData, defaultStream } from './dcaModel';
 import { DCA_OILFIELD_UNITS, DCA_DAYS_PER_YEAR } from './dcaUnits';
@@ -109,7 +110,7 @@ export function engineInputsOf(well, stream) {
  *   build?: string, generatedAt?: Date}} a
  * @returns {{ok: boolean, refusal?: string, ...}}
  */
-export function collectDcaReportArgs({ project = null, well, stream = 'oil', u = DCA_OILFIELD_UNITS, organizationName = '', build = '', generatedAt = new Date() }) {
+export function collectDcaReportArgs({ project = null, well, stream = 'oil', u = DCA_OILFIELD_UNITS, organizationName = '', build = '', generatedAt = new Date(), scenarios = [] }) {
   if (!well) return { ok: false, refusal: 'Select a well first: the report is of one well and one stream.' };
   const a = analysisOf(well);
   const s = a.streams[stream];
@@ -307,6 +308,39 @@ export function collectDcaReportArgs({ project = null, well, stream = 'oil', u =
     ? `Not reported: the rate against cumulative fit is out of date (${rcState.reasons.join(', ')}). Fit it again.`
     : 'Not run. Fit rate against cumulative in the Analysis panel for a cross-check of the rate-time fit.';
 
+  // ---- scenarios of this well and stream (DCA U2-008) ----
+  const mine = (scenarios || []).filter((sc) => sc && sc.wellId === well.id && (sc.stream || 'oil') === stream);
+  const scenarioRows = mine.map((sc) => {
+    const f = sc.fitResults || {};
+    const sfc = sc.forecastResults || {};
+    const scfg = sc.forecastConfig || sc.config || {};
+    const st = sfc.terminalDecline;
+    return [
+      sc.name || EMPTY_VALUE,
+      day(sc.createdAt),
+      f.modelType || EMPTY_VALUE,
+      finite(f.qi) ? num(rate(f.qi), 1) : EMPTY_VALUE,
+      finite(f.Di) ? num(nominalAnnualPct(f.Di), 2) : EMPTY_VALUE,
+      finite(f.b) ? sig4(f.b) : EMPTY_VALUE,
+      st ? num(nominalAnnualPct(st.dminPerDay), 2) : 'none',
+      scfg.stopAtLimit !== false && scfg.economicLimit > 0 ? num(rate(scfg.economicLimit), 1) : 'none',
+      finite(sfc.produced) ? num(vol(sfc.produced)) : EMPTY_VALUE,
+      finite(sfc.remaining ?? sfc.eur) ? num(vol(sfc.remaining ?? sfc.eur)) : EMPTY_VALUE,
+      finite(sfc.eurTotal) ? num(vol(sfc.eurTotal)) : EMPTY_VALUE,
+    ];
+  });
+  const scenarioSeries = mine.map((sc) => ({
+    name: sc.name || 'Scenario',
+    pts: thinDaily(sc.forecastResults?.rates || []).map((r) => [new Date(r.date).getTime(), rate(r.rate)]).filter((p) => finite(p[0]) && finite(p[1]) && p[1] > 0),
+  })).filter((x) => x.pts.length > 1);
+  const scenarioBlock = {
+    rows: scenarioRows,
+    series: scenarioSeries,
+    preH3: mine.filter((sc) => !finite(sc.forecastResults?.eurTotal)).length,
+    others: (scenarios || []).length - mine.length,
+    note: `Scenarios are snapshots the analyst saved, each with the fit and forecast settings it was run on; they are not refreshed when the data or settings change. Di is nominal per year of 365.25 days at each scenario's fit start; Dmin is nominal. EUR is produced to the cut-off plus remaining.${mine.length && mine.some((sc) => !finite(sc.forecastResults?.eurTotal)) ? ' A scenario saved before produced and EUR were kept apart prints n/a for them.' : ''}${(scenarios || []).length - mine.length > 0 ? ` ${(scenarios || []).length - mine.length} scenario(s) of other wells or streams in this project are not shown.` : ''}`,
+  };
+
   // ---- figures (RL6) ----
   const series = buildDcaSeries({ data: well.data, stream, fit, forecast: fc, fitWindow: a.fitWindow, excluded: s.excluded, forecastConfig: cfg, u });
   if (rateCum) {
@@ -374,6 +408,7 @@ export function collectDcaReportArgs({ project = null, well, stream = 'oil', u =
     declineRows,
     rateCum,
     rateCumStatement,
+    scenarios: scenarioBlock,
     mc,
     series,
     histogram,
@@ -384,6 +419,14 @@ export function collectDcaReportArgs({ project = null, well, stream = 'oil', u =
 }
 
 // ---- the PDF ---------------------------------------------------------------
+
+/** About one point a month of a daily forecast, the last kept. */
+function thinDaily(rates, every = 30) {
+  const out = [];
+  for (let i = 0; i < rates.length; i += every) out.push(rates[i]);
+  if (rates.length && (rates.length - 1) % every !== 0) out.push(rates[rates.length - 1]);
+  return out;
+}
 
 const RGB = Object.freeze({
   used: [37, 99, 235], left: [148, 163, 184], fit: [5, 150, 105], forecast: [217, 119, 6], limit: [220, 38, 38], band: [124, 58, 237], p10: [162, 28, 175], p90: [159, 18, 57],
@@ -461,6 +504,22 @@ export function dcaFigures(m) {
       },
     }],
   });
+  if (m.scenarios?.series?.length) {
+    figs.push({
+      id: 'scenarios',
+      title: 'Scenarios: forecast rate against time',
+      caption: `The forecast of each saved scenario of ${m.wellName}, ${m.stream}, from its data cut-off (about one point a month). The table "Scenarios compared" gives their parameters and volumes.`,
+      panels: [{
+        height: 70,
+        spec: {
+          xTitle: 'Date', yTitle: `Rate (${rateUnit})`, xDate: true, yLog: true,
+          series: m.scenarios.series.map((sc, i) => ({ name: sc.name, type: 'line', rgb: SERIES_CYCLE[i % SERIES_CYCLE.length], pts: sc.pts })),
+        },
+      }],
+    });
+  } else {
+    figs.push({ id: 'scenarios', title: 'Scenarios: forecast rate against time', statement: 'Does not apply: no scenario is saved for this well and stream. Save one from the Scenarios panel to compare it here.' });
+  }
   if (m.mc && m.histogram.length) {
     const width = m.histogram.length > 1 ? (m.histogram[1].bin - m.histogram[0].bin) : 1;
     figs.push({
@@ -521,6 +580,12 @@ export function buildDcaPdf(model, { logo = null } = {}) {
   else r.section('Rate against cumulative cross-check', model.rateCumStatement);
   if (model.mc) r.table('Monte Carlo EUR', ['Percentile', 'Value', 'Unit'], model.mc.rows, { note: model.mc.note });
   else r.section('Monte Carlo EUR', 'Not run: the forecast is deterministic.');
+
+  if (model.scenarios?.rows?.length) {
+    r.table('Scenarios compared', ['Scenario', 'Saved', 'Model', `qi (${model.units.rate})`, 'Di (%/yr)', 'b', 'Dmin (%/yr)', `Limit (${model.units.rate})`, `Produced (${model.units.volume})`, `Remaining (${model.units.volume})`, `EUR (${model.units.volume})`], model.scenarios.rows, { note: model.scenarios.note });
+  } else {
+    r.section('Scenarios compared', 'None saved for this well and stream.');
+  }
 
   r.table('Data used and left out', ['Count', 'Rows'], model.dataCounts, {
     note: model.importNotes || 'Used plus outside the window plus at or below zero plus excluded plus rows with no rate equals the rows imported.',

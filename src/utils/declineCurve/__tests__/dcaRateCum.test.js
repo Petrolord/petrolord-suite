@@ -67,7 +67,12 @@ describe('the rate against cumulative fit', () => {
   });
 
   it('beside the rate-time EUR it agrees on a clean well (the cross-check)', () => {
-    const w = withRateCum(forecastAll(dailyWell()));
+    // with a terminal decline both reach the limit inside the horizon (b 1.3
+    // alone would take about 157 years to fall to 10 bbl/d)
+    const dw = dailyWell();
+    dw.analysis.streams.oil.forecastConfig.terminalDecline = { value: 10, unit: '%/yr', basis: 'effective-tangent' };
+    const w = withRateCum(forecastAll(dw));
+    expect(analysisOf(w).streams.oil.forecastResults.limitReached).toBe(true);
     const s = analysisOf(w).streams.oil;
     const diff = crossCheckPct(rateCumEur(s.rateCum.results, s.forecastConfig), s.forecastResults.eurTotal);
     expect(Math.abs(diff)).toBeLessThan(1);

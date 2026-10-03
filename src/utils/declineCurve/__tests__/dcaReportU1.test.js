@@ -113,7 +113,7 @@ describe('the PDF, read back', () => {
 
   it('RL6: the figures are drawn from the screen series, with the fit window and the limit', () => {
     expect(listCaptions(pdf).map((c) => c.title)).toEqual([
-      'Rate against time (log rate)', 'Rate against cumulative production', 'Cumulative production against time', 'EUR distribution (Monte Carlo)',
+      'Rate against time (log rate)', 'Rate against cumulative production', 'Cumulative production against time', 'Scenarios: forecast rate against time', 'EUR distribution (Monte Carlo)',
     ]);
     const counts = pointCounts(built.figures);
     const s = built.model.series;
