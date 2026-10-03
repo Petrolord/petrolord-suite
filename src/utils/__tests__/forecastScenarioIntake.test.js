@@ -87,7 +87,7 @@ describe('Forecast Scenario Hub receives it', () => {
     // the same number of days to the limit, and the same volume
     expect(hub.rates.length).toBe(fc.rates.length);
     expect(Math.abs(hub.cumHorizon - fc.remaining) / fc.remaining).toBeLessThan(1e-9);
-    expect(hub.rates[0].rate).toBeCloseTo(fc.rates[0].rate, 8);
+    expect(hub.rates[0].rate).toBeCloseTo(fc.rates[0].rate, 6); // the case holds ten significant figures
     expect(String(hub.rates[0].date).slice(0, 10)).toBe(String(fc.rates[0].date).slice(0, 10));
     // negative control: retyping qi and Di of the fit start
     const naive = runCase({ ...made.case, qi: c.decline.qi, declineAnnualPct: c.decline.diNominalPctPerYear });

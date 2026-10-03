@@ -1,0 +1,619 @@
+{
+ "id": "sept-project",
+ "user_id": "dev-user",
+ "project_name": "Saved in September (before DCA-U1)",
+ "inputs_data": {
+  "id": "sept-project",
+  "name": "Saved in September (before DCA-U1)",
+  "wells": {
+   "w-ek1": {
+    "id": "w-ek1",
+    "name": "Ekene-1",
+    "type": "oil",
+    "data": [
+     {
+      "date": "2020-01-01",
+      "rate": 120.0,
+      "oilRate": 120.0,
+      "gasRate": 48.0,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2020-01-01",
+       "oil_rate_bopd": 120.0
+      }
+     },
+     {
+      "date": "2020-02-01",
+      "rate": 115.61801032730659,
+      "oilRate": 115.61801032730659,
+      "gasRate": 46.24720413092264,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2020-02-01",
+       "oil_rate_bopd": 115.61801032730659
+      }
+     },
+     {
+      "date": "2020-03-01",
+      "rate": 111.66370749734469,
+      "oilRate": 111.66370749734469,
+      "gasRate": 44.665482998937875,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2020-03-01",
+       "oil_rate_bopd": 111.66370749734469
+      }
+     },
+     {
+      "date": "2020-04-01",
+      "rate": 107.58613072177782,
+      "oilRate": 107.58613072177782,
+      "gasRate": 43.03445228871113,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2020-04-01",
+       "oil_rate_bopd": 107.58613072177782
+      }
+     },
+     {
+      "date": "2020-05-01",
+      "rate": 103.78191671416941,
+      "oilRate": 103.78191671416941,
+      "gasRate": 41.51276668566777,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2020-05-01",
+       "oil_rate_bopd": 103.78191671416941
+      }
+     },
+     {
+      "date": "2020-06-01",
+      "rate": 99.99215598705425,
+      "oilRate": 99.99215598705425,
+      "gasRate": 39.996862394821704,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2020-06-01",
+       "oil_rate_bopd": 99.99215598705425
+      }
+     },
+     {
+      "date": "2020-07-01",
+      "rate": 96.45646269736223,
+      "oilRate": 96.45646269736223,
+      "gasRate": 38.582585078944895,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2020-07-01",
+       "oil_rate_bopd": 96.45646269736223
+      }
+     },
+     {
+      "date": "2020-08-01",
+      "rate": 92.93420250232573,
+      "oilRate": 92.93420250232573,
+      "gasRate": 37.173681000930294,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2020-08-01",
+       "oil_rate_bopd": 92.93420250232573
+      }
+     },
+     {
+      "date": "2020-09-01",
+      "rate": 89.54056320561583,
+      "oilRate": 89.54056320561583,
+      "gasRate": 35.81622528224633,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2020-09-01",
+       "oil_rate_bopd": 89.54056320561583
+      }
+     },
+     {
+      "date": "2020-10-01",
+      "rate": 86.37443516930938,
+      "oilRate": 86.37443516930938,
+      "gasRate": 34.54977406772375,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2020-10-01",
+       "oil_rate_bopd": 86.37443516930938
+      }
+     },
+     {
+      "date": "2020-11-01",
+      "rate": 83.2203361451707,
+      "oilRate": 83.2203361451707,
+      "gasRate": 33.288134458068285,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2020-11-01",
+       "oil_rate_bopd": 83.2203361451707
+      }
+     },
+     {
+      "date": "2020-12-01",
+      "rate": 80.27768948284161,
+      "oilRate": 80.27768948284161,
+      "gasRate": 32.11107579313664,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2020-12-01",
+       "oil_rate_bopd": 80.27768948284161
+      }
+     },
+     {
+      "date": "2021-01-01",
+      "rate": 77.34622276399577,
+      "oilRate": 77.34622276399577,
+      "gasRate": 30.938489105598308,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2021-01-01",
+       "oil_rate_bopd": 77.34622276399577
+      }
+     },
+     {
+      "date": "2021-02-01",
+      "rate": 74.52180318588182,
+      "oilRate": 74.52180318588182,
+      "gasRate": 29.80872127435273,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2021-02-01",
+       "oil_rate_bopd": 74.52180318588182
+      }
+     },
+     {
+      "date": "2021-03-01",
+      "rate": 72.0594694574719,
+      "oilRate": 72.0594694574719,
+      "gasRate": 28.823787782988763,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2021-03-01",
+       "oil_rate_bopd": 72.0594694574719
+      }
+     },
+     {
+      "date": "2021-04-01",
+      "rate": 69.4281040326185,
+      "oilRate": 69.4281040326185,
+      "gasRate": 27.771241613047405,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2021-04-01",
+       "oil_rate_bopd": 69.4281040326185
+      }
+     },
+     {
+      "date": "2021-05-01",
+      "rate": 66.97314665000191,
+      "oilRate": 66.97314665000191,
+      "gasRate": 26.789258660000765,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2021-05-01",
+       "oil_rate_bopd": 66.97314665000191
+      }
+     },
+     {
+      "date": "2021-06-01",
+      "rate": 64.5275163419345,
+      "oilRate": 64.5275163419345,
+      "gasRate": 25.811006536773803,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2021-06-01",
+       "oil_rate_bopd": 64.5275163419345
+      }
+     },
+     {
+      "date": "2021-07-01",
+      "rate": 62.2458423018207,
+      "oilRate": 62.2458423018207,
+      "gasRate": 24.898336920728283,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2021-07-01",
+       "oil_rate_bopd": 62.2458423018207
+      }
+     },
+     {
+      "date": "2021-08-01",
+      "rate": 59.9728369840317,
+      "oilRate": 59.9728369840317,
+      "gasRate": 23.98913479361268,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2021-08-01",
+       "oil_rate_bopd": 59.9728369840317
+      }
+     },
+     {
+      "date": "2021-09-01",
+      "rate": 57.782834048147095,
+      "oilRate": 57.782834048147095,
+      "gasRate": 23.11313361925884,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2021-09-01",
+       "oil_rate_bopd": 57.782834048147095
+      }
+     },
+     {
+      "date": "2021-10-01",
+      "rate": 55.73964999449121,
+      "oilRate": 55.73964999449121,
+      "gasRate": 22.295859997796484,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2021-10-01",
+       "oil_rate_bopd": 55.73964999449121
+      }
+     },
+     {
+      "date": "2021-11-01",
+      "rate": 53.70422857252949,
+      "oilRate": 53.70422857252949,
+      "gasRate": 21.481691429011796,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2021-11-01",
+       "oil_rate_bopd": 53.70422857252949
+      }
+     },
+     {
+      "date": "2021-12-01",
+      "rate": 51.80526281148957,
+      "oilRate": 51.80526281148957,
+      "gasRate": 20.722105124595828,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2021-12-01",
+       "oil_rate_bopd": 51.80526281148957
+      }
+     },
+     {
+      "date": "2022-01-01",
+      "rate": 49.91351175623027,
+      "oilRate": 49.91351175623027,
+      "gasRate": 19.96540470249211,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2022-01-01",
+       "oil_rate_bopd": 49.91351175623027
+      }
+     },
+     {
+      "date": "2022-02-01",
+      "rate": 48.09084098086642,
+      "oilRate": 48.09084098086642,
+      "gasRate": 19.23633639234657,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2022-02-01",
+       "oil_rate_bopd": 48.09084098086642
+      }
+     },
+     {
+      "date": "2022-03-01",
+      "rate": 46.50183353992437,
+      "oilRate": 46.50183353992437,
+      "gasRate": 18.60073341596975,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2022-03-01",
+       "oil_rate_bopd": 46.50183353992437
+      }
+     },
+     {
+      "date": "2022-04-01",
+      "rate": 44.80374558714723,
+      "oilRate": 44.80374558714723,
+      "gasRate": 17.921498234858895,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2022-04-01",
+       "oil_rate_bopd": 44.80374558714723
+      }
+     },
+     {
+      "date": "2022-05-01",
+      "rate": 43.21949829232888,
+      "oilRate": 43.21949829232888,
+      "gasRate": 17.28779931693155,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2022-05-01",
+       "oil_rate_bopd": 43.21949829232888
+      }
+     },
+     {
+      "date": "2022-06-01",
+      "rate": 41.64126999919574,
+      "oilRate": 41.64126999919574,
+      "gasRate": 16.656507999678297,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2022-06-01",
+       "oil_rate_bopd": 41.64126999919574
+      }
+     },
+     {
+      "date": "2022-07-01",
+      "rate": 40.16884691303416,
+      "oilRate": 40.16884691303416,
+      "gasRate": 16.067538765213666,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2022-07-01",
+       "oil_rate_bopd": 40.16884691303416
+      }
+     },
+     {
+      "date": "2022-08-01",
+      "rate": 38.70201797689317,
+      "oilRate": 38.70201797689317,
+      "gasRate": 15.480807190757268,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2022-08-01",
+       "oil_rate_bopd": 38.70201797689317
+      }
+     },
+     {
+      "date": "2022-09-01",
+      "rate": 37.288752617833666,
+      "oilRate": 37.288752617833666,
+      "gasRate": 14.915501047133468,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2022-09-01",
+       "oil_rate_bopd": 37.288752617833666
+      }
+     },
+     {
+      "date": "2022-10-01",
+      "rate": 35.97023326888664,
+      "oilRate": 35.97023326888664,
+      "gasRate": 14.388093307554655,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2022-10-01",
+       "oil_rate_bopd": 35.97023326888664
+      }
+     },
+     {
+      "date": "2022-11-01",
+      "rate": 34.65672334631468,
+      "oilRate": 34.65672334631468,
+      "gasRate": 13.862689338525872,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2022-11-01",
+       "oil_rate_bopd": 34.65672334631468
+      }
+     },
+     {
+      "date": "2022-12-01",
+      "rate": 33.4312717799524,
+      "oilRate": 33.4312717799524,
+      "gasRate": 13.37250871198096,
+      "waterRate": 0,
+      "cum": null,
+      "well": "Unknown Well",
+      "original": {
+       "date": "2022-12-01",
+       "oil_rate_bopd": 33.4312717799524
+      }
+     }
+    ],
+    "projectId": "sept-project",
+    "notes": "",
+    "tags": [],
+    "dataMeta": {
+     "fileName": "Ekene-1.csv",
+     "rowCount": 36,
+     "importedAt": "2026-09-20T10:00:00.000Z",
+     "dateRange": {
+      "start": "2020-01-01",
+      "end": "2022-12-01"
+     }
+    }
+   },
+   "w-empty": {
+    "id": "w-empty",
+    "name": "Second well",
+    "type": "oil",
+    "data": [],
+    "projectId": "sept-project",
+    "notes": "",
+    "tags": []
+   }
+  },
+  "streamState": {
+   "oil": {
+    "fitResults": {
+     "R2": 1,
+     "RMSE": 1.2e-14,
+     "qi": 120,
+     "Di": 0.0012,
+     "b": 0,
+     "modelType": "Exponential",
+     "parameters": {
+      "qi": 120,
+      "Di": 0.0012,
+      "b": 0,
+      "modelType": "Exponential"
+     },
+     "confidenceIntervals": {
+      "hasIntervals": true,
+      "qi": 1e-12,
+      "Di": 1e-15,
+      "b": 0,
+      "confidenceLevel": 0.95
+     },
+     "t0": "2020-01-01"
+    },
+    "modelType": "Auto",
+    "constraints": {
+     "minB": 0,
+     "maxB": 1
+    },
+    "forecastConfig": {
+     "economicLimit": 10,
+     "durationDays": 3650,
+     "facilityLimit": 0,
+     "stopAtLimit": true,
+     "mcSeed": 42,
+     "economicLimitUncertainty": 0.2
+    },
+    "forecastResults": null
+   },
+   "gas": {
+    "fitResults": null,
+    "modelType": "Auto",
+    "constraints": {
+     "minB": 0,
+     "maxB": 1
+    },
+    "forecastConfig": {
+     "economicLimit": 100,
+     "durationDays": 3650,
+     "facilityLimit": 0,
+     "stopAtLimit": true
+    },
+    "forecastResults": null
+   },
+   "water": {
+    "fitResults": null,
+    "modelType": "Auto",
+    "constraints": {
+     "minB": 0,
+     "maxB": 1
+    },
+    "forecastConfig": {
+     "economicLimit": 0,
+     "durationDays": 3650,
+     "facilityLimit": 0,
+     "stopAtLimit": false
+    },
+    "forecastResults": null
+   }
+  },
+  "scenarios": [
+   {
+    "id": "sc_1",
+    "name": "Base (September)",
+    "stream": "oil",
+    "wellId": "w-ek1",
+    "wellName": "Ekene-1",
+    "createdAt": "2026-09-20T10:05:00.000Z",
+    "fitResults": {
+     "qi": 120,
+     "Di": 0.0012,
+     "b": 0,
+     "modelType": "Exponential",
+     "R2": 1,
+     "RMSE": 0,
+     "t0": "2020-01-01"
+    },
+    "forecastConfig": {
+     "economicLimit": 10,
+     "durationDays": 3650,
+     "stopAtLimit": true
+    },
+    "forecastResults": {
+     "eur": 19513.4,
+     "rates": []
+    }
+   }
+  ],
+  "typeCurves": [],
+  "wellGroups": [],
+  "dataQuality": {
+   "issues": {},
+   "score": 100,
+   "summary": null
+  },
+  "fitWindow": {
+   "startDate": "2020-01-01",
+   "endDate": "2022-12-01"
+  },
+  "modified": "2026-09-20T10:05:00.000Z"
+ },
+ "created_at": "2026-09-20T10:00:00.000Z",
+ "updated_at": "2026-09-20T10:05:00.000Z"
+}
