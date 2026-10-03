@@ -76,7 +76,8 @@ describe('on the engine and the stale rule', () => {
     expect(text).toMatch(/Timesteps excluded by the analyst/);
     expect(text).toMatch(/1 2011-01-01 3,680\.0 Survey within days of first production/);
     expect(text).toMatch(/2 \d{4}-\d{2}-\d{2} 3,676\.0 Survey not built up/);
-    expect(text).toMatch(/Timesteps excluded from the fit by the analyst 1, 2/);
+    expect(model.inputs.find((x) => x.key === 'excluded_timesteps')).toMatchObject({ value: '1, 2' });
+    expect(text).toMatch(/Picked by the analyst on the regression plot or the analyst data table/);
     // negative control: a run with no exclusion prints no such table
     expect(buildMbalPdf(reportArgs(base), { logo: chartLogo(), generatedAt: AT }).model.exclusions).toBeNull();
   });
