@@ -29,7 +29,7 @@ const ExportTab = () => {
   const c = useScalStudio();
   const {
     projectName, curves, ow, heightProfile, reservoirPc, height, unitSystem,
-    addNotification, currentProjectId, manualSave, contractFor, canWrite,
+    addNotification, currentProjectId, manualSave, contractFor,
   } = c;
 
   const header = (what) => krContractCsvHeader(contractFor(currentProjectId, projectName), {
@@ -41,12 +41,16 @@ const ExportTab = () => {
       addNotification('Fix the oil-water Corey set on the Curves tab first.', 'error');
       return;
     }
-    // save first, so the receiver can read the same block again by id
-    if (currentProjectId && canWrite) await manualSave();
-    const contract = contractFor(currentProjectId, projectName);
+    // SCAL-U1-024: save first, so the receiver can read the same block again
+    // by id; cite the project only when the save landed (a read-only shared
+    // project, or a failed save, sends the curves without a project to re-read)
+    const saved = currentProjectId ? await manualSave() : false;
+    const citeId = saved ? currentProjectId : null;
+    if (currentProjectId && !saved) addNotification('The project could not be saved first, so the curves go without a project to read again later.', 'info');
+    const contract = contractFor(citeId, projectName);
     const payload = buildScalKrHandoffV2({ contract, muW: parseFloat(curves.muW), muO: parseFloat(curves.muO) });
     const base = WATERFLOOD[inHarness ? 1 : 0];
-    const to = currentProjectId ? `${base}?${KR_PROJECT_PARAM}=${encodeURIComponent(currentProjectId)}` : base;
+    const to = citeId ? `${base}?${KR_PROJECT_PARAM}=${encodeURIComponent(citeId)}` : base;
     navigate(to, { state: { [KR_HANDOFF_STATE_KEY]: payload } });
   };
 

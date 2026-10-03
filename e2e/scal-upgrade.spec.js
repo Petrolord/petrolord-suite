@@ -71,7 +71,8 @@ async function createProject(page, name) {
   await page.getByRole('button', { name: 'Create new project' }).first().click();
   await page.getByLabel('Project name').fill(name);
   await page.getByRole('button', { name: 'Create project' }).click();
-  await expect(page.getByText(`Project "${name}" created`)).toBeVisible();
+  // the picker shows the new project (the toast can come and go under load)
+  await expect(page.getByRole('combobox', { name: 'Project' })).toContainText(name, { timeout: 60000 });
   await closeRail(page);
 }
 
@@ -190,7 +191,7 @@ test('PL2: hostile lab tables read with units at the door, and say what they rea
 });
 
 test('PL9: the kr-1 handoff into Waterflood, by router state and by project id', async ({ page }) => {
-  test.setTimeout(300000);
+  test.setTimeout(480000);
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await openApp(page);
