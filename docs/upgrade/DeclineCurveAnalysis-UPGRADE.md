@@ -295,8 +295,8 @@ $MM). Pinned: `dcaYearLength.test.js`.
   interval is an assumed 10 percent. They are printed as such and not
   validated against a nonlinear regression.
 - **EUR quadrature:** remaining volume is a daily right-endpoint sum; on the
-  sample it is 0.06 percent below the closed form (19,507 against 19,525
-  bbl); not corrected (engine change, U2).
+  sample it is 0.1 percent below the closed form (19,507 against 19,526
+  bbl); not corrected (engine change, U2-019).
 - **Live data:** nothing was run against a customer file or the live
   database; the sender was exercised on the in-memory double and harnesses.
   A first live send and EPE import are owner items.
@@ -324,8 +324,13 @@ limits and flags, the figures. Would now: compare scenarios in the report
 
 ### 2a. Competitor parity (public documentation)
 
-Read from the public product pages and help of IHS Harmony (S&P Global),
-ARIES (Halliburton), PHDwin and whitson+. Nothing was installed.
+Sources read for this round: the Harmony decline theory and Arps analysis
+help pages (ihsenergy.ca documentation), the whitson+ user manual (Decline
+Curve Analysis, Type Well), and secondary descriptions of the ARIES and
+PHDwin modified hyperbolic (a hyperbolic that switches to exponential at a
+limiting decline). ARIES and PHDwin help is not public: their rows are from
+those secondary sources and general practice, not checked feature by feature.
+Nothing was installed.
 
 | Capability | Harmony | ARIES | PHDwin | whitson+ | Petrolord now | Gap |
 |---|---|---|---|---|---|---|
@@ -344,7 +349,7 @@ ARIES (Halliburton), PHDwin and whitson+. Nothing was installed.
 
 From the STATUS docs, memory and this round: segmented fitting (detection
 util exists, unwired); MC sample curves computed and not plotted; terminal
-decline; the EUR right-endpoint quadrature (0.06 percent low); the hub has
+decline; the EUR right-endpoint quadrature (0.1 percent low); the hub has
 no report; the hub to EPE route keeps no source; type curves not walked;
 Fetkovich-style type curve matching not present.
 
@@ -385,7 +390,7 @@ NAPE-safe and highest value; B next; C after NAPE.
 | 16 | U2-016 | Reserves by category to Risked Reserves and Capital Portfolio | M | C |
 | 17 | U2-017 | Wells registry pick and identity | S | C |
 | 18 | U2-012 | Reserves categories and a change log of forecasts | L | C |
-| 19 | U2-019 | EUR quadrature: closed-form integral per day (0.06 percent) | S | C |
+| 19 | U2-019 | EUR quadrature: closed-form integral per day (0.1 percent) | S | C |
 
 ### Owner questions
 
