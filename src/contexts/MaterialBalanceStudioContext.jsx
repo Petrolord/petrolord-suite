@@ -30,6 +30,7 @@ import {
   upsertCaseDefaultConfig,
   updateCase,
   setCaseReadOnly,
+  setCaseSharingStore,
   createCase,
   replaceProductionData,
 } from '@/pages/apps/reservoir-balance/lib/api';
@@ -42,6 +43,7 @@ import {
 } from '@/pages/apps/reservoir-balance/lib/studyMeta';
 import { createMbalUnits, MBAL_UNIT_APP, MBAL_UNIT_SPEC, MBAL_OILFIELD_VIEW } from '@/pages/apps/reservoir-balance/lib/mbalUnits';
 import { buildMbalSeries } from '@/pages/apps/reservoir-balance/lib/mbalSeries';
+import { excludedOf, applyExclusion, cleanReasons } from '@/pages/apps/reservoir-balance/lib/exclusions';
 import { buildPlotModels } from '@/pages/apps/reservoir-balance/lib/plotModels';
 import { useAppUnits } from '@/lib/units/useAppUnits';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -68,11 +70,15 @@ const useOrganizationName = () => {
 };
 
 // Record sharing (docs/scope/OrgSharing-DESIGN-AND-STATUS.md; rb_cases and
-// its children since migration 20261002130000). This round adopts sharing
-// for VIEWING: the owner shares a case with the organisation, colleagues see
-// it under "Shared with me" and open it read-only, with its results, plots
-// and report. Colleague editing with the check-out is the first item of the
-// Step 2 backlog (docs/upgrade/MaterialBalanceStudio-UPGRADE.md).
+// its children since migration 20261002130000). MBAL-U1 adopted sharing for
+// VIEWING: the owner shares a case with the organisation, colleagues see it
+// under "Shared with me" and open it read-only, with its results, plots and
+// report. MBAL-U2-001 adds EDITING (the owner's grant of 2026-10-01): the
+// owner may let colleagues edit; one person at a time takes the case for
+// editing (the check-out of rb_cases, which its four child tables follow in
+// the database); a save of the case row names the version it was opened at;
+// Run and every save are refused without the hold; the History panel lists
+// who changed what.
 export const RB_CASES_TABLE = 'rb_cases';
 
 /**
@@ -172,9 +178,11 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, sharingStore
     setLastRun(lastCompletedRun ?? null);
     setLastRunConfig(runCfg);
     setLastResult(result);
+    // the version this editor now shows: a later save of the case row names it
+    store?.trackOpened?.(RB_CASES_TABLE, data);
     setCaseData(data);
     setCaseLoading(false);
-  }, [caseId]);
+  }, [caseId, store]);
 
   // Re-read the case default config after the PVT or the Aquifer tab saved
   // it. Cheap, and it does not swap the tab tree for the loader.
@@ -194,9 +202,26 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, sharingStore
   const sharing = useRecordSharing({ store, table: RB_CASES_TABLE, record: caseData, onChange: applyCasePatch });
   const userId = sharing.userId;
   const viewingShared = !!caseData?.user_id && !!userId && caseData.user_id !== userId;
-  const readOnlyReason = viewingShared
+  // Read-only whenever the sharing rules say this user may not write now: a
+  // colleague's case shared for viewing; a case shared for editing that this
+  // user (the owner included) has not taken; one a colleague is editing.
+  const canWriteCase = !caseData || sharing.canWrite;
+  const readOnlyReason = !canWriteCase
     ? `${sharing.readOnlyReason || 'This case was shared with your organisation for viewing.'} Nothing you change here is saved to it.`
     : null;
+  // the case row is saved through the sharing store (version check, refusals in words)
+  useEffect(() => {
+    setCaseSharingStore(sharing.available ? store : null);
+    return () => setCaseSharingStore(null);
+  }, [store, sharing.available]);
+  // Taking the case for editing reloads it, so the editor starts from what
+  // the previous editor left (data rows and run settings carry no version).
+  const holdsCase = Boolean(sharing.access?.lock?.mine);
+  const heldBefore = React.useRef(false);
+  useEffect(() => {
+    if (holdsCase && !heldBefore.current && caseId) refreshCase();
+    heldBefore.current = holdsCase;
+  }, [holdsCase, caseId, refreshCase]);
   // every write of lib/api.js to this case answers with the reason while it is read-only
   useEffect(() => {
     setCaseReadOnly(caseId, readOnlyReason);
@@ -376,6 +401,26 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, sharingStore
     return { data, error };
   }, [caseId]);
 
+  // MBAL-U2-003: the timesteps the next run leaves out of the fit, with the
+  // reasons. The list is an engine input of the case default config (a
+  // change makes the stored run stale); the reasons are a record of the study.
+  const exclusions = useMemo(() => ({ excluded: excludedOf(defaultCfg), reasons: study.exclusions ?? {} }), [defaultCfg, study]);
+  const setExclusion = useCallback(async (step, change) => {
+    if (!caseId) return { error: { message: 'No case open.' } };
+    const { data: cfgNow } = await getCaseDefaultConfig(caseId);
+    const studyNow = readStudy(cfgNow);
+    const steps = (caseData?.production_data ?? []).map((r) => r.timestep_index);
+    const next = applyExclusion({ excluded: excludedOf(cfgNow), reasons: studyNow.exclusions, steps }, step, change);
+    if (next.error) return { error: { message: next.error } };
+    const base = cfgNow?.pvt_correlations ?? { ...DEFAULT_CORRELATIONS };
+    const { data, error } = await upsertCaseDefaultConfig(caseId, {
+      excluded_timesteps: next.excluded,
+      pvt_correlations: withStudy(base, { ...studyNow, exclusions: cleanReasons(next.reasons, next.excluded) }),
+    });
+    if (!error) setDefaultCfg(data ?? null);
+    return { data, error };
+  }, [caseId, caseData]);
+
   // One set of series and plot models for the Plots tab and the report (RL12).
   const series = useMemo(
     () => (lastResult?.plot_data?.timestep_index?.length
@@ -396,10 +441,12 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, sharingStore
   const value = {
     // units, report
     units, unitsHook, organizationName, study, saveStudy, series, plotModels, reportArgs,
+    // excluded timesteps (MBAL-U2-003)
+    exclusions, setExclusion,
     // case list
     cases, ownCases, sharedCases, casesLoading, casesError, refreshCases,
     // record sharing
-    sharing, sharingStore: store, viewingShared, readOnlyReason, saveCopy, copying,
+    sharing, sharingStore: store, viewingShared, readOnlyReason, canWriteCase, saveCopy, copying,
     // current case
     caseId, caseData, caseLoading, caseError, refreshCase, applyCasePatch,
     // run

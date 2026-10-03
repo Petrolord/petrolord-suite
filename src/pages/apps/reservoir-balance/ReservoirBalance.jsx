@@ -53,12 +53,18 @@ import NewCaseDialog, { fluidSystemDisplay } from '@/components/reservoirbalance
 import MbsHelpContent from '@/components/reservoirbalance/MbsHelpContent';
 import { mapWellTestIntake } from './lib/wellTestIntake';
 import { staleRunMessage } from './lib/runStaleness';
-import { validationTierOf, fmt, r2Text, INJECTION_NOTE } from './lib/reportModel';
-import { driveIndexDefs, inPlaceOf } from './lib/mbalSeries';
+import {
+  validationTierOf, fmt, r2Text, INJECTION_NOTE, INJECTION_LEGACY_NOTE, engineCoverageOf,
+} from './lib/reportModel';
+import { driveIndexDefs, inPlaceOf, buildRunRows, runHasInjection } from './lib/mbalSeries';
 import { MBAL_OILFIELD_VIEW, MBAL_METRIC_VIEW, MBAL_UNIT_SPEC } from './lib/mbalUnits';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { pvtTableCoverage } from './lib/pvtSource';
 import { RecordSharingBar } from '@/components/recordSharing';
+import { MBAL_CONTRACT } from '@/lib/mbalCaseSource';
+
+// MBAL-U2-004: where the case is sent (the reader reads it by id, contract mbal-1)
+export const RCP_CROSS_CHECK_PATH = '/dashboard/apps/geoscience/reservoircalc-pro';
 
 const TABS = [
   { value: 'data', label: 'Data' },
@@ -182,6 +188,7 @@ const RunPanel = () => {
   const {
     caseData, lastResult, lastRunConfig, running, handleRun, runStaleness, units, defaultCfg,
   } = useMaterialBalanceStudio();
+  const navigate = useNavigate();
   // what the next run would be made on: the PVT table of the case against its pressures
   const coverage = pvtTableCoverage(caseData, defaultCfg);
   const stale = Boolean(runStaleness?.stale);
@@ -196,6 +203,11 @@ const RunPanel = () => {
   const ws = units.scaled('resVolume', w ?? 0);
   const sum = lastResult?.final_drive_index_sum;
   const isHm = Boolean(lastResult?.plot_data?.history_match);
+  // MBAL-U2-002: did the last run net injection out of F?
+  const runInjection = lastResult ? runHasInjection(buildRunRows(lastResult.plot_data)) : false;
+  // MBAL-U2-006: where the engine itself left the PVT table on the last run
+  const engineCov = lastResult ? engineCoverageOf(lastResult).coverage : null;
+  const covOut = engineCov?.timesteps_outside ?? [];
   return (
     <div className="space-y-4">
       <Card>
@@ -233,10 +245,17 @@ const RunPanel = () => {
             </Alert>
           )}
           {injected && (
-            <Alert variant="warning" data-testid="mbal-injection-note">
+            <Alert data-testid="mbal-injection-note">
               <Info className="h-4 w-4" />
-              <AlertTitle>Injection is on the data table and is left out of the balance</AlertTitle>
+              <AlertTitle>Injection is in the balance</AlertTitle>
               <AlertDescription className="text-xs">{INJECTION_NOTE}</AlertDescription>
+            </Alert>
+          )}
+          {injected && lastResult && !runInjection && (
+            <Alert variant="warning" data-testid="mbal-injection-legacy">
+              <Info className="h-4 w-4" />
+              <AlertTitle>The last run left the injection out</AlertTitle>
+              <AlertDescription className="text-xs">{INJECTION_LEGACY_NOTE}</AlertDescription>
             </Alert>
           )}
         </CardContent>
@@ -285,14 +304,40 @@ const RunPanel = () => {
             </div>
 
             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              {driveIndexDefs(isGas).map((d) => (
+              {driveIndexDefs(isGas, { injection: runInjection }).map((d) => (
                 <DriveIndex key={d.key} label={d.label}
-                  value={d.key === 'cdi' ? (lastResult.final_cdi ?? lastResult.final_sdi) : lastResult[`final_${d.key}`]} />
+                  value={d.key === 'cdi' ? (lastResult.final_cdi ?? lastResult.final_sdi) : (lastResult[`final_${d.key}`] ?? lastResult.plot_data?.[`final_${d.key}`])} />
               ))}
             </div>
             <p className="text-[11px] text-pl-muted mt-2">
-              Each index is its energy term over the hydrocarbon voidage ({isGas ? 'Gp Bg' : 'F minus Wp Bw'}), at the last timestep. CDI is the rock and connate water expansion.
+              Each index is its energy term over the hydrocarbon voidage ({isGas ? 'Gp Bg' : (runInjection ? 'F plus the injected volumes minus Wp Bw' : 'F minus Wp Bw')}), at the last timestep. CDI is the rock and connate water expansion.{runInjection ? ' WIDI and GIDI are the injected water and gas.' : ''}
             </p>
+
+            {covOut.length > 0 && (
+              <Alert variant="warning" className="mt-6" data-testid="mbal-engine-coverage">
+                <Info className="h-4 w-4" />
+                <AlertTitle>The engine left the PVT table at {covOut.length} timestep{covOut.length === 1 ? '' : 's'}</AlertTitle>
+                <AlertDescription className="text-xs">
+                  Timestep{covOut.length === 1 ? '' : 's'} {covOut.slice(0, 8).join(', ')}{covOut.length > 8 ? ` and ${covOut.length - 8} more` : ''} fell outside the table
+                  ({fmt(units.to('pressure', engineCov.table_min_psia), 0)} to {fmt(units.to('pressure', engineCov.table_max_psia), 0)} {units.label('pressure')}),
+                  and the engine used the correlations for {[...new Set(engineCov.fallbacks.map((f) => f.property))].join(', ')} there.
+                  {engineCov.initial_outside ? ' The initial state is one of them.' : ''} The report prints this at the top of its limits.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-pl-border pt-4" data-testid="mbal-send">
+              <Button variant="outline" size="sm" disabled={stale}
+                onClick={() => navigate(`${RCP_CROSS_CHECK_PATH}?mbalCase=${encodeURIComponent(caseData.id)}`)}
+                data-testid="mbal-send-rcp">
+                Cross-check in ReservoirCalc Pro
+              </Button>
+              <p className="text-[11px] text-pl-muted min-w-0 flex-1">
+                {stale
+                  ? 'Run the case again first: only the run of the current inputs is sent.'
+                  : `ReservoirCalc Pro reads this case by its id (contract ${MBAL_CONTRACT}): the ${isGas ? 'gas' : 'oil'} in place with its method and run, the drive mechanism and the last average pressure, and prints them beside its volumetric result.`}
+              </p>
+            </div>
 
             {lastResult.warnings && lastResult.warnings.length > 0 && (
               <Alert variant="warning" className="mt-6">
@@ -344,7 +389,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
   );
   const {
     ownCases, sharedCases, casesError, refreshCases,
-    sharing, viewingShared, readOnlyReason, saveCopy,
+    sharing, viewingShared, readOnlyReason, canWriteCase, saveCopy,
     caseId, caseData, caseLoading, caseError, refreshCase,
     running, refreshRunInputs,
     handleCaseCreated, handleDeleteCase,
@@ -403,13 +448,13 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
             sharing={sharing}
             label="case"
             className="mt-2"
-            allowEdit={false}
             onSaveCopy={saveCopy}
+            onReload={refreshCase}
             fieldLabels={CASE_FIELD_LABELS}
           />
         )}
       </section>
-      <CaseSummary onEdit={viewingShared ? undefined : () => setEditCaseOpen(true)} />
+      <CaseSummary onEdit={canWriteCase ? () => setEditCaseOpen(true) : undefined} />
       {caseData && <UnitsControl />}
       {caseData && (
         <p className="text-[11px] text-pl-muted leading-relaxed">
@@ -436,7 +481,9 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
         <Alert className="mb-4" data-testid="mbal-read-only">
           <AlertTitle>Open read-only</AlertTitle>
           <AlertDescription>
-            {readOnlyReason} The results, the plots and the report are those of its owner's last run. A copy takes the conditions, the production data and the run settings, and you run it yourself.
+            {readOnlyReason} {viewingShared
+              ? "The results, the plots and the report are those of the last run on the case. A copy takes the conditions, the production data and the run settings, and you run it yourself."
+              : 'The results, the plots and the report are those of the last run on the case.'}
           </AlertDescription>
         </Alert>
       )}

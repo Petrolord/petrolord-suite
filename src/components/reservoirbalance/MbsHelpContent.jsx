@@ -56,9 +56,13 @@ const MbsHelpContent = () => (
       is still waiting when you come back.
     </P>
     <P>
-      Injected water and gas can be kept on the table and are printed in the report, but this engine version has no
-      injection term: they are left out of the balance, and the Data tab, the Run tab and the report all say so. For
-      a reservoir under injection the oil in place from this studio is therefore too high.
+      Injected water and gas are in the balance. The withdrawal term F is the net withdrawal of the Havlena-Odeh form:
+      the production voidage less the injected water times Bw and the injected gas times the Bg of the reservoir gas at
+      each pressure, so the injected gas is taken to be the produced gas. The drive indices gain a water injection index
+      (WIDI) and a gas injection index (GIDI), and the sum still closes. Enter only what went into the tank: water
+      injected into the aquifer belongs in the aquifer model. No published worked example with injection backs this
+      path, so a run with injection is reported as a published method; its arithmetic is checked against an independent
+      hand calculation and exact synthetic tanks. A run made before this release left injection out; run it again.
     </P>
     <P>
       A regression needs at least two rows in total, counting the initial state, which means one observed pressure
