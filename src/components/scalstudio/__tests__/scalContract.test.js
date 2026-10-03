@@ -109,9 +109,15 @@ describe('Waterflood takes it and keeps it', () => {
     const edited = krIntakeCardModel({ intake, current: { ...now, nw: '3' }, fields: SCAL_INTAKE_FIELDS });
     expect(edited.status).toBe('Edited after intake');
     expect(edited.edited).toEqual(['nw']);
-    const later = { ...contract(), generated_at: new Date(AT.getTime() + 3600e3).toISOString() };
+    // a later save that changed nothing (autosave re-stamps the block) is not a change
+    const resaved = { ...contract(), generated_at: new Date(AT.getTime() + 3600e3).toISOString() };
+    expect(krIntakeCardModel({ intake, current: now, fields: SCAL_INTAKE_FIELDS, latest: { ok: true, contract: resaved } }).status).toBe('As received');
+    // a later save with a different exponent is
+    const c2 = contract();
+    const later = { ...c2, generated_at: resaved.generated_at, oil_water: { ...c2.oil_water, params: { ...c2.oil_water.params, nw: 3.3 } } };
     const changed = krIntakeCardModel({ intake, current: now, fields: SCAL_INTAKE_FIELDS, latest: { ok: true, contract: later } });
     expect(changed.status).toBe('Source changed since');
+    expect(changed.changedSince.text).toMatch(/now holds nw 3\.3/);
     expect(changed.pedigree).toBe('Analog, imbibition, water-wet, lab Core Lab Lagos');
   });
 

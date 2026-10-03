@@ -72,10 +72,22 @@ export function krIntakeCardModel({ intake, current = {}, fields = [], latest = 
     sample.wettability || 'wettability not stated',
     sample.laboratory ? `lab ${sample.laboratory}` : null,
   ].filter(Boolean).join(', ') : null;
+  // "Source changed since" is about content: every save re-stamps the block
+  // (autosave too), so a later time alone is not a change. Compared: the
+  // parameters of the set and how it was made.
   let changedSince = null;
-  const sentAt = from.generatedAt || from.at;
-  if (latest?.ok && latest.contract?.generated_at && sentAt && Date.parse(latest.contract.generated_at) > Date.parse(sentAt) + 1000) {
-    changedSince = { at: latest.contract.generated_at, text: `The source project was saved again on ${when(latest.contract.generated_at)}, after this intake (${when(sentAt)}). The values here are the ones received; send them again from SCAL Studio to take the new ones.` };
+  const latestSet = latest?.ok ? latest.contract?.[intake.set || 'oil_water'] : null;
+  if (latestSet) {
+    const moved = Object.keys(latestSet.params || {})
+      .filter((k) => intake.values?.[k] != null && Number(latestSet.params[k]) !== Number(intake.values[k]));
+    const originMoved = set?.origin?.kind && latestSet.origin?.kind && set.origin.kind !== latestSet.origin.kind;
+    if (moved.length || originMoved) {
+      const what = [
+        ...moved.map((k) => `${k} ${latestSet.params[k]}`),
+        ...(originMoved ? [`a set ${KR1_ORIGINS[latestSet.origin.kind]}`] : []),
+      ].join(', ');
+      changedSince = { at: latest.contract.generated_at, text: `The source project was saved again on ${when(latest.contract.generated_at)} and now holds ${what}. The values here are the ones received (${when(from.generatedAt || from.at)}); send them again from SCAL Studio to take the new ones.` };
+    }
   }
   const edited = rows.filter((r) => r.edited).map((r) => r.label);
   let status = 'As received';

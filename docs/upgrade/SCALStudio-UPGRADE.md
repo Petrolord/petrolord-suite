@@ -112,10 +112,11 @@ that misleads; S3 workflow gap or misleading text; S4 polish.
 | SCAL-U1-019 | S3 | PL1, PL8 | The data-driven Swirr (lowest Sw less 0.02) is a heuristic: on the demo pair it gives b 1.15 against a generating 1.45 (with the true Swirr: 1.467). | Probe. | Kept and named wherever it prints; Step 2 U2-006 (fit Swirr). |
 | SCAL-U1-020 | S3 | PL8 | The Corey fit needs a lab table with both end points (krw 0 at the first row, kro 0 at the last); real unsteady-state data seldom reach residual oil, and the fit refuses. | Code (`validateKrTable`). | Open: U2-003 (engines change). |
 | SCAL-U1-021 | S3 | RL11 | Gas-oil sets and capillary pressure are not handed to any simulator keyword; Simulation's "SCAL Studio model" is a typed form with no intake. | Gap matrix. | Open: U2-001, U2-002 (Simulation round). |
+| SCAL-U1-023 | S3 | PL4, RL11 | The new intake card said "source changed since" whenever the source project was saved later, but every save (autosave too) re-stamps the block: the e2e chain showed it straight after a send. The PVT card (`pvtIntakeCard.js`, Fluid U2) compares times the same way. | e2e PL9; test. | Fixed for kr: the card compares the received parameters and origin with the source's. The PVT card is carried to the Fluid owner (not changed here). |
 | SCAL-U1-022 | S4 | PL6 | At 390 wide the header shows the icon without the title. | Screenshot. | Kept (shared StudioHeader, as Fluid). |
 
-Totals: 22 findings. Fixed 18 (1 S1: 001; 4 S2: 002, 003, 007, 015; 10 S3:
-004, 005, 008 to 012, 014, 016, 017; 3 S4: 006, 013, 018), kept 2 (019 S3
+Totals: 23 findings. Fixed 19 (1 S1: 001; 4 S2: 002, 003, 007, 015; 11 S3:
+004, 005, 008 to 012, 014, 016, 017, 023; 3 S4: 006, 013, 018), kept 2 (019 S3
 stated, 022 S4), open 2 (020, 021 S3, Step 2). No S1 or S2 is open.
 
 ### The report
@@ -208,7 +209,7 @@ was refused in Petrophysics. *Now:* it reads, with its source. Would now: a
 J function by rock type or by permeability class (U2-007), Thomeer or Brooks-Corey
 forms (outside the lock).
 
-**4. Manager reading the report.** *Before:* CSVs. *Now:* a 12-page PDF with
+**4. Manager reading the report.** *Before:* CSVs. *Now:* an 11-page PDF with
 identification, sources, pedigree and limits. Would now: a one-page summary
 (U2-012).
 
