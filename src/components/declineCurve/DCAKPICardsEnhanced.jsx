@@ -111,6 +111,7 @@ const DCAKPICardsEnhanced = () => {
         </>
       ) : (
         <MetricCard
+          testId="dca-kpi-remaining"
           label="Rem. Reserves"
           value={eur == null ? 'n/a' : whole(vol(eur))}
           unit={volumeUnit}

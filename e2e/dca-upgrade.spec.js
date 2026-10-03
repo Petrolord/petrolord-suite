@@ -70,9 +70,10 @@ async function sampleFitted(page, name = 'Sample') {
   await newProject(page, name);
   await page.getByTestId('dca-add-sample-well').click();
   await page.getByRole('button', { name: 'Fit Model' }).click();
-  await expect(page.getByText(/fit completed/i).first()).toBeVisible({ timeout: 30000 });
+  await expect(page.getByTestId('dca-di-kpi')).toHaveText(/\d/, { timeout: 60000 });
   await page.getByRole('button', { name: 'Generate Forecast' }).click();
-  await expect(page.getByText('Forecast completed successfully').first()).toBeVisible({ timeout: 30000 });
+  // the KPI card holds the remaining volume once the forecast is in (a toast can come and go on a slow runner)
+  await expect(page.getByTestId('dca-kpi-remaining')).toHaveText(/\d/, { timeout: 60000 });
   await closeRails(page);
 }
 async function addWellWith(page, file, wellName) {
@@ -175,7 +176,7 @@ test.describe('PL2: the hostile file set at the door', () => {
     await expect(page.getByTestId('dca-import-columns')).toContainText('bbl in the month (volume)');
     await page.getByTestId('dca-import-commit').click();
     await page.getByRole('button', { name: 'Fit Model' }).click();
-    await expect(page.getByText(/fit completed/i).first()).toBeVisible({ timeout: 30000 });
+    await expect(page.getByTestId('dca-di-kpi')).toHaveText(/\d/, { timeout: 60000 });
     // the twin: 120 bbl/d at the start
     await expect(page.getByTestId('dca-plot-annotation')).toContainText(/qi: 120(\.0)? bbl\/d/);
 

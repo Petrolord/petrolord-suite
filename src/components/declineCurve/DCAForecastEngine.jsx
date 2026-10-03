@@ -158,6 +158,7 @@ const DCAForecastEngine = () => {
         {/* Horizon, typed in years and held in days */}
         <DcaNumberField
           id="dca-horizon"
+          digits={4}
           label="Forecast horizon after the last data"
           unit="years"
           value={config.durationDays}
