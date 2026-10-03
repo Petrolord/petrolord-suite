@@ -14,6 +14,7 @@ import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjec
 
 export const DCA_PROJECTS_TABLE = 'saved_dca_projects';
 import { fitWell, forecastWell } from '@/utils/declineCurve/dcaAnalysis';
+import { formatNominalAnnual } from '@/utils/declineCurve/declineDisplay';
 import { sampleWell } from '@/utils/declineCurve/sampleWell';
 import {
   analysisOf, migrateDcaPayload, analysisStatus, staleText,
@@ -504,7 +505,7 @@ export const DeclineCurveProvider = ({ children, sharingStore = null }) => {
         const histDays = Math.max(0, Math.round((new Date(deterministic.historyEndDate) - new Date(fit.t0 || Date.now())) / 86400000));
         const mcConfig = {
           ...config,
-          forecastDurationDays: histDays + (config.forecastDurationDays || config.durationDays || 3650),
+          forecastDurationDays: histDays + (config.forecastDurationDays || config.durationDays || 3653),
           startDate: fit.t0 || new Date().toISOString(),
           economicLimitUncertainty: Number.isFinite(config.economicLimitUncertainty)
             ? config.economicLimitUncertainty
@@ -675,7 +676,7 @@ export const DeclineCurveProvider = ({ children, sharingStore = null }) => {
       }));
 
       addNotification(
-        `Applied "${tc.name}" to ${targetWell.name}: qi=${result.qi.toFixed(0)}, Di=${(result.Di*365*100).toFixed(1)}%/yr, R²=${result.R2.toFixed(3)} (${result.quality})`,
+        `Applied "${tc.name}" to ${targetWell.name}: qi=${result.qi.toFixed(0)}, Di=${formatNominalAnnual(result.Di, 1)} %/yr nominal, R²=${result.R2.toFixed(3)} (${result.quality})`,
         "success"
       );
 
