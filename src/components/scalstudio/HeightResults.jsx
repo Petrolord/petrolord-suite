@@ -100,7 +100,7 @@ const HeightResults = () => {
                 ]}
                 labelFormatter={(v) => `Sw = ${Number(v).toFixed(3)}`}
               />
-              <ReferenceLine y={0} stroke="#d97706" strokeDasharray="4 3" label={{ value: hasFwl ? `FWL ${fwl.toFixed(0)} ${hs.unit} TVDSS` : 'FWL (h = 0)', position: 'insideTopRight', fill: '#b45309', fontSize: 11 }} />
+              <ReferenceLine y={0} stroke="#d97706" strokeDasharray="4 3" label={{ value: hasFwl ? `FWL ${fwl.toFixed(0)} ${hs.unit} TVDSS` : 'FWL (h = 0)', position: 'insideBottomRight', dy: -6, fill: '#b45309', fontSize: 11 }} />
               <Line dataKey="h" name="Height above FWL" stroke={LINE.water} strokeWidth={2} dot={false} />
             </LineChart>
           </ChartFrame>
