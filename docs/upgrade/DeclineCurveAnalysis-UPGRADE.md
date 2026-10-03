@@ -99,7 +99,7 @@ the state found here for PL; DCA first, hub second where they differ.
 | PL7 Report a reviewer can sign | Failed | Pass | 002 | See RL1 to RL12. |
 | PL8 Practitioner's day | Gaps | Gaps recorded | 023, 024 and Step 2 | Persona walks below. |
 | PL9 The chain | Failed | Pass | 008; HUB-004 | DCA to the hub and to Petroleum Economics Studio, read by id. |
-| PL10 Real scale | Not measured | Measured, small | | A 20-year daily history (7,300 rows) reads at the door in about 0.4 s in jest on the studio box; the fit about 0.2 s; the PDF caps the data table at 120 rows and says so. No customer laptop was used. |
+| PL10 Real scale | Not measured | Measured | 028 | Twenty years of daily rates (7,305 rows) in jest on the loaded studio box (load 5 to 10): the door 10.4 s, the fit 12.9 s, the forecast 2.9 s, the report 28.8 s and 9 pages (53 s before plots drew at most 800 history points; the caption says when a history is thinned, the fit uses every row). Slow on this box; no customer laptop was used. A faster fit (the 20-step b grid over every row) is U2. |
 | PL11 Inputs a person can type | Failed | Pass | 017; HUB-005 | `DcaNumberField`: "2.", "-" and an empty box stay as typed. |
 | PL12 House standards | Partial | Pass | 019, 022 | `EMPTY_VALUE` in the report and tables, white chart theme with ChartLogo, no em dash in new copy, routes protected, dead code removed. |
 | RL1 Inputs with unit and source | F | P | 002, 015; HUB-001 | Guard: every key handed to the fit and the forecast has a row. Defaults print as the app's default. |
@@ -168,6 +168,7 @@ indicative economics statement; no report), RL11 Pa to P, RL12 Pa to P.
 | DCA-U1-024 | S4 | PL11 | No sample data in the app. | Walk. | Fixed: "Add the sample well" (Ekene-1 primary decline, labelled sample everywhere). |
 | DCA-U1-025 | S3 | RL4 | A well had tags and notes only. | Gap matrix. | Fixed: identification on the Report tab. |
 | DCA-U1-026 | S3 | PL1, RL9 | No terminal (minimum) decline: a hyperbolic with b above 1 runs to the horizon; the b upper limit defaults to 1. | Code. | Open: flagged in the report; modified hyperbolic is U2. |
+| DCA-U1-028 | S3 | PL10 | A daily history of 7,305 rows drew every point in the PDF and on screen: the report took 53 s. | `dcaScale.test.js`. | Fixed: at most 800 history points drawn, stated in the caption; door and fit times recorded (U2 for the fit). |
 | DCA-U1-027 | S3 | PL8 | Type curves: not walked in depth this round; the normalisation and "apply" path are unchanged. | | Open: noted for Step 2. |
 | HUB-U1-001 | S3 | RL1 | The annual CSV was `year,production_bbl`: no case, parameters, units, start or source. | Gap matrix. | Fixed: `forecastScenarioExport.js`. |
 | HUB-U1-002 | S3 | RL7 | "Decline (%/yr)" with no basis. | Gap matrix. | Fixed: nominal at the case start, a year of 365.25 days. |
