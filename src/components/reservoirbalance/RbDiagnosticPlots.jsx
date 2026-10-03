@@ -39,6 +39,7 @@ import { PLOT_COLOURS, hex } from '@/pages/apps/reservoir-balance/lib/plotModels
 import { POINT_STATUS } from '@/pages/apps/reservoir-balance/lib/mbalSeries';
 import { fmt, sigFmt } from '@/pages/apps/reservoir-balance/lib/reportModel';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import ExclusionToggle from '@/components/reservoirbalance/ExclusionToggle';
 
 // MBAL charts overlay the mark on the plot area, so it stays small here.
 const MBAL_LOGO_STYLE = { height: '40px' };
@@ -77,7 +78,7 @@ const DetailRow = ({ label, value, unit }) => (
 );
 
 /** The values of one timestep, in the display units, under the plot that was clicked. */
-const TimestepDetail = ({ row, status, isGas, units, onClose }) => {
+const TimestepDetail = ({ row, status, isGas, units, onClose, exclusion = false }) => {
   if (!row) return null;
   const u = units;
   const dig = u.unit('pressure') === 'psi' ? 1 : (u.unit('pressure') === 'kPa' ? 0 : 3);
@@ -120,6 +121,12 @@ const TimestepDetail = ({ row, status, isGas, units, onClose }) => {
           <DetailRow label="Drive index sum" value={fmt(row.drive_index_sum, 3)} unit="" />
         </div>
       </div>
+      {exclusion && (
+        <div className="mt-3 pt-2 border-t border-pl-border flex flex-wrap items-center gap-2" data-testid="mbal-plot-exclusion">
+          <span className="text-[11px] text-pl-muted">For the next run:</span>
+          <ExclusionToggle step={row.timestep_index} />
+        </div>
+      )}
     </div>
   );
 };
@@ -304,7 +311,7 @@ const RbDiagnosticPlots = () => {
         <CardHeader>
           <CardTitle>Diagnostic Plots</CardTitle>
           <CardDescription>
-            The plots of the last run, as the report prints them. Filled circles are the points the fit used and hollow squares are the points it did not use. Click a point or a bar to read that timestep.
+            The plots of the last run, as the report prints them. Filled circles are the points the fit used and hollow squares are the points it did not use. Click a point or a bar to read that timestep; on the regression plot you can leave the point out of the next fit, or put it back, with a reason.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -312,7 +319,8 @@ const RbDiagnosticPlots = () => {
         {shown.map((m) => (
           <PlotCard key={m.id} model={m} caseName={caseName} onPick={pick} picked={picked?.plot === m.id}
             detail={(
-              <TimestepDetail row={pickedRow} status={statusBy[picked?.step] ?? POINT_STATUS.fit} isGas={isGas} units={units} onClose={() => setPicked(null)} />
+              <TimestepDetail row={pickedRow} status={statusBy[picked?.step] ?? POINT_STATUS.fit} isGas={isGas} units={units} onClose={() => setPicked(null)}
+                exclusion={m.id === 'regression'} />
             )} />
         ))}
       </div>

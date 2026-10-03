@@ -231,16 +231,26 @@ export function makeSharingDb({ members = {}, applied = true, clock = null } = {
    * geo_wells children (tops, logs, zones, intervals, core images) follow the
    * well's check-out: the owner unless a colleague holds it, or the member who holds it.
    */
-  function canWriteChild(uid, wellId) {
-    const w = rowsOf('geo_wells').find((x) => x.id === wellId);
-    if (!w || !uid) return false;
-    if (!state.applied) return w.user_id === uid;
-    const heldByOther = sharedEdit('geo_wells', w) && live(w) && w.editing_by !== uid;
-    return (w.user_id === uid && !heldByOther) || colleagueOk('geo_wells', w, uid);
+  function canWriteChild(uid, wellId) { return canWriteChildOf('geo_wells', uid, wellId); }
+  function logChild(uid, wellId, what, verb, n = 1) { logChildOf('geo_wells', uid, wellId, what, verb, n); }
+
+  /**
+   * The same rule for any parent record whose child tables follow its
+   * check-out (rb_cases and rb_production_data, rb_run_configs, rb_runs,
+   * rb_results, migration 20261002130000): the owner unless a colleague
+   * holds the check-out, or the member who holds it.
+   */
+  function canWriteChildOf(parentTable, uid, parentId) {
+    const p = rowsOf(parentTable).find((x) => x.id === parentId);
+    if (!p || !uid) return false;
+    if (!state.applied) return p.user_id === uid;
+    const heldByOther = sharedEdit(parentTable, p) && live(p) && p.editing_by !== uid;
+    return (p.user_id === uid && !heldByOther) || colleagueOk(parentTable, p, uid);
   }
-  function logChild(uid, wellId, what, verb, n = 1) {
-    const w = rowsOf('geo_wells').find((x) => x.id === wellId);
-    if (w && state.applied) logUpdated('geo_wells', w, uid, `${what.charAt(0).toUpperCase()}${what.slice(1)}: ${n} ${verb}`, [what]);
+  /** A statement on a child table logs one 'updated' entry on its parent ("Production data: 13 added"). */
+  function logChildOf(parentTable, uid, parentId, what, verb, n = 1) {
+    const p = rowsOf(parentTable).find((x) => x.id === parentId);
+    if (p && state.applied) logUpdated(parentTable, p, uid, `${what.charAt(0).toUpperCase()}${what.slice(1)}: ${n} ${verb}`, [what]);
   }
 
   /**
@@ -261,7 +271,7 @@ export function makeSharingDb({ members = {}, applied = true, clock = null } = {
   }
 
   return {
-    attach, seed, select, insert, update, remove, rpc, listChanges, canWriteChild, logChild,
+    attach, seed, select, insert, update, remove, rpc, listChanges, canWriteChild, logChild, canWriteChildOf, logChildOf,
     members,
     isMember,
     /** Move the clock (expiry tests). */

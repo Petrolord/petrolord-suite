@@ -258,7 +258,7 @@ describe('RL5: the data the analysis used, and what it left out', () => {
     expect(text).toMatch(/Cumulative gas at the cut-off \(Bscf\) 54\.750/);
     // Wp 378 STB in MSTB, We = (cw + cf) W (pi - p) = 9e-6 x 69.04e6 x 464 = 0.288 MMRB
     expect(text).toMatch(/1 2001-01-01 5,947\.0 5\.475 0\.378 0\.288 Excluded by the analyst/);
-    expect(model.inputs.find((r) => r.key === 'excluded_timesteps')).toMatchObject({ value: '1', source: 'Held in the run settings of the case; each one is marked in the data table' });
+    expect(model.inputs.find((r) => r.key === 'excluded_timesteps')).toMatchObject({ value: '1', source: 'Picked by the analyst on the regression plot or the data table; each one is listed with its reason and marked in the data table' });
   });
 
   test('an undated table says so, and prints n/a for the date', () => {
@@ -270,15 +270,39 @@ describe('RL5: the data the analysis used, and what it left out', () => {
     expect(text).toMatch(/12 n\/a 3,188\.0 2\.575 1\.288 8\.000/);
   });
 
-  test('injected volumes are printed and named as left out of the balance', () => {
+  test('MBAL-U2-002: injected volumes are in the balance, printed with the terms and indices they add', () => {
     const injected = runSample(SAMPLE_CASE_IDS.ahmed, { mutateStore: (db) => { db.rb_production_data = db.rb_production_data.map((r) => (r.case_id === SAMPLE_CASE_IDS.ahmed ? { ...r, cum_water_inj_stb: r.timestep_index * 100000 } : r)); } });
     const built = build(injected);
     const text = flat(readPdf(built.doc).text);
     expect(built.model.data.head).toContain('Winj (MMSTB)');
     expect(text).toMatch(/Cumulative water injected at the cut-off \(MMSTB\) 1\.200/);
-    expect(text).toMatch(/Injected volumes are on the data table and are NOT in this balance/);
-    // the engine answer is the same with and without the injected column: it does not read it
-    expect(injected.result.estimated_ooip_stb).toBe(ahmed.result.estimated_ooip_stb);
+    expect(text).toMatch(/Injected volumes are in this balance: F is the net withdrawal/);
+    // the engine reads the column now: less oil in place than the same history without injection
+    expect(injected.result.estimated_ooip_stb).toBeLessThan(0.8 * ahmed.result.estimated_ooip_stb);
+    // the terms netted out are printed beside F, read back from the PDF
+    expect(built.model.expansion.head).toEqual(expect.arrayContaining(['Winj Bw (MMRB)', 'Ginj Bginj (MMRB)']));
+    expect(text).toMatch(/- Winj Bw - Ginj Bginj, the net withdrawal/);
+    const last = built.model.series.rows[12];
+    expect(last.winj_bw_rb).toBeCloseTo(1.2e6 * last.Bw, 3);
+    // the drive indices gain the injection index and still close on the printed sum
+    expect(built.model.drive.rows.map((x) => x[0])).toEqual(expect.arrayContaining(['Water injection (WIDI)', 'Gas injection (GIDI)']));
+    expect(built.model.drive.closes).toBe(true);
+    expect(text).toMatch(/WIDI and GIDI; the sum stays an identity/);
+    expect(built.model.driveTable.head).toEqual(expect.arrayContaining(['WIDI', 'GIDI']));
+    // the tier says what backs it
+    expect(built.model.headline.tier.tier).toBe('published_method');
+    expect(text).toMatch(/Injection: injected water and gas enter the withdrawal term F/);
+  });
+
+  test('MBAL-U2-002: a run stored before the engine read injection is named as leaving it out', () => {
+    const injected = runSample(SAMPLE_CASE_IDS.ahmed, { mutateStore: (db) => { db.rb_production_data = db.rb_production_data.map((r) => (r.case_id === SAMPLE_CASE_IDS.ahmed ? { ...r, cum_water_inj_stb: r.timestep_index * 100000 } : r)); } });
+    const pd = { ...injected.result.plot_data };
+    for (const k of ['winj_bw_rb', 'ginj_bg_rb', 'winj_di', 'ginj_di', 'final_winj_di', 'final_ginj_di']) delete pd[k];
+    const legacy = { ...injected, result: { ...injected.result, plot_data: pd } };
+    const built = build(legacy);
+    const text = flat(readPdf(built.doc).text);
+    expect(text).toMatch(/This run was made before the engine read injection/);
+    expect(built.model.drive.rows.map((x) => x[0])).not.toContain('Water injection (WIDI)');
   });
 });
 
@@ -487,7 +511,7 @@ describe('RL9: the limits of the method are printed', () => {
     const text = flat(readPdf(build(dake).doc).text);
     expect(text).toMatch(/Limits of this analysis - Tank model: the reservoir is one cell at one average pressure/);
     expect(text).toMatch(/- Carter-Tracy aquifer: an approximation of the van Everdingen-Hurst unsteady-state solution/);
-    expect(text).toMatch(/- Injected water and gas are not in the withdrawal term of this engine version/);
+    expect(text).toMatch(/- Injection: injected water and gas enter the withdrawal term F at the Bw and the reservoir gas Bg of each timestep/);
     expect(text).toMatch(/- Pressure datum: stated in the inputs\. No correction to datum is applied/);
     expect(text).toMatch(/Published ranges of the methods used Correlation Published range, as the engine checks it Standing \(1947\)/);
     expect(text).toMatch(/Inputs outside a published range The engine flagged no input outside the published range/);
@@ -567,9 +591,10 @@ describe('RL11: PVT taken from a Fluid Systems Studio project keeps its provenan
     });
     expect(pvtTableCoverage(short.caseData, short.runConfig).outside.map((o) => o.timestep_index)).toEqual([0, 1]);
     const { doc, model } = build(short);
-    expect(model.limits.flags[0]).toMatch(/^PVT table coverage: 2 timesteps \(0, 1\) lie outside the PVT table of the run \(15 to 2,\d{3} psia\)/);
+    // MBAL-U2-006: the engine's own sentence, from the lookups it made
+    expect(model.limits.flags[0]).toMatch(/^PVT table coverage: at 2 timesteps \(0, 1\) a pressure fell outside the PVT table of the run \(15 to 2,\d{3} psia\)/);
     expect(model.limits.flags[0]).toMatch(/The initial state is one of them/);
-    expect(flat(readPdf(doc).text)).toMatch(/PVT table coverage: 2 timesteps/);
+    expect(flat(readPdf(doc).text)).toMatch(/PVT table coverage: at 2 timesteps/);
     // rows that carry their own PVT need no table: the published case is not flagged
     expect(pvtCoverageWarning(dake.caseData, { ...dake.runConfig, pvt_lab_table: cut })).toBeNull();
     expect(pvtTableCoverage(dake.caseData, dake.runConfig)).toBeNull();
