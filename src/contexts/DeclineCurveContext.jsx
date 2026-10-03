@@ -5,11 +5,14 @@ import { scenarioForecastSnapshot } from '@/utils/declineCurve/forecastFromHisto
 import { runMonteCarloSimulation } from '@/utils/dcaMonteCarlo';
 import { normalizeByTime, normalizeByRate, normalizeByTimeAndRate, applyTypeCurve } from '@/utils/declineCurve/typeCurveEngine';
 import {
-  saveProject, loadProject, listProjects, deleteProject as deleteProjectRow,
+  saveProject, loadProject, listProjects, deleteProject as deleteProjectRow, service as dcaService,
   migrateLegacyLocalProjects,
 } from '@/utils/declineCurve/dcaDataPersistence';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { getErrorMessage } from '@/utils/declineCurve/dcaErrorHandling';
+import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
+
+export const DCA_PROJECTS_TABLE = 'saved_dca_projects';
 import { fitWell, forecastWell } from '@/utils/declineCurve/dcaAnalysis';
 import { sampleWell } from '@/utils/declineCurve/sampleWell';
 import {
@@ -39,9 +42,20 @@ export const useDeclineCurve = () => {
   return context;
 };
 
-export const DeclineCurveProvider = ({ children }) => {
+export const DeclineCurveProvider = ({ children, sharingStore = null }) => {
   // --- Global Project State ---
-  const [projects, setProjects] = useState([]);
+  const [projectsState, setProjects] = useState([]);
+  // DCA-U1-011: record sharing (saved_dca_projects is under the sharing
+  // rules since 20261002130000). With a store the picker lists own projects
+  // and then those shared with me; a save carries the version it was made
+  // from and happens only while I may write. Without one (tests, the plain
+  // harness) saves are the owner saves they always were.
+  const persistence = useMemo(() => dcaService || { list: listProjects, load: loadProject, save: saveProject, remove: deleteProjectRow }, []);
+  const shared = useSharedSavedProjects({ table: DCA_PROJECTS_TABLE, service: persistence, sharingStore });
+  const myId = shared.sharing.userId;
+  const projects = useMemo(() => projectsState.filter((p) => !sharingStore || !myId || !p.userId || p.userId === myId), [projectsState, sharingStore, myId]);
+  const sharedProjects = useMemo(() => (sharingStore && myId ? projectsState.filter((p) => p.userId && p.userId !== myId) : []), [projectsState, sharingStore, myId]);
+  const canWrite = shared.canWrite;
   const [currentProjectId, setCurrentProjectId] = useState(null);
   const [currentWellId, setCurrentWellId] = useState(null);
   const [wells, setWells] = useState({}); 
@@ -127,7 +141,7 @@ export const DeclineCurveProvider = ({ children }) => {
     const init = async () => {
       try {
         const migrated = await migrateLegacyLocalProjects().catch(() => 0);
-        const list = await listProjects();
+        const list = await shared.refreshList();
         setProjects(list);
         if (migrated > 0) {
           addNotification(`Moved ${migrated} local project${migrated === 1 ? '' : 's'} to your account`, 'success');
@@ -156,16 +170,22 @@ export const DeclineCurveProvider = ({ children }) => {
     modified: new Date().toISOString(),
   });
 
-  // Auto-Save
+  // Auto-Save: never while the project is open read-only (a colleague's,
+  // or shared for editing and not checked out by me)
   useEffect(() => {
-    if (!currentProjectId) return;
+    if (!currentProjectId || !canWrite) return;
     
     const saveTimer = setTimeout(async () => {
       setIsSaving(true);
       try {
-        await saveProject(currentProjectId, projectPayload());
-        setLastSaveTime(new Date());
-        setSaveError(null);
+        const res = await shared.write(currentProjectId, projectPayload());
+        if (res.ok) {
+          setLastSaveTime(new Date());
+          setSaveError(null);
+        } else if (!res.readOnly) {
+          setSaveError('Auto-save failed');
+          addNotification(res.message, 'error');
+        }
       } catch (err) {
         setSaveError("Auto-save failed");
         console.error(err);
@@ -175,27 +195,50 @@ export const DeclineCurveProvider = ({ children }) => {
     }, 10000);
 
     return () => clearTimeout(saveTimer);
-  }, [wells, scenarios, typeCurves, wellGroups, dataQuality, currentProjectId]);
+  }, [wells, scenarios, typeCurves, wellGroups, dataQuality, currentProjectId, canWrite]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const manualSave = async () => {
-    if (!currentProjectId) return;
+    if (!currentProjectId) return false;
     setIsSaving(true);
     try {
-        await saveProject(currentProjectId, projectPayload());
+        const res = await shared.write(currentProjectId, projectPayload());
+        if (!res.ok) {
+          setSaveError(res.readOnly ? 'Read-only' : 'Save failed');
+          addNotification(res.message, res.readOnly ? 'info' : 'error');
+          return false;
+        }
         setLastSaveTime(new Date());
+        setSaveError(null);
         addNotification("Project saved successfully", "success");
+        return true;
     } catch (err) {
         setSaveError("Manual save failed");
         addNotification("Failed to save project", "error");
+        return false;
     } finally {
         setIsSaving(false);
+    }
+  };
+
+  // "Save a copy": the project on screen as my own new project
+  const saveCopy = async () => {
+    const name = shared.copyNameFor(currentProject?.name || 'DCA project');
+    const id = uuidv4();
+    try {
+      await persistence.save(id, { ...projectPayload(), id, name });
+      setProjects(await shared.refreshList());
+      await openProject(id);
+      addNotification(`Saved a copy as "${name}"`, 'success');
+    } catch (e) {
+      addNotification(`Could not save a copy: ${e.message}`, 'error');
     }
   };
 
   const createProject = async (name) => {
     const newProject = { id: uuidv4(), name, createdAt: new Date().toISOString(), wellIds: [] };
     try {
-      await saveProject(newProject.id, { id: newProject.id, name, payloadVersion: DCA_PAYLOAD_VERSION, wells: {}, scenarios: [], typeCurves: [], wellGroups: [] });
+      await persistence.save(newProject.id, { id: newProject.id, name, payloadVersion: DCA_PAYLOAD_VERSION, wells: {}, scenarios: [], typeCurves: [], wellGroups: [] });
+      await shared.adoptRow(newProject.id);
     } catch (e) {
       console.error(e);
       addNotification(`Could not create project: ${e.message}`, 'error');
@@ -264,7 +307,7 @@ export const DeclineCurveProvider = ({ children }) => {
   const openProject = async (id) => {
     setIsSaving(true);
     try {
-      const raw = await loadProject(id);
+      const raw = await shared.loadForOpen(id);
       // version 1 kept one analysis per project: it moves onto its well
       const data = raw ? migrateDcaPayload(raw) : null;
       if (data) {
@@ -738,6 +781,12 @@ export const DeclineCurveProvider = ({ children }) => {
   const contextValue = {
     // State
     projects,
+    sharedProjects,
+    projectRow: shared.projectRow,
+    sharing: shared.sharing,
+    viewingShared: shared.viewingShared,
+    canWrite,
+    saveCopy,
     currentProjectId,
     currentWellId,
     wells,

@@ -31,6 +31,12 @@ import DCAWellMetadata from '@/components/declineCurve/DCAWellMetadata';
 import DCAHelpContent from '@/components/declineCurve/DCAHelpContent';
 import { DcaUnitsProvider, DcaUnitsControl } from '@/components/declineCurve/DcaUnits';
 import DCAReportPanel from '@/components/declineCurve/DCAReportPanel';
+import DCASendPanel from '@/components/declineCurve/DCASendPanel';
+import { supabaseSharingStore } from '@/lib/recordSharing';
+import { RecordSharingBar } from '@/components/recordSharing';
+
+// one sharing store per page load (the signed-in user's session)
+const SHARING_STORE = supabaseSharingStore();
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -61,7 +67,8 @@ const DeclineCurveContent = () => {
   const [railsOpenByDefault] = useState(railsStartOpen);
   const [resultsTab, setResultsTab] = useState('fit');
   const {
-    projects, currentProjectId, createProject, openProject, deleteProject,
+    projects, sharedProjects, currentProjectId, createProject, openProject, deleteProject,
+    projectRow, sharing, viewingShared, canWrite, saveCopy,
     manualSave, isSaving, saveError, lastSaveTime,
     isFitting, isForecasting,
     notifications, removeNotification,
@@ -73,12 +80,29 @@ const DeclineCurveContent = () => {
         <SectionLabel>Project &amp; Data</SectionLabel>
         <StudioProjectManager
           projects={projects}
+          sharedProjects={sharedProjects}
+          canDelete={!viewingShared}
           currentProjectId={currentProjectId}
           onCreate={createProject}
           onOpen={openProject}
           onDelete={deleteProject}
           confirmDeleteMessage="Delete this project and its saved data? You can Undo from the notification for a few seconds."
         />
+        {projectRow && (
+          <RecordSharingBar
+            sharing={sharing}
+            label="project"
+            className="mt-2"
+            onSaveCopy={saveCopy}
+            onReload={() => openProject(currentProjectId)}
+            fieldLabels={{ project_name: 'name', inputs_data: 'wells, fits, forecasts and scenarios' }}
+          />
+        )}
+        {projectRow && sharing.ready && !canWrite && (
+          <p className="mt-2 text-xs text-pl-warning-text" data-testid="dca-read-only">
+            {sharing.readOnlyReason || 'This project is open read-only.'} Changes you make here are not saved to it.
+          </p>
+        )}
         <div className="h-2"></div>
         <DCAWellSelector />
         <div className="mt-4">
@@ -139,8 +163,10 @@ const DeclineCurveContent = () => {
         <SectionLabel>Diagnostics</SectionLabel>
         <DCAFitDiagnostics />
       </section>
-      {/* H1: the two "Integrations" cards that sat here showed a green tick
-          and sent nothing. They are removed until a real sender exists. */}
+      {/* H1 removed two cards that sent nothing; this one sends the
+          dca-forecast-1 contract, read by id by the receivers (DCA-U1-008) */}
+      <Separator />
+      <DCASendPanel />
     </div>
   ) : (
     <div className="space-y-6">
@@ -242,7 +268,7 @@ const DeclineCurveAnalysisPage = () => {
   return (
     <div data-testid="dca-theme-scope">
       <DcaUnitsProvider>
-        <DeclineCurveProvider>
+        <DeclineCurveProvider sharingStore={SHARING_STORE}>
           <DeclineCurveContent />
         </DeclineCurveProvider>
       </DcaUnitsProvider>

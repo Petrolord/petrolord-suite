@@ -17,7 +17,7 @@ const LEGACY_PREFIX = 'dca_project_';
 
 // The shared saved_<app>_projects service (src/utils/savedProjects.js) is the
 // single implementation of this convention; DCA delegates to it.
-const service = createSavedProjectsService('saved_dca_projects', {
+export const service = createSavedProjectsService('saved_dca_projects', {
   signInMessage: 'Sign in to save DCA projects.',
 });
 
