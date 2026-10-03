@@ -21,8 +21,8 @@ import React, { useMemo } from 'react';
 import RrvWorkstation from './components/RrvWorkstation';
 import ProspectRiskingPanel from '../ReservoirCalcPro/components/tools/ProspectRiskingPanel';
 import { makeInMemoryRrvBackend } from './services/rrvBackend';
-import { fromRcpProspect, toRow, setInput } from './services/rrvStore';
 import { RRV_SEED_PROSPECTS, RRV_LEGACY_PROSPECT, CHAIN_RUN, RRV_EPE_RUNS } from './services/rrvFixtures';
+import { ekeneNorthRowBody } from './services/rrvPortfolioFixtures';
 
 export default function RiskedReservesHarness() {
   const backend = useMemo(() => {
@@ -34,7 +34,8 @@ export default function RiskedReservesHarness() {
     const rerunRow = { ...north, id: 'prospect-3', updated_at: '2026-10-03T09:00:00.000Z', inputs: { ...north.inputs, mean: 41, p90: 14, p50: 34, p10: 80, source: { ...north.inputs.source, replaces: 'prospect-1', run: { ...north.inputs.source.run, ranAt: '2026-10-03T08:55:00.000Z' } } }, risked: { ...north.risked, success: { p90: 14, p50: 34, p10: 80, mean: 41 } } };
     const seed = [...(rerunDone ? [rerunRow, RRV_SEED_PROSPECTS[1]] : RRV_SEED_PROSPECTS), ...(q.get('legacy') === '1' ? [RRV_LEGACY_PROSPECT] : [])];
     const saved = q.get('saved') === '1' || rerunDone
-      ? [{ ...toRow({ ...setInput(fromRcpProspect({ id: 'prospect-1', ...RRV_SEED_PROSPECTS[0] }, { now: new Date('2026-10-02T15:00:00Z') }), 'mefs', 15), ident: { company: 'Harness Energy', licence: 'OML 143', play: 'Agbada stacked sands', analyst: 'A. Analyst' } }), schema_version: 1, updated_at: '2026-10-02T15:01:00.000Z' }]
+      // the same row the Capital Portfolio harness reads by id (U2-009)
+      ? [ekeneNorthRowBody()]
       : [];
     const b = makeInMemoryRrvBackend(seed, { table: q.get('table') !== 'off', valuations: saved, sharedValuations: q.get('shared') === '1', sharedRows: q.get('shared') === '1', epeRuns: q.get('epe') === 'off' ? [] : RRV_EPE_RUNS });
     if (typeof window !== 'undefined') window.__rrvHarness = b;
