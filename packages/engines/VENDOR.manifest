@@ -1,9 +1,9 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 3fa4834aec9ed4ddb72fb267834ba97928a47cca
+# commit 5ae5a8024d2bc49a5283277c4deceb77b767de61
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
-b451f8875cb04da4b1b29c77a2a032b42a6aecb7 README.md
+39c4027ca8245cf18dc337a0b5136cd4a0448ad5 README.md
 6373485efb6baa9226953a76a3d6ebb740541d1c __tests__/aquifer.test.js
 168f6cedfc18af932ba587f2ff882b7571966986 __tests__/assurance.audit.test.js
 fc5248e0239b0841f542a3cba95ef72db34296d1 __tests__/assurance.compliance.test.js
@@ -112,12 +112,14 @@ d5dd5a4db0b81cf02e127d20763cb053308f1912 __tests__/facilities.separator.test.js
 1de1b5e74127f3e3f2a9ac2d150b8c8af5423cbb __tests__/facilities.spacing.test.js
 5cb08b488d0c48e21f438a5c2a6627cf0949c30c __tests__/facilities.tanksmetering.test.js
 303e8634b0f712f0097b4efaddaff001863dbb06 __tests__/fluid.blackOil.test.js
+70d2cc64288a39ce96c155ddd8957af211b1f33b __tests__/fluid.blackOilU2.test.js
 6bdb65c06158f7e3af69484ffa0dd376edc46f47 __tests__/fluid.characterization.test.js
 8ea6e88b53e2563523babd363a23bf73475f28ac __tests__/fluid.components.test.js
 72252f12e550b753743e10bd834b01f03828e931 __tests__/fluid.envelope.test.js
 8008d12d43b927761c8a451219c0d81236a975df __tests__/fluid.experiments.test.js
 0f5b3f77f1b92c6deb2af25bb57e1c03bee496b1 __tests__/fluid.flash.test.js
 0b844ec44b9835c23031bc738435f686c6e3eb38 __tests__/fluid.labTune.test.js
+d678abc8c23e4f64444b0efffd33a62faffe121b __tests__/fluid.labTuneUncertainty.test.js
 d3c1e09e1dedcf22307ba3a7321fc069182157a3 __tests__/fluid.pr78.test.js
 80cb97128c75cb1a5dc419ceb48cfed6a99dc907 __tests__/fluid.separator.test.js
 af737299d0d9a9ba931d9fb48f738da9adbc1e26 __tests__/fluid.transport.test.js
@@ -138,6 +140,7 @@ a46150ed760bc35823154ef53bc33dbcd725db96 __tests__/mapping.structurepoints.test.
 b49f1bf2a40b079b94284e7867cf4567224898ad __tests__/mapping.t1.test.js
 99867728c424fb33ebb4623e8fcbc5affc24a595 __tests__/mapping.u2.test.js
 66917aa10462c0197fc48e7c020bb24f62119186 __tests__/mbal.test.ts
+29da21629fec6f7e16f2285ce8d31c629192ea4f __tests__/mbalInjection.test.ts
 2c42cf594e3e98a5df4bbc5e1e4b5cb1c55f6380 __tests__/petrophysics.conditioning.test.js
 99a7f6a2d8dac3d210a23c0fdc66fe12bec49cd5 __tests__/petrophysics.mineral.test.js
 0d7c1d42f65d6d43bc4b1431cbbd65422217e0ca __tests__/petrophysics.pipeline.test.js
@@ -384,13 +387,13 @@ e1e04dc97876c0256c01cb7e3e58b2fec840b64f engines/facilities/heatTransfer.js
 0e5600f99b329a53ee283f67befc5b134839cc37 engines/facilities/separatorSizing.js
 82090082a2c744936f3e9a5d75952406fc77f9c9 engines/facilities/spacing.js
 9b81b94a3611c002b23850eeed0fb48297c9583e engines/facilities/storageTank.js
-293e896c941467a31844b73213669b0ab8dcc3ac engines/fluid/blackOil.ts
+6b449161b696d239d79017b9e7c34f86a2c1216b engines/fluid/blackOil.ts
 d8e0bd20b81c4ae63504297890bdd1c62329140a engines/fluid/characterization.js
 0d7cd0e8ab0b44da5c4574a2b0cce3af88b5c8f7 engines/fluid/components.js
 0f1ca3375704a5e33316c9a67b19de62470c77a5 engines/fluid/envelope.js
 33dfb53b631b15b57d5553d3e55686ce5b7a8a27 engines/fluid/experiments.js
 8bf2b484608f8f4ffca3672ae9b8bd0c809fb5ab engines/fluid/flash.js
-3e0f4c5589ee4672ba70697f0601ce13cffe3fd3 engines/fluid/labTune.js
+b3c7fad7a469f2e743cccf898fd1a1d774533747 engines/fluid/labTune.js
 346159521805315addd85bc1898d60ee08a3e325 engines/fluid/pr78.js
 0305404519c988f38ff79a9cb8f8e354615465a1 engines/fluid/separator.js
 31471299c8fd2fbbe2995ab3738cc92a72335f74 engines/fluid/transport.js
@@ -405,7 +408,7 @@ f6010f0bd39e1c4ba656c2a699c3b4ab8f3839ed engines/hse/qra.js
 f3bfa281ed8307b01dd26edf8b53e5257f1d1334 engines/mapping/surface.js
 e422cef84447559827d7755a133f25e3ceba1772 engines/mapping/wellTie.js
 ef516365f4b51788d50a5d47a220329d3e545696 engines/mbal/lm.ts
-7843df9ca9b03e9155f629c4304465701fa50165 engines/mbal/mbalEngine.ts
+7cd3af8626f4805307a56d63237291cc7237edfa engines/mbal/mbalEngine.ts
 4321540b4db8db1dd76dc2c88551aeef47bd6452 engines/petrophysics/conditioning.js
 1bb63a55f341a5cfaabed4e8a8ef1b8466086f42 engines/petrophysics/crossplot.js
 9b271da64524654de29b7c91d41aac458ca2928d engines/petrophysics/digitizer.js
@@ -753,6 +756,7 @@ af9b1a2d8a2e7814120d5ad32d23d6c8d6758f69 test-data/facilities/goldens/gasprocess
 e61be9ec8aef61351885727cecc4dc28c7b1b89e test-data/fluid/goldens.json
 15b58be38f9dbdf64662276a3891cadf363d4f4e test-data/fluid/literature-fixtures.json
 2291d3c202a9f78382b51ec3a15997fd4acb02b1 test-data/fluid/nistVaporPressure.json
+8985d22b5ad0b3376bbdbc5f0ae016dafd6ecf11 test-data/fluid/standingKatzChart.json
 1a4c45ec348f36091929b71382a85f44302febdf test-data/hse/goldens/consequence_cases.json
 093b3e617b6e778f59c9ffea3ab0b69478c27129 test-data/hse/goldens/exposure_cases.json
 cfecff9091849e1cbf940ca9d9ffde3401af0124 test-data/hse/goldens/lopa_cases.json
@@ -772,7 +776,11 @@ eb3b33216b9468499d40a3c52d1190e0e59577c6 test-data/mapping/goldens/closure_cases
 42956e1cd77681bd97500a6d8e0018cf5a714613 test-data/mapping/goldens/welltie_cases.json
 caf7299667578ed54135b47c085e57efb2fc0735 test-data/mbal/ahmed-ex-10-10-fetkovich.json
 9bc863c208605497df267698b9aa939f878c751f test-data/mbal/ahmed-ex-11-1-combination.json
+a2be9c8031a2c9bada168d5ee8ba2fed845290a1 test-data/mbal/ahmed-ex-11-3-depletion.json
 88693e02948353039687e3e8b302eb1e783af9f0 test-data/mbal/dake-9-2.ts
+596d1810ed7e344ea0f3da62e523dabf22f82f7b test-data/mbal/injection/README.md
+480712a3adcd1f2dbc00faefe77577e5917cd2f4 test-data/mbal/injection/injection-golden.json
+b3cac4fdc730cd8c7cd3f1948c7de1aca0b63d8e test-data/mbal/injection/oracle.py
 370a4c4cdb8643ad3f44c3422de17c9b4556b4cc test-data/petrophysics/README.md
 531215a49638844945aaddcdb7a6b55083d640de test-data/petrophysics/analytic_cases.json
 8c6986135f225186df7f4eb0c4ca9df961dd55ca test-data/petrophysics/chart_points.json

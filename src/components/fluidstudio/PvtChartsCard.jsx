@@ -27,8 +27,10 @@ const PvtChart = ({ plot, series, labPoints, labLine }) => {
   const data = plot.points;
   if (!data.length) return null;
   const ticks = pressureTicks(data);
+  // laboratory tables (FLUID-U2-001) and the single values of the Lab tuning card, as one set of points
+  const labAll = [...(plot.lab || []), ...(labPoints || [])];
   return (
-    <Card data-testid={`pvt-chart-${plot.id}`} data-points={data.length}>
+    <Card data-testid={`pvt-chart-${plot.id}`} data-points={data.length} data-lab-points={labAll.length}>
       <CardHeader className="pb-2"><CardTitle className="text-base text-pl-text">{plot.title}</CardTitle></CardHeader>
       <CardContent className="p-0">
         <ChartFrame height={264}>
@@ -70,8 +72,8 @@ const PvtChart = ({ plot, series, labPoints, labLine }) => {
               <ReferenceLine x={labLine.x} stroke={LAB_HEX} strokeDasharray="2 3" label={{ value: labLine.label, fill: LAB_HEX, fontSize: 11, position: 'insideBottomRight' }} />
             )}
             <Line type="monotone" dataKey="y" name={plot.yTitle} stroke={plot.hex} strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
-            {labPoints?.length > 0 && (
-              <Scatter name="Laboratory value" data={labPoints} dataKey="y" fill={LAB_HEX} shape="circle" isAnimationActive={false} />
+            {labAll.length > 0 && (
+              <Scatter name="Laboratory" data={labAll} dataKey="y" fill={LAB_HEX} shape="circle" isAnimationActive={false} />
             )}
           </ComposedChart>
         </ChartFrame>
@@ -84,11 +86,13 @@ const PvtChart = ({ plot, series, labPoints, labLine }) => {
  * The PVT property plots (Bo, Rs, oil viscosity, Z and Bg against pressure)
  * on the shared white ChartFrame, each with the saturation pressure marked.
  * The points are the report's points: both come from buildPvtSeries.
- * `only` limits the plots shown; `lab` adds laboratory values (buildLabOverlay).
+ * `only` limits the plots shown; `lab` adds the single laboratory values of
+ * the Lab tuning card (buildLabOverlay); `labData` the laboratory tables,
+ * drawn as points on every plot they have a value for.
  */
-const PvtChartsCard = ({ table, pb, satKind, only, lab }) => {
+const PvtChartsCard = ({ table, pb, satKind, only, lab, labData = null }) => {
   const u = useFluidUnits();
-  const series = useMemo(() => buildPvtSeries({ rows: table, pb, system: u.system, satKind }), [table, pb, u.system, satKind]);
+  const series = useMemo(() => buildPvtSeries({ rows: table, pb, system: u.system, satKind, labData }), [table, pb, u.system, satKind, labData]);
   const plots = only ? series.plots.filter((p) => only.includes(p.id)) : series.plots;
   if (!plots.some((p) => p.points.length)) return null;
 
@@ -97,6 +101,11 @@ const PvtChartsCard = ({ table, pb, satKind, only, lab }) => {
       {plots.map((p) => (
         <PvtChart key={p.id} plot={p} series={series} labPoints={lab?.points?.[p.id]} labLine={lab ? lab.psat : null} />
       ))}
+      {series.lab && (
+        <div className="xl:col-span-2 text-xs text-pl-muted space-y-1" data-testid="pvt-lab-basis">
+          {series.lab.notes.map((n) => <p key={n}>{n}</p>)}
+        </div>
+      )}
     </div>
   );
 };

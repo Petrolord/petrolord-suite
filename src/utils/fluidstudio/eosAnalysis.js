@@ -89,7 +89,35 @@ export const tuneRecord = (fit, composition, at = new Date()) => ({
   report: (fit.report || []).map((r) => ({
     name: r.name, unit: r.unit, measured: r.measured, untuned: r.untuned, tuned: r.tuned, untunedErr: r.untunedErr, tunedErr: r.tunedErr,
   })),
+  // FLUID-U2-008: the uncertainty the regression produces (engines labTune), kept with the record
+  uncertainty: tuneUncertaintyRecord(fit.uncertainty),
 });
+
+/** The uncertainty of a fit as the record keeps it (no covariance matrix), or null for a fit without one. */
+export function tuneUncertaintyRecord(u) {
+  if (!u || !u.knobs) return null;
+  return {
+    targets: u.targets, dof: u.dof, tValue: u.tValue, withheld: u.withheld ?? null,
+    knobs: Object.fromEntries(Object.entries(u.knobs).map(([k, v]) => [k, {
+      value: v.value, standardError: v.standardError ?? null, ci95: v.ci95 ? [...v.ci95] : null, atBound: !!v.atBound, bounds: v.bounds ? [...v.bounds] : null,
+    }])),
+  };
+}
+
+/**
+ * One knob's interval in words: "0.85 to 1.09", or why there is none.
+ * An interval wider than the regression bounds says the data do not pin the knob.
+ */
+export function knobIntervalWords(uncertainty, key, fmt) {
+  if (!uncertainty) return 'Not recorded: tuned before the app kept the uncertainty';
+  if (uncertainty.withheld) return 'Not stated: the regression has no curvature to read it from';
+  const k = uncertainty.knobs?.[key];
+  if (!k) return 'Not recorded';
+  if (k.atBound) return 'None: the parameter stopped at a regression bound';
+  if (!k.ci95) return 'Not stated';
+  const words = `${fmt(k.ci95[0])} to ${fmt(k.ci95[1])}`;
+  return k.bounds && k.ci95[0] < k.bounds[0] && k.ci95[1] > k.bounds[1] ? `${words}, wider than the regression bounds: the data do not pin it` : words;
+}
 
 /**
  * The tuning state a report or a contract may claim (RL8), from the app's
@@ -434,7 +462,7 @@ export const runEosPvtTable = (composition, stages, { salinityPpm = 0 } = {}) =>
     mu_o: round(r.mu_o, 4),
     mu_g: round(r.mu_g, 5),
     // water is outside the EOS: the canonical McCain forms at the row pressure
-    Bw: round(bwAt(r.pressure, parsed.tempF), 4),
+    Bw: round(bwAt(r.pressure, parsed.tempF, salinityPpm), 4),
     mu_w: round(muWaterAt(r.pressure, parsed.tempF, salinityPpm), 4),
     phase: r.phase,
   }));

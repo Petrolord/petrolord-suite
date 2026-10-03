@@ -19,6 +19,9 @@ import {
 } from '@/utils/welltest/gaugeImport';
 import { SectionLabel, Field, UnitField, fmt, valueWithUnit } from './primitives';
 import { IdentificationFields, CompletionFields, InputSourcesFields } from './ReportInputsFields';
+import PvtIntakeCard from '@/lib/inputProvenance/PvtIntakeCard';
+import { readFluidProjectPvt } from '@/lib/pvtSource';
+import { WELLTEST_PVT_FIELDS } from '@/utils/welltest/reportModel';
 
 const defaultPressureUnit = (unitSystem) => (unitSystem === 'si' ? 'kpaa' : 'psia');
 const defaultTemperatureUnit = (unitSystem) => (unitSystem === 'si' ? 'degC' : 'degF');
@@ -130,6 +133,7 @@ const DataPanel = () => {
     rateRows, setRateRows,
     addNotification, loadSampleTest,
     unitSystem, setUnitSystem, profileUnitSystem, reservoirSpec,
+    pvtIntake,
   } = useWellTestStudio();
   const fileRef = useRef(null);
   // the file just imported, held so its column/unit mapping can be changed
@@ -267,6 +271,8 @@ const DataPanel = () => {
       <section>
         <SectionLabel>Reservoir and fluid</SectionLabel>
         <div className="space-y-3">
+          {/* FLUID-U2-005: the shared card of the PVT taken from Fluid Systems Studio (display only; the report is unchanged) */}
+          {pvtIntake && <PvtIntakeCard intake={pvtIntake} current={reservoirInputs} fields={WELLTEST_PVT_FIELDS} readLatest={readFluidProjectPvt} />}
           <div className="space-y-1">
             <Label className="text-xs text-pl-muted">Fluid</Label>
             <Select value={reservoirInputs.fluid || 'oil'} onValueChange={(v) => setReservoirField('fluid', v)}>

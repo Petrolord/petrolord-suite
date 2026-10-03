@@ -48,11 +48,15 @@ describe('H5: the prefill follows the selected correlations and says what it use
     const m = r.origin.methods;
     expect(m.pb_rs_bo.label).toBe('Glaso');
     expect(m.oil_viscosity.label).toBe('Beggs-Robinson');
-    expect(m.z_factor.label).toMatch(/Papay/);
+    // Fluid U2: the table builder runs the engines library's z-factor, so the selection is followed
+    expect(m.z_factor.label).toBe('Dranchuk-Abou-Kassem with Sutton pseudo-criticals');
     expect(m.gas_viscosity.label).toBe('Lee-Gonzalez-Eakin');
     // the selections the Fluid Systems engine has no equivalent for are said, not hidden
     expect(r.origin.substitutions.join(' ')).toMatch(/Beal/);
-    expect(r.origin.substitutions.join(' ')).toMatch(/Dranchuk-Abou-Kassem/);
+    expect(r.origin.substitutions.join(' ')).not.toMatch(/Z uses/);
+    const hy = buildPvtPrefillRows({ ...OIL, correlations: { pb_rs_bo: 'glaso', oil_viscosity: 'beal_standing', z_factor: 'hall_yarborough' } });
+    expect(hy.origin.methods.z_factor.label).toBe('Hall-Yarborough with Sutton pseudo-criticals');
+    expect(hy.rows.map((x) => x.z_factor)).not.toEqual(r.rows.map((x) => x.z_factor));
     expect(r.origin.kind).toBe('correlation_prefill');
     expect(r.origin.edited).toBe(false);
   });

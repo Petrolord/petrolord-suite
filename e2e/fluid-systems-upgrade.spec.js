@@ -197,9 +197,11 @@ test('RL: the exported PDF carries what a reviewer signs against, read back', as
   expect(pdf.flat).toMatch(/Oil viscosity at Pb 0\.5613 cP/);
   // RL6 figures: five plots with the mark embedded, the conditional ones with their reason
   for (const n of [1, 2, 3, 4, 5]) expect(pdf.flat).toMatch(new RegExp(`Figure ${n}\\. .* against pressure`));
-  expect(pdf.flat).toMatch(/Figure 6\. Laboratory values against the model Does not apply/);
-  expect(pdf.flat).toMatch(/Figure 7\. Pressure and temperature phase envelope Does not apply/);
-  expect(pdf.flat).toMatch(/Figure 8\. Hydrate screening against the flowline profile/);
+  // FLUID-U2-001 added the second laboratory figure, so the envelope is Figure 8 and hydrates Figure 9
+  expect(pdf.flat).toMatch(/Figure 6\. Laboratory values against the model: oil properties Does not apply/);
+  expect(pdf.flat).toMatch(/Figure 7\. Laboratory values against the model: gas properties and relative volume Does not apply/);
+  expect(pdf.flat).toMatch(/Figure 8\. Pressure and temperature phase envelope Does not apply/);
+  expect(pdf.flat).toMatch(/Figure 9\. Hydrate screening against the flowline profile/);
   expect(pdf.flat).toMatch(/41 points, the series of the screen chart/);
   expect(pdf.images.length).toBeGreaterThanOrEqual(6);
   expect(pdf.flat).toMatch(/Page 1 of \d+/);
@@ -427,11 +429,11 @@ test('PL4 and RL8: a tuned fluid is reported as tuned only while the fit describ
   expect(pdf.flat).toMatch(/Analysis type PVT, equation of state \(PR78\)/);
   expect(pdf.flat).toMatch(/Lab values matched/);
   expect(pdf.flat).toMatch(/Lab tuning C7\+ tuned to lab data/);
-  expect(pdf.flat).toMatch(/Figure 7\. Pressure and temperature phase envelope Bubble points/);
+  expect(pdf.flat).toMatch(/Figure 8\. Pressure and temperature phase envelope Bubble points/);
   // the measured saturation pressure is drawn on the model curves, as on the screen
   expect(pdf.flat).toMatch(/Figure 6\. Laboratory values against the model/);
   expect(pdf.flat).toMatch(/Lab Psat 2,750 psia/);
-  expect(pdf.flat).toMatch(/Model curves with the measured saturation pressure as the dotted line\. The model is tuned to these values/);
+  expect(pdf.flat).toMatch(/The measured saturation pressure is the dotted line\. The model is tuned to these values/);
 
   // a measured value moves after the fit: the claim is withdrawn on the Report tab
   await resultTab(page, 'Compositional').click();

@@ -1,6 +1,6 @@
 # Fluid Systems & Flow Behavior Studio — STATUS
 
-Last updated: 2026-10-02 (Reservoir upgrade round, Step 1: FLUID-U1)
+Last updated: 2026-10-03 (Reservoir upgrade round, Step 2: FLUID-U2)
 
 ## What this app is
 
@@ -461,3 +461,44 @@ Tests: jest `fluidStudioProvenance`, `fluidReport` (5 goldens),
 `e2e/fluid-systems-upgrade.spec.js` on `/dev/fluid-systems-studio`, which is
 now `src/dev/FluidStudioHarness.jsx` (in-memory Supabase, saved projects in
 sessionStorage, `?saved=1` for projects as earlier releases saved them).
+
+## 2026-10-03: Reservoir upgrade round, Step 2 (FLUID-U2)
+
+Branch `feat/fluid-u2`; engines PR #299 merged, vendored engines pinned at
+engines main 5ae5a80. Item by item, with the proving tests, in
+`docs/upgrade/FluidSystemsStudio-UPGRADE.md` ("Step 2 as built").
+
+- Lab PVT tables: CCE, differential liberation and viscosity through the
+  "Lab data" door (CSV, text, xlsx, paste; header-detected; units at the
+  door; read-back), stored with the project (`inputs.labData`), on every PVT
+  plot, misfit per property in the report, quality checks (trends, Y
+  function, DL mass balance), `pvt-1.lab_data`.
+- Black-oil correlations matched to the lab (`inputs.labMatch`): laboratory
+  bubble point, multiplier and shift for Rs and Bo, multiplier for the oil
+  viscosity, error before and after, Student t intervals, `matched` only while
+  it holds; `pvt-1.tuning` kind `black-oil-correlation-match`.
+- PVTO, PVDG and PVTW export with units and conventions as comments; read
+  back by the deck builder's own emitters, a keyword reader and, in the worker
+  gate, OPM Flow (`FLUID_EXPORT.DATA`).
+- Z from the engines library (Dranchuk-Abou-Kassem default, Hall-Yarborough
+  selectable), gated on the Standing-Katz chart; Papay is retired from the
+  table (kept exported for Nodal and the gas well deliverability).
+- Uncertainty of the tuned C7+ parameters in the card, the report and pvt-1.
+- Composition door; Vasquez-Beggs gas gravity from the first separator
+  stage; salinity in Bw (Numbere, Brigham and Standing); identification
+  proposed from the wells registry; the table top settable or asked for by a
+  consumer (`?pvtPMax=`, `pressure_range` in pvt-1).
+- Shared PVT intake card (`src/lib/inputProvenance/PvtIntakeCard.jsx`),
+  mounted in Well Test.
+
+Not built: the one-page summary and the sweep figure (U2-023, U2-021).
+Deferred by the batch decision: EOS tuning to CCE and DL rows, CVD,
+recombination, Batch C.
+
+Tests: jest `fluidLabData`, `fluidLabReport`, `fluidLabMatch`, `fluidLabQc`,
+`fluidSimExport`, `fluidZFactor`, `fluidVbSeparator`, `fluidBrineBw`,
+`fluidTableRange`, `fluidTuneUncertainty`, `fluidCompositionDoor`,
+`fluidRegistryIdentification`, `pvtIntakeCard`; engines
+`fluid.blackOilU2`, `fluid.labTuneUncertainty`; e2e `e2e/fluid-systems-u2.spec.js`.
+
+**Deploy note (2026-10-03).** `packages/engines/engines/fluid/blackOil.ts` is also bundled into the `calculate-mbal` edge function, so the z-factor change (Dranchuk-Abou-Kassem in place of Papay) reaches Material Balance runs at the next `supabase functions deploy calculate-mbal`. Until then the deployed function keeps the old Z. The vendored engines are pinned at engines main 5ae5a80 (PR #299 and the Material Balance PR #300), with 0 recorded deviations.

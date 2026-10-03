@@ -6,6 +6,7 @@
  * Pure. Rows are the engine's table rows (oilfield units, any order).
  */
 import { fluidUnits } from './units.js';
+import { labComparison, modelRelativeVolume, labDataOf } from './labData.js';
 
 /** The property plots, in the order the screen and the report show them. */
 export const PVT_PLOTS = Object.freeze([
@@ -15,6 +16,8 @@ export const PVT_PLOTS = Object.freeze([
   { id: 'z', title: 'Gas deviation factor Z', short: 'Z', key: 'Z', kind: 'dimensionless', rgb: [8, 145, 178], hex: '#0891b2', digits: 3 },
   { id: 'bg', title: 'Gas formation volume factor Bg', short: 'Bg', key: 'Bg', kind: 'fvfGas', rgb: [217, 119, 6], hex: '#d97706', digits: 3, yLog: true },
 ]);
+/** Drawn only when a constant composition expansion table is loaded: the model side is the table's own Bo, Rs and Bg. */
+export const RELVOL_PLOT = Object.freeze({ id: 'relvol', title: 'Relative volume V/Vsat (constant composition expansion)', short: 'V/Vsat', key: 'Vrel', kind: 'dimensionless', rgb: [190, 24, 93], hex: '#be185d', digits: 3, yLog: true });
 export const PB_HEX = '#dc2626';
 export const PB_RGB = Object.freeze([220, 38, 38]);
 export const LAB_HEX = '#111827';
@@ -23,21 +26,31 @@ export const LAB_RGB = Object.freeze([17, 24, 39]);
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 
 /**
- * @param {{rows: object[], pb: ?number, system?: string, satKind?: string}} a
+ * @param {{rows: object[], pb: ?number, system?: string, satKind?: string, labData?: ?object}} a
+ *   `labData` (labDataOf(inputs)) adds the laboratory points to each plot
+ *   and, with a constant composition expansion loaded, the relative volume plot
  * @returns {{xTitle: string, pb: ?number, pbLabel: string, plots: Array<{id: string, title: string,
  *   short: string, yTitle: string, yLog: boolean, hex: string, rgb: number[], digits: number,
- *   points: Array<{x: number, y: number}>}>}}
+ *   points: Array<{x: number, y: number}>, lab: Array<{x: number, y: number}>}>,
+ *   lab: ?{basis: object, notes: string[]}}}
  */
-export function buildPvtSeries({ rows, pb, system = 'oilfield', satKind = 'bubble' }) {
+export function buildPvtSeries({ rows, pb, system = 'oilfield', satKind = 'bubble', labData = null }) {
   const u = fluidUnits(system);
-  const sorted = [...(rows || [])].filter((r) => finite(r?.pressure)).sort((a, b) => a.pressure - b.pressure);
+  const lab = labData && (labData.cce || labData.dl || labData.viscosity) ? labComparison(labData) : null;
+  let sorted = [...(rows || [])].filter((r) => finite(r?.pressure)).sort((a, b) => a.pressure - b.pressure);
+  const defs = [...PVT_PLOTS];
+  if (lab?.points.relvol.length) {
+    const rel = modelRelativeVolume(sorted, pb);
+    sorted = sorted.map((r, i) => ({ ...r, Vrel: rel[i]?.Vrel ?? null }));
+    defs.push(RELVOL_PLOT);
+  }
   const pbShown = finite(pb) ? u.show('pressure', pb) : null;
   const word = satKind === 'dew' ? 'Dew point' : 'Pb';
   return {
     xTitle: u.head('Pressure', 'pressure'),
     pb: pbShown,
     pbLabel: pbShown == null ? '' : `${word} ${Math.round(pbShown).toLocaleString('en-US')} ${u.label('pressure')}`,
-    plots: PVT_PLOTS.map((p) => ({
+    plots: defs.map((p) => ({
       id: p.id,
       title: p.title,
       short: p.short,
@@ -49,9 +62,19 @@ export function buildPvtSeries({ rows, pb, system = 'oilfield', satKind = 'bubbl
       points: sorted
         .filter((r) => finite(r[p.key]) && (!p.yLog || r[p.key] > 0))
         .map((r) => ({ x: u.show('pressure', r.pressure), y: u.show(p.kind, r[p.key]) })),
+      lab: (lab?.points[p.id] || [])
+        .filter((q) => finite(q.value) && (!p.yLog || q.value > 0))
+        .map((q) => ({ x: u.show('pressure', q.pressure), y: u.show(p.kind, q.value) })),
     })),
+    lab: lab ? { basis: lab.basis, notes: lab.notes } : null,
   };
 }
+
+/** The lab data of the page state, or null when no table is loaded: what buildPvtSeries takes. */
+export const labDataForSeries = (inputs) => {
+  const d = labDataOf(inputs);
+  return d.cce || d.dl || d.viscosity ? d : null;
+};
 
 /**
  * The laboratory values that can be set against the model curves: the

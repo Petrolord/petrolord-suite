@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { MinusCircle, PlusCircle, Atom, SlidersHorizontal, Beaker, Combine, Route, Snowflake } from 'lucide-react';
 import CompositionInput from '@/components/fluidstudio/CompositionInput';
+import LabDataDoor from '@/components/fluidstudio/LabDataDoor';
 import UnitField from '@/components/fluidstudio/UnitField';
 import { useFluidUnits } from '@/components/fluidstudio/FluidUnitsContext';
 import { readPtProfile, PT_PRESSURE_UNITS, PT_TEMPERATURE_UNITS, DEFAULT_PT_UNITS } from '@/utils/fluidstudio/ptProfileImport';
@@ -101,6 +102,7 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
         <TabsList className="flex flex-wrap h-auto justify-start">
           <TabsTrigger value="stream-a">Stream A</TabsTrigger>
           {fluidModel === 'eos' && <TabsTrigger value="composition">Composition</TabsTrigger>}
+          <TabsTrigger value="lab-data">Lab data</TabsTrigger>
           <TabsTrigger value="correlations">Correlations</TabsTrigger>
           <TabsTrigger value="separators">Separators</TabsTrigger>
           <TabsTrigger value="blending">Blending</TabsTrigger>
@@ -117,6 +119,14 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
               <InputField label="Reservoir Temperature" id="temp" value={streamA.temp} onChange={(v) => handleStreamChange('temp', v)} kind="temperature" />
               <InputField label="Bubble Point (optional)" id="pb" value={streamA.pb} onChange={(v) => handleStreamChange('pb', v)} kind="pressure" placeholder="auto" hint="Leave blank to solve Pb from the GOR." />
               <InputField label="Water Salinity" id="salinity" value={streamA.salinity} onChange={(v) => handleStreamChange('salinity', v)} kind="salinity" />
+              <InputField
+                label="Highest table pressure (optional)" id="table-top" kind="pressure" placeholder="default"
+                value={inputs.tableRange?.pMax ?? null}
+                onChange={(v) => setInputs((prev) => ({ ...prev, tableRange: v > 0 ? { pMax: v, from: 'entered' } : undefined }))}
+                hint={inputs.tableRange?.from === 'consumer'
+                  ? `Asked for by ${inputs.tableRange.requestedBy || 'a consuming app'}. Save the project so it can read the longer table.`
+                  : 'By default the table ends at the larger of 1.4 times Pb and Pb plus 2,000 psi. Set a higher pressure for a reservoir further above its bubble point.'}
+              />
             </div>
           </TabsContent>
 
@@ -125,6 +135,14 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
               <CompositionInput composition={inputs.streamA?.composition} onChange={setComposition} />
             </TabsContent>
           )}
+
+          <TabsContent value="lab-data">
+            <LabDataDoor
+              inputs={inputs}
+              setInputs={setInputs}
+              modelTempF={fluidModel === 'eos' ? (inputs.streamA?.composition?.temp ?? null) : (streamA.temp ?? null)}
+            />
+          </TabsContent>
 
           <TabsContent value="correlations">
             <div className="space-y-4 p-1">
@@ -147,6 +165,16 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
                   <SelectContent>
                     <SelectItem value="beggs_robinson">Beggs-Robinson (default)</SelectItem>
                     <SelectItem value="beal_cook_spillman">Beal-Cook-Spillman (simplified)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-pl-text">Gas z-factor</Label>
+                <Select value={correlations.z_factor ?? 'dranchuk_abou_kassem'} onValueChange={(v) => handleCorrelationChange('z_factor', v)}>
+                  <SelectTrigger className="mt-1" data-testid="corr-z-factor"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dranchuk_abou_kassem">Dranchuk-Abou-Kassem (default)</SelectItem>
+                    <SelectItem value="hall_yarborough">Hall-Yarborough</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

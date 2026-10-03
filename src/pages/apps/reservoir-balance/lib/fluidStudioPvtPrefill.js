@@ -13,12 +13,13 @@
 import {
   rsAt,
   solveBubblePoint,
-  zFactor,
+  gasZ,
   bgAt,
   muGas,
   computePvtRow,
   CORRELATION_RANGES,
   VISCOSITY_CORRELATION_LABELS,
+  GAS_Z_METHOD_RECORDS,
 } from '@/utils/fluidStudioCalculations';
 import { MBAL_CORRELATION_LABELS } from './pvtSource';
 
@@ -42,8 +43,13 @@ const DEFAULT_POINTS = 20;
  * report prints in place of "lab_table".
  */
 
-// The Fluid Systems engine computes Z and gas viscosity one way only.
-const Z_METHOD = { key: 'papay', label: 'Papay with Sutton pseudo-criticals' };
+// The Fluid Systems engine computes gas viscosity one way only; Z by the
+// engines library's Dranchuk-Abou-Kassem or Hall-Yarborough (Fluid U2, which
+// retired Papay), so the PVT tab's z-factor choice is followed.
+const zMethodOf = (key) => {
+  const k = GAS_Z_METHOD_RECORDS[key] ? key : 'dranchuk_abou_kassem';
+  return { key: k, label: `${GAS_Z_METHOD_RECORDS[k].label} with Sutton pseudo-criticals` };
+};
 const GAS_VISCOSITY_METHOD = { key: 'lee_gonzalez_eakin', label: 'Lee-Gonzalez-Eakin' };
 
 /**
@@ -60,18 +66,19 @@ export function resolvePrefillMethods(correlations, isGas) {
   if (!isGas && sel.oil_viscosity && sel.oil_viscosity !== viscKey) {
     substitutions.push(`Oil viscosity uses ${VISCOSITY_CORRELATION_LABELS[viscKey]}: the table builder has no ${MBAL_CORRELATION_LABELS[sel.oil_viscosity] ?? sel.oil_viscosity}.`);
   }
-  if (sel.z_factor) {
-    substitutions.push(`Z uses ${Z_METHOD.label}: the table builder does not run ${MBAL_CORRELATION_LABELS[sel.z_factor] ?? sel.z_factor}.`);
+  const zMethod = zMethodOf(sel.z_factor);
+  if (sel.z_factor && sel.z_factor !== zMethod.key) {
+    substitutions.push(`Z uses ${zMethod.label}: the table builder does not run ${MBAL_CORRELATION_LABELS[sel.z_factor] ?? sel.z_factor}.`);
   }
   const methods = {
     ...(isGas ? {} : {
       pb_rs_bo: { key: pbKey, label: CORRELATION_RANGES[pbKey].label },
       oil_viscosity: { key: viscKey, label: VISCOSITY_CORRELATION_LABELS[viscKey] },
     }),
-    z_factor: Z_METHOD,
+    z_factor: zMethod,
     gas_viscosity: GAS_VISCOSITY_METHOD,
   };
-  return { methods, substitutions, engineCorrelations: { pb_rs_bo: pbKey, viscosity: viscKey } };
+  return { methods, substitutions, engineCorrelations: { pb_rs_bo: pbKey, viscosity: viscKey, z_factor: zMethod.key } };
 }
 
 const originOf = (resolved) => ({
@@ -111,7 +118,7 @@ export function buildPvtPrefillRows(opts) {
 
   if (isGas) {
     const rows = [...grid].sort((a, b) => a - b).map((p) => {
-      const z = zFactor(p, temperatureF, gasSg);
+      const z = gasZ(p, temperatureF, gasSg, resolved.engineCorrelations.z_factor);
       return {
         pressure_psia: Math.round(p),
         z_factor: Number(z.toFixed(4)),

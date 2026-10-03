@@ -12,10 +12,29 @@
  * Pure.
  */
 import { buildPvtContract } from '@/lib/inputProvenance/pvtContract';
-import { blackOilRangeFlags } from '@/utils/fluidStudioCalculations';
+import { blackOilRangeFlags, bwAt, muWaterAt } from '@/utils/fluidStudioCalculations';
 import { tuningState, isActiveStage } from '@/utils/fluidstudio/eosAnalysis';
+import { labContractBlock, blackOilEvaluator } from '@/utils/fluidstudio/labReport';
+import { labMatchState } from '@/utils/fluidstudio/labMatch';
+import { pressureRangeBlock } from '@/utils/fluidstudio/tableRange';
 
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
+
+/**
+ * The water compressibility -(1/Bw) dBw/dp and viscosibility (1/muw) dmuw/dp
+ * at a pressure, from the engine's own water functions (central difference,
+ * 1 psi): what PVTW needs, without the rounding of the printed table.
+ */
+export function waterSlopes(p, tempF, salinity) {
+  if (!(p > 2) || !Number.isFinite(tempF)) return { cw: null, viscosibility: null };
+  const dp = 1;
+  const bw = bwAt(p, tempF, salinity);
+  const mu = muWaterAt(p, tempF, salinity);
+  return {
+    cw: -(bwAt(p + dp, tempF, salinity) - bwAt(p - dp, tempF, salinity)) / (2 * dp) / bw,
+    viscosibility: (muWaterAt(p + dp, tempF, salinity) - muWaterAt(p - dp, tempF, salinity)) / (2 * dp) / mu,
+  };
+}
 
 /** The enabled separator stages as the contract states them. */
 export const separatorConditions = (stages) => (stages || []).filter(isActiveStage).map((s) => ({
@@ -40,6 +59,52 @@ export function tuningBlock(composition, stages) {
     block.matched = t.fit.report.map((r) => ({
       target: r.name, unit: r.unit, measured: r.measured, untuned: r.untuned, tuned: r.tuned,
       error_before: r.untunedErr, error_after: r.tunedErr, error_unit: r.name === 'stoApi' ? 'degAPI' : 'percent',
+    }));
+    // FLUID-U2-008, by addition: the uncertainty of the tuned knobs
+    const u = t.fit.uncertainty;
+    block.uncertainty = u
+      ? {
+        method: 'Student t 95 percent interval from the regression covariance', degrees_of_freedom: u.dof, t_value: u.tValue, withheld: u.withheld,
+        parameters: Object.fromEntries(Object.entries(u.knobs).map(([k, v]) => [k, { value: v.value, standard_error: v.standardError, ci95: v.ci95, at_bound: v.atBound }])),
+      }
+      : { withheld: 'The fit was recorded before the app kept its uncertainty.' };
+  }
+  return block;
+}
+
+/**
+ * The correlation match of the black-oil table to laboratory data, as the
+ * contract carries it (FLUID-U2-004): `tuned` only while the match still
+ * describes the fluid.
+ */
+export function blackOilTuningBlock(inputs) {
+  const st = labMatchState(inputs);
+  if (st.status === 'none' || st.status === 'not-applied') return { status: 'none' };
+  const a = st.applied;
+  const block = {
+    status: st.status === 'matched' ? 'tuned' : 'stale',
+    kind: 'black-oil-correlation-match',
+    parameters: {
+      bubble_point_psia: a.pb ?? null, rs_multiplier: a.rsMult ?? null, rs_shift_scf_per_STB: a.rsShift ?? 0,
+      bo_multiplier: Number(a.boMult), bo_shift_RB_per_STB: Number(a.boShift) || 0, mu_o_multiplier: Number(a.mu),
+    },
+    variables: 'Per property, value = multiplier x correlation + shift: the laboratory bubble point, Rs (meeting the solution GOR there), Bo, and a multiplier on the oil viscosity',
+  };
+  if (st.status === 'matched') {
+    const fit = st.fit;
+    block.at = fit.at;
+    block.oil_basis = fit.oilBasis;
+    block.matched = fit.matched.map((m) => (m.id === 'pb'
+      ? { target: 'pb', unit: 'psia', points: 1, measured: m.lab, untuned: m.before, tuned: m.after, error_before: m.errorBefore, error_after: m.errorAfter, error_unit: 'percent' }
+      : {
+        target: m.id === 'muo' ? 'mu_o' : m.id === 'bo' ? 'Bo' : 'Rs', points: m.n,
+        error_before: m.before?.meanAbsPct ?? null, error_after: m.after?.meanAbsPct ?? null,
+        max_error_before: m.before?.maxAbsPct ?? null, max_error_after: m.after?.maxAbsPct ?? null,
+        error_unit: 'percent, mean absolute deviation over the laboratory points',
+      }));
+    block.uncertainty = fit.parameters.map((p) => ({
+      parameter: p.key, unit: p.unit || 'dimensionless', value: p.value, points: p.n,
+      standard_error: p.standardError, ci95: p.ci95, note: p.ci95 ? 'Student t 95 percent interval of the least-squares estimate' : p.uncertainty,
     }));
   }
   return block;
@@ -96,7 +161,11 @@ export function buildFluidPvtContract({ inputs, results, eos, projectId = null, 
       atSaturation: {
         pressure: t.pb, Rs: t.kpis.rsfb, Bo: t.kpis.bofb, mu_o: pbRow?.mu_o ?? null, Bg: pbRow?.Bg ?? null, Z: pbRow?.Z ?? null,
         Bw: pbRow?.Bw ?? null, mu_w: pbRow?.mu_w ?? null, Bod: t.kpis.bodb, Rsd: t.kpis.rsdb,
+        // added 2026-10-03 (Fluid U2): for PVTW
+        ...(() => { const w = waterSlopes(t.pb, pvt.model?.tempF, fluidForWater.salinity); return { cw: w.cw, viscosibility_w: w.viscosibility }; })(),
       },
+      labData: labContractBlock({ inputs, rows: t.rows, pb: t.pb }),
+      pressureRange: { ...pressureRangeBlock(inputs, t.rows), note: 'The compositional table keeps its own span; a set top applies to the black-oil table.' },
       table: t.rows,
     });
   }
@@ -109,12 +178,12 @@ export function buildFluidPvtContract({ inputs, results, eos, projectId = null, 
     model: 'black-oil-correlations',
     modelDetail: {
       blended: !!meta.blended,
-      ...(meta.pbSource === 'entered' ? { rs_scale: meta.pbDetail?.rsScale, correlation_pb: meta.pbDetail?.correlationPb } : {}),
+      ...(meta.pbSource === 'entered' || meta.pbSource === 'lab' ? { rs_scale: meta.pbDetail?.rsScale, correlation_pb: meta.pbDetail?.correlationPb } : {}),
     },
     methods: meta.methods,
     basis: meta.basis,
     pbSource: meta.pbSource,
-    tuning: { status: 'none' },
+    tuning: blackOilTuningBlock(inputs),
     rangeFlags: meta.rangeFlags,
     standardConditions: meta.standardConditions,
     inputs: {
@@ -124,7 +193,11 @@ export function buildFluidPvtContract({ inputs, results, eos, projectId = null, 
     atSaturation: {
       pressure: k.pb, Rs: k.rsb, Bo: k.bo_at_pb, mu_o: k.mu_o_at_pb, co: k.co_at_pb, Bg: k.bg_at_pb, Z: k.z_at_pb,
       Bw: k.bw_at_pb, mu_w: k.mu_w_at_pb, mu_od: k.mu_od,
+      // added 2026-10-03 (Fluid U2): for PVTW
+      ...(() => { const w = waterSlopes(results.pvt.pb, meta.fluid.temp, meta.fluid.salinity); return { cw: w.cw, viscosibility_w: w.viscosibility }; })(),
     },
+    labData: labContractBlock({ inputs, rows: results.pvt.table, pb: k.pb, evaluate: blackOilEvaluator(results) }),
+    pressureRange: pressureRangeBlock(inputs, results.pvt.table),
     table: results.pvt.table,
   });
 }

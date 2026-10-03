@@ -1,0 +1,17 @@
+Good Oil Co. Well No. 4, hydrocarbon analysis of reservoir fluid
+
+Component	Mol percent	Weight percent
+Hydrogen sulfide	0.00	0.00
+Carbon dioxide	0.91	0.43
+Nitrogen	0.16	0.05
+Methane	36.47	6.24
+Ethane	9.67	3.10
+Propane	6.95	3.27
+iso-Butane	1.44	0.89
+n-Butane	3.93	2.44
+iso-Pentane	1.44	1.11
+n-Pentane	1.41	1.09
+Hexanes	4.33	3.97
+Heptanes plus	33.29	77.41
+Total	100.00	100.00
+# Properties of heptanes plus: API 34.1, specific gravity 0.8515, molecular weight 218

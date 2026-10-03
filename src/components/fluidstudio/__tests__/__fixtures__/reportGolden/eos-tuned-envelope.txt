@@ -34,7 +34,7 @@ Headline results
 
  Surface gas gravity                              0.781              air = 1           Separator train flash
 
- Water formation volume factor at Pb              1.0345             RB/STB            McCain
+ Water formation volume factor at Pb              1.0354             RB/STB            McCain
 
  Water viscosity at Pb                            0.3875             cP                McCain
 
@@ -47,7 +47,7 @@ Separator Train of this report.
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                Page 1 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                               Page 1 of 10
 Inputs and their sources
  Input                                        Value               Unit             Source and quality
 
@@ -104,12 +104,12 @@ Fluid Properties Report, BHS-2 recombined, Field Ekene                          
  C7+ volume shift                             0.1126                               Computed: regression to the measured values above
 
 The compositional model uses the feed composition, the C7+ description, the reservoir pressure and temperature, the separator stages and, when
-applied, the tuning parameters. Salinity enters the water viscosity only. The measured values enter only through the tuning.
+applied, the tuning parameters. Salinity enters the water viscosity and Bw. The measured values enter only through the tuning.
 
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                             Page 2 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                            Page 2 of 10
 Method used for each property
  Property                             Method                                       Reference                 Note
 
@@ -161,7 +161,7 @@ The method names are written by the engine beside the calculation that used them
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                   Page 3 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                  Page 3 of 10
 Basis and conventions
  Item                                     As used in this report
 
@@ -229,17 +229,20 @@ Errors are model minus measured: percent, or API degrees for the stock-tank grav
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                      Page 4 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                     Page 4 of 10
 Tuning parameters
- Parameter                                                                                Before tuning                         Applied
+ Parameter                                                          Before tuning                Applied           95 percent interval
 
- C7+ critical temperature multiplier                                                      1.0000                                0.9748
+ C7+ critical temperature multiplier                                1.0000                       0.9748            0.9166 to 1.0330
 
- C7+ critical pressure multiplier                                                         1.0000                                0.9545
+ C7+ critical pressure multiplier                                   1.0000                       0.9545            0.8338 to 1.0752
 
- Methane to C7+ interaction coefficient                                                   0.0566                                0.0704
+ Methane to C7+ interaction coefficient                             0.0566                       0.0704            0.0281 to 0.1127
 
- C7+ volume shift                                                                         0.1324                                0.1126
+ C7+ volume shift                                                   0.1324                       0.1126            -0.0432 to 0.2685
+
+Student t interval from the regression covariance (3 measured values and four prior pulls, 3 degrees of freedom, t = 3.182). It says how firmly the
+measured values hold each parameter, and nothing about the accuracy of the laboratory data.
 
 
 Limits of this analysis
@@ -277,21 +280,21 @@ No input is outside a published range.
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                      Page 5 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                    Page 5 of 10
 PVT table
- Pressure           Rs            Bo           Bg              Z          Oil visc.      Gas visc.         co          Bw           Water visc.    Region
+ Pressure           Rs            Bo           Bg              Z          Oil visc.      Gas visc.         co          Bw           Water visc.     Region
  (psia)             (scf/STB)     (RB/STB)     (RB/Mscf)                  (cP)           (cP)              (1/psi)     (RB/STB)     (cP)
-          3,575           830.9       1.4531             n/a        n/a        0.3855                n/a         n/a       1.0325          0.4044 Above Pb
-          3,163           830.9       1.4657             n/a        n/a        0.3596                n/a         n/a       1.0335          0.3958 Above Pb
-          2,888           830.9       1.4748             n/a        n/a        0.3425                n/a         n/a       1.0342          0.3902 Above Pb
-          2,750           830.9       1.4796             n/a        n/a        0.3339                n/a         n/a       1.0345          0.3875 Pb
-          2,338           679.3       1.4060           1.203 0.8461            0.3933         0.01839            n/a       1.0354          0.3796 Below Pb
-          1,925           543.5       1.3401           1.470 0.8518            0.4649         0.01681            n/a       1.0362          0.3720 Below Pb
-          1,513           420.0       1.2798           1.899 0.8643            0.5518         0.01552            n/a       1.0369          0.3648 Below Pb
-          1,100           305.7       1.2235           2.670 0.8838            0.6586         0.01450            n/a       1.0375          0.3580 Below Pb
-              688         196.8       1.1686           4.399 0.9103            0.7933         0.01368            n/a       1.0380          0.3516 Below Pb
-              330          99.0       1.1165           9.456 0.9392            0.9516         0.01292            n/a       1.0384          0.3462 Below Pb
-               15           0.0       0.9656           223.7 0.9896              1.505        0.01046            n/a       1.0387          0.3418 Below Pb
+          3,575           830.9       1.4531             n/a        n/a        0.3855                n/a         n/a       1.0335          0.4044 Above Pb
+          3,163           830.9       1.4657             n/a        n/a        0.3596                n/a         n/a       1.0345          0.3958 Above Pb
+          2,888           830.9       1.4748             n/a        n/a        0.3425                n/a         n/a       1.0351          0.3902 Above Pb
+          2,750           830.9       1.4796             n/a        n/a        0.3339                n/a         n/a       1.0354          0.3875 Pb
+          2,338           679.3       1.4060           1.203 0.8461            0.3933         0.01839            n/a       1.0362          0.3796 Below Pb
+          1,925           543.5       1.3401           1.470 0.8518            0.4649         0.01681            n/a       1.0370          0.3720 Below Pb
+          1,513           420.0       1.2798           1.899 0.8643            0.5518         0.01552            n/a       1.0376          0.3648 Below Pb
+          1,100           305.7       1.2235           2.670 0.8838            0.6586         0.01450            n/a       1.0382          0.3580 Below Pb
+              688         196.8       1.1686           4.399 0.9103            0.7933         0.01368            n/a       1.0386          0.3516 Below Pb
+              330          99.0       1.1165           9.456 0.9392            0.9516         0.01292            n/a       1.0389          0.3462 Below Pb
+               15           0.0       0.9656           223.7 0.9896              1.505        0.01046            n/a       1.0392          0.3418 Below Pb
 
 The rows are the rows of the table the app exports and hands to other apps, in the units of the header of this report. Oil compressibility is reported
 above the saturation pressure only.
@@ -328,7 +331,7 @@ Other Petrolord apps receive this block with the table and print it as the sourc
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                            Page 6 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                            Page 6 of 10
 Plots
 Figure 1. Oil formation volume factor Bo against pressure
 
@@ -423,7 +426,7 @@ screen chart. Above the saturation pressure the undersaturated method applies.
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                 Page 7 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                               Page 7 of 10
 Figure 4. Gas deviation factor Z against pressure
 
                              Z
@@ -484,8 +487,8 @@ series of the screen chart. Logarithmic scale.
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                               Page 8 of 9
-Figure 6. Laboratory values against the model
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                              Page 8 of 10
+Figure 6. Laboratory values against the model: oil properties
 
                                Model Bo        Laboratory Bo
                      1.5
@@ -508,7 +511,7 @@ Fluid Properties Report, BHS-2 recombined, Field Ekene                          
                       1
 
                      0.9
-                           0                                   1000                                 2000                                     3000            4000
+                           0                                   1000                                 2000                                     3000             4000
 
                                                                                                Pressure (psia)
 
@@ -536,15 +539,19 @@ Fluid Properties Report, BHS-2 recombined, Field Ekene                          
 
 
                       0
-                           0                                   1000                                 2000                                     3000            4000
+                           0                                   1000                                 2000                                     3000             4000
 
                                                                                                Pressure (psia)
 
-Model curves with the measured separator-test values as points and the measured saturation pressure as the dotted line. The model is tuned to
-these values; the tuning table gives the errors.
+Model curves with the laboratory values as points. The measured separator-test values of the Lab tuning card are among the points. The
+measured saturation pressure is the dotted line. The model is tuned to these values; the tuning table gives the errors.
 
 
-Figure 7. Pressure and temperature phase envelope
+Figure 7. Laboratory values against the model: gas properties and relative volume
+Does not apply: no laboratory table is loaded.
+
+
+Figure 8. Pressure and temperature phase envelope
 
                                Bubble points      Dew points          Reservoir conditions       Saturation point at reservoir temperature
                     4000
@@ -569,7 +576,7 @@ Figure 7. Pressure and temperature phase envelope
 
 
                       0
-                           0                                   100                                  200                                      300              400
+                           0                                   100                                  200                                      300               400
 
                                                                                              Temperature (degF)
 
@@ -577,11 +584,14 @@ Stability boundaries of the tuned equation of state: 15 bubble points and 1 dew 
 so the two branches need not meet.
 
 
-Figure 8. Hydrate screening against the flowline profile
+
+
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                                   Page 9 of 10
+Figure 9. Hydrate screening against the flowline profile
 Does not apply: flow assurance screening runs on the black-oil stream, which is not part of a compositional report.
 
 
 
 
-Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                                   Page 9 of 9
+Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                Page 10 of 10
 

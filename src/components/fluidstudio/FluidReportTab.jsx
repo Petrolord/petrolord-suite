@@ -15,6 +15,7 @@ import { INPUTS_HEAD, inputsBody } from '@/lib/reportKit/report';
 import { describePvtContract } from '@/lib/inputProvenance/pvtContract';
 import { IDENTIFICATION_FIELDS, SOURCE_KEYS, identificationOf, SAMPLE_NOTE } from '@/utils/fluidstudio/reportModel';
 import { figureListRows } from '@/utils/fluidstudio/reportFigures';
+import FluidRegistryProposal from '@/components/fluidstudio/FluidRegistryProposal';
 
 const blank = (v) => (v == null || String(v).trim() === '' ? EMPTY_VALUE : v);
 
@@ -81,6 +82,7 @@ const FluidReportTab = ({ report, inputs, organizationName = '', onIdentificatio
       </Card>
 
       <Section title="Identification" testId="fluid-identification" note="Saved with the project. A field left blank prints as n/a.">
+        <FluidRegistryProposal identification={id} onApply={(changes) => changes.forEach(([k, v]) => onIdentification(k, v))} />
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {IDENTIFICATION_FIELDS.map(([key, label, hint]) => (
             <div key={key}>
@@ -160,6 +162,25 @@ const FluidReportTab = ({ report, inputs, organizationName = '', onIdentificatio
         {model.tuning.table && <ModelTable head={model.tuning.table.head} rows={model.tuning.table.rows} />}
         {model.tuning.parameters && <ModelTable head={model.tuning.parameters.head} rows={model.tuning.parameters.rows} />}
       </Section>
+
+      {model.lab && (
+        <Section title="Laboratory data against the model" testId="fluid-report-lab" note={model.lab.misfit.note}>
+          <ModelTable head={model.lab.tables.head} rows={model.lab.tables.rows} dense />
+          <ModelTable head={model.lab.misfit.head} rows={model.lab.misfit.rows} />
+          <div data-testid="fluid-report-lab-qc" className="text-xs space-y-1">
+            <p className="text-pl-text font-semibold">Quality checks</p>
+            {model.lab.qc.flags.length
+              ? <ul className="list-disc list-inside text-pl-warning-text">{model.lab.qc.flags.map((f) => <li key={f}>{f}</li>)}</ul>
+              : <p className="text-pl-text">Nothing was flagged.</p>}
+            {model.lab.qc.massBalance && <ModelTable head={model.lab.qc.massBalance.head} rows={model.lab.qc.massBalance.rows} dense />}
+          </div>
+          {model.lab.notes.length > 0 && (
+            <ul className="text-xs text-pl-muted list-disc list-inside space-y-1">
+              {model.lab.notes.map((n) => <li key={n}>{n}</li>)}
+            </ul>
+          )}
+        </Section>
+      )}
 
       <Section title="Limits of this analysis" testId="fluid-report-limits" note={model.limits.rangesNote}>
         <ul className="text-sm text-pl-text list-disc list-inside space-y-1">

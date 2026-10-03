@@ -17,11 +17,14 @@ import LabTuningCard from '@/components/fluidstudio/LabTuningCard';
 import EosPvtTableCard from '@/components/fluidstudio/EosPvtTableCard';
 import PhaseEnvelopeCard from '@/components/fluidstudio/PhaseEnvelopeCard';
 import FluidReportTab from '@/components/fluidstudio/FluidReportTab';
+import LabMatchCard from '@/components/fluidstudio/LabMatchCard';
+import { blackOilMatchSection } from '@/utils/fluidstudio/reportModel';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { PVT_PROJECT_PARAM } from '@/lib/inputProvenance/pvtContract';
 import { useFluidUnits } from '@/components/fluidstudio/FluidUnitsContext';
 import { pvtTableCsv, downloadText } from '@/utils/fluidstudio/csvExport';
-import { buildLabOverlay, labPlotIds } from '@/utils/fluidstudio/pvtSeries';
+import { buildSimKeywords } from '@/utils/fluidstudio/simKeywords';
+import { buildLabOverlay, labPlotIds, labDataForSeries } from '@/utils/fluidstudio/pvtSeries';
 import { screenWarnings } from '@/utils/fluidstudio/screenWarnings';
 import { tuningStatus } from '@/utils/fluidstudio/eosAnalysis';
 
@@ -112,6 +115,8 @@ const FluidStudioResults = ({
   // FLUID-U1: the report door, the pvt-1 handoff and the lifted envelope
   inputs, report, handoff, projectId, onBeforeSend, organizationName,
   onIdentification, onSource, onExportPdf, exporting, envelope, onEnvelope,
+  // FLUID-U2-004: apply or remove the correlation match to laboratory data
+  onLabMatch,
 }) => {
   const u = useFluidUnits();
   const { pvt, separator, backbone, meta, blending, flowAssurance, batchSummary } = results;
@@ -125,6 +130,8 @@ const FluidStudioResults = ({
       modelPb: eos.pvtTable.table.pb, system: u.system,
     })
     : null), [eos, composition, u.system]);
+  // FLUID-U2-001: the laboratory tables, drawn on every PVT plot
+  const labData = useMemo(() => labDataForSeries(inputs), [inputs]);
   if (!kpis) return null;
 
   // the table the app hands over and exports: the EOS table in compositional mode
@@ -134,6 +141,13 @@ const FluidStudioResults = ({
     'fluid_studio_pvt.csv',
   );
   const eosTable = eos?.pvtTable?.table;
+  // FLUID-U2-003: the table as PVTO, PVDG and PVTW keywords, and the pvt-1 block itself
+  const sim = report?.contract ? buildSimKeywords(report.contract) : { ok: false, reasons: ['There is no PVT block to export.'] };
+  const exportSim = () => { if (sim.ok) downloadText(sim.text, sim.fileName, 'text/plain'); };
+  const exportContract = () => {
+    if (!report?.contract) return;
+    downloadText(JSON.stringify(report.contract, null, 2), `${sim.ok ? sim.fileName.replace(/_PVT\.INC$/, '') : 'fluid'}_pvt-1.json`, 'application/json');
+  };
 
   return (
     <div className="space-y-4">
@@ -173,13 +187,41 @@ const FluidStudioResults = ({
             {batchSummary && <TabsTrigger value="batch">Batch Sweep</TabsTrigger>}
             {report?.model && <TabsTrigger value="report">Report</TabsTrigger>}
           </TabsList>
-          <Button variant="outline" size="sm" onClick={exportCsv}>
-            <Download className="w-4 h-4 mr-2" /> Export PVT CSV
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={exportCsv}>
+              <Download className="w-4 h-4 mr-2" /> Export PVT CSV
+            </Button>
+            <Button
+              variant="outline" size="sm" onClick={exportSim} disabled={!sim.ok} data-testid="fluid-export-sim"
+              title={sim.ok ? 'PVTO, PVDG and PVTW keywords in FIELD units, with the methods and conventions as comment lines' : sim.reasons.join(' ')}
+            >
+              <Download className="w-4 h-4 mr-2" /> Simulator keywords
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportContract} disabled={!report?.contract} data-testid="fluid-export-contract" title="The pvt-1 block other Petrolord apps receive, as a JSON file">
+              <Download className="w-4 h-4 mr-2" /> pvt-1 JSON
+            </Button>
+          </div>
         </div>
 
         <TabsContent value="pvt" className="mt-4">
-          <PvtChartsCard table={pvt.table} pb={kpis.pb} />
+          <PvtChartsCard table={pvt.table} pb={kpis.pb} labData={labData} />
+          {report?.model?.lab && (
+            <Card className="mt-4" data-testid="fluid-lab-misfit">
+              <CardHeader className="pb-2"><CardTitle className="text-base text-pl-text">Laboratory data against the model</CardTitle></CardHeader>
+              <CardContent className="space-y-1 text-sm text-pl-text">
+                {report.model.mode === 'eos' && <p className="text-xs text-pl-muted">The misfit below is of the compositional table, the table the report and the handoffs use. The plots above are the black-oil stream.</p>}
+                <ul className="list-disc list-inside space-y-0.5">
+                  {report.model.lab.sentences.map((t) => <li key={t}>{t}</li>)}
+                </ul>
+                {report.model.lab.notes.map((n) => <p key={n} className="text-xs text-pl-muted">{n}</p>)}
+              </CardContent>
+            </Card>
+          )}
+          {labData && onLabMatch && (
+            <div className="mt-4">
+              <LabMatchCard inputs={inputs} onMatch={onLabMatch} section={blackOilMatchSection({ inputs, u })} />
+            </div>
+          )}
         </TabsContent>
 
         {eos && (
@@ -199,7 +241,7 @@ const FluidStudioResults = ({
                 the fluid is the one the tune was fitted on. */}
             <CompositionalSeparatorCard separator={eos.separator} tuned={tuneStatus} />
             <EosPvtTableCard result={eos.pvtTable} tuned={tuneStatus} contract={report?.contract} />
-            {eosTable && <PvtChartsCard table={eosTable.rows} pb={eosTable.pb} satKind={eosTable.satKind} />}
+            {eosTable && <PvtChartsCard table={eosTable.rows} pb={eosTable.pb} satKind={eosTable.satKind} labData={labData} />}
             <PhaseEnvelopeCard composition={composition} tuned={tuneStatus} envelope={envelope} onEnvelope={onEnvelope} />
           </TabsContent>
         )}

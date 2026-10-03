@@ -13,14 +13,18 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { sourceText, NOT_PROVIDED } from '@/lib/inputProvenance';
 import { PVT1_PB_SOURCES } from '@/lib/inputProvenance/pvtContract';
 import {
-  normalizeFluid, publishedRange, PB_RS_BO_METHODS, OIL_VISCOSITY_METHODS, pbRsBoMethod, oilViscosityMethod,
+  normalizeFluid, publishedRange, PB_RS_BO_METHODS, OIL_VISCOSITY_METHODS, pbRsBoMethod, oilViscosityMethod, GAS_Z_METHOD_RECORDS, gasZMethod, vbGasGravity,
 } from '@/utils/fluidStudioCalculations';
-import { tuningState, isActiveStage } from '@/utils/fluidstudio/eosAnalysis';
+import { tuningState, isActiveStage, knobIntervalWords } from '@/utils/fluidstudio/eosAnalysis';
 import { COMPONENT_ORDER, PLUS_FRACTION_KEY } from '@/utils/fluidstudio/eos/components';
 import { untunedKnobs } from '@/utils/fluidstudio/eos/labTune';
 import { fluidUnits } from '@/utils/fluidstudio/units';
 import { readPtProfile } from '@/utils/fluidstudio/ptProfileImport';
 import { isEosHandoff, eosRangeFlags } from '@/utils/fluidstudio/pvtHandoff';
+import { labDataOf, LAB_KINDS } from '@/utils/fluidstudio/labData';
+import { buildLabSection, blackOilEvaluator } from '@/utils/fluidstudio/labReport';
+import { labMatchState } from '@/utils/fluidstudio/labMatch';
+import { tableRangeOf } from '@/utils/fluidstudio/tableRange';
 
 export const REPORT_TITLE = 'Fluid Properties Report';
 export const APP_NAME = 'Petrolord Fluid Systems Studio';
@@ -186,6 +190,27 @@ const stageRows = (inputs, u, meta) => {
   return rows;
 };
 
+/** The laboratory tables as rows of the inputs table: what was loaded, from where, and the basis (FLUID-U2-001). */
+function labInputRows(inputs, u) {
+  const lab = labDataOf(inputs);
+  const rows = [];
+  for (const k of ['cce', 'dl', 'viscosity']) {
+    const t = lab[k];
+    if (!t) continue;
+    const temp = Number.isFinite(t.tempF) ? ` at ${SHOW.temperature(u, t.tempF)} ${u.label('temperature')}` : '';
+    rows.push({ key: `lab.${k}`, label: `Laboratory table: ${LAB_KINDS[k].label.toLowerCase()}${temp}`, value: `${t.rows.length} rows`, unit: '', source: `Measured (lab): ${[t.source?.name, t.source?.summary].filter(Boolean).join('. ')}` });
+  }
+  if (lab.dl) {
+    rows.push({ key: 'lab.basis', label: 'Basis of the differential liberation table', value: lab.dlBasis === 'separator' ? 'Separator' : 'Differential', unit: '', source: lab.dlBasis === 'separator' ? 'Entered: the table is already adjusted to the separator basis' : 'Entered: as the laboratory reports it, per barrel of residual oil' });
+    if (lab.dlBasis === 'differential') {
+      const given = lab.separatorTest.bofb != null && lab.separatorTest.rsfb != null;
+      rows.push({ key: 'lab.bofb', label: 'Separator test Bofb (oil formation volume factor at the bubble point)', value: lab.separatorTest.bofb != null ? SHOW.fvfOil(u, lab.separatorTest.bofb) : EMPTY_VALUE, unit: u.label('fvfOil'), source: lab.separatorTest.bofb != null ? 'Measured (lab), as entered at the lab data door' : `${NOT_PROVIDED}: the differential rows are not adjusted` });
+      rows.push({ key: 'lab.rsfb', label: 'Separator test Rsfb (total GOR at the bubble point)', value: lab.separatorTest.rsfb != null ? SHOW.gor(u, lab.separatorTest.rsfb) : EMPTY_VALUE, unit: u.label('gor'), source: lab.separatorTest.rsfb != null ? 'Measured (lab), as entered at the lab data door' : `${NOT_PROVIDED}${given ? '' : ': the differential rows are not adjusted'}` });
+    }
+  }
+  return rows;
+}
+
 function blackOilInputRows({ inputs, results, u }) {
   const meta = inputs?.inputMeta || {};
   const bo = inputs?.streamA?.blackOil ?? {};
@@ -221,21 +246,58 @@ function blackOilInputRows({ inputs, results, u }) {
     rows.find((r) => r.key === 'temp').engineKeys = ['temp'];
     rows.find((r) => r.key === 'salinity').engineKeys = ['salinity'];
     const typed = fluid.pb != null && m?.pbSource === 'entered';
+    const fromLab = m?.pbSource === 'lab';
+    const typedToo = Number(bo.pb) > 0;
     row({
-      key: 'pb', engineKeys: ['pb'], label: 'Bubble point pressure (optional input)',
-      value: typed ? SHOW.pressure(u, fluid.pb) : EMPTY_VALUE, unit: u.label('pressure'),
-      source: typed ? sourceText(meta.pb) : `${NOT_PROVIDED}: solved from the solution GOR`,
+      key: 'pb', engineKeys: ['pb', 'pbFrom'], label: 'Bubble point pressure (optional input)',
+      value: typed ? SHOW.pressure(u, fluid.pb) : (fromLab && typedToo ? SHOW.pressure(u, Number(bo.pb)) : EMPTY_VALUE), unit: u.label('pressure'),
+      source: typed ? sourceText(meta.pb)
+        : fromLab ? (typedToo ? 'Entered, and not used: the laboratory saturation pressure of the correlation match takes its place' : `${NOT_PROVIDED}: the laboratory saturation pressure of the correlation match is used`)
+          : `${NOT_PROVIDED}: solved from the solution GOR`,
     });
+    if (fluid.match) {
+      const st = labMatchState(inputs).status;
+      const how = st === 'matched' ? 'Computed: fitted to the laboratory tables (see the laboratory match section)' : 'Computed by an earlier match; see the laboratory match section';
+      if (fromLab) row({ key: 'match.pb', label: 'Bubble point of the laboratory match', value: SHOW.pressure(u, fluid.pb), unit: u.label('pressure'), source: 'Measured (lab): the saturation pressure of the laboratory tables' });
+      const mm = fluid.match;
+      if (fromLab) {
+        row({ key: 'match.rsMult', engineKeys: ['match.rsMult'], label: 'Rs multiplier of the laboratory match', value: fx(m.pbDetail.rsScale, 4), unit: '', source: how });
+        row({ key: 'match.rsShift', engineKeys: ['match.rsShift'], label: 'Rs shift of the laboratory match', value: SHOW.gor(u, m.pbDetail.rsShift ?? 0), unit: u.label('gor'), source: 'Computed: Rs meets the solution GOR at the laboratory bubble point' });
+        row({ key: 'match.rsLowP', engineKeys: ['match.rsLowP'], label: 'Lowest laboratory pressure of the Rs fit', value: mm.rsLowP ? SHOW.pressure(u, mm.rsLowP) : EMPTY_VALUE, unit: u.label('pressure'), source: mm.rsLowP ? 'Measured (lab): below it the Rs shift is tapered out' : 'No Rs rows were fitted' });
+      } else {
+        row({ key: 'match.rs', engineKeys: ['match.rsMult', 'match.rsShift', 'match.rsLowP'], label: 'Rs of the laboratory match', value: 'Not matched', unit: '', source: 'The laboratory tables state no saturation pressure' });
+      }
+      row({ key: 'match.boMult', engineKeys: ['match.boMult'], label: 'Bo multiplier of the laboratory match', value: fx(mm.boMult, 4), unit: '', source: how });
+      row({ key: 'match.boShift', engineKeys: ['match.boShift'], label: 'Bo shift of the laboratory match', value: fx(mm.boShift, 4), unit: u.label('fvfOil'), source: how });
+      row({ key: 'match.mu', engineKeys: ['match.mu'], label: 'Oil viscosity multiplier of the laboratory match', value: fx(mm.mu, 4), unit: '', source: how });
+    }
   }
   row({ key: 'corr.pb_rs_bo', engineKeys: ['correlations.pb_rs_bo'], label: 'Bubble point, Rs and Bo correlation', value: pbRsBoMethod(fluid).label, unit: '', source: inputs?.correlations?.pb_rs_bo && PB_RS_BO_METHODS[inputs.correlations.pb_rs_bo] ? 'Selected in the app' : 'Assumed default (none selected)' });
+  row({ key: 'corr.z_factor', engineKeys: ['correlations.z_factor'], label: 'Gas z-factor method', value: GAS_Z_METHOD_RECORDS[gasZMethod(fluid)].label, unit: '', source: inputs?.correlations?.z_factor && GAS_Z_METHOD_RECORDS[inputs.correlations.z_factor] ? 'Selected in the app' : 'Assumed default (none selected)' });
   row({ key: 'corr.viscosity', engineKeys: ['correlations.viscosity'], label: 'Oil viscosity correlation', value: oilViscosityMethod(fluid).label, unit: '', source: inputs?.correlations?.viscosity && OIL_VISCOSITY_METHODS[inputs.correlations.viscosity] ? 'Selected in the app' : 'Assumed default (none selected)' });
   const rateGiven = inputs?.feed?.oilRate != null && inputs.feed.oilRate !== '';
   row({ key: 'oilRate', engineKeys: ['feed.oilRate'], label: 'Stock-tank oil basis for stage gas rates', value: SHOW.rate(u, fluid.feed.oilRate), unit: u.label('liquidRate'), source: rateGiven ? 'Entered (a reporting basis)' : 'Assumed default 1,000 STB/d (no value entered)' });
   rows.push(...stageRows(inputs, u, meta));
+  if (fluid.separator !== undefined) {
+    row({
+      key: 'vb.separator', engineKeys: ['separator.pressure', 'separator.temperature', 'separator'],
+      label: 'Separator of the Vasquez-Beggs gas gravity', value: fluid.separator ? `${SHOW.pressure1(u, fluid.separator.pressure)} / ${SHOW.temperature(u, fluid.separator.temperature)}` : EMPTY_VALUE,
+      unit: `${u.label('pressure')} / ${u.label('temperature')}`,
+      source: fluid.separator ? `Computed: the first separator stage; the gas gravity at the 100 psig reference is ${vbGasGravity(fluid).toFixed(4)}` : `${NOT_PROVIDED}: no stage, the gravity is taken as given`,
+    });
+  }
   rows.push({ key: 'stockTank', label: 'Stock tank (last stage)', value: `${SHOW.pressure1(u, m?.standardConditions?.pressure_psia ?? 14.7)} / ${SHOW.temperature(u, m?.standardConditions?.temperature_degF ?? 60)}`, unit: `${u.label('pressure')} / ${u.label('temperature')}`, source: 'Standard conditions, always added by the app' });
+  rows.push(...labInputRows(inputs, u));
+  if (fluid.sweep?.pTop != null) {
+    const tr = tableRangeOf(inputs);
+    row({ key: 'sweep.pTop', engineKeys: ['sweep.pTop'], label: 'Highest table pressure (optional input)', value: SHOW.pressure(u, fluid.sweep.pTop), unit: u.label('pressure'), source: tr.from === 'consumer' ? `Requested by ${tr.requestedBy || 'a consuming app'} through the address of the page` : 'Entered: the table is carried at least to this pressure' });
+  }
+  if (fluid.sweep?.pCover != null) {
+    row({ key: 'sweep.pCover', engineKeys: ['sweep.pCover'], label: 'Pressure the table is carried up to', value: SHOW.pressure(u, fluid.sweep.pCover), unit: u.label('pressure'), source: 'Computed: the highest pressure of the laboratory tables' });
+  }
   return {
     rows,
-    note: 'The PVT table uses the API gravity, the solution GOR, the gas gravity, the temperature, the bubble point when one is entered and the two correlation choices. Salinity enters the water viscosity only. The stock-tank oil basis scales the stage gas rates and nothing else. Flowline geometry is recorded in the app and enters no calculation.',
+    note: `The PVT table uses the API gravity, the solution GOR, the gas gravity, the temperature, the bubble point when one is entered and the two correlation choices. Salinity enters the water viscosity and, through the brine correction, Bw. The stock-tank oil basis scales the stage gas rates and nothing else. Flowline geometry is recorded in the app and enters no calculation.${rows.some((r) => String(r.key).startsWith('lab.')) ? ' The laboratory tables are compared with the model and enter no calculation.' : ''}`,
   };
 }
 
@@ -281,6 +343,7 @@ function eosInputRows({ inputs, eos, u }) {
     if (!given) continue;
     rows.push({ key: `lab.${key}`, label, value: show(u, Number(raw)), unit: u.label(kind), source: 'Measured (lab), as entered in the Lab tuning card' });
   }
+  rows.push(...labInputRows(inputs, u));
   const t = tuningState(c, inputs?.separatorTrain?.stages);
   if (t.applied) {
     const how = t.status === 'tuned' ? 'Computed: regression to the measured values above' : 'Computed by an earlier regression; see the lab tuning section';
@@ -291,7 +354,7 @@ function eosInputRows({ inputs, eos, u }) {
   }
   return {
     rows,
-    note: 'The compositional model uses the feed composition, the C7+ description, the reservoir pressure and temperature, the separator stages and, when applied, the tuning parameters. Salinity enters the water viscosity only. The measured values enter only through the tuning.',
+    note: 'The compositional model uses the feed composition, the C7+ description, the reservoir pressure and temperature, the separator stages and, when applied, the tuning parameters. Salinity enters the water viscosity and Bw. The measured values enter only through the tuning.',
   };
 }
 
@@ -311,7 +374,8 @@ export function engineInputOf({ inputs, results, eos, mode }) {
       tuning: p?.tuning || {},
     };
   }
-  const { rsScale: _scale, ...fluid } = results?.meta?.fluid || normalizeFluid(inputs);
+  // rsScale, rsShift and rsLowP are derived by the engine (the match parameters under `match` are the inputs)
+  const { rsScale: _scale, rsShift: _shift, rsLowP: _low, ...fluid } = results?.meta?.fluid || normalizeFluid(inputs);
   return fluid;
 }
 
@@ -380,7 +444,7 @@ function methodsTable(methods) {
   };
 }
 
-const RANGE_WORD = { rs: ['Solution GOR', 'gor'], temp: ['Temperature', 'temperature'], api: ['API gravity', 'api'], gasGravity: ['Gas gravity', 'gasGravity'], pressure: ['Pressure', 'pressure'], salinity: ['Salinity', 'salinity'] };
+const RANGE_WORD = { rs: ['Solution GOR', 'gor'], temp: ['Temperature', 'temperature'], api: ['API gravity', 'api'], gasGravity: ['Gas gravity', 'gasGravity'], pressure: ['Pressure', 'pressure'], salinity: ['Salinity', 'salinity'], tpr: ['Pseudo-reduced temperature', 'dimensionless'], ppr: ['Pseudo-reduced pressure', 'dimensionless'] };
 
 /** "20 to 1,425 scf/STB" in the display unit. */
 function rangeWords(u, variable, [lo, hi]) {
@@ -396,7 +460,7 @@ function rangeWords(u, variable, [lo, hi]) {
 const RANGE_NAME = {
   standing: 'Standing', vasquez_beggs: 'Vasquez-Beggs', glaso: 'Glaso', beggs_robinson: 'Beggs-Robinson', beal_cook_spillman: 'Beal-Cook-Spillman',
   vasquez_beggs_co: 'Vasquez-Beggs (compressibility)', vasquez_beggs_undersaturated: 'Vasquez-Beggs (undersaturated viscosity)',
-  sutton: 'Sutton pseudo-critical properties', lee_gonzalez_eakin: 'Lee-Gonzalez-Eakin', mccain_bw: 'McCain (water FVF)', mccain_mu_w: 'McCain (water viscosity)',
+  sutton: 'Sutton pseudo-critical properties', dranchuk_abou_kassem: 'Dranchuk-Abou-Kassem (Z), on Sutton pseudo-critical properties', hall_yarborough: 'Hall-Yarborough (Z), on Sutton pseudo-critical properties', lee_gonzalez_eakin: 'Lee-Gonzalez-Eakin', mccain_bw: 'McCain (water FVF)', mccain_mu_w: 'McCain (water viscosity)', numbere_brine: 'Numbere, Brigham and Standing (brine Bw)',
 };
 
 function rangesTable(methods, u) {
@@ -447,7 +511,7 @@ const BLACK_OIL_LIMITS = [
   'The correlations take no account of non-hydrocarbon gases (nitrogen, carbon dioxide, hydrogen sulphide).',
   'Gas properties are computed at every pressure of the table. Above the bubble point there is no free gas in the reservoir, so Z, Bg and gas viscosity there describe the solution gas only as a reference.',
   'The separator results are a staged liberation by the Rs correlation at each stage. It is an approximation and no compositional flash; the multistage Bo is an estimate.',
-  'Water properties are for water with no dissolved gas.',
+  'Water properties are for water with no dissolved gas; the salinity correction of Bw is the brine ratio of Numbere, Brigham and Standing (1977).',
 ];
 const EOS_LIMITS = [
   'Peng-Robinson (1978) equation of state with one C7+ pseudo-component. A heavy fraction split into several pseudo-components is not modelled.',
@@ -463,24 +527,81 @@ const EOS_LIMITS = [
 
 const TARGET_WORDS = { psat: ['Saturation pressure', 'pressure', SHOW.pressure], totalGor: ['Total GOR', 'gor', SHOW.gor], stoApi: ['Stock-tank API gravity', 'api', SHOW.api], bo: ['Bo at reservoir conditions', 'fvfOil', SHOW.fvfOil] };
 
-function tuningSection({ inputs, mode, u }) {
-  if (mode !== 'eos') {
-    return { status: 'none', text: 'No lab tuning. Black-oil correlations are not matched to laboratory data in this app; a bubble point that is entered moves the Rs correlation as stated in the methods table.', table: null, parameters: null };
+const pctWord = (v, d = 1) => (finite(v) ? `${v.toFixed(d)}%` : EMPTY_VALUE);
+const signedPct = (v, d = 1) => (finite(v) ? `${v >= 0 ? '+' : ''}${v.toFixed(d)}%` : EMPTY_VALUE);
+/** The black-oil correlation match to laboratory data, as the report states it (FLUID-U2-004, -008). */
+export function blackOilMatchSection({ inputs, u }) {
+  const st = labMatchState(inputs);
+  if (st.status === 'none') {
+    return { status: 'none', text: 'No lab tuning. The black-oil correlations are not matched to laboratory data. A bubble point that is entered moves the Rs correlation as stated in the methods table.', table: null, parameters: null };
   }
+  const a = st.applied;
+  const num4 = (v, d = 4) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? EMPTY_VALUE : Number(v).toFixed(d));
+  const applied = {
+    head: ['Parameter', 'Applied'],
+    rows: [
+      ['Bubble point of the match', a.pb > 0 ? `${SHOW.pressure(u, Number(a.pb))} ${u.label('pressure')}` : 'Not matched'],
+      ['Rs multiplier and shift', a.pb > 0 ? `${num4(a.rsMult)}; ${SHOW.gor(u, Number(a.rsShift) || 0)} ${u.label('gor')}` : 'Not matched'],
+      ['Bo multiplier and shift', `${num4(a.boMult)}; ${num4(a.boShift)} ${u.label('fvfOil')}`],
+      ['Oil viscosity multiplier', num4(a.mu)],
+    ],
+  };
+  if (st.status === 'not-applied') return { status: 'not-applied', text: `A correlation match to laboratory data is saved with this project. ${st.reason}`, table: null, parameters: applied };
+  if (st.status === 'stale') {
+    return { status: 'stale', text: `Matched, not confirmed. ${st.reason}`, table: null, parameters: applied };
+  }
+  const fit = st.fit;
+  const rows = fit.matched.map((m) => {
+    if (m.id === 'pb') {
+      return [m.label, '1', `${SHOW.pressure(u, m.lab)} ${u.label('pressure')} measured`, `${SHOW.pressure(u, m.before)} (${signedPct(m.errorBefore)})`, `${SHOW.pressure(u, m.after)} (${signedPct(m.errorAfter)})`, EMPTY_VALUE, EMPTY_VALUE];
+    }
+    return [
+      m.label, String(m.n), 'Mean deviation over the laboratory points',
+      pctWord(m.before?.meanAbsPct), pctWord(m.after?.meanAbsPct), pctWord(m.before?.maxAbsPct), pctWord(m.after?.maxAbsPct),
+    ];
+  });
+  const basis = fit.oilBasis === 'adjusted' ? ' Bo and Rs are compared on the separator basis, the differential rows adjusted with the separator test.'
+    : fit.oilBasis === 'separator' ? ' Bo and Rs are compared on the separator basis, as the table was entered.' : '';
+  return {
+    status: 'matched',
+    text: `Matched to lab. The black-oil correlations (${fit.correlations.pb_rs_bo}; ${fit.correlations.viscosity}) were matched to the laboratory tables with one linear adjustment per property, value = multiplier x correlation + shift: the bubble point is set to the laboratory saturation pressure, Rs is fitted below it and still meets the solution GOR there, Bo is fitted over every laboratory row, and the oil viscosity takes a multiplier.${basis} Matched on ${String(fit.at).slice(0, 10)}.${fit.notes.length ? ` ${fit.notes.join(' ')}` : ''}`,
+    table: { head: ['Matched to', 'Lab points', 'Measure', 'Before', 'After', 'Largest before', 'Largest after'], rows },
+    tableNote: 'Deviation is model minus laboratory as a percent of the laboratory value. For Bo, Rs and viscosity the Before and After columns hold the mean deviation over the laboratory points, above and below the bubble point.',
+    parameters: {
+      head: ['Parameter', 'Value', '95 percent interval', 'How it was obtained'],
+      rows: fit.parameters.map((p) => {
+        const shown = (v) => (p.unit === 'scf/STB' ? SHOW.gor(u, v) : fx(v, 4));
+        const unit = p.unit === 'scf/STB' ? ` ${u.label('gor')}` : p.unit ? ` ${p.unit}` : '';
+        const interval = p.ci95 ? `${shown(p.ci95[0])} to ${shown(p.ci95[1])}${unit}` : (p.uncertainty || EMPTY_VALUE);
+        return [p.label, `${shown(p.value)}${unit}`, interval, p.how];
+      }),
+      note: 'Each interval is the Student t 95 percent interval of the least-squares estimate. It says how firmly the laboratory rows hold the parameter, and nothing about the accuracy of the laboratory data. Bo and the viscosity are fitted on the matched Rs.',
+    },
+  };
+}
+
+function tuningSection({ inputs, mode, u }) {
+  if (mode !== 'eos') return blackOilMatchSection({ inputs, u });
   const c = inputs?.streamA?.composition;
   const t = tuningState(c, inputs?.separatorTrain?.stages);
   if (t.status === 'none') {
     return { status: 'none', text: 'No lab tuning. The C7+ fraction uses generalised correlations and the model is not matched to laboratory data.', table: null, parameters: null };
   }
   const start = Number(c?.plus?.mw) > 0 && Number(c?.plus?.sg) > 0 ? untunedKnobs({ mw: Number(c.plus.mw), sg: Number(c.plus.sg) }) : null;
+  // FLUID-U2-008: the 95 percent interval of each tuned knob, while the record of the fit holds
+  const unc = t.status === 'tuned' ? (t.fit?.uncertainty ?? null) : undefined;
+  const interval = (k) => (unc === undefined ? 'Withdrawn with the record of the match' : knobIntervalWords(unc, k, (v) => fx(v, 4)));
   const parameters = {
-    head: ['Parameter', 'Before tuning', 'Applied'],
+    head: ['Parameter', 'Before tuning', 'Applied', '95 percent interval'],
     rows: [
-      ['C7+ critical temperature multiplier', start ? fx(start.fTc, 4) : EMPTY_VALUE, fx(t.applied.fTc, 4)],
-      ['C7+ critical pressure multiplier', start ? fx(start.fPc, 4) : EMPTY_VALUE, fx(t.applied.fPc, 4)],
-      ['Methane to C7+ interaction coefficient', start ? fx(start.kC1, 4) : EMPTY_VALUE, fx(t.applied.kC1, 4)],
-      ['C7+ volume shift', start ? fx(start.sPlus, 4) : EMPTY_VALUE, fx(t.applied.sPlus, 4)],
+      ['C7+ critical temperature multiplier', start ? fx(start.fTc, 4) : EMPTY_VALUE, fx(t.applied.fTc, 4), interval('fTc')],
+      ['C7+ critical pressure multiplier', start ? fx(start.fPc, 4) : EMPTY_VALUE, fx(t.applied.fPc, 4), interval('fPc')],
+      ['Methane to C7+ interaction coefficient', start ? fx(start.kC1, 4) : EMPTY_VALUE, fx(t.applied.kC1, 4), interval('kC1')],
+      ['C7+ volume shift', start ? fx(start.sPlus, 4) : EMPTY_VALUE, fx(t.applied.sPlus, 4), interval('sPlus')],
     ],
+    note: unc
+      ? `Student t interval from the regression covariance (${unc.targets} measured value${unc.targets === 1 ? '' : 's'} and four prior pulls, ${unc.dof} degree${unc.dof === 1 ? '' : 's'} of freedom, t = ${unc.tValue}). It says how firmly the measured values hold each parameter, and nothing about the accuracy of the laboratory data.`
+      : undefined,
   };
   if (t.status === 'stale') {
     return { status: 'stale', text: 'Tuning parameters are applied, but the composition, the reservoir conditions, the separator stages or the measured values changed after the fit. The record of the match no longer describes this fluid and is withdrawn. Run the tuning again.', table: null, parameters };
@@ -547,7 +668,7 @@ function separatorTable({ results, eos, mode, u }) {
     title: 'Separator train (staged liberation by the Rs correlation)',
     head: ['Stage', u.head('Pressure', 'pressure'), u.head('Temperature', 'temperature'), u.head('Rs kept in the oil', 'gor'), u.head('Gas liberated', 'gor'), u.head('Gas rate', 'gasRate')],
     rows,
-    note: `Separator GOR ${SHOW.gor(u, s.totals.separator_gor)} plus stock-tank GOR ${SHOW.gor(u, s.totals.stock_tank_gor)} gives the total ${SHOW.gor(u, s.totals.total_gor)} ${u.label('gor')}, which is the solution GOR by construction. Bo by a single flash ${SHOW.fvfOil(u, s.totals.bo_single_stage)} ${u.label('fvfOil')}; the multistage Bo ${SHOW.fvfOil(u, s.totals.bo_multistage_approx)} is an estimate of the staging benefit, not a flash calculation. Gas rates are for a stock-tank oil basis of ${SHOW.rate(u, s.totals.stock_tank_oil_rate)} ${u.label('liquidRate')}.`,
+    note: `Separator GOR ${SHOW.gor(u, s.totals.separator_gor)} plus stock-tank GOR ${SHOW.gor(u, s.totals.stock_tank_gor)} gives the total ${SHOW.gor(u, s.totals.total_gor)} ${u.label('gor')}, which is the solution GOR by construction. Bo by a single flash ${SHOW.fvfOil(u, s.totals.bo_single_stage)} ${u.label('fvfOil')}; the multistage Bo ${SHOW.fvfOil(u, s.totals.bo_multistage_approx)} is an estimate of the staging benefit and no flash calculation. Gas rates are for a stock-tank oil basis of ${SHOW.rate(u, s.totals.stock_tank_oil_rate)} ${u.label('liquidRate')}.`,
   };
 }
 
@@ -654,9 +775,11 @@ export function buildFluidReportModel({ inputs, results, eos, system = 'oilfield
         : rangesTable(methods, u),
       rangesNote: mode === 'eos'
         ? 'The equation of state itself has no data range; its accuracy rests on the characterisation and the tuning.'
-        : 'Ranges are those of the data each correlation was fitted to, as held in the Petrolord engines library and the app. Papay\'s Z has no range here: none could be verified, so the engine holds Z inside 0.25 to 1.15 and flags a row on that limit.',
+        : 'Ranges are those of the data each correlation was fitted to, as held in the Petrolord engines library and the app. For the z-factor the window is the one over which the engines library checked the method against readings of the Standing-Katz chart; below a pseudo-reduced pressure of 0.2 Z tends to 1 and no flag is raised.',
       flags: flagLines,
     },
+    // FLUID-U2-001: the laboratory tables against the table this report prints
+    lab: buildLabSection({ inputs, rows, pb, tempF, u, evaluate: mode === 'eos' ? null : blackOilEvaluator(results) }),
     pvtTable: pvtTable({ rows, pb, u, satKind }),
     pvtRows: rows,
     pb,

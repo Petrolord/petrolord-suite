@@ -10,7 +10,7 @@ import {
   analyzeFluidSystem, sampleFluidStudioData, normalizeFluid, computePvtRow, computePvtTable,
   PB_RS_BO_METHODS, OIL_VISCOSITY_METHODS, pbRsBoMethod, rsAt, boAt, muObAt, muOdAt,
   solveBubblePointDetail, solveBubblePoint, enteredBubblePoint, blackOilMethods, blackOilRangeFlags,
-  publishedRange, bwAt, muWaterAt, zFactor, Z_CLAMP, coAt, undersaturatedBo,
+  publishedRange, bwAt, muWaterAt, zFactor, Z_CLAMP, coAt, undersaturatedBo, vbGasGravity,
 } from '../fluidStudioCalculations';
 import { pvtCalcs } from '../pvtCalculations';
 import { mccainBw, mccainMuW } from '../../../packages/engines/engines/fluid/blackOil';
@@ -34,11 +34,15 @@ describe('the method named is the method called', () => {
     const f = res.meta.fluid;
     const [rsFn, boFn] = primitives[key];
     const row = res.pvt.table.find((r) => r.phase === 'saturated' && r.pressure < res.pvt.pb * 0.6);
-    const rs = Math.min(rsFn(row.pressure, f.api, f.gasGravity, f.temp), f.rsb);
+    // Vasquez-Beggs takes the gas gravity at its 100 psig reference separator (FLUID-U2-007)
+    const vb = key === 'vasquez_beggs';
+    const gg = vb ? vbGasGravity(f) : f.gasGravity;
+    const extra = vb ? [114.7] : [];
+    const rs = Math.min(rsFn(row.pressure, f.api, gg, f.temp, ...extra), f.rsb);
     // the table rounds the pressure for display; the row is recomputed at that pressure
     const again = computePvtRow(row.pressure, f, res.pvt.pb);
     expect(again.Rs).toBe(Number(rs.toFixed(2)));
-    expect(again.Bo).toBe(Number(boFn(rs, f.api, f.gasGravity, f.temp).toFixed(4)));
+    expect(again.Bo).toBe(Number(boFn(rs, f.api, gg, f.temp, ...extra).toFixed(4)));
     expect(method(res, 'rs').method).toBe(PB_RS_BO_METHODS[key].label);
     expect(method(res, 'bo').method).toBe(PB_RS_BO_METHODS[key].label);
     expect(method(res, 'pb').method).toBe(`${PB_RS_BO_METHODS[key].label} Rs(p) solved for the solution GOR`);
@@ -78,7 +82,7 @@ describe('the method named is the method called', () => {
   test('every property of the table has a method, and the list is the contract list', () => {
     const res = analyzeFluidSystem(sampleFluidStudioData());
     expect(res.meta.methods.map((m) => m.key)).toEqual([
-      'pb', 'rs', 'bo', 'co', 'mu_od', 'mu_o', 'mu_o_undersaturated', 'z', 'mu_g', 'bg', 'bw', 'mu_w',
+      'pb', 'rs', 'bo', 'co', 'mu_od', 'mu_o', 'mu_o_undersaturated', 'z', 'mu_g', 'bg', 'bw', 'bw_brine', 'mu_w',
     ]);
     for (const m of res.meta.methods) expect(m.method).toBeTruthy();
     expect(blackOilMethods(res.meta.fluid, { route: 'solved' })).toEqual(res.meta.methods);
@@ -233,11 +237,25 @@ describe('inputs outside a published range are flagged, each once, with the prop
     for (const id of ['beggs_robinson:api', 'lee_gonzalez_eakin:temp', 'mccain_bw:temp']) expect(ok).not.toContain(id);
   });
 
-  test('a Z held on the engine limit is flagged', () => {
+  test('a gas outside the window the z-factor was checked over is flagged (FLUID-U2-006)', () => {
+    // gas gravity 1.6 at 80 degF: pseudo-reduced temperature 1.00, below the 1.2 where the chart check starts
     const res = analyzeFluidSystem(withInputs({ gasSg: 1.6, temp: 80 }));
-    const onLimit = res.pvt.table.filter((r) => r.Z <= Z_CLAMP[0] || r.Z >= Z_CLAMP[1]).length;
-    expect(onLimit).toBeGreaterThan(0);
-    expect(res.meta.rangeFlags.find((f) => f.id === 'papay:z').rows).toBe(onLimit);
+    const f = res.meta.rangeFlags.find((x) => x.id === 'dranchuk_abou_kassem:tpr');
+    expect(f).toBeDefined();
+    expect(f.value).toBeCloseTo(1.001, 3);
+    expect(f.properties).toEqual(['Gas deviation factor Z']);
+    expect(res.meta.rangeFlags.some((x) => x.id === 'papay:z')).toBe(false);
+    // rows above pseudo-reduced pressure 15 are flagged as a stretch of the table
+    const fluid = res.meta.fluid;
+    const ppc = 756.8 - 131.0 * 1.6 - 3.6 * 1.6 * 1.6;
+    const flags = blackOilRangeFlags(fluid, res.meta.methods, [{ pressure: 14 * ppc, Z: 1 }, { pressure: 16 * ppc, Z: 1.5 }, { pressure: 17 * ppc, Z: 1.6 }]);
+    const ppr = flags.find((x) => x.id === 'dranchuk_abou_kassem:ppr');
+    expect(ppr.rows).toBe(2);
+    expect(ppr.text).toMatch(/above pseudo-reduced pressure 15, the end of the window the method was checked over/);
+    // negative control: the sample gas raises neither
+    const ok = analyzeFluidSystem(sampleFluidStudioData()).meta.rangeFlags.map((x) => x.id);
+    expect(ok.filter((id) => /dranchuk|hall/.test(id))).toEqual([]);
+    // the legacy Papay function is unchanged for the apps that still call it
     expect(zFactor(3000, 80, 1.6)).toBeGreaterThanOrEqual(Z_CLAMP[0]);
   });
 
@@ -256,11 +274,14 @@ describe('water properties come from the canonical engine', () => {
     for (const shown of res.pvt.table.filter((_, i) => i % 7 === 0)) {
       // the table rounds the pressure for display; recompute the row at that pressure
       const r = computePvtRow(shown.pressure, res.meta.fluid, res.pvt.pb);
-      expect(r.Bw).toBe(Number(mccainBw(r.pressure, 200).toFixed(4)));
+      // 35,000 ppm: McCain fresh water times the Numbere-Brigham-Standing brine ratio (FLUID-U2-022)
+      expect(r.Bw).toBe(Number(bwAt(r.pressure, 200, 35000).toFixed(4)));
+      expect(Math.abs(r.Bw - mccainBw(r.pressure, 200))).toBeLessThan(0.01);
       expect(r.mu_w).toBe(Number(mccainMuW(r.pressure, 200, 35000).toFixed(4)));
       expect(Math.abs(shown.mu_w - r.mu_w)).toBeLessThan(2e-4);
     }
-    expect(res.pvt.kpis.bw_at_pb).toBe(Number(bwAt(res.pvt.pb, 200).toFixed(4)));
+    expect(res.pvt.kpis.bw_at_pb).toBe(Number(bwAt(res.pvt.pb, 200, 35000).toFixed(4)));
+    expect(bwAt(3000, 200, 0)).toBe(mccainBw(3000, 200));
   });
 
   test('McCain Bw from a second transcription of the published coefficients', () => {
@@ -274,12 +295,12 @@ describe('water properties come from the canonical engine', () => {
     expect(Math.abs((1 + dVwT) / (1 + dVwp) - bwAt(p, T))).toBeGreaterThan(0.005);
   });
 
-  test('salinity moves the water viscosity and leaves Bw alone, as the method note says', () => {
+  test('salinity moves the water viscosity and Bw, as the method note says', () => {
     const fresh = analyzeFluidSystem(withInputs({ salinity: 0 }));
     const brine = analyzeFluidSystem(withInputs({ salinity: 150000 }));
     expect(brine.pvt.kpis.mu_w_at_pb).toBeGreaterThan(fresh.pvt.kpis.mu_w_at_pb);
-    expect(brine.pvt.kpis.bw_at_pb).toBe(fresh.pvt.kpis.bw_at_pb);
-    expect(method(brine, 'bw').note).toMatch(/salinity is not applied to Bw/);
+    expect(brine.pvt.kpis.bw_at_pb).not.toBe(fresh.pvt.kpis.bw_at_pb);
+    expect(fresh.pvt.kpis.bw_at_pb).toBe(Number(mccainBw(fresh.pvt.pb, 200).toFixed(4)));
     expect(muWaterAt(3000, 200, null)).toBe(mccainMuW(3000, 200, 0));
   });
 });
