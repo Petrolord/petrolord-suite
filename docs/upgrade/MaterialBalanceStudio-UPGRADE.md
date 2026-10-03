@@ -302,3 +302,34 @@ Size: S under two days, M under a week, L more.
 | 5 | The pressure datum is stated and no correction is applied. Add a gradient correction later? | Keep as stated; a correction needs a fluid gradient per survey |
 | 6 | Apply the trigger backfill file for the record? | Optional; it is a no-op |
 | 7 | May a colleague's shared Fluid project feed my case? | Yes, by the view permission of the project, as the Fluid round proposed |
+
+## Batch decision (programme lead, 2026-10-02)
+
+Recorded verbatim:
+
+> BUILD in this order, one commit per item:
+> - Batch A: (1) water and gas injection in the balance (MBAL-U1-008): F gains the injection terms of the Havlena-Odeh form (cumulative water injected times Bw, cumulative gas injected times Bg), on the regression and every derived quantity; validated against a published worked example with injection that you can actually read (cite it; if none is readable, an independent hand calculation and a negative control, and say so); the Data tab, the report's inputs and data tables and the limits block follow; the "no injection term" statements are removed only when this is true. (2) the engine warns when it uses correlations outside the range of the lab PVT table (MBAL-U1-012 engine half), and the warning reaches the run result, the screen and the report. (3) excluded timesteps UI: pick and unpick points on the regression plot and the data table with a reason; the report lists them; saved; stale rule respected. (4) colleague editing with check-out on rb_cases (the owner granted edit rights with decorum on 2026-10-01): use the shared `src/lib/recordSharing` lock, version and history; child tables follow the case lock as the database enforces; Run and Save refused without the hold; the History panel; tests with two users in the in-memory store. (5) a sender out: send the case's in-place volume, drive mechanism and forecastable pressure to ReservoirCalc Pro (volumetric cross-check) and to the Petroleum Economics Studio or Forecast Scenario Hub if a typed intake exists, with provenance; document each contract.
+> - Batch B: ReservoirCalc Pro volumetric intake (the volumetric estimate on the case comes from a saved RCP project by id with its source printed, not typed); pressure rows from VRR Monitor or Well Test where a saved source exists (by id, provenance printed, edits marked); a one-page summary at the front of the report.
+> - DEFERRED (record reasons): history-match assist (M), forecast to Economics inside the report (M), sender to Simulation, multi-tank, prediction mode, more aquifer models with SCAL intake, condensate and volatile oil, Monte Carlo through the canonical engine, retiring `final_sdi`, kit tickText.
+> Owner-question defaults in force: datum stays a stated input without correction; a legacy run needs one rerun; a colleague's Fluid project can feed a case.
+
+### Deferred, with reasons
+
+| Item | Reason |
+|---|---|
+| U2-008 history-match assist | M; the match already prints 95 percent intervals; a sensitivity tool is safer after NAPE |
+| U2-009 forecast to Economics inside the report | M; Petroleum Economics Studio has no typed production-stream intake (it reads CSV columns), so there is no contract to send to yet |
+| U2-011 sender to Simulation | Simulation's intake has no source record to fill; it belongs with Simulation's own round (app 8) |
+| U2-012 multi-tank, U2-013 prediction mode | L each; engine work with no published benchmark readable before the freeze |
+| U2-014 more aquifer models with SCAL intake | Waits for SCAL's round and its `kr-1` contract |
+| U2-017 condensate and volatile oil | L; engines first, needs Rv in the PVT contract |
+| U2-018 Monte Carlo through the canonical engine | M; no change of method before NAPE |
+| U2-015 retiring `final_sdi` | A shared-schema drop; the deprecated mirror costs nothing meanwhile |
+| U2-019 kit tickText | Moves the Well Test goldens; not worth it before the freeze |
+
+### How the work landed in git
+
+A session restart interrupted the build before any commit. The programme lead
+saved the working tree as one commit, `fc659f9db` ("wip"), which holds the
+first pass of items 1 to 5 (engine, mapping, app, tests). The commits after it
+finish each item one at a time; history is not rewritten.
