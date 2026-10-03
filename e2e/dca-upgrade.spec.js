@@ -58,9 +58,10 @@ async function leftRail(page) {
 }
 async function closeRails(page) {
   if (!narrow(page)) return;
-  // the header toggle closes the left rail; a collapsed rail's own close button is not clickable
-  const hide = page.getByRole('button', { name: 'Hide left panel' });
-  if (await hide.isVisible().catch(() => false)) await hide.click();
+  // on a phone the left rail floats over the header: its own close button
+  // (the first in the page; the collapsed right rail's comes after it)
+  const close = page.getByRole('button', { name: 'Close panel' }).first();
+  if (await close.isVisible().catch(() => false)) await close.click();
 }
 async function sampleFitted(page, name = 'Sample') {
   await openDca(page);
@@ -177,10 +178,10 @@ test.describe('PL2: the hostile file set at the door', () => {
     // the twin: 120 bbl/d at the start
     await expect(page.getByTestId('dca-plot-annotation')).toContainText(/qi: 120(\.0)? bbl\/d/);
 
-    await addWellWith(page, '03-day-first-unsettled.csv', 'Day first');
+    await addWellWith(page, '03-day-first-unsettled.csv', 'DMY');
     await expect(page.getByTestId('dca-import-question-dateOrder')).toBeVisible();
     await expect(page.getByTestId('dca-import-commit')).toBeDisabled();
-    await page.getByRole('button', { name: 'Day first' }).click();
+    await page.getByTestId('dca-import-question-dateOrder').getByRole('button', { name: 'Day first' }).click();
     await expect(page.getByTestId('dca-import-commit')).toBeEnabled();
     await page.getByTestId('dca-import-door').getByRole('button', { name: 'Cancel' }).click();
 
