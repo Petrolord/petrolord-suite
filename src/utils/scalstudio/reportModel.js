@@ -114,14 +114,15 @@ function inputsBlock(s, u) {
   const owStart = untouched(s.curves?.ow, STARTING_VALUES.ow);
   const owAuto = s.owStatus?.kind === 'fitted' || s.owStatus?.kind === 'edited-after-fit' ? s.owStatus.text : null;
   const OW = [['Swc', 'Connate water saturation Swc'], ['Sor', 'Residual oil saturation Sor'], ['krwMax', 'krw at Sor (end point)'], ['kroMax', 'kro at Swc (end point)'], ['nw', 'Water Corey exponent nw'], ['no', 'Oil Corey exponent no']];
+  const unitOf = (k) => (/^n/.test(k) ? '' : 'fraction'); // Corey exponents are dimensionless
   for (const [k, label] of OW) {
-    rows.push({ ...inputRow({ key: `ow.${k}`, label: `Oil-water: ${label}`, value: s.ow?.params ? g(s.ow.params[k]) : text(s.curves?.ow?.[k]), unit: 'fraction', meta: meta.ow, auto: owAuto }), engineKeys: [`ow.${k}`] });
+    rows.push({ ...inputRow({ key: `ow.${k}`, label: `Oil-water: ${label}`, value: s.ow?.params ? g(s.ow.params[k]) : text(s.curves?.ow?.[k]), unit: unitOf(k), meta: meta.ow, auto: owAuto }), engineKeys: [`ow.${k}`] });
   }
   if (!owAuto) for (const r of rows) r.source = groupSource(meta.ow, null, owStart);
   const goStart = untouched(s.curves?.go, STARTING_VALUES.go);
   const GO = [['Swc', 'Connate water saturation Swc'], ['Sgc', 'Critical gas saturation Sgc'], ['Sorg', 'Residual oil to gas Sorg'], ['krgMax', 'krg end point'], ['krogMax', 'krog at Swc (end point)'], ['ng', 'Gas Corey exponent ng'], ['nog', 'Oil Corey exponent nog']];
   for (const [k, label] of GO) {
-    const r = inputRow({ key: `go.${k}`, label: `Gas-oil: ${label}`, value: s.go?.params ? g(s.go.params[k]) : text(s.curves?.go?.[k]), unit: 'fraction', meta: meta.go });
+    const r = inputRow({ key: `go.${k}`, label: `Gas-oil: ${label}`, value: s.go?.params ? g(s.go.params[k]) : text(s.curves?.go?.[k]), unit: unitOf(k), meta: meta.go });
     r.source = groupSource(meta.go, null, goStart);
     rows.push({ ...r, engineKeys: [`go.${k}`] });
   }
@@ -362,7 +363,7 @@ export function buildScalReportModel(s, { projectName = '', organizationName = '
   const goTable = (s.contract?.gas_oil?.table || []).map((r) => [f(r.Sg, 4), f(r.krg, 5), f(r.krog, 5)]);
   const fwl = n(s.height?.fwl_tvdss);
   const hp = s.heightProfile || [];
-  const pcTable = thin(hp, 4).map((r) => [f(r.Sw, 4), g(u.show('pc', r.Pc_psi), 5), f(u.show('length', r.h_ft), 2), Number.isFinite(fwl) ? thousands(u.show('length', fwl - r.h_ft), 1) : EMPTY_VALUE]);
+  const pcTable = thin(hp, 4).map((r) => [f(r.Sw, 4), f(u.show('pc', r.Pc_psi), 4), f(u.show('length', r.h_ft), 2), Number.isFinite(fwl) ? thousands(u.show('length', fwl - r.h_ft), 1) : EMPTY_VALUE]);
   const samples = samplesTables(s, u);
   return {
     title: REPORT_TITLE,

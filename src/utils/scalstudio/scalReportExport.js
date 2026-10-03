@@ -70,6 +70,7 @@ export function buildScalPdf(a, { logo = null, generatedAt = new Date() } = {}) 
     ranges: { head: model.limits.ranges.head, body: model.limits.ranges.rows, columnStyles: { 0: { cellWidth: 48 }, 1: { cellWidth: 52 } } },
     flags: model.limits.flags,
     noFlagsText: model.limits.noFlagsText,
+    flagsTitle: 'Flags on the inputs, the samples and the fits',
   });
 
   if (model.notes) section('Notes', model.notes, { need: 16 });

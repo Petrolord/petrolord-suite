@@ -199,7 +199,8 @@ export function createReport({ title, appName = '', reportName, logo = null, str
    * @param {{assumptions?: string[], ranges?: {head: string[], body: Array<string[]>, note?: string,
    *   columnStyles?: object}, flags?: string[], noFlagsText?: string, title?: string}} a
    */
-  const limits = ({ assumptions = [], ranges = null, flags = [], noFlagsText = 'No input is outside a published range.', title: blockTitle = 'Limits of this analysis' } = {}) => {
+  // flagsTitle: added in the SCAL round (its flags are pedigree and fit warnings, not only ranges); default unchanged
+  const limits = ({ assumptions = [], ranges = null, flags = [], noFlagsText = 'No input is outside a published range.', title: blockTitle = 'Limits of this analysis', flagsTitle = 'Inputs outside a published range' } = {}) => {
     heading(blockTitle, 22);
     layout.y += 5;
     for (const line of assumptions) paragraph(`- ${line}`, { gap: 1.5 });
@@ -207,7 +208,7 @@ export function createReport({ title, appName = '', reportName, logo = null, str
     if (ranges?.body?.length) {
       table('Published ranges of the methods used', ranges.head, ranges.body, { columnStyles: ranges.columnStyles, note: ranges.note });
     }
-    heading('Inputs outside a published range', 14);
+    heading(flagsTitle, 14);
     layout.y += 5;
     if (flags.length) for (const line of flags) paragraph(`- ${line}`, { gap: 1.5 });
     else paragraph(noFlagsText, { gap: 1.5 });
