@@ -71,6 +71,12 @@ export function buildFluidPdf(a, { logo = null, generatedAt = new Date() } = {})
     table('Laboratory tables loaded', model.lab.tables.head, model.lab.tables.rows, { columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 14 }, 2: { cellWidth: 26 } } });
     table('Laboratory data against the model', model.lab.misfit.head, model.lab.misfit.rows, { note: model.lab.misfit.note });
     if (model.lab.notes.length) section('Notes on the laboratory comparison', model.lab.notes.map((n) => `- ${n}`).join('\n'), { need: 16 });
+    const qc = model.lab.qc;
+    section('Quality checks of the laboratory tables', [
+      `Checked: ${qc.checked.join('; ')}.`,
+      qc.flags.length ? `Flagged (${qc.flags.length}), not corrected:\n${qc.flags.map((f) => `- ${f}`).join('\n')}` : 'Nothing was flagged.',
+    ].join('\n'), { need: 16 });
+    if (qc.massBalance) table('Mass balance of the differential liberation', qc.massBalance.head, qc.massBalance.rows, { note: qc.massBalance.note });
   }
 
   report.limits({

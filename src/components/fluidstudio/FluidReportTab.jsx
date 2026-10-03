@@ -165,6 +165,13 @@ const FluidReportTab = ({ report, inputs, organizationName = '', onIdentificatio
         <Section title="Laboratory data against the model" testId="fluid-report-lab" note={model.lab.misfit.note}>
           <ModelTable head={model.lab.tables.head} rows={model.lab.tables.rows} dense />
           <ModelTable head={model.lab.misfit.head} rows={model.lab.misfit.rows} />
+          <div data-testid="fluid-report-lab-qc" className="text-xs space-y-1">
+            <p className="text-pl-text font-semibold">Quality checks</p>
+            {model.lab.qc.flags.length
+              ? <ul className="list-disc list-inside text-pl-warning-text">{model.lab.qc.flags.map((f) => <li key={f}>{f}</li>)}</ul>
+              : <p className="text-pl-text">Nothing was flagged.</p>}
+            {model.lab.qc.massBalance && <ModelTable head={model.lab.qc.massBalance.head} rows={model.lab.qc.massBalance.rows} dense />}
+          </div>
           {model.lab.notes.length > 0 && (
             <ul className="text-xs text-pl-muted list-disc list-inside space-y-1">
               {model.lab.notes.map((n) => <li key={n}>{n}</li>)}

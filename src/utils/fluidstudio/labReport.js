@@ -10,6 +10,7 @@
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { computePvtRow } from '@/utils/fluidStudioCalculations';
 import { labDataOf, labMisfit, labComparison, labSaturationPressure, LAB_KINDS } from './labData.js';
+import { labQc } from './labQc.js';
 
 /**
  * The black-oil engine evaluated at one pressure, for the misfit: the row
@@ -94,7 +95,18 @@ export function buildLabSection({ inputs, rows, pb, tempF, u, evaluate = null })
       ? 'Deviation is model minus laboratory, as a percent of the laboratory value, with the model computed at the laboratory pressure. Bias is the mean signed deviation.'
       : 'Deviation is model minus laboratory, as a percent of the laboratory value, with the model read at the laboratory pressure by linear interpolation in the table, each side of the saturation pressure on its own rows. Bias is the mean signed deviation.',
   };
-  return { tables, misfit, sentences: stats.map((m) => misfitSentence(m, u)), notes, stats, comparison, saturation, labData };
+  // FLUID-U2-018: the quality checks of the tables, flagged and never corrected
+  const qc = labQc(labData);
+  const qcSection = {
+    checked: qc.checked,
+    flags: qc.flags.map((f) => f.text),
+    massBalance: qc.massBalance.length ? {
+      head: [u.head('Stage pressure', 'pressure'), 'Oil mass from density and Bod (lb per residual bbl)', 'From the stage below plus the gas liberated', 'Difference'],
+      rows: qc.massBalance.map((m) => [th(u.show('pressure', m.pressure)), m.measured.toFixed(1), m.fromBelow.toFixed(1), pct(100 * m.deviation, 2)]),
+      note: 'Mass of oil at each stage = density x Bod; it must equal the mass at the next lower stage plus 0.0764 lb/scf x the incremental gas gravity x the drop in Rsd. A difference above 1 percent is flagged. Nothing is corrected.',
+    } : null,
+  };
+  return { tables, misfit, sentences: stats.map((m) => misfitSentence(m, u)), notes, stats, comparison, saturation, labData, qc: qcSection };
 }
 
 /** The lab data as the pvt-1 block carries it: what was loaded and how well the table matches it. */
@@ -110,6 +122,7 @@ export function labContractBlock({ inputs, rows, pb, evaluate = null }) {
       source: labData[k].source?.name || null, imported_at: labData[k].source?.importedAt || null,
     })),
     oil_basis: comparison.basis.oil,
+    qc: (() => { const q = labQc(labData); return { flags: q.flags.map((f) => ({ table: f.kind, check: f.check, pressure_psia: f.pressure, text: f.text })), mass_balance_max_percent: q.massBalance.length ? Number(Math.max(...q.massBalance.map((m) => Math.abs(100 * m.deviation))).toFixed(3)) : null }; })(),
     separator_test: labData.dlBasis === 'differential' && labData.separatorTest.bofb ? { Bofb: labData.separatorTest.bofb, Rsfb: labData.separatorTest.rsfb } : null,
     saturation_pressure_psia: saturation ? saturation.pressure : null,
     misfit: labMisfit({ labData, rows, pb, evaluate }).map((m) => ({

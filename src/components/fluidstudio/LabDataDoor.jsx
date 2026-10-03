@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FlaskConical, Trash2, Upload } from 'lucide-react';
 import UnitField from '@/components/fluidstudio/UnitField';
+import { labQc } from '@/utils/fluidstudio/labQc';
 import { useFluidUnits } from '@/components/fluidstudio/FluidUnitsContext';
 import { readTabularFile } from '@/lib/tabularFile';
 import {
@@ -187,6 +188,16 @@ const LabDataDoor = ({ inputs, setInputs, modelTempF = null }) => {
               <p className="text-pl-muted">{lab[k].source?.summary}</p>
             </div>
           ))}
+          {(() => {
+            const qc = labQc(lab);
+            return (
+              <div className="text-xs" data-testid="lab-qc" data-flags={qc.flags.length}>
+                {qc.flags.length
+                  ? <ul className="list-disc list-inside text-pl-warning-text">{qc.flags.map((f) => <li key={f.text}>{f.text}</li>)}</ul>
+                  : <p className="text-pl-text">Quality checks: nothing flagged{qc.massBalance.length ? ` (the differential liberation closes its mass balance within ${Math.max(...qc.massBalance.map((m) => Math.abs(100 * m.deviation))).toFixed(2)} percent)` : ''}.</p>}
+              </div>
+            );
+          })()}
           {sat && (
             <p className="text-xs text-pl-text" data-testid="lab-psat">
               Laboratory saturation pressure: {Math.round(u.show('pressure', sat.pressure)).toLocaleString('en-US')} {u.label('pressure')} ({sat.from === 'cce' ? 'the expansion row with relative volume 1' : 'the highest pressure of the differential liberation'}).
