@@ -891,6 +891,43 @@ export function engineCoverageOf(result) {
 /** Engine warnings that are not range flags (those go in the limits block). */
 export const otherWarnings = (result) => (result?.warnings ?? []).filter((w) => !isRangeFlag(w));
 
+// ---- one-page summary (Batch B) -----------------------------------------------
+
+/**
+ * The summary at the front of the report, for the reader who reads one page:
+ * the answer and how sure, how the other methods compare, the drive, the
+ * data, and what limits it. Every value is one the later pages print in full.
+ * @param {object} m the model collectMbalReportArgs builds (without summary)
+ * @returns {{rows: Array<[string, string]>, note: string}}
+ */
+export function summaryBlock(m) {
+  const { series, result } = m;
+  const { isGas } = series;
+  const rows = [];
+  const headline = m.crossCheck.find((c) => c.difference === 'headline') ?? m.crossCheck[0];
+  const tier = m.headline.tier;
+  rows.push([isGas ? 'Gas initially in place' : 'Oil initially in place',
+    `${headline?.text ?? EMPTY_VALUE} (${headline ? headline.method : EMPTY_VALUE})`]);
+  rows.push(['How it is backed', tier.tier ? `${TIER_LABELS[tier.tier] ?? tier.tier} engine path${finite(tier.tolerancePct) ? `, ${tier.tolerancePct} percent against its benchmark` : ''}; r2 ${r2Text(result?.r_squared)} on ${finite(result?.n_data_points) ? result.n_data_points : EMPTY_VALUE} points` : EMPTY_VALUE]);
+  const others = m.crossCheck.filter((c) => c !== headline && finite(c.value));
+  rows.push(['Other methods', others.length ? others.map((c) => `${c.method}: ${c.text} (${c.difference})`).join('; ') : 'None on this case']);
+  const parts = m.drive.parts.filter((p) => finite(p.value)).sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+  rows.push(['Drive at the last timestep', `${DRIVE_WORDS(result?.drive_mechanism)}${parts.length ? `; largest index ${parts[0].label} ${fmt(parts[0].value, 3)}` : ''}; aquifer ${DRIVE_WORDS(result?.aquifer_strength)}`]);
+  const d = m.data;
+  const counts = d.counts;
+  const dated = series.rows.filter((r) => r.date);
+  rows.push(['Data', `${series.rows.length} timesteps${dated.length >= 2 ? `, ${String(dated[0].date).slice(0, 10)} to ${String(dated[dated.length - 1].date).slice(0, 10)}` : ''}; ${counts.fit} in the fit${counts.excluded ? `, ${counts.excluded} excluded by the analyst (listed with the reasons)` : ''}`]);
+  const inj = injectionState(series);
+  rows.push(['Injection', inj.onRows ? (inj.legacy ? 'On the data table and left out by this earlier run' : 'In the balance (net withdrawal)') : 'None on the data table']);
+  const flagCount = m.limits.flags.length;
+  rows.push(['Flags', `${flagCount} input${flagCount === 1 ? '' : 's'} outside a published range or the PVT table; ${m.warnings.length} other engine warning${m.warnings.length === 1 ? '' : 's'}`]);
+  if (flagCount) rows.push(['First flag', m.limits.flags[0].length > 300 ? `${m.limits.flags[0].slice(0, 297)}...` : m.limits.flags[0]]);
+  return {
+    rows,
+    note: 'This page summarises the pages after it: every value here is printed there in full, with its inputs, sources, method and limits.',
+  };
+}
+
 // ---- the whole model --------------------------------------------------------
 
 /**
@@ -904,7 +941,7 @@ export function collectMbalReportArgs(ctx) {
   const units = ctx.units ?? OILFIELD_UNITS;
   const series = buildMbalSeries({ result: ctx.result, runConfig: ctx.runConfig, caseData: ctx.caseData });
   const a = { ...ctx, units, series };
-  return {
+  const model = {
     ...a,
     identification: identificationPairs(a),
     inputs: mbalInputRows(a),
@@ -924,4 +961,5 @@ export function collectMbalReportArgs(ctx) {
     limits: limitsBlock(a),
     warnings: otherWarnings(ctx.result),
   };
+  return { ...model, summary: summaryBlock(model) };
 }

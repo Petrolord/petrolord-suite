@@ -60,6 +60,10 @@ export function buildMbalPdf(args, { logo = null, generatedAt = new Date() } = {
   // ---- who, what, when (RL4) ----
   report.header({ identification: model.identification, displayUnits: u.displayUnits(), generatedAt });
 
+  // ---- one page for the reader who reads one page (Batch B) ----
+  table('Summary', ['Item', 'Value'], model.summary.rows, { columnStyles: { 0: { cellWidth: 46 } }, note: model.summary.note });
+  report.layout.newPage();
+
   // ---- headline (RL8) ----
   table('Headline results', ['Quantity', 'Value'], model.headline.rows, {
     columnStyles: { 0: { cellWidth: 92 } },
