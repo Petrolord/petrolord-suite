@@ -464,8 +464,8 @@ sessionStorage, `?saved=1` for projects as earlier releases saved them).
 
 ## 2026-10-03: Reservoir upgrade round, Step 2 (FLUID-U2)
 
-Branch `feat/fluid-u2`; engines PR #299 (unmerged, vendored byte-identical
-with six ledger rows). Item by item, with the proving tests, in
+Branch `feat/fluid-u2`; engines PR #299 merged, vendored engines pinned at
+engines main 5ae5a80. Item by item, with the proving tests, in
 `docs/upgrade/FluidSystemsStudio-UPGRADE.md` ("Step 2 as built").
 
 - Lab PVT tables: CCE, differential liberation and viscosity through the
@@ -500,3 +500,5 @@ Tests: jest `fluidLabData`, `fluidLabReport`, `fluidLabMatch`, `fluidLabQc`,
 `fluidTableRange`, `fluidTuneUncertainty`, `fluidCompositionDoor`,
 `fluidRegistryIdentification`, `pvtIntakeCard`; engines
 `fluid.blackOilU2`, `fluid.labTuneUncertainty`; e2e `e2e/fluid-systems-u2.spec.js`.
+
+**Deploy note (2026-10-03).** `packages/engines/engines/fluid/blackOil.ts` is also bundled into the `calculate-mbal` edge function, so the z-factor change (Dranchuk-Abou-Kassem in place of Papay) reaches Material Balance runs at the next `supabase functions deploy calculate-mbal`. Until then the deployed function keeps the old Z. The vendored engines are pinned at engines main 5ae5a80 (PR #299 and the Material Balance PR #300), with 0 recorded deviations.

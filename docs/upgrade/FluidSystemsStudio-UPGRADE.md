@@ -409,6 +409,9 @@ One row per item is added below as it is built.
 | B3, U2-025 identification from the wells registry | "Propose from the wells registry" at the head of the Identification section of the Report tab (`FluidRegistryProposal.jsx` on `registryIdentification.js`, the Well Test pattern): choose a registry well and, if it has zones, the zone sampled; the well with its identifier, the reservoir or zone and the depth of the zone with its reference are shown beside what is typed, each ticked or not, and nothing changes until "Apply the ticked values". The registry well id is remembered with the project (not printed). | `fluidRegistryIdentification.test.jsx` (4): the proposal, apply only what is ticked, a value already set, the empty registry. |
 | B4 one-page summary, B5 sweep figure | Not built: time went to the table-range item the lead added and to the restarts. Both stay on the backlog (U2-023, U2-021). | |
 
+
+**Deploy note (2026-10-03).** `packages/engines/engines/fluid/blackOil.ts` is also bundled into the `calculate-mbal` edge function, so the z-factor change (Dranchuk-Abou-Kassem in place of Papay) reaches Material Balance runs at the next `supabase functions deploy calculate-mbal`. Until then the deployed function keeps the old Z. The vendored engines are pinned at engines main 5ae5a80 (PR #299 and the Material Balance PR #300), with 0 recorded deviations.
+
 ### Not done, and why
 
 - **Engines.** No change to `packages/engines` and no engines PR: the black-oil table of this app lives in the Suite (`src/utils/fluidStudioCalculations.js`, `pvtCalculations.js`), and the water properties call the vendored library as it is.
