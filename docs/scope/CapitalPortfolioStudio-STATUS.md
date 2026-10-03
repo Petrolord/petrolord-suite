@@ -28,3 +28,47 @@ behaviour change.
   cards; chart colours are unchanged.
 - Test: `src/pages/apps/__tests__/CapitalPortfolioStudio.theme.test.jsx`
   (workbench and results in light and dark, the dialogs, comparison, help).
+
+## 2026-10-03: intake of a Risked Reserves valuation (RRV U2-009)
+
+A saved Risked Reserves valuation becomes a candidate project, sent by link
+(`?rrvValuation=<id>` opens Add Project filled) or picked in the form ("Take
+a Risked Reserves valuation", own and shared). Mapping in
+`src/components/capitalportfoliostudio/rrvIntake.js`, owner decisions
+2026-10-03:
+
+- `npv_p50` holds the SUCCESS-CASE MEAN value after the well, labelled as a
+  mean everywhere: the form ("Success-case mean value ($MM)", "neither a median
+  nor a P50"), the inventory cell ("success-case mean"), a footnote under
+  the inventory, the funded table tag and a note under the Success-case NPV
+  card.
+- `capex` and `fail_cost` are the well cost; the development cost is shown
+  as information only. `pos` is Pg (one decimal kept).
+- `risk_score` is blank, shown as "not provided by Risked Reserves
+  Valuation" with Pg and Pc beside it.
+- `npv_p90` and `npv_p10` (NOT NULL live) hold the value after the well of
+  the success-case P90 and P10 sizes on the valuation's value line,
+  labelled "Value of the success-case P90 / P10 size"; they are values of
+  two sizes, which differ from percentiles of value. The risk summary reads
+  the spread from them as for any project.
+- Provenance (valuation, values, economics source with any Petroleum
+  Economics Studio run, volumes source, dates, builds, fingerprint) shows in
+  the form, read again by id. `source_label` is a short human label
+  ("Risked Reserves: <prospect>, saved <date> UTC (version <fingerprint>)");
+  no JSON is stored or shown (test).
+- Each Risked Reserves project's valuation is read again by id on load:
+  "Source changed since (version a to b): ..." listing where the project
+  and the valuation now differ, with Refresh (takes every value from the
+  valuation), "gone or no longer shared", or "can no longer be valued". While
+  the valuation is still the version received, a slot typed over is marked
+  in the row and in the form with the received value.
+- The optimizer is unchanged: it never read `risk_score`. Existing projects
+  compute exactly as before (saved fixture against main fb9da7ccd,
+  `__tests__/rrvIntake.test.js`; on the page, `rrvIntakePage.test.jsx`).
+  A typed project still asks for its risk score.
+- Harness: `/dev/capital-portfolio-studio` holds the two valuations the
+  Risked Reserves harness saves. e2e `e2e/rrv-capital-portfolio.spec.js`.
+- Live schema (2026-10-03): `risk_score` and `source_label` nullable;
+  `capex`, `npv_p50`, `npv_p90`, `npv_p10` NOT NULL, all four filled by the
+  intake (test).
+

@@ -15,7 +15,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import {
-  PieChart, HelpCircle, Plus, Download, Trash2, RefreshCw, Save, Users, Copy, Undo2, RotateCcw,
+  PieChart, HelpCircle, Plus, Download, Trash2, RefreshCw, Save, Users, Copy, Undo2, RotateCcw, Send,
 } from 'lucide-react';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -83,10 +83,30 @@ function ValuationSharing({ store, row, onChange }) {
 /** Where ReservoirCalc Pro opens (the /dev harness passes its own). */
 export const RCP_PATH = '/dashboard/apps/geoscience/reservoircalc-pro';
 
+/** Where Capital Portfolio Studio opens (U2-009; the /dev harness passes its own). */
+export const CP_PATH = '/dashboard/apps/economics/capital-portfolio-studio';
+
+/**
+ * Can this valuation be sent to Capital Portfolio Studio, which reads the
+ * SAVED row by its id? `why` says what is missing when it cannot.
+ */
+export function portfolioSendState(sel, tableOn) {
+  if (!sel) return { ok: false, why: 'Select a valuation.' };
+  if (!sel.p.row?.id || !tableOn) return { ok: false, why: 'Save the valuation to your account first: Capital Portfolio Studio reads the saved valuation by its id.' };
+  if (!sel.shared && sel.p.dirty) return { ok: false, why: 'Save your edits first: Capital Portfolio Studio reads the valuation as it is saved.' };
+  if (!sel.v) return { ok: false, why: `It cannot be valued yet: ${sel.problem}` };
+  return {
+    ok: true,
+    why: sel.shared
+      ? 'Send this colleague\'s valuation to Capital Portfolio Studio as a candidate project. It goes as read-only provenance: the valuation stays theirs.'
+      : 'Send this saved valuation to Capital Portfolio Studio as a candidate project: the success-case mean value, Pg, the well cost as the budget line, and where each came from.',
+  };
+}
+
 /** Does this valuation's prospect want re-running: it changed upstream, was re-risked, or its volumes are flagged? */
 const wantsRerun = (p, up) => p.source === 'rcp' && !!up && (['changed', 'replaced', 'unrecorded'].includes(up.state) || (up.state === 'current' && p.basis !== 'recoverable'));
 
-function RrvWorkstationContent({ backend, rcpHref = RCP_PATH }) {
+function RrvWorkstationContent({ backend, rcpHref = RCP_PATH, cpHref = CP_PATH }) {
   const location = useLocation();
   const au = useAppUnits('rrv', RRV_UNIT_SPEC, { fallback: RRV_UNIT_FALLBACK });
   const units = useMemo(() => rrvUnits(au.units.volume), [au.units.volume]);
@@ -543,6 +563,12 @@ function RrvWorkstationContent({ backend, rcpHref = RCP_PATH }) {
               ))}
             </div>
             <span className="text-xs text-pl-muted">{selected.p.name}{readOnly ? ' (shared with you, read-only)' : ''}</span>
+            {(() => {
+              const send = portfolioSendState(selected, storage.table);
+              return send.ok
+                ? <a href={`${cpHref}?rrvValuation=${encodeURIComponent(selected.p.row.id)}`} className={btn} title={send.why} data-testid="rrv-send-portfolio"><Send className="w-3.5 h-3.5" /> Send to Capital Portfolio</a>
+                : <button type="button" className={btn} disabled title={send.why} data-testid="rrv-send-portfolio"><Send className="w-3.5 h-3.5" /> Send to Capital Portfolio</button>;
+            })()}
             {!readOnly && selected.p.row && storage.table && backend.sharing && (
               <button type="button" className={btn} aria-expanded={shareOpen} data-testid="rrv-share" onClick={() => setShareOpen((o) => !o)}
                 title="Share this saved valuation with your organisation, for viewing">
