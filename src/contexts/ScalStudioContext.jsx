@@ -25,6 +25,7 @@ import {
   deriveCurves, deriveSamples, deriveReservoirPc, deriveHeightProfile, inputsFromPayload,
 } from '@/utils/scalstudio/workspace';
 import { buildScalKrContract } from '@/utils/scalstudio/krHandoff';
+import { fwlPatch } from '@/utils/scalstudio/fwlDatum';
 import { SCAL_UNIT_SYSTEMS, scalUnits } from '@/utils/scalstudio/units';
 import { useScalProjects } from '@/components/scalstudio/useScalProjects';
 
@@ -101,6 +102,8 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
   const setManualJField = useCallback((k, v) => setCapillary((prev) => ({ ...prev, manual: { ...prev.manual, [k]: v } })), []);
   const setReservoirField = useCallback((k, v) => setCapillary((prev) => ({ ...prev, reservoir: { ...prev.reservoir, [k]: v } })), []);
   const setHeightField = useCallback((k, v) => setHeight((prev) => ({ ...prev, [k]: v })), []);
+  // the FWL entry, its TVD and its registry well: the stored TVDSS follows (SCAL-U1-014)
+  const setFwlEntry = useCallback((change) => setHeight((prev) => fwlPatch(prev, change)), []);
   const setIdentificationField = useCallback((k, v) => setIdentification((prev) => ({ ...prev, [k]: v })), []);
   const setSourceField = useCallback((key, field, value) => setInputMeta((prev) => setProvenanceField(prev, key, field, value)), []);
 
@@ -203,7 +206,7 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
     samples, setSamples, addSample, updateSample, removeSample,
     applyKrFitToCurves,
     capillary, setCapillaryField, setManualJField, setReservoirField,
-    height, setHeightField,
+    height, setHeightField, setFwlEntry,
     notes, setNotes,
     identification, setIdentificationField,
     inputMeta, setSourceField,

@@ -171,6 +171,7 @@ const ScalReportTab = () => {
         <Section title="Core samples and their pedigree" testId="scal-report-samples">
           <ModelTable head={model.samples.props.head} rows={model.samples.props.rows} dense />
           <ModelTable head={model.samples.pedigree.head} rows={model.samples.pedigree.rows} dense testId="scal-report-pedigree" />
+          <ModelTable head={model.samples.imports.head} rows={model.samples.imports.rows} dense testId="scal-report-imports" />
           {model.samples.fits && <ModelTable head={model.samples.fits.head} rows={model.samples.fits.rows} dense testId="scal-report-fits" />}
           {model.samples.fits && <p className="text-xs text-pl-muted">{model.samples.fits.note}</p>}
         </Section>

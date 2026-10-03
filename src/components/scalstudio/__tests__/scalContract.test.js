@@ -128,15 +128,20 @@ describe('Waterflood takes it and keeps it', () => {
   });
 });
 
-describe('the saturation-height readers are unchanged by the upgrade', () => {
-  it('shmFromScalProject gives the same J and rock for a schema 1 project and its schema 2 save', () => {
-    const old = shmFromScalProject(SCHEMA_1_SAMPLES);
+describe('SCAL-U1-015: the saturation-height readers take a samples-mode project', () => {
+  it('shmFromScalProject gives the J SCAL Studio shows for a project averaged from samples', () => {
+    const shm = shmFromScalProject(SCHEMA_1_SAMPLES);
+    expect(shm.ok).toBe(true); // was refused: the saved samples carry no jRows (they are derived)
+    const s = stateOf(inputsFromPayload(SCHEMA_1_SAMPLES));
+    expect(shm.jSpec).toEqual(s.jResolved.jSpec);
+    expect(shm.reservoir).toEqual(s.reservoir.props);
+  });
+
+  it('a schema 2 save of the same project reads the same (the kr-1 block and the new keys change nothing)', () => {
     const s = stateOf(inputsFromPayload(SCHEMA_1_SAMPLES));
     const resaved = { ...SCHEMA_1_SAMPLES, schema: 2, kr: s.contract, identification: {}, inputMeta: {}, unitSystem: 'si' };
-    const now = shmFromScalProject(resaved);
-    expect(now.jSpec).toEqual(old.jSpec);
-    expect(now.reservoir).toEqual(old.reservoir);
-    expect(now.fwlTvdssM).toEqual(old.fwlTvdssM);
+    expect(shmFromScalProject(resaved)).toEqual(shmFromScalProject(SCHEMA_1_SAMPLES));
+    expect(shmFromScalProject(SCHEMA_1_MANUAL).ok).toBe(true);
   });
 });
 

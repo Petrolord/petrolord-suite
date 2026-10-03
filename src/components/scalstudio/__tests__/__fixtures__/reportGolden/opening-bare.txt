@@ -170,8 +170,8 @@ Basis and conventions
 
  Interfacial tension                       dyn/cm (dyn/cm and mN/m are numerically equal)
 
- Depths                                    ft TVDSS: true vertical depth below the vertical datum (MSL unless the well says otherwise), positive
-                                           down
+ Depths                                    ft TVDSS: true vertical depth below the vertical datum, positive down. TVDSS as entered: depth below
+                                           the vertical datum of the field (taken as mean sea level unless stated), positive down
 
  Heights                                   ft above the free water level, where Pc is zero
 

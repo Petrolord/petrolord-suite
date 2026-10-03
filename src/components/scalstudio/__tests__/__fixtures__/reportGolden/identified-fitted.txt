@@ -130,9 +130,9 @@ Special Core Analysis Report, Well Ekene-7, Field Ekene                         
 
 
 Special Core Analysis Report, Well Ekene-7, Field Ekene                                                                Page 2 of 11
- Input                                             Value                    Unit              Source and quality
+ Input                                             Value                   Unit               Source and quality
 
- Oil viscosity (fw preview and Waterflood          5.0                      cP                Measured (lab). PVT report at 3,000 psia
+ Oil viscosity (fw preview and Waterflood          5.0                     cP                 Measured (lab). PVT report at 3,000 psia
  handoff)
 
 Every input the curves, the J scaling and the height conversion read, with its unit and where it came from. Saturations are fractions of pore volume.
@@ -141,129 +141,142 @@ handoff.
 
 
 Leverett scaling and height conversion, by component
- Component                                  How                                                           Value                      Unit
+ Component                                  How                                                           Value                     Unit
 
- sigma cos theta (reservoir)                26 x cos(30 deg)                                              22.517                     dyn/cm
+ sigma cos theta (reservoir)                26 x cos(30 deg)                                              22.517                    dyn/cm
 
- sqrt(k / phi)                              sqrt(150 / 0.22)                                              26.112                     sqrt(md)
+ sqrt(k / phi)                              sqrt(150 / 0.22)                                              26.112                    sqrt(md)
 
- Pc per unit J                              sigma cos theta / (0.21645 sqrt(k / phi)), in psi then        3.9839                     psi
+ Pc per unit J                              sigma cos theta / (0.21645 sqrt(k / phi)), in psi then        3.9839                    psi
                                             converted
 
  J at Sw = 0.5 (working curve)              0.2802 x ((0.5 - 0.12) / (1 - 0.12))^(-1.467)                 0.96079
 
- Pc at Sw = 0.5                             J x Pc per unit J                                             3.8277                     psi
+ Pc at Sw = 0.5                             J x Pc per unit J                                             3.8277                    psi
 
- Pressure gradient difference               0.4335 psi/ft x (1.05 - 0.8)                                  0.10837                    psi/ft
+ Pressure gradient difference               0.4335 psi/ft x (1.05 - 0.8)                                  0.10837                   psi/ft
 
- Height above FWL at Sw = 0.5               Pc / gradient difference                                      35.319                     ft
+ Height above FWL at Sw = 0.5               Pc / gradient difference                                      35.319                    ft
 
 Closure: Pc at Sw 0.5 = J x Pc per unit J, and height = Pc / gradient difference, to the printed digits. Leverett constant 0.21645 (Pc psi, sigma
 dyn/cm, k md).
 
 
 Core samples
- Sample                  Depth         k          Porosity      Lab IFT            Angle      sigma cos theta            Lab fluids           kr         Pc
-                                       (md)                     (dyn/cm)           (deg)      (dyn/cm)                                        points     points
+ Sample                  Depth         k          Porosity      Lab IFT           Angle       sigma cos theta            Lab fluids          kr         Pc
+                                       (md)                     (dyn/cm)          (deg)       (dyn/cm)                                       points     points
 
- Demo core A             8,450.0 ft    420        0.27          72                 0          72                         Air and brine        13         8
+ Demo core A             8,450.0 ft    420        0.27          72                0           72                         Air and brine       13         8
  (synthetic)             MD
 
- Demo core B             8,492.0 ft    35         0.16          480                40         367.7                      Air and              13         8
+ Demo core B             8,492.0 ft    35         0.16          480               40          367.7                      Air and             13         8
  (synthetic)             MD                                                                                              mercury
 
 Lab IFT and contact angle are those of the lab fluid system; sigma cos theta scales each sample's Pc to J.
 
 Sample pedigree
- Sample          Lab or analog                      kr test             Pc test             Wettability     Core         Test                 Laboratory,
-                                                                                                            condition    temperature          report
+ Sample          Lab or analog                      kr test            Pc test              Wettability     Core         Test                Laboratory,
+                                                                                                            condition    temperature         report
 
- Demo            Analog: synthetic demo core        Unsteady            Porous plate;       Water-wet       Not stated   150 degF             Core Lab Lagos,
- core A          generated by the app, not field    state (JBN);        Drainage                                                              SCAL-2026-0117
+ Demo            Analog: synthetic demo core        Unsteady           Porous plate;        Water-wet       Not stated   150 degF            Core Lab Lagos,
+ core A          generated by the app, not field    state (JBN);       Drainage                                                              SCAL-2026-0117
  (synthetic)     data                               Imbibition
 
- Demo            Analog: synthetic demo core        Unsteady            Mercury             Water-wet       Not stated   150 degF             Core Lab Lagos,
- core B          generated by the app, not field    state (JBN);        injection                                                             SCAL-2026-0117
- (synthetic)     data                               Imbibition          (MICP);
-                                                                        Drainage
+ Demo            Analog: synthetic demo core        Unsteady           Mercury              Water-wet       Not stated   150 degF            Core Lab Lagos,
+ core B          generated by the app, not field    state (JBN);       injection                                                             SCAL-2026-0117
+ (synthetic)     data                               Imbibition         (MICP);
+                                                                       Drainage
 
 What the laboratory measured and how, as entered. Not stated prints as such.
 
-Corey fits to the lab kr tables
- Sample                 kr points      Swc /          krw(Sor) /           nw (95% CI)      no (95% CI)       RMS           r2             Regression
-                        used           Sor            kro(Swc)                                                log10 kr      log10
-                                                                                                                            kr
+Lab tables imported
+ Sample                          kr table                                                          Pc table
 
- Demo core A            24 of 26       0.180 /        0.3104 / 0.9236      2.38 (2.36 to    2.14 (2.11 to     0.0184        0.9994         Converged in 3
- (synthetic)                           0.220                               2.40)            2.16)                                          iterations
+ Demo core A (synthetic)         13 rows, entered or saved before the import record                8 rows, entered or saved before the import record
 
- Demo core B            24 of 26       0.220 /        0.2288 / 0.8056      2.87 (2.85 to    1.90 (1.88 to     0.0179        0.9996         Converged in 3
- (synthetic)                           0.260                               2.89)            1.92)                                          iterations
+ Demo core B (synthetic)         13 rows, entered or saved before the import record                8 rows, entered or saved before the import record
+
+Rows left out at the door are listed on the Lab Data tab with the reason for each.
+
+
+
+
+Special Core Analysis Report, Well Ekene-7, Field Ekene                                                                                               Page 3 of 11
+Corey fits to the lab kr tables
+ Sample                  kr points   Swc /        krw(Sor) /           nw (95% CI)     no (95% CI)        RMS         r2         Regression
+                         used        Sor          kro(Swc)                                                log10 kr    log10
+                                                                                                                      kr
+
+ Demo core A             24 of 26    0.180 /      0.3104 / 0.9236      2.38 (2.36 to   2.14 (2.11 to      0.0184      0.9994     Converged in 3
+ (synthetic)                         0.220                             2.40)           2.16)                                     iterations
+
+ Demo core B             24 of 26    0.220 /      0.2288 / 0.8056      2.87 (2.85 to   1.90 (1.88 to      0.0179      0.9996     Converged in 3
+ (synthetic)                         0.260                             2.89)           1.92)                                     iterations
 
 Levenberg-Marquardt on log10 kr of both curves at once. Swc and Sor are the first and last Sw of the lab table and the end point kr its end rows;
 only the exponents are fitted. Points with kr at or below 1e-4 are left out (log of a definitional zero). Points used counts both curves.
 
 
-
-
-Special Core Analysis Report, Well Ekene-7, Field Ekene                                                                                                Page 3 of 11
-Leverett J from the samples
+Leverett J from the samples
 Geometric mean of the lab J of 2 samples on a 41-point normalised grid, refitted as J = a Sw*^(-b): a 0.2802, b 1.467 (95% CI 1.461 to 1.473), r2
 0.9998 in log space. One Swirr, 0.12 (entered), normalises every sample and maps the fit back to true Sw.
 
 
 Capillary pressure data by sample
- Sample                                         Used                Pc points             J points           Sw range                      Note
+ Sample                                        Used                Pc points             J points             Sw range                    Note
 
- Demo core A (synthetic)                        Included            8                     8                  0.180 to 0.950                n/a
+ Demo core A (synthetic)                       Included            8                     8                    0.180 to 0.950              n/a
 
- Demo core B (synthetic)                        Included            8                     8                  0.180 to 0.950                n/a
+ Demo core B (synthetic)                       Included            8                     8                    0.180 to 0.950              n/a
 
 
 Model
- Item                                      As used in this report
+ Item                                     As used in this report
 
- Oil-water curves                          Corey. Swn = (Sw - Swc) / (1 - Swc - Sor), held in 0 to 1; krw = krw(Sor) Swn^nw; kro = kro(Swc) (1 -
-                                           Swn)^no
+ Oil-water curves                         Corey. Swn = (Sw - Swc) / (1 - Swc - Sor), held in 0 to 1; krw = krw(Sor) Swn^nw; kro = kro(Swc) (1 -
+                                          Swn)^no
 
- Source of the oil-water set               Fitted to the lab table of sample "Demo core A (synthetic)", r2 0.999 in log space
+ Source of the oil-water set              Fitted to the lab table of sample "Demo core A (synthetic)", r2 0.999 in log space
 
- Gas-oil curves                            Corey. Sgn = (Sg - Sgc) / (1 - Swc - Sorg - Sgc), held in 0 to 1; krg = krg(end) Sgn^ng; krog = krog(Swc)
-                                           (1 - Sgn)^nog; at connate water
+ Gas-oil curves                           Corey. Sgn = (Sg - Sgc) / (1 - Swc - Sorg - Sgc), held in 0 to 1; krg = krg(end) Sgn^ng; krog = krog(Swc)
+                                          (1 - Sgn)^nog; at connate water
 
- Source of the gas-oil set                 Entered by the user (gas-oil sets are not fitted in this app)
+ Source of the gas-oil set                Entered by the user (gas-oil sets are not fitted in this app)
 
- Leverett J                                J = 0.21645 Pc / (sigma cos theta) sqrt(k / phi), Pc in psi, sigma in dyn/cm, k in md; J = a Sw*^(-b), Sw*
-                                           = (Sw - Swirr) / (1 - Swirr)
+ Leverett J                               J = 0.21645 Pc / (sigma cos theta) sqrt(k / phi), Pc in psi, sigma in dyn/cm, k in md; J = a Sw*^(-b), Sw*
+                                          = (Sw - Swirr) / (1 - Swirr)
 
- Capillary pressure at reservoir           Pc = J sigma cos(theta) / (0.21645 sqrt(k / phi)) with the reservoir k, porosity, IFT and contact angle
+ Capillary pressure at reservoir          Pc = J sigma cos(theta) / (0.21645 sqrt(k / phi)) with the reservoir k, porosity, IFT and contact angle
  conditions
 
- Saturation height                         h = Pc / (0.4335 (gamma_w - gamma_hc)), h in ft above the free water level, Pc in psi
+ Saturation height                        h = Pc / (0.4335 (gamma_w - gamma_hc)), h in ft above the free water level, Pc in psi
 
 
 Basis and conventions
- Item                                      As used in this report
+ Item                                     As used in this report
 
- Saturations                               Fractions of pore volume
+ Saturations                              Fractions of pore volume
 
- Relative permeability                     Fractions; the base permeability is the one the laboratory used, not converted here
+ Relative permeability                    Fractions; the base permeability is the one the laboratory used, not converted here
 
- Capillary pressure                        psi; a pressure difference, neither gauge nor absolute
+ Capillary pressure                       psi; a pressure difference, neither gauge nor absolute
 
- Interfacial tension                       dyn/cm (dyn/cm and mN/m are numerically equal)
+ Interfacial tension                      dyn/cm (dyn/cm and mN/m are numerically equal)
 
- Depths                                    ft TVDSS: true vertical depth below the vertical datum (MSL unless the well says otherwise), positive
-                                           down
+ Depths                                   ft TVDSS: true vertical depth below the vertical datum, positive down. TVDSS as entered: depth below
+                                          the vertical datum of the field (taken as mean sea level unless stated), positive down
 
- Heights                                   ft above the free water level, where Pc is zero
+ Heights                                  ft above the free water level, where Pc is zero
 
- Sample depths                             As entered, with the reference stated per sample (MD, TVD or TVDSS)
+ Sample depths                            As entered, with the reference stated per sample (MD, TVD or TVDSS)
 
- Units of this report                      Oilfield (Pc psi, IFT dyn/cm, depth and height ft, temperature degF, permeability md)
+ Units of this report                     Oilfield (Pc psi, IFT dyn/cm, depth and height ft, temperature degF, permeability md)
 
 
-Limits of this analysis
+
+
+Special Core Analysis Report, Well Ekene-7, Field Ekene                                                                                   Page 4 of 11
+Limits of this analysis
 - Corey power-law curves only: one exponent per phase over the whole mobile range. A lab curve that bends away from a power law (common
 near the end points) is smoothed by the fit.
 - Two-phase only. The gas-oil set is at connate water; there is no three-phase model (no Stone I or II, no Baker), so a three-phase kro is not given.
@@ -277,20 +290,16 @@ which is not the oil-water contact when the threshold pressure is not zero.
 - No end-point scaling with depth, permeability or rock type, and no Leverett J by facies. The fw preview neglects gravity and capillary pressure
 and is for mobility context only.
 
+Published ranges of the methods used
+ Item                                    Range the app accepts                       Why
 
+ Corey exponents nw, no, ng, nog         0.5 to 8                                    Validation bounds of the engine and of the fit
 
+ Saturations and end point kr            0 to 1, with a mobile span above zero       Fractions of pore volume
 
-Special Core Analysis Report, Well Ekene-7, Field Ekene                                                                                    Page 4 of 11
-Published ranges of the methods used
- Item                                   Range the app accepts                       Why
+ Contact angle                           0 to below 90 deg                           A water-wet capillary pressure (cos theta above zero)
 
- Corey exponents nw, no, ng, nog        0.5 to 8                                    Validation bounds of the engine and of the fit
-
- Saturations and end point kr           0 to 1, with a mobile span above zero       Fractions of pore volume
-
- Contact angle                          0 to below 90 deg                           A water-wet capillary pressure (cos theta above zero)
-
- Leverett J, Pc to J                    Any positive Pc and k, porosity in (0, 1)   C = 0.21645, the published field-unit constant
+ Leverett J, Pc to J                     Any positive Pc and k, porosity in (0, 1)   C = 0.21645, the published field-unit constant
 
 
 Flags on the inputs, the samples and the fits
@@ -302,7 +311,7 @@ core.
 
 
 
-Special Core Analysis Report, Well Ekene-7, Field Ekene                                                                                Page 5 of 11
+Special Core Analysis Report, Well Ekene-7, Field Ekene                                                                                    Page 5 of 11
 Oil-water relative permeability table (working Corey set)
  Sw                                            krw                    kro
 

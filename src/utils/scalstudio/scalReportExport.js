@@ -54,6 +54,7 @@ export function buildScalPdf(a, { logo = null, generatedAt = new Date() } = {}) 
   if (model.samples) {
     table('Core samples', model.samples.props.head, model.samples.props.rows, { note: 'Lab IFT and contact angle are those of the lab fluid system; sigma cos theta scales each sample\'s Pc to J.' });
     table('Sample pedigree', model.samples.pedigree.head, model.samples.pedigree.rows, { note: 'What the laboratory measured and how, as entered. Not stated prints as such.' });
+    table('Lab tables imported', model.samples.imports.head, model.samples.imports.rows, { note: model.samples.imports.note });
     if (model.samples.fits) table('Corey fits to the lab kr tables', model.samples.fits.head, model.samples.fits.rows, { note: model.samples.fits.note });
   } else {
     section('Core samples', 'No core sample is loaded: the working curves and the J function were entered, not fitted to lab data.', { need: 16 });

@@ -20,6 +20,7 @@ import {
 } from './model.js';
 import { OW_NORMALISATION, GO_NORMALISATION, J_DEFINITION, HEIGHT_DEFINITION } from './krHandoff.js';
 import { crossoverSw, heightAtSwFt } from './series.js';
+import { resolveFwl } from './fwlDatum.js';
 
 export const REPORT_TITLE = 'Special Core Analysis Report';
 export const APP_NAME = 'Petrolord SCAL Studio';
@@ -165,7 +166,9 @@ function inputsBlock(s, u) {
     rows.push({ ...r, engineKeys: [`height.${k}`] });
   }
   const fwl = n(h.fwl_tvdss);
-  rows.push({ ...inputRow({ key: 'height.fwl_tvdss', label: 'Free water level (TVDSS, positive down)', value: Number.isFinite(fwl) ? thousands(u.show('length', fwl), 1) : '', unit: u.label('length'), meta: meta.fwl }), engineKeys: ['height.fwl_tvdss'] });
+  const fr = resolveFwl(h);
+  const fwlRow = inputRow({ key: 'height.fwl_tvdss', label: 'Free water level (TVDSS, positive down)', value: Number.isFinite(fwl) ? thousands(u.show('length', fwl), 1) : '', unit: u.label('length'), meta: meta.fwl, auto: fr.entry === 'tvd' && fr.fwlFt != null ? fr.text : null });
+  rows.push({ ...fwlRow, engineKeys: ['height.fwl_tvdss'] });
   for (const [k, label] of [['swMin', 'Sw window of the curves: minimum'], ['swMax', 'Sw window of the curves: maximum']]) {
     rows.push({ ...inputRow({ key: `height.${k}`, label, value: text(h[k]), unit: 'fraction', auto: 'Entered: the saturation span the Pc and height tables cover' }), engineKeys: [`height.${k}`] });
   }
@@ -236,7 +239,11 @@ function samplesTables(s, u) {
       fit.converged ? `Converged in ${fit.iterations} iterations` : `Stopped at the iteration cap (${fit.iterations}); approximate`,
     ];
   });
+  // RL5: what was imported and what was left out, per sample and table
+  const imp = (rec, n) => (rec ? `${rec.file || 'file'}: ${rec.read} read, ${rec.skippedCount ?? (rec.skipped || []).length} left out${rec.units?.pc ? `; Pc in ${rec.units.pc} (${rec.units.pcHow})` : ''}; Sw as ${rec.units?.saturation || 'fraction'}` : (n ? `${n} rows, entered or saved before the import record` : EMPTY_VALUE));
+  const imports = samples.map((x) => [x.name, imp(x.krImport, x.krRows?.length || 0), imp(x.pcImport, x.pcRows?.length || 0)]);
   return {
+    imports: { head: ['Sample', 'kr table', 'Pc table'], rows: imports, note: 'Rows left out at the door are listed on the Lab Data tab with the reason for each.' },
     props: { head: ['Sample', 'Depth', 'k (md)', 'Porosity', `Lab IFT (${u.label('ift')})`, 'Angle (deg)', `sigma cos theta (${u.label('ift')})`, 'Lab fluids', 'kr points', 'Pc points'], rows: props },
     pedigree: { head: ['Sample', 'Lab or analog', 'kr test', 'Pc test', 'Wettability', 'Core condition', 'Test temperature', 'Laboratory, report'], rows: pedigree },
     fits: fits.length ? {
@@ -392,7 +399,7 @@ export function buildScalReportModel(s, { projectName = '', organizationName = '
       ['Relative permeability', 'Fractions; the base permeability is the one the laboratory used, not converted here'],
       ['Capillary pressure', `${u.label('pc')}; a pressure difference, neither gauge nor absolute`],
       ['Interfacial tension', `${u.label('ift')} (dyn/cm and mN/m are numerically equal)`],
-      ['Depths', `${u.label('length')} TVDSS: true vertical depth below the vertical datum (MSL unless the well says otherwise), positive down`],
+      ['Depths', `${u.label('length')} TVDSS: true vertical depth below the vertical datum, positive down. ${resolveFwl(s.height).basis}`],
       ['Heights', `${u.label('length')} above the free water level, where Pc is zero`],
       ['Sample depths', 'As entered, with the reference stated per sample (MD, TVD or TVDSS)'],
       ['Units of this report', u.line()],

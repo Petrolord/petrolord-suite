@@ -424,6 +424,13 @@ export function parseTabular(text, options = {}) {
   let columnCount = 0; let best = 0;
   for (const [k, v] of counts) if (v > best || (v === best && k > columnCount)) { columnCount = k; best = v; }
   if (!columnCount) return empty;
+  // SCAL-U1-012: a last column that is mostly empty (a lab "Comment" column)
+  // is a real column when the first row names it and at least 80 percent of
+  // the rows carry that many fields; it is not a delimiter at the end of the line.
+  const firstRaw = all[0].cells.length;
+  if (firstRaw > columnCount && width(all[0].cells) === firstRaw && all.filter((r) => r.cells.length === firstRaw).length >= 0.8 * all.length) {
+    columnCount = firstRaw;
+  }
 
   // the table starts at the first row as wide as the table; text above it is reported
   let start = all.findIndex((r) => width(r.cells) === columnCount);

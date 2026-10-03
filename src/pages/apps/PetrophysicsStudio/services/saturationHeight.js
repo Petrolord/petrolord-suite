@@ -14,7 +14,7 @@
 // Nothing here restates the J, Pc or height formulas.
 
 import { makeJFunction, pcFromJ, heightFromPc } from '@/utils/scalCalculations';
-import { buildJSpec, buildReservoirProps } from '@/contexts/ScalStudioContext';
+import { buildJSpec, buildReservoirProps, deriveSamples } from '@/utils/scalstudio/workspace';
 import { makeWellFrame } from '@/lib/wellDatum';
 
 const M_PER_FT = 0.3048;
@@ -30,7 +30,9 @@ const num = (v) => (v === '' || v === null || v === undefined ? NaN : Number(v))
 export function shmFromScalProject(payload) {
   if (!payload || !payload.capillary) return { ok: false, errors: ['This SCAL Studio project has no capillary-pressure set-up.'] };
   // SCAL Studio's own builders: the J spec and the rock exactly as SCAL shows them
-  const { jSpec, error } = buildJSpec(payload.capillary, payload.samples || []);
+  // SCAL-U1-015: the saved samples hold the lab Pc tables only; their J rows
+  // are derived. Without this every project averaged from samples was refused.
+  const { jSpec, error } = buildJSpec(payload.capillary, deriveSamples(payload.samples || []));
   if (!jSpec) return { ok: false, errors: [error || 'No J function in this project.'] };
   const { props: reservoir, error: rockError } = buildReservoirProps(payload.capillary.reservoir || {});
   if (!reservoir) return { ok: false, errors: [rockError] };

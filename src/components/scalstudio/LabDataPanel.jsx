@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useScalStudio, LAB_SYSTEM_PRESETS } from '@/contexts/ScalStudioContext';
-import { parseKrCsv, parsePcCsv } from '@/utils/scalCalculations';
+import { readKrTable, readPcTable, importRecord, PC_FILE_UNITS, SATURATION_FILE_UNITS } from '@/utils/scalstudio/labImport';
 import { SectionLabel } from '@/components/waterflooddesign/primitives';
 import ScalField from './ScalField';
 import { PEDIGREE_OPTIONS, LAB_SYSTEM_FLUIDS } from '@/utils/scalstudio/model';
@@ -56,17 +56,23 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
   const [importKind, setImportKind] = useState(null);
   const selected = samples.find((s) => s.id === selectedId) ?? null;
 
+  // SCAL-U1-007: the lab table doors on the shared typed reader, the unit of
+  // Pc and of Sw chosen at the door when the file does not say, and a
+  // read-back kept with the sample (columns, units, rows read, rows left out).
+  const { unitSystem } = useScalStudio();
+  const [pcUnit, setPcUnit] = useState(unitSystem === 'si' ? 'kPa' : 'psi');
+  const [satUnit, setSatUnit] = useState('auto');
   const importCsv = async (file, kind) => {
     if (!file || !selected) return;
     const text = await file.text();
-    const parsed = kind === 'kr' ? parseKrCsv(text) : parsePcCsv(text);
-    if (parsed.rows.length === 0) {
-      addNotification(parsed.errors[0] || 'No usable rows in that CSV.', 'error');
+    const res = kind === 'kr' ? readKrTable(text, { saturation: satUnit }) : readPcTable(text, { pc: pcUnit, saturation: satUnit });
+    if (!res.ok) {
+      addNotification(`${file.name}: ${res.error} ${res.summary || ''}`.trim(), 'error');
       return;
     }
-    updateSample(selected.id, kind === 'kr' ? { krRows: parsed.rows } : { pcRows: parsed.rows });
-    const note = parsed.errors.length ? ` ${parsed.errors.length} row(s) skipped.` : '';
-    addNotification(`${parsed.rows.length} ${kind === 'kr' ? 'kr' : 'Pc'} rows imported for "${selected.name}".${note}`, 'success');
+    const record = importRecord(res, file.name);
+    updateSample(selected.id, kind === 'kr' ? { krRows: res.rows, krImport: record } : { pcRows: res.rows, pcImport: record });
+    addNotification(`${file.name}: ${res.summary}`, res.skipped.length ? 'info' : 'success');
   };
 
   const applyPreset = (key) => {
@@ -174,11 +180,11 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
           <section className="space-y-2">
             <SectionLabel>Lab tables</SectionLabel>
             <input
-              ref={krFileRef} type="file" accept=".csv,text/csv" className="hidden"
+              ref={krFileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,text/csv,text/plain" className="hidden"
               onChange={(e) => { importCsv(e.target.files?.[0], 'kr'); e.target.value = ''; }}
             />
             <input
-              ref={pcFileRef} type="file" accept=".csv,text/csv" className="hidden"
+              ref={pcFileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,text/csv,text/plain" className="hidden"
               onChange={(e) => { importCsv(e.target.files?.[0], 'pc'); e.target.value = ''; }}
             />
             <div className="grid grid-cols-2 gap-2">
@@ -195,10 +201,39 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
                 <Download className="w-3 h-3 mr-1" /> Pc template
               </Button>
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-pl-muted">Pc unit if the file does not say</Label>
+                <Select value={pcUnit} onValueChange={setPcUnit}>
+                  <SelectTrigger className="h-8" aria-label="Pc unit if the file does not say" data-testid="import-pc-unit"><SelectValue /></SelectTrigger>
+                  <SelectContent>{Object.entries(PC_FILE_UNITS).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-pl-muted">Sw in the file</Label>
+                <Select value={satUnit} onValueChange={setSatUnit}>
+                  <SelectTrigger className="h-8" aria-label="Sw in the file" data-testid="import-sat-unit"><SelectValue /></SelectTrigger>
+                  <SelectContent>{Object.entries(SATURATION_FILE_UNITS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
             <p className="text-[11px] text-pl-muted">
-              kr columns: Sw, krw, kro. Pc columns: Sw, Pc_psi. Rows with non-numeric cells are skipped and named
-              in the notification.
+              CSV, tab, semicolon or space separated text; columns found by name in any order (Sw, krw, kro; Sw, Pc),
+              or by position when there is no header; comma decimals read. A unit in the header, such as Pc (kPa) or
+              Sw (%), wins over the choice above.
             </p>
+            {['krImport', 'pcImport'].map((k) => selected[k] && (
+              <div key={k} className="rounded-md border border-pl-border bg-pl-sunken px-2.5 py-2 text-[11px] text-pl-text space-y-1" data-testid={`readback-${k}`}>
+                <p className="font-semibold">{k === 'krImport' ? 'kr table' : 'Pc table'} read from {selected[k].file || 'a file'}</p>
+                <p>{selected[k].summary}</p>
+                {selected[k].skipped?.length > 0 && (
+                  <ul className="list-disc list-inside text-pl-muted">
+                    {selected[k].skipped.slice(0, 8).map((x) => <li key={`${x.line}-${x.reason}`}>Line {x.line}: {x.reason}</li>)}
+                    {selected[k].skippedCount > 8 && <li>and {selected[k].skippedCount - 8} more</li>}
+                  </ul>
+                )}
+              </div>
+            ))}
           </section>
         </>
       )}
