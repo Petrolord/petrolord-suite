@@ -11,7 +11,7 @@ import { GitCompare } from 'lucide-react';
 import DcaNumberField from '@/components/declineCurve/DcaNumberField';
 import { useDcaUnits } from '@/components/declineCurve/DcaUnits';
 import { rateCumEur, crossCheckPct } from '@/utils/declineCurve/rateCumFit';
-import { nominalAnnualPct } from '@/utils/declineCurve/declineDisplay';
+import { formatDecline, declineBasisLabel } from '@/utils/declineCurve/declineDisplay';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -53,7 +53,7 @@ export default function DCARateCumCrossCheck() {
         <div className="text-[11px] text-pl-text space-y-0.5" data-testid="dca-rc-result">
           {stale && <p className="text-pl-warning-text" data-testid="dca-rc-stale">Out of date: {rateCumState.reasons.join(', ')}. Fit again.</p>}
           <p>{r.modelType}, {r.n} points, R² {finite(r.R2) ? r.R2.toFixed(4) : EMPTY_VALUE}</p>
-          <p>qi at zero cumulative {finite(r.qi) ? u.rateTo(stream, r.qi).toFixed(2) : EMPTY_VALUE} {u.rateLabel(stream)}, Di {finite(r.Di) ? nominalAnnualPct(r.Di).toFixed(2) : EMPTY_VALUE} %/yr nominal, b {finite(r.b) ? Number(r.b.toPrecision(4)) : EMPTY_VALUE}</p>
+          <p>qi at zero cumulative {finite(r.qi) ? u.rateTo(stream, r.qi).toFixed(2) : EMPTY_VALUE} {u.rateLabel(stream)}, Di {formatDecline(r.Di, u)} {declineBasisLabel(u)}, b {finite(r.b) ? Number(r.b.toPrecision(4)) : EMPTY_VALUE}</p>
           <p data-testid="dca-rc-eur">
             EUR {eurRc == null ? 'n/a (no economic limit)' : `${whole(toView(eurRc))} ${volU}`}
             {diff != null ? `; rate-time EUR ${whole(toView(eurRt))} ${volU}, ${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%` : (eurRc != null ? '; run the forecast for the rate-time EUR' : '')}

@@ -21,7 +21,7 @@ const day = (t) => new Date(t).toISOString().slice(0, 10);
 /** The fit window a rule gives one well, or null when it has no dated rate for the stream. */
 export function ruleWindow(well, stream, { rule = 'whole', months = 24 } = {}) {
   const ts = (well?.data || [])
-    .filter((p) => Number.isFinite(Number(getStreamRate(p, stream))))
+    .filter((p) => { const v = getStreamRate(p, stream); return v != null && v !== '' && Number.isFinite(Number(v)); })
     .map((p) => new Date(p.date).getTime())
     .filter(Number.isFinite)
     .sort((a, b) => a - b);
