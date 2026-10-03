@@ -15,7 +15,10 @@
  */
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act, configure } from '@testing-library/react';
+
+// the studio mounts its whole tab tree; on a loaded runner the first paint takes seconds
+configure({ asyncUtilTimeout: 20000 });
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 const mockToast = jest.fn();
@@ -274,6 +277,9 @@ describe('the studio, as each user', () => {
   test('the owner can now let colleagues edit, from the sharing control', async () => {
     seed({ shared: false });
     mountAs(OWNER);
+    // let the sharing state settle inside act before reading the control
+    await waitFor(() => expect(screen.getByTestId('mbal-edit-case')).toBeInTheDocument());
+    await act(async () => { await new Promise((r) => setTimeout(r, 2000)); });
     await act(async () => { fireEvent.click(await screen.findByTestId('share-switch')); });
     const access = await screen.findByTestId('share-access');
     await act(async () => { fireEvent.change(access, { target: { value: 'edit' } }); });

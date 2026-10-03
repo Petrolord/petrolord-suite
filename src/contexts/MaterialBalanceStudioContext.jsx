@@ -88,6 +88,9 @@ export const RB_CASES_TABLE = 'rb_cases';
  */
 export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, sharingStore = undefined, children }) => {
   const store = useMemo(() => (sharingStore === undefined ? supabaseSharingStore() : sharingStore), [sharingStore]);
+  // read by refreshCase without making it change identity when a caller hands a new store
+  const storeRef = React.useRef(store);
+  storeRef.current = store;
   const { toast } = useToast();
   const organizationName = useOrganizationName();
 
@@ -179,10 +182,10 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, sharingStore
     setLastRunConfig(runCfg);
     setLastResult(result);
     // the version this editor now shows: a later save of the case row names it
-    store?.trackOpened?.(RB_CASES_TABLE, data);
+    storeRef.current?.trackOpened?.(RB_CASES_TABLE, data);
     setCaseData(data);
     setCaseLoading(false);
-  }, [caseId, store]);
+  }, [caseId]);
 
   // Re-read the case default config after the PVT or the Aquifer tab saved
   // it. Cheap, and it does not swap the tab tree for the loader.
@@ -205,9 +208,12 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, sharingStore
   // Read-only whenever the sharing rules say this user may not write now: a
   // colleague's case shared for viewing; a case shared for editing that this
   // user (the owner included) has not taken; one a colleague is editing.
-  const canWriteCase = !caseData || sharing.canWrite;
+  // A colleague's case is read-only until the rules say this user holds it
+  // (so it never flashes writable while the sharing state loads); an own case
+  // is writable until the rules say otherwise.
+  const canWriteCase = !caseData || (viewingShared ? (sharing.ready && sharing.canWrite) : (!sharing.ready || sharing.canWrite));
   const readOnlyReason = !canWriteCase
-    ? `${sharing.readOnlyReason || 'This case was shared with your organisation for viewing.'} Nothing you change here is saved to it.`
+    ? `${sharing.readOnlyReason || (sharing.ready ? 'This case was shared with your organisation for viewing.' : 'This case belongs to a colleague.')} Nothing you change here is saved to it.`
     : null;
   // the case row is saved through the sharing store (version check, refusals in words)
   useEffect(() => {
