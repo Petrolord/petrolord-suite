@@ -84,15 +84,17 @@ const ForecastScenarioHubHelpGuideContent = () => (
       <Table
         headers={['Field', 'Unit', 'Meaning', 'Default on a new case']}
         rows={[
-          ['qi', 'bbl/d', 'Initial rate at the start of the forecast.', '1000'],
+          ['qi', 'bbl/d or sm3/d (the unit profile)', 'Initial rate at the start of the case.', '1000'],
           ['Decline', 'percent per year, nominal', 'The nominal annual decline. See the warning below.', '18'],
           ['b factor', 'dimensionless', '0 gives exponential, 1 gives harmonic, anything else is hyperbolic.', '0.5'],
           ['Horizon', 'years', 'How long the forecast runs if the economic limit is never reached.', '20'],
-          ['Econ limit', 'bbl/d', 'Rate at which the forecast stops. Zero disables the cutoff.', '30'],
+          ['Econ limit', 'bbl/d or sm3/d', 'Rate at which the forecast stops. Zero disables the cutoff.', '30'],
+          ['Start date', 'date', 'The first day of the case. Blank takes the set start (the date box above the cases).', 'blank'],
         ]}
       />
       <Callout tone="danger" title="Decline is the nominal rate">
-        The engine converts your entry to a daily nominal decline by dividing by 365. It does
+        The engine converts your entry to a daily nominal decline by dividing by 365.25 (the
+        Suite's year, also used by Decline Curve Analysis and Well Spacing). It does
         not convert between nominal and effective. Entering 18 for an exponential case
         produces a first year drop of about 16.5 percent, because that is what a nominal 18
         percent works out to. If you are copying a secant effective decline off a decline
@@ -121,8 +123,8 @@ const ForecastScenarioHubHelpGuideContent = () => (
     <GuideSection id="engine">
       <SectionHeading icon={Calculator}>How the forecast is computed</SectionHeading>
       <Para>
-        The engine steps day by day from day one, using the standard Arps forms with a 365 day
-        year. The horizon run gives the chart, the horizon cumulative, the annual profile and
+        The engine steps day by day from day one, using the standard Arps forms with a 365.25
+        day year. The horizon run gives the chart, the horizon cumulative, the annual profile and
         the indicative NPV. For EUR the same decline is followed on past the horizon.
       </Para>
       <Formula>q(t) = qi · exp(-Di · t)  for b = 0</Formula>
@@ -210,10 +212,11 @@ const ForecastScenarioHubHelpGuideContent = () => (
       <SectionHeading icon={Share2}>Sending it to Economics</SectionHeading>
       <SubHeading>The annual CSV</SubHeading>
       <Para>
-        The Annual CSV button on each table row writes two columns, <Code>year</Code> and
-        <Code> production_bbl</Code>, one row per year of that case's horizon. The year column
-        counts from 1, so mapping it onto calendar years is done by whoever consumes it. Years
-        after the economic limit are written as zero. They are not omitted.
+        The Annual CSV button on each table row writes the case first, as lines starting with
+        <Code>#</Code>: its parameters with the decline basis, its start, its limit, its EUR and
+        where it came from. Then three columns: <Code>forecast_year</Code> (counting from 1),
+        <Code>starts</Code> (the calendar date that forecast year begins) and the production in
+        the volume unit of the screen. Years after the economic limit are written as zero.
       </Para>
       <SubHeading>The direct import into Petroleum Economics Studio</SubHeading>
       <Para>
@@ -234,7 +237,9 @@ const ForecastScenarioHubHelpGuideContent = () => (
       <SectionHeading icon={Save}>Saving scenario sets</SectionHeading>
       <Para>
         Type a name into the box at the bottom of the left rail and click the save icon. A
-        scenario set stores the case definitions and the three economics settings. Results are
+        scenario set stores the case definitions (with their start dates and sources), the set
+        start and the three economics settings. A set shared with your organisation opens
+        read-only, or for editing one person at a time; Save a copy makes your own. Results are
         not stored, they are recomputed from the inputs when you load, which is why a set
         loaded a month later gives the same answer.
       </Para>
@@ -254,11 +259,20 @@ const ForecastScenarioHubHelpGuideContent = () => (
         with b above 1, make sure the economic limit is doing real work, because the 50 year
         maximum life will otherwise be what sets your EUR.
       </Para>
-      <SubHeading>Cases cannot be seeded from a fit</SubHeading>
+      <SubHeading>A case from Decline Curve Analysis</SubHeading>
       <Para>
-        There is no inbound handoff from Decline Curve Analysis. Parameters from a fit have to
-        be typed in here. When you do that, take qi and Di from the fit. Do not take them from the
-        raw data, and remember the decline convention above.
+        Use <em>From Decline Curve Analysis</em> (or <em>Open as a case</em> in that app). The
+        case starts the day after the well's data cut-off with the fitted curve restarted
+        there: qi is the fitted rate at the cut-off and the decline is the nominal decline at
+        that moment (for a hyperbolic it is lower than the Di at the start of the fit), b is
+        unchanged. That reproduces the Decline Curve Analysis forecast day for day. Typing qi
+        and Di from the start of the fit would forecast again what the well has already
+        produced.
+      </Para>
+      <Para>
+        The case card prints where it came from and on which basis, marks any field you edit
+        after the handoff, reads the source again by id when the set opens, and says when the
+        forecast there has changed since. Refresh takes the new forecast.
       </Para>
       <SubHeading>The economics card has no capex box for a reason</SubHeading>
       <Para>

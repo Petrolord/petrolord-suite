@@ -1,4 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { supabase } from '@/lib/customSupabaseClient';
+import { dcaProvenanceOf, volumeRowsOf, dcaProvenanceText } from '@/pages/apps/epe/epeDcaIntake';
+import { getDcaForecast } from '@/utils/declineCurve/dcaForecastService';
+import { compareWithSource } from '@/utils/declineCurve/dcaForecastContract';
 import { motion } from 'framer-motion';
 import {
   FileSpreadsheet, Loader2, Trash2, Play, CheckCircle2, AlertCircle, ChevronDown, ChevronUp
@@ -81,8 +85,21 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
   const [expanded, setExpanded] = useState(false);
 
   const status = getStatus(file.data);
-  const rowCount = status === 'PROCESSED' ? file.data.length : undefined;
-  const previewRows = status === 'PROCESSED' ? file.data.slice(0, 3) : [];
+  // a file received from Decline Curve Analysis ends with its provenance
+  // record (DCA-U1-008): counted and previewed without it, printed beside it
+  const dca = status === 'PROCESSED' ? dcaProvenanceOf(file) : null;
+  const rows = status === 'PROCESSED' ? volumeRowsOf(file.data) : [];
+  const rowCount = status === 'PROCESSED' ? rows.length : undefined;
+  const previewRows = rows.slice(0, 3);
+  const [sourceState, setSourceState] = useState(null);
+  useEffect(() => {
+    if (!dca) return undefined;
+    let alive = true;
+    getDcaForecast(supabase, { projectId: dca.projectId, wellId: dca.source?.wellId, stream: dca.stream })
+      .then((now) => { if (alive) setSourceState(compareWithSource(dca, now)); })
+      .catch((e) => { if (alive) setSourceState({ state: 'unreadable', text: `The source could not be read: ${e.message}` }); });
+    return () => { alive = false; };
+  }, [dca?.fingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
   const previewCols = previewRows.length > 0 ? Object.keys(previewRows[0]).slice(0, 6) : [];
 
   return (
@@ -146,6 +163,17 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
           )}
         </div>
       </div>
+
+      {dca && (
+        <div className="mt-2 rounded border border-pl-border bg-pl-sunken p-2 text-[11px] text-pl-muted space-y-1" data-testid="epe-dca-provenance">
+          <p>{dcaProvenanceText(dca)}</p>
+          {sourceState && (
+            <p className={sourceState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-dca-source-state">
+              {sourceState.text}{sourceState.state === 'changed' ? ' Import it again from Decline Curve Analysis to take the new forecast.' : ''}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Preview rows expanded view */}
       {expanded && status === 'PROCESSED' && previewRows.length > 0 && (

@@ -63,6 +63,8 @@ describe('H1: DCA claims no handoff that does not happen', () => {
   it('the help guide no longer describes cards that report a successful sync', () => {
     const help = fs.readFileSync(path.join(SRC, 'components/declineCurve/DCAHelpContent.jsx'), 'utf8');
     expect(help).not.toMatch(/report a successful\s+sync/);
-    expect(help).toMatch(/has no direct send to another app yet/i);
+    // DCA-U1-008: the one real sender replaced the cards; the guide names it
+    expect(help).toMatch(/Send this forecast/);
+    expect(help).toMatch(/reads the forecast from the saved\s+project/);
   });
 });

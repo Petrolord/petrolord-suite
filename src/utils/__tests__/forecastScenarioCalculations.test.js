@@ -10,7 +10,8 @@ describe('runCase (through the shared DCA engine)', () => {
     const r = runCase(EXP_CASE);
     const D = dailyDecline(20);
     // Rate after ~1 year: q = qi * exp(-D t)
-    const t = DAYS_PER_YEAR;
+    // a year is 365.25 days (DCA-U1-010); the engine steps whole days
+    const t = Math.round(DAYS_PER_YEAR);
     expect(r.rates[t - 1].rate).toBeCloseTo(1000 * Math.exp(-D * t), 6);
     // EUR over the window: Np = (qi - q_end)/D, daily-sum tolerance ~0.5%
     const qEnd = r.rates[r.rates.length - 1].rate;
@@ -39,7 +40,7 @@ describe('runCase (through the shared DCA engine)', () => {
     const cum20 = (1200 * DAYS_PER_YEAR / (0.5 * 0.18)) * (1 - 1 / (1 + 0.09 * 20));
     expect(Math.abs(r.cumHorizon - cum20) / cum20).toBeLessThan(0.005);
     expect(r.eur).toBeGreaterThan(r.cumHorizon * 1.2);
-    expect(r.rates).toHaveLength(20 * DAYS_PER_YEAR);
+    expect(r.rates).toHaveLength(Math.round(20 * DAYS_PER_YEAR));
   });
 
   it('caps EUR at the maximum life when the limit is further out', () => {

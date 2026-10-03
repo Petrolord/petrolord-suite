@@ -16,8 +16,11 @@
 // Risked Reserves Valuation). No duplication of either.
 
 import { generateForecast } from '@/utils/declineCurve/dcaEngine';
+import { DAYS_PER_YEAR as REGISTRY_YEAR } from '@/lib/units/registry';
 
-export const DAYS_PER_YEAR = 365;
+// One year is 365.25 days in Decline Curve Analysis, this hub and Well
+// Spacing (DCA-U1-010): the Suite registry's year. It was 365 here.
+export const DAYS_PER_YEAR = REGISTRY_YEAR;
 
 /** Nominal annual decline (%/yr) to the DCA engine's per-day rate. */
 export const dailyDecline = (declineAnnualPct) => (declineAnnualPct / 100) / DAYS_PER_YEAR;
@@ -56,19 +59,24 @@ export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
   }
   const Di = dailyDecline(declineAnnualPct);
   const params = { qi, Di, b, modelType: modelTypeFor(b) };
+  // HUB-U1: a case may carry its own start (a case received from Decline
+  // Curve Analysis starts the day after the data cut-off)
+  const start = caseDef.startDate ? `${String(caseDef.startDate).slice(0, 10)}T00:00:00Z` : startDateIso;
   const hasLimit = economicLimit > 0;
   const horizonDays = Math.round(years * DAYS_PER_YEAR);
   const run = (days) => generateForecast(
     params,
     { durationDays: days, economicLimit: hasLimit ? economicLimit : null, stopAtLimit: hasLimit },
-    startDateIso,
+    // the engine dates day 1 as the day after its start: start one day early
+    // so the first day of the case is its start date
+    new Date(Date.parse(start) - 86400000).toISOString(),
   );
   const result = run(horizonDays);
   const limitInHorizon = hasLimit && result.rates.length < horizonDays;
   let eur = result.eur;
   let timeToLimitDays = limitInHorizon ? result.timeToLimit : null;
   if (!limitInHorizon) {
-    const maxDays = Math.max(horizonDays, EUR_MAX_YEARS * DAYS_PER_YEAR);
+    const maxDays = Math.max(horizonDays, Math.round(EUR_MAX_YEARS * DAYS_PER_YEAR));
     const long = maxDays > horizonDays ? run(maxDays) : result;
     eur = long.eur;
     if (hasLimit && long.rates.length < maxDays) timeToLimitDays = long.timeToLimit;
@@ -76,6 +84,7 @@ export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
   const last = result.rates[result.rates.length - 1];
   return {
     ...caseDef,
+    startDate: start.slice(0, 10),
     rates: result.rates,             // daily {date, rate, cumulative} over the horizon
     cumHorizon: result.eur,          // bbl produced inside the horizon
     eur,                             // bbl to the economic limit or EUR_MAX_YEARS
@@ -146,6 +155,7 @@ export function compareCases(caseDefs, econ, startDateIso) {
     return {
       id: c.id,
       name: c.name,
+      startDate: c.startDate,
       model: modelTypeFor(c.b),
       eurMMbbl: c.eur / 1e6,
       eurCapped: c.eurCapped,

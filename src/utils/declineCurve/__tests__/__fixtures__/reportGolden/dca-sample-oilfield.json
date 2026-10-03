@@ -1,0 +1,84 @@
+{
+  "pages": 6,
+  "sha256": "d7b5ffdd798f63f609fe78a15d28b4d6efcfe6049e30c236ddc5b0b13b4525ee",
+  "figures": [
+    {
+      "id": "rate-time",
+      "number": 1,
+      "page": 5,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 82
+          },
+          "drawn": {
+            "Data used in the fit": 36,
+            "Fitted model": 36,
+            "Forecast": 35
+          },
+          "total": 107,
+          "bands": 1,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "rate-cum",
+      "number": 2,
+      "page": 5,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 131.72,
+            "w": 182,
+            "h": 72
+          },
+          "drawn": {
+            "Data": 36,
+            "Fitted model": 36,
+            "Forecast": 35
+          },
+          "total": 107,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "cum-time",
+      "number": 3,
+      "page": 6,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 66
+          },
+          "drawn": {
+            "Cumulative to the cut-off": 36,
+            "Forecast": 35
+          },
+          "total": 71,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "eur-distribution",
+      "number": 4,
+      "page": 6,
+      "plotted": false,
+      "panels": []
+    }
+  ]
+}

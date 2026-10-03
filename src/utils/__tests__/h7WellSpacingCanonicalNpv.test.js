@@ -31,7 +31,11 @@ const SAMPLE = {
 // What the private loop printed on the sample before this change ($MM).
 const BEFORE = { 20: 1006.339, 40: 1741.143, 80: 2094.967, 160: 2278.844 };
 // What the canonical engine gives ($MM), recorded for the PR.
-const AFTER = { 20: 1174.640, 40: 1885.718, 80: 2226.778, 160: 2404.851 };
+// DCA-U1-010 (2026-10-03): the year became 365.25 days in every decline
+// app, which moves the economic rate a year by a quarter day: 20 ac 1,174.640
+// -> 1,174.775, 40 ac 1,885.718 -> 1,885.787, 80 ac 2,226.778 -> 2,226.812,
+// 160 ac 2,404.851 -> 2,404.868 $MM (at most 0.012 percent).
+const AFTER = { 20: 1174.775, 40: 1885.787, 80: 2226.812, 160: 2404.868 };
 
 describe('H7: the NPV column is the canonical screening NPV', () => {
   it('every row equals calculateEconomics on the inputs the engine built for it', async () => {
@@ -55,20 +59,25 @@ describe('H7: the NPV column is the canonical screening NPV', () => {
     const bo = results.boUsed;
     const eur = (40 * 60 * 0.152 * 0.75 * 7758 * 0.35) / bo;
     const Dn = -Math.log(1 - 0.15);
-    const qLim = 10 * 365;
-    const qi = eur * Dn + qLim;
-    const life = Math.min(Math.log(qi / qLim) / Dn, 20);
-    let mid = 0;
-    let yearEnd = 0;
-    for (let y = 0; y < Math.ceil(life); y += 1) {
-      const to = Math.min(y + 1, life);
-      const oil = (qi / Dn) * (Math.exp(-Dn * y) - Math.exp(-Dn * to));
-      const cash = (oil * 75 + ((oil * 500) / 1000) * 3.5) * (1 - 0.25) - 200000 * (to - y);
-      mid += cash / 1.1 ** (y + 0.5);
-      yearEnd += cash / 1.1 ** (y + 1);
-    }
-    const midNpv = (125 * (mid - 5e6 / 1.1 ** 0.5)) / 1e6;
-    const yearEndNpv = (125 * (yearEnd - 5e6)) / 1e6;
+    // mid-year at the 365.25-day year the app uses (DCA-U1-010); year-end at
+    // the 365-day year the old private loop used, for the negative control
+    const closedForm = (daysPerYear) => {
+      const qLim = 10 * daysPerYear;
+      const qi = eur * Dn + qLim;
+      const life = Math.min(Math.log(qi / qLim) / Dn, 20);
+      let mid = 0;
+      let yearEnd = 0;
+      for (let y = 0; y < Math.ceil(life); y += 1) {
+        const to = Math.min(y + 1, life);
+        const oil = (qi / Dn) * (Math.exp(-Dn * y) - Math.exp(-Dn * to));
+        const cash = (oil * 75 + ((oil * 500) / 1000) * 3.5) * (1 - 0.25) - 200000 * (to - y);
+        mid += cash / 1.1 ** (y + 0.5);
+        yearEnd += cash / 1.1 ** (y + 1);
+      }
+      return { midNpv: (125 * (mid - 5e6 / 1.1 ** 0.5)) / 1e6, yearEndNpv: (125 * (yearEnd - 5e6)) / 1e6 };
+    };
+    const { midNpv } = closedForm(365.25);
+    const { yearEndNpv } = closedForm(365);
     expect(row.npv).toBeCloseTo(midNpv, 6);
     // negative control: the old private loop's convention gives the old number
     expect(yearEndNpv).toBeCloseTo(BEFORE[40], 2);

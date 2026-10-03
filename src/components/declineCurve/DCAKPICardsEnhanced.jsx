@@ -1,6 +1,9 @@
 import React from 'react';
 import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
-import { formatNominalAnnual, formatEffectiveFirstYear, DI_BASIS_LABEL } from '@/utils/declineCurve/declineDisplay';
+import { formatEffectiveFirstYear, formatDecline, declineBasisLabel } from '@/utils/declineCurve/declineDisplay';
+import { useDcaUnits } from '@/components/declineCurve/DcaUnits';
+import { DCA_DAYS_PER_YEAR } from '@/utils/declineCurve/dcaUnits';
+import { staleText } from '@/utils/declineCurve/dcaModel';
 
 // Tiles follow the design-system StatTile look (surface, muted uppercase
 // label, mono tabular value). Values are neutral: colour is kept for status.
@@ -18,7 +21,8 @@ const MetricCard = ({ label, value, unit, subtext, testId }) => (
 );
 
 const DCAKPICardsEnhanced = () => {
-  const { selectedStream, streamState } = useDeclineCurve();
+  const { selectedStream, streamState, status } = useDeclineCurve();
+  const u = useDcaUnits();
   const fitResults = streamState[selectedStream].fitResults;
   const forecastResults = streamState[selectedStream].forecastResults;
 
@@ -30,7 +34,7 @@ const DCAKPICardsEnhanced = () => {
   // remaining = after the last history date (T1: the whole curve from first
   // production was shown as remaining); '-' until a forecast is run
   const eur = forecastResults ? forecastResults.eur : null;
-  const timeLeft = forecastResults ? (forecastResults.timeToLimit / 365).toFixed(1) : '-';
+  const timeLeft = forecastResults ? (forecastResults.timeToLimit / DCA_DAYS_PER_YEAR).toFixed(1) : 'n/a';
   const lifeNote = !forecastResults ? 'Run a forecast'
     : forecastResults.limitBeforeToday ? 'Already below the economic limit'
       : forecastResults.limitReached ? 'After the last data, to the economic limit'
@@ -38,12 +42,25 @@ const DCAKPICardsEnhanced = () => {
   const probabilistic = forecastResults?.probabilistic;
   const isProbabilistic = !!probabilistic && probabilistic.iterations > 0;
 
-  const formatNum = (n) => typeof n === 'number' ? n.toLocaleString(undefined, {maximumFractionDigits: 2}) : '-';
+  const formatNum = (n) => typeof n === 'number' && Number.isFinite(n) ? n.toLocaleString(undefined, {maximumFractionDigits: 2}) : 'n/a';
+  const vol = (v) => u.volumeTo(selectedStream, v);
+  const whole = (v) => (Number.isFinite(v) ? Math.round(v).toLocaleString() : 'n/a');
 
-  const rateUnit = selectedStream === 'gas' ? 'Mscf/d' : 'bbl/d';
-  const volumeUnit = selectedStream === 'gas' ? 'Mscf' : 'bbl';
+  const rateUnit = u.rateLabel(selectedStream);
+  const volumeUnit = u.volumeLabel(selectedStream);
+
+  // DCA-U1-003: a result that no longer describes the inputs says so first
+  const fitStale = status && status.fit !== 'current' ? staleText(status, 'fit') : null;
+  const forecastStale = status && forecastResults && status.forecast !== 'current' ? staleText(status, 'forecast') : null;
 
   return (
+    <>
+    {(fitStale || forecastStale) && (
+      <div className="mb-3 rounded-md border border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text text-xs px-3 py-2 space-y-1" data-testid="dca-stale">
+        {fitStale && <p>{fitStale}</p>}
+        {!fitStale && forecastStale && <p>{forecastStale}</p>}
+      </div>
+    )}
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
       <MetricCard 
         label="Model"
@@ -52,13 +69,14 @@ const DCAKPICardsEnhanced = () => {
       />
       <MetricCard
         label={`Initial Rate (qi)`}
-        value={formatNum(qi)}
+        value={formatNum(u.rateTo(selectedStream, qi))}
         unit={rateUnit}
+        subtext={fitResults.t0 ? `at ${String(fitResults.t0).slice(0, 10)}, the fit start` : undefined}
       />
       <MetricCard 
         label="Decline (Di)" 
-        value={formatNominalAnnual(Di)}
-        unit={DI_BASIS_LABEL}
+        value={formatDecline(Di, u)}
+        unit={declineBasisLabel(u)}
         subtext={`${formatEffectiveFirstYear(Di, b)} % effective, first year`}
         testId="dca-di-kpi"
       />
@@ -68,36 +86,37 @@ const DCAKPICardsEnhanced = () => {
       />
       <MetricCard 
         label="Fit Quality (R²)" 
-        value={typeof R2 === 'number' ? R2.toFixed(4) : '-'} 
+        value={typeof R2 === 'number' ? R2.toFixed(4) : 'n/a'} 
       />
       {isProbabilistic ? (
         <>
           <MetricCard
             label="P10 EUR"
-            value={formatNum(probabilistic.p10)}
+            value={whole(vol(probabilistic.p10))}
             unit={volumeUnit}
-            subtext="Optimistic (10% chance ≥)"
+            subtext="High case: 10% chance of at least this"
           />
           <MetricCard
             label="P50 EUR"
-            value={formatNum(probabilistic.p50)}
+            value={whole(vol(probabilistic.p50))}
             unit={volumeUnit}
-            subtext={`Median (${probabilistic.iterations} sims)`}
+            subtext={`Median of ${probabilistic.iterations} runs`}
           />
           <MetricCard
             label="P90 EUR"
-            value={formatNum(probabilistic.p90)}
+            value={whole(vol(probabilistic.p90))}
             unit={volumeUnit}
-            subtext="Conservative (90% chance ≥)"
+            subtext="Low case: 90% chance of at least this"
           />
         </>
       ) : (
         <MetricCard
+          testId="dca-kpi-remaining"
           label="Rem. Reserves"
-          value={eur == null ? '-' : formatNum(Math.round(eur))}
+          value={eur == null ? 'n/a' : whole(vol(eur))}
           unit={volumeUnit}
           subtext={forecastResults && Number.isFinite(forecastResults.eurTotal)
-            ? `EUR ${Math.round(forecastResults.eurTotal).toLocaleString()} incl. ${Math.round(forecastResults.produced).toLocaleString()} produced`
+            ? `EUR ${whole(vol(forecastResults.eurTotal))} incl. ${whole(vol(forecastResults.produced))} produced`
             : 'Run a forecast'}
         />
       )}
@@ -109,9 +128,11 @@ const DCAKPICardsEnhanced = () => {
       />
       <MetricCard 
         label="Fit Error (RMSE)" 
-        value={formatNum(RMSE)} 
+        value={formatNum(u.rateTo(selectedStream, RMSE))}
+        unit={rateUnit}
       />
     </div>
+    </>
   );
 };
 

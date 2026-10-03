@@ -1,4 +1,5 @@
-import { describeNominalAnnual } from '@/utils/declineCurve/declineDisplay';
+import { formatDecline, declineBasisLabel } from '@/utils/declineCurve/declineDisplay';
+import { useDcaUnits } from '@/components/declineCurve/DcaUnits';
 import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label } from 'recharts';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import {
 } from '@/utils/chartTheme';
 
 const DCATypeCurvePlot = ({ typeCurve }) => {
+  const u = useDcaUnits();
   const [logScale, setLogScale] = useState(true);
 
   // Build chart data: normalized cloud points + smooth fitted curve
@@ -106,7 +108,7 @@ const DCATypeCurvePlot = ({ typeCurve }) => {
               contentStyle={TOOLTIP_STYLE}
               labelFormatter={(value) => `t = ${value.toFixed(0)} days`}
               formatter={(value, name) => [
-                typeof value === 'number' ? value.toFixed(3) : 'N/A',
+                typeof value === 'number' ? value.toFixed(3) : 'n/a',
                 name
               ]}
             />
@@ -149,7 +151,7 @@ const DCATypeCurvePlot = ({ typeCurve }) => {
           <div className="flex flex-col gap-0.5">
             <div>Type: {typeCurve.fit.modelType || typeCurve.modelType}</div>
             <div>qi: {typeCurve.fit.qi.toFixed(3)}</div>
-            <div>Di: {describeNominalAnnual(typeCurve.fit.Di, 1)}</div>
+            <div>Di: {formatDecline(typeCurve.fit.Di, u)} {declineBasisLabel(u)}</div>
             <div>b: {typeCurve.fit.b.toFixed(2)}</div>
             <div>R²: {typeCurve.fit.R2.toFixed(3)}</div>
           </div>
