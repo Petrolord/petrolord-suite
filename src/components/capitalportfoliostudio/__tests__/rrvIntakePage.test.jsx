@@ -156,7 +156,8 @@ describe('U2-009: the intake of a Risked Reserves valuation', () => {
     fireEvent.click(screen.getByLabelText('Unlink and edit manually'));
     fireEvent.click(screen.getByTestId('cp-rrv-pick'));
     const list = await screen.findByTestId('cp-rrv-list');
-    expect(within(list).getByTestId('cp-rrv-option-Ekene North')).toHaveTextContent(/Pg 32\.0%, EMV .* success-case mean .* well 25\.0 \$MM/);
+    // the list says it is reading first; the options follow
+    expect(await within(list).findByTestId('cp-rrv-option-Ekene North')).toHaveTextContent(/Pg 32\.0%, EMV .* success-case mean .* well 25\.0 \$MM/);
     expect(within(list).getByTestId('cp-rrv-option-Ada Deep (shared)')).toHaveTextContent('Ada Deep (shared) (shared with you)');
     fireEvent.click(within(list).getByTestId('cp-rrv-option-Ekene North'));
     expect(await screen.findByTestId('cp-rrv-intake')).toHaveTextContent('"Ekene North" (id valuation-1)');

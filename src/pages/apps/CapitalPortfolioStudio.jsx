@@ -528,7 +528,8 @@ const CapitalPortfolioStudioInner = () => {
         </div>
       </div>
       <Dialog open={isProjectDialogOpen} onOpenChange={setProjectDialogOpen}>
-        <DialogContent>
+        {/* the form with a Risked Reserves provenance card is taller than a laptop screen */}
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingProject ? 'Edit' : 'Add'} Project</DialogTitle>
           </DialogHeader>

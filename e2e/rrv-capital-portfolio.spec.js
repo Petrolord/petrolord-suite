@@ -60,7 +60,8 @@ test('U2-009: valuation to portfolio candidate', async ({ page }) => {
 test('U2-009: a colleague\'s shared valuation goes as read-only provenance', async ({ page }) => {
   test.setTimeout(300000);
   await openRrv(page, '?saved=1&shared=1');
-  await page.getByTestId('rrv-row-Ada Deep (shared)').click();
+  // a shared row's cells are disabled inputs, which take no click: select it by its note
+  await page.getByTestId('rrv-note-Ada Deep (shared)').click();
   const send = page.getByTestId('rrv-send-portfolio');
   await expect(send).toHaveAttribute('href', '/dev/capital-portfolio-studio?rrvValuation=valuation-shared');
   await expect(send).toHaveAttribute('title', /read-only provenance/);
