@@ -129,23 +129,38 @@ export function buildJSpec(capillary, samples) {
   if (included.length === 0) {
     return { jSpec: null, meta: null, error: 'Include at least one sample with a computed J table, or switch to manual mode.' };
   }
+  // SCAL-U1-001: ONE Swirr for every sample, used both to normalise the
+  // samples to Sw* and to map the averaged fit back to true Sw. The engine
+  // left alone takes each sample's own Swirr, which put the working curve
+  // 16 percent low at Sw 0.5 for samples starting at different Sw.
   const swirrOverride = num(capillary.SwirrOverride);
-  const avg = averageJCurves(
-    included.map((s) => ({ name: s.name, jRows: s.jRows })),
-    Number.isFinite(swirrOverride) ? { Swirr: swirrOverride } : {},
-  );
-  if (!avg.ok) return { jSpec: null, meta: null, error: avg.errors[0] };
-  if (!avg.fit) {
-    return { jSpec: null, meta: { mode: 'samples', avg }, error: 'The averaged J curve could not be fitted; check the sample data.' };
+  const lowest = included.map((s) => ({ name: s.name, sw: Math.min(...s.jRows.map((r) => r.Sw)) }));
+  if (Number.isFinite(swirrOverride)) {
+    const above = lowest.find((l) => !(swirrOverride < l.sw));
+    if (swirrOverride < 0 || above) {
+      return {
+        jSpec: null,
+        meta: null,
+        error: above
+          ? `The shared Swirr ${swirrOverride} must sit below the lowest Sw of sample "${above.name}" (${above.sw}). Lower it, or leave it blank.`
+          : 'The shared Swirr cannot be negative.',
+      };
+    }
   }
-  // The averaged fit lives on the normalized Sw* axis (Swirr 0 there). Map
-  // it back to true Sw with the shared Swirr the averaging used.
   const swirr = Number.isFinite(swirrOverride)
     ? swirrOverride
-    : Math.max(0, Math.min(...included.flatMap((s) => s.jRows.map((r) => r.Sw))) - 0.02);
+    : Math.max(0, Math.min(...lowest.map((l) => l.sw)) - 0.02);
+  const avg = averageJCurves(included.map((s) => ({ name: s.name, jRows: s.jRows })), { Swirr: swirr });
+  if (!avg.ok) return { jSpec: null, meta: null, error: avg.errors[0] };
+  const swirrMeta = { value: swirr, from: Number.isFinite(swirrOverride) ? 'override' : 'data' };
+  if (!avg.fit) {
+    return { jSpec: null, meta: { mode: 'samples', avg, swirr: swirrMeta }, error: 'The averaged J curve could not be fitted; check the sample data.' };
+  }
+  // The averaged fit lives on the normalized Sw* axis (Swirr 0 there); map
+  // it back to true Sw with the same Swirr.
   return {
     jSpec: { type: 'power', a: avg.fit.a, b: avg.fit.b, Swirr: swirr },
-    meta: { mode: 'samples', avg, sampleCount: included.length },
+    meta: { mode: 'samples', avg, sampleCount: included.length, swirr: swirrMeta },
     error: null,
   };
 }
