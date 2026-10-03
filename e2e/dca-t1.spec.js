@@ -31,6 +31,8 @@ test('T1: remaining reserves after the last data, EUR, linear date axis', async 
   await page.getByPlaceholder('Well Name').fill('HYP-1');
   await page.getByRole('button', { name: 'Add Well' }).click();
   await page.locator('input[type=file]').setInputFiles(csv());
+  // DCA-U1: the door shows what it read before anything is imported
+  await page.getByTestId('dca-import-commit').click();
   await page.getByRole('button', { name: 'Fit Model' }).click();
   await expect(page.getByText(/fit completed/i).first()).toBeVisible({ timeout: 20000 });
   await page.getByRole('button', { name: 'Generate Forecast' }).click();
