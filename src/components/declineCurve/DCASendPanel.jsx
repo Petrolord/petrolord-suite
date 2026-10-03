@@ -6,7 +6,7 @@
 // calendar-year volumes as a production file. Both keep the contract, print
 // where the numbers came from, and say when the source changed since.
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Send, GitBranch, Landmark } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
@@ -17,7 +17,12 @@ import { buildLabel } from '@/lib/platformBuild';
 export const HUB_ROUTE = '/dashboard/apps/reservoir/forecast-scenario-hub';
 export const EPE_ROUTE = '/dashboard/apps/economics/epe/cases';
 
-const DCASendPanel = ({ hubRoute = HUB_ROUTE, epeRoute = EPE_ROUTE }) => {
+const DCASendPanel = ({ hubRoute: hubProp = null, epeRoute: epeProp = null }) => {
+  // on a /dev harness the receivers are their harnesses (no sign-in there)
+  const { pathname } = useLocation();
+  const onHarness = pathname.startsWith('/dev/');
+  const hubRoute = hubProp || (onHarness ? '/dev/forecast-scenario-hub' : HUB_ROUTE);
+  const epeRoute = epeProp || (onHarness ? '/dev/epe/cases/c1' : EPE_ROUTE);
   const { currentProjectId, currentProject, currentWell, currentWellId, selectedStream, wells, manualSave, canWrite, status } = useDeclineCurve();
   const u = useDcaUnits();
   const navigate = useNavigate();
