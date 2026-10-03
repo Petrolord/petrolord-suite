@@ -13,7 +13,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { sourceText, NOT_PROVIDED } from '@/lib/inputProvenance';
 import { PVT1_PB_SOURCES } from '@/lib/inputProvenance/pvtContract';
 import {
-  normalizeFluid, publishedRange, PB_RS_BO_METHODS, OIL_VISCOSITY_METHODS, pbRsBoMethod, oilViscosityMethod, GAS_Z_METHOD_RECORDS, gasZMethod,
+  normalizeFluid, publishedRange, PB_RS_BO_METHODS, OIL_VISCOSITY_METHODS, pbRsBoMethod, oilViscosityMethod, GAS_Z_METHOD_RECORDS, gasZMethod, vbGasGravity,
 } from '@/utils/fluidStudioCalculations';
 import { tuningState, isActiveStage, knobIntervalWords } from '@/utils/fluidstudio/eosAnalysis';
 import { COMPONENT_ORDER, PLUS_FRACTION_KEY } from '@/utils/fluidstudio/eos/components';
@@ -278,6 +278,14 @@ function blackOilInputRows({ inputs, results, u }) {
   const rateGiven = inputs?.feed?.oilRate != null && inputs.feed.oilRate !== '';
   row({ key: 'oilRate', engineKeys: ['feed.oilRate'], label: 'Stock-tank oil basis for stage gas rates', value: SHOW.rate(u, fluid.feed.oilRate), unit: u.label('liquidRate'), source: rateGiven ? 'Entered (a reporting basis)' : 'Assumed default 1,000 STB/d (no value entered)' });
   rows.push(...stageRows(inputs, u, meta));
+  if (fluid.separator !== undefined) {
+    row({
+      key: 'vb.separator', engineKeys: ['separator.pressure', 'separator.temperature', 'separator'],
+      label: 'Separator of the Vasquez-Beggs gas gravity', value: fluid.separator ? `${SHOW.pressure1(u, fluid.separator.pressure)} / ${SHOW.temperature(u, fluid.separator.temperature)}` : EMPTY_VALUE,
+      unit: `${u.label('pressure')} / ${u.label('temperature')}`,
+      source: fluid.separator ? `Computed: the first separator stage; the gas gravity at the 100 psig reference is ${vbGasGravity(fluid).toFixed(4)}` : `${NOT_PROVIDED}: no stage, the gravity is taken as given`,
+    });
+  }
   rows.push({ key: 'stockTank', label: 'Stock tank (last stage)', value: `${SHOW.pressure1(u, m?.standardConditions?.pressure_psia ?? 14.7)} / ${SHOW.temperature(u, m?.standardConditions?.temperature_degF ?? 60)}`, unit: `${u.label('pressure')} / ${u.label('temperature')}`, source: 'Standard conditions, always added by the app' });
   rows.push(...labInputRows(inputs, u));
   if (fluid.sweep?.pTop != null) {

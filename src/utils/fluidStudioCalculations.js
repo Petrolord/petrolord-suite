@@ -26,6 +26,7 @@
 import { pvtCalcs } from './pvtCalculations.js';
 import {
   mccainBw, mccainMuW, gasZDetail, GAS_Z_METHODS, DEFAULT_GAS_Z_METHOD,
+  vasquezBeggsReferenceGasGravity, VASQUEZ_BEGGS_REFERENCE_SEPARATOR_PSIA,
 } from '../../packages/engines/engines/fluid/blackOil';
 import { readPtProfile } from './fluidstudio/ptProfileImport.js';
 import { labDataOf } from './fluidstudio/labData.js';
@@ -143,12 +144,34 @@ export const normalizeFluid = (inputs) => {
       z_factor: GAS_Z_METHODS[corr.z_factor] ? corr.z_factor : DEFAULT_GAS_Z_METHOD,
     },
     feed: { oilRate: num(inputs?.feed?.oilRate, 1000) },
+    // FLUID-U2-007: Vasquez-Beggs corrects the gas gravity to its 100 psig
+    // reference separator from the first separator stage entered
+    ...(corr.pb_rs_bo === 'vasquez_beggs' ? { separator: firstStage(inputs) } : {}),
     // FLUID-U2-001: with laboratory tables loaded the pressure table is
     // carried up to their highest pressure, so every lab row has a model
     // value beside it. Absent when no table is loaded.
     ...tableSweep(inputs),
   };
 };
+
+/** The first enabled separator stage {pressure psia, temperature degF}, or null. */
+const firstStage = (inputs) => {
+  const st = (inputs?.separatorTrain?.stages || [])
+    .filter((x) => x && x.enabled && num(x.pressure) > 0)
+    .sort((a, b) => num(b.pressure) - num(a.pressure))[0];
+  return st ? { pressure: num(st.pressure), temperature: num(st.temperature, 60) } : null;
+};
+
+/**
+ * The gas gravity Vasquez-Beggs reads: the entered gravity brought to the
+ * 100 psig reference separator from the first separator stage (engines
+ * vasquezBeggsReferenceGasGravity, gated on Ahmed Examples 2-18 and 2-19).
+ * With no stage entered the gravity is taken as given, as Vasquez and Beggs
+ * allow when the separator conditions are unknown.
+ */
+export const vbGasGravity = (fluid) => (fluid?.separator
+  ? vasquezBeggsReferenceGasGravity(fluid.gasGravity, fluid.api, fluid.separator.temperature, fluid.separator.pressure)
+  : fluid.gasGravity);
 
 /**
  * The correlation match to laboratory data that is applied to this fluid
@@ -307,10 +330,11 @@ export const PB_RS_BO_METHODS = Object.freeze({
   vasquez_beggs: Object.freeze({
     label: 'Vasquez-Beggs',
     reference: 'Vasquez and Beggs (1980)',
-    // what the primitive does with the gas gravity, said where the report can read it
-    note: 'The gas gravity is corrected to the 114.7 psia reference separator with a fixed 100 psia separator at the reservoir temperature; the Separator Train does not enter.',
-    rs: (p, f) => pvtCalcs.vasquez_beggs_rs(p, f.api, f.gasGravity, f.temp),
-    bo: (rs, f) => pvtCalcs.vasquez_beggs_bo(rs, f.api, f.gasGravity, f.temp),
+    // FLUID-U2-007: the gas gravity is brought to the reference separator from
+    // the first stage entered (it used a fixed 100 psia at the reservoir
+    // temperature); the primitive then applies no correction of its own
+    rs: (p, f) => pvtCalcs.vasquez_beggs_rs(p, f.api, vbGasGravity(f), f.temp, VASQUEZ_BEGGS_REFERENCE_SEPARATOR_PSIA),
+    bo: (rs, f) => pvtCalcs.vasquez_beggs_bo(rs, f.api, vbGasGravity(f), f.temp, VASQUEZ_BEGGS_REFERENCE_SEPARATOR_PSIA),
   }),
   glaso: Object.freeze({
     label: 'Glaso',
@@ -973,7 +997,7 @@ export function blackOilMethods(fluid, pbDetail) {
     row('pb', 'Bubble point pressure', pb),
     row('rs', 'Solution GOR Rs', {
       method: rsWords,
-      reference: prb.reference, kind: 'correlation', rangeKey: prbKey, note: ['Held at the solution GOR above the bubble point.', prb.note].filter(Boolean).join(' '),
+      reference: prb.reference, kind: 'correlation', rangeKey: prbKey, note: ['Held at the solution GOR above the bubble point.', prb.note, vbNote(fluid)].filter(Boolean).join(' '),
     }),
     row('bo', 'Oil formation volume factor Bo', { method: boWords, reference: prb.reference, kind: 'correlation', rangeKey: prbKey, note: 'Above the bubble point: Bo(Pb) (Pb / p)^A, the Vasquez-Beggs compressibility co = A / p integrated.' }),
     row('co', 'Oil compressibility co (undersaturated)', { method: 'Vasquez-Beggs', reference: 'Vasquez and Beggs (1980)', kind: 'correlation', rangeKey: 'vasquez_beggs_co' }),
@@ -994,6 +1018,13 @@ export function blackOilMethods(fluid, pbDetail) {
     row('mu_w', 'Water viscosity', { method: 'McCain', reference: 'McCain (1991)', kind: 'correlation', rangeKey: 'mccain_mu_w' }),
   ];
 }
+
+/** What Vasquez-Beggs did with the gas gravity, in words for the methods table; '' for the other correlations. */
+export const vbNote = (fluid) => {
+  if (fluid?.correlations?.pb_rs_bo !== 'vasquez_beggs') return '';
+  if (!fluid.separator) return `No separator stage is entered, so the gas gravity ${fluid.gasGravity} is taken as the gravity at the 100 psig reference separator.`;
+  return `The gas gravity ${fluid.gasGravity} is brought to the 100 psig reference separator from the first separator stage (${fluid.separator.pressure} psia, ${fluid.separator.temperature} degF): ${vbGasGravity(fluid).toFixed(4)}.`;
+};
 
 /** The published range record behind a method's rangeKey, or null. */
 export const publishedRange = (rangeKey) => {
