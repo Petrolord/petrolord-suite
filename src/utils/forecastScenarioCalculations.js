@@ -17,6 +17,7 @@
 
 import { generateForecast } from '@/utils/declineCurve/dcaEngine';
 import { DAYS_PER_YEAR as REGISTRY_YEAR } from '@/lib/units/registry';
+import { nominalPerDayFromTyped } from '@/utils/declineCurve/declineInput';
 
 // One year is 365.25 days in Decline Curve Analysis, this hub and Well
 // Spacing (DCA-U1-010): the Suite registry's year. It was 365 here.
@@ -24,6 +25,19 @@ export const DAYS_PER_YEAR = REGISTRY_YEAR;
 
 /** Nominal annual decline (%/yr) to the DCA engine's per-day rate. */
 export const dailyDecline = (declineAnnualPct) => (declineAnnualPct / 100) / DAYS_PER_YEAR;
+
+/**
+ * DCA U2-001: a case's terminal decline Dmin per day, or null. Typed in %/yr,
+ * effective (tangent, the exponential tail's own basis) unless the case says
+ * nominal. No default: a blank or zero is no terminal decline.
+ */
+export function caseTerminalPerDay(caseDef) {
+  const v = Number(caseDef?.terminalDeclinePct);
+  if (!(v > 0)) return null;
+  const basis = caseDef.terminalDeclineBasis === 'nominal' ? 'nominal' : 'effective-tangent';
+  const d = nominalPerDayFromTyped({ value: v, unit: '%/yr', basis });
+  return Number.isFinite(d) && d > 0 ? d : null;
+}
 
 const modelTypeFor = (b) => {
   if (b === 0) return 'Exponential';
@@ -58,7 +72,8 @@ export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
     return { ...caseDef, error: 'qi, decline and horizon must be positive (b >= 0).' };
   }
   const Di = dailyDecline(declineAnnualPct);
-  const params = { qi, Di, b, modelType: modelTypeFor(b) };
+  const Dmin = caseTerminalPerDay(caseDef);
+  const params = Dmin ? { qi, Di, b, Dmin, modelType: modelTypeFor(b) } : { qi, Di, b, modelType: modelTypeFor(b) };
   // HUB-U1: a case may carry its own start (a case received from Decline
   // Curve Analysis starts the day after the data cut-off)
   const start = caseDef.startDate ? `${String(caseDef.startDate).slice(0, 10)}T00:00:00Z` : startDateIso;
@@ -93,6 +108,8 @@ export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
     finalRate: last ? last.rate : 0,
     timeToLimitDays,
     timeToLimitYears: timeToLimitDays == null ? null : timeToLimitDays / DAYS_PER_YEAR,
+    // DCA U2-001: the switch to the terminal decline, days from the case start
+    ...(result.terminalDecline ? { terminal: { ...result.terminalDecline, dminPerDay: Dmin, switchDate: new Date(Date.parse(start) + (result.terminalDecline.tSwitch - 1) * 86400000).toISOString().slice(0, 10) } } : {}),
   };
 }
 
@@ -169,6 +186,8 @@ export function compareCases(caseDefs, econ, startDateIso) {
       annual,
       economics,
       monthly: monthlySeries(c.rates),
+      // DCA U2-001: the switch to the terminal decline, when the case has one
+      terminal: c.terminal ? { dminPerDay: c.terminal.dminPerDay, switchDate: c.terminal.switchDate, qSwitch: c.terminal.qSwitch, fromStart: !!c.terminal.fromStart } : null,
     };
   });
   return { cases, summaries };

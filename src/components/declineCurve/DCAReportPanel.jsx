@@ -118,6 +118,9 @@ const DCAReportPanel = () => {
           <Table title="Inputs" head={['Input', 'Value', 'Unit', 'Source and quality']} rows={model.inputs.map((r) => [r.label, r.value, r.unit, r.source])} testId="dca-report-inputs" />
           <Table title="Decline rate and its basis" head={['Basis', 'Value', 'Unit']} rows={model.declineRows} testId="dca-report-decline" />
           <Table title="Regression" head={['Item', 'Value']} rows={model.regression} testId="dca-report-regression" />
+          {model.rateCum
+            ? <Table title="Rate against cumulative cross-check" head={['Item', 'Value']} rows={model.rateCum.rows} testId="dca-report-ratecum" note={model.rateCum.note} />
+            : <p className="text-[11px] text-pl-muted" data-testid="dca-report-ratecum-none">Rate against cumulative cross-check: {model.rateCumStatement}</p>}
           {model.mc && <Table title="Monte Carlo EUR" head={['Percentile', 'Value', 'Unit']} rows={model.mc.rows} testId="dca-report-mc" note={model.mc.note} />}
           <Table title="Data used and left out" head={['Count', 'Rows']} rows={model.dataCounts} testId="dca-report-data" note={model.importNotes || undefined} />
           {model.leftOut.length > 0 && <Table title="Points left out of the fit and why" head={['Date', `Rate (${model.units.rate})`, 'Reason']} rows={model.leftOut} testId="dca-report-left-out" />}

@@ -121,6 +121,15 @@ const DCAForecastResults = () => {
         </div>
       )}
 
+      {/* DCA U2-001: the switch to the terminal decline */}
+      {results.terminalDecline && (
+        <div className="text-[11px] text-pl-muted shrink-0" data-testid="dca-terminal-switch">
+          {results.terminalDecline.fromStart
+            ? 'Terminal decline: the fitted decline is already at or below Dmin, so the forecast is exponential at Dmin from the fit start.'
+            : `Terminal decline: the forecast switches to an exponential at Dmin on ${results.terminalDecline.switchDate}, at ${u.rateTo(selectedStream, results.terminalDecline.qSwitch).toFixed(1)} ${u.rateLabel(selectedStream)}.`}
+        </div>
+      )}
+
       {/* EUR Distribution for Probabilistic */}
       {isProbabilistic && probabilisticResults.distribution && (
         <Card className="shrink-0">

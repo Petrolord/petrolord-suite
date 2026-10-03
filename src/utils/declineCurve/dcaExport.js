@@ -2,6 +2,7 @@ import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import html2canvas from 'html2canvas';
 import { nominalAnnualPct } from '@/utils/declineCurve/declineDisplay';
+import { describeTypedDecline } from '@/utils/declineCurve/declineInput';
 import { DCA_OILFIELD_UNITS } from '@/utils/declineCurve/dcaUnits';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
@@ -24,6 +25,7 @@ export const buildForecastCsv = (forecastData, wellName, stream, { u = DCA_OILFI
     fit ? `# Model: ${fit.modelType}; qi ${fmtNum(u.rateTo(stream, fit.qi))} ${rateU} at ${String(fit.t0 || '').slice(0, 10) || EMPTY_VALUE}; Di ${fmtNum(nominalAnnualPct(fit.Di))} %/yr nominal (${fmtNum(fit.Di)} 1/d nominal; a year is 365.25 days); b ${fmtNum(fit.b)}` : '# Model: not fitted',
     fit?.basis?.window ? `# Fit window: ${fit.basis.window.startDate || EMPTY_VALUE} to ${fit.basis.window.endDate || EMPTY_VALUE}; points used ${fit.points?.used ?? EMPTY_VALUE}` : null,
     config ? `# Economic limit: ${config.stopAtLimit && config.economicLimit > 0 ? `${fmtNum(u.rateTo(stream, config.economicLimit))} ${rateU}` : 'none'}; facility limit: ${config.facilityLimit > 0 ? `${fmtNum(u.rateTo(stream, config.facilityLimit))} ${rateU}` : 'none'}` : null,
+    results?.terminalDecline ? `# Terminal decline Dmin: ${describeTypedDecline(results.terminalDecline.entered)}; switch to exponential ${results.terminalDecline.fromStart ? 'from the fit start' : `on ${results.terminalDecline.switchDate}`}` : null,
     results ? `# Last data: ${String(results.historyEndDate || '').slice(0, 10) || EMPTY_VALUE}; produced to date ${fmtNum(u.volumeTo(stream, results.produced))} ${volU}; remaining ${fmtNum(u.volumeTo(stream, results.remaining ?? results.eur))} ${volU}; EUR ${fmtNum(u.volumeTo(stream, results.eurTotal))} ${volU}` : null,
     `# Rates are daily rates at stock-tank conditions; the forecast starts the day after the last data.`,
   ].filter(Boolean);
@@ -83,6 +85,8 @@ export const buildScenarioSummaryRows = (scenarios, u = DCA_OILFIELD_UNITS) => (
     'EUR': vol(fc.eurTotal),
     'Remaining ends at': fc.limitReached == null ? EMPTY_VALUE : fc.limitReached ? 'economic limit' : 'forecast horizon',
     'Economic Limit': rate(config.economicLimit),
+    // DCA U2-001: the terminal decline the scenario's forecast ran with
+    'Terminal decline Dmin': fc.terminalDecline ? describeTypedDecline(fc.terminalDecline.entered) : 'none',
   };
 });
 

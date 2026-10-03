@@ -28,6 +28,7 @@
 //    rows used (RL5).
 
 import { getStreamRate } from './csvParser';
+import { normaliseTerminalDecline } from './declineInput';
 
 export const DCA_PAYLOAD_VERSION = 2;
 export const STREAMS = Object.freeze(['oil', 'gas', 'water']);
@@ -51,6 +52,9 @@ export function defaultStream(stream) {
       stopAtLimit: stream !== 'water',
       mcSeed: DEFAULT_MC_SEED,
       economicLimitUncertainty: DEFAULT_ECON_LIMIT_UNCERTAINTY,
+      // DCA U2-001: no default terminal decline (owner's default); the
+      // analyst sets one as {value, unit, basis}
+      terminalDecline: null,
     },
     forecastResults: null,
     excluded: [],
@@ -251,6 +255,9 @@ export function forecastConfigKey(config) {
     probabilisticMode: !!c.probabilisticMode,
     mcSeed: c.probabilisticMode ? (c.mcSeed ?? null) : null,
     economicLimitUncertainty: c.probabilisticMode ? (c.economicLimitUncertainty ?? null) : null,
+    // DCA U2-001: present only when set, so a forecast saved before it
+    // existed (or with none) keeps its key and stays current
+    terminalDecline: normaliseTerminalDecline(c.terminalDecline) || undefined,
   });
 }
 

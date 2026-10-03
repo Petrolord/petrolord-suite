@@ -88,6 +88,20 @@ const CaseCard = ({ c, color, onChange, onDuplicate, onDelete, deletable, rateUn
             <Input id={`fsh-${c.id}-start`} type="date" value={c.startDate || ''} onChange={(e) => onChange({ startDate: e.target.value || null })}
               className="h-8 text-xs" disabled={disabled} data-testid={`fsh-${c.id}-start`} />
           </div>
+          {/* DCA U2-001: terminal decline Dmin, no default (blank is none) */}
+          <DcaNumberField id={`fsh-${c.id}-dmin`} label="Terminal decline Dmin" unit="%/yr" value={c.terminalDeclinePct > 0 ? c.terminalDeclinePct : null}
+            placeholder="None" emptyValue={null}
+            onCommit={(v) => onChange({ terminalDeclinePct: v > 0 ? v : null, terminalDeclineBasis: v > 0 ? (c.terminalDeclineBasis || 'effective-tangent') : null })}
+            labelClassName="text-[10px] text-pl-muted" testId={`fsh-${c.id}-dmin`} disabled={disabled} />
+          <div className="space-y-1">
+            <Label htmlFor={`fsh-${c.id}-dmin-basis`} className="text-[10px] text-pl-muted">Dmin basis</Label>
+            <select id={`fsh-${c.id}-dmin-basis`} value={c.terminalDeclineBasis || 'effective-tangent'}
+              onChange={(e) => onChange({ terminalDeclineBasis: e.target.value })} disabled={disabled || !(c.terminalDeclinePct > 0)}
+              className="h-8 w-full rounded border border-pl-border bg-pl-surface text-pl-text text-xs" data-testid={`fsh-${c.id}-dmin-basis`}>
+              <option value="effective-tangent">Effective</option>
+              <option value="nominal">Nominal</option>
+            </select>
+          </div>
         </div>
         {source && (
           <div className="rounded border border-pl-border bg-pl-sunken p-2 text-[10px] text-pl-muted space-y-1" data-testid={`fsh-${c.id}-source`}>

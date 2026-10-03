@@ -90,6 +90,7 @@ const ForecastScenarioHubHelpGuideContent = () => (
           ['Horizon', 'years', 'How long the forecast runs if the economic limit is never reached.', '20'],
           ['Econ limit', 'bbl/d or sm3/d', 'Rate at which the forecast stops. Zero disables the cutoff.', '30'],
           ['Start date', 'date', 'The first day of the case. Blank takes the set start (the date box above the cases).', 'blank'],
+          ['Terminal decline Dmin', 'percent per year, effective or nominal (the Dmin basis box)', 'The modified hyperbolic: the case follows its hyperbolic until the nominal decline falls to Dmin, then declines exponentially at Dmin. Effective is the share of rate lost in a year on that exponential tail. Blank is none. A case from Decline Curve Analysis brings the Dmin set there, as nominal.', 'blank (no default)'],
         ]}
       />
       <Callout tone="danger" title="Decline is the nominal rate">
@@ -257,7 +258,8 @@ const ForecastScenarioHubHelpGuideContent = () => (
         Only a negative b is rejected. Values above 1 give a decline that flattens without ever
         terminating, and the EUR grows quickly with b. If you are booking anything from a case
         with b above 1, make sure the economic limit is doing real work, because the 50 year
-        maximum life will otherwise be what sets your EUR.
+        maximum life will otherwise be what sets your EUR. A terminal decline Dmin is the usual
+        cure: the curve switches to an exponential when its decline falls to Dmin.
       </Para>
       <SubHeading>A case from Decline Curve Analysis</SubHeading>
       <Para>

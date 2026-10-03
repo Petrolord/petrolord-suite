@@ -29,7 +29,8 @@
 // the reason.
 import { analysisOf, analysisStatus, staleText, migrateDcaPayload, fingerprint, STREAMS } from './dcaModel';
 import { nominalAnnualPct, effectiveFirstYearPct, DAYS_PER_YEAR } from './declineDisplay';
-import { calculateArpsHyperbolic } from './dcaEngine';
+import { calculateArpsHyperbolic, calculateModifiedHyperbolicRate } from './dcaEngine';
+import { describeTypedDecline } from './declineInput';
 import { ENGINE_RATE, ENGINE_VOLUME } from './dcaUnits';
 
 export const DCA_FORECAST_SCHEMA = 'dca-forecast-1';
@@ -86,8 +87,14 @@ export function buildDcaForecastContract({ projectId, projectName = null, projec
   const cutoff = Date.parse(fc.historyEndDate);
   // the day count forecastFromHistory used, so the restart is exact
   const tH = Math.max(0, Math.round((cutoff - t0) / DAY));
-  const qH = calculateArpsHyperbolic(fit.qi, fit.Di, fit.b, tH);
-  const diH = fit.b > 0 ? fit.Di / (1 + fit.b * fit.Di * tH) : fit.Di;
+  // DCA U2-001: with a terminal decline the curve is the modified hyperbolic;
+  // restarted at the cut-off it is the same curve (the switch is set by the
+  // decline, which is the same at the same rate), or the exponential tail
+  // at Dmin when the switch is already behind the cut-off
+  const term = fc.terminalDecline || null;
+  const pastSwitch = !!term && tH >= term.tSwitchDays;
+  const qH = term ? calculateModifiedHyperbolicRate(fit.qi, fit.Di, fit.b, term.dminPerDay, tH) : calculateArpsHyperbolic(fit.qi, fit.Di, fit.b, tH);
+  const diH = pastSwitch ? term.dminPerDay : (fit.b > 0 ? fit.Di / (1 + fit.b * fit.Di * tH) : fit.Di);
   const cfg = s.forecastConfig;
   const endReason = fc.limitBeforeToday ? 'below-limit-at-cutoff' : fc.limitReached ? 'economic-limit' : 'horizon';
   const ci = fit.confidenceIntervals || {};
@@ -118,6 +125,20 @@ export function buildDcaForecastContract({ projectId, projectName = null, projec
       b: fit.b,
       basis: 'Di is the nominal (instantaneous) decline per day at qiAt; per year it is that times 365.25',
       daysPerYear: DAYS_PER_YEAR,
+      // DCA U2-001: the terminal decline; the key is absent when none was set
+      ...(term ? {
+        terminal: {
+          dminPerDay: term.dminPerDay,
+          dminNominalPctPerYear: nominalAnnualPct(term.dminPerDay),
+          entered: term.entered,
+          enteredText: describeTypedDecline(term.entered),
+          switchDate: term.switchDate,
+          switchDaysFromFitStart: term.tSwitchDays,
+          switchRate: term.qSwitch,
+          fromStart: term.fromStart,
+          basis: 'Modified hyperbolic: the hyperbolic until its nominal decline falls to Dmin, exponential at Dmin after',
+        },
+      } : {}),
     },
     atCutoff: {
       date: new Date(cutoff).toISOString().slice(0, 10),
@@ -125,6 +146,7 @@ export function buildDcaForecastContract({ projectId, projectName = null, projec
       rate: qH,
       diPerDay: diH,
       diNominalPctPerYear: nominalAnnualPct(diH),
+      ...(term ? { pastSwitch } : {}),
     },
     fit: {
       fittedAt: fit.fittedAt || null,
@@ -170,7 +192,9 @@ export function dcaSourceLine(c) {
 export function dcaBasisLine(c) {
   if (!c) return '';
   const d = c.atCutoff;
-  return `qi ${Number(d.rate.toPrecision(6))} ${c.units.rate} and Di ${Number(d.diNominalPctPerYear.toPrecision(6))} %/yr nominal (a year of 365.25 days) at the data cut-off ${d.date}, b ${Number(Number(c.decline.b).toPrecision(4))}; fitted at ${c.decline.qiAt}: qi ${Number(c.decline.qi.toPrecision(6))} ${c.units.rate}, Di ${Number(c.decline.diPerDay.toPrecision(4))} per day nominal`;
+  const t = c.decline.terminal;
+  const term = t ? `; terminal decline Dmin ${Number(t.dminNominalPctPerYear.toPrecision(6))} %/yr nominal (entered as ${t.enteredText}), switch to exponential on ${t.switchDate}` : '';
+  return `qi ${Number(d.rate.toPrecision(6))} ${c.units.rate} and Di ${Number(d.diNominalPctPerYear.toPrecision(6))} %/yr nominal (a year of 365.25 days) at the data cut-off ${d.date}, b ${Number(Number(c.decline.b).toPrecision(4))}; fitted at ${c.decline.qiAt}: qi ${Number(c.decline.qi.toPrecision(6))} ${c.units.rate}, Di ${Number(c.decline.diPerDay.toPrecision(4))} per day nominal${term}`;
 }
 
 /**
@@ -183,6 +207,7 @@ export function compareWithSource(received, now) {
   if (now.contract.fingerprint === received.fingerprint) return { state: 'unchanged', text: 'Unchanged since it was received.' };
   const moved = [];
   if (now.contract.decline.qi !== received.decline.qi || now.contract.decline.diPerDay !== received.decline.diPerDay || now.contract.decline.b !== received.decline.b) moved.push('the fit');
+  if ((now.contract.decline.terminal?.dminPerDay ?? null) !== (received.decline.terminal?.dminPerDay ?? null)) moved.push('the terminal decline');
   if (now.contract.forecast.eur !== received.forecast.eur || now.contract.forecast.remaining !== received.forecast.remaining) moved.push('the volumes');
   if (now.contract.forecast.economicLimit !== received.forecast.economicLimit) moved.push('the economic limit');
   if (now.contract.atCutoff.date !== received.atCutoff.date) moved.push('the data cut-off');

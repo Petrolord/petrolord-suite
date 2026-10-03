@@ -7,6 +7,7 @@ import { Loader2, TrendingUp, Dices, RefreshCw } from 'lucide-react';
 import DcaNumberField from '@/components/declineCurve/DcaNumberField';
 import { useDcaUnits } from '@/components/declineCurve/DcaUnits';
 import { DCA_DAYS_PER_YEAR } from '@/utils/declineCurve/dcaUnits';
+import { normaliseTerminalDecline, describeTypedDecline } from '@/utils/declineCurve/declineInput';
 
 const DCAForecastEngine = () => {
   const { 
@@ -27,6 +28,8 @@ const DCAForecastEngine = () => {
   // DCA-U1-003: a forecast is run on a fit that still describes the data
   const fitStale = hasFit && status?.fit === 'stale';
   const hasConfidenceIntervals = streamState[selectedStream].fitResults?.confidenceIntervals?.hasIntervals;
+  const terminal = normaliseTerminalDecline(config.terminalDecline);
+  const fitB = streamState[selectedStream].fitResults?.b ?? 0;
   // Projects saved before these settings existed carry neither, so fall back.
   const seedValue = Number.isFinite(config.mcSeed) ? config.mcSeed : DEFAULT_MC_SEED;
   const econUncertaintyPct = Math.round(100 * (Number.isFinite(config.economicLimitUncertainty)
@@ -169,6 +172,45 @@ const DCAForecastEngine = () => {
           testId="dca-horizon"
           hint={`${Math.round(config.durationDays || 0).toLocaleString()} days; a year is 365.25 days.`}
         />
+
+        {/* DCA U2-001: terminal decline (modified hyperbolic). No default:
+            blank is none, the owner's default. Typed in %/yr on a stated
+            basis (U2-004): effective is the tangent form, the share of rate
+            the exponential tail loses in a year. */}
+        <div className="space-y-1" data-testid="dca-terminal-decline">
+          <DcaNumberField
+            id="dca-terminal-dmin"
+            label="Terminal decline Dmin"
+            unit="%/yr"
+            value={terminal ? terminal.value : null}
+            emptyValue={null}
+            placeholder="None (no default)"
+            onCommit={(v) => updateForecastConfig('terminalDecline', Number.isFinite(v) && v > 0
+              ? { value: v, unit: '%/yr', basis: terminal?.basis || 'effective-tangent' }
+              : null)}
+            testId="dca-terminal-dmin"
+          />
+          <div className="flex items-center gap-2 text-[11px] text-pl-muted">
+            <label htmlFor="dca-terminal-basis">Basis</label>
+            <select
+              id="dca-terminal-basis"
+              aria-label="Terminal decline basis"
+              className="h-6 rounded border border-pl-border bg-pl-surface text-pl-text text-[11px]"
+              value={terminal?.basis || 'effective-tangent'}
+              disabled={!terminal}
+              onChange={(e) => updateForecastConfig('terminalDecline', { ...terminal, basis: e.target.value })}
+              data-testid="dca-terminal-basis"
+            >
+              <option value="effective-tangent">Effective (share lost per year)</option>
+              <option value="nominal">Nominal</option>
+            </select>
+          </div>
+          <p className="text-[10px] text-pl-muted leading-relaxed" data-testid="dca-terminal-hint">
+            {terminal
+              ? `${describeTypedDecline(terminal)}. The forecast follows the fit until its decline falls to Dmin, then declines exponentially at Dmin. ${fitB > 0 ? '' : 'An exponential fit (b = 0) is not changed by it.'}`
+              : 'Blank: no terminal decline, the fitted Arps curve runs to the end. Set one for b near or above 1 (modified hyperbolic); there is no default.'}
+          </p>
+        </div>
 
         {/* Facility Limit */}
         <DcaNumberField
