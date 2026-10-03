@@ -103,10 +103,10 @@ that misleads; S3 workflow gap or misleading text; S4 polish.
 | RRV-U1-016 | S3 | RL9 | The starting defaults contradict each other: a 10 MMboe discovery at 8 $/boe with a 100 $MM development loses 20 $MM, yet 10 is the MEFS. | The report flags an MEFS below the size that pays. The defaults are left as they are (owner question 2). Report RL9 test. |
 | RRV-U1-017 | S3 | Contract | Record sharing was not adopted. | Share for viewing on a saved valuation; "Shared with me" read-only, outside the portfolio, with Save a copy. Workstation "sharing". |
 | RRV-U1-018 | S4 | PL12 | The help guide said everything is kept in this browser and gave volumes in MMbbl. | Guide rewritten for saving, sharing, the handoff, units and the report. Help guide suites. |
-| RRV-U1-019 | S3 | RL6, PL8 | No sensitivity analysis: a committee asks what moves the EMV. | Open: U2-003. The report states the figure is absent and why. |
+| RRV-U1-019 | S3 | RL6, PL8 | No sensitivity analysis: a committee asks what moves the EMV. | Closed by U2-003 (Step 2): the tornado on screen and as Figure 5. |
 | RRV-U1-020 | S4 | PL5 | The harness seeded prospects with no unit or basis, so every walk showed the legacy warning. | Modern seeds; the legacy row is a fixture behind `?legacy=1`. |
 | RRV-U1-021 | S4 | PL6 | At 390 wide the prospect table scrolls sideways inside its card. | Kept (the T1 decision): eight numeric inputs do not fit a phone. The page itself does not scroll. |
-| RRV-U1-022 | S3 | PL8, RL11 | "Re-run prospect": the valuation can now refresh from a changed prospect, but cannot open ReservoirCalc Pro on the source project and run and re-run it. | Open: U2-006. The source block (012) is the first of the three needs. |
+| RRV-U1-022 | S3 | PL8, RL11 | "Re-run prospect": the valuation can now refresh from a changed prospect, but cannot open ReservoirCalc Pro on the source project and run and re-run it. | Closed by U2-006 (Step 2). |
 | RRV-U1-023 | S3 | RL7 | A typed value per barrel carries no discount rate, price deck or reference date; only a value sent by ReservoirCalc Pro prints its assumptions. | Partly fixed (the sent case prints engine and assumptions; a typed one prints its stated source and note). Open: U2-001. |
 
 Totals: 23 findings. Fixed 19 (5 S2, 12 S3, 2 S4), partly fixed 1 (023),
@@ -259,3 +259,319 @@ Batches:
 | 4 | Batch A needs a sender in the Petroleum Economics Studio (an Economics app). Build it in this round or in the Economics round? | In this round, as a small sender on the canonical NPV, because it closes the NAPE chain. |
 | 5 | Play-level chance (U2-004) changes how Pg is entered in ReservoirCalc Pro. Before or after NAPE? | After NAPE. |
 | 6 | Will a reviewer read the sample report before NAPE? | Yes if available: `/root/rrv-report-sample.pdf` with the RL checklist as the form. |
+
+## Batch decision (2026-10-02)
+
+Programme lead, 2026-10-02. Recorded verbatim:
+
+> BUILD in this order, one commit per item:
+> - Batch A, all four: U2-002 derived MEFS and value by field size (the minimum economic field size and the value of a discovery follow from a small stated economic model instead of two unrelated typed numbers; this also resolves the contradictory defaults found in Step 1, where a 10 MMboe discovery lost money at the default economics while MEFS said 15: after this the defaults are consistent by construction, and the report shows the value-against-size curve with the MEFS marked; any economics arithmetic goes through `calculateEconomics`, never a private loop); U2-001 value per barrel from Petroleum Economics Studio (a real handoff: a saved EPE case is picked by id, its NPV per barrel, price deck name, discount rate, date and build travel with it as provenance, survive a refresh, are printed in the report, and "source changed since" is shown; if EPE has no sender for this, build the sender there with a minimal, documented contract and tests; keep EPE's own numbers untouched); U2-003 EMV tornado (sensitivity of EMV to Pg, each chance factor, volumes, value per barrel, well cost and MEFS over stated ranges; on screen with the house chart standard and in the report through the kit's bar panel; this fills the figure Step 1 stated as absent); U2-006 "Re-run prospect" deep link (from a valuation whose upstream prospect changed, open ReservoirCalc Pro on that prospect ready to re-run, and return with the refreshed handoff; a colleague's shared prospect opens read-only with the reason).
+> - Batch B: U2-008 ranking (a portfolio table of the user's and shared valuations ranked by EMV, risked volume and chance, with the basis of each stated, exportable with a provenance header); U2-009 send to Capital Portfolio only if time remains and that app has, or cheaply gains, a typed intake.
+> - DEFERRED (record reasons): U2-004 play and prospect chance split (after NAPE, with ReservoirCalc Pro U2-010); U2-007 portfolio distribution with dependence (L; needs the canonical Monte Carlo module and a dependence model); U2-005 multi-zone (L); U2-010 colleague editing (sharing stays view-only for valuations for now); U2-011 upstream distribution in place of the lognormal (M, after NAPE); U2-012 staged decision (L).
+
+Note on the wording above: the Step 1 starting default MEFS was 10 MMboe (the
+saved harness fixture typed 15). Finding RRV-U1-016 stands as written: at the
+Step 1 defaults a 10 MMboe discovery was worth minus 20 $MM while 10 was the
+MEFS.
+
+Built on branch `feat/rrv-u2`, one commit per item. No DDL: everything new a
+valuation holds lives in its existing `valuation` JSON payload.
+
+## Step 2 build (2026-10-02)
+
+| Item | State | Proving test | Notes |
+|---|---|---|---|
+| U2-002 derived MEFS and value by field size | Done | `__tests__/rrvU2Economics.test.js` (19): a worked hand calculation (model H: MEFS 5.5 MMboe, u 34.67137 $/boe, D 190.69252 $MM; with royalty and tax 8.97959; with a capex per barrel 6.37681) against the shipped functions, which call `calculateEconomics` (spied: one call per NPV, the case handed over is checked); negative controls (the undiscounted 5.0 and the old default 10 are not the size that pays; the Step 1 defaults give minus 20 at the MEFS); the cross-check integral against a brute-force sum. `rrvU2Store.test.js` (14), `rrvU2Report.test.js` (8, PDF read back, golden `model-prospect`), `rrvU2Workstation.test.jsx` (5) | See "U2-002" below. |
+| U2-001 value per barrel from Petroleum Economics Studio | Done | Sender: `src/pages/apps/epe/__tests__/epeUnitValue.test.js` (11): the contract built from the Ekene demo run the cash-flow engine itself computed (NPV 1.980235 $MM over 0.721833 MMboe is 2.7433 $/boe; before capex 18.3602 $/boe; the line gives the run NPV back at the run's size; the engine's own DPI agrees with the PV of capex read), refusals, the fingerprint, the service by id, the results-page card. Receiver: `__tests__/rrvU2Epe.test.js` (10, PDF read back) and `rrvU2Workstation.test.jsx` U2-001 block (5): pick by id, provenance kept, save and reload, "source changed since" with Refresh, typed over, the link from the run, no runs and an unreadable store | See "U2-001" below. Petroleum Economics Studio had no sender; one was built there. |
+| U2-003 EMV tornado | Done | `__tests__/rrvU2Sensitivity.test.js` (9): a worked hand calculation (Pg 0.25, P90 10, P10 60, MEFS 10, 8 $/boe, 100 $MM, 25 $MM: well cost, development cost, value per barrel and Pg by 25%, and the charge factor 0.5 by 0.1, each to three decimals) against `emvSensitivity`, which asks `valueProspect` again for every case; negative control (a tornado that scales the EMV itself, forgetting the dry hole, misses by more than 6 $MM); ordering, clamping, refusals. `rrvU2Report.test.js` (2 more: the figure drawn as bars and counted in the file, the table, the well-cost row by hand, the analyst's own ranges). `rrvU2Workstation.test.jsx` (Sensitivity tab) | See "U2-003" below. Fills the figure Step 1 stated as absent (RRV-U1-019 closed). |
+| U2-006 "Re-run prospect" deep link | Done | `ReservoirCalcPro/__tests__/prospectRerun.test.js` (4, the plan: ready, read-only, missing, no source, typed, project gone, reservoir gone, return path kept inside the app) and `rerunProspect.test.jsx` (5: the project and reservoir open, the seed is set, Prospect Risking is filled, the re-run names the old record and retires it, the valuation's upstream check follows it, a colleague's prospect opens read-only and theirs is left alone). `rrvU2Workstation.test.jsx` U2-006 block (4: the link on a re-risked or flagged row and in the readout, back with `?refresh=` takes the re-run and keeps the economics, back with nothing re-run). e2e: valuation to ReservoirCalc Pro and back, and the read-only case | See "U2-006" below. Closes RRV-U1-022 and ReservoirCalc Pro owner item 3. |
+| U2-008 ranking | Done | `__tests__/rrvU2Ranking.test.js` (4): three prospects built so the three keys disagree, each order checked against the engine's own numbers, the unfinished one listed with its reason, shared rows owned and marked, the basis words, the CSV header line by line with one pinned conversion. `rrvU2Workstation.test.jsx` Ranking block (1) | See "U2-008" below. |
+| U2-009 send to Capital Portfolio | Deferred | none | Capital Portfolio Studio has a typed intake (`portfolio_projects` with `pos`, `fail_cost`, `source_type`, `source_ref`), so no DDL is needed, but the mapping has three questions for the owner. See "Deferred, with reasons". |
+
+### U2-002: the derived MEFS and the value of a discovery
+
+**What changed.** A valuation now says where its three economic inputs come
+from, in an `econ` block of its JSON payload (no DDL):
+
+- *Value of a discovery* (value per barrel u and development cost D): the
+  **economic model** of the valuation, or **entered values** (typed here, or
+  sent with a prospect valued in ReservoirCalc Pro).
+- *MEFS*: **derived** (the size at which a discovery is worth zero under that
+  value) or **typed**.
+
+The economic model is ten stated assumptions (price, variable and fixed
+operating cost, development capex as a fixed part plus a part per barrel,
+producing life, decline, royalty, tax, discount rate). It starts from
+ReservoirCalc Pro's screening defaults and builds the same cash-flow case
+(`economicsCase`), so the two ends of the prospect chain share one model.
+Every NPV is `calculateEconomics` (`src/utils/npvCalculations.js`);
+`services/rrvEconomics.js` holds no cash-flow or discounting arithmetic. It
+asks the engine for the NPV of a development of a given size and does three
+things with the answers:
+
+1. **Derived MEFS**: the smallest size whose engine NPV is at or above zero
+   (bisection on the engine's NPV).
+2. **The value line** the valuation engine reads, value(V) = u V - D: the
+   straight line through the engine NPV at the MEFS and at the mean
+   commercial size of the prospect. So a discovery of exactly the MEFS is
+   worth what the engine says (zero), and EMV = Pc x NPV(mean commercial
+   size) - W to 1e-8 (test).
+3. **A cross-check** printed in the report: the EMV with the value-by-size
+   curve integrated over the success case, segment by segment, in closed
+   form from the valuation engine's own lognormal exports (no sampling). On
+   the default model the engine NPV is a straight line above about 8 MMboe,
+   so the difference is 0.0; where late years lose money and pay no tax the
+   curve bends, the difference is printed, and above 5% it raises a flag.
+
+For entered values the derived MEFS is D / u (the zero of the same line).
+
+**The contradictory defaults (RRV-U1-016, owner question 2) are closed.** A
+new prospect, and an import that carries no economics, start on the model
+with a derived MEFS: consistent by construction. The default valuation
+(Pg 0.25, P90 10, P50 25, P10 60 MMboe, well 25 $MM):
+
+| | MEFS (MMboe) | u ($/boe) | D ($MM) | Value at the MEFS ($MM) | Pc | EMV ($MM) |
+|---|---|---|---|---|---|---|
+| Before (Step 1 typed defaults) | 10 | 8 | 100 | -20.0 | 22.5% | 13.6 |
+| After (default model, derived) | 20.58 | 21.00 | 432.1 | 0.0 | 15.0% | 46.4 |
+
+**What does not change.** A valuation saved before this build opens on
+entered values with a typed MEFS, exactly as it was valued (test). A
+prospect valued in ReservoirCalc Pro keeps the value per barrel and
+development cost it was sent; its MEFS is now derived (D / u) where Step 1
+gave it the unrelated default of 10. No other app's numbers move.
+
+**On the screen.** A new Economics tab: the two choices, the model's
+assumptions (prices follow the unit profile: 70 $/boe is 440.287 $/m3, pinned
+in a test), the derived values, the basis rows, the value-against-size chart
+(white chart template, ChartLogo) and the value-by-size table. In the
+prospect table a derived cell is dashed and italic and says what it is
+derived from; typing in it takes it over (a typed MEFS stops following the
+economics; a typed value per barrel or development cost leaves the model).
+
+**In the report.** The three derived inputs say what they were derived from;
+each model assumption is a row with unit and source ("Assumed: the starting
+screening default" until changed or its source stated; completeness guard
+`missingModelInputs`); a section "Economics: the MEFS and the value of a
+discovery" (basis, the value line, the MEFS, the value at the MEFS, the mean
+commercial size, the cross-check); the table "Value by field size" (engine
+NPV, engine NPV per barrel, the line and the difference at the MEFS, P90,
+P50, mean, mean if commercial and P10); a new figure "Value of a discovery
+against its size" with the engine curve, the line and the MEFS marked; limits
+updated (the line, the derived or typed MEFS, the screening model and its
+caution). The CSV gains `mefs_basis` and `value_basis`.
+
+**Reference.** Rose (2001), *Risk Analysis and Management of Petroleum
+Exploration Ventures*, AAPG Methods in Exploration 12, and the SPE PRMS were
+not available to read in this environment. The definition used (MEFS as the
+smallest recoverable volume whose development NPV is not negative; Pc = Pg x
+P(V >= MEFS)) is the standard one as recalled, and the GeoExpro article on
+the MEFS concept listed in section 2a was read in Step 1. The validation is
+therefore a hand calculation on the canonical engine, not a published case.
+
+**Limit to know.** In the screening case shared with ReservoirCalc Pro the
+development capex sits in a year with no income and `lossCarryForward` is
+off, so it earns no tax relief: the derived MEFS is on the cautious side.
+This is printed under "Limits of this analysis". Changing it would move
+ReservoirCalc Pro's sent economics too, so it is an owner item, not done
+here.
+
+### U2-001: the value per barrel from Petroleum Economics Studio
+
+**There was no sender.** Petroleum Economics Studio saved runs and exported
+files; nothing published a value per barrel to another app (the H8 finding
+of the honesty sweep). A sender was built there, read-only, and that app's
+own numbers are untouched.
+
+**The contract `epe-unit-value-1`** (`src/pages/apps/epe/epeUnitValue.js`,
+documented in the file header; built by `buildEpeUnitValue`, read by id
+through `epeUnitValueService.js`):
+
+| Field | Meaning | Read from |
+|---|---|---|
+| `schema`, `app`, `table` | `epe-unit-value-1`, Petroleum Economics Studio, `epe_runs` | constants |
+| `runId`, `runName`, `runSavedAt` | the run that was sent | `epe_runs` |
+| `caseId`, `caseName` | its case | `epe_cases` |
+| `resultsAt` | when its results were written | `epe_results.created_at` |
+| `priceDeckName`, `prices` | the run configuration's name and its oil, gas and condensate prices | `epe_run_configs` |
+| `discountRatePct`, `pvBasis`, `discounting` | the rate, real or nominal, end-year or mid-year | `kpis.discount_rate_applied_pct`, `pv_basis`, `discounting_convention` |
+| `fiscalRegime`, `fiscalFramework`, `workingInterestPct` | the fiscal basis | `kpis` |
+| `engineVersion`, `sentBuild` | the cash-flow engine build that ran it; the Suite build that sent it | `kpis.engine_version`; `buildLabel()` |
+| `npvMM`, `totalMMboe` | the run NPV ($MM) and volume (MMboe, gas at 6 Mscf per boe as the engine counts it) | `kpis.npv`, `kpis.total_boe`, each divided by one million |
+| `npvPerBoe` | NPV per barrel, full cycle | `npv / total_boe` |
+| `pvCapexMM`, `split` | the present value of the run's capex, and whether it was recorded | `kpis.pv_capex` |
+| `unitValue`, `devCost` | what a field-size valuation reads: value(V) = unitValue x V - devCost | with the split: (`npv` + `pv_capex`) / `total_boe` and `pv_capex`; without: `npvPerBoe` and 0 |
+| `fingerprint` | changes when anything the run says changes (the sending build is not part of it) | FNV-1a over the fields above |
+
+A run with no results, no NPV, no volume, or a value before capex that is
+not positive is refused with the reason. Nothing is recomputed: the split is
+one addition and one division on the engine's own KPIs, and at the run's own
+size the line gives the run's NPV back (test). The engine's `dpi` (NPV over
+PV of capex) agrees with the PV of capex read (test).
+
+**Why the split.** The valuation engine values a discovery as u V - D. A
+full-cycle NPV per barrel already contains the capex, so using it with a
+development cost would count the capex twice (negative control in the
+test), and using it alone would make every size commercial. The split takes
+the case's capex as fixed and the rest of the case as proportional to
+volume: exact at the case's own size, an approximation elsewhere, and
+printed as that under "Limits of this analysis". The full-cycle NPV per
+barrel travels too and is printed.
+
+**The handoff here.** On the Economics tab the card "Petroleum Economics
+Studio case" lists the user's saved runs (case, run, date, price deck,
+discount rate, NPV per barrel, value before capex, capex), read by id from
+the account; a run that cannot be sent is listed with the reason. "Use"
+takes the run: the value per barrel and development cost become the value of
+a discovery (basis `epe`), the MEFS follows (D / u, unless typed), and the
+whole contract is kept in the valuation's `econ.epe` block with when and by
+which build it was received. So it survives a save and a reload (test), and
+is printed in the report: the two input rows name the run, and a section
+"Handoff from Petroleum Economics Studio" prints the run and case, the dates,
+the engine and sending builds, the price deck, the discount rate, the fiscal
+regime, the case NPV and volume, the NPV per barrel, the PV of capex, what
+was sent as u and D, how they are used, whether the case is still in use,
+and the state of the run now. The table "Value by field size" gains the row
+"The case" and the figure marks it.
+
+**Source changed since.** On load each run behind a valuation is read again
+by id and its fingerprint compared: unchanged, changed (with what moved, and
+Refresh), missing (deleted, or no longer shared), refused, or not readable.
+The sentence is shown on the Economics tab and the Valuation tab, printed in
+the handoff, and raises a flag in the report.
+
+**Honest status (H8 kept).** The app is named as the source only while a
+received case is the value in use. Before any handoff the screen says "No
+Petroleum Economics Studio case is in use for this prospect". If the user
+types over the value, the row says "Entered on this screen (Petroleum
+Economics Studio run ... sent ..., no longer in use)", the handoff is kept
+on record as not in use, and the report flags it. A prospect that never
+received a case prints "None" and names that app nowhere (tests).
+
+**The sending side.** The run's results page gains a read-only card "Value
+per barrel for a prospect valuation" with what will be sent and a link "Use
+in Risked Reserves Valuation" (`?epeRun=<id>`); the valuation opens with the
+run offered to the selected prospect. Runs are read with plain selects under
+the existing policies (own runs, and runs shared with the organisation); no
+policy or schema change.
+
+**Limits.** Petroleum Economics Studio discounts end-year on a real or
+nominal basis; the valuation's own economic model (U2-002) uses the
+screening engine's mid-year convention. The two are different engines by
+design (Economics roadmap D1); each handoff states its own. A run made by an
+engine older than 3.4 has no PV of capex: it sends the full-cycle value
+only, the derived MEFS is then zero, and the report flags it. Not walked on
+a live account: the reads were exercised on the in-memory twin and a
+PostgREST double; a first live pick is an owner item.
+
+### U2-003: the sensitivity of the EMV
+
+`emvSensitivity` (services/rrvMath.js) moves one input at a time to a low
+and a high case, holds the others, and asks the valuation engine again
+(`valueProspect`); it has no arithmetic of its own beyond setting the case.
+Stated ranges, saved with the valuation (`sens` in the payload) and set on
+the Sensitivity tab: Pg, the success-case volumes (P90, P50 and P10
+together), the value per barrel, the development cost, the exploration well
+cost and the MEFS by a swing in percent (default 25); each chance factor by
+a step in absolute chance (default 0.1), with Pg following in proportion,
+only when Pg is the product of the factors (otherwise the reason is given
+and only the total Pg moves). Chances stay between 0 and 1; an input at zero
+has no percentage swing and is listed as left out.
+
+On the screen: a Sensitivity tab with the tornado (Recharts, white chart
+template, ChartLogo), the two range fields and the table of cases. In the
+report: the table "Sensitivity of the EMV" (input, unit, base, low case and
+its EMV, high case and its EMV, swing) and Figure 5, the change in EMV per
+input as the kit's bar panel (`kind: 'bars'`, two bars per input, largest
+swing first, every bar value printed as text). The limits say these are
+stated ranges, not probabilities, and that inputs which move together in
+practice are not moved together here. With a derived MEFS the inputs still
+move one at a time, so the MEFS bar shows that the derived MEFS is the best
+cut-off (both cases lower the EMV), and the caption says a derived MEFS does
+not follow the value per barrel in these cases.
+
+**Reference.** Rose (2001) and the PRMS were not available to read; the
+one-at-a-time tornado is the common practice the Step 2 parity table names
+for REP and RoseRA, from their public product pages. The validation is the
+hand calculation above, on the engine.
+
+### U2-006: "Re-run prospect"
+
+The three needs recorded in ReservoirCalc Pro's Step 2 (owner item 3), all
+built:
+
+1. *The prospect names its source.* Since the RL re-check a saved prospect
+   carries `inputs.source` (project, reservoir, run with its seed and
+   realizations). Nothing new was needed.
+2. *A deep link into ReservoirCalc Pro.* `?rerunProspect=<rcp_prospects
+   id>&returnTo=<path>` on the ReservoirCalc Pro route. A bar under the
+   header (`components/RerunProspectBar.jsx`, plan in
+   `services/prospectRerun.js`) reads the prospect (own, then shared), opens
+   its project, switches to its reservoir, puts the method on probabilistic
+   and sets the recorded seed and realizations in the Probabilistic panel, so
+   the same inputs give the same volumes and a changed input shows as a
+   change. "Open Prospect Risking" opens the Tools sheet on Prospect Risking
+   with the name, the chance factors and any economics assumptions filled
+   in. What cannot be opened says why: the prospect is gone, it was saved
+   before its source was recorded, its volumes were typed, its project is
+   not readable, its reservoir is no longer in the project.
+3. *A link from the valuation and the way back.* A valuation whose prospect
+   changed in ReservoirCalc Pro, was risked again, was imported before the
+   source was kept, or carries volumes flagged as in place or of unstated
+   basis shows "Re-run in ReservoirCalc Pro" on its row; every valuation from
+   ReservoirCalc Pro has the link in its readout. The return link carries
+   `?refresh=<id>`: the valuation takes the re-run (Pg, volumes and factors
+   from the new record, the economics, well cost and anything typed kept),
+   says what moved, and is left unsaved for the analyst to save.
+
+**One prospect, one record.** ReservoirCalc Pro never edits a prospect in
+place. A re-run is added as a new record whose source names the record it
+replaces (`inputs.source.replaces`), and the old record is retired when the
+user owns it; the valuation's upstream check follows a record that names it
+(`upstreamState`, state "replaced"). This also closes the Step 1 gap where a
+re-added prospect sat beside the stale one.
+
+**A colleague's shared prospect** opens read-only with the reason: the bar
+says it belongs to a colleague and is shared for viewing, the volumes can be
+run again, but only its owner can re-risk it; Prospect Risking then adds
+the user's own version and leaves theirs untouched (test). A colleague's
+project opens as they shared it (read-only unless shared for editing).
+
+**Return path.** Only a path inside the app is followed (`safeReturnPath`);
+anything else falls back to the valuation route.
+
+**Limit.** The harness pages each keep their own in-memory database, so the
+browser test walks the two halves and joins them with a harness seam
+(`/dev/risked-reserves?rerunDone=1`: the shared database after the re-run).
+On the live site both apps read the same `rcp_prospects` table, which jest
+covers on one in-memory database.
+
+### U2-008: ranking
+
+A Ranking tab orders the user's valuations, and (switchable) those
+colleagues shared, by EMV, by risked mean volume or by commercial chance Pc,
+largest first, ties by name (`services/rrvRanking.js`, `RrvRankingPanel.jsx`).
+Each row prints Pg, Pc, the risked mean in the display unit, the EMV, the EMV
+per well dollar, the owner ("you" or "shared by" the colleague) and its
+basis in words: where the volumes came from (ReservoirCalc Pro record, with
+"changed there since", "risked again there since" or "IN PLACE" when so),
+where the value of a discovery came from (economic model, a Petroleum
+Economics Studio run with "changed since", sent by ReservoirCalc Pro, or
+entered) and whether the MEFS is derived or typed. A valuation that cannot
+be valued is listed under the table as not ranked, with the reason. The CSV
+opens with a provenance header: build, time, the key and its meaning, units,
+the percentile convention, the independence statement, which rows are
+included, where the valuations are saved, and one line per unranked
+prospect. Every number is the valuation engine's; the module only orders.
+
+## Deferred, with reasons (2026-10-02)
+
+| Item | Reason |
+|---|---|
+| U2-009 send to Capital Portfolio | That app has a typed intake and a provenance pattern (`source_type`, `source_ref`, `source_label`, the EPE Monte Carlo link), so it needs no DDL. The mapping needs three owner decisions first: (1) the optimizer reads `npv_p50` as the success-case NPV in its EMV (`pos x npv_p50 - (1 - pos) x fail_cost`), so the valuation's EMV is reproduced only if the mean commercial value is put in the field labelled P50; (2) whether a prospect's budget line is the exploration well (the decision to drill) or the development capex that follows a discovery; (3) the intake requires a risk score from 1 to 10 that this app has no meaning for. With those answered it is an S to M build (a "Risked Reserves valuation" picker in the project form, as the EPE Monte Carlo picker is). |
+| U2-004 play and prospect chance split | After NAPE, with ReservoirCalc Pro U2-010 (it changes how Pg is entered upstream). |
+| U2-007 portfolio distribution with dependence | L. Needs the canonical Monte Carlo module (`src/lib/monteCarlo.js`) and a dependence model, which builds on U2-004. |
+| U2-005 multi-zone and multi-segment prospects | L. Belongs upstream (ReservoirCalc Pro U2-003). |
+| U2-010 colleague editing of a valuation | Sharing stays view-only for valuations for now (owner question 3 default). |
+| U2-011 upstream distribution in place of the lognormal | M, after NAPE. |
+| U2-012 appraisal cost and a staged decision | L. |

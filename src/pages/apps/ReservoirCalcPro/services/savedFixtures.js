@@ -139,3 +139,21 @@ export const SAVED_PROSPECT_ROWS = [
     expect: { pg: 0.3136, p50: 110 / 6, note: /converted from Bcf/ },
   },
 ];
+
+/**
+ * Risked Reserves Valuation U2-006 ("Re-run prospect"): the project the
+ * Risked Reserves harness prospects name in their source block
+ * (riskedreserves/services/rrvFixtures.js: project-ekene, reservoirs r-d07
+ * and r-e02), so the re-run link opens a real project in the harness.
+ */
+export const RERUN_PROJECT_ROW = (() => {
+  const base = SAVED_PROJECT_ROWS.find((r) => r.row.id === 'saved-0802-multi').row;
+  const blob = JSON.parse(JSON.stringify(base.inputs_data));
+  blob.reservoirs = [
+    { ...blob.reservoirs[0], id: 'r-d07', name: 'D-07 sand' },
+    { ...blob.reservoirs[1], id: 'r-e02', name: 'E-02 sand' },
+  ];
+  blob.activeReservoirId = 'r-e02';
+  blob.reservoirName = 'E-02 sand';
+  return { ...JSON.parse(JSON.stringify(base)), id: 'project-ekene', project_name: 'Ekene Block', created_at: '2026-10-01T10:00:00Z', inputs_data: blob };
+})();

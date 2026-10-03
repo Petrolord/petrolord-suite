@@ -13,9 +13,9 @@
 // browser, and the page says so.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import {
-  PieChart, HelpCircle, Plus, Download, Trash2, RefreshCw, Save, Users, Copy, Undo2,
+  PieChart, HelpCircle, Plus, Download, Trash2, RefreshCw, Save, Users, Copy, Undo2, RotateCcw,
 } from 'lucide-react';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -27,19 +27,25 @@ import { buildLabel } from '@/lib/platformBuild';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import ExpectationChart from './ExpectationChart';
 import RrvReportPanel from './RrvReportPanel';
+import RrvEconomicsPanel from './RrvEconomicsPanel';
+import RrvEpePanel from './RrvEpePanel';
+import RrvSensitivityPanel from './RrvSensitivityPanel';
+import RrvRankingPanel from './RrvRankingPanel';
+import { rankingCsv } from '../services/rrvRanking';
+import NumCell, { cell } from './NumCell';
 import {
   fromRcpProspect, blankProspect, inputProblem, loadStored, storeLocal, mergeSaved, fromRow, valuationCsv, unitValueSource,
   engineInput, editedKeys, upstreamState, refreshFromRcp, ECON_KEYS, HANDOFF_KEYS,
+  setInput, setValueBasis, setMefsBasis, setModelField, resolveEconomics, applyEpeCase, epeState, setSens,
 } from '../services/rrvStore';
 import { valueOrProblem, volumeCurves } from '../services/rrvMath';
 import { rrvUnits, RRV_UNIT_SPEC, RRV_UNIT_FALLBACK } from '../services/rrvUnits';
 import {
-  buildRrvReportModel, F, SHORT_LABEL, handoffLine, upstreamSentence,
+  buildRrvReportModel, F, SHORT_LABEL, handoffLine, upstreamSentence, epeSentence,
 } from '../services/rrvReportModel';
 import { exportRrvReport, reportFileName } from '../services/rrvReportExport';
 import { RRV_TABLE } from '../services/rrvBackend';
 
-const cell = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus disabled:opacity-70';
 const btn = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40';
 const fmt = (v, d = 1) => (d === 2 ? F.n2(v) : F.n1(v));
 const pct = F.pct;
@@ -49,44 +55,24 @@ const fields = (u) => [
   ['p90', 'P90', `Success-case volume, low case (exceeded with 90% probability), ${u.volumeLabel}`],
   ['p50', 'P50', `Success-case volume, best case, ${u.volumeLabel}`],
   ['p10', 'P10', `Success-case volume, high case (exceeded with 10% probability), ${u.volumeLabel}`],
-  ['mefs', 'MEFS', `Minimum economic field size, ${u.volumeLabel}`],
-  ['unitValue', u.unitValueLabel, 'NPV per barrel of a developed discovery. Typed here (a new prospect starts at 8 $/bbl, an assumption), or sent with a prospect valued in ReservoirCalc Pro'],
-  ['devCost', 'Dev $MM', 'Development cost of a commercial discovery, $MM'],
+  ['mefs', 'MEFS', `Minimum economic field size, ${u.volumeLabel}. Derived from the value of a discovery unless typed here`],
+  ['unitValue', u.unitValueLabel, 'Value per barrel u of a developed discovery: value = u x volume - development cost. From the economic model of the Economics tab, sent with a prospect valued in ReservoirCalc Pro, or typed here'],
+  ['devCost', 'Dev $MM', 'Development cost D of a commercial discovery, $MM. From the economic model of the Economics tab, sent with the prospect, or typed here'],
   ['wellCost', 'Well $MM', 'Exploration well cost, $MM (spent in every outcome)'],
 ];
 
-const SOURCE_LABEL = { pg: 'Chance of success Pg', p90: 'P90', p50: 'P50', p10: 'P10', mefs: 'MEFS', unitValue: 'Value per barrel', devCost: 'Development cost', wellCost: 'Exploration well cost' };
+const SOURCE_LABEL = { econModel: 'Economic model', pg: 'Chance of success Pg', p90: 'P90', p50: 'P50', p10: 'P10', mefs: 'MEFS', unitValue: 'Value per barrel', devCost: 'Development cost', wellCost: 'Exploration well cost' };
+
+/** Is this economic input derived (and so not the user's own typing)? */
+const derivedKey = (p, k) => (k === 'mefs' ? p.econ?.mefs === 'derived' : (k === 'unitValue' || k === 'devCost') ? (p.econ?.value === 'model' || p.econ?.value === 'epe') : false);
+const derivedWhy = (p, k) => (k === 'mefs'
+  ? (p.econ?.value === 'model' ? 'the smallest size that pays under the economic model' : 'development cost over value per barrel, the size at which a discovery is worth zero')
+  : p.econ?.value === 'epe' ? `received with Petroleum Economics Studio run "${p.econ.epe?.runName}"` : 'read from the economic model of the Economics tab');
 
 const timeText = (iso) => {
   const d = iso ? new Date(iso) : null;
   return d && !Number.isNaN(d.getTime()) ? `${d.toISOString().slice(0, 16).replace('T', ' ')} UTC` : null;
 };
-
-/**
- * A number a person can type: the text is the user's own while the field
- * has focus (clearing it, "2." and "-" stay as typed), the parsed value is
- * committed on every keystroke in the app's own unit, and a blank commits
- * a blank, never a zero.
- */
-function NumCell({ value, onCommit, show = (x) => x, read = (x) => x, className = '', ...rest }) {
-  const shown = (v) => (v === '' || v === null || v === undefined ? '' : (Number.isFinite(Number(v)) ? String(parseFloat(Number(show(Number(v))).toPrecision(6))) : String(v)));
-  const [text, setText] = useState(() => shown(value));
-  const [focused, setFocused] = useState(false);
-  useEffect(() => { if (!focused) setText(shown(value)); }, [value, focused, show]); // eslint-disable-line react-hooks/exhaustive-deps
-  const change = (raw) => {
-    setText(raw);
-    const t = raw.trim().replace(/\s/g, '');
-    if (t === '' || t === '-' || t === '.' || t === '-.') { onCommit(''); return; }
-    // a comma decimal ("0,3") is read as 0.3; "1,234.5" as 1234.5
-    const cleaned = /^-?\d*,\d*$/.test(t) ? t.replace(',', '.') : t.replace(/,/g, '');
-    const n = Number(cleaned);
-    onCommit(Number.isFinite(n) ? Number(read(n).toPrecision(10)) : raw);
-  };
-  return (
-    <input className={`${cell} text-right font-pl-mono tabular-nums ${className}`} value={text} inputMode="decimal"
-      onChange={(e) => change(e.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} {...rest} />
-  );
-}
 
 /** The share control of one saved valuation: colleagues view it and save a copy. */
 function ValuationSharing({ store, row, onChange }) {
@@ -94,7 +80,14 @@ function ValuationSharing({ store, row, onChange }) {
   return <RecordSharingBar sharing={sharing} label="valuation" allowEdit={false} fieldLabels={{ valuation: 'inputs and identification', name: 'name', prospect_key: 'source prospect', rcp_prospect_id: 'source prospect' }} />;
 }
 
-function RrvWorkstationContent({ backend }) {
+/** Where ReservoirCalc Pro opens (the /dev harness passes its own). */
+export const RCP_PATH = '/dashboard/apps/geoscience/reservoircalc-pro';
+
+/** Does this valuation's prospect want re-running: it changed upstream, was re-risked, or its volumes are flagged? */
+const wantsRerun = (p, up) => p.source === 'rcp' && !!up && (['changed', 'replaced', 'unrecorded'].includes(up.state) || (up.state === 'current' && p.basis !== 'recoverable'));
+
+function RrvWorkstationContent({ backend, rcpHref = RCP_PATH }) {
+  const location = useLocation();
   const au = useAppUnits('rrv', RRV_UNIT_SPEC, { fallback: RRV_UNIT_FALLBACK });
   const units = useMemo(() => rrvUnits(au.units.volume), [au.units.volume]);
   const FIELDS = useMemo(() => fields(units), [units]);
@@ -160,6 +153,45 @@ function RrvWorkstationContent({ backend }) {
 
   const names = useSharingNames(backend.sharing, sharedValuations.map((s) => s.row));
 
+  // U2-001: each Petroleum Economics Studio run behind a valuation is read
+  // again by id, so "source changed since" survives a reload. A run not in
+  // the map yet is being checked; `undefined` in it could not be read.
+  const [epeNow, setEpeNow] = useState(() => new Map());
+  const epeAsked = useRef(new Set());
+  const epeRunIds = useMemo(() => [...new Set([...prospects, ...sharedValuations].map((p) => p.econ?.epe?.runId).filter(Boolean))].sort().join('|'), [prospects, sharedValuations]);
+  useEffect(() => {
+    if (!backend.getEpeCase) return undefined;
+    let live = true;
+    for (const id of epeRunIds ? epeRunIds.split('|') : []) {
+      if (epeAsked.current.has(id)) continue;
+      epeAsked.current.add(id);
+      backend.getEpeCase(id).then((r) => r, () => undefined).then((r) => { if (live) setEpeNow((m) => new Map(m).set(id, r)); });
+    }
+    return () => { live = false; };
+  }, [backend, epeRunIds]);
+  const epeOf = useCallback((p) => epeState(p, p.econ?.epe ? epeNow.get(p.econ.epe.runId) : undefined), [epeNow]);
+
+  // a run sent by link from Petroleum Economics Studio (?epeRun=<id>) is offered on the Economics tab
+  const [params, setParams] = useSearchParams();
+  const linkedRun = params.get('epeRun');
+  const [offer, setOffer] = useState(null);
+  const [linkNote, setLinkNote] = useState(null);
+  useEffect(() => {
+    if (!linkedRun || !backend.getEpeCase) return undefined;
+    let live = true;
+    backend.getEpeCase(linkedRun).then((r) => {
+      if (!live) return;
+      if (r?.ok) { setOffer(r.contract); setTab('economics'); setLinkNote(`Petroleum Economics Studio sent run "${r.contract.runName}". Select the prospect it values, then use it on the Economics tab.`); }
+      else setLinkNote(r ? `The Petroleum Economics Studio run in the link cannot be used: ${r.reason}` : 'The Petroleum Economics Studio run in the link was not found on your account.');
+    }).catch((e) => { if (live) setLinkNote(e.message); });
+    return () => { live = false; };
+  }, [backend, linkedRun]);
+  const dropOffer = () => {
+    setOffer(null);
+    setLinkNote(null);
+    if (linkedRun) { const next = new URLSearchParams(params); next.delete('epeRun'); setParams(next, { replace: true }); }
+  };
+
   const value = useCallback((p) => {
     const problem = inputProblem(p);
     if (problem) return { p, v: null, problem };
@@ -178,6 +210,31 @@ function RrvWorkstationContent({ backend }) {
     return new Map([...prospects, ...sharedValuations].map((p) => [p.id, upstreamState(p, rows)]));
   }, [prospects, sharedValuations, inventory, sharedInventory]);
 
+  // U2-006: open ReservoirCalc Pro on the prospect, ready to re-run, with the way back here
+  const rerunHref = useCallback((p) => {
+    const up = upstream.get(p.id);
+    const id = up?.state === 'replaced' && up.row ? up.row.id : p.rcpId;
+    return `${rcpHref}?rerunProspect=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(location.pathname)}`;
+  }, [upstream, rcpHref, location.pathname]);
+
+  // back from ReservoirCalc Pro (?refresh=<prospect id>): take the re-run
+  const refreshAsked = params.get('refresh');
+  const refreshDone = useRef(null);
+  useEffect(() => {
+    if (!refreshAsked || inventory === null || storage.table === null || refreshDone.current === refreshAsked) return;
+    refreshDone.current = refreshAsked;
+    const p = prospects.find((x) => x.source === 'rcp' && (x.rcpId === refreshAsked || x.handoff?.recordId === refreshAsked));
+    const up = p ? upstream.get(p.id) : null;
+    if (!p) setLinkNote('ReservoirCalc Pro sent you back for a prospect that has no valuation here. Import it to value it.');
+    else if (up && ['changed', 'replaced'].includes(up.state) && up.row) {
+      const next = refreshFromRcp(p, up.row);
+      setProspects((ps) => ps.map((x) => (x.id === p.id ? { ...next, dirty: true } : x)));
+      setSelectedId(next.id);
+      setLinkNote(`Back from ReservoirCalc Pro: ${p.name} now takes the ${up.rerun || up.state === 'replaced' ? 're-run' : 'changed'} record. ${upstreamSentence(up, units)} Your economics, the well cost and any value you typed are kept. Save to keep it on your account.`);
+    } else setLinkNote(`Back from ReservoirCalc Pro: ${p.name} has no re-run there yet, and its source record is ${up?.state === 'current' ? 'unchanged' : 'as before'}.`);
+    const nextParams = new URLSearchParams(params); nextParams.delete('refresh'); setParams(nextParams, { replace: true });
+  }, [refreshAsked, inventory, sharedInventory, storage.table, prospects, upstream]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const dirtyCount = prospects.filter((p) => p.dirty || !p.row).length;
   const savedWhere = useCallback((p) => {
     const at = timeText(p.row?.updated_at);
@@ -188,7 +245,7 @@ function RrvWorkstationContent({ backend }) {
   }, [storage.table]);
 
   const touch = (id, change) => setProspects((ps) => ps.map((p) => (p.id === id ? { ...change(p), dirty: true } : p)));
-  const patch = (id, k, v) => touch(id, (p) => ({ ...p, [k]: v, ...(k === 'name' ? {} : { touched: { ...(p.touched || {}), [k]: true } }) }));
+  const patch = (id, k, v) => touch(id, (p) => setInput(p, k, v));
   const setIdent = (id, k, v) => touch(id, (p) => ({ ...p, ident: { ...(p.ident || {}), [k]: v } }));
   const setMeta = (id, k, f, v) => touch(id, (p) => ({ ...p, inputMeta: { ...(p.inputMeta || {}), [k]: { ...(p.inputMeta?.[k] || {}), [f]: v } } }));
 
@@ -202,7 +259,7 @@ function RrvWorkstationContent({ backend }) {
       setStatus(inventory?.length ? `Every ReservoirCalc Pro prospect is already here.${movedText}` : 'Your ReservoirCalc Pro inventory is empty: risk a prospect there first, or add one here.');
     } else {
       setProspects((ps) => [...ps, ...fresh]);
-      setStatus(`Imported ${fresh.length} prospect${fresh.length === 1 ? '' : 's'} from ReservoirCalc Pro. Set the MEFS, value per barrel and costs for each.${movedText}`);
+      setStatus(`Imported ${fresh.length} prospect${fresh.length === 1 ? '' : 's'} from ReservoirCalc Pro. Check the economics and the well cost of each: the MEFS and the value of a discovery start from the screening model on the Economics tab.${movedText}`);
     }
     // The inventory is also read again, so a prospect risked in ReservoirCalc
     // Pro in another tab since this page opened is found, and a change to
@@ -214,7 +271,7 @@ function RrvWorkstationContent({ backend }) {
         const have = new Set(ps.map((p) => p.id));
         const late = inv.map((r) => ({ ...fromRcpProspect(r), row: null, dirty: true })).filter((r) => !have.has(r.id));
         if (!late.length) return ps;
-        setStatus(`Imported ${late.length} prospect${late.length === 1 ? '' : 's'} risked in ReservoirCalc Pro since this page opened: ${late.map((l) => l.name).join(', ')}. Set the MEFS, value per barrel and costs.`);
+        setStatus(`Imported ${late.length} prospect${late.length === 1 ? '' : 's'} risked in ReservoirCalc Pro since this page opened: ${late.map((l) => l.name).join(', ')}. Check the economics and the well cost of each.`);
         return [...ps, ...late];
       });
     }).catch(() => { /* the cached inventory stands */ });
@@ -232,7 +289,7 @@ function RrvWorkstationContent({ backend }) {
     }
     setProspects((ps) => ps.map((x) => (x.id === id ? { ...next, dirty: true } : x)));
     if (selectedId === id) setSelectedId(next.id);
-    setStatus(`Refreshed ${next.name} from ReservoirCalc Pro: Pg and the volumes are as the source record has them now. Your MEFS, costs and any value per barrel you typed are kept.`);
+    setStatus(`Refreshed ${next.name} from ReservoirCalc Pro: Pg and the volumes are as the source record has them now. Your economics, the well cost and any value you typed are kept; a derived MEFS follows the new volumes.`);
   };
 
   const remove = async (id) => {
@@ -297,11 +354,11 @@ function RrvWorkstationContent({ backend }) {
   };
 
   const reportArgs = useMemo(() => (selected ? {
-    p: selected.p, v: selected.v, problem: selected.problem, units, upstream: upstream.get(selected.p.id) || null,
+    p: selected.p, v: selected.v, problem: selected.problem, units, upstream: upstream.get(selected.p.id) || null, epe: epeOf(selected.p),
     portfolio: selected.shared ? null : { rows: good, totals: portfolio, leftOut: valued.length - good.length },
     savedWhere: selected.shared ? `Shared from a colleague's Petrolord account${timeText(selected.p.row?.updated_at) ? `, ${timeText(selected.p.row.updated_at)}` : ''}` : savedWhere(selected.p),
     build: buildLabel(), company,
-  } : null), [selected, units, upstream, good, portfolio, valued.length, savedWhere, company]);
+  } : null), [selected, units, upstream, epeOf, good, portfolio, valued.length, savedWhere, company]);
   const model = useMemo(() => (reportArgs ? buildRrvReportModel(reportArgs) : null), [reportArgs]);
 
   const exportPdf = async () => {
@@ -318,7 +375,11 @@ function RrvWorkstationContent({ backend }) {
   const curves = useMemo(() => (v ? volumeCurves(engineInput(selected.p)) : null), [v, selected]);
   const conv = (pts) => pts.map(([x, y]) => [units.volume(x), y]);
   const selUp = selected ? upstream.get(selected.p.id) : null;
-  const ownSourceKeys = selected && !readOnly ? (selected.p.source === 'rcp' ? ECON_KEYS.filter((k) => !HANDOFF_KEYS.includes(k) || selected.p.handoff?.values?.[k] === undefined || Number(selected.p[k]) !== Number(selected.p.handoff.values[k])) : ['pg', 'p90', 'p50', 'p10', ...ECON_KEYS]) : [];
+  const ownSourceKeys = selected && !readOnly
+    ? (selected.p.source === 'rcp' ? ECON_KEYS.filter((k) => !HANDOFF_KEYS.includes(k) || selected.p.handoff?.values?.[k] === undefined || Number(selected.p[k]) !== Number(selected.p.handoff.values[k])) : ['pg', 'p90', 'p50', 'p10', ...ECON_KEYS])
+      .filter((k) => !derivedKey(selected.p, k))
+      .concat(selected.p.econ?.value === 'model' ? ['econModel'] : [])
+    : [];
 
   const saveState = storage.table === null ? 'Checking where valuations are saved'
     : storage.table === false ? 'Kept in this browser only'
@@ -351,13 +412,19 @@ function RrvWorkstationContent({ backend }) {
               )}
             </span>
           )}
+          {wantsRerun(p, up) && (
+            <a href={rerunHref(p)} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-[10px] underline text-pl-primary-text" data-testid={`rrv-rerun-${p.name}`}
+              title="Open ReservoirCalc Pro on this prospect's project and run, ready to re-run, with a way back here">
+              <RotateCcw className="w-3 h-3" /> Re-run in ReservoirCalc Pro
+            </a>
+          )}
           {!shared && <span className="block text-[10px] text-pl-muted" data-testid={`rrv-saved-${p.name}`}>{savedWhere(p)}</span>}
         </td>
         {FIELDS.map(([k, , title]) => (
           <td key={k} className="px-1 py-1 w-[76px]">
-            <NumCell value={p[k]} title={ed.has(k) ? `${title}. Edited here: ReservoirCalc Pro sent ${F.plain(k === 'pg' ? Number(p.handoff.values[k]) : units.show(k, Number(p.handoff.values[k])))}` : title}
-              disabled={shared} show={(x) => units.show(k, x)} read={(x) => units.read(k, x)} className={ed.has(k) ? 'border-pl-warning-text' : ''}
-              aria-label={`${SOURCE_LABEL[k]} of ${p.name}`} data-edited={ed.has(k) ? 'true' : undefined}
+            <NumCell value={p[k]} title={derivedKey(p, k) ? `${title}. ${p.econ?.value === 'epe' && k !== 'mefs' ? 'RECEIVED' : 'DERIVED'}: ${derivedWhy(p, k)}. Typing here takes it over` : ed.has(k) ? `${title}. Edited here: ReservoirCalc Pro sent ${F.plain(k === 'pg' ? Number(p.handoff.values[k]) : units.show(k, Number(p.handoff.values[k])))}` : title}
+              disabled={shared} show={(x) => units.show(k, x)} read={(x) => units.read(k, x)} className={derivedKey(p, k) ? 'italic border-dashed' : ed.has(k) ? 'border-pl-warning-text' : ''}
+              aria-label={`${SOURCE_LABEL[k]} of ${p.name}`} data-edited={ed.has(k) && !derivedKey(p, k) ? 'true' : undefined} data-basis={derivedKey(p, k) ? (p.econ?.value === 'epe' && k !== 'mefs' ? 'received' : 'derived') : undefined}
               onCommit={(val) => patch(p.id, k, val)} data-testid={`rrv-${k}-${p.name}`} />
           </td>
         ))}
@@ -408,6 +475,12 @@ function RrvWorkstationContent({ backend }) {
               ? 'Valuations are kept in this browser only: saving to your account is not switched on for this database yet. They are not on your other devices and a colleague cannot open them. Once it is switched on, Save moves them to your account.'
               : 'Valuations cannot be kept: saving to your account is not switched on for this database yet, and this browser refuses storage (a private window). Export the CSV or the report before leaving the page.'}
             {storage.error ? ` (${storage.error})` : ''}
+          </p>
+        )}
+        {linkNote && (
+          <p className="rounded border border-pl-border bg-pl-surface px-3 py-2 text-xs text-pl-text" data-testid="rrv-link-note">
+            {linkNote}{' '}
+            {!offer && <button type="button" className="underline text-pl-primary-text" onClick={dropOffer}>Dismiss</button>}
           </p>
         )}
         {au.differs.length > 0 && (
@@ -464,7 +537,7 @@ function RrvWorkstationContent({ backend }) {
         {selected && (
           <div className="flex flex-wrap items-center gap-2" data-testid="rrv-tabs">
             <div className="inline-flex rounded border border-pl-border overflow-hidden" role="tablist" aria-label="Views of the selected prospect">
-              {[['valuation', 'Valuation'], ['report', 'Report']].map(([id, label]) => (
+              {[['valuation', 'Valuation'], ['economics', 'Economics'], ['sensitivity', 'Sensitivity'], ['report', 'Report'], ['ranking', 'Ranking']].map(([id, label]) => (
                 <button key={id} type="button" role="tab" aria-selected={tab === id} data-testid={`rrv-tab-${id}`}
                   className={`px-3 py-1 text-xs ${tab === id ? 'bg-pl-primary text-pl-primary-fg' : 'bg-pl-surface text-pl-text hover:bg-pl-sunken'}`} onClick={() => setTab(id)}>{label}</button>
               ))}
@@ -486,6 +559,46 @@ function RrvWorkstationContent({ backend }) {
         {selected && tab === 'report' && model && (
           <RrvReportPanel model={model} prospect={selected.p} readOnly={readOnly} ownSourceKeys={ownSourceKeys} labels={SOURCE_LABEL} companyDefault={company}
             onIdent={(k, val) => setIdent(selected.p.id, k, val)} onMeta={(k, f, val) => setMeta(selected.p.id, k, f, val)} onExport={exportPdf} exporting={exporting} />
+        )}
+
+        {selected && tab === 'economics' && (
+          <RrvEconomicsPanel prospect={selected.p} model={model} resolved={resolveEconomics(selected.p)} units={units} readOnly={readOnly}
+            onValueBasis={(b) => touch(selected.p.id, (p) => setValueBasis(p, b))}
+            onMefsBasis={(b) => touch(selected.p.id, (p) => setMefsBasis(p, b))}
+            onModel={(k, val) => touch(selected.p.id, (p) => setModelField(p, k, val))}
+            extraChoices={[['epe', 'Petroleum Economics Studio case', selected.p.econ?.epe ? 'The value per barrel and development cost of the run that was received' : 'Pick a run in the card below first', !selected.p.econ?.epe]]}>
+            <RrvEpePanel prospect={selected.p} units={units} readOnly={readOnly} state={epeOf(selected.p)}
+              checking={!!selected.p.econ?.epe && !epeNow.has(selected.p.econ.epe.runId)}
+              offered={offer} onDismissOffer={dropOffer}
+              listCases={backend.listEpeCases ? () => backend.listEpeCases() : null}
+              onUse={(contract) => {
+                touch(selected.p.id, (p) => applyEpeCase(p, contract, { build: buildLabel() }));
+                setEpeNow((m) => new Map(m).set(contract.runId, { ok: true, contract }));
+                epeAsked.current.add(contract.runId);
+                setStatus(`${selected.p.name} now takes its value per barrel and development cost from Petroleum Economics Studio run "${contract.runName}".`);
+                if (offer && offer.runId === contract.runId) dropOffer();
+              }}
+              onUseAgain={() => touch(selected.p.id, (p) => setValueBasis(p, 'epe'))} />
+          </RrvEconomicsPanel>
+        )}
+
+        {selected && tab === 'ranking' && (
+          <RrvRankingPanel units={units}
+            entries={valued.map((x) => ({ ...x, up: upstream.get(x.p.id), epe: epeOf(x.p) }))}
+            sharedEntries={sharedValued.map((x) => ({ ...x, owner: names?.[x.p.row?.user_id] || null, up: upstream.get(x.p.id), epe: epeOf(x.p) }))}
+            onSelect={(id) => { setSelectedId(id); }}
+            onExport={(ranked, withShared) => {
+              const text = rankingCsv(ranked, { build: buildLabel(), generatedAt: new Date(), units, includeShared: withShared, savedWhere: storage.table ? (dirtyCount ? `Petrolord account, with ${dirtyCount} valuation${dirtyCount === 1 ? '' : 's'} holding edits kept in this browser only` : 'Petrolord account') : 'this browser only' });
+              const blob = new Blob([text], { type: 'text/csv' });
+              const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'risked-valuation-ranking.csv'; a.click();
+              setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+              setStatus(`Exported the ranking as risked-valuation-ranking.csv, ranked by ${ranked.by === 'emv' ? 'EMV' : ranked.by === 'pc' ? 'commercial chance' : 'risked volume'}, with its basis and provenance in the header lines.`);
+            }} />
+        )}
+
+        {selected && tab === 'sensitivity' && (
+          <RrvSensitivityPanel prospect={selected.p} sensitivity={model?.valued ? model.sensitivity : null} readOnly={readOnly}
+            onSens={(k, val) => touch(selected.p.id, (p) => setSens(p, k, val))} />
         )}
 
         {v && tab === 'valuation' && (
@@ -514,12 +627,17 @@ function RrvWorkstationContent({ backend }) {
               </p>
               {/* H8: say where the number came from. No app sends it here. */}
               <p className="text-[10px] text-pl-muted" data-testid="rrv-unit-value-source">
-                Value per barrel for this prospect: {unitValueSource(selected.p)}. Nothing is received from the
-                Petroleum Economics Studio; to use a development case from it, type its NPV per barrel here.
+                Value per barrel for this prospect: {unitValueSource(selected.p)}.{' '}
+                {selected.p.econ?.value === 'epe'
+                  ? (epeNow.has(selected.p.econ.epe.runId) ? (epeOf(selected.p).state === 'current' ? 'The run is unchanged since.' : (epeSentence(epeOf(selected.p), units) || '')) : 'Checking the run.')
+                  : 'No Petroleum Economics Studio case is in use for this prospect; one can be picked on the Economics tab.'}
               </p>
               {selUp && selected.p.source === 'rcp' && (
                 <p className="text-[10px] text-pl-muted" data-testid="rrv-handoff-line">
-                  Volumes and Pg: {handoffLine(selected.p)}. {selUp.state === 'current' ? 'The source record is unchanged since.' : (upstreamSentence(selUp, units) || '')}
+                  Volumes and Pg: {handoffLine(selected.p)}. {selUp.state === 'current' ? 'The source record is unchanged since.' : (upstreamSentence(selUp, units) || '')}{' '}
+                  {selUp.state !== 'missing' && selUp.state !== 'unknown' && (
+                    <a href={rerunHref(selected.p)} className="underline text-pl-primary-text" data-testid="rrv-readout-rerun">Re-run in ReservoirCalc Pro</a>
+                  )}
                 </p>
               )}
               {model?.limits?.flags?.length > 0 && (
@@ -542,7 +660,7 @@ function RrvWorkstationContent({ backend }) {
 // Design system rollout batch 3E: the workstation opens light and follows
 // the user's theme choice from the toolbar toggle. The route page and the
 // /dev harness both mount this component, so they share the one scope.
-export default function RrvWorkstation(props) {
+export default function RrvWorkstation(props) { // eslint-disable-line react/function-component-definition
   return (
     <div className="h-full" data-testid="rrv-theme-scope">
       <RrvWorkstationContent {...props} />

@@ -4,7 +4,7 @@
 
 import { prospectEconomics, economicsCase, declineProfile, ECONOMICS_DEFAULTS } from '../services/prospectEconomics';
 import { calculateEconomics } from '@/utils/npvCalculations';
-import { fromRcpProspect, DEFAULT_ECONOMICS } from '@/pages/apps/riskedreserves/services/rrvStore';
+import { fromRcpProspect } from '@/pages/apps/riskedreserves/services/rrvStore';
 
 describe('U2-012 the success case through calculateEconomics', () => {
   it('the decline profile recovers exactly the success-case mean', () => {
@@ -52,9 +52,13 @@ describe('U2-012 Risked Reserves Valuation takes the values', () => {
     expect(v.unitValue).toBeCloseTo(r.unitValue, 4);
     expect(v.devCost).toBeCloseTo(r.devCost, 3);
     expect(v.economicsNote).toMatch(/success-case economics/);
-    // a row without economics keeps the valuation's defaults
+    // a row without economics starts on the valuation's own economic model
+    // (Risked Reserves U2-002): the same screening model as prospectEconomics,
+    // so the two agree on the success-case NPV at the mean commercial size
     const plain = fromRcpProspect({ ...row, inputs: { ...row.inputs, economics: undefined } });
-    expect(plain.unitValue).toBe(DEFAULT_ECONOMICS.unitValue);
+    expect(plain.econ).toMatchObject({ value: 'model', mefs: 'derived' });
+    expect(plain.unitValue * plain.mefs - plain.devCost).toBeCloseTo(0, 6);
+    expect(plain.unitValue * 42.5 - plain.devCost).toBeCloseTo(r.npvMM, 6);
     expect(plain.economicsNote).toBeUndefined();
   });
 });

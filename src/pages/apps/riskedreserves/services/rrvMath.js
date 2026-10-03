@@ -135,3 +135,70 @@ export function valueCurves(e, { points = 80 } = {}) {
 export function valueOrProblem(e) {
   try { return { v: valueProspect(e), problem: null }; } catch (err) { return { v: null, problem: err.message }; }
 }
+
+// ---- sensitivity of the EMV (upgrade U2-003) -----------------------------------
+
+/** The stated ranges: a swing in percent for the inputs, a step in absolute chance for a chance factor. */
+export const SENS_DEFAULTS = Object.freeze({ swing: 25, factorSwing: 0.1 });
+const FACTOR_ORDER = ['trap', 'reservoir', 'charge', 'seal', 'other'];
+const FACTOR_WORD = { trap: 'Trap', reservoir: 'Reservoir', charge: 'Charge', seal: 'Seal', other: 'Other' };
+const clamp01 = (x) => Math.min(1, Math.max(0, x));
+
+/**
+ * The tornado: one input at a time moved to a low and a high case, the
+ * others held, and the valuation engine asked again (valueProspect). No
+ * arithmetic of its own beyond setting the case.
+ *   Pg                 x (1 -/+ swing), kept inside 0 to 1
+ *   each chance factor -/+ factorSwing in absolute chance, inside 0 to 1;
+ *                      Pg moves in proportion (Pg x f' / f). Only when Pg is
+ *                      the product of the factors.
+ *   volumes            P90, P50 and P10 together x (1 -/+ swing)
+ *   value per barrel, development cost, well cost, MEFS   x (1 -/+ swing)
+ * Because the inputs move one at a time, a derived MEFS does not follow the
+ * value per barrel or the development cost here: each bar is that input
+ * alone.
+ * @param {{pg, p90, p50?, p10, mefs, unitValue, devCost, wellCost}} e engine input
+ * @param {{pgFactors?: ?object, swing?: number, factorSwing?: number}} [o]
+ * @returns {{base: number, swing: number, factorSwing: number, rows: Array<{key: string, label: string,
+ *   base: number, low: {input: number, emv: number}, high: {input: number, emv: number}, range: number}>,
+ *   leftOut: string[], factorsNote: ?string}} rows ordered by range, largest first
+ */
+export function emvSensitivity(e, { pgFactors = null, swing = SENS_DEFAULTS.swing, factorSwing = SENS_DEFAULTS.factorSwing } = {}) {
+  const s = Number.isFinite(Number(swing)) && Number(swing) > 0 && Number(swing) < 100 ? Number(swing) : SENS_DEFAULTS.swing;
+  const fs = Number.isFinite(Number(factorSwing)) && Number(factorSwing) > 0 && Number(factorSwing) < 1 ? Number(factorSwing) : SENS_DEFAULTS.factorSwing;
+  const k = s / 100;
+  const emvOf = (over) => valueProspect({ ...e, ...over }).emv;
+  const base = emvOf({});
+  const rows = [];
+  const leftOut = [];
+  const add = (key, label, baseInput, lowInput, highInput, caseOf) => {
+    const low = { input: lowInput, emv: emvOf(caseOf(lowInput)) };
+    const high = { input: highInput, emv: emvOf(caseOf(highInput)) };
+    rows.push({ key, label, base: baseInput, low, high, range: Math.abs(high.emv - low.emv) });
+  };
+  add('pg', 'Chance of success Pg', e.pg, clamp01(e.pg * (1 - k)), clamp01(e.pg * (1 + k)), (x) => ({ pg: x }));
+
+  let factorsNote = null;
+  const used = pgFactors ? FACTOR_ORDER.filter((f) => Number.isFinite(pgFactors[f])) : [];
+  if (!used.length) factorsNote = 'The prospect carries no chance factors, so only the total Pg is moved.';
+  else {
+    const product = used.reduce((a, f) => a * pgFactors[f], 1);
+    if (Math.abs(product - e.pg) > 5e-7) factorsNote = 'The Pg used is not the product of the chance factors, so the factors are not moved one by one; the total Pg is.';
+    else {
+      for (const f of used) {
+        const v = pgFactors[f];
+        if (!(v > 0)) continue;
+        add(`factor.${f}`, `${FACTOR_WORD[f]} chance`, v, clamp01(v - fs), clamp01(v + fs), (x) => ({ pg: clamp01(e.pg * (x / v)) }));
+      }
+    }
+  }
+  const p50 = e.p50 === undefined || e.p50 === null ? undefined : e.p50;
+  add('volumes', 'Success-case volumes', 1, 1 - k, 1 + k, (x) => ({ p90: e.p90 * x, p10: e.p10 * x, ...(p50 === undefined ? {} : { p50: p50 * x }) }));
+  for (const [key, label, word] of [['unitValue', 'Value per barrel', 'value per barrel'], ['devCost', 'Development cost', 'development cost'], ['wellCost', 'Exploration well cost', 'exploration well cost'], ['mefs', 'MEFS', 'MEFS']]) {
+    const v = Number(e[key]) || 0;
+    if (!(v > 0)) { leftOut.push(word); continue; }
+    add(key, label, v, v * (1 - k), v * (1 + k), (x) => ({ [key]: x }));
+  }
+  rows.sort((a, b) => b.range - a.range);
+  return { base, swing: s, factorSwing: fs, rows, leftOut, factorsNote };
+}

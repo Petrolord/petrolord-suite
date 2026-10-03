@@ -18,6 +18,7 @@ import html2canvas from 'html2canvas';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { drawBrandHeader, loadPetrolordLogo } from '@/lib/pdfBrand';
 import { configSectionsForReport } from './epeConfigLabels';
+import EpeUnitValueCard from './EpeUnitValueCard';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import EpeMonteCarloPanel from './EpeMonteCarloPanel';
 import {
@@ -1561,6 +1562,9 @@ if (loading) {
                   value={results.kpis.total_tax !== undefined ? formatCurrency(results.kpis.total_tax) : EMPTY_VALUE}
                 />
               </div>
+
+              {/* Risked Reserves Valuation U2-001: this run as a sender (read-only) */}
+              <div className="mt-4"><EpeUnitValueCard run={runDetails} results={results} config={runConfig} /></div>
 
               {/* Engine v3.10 (EC1-2): the IRR follows the module contract, so
                   a rate is reported only when it is a verified root inside the
