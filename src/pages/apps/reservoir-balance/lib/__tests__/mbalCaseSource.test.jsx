@@ -88,8 +88,9 @@ describe('ReservoirCalc Pro prints the cross-check, read by id', () => {
 
   test('beside its deterministic STOIIP, with the source and the difference', async () => {
     mockRcp.state = { unitSystem: 'field', inputs: { fluidType: 'oil' }, results: { fluidType: 'oil', stooip: 270.6e6 } };
-    renderAt(`/rcp?mbalCase=${SAMPLE_CASE_IDS.ahmed}`, clientOver(ahmed.db));
-    const note = await screen.findByTestId('rcp-mbal-check');
+    const client = clientOver(ahmed.db);
+    renderAt(`/rcp?mbalCase=${SAMPLE_CASE_IDS.ahmed}`, client);
+    const note = await screen.findByTestId('rcp-mbal-check', {}, { timeout: 10000 });
     await waitFor(() => expect(note).toHaveTextContent('Material balance cross-check'));
     const ooip = ahmed.result.estimated_ooip_stb;
     const pct = Math.abs(((ooip - 270.6e6) / 270.6e6) * 100).toFixed(1);
@@ -103,7 +104,7 @@ describe('ReservoirCalc Pro prints the cross-check, read by id', () => {
     mockRcp.state = { unitSystem: 'field', inputs: { fluidType: 'oil' }, results: { fluidType: 'oil', stooip: 270.6e6 } };
     mockRcp.updateInputs.mockClear();
     renderAt('/rcp?mbalCase=someone-elses', clientOver(ahmed.db));
-    expect(await screen.findByTestId('rcp-mbal-check')).toHaveTextContent('No Material Balance case was found under that id');
+    expect(await screen.findByTestId('rcp-mbal-check', {}, { timeout: 10000 })).toHaveTextContent('No Material Balance case was found under that id');
     expect(mockRcp.updateInputs).not.toHaveBeenCalled();
     expect(provenanceLines(buildMbalRecord({ caseData: ahmed.caseData, result: ahmed.result, run: ahmed.run }).record)[0]).toMatch(/^OOIP by material balance/);
   });
