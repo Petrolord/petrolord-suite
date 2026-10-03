@@ -26,7 +26,8 @@ const DCAFitDiagnostics = () => {
   const fitResults = streamState[selectedStream]?.fitResults;
   const excluded = streamState[selectedStream]?.excluded || [];
   const wellData = wells?.[currentWellId];
-  const productionData = wellData?.data || [];
+  // one array per well data (a fresh [] every render would re-run the effects below forever)
+  const productionData = useMemo(() => wellData?.data || [], [wellData?.data]);
   // the rows the fit used, and every row left out with its reason (RL5)
   const prepared = useMemo(
     () => prepareFitData(productionData, selectedStream, fitWindow, excluded),
@@ -45,7 +46,7 @@ const DCAFitDiagnostics = () => {
       const breakpoints = detectSegmentBreakpoints(dataWithTime);
       setDetectedBreakpoints(breakpoints);
     } else {
-      setDetectedBreakpoints([]);
+      setDetectedBreakpoints((prev) => (prev.length ? [] : prev));
     }
   }, [currentWellId, selectedStream, productionData]);
   
