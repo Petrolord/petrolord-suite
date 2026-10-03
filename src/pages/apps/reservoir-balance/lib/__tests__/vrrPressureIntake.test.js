@@ -7,6 +7,7 @@ import { buildMbalPdf } from '@/utils/mbalReportExport';
 import { readPdf, flat, chartLogo } from '@/lib/reportKit/testKit';
 
 import { vrrSurveys, matchSurveys, takeSurveys, pressureProvenance } from '../vrrPressureIntake';
+import { readStudy, withStudy, emptyStudy } from '../studyMeta';
 
 describe('pressure rows from a saved VRR project, by id', () => {
   const vrr = {
@@ -27,7 +28,9 @@ describe('pressure rows from a saved VRR project, by id', () => {
     const got = takeSurveys(vrr, rows, { now: '2026-10-03T09:00:00Z' });
     expect(got.rows.filter((r, i) => r.pressure_psia !== rows[i].pressure_psia).map((r) => r.timestep_index)).toEqual([5, 10]);
     expect(got.handoff).toMatchObject({ app: 'Voidage Replacement Monitor', record: 'East pattern (vrr-1)', rows: { 5: 3642, 10: 3358 } });
-    const study = { handoffs: { pressure_rows: got.handoff } };
+    // the handoff survives a save and a read of the study record (it was dropped before this gate)
+    const study = readStudy({ pvt_correlations: withStudy({}, { ...emptyStudy(), handoffs: { pressure_rows: got.handoff } }) });
+    expect(study.handoffs.pressure_rows.rows).toEqual({ 5: 3642, 10: 3358 });
     const asRun = got.rows.map((r) => ({ timestep_index: r.timestep_index, pressure: r.pressure_psia }));
     expect(pressureProvenance(study, asRun).text).toBe('Pressures of timesteps 5, 10: Taken from Voidage Replacement Monitor project "East pattern", pressure surveys of its Pressure tab (psia as typed there), record East pattern (vrr-1), taken 2026-10-03.');
     // negative control: an edit of one taken pressure afterwards is said
