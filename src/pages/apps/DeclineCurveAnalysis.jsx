@@ -30,6 +30,7 @@ import DCAWellFilters from '@/components/declineCurve/DCAWellFilters';
 import DCAWellMetadata from '@/components/declineCurve/DCAWellMetadata';
 import DCAHelpContent from '@/components/declineCurve/DCAHelpContent';
 import { DcaUnitsProvider, DcaUnitsControl } from '@/components/declineCurve/DcaUnits';
+import DCAReportPanel from '@/components/declineCurve/DCAReportPanel';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -159,6 +160,7 @@ const DeclineCurveContent = () => {
       <TabsList className="self-start h-9 shrink-0">
         <TabsTrigger value="fit" className="text-xs">Model Fit</TabsTrigger>
         <TabsTrigger value="forecast" className="text-xs">Forecast Results</TabsTrigger>
+        <TabsTrigger value="report" className="text-xs" data-testid="dca-tab-report">Report</TabsTrigger>
       </TabsList>
       {/* The inner div must be h-full (definite height), not min-h-full:
           the chart's ResponsiveContainer resolves percentage heights and
@@ -175,6 +177,9 @@ const DeclineCurveContent = () => {
       </TabsContent>
       <TabsContent value="forecast" className="flex-1 min-h-0 mt-3">
         <DCAForecastResults />
+      </TabsContent>
+      <TabsContent value="report" className="flex-1 min-h-0 mt-3">
+        <DCAReportPanel />
       </TabsContent>
     </Tabs>
   ) : (

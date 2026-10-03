@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { fitArpsModel, getFitQuality } from '@/utils/declineCurve/dcaEngine';
-import { getStreamRate } from '@/utils/declineCurve/csvParser';
-import { forecastFromHistory, scenarioForecastSnapshot } from '@/utils/declineCurve/forecastFromHistory';
+import { scenarioForecastSnapshot } from '@/utils/declineCurve/forecastFromHistory';
 import { runMonteCarloSimulation } from '@/utils/dcaMonteCarlo';
 import { normalizeByTime, normalizeByRate, normalizeByTimeAndRate, applyTypeCurve } from '@/utils/declineCurve/typeCurveEngine';
 import {
@@ -10,9 +9,11 @@ import {
   migrateLegacyLocalProjects,
 } from '@/utils/declineCurve/dcaDataPersistence';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
-import { validateFitInput, getErrorMessage } from '@/utils/declineCurve/dcaErrorHandling';
+import { getErrorMessage } from '@/utils/declineCurve/dcaErrorHandling';
+import { fitWell, forecastWell } from '@/utils/declineCurve/dcaAnalysis';
+import { sampleWell } from '@/utils/declineCurve/sampleWell';
 import {
-  analysisOf, migrateDcaPayload, prepareFitData, fitBasisOf, forecastBasisOf, analysisStatus, staleText,
+  analysisOf, migrateDcaPayload, analysisStatus, staleText,
   DCA_PAYLOAD_VERSION, DEFAULT_MC_SEED as MODEL_MC_SEED, DEFAULT_ECON_LIMIT_UNCERTAINTY as MODEL_ECON_UNC,
 } from '@/utils/declineCurve/dcaModel';
 
@@ -299,6 +300,24 @@ export const DeclineCurveProvider = ({ children }) => {
     addNotification(`Well "${name}" added`, 'success');
   };
 
+  // PL11: a labelled sample well, Ekene-1's primary decline (sampleWell.js)
+  const addSampleWell = () => {
+    if (!currentProjectId) {
+      addNotification('Create or open a project before adding the sample well', 'warning');
+      return;
+    }
+    const w = sampleWell(currentProjectId);
+    setWells(prev => ({ ...prev, [w.id]: w }));
+    setCurrentWellId(w.id);
+    setSelectedStream('oil');
+    addNotification(`Sample well "${w.name}" added: Ekene-1 primary decline, not field data`, 'info');
+  };
+
+  // RL4: what the report names the well by
+  const updateIdentification = (wellId, key, value) => {
+    setWells(prev => (prev[wellId] ? { ...prev, [wellId]: { ...prev[wellId], identification: { ...(prev[wellId].identification || {}), [key]: value } } } : prev));
+  };
+
   // Recoverable delete: the removed well (data included) is held in the
   // toast's Undo closure; restoring it re-triggers auto-save, so the project
   // payload converges either way.
@@ -386,58 +405,26 @@ export const DeclineCurveProvider = ({ children }) => {
     setIsFitting(true);
 
     try {
-      // getStreamRate never substitutes another stream's rates: a missing
-      // gas or water column yields no points here, not a duplicate fit of
-      // the oil curve.
-      const config = streamState[selectedStream];
-      const prepared = prepareFitData(currentData, selectedStream, fitWindow, config.excluded);
-
-      if (prepared.summary.withRate === 0 && currentData.length > 0) {
-        addNotification(`No ${selectedStream} rates in this well's data. Import a file with a ${selectedStream} column to fit this stream.`, "error");
-        setIsFitting(false);
-        return;
-      }
-
-      // the window is applied by prepareFitData (with the user's exclusions)
-      const validation = validateFitInput(prepared.points, fitWindow, config.modelType);
-
-      if (!validation.valid) {
-        addNotification(validation.error, "error");
-        setIsFitting(false);
-        return;
-      }
-
-      // 2. Run Fit (wrapped in timeout to allow UI to update spinner)
+      // one pure path (dcaAnalysis.fitWell): the window, the exclusions, the
+      // validation, the engine and the record of what the fit was made on
       await new Promise(resolve => setTimeout(resolve, 100));
-
-      const result = fitArpsModel(prepared.points, config.modelType, null, config.constraints);
-
-      // fitArpsModel returns a stub (qi 0, modelType 'None') when no model
-      // converges: treat that as a failure, not a fit.
-      if (result && result.qi > 0 && result.modelType && result.modelType !== 'None') {
-        const quality = getFitQuality(result.R2, result.RMSE);
-        const level = quality.tier === 'Excellent' || quality.tier === 'Good'
-          ? 'success' : quality.tier === 'Fair' ? 'info' : 'warning';
-
-        // DCA-U1-003: the fit records what it was made on
-        const fit = {
-          ...result,
-          fittedAt: new Date().toISOString(),
-          points: prepared.summary,
-          basis: fitBasisOf({ data: currentData, stream: selectedStream, window: fitWindow, modelType: config.modelType, constraints: config.constraints, excluded: config.excluded }),
-        };
-        updateStream(currentWellId, selectedStream, (st) => ({ ...st, fitResults: fit }));
-        addNotification(`${quality.tier} fit completed (R²=${(result.R2*100).toFixed(1)}%, ${prepared.summary.used} points)`, level);
-      } else {
-        addNotification("Fit failed - check data quality", "error");
+      const res = fitWell(currentWell, selectedStream);
+      if (!res.ok) {
+        addNotification(res.error, "error");
+        return;
       }
+      const quality = getFitQuality(res.fit.R2, res.fit.RMSE);
+      const level = quality.tier === 'Excellent' || quality.tier === 'Good'
+        ? 'success' : quality.tier === 'Fair' ? 'info' : 'warning';
+      updateStream(currentWellId, selectedStream, (st) => ({ ...st, fitResults: res.fit }));
+      addNotification(`${quality.tier} fit completed (R²=${(res.fit.R2*100).toFixed(1)}%, ${res.summary.used} points)`, level);
     } catch (error) {
       console.error(error);
       addNotification(getErrorMessage(error), "error");
     } finally {
       setIsFitting(false);
     }
-  }, [currentData, currentWellId, selectedStream, streamState, fitWindow, addNotification, isFitting, updateStream]);
+  }, [currentWell, currentWellId, selectedStream, addNotification, isFitting, updateStream]);
 
   const runForecast = useCallback(async () => {
     if (isForecasting || !streamState[selectedStream].fitResults) return;
@@ -458,7 +445,7 @@ export const DeclineCurveProvider = ({ children }) => {
       // Always run the deterministic forecast: the central curve from the
       // last history date (T1: the engine curve runs from the fit's t0, and
       // its whole sum was labelled remaining reserves)
-      const deterministic = forecastFromHistory(fit, config, currentData, stream);
+      const deterministic = forecastWell(currentWell, stream);
 
       let combined = deterministic;
 
@@ -509,9 +496,8 @@ export const DeclineCurveProvider = ({ children }) => {
       }
 
       if (combined) {
-        // DCA-U1-003: the forecast records the fit and settings it was run on
-        const stamped = { ...combined, forecastAt: new Date().toISOString(), basis: forecastBasisOf(fit, config, currentData, stream) };
-        updateStream(wellId, stream, (st) => ({ ...st, forecastResults: stamped }));
+        // DCA-U1-003: the forecast records the fit and settings it was run on (forecastWell)
+        updateStream(wellId, stream, (st) => ({ ...st, forecastResults: combined }));
       }
     } catch (error) {
       console.error('Forecast error:', error);
@@ -801,6 +787,8 @@ export const DeclineCurveProvider = ({ children }) => {
     
     // Well Management
     addWell,
+    addSampleWell,
+    updateIdentification,
     removeWell,
     updateWellMetadata,
     importProductionData,

@@ -7,7 +7,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 
 const DCAWellSelector = () => {
-  const { currentProject, currentWellId, setCurrentWellId, addWell, removeWell } = useDeclineCurve();
+  const { currentProject, currentWellId, setCurrentWellId, addWell, addSampleWell, removeWell, canWrite } = useDeclineCurve();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newWellName, setNewWellName] = useState('');
 
@@ -82,6 +82,10 @@ const DCAWellSelector = () => {
         </Dialog>
       </div>
       
+      <Button variant="outline" size="sm" className="w-full h-7 text-[11px]" onClick={addSampleWell} disabled={canWrite === false} data-testid="dca-add-sample-well"
+        title="Adds Ekene-1's primary decline from the Petrolord engines test data, labelled sample">
+        Add the sample well
+      </Button>
       {currentWellId && (
         <Button 
           variant="ghost" 
