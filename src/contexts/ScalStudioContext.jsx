@@ -1,15 +1,19 @@
-// SCAL Studio state (SC3). Modeled on WaterfloodDesignContext: string form
-// state, ALL engine results useMemo-derived and never persisted
-// (saved_scal_projects stores inputs only; fits and curves are pure
-// functions recomputed on load), the shared savedProjects service, studio
-// notifications, 10 s debounced autosave.
+// SCAL Studio state (SC3; SCAL-U1). Modeled on WaterfloodDesignContext:
+// string form state, ALL engine results useMemo-derived and never persisted
+// (saved_scal_projects stores inputs; fits and curves are pure functions
+// recomputed on load), studio notifications, 10 s debounced autosave.
+//
+// SCAL-U1 adds the model around the inputs (identification, per-input
+// sources, the unit system, the origin of the working Corey set, the sample
+// pedigree), the kr-1 block saved with the project for other apps to read
+// by id, and record sharing (useScalProjects). The engine units never
+// change: four other apps read the saved inputs directly.
 //
 // Thin-real lock (ReservoirEngineering-Module.md 4.2): Corey + Leverett J
 // only. The fw preview reuses the Waterflood engine's makeFwFunction for a
 // curves-only look at mobility; no Welge or displacement math lives here.
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { makeFwFunction } from '@/utils/fractionalFlowCalculations';
 import {
@@ -22,6 +26,14 @@ import {
   pcFromJ,
   swVsHeight,
 } from '@/utils/scalCalculations';
+import { setProvenanceField, serializeProvenance, provenanceFromPayload } from '@/lib/inputProvenance/model';
+import { KR_CONTRACT_PAYLOAD_KEY } from '@/lib/inputProvenance/krContract';
+import {
+  EMPTY_IDENTIFICATION, identificationOf, fittedOrigin, curveOriginStatus, OW_KEYS, LAB_SYSTEM_FLUIDS,
+} from '@/utils/scalstudio/model';
+import { buildScalKrContract } from '@/utils/scalstudio/krHandoff';
+import { SCAL_UNIT_SYSTEMS, scalUnits } from '@/utils/scalstudio/units';
+import { useScalProjects } from '@/components/scalstudio/useScalProjects';
 
 const ScalStudioContext = createContext(null);
 
@@ -30,10 +42,6 @@ export const useScalStudio = () => {
   if (!ctx) throw new Error('useScalStudio must be used within ScalStudioProvider');
   return ctx;
 };
-
-const service = createSavedProjectsService('saved_scal_projects', {
-  signInMessage: 'Sign in to save SCAL projects.',
-});
 
 const num = (v) => {
   const n = typeof v === 'number' ? v : parseFloat(v);
@@ -165,24 +173,30 @@ export function buildJSpec(capillary, samples) {
   };
 }
 
-export const ScalStudioProvider = ({ children }) => {
-  const { notifications, addNotification, removeNotification } = useStudioNotifications();
+/** Payload schema: 1 (SC3, inputs only), 2 (SCAL-U1: identification, sources, unit system, curve origin, kr-1 block). */
+export const PROJECT_SCHEMA = 2;
 
-  // Projects
-  const [projects, setProjects] = useState([]);
-  const [currentProjectId, setCurrentProjectId] = useState(null);
-  const [projectName, setProjectName] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState(null);
-  const [lastSaveTime, setLastSaveTime] = useState(null);
-  const [hydrated, setHydrated] = useState(false);
+/**
+ * @param {{children: any, sharingStore?: ?object, profileSystem?: ?string, build?: ?string}} props
+ *   `sharingStore` is a record sharing store (supabaseSharingStore() on the page, a memory store in
+ *   tests, null for the plain owner-only saves); `profileSystem` the system the Suite unit profile
+ *   leans to, for a new workspace.
+ */
+export const ScalStudioProvider = ({ children, sharingStore = null, profileSystem = null, build = null }) => {
+  const { notifications, addNotification, removeNotification } = useStudioNotifications();
 
   // Persisted inputs
   const [curves, setCurves] = useState(DEFAULT_CURVES);
-  const [samples, setSamples] = useState([]); // [{id, name, depth_ft, k_md, phi, sigma_dyncm, thetaDeg, krRows, pcRows}]
+  const [samples, setSamples] = useState([]); // [{id, name, depth_ft, k_md, phi, sigma_dyncm, thetaDeg, krRows, pcRows, ...pedigree}]
   const [capillary, setCapillary] = useState(DEFAULT_CAPILLARY);
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
   const [notes, setNotes] = useState('');
+  const [identification, setIdentification] = useState(EMPTY_IDENTIFICATION);
+  const [inputMeta, setInputMeta] = useState({});
+  const [unitSystemSaved, setUnitSystemSaved] = useState(null); // null: a new workspace follows the profile
+  const unitSystem = SCAL_UNIT_SYSTEMS.includes(unitSystemSaved) ? unitSystemSaved : (profileSystem || 'oilfield');
+  const setUnitSystem = useCallback((v) => setUnitSystemSaved(SCAL_UNIT_SYSTEMS.includes(v) ? v : 'oilfield'), []);
+  const u = useMemo(() => scalUnits(unitSystem), [unitSystem]);
 
   // ---- Sample CRUD (Lab Data tab, SC4) ----
   const addSample = useCallback((sample) => {
@@ -192,6 +206,7 @@ export const ScalStudioProvider = ({ children }) => {
       name: sample?.name || `Sample ${prev.length + 1}`,
       depth_ft: '', k_md: '', phi: '',
       sigma_dyncm: '72', thetaDeg: '0', // air-brine preset default
+      fluids: LAB_SYSTEM_FLUIDS.air_brine,
       krRows: [], pcRows: [],
       ...sample,
     }]);
@@ -209,16 +224,20 @@ export const ScalStudioProvider = ({ children }) => {
   }, []);
 
   const setCurveField = useCallback((k, v) => setCurves((prev) => ({ ...prev, [k]: v })), []);
+  // the origin record stays: curveOriginStatus says "edited after the fit" from the values
   const setOwField = useCallback((k, v) => setCurves((prev) => ({ ...prev, ow: { ...prev.ow, [k]: v } })), []);
   const setGoField = useCallback((k, v) => setCurves((prev) => ({ ...prev, go: { ...prev.go, [k]: v } })), []);
   const setCapillaryField = useCallback((k, v) => setCapillary((prev) => ({ ...prev, [k]: v })), []);
   const setManualJField = useCallback((k, v) => setCapillary((prev) => ({ ...prev, manual: { ...prev.manual, [k]: v } })), []);
   const setReservoirField = useCallback((k, v) => setCapillary((prev) => ({ ...prev, reservoir: { ...prev.reservoir, [k]: v } })), []);
   const setHeightField = useCallback((k, v) => setHeight((prev) => ({ ...prev, [k]: v })), []);
+  const setIdentificationField = useCallback((k, v) => setIdentification((prev) => ({ ...prev, [k]: v })), []);
+  const setSourceField = useCallback((key, field, value) => setInputMeta((prev) => setProvenanceField(prev, key, field, value)), []);
 
   // ---- Derived: Corey curves ----
   const ow = useMemo(() => buildOwParams(curves.ow), [curves.ow]);
   const go = useMemo(() => buildGoParams(curves.go), [curves.go]);
+  const owStatus = useMemo(() => curveOriginStatus(curves.ow, curves.owOrigin, OW_KEYS), [curves.ow, curves.owOrigin]);
   const owCurves = useMemo(
     () => (ow.params ? buildCoreyOilWater(ow.params, { n: 101 }) : null),
     [ow],
@@ -243,8 +262,7 @@ export const ScalStudioProvider = ({ children }) => {
     return { rows, muW, muO };
   }, [curves.fwPreviewOn, curves.muW, curves.muO, ow]);
 
-  // ---- Derived: per-sample J tables and Corey fits (consumed by SC4 UI,
-  // derived here so capillary averaging and persistence stay one-source) ----
+  // ---- Derived: per-sample J tables and Corey fits ----
   const samplesDerived = useMemo(() => samples.map((s) => {
     const props = {
       k_md: num(s.k_md), phi: num(s.phi),
@@ -262,7 +280,8 @@ export const ScalStudioProvider = ({ children }) => {
   }), [samples]);
 
   // Apply a sample's fitted Corey parameters to the Curves tab working set
-  // (values become strings, the studio form convention).
+  // (values become strings, the studio form convention), and keep the record
+  // of the fit with them (SCAL-U1-004).
   const applyKrFitToCurves = useCallback((sampleId) => {
     const s = samplesDerived.find((x) => x.id === sampleId);
     if (!s?.krFit?.params) {
@@ -270,17 +289,19 @@ export const ScalStudioProvider = ({ children }) => {
       return;
     }
     const p = s.krFit.params;
+    const applied = {
+      Swc: p.Swc.toFixed(3),
+      Sor: p.Sor.toFixed(3),
+      krwMax: p.krwMax.toPrecision(4),
+      kroMax: p.kroMax.toPrecision(4),
+      nw: p.nw.toFixed(2),
+      no: p.no.toFixed(2),
+    };
     setCurves((prev) => ({
       ...prev,
       phase: 'oilwater',
-      ow: {
-        Swc: p.Swc.toFixed(3),
-        Sor: p.Sor.toFixed(3),
-        krwMax: p.krwMax.toPrecision(4),
-        kroMax: p.kroMax.toPrecision(4),
-        nw: p.nw.toFixed(2),
-        no: p.no.toFixed(2),
-      },
+      ow: applied,
+      owOrigin: fittedOrigin({ sample: s, fit: s.krFit, applied }),
     }));
     addNotification(`Fitted Corey set from "${s.name}" applied to the Curves tab.`, 'success');
   }, [samplesDerived, addNotification]);
@@ -317,18 +338,29 @@ export const ScalStudioProvider = ({ children }) => {
     return res.ok ? res.rows : null;
   }, [jResolved, reservoir, height]);
 
-  // ---- Project persistence (inputs only; schema: 1) ----
-  const serializeInputs = useCallback(() => ({
-    id: currentProjectId,
-    name: projectName,
-    schema: 1,
+  // ---- The kr-1 block (SCAL-U1, RL11): one builder for save, handoff and report ----
+  const projectRef = useRef({ id: null, name: '' });
+  const contractFor = useCallback((id, name, generatedAt = new Date()) => buildScalKrContract({
+    curves, ow, go, capillary, jResolved, reservoir, height, heightProfile, samples, identification,
+    projectId: id, projectName: name, build, generatedAt,
+  }), [curves, ow, go, capillary, jResolved, reservoir, height, heightProfile, samples, identification, build]);
+
+  // ---- Project persistence (inputs, the model around them, the kr-1 block) ----
+  const serialize = useCallback((id, name) => ({
+    id,
+    name,
+    schema: PROJECT_SCHEMA,
+    unitSystem,
+    identification,
+    inputMeta: serializeProvenance(inputMeta),
     curves,
     samples,
     capillary,
     height,
     notes,
+    [KR_CONTRACT_PAYLOAD_KEY]: contractFor(id, name),
     modified: new Date().toISOString(),
-  }), [currentProjectId, projectName, curves, samples, capillary, height, notes]);
+  }), [unitSystem, identification, inputMeta, curves, samples, capillary, height, notes, contractFor]);
 
   const hydrate = useCallback((payload) => {
     setCurves({
@@ -349,118 +381,33 @@ export const ScalStudioProvider = ({ children }) => {
     });
     setHeight({ ...DEFAULT_HEIGHT, ...(payload?.height || {}) });
     setNotes(typeof payload?.notes === 'string' ? payload.notes : '');
+    setIdentification(identificationOf(payload));
+    setInputMeta(provenanceFromPayload(payload));
+    // a saved project keeps its own system; one saved before the upgrade is oilfield
+    setUnitSystemSaved(SCAL_UNIT_SYSTEMS.includes(payload?.unitSystem) ? payload.unitSystem : 'oilfield');
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setProjects(await service.list());
-      } catch (e) {
-        console.error(e);
-        addNotification('Could not load saved projects', 'error');
-      }
-    })();
-  }, [addNotification]);
+  const changeKey = useMemo(() => [curves, samples, capillary, height, notes, identification, inputMeta, unitSystem], [curves, samples, capillary, height, notes, identification, inputMeta, unitSystem]);
+  const proj = useScalProjects({ serialize, hydrate, changeKey, addNotification, sharingStore });
+  projectRef.current = { id: proj.currentProjectId, name: proj.projectName };
+  const contract = useMemo(
+    () => contractFor(proj.currentProjectId, proj.projectName),
+    [contractFor, proj.currentProjectId, proj.projectName],
+  );
 
-  const openProject = useCallback(async (id) => {
-    try {
-      const payload = await service.load(id);
-      if (!payload) {
-        addNotification('Project not found', 'error');
-        return;
-      }
-      setCurrentProjectId(id);
-      setProjectName(payload.name || 'Untitled project');
-      hydrate(payload);
-      setHydrated(true);
-      setSaveError(null);
-    } catch (e) {
-      console.error(e);
-      addNotification('Could not open project', 'error');
-    }
-  }, [addNotification, hydrate]);
-
-  const createProject = useCallback(async (name) => {
-    const id = uuidv4();
-    try {
-      await service.save(id, {
-        id, name, schema: 1, curves, samples, capillary, height, notes,
-        modified: new Date().toISOString(),
-      });
-      setCurrentProjectId(id);
-      setProjectName(name);
-      setHydrated(true);
-      setLastSaveTime(new Date());
-      setProjects(await service.list());
-      addNotification(`Project "${name}" created`, 'success');
-    } catch (e) {
-      console.error(e);
-      addNotification(e.message || 'Could not create project', 'error');
-    }
-  }, [curves, samples, capillary, height, notes, addNotification]);
-
-  const deleteProject = useCallback(async (id) => {
-    try {
-      await service.remove(id);
-      if (id === currentProjectId) {
-        setCurrentProjectId(null);
-        setProjectName('');
-        setHydrated(false);
-      }
-      setProjects(await service.list());
-      addNotification('Project deleted', 'info');
-    } catch (e) {
-      console.error(e);
-      addNotification('Could not delete project', 'error');
-    }
-  }, [currentProjectId, addNotification]);
-
-  const manualSave = useCallback(async () => {
-    if (!currentProjectId) {
-      addNotification('Create or open a project first', 'info');
-      return;
-    }
-    setIsSaving(true);
-    try {
-      await service.save(currentProjectId, serializeInputs());
-      setLastSaveTime(new Date());
-      setSaveError(null);
-    } catch (e) {
-      console.error(e);
-      setSaveError('Save failed');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [currentProjectId, serializeInputs, addNotification]);
-
-  // Debounced autosave (10 s), only once a project is open.
-  const autosaveRef = useRef(serializeInputs);
-  autosaveRef.current = serializeInputs;
-  useEffect(() => {
-    if (!currentProjectId || !hydrated) return undefined;
-    const timer = setTimeout(async () => {
-      setIsSaving(true);
-      try {
-        await service.save(currentProjectId, autosaveRef.current());
-        setLastSaveTime(new Date());
-        setSaveError(null);
-      } catch (e) {
-        console.error(e);
-        setSaveError('Auto-save failed');
-      } finally {
-        setIsSaving(false);
-      }
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [curves, samples, capillary, height, notes, currentProjectId, hydrated]);
+  // The project file (SCAL-U1-010): the saved payload itself, and a reader
+  // that restores all of it (the SC5 import took the samples only).
+  const serializeForExport = useCallback(
+    () => serialize(proj.currentProjectId, proj.projectName || 'scal-project'),
+    [serialize, proj.currentProjectId, proj.projectName],
+  );
+  const hydrateFromFile = useCallback((payload) => hydrate(payload), [hydrate]);
 
   const value = {
     // shell plumbing
     notifications, addNotification, removeNotification,
-    // projects
-    projects, currentProjectId, projectName,
-    createProject, openProject, deleteProject, manualSave,
-    isSaving, saveError, lastSaveTime,
+    // projects and sharing
+    ...proj,
     // inputs
     curves, setCurveField, setOwField, setGoField,
     samples, setSamples, addSample, updateSample, removeSample,
@@ -468,9 +415,13 @@ export const ScalStudioProvider = ({ children }) => {
     capillary, setCapillaryField, setManualJField, setReservoirField,
     height, setHeightField,
     notes, setNotes,
+    identification, setIdentificationField,
+    inputMeta, setSourceField,
+    unitSystem, setUnitSystem, u, profileSystem, followsProfile: unitSystemSaved == null && !!profileSystem,
     // derived
-    ow, go, owCurves, goCurves, fwPreview,
+    ow, go, owStatus, owCurves, goCurves, fwPreview,
     samplesDerived, jResolved, reservoir, reservoirPc, heightProfile,
+    contract, contractFor, build, serialize, serializeForExport, hydrateFromFile,
   };
 
   return <ScalStudioContext.Provider value={value}>{children}</ScalStudioContext.Provider>;

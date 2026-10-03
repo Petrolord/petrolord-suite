@@ -37,6 +37,7 @@ export const SCAL_KINDS = Object.freeze({
   length: fam('depth', 'ft', 'm', { oilfield: 'ft', si: 'm' }),
   temperature: fam('temperature', 'degF', 'degC', { oilfield: 'degF', si: 'degC' }),
   permeability: same('md', 'mD'),
+  viscosity: same('cP', 'mPa.s'),
   angle: same('deg'),
   fraction: same('frac'),
   gravity: same('water = 1'),

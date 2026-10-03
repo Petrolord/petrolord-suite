@@ -9,16 +9,33 @@ import {
 import { Label } from '@/components/ui/label';
 import { useScalStudio, LAB_SYSTEM_PRESETS } from '@/contexts/ScalStudioContext';
 import { parseKrCsv, parsePcCsv } from '@/utils/scalCalculations';
-import { Field, SectionLabel } from '@/components/waterflooddesign/primitives';
+import { SectionLabel } from '@/components/waterflooddesign/primitives';
+import ScalField from './ScalField';
+import { PEDIGREE_OPTIONS, LAB_SYSTEM_FLUIDS } from '@/utils/scalstudio/model';
 import { buildDemoSamples, KR_CSV_TEMPLATE, PC_CSV_TEMPLATE } from './demoSamples';
 
 const PROP_FIELDS = [
-  { k: 'depth_ft', label: 'Depth (ft)' },
-  { k: 'k_md', label: 'k, permeability (md)' },
-  { k: 'phi', label: 'φ, porosity (frac)' },
-  { k: 'sigma_dyncm', label: 'σ lab IFT (dyn/cm)' },
-  { k: 'thetaDeg', label: 'θ lab contact angle (deg)' },
+  { k: 'depth_ft', label: 'Sample depth', kind: 'length' },
+  { k: 'k_md', label: 'k, permeability', kind: 'permeability' },
+  { k: 'phi', label: 'φ, porosity', kind: 'fraction' },
+  { k: 'sigma_dyncm', label: 'σ lab IFT', kind: 'ift' },
+  { k: 'thetaDeg', label: 'θ lab contact angle', kind: 'angle' },
 ];
+
+// The sample pedigree (SCAL-U1, RL4): what a reviewer asks of a core result
+// before trusting it. Saved on the sample; printed in the report and carried
+// in the kr-1 block.
+const PEDIGREE_SELECTS = [
+  { k: 'origin', label: 'Lab or analog', list: 'origin' },
+  { k: 'depthRef', label: 'Depth reference', list: 'depthRef' },
+  { k: 'krMethod', label: 'kr test method', list: 'krMethod' },
+  { k: 'krProcess', label: 'kr test: drainage or imbibition', list: 'process' },
+  { k: 'pcMethod', label: 'Pc test method', list: 'pcMethod' },
+  { k: 'pcProcess', label: 'Pc test: drainage or imbibition', list: 'process' },
+  { k: 'wettability', label: 'Wettability', list: 'wettability' },
+  { k: 'condition', label: 'Core condition', list: 'condition' },
+];
+const NONE = '__none__';
 
 const downloadText = (text, filename) => {
   const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
@@ -55,7 +72,7 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
   const applyPreset = (key) => {
     const preset = LAB_SYSTEM_PRESETS.find((p) => p.key === key);
     if (!preset || !selected) return;
-    updateSample(selected.id, { sigma_dyncm: preset.sigma, thetaDeg: preset.theta });
+    updateSample(selected.id, { sigma_dyncm: preset.sigma, thetaDeg: preset.theta, fluids: LAB_SYSTEM_FLUIDS[key] });
   };
 
   return (
@@ -111,7 +128,7 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
         <>
           <section className="space-y-3">
             <SectionLabel>Sample properties</SectionLabel>
-            <Field label="Name" value={selected.name} onChange={(v) => updateSample(selected.id, { name: v })} />
+            <ScalField label="Name" value={selected.name} onChange={(v) => updateSample(selected.id, { name: v })} />
             <div className="space-y-1">
               <Label className="text-xs text-pl-muted">Lab measurement system</Label>
               <Select onValueChange={applyPreset}>
@@ -127,9 +144,31 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
                 </SelectContent>
               </Select>
             </div>
-            {PROP_FIELDS.map(({ k, label }) => (
-              <Field key={k} label={label} value={selected[k] ?? ''} onChange={(v) => updateSample(selected.id, { [k]: v })} />
+            {PROP_FIELDS.map(({ k, label, kind }) => (
+              <ScalField key={k} label={label} kind={kind} testId={`sample-${k}`} value={selected[k] ?? ''} onChange={(v) => updateSample(selected.id, { [k]: v })} />
             ))}
+            <ScalField label="Lab fluids" value={selected.fluids ?? ''} placeholder="e.g. Oil and brine" onChange={(v) => updateSample(selected.id, { fluids: v })} />
+          </section>
+
+          <section className="space-y-3" data-testid="sample-pedigree">
+            <SectionLabel>Sample pedigree</SectionLabel>
+            {PEDIGREE_SELECTS.map(({ k, label, list }) => (
+              <div key={k} className="space-y-1">
+                <Label className="text-xs text-pl-muted">{label}</Label>
+                <Select value={selected[k] || NONE} onValueChange={(v) => updateSample(selected.id, { [k]: v === NONE ? '' : v })}>
+                  <SelectTrigger className="h-9" aria-label={label} data-testid={`pedigree-${k}`}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PEDIGREE_OPTIONS[list].map(([value, text]) => <SelectItem key={value || NONE} value={value || NONE}>{text}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+            {selected.origin === 'analog' && (
+              <ScalField label="Analog of what" value={selected.analogNote ?? ''} placeholder="Field, well or published set" onChange={(v) => updateSample(selected.id, { analogNote: v })} />
+            )}
+            <ScalField label="Test temperature" kind="temperature" testId="sample-testTempF" value={selected.testTempF ?? ''} onChange={(v) => updateSample(selected.id, { testTempF: v })} />
+            <ScalField label="Laboratory" value={selected.laboratory ?? ''} onChange={(v) => updateSample(selected.id, { laboratory: v })} />
+            <ScalField label="Lab report number" value={selected.labReport ?? ''} onChange={(v) => updateSample(selected.id, { labReport: v })} />
           </section>
 
           <section className="space-y-2">

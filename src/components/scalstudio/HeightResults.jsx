@@ -1,9 +1,8 @@
 // Height & Saturation tab, main area (SC5): the saturation-height profile
 // from the working J spec scaled to the reservoir rock.
 import React, { useMemo } from 'react';
-import { pcFromJ, heightFromPc } from '@/utils/scalCalculations';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
@@ -14,7 +13,9 @@ import {
 // Senior test T1: one-decimal labels on auto ticks printed 0.25 as 0.3.
 const UNIT_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
 import { useScalStudio } from '@/contexts/ScalStudioContext';
-import { Kpi, LINE, fmt } from '@/components/waterflooddesign/primitives';
+import { Kpi, LINE } from '@/components/waterflooddesign/primitives';
+import { heightSeries, heightAtSwFt } from '@/utils/scalstudio/series';
+import { sfmt } from '@/utils/scalstudio/format';
 
 const axisProps = {
   stroke: CHART_COLORS.axisLine,
@@ -22,9 +23,10 @@ const axisProps = {
 };
 
 const HeightResults = () => {
-  const { height, heightProfile, jResolved, reservoir } = useScalStudio();
-  const fwl = parseFloat(height.fwl_tvdss);
-  const hasFwl = Number.isFinite(fwl);
+  const { height, heightProfile, jResolved, reservoir, unitSystem, u } = useScalStudio();
+  const hs = useMemo(() => heightSeries({ heightProfile, height, system: unitSystem }), [heightProfile, height, unitSystem]);
+  const hasFwl = hs.hasFwl;
+  const fwl = hs.fwl;
 
   const kpis = useMemo(() => {
     if (!heightProfile?.length) return null;
@@ -38,19 +40,14 @@ const HeightResults = () => {
     // Senior test T1: this took the first grid row at or below Sw 0.5
     // (about 0.488 on the 61-point grid), 2 % high. The engine evaluates
     // Sw = 0.5 itself.
-    let halfH = null;
-    try {
-      const one = pcFromJ(jResolved.jSpec, reservoir.props, { n: 1, SwMin: 0.5, SwMax: 0.5 });
-      const pc = one.ok ? one.rows[0]?.Pc_psi : null;
-      if (Number.isFinite(pc)) halfH = heightFromPc(pc, { gammaW: parseFloat(height.gammaW), gammaHc: parseFloat(height.gammaHc) });
-    } catch { halfH = null; }
+    const halfH = heightAtSwFt({ jSpec: jResolved.jSpec, reservoir, height, Sw: 0.5 });
     return {
-      topH: top.h_ft,
+      topH: u.show('length', top.h_ft),
       topSw: top.Sw,
-      transitionTopH: nearIrr?.h_ft ?? null,
-      halfSwH: halfH,
+      transitionTopH: nearIrr ? u.show('length', nearIrr.h_ft) : null,
+      halfSwH: halfH != null ? u.show('length', halfH) : null,
     };
-  }, [heightProfile, jResolved, reservoir, height.gammaW, height.gammaHc]);
+  }, [heightProfile, jResolved, reservoir, height, u]);
 
   if (!heightProfile?.length) {
     return (
@@ -66,14 +63,14 @@ const HeightResults = () => {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi title="Chart top height" value={fmt.f1(kpis.topH)} unit="ft above FWL" />
-        <Kpi title="Sw at chart top" value={fmt.f3(kpis.topSw)} />
+        <Kpi title="Chart top height" value={sfmt.f1(kpis.topH)} unit={`${hs.unit} above FWL`} />
+        <Kpi title="Sw at chart top" value={sfmt.f3(kpis.topSw)} />
         <Kpi
           title="Height to near-irreducible"
-          value={kpis.transitionTopH != null ? fmt.f1(kpis.transitionTopH) : 'above chart'}
-          unit={kpis.transitionTopH != null ? 'ft' : ''}
+          value={kpis.transitionTopH != null ? sfmt.f1(kpis.transitionTopH) : 'above chart'}
+          unit={kpis.transitionTopH != null ? hs.unit : ''}
         />
-        <Kpi title="Height at Sw = 0.5" value={kpis.halfSwH != null ? fmt.f1(kpis.halfSwH) : '-'} unit={kpis.halfSwH != null ? 'ft' : ''} />
+        <Kpi title="Height at Sw = 0.5" value={sfmt.f1(kpis.halfSwH)} unit={kpis.halfSwH != null ? hs.unit : ''} />
       </div>
 
       <Card>
@@ -82,7 +79,7 @@ const HeightResults = () => {
         </CardHeader>
         <CardContent className="p-0">
           <ChartFrame height={340} exportFilename="scal-saturation-height">
-            <LineChart data={heightProfile} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
+            <LineChart data={hs.points.map((p) => ({ Sw: p.x, h: p.y }))} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
               <CartesianGrid {...GRID_STYLE} vertical={false} />
               <XAxis height={XAXIS_LABEL_HEIGHT}
                 dataKey="Sw" type="number" domain={[0, 1]}
@@ -92,23 +89,24 @@ const HeightResults = () => {
               <YAxis
                 type="number" domain={[0, 'auto']}
                 tickFormatter={(v) => v.toFixed(0)} {...axisProps}
-                label={{ value: 'Height above FWL (ft)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }}
+                label={{ value: hs.yTitle, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }}
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
                 labelStyle={{ color: CHART_COLORS.tooltipText }}
                 formatter={(v) => [
-                  `${Number(v).toFixed(1)} ft${hasFwl ? ` (TVDSS ${(fwl - v).toFixed(1)} ft)` : ''}`,
+                  `${Number(v).toFixed(1)} ${hs.unit}${hasFwl ? ` (TVDSS ${(fwl - v).toFixed(1)} ${hs.unit})` : ''}`,
                   'Height above FWL',
                 ]}
                 labelFormatter={(v) => `Sw = ${Number(v).toFixed(3)}`}
               />
-              <Line dataKey="h_ft" name="Height above FWL" stroke={LINE.water} strokeWidth={2} dot={false} />
+              <ReferenceLine y={0} stroke="#d97706" strokeDasharray="4 3" label={{ value: hasFwl ? `FWL ${fwl.toFixed(0)} ${hs.unit} TVDSS` : 'FWL (h = 0)', position: 'insideTopRight', fill: '#b45309', fontSize: 11 }} />
+              <Line dataKey="h" name="Height above FWL" stroke={LINE.water} strokeWidth={2} dot={false} />
             </LineChart>
           </ChartFrame>
           {hasFwl && (
             <p className="text-[11px] text-pl-muted px-4 pb-3">
-              FWL at {fwl.toFixed(0)} ft TVDSS. The Export tab's height CSV carries both height above FWL and
+              FWL at {fwl.toFixed(0)} {hs.unit} TVDSS. The Export tab's height CSV carries both height above FWL and
               TVDSS per row.
             </p>
           )}
