@@ -402,15 +402,19 @@ describe('U2-008: the Ranking tab', () => {
     fireEvent.click(el('rrv-tab-ranking'));
     expect(text('rrv-rank-unranked')).toMatch(/Not ranked until their inputs are fixed: Ekene North \(Enter Pg/);
     // the export
+    // the text handed to the Blob (jsdom's Blob has no text() on every runner)
     const created = [];
+    const RealBlob = global.Blob;
+    global.Blob = function FakeBlob(parts) { this.parts = parts; };
     const orig = URL.createObjectURL;
     URL.createObjectURL = (b) => { created.push(b); return 'blob:x'; };
     URL.revokeObjectURL = () => {};
     HTMLAnchorElement.prototype.click = () => {};
     fireEvent.click(el('rrv-rank-csv'));
     URL.createObjectURL = orig;
+    global.Blob = RealBlob;
     expect(created).toHaveLength(1);
-    const csv = await created[0].text();
+    const csv = created[0].parts.join('');
     expect(csv).toMatch(/^# Risked Reserves Valuation, ranking, Petrolord Suite\n# Build: /);
     expect(csv).toContain('# Ranked by: commercial chance Pc (Pg x chance of at least the MEFS), largest first');
     expect(csv).toContain('# Rows: your valuations only');

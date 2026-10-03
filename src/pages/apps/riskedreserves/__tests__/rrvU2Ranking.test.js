@@ -13,7 +13,7 @@ import { RRV_SEED_PROSPECTS } from '../services/rrvFixtures';
 const entry = (p, extra = {}) => { const problem = inputProblem(p); return { p, v: problem ? null : valueProspect(engineInput(p)), problem, ...extra }; };
 // three prospects whose order differs by key: A has the best EMV, B the largest risked volume, C the best chance
 const A = { ...setInput(setInput(blankProspect(1), 'pg', 0.3), 'p10', 90), name: 'A big value' };
-const B = { ...setInput(setInput(setInput(setInput(blankProspect(2), 'pg', 0.2), 'p90', 30), 'p50', 70), 'p10', 200), name: 'B big volume' };
+const B = { ...setInput(setInput(setInput(setInput(blankProspect(2), 'pg', 0.2), 'p90', 30), 'p50', 100), 'p10', 400), name: 'B big volume' };
 const C = { ...setInput(setInput(setInput(blankProspect(3), 'pg', 0.6), 'p90', 25), 'p10', 45), name: 'C safe' };
 const bad = { ...setInput(blankProspect(4), 'pg', ''), name: 'D unfinished' };
 const entries = [entry(A), entry(B), entry(C), entry(bad)];

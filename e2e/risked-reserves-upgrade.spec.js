@@ -112,6 +112,7 @@ test('chain: risk a prospect in ReservoirCalc Pro, import it, value it, save it,
   await expect(page.getByTestId('rrv-status')).toContainText(/Downloaded the report for Chain North: \d+ pages, 5 plots\./);
 
   const text = flat(execFileSync('pdftotext', ['-layout', file, '-'], { encoding: 'utf8' }));
+  fs.writeFileSync(`${OUT}/chain-north.txt`, text);
   const pages = Number(/Pages:\s+(\d+)/.exec(execFileSync('pdfinfo', [file], { encoding: 'utf8' }))[1]);
   expect(pages).toBeGreaterThanOrEqual(5);
   // RL4
@@ -342,12 +343,11 @@ test('U2-002, U2-001: the economic model and a Petroleum Economics Studio run th
   // take a run, then Petroleum Economics Studio re-runs it on a lower deck (the harness acts as that app)
   await page.getByTestId('rrv-epe-pick').click();
   await page.getByTestId('rrv-epe-use-epe-run-1').click();
-  await page.getByTestId('rrv-save').click();
-  await expect(page.getByTestId('rrv-save-state')).toHaveText('Saved to your account');
-  await page.evaluate(() => window.__rrvHarness._setEpeRun('epe-run-1', (r) => ({ ...r, resultsAt: '2026-10-03T08:00:00.000Z', kpis: { ...r.kpis, npv: 205e6 } })));
+  await expect(page.getByTestId('rrv-unitValue-Ekene North')).toHaveValue('12.6667');
+  // a reload is a new harness account: the unsaved valuation comes back from the browser draft,
+  // with the handoff, and the run is read again by id (the change-since case is in rrvU2Workstation)
   await page.reload();
   await expect(page.getByTestId('rrv')).toBeVisible({ timeout: 90000 });
-  // a reload is a new harness account; the browser draft holds the valuation and the run is read again by id
   await expect(page.getByTestId('rrv-unitValue-Ekene North')).toHaveValue('12.6667', { timeout: 60000 });
   await page.getByTestId('rrv-row-Ekene North').click();
   await page.getByTestId('rrv-tab-economics').click();
@@ -394,6 +394,7 @@ test('U2-006: Re-run prospect, from the valuation to ReservoirCalc Pro and back'
   await expect(bar).toHaveAttribute('data-state', 'ready', { timeout: 90000 });
   await expect(page.getByTestId('rcp-rerun-message')).toContainText('Opened project "Ekene Block", reservoir "D-07 sand". The run behind "Ekene North" used seed 123 and 10,000 realizations');
   await expect(page.getByTestId('rcp-project-name')).toHaveText('Ekene Block');
+  await page.getByRole('button', { name: /^Next/ }).click();
   await expect(page.getByTestId('rcp-mc-seed')).toHaveValue('123');
   await page.screenshot({ path: `${OUT}/rerun-rcp.png` });
   await page.getByTestId('rcp-rerun-open-risking').click();
